@@ -85,8 +85,8 @@ Two halves gate the backend, because the variable name alone proves nothing:
 | | |
 |---|---|
 | Capability | `DETECT_INTERRUPTION` or `RESUME_INTERRUPTED` macro present (discovery) |
-| Availability | `save_variables.variables.was_interrupted` is JSON boolean `true` |
-| Recovery filename | `virtual_sdcard.file_path` when non-empty; the prompt falls back to its generic body when empty (no filesystem scan) |
+| Availability | `save_variables.variables.was_interrupted` is JSON boolean `true`. When `DETECT_INTERRUPTION` is absent and `last_file` is present and empty, there is no offer (`plr_saved_file_gates_offer()`) |
+| Recovery filename | `last_file` when `plr_saved_file_gates_offer()` holds and it is set; otherwise `virtual_sdcard.file_path` when non-empty; the prompt falls back to its generic body when empty (no filesystem scan) |
 | Resume | gcode `RESUME_INTERRUPTED` (rebuilds the resume gcode from the `.temp/` backup, lifts Z clear of the part before homing X/Y, then prints it) |
 | Discard | gcode `CLEAR_LAST_FILE` |
 | Errors | plain Klipper error strings; the prompt surfaces the message unchanged |

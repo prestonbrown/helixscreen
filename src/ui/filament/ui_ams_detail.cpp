@@ -18,6 +18,7 @@
 #include "ams_lane_recovery.h"
 #include "ams_state.h"
 #include "ams_tray_projection.h"
+#include "ams_tray_shell_draw.h"
 #include "app_globals.h" // get_printer_state: the print lifecycle the clear guard reads
 #include "buffer_reading.h"
 #include "clog_meter_geometry.h"
@@ -59,7 +60,6 @@ namespace tray = helix::ui::tray;
 
 namespace {
 
-constexpr int kCapPoints = 17;
 constexpr int kMaxLids = kAmsDetailMaxSlots;
 
 // Opacities of the faces and glass, dark theme first.
@@ -88,9 +88,15 @@ struct TrayState {
     float lane_x[kAmsDetailMaxSlots] = {}; // front-plane slot centres
     TrayColors color{};
     TrayOpacities opa = kDarkOpa;
+    const tray::UnitShell* shell = nullptr; // nullptr draws the generic box
+    float spool_size = 0;
 };
 
 TrayState s_tray;
+
+tray::ShellView shell_view() {
+    return {s_tray.box, s_tray.shell, s_tray.spool_size, s_tray.lane_x, s_tray.lane_count};
+}
 
 lv_color_t tray_token(const char* name, bool dark) {
     char key[48];
@@ -116,90 +122,6 @@ void load_tray_look() {
     s_tray.opa = dark ? kDarkOpa : kLightOpa;
 }
 
-lv_point_precise_t to_screen(lv_point_t origin, tray::PointF p) {
-    return {static_cast<lv_value_precise_t>(origin.x + p.x),
-            static_cast<lv_value_precise_t>(origin.y + p.y)};
-}
-
-/// A convex polygon as a triangle fan.
-void fill_convex(lv_layer_t* layer, lv_point_t origin, const tray::PointF* pts, int n,
-                 lv_color_t color, lv_opa_t opa) {
-    lv_draw_triangle_dsc_t tri;
-    lv_draw_triangle_dsc_init(&tri);
-    tri.color = color;
-    tri.opa = opa;
-    for (int i = 1; i + 1 < n; ++i) {
-        tri.p[0] = to_screen(origin, pts[0]);
-        tri.p[1] = to_screen(origin, pts[i]);
-        tri.p[2] = to_screen(origin, pts[i + 1]);
-        lv_draw_triangle(layer, &tri);
-    }
-}
-
-void stroke(lv_layer_t* layer, lv_point_t origin, const tray::PointF* pts, int n, bool closed,
-            lv_color_t color, lv_opa_t opa) {
-    lv_draw_line_dsc_t line;
-    lv_draw_line_dsc_init(&line);
-    line.color = color;
-    line.opa = opa;
-    line.width = 1;
-    line.round_start = 1;
-    line.round_end = 1;
-    const int segments = closed ? n : n - 1;
-    for (int i = 0; i < segments; ++i) {
-        line.p1 = to_screen(origin, pts[i]);
-        line.p2 = to_screen(origin, pts[(i + 1) % n]);
-        lv_draw_line(layer, &line);
-    }
-}
-
-void edge(lv_layer_t* layer, lv_point_t origin, tray::PointF a, tray::PointF b, lv_color_t color,
-          lv_opa_t opa) {
-    const tray::PointF pts[2] = {a, b};
-    stroke(layer, origin, pts, 2, false, color, opa);
-}
-
-/// One lid: its two caps and their convex hull.
-struct Lid {
-    tray::TrayBox box; // fl/fr are the lid's ends
-    tray::PointF left[kCapPoints], right[kCapPoints];
-    tray::PointF hull[2 * kCapPoints];
-    int hull_n = 0;
-};
-
-float cross(tray::PointF o, tray::PointF a, tray::PointF b) {
-    return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-}
-
-void build_lid(const tray::TrayBox& unit_box, float lid_h, float x0, float x1, Lid& lid) {
-    lid.box = unit_box;
-    lid.box.fl = x0;
-    lid.box.fr = x1;
-    tray::cap_polyline(unit_box, lid_h, x0, lid.left, kCapPoints);
-    tray::cap_polyline(unit_box, lid_h, x1, lid.right, kCapPoints);
-    // Monotone-chain hull; the right cap is the left one shifted along x.
-    tray::PointF pts[2 * kCapPoints];
-    for (int i = 0; i < kCapPoints; ++i) {
-        pts[i] = lid.left[i];
-        pts[kCapPoints + i] = lid.right[i];
-    }
-    helix::sort_small(pts, pts + 2 * kCapPoints, [](tray::PointF a, tray::PointF b) {
-        return a.x < b.x || (a.x == b.x && a.y < b.y);
-    });
-    int k = 0;
-    for (int i = 0; i < 2 * kCapPoints; ++i) {
-        while (k >= 2 && cross(lid.hull[k - 2], lid.hull[k - 1], pts[i]) <= 0)
-            --k;
-        lid.hull[k++] = pts[i];
-    }
-    for (int i = 2 * kCapPoints - 2, lower = k + 1; i >= 0; --i) {
-        while (k >= lower && cross(lid.hull[k - 2], lid.hull[k - 1], pts[i]) <= 0)
-            --k;
-        lid.hull[k++] = pts[i];
-    }
-    lid.hull_n = k - 1;
-}
-
 /// The lid spans: one over the row, or one per lane.
 int lid_spans(float* x0, float* x1) {
     if (s_tray.lid == tray::LidMode::Unit) {
@@ -222,7 +144,6 @@ lv_point_t container_origin(lv_obj_t* obj) {
     return {a.x1, a.y1};
 }
 
-/// Inside faces and the lid's interior, behind the spools.
 void tray_back_draw_cb(lv_event_t* e) {
     lv_layer_t* layer = lv_event_get_layer(e);
     if (!layer || !s_tray.valid)
@@ -234,11 +155,16 @@ void tray_back_draw_cb(lv_event_t* e) {
     const bool simple = helix::ui::reduced_effects();
 
     if (!simple) {
-        fill_convex(layer, o, f.back_wall, 4, c.back, LV_OPA_COVER);
-        fill_convex(layer, o, f.floor, 4, c.floor, LV_OPA_COVER);
-        fill_convex(layer, o, f.left_wall, 4, c.wall, LV_OPA_COVER);
+        tray::fill_convex(layer, o, f.back_wall, 4, c.back, LV_OPA_COVER);
+        tray::fill_convex(layer, o, f.floor, 4, c.floor, LV_OPA_COVER);
+        if (s_tray.shell)
+            tray::fill_cheek(shell_view(), layer, o, s_tray.box.fl, s_tray.shell->body);
+        else
+            tray::fill_convex(layer, o, f.left_wall, 4, c.wall, LV_OPA_COVER);
     }
-    edge(layer, o, f.back_wall[0], f.back_wall[1], c.edge, s_tray.opa.edge);
+    tray::edge(layer, o, f.back_wall[0], f.back_wall[1], c.edge, s_tray.opa.edge);
+    if (s_tray.shell)
+        tray::stroke_cheek(shell_view(), layer, o, s_tray.box.fl, c.edge, s_tray.opa.edge);
 
     if (simple || s_tray.lid == tray::LidMode::None)
         return;
@@ -246,17 +172,24 @@ void tray_back_draw_cb(lv_event_t* e) {
     // of the lid's lower interior.
     float x0[kMaxLids], x1[kMaxLids];
     const int lids = lid_spans(x0, x1);
-    Lid lid;
+    tray::Lid lid;
     for (int i = 0; i < lids; ++i) {
-        build_lid(s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
-        fill_convex(layer, o, lid.hull, lid.hull_n, c.shell, s_tray.opa.shell);
+        tray::build_lid(shell_view(), s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
+        tray::fill_convex(layer, o, lid.hull, lid.hull_n, c.shell, s_tray.opa.shell);
     }
-    fill_convex(layer, o, f.back_wall, 4, c.back, LV_OPA_COVER);
-    edge(layer, o, f.back_wall[0], f.back_wall[1], c.edge, s_tray.opa.edge);
+    tray::fill_convex(layer, o, f.back_wall, 4, c.back, LV_OPA_COVER);
+    tray::edge(layer, o, f.back_wall[0], f.back_wall[1], c.edge, s_tray.opa.edge);
+    if (s_tray.shell) {
+        for (int i = 0; i < lids; ++i) {
+            tray::build_lid(shell_view(), s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
+            tray::stroke(layer, o, lid.left, tray::kCapPoints, false, c.glass_edge,
+                         s_tray.opa.glass_edge);
+        }
+    }
 }
 
 /// The sheen: one diffuse band, a horizontal gradient per row.
-void draw_sheen(lv_layer_t* layer, lv_point_t o, const Lid& lid) {
+void draw_sheen(lv_layer_t* layer, lv_point_t o, const tray::Lid& lid) {
     tray::SheenSpan span{};
     tray::SheenRow rows[tray::kSheenMaxRows];
     const int n = tray::sheen_rows(lid.box, s_tray.lid_h, s_tray.opa.sheen, span, rows);
@@ -291,7 +224,9 @@ void tray_front_draw_cb(lv_event_t* e) {
     const TrayColors& c = s_tray.color;
     const bool simple = helix::ui::reduced_effects();
 
-    if (!simple) {
+    if (s_tray.shell && !simple) {
+        tray::draw_shell_front(shell_view(), layer, o);
+    } else if (!simple) {
         lv_draw_rect_dsc_t front;
         lv_draw_rect_dsc_init(&front);
         front.bg_color = c.front;
@@ -299,7 +234,7 @@ void tray_front_draw_cb(lv_event_t* e) {
         const lv_area_t area = {o.x + (int32_t)f.front[0].x, o.y + (int32_t)f.front[0].y,
                                 o.x + (int32_t)f.front[2].x, o.y + (int32_t)f.front[2].y};
         lv_draw_rect(layer, &front, &area);
-        fill_convex(layer, o, f.right_side, 4, c.side, LV_OPA_COVER);
+        tray::fill_convex(layer, o, f.right_side, 4, c.side, LV_OPA_COVER);
     }
     const tray::PointF fl_t = f.front[0], fr_t = f.front[1], fr_b = f.front[2], fl_b = f.front[3];
     const tray::PointF bl_t = f.back_wall[0], br_t = f.back_wall[1], br_b = f.back_wall[2],
@@ -307,25 +242,38 @@ void tray_front_draw_cb(lv_event_t* e) {
     const tray::PointF edges[][2] = {{fl_t, fr_t}, {fl_b, fr_b}, {fl_t, fl_b},
                                      {fr_t, fr_b}, {fr_t, br_t}, {fr_b, br_b},
                                      {br_t, br_b}, {fl_t, bl_t}, {fl_b, bl_b}};
-    for (const auto& ab : edges)
-        edge(layer, o, ab[0], ab[1], c.edge, s_tray.opa.edge);
+    if (!s_tray.shell || simple) {
+        for (const auto& ab : edges)
+            tray::edge(layer, o, ab[0], ab[1], c.edge, s_tray.opa.edge);
+    } else {
+        tray::stroke_cheek(shell_view(), layer, o, s_tray.box.fr, c.edge, s_tray.opa.edge);
+    }
 
     float x0[kMaxLids], x1[kMaxLids];
     const int lids = lid_spans(x0, x1);
-    Lid lid;
+    tray::Lid lid;
     const TrayOpacities& a = s_tray.opa;
     for (int i = 0; i < lids; ++i) {
-        build_lid(s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
+        tray::build_lid(shell_view(), s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
         if (!simple) {
-            fill_convex(layer, o, lid.hull, lid.hull_n, c.glass, a.glass);
-            fill_convex(layer, o, lid.right, kCapPoints, c.glass, a.cap);
+            tray::fill_convex(layer, o, lid.hull, lid.hull_n, c.glass, a.glass);
+            if (s_tray.shell)
+                tray::fill_shell_cap(shell_view(), layer, o, lid.right, x1[i], c.glass, a.cap);
+            else
+                tray::fill_convex(layer, o, lid.right, tray::kCapPoints, c.glass, a.cap);
             draw_sheen(layer, o, lid);
         }
-        stroke(layer, o, lid.hull, lid.hull_n, true, c.glass_edge, a.glass_edge);
-        stroke(layer, o, lid.right, kCapPoints, false, c.glass_edge,
-               (lv_opa_t)(a.glass_edge * 7 / 10));
-        stroke(layer, o, lid.left, kCapPoints, false, c.glass_edge,
-               (lv_opa_t)(a.glass_edge * 3 / 10));
+        if (!s_tray.shell)
+            tray::stroke(layer, o, lid.hull, lid.hull_n, true, c.glass_edge, a.glass_edge);
+        else
+            tray::stroke_lid_top(layer, o, lid, c.glass_edge, a.glass_edge);
+        tray::stroke(layer, o, lid.right, tray::kCapPoints, false, c.glass_edge,
+                     (lv_opa_t)(a.glass_edge * 7 / 10));
+        // A unit's left end stands behind its spools and is drawn with the back faces.
+        if (!s_tray.shell || simple) {
+            tray::stroke(layer, o, lid.left, tray::kCapPoints, false, c.glass_edge,
+                         (lv_opa_t)(a.glass_edge * 3 / 10));
+        }
     }
 }
 
@@ -350,6 +298,17 @@ void clear_translate(lv_obj_t* obj) {
 }
 
 // Tool changers have no housing around their spools.
+/// The shell for a view; the whole-backend view of a one-unit system counts as that unit.
+const tray::UnitShell* view_shell(int unit_index, bool has_dryer) {
+    auto* backend = helix::AmsState::instance().get_backend(0);
+    if (!backend)
+        return nullptr;
+    const helix::AmsSystemInfo info = backend->get_system_info();
+    if (unit_index < 0 && info.units.size() == 1)
+        unit_index = 0;
+    return tray::unit_shell_for(info, unit_index, has_dryer);
+}
+
 bool unit_has_physical_tray() {
     auto* backend = helix::AmsState::instance().get_backend(0);
     return !backend || backend->has_physical_tray();
@@ -662,6 +621,10 @@ bool helix::ui::ams_detail_error_in_view(const helix::AmsSystemInfo& info, int u
     return false;
 }
 
+bool helix::ui::unit_reports_climate(int unit_index) {
+    return unit_lid_mode(unit_index) != tray::LidMode::None;
+}
+
 AmsSlotLayout helix::ui::ams_detail_slot_layout(int32_t available_width, int slot_count) {
     if (!unit_has_physical_tray())
         return calculate_ams_slot_layout(available_width, slot_count);
@@ -733,7 +696,11 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         return;
     const int n = std::min(slot_count, kAmsDetailMaxSlots);
 
-    const tray::LidMode lid = unit_lid_mode(unit_index);
+    const tray::LidMode climate_lid = unit_lid_mode(unit_index);
+    const tray::UnitShell* shell = view_shell(unit_index, climate_lid != tray::LidMode::None);
+    const tray::LidMode lid = !shell               ? climate_lid
+                              : shell->dome_n == 0 ? tray::LidMode::None
+                                                   : tray::LidMode::Unit;
     show_lane_humidity(slot_widgets, n, lid);
     lv_obj_update_layout(container);
     lv_area_t c;
@@ -754,7 +721,9 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     tray::TrayBox box{};
     box.depth = tray::box_depth(size);
     box.rise = tray::box_rise(box.depth);
-    box.back_extra = (float)theme_manager_get_spacing("space_md");
+    const float shell_scale = size / tray::kShellReferenceSpool;
+    box.back_extra =
+        shell ? shell->back_extra_px * shell_scale : (float)theme_manager_get_spacing("space_md");
     const float skew = tray::kDepthSkew * box.depth;
     for (int i = 0; i < n; ++i)
         s_tray.lane_x[i] = cx[i] - skew / 2;
@@ -765,13 +734,23 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     // front-plane centre, whose flange bottom sits kSpoolFloorGap above FB.
     box.fb = cy_sum / n + flange_ry + tray::kSpoolFloorGap + box.rise / 2;
     lv_obj_update_layout(w.slot_grid);
-    const float front_h = std::max(20.0f, lv_obj_get_height(w.slot_grid) / 6.0f);
+    const float front_h = shell ? shell->front_wall_px * shell_scale
+                                : std::max(20.0f, lv_obj_get_height(w.slot_grid) / 6.0f);
     box.ft = box.fb - front_h;
-    box.fl = s_tray.lane_x[0] - half;
-    box.fr = s_tray.lane_x[n - 1] + half;
+    const float cap = shell ? tray::cap_width(*shell, size, spacing) : half;
+    box.fl = s_tray.lane_x[0] - cap;
+    box.fr = s_tray.lane_x[n - 1] + cap;
 
     s_tray.lid = lid;
     s_tray.lid_h = tray::lid_height(box, flange_ry);
+    if (shell) {
+        float crest = 0;
+        for (int i = 0; i < shell->dome_n; ++i)
+            crest = std::max(crest, shell->dome[i].height_px);
+        s_tray.lid_h = crest * shell_scale - box.back_extra / 2.0f;
+    }
+    s_tray.shell = shell;
+    s_tray.spool_size = size;
     s_tray.lane_half = half;
     s_tray.lane_count = n;
     s_tray.box = box;
@@ -1206,7 +1185,7 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
         return true;
     }
 
-    AmsBackend* backend = AmsState::instance().get_backend();
+    auto* backend = helix::AmsState::instance().get_backend(0);
     if (!backend) {
         NOTIFY_WARNING(lv_tr("Multi-Filament System not available"));
         return true;
@@ -1294,6 +1273,12 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
             NOTIFY_WARNING("{}", helix::ui::clear_spool_blocked_hint(backend->lane_noun(), slot));
             break;
         }
+        // The menu greys Clear with this reason; a caller holding an older
+        // menu is refused here, quietly, since the reason is already shown.
+        if (const std::string refusal = backend->clear_spool_refusal(slot); !refusal.empty()) {
+            spdlog::info("[AMS] Clear of slot {} refused: {}", slot, refusal);
+            break;
+        }
 
         // Clear spool assignment: reset material/color/spool data, keep slot status.
         // Routed through AmsState::commit_slot_edit so the Spoolman server's
@@ -1335,7 +1320,7 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
         }
         if (error.success()) {
             NOTIFY_INFO(lv_tr("{} spool cleared"),
-                        helix::ui::lane_label(backend->lane_noun(), slot));
+                        helix::ui::active_tool_lane_label(backend->lane_noun(), slot));
         } else {
             notify_ams_error(error, lv_tr("Clear failed"));
         }
@@ -1395,7 +1380,7 @@ void clear_if_lane_unchanged(int slot) {
     }
     const InsertOfferSnapshot shown = it->second.shown;
     offers.erase(it);
-    AmsBackend* backend = AmsState::instance().get_backend();
+    auto* backend = helix::AmsState::instance().get_backend(0);
     if (!backend || !(InsertOfferSnapshot::of(backend->get_slot_info(slot)) == shown)) {
         spdlog::debug("[AMS] Slot {} changed since the same-spool notice; Clear ignored", slot);
         return;
@@ -1432,10 +1417,11 @@ void offer_clear_after_unverified_insert(int slot) {
                       slot);
         return;
     }
-    AmsBackend* backend = AmsState::instance().get_backend();
+    auto* backend = helix::AmsState::instance().get_backend(0);
     if (!backend ||
         clear_spool_blocked_by_print(get_printer_state().print_state().get_print_lifecycle(),
-                                     backend->slot_is_actively_loaded(slot))) {
+                                     backend->slot_is_actively_loaded(slot)) ||
+        !backend->clear_spool_refusal(slot).empty()) {
         return;
     }
     // A lane with no details has nothing the new spool could contradict.
@@ -1454,7 +1440,7 @@ void offer_clear_after_unverified_insert(int slot) {
     offers[slot] = {snapshot, now};
     const std::string message =
         fmt::format(lv_tr("Same spool in {}? Tap Clear if it is a new one."),
-                    lane_label(backend->lane_noun(), slot));
+                    active_tool_lane_label(backend->lane_noun(), slot));
     // The slot rides in user_data by value: the toast can outlive any object
     // that could own it, and the dispatch re-checks every guard at tap time.
     ToastManager::instance().show_with_action(

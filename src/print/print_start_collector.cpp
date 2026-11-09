@@ -1329,6 +1329,13 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
         return;
     }
 
+    // Lines this long are firmware telemetry, such as the K2 nozzle pressure traces
+    // printed on every probe touch. The phase patterns have nothing to find in them,
+    // and scanning them is unbounded work on the websocket thread.
+    if (line.size() > kMaxScannedConsoleLineChars) {
+        return;
+    }
+
     spdlog::trace("[PrintStartCollector] G-code: {}", line);
 
     if (armed_by_printer_.load()) {
@@ -1455,233 +1462,214 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
         note_signal();
     }
 
-    // Check for bed mesh probe progress (sub-phase tracking within BED_MESH).
-    // Also detects BED_MESH phase entry from probe lines on printers that don't
-    // emit a separate BED_MESH_CALIBRATE command line before probing starts.
+    if (handle_probe_line(line)) {
+        return;
+    }
+
+    check_phase_patterns(line);
+}
+
+bool PrintStartCollector::handle_probe_line(const std::string& line) {
+    // Sub-phase tracking within BED_MESH. Also detects BED_MESH entry from
+    // probe lines on printers that don't emit a separate BED_MESH_CALIBRATE
+    // command line before probing starts.
+    bool in_mesh = false;
+    bool in_leveling = false;
+    std::optional<PrintStartPhase> leveling;
     {
-        bool in_mesh = false;
-        bool in_leveling = false;
-        std::optional<PrintStartPhase> leveling;
-        {
-            std::lock_guard<std::mutex> lock(state_mutex_);
-            in_mesh = (current_phase_ == PrintStartPhase::BED_MESH);
-            // QGL and Z_TILT also fire "probe at X,Y is z=Z" lines via Klipper's
-            // shared probe routine; a Voron 2.4 QGL touches 4 corner pads with
-            // `samples: 3`. Those must neither enter BED_MESH nor count
-            // against its probe total. With the configured leveling points
-            // known, a probe at one of them is leveling and anything else is
-            // mesh, whatever the current phase. Without them, every probe
-            // line while QGL/Z_TILT is current is taken as leveling.
-            if (leveling_points_.empty()) {
-                in_leveling = (current_phase_ == PrintStartPhase::QGL ||
-                               current_phase_ == PrintStartPhase::Z_TILT);
-            } else if (is_before_mesh(current_phase_)) {
-                if (auto pos = helix::parse_probe_position(line)) {
-                    leveling = helix::leveling_phase_at(leveling_points_, pos->x, pos->y);
-                }
-            }
-        }
-        if (leveling) {
-            apply_leveling_phase(*leveling);
-            return; // leveling output, not mesh data or a profile pattern
-        }
-
-        bool is_probe_line =
-            !in_mesh && !in_leveling &&
-            (helix::parse_probe_progress(line) || helix::is_probe_result_line(line));
-
-        // If we see a probe line but aren't in BED_MESH yet, buffer probes
-        // before entering the phase. Some printers (e.g. AD5M Klipper mod)
-        // emit 1-2 PROBE commands for nozzle wipe before mesh calibration.
-        // Require kMeshProbeEntryThreshold distinct probe POINTS to confirm
-        // this is actual mesh probing, not an isolated operation.
-        if (is_probe_line) {
-            bool should_enter = false;
-            {
-                std::lock_guard<std::mutex> lock(state_mutex_);
-                auto now = helix::sim::SimulatedClock::now();
-
-                // Gap reset for pre-mesh buffer
-                if (pre_mesh_points_.points() > 0 &&
-                    (now - pre_mesh_last_probe_time_) > kMeshProbeGapReset) {
-                    spdlog::debug("[PrintStartCollector] Pre-mesh probe gap reset "
-                                  "({}s since last probe)",
-                                  std::chrono::duration_cast<std::chrono::seconds>(
-                                      now - pre_mesh_last_probe_time_)
-                                      .count());
-                    pre_mesh_points_.reset();
-                }
-
-                pre_mesh_points_.feed(line);
-                pre_mesh_last_probe_time_ = now;
-
-                if (pre_mesh_points_.points() >= kMeshProbeEntryThreshold) {
-                    should_enter = true;
-                } else {
-                    spdlog::debug("[PrintStartCollector] Pre-mesh probe point {}/{} (buffering)",
-                                  pre_mesh_points_.points(), kMeshProbeEntryThreshold);
-                }
-            }
-
-            if (should_enter) {
-                enter_bed_mesh_with_buffer(lv_tr("Bed Mesh..."));
-                in_mesh = true;
-                return;
-            }
-            // Below threshold — don't enter BED_MESH yet, skip probe counting
-            return;
-        }
-
-        bool counting = true;
-        {
-            std::lock_guard<std::mutex> lock(state_mutex_);
-            counting = mesh_counts_probes_;
-        }
-        if (in_mesh && !counting &&
-            (helix::parse_probe_progress(line) || helix::is_probe_result_line(line))) {
-            return; // a check of a stored mesh: activity, not points to count
-        }
-
-        if (in_mesh) {
-            if (auto pp = helix::parse_probe_progress(line)) {
-                // "Probing point X/Y" — firmware provides current and total
-                int progress;
-                char msg_buf[64];
-                std::string label;
-                {
-                    std::lock_guard<std::mutex> lock(state_mutex_);
-                    auto now = helix::sim::SimulatedClock::now();
-
-                    // Gap reset: if >30s since last probe, earlier probes were
-                    // from a different operation (e.g. nozzle wipe)
-                    if (mesh_probe_current_ > 0 &&
-                        (now - mesh_last_probe_time_) > kMeshProbeGapReset) {
-                        spdlog::info("[PrintStartCollector] Mesh probe gap reset "
-                                     "({}s since last probe)",
-                                     std::chrono::duration_cast<std::chrono::seconds>(
-                                         now - mesh_last_probe_time_)
-                                         .count());
-                        mesh_probe_current_ = 0;
-                        mesh_seconds_per_probe_ = 0.0f;
-                        mesh_extrapolation_armed_ = false;
-                    }
-
-                    if (mesh_probe_current_ == 0) {
-                        mesh_first_probe_time_ = now;
-                    } else if (pp->current > 1) {
-                        float elapsed = static_cast<float>(
-                                            std::chrono::duration_cast<std::chrono::milliseconds>(
-                                                now - mesh_first_probe_time_)
-                                                .count()) /
-                                        1000.0f;
-                        mesh_seconds_per_probe_ = elapsed / static_cast<float>(pp->current - 1);
-                    }
-                    mesh_last_probe_time_ = now;
-
-                    mesh_probe_current_ = pp->current;
-                    mesh_probe_total_ = pp->total;
-                    progress = calculate_progress_locked();
-                    label = current_mesh_message_.empty()
-                                ? lv_tr("Bed Mesh")
-                                : trim_trailing_ellipsis(current_mesh_message_);
-                }
-                spdlog::debug("[PrintStartCollector] Mesh probe {}/{} ({:.1f}s/probe)", pp->current,
-                              pp->total, mesh_seconds_per_probe_);
-                snprintf(msg_buf, sizeof(msg_buf), "%s (%d/%d)", label.c_str(), pp->current,
-                         pp->total);
-                state_.print_state().set_print_start_state(PrintStartPhase::BED_MESH, msg_buf,
-                                                           progress);
-                return; // Handled — skip check_phase_patterns
-            }
-
-            if (helix::is_probe_result_line(line)) {
-                // "probe at X,Y is z=Z" fallback — no total from firmware.
-                // Dedupe by (x,y): Klipper's `samples: N` config emits N consecutive
-                // probes at the same position; we count unique points, not samples.
-                int count;
-                int total;
-                int progress;
-                bool is_new_point = false;
-                std::string label;
-                {
-                    std::lock_guard<std::mutex> lock(state_mutex_);
-                    auto now = helix::sim::SimulatedClock::now();
-
-                    // Gap reset: if >30s since last probe, earlier probes were
-                    // from a different operation (e.g. nozzle wipe on AD5M)
-                    if (mesh_points_.points() > 0 &&
-                        (now - mesh_last_probe_time_) > kMeshProbeGapReset) {
-                        spdlog::info("[PrintStartCollector] Mesh probe gap reset "
-                                     "({}s since last probe)",
-                                     std::chrono::duration_cast<std::chrono::seconds>(
-                                         now - mesh_last_probe_time_)
-                                         .count());
-                        mesh_points_.reset();
-                        mesh_probe_current_ = 0;
-                        mesh_seconds_per_probe_ = 0.0f;
-                        mesh_extrapolation_armed_ = false;
-                    }
-
-                    // Position dedupe (and the sample-divisor fallback for lines
-                    // whose coordinates don't parse) lives in ProbePointCounter,
-                    // shared with the bed mesh panel's live probe readout.
-                    const int before = mesh_points_.points();
-                    mesh_points_.feed(line);
-                    is_new_point = (mesh_points_.points() != before);
-
-                    if (is_new_point) {
-                        if (mesh_points_.points() == 1) {
-                            mesh_first_probe_time_ = now;
-                        } else {
-                            float elapsed =
-                                static_cast<float>(
-                                    std::chrono::duration_cast<std::chrono::milliseconds>(
-                                        now - mesh_first_probe_time_)
-                                        .count()) /
-                                1000.0f;
-                            mesh_seconds_per_probe_ =
-                                elapsed / static_cast<float>(mesh_points_.points() - 1);
-                        }
-                    }
-                    mesh_last_probe_time_ = now;
-
-                    mesh_probe_current_ = mesh_points_.points();
-                    count = mesh_probe_current_;
-                    total = mesh_probe_total_;
-                    progress = calculate_progress_locked();
-                    label = current_mesh_message_.empty()
-                                ? lv_tr("Bed Mesh")
-                                : trim_trailing_ellipsis(current_mesh_message_);
-                }
-                if (is_new_point) {
-                    spdlog::debug("[PrintStartCollector] Mesh point #{}/{} ({:.1f}s/point)", count,
-                                  total, mesh_seconds_per_probe_);
-                    char msg_buf[64];
-                    if (total > 0) {
-                        snprintf(msg_buf, sizeof(msg_buf), "%s (%d/%d)", label.c_str(), count,
-                                 total);
-                    } else {
-                        snprintf(msg_buf, sizeof(msg_buf), "%s (%d)", label.c_str(), count);
-                    }
-                    state_.print_state().set_print_start_state(PrintStartPhase::BED_MESH, msg_buf,
-                                                               progress);
-                }
-
-                // The line is consumed as mesh data whether or not it added a
-                // point — a repeat sample of the same point is still mesh
-                // output. It must not reach check_phase_patterns: profiles
-                // whose BED_MESH pattern matches "probe at" (creality_k1)
-                // would re-announce the phase with the profile's label, which
-                // is treated as a sub-phase change and wipes the probe
-                // counters — including the denominator learned on entry —
-                // mid-sweep. Mirrors the "Probing point" branch above.
-                return;
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        in_mesh = (current_phase_ == PrintStartPhase::BED_MESH);
+        // QGL and Z_TILT also fire "probe at X,Y is z=Z" lines via Klipper's
+        // shared probe routine; a Voron 2.4 QGL touches 4 corner pads with
+        // `samples: 3`. Those must neither enter BED_MESH nor count
+        // against its probe total. With the configured leveling points
+        // known, a probe at one of them is leveling and anything else is
+        // mesh, whatever the current phase. Without them, every probe
+        // line while QGL/Z_TILT is current is taken as leveling.
+        if (leveling_points_.empty()) {
+            in_leveling = (current_phase_ == PrintStartPhase::QGL ||
+                           current_phase_ == PrintStartPhase::Z_TILT);
+        } else if (is_before_mesh(current_phase_)) {
+            if (auto pos = helix::parse_probe_position(line)) {
+                leveling = helix::leveling_phase_at(leveling_points_, pos->x, pos->y);
             }
         }
     }
+    if (leveling) {
+        apply_leveling_phase(*leveling);
+        return true; // leveling output, not mesh data or a profile pattern
+    }
 
-    // Check phase patterns
-    check_phase_patterns(line);
+    const auto progress_line = helix::parse_probe_progress(line);
+    const bool result_line = helix::is_probe_result_line(line);
+    if (!progress_line && !result_line) {
+        return false;
+    }
+
+    if (!in_mesh) {
+        if (in_leveling) {
+            return false;
+        }
+        // A probe line before BED_MESH is buffered before entering the phase.
+        // Some printers (e.g. AD5M Klipper mod) emit 1-2 PROBE commands for
+        // nozzle wipe before mesh calibration. Require kMeshProbeEntryThreshold
+        // distinct probe POINTS to confirm this is actual mesh probing, not an
+        // isolated operation.
+        bool should_enter = false;
+        {
+            std::lock_guard<std::mutex> lock(state_mutex_);
+            auto now = helix::sim::SimulatedClock::now();
+
+            if (pre_mesh_points_.points() > 0 &&
+                (now - pre_mesh_last_probe_time_) > kMeshProbeGapReset) {
+                spdlog::debug("[PrintStartCollector] Pre-mesh probe gap reset "
+                              "({}s since last probe)",
+                              std::chrono::duration_cast<std::chrono::seconds>(
+                                  now - pre_mesh_last_probe_time_)
+                                  .count());
+                pre_mesh_points_.reset();
+            }
+
+            pre_mesh_points_.feed(line);
+            pre_mesh_last_probe_time_ = now;
+
+            if (pre_mesh_points_.points() >= kMeshProbeEntryThreshold) {
+                should_enter = true;
+            } else {
+                spdlog::debug("[PrintStartCollector] Pre-mesh probe point {}/{} (buffering)",
+                              pre_mesh_points_.points(), kMeshProbeEntryThreshold);
+            }
+        }
+
+        if (should_enter) {
+            enter_bed_mesh_with_buffer(lv_tr("Bed Mesh..."));
+        }
+        // Below threshold: BED_MESH is not entered and the probe is not counted.
+        return true;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (!mesh_counts_probes_) {
+            return true; // a check of a stored mesh: activity, not points to count
+        }
+    }
+
+    if (progress_line) {
+        // "Probing point X/Y": firmware provides current and total
+        int progress;
+        std::string label;
+        {
+            std::lock_guard<std::mutex> lock(state_mutex_);
+            auto now = helix::sim::SimulatedClock::now();
+            reset_mesh_probes_after_gap_locked(now, mesh_probe_current_);
+            note_mesh_probe_locked(now, progress_line->current,
+                                   mesh_probe_current_ == 0 ? MeshProbeStep::kFirst
+                                                            : MeshProbeStep::kNext);
+            mesh_probe_total_ = progress_line->total;
+            progress = calculate_progress_locked();
+            label = mesh_label_locked();
+        }
+        spdlog::debug("[PrintStartCollector] Mesh probe {}/{} ({:.1f}s/probe)",
+                      progress_line->current, progress_line->total, mesh_seconds_per_probe_);
+        publish_mesh_probe_count(label, progress_line->current, progress_line->total, progress);
+        return true; // Handled — skip check_phase_patterns
+    }
+
+    // "probe at X,Y is z=Z" fallback — no total from firmware.
+    // Dedupe by (x,y): Klipper's `samples: N` config emits N consecutive
+    // probes at the same position; we count unique points, not samples.
+    int count;
+    int total;
+    int progress;
+    bool is_new_point = false;
+    std::string label;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        auto now = helix::sim::SimulatedClock::now();
+        if (reset_mesh_probes_after_gap_locked(now, mesh_points_.points())) {
+            mesh_points_.reset();
+        }
+
+        // Position dedupe (and the sample-divisor fallback for lines
+        // whose coordinates don't parse) lives in ProbePointCounter,
+        // shared with the bed mesh panel's live probe readout.
+        const int before = mesh_points_.points();
+        mesh_points_.feed(line);
+        is_new_point = (mesh_points_.points() != before);
+
+        const int points = mesh_points_.points();
+        note_mesh_probe_locked(now, points,
+                               !is_new_point ? MeshProbeStep::kRepeat
+                               : points == 1 ? MeshProbeStep::kFirst
+                                             : MeshProbeStep::kNext);
+        count = mesh_probe_current_;
+        total = mesh_probe_total_;
+        progress = calculate_progress_locked();
+        label = mesh_label_locked();
+    }
+    if (is_new_point) {
+        spdlog::debug("[PrintStartCollector] Mesh point #{}/{} ({:.1f}s/point)", count, total,
+                      mesh_seconds_per_probe_);
+        publish_mesh_probe_count(label, count, total > 0 ? std::optional<int>(total) : std::nullopt,
+                                 progress);
+    }
+
+    // The line is consumed as mesh data whether or not it added a point — a
+    // repeat sample of the same point is still mesh output. It must not reach
+    // check_phase_patterns: profiles whose BED_MESH pattern matches "probe at"
+    // (creality_k1) would re-announce the phase with the profile's label,
+    // which is treated as a sub-phase change and wipes the probe counters —
+    // including the denominator learned on entry — mid-sweep.
+    return true;
+}
+
+bool PrintStartCollector::reset_mesh_probes_after_gap_locked(
+    helix::sim::SimulatedClock::time_point now, int counted) {
+    // A probe more than kMeshProbeGapReset after the last one starts a new
+    // sweep: earlier probes were a different operation (e.g. nozzle wipe).
+    if (counted <= 0 || (now - mesh_last_probe_time_) <= kMeshProbeGapReset) {
+        return false;
+    }
+    spdlog::info(
+        "[PrintStartCollector] Mesh probe gap reset ({}s since last probe)",
+        std::chrono::duration_cast<std::chrono::seconds>(now - mesh_last_probe_time_).count());
+    mesh_probe_current_ = 0;
+    mesh_seconds_per_probe_ = 0.0f;
+    mesh_extrapolation_armed_ = false;
+    return true;
+}
+
+void PrintStartCollector::note_mesh_probe_locked(helix::sim::SimulatedClock::time_point now,
+                                                 int index, MeshProbeStep step) {
+    if (step == MeshProbeStep::kFirst) {
+        mesh_first_probe_time_ = now;
+    } else if (step == MeshProbeStep::kNext && index > 1) {
+        const float elapsed =
+            static_cast<float>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - mesh_first_probe_time_)
+                    .count()) /
+            1000.0f;
+        mesh_seconds_per_probe_ = elapsed / static_cast<float>(index - 1);
+    }
+    mesh_last_probe_time_ = now;
+    mesh_probe_current_ = index;
+}
+
+std::string PrintStartCollector::mesh_label_locked() const {
+    return current_mesh_message_.empty() ? lv_tr("Bed Mesh")
+                                         : trim_trailing_ellipsis(current_mesh_message_);
+}
+
+void PrintStartCollector::publish_mesh_probe_count(const std::string& label, int count,
+                                                   std::optional<int> total, int progress) {
+    char msg_buf[64];
+    if (total) {
+        snprintf(msg_buf, sizeof(msg_buf), "%s (%d/%d)", label.c_str(), count, *total);
+    } else {
+        snprintf(msg_buf, sizeof(msg_buf), "%s (%d)", label.c_str(), count);
+    }
+    state_.print_state().set_print_start_state(PrintStartPhase::BED_MESH, msg_buf, progress);
 }
 
 void PrintStartCollector::note_signal(std::chrono::seconds hold) {

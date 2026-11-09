@@ -199,7 +199,6 @@ void PrintSelectUsbSource::select_usb_source() {
         on_source_changed_(FileSource::USB);
     }
 
-    // Refresh USB files
     refresh_files();
 }
 

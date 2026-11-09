@@ -123,6 +123,8 @@ PlrCapabilitySignals PlrOfferController::read_signals() const {
     caps.probe_capable =
         lv_subject_get_int(ps.print_state().get_plr_power_loss_signal_subject()) != 0;
     caps.status_recovery_file = ps.print_state().pl_recovery_file();
+    caps.saved_file_gates_offer = ps.print_state().plr_saved_file_gates_offer();
+    caps.saved_recovery_file = ps.print_state().plr_saved_file();
     caps.plr_feature =
         ps.plugin_status_state().plugin_feature(kPlrFeatureName, kPlrFeatureMinVersion);
     if (plugin_status_) {

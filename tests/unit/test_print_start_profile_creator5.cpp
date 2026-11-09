@@ -30,6 +30,11 @@ using namespace helix;
 
 namespace {
 
+/// The first lines of the table Z-Mod's PRINT_ZCOLOR prints for a start.
+const char* const kCreatorFiveStartTable = "// T0 (PLA):\n// temp (auto purge): 220\xC2\xB0"
+                                           "C\n// temp_wait:         120\xC2\xB0"
+                                           "C\n// drop_length:       50 mm";
+
 std::shared_ptr<PrintStartProfile> get_creator5_profile() {
     return PrintStartProfile::load("creator5");
 }
@@ -188,11 +193,8 @@ TEST_CASE("PrintStartProfile: creator5 announces a start with Z-Mod's per-tool t
 
     // PRINT_ZCOLOR prints the table once the colour prompt is answered, 80-90s
     // before print_stats takes the file.
-    const std::string table = "// T0 (PLA):\n// temp (auto purge): 220\xC2\xB0"
-                              "C\n// temp_wait:         120\xC2\xB0"
-                              "C\n// drop_length:       50 mm";
-    CHECK(profile->announces_print_start(table));
-    CHECK_FALSE(generic->announces_print_start(table));
+    CHECK(profile->announces_print_start(kCreatorFiveStartTable));
+    CHECK_FALSE(generic->announces_print_start(kCreatorFiveStartTable));
 
     // A tool change by hand, a prompt closing and a heater wait name no start.
     const char* const lines[] = {
@@ -246,6 +248,20 @@ class CreatorFivePrintStartReplayFixture : public PrintStartCollectorHeaterFixtu
     }
 
     bool have_profile_ = false;
+
+    /// Ends a print by cancelling it, then lets Z-Mod's start table arm the collector.
+    void arm_by_announcement() {
+        test::set_wire_state(state(), PrintJobState::CANCELLED);
+        drain_async_updates();
+        send_gcode_response(kCreatorFiveStartTable);
+        drain_async_updates();
+        REQUIRE(collector().is_active());
+    }
+
+    void start_printing() {
+        test::set_wire_state(state(), PrintJobState::PRINTING);
+        drain_async_updates();
+    }
 
     /// Where the collector arms.
     enum class Arm {
@@ -380,20 +396,44 @@ class CreatorFivePrintStartReplayFixture : public PrintStartCollectorHeaterFixtu
 };
 
 TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
-                 "PrintStartCollector: a Creator 5 Z-Mod start with a saved mesh",
-                 "[print][collector][creator5][integration]") {
+                 "PrintStartCollector: a Creator 5 Z-Mod start with a saved mesh, however it arms",
+                 "[print][collector][creator5][integration][2054]") {
     REQUIRE(have_profile_);
-    const Result result = replay("c5_zmod_saved_mesh_start.txt");
+    // Z-Mod's preparation before print_stats takes the file: the colour table, the
+    // tool pickup and the two heater normalization waits.
+    const std::string before_file = "0:INITIALIZING:Preparing...\n"
+                                    "45:INITIALIZING:Picking up tool\n"
+                                    "51:HEATING_NOZZLE:Heating Nozzle...\n"
+                                    "75:HEATING_BED:Heating Bed...\n";
+    // The bed then cools from 66.7C into Z-Mod's 52-58C window before anything is
+    // purged, and only the purge itself (not the "Priming algorithm: LINE_PURGE"
+    // setting at 79s) shows Purging.
+    const std::string from_file = "78:INITIALIZING:Starting Print...\n"
+                                  "80:HEATING_BED:Waiting for bed temperature...\n"
+                                  "279:PURGING:Purging...\n"
+                                  "284:COMPLETE:Starting Print...";
+    Arm arming = Arm::AtFile;
+    int armed_at_ms = 0;
+    std::string expected;
+    SECTION("armed when print_stats takes the file") {
+        armed_at_ms = 77809;
+        expected = "77:INITIALIZING:Preparing Print...\n" + from_file;
+    }
+    SECTION("armed at commit, as a print this app starts is") {
+        arming = Arm::AtCommit;
+        armed_at_ms = 50;
+        expected = "0:INITIALIZING:Preparing Print...\n" + before_file + from_file;
+    }
+    SECTION("started from another app after a cancelled print: its table arms it") {
+        // Preparing replaces the cancelled result 80s before print_stats takes the file.
+        arming = Arm::ByConsole;
+        armed_at_ms = 211;
+        expected = before_file + from_file;
+    }
+    const Result result = replay("c5_zmod_saved_mesh_start.txt", arming);
     CAPTURE(result.trace);
-    // Armed when print_stats takes the file; the bed then cools from 66.7C into
-    // Z-Mod's 52-58C window before anything is purged, and only the purge itself
-    // (not the "Priming algorithm: LINE_PURGE" setting at 79s) shows Purging.
-    REQUIRE(result.armed_at_ms == 77809);
-    REQUIRE(result.trace == "77:INITIALIZING:Preparing Print...\n"
-                            "78:INITIALIZING:Starting Print...\n"
-                            "80:HEATING_BED:Waiting for bed temperature...\n"
-                            "279:PURGING:Purging...\n"
-                            "284:COMPLETE:Starting Print...");
+    REQUIRE(result.armed_at_ms == armed_at_ms);
+    REQUIRE(result.trace == expected);
     REQUIRE(result.completed_at_ms == 284133);
 }
 
@@ -418,56 +458,6 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
     // once against the grid's own total.
     REQUIRE(result.last_mesh_message == "Bed Mesh (100/100)");
 }
-
-TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
-                 "PrintStartCollector: a Creator 5 Z-Mod start armed before the file opens",
-                 "[print][collector][creator5][integration]") {
-    REQUIRE(have_profile_);
-    // A print started from this app arms at commit, so the collector sees Z-Mod's
-    // preparation that runs before print_stats takes the file: the colour table,
-    // the tool pickup and the two heater normalization waits.
-    const Result result = replay("c5_zmod_saved_mesh_start.txt", Arm::AtCommit);
-    CAPTURE(result.trace);
-    REQUIRE(result.armed_at_ms == 50);
-    REQUIRE(result.trace == "0:INITIALIZING:Preparing Print...\n"
-                            "0:INITIALIZING:Preparing...\n"
-                            "45:INITIALIZING:Picking up tool\n"
-                            "51:HEATING_NOZZLE:Heating Nozzle...\n"
-                            "75:HEATING_BED:Heating Bed...\n"
-                            "78:INITIALIZING:Starting Print...\n"
-                            "80:HEATING_BED:Waiting for bed temperature...\n"
-                            "279:PURGING:Purging...\n"
-                            "284:COMPLETE:Starting Print...");
-    REQUIRE(result.completed_at_ms == 284133);
-}
-
-TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
-                 "PrintStartCollector: a Creator 5 Z-Mod start from another app arms on its table",
-                 "[print][collector][creator5][integration][2054]") {
-    REQUIRE(have_profile_);
-    // Started from Orca or Fluidd after a cancelled print: nothing of ours arms
-    // the collector, so the table PRINT_ZCOLOR prints arms it, and Preparing
-    // replaces the cancelled result 80s before print_stats takes the file.
-    const Result result = replay("c5_zmod_saved_mesh_start.txt", Arm::ByConsole);
-    CAPTURE(result.trace);
-    REQUIRE(result.armed_at_ms == 211);
-    REQUIRE(result.trace == "0:INITIALIZING:Preparing...\n"
-                            "45:INITIALIZING:Picking up tool\n"
-                            "51:HEATING_NOZZLE:Heating Nozzle...\n"
-                            "75:HEATING_BED:Heating Bed...\n"
-                            "78:INITIALIZING:Starting Print...\n"
-                            "80:HEATING_BED:Waiting for bed temperature...\n"
-                            "279:PURGING:Purging...\n"
-                            "284:COMPLETE:Starting Print...");
-    REQUIRE(result.completed_at_ms == 284133);
-}
-
-namespace {
-/// The first lines of the table Z-Mod's PRINT_ZCOLOR prints for a start.
-const char* const kCreatorFiveStartTable = "// T0 (PLA):\n// temp (auto purge): 220\xC2\xB0"
-                                           "C\n// temp_wait:         120\xC2\xB0"
-                                           "C\n// drop_length:       50 mm";
-} // namespace
 
 TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
                  "PrintStartCollector: a start announcement arms only a printer with no job",
@@ -516,11 +506,7 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
                  "[print][collector][creator5][2054]") {
     REQUIRE(have_profile_);
     auto& clock = clock_;
-    test::set_wire_state(state(), PrintJobState::CANCELLED);
-    drain_async_updates();
-    send_gcode_response(kCreatorFiveStartTable);
-    drain_async_updates();
-    REQUIRE(collector().is_active());
+    arm_by_announcement();
 
     // The printer keeps talking: a step line restarts the quiet time.
     clock.advance(std::chrono::minutes(8));
@@ -546,13 +532,8 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
                  "[print][collector][creator5][2054]") {
     REQUIRE(have_profile_);
     auto& clock = clock_;
-    test::set_wire_state(state(), PrintJobState::CANCELLED);
-    drain_async_updates();
-    send_gcode_response(kCreatorFiveStartTable);
-    drain_async_updates();
-    REQUIRE(collector().is_active());
-    test::set_wire_state(state(), PrintJobState::PRINTING);
-    drain_async_updates();
+    arm_by_announcement();
+    start_printing();
 
     // START_PRINT's bed wait can hold the console silent for minutes.
     clock.advance(std::chrono::minutes(30));
@@ -561,51 +542,33 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
     CHECK(collector().is_active());
 }
 
-TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
-                 "PrintStartCollector: an error line ends a printer-announced start with no job",
-                 "[print][collector][creator5][2054]") {
+TEST_CASE_METHOD(
+    CreatorFivePrintStartReplayFixture,
+    "PrintStartCollector: an error line ends a printer-announced start only with no job",
+    "[print][collector][creator5][2054]") {
     REQUIRE(have_profile_);
-    test::set_wire_state(state(), PrintJobState::CANCELLED);
-    drain_async_updates();
-    send_gcode_response(kCreatorFiveStartTable);
-    drain_async_updates();
-    REQUIRE(collector().is_active());
-
-    send_gcode_response("!! Tool T0 did not pick up");
-    drain_async_updates();
-    drain_async_updates();
-    CHECK_FALSE(collector().is_active());
-    CHECK(get_current_phase() == PrintStartPhase::IDLE);
-}
-
-TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
-                 "PrintStartCollector: an error line once the printer holds the job keeps the run",
-                 "[print][collector][creator5][2054]") {
-    REQUIRE(have_profile_);
-    test::set_wire_state(state(), PrintJobState::CANCELLED);
-    drain_async_updates();
-    send_gcode_response(kCreatorFiveStartTable);
-    drain_async_updates();
-    REQUIRE(collector().is_active());
-    test::set_wire_state(state(), PrintJobState::PRINTING);
-    drain_async_updates();
-
-    // A macro's recoverable error inside the job is the job's to handle.
-    send_gcode_response("!! Move out of range: 300.000 0.000 1.000");
-    drain_async_updates();
-    drain_async_updates();
-    CHECK(collector().is_active());
+    arm_by_announcement();
+    SECTION("no job yet: the start ends") {
+        send_gcode_response("!! Tool T0 did not pick up");
+        drain_async_updates();
+        drain_async_updates();
+        CHECK_FALSE(collector().is_active());
+        CHECK(get_current_phase() == PrintStartPhase::IDLE);
+    }
+    SECTION("the printer holds the job: a macro's recoverable error is the job's to handle") {
+        start_printing();
+        send_gcode_response("!! Move out of range: 300.000 0.000 1.000");
+        drain_async_updates();
+        drain_async_updates();
+        CHECK(collector().is_active());
+    }
 }
 
 TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
                  "PrintStartCollector: a queued retirement spares a run whose file just opened",
                  "[print][collector][creator5][2054]") {
     REQUIRE(have_profile_);
-    test::set_wire_state(state(), PrintJobState::CANCELLED);
-    drain_async_updates();
-    send_gcode_response(kCreatorFiveStartTable);
-    drain_async_updates();
-    REQUIRE(collector().is_active());
+    arm_by_announcement();
 
     clock_.advance(std::chrono::minutes(11));
     collector().check_printer_start_retirement(); // queues the stop
@@ -652,4 +615,38 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
     send_gcode_response(kCreatorFiveStartTable);
     drain_async_updates();
     CHECK(collector().is_active());
+}
+
+TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
+                 "PrintStartCollector: a detached collector refuses a direct start",
+                 "[print][collector][2054]") {
+    collector().detach();
+    collector().start();
+    drain_async_updates();
+    CHECK_FALSE(collector().is_active());
+}
+
+TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
+                 "PrintStartCollector: the ETA tick retires a printer-announced start gone quiet",
+                 "[print][collector][creator5][2054]") {
+    REQUIRE(have_profile_);
+    helix::sim::SimulatedClock::ManualScope clock(helix::sim::SimSpeed::of(1.0));
+    test::set_wire_state(state(), PrintJobState::CANCELLED);
+    drain_async_updates();
+    send_gcode_response(kCreatorFiveStartTable);
+    drain_async_updates();
+    REQUIRE(collector().is_active());
+    REQUIRE(collector().armed_by_printer());
+
+    // No file opens and the printer says nothing more: only the tick can notice.
+    clock.advance(std::chrono::minutes(11));
+    void* const addr = &collector();
+    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
+        if (lv_timer_get_user_data(t) == addr) {
+            lv_timer_ready(t);
+        }
+    }
+    lv_timer_handler();
+    drain_async_updates();
+    CHECK_FALSE(collector().is_active());
 }

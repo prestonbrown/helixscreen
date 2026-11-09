@@ -1877,6 +1877,20 @@ bool preset_in_family(const std::string& candidate, const std::string& family) {
     return candidate.size() > family.size() && candidate.compare(0, family.size(), family) == 0 &&
            candidate[family.size()] == '_';
 }
+
+/// The preset a saved type's boot migration reads. A firmware variant names
+/// different hardware from its base (Z-Mod's `fan_generic fanM106` for stock's
+/// `fan`), so the installed preset wins when it is @p base_preset or one of its
+/// variants and still ships; anything else migrates from the base
+/// (prestonbrown/helixscreen#2064).
+std::string boot_migration_preset(const std::string& base_preset,
+                                  const std::string& installed_preset) {
+    if (preset_in_family(installed_preset, base_preset) &&
+        Config::preset_file_exists(installed_preset)) {
+        return installed_preset;
+    }
+    return base_preset;
+}
 } // namespace
 
 bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discovery,
@@ -1899,7 +1913,8 @@ bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discov
         // older preset didn't seed the block (Snapmaker U1 shipped pre-2026-05
         // with role=none on e1/e2/e3; tonight's preset fix only helped fresh
         // installs without this hook).
-        std::string saved_preset = get_preset_for_name(saved_type);
+        std::string saved_preset =
+            boot_migration_preset(get_preset_for_name(saved_type), config->get_preset());
         if (!saved_preset.empty()) {
             if (config->apply_preset_file(saved_preset)) {
                 helix::reload_settings_after_preset();
@@ -2066,7 +2081,7 @@ const char* PrinterDetector::mismatch_decision_name(MismatchDecision decision) {
     case MismatchDecision::SavedTypeNotSpecific:
         return "saved type is unset or not specific";
     case MismatchDecision::AlreadyDismissed:
-        return "already answered for this saved type";
+        return "already answered for this saved and detected pair";
     }
     return "unknown";
 }
@@ -2110,10 +2125,31 @@ std::string PrinterDetector::canonical_type_name(const std::string& printer_name
     return printer_name;
 }
 
+namespace {
+/// The contender of an ambiguous @p detected that is the saved type or one of
+/// its variant family (relate_types), or nullptr when the result separated or
+/// no tied candidate is the saved machine. A shared picture is not enough: one
+/// image can stand for a whole model line of different sizes.
+const std::string* contender_for_saved_machine(const std::string& saved_type,
+                                               const PrinterDetectionResult& detected) {
+    if (!detected.ambiguous() || saved_type.empty()) {
+        return nullptr;
+    }
+    for (const auto& contender : detected.contenders) {
+        if (contender == saved_type ||
+            PrinterDetector::relate_types(saved_type, contender).relation !=
+                PrinterDetector::TypeRelation::DifferentModel) {
+            return &contender;
+        }
+    }
+    return nullptr;
+}
+} // namespace
+
 PrinterDetector::MismatchDecision
 PrinterDetector::classify_type_mismatch(const std::string& saved_type,
                                         const std::string& detected_type, int detected_confidence,
-                                        const std::string& flag_value, int detected_margin) {
+                                        const MismatchAnswer& answered, int detected_margin) {
     // Emptiness is checked before confidence so a no-detection pass is
     // distinguishable in the log from a real candidate that scored short.
     if (detected_type.empty())
@@ -2129,7 +2165,7 @@ PrinterDetector::classify_type_mismatch(const std::string& saved_type,
         return MismatchDecision::MatchesSavedType;
     if (saved_type.empty() || saved_type == "Custom/Other" || saved_type == "Unknown")
         return MismatchDecision::SavedTypeNotSpecific;
-    if (flag_value == saved_type)
+    if (answered.saved == saved_type && answered.detected == detected_type)
         return MismatchDecision::AlreadyDismissed;
     return MismatchDecision::Warn;
 }
@@ -2137,12 +2173,31 @@ PrinterDetector::classify_type_mismatch(const std::string& saved_type,
 PrinterDetector::MismatchDecision
 PrinterDetector::classify_type_mismatch(const std::string& saved_type,
                                         const PrinterDetectionResult& detected,
-                                        const std::string& flag_value) {
+                                        const MismatchAnswer& answered) {
     if (!detected.detected()) {
         return MismatchDecision::NoDetection;
     }
-    return classify_type_mismatch(saved_type, detected.type_name, detected.confidence, flag_value,
-                                  detected.margin());
+    const std::string* settled = contender_for_saved_machine(saved_type, detected);
+    if (settled == nullptr) {
+        return classify_type_mismatch(saved_type, detected.type_name, detected.confidence, answered,
+                                      detected.margin());
+    }
+    // A contender is not separated from the winner, so it carries the winner's
+    // confidence; the saved type is what separated it from the other machines.
+    return classify_type_mismatch(saved_type, *settled, detected.confidence, answered,
+                                  kDetectMinMargin);
+}
+
+std::string PrinterDetector::mismatch_subject(const std::string& saved_type,
+                                              const PrinterDetectionResult& detected) {
+    const std::string* settled = contender_for_saved_machine(saved_type, detected);
+    return settled != nullptr ? *settled : detected.type_name;
+}
+
+std::string PrinterDetector::saved_type_contender(const std::string& saved_type,
+                                                  const PrinterDetectionResult& detected) {
+    const std::string* settled = contender_for_saved_machine(saved_type, detected);
+    return settled != nullptr ? *settled : std::string();
 }
 
 PrinterDetector::TypeRelationResult

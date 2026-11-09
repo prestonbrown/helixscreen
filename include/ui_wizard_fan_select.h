@@ -17,13 +17,6 @@
  *
  * Uses hardware discovery from MoonrakerClient to populate dropdowns.
  *
- * ## Class-Based Architecture (Phase 6)
- *
- * Migrated from function-based to class-based design with:
- * - Instance members instead of static globals
- * - Static trampolines for LVGL callbacks
- * - Global singleton getter for backwards compatibility
- *
  * ## Subject Bindings (4 total):
  *
  * - hotend_fan_selected (int) - Selected hotend fan index

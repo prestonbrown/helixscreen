@@ -1002,7 +1002,7 @@ TEST_CASE_METHOD(MoonrakerClientLifecycleFixture, "Full subscription workflow wi
     // The exact count depends on simulation timing; that it is non-zero does
     // not. The assertion was `>= 0`, which an int can never fail.
     //
-    // This is now a real ordering assertion where it used to be decoration. If
+    // This is a real ordering assertion. If
     // it ever flakes, that is a finding about subscription-cancel timing - do
     // not weaken it back to `>= 0`.
     REQUIRE(final_count > 0);

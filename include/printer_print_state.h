@@ -303,6 +303,19 @@ class PrinterPrintState {
         return &print_thumbnail_path_;
     }
 
+    /// 1 when the print has a thumbnail of its own, as has_own_thumbnail()
+    /// decides; 0 for a file with none, or a start whose file is not known yet.
+    /// Surfaces that must not pass the stand-in off as the print's model bind
+    /// to this.
+    lv_subject_t* get_print_has_thumbnail_subject() {
+        return &print_has_thumbnail_;
+    }
+
+    /// Whether the print has a thumbnail of its own: @p path is a real image,
+    /// not no_thumbnail_placeholder(), or one is held in PSRAM. Firmware keeps
+    /// its image there and publishes only the placeholder as the path.
+    static bool has_own_thumbnail(const char* path, bool psram_thumbnail);
+
 #if defined(HELIX_PLATFORM_ESP32)
     /// Bumped every time the PSRAM thumbnail below is replaced. ESP32 has no
     /// disk thumbnail cache, so print_thumbnail_path_ stays empty there and
@@ -817,6 +830,23 @@ class PrinterPrintState {
     /// a clean slate and re-derives both from the fresh status. Main-thread only.
     void clear_pl_recovery_file() {
         pl_recovery_file_.clear();
+        plr_saved_file_.reset();
+    }
+
+    /// The firmware's saved recovery filename (plr_parse_saved_file): nullopt
+    /// when it keeps none, empty when cleared. Main-thread only.
+    [[nodiscard]] const std::optional<std::string>& plr_saved_file() const {
+        return plr_saved_file_;
+    }
+
+    /// Whether the saved filename decides availability (plr_saved_file_gates_offer).
+    [[nodiscard]] bool plr_saved_file_gates_offer() const {
+        return plr_saved_file_gates_offer_;
+    }
+
+    /// Set from the discovery snapshot, alongside the resume-macro capability.
+    void set_plr_saved_file_gates_offer(bool gates) {
+        plr_saved_file_gates_offer_ = gates;
     }
 
     /// The active recovery probe's capability marker (plr_parse_power_loss_signal
@@ -1156,6 +1186,9 @@ class PrinterPrintState {
     void reconcile_preparing();
 
   private:
+    /// Republishes print_has_thumbnail from the path and the PSRAM image.
+    void update_has_thumbnail();
+
     /// What a HelixScreen start named, for note_start_plate(). Main thread only.
     struct StartRecord {
         std::string printer_id;
@@ -1273,6 +1306,7 @@ class PrinterPrintState {
     lv_subject_t print_show_progress_{};    // Integer: 1 when active AND not starting
     lv_subject_t print_display_filename_{}; // String: clean filename
     lv_subject_t print_thumbnail_path_{};   // String: LVGL thumbnail path
+    lv_subject_t print_has_thumbnail_{};    // Integer: 1 unless the path is the placeholder
 
 #if defined(HELIX_PLATFORM_ESP32)
     // ESP32 thumbnail route (Task 11 R2): no disk cache on this platform, so
@@ -1445,6 +1479,8 @@ class PrinterPrintState {
     // Recovery file (plr_parse_recovery_file). Not a subject:
     // no XML binding needed, read on the main thread by the resume dispatcher.
     std::string pl_recovery_file_;
+    std::optional<std::string> plr_saved_file_;
+    bool plr_saved_file_gates_offer_ = false;
 
     // Active recovery probe capability marker (plr_parse_power_loss_signal).
     // Integer: 1 once the key has been seen (presence, not value).

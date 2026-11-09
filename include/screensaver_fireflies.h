@@ -19,7 +19,9 @@ namespace helix::ui {
  * @brief Coloured swarms of fireflies chasing invisible baits, after Fireflies
  *
  * helix::ui::FirefliesSim draws into the canvas at the display's own depth, RGB565 or
- * XRGB8888, and reports the box it cleared and drew. A level request applies at once.
+ * XRGB8888, and reports the box it cleared and drew. A level request applies at once. A
+ * finished print spells "DONE" where the print reading spells states and holds a check mark
+ * otherwise.
  */
 class FirefliesScreensaver : public SimSaver<FirefliesSim> {
   public:

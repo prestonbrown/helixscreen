@@ -46,6 +46,7 @@ timelapse_videos_overlay.xml
 toolhead_preset_config_modal.xml
 update_notify_modal.xml
 wizard_ams_identify.xml
+wizard_appearance.xml
 wizard_connection.xml
 wizard_fan_select.xml
 wizard_filament_sensor_select.xml

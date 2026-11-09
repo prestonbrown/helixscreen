@@ -140,7 +140,7 @@ TEST_CASE_METHOD(PowerPanelTeardownFixture,
     // Tree dies while the rebuild is still sitting in the queue.
     delete_widget_tree();
 
-    // Pre-fix this drain ran populate_device_chips_impl() on the freed
+    // Unguarded, this drain would run populate_device_chips_impl() on the freed
     // container: safe_clean_children() -> lv_obj_update_layout(), then
     // create_led_chip() -> lv_button_create() -> lv_obj_get_screen(). SIGSEGV.
     UpdateQueue::instance().drain();

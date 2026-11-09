@@ -556,7 +556,7 @@ record never falls back to rewriting a display mode the rig did not have.
 | **Klipper user** | Detected via systemd service owner, process table, printer_data scan, or well-known users (biqu, pi, mks) |
 | **Init system** | systemd (service template with `@@HELIX_USER@@` substitution) |
 | **Runtime deps** | `libdrm2`, `libinput10` installed via apt |
-| **Config symlink** | Per-file: user-owned config lives in `~/printer_data/config/helixscreen/` and each `$INSTALL_DIR/config/<file>` is a symlink into it (`setup_config_symlink`). Per-file, not a directory symlink, because the install's `config/` also holds packaged files an update replaces - only `HELIX_USER_CONFIG_FILES` (settings.json, helixscreen.env, .disabled_services, tool_spools.json, crash_history.json) and `HELIX_USER_CONFIG_DIRS` (custom_images, themes, printer_database.d) outlive an update |
+| **Config symlink** | Per-file: user-owned config lives in `~/printer_data/config/helixscreen/` and each `$INSTALL_DIR/config/<file>` is a symlink into it (`setup_config_symlink`). Per-file, not a directory symlink, because the install's `config/` also holds packaged files an update replaces - only `HELIX_USER_CONFIG_FILES` (settings.json, helixscreen.env, .disabled_services, tool_spools.json, pending_remap.json, crash_history.json) and `HELIX_USER_CONFIG_DIRS` (custom_images, themes, printer_database.d) outlive an update |
 
 #### Pi install-directory cascade
 

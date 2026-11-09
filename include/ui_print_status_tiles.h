@@ -98,6 +98,10 @@ class PrintStatusTiles {
 
     /// Schedule one chip pass and layout for the next tick.
     void request_update();
+    /// Schedule a pass over the heater chips alone, for a reading such as heater duty
+    /// that changes their text and status every few hundred milliseconds. It reads only
+    /// the heaters again and places the chips from the last full pass's other inputs.
+    void request_heater_update();
     /// Run the pending update now.
     void update_now();
     /// Re-read the collector's checklist and publish the rows.
@@ -119,6 +123,7 @@ class PrintStatusTiles {
         image_stale_ = true;
     }
 
+    /// Full chip passes run; a heater pass is not one.
     [[nodiscard]] int layout_count() const {
         return layout_count_;
     }
@@ -160,6 +165,11 @@ class PrintStatusTiles {
     };
 
     void cancel_update_timer();
+    /// `full`: a layout pass; otherwise the heater chips alone. A full request wins.
+    void schedule_update(bool full);
+    void update_heater_chips();
+    /// Lay laid_out_ out, publish every chip from it and the toolhead text.
+    void place_and_publish(const std::string& th_text);
     /// `labeled`: fan chips name their role ("Part 30%").
     std::array<ChipContent, kPrintStatusChipCount> decide_chips(bool show_power, bool labeled);
     void publish(PrintStatusChip chip, const ChipContent& c, bool shown, bool glow, bool line);
@@ -176,6 +186,8 @@ class PrintStatusTiles {
     /// Watches every extruder's reading and target, so a parked head's pre-heat redraws.
     void watch_extruders();
     ChipContent fan(PrintStatusChip chip, bool labeled);
+    /// The merged toolhead chip's text for the nozzle chip's text and the part fan.
+    std::string toolhead_text(const std::string& nozzle_text);
     Image current_image() const;
 
     PrinterState& printer_state_;
@@ -225,7 +237,21 @@ class PrintStatusTiles {
     mutable int natural_h_ = 0;
 
     lv_timer_t* update_timer_ = nullptr;
+    bool pending_full_ = false;
     int layout_count_ = 0;
+    /// The last full pass's layout input and chip content. A heater pass edits the
+    /// heater entries and places the chips again without re-reading the others.
+    struct LaidOut {
+        bool valid = false;
+        lv_obj_t* probe = nullptr;
+        CalloutPresenter::Parts parts;
+        CalloutPresenter::Config cfg;
+        Image image;
+        std::array<ChipContent, kPrintStatusChipCount> contents{};
+        std::array<ChipContent, kPrintStatusChipCount> bare{};
+        int column_w = 0;
+    };
+    LaidOut laid_out_;
     CalloutLayout last_layout_;
     bool subjects_ready_ = false;
 

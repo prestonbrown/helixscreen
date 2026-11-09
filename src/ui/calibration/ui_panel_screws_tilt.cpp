@@ -41,7 +41,6 @@ using namespace helix;
 // State subject (0=IDLE, 1=PROBING, 2=RESULTS, 3=ERROR)
 static lv_subject_t s_screws_tilt_state;
 
-// Forward declarations
 IMoonrakerClient* get_moonraker_client();
 IMoonrakerAPI* get_moonraker_api();
 
@@ -362,8 +361,8 @@ void ScrewsTiltPanel::on_screws_tilt_results(const std::vector<ScrewTiltResult>&
     screw_results_ = results;
     level_report_ = evaluate_screw_level(results, screw_pitch_mm_);
 
-    // An unreadable adjustment used to skip the screw, which read as a level
-    // bed. Surface it instead — we cannot judge a bed we cannot parse.
+    // Surface an unreadable adjustment rather than skipping the screw, which
+    // would read as a level bed — we cannot judge a bed we cannot parse.
     if (level_report_.verdict == ScrewLevelVerdict::PARSE_ERROR) {
         spdlog::error("[ScrewsTilt] Unreadable screw result ({}) — cannot judge level",
                       level_report_.parse_error);

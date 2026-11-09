@@ -59,8 +59,7 @@ enum class RecoverDispatch {
 /// the recovery modal rather than silently dropping affordances or firing into
 /// a cold nozzle. Everything else runs the action's own gcode; only key298
 /// routes through PrinterRecoveryService, which is why it alone carries an
-/// empty gcode. Before #1172 this decision did not exist and every WARNING
-/// with an action was offered a klipper_mcu bounce.
+/// empty gcode (#1172).
 RecoverDispatch decide_recover_dispatch(const ErrorEvent& e);
 
 /// Centralizes Klipper/Moonraker gcode-error surfacing for HelixScreen.

@@ -1069,6 +1069,38 @@ struct ProbeNoRngSim {
     int got = 0;
 };
 
+/// A scene sim that reads the print: records the mode each call saw.
+struct ProbeReadingSim {
+    static constexpr const auto& kLevels = kProbeSimLevels;
+
+    void init(helix::ui::FrameTarget& /*frame*/, std::minstd_rand& /*rng*/, size_t /*level*/,
+              const helix::ui::ClockReading& reading) {
+        modes.push_back(reading.mode);
+    }
+    void step(uint32_t /*dt_ms*/, helix::ui::FrameTarget& /*frame*/, std::minstd_rand& /*rng*/,
+              const helix::ui::ClockReading& reading, std::vector<DirtyRect>& /*dirty*/) {
+        modes.push_back(reading.mode);
+    }
+    void request_level(size_t /*level*/) {}
+    void clear() {
+        modes.clear();
+    }
+
+    std::vector<helix::ui::ClockMode> modes;
+};
+
+class ProbeReadingSaver : public helix::ui::SimSaver<ProbeReadingSim> {
+  public:
+    ScreensaverType type() const override {
+        return ScreensaverType::HYPERSPACE;
+    }
+
+  protected:
+    std::optional<lv_color_format_t> canvas_format() const override {
+        return helix::ui::kSaverBuildCanvasFormat;
+    }
+};
+
 helix::ui::ClockInput input_at(int32_t seconds_of_day) {
     helix::ui::ClockInput in;
     in.seconds_of_day = seconds_of_day;
@@ -1115,6 +1147,55 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(sim_calls() == std::vector<std::string>{"clear"});
     CHECK(ss.sim().heap_bytes() == 0);
     CHECK(&SimSaverTestAccess::sim(ss) == &ss.sim());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a scene saver reads the print a frame before the card would",
+                 "[screensaver][screensaver_parts]") {
+    using helix::ui::ClockMode;
+    ProbeReadingSaver ss;
+    ScreensaverStopOnExit<ProbeReadingSaver> stop_on_exit{ss};
+    helix::ui::ClockInput reported;
+    ss.set_input_source([&reported] { return reported; });
+    ss.start();
+    REQUIRE(ss.is_active());
+    advance_saver(ss, 33);
+    CHECK(ss.sim().modes == std::vector<ClockMode>{ClockMode::CLOCK, ClockMode::CLOCK});
+    CHECK_FALSE(ss.print_card_shown());
+
+    // The frame the source turns PRINTING, the sim draws it, and the card agrees.
+    reported.print = {ClockPrintPhase::PRINTING, -1, 12};
+    advance_saver(ss, 33);
+    REQUIRE(ss.sim().modes.size() == 3);
+    CHECK(ss.sim().modes.back() == ClockMode::PROGRESS);
+    CHECK(ss.print_card_shown());
+    CHECK(ss.print_card_face().mode == ClockMode::PROGRESS);
+
+    // A saver started mid-print opens on the print.
+    ss.stop();
+    ss.start();
+    REQUIRE(ss.is_active());
+    CHECK(ss.sim().modes == std::vector<ClockMode>{ClockMode::PROGRESS});
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a sim without a reading still starts and steps",
+                 "[screensaver][screensaver_parts]") {
+    static_assert(!helix::ui::sim_inits_with_v<ProbeSim, const helix::ui::ClockReading&>);
+    static_assert(helix::ui::sim_inits_with_v<ProbeReadingSim, const helix::ui::ClockReading&>);
+    static_assert(!helix::ui::sim_inits_with_v<ProbeReadingSim>);
+    ProbeSimSaver ss;
+    ScreensaverStopOnExit<ProbeSimSaver> stop_on_exit{ss};
+    // A running print changes nothing for a sim that does not read it.
+    ss.set_input_source([] {
+        helix::ui::ClockInput in;
+        in.print = {ClockPrintPhase::PRINTING, 600, 40};
+        return in;
+    });
+    sim_calls().clear();
+    ss.start();
+    REQUIRE(ss.is_active());
+    CHECK(sim_calls() == std::vector<std::string>{"clear", "init 0"});
+    advance_saver(ss, 20);
+    CHECK(sim_calls() == std::vector<std::string>{"clear", "init 0", "step 20"});
 }
 
 TEST_CASE("ladder_period reads a table's rows and clamps to its last rung",

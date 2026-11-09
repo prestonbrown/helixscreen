@@ -64,7 +64,6 @@ std::string EthernetBackendLinux::read_operstate(const std::string& interface) {
     std::getline(file, state);
     file.close();
 
-    // Trim whitespace
     state.erase(std::remove_if(state.begin(), state.end(), ::isspace), state.end());
 
     spdlog::trace("[EthernetLinux] {} operstate: {}", interface, state);

@@ -29,9 +29,7 @@ const std::vector<std::string>& printable_extensions() {
 // Case-insensitive suffix match. A name exactly as long as the extension is a
 // hidden dotfile (".gcode"), not a printable file.
 bool ends_with_ci(const std::string& filename, const std::string& ext) {
-    return filename.size() > ext.size() &&
-           helix::text_io::equals_ignore_case(
-               std::string_view(filename).substr(filename.size() - ext.size()), ext);
+    return filename.size() > ext.size() && helix::text_io::ends_with_ignore_case(filename, ext);
 }
 
 } // namespace

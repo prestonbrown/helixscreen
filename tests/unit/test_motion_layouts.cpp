@@ -14,6 +14,7 @@
  * distance as a step (prestonbrown/helixscreen#865).
  */
 
+#include "ui_button.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_motion.h"
 #include "ui_settings_motion.h"
@@ -345,19 +346,39 @@ TEST_CASE_METHOD(LayoutFixture, "motion layout: the selected step persists",
     CHECK(get_global_motion_panel().selected_jog_step() == Catch::Approx(30.0f));
 }
 
-TEST_CASE_METHOD(LayoutFixture, "motion layout: Z arrows follow the bed_moves inversion",
+TEST_CASE_METHOD(LayoutFixture, "motion layout: each Z key's tag matches the move it sends",
                  "[motion-layout][xml]") {
-    show_with(MotionLayout::ArrowsHome);
-    click("step_1"); // 1mm
-    click("cross_z_up");
+    // Distance the label leads with ("" = bare tag, moving the selected step), mm it moves.
+    const auto [layout, name, distance, step] =
+        GENERATE(table<MotionLayout, const char*, const char*, double>(
+            {{MotionLayout::Pad, "z_up_large", "10mm", 10.0},
+             {MotionLayout::Pad, "z_down_small", "1mm", 1.0},
+             {MotionLayout::AxisRows, "rows_z_up_small", "1mm", 1.0},
+             {MotionLayout::AxisRows, "rows_z_down_large", "10mm", 10.0},
+             {MotionLayout::Arrows, "arrows_z_up", "", 0.0},
+             {MotionLayout::ArrowsHome, "cross_z_down", "", 0.0}}));
+    const int bed_moves = GENERATE(0, 1);
+    CAPTURE(name, bed_moves);
+    show_with(layout);
+    get_global_motion_panel().set_jog_mode(helix::JogMode::Coarse);
     lv_subject_set_int(
-        get_printer_state().capabilities_state().subject(helix::Capability::BedMoves), 1);
+        get_printer_state().capabilities_state().subject(helix::Capability::BedMoves), bed_moves);
     drain();
-    click("cross_z_up");
-    REQUIRE(motion().moves.size() == 2);
-    CHECK(motion().moves[0].dz == Catch::Approx(1.0));
+
+    lv_obj_t* label = ui_button_get_label(find(name));
+    REQUIRE(label != nullptr);
+    const std::string text = lv_label_get_text(label);
+    const std::string tag = text.substr(std::min(text.rfind('Z'), text.size()));
+    CHECK(text == (distance[0] ? std::string(distance) + " · " + tag : tag));
+
+    click(name);
+    REQUIRE(motion().moves.size() == 1);
     // Up on a bed-moves printer raises the bed: G-code Z goes down.
-    CHECK(motion().moves[1].dz == Catch::Approx(-1.0));
+    const bool up = std::string(name).find("_up") != std::string::npos;
+    const double mm = step > 0 ? step : get_global_motion_panel().selected_jog_step();
+    const double expected = up == (bed_moves == 0) ? mm : -mm;
+    CHECK(motion().moves[0].dz == Catch::Approx(expected));
+    CHECK(tag == (expected > 0 ? "Z+" : "Z–"));
 }
 
 TEST_CASE_METHOD(LayoutFixture, "motion layout: axis rows move the jog mode's distances",
@@ -369,19 +390,17 @@ TEST_CASE_METHOD(LayoutFixture, "motion layout: axis rows move the jog mode's di
     click("rows_x_plus_large");
     click("rows_x_minus_small");
     click("rows_y_plus_small");
-    click("rows_z_down_large");
-    REQUIRE(motion().moves.size() == 4);
+    REQUIRE(motion().moves.size() == 3);
     CHECK(motion().moves[0].dx == Catch::Approx(10.0));
     CHECK(motion().moves[1].dx == Catch::Approx(-1.0));
     CHECK(motion().moves[2].dy == Catch::Approx(1.0));
-    CHECK(motion().moves[3].dz == Catch::Approx(-10.0));
 
     // The rows' mode buttons switch the distances the rows move.
     click_in("rows_modes", "jog_mode_fine");
     CHECK(panel.get_jog_mode() == helix::JogMode::Fine);
     click("rows_x_plus_large");
-    REQUIRE(motion().moves.size() == 5);
-    CHECK(motion().moves[4].dx == Catch::Approx(1.0));
+    REQUIRE(motion().moves.size() == 4);
+    CHECK(motion().moves[3].dx == Catch::Approx(1.0));
 }
 
 TEST_CASE_METHOD(LayoutFixture, "motion layout: home buttons home their axes",

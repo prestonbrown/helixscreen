@@ -7,14 +7,12 @@
 # CLAUDE.md files and skills work by progressive disclosure — they are mostly
 # pointers, and a pointer to a renamed or deleted file is worse than no pointer.
 # It sends the reader (human or agent) looking for something that isn't there, and
-# it silently teaches a wrong name. Several rounds of this have been cleaned up by
-# hand:
+# it silently teaches a wrong name. The shapes this catches:
 #
-#   - .claude/checklist.md cited six docs that had moved to docs/devel/
-#   - CLAUDE.md taught ui_nav_push_overlay(), a function with zero call sites
-#   - scripts/CLAUDE.md documented package.sh, deleted in 1ddbbbdba
-#   - a lesson taught lv_xml_component_register_from_file(), a transposed name
-#     that exists nowhere
+#   - a doc citing docs that have moved (e.g. into docs/devel/)
+#   - a doc teaching a function with zero call sites
+#   - a doc documenting a script that has been deleted
+#   - a doc teaching a transposed name that exists nowhere
 #
 # Five checks:
 #   refs   — every backticked path in an agent-facing doc resolves
@@ -22,8 +20,9 @@
 #   make   — every `make <target>` command in a scanned doc names a target that
 #            Makefile or mk/*.mk defines (README.md and CONTRIBUTING.md too)
 #   index  — every doc in docs/devel/ is listed in docs/devel/CLAUDE.md
-#   counts — README.md and docs/user/ state the shipped filament systems,
-#            theme presets and printer database size truthfully
+#   counts — README.md, docs/user/ and the Play Store listing state the
+#            shipped filament systems, theme presets and printer database
+#            size truthfully
 #   stale  — report-only: cites whose file changed after the doc last did
 #
 # A citation names a place — `src/printer/printer_state.cpp#update_from_status` —
@@ -52,7 +51,7 @@
 #                                # refs+links, plus the index check
 #   check_doc_refs.py --refs     # broken references only
 #   check_doc_refs.py --index    # index completeness only
-#   check_doc_refs.py --counts   # shipped-count claims in README.md + docs/user/ only
+#   check_doc_refs.py --counts   # shipped-count claims in README, docs/user/, store listing
 #   check_doc_refs.py --list     # show what was scanned
 #   check_doc_refs.py --stale    # report-only: cites older than the code they
 #                                # describe (release-time re-verify list)
@@ -63,6 +62,7 @@
 #                                # (plans/, printer-research/) are exempt.
 
 import argparse
+import glob
 import os
 import re
 import sys
@@ -380,8 +380,8 @@ def patch_created_files(targets):
 def check_refs(targets, allpaths, devel=False, created=()):
     problems = []
     # Basename index so a bare `THREADING.md` resolves without scanning all
-    # ~70k repo paths per citation — the suffix fallback used to dominate the
-    # whole run (8s of the gate's cost). Refs containing '/' keep the exact
+    # ~70k repo paths per citation — a suffix scan for every citation would
+    # dominate the whole run (about 8s). Refs containing '/' keep the exact
     # suffix scan (p.endswith('/'+path)); those are rare.
     by_basename = {}
     for p in allpaths:
@@ -580,6 +580,8 @@ def check_index():
 # been reworded out of existence, not satisfied.
 COUNTS_README = 'README.md'
 COUNTS_USER_DIR = 'docs/user'
+# Store listings repeat the same claims to people deciding whether to install.
+COUNTS_STORE_GLOB = 'android/fastlane/metadata/android/*/full_description.txt'
 AMS_TYPES_HEADER = 'include/ams_types.h'
 PRINTER_DATABASE = 'assets/config/printer_database.json'
 THEME_PRESET_DIR = 'assets/config/themes/defaults'
@@ -592,8 +594,8 @@ _AMS_ROW_RE = re.compile(r'\{AmsType::(\w+),\s*"([^"]+)"')
 _BACKEND_COUNT_RE = re.compile(
     r'\b(\d+)\s+(?:filament systems|filament system backends|'
     r'multi-material (?:backends|systems))\b(\s*[:(])?', re.I)
-# "18 presets" / "18 theme presets", on a line about themes.
-_THEME_COUNT_RE = re.compile(r'\b(\d+)\s+(?:theme\s+)?presets\b', re.I)
+# "18 presets" / "18 theme presets" / "18 themes", on a line about themes.
+_THEME_COUNT_RE = re.compile(r'\b(\d+)\s+(?:(?:theme\s+)?presets|themes)\b', re.I)
 # A floor claim: "over 100 printers", "100+ models".
 _PRINTER_FLOOR_RE = re.compile(
     r'\b(?:(over)\s+(\d+)|(\d+)\+)\s+(?:printer models|printers|models)\b', re.I)
@@ -634,6 +636,7 @@ def count_targets():
     for root, dirs, files in os.walk(COUNTS_USER_DIR):
         prune_dirs(root, dirs)
         targets.extend(os.path.join(root, f) for f in files if f.endswith('.md'))
+    targets.extend(glob.glob(COUNTS_STORE_GLOB))
     return sorted(set(t for t in targets if os.path.isfile(t)))
 
 
@@ -792,7 +795,7 @@ def main():
     ap.add_argument('--refs', action='store_true', help='Only check references resolve')
     ap.add_argument('--index', action='store_true', help='Only check index completeness')
     ap.add_argument('--counts', action='store_true',
-                    help='Only check shipped-count claims in README.md and docs/user/')
+                    help='Only check shipped-count claims in README.md, docs/user/ and the Play Store listing')
     ap.add_argument('--devel', nargs='*', dest='devel_paths', metavar='PATH',
                     help='Check docs/devel/**/*.md (or only the given .md files '
                          'and directories): path refs and markdown links')
@@ -809,10 +812,8 @@ def main():
         do_index = False
         do_counts = False
     else:
-        # Default scope = agent-facing docs + the docs/devel target set. The
-        # docs/devel half used to be opt-in via --devel; it flipped to default
-        # enforcement once the surviving docs were swept clean, so CI catches
-        # future citation rot in feature docs instead of accumulating it.
+        # Default scope = agent-facing docs + the docs/devel target set, so CI
+        # catches citation rot in feature docs instead of accumulating it.
         targets = sorted(set(scan_targets()) | set(scan_devel_targets([])))
         # devel=True enables the parent-dir resolution fallback for docs/devel
         # citations; for repo-root CLAUDE.md files it is a harmless no-op.

@@ -25,7 +25,13 @@ size the firmware declares in `gcode_macro product_param` (250-270, 290-310 and 
 mod's `_START_PRINT_VARS` macro picks the variant pair, and the bed picks the model within it. The
 mod documents only the K2 Plus, and a K2 Pro has been reported running it; with no report from a
 base K2 there is no base K2 variant, so a modded base K2 misses both mod windows and ties them,
-which detection offers as a choice and never saves. The mod
+which detection offers as a choice and never saves. A K2 Plus or K2 Pro on the mod can also
+tie its Plus and Pro mod entries, because the mod's heuristic is definitive and the bonus that
+would separate them caps. When the printer was already saved as a type, the saved type
+settles the tie only for a contender in its variant family: the saved type itself, or an entry
+related to it through `variant_of`. A contender that merely shares the saved type's picture
+does not count, and the identify step of the wizard preselects the printer the saved type
+settled on instead of asking again. The mod
 entries keep `probe_type: prtouch_v3`: Cartographer is optional on the mod, and a real one types
 itself from its own `cartographer` object. The base K2
 entry is the preset's `preset_default`, so a K2 preset install that identifies no K2 machine
@@ -233,6 +239,21 @@ backend is described in [FILAMENT_BACKEND_CFS.md](../FILAMENT_BACKEND_CFS.md#cfs
 The firmware-side reference (box.cfg, the `box` schema variants and field encodings, the `BOX_*`
 and `M8200` command surface, error codes, runout and auto-refill, and the community Kalico port)
 is [CREALITY_CFS_K2_INTERNALS.md](../printer-research/CREALITY_CFS_K2_INTERNALS.md).
+
+The local daemon on port 9999 that a contributor reports keeping Creality Print and the Creality
+Cloud app in step with the spools was captured on a K1C, not a K2; its reported `modifyMaterial`
+frame is on the K1 page
+([CREALITY_K1_SUPPORT.md § "The local CFS daemon on port 9999"](CREALITY_K1_SUPPORT.md#the-local-cfs-daemon-on-port-9999-reported-not-verified-by-us),
+[#2048](https://github.com/prestonbrown/helixscreen/issues/2048)). Whether the K2's `web-server`
+on 9999 accepts the same frame is unchecked.
+
+## Z-offset calibration
+
+The K2's Klipper shares the K1's `Z_OFFSET_APPLY_PROBE`, whose zero-offset guard is commented
+out, so the command always rewrites the staged calibration from the value loaded at startup.
+HelixScreen saves an accepted calibration with `SAVE_CONFIG` alone; see
+[CREALITY_K1_SUPPORT.md § "Z-offset calibration on Creality's Klipper"](CREALITY_K1_SUPPORT.md#z-offset-calibration-on-crealitys-klipper)
+([#1994](https://github.com/prestonbrown/helixscreen/issues/1994)).
 
 ## Auto-Detection
 

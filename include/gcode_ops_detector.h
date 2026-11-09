@@ -169,7 +169,6 @@ class GCodeOpsDetector {
      */
     explicit GCodeOpsDetector(const DetectionConfig& config = {});
 
-    // Non-copyable, movable (RAII pattern)
     GCodeOpsDetector(const GCodeOpsDetector&) = delete;
     GCodeOpsDetector& operator=(const GCodeOpsDetector&) = delete;
     GCodeOpsDetector(GCodeOpsDetector&&) = default;

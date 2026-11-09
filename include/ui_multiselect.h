@@ -61,7 +61,6 @@ class UiMultiselect {
     UiMultiselect(const UiMultiselect&) = delete;
     UiMultiselect& operator=(const UiMultiselect&) = delete;
 
-    // Movable
     UiMultiselect(UiMultiselect&& other) noexcept;
     UiMultiselect& operator=(UiMultiselect&& other) noexcept;
 

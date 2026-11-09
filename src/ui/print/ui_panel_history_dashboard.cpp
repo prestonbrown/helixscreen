@@ -190,7 +190,6 @@ lv_obj_t* HistoryDashboardPanel::create(lv_obj_t* parent) {
     filament_chart_container_ =
         find_required(overlay_root_, "filament_chart_container", get_name());
 
-    // Log found widgets
     spdlog::debug("[{}] Widget refs - filters: {}/{}/{}/{}/{}, stats: {}/{}/{}/{}", get_name(),
                   filter_day_ != nullptr, filter_week_ != nullptr, filter_month_ != nullptr,
                   filter_year_ != nullptr, filter_all_ != nullptr, stat_total_prints_ != nullptr,
@@ -199,7 +198,6 @@ lv_obj_t* HistoryDashboardPanel::create(lv_obj_t* parent) {
     spdlog::debug("[{}] Chart containers: trend={}, filament={}", get_name(),
                   trend_chart_container_ != nullptr, filament_chart_container_ != nullptr);
 
-    // Create charts inside their containers
     create_trend_chart();
     create_filament_chart();
 
@@ -437,7 +435,6 @@ void HistoryDashboardPanel::update_statistics(const std::vector<PrintHistoryJob>
         return;
     }
 
-    // Calculate statistics
     uint64_t total_prints = jobs.size();
     double total_time = 0.0;
     double total_filament = 0.0;
@@ -473,7 +470,6 @@ void HistoryDashboardPanel::update_statistics(const std::vector<PrintHistoryJob>
     snprintf(buf, sizeof(buf), "%.0f%%", success_rate);
     lv_subject_copy_string(&stat_success_rate_subject_, buf);
 
-    // Update charts
     update_trend_chart(jobs);
     update_filament_chart(jobs);
 
@@ -531,7 +527,6 @@ void HistoryDashboardPanel::create_trend_chart() {
     // Width fills parent, height is fixed since charts need explicit sizing
     lv_obj_set_size(trend_chart_, LV_PCT(100), 50);
 
-    // Use line chart type
     lv_chart_set_type(trend_chart_, LV_CHART_TYPE_LINE);
     lv_chart_set_point_count(trend_chart_, static_cast<uint32_t>(get_trend_period_count()));
 
@@ -694,7 +689,6 @@ void HistoryDashboardPanel::update_trend_chart(const std::vector<PrintHistoryJob
         lv_chart_set_point_count(trend_chart_, static_cast<uint32_t>(period_count));
     }
 
-    // Set Y-axis range
     lv_chart_set_axis_range(trend_chart_, LV_CHART_AXIS_PRIMARY_Y, 0, max_count);
 
     // Update series data - use lv_chart_set_value_by_id for precise control
@@ -732,7 +726,6 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
         // Split semicolon-separated filament types (OrcaSlicer multi-extruder format)
         std::vector<std::string> types;
         for (std::string_view sv : helix::text_io::lines(job.filament_type, ';')) {
-            // Trim whitespace
             size_t start = sv.find_first_not_of(" \t");
             size_t end = sv.find_last_not_of(" \t");
             if (start != std::string_view::npos) {
@@ -813,7 +806,6 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
         if (bar_pct < 5)
             bar_pct = 5; // Minimum visible width
 
-        // Create row container
         lv_obj_t* row = lv_obj_create(filament_chart_container_);
         lv_obj_set_size(row, LV_PCT(100), LV_SIZE_CONTENT);
         lv_obj_set_style_bg_opa(row, LV_OPA_0, 0);
@@ -833,10 +825,10 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
 
         // Type label.
         //
-        // Proportional, not a fixed pixel width. The row used to be 50px (type) +
-        // up to 50% (bar) + 60px (amount) + 12px of gaps, which needs 207px on the
-        // 170px-wide card this chart gets at 480x272 — so the amount label was
-        // pushed past the card edge and rendered clipped ("10" showing as "1(").
+        // Proportional, not a fixed pixel width: fixed widths of 50px (type) +
+        // up to 50% (bar) + 60px (amount) + 12px of gaps need 207px on the
+        // 170px-wide card this chart gets at 480x272, pushing the amount label
+        // past the card edge where it renders clipped ("10" showing as "1(").
         // Percentages that sum under 100 cannot overflow at any card width; the
         // three shares below total 88%, leaving the gaps and the spacer room.
         lv_obj_t* type_label = lv_label_create(row);

@@ -52,8 +52,8 @@ TEST_CASE("SplashScreenManager: discovery timing", "[splash][application]") {
     SECTION("waits for discovery before signaling") {
         // Discovery is not complete and kDiscoveryTimeoutMs has not elapsed, so
         // check_and_signal() must take the "keep splash showing" return and leave
-        // the manager unsignaled. This SECTION previously made the call and
-        // asserted nothing at all, so deleting that gate changed no test.
+        // the manager unsignaled; these asserts are what make deleting that
+        // gate fail a test.
         REQUIRE_FALSE(mgr.is_discovery_complete());
         REQUIRE(mgr.elapsed_ms() < SplashScreenManager::kDiscoveryTimeoutMs);
         REQUIRE_FALSE(mgr.ready_to_signal());

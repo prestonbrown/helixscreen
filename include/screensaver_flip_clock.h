@@ -21,9 +21,9 @@ namespace helix::ui {
  * @brief Split-flap clock that counts a running print down
  *
  * helix::ui::FlipClockState decides what to show and helix::ui::FlipClockSim draws the cards;
- * this class draws the caption and AM/PM marker in the user's language and time format. The
- * cards are written pixel by pixel, but the text is drawn with lv_draw_label, so the canvas
- * takes kLvDrawCanvasFormat for the reason it gives.
+ * this class draws the AM/PM marker in the user's language. The cards are written pixel by
+ * pixel, but the marker is drawn with lv_draw_label, so the canvas takes kLvDrawCanvasFormat
+ * for the reason it gives.
  */
 class FlipClockScreensaver : public ClockSaver<FlipClockSim, FlipClockState> {
   public:
@@ -40,12 +40,6 @@ class FlipClockScreensaver : public ClockSaver<FlipClockSim, FlipClockState> {
     void reset_clock_text() override;
 
   private:
-    void draw_text(SaverLabel& label, const std::string& text, const DirtyRect& box,
-                   const std::vector<DirtyRect>& under, bool on_card,
-                   std::vector<DirtyRect>& dirty);
-    std::string caption_text(const FlipFace& face);
-
-    SaverLabel caption_;
     SaverLabel meridiem_;
 };
 

@@ -68,7 +68,6 @@ class TouchCalibrationOverlay : public OverlayBase, public helix::ui::ITouchCali
     TouchCalibrationOverlay();
     ~TouchCalibrationOverlay() override;
 
-    // Non-copyable
     TouchCalibrationOverlay(const TouchCalibrationOverlay&) = delete;
     TouchCalibrationOverlay& operator=(const TouchCalibrationOverlay&) = delete;
 

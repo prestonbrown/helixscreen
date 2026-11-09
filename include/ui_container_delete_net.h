@@ -12,8 +12,7 @@
  * reload deletes and re-creates that subtree on the DEFERRED path while the
  * view itself lives on inside the surviving panel, so the pool must be wiped
  * the moment its tree dies — and a LATE deferred fire must not wipe a pool
- * already rebuilt under a replacement tree (prestonbrown/helixscreen#1396;
- * previously four hand-written copies of this rule across the list views).
+ * already rebuilt under a replacement tree (prestonbrown/helixscreen#1396).
  *
  * The net owns both halves: the callback acts only when the dying object is
  * the exact container it attached to, and retarget unhooks the old net

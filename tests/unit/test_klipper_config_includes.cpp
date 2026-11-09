@@ -1061,17 +1061,28 @@ class ListingSpyApi : public MoonrakerAPIMock {
 
 } // namespace
 
-TEST_CASE("download_config_include_graph never walks the config root for plain includes",
+TEST_CASE("download_config_include_graph lists the whole config root only for a wildcard directory",
           "[config][includes][include_graph]") {
     MoonrakerClientMock client;
     helix::PrinterState state;
     ListingSpyApi api(client, state);
-    const std::map<std::string, std::string> files = {
-        {"printer.cfg", "[include conf.d/*.cfg]\n"},
-        {"conf.d/a.cfg", "[a]\n"},
-        {"conf.d/b.txt", "[not a config]\n"},
-        {"mod_data/helixscreen/config/z.cfg", "[z]\n"},
-    };
+    std::map<std::string, std::string> files;
+    std::set<std::string> expected;
+    int whole_root_lists = 0;
+    SECTION("plain includes list only the directories they name") {
+        files = {
+            {"printer.cfg", "[include conf.d/*.cfg]\n"},
+            {"conf.d/a.cfg", "[a]\n"},
+            {"conf.d/b.txt", "[not a config]\n"},
+            {"mod_data/helixscreen/config/z.cfg", "[z]\n"},
+        };
+        expected = {"printer.cfg", "conf.d/a.cfg"};
+    }
+    SECTION("a wildcard directory lists the whole tree, recursively") {
+        files = {{"printer.cfg", "[include */x.cfg]\n"}, {"a/x.cfg", "[x]\n"}};
+        expected = {"printer.cfg", "a/x.cfg"};
+        whole_root_lists = 1;
+    }
     api.set_config_files(files);
     api.spy_.set_config_files(files);
 
@@ -1086,34 +1097,11 @@ TEST_CASE("download_config_include_graph never walks the config root for plain i
     helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(error.empty());
-    CHECK(active == std::set<std::string>{"printer.cfg", "conf.d/a.cfg"});
-    CHECK(api.spy_.whole_root_lists == 0);
-    CHECK(std::set<std::string>(api.spy_.dirs_listed.begin(), api.spy_.dirs_listed.end()) ==
-          std::set<std::string>{"", "conf.d"});
-}
-
-TEST_CASE("download_config_include_graph lists the whole tree recursively for a wildcard directory",
-          "[config][includes][include_graph]") {
-    MoonrakerClientMock client;
-    helix::PrinterState state;
-    ListingSpyApi api(client, state);
-    const std::map<std::string, std::string> files = {
-        {"printer.cfg", "[include */x.cfg]\n"},
-        {"a/x.cfg", "[x]\n"},
-    };
-    api.set_config_files(files);
-    api.spy_.set_config_files(files);
-
-    std::set<std::string> active;
-    download_config_include_graph(
-        api, "printer.cfg", ".cfg",
-        [&](const std::set<std::string>& a, const std::map<std::string, std::string>&) {
-            active = a;
-        },
-        [](const std::string&) {});
-    helix::ui::UpdateQueue::instance().drain_until_empty();
-
-    CHECK(active == std::set<std::string>{"printer.cfg", "a/x.cfg"});
-    CHECK(api.spy_.whole_root_lists == 1);
-    CHECK(api.spy_.whole_root_recursive_lists == 1);
+    CHECK(active == expected);
+    CHECK(api.spy_.whole_root_lists == whole_root_lists);
+    CHECK(api.spy_.whole_root_recursive_lists == whole_root_lists);
+    if (whole_root_lists == 0) {
+        CHECK(std::set<std::string>(api.spy_.dirs_listed.begin(), api.spy_.dirs_listed.end()) ==
+              std::set<std::string>{"", "conf.d"});
+    }
 }

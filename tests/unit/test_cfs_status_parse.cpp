@@ -221,7 +221,7 @@ TEST_CASE("CFS brand fallback reads the tag record's supplier, never the record"
     const json box = make_unit_box_explicit(
         {"199999", "199999", "199999", "-1"}, {"0FFFFFF", "0FFFFFF", "0FFFFFF", "-1"},
         {"BB5250276A21999990FFFFFF0165000001000000", "BB5251234A21999990FFFFFF0165000001000000",
-         "Sunlu", "none"},
+         "Sunlu", "1234567890"},
         {"-1", "-1", "-1", "-1"});
     auto info = cfs::parse_stock_box(box);
     REQUIRE(info.units.size() == 1);
@@ -240,6 +240,13 @@ TEST_CASE("CFS brand fallback reads the tag record's supplier, never the record"
     SECTION("a vendor name the box reports is the brand") {
         REQUIRE(slots[2].brand == "Sunlu");
     }
+
+    SECTION("a third-party tag's raw UID is no brand, and the bay stays present") {
+        REQUIRE(slots[3].status == SlotStatus::AVAILABLE);
+        REQUIRE(slots[3].brand.empty());
+        CHECK(cfs::brand_from_vender("04A1B2C3D4E5F6").empty());
+        CHECK(cfs::brand_from_vender("ACE") == "ACE");
+    }
 }
 
 TEST_CASE("CFS tag record names a Spoolman spool through its serial",
@@ -254,6 +261,13 @@ TEST_CASE("CFS tag record names a Spoolman spool through its serial",
         CHECK(cfs::tag_record_spoolman_id("AB1240276A21010010FFFFFF0165000042000000") == 42);
         CHECK(cfs::tag_record_spoolman_id("AB1240276A21010010FFFFFF0165999999000000") == 999999);
         CHECK(cfs::tag_record_spoolman_id("AB1240276A21010010FFFFFF0165000002000000") == 2);
+    }
+    SECTION("another supplier's record names no spool, whatever its serial says") {
+        // Supplier 1234 in chars 6-9: the serial field of a record that is not
+        // Creality's layout is not a spool id, and reading it as one would link
+        // the lane to whichever Spoolman spool happens to carry that number.
+        CHECK_FALSE(cfs::tag_record_spoolman_id("BB5251234A21010010FFFFFF0165000042000000"));
+        CHECK_FALSE(cfs::tag_record_spoolman_id("04A1B2C3D4E5F6A7B8C9D0E1F2A3123456789ABC"));
     }
     SECTION("an all-zero serial names no spool") {
         CHECK_FALSE(cfs::tag_record_spoolman_id("AB1240276A21010010FFFFFF0165000000000000"));
@@ -427,5 +441,37 @@ TEST_CASE("CFS parse: untagged spool with remaining length stays PRESENT",
         auto info = cfs::parse_stock_box(box);
         REQUIRE(info.units.size() == 1);
         CHECK(info.units[0].slots[0].status == SlotStatus::EMPTY);
+    }
+}
+
+TEST_CASE("CFS status parse reads the wiper from box.cfg's clean positions",
+          "[cfs][status_parse][2007]") {
+    // configfile.settings from a K1C with a CFS.
+    const json k1c = json::parse(R"({"box": {"clean_left_pos_x": 153.5, "clean_left_pos_y": 225.3,
+        "clean_right_pos_x": 178.0, "clean_right_pos_y": 225.3, "extrude_pos_x": 152.5}})");
+    const auto wiper = cfs::parse_chute_wiper(k1c);
+    REQUIRE(wiper);
+    CHECK(wiper->x_min == Catch::Approx(153.5));
+    CHECK(wiper->x_max == Catch::Approx(178.0));
+    CHECK(wiper->y == Catch::Approx(225.3));
+
+    SECTION("as config strings, the ends swapped and the Y values apart") {
+        const auto swapped = cfs::parse_chute_wiper(json::parse(
+            R"({"box": {"clean_left_pos_x": "178.0", "clean_left_pos_y": "225.6",
+                "clean_right_pos_x": "153.5", "clean_right_pos_y": "225.3"}})"));
+        REQUIRE(swapped);
+        CHECK(swapped->x_min == Catch::Approx(153.5));
+        CHECK(swapped->x_max == Catch::Approx(178.0));
+        CHECK(swapped->y == Catch::Approx(225.3));
+    }
+    SECTION("any position missing or unreadable, or no box section") {
+        json missing = k1c;
+        missing["box"].erase("clean_right_pos_y");
+        CHECK_FALSE(cfs::parse_chute_wiper(missing));
+        json garbled = k1c;
+        garbled["box"]["clean_left_pos_x"] = "left";
+        CHECK_FALSE(cfs::parse_chute_wiper(garbled));
+        CHECK_FALSE(cfs::parse_chute_wiper(json::parse(R"({"auto_addr": {}})")));
+        CHECK_FALSE(cfs::parse_chute_wiper(json::array()));
     }
 }

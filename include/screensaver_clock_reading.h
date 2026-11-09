@@ -59,6 +59,8 @@ struct ClockInput {
     /// The "Show Print Progress" setting: a running print's card on savers without their own
     /// print display.
     bool show_print_progress = true;
+    /// The clock may spell a print's state in English letters; otherwise it shows a symbol.
+    bool spell_states = true;
 };
 
 /// What the readout shows: the time, a running print's progress (PROGRESS before a remaining-time
@@ -103,6 +105,8 @@ struct ClockReading {
     /// PROGRESS, COUNTDOWN and PAUSED: 0 to 100; DONE: 100; FAILED and CANCELLED: the input's,
     /// which the manager fills with the progress the print reached
     int32_t progress_pct = 0;
+    /// The input's spell_states: a print's state in English letters, or as a symbol.
+    bool spell_states = true;
 };
 
 /**

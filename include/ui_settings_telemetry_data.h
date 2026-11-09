@@ -23,11 +23,25 @@
 #pragma once
 
 #include "core/static_panel_registry.h"
+#include "json_fwd.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
+#include <string>
+#include <vector>
+
 namespace helix::settings {
+
+/// One line of an event card: its text and the color token it is drawn in.
+struct TelemetryEventLine {
+    std::string text;
+    const char* color_token;
+};
+
+/// The lines a queued telemetry event shows on its card, heading first. A field
+/// that is missing or of an unexpected type is left off rather than defaulted.
+std::vector<TelemetryEventLine> describe_telemetry_event(const nlohmann::json& event);
 
 /**
  * @class TelemetryDataOverlay

@@ -156,6 +156,9 @@ void ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid);
 /// (ams_tray_projection.h) instead of spreading across the width.
 AmsSlotLayout ams_detail_slot_layout(int32_t available_width, int slot_count);
 
+/// Whether a unit reports temperature, humidity or a dryer, which means it is closed up.
+bool unit_reports_climate(int unit_index);
+
 /// The box, lid and lane lids the last ams_detail_update_tray() laid out,
 /// relative to the slot_container. False when no box is drawn.
 bool ams_detail_tray_geometry(tray::TrayBox& box, tray::LidMode& lid, float& lid_height,

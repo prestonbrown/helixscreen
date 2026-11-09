@@ -90,4 +90,4 @@ clean-bluetooth:
 	$(Q)rm -rf $(OBJ_DIR)/bluetooth $(BT_SO)
 
 # Include dependency files for header tracking
--include $(wildcard $(OBJ_DIR)/bluetooth/*.d)
+-include $(call depfiles,$(OBJ_DIR)/bluetooth/*.d)

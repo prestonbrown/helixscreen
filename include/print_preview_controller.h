@@ -58,8 +58,12 @@ class PrintPreviewController {
         fetcher_.set_api(api);
     }
 
-    /// Point the controller at the panel's preview widgets. Either may be null.
-    void attach_widgets(lv_obj_t* thumbnail, lv_obj_t* viewer);
+    /// Point the controller at the panel's preview widgets. Any may be null.
+    /// @p checklist_thumbnail is the pre-print checklist's picture: it binds
+    /// the thumbnail path itself, and is written here only on firmware, where
+    /// the image is a PSRAM buffer no path names.
+    void attach_widgets(lv_obj_t* thumbnail, lv_obj_t* viewer,
+                        lv_obj_t* checklist_thumbnail = nullptr);
 
     /// Forget the widgets before their tree is deleted: the viewer must not
     /// report a load into a controller whose widgets are gone.
@@ -149,6 +153,7 @@ class PrintPreviewController {
 
     helix::ui::WidgetRef print_thumbnail_;
     helix::ui::WidgetRef gcode_viewer_;
+    helix::ui::WidgetRef checklist_thumbnail_;
 
     std::string displayed_file_;
     std::string gcode_displayed_file_;

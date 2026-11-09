@@ -30,6 +30,7 @@
 #include "preheat_widget.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "src/ui/panel_widgets/fan_stack_widget.h"
 #include "src/ui/panel_widgets/fan_widget.h"
 #include "src/ui/panel_widgets/print_status_widget.h"
@@ -39,6 +40,7 @@
 #include "temp_graph_controller.h"
 #include "temp_graph_internal.h"
 #include "tool_state.h"
+#include "ui/ams_drawing_utils.h"
 
 #include <algorithm>
 #include <functional>
@@ -257,6 +259,38 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
 
 // Only a real switch runs the handler: registering, or re-selecting the same
 // language, must not re-render everything that watches it.
+TEST_CASE_METHOD(LanguageSwitchFixture, "observe_language_change fires when numbering changes",
+                 "[i18n][observer][numbering]") {
+    struct Owner {
+        int renders = 0;
+    } owner;
+    ObserverGuard guard =
+        helix::ui::observe_language_change(&owner, [](Owner* o) { ++o->renders; });
+    auto drain = []() { helix::ui::UpdateQueue::instance().drain_until_empty(); };
+    drain();
+    CHECK(owner.renders == 0);
+
+    auto& settings = SettingsManager::instance();
+    settings.set_number_lanes_from_zero(true);
+    drain();
+    CHECK(owner.renders == 1);
+    CHECK(helix::ui::lane_number(0) == 0);
+    settings.set_number_lanes_from_zero(true);
+    drain();
+    CHECK(owner.renders == 1);
+    settings.set_number_lanes_from_zero(false);
+    drain();
+    CHECK(owner.renders == 2);
+    CHECK(helix::ui::lane_number(0) == 1);
+}
+
+TEST_CASE_METHOD(LanguageSwitchFixture, "a lane badge shows zero but not a missing number",
+                 "[numbering]") {
+    CHECK(ams_draw::lane_badge_text(0) == "0");
+    CHECK(ams_draw::lane_badge_text(3) == "3");
+    CHECK(ams_draw::lane_badge_text(-1).empty());
+}
+
 TEST_CASE_METHOD(LanguageSwitchFixture, "observe_language_change fires on a real switch only",
                  "[i18n][observer]") {
     struct Owner {

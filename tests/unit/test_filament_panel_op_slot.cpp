@@ -13,12 +13,12 @@
  * with a real ToolState topology + a recording AMS backend injected into the real
  * AmsState singleton. It asserts WHICH slot argument reaches the backend.
  *
- * The bug this guards (single-source-of-truth fix): execute_load/execute_unload
- * used to read backend->get_system_info().current_slot and act on THAT, so on a
- * BoxTurtle where lane 4 (slot 3) was loaded to the toolhead but the dropdown
- * defaulted to T0, Load acted on the already-loaded lane 3 instead of the
- * selected lane 0. Both executors now call the private selected_op_slot() — the
- * same resolution the button gating uses — so the op can never diverge.
+ * execute_load/execute_unload must not act on backend->get_system_info()
+ * .current_slot: on a BoxTurtle where lane 4 (slot 3) is loaded to the
+ * toolhead but the dropdown defaults to T0, Load would act on the
+ * already-loaded lane 3 instead of the selected lane 0. Both executors call the
+ * private selected_op_slot(), the same resolution the button gating uses, so
+ * the op can never diverge.
  *
  * Mutation check: reverting execute_load() to dispatching on sys.current_slot
  * makes "BoxTurtle: Load follows the selected tool" FAIL (the backend is asked
@@ -728,7 +728,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // Drain the update queue WITHOUT lv_timer_handler. schedule() creates the timer
     // from a queued lambda, but a 0ms timer would then fire and null itself inside
     // the same process_lvgl() sweep — making "fired instantly" (the bug) read
-    // identical to "never scheduled" (the fix). Draining alone lets the timer be
+    // identical to "never scheduled" (correct). Draining alone lets the timer be
     // created but never run, so its mere existence is the failure signal.
     helix::ui::UpdateQueue::instance().drain_until_empty();
 
@@ -744,7 +744,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 // a panel that is already open — which is how the failure reached the user. The
 // AD5X reporter was sitting on the filament screen when the runout pause fired,
 // tapped a still-lit Load, and got "Cannot run filament operation while
-// printing" from the backend guard (bundle JX2FVRB9).
+// printing" from the backend guard.
 //
 // The panel watches print_lifecycle. It needs PRINTING -> PAUSED as a gating edge
 // (a pause UNGATES the buttons on every backend but AD5X, and print_active reads 1
@@ -860,7 +860,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // The runout pause. AFC does not self-home, so refuse_if_printing() now
     // ALLOWS the unload here — pause-then-swap is the recovery Klipper asks for,
-    // and the panel must hand the button back or the fix is invisible.
+    // and the panel must hand the button back or the recovery is unreachable.
     set_job_state(helix::PrintJobState::PAUSED);
     CHECK(read("filament_load_disabled") == 1);   // slot 3 already loaded
     CHECK(read("filament_unload_disabled") == 0); // the paused-swap fix

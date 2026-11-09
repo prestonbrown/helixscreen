@@ -97,7 +97,6 @@ void PluginInstallModal::register_callbacks() {
 // ============================================================================
 
 void PluginInstallModal::on_show() {
-    // Find widgets
     local_description_ = find_widget("local_description");
     remote_description_ = find_widget("remote_description");
     command_textarea_ = find_widget("command_textarea");
@@ -209,21 +208,17 @@ void PluginInstallModal::show_installing_state() {
     if (checkbox_container_)
         lv_obj_add_flag(checkbox_container_, LV_OBJ_FLAG_HIDDEN);
 
-    // Show installing container
     if (installing_container_)
         lv_obj_remove_flag(installing_container_, LV_OBJ_FLAG_HIDDEN);
 }
 
 void PluginInstallModal::show_result_state(bool success, const std::string& message) {
-    // Hide installing spinner
     if (installing_container_)
         lv_obj_add_flag(installing_container_, LV_OBJ_FLAG_HIDDEN);
 
-    // Show result container
     if (result_container_)
         lv_obj_remove_flag(result_container_, LV_OBJ_FLAG_HIDDEN);
 
-    // Show OK button row
     if (result_button_row_)
         lv_obj_remove_flag(result_button_row_, LV_OBJ_FLAG_HIDDEN);
 
@@ -303,7 +298,6 @@ void PluginInstallModal::on_copy_clicked() {
         return;
     }
 
-    // Get the command text
     const char* cmd = lv_textarea_get_text(command_textarea_);
     if (!cmd || strlen(cmd) == 0) {
         return;

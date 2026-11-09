@@ -42,8 +42,8 @@ class MockHttpFileServer {
     /**
      * @brief Bind and start serving
      * @return true on success; false leaves base_url() empty and the caller
-     *         should fall back to the configured host (behaviour before this
-     *         existed), not abort — a mock convenience must never break boot.
+     *         should fall back to the configured host, not abort: a mock
+     *         convenience must never break boot.
      */
     bool start();
 

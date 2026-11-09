@@ -1,16 +1,17 @@
 # Filament Slot Metadata — `lane_data` Convention
 
-**Status**: Informational, v1.17 (2026-10). See [Changelog](#changelog).
+**Status**: Informational, v2.0 (2026-11). See [Changelog](#changelog).
 
-This document describes HelixScreen's use of the `lane_data` Moonraker database
-namespace to share per-slot filament metadata with OrcaSlicer and other tools.
-It is published so third parties — firmware vendors, slicers, scales, spool
-trackers — can interoperate with the same records without reverse-engineering
-HelixScreen's source.
+This document describes how HelixScreen reads and writes the `lane_data`
+Moonraker database namespace, the per-lane filament records OrcaSlicer and other
+tools share. It is published so third parties (firmware vendors, slicers,
+scales, spool trackers) can interoperate with the same records without
+reverse-engineering HelixScreen's source.
 
-HelixScreen did **not** invent this convention. We document here what we write,
-what we read, and the conservative rules we follow so adopters have a single
-reference to implement against.
+HelixScreen did **not** invent this convention. Since v2.0 this document follows
+**RFC 0001, Lane Status Surface** (the `lane_data` half, its §5, and the record
+fields of its reference, Part B §7) and records where HelixScreen stands on each
+of its rules.
 
 ---
 
@@ -19,51 +20,48 @@ reference to implement against.
 Moonraker exposes a per-instance JSON key/value store at
 `/server/database/item`. The `lane_data` namespace, originally introduced by
 [AFC (Armored Turtle Filament Changer)](https://www.armoredturtle.xyz/docs/afc-klipper-add-on/features.html),
-holds one record per filament lane/slot. AFC writes these records from its
-Klipper plugin; OrcaSlicer reads them (read-only — it never writes back) to
-auto-populate filament presets when sending a print.
+holds one record per filament lane. OrcaSlicer reads it (it never writes back)
+to pick filament presets when sending a print.
 
-> **Happy Hare also writes `lane_data`.** Happy Hare's Moonraker component
-> (components/mmu_server.py, `push_lane_data`) writes per-lane records into
-> the `lane_data` namespace directly, using key names `vendor_name`, `name`,
-> and `filament_id`. OrcaSlicer prefers this Moonraker `lane_data` source over
-> the legacy live `mmu` Klipper status object (`GET
-> /printer/objects/query?mmu`, fields
-> `gate_status`/`gate_material`/`gate_color`/`gate_temperature`) when the
-> namespace is populated. So Happy Hare is a `lane_data` writer alongside AFC
-> and HelixScreen — its key convention (`vendor_name` / `name`) is the de-facto
-> schema leader, since Orca follows it. HelixScreen emits those keys as aliases
-> (see §3) for forward-compatibility.
->
-> HelixScreen does **not** write `lane_data` records for AFC or Happy Hare
-> backends — those plugins own their own lane records. "Clobber" understates it:
-> AFC *empties the entire namespace* on every Klipper boot (AFC.py
-> `delete_lane_data()`), then repopulates it one key at a time as each lane's
-> PREP finishes, and full-POSTs a freshly-built dict on every lane event
-> (`SET_COLOR`, `SET_MATERIAL`, `SET_MAP`, `set_spoolID`). Anything we wrote
-> there would not survive a reboot, and would not even be reliably *readable*
-> during the seconds-wide repopulation window. AFC/HH overrides therefore live
-> in a private namespace; HelixScreen writes `lane_data` only for backends with
-> no native writer (IFS, CFS, ACE, Snapmaker). See prestonbrown/helixscreen#1158.
+RFC 0001 splits a lane's state in two:
 
-HelixScreen participates as both reader and writer. When a user edits slot
-metadata in HelixScreen's filament panel (brand, material, color, Spoolman
-binding, weight), we persist that record to `lane_data` in the AFC-compatible
-shape. OrcaSlicer 2.3.2+ reads it back on the next print and pre-selects the
-correct filament preset — with no HelixScreen-specific integration on the
-slicer side. Verified unchanged through OrcaSlicer 2.4.0-beta: the namespace
-and the consumed fields (`lane`, `color`, `material`, `bed_temp`,
-`nozzle_temp`) are identical to 2.3.2. OrcaSlicer builds carrying
-[PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) also read a
-string `filament_id` and select the exact filament preset carrying that id
-(OrcaSlicer's docs/HLSD/filament_id.md); HelixScreen writes it for a slot whose
-catalog product has a known OrcaSlicer id (§3).
+- **Live state**: what the firmware reports in Klipper status objects (presence,
+  the active lane, errors, and on most filament systems the spool's identity).
+- **`lane_data`**: the identity half, one record per lane in the Moonraker
+  database, which is what a slicer and a second screen read.
 
-The convention is intentionally permissive:
+Three rules from RFC 0001 §5 shape everything below:
 
-- No schema enforcement. Readers parse what they understand, ignore the rest.
-- No locking or transactional semantics. Last writer wins.
-- `scan_time` (ISO-8601 UTC) is the advisory conflict-avoidance hint.
+- **One writer per machine.** A producer sets `writer` and never overwrites a
+  record another live producer wrote. A record with no `writer` is legacy and
+  may be replaced.
+- **One record per lane**, kept in step with the loaded spool. An unknown value
+  is `null`, never a placeholder.
+- **Ignore the key.** Keys differ between writers (§4); a reader uses the
+  record's `lane` field.
+
+### Where HelixScreen writes and where it only reads
+
+HelixScreen keeps no lane state of its own: a lane shows what the firmware and
+Moonraker hold, and an edit is written there before the screen treats it as
+saved.
+
+| Printer | `lane_data` writer | What HelixScreen does |
+|---------|--------------------|-----------------------|
+| AFC | AFC's plugin | Reads only. Edits go to AFC as G-code (`SET_SPOOL_ID`, `SET_COLOR`, `SET_MATERIAL`, `SET_WEIGHT`, `SET_MAP`), and AFC republishes its records. Fields AFC cannot hold (brand, name, colour name, catalog pick, total weight) live in HelixScreen's own namespace, `helix-screen-afc-overrides`. The external spool's lane (§4) is HelixScreen's |
+| Happy Hare | Happy Hare's Moonraker component | Reads only. Edits go to the gate map with `MMU_GATE_MAP`. Fields the gate map cannot hold live in `helix-screen-hh-overrides` |
+| OpenAMS with `[openams_spoolman]` | The component (a namespace Moonraker protects from clients) | Reads only. Edits go through the component's `server.openams_spoolman.edit` endpoint, and each bay's spool comes from the component's own status, since its records are one per tool, not per bay |
+| CFS, AD5X IFS, QIDI Box, Snapmaker U1, ACE, tool changers, OpenAMS without the component | HelixScreen | Writes the record, after writing what the firmware holds (colour, material and the like) with the printer's own commands |
+
+The two HelixScreen namespaces for AFC and Happy Hare hold records of the same
+shape (§3), narrowed to the fields their firmware cannot hold; a spool id,
+material or colour found there is ignored, because the firmware's value wins.
+
+The convention is permissive in what it carries:
+
+- No schema enforcement. Readers parse what they understand and ignore the rest.
+- No locking. The writer rule (§5) is what keeps two writers apart.
+- `scan_time` (ISO-8601 UTC) records the last write.
 
 ---
 
@@ -73,15 +71,15 @@ The convention is intentionally permissive:
 
 | Project | Role | Reference |
 |---------|------|-----------|
-| AFC | Originator, writes from Klipper plugin | [AFC docs](https://www.armoredturtle.xyz/docs/afc-klipper-add-on/features.html) |
-| OrcaSlicer 2.3.2+ | Reader only — never writes back (filament preset auto-sync) | [MoonrakerPrinterAgent.cpp, PR #12086](https://github.com/OrcaSlicer/OrcaSlicer/pull/12086) |
-| HelixScreen | Reader + writer (this document) | `src/printer/filament_slot_override_store.cpp` |
+| AFC | Originator, writes from its Klipper plugin | [AFC docs](https://www.armoredturtle.xyz/docs/afc-klipper-add-on/features.html) |
+| Happy Hare | Writes from its Moonraker component (components/mmu_server.py, `push_lane_data`), with the `vendor_name` / `name` keys RFC 0001 adopted | Happy Hare source |
+| OrcaSlicer 2.3.2+ | Reader only (filament preset sync) | [MoonrakerPrinterAgent.cpp, PR #12086](https://github.com/OrcaSlicer/OrcaSlicer/pull/12086) |
+| HelixScreen | Reader everywhere; writer where §1 says | `src/printer/filament_slot_override_store.cpp` |
 
-Happy Hare also writes this namespace — its Moonraker component
-(components/mmu_server.py, `push_lane_data`) emits per-lane records keyed with
-`vendor_name` / `name` / `filament_id`, and OrcaSlicer prefers that Moonraker
-source over the live `mmu` Klipper object when it is populated. See the note in
-§1; HelixScreen mirrors Happy Hare's key names as aliases (§3).
+OrcaSlicer (2.3.2 through 2.4.0-beta, verified) reads `lane`, `color`,
+`material`, `bed_temp` and `nozzle_temp`; builds carrying
+[PR #14423](https://github.com/OrcaSlicer/OrcaSlicer/pull/14423) also read a
+string `filament_id` and select the preset carrying it.
 
 ### Moonraker endpoint
 
@@ -115,120 +113,89 @@ DELETE /server/database/item      # body: { namespace, key }
 
 ### Top-level shape
 
-One JSON object keyed by a per-slot identifier. Two key styles are in use
-(§4): `laneN` and `T<n>`. `T<n>` is 0-based; `laneN` is 1-based from
-HelixScreen and AFC and 0-based from Happy Hare.
-Each value is an object conforming to the record shape in Section 3.
+One JSON object keyed by a per-lane identifier. **The key is advisory; the
+record's `lane` field is authoritative** (RFC 0001 S3). Keys vary in the wild
+(RFC 0001 reference V-S3, §4 below), so a reader recovers a lane's index from
+`lane` and never by parsing the key. This is how OrcaSlicer reads the namespace:
+its MoonrakerPrinterAgent.cpp iterates the values and never inspects a key.
 
-**The outer key is opaque; the inner `lane` field is authoritative.** Readers
-recover a slot's index from the record's `lane` field (§3), never by parsing
-the outer key. This is how OrcaSlicer reads the namespace
-(its own MoonrakerPrinterAgent.cpp:780 iterates values and never inspects the key),
-and it is what makes the two key styles interoperable.
-
-Non-record siblings may exist in the namespace (`seated`, other tools' config).
-Readers must skip any value that is not a well-formed record — i.e. not an
-object, or missing the `lane` field — rather than erroring. HelixScreen is
-**key-agnostic**: it ingests any record with a parseable `lane` field
-regardless of its outer key, so it reads records written by AFC, Happy Hare,
-Mainsail, or anyone else. See §8 for the full reader/writer contract.
+Non-record siblings may sit in the namespace (`seated`, another tool's
+`source`). A reader skips any value that is not an object or has no parseable
+`lane`, rather than erroring. HelixScreen reads any record with a parseable
+`lane` whatever its key.
 
 ---
 
-## 3. HelixScreen's emitted record
+## 3. HelixScreen's record
 
-A full HelixScreen-emitted record looks like this:
+A record HelixScreen writes follows RFC 0001 §5 and the field table of its
+reference, Part B §7:
 
 ```json
 {
+  "lss_version": "0.1",
+  "writer": "helixscreen",
   "lane": "0",
+  "lane_name": "lane1",
+  "loaded": true,
   "color": "#1A1A1A",
   "material": "ASA",
-  "helix_material": "ASA-GF",
-  "filament_id": "OGFB61",
-  "vendor": "Polymaker",
+  "filament_type": "ASA-GF",
   "vendor_name": "Polymaker",
+  "name": "PolyLite ASA-GF",
   "spool_id": 42,
-  "scan_time": "2026-04-18T12:34:56Z",
+  "spoolman_filament_id": 55,
+  "filament_id": null,
   "bed_temp": 90,
   "nozzle_temp": 250,
-
-  "spool_name": "PolyLite ASA-GF Black",
-  "name": "PolyLite ASA-GF Black",
-  "spoolman_vendor_id": 7,
-  "helix_spoolman_filament_id": 55,
   "remaining_weight_g": 850.0,
   "total_weight_g": 1000.0,
-  "color_name": "Black",
-  "helix_locked_color": true,
-  "helix_locked_material": false,
-  "helix_declared": ["brand", "spool_name"]
+  "scan_time": "2026-11-07T12:34:56Z",
+  "helix_color_name": "Black"
 }
 ```
 
-The top group is AFC-standard. The bottom group is HelixScreen's extensions.
-Note the deliberate `material` / `helix_material` pair: `material` is `"ASA"`
-(the string OrcaSlicer can match to a preset), while `helix_material` is the
-precise `"ASA-GF"` identity HelixScreen shows on-device. See the field
-reference below.
+Every key in the table below is written on every record; a value HelixScreen
+does not know is `null` (RFC 0001 V-S2), never `""`, `0` or a placeholder.
+`helix_`-prefixed keys (RFC 0001 V-S1) are written only when they hold a value.
 
 ### Field reference
 
-#### AFC-standard fields
+| Field | Type | Meaning |
+|-------|------|---------|
+| `lss_version` | string | `"0.1"`, the RFC 0001 record version. |
+| `writer` | string | `"helixscreen"`. See §5 for what HelixScreen does with another writer's name. |
+| `lane` | string | The 0-based lane index, as a JSON string (OrcaSlicer drops a numeric `lane`). Negative values are never written and are rejected on read. |
+| `lane_name` | string | The record's key, `laneN` or `T<n>` (§4). |
+| `loaded` | bool or null | Whether a spool is in the lane; `null` when the lane has never reported. |
+| `color` | string or null | `#RRGGBB`. Pure black `#000000` is a colour, not an unset one. |
+| `material` | string or null | The **slicer-matchable** type. OrcaSlicer matches a lane to a preset by this string alone and falls back to a Generic PLA preset on a miss, so HelixScreen writes the exact library type or its base polymer, and `null` when nothing matches safely. |
+| `filament_type` | string or null | The precise type the user chose (`ASA-GF`, `PLA Silk`), which `material` may have reduced for matching. |
+| `vendor_name` | string or null | Manufacturer. |
+| `name` | string or null | Product name. |
+| `spool_id` | int or null | Spoolman spool id. |
+| `spoolman_filament_id` | int or null | The Spoolman filament record behind `spool_id`. |
+| `filament_id` | string or null | OrcaSlicer's filament id. On a lane linked to a Spoolman spool whose filament carries the `orca_filament_id` extra (RFC 0001 §6), HelixScreen writes that id, since the tracker wins on identity, and marks it with `helix_filament_id_source: "spoolman"`. Otherwise it writes the id its catalog records for the user's catalog pick when no other product carries the same id. It never guesses one from a brand or name, and never writes a Bambu `GF*` code or a numeric value. |
+| `bed_temp`, `nozzle_temp` | int or null | Celsius. From the user's entry, the linked spool's filament, or HelixScreen's material table, in that order; a range is written as its midpoint. |
+| `remaining_weight_g`, `total_weight_g` | number or null | Grams. |
+| `scan_time` | string | ISO-8601 UTC, second precision, stamped on every write. |
+| `helix_color_name` | string | The colour's name (`"Black"`). |
+| `helix_catalog_id`, `helix_product_name` | string | The HelixScreen catalog product the user picked. |
+| `helix_spoolman_vendor_id` | int | The Spoolman vendor id. |
+| `helix_filament_id_source` | string | `"spoolman"` when `filament_id` came from the linked spool (above). |
+| `helix_fingerprint` | string | The spool identity HelixScreen's swap detection last observed (§6). Not filament metadata; carry it through unchanged on a rewrite. |
+| `helix_external` | bool | `true` on the external spool's lane (§4). |
 
-| Field | Type | Required | Format / units | Semantics | Source |
-|-------|------|----------|----------------|-----------|--------|
-| `lane` | string | yes | stringified integer, 0-based | Tool / slot index as interpreted by the slicer. Matches OrcaSlicer's tool-index convention. See §4 for the intentional off-by-one versus the outer DB key. | HelixScreen writes slot index as string. |
-| `color` | string | optional | `#RRGGBB` hex | Slot color. Leading `#` is conventional; HelixScreen's parser also accepts `0x`-prefixed forms on read. Emitted whenever the record carries a colour at all, pure black `#000000` included: black is a real filament colour, not an unset one. | User-edited, or firmware-reported on backends where the user has no override. |
-| `material` | string | optional | short code (`PLA`, `PETG`, `ABS`, `TPU`, …) | The **slicer-matchable** material string. OrcaSlicer matches a lane to a preset by this value alone, so a writer should emit a string the slicer's library actually carries. HelixScreen derives it from the user's precise type (see `helix_material`): explicit override → exact library type → base polymer, and **omits the field entirely** when nothing safely matches, rather than emit a string the slicer would resolve to a wrong (Generic PLA) preset. Readers should still treat unknown values as opaque strings — do NOT silently map them. | Derived by HelixScreen (`orca_match_type()`), or user-edited on writers without a match table. |
-| `filament_id` | string | optional | OrcaSlicer preset `filament_id` | The OrcaSlicer filament preset id of the filament in this slot. OrcaSlicer (since PR #14423) matches it against its installed presets' `filament_id` and selects that exact preset; an id no installed preset carries falls back to the generic preset for `material`, with a notice. OrcaSlicer ignores a numeric value, which is what Happy Hare's records carry under this key (Spoolman's filament id). On a slot linked to a Spoolman spool whose filament carries the `orca_filament_id` extra field (the convention spoolman-lane-sync and AFC read, lane-status-spec RFC 0001 §6), HelixScreen writes that id, ahead of any catalog pick, since the tracker wins on identity; a numeric, empty, malformed or `GF`-prefixed (Bambu catalog code) value, or one with a character other than an ASCII letter, a digit, `_` or `-`, is not written, and unlinking the spool drops it. Otherwise HelixScreen emits it only when the record's `helix_catalog_id` names a catalog product with a recorded Orca id (`orca_id` in assets/filaments.json or the user overlay) that no other product in the catalog carries. An ambiguous id, one several products share, is never written, since it would select another product's preset, possibly of another material. A user-overlay entry for a built-in product uses its own `orca_id` and carries none when it has none. HelixScreen never derives an id from brand or name. HelixScreen reads it back only when `helix_filament_id_source` is `spoolman`. | HelixScreen's filament catalog (`to_lane_data_record()`). |
-| `vendor` | string | optional | free-form | Brand / manufacturer. Readers match case-insensitively when pairing with their own filament databases. | User-edited. |
-| `vendor_name` | string | optional | free-form | Alias of `vendor`, mirroring Happy Hare's key convention (`push_lane_data` in components/mmu_server.py). Emitted with the same value as `vendor` for forward-compat: as OrcaSlicer moves toward vendor-aware preset matching, `vendor_name` is the key it is most likely to consume. Zero-cost today — Orca ignores unknown keys. HelixScreen's reader accepts either key. | Same as `vendor`. |
-| `spool_id` | integer | optional | positive integer | Spoolman spool ID for the physical spool currently loaded. Omitted when zero. | User-selected from Spoolman, if configured. |
-| `scan_time` | string | optional | ISO-8601 UTC, second precision (`YYYY-MM-DDTHH:MM:SSZ`) | Last time this record was written or scanned. Advisory only — used for conflict avoidance, not for mutual exclusion. Sub-second fractions are truncated. | `std::chrono::system_clock::now()` at save time. |
-| `bed_temp` | integer | optional | Celsius | Recommended bed temperature. | User entry, bound Spoolman spool's filament profile, or HelixScreen's internal material DB (in that priority order). |
-| `nozzle_temp` | integer | optional | Celsius | Recommended nozzle temperature. When derived from a Spoolman spool's min/max range, the midpoint is emitted. | Same priority order as `bed_temp`. |
+### Reading records HelixScreen did not write
 
-OrcaSlicer (2.3.2 through 2.4.0-beta, verified) only consumes `lane`, `color`,
-`material`, `bed_temp`, and `nozzle_temp`; builds carrying PR #14423 also
-consume a string `filament_id`. All other fields are additive and must be
-silently ignored by compliant readers.
-
-#### HelixScreen extension fields
-
-These are additive and namespaced into the same record object. Other tools
-reading `lane_data` should ignore any they don't understand (the "safe_json_*"
-discipline that OrcaSlicer's `MoonrakerPrinterAgent` uses internally — never
-throw on unknown keys).
-
-| Field | Type | Required | Format / units | Semantics | Source |
-|-------|------|----------|----------------|-----------|--------|
-| `helix_material` | string | optional | free-form material name | The **precise** material identity the user chose (`ASA-GF`, `PLA Silk`, `PPS-CF`), which may be more specific than the slicer-matchable `material`. HelixScreen's reader prefers this over `material`, so the on-device display keeps the exact type even when `material` was reduced (or omitted) for slicer matching. OrcaSlicer and other readers ignore it. Emitted unconditionally when HelixScreen authors the record. | HelixScreen (`to_lane_data_record()`). |
-| `spool_name` | string | optional | free-form | Human-readable name for the spool (e.g. `"PolyLite ASA-GF Black"`). Distinct from `vendor` + `material` because users often want a friendlier label. | User-edited, or auto-filled from Spoolman. |
-| `name` | string | optional | free-form | Alias of `spool_name`, mirroring Happy Hare's key convention (`push_lane_data` in components/mmu_server.py). Emitted with the same value as `spool_name` for forward-compat. HelixScreen's reader accepts either key. | Same as `spool_name`. |
-| `spoolman_vendor_id` | integer | optional | positive integer | Spoolman vendor ID, paired with `spool_id` for full Spoolman round-tripping. Omitted when zero. | From Spoolman when a spool is selected. |
-| `helix_filament_id_source` | string | optional | `spoolman` | Present, as `spoolman`, when `filament_id` is the linked Spoolman filament's `orca_filament_id` rather than the catalog product's id, so HelixScreen's reader can restore the Spoolman-sourced id without mistaking a catalog-derived or foreign one for it. Omitted otherwise. | HelixScreen (`to_lane_data_record()`). |
-| `helix_spoolman_filament_id` | integer | optional | positive integer | The Spoolman filament definition ID behind the `spool_id`: the specific filament record whose vendor, material and colour the spool instantiates. Filed with the spool id and dropped with it, since a definition id whose spool is unlinked names nothing. `helix_`-prefixed because the unprefixed `filament_id` is OrcaSlicer's preset id in HelixScreen's records and Spoolman's numeric filament id in Happy Hare's. Omitted when zero. | From Spoolman when a spool is selected. |
-| `remaining_weight_g` | float | optional | grams | Remaining filament weight. Negative = unset / unknown. | Spoolman, or user-entered. |
-| `total_weight_g` | float | optional | grams | Full-spool nominal weight. Negative = unset / unknown. | Spoolman, or user-entered. |
-| `color_name` | string | optional | free-form | Human-readable color label (e.g. `"Orange"`), distinct from the `color` hex value. Some user workflows care about the marketing name as well as the RGB. | User-edited, or auto-filled from Spoolman. |
-| `helix_locked_color` | boolean | optional | `true` / `false` | Whether the record declares its `color` as the user's own choice, written by HelixScreen from `helix_declared` (true exactly when `helix_declared` names `color_rgb`), so an older reader of the namespace sees the same authorship. **Always emitted when HelixScreen authors the record, `false` included.** HelixScreen reads it only for a record whose `helix_declared` does not name `color_rgb`: on a record with no `spool_id`, a true value beside a colour the record carries is the user's declaration; false, absent, or any value on a record with a `spool_id` is not. | HelixScreen (`to_lane_data_record()`). |
-| `helix_locked_material` | boolean | optional | `true` / `false` | The same statement about `material` / `helix_material`, true exactly when `helix_declared` names `material`. Always emitted, `false` included, and read on the same terms as `helix_locked_color`. | HelixScreen (`to_lane_data_record()`). |
-| `helix_declared` | array of strings | optional | JSON array of field names | The authorship statement for the identity fields, colour and material included. A name in the array says the user entered that field's value themselves; a field the record holds no value for is never named, because a clear states "whatever the machine reports", not an emptiness. The names are HelixScreen's own field names, not this record's key names: `color_rgb` names the field written as `color`, `material` the field written as `material` / `helix_material`, `brand` names the field written as `vendor` / `vendor_name`, `spool_name` the field written as `spool_name` / `name`, and `spoolman_vendor_id` is spelled the same either way. **Always emitted when HelixScreen authors the record, the empty array included**: an empty array says the record claims none of them, which an implementer has to be able to tell from a record written before the key existed. **Absent** means the latter. | HelixScreen (`to_lane_data_record()`). |
-| `helix_fingerprint` | string | optional | backend-specific slot identity | The spool identity HelixScreen's hardware-swap detection last observed on this lane (an RFID CARD_UID list for tag readers, or a composite of the identity fields a box firmware reports). Not user data and not filament metadata: it exists so that after a HelixScreen restart the first observation is compared against the stored value; a mismatch means the spool was swapped while the app was down, which clears the record, instead of every first observation reading as a new baseline. Omitted when empty, which is every record for a lane with no identity-reading hardware and every record written before this key existed; absence is read as "no comparison possible", never as a mismatch. Other tools should carry it through unchanged on rewrite, same as the authorship keys. | HelixScreen (`to_lane_data_record()`). |
-
-Fields are emitted only when present. Empty strings, zero, and negative floats
-are treated as "not set" and omitted from the written record — reducing noise
-and making future schema evolution easier. The three `helix_` authorship keys
-are the deliberate exception: they are always emitted, because an explicit
-`false` or empty array says something an absent key does not.
-
-**Preserve the authorship keys when you rewrite a record you did not author.**
-They are opaque to everyone but HelixScreen: no other reader needs to act on
-them, and none should try to interpret them. But dropping them on a rewrite
-silently reassigns authorship: a colour the user chose comes back as a value
-nobody claimed, and the next firmware report overwrites it. Carry the three
-keys through unchanged, or leave the record alone.
+HelixScreen reads any record, its own older ones included, and accepts the
+spellings writers have used: `filament_type`, then `helix_material`, then
+`material` for the type; `vendor_name` or `vendor`; `name` or `spool_name`;
+`helix_color_name` or `color_name`; `spoolman_filament_id` or
+`helix_spoolman_filament_id`, and a **numeric** `filament_id`, which is Happy
+Hare's way of writing Spoolman's filament id. A string `filament_id` is
+another tool's Orca id and is read back only from HelixScreen's own record with
+`helix_filament_id_source: "spoolman"`.
 
 ---
 
@@ -297,81 +264,60 @@ OrcaSlicer's MoonrakerPrinterAgent.cpp:796.
 
 ---
 
-## 5. Merge policy
+## 5. The writer rule and what a lane shows
 
-HelixScreen combines three sources of slot metadata:
+### Writing
 
-1. **Firmware-reported state** — what the printer's AMS/IFS/CFS/AFC plugin
-   thinks is loaded (read from Klipper objects or vendor REST APIs).
-2. **Override records** — the `lane_data` entries written by HelixScreen or
-   any other well-behaved writer.
-3. **User edits in progress** — in-memory, not yet persisted.
+- HelixScreen writes `lane_data` only on the printers §1 names it the writer
+  for, and only after the firmware fields of an edit have gone to the firmware.
+- **It never overwrites a record whose `writer` names another producer**
+  (RFC 0001 S2). An edit aimed at such a lane is refused, and the screen says
+  so; nothing is queued to retry. A record with no `writer`, which includes
+  every record older tools and older HelixScreen builds wrote, is legacy and
+  HelixScreen may replace it.
+- A record is written whole, one key per lane, so edits on different lanes
+  never race. A write that fails is reported where the edit was made and is not
+  retried later; HelixScreen keeps no local copy to retry from.
 
-The merge rule is **authorship-ranked, field-by-field**. What settles a field
-is not that the record carries a value for it but what the record says about
-who put it there:
+### Reading
 
-- A field the record names in `helix_declared`, or, on a record with no
-  `spool_id` whose `helix_declared` does not name that field, a colour or
-  material beside a true `helix_locked_*`, outranks whatever the printer
-  reports for that lane. A declaration stands only over a value the record
-  carries: a field named in the set with no value behind it claims nothing,
-  and the printer's report stands. This is what keeps a deliberate choice
-  from being erased by the next status poll.
-- A record naming a `spool_id` is read as the spool server's statement about
-  that lane's identity, and ranks above a firmware report, except a colour its
-  `helix_declared` names, which is the user's.
-- A field the record merely carries, claiming no authorship for it, stands
-  only where firmware says nothing about that field. A firmware report of the
-  same field on the current frame wins.
-- A field the record does not carry never displaces firmware.
-- `remaining_weight_g` and `total_weight_g` are read as measurements whatever
-  else the record claims. A weight is not a statement about identity.
-- User edits are committed to the override record atomically on save; there is
-  no partial-edit state on disk.
+HelixScreen reads each namespace it uses (`lane_data`, plus
+`helix-screen-afc-overrides` or `helix-screen-hh-overrides` on those printers)
+when it connects, after each of its own writes, and every 10 seconds, since
+Moonraker sends no notification when a database key changes. So a second
+screen, Mainsail, a scale or a slicer that rewrites a record is seen within
+about 10 seconds.
 
-**Amendment (v1.7):** when firmware itself reports a per-lane `spool_id` that
-differs from a reader's stored override, the firmware value is authoritative —
-HelixScreen drops its whole override record for that lane rather than shadowing
-the external write. An override survives only an absent/zero firmware id
-(ejection), which HelixScreen makes user-configurable per system (§6).
+### What a lane shows
 
-**Amendment (v1.14):** when a lane's record disagrees with the statement
-standing on it, the newest edit wins whoever made it
-(prestonbrown/helixscreen#1632). A record carrying none of this application's
-authorship marks, whether a `helix_` extension key or the legacy `vendor` or
-`spool_name` spellings that no other lane_data writer emits, was written by
-another tool that replaced ours wholesale and files as the lane's statement
-rather than as a memory below it: unstamped it wins outright, because every
-HelixScreen write carries a `scan_time` and a record without one can only be
-a foreign replacement; stamped it wins only over a statement older than its
-`scan_time`, and an older or equal record still files as remembered. A
-statement stamped before 2020 is a device with no clock rather than a moment
-in the lane's history, and an order against it cannot be known, so the
-statement keeps the lane. Records HelixScreen wrote never promote, whatever
-their `scan_time` says, and neither do records AFC's plugin wrote: a record
-carrying `td` and no `vendor_name` is the plugin stating what it measured
-(`td` is on every plugin build; `extruder_index` only on newer ones), so it
-files as a firmware reading and its `scan_time`, a measurement time, never
-orders it against an edit. While one of our writes is still awaiting
-firmware's echo the re-read strips what matches it before judging anything,
-so our own write coming back is never misread as a newer outside edit. This
-is why §3 asks a rewriter to carry the authorship keys through unchanged: a
-tool that drops them reassigns its own edit to nobody, and the next
-HelixScreen load reads the record as a foreign replacement.
+For each field, a lane shows the first of these that has a value:
 
-A tool reading these records does not need to replicate HelixScreen's merge
-rule — it is documented here so third parties understand why we emit only the
-fields we do, and why we omit defaulted fields rather than writing zeros.
+1. an edit made on this screen whose write has not been confirmed yet;
+2. what the firmware reports;
+3. the `lane_data` record (or the AFC / Happy Hare namespace);
+4. Spoolman's details for the spool the lane is linked to.
+
+The linked spool is the one the edit, the firmware or the record names, in that
+order. Spoolman's details count only for that spool: a Spoolman record for any
+other id fills nothing. Weights follow the same order except that Spoolman's
+remaining weight ranks above the firmware's and the record's, and HelixScreen's
+own consumption meter fills a weight nothing else states.
+
+An edit stays "unconfirmed" until a firmware report or a record read states the
+same value, until its write fails, or for 30 seconds, whichever comes first. In
+the last two cases the lane goes back to what the printer holds. A field the
+edit clears shows what the printer holds at once.
+
+A tool reading these records does not need to follow this order; it is
+documented so third parties know why HelixScreen shows what it shows.
 
 ---
 
 ## 6. Hardware-event clearing
 
-HelixScreen automatically clears its own override records when a backend
-detects that the *physical* spool in a slot has changed. This prevents stale
-"user said this was orange PLA" metadata from surviving a spool swap the user
-never re-entered in the UI.
+HelixScreen clears what it wrote about a lane when the hardware shows that the
+*physical* spool in it has changed, so details of a spool that is gone do not
+survive a swap nobody re-entered.
 
 ### The insert rule
 
@@ -384,11 +330,11 @@ it read off the one before.
 |----------|-------------|
 | Tag UID | A per-spool tag identifier nobody can set through the UI (Snapmaker `CARD_UID`). A reader that has finished with a spool and found no tag counts too: it says the spool is untagged. |
 | Material and colour | Values decoded from the spool's tag in this insert. A value the firmware remembers across inserts (a colour set on the printer's own menu, a saved slot table) is **not** a reading of the new spool. |
-| Binding | A spool id the firmware names for the lane (AFC, Happy Hare, CFS flat schema), judged by the §5 re-bind rule. |
+| Binding | A spool id the firmware names for the lane (AFC, Happy Hare, CFS flat schema). |
 
 | Verdict | When | What happens |
 |---------|------|--------------|
-| Different spool | The tag UIDs differ, or a finished read finds a tag where the previous spool had none or none where it had one; or, with no UID on either side, any of material or colour read on both sides differs; or the firmware names a different spool id | HelixScreen drops what described the previous spool: the user's declarations, the remembered copy, the Spoolman binding, the metered weight and the persisted record. The firmware's own reading stays and paints the lane. Nothing is written to firmware, which already holds the new spool's reading. |
+| Different spool | The tag UIDs differ, or a finished read finds a tag where the previous spool had none or none where it had one; or, with no UID on either side, any of material or colour read on both sides differs; or the firmware names a different spool id | HelixScreen drops what described the previous spool: an unconfirmed edit, the Spoolman details, the metered weight and the record it wrote. The firmware's own reading stays and paints the lane. Nothing is written to firmware, which already holds the new spool's reading. |
 | Same spool | The tag UIDs match; or, with no UID on either side (or a read not yet finished), material **and** colour both match | Everything is kept, silently. Two spools of one material and colour are interchangeable; a change of manufacturer between them is the user's to correct. |
 | No evidence | Anything less, including every untagged spool | Everything is kept, and HelixScreen shows a non-blocking "same spool?" notice whose Clear button runs Clear Spool. The notice is not shown for a slot with no details to clear. |
 
@@ -427,8 +373,7 @@ ignores would call a same-spool insert a swap.
 Two rows carry caveats the table cannot hold. Every AD5X IFS insert is No
 evidence; one its port sensor sees raises the notice, and one inferred only
 from `Adventurer5M.json` (no port sensor) raises none. Stock CFS waits up to 3
-frames for the RFID probe before judging an insert, and discounts values
-equal to a label HelixScreen itself pushed while its echo guard stands. The
+frames for the RFID probe before judging an insert. The
 wait does not count down while the box is busy and the probe is deferred; it
 restarts when the probe runs. A finished read (`vender` past `"unknown"`) that
 restates the pulled spool's material and colour is the same spool, and stays
@@ -444,17 +389,15 @@ is the same spool, a mismatch is a swap made while HelixScreen was not running
 and clears the record. Records without the key, including everything written
 before it existed, keep the first-observation-is-a-baseline rule.
 
-Where firmware reports a spool id while a spool is loaded (AFC, Happy Hare),
-the eject half of that signal is user-configurable in HelixScreen: the
-"Keep Spool Info on Eject" setting (default on) retains the record across an
-eject when enabled and clears it when disabled. The re-bind half is not
-configurable — a firmware-reported *different positive* `spool_id` clears via
-the §5 amendment on **any** backend whose firmware reports one, including CFS
-firmware variants that publish a per-slot `spool_id` (flat schema).
+Where the firmware holds the spool's identity, it decides what an eject keeps
+(AFC's per-lane `remember_spool`, Happy Hare's gate map, the CFS and ACE
+units' own tables); HelixScreen shows the result. A lane with
+`remember_spool` off that empties drops HelixScreen's AFC namespace record too.
+A firmware-reported *different* positive `spool_id` is the firmware's link and
+the lane follows it on any backend.
 
 Third-party writers do **not** need to implement this behavior. It is
-documented here for transparency so readers understand why HelixScreen-authored
-records may disappear between sessions.
+documented so readers understand why a record HelixScreen wrote may disappear.
 
 ---
 
@@ -482,78 +425,51 @@ locally, compare `scan_time` to your cached copy before overwriting.
 
 ### If you want to write records
 
-Write AFC-shaped records using `POST /server/database/item`:
+Follow RFC 0001 §5. A minimal record, as `POST /server/database/item`:
 
 ```json
 {
   "namespace": "lane_data",
   "key": "lane1",
   "value": {
+    "lss_version": "0.1",
+    "writer": "my-tool",
     "lane": "0",
+    "lane_name": "lane1",
+    "loaded": true,
     "color": "#1A1A1A",
     "material": "ASA",
-    "helix_material": "ASA-GF",
     "vendor_name": "Polymaker",
+    "name": "PolyLite ASA",
     "spool_id": 42,
-    "scan_time": "2026-04-18T12:34:56Z",
     "bed_temp": 90,
-    "nozzle_temp": 250
+    "nozzle_temp": 250,
+    "scan_time": "2026-11-07T12:34:56Z"
   }
 }
 ```
 
 Guidelines:
 
-- **Always emit** `lane`. OrcaSlicer requires it.
-- **Emit a slicer-matchable `material`.** OrcaSlicer picks a preset by the
-  `material` string alone; an unmatched string resolves to a Generic PLA preset
-  (wrong temperatures), not a near miss. Emit a value the slicer's library
-  carries, and omit the field rather than emit an unmatchable one. If you also
-  track a more precise type, carry it in `helix_material` — readers that
-  understand it can show the exact identity while the slicer still matches on
-  `material`.
-- **Stamp** `scan_time` on every write. Use ISO-8601 UTC with second
-  precision; other readers will rely on it.
-- **Write `vendor_name` and `name`, never `vendor` or `spool_name`.** Those two
-  are HelixScreen's legacy spellings, so a record carrying either reads as
-  HelixScreen's own write (§5) and is not taken as your edit: the screen keeps
-  showing the old spool.
-- **Pick one key style and stay consistent within a slot.** Use `laneN`
-  (1-based outer key) for filament systems or `T<n>` (0-based outer key) for
-  tool changers; either way the inner `lane` field is 0-based (§4). The outer
-  key is opaque to readers — OrcaSlicer never inspects it
-  (its own MoonrakerPrinterAgent.cpp:780), so a "wrong" outer key does **not** desync
-  a reader. What *does* cause trouble is writing the **same inner `lane` under
-  two different outer keys**: OrcaSlicer has no dedup and shows both as separate
-  trays (§8). Converging with other writers on one key style for a given slot
-  avoids that.
-- **Add extension fields freely.** Other tools will ignore them. If your
-  extension becomes broadly useful, open a documentation PR here or in the
-  AFC docs so the convention grows deliberately.
-- **Carry a record's `helix_`-prefixed keys through when you rewrite it.**
-  You do not have to understand them, and nothing asks you to act on them.
-  Dropping them changes what the record says about who chose its values (§3),
-  which is not something a rewrite of the material or the weight meant to
-  say.
-- **Best-effort only.** No transactions, no locking. If two writers race,
-  last write wins. Use `scan_time` to avoid clobbering fresher data when
-  you can.
-
-### Conflict avoidance
-
-The convention is cooperative, not transactional. The sharpest tool available
-is `scan_time`:
-
-```
-if (remote.scan_time > my_cache.scan_time) {
-    // Remote has fresher data — merge or skip.
-} else {
-    // Safe to overwrite.
-}
-```
-
-Clock skew between the printer and your writer can defeat this; treat
-`scan_time` as advisory.
+- **Set `writer`, and respect another one.** Do not overwrite a record whose
+  `writer` names another live producer; a record with none is legacy and may be
+  replaced. HelixScreen follows the same rule, so a record you stamp is never
+  overwritten by it.
+- **Always emit `lane` as a string.** OrcaSlicer requires it and drops a
+  numeric one.
+- **Emit a slicer-matchable `material`.** An unmatched string resolves to a
+  Generic PLA preset (wrong temperatures). Put the precise type in
+  `filament_type` and write `material` as `null` rather than an unmatchable
+  string.
+- **Write `null` for unknown values**, never `""`, `0` or `"NONE"`.
+- **Use `vendor_name` and `name`**, Happy Hare's keys, which RFC 0001 adopted.
+- **Stamp `scan_time`** on every write, ISO-8601 UTC with second precision.
+- **Keep one key per lane.** OrcaSlicer has no deduplication, so the same
+  `lane` under two keys shows as two trays (§8). Use `laneN` (1-based key) for
+  filament systems or `T<n>` (0-based key) for tool changers; the `lane` field
+  is 0-based either way (§4).
+- **Prefix your own keys** with your tool's name (RFC 0001 V-S1), and carry a
+  record's `helix_`-prefixed keys through unchanged when you rewrite it.
 
 ---
 
@@ -604,11 +520,10 @@ Consequences, in order of importance:
 2. **A reader must not treat a `T(n)` outer key as a lane name.** A reader
    that bootstraps its slot model from the namespace's keys would create
    "slots" named after tools. HelixScreen's live-data reader resolves `T(n)`
-   keys through the tool mapping the firmware reports in its status objects —
-   and parks (replays later) any payload that arrives before a mapping does,
-   because the namespace query is one-shot. Its override-store reader
-   (`from_lane_data_record`) was already key-agnostic and needed no change;
-   HelixScreen does not author records for AFC printers either way.
+   keys through the tool mapping the firmware reports in its status objects,
+   and parks (replays later) any payload that arrives before a mapping does.
+   Its record reader (`from_lane_data_record`) is key-agnostic, and HelixScreen
+   writes no lane records on AFC printers except the external spool's (§4).
 3. **The upgrade window is self-clearing.** The boot-time
    `delete_lane_data()` removes every key in the namespace before
    republishing, so stale `laneN` records cannot linger alongside new `T<n>`
@@ -626,7 +541,7 @@ Consequences, in order of importance:
 | Reader | Behavior (verified against source) |
 |--------|-----------------------------------|
 | **OrcaSlicer** | `MoonrakerPrinterAgent::fetch_moonraker_filament_data`, in OrcaSlicer's own MoonrakerPrinterAgent.cpp (not in this repo). **Key-opaque**: iterates `result.value.items()` (line 780) and never reads the outer key — the slot index comes from the inner `lane` field (line 786). The inner `lane` **must be a JSON string**: `safe_json_string()` (line 661) is `is_string()`-guarded with no coercion, so an integer `lane` is silently dropped (line 796). **No deduplication**: `trays.push_back()` (line 813) is unconditional and the grid bind (line 494) is first-match-wins over nlohmann's alphabetically-sorted keys. Color parsing (`normalize_color_value`, line 691) strips a leading `#`, so `#RRGGBB` is fine. Orca does not read Spoolman or the `gcode_macro` namespace. |
-| **HelixScreen** | `load_blocking` in `filament_slot_override_store.cpp`. **Key-agnostic**: ingests any record whose inner `lane` parses, regardless of outer key. **Canonical-preferring on duplicates**: when two keys describe the same slot, keeps the record whose key is canonical for this backend's own style (first canonical wins; a canonical beats a non-canonical; otherwise the incumbent stays). This is order-independent and agrees with Orca's alphabetical first-wins in every case that can occur. Tool-changer backends additionally migrate their own stale `laneN` records to `T<n>` on load (dropping, not overwriting, a `laneN` when the canonical `T<n>` already exists). |
+| **HelixScreen** | `reload_async` in `filament_slot_override_store.cpp`, at connect, after each of its own writes and every 10 seconds. **Key-agnostic**: reads any record whose inner `lane` parses, regardless of outer key. **Canonical-preferring on duplicates**: when two keys describe the same lane, keeps the record whose key is canonical for this backend's own style. This is order-independent and agrees with Orca's alphabetical first-wins in every case that can occur. |
 
 ### The collision rule
 
@@ -638,8 +553,7 @@ would show the `T0` record — but the duplicate is still visually present.
 
 The fix is not on the reader side (readers cannot know two keys mean one slot):
 **writers must converge on one key style per slot.** HelixScreen does this by
-writing `T<n>` on tool changers (matching Mainsail) and migrating away any
-stale `laneN` it previously wrote. A third party that keeps rewriting a
+writing `T<n>` on tool changers (matching Mainsail). A third party that keeps rewriting a
 different key for the same slot will produce a permanent duplicate that no
 reader can resolve.
 
@@ -649,7 +563,7 @@ reader can resolve.
 
 | Project | File | Role |
 |---------|------|------|
-| HelixScreen | `src/printer/filament_slot_override_store.cpp` | Reader + writer. `to_lane_data_record` / `from_lane_data_record` for record shape; `load_blocking` / `save_async` / `clear_async` for namespace I/O. |
+| HelixScreen | `src/printer/filament_slot_override_store.cpp` | Reader, and writer where §1 says. `to_lane_data_record` / `from_lane_data_record` for the record shape; `reload_async` / `save_async` / `clear_async` for namespace I/O. |
 | OrcaSlicer 2.3.2–2.4.0-beta | OrcaSlicer's own src/slic3r/Utils/MoonrakerPrinterAgent.cpp:727-822 (`fetch_moonraker_filament_data`) | Reader (filament preset auto-sync on print send). Canonical reference for AFC-standard field semantics. Unchanged across this range. |
 | AFC (Armored Turtle) | Klipper plugin | Native writer. See [AFC docs](https://www.armoredturtle.xyz/docs/afc-klipper-add-on/features.html). |
 | Happy Hare | components/mmu_server.py (`push_lane_data`) | Native writer. Writes `lane_data` records keyed with `vendor_name` / `name` / `filament_id`. OrcaSlicer prefers this Moonraker source over the live `mmu` Klipper object (`fetch_hh_filament_info`, in OrcaSlicer's own MoonrakerPrinterAgent.cpp:825-950) when the namespace is populated. HelixScreen mirrors HH's `vendor_name` / `name` key convention as aliases. |
@@ -658,6 +572,19 @@ reader can resolve.
 
 ## Changelog
 
+- **v2.0 (2026-11)**: Aligned with RFC 0001, Lane Status Surface. §1: the
+  writer per printer, and the printers where HelixScreen only reads (AFC, Happy
+  Hare, OpenAMS with `[openams_spoolman]`). §3: HelixScreen's records carry
+  `lss_version`, `writer`, `lane_name` and `loaded`, the precise type moves
+  from `helix_material` to `filament_type`, the Spoolman filament id to
+  `spoolman_filament_id`, and the colour name and catalog keys take the
+  `helix_` prefix; unknown values are `null`. The legacy `vendor`,
+  `spool_name`, `helix_material`, `color_name`, `helix_locked_*` and
+  `helix_declared` keys are no longer written (the first four are still read).
+  §5: the authorship merge is replaced by the RFC writer rule and a fixed order
+  (unconfirmed edit, firmware, record, Spoolman for the linked spool), read at
+  connect, after each write and every 10 seconds. §6: an eject on firmware that
+  holds identity follows the firmware. §7: writer guidance follows RFC 0001.
 - **v1.17 (2026-10-27)**: §3: new optional field `filament_id`, OrcaSlicer's
   preset id for the slot's catalog product, which OrcaSlicer builds carrying
   PR #14423 use to select the exact preset. An id more than one catalog product

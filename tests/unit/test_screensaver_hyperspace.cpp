@@ -24,10 +24,13 @@ using helix::test::check_replays;
 using helix::test::count_pixels;
 using helix::test::non_opaque_pixels;
 using helix::test::TestFrame;
+using helix::ui::ClockMode;
+using helix::ui::ClockReading;
 using helix::ui::DirtyRect;
 using helix::ui::FrameTarget;
 using helix::ui::HyperspaceScreensaver;
 using helix::ui::HyperspaceSim;
+using helix::ui::kHyperspaceDoneDriftSpeed;
 using helix::ui::kHyperspaceLevelCount;
 using helix::ui::kHyperspaceLevels;
 using helix::ui::kHyperspaceMaxRoll;
@@ -41,17 +44,19 @@ constexpr uint32_t W = 320;
 constexpr uint32_t H = 200;
 constexpr uint32_t kFrameMs = 33;
 
-/// A sim and its frame, stepped at kFrameMs.
+/// A sim and its frame, stepped at kFrameMs, reading `reading` (no print unless set).
 struct Flight : helix::test::SimRun<HyperspaceSim> {
     Flight(uint32_t seed, size_t level, PixelFormat format = PixelFormat::XRGB8888, uint32_t w = W,
-           uint32_t h = H)
-        : SimRun(seed, w, h, format) {
-        init(level);
+           uint32_t h = H, const ClockReading& start = {})
+        : SimRun(seed, w, h, format), reading(start) {
+        init(level, reading);
     }
 
     void step(uint32_t dt_ms = kFrameMs) {
-        SimRun::step(dt_ms);
+        SimRun::step(dt_ms, reading);
     }
+
+    ClockReading reading;
 
     /// Steps until `done` holds or `limit_ms` of flight passes; true when `done` held.
     template <typename Done> bool run_until(Done&& done, uint32_t limit_ms) {
@@ -405,11 +410,11 @@ TEST_CASE("an odd-sized hyperspace frame fills every pixel and never writes past
     TestFrame frame(OW, kOh, format, 7, kSentinel, kSentinel);
     std::minstd_rand rng(43);
     HyperspaceSim sim;
-    sim.init(frame.target, rng, level);
+    sim.init(frame.target, rng, level, ClockReading{});
     std::vector<DirtyRect> dirty;
     bool tunnel_seen = false;
     for (uint32_t t = 0; t < 30000 && !tunnel_seen; t += kFrameMs) {
-        sim.step(kFrameMs, frame.target, rng, dirty);
+        sim.step(kFrameMs, frame.target, rng, ClockReading{}, dirty);
         tunnel_seen = sim.tunnel_amount() == 255;
     }
     REQUIRE(tunnel_seen);
@@ -428,6 +433,202 @@ TEST_CASE("an odd-sized hyperspace frame fills every pixel and never writes past
         edge_lit += max_channel(writer.get(x, kOh - 1)) > 0 ? 1 : 0;
     }
     CHECK(edge_lit > (OW + kOh) / 2);
+}
+
+// ============================================================================
+// HyperspaceSim: the print's light at the end of the tunnel
+// ============================================================================
+
+namespace {
+
+ClockReading print_at(ClockMode mode, int32_t pct) {
+    return helix::test::print_reading_for(mode, pct);
+}
+
+Flight print_flight(uint32_t seed, size_t level, const ClockReading& reading) {
+    return Flight(seed, level, PixelFormat::XRGB8888, W, H, reading);
+}
+
+} // namespace
+
+TEST_CASE("the tunnel fades out when a print ends, inside a tunnel phase",
+          "[screensaver][hyperspace_sim]") {
+    Flight flight = print_flight(29, 0, print_at(ClockMode::COUNTDOWN, 40));
+    REQUIRE(flight.run_to_tunnel());
+    REQUIRE(share_at_least(flight.frame, 64) > 0.35);
+    flight.reading = print_at(ClockMode::FAILED, 40);
+    // Part faded: its colours scale with what is shown, not with the sweep behind it.
+    REQUIRE(flight.run_until([&flight] { return flight.sim.tunnel_amount() <= 64; }, 2000));
+    REQUIRE(flight.sim.tunnel_amount() > 0);
+    CHECK(share_at_least(flight.frame, 64) < 0.1);
+}
+
+namespace {
+
+/// Pixels within `radius` of the vanishing point whose dimmest channel reaches `threshold`:
+/// warm white light, where the saturated star and goo colours keep one channel low.
+size_t white_near_vanishing_point(const Flight& flight, float radius, int threshold) {
+    const PixelWriter writer(flight.frame.target);
+    const float vx = static_cast<float>(W) / 2.0f + flight.sim.camera().drift_x;
+    const float vy = static_cast<float>(H) / 2.0f + flight.sim.camera().drift_y;
+    size_t n = 0;
+    for (int32_t y = 0; y < static_cast<int32_t>(H); y++) {
+        for (int32_t x = 0; x < static_cast<int32_t>(W); x++) {
+            const float dx = static_cast<float>(x) - vx;
+            const float dy = static_cast<float>(y) - vy;
+            const Rgb c = writer.get(x, y);
+            if (dx * dx + dy * dy <= radius * radius && std::min({c.r, c.g, c.b}) >= threshold) {
+                n++;
+            }
+        }
+    }
+    return n;
+}
+
+} // namespace
+
+TEST_CASE("the light at the end of the tunnel grows with the print",
+          "[screensaver][hyperspace_sim]") {
+    const size_t level = GENERATE(size_t{0}, kHyperspaceLevelCount - 1);
+    CAPTURE(level);
+    Flight none(53, level);
+    Flight early = print_flight(53, level, print_at(ClockMode::COUNTDOWN, 20));
+    Flight late = print_flight(53, level, print_at(ClockMode::COUNTDOWN, 80));
+    for (int i = 0; i < 10; i++) {
+        none.step();
+        early.step();
+        late.step();
+    }
+    CHECK(none.sim.light_radius() == 0.0f);
+    const float side = static_cast<float>(std::min(W, H));
+    const float end = (level == 0 ? 0.18f : 0.09f) * side;
+    CHECK(early.sim.light_radius() == Catch::Approx(4.0f + (end - 4.0f) * 0.2f));
+    CHECK(late.sim.light_radius() == Catch::Approx(4.0f + (end - 4.0f) * 0.8f));
+
+    // The light is drawn: a white glow round the vanishing point, wider later in the print.
+    const float reach = late.sim.light_radius();
+    const size_t lit_none = white_near_vanishing_point(none, reach, 40);
+    const size_t lit_early = white_near_vanishing_point(early, reach, 40);
+    const size_t lit_late = white_near_vanishing_point(late, reach, 40);
+    CAPTURE(lit_none, lit_early, lit_late);
+    CHECK(lit_early > lit_none);
+    CHECK(lit_late > 3 * lit_early);
+}
+
+TEST_CASE("a paused print slows the flight to a quarter", "[screensaver][hyperspace_sim]") {
+    Flight flying = print_flight(59, 0, print_at(ClockMode::COUNTDOWN, 40));
+    Flight paused = print_flight(59, 0, print_at(ClockMode::COUNTDOWN, 40));
+    paused.reading = print_at(ClockMode::PAUSED, 40);
+    for (int i = 0; i < 90; i++) {
+        flying.step();
+        paused.step();
+    }
+    CHECK(paused.sim.speed_scale() == 0.25f);
+    CHECK(paused.sim.camera().speed == Catch::Approx(flying.sim.camera().speed * 0.25f));
+}
+
+TEST_CASE("a finished print drops out into drifting stars", "[screensaver][hyperspace_sim]") {
+    SECTION("from the tunnel, the flight slows to a drift that keeps moving") {
+        Flight flight = print_flight(61, 0, print_at(ClockMode::COUNTDOWN, 70));
+        REQUIRE(flight.run_to_tunnel());
+        const float cruising = flight.sim.camera().speed;
+        flight.reading = print_at(ClockMode::DONE, 100);
+        const uint32_t bursts = flight.sim.bursts_started();
+        const bool slowed = flight.run_until(
+            [&flight] { return flight.sim.speed_scale() == kHyperspaceDoneDriftSpeed; }, 20000);
+        REQUIRE(slowed);
+        CHECK(flight.sim.camera().speed > 0.0f);
+        CHECK(flight.sim.camera().speed < cruising);
+        CHECK(flight.sim.tunnel_amount() == 0);
+        CHECK(flight.sim.bursts_started() == bursts);
+        CHECK(flight.sim.light_radius() > 0.0f);
+
+        const std::vector<uint8_t> earlier = flight.frame.snapshot();
+        for (int i = 0; i < 300; i++) {
+            flight.step();
+            CHECK(flight.dirty.size() == 1);
+        }
+        CHECK(helix::test::bytes_differing(earlier, flight.frame.bytes) > 0);
+        CHECK(flight.sim.bursts_started() == bursts);
+    }
+    SECTION("a starburst due just after the print finishes never comes") {
+        // The same seed and print fly the same burst schedule: find when the second burst
+        // comes, then finish the print a second before it.
+        Flight ahead = print_flight(83, 0, print_at(ClockMode::COUNTDOWN, 70));
+        int due = 0;
+        for (; due < 3000 && ahead.sim.bursts_started() < 2; due++) {
+            ahead.step();
+        }
+        REQUIRE(ahead.sim.bursts_started() == 2);
+        Flight flight = print_flight(83, 0, print_at(ClockMode::COUNTDOWN, 70));
+        for (int i = 0; i < due - 30; i++) {
+            flight.step();
+        }
+        REQUIRE(flight.sim.bursts_started() == 1);
+        flight.reading = print_at(ClockMode::DONE, 100);
+        for (int i = 0; i < 300; i++) {
+            flight.step();
+        }
+        CHECK(flight.sim.bursts_started() == 1);
+    }
+    SECTION("a flight started after the print finished opens drifting, at every level") {
+        for (size_t level = 0; level < kHyperspaceLevelCount; level++) {
+            CAPTURE(level);
+            Flight flight = print_flight(67, level, print_at(ClockMode::DONE, 100));
+            flight.step();
+            REQUIRE(flight.dirty.size() == 1);
+            CHECK(flight.sim.tunnel_amount() == 0);
+            CHECK(flight.sim.speed_scale() == kHyperspaceDoneDriftSpeed);
+            flight.step();
+            CHECK(flight.dirty.size() == 1);
+        }
+    }
+    SECTION("a new print takes off again") {
+        Flight flight = print_flight(71, 0, print_at(ClockMode::DONE, 100));
+        flight.step();
+        REQUIRE(flight.sim.speed_scale() == kHyperspaceDoneDriftSpeed);
+        flight.reading = print_at(ClockMode::PROGRESS, 0);
+        flight.step();
+        CHECK(flight.dirty.size() == 1);
+        for (int i = 0; i < 60; i++) {
+            flight.step();
+        }
+        CHECK(flight.sim.speed_scale() == 1.0f);
+        CHECK(flight.sim.camera().speed > 0.0f);
+    }
+}
+
+TEST_CASE("a failed print dims the light and closes the tunnel", "[screensaver][hyperspace_sim]") {
+    const ClockMode mode = GENERATE(ClockMode::FAILED, ClockMode::CANCELLED);
+    CAPTURE(static_cast<int>(mode));
+    SECTION("from the tunnel") {
+        Flight flight = print_flight(73, 0, print_at(ClockMode::COUNTDOWN, 60));
+        REQUIRE(flight.run_to_tunnel());
+        REQUIRE(flight.sim.light_radius() > 0.0f);
+        flight.reading = print_at(mode, 60);
+        for (int i = 0; i < 20; i++) {
+            flight.step();
+        }
+        CHECK(flight.sim.light_gain() > 0.0f);
+        CHECK(flight.sim.light_gain() < 1.0f);
+        for (int i = 0; i < 90; i++) {
+            flight.step();
+        }
+        CHECK(flight.sim.light_radius() == 0.0f);
+        CHECK(flight.sim.tunnel_amount() == 0);
+        CHECK(flight.sim.camera().speed > 0.0f);
+        CHECK(flight.dirty.size() == 1);
+    }
+    SECTION("a flight started after the print failed shows neither light nor tunnel") {
+        Flight flight = print_flight(79, 0, print_at(mode, 60));
+        uint8_t most = 0;
+        for (uint32_t t = 0; t < 30000; t += kFrameMs) {
+            flight.step();
+            most = std::max(most, flight.sim.tunnel_amount());
+        }
+        CHECK(most == 0);
+        CHECK(flight.sim.light_radius() == 0.0f);
+    }
 }
 
 // ============================================================================

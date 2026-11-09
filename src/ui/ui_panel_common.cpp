@@ -226,14 +226,12 @@ lv_obj_t* ui_overlay_panel_wire_action_button(lv_obj_t* panel, lv_event_cb_t cal
         return nullptr;
     }
 
-    // Find header_bar widget
     lv_obj_t* header = lv_obj_find_by_name(panel, header_name);
     if (!header) {
         spdlog::warn("[PanelCommon] Header '{}' not found in overlay panel", header_name);
         return nullptr;
     }
 
-    // Find action_button within header_bar
     lv_obj_t* action_btn = lv_obj_find_by_name(header, "action_button");
     if (!action_btn) {
         spdlog::warn("[PanelCommon] Action button not found in header '{}'", header_name);

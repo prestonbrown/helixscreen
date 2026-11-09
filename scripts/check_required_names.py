@@ -48,6 +48,9 @@ import sys
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
+from source_strip import blank_cxx
+
+
 def variant_chains(root: Path) -> dict[str, list[str]]:
     """Layout name -> variant directory chain, read from
     src/layout_manager.cpp#variant_chain so the gate cannot drift from the app.
@@ -110,21 +113,6 @@ def calls(text: str, func: str):
     for m in re.finditer(r"\b" + func + r"\s*\(", text):
         args, _ = call_args(text, m.end() - 1)
         yield text.count("\n", 0, m.start()) + 1, args
-
-
-_COMMENT_OR_STRING = re.compile(r'"(?:\\.|[^"\\\n])*"|/\*.*?\*/|//[^\n]*', re.S)
-
-
-def strip_comments(text: str) -> str:
-    # Blank out comments but keep line numbers; a "//" inside a string literal
-    # (a URL) is not a comment.
-    def blank(m: re.Match) -> str:
-        t = m.group(0)
-        if t[0] == '"':
-            return t
-        return re.sub(r"[^\n]", " ", t) if t[1] == "*" else ""
-
-    return _COMMENT_OR_STRING.sub(blank, text)
 
 
 class XmlTree:
@@ -225,7 +213,7 @@ def check(root: Path) -> list[tuple[str, str, str]]:
             continue
         created: set[str] = set()
         for f, text in raw.items():
-            code = strip_comments(text)
+            code = blank_cxx(text, strings="keep")
             for func in ("lv_xml_create", "create_overlay_from_xml", "create_xml_hidden",
                          "create_xml_laid_out"):
                 for _, args in calls(code, func):
@@ -234,7 +222,7 @@ def check(root: Path) -> list[tuple[str, str, str]]:
             created |= set(XML_COMPONENT_RE.findall(code))
 
         lines = raw[cpp].splitlines()
-        code = strip_comments(raw[cpp])
+        code = blank_cxx(raw[cpp], strings="keep")
         rel = cpp.relative_to(root)
         for line, args in calls(code, "find_required"):
             if len(args) < 2:

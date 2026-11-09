@@ -63,7 +63,6 @@ class XmlHotReloader {
     XmlHotReloader() = default;
     ~XmlHotReloader();
 
-    // Non-copyable
     XmlHotReloader(const XmlHotReloader&) = delete;
     XmlHotReloader& operator=(const XmlHotReloader&) = delete;
 

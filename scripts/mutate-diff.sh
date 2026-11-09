@@ -23,7 +23,7 @@ if [ "${MUTATE_LOCAL:-0}" = 1 ]; then
     exec python3 scripts/mutate_diff.py "$@"
 fi
 if why=$(python3 scripts/mutate_diff.py --probe-workers 2>&1); then
-    exec python3 scripts/mutate_diff.py --workers auto "$@"
+    exec python3 scripts/mutate_diff.py --workers auto --pool "$@"
 fi
 
 # shellcheck source-path=SCRIPTDIR source=lib/build_hosts.sh
@@ -54,4 +54,4 @@ if [ -z "$(git branch -r --contains HEAD 2>/dev/null)" ]; then
 fi
 
 echo "mutate-diff: one hunk at a time here ($why); running on the test host ($HELIX_TEST_HOST)" >&2
-exec scripts/test-host-run.sh mutate "$@"
+exec scripts/test-host-run.sh mutate --pool "$@"

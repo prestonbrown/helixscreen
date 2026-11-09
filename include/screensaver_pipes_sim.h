@@ -5,6 +5,7 @@
 #if HELIX_ENABLE_SCREENSAVER
 
 #include "screensaver_buffer.h"
+#include "screensaver_clock_reading.h"
 #include "screensaver_frame.h"
 #include "screensaver_motion.h"
 #include "screensaver_vec.h"
@@ -50,6 +51,9 @@ inline constexpr float kPipesYrotStepDeg = 9.73156f; ///< view turn per new scre
 inline constexpr int kPipesSlices = 16;              ///< facets round a pipe; a multiple of 4
 inline constexpr uint32_t kPipesStepMs = 100;        ///< one growth step per pipe
 inline constexpr uint32_t kPipesMaxStepsPerTick = 3;
+/// Growth steps a call while a print screen catches up to a print it opened on, paused or
+/// ended, so the screen fills over a few dozen frames instead of in one.
+inline constexpr uint32_t kPipesFastForwardSteps = 60;
 inline constexpr int kPipesActive =
     1; ///< pipes growing at once: the original's single-pipe default
 inline constexpr int kPipesPerScreen = 5; ///< NORMAL_PIPE_COUNT
@@ -58,6 +62,10 @@ inline constexpr int kPipesTeapotOdds = 1000;
 inline constexpr int kPipesTurnLookahead = 2;
 inline constexpr uint32_t kPipesDissolveMs = 2000;
 inline constexpr int kPipesDissolveDiv = 32; ///< dissolve block = min(w, h) / this
+/// The finished print's teapot: emerald, the green a finished print reads in everywhere.
+inline constexpr uint8_t kPipesDoneTeapotMaterial = 0;
+/// How long a finished print's full screen stays up before it dissolves and regrows.
+inline constexpr uint32_t kPipesDoneHoldMs = 30000;
 
 enum class PipeDir : uint8_t { POS_X, NEG_X, POS_Y, NEG_Y, POS_Z, NEG_Z, NONE };
 inline constexpr int kPipeDirCount = 6;
@@ -288,6 +296,12 @@ void pipes_emit_end(PipeNode node, PipeGridDims dims, uint8_t material,
 class PipesScreen {
   public:
     void begin(PipeGridDims dims, std::minstd_rand& rng, std::vector<PipePiece>& out);
+    /// From now on the screen runs until the grid is full: no pipe limit, and the only teapot is
+    /// the one a caller places (a start with nowhere to go and a teapot joint draw balls).
+    void fill_grid();
+    bool fills_grid() const {
+        return fills_;
+    }
     /// @return false once the screen is finished
     bool step(std::minstd_rand& rng, std::vector<PipePiece>& out);
     void release();
@@ -329,6 +343,7 @@ class PipesScreen {
     int counted_ = 0;
     int started_ = 0;
     int max_pipes_ = kPipesPerScreen;
+    bool fills_ = false;
     std::array<uint32_t, 3> joints_{};
     uint32_t straight_ = 0;
 };
@@ -403,6 +418,8 @@ class PipesRenderer {
     DirtyRect draw(const FrameTarget& frame, const PipePiece& piece);
     /// Canvas position of world point `p`; false behind the near plane.
     bool project(PipeVec3 p, float& sx, float& sy) const;
+    /// Distance of world point `p` in front of the camera.
+    float depth(PipeVec3 p) const;
     uint8_t scale() const {
         return scale_;
     }
@@ -479,22 +496,39 @@ class PipesDissolve {
 
 enum class PipesPhase : uint8_t { GROWING, DISSOLVING };
 
+/// How the print a print screen shows has ended.
+enum class PipesEnd : uint8_t { NONE, DONE, FAILED };
+
 /**
  * @brief The whole saver: screens of pipes, each dissolved before the next
  *
- * Growth runs one step per kPipesStepMs of frame time, at most kPipesMaxStepsPerTick per
- * call. A finished screen drops the steps still due and dissolves; when the dissolve ends the
- * view turns kPipesYrotStepDeg, a pending level's scale takes effect, and a new screen starts,
- * its first growth step a full step later.
+ * With no print, growth runs one step per kPipesStepMs of frame time, at most
+ * kPipesMaxStepsPerTick per call. A finished screen drops the steps still due and dissolves;
+ * when the dissolve ends the view turns kPipesYrotStepDeg, a pending level's scale takes
+ * effect, and a new screen starts, its first growth step a full step later.
+ *
+ * A print gets one screen (a print screen) that fills as the print goes: growth runs, at most
+ * kPipesMaxStepsPerTick steps a call, only while the grid's taken share is below the print's
+ * progress (carried between whole percents at the countdown's rate; paused, only up to the
+ * reported progress). The node nearest the camera in the middle of the view stays free for the
+ * teapot a finished print sets there once the rest of the grid is full; a failed or cancelled
+ * print stops growing and greys the frame once. A print screen begun on a paused or ended print
+ * catches up to it at kPipesFastForwardSteps steps a call, then shows the end. A finished print's
+ * screen holds for kPipesDoneHoldMs, then dissolves and regrows at the idle pace to a new teapot,
+ * for as long as the print reads finished. A print beginning
+ * over a screen without one, a new print after an end, or no print after one dissolves the screen
+ * first.
  */
 class PipesSim {
   public:
     static constexpr const auto& kLevels = kPipesLevels;
 
-    /// Starts the first screen at yrot 0 on a frame that is already black.
-    void init(const FrameTarget& frame, std::minstd_rand& rng, size_t level);
+    /// Starts the first screen at yrot 0 on a frame that is already black, for the print
+    /// `print` reads.
+    void init(const FrameTarget& frame, std::minstd_rand& rng, size_t level,
+              const ClockReading& print);
     void step(uint32_t dt_ms, const FrameTarget& frame, std::minstd_rand& rng,
-              std::vector<DirtyRect>& dirty);
+              const ClockReading& print, std::vector<DirtyRect>& dirty);
     /// The level's scale applies from the next screen.
     void request_level(size_t level);
     /// Releases every buffer.
@@ -518,12 +552,45 @@ class PipesSim {
     uint32_t screens_started() const {
         return screens_;
     }
+    /// True while the screen belongs to a print.
+    bool print_screen() const {
+        return print_screen_;
+    }
+    PipesEnd print_end() const {
+        return end_;
+    }
+    /// True once the end is on screen: the teapot drawn, or the frame greyed.
+    bool end_drawn() const {
+        return end_drawn_;
+    }
+    /// The node a finished print's teapot sits on; false when none is reserved.
+    bool teapot_node(PipeNode& out) const {
+        out = teapot_node_;
+        return teapot_reserved_;
+    }
+    /// Nodes the screen's grid has taken, the teapot's reserved node included.
+    size_t nodes_taken() const;
+    size_t node_count() const;
     size_t heap_bytes() const;
 
   private:
-    void start_screen(const FrameTarget& frame, std::minstd_rand& rng,
+    void start_screen(const FrameTarget& frame, std::minstd_rand& rng, const ClockReading& print,
                       std::vector<DirtyRect>& dirty);
     void draw_pieces(const FrameTarget& frame, std::vector<DirtyRect>& dirty);
+    /// True when `print` needs a different kind of screen than the one showing.
+    bool needs_new_screen(const ClockReading& print) const;
+    void step_print(uint32_t dt_ms, const FrameTarget& frame, std::minstd_rand& rng,
+                    const ClockReading& print, std::vector<DirtyRect>& dirty);
+    /// Grows at most `max_steps` steps while fewer than `target` nodes are taken; true once
+    /// `target` is reached or the grid is full.
+    bool grow_to(size_t target, uint32_t max_steps, const FrameTarget& frame, std::minstd_rand& rng,
+                 std::vector<DirtyRect>& dirty);
+    /// Takes the teapot's node: the empty node nearest the camera in the middle of the view.
+    void reserve_teapot_node(const FrameTarget& frame);
+    /// Records how `mode` ended the print and draws it once it can: the teapot after the grid
+    /// fills (one capped burst of growth a call, unless `max_steps` says more), or the grey.
+    void follow_end(ClockMode mode, uint32_t max_steps, const FrameTarget& frame,
+                    std::minstd_rand& rng, std::vector<DirtyRect>& dirty);
 
     PipesScreen screen_;
     PipesRenderer renderer_;
@@ -534,6 +601,18 @@ class PipesSim {
     uint32_t screens_ = 0;
     screensaver::StepAccumulator steps_;
     std::vector<PipePiece> pieces_;
+    bool print_screen_ = false;
+    PipesEnd end_ = PipesEnd::NONE;
+    bool end_drawn_ = false;
+    bool teapot_reserved_ = false;
+    /// True while a screen begun on a paused or ended print grows toward it at
+    /// kPipesFastForwardSteps a call.
+    bool catching_up_ = false;
+    /// This screen replaces a finished print's held screen, so it grows at the idle pace.
+    bool regrowing_done_ = false;
+    uint32_t done_held_ms_ = 0; ///< how long the finished screen has been up
+    PipeNode teapot_node_;
+    float fill_ = 0.0f; ///< share of the grid the running print's screen should have taken
 };
 
 } // namespace helix::ui

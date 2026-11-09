@@ -21,16 +21,21 @@ static void flush_queue() {
     helix::ui::UpdateQueue::instance().drain();
 }
 
+/// The TimelapseState singleton with its subjects freshly initialized.
+struct FreshTimelapseState {
+    TimelapseState& state = (lv_init_safe(), TimelapseState::instance());
+    FreshTimelapseState() {
+        state.deinit_subjects();
+        state.init_subjects(false);
+    }
+};
+
 // ============================================================================
 // Subject lifecycle
 // ============================================================================
 
-TEST_CASE("TimelapseState: init_subjects creates valid subjects", "[timelapse_state]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshTimelapseState, "TimelapseState: init_subjects creates valid subjects",
+                 "[timelapse_state]") {
     REQUIRE(state.get_render_progress_subject() != nullptr);
     REQUIRE(state.get_render_status_subject() != nullptr);
     REQUIRE(state.get_frame_count_subject() != nullptr);
@@ -44,11 +49,8 @@ TEST_CASE("TimelapseState: init_subjects creates valid subjects", "[timelapse_st
     flush_queue();
 }
 
-TEST_CASE("TimelapseState: deinit_subjects cleans up", "[timelapse_state]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
+TEST_CASE_METHOD(FreshTimelapseState, "TimelapseState: deinit_subjects cleans up",
+                 "[timelapse_state]") {
     lv_subject_set_int(state.get_frame_count_subject(), 7);
 
     state.deinit_subjects();
@@ -66,12 +68,8 @@ TEST_CASE("TimelapseState: deinit_subjects cleans up", "[timelapse_state]") {
 // newframe events
 // ============================================================================
 
-TEST_CASE("TimelapseState: newframe increments frame count", "[timelapse_state]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshTimelapseState, "TimelapseState: newframe increments frame count",
+                 "[timelapse_state]") {
     json event = {{"action", "newframe"}, {"framefile", "frame001.jpg"}, {"framenum", 1}};
     state.handle_timelapse_event(event);
     flush_queue();
@@ -81,12 +79,9 @@ TEST_CASE("TimelapseState: newframe increments frame count", "[timelapse_state]"
     state.deinit_subjects();
 }
 
-TEST_CASE("TimelapseState: multiple newframe events increment correctly", "[timelapse_state]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshTimelapseState,
+                 "TimelapseState: multiple newframe events increment correctly",
+                 "[timelapse_state]") {
     for (int i = 1; i <= 5; i++) {
         json event = {{"action", "newframe"}, {"framefile", "frame.jpg"}, {"framenum", i}};
         state.handle_timelapse_event(event);
@@ -102,12 +97,8 @@ TEST_CASE("TimelapseState: multiple newframe events increment correctly", "[time
 // render events
 // ============================================================================
 
-TEST_CASE("TimelapseState: render running updates progress and status", "[timelapse_state]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshTimelapseState, "TimelapseState: render running updates progress and status",
+                 "[timelapse_state]") {
     json event = {{"action", "render"}, {"status", "running"}, {"progress", 45}};
     state.handle_timelapse_event(event);
     flush_queue();
@@ -118,12 +109,10 @@ TEST_CASE("TimelapseState: render running updates progress and status", "[timela
     state.deinit_subjects();
 }
 
-TEST_CASE("TimelapseState: a render toasts its start once and its success, from the event's thread",
-          "[timelapse_state][toast]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
+TEST_CASE_METHOD(
+    FreshTimelapseState,
+    "TimelapseState: a render toasts its start once and its success, from the event's thread",
+    "[timelapse_state][toast]") {
     state.reset();
     helix::test::ToastLog toasts;
 
@@ -139,12 +128,9 @@ TEST_CASE("TimelapseState: a render toasts its start once and its success, from 
     state.deinit_subjects();
 }
 
-TEST_CASE("TimelapseState: render success sets complete and resets progress", "[timelapse_state]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshTimelapseState,
+                 "TimelapseState: render success sets complete and resets progress",
+                 "[timelapse_state]") {
     // First set some progress
     json running = {{"action", "render"}, {"status", "running"}, {"progress", 80}};
     state.handle_timelapse_event(running);
@@ -161,12 +147,8 @@ TEST_CASE("TimelapseState: render success sets complete and resets progress", "[
     state.deinit_subjects();
 }
 
-TEST_CASE("TimelapseState: render error sets error status", "[timelapse_state]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshTimelapseState, "TimelapseState: render error sets error status",
+                 "[timelapse_state]") {
     json event = {{"action", "render"}, {"status", "error"}, {"msg", "ffmpeg failed"}};
     state.handle_timelapse_event(event);
     flush_queue();
@@ -180,12 +162,8 @@ TEST_CASE("TimelapseState: render error sets error status", "[timelapse_state]")
 // reset
 // ============================================================================
 
-TEST_CASE("TimelapseState: reset clears all state", "[timelapse_state]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshTimelapseState, "TimelapseState: reset clears all state",
+                 "[timelapse_state]") {
     // Set some state
     json frame = {{"action", "newframe"}, {"framefile", "f.jpg"}, {"framenum", 1}};
     state.handle_timelapse_event(frame);
@@ -210,12 +188,9 @@ TEST_CASE("TimelapseState: reset clears all state", "[timelapse_state]") {
 // Render complete: filename storage and callback
 // ============================================================================
 
-TEST_CASE("TimelapseState: render success stores last rendered filename", "[timelapse_state]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshTimelapseState,
+                 "TimelapseState: render success stores last rendered filename",
+                 "[timelapse_state]") {
     REQUIRE(state.get_last_rendered_filename().empty());
 
     json success = {
@@ -228,12 +203,9 @@ TEST_CASE("TimelapseState: render success stores last rendered filename", "[time
     state.deinit_subjects();
 }
 
-TEST_CASE("TimelapseState: render success fires on_render_complete callback", "[timelapse_state]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshTimelapseState,
+                 "TimelapseState: render success fires on_render_complete callback",
+                 "[timelapse_state]") {
     std::string captured_filename;
     state.set_on_render_complete(
         [&captured_filename](const std::string& filename) { captured_filename = filename; });
@@ -249,12 +221,8 @@ TEST_CASE("TimelapseState: render success fires on_render_complete callback", "[
     state.deinit_subjects();
 }
 
-TEST_CASE("TimelapseState: reset clears last rendered filename", "[timelapse_state]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshTimelapseState, "TimelapseState: reset clears last rendered filename",
+                 "[timelapse_state]") {
     json success = {{"action", "render"}, {"status", "success"}, {"filename", "test.mp4"}};
     state.handle_timelapse_event(success);
     flush_queue();
@@ -273,12 +241,9 @@ TEST_CASE("TimelapseState: reset clears last rendered filename", "[timelapse_sta
 // Edge cases: malformed/unknown events
 // ============================================================================
 
-TEST_CASE("TimelapseState: unknown action does not crash or change state", "[timelapse_state]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshTimelapseState,
+                 "TimelapseState: unknown action does not crash or change state",
+                 "[timelapse_state]") {
     json event = {{"action", "unknown_action"}};
     state.handle_timelapse_event(event);
     flush_queue();
@@ -291,12 +256,8 @@ TEST_CASE("TimelapseState: unknown action does not crash or change state", "[tim
     state.deinit_subjects();
 }
 
-TEST_CASE("TimelapseState: malformed JSON with no action field", "[timelapse_state]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshTimelapseState, "TimelapseState: malformed JSON with no action field",
+                 "[timelapse_state]") {
     // Empty object
     json event = json::object();
     state.handle_timelapse_event(event);
@@ -319,13 +280,9 @@ TEST_CASE("TimelapseState: malformed JSON with no action field", "[timelapse_sta
 // Notification throttling
 // ============================================================================
 
-TEST_CASE("TimelapseState: render progress notifications throttled to 25% boundaries",
-          "[timelapse_state]") {
-    lv_init_safe();
-    auto& state = TimelapseState::instance();
-    state.deinit_subjects();
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshTimelapseState,
+                 "TimelapseState: render progress notifications throttled to 25% boundaries",
+                 "[timelapse_state]") {
     // Send progress events at 10%, 20%, 25%, 30%, 50%, 75%, 100%
     // Only 25%, 50%, 75%, 100% should trigger notifications
     // (We can't easily verify notifications in unit tests, but we verify

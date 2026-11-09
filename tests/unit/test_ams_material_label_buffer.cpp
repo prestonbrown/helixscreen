@@ -13,8 +13,7 @@
  *
  * Real Spoolman filament names run long once a brand and a material land on
  * either side of them ("Polymaker PolyTerra Dual Sakura Pink & Cotton White
- * PLA" is 55 characters), which is well past the 48 bytes the buffer used to
- * carry.
+ * PLA" is 55 characters), well past 48 bytes.
  */
 
 #include "../lvgl_test_fixture.h"

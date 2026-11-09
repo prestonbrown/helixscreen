@@ -44,8 +44,18 @@ struct ResolvedLane {
     std::optional<float> total_weight_g;
 };
 
+/// The spool a lane is linked to: the id the strongest of Pending, Firmware
+/// and Record states, or 0 when none links one. Spoolman's own record never
+/// decides the link; it is a lookup keyed by this id.
+[[nodiscard]] int linked_spool_id(const LaneSources& sources);
+
 /// Apply the precedence table to a lane's sources. Pure: same inputs, same
 /// answer, no clock, no globals, no I/O.
+///
+/// Identity, strongest first: Pending, Firmware, Record, then Spoolman filling
+/// what the others leave unset. Weights, strongest first: Pending, Spoolman,
+/// Firmware, Record, Metered. A Spoolman record counts only while it describes
+/// the linked spool.
 [[nodiscard]] ResolvedLane resolve(const LaneSources& sources);
 
 } // namespace helix::ams

@@ -60,6 +60,27 @@ int get_splash_3d_target_height(const char* size_name) {
     return 0; // Unknown — caller should fall back to runtime scaling
 }
 
+int get_splash_3d_target_width(const char* size_name) {
+    // Kept in step with splash_composite_width in assets/config/platforms.json
+    // and SCREEN_SIZES in scripts/gen_splash_3d.py, checked the same way as the
+    // heights above.
+    if (strcmp(size_name, "micro") == 0)
+        return 480;
+    if (strcmp(size_name, "tiny") == 0)
+        return 480;
+    if (strcmp(size_name, "small") == 0)
+        return 480;
+    if (strcmp(size_name, "medium") == 0)
+        return 800;
+    if (strcmp(size_name, "large") == 0)
+        return 1024;
+    if (strcmp(size_name, "xlarge") == 0)
+        return 1280;
+    if (strcmp(size_name, "ultrawide") == 0)
+        return 1920;
+    return 0; // Unknown — caller should fall back to runtime scaling
+}
+
 int get_printer_image_size(int screen_width) {
     // Width, not the narrow axis: this sizes a widget's artwork against the
     // horizontal room it is given, rather than picking a full-screen canvas.

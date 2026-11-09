@@ -256,6 +256,14 @@ TEST_CASE_METHOD(DiagUploadGateFixture,
                  "upload_async: opted-in build uploads through the worker URL",
                  "[diag-uploads][debug-bundle]") {
     opt_in_.set("1");
+    // The app's ui_perf provider is read on the submitting thread, into the options.
+    std::string collected_ui_perf;
+    helix::DebugBundleCollector::set_ui_perf_provider([] { return std::string("{\"x\":1}"); });
+    helix::DebugBundleCollector::set_collect_override_for_test(
+        [&collected_ui_perf](const helix::BundleOptions& o) {
+            collected_ui_perf = o.ui_perf_json;
+            return json{{"diag_upload_marked", false}};
+        });
 
     std::atomic<bool> done{false};
     helix::BundleResult got;
@@ -267,9 +275,11 @@ TEST_CASE_METHOD(DiagUploadGateFixture,
                                               });
 
     REQUIRE(settle_done(done));
+    helix::DebugBundleCollector::set_ui_perf_provider(nullptr);
     CHECK(got.success);
     CHECK(got.share_code == "TESTCODE");
     CHECK(bundle_stub_.request_count() == 1);
+    CHECK(collected_ui_perf == "{\"x\":1}");
 }
 
 TEST_CASE_METHOD(DiagUploadGateFixture,

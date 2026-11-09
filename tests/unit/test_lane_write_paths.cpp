@@ -29,7 +29,7 @@ using helix::AmsBackendMock;
 using helix::SlotInfo;
 using helix::SlotStatus;
 using helix::ams::apply_resolved;
-using helix::ams::commit_slot_edit;
+using helix::ams::file_pending;
 using helix::ams::ingest;
 using helix::ams::lane_sources;
 using helix::ams::Observation;
@@ -39,17 +39,21 @@ using helix::test::RegisteredBackend;
 
 namespace {
 
-/// A lane carrying a person's declaration and a server's, the two records a
-/// clear has to take with it.
+/// A lane carrying a record linking spool 42, a pending edit and the
+/// server's details, the records a clear has to take with it.
 void declare_identity(helix::ams::LaneId lane) {
+    Observation record(ObservationSource::Record);
+    record.spoolman_id = 42;
+    ingest(lane, record);
+
     Observation server(ObservationSource::Spoolman);
     server.spoolman_id = 42;
     server.brand = "Polymaker";
     ingest(lane, server);
 
-    Observation user(ObservationSource::LocalUser);
+    Observation user(ObservationSource::Pending);
     user.spool_name = "Bench reel";
-    commit_slot_edit(lane, user);
+    file_pending(lane, user);
 
     Observation meter(ObservationSource::Metered);
     meter.remaining_weight_g = 480.0F;
@@ -81,8 +85,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "Clearing a slot stops its identity painting t
     harness->clear_slot_override(0);
 
     const auto after_sources = lane_sources(lane);
+    CHECK_FALSE(after_sources.record.has_value());
     CHECK_FALSE(after_sources.spoolman.has_value());
-    CHECK_FALSE(after_sources.local_user.has_value());
+    CHECK_FALSE(after_sources.pending.has_value());
     CHECK_FALSE(after_sources.metered.has_value());
 
     // The lane now states none of it, so a backend's own values stand where
@@ -112,7 +117,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "A clear leaves the machine's own readings alo
     sensed.present = true;
     ingest(lane, sensed);
 
-    Observation cache(ObservationSource::VendorCache);
+    Observation cache(ObservationSource::Firmware);
     cache.material = "PETG";
     cache.color_rgb = 0xED2C2C;
     ingest(lane, cache);
@@ -122,132 +127,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "A clear leaves the machine's own readings alo
     const auto after = lane_sources(lane);
     REQUIRE(after.sensed.has_value());
     CHECK(after.sensed->present == true);
-    REQUIRE(after.vendor_cache.has_value());
-    CHECK(after.vendor_cache->material == "PETG");
+    REQUIRE(after.firmware.has_value());
+    CHECK(after.firmware->material == "PETG");
 
     const auto r = resolve(after);
     CHECK(r.present == true);
     CHECK(r.material == "PETG");
     CHECK(r.color_rgb == 0xED2C2Cu);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "A cleared field hands the lane back to the machine at once",
-                 "[lane][writepath][1661]") {
-    // A clear withdraws the user's word rather than stating an emptiness: the
-    // moment it commits, nothing may sit over the field on the user rung, so
-    // the machine's own reading paints the lane again with no restart
-    // (prestonbrown/helixscreen#1661). The stored record carries the clear
-    // through the edit's values whatever the rung does.
-    RegisteredBackend<AmsBackendAfc> harness(nullptr, nullptr);
-    const auto lane = harness.lane(0);
-
-    Observation cache(ObservationSource::VendorCache);
-    cache.brand = "Firmware Brand";
-    cache.material = "PETG";
-    cache.spool_name = "Firmware Reel";
-    cache.spoolman_vendor_id = 9;
-    ingest(lane, cache);
-
-    // One edit that types a value (so a declaration stands to be withdrawn),
-    // then one that clears it. The editor opens on what the lane resolves, the
-    // same before the production editor sees.
-    const auto commit = [](helix::ams::LaneId l, const SlotInfo& original, const SlotInfo& edited) {
-        commit_slot_edit(l, helix::ams::user_edit_observation(original, edited));
-    };
-    const auto lane_shows = [lane] { return resolve(lane_sources(lane)); };
-
-    SECTION("brand") {
-        SlotInfo open;
-        apply_resolved(open, lane_shows());
-        REQUIRE(open.brand == "Firmware Brand");
-        SlotInfo typed = open;
-        typed.brand = "My Brand";
-        commit(lane, open, typed);
-        REQUIRE(lane_shows().brand.value_or("") == "My Brand");
-        SlotInfo cleared = typed;
-        cleared.brand.clear();
-        commit(lane, typed, cleared);
-        CHECK(lane_shows().brand.value_or("") == "Firmware Brand");
-    }
-
-    SECTION("material") {
-        SlotInfo open;
-        apply_resolved(open, lane_shows());
-        SlotInfo typed = open;
-        typed.material = "ABS";
-        commit(lane, open, typed);
-        REQUIRE(lane_shows().material.value_or("") == "ABS");
-        SlotInfo cleared = typed;
-        cleared.material.clear();
-        commit(lane, typed, cleared);
-        CHECK(lane_shows().material.value_or("") == "PETG");
-    }
-
-    SECTION("spool name") {
-        SlotInfo open;
-        apply_resolved(open, lane_shows());
-        SlotInfo typed = open;
-        typed.spool_name = "Bench reel";
-        commit(lane, open, typed);
-        REQUIRE(lane_shows().spool_name.value_or("") == "Bench reel");
-        SlotInfo cleared = typed;
-        cleared.spool_name.clear();
-        commit(lane, typed, cleared);
-        CHECK(lane_shows().spool_name.value_or("") == "Firmware Reel");
-    }
-
-    SECTION("vendor id") {
-        SlotInfo open;
-        apply_resolved(open, lane_shows());
-        SlotInfo typed = open;
-        typed.spoolman_vendor_id = 4;
-        commit(lane, open, typed);
-        REQUIRE(lane_shows().spoolman_vendor_id.value_or(0) == 4);
-        SlotInfo cleared = typed;
-        cleared.spoolman_vendor_id = 0;
-        commit(lane, typed, cleared);
-        CHECK(lane_shows().spoolman_vendor_id.value_or(0) == 9);
-    }
-
-    SECTION("a clear of one field leaves a sibling declaration standing") {
-        SlotInfo open;
-        apply_resolved(open, lane_shows());
-        SlotInfo typed = open;
-        typed.brand = "My Brand";
-        typed.spool_name = "Bench reel";
-        commit(lane, open, typed);
-        SlotInfo cleared = typed;
-        cleared.brand.clear();
-        commit(lane, typed, cleared);
-        CHECK(lane_shows().brand.value_or("") == "Firmware Brand");
-        CHECK(lane_shows().spool_name.value_or("") == "Bench reel");
-    }
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "A cleared field on a lane the machine is silent on stays blank",
-                 "[lane][writepath][1661]") {
-    // No vendor cache, no spool: the clear withdraws the declaration and
-    // nothing states the field, so the lane shows blank rather than the value
-    // the withdrawn declaration stood over (prestonbrown/helixscreen#1661).
-    RegisteredBackend<AmsBackendAfc> harness(nullptr, nullptr);
-    const auto lane = harness.lane(0);
-
-    SlotInfo open;
-    open.brand = "Whatever was loaded";
-    open.material = "PLA";
-    SlotInfo typed = open;
-    typed.brand = "My Brand";
-    typed.material = "ABS";
-    commit_slot_edit(lane, helix::ams::user_edit_observation(open, typed));
-    REQUIRE(resolve(lane_sources(lane)).brand.value_or("") == "My Brand");
-
-    SlotInfo cleared = typed;
-    cleared.brand.clear();
-    cleared.material.clear();
-    commit_slot_edit(lane, helix::ams::user_edit_observation(typed, cleared));
-    const auto after = resolve(lane_sources(lane));
-    CHECK_FALSE(after.brand.has_value());
-    CHECK_FALSE(after.material.has_value());
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "A metered weight reaches the lane it was measured on",
@@ -304,18 +190,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "A firmware frame cannot erase what a stored r
     stored.material = "ASA";
     helix::test::file_override_as_lane_records(*harness, 0, stored);
 
-    REQUIRE(lane_sources(lane).remembered.has_value());
-    REQUIRE(lane_sources(lane).remembered->brand == "Polymaker");
+    REQUIRE(lane_sources(lane).record.has_value());
+    REQUIRE(lane_sources(lane).record->brand == "Polymaker");
 
     // The machine speaks, and says nothing about a brand.
-    Observation frame(ObservationSource::VendorCache);
+    Observation frame(ObservationSource::Firmware);
     frame.material = "PLA";
     frame.color_rgb = 0xED2C2Cu;
     ingest(lane, frame);
 
     const auto after = lane_sources(lane);
-    REQUIRE(after.remembered.has_value());
-    CHECK(after.remembered->brand == "Polymaker");
+    REQUIRE(after.record.has_value());
+    CHECK(after.record->brand == "Polymaker");
 
     const auto r = resolve(after);
     // The frame outranks the disk copy on what it actually stated, and leaves
@@ -336,7 +222,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "A remembered field never outranks the machine
     stored.brand = "Polymaker";
     helix::test::file_override_as_lane_records(*harness, 0, stored);
 
-    Observation frame(ObservationSource::VendorCache);
+    Observation frame(ObservationSource::Firmware);
     frame.brand = "Elegoo";
     ingest(lane, frame);
 

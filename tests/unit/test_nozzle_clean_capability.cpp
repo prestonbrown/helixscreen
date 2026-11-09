@@ -5,15 +5,14 @@
  * @file test_nozzle_clean_capability.cpp
  * @brief The nozzle_clean capability must see the user's own macro assignment (#1354)
  *
- * The capability used to be resolved purely from macro-NAME pattern detection
- * (PrinterDiscovery::has_nozzle_clean_macro()), so a printer whose nozzle-clean
- * macro is called something we do not recognise reported the capability false
- * even after the user pointed /standard_macros/clean_nozzle straight at it. The
- * Controls-panel button worked; the capability chip and has_any_preprint_options
- * did not.
+ * Resolving the capability purely from macro-NAME pattern detection
+ * (PrinterDiscovery::has_nozzle_clean_macro()) would report it false for a
+ * printer whose nozzle-clean macro is called something we do not recognise,
+ * even after the user pointed /standard_macros/clean_nozzle straight at it,
+ * while the Controls-panel button still worked.
  *
- * The second half of the bug was two hand-maintained name tables — one in
- * PrinterDiscovery, one in StandardMacros — that had already drifted apart.
+ * Two hand-maintained name tables, one in PrinterDiscovery and one in
+ * StandardMacros, drift apart.
  * They are now one table in include/macro_patterns.h.
  */
 
@@ -99,7 +98,7 @@ TEST_CASE_METHOD(NozzleCleanCapabilityFixture,
 TEST_CASE_METHOD(NozzleCleanCapabilityFixture,
                  "nozzle_clean - a user-assigned macro the printer defines grants it",
                  "[1354][printer][overrides][standard_macros]") {
-    // Bundle 6QWNVZY5: the macro is called CLEAN, which matches no pattern.
+    // A field printer's macro is called CLEAN, which matches no pattern.
     auto hardware = discover({"extruder", "heater_bed", "gcode_macro CLEAN"});
 
     // Pre-condition: detection alone says no. Without this the test would pass
@@ -162,7 +161,7 @@ TEST_CASE_METHOD(NozzleCleanCapabilityFixture,
     const auto& patterns = helix::macro_patterns::clean_nozzle();
     REQUIRE_FALSE(patterns.empty());
 
-    // The union of the two lists that used to be maintained separately.
+    // The union of the PrinterDiscovery and StandardMacros name lists.
     // CLEAR_NOZZLE was StandardMacros-only; PURGE_NOZZLE and NOZZLE_CLEAN were
     // PrinterDiscovery-only. Losing any of them re-opens the drift.
     for (const char* name : {"CLEAN_NOZZLE", "NOZZLE_WIPE", "WIPE_NOZZLE", "CLEAR_NOZZLE",

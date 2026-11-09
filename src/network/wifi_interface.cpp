@@ -92,8 +92,7 @@ pid_t find_daemon_for_interface(const std::string& proc_root, const std::string&
     conf_path_out.clear();
 
     // Not the daemon that owns the interface we care about — keep scanning.
-    // This is the fix: the code this replaces returned on the first
-    // wpa_supplicant found, regardless of which interface it owned.
+    // The first wpa_supplicant found may own a different interface.
     for (const auto& d : list_wpa_daemons(proc_root)) {
         if (d.iface.empty() || d.iface != netdev)
             continue;

@@ -246,8 +246,8 @@ TEST_CASE("hw table: status fields per kind", "[hw_object_table]") {
     CHECK(fields_of(ObjectKind::Heater) == V{"temperature", "target", "power"});
     CHECK(fields_of(ObjectKind::TemperatureSensor) == V{"temperature", "humidity"});
     CHECK(fields_of(ObjectKind::HumidityChip) == V{"temperature", "humidity"});
-    CHECK(fields_of(ObjectKind::TemperatureFan) == V{"temperature", "target", "speed"});
-    CHECK(fields_of(ObjectKind::Fan) == V{"speed"});
+    CHECK(fields_of(ObjectKind::TemperatureFan) == V{"temperature", "target", "speed", "rpm"});
+    CHECK(fields_of(ObjectKind::Fan) == V{"speed", "rpm"});
     CHECK(fields_of(ObjectKind::OutputPinFan) == V{"value"});
     CHECK(fields_of(ObjectKind::OutputPinLed) == V{"value"});
     CHECK(fields_of(ObjectKind::Led) == V{"color_data"});

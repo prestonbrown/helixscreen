@@ -13,7 +13,6 @@
 #include <cstdlib>
 #include <cstring>
 
-// Global runtime configuration instance
 static RuntimeConfig g_runtime_config;
 
 // Debug subjects flag (separate from RuntimeConfig instance for static access)
@@ -115,7 +114,6 @@ bool RuntimeConfig::should_show_runout_modal() const {
         return false;
     }
 
-    // Check AMS state
     auto& ams = helix::AmsState::instance();
     if (ams.is_available()) {
         // Tool changers (Snapmaker U1, generic TOOL_CHANGER) have one extruder

@@ -125,7 +125,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Completion modal: the stop reason shows und
     state().print_state().set_print_stop_reason(kReason);
     UpdateQueue::instance().drain();
 
-    lv_obj_t* dialog = helix::ui::modal_show("print_completion_modal");
+    lv_obj_t* dialog = helix::ui::ComponentModal::show_owned("print_completion_modal");
     REQUIRE(dialog != nullptr);
     lv_obj_t* reason = lv_obj_find_by_name(dialog, "stop_reason_label");
     REQUIRE(reason != nullptr);

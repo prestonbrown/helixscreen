@@ -240,6 +240,10 @@ std::optional<PrePrintOption> parse_pre_print_option(const nlohmann::json& j);
 PrePrintOptionSet parse_pre_print_option_set(const nlohmann::json& j);
 
 namespace helix {
+/// The id and capability of the heat soak option synthesized for a printer with
+/// a soak macro. A database option for the same capability declares another id.
+inline constexpr const char* kHeatSoakOptionId = "heat_soak";
+
 /// Sort by (category, order): the on-screen order every option set keeps.
 void sort_pre_print_options(std::vector<PrePrintOption>& options);
 } // namespace helix

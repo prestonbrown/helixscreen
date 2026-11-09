@@ -325,6 +325,7 @@ live breadcrumb of the navigation stack, e.g. `controls / motion_panel_0 > `.
 | `current`, `pwd` | Show the panel, overlay stack, and working directory |
 | `resolve <target>` | Print the absolute locator a target resolves to |
 | `list_panels` | List the registered base panels (the fixed `PanelId` set) |
+| `perf` | What the UI has cost since start: `frames` (drawn, `render_ms_mean`, `slow` over `slow_over_ms`, `flushed_screens`), `rss_kb`, `peak_rss_kb`, and `overlays`, slowest last open first, each with `opens`, `builds` (opens that built the widget tree), `last_ms`, `max_ms`, `mean_ms`. An open is timed from `OverlayBase::show()` to the end of the first frame drawn after its queued push. The debug bundle carries the same object as `ui_perf` |
 | `wake`, `screensaver off` | Reset the idle timer / dismiss the screensaver |
 | `screensaver <name>` | Preview a saver by its stable registry name (`maze`, `flipclock`, `aqua`, `highfly`, ...) the way Test Screensaver does. The reply names what `runs` (a saver too heavy for the board runs its fallback), or says `started: false` when a saver is already up. `screensaver off`, in any case, is `wake` |
 
@@ -517,7 +518,18 @@ helix-screen ctl long_press 90 145      # centre of that rect
 # 2. Open the widget catalog - click the nav bar's "+", NOT a second long press
 helix-screen ctl click nav_btn_edit_add
 helix-screen ctl ls
+
+# A tile's actions: tap the tile to select it, tap it again to open its callout,
+# then click a row (tile_callout_configure, tile_callout_remove)
+helix-screen ctl click 90 145
+helix-screen ctl click 90 145
+helix-screen ctl click tile_callout_remove
 ```
+
+A row clicked by name acts at once: a click with no input device behind it skips the rows'
+300 ms tap lockout (`include/tap_lockout.h`). A row tapped by coordinates (`ctl tap <x> <y>`)
+goes through the synthetic pointer like a finger, so a tap within 300 ms of the card's first
+frame is dropped; the log says so at info (`Row tap ignored`).
 
 The grid handlers are registered on `carousel_host`, the grid's own container
 (`ui_xml/home_panel.xml#carousel_host`), and a press reaches them by bubbling. Page containers

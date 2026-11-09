@@ -3,18 +3,23 @@
 #if HELIX_ENABLE_SCREENSAVER
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/screensaver_clock_scopes.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "display_settings_manager.h"
 #include "locale_formats.h"
 #include "screensaver_clock.h"
 #include "screensaver_clock_reading.h"
 #include "screensaver_stroke_digits.h"
-#include "system_settings_manager.h"
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <ctime>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -32,7 +37,9 @@ using helix::ui::ClockTime;
 using helix::ui::StrokeDigitSet;
 
 using helix::test::hms;
+using helix::test::LanguageScope;
 using helix::test::TestFrame;
+using helix::test::TimeFormatScope;
 
 namespace {
 
@@ -89,6 +96,25 @@ TEST_CASE("a reading carries the date it was given", "[screensaver][clock_readin
     CHECK(date.month == 10);
     CHECK(date.day == 21);
     CHECK(date.weekday == 1);
+}
+
+TEST_CASE("a reading carries whether the clock spells print states, in every mode",
+          "[screensaver][clock_reading]") {
+    ClockInput in;
+    CHECK(in.spell_states);
+    for (const ClockPrintPhase phase :
+         {ClockPrintPhase::NONE, ClockPrintPhase::PRINTING, ClockPrintPhase::PAUSED,
+          ClockPrintPhase::COMPLETE, ClockPrintPhase::FAILED, ClockPrintPhase::CANCELLED}) {
+        CAPTURE(static_cast<int>(phase));
+        for (const bool spell : {true, false}) {
+            in.print.phase = phase;
+            in.print.remaining_s = 600;
+            in.spell_states = spell;
+            ClockState state;
+            state.step(16, in);
+            CHECK(state.reading().spell_states == spell);
+        }
+    }
 }
 
 TEST_CASE("a print with an estimate reads a countdown with its end time and progress",
@@ -215,6 +241,21 @@ TEST_CASE("an end seen without a running print still reads as that end",
     ClockState state;
     state.step(0, in);
     CHECK(state.mode() == ClockMode::DONE);
+}
+
+TEST_CASE("the print text redraws when a running print's percent changes before its estimate",
+          "[screensaver][clock_reading]") {
+    helix::ui::ClockReading a;
+    a.mode = ClockMode::PROGRESS;
+    a.progress_pct = 37;
+    helix::ui::ClockReading b = a;
+    CHECK(helix::ui::clock_text_same(a, b));
+    b.progress_pct = 38;
+    CHECK_FALSE(helix::ui::clock_text_same(a, b));
+    // Counting down, the text shows the time, not the percent.
+    a.mode = ClockMode::COUNTDOWN;
+    b.mode = ClockMode::COUNTDOWN;
+    CHECK(helix::ui::clock_text_same(a, b));
 }
 
 TEST_CASE("the drift range keeps a spare pixel and at most a 25th of the screen",
@@ -359,37 +400,112 @@ TEST_CASE("clear frees the coverage", "[screensaver][clock_reading]") {
     CHECK(set.at(3, 0, 0) == 0);
 }
 
+TEST_CASE("every stroke glyph has a centre line and only its own strokes",
+          "[screensaver][clock_reading]") {
+    using helix::ui::kStrokeGlyphChars;
+    using helix::ui::stroke_glyph_distance;
+    for (const char* c = kStrokeGlyphChars; *c; ++c) {
+        CAPTURE(*c);
+        // Some point of the box lies on the centre line, and the box is not all line.
+        float nearest = 1e9f;
+        float farthest = 0.0f;
+        for (int yi = 0; yi <= 32; yi++) {
+            for (int xi = 0; xi <= 20; xi++) {
+                const float d = stroke_glyph_distance(*c, xi / 20.0f,
+                                                      helix::ui::kStrokeDigitPathH * yi / 32.0f);
+                nearest = std::min(nearest, d);
+                farthest = std::max(farthest, d);
+            }
+        }
+        CHECK(nearest < 0.03f);
+        CHECK(farthest > 0.2f);
+    }
+    // Letters whose right side is straight run its full straight length, as O's does.
+    for (const char c : {'D', 'O', 'N', 'U'}) {
+        CAPTURE(c);
+        for (const float y : {0.7f, 0.8f, 0.9f}) {
+            CAPTURE(y);
+            CHECK(stroke_glyph_distance(c, 1.0f, y) < 0.01f);
+        }
+    }
+
+    // The print-state symbols are glyphs too, each centred in the box so one card reads alone.
+    for (const char c : {helix::ui::kGlyphCheck, helix::ui::kGlyphCross, helix::ui::kGlyphSquare,
+                         helix::ui::kGlyphPause}) {
+        CAPTURE(static_cast<int>(c));
+        CHECK(std::strchr(kStrokeGlyphChars, c) != nullptr);
+        float left = 1e9f;
+        float right = -1e9f;
+        float top = 1e9f;
+        float bottom = -1e9f;
+        for (int yi = 0; yi <= 160; yi++) {
+            for (int xi = 0; xi <= 100; xi++) {
+                const float x = xi / 100.0f;
+                const float y = yi / 100.0f;
+                if (stroke_glyph_distance(c, x, y) < 0.01f) {
+                    left = std::min(left, x);
+                    right = std::max(right, x);
+                    top = std::min(top, y);
+                    bottom = std::max(bottom, y);
+                }
+            }
+        }
+        REQUIRE(right > left);
+        CHECK(std::fabs((left + right) / 2.0f - 0.5f) < 0.05f);
+        CHECK(std::fabs((top + bottom) / 2.0f - helix::ui::kStrokeDigitPathH / 2.0f) < 0.05f);
+        CHECK(right - left > 0.6f);
+    }
+
+    // Digits are the same glyphs as stroke_digit_distance draws.
+    CHECK(stroke_glyph_distance('6', 0.3f, 0.7f) ==
+          helix::ui::stroke_digit_distance(6, 0.3f, 0.7f));
+    CHECK(stroke_glyph_distance('?', 0.5f, 0.5f) > 100.0f);
+}
+
+TEST_CASE("letters that share strokes still draw differently", "[screensaver][clock_reading]") {
+    helix::ui::StrokeGlyphSet set;
+    set.init(30, 0.2f);
+    const auto bytes = [&set](char c) {
+        set.ensure(c);
+        std::vector<uint8_t> out;
+        for (int32_t y = 0; y < set.h; y++) {
+            for (int32_t x = 0; x < set.w; x++) {
+                out.push_back(set.at(c, x, y));
+            }
+        }
+        return out;
+    };
+    const std::pair<char, char> pairs[] = {{'O', 'D'}, {'E', 'F'}, {'P', 'D'}, {'I', 'L'},
+                                           {'S', '5'}, {'O', '0'}, {'U', 'O'}, {'C', 'O'}};
+    for (const auto& [a, b] : pairs) {
+        CAPTURE(a, b);
+        CHECK(bytes(a) != bytes(b));
+    }
+}
+
+TEST_CASE("a glyph set holds only the glyphs it was asked for", "[screensaver][clock_reading]") {
+    helix::ui::StrokeGlyphSet set;
+    set.init(30, 0.2f);
+    CHECK(set.heap_bytes() == 0);
+    CHECK(set.at('D', set.w / 2, set.h / 2) == 0);
+    set.ensure('D');
+    const size_t one = set.heap_bytes();
+    CHECK(one > 0);
+    set.ensure('D');
+    CHECK(set.heap_bytes() == one);
+    set.ensure('%');
+    CHECK(set.heap_bytes() > one);
+    // The left upright of D is fully covered.
+    CHECK(set.at('D', static_cast<int32_t>(0.1f * 30.0f), set.h / 2) >= 250);
+    set.clear();
+    CHECK(set.heap_bytes() == 0);
+}
+
 // ============================================================================
 // Text
 // ============================================================================
 
 namespace {
-
-/// Sets the app language for one test and puts English back after it.
-struct LanguageScope {
-    explicit LanguageScope(const std::string& lang) {
-        set(lang);
-    }
-    ~LanguageScope() {
-        set("en");
-    }
-    static void set(const std::string& lang) {
-        helix::SystemSettingsManager::instance().set_language(lang);
-        helix::ui::locale_set_language(lang);
-    }
-};
-
-/// Pins the Time Format setting for one test and restores what it was.
-struct TimeFormatScope {
-    explicit TimeFormatScope(TimeFormat format)
-        : saved(DisplaySettingsManager::instance().get_time_format()) {
-        DisplaySettingsManager::instance().set_time_format(format);
-    }
-    ~TimeFormatScope() {
-        DisplaySettingsManager::instance().set_time_format(saved);
-    }
-    TimeFormat saved;
-};
 
 /// The weekday in the active language. With the system locale active the name
 /// is whatever this host's libc spells (macOS capitalises French, glibc does

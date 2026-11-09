@@ -50,6 +50,8 @@ from typing import Iterable
 
 from staged_content import read_index_blobs, staged_paths
 
+from source_strip import blank_cxx
+
 # Log calls that reach the ring buffer. spdlog::trace is deliberately absent:
 # the ring's level is debug even when the logger is at trace, so trace lines
 # never leave the machine.
@@ -115,105 +117,6 @@ def is_excluded(path) -> bool:
     return posix.startswith(EXCLUDE_PREFIXES)
 
 
-def strip_noise(text: str) -> str:
-    """Blank out comments and string-literal bodies, preserving offsets.
-
-    Every removed character becomes a space and newlines are kept, so byte
-    offsets and line numbers still map back to the original file. This is what
-    stops the gate matching a comment that *describes* the anti-pattern, or a
-    format string that merely contains the word "ssid" -- the mistake the L081
-    gate shipped with (see tests/shell/test_l081_gate.bats).
-    """
-    out = list(text)
-    i, n = 0, len(text)
-    state = None  # None | 'line' | 'block' | 'str' | 'char' | 'raw'
-    raw_delim = ""
-
-    while i < n:
-        c = text[i]
-        nxt = text[i + 1] if i + 1 < n else ""
-
-        if state is None:
-            if c == "/" and nxt == "/":
-                state = "line"
-                out[i] = out[i + 1] = " "
-                i += 2
-                continue
-            if c == "/" and nxt == "*":
-                state = "block"
-                out[i] = out[i + 1] = " "
-                i += 2
-                continue
-            # Raw string: R"delim( ... )delim"
-            if c == "R" and nxt == '"':
-                m = re.match(r'R"([^(]{0,16})\(', text[i:])
-                if m:
-                    raw_delim = ")" + m.group(1) + '"'
-                    state = "raw"
-                    for k in range(i, i + m.end()):
-                        out[k] = " "
-                    i += m.end()
-                    continue
-            if c == '"':
-                state = "str"
-                i += 1  # keep the opening quote so the token still parses
-                continue
-            if c == "'":
-                state = "char"
-                i += 1
-                continue
-            i += 1
-            continue
-
-        if state == "line":
-            if c == "\n":
-                state = None
-            else:
-                out[i] = " "
-            i += 1
-            continue
-
-        if state == "block":
-            if c == "*" and nxt == "/":
-                out[i] = out[i + 1] = " "
-                i += 2
-                state = None
-                continue
-            if c != "\n":
-                out[i] = " "
-            i += 1
-            continue
-
-        if state == "raw":
-            if text.startswith(raw_delim, i):
-                for k in range(i, i + len(raw_delim)):
-                    out[k] = " "
-                i += len(raw_delim)
-                state = None
-                continue
-            if c != "\n":
-                out[i] = " "
-            i += 1
-            continue
-
-        # 'str' or 'char'
-        if c == "\\":
-            out[i] = " "
-            if i + 1 < n and text[i + 1] != "\n":
-                out[i + 1] = " "
-            i += 2
-            continue
-        if (state == "str" and c == '"') or (state == "char" and c == "'"):
-            state = None
-            i += 1
-            continue
-        if c != "\n":
-            out[i] = " "
-        i += 1
-
-    return "".join(out)
-
-
 def call_span(text: str, open_paren: int) -> int:
     """Return the index just past the ')' matching the '(' at open_paren."""
     depth = 0
@@ -260,7 +163,7 @@ def check_source(original: str) -> list[tuple[int, str, str]]:
     if "spdlog::" not in original and "_INTERNAL" not in original:
         return []
 
-    code = strip_noise(original)
+    code = blank_cxx(original, strings="body")
     lines = original.splitlines()
     findings: list[tuple[int, str, str]] = []
 

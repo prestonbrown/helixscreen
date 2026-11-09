@@ -398,6 +398,77 @@ TEST_CASE("plr_build_plan: QIDI resume does not depend on the Creality probe",
     REQUIRE(plan.recovery_file.empty());
 }
 
+TEST_CASE("plr_offer_availability: an empty saved file withdraws the offer only where it gates",
+          "[plr][backend][qidi]") {
+    PlrCapabilitySignals caps;
+    caps.resume_macro = true;
+    caps.interrupted_flag = true;
+    caps.status_recovery_file = "status.gcode";
+
+    SECTION("gated, cleared") {
+        caps.saved_file_gates_offer = true;
+        caps.saved_recovery_file = std::string();
+        CHECK_FALSE(helix::plr_offer_availability(caps, helix::PlrProbeSession{}).available);
+    }
+    SECTION("gated, set: the saved name is the recovery file") {
+        caps.saved_file_gates_offer = true;
+        caps.saved_recovery_file = "benchy.gcode";
+        const auto offer = helix::plr_offer_availability(caps, helix::PlrProbeSession{});
+        CHECK(offer.available);
+        CHECK(offer.recovery_file == "benchy.gcode");
+    }
+    SECTION("gated, firmware keeps no saved name") {
+        caps.saved_file_gates_offer = true;
+        const auto offer = helix::plr_offer_availability(caps, helix::PlrProbeSession{});
+        CHECK(offer.available);
+        CHECK(offer.recovery_file == "status.gcode");
+    }
+    SECTION("not gated: the saved name is ignored") {
+        caps.saved_recovery_file = std::string();
+        const auto offer = helix::plr_offer_availability(caps, helix::PlrProbeSession{});
+        CHECK(offer.available);
+        CHECK(offer.recovery_file == "status.gcode");
+    }
+}
+
+TEST_CASE("plr_saved_file_gates_offer: a resume macro without the detection macro",
+          "[plr][backend][qidi]") {
+    helix::PrinterDiscovery macro_set;
+    macro_set.parse_objects(json::array({"gcode_macro RESUME_INTERRUPTED"}));
+    CHECK(helix::plr_saved_file_gates_offer(macro_set));
+
+    helix::PrinterDiscovery detecting;
+    detecting.parse_objects(
+        json::array({"gcode_macro RESUME_INTERRUPTED", "gcode_macro DETECT_INTERRUPTION"}));
+    CHECK_FALSE(helix::plr_saved_file_gates_offer(detecting));
+
+    helix::PrinterDiscovery neither;
+    neither.parse_objects(json::array({"gcode_macro START_PRINT"}));
+    CHECK_FALSE(helix::plr_saved_file_gates_offer(neither));
+}
+
+TEST_CASE("plr_parse_saved_file reads the name and normalizes empty spellings",
+          "[plr][backend][qidi]") {
+    const auto frame = [](json vars) { return json{{"save_variables", {{"variables", vars}}}}; };
+    std::optional<std::string> out = "untouched";
+
+    CHECK_FALSE(helix::plr_parse_saved_file(json{{"print_stats", json::object()}}, out));
+    CHECK(out == "untouched");
+
+    REQUIRE(helix::plr_parse_saved_file(frame({{"last_file", "benchy.gcode"}}), out));
+    CHECK(out == "benchy.gcode");
+    for (const char* empty : {"", "''", "\"\""}) {
+        CAPTURE(empty);
+        REQUIRE(helix::plr_parse_saved_file(frame({{"last_file", empty}}), out));
+        REQUIRE(out.has_value());
+        CHECK(out->empty());
+    }
+    REQUIRE(helix::plr_parse_saved_file(frame({{"was_interrupted", true}}), out));
+    CHECK_FALSE(out.has_value());
+    REQUIRE(helix::plr_parse_saved_file(frame({{"last_file", 3}}), out));
+    CHECK_FALSE(out.has_value());
+}
+
 TEST_CASE("plr_resume_macro_present: keyed on the RESUME_INTERRUPTED macro",
           "[plr][backend][qidi]") {
     helix::PrinterDiscovery stock;

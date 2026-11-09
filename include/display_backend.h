@@ -695,6 +695,16 @@ class DisplayBackend {
     }
 
     /**
+     * @brief Whether this rotation has to move to the fbdev backend
+     *
+     * DRM without a GPU or plane path for the angle cannot rotate at all, while
+     * fbdev rotates in software.
+     */
+    bool needs_fbdev_for_rotation(lv_display_rotation_t rot) const {
+        return type() == DisplayBackendType::DRM && !supports_hardware_rotation(rot);
+    }
+
+    /**
      * @brief Detect panel orientation from DRM connector properties
      *
      * Queries the kernel's DRM connector "panel orientation" property to
@@ -872,7 +882,8 @@ class DisplayBackend {
     }
 
   private:
-    inline static DisplayBackend* s_active = nullptr;
+    inline static DisplayBackend* s_active =
+        nullptr; // ACTIVE_INSTANCE_OK: display callback context
 };
 
 /**
@@ -944,3 +955,42 @@ inline bool display_is_rotated(lv_display_t* disp = nullptr) {
 #ifdef HELIX_DISPLAY_DRM
 #include "display_backend_drm.h"
 #endif
+
+namespace helix {
+
+/**
+ * @brief Rotate a display that runs without DisplayManager, as DisplayManager would
+ *
+ * Moves to fbdev when the backend cannot turn this angle, then lets the backend
+ * apply it, because a scanout plane or the GPU may own the rotation instead of
+ * LVGL. An fbdev that is not there leaves the display as it was, unrotated. Call
+ * it before creating input devices, which read the rotation when they open.
+ *
+ * @param backend Replaced when rotation moves to fbdev
+ * @param display Replaced with it; null only if fbdev opened and then failed
+ * @param make_fbdev Returns a new fbdev backend, or null
+ * @return true if the display was rotated
+ */
+template <typename MakeFbdev>
+inline bool settle_standalone_rotation(std::unique_ptr<DisplayBackend>& backend,
+                                       lv_display_t*& display, int degrees, int width, int height,
+                                       MakeFbdev make_fbdev) {
+    const lv_display_rotation_t rot = degrees_to_lv_rotation(degrees);
+    if (backend->needs_fbdev_for_rotation(rot)) {
+        std::unique_ptr<DisplayBackend> fbdev = make_fbdev();
+        if (!fbdev || !fbdev->is_available()) {
+            return false;
+        }
+        lv_display_delete(display);
+        display = nullptr;
+        backend = std::move(fbdev);
+        display = backend->create_display(width, height);
+        if (!display) {
+            return false;
+        }
+    }
+    backend->set_display_rotation(display, rot, width, height);
+    return true;
+}
+
+} // namespace helix

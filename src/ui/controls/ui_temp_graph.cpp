@@ -658,9 +658,9 @@ static bool gradient_series_fit(const ui_temp_graph_t* graph) {
 // Recompute the cached gradient buffer. lv_canvas_init_layer / finish_layer run a
 // nested synchronous draw dispatch and end with lv_obj_invalidate(canvas), which
 // is ILLEGAL during an active render pass (disp->rendering_in_progress) — doing it
-// from the DRAW_MAIN_END draw callback produced an empty/undrawn buffer, so the
-// blit rendered nothing (the LVGL 9.5 gradient regression; same rule the filament
-// path layers obey, see ui_filament_path_layers.cpp). This runs at the display's
+// from the DRAW_MAIN_END draw callback produces an empty/undrawn buffer, so the
+// blit renders nothing (same rule the filament path layers obey, see
+// ui_filament_path_layers.cpp). This runs at the display's
 // LV_EVENT_RENDER_START or from the graph's gradient_refresh timer, both OUTSIDE
 // the render pass, so the canvas layer round-trip is legal here.
 static void gradient_recompute(ui_temp_graph_t* graph) {
@@ -1002,9 +1002,8 @@ static void draw_legend_cb(lv_event_t* e) {
 // Those differ by one pixel (plus borders) because lv_area coordinates are
 // inclusive, and interpolating `content_x1 + offset * width / total` is only
 // exact when width is the span — offset == total then lands precisely on
-// content_x2. The X-axis labels used to compute their own width the other way,
-// which is why the grid lines and the times they were supposed to be aligned
-// with sat 1-2px apart (#1245).
+// content_x2. X-axis labels that computed their own width the other way would
+// sit 1-2px off the grid lines they label (#1245).
 struct temp_graph_plot_area_t {
     int32_t x1;
     int32_t x2;
@@ -1028,7 +1027,7 @@ static temp_graph_plot_area_t temp_graph_plot_area(lv_obj_t* chart) {
     return a;
 }
 
-// Both used to derive this independently; keeping one source is what actually
+// The labels and the grid both derive from this; one source is what actually
 // guarantees a grid line under every label. See temp_graph_internal.h for the
 // struct's doc comment — shared with the hit test.
 namespace helix::temp_graph_internal {
@@ -1594,7 +1593,6 @@ static void theme_change_cb(lv_observer_t* observer, lv_subject_t* subject) {
     spdlog::debug("[TempGraph] Updated colors on theme change");
 }
 
-// Create temperature graph widget
 ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
     if (!parent) {
         spdlog::error("[TempGraph] NULL parent");
@@ -1637,7 +1635,6 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
     graph->gradient_cache_h = 0;
     graph->gradient_cache_dirty = true;
 
-    // Create LVGL chart
     graph->chart = lv_chart_create(parent);
     if (!graph->chart) {
         spdlog::error("[TempGraph] Failed to create chart widget");
@@ -1759,7 +1756,6 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
     return graph_ptr.release();
 }
 
-// Destroy temperature graph widget
 void ui_temp_graph_destroy(ui_temp_graph_t* graph) {
     if (!graph)
         return;
@@ -1831,8 +1827,8 @@ void ui_temp_graph_destroy(ui_temp_graph_t* graph) {
         // skips LV_OBJ_FLAG_HIDDEN, so any display-refresh frame that fires
         // between now and lv_obj_delete_async_cb cannot send DRAW_POST_* events
         // into a chart whose per-instance event_list / class state we have
-        // already torn down (bundle RP293UCW: SIGSEGV at lv_array_at NULL via
-        // lv_event_send during render of an alive-but-stripped chart).
+        // already torn down (a SIGSEGV at lv_array_at NULL via lv_event_send
+        // during render of an alive-but-stripped chart).
         lv_obj_add_flag(chart, LV_OBJ_FLAG_HIDDEN);
 
         // Async deletion escapes any UpdateQueue::process_pending batch we may be
@@ -1892,7 +1888,6 @@ SeriesId ui_temp_graph_add_series(ui_temp_graph_t* graph, const char* name, lv_c
         return SeriesId::None;
     }
 
-    // Create LVGL chart series
     lv_chart_series_t* ser = lv_chart_add_series(graph->chart, color, LV_CHART_AXIS_PRIMARY_Y);
     if (!ser) {
         spdlog::error("[TempGraph] Failed to create chart series");
@@ -1941,7 +1936,6 @@ SeriesId ui_temp_graph_add_series(ui_temp_graph_t* graph, const char* name, lv_c
     return meta->id;
 }
 
-// Remove a temperature series
 void ui_temp_graph_remove_series(ui_temp_graph_t* graph, SeriesId series_id) {
     ui_temp_series_meta_t* meta = find_series(graph, series_id);
     if (!meta) {
@@ -1949,7 +1943,6 @@ void ui_temp_graph_remove_series(ui_temp_graph_t* graph, SeriesId series_id) {
         return;
     }
 
-    // Remove chart series
     lv_chart_remove_series(graph->chart, meta->chart_series);
 
     // Free target history buffer
@@ -2226,7 +2219,6 @@ void ui_temp_graph_set_axis_timestamps(ui_temp_graph_t* graph, int64_t first_ts_
     }
 }
 
-// Clear all data
 void ui_temp_graph_clear(ui_temp_graph_t* graph) {
     if (!graph || !graph->chart)
         return;
@@ -2322,7 +2314,6 @@ void ui_temp_graph_set_current_target(ui_temp_graph_t* graph, SeriesId series_id
                   show ? "shown" : "hidden");
 }
 
-// Set Y-axis temperature range
 void ui_temp_graph_set_temp_range(ui_temp_graph_t* graph, float min, float max) {
     if (!graph || !graph->chart || min >= max) {
         spdlog::error("[TempGraph] Invalid temperature range");
@@ -2353,7 +2344,6 @@ void ui_temp_graph_set_temp_range(ui_temp_graph_t* graph, float min, float max) 
     spdlog::trace("[TempGraph] Temperature range set: {:.0f} - {:.0f}°C", min, max);
 }
 
-// Set point count
 void ui_temp_graph_set_point_count(ui_temp_graph_t* graph, int count) {
     if (!graph || !graph->chart || count <= 0) {
         spdlog::error("[TempGraph] Invalid point count");
@@ -2402,7 +2392,6 @@ void ui_temp_graph_set_series_gradient(ui_temp_graph_t* graph, SeriesId series_i
                   (bottom_opa * 100) / 255, (top_opa * 100) / 255);
 }
 
-// Set Y-axis label configuration
 void ui_temp_graph_set_y_axis(ui_temp_graph_t* graph, float increment, bool show) {
     if (!graph || !graph->chart) {
         spdlog::error("[TempGraph] NULL graph in set_y_axis");

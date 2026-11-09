@@ -28,6 +28,7 @@
 #include "light_button_config.h"
 #include "lock_manager.h"
 #include "panel_widget_registry.h"
+#include "plate_glow.h"
 #include "prerendered_images.h"
 #include "printer_detector.h"
 #include "printer_image_manager.h"
@@ -66,6 +67,7 @@ static lv_subject_t s_callout_fan_shown;
 static lv_subject_t s_callout_light_shown;
 static lv_subject_t s_callout_light_on;
 static lv_subject_t s_callout_bed_heating;
+static lv_subject_t s_callout_bed_glow_level;
 static lv_subject_t s_callout_nozzle_text;
 static char s_callout_nozzle_text_buf[32];
 static lv_subject_t s_callout_bed_text;
@@ -86,12 +88,14 @@ constexpr const char* kLineNames[] = {"callout_line_nozzle", "callout_line_bed",
                                       "callout_line_chamber", "callout_line_fan",
                                       "callout_line_light"};
 
-constexpr lv_opa_t kGlowOpaLow = 30;
-constexpr lv_opa_t kGlowOpaHigh = 70;
-constexpr uint32_t kGlowPulseMs = 900;
+/// A climbing bed's glow breathes between these image opacities; its level
+/// (the XML's style_opa) scales both.
+constexpr lv_opa_t kGlowOpaLow = 150;
+constexpr lv_opa_t kGlowOpaHigh = LV_OPA_COVER;
+constexpr uint32_t kGlowPulseMs = 1200;
 
 void glow_opa_anim_cb(void* glow, int32_t opa) {
-    lv_obj_set_style_bg_opa(static_cast<lv_obj_t*>(glow), static_cast<lv_opa_t>(opa), 0);
+    lv_obj_set_style_image_opa(static_cast<lv_obj_t*>(glow), static_cast<lv_opa_t>(opa), 0);
 }
 
 /// Writes a chip's text, compact while the chips are pinned. True on a change.
@@ -155,6 +159,7 @@ static void printer_image_widget_init_subjects() {
             {&s_callout_light_shown, "callout_light_shown"},
             {&s_callout_light_on, "callout_light_on"},
             {&s_callout_bed_heating, "callout_bed_heating"},
+            {&s_callout_bed_glow_level, "callout_bed_glow_level"},
         };
         for (const auto& s : int_subjects) {
             // 0 doubles as CalloutMode::ImageOnly for the mode subject and as
@@ -792,12 +797,9 @@ void PrinterImageWidget::update_callouts() {
     const HeatState bed_heat = heater_display(bed_cur, bed_tgt).state;
     const int bed_heating = heater_region_glows(bed_heat) ? 1 : 0;
     lv_subject_set_int(&s_callout_bed_heating, bed_heating);
-    if (lv_obj_t* glow = bed_heating && widget_obj_
-                             ? lv_obj_find_by_name(widget_obj_, "callout_bed_glow")
-                             : nullptr) {
-        // DECLARATIVE_OK: heat color comes from get_heating_state_color()
-        lv_obj_set_style_bg_color(glow, get_heating_state_color(bed_heat), LV_PART_MAIN);
-    }
+    const int glow_level = bed_glow_level(bed_cur);
+    if (lv_subject_get_int(&s_callout_bed_glow_level) != glow_level)
+        lv_subject_set_int(&s_callout_bed_glow_level, glow_level);
     heater(read_int_or_zero(ps.temperature_state().get_chamber_temp_subject()),
            read_int_or_zero(ps.temperature_state().get_chamber_effective_target_subject()),
            read_int_or_zero(ps.capabilities_state().subject(Capability::HasChamber)) != 0,
@@ -1013,8 +1015,10 @@ void PrinterImageWidget::set_glow_pulse(bool on) {
     callout_glow_pulsing_ = on;
     // The anim runs on the glow object, so LVGL deletes it with the object.
     lv_anim_delete(glow, glow_opa_anim_cb);
-    if (!on)
+    if (!on) {
+        glow_opa_anim_cb(glow, kGlowOpaHigh); // a stopped pulse rests at full strength
         return;
+    }
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, glow);

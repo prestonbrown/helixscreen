@@ -11,7 +11,6 @@
 #include <memory>
 #include <vector>
 
-// Forward declarations
 namespace helix {
 class IMoonrakerAPI;
 }
@@ -31,6 +30,7 @@ class PluginStatusRefresh;
 } // namespace helix
 namespace helix::ui {
 class FilamentOpHeater;
+class ColdPullRunner;
 class PlrOfferController;
 class ChamberStallPrompt;
 } // namespace helix::ui
@@ -46,7 +46,7 @@ class ChamberStallPrompt;
  * 2. init_panels(api) - Panel subjects with API injected at construction
  * 3. init_post() - Observers and utility subjects
  *
- * Usage (preferred - proper DI):
+ * Usage:
  *   SubjectInitializer subjects;
  *   subjects.init_core_and_state();
  *   // ... initialize MoonrakerManager to get API ...
@@ -58,6 +58,10 @@ class SubjectInitializer {
   public:
     SubjectInitializer();
     ~SubjectInitializer();
+
+    /// Lets what this owns send its last commands while the client is still
+    /// connected: a live cold pull turns its heater off and restores its fan.
+    void before_disconnect();
 
     // Non-copyable, non-movable (owns observer guards)
     SubjectInitializer(const SubjectInitializer&) = delete;
@@ -159,6 +163,7 @@ class SubjectInitializer {
     std::unique_ptr<helix::PluginStatusRefresh> m_plugin_status_refresh;
     std::unique_ptr<helix::TemperatureController> m_temp_controller;
     std::unique_ptr<helix::ui::FilamentOpHeater> m_filament_op_heater;
+    std::unique_ptr<helix::ui::ColdPullRunner> m_cold_pull_runner;
     std::unique_ptr<helix::BedDryingController> m_bed_drying;
     std::unique_ptr<TemperatureService> m_temp_control_panel;
     // Registered as a shared resource by this object, owned by MoonrakerManager.

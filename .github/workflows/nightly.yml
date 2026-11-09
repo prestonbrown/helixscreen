@@ -82,6 +82,15 @@ jobs:
     steps:
       - run: echo "Running on upstream repo"
 
+  # The firmware link. esp32-build.yml also runs on every PR and push, but its
+  # `idf.py reconfigure` resolves managed components from the registry on each
+  # run, so the link can break on a day nothing landed (#2042). ~30 min on one
+  # runner; it needs nothing from the build job, so it runs alongside it.
+  esp32-link:
+    name: ESP32 firmware link
+    needs: gate
+    uses: ./.github/workflows/esp32-build.yml
+
   # ===========================================================================
   # Shared build step — produces binary + test binary as artifacts
   # ===========================================================================
@@ -1018,7 +1027,7 @@ jobs:
   nightly-status:
     name: Nightly Status
     runs-on: ubuntu-latest
-    needs: [build, test-all, test-eventloop, test-ui-slow, test-shell, test-asan, test-tsan, test-python, test-macos, test-unsharded-leaks, suite-report, test-quality-gates]
+    needs: [build, test-all, test-eventloop, test-ui-slow, test-shell, test-asan, test-tsan, test-python, test-macos, test-unsharded-leaks, suite-report, test-quality-gates, esp32-link]
     if: always()
 
     steps:
@@ -1036,11 +1045,12 @@ jobs:
         echo "Unsharded+leaks:  ${{ needs.test-unsharded-leaks.result }}"
         echo "Suite report:     ${{ needs.suite-report.result }}"
         echo "Test quality:     ${{ needs.test-quality-gates.result }}"
+        echo "ESP32 link:       ${{ needs.esp32-link.result }}"
         echo "Old-toolchain:    ${{ needs.build.outputs.old_toolchain_check }}"
         echo "==========================="
 
         FAILED=0
-        for job in test-all test-eventloop test-ui-slow test-shell test-asan test-tsan test-python test-macos test-unsharded-leaks suite-report test-quality-gates; do
+        for job in test-all test-eventloop test-ui-slow test-shell test-asan test-tsan test-python test-macos test-unsharded-leaks suite-report test-quality-gates esp32-link; do
           result="${{ needs[job].result }}" 2>/dev/null || result="unknown"
         done
 
@@ -1054,7 +1064,8 @@ jobs:
            [ "${{ needs.test-macos.result }}" != "success" ] || \
            [ "${{ needs.test-unsharded-leaks.result }}" != "success" ] || \
            [ "${{ needs.suite-report.result }}" != "success" ] || \
-           [ "${{ needs.test-quality-gates.result }}" != "success" ]; then
+           [ "${{ needs.test-quality-gates.result }}" != "success" ] || \
+           [ "${{ needs.esp32-link.result }}" != "success" ]; then
           echo "::error::Nightly test suite had failures!"
           exit 1
         fi

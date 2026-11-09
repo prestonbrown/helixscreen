@@ -327,8 +327,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "Active-loaded subject is the single highlight
     REQUIRE(lv_subject_get_int(ams.get_slot_active_loaded_subject(0)) == 1);
 
     // Observe slot 0's active-loaded subject (the SINGLE source the bottom
-    // T-badge now binds to). It must fire and drop to 0 on unload — previously
-    // the badge read current_slot + filament_loaded separately and stayed lit.
+    // T-badge binds to). It must fire and drop to 0 on unload; reading
+    // current_slot + filament_loaded separately leaves the badge lit.
     int fire_count = 0;
     int last_value = -1;
     struct Ctx {

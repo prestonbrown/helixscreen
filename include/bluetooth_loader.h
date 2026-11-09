@@ -48,7 +48,6 @@ class BluetoothLoader {
     /// callers share one init(), since a second one registers a conflicting D-Bus agent.
     helix_bt_context* get_or_create_context();
 
-    // Non-copyable
     BluetoothLoader(const BluetoothLoader&) = delete;
     BluetoothLoader& operator=(const BluetoothLoader&) = delete;
 

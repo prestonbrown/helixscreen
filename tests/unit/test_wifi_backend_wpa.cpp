@@ -138,6 +138,59 @@ TEST_CASE("wpa scan watchdog resolves a scan whose event never comes", "[network
     REQUIRE(events.wait_for(1, 10 * kWatchdogMs));
 }
 
+TEST_CASE("wpa ctrl request outcomes", "[network][wpa][2066]") {
+    using helix::wifi::detail::classify_ctrl_request;
+    using helix::wifi::detail::CtrlRequestOutcome;
+    CHECK(classify_ctrl_request(0) == CtrlRequestOutcome::Reply);
+    CHECK(classify_ctrl_request(-2) == CtrlRequestOutcome::TimedOut);
+    CHECK(classify_ctrl_request(-1) == CtrlRequestOutcome::Failed);
+}
+
+// A datagram already queued on the control connection was sent before the
+// next request and cannot be its reply. Read as one, SCAN "fails" with the
+// text of whatever command it belonged to (#2066).
+TEST_CASE("wpa a stale reply on the control socket is not the next command's answer",
+          "[network][wpa][2066]") {
+    WpaFakeFixture fx;
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    REQUIRE(backend.start().success());
+
+    fx.fake->set_trailing_datagram("PING", "bssid=70:f8:2b:66:9c:60\nwpa_state=COMPLETED\n");
+    REQUIRE(backend.send_command("PING") == "PONG");
+    for (int i = 0; i < 200 && fx.fake->trailing_sent() == 0; ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    REQUIRE(fx.fake->trailing_sent() == 1);
+    // Delivery is synchronous on AF_UNIX, but let the datagram settle in the queue.
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
+    WiFiError scan = backend.trigger_scan();
+    CHECK(scan.success());
+    CHECK(scan.technical_msg.find("wpa_state") == std::string::npos);
+    backend.stop();
+}
+
+// wpa_ctrl waits 10 s for a reply, so this case does too. The daemon answers
+// the timed-out request after the client gave up; that late answer must reach
+// no live connection, and the next command must read its own reply.
+TEST_CASE("wpa a reply that arrives after its request timed out does not poison the next",
+          "[network][wpa][2066][slow]") {
+    WpaFakeFixture fx;
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    REQUIRE(backend.start().success());
+
+    fx.fake->set_reply("STATUS", "wpa_state=COMPLETED\n");
+    fx.fake->delay_next_reply("STATUS", 10500);
+    CHECK(backend.send_command("STATUS").empty());
+
+    for (int i = 0; i < 300 && fx.fake->late_replies_sent() == 0; ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    REQUIRE(fx.fake->late_replies_sent() == 1);
+    CHECK(fx.fake->late_replies_delivered() == 0);
+
+    CHECK(backend.send_command("PING") == "PONG");
+    backend.stop();
+}
+
 TEST_CASE("wpa SCAN_RESULTS event disarms the watchdog", "[network][wpa][1407]") {
     WpaFakeFixture fx;
     WifiBackendWpaSupplicant backend(kWatchdogMs);

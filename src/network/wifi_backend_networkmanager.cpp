@@ -73,7 +73,6 @@ WiFiError WifiBackendNetworkManager::start() {
         return prereq;
     }
 
-    // Detect WiFi interface
     wifi_interface_ = detect_wifi_interface();
     if (wifi_interface_.empty()) {
         WiFiError err = WiFiErrorHelper::hardware_not_available();
@@ -277,7 +276,6 @@ WifiBackendNetworkManager::exec_nmcli_full(const std::string& args) {
 
     nr.stdout_output = helix::run_capture(cmd, nr.exit_code);
 
-    // Read captured stderr
     if (auto err = helix::text_io::read_file(stderr_file)) {
         nr.stderr_output = std::move(*err);
     }
@@ -416,7 +414,6 @@ void WifiBackendNetworkManager::scan_thread_func() {
         return;
     }
 
-    // Get scan results
     std::string output =
         // FREQ is appended last so a build of nmcli that does not know the field
         // simply yields a shorter row, which parse_scan_output still accepts.

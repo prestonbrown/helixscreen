@@ -56,11 +56,21 @@ class ContextMenu {
      * `BelowAnchor` places the card under a widget's rectangle and flips it above
      * when the bottom would fall off screen — what a menu raised by a button
      * needs, so the button itself stays visible.
+     *
+     * `AroundAnchor` keeps the whole anchor visible: below it, else above,
+     * else right of it, else left of it, the first side where the whole card
+     * fits inside the bounds less the margin. Below and above centre the card
+     * on the anchor; right and left top-align it. When no side fits the card is
+     * centred on the anchor, over it. Every mode is clamped to the bounds last.
      */
     enum class AnchorMode {
         ClickPoint,
         BelowAnchor,
+        AroundAnchor,
     };
+
+    /** @brief Which side of its anchor an `AroundAnchor` card went; Over when none fit */
+    enum class AnchorSide { Below, Above, Right, Left, Over };
 
     /** @brief Horizontal placement of a `BelowAnchor` card against its anchor */
     enum class AnchorAlign {
@@ -150,11 +160,9 @@ class ContextMenu {
      */
     static void register_shared_callbacks();
 
-    // Non-copyable
     ContextMenu(const ContextMenu&) = delete;
     ContextMenu& operator=(const ContextMenu&) = delete;
 
-    // Movable
     ContextMenu(ContextMenu&& other) noexcept;
     ContextMenu& operator=(ContextMenu&& other) noexcept;
 
@@ -181,6 +189,14 @@ class ContextMenu {
      */
     bool show_below_widget(lv_obj_t* parent, int item_index, lv_obj_t* anchor,
                            AnchorAlign align = AnchorAlign::Center);
+
+    /**
+     * @brief Show the menu beside a widget without covering it
+     *
+     * The `AnchorMode::AroundAnchor` counterpart to show_below_widget(), for a
+     * menu about the widget it is anchored to, which must stay in view.
+     */
+    bool show_around_widget(lv_obj_t* parent, int item_index, lv_obj_t* anchor);
 
     /** @brief show_below_widget() for a menu that is not about an indexed item */
     bool show_below_widget(lv_obj_t* parent, lv_obj_t* anchor,
@@ -342,7 +358,8 @@ class ContextMenu {
     ActionCallback action_callback_;
 
     /** @brief The menu currently on screen — see active() */
-    static inline ContextMenu* s_active_ = nullptr;
+    static inline ContextMenu* s_active_ =
+        nullptr; // ACTIVE_INSTANCE_OK: registry behind active_as<T>()
 
     /** @brief Shared body behind show_near_widget() and show_below_widget() */
     bool show_impl(lv_obj_t* parent, int item_index, lv_obj_t* anchor, AnchorMode mode,
@@ -460,11 +477,13 @@ class ContextMenu {
      *                point (ClickPoint), both backdrop-local
      * @param bounds  Backdrop size
      * @param margin  Smallest gap between card and backdrop edge
-     * @param gap     Gap between card and anchor in BelowAnchor mode
+     * @param gap     Gap between card and anchor in BelowAnchor and AroundAnchor mode
+     * @param side    Optional; receives the side an AroundAnchor card went (Below
+     *                for the other modes)
      */
     static lv_point_t compute_card_pos(lv_point_t card, lv_area_t anchor, lv_point_t bounds,
                                        int32_t margin, int32_t gap, AnchorMode mode,
-                                       AnchorAlign align);
+                                       AnchorAlign align, AnchorSide* side = nullptr);
 };
 
 /**

@@ -61,7 +61,6 @@ void MemoryStatsOverlay::init(lv_obj_t* /*parent*/, bool initially_visible) {
         return;
     }
 
-    // Find label widgets
     rss_label_ = helix::ui::find_required(overlay_, "rss_value", "MemoryStats");
     hwm_label_ = helix::ui::find_required(overlay_, "hwm_value", "MemoryStats");
     private_label_ = helix::ui::find_required(overlay_, "private_value", "MemoryStats");
@@ -74,7 +73,6 @@ void MemoryStatsOverlay::init(lv_obj_t* /*parent*/, bool initially_visible) {
         baseline_rss_kb_ = rss_kb;
     }
 
-    // Create update timer
     update_timer_ = lv_timer_create(memory_stats_timer_cb, kUpdateIntervalMs, this);
 
     // Initial visibility

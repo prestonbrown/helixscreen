@@ -12,10 +12,12 @@
 #pragma once
 
 #include "ams_error.h"
+#include "chute_jog_guard.h"
 
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace helix {
@@ -25,6 +27,20 @@ class ICfsCalibration {
     /// Sweep the cutter to find its position. @p on_result fires once with the outcome.
     virtual AmsError
     calibrate_cutter(std::function<void(bool ok, const std::string& line)> on_result = nullptr) = 0;
+
+    /// Run the printer's motorized belt tensioning. @p on_result fires once with the
+    /// outcome. Not every CFS printer has motorized tensioners.
+    virtual AmsError
+    tension_belts(std::function<void(bool ok, const std::string& detail)> on_result = nullptr) {
+        (void)on_result;
+        return AmsErrorHelper::not_supported("Belt tensioning");
+    }
+
+    /// True when the cutter calibration is the K1 box sweep, which takes about a
+    /// minute. Other firmware's cutter command has no measured duration.
+    [[nodiscard]] virtual bool cutter_calibration_takes_a_minute() const {
+        return false;
+    }
 
     /// Home and park for chute calibration; @p on_ready fires when jogging may start.
     virtual AmsError
@@ -49,6 +65,12 @@ class ICfsCalibration {
 
     /// The position pair the last chute save reported; false when none was captured.
     [[nodiscard]] virtual bool last_chute_saved_position(double& x_mm, double& y_mm) const = 0;
+
+    /// The nozzle wiper behind the chute, when the printer's config places one;
+    /// the jog guard stops short of it. Main thread.
+    [[nodiscard]] virtual std::optional<ChuteWiperLine> chute_wiper() const {
+        return std::nullopt;
+    }
 
   protected:
     ~ICfsCalibration() = default;

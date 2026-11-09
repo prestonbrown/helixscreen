@@ -5,6 +5,7 @@
 
 #include "ui_button.h"
 
+#include "printer_image_manager.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -12,6 +13,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <string>
 
 namespace helix::tour {
 
@@ -21,6 +23,11 @@ constexpr int kTooltipMaxWidth = 480;
 
 // Per-screen dim fill with ~55% opacity.
 constexpr uint8_t kDimOpa = 140;
+
+// A preview would push the card off a screen shorter than this.
+constexpr int kMinScreenHeightForPreview = 400;
+
+constexpr int kTooltipMinWidth = 220;
 
 // Spacing tokens resolved at call time from the theme (responsive per breakpoint).
 inline int highlight_outline_pad() {
@@ -94,8 +101,8 @@ void TourOverlay::build_tree() {
     }
     // Responsive tooltip width: ~55% of screen, clamped to [220, 480].
     // Covers AD5M (480 -> 264px) through Sonic Pad (1024 -> 480px).
-    const int tooltip_w = std::clamp(screen_w * 55 / 100, 220, 480);
-    lv_obj_set_width(tooltip_, tooltip_w);
+    tooltip_width_ = std::clamp(screen_w * 55 / 100, kTooltipMinWidth, kTooltipMaxWidth);
+    lv_obj_set_width(tooltip_, tooltip_width_);
     lv_obj_update_layout(tooltip_);
 
     // Find the skip/next buttons and attach static callbacks.
@@ -133,6 +140,9 @@ void TourOverlay::resolve_target(const TourStep& step, lv_area_t& out_rect, bool
     // Search the entire screen tree (home panel root + navbar + anything on layer_top below us).
     lv_obj_t* scr = lv_screen_active();
     lv_obj_t* target = lv_obj_find_by_name(scr, step.target_name.c_str());
+    if (!target && !step.fallback_target_name.empty()) {
+        target = lv_obj_find_by_name(scr, step.fallback_target_name.c_str());
+    }
     if (!target) {
         spdlog::warn("[TourOverlay] Target '{}' not found — skipping highlight", step.target_name);
         return;
@@ -154,6 +164,17 @@ void TourOverlay::place_tooltip(const lv_area_t& target_rect, bool has_target, T
     lv_obj_update_layout(tooltip_);
     const int screen_w = lv_display_get_horizontal_resolution(nullptr);
     const int screen_h = lv_display_get_vertical_resolution(nullptr);
+
+    int width = tooltip_width_;
+    if (has_target && hint == TooltipAnchor::LeftNarrowed) {
+        const int room = target_rect.x1 - tooltip_margin() - 8;
+        if (room >= kTooltipMinWidth) {
+            width = std::min(room, tooltip_width_);
+        } else {
+            hint = TooltipAnchor::PreferAbove; // a portrait layout leaves nothing to the left
+        }
+    }
+    lv_obj_set_width(tooltip_, width);
 
     // Cap tooltip width responsively for small screens.
     const int max_w = std::min(kTooltipMaxWidth, screen_w - 32);
@@ -197,6 +218,9 @@ void TourOverlay::place_tooltip(const lv_area_t& target_rect, bool has_target, T
     };
 
     switch (hint) {
+    case TooltipAnchor::LeftNarrowed:
+        set_left();
+        break;
     case TooltipAnchor::PreferBelow:
         set_below();
         if (fits(x, y))
@@ -257,6 +281,34 @@ void TourOverlay::update_counter(size_t index, size_t total) {
     lv_label_set_text(counter, buf);
 }
 
+void TourOverlay::update_preview(const TourStep& step) {
+    lv_obj_t* preview = helix::ui::find_required(tooltip_, "tour_preview", "TourOverlay");
+    if (!preview)
+        return;
+    const int screen_h = lv_display_get_vertical_resolution(nullptr);
+    if (!step.shows_print_status_preview || screen_h < kMinScreenHeightForPreview) {
+        lv_obj_add_flag(preview, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: per-step, C++-built card
+        return;
+    }
+    const std::string image = helix::PrinterImageManager::instance().get_displayed_image_path(
+        lv_display_get_horizontal_resolution(nullptr));
+    lv_obj_t* printer = helix::ui::find_required(tooltip_, "tour_preview_printer", "TourOverlay");
+    if (printer && !image.empty()) {
+        lv_image_set_src(printer, image.c_str());
+    }
+    lv_obj_update_layout(tooltip_);
+    // The real screen's 5:3 shape, at whatever width the card has on this display.
+    lv_obj_set_height(preview, lv_obj_get_content_width(tooltip_) * 3 / 5);
+    lv_obj_clear_flag(preview, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: per-step, C++-built card
+}
+
+void TourOverlay::hide_card() {
+    if (!tooltip_ || !highlight_)
+        return;
+    lv_obj_add_flag(tooltip_, LV_OBJ_FLAG_HIDDEN);   // DECLARATIVE_OK: C++-built overlay
+    lv_obj_add_flag(highlight_, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: C++-built overlay
+}
+
 void TourOverlay::show_step(size_t index) {
     if (index >= steps_.size())
         return;
@@ -277,7 +329,9 @@ void TourOverlay::show_step(size_t index) {
         lv_obj_add_flag(highlight_, LV_OBJ_FLAG_HIDDEN);
     }
 
+    lv_obj_clear_flag(tooltip_, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: C++-built overlay
     update_tooltip_text(step, index, steps_.size());
+    update_preview(step);
     place_tooltip(target_rect, has_target, step.anchor_hint);
 }
 

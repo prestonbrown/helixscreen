@@ -268,7 +268,7 @@ clean-watchdog:
 	$(Q)rm -rf $(BUILD_DIR)/watchdog $(WATCHDOG_BIN)
 
 # Include dependency files for header tracking
--include $(wildcard $(BUILD_DIR)/watchdog/*.d)
+-include $(call depfiles,$(BUILD_DIR)/watchdog/*.d)
 
 else
 # No watchdog for SDL/desktop builds

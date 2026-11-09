@@ -62,6 +62,8 @@ from typing import Iterable
 
 from staged_content import read_index_blobs, staged_paths
 
+from source_strip import blank_cxx
+
 # Match `if (token.expired()) return;` or variants:
 #   if (tok.expired()) return;
 #   if (token.expired()) { return; }
@@ -194,53 +196,6 @@ def file_lines(path: Path) -> list[str]:
         return path.read_text(encoding='utf-8', errors='replace').splitlines()
     except OSError:
         return []
-
-
-def _blank_noise(src: str) -> str:
-    """Blank out comments and string/char literals, preserving every offset and
-    newline so line numbers still map back to the original source.
-
-    Same helper as check_raw_this_queue_update.py. Without it a comment that
-    merely *describes* the anti-pattern — including the fix advice this script
-    prints — is reported as a violation.
-    """
-    out = list(src)
-    n = len(src)
-    i = 0
-    while i < n:
-        c = src[i]
-        if c == '/' and i + 1 < n and src[i + 1] == '/':
-            j = src.find('\n', i)
-            j = n if j < 0 else j
-            for k in range(i, j):
-                out[k] = ' '
-            i = j
-            continue
-        if c == '/' and i + 1 < n and src[i + 1] == '*':
-            j = src.find('*/', i + 2)
-            j = n if j < 0 else j + 2
-            for k in range(i, j):
-                if out[k] != '\n':
-                    out[k] = ' '
-            i = j
-            continue
-        if c in '"\'':
-            j = i + 1
-            while j < n:
-                if src[j] == '\\':
-                    j += 2
-                    continue
-                if src[j] == c or src[j] == '\n':
-                    j += 1
-                    break
-                j += 1
-            for k in range(i, min(j, n)):
-                if out[k] != '\n':
-                    out[k] = ' '
-            i = j
-            continue
-        i += 1
-    return ''.join(out)
 
 
 # A lambda is provably main-thread when the factory that receives it says so:
@@ -416,7 +371,7 @@ def scan_source(src: str, checks: tuple = LIFETIME_CHECK_RES) -> list[tuple[int,
         return []
     # Patterns match against `code` (comments/literals blanked); `lines` stays
     # raw so the L081_OK opt-out and the reported snippet still read correctly.
-    blanked = _blank_noise(src)
+    blanked = blank_cxx(src)
     code = blanked.splitlines()
     line_offsets = [0]
     for raw in blanked.splitlines(keepends=True):

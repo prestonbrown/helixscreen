@@ -60,6 +60,17 @@ TEST_CASE_METHOD(LVGLTestFixture, "CameraConfigModal: save carries source throug
     CHECK(saved.value("flip_v", true) == false);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "CameraConfigModal: wrong-typed fields keep their defaults",
+                 "[camera][modal][webcam]") {
+    nlohmann::json saved;
+    CameraConfigModal modal("camera", kTestPanel, [&saved](const nlohmann::json& c) { saved = c; });
+    Access::load_config(modal, {{"source", 5}, {"rotation", 90.0}, {"flip_h", 1}});
+    CHECK(Access::source(modal).empty());
+    Access::publish_sources(modal, {cam("Nozzle")});
+    Access::ok(modal);
+    CHECK((saved["rotation"] == 0 && saved["flip_h"] == false));
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "CameraConfigModal: picking a row writes its name",
                  "[camera][modal][webcam]") {
     nlohmann::json saved;

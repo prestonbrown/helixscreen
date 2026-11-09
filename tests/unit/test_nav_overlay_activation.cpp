@@ -5,23 +5,23 @@
  * @file test_nav_overlay_activation.cpp
  * @brief Overlay-close activation and expected-disconnect latches (#1245)
  *
- * Two latches in NavigationManager, both of which used to be inferred from state
+ * Two latches in NavigationManager, neither of which may be inferred from state
  * that other code paths rewrite:
  *
  * 1. Closing an overlay must activate the panel it restored EXACTLY ONCE, and
- *    only after that panel has been un-hidden. Four call sites used to race for
- *    it (animation-complete callback, the two animations-disabled paths, and
- *    go_back's own synchronous call), so a close with animations off activated
- *    twice — enough to trip PrintSelectPanel's Print-Last activation counter and
- *    to start FirstRunTour twice. Activating before the un-hide is worse: an
- *    on_activate() that navigates (PrintSelectPanel calls set_active(Home)) had
+ *    only after that panel has been un-hidden. Four call sites can race for it
+ *    (animation-complete callback, the two animations-disabled paths, and
+ *    go_back's own synchronous call); a close with animations off activating
+ *    twice trips PrintSelectPanel's Print-Last activation counter and starts
+ *    FirstRunTour twice. Activating before the un-hide is worse: an
+ *    on_activate() that navigates (PrintSelectPanel calls set_active(Home)) has
  *    its work undone by go_back's own lv_obj_remove_flag two lines later.
  *
  * 2. mark_disconnect_expected() must survive a still-undrained CONNECTED apply.
- *    It used to spoof previous_connection_state_, which every deferred
- *    connection handler overwrites — so a CONNECTED callback queued before the
- *    app backgrounded restored was_connected==true and the synthetic disconnect
- *    behind it cleared the overlay stack and bounced the user to Home.
+ *    Spoofing previous_connection_state_ is not enough: every deferred
+ *    connection handler overwrites it, so a CONNECTED callback queued before the
+ *    app backgrounded would restore was_connected==true and the synthetic
+ *    disconnect behind it would clear the overlay stack and bounce the user Home.
  */
 
 #include "ui_nav.h"

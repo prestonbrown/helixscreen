@@ -39,6 +39,30 @@ HelixScreen preinstalled is unmaintained; installs from it are Forge-X installs.
 
 ZMOD stores the z-offset outside `gcode_move`; see [`../Z_OFFSET_PERSISTENCE.md`](../Z_OFFSET_PERSISTENCE.md).
 
+Z-Mod 1.7.5 prints .3mf files natively and takes a per-print plate and tool map on
+`printer.print.start`. Its Moonraker fork is shared with the AD5X and Creator 5, so the details
+are on the AD5X page
+([FLASHFORGE_AD5X_SUPPORT.md § "Z-Mod 1.7.5"](FLASHFORGE_AD5X_SUPPORT.md#z-mod-175-native-3mf-and-the-print-start-tool-map)).
+
+### Z-Mod on the 5M Pro: the stock preset's fans
+
+A Z-Mod AD5M Pro is saved as "FlashForge Adventurer 5M Pro", and the installer applies the
+`ad5m_pro_zmod` preset. The stock `ad5m_pro` preset names fans that Z-Mod does not have
+(`fan_generic external_fan` as exhaust, `fan_generic internal_fan` as aux), while
+`ad5m_pro_zmod` uses Z-Mod's own names (`heater_fan heat_fan`, `fan_generic fanM106`,
+`fan_generic chamber_fan`). The post-wizard preset migration that runs at every boot
+(`src/system/config.cpp#apply_preset_file`) seeds a fan role only when its key is absent, so a
+role the user declined in the Fans wizard, which is stored as an empty value, stays declined.
+Before that rule, the migration refilled the declined roles with the stock names on every
+start, and the Fans wizard reopened at each launch
+([#2040](https://github.com/prestonbrown/helixscreen/issues/2040)).
+
+The boot migration reads the preset the printer was installed with when that preset belongs
+to the saved type's variant family, and the base preset otherwise, so a Z-Mod 5M Pro migrates
+against `ad5m_pro_zmod` and gains no stock-only object names in `hardware/expected`. The same
+rule covers every printer whose firmware variant has its own preset (`_zmod`, `_opencreator`,
+`_forgex`) ([#2064](https://github.com/prestonbrown/helixscreen/issues/2064)).
+
 ## Build targets
 
 | Target | Toolchain | Linking | Use |

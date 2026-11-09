@@ -92,6 +92,9 @@ struct SaverHost {
     std::function<uint32_t()> inactive_ms;
     /// The "Show Print Progress" setting; unset reads as on.
     std::function<bool()> show_print_progress;
+    /// True when the clock may spell a print's state in English letters (the UI is in
+    /// English); unset reads as true.
+    std::function<bool()> spell_states;
 };
 
 } // namespace helix::ui
@@ -309,6 +312,9 @@ class ScreensaverManager {
     /// How long an ended print stays on the savers; stepped on every sampled idle-check tick.
     helix::ui::PrintEndLatch print_latch_;
     helix::ui::CpuClockFn cpu_clock_;
+    /// Checked before cpu_clock_ on every idle-check tick: reading the process CPU
+    /// clock is a system call, and the tick runs on every main-loop pass.
+    helix::ui::WallClockFn wall_clock_;
     helix::ui::IdleBaseline baseline_;
     helix::ui::SaverGateSession session_;
     helix::ui::SaverComfortStreak comfort_;

@@ -13,6 +13,7 @@
 #include "ui_event_safety.h"
 #include "ui_modal.h"
 #include "ui_next_tick.h"
+#include "ui_open_instances.h"
 #include "ui_pin_utils.h"
 #include "ui_utils.h"
 
@@ -22,14 +23,24 @@
 #include <spdlog/spdlog.h>
 
 #include <lvgl.h>
+#include <vector>
 
 namespace helix::ui {
 
-// ============================================================================
-// Static state
-// ============================================================================
+namespace {
 
-PinEntryModal* PinEntryModal::g_active_modal = nullptr;
+/// The open pad, at most one. Never freed: a pad deleted on the static-destruction
+/// path still removes itself here.
+OpenInstances<PinEntryModal>& open_pads() {
+    static auto* pads = new OpenInstances<PinEntryModal>();
+    return *pads;
+}
+
+} // namespace
+
+PinEntryModal* PinEntryModal::from_event(lv_event_t* e) {
+    return e ? open_pads().owner_of(lv_event_get_current_target_obj(e)) : nullptr;
+}
 
 // ============================================================================
 // Public static API
@@ -38,28 +49,24 @@ PinEntryModal* PinEntryModal::g_active_modal = nullptr;
 void PinEntryModal::show_pin_entry(const std::string& heading, PinCallback on_complete) {
     spdlog::debug("[PinEntryModal] show_pin_entry: heading='{}'", heading);
 
-    // Dismiss any active modal first
-    if (g_active_modal) {
+    // Close any open pad first. Its callback is not called: the pad replacing it
+    // usually comes from that very callback.
+    for (PinEntryModal* pad : std::vector<PinEntryModal*>(open_pads().all())) {
         spdlog::warn("[PinEntryModal] Replacing active modal without callback");
-        g_active_modal->destroy_async();
-        g_active_modal = nullptr;
+        pad->destroy_async();
     }
 
-    g_active_modal = new PinEntryModal(heading, std::move(on_complete));
-    g_active_modal->create();
+    auto* pad = new PinEntryModal(heading, std::move(on_complete));
+    if (!pad->create()) {
+        delete pad;
+    }
 }
 
 void PinEntryModal::dismiss() {
-    if (!g_active_modal) {
-        return;
-    }
     spdlog::debug("[PinEntryModal] dismiss()");
-    auto* modal = g_active_modal;
-    g_active_modal = nullptr;
-    if (modal->on_complete_) {
-        modal->on_complete_(""); // Return value ignored on dismiss
+    for (PinEntryModal* pad : std::vector<PinEntryModal*>(open_pads().all())) {
+        pad->on_cancel();
     }
-    modal->destroy_async();
 }
 
 // ============================================================================
@@ -72,6 +79,7 @@ PinEntryModal::PinEntryModal(const std::string& heading, PinCallback on_complete
 }
 
 PinEntryModal::~PinEntryModal() {
+    open_pads().remove(this);
     spdlog::trace("[PinEntryModal] Destroyed");
 }
 
@@ -79,11 +87,11 @@ PinEntryModal::~PinEntryModal() {
 // UI Creation / Destruction
 // ============================================================================
 
-void PinEntryModal::create() {
+bool PinEntryModal::create() {
     lv_obj_t* screen = lv_screen_active();
     if (!screen) {
         spdlog::error("[PinEntryModal] No active screen, cannot create modal");
-        return;
+        return false;
     }
 
     // Semi-transparent backdrop (blocks touches to underlying UI)
@@ -106,10 +114,9 @@ void PinEntryModal::create() {
         uncover_chrome();
         lv_obj_delete(backdrop_);
         backdrop_ = nullptr;
-        return;
+        return false;
     }
 
-    // Set heading text
     lv_obj_t* heading_lbl = helix::ui::find_required(dialog_, "pin_heading", "PinEntryModal");
     if (heading_lbl) {
         lv_label_set_text(heading_lbl, heading_.c_str());
@@ -118,18 +125,9 @@ void PinEntryModal::create() {
     // Reset state
     clear_digits();
 
+    open_pads().add(this);
     spdlog::debug("[PinEntryModal] Created for '{}'", heading_);
-}
-
-void PinEntryModal::destroy() {
-    uncover_chrome();
-    if (backdrop_) {
-        lv_obj_delete(backdrop_);
-        backdrop_ = nullptr;
-        dialog_ = nullptr;
-    }
-    digit_buffer_.clear();
-    spdlog::debug("[PinEntryModal] Destroyed");
+    return true;
 }
 
 // The PIN pad is modal: while it is open the navbar, E-stop included, stays
@@ -149,6 +147,12 @@ void PinEntryModal::uncover_chrome() {
 }
 
 void PinEntryModal::destroy_async() {
+    if (closing_) {
+        return;
+    }
+    closing_ = true;
+    open_pads().remove(this);
+    lifetime_.invalidate();
     // Use lv_obj_delete_async for LVGL objects — auto-cancelled if parent is
     // deleted first, preventing use-after-free in lv_event_mark_deleted (#543).
     uncover_chrome();
@@ -180,14 +184,10 @@ void PinEntryModal::on_digit(int digit) {
     update_dots();
     hide_error();
 
-    // Auto-submit at max digits — defer via run_next_tick so on_digit() returns
-    // before on_confirm() can delete this modal (avoids UB from delete-this-in-member)
+    // Auto-submit at max digits, deferred so on_digit() returns before on_confirm()
+    // can delete this modal. A pad closed in the meantime drops the submit.
     if (static_cast<int>(digit_buffer_.size()) == kMaxDigits) {
-        helix::ui::run_next_tick([]() {
-            if (g_active_modal) {
-                g_active_modal->on_confirm();
-            }
-        });
+        lifetime_.defer("PinEntryModal::auto_submit", [this]() { on_confirm(); });
     }
 }
 
@@ -217,15 +217,14 @@ void PinEntryModal::on_confirm() {
     spdlog::debug("[PinEntryModal] Confirm with {} digit PIN", pin.size());
 
     if (on_complete_) {
-        // Callback may call show_pin_entry() which destroys this modal and
-        // creates a new one. Check g_active_modal after callback returns.
+        // Callback may call show_pin_entry(), which closes this pad and opens a new one.
         auto callback = std::move(on_complete_);
         on_complete_ = nullptr;
         std::string error = callback(pin);
         if (!error.empty()) {
             // Callback rejected the PIN — show error and clear for retry.
-            // But only if we're still the active modal (callback didn't replace us).
-            if (g_active_modal == this) {
+            // But only if the callback did not replace this pad.
+            if (!closing_) {
                 spdlog::debug("[PinEntryModal] PIN rejected: {}", error);
                 on_complete_ = std::move(callback);
                 clear_digits();
@@ -233,14 +232,10 @@ void PinEntryModal::on_confirm() {
             }
             return;
         }
-        // If callback called show_pin_entry(), we've already been destroyed
-        if (g_active_modal != this) {
-            return; // We were replaced — don't double-delete
-        }
     }
 
-    // Accepted — defer destruction to avoid deleting objects in input event handler
-    g_active_modal = nullptr;
+    // Accepted: defer destruction to avoid deleting objects in input event handler.
+    // A no-op when the callback already replaced this pad.
     destroy_async();
 }
 
@@ -249,13 +244,12 @@ void PinEntryModal::on_cancel() {
 
     auto callback = std::move(on_complete_);
     on_complete_ = nullptr;
-    g_active_modal = nullptr;
+    // Close first, so a pad the callback opens is not replacing this one.
+    destroy_async();
 
     if (callback) {
         callback(""); // Return value ignored on cancel
     }
-
-    destroy_async();
 }
 
 // ============================================================================
@@ -290,7 +284,8 @@ void PinEntryModal::hide_error() {
 
 void PinEntryModal::on_digit_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("pin_modal_digit_clicked");
-    if (!g_active_modal) {
+    PinEntryModal* pad = from_event(e);
+    if (!pad) {
         return;
     }
 
@@ -309,33 +304,33 @@ void PinEntryModal::on_digit_clicked(lv_event_t* e) {
     size_t len = strlen(name);
     if (len >= 1 && name[len - 1] >= '0' && name[len - 1] <= '9') {
         int digit = name[len - 1] - '0';
-        g_active_modal->on_digit(digit);
+        pad->on_digit(digit);
     } else {
         spdlog::warn("[PinEntryModal] Could not parse digit from button name '{}'", name);
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
-void PinEntryModal::on_backspace_clicked(lv_event_t* /*e*/) {
+void PinEntryModal::on_backspace_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("pin_modal_backspace_clicked");
-    if (g_active_modal) {
-        g_active_modal->on_backspace();
+    if (PinEntryModal* pad = from_event(e)) {
+        pad->on_backspace();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
-void PinEntryModal::on_confirm_clicked(lv_event_t* /*e*/) {
+void PinEntryModal::on_confirm_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("pin_modal_confirm_clicked");
-    if (g_active_modal) {
-        g_active_modal->on_confirm();
+    if (PinEntryModal* pad = from_event(e)) {
+        pad->on_confirm();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
-void PinEntryModal::on_cancel_clicked(lv_event_t* /*e*/) {
+void PinEntryModal::on_cancel_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("pin_modal_cancel_clicked");
-    if (g_active_modal) {
-        g_active_modal->on_cancel();
+    if (PinEntryModal* pad = from_event(e)) {
+        pad->on_cancel();
     }
     LVGL_SAFE_EVENT_CB_END();
 }

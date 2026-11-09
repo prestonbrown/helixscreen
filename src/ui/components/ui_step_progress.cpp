@@ -396,7 +396,6 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
     connectors_ptr.release();
     step_items_ptr.release();
 
-    // Create container widget
     lv_obj_t* container = lv_obj_create(parent);
     lv_obj_set_size(container, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(container, LV_OPA_0, 0);
@@ -420,7 +419,6 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
     // Transfer ownership to LVGL widget
     lv_obj_set_user_data(container, data_ptr.release());
 
-    // Register cleanup callback
     lv_obj_add_event_cb(container, step_progress_delete_cb, LV_EVENT_DELETE, nullptr);
 
     // Create step items programmatically
@@ -462,7 +460,6 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
         lv_obj_set_flex_align(indicator_column, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                               LV_FLEX_ALIGN_START);
 
-        // Create circle indicator
         lv_obj_t* circle = lv_obj_create(indicator_column);
         lv_obj_set_size(circle, circle_size, circle_size);
         lv_obj_set_style_radius(circle, LV_RADIUS_CIRCLE, 0);
@@ -489,7 +486,6 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
         lv_obj_set_style_text_color(checkmark, color_checkmark, 0);
         lv_obj_add_flag(checkmark, LV_OBJ_FLAG_HIDDEN);
 
-        // Create step label
         lv_obj_t* label = lv_label_create(step_item);
         lv_label_set_text(label, data->label_buffers[i]);
         lv_obj_set_style_text_color(label, color_label_inactive, 0);

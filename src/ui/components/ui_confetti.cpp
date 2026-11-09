@@ -115,7 +115,6 @@ void update_particles(ConfettiData* data) {
 
         any_alive = true;
 
-        // Update position
         lv_obj_set_pos(p.obj, (int32_t)p.x, (int32_t)p.y);
 
         // Simulate rotation by varying width/height

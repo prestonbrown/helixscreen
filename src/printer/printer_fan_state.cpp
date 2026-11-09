@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_fan_state.cpp
- * @brief Fan state management extracted from PrinterState
+ * @brief Fan state management (a PrinterState sub-state)
  *
  * Manages fan subjects including main part-cooling fan speed, multi-fan
  * tracking with per-fan subjects, and fan metadata for UI display.
- * Extracted from PrinterState as part of god class decomposition.
  */
 
 #include "printer_fan_state.h"
@@ -25,6 +24,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cmath>
 
 namespace helix {
 
@@ -120,6 +120,7 @@ void PrinterFanState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(fan_speed, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(fans_version, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(primary_fans_version, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(fan_rpm_version, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
     spdlog::trace("[PrinterFanState] Subjects initialized successfully");
@@ -152,6 +153,21 @@ void PrinterFanState::deinit_subjects() {
     subjects_initialized_ = false;
 }
 
+void PrinterFanState::update_klipper_rpm(const std::string& object_name,
+                                         const nlohmann::json& fan_status) {
+    // Klipper publishes rpm only with a tachometer_pin and sends null otherwise.
+    // A status update without the key leaves the last reading in place.
+    if (!fan_status.is_object())
+        return;
+    const auto it = fan_status.find("rpm");
+    if (it == fan_status.end())
+        return;
+    if (it->is_null())
+        update_fan_rpm(object_name, std::nullopt);
+    else if (it->is_number())
+        update_fan_rpm(object_name, static_cast<int>(std::lround(it->get<double>())));
+}
+
 void PrinterFanState::update_from_status(const nlohmann::json& status) {
     // Update main part-cooling fan speed
     if (status.contains("fan")) {
@@ -168,6 +184,7 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
             // Also update multi-fan tracking
             update_fan_speed("fan", speed);
         }
+        update_klipper_rpm("fan", fan);
     }
 
     // Check for other fan types in the status update
@@ -189,6 +206,7 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
                     lv_subject_set_int(&fan_speed_, speed_pct);
                 }
             }
+            update_klipper_rpm(key, value);
         }
 
         // Handle output_pin fan objects (Creality-style)
@@ -301,7 +319,7 @@ PrimaryFanSlots PrinterFanState::possible_primary_fan_slots() const {
 std::string PrinterFanState::resolve_part_fan(const std::string& configured) const {
     // The bare [fan] is Klipper's canonical part cooling object, but some printers
     // leave it a stale 0% stub and drive a manually-commandable named fan instead
-    // (output_pin fanN / fan_generic; user Discord report, e3f92c3f4). Auto-controlled
+    // (output_pin fanN / fan_generic). Auto-controlled
     // fans (heater/controller/temperature) can never be the M106 part fan, so they are
     // never candidates — promoting an idle controller_fan/temperature_fan over the
     // live [fan] is what stuck the Sovol SV08 part fan at 0% (#1124).
@@ -657,10 +675,13 @@ void PrinterFanState::update_fan_speed(const std::string& object_name, double sp
     // Fan not in list - this is normal during initial status before discovery
 }
 
-void PrinterFanState::update_fan_rpm(const std::string& object_name, int rpm) {
+void PrinterFanState::update_fan_rpm(const std::string& object_name, std::optional<int> rpm) {
     for (auto& fan : fans_) {
         if (fan.object_name == object_name) {
-            fan.rpm = rpm;
+            if (fan.rpm != rpm) {
+                fan.rpm = rpm;
+                lv_subject_set_int(&fan_rpm_version_, lv_subject_get_int(&fan_rpm_version_) + 1);
+            }
             return;
         }
     }
@@ -689,7 +710,6 @@ lv_subject_t* PrinterFanState::get_fan_speed_subject(const std::string& object_n
 }
 
 void PrinterFanState::rename_fan(const std::string& object_name, const std::string& new_name) {
-    // Save to config
     auto* config = Config::get_instance();
     std::string key = config->df() + "fans/names/" + object_name;
     config->set<std::string>(key, new_name);
@@ -701,7 +721,6 @@ void PrinterFanState::rename_fan(const std::string& object_name, const std::stri
                       object_name);
     }
 
-    // Update in-memory display name
     bool matched = false;
     for (auto& fan : fans_) {
         if (fan.object_name == object_name) {

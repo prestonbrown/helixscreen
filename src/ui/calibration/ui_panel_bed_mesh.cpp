@@ -168,7 +168,7 @@ void BedMeshPanel::init_subjects() {
         // Modal state subjects (NOT visibility - internal state only)
         UI_MANAGED_SUBJECT_STRING(bed_mesh_rename_old_name_, rename_old_name_buf_, "",
                                   "bed_mesh_rename_old_name", subjects_);
-        // Note: All modals now use helix::ui::modal_show() pattern instead of visibility subjects
+        // Modals are ComponentModal dialogs, not visibility subjects
 
         // Calibration state machine subjects
         UI_MANAGED_SUBJECT_INT(bed_mesh_calibrate_state_, 0, "bed_mesh_calibrate_state", subjects_);
@@ -1056,7 +1056,7 @@ void BedMeshPanel::start_calibration() {
     lv_subject_copy_string(&bed_mesh_calibrate_name_, helix::bed_mesh::kDefaultProfile);
     lv_subject_set_int(&bed_mesh_calibrate_state_,
                        static_cast<int>(BedMeshCalibrationState::NAMING));
-    calibrate_modal_widget_ = helix::ui::modal_show("bed_mesh_calibrate_modal");
+    calibrate_modal_widget_ = helix::ui::ComponentModal::show_owned("bed_mesh_calibrate_modal");
     spdlog::debug("[BedMeshPanel] Calibration dialog shown, awaiting a profile name");
 }
 
@@ -1333,7 +1333,7 @@ void BedMeshPanel::show_rename_modal(const std::string& profile_name) {
     pending_rename_old_ = profile_name;
     lv_subject_copy_string(&bed_mesh_rename_old_name_, profile_name.c_str());
 
-    rename_modal_widget_ = helix::ui::modal_show("bed_mesh_rename_modal");
+    rename_modal_widget_ = helix::ui::ComponentModal::show_owned("bed_mesh_rename_modal");
     spdlog::debug("[{}] Showing rename modal for: {}", get_name(), profile_name);
 }
 
@@ -1363,7 +1363,7 @@ void BedMeshPanel::show_delete_confirm_modal(const std::string& profile_name) {
 }
 
 void BedMeshPanel::show_save_config_modal() {
-    save_config_modal_widget_ = helix::ui::modal_show("bed_mesh_save_config_modal");
+    save_config_modal_widget_ = helix::ui::ComponentModal::show_owned("bed_mesh_save_config_modal");
     spdlog::debug("[{}] Showing save config modal", get_name());
 }
 

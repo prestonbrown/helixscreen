@@ -13,11 +13,11 @@
  * while a print task is configured and answers EMPTY otherwise — its own comment
  * calls a bare [0,1,2,3] "the identity-as-truth mistake this accessor exists to
  * end", because an idle machine holds a default table that says nothing about
- * any particular file. The mock instead returned its attachment map, and
- * FilamentMapper::effective_routing() takes any non-empty answer as the truth,
- * so the preview resolved every logical tool to its own head index — the exact
- * shape b7e649ca4 fixed on hardware, where a cancelled T0-red / T2-black print
- * rendered as a black body with a red tail.
+ * any particular file. A mock that returns its attachment map instead is
+ * trusted, because FilamentMapper::effective_routing() takes any non-empty answer as the truth,
+ * so the preview would resolve every logical tool to its own head index: on
+ * hardware, a cancelled T0-red / T2-black print rendered as a black body with a
+ * red tail that way.
  *
  * firmware_default_routing() is the same class of divergence one step quieter:
  * the inherited lane-per-tool identity agrees with the U1's four fixed heads for

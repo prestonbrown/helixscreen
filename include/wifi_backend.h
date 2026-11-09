@@ -468,9 +468,8 @@ class WifiBackend : public helix::net::Ipv4Configurable {
      * @brief Enable or disable the WiFi radio itself
      *
      * Distinct from stop(), which only detaches this process from the WiFi
-     * subsystem. Before this existed the UI toggle called stop() and the
-     * station stayed associated and routed — a debug bundle uploaded over a
-     * connection the UI was reporting as off (9GQXV5VN, v0.99.106).
+     * subsystem. A UI toggle that only called stop() would leave the station
+     * associated and routed while the UI reports the radio as off.
      *
      * Implementations should stop association and, where the platform exposes
      * an rfkill switch, soft-block the radio. They must NOT take the network

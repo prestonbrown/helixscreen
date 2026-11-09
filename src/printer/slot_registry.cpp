@@ -199,6 +199,20 @@ int SlotRegistry::slot_for_tool(int tool_number) const {
     return tool_to_slot_[tool_number];
 }
 
+bool SlotRegistry::write_edit(int global_index, const SlotInfo& info) {
+    SlotEntry* entry = get_mut(global_index);
+    if (entry == nullptr) {
+        return false;
+    }
+    const int old_mapped_tool = entry->info.mapped_tool;
+    const bool changed =
+        entry->info.assign_filament_fields(info) || info.mapped_tool != old_mapped_tool;
+    if (info.mapped_tool != old_mapped_tool && info.mapped_tool >= 0) {
+        set_tool_mapping(global_index, info.mapped_tool);
+    }
+    return changed;
+}
+
 void SlotRegistry::set_tool_mapping(int global_index, int tool_number, MappingSource source) {
     if (!is_valid_index(global_index) || tool_number < 0)
         return;

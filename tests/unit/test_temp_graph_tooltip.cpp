@@ -511,7 +511,7 @@ TEST_CASE_METHOD(TooltipTestFixture, "pinned caption resolves the correct series
 // UAF regression (fix round 1 review): ui_temp_graph_destroy defers the chart's
 // actual deletion via lv_obj_delete_async (L081 — see "destroy defers chart
 // deletion" in test_temp_graph.cpp), so the chart stays alive, hidden, for one
-// async tick after `g` is freed. Before this fix, tooltip_press_cb stayed
+// async tick after `g` is freed. tooltip_press_cb must not stay
 // registered on the chart with the now-freed `g` as its event user_data during
 // that window; a CLICKED landing there would dereference freed memory.
 //

@@ -22,22 +22,39 @@ TEST_CASE("format_print_health reports rates over the interval", "[print_health]
     later.main_thread_cpu_ns += 3'000'000'000;
     later.wall_ns += 20'000'000'000;
     later.frames += 50;
+    later.render_ns += 50 * 12'000'000ULL;
+    later.slow_frames += 3;
     later.flushed_px += 10 * 384000;
     later.screen_px = 384000;
     later.rss_kb = 33 * 1024;
+    later.peak_rss_kb = 41 * 1024;
     later.mem_available_kb = 393 * 1024;
     later.swap_free_kb = 2048;
 
     CHECK(format_print_health(earlier, later) ==
-          "cpu=35.0% main=15.0% frames=2.5/s flushed=0.50 screens/s rss=33MB mem_avail=393MB "
-          "swap_free=2MB");
+          "cpu=35.0% main=15.0% frames=2.5/s render=12.0ms slow=3 flushed=0.50 screens/s "
+          "rss=33MB peak_rss=41MB mem_avail=393MB swap_free=2MB");
 }
 
 TEST_CASE("format_print_health survives no elapsed time and no screen", "[print_health]") {
     const PrintHealthSample same;
     CHECK(format_print_health(same, same) ==
-          "cpu=0.0% main=0.0% frames=0.0/s flushed=0.00 screens/s rss=0MB mem_avail=0MB "
-          "swap_free=0MB");
+          "cpu=0.0% main=0.0% frames=0.0/s render=0.0ms slow=0 flushed=0.00 screens/s rss=0MB "
+          "peak_rss=0MB mem_avail=0MB swap_free=0MB");
+}
+
+TEST_CASE("FrameCostCounter times drawn frames and counts the slow ones", "[print_health]") {
+    helix::FrameCostCounter c;
+    c.render_ready(5'000'000); // no frame in progress: ignored
+    c.render_start(10'000'000);
+    c.render_ready(10'000'000 + helix::FrameCostCounter::kSlowRenderNs); // at the line: not slow
+    c.render_start(100'000'000);
+    c.render_ready(100'000'000 + helix::FrameCostCounter::kSlowRenderNs + 1);
+    CHECK(c.frames() == 2);
+    CHECK(c.slow_frames() == 1);
+    CHECK(c.render_ns() == 2 * helix::FrameCostCounter::kSlowRenderNs + 1);
+    c.render_ready(200'000'000); // a READY must pair with its own START
+    CHECK(c.frames() == 2);
 }
 
 TEST_CASE("PrintHealthLog logs once per interval, and only during a print", "[print_health]") {
@@ -88,12 +105,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "print health frames count renders, not refres
     REQUIRE(display != nullptr);
     helix::attach_print_health_counters(display);
     lv_refr_now(display); // settle anything already invalid
-    const uint64_t settled = helix::read_print_health_sample(display).frames;
+    const auto settled_sample = helix::read_print_health_sample(display);
+    const uint64_t settled = settled_sample.frames;
 
     lv_refr_now(display); // a refresh with nothing to draw
     CHECK(helix::read_print_health_sample(display).frames == settled);
 
     lv_obj_invalidate(lv_screen_active());
     lv_refr_now(display);
-    CHECK(helix::read_print_health_sample(display).frames == settled + 1);
+    const auto drawn = helix::read_print_health_sample(display);
+    CHECK(drawn.frames == settled + 1);
+    CHECK(drawn.render_ns > settled_sample.render_ns);
 }

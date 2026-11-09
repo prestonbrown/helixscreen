@@ -10,7 +10,7 @@
  * draining normally — every count decrement is a fresh signature, so one healthy
  * poll burst emits a line per in-flight request. On a Spoolman printer this ran to
  * 1275 of the 2000 lines in a debug bundle's ring buffer, capping the bundle's
- * reach at ~3.5 h of near-nothing (bundle 3Q2GB74K).
+ * reach at ~3.5 h of near-nothing.
  *
  * The debug line now additionally requires the oldest request to have aged past
  * kPendingLogMinAgeMs. The warn path (a request stuck past 30 s — the #909

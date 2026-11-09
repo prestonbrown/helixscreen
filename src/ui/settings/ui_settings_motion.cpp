@@ -188,6 +188,14 @@ void MotionSettingsOverlay::register_callbacks() {
                  SettingsManager::instance().set_motion_layout(static_cast<MotionLayout>(index));
              }
          }},
+        {"on_z_movement_style_changed",
+         [](lv_event_t* e) {
+             const int index = helix::ui::event_selected(e);
+             if (index >= 0 && index <= static_cast<int>(ZMovementStyle::NOZZLE_MOVES)) {
+                 SettingsManager::instance().set_z_movement_style(
+                     static_cast<ZMovementStyle>(index));
+             }
+         }},
         {"on_reset_distances",
          [](lv_event_t*) { get_motion_settings_overlay().handle_reset_distances(); }},
         {"on_z_offset_save_toggled",

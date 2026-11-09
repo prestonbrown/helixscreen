@@ -33,7 +33,8 @@
     "nozzle_volume_type"
   ],
   "fan": [
-    "speed"
+    "speed",
+    "rpm"
   ],
   "gcode_macro START_PRINT": [
     "preparation_done"

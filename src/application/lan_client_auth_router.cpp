@@ -116,8 +116,8 @@ void LanClientAuthRouter::on_request(const std::string& method, const nlohmann::
     if (lan_auth::suppressed_by_denial(req->client_id, denied_clients_,
                                        std::chrono::steady_clock::now())) {
         // A denied client never enters the firmware's registry, so each of its
-        // reconnects files a fresh request. Dropping it here is the whole fix;
-        // the log line is the only trace the client ever see from us.
+        // reconnects files a fresh request. Dropping it here is what keeps the
+        // prompt from returning; the log line is the only trace the client sees.
         spdlog::info("[LanAuth] dropping request from {} - denied within the suppression window",
                      req->client_id);
         return;

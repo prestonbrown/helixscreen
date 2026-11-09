@@ -5,7 +5,7 @@
  * @file test_wizard_wifi_modal_lifetime.cpp
  * @brief The wizard WiFi step's cached modal pointer must not outlive its modal.
  *
- * WizardWifiStep keeps the password modal that modal_show() returns, and the
+ * WizardWifiStep keeps the password modal that ComponentModal::show_owned() returns, and the
  * deferred connect-result callback walks it with lv_obj_find_by_name(). Every
  * modal carries an unconditional backdrop-tap and ESC handler that closes it
  * through Modal::hide() without telling the caller, so a dismissal the step did
