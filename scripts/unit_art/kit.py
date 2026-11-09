@@ -241,6 +241,8 @@ class UnitDef:
     lanes: int
     draw_art: Callable
     tray: Optional[TrayShellDef] = None
+    # Lane counts this design is built in, each baked to its own set. Empty: only 'lanes'.
+    lane_variants: Tuple[int, ...] = ()
 
 
 @dataclass

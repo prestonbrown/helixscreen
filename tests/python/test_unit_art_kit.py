@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import build, kit, spool  # noqa: E402
-from unit_art.units import ace_pro, ams_ht, bmcu, box_turtle, cfs, night_owl  # noqa: E402
+from unit_art.units import ace_pro, ams_ht, bmcu, box_turtle, cfs, night_owl, quattro_box  # noqa: E402
 
 
 def test_camera_is_the_agreed_three_quarter():
@@ -221,3 +221,53 @@ def test_every_spool_draws_at_one_size_and_the_unit_fits_its_frame(unit):
     ys = [p[1] for i in scene.items for p in i.points]
     assert vx <= min(xs) and max(xs) <= vx + vw
     assert vy <= min(ys) and max(ys) <= vy + vh
+
+
+@pytest.mark.parametrize("lanes", quattro_box.UNIT.lane_variants)
+def test_a_variable_unit_draws_each_lane_count(lanes):
+    scene = kit.Scene(kit.ART_CAMERA)
+    quattro_box.UNIT.draw_art(scene, ["#ffffff"] * lanes, "full")
+    assert {i.lane for i in scene.items if i.lane is not None} == set(range(lanes))
+
+
+def test_a_variable_units_width_is_two_caps_and_a_pitch_per_lane():
+    widths = [quattro_box.width(n) for n in (2, 3, 4, 5)]
+    assert widths[0] == pytest.approx(2 * quattro_box.CAP + quattro_box.PITCH)
+    steps = {round(b - a, 6) for a, b in zip(widths, widths[1:])}
+    assert steps == {round(quattro_box.PITCH, 6)}
+
+
+@pytest.mark.parametrize("lanes", (2, 5))
+def test_quattro_spools_stay_inside_the_body(lanes):
+    c = spool.spool_constants(REPO)
+    half = c["spool_width"] * (quattro_box.SPOOL_R / c["flange_radius"]) / 2
+    centers = quattro_box.centers(lanes)
+    assert len(centers) == lanes
+    assert centers[0] - half > 0
+    assert centers[-1] + half < quattro_box.width(lanes)
+    assert quattro_box.SPOOL_Y + quattro_box.SPOOL_R < quattro_box.D
+    assert quattro_box.SPOOL_Z + quattro_box.SPOOL_R < quattro_box.H
+
+
+def test_a_variable_unit_bakes_one_set_per_lane_count(tmp_path):
+    build.bake_unit(quattro_box.UNIT, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    root = tmp_path / quattro_box.UNIT.id
+    assert not (root / "manifest.json").exists()
+    for lanes in quattro_box.UNIT.lane_variants:
+        manifest = json.loads((root / str(lanes) / "manifest.json").read_text())
+        assert manifest["lanes"] == lanes
+        for tier in ("full", "thumb"):
+            t = manifest["tiers"][tier]
+            assert len(t["lanes"]) == lanes
+            for name in [t["back"], t["front"]] + [p for lane in t["lanes"] for p in lane.values()]:
+                assert (root / str(lanes) / name).is_file()
+
+
+def test_the_shell_table_records_which_lane_counts_have_art():
+    table = build.generate_shell_table([quattro_box.UNIT, ace_pro.UNIT])
+
+    def row(uid):
+        return next(line for line in table.splitlines() if line.strip().startswith('{"%s"' % uid))
+
+    assert row("quattro_box").rstrip().endswith("0x34},")
+    assert row("ace_pro").rstrip().endswith("0x0},")

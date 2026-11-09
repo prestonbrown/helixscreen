@@ -32,6 +32,18 @@ AmsSystemInfo ace_system(int lanes = 4) {
     return info;
 }
 
+AmsSystemInfo quattro_system(int lanes) {
+    AmsSystemInfo info;
+    info.type = AmsType::AFC;
+    AmsUnit unit;
+    unit.name = "Quattro_Box QuattroBox_1";
+    unit.slot_count = lanes;
+    for (int i = 0; i < lanes; ++i)
+        unit.slots.push_back(slot(SlotStatus::AVAILABLE, 0x00ff00));
+    info.units.push_back(unit);
+    return info;
+}
+
 } // namespace
 
 TEST_CASE("unit art: an empty bay shows no filament", "[ams][unit-art]") {
@@ -49,6 +61,13 @@ TEST_CASE("unit art: drawn only where the bays match the art", "[ams][unit-art]"
     CHECK(unit_art_available(ace_system(), 0));
     CHECK_FALSE(unit_art_available(ace_system(6), 0));
     CHECK_FALSE(unit_art_available(ace_system(), 3));
+}
+
+TEST_CASE("unit art: a variable unit has art only at its baked lane counts", "[ams][unit-art]") {
+    for (int lanes : {2, 4, 5})
+        CHECK(unit_art_available(quattro_system(lanes), 0));
+    for (int lanes : {1, 3, 6})
+        CHECK_FALSE(unit_art_available(quattro_system(lanes), 0));
 }
 
 TEST_CASE("unit art: a disconnected unit keeps its drawing", "[ams][unit-art]") {
@@ -127,4 +146,21 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: flattens again at a new size
     unit_art_set_unit(art, info, 0);
 
     CHECK(lv_image_get_src_width(flat) == 120);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: a new lane count builds that count's layers",
+                 "[ams][unit-art]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Thumb);
+    unit_art_set_unit(art, quattro_system(5), 0);
+    CHECK_FALSE(lv_obj_is_hidden(art));
+    REQUIRE(unit_art_lane_color_obj(art, 4) != nullptr);
+    const auto* src = static_cast<const char*>(lv_image_get_src(unit_art_lane_color_obj(art, 4)));
+    CHECK(std::string(src).find("units/quattro_box/5/thumb_lane4.png") != std::string::npos);
+
+    unit_art_set_unit(art, quattro_system(2), 0);
+    CHECK(unit_art_lane_color_obj(art, 1) != nullptr);
+    CHECK(unit_art_lane_color_obj(art, 2) == nullptr);
+
+    unit_art_set_unit(art, quattro_system(3), 0);
+    CHECK(lv_obj_is_hidden(art));
 }
