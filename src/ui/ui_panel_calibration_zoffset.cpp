@@ -507,9 +507,8 @@ void ZOffsetCalibrationPanel::start_calibration() {
     PrinterState& ps = get_printer_state();
     const auto reference = tool_offsets::probe_reference_tool(ps.get_discovery());
     const int active = ToolState::instance().active_tool_index();
-    if (zoffset_cal::reference_tool_gate(ps.profile_state().z_offset_calibration_strategy(),
-                                         reference,
-                                         active) == zoffset_cal::ToolGate::ConfirmFirst) {
+    if (zoffset_cal::reference_tool_gate(run_strategy(), reference, active) ==
+        zoffset_cal::ToolGate::ConfirmFirst) {
         confirm_tool_then_start(*reference, active);
         return;
     }
@@ -629,11 +628,19 @@ void ZOffsetCalibrationPanel::begin_calibration() {
     }
 }
 
+ZOffsetCalibrationStrategy ZOffsetCalibrationPanel::run_strategy() const {
+    const auto sensors = helix::sensors::ProbeSensorManager::instance().get_sensors();
+    const auto probe_type =
+        sensors.empty() ? helix::sensors::ProbeSensorType::STANDARD : sensors[0].type;
+    return zoffset_cal::run_strategy(
+        get_printer_state().profile_state().z_offset_calibration_strategy(), probe_type);
+}
+
 void ZOffsetCalibrationPanel::begin_probe_sequence() {
     set_state(State::PROBING);
 
     PrinterState& ps = get_printer_state();
-    auto strategy = ps.profile_state().z_offset_calibration_strategy();
+    const auto strategy = run_strategy();
 
     // Check homing state (shared across all strategies)
     const bool all_homed = helix::toolhead_is_homed(ps);
@@ -752,7 +759,7 @@ void ZOffsetCalibrationPanel::adjust_z(float delta) {
     if (!api_)
         return;
 
-    auto strategy = get_printer_state().profile_state().z_offset_calibration_strategy();
+    const auto strategy = run_strategy();
 
     if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
         // Direct G1 move using relative positioning
@@ -808,7 +815,7 @@ void ZOffsetCalibrationPanel::send_accept() {
         return;
     }
 
-    auto strategy = get_printer_state().profile_state().z_offset_calibration_strategy();
+    const auto strategy = run_strategy();
     final_offset_ = current_z_;
     on_calibration_result(true, "");
 
@@ -926,7 +933,7 @@ void ZOffsetCalibrationPanel::send_abort() {
         return;
     }
 
-    auto strategy = get_printer_state().profile_state().z_offset_calibration_strategy();
+    const auto strategy = run_strategy();
 
     if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
         // Retract nozzle without applying any offset

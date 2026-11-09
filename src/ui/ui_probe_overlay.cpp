@@ -23,7 +23,6 @@
 #include "text_io.h"
 #include "toolhead_homing.h"
 #include "ui/ui_widget_helpers.h"
-#include "z_offset_calibration_approach.h"
 
 #include <spdlog/spdlog.h>
 
@@ -157,23 +156,15 @@ void ui_probe_overlay_register_callbacks() {
                                                lv_tr("Cartographer touch calibrate sent"));
              }
          }},
+        // A scan calibration opens a manual probe session; the Z-offset panel
+        // runs it with jog, Accept and Abort controls (#1994).
         {"on_carto_scan_cal",
-         [](lv_event_t* /*e*/) {
-             if (helix::ui::probe_send_gcode("CARTOGRAPHER_SCAN_CALIBRATE",
-                                             "Cartographer Scan Calibrate")) {
-                 ToastManager::instance().show(
-                     ToastSeverity::INFO,
-                     lv_tr("Cartographer scan calibrate sent — use Z-Offset panel to adjust"));
-             }
-         }},
+         [](lv_event_t* /*e*/) { get_global_probe_overlay().handle_zoffset_cal(); }},
 
         // Beacon controls
+        // BEACON_CALIBRATE is a paper test too: the Z-offset panel runs it.
         {"on_beacon_calibrate",
-         [](lv_event_t* /*e*/) {
-             if (helix::ui::probe_send_gcode("BEACON_CALIBRATE", "Beacon Calibrate")) {
-                 ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Beacon calibrate sent"));
-             }
-         }},
+         [](lv_event_t* /*e*/) { get_global_probe_overlay().handle_zoffset_cal(); }},
         {"on_beacon_auto_cal",
          [](lv_event_t* /*e*/) {
              if (helix::ui::probe_send_gcode("BEACON_AUTO_CALIBRATE", "Beacon Auto-Calibrate")) {
@@ -189,19 +180,9 @@ void ui_probe_overlay_register_callbacks() {
          [](lv_event_t* /*e*/) { send_probe_gcode("DOCK_PROBE", "Klicky Dock"); }},
 
         // Eddy current probe controls (BTT Eddy, Mellow Fly Eddy, etc.)
+        // PROBE_EDDY_CURRENT_CALIBRATE opens a manual probe session too.
         {"on_eddy_calibrate",
-         [](lv_event_t* /*e*/) {
-             auto& mgr = ProbeSensorManager::instance();
-             for (const auto& s : mgr.get_sensors()) {
-                 if (s.type == ProbeSensorType::EDDY_CURRENT) {
-                     const auto cmd = helix::zoffset_cal::calibration_command(
-                         ZOffsetCalibrationStrategy::PROBE_CALIBRATE, s.type, s.sensor_name);
-                     send_probe_gcode(cmd.gcode.c_str(), "Eddy Current Calibrate");
-                     return;
-                 }
-             }
-             spdlog::warn("[Probe] No eddy current sensor found for calibrate");
-         }},
+         [](lv_event_t* /*e*/) { get_global_probe_overlay().handle_zoffset_cal(); }},
         {"on_eddy_drive_current",
          [](lv_event_t* /*e*/) {
              auto& mgr = ProbeSensorManager::instance();
