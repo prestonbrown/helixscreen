@@ -3246,6 +3246,20 @@ bool AmsBackendSnapmaker::record_writes_held_locked(int head) const {
     return false;
 }
 
+std::string AmsBackendSnapmaker::kept_subtype_locked(int head, const SlotInfo& info) const {
+    const auto idx = static_cast<size_t>(head);
+    // The editor has no field for most product lines, so a save naming none says
+    // nothing about the sub-type: an unchanged filament keeps the one it holds.
+    if (!is_known_subtype(info.spool_name) && task_type_[idx] && task_subtype_[idx] &&
+        !is_unset_task_field(*task_subtype_[idx]) &&
+        helix::text_io::equals_ignore_case(*task_type_[idx], info.material) &&
+        (!task_vendor_[idx] || helix::text_io::equals_ignore_case(
+                                   *task_vendor_[idx], record_vendor_subtype(info).first))) {
+        return *task_subtype_[idx];
+    }
+    return {};
+}
+
 std::optional<AmsBackendSnapmaker::RecordWrite>
 AmsBackendSnapmaker::plan_record_write_locked(int head, const SlotInfo& info,
                                               bool material_declared) const {
@@ -3261,16 +3275,7 @@ AmsBackendSnapmaker::plan_record_write_locked(int head, const SlotInfo& info,
                      backend_log_tag(), head, info.material);
         return std::nullopt;
     }
-    // The editor has no field for most product lines, so a save naming none says
-    // nothing about the sub-type: an unchanged filament keeps the one it holds.
-    std::string kept_subtype;
-    if (!is_known_subtype(info.spool_name) && task_type_[idx] && task_subtype_[idx] &&
-        !is_unset_task_field(*task_subtype_[idx]) &&
-        helix::text_io::equals_ignore_case(*task_type_[idx], info.material) &&
-        (!task_vendor_[idx] || helix::text_io::equals_ignore_case(
-                                   *task_vendor_[idx], record_vendor_subtype(info).first))) {
-        kept_subtype = *task_subtype_[idx];
-    }
+    std::string kept_subtype = kept_subtype_locked(head, info);
     RecordLines lines = RecordLines::Both;
     // Every line runs FLOW_RESET_K on the head, so a save that leaves the
     // firmware's record standing sends nothing, forced head or not.
@@ -3372,7 +3377,8 @@ std::vector<std::pair<int, std::string>> AmsBackendSnapmaker::official_flag_repa
         if (!slot) {
             continue;
         }
-        std::string gcode = build_filament_config_gcode(head, *slot, /*force=*/true);
+        std::string gcode = build_filament_config_gcode(
+            head, *slot, /*force=*/true, RecordLines::Both, kept_subtype_locked(head, *slot));
         if (gcode.empty()) {
             continue;
         }
