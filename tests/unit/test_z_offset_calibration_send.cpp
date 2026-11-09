@@ -34,6 +34,7 @@
 #include "tool_state.h"
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -765,6 +766,62 @@ TEST_CASE_METHOD(ToolGateFixture, "Calibration start: leaving the panel closes t
     panel.on_activate();
     start();
     CHECK(Modal::get_top() != nullptr);
+}
+
+namespace {
+/// An eddy probe for one case; the probe manager is process-wide.
+struct EddyScope {
+    EddyScope() {
+        discover_eddy();
+    }
+    ~EddyScope() {
+        helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(ToolGateFixture,
+                 "Calibration start: an eddy on a firmware-managed printer asks for the "
+                 "reference tool",
+                 "[zoffset][calibration][reference_tool][eddy][1994]") {
+    // The eddy runs its own probe calibration here, so the reference tool matters.
+    helix::PrinterStateTestAccess::pin_z_offset_strategy(
+        get_printer_state(), ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    EddyScope eddy;
+    panel.on_activate();
+    mount(1);
+    start();
+    CHECK(Modal::get_top() != nullptr);
+    CHECK(client.last_send_script().empty());
+}
+
+// A manual probe session the panel did not start keeps the strategy it was
+// picked up with: a rediscovery that drops the eddy must not turn its jogs into G1.
+TEST_CASE_METHOD(ToolGateFixture,
+                 "Calibration session: a session picked up from Klipper keeps its strategy",
+                 "[zoffset][eddy][1994]") {
+    helix::PrinterStateTestAccess::pin_z_offset_strategy(
+        get_printer_state(), ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    EddyScope eddy;
+    std::optional<ManualProbeActive> session;
+    SECTION("running when the panel opens") {
+        session.emplace(true);
+        panel.on_activate();
+    }
+    SECTION("starting while the panel is open") {
+        panel.init_subjects();
+        REQUIRE(panel.create(test_screen()) != nullptr);
+        panel.on_activate();
+        REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
+        session.emplace(true);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    }
+    REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::ADJUSTING);
+
+    helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
+    ZOffsetCalibrationTestAccess::adjust_z(panel, -0.05f);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    CHECK(client.last_send_script() == "TESTZ Z=-0.050");
 }
 
 // --- per-head offsets -------------------------------------------------------
