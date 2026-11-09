@@ -1951,6 +1951,21 @@ bundled_version() {
     contains "Moonraker did not restart: its service restart is not available on this host" "$output"
 }
 
+@test "--help names every --restart-moonraker exit code the script's header lists" {
+    local codes help code
+    codes=$(awk '/^# Exit codes for --restart-moonraker/ { on = 1; next }
+        on && /^#   [0-9]+ - / { print $2; next }
+        on && !/^#/ { exit }' "$SCRIPT")
+    [ -n "$codes" ] || fail "no exit codes in the header"
+    help=$(sh "$SCRIPT" --help | awk '/--restart-moonraker/ { on = 1 } on && /--help/ { exit } on' | tr -s ' \n' ' ')
+    for code in $codes; do
+        case "$help" in
+            *"exit $code "* | *", $code "*) ;;
+            *) fail "--help leaves out exit $code: $help" ;;
+        esac
+    done
+}
+
 # Wrap mock_moonraker_http's curl in $1 with Moonraker's process samples: a
 # /machine/proc_stats GET reports $1/samples of them, and a carried-out service
 # restart starts the count again and answers every probe, as a restart quicker
