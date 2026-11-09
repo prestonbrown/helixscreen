@@ -648,7 +648,8 @@
     "probe": [
       "last_query",
       "last_z_result",
-      "z_offset"
+      "z_offset",
+      "name"
     ],
     "stepper_enable": [
       "steppers"
