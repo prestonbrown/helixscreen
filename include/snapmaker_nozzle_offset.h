@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "heater_hold.h"
 #include "json_fwd.h"
 
 #include <array>
@@ -274,6 +275,7 @@ class Runner {
     Hooks hooks_;
     std::vector<Step> steps_;
     Phase phase_ = Phase::Idle;
+    helix::HeaterHold heater_hold_;
     size_t index_ = 0;
     std::string error_;
     /// Bumped by every start and cancel, so a completion from an abandoned run

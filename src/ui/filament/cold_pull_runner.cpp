@@ -108,7 +108,6 @@ ColdPullRunner::~ColdPullRunner() {
         spdlog::info("{} Shutting down mid-pull: heater off, fan restored", kLogTag);
         apply(flow_->exit_actions(job_holds_machine(state_.print_state().get_print_lifecycle())));
     }
-    app_set_heater_cleanup_pending(false);
     watch(false);
     lifetime_.invalidate();
     awake_.reset();
@@ -138,8 +137,8 @@ void ColdPullRunner::before_disconnect() {
 void ColdPullRunner::sync_heater_cleanup_pending() {
     // An owed cleanup counts only with its query out: before_disconnect() can send it
     // then, and with the link down no shutdown could.
-    app_set_heater_cleanup_pending((running() && flow_->owned_target_c().value_or(0) != 0) ||
-                                   owed_query_in_flight_);
+    heater_hold_.set((running() && flow_->owned_target_c().value_or(0) != 0) ||
+                     owed_query_in_flight_);
 }
 
 ColdPullRunner::TimePoint ColdPullRunner::now() const {
@@ -348,7 +347,7 @@ void ColdPullRunner::apply(const ColdPullActions& a) {
     }
     // Set before the heat command leaves; after_event() clears it once the off has.
     if (running() && flow_->owned_target_c().value_or(0) != 0) {
-        app_set_heater_cleanup_pending(true);
+        heater_hold_.set(true);
     }
     const ColdPullParams& p = flow_->params();
     IMoonrakerAPI* api = get_moonraker_api();

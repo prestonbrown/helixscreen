@@ -251,21 +251,6 @@ void app_request_quit();
 void app_request_quit_signal_safe();
 
 /**
- * @brief Say whether a heater is on that only this app will turn off
- *
- * Read by the SIGTERM handler, which skips teardown unless this is set.
- * Main thread only.
- */
-void app_set_heater_cleanup_pending(bool pending);
-
-/**
- * @brief Read the flag set by app_set_heater_cleanup_pending()
- *
- * Async-signal-safe: a lock-free atomic load.
- */
-bool app_heater_cleanup_pending_signal_safe();
-
-/**
  * @brief Request application restart, in place
  *
  * Sets the restart-after-quit flag and requests quit; main() execv()s the stored

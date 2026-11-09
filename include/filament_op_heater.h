@@ -33,6 +33,7 @@
 
 #include "filament_op_execute.h"
 #include "filament_op_slot_resolver.h"
+#include "heater_hold.h"
 #include "helix_shared_callback.h"
 
 #include <chrono>
@@ -250,6 +251,10 @@ class FilamentOpHeater {
     /// for a ticket the heater did not heat for.
     void watch_backend_completion(FilamentOpTicket ticket);
 
+    /// End a waiting preheat while the printer can still hear it: a heater this
+    /// wait turned on goes back off, and the op it was for does not run.
+    void before_disconnect();
+
   private:
     using TimePoint = std::chrono::steady_clock::time_point;
 
@@ -312,6 +317,8 @@ class FilamentOpHeater {
     void abandon(const char* why, const char* toast, bool restore);
     /// Turn @p heater back off when it was off before we heated it.
     void restore_prior(const std::string& heater, int prior_target_c);
+    /// Held while a waiting preheat is on a heater that restore_prior() would turn off.
+    void sync_heater_hold();
     /// Whatever earlier requests and ops left on @p heater passes to the request
     /// that works it now: a replaced preheat's heat and a cooldown owed on it.
     /// Heat left on another heater is put back. Returns the target @p heater had
@@ -334,6 +341,7 @@ class FilamentOpHeater {
     FilamentOpTicket next_ticket_ = 0;
     std::vector<Heated> heated_;
     std::optional<Handoff> handoff_;
+    HeaterHold heater_hold_;
     std::vector<Owed> owed_;
     std::vector<Watch> watches_;
     ObserverGuard temp_observer_;

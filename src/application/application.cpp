@@ -240,6 +240,7 @@
 #include "plugin_host.h"
 #include "plugin_source_app.h"
 #endif
+#include "heater_hold.h"
 #include "platform_table.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -357,7 +358,6 @@ void apply_display_scale(lv_display_t* display, const helix::ScaleDecision& d) {
 // callers only subtract two readings.
 std::atomic<uint32_t> s_graceful_sigterm_ms{0};
 static_assert(std::atomic<uint32_t>::is_always_lock_free);
-static_assert(std::atomic<bool>::is_always_lock_free);
 
 uint32_t monotonic_ms_signal_safe() {
     struct timespec ts {};
@@ -393,7 +393,7 @@ void graceful_quit_signal_handler(int sig) {
         const uint32_t now_ms = monotonic_ms_signal_safe();
         const uint32_t graceful_at = s_graceful_sigterm_ms.load(std::memory_order_relaxed);
         const helix::SigtermAction action = helix::sigterm_action(
-            app_heater_cleanup_pending_signal_safe(), graceful_at != 0, now_ms - graceful_at);
+            helix::HeaterHold::any_held_signal_safe(), graceful_at != 0, now_ms - graceful_at);
         if (action == helix::SigtermAction::Ignore) {
             return;
         }
