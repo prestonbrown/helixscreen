@@ -3339,6 +3339,8 @@
   <translation tag="Run the chamber dryer too" ru="Включить и сушилку камеры"/>
   <translation tag="Run {}?" ru="Запустить {}?"/>
   <translation tag="Running loose" ru="Ослаблен"/>
+  <translation tag="Running over"/>
+  <translation tag="Running over, {}"/>
   <translation tag="Running tight" ru="Натянут"/>
   <translation tag="Running {}..." ru="Выполнение {}..."/>
   <translation tag="Runout" ru="Окончание"/>

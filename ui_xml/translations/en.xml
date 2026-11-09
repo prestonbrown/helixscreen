@@ -3282,6 +3282,8 @@
   <translation tag="Run the chamber dryer too" en="Run the chamber dryer too"/>
   <translation tag="Run {}?" en="Run {}?"/>
   <translation tag="Running loose" en="Running loose"/>
+  <translation tag="Running over" en="Running over"/>
+  <translation tag="Running over, {}" en="Running over, {}"/>
   <translation tag="Running tight" en="Running tight"/>
   <translation tag="Running {}..." en="Running {}..."/>
   <translation tag="Runout" en="Runout"/>

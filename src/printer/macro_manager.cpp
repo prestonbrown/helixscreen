@@ -106,6 +106,11 @@ std::vector<std::string> parse_macro_names(const std::string& content) {
  * matching version bump in helix_macros.cfg).
  */
 std::optional<std::string> parse_installed_version(const PrinterDiscovery& hardware) {
+    // has_helix_macro() only sees names starting HELIX_.
+    if (hardware.has_macro("_HELIX_PLAN")) {
+        return "2.2.0";
+    }
+
     if (hardware.has_helix_macro("HELIX_UNLOAD_FILAMENT")) {
         return "2.1.0";
     }
@@ -422,10 +427,23 @@ std::string MacroManager::get_macro_content() {
 }
 
 std::string MacroManager::with_visible_signal_names(std::string content) {
+    // Signals added since the hidden names, never spelled visibly on any printer.
+    const auto hidden_only = [&content](size_t pos) {
+        for (const char* name : {"_HELIX_PHASE_SOAKING", "_HELIX_PHASE_HEATING_CHAMBER"}) {
+            if (content.compare(pos, std::char_traits<char>::length(name), name) == 0) {
+                return true;
+            }
+        }
+        return false;
+    };
     for (const char* hidden : {"_HELIX_READY", "_HELIX_ENDED", "_HELIX_RESET", "_HELIX_PHASE_"}) {
         for (size_t pos = content.find(hidden); pos != std::string::npos;
              pos = content.find(hidden, pos)) {
-            content.erase(pos, 1);
+            if (hidden_only(pos)) {
+                ++pos;
+            } else {
+                content.erase(pos, 1);
+            }
         }
     }
     return content;

@@ -3282,6 +3282,8 @@
   <translation tag="Run the chamber dryer too" ja="チャンバーのドライヤーも使う"/>
   <translation tag="Run {}?" ja="{} を実行しますか？"/>
   <translation tag="Running loose" ja="緩み気味"/>
+  <translation tag="Running over"/>
+  <translation tag="Running over, {}"/>
   <translation tag="Running tight" ja="張り気味"/>
   <translation tag="Running {}..." ja="{} を実行中..."/>
   <translation tag="Runout" ja="フィラメント切れ"/>

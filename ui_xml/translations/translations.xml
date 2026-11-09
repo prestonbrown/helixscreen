@@ -3339,6 +3339,8 @@
   <translation tag="Run the chamber dryer too" de="Kammertrockner ebenfalls betreiben" en="Run the chamber dryer too" es="Usar también el secador de la cámara" fr="Faire aussi tourner le séchoir de l&apos;enceinte" it="Usa anche l&apos;essiccatore della camera" ja="チャンバーのドライヤーも使う" pt="Usar também o secador da câmara" ru="Включить и сушилку камеры" zh="同时运行腔体烘干器"/>
   <translation tag="Run {}?" de="{} ausführen?" en="Run {}?" es="¿Ejecutar {}?" fr="Exécuter {} ?" it="Eseguire {}?" ja="{} を実行しますか？" pt="Executar {}?" ru="Запустить {}?" zh="运行 {}？"/>
   <translation tag="Running loose" de="Läuft locker" en="Running loose" es="Va suelto" fr="Détendu" it="Allentato" ja="緩み気味" pt="Solto" ru="Ослаблен" zh="偏松"/>
+  <translation tag="Running over" en="Running over"/>
+  <translation tag="Running over, {}" en="Running over, {}"/>
   <translation tag="Running tight" de="Läuft straff" en="Running tight" es="Va tenso" fr="Tendu" it="Teso" ja="張り気味" pt="Tenso" ru="Натянут" zh="偏紧"/>
   <translation tag="Running {}..." de="{} wird ausgeführt..." en="Running {}..." es="Ejecutando {}..." fr="Exécution de {}..." it="Esecuzione {}..." ja="{} を実行中..." pt="Executando {}..." ru="Выполнение {}..." zh="正在运行 {}..."/>
   <translation tag="Runout" de="Auslauf" en="Runout" es="Agotamiento" fr="Fin de filament" it="Esaurimento" ja="フィラメント切れ" pt="Fim de filamento" ru="Окончание" zh="用尽"/>

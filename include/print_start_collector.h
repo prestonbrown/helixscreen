@@ -572,6 +572,28 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      */
     bool check_helix_phase_signal(const std::string& line);
 
+    /// Consume a HELIX:PLAN line; false when @p line is not one.
+    bool check_helix_plan_signal(const std::string& line);
+
+    /// Merge @p durations into this run's plan and reprice it. @p restored marks a
+    /// plan read back from the printer, which a live line then replaces.
+    void accept_plan(const helix::PreprintDeclaredDurations& durations, bool restored);
+
+    /// Read back a plan the printer holds, for a screen that restarted mid-start.
+    void query_stored_plan();
+
+    /// What a phase entry owes the plan, computed under state_mutex_ and acted
+    /// on after it is released.
+    struct PlanPhaseEntry {
+        std::chrono::seconds hold{0};
+        bool release_wait = false;
+    };
+    [[nodiscard]] PlanPhaseEntry plan_phase_entered_locked(helix::PrintStartPhase previous);
+    void finish_plan_phase_entry(const PlanPhaseEntry& entry);
+
+    /// Recompute the weights on the main thread, for code on the WebSocket thread.
+    void queue_reprice(bool release_anchor);
+
     /**
      * @brief Check the line against the profile's tag patterns
      *
@@ -877,6 +899,18 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     /// The phases this run's start runs and skips, from note_phase_overrides();
     /// reset with the rest of the per-run state.
     std::optional<helix::PreprintPhaseOverrides> phase_overrides_;
+
+    /// Durations this run's macro declared, as the predictor takes them.
+    helix::PreprintDeclaredDurations declared_;
+    bool plan_seen_ = false;
+    /// declared_ came from the printer's stored copy, not a live line.
+    bool plan_restored_ = false;
+    /// Next start's macro chain calls _HELIX_PLAN; consumed by start().
+    bool macro_declares_plan_ = false;
+    /// While set, no estimate is shown: a plan is on its way. Ends at the plan,
+    /// the first phase signal, or this time.
+    std::optional<helix::sim::SimulatedClock::time_point> plan_wait_until_;
+    static constexpr std::chrono::seconds kPlanWaitSeconds{10};
 
     // Duration-proportional progress weights (protected by state_mutex_)
     std::map<int, float> predicted_phase_weights_; ///< Phase -> fraction of total (0.0-1.0)

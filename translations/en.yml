@@ -3490,6 +3490,8 @@ translations:
   Run the chamber dryer too: Run the chamber dryer too
   Run {}?: Run {}?
   Running loose: Running loose
+  Running over: Running over
+  Running over, {}: Running over, {}
   Running tight: Running tight
   Running {}...: Running {}...
   Runout: Runout

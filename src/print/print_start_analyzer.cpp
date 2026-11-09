@@ -347,6 +347,7 @@ PrintStartAnalysis analyze_chain(const std::string& name, const std::string& gco
 
         PrintStartAnalysis parsed =
             PrintStartAnalyzer::parse_macro(visits[index].name, *visits[index].gcode);
+        result.declares_plan = result.declares_plan || parsed.declares_plan;
         if (index == 0) {
             result.known_params = std::move(parsed.known_params);
         }
@@ -556,11 +557,38 @@ void PrintStartAnalyzer::analyze(IMoonrakerAPI* api, AnalysisCallback on_complet
         });
 }
 
+namespace {
+
+bool is_macro_name_char(char c) {
+    return std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '_';
+}
+
+/// A code line of @p gcode calls _HELIX_PLAN, as a whole word and in any case.
+bool gcode_calls_plan_macro(const std::string& gcode) {
+    static const std::string kPlanMacro = "_HELIX_PLAN";
+    for (std::string_view raw : helix::text_io::lines(gcode)) {
+        std::string line = helix::text_io::to_upper(std::string(raw));
+        line = line.substr(0, line.find_first_of("#;"));
+        for (size_t pos = line.find(kPlanMacro); pos != std::string::npos;
+             pos = line.find(kPlanMacro, pos + 1)) {
+            const size_t end = pos + kPlanMacro.size();
+            if ((pos == 0 || !is_macro_name_char(line[pos - 1])) &&
+                (end == line.size() || !is_macro_name_char(line[end]))) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+} // namespace
+
 PrintStartAnalysis PrintStartAnalyzer::parse_macro(const std::string& macro_name,
                                                    const std::string& gcode) {
     PrintStartAnalysis result;
     result.found = true;
     result.macro_name = macro_name;
+    result.declares_plan = gcode_calls_plan_macro(gcode);
 
     // Detect operations
     result.operations = detect_operations(gcode);

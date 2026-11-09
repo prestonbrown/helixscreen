@@ -3282,6 +3282,8 @@
   <translation tag="Run the chamber dryer too" es="Usar también el secador de la cámara"/>
   <translation tag="Run {}?" es="¿Ejecutar {}?"/>
   <translation tag="Running loose" es="Va suelto"/>
+  <translation tag="Running over"/>
+  <translation tag="Running over, {}"/>
   <translation tag="Running tight" es="Va tenso"/>
   <translation tag="Running {}..." es="Ejecutando {}..."/>
   <translation tag="Runout" es="Agotamiento"/>

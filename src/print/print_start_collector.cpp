@@ -230,7 +230,16 @@ void PrintStartCollector::start() {
     // Load prediction history from config
     load_prediction_history();
 
-    // Compute duration-proportional weights from predictions + thermal model
+    // Compute duration-proportional weights from predictions + thermal model,
+    // unless this macro is about to say what it will do: a history guess shown
+    // now would only be replaced seconds later.
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (macro_declares_plan_) {
+            plan_wait_until_ = helix::sim::SimulatedClock::now() + kPlanWaitSeconds;
+        }
+        macro_declares_plan_ = false;
+    }
     compute_predicted_weights();
 
     // Ensure we have a profile for pattern matching. Written under state_mutex_:
@@ -347,6 +356,7 @@ void PrintStartCollector::start() {
     }
     query_phase_object();
     query_start_macro_gate();
+    query_stored_plan();
 
     // Run first update immediately
     update_eta_display();
@@ -463,6 +473,10 @@ void PrintStartCollector::reset_run_locked() {
     window_ = helix::PreprintWindow::PrinterEdge;
     host_pre_start_echo_lines_.clear();
     phase_overrides_.reset();
+    declared_.clear();
+    plan_seen_ = false;
+    plan_restored_ = false;
+    plan_wait_until_.reset();
     detected_phases_.clear();
     phases_left_.clear();
     current_phase_ = PrintStartPhase::INITIALIZING;
@@ -1329,6 +1343,13 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
         return;
     }
 
+    // Ahead of everything else: a plan line names phases, so a profile pattern
+    // would read it as those phases running, and it may be longer than the
+    // scanner's limit below.
+    if (check_helix_plan_signal(line)) {
+        return;
+    }
+
     // Lines this long are firmware telemetry, such as the K2 nozzle pressure traces
     // printed on every probe touch. The phase patterns have nothing to find in them,
     // and scanning them is unbounded work on the websocket thread.
@@ -2119,6 +2140,160 @@ bool PrintStartCollector::check_helix_phase_signal(const std::string& line) {
     return false;
 }
 
+bool PrintStartCollector::check_helix_plan_signal(const std::string& line) {
+    const auto plan = helix::parse_print_start_plan(line);
+    if (!plan) {
+        return false;
+    }
+    if (plan->rejected_whole) {
+        spdlog::warn("[PrintStartCollector] HELIX:PLAN line over its limits, ignored");
+        return true;
+    }
+    if (!plan->dropped.empty()) {
+        std::string dropped;
+        for (const auto& token : plan->dropped) {
+            dropped += (dropped.empty() ? "" : " ") + token;
+        }
+        spdlog::warn("[PrintStartCollector] HELIX:PLAN dropped invalid tokens: {}", dropped);
+    }
+    if (!plan->durations.empty()) {
+        accept_plan(plan->durations, /*restored=*/false);
+    }
+    return true;
+}
+
+void PrintStartCollector::accept_plan(const helix::PreprintDeclaredDurations& durations,
+                                      bool restored) {
+    std::chrono::seconds hold{0};
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (current_phase_ == PrintStartPhase::COMPLETE || (restored && plan_seen_)) {
+            spdlog::debug("[PrintStartCollector] Plan ignored (restored={})", restored);
+            return;
+        }
+        // The printer's copy could predate this run; a live line is this run.
+        if (!restored && plan_restored_) {
+            declared_.clear();
+        }
+        plan_restored_ = restored;
+
+        std::vector<int> finished;
+        for (const PrintStartPhase p : phases_left_) {
+            if (p != current_phase_ && helix::phase_accepts_declared_duration(p)) {
+                finished.push_back(static_cast<int>(p));
+            }
+        }
+        const int current = static_cast<int>(current_phase_);
+        const int elapsed = static_cast<int>(phase_seconds_locked(current_phase_).count());
+        helix::merge_declared(declared_, durations, current, elapsed, finished);
+        plan_seen_ = true;
+        plan_wait_until_.reset();
+
+        if (const auto it = declared_.find(current); it != declared_.end()) {
+            hold = std::chrono::seconds(std::max(0, it->second - elapsed));
+        }
+    }
+    note_signal(hold);
+    queue_reprice(/*release_anchor=*/true);
+}
+
+void PrintStartCollector::query_stored_plan() {
+    if (!state_.get_discovery().has_macro("_HELIX_PLAN")) {
+        return;
+    }
+    static const std::string kStateObject = "gcode_macro _HELIX_STATE";
+    json params = {{"objects", json::object({{kStateObject, json::array({"plan"})}})}};
+    auto self = shared_from_this();
+    const uint64_t run = run_generation_.load();
+    client_.send_jsonrpc(
+        "printer.objects.query", params,
+        [self, run](const json& response) {
+            if (run != self->run_generation_.load()) {
+                return;
+            }
+            const auto result = response.find("result");
+            if (result == response.end() || !result->contains("status")) {
+                return;
+            }
+            const auto macro = (*result)["status"].find(kStateObject);
+            if (macro == (*result)["status"].end()) {
+                return;
+            }
+            const std::string stored = json_util::safe_string(*macro, "plan", "");
+            if (stored.empty()) {
+                return;
+            }
+            const auto plan = helix::parse_print_start_plan("HELIX:PLAN " + stored);
+            if (plan && !plan->durations.empty()) {
+                spdlog::info("[PrintStartCollector] Restored plan from the printer: {}", stored);
+                self->accept_plan(plan->durations, /*restored=*/true);
+            }
+        },
+        [](const MoonrakerError& /*err*/) {
+            spdlog::debug("[PrintStartCollector] Failed to query the stored plan");
+        });
+}
+
+PrintStartCollector::PlanPhaseEntry
+PrintStartCollector::plan_phase_entered_locked(PrintStartPhase previous) {
+    PlanPhaseEntry entry;
+    if (current_phase_ != PrintStartPhase::INITIALIZING && plan_wait_until_) {
+        plan_wait_until_.reset();
+        entry.release_wait = true;
+    }
+    if (current_phase_ == previous) {
+        return entry;
+    }
+    if (const auto it = declared_.find(static_cast<int>(current_phase_));
+        it != declared_.end() && it->second > 0) {
+        entry.hold = std::chrono::seconds(it->second);
+    }
+    if (plan_seen_) {
+        std::map<int, int> expected;
+        for (const auto& [phase, weight] : predicted_phase_weights_) {
+            expected[phase] = static_cast<int>(weight * predicted_total_seconds_);
+        }
+        std::map<int, int> actual;
+        for (const PrintStartPhase p : phases_left_) {
+            if (p != current_phase_ && helix::phase_accepts_declared_duration(p)) {
+                actual[static_cast<int>(p)] = static_cast<int>(phase_seconds_locked(p).count());
+            }
+        }
+        spdlog::debug(
+            "[PrintStartCollector] Overtime balance entering phase {}: {}s",
+            static_cast<int>(current_phase_),
+            helix::overtime_balance_seconds(expected, actual, static_cast<int>(current_phase_), 0));
+    }
+    return entry;
+}
+
+void PrintStartCollector::finish_plan_phase_entry(const PlanPhaseEntry& entry) {
+    if (entry.hold > std::chrono::seconds::zero()) {
+        note_signal(entry.hold);
+    }
+    if (entry.release_wait) {
+        queue_reprice(/*release_anchor=*/false);
+    }
+}
+
+void PrintStartCollector::queue_reprice(bool release_anchor) {
+    auto self = weak_from_this().lock();
+    if (!self) {
+        return;
+    }
+    const uint64_t run = run_generation_.load();
+    helix::ui::queue_update("PrintStartCollector::reprice", [self, run, release_anchor]() {
+        if (!self->active_.load() || run != self->run_generation_.load()) {
+            return;
+        }
+        if (release_anchor) {
+            std::lock_guard<std::mutex> lock(self->state_mutex_);
+            self->last_remaining_ = 0;
+        }
+        self->compute_predicted_weights();
+    });
+}
+
 bool PrintStartCollector::check_tag_signal(const std::string& line) {
     PrintStartProfile::MatchResult match;
     if (!profile_->try_match_tag(line, match)) {
@@ -2232,6 +2407,7 @@ void PrintStartCollector::update_phase(PrintStartPhase phase, const char* messag
     bool should_save = false;
     bool has_predictions = false;
     bool entering_mesh = false;
+    PlanPhaseEntry plan_entry;
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
         if (phase == PrintStartPhase::COMPLETE && current_phase_ == PrintStartPhase::COMPLETE)
@@ -2260,7 +2436,9 @@ void PrintStartCollector::update_phase(PrintStartPhase phase, const char* messag
         }
         maybe_reset_for_mesh_subphase_locked(phase, message ? message : "", counts_mesh_probes);
         entering_mesh = entering_mesh && mesh_counts_probes_;
+        const PrintStartPhase previous_phase = current_phase_;
         enter_phase_locked(phase);
+        plan_entry = plan_phase_entered_locked(previous_phase);
         current_message_ = message ? message : "";
         // A phase signal means the queue moved on from any heater wait.
         heater_wait_shown_ = false;
@@ -2274,6 +2452,7 @@ void PrintStartCollector::update_phase(PrintStartPhase phase, const char* messag
         progress = calculate_progress_locked();
         has_predictions = predictor_.has_predictions();
     }
+    finish_plan_phase_entry(plan_entry);
 
     // When predictor has data, time-based progress in update_eta_display() is the
     // sole progress source. Don't override it with phase-weight progress here.
@@ -2302,6 +2481,7 @@ void PrintStartCollector::update_phase(PrintStartPhase phase, const std::string&
     int effective_progress;
     bool should_save = false;
     bool entering_mesh = false;
+    PlanPhaseEntry plan_entry;
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
         if (phase == PrintStartPhase::COMPLETE && current_phase_ == PrintStartPhase::COMPLETE)
@@ -2313,7 +2493,9 @@ void PrintStartCollector::update_phase(PrintStartPhase phase, const std::string&
             pre_mesh_points_.reset();
         }
         maybe_reset_for_mesh_subphase_locked(phase, message);
+        const PrintStartPhase previous_phase = current_phase_;
         enter_phase_locked(phase);
+        plan_entry = plan_phase_entered_locked(previous_phase);
         current_message_ = message;
         // A phase signal means the queue moved on from any heater wait.
         heater_wait_shown_ = false;
@@ -2331,6 +2513,7 @@ void PrintStartCollector::update_phase(PrintStartPhase phase, const std::string&
         }
         max_sequential_progress_ = effective_progress;
     }
+    finish_plan_phase_entry(plan_entry);
 
     if (entering_mesh) {
         query_mesh_probe_count();
@@ -2956,6 +3139,7 @@ void PrintStartCollector::set_macro_analysis(const helix::PrintStartAnalysis& an
     }
     std::lock_guard<std::mutex> lock(state_mutex_);
     macro_expected_phases_ = std::move(phases);
+    macro_declares_plan_ = analysis.declares_plan;
 }
 
 helix::PreprintChecklistInput PrintStartCollector::checklist_input() const {
@@ -2979,6 +3163,7 @@ helix::PreprintChecklistInput PrintStartCollector::checklist_input() const {
         in.expected_order = macro_expected_phases_;
     }
     in.predicted_seconds = predictor_.predicted_phases();
+    helix::apply_declared_to_checklist(declared_, in.expected_order, in.predicted_seconds);
     return in;
 }
 
@@ -3018,6 +3203,18 @@ void PrintStartCollector::update_eta_display() {
     state_.print_state().set_preprint_elapsed_seconds(total_elapsed);
     feed_thermal_sample();
 
+    bool plan_wait_over = false;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (plan_wait_until_ && helix::sim::SimulatedClock::now() >= *plan_wait_until_) {
+            plan_wait_until_.reset();
+            plan_wait_over = true;
+        }
+    }
+    if (plan_wait_over) {
+        compute_predicted_weights();
+    }
+
     // Compute remaining from composite weights (thermal model + predictor).
     // This handles heating phases correctly (predictor alone doesn't track them).
     int remaining;
@@ -3025,6 +3222,7 @@ void PrintStartCollector::update_eta_display() {
     int current_snap = 0;
     int phase_elapsed_snap = 0;
     bool mesh_live_snap = false;
+    bool running_over = false;
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
         if (predicted_phase_weights_.empty()) {
@@ -3034,6 +3232,7 @@ void PrintStartCollector::update_eta_display() {
         auto completed = get_completed_phase_ints_locked();
         int current = static_cast<int>(current_phase_);
         const int phase_elapsed = static_cast<int>(phase_seconds_locked(current_phase_).count());
+        running_over = helix::declared_phase_running_over(declared_, current, phase_elapsed);
 
         // Compute remaining from composite per-phase durations (weights * total)
         float remaining_f = 0.0f;
@@ -3187,13 +3386,17 @@ void PrintStartCollector::update_eta_display() {
     }
 
     if (remaining <= 0) {
-        state_.print_state().set_print_start_time_left("Almost ready");
+        state_.print_state().set_print_start_time_left(running_over ? lv_tr("Running over")
+                                                                    : "Almost ready");
         return;
     }
 
     // Round for stable display, then format as "~X min left" or "~X:XX left"
     int display_remaining = helix::format::round_eta_seconds(remaining);
     std::string text = "~" + helix::format::duration_remaining(display_remaining);
+    if (running_over) {
+        text = fmt::format(lv_tr("Running over, {}"), text);
+    }
     state_.print_state().set_print_start_time_left(text.c_str());
 
     spdlog::trace("[PrintStartCollector] ETA: {}s remaining, predicted_total={}s", remaining,
@@ -3256,6 +3459,12 @@ void PrintStartCollector::feed_thermal_sample() {
 }
 
 void PrintStartCollector::compute_predicted_weights() {
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (plan_wait_until_) {
+            return;
+        }
+    }
     auto& mgr = ThermalRateManager::instance();
 
     int ext_target = helix::ui::temperature::deci_to_degrees(
@@ -3273,10 +3482,11 @@ void PrintStartCollector::compute_predicted_weights() {
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
         const helix::PreprintEstimate estimate = predictor_.estimate(
-            heating, phase_overrides_.value_or(helix::PreprintPhaseOverrides{}));
+            heating, phase_overrides_.value_or(helix::PreprintPhaseOverrides{}), declared_);
         // Recorded into this start's history entry so the predictor can split
         // the constant part of a start from the heating that start owed.
-        priced_heating_seconds_ = heating.priced_seconds();
+        priced_heating_seconds_ =
+            helix::PreprintPredictor::with_declared_heating(heating, declared_).priced_seconds();
 
         float durations_sum = 0.0f;
         for (const auto& [_, dur] : estimate.durations) {
@@ -3525,6 +3735,9 @@ void PrintStartCollector::save_prediction_entry() {
         std::lock_guard<std::mutex> lock(state_mutex_);
         if (phase_overrides_) {
             entry.skipped_phases = helix::PreprintPredictor::phases_skipped_by(*phase_overrides_);
+        }
+        if (plan_seen_) {
+            entry.declared = declared_;
         }
         predictor_.add_entry(entry);
     }

@@ -3561,6 +3561,8 @@ translations:
 
   Run {}?: Eseguire {}?
   Running loose: 'Allentato'
+  Running over: ''
+  Running over, {}: ''
   Running tight: 'Teso'
   Running {}...: Esecuzione {}...
   Runout: 'Esaurimento'

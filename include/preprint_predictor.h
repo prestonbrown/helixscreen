@@ -3,6 +3,7 @@
 #pragma once
 
 #include "json_fwd.h"
+#include "print_start_plan.h"
 
 #include <cstdint>
 #include <functional>
@@ -56,6 +57,8 @@ struct PreprintEntry {
     /// Nozzle+bed heating this start was priced for, in seconds; nullopt when
     /// the start bypassed pricing (legacy entries, a start we did not arm).
     std::optional<int> heating_seconds;
+    /// The plan this start declared; nullopt for a start without one
+    std::optional<PreprintDeclaredDurations> declared;
 };
 
 /**
@@ -224,9 +227,21 @@ class PreprintPredictor {
      * with none recorded is floored by this start's own heating. Without
      * history, the sum of the durations, a run phase the defaults lack added
      * at its generic duration.
+     *
+     * A declared duration beats the overrides, history and thermal price for its
+     * phase, and a declared 0 removes the phase. With a plan the total comes only
+     * from entries that also declared one: their mean residual plus this start's
+     * heating and declared seconds, or the sum of the durations when none exist,
+     * so a soak the wall clock already holds is never counted twice.
      */
     [[nodiscard]] PreprintEstimate estimate(const PreprintHeating& heating,
-                                            const PreprintPhaseOverrides& overrides = {}) const;
+                                            const PreprintPhaseOverrides& overrides = {},
+                                            const PreprintDeclaredDurations& declared = {}) const;
+
+    /// @p heating with any declared bed or nozzle duration standing in for the
+    /// thermal price; a declared nozzle counts as a known target
+    [[nodiscard]] static PreprintHeating
+    with_declared_heating(PreprintHeating heating, const PreprintDeclaredDurations& declared);
 
     /**
      * @brief Load entries from Config's print_start_history
@@ -273,6 +288,11 @@ class PreprintPredictor {
   private:
     /// Exponential time-decay weights (oldest=low, newest=high), normalized to sum=1
     [[nodiscard]] std::vector<double> compute_weights() const;
+
+    /// Total for a start with a plan, from the entries that declared one;
+    /// nullopt when none can give a residual
+    [[nodiscard]] std::optional<float> planned_total(const PreprintDeclaredDurations& declared,
+                                                     const std::map<int, float>& durations) const;
 
     /// Every entry records @p phase as skipped (false when any entry is silent)
     [[nodiscard]] bool every_entry_skipped(int phase) const;

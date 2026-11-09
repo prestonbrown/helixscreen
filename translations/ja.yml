@@ -3397,6 +3397,8 @@ translations:
 
   Run {}?: '{} を実行しますか？'
   Running loose: '緩み気味'
+  Running over: ''
+  Running over, {}: ''
   Running tight: '張り気味'
   Running {}...: '{} を実行中...'
   Runout: 'フィラメント切れ'
