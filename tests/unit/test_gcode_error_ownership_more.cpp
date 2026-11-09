@@ -39,6 +39,8 @@
 
 #include "../catch_amalgamated.hpp"
 
+using ZOffsetAccess = ZOffsetCalibrationTestAccess;
+
 namespace {
 
 /// Clears the process-wide correlation window on both sides of a test so a
@@ -85,7 +87,7 @@ TEST_CASE_METHOD(OwnershipMoreFixture, "Z-offset TESTZ nudge leaves the `!!` rou
     panel.set_api(&api);
 
     client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR, kRejection, "TESTZ");
-    ZOffsetCalibrationTestAccess::adjust_z(panel, -0.025f);
+    ZOffsetAccess::adjust_z(panel, -0.025f);
 
     // The nudge really went out and really was rejected.
     REQUIRE(client.last_send_method() == "printer.gcode.script");
@@ -103,12 +105,12 @@ TEST_CASE_METHOD(OwnershipMoreFixture, "Z-offset bed-off send leaves the `!!` ro
 
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
-    ZOffsetCalibrationTestAccess::mark_bed_warmed(panel);
+    ZOffsetAccess::mark_bed_warmed(panel);
     lv_subject_set_int(state.network_state().get_printer_connection_state_subject(),
                        static_cast<int>(helix::ConnectionState::CONNECTED));
 
     client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR, kRejection, "M140");
-    ZOffsetCalibrationTestAccess::turn_off_bed(panel);
+    ZOffsetAccess::turn_off_bed(panel);
 
     REQUIRE(client.last_send_script() == "M140 S0");
     CHECK_FALSE(client.current_send_intent().surfaces_errors);
