@@ -42,6 +42,7 @@
 #include "ui_overlay_timelapse_videos.h"
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_belt_tension.h"
+#include "ui_panel_calibration_pa.h"
 #include "ui_panel_calibration_pid.h"
 #include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
@@ -326,3 +327,8 @@ WizardPreferencesStep* get_wizard_preferences_step() {
     return nullptr;
 }
 } // namespace helix::wizard
+
+// The firmware cannot build these panels, so no owned calibration heat exists at shutdown.
+void BedMeshPanel::before_disconnect() {}
+void ZOffsetCalibrationPanel::before_disconnect() {}
+void helix::ui::PACalibrationPanel::before_disconnect() {}
