@@ -56,8 +56,10 @@
 #include "memory_monitor.h"
 #include "memory_utils.h"
 #include "non_filament_pause.h"
+#include "notice.h"
 #include "pre_start_exclude.h"
 #include "preprint_predictor.h"
+#include "print_completion.h"
 #include "print_start_checks.h"
 #include "print_status_layout_decision.h"
 #include "print_status_preview_decision.h"
@@ -213,6 +215,25 @@ static void try_reclaim_cached_print_status() {
         PrintStatusPanel::destroy_cached_overlay(PrintStatusTreeDestroyCause::MemoryReclaim);
     });
 }
+
+namespace {
+// Both stand in for a lower layer: print start navigation asks for the screen, and
+// the completion alert asks whether the user is already watching it.
+const helix::UiRequestRegistration s_open_print_status_registration{
+    helix::UiRequestKind::OpenPrintStatus, [](const helix::UiRequest&) {
+        lv_obj_t* cached = PrintStatusPanel::get_cached_overlay();
+        if (cached && helix::nav::is_in_stack(cached)) {
+            spdlog::debug("[PrintStartNav] Print status already on stack — skip auto-nav");
+            return;
+        }
+        PrintStatusPanel::push_overlay(lv_display_get_screen_active(nullptr));
+    }};
+
+const bool s_print_status_shown_query_installed =
+    (helix::set_print_status_shown_query(
+         []() { return helix::nav::is_in_stack(get_global_print_status_panel().get_panel()); }),
+     true);
+} // namespace
 
 PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : printer_state_(printer_state), api_(api),

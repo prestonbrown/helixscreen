@@ -11,10 +11,13 @@
 #include "ui_toast_manager.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/toast_log.h"
 #include "core/update_queue.h"
 #include "hardware_validator.h"
 #include "notice.h"
+#include "print_completion.h"
+#include "print_start_navigation.h"
 
 #include <string>
 #include <thread>
@@ -220,6 +223,30 @@ TEST_CASE("The UI installs a handler for every request kind", "[notification][no
         CAPTURE(k);
         CHECK(installed != nullptr);
     }
+    const auto query = helix::set_print_status_shown_query(nullptr);
+    helix::set_print_status_shown_query(query);
+    CHECK(query != nullptr);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "A print start asks the UI for the print status screen",
+                 "[notification][notice][print][navigation]") {
+    using helix::PrintJobState;
+    CapturedRequests requests(UiRequestKind::OpenPrintStatus);
+    ObserverGuard nav = helix::init_print_start_navigation_observer();
+    drain();
+    REQUIRE(g_requests.empty());
+    helix::test::set_wire_state(state(), PrintJobState::PRINTING);
+    helix::test::set_wire_state(state(), PrintJobState::PAUSED);
+    CHECK(g_requests.empty()); // queued for the UI thread, not run inline
+    drain();
+    CHECK(g_requests.size() == 1);
+
+    // A job already running when the observer starts asks too.
+    nav = helix::init_print_start_navigation_observer();
+    drain();
+    CHECK(g_requests.size() == 2);
+    helix::test::set_wire_state(state(), PrintJobState::STANDBY);
+    drain();
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "A power device going off holds the recovery dialog back",

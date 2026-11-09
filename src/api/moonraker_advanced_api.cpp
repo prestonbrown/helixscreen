@@ -3,8 +3,6 @@
 
 #include "moonraker_advanced_api.h"
 
-#include "ui_notification.h"
-
 #include "accel_sensor_manager.h"
 #include "app_globals.h"
 #include "bed_mesh_probe_parser.h"
