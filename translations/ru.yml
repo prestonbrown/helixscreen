@@ -3307,6 +3307,7 @@ translations:
   Reboot: Перезагрузка
   Reboot failed: Ошибка перезагрузки
   Reboot failed — host is still reachable: Ошибка перезагрузки — хост всё ещё доступен
+  Reboot the printer to finish the plugin update.: Перезагрузите принтер, чтобы завершить обновление плагина.
   Recalibrate input shaping?: 'Откалибровать компенсацию вибраций?'
   Recalibrate or view detailed results anytime in Settings.: Перекалибруйте или просмотрите
     подробные результаты в любое время в Настройках.

@@ -3260,6 +3260,7 @@ translations:
   Reboot: Reiniciar
   Reboot failed: Error al reiniciar
   Reboot failed — host is still reachable: Error al reiniciar — el host sigue accesible
+  Reboot the printer to finish the plugin update.: Reinicia la impresora para completar la actualización del plugin.
   Recalibrate input shaping?: '¿Recalibrar el moldeado de entrada?'
   Recalibrate or view detailed results anytime in Settings.: Recalibre o vea resultados
     detallados en cualquier momento en Ajustes.

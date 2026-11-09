@@ -3268,6 +3268,7 @@ translations:
   Reboot failed: Neustart fehlgeschlagen
   Reboot failed — host is still reachable: Neustart fehlgeschlagen — Host ist weiterhin
     erreichbar
+  Reboot the printer to finish the plugin update.: Drucker neu starten, um die Plugin-Aktualisierung abzuschließen.
   Recalibrate input shaping?: 'Input Shaping neu kalibrieren?'
   Recalibrate or view detailed results anytime in Settings.: Jederzeit in den Einstellungen
     neu kalibrieren oder detaillierte Ergebnisse anzeigen.

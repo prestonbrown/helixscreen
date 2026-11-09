@@ -97,6 +97,13 @@ namespace {
            job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
 }
 
+/// Klipper's idle_timeout reads "Printing": some G-code is executing.
+[[nodiscard]] bool klipper_busy_now() {
+    return get_printer_state().are_subjects_initialized() &&
+           lv_subject_get_int(
+               get_printer_state().calibration_state().get_idle_timeout_printing_subject()) == 1;
+}
+
 /// Runout recovery purge on a printer without zMod's bin macros: 50 mm of fresh
 /// filament at 10 mm/s, in place. Same numbers as the shared purge fallback
 /// (filament_purge_fallback_gcode()). A bare `G1 E` needs no homing, so it
@@ -2490,6 +2497,7 @@ void AmsBackendAd5xIfs::apply_zmod_change_macro(const json& status) {
                 set_operation_detail_locked("Changing filament");
                 zmod_change_owns_action_ = true;
                 zmod_change_in_job_ = in_job;
+                zmod_change_saw_busy_ = klipper_busy_now();
             }
         } else {
             zmod_change_stale_ = false;
@@ -4164,7 +4172,8 @@ bool AmsBackendAd5xIfs::on_gcode_response_line(const std::string& line) {
                 // line string). empty optional == "not present in this gcode".
                 std::optional<std::string> parsed_type;
                 helix::RegexMatch tm;
-                if (helix::regex_search(line, tm, type_re)) {
+                if (helix::regex_search(line, tm, type_re) &&
+                    !helix::zmod_color::is_unset_type(tm[1].str())) {
                     parsed_type = tm[1].str();
                 }
                 std::optional<std::string> parsed_hex;
@@ -4316,7 +4325,9 @@ bool AmsBackendAd5xIfs::apply_color_menu_slot_row(const std::string& line) {
 
     helix::RegexMatch tm;
     helix::RegexMatch hm;
-    const bool has_type = helix::regex_search(line, tm, type_re);
+    // TYPE=? names no material, so the row carries no type reading.
+    const bool has_type =
+        helix::regex_search(line, tm, type_re) && !helix::zmod_color::is_unset_type(tm[1].str());
     const bool has_hex = helix::regex_search(line, hm, hex_re);
     if (!has_type && !has_hex)
         return false;
@@ -4906,7 +4917,7 @@ bool AmsBackendAd5xIfs::read_ifs_materials_object(const json& obj, ZColorSilentR
             slot.material = type->get<std::string>();
             // The stock-UI unset sentinel, same one the zmod_color reader and
             // parse_adventurer_json normalise - a live "?" must never render.
-            if (slot.material == "?") {
+            if (helix::zmod_color::is_unset_type(slot.material)) {
                 slot.material.clear();
             }
         }
@@ -5737,6 +5748,9 @@ AmsBackendAd5xIfs::parse_zcolor_silent(const std::vector<std::string>& lines, co
                 slot.hex = rest.substr(last_slash + 1);
                 slot_lines_with_hex++;
             }
+            if (helix::zmod_color::is_unset_type(slot.material)) {
+                slot.material.clear();
+            }
             result.slots[static_cast<size_t>(n - 1)] = std::move(slot);
         }
     }
@@ -5814,7 +5828,7 @@ void AmsBackendAd5xIfs::parse_adventurer_json(const std::string& content) {
             // Firmware-native unset sentinel: live stock ZMOD writes ffmType='?'
             // for an entry with no assigned material. Map it to empty so the UI
             // renders '--' rather than a literal '?'.
-            if (type == "?")
+            if (helix::zmod_color::is_unset_type(type))
                 type.clear();
 
             int idx = port - 1;
@@ -6700,6 +6714,14 @@ void AmsBackendAd5xIfs::check_action_timeout() {
             release_zmod_change_locked("END_CHANGE_FILAMENT never ran");
         } else if (zmod_change_in_job_ && !job_holds_machine_now()) {
             release_zmod_change_locked("the job ended mid-change");
+        } else if (klipper_busy_now()) {
+            zmod_change_saw_busy_ = true;
+        } else if (zmod_change_saw_busy_) {
+            // The change chain is one G-code command, so Klipper going idle
+            // means it stopped without reaching END_CHANGE_FILAMENT. Z-Mod's
+            // print-start change runs before print_stats leaves standby, so
+            // no job end ever covers it (#2086).
+            release_zmod_change_locked("Klipper went idle mid-change");
         }
     }
 

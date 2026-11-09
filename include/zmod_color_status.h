@@ -8,12 +8,20 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "hv/json.hpp"
 
 namespace helix::zmod_color {
+
+/// Z-Mod's "nothing assigned" type: what a lane with no material reports in
+/// zmod_color, Adventurer5M.json's ffmType, GET_ZCOLOR and the COLOR menu.
+/// Every reader maps it to an empty material.
+[[nodiscard]] inline bool is_unset_type(std::string_view type) {
+    return type == "?";
+}
 
 struct Slot {
     /// Empty when the firmware reports its "?" unset sentinel: a live frame
