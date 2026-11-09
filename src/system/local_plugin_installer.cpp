@@ -10,12 +10,13 @@
 namespace helix {
 
 namespace {
-// A full clone: Moonraker's update manager tracks the repository it names.
-constexpr int kFetchTimeoutSeconds = 300;
+// A full clone, since Moonraker's update manager tracks the repository it
+// names: well under a megabyte, so minutes only on a stalled link, which git
+// itself gives up on below 1 KB/s for 30 s.
+constexpr int kFetchTimeoutSeconds = 180;
+constexpr const char* kFetchLowSpeedLimit = "http.lowSpeedLimit=1000";
+constexpr const char* kFetchLowSpeedTime = "http.lowSpeedTime=30";
 constexpr int kProbeTimeoutSeconds = 15;
-// apt on a Pi 3: the package lists, then the package and its libraries.
-constexpr int kAptUpdateTimeoutSeconds = 600;
-constexpr int kAptInstallTimeoutSeconds = 1200;
 
 std::string failure_detail(const CommandResult& r) {
     return r.timed_out ? std::string("timed out") : last_output_line(r.output);
@@ -31,7 +32,8 @@ LocalPluginResult failed(LocalPluginStage stage, const CommandResult& r) {
 }
 
 bool has_program(const ProcessRunner& run, const std::string& program) {
-    return run({"sh", "-c", "command -v " + program}, kProbeTimeoutSeconds).succeeded();
+    return run({"/bin/sh", "-c", "command -v \"$1\"", "sh", program}, kProbeTimeoutSeconds)
+        .succeeded();
 }
 } // namespace
 
@@ -58,8 +60,12 @@ LocalPluginResult install_plugin_locally(const LocalPluginRecipe& recipe,
     if (!recipe.repo_url.empty() && !plan.repo_present) {
         stage(LocalPluginStage::Fetch);
         spdlog::info("[PluginInstaller] Cloning {} into {}", recipe.repo_url, plan.repo_dir);
+        // GIT_TERMINAL_PROMPT=0: a repository that asks for credentials fails at once
+        // instead of waiting on a prompt nobody sees.
         const CommandResult r =
-            run({"git", "clone", recipe.repo_url, plan.repo_dir}, kFetchTimeoutSeconds);
+            run({"env", "GIT_TERMINAL_PROMPT=0", "git", "-c", kFetchLowSpeedLimit, "-c",
+                 kFetchLowSpeedTime, "clone", recipe.repo_url, plan.repo_dir},
+                kFetchTimeoutSeconds);
         log_command_output("git clone", r.output, r.succeeded());
         if (!r.succeeded()) {
             return failed(LocalPluginStage::Fetch, r);
@@ -88,32 +94,10 @@ LocalPluginResult install_plugin_locally(const LocalPluginRecipe& recipe,
             spdlog::info("[PluginInstaller] {} is installed", dep.name);
             continue;
         }
-        if (!run({"sudo", "-n", "true"}, kProbeTimeoutSeconds).succeeded()) {
-            spdlog::info("[PluginInstaller] {} is missing and sudo needs a password; the user "
-                         "installs it",
-                         dep.name);
-            result.outcome = LocalPluginOutcome::InstalledMissingDependency;
-            result.missing_dependency = dep.name;
-            return result;
-        }
-        stage(LocalPluginStage::InstallDependency);
-        spdlog::info("[PluginInstaller] Installing {} through passwordless sudo", dep.name);
-        // A failed list refresh still leaves the install a chance with the lists already there.
-        const CommandResult updated =
-            run({"sudo", "-n", "apt-get", "update"}, kAptUpdateTimeoutSeconds);
-        log_command_output("apt-get update", updated.output, updated.succeeded());
-        const CommandResult apt = run({"sudo", "-n", "env", "DEBIAN_FRONTEND=noninteractive",
-                                       "apt-get", "install", "-y", dep.apt_package},
-                                      kAptInstallTimeoutSeconds);
-        log_command_output("apt-get install", apt.output, apt.succeeded());
-        if (!apt.succeeded() || !has_program(run, dep.program)) {
-            result.outcome = LocalPluginOutcome::InstalledMissingDependency;
-            result.missing_dependency = dep.name;
-            result.failure = apt;
-            result.detail = failure_detail(apt);
-            return result;
-        }
-        spdlog::info("[PluginInstaller] {} installed", dep.name);
+        spdlog::info("[PluginInstaller] {} is missing; the user installs it", dep.name);
+        result.outcome = LocalPluginOutcome::InstalledMissingDependency;
+        result.missing_dependency = dep.name;
+        return result;
     }
     return result;
 }

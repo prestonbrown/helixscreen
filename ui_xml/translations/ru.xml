@@ -329,6 +329,7 @@
   <translation tag="An API key is 32 characters, each 0-9 or a-f." ru="API-ключ состоит из 32 символов, каждый 0-9 или a-f."/>
   <translation tag="An accelerometer was detected on your printer." ru="На вашем принтере обнаружен акселерометр."/>
   <translation tag="An app on your network is asking to connect to this printer." ru="Приложение в вашей сети запрашивает подключение к этому принтеру."/>
+  <translation tag="An earlier install is still finishing..." ru="Предыдущая установка ещё завершается..."/>
   <translation tag="An error occurred during calibration." ru="Во время калибровки произошла ошибка."/>
   <translation tag="An error occurred during filament loading." ru="Произошла ошибка при загрузке филамента."/>
   <translation tag="An error occurred during probing." ru="Во время зондирования произошла ошибка."/>
@@ -1892,7 +1893,6 @@
   <translation tag="Installation timed out" ru="Время установки истекло"/>
   <translation tag="Installation timed out. The script may be stuck." ru="Время установки истекло. Скрипт мог зависнуть."/>
   <translation tag="Installed" ru="Установлено"/>
-  <translation tag="Installing ffmpeg. This can take several minutes..." ru="Установка ffmpeg. Это может занять несколько минут..."/>
   <translation tag="Installing restarts Moonraker, so it waits until the print is finished or cancelled." ru="Установка перезапускает Moonraker, поэтому ждёт, пока печать не завершится или не будет отменена."/>
   <translation tag="Installing the timelapse plugin..." ru="Установка плагина таймлапса..."/>
   <translation tag="Installing..." ru="Установка..."/>
@@ -3941,7 +3941,7 @@
   <translation tag="The speed of one fan you choose" ru="Скорость выбранного вентилятора"/>
   <translation tag="The time, date, and system uptime" ru="Время, дата и время работы системы"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." ru="Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."/>
-  <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password." ru="Плагин таймлапса установлен. Для создания видео также нужен ffmpeg, который HelixScreen не смог установить без пароля."/>
+  <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." ru="Плагин таймлапса установлен. Для создания видео также нужен ffmpeg, который не установлен на этом принтере."/>
   <translation tag="The tool change under way finished, and the tool was not parked" ru="Текущая смена инструмента завершена, инструмент не припаркован"/>
   <translation tag="The tool change under way finished, and {} was not put back on the carriage" ru="Текущая смена инструмента завершена, {} не возвращён на каретку"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" ru="В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Извлеките его вручную перед печатью. Всё равно начать?"/>

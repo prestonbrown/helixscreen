@@ -304,6 +304,7 @@ translations:
     navigation bar instead of using gestures
   Ambient Transfer: Ambient Transfer
   AmsIdentify: AmsIdentify
+  An earlier install is still finishing...: 'An earlier install is still finishing...'
   An API key is 32 characters, each 0-9 or a-f.: An API key is 32 characters, each 0-9 or a-f.
   An accelerometer was detected on your printer.: An accelerometer was detected on
     your printer.
@@ -1984,7 +1985,6 @@ translations:
   Installation timed out. The script may be stuck.: Installation timed out. The script
     may be stuck.
   Installed: Installed
-  Installing ffmpeg. This can take several minutes...: Installing ffmpeg. This can take several minutes...
   Installing restarts Moonraker, so it waits until the print is finished or cancelled.: Installing restarts Moonraker, so it waits until the print is finished or cancelled.
   Installing the timelapse plugin...: Installing the timelapse plugin...
   Installing...: Installing...
@@ -4158,8 +4158,8 @@ translations:
   The speed of one fan you choose: The speed of one fan you choose
   The time, date, and system uptime: The time, date, and system uptime
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: The timelapse or logs folder overlaps a protected folder, so cleanup is off.
-  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password.
-  : The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password.
+  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.
+  : 'The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.'
   The tool change under way finished, and the tool was not parked: The tool change under way finished, and the tool was not parked
   The tool change under way finished, and {} was not put back on the carriage: The tool change under way finished, and {} was not put back on the carriage
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?

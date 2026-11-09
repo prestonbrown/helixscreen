@@ -296,6 +296,7 @@
   <translation tag="An API key is 32 characters, each 0-9 or a-f." ja="APIキーは32文字で、各文字は0-9またはa-fです。"/>
   <translation tag="An accelerometer was detected on your printer." ja="プリンターで加速度センサーが検出されました。"/>
   <translation tag="An app on your network is asking to connect to this printer." ja="ネットワーク上のアプリがこのプリンターへの接続を求めています。"/>
+  <translation tag="An earlier install is still finishing..." ja="前回のインストールがまだ終わっていません..."/>
   <translation tag="An error occurred during calibration." ja="キャリブレーション中にエラーが発生しました。"/>
   <translation tag="An error occurred during filament loading." ja="フィラメントの読み込み中にエラーが発生しました。"/>
   <translation tag="An error occurred during probing." ja="プローブ中にエラーが発生しました。"/>
@@ -1847,7 +1848,6 @@
   <translation tag="Installation timed out" ja="インストールがタイムアウトしました"/>
   <translation tag="Installation timed out. The script may be stuck." ja="インストールがタイムアウトしました。スクリプトが停止している可能性があります。"/>
   <translation tag="Installed" ja="インストール済み"/>
-  <translation tag="Installing ffmpeg. This can take several minutes..." ja="ffmpegをインストール中。数分かかることがあります..."/>
   <translation tag="Installing restarts Moonraker, so it waits until the print is finished or cancelled." ja="インストールするとMoonrakerが再起動するため、印刷の終了またはキャンセルまで待機します。"/>
   <translation tag="Installing the timelapse plugin..." ja="タイムラプスプラグインをインストール中..."/>
   <translation tag="Installing..." ja="インストール中..."/>
@@ -3881,7 +3881,7 @@
   <translation tag="The speed of one fan you choose" ja="選んだファン1つの速度"/>
   <translation tag="The time, date, and system uptime" ja="時間、日付、稼働時間"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." ja="タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"/>
-  <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password." ja="タイムラプスプラグインはインストールされました。動画の作成にはffmpegも必要ですが、HelixScreenはパスワードなしではインストールできませんでした。"/>
+  <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." ja="タイムラプスプラグインはインストールされました。動画の作成にはffmpegも必要ですが、このプリンターにはインストールされていません。"/>
   <translation tag="The tool change under way finished, and the tool was not parked" ja="実行中のツール変更は完了し、ツールは格納されていません"/>
   <translation tag="The tool change under way finished, and {} was not put back on the carriage" ja="実行中のツール変更は完了し、{}はキャリッジに戻されていません"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" ja="ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。印刷前に手動で引き抜いてください。それでも印刷を開始しますか？"/>
