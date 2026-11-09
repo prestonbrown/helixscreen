@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_button.h"
 #include "ui_overlay_timelapse_install.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -232,4 +233,62 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a screensaver wake resumes the install wiza
     CHECK(lv_obj_has_flag(ssh, LV_OBJ_FLAG_HIDDEN));
     overlay.on_deactivate(DeactivateReason::NavigateAway);
     helix::ui::UpdateQueue::instance().drain_until_empty();
+}
+
+// ============================================================================
+// Layout: the remote route's action is on screen
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "the SSH step's Check Again sits on screen and the header button stays hidden",
+                 "[timelapse][layout][ui_integration]") {
+    REQUIRE_FALSE(get_printer_state().has_webcam());
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, get_printer_state());
+    TimelapseInstallOverlay overlay(&api);
+    overlay.init_subjects();
+    overlay.register_callbacks();
+    lv_obj_t* root = overlay.create(test_screen());
+    REQUIRE(root != nullptr);
+    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+
+    // Locality unknown and no plugin: the webcam and plugin replies end on the SSH route.
+    overlay.on_activate();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    lv_obj_update_layout(test_screen());
+
+    lv_obj_t* footer = lv_obj_find_by_name(root, "install_footer");
+    lv_obj_t* button = lv_obj_find_by_name(root, "install_action_button");
+    lv_obj_t* header = lv_obj_find_by_name(root, "overlay_header");
+    REQUIRE(footer != nullptr);
+    REQUIRE(button != nullptr);
+    REQUIRE(header != nullptr);
+    lv_obj_t* header_action = lv_obj_find_by_name(header, "action_button");
+    REQUIRE(header_action != nullptr);
+
+    CHECK_FALSE(lv_obj_has_flag(footer, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_visible(button));
+    CHECK(lv_obj_has_flag(header_action, LV_OBJ_FLAG_HIDDEN));
+
+    // The SSH card fills the scroll area; the button must still be inside the screen.
+    lv_area_t a;
+    lv_obj_get_coords(button, &a);
+    INFO("button y1=" << a.y1 << " y2=" << a.y2 << " h=" << lv_obj_get_height(button));
+    CHECK(lv_obj_get_height(button) > 0);
+    CHECK(a.y1 >= 0);
+    CHECK(a.y2 < kTestDisplayHeight);
+
+    lv_obj_t* label = ui_button_get_label(button);
+    REQUIRE(label != nullptr);
+    CHECK(std::string(lv_label_get_text(label)) == "Check Again");
+    lv_obj_t* ssh = lv_obj_find_by_name(root, "ssh_instructions_container");
+    lv_obj_t* ffmpeg = lv_obj_find_by_name(root, "ffmpeg_instructions_container");
+    REQUIRE(ssh != nullptr);
+    REQUIRE(ffmpeg != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(ssh, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(ffmpeg, LV_OBJ_FLAG_HIDDEN));
+
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    overlay.cleanup();
 }

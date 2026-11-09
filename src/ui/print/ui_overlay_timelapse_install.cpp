@@ -11,17 +11,23 @@
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
+#include "core/http_executor.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
+#include "helix_fs.h"
+#include "helix_plugin_installer.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "lvgl.h"
 #include "moonraker_config_manager.h"
 #include "moonraker_types.h"
+#include "print_lifecycle_state.h"
+#include "printer_state.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
+#include <cstdlib>
 #include <sstream>
 
 using namespace helix;
@@ -50,6 +56,24 @@ void init_global_timelapse_install(IMoonrakerAPI* api) {
 
 TimelapseInstallOverlay::TimelapseInstallOverlay(IMoonrakerAPI* api) : api_(api) {}
 
+TimelapseInstallOverlay::~TimelapseInstallOverlay() {
+    // SubjectManager handles LVGL initialization check and cleanup
+    subjects_.deinit_all();
+}
+
+void TimelapseInstallOverlay::init_subjects() {
+    init_subjects_guarded([this]() {
+        UI_MANAGED_SUBJECT_STRING(status_subject_, status_buf_, "", "timelapse_install_status",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_STRING(action_text_subject_, action_text_buf_, "",
+                                  "timelapse_install_action_text", subjects_);
+        UI_MANAGED_SUBJECT_INT(action_visible_subject_, 0, "timelapse_install_action_visible",
+                               subjects_);
+        UI_MANAGED_SUBJECT_INT(card_subject_, static_cast<int>(Card::None),
+                               "timelapse_install_card", subjects_);
+    });
+}
+
 void TimelapseInstallOverlay::register_callbacks() {
     register_xml_callbacks({{"on_timelapse_install_action", [](lv_event_t*) {
                                  auto& self = get_global_timelapse_install();
@@ -64,11 +88,6 @@ lv_obj_t* TimelapseInstallOverlay::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    status_label_ = helix::ui::find_required(overlay_root_, "status_text", get_name());
-    action_btn_ = helix::ui::find_required(overlay_root_, "action_button", get_name());
-    ssh_container_ =
-        helix::ui::find_required(overlay_root_, "ssh_instructions_container", get_name());
-
     // Step progress widget is built programmatically (dynamic content)
     lv_obj_t* step_container =
         helix::ui::find_required(overlay_root_, "step_container", get_name());
@@ -82,10 +101,8 @@ lv_obj_t* TimelapseInstallOverlay::create(lv_obj_t* parent) {
         step_progress_ = ui_step_progress_create(step_container, steps, STEP_COUNT, false, nullptr);
     }
 
-    // Initially hide interactive elements
     hide_action_button();
-    if (ssh_container_)
-        lv_obj_add_flag(ssh_container_, LV_OBJ_FLAG_HIDDEN);
+    show_card(Card::None);
 
     return overlay_root_;
 }
@@ -120,10 +137,9 @@ void TimelapseInstallOverlay::cleanup() {
 void TimelapseInstallOverlay::start_wizard() {
     wizard_active_ = true;
     action_callback_ = nullptr;
+    ffmpeg_missing_ = false;
 
-    // Reset UI state
-    if (ssh_container_)
-        lv_obj_add_flag(ssh_container_, LV_OBJ_FLAG_HIDDEN);
+    show_card(Card::None);
     hide_action_button();
 
     step_check_webcam();
@@ -137,24 +153,46 @@ void TimelapseInstallOverlay::set_step(Step step) {
 }
 
 void TimelapseInstallOverlay::set_status(const char* text) {
-    if (status_label_) {
-        lv_label_set_text(status_label_, text);
+    if (subjects_initialized_) {
+        lv_subject_copy_string(&status_subject_, text);
     }
 }
 
 void TimelapseInstallOverlay::show_action_button(const char* label,
                                                  std::function<void()> callback) {
     action_callback_ = std::move(callback);
-    if (action_btn_) {
-        lv_obj_remove_flag(action_btn_, LV_OBJ_FLAG_HIDDEN);
-        ui_button_set_text(action_btn_, label);
+    if (subjects_initialized_) {
+        lv_subject_copy_string(&action_text_subject_, label);
+        lv_subject_set_int(&action_visible_subject_, 1);
     }
+    // The footer takes height from the scroll area the card sits in.
+    reveal_card();
 }
 
 void TimelapseInstallOverlay::hide_action_button() {
     action_callback_ = nullptr;
-    if (action_btn_) {
-        lv_obj_add_flag(action_btn_, LV_OBJ_FLAG_HIDDEN);
+    if (subjects_initialized_) {
+        lv_subject_set_int(&action_visible_subject_, 0);
+    }
+}
+
+void TimelapseInstallOverlay::show_card(Card card) {
+    if (subjects_initialized_) {
+        lv_subject_set_int(&card_subject_, static_cast<int>(card));
+    }
+    reveal_card();
+}
+
+void TimelapseInstallOverlay::reveal_card() {
+    if (!overlay_root_ || !subjects_initialized_ ||
+        lv_subject_get_int(&card_subject_) == static_cast<int>(Card::None)) {
+        return;
+    }
+    // The step list fills the first screen, so the card with commands to run, the
+    // last thing in the scroll area, would otherwise sit below the fold.
+    if (lv_obj_t* content = lv_obj_find_by_name(overlay_root_, "overlay_content")) {
+        lv_obj_update_layout(overlay_root_);
+        lv_obj_scroll_to_y(content, LV_COORD_MAX, LV_ANIM_OFF);
     }
 }
 
@@ -228,29 +266,140 @@ void TimelapseInstallOverlay::step_check_plugin() {
                             }
                             show_action_button(lv_tr("Close"), []() { helix::nav::go_back(); });
                         }),
-        lifetime_.bg_cb(
-            "TimelapseInstallOverlay::plugin_absent", [this](const MoonrakerError& /*err*/) {
-                if (!wizard_active_)
-                    return;
-                spdlog::info("[{}] Plugin not detected, showing install instructions", get_name());
-                step_show_install_instructions();
-            }));
+        lifetime_.bg_cb("TimelapseInstallOverlay::plugin_absent",
+                        [this](const MoonrakerError& /*err*/) {
+                            if (!wizard_active_)
+                                return;
+                            spdlog::info("[{}] Plugin not detected", get_name());
+                            step_install_plugin();
+                        }));
 }
 
 // ============================================================================
-// STEP 3: SHOW SSH INSTALL INSTRUCTIONS
+// STEP 3: INSTALL PLUGIN
 // ============================================================================
+
+void TimelapseInstallOverlay::step_install_plugin() {
+    TimelapseSetupFacts facts;
+    facts.plugin_present = false;
+    facts.moonraker_local =
+        get_printer_state().moonraker_locality() == helix::MoonrakerLocality::Local;
+    facts.can_install_locally = !HelixPluginInstaller().get_install_script_path().empty();
+    facts.job_holds = job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
+
+    const TimelapseSetupPath path = decide_timelapse_setup_path(facts);
+    spdlog::info("[{}] Install route: local={} script={} job_holds={} -> {}", get_name(),
+                 facts.moonraker_local, facts.can_install_locally, facts.job_holds,
+                 static_cast<int>(path));
+    switch (path) {
+    case TimelapseSetupPath::AlreadyInstalled:
+        step_configure_moonraker();
+        return;
+    case TimelapseSetupPath::LocalInstall:
+        step_install_locally();
+        return;
+    case TimelapseSetupPath::WaitForJob:
+        set_step(Step::INSTALL_PLUGIN);
+        set_status(lv_tr("Installing restarts Moonraker, so it waits until the print is "
+                         "finished or cancelled."));
+        show_card(Card::None);
+        show_action_button(lv_tr("Check Again"), [this]() { step_check_plugin(); });
+        return;
+    case TimelapseSetupPath::RemoteInstructions:
+        step_show_install_instructions();
+        return;
+    }
+}
 
 void TimelapseInstallOverlay::step_show_install_instructions() {
     set_step(Step::INSTALL_PLUGIN);
     set_status(lv_tr("Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."));
-
-    // Show SSH instructions container
-    if (ssh_container_) {
-        lv_obj_remove_flag(ssh_container_, LV_OBJ_FLAG_HIDDEN);
-    }
-
+    show_card(Card::Ssh);
     show_action_button(lv_tr("Check Again"), [this]() { recheck_after_install(); });
+}
+
+namespace {
+const char* local_install_stage_text(TimelapseInstallStage stage) {
+    switch (stage) {
+    case TimelapseInstallStage::Clone:
+        return lv_tr("Downloading the timelapse plugin...");
+    case TimelapseInstallStage::Link:
+        return lv_tr("Adding the timelapse plugin to Moonraker...");
+    case TimelapseInstallStage::CheckFfmpeg:
+        return lv_tr("Checking for ffmpeg...");
+    case TimelapseInstallStage::InstallFfmpeg:
+        return lv_tr("Installing ffmpeg. This can take several minutes...");
+    }
+    return "";
+}
+
+const char* local_install_failure_text(TimelapseInstallStage stage) {
+    switch (stage) {
+    case TimelapseInstallStage::Clone:
+        return lv_tr("Could not download the timelapse plugin. Check the printer's internet "
+                     "connection.");
+    case TimelapseInstallStage::Link:
+    case TimelapseInstallStage::CheckFfmpeg:
+    case TimelapseInstallStage::InstallFfmpeg:
+        return lv_tr("Could not add the timelapse plugin to Moonraker.");
+    }
+    return "";
+}
+} // namespace
+
+void TimelapseInstallOverlay::step_install_locally() {
+    set_step(Step::INSTALL_PLUGIN);
+    show_card(Card::None);
+    hide_action_button();
+    if (installing_) {
+        return;
+    }
+    installing_ = true;
+    set_status(lv_tr("Installing the timelapse plugin..."));
+
+    const char* home_env = std::getenv("HOME");
+    const std::string home = home_env ? home_env : "";
+    const std::string script = HelixPluginInstaller().get_install_script_path();
+    ProcessRunner runner = timelapse_install_runner();
+
+    // The commands block for as long as git and apt take, so they run off this thread;
+    // each step's progress and the outcome come back here.
+    auto tok = lifetime_.token();
+    helix::http::HttpExecutor::slow().submit([this, tok, home, script, runner]() {
+        const TimelapseInstallPlan plan = make_timelapse_install_plan(home, script);
+        const TimelapseInstallResult result =
+            install_timelapse_locally(plan, runner, [this, tok](TimelapseInstallStage stage) {
+                tok.defer("TimelapseInstallOverlay::local_stage", [this, stage]() {
+                    if (wizard_active_) {
+                        set_status(local_install_stage_text(stage));
+                    }
+                });
+            });
+        tok.defer("TimelapseInstallOverlay::local_done",
+                  [this, result]() { on_local_install_done(result); });
+    });
+}
+
+void TimelapseInstallOverlay::on_local_install_done(const TimelapseInstallResult& result) {
+    installing_ = false;
+    if (!wizard_active_) {
+        return;
+    }
+    if (result.outcome == TimelapseInstallOutcome::Failed) {
+        spdlog::warn("[{}] Local install failed at stage {}: {}", get_name(),
+                     static_cast<int>(result.failed_stage), result.detail);
+        std::string text = local_install_failure_text(result.failed_stage);
+        if (!result.detail.empty()) {
+            text += "\n" + result.detail;
+        }
+        set_status(text.c_str());
+        show_action_button(lv_tr("Retry"), [this]() { step_install_locally(); });
+        return;
+    }
+    ffmpeg_missing_ = result.outcome == TimelapseInstallOutcome::InstalledNoFfmpeg;
+    spdlog::info("[{}] Plugin installed locally (ffmpeg {})", get_name(),
+                 ffmpeg_missing_ ? "missing" : "present");
+    step_configure_moonraker();
 }
 
 // ============================================================================
@@ -261,8 +410,7 @@ void TimelapseInstallOverlay::recheck_after_install() {
     set_step(Step::CHECKING_PLUGIN);
     set_status(lv_tr("Checking for plugin..."));
     hide_action_button();
-    if (ssh_container_)
-        lv_obj_add_flag(ssh_container_, LV_OBJ_FLAG_HIDDEN);
+    show_card(Card::None);
 
     if (!api_)
         return;
@@ -299,8 +447,7 @@ void TimelapseInstallOverlay::step_configure_moonraker() {
     set_step(Step::CONFIGURE_MOONRAKER);
     set_status(lv_tr("Configuring Moonraker..."));
     hide_action_button();
-    if (ssh_container_)
-        lv_obj_add_flag(ssh_container_, LV_OBJ_FLAG_HIDDEN);
+    show_card(Card::None);
 
     download_and_modify_config();
 }
@@ -559,7 +706,14 @@ void TimelapseInstallOverlay::step_verify() {
                             if (!wizard_active_)
                                 return;
                             spdlog::info("[{}] Timelapse plugin verified!", get_name());
-                            set_status(lv_tr("Timelapse plugin installed successfully!"));
+                            if (ffmpeg_missing_) {
+                                set_status(lv_tr("The timelapse plugin is installed. Making "
+                                                 "videos also needs ffmpeg, which HelixScreen "
+                                                 "could not install without a password."));
+                                show_card(Card::Ffmpeg);
+                            } else {
+                                set_status(lv_tr("Timelapse plugin installed successfully!"));
+                            }
                             if (step_progress_) {
                                 ui_step_progress_set_completed(step_progress_,
                                                                static_cast<int>(Step::VERIFY));
