@@ -160,11 +160,33 @@ def test_the_bmcu_tray_front_is_neutral_but_for_its_levers():
 
 def test_the_night_owl_spools_rest_on_the_base_and_share_its_width():
     assert night_owl.UNIT.lanes == 2
+    half = night_owl.SPOOL_R / 0.42 * 0.294 / 2 / night_owl.SCALE
     for xc in night_owl.CENTERS:
-        half = night_owl.SPOOL_R / 0.42 * 0.294 / 2
         assert 0 < xc - half and xc + half < night_owl.W
     touch = math.hypot(night_owl.SPOOL_Y - night_owl.ROLLER_Y, night_owl.SPOOL_Z - night_owl.ROLLER_Z)
-    assert touch == pytest.approx(night_owl.SPOOL_R + night_owl.ROLLER_R)
+    assert touch == pytest.approx(night_owl.LOCAL_R + night_owl.ROLLER_R)
+
+
+@pytest.mark.parametrize("unit", [bmcu, night_owl], ids=["bmcu", "night_owl"])
+def test_a_scaled_unit_draws_the_one_spool_size(unit):
+    assert unit.SPOOL_R == 0.25
+    seen = []
+    real = spool.draw_spool
+    unit.spool.draw_spool = lambda sc, center, radius, *a, **k: seen.append(radius)
+    try:
+        unit.UNIT.draw_art(kit.Scene(kit.ART_CAMERA), ["#ffffff"] * unit.UNIT.lanes, "full")
+    finally:
+        unit.spool.draw_spool = real
+    assert seen == [0.25] * unit.UNIT.lanes
+
+
+def test_a_scaled_scene_scales_lengths_and_strokes():
+    scene = kit.Scene(kit.ART_CAMERA)
+    kit.ScaledScene(scene, 0.5).line([(1.0, 0.0, 0.0), (2.0, 0.0, 0.0)], "#000000", 0.02)
+    direct = kit.Scene(kit.ART_CAMERA)
+    direct.line([(0.5, 0.0, 0.0), (1.0, 0.0, 0.0)], "#000000", 0.01)
+    assert scene.items[0].points == direct.items[0].points
+    assert scene.items[0].stroke_width == direct.items[0].stroke_width
 
 
 def test_generated_shell_table_is_current():

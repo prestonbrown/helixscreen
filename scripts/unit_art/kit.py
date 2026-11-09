@@ -190,6 +190,28 @@ def tray_profile(profile, base_z, px_per_unit):
     return [((y - y0) / (y1 - y0), (z - base_z) * px_per_unit) for y, z in profile]
 
 
+class ScaledScene:
+    """Draws into a scene with every length multiplied by k, so a body keeps its own units."""
+
+    def __init__(self, scene, k):
+        self.scene, self.k, self.camera = scene, k, scene.camera
+
+    def _pts(self, pts):
+        return [tuple(a * self.k for a in p) for p in pts]
+
+    def poly(self, pts3, fill, opacity=1.0, stroke=None, sw=0.0, **kw):
+        self.scene.poly(self._pts(pts3), fill, opacity, stroke, sw * self.k, **kw)
+
+    def line(self, pts3, stroke, sw, opacity=1.0, **kw):
+        self.scene.line(self._pts(pts3), stroke, sw * self.k, opacity, **kw)
+
+    def prism(self, foot, z0, z1, color, **kw):
+        self.scene.prism(self._pts(foot), z0 * self.k, z1 * self.k, color, **kw)
+
+    def extrude_x(self, profile, x0, x1, color, opacity, front):
+        self.scene.extrude_x(self._pts(profile), x0 * self.k, x1 * self.k, color, opacity, front)
+
+
 @dataclass
 class TrayShellDef:
     cheek: List[Tuple[float, float]]

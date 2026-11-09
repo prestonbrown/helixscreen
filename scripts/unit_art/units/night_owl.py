@@ -6,16 +6,21 @@ from pathlib import Path
 from .. import kit, spool
 from ..kit import TrayShellDef, UnitDef
 
+# Lengths are in units of the base width; SCALE turns them into the shared scale where a
+# 200 mm spool has radius 0.25.
+SPOOL_R = 0.25
+LOCAL_R = 0.46
+SCALE = SPOOL_R / LOCAL_R
 W, D = 1.0, 0.92
 FOOT_Z, TOP = 0.045, 0.36
 FRAME, PANEL, DECK, PLATE, RUBBER = "#e9761c", "#26272a", "#d9dbdf", "#232427", "#2e2f33"
 CENTERS = [0.26, 0.74]
-SPOOL_Y, SPOOL_R = 0.52, 0.46
+SPOOL_Y = 0.52
 ROLLER_Y, ROLLER_R = 0.2, 0.085
 ROLLER_Z = TOP + 0.06
-SPOOL_Z = ROLLER_Z + math.sqrt((SPOOL_R + ROLLER_R) ** 2 - (SPOOL_Y - ROLLER_Y) ** 2)
+SPOOL_Z = ROLLER_Z + math.sqrt((LOCAL_R + ROLLER_R) ** 2 - (SPOOL_Y - ROLLER_Y) ** 2)
 REAR_Y = 0.82
-TRAY_PX_PER_UNIT = 46.2 / SPOOL_R
+TRAY_PX_PER_UNIT = 46.2 / LOCAL_R
 _REPO = Path(__file__).resolve().parents[3]
 
 
@@ -39,7 +44,8 @@ def _roller(sc, x0, x1, y, z, r, color, flange):
         sc.poly([(xb, a, b) for a, b in edge], kit.shift(flange, 18))
 
 
-def draw_art(sc, colors, tier):
+def draw_art(scene, colors, tier):
+    sc = kit.ScaledScene(scene, SCALE)
     detail = tier == "full"
     thick = 1 if detail else 3
     c = spool.spool_constants(_REPO)
@@ -51,9 +57,9 @@ def draw_art(sc, colors, tier):
     sc.poly([(0.015, y, z) for y, z in plate], kit.shade(cam, PLATE, (1, 0, 0), amb=0.8, dif=0.4, spec=0))
     _roller(sc, 0.1, 0.9, REAR_Y, TOP + 0.09, 0.05, FRAME, FRAME)
     for lane, (xc, col) in enumerate(zip(CENTERS, colors)):
-        spool.draw_spool(sc, (xc, SPOOL_Y, SPOOL_Z), SPOOL_R, col, c, lane, detail=detail)
+        spool.draw_spool(scene, (xc * SCALE, SPOOL_Y * SCALE, SPOOL_Z * SCALE), SPOOL_R, col, c, lane, detail=detail)
 
-    sc.layer = "front"
+    scene.layer = "front"
     for cx, cy in ((0.06, 0.06), (W - 0.06, 0.06)):
         pad = [(cx - 0.05, cy - 0.05), (cx - 0.05, cy + 0.05), (cx + 0.05, cy + 0.05), (cx + 0.05, cy - 0.05)][::-1]
         sc.prism(pad, 0.0, FOOT_Z, "#101112", amb=0.9, dif=0.4, spec=0)

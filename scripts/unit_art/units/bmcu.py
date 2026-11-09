@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """BMCU: four narrow feeder modules side by side, neutral but for a dark blue lever on each.
 
-The real unit holds no spools. They stand behind it here so each lane still shows its filament.
+The real unit holds no spools. They stand on the floor behind it, spread wider than the
+narrow body, so each lane still shows its filament. Body lengths below are in units of the
+body width; SCALE turns them into the shared scale where a 200 mm spool has radius 0.25.
 """
 import math
 from pathlib import Path
@@ -16,8 +18,13 @@ STEP_Z0, STEP_Z1 = 0.36, 0.5
 BODY, SHADOW, SEAM = "#c9cbcf", "#7b7d81", "#55575a"
 LEVER = "#173a6e"
 CENTERS = [0.125, 0.375, 0.625, 0.875]
-SPOOL_Y, SPOOL_R = 0.36, 0.19
-SPOOL_Z = H + 0.06
+SPOOL_R = 0.25
+# About 120 mm wide, read off the photos against its push-fit fittings.
+SCALE = 0.3
+SPOOL_PITCH = 0.2
+SPOOL_CENTERS = [SCALE / 2 + (i - 1.5) * SPOOL_PITCH for i in range(4)]
+SPOOL_Y = SCALE * D + SPOOL_R + 0.02
+SPOOL_Z = SPOOL_R
 LEVER_HALF, LEVER_Z0, LEVER_Z1 = 0.075, 0.2, 0.56
 _REPO = Path(__file__).resolve().parents[3]
 
@@ -55,16 +62,18 @@ def _fitting(sc, xc):
     sc.poly([(x0, y0, H + 0.07), (x1, y0, H + 0.07), (x1, y1, H + 0.07), (x0, y1, H + 0.07)], "#3a3b3d")
 
 
-def draw_art(sc, colors, tier):
+def draw_art(scene, colors, tier):
+    sc = kit.ScaledScene(scene, SCALE)
     detail = tier == "full"
     thick = 1 if detail else 3
     c = spool.spool_constants(_REPO)
     cam = sc.camera
-    sc.poly([(0.0, 0.0, 0), (W + 0.03, 0.0, 0), (W + 0.03, D + 0.03, 0), (0, D + 0.03, 0)], "#000", 0.5, blur=True)
-    for lane, (xc, col) in enumerate(zip(CENTERS, colors)):
-        spool.draw_spool(sc, (xc, SPOOL_Y, SPOOL_Z), SPOOL_R, col, c, lane, detail=detail)
+    x0, x1 = SPOOL_CENTERS[0] - 0.12, SPOOL_CENTERS[-1] + 0.12
+    scene.poly([(x0, 0.0, 0), (x1, 0.0, 0), (x1, SPOOL_Y + 0.2, 0), (x0, SPOOL_Y + 0.2, 0)], "#000", 0.5, blur=True)
+    for lane, (xc, col) in enumerate(zip(SPOOL_CENTERS, colors)):
+        spool.draw_spool(scene, (xc, SPOOL_Y, SPOOL_Z), SPOOL_R, col, c, lane, detail=detail)
 
-    sc.layer = "front"
+    scene.layer = "front"
     for xc in CENTERS:
         _foot(sc, xc)
     side = kit.shade(cam, BODY, (1, 0, 0), amb=0.68, dif=0.5, spec=0)
