@@ -90,11 +90,6 @@ TEST_CASE("unit shell: a variable unit keeps its shell at every lane count", "[a
     CHECK(unit_shell_for(info, 0)->built_in_selector);
 }
 
-TEST_CASE("unit shell: an HTLF's instance name cannot pick another unit", "[ams][unit-art]") {
-    CHECK(unit_shell_for(one_unit(AmsType::AFC, "HTLF vivid_1"), 0) ==
-          helix::ui::tray::unit_shell_by_id("htlf"));
-}
-
 TEST_CASE("unit shell: unidentified hardware keeps the generic tray", "[ams][unit-art]") {
     CHECK(unit_shell_for(one_unit(AmsType::HAPPY_HARE, "MMU"), 0) == nullptr);
     CHECK(unit_shell_for(one_unit(AmsType::ACE, "ACE 1"), 5) == nullptr);
@@ -120,6 +115,7 @@ TEST_CASE("unit shell: feeders resolve from what their backends report", "[ams][
     // AFC names read "<type> <instance>": only the type token identifies an HTLF.
     CHECK(id(AmsType::AFC, "Claymore HTLF_claymore_1") == "none");
     CHECK(id(AmsType::AFC, "Box_Turtle my_htlf") == "box_turtle");
+    CHECK(id(AmsType::AFC, "HTLF vivid_1") == "htlf");
     CHECK(id(AmsType::HAPPY_HARE, "MMX") == "mmx");
     CHECK(id(AmsType::HAPPY_HARE, "3MS") == "3ms");
     // The Canvas is drawn, but no backend reports one.
