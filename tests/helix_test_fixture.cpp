@@ -34,6 +34,7 @@
 #include "macro_param_cache.h"
 #include "panel_widget_manager.h"
 #include "pending_startup_warnings.h"
+#include "post_op_cooldown_manager.h"
 #include "rpc_error_correlation.h"
 #include "runtime_config.h"
 #include "safety_settings_manager.h"
@@ -714,6 +715,11 @@ void HelixTestFixture::reset_all() {
     // clear it. A motion sensor left enabled turns the clog meter on for every
     // later test that syncs a snapshot with no backend detector.
     helix::FilamentSensorManagerTestAccess::clear_sensors(helix::FilamentSensorManager::instance());
+
+    // A pending post-op cooldown holds a HeaterHold, which every later case would
+    // read as SIGTERM's graceful path. After the drains, so no queued schedule()
+    // re-arms it. Cases that schedule cooldowns init() the manager themselves.
+    PostOpCooldownManager::instance().shutdown();
 
     // NOTE: NavigationManager has no public reset API (clear_overlay_stack is
     // private; shutdown() is a one-way teardown for app exit). Add a reset
