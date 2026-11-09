@@ -391,6 +391,8 @@ TEST_CASE_METHOD(XMLTestFixture, "A running dry shows its phase and time left",
 
 TEST_CASE_METHOD(XMLTestFixture, "The overlay pictures the unit it shows, and nothing without one",
                  "[ams][dryer][overlay]") {
+    // Live AmsState subjects make the overlay's observers refresh it, as in the app.
+    AmsState::instance().init_subjects(true);
     reset_overlay_singleton();
     auto* backend = show_overlay_with(false);
 
@@ -405,10 +407,11 @@ TEST_CASE_METHOD(XMLTestFixture, "The overlay pictures the unit it shows, and no
     CHECK(subject_int("ams_env_overlay_unit_logo_color") == (art.color ? 1 : 0));
     CHECK(subject_int("ams_env_overlay_unit_logo_visible") == 1);
 
+    // A refresh refills an empty zone set from any backend, so "no unit" means none at all.
+    AmsState::instance().set_backend(nullptr);
     get_ams_environment_overlay().show_zone(lv_screen_active(), {}, 0, false);
     helix::ui::UpdateQueue::instance().drain();
     CHECK(subject_int("ams_env_overlay_unit_logo_visible") == 0);
 
     reset_overlay_singleton();
-    AmsState::instance().set_backend(nullptr);
 }
