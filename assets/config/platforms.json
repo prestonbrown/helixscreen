@@ -34,7 +34,12 @@
       "",
       "src/system/prerender_size_class.cpp is the compiled implementation and",
       "scripts/platform_manifest.py the build-time one; tests/unit/test_prerender_size_class.cpp",
-      "asserts both agree with these rules and that the thresholds still match ui_breakpoint.h."
+      "asserts both agree with these rules and that the thresholds still match ui_breakpoint.h.",
+      "",
+      "Every class above is a landscape canvas. A panel taller than it is wide first tries",
+      "splash_portrait, largest first, and takes the first canvas that fits it on both axes; with",
+      "none that fits it keeps its tier class. Only packages for a panel set at runtime (pi, pi32,",
+      "x86) carry the portrait canvases: every fixed panel is landscape once rotated."
     ],
     "splash": [
       {
@@ -73,7 +78,10 @@
       "medium": 480,
       "large": 600,
       "xlarge": 720,
-      "ultrawide": 440
+      "ultrawide": 440,
+      "medium-portrait": 800,
+      "large-portrait": 1024,
+      "xlarge-portrait": 1280
     },
     "splash_composite_width": {
       "micro": 480,
@@ -82,8 +90,16 @@
       "medium": 800,
       "large": 1024,
       "xlarge": 1280,
-      "ultrawide": 1920
+      "ultrawide": 1920,
+      "medium-portrait": 480,
+      "large-portrait": 600,
+      "xlarge-portrait": 720
     },
+    "splash_portrait": [
+      "xlarge-portrait",
+      "large-portrait",
+      "medium-portrait"
+    ],
     "splash_2d_logo_classes": [
       "tiny",
       "medium",

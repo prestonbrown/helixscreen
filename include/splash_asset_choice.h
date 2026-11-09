@@ -24,6 +24,7 @@
  *
  * The ladder, in order:
  *
+ * 0. on a portrait panel, the largest portrait canvas that fits, when present
  * 1. the full-screen canvas for the panel's size class
  * 2. the `tiny` canvas, when a `small` panel has none of its own
  * 3. neither, if the canvas found is wider or taller than the panel

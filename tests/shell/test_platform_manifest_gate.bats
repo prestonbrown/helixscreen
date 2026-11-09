@@ -565,7 +565,7 @@ print(' '.join(pm.splash_3d_classes_for(m, 'mips')), pm.printer_image_sizes_for(
 import json, re, sys
 src = open("scripts/gen_splash_3d.py").read()
 block = re.search(r"SCREEN_SIZES = \[(.*?)\]", src, re.S).group(1)
-gen = {m[0]: (int(m[1]), int(m[2])) for m in re.findall(r'\("([a-z_]+)",\s*(\d+),\s*(\d+),', block)}
+gen = {m[0]: (int(m[1]), int(m[2])) for m in re.findall(r'\("([a-z_-]+)",\s*(\d+),\s*(\d+),', block)}
 classes = json.load(open("assets/config/platforms.json"))["size_classes"]
 widths = classes["splash_composite_width"]
 heights = classes["splash_composite_height"]
@@ -600,7 +600,7 @@ EOF
 import re
 src = open('scripts/gen_splash_3d.py').read()
 block = re.search(r'SCREEN_SIZES = \[(.*?)\]', src, re.S).group(1)
-print(' '.join(re.findall(r'\(\"([a-z_]+)\",', block)))")"
+print(' '.join(re.findall(r'\(\"([a-z_-]+)\",', block)))")"
     for p in $output; do
         run python3 "$DERIVE" splash-3d-sizes "$p"
         for cls in $output; do

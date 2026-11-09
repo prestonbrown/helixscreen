@@ -285,3 +285,74 @@ TEST_CASE("every class a real panel selects resolves to a canvas name", "[splash
         REQUIRE_FALSE(c.canvas_does_not_fit);
     }
 }
+
+TEST_CASE("a portrait panel takes its portrait canvas", "[splash][assets]") {
+    struct Portrait {
+        int w, h;
+        const char* tier;
+        const char* portrait;
+    };
+    const Portrait panels[] = {
+        {480, 800, "medium", "medium-portrait"},
+        {600, 1024, "large", "large-portrait"},
+        {720, 1280, "xlarge", "xlarge-portrait"},
+    };
+
+    for (const Portrait& p : panels) {
+        INFO(p.w << "x" << p.h);
+        // A Pi package carries both shapes; the portrait one is the one that fits.
+        FakeAssets fs({canvas("dark", p.tier), canvas("dark", p.portrait), kPng3dDark});
+        const SplashChoice c = choose_splash_asset(p.w, p.h, true, fs.resolver());
+
+        REQUIRE(c.kind == SplashAssetKind::FullScreen3DBin);
+        REQUIRE(c.size_class == p.portrait);
+        REQUIRE(c.path == "A:" + canvas("dark", p.portrait));
+        REQUIRE_FALSE(c.canvas_does_not_fit);
+        REQUIRE(fs.asked().size() == 1);
+    }
+
+    SECTION("light mode asks for the light portrait canvas") {
+        FakeAssets fs({canvas("light", "medium-portrait")});
+        const SplashChoice c = choose_splash_asset(480, 800, false, fs.resolver());
+        REQUIRE(c.kind == SplashAssetKind::FullScreen3DBin);
+        REQUIRE(c.path == "A:" + canvas("light", "medium-portrait"));
+    }
+
+    SECTION("a larger portrait panel takes the largest canvas that fits") {
+        FakeAssets fs({canvas("dark", "medium-portrait"), canvas("dark", "large-portrait")});
+        const SplashChoice c = choose_splash_asset(600, 960, true, fs.resolver());
+        REQUIRE(c.size_class == "medium-portrait");
+        REQUIRE(c.kind == SplashAssetKind::FullScreen3DBin);
+    }
+
+    SECTION("a package without portrait canvases falls back as before") {
+        FakeAssets fs({canvas("dark", "medium"), kPng3dDark});
+        const SplashChoice c = choose_splash_asset(480, 800, true, fs.resolver());
+        REQUIRE(c.size_class == "medium");
+        REQUIRE(c.canvas_does_not_fit);
+        REQUIRE(c.kind == SplashAssetKind::Source3DPng);
+    }
+}
+
+TEST_CASE("a landscape panel never asks for a portrait canvas", "[splash][assets]") {
+    // Portrait canvases sit in the same directory on a Pi. A landscape panel must
+    // take its own canvas exactly as it would without them.
+    const std::set<std::string> everything = {
+        canvas("dark", "medium"),         canvas("dark", "large"),
+        canvas("dark", "xlarge"),         canvas("dark", "medium-portrait"),
+        canvas("dark", "large-portrait"), canvas("dark", "xlarge-portrait"),
+    };
+    struct Landscape {
+        int w, h;
+        const char* cls;
+    };
+    const Landscape panels[] = {
+        {800, 480, "medium"}, {1024, 600, "large"}, {1280, 720, "xlarge"}, {700, 700, "large"}};
+    for (const Landscape& p : panels) {
+        INFO(p.w << "x" << p.h);
+        FakeAssets fs(everything);
+        const SplashChoice c = choose_splash_asset(p.w, p.h, true, fs.resolver());
+        REQUIRE(c.size_class == p.cls);
+        REQUIRE(fs.asked().front() == canvas("dark", p.cls));
+    }
+}
