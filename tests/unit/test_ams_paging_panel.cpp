@@ -1315,7 +1315,7 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with art is the art, not 
     CHECK(in_unit_view());
 }
 
-TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with no art keeps its card",
+TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with no art is a tile of bars",
                  "[ams][overview-tiles]") {
     install([](PagedFleet& f) {
         art_fleet(f, 2);
@@ -1328,13 +1328,13 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with no art keeps its car
     REQUIRE(tiles.size() == 2);
     lv_obj_t* plain = units[0] == 1 ? tiles[0] : tiles[1];
     CHECK(lv_obj_find_by_name(plain, "unit_art") == nullptr);
-    CHECK(lv_obj_get_style_bg_opa(plain, LV_PART_MAIN) == LV_OPA_COVER);
-    CHECK(lv_obj_get_style_border_width(plain, LV_PART_MAIN) == 1);
+    CHECK(lv_obj_get_style_bg_opa(plain, LV_PART_MAIN) == LV_OPA_TRANSP);
+    CHECK(lv_obj_get_style_border_width(plain, LV_PART_MAIN) == 0);
     lv_obj_t* bars = lv_obj_find_by_name(plain, "bars_container");
     REQUIRE(bars != nullptr);
     CHECK(lv_obj_get_child_count(bars) == kNoArtLanes);
-    CHECK(lv_obj_find_by_name(plain, "unit_logo") != nullptr);
-    CHECK(lv_obj_find_by_name(plain, "slot_count") != nullptr);
+    CHECK(lv_obj_find_by_name(plain, "unit_logo") == nullptr);
+    CHECK(lv_obj_find_by_name(plain, "slot_count") == nullptr);
 }
 
 TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit that gains art becomes a tile",

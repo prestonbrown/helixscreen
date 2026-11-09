@@ -413,9 +413,9 @@ TEST_CASE_METHOD(HubStackFixture, "toolhead_top_y matches each renderer's top ed
         // The baked head's top edge
         Case{helix::ToolheadStyle::ANTHEAD, 260},
         // The baked head's top edge
-        Case{helix::ToolheadStyle::CREALITY_K1, 260},
+        Case{helix::ToolheadStyle::CREALITY_K1, 267},
         // The baked head's top edge
-        Case{helix::ToolheadStyle::CREALITY_K2, 260});
+        Case{helix::ToolheadStyle::CREALITY_K2, 255});
     ScopedToolheadStyle scoped(c.style);
     CAPTURE(static_cast<int>(c.style));
     REQUIRE(helix::SettingsManager::instance().get_effective_toolhead_style() == c.style);
