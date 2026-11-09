@@ -137,6 +137,16 @@ void CalibrationOwnedHeat::before_disconnect() {
     }
 }
 
+void CalibrationOwnedHeat::release(const std::string& heater) {
+    entries_.erase(std::remove_if(entries_.begin(), entries_.end(),
+                                  [&](const Entry& e) { return e.heater == heater; }),
+                   entries_.end());
+    if (std::none_of(entries_.begin(), entries_.end(), [](const Entry& e) { return e.owed; })) {
+        stop_waiting();
+    }
+    update_hold();
+}
+
 void CalibrationOwnedHeat::forget() {
     entries_.clear();
     stop_waiting();

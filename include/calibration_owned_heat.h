@@ -57,6 +57,8 @@ class CalibrationOwnedHeat {
     void turn_off();
     /// Last chance while the client can send. Afterwards nothing is owned.
     void before_disconnect();
+    /// Give one heater back as it is, with no off now or later.
+    void release(const std::string& heater);
     /// Drop everything unsent, for when the printer has already cleared its heaters.
     void forget();
     /// Send what is owed if the link is up; otherwise it stays owed.

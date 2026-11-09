@@ -554,6 +554,32 @@ TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its he
         CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
     }
 
+    SECTION("leaving for another view gives the heat back") {
+        client.clear_gcode_script_history();
+        panel->on_deactivating(DeactivateReason::NavigateAway);
+        drain();
+        CHECK(any_sent(sent(), kNozzleOff));
+        CHECK(any_sent(sent(), kBedOff));
+        CHECK_FALSE(any_sent(sent(), "G28"));
+        CHECK_FALSE(heat().held());
+    }
+
+    SECTION("a hot-reload gives the heat back") {
+        client.clear_gcode_script_history();
+        panel->on_deactivating(DeactivateReason::Rebuild);
+        drain();
+        CHECK(any_sent(sent(), kBedOff));
+        CHECK_FALSE(heat().held());
+    }
+
+    SECTION("the screensaver keeps the heat") {
+        client.clear_gcode_script_history();
+        panel->on_deactivating(DeactivateReason::Suspended);
+        drain();
+        CHECK_FALSE(any_sent(sent(), kBedOff));
+        CHECK(heat().held());
+    }
+
     SECTION("destroying the panel releases") {
         panel.reset();
         CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
@@ -576,6 +602,29 @@ TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its he
         CHECK(any_sent(sent(), kBedOff));
         CHECK_FALSE(heat().held());
     }
+}
+
+TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a mesh wrapper's own target is still this run's heat",
+                 "[bed_mesh_flow][heater_hold]") {
+    use_printer("");
+    ScopedTemperatureController heaters(get_printer_state(), &api);
+    set_nozzle(0.0);
+    set_bed(24.0, 0.0);
+    BedMeshPanel panel;
+    panel.set_api(&api);
+    panel.init_subjects();
+    client.force_next_gcode_dropped_response("BED_MESH_CALIBRATE");
+    calibrate_as(panel, "default");
+    REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
+    REQUIRE(panel.holds_owned_heat());
+
+    set_bed(24.0, 70.0);
+    client.clear_gcode_script_history();
+    panel.on_calibration_error("probe failed");
+    drain();
+
+    CHECK(any_sent(sent(), kBedOff));
+    CHECK_FALSE(panel.holds_owned_heat());
 }
 
 TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a finished mesh holds nothing for its heat",

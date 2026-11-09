@@ -290,9 +290,7 @@ void PACalibrationPanel::on_deactivating(DeactivateReason reason) {
 }
 
 void PACalibrationPanel::before_disconnect() {
-    flush_owed_off();
-    owed_off_.reset();
-    connection_observer_.reset();
+    heat_.before_disconnect();
     if (state_ != HEATING && state_ != MEASURING) {
         cancel_run_timer();
         return;
@@ -303,30 +301,11 @@ void PACalibrationPanel::before_disconnect() {
         pa_cancel_ = nullptr;
     }
     spdlog::info("[{}] Disconnecting mid-run", get_name());
-    abandon_run_heat();
-    owed_off_.reset();
     set_state(IDLE);
     lv_subject_set_int(&progress_, 0);
 }
 
-bool PACalibrationPanel::printer_connected() const {
-    return lv_subject_get_int(
-               get_printer_state().network_state().get_printer_connection_state_subject()) ==
-           static_cast<int>(helix::ConnectionState::CONNECTED);
-}
-
-void PACalibrationPanel::send_off_unless_taken(const std::string& heater, int expected_c) {
-    auto& state = get_printer_state();
-    lv_subject_t* target = state.temperature_state().get_extruder_target_subject(heater);
-    const int live_target_c =
-        target ? helix::ui::temperature::deci_to_degrees(lv_subject_get_int(target)) : 0;
-    // A live target of 0 is this run's own send, not yet reported back.
-    const bool retargeted = expected_c != 0 && live_target_c != 0 && live_target_c != expected_c;
-    if (retargeted || job_holds_machine(state.print_state().get_print_lifecycle())) {
-        spdlog::info("[{}] Leaving {} on: it is no longer this run's", get_name(), heater);
-        return;
-    }
-    spdlog::info("[{}] Turning {} off", get_name(), heater);
+void PACalibrationPanel::send_heater_off(const std::string& heater) {
     if (auto* controller = get_temperature_controller()) {
         controller->set_target(heater, 0.0, {.toast = false});
     }
@@ -334,52 +313,14 @@ void PACalibrationPanel::send_off_unless_taken(const std::string& heater, int ex
 
 void PACalibrationPanel::abandon_run_heat() {
     if (prior_target_c_ != 0) {
+        heat_.release(selected_heater());
         return;
     }
-    const std::string heater = selected_heater();
-    // During a measurement the firmware command may set a target of its own, and
-    // Klipper runs gcode scripts one at a time: no other client's target can land
-    // before the command ends, and this off waits behind it too, so it cannot cool
-    // the nozzle under the firmware.
-    const int expected_c = state_ == HEATING ? target_temp_ : 0;
-    if (!printer_connected()) {
-        spdlog::info("[{}] Link is down: {} goes off on reconnect", get_name(), heater);
-        owed_off_ = OwedOff{heater, expected_c};
-        cancel_run_timer();
-        watch_connection();
-        return;
-    }
-    send_off_unless_taken(heater, expected_c);
+    heat_.turn_off();
 }
 
 void PACalibrationPanel::finish_run_heat() {
-    if (prior_target_c_ == 0) {
-        abandon_run_heat();
-    } else if (auto* controller = get_temperature_controller()) {
-        controller->set_target(selected_heater(), 0.0);
-    }
-}
-
-void PACalibrationPanel::watch_connection() {
-    auto& state = get_printer_state();
-    connection_observer_ = helix::ui::observe<int>(
-        state.network_state().get_printer_connection_state_subject(), this,
-        [](PACalibrationPanel* self, int) {
-            // The first status after a reconnect is what shows a job or a new target.
-            if (self->owed_off_ && self->printer_connected() && !self->run_timer_) {
-                self->arm_run_timer(kOwedOffSettleMs);
-            }
-        },
-        state.get_subjects_lifetime());
-}
-
-void PACalibrationPanel::flush_owed_off() {
-    if (!owed_off_ || !printer_connected()) {
-        return;
-    }
-    const OwedOff owed = *owed_off_;
-    owed_off_.reset();
-    send_off_unless_taken(owed.heater, owed.expected_c);
+    heat_.turn_off();
 }
 
 void PACalibrationPanel::cleanup() {
@@ -475,8 +416,7 @@ void PACalibrationPanel::set_state(State s) {
     state_ = s;
     lv_subject_set_int(&state_subject_, static_cast<int>(s));
     const bool running = s == HEATING || s == MEASURING;
-    heater_hold_.set(running && prior_target_c_ == 0);
-    if (!running && !owed_off_) {
+    if (!running) {
         cancel_run_timer();
     }
 
@@ -582,15 +522,14 @@ void PACalibrationPanel::begin_run() {
     }
     const std::string heater = selected_heater();
     // An off still owed on this heater means its live target is an earlier run's.
-    const bool inherited_own_heat = owed_off_ && owed_off_->heater == heater;
-    flush_owed_off();
-    owed_off_.reset();
+    const bool inherited_own_heat = heat_.owes_off(heater);
     lv_subject_t* prior_target =
         get_printer_state().temperature_state().get_extruder_target_subject(heater);
     prior_target_c_ =
         prior_target && !inherited_own_heat
             ? helix::ui::temperature::deci_to_degrees(lv_subject_get_int(prior_target))
             : 0;
+    heat_.own(heater, target_temp_, /*hold=*/prior_target_c_ == 0);
     controller->set_target(heater, static_cast<double>(target_temp_));
 
     set_state(HEATING);
@@ -611,6 +550,11 @@ void PACalibrationPanel::begin_measure() {
         return;
     }
     attempts_expected_ = proc->expected_attempts;
+
+    // The firmware command may set a target of its own from here on. Klipper runs
+    // one command at a time, so no other client's target can land before it ends
+    // and an off waits behind it instead of cooling the nozzle under the firmware.
+    heat_.own(selected_heater(), 0);
 
     set_state(MEASURING);
     arm_run_timer(static_cast<uint32_t>(proc->timeout_ms) + kMeasureDeadlineGraceMs);
@@ -831,10 +775,6 @@ void PACalibrationPanel::on_run_timer(lv_timer_t* timer) {
 
 void PACalibrationPanel::handle_run_timer() {
     cancel_run_timer();
-    if (owed_off_) {
-        flush_owed_off();
-        return;
-    }
     if (state_ != HEATING && state_ != MEASURING) {
         return;
     }

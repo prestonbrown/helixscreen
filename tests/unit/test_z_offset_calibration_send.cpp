@@ -906,6 +906,37 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration warm-up holds SIGTERM for 
         CHECK_FALSE(heat.held());
     }
 
+    SECTION("a timed-out probe clears the bed while the panel stays open") {
+        ZOffsetCalibrationTestAccess::set_state(*panel, ZOffsetCalibrationPanel::State::PROBING);
+        client.clear_gcode_script_history();
+        ZOffsetCalibrationTestAccess::set_state(*panel, ZOffsetCalibrationPanel::State::ERROR);
+        CHECK(sent_off(client));
+        CHECK_FALSE(heat.held());
+    }
+
+    SECTION("a manual probe ended elsewhere clears the bed") {
+        ZOffsetCalibrationTestAccess::set_state(*panel, ZOffsetCalibrationPanel::State::ADJUSTING);
+        client.clear_gcode_script_history();
+        ZOffsetCalibrationTestAccess::set_state(*panel, ZOffsetCalibrationPanel::State::IDLE);
+        CHECK(sent_off(client));
+        CHECK_FALSE(heat.held());
+    }
+
+    SECTION("a failed result clears the bed") {
+        ZOffsetCalibrationTestAccess::set_state(*panel, ZOffsetCalibrationPanel::State::SAVING);
+        client.clear_gcode_script_history();
+        ZOffsetCalibrationTestAccess::on_calibration_result(*panel, false);
+        CHECK(sent_off(client));
+        CHECK_FALSE(heat.held());
+    }
+
+    SECTION("moving on to probing keeps the bed") {
+        client.clear_gcode_script_history();
+        ZOffsetCalibrationTestAccess::set_state(*panel, ZOffsetCalibrationPanel::State::PROBING);
+        CHECK_FALSE(sent_off(client));
+        CHECK(heat.held());
+    }
+
     SECTION("a normal off releases") {
         client.clear_gcode_script_history();
         ZOffsetCalibrationTestAccess::turn_off_bed(*panel);

@@ -627,8 +627,15 @@ void BedMeshPanel::ensure_async_rendering() {
     ui_bed_mesh_redraw(canvas_);
 }
 
-void BedMeshPanel::on_deactivating(DeactivateReason) {
+void BedMeshPanel::on_deactivating(DeactivateReason reason) {
     spdlog::debug("[{}] on_deactivating()", get_name());
+
+    // Anything but Suspended invalidates the callbacks that would end this run,
+    // so its heat is given back here. Klipper runs gcode one at a time: the offs
+    // wait behind a probe or heat wait already running.
+    if (reason != DeactivateReason::Suspended) {
+        cooldown_after_probing();
+    }
 
     // Stop the render thread when panel is not visible to avoid wasting CPU
     if (canvas_) {
@@ -1229,6 +1236,14 @@ void BedMeshPanel::start_calibration_probing() {
     }
 
     lv_subject_copy_string(&bed_mesh_probe_text_, lv_tr("Preparing..."));
+
+    // A wrapper around BED_MESH_CALIBRATE may set targets of its own from here on.
+    const std::string nozzle = get_printer_state().temperature_state().active_extruder_name();
+    for (const std::string& heater : {nozzle, std::string(kBedHeater)}) {
+        if (heat_.owns(heater)) {
+            heat_.own(heater, 0);
+        }
+    }
 
     auto token = lifetime_.token();
 

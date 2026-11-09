@@ -296,7 +296,7 @@ void ZOffsetCalibrationPanel::on_deactivating(DeactivateReason reason) {
     if (state_ == State::ADJUSTING || state_ == State::PROBING) {
         if (reason == DeactivateReason::NavigateAway) {
             spdlog::info("[ZOffsetCal] Aborting calibration on deactivate");
-            send_abort(); // send_abort() calls turn_off_bed_if_needed()
+            send_abort(); // Ends in IDLE, which turns the bed off
         } else {
             spdlog::info("[ZOffsetCal] Leaving calibration running ({})",
                          deactivate_reason_name(reason));
@@ -357,13 +357,14 @@ void ZOffsetCalibrationPanel::set_state(State new_state) {
     state_ = new_state;
     if (new_state == State::IDLE || new_state == State::COMPLETE || new_state == State::ERROR) {
         latched_strategy_.reset();
+        // Every way a run ends lands here, and the panel can stay open afterwards.
+        turn_off_bed_if_needed();
     }
 
     // Manage operation timeout guard based on state transitions
     switch (new_state) {
     case State::WARMING:
         operation_guard_.begin(kWarmingTimeoutMs, [this] {
-            turn_off_bed_if_needed();
             set_state(State::ERROR);
             NOTIFY_WARNING(lv_tr("Bed warming timed out"));
         });
@@ -948,7 +949,6 @@ void ZOffsetCalibrationPanel::send_abort() {
     // If warming, just cancel heating — no calibration gcode was sent yet
     if (state_ == State::WARMING) {
         spdlog::info("[ZOffsetCal] Aborting during bed warming");
-        turn_off_bed_if_needed();
         set_state(State::IDLE);
         return;
     }
@@ -970,7 +970,6 @@ void ZOffsetCalibrationPanel::send_abort() {
         send_manual_probe_abort();
     }
 
-    turn_off_bed_if_needed();
     set_state(State::IDLE);
 }
 
@@ -1107,7 +1106,6 @@ void ZOffsetCalibrationPanel::on_calibration_result(bool success, const std::str
                 fmt::format(lv_tr("Accepted Z Position: {:.3f}"), final_offset_);
             lv_label_set_text(final_offset_label_, accepted.c_str());
         }
-        turn_off_bed_if_needed();
         set_state(State::COMPLETE);
     } else {
         if (error_message_) {

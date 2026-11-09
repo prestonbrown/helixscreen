@@ -94,6 +94,17 @@ TEST_CASE_METHOD(OwnedHeatFixture, "owned heat holds only what it will clear", "
         CHECK(offs.size() == 1);
     }
 
+    SECTION("releasing one heater leaves the other owned") {
+        heat.own("heater_bed", 60);
+        heat.own("extruder", 200);
+        heat.release("heater_bed");
+        CHECK_FALSE(heat.owns("heater_bed"));
+        CHECK(heat.owns("extruder"));
+        CHECK(heat.held());
+        heat.turn_off();
+        CHECK(offs == std::vector<std::string>{"extruder"});
+    }
+
     SECTION("forgetting drops the heat without a send") {
         heat.own("heater_bed", 60);
         heat.forget();

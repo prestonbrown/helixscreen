@@ -391,12 +391,68 @@ TEST_CASE_METHOD(PAHeaterFixture, "PA calibration: leaving with the link down ow
     REQUIRE(panel().run_timer_for_test() == nullptr);
 
     set_link(true);
-    REQUIRE(panel().run_timer_for_test() != nullptr);
+    REQUIRE(panel().owed_off_settling_for_test());
     CHECK_FALSE(heater_off_sent()); // waits for the printer's fresh status
 
-    panel().fire_run_timer_for_test();
+    panel().flush_owed_off_for_test();
     CHECK(heater_off_sent());
-    CHECK(panel().run_timer_for_test() == nullptr);
+    CHECK_FALSE(panel().owed_off_settling_for_test());
+}
+
+TEST_CASE_METHOD(PAHeaterFixture, "PA calibration: SIGTERM stays held while an off is settling",
+                 "[pa_cal][walkaway][sigterm]") {
+    begin_heating();
+    panel().set_state_for_test(PACalibrationPanel::MEASURING);
+    set_link(false);
+    panel().on_deactivating(DeactivateReason::NavigateAway);
+
+    set_link(true);
+    REQUIRE(panel().owed_off_settling_for_test());
+    CHECK(panel().heater_held_for_test());
+
+    panel().flush_owed_off_for_test();
+    CHECK_FALSE(panel().heater_held_for_test());
+}
+
+TEST_CASE_METHOD(PAHeaterFixture, "PA calibration: the end of a run on a preheat is guarded",
+                 "[pa_cal][walkaway]") {
+    feed_nozzle(120, 200);
+    panel().begin_run_for_test();
+    REQUIRE(panel().get_state() == PACalibrationPanel::HEATING);
+    feed_nozzle(120, run_target());
+
+    SECTION("a plain result clears the nozzle") {
+        panel().set_state_for_test(PACalibrationPanel::MEASURING);
+        client_.clear_gcode_script_history();
+        panel().on_result_for_test(0.04f);
+        CHECK(heater_off_sent());
+    }
+    SECTION("a job that started keeps it on a result") {
+        panel().set_state_for_test(PACalibrationPanel::MEASURING);
+        set_print_state("printing");
+        client_.clear_gcode_script_history();
+        panel().on_result_for_test(0.04f);
+        CHECK_FALSE(heater_off_sent());
+    }
+    SECTION("a job that started keeps it on an error") {
+        panel().set_state_for_test(PACalibrationPanel::MEASURING);
+        set_print_state("printing");
+        client_.clear_gcode_script_history();
+        panel().on_error_for_test("failed");
+        CHECK_FALSE(heater_off_sent());
+    }
+    SECTION("a new target keeps it on a user stop") {
+        feed_nozzle(120, 180);
+        client_.clear_gcode_script_history();
+        panel().stop_run_for_test(/*user_requested=*/true);
+        CHECK_FALSE(heater_off_sent());
+    }
+    SECTION("walking away leaves the preheat and owes nothing") {
+        client_.clear_gcode_script_history();
+        panel().on_deactivating(DeactivateReason::NavigateAway);
+        CHECK_FALSE(heater_off_sent());
+        CHECK_FALSE(panel().heater_held_for_test());
+    }
 }
 
 TEST_CASE_METHOD(PAHeaterFixture,
@@ -409,7 +465,7 @@ TEST_CASE_METHOD(PAHeaterFixture,
 
     set_link(true);
     set_print_state("printing");
-    panel().fire_run_timer_for_test();
+    panel().flush_owed_off_for_test();
 
     CHECK_FALSE(heater_off_sent());
 }
