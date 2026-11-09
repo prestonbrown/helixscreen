@@ -3,11 +3,9 @@
 
 #include "print_start_navigation.h"
 
-#include "ui_nav.h"
-#include "ui_panel_print_status.h"
-
 #include "app_globals.h"
 #include "core/update_queue.h"
+#include "notice.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>
@@ -46,17 +44,10 @@ bool print_start_nav_should_navigate(PrintJobState prev, PrintJobState current) 
 // (finished print → error/standby → new print) where the user may still be
 // viewing print status from the previous job. Without this guard, every
 // retry logs a "[NavigationManager] Overlay ... already in stack" warning.
-// The is_panel_in_stack() check has to run on the UI thread, so it lives
-// inside the queue_update lambda.
+// The OpenPrintStatus handler makes that check, on the UI thread.
 static void queue_push_print_status_overlay() {
-    helix::ui::queue_update("print_start_navigation::queue_push_print_status_overlay", []() {
-        auto* cached = PrintStatusPanel::get_cached_overlay();
-        if (cached && helix::nav::is_in_stack(cached)) {
-            spdlog::debug("[PrintStartNav] Print status already on stack — skip auto-nav");
-            return;
-        }
-        PrintStatusPanel::push_overlay(lv_display_get_screen_active(nullptr));
-    });
+    helix::ui::queue_update("print_start_navigation::queue_push_print_status_overlay",
+                            []() { publish_ui_request({UiRequestKind::OpenPrintStatus}); });
 }
 
 // Callback for print state changes - auto-navigates to print status when a print

@@ -161,6 +161,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Completion toast: a canceled print says why
     REQUIRE(toasts.size() == 1);
     CHECK(toasts[0] == std::string("Print canceled: Unknown - ") + kReason);
 
+    // A user already watching print status sees the ending there, not in a toast.
+    const auto ui_query = set_print_status_shown_query([]() { return true; });
+    test::set_wire_state(state(), PrintJobState::PRINTING);
+    UpdateQueue::instance().drain();
+    test::set_wire_state(state(), PrintJobState::CANCELLED);
+    UpdateQueue::instance().drain();
+    set_print_status_shown_query(ui_query);
+    CHECK(toasts.size() == 1);
+
     completion.reset();
     helix::ui::set_test_toast_hook(nullptr);
     audio.set_completion_alert_mode(saved_mode);

@@ -7,8 +7,6 @@
 #include "ui_format_utils.h"
 #include "ui_icon.h"
 #include "ui_modal.h"
-#include "ui_nav.h"
-#include "ui_panel_print_status.h"
 #include "ui_toast_manager.h"
 #include "ui_widget_ref.h"
 
@@ -38,6 +36,14 @@ using helix::gcode::get_display_filename;
 using helix::gcode::resolve_gcode_filename;
 
 namespace helix {
+
+static PrintStatusShownQuery s_print_status_shown = nullptr;
+
+PrintStatusShownQuery set_print_status_shown_query(PrintStatusShownQuery query) {
+    PrintStatusShownQuery previous = s_print_status_shown;
+    s_print_status_shown = query;
+    return previous;
+}
 
 // --- Subjects for declarative XML bindings in print_completion_modal.xml ---
 static bool s_subjects_initialized = false;
@@ -390,9 +396,7 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
             break;
         }
 
-        // Check if user is on print status panel
-        lv_obj_t* print_status_panel = get_global_print_status_panel().get_panel();
-        bool on_print_status = helix::nav::is_in_stack(print_status_panel);
+        const bool on_print_status = s_print_status_shown && s_print_status_shown();
 
         auto mode = AudioSettingsManager::instance().get_completion_alert_mode();
 
