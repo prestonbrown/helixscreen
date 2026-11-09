@@ -194,6 +194,26 @@ TEST_CASE("write_file_atomic through a dangling symlink re-creates the file it n
     CHECK(tio::read_file(orphan) == "here");
 }
 
+TEST_CASE("write_file_atomic through a dangling link given with no directory part",
+          "[text_io][2085]") {
+    ScratchDir dir;
+    const fs::path cwd = fs::current_path();
+    struct Restore {
+        fs::path to;
+        ~Restore() {
+            std::error_code ec;
+            fs::current_path(to, ec);
+        }
+    } restore{cwd};
+    fs::current_path(dir.path);
+    fs::create_symlink("store.json", "settings.json");
+    REQUIRE_FALSE(fs::exists("store.json"));
+
+    REQUIRE(tio::write_file_atomic("settings.json", "fresh"));
+    CHECK(fs::is_symlink("settings.json"));
+    CHECK(tio::read_file("store.json") == "fresh");
+}
+
 TEST_CASE("write_file_atomic failure keeps the target and removes the tmp", "[text_io]") {
     ScratchDir dir;
     const std::string target = dir.file("target");
