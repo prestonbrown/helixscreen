@@ -30,11 +30,19 @@
  * | 1024x600 | `large`     |
  * | 1280x720 | `xlarge`    |
  * | 1920x440 | `ultrawide` |
+ * | 480x800  | `medium-portrait` |
+ * | 600x1024 | `large-portrait`  |
+ * | 720x1280 | `xlarge-portrait` |
  *
  * Two departures from a plain tier lookup, both deliberate. A wide, short bar
  * display gets `ultrawide` rather than the tier its narrow axis would give it,
  * because its canvas shape is unlike anything else at that tier. And nothing is
  * composited above `xlarge`, so a larger panel is clamped to it and scales.
+ *
+ * The tier classes are all landscape canvases. A panel taller than it is wide
+ * asks get_splash_3d_portrait_size_name() first, which names the largest
+ * portrait canvas that fits it; only packages for a panel set at runtime carry
+ * those.
  *
  * Only a subset of classes has a 2D logo render; a lookup that misses falls back
  * to the source PNG, so asking for one costs nothing.
@@ -64,6 +72,19 @@ namespace helix {
 [[nodiscard]] const char* get_splash_3d_size_name(int screen_width, int screen_height);
 
 /**
+ * @brief Portrait canvas class for a panel taller than it is wide
+ *
+ * The largest `-portrait` canvas that fits the panel on both axes. A landscape
+ * or square panel, or a portrait one smaller than every portrait canvas, gets
+ * none and keeps its tier class from get_splash_3d_size_name().
+ *
+ * @param screen_width Display width in pixels
+ * @param screen_height Display height in pixels
+ * @return "medium-portrait", "large-portrait", "xlarge-portrait" or nullptr
+ */
+[[nodiscard]] const char* get_splash_3d_portrait_size_name(int screen_width, int screen_height);
+
+/**
  * @brief Composited height of a 3D splash size class
  *
  * A pre-rendered 3D splash is a full-screen canvas, so a class taller than the
@@ -78,9 +99,9 @@ namespace helix {
 /**
  * @brief Composited width of a 3D splash size class
  *
- * Every canvas is landscape, while the class is chosen from the panel's narrow
- * axis, so on a portrait panel the canvas can fit the height and still run past
- * the sides. Callers compare this against the real screen width.
+ * A tier canvas is landscape, while its class is chosen from the panel's narrow
+ * axis, so on a portrait panel it can fit the height and still run past the
+ * sides. Callers compare this against the real screen width.
  *
  * @param size_name Class name from get_splash_3d_size_name()
  * @return Width in pixels, or 0 if the name is unknown

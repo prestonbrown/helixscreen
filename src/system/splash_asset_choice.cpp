@@ -23,6 +23,20 @@ SplashChoice choose_splash_asset(int width, int height, bool dark_mode,
                                  const SplashAssetResolver& resolve) {
     SplashChoice choice;
     const std::string mode = dark_mode ? "dark" : "light";
+
+    // A portrait panel takes a portrait canvas when its package has one. The
+    // class it picks already fits, so no fit check follows. Without one the
+    // ladder below runs exactly as it does for a landscape panel.
+    if (const char* portrait = get_splash_3d_portrait_size_name(width, height)) {
+        const std::string found = resolve(canvas_path(mode, portrait));
+        if (!found.empty()) {
+            choice.size_class = portrait;
+            choice.kind = SplashAssetKind::FullScreen3DBin;
+            choice.path = found;
+            return choice;
+        }
+    }
+
     choice.size_class = get_splash_3d_size_name(width, height);
 
     std::string found = resolve(canvas_path(mode, choice.size_class));
@@ -39,7 +53,7 @@ SplashChoice choose_splash_asset(int width, int height, bool dark_mode,
     }
 
     // A canvas is drawn at its own size, so one wider or taller than the panel
-    // would overdraw it. Every canvas is landscape and the class comes from the
+    // would overdraw it. A tier canvas is landscape and the class comes from the
     // narrow axis, so a portrait panel fits the height and fails the width.
     // Discard it and take a scaled fallback instead.
     if (!found.empty()) {
