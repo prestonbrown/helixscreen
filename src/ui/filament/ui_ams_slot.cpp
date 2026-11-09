@@ -8,6 +8,7 @@
 #include "ui_fonts.h"
 #include "ui_humidity_drop.h"
 #include "ui_observer_guard.h"
+#include "ui_spool_canvas.h"
 #include "ui_text.h"
 #include "ui_toolhead_badge.h"
 #include "ui_utils.h"
@@ -15,6 +16,7 @@
 #include "ams_lane_state.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "app_globals.h"
 #include "core/data_root_resolver.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
@@ -29,6 +31,7 @@
 #include "lvgl/lvgl.h"
 #include "lvgl/src/core/lv_obj_event_private.h" // lv_hit_test_info_t: LVGL exposes no accessor
 #include "panel_widget_size.h"
+#include "printer_state.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
 #include "ui/ui_widget_helpers.h"
@@ -85,7 +88,10 @@ struct AmsSlotData {
     ObserverGuard active_loaded_observer; ///< Per-slot active-loaded (single highlight source)
     ObserverGuard action_observer;
     ObserverGuard target_slot_observer;
-    ObserverGuard slots_version_observer; ///< Spool table renumber -> badge number
+    ObserverGuard print_state_observer;        ///< Spool spin: printing or not
+    ObserverGuard extruder_velocity_observer;  ///< Spool spin: paced by flow
+    ObserverGuard animations_enabled_observer; ///< Spool spin: the setting turns it off
+    ObserverGuard slots_version_observer;      ///< Spool table renumber -> badge number
 
     // Lifetime tokens paired with the observers that bind per-backend subjects
     // (status, lane_state, material, name). Secondary-backend (index > 0) subjects
@@ -178,6 +184,9 @@ static void unregister_slot_data(lv_obj_t* obj) {
             data->active_loaded_observer.reset();
             data->action_observer.reset();
             data->target_slot_observer.reset();
+            data->print_state_observer.reset();
+            data->extruder_velocity_observer.reset();
+            data->animations_enabled_observer.reset();
         }
         s_slot_registry.take(obj);
     }
@@ -212,6 +221,9 @@ static void cleanup_all_slot_data() {
         data->active_loaded_observer.reset();
         data->action_observer.reset();
         data->target_slot_observer.reset();
+        data->print_state_observer.reset();
+        data->extruder_velocity_observer.reset();
+        data->animations_enabled_observer.reset();
 
         delete data;
     });
@@ -531,6 +543,32 @@ static void apply_current_slot_highlight(AmsSlotData* data, int current_slot) {
                   data->slot_index, is_active);
 }
 
+/// Re-derive this lane's spool rotation from the state it depends on.
+static void apply_spool_spin(AmsSlotData* data) {
+    if (!data || !data->lane_spool)
+        return;
+    AmsState& ams = AmsState::instance();
+    const auto int_of = [](lv_subject_t* s, int fallback) {
+        return s ? lv_subject_get_int(s) : fallback;
+    };
+    helix::ui::SpoolSpinInput in;
+    in.lane = data->backend_index == ams.active_backend_index() ? data->slot_index : -1;
+    in.current_slot = int_of(ams.get_current_slot_subject(), -1);
+    in.target_slot = int_of(ams.get_pending_target_slot_subject(), -1);
+    in.action = static_cast<AmsAction>(
+        int_of(ams.get_ams_action_subject(), static_cast<int>(AmsAction::IDLE)));
+    in.lane_active_loaded = int_of(ams.get_slot_active_loaded_subject(data->slot_index), 0) != 0;
+    PrinterState& printer = get_printer_state();
+    in.printing = static_cast<PrintJobState>(
+                      lv_subject_get_int(printer.print_state().get_print_state_enum_subject())) ==
+                  PrintJobState::PRINTING;
+    in.extruder_velocity_centimm =
+        lv_subject_get_int(printer.motion_state().get_live_extruder_velocity_subject());
+    in.animations_enabled = DisplaySettingsManager::instance().get_animations_enabled();
+    in.reduced_effects = helix::ui::reduced_effects();
+    helix::ui::ams_lane_spool_set_spin(data->lane_spool, helix::ui::decide_spool_spin(in));
+}
+
 // Forward declaration (defined below in Animation section)
 void ui_ams_slot_set_pulsing(lv_obj_t* obj, bool pulsing);
 
@@ -814,6 +852,7 @@ static void setup_slot_observers(AmsSlotData* data) {
                 auto* d = get_slot_data(o);
                 if (d) {
                     evaluate_pulse_state(d);
+                    apply_spool_spin(d);
                     apply_current_slot_highlight(d, d->slot_index);
                 }
             },
@@ -827,8 +866,10 @@ static void setup_slot_observers(AmsSlotData* data) {
             action_subject, obj,
             [](lv_obj_t* o, int /*action*/) {
                 auto* d = get_slot_data(o);
-                if (d)
+                if (d) {
                     evaluate_pulse_state(d);
+                    apply_spool_spin(d);
+                }
             },
             state.get_subjects_lifetime());
     }
@@ -840,10 +881,27 @@ static void setup_slot_observers(AmsSlotData* data) {
             target_subject, obj,
             [](lv_obj_t* o, int /*target*/) {
                 auto* d = get_slot_data(o);
-                if (d)
+                if (d) {
                     evaluate_pulse_state(d);
+                    apply_spool_spin(d);
+                }
             },
             state.get_subjects_lifetime());
+    }
+
+    // What else turns the spool: the print, its flow and the animations setting.
+    {
+        const auto respin = [](lv_obj_t* o, int /*value*/) { apply_spool_spin(get_slot_data(o)); };
+        PrinterState& printer = get_printer_state();
+        const SubjectLifetime printer_subjects = printer.get_subjects_lifetime();
+        data->print_state_observer = observe<int>(
+            printer.print_state().get_print_state_enum_subject(), obj, respin, printer_subjects);
+        data->extruder_velocity_observer =
+            observe<int>(printer.motion_state().get_live_extruder_velocity_subject(), obj, respin,
+                         printer_subjects);
+        DisplaySettingsManager& display = DisplaySettingsManager::instance();
+        data->animations_enabled_observer = observe<int>(display.subject_animations_enabled(), obj,
+                                                         respin, display.get_subjects_lifetime());
     }
 
     // Slots version observer: the badge number follows the whole spool table,
