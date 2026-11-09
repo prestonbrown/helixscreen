@@ -385,17 +385,12 @@ gcode:
   reports without stopping the print (the same assumption #2006's D6 makes); the countdown is as
   today.
 
-## Open questions for Preston
+## Decisions (Preston, 2026-11-08)
 
-1. **Zero.** Should `PHASE=0` mean "this phase will not run" (D2), or be rejected as the issue
-   proposes? Zero lets an adaptive macro withdraw a mesh or soak the history expects.
-2. **Total.** Per-phase only (D2), or also a `TOTAL=` for macros that know only the sum?
-3. **Cap.** A 6-hour per-phase cap (D4) against the issue's "no upper cap". The cap protects the
-   timeouts from a typo; is 6 h right?
-4. **Running over on screen.** The countdown already holds while a phase overruns. Should the
-   time label also say it is running over (the issue's request), and if so, in words or as a
-   `+N min` suffix? Needs a `ctl geom` pass before anyone draws it.
-5. **Reconnect.** Is losing the plan when the app restarts mid-pre-print acceptable for v1, or
-   should `_HELIX_PLAN` also store it in `_HELIX_STATE` so the app can read it back?
-6. **Chamber signal.** Add `_HELIX_PHASE_HEATING_CHAMBER` with `_HELIX_PHASE_SOAKING` (D6), or
-   soaking only as the issue asks?
+- `PHASE=0` means this phase will not run.
+- Per-phase durations only, with no `TOTAL=`.
+- The per-phase cap is 6 hours.
+- The time label says the phase is running over in words. That needs a `ctl geom` pass before
+  anyone draws it.
+- `_HELIX_PLAN` also stores the plan in `_HELIX_STATE`, so an app restart keeps it.
+- Add both `_HELIX_PHASE_HEATING_CHAMBER` and `_HELIX_PHASE_SOAKING`.
