@@ -4090,7 +4090,7 @@ translations:
   The peak of {} moved out of the zone. Widening it.: The peak of {} moved out of the zone. Widening it.
   The plate and the spools are still hot. Use gloves.: The plate and the spools are still hot. Use gloves.
   The plate finishes its current move, but drying will not start.: The plate finishes its current move, but drying will not start.
-  Can't reach the camera, so this screen takes photos.: "Can't reach the camera, so this screen takes photos."
+  The plugin can't reach the camera, so this screen takes the photos.: The plugin can't reach the camera, so this screen takes the photos.
   The plugin can't save its recovery data to disk.: The plugin can't save its recovery data to disk.
   The plugin is turned off in moonraker.conf.: The plugin is turned off in moonraker.conf.
   The print ended before any layer was printed. Nothing was changed.: The print ended before any layer was printed. Nothing was changed.

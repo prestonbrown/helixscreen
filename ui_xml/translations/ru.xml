@@ -622,7 +622,6 @@
   <translation tag="Camera checks the bed is empty before each print" ru="Камера проверяет, что стол пуст, перед каждой печатью"/>
   <translation tag="Can&apos;t connect — try forgetting and re-pairing the printer" ru="Не удаётся подключиться — забудьте принтер и выполните сопряжение заново"/>
   <translation tag="Can&apos;t move filament while the print is paused" ru="Невозможно перемещать филамент, пока печать на паузе"/>
-  <translation tag="Can&apos;t reach the camera, so this screen takes photos." ru="Камера недоступна, поэтому фото делает этот экран."/>
   <translation tag="Can&apos;t reach this printer. Save anyway?" ru="Принтер недоступен. Всё равно сохранить?"/>
   <translation tag="Can&apos;t read filament RFID tag" ru="Не удаётся прочитать RFID-метку филамента"/>
   <translation tag="Cancel" ru="Отмена"/>
@@ -3885,6 +3884,7 @@
   <translation tag="The peak of {} moved out of the zone. Widening it." ru="Пик ({}) вышел из зоны. Расширяем её."/>
   <translation tag="The plate and the spools are still hot. Use gloves." ru="Стол и катушки ещё горячие. Используйте перчатки."/>
   <translation tag="The plate finishes its current move, but drying will not start." ru="Стол завершит текущее перемещение, но сушка не начнётся."/>
+  <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." ru="Плагин не может подключиться к камере, поэтому фотографирует этот экран."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." ru="Плагин не может сохранить данные для восстановления."/>
   <translation tag="The plugin didn&apos;t say why." ru="Плагин не указал причину."/>
   <translation tag="The plugin is turned off in moonraker.conf." ru="Плагин выключен в moonraker.conf."/>

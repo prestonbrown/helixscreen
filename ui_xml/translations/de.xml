@@ -583,7 +583,6 @@
   <translation tag="Camera checks the bed is empty before each print" de="Die Kamera prüft vor jedem Druck, ob das Heizbett leer ist"/>
   <translation tag="Can&apos;t connect — try forgetting and re-pairing the printer" de="Verbindung nicht möglich — versuchen Sie, den Drucker zu vergessen und erneut zu koppeln"/>
   <translation tag="Can&apos;t move filament while the print is paused" de="Filament kann bei pausiertem Druck nicht bewegt werden"/>
-  <translation tag="Can&apos;t reach the camera, so this screen takes photos." de="Kamera nicht erreichbar, daher macht dieser Bildschirm die Fotos."/>
   <translation tag="Can&apos;t reach this printer. Save anyway?" de="Drucker nicht erreichbar. Trotzdem speichern?"/>
   <translation tag="Can&apos;t read filament RFID tag" de="RFID-Tag des Filaments nicht lesbar"/>
   <translation tag="Cancel" de="Abbrechen"/>
@@ -3825,6 +3824,7 @@
   <translation tag="The peak of {} moved out of the zone. Widening it." de="Die Spitze von {} hat die Zone verlassen. Sie wird erweitert."/>
   <translation tag="The plate and the spools are still hot. Use gloves." de="Heizbett und Spulen sind noch heiß. Trage Handschuhe."/>
   <translation tag="The plate finishes its current move, but drying will not start." de="Das Heizbett beendet die laufende Bewegung, aber die Trocknung startet nicht."/>
+  <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." de="Das Plugin erreicht die Kamera nicht, daher macht dieser Bildschirm die Fotos."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." de="Das Plugin kann seine Wiederherstellungsdaten nicht speichern."/>
   <translation tag="The plugin didn&apos;t say why." de="Das Plugin hat keinen Grund genannt."/>
   <translation tag="The plugin is turned off in moonraker.conf." de="Das Plugin ist in moonraker.conf ausgeschaltet."/>

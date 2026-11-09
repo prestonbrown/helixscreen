@@ -4179,7 +4179,7 @@ translations:
   The plate and the spools are still hot. Use gloves.: Il piano e le bobine sono ancora caldi. Usa i guanti.
 
   The plate finishes its current move, but drying will not start.: 'Il piano termina lo spostamento in corso, ma l''essiccazione non partirà.'
-  Can't reach the camera, so this screen takes photos.: "Fotocamera non raggiungibile, quindi le foto le scatta questo schermo."
+  The plugin can't reach the camera, so this screen takes the photos.: "Il plugin non raggiunge la fotocamera, quindi le foto le scatta questo schermo."
   The plugin can't save its recovery data to disk.: "Il plugin non può salvare i dati di ripresa."
   The plugin is turned off in moonraker.conf.: "Il plugin è disattivato in moonraker.conf."
   The print ended before any layer was printed. Nothing was changed.: La stampa è terminata prima di stampare uno strato. Non è stato cambiato nulla.

@@ -4229,7 +4229,7 @@ translations:
   The plate and the spools are still hot. Use gloves.: Стол и катушки ещё горячие. Используйте перчатки.
 
   The plate finishes its current move, but drying will not start.: 'Стол завершит текущее перемещение, но сушка не начнётся.'
-  Can't reach the camera, so this screen takes photos.: "Камера недоступна, поэтому фото делает этот экран."
+  The plugin can't reach the camera, so this screen takes the photos.: "Плагин не может подключиться к камере, поэтому фотографирует этот экран."
   The plugin can't save its recovery data to disk.: "Плагин не может сохранить данные для восстановления."
   The plugin is turned off in moonraker.conf.: "Плагин выключен в moonraker.conf."
   The print ended before any layer was printed. Nothing was changed.: Печать завершилась до первого слоя. Ничего не изменено.

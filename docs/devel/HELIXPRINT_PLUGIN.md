@@ -367,7 +367,7 @@ its row there.
 | `no_virtual_sdcard` | `plr` | Klipper has no [virtual_sdcard] section. |
 | `store_unwritable` | `plr` | The plugin can't save its recovery data to disk. |
 | `not_listed` | `plr` | Not set up for this printer model yet. |
-| `snapshot_unreachable` | `photos` | Can't reach the camera, so this screen takes photos. |
+| `snapshot_unreachable` | `photos` | The plugin can't reach the camera, so this screen takes the photos. |
 | `unsafe_staging_dir` | `storage`, `storage_auto_cleanup` | A folder name in moonraker.conf is unsafe. |
 | `unsafe_root` | `storage`, `storage_auto_cleanup` | Timelapse or logs folder overlaps a protected one. |
 | `no_adventurer_json` | `vendor_ad5x` (hidden) | This printer has no IFS. |

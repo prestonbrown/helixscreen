@@ -3971,7 +3971,7 @@ translations:
   The plate and the spools are still hot. Use gloves.: ベッドとスプールはまだ熱いです。手袋を使ってください。
 
   The plate finishes its current move, but drying will not start.: 'ベッドは現在の移動を完了しますが、乾燥は開始しません。'
-  Can't reach the camera, so this screen takes photos.: "カメラに接続できないため、この画面が写真を撮影します。"
+  The plugin can't reach the camera, so this screen takes the photos.: "プラグインがカメラに接続できないため、この画面が写真を撮ります。"
   The plugin can't save its recovery data to disk.: "プラグインが復帰データを保存できません。"
   The plugin is turned off in moonraker.conf.: "プラグインはmoonraker.confでオフになっています。"
   The print ended before any layer was printed. Nothing was changed.: レイヤーが印刷される前に印刷が終了しました。何も変更されていません。

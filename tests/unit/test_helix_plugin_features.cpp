@@ -117,7 +117,7 @@ TEST_CASE("plugin_reason_text says what a reason code means", "[plugin_feature]"
     CHECK(plugin_reason_text("not_listed") == "Not set up for this printer model yet.");
     // A code with a detail suffix maps on the code before the colon.
     CHECK(plugin_reason_text("snapshot_unreachable: /webcam/?action=snapshot") ==
-          "Can't reach the camera, so this screen takes photos.");
+          "The plugin can't reach the camera, so this screen takes the photos.");
     CHECK(plugin_reason_text("load_failed: SyntaxError: bad input") ==
           "Part of the plugin failed to load. Reinstall the plugin.");
     CHECK(plugin_reason_text("unsafe_staging_dir: .") ==
@@ -163,7 +163,8 @@ TEST_CASE("an overview row groups by status and gives only an unavailable featur
     };
 
     CHECK(row("photos").status == PluginFeatureStatus::Unavailable);
-    CHECK(row("photos").reason == "Can't reach the camera, so this screen takes photos.");
+    CHECK(row("photos").reason ==
+          "The plugin can't reach the camera, so this screen takes the photos.");
     CHECK(row("plr").status == PluginFeatureStatus::Unavailable);
     CHECK(row("plr").reason == "Not set up for this printer model yet.");
     CHECK(row("print_hooks").status == PluginFeatureStatus::Off);
