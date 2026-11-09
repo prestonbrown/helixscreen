@@ -572,3 +572,21 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan dial: an rpm reading leaves the speed d
     dial.set_rpm(std::nullopt);
     CHECK(lv_obj_has_flag(rpm, LV_OBJ_FLAG_HIDDEN));
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture, "fan dial: a dial set to Off shows no rpm over its zero knob",
+                 "[fan_overlay][rpm]") {
+    FanDial dial(test_screen(), "Part Fan", "fan", 40);
+    lv_obj_t* rpm = lv_obj_find_by_name(dial.get_root(), "rpm_label");
+    REQUIRE(rpm != nullptr);
+    dial.set_rpm(6857);
+    REQUIRE(shows(rpm, "6857 RPM"));
+
+    // A fan spinning down after M107 still reads RPM for a few seconds.
+    dial.set_speed(0);
+    CHECK(lv_obj_has_flag(rpm, LV_OBJ_FLAG_HIDDEN));
+    dial.set_rpm(3000);
+    CHECK(lv_obj_has_flag(rpm, LV_OBJ_FLAG_HIDDEN));
+
+    dial.set_speed(25);
+    CHECK(shows(rpm, "3000 RPM"));
+}
