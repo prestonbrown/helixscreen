@@ -96,6 +96,13 @@ namespace {
            job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
 }
 
+/// Klipper's idle_timeout reads "Printing": some G-code is executing.
+[[nodiscard]] bool klipper_busy_now() {
+    return get_printer_state().are_subjects_initialized() &&
+           lv_subject_get_int(
+               get_printer_state().calibration_state().get_idle_timeout_printing_subject()) == 1;
+}
+
 /// Runout recovery purge on a printer without zMod's bin macros: 50 mm of fresh
 /// filament at 10 mm/s, in place. Same numbers as the shared purge fallback
 /// (filament_purge_fallback_gcode()). A bare `G1 E` needs no homing, so it
@@ -2342,6 +2349,7 @@ void AmsBackendAd5xIfs::apply_zmod_change_macro(const json& status) {
                 set_operation_detail_locked("Changing filament");
                 zmod_change_owns_action_ = true;
                 zmod_change_in_job_ = in_job;
+                zmod_change_saw_busy_ = klipper_busy_now();
             }
         } else {
             zmod_change_stale_ = false;
@@ -6130,6 +6138,14 @@ void AmsBackendAd5xIfs::check_action_timeout() {
             release_zmod_change_locked("END_CHANGE_FILAMENT never ran");
         } else if (zmod_change_in_job_ && !job_holds_machine_now()) {
             release_zmod_change_locked("the job ended mid-change");
+        } else if (klipper_busy_now()) {
+            zmod_change_saw_busy_ = true;
+        } else if (zmod_change_saw_busy_) {
+            // The change chain is one G-code command, so Klipper going idle
+            // means it stopped without reaching END_CHANGE_FILAMENT. Z-Mod's
+            // print-start change runs before print_stats leaves standby, so
+            // no job end ever covers it (#2086).
+            release_zmod_change_locked("Klipper went idle mid-change");
         }
     }
 

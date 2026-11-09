@@ -10,7 +10,9 @@
 #include "../lvgl_test_fixture.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_types.h"
+#include "app_globals.h"
 #include "printer_discovery.h"
+#include "printer_state.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/backend_harness.h"
 #include "test_helpers/toolchanger_test_helper.h"
@@ -220,6 +222,72 @@ TEST_CASE("AD5X IFS reports a Z-Mod filament change it did not start",
     backend.fire_status(change_macro_frame(99));
     CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
     CHECK(backend.can_cancel_operation());
+}
+
+namespace {
+/// LVGL plus the GLOBAL PrinterState, which the backend reads for Klipper's
+/// idle_timeout state.
+struct ZmodChangeIdleFixture : public LVGLTestFixture {
+    ZmodChangeIdleFixture() {
+        get_printer_state().init_subjects(false);
+        set_idle_state("Ready");
+    }
+    ~ZmodChangeIdleFixture() override {
+        set_idle_state("Ready");
+    }
+    static void set_idle_state(const char* state) {
+        get_printer_state().update_from_status({{"idle_timeout", {{"state", state}}}});
+    }
+};
+} // namespace
+
+// Z-Mod's PRINT_ZCOLOR changes filament before print_stats leaves standby, so
+// no job holds the machine. When that change fails, Klipper goes idle and the
+// busy state must go with it (prestonbrown/helixscreen#2086).
+TEST_CASE_METHOD(ZmodChangeIdleFixture,
+                 "AD5X IFS releases a Z-Mod change once Klipper goes idle without finishing it",
+                 "[ams][ad5x_ifs][zmod_status][2086]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
+
+    set_idle_state("Printing");
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(1));
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+
+    // While the change chain runs, Klipper stays busy and the action holds.
+    Ad5xIfsTestAccess::run_action_timeout(backend);
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    CHECK_FALSE(backend.can_cancel_operation());
+
+    // The unload failed: Klipper is idle again, END_CHANGE_FILAMENT never ran.
+    set_idle_state("Ready");
+    Ad5xIfsTestAccess::run_action_timeout(backend);
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.can_cancel_operation());
+
+    // last_data.channel still names the abandoned change; it does not re-grab.
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(1));
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+}
+
+TEST_CASE_METHOD(ZmodChangeIdleFixture,
+                 "AD5X IFS holds a Z-Mod change Klipper was never seen running",
+                 "[ams][ad5x_ifs][zmod_status][2086]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
+
+    // idle_timeout's Printing can land after the macro frame: an idle reading
+    // before Klipper was seen busy proves nothing about the change.
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(1));
+    Ad5xIfsTestAccess::run_action_timeout(backend);
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+
+    set_idle_state("Printing");
+    Ad5xIfsTestAccess::run_action_timeout(backend);
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    set_idle_state("Ready");
+    Ad5xIfsTestAccess::run_action_timeout(backend);
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
 }
 
 TEST_CASE("AD5X IFS leaves an action it did not set to its owner",
