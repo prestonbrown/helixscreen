@@ -203,7 +203,7 @@ translations:
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Камера, которую транслирует Moonraker. Добавьте виджет камеры на главный экран, чтобы смотреть ее, в том числе во время печати.'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Вентилятор, который прогоняет воздух камеры через фильтр. Управляйте им на экране температуры камеры.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Несколько минут, почти всё время нагрев. Ничего не нужно оценивать на глаз.'
-  A folder name in moonraker.conf is unsafe, so cleanup is off.: "Небезопасное имя папки в moonraker.conf, поэтому очистка выключена."
+  A folder name in moonraker.conf is unsafe.: "Имя папки в moonraker.conf небезопасно."
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'На принтере настроен макрос прогрева (heat soak). HelixScreen обнаруживает его, но не запускает.'
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Нагреватель, который греет воздух внутри камеры. Температура задается на экране температуры камеры.'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Карта высот стола, по которой Klipper компенсирует неровности поверхности. Просмотр и калибровка на экране «Сетка стола».'
@@ -2999,7 +2999,7 @@ translations:
   'Power was lost during the print; the printer stopped and saved its progress': 'Во время печати пропало питание; принтер остановился и сохранил прогресс'
   Power was lost less than a minute ago.: Питание пропало меньше минуты назад.
   Power-loss recovery: Восстановление после отключения питания
-  Power-loss recovery isn't supported on this printer yet.: "Восстановление после отключения питания пока не поддерживается на этом принтере."
+  Not set up for this printer model yet.: "Для этой модели принтера пока не настроено."
   Pre-heat the extruder first: Сначала прогрейте экструдер
   'Pre-print command failed: {}': 'Ошибка команды перед печатью: {}'
   Pre-print homing...: Парковка перед печатью...
@@ -4221,7 +4221,7 @@ translations:
   The plate and the spools are still hot. Use gloves.: Стол и катушки ещё горячие. Используйте перчатки.
 
   The plate finishes its current move, but drying will not start.: 'Стол завершит текущее перемещение, но сушка не начнётся.'
-  The plugin can't reach the camera, so this screen takes the photos.: "Плагин не может подключиться к камере, поэтому фотографирует этот экран."
+  Can't reach the camera, so this screen takes photos.: "Камера недоступна, поэтому фото делает этот экран."
   The plugin can't save its recovery data to disk.: "Плагин не может сохранить данные для восстановления."
   The plugin is turned off in moonraker.conf.: "Плагин выключен в moonraker.conf."
   The print ended before any layer was printed. Nothing was changed.: Печать завершилась до первого слоя. Ничего не изменено.
@@ -4290,7 +4290,7 @@ translations:
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Не удаётся считать датчик этого блока CFS. Проверьте подключение, иначе блоку требуется обслуживание
   The speed of one fan you choose: Скорость выбранного вентилятора
   The time, date, and system uptime: Время, дата и время работы системы
-  The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."
+  Timelapse or logs folder overlaps a protected one.: "Папка таймлапсов или журналов пересекается с защищённой."
   The tool change under way finished, and the tool was not parked: 'Текущая смена инструмента завершена, инструмент не припаркован'
   The tool change under way finished, and {} was not put back on the carriage: 'Текущая смена инструмента завершена, {} не возвращён на каретку'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Извлеките его вручную перед печатью. Всё равно начать?
@@ -4335,7 +4335,7 @@ translations:
   This AFC system does not support bypass mode: 'Эта система AFC не поддерживает режим обхода'
   This CFS firmware exposes no external spool slot: 'Эта прошивка CFS не предоставляет слот для внешней катушки'
   This Happy Hare system does not support bypass mode: 'Эта система Happy Hare не поддерживает режим обхода'
-  This Moonraker version can't hold uploads. Update Moonraker.: "Эта версия Moonraker не умеет задерживать загрузки. Обновите Moonraker."
+  Needs a newer Moonraker to hold uploads.: "Нужен более новый Moonraker, чтобы задерживать загрузки."
   This button controls: Эта кнопка управляет
   This calibration uses the paper friction method to set your Z-offset.: Эта калибровка
     использует метод трения бумаги об сопло для установки Z-смещения.
@@ -4351,9 +4351,9 @@ translations:
   : На этом устройстве очень мало ОЗУ. Калибровка резонансов требует много памяти и может вызвать ошибку "Timer Too Close". Всё равно продолжить?
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: Это не совпадает с привязанной катушкой Spoolman. Добавить как новую катушку или обновить привязанную?
   This dryer cannot run while filament from the unit is loaded: 'Сушилка не может работать, пока загружен филамент из этого узла'
-  This feature failed to start. The Moonraker log says why.: "Эта функция не запустилась. Причина в журнале Moonraker."
+  Failed to start. See the Moonraker log.: "Не удалось запустить. См. журнал Moonraker."
   This feature requires different hardware or configuration: Для этой функции требуется другое оборудование или конфигурация
-  This feature stopped. Restart Moonraker to start it again.: "Эта функция остановилась. Перезапустите Moonraker, чтобы запустить её снова."
+  Stopped. Restart Moonraker to start it again.: "Остановлено. Перезапустите Moonraker, чтобы запустить снова."
   This filament system does not report buffer or flow data.: Эта система филамента не сообщает данные буфера и потока.
   This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.: 'Этот файл печатает {0} и {1} через одно сопло. При температурах {1} материал {0} может пригореть и забить сопло.'
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Этот файл печатает {0} и {1} вместе. Нагрев камеры и стола, нужный для {1}, может размягчить {0} и забить его сопло.'
@@ -4370,7 +4370,7 @@ translations:
   This is what data would be sent if enabled: Эти данные были бы отправлены при включении
   This looks like a {}, but it is set up as a {}: Похоже, это {}, но принтер настроен как {}
   This may take up to 30 seconds: Это может занять до 30 секунд
-  This needs the plugin's file analysis, which isn't running.: "Нужен анализ файлов плагина, но он не запущен."
+  Needs file analysis, which isn't running.: "Нужен анализ файлов, который не запущен."
   This plugin asks for no special permissions.: 'Этот плагин не запрашивает специальных разрешений.'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'Этот плагин позволяет HelixScreen управлять опциями начала печати, такими как сетка стола и QGL.'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: 'Эту печать нельзя продолжить. Перезапустите её или отключите проверку стола, если это повторяется.'
@@ -5164,3 +5164,6 @@ translations:
   'from tag': 'с метки'
   'Browse catalog...': 'Обзор каталога...'
   ~{:.1f} Hz / turn: "~{:.1f} Гц / оборот"
+  RUNNING: "РАБОТАЕТ"
+  NOT AVAILABLE HERE: "ЗДЕСЬ НЕДОСТУПНО"
+  The plugin didn't say why.: "Плагин не указал причину."

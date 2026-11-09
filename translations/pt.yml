@@ -160,7 +160,7 @@ translations:
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Uma câmera transmitida pelo Moonraker. Adicione o widget de câmera à tela inicial para assisti-la, inclusive durante uma impressão.'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Uma ventoinha que puxa o ar da câmara por um filtro. Controle-a na tela de temperatura da câmara.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Alguns minutos, quase todo aquecendo. Você não julga nada a olho.'
-  A folder name in moonraker.conf is unsafe, so cleanup is off.: "Um nome de pasta no moonraker.conf não é seguro, por isso a limpeza está desligada."
+  A folder name in moonraker.conf is unsafe.: "Um nome de pasta em moonraker.conf não é seguro."
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'Há uma macro de heat soak configurada na impressora. O HelixScreen a detecta, mas não a executa.'
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Um aquecedor que esquenta o ar dentro da câmara. Defina a temperatura na tela de temperatura da câmara.'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Um mapa de alturas da mesa que o Klipper usa para compensar uma superfície irregular. Veja e calibre na tela Malha da Mesa.'
@@ -2963,7 +2963,7 @@ translations:
   'Power was lost during the print; the printer stopped and saved its progress': 'A energia caiu durante a impressão; a impressora parou e salvou o progresso'
   Power was lost less than a minute ago.: A energia caiu há menos de um minuto.
   Power-loss recovery: Recuperação após queda de energia
-  Power-loss recovery isn't supported on this printer yet.: "A recuperação após queda de energia ainda não é suportada nesta impressora."
+  Not set up for this printer model yet.: "Ainda não configurado para este modelo de impressora."
   Pre-heat the extruder first: Pré-aqueça o extrusor primeiro
   'Pre-print command failed: {}': 'Falha no comando pré-impressão: {}'
   Pre-print homing...: Posicionamento pré-impressão...
@@ -4177,7 +4177,7 @@ translations:
   The plate and the spools are still hot. Use gloves.: A mesa e os carretéis ainda estão quentes. Use luvas.
 
   The plate finishes its current move, but drying will not start.: 'A mesa termina o movimento atual, mas a secagem não vai começar.'
-  The plugin can't reach the camera, so this screen takes the photos.: "O plugin não alcança a câmera, então esta tela tira as fotos."
+  Can't reach the camera, so this screen takes photos.: "Não foi possível acessar a câmera, então esta tela tira as fotos."
   The plugin can't save its recovery data to disk.: "O plugin não consegue salvar seus dados de recuperação."
   The plugin is turned off in moonraker.conf.: "O plugin está desligado no moonraker.conf."
   The print ended before any layer was printed. Nothing was changed.: A impressão terminou antes de qualquer camada ser impressa. Nada foi alterado.
@@ -4250,7 +4250,7 @@ translations:
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Não é possível ler o sensor desta unidade CFS. Verifique a conexão, ou a unidade pode precisar de manutenção
   The speed of one fan you choose: A velocidade de uma ventoinha escolhida
   The time, date, and system uptime: Hora, data e tempo ativo
-  The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "A pasta de timelapse ou de logs sobrepõe-se a uma pasta protegida, por isso a limpeza está desligada."
+  Timelapse or logs folder overlaps a protected one.: "A pasta de timelapse ou de logs se sobrepõe a uma protegida."
   The tool change under way finished, and the tool was not parked: 'A troca de ferramenta em andamento terminou e a ferramenta não foi estacionada'
   The tool change under way finished, and {} was not put back on the carriage: 'A troca de ferramenta em andamento terminou e {} não foi devolvida ao carro'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: O cabeçote tem filamento, mas nenhum slot AMS o reporta como carregado. Retire-o manualmente antes de imprimir. Iniciar mesmo assim?
@@ -4295,7 +4295,7 @@ translations:
   This AFC system does not support bypass mode: 'Este sistema AFC não oferece suporte ao modo bypass'
   This CFS firmware exposes no external spool slot: 'Este firmware do CFS não expõe um slot para carretel externo'
   This Happy Hare system does not support bypass mode: 'Este sistema Happy Hare não oferece suporte ao modo bypass'
-  This Moonraker version can't hold uploads. Update Moonraker.: "Esta versão do Moonraker não consegue reter envios. Atualize o Moonraker."
+  Needs a newer Moonraker to hold uploads.: "Requer um Moonraker mais recente para reter os envios."
   This button controls: Este botão controla
   This calibration uses the paper friction method to set your Z-offset.: Esta calibração
     usa o método de fricção de papel para definir seu Z-offset.
@@ -4311,9 +4311,9 @@ translations:
   : Este dispositivo tem muito pouca RAM. A calibração de ressonância consome muita memória e pode causar um erro "Timer Too Close". Continuar mesmo assim?
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: Isto não corresponde ao carretel do Spoolman vinculado. Adicionar como um novo carretel ou atualizar o vinculado para corresponder?
   This dryer cannot run while filament from the unit is loaded: 'Este secador não pode funcionar enquanto houver filamento da unidade carregado'
-  This feature failed to start. The Moonraker log says why.: "Este recurso não conseguiu iniciar. O log do Moonraker diz o motivo."
+  Failed to start. See the Moonraker log.: "Falha ao iniciar. Veja o log do Moonraker."
   This feature requires different hardware or configuration: Este recurso requer hardware ou configuração diferentes
-  This feature stopped. Restart Moonraker to start it again.: "Este recurso parou. Reinicie o Moonraker para iniciá-lo de novo."
+  Stopped. Restart Moonraker to start it again.: "Parado. Reinicie o Moonraker para iniciá-lo novamente."
   This filament system does not report buffer or flow data.: Este sistema de filamento não reporta dados de buffer ou de fluxo.
   This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.: 'Este arquivo imprime {0} e {1} por um único bico. {0} pode queimar e entupir o bico nas temperaturas de {1}.'
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Este arquivo imprime {0} e {1} juntos. O calor da câmara e da mesa de que {1} precisa pode amolecer {0} e entupir seu bico.'
@@ -4331,7 +4331,7 @@ translations:
     se habilitado
   This looks like a {}, but it is set up as a {}: Esta impressora parece uma {}, mas está configurada como {}
   This may take up to 30 seconds: Isso pode levar até 30 segundos
-  This needs the plugin's file analysis, which isn't running.: "Isto precisa da análise de arquivos do plugin, que não está em execução."
+  Needs file analysis, which isn't running.: "Requer a análise de arquivos, que não está em execução."
   This plugin asks for no special permissions.: 'Este plugin não pede permissões especiais.'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'Este plugin permite que o HelixScreen controle opções de início de impressão como malha da mesa e QGL.'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: 'Esta impressão não pode ser retomada. Reinicie-a ou desligue a verificação da mesa se isso continuar acontecendo.'
@@ -5103,3 +5103,6 @@ translations:
   'from tag': 'do tag'
   'Browse catalog...': 'Procurar no catálogo...'
   ~{:.1f} Hz / turn: "~{:.1f} Hz / volta"
+  RUNNING: "EM EXECUÇÃO"
+  NOT AVAILABLE HERE: "NÃO DISPONÍVEL AQUI"
+  The plugin didn't say why.: "O plugin não informou o motivo."

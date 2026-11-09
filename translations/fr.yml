@@ -162,7 +162,7 @@ translations:
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Une caméra diffusée par Moonraker. Ajoutez le widget caméra à l''écran d''accueil pour la regarder, y compris pendant une impression.'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Un ventilateur qui fait passer l''air de l''enceinte à travers un filtre. Commandez-le sur l''écran de température de l''enceinte.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Quelques minutes, presque tout en chauffage. Vous ne jugez rien à l''œil.'
-  A folder name in moonraker.conf is unsafe, so cleanup is off.: "Un nom de dossier dans moonraker.conf n'est pas sûr, le nettoyage est donc désactivé."
+  A folder name in moonraker.conf is unsafe.: "Un nom de dossier dans moonraker.conf n'est pas sûr."
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'Une macro de heat soak est configurée sur l''imprimante. HelixScreen la détecte mais ne l''exécute pas.'
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Un chauffage qui réchauffe l''air de l''enceinte. Réglez sa température sur l''écran de température de l''enceinte.'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Une carte des hauteurs du plateau que Klipper utilise pour compenser une surface irrégulière. Consultez-la et calibrez-la sur l''écran Maillage du plateau.'
@@ -2978,7 +2978,7 @@ translations:
   'Power was lost during the print; the printer stopped and saved its progress': 'Une coupure de courant est survenue pendant l''impression ; l''imprimante s''est arrêtée et a enregistré sa progression'
   Power was lost less than a minute ago.: Coupure de courant il y a moins d'une minute.
   Power-loss recovery: Reprise après coupure de courant
-  Power-loss recovery isn't supported on this printer yet.: "La reprise après coupure de courant n'est pas encore prise en charge sur cette imprimante."
+  Not set up for this printer model yet.: "Pas encore configuré pour ce modèle d'imprimante."
   Pre-heat the extruder first: Préchauffez d'abord l'extrudeur
   'Pre-print command failed: {}': 'Échec de la commande pré-impression : {}'
   Pre-print homing...: Référence pré-impression...
@@ -4197,7 +4197,7 @@ translations:
   The plate and the spools are still hot. Use gloves.: Le plateau et les bobines sont encore chauds. Portez des gants.
 
   The plate finishes its current move, but drying will not start.: 'Le plateau termine son déplacement en cours, mais le séchage ne démarrera pas.'
-  The plugin can't reach the camera, so this screen takes the photos.: "Le plugin n'atteint pas la caméra, cet écran prend donc les photos."
+  Can't reach the camera, so this screen takes photos.: "Caméra injoignable : cet écran prend donc les photos."
   The plugin can't save its recovery data to disk.: "Le plugin ne peut pas enregistrer ses données de reprise."
   The plugin is turned off in moonraker.conf.: "Le plugin est désactivé dans moonraker.conf."
   The print ended before any layer was printed. Nothing was changed.: L'impression s'est terminée avant la première couche. Rien n'a été modifié.
@@ -4272,7 +4272,7 @@ translations:
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Le capteur de cette unité CFS ne peut pas être lu. Vérifiez son raccordement, sinon l'unité nécessite une intervention
   The speed of one fan you choose: La vitesse d'un ventilateur choisi
   The time, date, and system uptime: Heure, date et temps de fonctionnement
-  The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Le dossier timelapse ou de logs chevauche un dossier protégé, le nettoyage est donc désactivé."
+  Timelapse or logs folder overlaps a protected one.: "Le dossier timelapse ou journaux chevauche un dossier protégé."
   The tool change under way finished, and the tool was not parked: 'Le changement d''outil en cours s''est terminé et l''outil n''a pas été rangé'
   The tool change under way finished, and {} was not put back on the carriage: 'Le changement d''outil en cours s''est terminé et {} n''a pas été remis sur le chariot'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: La tête d'outil contient du filament mais aucun slot de l'AMS ne le signale comme chargé. Retirez-le manuellement avant d'imprimer. Démarrer quand même ?
@@ -4319,7 +4319,7 @@ translations:
   This AFC system does not support bypass mode: 'Ce système AFC ne prend pas en charge le mode bypass'
   This CFS firmware exposes no external spool slot: 'Ce firmware CFS n''expose pas de slot pour bobine externe'
   This Happy Hare system does not support bypass mode: 'Ce système Happy Hare ne prend pas en charge le mode bypass'
-  This Moonraker version can't hold uploads. Update Moonraker.: "Cette version de Moonraker ne peut pas retenir les envois. Mettez Moonraker à jour."
+  Needs a newer Moonraker to hold uploads.: "Nécessite un Moonraker plus récent pour retenir les envois."
   This button controls: Ce bouton contrôle
   This calibration uses the paper friction method to set your Z-offset.: Cette calibration
     utilise la méthode de friction du papier pour définir votre Z-offset.
@@ -4335,9 +4335,9 @@ translations:
   : Cet appareil dispose de très peu de RAM. La calibration de résonance est gourmande en mémoire et peut provoquer une erreur "Timer Too Close". Continuer quand même ?
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: Cela ne correspond pas à la bobine Spoolman liée. L'ajouter comme nouvelle bobine, ou mettre à jour la bobine liée pour correspondre ?
   This dryer cannot run while filament from the unit is loaded: 'Ce séchoir ne peut pas fonctionner tant que du filament de l''unité est chargé'
-  This feature failed to start. The Moonraker log says why.: "Cette fonction n'a pas pu démarrer. Le journal de Moonraker indique pourquoi."
+  Failed to start. See the Moonraker log.: "Échec du démarrage. Voir le journal de Moonraker."
   This feature requires different hardware or configuration: Cette fonctionnalité requiert un autre matériel ou une autre configuration
-  This feature stopped. Restart Moonraker to start it again.: "Cette fonction s'est arrêtée. Redémarrez Moonraker pour la relancer."
+  Stopped. Restart Moonraker to start it again.: "Arrêté. Redémarrez Moonraker pour le relancer."
   This filament system does not report buffer or flow data.: Ce système de filament ne fournit ni données de tampon ni données de débit.
   This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.: 'Ce fichier imprime {0} et {1} avec une seule buse. {0} peut brûler et boucher la buse aux températures de {1}.'
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Ce fichier imprime {0} et {1} ensemble. La chaleur de l''enceinte et du plateau requise par {1} peut ramollir {0} et boucher sa buse.'
@@ -4355,7 +4355,7 @@ translations:
     si activé
   This looks like a {}, but it is set up as a {}: Cette imprimante ressemble à une {}, mais elle est configurée comme {}
   This may take up to 30 seconds: Cela peut prendre jusqu'à 30 secondes
-  This needs the plugin's file analysis, which isn't running.: "Ceci nécessite l'analyse des fichiers du plugin, qui ne tourne pas."
+  Needs file analysis, which isn't running.: "Nécessite l'analyse des fichiers, qui ne tourne pas."
   This plugin asks for no special permissions.: 'Ce plugin ne demande aucune autorisation particulière.'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'Ce plugin permet à HelixScreen de contrôler les options de démarrage d''impression comme le maillage du plateau et QGL.'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: 'Cette impression ne peut pas reprendre. Relancez-la, ou désactivez la vérification du plateau si cela se reproduit.'
@@ -5135,3 +5135,6 @@ translations:
   'from tag': 'du tag'
   'Browse catalog...': 'Parcourir le catalogue...'
   ~{:.1f} Hz / turn: "~{:.1f} Hz / tour"
+  RUNNING: "ACTIF"
+  NOT AVAILABLE HERE: "NON DISPONIBLE ICI"
+  The plugin didn't say why.: "Le plugin n'a pas donné de raison."

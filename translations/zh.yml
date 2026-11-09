@@ -155,7 +155,7 @@ translations:
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Moonraker 推流的摄像头。将摄像头小组件添加到主屏幕即可查看,打印时也能看到。'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: '让腔体内空气经过滤网循环的风扇。在腔体温度界面控制。'
   A few minutes, nearly all of it heating. You judge nothing by eye.: '需要几分钟，几乎全是加热时间。你无需用肉眼判断任何东西。'
-  A folder name in moonraker.conf is unsafe, so cleanup is off.: "moonraker.conf 中的文件夹名称不安全，因此清理功能已关闭。"
+  A folder name in moonraker.conf is unsafe.: "moonraker.conf 中的某个文件夹名称不安全。"
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: '打印机上已设置热浸(heat soak)宏。HelixScreen 会检测到它,但不会运行。'
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: '为腔体内空气加热的加热器。在腔体温度界面设置温度。'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Klipper 用来补偿热床不平整的高度图。在热床网格界面查看和校准。'
@@ -2813,7 +2813,7 @@ translations:
   'Power was lost during the print; the printer stopped and saved its progress': '打印过程中断电，打印机已停止并保存了进度'
   Power was lost less than a minute ago.: 不到一分钟前断电。
   Power-loss recovery: 断电恢复
-  Power-loss recovery isn't supported on this printer yet.: "此打印机暂不支持断电恢复。"
+  Not set up for this printer model yet.: "尚未为此打印机型号配置。"
   Pre-heat the extruder first: 请先预热挤出机
   'Pre-print command failed: {}': '打印前命令失败: {}'
   Pre-print homing...: 打印前归位...
@@ -3954,7 +3954,7 @@ translations:
   The plate and the spools are still hot. Use gloves.: 热床和料盘仍然很烫。请戴手套。
 
   The plate finishes its current move, but drying will not start.: '热床会完成当前移动,但烘干不会开始。'
-  The plugin can't reach the camera, so this screen takes the photos.: "插件无法连接摄像头，因此由此屏幕拍照。"
+  Can't reach the camera, so this screen takes photos.: "无法连接摄像头，因此由此屏幕拍照。"
   The plugin can't save its recovery data to disk.: "插件无法保存其恢复数据。"
   The plugin is turned off in moonraker.conf.: "插件已在 moonraker.conf 中关闭。"
   The print ended before any layer was printed. Nothing was changed.: 打印在任何一层完成前就结束了。未做任何更改。
@@ -4020,7 +4020,7 @@ translations:
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: 无法读取此 CFS 单元的传感器。请检查其连接，否则该单元可能需要维修
   The speed of one fan you choose: 所选风扇的转速
   The time, date, and system uptime: 时间、日期和系统运行时长
-  The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"
+  Timelapse or logs folder overlaps a protected one.: "延时摄影或日志文件夹与受保护的文件夹重叠。"
   The tool change under way finished, and the tool was not parked: '正在进行的换工具已完成，工具未停放'
   The tool change under way finished, and {} was not put back on the carriage: '正在进行的换工具已完成，{}未放回打印头'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: 工具头内有耗材，但没有 AMS 槽位报告已装载。请在打印前手动取出耗材。仍要开始打印吗？
@@ -4059,7 +4059,7 @@ translations:
   This AFC system does not support bypass mode: '此 AFC 系统不支持旁通模式'
   This CFS firmware exposes no external spool slot: '此 CFS 固件没有外部料盘槽位'
   This Happy Hare system does not support bypass mode: '此 Happy Hare 系统不支持旁通模式'
-  This Moonraker version can't hold uploads. Update Moonraker.: "此版本的 Moonraker 无法暂缓上传。请更新 Moonraker。"
+  Needs a newer Moonraker to hold uploads.: "需要更新的 Moonraker 才能暂缓上传。"
   This button controls: 此按钮控制
   This calibration uses the paper friction method to set your Z-offset.: 此校准使用纸张摩擦法设置
     Z 偏移。
@@ -4075,9 +4075,9 @@ translations:
   : 此设备内存极少。共振校准会占用大量内存，可能导致 "Timer Too Close" 错误。仍要继续吗？
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: 这与关联的 Spoolman 料盘不匹配。是否添加为新料盘，或更新关联料盘以匹配？
   This dryer cannot run while filament from the unit is loaded: '此单元的耗材处于装载状态时，烘干机无法运行'
-  This feature failed to start. The Moonraker log says why.: "此功能启动失败。原因见 Moonraker 日志。"
+  Failed to start. See the Moonraker log.: "启动失败。请查看 Moonraker 日志。"
   This feature requires different hardware or configuration: 此功能需要不同的硬件或配置
-  This feature stopped. Restart Moonraker to start it again.: "此功能已停止。重启 Moonraker 即可重新启动。"
+  Stopped. Restart Moonraker to start it again.: "已停止。重启 Moonraker 以重新启动。"
   This filament system does not report buffer or flow data.: 此耗材系统不报告缓冲区或流量数据。
   This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.: '此文件通过同一个喷嘴打印 {0} 和 {1}。在 {1} 的温度下，{0} 可能过热并堵塞喷嘴。'
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: '此文件同时打印 {0} 和 {1}。{1} 所需的腔体和热床温度可能使 {0} 软化并堵塞其喷嘴。'
@@ -4092,7 +4092,7 @@ translations:
   This is what data would be sent if enabled: 这是启用后将发送的数据
   This looks like a {}, but it is set up as a {}: 这台打印机看起来是 {}，但被设置为 {}
   This may take up to 30 seconds: 这可能需要 30 秒
-  This needs the plugin's file analysis, which isn't running.: "这需要插件的文件分析，但它未在运行。"
+  Needs file analysis, which isn't running.: "需要文件分析，但它未在运行。"
   This plugin asks for no special permissions.: '此插件不请求任何特殊权限。'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: '此插件让 HelixScreen 控制打印启动选项，如热床网格和 QGL。'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: '此打印无法继续。请重新开始打印；如果反复出现，可关闭热床检查。'
@@ -4833,3 +4833,6 @@ translations:
   'from tag': '来自标签'
   'Browse catalog...': '浏览目录...'
   ~{:.1f} Hz / turn: "约 {:.1f} Hz / 圈"
+  RUNNING: "运行中"
+  NOT AVAILABLE HERE: "此处不可用"
+  The plugin didn't say why.: "插件未说明原因。"

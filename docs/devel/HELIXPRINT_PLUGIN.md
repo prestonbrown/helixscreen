@@ -331,10 +331,15 @@ history header.
 
 ### The overview
 
-Advanced > HelixPrint Plugin (`PluginOverviewOverlay`) shows the plugin version and one line per
-status-map feature, built by `plugin_feature_lines()`: Active, Off, or "Unavailable: <reason>".
-A feature whose `kKnownPluginFeatures` row names a `PluginFeatureHome` leads to that page; a
-feature with no setting, or one this app does not know (shown by its key), shows status only.
+Advanced > HelixPrint Plugin (`PluginOverviewOverlay`) shows the plugin version and one dense
+row per status-map feature, built by `plugin_feature_lines()`, under three headers: RUNNING,
+OFF and NOT AVAILABLE HERE. A header with no features is hidden. `plugin_overview_row()` decides
+each row's group and its reason: only an unavailable feature gets a second, muted line, its
+reason in words, or "The plugin didn't say why." when it gave none. Running rows, whose names
+are short, sit up to three to a row where the width allows (`responsive_grid`); off and
+unavailable rows take the full width for their longer names and reasons. A feature whose `kKnownPluginFeatures` row names a `PluginFeatureHome` leads to
+that page with a chevron; a feature with no setting, or one this app does not know (shown by its
+key), takes no tap.
 A feature that serves one kind of hardware lists, in its `kKnownPluginFeatures` row's
 `hidden_reasons`, the reasons that mean that hardware is absent. While it is unavailable for one
 of them it gets no line (`hidden_on_overview`), so a printer lists only the vendor transport it
@@ -353,24 +358,26 @@ its row there.
 | `plugin_disabled` | every feature, `enabled: False` in `[helix_print]` | The plugin is turned off in moonraker.conf. |
 | `module_missing` | a feature whose module file is absent | Part of the plugin is missing. Reinstall the plugin. |
 | `load_failed` | a feature whose module raised on import | Part of the plugin failed to load. Reinstall the plugin. |
-| `start_failed` | a feature whose start raised | This feature failed to start. The Moonraker log says why. |
-| `stopped` | `convert_3mf`, its converter stopped | This feature stopped. Restart Moonraker to start it again. |
-| `needs_file_analysis` | `fit_check_blocks_autostart` | This needs the plugin's file analysis, which isn't running. |
-| `upload_hook_unsupported` | `fit_check_blocks_autostart` | This Moonraker version can't hold uploads. Update Moonraker. |
+| `start_failed` | a feature whose start raised | Failed to start. See the Moonraker log. |
+| `stopped` | `convert_3mf`, its converter stopped | Stopped. Restart Moonraker to start it again. |
+| `needs_file_analysis` | `fit_check_blocks_autostart` | Needs file analysis, which isn't running. |
+| `upload_hook_unsupported` | `fit_check_blocks_autostart` | Needs a newer Moonraker to hold uploads. |
 | `no_gcodes_dir` | `file_analysis` | Moonraker has no G-code folder. |
 | `python_too_old` | `plr` | Moonraker's Python is too old for this feature. |
 | `no_virtual_sdcard` | `plr` | Klipper has no [virtual_sdcard] section. |
 | `store_unwritable` | `plr` | The plugin can't save its recovery data to disk. |
-| `not_listed` | `plr` | Power-loss recovery isn't supported on this printer yet. |
-| `snapshot_unreachable` | `photos` | The plugin can't reach the camera, so this screen takes the photos. |
+| `not_listed` | `plr` | Not set up for this printer model yet. |
+| `snapshot_unreachable` | `photos` | Can't reach the camera, so this screen takes photos. |
+| `unsafe_staging_dir` | `storage`, `storage_auto_cleanup` | A folder name in moonraker.conf is unsafe. |
+| `unsafe_root` | `storage`, `storage_auto_cleanup` | Timelapse or logs folder overlaps a protected one. |
 | `no_adventurer_json` | `vendor_ad5x` (hidden) | This printer has no IFS. |
 | `adventurer_json_unreadable` | `vendor_ad5x` | The IFS state file can't be read. |
 | `no_ace_bridge` | `vendor_ace` (hidden) | No ACE unit was found. |
 | `ace_objects_carry_slots` | `vendor_ace` (hidden) | Klipper already reports the ACE slots. |
 | `bridge_unreadable` | `vendor_ace` | The ACE state can't be read. |
 
-`storage` and `storage_auto_cleanup` report a sentence (`root_problem` in `helix_storage.py`),
-not a code, so it shows as written.
+`storage` and `storage_auto_cleanup` report `root_problem()`'s code with the offending name or
+path after the colon (`helix_storage.py`).
 
 ### One fallback sender per printer
 
