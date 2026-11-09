@@ -262,6 +262,7 @@ void ProbeOverlay::init_subjects() {
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(probe_z_offset_display_, probe_z_offset_display_buf_, "--",
                               "probe_z_offset_display", subjects_);
+    UI_MANAGED_SUBJECT_INT(probe_z_offset_known_, 0, "probe_z_offset_known", subjects_);
 
     // Overlay state (0=normal)
     UI_MANAGED_SUBJECT_INT(probe_overlay_state_, 0, "probe_overlay_state", subjects_);
@@ -376,6 +377,7 @@ void ProbeOverlay::update_display_subjects() {
         lv_subject_copy_string(&probe_type_label_, "");
         snprintf(probe_z_offset_display_buf_, sizeof(probe_z_offset_display_buf_), "--");
         lv_subject_copy_string(&probe_z_offset_display_, probe_z_offset_display_buf_);
+        lv_subject_set_int(&probe_z_offset_known_, 0);
         return;
     }
 
@@ -422,9 +424,15 @@ void ProbeOverlay::update_display_subjects() {
     snprintf(probe_type_label_buf_, sizeof(probe_type_label_buf_), "%s", type_label);
     lv_subject_copy_string(&probe_type_label_, probe_type_label_buf_);
 
-    // Z offset display
-    float z_offset = mgr.get_z_offset();
-    snprintf(probe_z_offset_display_buf_, sizeof(probe_z_offset_display_buf_), "%.3fmm", z_offset);
+    // Z offset display; the row hides when no status or config section gives one (#2089)
+    const bool z_offset_known = mgr.has_z_offset();
+    if (z_offset_known) {
+        snprintf(probe_z_offset_display_buf_, sizeof(probe_z_offset_display_buf_), "%.3fmm",
+                 mgr.get_z_offset());
+    } else {
+        snprintf(probe_z_offset_display_buf_, sizeof(probe_z_offset_display_buf_), "--");
+    }
+    lv_subject_set_int(&probe_z_offset_known_, z_offset_known ? 1 : 0);
     lv_subject_copy_string(&probe_z_offset_display_, probe_z_offset_display_buf_);
 
     // Set Klicky detection flag for generic panel visibility binding

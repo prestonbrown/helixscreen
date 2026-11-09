@@ -103,6 +103,10 @@ constexpr Row kRows[] = {
      Scope::SectionOnly},
     {Match::Exact, "dockable_probe", ObjectKind::Probe, chip_of(ProbeSensorType::STANDARD),
      Scope::SectionOnly},
+    // Snapmaker U1: one eddy-current coil section per head, behind the generic
+    // probe object. Its z_offset lives here; the probe object publishes none.
+    {Match::Prefix, "inductance_coil ", ObjectKind::Probe, chip_of(ProbeSensorType::EDDY_CURRENT),
+     Scope::SectionOnly},
 
     {Match::Prefix, "gcode_button ", ObjectKind::Input, 0, Scope::Both},
     {Match::Exact, "power_loss_check", ObjectKind::PowerLossMonitor, 0, Scope::Both},
