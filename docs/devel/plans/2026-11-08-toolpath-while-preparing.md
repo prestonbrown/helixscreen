@@ -1,6 +1,6 @@
 # Toolpath while a thumbnail-less file prepares: design
 
-Status: proposed 2026-11-08, waiting on Preston's answers to the open questions below. Option (a)
+Status: decided 2026-11-08, see Decisions at the end, which replace the dock design. Option (a)
 of prestonbrown/helixscreen#2057. Builds on `fix/no-thumb-preparing` (option (b): no picture,
 and the `print_has_thumbnail` subject this plan reads). Deleted in the change that ships it
 (`docs/CLAUDE.md`).
@@ -235,15 +235,14 @@ driven by calling the host callback the fixture already stubs.
 
 Plus one screenshot per size docked, and the MIPS measurement above.
 
-## Open questions for Preston
+## Decisions (Preston, 2026-11-08)
 
-1. **Is losing the full step list (while the toolpath shows) acceptable,** given the dock keeps
-   the current step, its countdown and a dot per step? If not, D is the fallback, model under the
-   text.
-2. **Thumbnail files too?** The toolpath loads for them during Preparing as well. Docking every
-   file would make one preparing look instead of two; this plan keeps thumbnail files as they are.
-3. **Dock from the start with the viewer's loading spinner, or switch list to dock when the first
-   frame lands** (this plan)? From the start avoids the mid-start change but shows an empty band
-   on Thumbnail Only and skipped-for-cost boards, which then have to switch back.
-4. **Open the separate issue** for the viewer drawing under the opaque checklist (CPU on every
-   print, independent of #2057)?
+These override the dock design above, which is kept only for its measurements.
+
+- Keep the whole checklist, with the model drawn under it (option D). No dock.
+- Each checklist row, and its time, gets a dark pill behind it so the text stays readable over
+  the model.
+- The model stays centered. Moving it clear of the labels would force a re-render at print
+  start, which this plan's measurements show is the costly part on MIPS.
+- Thumbnail files stay as they are.
+- The viewer drawing under the opaque checklist is tracked in its own issue.
