@@ -7298,6 +7298,47 @@ TEST_CASE_METHOD(RunningAd5xIfs, "AD5X IFS COLOR-menu slot row with the color in
     CHECK(info.color_rgb == 0x21CC3D);
 }
 
+// Z-Mod reports a freshly inserted lane's type as "?", its "nothing assigned"
+// marker. Taken in as a material it reaches lane_data and makes an unlabelled
+// lane look like it holds a spool (prestonbrown/helixscreen#2086).
+TEST_CASE("AD5X IFS GET_ZCOLOR reads Z-Mod's ? type as no material", "[ams][ad5x_ifs][2086]") {
+    std::vector<std::string> lines = {
+        "// Extruder: None (1) | IFS: True",
+        "// 1: PLA/FFFFFF",
+        "// 2: ?/",
+        "// 4: ?",
+    };
+    auto r = helix::ad5x::parse_zcolor_silent(lines);
+    REQUIRE(r.slots[0].has_value());
+    CHECK(r.slots[0]->material == "PLA");
+    REQUIRE(r.slots[1].has_value());
+    CHECK(r.slots[1]->material.empty());
+    REQUIRE(r.slots[3].has_value());
+    CHECK(r.slots[3]->material.empty());
+}
+
+TEST_CASE("AD5X IFS COLOR-menu row with Z-Mod's ? type leaves the lane unlabelled",
+          "[ams][ad5x_ifs][2086]") {
+    TestableAd5xIfsBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+    Ad5xIfsTestAccess::set_port_presence(backend, 3, true);
+    REQUIRE_FALSE(backend.get_slot_info(3).has_filament_info());
+
+    // The root menu's row for a lane just inserted, verbatim from bundle KHACGM8W.
+    Ad5xIfsTestAccess::on_gcode_response_line(
+        backend, "// action:prompt_button 4: ?|RUN_ZCOLOR SLOT=4 HEX= TYPE=?|primary|");
+    // A CHANGE_ZCOLOR carrying the placeholder is no edit either.
+    Ad5xIfsTestAccess::on_gcode_response_line(backend, "CHANGE_ZCOLOR SLOT=4 TYPE=?");
+
+    const SlotInfo info = backend.get_slot_info(3);
+    CHECK(info.material.empty());
+    // has_filament_info() is what the "Same spool?" offer keys on.
+    CHECK_FALSE(info.has_filament_info());
+    CHECK(Ad5xIfsTestAccess::last_firmware_material(backend, 3).value_or("") != "?");
+    CHECK_FALSE(Ad5xIfsTestAccess::get_override(backend, 3).has_value());
+}
+
 namespace {
 // The exact swatch grid zmod renders for "Select color" (bundle 482NB943,
 // 17:34:19.0-19.2 and 17:35:29.6-29.9). Order matters: the bug landed the slot

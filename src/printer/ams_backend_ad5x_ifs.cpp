@@ -33,6 +33,7 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "toolhead_homing.h"
+#include "zmod_color_status.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -3915,7 +3916,8 @@ bool AmsBackendAd5xIfs::on_gcode_response_line(const std::string& line) {
                 // line string). empty optional == "not present in this gcode".
                 std::optional<std::string> parsed_type;
                 helix::RegexMatch tm;
-                if (helix::regex_search(line, tm, type_re)) {
+                if (helix::regex_search(line, tm, type_re) &&
+                    !helix::zmod_color::is_unset_type(tm[1].str())) {
                     parsed_type = tm[1].str();
                 }
                 std::optional<std::string> parsed_hex;
@@ -4067,7 +4069,9 @@ bool AmsBackendAd5xIfs::apply_color_menu_slot_row(const std::string& line) {
 
     helix::RegexMatch tm;
     helix::RegexMatch hm;
-    const bool has_type = helix::regex_search(line, tm, type_re);
+    // TYPE=? names no material, so the row carries no type reading.
+    const bool has_type =
+        helix::regex_search(line, tm, type_re) && !helix::zmod_color::is_unset_type(tm[1].str());
     const bool has_hex = helix::regex_search(line, hm, hex_re);
     if (!has_type && !has_hex)
         return false;
