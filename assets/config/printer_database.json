@@ -232,8 +232,7 @@
             "adaptive_value": "1"
           }
         ]
-      },
-      "toolhead_style": "default"
+      }
     },
     {
       "id": "flashforge_adventurer_5m_forgex",
@@ -350,8 +349,7 @@
             "adaptive_value": "1"
           }
         ]
-      },
-      "toolhead_style": "default"
+      }
     },
     {
       "id": "flashforge_ad5m_pro",
@@ -475,8 +473,7 @@
             "adaptive_value": "1"
           }
         ]
-      },
-      "toolhead_style": "default"
+      }
     },
     {
       "id": "flashforge_ad5m_pro_forgex",
@@ -616,7 +613,6 @@
           }
         ]
       },
-      "toolhead_style": "default",
       "_print_start_default_phases_comment": "Measured on an AD5M Pro on Forge-X 1.4.2 2026-10-15 (KAMP, ABS 105/265): homing ~5s; the nozzle clean ~135s, ~112s of it the silent cool-down to 120C for probing; the 25-point mesh plus Smart Park ~150s; the priming line ~15s. Heating is omitted - the thermal model owns those.",
       "print_start_default_phases": {
         "HOMING": 5,
@@ -812,8 +808,7 @@
           "confidence": 0,
           "reason": "The chamber heater is the Pro's hardware; a machine carrying one is a Creator 5 Pro, not a Creator 5"
         }
-      ],
-      "toolhead_style": "default"
+      ]
     },
     {
       "id": "flashforge_creator_5_pro",
@@ -892,8 +887,7 @@
           "confidence": 0,
           "reason": "The chamber heater is the only hardware that separates a Creator 5 Pro from a Creator 5; a machine reporting none is a Creator 5, and the name itself is shared with other enclosed printers so it never scores on its own"
         }
-      ],
-      "toolhead_style": "default"
+      ]
     },
     {
       "id": "voron_2_4",
