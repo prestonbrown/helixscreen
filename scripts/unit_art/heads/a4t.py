@@ -90,4 +90,4 @@ def draw_art(scene, tier):
     _extruder(d)
 
 
-HEAD = HeadDef("a4t", "A4T", draw_art, TIP)
+HEAD = HeadDef("a4t", "A4T", draw_art, TIP, entry=(-0.03, 0.17, 1.0), size=1.06)

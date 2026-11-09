@@ -98,10 +98,14 @@ TEST_CASE("toolhead art: the frame puts the nozzle tip on the filament column", 
     const ToolheadArt* art = toolhead_art_for(ToolheadStyle::ENDER3);
     REQUIRE(art != nullptr);
     const ToolheadArtRect r = toolhead_art_rect(*art, 100, 50, 10);
-    CHECK(r.h == 80);
-    CHECK(r.y == 10);
+    CHECK(r.h == Catch::Approx(80 * art->height).margin(1));
+    CHECK(r.y == 50 - r.h / 2);
     CHECK(r.w == Catch::Approx(80 * art->aspect).margin(1));
     CHECK(100 - r.x == Catch::Approx(r.w * art->tip_x).margin(1));
+
+    const ToolheadArtPoint entry = toolhead_art_entry(*art, 100, 50, 10);
+    CHECK(entry.x == Catch::Approx(r.x + r.w * art->entry_x).margin(1));
+    CHECK(entry.y == Catch::Approx(r.y + r.h * art->entry_y).margin(1));
 
     const GlyphBounds g = toolhead_bounds(ToolheadStyle::ENDER3, 100, 50, 10);
     CHECK(g.left == r.x);

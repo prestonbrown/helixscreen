@@ -214,7 +214,9 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
         f.hub_y = f.toolhead_y - stub - f.hub_h / 2;
     }
     f.nozzle_y = g.y_off + (int32_t)(g.height * kNozzleYRatio);
-    f.inlet_y = f.nozzle_y - theme.extruder_scale * 2;
+    const helix::ui::ToolheadInlet inlet = path_toolhead_inlet(f.nozzle_y, theme.extruder_scale);
+    f.inlet_y = inlet.y;
+    f.head_x = g.center_x + inlet.dx;
     f.bypass_merge_y = g.y_off + (int32_t)(g.height * kBypassMergeYRatio);
     f.center_x = g.center_x;
     f.sensor_r = theme.sensor_radius;

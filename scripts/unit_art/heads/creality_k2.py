@@ -11,7 +11,6 @@ BODY_BACK = 0.56
 BOTTOM = 0.05
 INLET_Y = 0.21
 INLET_CUT_HALF_WIDTH, INLET_CUT_FRONT = 0.075, 0.13
-PTFE = "#eceded"
 TOP = 1.0
 CREASE = 0.3
 TIP = (0.0, 0.07, 0.022)
@@ -56,7 +55,6 @@ def _inlet(d):
     w, y, z = INLET_CUT_HALF_WIDTH, INLET_CUT_FRONT, TOP + 0.001
     d.facet([(-w, y, z), (w, y, z), (w, DEPTH, z), (-w, DEPTH, z)], DARK, amb=0.9, dif=0.2, spec=0.0)
     d.tube(0.0, INLET_Y, TOP, TOP + 0.03, 0.04, "#2b2c30")
-    d.tube(0.0, INLET_Y, TOP + 0.03, TOP + 0.13, 0.021, PTFE)
 
 
 def _flank_block(d):
@@ -98,4 +96,4 @@ def draw_art(scene, tier):
     _side_holes(d)
 
 
-HEAD = HeadDef("creality_k2", "CREALITY_K2", draw_art, TIP)
+HEAD = HeadDef("creality_k2", "CREALITY_K2", draw_art, TIP, entry=(0.0, INLET_Y, TOP + 0.03), size=1.2)

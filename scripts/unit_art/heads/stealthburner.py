@@ -76,6 +76,7 @@ def draw_art(scene, tier):
     _shell_front(d)
     _hex_well(d)
     d.fan(0.0, 0.3, 0.148, -0.002, blade="#232427")
+    d.collet(0.0, BACK_OF_SHELL + 0.07, 0.99)
     # The Voron mark: three slanted bars, the middle one longest.
     for dx, z0, z1 in ((-0.032, 0.525, 0.565), (0.0, 0.48, 0.565), (0.032, 0.48, 0.52)):
         slant, half = 0.42, 0.011
@@ -85,4 +86,4 @@ def draw_art(scene, tier):
             d.disc(x, z, 0.018, -0.001, HOLE, sides=12)
 
 
-HEAD = HeadDef("stealthburner", "STEALTHBURNER", draw_art, TIP)
+HEAD = HeadDef("stealthburner", "STEALTHBURNER", draw_art, TIP, entry=(0.0, BACK_OF_SHELL + 0.07, 1.025))

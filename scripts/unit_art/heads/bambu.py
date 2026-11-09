@@ -22,7 +22,6 @@ def _top_window(d):
     z = 0.976
     outline = rounded([(-0.15, SLOPE_DEPTH + 0.02), (0.15, SLOPE_DEPTH + 0.02), (0.15, 0.38), (-0.15, 0.38)], 0.03)
     d.scene.poly([(x, y, z) for x, y in outline], HOLE)
-    d.tube(0.02, 0.26, z, z + 0.05, 0.022, "#f2f2ef")
 
 
 def _point(u, v, side):
@@ -90,4 +89,4 @@ def draw_art(scene, tier):
     d.face([(-0.014, 0.034), (0.014, 0.034), (0.004, TIP[2]), (-0.004, TIP[2])], -0.001, "#ffffff", lane=0)
 
 
-HEAD = HeadDef("bambu", "BAMBU", draw_art, TIP)
+HEAD = HeadDef("bambu", "BAMBU", draw_art, TIP, entry=(0.02, 0.26, 0.976))

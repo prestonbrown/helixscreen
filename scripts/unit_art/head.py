@@ -21,6 +21,8 @@ class HeadDef:
     style: str
     draw_art: Callable
     tip: Tuple[float, float, float]
+    entry: Tuple[float, float, float] = (0.0, 0.0, 1.0)  # where the filament goes in
+    size: float = 1.0  # relative real-world size, the motor-bearing heads matched to one motor
 
 
 @dataclass
@@ -28,13 +30,17 @@ class HeadFrame:
     aspect: float
     tip_x: float
     tip_y: float
+    world_height: float
+    entry_x: float
+    entry_y: float
 
 
-def head_frame(scene, tip):
-    """The art's width over height, and where the nozzle tip falls in it as shares of each."""
+def head_frame(scene, tip, entry=None):
+    """The art's width over height, and where the nozzle tip and filament entry fall in it as shares of each."""
     vx, vy, vw, vh = scene._viewbox()
     x, y = scene.camera.project(tip)
-    return HeadFrame(vw / vh, (x - vx) / vw, (y - vy) / vh)
+    ex, ey = scene.camera.project(entry if entry is not None else tip)
+    return HeadFrame(vw / vh, (x - vx) / vw, (y - vy) / vh, vh, (ex - vx) / vw, (ey - vy) / vh)
 
 
 def mirror(right):
@@ -60,6 +66,9 @@ def _inset(outline, d):
         k = 1.0 / max(0.5, mx * n0[0] + my * n0[1])
         out.append((p[0] + mx * d * k, p[1] + my * d * k))
     return out
+
+
+COLLET_HEIGHT = 0.035
 
 
 class Drawing:
@@ -132,6 +141,10 @@ class Drawing:
         foot = circle(cx, cy, r, sides)
         self.scene.prism(foot, z0, z1, color, amb=0.6, dif=0.55, spec=0.3)
         self.scene.poly([(x, y, z1) for x, y in foot], kit.shift(color, 26))
+
+    def collet(self, x, y, z, color="#26272b"):
+        """The fitting the filament tube enters, on a top surface at height z; the app draws the tube."""
+        self.tube(x, y, z, z + COLLET_HEIGHT, 0.042, color)
 
     def nozzle(self, x, y, z_top, r_top=0.05, r_tip=0.016, block=None, z_tip=NOZZLE_DROP):
         """The nozzle: a metal shoulder over a tip the runtime tints with the loaded filament."""

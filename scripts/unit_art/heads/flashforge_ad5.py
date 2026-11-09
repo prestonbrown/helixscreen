@@ -95,6 +95,7 @@ def draw_art(scene, tier):
     _hotend(d)
     _fan(d)
     _side_slots(d)
+    d.collet(0.0, 0.3, TOP)
 
 
-HEAD = HeadDef("flashforge_ad5", "FLASHFORGE_AD5", draw_art, TIP)
+HEAD = HeadDef("flashforge_ad5", "FLASHFORGE_AD5", draw_art, TIP, entry=(0.0, 0.3, TOP + 0.035))

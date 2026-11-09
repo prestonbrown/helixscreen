@@ -93,4 +93,4 @@ def draw_art(scene, tier):
     _extruder(d)
 
 
-HEAD = HeadDef("anthead", "ANTHEAD", draw_art, TIP)
+HEAD = HeadDef("anthead", "ANTHEAD", draw_art, TIP, entry=(0.0, 0.18, 1.0), size=1.2)

@@ -216,10 +216,14 @@ def generate_shell_table(units):
     return "\n".join(out)
 
 
+# World height, at size 1, of a head drawn at the app's nominal height.
+HEAD_REFERENCE_HEIGHT = 1.18
+
+
 def _head_frame(head):
     scene = kit.Scene(kit.ART_CAMERA)
     head.draw_art(scene, "full")
-    return head_kit.head_frame(scene, head.tip)
+    return head_kit.head_frame(scene, head.tip, head.entry)
 
 
 def bake_head(head, out_dir, render=rsvg_render):
@@ -255,7 +259,11 @@ def generate_head_table(heads):
     ]
     for head in heads:
         frame = _head_frame(head)
-        out.append(f'    {{ToolheadStyle::{head.style}, "{head.id}", {frame.aspect:.4f}f, {frame.tip_x:.4f}f, {frame.tip_y:.4f}f}},')
+        height = frame.world_height * head.size / HEAD_REFERENCE_HEIGHT
+        out.append(
+            f'    {{ToolheadStyle::{head.style}, "{head.id}", {frame.aspect:.4f}f, {frame.tip_x:.4f}f, {frame.tip_y:.4f}f, '
+            f"{height:.4f}f, {frame.entry_x:.4f}f, {frame.entry_y:.4f}f}},"
+        )
     out += ["};", f"const int kToolheadArtCount = {len(heads)};", "", "} // namespace helix::ui", ""]
     return "\n".join(out)
 

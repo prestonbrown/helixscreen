@@ -144,8 +144,7 @@ def draw_art(scene, tier):
     _neck(d)
     _frame(d)
     d.tube(0.0, 0.1, 0.985, 1.03, 0.042, "#7f8fae")
-    d.tube(0.0, 0.1, 1.03, 1.15, 0.024, "#ece6d2")
     _lever(d)
 
 
-HEAD = HeadDef("xol", "XOL", draw_art, TIP)
+HEAD = HeadDef("xol", "XOL", draw_art, TIP, entry=(0.0, 0.1, 1.03), size=1.06)

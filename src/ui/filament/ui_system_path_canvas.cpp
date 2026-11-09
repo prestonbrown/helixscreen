@@ -150,7 +150,8 @@ static void draw_buffer_box(lv_layer_t* layer, const SystemPathData* data, int32
 // The single-toolhead layout's buffer, halfway down the trunk.
 static void draw_trunk_buffer(lv_layer_t* layer, const SystemPathData* data, const SysLayout& L) {
     const int32_t hub_bottom = L.hub_y + L.hub_h / 2;
-    const int32_t nozzle_top = L.nozzle_y - data->extruder_scale * 2;
+    const int32_t nozzle_top =
+        helix::ui::toolhead_inlet(data->toolhead_style, L.nozzle_y, data->extruder_scale).y;
     draw_buffer_box(layer, data, L.center_x, hub_bottom + (nozzle_top - hub_bottom) / 2,
                     data->hub_width * 2 / 3, L.hub_h * 2 / 3, data->buffer_fault,
                     data->buffer_label);
@@ -226,7 +227,9 @@ static void draw_tool_row(lv_layer_t* layer, SystemPathData* data, const SysLayo
     for (int t = 0; t < tools; ++t) {
         int32_t tool_x = calc_tool_x(t, data->total_tools, L.x_off, L.width);
         bool is_active_tool = (t == data->active_tool) && data->filament_loaded;
-        draw_nozzle_for_style(layer, tool_x, L.tools_y,
+        const int32_t head_x =
+            tool_x + helix::ui::toolhead_inlet(data->toolhead_style, L.tools_y, small_scale).dx;
+        draw_nozzle_for_style(layer, head_x, L.tools_y,
                               is_active_tool ? std::optional(active) : std::nullopt, small_scale);
     }
     const helix::ui::ToolBadgeLook look = helix::ui::tool_badge_look();
@@ -234,7 +237,10 @@ static void draw_tool_row(lv_layer_t* layer, SystemPathData* data, const SysLayo
         int32_t tool_x = calc_tool_x(t, data->total_tools, L.x_off, L.width);
         helix::ui::draw_toolhead_badge(
             layer, look,
-            helix::ui::toolhead_bounds(data->toolhead_style, tool_x, L.tools_y, small_scale),
+            helix::ui::toolhead_bounds(
+                data->toolhead_style,
+                tool_x + helix::ui::toolhead_inlet(data->toolhead_style, L.tools_y, small_scale).dx,
+                L.tools_y, small_scale),
             data->tool_labels[t]);
     }
 }
@@ -245,14 +251,17 @@ static void draw_single_nozzle(lv_layer_t* layer, SystemPathData* data, const Sy
     const bool bp_active = data->bypass_active && data->filament_loaded;
     const lv_color_t noz_color =
         bp_active ? lv_color_hex(data->bypass_color) : lv_color_hex(data->active_color);
-    draw_nozzle_for_style(layer, L.center_x, L.nozzle_y,
+    const int32_t head_x =
+        L.center_x +
+        helix::ui::toolhead_inlet(data->toolhead_style, L.nozzle_y, data->extruder_scale).dx;
+    draw_nozzle_for_style(layer, head_x, L.nozzle_y,
                           (unit_active || bp_active) ? std::optional(noz_color) : std::nullopt,
                           data->extruder_scale);
 
     // Only when multiple slots feed one toolhead
     if (data->total_tools <= 1 && data->current_tool >= 0) {
         helix::ui::draw_toolhead_badge(layer, helix::ui::tool_badge_look(),
-                                       helix::ui::toolhead_bounds(data->toolhead_style, L.center_x,
+                                       helix::ui::toolhead_bounds(data->toolhead_style, head_x,
                                                                   L.nozzle_y, data->extruder_scale),
                                        data->current_tool_label);
     }

@@ -69,4 +69,4 @@ def draw_art(scene, tier):
     d.disc(0.0, FAN_Z, 0.11, -0.004, "#2b2c30", amb=0.8, dif=0.45, spec=0.2)
 
 
-HEAD = HeadDef("creality_k1", "CREALITY_K1", draw_art, TIP)
+HEAD = HeadDef("creality_k1", "CREALITY_K1", draw_art, TIP, entry=(0.0, 0.59, COVER_TOP), size=0.85)

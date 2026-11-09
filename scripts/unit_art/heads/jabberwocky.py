@@ -38,7 +38,6 @@ def _core(d):
     d.face([(-0.032, 0.625), (0.048, 0.625), (0.048, 0.61), (0.008, 0.575), (-0.032, 0.61)], -0.002, BLUE)
     # The PTFE tube rising from a dark fitting, and the idler's blue lever down the right.
     d.tube(0.0, 0.15, 0.825, 0.875, 0.022, DARK)
-    d.tube(0.0, 0.15, 0.875, 1.03, 0.007, "#1f8f88", sides=8)
     # The idler arm up the right flank, its spring and black knob standing out to the side.
     d.solid([(0.098, 0.6), (0.135, 0.6), (0.135, 0.8), (0.098, 0.83)], 0.06, 0.13, BLUE, bevel=0.004)
     for x0, x1, r, color in ((0.135, 0.175, 0.024, "#b9bbc0"), (0.175, 0.205, 0.04, DARK)):
@@ -69,4 +68,4 @@ def draw_art(scene, tier):
     _core(d)
 
 
-HEAD = HeadDef("jabberwocky", "JABBERWOCKY", draw_art, TIP)
+HEAD = HeadDef("jabberwocky", "JABBERWOCKY", draw_art, TIP, entry=(0.0, 0.15, 0.875), size=1.2)

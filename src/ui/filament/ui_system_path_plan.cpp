@@ -226,7 +226,8 @@ int collect_parallel_mixed_routes(const SystemPathData& data, const SysLayout& L
         const int32_t mhw = data.hub_width * 2 / 5;
         const int32_t mhh = L.hub_h * 2 / 3;
         const int32_t outlet = LV_MAX(10, 3 * data.tube_gauge);
-        const int32_t nozzle_top = L.tools_y - small_tool_scale(data) * 2;
+        const int32_t nozzle_top =
+            helix::ui::toolhead_inlet(data.toolhead_style, L.tools_y, small_tool_scale(data)).y;
         const int32_t mhy = nozzle_top - outlet - mhh / 2;
         const bool hub_has_filament =
             i == data.active_unit && data.filament_loaded && data.active_tool == hub_route.tool_idx;

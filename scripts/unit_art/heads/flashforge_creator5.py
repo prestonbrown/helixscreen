@@ -50,7 +50,6 @@ def _tool(d):
             d.face([(0.235, z), (0.375, z), (0.375, z + 0.014), (0.235, z + 0.014)], y - 0.001, "#55575c")
     _tool_fan(d)
     d.tube(0.34, NOZZLE_Y, TOP, TOP + 0.05, 0.05, "#26272b")
-    d.tube(0.34, NOZZLE_Y, TOP + 0.05, TOP + 0.16, 0.022, "#e8e8e6")
 
 
 def _hotend(d):
@@ -74,4 +73,4 @@ def draw_art(scene, tier):
     d.solid(CHANNEL_OUTLINE, 0.0, CHANNEL_WIDTH, DUCT)
 
 
-HEAD = HeadDef("flashforge_creator5", "FLASHFORGE_CREATOR5", draw_art, TIP)
+HEAD = HeadDef("flashforge_creator5", "FLASHFORGE_CREATOR5", draw_art, TIP, entry=(0.34, NOZZLE_Y, TOP + 0.05), size=0.85)

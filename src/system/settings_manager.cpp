@@ -90,6 +90,13 @@ static constexpr helix::ToolheadStyle kDropdownToStyleDebug[] = {
     helix::ToolheadStyle::ARTILLERY_M1,        // 17
     helix::ToolheadStyle::QIDI,                // 18
     helix::ToolheadStyle::SOVOL_SV08,          // 19
+    helix::ToolheadStyle::SNAPMAKER_U1,        // 13
+    helix::ToolheadStyle::FLASHFORGE_AD5,      // 14
+    helix::ToolheadStyle::FLASHFORGE_CREATOR5, // 15
+    helix::ToolheadStyle::ELEGOO_CENTAURI,     // 16
+    helix::ToolheadStyle::ARTILLERY_M1,        // 17
+    helix::ToolheadStyle::QIDI,                // 18
+    helix::ToolheadStyle::SOVOL_SV08,          // 19
 };
 static constexpr int kDropdownDebugCount =
     static_cast<int>(sizeof(kDropdownToStyleDebug) / sizeof(kDropdownToStyleDebug[0]));
@@ -174,8 +181,8 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
      "qidi_eject_velocity"},
     // Per-printer: AUTO resolves from this printer's type, so the manual
     // override follows the same printer.
-    {"settings_toolhead_style", "appearance/toolhead_style", Scope::PerPrinter, false, 0, 0, 12,
-     "toolhead_style"},
+    {"settings_toolhead_style", "appearance/toolhead_style", Scope::PerPrinter, false, 0, 0,
+     kLastToolheadStyle, "toolhead_style"},
     // helix::ui::ToolNumberStyleSetting: 0=Auto, 1=Physical ("1"), 2=Gcode ("T0")
     {"settings_tool_number_style", "appearance/tool_number_style", Scope::PerPrinter, false, 0, 0,
      2, "tool_number_style"},

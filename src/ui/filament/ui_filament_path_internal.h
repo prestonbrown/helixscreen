@@ -538,6 +538,8 @@ helix::ui::GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t cy, int32_t sca
 /// Topmost drawn Y of the toolhead glyph for the configured style (its cap or
 /// shroud, above the nozzle inlet at nozzle_y - extruder_scale * 2).
 int32_t toolhead_top_y(int32_t nozzle_y, int32_t extruder_scale);
+/// The configured head's filament inlet at this nozzle row and scale.
+helix::ui::ToolheadInlet path_toolhead_inlet(int32_t nozzle_y, int32_t extruder_scale);
 
 /// The tool badge ("T0", "T1", …) on the corner of draw_toolhead()'s glyph,
 /// at full opacity. Paint it after every glyph.

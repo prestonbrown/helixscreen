@@ -28,7 +28,6 @@ def _top_plate(d):
     d.facet([(-0.2, 0.2, z + 0.001), (-0.08, 0.2, z + 0.001), (-0.08, 0.32, z + 0.001), (-0.2, 0.32, z + 0.001)], HOLE, amb=0.9, dif=0.2, spec=0.0)
     d.solid([(-0.24, TOP + 0.001), (-0.14, TOP + 0.001), (-0.14, TOP + 0.05), (-0.24, TOP + 0.05)], 0.22, 0.28, ORANGE)
     d.tube(0.0, 0.28, TOP, TOP + 0.045, 0.06, "#26272b")
-    d.tube(0.0, 0.28, TOP + 0.045, TOP + 0.16, 0.022, "#e6e6e4")
 
 
 def _fan(d):
@@ -53,4 +52,4 @@ def draw_art(scene, tier):
         d.scene.line([(-0.26, -0.001, SEAM_Z), (0.26, -0.001, SEAM_Z)], TRIM, 0.005)
 
 
-HEAD = HeadDef("snapmaker_u1", "SNAPMAKER_U1", draw_art, TIP)
+HEAD = HeadDef("snapmaker_u1", "SNAPMAKER_U1", draw_art, TIP, entry=(0.0, 0.28, TOP + 0.045))

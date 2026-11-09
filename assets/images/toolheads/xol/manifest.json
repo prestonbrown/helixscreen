@@ -1,16 +1,16 @@
 {
   "id": "xol",
-  "aspect": 0.5604,
+  "aspect": 0.6039,
   "tiers": {
     "full": {
-      "width": 90,
+      "width": 97,
       "height": 160,
       "back": "full.png",
       "tint": "full_tint.png",
       "shade": "full_shade.png"
     },
     "path": {
-      "width": 40,
+      "width": 43,
       "height": 72,
       "back": "path.png",
       "tint": "path_tint.png",

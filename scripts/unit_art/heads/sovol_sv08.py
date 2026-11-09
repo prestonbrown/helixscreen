@@ -100,8 +100,9 @@ def draw_art(scene, tier):
     d.disc(0.0, FAN_Z, 0.165, -0.002, RECESS)
     d.fan(0.0, FAN_Z, 0.145, -0.003, blade="#34353a", hub="#4b4c50")
     _flank(d)
+    d.collet(0.0, 0.24, 1.0, color="#2f6fd0")
     if d.detail:
         wordmark(d, "SOVOL", 0.0, 0.135, 0.04, 0.055, 0.014, "#3a587a", 0.007)
 
 
-HEAD = HeadDef("sovol_sv08", "SOVOL_SV08", draw_art, TIP)
+HEAD = HeadDef("sovol_sv08", "SOVOL_SV08", draw_art, TIP, entry=(0.0, 0.24, 1.035))

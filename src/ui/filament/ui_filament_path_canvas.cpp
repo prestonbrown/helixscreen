@@ -1223,7 +1223,7 @@ bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out
     const LinearHubFrame f =
         compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
     const helix::ui::GlyphBounds b =
-        toolhead_glyph_bounds(f.center_x, f.nozzle_y, data->theme.extruder_scale);
+        toolhead_glyph_bounds(f.head_x, f.nozzle_y, data->theme.extruder_scale);
     *area_out = {b.left, b.top, b.right, b.bottom};
     return true;
 }

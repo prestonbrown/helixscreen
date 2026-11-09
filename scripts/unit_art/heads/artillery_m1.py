@@ -93,4 +93,4 @@ def _rect_outline():
     return [(-HALF_WIDTH, STEP_Z), (HALF_WIDTH, STEP_Z), (HALF_WIDTH, TOP), (-HALF_WIDTH, TOP)]
 
 
-HEAD = HeadDef("artillery_m1", "ARTILLERY_M1", draw_art, TIP)
+HEAD = HeadDef("artillery_m1", "ARTILLERY_M1", draw_art, TIP, entry=(-0.06, 0.447, TOP))

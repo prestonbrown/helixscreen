@@ -97,4 +97,4 @@ def draw_art(scene, tier):
     _extruder(d)
 
 
-HEAD = HeadDef("dragonburner", "DRAGONBURNER", draw_art, TIP)
+HEAD = HeadDef("dragonburner", "DRAGONBURNER", draw_art, TIP, entry=(0.03, 0.1, BODY_TOP + 0.39), size=1.29)

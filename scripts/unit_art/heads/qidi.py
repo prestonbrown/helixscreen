@@ -73,10 +73,9 @@ def _section(d, z0, z1, color):
 
 
 def _top_opening(d):
-    """The opening in the top the filament tube rises through."""
+    """The opening in the top the filament tube enters."""
     z = TOP + 0.001
     d.scene.poly([(x, y, z) for x, y in rounded([(-0.085, 0.2), (0.085, 0.2), (0.085, 0.34), (-0.085, 0.34)], 0.025)], DARK)
-    d.tube(0.0, 0.27, TOP, TOP + 0.17, 0.024, "#cfe2f0")
 
 
 def _side_fan(d):
@@ -106,4 +105,4 @@ def draw_art(scene, tier):
         _logo(d)
 
 
-HEAD = HeadDef("qidi", "QIDI", draw_art, TIP)
+HEAD = HeadDef("qidi", "QIDI", draw_art, TIP, entry=(0.0, 0.27, TOP))

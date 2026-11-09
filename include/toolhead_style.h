@@ -31,4 +31,7 @@ enum class ToolheadStyle : int8_t {
     SOVOL_SV08 = 19
 };
 
+/// The highest ToolheadStyle value, the upper bound of the stored setting.
+inline constexpr int kLastToolheadStyle = static_cast<int>(ToolheadStyle::SOVOL_SV08);
+
 } // namespace helix

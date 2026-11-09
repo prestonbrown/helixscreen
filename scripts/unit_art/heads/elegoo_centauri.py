@@ -55,7 +55,6 @@ def _rear_body(d):
     z = TOP + 0.001
     d.scene.poly([(x, y, z) for x, y in rounded([(-0.14, 0.34), (0.14, 0.34), (0.14, 0.5), (-0.14, 0.5)], 0.03)], DARK)
     d.tube(0.0, 0.42, z, z + 0.04, 0.05, FITTING)
-    d.tube(0.0, 0.42, z + 0.04, z + 0.16, 0.022, "#e8e8e6")
     x = HALF_WIDTH + 0.001
     n = 16
     for cy, cz, r in ((0.345, 0.72, 0.045), (0.375, 0.31, 0.078)):
@@ -79,4 +78,4 @@ def draw_art(scene, tier):
         d.face([(-0.06, LOGO_Z - 0.012), (0.06, LOGO_Z - 0.012), (0.06, LOGO_Z + 0.012), (-0.06, LOGO_Z + 0.012)], -0.002, MARK)
 
 
-HEAD = HeadDef("elegoo_centauri", "ELEGOO_CENTAURI", draw_art, TIP)
+HEAD = HeadDef("elegoo_centauri", "ELEGOO_CENTAURI", draw_art, TIP, entry=(0.0, 0.42, TOP + 0.041))
