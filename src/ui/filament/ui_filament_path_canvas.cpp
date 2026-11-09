@@ -243,7 +243,8 @@ static void filament_path_click_cb(lv_event_t* e) {
         const BaseGeometry g = compute_base_geometry(obj, data);
         const ParallelRows rows = parallel_rows(*data, g);
         const helix::ui::GlyphBounds glyph =
-            toolhead_glyph_bounds(0, rows.toolhead_y, rows.tool_scale);
+            toolhead_glyph_bounds(path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).dx,
+                                  rows.toolhead_y, rows.tool_scale);
         helix::ui::ParallelTapLayout layout;
         layout.slot_x = g.slot_x;
         layout.slot_count = g.slot_count;

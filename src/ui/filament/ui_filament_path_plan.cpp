@@ -442,7 +442,7 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
         // Combiner on the print head: the box hugs the toolhead over a short
         // stub of shared tube, measured from the nozzle glyph's top so the two
         // never overlap.
-        const int32_t nozzle_top = f.toolhead_y - f.tool_scale * 2;
+        const int32_t nozzle_top = toolhead_glyph_bounds(0, f.toolhead_y, f.tool_scale).top;
         const int32_t stub = LV_MAX(10, (int32_t)(g.height * 0.03f));
         f.hub_bottom = nozzle_top - stub;
         f.hub_cy = f.hub_bottom - f.hub_h / 2;
@@ -732,7 +732,7 @@ void plan_parallel(const FilamentPathData& data, const BaseGeometry& g, PathPlan
     const ParallelRows rows = parallel_rows(data, g);
     const int32_t entry_y = rows.entry_y;
     const int32_t sensor_y = rows.sensor_y;
-    const float nozzle_top = (float)(rows.toolhead_y - rows.tool_scale * 2);
+    const float nozzle_top = (float)path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).y;
     const PathSegment error = static_cast<PathSegment>(data.error_segment);
     const SlotRenderStates states = compute_slot_render_states(&data);
 
@@ -766,7 +766,7 @@ void plan_mixed(const MixedFrame& f, const FilamentPathData& data, const BaseGeo
                 PathPlan& out) {
     reset_plan(out);
     const lv_color_t bg = data.theme.color_bg;
-    const float nozzle_top = (float)(f.toolhead_y - f.tool_scale * 2);
+    const float nozzle_top = (float)path_toolhead_inlet(f.toolhead_y, f.tool_scale).y;
     const PathSegment error = static_cast<PathSegment>(data.error_segment);
 
     const int n = LV_MIN(data.slot_count, FilamentPathData::kMaxSlots);

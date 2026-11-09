@@ -186,7 +186,8 @@ void draw_parallel_tool(const RenderCtx& ctx, const SlotRenderStates& states, in
         char tool_label[16];
         int tool = (data->mapped_tool[i] >= 0) ? data->mapped_tool[i] : i;
         format_tool_badge_label(data, i, tool, tool_label, sizeof(tool_label));
-        draw_tool_badge(ctx, slot_x, toolhead_y, tool_scale, tool_label);
+        draw_tool_badge(ctx, slot_x + path_toolhead_inlet(toolhead_y, tool_scale).dx, toolhead_y,
+                        tool_scale, tool_label);
         return;
     }
 
@@ -201,7 +202,8 @@ void draw_parallel_tool(const RenderCtx& ctx, const SlotRenderStates& states, in
     // Flow particles for the active slot are painted separately in
     // draw_animation_parallel (DRAW_POST) so per-frame ticks don't bust the
     // overlay canvas cache.
-    draw_toolhead(ctx.layer, slot_x, toolhead_y, noz_color, tool_scale, toolhead_opa);
+    draw_toolhead(ctx.layer, slot_x + path_toolhead_inlet(toolhead_y, tool_scale).dx, toolhead_y,
+                  noz_color, tool_scale, toolhead_opa);
 }
 
 // A fed lane's upstream caption, on the row its prep sensor band would take:
@@ -236,14 +238,16 @@ void render_parallel(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     PathPlan& plan = plan_scratch();
     plan_parallel(*data, ctx.geo, plan);
     warn_if_dropped(plan);
-    paint_tubes(layer, plan, tube_palette(*data));
 
     const ParallelRows rows = parallel_rows(*data, ctx.geo);
     const SlotRenderStates states = compute_slot_render_states(data);
-    for (ToolPass pass : {ToolPass::Glyph, ToolPass::Badge}) {
-        for (int i = 0; i < LV_MIN(data->slot_count, FilamentPathData::kMaxSlots); i++)
-            draw_parallel_tool(ctx, states, i, rows, pass);
-    }
+    const int tools = LV_MIN(data->slot_count, FilamentPathData::kMaxSlots);
+    // Heads first: each tube is painted over its head, down to the inlet.
+    for (int i = 0; i < tools; i++)
+        draw_parallel_tool(ctx, states, i, rows, ToolPass::Glyph);
+    paint_tubes(layer, plan, tube_palette(*data));
+    for (int i = 0; i < tools; i++)
+        draw_parallel_tool(ctx, states, i, rows, ToolPass::Badge);
     draw_upstream_captions(ctx, rows);
 }
 
@@ -292,7 +296,8 @@ void draw_mixed_shared_toolhead(const RenderCtx& ctx, const MixedFrame& f, ToolP
     if (pass == ToolPass::Badge) {
         char tool_label[16];
         format_tool_badge_label(data, hub_badge_lane, hub_tool, tool_label, sizeof(tool_label));
-        draw_tool_badge(ctx, f.hub_cx, f.toolhead_y, f.tool_scale, tool_label);
+        draw_tool_badge(ctx, f.hub_cx + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
+                        f.toolhead_y, f.tool_scale, tool_label);
         return;
     }
 
@@ -300,7 +305,8 @@ void draw_mixed_shared_toolhead(const RenderCtx& ctx, const MixedFrame& f, ToolP
     std::optional<lv_color_t> noz_color;
     if (any_hub_at_nozzle)
         noz_color = hub_nozzle_color;
-    draw_toolhead(ctx.layer, f.hub_cx, f.toolhead_y, noz_color, f.tool_scale, LV_OPA_COVER);
+    draw_toolhead(ctx.layer, f.hub_cx + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
+                  f.toolhead_y, noz_color, f.tool_scale, LV_OPA_COVER);
 }
 
 // A direct lane's own nozzle and badge.
@@ -313,7 +319,8 @@ void draw_mixed_direct_toolhead(const RenderCtx& ctx, const MixedFrame& f, int i
         char tool_label[16];
         int tool = (data->mapped_tool[i] >= 0) ? data->mapped_tool[i] : i;
         format_tool_badge_label(data, i, tool, tool_label, sizeof(tool_label));
-        draw_tool_badge(ctx, slot_x, f.toolhead_y, f.tool_scale, tool_label);
+        draw_tool_badge(ctx, slot_x + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
+                        f.toolhead_y, f.tool_scale, tool_label);
         return;
     }
 
@@ -321,7 +328,8 @@ void draw_mixed_direct_toolhead(const RenderCtx& ctx, const MixedFrame& f, int i
     if (s.at_nozzle)
         noz_color = s.color;
     lv_opa_t toolhead_opa = s.is_mounted ? LV_OPA_COVER : LV_OPA_40;
-    draw_toolhead(ctx.layer, slot_x, f.toolhead_y, noz_color, f.tool_scale, toolhead_opa);
+    draw_toolhead(ctx.layer, slot_x + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
+                  f.toolhead_y, noz_color, f.tool_scale, toolhead_opa);
 }
 
 void render_mixed(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
@@ -331,6 +339,16 @@ void render_mixed(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     plan_mixed(f, *data, ctx.geo, plan);
     warn_if_dropped(plan);
     const TubePalette pal = tube_palette(*data);
+    // Heads first: each tube is painted over its head, down to the inlet.
+    const auto draw_tools = [&](ToolPass pass) {
+        if (f.hub_count > 0)
+            draw_mixed_shared_toolhead(ctx, f, pass);
+        for (int i = 0; i < LV_MIN(data->slot_count, FilamentPathData::kMaxSlots); i++) {
+            if (!data->slot_is_hub_routed[i])
+                draw_mixed_direct_toolhead(ctx, f, i, pass);
+        }
+    };
+    draw_tools(ToolPass::Glyph);
     paint_tubes(layer, plan, pal);
 
     if (f.hub_count > 0) {
@@ -338,15 +356,7 @@ void render_mixed(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
                      data->theme.color_hub_border, "HUB");
     }
     paint_box_bands(layer, plan, pal);
-
-    for (ToolPass pass : {ToolPass::Glyph, ToolPass::Badge}) {
-        if (f.hub_count > 0)
-            draw_mixed_shared_toolhead(ctx, f, pass);
-        for (int i = 0; i < LV_MIN(data->slot_count, FilamentPathData::kMaxSlots); i++) {
-            if (!data->slot_is_hub_routed[i])
-                draw_mixed_direct_toolhead(ctx, f, i, pass);
-        }
-    }
+    draw_tools(ToolPass::Badge);
 }
 
 // ============================================================================

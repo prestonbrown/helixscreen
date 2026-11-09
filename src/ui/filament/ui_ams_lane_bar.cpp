@@ -42,7 +42,8 @@ using namespace helix;
  */
 struct LaneBarData {
     int slot_index = -1;
-    int fill_pct = 0; ///< Last known fill percent (0-100), from slot_fill.
+    bool outline_empty = false; ///< An empty lane shows its outline instead of nothing
+    int fill_pct = 0;           ///< Last known fill percent (0-100), from slot_fill.
 
     /// Base render state from the lane_state subject. Border decoration reads
     /// this alongside is_active so the active observer never has to guess
@@ -145,7 +146,7 @@ static void cleanup_all_lane_bar_data() {
 static void apply_lane_border(LaneBarData* d) {
     if (!d || !d->bar_bg)
         return;
-    if (d->last_state == helix::ui::LaneState::Empty)
+    if (d->last_state == helix::ui::LaneState::Empty && !d->outline_empty)
         return; // bar_bg is hidden; nothing to draw.
 
     if (d->is_active) {
@@ -169,8 +170,9 @@ static void apply_lane_state(LaneBarData* d, helix::ui::LaneState state) {
     // Empty draws nothing at all. The widget stays in the layout so the lane
     // remains countable, but neither the outline nor the fill is painted.
     if (state == helix::ui::LaneState::Empty) {
-        lv_obj_add_flag(d->bar_bg, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_flag(d->bar_bg, LV_OBJ_FLAG_HIDDEN, !d->outline_empty);
         lv_obj_add_flag(d->bar_fill, LV_OBJ_FLAG_HIDDEN);
+        apply_lane_border(d);
         lv_obj_set_style_opa(d->root, LV_OPA_COVER, LV_PART_MAIN);
         return;
     }
@@ -511,6 +513,14 @@ void ams_lane_bar_create_range(lv_obj_t* parent, int first_slot_index, int slot_
 int ams_lane_bar_slot_index(lv_obj_t* obj) {
     const LaneBarData* d = get_lane_bar_data(obj);
     return d ? d->slot_index : -1;
+}
+
+void ams_lane_bar_outline_empty(lv_obj_t* bar) {
+    LaneBarData* d = get_lane_bar_data(bar);
+    if (!d)
+        return;
+    d->outline_empty = true;
+    apply_lane_state(d, d->last_state);
 }
 
 void ams_lane_bar_resize(lv_obj_t* bar, int32_t bar_width, int32_t bar_height) {
