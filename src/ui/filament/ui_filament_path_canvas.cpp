@@ -513,6 +513,7 @@ void ui_filament_path_canvas_set_built_in_hub(lv_obj_t* obj, bool built_in) {
     layered_mark_dirty(obj);
 }
 
+// NAMESPACE_OK: one of the canvas C-style setters
 void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj,
                                                const helix::ui::tray::RailFace* face) {
     auto* data = get_data(obj);
