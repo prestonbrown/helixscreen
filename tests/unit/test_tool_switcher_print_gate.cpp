@@ -174,7 +174,7 @@ TEST_CASE_METHOD(ToolSwitcherGateFixture, "PAUSED refuses on a self-homing backe
     const AmsError refusal = ToolSwitcherTestAccess::refusal(widget);
     REQUIRE_FALSE(refusal.success());
     CHECK(refusal.user_msg == "Can't move filament while the print is paused");
-    // "while printing" on a paused job reads as a bug (bundle JX2FVRB9).
+    // "while printing" on a paused job reads as a bug.
     CHECK(refusal.user_msg.find("printing") == std::string::npos);
 
     ToolSwitcherTestAccess::select_tool(widget, 1);

@@ -20,6 +20,7 @@
 #include "ui_panel_common.h"
 #include "ui_spool_canvas.h"
 #include "ui_system_path_canvas.h"
+#include "ui_unit_art.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
@@ -423,11 +424,23 @@ void AmsOverviewPanel::refresh_units() {
         for (auto& uc : unit_cards_) {
             if (uc.unit_index >= 0 && uc.unit_index < new_unit_count)
                 update_unit_card(uc, info.units[uc.unit_index], backend->lane_noun());
+            apply_card_art(uc, info.units[uc.unit_index], info);
         }
     }
 
     // Update system path visualization
     refresh_system_path(info, current_slot);
+}
+
+void AmsOverviewPanel::apply_card_art(UnitCard& card, const AmsUnit& unit,
+                                      const AmsSystemInfo& info) {
+    const bool climate = helix::ui::unit_reports_climate(card.unit_index);
+    helix::ui::unit_art_set_unit(lv_obj_find_by_name(card.card, "unit_thumb"), info,
+                                 card.unit_index, climate);
+    if (helix::ui::unit_art_available(info, card.unit_index, climate))
+        lv_obj_set_hidden(card.logo_image, true); // DECLARATIVE_OK: per-card art with no subject
+    else
+        ams_draw::apply_logo(card.logo_image, unit, info);
 }
 
 void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::LaneNoun noun) {
@@ -527,6 +540,7 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
 
         // Set logo image based on AMS system type
         ams_draw::apply_logo(uc.logo_image, unit, info);
+        apply_card_art(uc, unit, info);
 
         // Set dynamic content only — unit name and slot count vary per unit
         uc.display_name = ams_draw::get_unit_display_name(unit, i);

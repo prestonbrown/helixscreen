@@ -154,8 +154,9 @@
 
         <!-- Divider, OPERATIONS and the action rows (shared component), at
              fixed heights: the graph above takes the column's slack. -->
-        <filament_operations_group height="content"
-                                   flex_grow="0" row_height="#filament_portrait_row_h" row_grow="0" row_min_height="0"/>
+        <filament_operations_group name="filament_operations_group"
+                                   height="content" flex_grow="0" row_height="#filament_portrait_row_h" row_grow="0"
+                                   row_min_height="0"/>
 
         <!-- Multi-filament strip (shared component; C++ hides its header row
              in portrait so it reads as a strip, not a card) -->
@@ -303,7 +304,7 @@
           <filament_material_group/>
           <!-- BOTTOM GROUP: Operations (shared component; fills the column
                below the material grid) -->
-          <filament_operations_group/>
+          <filament_operations_group name="filament_operations_group"/>
         </lv_obj>
       </lv_obj>
     </if>

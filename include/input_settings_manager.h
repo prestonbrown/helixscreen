@@ -35,7 +35,6 @@ class InputSettingsManager {
     /// Default scroll momentum decay; see helix::input_defaults::kScrollThrow.
     static constexpr int kDefaultScrollThrow = helix::input_defaults::kScrollThrow;
 
-    // Non-copyable
     InputSettingsManager(const InputSettingsManager&) = delete;
     InputSettingsManager& operator=(const InputSettingsManager&) = delete;
 

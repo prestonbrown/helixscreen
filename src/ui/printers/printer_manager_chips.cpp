@@ -282,8 +282,8 @@ constexpr std::array<CapChipSpec, kCapChipCount> kSpecs = {{
      nullptr},
     {C::HeatSoak, "pm_chip_heat_soak", "pm_chip_text_heat_soak", TR_NOOP("Heat Soak"),
      TR_NOOP("Heat soak lets the enclosure warm up before a print. It is listed because the "
-             "printer has a heat soak macro or it was turned on in settings; HelixScreen does not "
-             "run it."),
+             "printer has a heat soak macro or it was turned on in settings; HelixScreen offers "
+             "the macro in the pre-print options."),
      nullptr},
     {C::ExcludeObject, "pm_chip_exclude_object", "pm_chip_text_exclude_object",
      TR_NOOP("Exclude Object"),

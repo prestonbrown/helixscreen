@@ -134,9 +134,9 @@ TEST_CASE_METHOD(TempGraphReattachFixture,
 
     reconnect();
 
-    // Nothing new on the chart. Before the fix this was baseline + 1: the
-    // attach fire ran a tick after reattach_observers() had already restored
-    // the suppression flag, so it sailed through and stamped 200.0 C at `now`.
+    // Nothing new on the chart, not baseline + 1: an attach fire that runs a
+    // tick after reattach_observers() restores the suppression flag sails
+    // through and stamps 200.0 C at `now`.
     REQUIRE(controller->graph()->visible_point_count == baseline);
 
     controller.reset();

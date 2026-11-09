@@ -10,7 +10,6 @@
 #include "catch_amalgamated.hpp"
 
 using helix::SlotInfo;
-using helix::ams::fold_tag_frame;
 using helix::ams::reset_to_tag;
 using helix::ams::tag_provenance;
 using helix::ams::TagField;
@@ -148,54 +147,27 @@ TEST_CASE("Reset to tag restores the tag's fields and leaves the rest", "[ams][t
     }
 }
 
-TEST_CASE("folding a frame keeps the tag's values under our own write's echo",
+TEST_CASE("a frame's tag reading replaces the one kept, with the material's temperatures",
           "[ams][tag_reading]") {
-    const TagReading tag = petg_tag();
-    const auto kept = fold_tag_frame(std::nullopt, tag, tag);
-    REQUIRE(kept.has_value());
-    CHECK(*kept == tag);
+    std::unordered_map<int, TagReading> kept;
+    helix::ams::Observation stated(helix::ams::ObservationSource::Firmware);
+    stated.material = "PLA";
+    stated.color_rgb = 0x00FF00;
+    helix::ams::keep_tag_reading(kept, 3, stated, 190, 220);
+    REQUIRE(kept.count(3) == 1);
+    CHECK(kept.at(3).material == std::optional<std::string>("PLA"));
+    CHECK(kept.at(3).nozzle_temp_min == std::optional<int>(190));
 
-    SECTION("a withheld field keeps the kept value") {
-        TagReading raw = tag;
-        raw.material = "ABS"; // our write, echoed
-        raw.color_rgb = 0x00FF00u;
-        TagReading filed = raw;
-        filed.material.reset();
-        filed.color_rgb.reset();
-        const auto folded = fold_tag_frame(kept, raw, filed);
-        REQUIRE(folded.has_value());
-        CHECK(folded->material == "PETG");
-        CHECK(folded->color_rgb == std::optional<uint32_t>(0xED2C2Cu));
-        CHECK(folded->brand == "Snapmaker");
-    }
-    SECTION("a field stated and filed replaces it") {
-        TagReading raw = tag;
-        raw.brand = "Polymaker";
-        const auto folded = fold_tag_frame(kept, raw, raw);
-        REQUIRE(folded.has_value());
-        CHECK(folded->brand == "Polymaker");
-    }
-    SECTION("a field the frame no longer states is gone") {
-        TagReading raw = tag;
-        raw.product_name.reset();
-        const auto folded = fold_tag_frame(kept, raw, raw);
-        REQUIRE(folded.has_value());
-        CHECK_FALSE(folded->product_name.has_value());
-    }
-    SECTION("nothing stated leaves no reading") {
-        CHECK_FALSE(fold_tag_frame(kept, TagReading{}, TagReading{}).has_value());
-    }
-    SECTION("a withheld field with nothing kept is unknown, not ours") {
-        TagReading raw;
-        raw.material = "ABS";
-        TagReading filed;
-        filed.color_rgb = 0x00FF00u;
-        raw.color_rgb = 0x00FF00u;
-        const auto folded = fold_tag_frame(std::nullopt, raw, filed);
-        REQUIRE(folded.has_value());
-        CHECK_FALSE(folded->material.has_value());
-        CHECK(folded->color_rgb == std::optional<uint32_t>(0x00FF00u));
-    }
+    helix::ams::Observation colour_only(helix::ams::ObservationSource::Firmware);
+    colour_only.color_rgb = 0x0000FF;
+    helix::ams::keep_tag_reading(kept, 3, colour_only, 190, 220);
+    REQUIRE(kept.count(3) == 1);
+    CHECK_FALSE(kept.at(3).material.has_value());
+    CHECK_FALSE(kept.at(3).nozzle_temp_min.has_value());
+
+    helix::ams::keep_tag_reading(
+        kept, 3, helix::ams::Observation(helix::ams::ObservationSource::Firmware), 190, 220);
+    CHECK(kept.count(3) == 0);
 }
 
 TEST_CASE("a tag naming a Spoolman spool is a reading, and a different reading",
@@ -208,15 +180,4 @@ TEST_CASE("a tag naming a Spoolman spool is a reading, and a different reading",
     other_id.spoolman_id = 43;
     CHECK_FALSE(only_id == other_id);
     CHECK(only_id == only_id);
-}
-
-TEST_CASE("folding a frame leaves the tag's spool id to the backend", "[ams][tag_reading]") {
-    TagReading kept;
-    kept.material = std::string("PLA");
-    kept.spoolman_id = 42;
-    TagReading raw;
-    raw.material = std::string("PLA");
-    const auto folded = fold_tag_frame(kept, raw, raw);
-    REQUIRE(folded);
-    CHECK_FALSE(folded->spoolman_id);
 }

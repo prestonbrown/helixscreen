@@ -28,6 +28,11 @@ void apply(const char* iana_id, const char* posix_tz = nullptr);
 // applies UTC.
 void apply_system();
 
+// Whether the zone the process started with names a real zone: a TZ it
+// inherited, or the host's /etc/localtime. Without either the system zone is
+// UTC by accident rather than by choice. Always false on the ESP32.
+[[nodiscard]] bool system_zone_known();
+
 // The UTC offsets, in minutes east, that a POSIX TZ rule gives on 1 January and
 // 1 July. Understands the M-form transition rules every offered zone uses;
 // returns false for anything else.

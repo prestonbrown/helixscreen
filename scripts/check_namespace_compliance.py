@@ -48,6 +48,8 @@ import os
 import re
 import sys
 
+from source_strip import blank_cxx
+
 SCAN_DIRS = ['src', 'include']
 SCAN_EXTS = ('.cpp', '.cc', '.h', '.hpp')
 HEADER_EXTS = ('.h', '.hpp')
@@ -91,8 +93,6 @@ FOREIGN_PREFIXES = (
     'mbedtls', 'lws', 'ALSA', 'snd_', 'png_', 'jpeg_', 'CW', 'NS',
 )
 
-RAW_OPEN = re.compile(r'(?:u8|u|U|L)?R"([^()\\ ]{0,16})\(')
-
 TYPE_RE = re.compile(
     r'^(?:template\s*<[^;{]*>\s*)?'
     r'(class|struct|union)\s+'
@@ -127,71 +127,6 @@ SKIP_PREFIXES = (
 )
 
 
-def strip_noise(src):
-    """Blank comments, string/char literals and preprocessor lines, preserving
-    line numbers and every brace that is real code.
-
-    Single left-to-right scan on purpose. Stripping `//` before string literals
-    truncates a line like `if (s.rfind("// ", 0) == 0) {` at the quoted slashes
-    and loses its opening brace, which silently drifts brace depth for the rest
-    of the file and reports function-local declarations as global ones.
-    """
-    out_lines = []
-    in_block = False
-    in_raw = None
-    pp_cont = False
-    for line in src.split('\n'):
-        n = len(line)
-        if not in_block and in_raw is None and (pp_cont or line.lstrip().startswith('#')):
-            pp_cont = line.rstrip().endswith('\\')
-            out_lines.append(' ' * n)
-            continue
-        pp_cont = False
-        res = []
-        i = 0
-        while i < n:
-            if in_raw is not None:
-                idx = line.find(in_raw, i)
-                if idx == -1:
-                    res.append(' ' * (n - i)); i = n
-                else:
-                    res.append(' ' * (idx + len(in_raw) - i))
-                    i = idx + len(in_raw); in_raw = None
-                continue
-            if in_block:
-                idx = line.find('*/', i)
-                if idx == -1:
-                    res.append(' ' * (n - i)); i = n
-                else:
-                    res.append(' ' * (idx + 2 - i)); i = idx + 2; in_block = False
-                continue
-            if line.startswith('//', i):
-                res.append(' ' * (n - i)); i = n
-                continue
-            if line.startswith('/*', i):
-                in_block = True; res.append('  '); i += 2
-                continue
-            m = RAW_OPEN.match(line, i)
-            if m:
-                in_raw = ')' + m.group(1) + '"'
-                res.append(' ' * (m.end() - i)); i = m.end()
-                continue
-            c = line[i]
-            if c in '"\'':
-                j = i + 1
-                while j < n:
-                    if line[j] == '\\':
-                        j += 2; continue
-                    if line[j] == c:
-                        j += 1; break
-                    j += 1
-                res.append(' ' * (j - i)); i = j
-                continue
-            res.append(c); i += 1
-        out_lines.append(''.join(res))
-    return '\n'.join(out_lines)
-
-
 def is_foreign(name):
     return name.startswith(FOREIGN_PREFIXES)
 
@@ -207,7 +142,7 @@ def scan_file(path):
         return []
 
     is_header = path.endswith(HEADER_EXTS)
-    src = strip_noise(raw)
+    src = blank_cxx(raw, preprocessor=True)
     raw_lines = raw.split('\n')
 
     hits = []

@@ -344,7 +344,7 @@ void NiimbotBluetoothPrinter::print(const LabelBitmap& bitmap, const LabelSize& 
                                             // progress so D110 doesn't auto-start a second
                                             // copy. B1 reports all-zero progress before
                                             // motion — sending PrintEnd there cancels the
-                                            // job before it starts (npa62, bundle ND8PEP2E).
+                                            // job before it starts.
                                             if (!print_end_sent && any_progress) {
                                                 auto end_pkt = niimbot_build_packet(
                                                     NiimbotCmd::PrintEnd, uint8_t(0x01));

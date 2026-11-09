@@ -37,7 +37,7 @@ TEST_CASE("Canvas goes wider than tall when vertical room is short",
 
 TEST_CASE("Floor share is vacuous when column_h == avail_h", "[bed-mesh][portrait][layout]") {
     // This is the shape of the ORIGINAL (2-parameter) floor test, kept because
-    // it is still a true statement — but per the fix-round finding, it never
+    // it is still a true statement, but it never
     // exercises the floor actually binding: when nothing else has consumed the
     // column, min(0.35*avail_h, avail_h) <= avail_h always, so `fitted` (which
     // is <= avail_h) already satisfies the floor. This case is trivially true,

@@ -1690,7 +1690,7 @@ void FilamentPanel::execute_extrude() {
     begin_operation_guard();
     int speed_mm_min = helix::SettingsManager::instance().get_extrude_speed() * 60;
     spdlog::info("[{}] Extruding {}mm at F{}", get_name(), extrude_length_, speed_mm_min);
-    std::string gcode = fmt::format("M83\nG1 E{} F{}", extrude_length_, speed_mm_min);
+    std::string gcode = helix::ui::extrude_gcode(extrude_length_, speed_mm_min);
     op_started(FilamentOp::Extrude); // on-button spinner replaces the start toast
     begin_manual_motion(helix::FilamentMotion::Extrude, speed_mm_min / 60);
 
@@ -1845,7 +1845,7 @@ void FilamentPanel::execute_retract() {
     begin_operation_guard();
     int speed_mm_min = helix::SettingsManager::instance().get_extrude_speed() * 60;
     spdlog::info("[{}] Retracting {}mm at F{}", get_name(), extrude_length_, speed_mm_min);
-    std::string gcode = fmt::format("M83\nG1 E-{} F{}", extrude_length_, speed_mm_min);
+    std::string gcode = helix::ui::extrude_gcode(-extrude_length_, speed_mm_min);
     op_started(FilamentOp::Retract); // on-button spinner replaces the start toast
     begin_manual_motion(helix::FilamentMotion::Retract, speed_mm_min / 60);
 

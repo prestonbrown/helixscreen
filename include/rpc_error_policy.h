@@ -17,11 +17,11 @@
  *     stream — the richest surface, since it classifies severity, lets the AMS
  *     backends interpret the line, and escalates to a recovery modal mid-print.
  *
- * This decision used to be re-derived at four sites that drifted apart:
- * the tracker (`caller_handles_ui`), `MoonrakerMotionAPI::execute_gcode`
+ * Four sites make this decision, and all of them ask it here so they cannot
+ * drift apart: the tracker (`caller_handles_ui`), `MoonrakerMotionAPI::execute_gcode`
  * (`silent = on_error != nullptr`), the mock's print path, and
- * `IAdvancedAPI::execute_macro`'s `suppress_auto_toast` alias. Only the motion
- * copy got the subtle part right — see `CallerIntent::surfaces_errors`.
+ * `IAdvancedAPI::execute_macro`'s `suppress_auto_toast` alias. The subtle part
+ * is `CallerIntent::surfaces_errors`.
  */
 namespace helix::rpc_error_policy {
 
@@ -95,7 +95,7 @@ constexpr Decision decide(const CallerIntent& intent, const RequestFacts& facts)
     // A caller that raises its own error UI — or opted out of error UI
     // entirely — owns the report. Stacking the generic fallback on top
     // double-reports one Klipper rejection (the K2 `key69` chamber error
-    // produced three toasts, two of them raw JSON; bdf32d07d).
+    // would produce three toasts, two of them raw JSON).
     const bool caller_owns_report = intent.silent || intent.surfaces_errors;
 
     // When Klipper also broadcasts the failure, GcodeErrorRouter owns the

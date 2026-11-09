@@ -350,10 +350,13 @@ void MoonrakerClientMock::populate_capabilities() {
         break;
     case PrinterType::CREALITY_K2_PLUS:
         // The K2 Plus capture's identifying objects. `box` rides on is_mock_cfs().
+        // The stock firmware's belt-tension and cutter-calibration macros put the
+        // CFS calibration buttons on screen (#2059).
         for (const char* obj :
              {"motor_control", "fan_feedback", "load_ai", "filament_rack",
               "output_pin extruder_fan", "output_pin power", "output_pin ptc_power",
-              "temperature_sensor mcu_temp", "heater_fan chamber_heater_fan"}) {
+              "temperature_sensor mcu_temp", "heater_fan chamber_heater_fan", "belt_mdl mdlx",
+              "belt_mdl mdly", "gcode_macro BELT_TENSION", "gcode_macro CALIBRATE_CUT_POS"}) {
             mock_objects.push_back(obj);
         }
         break;

@@ -359,7 +359,6 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
         const auto axis_max = persona.axis_max;
         const auto axis_min = persona.axis_min;
 
-        // Check what objects are being queried
         if (params.contains("objects")) {
             auto& objects = params["objects"];
 
@@ -381,6 +380,20 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     break;
                 }
                 status_obj["webhooks"] = {{"state", state_str}};
+            }
+
+            // Each queried extruder's live target, as a heater's owner reads it back.
+            for (const auto& [name, fields] : objects.items()) {
+                (void)fields;
+                if (name == "extruder") {
+                    status_obj[name] = {{"target", self->extruder_target()}};
+                } else if (name.size() > 8 && name.rfind("extruder", 0) == 0) {
+                    const int index =
+                        helix::text_io::parse_leading<int>(name.substr(8)).value_or(-1);
+                    if (index >= 1) {
+                        status_obj[name] = {{"target", self->secondary_extruder_target(index)}};
+                    }
+                }
             }
 
             // print_stats (for get_print_state)
@@ -762,7 +775,6 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
         const auto axis_max = persona.axis_max;
         const auto axis_min = persona.axis_min;
 
-        // Check what objects are being subscribed to
         if (params.contains("objects")) {
             auto& objects = params["objects"];
 

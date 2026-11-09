@@ -106,10 +106,9 @@ class ConsolePanel : public OverlayBase {
 
     /// The filtering decision, shared by the history and the live paths.
     ///
-    /// These two used to decide independently and drifted: the live path applied
-    /// both filters while populate_entries() rendered the fetched history verbatim,
-    /// so opening the console showed a screenful of exactly the noise the filters
-    /// existed to remove. Both paths now route through here.
+    /// Both paths route through here: if populate_entries() rendered the fetched
+    /// history verbatim while the live path filtered, opening the console would
+    /// show a screenful of exactly the noise the filters exist to remove.
     ///
     /// `is_temp` is passed in rather than recomputed because the live path already
     /// derives it on the WebSocket thread, off the main loop.

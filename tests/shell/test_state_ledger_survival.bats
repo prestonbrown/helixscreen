@@ -268,6 +268,23 @@ hooks_fixture() {
     grep -q 'restore-user-config.sh' "$WORKTREE_ROOT/config/refresh-service-units.sh"
 }
 
+# --- pending_remap.json on an install only Moonraker updates ---
+
+@test "a restore links an empty pending_remap.json when neither copy exists" {
+    mkdir -p "$PD"
+    restore_config_symlinks
+    [ -L "$INSTALL_DIR/config/pending_remap.json" ]
+    [ "$(cat "$PD/pending_remap.json")" = "{}" ]
+}
+
+@test "a restore moves a real pending_remap.json into printer_data and links it" {
+    mkdir -p "$PD"
+    echo '{"printers":{"p":{}}}' > "$INSTALL_DIR/config/pending_remap.json"
+    restore_config_symlinks
+    [ -L "$INSTALL_DIR/config/pending_remap.json" ]
+    grep -q '"p"' "$PD/pending_remap.json"
+}
+
 # --- where printer_data is ---
 
 @test "a recorded printer_data wins over scanning" {

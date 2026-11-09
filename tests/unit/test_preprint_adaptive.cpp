@@ -354,8 +354,8 @@ TEST_CASE("PrePrint adaptive: AD5M database entry forwards ADAPTIVE", "[adaptive
 // Full-chain regression guard: the AD5M mock's reported identity (hostname) must
 // resolve, via PrinterDetector, to a DB entry whose bed_mesh option carries a
 // resolvable adaptive_param. Guards against silently shipping a demo that shows
-// no options (the mock previously reported a generic hostname that matched
-// nothing, leaving the printer type empty and the options card bare).
+// no options (a generic mock hostname matches nothing, leaving the printer type
+// empty and the options card bare).
 TEST_CASE("PrePrint adaptive: AD5M mock identity resolves to adaptive-capable options",
           "[adaptive][preprint]") {
     // EXACT hostname the FLASHFORGE_AD5M mock reports from printer.info

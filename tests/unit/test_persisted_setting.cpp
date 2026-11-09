@@ -253,6 +253,12 @@ const std::vector<Row>& rows() {
          7, "toolhead_style", true,
          [](int v) { sm().set_toolhead_style(static_cast<ToolheadStyle>(v)); },
          GET(sm().get_toolhead_style), SUBJ(sm().subject_toolhead_style)},
+        {"settings_tool_number_style", Mgr::Settings, true, "appearance/tool_number_style", false,
+         0, 0, 2, "tool_number_style", false,
+         [](int v) {
+             sm().set_tool_number_style_setting(static_cast<helix::ui::ToolNumberStyleSetting>(v));
+         },
+         GET(sm().get_tool_number_style_setting), SUBJ(sm().subject_tool_number_style)},
         {"show_printer_switcher", Mgr::Settings, false, "/printers/show_printer_switcher", true, 0,
          0, 1, "show_printer_switcher", true, SETB(sm().set_show_printer_switcher),
          GET(sm().get_show_printer_switcher), SUBJ(sm().subject_show_printer_switcher)},
@@ -288,6 +294,9 @@ const std::vector<Row>& rows() {
         {"filament_auto_open_editor", Mgr::Settings, true, "filament/auto_open_editor", true, 0, 0,
          1, "filament_auto_open_editor", true, SETB(sm().set_filament_auto_open_editor),
          GET(sm().get_filament_auto_open_editor), SUBJ(sm().subject_filament_auto_open_editor)},
+        {"number_lanes_from_zero", Mgr::Settings, true, "ams/number_lanes_from_zero", true, 0, 0, 1,
+         "number_lanes_from_zero", true, SETB(sm().set_number_lanes_from_zero),
+         GET(sm().get_number_lanes_from_zero), SUBJ(sm().subject_number_lanes_from_zero)},
         {"console_filter_temps", Mgr::Settings, false, "/console/filter_temps", true, 1, 0, 1,
          "console_filter_temps", true, SETB(sm().set_console_filter_temps),
          GET(sm().get_console_filter_temps), SUBJ(sm().subject_console_filter_temps)},

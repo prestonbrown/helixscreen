@@ -528,10 +528,10 @@ TEST_CASE("Temperature/speed/flow always accepted", "[lifecycle]") {
 // map_current_layer_to_viewer — layer rescaling used by both the live update
 // path and the terminal→Idle re-freeze path in PrintStatusPanel.
 //
-// Regression: the from_terminal_to_idle block in ui_panel_print_status.cpp
-// previously re-froze only the progress bar. On print completion Moonraker
-// sends zeroed layer/progress subjects in the same batch as STANDBY, and the
-// gcode viewer's direct observer zeroed its display before the lifecycle
+// The from_terminal_to_idle block in ui_panel_print_status.cpp must re-freeze
+// more than the progress bar. On print completion Moonraker sends zeroed
+// layer/progress subjects in the same batch as STANDBY, and the gcode viewer's
+// direct observer would zero its display before the lifecycle
 // guard could reject the update. The viewer-layer mapping lives here so it
 // can be exercised without instantiating the full panel; the panel calls
 // this helper in both the live and re-freeze paths so they cannot drift.

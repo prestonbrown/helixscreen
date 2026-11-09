@@ -14,6 +14,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <initializer_list>
+
 namespace helix::ui {
 
 namespace {
@@ -45,9 +47,11 @@ PrintPreviewController::~PrintPreviewController() {
     cancel_pending_load();
 }
 
-void PrintPreviewController::attach_widgets(lv_obj_t* thumbnail, lv_obj_t* viewer) {
+void PrintPreviewController::attach_widgets(lv_obj_t* thumbnail, lv_obj_t* viewer,
+                                            lv_obj_t* checklist_thumbnail) {
     print_thumbnail_ = thumbnail;
     gcode_viewer_ = viewer;
+    checklist_thumbnail_ = checklist_thumbnail;
 }
 
 void PrintPreviewController::detach_widgets() {
@@ -56,6 +60,7 @@ void PrintPreviewController::detach_widgets() {
     }
     gcode_viewer_ = nullptr;
     print_thumbnail_ = nullptr;
+    checklist_thumbnail_ = nullptr;
 }
 
 void PrintPreviewController::on_tree_destroyed() {
@@ -457,9 +462,12 @@ void PrintPreviewController::release_psram_thumbnail() {
     // source lv_image stores the raw pointer (it only strdups paths), and ours can
     // be the last reference. The placeholder is what the shared path subject
     // publishes for a file with no thumbnail, so it is a valid src here.
-    if (esp_thumbnail_ && print_thumbnail_ &&
-        lv_image_get_src(print_thumbnail_) == esp_thumbnail_->dsc()) {
-        lv_image_set_src(print_thumbnail_, helix::PrinterPrintState::no_thumbnail_placeholder());
+    if (esp_thumbnail_) {
+        for (lv_obj_t* img : {print_thumbnail_.get(), checklist_thumbnail_.get()}) {
+            if (img && lv_image_get_src(img) == esp_thumbnail_->dsc()) {
+                lv_image_set_src(img, helix::PrinterPrintState::no_thumbnail_placeholder());
+            }
+        }
     }
     esp_thumbnail_.reset();
 }
@@ -479,6 +487,10 @@ void PrintPreviewController::apply_psram_thumbnail() {
     // the main thread, which is what EspPsramThumbnail's destructor requires.
     auto previous = std::move(esp_thumbnail_);
     esp_thumbnail_ = std::move(thumb);
+    // The checklist binds the path, which here is always the placeholder.
+    if (checklist_thumbnail_) {
+        lv_image_set_src(checklist_thumbnail_, esp_thumbnail_->dsc());
+    }
     if (!print_thumbnail_) {
         spdlog::info("[{}] PSRAM thumbnail held (panel not yet displayed)", log_tag_);
         return;

@@ -79,11 +79,9 @@ void PreprintPredictor::load_entries(const std::vector<PreprintEntry>& entries, 
         // No temp filter — load everything left in the window
         entries_ = in_window;
     } else if (temp_bucket == 1) {
-        // Cold start bucket
         load_entries(in_window, StartCondition::COLD);
         return;
     } else if (temp_bucket == 2) {
-        // Warm start bucket
         load_entries(in_window, StartCondition::WARM);
         return;
     } else {

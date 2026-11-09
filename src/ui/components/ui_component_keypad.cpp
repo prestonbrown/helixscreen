@@ -45,8 +45,8 @@ static char keypad_title_buf[48] = "";
 // Unit shown inside the display's right end ("°C", "mm/s").
 static lv_subject_t keypad_unit_subject;
 static char keypad_unit_buf[16] = "";
-// Drives the dot key's disabled state. An integer-only field used to show a
-// live "." that silently did nothing to the buffer.
+// Drives the dot key's disabled state, so an integer-only field never shows a
+// live "." that silently does nothing to the buffer.
 static lv_subject_t keypad_allow_decimal_subject;
 // Shows the +/- key, only on fields whose range reaches below zero.
 static lv_subject_t keypad_allow_negative_subject;

@@ -20,6 +20,7 @@
 #include <random>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -149,6 +150,27 @@ TEST_CASE("a fireflies population has 2 to 5 baits and 100 to 175 flies, each ch
 TEST_CASE("a cleared fireflies sim holds nothing", "[screensaver][fireflies_sim]") {
     Swarm s(3);
     CHECK(s.sim.heap_bytes() > 0);
+    // Two swarms of different sizes give the bytes each fly costs, its gather place included;
+    // what no fly accounts for holds the baits, the tiles and a glyph grid per text character.
+    uint32_t seed = 4;
+    while (Swarm(seed).sim.flies().size() == s.sim.flies().size()) {
+        seed++;
+    }
+    Swarm other(seed);
+    const auto fly_count = static_cast<int64_t>(s.sim.flies().size());
+    const auto per_fly =
+        (static_cast<int64_t>(s.sim.heap_bytes()) - static_cast<int64_t>(other.sim.heap_bytes())) /
+        (fly_count - static_cast<int64_t>(other.sim.flies().size()));
+    using Fly = std::decay_t<decltype(s.sim.flies()[0])>;
+    CHECK(per_fly == static_cast<int64_t>(sizeof(Fly) + sizeof(SaverVec3) +
+                                          helix::ui::kFirefliesTailPoints * 3 * sizeof(int16_t)));
+    const int64_t tile = helix::ui::kFirefliesTilePx;
+    const int64_t tiles = (kMotionW + tile - 1) / tile * ((kMotionH + tile - 1) / tile);
+    using Bait = std::decay_t<decltype(s.sim.baits()[0])>;
+    const int64_t unaccounted = static_cast<int64_t>(s.sim.heap_bytes()) - fly_count * per_fly -
+                                static_cast<int64_t>(kFirefliesMaxBaits * sizeof(Bait)) - 2 * tiles;
+    CHECK(unaccounted >=
+          static_cast<int64_t>(helix::ui::kFirefliesTextMaxChars * 16 * 16 * sizeof(uint16_t)));
     CHECK(s.sim.baits().size() == kFirefliesMaxBaits);
     s.sim.clear();
     CHECK(s.sim.heap_bytes() == 0);
@@ -948,6 +970,19 @@ TEST_CASE("the swarm gathers into the percent every minute of a print",
     REQUIRE(s.sim.gathering());
     CHECK(std::string(s.sim.gather_text()) == "64%");
     CHECK(share_on_text(s.sim, "64%", kFewestDrawn) >= 0.7);
+}
+
+TEST_CASE("a long frame ends a gather the moment its six seconds pass inside it",
+          "[screensaver][fireflies_sim]") {
+    Swarm s(63, kMotionLevel, PixelFormat::XRGB8888, kMotionW, kMotionH,
+            print_reading_for(ClockMode::COUNTDOWN, 50));
+    while (s.sim.elapsed_ms() + 200 < helix::ui::kFirefliesGatherMs) {
+        s.step();
+    }
+    REQUIRE(s.sim.gathering());
+    s.step(400);
+    REQUIRE(s.sim.elapsed_ms() > helix::ui::kFirefliesGatherMs + 10);
+    CHECK_FALSE(s.sim.gathering());
 }
 
 TEST_CASE("a finished print holds DONE", "[screensaver][fireflies_sim]") {

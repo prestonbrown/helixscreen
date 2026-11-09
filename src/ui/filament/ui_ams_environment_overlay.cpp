@@ -8,6 +8,7 @@
 
 #include "ui_ams_environment_overlay.h"
 
+#include "ui_ams_detail.h"
 #include "ui_ams_zone_overview_overlay.h"
 #include "ui_callback_helpers.h"
 #include "ui_component_keypad.h"
@@ -16,6 +17,7 @@
 #include "ui_keyboard_manager.h"
 #include "ui_nav.h"
 #include "ui_temperature_utils.h"
+#include "ui_unit_art.h"
 #include "ui_zone_presentation.h"
 
 #include "ams_backend.h"
@@ -42,6 +44,9 @@
 #include <optional>
 
 namespace helix::ui {
+
+constexpr int kDefaultDryerTempC = 55;
+constexpr int kDefaultDryerDurationMin = 240;
 
 // ============================================================================
 // DESTRUCTOR
@@ -94,10 +99,11 @@ void AmsEnvironmentOverlay::init_subjects() {
                                   "ams_env_overlay_drying_text", subjects_);
         UI_MANAGED_SUBJECT_INT(drying_progress_subject_, 0, "ams_env_overlay_drying_progress",
                                subjects_);
-        UI_MANAGED_SUBJECT_INT(drying_phase_subject_, 0, "ams_env_overlay_drying_phase", subjects_);
         UI_MANAGED_SUBJECT_STRING(unit_logo_subject_, unit_logo_buf_, "",
                                   "ams_env_overlay_unit_logo", subjects_);
         UI_MANAGED_SUBJECT_INT(unit_logo_color_subject_, 0, "ams_env_overlay_unit_logo_color",
+                               subjects_);
+        UI_MANAGED_SUBJECT_INT(unit_art_visible_subject_, 0, "ams_env_overlay_unit_art_visible",
                                subjects_);
         UI_MANAGED_SUBJECT_INT(unit_logo_visible_subject_, 0, "ams_env_overlay_unit_logo_visible",
                                subjects_);
@@ -265,25 +271,20 @@ void AmsEnvironmentOverlay::show_zone(lv_obj_t* parent_screen,
 void AmsEnvironmentOverlay::before_show() {
     rebuild_tabs();
     publish_selected_zone();
-    restore_remembered_dryer_inputs();
+    reset_dryer_inputs();
 }
 
-void AmsEnvironmentOverlay::restore_remembered_dryer_inputs() {
+void AmsEnvironmentOverlay::reset_dryer_inputs() {
     dryer_inputs_edited_ = false;
-    // Restore the temp/duration the user last started a dry with (per-printer),
-    // so the inputs default to remembered values rather than the XML constants.
-    Config* config = Config::get_instance();
+    // What shows when no loaded material picks a preset.
     if (temp_input_) {
         char buf[8];
-        snprintf(buf, sizeof(buf), "%d",
-                 config->get<int>(config->df() + "ams/dryer_last_temp", 55));
+        snprintf(buf, sizeof(buf), "%d", kDefaultDryerTempC);
         lv_textarea_set_text(temp_input_, buf);
     }
     if (duration_input_) {
-        lv_textarea_set_text(
-            duration_input_,
-            format_duration_hours(config->get<int>(config->df() + "ams/dryer_last_duration", 240))
-                .c_str());
+        lv_textarea_set_text(duration_input_,
+                             format_duration_hours(kDefaultDryerDurationMin).c_str());
     }
     // Blank leaves the target to the printer's own default; a chosen target applies to
     // one start only.
@@ -681,8 +682,8 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
         lv_subject_set_int(&no_dryer_visible_subject_, 1);
         lv_subject_set_int(&humidity_target_visible_subject_, 0);
         lv_subject_set_int(&drying_active_subject_, 0);
-        lv_subject_set_int(&drying_phase_subject_, 0);
         lv_subject_set_int(&unit_logo_visible_subject_, 0);
+        lv_subject_set_int(&unit_art_visible_subject_, 0);
         lv_subject_set_int(&humidity_visible_subject_, 0);
         lv_subject_set_int(&humidity_subject_, -1);
         lv_subject_set_int(&all_zones_visible_subject_, 0);
@@ -740,6 +741,14 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     lv_subject_copy_string(&unit_logo_subject_, unit_logo_buf_);
     lv_subject_set_int(&unit_logo_color_subject_, logo.color ? 1 : 0);
     lv_subject_set_int(&unit_logo_visible_subject_, has_logo ? 1 : 0);
+    const bool has_art =
+        info && helix::ui::unit_art_available(*info, zone.unit_index,
+                                              helix::ui::unit_reports_climate(zone.unit_index));
+    lv_subject_set_int(&unit_art_visible_subject_, has_art ? 1 : 0);
+    if (info)
+        helix::ui::unit_art_set_unit(lv_obj_find_by_name(overlay_root_, "unit_art_picture"), *info,
+                                     zone.unit_index,
+                                     helix::ui::unit_reports_climate(zone.unit_index));
 
     const std::string gates = zone_slot_text(zone, slot_noun);
     snprintf(slots_text_buf_, sizeof(slots_text_buf_), "%s", gates.c_str());
@@ -831,8 +840,6 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
 
     // Drying active state
     lv_subject_set_int(&drying_active_subject_, dryer.active ? 1 : 0);
-    lv_subject_set_int(&drying_phase_subject_,
-                       static_cast<int>(dryer.active ? dryer.phase : DryingPhase::Unknown));
 
     if (dryer.active) {
         snprintf(drying_text_buf_, sizeof(drying_text_buf_), "%s",
@@ -840,7 +847,8 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
         lv_subject_copy_string(&drying_text_subject_, drying_text_buf_);
 
         int progress = dryer.get_progress_pct();
-        lv_subject_set_int(&drying_progress_subject_, progress >= 0 ? progress : 0);
+        // Negative when the cycle's length is unknown; the bar hides on it.
+        lv_subject_set_int(&drying_progress_subject_, progress);
 
         // Button text when drying
         snprintf(start_stop_text_buf_, sizeof(start_stop_text_buf_), "%s", lv_tr("Stop Drying"));
@@ -1166,12 +1174,8 @@ void AmsEnvironmentOverlay::handle_start_stop() {
         } else {
             // Start drying with textarea values, clamped to backend limits.
             // The duration field shows hours; every backend takes minutes.
-            // Defaults remember the last values the user started a dry with
-            // (per-printer); fall back to 55°C / 240 min on first use.
-            Config* config = Config::get_instance();
-            float temp_c =
-                static_cast<float>(config->get<int>(config->df() + "ams/dryer_last_temp", 55));
-            int duration_min = config->get<int>(config->df() + "ams/dryer_last_duration", 240);
+            float temp_c = static_cast<float>(kDefaultDryerTempC);
+            int duration_min = kDefaultDryerDurationMin;
 
             if (temp_input_) {
                 const char* text = lv_textarea_get_text(temp_input_);
@@ -1224,11 +1228,6 @@ void AmsEnvironmentOverlay::handle_start_stop() {
                 AmsError result = drier ? drier->start_drying_request(request)
                                         : AmsErrorHelper::not_supported("Dryer");
                 if (result.success()) {
-                    // Remember the chosen values so the next open restores them.
-                    config->set<int>(config->df() + "ams/dryer_last_temp",
-                                     static_cast<int>(temp_c));
-                    config->set<int>(config->df() + "ams/dryer_last_duration", duration_min);
-                    config->save();
                     NOTIFY_INFO("{}", lv_tr("Drying started"));
                 } else {
                     helix::ui::notify_ams_error(result, lv_tr("Start failed"));

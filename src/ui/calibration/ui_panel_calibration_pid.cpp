@@ -386,7 +386,6 @@ void PIDCalibrationPanel::on_activate() {
 void PIDCalibrationPanel::on_deactivating(DeactivateReason reason) {
     spdlog::debug("[PIDCal] on_deactivating({})", deactivate_reason_name(reason));
 
-    // Stop progress tracking
     stop_progress_tracking();
 
     // Teardown graph before deactivating
@@ -1065,7 +1064,6 @@ void PIDCalibrationPanel::on_calibration_result(bool success, float kp, float ki
         // Persist measured rates for future calibrations
         save_calibration_history();
 
-        // Store results
         result_kp_ = kp;
         result_ki_ = ki;
         result_kd_ = kd;

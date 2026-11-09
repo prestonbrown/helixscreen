@@ -387,6 +387,28 @@ TEST_CASE("a grid that runs out of nodes ends the screen", "[screensaver][pipes_
     }
 }
 
+TEST_CASE("a screen that fills the grid never grows a teapot", "[screensaver][pipes_sim]") {
+    PipesScreen screen;
+    std::vector<PipePiece> out;
+    size_t pieces = 0;
+    for (uint32_t seed = 1; seed <= 2000; seed++) {
+        std::minstd_rand rng(seed);
+        out.clear();
+        screen.begin({3, 3, 3}, rng, out);
+        screen.fill_grid();
+        while (screen.step(rng, out)) {
+        }
+        pieces += out.size();
+        for (const PipePiece& p : out) {
+            REQUIRE(p.kind != PipePieceKind::TEAPOT);
+        }
+    }
+    CHECK(pieces > 20000);
+    REQUIRE(screen.fills_grid());
+    screen.release();
+    CHECK_FALSE(screen.fills_grid());
+}
+
 TEST_CASE("over many turns a third of the joints are balls", "[screensaver][pipes_sim]") {
     std::minstd_rand rng(99);
     PipesScreen screen;
@@ -1502,6 +1524,13 @@ TEST_CASE("a finished print sets a teapot on the full screen", "[screensaver][pi
         CHECK(run.sim.print_end() == PipesEnd::DONE);
         CHECK(run.sim.nodes_taken() == run.sim.node_count());
         CHECK(run.sim.screens_started() == 1);
+
+        run.sim.clear();
+        PipeNode unused;
+        CHECK_FALSE(run.sim.teapot_node(unused));
+        CHECK_FALSE(run.sim.end_drawn());
+        CHECK_FALSE(run.sim.print_screen());
+        CHECK(run.sim.print_end() == PipesEnd::NONE);
     }
     SECTION("the print finishing fills the rest, then sets the teapot") {
         run.init(0, print_at(ClockMode::PROGRESS, 97));
@@ -1602,6 +1631,60 @@ TEST_CASE("a failed print greys the pipes and stops", "[screensaver][pipes_sim]"
     }
     CHECK(run.sim.nodes_taken() == taken);
     CHECK(helix::test::bytes_differing(held, run.frame.snapshot()) == 0);
+}
+
+TEST_CASE("a finished print's screen regrows slowly after its hold", "[screensaver][pipes_sim]") {
+    helix::test::SimRun<PipesSim> run(8, 160, 96);
+    const ClockReading done = print_reading_for(ClockMode::DONE, 100);
+    run.init(0, done);
+    fast_forward_to_end(run, done, 400);
+    REQUIRE(run.sim.end_drawn());
+
+    // The frame that set the teapot was the hold's first.
+    for (uint32_t t = 0; t + 200 < kPipesDoneHoldMs; t += 100) {
+        run.step(100, done);
+        REQUIRE(run.sim.phase() == PipesPhase::GROWING);
+        REQUIRE(run.sim.screens_started() == 1);
+    }
+    run.step(100, done);
+    REQUIRE(run.sim.phase() == PipesPhase::DISSOLVING);
+    for (int i = 0; i < 400 && run.sim.phase() == PipesPhase::DISSOLVING; i++) {
+        run.step(100, done);
+    }
+    REQUIRE(run.sim.phase() == PipesPhase::GROWING);
+    REQUIRE(run.sim.screens_started() == 2);
+    CHECK(run.sim.print_end() == PipesEnd::NONE);
+
+    SECTION("at the idle pace, one step per kPipesStepMs") {
+        const size_t from = run.sim.nodes_taken();
+        run.step(kPipesStepMs, done);
+        CHECK(run.sim.nodes_taken() <= from + static_cast<size_t>(kPipesActive) * 2);
+        CHECK_FALSE(run.sim.end_drawn());
+    }
+    SECTION("to a full grid and a teapot, and then again") {
+        int frames = 0;
+        for (; frames < 40000 && !run.sim.end_drawn(); frames++) {
+            run.step(100, done);
+        }
+        REQUIRE(run.sim.end_drawn());
+        CHECK(frames > 20);
+        CHECK(run.sim.print_end() == PipesEnd::DONE);
+        CHECK(run.sim.nodes_taken() == run.sim.node_count());
+        CHECK(run.sim.screens_started() == 2);
+        for (uint32_t t = 0; t < kPipesDoneHoldMs; t += 100) {
+            run.step(100, done);
+        }
+        CHECK(run.sim.phase() == PipesPhase::DISSOLVING);
+    }
+    SECTION("and a new print still takes over mid-regrow") {
+        const ClockReading next = print_at(ClockMode::PROGRESS, 0);
+        run.step(100, done);
+        for (int i = 0; i < 400 && run.sim.screens_started() < 3; i++) {
+            run.step(100, next);
+        }
+        CHECK(run.sim.screens_started() == 3);
+        CHECK(run.sim.print_screen());
+    }
 }
 
 TEST_CASE("a new print clears the screen and starts again", "[screensaver][pipes_sim]") {

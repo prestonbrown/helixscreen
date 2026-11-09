@@ -5,9 +5,9 @@
  * @file test_context_menu_kind_tag.cpp
  * @brief ContextMenu::active_as<T>() resolves the live menu without RTTI.
  *
- * The firmware builds `-fno-rtti`, so the `dynamic_cast` that used to back
- * active_as<>() is gone; each subclass now declares HELIX_CONTEXT_MENU_KIND and
- * the helper compares kind tags. What has to hold for the ~40 XML callbacks that
+ * The firmware builds `-fno-rtti`, so active_as<>() cannot use `dynamic_cast`;
+ * each subclass declares HELIX_CONTEXT_MENU_KIND and the helper compares kind
+ * tags. What has to hold for the ~40 XML callbacks that
  * downcast through it: the menu on screen answers to its own type, and — the half
  * a broken tag scheme would silently lose — does NOT answer to a sibling's.
  */

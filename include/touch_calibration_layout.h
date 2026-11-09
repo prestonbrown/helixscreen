@@ -17,8 +17,8 @@
  * target reports a coordinate that lands in the header strip, where a clickable
  * control (e.g. the header Back button) absorbs the press.
  *
- * These free functions factor out the reparent-to-screen logic the two callers
- * previously duplicated, plus a small "lift a control above the capture surface"
+ * These free functions hold the reparent-to-screen logic both callers share,
+ * plus a small "lift a control above the capture surface"
  * helper used to keep an escape affordance (Next/Skip group, Cancel chip)
  * clickable while the full-screen capture surface is armed.
  */

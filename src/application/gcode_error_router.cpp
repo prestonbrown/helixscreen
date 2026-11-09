@@ -85,12 +85,11 @@ struct RecoverToastCtx {
 ///
 /// Sized to cover the legitimate case -- an error fired during a brief
 /// WebSocket bounce or boot-autostart hiccup that the user genuinely
-/// missed -- while killing the stale-after-restart case (#991): a UI
-/// restart on a paused print replayed a 287s-old `[print_task_config]`
-/// error as a blocking modal that sat over the print panel and blocked
+/// missed -- while not re-surfacing errors from before a restart (#991): a
+/// minutes-old `[print_task_config]` error replayed after a UI restart on a
+/// paused print is a blocking modal over the print panel that blocks
 /// Resume. 30s comfortably spans a reconnect blip but is far below the
-/// multi-minute gap a manual restart leaves. (Was 600s, which let the
-/// 287s error through.)
+/// multi-minute gap a manual restart leaves.
 constexpr double kReplayMaxAgeSeconds = 30.0;
 
 /// gcode_store fetch depth on reconnect. The K2's box driver is chatty
@@ -223,9 +222,8 @@ GcodeErrorRouter::~GcodeErrorRouter() {
 
 bool GcodeErrorRouter::should_surface_replay(double entry_time, double now) {
     // Unavailable/zero timestamp: age cannot be positively determined.
-    // Never suppress a possibly-fresh error on missing data -- preserve the
-    // legacy surface-it behavior (the live `!!` path is unaffected by this
-    // gate regardless).
+    // Never suppress a possibly-fresh error on missing data: surface it (the
+    // live `!!` path is unaffected by this gate regardless).
     if (entry_time <= 0.0)
         return true;
 
@@ -243,9 +241,8 @@ bool GcodeErrorRouter::should_surface_replay(double entry_time, double now) {
 // firmware slice links it without this TU's error-routing dependency web.
 
 std::string GcodeErrorRouter::truncate_for_toast(std::string text) {
-    // UTF-8 byte truncation is not strictly correct (could land mid-codepoint),
-    // but matches prior behavior. The right long-term fix is wrapping text in
-    // ToastManager; at that point this goes away.
+    // UTF-8 byte truncation can land mid-codepoint. Wrapping text in
+    // ToastManager would make this truncation unnecessary.
     constexpr size_t kMaxLen = 80;
     if (text.size() > kMaxLen) {
         text = text.substr(0, kMaxLen - 3) + "...";
@@ -365,7 +362,7 @@ RecoverDispatch decide_recover_dispatch(const ErrorEvent& e) {
     // key298 -- rpi MCU bridge daemon shutdown. firmware_restart alone can't
     // recover; PrinterRecoveryService bounces klipper_mcu via the platform
     // recovery script. Recognised by its log_tag rather than by its empty
-    // gcode, because an empty gcode now legitimately means "dismiss".
+    // gcode, because an empty gcode legitimately means "dismiss".
     if (action.log_tag == kKey298RecoverTag)
         return RecoverDispatch::RECOVERY_SERVICE;
 

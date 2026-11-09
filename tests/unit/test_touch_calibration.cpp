@@ -241,12 +241,18 @@ TEST_CASE("TouchCalibration: name and bus classifiers",
     }
     SECTION("is_resistive_touchscreen_name") {
         const Row rows[] = {
-            {"sun4i-ts", true},      {"rtp", true},
-            {"tsc2046", true},       {"SUN4I-TS", true},
+            {"sun4i-ts", true},
+            {"rtp", true},
+            {"tsc2046", true},
+            {"SUN4I-TS", true},
             {"ns2009", true}, // Nebula Pad, I2C
-            {"NS2016", true},        {"Goodix Capacitive TouchScreen", false},
-            {"gt911", false},        {"ft5x06_ts", false},
-            {"ili2130_ts", false},   {"edt-ft5x06", false},
+            {"Xptek xpt7603 TouchScreen", true},
+            {"NS2016", true},
+            {"Goodix Capacitive TouchScreen", false},
+            {"gt911", false},
+            {"ft5x06_ts", false},
+            {"ili2130_ts", false},
+            {"edt-ft5x06", false},
             {"atmel_mxt_ts", false},
         };
         for (const auto& row : rows) {

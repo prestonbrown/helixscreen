@@ -197,12 +197,12 @@ TEST_CASE_METHOD(TapModalFixture,
 
 TEST_CASE_METHOD(TapModalFixture, "Declining the cancel returns to a working guidance dialog",
                  "[filament][widget_tap][wiring]") {
-    // The regression this pins: on_tertiary() used to hide unconditionally, so
-    // the dialog was already exiting by the time the confirmation appeared and
-    // declining left a bare screen. On the runout path it did not come back —
-    // check_and_show_runout_guidance() early-returns on
-    // runout_modal_shown_for_pause_ until the print state changes — so a user who
-    // reconsidered lost Load/Unload/Purge/Resume for the rest of that pause.
+    // on_tertiary() must not hide unconditionally: the dialog would already be
+    // exiting by the time the confirmation appears, and declining would leave a
+    // bare screen. On the runout path it would not come back
+    // (check_and_show_runout_guidance() early-returns on
+    // runout_modal_shown_for_pause_ until the print state changes), so a user who
+    // reconsidered would lose Load/Unload/Purge/Resume for the rest of that pause.
     //
     // "Still there" is not enough on its own: a dialog can survive with every
     // callback expired, which is the bug this file was written for. Assert it

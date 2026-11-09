@@ -7,7 +7,6 @@
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "lane_apply.h"
-#include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl.h"
@@ -52,10 +51,9 @@ std::string describe_fault(const std::string& code, const std::string& text) {
                          : (!code.empty() ? code : std::string(lv_tr("Filament System Error")));
 }
 
-/// Put @p info's filament fields on @p slot, so get_slot_info returns them at
-/// once rather than after the next frame.
-void write_filament_fields(SlotInfo& slot, const SlotInfo& info) {
-    slot.assign_filament_fields(info);
+std::string string_member(const json& object, const char* key) {
+    auto it = object.find(key);
+    return it != object.end() && it->is_string() ? it->get<std::string>() : std::string();
 }
 
 } // namespace
@@ -86,18 +84,10 @@ void AmsBackendOpenAms::on_started() {
     if (!api_) {
         return;
     }
-    // Blocks on the Moonraker DB, so no lock is held; the result is published
-    // under the lock in one move.
-    auto loaded =
-        helix::ams::make_loaded_override_store(api_, "openams", get_type(), backend_log_tag());
-    if (loaded.store) {
-        helix::ams::ingest_legacy_records(*loaded.store, helix::ams::LegacyLockKeys::LaneData,
-                                          backend_index());
-    }
+    open_lane_record_store("openams");
+    query_component_status();
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        override_store_ = std::move(loaded.store);
-        overrides_ = std::move(loaded.overrides);
         parse_snapshot_locked();
     }
     emit_event(EVENT_STATE_CHANGED);
@@ -106,11 +96,24 @@ void AmsBackendOpenAms::on_started() {
     // changes and announces it with this notification. A manager without the
     // component never sends it, and its links live in the override store.
     if (client_) {
-        client_->register_method_callback(kSpoolmanStatusMethod, kSpoolmanStatusHandler,
-                                          [this, token = lifetime_.token()](const json&) {
-                                              token.defer("AmsBackendOpenAms::spoolman_status",
-                                                          [this]() { refresh_lane_records(); });
-                                          });
+        client_->register_method_callback(
+            kSpoolmanStatusMethod, kSpoolmanStatusHandler,
+            [this, token = lifetime_.token()](const json& note) {
+                // The notification carries the status
+                // object; an older one carries less.
+                json status;
+                const auto params = note.find("params");
+                if (params != note.end() && params->is_array() && !params->empty()) {
+                    status = (*params)[0];
+                }
+                token.defer("AmsBackendOpenAms::spoolman_status", [this, status]() {
+                    if (object_member(status, "bays")) {
+                        adopt_component_status(status);
+                    } else {
+                        query_component_status();
+                    }
+                });
+            });
     }
 }
 
@@ -118,55 +121,6 @@ void AmsBackendOpenAms::on_stopping() {
     if (client_) {
         client_->unregister_method_callback(kSpoolmanStatusMethod, kSpoolmanStatusHandler);
     }
-}
-
-void AmsBackendOpenAms::refresh_lane_records() {
-    helix::ams::FilamentSlotOverrideStore* store = nullptr;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        store = override_store_.get();
-    }
-    if (!store) {
-        return;
-    }
-    const int block = backend_index();
-    store->reload_async([this, block, token = lifetime_.token()](
-                            std::unordered_map<int, helix::ams::LaneDataRecord> records) {
-        token.defer(
-            "AmsBackendOpenAms::apply_lane_records",
-            [this, block, records = std::move(records)]() { apply_lane_records(block, records); });
-    });
-}
-
-void AmsBackendOpenAms::apply_lane_records(
-    int backend_block, const std::unordered_map<int, helix::ams::LaneDataRecord>& records) {
-    for (const auto& [slot_index, entry] : records) {
-        const helix::ams::LaneId lane = helix::ams::lane_id_for(backend_block, slot_index);
-        helix::ams::LaneSources sources = helix::ams::sources_from_record(
-            entry.record, entry.wire, helix::ams::LegacyLockKeys::LaneData);
-        // A re-read never re-files a LocalUser statement out of our own record:
-        // that would forge an edit. A spool link openams_spoolman wrote after
-        // the last edit made here is the newer statement, and takes the user's
-        // rung over it.
-        sources.local_user.reset();
-        bool write_in_flight = false;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            write_in_flight = own_write_echoes_.standing(slot_index);
-        }
-        helix::ams::file_lane_sources(lane, sources);
-        helix::ams::file_outside_edit_if_newer(
-            lane, entry, helix::ams::declared_from_record(entry.record), write_in_flight);
-    }
-    int total = 0;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        total = system_info_.total_slots;
-    }
-    for (int slot = 0; slot < total; ++slot) {
-        repaint_slot_from_lane(slot);
-    }
-    emit_event(EVENT_STATE_CHANGED);
 }
 
 void AmsBackendOpenAms::handle_status(const json& status) {
@@ -197,7 +151,7 @@ void AmsBackendOpenAms::present_nothing_locked() {
     unit_dryers_.clear();
     has_unit_climate_ = false;
     requested_dry_min_.clear();
-    peak_dry_remaining_min_.clear();
+    dry_cycle_.clear();
     unit_oams_idx_.clear();
     present_by_slot_id_.clear();
     remote_slot_ids_.clear();
@@ -260,16 +214,16 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
     }
 
     // The unit reports only the time left. A cycle's length is what this screen
-    // asked for, or else the most time left it has been seen with, so a dry
-    // started elsewhere or before a restart still shows its progress.
+    // asked for, or the most time left seen since it began; one already running
+    // at the first reading has no known length.
     for (std::size_t u = 0; u < parsed.dryers.size(); ++u) {
         DryerInfo& info = parsed.dryers[u].info;
+        ChamberCycle& cycle = dry_cycle_[static_cast<int>(u)];
+        cycle = next_chamber_cycle(cycle, true, info.active, info.remaining_min);
         if (info.active) {
-            int& peak = peak_dry_remaining_min_[static_cast<int>(u)];
-            peak = std::max(peak, info.remaining_min);
             const auto requested = requested_dry_min_.find(static_cast<int>(u));
-            info.duration_min =
-                std::max(peak, requested != requested_dry_min_.end() ? requested->second : 0);
+            info.duration_min = std::max(
+                cycle.total_min, requested != requested_dry_min_.end() ? requested->second : 0);
         }
     }
     const auto drop_inactive = [&parsed](std::unordered_map<int, int>& per_unit) {
@@ -280,7 +234,6 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
         }
     };
     drop_inactive(requested_dry_min_);
-    drop_inactive(peak_dry_remaining_min_);
 
     bool any_fault = false;
     for (std::size_t u = 0; u < next.units.size(); ++u) {
@@ -962,7 +915,7 @@ AmsError AmsBackendOpenAms::start_drying(float temp_c, int duration_min, int fan
         gcode = fmt::format("OAMS_DRYER_START OAMS={} TARGET={:g} DURATION={}", unit_oams_idx_[u],
                             target, seconds);
         requested_dry_min_[unit] = seconds / 60;
-        peak_dry_remaining_min_.erase(unit);
+        dry_cycle_.erase(unit);
     }
     return execute_gcode(gcode);
 }
@@ -982,13 +935,15 @@ AmsError AmsBackendOpenAms::stop_drying(int unit) {
         }
         gcode = fmt::format("OAMS_DRYER_STOP OAMS={}", unit_oams_idx_[u]);
         requested_dry_min_.erase(unit);
-        peak_dry_remaining_min_.erase(unit);
+        dry_cycle_.erase(unit);
     }
     return execute_gcode(gcode);
 }
 
-AmsError AmsBackendOpenAms::apply_user_edit(int slot_index, const SlotInfo& info,
-                                            const helix::ams::Observation& declared) {
+AmsError AmsBackendOpenAms::apply_user_edit(int slot_index, const SlotInfo& info) {
+    if (spoolman_component_) {
+        return apply_edit_through_component(slot_index, info);
+    }
     {
         std::lock_guard<std::mutex> lock(mutex_);
         SlotInfo* slot = system_info_.get_slot_global(slot_index);
@@ -996,33 +951,203 @@ AmsError AmsBackendOpenAms::apply_user_edit(int slot_index, const SlotInfo& info
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
                                                 system_info_.total_slots - 1);
         }
-        write_filament_fields(*slot, info);
-        helix::ams::stage_user_override(overrides_, slot_index, info, declared);
-    }
-    if (override_store_) {
-        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
-                                            backend_log_tag(), "Override");
+        slot->assign_filament_fields(info);
+        // OpenAMS holds no identity, so the lane record is the whole of it.
+        // Where [openams_spoolman] writes lane_data, the store's writer rule
+        // refuses the save and the edit is withdrawn.
+        persist_user_record_locked(slot_index, info);
     }
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();
 }
 
+void AmsBackendOpenAms::query_component_status() {
+    if (!client_) {
+        return;
+    }
+    if (!spoolman_component_) {
+        component_probe_out_ = true;
+    }
+    auto token = lifetime_.token();
+    client_->send_jsonrpc(
+        "server.openams_spoolman.status", json::object(),
+        [this, token](const json& response) {
+            json status = response.contains("result") ? response["result"] : response;
+            token.defer("AmsBackendOpenAms::component_status",
+                        [this, status]() { adopt_component_status(status); });
+        },
+        [this, token](const MoonrakerError&) {
+            // No component: the records are per slot, read before this knew.
+            token.defer("AmsBackendOpenAms::no_component", [this]() {
+                if (component_probe_out_.exchange(false) && !spoolman_component_) {
+                    reread_lane_records();
+                    emit_event(EVENT_STATE_CHANGED);
+                }
+            });
+        },
+        0, /*silent=*/true);
+}
+
+void AmsBackendOpenAms::adopt_component_status(const json& status) {
+    const bool first = !spoolman_component_.exchange(true);
+    component_probe_out_ = false;
+    const json* bays = object_member(status, "bays");
+    std::vector<std::pair<int, std::string>> slots;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (const auto& unit : system_info_.units) {
+            for (int i = 0; i < unit.slot_count; ++i) {
+                const SlotInfo* slot = unit.get_slot(i);
+                if (slot) {
+                    slots.emplace_back(unit.first_slot_global_index + i,
+                                       unit.display_name + "-" + std::to_string(slot->slot_index));
+                }
+            }
+        }
+    }
+    for (const auto& [slot_index, key] : slots) {
+        const helix::ams::LaneId lane = lane_id(slot_index);
+        // Its lane_data is per tool, so nothing read from it describes a bay.
+        if (first) {
+            helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::Record);
+        }
+        const json* bay = bays ? object_member(*bays, key.c_str()) : nullptr;
+        helix::ams::Observation firmware(helix::ams::ObservationSource::Firmware);
+        if (bay) {
+            if (const auto id = bay->find("spool_id");
+                id != bay->end() && id->is_number_integer() && id->get<int>() > 0) {
+                firmware.spoolman_id = id->get<int>();
+            }
+            if (const json* spool = object_member(*bay, "spool")) {
+                if (std::string m = string_member(*spool, "material"); !m.empty()) {
+                    firmware.material = std::move(m);
+                }
+                if (std::string v = string_member(*spool, "vendor"); !v.empty()) {
+                    firmware.brand = std::move(v);
+                }
+                const auto color = helix::ams::read_lane_color(string_member(*spool, "color_hex"));
+                if (color.kind == helix::ams::ColorReadingKind::Observed) {
+                    firmware.color_rgb = color.rgb;
+                }
+                if (const auto g = spool->find("remaining_g");
+                    g != spool->end() && g->is_number()) {
+                    firmware.remaining_weight_g = g->get<float>();
+                }
+                if (const auto g = spool->find("initial_g"); g != spool->end() && g->is_number()) {
+                    firmware.total_weight_g = g->get<float>();
+                }
+            }
+        }
+        helix::ams::ingest(lane, firmware);
+        repaint_slot_from_lane(slot_index);
+    }
+    emit_event(EVENT_STATE_CHANGED);
+}
+
+std::string AmsBackendOpenAms::clear_spool_refusal(int /*slot_index*/) const {
+    return spoolman_component_ ? lv_tr("OpenAMS manages this spool's link") : std::string();
+}
+
+AmsError AmsBackendOpenAms::apply_edit_through_component(int slot_index, const SlotInfo& info) {
+    json params;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const SlotInfo* slot = system_info_.get_slot_global(slot_index);
+        const AmsUnit* unit = nullptr;
+        for (const auto& u : system_info_.units) {
+            if (slot_index >= u.first_slot_global_index &&
+                slot_index < u.first_slot_global_index + u.slot_count) {
+                unit = &u;
+            }
+        }
+        if (!slot || !unit) {
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
+                                                system_info_.total_slots - 1);
+        }
+        // The component keeps a bay's spool in Spoolman and takes only what
+        // its edit endpoint names; anything else would have nowhere to live.
+        if (info.spool_name != slot->spool_name || info.color_name != slot->color_name ||
+            info.catalog_id != slot->catalog_id || info.spoolman_id != slot->spoolman_id) {
+            return AmsError(AmsResult::NOT_SUPPORTED,
+                            "openams_spoolman takes material, colour, vendor and weights only",
+                            lv_tr("OpenAMS keeps this spool in Spoolman, which takes only "
+                                  "material, color, brand and weight here"),
+                            lv_tr("Change the name or the linked spool in Spoolman."));
+        }
+        // The component names a unit by its devices key, which is the
+        // manager's unit name (display_name here; name is the numeric id).
+        params["unit"] = unit->display_name;
+        params["bay"] = slot->slot_index;
+        if (!info.material.empty() && info.material != slot->material) {
+            params["material"] = info.material;
+        }
+        if (helix::ams::is_declarable_color(info.color_rgb) && info.color_rgb != slot->color_rgb) {
+            params["color_hex"] = fmt::format("{:06x}", info.color_rgb & 0xFFFFFF);
+        }
+        if (!info.brand.empty() && info.brand != slot->brand) {
+            params["vendor"] = info.brand;
+        }
+        if (info.remaining_weight_g >= 0 && info.remaining_weight_g != slot->remaining_weight_g) {
+            params["remaining_weight"] = info.remaining_weight_g;
+        }
+        if (info.total_weight_g > 0 && info.total_weight_g != slot->total_weight_g) {
+            params["initial_weight"] = info.total_weight_g;
+        }
+    }
+    if (params.size() <= 2 || !client_) {
+        return AmsErrorHelper::success();
+    }
+    const helix::ams::LaneId lane = lane_id(slot_index);
+    auto token = lifetime_.token();
+    client_->send_jsonrpc(
+        "server.openams_spoolman.edit", params,
+        [this, token, lane](const json&) {
+            // The status notification the component sends with its answer is
+            // the echo. A field its spool summary does not restate (a weight
+            // it rounds, a vendor it normalises) is acknowledged by the answer.
+            token.defer("AmsBackendOpenAms::edit_accepted", [this, lane]() {
+                helix::ams::acknowledge_pending(lane);
+                query_component_status();
+            });
+        },
+        [this, token, lane, slot_index](const MoonrakerError& err) {
+            spdlog::warn("{} openams_spoolman refused the edit of slot {}: {}", backend_log_tag(),
+                         slot_index, err.message);
+            token.defer("AmsBackendOpenAms::edit_refused",
+                        [this, lane, slot_index, message = err.message]() {
+                            helix::ams::withdraw_pending(lane, message);
+                            repaint_slot_from_lane(slot_index);
+                            emit_event(kEventSlotChanged, std::to_string(slot_index));
+                        });
+        },
+        0, /*silent=*/true);
+    return AmsErrorHelper::success();
+}
+
 void AmsBackendOpenAms::persist_slot_weight(int slot_index, float remaining_weight_g,
                                             float total_weight_g) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_weight(override_store_.get(), overrides_, slot_index,
-                                        remaining_weight_g, total_weight_g, tag);
+    if (!spoolman_component_) {
+        AmsSubscriptionBackend::persist_slot_weight(slot_index, remaining_weight_g, total_weight_g);
+    }
 }
 
 void AmsBackendOpenAms::persist_external_identity_impl(int slot_index,
                                                        const helix::ams::Observation& spoolman) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_external_identity(override_store_.get(), overrides_, slot_index,
-                                                   spoolman, tag);
+    if (!spoolman_component_) {
+        AmsSubscriptionBackend::persist_external_identity_impl(slot_index, spoolman);
+    }
 }
 
+void AmsBackendOpenAms::clear_slot_override(int slot_index) {
+    if (spoolman_component_) {
+        // Its lane_data is protected and the link is its own (the menu greys
+        // Clear with clear_spool_refusal()).
+        spdlog::info("{} Clear of slot {} skipped: openams_spoolman owns the link",
+                     backend_log_tag(), slot_index);
+        return;
+    }
+    AmsSubscriptionBackend::clear_slot_override(slot_index);
+}
 void AmsBackendOpenAms::clear_override_fields(SlotInfo& slot) const {
     AmsSubscriptionBackend::clear_override_fields(slot);
     slot.material.clear();

@@ -599,6 +599,16 @@ ChevronSize chevron_size_for_gauge(float gauge) {
     return s;
 }
 
+int centered_gauge(int gauge) {
+    return gauge | 1;
+}
+
+ChevronSize pixel_centered(ChevronSize size) {
+    size.half_width = std::round(size.half_width);
+    size.stroke = static_cast<float>(static_cast<int>(size.stroke) | 1);
+    return size;
+}
+
 namespace {
 
 // Index of the segment holding arc length @p d (clamped to the path).

@@ -6,7 +6,6 @@
 #include "ui_button.h"
 #include "ui_card.h"
 #include "ui_dialog.h"
-#include "ui_dryer_airflow.h"
 #include "ui_fault_path.h"
 #include "ui_filament_motion_glyph.h"
 #include "ui_humidity_drop.h"
@@ -19,6 +18,7 @@
 #include "ui_text.h"
 #include "ui_text_input.h"
 #include "ui_tile_rung.h"
+#include "ui_unit_art.h"
 
 #include "app_globals.h"
 #include "material_settings_manager.h"
@@ -210,8 +210,8 @@ void XMLTestFixture::setup_global_xml_registrations_once() {
     lv_xml_register_component_from_file("A:ui_xml/styles.xml");
 
     // 4. Register custom widgets (must be done before loading components that use them)
-    helix::ui::icon::register_widget();                 // icon component
-    helix::ui::register_dryer_airflow_widget();         // dryer_airflow
+    helix::ui::icon::register_widget(); // icon component
+    helix::ui::register_unit_art_widget();
     helix::ui::register_humidity_drop_widget();         // humidity_drop
     helix::ui::register_filament_motion_glyph_widget(); // filament_motion_glyph
     helix::ui::register_plate_glow_widget();            // plate_glow

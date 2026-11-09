@@ -1804,20 +1804,20 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                                  {static_cast<int>(PrintStartPhase::PURGING), 32}},
                                 256);
     enter_mesh_via_markers(*this);
-    // The "probe at X,Y" fallback arm: no per-probe progress lines, so the
-    // total comes from the adaptive-mesh echo and the timing from two unique
-    // points 6s apart (2 points -> 23 of 25 left at 6s = 138s mesh + 128s).
+    // "probe at X,Y" lines: the total from the adaptive echo, the timing from two points 6s apart
+    // (23 of 25 left at 6s = 138s + 128s). A repeat sample neither counts nor retimes.
     send_gcode_response("// Adapted probe count: 5,5");
     send_gcode_response("probe at 10.0,10.0 is z=0.100");
     clock.advance(std::chrono::seconds(6));
     send_gcode_response("probe at 20.0,10.0 is z=0.110");
+    clock.advance(std::chrono::seconds(6));
+    send_gcode_response("probe at 20.0,10.0 is z=0.111");
     REQUIRE(PrintStartCollectorTestAccess::get_mesh_probe_total(collector()) == 25);
     PrintStartCollectorTestAccess::run_eta_update(collector());
     drain_async_updates();
     REQUIRE(published_remaining(*this) == 266);
 
-    // >30s of silence, then a new pair of unique points: the dedupe-path gap
-    // reset clears the counted points and must re-arm the release.
+    // >30s of silence, then two new points: the dedupe-path gap reset re-arms the release.
     clock.advance(std::chrono::seconds(31));
     send_gcode_response("probe at 30.0,30.0 is z=0.090");
     clock.advance(std::chrono::seconds(12));
@@ -7853,4 +7853,48 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "[print][collector][checklist_input]") {
     collector().start();
     CHECK(collector().checklist_input().expected_order.empty());
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "Oversized console lines are not scanned by the phase patterns",
+                 "[print][collector][oversized-line]") {
+    collector().start();
+    drain_async_updates();
+    drain_async_updates();
+
+    const std::string completion = "Print started";
+
+    SECTION("A firmware trace line longer than the limit is ignored") {
+        std::string line = completion + " // [PRES_TIME_CH0_FTR][";
+        while (line.size() <= 256) {
+            line += "-0.0475, ";
+        }
+        PrintStartCollectorTestAccess::on_gcode_response(
+            collector(), {{"method", "notify_gcode_response"}, {"params", {line}}});
+        drain_async_updates();
+        drain_async_updates();
+        REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
+    }
+
+    SECTION("A line at the limit is still scanned") {
+        std::string line = completion;
+        line.resize(256, ' ');
+        PrintStartCollectorTestAccess::on_gcode_response(
+            collector(), {{"method", "notify_gcode_response"}, {"params", {line}}});
+        drain_async_updates();
+        drain_async_updates();
+        REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
+    }
+}
+
+TEST_CASE("PrintStart: an owning step runs on through every heating signal",
+          "[core][print][owning_step]") {
+    helix::OwningStep step;
+    step.phase = PrintStartPhase::CLEANING;
+    using V = helix::OwningStep::Verdict;
+    CHECK(step.judge(PrintStartPhase::HEATING_CHAMBER) == V::Pass);
+    CHECK(step.judge(PrintStartPhase::SOAKING) == V::Pass);
+    CHECK(step.judge(PrintStartPhase::HEATING_BED) == V::Pass);
+    CHECK(step.judge(PrintStartPhase::CLEANING) == V::Pass);
+    CHECK(step.judge(PrintStartPhase::PURGING) == V::Ends);
 }

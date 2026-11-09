@@ -91,6 +91,7 @@ SlotDelta read_slot(const json& slot_json) {
     d.park_state = read_park_state(slot_json);
     d.temp_min = read_lenient_int(slot_json, "temp_min");
     d.temp_max = read_lenient_int(slot_json, "temp_max");
+    d.temp = read_lenient_int(slot_json, "temp");
     return d;
 }
 

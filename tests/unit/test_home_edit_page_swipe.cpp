@@ -25,6 +25,7 @@
 
 #include "ui_breakpoint.h"
 #include "ui_carousel.h"
+#include "ui_context_menu.h"
 #include "ui_dialog.h"
 #include "ui_drag_surface.h"
 #include "ui_modal.h"
@@ -66,6 +67,7 @@
 #include "runtime_config.h"
 #include "scope_exit.h"
 #include "setting_group.h"
+#include "tap_lockout.h"
 #include "theme_manager.h"
 #include "xml_registration.h"
 
@@ -197,6 +199,12 @@ class ConfigurableTestWidget : public helix::PanelWidget {
     const char* id() const override {
         return "temperature";
     }
+    /// Counts the configure requests; false asks for no rebuild.
+    bool on_edit_configure() override {
+        ++configure_calls;
+        return false;
+    }
+    int configure_calls = 0;
 };
 
 /// The real widget catalog, for a case in which edit mode opens it: its XML
@@ -464,9 +472,16 @@ class EditHomeFixture : public LVGLTestFixture {
                     "A:ui_xml/components/home_page_container.xml") == LV_RESULT_OK);
         REQUIRE(lv_xml_register_component_from_file(
                     "A:ui_xml/components/home_next_page_slot.xml") == LV_RESULT_OK);
+        REQUIRE(lv_xml_register_component_from_file("A:ui_xml/tile_edit_callout.xml") ==
+                LV_RESULT_OK);
+        // The backdrop's dismiss callback, which the app registers at startup.
+        helix::ui::ContextMenu::register_shared_callbacks();
         REQUIRE(lv_xml_register_component_from_data(
                     kStandInComponent, "<component><view extends=\"lv_obj\" scrollable=\"false\" "
                                        "style_pad_all=\"0\"/></component>") == LV_RESULT_OK);
+        // The edit session publishes the navbar's edit-mode and delete-page
+        // subjects, which live there; idempotent.
+        app_globals_init_subjects();
         // The panel's XML event callbacks, as the app registers them before any
         // of its XML is created; once per process.
         if (!panel().are_subjects_initialized()) {
@@ -904,6 +919,43 @@ class EditHomeFixture : public LVGLTestFixture {
         indev.press(c.x, c.y);
         indev.release(c.x, c.y);
         REQUIRE(grid().selected_widget() == target);
+    }
+
+    /// A tap on widget @p id, which must be the selection, then the tick the
+    /// callout its release asks for opens on.
+    void tap_selected(const char* id) {
+        lv_obj_t* target = widget_on(grid().page_index(), id);
+        REQUIRE(grid().selected_widget() == target);
+        const lv_point_t c = center_of(target);
+        indev.press(c.x, c.y);
+        indev.release(c.x, c.y);
+        process_lvgl(static_cast<int>(kReadPeriodMs));
+    }
+
+    /// Select widget @p id by a tap, then open its callout with a second tap.
+    void open_callout_by_taps(const char* id) {
+        select_by_tap(id);
+        CHECK_FALSE(grid().is_callout_open());
+        tap_selected(id);
+        REQUIRE(grid().is_callout_open());
+    }
+
+    /// The callout's object named @p name, wherever it is on screen.
+    static lv_obj_t* callout_part(const char* name) {
+        return lv_obj_find_by_name(lv_screen_active(), name);
+    }
+
+    /// A tap on the callout row @p name, past the rows' tap lockout. The row
+    /// acts inside the release; nothing deferred runs.
+    void tap_callout_row(const char* name) {
+        lv_obj_t* row = callout_part(name);
+        INFO("callout row " << name);
+        REQUIRE(row != nullptr);
+        lv_point_t r = center_of(row);
+        REQUIRE(lv_indev_search_obj(lv_screen_active(), &r) == row);
+        lv_tick_inc(helix::ui::TapLockout::kDefaultMs);
+        indev.press(r.x, r.y);
+        indev.release(r.x, r.y);
     }
 
     /// Pointer travel from a press that crosses the drag threshold.
@@ -2228,15 +2280,15 @@ TEST_CASE_METHOD(EditHomeFixture, "a hold on an unselected widget grabs it after
     enter_edit_mode();
 
     // One gesture: press the unselected widget, hold past a long press (the
-    // hold grabs what the press selected), keep holding and move. The drag
-    // must start without a release in between.
+    // hold arms a grab of what the press selected), keep holding and move. The
+    // drag must start without a release in between.
     const lv_point_t c = center_of(widget);
     indev.press(c.x, c.y); // selects: no arm, still a swipe candidate
     REQUIRE(grid().selected_widget() == widget);
     CHECK(scroll_live());
 
-    indev.hold(indev.long_press_hold_ms()); // its last read dispatches LONG_PRESSED: grab
-    CHECK(GridEditModeTestAccess::dragging(grid()));
+    indev.hold(indev.long_press_hold_ms()); // its last read dispatches LONG_PRESSED: arms
+    CHECK(GridEditModeTestAccess::press_armed(grid()));
     CHECK_FALSE(scroll_live());
 
     int x = c.x;
@@ -3139,11 +3191,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     indev.move(c.x + past_drag_threshold(), c.y);
     REQUIRE(GridEditModeTestAccess::dragging(grid()));
     lv_obj_t* overlay = GridEditModeTestAccess::selection_overlay(grid());
-    lv_obj_t* remove_btn = GridEditModeTestAccess::remove_button(grid());
-    lv_obj_t* configure_btn = GridEditModeTestAccess::configure_button(grid());
     REQUIRE(overlay != nullptr);
-    REQUIRE(remove_btn != nullptr);
-    REQUIRE(configure_btn != nullptr);
 
     // One move into the right edge zone previews a cell on the origin page; the
     // dwell then flips with no further read, and the slide settles.
@@ -3161,10 +3209,7 @@ TEST_CASE_METHOD(EditHomeFixture,
 
     CHECK(lv_obj_get_parent(widget) == drag_layer());
     CHECK(lv_obj_get_parent(overlay) == drag_layer());
-    CHECK(lv_obj_get_parent(remove_btn) == page(1));
-    CHECK(lv_obj_get_parent(configure_btn) == page(1));
-    CHECK(is_clickable(remove_btn));
-    CHECK(is_clickable(configure_btn));
+    CHECK_FALSE(grid().is_callout_open());
 
     // The landing page previews the cell the origin page previewed with no
     // further move, and the next move keeps that target.
@@ -3347,8 +3392,10 @@ TEST_CASE_METHOD(EditHomeFixture, "a drop's page-creating intent ends with its g
 
     // A hold selects the widget and grabs it, released where it grabbed.
     indev.press(c.x, c.y);                  // selects
-    indev.hold(indev.long_press_hold_ms()); // its last read dispatches LONG_PRESSED: grab
+    indev.hold(indev.long_press_hold_ms()); // its last read dispatches LONG_PRESSED: arms
+    indev.move(c.x + past_drag_threshold(), c.y);
     REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    indev.move(c.x, c.y);
     indev.release(c.x, c.y);
     settle();
 
@@ -3389,6 +3436,8 @@ TEST_CASE_METHOD(EditHomeFixture, "an edge long-press resize owns the gesture, n
         CHECK(scroll_live()); // selection alone must not own the swipe
 
         indev.release(edge_x, mid_y);
+        grid().close_tile_callout();
+        settle();
         indev.prime(edge_x, mid_y); // a fresh press on the edge: arms pending
         CHECK(GridEditModeTestAccess::press_armed(grid()));
         CHECK_FALSE(scroll_live());
@@ -3409,6 +3458,8 @@ TEST_CASE_METHOD(EditHomeFixture, "an edge long-press resize owns the gesture, n
         CHECK(scroll_live());
 
         indev.release(center_x, mid_y);
+        grid().close_tile_callout();
+        settle();
         indev.prime(center_x, mid_y); // a fresh press on the widget: arms pending
         CHECK(GridEditModeTestAccess::press_armed(grid()));
         CHECK_FALSE(scroll_live());
@@ -3430,15 +3481,9 @@ TEST_CASE_METHOD(EditHomeFixture,
     // A tap selects widget @p id, the only one on the session's page, and its
     // remove button removes it; the page-set change that makes is watched.
     const auto remove_only_widget = [&](const char* id) {
-        select_by_tap(id);
-        lv_obj_t* remove_button = GridEditModeTestAccess::remove_button(grid());
-        REQUIRE(remove_button != nullptr);
-        lv_point_t r = center_of(remove_button);
-        REQUIRE(lv_indev_search_obj(lv_screen_active(), &r) == remove_button);
+        open_callout_by_taps(id);
         PageSetChange change = watch_page_set_change();
-        lv_tick_inc(GridEditMode::kPillLockoutMs);
-        indev.press(r.x, r.y);
-        indev.release(r.x, r.y);
+        tap_callout_row("tile_callout_remove");
         return change;
     };
 
@@ -3496,7 +3541,6 @@ TEST_CASE_METHOD(EditHomeFixture,
     CHECK(GridEditModeTestAccess::shield(grid()) == nullptr);
     CHECK(grid().selected_widget() == nullptr);
     CHECK(GridEditModeTestAccess::selection_overlay(grid()) == nullptr);
-    CHECK(GridEditModeTestAccess::remove_button(grid()) == nullptr);
 
     // Shown a page of the rebuilt carousel, the session is whole again.
     settle();
@@ -3615,15 +3659,10 @@ TEST_CASE_METHOD(EditHomeFixture, "a commit saves the layout once when edits set
     SECTION("removing a page's last widget removes the page") {
         build_home(); // 'fan' alone on page 1
         enter_edit_mode(1);
-        select_by_tap("fan");
-        lv_obj_t* remove_button = GridEditModeTestAccess::remove_button(grid());
-        REQUIRE(remove_button != nullptr);
-        const lv_point_t r = center_of(remove_button);
+        open_callout_by_taps("fan");
 
         ScopedConfigWriteCounter counter;
-        lv_tick_inc(GridEditMode::kPillLockoutMs);
-        indev.press(r.x, r.y);
-        indev.release(r.x, r.y);
+        tap_callout_row("tile_callout_remove");
         settle();
         REQUIRE(config().page_count() == 1);
         process_lvgl(static_cast<int>(helix::PanelWidgetConfig::kSaveSettleMs) + 100);
@@ -3782,6 +3821,8 @@ TEST_CASE_METHOD(EditHomeFixture,
 
 TEST_CASE_METHOD(EditHomeFixture, "the next-page slot offers no delete-page button",
                  "[1638][edit-swipe][home][grid_edit]") {
+    // The offer is read from the global home_edit_page_deletable subject.
+    app_globals_init_subjects();
     build_home(); // 'fan' alone on page 1, the last page
     lv_obj_t* fan = widget_on(1, "fan");
     enter_edit_mode(0);
@@ -3809,6 +3850,8 @@ TEST_CASE_METHOD(EditHomeFixture, "the next-page slot offers no delete-page butt
 
 TEST_CASE_METHOD(EditHomeFixture, "the delete-page button draws nothing over the grid",
                  "[2023][edit-swipe][home][grid_edit]") {
+    // The offer is read from the global home_edit_page_deletable subject.
+    app_globals_init_subjects();
     build_home();
     widget_on(1, "fan");
     enter_edit_mode(1);
@@ -4059,23 +4102,20 @@ TEST_CASE_METHOD(EditHomeFixture,
     panel().open_widget_catalog();
     ScopedWidgetCatalog::settle_queue();
     REQUIRE(grid().is_catalog_open());
-    lv_obj_t* remove_button = GridEditModeTestAccess::remove_button(grid());
-    REQUIRE(remove_button != nullptr);
     const lv_point_t c = center_of(widget);
     remove_dismiss_backdrop(c);
 
     SECTION("a press on it moved past the drag threshold") {
-        lv_tick_inc(GridEditMode::kPillLockoutMs);
         indev.press(c.x, c.y);
         indev.move(c.x, c.y + past_drag_threshold());
         CHECK_FALSE(grid().owns_gesture());
         indev.release(c.x, c.y + past_drag_threshold());
     }
-    SECTION("a tap on its remove button") {
-        lv_point_t r = center_of(remove_button);
-        REQUIRE(lv_indev_search_obj(lv_screen_active(), &r) == remove_button);
-        indev.press(r.x, r.y);
-        indev.release(r.x, r.y);
+    SECTION("a tap on it opens no callout") {
+        indev.press(c.x, c.y);
+        indev.release(c.x, c.y);
+        process_lvgl(static_cast<int>(kReadPeriodMs));
+        CHECK_FALSE(grid().is_callout_open());
     }
     ScopedWidgetCatalog::settle_queue();
 
@@ -4364,16 +4404,10 @@ TEST_CASE_METHOD(EditHomeFixture,
 
 namespace {
 
-/// A tap on widget @p id selects it and a tap on its trash pill removes it.
+/// Two taps on widget @p id open its callout, and its Remove row removes it.
 void trash_by_tap(EditHomeFixture& f, const char* id) {
-    f.select_by_tap(id);
-    lv_obj_t* pill = lv_obj_find_by_name(f.page(f.grid().page_index()), "edit_trash_pill");
-    REQUIRE(pill != nullptr);
-    lv_point_t r = EditHomeFixture::center_of(pill);
-    REQUIRE(lv_indev_search_obj(lv_screen_active(), &r) == pill);
-    lv_tick_inc(GridEditMode::kPillLockoutMs);
-    f.indev.press(r.x, r.y);
-    f.indev.release(r.x, r.y);
+    f.open_callout_by_taps(id);
+    f.tap_callout_row("tile_callout_remove");
     REQUIRE_FALSE(f.config().is_placed(id));
 }
 
@@ -4908,4 +4942,356 @@ TEST_CASE_METHOD(EditHomeFixture, "opening the widget catalog withdraws the undo
     CHECK(helix::ui::fire_last_toast_action());
     ScopedWidgetCatalog::settle_queue();
     CHECK_FALSE(config().is_placed("temperature"));
+}
+
+// ---------------------------------------------------------------------------
+// The tile callout (prestonbrown/helixscreen#2025)
+// ---------------------------------------------------------------------------
+
+namespace {
+
+bool areas_overlap(const lv_area_t& a, const lv_area_t& b) {
+    return !(a.x2 < b.x1 || a.x1 > b.x2 || a.y2 < b.y1 || a.y1 > b.y2);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(EditHomeFixture,
+                 "a tap on the selected tile opens its callout around it, with no pills",
+                 "[edit-callout][grid_edit][home]") {
+    build_home();
+    enter_edit_mode();
+    select_by_tap("temperature");
+    process_lvgl(static_cast<int>(kReadPeriodMs));
+    // The first tap only selects.
+    CHECK_FALSE(grid().is_callout_open());
+    CHECK(callout_part("tile_callout_remove") == nullptr);
+
+    tap_selected("temperature");
+    REQUIRE(grid().is_callout_open());
+    CHECK(grid().selected_widget() == widget_on(0, "temperature"));
+
+    // The card sits beside the tile, inside the screen, and the ring is on the
+    // tile.
+    const lv_area_t tile = area_of(widget_on(0, "temperature"));
+    lv_obj_t* card = callout_part("context_menu");
+    REQUIRE(card != nullptr);
+    const lv_area_t card_area = area_of(card);
+    CHECK_FALSE(areas_overlap(card_area, tile));
+    const lv_area_t screen = area_of(lv_screen_active());
+    CHECK(card_area.x1 >= screen.x1);
+    CHECK(card_area.x2 <= screen.x2);
+    CHECK(card_area.y1 >= screen.y1);
+    CHECK(card_area.y2 <= screen.y2);
+    lv_obj_t* ring = callout_part("tile_callout_ring");
+    REQUIRE(ring != nullptr);
+    const lv_area_t ring_area = area_of(ring);
+    CHECK(ring_area.x1 == tile.x1);
+    CHECK(ring_area.y1 == tile.y1);
+    CHECK(ring_area.x2 == tile.x2);
+    CHECK(ring_area.y2 == tile.y2);
+    // A widget with no configure action gets only Remove.
+    lv_obj_t* configure = callout_part("tile_callout_configure");
+    REQUIRE(configure != nullptr);
+    CHECK(lv_obj_has_flag(configure, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* remove = callout_part("tile_callout_remove");
+    REQUIRE(remove != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(remove, LV_OBJ_FLAG_HIDDEN));
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "a hold on a tile raises its callout, and lifting leaves it open",
+                 "[edit-callout][grid_edit][home]") {
+    build_home();
+    enter_edit_mode();
+    const bool preselected = GENERATE(false, true);
+    CAPTURE(preselected);
+    if (preselected) {
+        select_by_tap("temperature");
+    }
+    lv_obj_t* widget = widget_on(0, "temperature");
+    const helix::PanelWidgetEntry origin = entry_on_page(0, "temperature");
+    const lv_point_t c = center_of(widget);
+    indev.press(c.x, c.y);
+    indev.hold(indev.long_press_hold_ms());
+    // Raised with the finger still down; nothing is dragged yet.
+    REQUIRE(grid().is_callout_open());
+    CHECK_FALSE(GridEditModeTestAccess::dragging(grid()));
+    // A finger settling within the drag threshold leaves it up.
+    const int settle_x = c.x + past_drag_threshold() - 1;
+    indev.move(settle_x, c.y);
+    REQUIRE(grid().is_callout_open());
+    indev.release(settle_x, c.y);
+    process_lvgl(static_cast<int>(kReadPeriodMs));
+
+    // The lift is neither a dismissal nor a tap on a row.
+    REQUIRE(grid().is_callout_open());
+    CHECK(config().is_placed("temperature"));
+    // The widget is back in its cell, selected, and the drop committed nothing.
+    CHECK(lv_obj_get_parent(widget_on(0, "temperature")) == page(0));
+    CHECK(grid().selected_widget() == widget_on(0, "temperature"));
+    const helix::PanelWidgetEntry now = entry_on_page(0, "temperature");
+    CHECK(now.col == origin.col);
+    CHECK(now.row == origin.row);
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "a hold that moves the tile drags it and opens no callout",
+                 "[edit-callout][grid_edit][home]") {
+    build_home(1, 1);
+    enter_edit_mode();
+    lv_obj_t* widget = widget_on(0, "temperature");
+    const helix::PanelWidgetEntry origin = entry_on_page(0, "temperature");
+    const lv_point_t c = center_of(widget);
+    indev.press(c.x, c.y);
+    indev.hold(indev.long_press_hold_ms());
+    REQUIRE(grid().is_callout_open());
+    const int to_x = c.x + tracks_px(kCellTracks);
+    indev.move(c.x + 30, c.y);
+    CHECK_FALSE(grid().is_callout_open());
+    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    indev.move(to_x, c.y);
+    indev.release(to_x, c.y);
+    settle();
+    CHECK(entry_on_page(0, "temperature").col != origin.col);
+    CHECK_FALSE(grid().is_callout_open());
+    CHECK(callout_part("tile_callout_remove") == nullptr);
+}
+
+TEST_CASE_METHOD(EditHomeFixture,
+                 "a press on the selected tile that moves, or resizes it, opens no callout",
+                 "[edit-callout][grid_edit][home]") {
+    build_home(1, 1);
+    enter_edit_mode();
+    select_by_tap("temperature");
+    lv_obj_t* widget = widget_on(0, "temperature");
+    SECTION("a press moved one px past the drag threshold and back") {
+        const lv_point_t c = center_of(widget);
+        indev.press(c.x, c.y);
+        indev.move(c.x + past_drag_threshold(), c.y);
+        indev.move(c.x, c.y);
+        indev.release(c.x, c.y);
+    }
+    SECTION("a resize from the edge band") {
+        resize_down_one_cell(widget);
+    }
+    settle();
+    CHECK_FALSE(grid().is_callout_open());
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "a hold on the selected tile's resize edge starts the resize",
+                 "[edit-callout][grid_edit][home]") {
+    build_home(1, 1);
+    enter_edit_mode();
+    select_by_tap("temperature");
+    const helix::PanelWidgetEntry origin = entry_on_page(0, "temperature");
+    const lv_area_t wa = area_of(widget_on(0, "temperature"));
+    const int x = (wa.x1 + wa.x2) / 2;
+    const int y = wa.y2 - 1;
+    REQUIRE(grid().detect_resize_edge(x, y, wa) == helix::GridEditMode::ResizeEdge::Bottom);
+    indev.press(x, y);
+    indev.hold(indev.long_press_hold_ms());
+    CHECK_FALSE(grid().is_callout_open());
+    const int to_y = y + tracks_px(kCellTracks);
+    indev.move(x, to_y);
+    indev.release(x, to_y);
+    settle();
+    CHECK(entry_on_page(0, "temperature").rowspan == origin.rowspan + kCellTracks);
+    CHECK_FALSE(grid().is_callout_open());
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "a hold on a fixed-size tile's edge band raises its callout",
+                 "[edit-callout][grid_edit][home]") {
+    helix::RuntimeWidgetDef fixed;
+    fixed.id = "hold_test_fixed_tile";
+    fixed.display_name = "Fixed";
+    fixed.factory = stand_in_factory();
+    REQUIRE(helix::register_runtime_widget_def(std::move(fixed)));
+    helix::ScopeExit cleanup([] { helix::unregister_runtime_widget_def("hold_test_fixed_tile"); });
+    build_home(1, 1);
+    REQUIRE(config().place_entry("hold_test_fixed_tile", 0, 0, kCellTracks, kCellTracks,
+                                 kCellTracks) >= 0);
+    repopulate();
+    enter_edit_mode();
+    select_by_tap("hold_test_fixed_tile");
+    const lv_area_t wa = area_of(widget_on(0, "hold_test_fixed_tile"));
+    const int x = (wa.x1 + wa.x2) / 2;
+    const int y = wa.y2 - 1;
+    REQUIRE(grid().detect_resize_edge(x, y, wa) == helix::GridEditMode::ResizeEdge::Bottom);
+    indev.press(x, y);
+    indev.hold(indev.long_press_hold_ms());
+    CHECK(grid().is_callout_open());
+    indev.release(x, y);
+}
+
+TEST_CASE_METHOD(EditHomeFixture,
+                 "an indev reset under a hold's callout closes it and ends the arm",
+                 "[edit-callout][grid_edit][home]") {
+    build_home();
+    enter_edit_mode();
+    const lv_point_t c = center_of(widget_on(0, "temperature"));
+    indev.press(c.x, c.y);
+    indev.hold(indev.long_press_hold_ms());
+    REQUIRE(grid().is_callout_open());
+    REQUIRE(grid().owns_gesture());
+    REQUIRE_FALSE(scroll_live());
+    lv_indev_reset(indev.indev(), nullptr);
+    CHECK_FALSE(grid().is_callout_open());
+    CHECK_FALSE(grid().owns_gesture());
+    CHECK(scroll_live());
+    indev.release(c.x, c.y);
+    settle();
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "a raising finger's lift restarts the callout's row lockout",
+                 "[edit-callout][grid_edit][home]") {
+    build_home();
+    const bool entering = GENERATE(false, true);
+    CAPTURE(entering);
+    if (!entering) {
+        enter_edit_mode();
+    }
+    const lv_point_t c = center_of(widget_on(0, "temperature"));
+    indev.press(c.x, c.y);
+    indev.hold(indev.long_press_hold_ms() + 2 * helix::ui::TapLockout::kDefaultMs);
+    process_lvgl(static_cast<int>(kReadPeriodMs));
+    REQUIRE(grid().is_callout_open());
+    indev.release(c.x, c.y);
+    process_lvgl(static_cast<int>(kReadPeriodMs));
+
+    // The bounce, right after the lift.
+    const lv_point_t r = center_of(callout_part("tile_callout_remove"));
+    indev.press(r.x, r.y);
+    indev.release(r.x, r.y);
+    CHECK(grid().is_callout_open());
+    CHECK(config().is_placed("temperature"));
+
+    tap_callout_row("tile_callout_remove");
+    CHECK_FALSE(grid().is_callout_open());
+    CHECK_FALSE(config().is_placed("temperature"));
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "the hold that enters edit mode on a tile raises its callout",
+                 "[edit-callout][grid_edit][home]") {
+    build_home();
+    lv_obj_t* widget = widget_on(0, "temperature");
+    const lv_point_t c = center_of(widget);
+    indev.press(c.x, c.y);
+    indev.hold(indev.long_press_hold_ms());
+    REQUIRE(HomePanelTestAccess::edit_mode_active(panel()));
+    REQUIRE(grid().selected_widget() == widget);
+    process_lvgl(static_cast<int>(kReadPeriodMs));
+    REQUIRE(grid().is_callout_open()); // up with the finger still down
+    SECTION("released where it held") {
+        indev.release(c.x, c.y);
+        process_lvgl(static_cast<int>(kReadPeriodMs));
+        CHECK(grid().is_callout_open());
+    }
+    SECTION("released past the drag threshold") {
+        indev.move(c.x, c.y + past_drag_threshold());
+        indev.release(c.x, c.y + past_drag_threshold());
+        process_lvgl(static_cast<int>(kReadPeriodMs));
+        CHECK_FALSE(grid().is_callout_open());
+        CHECK(grid().selected_widget() == widget);
+    }
+}
+
+TEST_CASE_METHOD(EditHomeFixture,
+                 "the callout's Configure row closes it and runs the widget's configure",
+                 "[edit-callout][grid_edit][home]") {
+    build_home();
+    lv_obj_t* widget = widget_on(0, "temperature");
+    ConfigurableTestWidget configurable;
+    lv_obj_set_user_data(widget, &configurable);
+    enter_edit_mode();
+    open_callout_by_taps("temperature");
+    lv_obj_t* configure = callout_part("tile_callout_configure");
+    REQUIRE(configure != nullptr);
+    REQUIRE_FALSE(lv_obj_has_flag(configure, LV_OBJ_FLAG_HIDDEN));
+
+    SECTION("a tap inside the lockout does nothing") {
+        lv_point_t r = center_of(configure);
+        indev.press(r.x, r.y);
+        indev.release(r.x, r.y);
+        CHECK(configurable.configure_calls == 0);
+        CHECK(grid().is_callout_open());
+    }
+    SECTION("a tap past the lockout configures") {
+        tap_callout_row("tile_callout_configure");
+        CHECK(configurable.configure_calls == 1);
+        CHECK_FALSE(grid().is_callout_open());
+        CHECK(grid().selected_widget() == widget);
+        CHECK(config().is_placed("temperature"));
+    }
+    lv_obj_set_user_data(widget, nullptr);
+}
+
+TEST_CASE_METHOD(EditHomeFixture,
+                 "the callout's Remove row removes the tile and offers Undo, which restores it",
+                 "[edit-callout][grid_edit][home]") {
+    build_home(1, 1);
+    enter_edit_mode();
+    const helix::PanelWidgetEntry origin = entry_on_page(0, "temperature");
+    trash_by_tap(*this, "temperature");
+    CHECK_FALSE(grid().is_callout_open());
+    settle();
+    REQUIRE(helix::ui::fire_last_toast_action());
+    settle();
+    const helix::PanelWidgetEntry back = entry_on_page(0, "temperature");
+    CHECK(back.col == origin.col);
+    CHECK(back.row == origin.row);
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "a tap beside the callout closes it and does nothing else",
+                 "[edit-callout][grid_edit][home]") {
+    build_home(2, 2);
+    enter_edit_mode();
+    open_callout_by_taps("temperature");
+    lv_obj_t* widget = widget_on(0, "temperature");
+    const lv_area_t card = area_of(callout_part("context_menu"));
+    // An empty grid spot clear of the card: a tap there with the callout
+    // closed would deselect.
+    const lv_point_t spot = empty_spot(0);
+    REQUIRE_FALSE(areas_overlap(card, lv_area_t{spot.x, spot.y, spot.x, spot.y}));
+    indev.press(spot.x, spot.y);
+    indev.release(spot.x, spot.y);
+    process_lvgl(static_cast<int>(kReadPeriodMs));
+
+    CHECK_FALSE(grid().is_callout_open());
+    CHECK(grid().selected_widget() == widget);
+    CHECK(config().is_placed("temperature"));
+    CHECK(current_page() == 0);
+    CHECK(HomePanelTestAccess::edit_mode_active(panel()));
+    // The backdrop is gone: the next tap reaches the grid again.
+    process_lvgl(static_cast<int>(kReadPeriodMs));
+    indev.press(spot.x, spot.y);
+    indev.release(spot.x, spot.y);
+    CHECK(grid().selected_widget() == nullptr);
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "the callout closes without acting when the session moves on",
+                 "[edit-callout][grid_edit][home]") {
+    build_home(2, 2);
+    enter_edit_mode();
+    open_callout_by_taps("temperature");
+    SECTION("edit mode exits") {
+        panel().exit_grid_edit_mode();
+    }
+    SECTION("the session switches page") {
+        show_page(1);
+        settle();
+    }
+    SECTION("the selection changes") {
+        grid().select_widget(nullptr);
+    }
+    SECTION("the widget catalog opens") {
+        ScopedWidgetCatalog catalog;
+        panel().open_widget_catalog();
+        ScopedWidgetCatalog::settle_queue();
+        CHECK_FALSE(grid().is_callout_open());
+        WidgetCatalogOverlay::close();
+        ScopedWidgetCatalog::settle_queue();
+    }
+    process_lvgl(static_cast<int>(kReadPeriodMs));
+    CHECK_FALSE(grid().is_callout_open());
+    CHECK(callout_part("tile_callout_remove") == nullptr);
+    CHECK(config().is_placed("temperature"));
 }

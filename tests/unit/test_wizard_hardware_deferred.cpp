@@ -1,13 +1,12 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// #1160: b73781ca8 made it possible to finish the setup wizard while Klipper is
-// in `error` — necessary, because that state used to be an inescapable dead end.
-// But discovery never runs in that state, so every hardware picker is empty and
-// the user selects nothing. ui_wizard_complete() then committed that emptiness
-// as the printer's expected-hardware snapshot, and the first boot where Klipper
-// DID come up compared live discovery against an empty list and reported every
-// fan, filament sensor and LED as newly appeared.
+// #1160: the setup wizard can finish while Klipper is in `error`, so that state
+// is not a dead end. But discovery never runs in that state, so every hardware
+// picker is empty and the user selects nothing. Committing that emptiness as
+// the printer's expected-hardware snapshot would make the first boot where
+// Klipper DOES come up report every fan, filament sensor and LED as newly
+// appeared.
 //
 // The snapshot is deferred instead: a per-printer marker records the debt, the
 // first successful discovery accepts what is there as expected, and the user is

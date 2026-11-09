@@ -42,6 +42,11 @@ template <typename T> class OpenInstances {
         return nullptr;
     }
 
+    /// Every open instance, in the order they were added.
+    const std::vector<T*>& all() const {
+        return instances_;
+    }
+
   private:
     std::vector<T*> instances_;
 };

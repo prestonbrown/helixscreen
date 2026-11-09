@@ -192,7 +192,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Keyboard: keystrokes do not flood the log r
 
     const std::string tail = tail_ring_buffer(2000);
 
-    // The real defect: 1776 of 2000 lines in bundle 5HLV7EAJ were keyboard
+    // The real defect: 1776 of 2000 lines in one debug bundle were keyboard
     // chatter, and the entire ring covered 3m50s. Per-keystroke logging must not
     // reach the ring at all.
     const size_t kb_lines = count_of(tail, "[KeyboardManager]");

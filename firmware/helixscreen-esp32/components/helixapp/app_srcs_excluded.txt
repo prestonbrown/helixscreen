@@ -103,8 +103,10 @@ src/app_globals.cpp  # not in the v1 Core+AMS cut
 src/application/ams_error_bridge.cpp  # not in the v1 Core+AMS cut
 src/application/filament_insert_watcher.cpp  # not in the v1 Core+AMS cut
 src/application/print_health_log.cpp  # called only from application.cpp, which is excluded
+src/application/ui_perf_report.cpp  # read only by ctl and the debug bundle, both excluded
 src/application/android_asset_extractor.cpp  # not in the v1 Core+AMS cut
 src/application/application.cpp  # not in the v1 Core+AMS cut
+src/application/asleep_status_wiring.cpp  # wires DisplayManager, which the firmware does not build
 src/application/application_sdl_shortcuts.cpp  # not in the v1 Core+AMS cut
 src/application/color_transform.cpp  # not in the v1 Core+AMS cut
 src/application/demo_overlays.cpp  # not in the v1 Core+AMS cut
@@ -339,6 +341,7 @@ src/ui/filament/ui_spoolman_list_view.cpp  # scope decision 2026-08-12: unreacha
 src/ui/filament/ui_spoolman_overlay.cpp  # not in the v1 Core+AMS cut
 src/ui/filament/ui_spoolman_setup.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_ams_identify.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_appearance.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_connection.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_fan_select.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_filament_sensor_select.cpp  # not in the v1 Core+AMS cut

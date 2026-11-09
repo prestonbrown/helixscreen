@@ -174,7 +174,12 @@ void StarfieldSim::follow_print(const ClockReading& reading, uint32_t dt_ms, boo
         mode_ = reading.mode;
     }
 
-    const float speed = reading.mode == ClockMode::PAUSED ? kStarfieldPausedSpeed : 1.0f;
+    float speed = 1.0f;
+    if (reading.mode == ClockMode::PAUSED) {
+        speed = kStarfieldPausedSpeed;
+    } else if (reading.mode == ClockMode::DONE) {
+        speed = kStarfieldDoneSpeed;
+    }
     if (snap) {
         speed_scale_ = speed;
     } else {
@@ -207,8 +212,8 @@ void StarfieldSim::follow_print(const ClockReading& reading, uint32_t dt_ms, boo
     case ClockMode::DONE: {
         end_ms_ = snap ? kStarfieldArriveMs : std::min(kStarfieldArriveMs, end_ms_ + dt_ms);
         const float t = smoothstep01(static_cast<float>(end_ms_) / kStarfieldArriveMs);
-        const float fill = std::ceil(std::hypot(w, h) / 2.0f) + 1.0f;
-        planet_r_ = end_r_ + (fill - end_r_) * t;
+        const float arrived = kStarfieldDoneShare * std::min(w, h);
+        planet_r_ = end_r_ + (arrived - end_r_) * t;
         planet_dx_ = end_dx_ * (1.0f - t);
         planet_dy_ = end_dy_ * (1.0f - t);
         break;

@@ -63,7 +63,7 @@ inline AxisBounds to_gcode_space(const AxisBounds& machine, double ox, double oy
 /**
  * @brief Manages motion-related subjects for printer state
  *
- * Extracted from PrinterState as part of god class decomposition.
+ * One of PrinterState's domain sub-states.
  *
  * Position storage (all in centimillimeters, use from_centimm() for mm):
  * - position_x/y/z: toolhead.position - actual physical position (includes mesh compensation)
@@ -76,7 +76,6 @@ class PrinterMotionState {
     PrinterMotionState() = default;
     ~PrinterMotionState() = default;
 
-    // Non-copyable
     PrinterMotionState(const PrinterMotionState&) = delete;
     PrinterMotionState& operator=(const PrinterMotionState&) = delete;
 

@@ -264,14 +264,13 @@ namespace helix::ui {
 /**
  * @brief Report an AmsError to the user, suggestion included.
  *
- * AmsError::suggestion was populated by every backend and rendered by nothing:
- * 30-odd call sites each open-coded `NOTIFY_ERROR(..., err.user_msg)` with
- * their own verb prefix, so users read "Cannot run filament operation while
- * printing" and never "Pause the print first, then load, unload, or change
- * filament" — the half that gets them unstuck. This is the one renderer.
+ * Every backend fills AmsError::suggestion, and it is the half that gets the
+ * user unstuck: "Pause the print first, then load, unload, or change filament"
+ * beside "Cannot run filament operation while printing". This is the one
+ * renderer, so no call site open-codes `NOTIFY_ERROR(..., err.user_msg)` and
+ * drops it.
  *
- * The technical message is logged, not shown; it was previously dropped
- * entirely at most of those sites.
+ * The technical message is logged, not shown.
  *
  * @param err     The failure. A successful AmsError is ignored.
  * @param context Optional operation name — see ams_error_body().

@@ -72,8 +72,11 @@ class MockProbeDiscoveryFixture : public LVGLTestFixture {
     }
 
     ~MockProbeDiscoveryFixture() override {
-        // Leave no discovered probes behind for the next test in this process.
-        ProbeSensorManager::instance().discover(PrinterDiscovery{});
+        // Leave no discovered sensor behind for the next test in this process:
+        // the app wiring below feeds every manager, not only the probe's.
+        for (auto* manager : helix::sensors::sensor_managers()) {
+            manager->discover(PrinterDiscovery{});
+        }
         helix::ui::UpdateQueue::instance().drain();
     }
 
@@ -376,7 +379,6 @@ TEST_CASE_METHOD(MockProbeDiscoveryFixture,
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK(accel_names().count("adxl345") == 1);
-    AccelSensorManager::instance().discover(PrinterDiscovery{});
 }
 
 TEST_CASE_METHOD(MockProbeDiscoveryFixture,
@@ -394,5 +396,4 @@ TEST_CASE_METHOD(MockProbeDiscoveryFixture,
     const auto names = accel_names();
     CHECK(names.count("adxl345") == 1);
     CHECK(names.count("beacon") == 1);
-    AccelSensorManager::instance().discover(PrinterDiscovery{});
 }

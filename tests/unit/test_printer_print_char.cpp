@@ -45,6 +45,7 @@
  */
 
 #include "../helix_test_fixture.h"
+#include "../test_helpers/fresh_printer_state.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -61,14 +62,8 @@ using json = nlohmann::json;
 // Initial State Tests - Document non-obvious default initialization
 // ============================================================================
 
-TEST_CASE("Print characterization: non-obvious initial values after init",
-          "[characterization][print][init]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: non-obvious initial values after init",
+                 "[characterization][print][init]") {
     CHECK(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
           "standby");
     CHECK(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
@@ -125,14 +120,8 @@ TEST_CASE("Print characterization: core state from JSON", "[characterization][pr
 // Terminal State Persistence Tests (print_outcome)
 // ============================================================================
 
-TEST_CASE("Print characterization: terminal state persistence",
-          "[characterization][print][outcome]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: terminal state persistence",
+                 "[characterization][print][outcome]") {
     SECTION("COMPLETE sets outcome to COMPLETE") {
         // Start with printing
         json printing = {{"print_stats", {{"state", "printing"}}}};
@@ -239,13 +228,8 @@ TEST_CASE("Print characterization: terminal state persistence",
 // File Info Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: file info from JSON", "[characterization][print][file]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: file info from JSON",
+                 "[characterization][print][file]") {
     // The subject carries print_stats.filename as reported, path and all.
     for (const char* name : {"", "test_model.gcode", "folder/subfolder/model.gcode"}) {
         INFO(name);
@@ -255,13 +239,8 @@ TEST_CASE("Print characterization: file info from JSON", "[characterization][pri
     }
 }
 
-TEST_CASE("Print characterization: file info API methods", "[characterization][print][file][api]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: file info API methods",
+                 "[characterization][print][file][api]") {
     SECTION("set_print_display_filename updates subject") {
         state.print_state().set_print_display_filename("Clean Model Name");
 
@@ -309,14 +288,8 @@ TEST_CASE("Print characterization: progress from JSON", "[characterization][prin
     }
 }
 
-TEST_CASE("Print characterization: terminal state progress guard",
-          "[characterization][print][progress][guard]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: terminal state progress guard",
+                 "[characterization][print][progress][guard]") {
     SECTION("progress cannot go backward in COMPLETE state") {
         // Set up complete state with 100% progress
         json printing = {{"print_stats", {{"state", "printing"}}},
@@ -403,14 +376,9 @@ TEST_CASE("Print characterization: terminal state progress guard",
 // exception deactivates SD; RESUME is a no-op in that state).
 // ============================================================================
 
-TEST_CASE("PrinterPrintState: sdcard_active reflects virtual_sdcard.is_active",
-          "[characterization][print][sdcard]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "PrinterPrintState: sdcard_active reflects virtual_sdcard.is_active",
+                 "[characterization][print][sdcard]") {
     SECTION("Default before any status update is false") {
         REQUIRE(state.print_state().is_sdcard_active() == false);
     }
@@ -451,13 +419,8 @@ TEST_CASE("PrinterPrintState: sdcard_active reflects virtual_sdcard.is_active",
 // Layer Tracking Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: layer tracking from JSON", "[characterization][print][layer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: layer tracking from JSON",
+                 "[characterization][print][layer]") {
     SECTION("current_layer updates from print_stats.info") {
         json status = {{"print_stats", {{"info", {{"current_layer", 42}}}}}};
         state.update_from_status(status);
@@ -506,13 +469,8 @@ TEST_CASE("Print characterization: layer tracking from JSON", "[characterization
 // Time Tracking Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: time tracking from JSON", "[characterization][print][time]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: time tracking from JSON",
+                 "[characterization][print][time]") {
     SECTION("print_duration updates from print_stats.print_duration") {
         json status = {{"print_stats", {{"print_duration", 3600.0}}}};
         state.update_from_status(status);
@@ -621,13 +579,8 @@ TEST_CASE("Print characterization: time tracking from JSON", "[characterization]
 // Print Start Phase Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: print start phases", "[characterization][print][phase]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: print start phases",
+                 "[characterization][print][phase]") {
     // set_print_start_state guards against non-IDLE phases when print_active_ == 0,
     // so simulate Moonraker reporting "printing" to make the print active first.
     json printing = {{"print_stats", {{"state", "printing"}}}};
@@ -704,14 +657,8 @@ TEST_CASE("Print characterization: print start phases", "[characterization][prin
     }
 }
 
-TEST_CASE("Print characterization: preparing phase clears outcome",
-          "[characterization][print][outcome][phase]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: preparing phase clears outcome",
+                 "[characterization][print][outcome][phase]") {
     SECTION("entering Preparing from COMPLETE clears outcome immediately") {
         // Simulate: print completes
         json complete = {{"print_stats", {{"state", "complete"}}}};
@@ -790,14 +737,8 @@ TEST_CASE("Print characterization: preparing phase clears outcome",
     }
 }
 
-TEST_CASE("Print characterization: print start phase safety reset",
-          "[characterization][print][phase][safety]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: print start phase safety reset",
+                 "[characterization][print][phase][safety]") {
     SECTION("phase resets to IDLE when print_active becomes 0") {
         // Start a print and enter a phase
         json printing = {{"print_stats", {{"state", "printing"}}}};
@@ -824,14 +765,9 @@ TEST_CASE("Print characterization: print start phase safety reset",
 // Issue #546: New print after complete/cancelled must clear outcome
 // ============================================================================
 
-TEST_CASE("Print characterization: new print clears outcome when print_active is 0",
-          "[characterization][print][outcome][phase][regression]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Print characterization: new print clears outcome when print_active is 0",
+                 "[characterization][print][outcome][phase][regression]") {
     SECTION("COMPLETE -> STANDBY -> new print clears outcome (issue #546)") {
         // Print completes
         json complete = {{"print_stats", {{"state", "complete"}}}};
@@ -915,14 +851,8 @@ TEST_CASE("Print characterization: new print clears outcome when print_active is
 // print_show_progress Derived Subject Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: print_show_progress derived subject",
-          "[characterization][print][derived]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: print_show_progress derived subject",
+                 "[characterization][print][derived]") {
     SECTION("print_show_progress is 0 when not printing") {
         REQUIRE(lv_subject_get_int(state.print_state().get_print_show_progress_subject()) == 0);
     }
@@ -979,13 +909,8 @@ TEST_CASE("Print characterization: print_show_progress derived subject",
 // Workflow Tests (print_in_progress and can_start_new_print)
 // ============================================================================
 
-TEST_CASE("Print characterization: workflow state", "[characterization][print][workflow]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: workflow state",
+                 "[characterization][print][workflow]") {
     SECTION("set_print_in_progress updates subject") {
         REQUIRE(lv_subject_get_int(state.print_state().get_print_in_progress_subject()) == 0);
 
@@ -1068,14 +993,9 @@ TEST_CASE("Print characterization: workflow state", "[characterization][print][w
 // reset_for_new_print Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: reset_for_new_print clears progress subjects",
-          "[characterization][print][reset]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Print characterization: reset_for_new_print clears progress subjects",
+                 "[characterization][print][reset]") {
     // Set various print values
     json status = {{"print_stats",
                     {{"filename", "test.gcode"},
@@ -1165,14 +1085,9 @@ TEST_CASE("Print: string observer sees updated enum (issue #125 regression)",
 // Reset Cycle Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: subjects survive reset_for_testing cycle",
-          "[characterization][print][reset]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Print characterization: subjects survive reset_for_testing cycle",
+                 "[characterization][print][reset]") {
     // Set some values
     json status = {{"print_stats", {{"state", "printing"}, {"filename", "test.gcode"}}},
                    {"virtual_sdcard", {{"progress", 0.5}}}};
@@ -1202,14 +1117,9 @@ TEST_CASE("Print characterization: subjects survive reset_for_testing cycle",
             static_cast<int>(PrintJobState::PAUSED));
 }
 
-TEST_CASE("Print characterization: subject pointers remain valid after reset",
-          "[characterization][print][reset]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Print characterization: subject pointers remain valid after reset",
+                 "[characterization][print][reset]") {
     // Capture subject pointers
     lv_subject_t* state_enum_before = state.print_state().get_print_state_enum_subject();
     lv_subject_t* progress_before = state.print_state().get_print_progress_subject();
@@ -1233,14 +1143,9 @@ TEST_CASE("Print characterization: subject pointers remain valid after reset",
 // Independence Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: print update does not affect non-print subjects",
-          "[characterization][print][independence]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Print characterization: print update does not affect non-print subjects",
+                 "[characterization][print][independence]") {
     // Set some non-print values first
     json initial = {{"toolhead", {{"position", {100.0, 200.0, 30.0}}}}};
     state.update_from_status(initial);
@@ -1262,14 +1167,9 @@ TEST_CASE("Print characterization: print update does not affect non-print subjec
     REQUIRE(lv_subject_get_int(state.motion_state().get_position_x_subject()) == 10000);
 }
 
-TEST_CASE("Print characterization: non-print update does not affect print subjects",
-          "[characterization][print][independence]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Print characterization: non-print update does not affect print subjects",
+                 "[characterization][print][independence]") {
     // Set print values first
     json print_status = {{"print_stats", {{"state", "printing"}, {"filename", "test.gcode"}}},
                          {"virtual_sdcard", {{"progress", 0.75}}}};
@@ -1448,14 +1348,10 @@ TEST_CASE_METHOD(HelixTestFixture,
 // Pre-print Time Remaining Bug Fix Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from slicer estimate",
-          "[characterization][print][time][preprint]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(
+    FreshPrinterState,
+    "Print characterization: reset_for_new_print re-seeds time_left from slicer estimate",
+    "[characterization][print][time][preprint]") {
     SECTION("same-file reprint preserves time_left from slicer estimate") {
         // Simulate first print: slicer says 1469s (24.5 min)
         state.print_state().set_estimated_print_time(1469);
@@ -1567,13 +1463,8 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
 // Edge Cases
 // ============================================================================
 
-TEST_CASE("Print characterization: edge cases", "[characterization][print][edge]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: edge cases",
+                 "[characterization][print][edge]") {
     SECTION("empty status does not crash") {
         json empty = json::object();
         state.update_from_status(empty);

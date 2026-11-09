@@ -1991,6 +1991,31 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// Test inspection: sends of @p method so far, failed and deferred included.
     [[nodiscard]] int call_count(const std::string& method) const;
 
+    /// Test helper: whether the openams `[openams_spoolman]` Moonraker
+    /// component is loaded. Absent, its methods answer "Method not found".
+    void set_openams_spoolman(bool present) {
+        openams_spoolman_ = present;
+    }
+    [[nodiscard]] bool openams_spoolman() const {
+        return openams_spoolman_;
+    }
+    /// Test helper: what server.openams_spoolman.status answers (its linker
+    /// status: schema_version, spoolman_online, bays keyed "<unit>-<bay>").
+    void set_openams_spoolman_status(json status) {
+        openams_spoolman_status_ = std::move(status);
+    }
+    [[nodiscard]] const json& openams_spoolman_status() const {
+        return openams_spoolman_status_;
+    }
+    /// Test inspection: the params of every server.openams_spoolman.edit the
+    /// component accepted, oldest first.
+    [[nodiscard]] const std::vector<json>& openams_spoolman_edits() const {
+        return openams_spoolman_edits_;
+    }
+    void record_openams_spoolman_edit(const json& params) {
+        openams_spoolman_edits_.push_back(params);
+    }
+
     /// What machine.update.status reports as `busy` (an update_manager job running).
     void set_update_manager_busy(bool busy) {
         update_manager_busy_ = busy;
@@ -2169,6 +2194,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// ConnectionState is DISCONNECTED and must not gate sends by itself).
     bool sim_link_down_{false};
     bool update_manager_busy_{false};
+    bool openams_spoolman_{false};
+    json openams_spoolman_status_ =
+        json{{"schema_version", 1}, {"spoolman_online", true}, {"bays", json::object()}};
+    std::vector<json> openams_spoolman_edits_;
 
     // Intent of the in-flight send_jsonrpc() dispatch, read by the method
     // handlers via current_send_intent().

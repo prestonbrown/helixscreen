@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/mock_printer.h"
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
@@ -45,50 +47,6 @@ TEST_CASE("length_to_weight_g: zero density returns zero", "[filament][conversio
     REQUIRE(filament::length_to_weight_g(100.0f, 0.0f, 1.75f) == 0.0f);
 }
 
-TEST_CASE("set_external_spool_info_in_memory does not write settings", "[filament][ams_state]") {
-    // Set up an isolated config directory so settings writes don't leak.
-    std::string temp_dir = helix::test::unique_temp_dir("helix_fct_test");
-    std::filesystem::create_directories(temp_dir);
-    std::filesystem::remove(app_constants::update::config_backup_fallback());
-    std::filesystem::remove(app_constants::update::legacy_config_backup_fallback());
-    std::filesystem::remove(app_constants::update::env_backup_fallback());
-    Config::get_instance()->init(temp_dir + "/settings.json");
-    SettingsManager::instance().clear_external_spool_info();
-
-    LVGLTestFixture fx;
-    auto& ams = AmsState::instance();
-    ams.init_subjects(false);
-    auto& settings = SettingsManager::instance();
-
-    // Baseline: clear the external spool.
-    ams.clear_external_spool_info();
-
-    SlotInfo info;
-    info.material = "PLA";
-    info.remaining_weight_g = 750.0f;
-    info.total_weight_g = 1000.0f;
-    info.color_rgb = 0xFF0000;
-
-    // In-memory write: subject fires, but settings.json record stays absent.
-    ams.set_external_spool_info_in_memory(info);
-
-    auto persisted = settings.get_external_spool_info();
-    REQUIRE_FALSE(persisted.has_value());
-
-    // Persistent write: now it lands in settings.
-    ams.set_external_spool_info(info);
-    persisted = settings.get_external_spool_info();
-    REQUIRE(persisted.has_value());
-    REQUIRE(persisted->remaining_weight_g == 750.0f);
-
-    ams.clear_external_spool_info();
-    // Clear singleton state set by Config::init() above so the next test
-    // doesn't see a stale path/active_printer_id_ pointing at a temp dir
-    // that's about to vanish (tour-test wizard_completed read regression).
-    Config::get_instance()->clear_path();
-    std::filesystem::remove_all(temp_dir);
-}
-
 TEST_CASE("FilamentConsumptionTracker singleton exists", "[filament][tracker]") {
     auto& tracker = FilamentConsumptionTracker::instance();
     REQUIRE_FALSE(tracker.is_active());
@@ -108,7 +66,7 @@ TEST_CASE("tracker snapshots on transition to PRINTING with a valid PLA spool",
     info.material = "PLA";
     info.remaining_weight_g = 1000.0f;
     info.total_weight_g = 1000.0f;
-    ams.set_external_spool_info_in_memory(info);
+    helix::AmsStateTestAccess::seed_external_spool(info);
 
     tracker.start();
 
@@ -164,7 +122,7 @@ TEST_CASE("tracker stays inactive when material cannot be resolved", "[filament]
     info.material = "UnknownNovelMaterial9000";
     info.remaining_weight_g = 1000.0f;
     info.total_weight_g = 1000.0f;
-    ams.set_external_spool_info_in_memory(info);
+    helix::AmsStateTestAccess::seed_external_spool(info);
 
     tracker.start();
     lv_subject_set_int(printer.print_state().get_print_state_enum_subject(),
@@ -189,7 +147,7 @@ TEST_CASE("tracker decrements remaining weight as filament_used grows", "[filame
     info.material = "PLA";
     info.remaining_weight_g = 1000.0f;
     info.total_weight_g = 1000.0f;
-    ams.set_external_spool_info_in_memory(info);
+    helix::AmsStateTestAccess::seed_external_spool(info);
 
     tracker.start();
     lv_subject_set_int(printer.print_state().get_print_filament_used_subject(), 0);
@@ -223,7 +181,7 @@ TEST_CASE("tracker clamps remaining weight at zero", "[filament][tracker]") {
     info.material = "PLA";
     info.remaining_weight_g = 5.0f; // only 5g available
     info.total_weight_g = 1000.0f;
-    ams.set_external_spool_info_in_memory(info);
+    helix::AmsStateTestAccess::seed_external_spool(info);
 
     tracker.start();
     lv_subject_set_int(printer.print_state().get_print_filament_used_subject(), 0);
@@ -247,7 +205,9 @@ TEST_CASE("tracker persists final weight on print completion", "[filament][track
     LVGLTestFixture fx;
     auto& ams = AmsState::instance();
     auto& printer = get_printer_state();
-    auto& settings = SettingsManager::instance();
+    // The bypass record lives in this mock's database.
+    MockPrinter db;
+    ams.set_moonraker_api(&db.api);
     auto& tracker = FilamentConsumptionTracker::instance();
 
     ams.init_subjects(false);
@@ -257,7 +217,7 @@ TEST_CASE("tracker persists final weight on print completion", "[filament][track
     info.material = "PLA";
     info.remaining_weight_g = 1000.0f;
     info.total_weight_g = 1000.0f;
-    ams.set_external_spool_info(info); // Start by persisting the initial value.
+    helix::AmsStateTestAccess::seed_external_spool(info);
 
     tracker.start();
     lv_subject_set_int(printer.print_state().get_print_filament_used_subject(), 0);
@@ -274,13 +234,15 @@ TEST_CASE("tracker persists final weight on print completion", "[filament][track
                        static_cast<int>(PrintJobState::COMPLETE));
     helix::ui::UpdateQueue::instance().drain();
 
-    auto persisted = settings.get_external_spool_info();
-    REQUIRE(persisted.has_value());
-    REQUIRE(persisted->remaining_weight_g == Catch::Approx(997.018f).margin(0.05));
+    const auto persisted = db.client.mock_db_get("lane_data", "lane1");
+    REQUIRE(persisted.is_object());
+    REQUIRE(persisted["remaining_weight_g"].get<float>() == Catch::Approx(997.018f).margin(0.05));
     REQUIRE_FALSE(tracker.is_active());
 
     tracker.stop();
     ams.clear_external_spool_info();
+    helix::ui::UpdateQueue::instance().drain();
+    ams.set_moonraker_api(nullptr);
 }
 
 TEST_CASE("external weight edit during print triggers re-snapshot", "[filament][tracker]") {
@@ -296,7 +258,7 @@ TEST_CASE("external weight edit during print triggers re-snapshot", "[filament][
     info.material = "PLA";
     info.remaining_weight_g = 1000.0f;
     info.total_weight_g = 1000.0f;
-    ams.set_external_spool_info_in_memory(info);
+    helix::AmsStateTestAccess::seed_external_spool(info);
 
     tracker.start();
     lv_subject_set_int(printer.print_state().get_print_filament_used_subject(), 0);
@@ -315,7 +277,7 @@ TEST_CASE("external weight edit during print triggers re-snapshot", "[filament][
     // replacing the spool weight.
     SlotInfo edited = *snap1;
     edited.remaining_weight_g = 500.0f;
-    ams.set_external_spool_info_in_memory(edited);
+    helix::AmsStateTestAccess::seed_external_spool(edited);
 
     // The 1100mm tick detects the external write and re-snapshots (returns early).
     // The 1200mm tick then computes delta = (1200 - 1100) * ~0.00298 ≈ 0.298g.
@@ -337,7 +299,9 @@ TEST_CASE("tracker throttles disk persist during print", "[filament][tracker]") 
     LVGLTestFixture fx;
     auto& ams = AmsState::instance();
     auto& printer = get_printer_state();
-    auto& settings = SettingsManager::instance();
+    // The bypass record lives in this mock's database.
+    MockPrinter db;
+    ams.set_moonraker_api(&db.api);
     auto& tracker = FilamentConsumptionTracker::instance();
 
     ams.init_subjects(false);
@@ -347,7 +311,7 @@ TEST_CASE("tracker throttles disk persist during print", "[filament][tracker]") 
     info.material = "PLA";
     info.remaining_weight_g = 1000.0f;
     info.total_weight_g = 1000.0f;
-    ams.set_external_spool_info(info);
+    helix::AmsStateTestAccess::seed_external_spool(info);
 
     // start() installs the ExternalSpoolSink on its first call in the process,
     // so the throttle override has to come after it — otherwise the registry is
@@ -368,13 +332,15 @@ TEST_CASE("tracker throttles disk persist during print", "[filament][tracker]") 
     // Consume ~29.8g. With interval=1ms and 2ms elapsed, this should flush to disk.
     lv_subject_set_int(printer.print_state().get_print_filament_used_subject(), 10000);
     helix::ui::UpdateQueue::instance().drain();
-    auto persisted = settings.get_external_spool_info();
-    REQUIRE(persisted.has_value());
-    REQUIRE(persisted->remaining_weight_g == Catch::Approx(970.18f).margin(0.1));
+    const auto persisted = db.client.mock_db_get("lane_data", "lane1");
+    REQUIRE(persisted.is_object());
+    REQUIRE(persisted["remaining_weight_g"].get<float>() == Catch::Approx(970.18f).margin(0.1));
 
     // Restore the production interval for whatever test runs next — the sink is
     // a process-lifetime singleton.
     (void)FilamentConsumptionTrackerTestAccess::set_persist_interval(tracker, 0);
     tracker.stop();
     ams.clear_external_spool_info();
+    helix::ui::UpdateQueue::instance().drain();
+    ams.set_moonraker_api(nullptr);
 }

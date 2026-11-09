@@ -82,7 +82,6 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
 
     open_map_views().add(this);
 
-    // Instantiate the XML component
     root_ = static_cast<lv_obj_t*>(mode_ == ExcludeMapMode::Mini
                                        ? lv_xml_create(parent, "exclude_object_map_mini", nullptr)
                                        : lv_xml_create(parent, "exclude_object_map", nullptr));
@@ -99,7 +98,6 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
     // Force layout so children have valid sizes
     lv_obj_update_layout(root_);
 
-    // Find named children
     plate_area_ = helix::ui::find_required(root_, "plate_area", "ExcludeObjectMapView");
 
     // Disable scrolling on plate area
@@ -503,7 +501,6 @@ void ExcludeObjectMapView::draw_first_layer_outlines() {
     if (!canvas_ || !mapper_ || !state_)
         return;
 
-    // Clear canvas to transparent
     lv_canvas_fill_bg(canvas_, lv_color_black(), LV_OPA_TRANSP);
 
     lv_layer_t layer;

@@ -431,6 +431,17 @@ uint32_t run_show(FireworksSim& sim, SimFrame& frame, std::minstd_rand& rng,
 
 } // namespace
 
+TEST_CASE("a restarted show counts its shells from zero", "[screensaver][fireworks_sim]") {
+    std::minstd_rand rng(4);
+    FireworksSim sim;
+    SimFrame frame(PixelFormat::XRGB8888);
+    sim.init(frame.target, rng, 0, busy_pacing());
+    const ClockReading done = print_reading_for(ClockMode::DONE, 100);
+    REQUIRE(run_show(sim, frame, rng, done, 3000) > 0);
+    sim.init(frame.target, rng, 0, busy_pacing());
+    CHECK(sim.shells_launched() == 0);
+}
+
 TEST_CASE("launches come faster and bigger as the print goes", "[screensaver][fireworks_sim]") {
     // One peony: half the level's sparks at the start of a print, all of them at the end.
     for (const int32_t pct : {0, 100}) {

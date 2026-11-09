@@ -491,9 +491,9 @@ TEST_CASE("NM backend: parse_scan_output", "[network][nm][parsing]") {
 // ============================================================================
 // Band Parsing (helixscreen#1189)
 //
-// The NM backend used to request only IN-USE,SSID,SIGNAL,SECURITY, so every
-// network arrived with frequency 0 and its band unknowable. FREQ is now the
-// fifth field, rendered by nmcli as "<n> MHz".
+// Without FREQ in the requested fields every network arrives with frequency 0
+// and its band unknowable. FREQ is the fifth field, rendered by nmcli as
+// "<n> MHz".
 // ============================================================================
 
 TEST_CASE("NM backend: parse_scan_output reads the FREQ field", "[network][nm][band][1189]") {
@@ -512,7 +512,7 @@ TEST_CASE("NM backend: parse_scan_output reads the FREQ field", "[network][nm][b
     }
 
     SECTION("Dual-band SSID collapses to one row advertising both bands") {
-        // The 2.4GHz BSS is stronger, so the 5GHz twin used to vanish entirely.
+        // The 2.4GHz BSS is stronger; the 5GHz twin must not vanish entirely.
         std::string output = " :HomeNet:82:WPA2:2437 MHz\n"
                              " :HomeNet:54:WPA2:5745 MHz\n";
 

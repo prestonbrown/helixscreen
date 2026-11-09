@@ -307,7 +307,8 @@ class PointerFrameHook {
 
     /// LVGL stores only a function pointer, so the callback reaches the hook
     /// that installed last. One backend drives the display at a time.
-    inline static PointerFrameHook* s_active = nullptr;
+    inline static PointerFrameHook* s_active =
+        nullptr; // ACTIVE_INSTANCE_OK: indev callback context
 };
 
 } // namespace helix

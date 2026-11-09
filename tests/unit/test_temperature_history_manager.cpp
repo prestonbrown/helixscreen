@@ -582,7 +582,7 @@ TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
 TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
                  "TemperatureHistoryManager keeps the active tool out of the extruder bucket",
                  "[temperature_history][multi_tool]") {
-    // Given: a 5-tool changer printing on T4 (bundle 5ZVLLHK2 — T4 at 229.5C
+    // Given: a 5-tool changer printing on T4 (a field report: T4 at 229.5C
     // while extruder itself sits cold at 43.8C)
     printer_state_.temperature_state().init_extruders(
         {"extruder", "extruder1", "extruder2", "extruder3", "extruder4"});
@@ -665,7 +665,7 @@ TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
     // An unmounted tool on a MedusaHC reads ~-70C forever, and the user sets
     // min_temp: -100 so Klipper tolerates it. Every sample is rejected, which
     // used to mean every sample was logged: 19,098 of 20,000 crash-ring lines
-    // in bundle 6QWNVZY5 were this one message.
+    // in one debug bundle were this one message.
     constexpr int64_t kSamples = 600; // ten minutes at 1 Hz
     const int64_t base = now_ms();
     const int64_t lines_before =

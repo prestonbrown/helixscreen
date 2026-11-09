@@ -73,7 +73,7 @@ struct AutoMatchFixture : public LVGLTestFixture {
         // writes one — so WITHOUT this the setter silently does not stick and
         // every case below would read a constant 0 while appearing to drive the
         // setting. Idempotent (early-returns on subjects_initialized_), and the
-        // same call test_afc_spool_reassert.cpp makes for the same reason.
+        // same call the other AFC tests make for the same reason.
         helix::SettingsManager::instance().init_subjects();
         prev_auto_color_ = helix::SettingsManager::instance().get_auto_color_map();
 

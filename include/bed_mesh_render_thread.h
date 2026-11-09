@@ -47,7 +47,6 @@ class BedMeshRenderThread {
     BedMeshRenderThread();
     ~BedMeshRenderThread();
 
-    // Non-copyable, non-movable
     BedMeshRenderThread(const BedMeshRenderThread&) = delete;
     BedMeshRenderThread& operator=(const BedMeshRenderThread&) = delete;
     BedMeshRenderThread(BedMeshRenderThread&&) = delete;

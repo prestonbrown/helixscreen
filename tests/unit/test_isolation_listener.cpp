@@ -193,9 +193,8 @@ class IsolationListener : public Catch::EventListenerBase {
         // reads the registry pointer WITHOUT a lock, so set_default_logger()
         // may never race a logging thread — including the process-lifetime
         // HttpExecutor/ThumbnailProcessor workers started just below
-        // (nightly TSAN: data race on registry::s_instance from the
-        // ActivePrintMediaManager fixtures, which used to swap the default
-        // logger per test). Installed exactly once here, single-threaded.
+        // (nightly TSAN: swapping the default logger per test races on
+        // registry::s_instance). Installed exactly once here, single-threaded.
         // Capture-style tests still swap in their own logger and restore this
         // one — those swaps stay, but this baseline removes the per-test one.
         auto null_sink = std::make_shared<spdlog::sinks::null_sink_mt>();

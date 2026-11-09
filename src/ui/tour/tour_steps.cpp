@@ -5,6 +5,9 @@
 
 #include "ams_state.h"
 
+#include <algorithm>
+#include <utility>
+
 namespace helix::tour {
 
 bool hardware_has_ams() {
@@ -19,45 +22,54 @@ bool hardware_has_ams() {
 // no translation pack (translation_loader.cpp), so a semantic key like
 // "Welcome to HelixScreen" renders RAW in the English UI. Renaming one here
 // means renaming it in translations/*.yml too.
-std::vector<TourStep> build_tour_steps(bool has_ams) {
+std::vector<TourStep> build_tour_steps(bool has_ams, int seen_version) {
     std::vector<TourStep> steps;
-    steps.reserve(8);
+    steps.reserve(11);
 
-    // 1. Welcome (centered card, no target)
+    // Welcome (centered card, no target).
     steps.push_back({"",
                      "Welcome to HelixScreen",
                      "Let's take a quick tour so you can find things fast.",
                      TooltipAnchor::Center,
                      {}});
 
-    // 2. Home widget example — highlight a concrete tile. Widget root objects
-    //    are named by their factory widget_id (see panel_widget_manager.cpp).
-    //    Prefer AMS if the printer has one (most visually distinctive).
+    TourStep whats_new{"",
+                       "New in 1.1",
+                       "Here's a quick look at what changed since your last version.",
+                       TooltipAnchor::Center,
+                       {}};
+    whats_new.since_version = 2;
+    whats_new.upgrade_only = true;
+    steps.push_back(std::move(whats_new));
+
+    // Home widget example: widget root objects are named by their factory widget_id
+    // (see panel_widget_manager.cpp). AMS is the most visually distinctive tile.
     steps.push_back({has_ams ? "ams" : "nozzle_temps",
                      "Your printer at a glance",
                      "Tap any tile to open its full controls or toggle its state.",
                      TooltipAnchor::PreferBelow,
                      {}});
 
-    // 3. Long-press to customize — highlight a different tile so the user sees
-    //    the edit-mode message paired with a concrete example they can try.
-    steps.push_back({"fan_stack",
-                     "Customize your home screen",
-                     "Long-press any tile to enter edit mode — rearrange, resize, remove, or add "
-                     "widgets, and add extra pages for your preferred layout.",
-                     TooltipAnchor::PreferBelow,
-                     {}});
+    TourStep customize{"fan_stack",
+                       "Customize your home screen",
+                       "Long-press any tile to enter edit mode. The rebuilt grid lets you "
+                       "rearrange, resize, remove, or add widgets, and drag them between pages.",
+                       TooltipAnchor::PreferBelow,
+                       {}};
+    customize.since_version = 2;
+    steps.push_back(std::move(customize));
 
-    // 4. Print status widget on home (navbar Print button lacks a highlightable
-    //    name, and the print-status tile on home is more informative anyway).
-    steps.push_back({"print_status",
-                     "Print status",
-                     "Monitor prints in progress — time remaining, current layer, and progress. "
-                     "Tap to pause, resume, or cancel the active job.",
-                     TooltipAnchor::PreferBelow,
-                     {}});
+    // Print Status only has content during a print, so the card carries a picture of it.
+    TourStep print_status{"",
+                          "A new Print Status screen",
+                          "During a print, see a chip for each heater, fan, and light, a checklist "
+                          "of the start sequence, and progress with controls in one strip.",
+                          TooltipAnchor::Center,
+                          {}};
+    print_status.since_version = 2;
+    print_status.preview_image = "A:assets/images/tour/print_status_preview.png";
+    steps.push_back(std::move(print_status));
 
-    // 5-8. Navbar tour
     steps.push_back({"nav_btn_controls",
                      "Controls",
                      "Move the toolhead, home axes, level the bed, and fine-tune temperatures, "
@@ -66,10 +78,33 @@ std::vector<TourStep> build_tour_steps(bool has_ams) {
                      {}});
     steps.push_back({"nav_btn_filament",
                      "Filament",
-                     "Load, unload, and swap spools. View your multi-filament system at a glance, "
-                     "map filament to tools, and monitor runout sensors.",
+                     "Load, unload, and swap spools, set temperatures, and monitor runout sensors.",
                      TooltipAnchor::PreferRight,
                      {}});
+
+    TourStep filament_panel{"filament_operations_group",
+                            "Load and unload",
+                            "Load, unload, and purge from here. Choose a material to set its "
+                            "temperatures first.",
+                            TooltipAnchor::LeftNarrowed,
+                            {}};
+    filament_panel.panel = TourPanel::Filament;
+    filament_panel.since_version = 2;
+    steps.push_back(std::move(filament_panel));
+
+    if (has_ams) {
+        TourStep ams{"ams_unit_card",
+                     "Your filament system",
+                     "Tap a slot to load or unload it, pick a spool, or edit its details. Your "
+                     "edits stay in step with the printer and Spoolman.",
+                     TooltipAnchor::PreferBelow,
+                     {}};
+        ams.panel = TourPanel::AmsOverlay;
+        ams.since_version = 2;
+        ams.fallback_target_name = "unit_cards_row";
+        steps.push_back(std::move(ams));
+    }
+
     steps.push_back({"nav_btn_advanced",
                      "Advanced",
                      "Macros, G-code console, calibration tools (PID, input shaper, z-offset), "
@@ -83,7 +118,18 @@ std::vector<TourStep> build_tour_steps(bool has_ams) {
                      TooltipAnchor::PreferRight,
                      {}});
 
+    const bool upgrading = seen_version > 0;
+    steps.erase(std::remove_if(steps.begin(), steps.end(),
+                               [&](const TourStep& s) {
+                                   return upgrading ? s.since_version <= seen_version
+                                                    : s.upgrade_only;
+                               }),
+                steps.end());
     return steps;
+}
+
+int auto_start_seen_version(bool completed, int last_seen_version) {
+    return completed ? last_seen_version : 0;
 }
 
 } // namespace helix::tour

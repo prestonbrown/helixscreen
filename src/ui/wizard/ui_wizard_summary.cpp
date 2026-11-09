@@ -6,6 +6,7 @@
 #include "ui_event_safety.h"
 #include "ui_modal.h"
 #include "ui_subject_registry.h"
+#include "ui_telemetry_info_modal.h"
 #include "ui_toast_manager.h"
 #include "ui_wizard.h"
 #include "ui_wizard_input_shaper.h"
@@ -361,19 +362,6 @@ void WizardSummaryStep::on_wizard_telemetry_changed(lv_event_t* e) {
 void WizardSummaryStep::on_wizard_telemetry_info(lv_event_t* /*e*/) {
     LVGL_SAFE_EVENT_CB_BEGIN("[WizardSummary] on_wizard_telemetry_info");
     spdlog::debug("[WizardSummary] Showing telemetry info modal");
-    lv_obj_t* dialog = Modal::show("telemetry_info_modal");
-    if (dialog) {
-        // Wire the OK button to close the modal
-        lv_obj_t* ok_btn = lv_obj_find_by_name(dialog, "btn_primary");
-        if (ok_btn) {
-            lv_obj_add_event_cb(
-                ok_btn,
-                [](lv_event_t* ev) {
-                    auto* dlg = static_cast<lv_obj_t*>(lv_event_get_user_data(ev));
-                    Modal::hide(dlg);
-                },
-                LV_EVENT_CLICKED, dialog);
-        }
-    }
+    Modal::show_owned(std::make_unique<TelemetryInfoModal>(), lv_screen_active());
     LVGL_SAFE_EVENT_CB_END();
 }

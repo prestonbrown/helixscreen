@@ -8,10 +8,9 @@
 # but NOT scrollable, so an author who reads "our theme makes lv_obj a pure
 # layout container" reasonably concludes scrolling is off. It is not.
 #
-# That shipped a bug. ui_xml/components/panel_widget_print_status.xml had
-# print_card_idle and print_card_idle_compact with no `scrollable` attribute, so
-# they qualified for a page-scroll gutter and the chevrons rendered on top of the
-# widget's thumbnail on an 800x480 ESP32 K-Touch (fixed in 7d69130df). Home
+# A container with no `scrollable` attribute qualifies for a page-scroll gutter,
+# and its chevrons render on top of the widget's content (a print-status
+# thumbnail on an 800x480 ESP32 K-Touch, for one). Home
 # widget tiles are also drag-scrolled by the grid beneath them, so an accidental
 # scrollable container inside a tile steals the drag the grid wants.
 #
@@ -71,6 +70,8 @@ import sys
 
 from staged_content import catfile_batch
 
+from source_strip import blank_xml_comments
+
 SCAN_DIR = os.path.join('ui_xml', 'components')
 SCAN_GLOB = 'panel_widget_*.xml'
 
@@ -95,12 +96,6 @@ TAG_RE = re.compile(r'<(lv_obj|view)\b((?:[^>"\']|"[^"]*"|\'[^\']*\')*)/?>')
 
 ATTR_RE = re.compile(r'\bscrollable\s*=')
 EXTENDS_RE = re.compile(r'\bextends\s*=\s*"([^"]*)"')
-COMMENT_RE = re.compile(r'<!--.*?-->', re.S)
-
-
-def strip_comments(src):
-    """Blank out comment bodies, keeping newlines so line numbers stay true."""
-    return COMMENT_RE.sub(lambda m: re.sub(r'[^\n]', ' ', m.group(0)), src)
 
 
 def is_panel_widget(path):
@@ -109,7 +104,7 @@ def is_panel_widget(path):
 
 def scan_source(path, src):
     """Scan already-sourced text. `path` is only carried into the report."""
-    src = strip_comments(src)
+    src = blank_xml_comments(src)
     lines = src.split('\n')
     hits = []
 

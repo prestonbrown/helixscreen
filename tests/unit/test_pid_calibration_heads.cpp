@@ -85,39 +85,42 @@ struct PidHeadsFixture : LVGLTestFixture {
 
 } // namespace
 
-TEST_CASE_METHOD(PidHeadsFixture, "Heater calibration tunes the active tool's heater",
+TEST_CASE_METHOD(PidHeadsFixture, "Calibration tunes the heater the panel targets",
                  "[pid][pid_heads]") {
-    toolchanger(1);
-    Access::activate(panel);
+    const char* expected = nullptr;
+    SECTION("a tool changer's active tool") {
+        toolchanger(1);
+        Access::activate(panel);
+        expected = "PID_CALIBRATE HEATER=extruder1 ";
+    }
+    SECTION("the head the user picks") {
+        toolchanger(1);
+        Access::activate(panel);
+        Access::head_clicked(panel, 0);
+        expected = "PID_CALIBRATE HEATER=extruder ";
+    }
+    SECTION("a single-extruder printer's extruder") {
+        load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+        Access::activate(panel);
+        expected = "PID_CALIBRATE HEATER=extruder ";
+    }
+    SECTION("the bed, picked on a tool changer") {
+        toolchanger(1);
+        Access::activate(panel);
+        Access::bed_clicked(panel);
+        expected = "PID_CALIBRATE HEATER=heater_bed ";
+    }
+    SECTION("MPC on the active tool") {
+        toolchanger(1);
+        Access::activate(panel);
+        Access::use_mpc(panel);
+        expected = "MPC_CALIBRATE HEATER=extruder1 ";
+    }
     start();
-    CHECK(sent("PID_CALIBRATE HEATER=extruder1 "));
-    CHECK_FALSE(sent("HEATER=extruder "));
-}
-
-TEST_CASE_METHOD(PidHeadsFixture, "Heater calibration tunes the head the user picks",
-                 "[pid][pid_heads]") {
-    toolchanger(1);
-    Access::activate(panel);
-    Access::head_clicked(panel, 0);
-    start();
-    CHECK(sent("PID_CALIBRATE HEATER=extruder "));
-}
-
-TEST_CASE_METHOD(PidHeadsFixture, "A single-extruder printer calibrates its extruder",
-                 "[pid][pid_heads]") {
-    load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
-    Access::activate(panel);
-    start();
-    CHECK(sent("PID_CALIBRATE HEATER=extruder "));
-}
-
-TEST_CASE_METHOD(PidHeadsFixture, "Picking the bed on a tool changer tunes the bed",
-                 "[pid][pid_heads]") {
-    toolchanger(1);
-    Access::activate(panel);
-    Access::bed_clicked(panel);
-    start();
-    CHECK(sent("PID_CALIBRATE HEATER=heater_bed "));
+    CHECK(sent(expected));
+    // One heater per run: the other head is never named too.
+    CHECK(sent("HEATER=extruder ") ==
+          (std::string(expected).find("extruder ") != std::string::npos));
 }
 
 TEST_CASE_METHOD(PidHeadsFixture, "The part fan runs only for the head holding the active tool",
@@ -194,38 +197,27 @@ TEST_CASE_METHOD(PidHeadsFixture, "The tool chips mark the active tool's head",
     CHECK(lv_xml_get_event_cb(nullptr, "on_pid_cal_tool") != nullptr);
 }
 
-TEST_CASE_METHOD(PidHeadsFixture, "A run's part fan is turned off whatever tool is active by then",
+TEST_CASE_METHOD(PidHeadsFixture,
+                 "A run's part fan is turned off whatever tool is active by then, and only if set",
                  "[pid][pid_heads]") {
     toolchanger(1);
     Access::activate(panel);
-    Access::set_fan_speed(panel, 50);
-    start();
-    REQUIRE(sent("M106"));
-
-    set_active_tool(0);
+    bool fan_set = true;
+    SECTION("the run set the active head's fan") {
+        Access::set_fan_speed(panel, 50);
+        start();
+        REQUIRE(sent("M106"));
+        set_active_tool(0);
+    }
+    SECTION("a parked head's run never set it") {
+        Access::head_clicked(panel, 0);
+        Access::set_fan_speed(panel, 50);
+        start();
+        fan_set = false;
+    }
     client.clear_gcode_script_history();
     Access::turn_off_fan(panel);
-    CHECK(sent("M107"));
-}
-
-TEST_CASE_METHOD(PidHeadsFixture, "No M107 for a run that never set the fan", "[pid][pid_heads]") {
-    toolchanger(1);
-    Access::activate(panel);
-    Access::head_clicked(panel, 0);
-    Access::set_fan_speed(panel, 50);
-    start();
-    client.clear_gcode_script_history();
-    Access::turn_off_fan(panel);
-    CHECK_FALSE(sent("M107"));
-}
-
-TEST_CASE_METHOD(PidHeadsFixture, "MPC calibration tunes the picked tool's heater",
-                 "[pid][pid_heads]") {
-    toolchanger(1);
-    Access::activate(panel);
-    Access::use_mpc(panel);
-    start();
-    CHECK(sent("MPC_CALIBRATE HEATER=extruder1 "));
+    CHECK(sent("M107") == fan_set);
 }
 
 TEST_CASE_METHOD(PidHeadsFixture, "A closed panel stops following the active tool",

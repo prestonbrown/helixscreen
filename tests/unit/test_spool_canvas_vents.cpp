@@ -35,12 +35,12 @@ int brightness(lv_color32_t c) {
 }
 
 // An 80 px spool draws slots but no dots. Its front flange is centred at
-// x = 54, y = 40; the top slot's centre is 0.25 * 80 = 20 px above that, and
-// (58, 20) is solid flange on the same row, clear of every slot.
+// x = 51, y = 40; the top slot's centre is 0.25 * 80 = 20 px above that, and
+// (55, 20) is solid flange on the same row, clear of every slot.
 constexpr int32_t kSpool = 80;
-constexpr int32_t kSlotX = 54;
+constexpr int32_t kSlotX = 51;
 constexpr int32_t kSlotY = 20;
-constexpr int32_t kFlangeX = 58;
+constexpr int32_t kFlangeX = 55;
 
 } // namespace
 
@@ -182,7 +182,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "spool_canvas: the view is part of the rende
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "spool_canvas: the key light reaches the tube floor short of the rim's shadow",
                  "[spool_canvas][spool_vents]") {
-    // 240 px: the hub hole is centred at (162, 120), 10 px across and 24 px
+    // 240 px: the hub hole is centred at (155, 120), 10 px across and 24 px
     // tall. Six rows below the axis, the right of the hole sees the tube wall
     // 2 px deep, in the light; the left sees it 18 px deep, past the 12 px the
     // 45 degree light reaches before the top rim shades it.
@@ -190,7 +190,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(canvas != nullptr);
     ui_spool_canvas_set_fill_level(canvas, 1.0f);
 
-    const lv_color32_t lit = px(canvas, 170, 126);
-    const lv_color32_t shaded = px(canvas, 154, 126);
+    const lv_color32_t lit = px(canvas, 163, 126);
+    const lv_color32_t shaded = px(canvas, 147, 126);
     CHECK(brightness(lit) > brightness(shaded) + 60);
 }

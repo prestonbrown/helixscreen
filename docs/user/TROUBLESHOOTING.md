@@ -1754,29 +1754,30 @@ sudo journalctl -u moonraker | grep -i spoolman
 
 Details: [Which spool Spoolman charges](guide/filament-tracking.md#which-spool-spoolman-charges-on-a-multi-filament-system).
 
-### Color set on the printer's own screen reverts (AD5X with Spoolman)
+### A lane shows different details than Mainsail, Fluidd or the spool in Spoolman
 
-**Known limitation.** On an AD5X, once a lane has been assigned a Spoolman spool,
-changing that lane's color from the printer's own color menu does not stick: the panel
-goes back to showing the spool's color within a second.
+HelixScreen shows what the printer holds for the lane, in this order: what your filament
+system remembers (AFC, Happy Hare, the CFS, the AD5X's color menu and so on), then the
+lane record stored on the printer, then Spoolman for the linked spool. So when a lane
+looks wrong, the printer itself holds the wrong value, and that is where to fix it:
 
-This is the lane ranking working as designed. When more than one source can describe a
-lane, HelixScreen takes each detail from the most trustworthy source rather than from
-whichever wrote last: a color you pick on the lane's editor outranks the linked spool's,
-and a linked spool's color outranks what the machine itself reports. A change made in
-the printer's own color menu is a machine report, so while a Spoolman spool is linked
-to that lane it loses to the spool's record. The same ranking protects your own pick:
-a color set on the lane's editor in HelixScreen sticks, and the machine cannot
-overwrite it either.
+- **Edit it in HelixScreen** (tap the lane, **Edit Spool**). The change is written to the
+  printer and every screen shows it.
+- **Or fix it on the printer's side**: AFC's or Happy Hare's own commands and panels, the
+  printer's color menu, or Mainsail's lane editor. HelixScreen picks up the change within
+  about ten seconds.
+- **Spoolman details showing for the wrong spool?** Spoolman only fills in details for the
+  spool the printer says the lane is linked to. Link the right spool, and the details
+  follow.
 
-**What works instead:** change the color in HelixScreen, on the lane's own editor
-(tap the lane, then edit it), or change the spool's color in Spoolman. Both take
-effect and persist.
+If a save shows **Not saved** under the Save button, the printer refused the change and
+the lane still shows what it held before; the line says why. On an OpenAMS with
+openams_spoolman, or a Happy Hare that fills its gates from Spoolman, some changes can
+only be made in Spoolman, and the editor says so.
 
-**Unaffected:** lanes with no Spoolman spool assigned. With no spool record to lose
-to, the machine's report is the strongest source and the change shows as set. Note
-that a linked spool also owns the lane's material and spool name, so machine-side
-changes to those revert the same way while the link is in place.
+On an AFC lane with **remember spool** on, unlinking a spool may not stick: AFC keeps the
+spool id through an unlink, and after a moment the lane shows it again. Turn remember
+spool off for that lane, or clear the id from AFC.
 
 ### Only some spools showing in Spoolman lists
 

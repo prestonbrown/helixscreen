@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_excluded_objects_state.cpp
- * @brief Excluded objects state management extracted from PrinterState
+ * @brief Excluded objects state management (a PrinterState sub-state)
  *
  * Manages the set of objects excluded from printing via Klipper's EXCLUDE_OBJECT
  * feature. Uses version-based notification since LVGL subjects don't support sets.
- *
- * Extracted from PrinterState as part of god class decomposition.
  */
 
 #include "printer_excluded_objects_state.h"
@@ -112,7 +110,6 @@ void PrinterExcludedObjectsState::update_from_status(const nlohmann::json& statu
         set_defined_objects_with_geometry(objects);
     }
 
-    // Parse current object
     if (eo.contains("current_object")) {
         if (eo["current_object"].is_string()) {
             set_current_object(eo["current_object"].get<std::string>());

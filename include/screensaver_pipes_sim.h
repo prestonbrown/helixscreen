@@ -64,6 +64,8 @@ inline constexpr uint32_t kPipesDissolveMs = 2000;
 inline constexpr int kPipesDissolveDiv = 32; ///< dissolve block = min(w, h) / this
 /// The finished print's teapot: emerald, the green a finished print reads in everywhere.
 inline constexpr uint8_t kPipesDoneTeapotMaterial = 0;
+/// How long a finished print's full screen stays up before it dissolves and regrows.
+inline constexpr uint32_t kPipesDoneHoldMs = 30000;
 
 enum class PipeDir : uint8_t { POS_X, NEG_X, POS_Y, NEG_Y, POS_Z, NEG_Z, NONE };
 inline constexpr int kPipeDirCount = 6;
@@ -511,7 +513,9 @@ enum class PipesEnd : uint8_t { NONE, DONE, FAILED };
  * reported progress). The node nearest the camera in the middle of the view stays free for the
  * teapot a finished print sets there once the rest of the grid is full; a failed or cancelled
  * print stops growing and greys the frame once. A print screen begun on a paused or ended print
- * catches up to it at kPipesFastForwardSteps steps a call, then shows the end. A print beginning
+ * catches up to it at kPipesFastForwardSteps steps a call, then shows the end. A finished print's
+ * screen holds for kPipesDoneHoldMs, then dissolves and regrows at the idle pace to a new teapot,
+ * for as long as the print reads finished. A print beginning
  * over a screen without one, a new print after an end, or no print after one dissolves the screen
  * first.
  */
@@ -604,6 +608,9 @@ class PipesSim {
     /// True while a screen begun on a paused or ended print grows toward it at
     /// kPipesFastForwardSteps a call.
     bool catching_up_ = false;
+    /// This screen replaces a finished print's held screen, so it grows at the idle pace.
+    bool regrowing_done_ = false;
+    uint32_t done_held_ms_ = 0; ///< how long the finished screen has been up
     PipeNode teapot_node_;
     float fill_ = 0.0f; ///< share of the grid the running print's screen should have taken
 };

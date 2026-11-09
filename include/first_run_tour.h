@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_observer_guard.h"
+#include "ui_timer_guard.h"
 
 #include "tour_steps.h"
 
@@ -16,7 +17,7 @@ namespace helix::tour {
 class TourOverlay; // fwd-declare (defined in tour_overlay.h)
 
 /// Current tour version. Bump when tour content materially changes.
-constexpr int kTourVersion = 1;
+constexpr int kTourVersion = 2;
 
 /// Singleton used by runtime methods (start, advance, skip); gate helpers below are static.
 class FirstRunTour {
@@ -31,6 +32,18 @@ class FirstRunTour {
 
     /// Auto-trigger entry point — checks gate, schedules start on next LVGL tick.
     void maybe_start();
+
+    /// Discovery finished, so which filament system the printer has is known and
+    /// the tour can be built. Offers the tour.
+    void on_printer_ready();
+
+    /// Whether a printer has been discovered this session.
+    void set_printer_ready(bool ready) {
+        printer_ready_ = ready;
+    }
+    bool is_printer_ready() const {
+        return printer_ready_;
+    }
 
     /// Replay entry point — bypasses gate, starts immediately.
     void start();
@@ -47,16 +60,26 @@ class FirstRunTour {
 
   private:
     FirstRunTour() = default;
-    void start_impl();
+    void start_impl(int seen_version);
     void finish();
+    void end_tour();
     void render_current_step();
+    void show_panel(TourPanel panel);
+    void arm_panel_timer(lv_timer_cb_t callback);
+    static void on_panel_settled(lv_timer_t* timer);
+    static void on_ams_closed(lv_timer_t* timer);
 
     bool running_ = false;
+    bool printer_ready_ = false;
     // maybe_start() defers start_impl() by a tick, and start_impl() is what sets
     // running_. Both entry points (HomePanel::on_activate and wizard completion)
     // can fire in the same tick, so running_ alone would let both queue a start.
     bool start_queued_ = false;
     std::size_t current_index_ = 0;
+    TourPanel shown_panel_ = TourPanel::Home;
+    // A panel the tour switches to needs its slide-in and layout done before
+    // the target's coordinates mean anything.
+    ui::LvglTimerGuard panel_settle_timer_;
     std::vector<TourStep> steps_;
     std::unique_ptr<TourOverlay> overlay_;
     // Cancels the tour if the user navigates away from Home (e.g. navbar tap).

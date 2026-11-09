@@ -69,6 +69,8 @@ from typing import Iterable
 
 from staged_content import staged_files
 
+from source_strip import blank_xml_comments
+
 SCAN_DIR = 'ui_xml'
 OPT_OUT = 'DUPLICATE_NAME_OK'
 
@@ -94,17 +96,10 @@ DUPLICATE_NAME_BASELINE: dict[str, int] = {
 # namespace prefixes and make every strict XML parser bail.
 TAG_RE = re.compile(r'<(/?)([A-Za-z_][\w.:-]*)((?:"[^"]*"|\'[^\']*\'|[^>"\'])*?)(/?)>', re.S)
 ATTR_RE = re.compile(r'([\w.:-]+)\s*=\s*"([^"]*)"')
-COMMENT_RE = re.compile(r'<!--.*?-->', re.S)
 
 # `name=` on these refers to a style, not a widget: <style name="card"/> applies
 # a style declared in <styles>, and every bind_style* variant names one too.
 STYLE_TAGS = ('style', 'bind_style')
-
-
-def _blank_comments(src: str) -> str:
-    """Replace comments with same-length whitespace so offsets still map to
-    the original line numbers."""
-    return COMMENT_RE.sub(lambda m: re.sub(r'[^\n]', ' ', m.group(0)), src)
 
 
 def _is_style_tag(tag: str) -> bool:
@@ -128,7 +123,7 @@ def scan_source(rel: str, src: str) -> list[tuple[str, str, str, list[int]]]:
     kind is 'duplicate' (the same name on N elements) or 'repeat' (one literal
     name inside a <repeat>, materialized count times). `rel` is only carried
     into the report - `src` is already sourced, from disk or the index."""
-    clean = _blank_comments(src)
+    clean = blank_xml_comments(src)
     src_lines = src.splitlines()
 
     def line_of(off: int) -> int:

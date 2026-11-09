@@ -180,6 +180,7 @@ class PrinterProfileStateTestAccess {
         s.db_enclosed_ = false;
         s.db_hides_dot_dirs_ = false;
         s.timelapse_default_enabled_ = false;
+        s.heat_soak_macro_.clear();
         s.firmware_option_defaults_.clear();
     }
 
@@ -280,6 +281,7 @@ class PrinterStateTestAccess {
         PrinterProfileStateTestAccess::clear_data(ps.profile_state_);
         ps.auto_detected_bed_moves_ = false;
         ps.macro_option_count_ = 0;
+        ps.hidden_option_ids_.clear();
         ps.skip_gates_ = {};
         ps.is_paused_ = false;
         ps.last_kinematics_.clear();

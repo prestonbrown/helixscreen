@@ -18,7 +18,6 @@ void PrintSelectHistoryIntegration::merge_history_into_files(
     std::string current_print_basename = extract_basename(current_print_filename);
 
     for (auto& file : files) {
-        // Skip directories
         if (file.is_dir) {
             continue;
         }

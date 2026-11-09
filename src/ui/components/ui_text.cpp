@@ -149,13 +149,11 @@ static void apply_stroke_attrs(lv_obj_t* label, const char** attrs) {
         spdlog::trace("[ui_text] Applied text stroke: width={}", width);
     }
 
-    // Apply stroke color
     if (stroke_color) {
         lv_color_t color = lv_xml_to_color(stroke_color);
         lv_obj_set_style_text_outline_stroke_color(label, color, 0);
     }
 
-    // Apply stroke opacity
     if (stroke_opa) {
         lv_opa_t opa = lv_xml_to_opa(stroke_opa);
         lv_obj_set_style_text_outline_stroke_opa(label, opa, 0);

@@ -4,9 +4,9 @@
 #
 # Test that the application shuts down cleanly without crashes.
 #
-# This script catches regressions of the double-free crash that occurred when
-# manually calling lv_display_delete() or lv_group_delete() in shutdown.
-# The fix: lv_deinit() handles all LVGL resource cleanup internally.
+# Catches a double-free crash in shutdown: lv_deinit() handles all LVGL
+# resource cleanup internally, so a manual lv_display_delete() or
+# lv_group_delete() before it frees those twice.
 #
 # Usage:
 #   ./scripts/test_clean_shutdown.sh          # Run 3 tests

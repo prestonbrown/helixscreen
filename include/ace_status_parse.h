@@ -59,6 +59,8 @@ struct SlotDelta {
     /// `temp_min` / `temp_max`, a number or a numeric string.
     std::optional<int> temp_min;
     std::optional<int> temp_max;
+    /// `temp`, the one temperature the ACEPRO driver keeps per slot.
+    std::optional<int> temp;
 };
 
 /// One slot entry. A non-object entry still occupies its bay's index, so the

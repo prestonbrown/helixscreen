@@ -14,7 +14,7 @@ namespace helix {
  * Tracks hardware validation state including issue counts, severity levels,
  * and formatted status text for the Settings panel Hardware Health section.
  *
- * Extracted from PrinterState as part of god class decomposition.
+ * One of PrinterState's domain sub-states.
  *
  * ## Subjects (8 total):
  * - hardware_status_level_ (int): 0=ok, 1=attention, 2=critical (headline badge)
@@ -31,7 +31,6 @@ class PrinterHardwareValidationState {
     PrinterHardwareValidationState() = default;
     ~PrinterHardwareValidationState() = default;
 
-    // Non-copyable
     PrinterHardwareValidationState(const PrinterHardwareValidationState&) = delete;
     PrinterHardwareValidationState& operator=(const PrinterHardwareValidationState&) = delete;
 
@@ -89,30 +88,18 @@ class PrinterHardwareValidationState {
         return &hardware_status_level_;
     }
 
-    /**
-     * @brief Get hardware critical count subject
-     */
     lv_subject_t* get_hardware_critical_count_subject() {
         return &hardware_critical_count_;
     }
 
-    /**
-     * @brief Get hardware warning count subject
-     */
     lv_subject_t* get_hardware_warning_count_subject() {
         return &hardware_warning_count_;
     }
 
-    /**
-     * @brief Get hardware info count subject
-     */
     lv_subject_t* get_hardware_info_count_subject() {
         return &hardware_info_count_;
     }
 
-    /**
-     * @brief Get hardware session count subject
-     */
     lv_subject_t* get_hardware_session_count_subject() {
         return &hardware_session_count_;
     }

@@ -95,25 +95,13 @@ class TagProvenance {
 /// every other field untouched: what "Reset to tag" saves.
 [[nodiscard]] SlotInfo reset_to_tag(const SlotInfo& slot, const TagReading& tag);
 
-/// Fold one frame of a slot's tag reader into the reading kept for it, on a
-/// backend that writes user edits back to the box that also holds the tag's
-/// record. @p raw is everything the frame stated; @p filed is what survived the
-/// slot's own-write echo guard. A field in both replaces the kept value, a
-/// field the guard withheld is our own write coming back and keeps the kept
-/// value, and a field the frame does not state is dropped. nullopt when
-/// nothing is left.
-[[nodiscard]] std::optional<TagReading> fold_tag_frame(const std::optional<TagReading>& kept,
-                                                       const TagReading& raw,
-                                                       const TagReading& filed);
-
-/// fold_tag_frame() over one slot of a backend's per-slot readings, for a box
-/// whose record states the tag through a vendor-cache observation: @p stated is
-/// what the frame said, @p filed what the own-write echo guard let through.
+/// Keep what one frame of a slot's tag reader states as that slot's reading,
+/// for a box whose record states the tag through a firmware observation.
 /// @p nozzle_min / @p nozzle_max are the range the backend's tables give the
 /// record's material, so they stand or fall with it. The slot is erased when
-/// nothing is left.
-void fold_tag_frame_into(std::unordered_map<int, TagReading>& kept, int slot_index,
-                         const Observation& stated, const Observation& filed,
-                         std::optional<int> nozzle_min, std::optional<int> nozzle_max);
+/// the frame states nothing.
+void keep_tag_reading(std::unordered_map<int, TagReading>& kept, int slot_index,
+                      const Observation& stated, std::optional<int> nozzle_min,
+                      std::optional<int> nozzle_max);
 
 } // namespace helix::ams

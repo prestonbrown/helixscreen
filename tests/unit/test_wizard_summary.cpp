@@ -44,7 +44,6 @@ TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING with separate pointers",
 
 TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING with c_str() from std::string",
           "[wizard][summary][subjects]") {
-    // This is the pattern used after the fix
     static lv_subject_t test_subject;
     static char buffer[128];
     std::string config_value = "FlashForge Adventurer 5M Pro";

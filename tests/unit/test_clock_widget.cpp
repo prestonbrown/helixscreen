@@ -565,7 +565,7 @@ TEST_CASE("Widget rebuild activation contract", "[panel_widget][lifecycle]") {
         auto w = std::make_unique<MockWidget>();
         active_widgets.push_back(std::move(w));
 
-        // THE FIX: activate new widgets if panel is already active
+        // Activate new widgets if the panel is already active
         if (panel_active) {
             for (auto& widget : active_widgets) {
                 widget->on_activate();

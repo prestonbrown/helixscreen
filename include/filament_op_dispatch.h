@@ -130,7 +130,7 @@ struct BackendCaps {
     // the box back up. The one case that cannot be honoured is a bypass spool
     // still crossing the toolhead: its switch sits above the cutter and reads
     // the upstream piece, which no gcode can retract — only the user's hand
-    // clears it (36205eb27). Feeding a lane into that is what we refuse.
+    // clears it. Feeding a lane into that is what we refuse.
     if (caps.present && caps.bypass_active && target_slot >= 0) {
         if (sys.filament_loaded) {
             return {FilamentTier::Refused, FilamentRefusal::BypassLoaded, AmsCall::None,
@@ -156,13 +156,12 @@ struct BackendCaps {
         //
         // An unmapped target slot has no tool number to change to, so it falls
         // through to the plain load below rather than synthesising an unload.
-        // There used to be an AmsCall::UnloadActive arm here; it called
-        // unload_active_filament() and stopped, so the user got a swap stepper, a
-        // pulsing target slot, filament on the floor, and no load. Nothing chained
-        // the second half. Falling through is correct on every backend the arm
-        // could actually reach:
-        //   - ACE: change_tool() is `return load_filament(...)`, so the two arms
-        //     were the same command.
+        // An unload arm here (unload_active_filament() with nothing chaining the
+        // load after it) would leave the user a swap stepper, a pulsing target
+        // slot, filament on the floor, and no load. Falling through is correct on
+        // every backend that can reach this point:
+        //   - ACE: change_tool() is `return load_filament(...)`, so the two are
+        //     the same command.
         //   - QIDI: load_filament() scans for a LOADED slot and prepends its
         //     unload gcode itself (ams_backend_qidi.cpp).
         //   - AFC: load_filament() emits `CHANGE_TOOL LANE={n}`, which IS AFC's
@@ -173,8 +172,7 @@ struct BackendCaps {
         // `MMU_LOAD GATE={n}`, and it is also the one the UI is forbidden to help:
         // allows_implicit_chaining() is false there precisely so the screen sends
         // one command per user action and lets the firmware refuse (#1229). An
-        // unasked-for eject is the harm that rule exists to prevent, and it is
-        // exactly what the old arm did.
+        // unasked-for eject is the harm that rule exists to prevent.
         if (caps.needs_unload_before_load && !caps.load_swaps_seated_lane &&
             sys.current_slot != target_slot) {
             const SlotInfo* slot_info = sys.get_slot_global(target_slot);
@@ -285,12 +283,10 @@ inline constexpr int kActiveHeadSlot = -1;
 [[nodiscard]] inline FilamentOpPlan plan_unload(const BackendCaps& caps, int target_slot,
                                                 bool target_is_loaded, bool macro_available,
                                                 bool macro_user_configured) {
-    // Same first rule as plan_load(), and the reason this parameter exists: the
-    // two planners used to disagree here. plan_load() let bypass fall through to
-    // the macro tier while plan_unload() gated tier 1 on the backend merely
-    // existing, so a user could assign an Unload macro in Settings and have it
-    // silently discarded on every AMS printer — a live control whose effect was
-    // thrown away. See plan_load() for why DETECTED macros still lose.
+    // Same first rule as plan_load(), and the reason this parameter exists: an
+    // Unload macro the user assigned in Settings must run on an AMS printer too,
+    // not be silently discarded because a backend exists. See plan_load() for
+    // why DETECTED macros still lose.
     if (macro_user_configured) {
         return {FilamentTier::Macro, FilamentRefusal::None, AmsCall::None, target_slot};
     }

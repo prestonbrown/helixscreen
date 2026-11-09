@@ -65,7 +65,8 @@ If you're coming from HelixScreen 1.0, Settings used to have six categories. Eve
 | Display & Sound: sounds, volume, sound theme | [Sound](settings/sound.md) |
 | Display & Sound: language, timezone, time format | [Language & Time](settings/language-time.md) |
 | Display & Sound: scroll buttons, system keyboard, keep navigation bar | [Touch & Input](settings/touch-input.md) |
-| Printing: toolhead style, G-code preview, Z movement | [Appearance > Printer Visuals](settings/appearance.md#printer-visuals) |
+| Printing: toolhead style, G-code preview | [Appearance > Printer Visuals](settings/appearance.md#printer-visuals) |
+| Printing: Z movement (now **Z Buttons Move**) | [Printing > Motion](motion.md#motion-settings) |
 | Hardware & Devices | [Devices](settings/devices.md) |
 | Hardware & Devices > Printers | [Connection > Printers](settings/connection.md#printers) |
 | Safety & Notifications | [Safety & Alerts](settings/safety.md) |

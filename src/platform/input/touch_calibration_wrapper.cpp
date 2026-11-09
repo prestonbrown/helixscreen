@@ -30,7 +30,7 @@ namespace {
 // thread the read callback runs on, so the read path needs no synchronization to
 // reach it. Writes are still taken under s_diag_mutex below, because a debug
 // bundle reads the handle from a worker thread.
-CalibrationContext* s_active_ctx = nullptr;
+CalibrationContext* s_active_ctx = nullptr; // ACTIVE_INSTANCE_OK: indev callback context
 
 // Guards s_active_ctx and the diagnostics state behind it (pipeline, observed,
 // range_violation_reported) plus the span-check latch below.

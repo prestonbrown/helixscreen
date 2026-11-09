@@ -147,8 +147,8 @@ bool has_dynamic_suffix(const std::string& name) {
 // Responsive px token resolution — one implementation, two callers
 // ============================================================================
 // Startup (theme_manager_register_responsive_spacing) and resize
-// (theme_manager_refresh_layout_constants) used to carry two copies of the tier
-// selection chain. They must never disagree: a token that gets one tier at boot
+// (theme_manager_refresh_layout_constants) share one tier selection chain.
+// They must never disagree: a token that gets one tier at boot
 // and another after a rotation is worse than no responsiveness at all.
 
 // The tokens that size a box vertically, and so must be chosen from how much
@@ -428,10 +428,10 @@ void theme_manager_refresh_layout_constants(lv_display_t* display) {
         return;
 
     // Update every responsive px token for the new size — nav_width included.
-    // Same resolver as startup, which is the point: this path used to carry its
-    // own copy of the selection chain, and its nav_width write was then
-    // overwritten a few lines later by a generic loop that knew nothing about
-    // the ultrawide ladder. See theme_manager_resolve_px_tokens().
+    // Same resolver as startup, which is the point: a separate selection chain
+    // here would drift, and a nav_width written outside the resolver would be
+    // overwritten by a generic loop that knows nothing about the ultrawide
+    // ladder. See theme_manager_resolve_px_tokens().
     int32_t resp_res = responsive_dimension(display);
     for (const auto& [base_name, value] : theme_manager_resolve_px_tokens(display)) {
         lv_xml_set_const(scope, base_name.c_str(), value.c_str());

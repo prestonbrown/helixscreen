@@ -982,6 +982,31 @@ TEST_CASE("the end of a print flies through a cloud into the sunset",
     CHECK(hue_apart(h, hue(kHighflySunset.glow)) < hue_apart(h, hue(kHighflyGolden.glow)));
 }
 
+TEST_CASE("a saver started during a print opens in the print's state",
+          "[screensaver][highfly][clock]") {
+    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    std::vector<DirtyRect> dirty;
+    const PixelWriter w(frame.target);
+    const auto start = [&](HighFlySim& sim, const ClockReading& r) {
+        std::minstd_rand rng(3);
+        sim.init(frame.target, rng, 3, r);
+        return red_over_blue(w.get(200, 2));
+    };
+    HighFlySim sim;
+    const float first_light = start(sim, print_reading(ClockMode::COUNTDOWN, 0));
+    CHECK(start(sim, print_reading(ClockMode::COUNTDOWN, 100)) > first_light + 0.5f);
+
+    start(sim, print_reading(ClockMode::PAUSED, 40));
+    std::minstd_rand rng(3);
+    sim.step(100, frame.target, rng, print_reading(ClockMode::PAUSED, 40), dirty);
+    CHECK(sim.elapsed_s() == Catch::Approx(0.1 * helix::ui::kHighflyPausedSpeed).margin(0.002));
+
+    // Already finished before it started: no finish to fly through a cloud for.
+    start(sim, print_reading(ClockMode::DONE, 100));
+    sim.step(100, frame.target, rng, print_reading(ClockMode::DONE, 100), dirty);
+    CHECK(sim.fly_since_s() < 0.0f);
+}
+
 TEST_CASE("a paused print slows the flight to a quarter", "[screensaver][highfly][clock]") {
     TestFrame frame(100, 60, PixelFormat::RGB565);
     std::minstd_rand rng(3);

@@ -70,6 +70,9 @@ scripts/teardown-worktree.sh my-branch       # `git worktree remove` refuses her
 ## Verification Cadence: rigor once, at the finish
 
 **Every expensive check runs once per batch, at the finish, sized to what the batch touched.**
+**Spend a check when the code it judges has stopped changing.** The more a check costs, the later it
+belongs: a slow verdict on code that is about to move again is thrown away. A landing is not that
+moment when more of the same work is coming; the end of the work is. Judge any new slow check by this.
 Running a check again buys no rigor; it only costs the session hours. Put this table in every
 agent brief, because agents default to over-verifying.
 
@@ -77,7 +80,7 @@ agent brief, because agents default to over-verifying.
 |---|---|---|
 | **While building** - each task, each agent, each review fix | `make t F='[tags the change touches]'` once after the change. A new or changed test: break the line it pins once, see it go red, restore | `mutate-diff`, `unit-sweep`, `full-test-run`, `land-gate`, screenshots, ASAN, re-reviews |
 | **Finish** - once per batch (every branch landing together) | 1. One review of the batch; a second round only for a crash, lifetime, data-loss or wrong-hardware-command finding. 2. One screenshot per changed screen. 3. ONE `make land-gate` on the combined result, on the fastest free machine (thelio, then zeus; never a Mac) | a gate per branch; a second full gate for a docs-only or test-only fix; waiting on mutation |
-| **Landed** - right after the push, every batch, never skipped | `make mutate-diff MUTATE_ARGS="--base <the origin/main it landed on>"` from the landed tree, in the background, capped at 30 minutes. A survivor is a follow-up fix (a test that pins it) | blocking the merge on it |
+| **Series finished** - when the work has stopped changing, not at each landing | `make mutate-diff MUTATE_ARGS="--base <origin/main before the series>"` once over the whole series, in the background, capped at 45 minutes. A survivor is a follow-up fix (a test that pins it) | after each landing while more of the same work is coming; blocking a merge on it |
 | **Gate red** | Flaky or environment stage: `make land-gate STAGES=<stage>` on the same clean HEAD. A real finding: fix it, rerun only that stage's command (`build/land-gate/<stage>.log` names it), then one more `land-gate` only if the fix touched `src/` or `include/` | rerunning the whole gate to "be sure" |
 | **Release** | Whole-branch mutation, ASAN on the test host, device checks | |
 
@@ -192,9 +195,9 @@ Features, refactors, new panels/widgets/managers: **scope AFTER investigating, n
 | **Constant names** | `constexpr int MAX_RETRY_COUNT = 3;` | `constexpr int kMaxRetryCount = 3;` (UPPER_SNAKE is for macros). Escape hatch `// CONST_NAME_OK: <reason>` |
 | **No std::regex** | `std::regex`, `#include <regex>` | `helix::Regex` (`include/helix_regex.h`): libstdc++'s matcher overflows musl's thread stacks. Escape hatch `// STD_REGEX_OK: <reason>` |
 | **Bug commits** | Filing an issue just so the commit can cite one | Cite one that exists: `fix(scope): thing (prestonbrown/helixscreen#123)`; otherwise `fix(scope): thing` |
-| **Unproven tests** | "Tests pass" as evidence | A hand break while writing the test, then `make mutate-diff` after landing. `tests/CLAUDE.md` § "Proving a test can fail" |
+| **Unproven tests** | "Tests pass" as evidence | A hand break while writing the test, then `make mutate-diff` when the series is done. `tests/CLAUDE.md` § "Proving a test can fail" |
 | **Commit body length** | 3-paragraph Tests / Verification / Mutation essay | Subject + ~4-line paragraph |
-| **Comment archaeology** | `// unlike the three widgets 3d0875bff fixed`, `// this used to memcpy the whole canvas` | A present-tense constraint: `// Invalidating here freezes a fullscreen view the user is watching`. Bare issue cites are fine (global CLAUDE.md; `scripts/check_comment_archaeology.py`) |
+| **Comment archaeology** | `// unlike the three widgets 3d0875bff fixed`, `// this used to memcpy the whole canvas` | A present-tense constraint: `// Invalidating here freezes a fullscreen view the user is watching`. Bare issue cites are fine (global CLAUDE.md; `scripts/check_comment_archaeology.py`). Escape hatch `ARCHAEOLOGY_OK: <reason>` |
 | **Submodule mods** | Edit `lib/lvgl/...` / `lib/libhv/...` directly | `patches/*.patch`; `lib/helix-xml/` is ours and edited directly |
 
 **ALWAYS:** Search the SAME FILE you're editing for similar patterns before implementing.
@@ -208,7 +211,7 @@ Features, refactors, new panels/widgets/managers: **scope AFTER investigating, n
 | Subject init order | Register components → init subjects → create XML | `src/application/subject_initializer.cpp` |
 | Widget lookup | `lv_obj_find_by_name()` not `lv_obj_get_child()` | any panel |
 | Overlays | `NavigationManager::instance().push_overlay(root)` / `.go_back()`; pair every push with `register_overlay_instance(root, this)` or `on_deactivate()` never fires | `src/ui/settings/ui_settings_safety.cpp` |
-| Modals (simple) | `Modal::show("component_name")` / `Modal::hide(dialog)` | `src/ui/print/ui_job_queue_modal.cpp` |
+| Modals (simple) | `helix::ui::ComponentModal::show_owned("component_name")` / `Modal::hide(dialog)`; the bare `Modal::show("name")` factory is lint-refused | `src/ui/settings/ui_settings_fans.cpp` |
 | Modals (subclass) | Extend `Modal`, implement `get_name()` + `component_name()`, override `on_ok()`/`on_cancel()` | `include/ui_info_qr_modal.h` + `src/ui/components/ui_info_qr_modal.cpp` |
 | Confirmation dialog | `helix::ui::modal_confirm(title, msg, severity, btn_text, on_confirm, ConfirmOptions)`. **Pass `on_dismiss` whenever the caller holds a guard/flag/pending entry the buttons were meant to clear**: backdrop tap, ESC and hot-reload dismiss without a button. `owner_token` gates all three callbacks | `src/ui/printers/ui_change_host_modal.cpp#show_connection_failed_modal` |
 | Modal buttons (XML) | `<modal_button_row primary_text="Save" primary_callback="on_save"/>` | `ui_xml/bed_mesh_rename_modal.xml` |

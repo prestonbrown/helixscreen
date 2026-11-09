@@ -319,7 +319,6 @@ void MoonrakerClientMock::temperature_simulation_loop() {
         }
         service_purifier(effective_dt);
 
-        // Get current temperature state
         double ext_temp = extruder_temp_.load();
         double ext_target = extruder_target_.load();
         double bed_temp_val = bed_temp_.load();
@@ -471,7 +470,6 @@ void MoonrakerClientMock::temperature_simulation_loop() {
                 motors_enabled_.store(false);
                 spdlog::info("[MoonrakerClientMock] Idle timeout triggered after {}s", elapsed);
 
-                // Dispatch stepper_enable update
                 json stepper_status = {{"stepper_enable",
                                         {{"steppers",
                                           {{"stepper_x", false},
@@ -499,7 +497,6 @@ void MoonrakerClientMock::temperature_simulation_loop() {
                         static_cast<uint8_t>(SimulatedPrintStartPhase::LAYER_1));
                 }
 
-                // Transition to PRINTING phase
                 print_phase_.store(MockPrintPhase::PRINTING);
                 printing_start_time_ = std::chrono::steady_clock::now();
                 spdlog::debug("[MoonrakerClientMock] Preheat complete - starting print");
@@ -510,7 +507,6 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             // Advance print progress based on file-estimated duration
             advance_print_progress(effective_dt);
 
-            // Check for completion
             if (print_progress_.load() >= 1.0) {
                 print_phase_.store(MockPrintPhase::COMPLETE);
                 print_state_.store(3); // "complete" for backward compatibility
@@ -596,7 +592,6 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             filename = print_filename_;
         }
 
-        // Get layer info for enhanced status
         int current_layer = get_current_layer();
         int total_layers = get_total_layers();
         double total_time;
@@ -628,7 +623,6 @@ void MoonrakerClientMock::temperature_simulation_loop() {
                                     std::to_string(total_layers));
         }
 
-        // Get Z offset for gcode_move
         double z_offset = gcode_offset_z_.load();
 
         // Commanded feed rate swings between perimeter and infill speeds while

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_motion_state.cpp
- * @brief Motion state management extracted from PrinterState
+ * @brief Motion state management (a PrinterState sub-state)
  *
  * Manages position, speed/flow factors, and Z-offset subjects.
- * Extracted from PrinterState as part of god class decomposition.
  */
 
 #include "printer_motion_state.h"
@@ -79,7 +78,6 @@ void PrinterMotionState::deinit_subjects() {
 }
 
 void PrinterMotionState::update_from_status(const nlohmann::json& status) {
-    // Update toolhead position
     if (status.contains("toolhead")) {
         const auto& toolhead = status["toolhead"];
 

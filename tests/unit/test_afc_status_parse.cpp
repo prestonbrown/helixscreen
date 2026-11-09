@@ -62,12 +62,14 @@ TEST_CASE("AFC lane identity reads colour, material and every vendor spelling",
     CHECK(afc::read_lane_identity(json{{"color", "00ff00"}}, LaneSurface::Status).color->rgb ==
           0x00ff00u);
 
-    for (const char* key : {"vendor_name", "spool_vendor", "vendor", "brand"}) {
+    for (const char* key : {"vendor_name", "spool_vendor"}) {
         CHECK(afc::read_lane_identity(json{{key, "Elegoo"}}, LaneSurface::Status).brand ==
               "Elegoo");
     }
-    // An empty vendor is not a clear.
-    CHECK_FALSE(afc::read_lane_identity(json{{"spool_vendor", ""}}, LaneSurface::Status).brand);
+    // An empty vendor is AFC stating the lane has none; a missing key says nothing.
+    CHECK(afc::read_lane_identity(json{{"spool_vendor", ""}}, LaneSurface::Status).brand ==
+          std::string{});
+    CHECK_FALSE(afc::read_lane_identity(json::object(), LaneSurface::Status).brand);
 }
 
 TEST_CASE("AFC lane status parse reads the sensor and spool fields a frame carries",

@@ -21,14 +21,14 @@ namespace helix::ui {
  * Follows the same spacer-based virtualization pattern as SpoolmanListView.
  *
  * ## Key Features:
- * - Fixed widget pool (kPoolSize rows created once)
+ * - Widget pool built as the visible window needs it, capped at kPoolSize rows
  * - Leading/trailing spacers for smooth scroll virtualization
  * - Imperative row updates (no per-row subjects)
  * - Click callback with data index for detail overlay navigation
  */
 class HistoryListView : public ContainerDeleteNet {
   public:
-    static constexpr int kPoolSize = 30;  ///< Fixed pool of history row widgets
+    static constexpr int kPoolSize = 30;  ///< Most history row widgets the pool grows to
     static constexpr int kBufferRows = 2; ///< Extra rows above/below viewport
 
     using RowClickCallback = std::function<void(size_t index)>;
@@ -36,7 +36,6 @@ class HistoryListView : public ContainerDeleteNet {
     HistoryListView() = default;
     ~HistoryListView();
 
-    // Non-copyable
     HistoryListView(const HistoryListView&) = delete;
     HistoryListView& operator=(const HistoryListView&) = delete;
 
@@ -93,6 +92,11 @@ class HistoryListView : public ContainerDeleteNet {
         return !pool_.empty();
     }
 
+    /// Rows built so far: the largest window shown since setup(), at most kPoolSize
+    [[nodiscard]] size_t pool_size() const {
+        return pool_.size();
+    }
+
     [[nodiscard]] lv_obj_t* container() const {
         return container_;
     }
@@ -123,7 +127,8 @@ class HistoryListView : public ContainerDeleteNet {
     int last_trailing_height_ = -1;
 
     // === Internal Methods ===
-    void init_pool();
+    /// Build one hidden pool row; false when the row component fails to create
+    bool add_pool_row();
     void create_spacers();
     void configure_row(lv_obj_t* row, size_t data_index, const PrintHistoryJob& job);
 

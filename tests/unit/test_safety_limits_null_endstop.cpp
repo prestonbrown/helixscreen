@@ -7,17 +7,17 @@
  *
  * Klipper emits `position_endstop: null` in configfile.settings for any printer
  * configured with `endstop_pin: probe:z_virtual_endstop` — i.e. most
- * probe-equipped machines. The parse used to read it with a bare
- * `.get<double>()`, which throws type_error.302 on that null.
+ * probe-equipped machines. A bare `.get<double>()` throws type_error.302 on
+ * that null.
  *
  * The whole callback body is a single try block whose catch still calls
- * on_success(), so the throw was invisible: every temperature limit parsed
- * AFTER the endstop line silently kept its compiled default while the
+ * on_success(), so such a throw is invisible: every temperature limit parsed
+ * AFTER the endstop line would silently keep its compiled default while the
  * connection reported success. These tests pin that the temperature-limit loop
  * still runs when the endstop is null.
  *
  * The endstop value itself is deliberately NOT asserted: 0.0mm is a legal
- * endstop, so the fix writes nothing at all rather than substituting a sentinel
+ * endstop, so the parse writes nothing at all rather than substituting a sentinel
  * a reader could not distinguish from a real value — and PrinterState exposes
  * it only through get_configured_z_offset_microns(), which prefers the probe
  * offset whenever a probe exists. The consequential behaviour (the temperature
@@ -96,7 +96,7 @@ class SafetyLimitsFixture : public LVGLTestFixture {
 TEST_CASE_METHOD(SafetyLimitsFixture, "numeric position_endstop parses the temperature limits",
                  "[safety_limits]") {
     // Baseline: with a numeric endstop the parse always reached the temperature
-    // loop, so this passed before the fix too. It exists to prove the assertion
+    // loop, so this passes even with a null-endstop bug. It exists to prove the assertion
     // below is measuring the null case specifically and not a broken harness.
     mock_client_.set_stepper_z_endstop_null(false);
     REQUIRE(run_update());
@@ -108,10 +108,10 @@ TEST_CASE_METHOD(SafetyLimitsFixture, "numeric position_endstop parses the tempe
 TEST_CASE_METHOD(SafetyLimitsFixture,
                  "null position_endstop does not abort the temperature-limit parse",
                  "[safety_limits]") {
-    // The regression. Before the fix a bare .get<double>() threw type_error.302
-    // on the null endstop, skipping the temperature loop entirely —
-    // max_temperature_celsius stayed at the compiled 400.0 default. Revert the
-    // fix and this reads 400.0 instead of kProbeExtruderMaxTemp.
+    // A bare .get<double>() throws type_error.302 on the null endstop and
+    // skips the temperature loop entirely, so max_temperature_celsius stays at
+    // the compiled 400.0 default and this reads 400.0 instead of
+    // kProbeExtruderMaxTemp.
     mock_client_.set_stepper_z_endstop_null(true);
     REQUIRE(run_update());
 
@@ -124,7 +124,7 @@ TEST_CASE_METHOD(SafetyLimitsFixture, "null position_endstop still reports succe
     // Documents the trap that made the original bug invisible: the catch calls
     // on_success() too, so a firing success callback never proved the parse
     // completed. Kept so nobody mistakes success for correctness again — this
-    // one passed both before and after the fix, by design.
+    // one passes with or without the null-endstop handling, by design.
     mock_client_.set_stepper_z_endstop_null(true);
     CHECK(run_update());
 }

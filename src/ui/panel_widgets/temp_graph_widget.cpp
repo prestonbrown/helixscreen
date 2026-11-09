@@ -22,6 +22,7 @@
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "sort_small.h"
 #include "temperature_sensor_manager.h"
 #include "theme_manager.h"
@@ -158,6 +159,11 @@ void TempGraphWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     // Bed and chamber are named here, not by the printer layer.
     language_observer_ = helix::ui::observe_language_change(
         this, [](TempGraphWidget* self) { self->refresh_series_names(); });
+    // Extruder series are named "Nozzle 2" or "Nozzle T1" by the tool number style.
+    auto& settings = helix::SettingsManager::instance();
+    tool_number_style_observer_ = helix::ui::observe_int_change(
+        settings.subject_tool_number_style(), settings.get_subjects_lifetime(), this,
+        [](TempGraphWidget* self) { self->refresh_series_names(); });
 
     // The graph is `merges_into_card = false` — it reads as its own panel, not
     // as one tile in a fused run — so it supplies its own surface. Use the
@@ -175,6 +181,7 @@ void TempGraphWidget::detach() {
     cancel_discovery_rebuild();
     extruder_version_observer_.reset();
     language_observer_.reset();
+    tool_number_style_observer_.reset();
     controller_.reset();
 
     widget_obj_ = nullptr;
@@ -221,9 +228,8 @@ void TempGraphWidget::refresh_series_names() {
         return;
     }
     for (const auto& entry : config_["sensors"]) {
-        if (entry.contains("name") && entry["name"].is_string()) {
-            const std::string name = entry["name"].get<std::string>();
-            controller_->set_series_name(name, TempGraphConfigModal::sensor_display_name(name));
+        if (auto name = helix::json_util::read_field<std::string>(entry, "name")) {
+            controller_->set_series_name(*name, TempGraphConfigModal::sensor_display_name(*name));
         }
     }
 }
@@ -340,10 +346,11 @@ std::vector<TempGraphSeriesSpec> TempGraphWidget::build_series_from_config() con
 
     int color_idx = 0;
     for (const auto& entry : config_["sensors"]) {
-        if (!entry.contains("name") || !entry["name"].is_string())
+        auto name = helix::json_util::read_field<std::string>(entry, "name");
+        if (!name)
             continue;
 
-        const std::string klipper_name = entry["name"].get<std::string>();
+        const std::string klipper_name = std::move(*name);
         bool enabled;
         if (use_snapshot) {
             enabled =
@@ -357,8 +364,8 @@ std::vector<TempGraphSeriesSpec> TempGraphWidget::build_series_from_config() con
         TempGraphSeriesSpec spec;
         spec.klipper_name = klipper_name;
         spec.display_name = TempGraphConfigModal::sensor_display_name(klipper_name);
-        if (entry.contains("color") && entry["color"].is_number_integer()) {
-            spec.color = lv_color_hex(entry["color"].get<uint32_t>());
+        if (auto hex = helix::json_util::read_integer_field(entry, "color")) {
+            spec.color = lv_color_hex(static_cast<uint32_t>(*hex));
         } else {
             spec.color = kTempGraphSeriesColors[color_idx % kTempGraphPaletteSize];
         }
@@ -465,8 +472,8 @@ bool TempGraphWidget::merge_discovered_extruders(nlohmann::json& config, bool en
     auto& arr = config["sensors"];
     std::set<std::string> existing;
     for (const auto& entry : arr) {
-        if (entry.contains("name") && entry["name"].is_string())
-            existing.insert(entry["name"].get<std::string>());
+        if (auto name = helix::json_util::read_field<std::string>(entry, "name"))
+            existing.insert(std::move(*name));
     }
 
     bool added = false;
@@ -589,7 +596,9 @@ TempGraphWidget::TempGraphConfigModal::sensor_display_name(const std::string& kl
         // guessing multi. "extruderN" (N >= 1) implies multi and gets a number.
         if (*tool_number == 0)
             return lv_tr("Nozzle");
-        return std::string(lv_tr("Nozzle")) + " " + helix::ui::lane_number_text(*tool_number);
+        return std::string(lv_tr("Nozzle")) + " " +
+               helix::ui::tool_number_text(helix::ui::active_tool_number_style(),
+                                           helix::ui::tool_label(*tool_number), *tool_number);
     }
     if (klipper_name == "heater_bed")
         return lv_tr("Bed");
@@ -634,8 +643,8 @@ void TempGraphWidget::TempGraphConfigModal::populate_sensor_list() {
     {
         auto& arr = config_["sensors"];
         auto entry_is_extruder = [](const nlohmann::json& entry) {
-            return entry.contains("name") && entry["name"].is_string() &&
-                   is_extruder_name(entry["name"].get<std::string>());
+            auto name = helix::json_util::read_field<std::string>(entry, "name");
+            return name && is_extruder_name(*name);
         };
         auto split = std::stable_partition(arr.begin(), arr.end(), entry_is_extruder);
         helix::sort_small(arr.begin(), split, [](const nlohmann::json& a, const nlohmann::json& b) {
@@ -647,16 +656,17 @@ void TempGraphWidget::TempGraphConfigModal::populate_sensor_list() {
     const auto& sensors = config_["sensors"];
     for (size_t i = 0; i < sensors.size(); ++i) {
         const auto& entry = sensors[i];
-        if (!entry.contains("name") || !entry["name"].is_string())
+        auto name = helix::json_util::read_field<std::string>(entry, "name");
+        if (!name)
             continue;
 
         SensorRow row;
-        row.name = entry["name"].get<std::string>();
+        row.name = std::move(*name);
         row.display = sensor_display_name(row.name);
 
         // Find the matching color index from the palette
-        if (entry.contains("color") && entry["color"].is_number_integer()) {
-            uint32_t cfg_hex = entry["color"].get<uint32_t>();
+        if (auto color = helix::json_util::read_integer_field(entry, "color")) {
+            uint32_t cfg_hex = static_cast<uint32_t>(*color);
             lv_color_t cfg_color = lv_color_hex(cfg_hex);
             row.color_idx = static_cast<int>(i) % kTempGraphPaletteSize; // default
             for (int ci = 0; ci < kTempGraphPaletteSize; ++ci) {

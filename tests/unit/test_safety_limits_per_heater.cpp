@@ -61,7 +61,7 @@ using moonraker_internal::is_safe_temperature;
 namespace {
 
 /// A 290C hotend and a 120C bed - the shape of nearly every real printer, and
-/// both below the 400C default that used to win.
+/// both below the 400C default, which must not win.
 SafetyLimits typical_printer() {
     SafetyLimits limits;
     limits.heater_max_temp_celsius["extruder"] = 290.0;
@@ -293,7 +293,7 @@ TEST_CASE("A configured heater max beats the panel's compiled-in fallback",
     TemperatureControllerTestAccess::set_max(*f.controller, HeaterType::Bed, 120);
     TemperatureControllerTestAccess::set_max(*f.controller, HeaterType::Chamber, 60);
 
-    // 150 is the member the panel used to hand the keypad unconditionally.
+    // 150 is a member value the panel must not hand the keypad unconditionally.
     REQUIRE(f.ceiling(HeaterType::Bed, 150) == 120.0f);
     REQUIRE(f.ceiling(HeaterType::Chamber, 150) == 60.0f);
 }

@@ -57,9 +57,9 @@ int get_int(const nlohmann::json& j, const char* key, int def) {
 /// uses find + is_number: config/user_filaments.json is hand-editable, and
 /// nlohmann's .value() throws type_error.302 on a key that is PRESENT with a
 /// null value (a missing key is fine). This function is the single resolution
-/// point for every catalog load path, so one `"brand": null` used to unwind out
-/// of FilamentCatalog::load_full() and take the whole catalog with it — a
-/// per-field default keeps the cost to that field.
+/// point for every catalog load path, so a throw here on one `"brand": null`
+/// would unwind out of FilamentCatalog::load_full() and take the whole catalog
+/// with it — a per-field default keeps the cost to that field.
 EffectiveFilament to_effective(const nlohmann::json& p) {
     EffectiveFilament e;
     e.id = helix::json_util::safe_string(p, "id");

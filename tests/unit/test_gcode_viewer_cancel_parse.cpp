@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // The viewer's background load parses the whole file in a `while (getline)`
-// loop. That loop used to run to completion regardless of cancellation — the
-// only check happened AFTER the parse (and after the 3D geometry build).
+// loop. That loop must honour cancellation itself: a check only AFTER the parse
+// (and after the 3D geometry build) is too late.
 //
 // cancel_build() joins that thread, and it is called from start_build(), which
-// runs on the MAIN thread when the user opens a different file. So switching
-// files blocked the LVGL loop until the previous file had finished parsing:
+// runs on the MAIN thread when the user opens a different file. A parse that
+// ignores cancellation blocks the LVGL loop until the previous file finishes:
 // seconds for a multi-megabyte print on a 2-core board, on top of the
-// layer-cache stall from the same report (bundle C2CP6ZAW).
+// layer-cache stall from the same report.
 //
 // The contract pinned here: starting a new load while a large parse is in
 // flight must return promptly, NOT after the in-flight parse completes.
@@ -181,7 +181,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "gcode viewer cancels an in-flight parse promp
     INFO("cancel took " << cancel_ms << "ms vs full parse " << full_ms << "ms");
 
     // Generous margin: the point is orders-of-magnitude, not a tight bound. The
-    // bug produces ~the remainder of full_ms; the fix produces near-zero.
+    // ignoring cancellation costs ~the remainder of full_ms; honouring it, near-zero.
     CHECK(cancel_ms < full_ms / 3);
 
     // And the viewer is left usable, holding the file we actually asked for.

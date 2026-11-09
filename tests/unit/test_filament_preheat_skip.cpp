@@ -7,8 +7,7 @@
  *
  * Run with: ./build/bin/helix-tests "[filament][preheat]"
  *
- * Three independent reasons to skip a preheat, which used to be checked in
- * three different places or not at all:
+ * Three independent reasons to skip a preheat:
  *
  *   - the user said their own macros heat ("Allow cold load/unload"),
  *   - the AMS backend heats on load,

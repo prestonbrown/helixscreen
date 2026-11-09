@@ -454,7 +454,6 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
                           LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(container, 0, LV_PART_MAIN); // No gap between labels
 
-    // Create user data
     auto data_ptr = std::make_unique<TempDisplayData>();
 
     // Parse size attribute for font selection
@@ -493,7 +492,6 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
     // breakpoint rule stands.
     const char* size_subject_name = lv_xml_get_value_of(attrs, "size_target_subject");
 
-    // Create current temp label
     data_ptr->current_label = lv_label_create(container);
     // All four labels carry the face as a shared ADDED style, so a style bound
     // from XML can retier them. Written locally the face would outrank every
@@ -511,7 +509,6 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
                                       lv_font_get_glyph_width(font, ' ', 0), LV_PART_MAIN);
         lv_obj_set_style_text_color(data_ptr->separator_label, muted_color, LV_PART_MAIN);
 
-        // Create target temp label
         data_ptr->target_label = lv_label_create(container);
         helix::ui::apply_font_style(data_ptr->target_label, font);
         lv_obj_set_style_text_color(data_ptr->target_label, text_color, LV_PART_MAIN);
@@ -525,7 +522,6 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
         data_ptr->target_subjects_initialized = true;
     }
 
-    // Create unit label "°C"
     data_ptr->unit_label = lv_label_create(container);
     lv_label_set_text(data_ptr->unit_label, "°C");
     helix::ui::apply_font_style(data_ptr->unit_label, font);

@@ -203,7 +203,7 @@ TEST_CASE_METHOD(AbortManagerTestFixture, "AbortManager: Initial state is IDLE",
 // init_subjects() must NOT eagerly build the abort backdrop. Building it runs
 // create_blurred_backdrop -> init_gpu_blur (EGL/Mali init), which hard-faults
 // inside the driver on some GPUs at cold startup. Deferring it to the first real
-// abort is the fix; this guards against the eager create_modal() call returning.
+// abort avoids that; this guards against the eager create_modal() call returning.
 TEST_CASE_METHOD(AbortManagerTestFixture,
                  "AbortManager: init_subjects does not eagerly build modal", "[abort][lazy]") {
     AbortManager& m = AbortManager::instance();
@@ -580,8 +580,8 @@ TEST_CASE_METHOD(AbortManagerTestFixture,
 //
 // shutdown_recovery_in_progress_ suppresses the global recovery dialog
 // (EmergencyStopOverlay::is_recovery_suppressed) while AbortManager is
-// driving the M112+restart cycle. Before the fix, the flag was *only*
-// cleared on the SHUTDOWN→READY observer transition. On K2 with CFS the
+// driving the M112+restart cycle. Clearing it *only* on the SHUTDOWN→READY
+// observer transition is not enough. On K2 with CFS the
 // rpi-MCU bridge stays stuck after a trsync fault, klippy never reaches
 // READY, the reconnect timer fires, and complete_abort() leaves the flag
 // latched — so every future recovery dialog is silently suppressed and
@@ -620,8 +620,7 @@ TEST_CASE_METHOD(AbortManagerTestFixture,
 
     REQUIRE(AbortManager::instance().is_handling_shutdown() == true);
 
-    // Klippy goes SHUTDOWN → READY (the happy path that *did* clear the flag
-    // pre-fix). Keep this asserted post-fix too — it's the canonical success.
+    // Klippy goes SHUTDOWN → READY: the happy path, and the canonical success.
     AbortManagerTestAccess::on_klippy_state_change(AbortManager::instance(), KlippyState::SHUTDOWN);
     AbortManagerTestAccess::on_klippy_state_change(AbortManager::instance(), KlippyState::READY);
 

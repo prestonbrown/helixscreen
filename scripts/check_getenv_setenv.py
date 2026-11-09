@@ -39,6 +39,8 @@ import pathlib
 import re
 import sys
 
+from source_strip import blank_cxx_lines
+
 # (const )?char( const)? * (const )? NAME =  — west-const, east-const and
 # pointer-const spellings; (?!=) keeps == comparisons out.
 DECL = re.compile(r'(?:const\s+)?char\s*(?:const\s*)?\*\s*(?:const\s*)?'
@@ -54,54 +56,6 @@ GETENV = re.compile(r'\bgetenv\s*\(')
 SETENV = re.compile(r'\b(?:setenv|unsetenv)\s*\(')
 WINDOW = 400
 WRAP_MAX = 5  # continuation lines scanned for getenv() in a wrapped initializer
-
-def strip_comments_and_strings(lines):
-    """Blank out // and /* */ comments and the CONTENTS of string and char
-    literals, quote-aware, so commented-out code cannot trip the scan, a '//'
-    inside a string keeps its line, and a name mentioned only inside a log
-    message is not a use."""
-    out = []
-    in_block = False
-    for raw in lines:
-        kept = []
-        i = 0
-        quote = None  # '"' or "'" while inside that literal
-        while i < len(raw):
-            c = raw[i]
-            if in_block:
-                if raw[i:i + 2] == '*/':
-                    in_block = False
-                    i += 2
-                    continue
-                i += 1
-                continue
-            if quote:
-                if c == '\\':
-                    kept.append('  ')
-                    i += 2
-                    continue
-                if c == quote:
-                    quote = None
-                    kept.append(c)
-                else:
-                    kept.append(' ')
-                i += 1
-                continue
-            if c in '"\'':
-                quote = c
-                kept.append(c)
-                i += 1
-                continue
-            if raw[i:i + 2] == '//':
-                break
-            if raw[i:i + 2] == '/*':
-                in_block = True
-                i += 2
-                continue
-            kept.append(c)
-            i += 1
-        out.append(''.join(kept))
-    return out
 
 def env_call_completions(text):
     """Offsets of every setenv()/unsetenv() call's closing paren, wrapped
@@ -174,7 +128,7 @@ for arg in sys.argv[1:]:
         # strip that dominates the scan's cost.
         if 'setenv' not in raw:
             continue
-        lines = strip_comments_and_strings(raw.splitlines())
+        lines = blank_cxx_lines(raw.splitlines(), strings="body")
         text = '\n'.join(lines)
         completions = env_call_completions(text)
         starts = []

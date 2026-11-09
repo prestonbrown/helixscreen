@@ -813,9 +813,9 @@ TEST_CASE("The step index stays pinned to the model actually on screen",
     // (by the sidebar, at operation start) while the index is recomputed on
     // EVERY frame from whatever feeder_state_reported_/direction_reported_
     // read right then. A machine whose early frames carry `operation` without
-    // `feeder_open` gets a 2-step model (Dock/Pick); before the fix, the
-    // moment a later frame reported feeder_open for the FIRST time, the index
-    // computation would silently start resolving against the 4-step
+    // `feeder_open` gets a 2-step model (Dock/Pick). When a later frame
+    // reports feeder_open for the FIRST time, the index computation must not
+    // silently start resolving against the 4-step
     // Release/Dock/Pick/Grip sequence instead - landing "dropping" on index 1
     // (Pick, on the model actually rendered) instead of 0 (Dock).
     ToolChangerHelper tc(4);
@@ -872,8 +872,8 @@ TEST_CASE("An aborted swap that ends with the head empty does not latch busy",
     // A real firmware unmount can end with the carriage empty and nothing to
     // re-grip, so the gripper stays open on the swap's LAST idle frame too -
     // the other helpers in this file always close it before ending, so this
-    // drives the backend through a real dropping frame first. Before the fix,
-    // the hold in apply_tool_sensor_locked() re-armed itself forever:
+    // drives the backend through a real dropping frame first. A hold in
+    // apply_tool_sensor_locked() can re-arm itself forever:
     // was_mid_operation is partly derived from the action the hold itself
     // sets, so every later idle+open frame satisfied the same condition that
     // created it and the backend never reached IDLE again.
@@ -897,7 +897,7 @@ TEST_CASE("An aborted swap that ends with the head empty does not latch busy",
     CHECK_FALSE(tc.get_system_info().is_busy());
 
     // A later swap must still get the ordinary hold on ITS OWN opening frame -
-    // the fix must not have removed the hold outright, and the bound must have
+    // the hold must not be removed outright, and the bound must have
     // reset rather than staying latched true from the aborted swap above.
     REQUIRE(tc.change_tool(1).success());
     tc.feed(

@@ -16,6 +16,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -96,6 +97,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
      */
     void set_discovered_tools(std::vector<std::string> tool_names);
 
+    /// Each tool's configured number, keyed by lowercased tool name (from
+    /// PrinterDiscovery::configured_tool_numbers()). A mapping reset returns
+    /// every tool to it.
+    void set_configured_tool_numbers(std::unordered_map<std::string, int> numbers);
+
     /// Tool names plus the feeder, tool sensor, swap commands and material
     /// source resolved from discovery.
     void set_discovery(const helix::PrinterDiscovery& discovery) override;
@@ -109,12 +115,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// list - which keeps the edit dropdown unrestricted, like every other
     /// backend that treats material as a free-form label.
     [[nodiscard]] std::optional<std::vector<std::string>> get_supported_materials() const override;
-
-    /// True once a frame has carried the firmware's slots AND palette: only
-    /// then can an edit be snapped into the palette and normalized into the
-    /// types before it is sent. Before that, an edit stays local as on any
-    /// tool changer.
-    [[nodiscard]] bool firmware_stores_color_and_material(int slot_index) const override;
 
     /// Constant capability answers; see BackendTraits.
     static constexpr BackendTraits kTraits = [] {
@@ -157,10 +157,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {
-        if (tool_feed_.present) {
-            return kTraitsWithFeed;
-        }
-        return mounts_to_feed_ ? kTraitsMountFeed : kTraits;
+        BackendTraits t = tool_feed_.present ? kTraitsWithFeed
+                          : mounts_to_feed_  ? kTraitsMountFeed
+                                             : kTraits;
+        t.tool_number_style = tool_number_style_;
+        return t;
     }
 
     /// Whether this machine moves filament only through the mounted tool
@@ -472,14 +473,12 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     void on_connection_lost() override;
 
     // Configuration
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
-    AmsSubscriptionBackend::IdentityWrite
-    write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) override;
-    void persist_slot_weight(int slot_index, float remaining_weight_g,
-                             float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
+
+    /// The T<n> record is a tool's only identity.
+    [[nodiscard]] bool lane_record_is_only_identity() const override {
+        return true;
+    }
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;
@@ -582,6 +581,15 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     [[nodiscard]] bool clears_override_without_slot() const override {
         return true;
     }
+
+    /// Whether this machine's firmware holds each head's colour and material
+    /// (a material source with a writer, whose slots and palette a frame has
+    /// carried): an edit writes them there, and the lane record copies them
+    /// from the firmware. Caller holds mutex_.
+    [[nodiscard]] bool firmware_holds_identity_locked() const;
+
+    /// Copy each head's firmware colour and material into its record.
+    void on_lane_records_read_locked() override;
     [[nodiscard]] std::optional<AmsAction> step_action_locked() const override {
         return step_action_;
     }
@@ -707,6 +715,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     void toast_unload_complete();
     /// @p heads as lane labels joined with ", " ("Tool 2, Tool 4").
     [[nodiscard]] std::string feed_lane_list(const std::vector<int>& heads) const;
+    /// "Tool 2", or "T1" in G-code style: how this backend's messages name a head.
+    [[nodiscard]] std::string head_label(int head) const;
     /// One toast about a run, with the no-LVGL test guard in one place.
     void show_feed_toast(const std::string& message, NoticeSeverity severity);
     /// Mirror the run onto the published action and step. Caller holds mutex_.
@@ -723,6 +733,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     [[nodiscard]] std::string park_gcode() const;
 
     bool mounts_to_feed_ = false;
+    /// toolchanger_addon::tool_number_style() of the discovered printer. Set
+    /// by set_discovery() before start(), read-only after.
+    helix::ui::ToolNumberStyle tool_number_style_ = helix::ui::ToolNumberStyle::Physical;
     /// A mount-to-feed load's purge past the nozzle, from the purge_length
     /// device setting. Guarded by mutex_.
     int purge_mm_ = helix::mount_feed::kDefaultPurgeMm;
@@ -863,6 +876,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// Each head's material and colour as the firmware last stated them, so a
     /// frame restating them is not taken for a change.
     std::vector<std::optional<std::pair<std::string, std::uint32_t>>> firmware_slot_values_;
+    /// Per head, the material and colour the firmware states for a head that
+    /// holds filament; what on_lane_records_read_locked() copies into the
+    /// record. Under mutex_.
+    std::vector<std::optional<std::pair<std::string, std::uint32_t>>> firmware_identity_;
     /// Each afclite lane's spool_id as last published, by lane name.
     std::unordered_map<std::string, int> afc_lane_spool_seen_;
     /// Latest per-dock occupancy from the dock sensors, indexed by slot: true
@@ -1024,19 +1041,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// blanks every identity field: nothing will restate them.
     void clear_override_fields(SlotInfo& slot) const override;
 
-    /// The shared lane_data namespace this backend co-authors. request_resync()
-    /// re-reads it only where firmware states no identity of its own.
-    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
-        return override_store_.get();
-    }
-
-    /// klipper-toolchanger reports no filament identity, so nothing here files
-    /// a vendor-cache reading from a status frame and the persisted record is
-    /// the lane's only account of what a slot holds.
-    [[nodiscard]] bool firmware_publishes_lane_identity() const override {
-        return false;
-    }
-
     /**
      * @brief Parse individual tool state from Moonraker JSON
      *
@@ -1085,6 +1089,37 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
      */
     [[nodiscard]] int find_slot_for_tool(const std::string& tool_name) const;
 
+    /**
+     * @brief The slot holding the tool klipper-toolchanger numbers `tool_number`
+     *
+     * Tool numbers can be gapped (T0, T2, T3), so a number is not a slot index.
+     * Once toolchanger.tool_numbers/tool_names have arrived they are the answer,
+     * remaps included, and a number they do not list seats no slot. Before
+     * that, the forward tool map, then the number itself.
+     *
+     * @note Must be called while holding mutex_.
+     */
+    [[nodiscard]] int slot_for_tool_number_locked(int tool_number) const;
+
+    /// The G-code number the printer's listing gives slot @p slot_index's
+    /// tool, -1 when the listing names no number for it. Caller holds mutex_.
+    [[nodiscard]] int listed_number_for_slot_locked(int slot_index) const;
+
+    /// Restate the tool map (badges and op-button lanes) from the printer's
+    /// listing, so each slot is badged with its tool's G-code number. False,
+    /// and the map untouched, when no complete listing has arrived. Caller
+    /// holds mutex_.
+    bool apply_listing_to_tool_map_locked();
+
+    /// Forget the tool listing and the home numbers taken from it, for a
+    /// connection or Klipper that may come back numbered differently. Caller
+    /// holds mutex_.
+    void clear_tool_listing_locked();
+
+    /// Seat current_tool/current_slot/filament_loaded from toolchanger.tool_number.
+    /// @note Must be called while holding mutex_.
+    void seat_tool_number_locked(int tool_number);
+
     // === Optimistic dispatch + macro-ack resolution =========================
     //
     // The only thing that can move the action off the value a dispatch sets is
@@ -1122,6 +1157,17 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
 
     // Tool changer specific state
     std::vector<std::string> tool_names_; ///< Tool names from discovery
+    /// klipper-toolchanger's listing, parallel arrays: listed_tool_names_[i]
+    /// ("tool T2") answers to listed_tool_numbers_[i]. Cached separately because
+    /// Moonraker sends only the one that changed.
+    std::vector<int> listed_tool_numbers_;
+    std::vector<std::string> listed_tool_names_;
+    /// Each tool's number in the first complete listing that named it, which
+    /// reset_tool_mappings() falls back to for a tool with no configured number.
+    std::map<std::string, int> home_tool_numbers_;
+    /// Configured numbers from [tool <name>] sections, lowercased names. They
+    /// outrank home_tool_numbers_, which a remap made before connecting skews.
+    std::unordered_map<std::string, int> configured_tool_numbers_;
 
     // Cached toolchanger state
     bool tools_initialized_{false}; ///< Have we received initial state?
