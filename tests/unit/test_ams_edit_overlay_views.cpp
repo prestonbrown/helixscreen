@@ -886,6 +886,30 @@ TEST_CASE_METHOD(BoxWinsFixture, "re-applying only a colour keeps the lane's tem
     CHECK(captured.slot_info.bed_temp == 77);
 }
 
+TEST_CASE_METHOD(BoxWinsFixture, "re-applying another vendor drops the lane's catalog product",
+                 "[ams_edit_overlay][box_wins]") {
+    SlotInfo lane = box_lane();
+    lane.material = "ASA";
+    lane.brand = "Polymaker";
+    lane.catalog_id = "polymaker-asa";
+    lane.product_name = "ASA";
+    lane.nozzle_temp_recommended = 255;
+    lane.nozzle_temp_min = 222;
+    lane.nozzle_temp_max = 233;
+    open(true, lane);
+    REQUIRE(access.spool_disagrees() == 1);
+
+    access.call_handle_reapply();
+    settle();
+
+    REQUIRE(fired);
+    CHECK(captured.slot_info.brand == "Elegoo");
+    CHECK(captured.slot_info.catalog_id.empty());
+    CHECK(captured.slot_info.product_name.empty());
+    CHECK(captured.slot_info.nozzle_temp_recommended == 0);
+    CHECK(captured.slot_info.nozzle_temp_min != 222);
+}
+
 TEST_CASE_METHOD(BoxWinsFixture, "a save on a disagreeing lane does not ask about the spool",
                  "[ams_edit_overlay][box_wins]") {
     open(true, box_lane());
