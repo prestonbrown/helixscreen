@@ -24,6 +24,12 @@ constexpr float kDotSlotClearance = 0.025f; // a solid web between a dot and a s
 constexpr int kSlotCount = 6;
 constexpr float kPi = 3.14159265358979f;
 
+// Six slots repeat every 60 degrees; the square dot lattice laid over them
+// only coincides again at 180.
+constexpr int kSlotPeriodPhases = 8;
+constexpr int kSlotAndDotPeriodPhases = 24;
+constexpr float kPhaseRadians = 7.5f * kPi / 180.0f;
+
 struct Dir {
     float u;
     float v;
@@ -109,6 +115,26 @@ float dot_coverage(float u, float v, float size, float skew) {
 
 } // namespace
 
+int spool_vent_phase_count(SpoolVentDetail detail) {
+    switch (detail) {
+    case SpoolVentDetail::Slots:
+        return kSlotPeriodPhases;
+    case SpoolVentDetail::SlotsAndDots:
+        return kSlotAndDotPeriodPhases;
+    case SpoolVentDetail::None:
+        break;
+    }
+    return 1;
+}
+
+void spool_vent_face_set_phase(SpoolVentFace& face, int phase) {
+    const int phases = spool_vent_phase_count(face.detail);
+    const int wrapped = ((phase % phases) + phases) % phases;
+    const float angle = static_cast<float>(wrapped) * kPhaseRadians;
+    face.rotation_cos = std::cos(angle);
+    face.rotation_sin = std::sin(angle);
+}
+
 SpoolVentDetail spool_vent_detail(int32_t size_px) {
     if (size_px >= kSpoolVentDotsMinPx)
         return SpoolVentDetail::SlotsAndDots;
@@ -120,8 +146,11 @@ SpoolVentDetail spool_vent_detail(int32_t size_px) {
 float spool_vent_coverage(const SpoolVentFace& face, float x, float y) {
     if (face.detail == SpoolVentDetail::None || face.size <= 0.0f || face.skew <= 0.0f)
         return 0.0f;
-    const float u = (x - face.cx) / face.skew;
-    const float v = y - face.cy;
+    const float screen_u = (x - face.cx) / face.skew;
+    const float screen_v = y - face.cy;
+    // The pattern is defined at rest: look the point up in the unturned face.
+    const float u = screen_u * face.rotation_cos + screen_v * face.rotation_sin;
+    const float v = screen_v * face.rotation_cos - screen_u * face.rotation_sin;
     // Nothing opens outside the ring the slots and dots occupy, widened by the
     // anti-aliased edge (one screen pixel, up to 1 / skew face units).
     const float edge = 1.0f / face.skew;

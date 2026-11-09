@@ -133,10 +133,12 @@ struct SpoolCacheKey {
     SpoolGlow glow;
     uint32_t filament_hash = 0; // multi-colour list and finish; 0 for a plain single colour
     helix::ui::SpoolView view = helix::ui::SpoolView::Side;
+    uint8_t vent_phase = 0; // rotation of the vents; 0 unless the spool has turned
 
     bool operator==(const SpoolCacheKey& o) const {
         return color_rgb == o.color_rgb && size == o.size && fill_bucket == o.fill_bucket &&
-               glow == o.glow && filament_hash == o.filament_hash && view == o.view;
+               glow == o.glow && filament_hash == o.filament_hash && view == o.view &&
+               vent_phase == o.vent_phase;
     }
 };
 
@@ -146,7 +148,7 @@ struct SpoolCacheKeyHash {
         return (static_cast<size_t>(k.color_rgb) * 0x9E3779B1u) ^
                (static_cast<size_t>(k.size) << 17) ^ (static_cast<size_t>(k.glow) << 8) ^
                static_cast<size_t>(k.fill_bucket) ^ (static_cast<size_t>(k.filament_hash) << 3) ^
-               (static_cast<size_t>(k.view) << 29);
+               (static_cast<size_t>(k.view) << 29) ^ (static_cast<size_t>(k.vent_phase) << 11);
     }
 };
 
@@ -209,6 +211,8 @@ struct SpoolCanvasData {
     std::vector<lv_color_t> colors;
     helix::ui::SwatchFinish finish = helix::ui::SwatchFinish::Plain;
     helix::ui::SpoolView view = helix::ui::SpoolView::Side;
+    helix::ui::SpoolSpin spin;
+    int vent_phase = 0; ///< current rotation, kept across a stop so the vents hold still
 
     // Last-rendered key, for dedup (idea #1). Valid only when has_rendered.
     SpoolCacheKey last_key{0, 0, 0, SpoolGlow::None};
@@ -790,7 +794,8 @@ static void render_front_pixels(SpoolCanvasData* data) {
 
     // Pass 2: the flange over it. Solid flange is smoked where filament lies
     // behind it; a vent shows what is behind at full strength.
-    const helix::ui::SpoolVentFace face{c, c, face_size, 1.0f, helix::ui::spool_vent_detail(size)};
+    helix::ui::SpoolVentFace face{c, c, face_size, 1.0f, helix::ui::spool_vent_detail(size)};
+    helix::ui::spool_vent_face_set_phase(face, data->vent_phase);
     const float lip = std::max(1.0f, face_size * kVentLipFraction);
     for (int32_t y = 0; y < lim; y++) {
         auto* row = row_of(y);
@@ -963,10 +968,11 @@ static void render_spool_pixels(SpoolCanvasData* data) {
 
         // Vents: the filament shows through where it is wound that far out,
         // the dark far flange where it is not.
-        const helix::ui::SpoolVentFace face{static_cast<float>(right_x) + 0.5f,
-                                            static_cast<float>(cy) + 0.5f, static_cast<float>(size),
-                                            helix::ui::tray::kDepthSkew,
-                                            helix::ui::spool_vent_detail(size)};
+        helix::ui::SpoolVentFace face{static_cast<float>(right_x) + 0.5f,
+                                      static_cast<float>(cy) + 0.5f, static_cast<float>(size),
+                                      helix::ui::tray::kDepthSkew,
+                                      helix::ui::spool_vent_detail(size)};
+        helix::ui::spool_vent_face_set_phase(face, data->vent_phase);
         const VentBacking wound{ams_draw::darken_color(filament_color, kVentFilamentShadeTop),
                                 ams_draw::darken_color(filament_color, kVentFilamentShadeBottom)};
         const VentBacking hollow{ams_draw::darken_color(back_color, kVentInsideShadeTop),
@@ -1024,12 +1030,15 @@ static bool redraw_spool_pixels(SpoolCanvasData* data) {
     if (!data || !data->canvas || !data->draw_buf)
         return false;
 
-    SpoolCacheKey key{color_to_rgb24(data->color),
-                      static_cast<uint16_t>(data->size),
-                      compute_fill_bucket(data->fill_level),
-                      SpoolGlow::None,
-                      filament_hash(*data),
-                      data->view};
+    SpoolCacheKey key{
+        color_to_rgb24(data->color),
+        static_cast<uint16_t>(data->size),
+        compute_fill_bucket(data->fill_level),
+        SpoolGlow::None,
+        filament_hash(*data),
+        data->view,
+        static_cast<uint8_t>(data->vent_phase % helix::ui::spool_vent_phase_count(
+                                                    helix::ui::spool_vent_detail(data->size)))};
 
     // Dedup: already rendered this bucketed state, nothing to do.
     if (data->has_rendered && data->last_key == key) {
@@ -1257,6 +1266,46 @@ void spool_canvas_set_filament(lv_obj_t* canvas, uint32_t rgb, const std::string
     data->colors = std::move(colors);
     data->finish = finish;
     redraw_spool(data);
+}
+
+// One step of a turning spool. Runs at LVGL's animation tick but acts only when
+// the phase changes, and only for a canvas on screen. The silhouette is the same
+// at every phase, so the glow bound to this spool is left alone.
+static void spool_spin_anim_cb(void* var, int32_t value) {
+    auto* canvas = static_cast<lv_obj_t*>(var);
+    SpoolCanvasData* data = get_data(canvas);
+    if (!data)
+        return;
+    const int phases = spool_vent_phase_count(spool_vent_detail(data->size));
+    const int phase = ((value % phases) + phases) % phases;
+    if (phase == data->vent_phase || !lv_obj_is_visible(canvas))
+        return;
+    data->vent_phase = phase;
+    redraw_spool_pixels(data);
+}
+
+void spool_canvas_set_spin(lv_obj_t* canvas, const SpoolSpin& spin) {
+    SpoolCanvasData* data = get_data(canvas);
+    if (!data || spin == data->spin)
+        return;
+    data->spin = spin;
+    lv_anim_delete(canvas, spool_spin_anim_cb);
+    const int phases = spool_vent_phase_count(spool_vent_detail(data->size));
+    if (spin.direction == 0 || phases <= 1)
+        return;
+
+    // Starts from the current phase, so a change of speed never jumps the vents.
+    const int32_t from = data->vent_phase;
+    const int32_t to = from + spin.direction * phases;
+    lv_anim_t anim;
+    lv_anim_init(&anim);
+    lv_anim_set_var(&anim, canvas);
+    lv_anim_set_values(&anim, from, to);
+    lv_anim_set_duration(&anim, static_cast<uint32_t>(spin.step_ms) * phases);
+    lv_anim_set_repeat_count(&anim, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_set_path_cb(&anim, lv_anim_path_linear);
+    lv_anim_set_exec_cb(&anim, spool_spin_anim_cb);
+    lv_anim_start(&anim);
 }
 
 void spool_canvas_set_view(lv_obj_t* canvas, SpoolView view) {

@@ -238,6 +238,7 @@ struct LaneSpoolData {
     helix::ui::LaneState lane_state = helix::ui::LaneState::Empty;
     uint32_t color_int = 0x808080;
     helix::ui::SpoolHighlight highlight = helix::ui::SpoolHighlight::None;
+    helix::ui::SpoolSpin spin;
 
     SpoolVisual sv; ///< Layer handles (3D canvas or flat rings + placeholder + dot).
 
@@ -746,6 +747,15 @@ void ams_lane_spool_set_size(lv_obj_t* spool, int32_t spool_size) {
     spool_visual_set_fill(data->sv, data->fill_level);
     apply_lane_state(data, data->lane_state); // also the glow and error dot
     apply_color(data, static_cast<int>(data->color_int));
+    spool_canvas_set_spin(data->sv.canvas, data->spin);
+}
+
+void ams_lane_spool_set_spin(lv_obj_t* spool, const SpoolSpin& spin) {
+    auto* data = get_lane_spool_data(spool);
+    if (!data)
+        return;
+    data->spin = spin;
+    spool_canvas_set_spin(data->sv.canvas, spin);
 }
 
 void ams_lane_spool_set_highlight(lv_obj_t* spool, SpoolHighlight highlight) {
