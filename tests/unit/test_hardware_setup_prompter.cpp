@@ -580,6 +580,33 @@ TEST_CASE_METHOD(TypeMismatchFixture,
     }
 }
 
+// A printer switch rebuilds PrinterState's subjects. The warning raised on the
+// next printer must still come down when its type is fixed elsewhere.
+TEST_CASE_METHOD(TypeMismatchFixture,
+                 "Type mismatch: after a printer switch a type change still takes the toast down",
+                 "[type-mismatch][hardware_setup][2087]") {
+    state().set_printer_type_sync(SAVED);
+    drain();
+    warn();
+    REQUIRE(toast_.has_value());
+
+    state().deinit_subjects();
+    state().init_subjects(true);
+    prompter_->reset_for_new_connection();
+    state().set_printer_type_sync(SAVED);
+    drain();
+
+    toast_.reset();
+    warn();
+    REQUIRE(toast_.has_value());
+    REQUIRE_FALSE(helix::ui::last_action_toast_dismissed());
+
+    set_config(helix::wizard::PRINTER_TYPE, DETECTED);
+    state().set_printer_type_sync(DETECTED);
+    drain();
+    CHECK(helix::ui::last_action_toast_dismissed());
+}
+
 // An answer for the saved type against an earlier detection does not spend a
 // warning about a different detected type (prestonbrown/helixscreen#2075).
 TEST_CASE_METHOD(TypeMismatchFixture,

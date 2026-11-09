@@ -171,7 +171,7 @@ class HardwareSetupPrompter {
     /// The review modal is up: set when it opens, cleared by either button and by any
     /// other dismissal.
     bool review_open_ = false;
-    /// Watches the printer type while a warning is pending; armed by the first warning.
+    /// Watches the printer type while a warning is pending; re-armed by every warning.
     ObserverGuard type_change_observer_;
 
     lv_timer_t* launch_timer_ = nullptr;

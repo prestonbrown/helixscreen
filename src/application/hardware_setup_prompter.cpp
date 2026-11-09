@@ -527,15 +527,15 @@ void HardwareSetupPrompter::warn_type_mismatch(TypeMismatchReview review) {
             settle_type_mismatch_on_close(gen);
         });
     review_handler_registered_ = true;
-    if (!type_change_observer_) {
-        auto& ps = get_printer_state();
-        type_change_observer_ = helix::ui::observe<const char*>(
-            ps.profile_state().get_printer_type_subject(), this,
-            [](HardwareSetupPrompter* self, const char* /*type*/) {
-                self->retire_warning_if_type_changed();
-            },
-            ps.get_subjects_lifetime());
-    }
+    // Armed on every warning: a printer switch rebuilds PrinterState's subjects, and a
+    // guard left on the old printer_type subject would watch nothing.
+    auto& ps = get_printer_state();
+    type_change_observer_ = helix::ui::observe<const char*>(
+        ps.profile_state().get_printer_type_subject(), this,
+        [](HardwareSetupPrompter* self, const char* /*type*/) {
+            self->retire_warning_if_type_changed();
+        },
+        ps.get_subjects_lifetime());
 
     const std::string action = fmt::format("{}:{}", kReviewPrinterTypeAction, generation);
     ui_notification_warning_with_action(lv_tr("Printer type mismatch"), message.c_str(),
