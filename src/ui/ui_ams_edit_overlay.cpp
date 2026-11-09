@@ -1992,13 +1992,21 @@ void AmsEditOverlay::handle_reapply_linked_spool() {
     remember_form_for_note_action();
     const SpoolInfo& spool = detail_original_;
     spdlog::info("[AmsEditOverlay] Re-applying spool {} to slot {}", spool.id, slot_index_);
-    if (!spool.material.empty() &&
-        !helix::text_io::equals_ignore_case(spool.material, working_info_.material)) {
+    // The lane's catalog product and its temperatures survive only a fix that keeps
+    // both the material and the vendor, such as a colour-only one.
+    const bool material_differs =
+        !spool.material.empty() &&
+        !helix::text_io::equals_ignore_case(spool.material, working_info_.material);
+    const bool vendor_differs = !spool.vendor.empty() && !helix::text_io::equals_ignore_case(
+                                                             spool.vendor, working_info_.brand);
+    if (material_differs) {
         working_info_.material = spool.material;
-        apply_material_defaults(spool.material);
     }
     if (!spool.vendor.empty()) {
         working_info_.brand = spool.vendor;
+    }
+    if (material_differs || vendor_differs) {
+        apply_material_defaults(working_info_.material);
     }
     working_info_.spool_name = spool.filament_name;
     uint32_t rgb = 0;
