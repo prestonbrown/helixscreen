@@ -115,7 +115,8 @@ class HardwareSetupPrompter {
 
     /// Remote-control demo: raise the mismatch warning for these names without the
     /// detection that decides it. @p open_review opens the review at once, skipping
-    /// the saved-type checks a demo's names would fail against the mock's config.
+    /// the saved-type checks a demo's names would fail against the mock's config. A
+    /// type change does not retire the demo's toast.
     void show_type_mismatch_demo(const std::string& detected, int confidence,
                                  const std::string& saved, bool open_review);
 
@@ -135,7 +136,9 @@ class HardwareSetupPrompter {
     void launch_deferred_hardware_setup();
     void settle_deferred_hardware_setup();
     void maybe_warn_type_mismatch(const PrinterDiscovery& hardware);
-    void warn_type_mismatch(TypeMismatchReview review);
+    /// @p retire_on_type_change watches the printer type and takes the toast down
+    /// once the saved type is no longer the one warned about.
+    void warn_type_mismatch(TypeMismatchReview review, bool retire_on_type_change = true);
     /// Build the review modal for the pending warning, unless one is already open.
     void open_type_mismatch_review();
     void launch_type_reidentify_wizard();

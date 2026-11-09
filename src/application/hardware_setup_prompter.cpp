@@ -500,7 +500,8 @@ void HardwareSetupPrompter::maybe_warn_type_mismatch(const helix::PrinterDiscove
     warn_type_mismatch({offered, detected.confidence, saved});
 }
 
-void HardwareSetupPrompter::warn_type_mismatch(TypeMismatchReview review) {
+void HardwareSetupPrompter::warn_type_mismatch(TypeMismatchReview review,
+                                               bool retire_on_type_change) {
     const std::string message = type_mismatch_toast_text(review.saved, review.detected);
     pending_review_ = std::move(review);
     const uint32_t generation = ++review_generation_;
@@ -529,13 +530,17 @@ void HardwareSetupPrompter::warn_type_mismatch(TypeMismatchReview review) {
     review_handler_registered_ = true;
     // Armed on every warning: a printer switch rebuilds PrinterState's subjects, and a
     // guard left on the old printer_type subject would watch nothing.
-    auto& ps = get_printer_state();
-    type_change_observer_ = helix::ui::observe<const char*>(
-        ps.profile_state().get_printer_type_subject(), this,
-        [](HardwareSetupPrompter* self, const char* /*type*/) {
-            self->retire_warning_if_type_changed();
-        },
-        ps.get_subjects_lifetime());
+    if (retire_on_type_change) {
+        auto& ps = get_printer_state();
+        type_change_observer_ = helix::ui::observe<const char*>(
+            ps.profile_state().get_printer_type_subject(), this,
+            [](HardwareSetupPrompter* self, const char* /*type*/) {
+                self->retire_warning_if_type_changed();
+            },
+            ps.get_subjects_lifetime());
+    } else {
+        type_change_observer_.reset();
+    }
 
     const std::string action = fmt::format("{}:{}", kReviewPrinterTypeAction, generation);
     ui_notification_warning_with_action(lv_tr("Printer type mismatch"), message.c_str(),
@@ -597,7 +602,9 @@ void HardwareSetupPrompter::show_type_mismatch_review(uint32_t generation) {
 
 void HardwareSetupPrompter::show_type_mismatch_demo(const std::string& detected, int confidence,
                                                     const std::string& saved, bool open_review) {
-    warn_type_mismatch({detected, confidence, saved});
+    // The demo's saved name is not the configured type, so watching the type would
+    // retire its toast on the observer's first notification.
+    warn_type_mismatch({detected, confidence, saved}, false);
     if (open_review) {
         open_type_mismatch_review();
     }

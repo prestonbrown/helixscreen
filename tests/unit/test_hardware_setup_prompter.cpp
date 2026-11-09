@@ -581,6 +581,18 @@ TEST_CASE_METHOD(TypeMismatchFixture,
     CHECK(helix::ui::last_action_toast_dismissed());
 }
 
+// `ctl demo type-mismatch-*` names a saved type the config does not hold. Its
+// toast must stay up for the screenshot it exists to take.
+TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: the demo keeps its own toast up",
+                 "[type-mismatch][hardware_setup][2087]") {
+    state().set_printer_type_sync(SAVED);
+    drain();
+    prompter_->show_type_mismatch_demo(DETECTED, 92, "Not The Configured Printer", false);
+    drain();
+    REQUIRE(toast_.has_value());
+    CHECK_FALSE(helix::ui::last_action_toast_dismissed());
+}
+
 // An answer for the saved type against an earlier detection does not spend a
 // warning about a different detected type (prestonbrown/helixscreen#2075).
 TEST_CASE_METHOD(TypeMismatchFixture,
