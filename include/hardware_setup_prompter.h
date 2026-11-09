@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_observer_guard.h"
+
 #include "i_moonraker_api.h"
 #include "lvgl/lvgl.h"
 #include "wizard_step.h" // helix::wizard::StepId
@@ -145,6 +147,10 @@ class HardwareSetupPrompter {
     /// saved type. A spent warning is dropped here; @p what names the caller in
     /// the log line that says why nothing happened.
     bool pending_review_current(uint32_t generation, const char* what);
+    /// The printer type changed: a pending warning about the type it replaced is
+    /// spent, so its sticky toast comes down. The history entry stays, and its
+    /// Review then opens nothing.
+    void retire_warning_if_type_changed();
     /// Run @p launch once the confirming modal's exit animation is over. One launch is
     /// pending at a time; the destructor cancels it.
     void launch_after_modal_exit(void (HardwareSetupPrompter::*launch)());
@@ -165,6 +171,8 @@ class HardwareSetupPrompter {
     /// The review modal is up: set when it opens, cleared by either button and by any
     /// other dismissal.
     bool review_open_ = false;
+    /// Watches the printer type while a warning is pending; armed by the first warning.
+    ObserverGuard type_change_observer_;
 
     lv_timer_t* launch_timer_ = nullptr;
     void (HardwareSetupPrompter::*pending_launch_)() = nullptr;
