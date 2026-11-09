@@ -39,7 +39,7 @@ bool publishes_last_query(ProbeSensorType type) {
 
 /// The status fields a probe is subscribed to; last_query first, for the types
 /// that publish it.
-constexpr const char* kProbeStatusFields[] = {"last_query", "last_z_result", "z_offset"};
+constexpr const char* kProbeStatusFields[] = {"last_query", "last_z_result", "z_offset", "name"};
 
 // One physical probe can register several objects: Klipper's probe modules,
 // Beacon and Cartographer all also register the generic probe object. Keep the
@@ -205,22 +205,24 @@ void upgrade_klicky(std::vector<SensorEntry>& entries, const PrinterDiscovery& h
     }
 }
 
+/// The configured z_offset of config section @p section_name.
+std::optional<float> section_z_offset(const std::string& section_name, const PrinterDiscovery& hw) {
+    const nlohmann::json* section = hw.section(section_name);
+    if (section != nullptr && section->is_object()) {
+        return configured_z_offset(*section);
+    }
+    return std::nullopt;
+}
+
 /// The configured z_offset of @p name, or of a section folded into it.
 std::optional<float> seeded_z_offset(const std::string& name, const FoldedSections& folded,
                                      const PrinterDiscovery& hw) {
-    const auto from_section = [&hw](const std::string& section_name) -> std::optional<float> {
-        const nlohmann::json* section = hw.section(section_name);
-        if (section != nullptr && section->is_object()) {
-            return configured_z_offset(*section);
-        }
-        return std::nullopt;
-    };
-    if (const auto z_offset = from_section(name)) {
+    if (const auto z_offset = section_z_offset(name, hw)) {
         return z_offset;
     }
     if (name == folded.probe) {
         for (const auto& section_name : folded.sections) {
-            if (const auto z_offset = from_section(section_name)) {
+            if (const auto z_offset = section_z_offset(section_name, hw)) {
                 return z_offset;
             }
         }
@@ -234,6 +236,13 @@ void ProbeSensorManager::on_discovered(const PrinterDiscovery& hw) {
     auto& entries = entries_locked();
     const FoldedSections folded =
         fold_config_sections(entries, hw.objects_of({hw::ObjectKind::Probe}));
+    folded_probe_ = folded.probe;
+    folded_z_offsets_.clear();
+    for (const auto& section_name : folded.sections) {
+        if (const auto z_offset = section_z_offset(section_name, hw)) {
+            folded_z_offsets_[section_name] = *z_offset;
+        }
+    }
     drop_alias_objects(entries);
     upgrade_klicky(entries, hw);
     apply_type_override_locked();
@@ -243,7 +252,9 @@ void ProbeSensorManager::on_discovered(const PrinterDiscovery& hw) {
     // null (flashforge_loadcell); the configfile always has the persisted value.
     for (const auto& entry : entries) {
         if (const auto z_offset = seeded_z_offset(entry.klipper_name, folded, hw)) {
-            readings_[entry.klipper_name].z_offset = *z_offset;
+            ProbeSensorState& state = readings_[entry.klipper_name];
+            state.z_offset = *z_offset;
+            state.z_offset_known = true;
             spdlog::debug("[ProbeSensorManager] Seeded z_offset={:.3f}mm from config for {}",
                           *z_offset, entry.display_name);
         }
@@ -310,9 +321,21 @@ bool ProbeSensorManager::parse_status(const nlohmann::json& status) {
         if (z != sensor->end() && z->is_number()) {
             state.last_z_result = z->get<float>();
         }
+        // A probe built from several folded sections (one inductance_coil per
+        // U1 head) names the one in use; its configured offset applies until
+        // the module publishes a live one.
+        const auto active = sensor->find("name");
+        if (entry.klipper_name == folded_probe_ && active != sensor->end() && active->is_string()) {
+            const auto configured = folded_z_offsets_.find(active->get<std::string>());
+            if (configured != folded_z_offsets_.end()) {
+                state.z_offset = configured->second;
+                state.z_offset_known = true;
+            }
+        }
         const auto offset = sensor->find("z_offset");
         if (offset != sensor->end() && offset->is_number()) {
             state.z_offset = offset->get<float>();
+            state.z_offset_known = true;
         }
         // Klipper publishes a bool, Cartographer an int.
         const auto query = sensor->find("last_query");
@@ -321,7 +344,7 @@ bool ProbeSensorManager::parse_status(const nlohmann::json& status) {
         }
 
         if (state.last_z_result != before.last_z_result || state.triggered != before.triggered ||
-            state.z_offset != before.z_offset) {
+            state.z_offset != before.z_offset || state.z_offset_known != before.z_offset_known) {
             changed = true;
             spdlog::debug("[ProbeSensorManager] Sensor {} updated: last_z_result={:.3f}mm, "
                           "last_query={}, z_offset={:.3f}mm",
@@ -379,6 +402,12 @@ float ProbeSensorManager::get_z_offset() const {
     std::lock_guard<std::recursive_mutex> lock(mutex());
     const auto* reading = z_probe_reading_locked();
     return reading ? reading->z_offset : 0.0f;
+}
+
+bool ProbeSensorManager::has_z_offset() const {
+    std::lock_guard<std::recursive_mutex> lock(mutex());
+    const auto* reading = z_probe_reading_locked();
+    return reading != nullptr && reading->z_offset_known;
 }
 
 lv_subject_t* ProbeSensorManager::get_probe_z_offset_subject() {

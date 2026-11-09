@@ -212,8 +212,19 @@ std::string strip_trailing_slash(const std::string& path) {
 std::string write_target(const std::string& path) {
     if (!hfs::is_symlink(path))
         return path;
-    auto real = hfs::canonical(path);
-    return real ? *real : path;
+    if (auto real = hfs::canonical(path))
+        return *real;
+    // Dangling: the file the link names, so the save re-creates it and the link
+    // stays. A destination whose directory is gone has nothing to re-create.
+    const auto dest = hfs::read_symlink(path);
+    if (!dest || dest->empty())
+        return path;
+    const std::string resolved =
+        (*dest)[0] == '/' ? *dest : hfs::join_path(std::string(hfs::parent_path(path)), *dest);
+    // A destination with no directory part sits in the current directory.
+    const std::string_view parent = hfs::parent_path(resolved);
+    return hfs::is_directory(parent.empty() ? std::string(".") : std::string(parent)) ? resolved
+                                                                                      : path;
 }
 
 } // namespace helix::paths

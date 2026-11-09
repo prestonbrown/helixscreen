@@ -1238,7 +1238,9 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     void log_seated_state_locked(const char* where) const;
 
   private:
-    void check_action_timeout();
+    /// @p zmod_change_ending: the status frame being handled ends the Z-Mod
+    /// change itself, so Klipper reading idle in it is that change finishing.
+    void check_action_timeout(bool zmod_change_ending = false);
     // Reset the indeterminate ("Working…") no-progress clock. Called on every
     // genuine load/unload progress signal. Caller must hold mutex_.
     void note_phase_progress_locked();
@@ -1651,6 +1653,9 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     bool zmod_change_owns_action_ = false;
     /// Whether that change started while a job held the machine. Guarded by mutex_.
     bool zmod_change_in_job_ = false;
+    /// Klipper's idle_timeout has read Printing since that change started.
+    /// Guarded by mutex_.
+    bool zmod_change_saw_busy_ = false;
     /// A change that aborts mid-chain never reaches END_CHANGE_FILAMENT, so
     /// last_data.channel stays set. Once released for that, the channel is
     /// ignored until it next reads idle. Guarded by mutex_.

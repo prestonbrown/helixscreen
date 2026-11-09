@@ -37,6 +37,8 @@ class ProbeSensorManagerTestAccess {
         SensorManagerTestAccess::reconcile(obj, {});
         std::lock_guard<std::recursive_mutex> lock(obj.mutex());
         obj.readings_.clear();
+        obj.folded_probe_.clear();
+        obj.folded_z_offsets_.clear();
         obj.type_override_ = ProbeSensorType::STANDARD;
         obj.set_sync_mode(true);
         if (obj.subjects_initialized()) {
@@ -452,6 +454,7 @@ TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - z_offset subject"
     SECTION("Shows -1 when no sensor holds Z_PROBE") {
         REQUIRE(z_offset_subject() == -1);
         REQUIRE(mgr().get_z_offset() == 0.0f);
+        REQUIRE_FALSE(mgr().has_z_offset());
     }
 
     SECTION("Follows the holder in microns") {
@@ -638,6 +641,75 @@ TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - config-only probe
         REQUIRE(z_state()->z_offset == Catch::Approx(-2.0f));
     }
 
+    // A Snapmaker U1 configures its probe as one [inductance_coil <extruder>] per
+    // head and has no [probe] section; the probe object names the first head's coil.
+    SECTION("inductance_coil sections beside the probe object feed its z_offset") {
+        discover({"probe", "inductance_coil extruder", "inductance_coil extruder1",
+                  "inductance_coil extruder2", "inductance_coil extruder3", "extruder"},
+                 json{{"inductance_coil extruder", {{"z_offset", "-0.05"}}},
+                      {"inductance_coil extruder1", {{"z_offset", "0.0"}}},
+                      {"inductance_coil extruder2", {{"z_offset", "0.0"}}},
+                      {"inductance_coil extruder3", {{"z_offset", "0.0"}}}});
+        REQUIRE(mgr().sensor_count() == 1);
+        auto configs = mgr().get_sensors();
+        REQUIRE(configs[0].klipper_name == "probe");
+        REQUIRE(configs[0].type == ProbeSensorType::EDDY_CURRENT);
+        REQUIRE(mgr().has_z_offset());
+        REQUIRE(mgr().get_z_offset() == Catch::Approx(-0.05f));
+
+        // The U1's probe publishes no z_offset: the configured one stays.
+        json status;
+        status["probe"]["name"] = "inductance_coil extruder";
+        status["probe"]["last_z_result"] = 0.0f;
+        status["probe"]["z_offset"] = nullptr;
+        mgr().update_from_status(status);
+        REQUIRE(mgr().get_z_offset() == Catch::Approx(-0.05f));
+        REQUIRE(z_offset_subject() == -50);
+    }
+
+    // Each U1 head has its own coil and offset; the probe status names the active one.
+    SECTION("the coil the probe status names supplies the z_offset") {
+        discover({"probe", "inductance_coil extruder", "inductance_coil extruder1",
+                  "inductance_coil extruder2", "inductance_coil extruder3", "extruder"},
+                 json{{"inductance_coil extruder", {{"z_offset", "-0.05"}}},
+                      {"inductance_coil extruder1", {{"z_offset", "-0.10"}}},
+                      {"inductance_coil extruder2", {{"z_offset", "-0.20"}}},
+                      {"inductance_coil extruder3", {{"z_offset", "-0.30"}}}});
+        REQUIRE(mgr().get_z_offset() == Catch::Approx(-0.05f));
+
+        json status;
+        status["probe"]["name"] = "inductance_coil extruder2";
+        status["probe"]["z_offset"] = nullptr;
+        mgr().update_from_status(status);
+        REQUIRE(mgr().get_z_offset() == Catch::Approx(-0.20f));
+        REQUIRE(z_offset_subject() == -200);
+
+        // A later update without a name keeps the active coil's offset.
+        json reading;
+        reading["probe"]["last_z_result"] = 0.1f;
+        mgr().update_from_status(reading);
+        REQUIRE(mgr().get_z_offset() == Catch::Approx(-0.20f));
+
+        // A tool change names another coil.
+        json change;
+        change["probe"]["name"] = "inductance_coil extruder3";
+        mgr().update_from_status(change);
+        REQUIRE(mgr().get_z_offset() == Catch::Approx(-0.30f));
+
+        // A name that is no folded section leaves the offset alone.
+        json other;
+        other["probe"]["name"] = "probe";
+        mgr().update_from_status(other);
+        REQUIRE(mgr().get_z_offset() == Catch::Approx(-0.30f));
+
+        // A live z_offset wins over the configured one.
+        json live;
+        live["probe"]["name"] = "inductance_coil extruder1";
+        live["probe"]["z_offset"] = -0.42f;
+        mgr().update_from_status(live);
+        REQUIRE(mgr().get_z_offset() == Catch::Approx(-0.42f));
+    }
+
     SECTION("with no probe object the section is the sensor") {
         discover({}, json{{"load_cell_probe", {{"z_offset", "0.5"}}}});
         REQUIRE(mgr().sensor_count() == 1);
@@ -814,8 +886,8 @@ TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - extra_subscriptio
     const auto subs_of = [&](const std::vector<std::string>& objects) {
         return mgr().extra_subscriptions(discovery_of(objects));
     };
-    const json full = json::array({"last_query", "last_z_result", "z_offset"});
-    const json no_query = json::array({"last_z_result", "z_offset"});
+    const json full = json::array({"last_query", "last_z_result", "z_offset", "name"});
+    const json no_query = json::array({"last_z_result", "z_offset", "name"});
 
     CHECK(subs_of({"bltouch"}) == json{{"bltouch", full}});
     CHECK(subs_of({"beacon"}) == json{{"beacon", no_query}});
@@ -856,6 +928,29 @@ TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - discovery seeds z
     SECTION("Ignores config for another sensor") {
         discover({"probe"}, json{{"unknown_sensor", {{"z_offset", "-0.5"}}}});
         REQUIRE(z_state()->z_offset == 0.0f);
+    }
+
+    SECTION("No section configures an offset: it is unknown, not zero") {
+        discover({"probe"});
+        REQUIRE(z_state().has_value());
+        REQUIRE_FALSE(mgr().has_z_offset());
+
+        json null_status;
+        null_status["probe"]["z_offset"] = nullptr;
+        mgr().update_from_status(null_status);
+        REQUIRE_FALSE(mgr().has_z_offset());
+
+        // A module that publishes its offset makes it known.
+        json status;
+        status["probe"]["z_offset"] = 0.0f;
+        mgr().update_from_status(status);
+        REQUIRE(mgr().has_z_offset());
+        REQUIRE(mgr().get_z_offset() == 0.0f);
+    }
+
+    SECTION("A non-numeric configured offset leaves it unknown") {
+        discover({"probe"}, json{{"probe", {{"z_offset", "oops"}}}});
+        REQUIRE_FALSE(mgr().has_z_offset());
     }
 
     SECTION("A probe whose status reports a null z_offset still shows the configured offset") {

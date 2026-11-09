@@ -125,6 +125,9 @@ ZColorSilentResult parse_zcolor_silent(const std::vector<std::string>& lines) {
                 slot.hex = rest.substr(last_slash + 1);
                 slot_lines_with_hex++;
             }
+            if (helix::zmod_color::is_unset_type(slot.material)) {
+                slot.material.clear();
+            }
             result.slots[static_cast<size_t>(n - 1)] = std::move(slot);
         }
     }
@@ -261,7 +264,7 @@ bool read_ifs_materials_object(const json& obj, ZColorSilentResult& result) {
             slot.material = type->get<std::string>();
             // The stock-UI unset sentinel, same one the zmod_color reader and
             // parse_adventurer_json normalise - a live "?" must never render.
-            if (slot.material == "?") {
+            if (helix::zmod_color::is_unset_type(slot.material)) {
                 slot.material.clear();
             }
         }
@@ -572,7 +575,7 @@ std::optional<AdventurerFile> parse_adventurer_json(const std::string& content) 
         }
         // Firmware-native unset sentinel: live stock ZMOD writes ffmType='?'
         // for an entry with no assigned material.
-        if (entry.type == "?")
+        if (helix::zmod_color::is_unset_type(entry.type))
             entry.type.clear();
         file.ports[static_cast<size_t>(port - 1)] = std::move(entry);
     }

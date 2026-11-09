@@ -499,6 +499,7 @@ Printer Events button shows the plugin's journal. `HELIX_MOCK_PLR` adds the `plr
 | `storage_auto_cleanup` | `plugin_features.storage_auto_cleanup`, off until Settings > System > Storage writes it |
 | `photos` | on unless `plugin_features.photos` is `false`. `HELIX_MOCK_PHOTOS=unavailable` reports it `available: false`, `reason: "snapshot_unreachable: ..."`, so the screen takes the photos |
 | `file_analysis`, `server_edits`, `config_edit`, `storage` | always on, `Ready` |
+| `signal_macro_migration` | on, `Ready`; `server.helix.signal_migration` answers `state: "nothing"` |
 
 The mock reports no `vendor_ad5x` or `vendor_ace` entry, so its AD5X and ACE backends poll as
 they do without the plugin. The mock has no `server.helix.config`, so a config edit falls back

@@ -1811,6 +1811,17 @@ class AmsBackend : public AmsCapabilityHost {
     virtual void on_klipper_restarted() {}
 
     /**
+     * @brief Klipper reads ready: the session's connect or a restart
+     *
+     * Fires once per klippy_state edge into READY, after on_klipper_restarted()
+     * on a restart edge, and never while the state stays READY. A backend
+     * started while Klipper was already ready has had no edge, so anything it
+     * owes a ready Klipper it sends from start() too. Main thread, from
+     * AmsState's klippy_state observer. Default: nothing to send.
+     */
+    virtual void on_klippy_ready() {}
+
+    /**
      * @brief The Moonraker connection dropped
      *
      * Nothing sent before the drop will be answered, and gcode cannot reach

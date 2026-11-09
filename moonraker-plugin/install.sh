@@ -43,11 +43,13 @@ EXIT_RELINK_NOT_OURS=4
 # Exit codes for --restart-moonraker (HelixPluginInstaller reads them), those
 # of moonraker_restart in helix_print_conf.sh:
 #   0 - Moonraker restarted and runs this tree's plugin
-#   3 - Moonraker needs a manual restart: it refused, did not restart, did
-#       not load the plugin, or runs the old one
+#   3 - Moonraker restarted but did not load the plugin, or runs the old one
 #   4 - a print is printing or paused; nothing restarted
 #   6 - the print state could not be read; nothing restarted
 #   7 - Moonraker does not answer
+#   8 - Moonraker does not name its own service, or its service restart does
+#       nothing, so only a reboot reloads it
+#   9 - Moonraker refused the restart; nothing restarted
 
 # Colors for output (works with printf)
 RED='\033[0;31m'
@@ -948,7 +950,8 @@ show_help() {
     printf '%s\n' "  --restart-moonraker     Restart Moonraker over its API so it loads the plugin"
     printf '%s\n' "                          on disk; exit 0 restarted, 3 needs a manual"
     printf '%s\n' "                          restart, 4 held off by a print, 6 print state unknown,"
-    printf '%s\n' "                          7 Moonraker not answering"
+    printf '%s\n' "                          7 Moonraker not answering, 8 only a reboot reloads"
+    printf '%s\n' "                          it, 9 Moonraker refused the restart"
     printf '%s\n' "  --help, -h              Show this help message"
     printf '\n'
     printf '%s\n' "Exit codes for --uninstall and --uninstall-auto:"

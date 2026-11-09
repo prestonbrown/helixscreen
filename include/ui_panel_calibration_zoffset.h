@@ -13,6 +13,7 @@
 #include "subject_managed_panel.h"
 #include "z_offset_utils.h"
 
+#include <optional>
 #include <string>
 
 namespace helix {
@@ -29,6 +30,7 @@ class PrinterState;
  * - PROBE_CALIBRATE: Klipper's PROBE_CALIBRATE -> TESTZ -> ACCEPT -> SAVE_CONFIG
  * - ENDSTOP: Z_ENDSTOP_CALIBRATE -> TESTZ -> ACCEPT -> SAVE_CONFIG
  * - FIRMWARE_MANAGED: G28 -> move to center -> G1 Z adjustments -> SET_GCODE_OFFSET
+ *   (a scanning probe runs PROBE_CALIBRATE's sequence with its own calibrate command)
  *
  * ## State Machine:
  * - IDLE: Shows instructions and Start button
@@ -177,6 +179,17 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     bool can_begin_now() const;
     /// Close the mounted-tool question, if it is open, without starting anything.
     void close_tool_confirm();
+    /// The printer's strategy as this panel runs it: a scanning probe runs its
+    /// own calibrate command even on a FIRMWARE_MANAGED printer
+    /// (zoffset_cal::run_strategy()). Read live from the profile and the probe list.
+    helix::ZOffsetCalibrationStrategy resolve_run_strategy() const;
+    /// The strategy of the run in progress, latched when it starts, so a probe
+    /// rediscovery mid-session cannot switch its jogs, Accept or Abort to another
+    /// strategy's commands; resolve_run_strategy() while no run is latched.
+    helix::ZOffsetCalibrationStrategy run_strategy() const;
+    /// Fix the strategy for the run starting now. Released when the panel
+    /// reaches IDLE, COMPLETE or ERROR.
+    void latch_run_strategy();
     void begin_probe_sequence(); ///< Start homing/probing (called after warming or directly)
     void adjust_z(float delta);
     void send_accept();
@@ -208,6 +221,7 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     // Current Z position during calibration
     float current_z_ = 0.0f;
     float final_offset_ = 0.0f;
+    std::optional<helix::ZOffsetCalibrationStrategy> latched_strategy_;
     float cumulative_z_delta_ = 0.0f; ///< Tracks total Z adjustment in gcode_offset mode
 
     // Warm bed for calibration

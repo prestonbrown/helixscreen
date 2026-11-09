@@ -659,7 +659,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
                 {"enabled", fit_opt_in.is_boolean() && fit_opt_in.get<bool>()},
                 {"reason", nullptr}};
             // The rest of what the plugin ships, each on and running.
-            for (const char* name : {"file_analysis", "server_edits", "config_edit", "storage"}) {
+            for (const char* name : {"file_analysis", "server_edits", "config_edit", "storage",
+                                     "signal_macro_migration"}) {
                 response["result"]["features"][name] = {
                     {"version", 1}, {"available", true}, {"enabled", true}, {"reason", nullptr}};
             }
@@ -718,6 +719,34 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
             success_cb(
                 json{{"jsonrpc", "2.0"},
                      {"result", {{"job_id", job_id}, {"enabled", true}, {"record", record}}}});
+        }
+        return true;
+    };
+
+    // server.helix.signal_migration - the plugin's last marker-block rename,
+    // present with the plugin: a mock config has no legacy blocks to rename.
+    registry["server.helix.signal_migration"] =
+        [](MoonrakerClientMock* /*self*/, const json& /*params*/,
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
+        const char* mode = std::getenv("HELIX_MOCK_HELIX_PLUGIN");
+        if ((mode && std::string(mode) == "disabled") ||
+            !helix::env_flag("HELIX_MOCK_HELIX_PLUGIN")) {
+            if (error_cb) {
+                error_cb(
+                    MoonrakerError::unknown("Method not found", "server.helix.signal_migration"));
+            }
+            return true;
+        }
+        const json report = {{"state", "nothing"},
+                             {"missing", json::array()},
+                             {"planned", json::array()},
+                             {"edited", json::array()},
+                             {"skipped", json::array()},
+                             {"failed", json::array()},
+                             {"at", static_cast<double>(std::time(nullptr))}};
+        if (success_cb) {
+            success_cb(json{{"jsonrpc", "2.0"}, {"result", report}});
         }
         return true;
     };

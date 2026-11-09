@@ -361,5 +361,5 @@ For developers and the technically curious:
 - **Implementation**: handled by the telemetry and crash-handling modules built into HelixScreen itself — no external agents, scripts, or third-party trackers are involved
 - **Crash handling**: written to keep working even while the app is crashing, so a crash is still captured and queued for sending
 - **Schema version**: `3` (all events include `schema_version` for forward compatibility)
-- **Local files**: telemetry_device.json (UUID + salt), telemetry_queue.json (event queue) and telemetry_snapshot.json (usage not yet reported) in the config directory; the enabled state is a setting in settings.json
+- **Local files**: telemetry_device.json (UUID + salt) in HelixScreen's state directory, kept out of the printer config folder that web UIs show and config backups upload (on a Raspberry Pi `/var/lib/helixscreen`, on printers the `helixscreen-state` directory beside the install); telemetry_queue.json (event queue) and telemetry_snapshot.json (usage not yet reported) in the config directory; the enabled state is a setting in settings.json
 - **Privacy policy**: [PRIVACY_POLICY.md](PRIVACY_POLICY.md)

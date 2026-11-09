@@ -1208,6 +1208,15 @@ if [ -z "${SSL_CERT_FILE:-}" ]; then
     fi
 fi
 
+# Z-Mod's own S80helixscreen never runs restore-user-config.sh, and its
+# Moonraker update rmtree()s the install root, config/ included. Relink the
+# user files from the state root before anything reads helixscreen.env or the
+# platform hooks. The script acts only on that layout (#2085).
+if [ -f "${INSTALL_DIR}/config/restore-user-config.sh" ]; then
+    HELIX_RESTORE_ZMOD_ONLY=1 IDIR="$INSTALL_DIR" \
+        sh "${INSTALL_DIR}/config/restore-user-config.sh" 2>/dev/null || true
+fi
+
 helix_load_env_file
 
 # Heap-corruption diagnostics on constrained embedded glibc platforms where

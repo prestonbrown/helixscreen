@@ -33,6 +33,21 @@ USER_VAL="${USER_VAL:-}"
 HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json pending_remap.json crash_history.json user_filaments.json .webcams_backup.json .camera_migrated .klipper_includes .k2cam_webcam_disabled .seeded_settings .platform_hook .nginx_webcam_accesslog .nginx_remote_screen .remote_screen_route"
 HELIX_USER_CONFIG_DIRS="custom_images themes printer_database.d"
 
+# Z-Mod (AD5X, AD5M) installs and launches HelixScreen itself at this root, and
+# its Moonraker type:web entry rmtree()s it on every update. There is no
+# printer_data helixscreen/ directory there to link into, so user files live in
+# the state root beside the payload instead (assets/config/platforms.json,
+# storage.user_config_dir). Both are overridable for the test suite only.
+HELIX_ZMOD_PAYLOAD_ROOT="${HELIX_ZMOD_PAYLOAD_ROOT:-/srv/helixscreen}"
+HELIX_ZMOD_USER_CONFIG_DIR="${HELIX_ZMOD_USER_CONFIG_DIR:-/srv/helixscreen-state/config}"
+
+# Echoes the Z-Mod user-config directory when IDIR is the Z-Mod payload root,
+# nothing otherwise.
+zmod_user_config_dir() {
+    [ "${IDIR%/}" = "${HELIX_ZMOD_PAYLOAD_ROOT%/}" ] || return 0
+    printf '%s' "$HELIX_ZMOD_USER_CONFIG_DIR"
+}
+
 # Locate printer_data/config/helixscreen/.
 #
 # The installer records the directory it resolved (HELIX_PD_HELIX_DIR, from the
@@ -159,7 +174,7 @@ restore_log() {
     if command -v logger >/dev/null 2>&1; then
         logger -t helixscreen "restore-user-config: $*" 2>/dev/null || true
     fi
-    echo "restore-user-config: $*"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') restore-user-config: $*"
 }
 
 # Write FILE's content to DEST through a temporary file, so DEST is never seen
@@ -236,9 +251,48 @@ restore_config_symlinks() {
     local install_config="${IDIR}/config"
     [ -d "$install_config" ] || return 0
 
-    local pd_helix
+    # move_all: every real user file moves to the store, not only the runtime
+    # state no zip ships. On the Z-Mod layout nothing else ever moves them, and a
+    # real file there is what the app is using, packaged or not.
+    local pd_helix move_all=""
     pd_helix=$(discover_pd_helix)
-    [ -n "$pd_helix" ] || return 0
+    if [ -z "$pd_helix" ]; then
+        pd_helix=$(zmod_user_config_dir)
+        [ -n "$pd_helix" ] || return 0
+        if [ ! -d "$pd_helix" ]; then
+            mkdir -p "$pd_helix" 2>/dev/null || return 0
+            restore_log "created $pd_helix for user config"
+        fi
+        move_all=1
+    fi
+
+    # Copy pass. A dotfile or pending_remap.json is runtime state no release
+    # zip ships. A real one here with nothing in the store was written before
+    # it was linked: copy it across so the next rmtree cannot take it. Only
+    # these: this runs after a zip extraction, so any other real file here is the release's default, not the user's (the
+    # installer's own migration, which runs on a tree the user has been editing,
+    # moves every file). Every copy is synced before the link pass below removes
+    # an original, so a power cut cannot leave an empty store file behind a
+    # good-looking link; an interrupted pass leaves two identical files, which
+    # the link pass settles. A failed copy leaves no store file, so it is not
+    # linked either.
+    local file copied=""
+    for file in $HELIX_USER_CONFIG_FILES; do
+        local pd_file="${pd_helix}/${file}"
+        local install_file="${install_config}/${file}"
+        local movable="$move_all"
+        case "$file" in
+            .*|pending_remap.json) movable=1 ;;
+        esac
+        if [ -n "$movable" ] && [ ! -e "$pd_file" ] && [ ! -L "$pd_file" ] \
+            && [ -f "$install_file" ] && [ ! -L "$install_file" ]; then
+            if atomic_copy "$install_file" "$pd_file"; then
+                restore_log "moved $file to $pd_helix"
+                copied=1
+            fi
+        fi
+    done
+    if [ -n "$copied" ]; then sync || true; fi
 
     for file in $HELIX_USER_CONFIG_FILES; do
         local pd_file="${pd_helix}/${file}"
@@ -251,20 +305,6 @@ restore_config_symlinks() {
             [ "$target" = "$pd_file" ] && continue
             rm -f "$install_file"
         fi
-
-        # A dotfile or pending_remap.json is runtime state no release zip ships.
-        # A real one here with nothing in printer_data was written before it was
-        # linked: move it across so the next rmtree cannot take it. Only these:
-        # this runs after a zip extraction, so any other real file here is the
-        # release's default, not the user's (the installer's own migration,
-        # which runs on a tree the user has been editing, moves every file).
-        case "$file" in
-            .*|pending_remap.json)
-                if [ ! -e "$pd_file" ] && [ -f "$install_file" ] && [ ! -L "$install_file" ]; then
-                    cp -p "$install_file" "$pd_file" 2>/dev/null || continue
-                fi
-                ;;
-        esac
 
         # The record exists only while a restore is owed, so an install that is
         # only ever updated by Moonraker needs an empty one to link before then.
@@ -279,6 +319,9 @@ restore_config_symlinks() {
         if [ -f "$pd_file" ]; then
             if [ -f "$install_file" ] && [ ! -L "$install_file" ]; then
                 reconcile_real_file "$file" "$install_file" "$pd_file"
+                # A merged ledger or a .pre-restore copy reaches the disk before
+                # the original it was made from goes.
+                sync || true
             fi
             rm -f "$install_file" 2>/dev/null
             ln -s "$pd_file" "$install_file" 2>/dev/null || true
@@ -315,6 +358,7 @@ restore_config_symlinks() {
         if [ -d "$install_dir_path" ] && [ ! -L "$install_dir_path" ]; then
             merge_config_dir "$install_dir_path" "$pd_dir" || continue
             config_dir_fully_merged "$install_dir_path" "$pd_dir" || continue
+            sync || true
             rm -rf "$install_dir_path" 2>/dev/null || continue
         elif [ -e "$install_dir_path" ]; then
             continue   # a plain file where we expect a directory — not ours to delete
@@ -350,6 +394,15 @@ restore_platform_hooks() {
         chown "$owner" "${IDIR}/platform" "$hooks" 2>/dev/null || true
     fi
 }
+
+# HELIX_RESTORE_ZMOD_ONLY=1 (the launcher's call) acts only on the Z-Mod
+# layout, whose own init script never runs this. Every other layout already ran
+# it from its init script or service units.
+if [ -n "${HELIX_RESTORE_ZMOD_ONLY:-}" ] && [ -z "${HELIX_RESTORE_LIB_ONLY:-}" ]; then
+    if [ -n "$(discover_pd_helix)" ] || [ -z "$(zmod_user_config_dir)" ]; then
+        exit 0
+    fi
+fi
 
 if [ -z "${HELIX_RESTORE_LIB_ONLY:-}" ]; then
     restore_config_symlinks || true

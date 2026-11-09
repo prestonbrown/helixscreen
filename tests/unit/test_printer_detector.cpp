@@ -579,6 +579,90 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     }
 }
 
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: a saved k2-improvements K2 Plus is never told it is stock",
+                 "[printer][detector][mismatch][k2][k2improvements][2087]") {
+    // Both mod entries score the definitive macro; whether the declared bed
+    // separates them or not, the saved mod entry is the answer, and the "set up
+    // as stock" wording needs a saved BASE entry, which this is not.
+    PrinterHardwareData hardware{
+        .heaters = {"extruder", "heater_bed", "heater_generic chamber_heater"},
+        .sensors = {"chamber_temp"},
+        .fans = {"chamber_fan"},
+        .leds = {},
+        .hostname = "K2Plus-50C1",
+        .printer_objects = {"box", "motor_control", "fan_feedback", "load_ai", "filament_rack",
+                            "heater_generic chamber_heater", "prtouch_v3",
+                            "gcode_macro _START_PRINT_VARS", "gcode_macro START_PRINT"},
+        .steppers = {},
+        .kinematics = "corexy",
+        .build_volume = {}};
+    hardware.objects_reported = true;
+
+    const float bed = GENERATE(0.0f, 350.0f);
+    if (bed > 0) {
+        hardware.build_volume = {.declared_bed_x = bed, .declared_bed_y = bed};
+    }
+    const auto result = PrinterDetector::detect(hardware);
+    CAPTURE(bed, result.type_name, result.confidence, result.runner_up_type_name,
+            result.runner_up_confidence, result.margin(), result.tied_count);
+
+    using PD = PrinterDetector;
+    const std::string saved = "Creality K2 Plus (k2-improvements)";
+    CHECK(PD::classify_type_mismatch(saved, result, {}) == PD::MismatchDecision::MatchesSavedType);
+    CHECK(PD::relate_types(saved, PD::mismatch_subject(saved, result)).relation !=
+          PD::TypeRelation::DetectedVariant);
+}
+
+TEST_CASE_METHOD(
+    PrinterDetectorFixture,
+    "PrinterDetector: Jacobean's K2 Plus firmware is its own entry, not k2-improvements",
+    "[printer][detector][mismatch][k2][k2improvements][2087]") {
+    // The replacement firmware ships a _START_PRINT_VARS of its own, the macro
+    // the k2-improvements entries read as definitive, and declares no bed
+    // through product_param. Its extended_zone_transform extra is what tells
+    // it apart. Two real units, two firmware builds, both saved as the stock
+    // K2 Plus.
+    const std::string capture = GENERATE(as<std::string>{}, "creality_k2_plus_jacobean",
+                                         "creality_k2_plus_jacobean_cartographer");
+    PrinterHardwareData hardware = printer_capture(capture);
+    REQUIRE(std::find(hardware.printer_objects.begin(), hardware.printer_objects.end(),
+                      "gcode_macro _START_PRINT_VARS") != hardware.printer_objects.end());
+    const bool reported = GENERATE(false, true);
+    hardware.objects_reported = reported;
+
+    const auto result = PrinterDetector::detect(hardware);
+    CAPTURE(capture, reported, result.type_name, result.confidence, result.runner_up_type_name,
+            result.runner_up_confidence, result.margin(), result.tied_count);
+
+    REQUIRE(result.type_name == "Creality K2 Plus (Jacobean firmware)");
+    CHECK(result.margin() >= PrinterDetector::kDetectMinMargin);
+    CHECK(PrinterDetector::meets_autosave_threshold(result));
+    CHECK(result.runner_up_type_name.find("k2-improvements") == std::string::npos);
+    for (const auto& contender : result.contenders) {
+        CHECK(contender.find("k2-improvements") == std::string::npos);
+    }
+
+    using PD = PrinterDetector;
+    SECTION("saved as the stock K2 Plus, it is offered the firmware by name") {
+        CHECK(PD::classify_type_mismatch("Creality K2 Plus", result, {}) ==
+              PD::MismatchDecision::Warn);
+        const auto rel = PD::relate_types("Creality K2 Plus", result.type_name);
+        CHECK(rel.relation == PD::TypeRelation::DetectedVariant);
+        CHECK(rel.detected_label == "Jacobean firmware");
+    }
+    SECTION("saved as k2-improvements, it is worded as the other firmware, not as stock") {
+        const auto rel = PD::relate_types("Creality K2 Plus (k2-improvements)", result.type_name);
+        CHECK(rel.relation == PD::TypeRelation::SiblingVariants);
+        CHECK(rel.saved_label == "k2-improvements");
+        CHECK(rel.detected_label == "Jacobean firmware");
+    }
+    SECTION("saved as itself, there is nothing to ask") {
+        CHECK(PD::classify_type_mismatch(result.type_name, result, {}) ==
+              PD::MismatchDecision::MatchesSavedType);
+    }
+}
+
 TEST_CASE("PrinterDetector: a tied model sharing the saved model's picture does not settle the tie",
           "[printer][detector][mismatch]") {
     // The Neptune 4 line shares one image across four sizes. A Max tied with
@@ -4618,4 +4702,21 @@ TEST_CASE_METHOD(
 
     get_printer_state().set_printer_type_sync("");
     TearDown();
+}
+
+TEST_CASE("PrinterDetector: maintenance defaults come from the database row",
+          "[printer_detector][maintenance]") {
+    const auto belt = static_cast<size_t>(helix::maintenance::MeterId::BeltTension);
+    SECTION("a Voron row turns the belt meter on") {
+        CHECK(PrinterDetector::get_maintenance_defaults("Voron 2.4")[belt].hours == 300);
+        CHECK(PrinterDetector::get_maintenance_defaults("Voron Trident")[belt].hours == 300);
+    }
+    SECTION("a printer without the field has no overrides") {
+        for (const auto& d : PrinterDetector::get_maintenance_defaults("Creality K1C"))
+            CHECK_FALSE(d.hours.has_value());
+    }
+    SECTION("an unknown printer has no overrides") {
+        for (const auto& d : PrinterDetector::get_maintenance_defaults("Not A Real Printer"))
+            CHECK_FALSE(d.hours.has_value());
+    }
 }

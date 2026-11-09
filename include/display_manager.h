@@ -684,6 +684,14 @@ class DisplayManager : public helix::ICalibrationSink {
     lv_obj_t* m_resize_screen = nullptr;
     // Its callback dereferences this manager, so it must not outlive it.
     helix::ui::LvglTimerGuard m_brightness_reassert_timer;
+    // Armed while the pointer device is gone, retrying the backend's reopen
+    // every kPointerReopenPeriodMs (#2069). Its callback dereferences this
+    // manager, so it must not outlive it.
+    helix::ui::LvglTimerGuard m_pointer_reopen_timer;
+    static constexpr uint32_t kPointerReopenPeriodMs = 1000;
+    // The scroll setup init() gave the pointer, for a reopened one to get the same.
+    int m_scroll_throw = 0;
+    int m_scroll_limit = 0;
 
     static void resize_event_cb(lv_event_t* e);
     void on_screen_size_changed(lv_obj_t* screen);
@@ -705,6 +713,13 @@ class DisplayManager : public helix::ICalibrationSink {
     /// the device is created.
     void watch_pointer();
     void watch_keyboard();
+
+    /// m_indev_delete_watch's callback for m_pointer: starts the reopen retry,
+    /// except while shutting down, when lv_deinit() is deleting every indev.
+    static void on_pointer_deleted(void* ctx, const lv_indev_t* indev);
+    /// One reopen attempt; on success adopts the device with init()'s pointer
+    /// setup and stops the retry. Named so a test can run it directly.
+    static void pointer_reopen_tick(lv_timer_t* t);
 
     /**
      * @brief Create the debug-touch ripple timer

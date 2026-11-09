@@ -10,6 +10,7 @@
 #include "ams_state.h"
 #include "ams_tool_map_sync.h"
 #include "app_constants.h"
+#include "app_globals.h"
 #include "color_utils.h"
 #include "core/text_io.h"
 #include "display_numbering.h"
@@ -173,6 +174,14 @@ void AmsBackendToolChanger::query_zmod_tool_state() {
     if (!api_ || !zmod_c5_row_active() || !tinfo_macro_present_) {
         return;
     }
+    // Klipper refuses gcode until it reads READY, and a backend can start
+    // ahead of that (#2091). on_klippy_ready() sends it on the edge instead.
+    if (!get_printer_state().are_subjects_initialized() ||
+        lv_subject_get_int(get_printer_state().network_state().get_klippy_state_subject()) !=
+            static_cast<int>(KlippyState::READY)) {
+        spdlog::debug("[AMS ToolChanger] T_INFO query waits for Klipper to read ready");
+        return;
+    }
     // Captureless callbacks only: the query is fire-and-forget (its answer
     // arrives on the console listener), and a failed probe is log-only —
     // claiming error ownership here would mute Klipper's own `!!` line.
@@ -182,6 +191,14 @@ void AmsBackendToolChanger::query_zmod_tool_state() {
             spdlog::debug("[AMS ToolChanger] T_INFO query refused: {}", err.message);
         },
         0, false, nullptr, /*caller_surfaces_errors=*/false);
+}
+
+void AmsBackendToolChanger::on_klippy_ready() {
+    // FIRMWARE_RESTART reloads the macros, and the first READY of a connect can
+    // land after start(): either way this query re-seeds the carriage reading.
+    if (is_running()) {
+        query_zmod_tool_state();
+    }
 }
 
 void AmsBackendToolChanger::on_stopping() {
@@ -194,7 +211,12 @@ void AmsBackendToolChanger::on_stopped() {
     // goes out while the connection may still carry it, and the run resets.
     // Here and not in on_stopping(): the unwind takes mutex_ and emits, and
     // stop() holds mutex_ across on_stopping().
-    abandon_feed_run_after_disconnect();
+    abandon_feed_run_after_disconnect(carriage_trusted_for_restore());
+}
+
+void AmsBackendToolChanger::before_disconnect() {
+    // A carriage swap would run with nothing left to watch it.
+    abandon_feed_run_after_disconnect(/*restore_carriage=*/false);
 }
 
 void AmsBackendToolChanger::register_zmod_marker_listener() {
@@ -238,14 +260,6 @@ void AmsBackendToolChanger::register_zmod_marker_listener() {
             token.defer("AmsBackendToolChanger::zmod_marker_apply",
                         [this, line = std::move(line)]() mutable { on_zmod_marker_line(line); });
         });
-
-    // FIRMWARE_RESTART reloads the macros; the tool-state query is what
-    // re-seeds the carriage reading after klippy comes back.
-    client_->register_method_callback(
-        "notify_klippy_ready", handler_name, [this, token](const json& /*msg*/) {
-            token.defer("AmsBackendToolChanger::zmod_klippy_ready_apply",
-                        [this]() { query_zmod_tool_state(); });
-        });
 }
 
 void AmsBackendToolChanger::unregister_zmod_marker_listener() {
@@ -253,7 +267,6 @@ void AmsBackendToolChanger::unregister_zmod_marker_listener() {
         return;
     }
     client_->unregister_method_callback("notify_gcode_response", "toolchanger_zmod_marker_watcher");
-    client_->unregister_method_callback("notify_klippy_ready", "toolchanger_zmod_marker_watcher");
 }
 
 void AmsBackendToolChanger::on_zmod_marker_line(const std::string& line) {
@@ -2068,6 +2081,7 @@ void AmsBackendToolChanger::send_feed_stage() {
     if (!feed_run_) {
         return;
     }
+    feed_heater_hold_.set(feed_run_->started());
     set_wait_watchdog(false);
     const std::optional<std::string> gcode = feed_run_->current_gcode();
     if (!gcode) {
@@ -2466,7 +2480,7 @@ void AmsBackendToolChanger::show_feed_toast(const std::string& message, NoticeSe
     publish_notice({severity, message});
 }
 
-void AmsBackendToolChanger::abandon_feed_run_after_disconnect() {
+void AmsBackendToolChanger::abandon_feed_run_after_disconnect(bool restore_carriage) {
     if (!feed_run_) {
         return;
     }
@@ -2475,7 +2489,7 @@ void AmsBackendToolChanger::abandon_feed_run_after_disconnect() {
     // reset the run now, rather than leaving a hot nozzle behind bookkeeping.
     spdlog::warn("[AMS ToolChanger] Backend stopping under a mount-to-feed run; sending the "
                  "cleanup and resetting the run");
-    feed_run_->abort(carriage_trusted_for_restore());
+    feed_run_->abort(restore_carriage);
     const std::optional<std::string> cleanup = feed_run_->current_gcode();
     reset_feed_run();
     if (cleanup) {
@@ -2579,6 +2593,7 @@ void AmsBackendToolChanger::owe_heaters_off(const std::vector<int>& heads) {
 
 void AmsBackendToolChanger::reset_feed_run() {
     feed_run_.reset();
+    feed_heater_hold_.set(false);
     feed_swap_check_.reset();
     feed_cancel_after_swap_ = false;
     set_swap_watchdog(false);

@@ -273,8 +273,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: active lane badge uses
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: a pooled badge follows the numbering",
                  "[ui][ams_mini][spool][zero-numbering]") {
+    helix::AmsState::instance().set_backend(nullptr); // only then does the widget number a badge
     ui_ams_mini_status_init();
     lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    helix::ui::UpdateQueue::instance().drain(); // flush stray auto-sync
     ui_ams_mini_status_set_slot_count(w, 2);
     ui_ams_mini_status_set_slot_label(w, 0, "PLA", 70);
     ui_ams_mini_status_set_width(w, 260);

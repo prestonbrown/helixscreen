@@ -69,48 +69,11 @@ void PostOpCooldownManager::schedule(std::string heater) {
             self.timer_ = nullptr;
         }
 
-        self.timer_ = lv_timer_create(
-            [](lv_timer_t* /*t*/) {
-                auto& self = PostOpCooldownManager::instance();
-                self.timer_ = nullptr;
-                const std::vector<std::string> heaters = std::move(self.heaters_);
-                self.heaters_.clear();
-
-                auto& state = get_printer_state();
-
-                // Skip while a job owns the toolhead. Preparing counts: a
-                // print that is starting will heat the nozzle itself, so cooling
-                // it down now is work the pre-start block immediately undoes.
-                const auto lifecycle = state.print_state().get_print_lifecycle();
-                if (job_holds_machine(lifecycle)) {
-                    spdlog::info("[PostOpCooldown] Skipping cooldown — print active");
-                    return;
-                }
-
-                auto& temps = state.temperature_state();
-                for (const std::string& heater : heaters) {
-                    // Check extruder target (decidegrees, > 0 means heater is on)
-                    auto* target_subj = heater.empty() ? temps.get_active_extruder_target_subject()
-                                                       : temps.get_extruder_target_subject(heater);
-                    if (!target_subj || lv_subject_get_int(target_subj) == 0) {
-                        spdlog::debug("[PostOpCooldown] Skipping {} — already off",
-                                      heater.empty() ? temps.active_extruder_name() : heater);
-                        continue;
-                    }
-
-                    spdlog::info("[PostOpCooldown] Turning off extruder heater ({})",
-                                 heater.empty() ? temps.active_extruder_name() : heater);
-                    if (auto* c = get_temperature_controller()) {
-                        if (heater.empty()) {
-                            c->set_target(helix::HeaterType::Nozzle, 0, {.toast = false});
-                        } else {
-                            c->set_target(heater, 0, {.toast = false});
-                        }
-                    }
-                }
-            },
-            static_cast<uint32_t>(delay_seconds) * 1000, nullptr);
+        self.timer_ =
+            lv_timer_create([](lv_timer_t* /*t*/) { PostOpCooldownManager::instance().fire(); },
+                            static_cast<uint32_t>(delay_seconds) * 1000, nullptr);
         lv_timer_set_repeat_count(self.timer_, 1);
+        self.heater_hold_.set(true);
     });
 }
 
@@ -127,6 +90,7 @@ void PostOpCooldownManager::cancel() {
             self.timer_ = nullptr;
         }
         self.heaters_.clear();
+        self.heater_hold_.set(false);
     });
 }
 
@@ -143,8 +107,59 @@ void PostOpCooldownManager::cancel(std::string heater) {
         if (self.heaters_.empty() && self.timer_) {
             lv_timer_delete(self.timer_);
             self.timer_ = nullptr;
+            self.heater_hold_.set(false);
         }
     });
+}
+
+void PostOpCooldownManager::fire() {
+    timer_ = nullptr;
+    const std::vector<std::string> heaters = std::move(heaters_);
+    heaters_.clear();
+
+    auto& state = get_printer_state();
+
+    // Skip while a job owns the toolhead. Preparing counts: a print that is
+    // starting will heat the nozzle itself, so cooling it down now is work the
+    // pre-start block immediately undoes.
+    const auto lifecycle = state.print_state().get_print_lifecycle();
+    if (job_holds_machine(lifecycle)) {
+        spdlog::info("[PostOpCooldown] Skipping cooldown — print active");
+        heater_hold_.set(false);
+        return;
+    }
+
+    auto& temps = state.temperature_state();
+    for (const std::string& heater : heaters) {
+        // Check extruder target (decidegrees, > 0 means heater is on)
+        auto* target_subj = heater.empty() ? temps.get_active_extruder_target_subject()
+                                           : temps.get_extruder_target_subject(heater);
+        if (!target_subj || lv_subject_get_int(target_subj) == 0) {
+            spdlog::debug("[PostOpCooldown] Skipping {} — already off",
+                          heater.empty() ? temps.active_extruder_name() : heater);
+            continue;
+        }
+
+        spdlog::info("[PostOpCooldown] Turning off extruder heater ({})",
+                     heater.empty() ? temps.active_extruder_name() : heater);
+        if (auto* c = get_temperature_controller()) {
+            if (heater.empty()) {
+                c->set_target(helix::HeaterType::Nozzle, 0, {.toast = false});
+            } else {
+                c->set_target(heater, 0, {.toast = false});
+            }
+        }
+    }
+    heater_hold_.set(false);
+}
+
+void PostOpCooldownManager::flush_before_disconnect() {
+    if (!initialized_ || !timer_) {
+        return;
+    }
+    spdlog::info("[PostOpCooldown] Disconnecting: running the pending cooldown now");
+    lv_timer_delete(timer_);
+    fire();
 }
 
 void PostOpCooldownManager::shutdown() {
@@ -158,6 +173,7 @@ void PostOpCooldownManager::shutdown() {
         lv_timer_delete(timer_);
         timer_ = nullptr;
     }
+    heater_hold_.set(false);
 
     initialized_ = false;
 }

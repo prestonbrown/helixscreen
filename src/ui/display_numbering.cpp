@@ -51,16 +51,6 @@ std::string tool_label(int gcode_tool) {
     return "T" + std::to_string(gcode_tool);
 }
 
-bool is_generated_tool_name(std::string_view name) {
-    if (name.size() < 2 || name[0] != 'T')
-        return false;
-    for (size_t i = 1; i < name.size(); ++i) {
-        if (name[i] < '0' || name[i] > '9')
-            return false;
-    }
-    return true;
-}
-
 std::string tool_number_text(ToolNumberStyle style, std::string_view name, int index) {
     if (index < 0)
         return {};

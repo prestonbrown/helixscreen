@@ -450,6 +450,15 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
         ps_subjects, ui::Dispatch::Immediate);
 #endif
 
+    print_has_thumbnail_observer_ = observe<int>(
+        printer_state_.print_state().get_print_has_thumbnail_subject(), this,
+        [](PrintStatusPanel* self, int /*has*/) {
+            if (self->is_active_) {
+                self->apply_gcode_viewer_pause();
+            }
+        },
+        ps_subjects);
+
     spdlog::debug("[{}] Subscribed to PrinterState subjects", get_name());
 
     // Subscribe to G-code render mode changes from settings panel
@@ -1582,10 +1591,13 @@ void PrintStatusPanel::apply_gcode_viewer_pause() {
     }
     const bool viewer_layer = lv_subject_get_int(&gcode_viewer_mode_subject_) != 0;
     const bool camera_covers = lv_subject_get_int(&camera_showing_subject_) != 0;
-    // The checklist is opaque but clips its corners, so LVGL never treats it
-    // as covering what lies beneath: without the pause, every redraw of the
-    // checklist renders the viewer under it too.
-    const bool checklist_covers = lv_subject_get_int(&preparing_visible_subject_) != 0;
+    // The checklist is opaque for a file with a thumbnail but clips its corners, so
+    // LVGL never treats it as covering what lies beneath: without the pause, every
+    // redraw of the checklist renders the viewer under it too. A file without one
+    // shows its toolpath through the list (#2057).
+    const bool checklist_covers =
+        lv_subject_get_int(&preparing_visible_subject_) != 0 &&
+        lv_subject_get_int(printer_state_.print_state().get_print_has_thumbnail_subject()) != 0;
     helix::ui::gcode_viewer_set_paused(gcode_viewer_,
                                        !viewer_layer || camera_covers || checklist_covers);
 }

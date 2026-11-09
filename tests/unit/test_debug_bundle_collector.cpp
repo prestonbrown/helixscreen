@@ -1181,12 +1181,13 @@ TEST_CASE_METHOD(
 TEST_CASE_METHOD(DebugBundleTestFixture,
                  "DebugBundleCollector: collect_device_id hashes the telemetry device id",
                  "[debug-bundle]") {
-    CHECK(helix::DebugBundleCollector::collect_device_id(temp_dir_.string()).empty());
+    const std::string device_file = (temp_dir_ / "telemetry_device.json").string();
+    CHECK(helix::DebugBundleCollector::collect_device_id(device_file).empty());
 
     write_file("telemetry_device.json",
                json{{"uuid", "550e8400-e29b-41d4-a716-446655440000"}, {"salt", "random_salt_value"}}
                    .dump());
-    auto result = helix::DebugBundleCollector::collect_device_id(temp_dir_.string());
+    auto result = helix::DebugBundleCollector::collect_device_id(device_file);
     REQUIRE_FALSE(result.empty());
     CHECK(result.find("550e8400") == std::string::npos); // never the raw UUID
 }

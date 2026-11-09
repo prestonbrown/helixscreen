@@ -190,6 +190,7 @@ translations:
   A print took the printer.: "Ein Druck hat den Drucker übernommen."
   A restart is already in progress: Ein Neustart läuft bereits
   A right, B left: "A rechts, B links"
+  A saturated filter stops trapping fumes and particles.: "Ein gesättigter Filter hält Dämpfe und Partikel nicht mehr zurück."
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : 'Ein Sensor, der den Abstand zum Heizbett misst. HelixScreen nutzt ihn für die Z-Offset-Kalibrierung und Sondentests im Sonden-Bildschirm.'
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'Ein Sensor, der die Lufttemperatur im Gehäuse misst. Beobachte sie im Kammertemperatur-Bildschirm.'
@@ -280,6 +281,7 @@ translations:
   Adjust screen brightness level: Bildschirmhelligkeit anpassen
   Adjust screws, then re-probe.: Schrauben einstellen, dann erneut prüfen.
   Adjust the other belt: "Anderen Riemen"
+  Adjust the tensioners until both belts match.: "Spanner einstellen, bis beide Riemen gleich sind."
   Adjustments stay active until restart. Save after print completes.: Anpassungen
     bleiben bis zum Neustart aktiv. Nach Druckende speichern.
   Adjusts individual characteristics of your heaters for optimal control: Passt individuelle
@@ -289,6 +291,7 @@ translations:
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: 'Nach dem Anschließen von {} empfehlen wir, Input Shaping neu zu kalibrieren, um die Druckqualität zu sichern.'
   After running the commands, tap Check Again below.: Tippen Sie nach Ausführung der
     Befehle unten auf Erneut prüfen.
+  Air filter: "Luftfilter"
   Alert: Alarm
   Alerts: Alarme
   Alerts and messages waiting for you: Wartende Alarme und Meldungen
@@ -356,7 +359,9 @@ translations:
   : 'Auf {} angewendet. Klipper vergisst den Wert beim Neustart: Trage {} als Pressure Advance im Filamentprofil deines Slicers ein oder speichere ihn auf der Spule.'
   Applies to: Gilt für
   Apply: Anwenden
+  Apply a thin film of the lubricant your manual names.: "Einen dünnen Film des im Handbuch genannten Schmiermittels auftragen."
   Apply start options to prints from other apps: 'Startoptionen auf Drucke aus anderen Apps anwenden'
+  Apply the lubricant your manual names, sparingly.: "Das im Handbuch genannte Schmiermittel sparsam auftragen."
   Aqua Surface: 'Wasseroberfläche'
   Archive: Archivieren
   Archive Spool?: Spule archivieren?
@@ -480,16 +485,20 @@ translations:
   Belt Tension: Riemenspannung
   Belt Tension Check: Riemenspannungsprüfung
   Belt Tension needs a CoreXY printer. This one is {}.: 'Die Riemenspannung benötigt einen CoreXY-Drucker. Dieser Drucker ist {}.'
+  Belt tension: "Riemenspannung"
   Belt tension and cutter calibration: "Riemenspannung und Schneider-Kalibrierung"
   Belt tensioning completed: "Riemenspannung abgeschlossen"
   'Belt tensioning failed: {}': "Riemenspannung fehlgeschlagen: {}"
+  Belts: "Riemen"
   Belts already match: "Riemen passen bereits"
+  Belts stretch and settle; loose ones cause ringing and layer shifts.: "Riemen dehnen und setzen sich; lockere verursachen Ringing und Layerversatz."
   Beta: Beta
   'Beta features: OFF': 'Beta-Funktionen: AUS'
   'Beta features: ON': 'Beta-Funktionen: EIN'
   Black: Schwarz
   Blade change and parking: 'Klingenwechsel und Parken'
   Blocked: Blockiert
+  Blow the dust out of the fans and vents.: "Staub aus Lüftern und Öffnungen blasen."
   Bluetooth: Bluetooth
   Bluetooth device not configured: Bluetooth-Gerät nicht konfiguriert
   Bluetooth initialization failed: Bluetooth-Initialisierung fehlgeschlagen
@@ -529,7 +538,9 @@ translations:
   Browse and run your Klipper macros: Klipper-Makros durchsuchen und ausführen
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: Anleitungen,
     Konfigurationsreferenzen und Fehlerbehebungsressourcen für HelixScreen durchsuchen.
+  Brush filament dust out of the extruder gears: "Filamentstaub aus den Extruderzahnrädern bürsten"
   Brush nozzle: 'Düse abbürsten'
+  Brush the gear teeth clean.: "Zahnräder sauber bürsten."
   Brush the mounted tool's nozzle clean: 'Düse des montierten Werkzeugs an der Bürste reinigen'
   Buffer: Puffer
   Buffer Status: Pufferstatus
@@ -741,6 +752,8 @@ translations:
   Check AFC configuration: 'Prüfen Sie die AFC-Konfiguration'
   Check Again: Erneut prüfen
   Check Klipper console for details: Details finden Sie in der Klipper-Konsole
+  Check both belts for wear and frayed edges.: "Beide Riemen auf Verschleiß und Ausfransen prüfen."
+  Check each fan spins freely.: "Prüfen, ob jeder Lüfter frei dreht."
   Check every dock: Jedes Dock prüfen
   Check extruder temperature and try again. Manual removal may be required.: Prüfen Sie die Extrudertemperatur und versuchen Sie es erneut. Eventuell ist eine manuelle Entfernung nötig.
   Check failed: Prüfung fehlgeschlagen
@@ -763,6 +776,7 @@ translations:
   : Weg vom Slot zum Hub auf Verheddern oder Widerstand prüfen. Fördert der Slot frei, sind womöglich der Hub-Sensor oder der Fördermotor defekt
   Check the provided value and try again: Prüfen Sie den angegebenen Wert und versuchen Sie es erneut
   Check the spool and the filament path for a jam, then retry: Spule und Filamentweg auf Blockaden prüfen, dann wiederholen
+  Check the tension of the motion belts: "Spannung der Antriebsriemen prüfen"
   Check your heater's rating (typically 40-60W for hotends): Heizleistung prüfen (typisch
     40-60W für Hotends)
   Checking: Prüfen
@@ -807,6 +821,9 @@ translations:
   Clean Nozzle: Düse reinigen
   Clean Up Storage: 'Speicher bereinigen'
   Clean a clogged nozzle, step by step: "Verstopfte Düse Schritt für Schritt reinigen"
+  Clean and lubricate the X and Y rails or rods: "X- und Y-Schienen oder -Stangen reinigen und schmieren"
+  Clean and lubricate the Z screws and guides: "Z-Spindeln und -Führungen reinigen und schmieren"
+  Clean dust from the mainboard and power supply fans: "Staub von Mainboard- und Netzteillüftern entfernen"
   Clean nozzle: 'Düse reinigen'
   Clean up: 'Bereinigen'
   Clean {}: '{} reinigen'
@@ -1202,6 +1219,7 @@ translations:
   Digital Clock: 'Digitaluhr'
   Direct drive: Direktantrieb
   'Direct drive: release the extruder tension and pull the filament out in one firm motion.': "Direktantrieb: Extruderspannung lösen und das Filament in einer kräftigen Bewegung herausziehen."
+  Dirty or dry Z screws bind, which shows up as uneven layer lines.: "Schmutzige oder trockene Z-Spindeln klemmen, sichtbar als ungleichmäßige Schichten."
   Disable: Deaktivieren
   Disable Bypass: Bypass deaktivieren
   Disable Motors?: Motoren deaktivieren?
@@ -1276,6 +1294,8 @@ translations:
   Duplicate: Duplizieren
   Duplicated: Dupliziert
   Duration: Dauer
+  Dust and old grease on the X and Y rails or rods cause noise, ringing and wear.: "Staub und altes Fett auf X/Y-Schienen oder -Stangen verursachen Lärm, Ringing und Verschleiß."
+  Dusty board and power supply fans run hot and fail early.: "Verstaubte Board- und Netzteillüfter werden heiß und fallen früh aus."
   E-Stop (M112): Notaus (M112)
   E-Stop Confirmation: Notaus-Bestätigung
   EDDY CURRENT: EDDY CURRENT
@@ -1305,6 +1325,7 @@ translations:
   Eject needs [force_move] enabled in printer config: Auswerfen erfordert [force_move]
     aktiviert in der Druckerkonfiguration
   Ejecting: Auswerfen
+  Electronics fans: "Elektroniklüfter"
   Elegoo Centauri Carbon: Elegoo Centauri Carbon
   Element: Element
   Emergency Stop: Notaus
@@ -1449,6 +1470,7 @@ translations:
   External Spool: Externe Spule
   External spool cleared: Externe Spule gelöscht
   External spool updated: Externe Spule aktualisiert
+  Extr.: "Extr."
   Extra distance to move once sensors clear: 'Zusätzlicher Weg, sobald die Sensoren frei sind'
   Extra prime to compensate ooze: Zusätzliches Primen zum Ausgleich von Auslaufen
   Extrude: Extrudieren
@@ -1665,6 +1687,7 @@ translations:
   Filament diameter sensors for flow compensation: Filamentdurchmessersensoren für
     Flusskompensation
   Filament didn't fully retract, may need manual removal: Filament wurde nicht vollständig eingezogen, eventuell von Hand entfernen
+  Filament dust packs into the drive gears and costs grip.: "Filamentstaub setzt sich in den Antriebsrädern fest und kostet Griff."
   Filament feeder: Filamentzuführung
   Filament is clear of the toolhead. Pull it out the rest of the way.: Das Filament ist frei vom Werkzeugkopf. Ziehen Sie es ganz heraus.
   Filament is dragging: Filament läuft schwergängig
@@ -1712,6 +1735,7 @@ translations:
   File not found on printer.: Datei auf dem Drucker nicht gefunden.
   'File not found: {}': 'Datei nicht gefunden: {}'
   Filename: Dateiname
+  Filter: "Filter"
   Filter Fan: 'Filterlüfter'
   Finding where the print stopped...: Suche, wo der Druck stehen blieb...
   Fine: Fein
@@ -1754,6 +1778,7 @@ translations:
   Focused: 'Fokussiert'
   Follow active tool: Aktivem Werkzeug folgen
   Follow graph screen: Diagrammbildschirm folgen
+  Follow your manual to swap the nozzle or hotend.: "Düse oder Hotend laut Handbuch wechseln."
   'For a first Z home: claim the tool you put on the head': 'Für die erste Z-Referenzfahrt: das Werkzeug übernehmen, das Sie an den Kopf gesetzt haben'
   For materials that need a warm enclosure, like ABS or ASA: 'Für Materialien, die ein warmes Gehäuse brauchen, wie ABS oder ASA'
   Force/weight sensors: 'Kraft-/Gewichtssensoren'
@@ -1857,6 +1882,7 @@ translations:
   Heat the bed to {}°C: Bett auf {}°C heizen
   Heat the chamber too: Kammer ebenfalls heizen
   Heat the extruder to at least {}°C before loading filament: Erhitzen Sie den Extruder vor dem Laden von Filament auf mindestens {}°C
+  Heat the hotend.: "Hotend aufheizen."
   Heat to at least %d°C for filament operations: Für Filamentvorgänge auf mindestens
     %d°C aufheizen
   Heat {} above {}°C before resuming: '{} vor dem Fortsetzen über {}°C aufheizen'
@@ -2241,6 +2267,7 @@ translations:
   Last 24 hours: 'Letzte 24 Stunden'
   Last 30 days: 'Letzte 30 Tage'
   Last 7 days: 'Letzte 7 Tage'
+  Last done at {} h: "Zuletzt bei {} h"
   Last measured: 'Zuletzt gemessen'
   Last print canceled: Letzter Druck abgebrochen
   Last print failed: Letzter Druck fehlgeschlagen
@@ -2413,6 +2440,7 @@ translations:
   Main LED Strip: Haupt-LED-Streifen
   Maintaining: Wird gehalten
   Maintenance: 'Wartung'
+  Maintenance Task: "Wartungsaufgabe"
   Make color, material and spool changes in Spoolman.: "Farbe, Material und Spule in Spoolman ändern."
   Make sure every nozzle is clean.: Stelle sicher, dass alle Düsen sauber sind.
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'Stelle sicher, dass kein Filament im Werkzeugkopf geladen ist: Es kann im Extruder weich werden, während das Heizbett heizt.'
@@ -2440,6 +2468,8 @@ translations:
   Marginal: Grenzwertig
   Mark a printer you enclosed yourself: Einen selbst eingehausten Drucker markieren
 
+  Mark done: "Erledigt"
+  Mark {} done?: "{} als erledigt markieren?"
   Master volume level: Hauptlautstärke
   Match Mode: 'Abgleichmodus'
   Match your typical print fan speed: Typische Drucklüftergeschwindigkeit einstellen
@@ -2466,6 +2496,7 @@ translations:
   Measure each toolhead's X, Y and Z offset (about 20 minutes): X-, Y- und Z-Offset jedes Werkzeugkopfs messen (etwa 20 Minuten)
   Measure every tool's XYZ offset automatically: Misst den XYZ-Offset jedes Werkzeugs automatisch
   Measure pressure advance automatically: 'Misst Pressure Advance automatisch'
+  Measure the tension with the Belt Tension tool, or as your manual shows.: "Spannung mit dem Riemenspannungs-Werkzeug messen oder wie im Handbuch gezeigt."
   Measure this zone first: "Erst diese Zone messen"
   ? Measure up from the plate. Sharp corners with no bulge and no gap mark the right K. Each row is a height range and the K the printer reported while it printed.
   : Von der Platte aus messen. Scharfe Ecken ohne Wulst und ohne Lücke zeigen das richtige K. Jede Zeile ist ein Höhenbereich mit dem K, das der Drucker dabei gemeldet hat.
@@ -2544,6 +2575,7 @@ translations:
     leicht greift, aber noch gleitet.
   Move selector: Selektor bewegen
   Move speed multipliers: 'Multiplikatoren der Verfahrgeschwindigkeit'
+  Move the toolhead end to end by hand to spread it.: "Werkzeugkopf von Hand hin und her bewegen, um es zu verteilen."
   'Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings.': 'Verfahren Sie den Druckkopf, referenzieren Sie Achsen, nivellieren Sie das Bett und justieren Sie Temperaturen, Lüfter und weitere Bewegungseinstellungen.'
   ? Moves the print head to measure vibration frequencies on each axis. Takes 2-3
     minutes. The printer will make noise — this is normal.
@@ -2647,6 +2679,7 @@ translations:
   No clear peak in this zone: "Keine klare Spitze in dieser Zone"
   No color: Keine Farbe
   No connection to the printer.: Keine Verbindung zum Drucker.
+  No day limit: "Kein Tageslimit"
   No dryer available. Store filament in a sealed dry box with desiccant for best results.: Kein
     Trockner verfügbar. Filament in einer versiegelten Trockenbox mit Trockenmittel
     lagern.
@@ -2815,6 +2848,7 @@ translations:
   Nozzle, bed, and chamber in one widget: Düse, Bett und Kammer in einem Widget
   'Nozzle:': 'Düse:'
   'Nozzles still heating: {}': 'Düsen heizen noch: {}'
+  Nozzles wear, abrasive filament fastest; a worn one under-extrudes and strings.: "Düsen verschleißen, bei abrasivem Filament am schnellsten; abgenutzte unterextrudieren und ziehen Fäden."
   Number Pad Layout: Ziffernblock-Layout
   Number slots from 0: Slots ab 0 nummerieren
   Nylon: "Nylon"
@@ -2867,6 +2901,7 @@ translations:
   Open motion controls for jogging: Bewegungssteuerung öffnen
   Open the .3mf in Print Files to print this plate again.: 'Öffne die .3mf in Druckdateien, um diese Platte erneut zu drucken.'
   Open the CFS unit and remove the broken filament from the slot: CFS-Einheit öffnen und das gebrochene Filament aus dem Slot entfernen
+  Open the extruder as your manual shows.: "Extruder wie im Handbuch gezeigt öffnen."
   Open the slot editor when you load a new spool: 'Slot-Editor öffnen, wenn eine neue Spule eingelegt wird'
   OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS verwaltet diese Spule in Spoolman, das hier nur Material, Farbe, Marke und Gewicht annimmt"
   OpenAMS manages this spool's link: "OpenAMS verwaltet die Verknüpfung dieser Spule"
@@ -3032,7 +3067,9 @@ translations:
   Power: Strom
   Power Devices: Stromgeräte
   Power devices Moonraker can switch. Turn them on and off on the Power screen.: 'Stromgeräte, die Moonraker schalten kann. Schalte sie im Strom-Bildschirm ein und aus.'
+  Power off and unplug the printer.: "Drucker ausschalten und Netzstecker ziehen."
   Power off the printer or screen: Drucker oder Bildschirm ausschalten
+  Power off the printer.: "Drucker ausschalten."
   Power was lost about {} hours ago.: Der Strom fiel vor etwa {} Stunden aus.
   Power was lost about {} minutes ago.: Der Strom fiel vor etwa {} Minuten aus.
   'Power was lost during the print; the printer stopped and saved its progress': 'Während des Drucks fiel der Strom aus; der Drucker hat angehalten und den Fortschritt gespeichert'
@@ -3308,6 +3345,7 @@ translations:
   'RSS:': 'RSS:'
   Rails: 'Schienen'
   Raise: Anheben
+  Raise and lower the bed or gantry through its travel.: "Bett oder Portal über den ganzen Weg auf und ab fahren."
   Ramming Volume: 'Ramming-Volumen'
   'Ramp: band {} of {}': 'Rampe: Bereich {} von {}'
   'Ramp: base layers': 'Rampe: Basisschichten'
@@ -3315,6 +3353,7 @@ translations:
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
   'Re-apply spool': 'Spule neu anwenden'
+  Re-check the Z offset after the swap.: "Z-Offset nach dem Wechsel erneut prüfen."
   Re-identify: Erneut identifizieren
   Re-measure: 'Neu messen'
   Re-measure (~{} min): "Messen (~{} Min)"
@@ -3339,10 +3378,12 @@ translations:
   Reason: Grund
   ? "Reason: {}\n\nThe printer cannot resume this print. Restart from the beginning?"
   : "Grund: {}\n\nDer Drucker kann diesen Druck nicht fortsetzen. Von Anfang an neu starten?"
+  Reassemble and load filament.: "Zusammenbauen und Filament laden."
   Reboot: Neustart
   Reboot failed: Neustart fehlgeschlagen
   Reboot failed — host is still reachable: Neustart fehlgeschlagen — Host ist weiterhin
     erreichbar
+  Reboot the printer to finish the plugin update.: Drucker neu starten, um die Plugin-Aktualisierung abzuschließen.
   Recalibrate input shaping?: 'Input Shaping neu kalibrieren?'
   Recalibrate or view detailed results anytime in Settings.: Jederzeit in den Einstellungen
     neu kalibrieren oder detaillierte Ergebnisse anzeigen.
@@ -3393,6 +3434,8 @@ translations:
   Remaining (g): Verbleibend (g)
   Remaining Weight (g): Restgewicht (g)
   Remember slot spool details across an eject: Spulendetails des Slots über ein Auswerfen hinweg merken
+  Reminder Intervals: "Erinnerungsintervalle"
+  Reminder intervals: "Erinnerungsintervalle"
   Remove: Entfernen
   Remove HelixScreen's include lines from printer.cfg; a resume then uses the printer's default mesh profile: Entfernt die Include-Zeilen von HelixScreen aus printer.cfg; ein Fortsetzen verwendet dann das Standard-Bettnetzprofil des Druckers
   Remove PIN: PIN entfernen
@@ -3401,6 +3444,7 @@ translations:
   Remove the PEI Sheet: PEI-Platte entfernen
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'Entferne die PEI-Platte vom Bett und starte erneut: Messungen durch die Platte liefern falsche Ergebnisse'
   Remove the bypass spool from the toolhead first: 'Zuerst die Bypass-Spule aus dem Werkzeugkopf entfernen'
+  Remove the filter cover.: "Filterabdeckung entfernen."
   Remove the spools: Spulen entnehmen
 
   Remove the spools from the bed: Spulen vom Heizbett nehmen
@@ -3420,6 +3464,9 @@ translations:
   Repeat: "Wiederholen"
   Replace: "Ersetzen"
   Replace Profile?: "Profil ersetzen?"
+  Replace a worn nozzle or hotend: "Abgenutzte Düse oder Hotend ersetzen"
+  Replace the chamber air filter: "Luftfilter der Kammer ersetzen"
+  Replace the filter element.: "Filtereinsatz ersetzen."
   Replay Welcome Tour: Willkommens-Rundgang erneut abspielen
   Replenish ignores color: 'Nachfüllen ignoriert Farbe'
   Replenishing filament...: Filament nachfüllen...
@@ -3570,6 +3617,8 @@ translations:
 
   Run {}?: '{} ausführen?'
   Running loose: 'Läuft locker'
+  Running over: "Überzogen"
+  Running over, {}: "Überzogen, {}"
   Running tight: 'Läuft straff'
   Running {}...: '{} wird ausgeführt...'
   Runout: 'Auslauf'
@@ -3769,6 +3818,7 @@ translations:
   Server Setup: Server-Einrichtung
   Server-side edits: 'Bearbeitung auf dem Server'
   Service hours for the filter, nozzle, and rails: 'Wartungsstunden für Filter, Düse und Schienen'
+  Service hours for the parts that wear: "Betriebsstunden der Verschleißteile"
   Servo: Servo
   Servo Down: 'Servo runter'
   Servo Move: 'Servo bewegen'
@@ -3848,6 +3898,9 @@ translations:
   Shutting down...: Wird heruntergefahren...
   Signal: Signal
   'Signal #': Signal-Nr.
+  Signal macro renaming: 'Umbenennung der Signalmakros'
+  Signal macros are hidden from Fluidd and Mainsail macro lists.: 'Signalmakros sind in den Makrolisten von Fluidd und Mainsail ausgeblendet.'
+  Signal macros keep their old names too, so older calls still work.: 'Signalmakros behalten auch ihre alten Namen, damit ältere Aufrufe weiter funktionieren.'
   Similarity: "Übereinstimmung"
   Single object: 'Einzelnes Objekt'
   Single toggle macro. State is not tracked.: Einzelnes Umschalt-Makro. Status wird
@@ -4194,6 +4247,7 @@ translations:
     skipping bed mesh for quick reprints.
   : Das HelixPrint-Plugin ermöglicht schnelle G-Code-Modifikationen direkt auf Ihrem
     Drucker – wie das Überspringen des Bettnetzes für schnelle Neudrucke.
+  The HelixPrint plugin moves old PRINT_START calls to the hidden names.: 'Das HelixPrint-Plugin stellt alte PRINT_START-Aufrufe auf die ausgeblendeten Namen um.'
   The IFS state file can't be read.: "Die IFS-Zustandsdatei kann nicht gelesen werden."
   The IP address cannot be the subnet's network or broadcast address.: 'Die IP-Adresse darf nicht die Netzwerk- oder Broadcast-Adresse des Subnetzes sein.'
   The IP address is not a valid address.: 'Die IP-Adresse ist keine gültige Adresse.'
@@ -4459,6 +4513,8 @@ translations:
   This needs the plugin's file analysis, which isn't running.: "Dafür wird die Dateianalyse des Plugins benötigt, die nicht läuft."
   This plugin asks for no special permissions.: 'Dieses Plugin fragt nach keinen besonderen Berechtigungen.'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'Dieses Plugin ermöglicht HelixScreen die Steuerung von Druckstartoptionen wie Bettnetz und QGL.'
+  This print called {}, which the printer no longer has.: 'Dieser Druck hat {} aufgerufen, das der Drucker nicht mehr hat.'
+  This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back.: 'Dieser Druck hat {} aufgerufen, das der Drucker nicht mehr hat. Tippen Sie unter Erweitert auf „Hilfsmakros aktualisieren“, um sie wiederherzustellen.'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: 'Dieser Druck kann nicht fortgesetzt werden. Starten Sie ihn neu oder schalten Sie die Bettprüfung aus, wenn das wiederholt passiert.'
   This print does not report layers, so no layer pause can be scheduled.: 'Dieser Druck meldet keine Schichten, daher kann keine Pause bei einer Schicht geplant werden.'
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: Dieser
@@ -4710,6 +4766,7 @@ translations:
   Unload complete. Pull the filament out of {}.: 'Entladen abgeschlossen. Ziehen Sie das Filament heraus: {}.'
   Unload failed: Entladen fehlgeschlagen
   Unload filament: 'Filament entladen'
+  Unload filament and power off the printer.: "Filament entladen und Drucker ausschalten."
   Unload filament?: Filament entladen?
 
   Unload from toolhead first: 'Entladen Sie zuerst aus dem Werkzeugkopf'
@@ -4748,6 +4805,7 @@ translations:
   Update Success: Update erfolgreich
   Update from a Terminal: Update über ein Terminal
   Update installed!: Update installiert!
+  Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'Aktualisieren Sie das HelixPrint-Plugin auf 1.5.0, um alte PRINT_START-Aufrufe auszublenden.'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Auch das INDX-Heizungsmodell aktualisieren? {} enthält jetzt {}: Dichte {:.2f}, Wärmekapazität {:.2f}.'
   Update your security PIN: Sicherheits-PIN aktualisieren
     nicht verfügbar.
@@ -4908,10 +4966,12 @@ translations:
   Width Sensors: Breitensensoren
   Wifi: WLAN
   Will not switch spools on runout: Wechselt bei leerer Spule nicht die Spule
+  Wipe each rail or rod clean with a lint-free cloth.: "Jede Schiene oder Stange mit fusselfreiem Tuch abwischen."
   Wipe nozzle on silicone cleaning strip: 'Düse am Silikon-Reinigungsstreifen abwischen'
   With exhaust cooling on, the recirculation fan cannot be turned on: 'Bei Abluftkühlung kann der Umwälzlüfter nicht eingeschaltet werden'
   With internal circulation on, the exhaust fan cannot be turned on: 'Bei Umwälzung kann der Abluftlüfter nicht eingeschaltet werden'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "Bis auf {0:.1f} Hz gleich bei {1:.0f} Hz"
+  Wipe the Z screws and guides clean.: "Z-Spindeln und -Führungen sauber wischen."
   Wipe the mounted nozzle on the brush: 'Montierte Düse an der Bürste abwischen'
   Wiping {}...: '{} wird abgewischt...'
   Wizard Error: Assistentenfehler
@@ -4930,6 +4990,7 @@ translations:
   X is at its limit ({}mm): X ist an seinem Limit ({}mm)
   'X:': 'X:'
   XY: XY
+  XY axis: "XY-Achse"
   Y: Y
   Y Axis: Y-Achse
   Y Offset: Y-Offset
@@ -4951,6 +5012,7 @@ translations:
   Your printer has an automatic filament changer: Ihr Drucker hat einen automatischen
     Filamentwechsler
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Ihr Drucker war während der Einrichtung offline, daher wurden Hardware-Optionen übersprungen. Jetzt einrichten?
+  Your printer's manual has the parts and lubricant for your model.: "Im Druckerhandbuch stehen Teile und Schmiermittel für dieses Modell."
   Your {0} is set up for {1}, but it looks stock.: 'Ihr {0} ist für {1} eingerichtet, wirkt aber wie Serienzustand.'
   Your {0} looks like it has {1}, but it is set up for {2}.: 'Ihr {0} scheint {1} zu haben, ist aber für {2} eingerichtet.'
   Your {0} looks like it has {1}, but it is set up as stock.: 'Ihr {0} scheint {1} zu haben, ist aber im Serienzustand eingerichtet.'
@@ -4964,6 +5026,7 @@ translations:
   Z Probe: Z-Sonde
   Z Range: Z-Bereich
   Z Tilt Adjust...: Z-Neigung anpassen...
+  Z axis: "Z-Achse"
   Z is at its limit ({}mm): Z ist an seinem Limit ({}mm)
   Z jog feedrate: Vorschub für die Z-Bewegung
   Z motor calibration failed: Kalibrierung des Z-Motors fehlgeschlagen
@@ -5026,6 +5089,7 @@ translations:
   enable: aktivieren
   enabled: aktiviert
   error: Fehler
+  every {} days: "alle {} Tage"
   exact match: 'exakte Übereinstimmung'
   'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact: gleiches Material und gleiche Farbe. material: gleiches Material. next: beliebiger bereiter Slot, auch anderes Material'
   extruder: Extruder
@@ -5146,6 +5210,8 @@ translations:
   '{} configured items not found': '{} konfigurierte Elemente nicht gefunden'
   '{} critical': '{} kritisch'
   '{} critical hardware issues': '{} kritische Hardwareprobleme'
+  '{} d': "{} T"
+  '{} days': "{} Tage"
   '{} detected': '{} erkannt'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{} wurde nicht geladen. Prüfen Sie, ob das Hotend richtig sitzt, und extrudieren Sie testweise, bevor Sie fortsetzen.'
   '{} disabled': '{} deaktiviert'
@@ -5163,6 +5229,7 @@ translations:
   '{} heater turned off': '{}-Heizung ausgeschaltet'
   '{} is asking to connect to this printer.': '{} möchte sich mit diesem Drucker verbinden.'
   '{} is blocked — manual intervention required': '{} ist blockiert — manueller Eingriff erforderlich'
+  '{} is due': "{} ist fällig"
   '{} is due: {} h reached': '{} ist fällig: {} Std erreicht'
   '{} is feeding the current print. Clear it after the print ends.': '{}: versorgt den laufenden Druck. Erst nach Druckende löschen.'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} ist installiert, aber die Endlosspulen-Einstellung ist ausgeschaltet, daher wird bei Filamentende nichts gewechselt.'
@@ -5180,6 +5247,7 @@ translations:
   '{} linked to Spoolman spool #{} from its tag': '{} über sein Tag mit Spoolman-Spule #{} verknüpft'
   '{} m': '{} m'
   '{} macro not configured': '{}-Makro nicht konfiguriert'
+  '{} maintenance tasks are due': "{} Wartungsaufgaben fällig"
   '{} matches.': '{} passt.'
   '{} may be half seated on the head. Check it by hand.': "{} sitzt möglicherweise nur halb am Werkzeugkopf. Bitte von Hand prüfen."
   '{} may cause unintended changes. Are you sure?': '{} kann unbeabsichtigte Änderungen

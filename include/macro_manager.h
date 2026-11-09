@@ -150,6 +150,11 @@ class MacroManager {
      */
     [[nodiscard]] static MacroInstallStatus evaluate_status(const PrinterDiscovery& hardware);
 
+    /// evaluate_status with the signal names recorded from sliced files given
+    /// (signal_macros::recorded_signal_names() in the one-argument form).
+    [[nodiscard]] static MacroInstallStatus
+    evaluate_status(const PrinterDiscovery& hardware, const std::vector<std::string>& extra_names);
+
     /**
      * @brief Compare two dotted version strings numerically per component
      *
@@ -266,28 +271,21 @@ class MacroManager {
     [[nodiscard]] static std::string get_macro_content();
 
     /**
-     * @brief Remove the leading underscore from the signal and phase macro names
-     *
-     * Rewrites _HELIX_READY, _HELIX_ENDED, _HELIX_RESET and _HELIX_PHASE_*
-     * wherever they appear. Other _HELIX_ names, such as _HELIX_STATE, stay as
-     * they are.
-     *
-     * @param content helix_macros.cfg content
-     * @return The content with the signal macros under their visible names
-     */
-    [[nodiscard]] static std::string with_visible_signal_names(std::string content);
-
-    /**
      * @brief The helix_macros.cfg content to stage on this printer
      *
-     * A printer that already defines HELIX_READY may call the visible signal
-     * names from its own macros and sliced files, so it keeps them. Every other
-     * printer gets the hidden names.
+     * Every printer gets the pack with the hidden signal names. A printer that
+     * had the visible names, calls one, or recorded one from a sliced file
+     * (signal_macros::recorded_signal_names()) gets a forwarder for each
+     * visible name (signal_macros::alias_block) after the pack.
      *
      * @param hardware Discovery snapshot with the printer's macro names
      * @return Complete cfg file content, or empty if the file is not found
      */
     [[nodiscard]] static std::string macro_content_for(const PrinterDiscovery& hardware);
+
+    /// macro_content_for with the recorded signal names given.
+    [[nodiscard]] static std::string macro_content_for(const PrinterDiscovery& hardware,
+                                                       const std::vector<std::string>& extra_names);
 
     /**
      * @brief Get the version from the local macro file
@@ -304,6 +302,16 @@ class MacroManager {
      * @return Vector of macro names (e.g., "HELIX_START_PRINT")
      */
     [[nodiscard]] static std::vector<std::string> get_macro_names();
+
+    /**
+     * @brief Every section name the bundled pack defines, for signal_macros::scan()
+     *
+     * The signal macros appear under both spellings, since an earlier pack
+     * defined them without the underscore.
+     *
+     * @return Section names as configfile.settings keys them ("gcode_macro _helix_ready")
+     */
+    [[nodiscard]] static std::vector<std::string> pack_section_names();
 
   private:
     IMoonrakerAPI& api_;

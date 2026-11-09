@@ -71,6 +71,28 @@ bool was_recently_surfaced(const std::string& detail) {
     return false;
 }
 
+bool only_wraps(const std::string& text, const std::string& cause) {
+    if (cause.empty())
+        return false;
+    if (text == cause)
+        return true;
+    const std::string wrapped = ": " + cause;
+    return text.size() > wrapped.size() &&
+           text.compare(text.size() - wrapped.size(), wrapped.size(), wrapped) == 0;
+}
+
+bool was_recently_surfaced_within(const std::string& detail) {
+    if (detail.empty())
+        return false;
+    std::lock_guard<std::mutex> lock(mu());
+    prune_locked();
+    for (const auto& e : entries()) {
+        if (only_wraps(detail, e.detail))
+            return true;
+    }
+    return false;
+}
+
 void clear_for_test() {
     std::lock_guard<std::mutex> lock(mu());
     entries().clear();

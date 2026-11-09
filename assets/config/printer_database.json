@@ -897,6 +897,7 @@
     },
     {
       "id": "voron_2_4",
+      "maintenance": { "belt_tension": { "hours": 300 } },
       "enclosed": true,
       "name": "Voron 2.4",
       "manufacturer": "Voron",
@@ -988,6 +989,7 @@
     },
     {
       "id": "voron_0_1",
+      "maintenance": { "belt_tension": { "hours": 300 } },
       "enclosed": true,
       "name": "Voron 0.2",
       "aliases": [
@@ -1148,6 +1150,7 @@
     },
     {
       "id": "voron_trident",
+      "maintenance": { "belt_tension": { "hours": 300 } },
       "enclosed": true,
       "name": "Voron Trident",
       "manufacturer": "Voron",
@@ -1215,6 +1218,7 @@
     },
     {
       "id": "voron_switchwire",
+      "maintenance": { "belt_tension": { "hours": 300 } },
       "name": "Voron Switchwire",
       "manufacturer": "Voron",
       "image": "voron-switchwire.png",
@@ -1812,6 +1816,13 @@
           "reason": "Exclude the k2-improvements mod (separate entry) - it replaces START_PRINT wholesale"
         },
         {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 0,
+          "reason": "Exclude Jacobean's K2 Plus firmware (separate entry), a replacement for Creality's firmware"
+        },
+        {
           "type": "kinematics_match",
           "field": "kinematics",
           "pattern": "corexy",
@@ -1981,6 +1992,13 @@
           "reason": "A K2 without the mod is its stock entry's: the stock entries score every other heuristic here equally, so without this exclusion the two tie"
         },
         {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 0,
+          "reason": "Jacobean's K2 Plus firmware ships a _START_PRINT_VARS of its own; its extended_zone_transform extra marks a K2 that is not running Creality's firmware at all"
+        },
+        {
           "type": "object_exists",
           "field": "printer_objects",
           "pattern": "^cartographer$",
@@ -2082,6 +2100,93 @@
       ]
     },
     {
+      "id": "creality_k2_plus_jacobean",
+      "variant_of": "creality_k2_plus",
+      "variant_label": "Jacobean firmware",
+      "_comment": "Jacobean's K2 Plus firmware (github.com/Jacob10383/k2-plus-custom-firmware): a replacement Linux system running Jacob10383's Kalico fork with its own CFS, motor, probe and power-loss modules, not a mod of Creality's firmware. Its configs ship in that Kalico fork's config/k2. No preset: its fans (fan, heater_fan heatbreak_fan, fan_generic aux_fans, temperature_fan chamber_exhaust_fans), its missing chamber_temp sensor, load_ai and filament_rack, and its BOX_LOAD/BOX_UNLOAD macros all differ from the stock k2 preset. No probe_type: its probe is Cartographer or its own prtouch module, never prtouch_v3, and both type themselves from their objects. No pre_print_options: it has no PRINT_PREPARED or LOAD_AI_RUN",
+      "enclosed": true,
+      "name": "Creality K2 Plus (Jacobean firmware)",
+      "manufacturer": "Creality",
+      "toolhead_style": "creality_k2",
+      "image": "creality-k2-plus.png",
+      "image_variants": [
+        {
+          "when": {
+            "filament_system": "cfs"
+          },
+          "image": "creality-k2-plus-cfs.png"
+        }
+      ],
+      "print_start_profile": "k2_jacobean",
+      "heuristics": [
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 99,
+          "reason": "[extended_zone_transform] is the firmware's own extra (its box.cfg) routing moves into the K2's rear purge zone; neither Creality's firmware nor k2-improvements has it - definitive"
+        },
+        {
+          "type": "object_required",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 0,
+          "reason": "A K2 Plus without it runs Creality's firmware, stock or modded, and belongs to those entries"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^power_loss_recovery$",
+          "confidence": 80,
+          "reason": "The firmware's own power-loss recovery module (printer.cfg)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^danger_options$",
+          "confidence": 50,
+          "reason": "[danger_options] is Kalico's own section, which the firmware's printer.cfg sets. Every Kalico install can carry it, so it supports the identification and never makes one",
+          "corroborating": true
+        },
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^box$",
+          "confidence": 45,
+          "reason": "The firmware's own CFS module keeps Creality's box object name",
+          "corroborating": true
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "motor_control",
+          "confidence": 75,
+          "reason": "The firmware's own closed-loop motor module keeps Creality's motor_control object name"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "heater_generic chamber_heater",
+          "confidence": 70,
+          "reason": "Active chamber heater"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "k2plus",
+          "confidence": 90,
+          "reason": "The firmware's rootfs ships hostname K2Plus"
+        }
+      ]
+    },
+    {
       "id": "creality_k2_pro",
       "enclosed": true,
       "name": "Creality K2 Pro",
@@ -2136,6 +2241,13 @@
           "pattern": "_START_PRINT_VARS",
           "confidence": 0,
           "reason": "Exclude the k2-improvements mod (separate entry) - it replaces START_PRINT wholesale"
+        },
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 0,
+          "reason": "Exclude Jacobean's K2 Plus firmware (separate entry), a replacement for Creality's firmware"
         },
         {
           "type": "kinematics_match",
@@ -2307,6 +2419,13 @@
           "reason": "A K2 without the mod is its stock entry's: the stock entries score every other heuristic here equally, so without this exclusion the two tie"
         },
         {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 0,
+          "reason": "Jacobean's K2 Plus firmware ships a _START_PRINT_VARS of its own; its extended_zone_transform extra marks a K2 that is not running Creality's firmware at all"
+        },
+        {
           "type": "object_exists",
           "field": "printer_objects",
           "pattern": "^cartographer$",
@@ -2466,6 +2585,13 @@
           "pattern": "_START_PRINT_VARS",
           "confidence": 0,
           "reason": "Exclude the k2-improvements mod (separate entry) - it replaces START_PRINT wholesale"
+        },
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 0,
+          "reason": "Exclude Jacobean's K2 Plus firmware (separate entry), a replacement for Creality's firmware"
         },
         {
           "type": "kinematics_match",

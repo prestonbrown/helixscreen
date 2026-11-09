@@ -13,6 +13,7 @@
 #include "../test_fixtures.h"
 #include "../test_helpers/gcode_layer_renderer_test_access.h"
 #include "../test_helpers/scoped_pointer_indev.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "gcode_camera.h"
 #ifdef ENABLE_GLES_3D
 #include "../test_helpers/gcode_gles_renderer_test_access.h"
@@ -129,6 +130,9 @@ TEST_CASE("Object badges carry the excluded and current flags", "[exclude_badges
     CHECK_FALSE(badges[1].current);
     CHECK_FALSE(badges[2].excluded);
     CHECK(badges[2].current);
+
+    ScopedZeroLaneNumbering zero; // printed objects are counted, not numbered positions
+    CHECK(compute_object_badges(state, nullptr)[0].number == "1");
     state.deinit_subjects();
 }
 

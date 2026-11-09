@@ -173,6 +173,12 @@ TEST_CASE("hw table: probe list", "[hw_object_table]") {
     CHECK(classify_section("dockable_probe", nlohmann::json::object()).kind == ObjectKind::Probe);
     CHECK(obj("load_cell_probe").kind == ObjectKind::Unknown);
     CHECK(obj("dockable_probe").kind == ObjectKind::Unknown);
+
+    // A U1 head's inductance coil is a probe config section, never a second probe object.
+    const auto coil = classify_section("inductance_coil extruder", nlohmann::json::object());
+    CHECK(coil.kind == ObjectKind::Probe);
+    CHECK(coil.chip == static_cast<uint8_t>(ProbeSensorType::EDDY_CURRENT));
+    CHECK(obj("inductance_coil extruder").kind == ObjectKind::Unknown);
 }
 
 TEST_CASE("hw table: accelerometer sections", "[hw_object_table]") {

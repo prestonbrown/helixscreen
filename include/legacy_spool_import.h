@@ -25,6 +25,10 @@ inline constexpr const char* kToolSpoolsDbKey = "tool_spool_assignments";
 /// Where the v34 config migration parks a printer's 1.0 bypass spool until
 /// the import has written it to the bypass lane record.
 inline constexpr const char* kLegacyExternalSpoolPath = "filament/legacy_external_spool";
+/// Set under a printer's config once all of its 1.0 tool links are imported. The
+/// restore script can re-publish a stale tool_spools.json, and its set for that
+/// printer is then ignored, so a lane the user has since unlinked stays unlinked.
+inline constexpr const char* kLegacyToolImportDonePath = "filament/legacy_tool_import_done";
 
 /// Tool index -> Spoolman spool id from one assignment set ({"0": {"spoolman_id": 7, ...}}),
 /// the shape the Moonraker key holds. Entries naming no spool are left out.

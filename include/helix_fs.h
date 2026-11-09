@@ -63,6 +63,10 @@ std::optional<std::uint64_t> space_available(const std::string& p);
 /// the path does not exist. ESP32 has no symlinks, so there it only normalizes.
 std::optional<std::string> canonical(const std::string& p);
 
+/// readlink(): what the symlink at `p` points at, as stored (possibly relative).
+/// nullopt when `p` is not a symlink, and always on ESP32.
+std::optional<std::string> read_symlink(const std::string& p);
+
 // ---------------------------------------------------------------------------
 // Operations. false on failure with errno set by the failing call.
 // ---------------------------------------------------------------------------

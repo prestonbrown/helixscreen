@@ -488,6 +488,19 @@ std::string app_get_install_root();
 // Result is cached after first call.
 std::string app_get_cache_dir();
 
+/**
+ * @brief Directory for per-device state that has to outlive an update and stay
+ * out of the Klipper config tree, such as the telemetry identity.
+ *
+ * The board's state root beside the payload (see platforms.json
+ * storage.state_root), else the systemd state dir, else $HOME/.helixscreen;
+ * the first that can be created and written. Empty when none can, and always
+ * on Android, whose state dir is in the device backup set. Creates the
+ * directory it returns.
+ */
+// NAMESPACE_OK: app_get_* path accessor, alongside its siblings
+std::string app_get_state_root();
+
 // Returns a writable base dir for SHORT-LIVED runtime files (nmcli stderr
 // capture, screenshots, timelapse temp downloads). Prefers a fast tmpfs
 // (HELIX_TMP_DIR, XDG_RUNTIME_DIR, /tmp, /var/tmp) so normal devices keep

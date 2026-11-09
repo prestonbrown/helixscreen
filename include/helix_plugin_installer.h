@@ -392,7 +392,9 @@ PluginLinkCheck relink_plugin(const std::string& script_path, int timeout_second
  */
 enum class PluginRestartOutcome {
     Restarted,    ///< Moonraker restarted and runs the plugin this app ships
-    NeedsManual,  ///< Moonraker refused the restart, or still runs the old plugin
+    NeedsManual,  ///< Moonraker restarted but still runs the old plugin, or loaded none
+    NoService,    ///< Moonraker cannot restart its own service, so only a reboot reloads it
+    Refused,      ///< Moonraker refused the restart; nothing restarted
     HeldForPrint, ///< a print is printing or paused
     JobUnknown,   ///< the print state could not be read, so nothing restarted
     NotAnswering, ///< Moonraker does not answer, before the restart or after it
@@ -403,13 +405,14 @@ enum class PluginRestartOutcome {
 /**
  * @brief Whether a restart with @p outcome counts as done for the plugin it was for
  *
- * A restart that finished counts, and so does one Moonraker refused or that
- * left the old plugin running when @p plugin_was_loaded: asking again for the
- * same versions would only repeat the warning. With no plugin loaded, one
- * that did not load it is tried again, as the next start may find what kept
- * it out repaired. The next app start repeats any other (a print hold, an
- * unreadable print state, a Moonraker that did not answer), which can clear
- * by itself.
+ * Only a restart that happened counts: one that finished, and one that left
+ * the old plugin running when @p plugin_was_loaded, since asking again for
+ * the same versions would only restart Moonraker for nothing. With no plugin
+ * loaded, one that did not load it is tried again, as the next start may find
+ * what kept it out repaired. The next app start repeats any other: a refusal,
+ * a Moonraker that cannot restart its own service (whose reboot advice then
+ * comes again until a reboot loads the plugin), a print hold, an unreadable
+ * print state, a Moonraker that did not answer.
  */
 bool plugin_restart_finished(PluginRestartOutcome outcome, bool plugin_was_loaded);
 

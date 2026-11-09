@@ -37,6 +37,7 @@
 #include "runtime_config.h"
 #include "screensaver_registry.h"
 #include "screensaver_usage.h"
+#include "system/debug_bundle_collector.h"
 #include "system/sha256_util.h"
 #include "system/telemetry_manager.h"
 #include "theme_loader.h"
@@ -3033,4 +3034,165 @@ TEST_CASE("Telemetry hardware profile names the filament system by its slug",
     helix::PrinterDiscovery none;
     none.parse_objects(nlohmann::json::array({"extruder"}));
     CHECK(TelemetryManagerTestAccess::hw_ams_section(tm, none)["type"] == "unknown");
+}
+
+// ============================================================================
+// Device identity location [telemetry][identity] (#2085)
+// ============================================================================
+
+namespace {
+
+/// A config dir and an identity dir beside it, as on a device: config/ inside
+/// the install root, the identity in the state root next to it.
+struct IdentityDirs {
+    fs::path install;
+    fs::path config;
+    fs::path state;
+
+    explicit IdentityDirs(const fs::path& base)
+        : install(base / "helixscreen"), config(install / "config"),
+          state(base / "helixscreen-state") {
+        fs::create_directories(config);
+    }
+};
+
+std::string read_text(const fs::path& p) {
+    std::ifstream in(p);
+    return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+}
+
+void write_text(const fs::path& p, const std::string& text) {
+    std::ofstream(p) << text;
+}
+
+void reinit(TelemetryManager& tm, const IdentityDirs& d) {
+    tm.shutdown();
+    tm.init(d.config.string(), d.state.string());
+}
+
+} // namespace
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Identity: written to the identity dir, never the config dir",
+                 "[telemetry][identity][2085]") {
+    auto& tm = TelemetryManager::instance();
+    const IdentityDirs d(temp_dir_);
+
+    reinit(tm, d);
+
+    REQUIRE(fs::exists(d.state / "telemetry_device.json"));
+    CHECK_FALSE(fs::exists(d.config / "telemetry_device.json"));
+    CHECK(tm.get_device_id_path() == (d.state / "telemetry_device.json").string());
+    CHECK(read_text(d.state / "telemetry_device.json").find("\"salt\"") != std::string::npos);
+    // The debug bundle reads the same file.
+    CHECK_FALSE(helix::DebugBundleCollector::collect_device_id(tm.get_device_id_path()).empty());
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Identity: survives a simulated rmtree of the install root",
+                 "[telemetry][identity][2085]") {
+    auto& tm = TelemetryManager::instance();
+    const IdentityDirs d(temp_dir_);
+
+    reinit(tm, d);
+    const std::string before = read_text(d.state / "telemetry_device.json");
+    REQUIRE_FALSE(before.empty());
+
+    // What a Moonraker type:web update does to the install root.
+    tm.shutdown();
+    fs::remove_all(d.install);
+    fs::create_directories(d.config);
+    tm.init(d.config.string(), d.state.string());
+
+    CHECK(read_text(d.state / "telemetry_device.json") == before);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Identity: one left in the config dir moves once, and a second start is a no-op",
+                 "[telemetry][identity][2085]") {
+    auto& tm = TelemetryManager::instance();
+    const IdentityDirs d(temp_dir_);
+    const std::string old_identity = R"({"uuid": "old-uuid", "salt": "old-salt"})";
+    write_text(d.config / "telemetry_device.json", old_identity);
+
+    reinit(tm, d);
+    REQUIRE(fs::exists(d.state / "telemetry_device.json"));
+    CHECK(read_text(d.state / "telemetry_device.json") == old_identity);
+    CHECK_FALSE(fs::exists(d.config / "telemetry_device.json"));
+
+    const auto mtime = fs::last_write_time(d.state / "telemetry_device.json");
+    reinit(tm, d);
+    CHECK(read_text(d.state / "telemetry_device.json") == old_identity);
+    CHECK(fs::last_write_time(d.state / "telemetry_device.json") == mtime);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Identity: one already in the identity dir is never replaced",
+                 "[telemetry][identity][2085]") {
+    auto& tm = TelemetryManager::instance();
+    const IdentityDirs d(temp_dir_);
+    fs::create_directories(d.state);
+    const std::string kept = R"({"uuid": "state-uuid", "salt": "state-salt"})";
+    const std::string other = R"({"uuid": "config-uuid", "salt": "config-salt"})";
+    write_text(d.state / "telemetry_device.json", kept);
+    write_text(d.config / "telemetry_device.json", other);
+
+    reinit(tm, d);
+
+    CHECK(read_text(d.state / "telemetry_device.json") == kept);
+    // A different identity is left where it was rather than deleted.
+    CHECK(read_text(d.config / "telemetry_device.json") == other);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Identity: an unreadable one in the identity dir gives way to the config dir's",
+                 "[telemetry][identity][2085]") {
+    auto& tm = TelemetryManager::instance();
+    const IdentityDirs d(temp_dir_);
+    fs::create_directories(d.state);
+    const std::string damaged = "{\"uuid\": ";
+    const std::string good = R"({"uuid": "config-uuid", "salt": "config-salt"})";
+    write_text(d.state / "telemetry_device.json", damaged);
+    write_text(d.config / "telemetry_device.json", good);
+
+    reinit(tm, d);
+
+    CHECK(read_text(d.state / "telemetry_device.json") == good);
+    CHECK_FALSE(fs::exists(d.config / "telemetry_device.json"));
+    // The unreadable file is set aside, not deleted.
+    int set_aside = 0;
+    for (const auto& entry : fs::directory_iterator(d.state)) {
+        if (entry.path().filename().string().rfind("telemetry_device.json.unreadable-", 0) == 0) {
+            ++set_aside;
+            CHECK(read_text(entry.path()) == damaged);
+        }
+    }
+    CHECK(set_aside == 1);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Identity: a duplicate left in the config dir by an interrupted move is removed",
+                 "[telemetry][identity][2085]") {
+    auto& tm = TelemetryManager::instance();
+    const IdentityDirs d(temp_dir_);
+    fs::create_directories(d.state);
+    const std::string same = R"({"uuid": "u", "salt": "s"})";
+    write_text(d.state / "telemetry_device.json", same);
+    write_text(d.config / "telemetry_device.json", same);
+
+    reinit(tm, d);
+
+    CHECK(read_text(d.state / "telemetry_device.json") == same);
+    CHECK_FALSE(fs::exists(d.config / "telemetry_device.json"));
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Identity: no identity dir keeps the file in the config dir",
+                 "[telemetry][identity][2085]") {
+    auto& tm = TelemetryManager::instance();
+    const IdentityDirs d(temp_dir_);
+
+    tm.shutdown();
+    tm.init(d.config.string());
+
+    CHECK(fs::exists(d.config / "telemetry_device.json"));
+    CHECK_FALSE(fs::exists(d.state));
 }

@@ -195,6 +195,8 @@ inline constexpr KnownPluginFeature kKnownPluginFeatures[] = {
      kIfsAbsentReasons},
     {"vendor_ace", TR_NOOP("ACE updates without polling"), "sync", PluginFeatureHome::None,
      kAceAbsentReasons},
+    {"signal_macro_migration", TR_NOOP("Signal macro renaming"), "eye_off",
+     PluginFeatureHome::None},
     {"print_start_tools", TR_NOOP("Filament Mapping at print start"), "swap_horizontal",
      PluginFeatureHome::None, kStartToolsAbsentReasons},
 };

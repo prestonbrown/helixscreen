@@ -87,6 +87,17 @@ PrintStatusTiles::Image tagged_image(const std::string& path) {
     return img;
 }
 
+/// Two steps done of five, the third under way.
+std::optional<PreprintChecklistInput> five_steps() {
+    PreprintChecklistInput in;
+    in.done_in_order = {PrintStartPhase::HOMING, PrintStartPhase::HEATING_BED};
+    in.current = PrintStartPhase::HEATING_NOZZLE;
+    in.expected_order = {PrintStartPhase::HOMING, PrintStartPhase::HEATING_BED,
+                         PrintStartPhase::HEATING_NOZZLE, PrintStartPhase::QGL,
+                         PrintStartPhase::BED_MESH};
+    return in;
+}
+
 /// The panel's own XML built at a screen size, with a tagged printer picture.
 class TileFixture : public PrintStatusPanelFixture {
   public:
@@ -111,6 +122,24 @@ class TileFixture : public PrintStatusPanelFixture {
 
     PrintStatusTiles& tiles() {
         return PrintStatusPanelTestAccess::tiles(panel());
+    }
+
+    void enter_preparing() {
+        tiles().set_checklist_source(five_steps);
+        lv_subject_set_int(state().print_state().get_print_start_phase_subject(),
+                           static_cast<int>(PrintStartPhase::HEATING_NOZZLE));
+        UpdateQueue::instance().drain();
+        process_lvgl(900); // the preparing view shows after its debounce
+        REQUIRE(subject_int("preparing_visible") == 1);
+    }
+
+    void leave_preparing() {
+        tiles().set_checklist_source(
+            []() -> std::optional<PreprintChecklistInput> { return PreprintChecklistInput{}; });
+        lv_subject_set_int(state().print_state().get_print_start_phase_subject(),
+                           static_cast<int>(PrintStartPhase::IDLE));
+        UpdateQueue::instance().drain();
+        REQUIRE(subject_int("preparing_visible") == 0);
     }
 
     /// Deliver queued observer fires, then run the update they scheduled.
@@ -196,7 +225,8 @@ TEST_CASE_METHOD(Landscape800, "printing hides checklist and shows preview", "[p
     CHECK(subject_str("ps_step_position_text").empty());
 }
 
-TEST_CASE_METHOD(Landscape800, "the G-code viewer does not draw under the opaque checklist",
+TEST_CASE_METHOD(Landscape800,
+                 "the G-code viewer does not draw under a thumbnail file's opaque checklist",
                  "[print_status][gcode_viewer]") {
     lv_obj_t* viewer = PrintStatusPanelTestAccess::gcode_viewer(panel());
     REQUIRE(viewer != nullptr);
@@ -204,6 +234,7 @@ TEST_CASE_METHOD(Landscape800, "the G-code viewer does not draw under the opaque
     PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
     settle();
     REQUIRE_FALSE(helix::ui::gcode_viewer_is_paused(viewer));
+    state().print_state().set_print_thumbnail("part.gcode", "A:assets/images/part.png");
 
     tiles().set_checklist_source([]() -> std::optional<PreprintChecklistInput> {
         PreprintChecklistInput in;
@@ -513,17 +544,6 @@ bool hidden(lv_obj_t* root, const char* name) {
     return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
 }
 
-/// Two steps done of five, the third under way.
-std::optional<PreprintChecklistInput> five_steps() {
-    PreprintChecklistInput in;
-    in.done_in_order = {PrintStartPhase::HOMING, PrintStartPhase::HEATING_BED};
-    in.current = PrintStartPhase::HEATING_NOZZLE;
-    in.expected_order = {PrintStartPhase::HOMING, PrintStartPhase::HEATING_BED,
-                         PrintStartPhase::HEATING_NOZZLE, PrintStartPhase::QGL,
-                         PrintStartPhase::BED_MESH};
-    return in;
-}
-
 } // namespace
 
 TEST_CASE_METHOD(Landscape800, "the checklist shows a row per step and none past them",
@@ -591,6 +611,116 @@ TEST_CASE_METHOD(Landscape800,
 
     set_int(ps.get_print_start_phase_subject(), static_cast<int>(PrintStartPhase::IDLE));
     UpdateQueue::instance().drain();
+}
+
+namespace {
+
+lv_opa_t bg_opa_of(lv_obj_t* root, const char* name) {
+    lv_obj_t* obj = lv_obj_find_by_name(root, name);
+    REQUIRE(obj != nullptr);
+    return lv_obj_get_style_bg_opa(obj, LV_PART_MAIN);
+}
+
+/// True when `name` has a pill behind it no wider than `max_w`, so a bar across its row fails.
+void check_pill(lv_obj_t* root, const char* name, int32_t max_w) {
+    INFO(name);
+    CHECK(bg_opa_of(root, name) > 0);
+    lv_obj_t* obj = lv_obj_find_by_name(root, name);
+    CHECK(lv_obj_get_width(obj) < max_w);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(Landscape800, "a file without a thumbnail shows its toolpath under the checklist",
+                 "[print_status][gcode_viewer]") {
+    lv_obj_t* viewer = PrintStatusPanelTestAccess::gcode_viewer(panel());
+    REQUIRE(viewer != nullptr);
+    panel().on_activate();
+    enter_preparing();
+    settle();
+    lv_obj_t* row = lv_obj_find_by_name(root_, "ps_step_row_2");
+    REQUIRE(row != nullptr);
+    const int32_t row_w = lv_obj_get_width(row);
+
+    // Before the viewer is up the list is the opaque one, pills blending in.
+    CHECK(subject_int("print_has_thumbnail") == 0);
+    CHECK(bg_opa_of(root_, "ps_job_checklist") == LV_OPA_COVER);
+    CHECK(hidden(root_, "preview_corner_buttons"));
+
+    PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
+    settle();
+    CHECK(bg_opa_of(root_, "ps_job_checklist") == 0);
+    CHECK(hidden(root_, "ps_checklist_fade"));
+    CHECK(hidden(root_, "rotate_hint"));
+    CHECK(hidden(root_, "gradient_background"));
+    CHECK_FALSE(helix::ui::gcode_viewer_is_paused(viewer));
+    CHECK(lv_obj_get_style_opa(lv_obj_find_by_name(root_, "metadata_clip"), LV_PART_MAIN) == 0);
+
+    for (const char* name : {"ps_checklist_file", "ps_step_name_2", "ps_step_time_2"}) {
+        check_pill(root_, name, row_w * 3 / 4);
+    }
+    // A row ends with its time at the right edge, wherever the name's pill stops.
+    lv_area_t row_box, time_box;
+    lv_obj_get_coords(row, &row_box);
+    lv_obj_get_coords(lv_obj_find_by_name(root_, "ps_step_time_2"), &time_box);
+    CHECK(time_box.x2 == row_box.x2);
+
+    // The viewer box is the one printing uses: a different one re-renders at print start.
+    lv_area_t preparing_box, printing_box;
+    lv_obj_get_coords(viewer, &preparing_box);
+    leave_preparing();
+    settle();
+    lv_obj_get_coords(viewer, &printing_box);
+    CHECK(lv_area_get_width(&preparing_box) == lv_area_get_width(&printing_box));
+    CHECK(lv_area_get_height(&preparing_box) == lv_area_get_height(&printing_box));
+    CHECK(preparing_box.x1 == printing_box.x1);
+    CHECK(preparing_box.y1 == printing_box.y1);
+    CHECK(lv_obj_get_style_opa(lv_obj_find_by_name(root_, "metadata_clip"), LV_PART_MAIN) ==
+          LV_OPA_COVER);
+    CHECK_FALSE(hidden(root_, "preview_corner_buttons"));
+    CHECK_FALSE(hidden(root_, "gradient_background"));
+}
+
+TEST_CASE_METHOD(Landscape800, "a thumbnail arriving mid-start goes back to the opaque checklist",
+                 "[print_status][gcode_viewer]") {
+    lv_obj_t* viewer = PrintStatusPanelTestAccess::gcode_viewer(panel());
+    REQUIRE(viewer != nullptr);
+    panel().on_activate();
+    PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
+    enter_preparing();
+    settle();
+    REQUIRE_FALSE(helix::ui::gcode_viewer_is_paused(viewer));
+
+    state().print_state().set_print_thumbnail("part.gcode", "A:assets/images/part.png");
+    UpdateQueue::instance().drain();
+    settle();
+    CHECK(helix::ui::gcode_viewer_is_paused(viewer));
+    CHECK(bg_opa_of(root_, "ps_job_checklist") == LV_OPA_COVER);
+    CHECK_FALSE(hidden(root_, "ps_checklist_fade"));
+    CHECK(bg_opa_of(root_, "ps_step_name_2") == 0);
+    CHECK(bg_opa_of(root_, "ps_step_time_2") == 0);
+    CHECK(lv_obj_get_style_opa(lv_obj_find_by_name(root_, "metadata_clip"), LV_PART_MAIN) ==
+          LV_OPA_COVER);
+    leave_preparing();
+}
+
+TEST_CASE_METHOD(Portrait272, "the compact checklist puts pills on its lines over the toolpath",
+                 "[print_status]") {
+    panel().on_activate();
+    PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
+    enter_preparing();
+    settle();
+    REQUIRE(subject_int("ps_checklist_compact") == 1);
+    REQUIRE(bg_opa_of(root_, "ps_job_checklist") == 0);
+
+    lv_obj_t* body = lv_obj_find_by_name(root_, "ps_checklist_compact");
+    REQUIRE(body != nullptr);
+    const int32_t body_w = lv_obj_get_width(body);
+    for (const char* name : {"ps_checklist_compact_file", "ps_checklist_position",
+                             "ps_checklist_current", "ps_checklist_current_time"}) {
+        check_pill(root_, name, body_w);
+    }
+    leave_preparing();
 }
 
 TEST_CASE_METHOD(Portrait272, "a narrow job tile shows the current step compactly",

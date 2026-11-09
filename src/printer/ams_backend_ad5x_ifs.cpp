@@ -33,6 +33,7 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "toolhead_homing.h"
+#include "zmod_color_status.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -94,6 +95,13 @@ namespace {
 [[nodiscard]] bool job_holds_machine_now() {
     return get_printer_state().are_subjects_initialized() &&
            job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
+}
+
+/// Klipper's idle_timeout reads "Printing": some G-code is executing.
+[[nodiscard]] bool klipper_busy_now() {
+    return get_printer_state().are_subjects_initialized() &&
+           lv_subject_get_int(
+               get_printer_state().calibration_state().get_idle_timeout_printing_subject()) == 1;
 }
 
 /// Runout recovery purge on a printer without zMod's bin macros: 50 mm of fresh
@@ -220,6 +228,24 @@ namespace {
 constexpr const char* kZmodChangeMacro = "gcode_macro END_CHANGE_FILAMENT";
 /// last_data.channel when no change is running.
 constexpr int kZmodChangeIdleChannel = 99;
+
+/// The change macro's last_data.channel in this status frame; nullopt when the
+/// frame does not carry it (a diff frame without last_data did not change it).
+[[nodiscard]] std::optional<int> zmod_change_channel(const nlohmann::json& status) {
+    auto it = status.find(kZmodChangeMacro);
+    if (it == status.end() || !it->is_object()) {
+        return std::nullopt;
+    }
+    auto data = it->find("last_data");
+    if (data == it->end() || !data->is_object()) {
+        return std::nullopt;
+    }
+    auto channel = data->find("channel");
+    if (channel == data->end() || !channel->is_number_integer()) {
+        return std::nullopt;
+    }
+    return channel->get<int>();
+}
 
 /// What each synthesized phase projects to, by the phase index the tracker
 /// publishes. The step model and the tracker's action both read these, so the
@@ -677,7 +703,9 @@ void AmsBackendAd5xIfs::handle_status(const json& status) {
     // state change worth publishing (#1065 row 14).
     const bool indet_before = system_info_.operation_indeterminate;
     const AmsAction action_before_timeout = system_info_.action;
-    check_action_timeout();
+    // A frame that ends the Z-Mod change also reads idle; apply_zmod_change_macro
+    // below finishes that change, so the timeout check must not call it abandoned.
+    check_action_timeout(zmod_change_channel(status) == kZmodChangeIdleChannel);
     const bool indet_toggled = system_info_.operation_indeterminate != indet_before;
     const bool timeout_changed_action = system_info_.action != action_before_timeout;
 
@@ -2312,20 +2340,11 @@ bool AmsBackendAd5xIfs::can_cancel_operation() const {
 }
 
 void AmsBackendAd5xIfs::apply_zmod_change_macro(const json& status) {
-    auto it = status.find(kZmodChangeMacro);
-    if (it == status.end() || !it->is_object()) {
+    const std::optional<int> channel = zmod_change_channel(status);
+    if (!channel) {
         return;
     }
-    // A diff frame without last_data means it did not change.
-    auto data = it->find("last_data");
-    if (data == it->end() || !data->is_object()) {
-        return;
-    }
-    auto channel = data->find("channel");
-    if (channel == data->end() || !channel->is_number_integer()) {
-        return;
-    }
-    const bool changing = channel->get<int>() != kZmodChangeIdleChannel;
+    const bool changing = *channel != kZmodChangeIdleChannel;
     const bool in_job = job_holds_machine_now();
 
     bool action_changed = false;
@@ -2342,6 +2361,7 @@ void AmsBackendAd5xIfs::apply_zmod_change_macro(const json& status) {
                 set_operation_detail_locked("Changing filament");
                 zmod_change_owns_action_ = true;
                 zmod_change_in_job_ = in_job;
+                zmod_change_saw_busy_ = klipper_busy_now();
             }
         } else {
             zmod_change_stale_ = false;
@@ -3907,7 +3927,8 @@ bool AmsBackendAd5xIfs::on_gcode_response_line(const std::string& line) {
                 // line string). empty optional == "not present in this gcode".
                 std::optional<std::string> parsed_type;
                 helix::RegexMatch tm;
-                if (helix::regex_search(line, tm, type_re)) {
+                if (helix::regex_search(line, tm, type_re) &&
+                    !helix::zmod_color::is_unset_type(tm[1].str())) {
                     parsed_type = tm[1].str();
                 }
                 std::optional<std::string> parsed_hex;
@@ -4059,7 +4080,9 @@ bool AmsBackendAd5xIfs::apply_color_menu_slot_row(const std::string& line) {
 
     helix::RegexMatch tm;
     helix::RegexMatch hm;
-    const bool has_type = helix::regex_search(line, tm, type_re);
+    // TYPE=? names no material, so the row carries no type reading.
+    const bool has_type =
+        helix::regex_search(line, tm, type_re) && !helix::zmod_color::is_unset_type(tm[1].str());
     const bool has_hex = helix::regex_search(line, hm, hex_re);
     if (!has_type && !has_hex)
         return false;
@@ -6105,7 +6128,7 @@ void AmsBackendAd5xIfs::sync_remembered_lane_to_module_locked() {
 
 // ensure_homed_then() provided by AmsSubscriptionBackend
 
-void AmsBackendAd5xIfs::check_action_timeout() {
+void AmsBackendAd5xIfs::check_action_timeout(bool zmod_change_ending) {
     // Indeterminate ("Working…") detector (#1065 row 14). While a phase-tracked
     // load/unload is in flight, if no genuine progress signal (temp-VALUE change,
     // head transition, motion, or phase change) has landed within the short
@@ -6130,6 +6153,14 @@ void AmsBackendAd5xIfs::check_action_timeout() {
             release_zmod_change_locked("END_CHANGE_FILAMENT never ran");
         } else if (zmod_change_in_job_ && !job_holds_machine_now()) {
             release_zmod_change_locked("the job ended mid-change");
+        } else if (klipper_busy_now()) {
+            zmod_change_saw_busy_ = true;
+        } else if (zmod_change_saw_busy_ && !zmod_change_ending) {
+            // The change chain is one G-code command, so Klipper going idle
+            // means it stopped without reaching END_CHANGE_FILAMENT. Z-Mod's
+            // print-start change runs before print_stats leaves standby, so
+            // no job end ever covers it (#2086).
+            release_zmod_change_locked("Klipper went idle mid-change");
         }
     }
 

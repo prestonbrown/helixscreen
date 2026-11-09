@@ -37,7 +37,7 @@
  *    toast — the modal carries the recovery actions, so downgrading it to
  *    "already covered" would lose the only actionable thing on screen.
  *
- * Match is EXACT-STRING, same reasoning as rpc_error_correlation: AFC emits
+ * The bridge's match is EXACT-STRING, same reasoning as rpc_error_correlation: AFC emits
  * `!! <msg>` and queues the byte-identical string into `AFC.message`, so the
  * two channels agree exactly. Substring matching would let one fault mask an
  * unrelated one that happens to share a phrase, which is precisely the
@@ -58,6 +58,18 @@ void record_surfaced(const std::string& detail);
 /// True if `detail` exactly matches something surfaced inside the window.
 /// Always prunes expired entries before checking.
 [[nodiscard]] bool was_recently_surfaced(const std::string& detail);
+
+/// True if `detail` is, or only wraps, something surfaced inside the window:
+/// the whole text, or the part after a ": ", is exactly the surfaced message.
+/// Firmware often raises a cause and then the same cause under its context
+/// ("X", then "Filament change error: X"); that prefix adds nothing a second
+/// toast should show. A text carrying anything after the cause, such as a
+/// further line, still surfaces, and so does one that merely mentions the
+/// phrase. The router's toast arms use this; the bridge keeps the exact match.
+[[nodiscard]] bool was_recently_surfaced_within(const std::string& detail);
+
+/// Whether `text` is `cause`, or `cause` behind a "<context>: " prefix.
+[[nodiscard]] bool only_wraps(const std::string& text, const std::string& cause);
 
 /// Drop all records — for tests. Called from HelixTestFixture::reset_all().
 void clear_for_test();

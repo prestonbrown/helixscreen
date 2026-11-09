@@ -5026,9 +5026,10 @@ TEST_CASE_METHOD(SnapmakerFixture,
 TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker sends no repair before its own frames name a print state",
                  "[ams][snapmaker][filament_record][official_repair]") {
-    // The app's print state may not be known when the first frames land; the
-    // backend's own print_stats is the only answer it trusts.
+    // The edit goes out on the app's print state; the repair waits for the
+    // backend's own print_stats, the only answer it trusts.
     lv_init_safe();
+    get_printer_state().init_subjects(false);
     FilamentRecordHarness h("official_repair_no_state", /*print_state=*/"");
     helix::test::edit_slot_as_user(h.backend, 3, inland_pla());
     h.printer.client.clear_gcode_script_history();

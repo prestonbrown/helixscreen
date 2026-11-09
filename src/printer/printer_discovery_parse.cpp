@@ -1088,6 +1088,7 @@ void PrinterDiscovery::clear() {
     led_driving_macros_.clear();
     skip_wrappable_.clear();
     skip_active_.clear();
+    signal_macro_scan_.reset();
     sensor_toggle_command_.clear();
     screws_tilt_builtin_.clear();
     helix_macros_.clear();

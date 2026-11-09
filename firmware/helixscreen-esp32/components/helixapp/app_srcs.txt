@@ -118,6 +118,7 @@ src/print/preprint_predictor.cpp
 src/print/preprint_checklist.cpp
 src/print/print_3mf.cpp
 src/print/print_start_phase_label.cpp
+src/print/print_start_plan.cpp
 src/ui/print/print_status_chips.cpp
 src/ui/print/print_status_tile_layout.cpp
 src/ui/print/ui_print_status_more_menu.cpp

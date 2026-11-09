@@ -4,6 +4,7 @@
 #include "core/text_io.h"
 
 #include "helix_fs.h"
+#include "system/helix_paths.h"
 
 #include <algorithm>
 #include <atomic>
@@ -132,7 +133,11 @@ bool fail_and_remove(const std::string& tmp) {
 
 } // namespace
 
-bool write_file_atomic(const std::string& path, std::string_view data, Durability durability) {
+bool write_file_atomic(const std::string& link_path, std::string_view data, Durability durability) {
+    // A rename onto a symlink replaces the link. User files are links into a
+    // store outside the install root, so the save goes to the link's target,
+    // and the staging file sits beside it on the same filesystem.
+    const std::string path = helix::paths::write_target(link_path);
     // One staging file per call: writers of the same path that shared one
     // would write into each other's file and rename it out from under each other.
     // 32 bits: MIPS32 has no native 8-byte atomics, and helix-splash and

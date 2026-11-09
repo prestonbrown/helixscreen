@@ -20,9 +20,11 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "lan_client_auth_router.h"
+#include "macro_manager.h"
 #include "moonraker_error.h"
 #include "printer_state.h"
 #include "recovery_modal_presenter.h"
+#include "sliced_signal_names.h"
 
 #include <spdlog/spdlog.h>
 
@@ -146,6 +148,42 @@ void GcodeResponseRouting::attach(IMoonrakerClient* client, IMoonrakerAPI* api) 
 
     m_event_journal_recorder = std::make_unique<EventJournalRecorder>(client);
 
+    // A sliced file calling a visible signal name the printer no longer defines:
+    // the names a print called are recorded when it ends, and the user hears
+    // why once. The update is pointed at only when the macros row offers it.
+    m_sliced_signal_watcher =
+        std::make_unique<SlicedSignalWatcher>(client, [](const std::vector<std::string>& visible) {
+            auto& state = get_printer_state();
+            const MacroInstallStatus status = MacroManager::evaluate_status(state.get_discovery());
+            state.plugin_status_state().set_helix_macros_base_status(status);
+            const std::string text = signal_macros::sliced_signal_notice(
+                visible, status == MacroInstallStatus::OUTDATED);
+            ToastManager::instance().show(ToastSeverity::WARNING, text.c_str(), 8000);
+        });
+    m_sliced_signal_watcher->set_print_probes(
+        {[] {
+             const auto& scan = get_printer_state().get_discovery().signal_macro_scan();
+             return scan ? scan->announcing : std::vector<std::string>{};
+         },
+         [] {
+             constexpr int kFreshPrintSeconds = 60;
+             auto& print = get_printer_state().print_state();
+             return lv_subject_get_int(print.get_print_elapsed_subject()) <= kFreshPrintSeconds;
+         },
+         [] {
+             auto& print = get_printer_state().print_state();
+             return static_cast<PrintOutcome>(lv_subject_get_int(
+                        print.get_print_outcome_subject())) == PrintOutcome::COMPLETE;
+         },
+         [] {
+             auto& state = get_printer_state();
+             state.plugin_status_state().set_helix_macros_base_status(
+                 MacroManager::evaluate_status(state.get_discovery()));
+         }});
+    m_sliced_signal_watcher->watch_print_active(
+        get_printer_state().print_state().get_print_active_subject(),
+        get_printer_state().print_state().get_static_subjects_lifetime());
+
     // Layer tracking fallback: some slicers don't emit SET_PRINT_STATS_INFO, so
     // print_stats.info never updates current_layer. The response lines carry it.
     client->register_method_callback(
@@ -190,6 +228,7 @@ void GcodeResponseRouting::detach_handlers(IMoonrakerClient* client) {
 }
 
 void GcodeResponseRouting::release_routers() {
+    m_sliced_signal_watcher.reset();
     m_event_journal_recorder.reset();
     m_gcode_narration_router.reset();
     m_lan_client_auth_router.reset();

@@ -5,7 +5,7 @@
 
 #include "ams_types.h"
 #include "bed_drying.h"
-#include "display_numbering.h"
+#include "core/tool_number_style.h"
 #include "lvgl/lvgl.h"
 #include "maintenance_meters.h"
 #include "mount_feed_sequence.h"

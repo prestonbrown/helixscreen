@@ -551,6 +551,74 @@ TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: a stale Review shows nothi
     CHECK(Modal::get_top() == nullptr);
 }
 
+// A type chosen in Settings or Printer Manager spends the warning: the sticky
+// toast must not stay up saying "set up as stock" over the type the user just
+// picked (prestonbrown/helixscreen#2087).
+TEST_CASE_METHOD(TypeMismatchFixture,
+                 "Type mismatch: a type changed elsewhere takes the warning's toast down",
+                 "[type-mismatch][hardware_setup][2087]") {
+    state().set_printer_type_sync(SAVED);
+    drain();
+    warn();
+    REQUIRE(toast_.has_value());
+
+    SECTION("re-applying the same type leaves it up") {
+        state().set_printer_type_sync(SAVED);
+        drain();
+        CHECK_FALSE(helix::ui::last_action_toast_dismissed());
+    }
+    SECTION("a different saved type takes it down, and settles nothing") {
+        set_config(helix::wizard::PRINTER_TYPE, DETECTED);
+        state().set_printer_type_sync(DETECTED);
+        drain();
+        CHECK(helix::ui::last_action_toast_dismissed());
+        CHECK(dismissed_for().empty());
+
+        // The Review that was armed with it is spent as well.
+        tap_history_entry();
+        CHECK(Modal::get_top() == nullptr);
+    }
+}
+
+// A printer switch rebuilds PrinterState's subjects. The warning raised on the
+// next printer must still come down when its type is fixed elsewhere.
+TEST_CASE_METHOD(TypeMismatchFixture,
+                 "Type mismatch: after a printer switch a type change still takes the toast down",
+                 "[type-mismatch][hardware_setup][2087]") {
+    state().set_printer_type_sync(SAVED);
+    drain();
+    warn();
+    REQUIRE(toast_.has_value());
+
+    state().deinit_subjects();
+    state().init_subjects(true);
+    prompter_->reset_for_new_connection();
+    state().set_printer_type_sync(SAVED);
+    drain();
+
+    toast_.reset();
+    warn();
+    REQUIRE(toast_.has_value());
+    REQUIRE_FALSE(helix::ui::last_action_toast_dismissed());
+
+    set_config(helix::wizard::PRINTER_TYPE, DETECTED);
+    state().set_printer_type_sync(DETECTED);
+    drain();
+    CHECK(helix::ui::last_action_toast_dismissed());
+}
+
+// `ctl demo type-mismatch-*` names a saved type the config does not hold. Its
+// toast must stay up for the screenshot it exists to take.
+TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: the demo keeps its own toast up",
+                 "[type-mismatch][hardware_setup][2087]") {
+    state().set_printer_type_sync(SAVED);
+    drain();
+    prompter_->show_type_mismatch_demo(DETECTED, 92, "Not The Configured Printer", false);
+    drain();
+    REQUIRE(toast_.has_value());
+    CHECK_FALSE(helix::ui::last_action_toast_dismissed());
+}
+
 // An answer for the saved type against an earlier detection does not spend a
 // warning about a different detected type (prestonbrown/helixscreen#2075).
 TEST_CASE_METHOD(TypeMismatchFixture,

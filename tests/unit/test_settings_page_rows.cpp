@@ -15,6 +15,7 @@
 #include "ui_panel_settings.h"
 #include "ui_settings_appearance.h"
 #include "ui_settings_hardware.h"
+#include "ui_settings_printing.h"
 #include "ui_settings_safety.h"
 #include "ui_settings_sound.h"
 #include "ui_settings_touch.h"
@@ -216,6 +217,28 @@ TEST_CASE_METHOD(PageRowsFixture,
     CHECK_FALSE(has("row_allow_cold_extrude"));
     build("settings_hardware_overlay");
     CHECK_FALSE(has("row_ams_settings"));
+}
+
+TEST_CASE_METHOD(PageRowsFixture, "Number slots from 0 row writes the setting",
+                 "[settings][settings_pages][numbering]") {
+    auto& page = helix::settings::get_printing_settings_overlay();
+    page.show(test_screen());
+    process_lvgl(5);
+    lv_obj_t* row = lv_obj_find_by_name(lv_screen_active(), "row_number_lanes_from_zero");
+    REQUIRE(row != nullptr);
+    lv_obj_t* toggle = lv_obj_find_by_name(row, "toggle");
+    REQUIRE(toggle != nullptr);
+
+    auto& settings = SettingsManager::instance();
+    settings.set_number_lanes_from_zero(false);
+    process_lvgl(5);
+    lv_obj_add_state(toggle, LV_STATE_CHECKED);
+    lv_obj_send_event(toggle, LV_EVENT_VALUE_CHANGED, nullptr);
+    CHECK(settings.get_number_lanes_from_zero());
+
+    settings.set_number_lanes_from_zero(false);
+    NavigationManager::instance().go_back();
+    process_lvgl(5);
 }
 
 TEST_CASE_METHOD(PageRowsFixture, "Appearance fills the printer-visual dropdowns on activate",

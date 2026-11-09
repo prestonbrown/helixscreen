@@ -76,6 +76,10 @@ class DisplayBackendDRM : public DisplayBackend {
 
     // Input device creation
     lv_indev_t* create_input_pointer() override;
+    lv_indev_t* reopen_input_pointer() override;
+    bool can_reopen_input_pointer() const override {
+        return true;
+    }
     lv_indev_t* create_input_keyboard() override;
     bool has_hardware_keyboard() const override {
         return keyboard_ != nullptr;
@@ -213,6 +217,16 @@ class DisplayBackendDRM : public DisplayBackend {
     /// Opens the touch pointer and the mouse on whichever path finds them. Only
     /// create_input_pointer() calls it, so every device it opens gets the hook.
     void open_pointer_devices();
+    /// Opens pointer_ on the touch panel. A reopen tries only an explicit
+    /// override or a discovered touch panel, never the blind fallbacks, and logs
+    /// its misses at debug. Returns true when an explicit override decided the
+    /// device, which skips mouse detection.
+    bool open_touch_device(bool reopening);
+    void open_mouse_device();
+    /// Installs the calibration wrapper and the pointer frame hook on whichever
+    /// devices lack them, and returns pointer_. Every path that opens a device
+    /// ends here.
+    lv_indev_t* hook_pointer_devices();
     /// Auto-fire the first-run wizard (resistive controllers, broken ABS ranges)
     bool needs_calibration_ = false;
     /// Offer the manual Settings entry point (any real touch panel)

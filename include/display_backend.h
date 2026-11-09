@@ -458,6 +458,28 @@ class DisplayBackend {
     virtual lv_indev_t* create_input_pointer() = 0;
 
     /**
+     * @brief Open the touch panel again after LVGL deleted the pointer device
+     *
+     * lv_evdev deletes its own device when a read fails, as it does when a
+     * USB touch controller drops off the bus and re-enumerates
+     * (prestonbrown/helixscreen#2069). DisplayManager calls this on a timer
+     * until a device comes back. Only a real touch panel counts: no blind
+     * fallback onto whatever event node exists.
+     *
+     * @return the reopened pointer, or nullptr while none is back (always,
+     *         on a backend whose pointer cannot disappear)
+     */
+    virtual lv_indev_t* reopen_input_pointer() {
+        return nullptr;
+    }
+
+    /// Whether reopen_input_pointer() can ever bring a pointer back. DisplayManager
+    /// arms its retry only on a backend that says yes.
+    virtual bool can_reopen_input_pointer() const {
+        return false;
+    }
+
+    /**
      * @brief Create keyboard input device (optional)
      *
      * Not all backends support keyboard input. Returns nullptr

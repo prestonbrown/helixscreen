@@ -182,6 +182,7 @@ translations:
   A print took the printer.: A print took the printer.
   A restart is already in progress: A restart is already in progress
   A right, B left: A right, B left
+  A saturated filter stops trapping fumes and particles.: A saturated filter stops trapping fumes and particles.
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.
@@ -273,6 +274,7 @@ translations:
   Adjust screen brightness level: Adjust screen brightness level
   Adjust screws, then re-probe.: Adjust screws, then re-probe.
   Adjust the other belt: Adjust the other belt
+  Adjust the tensioners until both belts match.: Adjust the tensioners until both belts match.
   Adjustments stay active until restart. Save after print completes.: Adjustments
     stay active until restart. Save after print completes.
   Adjusts individual characteristics of your heaters for optimal control: Adjusts
@@ -282,6 +284,7 @@ translations:
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: After connecting the {}, we recommend recalibrating input shaping to ensure print quality.
   After running the commands, tap Check Again below.: After running the commands,
     tap Check Again below.
+  Air filter: Air filter
   Alert: Alert
   Alerts: Alerts
   Alerts and messages waiting for you: Alerts and messages waiting for you
@@ -345,7 +348,9 @@ translations:
   : "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   Applies to: Applies to
   Apply: Apply
+  Apply a thin film of the lubricant your manual names.: Apply a thin film of the lubricant your manual names.
   Apply start options to prints from other apps: Apply start options to prints from other apps
+  Apply the lubricant your manual names, sparingly.: Apply the lubricant your manual names, sparingly.
   Aqua Surface: Aqua Surface
   Archive: Archive
   Archive Spool?: Archive Spool?
@@ -463,16 +468,20 @@ translations:
   Belt Tension: Belt Tension
   Belt Tension Check: Belt Tension Check
   Belt Tension needs a CoreXY printer. This one is {}.: Belt Tension needs a CoreXY printer. This one is {}.
+  Belt tension: Belt tension
   Belt tension and cutter calibration: Belt tension and cutter calibration
   Belt tensioning completed: Belt tensioning completed
   'Belt tensioning failed: {}': 'Belt tensioning failed: {}'
+  Belts: Belts
   Belts already match: Belts already match
+  Belts stretch and settle; loose ones cause ringing and layer shifts.: Belts stretch and settle; loose ones cause ringing and layer shifts.
   Beta: Beta
   'Beta features: OFF': 'Beta features: OFF'
   'Beta features: ON': 'Beta features: ON'
   Black: Black
   Blade change and parking: Blade change and parking
   Blocked: Blocked
+  Blow the dust out of the fans and vents.: Blow the dust out of the fans and vents.
   Bluetooth: Bluetooth
   Bluetooth device not configured: Bluetooth device not configured
   Bluetooth initialization failed: Bluetooth initialization failed
@@ -512,7 +521,9 @@ translations:
   Browse catalog...: Browse catalog...
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: Browse
     guides, configuration references, and troubleshooting resources for HelixScreen.
+  Brush filament dust out of the extruder gears: Brush filament dust out of the extruder gears
   Brush nozzle: Brush nozzle
+  Brush the gear teeth clean.: Brush the gear teeth clean.
   Brush the mounted tool's nozzle clean: Brush the mounted tool's nozzle clean
   Buffer: Buffer
   Buffer Status: Buffer Status
@@ -718,6 +729,8 @@ translations:
   Check AFC configuration: Check AFC configuration
   Check Again: Check Again
   Check Klipper console for details: Check Klipper console for details
+  Check both belts for wear and frayed edges.: Check both belts for wear and frayed edges.
+  Check each fan spins freely.: Check each fan spins freely.
   Check every dock: Check every dock
   Check extruder temperature and try again. Manual removal may be required.: Check extruder temperature and try again. Manual removal may be required.
   Check failed: Check failed
@@ -739,6 +752,7 @@ translations:
   : Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
   Check the provided value and try again: Check the provided value and try again
   Check the spool and the filament path for a jam, then retry: Check the spool and the filament path for a jam, then retry
+  Check the tension of the motion belts: Check the tension of the motion belts
   Check your heater's rating (typically 40-60W for hotends): Check your heater's rating
     (typically 40-60W for hotends)
   Checking: Checking
@@ -782,6 +796,9 @@ translations:
   Clean Nozzle: Clean Nozzle
   Clean Up Storage: Clean Up Storage
   Clean a clogged nozzle, step by step: Clean a clogged nozzle, step by step
+  Clean and lubricate the X and Y rails or rods: Clean and lubricate the X and Y rails or rods
+  Clean and lubricate the Z screws and guides: Clean and lubricate the Z screws and guides
+  Clean dust from the mainboard and power supply fans: Clean dust from the mainboard and power supply fans
   Clean nozzle: Clean nozzle
   Clean up: Clean up
   Clean {}: Clean {}
@@ -1167,6 +1184,7 @@ translations:
   Digital Clock: Digital Clock
   Direct drive: Direct drive
   'Direct drive: release the extruder tension and pull the filament out in one firm motion.': 'Direct drive: release the extruder tension and pull the filament out in one firm motion.'
+  Dirty or dry Z screws bind, which shows up as uneven layer lines.: Dirty or dry Z screws bind, which shows up as uneven layer lines.
   Disable: Disable
   Disable Bypass: Disable Bypass
   Disable Motors?: Disable Motors?
@@ -1235,6 +1253,8 @@ translations:
   Duplicate: Duplicate
   Duplicated: Duplicated
   Duration: Duration
+  Dust and old grease on the X and Y rails or rods cause noise, ringing and wear.: Dust and old grease on the X and Y rails or rods cause noise, ringing and wear.
+  Dusty board and power supply fans run hot and fail early.: Dusty board and power supply fans run hot and fail early.
   E-Stop (M112): E-Stop (M112)
   E-Stop Confirmation: E-Stop Confirmation
   EDDY CURRENT: EDDY CURRENT
@@ -1264,6 +1284,7 @@ translations:
   Eject needs [force_move] enabled in printer config: Eject needs [force_move] enabled
     in printer config
   Ejecting: Ejecting
+  Electronics fans: Electronics fans
   Elegoo Centauri Carbon: Elegoo Centauri Carbon
   Element: 'Element'
   Emergency Stop: Emergency Stop
@@ -1403,6 +1424,7 @@ translations:
   External Spool: External Spool
   External spool cleared: External spool cleared
   External spool updated: External spool updated
+  Extr.: Extr.
   Extra distance to move once sensors clear: Extra distance to move once sensors clear
   Extra prime to compensate ooze: Extra prime to compensate ooze
   Extrude: Extrude
@@ -1611,6 +1633,7 @@ translations:
   Filament diameter sensors for flow compensation: Filament diameter sensors for flow
     compensation
   Filament didn't fully retract, may need manual removal: Filament didn't fully retract, may need manual removal
+  Filament dust packs into the drive gears and costs grip.: Filament dust packs into the drive gears and costs grip.
   Filament feeder: Filament feeder
   Filament is clear of the toolhead. Pull it out the rest of the way.: Filament is clear of the toolhead. Pull it out the rest of the way.
   Filament is dragging: Filament is dragging
@@ -1658,6 +1681,7 @@ translations:
   File not found on printer.: File not found on printer.
   'File not found: {}': 'File not found: {}'
   Filename: Filename
+  Filter: Filter
   Filter Fan: Filter Fan
   Finding where the print stopped...: Finding where the print stopped...
   Fine: Fine
@@ -1699,6 +1723,7 @@ translations:
   Focused: Focused
   Follow active tool: Follow active tool
   Follow graph screen: Follow graph screen
+  Follow your manual to swap the nozzle or hotend.: Follow your manual to swap the nozzle or hotend.
   'For a first Z home: claim the tool you put on the head': 'For a first Z home: claim the tool you put on the head'
   For materials that need a warm enclosure, like ABS or ASA: For materials that need a warm enclosure, like ABS or ASA
   Force/weight sensors: Force/weight sensors
@@ -1801,6 +1826,7 @@ translations:
   Heat the bed to {}°C: Heat the bed to {}°C
   Heat the chamber too: Heat the chamber too
   Heat the extruder to at least {}°C before loading filament: Heat the extruder to at least {}°C before loading filament
+  Heat the hotend.: Heat the hotend.
   Heat to at least %d°C for filament operations: Heat to at least %d°C for filament operations
   Heat {} above {}°C before resuming: Heat {} above {}°C before resuming
   Heatbed Temperature: Heatbed Temperature
@@ -2176,6 +2202,7 @@ translations:
   Last 24 hours: Last 24 hours
   Last 30 days: Last 30 days
   Last 7 days: Last 7 days
+  Last done at {} h: Last done at {} h
   Last measured: Last measured
   Last print canceled: Last print canceled
   Last print failed: Last print failed
@@ -2345,6 +2372,7 @@ translations:
   Main LED Strip: Main LED Strip
   Maintaining: Maintaining
   Maintenance: Maintenance
+  Maintenance Task: Maintenance Task
   Make color, material and spool changes in Spoolman.: Make color, material and spool changes in Spoolman.
   Make sure every nozzle is clean.: Make sure every nozzle is clean.
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.'
@@ -2370,6 +2398,8 @@ translations:
   Mapping Error: Mapping Error
   Marginal: Marginal
   Mark a printer you enclosed yourself: Mark a printer you enclosed yourself
+  Mark done: Mark done
+  Mark {} done?: Mark {} done?
   Master volume level: Master volume level
   Match Mode: Match Mode
   Match your typical print fan speed: Match your typical print fan speed
@@ -2396,6 +2426,7 @@ translations:
   Measure each toolhead's X, Y and Z offset (about 20 minutes): Measure each toolhead's X, Y and Z offset (about 20 minutes)
   Measure every tool's XYZ offset automatically: Measure every tool's XYZ offset automatically
   Measure pressure advance automatically: Measure pressure advance automatically
+  Measure the tension with the Belt Tension tool, or as your manual shows.: Measure the tension with the Belt Tension tool, or as your manual shows.
   Measure this zone first: Measure this zone first
   ? Measure up from the plate. Sharp corners with no bulge and no gap mark the right K. Each row is a height range and the K the printer reported while it printed.
   : Measure up from the plate. Sharp corners with no bulge and no gap mark the right K. Each row is a height range and the K the printer reported while it printed.
@@ -2479,6 +2510,7 @@ translations:
     slides.
   Move selector: Move selector
   Move speed multipliers: Move speed multipliers
+  Move the toolhead end to end by hand to spread it.: Move the toolhead end to end by hand to spread it.
   'Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings.': 'Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings.'
   ? Moves the print head to measure vibration frequencies on each axis. Takes 2-3
     minutes. The printer will make noise — this is normal.
@@ -2580,6 +2612,7 @@ translations:
   No clear peak in this zone: No clear peak in this zone
   No color: No color
   No connection to the printer.: No connection to the printer.
+  No day limit: No day limit
   No dryer available. Store filament in a sealed dry box with desiccant for best results.: No
     dryer available. Store filament in a sealed dry box with desiccant for best results.
   No effects available: No effects available
@@ -2745,6 +2778,7 @@ translations:
   Nozzle, bed, and chamber in one widget: Nozzle, bed, and chamber in one widget
   'Nozzle:': 'Nozzle:'
   'Nozzles still heating: {}': 'Nozzles still heating: {}'
+  Nozzles wear, abrasive filament fastest; a worn one under-extrudes and strings.: Nozzles wear, abrasive filament fastest; a worn one under-extrudes and strings.
   Number Pad Layout: Number Pad Layout
   Number slots from 0: Number slots from 0
   Nylon: Nylon
@@ -2795,6 +2829,7 @@ translations:
   Open motion controls for jogging: Open motion controls for jogging
   Open the .3mf in Print Files to print this plate again.: Open the .3mf in Print Files to print this plate again.
   Open the CFS unit and remove the broken filament from the slot: Open the CFS unit and remove the broken filament from the slot
+  Open the extruder as your manual shows.: Open the extruder as your manual shows.
   Open the slot editor when you load a new spool: Open the slot editor when you load a new spool
   OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here
   OpenAMS manages this spool's link: OpenAMS manages this spool's link
@@ -2958,7 +2993,9 @@ translations:
   Power: Power
   Power Devices: Power Devices
   Power devices Moonraker can switch. Turn them on and off on the Power screen.: Power devices Moonraker can switch. Turn them on and off on the Power screen.
+  Power off and unplug the printer.: Power off and unplug the printer.
   Power off the printer or screen: Power off the printer or screen
+  Power off the printer.: Power off the printer.
   Power was lost about {} hours ago.: Power was lost about {} hours ago.
   Power was lost about {} minutes ago.: Power was lost about {} minutes ago.
   'Power was lost during the print; the printer stopped and saved its progress': 'Power was lost during the print; the printer stopped and saved its progress'
@@ -3231,6 +3268,7 @@ translations:
   'RSS:': 'RSS:'
   Rails: Rails
   Raise: Raise
+  Raise and lower the bed or gantry through its travel.: Raise and lower the bed or gantry through its travel.
   Ramming Volume: Ramming Volume
   'Ramp: band {} of {}': 'Ramp: band {} of {}'
   'Ramp: base layers': 'Ramp: base layers'
@@ -3238,6 +3276,7 @@ translations:
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
   Re-apply spool: Re-apply spool
+  Re-check the Z offset after the swap.: Re-check the Z offset after the swap.
   Re-identify: Re-identify
   Re-measure: Re-measure
   Re-measure (~{} min): Re-measure (~{} min)
@@ -3262,9 +3301,11 @@ translations:
   Reason: Reason
   ? "Reason: {}\n\nThe printer cannot resume this print. Restart from the beginning?"
   : "Reason: {}\n\nThe printer cannot resume this print. Restart from the beginning?"
+  Reassemble and load filament.: Reassemble and load filament.
   Reboot: Reboot
   Reboot failed: Reboot failed
   Reboot failed — host is still reachable: Reboot failed — host is still reachable
+  Reboot the printer to finish the plugin update.: Reboot the printer to finish the plugin update.
   Recalibrate input shaping?: Recalibrate input shaping?
   Recalibrate or view detailed results anytime in Settings.: Recalibrate or view detailed
     results anytime in Settings.
@@ -3316,6 +3357,8 @@ translations:
   Remaining Weight (g): Remaining Weight (g)
   Remaining weight: Remaining weight
   Remember slot spool details across an eject: Remember slot spool details across an eject
+  Reminder Intervals: Reminder Intervals
+  Reminder intervals: Reminder intervals
   Remove: Remove
   Remove HelixScreen's include lines from printer.cfg; a resume then uses the printer's default mesh profile: Remove HelixScreen's include lines from printer.cfg; a resume then uses the printer's default mesh profile
   Remove PIN: Remove PIN
@@ -3324,6 +3367,7 @@ translations:
   Remove the PEI Sheet: Remove the PEI Sheet
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results'
   Remove the bypass spool from the toolhead first: Remove the bypass spool from the toolhead first
+  Remove the filter cover.: Remove the filter cover.
   Remove the spools: Remove the spools
   Remove the spools from the bed: Remove the spools from the bed
   Remove the spools now?: Remove the spools now?
@@ -3340,6 +3384,9 @@ translations:
   Repeat: Repeat
   Replace: Replace
   Replace Profile?: Replace Profile?
+  Replace a worn nozzle or hotend: Replace a worn nozzle or hotend
+  Replace the chamber air filter: Replace the chamber air filter
+  Replace the filter element.: Replace the filter element.
   Replay Welcome Tour: Replay Welcome Tour
   Replenish ignores color: Replenish ignores color
   'Replenishing filament...': 'Replenishing filament...'
@@ -3490,6 +3537,8 @@ translations:
   Run the chamber dryer too: Run the chamber dryer too
   Run {}?: Run {}?
   Running loose: Running loose
+  Running over: Running over
+  Running over, {}: Running over, {}
   Running tight: Running tight
   Running {}...: Running {}...
   Runout: Runout
@@ -3684,6 +3733,7 @@ translations:
   Server Setup: Server Setup
   Server-side edits: Server-side edits
   Service hours for the filter, nozzle, and rails: Service hours for the filter, nozzle, and rails
+  Service hours for the parts that wear: Service hours for the parts that wear
   Servo: Servo
   Servo Down: Servo Down
   Servo Move: Servo Move
@@ -3761,6 +3811,9 @@ translations:
   Shutting down...: Shutting down...
   Signal: Signal
   'Signal #': 'Signal #'
+  Signal macro renaming: Signal macro renaming
+  Signal macros are hidden from Fluidd and Mainsail macro lists.: Signal macros are hidden from Fluidd and Mainsail macro lists.
+  Signal macros keep their old names too, so older calls still work.: Signal macros keep their old names too, so older calls still work.
   Similarity: Similarity
   Single object: Single object
   Single toggle macro. State is not tracked.: Single toggle macro. State is not tracked.
@@ -4101,6 +4154,7 @@ translations:
     skipping bed mesh for quick reprints.
   : The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
+  The HelixPrint plugin moves old PRINT_START calls to the hidden names.: The HelixPrint plugin moves old PRINT_START calls to the hidden names.
   The IFS state file can't be read.: The IFS state file can't be read.
   The IP address cannot be the subnet's network or broadcast address.: The IP address cannot be the subnet's network or broadcast address.
   The IP address is not a valid address.: The IP address is not a valid address.
@@ -4354,6 +4408,8 @@ translations:
   This needs the plugin's file analysis, which isn't running.: This needs the plugin's file analysis, which isn't running.
   This plugin asks for no special permissions.: This plugin asks for no special permissions.
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: This plugin lets HelixScreen control print start options like bed mesh and QGL.
+  This print called {}, which the printer no longer has.: This print called {}, which the printer no longer has.
+  This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back.: This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back.
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.
   This print does not report layers, so no layer pause can be scheduled.: This print does not report layers, so no layer pause can be scheduled.
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: This
@@ -4604,6 +4660,7 @@ translations:
   Unload complete. Pull the filament out of {}.: Unload complete. Pull the filament out of {}.
   Unload failed: Unload failed
   Unload filament: Unload filament
+  Unload filament and power off the printer.: Unload filament and power off the printer.
   Unload filament?: Unload filament?
   Unload from toolhead first: Unload from toolhead first
   Unload macro not configured: Unload macro not configured
@@ -4644,6 +4701,7 @@ translations:
   Update heater model?: Update heater model?
   Update in Spoolman: Update in Spoolman
   Update installed!: Update installed!
+  Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.'
   Update your security PIN: Update your security PIN
   Updates: Updates
@@ -4804,10 +4862,12 @@ translations:
   Width Sensors: Width Sensors
   Wifi: Wifi
   Will not switch spools on runout: Will not switch spools on runout
+  Wipe each rail or rod clean with a lint-free cloth.: Wipe each rail or rod clean with a lint-free cloth.
   Wipe nozzle on silicone cleaning strip: Wipe nozzle on silicone cleaning strip
   With exhaust cooling on, the recirculation fan cannot be turned on: With exhaust cooling on, the recirculation fan cannot be turned on
   With internal circulation on, the exhaust fan cannot be turned on: With internal circulation on, the exhaust fan cannot be turned on
   Within {0:.1f} Hz of each other at {1:.0f} Hz: Within {0:.1f} Hz of each other at {1:.0f} Hz
+  Wipe the Z screws and guides clean.: Wipe the Z screws and guides clean.
   Wipe the mounted nozzle on the brush: Wipe the mounted nozzle on the brush
   Wiping {}...: Wiping {}...
   Wizard Error: Wizard Error
@@ -4826,6 +4886,7 @@ translations:
   X is at its limit ({}mm): X is at its limit ({}mm)
   'X:': 'X:'
   XY: XY
+  XY axis: XY axis
   Y: Y
   Y Axis: Y Axis
   Y Offset: Y Offset
@@ -4846,6 +4907,7 @@ translations:
   Your printer has an automatic filament changer: Your printer has an automatic filament
     changer
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Your printer was offline during setup, so hardware options were skipped. Set them up now?
+  Your printer's manual has the parts and lubricant for your model.: Your printer's manual has the parts and lubricant for your model.
   Your {0} is set up for {1}, but it looks stock.: Your {0} is set up for {1}, but it looks stock.
   Your {0} looks like it has {1}, but it is set up for {2}.: Your {0} looks like it has {1}, but it is set up for {2}.
   Your {0} looks like it has {1}, but it is set up as stock.: 'Your {0} looks like it has {1}, but it is set up as stock.'
@@ -4859,6 +4921,7 @@ translations:
   Z Probe: Z Probe
   Z Range: Z Range
   Z Tilt Adjust...: Z Tilt Adjust...
+  Z axis: Z axis
   Z is at its limit ({}mm): Z is at its limit ({}mm)
   Z jog feedrate: Z jog feedrate
   Z motor calibration failed: Z motor calibration failed
@@ -4920,6 +4983,7 @@ translations:
   enable: enable
   enabled: enabled
   error: error
+  every {} days: every {} days
   exact match: exact match
   'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact: same material and color. material: same material. next: any ready slot, even a different material'
   extruder: extruder
@@ -5034,6 +5098,8 @@ translations:
   '{} configured items not found': '{} configured items not found'
   '{} critical': '{} critical'
   '{} critical hardware issues': '{} critical hardware issues'
+  '{} d': '{} d'
+  '{} days': '{} days'
   '{} detected': '{} detected'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": "{} didn't load. Check that its hotend is seated and do a test extrude before resuming."
   '{} disabled': '{} disabled'
@@ -5051,6 +5117,7 @@ translations:
   '{} heater turned off': '{} heater turned off'
   '{} is asking to connect to this printer.': '{} is asking to connect to this printer.'
   '{} is blocked — manual intervention required': '{} is blocked — manual intervention required'
+  '{} is due': '{} is due'
   '{} is due: {} h reached': '{} is due: {} h reached'
   '{} is feeding the current print. Clear it after the print ends.': '{} is feeding the current print. Clear it after the print ends.'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.'
@@ -5068,6 +5135,7 @@ translations:
   '{} linked to Spoolman spool #{} from its tag': '{} linked to Spoolman spool #{} from its tag'
   '{} m': '{} m'
   '{} macro not configured': '{} macro not configured'
+  '{} maintenance tasks are due': '{} maintenance tasks are due'
   '{} matches.': '{} matches.'
   '{} may be half seated on the head. Check it by hand.': '{} may be half seated on the head. Check it by hand.'
   '{} may cause unintended changes. Are you sure?': '{} may cause unintended changes.

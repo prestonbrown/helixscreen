@@ -84,8 +84,11 @@ class FileConfigStorage : public ConfigStorage {
     }
 
     void preserve_corrupt() override {
-        std::string corrupt_path = path_ + ".corrupt";
-        std::rename(path_.c_str(), corrupt_path.c_str());
+        // The target, not a link to it: the link has to survive for the next
+        // store() to write back through it.
+        const std::string target_path = helix::paths::write_target(path_);
+        const std::string corrupt_path = target_path + ".corrupt";
+        std::rename(target_path.c_str(), corrupt_path.c_str());
         spdlog::info("[ConfigStorage] Corrupt config saved to {}", corrupt_path);
     }
 

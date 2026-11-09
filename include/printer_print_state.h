@@ -1549,7 +1549,7 @@ class PrinterPrintState {
     char print_progress_text_buf_[16]{};
     char print_state_buf_[32]{};
     char print_start_message_buf_[64]{};
-    char print_start_time_left_buf_[32]{};
+    char print_start_time_left_buf_[64]{};
 };
 
 } // namespace helix
