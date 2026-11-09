@@ -24,6 +24,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cmath>
 
 namespace helix {
 
@@ -151,6 +152,21 @@ void PrinterFanState::deinit_subjects() {
     subjects_initialized_ = false;
 }
 
+void PrinterFanState::update_klipper_rpm(const std::string& object_name,
+                                         const nlohmann::json& fan_status) {
+    // Klipper publishes rpm only with a tachometer_pin and sends null otherwise.
+    // A status update without the key leaves the last reading in place.
+    if (!fan_status.is_object())
+        return;
+    const auto it = fan_status.find("rpm");
+    if (it == fan_status.end())
+        return;
+    if (it->is_null())
+        update_fan_rpm(object_name, std::nullopt);
+    else if (it->is_number())
+        update_fan_rpm(object_name, static_cast<int>(std::lround(it->get<double>())));
+}
+
 void PrinterFanState::update_from_status(const nlohmann::json& status) {
     // Update main part-cooling fan speed
     if (status.contains("fan")) {
@@ -167,6 +183,7 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
             // Also update multi-fan tracking
             update_fan_speed("fan", speed);
         }
+        update_klipper_rpm("fan", fan);
     }
 
     // Check for other fan types in the status update
@@ -188,6 +205,7 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
                     lv_subject_set_int(&fan_speed_, speed_pct);
                 }
             }
+            update_klipper_rpm(key, value);
         }
 
         // Handle output_pin fan objects (Creality-style)
@@ -656,7 +674,7 @@ void PrinterFanState::update_fan_speed(const std::string& object_name, double sp
     // Fan not in list - this is normal during initial status before discovery
 }
 
-void PrinterFanState::update_fan_rpm(const std::string& object_name, int rpm) {
+void PrinterFanState::update_fan_rpm(const std::string& object_name, std::optional<int> rpm) {
     for (auto& fan : fans_) {
         if (fan.object_name == object_name) {
             fan.rpm = rpm;

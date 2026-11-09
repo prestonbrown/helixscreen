@@ -41,7 +41,8 @@
     "activating_move"
   ],
   "fan": [
-    "speed"
+    "speed",
+    "rpm"
   ],
   "filament_detect": null,
   "filament_feed left": null,

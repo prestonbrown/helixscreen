@@ -239,8 +239,8 @@ bool resonance_tester_names_beacon(const nlohmann::json& body) {
 
 constexpr std::string_view kHeater[] = {"temperature", "target", "power"};
 constexpr std::string_view kTemperatureHumidity[] = {"temperature", "humidity"};
-constexpr std::string_view kTemperatureFan[] = {"temperature", "target", "speed"};
-constexpr std::string_view kSpeed[] = {"speed"};
+constexpr std::string_view kTemperatureFan[] = {"temperature", "target", "speed", "rpm"};
+constexpr std::string_view kSpeed[] = {"speed", "rpm"};
 constexpr std::string_view kValue[] = {"value"};
 constexpr std::string_view kColorData[] = {"color_data"};
 constexpr std::string_view kEnabled[] = {"enabled"};
