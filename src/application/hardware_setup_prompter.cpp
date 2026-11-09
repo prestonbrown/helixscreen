@@ -18,6 +18,7 @@
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "core/observer_factory.h"
 #include "hardware_role_registry.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
@@ -526,6 +527,15 @@ void HardwareSetupPrompter::warn_type_mismatch(TypeMismatchReview review) {
             settle_type_mismatch_on_close(gen);
         });
     review_handler_registered_ = true;
+    if (!type_change_observer_) {
+        auto& ps = get_printer_state();
+        type_change_observer_ = helix::ui::observe<const char*>(
+            ps.profile_state().get_printer_type_subject(), this,
+            [](HardwareSetupPrompter* self, const char* /*type*/) {
+                self->retire_warning_if_type_changed();
+            },
+            ps.get_subjects_lifetime());
+    }
 
     const std::string action = fmt::format("{}:{}", kReviewPrinterTypeAction, generation);
     ui_notification_warning_with_action(lv_tr("Printer type mismatch"), message.c_str(),
@@ -558,6 +568,16 @@ bool HardwareSetupPrompter::pending_review_current(uint32_t generation, const ch
         return false;
     }
     return true;
+}
+
+void HardwareSetupPrompter::retire_warning_if_type_changed() {
+    if (!pending_review_ || canonical_saved_type() == pending_review_->saved) {
+        return;
+    }
+    spdlog::info("[HardwareSetup] Type mismatch warning for '{}' retired: saved type is now '{}'",
+                 pending_review_->saved, canonical_saved_type());
+    pending_review_.reset();
+    ToastManager::instance().hide(review_toast_clicked, toast_generation(review_generation_));
 }
 
 void HardwareSetupPrompter::settle_type_mismatch_on_close(uint32_t generation) {
