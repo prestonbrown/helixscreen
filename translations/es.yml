@@ -259,7 +259,7 @@ translations:
   Add: Agregar
   Add Filament: Agregar Filamento
   Add Hidden Network: Agregar Red Oculta
-  Add Part Fan to MPC: ''
+  Add Part Fan to MPC: 'Añadir ventilador de pieza a MPC'
   Add Printer: Agregar Impresora
   Add Vendor: Agregar Proveedor
   Add Widget: Agregar widget
@@ -267,7 +267,7 @@ translations:
   Add custom filament: Añadir filamento personalizado
   Add new: "Añadir nuevo"
   Add page: 'Añadir página'
-  Add part fan to MPC?: ''
+  Add part fan to MPC?: '¿Añadir ventilador de pieza a MPC?'
   Add to Mainsail/Fluidd Webcams: 'Añadir a las webcams de Mainsail/Fluidd'
   Add to Queue: Añadir a la cola
   Added: Agregado
@@ -2219,7 +2219,7 @@ translations:
   Klipper ready: Klipper listo
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper reserva 'default' para nuevas calibraciones. Elija otro nombre."
   Klipper restarting - macros activating: 'Reiniciando Klipper - activando macros'
-  Klipper restarts before calibrating.: ''
+  Klipper restarts before calibrating.: 'Klipper se reinicia antes de calibrar.'
   Klipper shut down: Klipper se apagó
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipper dejó de informar el progreso. Su análisis puede quedarse sin memoria en impresoras pequeñas y dejar Klipper bloqueado, donde un reinicio de firmware no puede alcanzarlo. Apague y encienda la impresora (o reinicie Klipper por SSH) e inténtelo de nuevo."
@@ -2606,7 +2606,7 @@ translations:
   'Name:': 'Nombre:'
   Named actions in the LED Controls widget. Not shown under LED selection.: Acciones con nombre en el widget de Controles LED. No se muestran en la selección de LED.
   ? Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
-  : ''
+  : 'Indicar el ventilador de pieza permite a MPC tener en cuenta su refrigeración. Klipper se reinicia y después se calibra este calentador. Tarda varios minutos a temperatura.'
   Needs attention: Requiere atención
   Needs the {} package to switch spools: 'Necesita el plugin {} para cambiar de bobina'
   'Needs {}x{} free: remove or shrink a widget first': 'Necesita {}x{} libres: primero elimina o reduce un widget'

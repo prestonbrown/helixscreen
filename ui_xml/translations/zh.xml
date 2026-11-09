@@ -248,7 +248,7 @@
   <translation tag="Add" zh="添加"/>
   <translation tag="Add Filament" zh="添加耗材"/>
   <translation tag="Add Hidden Network" zh="添加隐藏网络"/>
-  <translation tag="Add Part Fan to MPC"/>
+  <translation tag="Add Part Fan to MPC" zh="将模型风扇添加到 MPC"/>
   <translation tag="Add Printer" zh="添加打印机"/>
   <translation tag="Add Vendor" zh="添加供应商"/>
   <translation tag="Add Widget" zh="添加小组件"/>
@@ -256,7 +256,7 @@
   <translation tag="Add custom filament" zh="添加自定义耗材"/>
   <translation tag="Add new" zh="新增"/>
   <translation tag="Add page" zh="添加页面"/>
-  <translation tag="Add part fan to MPC?"/>
+  <translation tag="Add part fan to MPC?" zh="将模型风扇添加到 MPC?"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" zh="添加到 Mainsail/Fluidd 摄像头"/>
   <translation tag="Add to Queue" zh="添加到队列"/>
   <translation tag="Add to Spoolman + label" zh="添加到 Spoolman + 标签"/>
@@ -2018,7 +2018,7 @@
   <translation tag="Klipper ready" zh="Klipper就绪"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." zh="Klipper 将 &apos;default&apos; 保留用于新的校准。请选择其他名称。"/>
   <translation tag="Klipper restarting - macros activating" zh="正在重启 Klipper - 正在启用宏"/>
-  <translation tag="Klipper restarts before calibrating."/>
+  <translation tag="Klipper restarts before calibrating." zh="校准前 Klipper 将重启。"/>
   <translation tag="Klipper shut down" zh="Klipper已关闭"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." zh="Klipper 停止报告进度。在小型打印机上，其分析可能耗尽内存并使 Klipper 卡住，此时固件重启无法到达。请将打印机断电重启（或通过 SSH 重启 Klipper），然后重试。"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again." zh="Klipper 停止报告进度。在小型打印机上，其分析可能耗尽内存；请重启 Klipper 后重试。"/>
@@ -2388,7 +2388,7 @@
   <translation tag="Name, image and model" zh="名称、图片和型号"/>
   <translation tag="Name:" zh="名称:"/>
   <translation tag="Named actions in the LED Controls widget. Not shown under LED selection." zh="在 LED 控制小组件中显示为命名操作。不会出现在 LED 选择中。"/>
-  <translation tag="Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature."/>
+  <translation tag="Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature." zh="指定模型风扇后,MPC 可以计入其冷却效果。Klipper 重启后将校准此加热器。在工作温度下需要几分钟。"/>
   <translation tag="Needs attention" zh="需要处理"/>
   <translation tag="Needs the {} package to switch spools" zh="切换料盘需要 {} 插件"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" zh="需要 {}x{} 空位。请先移除或缩小小组件"/>

@@ -261,7 +261,7 @@ translations:
   Add: Hinzufügen
   Add Filament: Filament hinzufügen
   Add Hidden Network: Verstecktes Netzwerk hinzufügen
-  Add Part Fan to MPC: ''
+  Add Part Fan to MPC: 'Bauteillüfter zu MPC hinzufügen'
   Add Printer: Drucker hinzufügen
   Add Vendor: Hersteller hinzufügen
   Add Widget: Widget hinzufügen
@@ -269,7 +269,7 @@ translations:
   Add custom filament: Benutzerdefiniertes Filament hinzufügen
   Add new: "Neu hinzufügen"
   Add page: 'Seite hinzufügen'
-  Add part fan to MPC?: ''
+  Add part fan to MPC?: 'Bauteillüfter zu MPC hinzufügen?'
   Add to Mainsail/Fluidd Webcams: 'Zu Mainsail/Fluidd-Webcams hinzufügen'
   Add to Queue: Zur Warteschlange hinzufügen
   Added: Hinzugefügt
@@ -2227,7 +2227,7 @@ translations:
   Klipper ready: Klipper bereit
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper reserviert 'default' für neue Kalibrierungen. Wählen Sie einen anderen Namen."
   Klipper restarting - macros activating: 'Klipper startet neu - Makros werden aktiviert'
-  Klipper restarts before calibrating.: ''
+  Klipper restarts before calibrating.: 'Klipper startet vor dem Kalibrieren neu.'
   Klipper shut down: Klipper heruntergefahren
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipper meldet keinen Fortschritt mehr. Seine Auswertung kann auf kleinen Druckern den Speicher erschöpfen und Klipper blockieren, sodass ein Firmware-Neustart es nicht erreicht. Schalten Sie den Drucker aus und wieder ein (oder starten Sie Klipper per SSH neu) und versuchen Sie es dann erneut."
@@ -2615,7 +2615,7 @@ translations:
   'Name:': 'Name:'
   Named actions in the LED Controls widget. Not shown under LED selection.: Benannte Aktionen im LED-Steuerungs-Widget. Werden nicht unter LED-Auswahl angezeigt.
   ? Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
-  : ''
+  : 'Durch die Angabe des Bauteillüfters kann MPC dessen Kühlung berücksichtigen. Klipper startet neu, danach wird dieser Heizer kalibriert. Das dauert bei Temperatur mehrere Minuten.'
   Needs attention: Erfordert Aufmerksamkeit
   Needs the {} package to switch spools: 'Benötigt das Plugin {} für den Spulenwechsel'
   'Needs {}x{} free: remove or shrink a widget first': 'Benötigt {}x{} an freiem Platz: zuerst ein Widget entfernen oder verkleinern'
