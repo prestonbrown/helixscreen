@@ -13,6 +13,7 @@
  */
 
 #include "ui_ams_mini_status.h"
+#include "ui_filament_motion_glyph.h"
 #include "ui_overlay_temp_graph.h"
 #include "ui_panel_filament.h"
 
@@ -119,6 +120,16 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament manage row: single-tool with AMS g
     REQUIRE_FALSE(h.hidden("ams_manage_row"));
     CHECK_FALSE(h.hidden("btn_manage_slots"));
     CHECK(h.hidden("extruder_selector_group"));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "The panel glyph shows the loaded filament color",
+                 "[filament][ui][filament-chevrons]") {
+    ManageRowHarness h(*this, {"extruder"}, AmsType::NONE);
+    lv_obj_t* glyph = lv_obj_find_by_name(h.root, "filament_motion_glyph");
+    REQUIRE(glyph != nullptr);
+
+    lv_subject_set_int(AmsState::instance().get_current_color_subject(), 0x12AB34);
+    CHECK(helix::ui::filament_motion_glyph_color(glyph) == 0x12AB34);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Cool Down keeps its grid cell while nothing is heating",
