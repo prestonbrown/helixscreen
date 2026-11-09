@@ -15,12 +15,10 @@ when the change's marker is gone.
 
 import os
 import re
-import resource
 import shutil
 import signal
 import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 
@@ -370,18 +368,33 @@ def test_max_minutes_zero_is_no_cap_for_a_release_run(tmp_path):
 # ---------------------------------------------------------------------------
 # A run whose parent exits
 # ---------------------------------------------------------------------------
+# The first mutant's build ends only once the run's parent is gone, so the parent
+# outlives the run's startup and dies before the first hunk finishes.
+ORPHANED_BUILD_MAKEFILE = """test-build:
+\t@if ! grep -q NEW_BEHAVIOR src/feature.cpp; then \\
+\t    touch .mutant-build-started; \\
+\t    while [ ! -e .parent-gone ]; do sleep 0.05; done; \\
+\tfi
+\t@[ -e build/bin/helix-tests ] && printf '\\n# relinked\\n' >> build/bin/helix-tests || true
+"""
+
+
 @linux_only
 def test_an_orphaned_run_stops_before_its_next_hunk(tmp_path):
-    work, base = _two_hunk_fixture(tmp_path, SLOW_MUTANT_MAKEFILE.replace("{secs}", "3"))
+    work, base = _two_hunk_fixture(tmp_path, ORPHANED_BUILD_MAKEFILE)
     out = work / "orphan.out"
     # The shell starts the run and exits during the first mutant's build, the
     # way a harness that reaps its shell but not the shell's children leaves it.
     subprocess.run(
         ["sh", "-c", f'{sys.executable} scripts/mutate_diff.py --base {base} --shards 1 '
-                     f'--log mutate.log > {out} 2>&1 & echo $! > orphan.pid; sleep 1'],
-        cwd=work, check=True, timeout=30, env=ENV)
+                     f'--log mutate.log > {out} 2>&1 & echo $! > orphan.pid; '
+                     'i=0; while [ ! -e .mutant-build-started ] && [ "$i" -lt 3600 ]; '
+                     'do sleep 0.05; i=$((i + 1)); done'],
+        cwd=work, check=True, timeout=240, env=ENV)
     pid = _wait_for(work / "orphan.pid")
-    deadline = time.monotonic() + 90
+    assert (work / ".mutant-build-started").exists(), out.read_text()
+    (work / ".parent-gone").touch()
+    deadline = time.monotonic() + 240
     while _alive(pid) and time.monotonic() < deadline:
         time.sleep(0.1)
     text = out.read_text()
@@ -836,43 +849,59 @@ def test_a_timed_out_suite_reruns_at_normal_priority(monkeypatch):
     assert runs == [(1.0, []), (2.0, ['lifted'])]
 
 
-def _sched_policy_of_child():
-    out = subprocess.run(['sh', '-c', 'cat /proc/$$/sched'], capture_output=True, text=True).stdout
-    return int(re.search(r'^policy\s*:\s*(\d+)', out, re.M).group(1))
+class FakeThreadSched:
+    """The calling thread's scheduling class and niceness, in place of the
+    kernel's: a desktop scheduler daemon can rewrite a real thread's class at
+    any moment, and an unprivileged test can never exercise a successful lift."""
+
+    def __init__(self, monkeypatch, policy, niceness, deny_lift):
+        self.policy, self.niceness, self.deny_lift = policy, niceness, deny_lift
+        for name in ('sched_getscheduler', 'sched_setscheduler', 'getpriority', 'setpriority'):
+            monkeypatch.setattr(os, name, getattr(self, name), raising=False)
+
+    def sched_getscheduler(self, pid):
+        return self.policy
+
+    def sched_setscheduler(self, pid, policy, param):
+        if self.deny_lift and policy == os.SCHED_OTHER:
+            raise PermissionError
+        self.policy = policy
+
+    def getpriority(self, which, who):
+        return self.niceness
+
+    def setpriority(self, which, who, niceness):
+        self.niceness = niceness
+
+    @property
+    def state(self):
+        return self.policy, self.niceness
 
 
-def _in_idle_thread(body):
-    """Run body in a thread lowered to SCHED_IDLE, as test-host-run.sh's mutate
-    is, so the test's own thread keeps its priority."""
-    result = {}
-
-    def target():
-        os.sched_setscheduler(0, os.SCHED_IDLE, os.sched_param(0))
-        try:
-            result['value'] = body()
-        except BaseException as e:  # noqa: BLE001
-            result['error'] = e
-    t = threading.Thread(target=target)
-    t.start()
-    t.join()
-    if 'error' in result:
-        raise result['error']
-    return result['value']
-
-
-@pytest.mark.skipif(not hasattr(os, 'sched_getscheduler') or not os.path.exists('/proc/self/sched'),
-                    reason='per-thread scheduling classes are Linux-only')
-def test_normal_priority_lifts_an_idle_thread_for_its_children_and_restores_it():
-    def body():
-        with md.normal_priority():
-            inside = _sched_policy_of_child()
-        return inside, _sched_policy_of_child(), os.sched_getscheduler(0)
-    inside, after, own = _in_idle_thread(body)
-    assert after == os.SCHED_IDLE and own == os.SCHED_IDLE
-    may_lift = os.geteuid() == 0 or resource.getrlimit(resource.RLIMIT_NICE)[0] >= 20
+@pytest.mark.skipif(not hasattr(os, 'SCHED_IDLE'), reason='scheduling classes are Linux-only')
+@pytest.mark.parametrize('start,deny_lift,inside', [
+    ((os.SCHED_IDLE, 19), False, (os.SCHED_OTHER, 0)),
+    ((os.SCHED_IDLE, 0), False, (os.SCHED_OTHER, 0)),
+    ((os.SCHED_OTHER, 19), False, (os.SCHED_OTHER, 0)),
     # Without the right to leave SCHED_IDLE the thread stays where it is, and
     # the rerun still happens.
-    assert inside == (os.SCHED_OTHER if may_lift else os.SCHED_IDLE)
+    ((os.SCHED_IDLE, 19), True, (os.SCHED_IDLE, 19)),
+    ((os.SCHED_OTHER, 0), False, (os.SCHED_OTHER, 0)),
+] if hasattr(os, 'SCHED_IDLE') else [])
+def test_normal_priority_lifts_a_lowered_thread_and_restores_it(monkeypatch, start, deny_lift, inside):
+    sched = FakeThreadSched(monkeypatch, *start, deny_lift)
+    with md.normal_priority():
+        assert sched.state == inside
+    assert sched.state == start
+
+
+@pytest.mark.skipif(not hasattr(os, 'SCHED_IDLE'), reason='scheduling classes are Linux-only')
+def test_normal_priority_restores_the_thread_when_the_body_raises(monkeypatch):
+    sched = FakeThreadSched(monkeypatch, os.SCHED_IDLE, 19, False)
+    with pytest.raises(ValueError):
+        with md.normal_priority():
+            raise ValueError
+    assert sched.state == (os.SCHED_IDLE, 19)
 
 
 # ---------------------------------------------------------------------------
