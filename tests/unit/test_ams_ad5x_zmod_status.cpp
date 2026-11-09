@@ -14,6 +14,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
+#include "test_helpers/log_capture.h"
 #include "test_helpers/toolchanger_test_helper.h"
 
 #include <string>
@@ -24,6 +25,7 @@
 using helix::Ad5xIfsTestAccess;
 using helix::AmsAction;
 using helix::AmsBackendAd5xIfs;
+using helix::LogCapture;
 
 using json = nlohmann::json;
 
@@ -291,6 +293,26 @@ TEST_CASE_METHOD(ZmodChangeIdleFixture,
     set_idle_state("Ready");
     Ad5xIfsTestAccess::run_action_timeout(backend);
     CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+}
+
+// A successful change's last frame often carries END_CHANGE_FILAMENT's idle
+// channel and Klipper's idle together. That is the change finishing, not one
+// abandoned mid-chain, and the log must not say otherwise.
+TEST_CASE_METHOD(ZmodChangeIdleFixture,
+                 "AD5X IFS does not call a change that finished in the idle frame abandoned",
+                 "[ams][ad5x_ifs][zmod_status][2086]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
+    set_idle_state("Printing");
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(2));
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+
+    LogCapture log;
+    set_idle_state("Ready");
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(log.count_containing("went idle mid-change") == 0);
+    CHECK(log.count_containing("filament change released") == 0);
 }
 
 TEST_CASE("AD5X IFS leaves an action it did not set to its owner",

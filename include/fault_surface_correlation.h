@@ -59,19 +59,17 @@ void record_surfaced(const std::string& detail);
 /// Always prunes expired entries before checking.
 [[nodiscard]] bool was_recently_surfaced(const std::string& detail);
 
-/// True if `detail` is, or wraps, something surfaced inside the window: the
-/// surfaced text appears in it as a whole segment, starting the text, a line,
-/// or the part after a ": ", and ending the text or a line. Firmware often
-/// raises a cause and then the same cause under its context ("X", then
-/// "Filament change error: X"); the wrapper adds nothing a second toast should
-/// show. A shared phrase inside a sentence is not a segment, so an unrelated
-/// fault that merely mentions it still surfaces. The router's toast arms use
-/// this; the bridge keeps the exact match.
+/// True if `detail` is, or only wraps, something surfaced inside the window:
+/// the whole text, or the part after a ": ", is exactly the surfaced message.
+/// Firmware often raises a cause and then the same cause under its context
+/// ("X", then "Filament change error: X"); that prefix adds nothing a second
+/// toast should show. A text carrying anything after the cause, such as a
+/// further line, still surfaces, and so does one that merely mentions the
+/// phrase. The router's toast arms use this; the bridge keeps the exact match.
 [[nodiscard]] bool was_recently_surfaced_within(const std::string& detail);
 
-/// Whether `needle` is a whole segment of `text`, as was_recently_surfaced_within()
-/// reads one.
-[[nodiscard]] bool contains_as_segment(const std::string& text, const std::string& needle);
+/// Whether `text` is `cause`, or `cause` behind a "<context>: " prefix.
+[[nodiscard]] bool only_wraps(const std::string& text, const std::string& cause);
 
 /// Drop all records — for tests. Called from HelixTestFixture::reset_all().
 void clear_for_test();

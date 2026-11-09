@@ -229,6 +229,24 @@ constexpr const char* kZmodChangeMacro = "gcode_macro END_CHANGE_FILAMENT";
 /// last_data.channel when no change is running.
 constexpr int kZmodChangeIdleChannel = 99;
 
+/// The change macro's last_data.channel in this status frame; nullopt when the
+/// frame does not carry it (a diff frame without last_data did not change it).
+[[nodiscard]] std::optional<int> zmod_change_channel(const nlohmann::json& status) {
+    auto it = status.find(kZmodChangeMacro);
+    if (it == status.end() || !it->is_object()) {
+        return std::nullopt;
+    }
+    auto data = it->find("last_data");
+    if (data == it->end() || !data->is_object()) {
+        return std::nullopt;
+    }
+    auto channel = data->find("channel");
+    if (channel == data->end() || !channel->is_number_integer()) {
+        return std::nullopt;
+    }
+    return channel->get<int>();
+}
+
 /// What each synthesized phase projects to, by the phase index the tracker
 /// publishes. The step model and the tracker's action both read these, so the
 /// two cannot disagree.
@@ -727,7 +745,9 @@ void AmsBackendAd5xIfs::handle_status(const json& status_obj) {
     // state change worth publishing (#1065 row 14).
     const bool indet_before = system_info_.operation_indeterminate;
     const AmsAction action_before_timeout = system_info_.action;
-    check_action_timeout();
+    // A frame that ends the Z-Mod change also reads idle; apply_zmod_change_macro
+    // below finishes that change, so the timeout check must not call it abandoned.
+    check_action_timeout(zmod_change_channel(*status) == kZmodChangeIdleChannel);
     const bool indet_toggled = system_info_.operation_indeterminate != indet_before;
     const bool timeout_changed_action = system_info_.action != action_before_timeout;
 
@@ -2467,20 +2487,11 @@ bool AmsBackendAd5xIfs::can_cancel_operation() const {
 }
 
 void AmsBackendAd5xIfs::apply_zmod_change_macro(const json& status) {
-    auto it = status.find(kZmodChangeMacro);
-    if (it == status.end() || !it->is_object()) {
+    const std::optional<int> channel = zmod_change_channel(status);
+    if (!channel) {
         return;
     }
-    // A diff frame without last_data means it did not change.
-    auto data = it->find("last_data");
-    if (data == it->end() || !data->is_object()) {
-        return;
-    }
-    auto channel = data->find("channel");
-    if (channel == data->end() || !channel->is_number_integer()) {
-        return;
-    }
-    const bool changing = channel->get<int>() != kZmodChangeIdleChannel;
+    const bool changing = *channel != kZmodChangeIdleChannel;
     const bool in_job = job_holds_machine_now();
 
     bool action_changed = false;
@@ -6689,7 +6700,7 @@ void AmsBackendAd5xIfs::sync_remembered_lane_to_module_locked() {
 
 // ensure_homed_then() provided by AmsSubscriptionBackend
 
-void AmsBackendAd5xIfs::check_action_timeout() {
+void AmsBackendAd5xIfs::check_action_timeout(bool zmod_change_ending) {
     // Indeterminate ("Working…") detector (#1065 row 14). While a phase-tracked
     // load/unload is in flight, if no genuine progress signal (temp-VALUE change,
     // head transition, motion, or phase change) has landed within the short
@@ -6716,7 +6727,7 @@ void AmsBackendAd5xIfs::check_action_timeout() {
             release_zmod_change_locked("the job ended mid-change");
         } else if (klipper_busy_now()) {
             zmod_change_saw_busy_ = true;
-        } else if (zmod_change_saw_busy_) {
+        } else if (zmod_change_saw_busy_ && !zmod_change_ending) {
             // The change chain is one G-code command, so Klipper going idle
             // means it stopped without reaching END_CHANGE_FILAMENT. Z-Mod's
             // print-start change runs before print_stats leaves standby, so
