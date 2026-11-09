@@ -47,9 +47,6 @@ namespace helix::ui {
  * mini bars, mini-status bar mode): the loop stays in C++ (declarative rule
  * 8's measured-layout exception), the per-lane rendering stays in the widget.
  */
-/// Makes @p bar draw its outline while its lane is empty, for rows where each bar is a tool.
-void ams_lane_bar_outline_empty(lv_obj_t* bar);
-
 void ams_lane_bar_create_range(lv_obj_t* parent, int first_slot_index, int slot_count,
                                int32_t bar_width, int32_t bar_height, uint32_t skip_mask = 0);
 

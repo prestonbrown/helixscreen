@@ -42,8 +42,7 @@ using namespace helix;
  */
 struct LaneBarData {
     int slot_index = -1;
-    bool outline_empty = false; ///< An empty lane shows its outline instead of nothing
-    int fill_pct = 0;           ///< Last known fill percent (0-100), from slot_fill.
+    int fill_pct = 0; ///< Last known fill percent (0-100), from slot_fill.
 
     /// Base render state from the lane_state subject. Border decoration reads
     /// this alongside is_active so the active observer never has to guess
@@ -56,6 +55,8 @@ struct LaneBarData {
     // Widget object and named children (see ams_draw::create_slot_column()).
     lv_obj_t* root = nullptr; ///< == container; ghost opacity lands here.
     lv_obj_t* bar_bg = nullptr;
+    lv_color_t bar_bg_color = {}; ///< bar_bg's own fill, restored when a lane stops being empty
+    lv_opa_t bar_bg_opa = LV_OPA_TRANSP;
     lv_obj_t* bar_fill = nullptr;
     lv_obj_t* status_line = nullptr;
 
@@ -136,8 +137,8 @@ static void cleanup_all_lane_bar_data() {
 
 /**
  * @brief Border is layered from TWO independent decorations over the base
- * state: the LaneState border (Present/Ghosted: 1px muted at 50%; Empty: none
- * — bar_bg is hidden) and the active-loaded override (2px text at 80%) on
+ * state: the LaneState border (Present/Ghosted: 1px muted at 50%; Empty: none)
+ * and the active-loaded override (2px text at 80%) on
  * top. Owning both here — keyed on last_state/is_active — means the
  * active-loaded observer firing on its own can never clobber (or be
  * clobbered by) a later lane_state/fill re-paint, which a single call site
@@ -146,8 +147,10 @@ static void cleanup_all_lane_bar_data() {
 static void apply_lane_border(LaneBarData* d) {
     if (!d || !d->bar_bg)
         return;
-    if (d->last_state == helix::ui::LaneState::Empty && !d->outline_empty)
-        return; // bar_bg is hidden; nothing to draw.
+    if (d->last_state == helix::ui::LaneState::Empty) {
+        lv_obj_set_style_border_width(d->bar_bg, 0, LV_PART_MAIN);
+        return;
+    }
 
     if (d->is_active) {
         lv_obj_set_style_border_width(d->bar_bg, 2, LV_PART_MAIN);
@@ -167,11 +170,13 @@ static void apply_lane_state(LaneBarData* d, helix::ui::LaneState state) {
         return;
     d->last_state = state;
 
-    // Empty draws nothing at all. The widget stays in the layout so the lane
-    // remains countable, but neither the outline nor the fill is painted.
+    // Empty is a faint solid slot: no outline and no fill, so it cannot be read as a
+    // spool that has run low.
     if (state == helix::ui::LaneState::Empty) {
-        lv_obj_set_flag(d->bar_bg, LV_OBJ_FLAG_HIDDEN, !d->outline_empty);
+        lv_obj_remove_flag(d->bar_bg, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(d->bar_fill, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_bg_color(d->bar_bg, theme_manager_get_color("text_muted"), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(d->bar_bg, LV_OPA_20, LV_PART_MAIN);
         apply_lane_border(d);
         lv_obj_set_style_opa(d->root, LV_OPA_COVER, LV_PART_MAIN);
         return;
@@ -179,6 +184,8 @@ static void apply_lane_state(LaneBarData* d, helix::ui::LaneState state) {
 
     lv_obj_remove_flag(d->bar_bg, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(d->bar_fill, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_bg_color(d->bar_bg, d->bar_bg_color, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(d->bar_bg, d->bar_bg_opa, LV_PART_MAIN);
     lv_obj_set_height(d->bar_fill, LV_PCT(d->fill_pct));
     lv_obj_align(d->bar_fill, LV_ALIGN_BOTTOM_MID, 0, 0);
     apply_lane_border(d);
@@ -435,6 +442,8 @@ static void* ams_lane_bar_xml_create(lv_xml_parser_state_t* state, const char** 
     data_ptr->slot_index = -1; // Set by xml_apply when slot_index attr is parsed.
     data_ptr->root = col.container;
     data_ptr->bar_bg = col.bar_bg;
+    data_ptr->bar_bg_color = lv_obj_get_style_bg_color(col.bar_bg, LV_PART_MAIN);
+    data_ptr->bar_bg_opa = lv_obj_get_style_bg_opa(col.bar_bg, LV_PART_MAIN);
     data_ptr->bar_fill = col.bar_fill;
     data_ptr->status_line = col.status_line;
 
@@ -513,14 +522,6 @@ void ams_lane_bar_create_range(lv_obj_t* parent, int first_slot_index, int slot_
 int ams_lane_bar_slot_index(lv_obj_t* obj) {
     const LaneBarData* d = get_lane_bar_data(obj);
     return d ? d->slot_index : -1;
-}
-
-void ams_lane_bar_outline_empty(lv_obj_t* bar) {
-    LaneBarData* d = get_lane_bar_data(bar);
-    if (!d)
-        return;
-    d->outline_empty = true;
-    apply_lane_state(d, d->last_state);
 }
 
 void ams_lane_bar_resize(lv_obj_t* bar, int32_t bar_width, int32_t bar_height) {

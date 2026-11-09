@@ -30,9 +30,9 @@ bool visible(lv_obj_t* root, const char* name) {
 }
 } // namespace
 
-TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: an Empty lane draws nothing", "[ams][lane_bar]") {
-    // The whole point of the bar rendering's Empty case: no fill, no outline.
-    // The layout gap remains so lanes stay countable, but nothing is painted.
+TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: an Empty lane is an outline-free slot",
+                 "[ams][lane_bar]") {
+    // No fill and no outline, so it cannot be read as a spool that has run low.
     ui_ams_lane_bar_register();
     AmsState::instance().init_subjects(true);
     lv_subject_set_int(AmsState::instance().get_slot_lane_state_subject(0),
@@ -43,7 +43,8 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: an Empty lane draws nothing", "[
     process_lvgl(20);
 
     CHECK_FALSE(visible(bar, "bar_fill"));
-    CHECK_FALSE(visible(bar, "bar_bg"));
+    CHECK(visible(bar, "bar_bg"));
+    CHECK(lv_obj_get_style_border_width(lv_obj_find_by_name(bar, "bar_bg"), LV_PART_MAIN) == 0);
     lv_obj_delete(bar);
 }
 

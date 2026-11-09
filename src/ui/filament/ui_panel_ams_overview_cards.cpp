@@ -290,7 +290,6 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         const std::string logo_color = AmsState::unit_logo_color_subject_name(i);
         uc.has_art = unit_has_art(info, i);
         const bool as_tile = uc.has_art || any_art;
-        uc.bars_tile = as_tile && !uc.has_art;
         // A tile takes the card's name: the tour and ctl recipes find a unit by it.
         const char* attrs[] = {"absent",
                                absent.c_str(),
@@ -350,10 +349,10 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
                                     nullptr);
                 lv_obj_refresh_ext_draw_size(clip);
             }
-            // required-names: ams_unit_tile
-            uc.art =
-                uc.has_art ? helix::ui::find_required(uc.card, "unit_art", get_name()) : nullptr;
-            if (!uc.has_art) {
+            if (uc.has_art) {
+                // required-names: ams_unit_tile
+                uc.art = helix::ui::find_required(uc.card, "unit_art", get_name());
+            } else {
                 // required-names: ams_unit_tile
                 uc.bars_container = helix::ui::find_required(uc.card, "bars_container", get_name());
             }
@@ -470,10 +469,6 @@ void AmsOverviewPanel::create_mini_bars(UnitCard& card, const AmsUnit& unit) {
 
     helix::ui::ams_lane_bar_create_range(card.bars_container, unit.first_slot_global_index,
                                          slot_count, bar_width, kMiniBarHeightPx, mask);
-    if (card.bars_tile) {
-        for (uint32_t c = 0; c < lv_obj_get_child_count(card.bars_container); ++c)
-            helix::ui::ams_lane_bar_outline_empty(lv_obj_get_child(card.bars_container, c));
-    }
 }
 
 // ============================================================================

@@ -122,6 +122,7 @@ struct GlobalRoute {
     int group = 0; // shared hub this route joins (SystemPathData::unit_hub_group), 0 = own hub
     int level = 0; // height of its horizontal run, 0 the highest
     bool feeder = false; // an extra lane converging on a hub box; carries no tool of its own
+    int box_rank = 0;    // how many tubes into the same hub box run below this one
 };
 
 // A unit that can place a hub box on a nozzle: HUB topology, present, with a tool.
@@ -623,6 +624,15 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
         if (!routes[r].is_hub && routes[r].end_x > routes[r].start_x + data.tube_gauge)
             routes[r].level = next_level++;
     }
+    // A hub box sits above the tool row, so its tubes would all clamp to one height over it.
+    const auto enters_box = [](const GlobalRoute& g) { return g.via_box || g.feeder; };
+    for (int r = 0; r < n; ++r) {
+        for (int o = 0; o < n && enters_box(routes[r]); ++o) {
+            routes[r].box_rank += enters_box(routes[o]) &&
+                                  routes[o].unit_idx == routes[r].unit_idx &&
+                                  routes[o].level > routes[r].level;
+        }
+    }
 
     for (int k = 0; k < n; ++k) {
         const GlobalRoute& route = routes[k];
@@ -658,7 +668,8 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
                             (float)end_y, s);
             } else {
                 int32_t horiz_y = par_top_y + route.level * par_step;
-                horiz_y = clamp_span(route.start_y + arc_r + 2, horiz_y, end_y - arc_r - 2);
+                horiz_y = clamp_span(route.start_y + arc_r + 2, horiz_y,
+                                     end_y - arc_r - 2 - route.box_rank * par_step);
                 append_harness(*r, route.start_x, route.start_y, route.end_x, end_y, horiz_y, s);
             }
             if (route.via_box) {

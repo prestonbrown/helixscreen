@@ -166,7 +166,6 @@ class AmsOverviewPanel : public PanelBase {
         lv_obj_t* error_badge = nullptr;      // Error badge dot (top-right)
         lv_obj_t* art_stage = nullptr;        // Art tile: the box the art fills
         lv_obj_t* art = nullptr;              // Art tile: the unit_art widget
-        bool bars_tile = false;               // A compact tile of lane bars, for a unit with no art
         bool has_art = false;                 // An art tile rather than a card
         int unit_index = -1;
         /// What the lane bars were built for; see lane_bars_stale().
