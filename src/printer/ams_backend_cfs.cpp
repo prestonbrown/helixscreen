@@ -2958,8 +2958,9 @@ AmsError AmsBackendCfs::apply_user_edit(int slot_index, const SlotInfo& info) {
         return err;
     }
     if (written.material != info.material) {
-        helix::ams::file_pending(lane_id(slot_index),
-                                 helix::ams::user_edit_observation(info, written));
+        helix::ams::file_pending(
+            lane_id(slot_index),
+            helix::ams::user_edit_observation(info, written, /*spool_owns_linked_fields=*/false));
     }
     spdlog::info("[AMS CFS] Updated slot {} info: {} {}", slot_index, info.material,
                  info.color_name);
