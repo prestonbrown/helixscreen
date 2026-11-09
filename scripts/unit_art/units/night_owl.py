@@ -3,7 +3,7 @@
 import math
 from pathlib import Path
 
-from .. import kit, spool
+from .. import feeder, kit, spool
 from ..kit import TrayShellDef, UnitDef
 
 # Lengths are in units of the base width; SCALE turns them into the shared scale where a
@@ -13,11 +13,12 @@ LOCAL_R = 0.46
 SCALE = SPOOL_R / LOCAL_R
 W, D = 1.0, 0.92
 FOOT_Z, TOP = 0.045, 0.36
-FRAME, PANEL, DECK, PLATE, RUBBER = "#1d2f55", "#14171f", "#a9afba", "#5a5f69", "#2e2f33"
+FRAME, PANEL, DECK, PLATE, RUBBER = "#1d2f55", "#14171f", "#a9afba", "#17191e", "#2e2f33"
+DRUM, SHEEN = "#1b1c20", "#50545e"
 CENTERS = [0.26, 0.74]
 SPOOL_Y = 0.52
-ROLLER_Y, ROLLER_R = 0.2, 0.085
-ROLLER_Z = TOP + 0.06
+ROLLER_Y, ROLLER_R = 0.2, 0.115
+ROLLER_Z = TOP + 0.08
 SPOOL_Z = ROLLER_Z + math.sqrt((LOCAL_R + ROLLER_R) ** 2 - (SPOOL_Y - ROLLER_Y) ** 2)
 REAR_Y = 0.82
 TRAY_PX_PER_UNIT = 46.2 / LOCAL_R
@@ -30,18 +31,37 @@ def _plate_profile():
     return kit.fillet(points, [0, 0.08, 0.14, 0.05, 0], steps=6)
 
 
-def _circle(y, z, r, n=24):
-    return [(y + r * math.cos(2 * math.pi * i / n), z + r * math.sin(2 * math.pi * i / n)) for i in range(n + 1)]
+def _pod_profile():
+    """A motor pod's side: straight up from the deck, round over the roller axle."""
+    r = ROLLER_R * 1.3
+    arc = [(ROLLER_Y - r * math.cos(math.pi * i / 16), ROLLER_Z + r * math.sin(math.pi * i / 16)) for i in range(17)]
+    return [(ROLLER_Y - r, TOP)] + arc + [(ROLLER_Y + r, TOP)]
 
 
-def _roller(sc, x0, x1, y, z, r, color, flange):
-    ring = _circle(y, z, r)
-    sc.extrude_x(ring, x0, x1, color, 1.0, front=True)
-    sc.poly([(x1, a, b) for a, b in ring], kit.shift(color, 16))
-    edge = _circle(y, z, r * 1.18)
-    for xa, xb in ((x0 - 0.016, x0), (x1, x1 + 0.016)):
-        sc.extrude_x(edge, xa, xb, flange, 1.0, front=True)
-        sc.poly([(xb, a, b) for a, b in edge], kit.shift(flange, 18))
+def _side_plate(sc, x0, x1, plate, cam, near, thick):
+    """A black side arc with its thickness showing along the top edge."""
+    sc.extrude_x(plate, x0, x1, PLATE, 1.0, front=True)
+    sc.poly([(x1, y, z) for y, z in plate], kit.shade(cam, PLATE, (1, 0, 0), amb=1.0, dif=0.5, spec=0))
+    sc.line([(x1, y, z) for y, z in plate], SHEEN, 0.004 * thick, 0.8)
+    if near:
+        inner = [(y, TOP + (z - TOP) * 0.62) for y, z in plate if 0.26 < y < D - 0.08]
+        sc.line([(x1 + 0.001, y, z) for y, z in inner], "#30343c", 0.006 * thick)
+
+
+def _drive(sc, xc, detail):
+    """One lane's drive: a black roller either side of a rounded motor pod."""
+    half = 0.036
+    rim = {"flange_k": 1.1, "flange_w": 0.012, "sheen": SHEEN}
+    kit.roller(sc, xc - 0.21, xc - half - 0.012, ROLLER_Y, ROLLER_Z, ROLLER_R, DRUM, FRAME, **rim)
+    feeder.solid(sc, _pod_profile(), xc - half, xc + half, FRAME)
+    face = xc + half + 0.001
+    axle = [(face, y, z) for y, z in kit.circle_yz(ROLLER_Y, ROLLER_Z, ROLLER_R * 0.62)]
+    sc.poly(axle, "#c6c9cf")
+    sc.poly([(face, y, z) for y, z in kit.circle_yz(ROLLER_Y, ROLLER_Z, ROLLER_R * 0.34)], "#3a3d44")
+    if detail:
+        sc.line(axle, "#7f838c", 0.004)
+    # The gap and the missing left flange leave the pod's bearing in view.
+    kit.roller(sc, xc + half + 0.04, xc + 0.21, ROLLER_Y, ROLLER_Z, ROLLER_R, DRUM, FRAME, left_flange=False, **rim)
 
 
 def draw_art(scene, colors, tier):
@@ -54,8 +74,8 @@ def draw_art(scene, colors, tier):
     foot = kit.fillet([(0, 0), (0, D), (W, D), (W, 0)], [0.05] * 4, closed=True, steps=6)[::-1]
     sc.poly([(0.02, 0.02, 0), (W + 0.04, 0.02, 0), (W + 0.04, D + 0.03, 0), (0.02, D + 0.03, 0)], "#000", 0.5, blur=True)
     sc.poly([(0.0, 0.0, TOP), (W, 0.0, TOP), (W, D, TOP), (0.0, D, TOP)], DECK)
-    sc.poly([(0.015, y, z) for y, z in plate], kit.shade(cam, PLATE, (1, 0, 0), amb=0.8, dif=0.4, spec=0))
-    _roller(sc, 0.1, 0.9, REAR_Y, TOP + 0.09, 0.05, FRAME, FRAME)
+    _side_plate(sc, 0.0, 0.03, plate, cam, False, thick)
+    kit.roller(sc, 0.1, 0.9, REAR_Y, TOP + 0.09, 0.05, FRAME, FRAME)
     for lane, (xc, col) in enumerate(zip(CENTERS, colors)):
         spool.draw_spool(scene, (xc * SCALE, SPOOL_Y * SCALE, SPOOL_Z * SCALE), SPOOL_R, col, c, lane, detail=detail)
 
@@ -68,15 +88,11 @@ def draw_art(scene, colors, tier):
     sc.poly([(W + 0.002, 0.12, 0.1), (W + 0.002, D - 0.12, 0.1), (W + 0.002, D - 0.12, TOP - 0.05), (W + 0.002, 0.12, TOP - 0.05)], kit.shade(cam, PANEL, (1, 0, 0), amb=0.8, dif=0.4, spec=0))
     sc.line([(0.0, 0.0, TOP), (W, 0.0, TOP), (W, D, TOP)], kit.shift(DECK, 16), 0.008 * thick)
     for xc in CENTERS:
-        _roller(sc, xc - 0.19, xc + 0.19, ROLLER_Y, ROLLER_Z, ROLLER_R, RUBBER, FRAME)
-        pod = [(xc - 0.03, ROLLER_Y - 0.13), (xc - 0.03, ROLLER_Y + 0.02), (xc + 0.03, ROLLER_Y + 0.02), (xc + 0.03, ROLLER_Y - 0.13)][::-1]
-        sc.prism(pod, TOP, ROLLER_Z + ROLLER_R + 0.02, FRAME, amb=0.74, dif=0.5, spec=0.15, power=18)
-        sc.poly([(a, b, ROLLER_Z + ROLLER_R + 0.02) for a, b in pod], kit.shift(FRAME, 24))
+        _drive(sc, xc, detail)
         if detail:
-            tube = [(xc, 0.06, ROLLER_Z + 0.1), (xc, -0.012, ROLLER_Z), (xc, -0.012, TOP - 0.1), (xc, -0.004, TOP - 0.16)]
+            tube = feeder.bend((xc, ROLLER_Y - ROLLER_R * 1.3, ROLLER_Z + 0.03), (xc, -0.05, ROLLER_Z), (xc, -0.004, TOP - 0.16))
             sc.line(tube, "#f2f3f4", 0.011)
-    sc.poly([(W - 0.015, y, z) for y, z in plate], kit.shade(cam, PLATE, (1, 0, 0), amb=0.9, dif=0.5, spec=0))
-    sc.line([(W - 0.015, y, z) for y, z in plate], "#46484c", 0.003 * thick, 0.8)
+    _side_plate(sc, W - 0.03, W, plate, cam, True, thick)
 
 
 _WALL = TOP * TRAY_PX_PER_UNIT
