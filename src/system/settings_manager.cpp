@@ -39,43 +39,57 @@ using namespace helix;
 
 // Aftermarket toolhead styles shown in dropdown (Auto + user overrides only)
 // Native styles (DEFAULT, CREALITY_K1, CREALITY_K2) are auto-detected and not shown.
-// The full style list: the dropdown and the enum carry the same thirteen
+// The full style list: the dropdown and the enum carry the same
 // entries in the same order, so a style the DB auto-detects (K1/K2) or
 // pins (Default) is also selectable by hand.
 // Map dropdown index → ToolheadStyle enum value (production dropdown)
 static constexpr helix::ToolheadStyle kDropdownToStyle[] = {
-    helix::ToolheadStyle::AUTO,               // 0: Auto
-    helix::ToolheadStyle::DEFAULT,            // 1: Default (Bambu-like)
-    helix::ToolheadStyle::A4T,                // 2: A4T
-    helix::ToolheadStyle::ANTHEAD,            // 3: AntHead
-    helix::ToolheadStyle::JABBERWOCKY,        // 4: JabberWocky
-    helix::ToolheadStyle::STEALTHBURNER,      // 5: Stealthburner
-    helix::ToolheadStyle::CREALITY_K1,        // 6: Creality K1
-    helix::ToolheadStyle::CREALITY_K2,        // 7: Creality K2
-    helix::ToolheadStyle::DRAGONBURNER,       // 8
-    helix::ToolheadStyle::MINI_STEALTHBURNER, // 9
-    helix::ToolheadStyle::BAMBU,              // 10
-    helix::ToolheadStyle::ENDER3_BOWDEN,      // 11
-    helix::ToolheadStyle::ENDER3_INTEGRATED,  // 12
+    helix::ToolheadStyle::AUTO,                // 0: Auto
+    helix::ToolheadStyle::DEFAULT,             // 1: Default (Bambu-like)
+    helix::ToolheadStyle::A4T,                 // 2: A4T
+    helix::ToolheadStyle::ANTHEAD,             // 3: AntHead
+    helix::ToolheadStyle::JABBERWOCKY,         // 4: JabberWocky
+    helix::ToolheadStyle::STEALTHBURNER,       // 5: Stealthburner
+    helix::ToolheadStyle::CREALITY_K1,         // 6: Creality K1
+    helix::ToolheadStyle::CREALITY_K2,         // 7: Creality K2
+    helix::ToolheadStyle::DRAGONBURNER,        // 8
+    helix::ToolheadStyle::MINI_STEALTHBURNER,  // 9
+    helix::ToolheadStyle::BAMBU,               // 10
+    helix::ToolheadStyle::ENDER3,              // 11
+    helix::ToolheadStyle::XOL,                 // 12
+    helix::ToolheadStyle::SNAPMAKER_U1,        // 13
+    helix::ToolheadStyle::FLASHFORGE_AD5,      // 14
+    helix::ToolheadStyle::FLASHFORGE_CREATOR5, // 15
+    helix::ToolheadStyle::ELEGOO_CENTAURI,     // 16
+    helix::ToolheadStyle::ARTILLERY_M1,        // 17
+    helix::ToolheadStyle::QIDI,                // 18
+    helix::ToolheadStyle::SOVOL_SV08,          // 19
 };
 static constexpr int kDropdownCount =
     static_cast<int>(sizeof(kDropdownToStyle) / sizeof(kDropdownToStyle[0]));
 
 // Debug dropdown: indices map directly to enum values (0=Auto, 1=Default, ...)
 static constexpr helix::ToolheadStyle kDropdownToStyleDebug[] = {
-    helix::ToolheadStyle::AUTO,               // 0
-    helix::ToolheadStyle::DEFAULT,            // 1
-    helix::ToolheadStyle::A4T,                // 2
-    helix::ToolheadStyle::ANTHEAD,            // 3
-    helix::ToolheadStyle::JABBERWOCKY,        // 4
-    helix::ToolheadStyle::STEALTHBURNER,      // 5
-    helix::ToolheadStyle::CREALITY_K1,        // 6
-    helix::ToolheadStyle::CREALITY_K2,        // 7
-    helix::ToolheadStyle::DRAGONBURNER,       // 8
-    helix::ToolheadStyle::MINI_STEALTHBURNER, // 9
-    helix::ToolheadStyle::BAMBU,              // 10
-    helix::ToolheadStyle::ENDER3_BOWDEN,      // 11
-    helix::ToolheadStyle::ENDER3_INTEGRATED,  // 12
+    helix::ToolheadStyle::AUTO,                // 0
+    helix::ToolheadStyle::DEFAULT,             // 1
+    helix::ToolheadStyle::A4T,                 // 2
+    helix::ToolheadStyle::ANTHEAD,             // 3
+    helix::ToolheadStyle::JABBERWOCKY,         // 4
+    helix::ToolheadStyle::STEALTHBURNER,       // 5
+    helix::ToolheadStyle::CREALITY_K1,         // 6
+    helix::ToolheadStyle::CREALITY_K2,         // 7
+    helix::ToolheadStyle::DRAGONBURNER,        // 8
+    helix::ToolheadStyle::MINI_STEALTHBURNER,  // 9
+    helix::ToolheadStyle::BAMBU,               // 10
+    helix::ToolheadStyle::ENDER3,              // 11
+    helix::ToolheadStyle::XOL,                 // 12
+    helix::ToolheadStyle::SNAPMAKER_U1,        // 13
+    helix::ToolheadStyle::FLASHFORGE_AD5,      // 14
+    helix::ToolheadStyle::FLASHFORGE_CREATOR5, // 15
+    helix::ToolheadStyle::ELEGOO_CENTAURI,     // 16
+    helix::ToolheadStyle::ARTILLERY_M1,        // 17
+    helix::ToolheadStyle::QIDI,                // 18
+    helix::ToolheadStyle::SOVOL_SV08,          // 19
 };
 static constexpr int kDropdownDebugCount =
     static_cast<int>(sizeof(kDropdownToStyleDebug) / sizeof(kDropdownToStyleDebug[0]));
@@ -481,10 +495,22 @@ static ToolheadStyle toolhead_style_from_name(const std::string& name) {
         return ToolheadStyle::CREALITY_K2;
     if (name == "anthead")
         return ToolheadStyle::ANTHEAD;
-    if (name == "ender3_bowden")
-        return ToolheadStyle::ENDER3_BOWDEN;
-    if (name == "ender3_integrated")
-        return ToolheadStyle::ENDER3_INTEGRATED;
+    if (name == "snapmaker_u1")
+        return ToolheadStyle::SNAPMAKER_U1;
+    if (name == "flashforge_ad5")
+        return ToolheadStyle::FLASHFORGE_AD5;
+    if (name == "flashforge_creator5")
+        return ToolheadStyle::FLASHFORGE_CREATOR5;
+    if (name == "elegoo_centauri")
+        return ToolheadStyle::ELEGOO_CENTAURI;
+    if (name == "artillery_m1")
+        return ToolheadStyle::ARTILLERY_M1;
+    if (name == "qidi")
+        return ToolheadStyle::QIDI;
+    if (name == "sovol_sv08")
+        return ToolheadStyle::SOVOL_SV08;
+    if (name == "ender3")
+        return ToolheadStyle::ENDER3;
     if (name == "default")
         return ToolheadStyle::DEFAULT;
     return ToolheadStyle::AUTO;
@@ -523,7 +549,8 @@ std::string SettingsManager::get_toolhead_style_options() {
     // The first two are words; the rest name toolhead products.
     return std::string(lv_tr("Auto")) + "\n" + lv_tr("Default") +
            "\nA4T\nAntHead\nJabberWocky\nStealthburner\nCreality K1\nCreality K2"
-           "\nDragonburner\nMini Stealthburner\nBambu Lab\nEnder 3 Bowden\nEnder 3 Integrated";
+           "\nDragonburner\nMini Stealthburner\nBambu Lab\nEnder 3\nXOL\nSnapmaker U1\nFlashForge "
+           "AD5\nFlashForge Creator 5\nElegoo Centauri\nArtillery M1\nQidi\nSovol SV08";
 }
 
 int SettingsManager::toolhead_style_to_dropdown_index(ToolheadStyle style) {

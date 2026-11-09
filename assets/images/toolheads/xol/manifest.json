@@ -1,0 +1,20 @@
+{
+  "id": "xol",
+  "aspect": 0.5604,
+  "tiers": {
+    "full": {
+      "width": 90,
+      "height": 160,
+      "back": "full.png",
+      "tint": "full_tint.png",
+      "shade": "full_shade.png"
+    },
+    "path": {
+      "width": 40,
+      "height": 72,
+      "back": "path.png",
+      "tint": "path_tint.png",
+      "shade": "path_shade.png"
+    }
+  }
+}

@@ -15,7 +15,7 @@ from unit_art import build, head, kit  # noqa: E402
 HEADS = build.HEADS
 EXPECTED = {
     "stealthburner", "mini_stealthburner", "dragonburner", "a4t", "anthead", "jabberwocky",
-    "bambu", "creality_k1", "creality_k2", "ender3_bowden", "ender3_integrated",
+    "bambu", "creality_k1", "creality_k2", "ender3", "xol", "snapmaker_u1", "flashforge_ad5", "flashforge_creator5", "elegoo_centauri", "artillery_m1", "qidi", "sovol_sv08",
 }
 
 

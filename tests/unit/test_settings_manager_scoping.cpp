@@ -626,8 +626,8 @@ TEST_CASE_METHOD(SettingsScopeFixture,
         CHECK(effective("PFA Stealthfork") == ToolheadStyle::ANTHEAD);
         CHECK(effective("Creality K1") == ToolheadStyle::CREALITY_K1);
         CHECK(effective("Voron 2.4") == ToolheadStyle::DEFAULT);
-        CHECK(effective("Creality Ender 3") == ToolheadStyle::ENDER3_BOWDEN);
-        CHECK(effective("Creality Ender-3 V3") == ToolheadStyle::ENDER3_INTEGRATED);
+        CHECK(effective("Creality Ender 3") == ToolheadStyle::ENDER3);
+        CHECK(effective("Creality Ender-3 V3") == ToolheadStyle::ENDER3);
     }
 
     SECTION("a backend hint applies only where the database has no style") {

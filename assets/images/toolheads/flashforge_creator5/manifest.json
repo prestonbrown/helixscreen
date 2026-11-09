@@ -1,0 +1,20 @@
+{
+  "id": "flashforge_creator5",
+  "aspect": 0.865,
+  "tiers": {
+    "full": {
+      "width": 138,
+      "height": 160,
+      "back": "full.png",
+      "tint": "full_tint.png",
+      "shade": "full_shade.png"
+    },
+    "path": {
+      "width": 62,
+      "height": 72,
+      "back": "path.png",
+      "tint": "path_tint.png",
+      "shade": "path_shade.png"
+    }
+  }
+}

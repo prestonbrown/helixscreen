@@ -1,0 +1,20 @@
+{
+  "id": "snapmaker_u1",
+  "aspect": 0.6253,
+  "tiers": {
+    "full": {
+      "width": 100,
+      "height": 160,
+      "back": "full.png",
+      "tint": "full_tint.png",
+      "shade": "full_shade.png"
+    },
+    "path": {
+      "width": 45,
+      "height": 72,
+      "back": "path.png",
+      "tint": "path_tint.png",
+      "shade": "path_shade.png"
+    }
+  }
+}

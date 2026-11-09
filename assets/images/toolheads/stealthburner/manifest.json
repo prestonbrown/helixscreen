@@ -1,9 +1,9 @@
 {
   "id": "stealthburner",
-  "aspect": 0.6427,
+  "aspect": 0.6364,
   "tiers": {
     "full": {
-      "width": 103,
+      "width": 102,
       "height": 160,
       "back": "full.png",
       "tint": "full_tint.png",

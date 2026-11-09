@@ -20,8 +20,15 @@ enum class ToolheadStyle : int8_t {
     DRAGONBURNER = 8,
     MINI_STEALTHBURNER = 9,
     BAMBU = 10,
-    ENDER3_BOWDEN = 11,
-    ENDER3_INTEGRATED = 12
+    ENDER3 = 11,
+    XOL = 12,
+    SNAPMAKER_U1 = 13,
+    FLASHFORGE_AD5 = 14,
+    FLASHFORGE_CREATOR5 = 15,
+    ELEGOO_CENTAURI = 16,
+    ARTILLERY_M1 = 17,
+    QIDI = 18,
+    SOVOL_SV08 = 19
 };
 
 } // namespace helix
