@@ -253,19 +253,21 @@ TEST_CASE("Subscription: fan field shape varies by object type", "[moonraker][su
 
     json subs = fx.build();
 
-    SECTION("standard fans: {speed}") {
+    SECTION("standard fans: {speed, rpm}") {
         for (const auto& f : {"fan", "heater_fan hotend_fan", "fan_generic part_cooling",
                               "controller_fan board_fan"}) {
             CAPTURE(f);
             REQUIRE(has_field(subs, f, "speed"));
-            REQUIRE(subs[f].size() == 1);
+            REQUIRE(has_field(subs, f, "rpm"));
+            REQUIRE(subs[f].size() == 2);
         }
     }
 
-    SECTION("temperature_fan: {temperature, target, speed} (sensor + fan union)") {
+    SECTION("temperature_fan: {temperature, target, speed, rpm} (sensor + fan union)") {
         REQUIRE(has_field(subs, "temperature_fan chamber", "temperature"));
         REQUIRE(has_field(subs, "temperature_fan chamber", "target"));
         REQUIRE(has_field(subs, "temperature_fan chamber", "speed"));
+        REQUIRE(has_field(subs, "temperature_fan chamber", "rpm"));
     }
 
     SECTION("output_pin fan: {value} (Creality-style)") {

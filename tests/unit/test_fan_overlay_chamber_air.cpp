@@ -4,7 +4,8 @@
  * @file test_fan_overlay_chamber_air.cpp
  * @brief The fan overlay's chamber air fans: shown while the accessory is fitted,
  *        dropped the moment it is removed, never twice when the printer
- *        republishes one as a Klipper fan.
+ *        republishes one as a Klipper fan. Also: a fan card's tachometer reading
+ *        refreshes on its own.
  */
 
 #include "ui_fan_control_overlay.h"
@@ -182,4 +183,31 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_remove_state(arc, LV_STATE_PRESSED);
     process_lvgl(1200);
     CHECK(sent == std::vector<int>{40});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "fan overlay: a tachometer reading refreshes while the speed holds (#2071)",
+                 "[fan_overlay][rpm]") {
+    FreshOverlays fresh;
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"extruder", "fan", "heater_fan hotend_fan"}));
+    get_printer_state().set_hardware(hw);
+    state().fan_state().init_fans({"fan", "heater_fan hotend_fan"});
+    get_printer_state().update_from_status(
+        json{{"heater_fan hotend_fan", {{"speed", 1.0}, {"rpm", 0.0}}}});
+    seed_nav_panels(test_screen());
+
+    lv_obj_t* root = helix::open_fan_control_overlay(test_screen());
+    REQUIRE(root != nullptr);
+    // Let the deferred first rebuild land, so the reading below meets live cards.
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(50);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(has_label(root, "100%"));
+
+    // Spin-up: Klipper reports a new rpm with no speed change.
+    get_printer_state().update_from_status(json{{"heater_fan hotend_fan", {{"rpm", 6000.0}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(50);
+    CHECK(has_label(root, "100% \xC2\xB7 6000 RPM"));
 }
