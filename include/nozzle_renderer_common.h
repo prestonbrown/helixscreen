@@ -186,6 +186,16 @@ void nr_draw_filament_tip(lv_layer_t* layer, int32_t cx, int32_t top_y, int32_t 
                           int32_t bottom_width, int32_t height, std::optional<lv_color_t> filament,
                           lv_opa_t opa);
 
+/// @brief Draw a round cooling-fan duct: bezel ring, dark opening, hub, highlight
+/// @param front_mid Body color the bezel is lightened from
+/// @param front_light Body color the highlight is lightened from
+/// @param metal_base Body color the opening and hub are darkened from
+/// @param opa Opacity of the opening and hub; the bezel and highlight stay opaque
+/// @param blade_hints Add faint cross lines over the opening
+void nr_draw_fan_ring(lv_layer_t* layer, int32_t fan_cx, int32_t fan_cy, int32_t fan_radius,
+                      lv_color_t front_mid, lv_color_t front_light, lv_color_t metal_base,
+                      lv_opa_t opa, bool blade_hints = false);
+
 } // namespace helix
 
 /// @brief Draw isometric top face (parallelogram tilting up-right)

@@ -382,7 +382,7 @@ void PrintSelectCardView::prebuild(const CardDimensions& dims, size_t expected_f
         return;
     }
     init_pool(dims);
-    create_spacers();
+    create_spacers(container_, leading_spacer_, trailing_spacer_);
 
     // An unknown count is bounded by the rows one screen can show.
     const size_t files = std::min<size_t>(expected_files, 1U << 16);
@@ -418,30 +418,6 @@ void PrintSelectCardView::on_prebuild_tick(lv_timer_t* timer) {
     }
     if (self->card_pool_.size() >= self->prebuild_target_ || self->card_pool_.size() == before) {
         self->stop_prebuild();
-    }
-}
-
-void PrintSelectCardView::create_spacers() {
-    if (!container_) {
-        return;
-    }
-
-    // Leading spacer - fills space before visible cards
-    if (!leading_spacer_) {
-        leading_spacer_ = lv_obj_create(container_);
-        lv_obj_remove_style_all(leading_spacer_);
-        lv_obj_remove_flag(leading_spacer_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_width(leading_spacer_, lv_pct(100));
-        lv_obj_set_height(leading_spacer_, 0);
-    }
-
-    // Trailing spacer - enables scrolling to end
-    if (!trailing_spacer_) {
-        trailing_spacer_ = lv_obj_create(container_);
-        lv_obj_remove_style_all(trailing_spacer_);
-        lv_obj_remove_flag(trailing_spacer_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_width(trailing_spacer_, lv_pct(100));
-        lv_obj_set_height(trailing_spacer_, 0);
     }
 }
 
@@ -633,7 +609,7 @@ void PrintSelectCardView::populate(const std::vector<PrintFileData>& file_list,
     // Shared pool state on first call; cards are created by update_visible()
     init_pool(dims);
 
-    create_spacers();
+    create_spacers(container_, leading_spacer_, trailing_spacer_);
 
     cards_per_row_ = dims.num_columns;
 

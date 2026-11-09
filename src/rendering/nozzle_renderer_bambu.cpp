@@ -164,45 +164,8 @@ void draw_nozzle_bambu(lv_layer_t* layer, int32_t cx, int32_t cy,
     {
         int32_t fan_cx = cx;
         int32_t fan_cy = cy - (scale_unit * 4) / 10;
-
-        // Outer bezel ring
-        lv_draw_arc_dsc_t arc_dsc;
-        lv_draw_arc_dsc_init(&arc_dsc);
-        arc_dsc.center.x = fan_cx;
-        arc_dsc.center.y = fan_cy;
-        arc_dsc.radius = fan_radius + 2;
-        arc_dsc.start_angle = 0;
-        arc_dsc.end_angle = 360;
-        arc_dsc.width = 2;
-        arc_dsc.color = nr_lighten(front_mid, 20);
-        arc_dsc.opa = LV_OPA_COVER;
-        lv_draw_arc(layer, &arc_dsc);
-
-        // Main fan opening - dark blade area
-        lv_draw_fill_dsc_t fill_dsc;
-        lv_draw_fill_dsc_init(&fill_dsc);
-        fill_dsc.color = nr_darken(metal_base, 80);
-        fill_dsc.opa = opa;
-        fill_dsc.radius = fan_radius;
-
-        lv_area_t fan_area = {fan_cx - fan_radius, fan_cy - fan_radius, fan_cx + fan_radius,
-                              fan_cy + fan_radius};
-        lv_draw_fill(layer, &fill_dsc, &fan_area);
-
-        // Inner hub circle
-        int32_t hub_r = fan_radius / 3;
-        fill_dsc.color = nr_darken(metal_base, 40);
-        fill_dsc.radius = hub_r;
-        lv_area_t hub_area = {fan_cx - hub_r, fan_cy - hub_r, fan_cx + hub_r, fan_cy + hub_r};
-        lv_draw_fill(layer, &fill_dsc, &hub_area);
-
-        // Highlight arc on top-left
-        arc_dsc.radius = fan_radius + 1;
-        arc_dsc.start_angle = 200;
-        arc_dsc.end_angle = 290;
-        arc_dsc.width = 1;
-        arc_dsc.color = nr_lighten(front_light, 50);
-        lv_draw_arc(layer, &arc_dsc);
+        helix::nr_draw_fan_ring(layer, fan_cx, fan_cy, fan_radius, front_mid, front_light,
+                                metal_base, opa);
     }
 
     // ========================================

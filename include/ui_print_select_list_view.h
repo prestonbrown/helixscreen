@@ -186,8 +186,6 @@ class PrintSelectListView : public ContainerDeleteNet {
     void init_pool();
     void configure_row(lv_obj_t* row, size_t pool_index, size_t file_index,
                        const PrintFileData& file);
-    void create_spacers();
-
     /// Drop every cached pointer/counter WITHOUT touching any widget. Safe to
     /// run while the tree those pointers refer to is mid-deletion.
     void clear_cached_state();

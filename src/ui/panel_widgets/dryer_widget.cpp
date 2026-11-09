@@ -25,6 +25,7 @@
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/dryer_model.h"
 #include "src/ui/panel_widgets/live_tile_owner.h"
+#include "src/ui/panel_widgets/panel_widget_fonts.h"
 #include "subject_managed_panel.h"
 #include "text_measure.h"
 #include "theme_manager.h"
@@ -256,20 +257,6 @@ TextSet compose_single(const helix::DryerSummary& summary, helix::SizeRung rung,
     return t;
 }
 
-struct Fonts {
-    const lv_font_t* xs;
-    const lv_font_t* small;
-    const lv_font_t* body;
-    const lv_font_t* heading;
-    const lv_font_t* icon;
-};
-
-Fonts load_fonts() {
-    return {theme_manager_get_font("font_xs"), theme_manager_get_font("font_small"),
-            theme_manager_get_font("font_body"), theme_manager_get_font("font_heading"),
-            theme_manager_get_font("icon_font_xs")};
-}
-
 using helix::line_px;
 
 int widest(std::initializer_list<int> widths) {
@@ -283,7 +270,7 @@ struct RowMetrics {
     int row_gap = 0;
 };
 
-RowMetrics measure_rows(const Fonts& f) {
+RowMetrics measure_rows(const helix::PanelWidgetFonts& f) {
     const int line_gap = theme_manager_get_spacing("space_xxs");
     const int bar_h = theme_manager_get_spacing("space_xs");
     return {line_px(f.small) + line_px(f.xs) + bar_h + 2 * line_gap,
@@ -311,7 +298,7 @@ DropGlyphs measure_drop_glyphs() {
 /// The widest idle text a single-block rung draws beside or under the drop, in that rung's
 /// faces. Mirrors panel_widget_dryer.xml: a stack spaces its children by space_xxs, a row
 /// by space_xs.
-helix::DropTextBlock idle_text_block(helix::SizeRung rung, const Fonts& f) {
+helix::DropTextBlock idle_text_block(helix::SizeRung rung, const helix::PanelWidgetFonts& f) {
     using helix::SizeRung;
     const int row_gap = theme_manager_get_spacing("space_xxs");
     const int col_gap = theme_manager_get_spacing("space_xs");
@@ -345,7 +332,7 @@ helix::DropTextBlock idle_text_block(helix::SizeRung rung, const Fonts& f) {
 /// panel_widget_dryer.xml: a stack spaces its children by space_xxs, a row by space_xs.
 helix::RungNeeds measure_needs(DState state) {
     using helix::rung_box;
-    const Fonts f = load_fonts();
+    const helix::PanelWidgetFonts f = helix::load_panel_widget_fonts();
     const int row_gap = theme_manager_get_spacing("space_xxs");
     const int col_gap = theme_manager_get_spacing("space_xs");
     // Measured and rendered widths disagree by a few pixels; a text rung is never
@@ -467,7 +454,7 @@ DryerVerdict DryerWidget::decide(int width_px, int height_px, const SummaryState
         content_chrome_or_estimate(root(), "space_xxs", "space_xxs", "space_xxs", "space_xxs");
     const DState dstate =
         !state.drying ? DState::Idle : (state.multi ? DState::Multi : DState::Single);
-    const Fonts f = load_fonts();
+    const helix::PanelWidgetFonts f = helix::load_panel_widget_fonts();
     const RowMetrics rows = measure_rows(f);
 
     DryerInput in;

@@ -148,7 +148,6 @@ class SpoolmanListView : public ContainerDeleteNet {
     // === Internal Methods ===
     /// Build one hidden pool row; false when the row component fails to create
     bool add_pool_row();
-    void create_spacers();
     void configure_row(RowWidgets& rw, const SpoolInfo& spool, int active_spool_id);
 
     /// Drop every cached pointer/counter WITHOUT touching any widget. Safe to
