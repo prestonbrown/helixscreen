@@ -99,7 +99,7 @@ TEST_CASE("toolhead art: the frame puts the nozzle tip on the filament column", 
     REQUIRE(art != nullptr);
     const ToolheadArtRect r = toolhead_art_rect(*art, 100, 50, 10);
     CHECK(r.h == Catch::Approx(80 * art->height).margin(1));
-    CHECK(r.w == Catch::Approx(80 * art->aspect).margin(1));
+    CHECK(r.w == Catch::Approx(r.h * art->aspect).margin(1));
     CHECK(100 - r.x == Catch::Approx(r.w * art->tip_x).margin(1));
 
     const ToolheadArtPoint e = toolhead_art_entry(*art, 100, 50, 10);

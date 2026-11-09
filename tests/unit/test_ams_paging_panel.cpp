@@ -1351,7 +1351,7 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit that gains art becomes a 
     settle();
     process_lvgl(50);
 
-    CHECK(lv_obj_find_by_name(root(), "bars_container") == nullptr);
+    CHECK(lv_obj_get_child_count(lv_obj_find_by_name(root(), "bars_container")) == 0);
 }
 
 TEST_CASE_METHOD(PagingFixture, "Overview tile: the readout goes on the smallest breakpoints",
