@@ -950,7 +950,8 @@ show_help() {
     printf '%s\n' "  --restart-moonraker     Restart Moonraker over its API so it loads the plugin"
     printf '%s\n' "                          on disk; exit 0 restarted, 3 needs a manual"
     printf '%s\n' "                          restart, 4 held off by a print, 6 print state unknown,"
-    printf '%s\n' "                          7 Moonraker not answering"
+    printf '%s\n' "                          7 Moonraker not answering, 8 only a reboot reloads"
+    printf '%s\n' "                          it, 9 Moonraker refused the restart"
     printf '%s\n' "  --help, -h              Show this help message"
     printf '\n'
     printf '%s\n' "Exit codes for --uninstall and --uninstall-auto:"
