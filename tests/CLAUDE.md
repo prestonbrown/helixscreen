@@ -356,9 +356,11 @@ they arrive in changes.
   every hunk after it are listed `UNEXAMINED`: the run is `INCOMPLETE`, never
   `CLEAN`. Each filter's baseline time is kept in the
   checkout's build directory, as mutate-baseline-secs.json (a baseline the cap
-  cut off as a lower bound), and a baseline whose kept time exceeds what is left is not started:
-  its hunks read `UNEXAMINED` (unjudged in a pool) at once, so a large batch's
-  whole-suite fallback cannot spend the cap before any mutant runs.
+  cut off as a lower bound), keyed on suite, filter and for catch2 `--shards`, and a baseline whose
+  kept time exceeds what is left is not started: its hunks read `UNEXAMINED`
+  (unjudged in a pool) at once. A refusal marks the entry and the next run
+  measures it again, so one time taken under load costs one run. A large batch's
+  whole-suite fallback therefore cannot spend the cap before any mutant runs.
 - SIGINT, SIGTERM and SIGHUP all stop it the same way: every child (make and
   its compilers, `git apply`, the suites) runs in its own process group and is
   stopped and reaped first, then every mutated file is written back from the

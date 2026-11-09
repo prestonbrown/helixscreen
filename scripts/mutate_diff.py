@@ -197,7 +197,9 @@
 # baseline the deadline cut off is kept as a lower bound. A baseline whose kept
 # time is more than what is left of --max-minutes is not started: its hunks are
 # reported UNEXAMINED (unjudged in a pool) at once, so the fallback filter of a
-# large batch cannot spend the whole cap before any mutant runs.
+# large batch cannot spend the whole cap before any mutant runs. Catch2 times are
+# kept per --shards. A refusal marks its entry, and the next run measures that
+# baseline again, so a time taken under load costs one refused run.
 #
 # EXIT CODES
 #
@@ -1551,52 +1553,83 @@ BASELINE_RECORD = 'build/mutate-baseline-secs.json'
 _BASELINE_RECORD_LOCK = threading.Lock()
 
 
-def baseline_record_key(suite, args):
-    """What a baseline's time is recorded under: the suite and the filter it ran."""
-    spec = {'catch2': args.tests, 'bats': args.shell_tests,
-            'pytest': args.python_tests}.get(suite, '')
+def baseline_record_key(suite, args, shards=None):
+    """What a baseline's time is recorded under: the suite and the filter it ran,
+    and for catch2 the --shards it was asked for (`shards`, default args.shards),
+    since how many shards run at once sets its wall time."""
+    if suite == 'catch2':
+        return f'catch2 shards={args.shards if shards is None else shards} {args.tests}'
+    spec = {'bats': args.shell_tests, 'pytest': args.python_tests}.get(suite, '')
     return f'{suite} {spec}'
 
 
 def read_baseline_record(root):
-    """{key: seconds} from earlier runs in this checkout; {} when there is none."""
+    """{key: {'secs': float, 'refused': bool}} from earlier runs in this checkout."""
     try:
         data = json.loads((root / BASELINE_RECORD).read_text())
     except (OSError, ValueError):
         return {}
-    return {k: float(v) for k, v in data.items()
-            if isinstance(v, (int, float))} if isinstance(data, dict) else {}
+    if not isinstance(data, dict):
+        return {}
+    out = {}
+    for k, v in data.items():
+        if isinstance(v, dict) and isinstance(v.get('secs'), (int, float)):
+            out[k] = {'secs': float(v['secs']), 'refused': bool(v.get('refused'))}
+    return out
+
+
+def _store_baseline_record(root, data):
+    path = root / BASELINE_RECORD
+    try:
+        tmp = path.with_name(path.name + '.tmp')
+        tmp.write_text(json.dumps(data, indent=1, sort_keys=True) + '\n')
+        tmp.replace(path)
+    except OSError:
+        pass                       # no build/ here: the next run just measures again
 
 
 def write_baseline_record(root, key, secs, at_least=False):
-    """Keep `secs` for `key`. `at_least`: a lower bound, which never lowers a time kept."""
-    path = root / BASELINE_RECORD
+    """Keep `secs` for `key`, measured by a run that started this baseline.
+    `at_least`: a lower bound, which never lowers a time kept. Either way the
+    entry is no longer marked refused: it has been run again."""
     with _BASELINE_RECORD_LOCK:
         data = read_baseline_record(root)
-        if at_least and data.get(key, 0) >= secs:
-            return
-        data[key] = round(secs, 1)
-        try:
-            tmp = path.with_name(path.name + '.tmp')
-            tmp.write_text(json.dumps(data, indent=1, sort_keys=True) + '\n')
-            tmp.replace(path)
-        except OSError:
-            pass                   # no build/ here: the next run just measures again
+        kept = data.get(key, {}).get('secs', 0)
+        data[key] = {'secs': round(max(kept, secs) if at_least else secs, 1),
+                     'refused': False}
+        _store_baseline_record(root, data)
 
 
 def check_baseline_affordable(root, suite, args):
     """Raise BaselineUnaffordable when the kept time for this baseline exceeds what is
-    left before the deadline. A run with no deadline, or no kept time, always starts it."""
+    left before the deadline. A run with no deadline, or no kept time, always starts it.
+
+    A refusal is made once per measurement: it marks the entry, and the next run
+    that would refuse it runs the baseline instead, whose time replaces the entry.
+    A time measured under load therefore costs one refused run, never every run
+    after it, and a baseline that truly does not fit is re-measured every other run.
+    """
     if RUN_STATE.deadline_at is None:
         return
-    kept = read_baseline_record(root).get(baseline_record_key(suite, args))
-    left = RUN_STATE.deadline_at - time.monotonic()
-    if kept is not None and kept >= left:
-        spec = baseline_record_key(suite, args).split(' ', 1)[1]
-        raise BaselineUnaffordable(
-            f'the {suite} baseline for {spec!r} took {kept:.0f}s on an earlier run here '
-            f'({BASELINE_RECORD}), more than the {max(left, 0):.0f}s left of --max-minutes; '
-            f'give those files a narrower --tests-for, or run them alone with --only')
+    key = baseline_record_key(suite, args)
+    with _BASELINE_RECORD_LOCK:
+        data = read_baseline_record(root)
+        kept = data.get(key)
+        left = RUN_STATE.deadline_at - time.monotonic()
+        if kept is None or kept['secs'] < left:
+            return
+        if kept['refused']:
+            print(f'  {suite}: refused last time at {kept["secs"]:.0f}s, so measured again '
+                  f'with {max(left, 0):.0f}s left', flush=True)
+            return
+        kept['refused'] = True
+        _store_baseline_record(root, data)
+    spec = key.split(' ', 2 if suite == 'catch2' else 1)[-1]
+    raise BaselineUnaffordable(
+        f'the {suite} baseline for {spec!r} took {kept["secs"]:.0f}s on an earlier run here '
+        f'({BASELINE_RECORD}), more than the {max(left, 0):.0f}s left of --max-minutes '
+        f'(the next run measures it again); give those files a narrower --tests-for, '
+        f'or run them alone with --only')
 
 
 class BuildUnavailable(RuntimeError):
@@ -2577,6 +2610,8 @@ def establish_baseline(suites, needed):
     """
     args = suites.args
     started = {}
+    # fit_shards narrows args.shards below; the record is keyed on what was asked for.
+    asked_shards = args.shards
     if 'catch2' in needed:
         # Counting the cases is part of what the catch2 baseline costs.
         check_baseline_affordable(suites.root, 'catch2', args)
@@ -2584,7 +2619,7 @@ def establish_baseline(suites, needed):
         suites.ensure_catch2_binary()
         matched = count_catch2_cases(suites.root, suites.catch2_bin, args.tests)
         if RUN_STATE.out_of_time:
-            write_baseline_record(suites.root, baseline_record_key('catch2', args),
+            write_baseline_record(suites.root, baseline_record_key('catch2', args, asked_shards),
                                   time.monotonic() - started['catch2'], at_least=True)
             raise OutOfTime()
         if matched is not None:
@@ -2604,7 +2639,7 @@ def establish_baseline(suites, needed):
             started[suite] = time.monotonic()
         state, why = suites.run(suite)
         if RUN_STATE.out_of_time:
-            write_baseline_record(suites.root, baseline_record_key(suite, args),
+            write_baseline_record(suites.root, baseline_record_key(suite, args, asked_shards),
                                   time.monotonic() - started[suite], at_least=True)
             raise OutOfTime()
         if state == DETECTED and suite == 'catch2':
@@ -2635,7 +2670,9 @@ def establish_baseline(suites, needed):
             raise BaselineRefused(f'baseline {suite} suite judged nothing - {why}. Every '
                                   f'mutant would be measured by a suite that cannot report. '
                                   f'See {args.log}')
-        write_baseline_record(suites.root, baseline_record_key(suite, args), suites.last_secs)
+        # From the start of this baseline: the case count and any re-run are its cost too.
+        write_baseline_record(suites.root, baseline_record_key(suite, args, asked_shards),
+                              time.monotonic() - started[suite])
         lo, hi = suites.adopt_baseline(suite, suites.last_secs)
         span = f'{lo:.0f}s' if round(lo) == round(hi) else f'{lo:.0f}-{hi:.0f}s'
         per = ' per shard' if suite == 'catch2' and suites.catch2.shards > 1 else ''
