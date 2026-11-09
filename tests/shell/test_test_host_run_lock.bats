@@ -108,6 +108,7 @@ case "$1" in
                 [ -e "$MOCK_SSH_RECONNECTED" ] || { echo job-never-reconnected; exit 9; }
                 echo job-done; exit 3
                 ;;
+            *MOCK-SIGTERM*) exit 143 ;;
             *) echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG" ;;
         esac ;;
     *) echo "unhandled docker call: $*" >&2; exit 1 ;;
@@ -286,6 +287,12 @@ exec "$@"'
     [ "$(grep -c job-start <<<"$output")" -eq 1 ]
     contains "job-done" "$output"
     ! ls -d "$HELIX_TEST_LOCK_DIR"/*.job-* 2>/dev/null
+}
+
+@test "a job a signal stopped says so, since the stopped process cannot" {
+    run "$SCRIPT" --commit exec -- MOCK-SIGTERM
+    [ "$status" -eq 143 ]
+    contains "the job ended with status 143: something in it was stopped by signal 15" "$output"
 }
 
 # A waiting run whose link drops, and whose holder then lets go. The run's pid
@@ -911,4 +918,28 @@ watchdog_fixture() { # <heartbeat age in seconds>
     for _ in $(seq 1 60); do kill -0 "$wd" 2>/dev/null || break; sleep 0.05; done
     ! kill -0 "$wd" 2>/dev/null
     kill "$WRAPPER"
+}
+
+@test "a finished job's last sweep spares the tree's next job and stops its own leftovers" {
+    watchdog_fixture 0
+    local tree="$BATS_TEST_TMPDIR/trees/tree-x" lock="$BATS_TEST_TMPDIR/tree-x.lock" holder next own
+    mkdir -p "$tree"
+    # The tree's next job: it holds the tree lock and runs in the tree, with a tag of its own.
+    holder=$(hold_flock "$lock" "$BATS_TEST_TMPDIR/ready" 'held by pid %s: the next job')
+    wait_for_file "$BATS_TEST_TMPDIR/ready"
+    (cd "$tree" && exec env HELIX_TEST_JOB=tag-next sleep 300) < /dev/null > /dev/null 2>&1 &
+    next=$!
+    # This job's own leftover, outside the tree.
+    env HELIX_TEST_JOB=tag-x sleep 300 < /dev/null > /dev/null 2>&1 &
+    own=$!
+    echo 0 > "$JOB/rc"
+    run timeout 20 bash -c '. "$1"; helix_job_watchdog "$2" helix-test tag-x "$3" 1 50 30 0.1 "$4"' \
+        _ "$FUNCS" "$JOB" "$tree" "$lock"
+    local spared=0 stopped=1
+    kill -0 "$next" 2>/dev/null && spared=1
+    kill -0 "$own" 2>/dev/null && stopped=0
+    kill "$next" "$own" "$WRAPPER" "$holder" 2>/dev/null || true
+    [ "$status" -eq 0 ]
+    [ "$spared" = 1 ]
+    [ "$stopped" = 1 ]
 }

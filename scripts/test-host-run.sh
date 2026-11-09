@@ -644,12 +644,13 @@ clone_mutate_checkout() {
 # half is itself single-quoted.
 job_kill_snippet() {
     cat <<'SNIPPET'
+# An empty <dir> matches by tag alone.
 helix_job_kill() { # <container> <tag> <dir> <grace>
     sudo -n docker exec -w / "$1" sh -c '
 tag=$1 dir=$2 grace=$3 w="${2%/*}/.${2##*/}.mutate-w"
 pids() {
     { grep -lzx "HELIX_TEST_JOB=$tag" /proc/[0-9]*/environ 2>/dev/null | cut -d/ -f3
-      find /proc/[0-9]*/cwd -maxdepth 0 \( -lname "$dir" -o -lname "$dir/*" -o -lname "$w*" \) 2>/dev/null | cut -d/ -f3
+      [ -z "$dir" ] || find /proc/[0-9]*/cwd -maxdepth 0 \( -lname "$dir" -o -lname "$dir/*" -o -lname "$w*" \) 2>/dev/null | cut -d/ -f3
     } | sort -un
 }
 sent=" " t=0 n=0
@@ -689,8 +690,8 @@ SNIPPET
 # run's own reconnects to come back.
 watchdog_snippet() {
     cat <<'SNIPPET'
-helix_job_watchdog() { # <job dir> <container> <tag> <dir> <kill grace> <client grace> <gone grace> <poll>
-    local job=$1 ctr=$2 tag=$3 dir=$4 kg=$5 cg=$6 gg=$7 poll=$8 pid now hb gone why anchor=""
+helix_job_watchdog() { # <job dir> <container> <tag> <dir> <kill grace> <client grace> <gone grace> <poll> [<tree lock>]
+    local job=$1 ctr=$2 tag=$3 dir=$4 kg=$5 cg=$6 gg=$7 poll=$8 lock=${9-} pid now hb gone why anchor=""
     while sleep "$poll"; do
         if [ -z "$anchor" ] && [ -s "$job/pooled" ]; then
             "$(cat "$job/pooled")" exec -- sh -c 'while kill -0 "$0" 2>/dev/null; do sleep 1; done' "$$" \
@@ -717,7 +718,13 @@ helix_job_watchdog() { # <job dir> <container> <tag> <dir> <kill grace> <client 
         rm -rf "$job"
         return 0
     done
-    helix_job_kill "$ctr" "$tag" "$dir" "$kg" > /dev/null 2>&1
+    # The job is over and its wrapper has let go of the tree lock, so the
+    # tree's next job may already be running in <dir>. A process there is
+    # this job's only while the lock is free; otherwise the tag alone says.
+    (
+        { [ -z "$lock" ] || flock -n 7; } || dir=""
+        helix_job_kill "$ctr" "$tag" "$dir" "$kg"
+    ) 7>>"${lock:-/dev/null}" > /dev/null 2>&1
 }
 SNIPPET
 }
@@ -781,14 +788,16 @@ hold() {
         # Started from a subshell that exits at once, so it is not this
         # shell's child: the cat below would never reap it.
         (
-            nohup \$_s bash -c 'bash "\$0/script" 9>&- > "\$0/log" 2>&1; echo \$? > "\$0/rc.new"; mv "\$0/rc.new" "\$0/rc"' "$JOB_DIR" < /dev/null > /dev/null 2>&1 &
+            # A status over 128 is a signal, which a killed process does not
+            # print itself, so the log names it.
+            nohup \$_s bash -c 'bash "\$0/script" 9>&- > "\$0/log" 2>&1; rc=\$?; [ \$rc -le 128 ] || echo "✗ the job ended with status \$rc: something in it was stopped by signal \$((rc - 128))" >> "\$0/log"; echo \$rc > "\$0/rc.new"; mv "\$0/rc.new" "\$0/rc"' "$JOB_DIR" < /dev/null > /dev/null 2>&1 &
             echo \$! > "$JOB_DIR/pid"
         )
         # The watchdog runs in a session of its own, so nothing that kills the
         # job's group kills it.
         (
             nohup \$_s bash -c "\$(declare -f helix_job_kill helix_job_watchdog)"'; helix_job_watchdog "\$@"' _ \
-                "$JOB_DIR" "$CONTAINER" "$JOB_TAG" "$RUNDIR" $KILL_GRACE_SECS $CLIENT_GRACE_SECS $CLIENT_GONE_SECS $WATCHDOG_POLL_SECS \
+                "$JOB_DIR" "$CONTAINER" "$JOB_TAG" "$RUNDIR" $KILL_GRACE_SECS $CLIENT_GRACE_SECS $CLIENT_GONE_SECS $WATCHDOG_POLL_SECS "\$LOCK" \
                 9>&- < /dev/null > /dev/null 2>&1 &
         )
         echo STARTED
