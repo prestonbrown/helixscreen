@@ -40,6 +40,22 @@ PNG, which costs a decode but never fails.
 
 Nothing is composited above `xlarge`: a larger panel clamps to it and scales.
 
+Every class above is a landscape canvas. A panel taller than it is wide first asks
+`helix::get_splash_3d_portrait_size_name()` for the largest portrait canvas that fits
+it on both axes, from `splash_portrait` in the manifest:
+
+| Class | Resolution | Logo Size | Calculation |
+|-------|------------|-----------|-------------|
+| medium-portrait | 480x800 | 448x448 | wordmark 85% of 480 |
+| large-portrait | 600x1024 | 561x561 | wordmark 85% of 600 |
+| xlarge-portrait | 720x1280 | 673x673 | wordmark 85% of 720 |
+
+A portrait panel with none that fits, or whose package carries none, keeps its tier
+class, which a landscape canvas cannot fit, so it scales the 3D logo PNG. Only the
+packages for a panel set at runtime (`pi`, `pi32`, `x86`, `x86-desktop`) carry the
+portrait canvases, about 2.4 MB for both themes: every fixed panel is landscape once
+rotated, so its package selects none.
+
 Which classes a platform's package contains is derived from its panel geometry in
 `assets/config/platforms.json`; see `scripts/platform_manifest.py`.
 
