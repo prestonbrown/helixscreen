@@ -2399,14 +2399,29 @@ std::optional<std::pair<std::string, std::string>> read_device_identity(const st
 
 /// Move a device identity left at @p from to @p to, once. The copy is written
 /// and synced before @p from goes, so an interrupted move leaves two identical
-/// files, which the next start settles. An identity already at @p to is never
-/// replaced; @p from is then removed only when it is the same identity.
+/// files, which the next start settles. A readable identity already at @p to is
+/// never replaced; @p from is then removed only when it is the same identity. An
+/// unreadable one at @p to is set aside beside it, and a readable @p from takes
+/// its place.
 void move_device_identity(const std::string& from, const std::string& to) {
     std::error_code ec;
     if (from == to || !fs::exists(from, ec)) {
         return;
     }
     const auto old_identity = read_device_identity(from);
+    if (old_identity && fs::exists(to, ec) && !read_device_identity(to)) {
+        const auto stamp = std::chrono::duration_cast<std::chrono::seconds>(
+                               std::chrono::system_clock::now().time_since_epoch())
+                               .count();
+        const std::string aside = fmt::format("{}.unreadable-{}", to, stamp);
+        fs::rename(to, aside, ec);
+        if (ec) {
+            spdlog::error("[TelemetryManager] Keeping {}: could not set unreadable {} aside: {}",
+                          from, to, ec.message());
+            return;
+        }
+        spdlog::warn("[TelemetryManager] Set unreadable device identity {} aside as {}", to, aside);
+    }
     if (fs::exists(to, ec)) {
         if (old_identity && read_device_identity(to) == old_identity) {
             fs::remove(from, ec);
