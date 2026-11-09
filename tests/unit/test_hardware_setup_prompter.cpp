@@ -525,6 +525,35 @@ TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: a stale Review shows nothi
     CHECK(Modal::get_top() == nullptr);
 }
 
+// A type chosen in Settings or Printer Manager spends the warning: the sticky
+// toast must not stay up saying "set up as stock" over the type the user just
+// picked (prestonbrown/helixscreen#2087).
+TEST_CASE_METHOD(TypeMismatchFixture,
+                 "Type mismatch: a type changed elsewhere takes the warning's toast down",
+                 "[type-mismatch][hardware_setup][2087]") {
+    state().set_printer_type_sync(SAVED);
+    drain();
+    warn();
+    REQUIRE(toast_.has_value());
+
+    SECTION("re-applying the same type leaves it up") {
+        state().set_printer_type_sync(SAVED);
+        drain();
+        CHECK_FALSE(helix::ui::last_action_toast_dismissed());
+    }
+    SECTION("a different saved type takes it down, and settles nothing") {
+        set_config(helix::wizard::PRINTER_TYPE, DETECTED);
+        state().set_printer_type_sync(DETECTED);
+        drain();
+        CHECK(helix::ui::last_action_toast_dismissed());
+        CHECK(dismissed_for().empty());
+
+        // The Review that was armed with it is spent as well.
+        tap_history_entry();
+        CHECK(Modal::get_top() == nullptr);
+    }
+}
+
 // An answer for the saved type against an earlier detection does not spend a
 // warning about a different detected type (prestonbrown/helixscreen#2075).
 TEST_CASE_METHOD(TypeMismatchFixture,

@@ -183,6 +183,10 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **The printer picture shows an attached CFS** - a Creality K2 with a CFS connected shows
   the K2 with the CFS on top, switching on its own when the CFS reports in or drops out. A
   picture you picked yourself stays in place.
+- **Jacobean's K2 Plus firmware is recognised (#2087)** - a K2 Plus running Jacobean's
+  Kalico-based replacement firmware is detected as itself instead of as k2-improvements, with
+  print-start progress that follows its own START_PRINT. A printer type mismatch warning
+  also leaves the screen as soon as the type is changed in Settings.
 - **A K2 without a CFS is a single-spool printer (#1904)** - with no CFS attached, the
   multi-filament panels, slot widgets and bypass controls stay out of the way, and the
   Filament panel's Load and Unload run the K2's own external-spool load and its cut and
