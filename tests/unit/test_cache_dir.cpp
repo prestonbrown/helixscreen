@@ -584,3 +584,33 @@ TEST_CASE("the Forge-X state root is a known state root", "[cache]") {
     }
     CHECK(found);
 }
+
+TEST_CASE("state_root_candidates puts the board's state roots before the host fallbacks",
+          "[cache][2085]") {
+    using helix::cache_internal::state_root_candidates;
+    using V = std::vector<std::string>;
+
+    // The telemetry identity resolves here; the board's root is the one beside
+    // the payload, never inside it and never under printer_data.
+    CHECK(state_root_candidates(Board::K1, FlashForgeModTree::None, "/var/lib/hs", "/h/.hs") ==
+          V{"/usr/data/helixscreen-state", "/var/lib/hs", "/h/.hs"});
+    CHECK(state_root_candidates(Board::Ad5x, FlashForgeModTree::Zmod, "/var/lib/hs", "/h/.hs") ==
+          V{"/srv/helixscreen-state", "/var/lib/hs", "/h/.hs"});
+    CHECK(
+        state_root_candidates(Board::K2, FlashForgeModTree::None, "/var/lib/hs", "/h/.hs") ==
+        V{"/mnt/UDISK/helixscreen-state", "/usr/data/helixscreen-state", "/var/lib/hs", "/h/.hs"});
+    CHECK(state_root_candidates(Board::Generic, FlashForgeModTree::None, "/var/lib/hs", "/h/.hs") ==
+          V{"/var/lib/hs", "/h/.hs"});
+
+    // The cache rungs are the same roots, so the two can never name different trees.
+    for (int i = 0; i < helix::board::kBoardCount; ++i) {
+        const Board board = static_cast<Board>(i);
+        V from_rungs;
+        for (const auto& rung : board_cache_candidates(board, FlashForgeModTree::Zmod, "x"))
+            from_rungs.push_back(
+                rung.path.substr(0, rung.path.size() - std::string("/cache/x").size()));
+        V roots = state_root_candidates(board, FlashForgeModTree::Zmod, "a", "b");
+        roots.resize(roots.size() - 2);
+        CHECK(roots == from_rungs);
+    }
+}

@@ -67,6 +67,7 @@
 #include <string_view>
 #include <sys/utsname.h>
 #include <unistd.h>
+#include <utility>
 
 // glibc ptmalloc introspection for heap-fragmentation telemetry (#758 class).
 // mallinfo2() (glibc 2.33+) returns size_t fields — preferred.
@@ -225,7 +226,7 @@ TelemetryManager::~TelemetryManager() {
 // Lifecycle
 // =============================================================================
 
-void TelemetryManager::init(const std::string& config_dir) {
+void TelemetryManager::init(const std::string& config_dir, const std::string& identity_dir) {
     if (initialized_.load()) {
         spdlog::debug("[TelemetryManager] Already initialized, skipping");
         return;
@@ -234,6 +235,7 @@ void TelemetryManager::init(const std::string& config_dir) {
     spdlog::info("[TelemetryManager] Initializing with config dir: {}", config_dir);
 
     config_dir_ = config_dir;
+    identity_dir_ = identity_dir.empty() ? config_dir : identity_dir;
 
     // Reset in-memory state for clean initialization
     enabled_.store(false);
@@ -281,6 +283,15 @@ void TelemetryManager::init(const std::string& config_dir) {
     } catch (const fs::filesystem_error& e) {
         spdlog::error("[TelemetryManager] Failed to create config dir '{}': {}", config_dir_,
                       e.what());
+    }
+
+    if (identity_dir_ != config_dir_) {
+        std::error_code ec;
+        fs::create_directories(identity_dir_, ec);
+        if (ec) {
+            spdlog::error("[TelemetryManager] Failed to create identity dir '{}': {}",
+                          identity_dir_, ec.message());
+        }
     }
 
     ensure_device_id();
@@ -2359,26 +2370,73 @@ std::string TelemetryManager::get_timestamp() const {
     return std::string(buf);
 }
 
+namespace {
+
+/// The uuid and salt a device identity document holds, or nullopt when it is
+/// unreadable or lacks either.
+std::optional<std::pair<std::string, std::string>> read_device_identity(const std::string& path) {
+    const json data = json::parse(helix::text_io::read_file(path).value_or(""), nullptr, false);
+    if (!data.is_object()) {
+        return std::nullopt;
+    }
+    std::string uuid = helix::json_util::safe_string(data, "uuid", "");
+    std::string salt = helix::json_util::safe_string(data, "salt", "");
+    if (uuid.empty() || salt.empty()) {
+        return std::nullopt;
+    }
+    return std::make_pair(std::move(uuid), std::move(salt));
+}
+
+/// Move a device identity left at @p from to @p to, once. The copy is written
+/// and synced before @p from goes, so an interrupted move leaves two identical
+/// files, which the next start settles. An identity already at @p to is never
+/// replaced; @p from is then removed only when it is the same identity.
+void move_device_identity(const std::string& from, const std::string& to) {
+    std::error_code ec;
+    if (from == to || !fs::exists(from, ec)) {
+        return;
+    }
+    const auto old_identity = read_device_identity(from);
+    if (fs::exists(to, ec)) {
+        if (old_identity && read_device_identity(to) == old_identity) {
+            fs::remove(from, ec);
+            spdlog::info("[TelemetryManager] Removed duplicate device identity {}", from);
+        } else {
+            spdlog::warn("[TelemetryManager] Keeping {}: {} already holds a different identity",
+                         from, to);
+        }
+        return;
+    }
+    if (!old_identity) {
+        spdlog::warn("[TelemetryManager] Not moving unreadable device identity {}", from);
+        return;
+    }
+    const auto bytes = helix::text_io::read_file(from);
+    if (!bytes ||
+        !helix::text_io::write_file_atomic(to, *bytes, helix::text_io::Durability::Fsync)) {
+        spdlog::error("[TelemetryManager] Could not move device identity {} -> {}", from, to);
+        return;
+    }
+    fs::remove(from, ec);
+    spdlog::info("[TelemetryManager] Moved device identity {} -> {}", from, to);
+}
+
+} // namespace
+
 void TelemetryManager::ensure_device_id() {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    std::string device_path = get_device_id_path();
+    const std::string device_path = get_device_id_path();
+    move_device_identity(config_dir_ + "/telemetry_device.json", device_path);
 
-    try {
-        std::ifstream file(device_path);
-        if (file.good()) {
-            json data = json::parse(file);
-            if (data.contains("uuid") && data["uuid"].is_string() && data.contains("salt") &&
-                data["salt"].is_string()) {
-                device_uuid_ = data["uuid"].get<std::string>();
-                device_salt_ = data["salt"].get<std::string>();
-                spdlog::info("[TelemetryManager] Loaded device identity from {}", device_path);
-                return;
-            }
-            spdlog::warn("[TelemetryManager] Device file missing uuid/salt, regenerating");
-        }
-    } catch (const std::exception& e) {
-        spdlog::warn("[TelemetryManager] Failed to load device identity: {}", e.what());
+    if (const auto identity = read_device_identity(device_path)) {
+        device_uuid_ = identity->first;
+        device_salt_ = identity->second;
+        spdlog::info("[TelemetryManager] Loaded device identity from {}", device_path);
+        return;
+    }
+    if (std::error_code ec; fs::exists(device_path, ec)) {
+        spdlog::warn("[TelemetryManager] Device file missing uuid/salt, regenerating");
     }
 
     device_uuid_ = generate_uuid_v4();
@@ -2386,20 +2444,14 @@ void TelemetryManager::ensure_device_id() {
 
     spdlog::info("[TelemetryManager] Generated new device identity");
 
-    try {
-        json data;
-        data["uuid"] = device_uuid_;
-        data["salt"] = device_salt_;
-
-        std::ofstream file(device_path);
-        if (file.good()) {
-            file << helix::json_util::safe_dump(data, 2);
-            spdlog::debug("[TelemetryManager] Saved device identity to {}", device_path);
-        } else {
-            spdlog::error("[TelemetryManager] Failed to write device identity to {}", device_path);
-        }
-    } catch (const std::exception& e) {
-        spdlog::error("[TelemetryManager] Failed to persist device identity: {}", e.what());
+    json data;
+    data["uuid"] = device_uuid_;
+    data["salt"] = device_salt_;
+    if (helix::text_io::write_file_atomic(device_path, helix::json_util::safe_dump(data, 2),
+                                          helix::text_io::Durability::Fsync)) {
+        spdlog::debug("[TelemetryManager] Saved device identity to {}", device_path);
+    } else {
+        spdlog::error("[TelemetryManager] Failed to write device identity to {}", device_path);
     }
 }
 
@@ -2412,7 +2464,7 @@ std::string TelemetryManager::get_queue_path() const {
 }
 
 std::string TelemetryManager::get_device_id_path() const {
-    return config_dir_ + "/telemetry_device.json";
+    return identity_dir_ + "/telemetry_device.json";
 }
 
 // =============================================================================

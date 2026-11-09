@@ -178,8 +178,21 @@ class TelemetryManager {
      *
      * @param config_dir Directory for persistence files (default "config").
      *                   Accepts a custom path for test isolation.
+     * @param identity_dir Directory for telemetry_device.json, which holds the
+     *                   device's uuid and salt. Empty means @p config_dir. A
+     *                   device passes its state root here: outside the install
+     *                   root an update replaces, and outside the Klipper config
+     *                   tree that web UIs expose and config backups publish
+     *                   (#2085). A telemetry_device.json still in @p config_dir
+     *                   is moved here once.
      */
-    void init(const std::string& config_dir = "config");
+    void init(const std::string& config_dir = "config", const std::string& identity_dir = {});
+
+    /**
+     * @brief Path of the device identity file
+     * @return telemetry_device.json in the identity directory given to init()
+     */
+    std::string get_device_id_path() const;
 
     /**
      * @brief Shutdown and cleanup
@@ -1145,12 +1158,6 @@ class TelemetryManager {
      */
     std::string get_queue_path() const;
 
-    /**
-     * @brief Get filesystem path for the device identity file
-     * @return Path to telemetry_device.json in the config directory
-     */
-    std::string get_device_id_path() const;
-
     // =========================================================================
     // STATE
     // =========================================================================
@@ -1213,8 +1220,11 @@ class TelemetryManager {
     // CONFIGURATION
     // =========================================================================
 
-    /// Directory for persistence files (queue, device ID, enabled state)
+    /// Directory for persistence files (queue, snapshot, update flags)
     std::string config_dir_;
+
+    /// Directory for telemetry_device.json (see init())
+    std::string identity_dir_;
 
     /// Set to true when crash.txt is suppressed due to update_success.json being present
     bool had_update_restart_ = false;
