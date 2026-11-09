@@ -167,8 +167,6 @@ translations:
   A cold pull is already running.: "Ein Cold Pull läuft bereits."
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Ein Lüfter, der die Luft im Gehäuse durch einen Filter zieht. Steuere ihn im Kammertemperatur-Bildschirm.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Ein paar Minuten, fast alles Aufheizen. Du beurteilst nichts mit dem Auge.'
-  ? A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one.
-  : "Eine Filamentspur ist in diesen Werkzeugkopf geladen. Zuerst entladen; das Reinigungsfilament über den Bypass einführen, falls vorhanden."
   A folder name in moonraker.conf is unsafe, so cleanup is off.: "Ein Ordnername in moonraker.conf ist unsicher, daher ist die Bereinigung ausgeschaltet."
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'Auf dem Drucker ist ein Heat-Soak-Makro eingerichtet. HelixScreen erkennt es, führt es aber nicht aus.'
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Eine Heizung, die die Luft im Gehäuse wärmt. Stelle die Temperatur im Kammertemperatur-Bildschirm ein.'
@@ -190,7 +188,6 @@ translations:
   A print started: 'Ein Druck wurde gestartet'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Ein Druck wurde gestartet, während Spulen als auf dem Heizbett liegend markiert sind. Falls sie noch dort liegen, stoppe den Drucker sofort mit dem Notaus."
   A print took the printer.: "Ein Druck hat den Drucker übernommen."
-  A printer command failed.: "Ein Druckerbefehl ist fehlgeschlagen."
   A restart is already in progress: Ein Neustart läuft bereits
   A right, B left: "A rechts, B links"
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -680,6 +677,7 @@ translations:
   Cannot perform this action now: Diese Aktion ist derzeit nicht möglich
   'Cannot reprint: not connected to printer': 'Nachdruck nicht möglich: nicht mit
     Drucker verbunden'
+  Cannot restart Moonraker while printing: "Moonraker kann während eines Drucks nicht neu gestartet werden"
   Cannot restart — no filename: Neustart nicht möglich — kein Dateiname
   Cannot run filament operation while printing: Filamentvorgang während des Drucks nicht möglich
   'Cannot schedule a pause: printer not connected': 'Pause kann nicht geplant werden: Drucker nicht verbunden'
@@ -842,6 +840,7 @@ translations:
   Clog Manual: Verstopfung Manuell
   Clog and flow health while printing: Verstopfung und Fluss beim Drucken
   Clog detection: Verstopfungserkennung
+  'Clogged nozzle? Extruding is optional: tap Done to go on.': "Düse verstopft? Extrudieren ist optional: Tippe auf Fertig, um fortzufahren."
   Close: Schließen
   Close feeder: Zuführung schließen
   Close feeder macro: Makro zum Schließen der Zuführung
@@ -1123,6 +1122,7 @@ translations:
   Cut & retract: 'Schneiden & einziehen'
   Cut Distance: 'Schnittweg'
   Cut filament: Filament schneiden
+  Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.: "Schneide die gezogene Spitze ab und schiebe das Filament bis zum Anschlag zurück in den Extruder, dann tippe auf Extrudieren."
   'Cut position saved: {}': 'Schnittposition gespeichert: {}'
   Cut tip: 'Spitze schneiden'
   Cutter Enabled: 'Schneider aktiviert'
@@ -1178,6 +1178,7 @@ translations:
   Deploy: Ausfahren
   Depth and lighting on buttons and panels: Tiefe und Licht auf Schaltflächen und Feldern
   Describe the issue (optional): Problem beschreiben (optional)
+  Detach the filament tube at the toolhead first so you can grip the filament.: "Löse zuerst den Filamentschlauch am Werkzeugkopf, damit du das Filament greifen kannst."
   Detailed: Detailliert
   Details: 'Details'
   Detect automatically: 'Automatisch erkennen'
@@ -1626,6 +1627,7 @@ translations:
   Feed filament from current slot: 'Filament aus dem aktuellen Slot zuführen'
   Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: Führen Sie das Filament von Hand am Sensor vorbei und drücken Sie dann auf Fortsetzen — oder brechen Sie den Druck ab, um Laden/Entladen zu nutzen
   Feed the cleaning filament: "Reinigungsfilament einführen"
+  Feed the filament back: "Filament wieder zuführen"
   Feeder: Zuführung
   Feeders: Zuführungen
   Feeding filament forward: Filament wird vorwärts geführt
@@ -2259,6 +2261,7 @@ translations:
   Layout changes are off in safe mode. Restart to edit.: 'Layout-Änderungen sind im abgesicherten Modus deaktiviert. Starten Sie neu, um zu bearbeiten.'
   Learn More: Mehr erfahren
   Leave it: 'So lassen'
+  Leave this off for a clogged nozzle.: "Bei verstopfter Düse ausgeschaltet lassen."
   LedSelect: LED auswählen
   Left: 'Links'
   Left belt: "Riemen links"
@@ -2813,6 +2816,7 @@ translations:
   'Nozzle:': 'Düse:'
   'Nozzles still heating: {}': 'Düsen heizen noch: {}'
   Number Pad Layout: Ziffernblock-Layout
+  Number slots from 0: Slots ab 0 nummerieren
   Nylon: "Nylon"
   OD: OD
   'OFF': AUS
@@ -3258,6 +3262,7 @@ translations:
   'Purge failed: {}': 'Purge fehlgeschlagen: {}'
   Purge may still be running — response timed out: Purge läuft möglicherweise noch
     — Zeitüberschreitung
+  Purge the loaded filament: "Geladenes Filament spülen"
   Purge to bucket: 'In den Behälter entlüften'
   Purge tower and brush settings: 'Einstellungen für Reinigungsturm und Bürste'
   Purging: Spülen
@@ -3468,6 +3473,7 @@ translations:
   Restart Klipper?: 'Klipper neu starten?'
   Restart Moonraker: Moonraker neu starten
   Restart Moonraker to finish the plugin change: Moonraker neu starten, um die Plugin-Änderung abzuschließen
+  Restart Moonraker?: "Moonraker neu starten?"
   Restart Now: Jetzt neu starten
   Restart Required: Neustart erforderlich
   'Restart failed: not connected': 'Neustart fehlgeschlagen: nicht verbunden'
@@ -3710,7 +3716,7 @@ translations:
   Select Spool: Spule auswählen
   Select a filament slot to load: Filament-Slot zum Laden auswählen
   Select a valid number: Wählen Sie eine gültige Nummer
-  Select a valid number (1-{}): Wählen Sie eine gültige Nummer (1-{})
+  Select a valid number ({}-{}): Wählen Sie eine gültige Nummer ({}-{})
   Select a valid tool: Wählen Sie ein gültiges Werkzeug
   Select a valid {}: 'Wählen Sie einen gültigen Wert für {}'
   Select a {}: 'Wählen Sie {} aus'
@@ -3818,6 +3824,7 @@ translations:
   Show print speed and flow as mm/s and mm³/s instead of percent: "Druckgeschwindigkeit und Fluss in mm/s und mm³/s statt in Prozent anzeigen"
   Show printer icon in navigation bar: Druckersymbol in Navigationsleiste anzeigen
   Show sliced colors: Slice-Farben anzeigen
+  Show slots, lanes, gates and tools counting from 0, matching T0 in G-code: Slots, Spuren, Gates und Werkzeuge ab 0 zählen, passend zu T0 im G-Code
   Show temp for: Temperatur anzeigen für
   Show text labels on icon-only home screen widgets: Textbeschriftungen auf Icon-Widgets
     des Startbildschirms anzeigen
@@ -4095,6 +4102,7 @@ translations:
   Tangle prevention boosted: Verwicklungsschutz verstärkt
   'Tangle sensitivity': 'Verwicklungsempfindlichkeit'
   Tap + to add: Zum Hinzufügen + tippen
+  Tap Extrude more until clean filament comes out of the nozzle, then tap Done.: "Tippe auf Weiter extrudieren, bis sauberes Filament aus der Düse kommt, dann auf Fertig."
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Zum Wiederherstellen auf Firmware-Neustart tippen. Beim K2 wird dabei auch die rpi-MCU-Bridge neu gestartet
   Tap Resume to try the load again from {}.: 'Tippen Sie auf Fortsetzen, um das Laden aus {} erneut zu versuchen.'
   Tap again to confirm this orientation: Erneut tippen, um diese Ausrichtung zu bestätigen
@@ -4355,6 +4363,7 @@ translations:
   The runout sensor indicates no filament is loaded. Start print anyway?: Der Auslaufsensor
     zeigt an, dass kein Filament geladen ist. Druck trotzdem starten?
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: Die gespeicherte Position bleibt erhalten. Verbinden Sie neu oder starten Sie den Bildschirm neu, damit das Fortsetzen erneut angeboten wird.
+  The screen will lose its connection to the printer for a few seconds.: "Der Bildschirm verliert für einige Sekunden die Verbindung zum Drucker."
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Der Sensor dieser CFS-Einheit lässt sich nicht auslesen. Anschluss prüfen, andernfalls muss die Einheit gewartet werden
   The speed of one fan you choose: Drehzahl eines gewählten Lüfters
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'Die Subnetzmaske ist ungültig. Verwende eine Form wie 255.255.255.0 oder 24.'
@@ -4377,7 +4386,6 @@ translations:
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: Die Einheit führt bereits einen anderen Vorgang aus. Abwarten, bis er beendet ist, oder das CFS zurücksetzen, falls es hängen bleibt
   The unit reported a fault with no further detail. Restart the printer if it repeats: Die Einheit hat einen Fehler ohne nähere Angaben gemeldet. Bei Wiederholung den Drucker neu starten
   The unit's onboard storage has failed. The CFS mainboard needs replacing: Der interne Speicher der Einheit ist ausgefallen. Die CFS-Hauptplatine muss ersetzt werden
-  The unload did not finish. Try again, or cancel.: "Das Entladen wurde nicht abgeschlossen. Erneut versuchen oder abbrechen."
   'The unload did not start: unload by hand, then start again': 'Das Entladen hat nicht begonnen: Entlade von Hand und starte dann erneut'
   The unload finishes on its own, but the plate will not move.: 'Das Entladen läuft zu Ende, aber das Heizbett bewegt sich nicht.'
   Theme: Thema
@@ -4416,6 +4424,8 @@ translations:
   ? "This check runs Klipper's resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.\n\nEach sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs."
   : "Diese Prüfung führt Klippers Resonanztest entlang jedes Riemenpfads aus und vergleicht die beiden Antworten. Ausgeglichene Riemen ergeben Kurven gleicher Form mit Spitzen bei denselben Frequenzen.\n\nJeder Sweep dauert ein paar Minuten und bewegt den Werkzeugkopf; halten Sie Abstand zum Drucker, während er läuft."
   This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again.: Dies löscht alle Endlosspulen-Reserven. Der Druck stoppt bei Filamentende, bis du die Endlosspule erneut einrichtest.
+  ? This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand.
+  : "Dieser Cold Pull verwendet das in diesem Werkzeugkopf geladene Filament. Der Extruder und das obere Ende des Filamentwegs müssen von Hand erreichbar sein."
   This device has no wired network connection. If you turn WiFi off, it can only be turned back on from this screen.: Dieses Gerät hat keine kabelgebundene Netzwerkverbindung. Wenn Sie WiFi ausschalten, kann es nur über diesen Bildschirm wieder eingeschaltet werden.
   ? This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a "Timer Too Close" error or restart mid-test. Continue anyway?
   : Dieses Gerät hat nur {} MB RAM. Die Resonanzkalibrierung ist speicherintensiv und kann dazu führen, dass die Drucker-Firmware einen "Timer Too Close"-Fehler meldet oder mitten im Test neu startet. Trotzdem fortfahren?
@@ -4440,6 +4450,8 @@ translations:
   This is exactly the data that will be sent: Dies sind genau die Daten, die gesendet
     werden
   This is what data would be sent if enabled: Diese Daten würden bei Aktivierung gesendet
+  ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
+  : "Diese Spur wird noch als geladen angezeigt, aber das Filament ist nicht mehr in der Düse. Schiebe es vor dem Druck wieder durch den Extruder und extrudiere, bis es fließt."
   This looks like a {}, but it is set up as a {}: Dieser Drucker wirkt wie ein {}, ist aber als {} eingerichtet
   This may take up to 30 seconds: Dies kann bis zu 30 Sekunden dauern
   This needs the plugin's file analysis, which isn't running.: "Dafür wird die Dateianalyse des Plugins benötigt, die nicht läuft."
@@ -4699,7 +4711,6 @@ translations:
   Unload filament?: Filament entladen?
 
   Unload from toolhead first: 'Entladen Sie zuerst aus dem Werkzeugkopf'
-  Unload lane: "Spur entladen"
   Unload macro not configured: Entlade-Makro nicht konfiguriert
   Unload the CFS filament before enabling bypass: 'Entladen Sie das CFS-Filament, bevor Sie den Bypass aktivieren'
   Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: "Aktuelles Filament entladen und dann fortfahren. Extruder und oberes Ende des Filamentwegs müssen von Hand erreichbar sein."

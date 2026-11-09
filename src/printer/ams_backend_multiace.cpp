@@ -5,6 +5,7 @@
 
 #include "ace_slot_parse.h"
 #include "ams_fault_event.h"
+#include "display_numbering.h"
 #include "klipper_extruder_naming.h"
 #include "lane_source_store.h"
 #include "lvgl.h"
@@ -491,7 +492,7 @@ std::optional<int> AmsBackendMultiAce::upstream_slot(int slot_index) const {
 
 int AmsBackendMultiAce::spool_display_number(int slot_index) const {
     if (slot_index < 0) {
-        return slot_index + 1;
+        return -1;
     }
     std::lock_guard<std::mutex> lock(mutex_);
     // A routed head aliases its bay; every other lane (bays, unrouted heads)
@@ -515,7 +516,7 @@ int AmsBackendMultiAce::spool_display_number(int slot_index) const {
             break;
         }
     }
-    return n;
+    return n > 0 ? ui::lane_number(n - 1) : -1;
 }
 
 bool AmsBackendMultiAce::can_unload_from_toolhead(int slot_index) const {
@@ -797,8 +798,8 @@ void AmsBackendMultiAce::advance_pending_load() {
         if (!active_locked()) {
             dropped = "multiACE stopped driving the ACE units";
         } else if (expired) {
-            dropped =
-                fmt::format("toolhead {} did not empty in time after its unload", pending.head + 1);
+            dropped = fmt::format("toolhead {} did not empty in time after its unload",
+                                  helix::ui::lane_number(pending.head));
         } else if (empty) {
             send = true;
         } else {
@@ -817,7 +818,7 @@ void AmsBackendMultiAce::advance_pending_load() {
                      pending.bay.first + 1, pending.bay.second + 1, pending.head + 1, dropped);
         emit_event(kEventError,
                    fmt::format("ACE {} bay {} was not loaded: {}", pending.bay.first + 1,
-                               pending.bay.second + 1, dropped));
+                               helix::ui::lane_number(pending.bay.second), dropped));
         return;
     }
     spdlog::info("{} Head {} is empty; loading ACE {} bay {}", backend_log_tag(), pending.head + 1,

@@ -210,6 +210,7 @@ TEST_CASE_METHOD(PageRowsFixture,
     CHECK(has("row_allow_cold_extrude"));
     CHECK(has("row_filament_auto_cooldown"));
     CHECK(has("row_filament_auto_open_editor"));
+    CHECK(has("row_number_lanes_from_zero"));
     CHECK(has("row_ams_settings"));
     build("settings_safety_overlay");
     CHECK_FALSE(has("row_allow_cold_extrude"));

@@ -7886,3 +7886,15 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
         REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
     }
 }
+
+TEST_CASE("PrintStart: an owning step runs on through every heating signal",
+          "[core][print][owning_step]") {
+    helix::OwningStep step;
+    step.phase = PrintStartPhase::CLEANING;
+    using V = helix::OwningStep::Verdict;
+    CHECK(step.judge(PrintStartPhase::HEATING_CHAMBER) == V::Pass);
+    CHECK(step.judge(PrintStartPhase::SOAKING) == V::Pass);
+    CHECK(step.judge(PrintStartPhase::HEATING_BED) == V::Pass);
+    CHECK(step.judge(PrintStartPhase::CLEANING) == V::Pass);
+    CHECK(step.judge(PrintStartPhase::PURGING) == V::Ends);
+}

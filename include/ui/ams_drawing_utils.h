@@ -117,6 +117,9 @@ lv_obj_t* create_transparent_container(lv_obj_t* parent);
 /// so two views of the same lane cannot ghost to different strengths.
 inline constexpr lv_opa_t kGhostOpa = LV_OPA_30;
 
+/// A lane badge's text; empty for a negative number, the "no number" value.
+std::string lane_badge_text(int number); // NAMESPACE_OK: sits with create_lane_badge in ams_draw
+
 /** Create a circular lane-number badge (1-based) using AMS badge tokens.
  *  @param parent typically the spool container; caller may re-align.
  *  @param active when true, uses the "success" accent color for the active (loaded) lane. */
@@ -126,6 +129,9 @@ lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, boo
  *  create_lane_badge): "success" while actively loaded, the neutral
  *  ams_badge_bg token otherwise, with the label's contrast text following. */
 void set_lane_badge_active(lv_obj_t* badge, bool active);
+
+/** Rewrite the number a create_lane_badge() badge shows. */
+void set_lane_badge_number(lv_obj_t* badge, int lane_number); // NAMESPACE_OK: in ams_draw
 
 // Shared dashed-circle draw callback for the empty-slot placeholder (moved here from
 // ui_ams_slot.cpp so both the overlay and the home widget share it).

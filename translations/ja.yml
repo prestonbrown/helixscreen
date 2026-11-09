@@ -161,8 +161,6 @@ translations:
   A cold pull is already running.: "コールドプルはすでに実行中です。"
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'チャンバー内の空気をフィルターに通すファン。チャンバー温度画面で操作できます。'
   A few minutes, nearly all of it heating. You judge nothing by eye.: '数分かかりますが、そのほとんどは加熱です。目視での判断は不要です。'
-  ? A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one.
-  : "このツールヘッドにフィラメントレーンがロードされています。先に排出してください。バイパスがある場合は、そこから清掃用フィラメントを入れてください。"
   A folder name in moonraker.conf is unsafe, so cleanup is off.: "moonraker.confのフォルダー名が安全でないため、クリーンアップはオフになっています。"
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'プリンターにヒートソークのマクロが設定されています。HelixScreenは検出しますが実行はしません。'
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'チャンバー内の空気を温めるヒーター。温度はチャンバー温度画面で設定します。'
@@ -184,7 +182,6 @@ translations:
   A print started: '印刷が開始されました'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "スプールがベッド上にあるとされている状態で印刷が開始されました。まだ置かれている場合は、今すぐ緊急停止でプリンターを止めてください。"
   A print took the printer.: "印刷がプリンターを使用し始めました。"
-  A printer command failed.: "プリンターコマンドが失敗しました。"
   A restart is already in progress: 再起動はすでに進行中です
   A right, B left: "A右・B左"
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -633,6 +630,7 @@ translations:
   Cannot park while a print is active: '印刷中はパーキングできません'
   Cannot perform this action now: 現在この操作は実行できません
   'Cannot reprint: not connected to printer': '再印刷できません: プリンター未接続'
+  Cannot restart Moonraker while printing: "印刷中はMoonrakerを再起動できません"
   Cannot restart — no filename: 再起動できません — ファイル名がありません
   Cannot run filament operation while printing: 印刷中はフィラメント操作を実行できません
   'Cannot schedule a pause: printer not connected': '一時停止を予約できません: プリンターが接続されていません'
@@ -782,6 +780,7 @@ translations:
   Clog Manual: '詰まり: 手動'
   Clog and flow health while printing: 印刷中の詰まりとフローの状態
   Clog detection: 詰まり検出
+  'Clogged nozzle? Extruding is optional: tap Done to go on.': "ノズルが詰まっていますか？押し出しは任意です。「完了」をタップして進んでください。"
   Close: 閉じる
   Close feeder: フィーダーを閉じる
   Close feeder macro: フィーダーを閉じるマクロ
@@ -1051,6 +1050,7 @@ translations:
   Cut & retract: '切断して引き戻し'
   Cut Distance: 'カット距離'
   Cut filament: フィラメントを切断
+  Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.: "引き抜いた先端を切り落とし、フィラメントを止まるまでエクストルーダーに戻してから「押し出し」をタップしてください。"
   'Cut position saved: {}': '切断位置を保存しました: {}'
   Cut tip: '先端をカット'
   Cutter Enabled: 'カッター有効'
@@ -1106,6 +1106,7 @@ translations:
   Deploy: 展開
   Depth and lighting on buttons and panels: ボタンとパネルに奥行きと光を加えます
   Describe the issue (optional): 問題の詳細（任意）
+  Detach the filament tube at the toolhead first so you can grip the filament.: "フィラメントをつかめるよう、先にツールヘッドのフィラメントチューブを外してください。"
   Detailed: 詳細
   Details: '詳細'
   Detect automatically: '自動検出'
@@ -1532,6 +1533,7 @@ translations:
   Feed filament from current slot: '現在のスロットからフィラメントを送る'
   Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: フィラメントを手でセンサー先まで挿入して「再開」を押してください。または印刷をキャンセルして「装填」「排出」を使用してください
   Feed the cleaning filament: "清掃用フィラメントを入れてください"
+  Feed the filament back: "フィラメントを戻す"
   Feeder: フィーダー
   Feeders: フィーダー
   Feeding filament forward: フィラメントを前方に送り出し中
@@ -2133,6 +2135,7 @@ translations:
   Layout changes are off in safe mode. Restart to edit.: 'セーフモードではレイアウトを変更できません。編集するには再起動してください。'
   Learn More: 詳細を見る
   Leave it: 'そのままにする'
+  Leave this off for a clogged nozzle.: "ノズルが詰まっている場合はオフのままにしてください。"
   LedSelect: LEDを選択
   Left: '左'
   Left belt: "左ベルト"
@@ -2671,6 +2674,7 @@ translations:
   'Nozzle:': 'ノズル:'
   'Nozzles still heating: {}': '加熱中のノズル: {}'
   Number Pad Layout: テンキーの配列
+  Number slots from 0: スロット番号を0から始める
   Nylon: "ナイロン"
   OD: OD
   'OFF': 'OFF'
@@ -3098,6 +3102,7 @@ translations:
 
   'Purge failed: {}': 'パージに失敗しました: {}'
   Purge may still be running — response timed out: パージがまだ実行中の可能性があります — 応答タイムアウト
+  Purge the loaded filament: "ロード済みフィラメントをパージ"
   Purge to bucket: 'バケツへパージ'
   Purge tower and brush settings: 'パージタワーとブラシの設定'
   Purging: パージ中
@@ -3301,6 +3306,7 @@ translations:
   Restart Klipper?: 'Klipper を再起動しますか？'
   Restart Moonraker: Moonraker を再起動
   Restart Moonraker to finish the plugin change: プラグインの変更を完了するには Moonraker を再起動してください
+  Restart Moonraker?: "Moonrakerを再起動しますか?"
   Restart Now: 今すぐ再起動
   Restart Required: 再起動が必要です
   'Restart failed: not connected': '再起動に失敗: 未接続'
@@ -3524,7 +3530,7 @@ translations:
   Select Spool: スプールを選択
   Select a filament slot to load: 装填するフィラメントスロットを選択
   Select a valid number: 有効な番号を選択してください
-  Select a valid number (1-{}): 有効な番号を選択してください（1-{}）
+  Select a valid number ({}-{}): 有効な番号を選択してください（{}-{}）
   Select a valid tool: 有効なツールを選択してください
   Select a valid {}: '有効な{}を選択してください'
   Select a {}: '{}を選択してください'
@@ -3623,6 +3629,7 @@ translations:
   Show print speed and flow as mm/s and mm³/s instead of percent: "印刷速度とフローをパーセントではなく mm/s と mm³/s で表示"
   Show printer icon in navigation bar: ナビゲーションバーにプリンターアイコンを表示
   Show sliced colors: スライスした色を表示
+  Show slots, lanes, gates and tools counting from 0, matching T0 in G-code: スロット、レーン、ゲート、ツールを0から数えます（G-codeのT0と一致）
   Show temp for: 温度表示対象
   Show text labels on icon-only home screen widgets: アイコンのみのホーム画面ウィジェットにテキストラベルを表示
   Show this screen as a webcam in Mainsail and Fluidd: 'この画面をMainsailとFluiddでウェブカメラとして表示'
@@ -3885,6 +3892,7 @@ translations:
   Tangle prevention boosted: 絡み防止 強化中
   'Tangle sensitivity': '絡み検出の感度'
   Tap + to add: + をタップして追加
+  Tap Extrude more until clean filament comes out of the nozzle, then tap Done.: "ノズルからきれいなフィラメントが出るまで「さらに押し出し」をタップし、「完了」をタップしてください。"
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: 「ファームウェア再起動」をタップして復旧してください。K2 では rpi MCU ブリッジも再起動されます
   Tap Resume to try the load again from {}.: '再開をタップすると、{}からもう一度ロードします。'
   Tap again to confirm this orientation: もう一度タップしてこの向きを確定
@@ -4131,6 +4139,7 @@ translations:
   The right RFID reader in this CFS unit may need service: この CFS ユニットの右側 RFID リーダーは修理が必要な可能性があります
   The runout sensor indicates no filament is loaded. Start print anyway?: フィラメント切れセンサーがフィラメント未装填を検出しました。それでも印刷を開始しますか？
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: 保存された位置は残ります。再接続するか画面を再起動すると、再開が再び提示されます。
+  The screen will lose its connection to the printer for a few seconds.: "画面とプリンターの接続が数秒間切断されます。"
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: この CFS ユニットのセンサーを読み取れません。接続を確認してください。改善しない場合は修理が必要です
   The speed of one fan you choose: 選んだファン1つの速度
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'サブネットマスクが無効です。255.255.255.0 や 24 のような形式で入力してください。'
@@ -4149,7 +4158,6 @@ translations:
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: ユニットは既に別の処理を実行中です。完了を待つか、固まったままの場合は CFS をリセットしてください
   The unit reported a fault with no further detail. Restart the printer if it repeats: ユニットが詳細不明の障害を報告しました。繰り返す場合はプリンターを再起動してください
   The unit's onboard storage has failed. The CFS mainboard needs replacing: ユニットの内蔵ストレージが故障しました。CFS のメインボードの交換が必要です
-  The unload did not finish. Try again, or cancel.: "排出が完了しませんでした。再試行するか、キャンセルしてください。"
   'The unload did not start: unload by hand, then start again': '排出が始まりませんでした: 手で排出してから、もう一度始めてください'
   The unload finishes on its own, but the plate will not move.: '排出はそのまま完了しますが、ベッドは移動しません。'
   Theme: テーマ
@@ -4186,6 +4194,8 @@ translations:
   ? "This check runs Klipper's resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.\n\nEach sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs."
   : "このチェックはKlipperの共振テストを各ベルトパスに沿って実行し、2つの応答を比較します。バランスの取れたベルトは同じ形の曲線になり、ピークが同じ周波数に現れます。\n\n各スイープには数分かかり、ツールヘッドが動きます。実行中はプリンターから離れてください。"
   This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again.: エンドレススプールの予備をすべて消去します。エンドレススプールを再設定するまで、フィラメント切れで印刷が停止します。
+  ? This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand.
+  : "このコールドプルでは、このツールヘッドにロードされているフィラメントを使います。エクストルーダーとフィラメント経路の上部を手で操作できる必要があります。"
   This device has no wired network connection. If you turn WiFi off, it can only be turned back on from this screen.: このデバイスには有線ネットワーク接続がありません。WiFiをオフにすると、この画面からのみオンに戻せます。
   ? This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a "Timer Too Close" error or restart mid-test. Continue anyway?
   : このデバイスの RAM は {} MB しかありません。共振キャリブレーションはメモリを大量に消費し、プリンターのファームウェアが "Timer Too Close" エラーを報告したり、テスト中に再起動したりする可能性があります。それでも続行しますか？
@@ -4208,6 +4218,8 @@ translations:
   'This is an emergency stop: the printer halts and Klipper restarts.': これは緊急停止です：プリンターが停止し、Klipperが再起動します。
   This is exactly the data that will be sent: これが送信されるデータです
   This is what data would be sent if enabled: これは有効にした場合に送信されるデータです
+  ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
+  : "このレーンはロード済みと表示されていますが、フィラメントはノズルから抜けています。印刷前にエクストルーダーに戻し、流れ出るまで押し出してください。"
   This looks like a {}, but it is set up as a {}: このプリンターは{}のようですが、{}として設定されています
   This may take up to 30 seconds: 最大30秒かかる場合があります
   This needs the plugin's file analysis, which isn't running.: "プラグインのファイル解析が必要ですが、実行されていません。"
@@ -4449,7 +4461,6 @@ translations:
   Unload filament?: フィラメントを排出しますか?
 
   Unload from toolhead first: '先にツールヘッドから取り出してください'
-  Unload lane: "レーンを排出"
   Unload macro not configured: アンロードマクロが未設定です
   Unload the CFS filament before enabling bypass: 'バイパスを有効にする前に CFS のフィラメントを取り出してください'
   Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: "現在のフィラメントを排出してから続行してください。エクストルーダーとフィラメント経路の上部に手が届く必要があります。"

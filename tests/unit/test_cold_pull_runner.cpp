@@ -90,18 +90,6 @@ class QueryGateClient : public MoonrakerClientMock {
     int queries = 0;
 };
 
-/// A head whose unload the user does by hand.
-class ManualUnloadBackend : public helix::AmsBackendMock {
-  public:
-    ManualUnloadBackend() : helix::AmsBackendMock(4) {}
-    helix::HeadFilamentOps head_filament_ops(int) const override {
-        helix::HeadFilamentOps ops;
-        ops.unload = helix::FilamentOpSupport::Manual;
-        ops.unload_reason = "Pull the filament out by hand.";
-        return ops;
-    }
-};
-
 class RunnerFixture : public LVGLTestFixture {
   public:
     RunnerFixture() : client(MoonrakerClientMock::PrinterType::VORON_24) {
@@ -155,7 +143,7 @@ class RunnerFixture : public LVGLTestFixture {
     /// Start a PLA pull on the active head and take it to Heating at 230 °C.
     void begin_heating(const char* heater = "extruder") {
         REQUIRE(runner->start(ColdPullMaterial::Pla, {230, 90}, false) == ColdPullRefusal::Ok);
-        runner->toolhead_clear();
+        runner->toolhead_ready();
         drain();
         feed(heater, 25, 230);
         REQUIRE(runner->flow()->stage() == ColdPullStage::Heating);
@@ -213,7 +201,7 @@ TEST_CASE_METHOD(RunnerFixture,
     // Another client sends T0.
     state.update_from_status({{"toolhead", {{"extruder", "extruder"}}}});
     drain();
-    runner->toolhead_clear();
+    runner->toolhead_ready();
     drain();
     CHECK(sent("SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=230"));
     CHECK_FALSE(sent("SET_HEATER_TEMPERATURE HEATER=extruder TARGET="));
@@ -246,16 +234,28 @@ TEST_CASE_METHOD(RunnerFixture, "cold pull: a feed queued behind another operati
     CHECK_FALSE(runner->flow()->busy());
 }
 
-TEST_CASE_METHOD(RunnerFixture, "cold pull: a head that unloads by hand fails the unload step",
+TEST_CASE_METHOD(RunnerFixture, "cold pull: a seated lane heats with nothing unloaded",
                  "[cold_pull]") {
-    helix::AmsState::instance().set_backend(std::make_unique<ManualUnloadBackend>());
+    helix::AmsState::instance().set_backend(std::make_unique<helix::AmsBackendMock>(4));
+    auto* backend = helix::AmsState::instance().get_backend();
+    REQUIRE(backend->is_filament_loaded());
     REQUIRE(runner->start(ColdPullMaterial::Pla, {230, 90}, false) == ColdPullRefusal::Ok);
-    REQUIRE(runner->flow()->stage() == ColdPullStage::AwaitClearToolhead);
 
-    runner->unload_lane();
+    CHECK(runner->flow()->params().toolhead_loaded);
+    REQUIRE(runner->flow()->stage() == ColdPullStage::Preparing);
+    runner->toolhead_ready();
     drain();
-    CHECK_FALSE(runner->flow()->busy());
-    CHECK(runner->flow()->unload_failed());
+    CHECK(runner->flow()->stage() == ColdPullStage::Heating);
+    CHECK(sent("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=230"));
+    CHECK(backend->is_filament_loaded());
+}
+
+TEST_CASE_METHOD(RunnerFixture, "cold pull: the ring is full at a reached soak", "[cold_pull]") {
+    runner->init_subjects();
+    begin_heating();
+    feed("extruder", 228, 230);
+    REQUIRE(runner->flow()->stage() == ColdPullStage::Feed);
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "cold_pull_progress")) == 100);
 }
 
 TEST_CASE_METHOD(RunnerFixture, "cold pull: no extruder refuses the start", "[cold_pull]") {

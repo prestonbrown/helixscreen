@@ -492,12 +492,13 @@ class AmsErrorHelper {
         // reason as slot_not_available(): the frame cannot agree with a noun
         // that varies per backend, and the suggestion's noun is the body's.
         const std::string word = ui::noun_text(noun);
-        // 1-based, matching the labels these positions carry everywhere else. A
-        // backend that has reported no positions has no span to offer.
+        // The span the labels show. A backend that has reported no positions has
+        // no span to offer.
         const int highest = ui::lane_number(max_slot);
         const std::string suggestion =
-            highest > 0 ? fmt::format(lv_tr("Select a valid number (1-{})"), highest)
-                        : lv_tr("Select a valid number");
+            highest >= 0
+                ? fmt::format(lv_tr("Select a valid number ({}-{})"), ui::lane_number(0), highest)
+                : lv_tr("Select a valid number");
         return AmsError(AmsResult::INVALID_SLOT,
                         "Slot " + std::to_string(slot) + " out of range (0-" +
                             std::to_string(max_slot) + ")",

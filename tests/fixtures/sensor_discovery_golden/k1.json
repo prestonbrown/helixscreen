@@ -231,10 +231,12 @@
       "nozzle_volume_type"
     ],
     "fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic auxiliary_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "filament_switch_sensor runout_sensor": [
       "filament_detected",
@@ -277,7 +279,8 @@
       "power"
     ],
     "heater_fan hotend_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "htu21d dryer": [
       "temperature",

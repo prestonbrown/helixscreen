@@ -33,6 +33,12 @@ void register_filament_motion_glyph_widget();
 /// Set the motion directly, for a glyph with no subject bound.
 void filament_motion_glyph_set_motion(lv_obj_t* obj, helix::FilamentMotion motion);
 
+/// Draw the column in @p rgb; kNoFilamentPaint keeps the neutral style colors.
+void filament_motion_glyph_set_color(lv_obj_t* obj, uint32_t rgb);
+
+/// The color @p obj draws, kNoFilamentPaint when none is known.
+uint32_t filament_motion_glyph_color(lv_obj_t* obj);
+
 /// The motion @p obj (a <filament_motion_glyph>) shows.
 helix::FilamentMotion filament_motion_glyph_motion(lv_obj_t* obj);
 

@@ -177,9 +177,9 @@ static lv_obj_t* create_splash_ui(lv_obj_t* screen, int width, int height, bool 
             struct stat probe;
             return stat(rel.c_str(), &probe) == 0 ? rel : std::string();
         });
-    if (choice.canvas_too_tall) {
-        fprintf(stderr, "helix-splash: %s canvas exceeds screen height %dpx, scaling instead\n",
-                choice.size_class.c_str(), height);
+    if (choice.canvas_does_not_fit) {
+        fprintf(stderr, "helix-splash: %s canvas does not fit %dx%d screen, scaling instead\n",
+                choice.size_class.c_str(), width, height);
     }
 
     const bool use_3d = choice.kind == helix::SplashAssetKind::FullScreen3DBin;

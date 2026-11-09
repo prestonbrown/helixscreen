@@ -125,6 +125,7 @@ void WifiBackendNetd::signal_init_complete(const std::string& error) {
 }
 
 WiFiError WifiBackendNetd::start() {
+    std::lock_guard<std::mutex> start_lock(start_mutex_);
     spdlog::debug("[WifiBackendNetd] Starting...");
     shutdown_requested_.store(false);
     init_failed_dispatched_.store(false);

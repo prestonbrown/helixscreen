@@ -159,8 +159,6 @@ translations:
   A cold pull is already running.: A cold pull is already running.
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'A few minutes, nearly all of it heating. You judge nothing by eye.'
-  ? A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one.
-  : A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one.
   A folder name in moonraker.conf is unsafe, so cleanup is off.: A folder name in moonraker.conf is unsafe, so cleanup is off.
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.
@@ -182,7 +180,6 @@ translations:
   A print started: A print started
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.
   A print took the printer.: A print took the printer.
-  A printer command failed.: A printer command failed.
   A restart is already in progress: A restart is already in progress
   A right, B left: A right, B left
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -659,6 +656,7 @@ translations:
   Cannot park while a print is active: Cannot park while a print is active
   Cannot perform this action now: Cannot perform this action now
   'Cannot reprint: not connected to printer': 'Cannot reprint: not connected to printer'
+  Cannot restart Moonraker while printing: Cannot restart Moonraker while printing
   Cannot restart — no filename: Cannot restart — no filename
   Cannot run filament operation while printing: Cannot run filament operation while printing
   'Cannot schedule a pause: printer not connected': 'Cannot schedule a pause: printer not connected'
@@ -814,6 +812,7 @@ translations:
   Clog Manual: Clog Manual
   Clog and flow health while printing: Clog and flow health while printing
   Clog detection: Clog detection
+  'Clogged nozzle? Extruding is optional: tap Done to go on.': 'Clogged nozzle? Extruding is optional: tap Done to go on.'
   Close: Close
   Close feeder: Close feeder
   Close feeder macro: Close feeder macro
@@ -1088,6 +1087,7 @@ translations:
   Cut & retract: Cut & retract
   Cut Distance: Cut Distance
   Cut filament: Cut filament
+  Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.: Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.
   'Cut position saved: {}': 'Cut position saved: {}'
   Cut tip: Cut tip
   Cutter Enabled: Cutter Enabled
@@ -1143,6 +1143,7 @@ translations:
   Deploy: Deploy
   Depth and lighting on buttons and panels: Depth and lighting on buttons and panels
   Describe the issue (optional): Describe the issue (optional)
+  Detach the filament tube at the toolhead first so you can grip the filament.: Detach the filament tube at the toolhead first so you can grip the filament.
   Detailed: Detailed
   Details: Details
   Detect automatically: Detect automatically
@@ -1572,6 +1573,7 @@ translations:
   Feed filament from current slot: Feed filament from current slot
   Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload
   Feed the cleaning filament: Feed the cleaning filament
+  Feed the filament back: Feed the filament back
   Feeder: Feeder
   Feeders: Feeders
   Feeding filament forward: Feeding filament forward
@@ -2194,6 +2196,7 @@ translations:
   Layout changes are off in safe mode. Restart to edit.: Layout changes are off in safe mode. Restart to edit.
   Learn More: Learn More
   Leave it: Leave it
+  Leave this off for a clogged nozzle.: Leave this off for a clogged nozzle.
   LedSelect: LedSelect
   Left: Left
   Left belt: Left belt
@@ -2743,6 +2746,7 @@ translations:
   'Nozzle:': 'Nozzle:'
   'Nozzles still heating: {}': 'Nozzles still heating: {}'
   Number Pad Layout: Number Pad Layout
+  Number slots from 0: Number slots from 0
   Nylon: Nylon
   OD: OD
   'OFF': 'OFF'
@@ -3180,6 +3184,7 @@ translations:
   'Purge failed: {}': 'Purge failed: {}'
   Purge may still be running — response timed out: Purge may still be running — response
     timed out
+  Purge the loaded filament: Purge the loaded filament
   Purge to bucket: Purge to bucket
   Purge tower and brush settings: Purge tower and brush settings
   Purging: Purging
@@ -3389,6 +3394,7 @@ translations:
   Restart Klipper?: Restart Klipper?
   Restart Moonraker: Restart Moonraker
   Restart Moonraker to finish the plugin change: Restart Moonraker to finish the plugin change
+  Restart Moonraker?: Restart Moonraker?
   Restart Now: Restart Now
   Restart Required: Restart Required
   'Restart failed: not connected': 'Restart failed: not connected'
@@ -3625,7 +3631,7 @@ translations:
   Select Spool: Select Spool
   Select a filament slot to load: Select a filament slot to load
   Select a valid number: Select a valid number
-  Select a valid number (1-{}): Select a valid number (1-{})
+  Select a valid number ({}-{}): Select a valid number ({}-{})
   Select a valid tool: Select a valid tool
   Select a valid {}: Select a valid {}
   Select a {}: Select a {}
@@ -3731,6 +3737,7 @@ translations:
   Show print speed and flow as mm/s and mm³/s instead of percent: Show print speed and flow as mm/s and mm³/s instead of percent
   Show printer icon in navigation bar: Show printer icon in navigation bar
   Show sliced colors: Show sliced colors
+  Show slots, lanes, gates and tools counting from 0, matching T0 in G-code: Show slots, lanes, gates and tools counting from 0, matching T0 in G-code
   Show temp for: Show temp for
   Show text labels on icon-only home screen widgets: Show text labels on icon-only
     home screen widgets
@@ -4002,6 +4009,7 @@ translations:
   Tangle prevention boosted: Tangle prevention boosted
   'Tangle sensitivity': 'Tangle sensitivity'
   Tap + to add: Tap + to add
+  Tap Extrude more until clean filament comes out of the nozzle, then tap Done.: Tap Extrude more until clean filament comes out of the nozzle, then tap Done.
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge
   Tap Resume to try the load again from {}.: Tap Resume to try the load again from {}.
   Tap again to confirm this orientation: Tap again to confirm this orientation
@@ -4251,6 +4259,7 @@ translations:
   The runout sensor indicates no filament is loaded. Start print anyway?: The runout
     sensor indicates no filament is loaded. Start print anyway?
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: The saved position is kept. Reconnect or restart the screen to be offered the resume again.
+  The screen will lose its connection to the printer for a few seconds.: The screen will lose its connection to the printer for a few seconds.
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service
   The speed of one fan you choose: The speed of one fan you choose
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.
@@ -4271,7 +4280,6 @@ translations:
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck
   The unit reported a fault with no further detail. Restart the printer if it repeats: The unit reported a fault with no further detail. Restart the printer if it repeats
   The unit's onboard storage has failed. The CFS mainboard needs replacing: The unit's onboard storage has failed. The CFS mainboard needs replacing
-  The unload did not finish. Try again, or cancel.: The unload did not finish. Try again, or cancel.
   'The unload did not start: unload by hand, then start again': 'The unload did not start: unload by hand, then start again'
   The unload finishes on its own, but the plate will not move.: The unload finishes on its own, but the plate will not move.
   Theme: Theme
@@ -4310,6 +4318,8 @@ translations:
   ? "This check runs Klipper's resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.\n\nEach sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs."
   : "This check runs Klipper's resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.\n\nEach sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs."
   This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again.: This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again.
+  ? This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand.
+  : This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand.
   This device has no wired network connection. If you turn WiFi off, it can only be turned back on from this screen.: This device has no wired network connection. If you turn WiFi off, it can only be turned back on from this screen.
   ? This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a "Timer Too Close" error or restart mid-test. Continue anyway?
   : This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a "Timer Too Close" error or restart mid-test. Continue anyway?
@@ -4335,6 +4345,8 @@ translations:
   This is exactly the data that will be sent: This is exactly the data that will be
     sent
   This is what data would be sent if enabled: This is what data would be sent if enabled
+  ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
+  : This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
   This looks like a {}, but it is set up as a {}: This looks like a {}, but it is set up as a {}
   This may take up to 30 seconds: This may take up to 30 seconds
   This needs the plugin's file analysis, which isn't running.: This needs the plugin's file analysis, which isn't running.
@@ -4591,7 +4603,6 @@ translations:
   Unload filament: Unload filament
   Unload filament?: Unload filament?
   Unload from toolhead first: Unload from toolhead first
-  Unload lane: Unload lane
   Unload macro not configured: Unload macro not configured
   Unload the CFS filament before enabling bypass: Unload the CFS filament before enabling bypass
   Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.

@@ -56,9 +56,9 @@ void show_splash_screen(int screen_width, int screen_height) {
     bool dark_mode = theme_manager_is_dark_mode();
     const helix::SplashChoice choice =
         helix::choose_splash_asset(screen_width, screen_height, dark_mode, find_prerendered);
-    if (choice.canvas_too_tall) {
-        spdlog::debug("[Splash Screen] {} canvas exceeds screen height {}px, scaling instead",
-                      choice.size_class, screen_height);
+    if (choice.canvas_does_not_fit) {
+        spdlog::debug("[Splash Screen] {} canvas does not fit {}x{} screen, scaling instead",
+                      choice.size_class, screen_width, screen_height);
     }
 
     const std::string splash_3d_path =

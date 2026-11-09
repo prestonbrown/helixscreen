@@ -17,17 +17,19 @@ namespace helix {
 
 /// Delay between a majority crossing and the page flip it requests, in ms.
 ///
-/// A crossing flips only if the finger is still down when the delay runs out,
-/// so a release at the border drops on the page the user sees rather than on
-/// one that has only begun sliding in. Short, because a widget dragged past the
-/// border is already a committed intent.
-inline constexpr uint32_t kCrossPageCrossingDelayMs = 50;
+/// A crossing flips only if the finger is still down, with the widget still
+/// past the line, when the delay runs out. Placing a widget in the outer column
+/// easily carries it past the line, so the delay leaves time to settle it there
+/// and lift: the release drops on the page the user sees. A widget held past
+/// the line still flips in well under the dwell (#2070).
+inline constexpr uint32_t kCrossPageCrossingDelayMs = 400;
 
 /// How long the pointer stays in an edge zone before the dwell flips, in ms.
 ///
-/// Long enough that carrying a widget through the zone to the outer column does
-/// not flip, short enough to read as a response to a held push.
-inline constexpr uint32_t kCrossPageDwellMs = 600;
+/// Long enough that carrying a widget through the zone to the outer column and
+/// pausing there does not flip, short enough to read as a response to a held
+/// push.
+inline constexpr uint32_t kCrossPageDwellMs = 900;
 
 /// How far past the majority line the edge push may carry a widget, in px.
 ///
@@ -67,8 +69,14 @@ struct CrossPageState {
     /// A crossing may request a flip. Cleared by a crossing, set again only
     /// once the widget is majority inside the frame.
     bool crossing_armed = true;
+    /// The last crossing's flip is requested and has not happened yet.
+    bool crossing_pending = false;
+    /// That pending crossing is what spent the zone stay.
+    bool crossing_spent_zone = false;
     /// Direction the dwell is counting toward: -1, +1, or 0 when no dwell runs.
     int dwell_dir = 0;
+    /// Time the running dwell has counted, as of the previous step.
+    uint32_t dwell_ms = 0;
 };
 
 /// What one drag move looks like, in screen coordinates.
@@ -87,10 +95,12 @@ struct CrossPageInput {
 
 /// What the drag does with this move.
 struct CrossPageStep {
-    int widget_left = 0;        ///< Widget left edge after the edge push
-    int flip_dir = 0;           ///< Crossing flip to request now: -1, +1, or 0 for none
-    int dwell_dir = 0;          ///< Direction the dwell counts toward: -1, +1, or 0 for none
-    bool dwell_changed = false; ///< dwell_dir differs from the previous step: restart or cancel
+    int widget_left = 0;          ///< Widget left edge after the edge push
+    int flip_dir = 0;             ///< Crossing flip to request now: -1, +1, or 0 for none
+    bool cancel_crossing = false; ///< Drop the pending crossing flip: the widget is back inside
+    uint32_t flip_delay_ms = 0;   ///< When flip_dir is set: how long until the crossing flips
+    int dwell_dir = 0;            ///< Direction the dwell counts toward: -1, +1, or 0 for none
+    bool dwell_changed = false;   ///< dwell_dir differs from the previous step: restart or cancel
 };
 
 /// Whether a widget whose left edge is @p widget_left has its majority past the
@@ -120,6 +130,10 @@ bool cross_page_drop_creates_page(int page_index, int page_count, bool has_next_
  *   side. Leaving or changing zones drops the widget back on the pointer.
  * - Crossing: the widget's majority beyond a frame edge requests one flip
  *   toward it; the next crossing waits until the widget is majority inside.
+ *   The flip waits kCrossPageCrossingDelayMs, or less when it cuts off a dwell
+ *   counting the same way: never later than that dwell would have flipped.
+ *   Coming back inside before that flip happens cancels it and gives back the
+ *   zone stay it spent, so the dwell counts again.
  * - Dwell: runs while the pointer is in a zone, restarting on zone entry and
  *   stopping on exit.
  * - One flip per zone stay: a crossing stops the dwell, and a flip spends the
@@ -131,6 +145,10 @@ bool cross_page_drop_creates_page(int page_index, int page_count, bool has_next_
  * @return What the drag applies.
  */
 CrossPageStep cross_page_step(CrossPageState& state, const CrossPageInput& in);
+
+/// Record that the pending crossing's flip happened, so the widget coming back
+/// inside afterwards cancels nothing.
+void cross_page_note_crossing_flip(CrossPageState& state);
 
 /// Record that the dwell's flip was requested: it spends the current zone stay,
 /// so no crossing or dwell in that zone requests another flip until the pointer

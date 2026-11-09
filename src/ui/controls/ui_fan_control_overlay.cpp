@@ -535,8 +535,10 @@ void FanControlOverlay::update_fan_speeds() {
                 if (card_info.arc) {
                     lv_arc_set_value(card_info.arc, fan.speed_percent);
                 }
-                // Update fan icon spin animation
-                update_auto_fan_animation(card_info, fan.speed_percent);
+                // fan_spin_start() restarts from 0 degrees, and an rpm change alone lands here.
+                if (fan.speed_percent != card_info.last_speed_pct) {
+                    update_auto_fan_animation(card_info, fan.speed_percent);
+                }
                 break;
             }
         }
@@ -716,6 +718,16 @@ void FanControlOverlay::subscribe_to_fan_speeds() {
         }
     }
 
+    // A tachometer reading changes at a steady speed, which no speed subject reports.
+    fan_rpm_observer_ = observe<int>(
+        printer_state_.fan_state().get_fan_rpm_version_subject(), this,
+        [](FanControlOverlay* self, int /*version*/) {
+            if (self->is_visible()) {
+                self->update_fan_speeds();
+            }
+        },
+        printer_state_.get_subjects_lifetime());
+
     spdlog::trace("[{}] Bound {} animated fan dials, subscribed to {} auto fan subjects",
                   get_name(), animated_fan_dials_.size(), fan_speed_observers_.size());
 }
@@ -728,6 +740,7 @@ void FanControlOverlay::unsubscribe_from_fan_speeds() {
 
     // Clear auto fan observers
     fan_speed_observers_.clear();
+    fan_rpm_observer_.reset();
 
     spdlog::trace("[{}] Unsubscribed from fan speed subjects", get_name());
 }

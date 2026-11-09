@@ -12,6 +12,7 @@
 #include "belt_tension_types.h"
 #include "config.h"
 #include "core/static_subject_registry.h"
+#include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_client.h"
@@ -183,6 +184,9 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // #1335. Off: a popup the user did not ask for is opt-in.
     {"filament_auto_open_editor", "filament/auto_open_editor", Scope::PerPrinter, true, 0, 0, 1,
      "filament_auto_open_editor"},
+    // Off: positions count from 1. See helix::ui::lane_number().
+    {"number_lanes_from_zero", "ams/number_lanes_from_zero", Scope::PerPrinter, true, 0, 0, 1,
+     "number_lanes_from_zero"},
     {"console_filter_temps", "/console/filter_temps", Scope::Global, true, 1, 0, 1,
      "console_filter_temps"},
     {"console_filter_firmware_noise", "/console/filter_firmware_noise", Scope::Global, true, 1, 0,
@@ -205,6 +209,18 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     {"settings_belt_layout", "belt_tension/layout", Scope::PerPrinter, false, 0, 0,
      helix::calibration::kBeltLayoutCount - 1, "belt_layout"},
 };
+
+namespace {
+/// Push a stored numbering base to the labels and re-render them if it changed.
+void apply_lane_numbering(bool from_zero) {
+    if (from_zero == helix::ui::lane_numbering_from_zero()) {
+        return;
+    }
+    helix::ui::set_lane_numbering_from_zero(from_zero);
+    // Everything that formats a number re-renders on this subject.
+    lv_subject_notify(SystemSettingsManager::instance().subject_language());
+}
+} // namespace
 
 SettingsManager& SettingsManager::instance() {
     static HELIX_PSRAM_BSS SettingsManager instance;
@@ -240,6 +256,7 @@ void SettingsManager::init_subjects() {
 
     settings_.init(subjects_);
     sync_tool_number_style_mirror();
+    helix::ui::set_lane_numbering_from_zero(get_number_lanes_from_zero());
 
     // Apply a non-Auto Z movement override to printer state now, even if
     // set_kinematics() has not run yet (e.g. on reconnect).
@@ -319,12 +336,18 @@ void SettingsManager::load_jog_distances() {
     }
 }
 
+void SettingsManager::set_number_lanes_from_zero(bool enabled) {
+    settings_.set(Key::NumberLanesFromZero, enabled);
+    apply_lane_numbering(enabled);
+}
+
 void SettingsManager::reload_from_config() {
     if (!subjects_initialized_) {
         return;
     }
     settings_.reload();
     sync_tool_number_style_mirror();
+    apply_lane_numbering(get_number_lanes_from_zero());
     load_jog_distances();
 }
 

@@ -8,6 +8,8 @@
 
 #include "display_numbering.h"
 #include "lvgl.h"
+#include "lvgl/src/others/translation/lv_translation.h"
+#include "test_helpers/zero_lane_numbering.h"
 
 #include <optional>
 #include <vector>
@@ -348,4 +350,38 @@ TEST_CASE("pick_tool_label_form takes the most informative form that fits", "[nu
         CHECK(pick_tool_label_form(fits_only(ToolLabelForm::Full)) == ToolLabelForm::Full);
         CHECK(asked == std::vector<ToolLabelForm>{ToolLabelForm::Full});
     }
+}
+
+TEST_CASE("positions count from 0 when the option is on", "[numbering]") {
+    ScopedZeroLaneNumbering zero;
+
+    CHECK(lane_number(0) == 0);
+    CHECK(lane_number(3) == 3);
+    CHECK(lane_number_text(0) == "0");
+    CHECK(lane_label(LaneNoun::Gate, 0) == "Gate 0");
+    CHECK(lane_label(LaneNoun::Slot, "Turtle 1", 2) ==
+          std::string("Turtle 1 ") + kUnitSeparator + " Slot 2");
+    CHECK(lane_range_label(LaneNoun::Gate, 0, 3) == "Gates 0-3");
+    CHECK(lane_range_label(LaneNoun::Gate, 2, 2) == "Gate 2");
+}
+
+TEST_CASE("the numbering option leaves negatives invalid and defaults off", "[numbering]") {
+    CHECK_FALSE(lane_numbering_from_zero());
+    CHECK(lane_number(0) == 1);
+    CHECK(lane_range_label(LaneNoun::Slot, 0, 3) == "Slots 1-4");
+    ScopedZeroLaneNumbering zero;
+    CHECK(lane_number(-1) == -1);
+    CHECK(lane_number_text(-1).empty());
+    CHECK(lane_label(LaneNoun::Slot, -1).empty());
+}
+
+TEST_CASE("G-code tool names and ordinals ignore the numbering option", "[numbering]") {
+    ScopedZeroLaneNumbering zero;
+
+    CHECK(tool_label(0) == "T0");
+    CHECK(tool_label(2) == "T2");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T1", 1,
+                             ToolLabelForm::Code) == "T1");
+    CHECK(display_ordinal(0) == 1);
+    CHECK(display_ordinal(-1) == -1);
 }
