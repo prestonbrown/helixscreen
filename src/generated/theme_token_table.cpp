@@ -218,7 +218,7 @@ const TokenEntry k_token_table[] = {
     {"px", "ams_tile_min_width_xlarge", "120"},
     {"px", "ams_tile_min_width_xxlarge", "150"},
     {"px", "ams_tile_art_max_h_small", "64"},
-    {"px", "ams_tile_art_max_h_medium", "90"},
+    {"px", "ams_tile_art_max_h_medium", "104"},
     {"px", "ams_tile_art_max_h_large", "112"},
     {"px", "ams_tile_art_max_h_xlarge", "140"},
     {"px", "ams_tile_art_max_h_xxlarge", "190"},

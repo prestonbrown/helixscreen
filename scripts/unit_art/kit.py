@@ -53,9 +53,10 @@ class Camera:
 
 ART_CAMERA = Camera(27, 20)
 # Every unit is framed so its spools draw at one size: the frame, in the units of a
-# drawing whose spool radius is ART_SPOOL_R, has room for the widest and tallest unit.
+# drawing whose spool radius is ART_SPOOL_R, has room for any unit of up to four lanes.
+# A wider unit widens its own frame, so its spools draw a little smaller.
 ART_SPOOL_R = 0.25
-ART_FRAME = (1.62, 1.25)
+ART_FRAME = (1.43, 1.21)
 LIGHT = norm((-0.35, -0.75, 0.62))
 
 
@@ -353,6 +354,8 @@ class Scene:
         # Centred across the frame and standing on its floor, so units line up in a row.
         scale = self.spool_radius / ART_SPOOL_R
         vw, vh = ART_FRAME[0] * scale, ART_FRAME[1] * scale
+        fit = max(1.0, (max(xs) - min(xs) + 2 * m * scale) / vw, (max(ys) - min(ys) + 2 * m * scale) / vh)
+        vw, vh = vw * fit, vh * fit
         return (min(xs) + max(xs)) / 2 - vw / 2, max(ys) + m * scale - vh, vw, vh
 
     def _wrap(self, width, body, extra_defs=""):

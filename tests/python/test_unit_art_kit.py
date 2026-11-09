@@ -271,3 +271,12 @@ def test_the_shell_table_records_which_lane_counts_have_art():
 
     assert row("quattro_box").rstrip().endswith("0x34},")
     assert row("ace_pro").rstrip().endswith("0x0},")
+
+
+def test_a_unit_wider_than_the_frame_widens_it_to_fit():
+    scene = kit.Scene(kit.ART_CAMERA)
+    quattro_box.UNIT.draw_art(scene, ["#ffffff"] * 5, "full")
+    vx, vy, vw, vh = scene._viewbox()
+    assert vw / scene.spool_radius > kit.ART_FRAME[0] / kit.ART_SPOOL_R
+    xs = [p[0] for i in scene.items for p in i.points]
+    assert vx <= min(xs) and max(xs) <= vx + vw
