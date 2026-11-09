@@ -6,6 +6,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/unique_temp_dir.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
@@ -13,9 +14,12 @@
 #include "moonraker_config_manager.h"
 #include "printer_state.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <string>
 #include <thread>
 
@@ -315,7 +319,8 @@ struct LocalInstallFixture : public LVGLTestFixture {
         const char* home = std::getenv("HOME");
         had_home_ = home != nullptr;
         saved_home_ = home ? home : "";
-        setenv("HOME", "/nonexistent-timelapse-home", 1);
+        std::filesystem::create_directories(home_dir_);
+        setenv("HOME", home_dir_.c_str(), 1);
         get_printer_state().init_subjects(false);
         get_printer_state().set_moonraker_is_remote(false);
         set_job_holds(false);
@@ -328,6 +333,8 @@ struct LocalInstallFixture : public LVGLTestFixture {
         } else {
             unsetenv("HOME");
         }
+        std::error_code ec;
+        std::filesystem::remove_all(home_dir_, ec);
     }
     static void set_job_holds(bool holds) {
         lv_subject_set_int(get_printer_state().print_state().get_job_holds_machine_subject(),
@@ -361,19 +368,25 @@ struct LocalInstallFixture : public LVGLTestFixture {
   private:
     bool had_home_ = false;
     std::string saved_home_;
+    std::string home_dir_ = helix::test::unique_temp_dir("timelapse_home");
 };
 
-/// A runner whose every command blocks until released, then ends with @p exit_code.
+/// A runner whose every command blocks until released, then ends with @p exit_code;
+/// a successful clone leaves a checkout at its destination.
 struct GatedRunner {
     std::atomic<bool> released{false};
     std::atomic<int> calls{0};
     int exit_code = 0;
 
     helix::ProcessRunner runner() {
-        return [this](const std::vector<std::string>&, int) {
+        return [this](const std::vector<std::string>& argv, int) {
             ++calls;
             while (!released.load()) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            }
+            if (exit_code == 0 && std::find(argv.begin(), argv.end(), "clone") != argv.end()) {
+                std::filesystem::create_directories(argv.back() + "/component");
+                std::ofstream(argv.back() + "/component/timelapse.py") << "\n";
             }
             CommandResult done;
             done.started = true;

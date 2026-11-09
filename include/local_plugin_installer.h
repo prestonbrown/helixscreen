@@ -14,7 +14,9 @@
  * through a ProcessRunner, so tests drive it with a fake:
  *
  *   1. Fetch: git clone the recipe's repository, unless the checkout is there
- *      or the plugin ships with this app.
+ *      or the plugin ships with this app. The clone lands in repo_dir only once
+ *      it is whole; a failed one leaves nothing behind, and a directory already
+ *      in repo_dir is never replaced or removed.
  *   2. Install: install.sh in the recipe's mode. install.sh owns where Moonraker
  *      lives, the link pre-flights, and any config section it writes.
  *   3. Each dependency: probe for it, and report a missing one to the user.
@@ -57,7 +59,10 @@ struct LocalPluginRecipe {
 struct LocalPluginPlan {
     std::string install_script; ///< install.sh beside this app
     std::string repo_dir;       ///< the clone; empty when the recipe has no repository
-    bool repo_present = false;  ///< repo_dir already holds the recipe's repo_marker
+    /// Where the clone runs before it is renamed to repo_dir: a hidden sibling
+    /// only this process names, so a clone stopped part way never sits in repo_dir.
+    std::string fetch_dir;
+    bool repo_present = false; ///< repo_dir already holds the recipe's repo_marker
 };
 
 /// The plan for @p recipe under @p home with @p install_script; looks at the filesystem.
