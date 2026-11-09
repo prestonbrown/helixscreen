@@ -13,9 +13,12 @@
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "lvgl/src/misc/cache/instance/lv_image_cache.h"
+#include "theme_manager.h"
+#include "ui/opa_pulse.h"
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -26,6 +29,10 @@ namespace helix::ui {
 namespace {
 
 constexpr uint64_t kFnvPrime = 1099511628211ull;
+constexpr int kGlowPeakAlpha = 150;
+constexpr int kChamberSpreadDivisor = 24; ///< blur radius is the short side over this
+constexpr int kChamberSpreadGain = 2;     ///< lifts the blur so it reaches past the lanes
+constexpr OpaPulse kGlowPulse{110, LV_OPA_COVER, 2000};
 
 struct LaneImages {
     lv_obj_t* color;
@@ -42,7 +49,31 @@ struct ArtData {
     lv_draw_buf_t* flat_buf = nullptr;
     std::vector<lv_draw_buf_t*> retired; // swapped out while widgets may still draw them
     uint64_t flat_key = 0;
+    lv_obj_t* front = nullptr; // WIDGET_PTR_OK: child of this widget, gone with it
+    lv_obj_t* glow = nullptr;  // WIDGET_PTR_OK: child of this widget, gone with it
+    lv_draw_buf_t* glow_buf = nullptr;
+    uint64_t glow_key = 0;
 };
+
+/// One blur pass over @p lines lines of @p line_len samples. @p step separates the samples of
+/// a line and @p line_step the lines, so the same pass runs along rows and along columns.
+void box_blur(std::vector<uint8_t>& px, int line_len, int lines, int step, int line_step,
+              int radius) {
+    std::vector<uint8_t> line(static_cast<size_t>(line_len));
+    for (int l = 0; l < lines; ++l) {
+        uint8_t* first = px.data() + static_cast<size_t>(l) * static_cast<size_t>(line_step);
+        for (int i = 0; i < line_len; ++i)
+            line[static_cast<size_t>(i)] = first[i * step];
+        int sum = 0;
+        for (int i = -radius; i <= radius; ++i)
+            sum += line[static_cast<size_t>(std::clamp(i, 0, line_len - 1))];
+        for (int i = 0; i < line_len; ++i) {
+            first[i * step] = static_cast<uint8_t>(sum / (2 * radius + 1));
+            sum += line[static_cast<size_t>(std::min(i + radius + 1, line_len - 1))];
+            sum -= line[static_cast<size_t>(std::max(i - radius, 0))];
+        }
+    }
+}
 
 ArtData* data_of(lv_obj_t* art) {
     return static_cast<ArtData*>(lv_obj_get_user_data(art));
@@ -67,6 +98,13 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
         data->retired.push_back(data->flat_buf);
         data->flat_buf = nullptr;
     }
+    data->front = nullptr;
+    data->glow = nullptr;
+    data->glow_key = 0;
+    if (data->glow_buf) {
+        data->retired.push_back(data->glow_buf);
+        data->glow_buf = nullptr;
+    }
     data->layers = lv_obj_create(art);
     lv_obj_remove_style_all(data->layers);
     lv_obj_set_size(data->layers, lv_pct(100), lv_pct(100));
@@ -88,7 +126,7 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
         lv_obj_set_style_image_recolor_opa(images.color, LV_OPA_COVER, LV_PART_MAIN);
         data->lanes.push_back(images);
     }
-    add_layer(data->layers, base + "_front.png");
+    data->front = add_layer(data->layers, base + "_front.png");
     data->built_id = shell->id;
     data->built_lanes = lane_count;
 }
@@ -119,7 +157,12 @@ void flatten(lv_obj_t* art, ArtData* data, uint64_t key) {
         return;
     lv_obj_set_hidden(data->layers, false);
     lv_obj_set_hidden(data->flat, true);
+    const bool glow_shown = data->glow && !lv_obj_is_hidden(data->glow);
+    if (glow_shown)
+        lv_obj_set_hidden(data->glow, true); // the glow must not bake into the drawing
     lv_draw_buf_t* snap = lv_snapshot_take(art, LV_COLOR_FORMAT_ARGB8888);
+    if (glow_shown)
+        lv_obj_set_hidden(data->glow, false);
     if (!snap)
         return;
     lv_image_set_src(data->flat, snap);
@@ -131,11 +174,105 @@ void flatten(lv_obj_t* art, ArtData* data, uint64_t key) {
     lv_obj_set_hidden(data->layers, true);
 }
 
+/// The alpha of @p shown alone, drawn at the widget's size. Empty when it cannot be taken.
+std::vector<uint8_t> layer_alpha(lv_obj_t* art, ArtData* data, const std::vector<lv_obj_t*>& shown,
+                                 int w, int h) {
+    const uint32_t count = lv_obj_get_child_count(data->layers);
+    std::vector<bool> was_hidden(count);
+    for (uint32_t i = 0; i < count; ++i) {
+        lv_obj_t* layer = lv_obj_get_child(data->layers, static_cast<int32_t>(i));
+        was_hidden[i] = lv_obj_is_hidden(layer);
+        lv_obj_set_hidden(layer, true);
+    }
+    for (lv_obj_t* layer : shown)
+        lv_obj_set_hidden(layer, false);
+    const bool layers_hidden = lv_obj_is_hidden(data->layers);
+    const bool flat_hidden = lv_obj_is_hidden(data->flat);
+    const bool glow_hidden = !data->glow || lv_obj_is_hidden(data->glow);
+    lv_obj_set_hidden(data->layers, false);
+    lv_obj_set_hidden(data->flat, true);
+    if (data->glow)
+        lv_obj_set_hidden(data->glow, true);
+
+    lv_draw_buf_t* snap = lv_snapshot_take(art, LV_COLOR_FORMAT_ARGB8888);
+
+    if (data->glow)
+        lv_obj_set_hidden(data->glow, glow_hidden);
+    lv_obj_set_hidden(data->flat, flat_hidden);
+    lv_obj_set_hidden(data->layers, layers_hidden);
+    for (uint32_t i = 0; i < count; ++i)
+        lv_obj_set_hidden(lv_obj_get_child(data->layers, static_cast<int32_t>(i)), was_hidden[i]);
+
+    std::vector<uint8_t> alpha;
+    if (snap && snap->header.w == w && snap->header.h == h) {
+        alpha.reserve(static_cast<size_t>(w) * static_cast<size_t>(h));
+        for (int y = 0; y < h; ++y) {
+            const auto* row = static_cast<const uint8_t*>(lv_draw_buf_goto_xy(snap, 0, y));
+            for (int x = 0; x < w; ++x)
+                alpha.push_back(row[x * 4 + 3]);
+        }
+    }
+    if (snap)
+        lv_draw_buf_destroy(snap);
+    return alpha;
+}
+
+/// Paint the glow for the current drawing, reusing the last image while neither the drawing
+/// nor the theme colour has changed. False when there is no drawing to take an outline from.
+bool refresh_glow_image(lv_obj_t* art, ArtData* data) {
+    const lv_draw_buf_t* art_buf = data->flat_buf;
+    if (!art_buf)
+        return false;
+    const lv_color_t color = theme_manager_get_color("warning");
+    const uint64_t key = (data->flat_key ^ lv_color_to_u32(color)) * kFnvPrime;
+    if (data->glow && key == data->glow_key)
+        return true;
+    const int w = art_buf->header.w;
+    const int h = art_buf->header.h;
+    // Every bay counts, filled or not: the chamber is lit around an empty bay too.
+    std::vector<lv_obj_t*> lane_layers;
+    for (const LaneImages& lane : data->lanes)
+        lane_layers.push_back(lane.color);
+    const std::vector<uint8_t> chamber =
+        unit_art_chamber_mask(layer_alpha(art, data, lane_layers, w, h),
+                              layer_alpha(art, data, {data->front}, w, h), w, h);
+    if (chamber.empty())
+        return false;
+    lv_draw_buf_t* buf = lv_draw_buf_create(w, h, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
+    if (!buf)
+        return false;
+    for (int y = 0; y < h; ++y) {
+        const auto* src = static_cast<const uint8_t*>(lv_draw_buf_goto_xy(art_buf, 0, y));
+        auto* dst = static_cast<uint8_t*>(lv_draw_buf_goto_xy(buf, 0, y));
+        for (int x = 0; x < w; ++x) {
+            dst[x * 4 + 0] = color.blue;
+            dst[x * 4 + 1] = color.green;
+            dst[x * 4 + 2] = color.red;
+            dst[x * 4 + 3] = unit_art_glow_alpha(
+                chamber[static_cast<size_t>(y) * static_cast<size_t>(w) + static_cast<size_t>(x)],
+                src[x * 4 + 3]);
+        }
+    }
+    if (!data->glow) {
+        data->glow = lv_image_create(art);
+        lv_obj_set_size(data->glow, lv_pct(100), lv_pct(100));
+        lv_obj_set_clickable(data->glow, false);
+    }
+    lv_image_set_src(data->glow, buf);
+    if (data->glow_buf)
+        destroy_buf(data->glow_buf);
+    data->glow_buf = buf;
+    data->glow_key = key;
+    return true;
+}
+
 void delete_cb(lv_event_t* e) {
     lv_obj_t* art = lv_event_get_target_obj(e);
     if (ArtData* data = data_of(art)) {
         if (data->flat_buf)
             lv_draw_buf_destroy(data->flat_buf);
+        if (data->glow_buf)
+            lv_draw_buf_destroy(data->glow_buf);
         for (lv_draw_buf_t* buf : data->retired)
             lv_draw_buf_destroy(buf);
     }
@@ -236,6 +373,52 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
 bool unit_art_is_flattened(lv_obj_t* art) {
     ArtData* data = art ? data_of(art) : nullptr;
     return data && data->flat_buf && !lv_obj_is_hidden(data->flat);
+}
+
+UnitArtGlow unit_art_glow_for(bool drying, bool animations_enabled, bool reduced_effects) {
+    if (!drying || reduced_effects)
+        return UnitArtGlow::Off;
+    return animations_enabled ? UnitArtGlow::Pulsing : UnitArtGlow::Steady;
+}
+
+std::vector<uint8_t> unit_art_chamber_mask(const std::vector<uint8_t>& lane_alpha,
+                                           const std::vector<uint8_t>& front_alpha, int w, int h) {
+    const size_t pixels = static_cast<size_t>(std::max(w, 0)) * static_cast<size_t>(std::max(h, 0));
+    if (pixels == 0 || lane_alpha.size() != pixels || front_alpha.size() != pixels)
+        return {};
+    const int radius = std::max(1, std::min(w, h) / kChamberSpreadDivisor);
+    std::vector<uint8_t> mask = lane_alpha;
+    box_blur(mask, w, h, 1, w, radius); // along rows
+    box_blur(mask, h, w, w, 1, radius); // along columns
+    for (size_t i = 0; i < pixels; ++i) {
+        const int spread = std::min(255, mask[i] * kChamberSpreadGain);
+        mask[i] = static_cast<uint8_t>(spread * (255 - front_alpha[i]) / 255);
+    }
+    return mask;
+}
+
+uint8_t unit_art_glow_alpha(uint8_t chamber, uint8_t art_alpha) {
+    return static_cast<uint8_t>(chamber * art_alpha / 255 * kGlowPeakAlpha / 255);
+}
+
+void unit_art_set_glow(lv_obj_t* art, UnitArtGlow glow) {
+    ArtData* data = art ? data_of(art) : nullptr;
+    if (!data)
+        return;
+    if (glow == UnitArtGlow::Off || !refresh_glow_image(art, data)) {
+        if (data->glow) {
+            set_image_opa_pulse(data->glow, false, kGlowPulse);
+            lv_obj_set_hidden(data->glow, true);
+        }
+        return;
+    }
+    lv_obj_set_hidden(data->glow, false);
+    set_image_opa_pulse(data->glow, glow == UnitArtGlow::Pulsing, kGlowPulse);
+}
+
+lv_obj_t* unit_art_glow_obj(lv_obj_t* art) {
+    ArtData* data = art ? data_of(art) : nullptr;
+    return data ? data->glow : nullptr;
 }
 
 lv_obj_t* unit_art_lane_color_obj(lv_obj_t* art, int lane) {

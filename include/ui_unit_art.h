@@ -14,6 +14,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace helix {
 struct AmsSystemInfo;
@@ -27,6 +28,22 @@ struct UnitShell;
 namespace helix::ui {
 
 enum class UnitArtTier { Full, Thumb };
+
+/// How the art shows that its unit is heating.
+enum class UnitArtGlow { Off, Steady, Pulsing };
+
+/// Off unless the unit is drying and the board can afford the effect; it only moves where
+/// animations are on.
+UnitArtGlow unit_art_glow_for(bool drying, bool animations_enabled, bool reduced_effects);
+
+/// Where the chamber lights up, one byte per pixel of a @p w by @p h drawing: the union of the
+/// lane regions, softened and spread a little around them, then shadowed by whatever the front
+/// layer draws over it. Solid case and frame pieces stay dark; glass lets the light through.
+std::vector<uint8_t> unit_art_chamber_mask(const std::vector<uint8_t>& lane_alpha,
+                                           const std::vector<uint8_t>& front_alpha, int w, int h);
+
+/// Strength of the glow at one pixel, from the chamber mask and the drawing's own alpha.
+uint8_t unit_art_glow_alpha(uint8_t chamber, uint8_t art_alpha);
 
 struct UnitArtLane {
     bool filled = false;
@@ -56,6 +73,12 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
 
 /// Whether the widget currently shows its single flattened image.
 bool unit_art_is_flattened(lv_obj_t* art);
+
+/// Show @p glow inside the drawing. A widget without a drawing yet shows none.
+void unit_art_set_glow(lv_obj_t* art, UnitArtGlow glow);
+
+/// The glow image, or nullptr when no glow has been shown.
+lv_obj_t* unit_art_glow_obj(lv_obj_t* art);
 
 /// The tinted image of @p lane, or nullptr before the widget has art.
 lv_obj_t* unit_art_lane_color_obj(lv_obj_t* art, int lane);

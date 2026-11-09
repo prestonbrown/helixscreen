@@ -162,7 +162,6 @@ class PrinterImageWidget : public PanelWidget {
     int callout_colspan_ = 0;
     int callout_rowspan_ = 0;
     int callout_spin_pct_ = -1; ///< speed the fan icons spin at; -1 = not yet applied
-    bool callout_glow_pulsing_ = false;
     helix::ui::CalloutPresenter presenter_;
     std::vector<ObserverGuard> callout_observers_;
     /// Each text chip's full text, indexed by CalloutKind. Its subject carries the

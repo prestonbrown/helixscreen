@@ -41,6 +41,7 @@
 #include "theme_manager.h"
 #include "tool_state.h"
 #include "ui/fan_spin_animation.h"
+#include "ui/opa_pulse.h"
 #include "widget_subjects.h"
 #include "wizard_config_paths.h"
 
@@ -90,13 +91,7 @@ constexpr const char* kLineNames[] = {"callout_line_nozzle", "callout_line_bed",
 
 /// A climbing bed's glow breathes between these image opacities; its level
 /// (the XML's style_opa) scales both.
-constexpr lv_opa_t kGlowOpaLow = 150;
-constexpr lv_opa_t kGlowOpaHigh = LV_OPA_COVER;
-constexpr uint32_t kGlowPulseMs = 1200;
-
-void glow_opa_anim_cb(void* glow, int32_t opa) {
-    lv_obj_set_style_image_opa(static_cast<lv_obj_t*>(glow), static_cast<lv_opa_t>(opa), 0);
-}
+constexpr helix::ui::OpaPulse kGlowPulse{150, LV_OPA_COVER, 1200};
 
 /// Writes a chip's text, compact while the chips are pinned. True on a change.
 bool publish_callout_text(lv_subject_t* text, const std::string& full) {
@@ -320,7 +315,6 @@ void PrinterImageWidget::detach() {
         }
     }
     set_glow_pulse(false);
-    callout_glow_pulsing_ = false; // a dead tree took its pulse with it
     cancel_callout_timer();
 
     // Cancel any pending timers. detach() runs from the destructor, so cancelling
@@ -754,8 +748,7 @@ void PrinterImageWidget::arm_callout_observers() {
         [](PrinterImageWidget* w, const char*) { w->schedule_callout_layout(); }, tools_life));
 
     const auto chip = [&](const char* name) { return lv_obj_find_by_name(widget_obj_, name); };
-    callout_spin_pct_ = -1;        // fresh icons: the next update sets their spin
-    callout_glow_pulsing_ = false; // fresh glow: nothing animates it yet
+    callout_spin_pct_ = -1; // fresh icons: the next update sets their spin
     nozzle_binder_.bind_required(chip("callout_chip_nozzle"), ps, HeaterType::Nozzle);
     bed_binder_.bind_required(chip("callout_chip_bed"), ps, HeaterType::Bed);
     chamber_binder_.bind_required(chip("callout_chip_chamber"), ps, HeaterType::Chamber);
@@ -1010,23 +1003,6 @@ void PrinterImageWidget::place_printer_image(const CalloutRect* moved) {
 
 void PrinterImageWidget::set_glow_pulse(bool on) {
     lv_obj_t* glow = widget_obj_ ? lv_obj_find_by_name(widget_obj_, "callout_bed_glow") : nullptr;
-    if (!glow || on == callout_glow_pulsing_)
-        return;
-    callout_glow_pulsing_ = on;
-    // The anim runs on the glow object, so LVGL deletes it with the object.
-    lv_anim_delete(glow, glow_opa_anim_cb);
-    if (!on) {
-        glow_opa_anim_cb(glow, kGlowOpaHigh); // a stopped pulse rests at full strength
-        return;
-    }
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, glow);
-    lv_anim_set_values(&a, kGlowOpaLow, kGlowOpaHigh);
-    lv_anim_set_duration(&a, kGlowPulseMs);
-    lv_anim_set_playback_duration(&a, kGlowPulseMs);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
-    lv_anim_set_exec_cb(&a, glow_opa_anim_cb);
-    lv_anim_start(&a);
+    if (glow)
+        helix::ui::set_image_opa_pulse(glow, on, kGlowPulse);
 }
