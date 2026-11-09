@@ -41,6 +41,7 @@ strip	.camera_migrated	written by the installer on the device, never exists in a
 cpp	.install_source	written by the installer on the device, never exists in a build tree
 gradle	.install_source	written by the installer on the device, never exists in a build tree
 strip	.install_source	written by the installer on the device, never exists in a build tree
+deploy	.install_source	written by the installer on the device, never exists in a build tree
 deploy	.camera_migrated	written by the installer on the device, never exists in a build tree
 cpp	.klipper_includes	written by the installer on the device, never exists in a build tree
 gradle	.klipper_includes	written by the installer on the device, never exists in a build tree
