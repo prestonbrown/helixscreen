@@ -633,11 +633,13 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
     // bridge itself guards against. Only the toast arms defer to it: a modal
     // carries the recovery actions, so standing it down because a transient
     // toast got there first would drop the only actionable thing on screen.
+    // The same check stands down a toast that only wraps one already shown,
+    // such as "Filament change error: <the cause just toasted>".
     // Checked BEFORE record_surfaced() below, so our own record can never
     // suppress the presentation that wrote it.
     if ((how == PresentAs::TOAST || how == PresentAs::TOAST_WITH_RECOVER) &&
-        (fault_surface_correlation::was_recently_surfaced(ev->detail) ||
-         fault_surface_correlation::was_recently_surfaced(ev->raw_detail))) {
+        (fault_surface_correlation::was_recently_surfaced_within(ev->detail) ||
+         fault_surface_correlation::was_recently_surfaced_within(ev->raw_detail))) {
         spdlog::info("[GcodeError] Suppressing duplicate toast (already surfaced): {}", ev->detail);
         return;
     }

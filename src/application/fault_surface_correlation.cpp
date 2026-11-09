@@ -71,6 +71,33 @@ bool was_recently_surfaced(const std::string& detail) {
     return false;
 }
 
+bool contains_as_segment(const std::string& text, const std::string& needle) {
+    if (needle.empty() || needle.size() > text.size())
+        return false;
+    for (size_t pos = text.find(needle); pos != std::string::npos;
+         pos = text.find(needle, pos + 1)) {
+        const bool starts_segment =
+            pos == 0 || text[pos - 1] == '\n' || (pos >= 2 && text.compare(pos - 2, 2, ": ") == 0);
+        const size_t end = pos + needle.size();
+        const bool ends_segment = end == text.size() || text[end] == '\n';
+        if (starts_segment && ends_segment)
+            return true;
+    }
+    return false;
+}
+
+bool was_recently_surfaced_within(const std::string& detail) {
+    if (detail.empty())
+        return false;
+    std::lock_guard<std::mutex> lock(mu());
+    prune_locked();
+    for (const auto& e : entries()) {
+        if (contains_as_segment(detail, e.detail))
+            return true;
+    }
+    return false;
+}
+
 void clear_for_test() {
     std::lock_guard<std::mutex> lock(mu());
     entries().clear();
