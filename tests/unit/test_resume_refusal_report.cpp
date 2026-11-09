@@ -422,3 +422,102 @@ TEST_CASE_METHOD(ResumeRefusalFixture, "a pause whose RPC times out stays pendin
 
     get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
 }
+
+namespace {
+
+MoonrakerError connection_lost() {
+    MoonrakerError err;
+    err.type = MoonrakerErrorType::CONNECTION_LOST;
+    err.message = "Connection lost";
+    err.method = "printer.gcode.script";
+    return err;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(ResumeRefusalFixture,
+                 "a resume whose socket drops after sending stays pending and quiet",
+                 "[resume][resume_timeout]") {
+    using ui::PendingAction;
+    using ui::PrintControlButtonsTestAccess;
+    PrintControlScope buttons(api.get());
+    get_printer_state().update_from_status({{"print_stats", {{"state", "paused"}}}});
+    settle();
+
+    mock.defer_next("printer.gcode.script");
+    ui::PrintControlButtons::instance().request_resume();
+    settle();
+    REQUIRE(PrintControlButtonsTestAccess::pending() == PendingAction::Resuming);
+    mock.fire_deferred_error("printer.gcode.script", connection_lost());
+    settle();
+
+    // RESUME may still be reheating on the printer; a second one would run
+    // its moves mid-print.
+    CHECK(toasts.empty());
+    CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::Resuming);
+    CHECK(primary_enabled() == 0);
+
+    get_printer_state().update_from_status({{"print_stats", {{"state", "printing"}}}});
+    settle();
+    CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::None);
+
+    get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
+}
+
+TEST_CASE_METHOD(ResumeRefusalFixture, "a resume refused before sending releases the button",
+                 "[resume][resume_timeout]") {
+    using ui::PendingAction;
+    using ui::PrintControlButtonsTestAccess;
+    PrintControlScope buttons(api.get());
+    get_printer_state().update_from_status({{"print_stats", {{"state", "paused"}}}});
+    settle();
+
+    mock.fail_next("printer.gcode.script", connection_lost());
+    ui::PrintControlButtons::instance().request_resume();
+    settle();
+
+    REQUIRE(toasts.size() == 1);
+    CHECK(toasts[0].rfind("Failed to resume: ", 0) == 0);
+    CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::None);
+
+    get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
+}
+
+TEST_CASE_METHOD(ResumeRefusalFixture,
+                 "a pause whose socket drops after sending stays pending and quiet",
+                 "[resume][resume_timeout]") {
+    using ui::PendingAction;
+    using ui::PrintControlButtonsTestAccess;
+    PrintControlScope buttons(api.get());
+    get_printer_state().update_from_status({{"print_stats", {{"state", "printing"}}}});
+    settle();
+
+    mock.defer_next("printer.gcode.script");
+    ui::PrintControlButtons::instance().handle_primary_button();
+    settle();
+    mock.fire_deferred_error("printer.gcode.script", connection_lost());
+    settle();
+
+    CHECK(toasts.empty());
+    CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::Pausing);
+
+    get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
+}
+
+TEST_CASE_METHOD(ResumeRefusalFixture, "a pause refused before sending releases the button",
+                 "[resume][resume_timeout]") {
+    using ui::PendingAction;
+    using ui::PrintControlButtonsTestAccess;
+    PrintControlScope buttons(api.get());
+    get_printer_state().update_from_status({{"print_stats", {{"state", "printing"}}}});
+    settle();
+
+    mock.fail_next("printer.gcode.script", connection_lost());
+    ui::PrintControlButtons::instance().handle_primary_button();
+    settle();
+
+    CHECK(toasts.size() == 1);
+    CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::None);
+
+    get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
+}
