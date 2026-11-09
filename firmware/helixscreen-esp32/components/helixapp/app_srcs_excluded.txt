@@ -408,3 +408,4 @@ src/ui/components/ui_icon_image.cpp  # not in the v1 Core+AMS cut
 src/ui/components/ui_text_entry_modal.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_table.cpp  # not in the v1 Core+AMS cut
 src/plugin/lua_bind_table.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/calibration_owned_heat.cpp
