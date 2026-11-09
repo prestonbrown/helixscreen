@@ -437,7 +437,7 @@ is a layout call with `ctl geom` at 800x480 and the smallest breakpoint before i
 ## Decisions (Preston, 2026-11-07)
 
 - The plugin renames the legacy marker blocks at load, on by default, with the `[helix_print] migrate_signal_macros: False` opt-out.
-- Narrow the forwarders (option B, decided 2026-11-08): each forwarder announces itself with `RESPOND TYPE=command MSG="HELIX:ALIAS:<name>"` before calling the hidden macro, the app records every name it hears, and a name with no hit over K completed prints with the forwarders loaded is dropped through DropAliases. K is not chosen yet, and this changes D1's forwarder shape and the content tests.
+- Narrow the forwarders (option B, decided 2026-11-08): each forwarder announces itself with `RESPOND TYPE=command MSG="HELIX:ALIAS:<name>"` before calling the hidden macro, the app records every name it hears, and a name with no hit over K completed prints with the forwarders loaded is dropped through DropAliases. K is 5. This changes D1's forwarder shape and the content tests.
 
 ## Status (2026-11-07)
 
