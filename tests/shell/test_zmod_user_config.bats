@@ -88,6 +88,58 @@ snapshot() {
         || fail "no timestamped move line in: $output"
 }
 
+# A sync that records, at the moment it runs, whether the originals are still
+# real files and the store copies already exist.
+mock_recording_sync() {
+    export SYNC_LOG="$BATS_TEST_TMPDIR/sync.log" INSTALL_DIR STATE
+    mock_command_script "sync" '
+{
+    echo SYNC
+    for f in tool_spools.json settings.json; do
+        if [ -L "$INSTALL_DIR/config/$f" ]; then echo "install $f link"
+        elif [ -f "$INSTALL_DIR/config/$f" ]; then echo "install $f real"; fi
+        [ -f "$STATE/$f" ] && echo "store $f present"
+    done
+    [ -d "$INSTALL_DIR/config/themes" ] && [ ! -L "$INSTALL_DIR/config/themes" ] && echo "install themes real dir"
+} >> "$SYNC_LOG"
+exit 0'
+}
+
+@test "moved copies are synced before any original is replaced by a link" {
+    mock_recording_sync
+    write_user_files
+
+    restore_config_symlinks >/dev/null
+
+    [ -f "$SYNC_LOG" ] || fail "sync never ran"
+    first=$(sed -n '/^SYNC$/,/^SYNC$/p' "$SYNC_LOG" | head -n 6)
+    contains "install tool_spools.json real" "$first"
+    contains "store tool_spools.json present" "$first"
+    contains "install settings.json real" "$first"
+    contains "store settings.json present" "$first"
+}
+
+@test "a user directory is synced into the store before the original is deleted" {
+    mock_recording_sync
+    mkdir -p "$INSTALL_DIR/config/themes"
+    echo '{"name":"mine"}' > "$INSTALL_DIR/config/themes/mine.json"
+
+    restore_config_symlinks >/dev/null
+
+    grep -q "install themes real dir" "$SYNC_LOG" || fail "no sync while themes/ was still real: $(cat "$SYNC_LOG" 2>/dev/null)"
+    [ -L "$INSTALL_DIR/config/themes" ]
+    [ "$(cat "$STATE/themes/mine.json")" = '{"name":"mine"}' ]
+}
+
+@test "a run that moves nothing does not sync" {
+    write_user_files
+    restore_config_symlinks >/dev/null
+    mock_recording_sync
+
+    restore_config_symlinks >/dev/null
+    [ ! -e "$SYNC_LOG" ] || fail "second run synced: $(cat "$SYNC_LOG")"
+}
+
 @test "a newer file already in the state dir is never overwritten" {
     mkdir -p "$STATE"
     echo '{"spools":"newer"}' > "$STATE/tool_spools.json"

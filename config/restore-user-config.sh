@@ -266,6 +266,35 @@ restore_config_symlinks() {
         move_all=1
     fi
 
+    # Copy pass. A dotfile, pending_remap.json or telemetry_device.json is
+    # runtime state no release zip ships. A real one here with nothing in the
+    # store was written before it was linked: copy it across so the next rmtree
+    # cannot take it. Elsewhere only these: this runs after a zip extraction, so
+    # any other real file here is the release's default, not the user's (the
+    # installer's own migration, which runs on a tree the user has been editing,
+    # moves every file). Every copy is synced before the link pass below removes
+    # an original, so a power cut cannot leave an empty store file behind a
+    # good-looking link; an interrupted pass leaves two identical files, which
+    # the link pass settles. A failed copy leaves no store file, so it is not
+    # linked either.
+    local file copied=""
+    for file in $HELIX_USER_CONFIG_FILES; do
+        local pd_file="${pd_helix}/${file}"
+        local install_file="${install_config}/${file}"
+        local movable="$move_all"
+        case "$file" in
+            .*|pending_remap.json|telemetry_device.json) movable=1 ;;
+        esac
+        if [ -n "$movable" ] && [ ! -e "$pd_file" ] && [ ! -L "$pd_file" ] \
+            && [ -f "$install_file" ] && [ ! -L "$install_file" ]; then
+            if atomic_copy "$install_file" "$pd_file"; then
+                restore_log "moved $file to $pd_helix"
+                copied=1
+            fi
+        fi
+    done
+    if [ -n "$copied" ]; then sync || true; fi
+
     for file in $HELIX_USER_CONFIG_FILES; do
         local pd_file="${pd_helix}/${file}"
         local install_file="${install_config}/${file}"
@@ -276,24 +305,6 @@ restore_config_symlinks() {
             target=$(readlink "$install_file" 2>/dev/null || echo "")
             [ "$target" = "$pd_file" ] && continue
             rm -f "$install_file"
-        fi
-
-        # A dotfile, pending_remap.json or telemetry_device.json is runtime state
-        # no release zip ships. A real one here with nothing in the store was
-        # written before it was linked: move it across so the next rmtree cannot
-        # take it. Elsewhere only these: this runs after a zip extraction, so any
-        # other real file here is the release's default, not the user's (the
-        # installer's own migration, which runs on a tree the user has been
-        # editing, moves every file). The copy lands before the link replaces
-        # the original, so an interrupted move leaves two identical files.
-        local movable="$move_all"
-        case "$file" in
-            .*|pending_remap.json|telemetry_device.json) movable=1 ;;
-        esac
-        if [ -n "$movable" ] && [ ! -e "$pd_file" ] && [ ! -L "$pd_file" ] \
-            && [ -f "$install_file" ] && [ ! -L "$install_file" ]; then
-            atomic_copy "$install_file" "$pd_file" || continue
-            restore_log "moved $file to $pd_helix"
         fi
 
         # The record exists only while a restore is owed, so an install that is
@@ -345,6 +356,7 @@ restore_config_symlinks() {
         if [ -d "$install_dir_path" ] && [ ! -L "$install_dir_path" ]; then
             merge_config_dir "$install_dir_path" "$pd_dir" || continue
             config_dir_fully_merged "$install_dir_path" "$pd_dir" || continue
+            sync || true
             rm -rf "$install_dir_path" 2>/dev/null || continue
         elif [ -e "$install_dir_path" ]; then
             continue   # a plain file where we expect a directory — not ours to delete
