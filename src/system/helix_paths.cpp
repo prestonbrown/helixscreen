@@ -221,7 +221,10 @@ std::string write_target(const std::string& path) {
         return path;
     const std::string resolved =
         (*dest)[0] == '/' ? *dest : hfs::join_path(std::string(hfs::parent_path(path)), *dest);
-    return hfs::is_directory(std::string(hfs::parent_path(resolved))) ? resolved : path;
+    // A destination with no directory part sits in the current directory.
+    const std::string_view parent = hfs::parent_path(resolved);
+    return hfs::is_directory(parent.empty() ? std::string(".") : std::string(parent)) ? resolved
+                                                                                      : path;
 }
 
 } // namespace helix::paths
