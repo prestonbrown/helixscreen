@@ -18,6 +18,7 @@
 #include "screws_tilt_parser.h"
 #include "sensor_state.h"
 #include "thumbnail_rules.h"
+#include "timelapse_host_mock.h"
 #include "timelapse_state.h"
 
 #include <spdlog/spdlog.h>
@@ -1800,6 +1801,21 @@ MoonrakerTimelapseAPIMock::MoonrakerTimelapseAPIMock(MoonrakerClient& client,
     : MoonrakerTimelapseAPI(client, http_base_url) {
     // Frame count and capture info are set in get_last_frame_info() which the
     // overlay calls on_activate(). Can't set here — subjects not yet initialized.
+}
+
+void MoonrakerTimelapseAPIMock::get_timelapse_settings(TimelapseSettingsCallback on_success,
+                                                       ErrorCallback on_error) {
+    if (helix::mock::timelapse_plugin_present()) {
+        if (on_success) {
+            on_success(TimelapseSettings{});
+        }
+        return;
+    }
+    spdlog::debug(
+        "[MoonrakerAPIMock] get_timelapse_settings: plugin absent (HELIX_MOCK_TIMELAPSE)");
+    if (on_error) {
+        on_error(MoonrakerError::http_status_error("get_timelapse_settings", 404));
+    }
 }
 
 void MoonrakerTimelapseAPIMock::render_timelapse(SuccessCallback on_success,

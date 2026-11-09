@@ -25,6 +25,7 @@ src/config/  # all 1 src/ files beneath
 src/input/  # all 1 src/ files beneath
 src/lvgl-demo/  # all 1 src/ files beneath
 src/remote/  # all 8 src/ files beneath
+src/system/timelapse_local_installer.cpp  # not in the v1 Core+AMS cut
 src/tools/  # all 1 src/ files beneath
 src/ui/screensaver/  # all 33 src/ files beneath
 
@@ -79,6 +80,7 @@ src/mock/moonraker_client_mock_queue.cpp  # not in the v1 Core+AMS cut
 src/mock/moonraker_client_mock_server.cpp  # not in the v1 Core+AMS cut
 src/mock/moonraker_client_mock_skips.cpp  # not in the v1 Core+AMS cut
 src/mock/moonraker_client_mock_spoolman.cpp  # not in the v1 Core+AMS cut
+src/mock/timelapse_host_mock.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_discovery_sequence.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_file_transfer_api.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_request_tracker.cpp  # not in the v1 Core+AMS cut
