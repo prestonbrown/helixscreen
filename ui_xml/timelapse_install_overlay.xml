@@ -2,7 +2,8 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Timelapse Install Wizard Overlay -->
-<!-- Step-progress wizard guiding users through moonraker-timelapse installation -->
+<!-- Step-progress wizard that installs moonraker-timelapse: by itself when
+     Moonraker runs on this host, through SSH instructions otherwise -->
 <component>
   <view name="timelapse_install_overlay" extends="overlay_panel" title="Setup Timelapse" bg_color="#screen_bg">
 
@@ -17,13 +18,15 @@
       <lv_obj name="status_container"
               width="100%" height="content" style_pad_all="#space_md" style_bg_color="#card_bg"
               style_radius="#border_radius" style_bg_opa="255">
-        <text_body name="status_text" width="100%" text="Initializing..." style_text_color="#text" long_mode="wrap"/>
+        <text_body name="status_text"
+                   width="100%" bind_text="timelapse_install_status" style_text_color="#text" long_mode="wrap"/>
       </lv_obj>
 
-      <!-- SSH instructions (hidden by default, shown in Step 3) -->
+      <!-- SSH instructions: Moonraker on another host -->
       <lv_obj name="ssh_instructions_container"
               width="100%" height="content" style_pad_all="#space_md" style_bg_color="#card_bg"
-              style_radius="#border_radius" style_bg_opa="255" hidden="true">
+              style_radius="#border_radius" style_bg_opa="255">
+        <bind_flag_if_not_eq subject="timelapse_install_card" flag="hidden" ref_value="1"/>
         <lv_obj width="100%" height="content" flex_flow="column" style_pad_row="#space_sm" style_bg_opa="0">
           <text_body width="100%"
                      text="Connect to your printer via SSH and run:" style_text_color="#text_muted" long_mode="wrap"/>
@@ -41,11 +44,34 @@
         </lv_obj>
       </lv_obj>
 
-      <!-- Action button (hidden by default, shown contextually) -->
-      <ui_button name="action_button" width="100%" text="Check Again" variant="primary" hidden="true">
+      <!-- ffmpeg command: the plugin is installed, ffmpeg needs a password -->
+      <lv_obj name="ffmpeg_instructions_container"
+              width="100%" height="content" style_pad_all="#space_md" style_bg_color="#card_bg"
+              style_radius="#border_radius" style_bg_opa="255">
+        <bind_flag_if_not_eq subject="timelapse_install_card" flag="hidden" ref_value="2"/>
+        <lv_obj width="100%" height="content" flex_flow="column" style_pad_row="#space_sm" style_bg_opa="0">
+          <text_body width="100%"
+                     text="To make videos, run this on your printer via SSH:" style_text_color="#text_muted"
+                     long_mode="wrap"/>
+          <lv_obj width="100%"
+                  height="content" style_bg_color="#overlay_bg" style_radius="#border_radius" style_pad_all="#space_sm"
+                  style_bg_opa="255">
+            <text_small name="ffmpeg_command"
+                        width="100%" text="sudo apt-get install -y ffmpeg" style_text_color="#text" long_mode="wrap"/>
+          </lv_obj>
+        </lv_obj>
+      </lv_obj>
+
+    </lv_obj>
+
+    <!-- The wizard's next action, outside the scroll area so it is always on screen -->
+    <lv_obj name="install_footer"
+            width="100%" height="content" style_pad_left="#space_md" style_pad_right="#space_md"
+            style_pad_bottom="#space_md" style_pad_top="0" style_bg_opa="0" scrollable="false">
+      <bind_flag_if_eq subject="timelapse_install_action_visible" flag="hidden" ref_value="0"/>
+      <ui_button name="install_action_button" width="100%" bind_text="timelapse_install_action_text" variant="primary">
         <event_cb trigger="clicked" callback="on_timelapse_install_action"/>
       </ui_button>
-
     </lv_obj>
   </view>
 </component>

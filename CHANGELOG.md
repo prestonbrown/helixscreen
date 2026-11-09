@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Anycubic Kobra X picture** (#2074) - the Kobra X now has its own printer image instead of a generic frame.
 - **Z-Tilt and QGL use your Bed Level macro** (#2083) - if you assigned a macro to Bed Level in Standard Macros, the Z-Tilt and Quad Gantry Level buttons run it too.
 - **Jacobean K2 Plus firmware** (#2087) - K2 Plus printers running Jacobean's Kalico-based firmware are recognised as such, with their own print-start progress, instead of being taken for k2-improvements.
+- **Timelapse setup installs the plugin for you** - when HelixScreen runs on the same machine as Moonraker, Setup Timelapse downloads and installs the timelapse plugin itself instead of asking you to do it over SSH. If ffmpeg is missing and can't be installed without a password, the last screen shows the one command to run.
 
 - **A tour of what's new** - the first start after updating from 1.0 shows a short tour of the rebuilt home screen, the new Print Status screen and the Filament and filament system screens, with your own printer's picture. A new install gets the full tour, and Help & About replays it.
 
@@ -35,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Plugin updates on printers that can't restart Moonraker** (#2090) - when a restart for the HelixPrint plugin doesn't happen, HelixScreen says to reboot the printer and asks again on the next start, instead of giving up silently.
 - **Creator 5 Pro tool dock state at startup** (#2091) - the startup check of which tool is docked now runs once Klipper is ready, so a stale dock state is corrected.
 - **Forge-X on the AD5X** (#2092) - an AD5X running Forge-X is no longer mistaken for Z-Mod, and its telemetry id moves to the Forge-X state folder once.
+- **Check Again in Setup Timelapse** - the Check Again button on the install step is always on screen, and the empty blue square in the top corner of that screen is gone.
 - **Re-apply on a spool** - Re-apply now takes the spool's name, and fixing only the colour keeps the spool's temperatures.
 
 - **Sensors in Settings no longer need a filament sensor** - the Sensors row under Hardware & Devices holds the temperature sensors and the chamber sensor and heater choices, but it only appeared on printers with a filament sensor. It now always appears.
