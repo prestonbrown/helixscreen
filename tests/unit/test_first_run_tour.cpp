@@ -11,6 +11,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "first_run_tour.h"
+#include "printer_image_manager.h"
 #include "tour_overlay.h"
 #include "tour_steps.h"
 
@@ -208,7 +209,7 @@ TEST_CASE("Tour steps: the filament system step directly follows the Filament pa
 TEST_CASE("Tour steps: Print Status is shown as a picture", "[tour]") {
     const auto& s = step_titled(build_tour_steps(false), "A new Print Status screen");
     CHECK(s.target_name.empty());
-    CHECK_FALSE(s.preview_image.empty());
+    CHECK(s.shows_print_status_preview);
 }
 
 TEST_CASE("Tour steps: a 1.0 upgrader sees only what is new", "[tour]") {
@@ -379,13 +380,19 @@ TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: the preview belongs only to it
                  "[tour]") {
     REQUIRE(lv_display_get_vertical_resolution(nullptr) >= 400);
     auto with_picture = plain_step("");
-    with_picture.preview_image = "A:assets/images/tour/print_status_preview.png";
+    with_picture.shows_print_status_preview = true;
     helix::tour::TourOverlay overlay({with_picture, plain_step("")}, {}, {});
     lv_obj_t* preview = lv_obj_find_by_name(tooltip_of(overlay), "tour_preview");
     REQUIRE(preview != nullptr);
 
     overlay.show_step(0);
     CHECK_FALSE(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* printer = lv_obj_find_by_name(preview, "tour_preview_printer");
+    REQUIRE(printer != nullptr);
+    const std::string expected = helix::PrinterImageManager::instance().get_displayed_image_path(
+        lv_display_get_horizontal_resolution(nullptr));
+    REQUIRE_FALSE(expected.empty());
+    CHECK(static_cast<const char*>(lv_image_get_src(printer)) == expected);
     overlay.show_step(1);
     CHECK(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
 }
