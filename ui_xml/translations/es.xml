@@ -155,6 +155,7 @@
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." es="Un zumbador o altavoz para alertas y sonidos. Elige qué se reproduce en los ajustes de sonido."/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." es="Una cámara que transmite Moonraker. Añade el widget de cámara a la pantalla de inicio para verla, también durante una impresión."/>
   <translation tag="A cold pull is already running." es="Ya hay una extracción en frío en curso."/>
+  <translation tag="A delta printer can&apos;t home X and Y without moving Z, so a print can&apos;t be resumed." es="Una impresora delta no puede hacer home en X e Y sin mover Z, así que no se puede reanudar una impresión."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." es="Un ventilador que hace pasar el aire de la cámara por un filtro. Contrólalo en la pantalla de temperatura de la cámara."/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." es="Unos minutos, casi todo calentando. No juzgas nada a ojo."/>
   <translation tag="A folder name in moonraker.conf is unsafe." es="Un nombre de carpeta en moonraker.conf no es seguro."/>
@@ -4145,6 +4146,8 @@
   <translation tag="This printer&apos;s INDX macros are missing: {}" es="A las macros de INDX de esta impresora les falta: {}"/>
   <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." es="El Moonraker de esta impresora rechazó su clave API. Revisa la clave en Ajustes &gt; Conexión."/>
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." es="El Moonraker de esta impresora requiere inicio de sesión. Añade su clave API en Ajustes &gt; Conexión."/>
+  <translation tag="This printer&apos;s firmware has its own power-loss recovery." es="El firmware de esta impresora tiene su propia recuperación tras corte de energía."/>
+  <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." es="El pórtico de esta impresora cae cuando se corta la energía, así que no se puede reanudar una impresión."/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" es="El servicio de red de esta impresora controla la radio WiFi"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" es="El servicio de red de esta impresora gestiona las redes WiFi guardadas"/>
   <translation tag="This printer&apos;s screen has not shared a layout" es="La pantalla de esta impresora no ha compartido un diseño"/>

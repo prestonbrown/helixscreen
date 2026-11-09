@@ -163,6 +163,7 @@ translations:
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Un cicalino o altoparlante per avvisi e suoni. Scegli cosa riprodurre nelle impostazioni audio.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Una telecamera trasmessa da Moonraker. Aggiungi il widget telecamera alla schermata iniziale per guardarla, anche durante una stampa.'
   A cold pull is already running.: "Un cold pull è già in corso."
+  A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Una stampante delta non può eseguire l'homing di X e Y senza muovere Z, quindi una stampa non può essere ripresa."
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Una ventola che fa passare l''aria della camera attraverso un filtro. Controllala nella schermata della temperatura camera.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Pochi minuti, quasi tutti di riscaldamento. Non giudichi nulla a occhio.'
   A folder name in moonraker.conf is unsafe.: "Un nome di cartella in moonraker.conf non è sicuro."
@@ -4542,6 +4543,8 @@ translations:
   "This printer's INDX macros are missing: {}": "Alle macro INDX di questa stampante manca: {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'Il Moonraker di questa stampante ha rifiutato la sua chiave API. Controlla la chiave in Impostazioni > Connessione.'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Il Moonraker di questa stampante richiede l''accesso. Aggiungi la sua chiave API in Impostazioni > Connessione.'
+  This printer's firmware has its own power-loss recovery.: "Il firmware di questa stampante ha la sua ripresa dopo interruzione di corrente."
+  This printer's gantry drops when the power is cut, so a print can't be resumed.: "Il portale di questa stampante cade quando manca la corrente, quindi una stampa non può essere ripresa."
   This printer's network service controls the WiFi radio: Il servizio di rete di questa stampante controlla la radio WiFi
   This printer's network service manages saved WiFi networks: Il servizio di rete di questa stampante gestisce le reti WiFi salvate
   This printer's screen has not shared a layout: "Lo schermo di questa stampante non ha condiviso un layout"

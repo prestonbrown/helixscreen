@@ -165,6 +165,7 @@ translations:
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Ein Summer oder Lautsprecher für Warnungen und Töne. Lege in den Soundeinstellungen fest, was abgespielt wird.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Eine Kamera, die Moonraker streamt. Füge das Kamera-Widget zum Startbildschirm hinzu, um sie anzusehen, auch während eines Drucks.'
   A cold pull is already running.: "Ein Cold Pull läuft bereits."
+  A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Ein Delta-Drucker kann X und Y nicht referenzieren, ohne Z zu bewegen, daher kann ein Druck nicht fortgesetzt werden."
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Ein Lüfter, der die Luft im Gehäuse durch einen Filter zieht. Steuere ihn im Kammertemperatur-Bildschirm.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Ein paar Minuten, fast alles Aufheizen. Du beurteilst nichts mit dem Auge.'
   A folder name in moonraker.conf is unsafe.: "Ein Ordnername in moonraker.conf ist unsicher."
@@ -4550,6 +4551,8 @@ translations:
   "This printer's INDX macros are missing: {}": "Den INDX-Makros dieses Druckers fehlt: {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'Das Moonraker dieses Druckers hat seinen API-Schlüssel abgelehnt. Prüfe den Schlüssel unter Einstellungen > Verbindung.'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Das Moonraker dieses Druckers verlangt eine Anmeldung. Trage seinen API-Schlüssel unter Einstellungen > Verbindung ein.'
+  This printer's firmware has its own power-loss recovery.: "Die Firmware dieses Druckers hat ihre eigene Wiederherstellung nach Stromausfall."
+  This printer's gantry drops when the power is cut, so a print can't be resumed.: "Das Portal dieses Druckers sackt bei einem Stromausfall ab, daher kann ein Druck nicht fortgesetzt werden."
   This printer's network service controls the WiFi radio: Der Netzwerkdienst dieses Druckers steuert das WiFi-Funkmodul
   This printer's network service manages saved WiFi networks: Der Netzwerkdienst dieses Druckers verwaltet gespeicherte WiFi-Netzwerke
   This printer's screen has not shared a layout: "Der Bildschirm dieses Druckers hat kein Layout geteilt"
