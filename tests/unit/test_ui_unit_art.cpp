@@ -112,3 +112,19 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: hides itself with no art", "
     unit_art_set_unit(art, info, 0);
     CHECK(lv_obj_is_hidden(art));
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: flattens again at a new size",
+                 "[ams][unit-art][overview-tiles]") {
+    const AmsSystemInfo info = ace_system();
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 80, 60);
+    unit_art_set_unit(art, info, 0);
+    REQUIRE(unit_art_is_flattened(art));
+    lv_obj_t* flat = lv_obj_get_child(art, 1);
+    REQUIRE(lv_image_get_src_width(flat) == 80);
+
+    lv_obj_set_size(art, 120, 90);
+    unit_art_set_unit(art, info, 0);
+
+    CHECK(lv_image_get_src_width(flat) == 120);
+}

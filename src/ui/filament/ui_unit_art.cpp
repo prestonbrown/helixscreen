@@ -24,6 +24,8 @@ namespace helix::ui {
 
 namespace {
 
+constexpr uint64_t kFnvPrime = 1099511628211ull;
+
 struct LaneImages {
     lv_obj_t* color;
     lv_obj_t* shade;
@@ -104,7 +106,12 @@ void destroy_buf(lv_draw_buf_t* buf) {
 /// Each layer would otherwise be decoded from its PNG on every redraw.
 void flatten(lv_obj_t* art, ArtData* data, uint64_t key) {
     lv_obj_update_layout(art);
-    if (lv_obj_get_width(art) <= 0 || lv_obj_get_height(art) <= 0 || key == data->flat_key)
+    const int32_t width = lv_obj_get_width(art);
+    const int32_t height = lv_obj_get_height(art);
+    // The image is one bitmap at the widget's size, so a new size is a new image.
+    key = (key ^ static_cast<uint64_t>(width)) * kFnvPrime;
+    key = (key ^ static_cast<uint64_t>(height)) * kFnvPrime;
+    if (width <= 0 || height <= 0 || key == data->flat_key)
         return;
     lv_obj_set_hidden(data->layers, false);
     lv_obj_set_hidden(data->flat, true);
@@ -195,7 +202,7 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
     for (size_t i = 0; i < data->lanes.size(); ++i) {
         const UnitArtLane lane =
             i < unit.slots.size() ? unit_art_lane(unit.slots[i]) : UnitArtLane{};
-        key = (key ^ (lane.filled ? static_cast<uint64_t>(lane.color) + 1 : 0)) * 1099511628211ull;
+        key = (key ^ (lane.filled ? static_cast<uint64_t>(lane.color) + 1 : 0)) * kFnvPrime;
         set_lane_visible(data->lanes[i].color, lane.filled);
         set_lane_visible(data->lanes[i].shade, lane.filled);
         if (lane.filled) {
