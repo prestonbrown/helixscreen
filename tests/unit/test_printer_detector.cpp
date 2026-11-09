@@ -4619,3 +4619,20 @@ TEST_CASE_METHOD(
     get_printer_state().set_printer_type_sync("");
     TearDown();
 }
+
+TEST_CASE("PrinterDetector: maintenance defaults come from the database row",
+          "[printer_detector][maintenance]") {
+    const auto belt = static_cast<size_t>(helix::maintenance::MeterId::BeltTension);
+    SECTION("a Voron row turns the belt meter on") {
+        CHECK(PrinterDetector::get_maintenance_defaults("Voron 2.4")[belt].hours == 300);
+        CHECK(PrinterDetector::get_maintenance_defaults("Voron Trident")[belt].hours == 300);
+    }
+    SECTION("a printer without the field has no overrides") {
+        for (const auto& d : PrinterDetector::get_maintenance_defaults("Creality K1C"))
+            CHECK_FALSE(d.hours.has_value());
+    }
+    SECTION("an unknown printer has no overrides") {
+        for (const auto& d : PrinterDetector::get_maintenance_defaults("Not A Real Printer"))
+            CHECK_FALSE(d.hours.has_value());
+    }
+}

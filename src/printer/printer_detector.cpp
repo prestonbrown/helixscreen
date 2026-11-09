@@ -1750,6 +1750,16 @@ bool PrinterDetector::is_enclosed(const std::string& printer_name) {
     return printer_flag(printer_name, "enclosed");
 }
 
+helix::maintenance::ModelDefaults
+PrinterDetector::get_maintenance_defaults(const std::string& printer_name) {
+    const json* printer = find_printer_entry(printer_name);
+    if (!printer)
+        return {};
+    const json* field = json_util::find_member(*printer, "maintenance");
+    return field ? helix::maintenance::model_defaults_from_json(*field)
+                 : helix::maintenance::ModelDefaults{};
+}
+
 helix::calibration::BeltTensionerKind
 PrinterDetector::get_belt_tensioner(const std::string& printer_name) {
     using helix::calibration::BeltTensionerKind;
