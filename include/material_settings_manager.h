@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "cold_pull_temps.h"
 #include "filament_database.h"
 
 #include <array>
@@ -48,7 +49,6 @@ class MaterialSettingsManager {
   public:
     static MaterialSettingsManager& instance();
 
-    // Non-copyable
     MaterialSettingsManager(const MaterialSettingsManager&) = delete;
     MaterialSettingsManager& operator=(const MaterialSettingsManager&) = delete;
 
@@ -107,6 +107,16 @@ class MaterialSettingsManager {
 
     /** @brief Clear the branded filament from a preset slot (0-3); saves to config */
     void clear_preset_filament(int index);
+
+    /** @brief The cold pull temperatures for @p m: the user's edit, else the default */
+    [[nodiscard]] ColdPullTemps get_cold_pull_temps(ColdPullMaterial m) const;
+    /** @brief Save a cold pull edit for @p m */
+    void set_cold_pull_temps(ColdPullMaterial m, ColdPullTemps t);
+    /** @brief Drop the edit for @p m, back to its default */
+    void reset_cold_pull_temps(ColdPullMaterial m);
+    /** @brief The material the last cold pull used; PLA when none */
+    [[nodiscard]] ColdPullMaterial get_cold_pull_material() const;
+    void set_cold_pull_material(ColdPullMaterial m);
 
   private:
     friend class TestAccess;

@@ -250,14 +250,12 @@ TimelapseCardDimensions TimelapseVideosOverlay::calculate_card_dimensions() {
     // Force layout so dimensions are computed
     lv_obj_update_layout(overlay_root_);
 
-    // Get overlay total height
     lv_coord_t overlay_height = lv_obj_get_height(overlay_root_);
 
     // Get header height (first child of overlay_root, from overlay_panel)
     lv_obj_t* header = lv_obj_get_child(overlay_root_, 0);
     lv_coord_t header_height = header ? lv_obj_get_height(header) : 56;
 
-    // Get overlay_content padding
     lv_obj_t* content = helix::ui::find_required(overlay_root_, "overlay_content", get_name());
     lv_coord_t content_pad_top = content ? lv_obj_get_style_pad_top(content, LV_PART_MAIN) : 0;
     lv_coord_t content_pad_bottom =

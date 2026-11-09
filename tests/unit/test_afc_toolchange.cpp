@@ -530,8 +530,8 @@ TEST_CASE_METHOD(AfcToolchangeRenderFixture, "AFC toolchange text renders AFC's 
     SECTION("the final change renders N / N, not N+1 / N") {
         // Assert one change BELOW the ceiling first. At the ceiling the clamp
         // also turns a broken 1-based store into "161 / 161", so feeding only
-        // the final change cannot tell the fix from the bug it is named for —
-        // drop the backend's -1 normalization and this section still passed.
+        // the final change cannot tell correct from broken: dropping the
+        // backend's -1 normalization would still pass.
         // At wire 160 the clamp is inert: correct normalization renders
         // "160 / 161" and a missing -1 renders "161 / 161".
         feed_afc(160, 161);

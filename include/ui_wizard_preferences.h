@@ -21,8 +21,7 @@ struct PreferenceRows {
 };
 
 PreferenceRows preference_rows(bool is_subsequent_printer, bool bypass_is_virtual,
-                               bool reports_spool_ids, bool retains_spool_info,
-                               bool has_sound_backend);
+                               bool lane_record_is_only_identity, bool has_sound_backend);
 
 /// Wizard page of taste-only toggles. Each row is bound to the same subject and
 /// callback as its settings-overlay twin, so there is no second copy of the state.

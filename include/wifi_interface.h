@@ -15,13 +15,11 @@ namespace helix::wifi {
  * @file wifi_interface.h
  * @brief Resolve ONE coherent WiFi identity instead of three separate guesses.
  *
- * Before this existed, the wpa_supplicant backend made three uncorrelated
- * first-match guesses: the netdev (first /sys/class/net/wlan* with a wireless/
- * dir), the control socket (first entry in the ctrl dir), and the config path
- * (first wpa_supplicant in /proc). On an Adventurer 5M they disagreed — the
- * backend logged "Found WiFi interface: wlan1" one line before "Found
- * wpa_supplicant socket: /run/wpa_supplicant/wlan0" (bundles 9GQXV5VN,
- * 9F9EF5VP, v0.99.106).
+ * Three uncorrelated first-match guesses (the netdev: first /sys/class/net/wlan*
+ * with a wireless/ dir; the control socket: first entry in the ctrl dir; the
+ * config path: first wpa_supplicant in /proc) can disagree. On an Adventurer 5M
+ * the first netdev is wlan1 while the answering socket is
+ * /run/wpa_supplicant/wlan0.
  *
  * Resolution starts from the control socket that actually answers STATUS,
  * because that is the only one of the three we can verify, and derives the rest

@@ -160,7 +160,7 @@ void PrintLayerPauseControls::refresh_status_text() {
 
 void PrintLayerPauseControls::open_modal() {
     refresh_status_text();
-    Modal::show("layer_pause_modal");
+    helix::ui::ComponentModal::show_owned("layer_pause_modal");
 }
 
 bool PrintLayerPauseControls::send(const std::string& gcode, const char* what,

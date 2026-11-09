@@ -54,7 +54,6 @@ ShaperCsvData parse_shaper_csv(const std::string& csv_path, char axis) {
         return result;
     }
 
-    // Read header line
     std::string header_line;
     if (!file.next(header_line)) {
         spdlog::warn("shaper_csv_parser: empty file: {}", csv_path);
@@ -115,7 +114,6 @@ ShaperCsvData parse_shaper_csv(const std::string& csv_path, char axis) {
         return result;
     }
 
-    // Initialize shaper curves
     for (const auto& sc : shaper_columns) {
         ShaperResponseCurve curve;
         curve.name = sc.name;
@@ -134,7 +132,6 @@ ShaperCsvData parse_shaper_csv(const std::string& csv_path, char axis) {
         if (fields.empty())
             continue;
 
-        // Parse frequency
         if (freq_col >= static_cast<int>(fields.size()))
             continue;
         char* end = nullptr;
@@ -144,7 +141,6 @@ ShaperCsvData parse_shaper_csv(const std::string& csv_path, char axis) {
 
         result.frequencies.push_back(freq_val);
 
-        // Parse raw PSD
         if (psd_col < static_cast<int>(fields.size())) {
             float psd_val = std::strtof(fields[psd_col].c_str(), &end);
             result.raw_psd.push_back(psd_val);

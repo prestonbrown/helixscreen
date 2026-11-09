@@ -23,7 +23,6 @@
 #include "subject_managed_panel.h"
 #include "ui/temperature_observer_bundle.h"
 
-// Forward declaration
 namespace helix {
 class IMoonrakerAPI;
 namespace ui {
@@ -46,7 +45,6 @@ struct MemoryInfo;
 #include <string>
 #include <vector>
 
-// Forward declarations
 class TemperatureService;
 class PrintStatusPanel;
 struct FileMetadata;
@@ -517,7 +515,7 @@ class PrintStatusPanel : public OverlayBase {
 
     TemperatureService* temp_control_panel_ = nullptr;
 
-    // Light/timelapse controls (extracted Phase 2 functionality)
+    // Light/timelapse controls
     PrintLightTimelapseControls light_timelapse_controls_;
     helix::ui::PrintLayerPauseControls layer_pause_controls_;
 
@@ -535,8 +533,11 @@ class PrintStatusPanel : public OverlayBase {
     void update_all_displays();
     void show_gcode_viewer(bool show);
     /// Pause the G-code viewer unless it is the visible layer: shown by
-    /// gcode_viewer_mode and not covered by the camera.
+    /// gcode_viewer_mode and covered by neither the camera nor the
+    /// pre-print checklist.
     void apply_gcode_viewer_pause();
+    /// Publish preparing_visible and re-apply the viewer pause it gates.
+    void set_preparing_visible(bool visible);
     /// Recompute the camera subjects from their inputs, then run the camera
     /// stream exactly while it shows on an active panel with the display awake.
     void update_preview_camera();

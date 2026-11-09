@@ -321,7 +321,7 @@ TEST_CASE("pick_object_at returns the named object under the tap, and nothing el
 
 // Verifies the breadcrumb added to GCodeLayerRenderer::render_layers_to_cache
 // actually fires on the real render path. A SIGBUS was seen inside that path on
-// AD5X (bundle YZQ47HQ6); the crumb gives the crash handler the gcode subsystem
+// AD5X; the crumb gives the crash handler the gcode subsystem
 // + target layer even when the stack is too corrupt to scan. render() reaches
 // render_layers_to_cache only in FRONT view after warmup, so we drive several
 // frames against an offscreen canvas layer with ghost mode off (deterministic,
@@ -1620,8 +1620,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
     frame();
 
     // The pending pre-invalidate build must be gone: one frame after
-    // invalidation there is no ghost output. (Before the fix, this frame
-    // copied the stale buffer and reported output.) Whether the replacement
+    // invalidation there is no ghost output (not the stale buffer copied
+    // and reported as output). Whether the replacement
     // build is still running at this instant is timing - a 120-layer ghost
     // finishes in well under a frame - so the invariant is "no stale output",
     // not "mid-build".
@@ -1721,4 +1721,22 @@ TEST_CASE_METHOD(LVGLTestFixture, "solid-cache batches are time-boxed against sl
     INFO("reads during the batch: " << reads->reads() - before);
 
     CHECK(last == 1);
+}
+
+TEST_CASE("adaptive layers per frame climbs from 1 under budget, shrinks over it, stays in bounds",
+          "[layer_renderer][adaptive_lpf]") {
+    for (const float cap : {1.3f, 2.0f}) {
+        int lpf = 1;
+        for (int frame = 0; frame < 10 && lpf < 15; ++frame) {
+            const int next = next_adaptive_layers_per_frame(lpf, 8, 16, cap, 15);
+            REQUIRE(next > lpf);
+            lpf = next;
+        }
+    }
+    CHECK(next_adaptive_layers_per_frame(20, 160, 16, 2.0f, 100) == 2); // 10x over: scaled
+    CHECK(next_adaptive_layers_per_frame(20, 20, 16, 2.0f, 100) == 15); // slightly over: 75%
+    CHECK(next_adaptive_layers_per_frame(1, 500, 16, 2.0f, 100) == 1);
+    CHECK(next_adaptive_layers_per_frame(15, 1, 16, 1.3f, 15) == 15);
+    CHECK(next_adaptive_layers_per_frame(7, 16, 16, 2.0f, 100) == 7); // on budget
+    CHECK(next_adaptive_layers_per_frame(7, 0, 16, 2.0f, 100) == 7);  // no sample yet
 }

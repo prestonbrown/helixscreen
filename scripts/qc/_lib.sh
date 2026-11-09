@@ -61,9 +61,12 @@ QC_TRIGGER_ICONS='\.xml$|icon|font'
 # every includer, hundreds of sources, and each costs about a second of CPU; 50 keep
 # such a commit to seconds, and land-gate's build compiles every one regardless.
 QC_COMPILE_CAP=50
-# Up to this many units compile one at a time with no pool token, so an ordinary
-# commit never waits on a busy pool.
+# Up to this many units compile one at a time.
 QC_COMPILE_SERIAL_MAX=4
+# How many compile at once above that. A commit stays out of the jobpool: a running
+# make keeps every token it holds until it has no work left, so a commit queued
+# behind one can wait as long as the build does.
+QC_COMPILE_JOBS=4
 
 # What a commit compiles from its staged paths (one per line): each staged source,
 # and one source including each staged header. Sets CHECK_UNITS (sorted, one per
@@ -121,19 +124,11 @@ qc_compile_sample_note() {
   printf '%s\n' "$QC_SAMPLE_NOTE" > "$QC_TMP/compile_sample.note"
 }
 
-# Runs syntax_check.py over its arguments. A few units run exactly as a direct call
-# would. More run in parallel under a pool hold: `helix-claim jobs` is only the upper
-# bound (cores capped by memory, or the whole pool), and JOBPOOL_SLOTS is what this
-# run was actually granted. --min 1 starts it on whatever is free: hold's default
-# floor can stall a commit for its whole bounded wait.
+# Runs syntax_check.py over its arguments, in parallel past QC_COMPILE_SERIAL_MAX.
 qc_syntax_check() {
-  local slots
   if [ "$#" -le "$QC_COMPILE_SERIAL_MAX" ]; then
     python3 scripts/syntax_check.py "$@"
     return
   fi
-  slots=$(qc_build_jobs)
-  [ "$slots" -le "$#" ] || slots=$#
-  scripts/helix-claim hold -n "$slots" --min 1 -- \
-    sh -c 'exec python3 scripts/syntax_check.py --jobs "$JOBPOOL_SLOTS" "$@"' _ "$@"
+  python3 scripts/syntax_check.py --jobs "$QC_COMPILE_JOBS" "$@"
 }

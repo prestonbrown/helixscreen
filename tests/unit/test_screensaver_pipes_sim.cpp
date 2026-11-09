@@ -28,6 +28,9 @@ using helix::test::TestFrame;
 
 namespace {
 
+/// The reading of a frame with no print.
+const ClockReading kNoPrint{};
+
 bool dims_eq(PipeGridDims a, PipeGridDims b) {
     return a.x == b.x && a.y == b.y && a.z == b.z;
 }
@@ -382,6 +385,28 @@ TEST_CASE("a grid that runs out of nodes ends the screen", "[screensaver][pipes_
         CHECK_FALSE(screen.step(rng, out));
         CHECK(screen.pipes_started() == 1);
     }
+}
+
+TEST_CASE("a screen that fills the grid never grows a teapot", "[screensaver][pipes_sim]") {
+    PipesScreen screen;
+    std::vector<PipePiece> out;
+    size_t pieces = 0;
+    for (uint32_t seed = 1; seed <= 2000; seed++) {
+        std::minstd_rand rng(seed);
+        out.clear();
+        screen.begin({3, 3, 3}, rng, out);
+        screen.fill_grid();
+        while (screen.step(rng, out)) {
+        }
+        pieces += out.size();
+        for (const PipePiece& p : out) {
+            REQUIRE(p.kind != PipePieceKind::TEAPOT);
+        }
+    }
+    CHECK(pieces > 20000);
+    REQUIRE(screen.fills_grid());
+    screen.release();
+    CHECK_FALSE(screen.fills_grid());
 }
 
 TEST_CASE("over many turns a third of the joints are balls", "[screensaver][pipes_sim]") {
@@ -1129,7 +1154,7 @@ bool no_segments(const PipesSim& sim) {
 int steps_to_dissolve(PipesSim& sim, TestFrame& f, std::minstd_rand& rng) {
     std::vector<DirtyRect> dirty;
     for (int k = 1; k <= 20000; k++) {
-        sim.step(100, f.target, rng, dirty);
+        sim.step(100, f.target, rng, kNoPrint, dirty);
         if (sim.phase() == PipesPhase::DISSOLVING) {
             return k;
         }
@@ -1144,7 +1169,7 @@ TEST_CASE("the first screen starts at yrot 0 with its starting pipes drawn",
     TestFrame f(160, 96, PixelFormat::XRGB8888);
     PipesSim sim;
     std::minstd_rand rng(1);
-    sim.init(f.target, rng, 0);
+    sim.init(f.target, rng, 0, kNoPrint);
     CHECK(lit_pixels(f.target) > 0);
     CHECK(lit_pixels(f.target) < 160u * 96u / 2u);
     CHECK(sim.phase() == PipesPhase::GROWING);
@@ -1157,21 +1182,21 @@ TEST_CASE("a finished screen dissolves for 2 s, then turns 9.73156 degrees",
     TestFrame f(160, 96, PixelFormat::XRGB8888);
     PipesSim sim;
     std::minstd_rand rng(8);
-    sim.init(f.target, rng, 0);
+    sim.init(f.target, rng, 0, kNoPrint);
     REQUIRE(steps_to_dissolve(sim, f, rng) > 0);
     std::vector<DirtyRect> dirty;
     for (int i = 0; i < 19; i++) {
-        sim.step(100, f.target, rng, dirty);
+        sim.step(100, f.target, rng, kNoPrint, dirty);
         REQUIRE(sim.phase() == PipesPhase::DISSOLVING);
     }
-    sim.step(100, f.target, rng, dirty);
+    sim.step(100, f.target, rng, kNoPrint, dirty);
     CHECK(sim.phase() == PipesPhase::GROWING);
     CHECK(sim.yrot_deg() == Catch::Approx(9.73156f));
     CHECK(sim.screens_started() == 2);
     CHECK(no_segments(sim));
-    sim.step(99, f.target, rng, dirty);
+    sim.step(99, f.target, rng, kNoPrint, dirty);
     CHECK(no_segments(sim));
-    sim.step(1, f.target, rng, dirty);
+    sim.step(1, f.target, rng, kNoPrint, dirty);
     CHECK_FALSE(no_segments(sim));
 }
 
@@ -1179,28 +1204,28 @@ TEST_CASE("growth steps still due when a screen finishes are dropped", "[screens
     TestFrame fa(160, 96, PixelFormat::XRGB8888);
     PipesSim a;
     std::minstd_rand rng_a(8);
-    a.init(fa.target, rng_a, 0);
+    a.init(fa.target, rng_a, 0, kNoPrint);
     const int k = steps_to_dissolve(a, fa, rng_a);
     REQUIRE(k > 1);
 
     TestFrame fb(160, 96, PixelFormat::XRGB8888);
     PipesSim b;
     std::minstd_rand rng_b(8);
-    b.init(fb.target, rng_b, 0);
+    b.init(fb.target, rng_b, 0, kNoPrint);
     std::vector<DirtyRect> dirty;
     for (int i = 0; i < k - 1; i++) {
-        b.step(100, fb.target, rng_b, dirty);
+        b.step(100, fb.target, rng_b, kNoPrint, dirty);
     }
     REQUIRE(b.phase() == PipesPhase::GROWING);
-    b.step(300, fb.target, rng_b, dirty);
+    b.step(300, fb.target, rng_b, kNoPrint, dirty);
     CHECK(b.phase() == PipesPhase::DISSOLVING);
     CHECK(b.dissolve().cleared() == 0);
-    b.step(1000, fb.target, rng_b, dirty);
+    b.step(1000, fb.target, rng_b, kNoPrint, dirty);
     CHECK(b.dissolve().cleared() == b.dissolve().block_count() / 2);
 
     // The dropped steps leave nothing behind: half way through, both dissolves have cleared
     // the same blocks of the same picture.
-    a.step(1000, fa.target, rng_a, dirty);
+    a.step(1000, fa.target, rng_a, kNoPrint, dirty);
     CHECK(frame_fnv1a(fa.target) == frame_fnv1a(fb.target));
 }
 
@@ -1211,12 +1236,12 @@ TEST_CASE("pipes grow one step per 100 ms, at most three per call", "[screensave
     PipesSim b;
     std::minstd_rand rng_a(14);
     std::minstd_rand rng_b(14);
-    a.init(fa.target, rng_a, 0);
-    b.init(fb.target, rng_b, 0);
+    a.init(fa.target, rng_a, 0, kNoPrint);
+    b.init(fb.target, rng_b, 0, kNoPrint);
     std::vector<DirtyRect> dirty;
-    a.step(300, fa.target, rng_a, dirty);
+    a.step(300, fa.target, rng_a, kNoPrint, dirty);
     for (int i = 0; i < 3; i++) {
-        b.step(100, fb.target, rng_b, dirty);
+        b.step(100, fb.target, rng_b, kNoPrint, dirty);
     }
     CHECK(a.screen().pipes() == b.screen().pipes());
     CHECK(frame_fnv1a(fa.target) == frame_fnv1a(fb.target));
@@ -1235,12 +1260,12 @@ TEST_CASE("pipes grow one step per 100 ms, at most three per call", "[screensave
     TestFrame fc(160, 96, PixelFormat::XRGB8888);
     PipesSim c;
     std::minstd_rand rng_c(14);
-    c.init(fc.target, rng_c, 0);
-    c.step(450, fc.target, rng_c, dirty);
+    c.init(fc.target, rng_c, 0, kNoPrint);
+    c.step(450, fc.target, rng_c, kNoPrint, dirty);
     CHECK(first_segments(c) == 3);
-    c.step(0, fc.target, rng_c, dirty);
+    c.step(0, fc.target, rng_c, kNoPrint, dirty);
     CHECK(first_segments(c) == 3);
-    c.step(50, fc.target, rng_c, dirty);
+    c.step(50, fc.target, rng_c, kNoPrint, dirty);
     CHECK(first_segments(c) == 4);
     // Slot 0 is the only pipe growing.
     CHECK(total_segments(c) == 4);
@@ -1250,21 +1275,21 @@ TEST_CASE("a level's scale waits for the next screen", "[screensaver][pipes_sim]
     TestFrame f(160, 96, PixelFormat::XRGB8888);
     PipesSim sim;
     std::minstd_rand rng(5);
-    sim.init(f.target, rng, 0);
+    sim.init(f.target, rng, 0, kNoPrint);
     CHECK(sim.renderer().scale() == 1);
     sim.request_level(2);
     std::vector<DirtyRect> dirty;
     while (sim.screens_started() < 2) {
         REQUIRE(sim.renderer().scale() == 1);
-        sim.step(100, f.target, rng, dirty);
+        sim.step(100, f.target, rng, kNoPrint, dirty);
     }
     CHECK(sim.renderer().scale() == 2);
     sim.request_level(0);
-    sim.step(100, f.target, rng, dirty);
+    sim.step(100, f.target, rng, kNoPrint, dirty);
     CHECK(sim.renderer().scale() == 2);
     while (sim.screens_started() < 3) {
         REQUIRE(sim.renderer().scale() == 2);
-        sim.step(100, f.target, rng, dirty);
+        sim.step(100, f.target, rng, kNoPrint, dirty);
     }
     CHECK(sim.renderer().scale() == 1);
 }
@@ -1273,12 +1298,12 @@ TEST_CASE("PipesSim dirties every pixel its step changes", "[screensaver][pipes_
     TestFrame f(160, 96, PixelFormat::XRGB8888);
     PipesSim sim;
     std::minstd_rand rng(12);
-    sim.init(f.target, rng, 2);
+    sim.init(f.target, rng, 2, kNoPrint);
     bool dissolved = false;
     for (int i = 0; i < 3000; i++) {
         const std::vector<uint8_t> before = f.snapshot();
         std::vector<DirtyRect> dirty;
-        sim.step(50, f.target, rng, dirty);
+        sim.step(50, f.target, rng, kNoPrint, dirty);
         dissolved = dissolved || sim.phase() == PipesPhase::DISSOLVING;
         REQUIRE(diff_against(before, f, dirty).uncovered == 0);
     }
@@ -1289,10 +1314,10 @@ TEST_CASE("PipesSim dirties every pixel its step changes", "[screensaver][pipes_
 TEST_CASE("a pipes run replays exactly from a seed", "[screensaver][pipes_sim]") {
     const auto run = [](uint32_t seed) {
         helix::test::SimRun<PipesSim> r(seed, 160, 96);
-        r.init(0);
+        r.init(0, kNoPrint);
         std::vector<uint64_t> hashes;
         for (int i = 1; i <= 1500; i++) {
-            r.step(33);
+            r.step(33, kNoPrint);
             r.dirty.clear();
             if (i % 100 == 0) {
                 hashes.push_back(frame_fnv1a(r.frame.target));
@@ -1310,12 +1335,12 @@ TEST_CASE("both depths run the same scene", "[screensaver][pipes_sim]") {
     PipesSim b;
     std::minstd_rand rng_a(6);
     std::minstd_rand rng_b(6);
-    a.init(f32.target, rng_a, 0);
-    b.init(f16.target, rng_b, 0);
+    a.init(f32.target, rng_a, 0, kNoPrint);
+    b.init(f16.target, rng_b, 0, kNoPrint);
     std::vector<DirtyRect> dirty;
     for (int i = 0; i < 400; i++) {
-        a.step(100, f32.target, rng_a, dirty);
-        b.step(100, f16.target, rng_b, dirty);
+        a.step(100, f32.target, rng_a, kNoPrint, dirty);
+        b.step(100, f16.target, rng_b, kNoPrint, dirty);
         dirty.clear();
         REQUIRE(a.screen().pipes() == b.screen().pipes());
         REQUIRE(a.yrot_deg() == b.yrot_deg());
@@ -1339,7 +1364,7 @@ void run_screen_at(helix::test::SimRun<PipesSim>& run, size_t level, size_t heap
     run.sim.request_level(level);
     const uint32_t screens = run.sim.screens_started();
     while (run.sim.screens_started() < screens + 1) {
-        run.step(100);
+        run.step(100, kNoPrint);
         run.dirty.clear();
         if (heap != 0) {
             REQUIRE(run.sim.heap_bytes() == heap);
@@ -1362,7 +1387,7 @@ TEST_CASE("pipes frames and step-downs allocate nothing from any starting rung",
         for (size_t start = 0; start < kPipesLevelCount; start++) {
             INFO("start " << start << " format " << static_cast<int>(format));
             helix::test::SimRun<PipesSim> run(9, 160, 96, format);
-            run.init(start);
+            run.init(start, kNoPrint);
             const size_t heap = run.sim.heap_bytes();
             REQUIRE(heap > 0);
             for (size_t level = start; level < kPipesLevelCount; level++) {
@@ -1378,8 +1403,8 @@ TEST_CASE("a pipes run that starts at the coarse rung holds only the coarse dept
     REQUIRE(kPipesLevels[last].scale > kPipesLevels[0].scale);
     helix::test::SimRun<PipesSim> fine(9, 160, 96);
     helix::test::SimRun<PipesSim> coarse(9, 160, 96);
-    fine.init(0);
-    coarse.init(last);
+    fine.init(0, kNoPrint);
+    coarse.init(last, kNoPrint);
     CHECK(fine.sim.heap_bytes() - coarse.sim.heap_bytes() == depth_bytes(0) - depth_bytes(last));
 }
 
@@ -1387,14 +1412,14 @@ TEST_CASE("a finer level mid-run grows the depth buffer and keeps drawing",
           "[screensaver][pipes_sim]") {
     const size_t last = kPipesLevelCount - 1;
     helix::test::SimRun<PipesSim> run(9, 160, 96);
-    run.init(last);
+    run.init(last, kNoPrint);
     const size_t coarse = run.sim.heap_bytes();
     run_screen_at(run, 0);
     CHECK(run.sim.heap_bytes() >= coarse + depth_bytes(0) - depth_bytes(last));
     // The finer screen draws: a few growth steps light pixels, all inside their dirty boxes.
     for (int i = 0; i < 5; i++) {
         const std::vector<uint8_t> before = run.frame.snapshot();
-        run.step(100);
+        run.step(100, kNoPrint);
         REQUIRE(diff_against(before, run.frame, run.dirty).uncovered == 0);
         run.dirty.clear();
     }
@@ -1406,12 +1431,291 @@ TEST_CASE("a cleared pipes sim holds no buffers", "[screensaver][pipes_sim]") {
     TestFrame f(160, 96, PixelFormat::XRGB8888);
     PipesSim sim;
     std::minstd_rand rng(2);
-    sim.init(f.target, rng, 0);
+    sim.init(f.target, rng, 0, kNoPrint);
     CHECK(sim.heap_bytes() > 0);
     CHECK(sim.screen().grid().heap_bytes() > 0);
     sim.clear();
     CHECK(sim.heap_bytes() == 0);
     CHECK(sim.screen().grid().heap_bytes() == 0);
+}
+
+// ============================================================================
+// The print
+// ============================================================================
+
+namespace {
+
+using helix::test::hms;
+using helix::test::print_reading_for;
+
+double taken_share(const PipesSim& sim) {
+    return static_cast<double>(sim.nodes_taken()) / static_cast<double>(sim.node_count());
+}
+
+/// A print in `mode` at `pct` whose estimate leaves two seconds a percent.
+ClockReading print_at(ClockMode mode, int32_t pct) {
+    return print_reading_for(mode, pct, hms(10, 8, 30), (100 - pct) * 2);
+}
+
+/// Steps `run` `frames` times by 100 ms on `print`, the dirty list emptied after each.
+void step_frames(helix::test::SimRun<PipesSim>& run, const ClockReading& print, int frames) {
+    for (int i = 0; i < frames; i++) {
+        run.step(100, print);
+        run.dirty.clear();
+    }
+}
+
+/// Steps `run` by 100 ms on `print` until its end is drawn, at most `frames` times, checking
+/// that no call grows more than kPipesFastForwardSteps steps' worth of nodes (a step takes at
+/// most two: a new pipe's start and its first growth); returns the calls it took.
+int fast_forward_to_end(helix::test::SimRun<PipesSim>& run, const ClockReading& print, int frames) {
+    int calls = 0;
+    for (; calls < frames && !run.sim.end_drawn(); calls++) {
+        const size_t before = run.sim.nodes_taken();
+        run.step(100, print);
+        run.dirty.clear();
+        REQUIRE(run.sim.nodes_taken() - before <= 2 * kPipesFastForwardSteps);
+    }
+    return calls;
+}
+
+bool all_grey(const TestFrame& f) {
+    return helix::test::count_pixels(f.target, [](Rgb c) { return c.r != c.g || c.g != c.b; }) == 0;
+}
+
+} // namespace
+
+TEST_CASE("a print fills one screen as it goes", "[screensaver][pipes_sim]") {
+    helix::test::SimRun<PipesSim> run(4, 160, 96);
+    run.init(0, print_at(ClockMode::PROGRESS, 0));
+    REQUIRE(run.sim.print_screen());
+    for (int32_t pct = 0; pct <= 75; pct++) {
+        const ClockReading print = print_at(ClockMode::COUNTDOWN, pct);
+        for (int i = 0; i < 20; i++) {
+            run.step(100, print);
+            run.dirty.clear();
+            REQUIRE(run.sim.phase() == PipesPhase::GROWING);
+        }
+        if (pct > 0 && pct % 25 == 0) {
+            INFO("at " << pct << "%");
+            CHECK(std::abs(taken_share(run.sim) - pct / 100.0) <= 0.05);
+        }
+    }
+    CHECK(run.sim.screens_started() == 1);
+
+    // An hour paused grows nothing, and the print resuming owes nothing.
+    const size_t before = run.sim.nodes_taken();
+    step_frames(run, print_at(ClockMode::PAUSED, 75), 36000);
+    CHECK(run.sim.nodes_taken() == before);
+    run.step(100, print_at(ClockMode::COUNTDOWN, 75));
+    CHECK(run.sim.nodes_taken() <= before + 2 * kPipesMaxStepsPerTick);
+}
+
+TEST_CASE("a finished print sets a teapot on the full screen", "[screensaver][pipes_sim]") {
+    helix::test::SimRun<PipesSim> run(6, 160, 96);
+    const ClockReading done = print_reading_for(ClockMode::DONE, 100);
+    SECTION("a saver started after the end fast-forwards to it in bounded calls") {
+        run.init(0, done);
+        CHECK_FALSE(run.sim.end_drawn());
+        CHECK(run.sim.nodes_taken() <= 2 + 2 * kPipesFastForwardSteps);
+        const int calls = fast_forward_to_end(run, done, 400);
+        REQUIRE(run.sim.end_drawn());
+        CHECK(calls > 1);
+        CHECK(run.sim.print_end() == PipesEnd::DONE);
+        CHECK(run.sim.nodes_taken() == run.sim.node_count());
+        CHECK(run.sim.screens_started() == 1);
+
+        run.sim.clear();
+        PipeNode unused;
+        CHECK_FALSE(run.sim.teapot_node(unused));
+        CHECK_FALSE(run.sim.end_drawn());
+        CHECK_FALSE(run.sim.print_screen());
+        CHECK(run.sim.print_end() == PipesEnd::NONE);
+    }
+    SECTION("the print finishing fills the rest, then sets the teapot") {
+        run.init(0, print_at(ClockMode::PROGRESS, 97));
+        step_frames(run, print_at(ClockMode::PROGRESS, 97), 800);
+        REQUIRE(taken_share(run.sim) >= 0.965);
+        REQUIRE(run.sim.nodes_taken() < run.sim.node_count());
+        // The teapot's node stays free in the middle of the view, so its centre is the teapot.
+        PipeNode teapot;
+        REQUIRE(run.sim.teapot_node(teapot));
+        REQUIRE_FALSE(run.sim.screen().grid().empty(teapot));
+        float sx = 0.0f;
+        float sy = 0.0f;
+        REQUIRE(run.sim.renderer().project(pipes_node_world(teapot, run.sim.screen().grid().dims()),
+                                           sx, sy));
+        const auto tx = static_cast<int32_t>(sx);
+        const auto ty = static_cast<int32_t>(sy);
+        REQUIRE(tx >= 40);
+        REQUIRE(tx < 120);
+        REQUIRE(ty >= 24);
+        REQUIRE(ty < 72);
+        int frames = 0;
+        for (; frames < 2000 && !run.sim.end_drawn(); frames++) {
+            const std::vector<uint8_t> before = run.frame.snapshot();
+            const Rgb was = run.frame.at(tx, ty);
+            run.step(100, done);
+            const helix::test::FrameDiff d = diff_against(before, run.frame, run.dirty);
+            REQUIRE(d.uncovered == 0);
+            if (run.sim.end_drawn()) {
+                CHECK_FALSE(run.frame.at(tx, ty) == was);
+            }
+            run.dirty.clear();
+        }
+        REQUIRE(run.sim.end_drawn());
+        CHECK(frames > 1);
+        CHECK(run.sim.nodes_taken() == run.sim.node_count());
+        CHECK(run.sim.screens_started() == 1);
+    }
+    // It holds: nothing more is drawn while the print reads done.
+    const std::vector<uint8_t> held = run.frame.snapshot();
+    for (int i = 0; i < 100; i++) {
+        run.step(100, done);
+        REQUIRE(run.dirty.empty());
+    }
+    CHECK(helix::test::bytes_differing(held, run.frame.snapshot()) == 0);
+}
+
+TEST_CASE("a screen opened on a paused print shows the paused progress",
+          "[screensaver][pipes_sim]") {
+    helix::test::SimRun<PipesSim> run(9, 160, 96);
+    const ClockReading paused = print_at(ClockMode::PAUSED, 70);
+    run.init(0, paused);
+    REQUIRE(run.sim.print_screen());
+    for (int i = 0; i < 400; i++) {
+        const size_t before = run.sim.nodes_taken();
+        run.step(100, paused);
+        run.dirty.clear();
+        REQUIRE(run.sim.nodes_taken() - before <= 2 * kPipesFastForwardSteps);
+    }
+    CHECK(std::abs(taken_share(run.sim) - 0.70) <= 0.05);
+    // Paused, it carries nothing past the reported progress.
+    const size_t held = run.sim.nodes_taken();
+    step_frames(run, paused, 600);
+    CHECK(run.sim.nodes_taken() == held);
+}
+
+TEST_CASE("a failed print greys the pipes and stops", "[screensaver][pipes_sim]") {
+    helix::test::SimRun<PipesSim> run(7, 160, 96);
+    const ClockReading failed = print_reading_for(ClockMode::FAILED, 40);
+    SECTION("while the saver runs") {
+        run.init(0, print_at(ClockMode::COUNTDOWN, 40));
+        step_frames(run, print_at(ClockMode::COUNTDOWN, 40), 400);
+        REQUIRE_FALSE(all_grey(run.frame));
+        run.step(100, failed);
+        REQUIRE(run.dirty.size() == 1);
+        CHECK(run.dirty[0].x1 == 0);
+        CHECK(run.dirty[0].y1 == 0);
+        CHECK(run.dirty[0].x2 == 159);
+        CHECK(run.dirty[0].y2 == 95);
+        run.dirty.clear();
+    }
+    SECTION("a saver started after the end fast-forwards to it in bounded calls") {
+        run.init(0, failed);
+        CHECK_FALSE(run.sim.end_drawn());
+        CHECK(run.sim.nodes_taken() <= 2 + 2 * kPipesFastForwardSteps);
+        CHECK(fast_forward_to_end(run, failed, 400) > 1);
+        REQUIRE(run.sim.end_drawn());
+        CHECK(std::abs(taken_share(run.sim) - 0.40) <= 0.05);
+    }
+    CHECK(run.sim.print_end() == PipesEnd::FAILED);
+    CHECK(run.sim.end_drawn());
+    CHECK(lit_pixels(run.frame.target) > 0);
+    CHECK(all_grey(run.frame));
+    const size_t taken = run.sim.nodes_taken();
+    const std::vector<uint8_t> held = run.frame.snapshot();
+    for (int i = 0; i < 100; i++) {
+        run.step(100, failed);
+        REQUIRE(run.dirty.empty());
+    }
+    CHECK(run.sim.nodes_taken() == taken);
+    CHECK(helix::test::bytes_differing(held, run.frame.snapshot()) == 0);
+}
+
+TEST_CASE("a finished print's screen regrows slowly after its hold", "[screensaver][pipes_sim]") {
+    helix::test::SimRun<PipesSim> run(8, 160, 96);
+    const ClockReading done = print_reading_for(ClockMode::DONE, 100);
+    run.init(0, done);
+    fast_forward_to_end(run, done, 400);
+    REQUIRE(run.sim.end_drawn());
+
+    // The frame that set the teapot was the hold's first.
+    for (uint32_t t = 0; t + 200 < kPipesDoneHoldMs; t += 100) {
+        run.step(100, done);
+        REQUIRE(run.sim.phase() == PipesPhase::GROWING);
+        REQUIRE(run.sim.screens_started() == 1);
+    }
+    run.step(100, done);
+    REQUIRE(run.sim.phase() == PipesPhase::DISSOLVING);
+    for (int i = 0; i < 400 && run.sim.phase() == PipesPhase::DISSOLVING; i++) {
+        run.step(100, done);
+    }
+    REQUIRE(run.sim.phase() == PipesPhase::GROWING);
+    REQUIRE(run.sim.screens_started() == 2);
+    CHECK(run.sim.print_end() == PipesEnd::NONE);
+
+    SECTION("at the idle pace, one step per kPipesStepMs") {
+        const size_t from = run.sim.nodes_taken();
+        run.step(kPipesStepMs, done);
+        CHECK(run.sim.nodes_taken() <= from + static_cast<size_t>(kPipesActive) * 2);
+        CHECK_FALSE(run.sim.end_drawn());
+    }
+    SECTION("to a full grid and a teapot, and then again") {
+        int frames = 0;
+        for (; frames < 40000 && !run.sim.end_drawn(); frames++) {
+            run.step(100, done);
+        }
+        REQUIRE(run.sim.end_drawn());
+        CHECK(frames > 20);
+        CHECK(run.sim.print_end() == PipesEnd::DONE);
+        CHECK(run.sim.nodes_taken() == run.sim.node_count());
+        CHECK(run.sim.screens_started() == 2);
+        for (uint32_t t = 0; t < kPipesDoneHoldMs; t += 100) {
+            run.step(100, done);
+        }
+        CHECK(run.sim.phase() == PipesPhase::DISSOLVING);
+    }
+    SECTION("and a new print still takes over mid-regrow") {
+        const ClockReading next = print_at(ClockMode::PROGRESS, 0);
+        run.step(100, done);
+        for (int i = 0; i < 400 && run.sim.screens_started() < 3; i++) {
+            run.step(100, next);
+        }
+        CHECK(run.sim.screens_started() == 3);
+        CHECK(run.sim.print_screen());
+    }
+}
+
+TEST_CASE("a new print clears the screen and starts again", "[screensaver][pipes_sim]") {
+    helix::test::SimRun<PipesSim> run(8, 160, 96);
+    run.init(0, print_reading_for(ClockMode::DONE, 100));
+    fast_forward_to_end(run, print_reading_for(ClockMode::DONE, 100), 400);
+    REQUIRE(run.sim.end_drawn());
+    const auto dissolve_on = [&run](const ClockReading& next) {
+        run.step(100, next);
+        run.dirty.clear();
+        REQUIRE(run.sim.phase() == PipesPhase::DISSOLVING);
+        for (int i = 0; i < 40 && run.sim.phase() == PipesPhase::DISSOLVING; i++) {
+            run.step(100, next);
+            run.dirty.clear();
+        }
+        REQUIRE(run.sim.phase() == PipesPhase::GROWING);
+        CHECK(run.sim.screens_started() == 2);
+        CHECK(run.sim.print_end() == PipesEnd::NONE);
+        CHECK_FALSE(run.sim.end_drawn());
+        CHECK(taken_share(run.sim) < 0.01);
+    };
+    SECTION("a new print gets a screen of its own") {
+        dissolve_on(print_at(ClockMode::PROGRESS, 0));
+        CHECK(run.sim.print_screen());
+    }
+    SECTION("no print brings back screens of five pipes") {
+        dissolve_on(kNoPrint);
+        CHECK_FALSE(run.sim.print_screen());
+        CHECK(run.sim.screen().pipes_counted() <= kPipesPerScreen);
+        CHECK_FALSE(run.sim.screen().fills_grid());
+    }
 }
 
 #endif // HELIX_ENABLE_SCREENSAVER

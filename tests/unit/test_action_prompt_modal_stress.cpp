@@ -3,7 +3,7 @@
 
 // ActionPromptModal show/hide stress harness — designed to surface the L081
 // crash family (#875 SIGBUS, #877 SEGV at lv_event_mark_deleted+0x3c, both
-// from AD5X bundle EB93VR9T) on faster hardware where the race window is
+// from an AD5X) on faster hardware where the race window is
 // short.
 //
 // Reproducing the AD5X bug on x86_64 desktop is hard because:
@@ -582,8 +582,7 @@ TEST_CASE_METHOD(ActionPromptStressFixture,
 }
 
 // Reproducer for cluster:pstat-async-delete (#906 canonical, dups #913/#915/
-// #918/#919/#921/#923 plus issueless bundles BRBLKTMY/TXVE53X6/24HY6NTC/
-// 3R4QK9XS/8N2BPWMV/RDQLVFFJ between 2026-04-29 and 2026-05-04).
+// #918/#919/#921/#923 plus six debug bundles with no issue).
 //
 // Production breadcrumbs share the identical shape:
 //   modal+ action_prompt_modal 1

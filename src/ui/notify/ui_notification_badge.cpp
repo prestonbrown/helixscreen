@@ -179,7 +179,6 @@ void badge_text_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
 void* notification_badge_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_t* parent = static_cast<lv_obj_t*>(lv_xml_state_get_parent(state));
 
-    // Create badge container
     lv_obj_t* badge = lv_obj_create(parent);
 
     // Default styling - circular badge using responsive token. The box rides
@@ -208,7 +207,6 @@ void* notification_badge_create(lv_xml_parser_state_t* state, const char** attrs
         text = "0";
     }
 
-    // Create label for count
     lv_obj_t* label = lv_label_create(badge);
     lv_label_set_text(label, text);
     lv_obj_center(label);

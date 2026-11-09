@@ -12,13 +12,13 @@
  * Two defects, both reproduced against a real FilamentPanel built from
  * filament_panel.xml over a recording AMS backend:
  *
- *   1. Every operation_guard_.begin() callsite used to pass a capture-nothing
- *      lambda that only raised a toast. OperationTimeoutGuard clears its own
- *      filament_operation_in_progress subject, so the buttons re-enabled at 120s,
- *      but the per-op state subject (filament_op_*_state: 0 idle / 1 busy / 2 done)
- *      stayed at 1 for the rest of the session and backend_op_active_ /
- *      op_in_flight_ stayed set. The shared handle_operation_timeout() now fails
- *      whichever op is showing busy.
+ *   1. A timeout callback that only raises a toast is not enough.
+ *      OperationTimeoutGuard clears its own filament_operation_in_progress
+ *      subject, so the buttons re-enable at 120s, but the per-op state subject
+ *      (filament_op_*_state: 0 idle / 1 busy / 2 done) would stay at 1 for the
+ *      rest of the session with backend_op_active_ / op_in_flight_ set. Every
+ *      operation_guard_.begin() callsite uses the shared
+ *      handle_operation_timeout(), which fails whichever op is showing busy.
  *
  *   2. The AMS completion observer accepted only AmsAction::IDLE. AFC's
  *      stuck-action backstop resolves a wedged operation to AmsAction::ERROR and
@@ -40,6 +40,7 @@
  *     lands on 2/done, not 0/idle)
  */
 
+#include "ui_filament_motion_glyph.h"
 #include "ui_panel_filament.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -49,6 +50,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "core/update_queue.h"
+#include "filament_motion.h"
 #include "filament_op_router.h"
 #include "tool_state.h"
 
@@ -174,6 +176,14 @@ struct TimeoutHarness {
         fx.process_lvgl(20);
     }
 
+    /// The guard's timeout fired with the update queue frozen: only the timer runs.
+    void fire_operation_timeout_frozen() {
+        lv_timer_t* t = TA::operation_timer(*panel);
+        REQUIRE(t != nullptr);
+        lv_timer_set_period(t, 1);
+        lv_timer_ready(t);
+        lv_timer_handler_safe();
+    }
     void publish_action(AmsAction a, int settle_ms) {
         lv_subject_set_int(helix::AmsState::instance().get_ams_action_subject(),
                            static_cast<int>(a));
@@ -251,8 +261,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A timed-out backend op leaves the backend's
 TEST_CASE_METHOD(LVGLUITestFixture, "#1183: AmsAction::ERROR ends the operation and fails the op",
                  "[ui_integration][filament][regression][1183]") {
     // AmsBackendAfc::check_action_timeout()'s entire output is a flip to ERROR.
-    // Before the fix the observer accepted only IDLE, so that backstop changed
-    // nothing on this panel and the spinner ran to the 120s timeout.
+    // An observer accepting only IDLE would make that backstop change nothing
+    // on this panel, and the spinner would run to the 120s timeout.
     TimeoutHarness h(*this);
 
     TA::execute_load(*h.panel);
@@ -489,4 +499,85 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a later operation is not eaten by a stale a
     h.publish_action(AmsAction::IDLE, 600);
 
     CHECK(TA::op_load_state(*h.panel) == 2); // done/checkmark
+}
+
+// ============================================================================
+// Manual motion (filament_manual_motion)
+//
+// Run with: ./build/bin/helix-tests "[filament-chevrons]"
+//
+// Extrude / Retract publish the move they run so the toolhead glyph and the
+// AMS path canvas can stream chevrons. Klipper answers the G1 once queued, so
+// the motion lasts for the later of the move's own duration and the answer; a
+// failure or timeout ends it at once. The update queue is frozen in each case
+// so the disconnected test API's error callback cannot end the motion first.
+// ============================================================================
+
+namespace {
+
+void fire_now(lv_timer_t* t) {
+    REQUIRE(t != nullptr);
+    lv_timer_set_period(t, 1);
+    lv_timer_ready(t);
+    lv_timer_handler_safe();
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Extrude and Retract publish their direction",
+                 "[ui_integration][filament][filament-chevrons]") {
+    TimeoutHarness h(*this);
+    lv_obj_t* glyph = lv_obj_find_by_name(h.root, "filament_motion_glyph");
+    REQUIRE(glyph != nullptr);
+    REQUIRE(TA::manual_motion(*h.panel) == static_cast<int>(helix::FilamentMotion::Idle));
+
+    {
+        auto freeze = helix::ui::UpdateQueue::instance().scoped_freeze("motion-extrude");
+        TA::execute_extrude(*h.panel);
+        CHECK(TA::manual_motion(*h.panel) == static_cast<int>(helix::FilamentMotion::Extrude));
+        CHECK(helix::ui::filament_motion_glyph_motion(glyph) == helix::FilamentMotion::Extrude);
+        h.fire_operation_timeout_frozen();
+        // A timed-out move ends its motion with its spinner.
+        CHECK(TA::manual_motion(*h.panel) == static_cast<int>(helix::FilamentMotion::Idle));
+        CHECK(helix::ui::filament_motion_glyph_motion(glyph) == helix::FilamentMotion::Idle);
+    }
+    process_lvgl(20);
+
+    {
+        auto freeze = helix::ui::UpdateQueue::instance().scoped_freeze("motion-retract");
+        TA::execute_retract(*h.panel);
+        CHECK(TA::manual_motion(*h.panel) == static_cast<int>(helix::FilamentMotion::Retract));
+        CHECK(helix::ui::filament_motion_glyph_motion(glyph) == helix::FilamentMotion::Retract);
+    }
+    // The thawed error callback fails the retract, which ends the motion.
+    process_lvgl(20);
+    CHECK(TA::manual_motion(*h.panel) == static_cast<int>(helix::FilamentMotion::Idle));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Manual motion lasts for the later of duration and answer",
+                 "[ui_integration][filament][filament-chevrons]") {
+    TimeoutHarness h(*this);
+    const int extrude = static_cast<int>(helix::FilamentMotion::Extrude);
+    const int idle = static_cast<int>(helix::FilamentMotion::Idle);
+
+    SECTION("duration runs out first: the motion holds until the G1 answers") {
+        auto freeze = helix::ui::UpdateQueue::instance().scoped_freeze("motion-dur-first");
+        TA::execute_extrude(*h.panel);
+        fire_now(TA::motion_timer(*h.panel));
+        CHECK(TA::motion_timer(*h.panel) == nullptr);
+        CHECK(TA::manual_motion(*h.panel) == extrude);
+        TA::manual_motion_answered(*h.panel);
+        CHECK(TA::manual_motion(*h.panel) == idle);
+        h.fire_operation_timeout_frozen();
+    }
+    SECTION("the G1 answers first: the motion holds for the move's duration") {
+        auto freeze = helix::ui::UpdateQueue::instance().scoped_freeze("motion-ans-first");
+        TA::execute_extrude(*h.panel);
+        TA::manual_motion_answered(*h.panel);
+        CHECK(TA::manual_motion(*h.panel) == extrude);
+        fire_now(TA::motion_timer(*h.panel));
+        CHECK(TA::manual_motion(*h.panel) == idle);
+        h.fire_operation_timeout_frozen();
+    }
+    process_lvgl(20);
 }

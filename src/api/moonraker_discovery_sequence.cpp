@@ -36,6 +36,7 @@
 #include "pause_descriptor.h"
 #include "platform_info.h"
 #include "plr_backend.h"
+#include "power_device_parse.h"
 #include "power_device_state.h"
 #include "pre_print_preferences.h"
 #include "print_start_params.h"
@@ -208,35 +209,20 @@ bool MoonrakerDiscoverySequence::stop_for_refused_login(const MoonrakerError& er
 }
 
 void MoonrakerDiscoverySequence::discover_power_devices() {
-    // Fire-and-forget power device detection (silent — not all printers
-    // have the power component, and "Method not found" is expected).
-    // Called both during full discovery and as partial discovery when
-    // Klippy is not ready (power devices only need Moonraker, not Klipper).
+    // Fire-and-forget and silent: "Method not found" is expected on printers with
+    // no power component. Runs in full discovery and in partial discovery when
+    // Klippy is not ready, since power devices only need Moonraker.
     client_.send_jsonrpc(
         "machine.device_power.devices", json::object(),
         [](const json& response) {
-            std::vector<PowerDevice> devices;
-            if (response.contains("result") && response["result"].contains("devices")) {
-                for (const auto& dev : response["result"]["devices"]) {
-                    if (!dev.is_object())
-                        continue;
-                    PowerDevice pd;
-                    pd.device = dev.value("device", "");
-                    pd.type = dev.value("type", "");
-                    pd.status = dev.value("status", "off");
-                    pd.locked_while_printing = dev.value("locked_while_printing", false);
-                    if (!pd.device.empty()) {
-                        devices.push_back(std::move(pd));
-                    }
-                }
-            }
-            spdlog::info("[Moonraker Client] Power device detection: {} devices", devices.size());
+            auto devices =
+                std::make_shared<std::vector<PowerDevice>>(parse_power_devices(response));
+            spdlog::info("[Moonraker Client] Power device detection: {} devices", devices->size());
             get_printer_state().capabilities_state().set_power_device_count(
-                static_cast<int>(devices.size()));
+                static_cast<int>(devices->size()));
             // Marshal to UI thread — set_devices creates LVGL subjects
-            auto devices_copy = std::make_shared<std::vector<PowerDevice>>(std::move(devices));
-            helix::ui::queue_update("PowerDeviceState::set_devices", [devices_copy]() {
-                helix::PowerDeviceState::instance().set_devices(*devices_copy);
+            helix::ui::queue_update("PowerDeviceState::set_devices", [devices]() {
+                helix::PowerDeviceState::instance().set_devices(*devices);
             });
         },
         [](const MoonrakerError& err) {
@@ -245,6 +231,20 @@ void MoonrakerDiscoverySequence::discover_power_devices() {
         },
         0,     // default timeout
         true); // silent — suppress error toast
+
+    client_.send_jsonrpc(
+        "server.config", json::object(),
+        [](const json& response) {
+            helix::ui::queue_update(
+                "PowerDeviceState::set_klipper_bound_devices",
+                [bound = parse_klipper_bound_power_devices(response)]() mutable {
+                    helix::PowerDeviceState::instance().set_klipper_bound_devices(std::move(bound));
+                });
+        },
+        [](const MoonrakerError& err) {
+            spdlog::debug("[Moonraker Client] Power device bindings unavailable: {}", err.message);
+        },
+        0, true);
 }
 
 void MoonrakerDiscoverySequence::discover_sensors() {
@@ -1062,6 +1062,11 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                                           fan, resting_deci);
                                         }
                                     }
+                                }
+
+                                {
+                                    std::lock_guard<std::mutex> lock(hardware_mutex_);
+                                    hardware_.parse_configured_tool_numbers(settings);
                                 }
 
                                 // Record each fan's configured max_power. Klipper reports

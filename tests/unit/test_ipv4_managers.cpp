@@ -215,31 +215,24 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "WiFiManager applies a change and the recor
     }
 }
 
-TEST_CASE_METHOD(Ipv4ManagerFixture, "a failed apply leaves the record for the revert",
+TEST_CASE_METHOD(Ipv4ManagerFixture,
+                 "an apply that fails keeps the record; one whose screen went first never starts",
                  "[ipv4][ipv4_manager]") {
+    const bool abandoned = GENERATE(false, true);
+    CAPTURE(abandoned);
     start(static_config("192.168.1.40"));
-    setenv("HELIX_MOCK_IPV4_APPLY_FAIL", "1", 1);
-    std::optional<Ipv4Result::Status> applied;
-    wm->apply_ipv4_change_async(static_config("192.168.1.40"), Ipv4Config{},
-                                std::make_shared<std::atomic<bool>>(false), guard.token(),
-                                [&](Ipv4Result::Status st) { applied = st; });
-    settle();
-    REQUIRE(applied == Ipv4Result::Status::Failed);
-    CHECK(backend_config() == static_config("192.168.1.40"));
-    CHECK(record_exists());
-}
-
-TEST_CASE_METHOD(Ipv4ManagerFixture, "an apply whose screen went away first never starts",
-                 "[ipv4][ipv4_manager]") {
-    start(static_config("192.168.1.40"));
+    if (!abandoned) {
+        setenv("HELIX_MOCK_IPV4_APPLY_FAIL", "1", 1);
+    }
     std::optional<Ipv4Result::Status> applied;
     wm->apply_ipv4_change_async(static_config("192.168.1.40"), static_config("192.168.1.50"),
-                                std::make_shared<std::atomic<bool>>(true), guard.token(),
+                                std::make_shared<std::atomic<bool>>(abandoned), guard.token(),
                                 [&](Ipv4Result::Status st) { applied = st; });
     settle();
-    CHECK(applied == Ipv4Result::Status::Refused);
+    CHECK(applied == (abandoned ? Ipv4Result::Status::Refused : Ipv4Result::Status::Failed));
     CHECK(backend_config() == static_config("192.168.1.40"));
-    CHECK_FALSE(record_exists());
+    // The failed apply's record is what its revert restores.
+    CHECK(record_exists() == !abandoned);
 }
 
 TEST_CASE_METHOD(Ipv4ManagerFixture, "a record that cannot be used is a failure, not nothing",

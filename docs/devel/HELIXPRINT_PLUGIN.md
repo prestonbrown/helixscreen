@@ -180,7 +180,12 @@ it in `server.info` as `zmod.features: ["print_start_tools"]`), `start_linked_pr
 link through `start_print(filename, tools=tools)`, so the firmware routes the print by the map
 the user confirmed instead of asking again (#2038). Elsewhere, and with no map, it runs
 `SDCARD_PRINT_FILE` as before. The test is the method's own signature
-(`HelixPrint#start_print_takes_tools`), so stock Moonraker never sees the argument.
+(`HelixPrint#start_print_takes_tools`), so stock Moonraker never sees the argument. The status
+feature `print_start_tools` (v1, no switch) reports the same test: available where the map
+reaches Moonraker, else unavailable with `start_print_takes_no_tools`, a hidden reason. The app
+reads it before a plugin start that carries a map (`print_start::plugin_drops_tool_map`) and logs
+a warning when the map will not arrive: the plugin predates the feature, or Moonraker's start
+takes no map. The print still starts, and the printer routes it by its own prompt.
 - When history adds the job (`history:history_changed`, action `added`), the marker binds to
   the job id and persists in namespace `helix_jobs` (key = job id, value
   `{"kind", "filenames", "start_time", "bound_at"}`, kept 30 days). An unclaimed marker expires
@@ -340,7 +345,7 @@ A feature that serves one kind of hardware lists, in its `kKnownPluginFeatures` 
 `hidden_reasons`, the reasons that mean that hardware is absent. While it is unavailable for one
 of them it gets no line (`hidden_on_overview`), so a printer lists only the vendor transport it
 could use. Any other reason (a load failure, `plugin_disabled`) still shows as Unavailable with
-its reason, like every other feature. Only `vendor_ad5x` and `vendor_ace` carry such a list. The Advanced panel shows Install while the plugin
+its reason, like every other feature. Only `vendor_ad5x`, `vendor_ace` and `print_start_tools` carry such a list. The Advanced panel shows Install while the plugin
 is known absent, and the overview and Uninstall while it is installed.
 
 The reason is shown in words, not as the plugin's code: `plugin_reason_text()`

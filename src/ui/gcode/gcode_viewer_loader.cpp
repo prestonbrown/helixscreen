@@ -318,7 +318,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
     st->pause_scan.reset();
 
     // =========================================================================
-    // PHASE 0: Streaming Mode Detection (Phase 6)
+    // PHASE 0: Streaming Mode Detection
     // Determine whether to use streaming (layer-by-layer) or full-load mode
     // based on file size and available memory.
     // =========================================================================
@@ -465,7 +465,6 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                         // Trigger initial render
                         lv_obj_invalidate(obj);
 
-                        // Invoke load callback
                         if (st->load_callback) {
                             st->load_callback(obj, st->load_callback_user_data, true);
                         }

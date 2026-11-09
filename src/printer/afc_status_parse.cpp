@@ -77,21 +77,14 @@ std::optional<ams::ColorReading> read_color(const nlohmann::json& obj, const cha
     return std::nullopt;
 }
 
-// The spool vendor under every spelling the ecosystem uses. lane_data spells it
-// `vendor_name` (the key Happy Hare established in that shared namespace) and
-// get_status `spool_vendor` (AFCLane's own attribute name), deliberately
-// (AFCProject/AFC-Klipper-Add-On#808, shipped by #833). `vendor` is the key
-// our own to_lane_data_record() emits into AFC's private namespace (#1158);
-// `brand` is a defensive fourth spelling.
-//
-// Empty values are ignored rather than read as a clear: whether an unlinked
-// lane omits the key or publishes "" is unobserved, and guessing wrong in the
-// clearing direction wipes a brand nothing re-supplies. A user's declaration is
-// safe either way, since both lane paths re-apply it after this read.
+// AFC's spool vendor, as a value, a clear or nothing. lane_data spells it
+// `vendor_name` (the key Happy Hare established there) and get_status
+// `spool_vendor` (AFCLane's attribute, #833). An empty string is AFC stating
+// the lane has no vendor: its clear_values() and an unlink publish one. A
+// missing key is a delta that left the vendor alone.
 std::optional<std::string> read_vendor(const nlohmann::json& src) {
-    for (const char* key : {"vendor_name", "spool_vendor", "vendor", "brand"}) {
-        auto v = ams::read_field<std::string>(src, key);
-        if (v && !v->empty()) {
+    for (const char* key : {"vendor_name", "spool_vendor"}) {
+        if (auto v = ams::read_field<std::string>(src, key)) {
             return v;
         }
     }
@@ -473,6 +466,9 @@ StateDelta parse_state(const nlohmann::json& afc) {
     d.position_saved = ams::read_field<bool>(afc, "position_saved");
     // AFC publishes false, not null, when Spoolman is off.
     d.spoolman = ams::read_field<std::string>(afc, "spoolman");
+    if (afc.contains("spoolman")) {
+        d.spoolman_configured = afc["spoolman"].is_string();
+    }
     d.maps = read_string_list(afc, "maps");
     // Virtual-tools firmware (#832) publishes this whatever the opt-in's value;
     // presence alone is the signal.

@@ -88,16 +88,15 @@ TEST_CASE_METHOD(XMLTestFixture,
     REQUIRE_FALSE(is_hidden(selector));
 
     // 3. Moonraker gains symlink access while the drive is still present ->
-    //    hidden again, even though the drive never left. This is the compound
-    //    condition the fix introduces — a single bind_flag_if_eq on
+    //    hidden again, even though the drive never left. This is a compound
+    //    condition: a single bind_flag_if_eq on
     //    print_source_usb_present alone could never express this branch.
     lv_subject_set_int(access_subject, 1);
     process_lvgl(5);
     REQUIRE(is_hidden(selector));
 
     // 4. Moonraker access is revoked, drive still present -> visible again.
-    //    The pre-existing imperative code had no path back to visible here;
-    //    this is the case the fix adds.
+    //    The selector needs a path back to visible here.
     lv_subject_set_int(access_subject, 0);
     process_lvgl(5);
     REQUIRE_FALSE(is_hidden(selector));

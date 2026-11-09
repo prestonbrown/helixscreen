@@ -17,7 +17,7 @@ namespace helix {
  * Tracks firmware retraction settings, manual probe state, and motor enabled state.
  * These subjects are used by calibration panels and Z-offset workflows.
  *
- * Extracted from PrinterState as part of god class decomposition.
+ * One of PrinterState's domain sub-states.
  *
  * ## Firmware Retraction (4 subjects)
  * - retract_length_: Length in centimillimeters (0.8mm stored as 80)
@@ -40,7 +40,6 @@ class PrinterCalibrationState {
     PrinterCalibrationState() = default;
     ~PrinterCalibrationState() = default;
 
-    // Non-copyable
     PrinterCalibrationState(const PrinterCalibrationState&) = delete;
     PrinterCalibrationState& operator=(const PrinterCalibrationState&) = delete;
 
@@ -165,9 +164,9 @@ class PrinterCalibrationState {
      *
      * The discretionary-gcode busy guard lets benign commands (fan/temp/LED) queue
      * behind a blocking op instead of rejecting them, and wants to tell the user
-     * ONCE per episode rather than once per command (bundle 7CT79XXK saw four
-     * back-to-back toasts). Returns true for the first caller after the blocking op
-     * started, false thereafter, until PrinterState re-arms it via
+     * ONCE per episode rather than once per command (a burst of benign commands
+     * would otherwise stack back-to-back toasts). Returns true for the first caller after the
+     * blocking op started, false thereafter, until PrinterState re-arms it via
      * arm_busy_queue_toast() once the composite blocking condition clears.
      *
      * Both claim and re-arm normally run on the main thread (status parsing is

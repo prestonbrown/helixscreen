@@ -137,6 +137,23 @@ enum class ScanTrigger {
 /// happened to be down at that instant, raised "WiFi scan failed. Try again."
 /// over a healthy radio.
 ScanTrigger classify_scan_reply(const std::string& reply);
+
+enum class CtrlRequestOutcome {
+    Reply,    ///< wpa_ctrl_request() returned a reply datagram.
+    TimedOut, ///< No reply within wpa_ctrl's 10 s; the daemon may still answer late.
+    Failed,   ///< send/select/recv error; nothing is left in flight.
+};
+
+/// Classify a wpa_ctrl_request() return code (0, -2 timeout, -1 or other errors).
+///
+/// wpa_ctrl has no request ids: a request takes the first non-event datagram
+/// on the socket as its reply. A TimedOut request leaves its reply owed, and
+/// when the daemon sends it late it lands in front of the next request's
+/// answer, which then reads the stale datagram as its own. One timeout makes
+/// every later command read the previous command's reply (#2066: SCAN
+/// "failing" with a STATUS dump, RSSI=-48, wpa_state=SCANNING). The caller
+/// must retire a connection whose request TimedOut.
+CtrlRequestOutcome classify_ctrl_request(int wpa_ctrl_rc);
 } // namespace helix::wifi::detail
 
 /**
@@ -412,6 +429,21 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
 
     // Thread safety
     std::mutex cmd_mutex_; ///< Protects conn from concurrent send_command() calls
+
+    /// Control socket path and client dir conn was opened with, so a timed-out
+    /// connection can be replaced. Guarded by cmd_mutex_.
+    std::string ctrl_socket_path_;
+    std::string ctrl_client_dir_;
+
+    /// Swap conn for a fresh connection after a request timed out. Each
+    /// connection binds its own client address and closing one unlinks it, so
+    /// the late reply wpa_supplicant still owes has nowhere to land. Keeps the
+    /// old connection when no new one can be opened. Caller holds cmd_mutex_.
+    void reopen_ctrl_locked();
+
+    /// Serializes start(): the boot-time start_async() worker and a radio-on
+    /// bringup from WiFiManager can both call it.
+    std::mutex start_mutex_;
 
     // Change detection for status logging (reduces log noise)
     ConnectionStatus last_logged_status_; ///< Previous status for change detection

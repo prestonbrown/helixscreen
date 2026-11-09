@@ -237,6 +237,21 @@ std::pair<float, int> restart_request(const DryerInfo& dryer, float temp_c, int 
     return {temp, duration};
 }
 
+void yield_to_record(ams::Observation& hub, const std::optional<ams::Observation>& record) {
+    if (!record) {
+        return;
+    }
+    if (record->color_rgb) {
+        hub.color_rgb.reset();
+    }
+    if (record->material) {
+        hub.material.reset();
+    }
+    if (record->brand) {
+        hub.brand.reset();
+    }
+}
+
 } // namespace helix::ace
 
 #endif // HELIX_HAS_ACE || HELIX_HAS_SNAPMAKER

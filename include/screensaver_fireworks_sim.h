@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "screensaver_clock_reading.h"
 #include "screensaver_frame.h"
 
 #include <cstddef>
@@ -52,6 +53,9 @@ struct FireworksPacing {
     uint32_t finale_span_ms = 4000;
 };
 
+/// A running print's longest launch gap at 100%: the show quickens toward it as the print goes.
+inline constexpr uint32_t kFireworksPrintEndMaxGapMs = 900;
+
 class FireworksSim {
   public:
     static constexpr const auto& kLevels = kFireworksLevels;
@@ -85,12 +89,19 @@ class FireworksSim {
               const FireworksPacing& pacing = {});
 
     /**
-     * @brief Advances the show by `dt_ms` and draws it into `frame`
+     * @brief Advances the show by `dt_ms` for the print `print` reads and draws it into `frame`
      *
      * Replaces `dirty` with one box per rocket or burst whose pixels changed: what it erased
      * from the previous frame and what it drew in this one.
+     *
+     * With no print the show runs on its pacing. A running print shortens the longest launch
+     * gap toward kFireworksPrintEndMaxGapMs and grows each shell from half the level's sparks to
+     * all of them as it goes, with no periodic finale; a paused one launches nothing and its
+     * clocks stand still. A finished print runs the finale, again each time its shells have
+     * burnt out, until the print reading changes; a failed or cancelled one sends up one
+     * small red willow, then nothing.
      */
-    void step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng,
+    void step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng, const ClockReading& print,
               std::vector<DirtyRect>& dirty);
 
     /// Runs at `level` (clamped to the ladder) from the next shell launch on.
@@ -114,6 +125,15 @@ class FireworksSim {
 
     /// Sparks alive now.
     size_t sparks_in_use() const;
+
+    /// Shells launched since init().
+    uint32_t shells_launched() const {
+        return launches_;
+    }
+    /// True while finale shells are still to launch.
+    bool finale_running() const {
+        return finale_left_ > 0;
+    }
 
     /// Frees the spark pool and the sky layout.
     void clear();
@@ -175,8 +195,23 @@ class FireworksSim {
         int16_t tail_y = 0;
     };
 
+    /// How the print shapes the show.
+    enum class Show : uint8_t { NO_PRINT, RUNNING, PAUSED, DONE, FAILED };
+
+    /// A shell whose kind, colour and size are set rather than drawn.
+    struct FixedShell {
+        BurstKind kind;
+        Rgb color;
+        uint16_t sparks;
+    };
+
+    void follow_print(const ClockReading& print, std::minstd_rand& rng);
+    void arm_finale(std::minstd_rand& rng);
     void advance(uint32_t step_ms, std::minstd_rand& rng);
-    void launch(std::minstd_rand& rng);
+    /// Launches a shell, `fixed` or drawn at random; false when every rocket slot is taken.
+    bool launch(std::minstd_rand& rng, const FixedShell* fixed = nullptr);
+    /// Sparks a drawn shell bursts into at the level `params`.
+    uint16_t shell_sparks(const FireworksLevel& params) const;
     void burst(const Rocket& rocket, std::minstd_rand& rng);
     void split(Spark& spark, std::minstd_rand& rng);
     BurstKind pick_kind(std::minstd_rand& rng) const;
@@ -220,6 +255,11 @@ class FireworksSim {
     int32_t finale_in_ms_ = 0;
     uint8_t finale_left_ = 0;
     int32_t finale_gap_ms_ = 0;
+
+    Show show_ = Show::NO_PRINT;
+    float progress_ = 0.0f; ///< the running print's progress, 0 to 1
+    bool fizzle_pending_ = false;
+    uint32_t launches_ = 0;
 };
 
 } // namespace helix::ui

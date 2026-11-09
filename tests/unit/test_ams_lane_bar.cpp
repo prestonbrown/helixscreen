@@ -49,8 +49,8 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: an Empty lane draws nothing", "[
 
 TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: a Ghosted lane keeps its fill, dimmed",
                  "[ams][lane_bar]") {
-    // The #1071 reversal. BOTH halves are asserted: the fill comes back AND the
-    // cell is dimmed. Without the second, this is the bug a106413f6 fixed.
+    // #1071: BOTH halves are asserted: the fill comes back AND the cell is
+    // dimmed. A full-strength fill on an empty lane reads as a loaded spool.
     ui_ams_lane_bar_register();
     AmsState::instance().init_subjects(true);
     lv_subject_set_int(AmsState::instance().get_slot_lane_state_subject(0),

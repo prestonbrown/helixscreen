@@ -725,6 +725,7 @@ TEST_CASE_METHOD(PlrWizardFixture, "PLR: the first-run tour waits for the resume
     cfg->set<bool>("/wizard_completed", true);
     lv_subject_set_int(&get_home_edit_mode_subject(), 0);
     auto& tour = helix::tour::FirstRunTour::instance();
+    tour.set_printer_ready(true);
     REQUIRE_FALSE(tour.is_running());
     // The gate is open with nothing over Home, so a closed gate below is the cover's doing.
     REQUIRE(helix::tour::FirstRunTour::should_auto_start());

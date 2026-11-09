@@ -463,7 +463,6 @@ bool TimelapseInstallOverlay::has_timelapse_section(const std::string& content) 
     std::istringstream stream(content);
     std::string line;
     while (std::getline(stream, line)) {
-        // Trim leading whitespace
         size_t start = line.find_first_not_of(" \t");
         if (start == std::string::npos)
             continue;
@@ -472,7 +471,6 @@ bool TimelapseInstallOverlay::has_timelapse_section(const std::string& content) 
         size_t end = trimmed.find_last_not_of(" \t\r");
         if (end != std::string::npos)
             trimmed = trimmed.substr(0, end + 1);
-        // Skip comments
         if (trimmed.empty() || trimmed[0] == '#')
             continue;
         if (trimmed == "[timelapse]")

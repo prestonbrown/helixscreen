@@ -243,3 +243,128 @@ TEST_CASE("Re-arming starts a fresh chute jog session", "[chute_jog]") {
           Approx(10.0));
     CHECK(guard.jog_x(10.0, false, kSettled, kNewParkX, kParkY, kXMin, kXMax).delta == Approx(5.0));
 }
+
+namespace {
+
+// A K1C with a CFS (#2007): park, the silicone wiper's clean_left/clean_right
+// positions, and the Y axis end, all from its box.cfg and printer.cfg.
+constexpr double kK1cParkX = 152.5;
+constexpr double kK1cParkY = 221.5;
+constexpr double kK1cYMax = 227.5;
+constexpr helix::ChuteWiperLine kK1cWiper{153.5, 178.0, 225.3};
+constexpr double kK1cCap = 225.3 - ChuteJogGuard::kWiperMarginMm;
+
+ChuteJogGuard k1c_guard(std::optional<helix::ChuteWiperLine> wiper = kK1cWiper) {
+    ChuteJogGuard guard;
+    guard.arm(0, wiper);
+    return guard;
+}
+
+ChuteJogGuard::Decision k1c_y(ChuteJogGuard& g, double delta, double live_x, double live_y) {
+    return g.jog_y(delta, kSettled, live_x, live_y, kYMin, kK1cYMax);
+}
+
+ChuteJogGuard::Decision k1c_x(ChuteJogGuard& g, double delta, double live_x, double live_y) {
+    return g.jog_x(delta, false, kSettled, live_x, live_y, kXMin, 229.0);
+}
+
+/// Latches park, then fine-steps X to @p steps tenths of a mm past park.
+void k1c_step_x(ChuteJogGuard& g, int steps) {
+    REQUIRE(k1c_x(g, 0.0, kK1cParkX, kK1cParkY).outcome == Outcome::AxisLimit);
+    for (int i = 0; i < steps; ++i) {
+        REQUIRE(k1c_x(g, ChuteJogGuard::kFineStepMm, kK1cParkX, kK1cParkY).outcome ==
+                Outcome::Move);
+    }
+}
+
+} // namespace
+
+TEST_CASE("Chute Y past park stops short of a known wiper", "[chute_jog][2007]") {
+    SECTION("X at the wiper's start caps Y at the wiper line") {
+        auto guard = k1c_guard();
+        k1c_step_x(guard, 10);
+        const auto partial = k1c_y(guard, 10.0, kK1cParkX + 1.0, kK1cParkY);
+        CHECK(partial.outcome == Outcome::Move);
+        CHECK(partial.delta == Approx(kK1cCap - kK1cParkY));
+        const auto blocked = k1c_y(guard, 0.1, kK1cParkX + 1.0, kK1cCap);
+        CHECK(blocked.outcome == Outcome::AxisLimit);
+        CHECK(blocked.warn);
+    }
+
+    SECTION("a live X at the wiper counts before the commanded one") {
+        auto guard = k1c_guard();
+        k1c_step_x(guard, 0);
+        CHECK(k1c_y(guard, 10.0, 153.5, kK1cParkY).delta == Approx(kK1cCap - kK1cParkY));
+    }
+
+    SECTION("X short of the wiper reaches the axis end") {
+        auto guard = k1c_guard();
+        k1c_step_x(guard, 9);
+        CHECK(k1c_y(guard, 10.0, kK1cParkX + 0.9, kK1cParkY).delta == Approx(kK1cYMax - kK1cParkY));
+    }
+
+    SECTION("no wiper known reaches the axis end at the same X") {
+        auto guard = k1c_guard(std::nullopt);
+        k1c_step_x(guard, 10);
+        CHECK(k1c_y(guard, 10.0, kK1cParkX + 1.0, kK1cParkY).delta == Approx(kK1cYMax - kK1cParkY));
+    }
+
+    SECTION("coarse steps on a lagging live Y cannot overshoot the cap") {
+        auto guard = k1c_guard();
+        k1c_step_x(guard, 10);
+        double total = 0.0;
+        for (int i = 0; i < 5; ++i) {
+            total += k1c_y(guard, 10.0, kK1cParkX + 1.0, kK1cParkY).delta;
+        }
+        CHECK(total == Approx(kK1cCap - kK1cParkY));
+    }
+
+    SECTION("a live Y already past the cap is not stepped further") {
+        auto guard = k1c_guard();
+        k1c_step_x(guard, 10);
+        CHECK(k1c_y(guard, 1.0, kK1cParkX + 1.0, 226.0).outcome == Outcome::AxisLimit);
+        CHECK(k1c_y(guard, -1.0, kK1cParkX + 1.0, 226.0).delta == Approx(-1.0));
+    }
+
+    SECTION("a wiper line at or before park leaves Y alone") {
+        auto guard = k1c_guard(helix::ChuteWiperLine{153.5, 178.0, kK1cParkY});
+        k1c_step_x(guard, 10);
+        CHECK(k1c_y(guard, 10.0, kK1cParkX + 1.0, kK1cParkY).delta == Approx(kK1cYMax - kK1cParkY));
+    }
+
+    SECTION("a wiper on the low X side caps X at or below its far end") {
+        auto guard = k1c_guard(helix::ChuteWiperLine{130.0, 151.5, 225.3});
+        REQUIRE(k1c_x(guard, -ChuteJogGuard::kFineStepMm, kK1cParkX, kK1cParkY).outcome ==
+                Outcome::Move);
+        CHECK(k1c_y(guard, 10.0, kK1cParkX - 0.1, kK1cParkY).delta == Approx(kK1cYMax - kK1cParkY));
+        auto low = k1c_guard(helix::ChuteWiperLine{130.0, 151.5, 225.3});
+        k1c_step_x(low, 0);
+        CHECK(k1c_y(low, 10.0, 151.5, kK1cParkY).delta == Approx(kK1cCap - kK1cParkY));
+    }
+}
+
+TEST_CASE("Chute X past the wiper line cannot move onto the wiper", "[chute_jog][2007]") {
+    constexpr double kFine = ChuteJogGuard::kFineStepMm;
+    auto guard = k1c_guard();
+    k1c_step_x(guard, 9);
+    REQUIRE(k1c_y(guard, 10.0, kK1cParkX + 0.9, kK1cParkY).outcome == Outcome::Move);
+    constexpr double kBehind = kK1cYMax;
+
+    SECTION("a fine step toward the wiper is refused behind the line") {
+        const auto refused = k1c_x(guard, kFine, kK1cParkX + 0.9, kBehind);
+        CHECK(refused.delta < kFine - 0.04);
+        CHECK(kK1cParkX + 0.9 + refused.delta < kK1cWiper.x_min);
+        CHECK(k1c_x(guard, kFine, kK1cParkX + 0.9 + refused.delta, kBehind).outcome ==
+              Outcome::AxisLimit);
+    }
+
+    SECTION("away from the wiper still moves") {
+        CHECK(k1c_x(guard, -kFine, kK1cParkX + 0.9, kBehind).delta == Approx(-kFine));
+    }
+
+    SECTION("Y back at the line frees X onto the wiper") {
+        REQUIRE(k1c_y(guard, kK1cCap - kK1cYMax, kK1cParkX + 0.9, kBehind).outcome ==
+                Outcome::Move);
+        CHECK(k1c_x(guard, kFine, kK1cParkX + 0.9, kK1cCap).delta == Approx(kFine));
+    }
+}

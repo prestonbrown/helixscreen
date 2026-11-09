@@ -361,9 +361,9 @@ TEST_CASE("GridLayout dimensions: out-of-range breakpoints clamp to the array bo
     CHECK(below.rows == micro.rows);
 
     // The clamp lands on the LAST tier in GRID_CELL, which is XXLarge now that
-    // the table carries a rung for it. It used to land on XLarge because the
-    // table was one short — the bug that made a 1080p panel draw a 720p-sized
-    // grid — so pinning XLarge here would re-encode it.
+    // the table carries a rung for it. A table one short lands on XLarge and
+    // makes a 1080p panel draw a 720p-sized grid, so pinning XLarge here would
+    // re-encode that.
     auto above = GridLayout::get_dimensions(
         static_cast<UiBreakpoint>(GridLayout::kNumBreakpoints + 3), kW, kH);
     auto top = GridLayout::get_dimensions(UiBreakpoint::XXLarge, kW, kH);
@@ -605,10 +605,10 @@ TEST_CASE("GridLayout make_row_dsc: descriptor length matches the computed row c
 // ======================================================================// Minimum-first placement
 // and growth (#1216)
 // ======================================================================//
-// Auto-placement used to ask for the largest span that fit and step down until
-// something took. On a 3-column portrait grid that let `tips` (authored 4x2)
-// claim a reduced 3x2 — 6 of 18 cells — and the three widgets behind it were
-// then disabled with "grid full". The policy is now: every auto-placed widget
+// Auto-placement must not ask for the largest span that fits and step down
+// until something takes: on a 3-column portrait grid that lets `tips` (authored
+// 4x2) claim a reduced 3x2, 6 of 18 cells, and the three widgets behind it are
+// then disabled with "grid full". The policy: every auto-placed widget
 // gets its DECLARED MINIMUM first, so widget count is maximised, and only then
 // does anything grow back toward its authored default.
 

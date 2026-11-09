@@ -205,7 +205,6 @@ template <typename NextLine> ScanResult GCodeOpsDetector::scan_lines(NextLine ne
     while (next_line(line)) {
         line_number++;
 
-        // Check limits
         if (byte_offset >= config_.max_scan_bytes) {
             spdlog::debug("[GCodeOpsDetector] Reached byte limit at {} bytes", byte_offset);
             result.reached_limit = true;
@@ -264,7 +263,6 @@ template <typename NextLine> ScanResult GCodeOpsDetector::scan_lines(NextLine ne
                 parse_start_print_params(line, line_number, byte_offset, result);
             }
 
-            // Check against all patterns
             check_line(line, line_number, byte_offset, result);
         }
 
@@ -289,7 +287,6 @@ void GCodeOpsDetector::check_line(const std::string& line, size_t line_number, s
     }
     std::string trimmed = line.substr(start);
 
-    // Check each pattern
     for (const auto& pattern : patterns_) {
         bool found = false;
 
@@ -406,7 +403,6 @@ void GCodeOpsDetector::parse_start_print_params(const std::string& line, size_t 
     // We scan for patterns like "KEY=" and extract the value
     size_t pos = 0;
     while (pos < upper_line.size()) {
-        // Find next '=' sign
         size_t eq_pos = upper_line.find('=', pos);
         if (eq_pos == std::string::npos || eq_pos == 0) {
             break;

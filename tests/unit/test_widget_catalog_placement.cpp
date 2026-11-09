@@ -356,11 +356,11 @@ TEST_CASE_METHOD(CatalogRowFixture, "Catalog: the placed count skips instances w
     CHECK(find_row(scroll, expected) != nullptr);
 }
 
-// Placing a limbo widget from the catalog while editing another page used to
-// push a SECOND entry with the same ID: place_widget_from_catalog() only ever
-// searched the page being edited, while the catalog's placed test searches all
-// pages. Two enabled entries with one ID render the widget on two pages, and
-// delete_entry() only ever removes the first.
+// Placing a limbo widget from the catalog while editing another page must not
+// push a SECOND entry with the same ID, as it would if
+// place_widget_from_catalog() searched only the page being edited while the
+// catalog's placed test searches all pages. Two enabled entries with one ID
+// render the widget on two pages, and delete_entry() only ever removes the first.
 TEST_CASE_METHOD(XMLTestFixture, "Catalog placement moves a limbo entry instead of duplicating it",
                  "[widget_catalog][grid_edit][regression]") {
     lv_subject_t* bp_subj = theme_manager_get_breakpoint_subject();

@@ -196,7 +196,7 @@ TEST_CASE("UsbBackendLinux monitor logs only actual drive-set changes",
           "[usb_backend][linux][slow]") {
     // The 10s safety re-parse converges the drive cache by clock, not by
     // event; logging "Mount change detected" before diffing prints a change
-    // every 10s forever on a host with no drives (bundle SQJ8SAL7: 66 lines).
+    // every 10s forever on a host with no drives (66 lines in one debug bundle).
     // A re-parse that changed no drive logs the no-op at trace, and the
     // debug line waits for a real addition or removal.
     helix::LogCapture log(512);

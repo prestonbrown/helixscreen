@@ -3,6 +3,7 @@
 #include "print_start_phase_label.h"
 
 #include "lvgl.h"
+#include "pre_print_option.h"
 #include "translation_loader.h"
 
 namespace helix {
@@ -83,7 +84,7 @@ const std::vector<PhaseOption>& print_start_phase_options() {
     static const std::vector<PhaseOption> kOptions = {
         {"bed_mesh", PrintStartPhase::BED_MESH},  {"qgl", PrintStartPhase::QGL},
         {"z_tilt", PrintStartPhase::Z_TILT},      {"nozzle_clean", PrintStartPhase::CLEANING},
-        {"purge_line", PrintStartPhase::PURGING},
+        {"purge_line", PrintStartPhase::PURGING}, {kHeatSoakOptionId, PrintStartPhase::SOAKING},
     };
     return kOptions;
 }

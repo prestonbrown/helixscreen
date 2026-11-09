@@ -423,6 +423,32 @@ extract_release_zip() {
     [ "$(cat "$PD_HELIX/user_filaments.json")" = "[]" ]
 }
 
+# ===========================================================================
+# pending_remap.json - exists only while a tool-map restore is owed, so seeded
+# ===========================================================================
+
+@test "migrates an existing pending_remap.json out of the install dir" {
+    mk_tree
+    echo '{"printers":{"p":{"backend_index":0,"tool_mapping":[2,1]}}}' > "$INSTALL_DIR/config/pending_remap.json"
+
+    run setup_config_symlink
+    [ "$status" -eq 0 ]
+
+    [ -L "$INSTALL_DIR/config/pending_remap.json" ]
+    grep -q 'tool_mapping' "$PD_HELIX/pending_remap.json"
+}
+
+@test "seeds pending_remap.json so a record written later is behind the link" {
+    mk_tree
+    echo '{}' > "$INSTALL_DIR/config/settings.json"
+
+    run setup_config_symlink
+    [ "$status" -eq 0 ]
+
+    [ -L "$INSTALL_DIR/config/pending_remap.json" ]
+    [ "$(cat "$PD_HELIX/pending_remap.json")" = "{}" ]
+}
+
 @test "seeding does not resurrect the dangling-symlink behaviour for other files" {
     mk_tree
     echo '{}' > "$INSTALL_DIR/config/settings.json"

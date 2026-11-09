@@ -33,7 +33,6 @@ PrintHistoryManager::PrintHistoryManager(IMoonrakerAPI* api, IMoonrakerClient* c
 PrintHistoryManager::~PrintHistoryManager() {
     connection_observer_.reset();
 
-    // Unregister notification callbacks
     if (client_) {
         client_->unregister_method_callback("notify_history_changed", "PrintHistoryManager");
         client_->unregister_method_callback("notify_filelist_changed", "PrintHistoryManager");
@@ -646,7 +645,6 @@ void PrintHistoryManager::build_filename_stats() {
 
         auto& stats = filename_stats_[basename];
 
-        // Count successes and failures
         if (job.status == PrintJobStatus::COMPLETED) {
             stats.success_count++;
         } else if (job.status == PrintJobStatus::CANCELLED || job.status == PrintJobStatus::ERROR) {
@@ -686,8 +684,7 @@ void PrintHistoryManager::notify_observers() {
     // itself via remove_observer() from its destructor. Re-check each pointer
     // against the live set before calling — a pointer no longer in observers_
     // has been removed and may now dangle, so calling through it is a
-    // use-after-free (debug bundle S52DJB5W: SIGSEGV at ~0x800020c during
-    // nav-away + reconnect).
+    // use-after-free.
     auto observers_copy = observers_;
     for (auto* cb : observers_copy) {
         if (std::find(observers_.begin(), observers_.end(), cb) == observers_.end()) {
@@ -733,10 +730,11 @@ void PrintHistoryManager::subscribe_to_notifications() {
 
     auto token = lifetime_.token();
 
-    // Bare expired() check on the bg thread is the L081 Mechanism C anti-pattern
-    // (detector hit on v0.99.60/ad5x telemetry). token.defer() runs its own
-    // expiration check atomically on the main thread, so the bg-side short-circuit
-    // gains nothing and trips the watchdog. Let defer handle it.
+    // No bare expired() check on the bg thread (the L081 Mechanism C
+    // anti-pattern): token.defer() runs its own expiration check atomically on
+    // the main thread, so a bg-side short-circuit gains nothing and trips the
+    // watchdog.
+    //
     // The notification carries the whole job it is announcing, so the common
     // case folds one record into the cache instead of re-pulling the list. The
     // refetch below is the fallback for a payload we cannot use: a foreign

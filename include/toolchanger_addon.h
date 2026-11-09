@@ -24,6 +24,7 @@
 // Adding a machine means adding one Provider to the table in
 // toolchanger_addon.cpp - no call site changes.
 
+#include "display_numbering.h"
 #include "json_fwd.h"
 #include "macro_choice.h"
 
@@ -203,6 +204,15 @@ std::optional<MaterialReading> read_materials(const nlohmann::json& status, int 
 
 /// Whether any provider claims this printer.
 bool present(const PrinterDiscovery& hw);
+
+/// True only for a non-empty list where every name has the generated shape ("T0".."T5").
+bool tools_named_by_gcode(const std::vector<std::string>& tool_names);
+
+/// Gcode when the printer is plain klipper-toolchanger (`has_tool_changer()`, no
+/// provider here claiming it) and every `[tool]` section is named T<n>; Physical
+/// otherwise. Discovery invents T<n> names for a multi-extruder printer with no
+/// `[tool]` sections, and those say nothing about how the machine is labeled.
+helix::ui::ToolNumberStyle tool_number_style(const PrinterDiscovery& hw);
 
 /// Whether the Z-Mod Creator 5 changer row claims this printer: `zmod_color`
 /// plus the carriage grab buttons. The AD5X Z-Mod also publishes `zmod_color`

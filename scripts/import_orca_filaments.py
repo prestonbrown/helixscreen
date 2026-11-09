@@ -266,7 +266,12 @@ def resolve_vendor_profile(profile: dict, by_name: dict) -> dict:
 
 
 def build_catalog(orca_root, seed, type_ranges, library_marker="OrcaFilamentLibrary",
-                  vendor_packs=None):
+                  vendor_packs=None, id_products=None):
+    """Products and library types from one Orca tree, plus the seed.
+
+    `id_products`, the products of a second tag's tree, replaces the orca_ids
+    (overlay_orca_ids) before the seed merges in.
+    """
     if vendor_packs is None:
         vendor_packs = VENDOR_PACKS
     # The OrcaFilamentLibrary is self-contained (its own base/ dir). Resolve
@@ -307,6 +312,8 @@ def build_catalog(orca_root, seed, type_ranges, library_marker="OrcaFilamentLibr
             resolved = _own_filament_id(resolve_vendor_profile(profile, vendor_by_name), profile)
             _add_product(products, seen, resolved, pname, type_ranges)
     _drop_shared_inherited_orca_ids(products)
+    if id_products is not None:
+        overlay_orca_ids(products, id_products)
     _merge_seed(products, seed)
     _dedupe_ids(products)
     _assert_no_degenerate_ranges(products)
@@ -437,7 +444,52 @@ def _dedupe_ids(products):
               file=sys.stderr)
 
 
-def _load_types(path):
+def overlay_orca_ids(products, id_products):
+    """Replace every Orca product's orca_id with the one a second Orca tag gives it.
+
+    Temps and the product list come from one tag while the filament ids come from
+    another, because OrcaSlicer changed its id scheme between them. Products are
+    matched on (brand, name), the pair build_catalog dedupes on. An Orca product
+    the ids tag does not name, or names without an id, carries no orca_id: an id
+    from the older scheme matches nothing in the newer one. Runs before the seed
+    merges in, so seed-only products are never touched. Returns the ids of the
+    products that lost their orca_id.
+    """
+    ids = {(p["brand"], p["name"]): p.get("orca_id") for p in id_products}
+    dropped = []
+    for product in products:
+        new_id = ids.get((product["brand"], product["name"]))
+        if new_id:
+            product["orca_id"] = new_id
+        elif product.pop("orca_id", None) is not None:
+            dropped.append(product["id"])
+    if dropped:
+        print(f"NOTE: no orca_id at the ids tag for: {sorted(dropped)}", file=sys.stderr)
+    return dropped
+
+
+_ID_TAG_RE = re.compile(r"filament ids from tag ([^,\s]+)")
+
+
+def attribution(orca_tag, orca_id_tag=None):
+    ids = f", filament ids from tag {orca_id_tag}" if orca_id_tag else ""
+    return ("Factual filament data derived from OrcaSlicer "
+            f"(github.com/SoftFever/OrcaSlicer, tag {orca_tag}{ids}, "
+            "AGPL-3.0). No OrcaSlicer profile files are shipped.")
+
+
+def attributed_id_tag(doc):
+    """The Orca tag a catalog's `_attribution` says its filament ids came from, or None."""
+    m = _ID_TAG_RE.search(doc.get("_attribution") or "")
+    return m.group(1) if m else None
+
+
+def _load_existing(path):
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _load_types(doc, path):
     """The shipped material-type table, carried over from the existing output.
 
     `types` is hand-maintained inside assets/filaments.json itself (it is the
@@ -445,11 +497,23 @@ def _load_types(path):
     before overwriting the file. Its nozzle ranges also seed products that do
     not carry their own.
     """
-    with open(path, encoding="utf-8") as f:
-        types = json.load(f).get("types")
+    types = doc.get("types")
     if not isinstance(types, list) or not types:
         raise SystemExit(f"{path} has no `types` table to carry over; refusing to write one without it")
     return types
+
+
+def _check_id_tag(existing_tag, requested_tag, allow_change, path):
+    """Refuse a regen that would silently change which Orca tag the ids come from."""
+    if existing_tag is None or existing_tag == requested_tag or allow_change:
+        return
+    requested = requested_tag or "none (the ids would come from --orca-tag)"
+    raise SystemExit(
+        f"ERROR: {path} carries filament ids from Orca tag {existing_tag}, and this "
+        f"regen would take them from {requested}. Pass --orca-id-tag {existing_tag} "
+        f"with --orca-ids (make regen-filaments ORCA_ID_TAG={existing_tag}), or "
+        "--allow-id-tag-change (ALLOW_ID_TAG_CHANGE=1) to move to the new tag."
+    )
 
 
 def _type_ranges(types):
@@ -462,16 +526,25 @@ def main(argv=None):
     ap.add_argument("--seed", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--orca-tag", default="unknown")
+    ap.add_argument("--orca-ids", help="resources/profiles root of the tag the orca_ids come from")
+    ap.add_argument("--orca-id-tag", help="the tag --orca-ids was checked out at")
+    ap.add_argument("--allow-id-tag-change", action="store_true",
+                    help="overwrite a catalog whose ids came from a different tag")
     args = ap.parse_args(argv)
+    if bool(args.orca_ids) != bool(args.orca_id_tag):
+        raise SystemExit("ERROR: --orca-ids and --orca-id-tag go together")
 
     with open(args.seed, encoding="utf-8") as f:
         seed = json.load(f)
-    types = _load_types(args.out)
-    catalog, library_types = build_catalog(args.orca, seed, _type_ranges(types))
+    existing = _load_existing(args.out)
+    types = _load_types(existing, args.out)
+    _check_id_tag(attributed_id_tag(existing), args.orca_id_tag, args.allow_id_tag_change,
+                  args.out)
+    ranges = _type_ranges(types)
+    id_products = build_catalog(args.orca_ids, [], ranges)[0] if args.orca_ids else None
+    catalog, library_types = build_catalog(args.orca, seed, ranges, id_products=id_products)
     doc = {
-        "_attribution": ("Factual filament data derived from OrcaSlicer "
-                         f"(github.com/SoftFever/OrcaSlicer, tag {args.orca_tag}, "
-                         "AGPL-3.0). No OrcaSlicer profile files are shipped."),
+        "_attribution": attribution(args.orca_tag, args.orca_id_tag),
         "orca_library_types": library_types,
         "orca_type_overrides": ORCA_TYPE_OVERRIDES,
         "types": types,

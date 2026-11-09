@@ -10,7 +10,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
+#include <type_traits>
 
 #include "hv/json.hpp"
 
@@ -309,6 +311,56 @@ inline std::uint64_t safe_uint64(const nlohmann::json& j, const char* key, std::
 inline std::size_t safe_size_t(const nlohmann::json& j, const char* key, std::size_t def = 0) {
     const auto* v = find_member(j, key);
     return v ? as_size_t(*v, def) : def;
+}
+
+// The read_* forms below are strict where the as_*/safe_* forms coerce: a value
+// of another type is nullopt rather than a default, so a caller can skip a field
+// it cannot read instead of showing a made-up value for it. Numbers are not
+// range-checked: get<T>() narrows them exactly as a hand-written
+// `is_number() && get<T>()` guard does.
+
+/// The value of @p v as a T, or nullopt when it is not one. Numbers read as any
+/// arithmetic T except bool, which only a JSON boolean satisfies; a float read
+/// as an integral T truncates toward zero. Strings are never parsed as numbers.
+template <typename T> [[nodiscard]] std::optional<T> read_scalar(const nlohmann::json& v) {
+    if constexpr (std::is_same_v<T, bool>) {
+        if (v.is_boolean()) {
+            return v.get<bool>();
+        }
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        if (v.is_string()) {
+            return v.get<std::string>();
+        }
+    } else if constexpr (std::is_arithmetic_v<T>) {
+        if (v.is_number()) {
+            return v.get<T>();
+        }
+    }
+    return std::nullopt;
+}
+
+/// A JSON integer (not a float) as an int; nullopt for anything else.
+[[nodiscard]] inline std::optional<int> read_integer(const nlohmann::json& v) {
+    if (v.is_number_integer()) {
+        return v.get<int>();
+    }
+    return std::nullopt;
+}
+
+/// The member @p key of @p obj as a T, or nullopt when @p obj is not an object,
+/// lacks the key, or holds a null or another type there. A delta frame omits
+/// what did not change, so absent is "no change" and never a default.
+template <typename T>
+[[nodiscard]] std::optional<T> read_field(const nlohmann::json& obj, const char* key) {
+    const auto* v = find_member(obj, key);
+    return v ? read_scalar<T>(*v) : std::nullopt;
+}
+
+/// The member @p key of @p obj as an integer (floats refused), or nullopt.
+[[nodiscard]] inline std::optional<int> read_integer_field(const nlohmann::json& obj,
+                                                           const char* key) {
+    const auto* v = find_member(obj, key);
+    return v ? read_integer(*v) : std::nullopt;
 }
 
 /// The payload object of a Moonraker notification frame, or nullptr.

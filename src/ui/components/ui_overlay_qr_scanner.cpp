@@ -568,7 +568,6 @@ void QrScannerOverlay::on_spool_found(const SpoolInfo& spool) {
     // Stop scanning immediately
     stop_scanning();
 
-    // Play success sound
     SoundManager::instance().play("print_complete");
 
     // Show success flash

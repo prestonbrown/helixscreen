@@ -9,6 +9,7 @@
 
 #include "../fake_moonraker_client.h"
 #include "filament_mapper.h"
+#include "helix_plugin_features.h"
 #include "moonraker_job_api.h"
 #include "print_start_params.h"
 #include "printer_discovery.h"
@@ -152,6 +153,18 @@ TEST_CASE("the HelixPrint plugin's starts carry the extra parameters beside the 
     } else {
         CHECK_FALSE(it->params.contains("tools"));
     }
+}
+
+TEST_CASE("a plugin start loses the tool map unless the plugin passes it on",
+          "[print_start_params][2038]") {
+    using helix::PluginFeatureState;
+    const PrintStartParams tools{{"tools", "2,,1"}};
+    CHECK_FALSE(plugin_drops_tool_map(tools, PluginFeatureState::Ready));
+    CHECK(plugin_drops_tool_map(tools, PluginFeatureState::Absent));
+    CHECK(plugin_drops_tool_map(tools, PluginFeatureState::Disabled));
+    // Nothing to lose: no map, or only a plate.
+    CHECK_FALSE(plugin_drops_tool_map({}, PluginFeatureState::Absent));
+    CHECK_FALSE(plugin_drops_tool_map({{"plateindex", "2"}}, PluginFeatureState::Absent));
 }
 
 namespace {

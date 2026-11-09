@@ -151,7 +151,6 @@ extern "C" void helix_bt_deinit(helix_bt_context* ctx) {
         ctx->rfcomm_fds.clear();
     }
 
-    // Close the bus
     if (ctx->bus) {
         sd_bus_flush_close_unref(ctx->bus);
         ctx->bus = nullptr;

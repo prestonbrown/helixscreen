@@ -656,7 +656,6 @@ void ui_carousel_remove_item(lv_obj_t* carousel, int index) {
         lv_subject_set_int(state->page_subject, state->current_page);
     }
 
-    // Rebuild indicators
     ui_carousel_rebuild_indicators(carousel);
 
     spdlog::trace("[ui_carousel] Removed item at index {}, page count now {}", index, new_count);

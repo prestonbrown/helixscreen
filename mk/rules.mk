@@ -287,11 +287,16 @@ endif
 # rebuilds every object over identical flags. Instead, a dry run whose flags
 # differ marks the stamp phony, so it still reports the objects that would
 # rebuild.
+#
+# The land gate runs several makes in one tree at once, so each parse writes
+# its own temp file, suffixed with make's pid (the $(shell)'s parent), and
+# renames it over the stamp only when the text differs: a shared temp file
+# would let one parse truncate it while another compares it.
 FLAGS_STAMP_TEXT := $(CC) $(CFLAGS) $(CXX) $(CXXFLAGS) $(SUBMODULE_CXXFLAGS) $(SUBMODULE_CFLAGS) $(LVGL_C_CFLAGS)
 ifeq ($(findstring n,$(firstword -$(MAKEFLAGS)))$(findstring q,$(firstword -$(MAKEFLAGS))),)
-$(shell mkdir -p $(OBJ_DIR))
-$(file >$(FLAGS_STAMP).new,$(FLAGS_STAMP_TEXT))
-$(shell cmp -s $(FLAGS_STAMP).new $(FLAGS_STAMP) || mv -f $(FLAGS_STAMP).new $(FLAGS_STAMP); rm -f $(FLAGS_STAMP).new)
+FLAGS_STAMP_TMP := $(FLAGS_STAMP).new.$(shell mkdir -p $(OBJ_DIR) && echo $$PPID)
+$(file >$(FLAGS_STAMP_TMP),$(FLAGS_STAMP_TEXT))
+$(shell cmp -s $(FLAGS_STAMP_TMP) $(FLAGS_STAMP) || mv -f $(FLAGS_STAMP_TMP) $(FLAGS_STAMP); rm -f $(FLAGS_STAMP_TMP))
 else ifneq ($(file <$(FLAGS_STAMP)),$(FLAGS_STAMP_TEXT))
 .PHONY: $(FLAGS_STAMP)
 endif
@@ -633,17 +638,17 @@ compile_commands_full:
 #   $(OBJ_DIR)/lvgl/*/*.d   - LVGL sources (one level deep)
 #   $(OBJ_DIR)/lvgl/*/*/*.d - LVGL sources (two levels deep - libs/thorvg/*)
 #   $(OBJ_DIR)/lvgl/*/*/*/*.d - LVGL sources (three levels deep)
--include $(wildcard $(OBJ_DIR)/*.d)
--include $(wildcard $(OBJ_DIR)/*/*.d)
--include $(wildcard $(OBJ_DIR)/*/*/*.d)
--include $(wildcard $(OBJ_DIR)/tests/*.d)
--include $(wildcard $(OBJ_DIR)/tests/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/*.d)
+-include $(call depfiles,$(OBJ_DIR)/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/*/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/tests/*.d)
+-include $(call depfiles,$(OBJ_DIR)/tests/*/*.d)
 # helix-xml is edited in place (our own submodule), so its .d files ARE
 # tracked, unlike LVGL/lv_markdown/quirc below. Paths are 3-4 levels deep:
 #   $(OBJ_DIR)/helix-xml/src/xml/*.d           - e.g. lv_xml.c, lv_xml_component.c
 #   $(OBJ_DIR)/helix-xml/src/xml/parsers/*.d   - per-widget XML parsers
 #   $(OBJ_DIR)/helix-xml/src/libs/expat/*.d    - vendored expat (same tree)
--include $(wildcard $(OBJ_DIR)/helix-xml/*/*/*.d)
--include $(wildcard $(OBJ_DIR)/helix-xml/*/*/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/helix-xml/*/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/helix-xml/*/*/*/*.d)
 # NOTE: LVGL .d files intentionally NOT included - they add 150k+ lines of deps
 # that slow make startup by 4+ seconds. LVGL rarely changes; do clean build if needed.

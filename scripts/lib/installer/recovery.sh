@@ -218,7 +218,7 @@ configure_local_recovery() {
     fi
 }
 
-# Backward-compat shim — main.sh historically called this name. Keep it
+# Backward-compat shim — an older main.sh calls this name. Keep it
 # until the next bundle so callers that pulled an older install.sh keep
 # working through the upgrade.
 # UNCALLED_OK: deliberate compatibility alias for configure_local_recovery(),

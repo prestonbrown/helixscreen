@@ -22,8 +22,6 @@
 #include <string_view>
 #include <vector>
 
-// Forward declaration
-
 namespace helix {
 class IMoonrakerAPI;
 struct HelixPluginInstallerTestAccess; // test-only friend (tests/test_helpers/)

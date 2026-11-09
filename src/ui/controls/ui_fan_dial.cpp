@@ -267,7 +267,6 @@ void FanDial::set_speed(int percent) {
     // Set syncing flag to prevent callback loop
     syncing_ = true;
 
-    // Update arc value
     if (arc_) {
         lv_arc_set_value(arc_, percent);
     }

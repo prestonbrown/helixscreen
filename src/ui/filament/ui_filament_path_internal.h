@@ -18,7 +18,7 @@
  * the expensive tube geometry:
  *   1. overlay canvas — lv_canvas child; the full topology render (lanes, hub,
  *      sensors, nozzle) painted by the active topology renderer
- *   2. DRAW_POST pass — flow dots / heat glow / moving filament tip, drawn
+ *   2. DRAW_POST pass — flow chevrons / heat glow / moving filament tip, drawn
  *      directly every frame on top of the cached canvas
  * Setters call layered_mark_dirty() which flags the canvas and schedules an
  * async repaint (ui_filament_path_layers.cpp). Animation ticks only invalidate
@@ -26,7 +26,7 @@
  *
  * The render pass also RECORDS two things consumed later:
  *   - the active filament path (FilamentPathData::path_cache) — replayed by the
- *     DRAW_POST pass to place flow dots and the segment-transition tip
+ *     DRAW_POST pass to place flow chevrons and the segment-transition tip
  *   - hit rectangles (FilamentPathData::hits) — the exact boxes drawn for the
  *     hub/selector, buffer, and bypass, read by the click handler so taps test
  *     against precisely what is on screen (no geometry re-derivation)
@@ -45,6 +45,7 @@
 #include "ui_toolhead_badge.h"
 
 #include "ams_types.h"
+#include "filament_motion.h"
 #include "filament_path_geometry.h"
 #include "filament_tube_stroker.h"
 #include "lvgl/lvgl.h"
@@ -115,10 +116,8 @@ inline constexpr lv_opa_t kErrorPulseOpaMax = 255; // Maximum opacity during err
 inline constexpr int kHeatPulseDurationMs = 800;   // Heat pulse cycle duration
 inline constexpr lv_opa_t kHeatPulseOpaMin = 100;  // Minimum opacity during heat pulse
 inline constexpr lv_opa_t kHeatPulseOpaMax = 255;  // Maximum opacity during heat pulse
-inline constexpr int kFlowAnimDurationMs = 1500;   // Full cycle for flow dot animation
-inline constexpr int kFlowDotSpacing = 20;         // Pixels between flow dots
-inline constexpr int kFlowDotRadius = 1;           // Radius of each flow particle
-inline constexpr lv_opa_t kFlowDotOpa = 90;        // Opacity of flow dots
+inline constexpr int kFlowAnimDurationMs = 1000;   // One chevron spacing of travel
+inline constexpr lv_opa_t kFlowChevronOpa = 220;   // Opacity of the flow chevrons
 inline constexpr int kOutputXAnimDurationMs = 250;
 
 // ============================================================================
@@ -188,9 +187,13 @@ struct AnimState {
     bool heat_pulse_active = false;
     lv_opa_t heat_pulse_opa = LV_OPA_COVER;
 
-    // Flow particles along the active path during load/unload
+    // Flow chevrons along the active path. flow_active covers a load/unload;
+    // manual_motion a manual Extrude / Retract (the filament_manual_motion
+    // subject). Either one shows the stream; one lv_anim moves it for both.
     bool flow_active = false;
-    int32_t flow_offset = 0; // 0 → kFlowDotSpacing, cycles continuously
+    helix::FilamentMotion manual_motion = helix::FilamentMotion::Idle;
+    int32_t flow_offset = 0; // 0 → flow_span, cycles continuously
+    int32_t flow_span = 1;   // chevron spacing the running cycle covers
 
     // Output-X slide (LINEAR: output exits beneath active slot)
     int32_t output_x_current = 0;
@@ -244,7 +247,7 @@ struct HitRects {
 };
 
 // LINEAR/HUB active-path cache. Populated by the state-tied renderer;
-// consumed by the animation DRAW_POST pass (flow dots, segment tip position)
+// consumed by the animation DRAW_POST pass (flow chevrons, segment tip position)
 // without re-running the state-tied code each animation tick. Path length is
 // cheap to recompute from the path so it isn't cached.
 struct PathCache {
@@ -252,6 +255,13 @@ struct PathCache {
     int32_t center_x = 0; // last state-tied draw's center_x
     int32_t nozzle_y = 0; // last state-tied draw's nozzle_y
     int32_t sensor_r = 0; // last state-tied draw's sensor radius
+    // Widget's top-left at that draw. Everything above is in display
+    // coordinates, so the DRAW_POST pass shifts it by however far the widget
+    // has moved since (a panel sliding in moves it with no state change).
+    lv_point_t origin = {0, 0};
+    // Per segment of path: false where it runs hidden inside an opaque box
+    // (hub, buffer), so no chevron is drawn over the box.
+    bool seg_shown[pg::FilamentPath::kMaxSegs] = {};
     bool valid = false;
 };
 
@@ -483,13 +493,22 @@ void draw_filament_tip(lv_layer_t* layer, int32_t x, int32_t y, lv_color_t color
 /// Pulsing orange glow halo around the nozzle tip while heating.
 void draw_heat_glow(lv_layer_t* layer, int32_t cx, int32_t cy, int32_t radius, lv_opa_t pulse_opa);
 
-/// Flow dots along a straight line segment (load/unload particle stream).
-void draw_flow_dots_line(lv_layer_t* layer, int32_t x1, int32_t y1, int32_t x2, int32_t y2,
-                         lv_color_t color, int32_t flow_offset, bool reverse);
+/// Chevron size for this widget's tube gauge.
+pg::ChevronSize flow_chevron_size(const FilamentPathData& data);
 
-/// Flow dots along an entire FilamentPath as a continuous stream.
-void draw_flow_dots_path(lv_layer_t* layer, const pg::FilamentPath& path, lv_color_t color,
-                         int32_t flow_offset, bool reverse);
+/// Whether the flow chevrons show: a load/unload or a manual move is running.
+bool flow_visible(const FilamentPathData& data);
+
+/// Whether the chevrons travel back toward the spool: a manual retract while
+/// one runs, otherwise an unload.
+bool flow_reversed(const FilamentPathData& data);
+
+/// Flow chevrons along a path in the color of the filament they ride on,
+/// none over a segment @p seg_shown marks hidden (null: all shown) or
+/// touching one of the @p n_avoid boxes.
+void draw_flow(lv_layer_t* layer, const FilamentPathData& data, const pg::FilamentPath& path,
+               lv_color_t filament, const bool* seg_shown = nullptr,
+               const pg::PathBox* avoid = nullptr, int n_avoid = 0);
 
 /// Toolhead/extruder glyph in the user's configured style. Applies the A4T
 /// style's 6/5 scale boost internally — pass the base scale. @p filament is
@@ -531,6 +550,9 @@ void start_heat_pulse(lv_obj_t* obj, FilamentPathData* data);
 void stop_heat_pulse(lv_obj_t* obj, FilamentPathData* data);
 void start_flow_animation(lv_obj_t* obj, FilamentPathData* data);
 void stop_flow_animation(lv_obj_t* obj, FilamentPathData* data);
+/// Show (or end) the flow for a manual Extrude / Retract. With animations off
+/// the chevrons stand still in the travel direction.
+void set_manual_motion(lv_obj_t* obj, FilamentPathData* data, helix::FilamentMotion motion);
 void start_output_x_animation(lv_obj_t* obj, FilamentPathData* data, int32_t from_x, int32_t to_x);
 
 /// Delete every lv_anim this widget may have running (widget teardown).
@@ -578,7 +600,7 @@ void layered_teardown(lv_obj_t* obj, FilamentPathData* data);
 /// given layer. Called by the layers module when repainting the overlay canvas.
 void render_overlay_content(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data);
 
-/// Paint the per-frame animation overlay (flow dots, heat glow, segment tip).
+/// Paint the per-frame animation overlay (flow chevrons, heat glow, segment tip).
 /// Called from the widget's DRAW_POST event every frame.
 void render_animation_overlay(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data);
 

@@ -415,7 +415,7 @@ std::shared_ptr<SoundBackend> SoundManager::create_backend() {
     // 1. SDL audio available (desktop build) -> SDLBackend
     // 2. ALSA PCM available (Linux with audio) -> ALSABackend
     // 3. /dev/jz_pwm and fx-pwm exist -> JzPwmBackend
-    // 4. AD5M family only: /sys/class/pwm/pwmchip0 exists -> PWMBackend
+    // 4. AD5M family only: /sys/class/pwm/pwmchip0 exists -> PWMBackend (auto-export)
     // 5. An executable aplay and a playback node in /dev/snd -> PcmPipeBackend
     // 6. None -> wait for M300 gate, or sounds disabled
     //
@@ -425,20 +425,11 @@ std::shared_ptr<SoundBackend> SoundManager::create_backend() {
     // and plays to nothing.
 
 #ifdef HELIX_HAS_PWM_SOUND
-    int chip = -1;
-    int channel = -1;
-    if (PWMSoundBackend::resolve_channel(AudioSettingsManager::instance().get_pwm_channel(),
-                                         std::getenv("HELIX_PWM_SOUND"), chip, channel)) {
-        auto pwm = std::make_shared<PWMSoundBackend>("/sys/class/pwm", chip, channel);
-        pwm->set_auto_export(true);
-        pwm->set_klippy_shares_channel(false);
-        if (pwm->initialize()) {
-            spdlog::info("[SoundManager] Using PWM sysfs backend ({}) for the named buzzer",
-                         pwm->channel_path());
-            return pwm;
-        }
-        spdlog::warn("[SoundManager] Named buzzer {} unavailable, falling back",
+    if (auto pwm = PWMSoundBackend::open_named_channel(
+            AudioSettingsManager::instance().get_pwm_channel(), std::getenv("HELIX_PWM_SOUND"))) {
+        spdlog::info("[SoundManager] Using PWM sysfs backend ({}) for the named buzzer",
                      pwm->channel_path());
+        return pwm;
     }
 #endif
 
@@ -619,7 +610,10 @@ void SoundManager::play_file(const std::string& path, SoundPriority priority) {
 
     // Route ticks to tracker for sequencing
     auto* tp = tracker_.get();
-    sequencer_->set_external_tick([tp](float dt_ms) { tp->tick(dt_ms); });
+    sequencer_->set_external_tick([tp](float dt_ms) {
+        tp->tick(dt_ms);
+        return tp->is_playing();
+    });
 
     // Set render source for PCM sample playback on capable backends.
     // Frequency-only backends (PWM, M300) get synth fallback via set_voice().
@@ -676,7 +670,7 @@ void SoundManager::fade_out_tracker(uint32_t duration_ms) {
             tp->set_volume_override(0);
             // Schedule stop (can't call stop_tracker from within the tick)
             tp->stop();
-            return;
+            return false;
         }
 
         float elapsed_ms = std::chrono::duration<float, std::milli>(now - fade_start).count();
@@ -684,6 +678,7 @@ void SoundManager::fade_out_tracker(uint32_t duration_ms) {
         float progress = elapsed_ms / total_ms;
         int vol = static_cast<int>(100.0f * (1.0f - progress));
         tp->set_volume_override(std::max(0, vol));
+        return tp->is_playing();
     });
 }
 #endif

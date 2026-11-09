@@ -12,6 +12,7 @@
 #include "belt_tension_types.h"
 #include "config.h"
 #include "core/static_subject_registry.h"
+#include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_client.h"
@@ -151,6 +152,9 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // override follows the same printer.
     {"settings_toolhead_style", "appearance/toolhead_style", Scope::PerPrinter, false, 0, 0, 7,
      "toolhead_style"},
+    // helix::ui::ToolNumberStyleSetting: 0=Auto, 1=Physical ("1"), 2=Gcode ("T0")
+    {"settings_tool_number_style", "appearance/tool_number_style", Scope::PerPrinter, false, 0, 0,
+     2, "tool_number_style"},
     {"show_printer_switcher", "/printers/show_printer_switcher", Scope::Global, true, 0, 0, 1,
      "show_printer_switcher"},
     {"show_widget_labels", "/appearance/show_widget_labels", Scope::Global, true, 0, 0, 1,
@@ -180,6 +184,9 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // #1335. Off: a popup the user did not ask for is opt-in.
     {"filament_auto_open_editor", "filament/auto_open_editor", Scope::PerPrinter, true, 0, 0, 1,
      "filament_auto_open_editor"},
+    // Off: positions count from 1. See helix::ui::lane_number().
+    {"number_lanes_from_zero", "ams/number_lanes_from_zero", Scope::PerPrinter, true, 0, 0, 1,
+     "number_lanes_from_zero"},
     {"console_filter_temps", "/console/filter_temps", Scope::Global, true, 1, 0, 1,
      "console_filter_temps"},
     {"console_filter_firmware_noise", "/console/filter_firmware_noise", Scope::Global, true, 1, 0,
@@ -202,6 +209,18 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     {"settings_belt_layout", "belt_tension/layout", Scope::PerPrinter, false, 0, 0,
      helix::calibration::kBeltLayoutCount - 1, "belt_layout"},
 };
+
+namespace {
+/// Push a stored numbering base to the labels and re-render them if it changed.
+void apply_lane_numbering(bool from_zero) {
+    if (from_zero == helix::ui::lane_numbering_from_zero()) {
+        return;
+    }
+    helix::ui::set_lane_numbering_from_zero(from_zero);
+    // Everything that formats a number re-renders on this subject.
+    lv_subject_notify(SystemSettingsManager::instance().subject_language());
+}
+} // namespace
 
 SettingsManager& SettingsManager::instance() {
     static HELIX_PSRAM_BSS SettingsManager instance;
@@ -236,6 +255,8 @@ void SettingsManager::init_subjects() {
     MaterialSettingsManager::instance().init();
 
     settings_.init(subjects_);
+    sync_tool_number_style_mirror();
+    helix::ui::set_lane_numbering_from_zero(get_number_lanes_from_zero());
 
     // Apply a non-Auto Z movement override to printer state now, even if
     // set_kinematics() has not run yet (e.g. on reconnect).
@@ -315,11 +336,18 @@ void SettingsManager::load_jog_distances() {
     }
 }
 
+void SettingsManager::set_number_lanes_from_zero(bool enabled) {
+    settings_.set(Key::NumberLanesFromZero, enabled);
+    apply_lane_numbering(enabled);
+}
+
 void SettingsManager::reload_from_config() {
     if (!subjects_initialized_) {
         return;
     }
     settings_.reload();
+    sync_tool_number_style_mirror();
+    apply_lane_numbering(get_number_lanes_from_zero());
     load_jog_distances();
 }
 
@@ -536,17 +564,6 @@ void SettingsManager::reset_jog_distances() {
     }
 }
 
-bool SettingsManager::get_bypass_declared() const {
-    Config* config = Config::get_instance();
-    return config->get<bool>(config->df() + "ams/bypass_declared", false);
-}
-
-void SettingsManager::set_bypass_declared(bool declared) {
-    Config* config = Config::get_instance();
-    config->set<bool>(config->df() + "ams/bypass_declared", declared);
-    config->save();
-}
-
 namespace {
 
 /// Config pointer holding one layer of a user filter list.
@@ -656,80 +673,6 @@ void SettingsManager::mark_detection_seeded() {
 }
 
 // ============================================================================
-// Filament Settings
-// ============================================================================
-
-std::optional<SlotInfo> SettingsManager::get_external_spool_info() const {
-    Config* config = Config::get_instance();
-
-    // Primary check: explicit assigned boolean (new format)
-    bool assigned = config->get<bool>(config->df() + "filament/external_spool/assigned", false);
-
-    // Backward compat: old configs have color_rgb but no assigned key
-    if (!assigned) {
-        auto color = config->get<int>(config->df() + "filament/external_spool/color_rgb", -1);
-        if (color == -1) {
-            return std::nullopt;
-        }
-        // Old format detected — treat as assigned (will be migrated on next set)
-    }
-
-    SlotInfo info;
-    info.slot_index = -2; // External spool sentinel
-    info.global_index = -2;
-    info.color_rgb =
-        static_cast<uint32_t>(config->get<int>(config->df() + "filament/external_spool/color_rgb",
-                                               static_cast<int>(kAmsDefaultSlotColor)));
-    info.material = config->get<std::string>(config->df() + "filament/external_spool/material", "");
-    info.brand = config->get<std::string>(config->df() + "filament/external_spool/brand", "");
-    // The external spool has no lane_data record, so this get/set pair is its
-    // ONLY persistence — the catalog product identity has to round-trip here or
-    // the editor reopens on the alphabetically-first variant of the material.
-    info.catalog_id =
-        config->get<std::string>(config->df() + "filament/external_spool/catalog_id", "");
-    info.product_name =
-        config->get<std::string>(config->df() + "filament/external_spool/product_name", "");
-    info.nozzle_temp_min =
-        config->get<int>(config->df() + "filament/external_spool/nozzle_temp_min", 0);
-    info.nozzle_temp_max =
-        config->get<int>(config->df() + "filament/external_spool/nozzle_temp_max", 0);
-    info.bed_temp = config->get<int>(config->df() + "filament/external_spool/bed_temp", 0);
-    info.spoolman_id = config->get<int>(config->df() + "filament/external_spool/spoolman_id", 0);
-    info.spool_name =
-        config->get<std::string>(config->df() + "filament/external_spool/spool_name", "");
-    info.remaining_weight_g =
-        config->get<float>(config->df() + "filament/external_spool/remaining_weight_g", -1.0f);
-    info.total_weight_g =
-        config->get<float>(config->df() + "filament/external_spool/total_weight_g", -1.0f);
-    info.status = SlotStatus::AVAILABLE;
-    return info;
-}
-
-void SettingsManager::set_external_spool_info(const SlotInfo& info) {
-    Config* config = Config::get_instance();
-    config->set<bool>(config->df() + "filament/external_spool/assigned", true);
-    config->set<int>(config->df() + "filament/external_spool/color_rgb",
-                     static_cast<int>(info.color_rgb));
-    config->set<std::string>(config->df() + "filament/external_spool/material", info.material);
-    config->set<std::string>(config->df() + "filament/external_spool/brand", info.brand);
-    config->set<std::string>(config->df() + "filament/external_spool/catalog_id", info.catalog_id);
-    config->set<std::string>(config->df() + "filament/external_spool/product_name",
-                             info.product_name);
-    config->set<int>(config->df() + "filament/external_spool/nozzle_temp_min",
-                     info.nozzle_temp_min);
-    config->set<int>(config->df() + "filament/external_spool/nozzle_temp_max",
-                     info.nozzle_temp_max);
-    config->set<int>(config->df() + "filament/external_spool/bed_temp", info.bed_temp);
-    config->set<int>(config->df() + "filament/external_spool/spoolman_id", info.spoolman_id);
-    config->set<std::string>(config->df() + "filament/external_spool/spool_name", info.spool_name);
-    config->set<float>(config->df() + "filament/external_spool/remaining_weight_g",
-                       info.remaining_weight_g);
-    config->set<float>(config->df() + "filament/external_spool/total_weight_g",
-                       info.total_weight_g);
-    config->save();
-}
-
-// ============================================================================
 // Chamber Assignment
 // ============================================================================
 
@@ -820,17 +763,6 @@ void SettingsManager::set_chamber_sensor_assignment(const std::string& value) {
 // ============================================================================
 // Filament Settings
 // ============================================================================
-
-void SettingsManager::clear_external_spool_info() {
-    Config* config = Config::get_instance();
-    // Probe first: get_json() would vivify "filament": null on every call and
-    // the unconditional save() below would persist it (#1129).
-    const json* existing = config->try_get_json(config->df() + "filament");
-    if (existing != nullptr && existing->is_object() && existing->contains("external_spool")) {
-        config->get_json(config->df() + "filament").erase("external_spool");
-    }
-    config->save();
-}
 
 // ============================================================================
 // Barcode Scanner Settings

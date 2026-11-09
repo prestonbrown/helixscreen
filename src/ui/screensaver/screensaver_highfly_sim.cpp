@@ -44,10 +44,10 @@ constexpr float kHaze = 0.22f;
 /// World x of the field under the screen's centre.
 constexpr float kFieldX0 = 64.0f;
 
-constexpr Rgb kCShadow{45, 130, 182};
-constexpr Rgb kCMidtone{150, 212, 235};
-constexpr Rgb kCLit{252, 254, 255};
-constexpr Rgb kCFog{30, 110, 162};
+/// The deck's colours with no print; the cloud textures are baked in these.
+constexpr Rgb kCShadow = kHighflyDay.shadow;
+constexpr Rgb kCMidtone = kHighflyDay.midtone;
+constexpr Rgb kCLit = kHighflyDay.lit;
 constexpr Rgb INSIDE{200, 216, 230};
 constexpr Rgb kNumeral{226, 238, 250};
 constexpr float kNumeralOpacity = 0.85f;
@@ -97,12 +97,12 @@ constexpr int32_t kDeckRise = 3;
 constexpr size_t kBoxCap = 12;
 
 /// Cloud shade 0-1 to colour: shadow blue to midtone, then midtone to sunlit white.
-Rgb shade_to_rgb(float s) {
+Rgb shade_to_rgb(float s, Rgb shadow = kCShadow, Rgb midtone = kCMidtone, Rgb lit = kCLit) {
     s = std::clamp(s, 0.0f, 1.0f);
     if (s < 0.55f) {
-        return mix_rgb(kCShadow, kCMidtone, s / 0.55f);
+        return mix_rgb(shadow, midtone, s / 0.55f);
     }
-    return mix_rgb(kCMidtone, kCLit, (s - 0.55f) / 0.45f);
+    return mix_rgb(midtone, lit, (s - 0.55f) / 0.45f);
 }
 
 // ---------- Grid helpers ----------
@@ -609,6 +609,48 @@ float highfly_layer_visibility(float deck_z, float layer_z) {
 
 // ---------- Clock layout ----------
 
+std::array<int, 6> highfly_numerals(const ClockReading& r) {
+    if (!highfly_counts_down(r)) {
+        const std::array<int, 2> hour = two_digits(r.time.hour);
+        const std::array<int, 2> minute = two_digits(r.time.minute);
+        const std::array<int, 2> second = two_digits(r.time.second);
+        return {hour[0], hour[1], minute[0], minute[1], second[0], second[1]};
+    }
+    constexpr int32_t kMostS = 99 * 3600 + 59 * 60 + 59;
+    const int32_t left = std::clamp(r.countdown_s, 0, kMostS);
+    const std::array<int, 2> hour = two_digits(left / 3600);
+    const std::array<int, 2> minute = two_digits(left / 60 % 60);
+    const std::array<int, 2> second = two_digits(left % 60);
+    return {left >= 10 * 3600 ? hour[0] : -1, hour[1], minute[0], minute[1], second[0], second[1]};
+}
+
+HighflyPalette highfly_palette(const ClockReading& r) {
+    switch (r.mode) {
+    case ClockMode::CLOCK:
+        return kHighflyDay;
+    case ClockMode::DONE:
+        return kHighflySunset;
+    case ClockMode::FAILED:
+    case ClockMode::CANCELLED:
+        return kHighflyOvercast;
+    case ClockMode::PROGRESS:
+    case ClockMode::COUNTDOWN:
+    case ClockMode::PAUSED:
+        break;
+    }
+    const int32_t step = std::clamp(r.progress_pct, 0, 100) * kHighflyPaletteSteps / 100;
+    if (step == 0) {
+        return kHighflyDay;
+    }
+    const float t = static_cast<float>(step) / static_cast<float>(kHighflyPaletteSteps);
+    const HighflyPalette& a = kHighflyDay;
+    const HighflyPalette& b = kHighflyGolden;
+    return {mix_rgb(a.top, b.top, t),        mix_rgb(a.bottom, b.bottom, t),
+            mix_rgb(a.glow, b.glow, t),      mix_rgb(a.lit, b.lit, t),
+            mix_rgb(a.fog, b.fog, t),        mix_rgb(a.shadow, b.shadow, t),
+            mix_rgb(a.midtone, b.midtone, t)};
+}
+
 HighFlyClockLayout layout_highfly_clock(int32_t w, int32_t h, int32_t dx, int32_t dy) {
     const float s = std::min(static_cast<float>(h) / 480.0f, static_cast<float>(w) / 800.0f);
     HighFlyClockLayout l;
@@ -689,9 +731,10 @@ class HighFlySim::Scene : public HeightfieldScene {
         const uint8_t* row0s = sh + static_cast<size_t>(v0) * N;
         const uint8_t* row1s = sh + static_cast<size_t>(v1) * N;
         const float to_world = 1.0f / (kHighflyTexelsPerUnit * kDeckHeightSteps);
+        const float x0 = kFieldX0 + s.sway();
         for (int32_t c = 0; c < s.iw_; c++) {
-            const float wx = (kFieldX0 + slice.x_left + static_cast<float>(c) * slice.x_step) *
-                             kHighflyTexelsPerUnit;
+            const float wx =
+                (x0 + slice.x_left + static_cast<float>(c) * slice.x_step) * kHighflyTexelsPerUnit;
             const float wx_floor = std::floor(wx);
             const float fu = wx - wx_floor;
             const int32_t u0 = static_cast<int32_t>(static_cast<int64_t>(wx_floor) & (N - 1));
@@ -718,6 +761,11 @@ void HighFlySim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t le
     w_ = static_cast<int32_t>(frame.w);
     h_ = static_cast<int32_t>(frame.h);
     t_ = 0.0;
+    const bool paused = reading.mode == ClockMode::PAUSED;
+    speed_ = paused ? kHighflyPausedSpeed : 1.0f;
+    sway_amp_ = paused ? 1.0f : 0.0f;
+    palette_ = highfly_palette(reading);
+    last_mode_ = reading.mode;
     deck_texels_ = 0.0f;
     drift_.reset();
     build_scene(rng);
@@ -755,6 +803,7 @@ void HighFlySim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t le
 }
 
 void HighFlySim::build_scene(std::minstd_rand& rng) {
+    scene_rng_ = rng;
     {
         HighFlyField field;
         build_highfly_field(rng, field);
@@ -838,16 +887,7 @@ void HighFlySim::apply_view(bool bake) {
     renderer_.set_view(v);
 
     slice_lut_.resize(renderer_.slices().size() * 256);
-    for (size_t s = 0; s < renderer_.slices().size(); s++) {
-        const HeightfieldSlice& slice = renderer_.slices()[s];
-        const float near = kNearK * std::clamp(1.0f - slice.z / kNearWhite, 0.0f, 1.0f);
-        for (int32_t i = 0; i < 256; i++) {
-            Rgb c = shade_to_rgb(static_cast<float>(i) / 255.0f);
-            c = mix_rgb(c, kCLit, near);
-            c = mix_rgb(c, kCFog, slice.fog);
-            slice_lut_[s * 256 + i] = c;
-        }
-    }
+    bake_slice_lut();
     sky_.resize(static_cast<size_t>(iw_) * ih_);
     frame_.resize(static_cast<size_t>(iw_) * ih_);
     polar_.resize(static_cast<size_t>(iw_) * ih_ * 3);
@@ -885,14 +925,66 @@ void HighFlySim::apply_view(bool bake) {
     painted_ = false;
 }
 
+void HighFlySim::bake_slice_lut() {
+    const HighflyPalette& p = palette_;
+    for (size_t s = 0; s < renderer_.slices().size(); s++) {
+        const HeightfieldSlice& slice = renderer_.slices()[s];
+        const float near = kNearK * std::clamp(1.0f - slice.z / kNearWhite, 0.0f, 1.0f);
+        for (int32_t i = 0; i < 256; i++) {
+            Rgb c = shade_to_rgb(static_cast<float>(i) / 255.0f, p.shadow, p.midtone, p.lit);
+            c = mix_rgb(c, p.lit, near);
+            c = mix_rgb(c, p.fog, slice.fog);
+            slice_lut_[s * 256 + i] = c;
+        }
+    }
+}
+
+void HighFlySim::follow_print(const ClockReading& reading, float dt_s) {
+    const auto ease = [dt_s](float v, float target) {
+        constexpr float kRate = 0.5f; ///< per second
+        return v + std::clamp(target - v, -kRate * dt_s, kRate * dt_s);
+    };
+    const bool paused = reading.mode == ClockMode::PAUSED;
+    speed_ = ease(speed_, paused ? kHighflyPausedSpeed : 1.0f);
+    sway_amp_ = ease(sway_amp_, paused ? 1.0f : 0.0f);
+    const bool still = kHighflyLevels[level_].still;
+    const bool done = reading.mode == ClockMode::DONE;
+    if (done && last_mode_ != ClockMode::DONE && !still && fly_since_s() < 0.0f) {
+        // A finished print drops through a cloud now, whatever the schedule said.
+        fly_start_s_ = t_;
+    }
+    last_mode_ = reading.mode;
+    const HighflyPalette want = highfly_palette(reading);
+    if (want == palette_) {
+        return;
+    }
+    const float since = fly_since_s();
+    if (done && !still && since >= 0.0f && since < kHighflyFlyInS) {
+        // The sunset comes in behind the cloud, once its whiteout covers the frame.
+        return;
+    }
+    palette_ = want;
+    painted_ = false;
+    if (!scene_released_) {
+        build_sky();
+        bake_slice_lut();
+    }
+}
+
+float HighFlySim::sway() const {
+    const double s = static_cast<double>(drift_.elapsed_ms) / 1000.0;
+    return sway_amp_ * std::sin(static_cast<float>(std::fmod(s * kHighflySwayRate, kSaverTwoPi))) *
+           kHighflySwayTexels / kHighflyTexelsPerUnit;
+}
+
 void HighFlySim::build_sky() {
     const auto W = static_cast<float>(iw_);
     const auto H = static_cast<float>(ih_);
     const float cx = W * 0.5f;
     const float cy = -H * 0.12f;
-    constexpr Rgb TOP{40, 128, 180};
-    constexpr Rgb BOTTOM{12, 78, 124};
-    constexpr Rgb GLOW{215, 242, 252};
+    const Rgb top = palette_.top;
+    const Rgb bottom = palette_.bottom;
+    const Rgb glow_rgb = palette_.glow;
     struct Shaft {
         float a0, width, strength;
     };
@@ -903,7 +995,7 @@ void HighFlySim::build_sky() {
     for (int32_t y = 0; y < ih_; y++) {
         const float fy = static_cast<float>(y);
         const float t = std::pow(std::clamp(fy / (H * kHorizon), 0.0f, 1.0f), 0.8f);
-        const Rgb base = mix_rgb(TOP, BOTTOM, t);
+        const Rgb base = mix_rgb(top, bottom, t);
         const float fall = std::pow(std::clamp(1.0f - (fy - cy) / (H * 0.8f), 0.0f, 1.0f), 1.6f);
         for (int32_t x = 0; x < iw_; x++) {
             const float fx = static_cast<float>(x);
@@ -912,14 +1004,14 @@ void HighFlySim::build_sky() {
             const float d = std::sqrt(dx * dx + 1.6f * dy * dy);
             const float glow = 0.8f * std::exp(-(d / 0.22f) * (d / 0.22f)) +
                                0.3f * std::exp(-(d / 0.55f) * (d / 0.55f));
-            Rgb c = mix_rgb(base, GLOW, std::min(glow, 1.0f));
+            Rgb c = mix_rgb(base, glow_rgb, std::min(glow, 1.0f));
             const float ang = std::atan2(fx - cx, fy - cy);
             float shafts = 0.0f;
             for (const Shaft& sh : kShafts) {
                 const float q = (ang - sh.a0) / sh.width;
                 shafts += sh.strength * std::exp(-q * q);
             }
-            c = mix_rgb(c, GLOW, std::min(shafts * fall, 1.0f));
+            c = mix_rgb(c, glow_rgb, std::min(shafts * fall, 1.0f));
             sky_[static_cast<size_t>(y) * iw_ + x] = c;
         }
     }
@@ -950,7 +1042,7 @@ HighFlySim::Billboard HighFlySim::tower_billboard(const Tower& t) const {
     b.z = t.z;
     b.q = kTowerQ * t.size;
     b.xw0 = t.x + t.drift * static_cast<float>(t_ - t.entered_s) -
-            static_cast<float>(tex.w) * b.q / 2.0f;
+            static_cast<float>(tex.w) * b.q / 2.0f - sway();
     b.hb = kTowerHb;
     b.alpha = std::clamp((kTowerZEnter - t.z) / 50.0f, 0.0f, 1.0f) *
               std::clamp((t.z - kTowerZLeave) / (kTowerFadeFrom - kTowerZLeave), 0.0f, 1.0f);
@@ -1062,7 +1154,8 @@ size_t HighFlySim::collect_billboards(Billboard* out, size_t cap) const {
         b.tex =
             &layers_[static_cast<size_t>((static_cast<int64_t>(i) + cycle) % kHighflyLayerCount)];
         b.z = z;
-        b.xw0 = static_cast<float>((static_cast<int64_t>(i) * 97 + cycle * 61) % 300) - 150.0f;
+        b.xw0 =
+            static_cast<float>((static_cast<int64_t>(i) * 97 + cycle * 61) % 300) - 150.0f - sway();
         b.hb = kLayerHb;
         b.q = kLayerQ;
         b.wrap = true;
@@ -1085,7 +1178,7 @@ size_t HighFlySim::collect_billboards(Billboard* out, size_t cap) const {
         b.tex = &tex;
         b.z = body_z;
         b.q = kBodyQ;
-        b.xw0 = -static_cast<float>(tex.w) * kBodyQ / 2.0f;
+        b.xw0 = -static_cast<float>(tex.w) * kBodyQ / 2.0f - sway();
         b.hb = kCamH - static_cast<float>(tex.h) * kBodyQ * 0.6f;
         b.alpha = std::clamp((330.0f - body_z) / 50.0f, 0.0f, 1.0f) *
                   (1.0f - highfly_whiteout(since)) * 0.9f;
@@ -1154,9 +1247,11 @@ void HighFlySim::draw_billboard(const Billboard& b) {
     // a colour times its coverage.
     const auto u8_of = [](float v) { return static_cast<int32_t>(v * 256.0f + 0.5f); };
     const int32_t keep_own = u8_of((1.0f - nw) * (1.0f - f));
-    const int32_t add_r = u8_of(kCLit.r * nw * (1.0f - f) + kCFog.r * f);
-    const int32_t add_g = u8_of(kCLit.g * nw * (1.0f - f) + kCFog.g * f);
-    const int32_t add_b = u8_of(kCLit.b * nw * (1.0f - f) + kCFog.b * f);
+    const Rgb lit = palette_.lit;
+    const Rgb fog = palette_.fog;
+    const int32_t add_r = u8_of(lit.r * nw * (1.0f - f) + fog.r * f);
+    const int32_t add_g = u8_of(lit.g * nw * (1.0f - f) + fog.g * f);
+    const int32_t add_b = u8_of(lit.b * nw * (1.0f - f) + fog.b * f);
     const int32_t alpha = u8_of(b.alpha);
     if (b.depth_test) {
         const std::vector<HeightfieldSlice>& slices = renderer_.slices();
@@ -1250,7 +1345,7 @@ void HighFlySim::compose(int32_t from) {
     band.wrap = true;
     // The band repeats every texture width, so its drift is reduced to one width.
     const double band_period = static_cast<double>(band_.w) * kBandQ / kBandDrift;
-    band.xw0 = -kBandDrift * static_cast<float>(std::fmod(t_, band_period));
+    band.xw0 = -kBandDrift * static_cast<float>(std::fmod(t_, band_period)) - sway();
     band.depth_test = false;
     draw_billboard(band);
 
@@ -1272,7 +1367,7 @@ void HighFlySim::compose(int32_t from) {
             1.5f);
         Rgb* row = &frame_[static_cast<size_t>(y) * iw_];
         for (int32_t x = 0; x < iw_; x++) {
-            row[x] = mix_rgb(row[x], kCLit, t);
+            row[x] = mix_rgb(row[x], palette_.lit, t);
         }
     }
 
@@ -1335,9 +1430,7 @@ class HighFlySim::LayerWriter {
 
 void HighFlySim::draw_numeral_group(LayerWriter& writer, const ClockReading& reading,
                                     NumeralGroup g, const HighFlyClockLayout& l) const {
-    const std::array<int, 2> hour = two_digits(reading.time.hour);
-    const std::array<int, 2> minute = two_digits(reading.time.minute);
-    const std::array<int, 2> second = two_digits(reading.time.second);
+    const std::array<int, 6> n = highfly_numerals(reading);
     struct Place {
         const StrokeDigitSet& set;
         const StrokeDigitSet& halo;
@@ -1347,14 +1440,14 @@ void HighFlySim::draw_numeral_group(LayerWriter& writer, const ClockReading& rea
     };
     const bool seconds = g == NumeralGroup::SECONDS;
     const Place big[] = {
-        {digits_, digit_halo_, l.halo, l.digits[0], hour[0]},
-        {digits_, digit_halo_, l.halo, l.digits[1], hour[1]},
-        {digits_, digit_halo_, l.halo, l.digits[3], minute[0]},
-        {digits_, digit_halo_, l.halo, l.digits[4], minute[1]},
+        {digits_, digit_halo_, l.halo, l.digits[0], n[0]},
+        {digits_, digit_halo_, l.halo, l.digits[1], n[1]},
+        {digits_, digit_halo_, l.halo, l.digits[3], n[2]},
+        {digits_, digit_halo_, l.halo, l.digits[4], n[3]},
     };
     const Place small[] = {
-        {second_digits_, second_halo_, l.second_halo, l.seconds[0], second[0]},
-        {second_digits_, second_halo_, l.second_halo, l.seconds[1], second[1]},
+        {second_digits_, second_halo_, l.second_halo, l.seconds[0], n[4]},
+        {second_digits_, second_halo_, l.second_halo, l.seconds[1], n[5]},
     };
     const Place* places = seconds ? small : big;
     const size_t count = seconds ? std::size(small) : std::size(big);
@@ -1483,11 +1576,8 @@ void compose_numeral_layer(const std::vector<uint32_t>& over, const DirtyRect& b
 } // namespace
 
 void HighFlySim::draw_numerals(FrameTarget& frame, const ClockReading& reading) {
-    const std::array<int, 2> hour = two_digits(reading.time.hour);
-    const std::array<int, 2> minute = two_digits(reading.time.minute);
-    const std::array<int, 2> second = two_digits(reading.time.second);
-    const std::array<int, 4> wants[] = {{hour[0], hour[1], minute[0], minute[1]},
-                                        {second[0], second[1], -1, -1}};
+    const std::array<int, 6> n = highfly_numerals(reading);
+    const std::array<int, 4> wants[] = {{n[0], n[1], n[2], n[3]}, {n[4], n[5], -1, -1}};
     for (size_t i = 0; i < numerals_.size(); i++) {
         NumeralLayer& layer = numerals_[i];
         if (layer.over.empty()) {
@@ -1537,7 +1627,13 @@ void HighFlySim::step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng,
     dirty.clear();
     const HighFlyLevel& lv = kHighflyLevels[level_];
     const DirtyRect whole = DirtyRect::whole(w_, h_);
-    if (scene_released_ && (!lv.still || !painted_)) {
+    follow_print(reading, static_cast<float>(dt_ms) / 1000.0f);
+    if (scene_released_ && lv.still && !painted_) {
+        // The still rung's palette moved: the same scene again, under the new sky.
+        std::minstd_rand again = scene_rng_;
+        build_scene(again);
+        apply_view();
+    } else if (scene_released_ && !lv.still) {
         // A rung change after the still one: the sky comes back before it is drawn.
         build_scene(rng);
         apply_view();
@@ -1569,7 +1665,7 @@ void HighFlySim::step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng,
         return;
     }
 
-    t_ += static_cast<double>(dt_ms) / 1000.0;
+    t_ += static_cast<double>(dt_ms) / 1000.0 * static_cast<double>(speed_);
     // The field repeats every kHighflyField texels, so the deck's scroll is reduced to one tile.
     deck_texels_ = static_cast<float>(
         std::fmod(t_ * kHighflySpeed * kHighflyTexelsPerUnit, static_cast<double>(N)));

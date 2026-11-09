@@ -23,9 +23,8 @@ class IMoonrakerClient;
 /// printer switch, and a click - or the DELETE that arrives after the exit
 /// animation - could otherwise land on a prompt whose owner is gone. The Modal
 /// base already solves exactly that when it hides: it invalidates its async
-/// lifetime, clears button user_data and disables clicks across the dialog tree
-/// (ui_modal.cpp:815-835). The static helper skips all of it, because it pushes
-/// with no owner, which is why the hand-rolled alternative was a global.
+/// lifetime, clears button user_data and disables clicks across the dialog tree.
+/// The static helper skips all of it, because it pushes with no owner.
 class LanAuthPromptModal : public Modal {
   public:
     /// Answer chosen by the user. Fires before the dialog starts hiding.

@@ -157,9 +157,9 @@ static void switch_value_changed_sound_cb(lv_event_t* e) {
 
 /**
  * Apply HelixScreen theme styling to a switch — colors for CHECKED indicator,
- * knob, track, and disabled state. Identical to the styling block previously
- * inlined in ui_switch_xml_apply; extracted so C++ callers can produce
- * theme-styled switches without going through the XML parser.
+ * knob, track, and disabled state. Shared by ui_switch_xml_apply and C++
+ * callers, which get theme-styled switches without going through the XML
+ * parser.
  */
 static void apply_themed_styling(lv_obj_t* obj) {
     const char* primary_str = lv_xml_get_const(NULL, "primary");

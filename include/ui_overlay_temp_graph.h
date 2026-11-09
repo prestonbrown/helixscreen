@@ -17,7 +17,6 @@
 #include <string>
 #include <vector>
 
-// Forward declarations
 namespace helix {
 class PrinterState;
 } // namespace helix

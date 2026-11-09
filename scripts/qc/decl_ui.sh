@@ -28,7 +28,7 @@ echo -n "🎨 Checking declarative UI (imperative XML-widget mutation)..."
 # as deliberate pragmatism (the XML engine couldn't express it at the time), some
 # are plain mistakes — both are debt. The number may go DOWN (port a site, then
 # lower this baseline) but must never go up.
-if python3 scripts/check_imperative_ui.py --max-allowed 531 --summary >/tmp/imperative_ui.out 2>&1; then
+if python3 scripts/check_imperative_ui.py --max-allowed 523 --summary >/tmp/imperative_ui.out 2>&1; then
   section_time $SECTION_START
   echo ""
   tail -1 /tmp/imperative_ui.out
@@ -319,23 +319,6 @@ else
   section_time $SECTION_START
   echo ""
   cat /tmp/json_dump_utf8.out
-  EXIT_CODE=1
-fi
-
-SECTION_START=$(date +%s)
-echo -n "🧵 Checking AMS backends reconcile lane bindings..."
-
-# A backend whose firmware states a spool id must call reconcile_lane_binding()
-# where it parses it, or a lane re-bound behind the app's back keeps painting
-# the old spool forever (prestonbrown/helixscreen#1645).
-if python3 scripts/check_lane_binding_reconcile.py >/tmp/lane_binding_reconcile.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  tail -1 /tmp/lane_binding_reconcile.out
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/lane_binding_reconcile.out
   EXIT_CODE=1
 fi
 

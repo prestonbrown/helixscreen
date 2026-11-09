@@ -21,10 +21,6 @@ namespace {
 constexpr int kMaxValidTempDeci = 4000;
 } // namespace
 
-// ============================================================================
-// Construction / Destruction
-// ============================================================================
-
 TemperatureHistoryManager::TemperatureHistoryManager(PrinterState& printer_state)
     : printer_state_(printer_state) {
     // Pre-populate heater map with standard heaters
@@ -41,10 +37,6 @@ TemperatureHistoryManager::~TemperatureHistoryManager() {
     unsubscribe_from_subjects();
     spdlog::debug("TemperatureHistoryManager: destroyed");
 }
-
-// ============================================================================
-// Data Access (thread-safe reads)
-// ============================================================================
 
 std::vector<TempSample>
 TemperatureHistoryManager::get_samples(const std::string& heater_name) const {
@@ -153,10 +145,6 @@ int TemperatureHistoryManager::get_sample_count(const std::string& heater_name) 
     return std::min(it->second.count, kHistorySize);
 }
 
-// ============================================================================
-// Observer Pattern
-// ============================================================================
-
 void TemperatureHistoryManager::add_observer(HistoryCallback* cb) {
     if (cb == nullptr) {
         return;
@@ -164,7 +152,6 @@ void TemperatureHistoryManager::add_observer(HistoryCallback* cb) {
 
     std::lock_guard<std::mutex> lock(mutex_);
 
-    // Check if already registered
     auto it = std::find(observers_.begin(), observers_.end(), cb);
     if (it == observers_.end()) {
         observers_.push_back(cb);
@@ -194,10 +181,6 @@ void TemperatureHistoryManager::notify_observers(const std::string& heater_name)
         }
     }
 }
-
-// ============================================================================
-// Internal Methods
-// ============================================================================
 
 void TemperatureHistoryManager::log_sample_verdict(const std::string& heater_name, bool valid,
                                                    int temp_deci, int64_t timestamp_ms) {
@@ -236,7 +219,7 @@ bool TemperatureHistoryManager::add_sample_internal(const std::string& heater_na
     // status updates, and for an idle extruder on a multi-tool printer (the U1).
     // Storing a 0 makes the history backfill/replay path draw a real data point
     // at the chart's 0°C floor — a solid vertical line dropping to the baseline
-    // at the replayed live edge (the reported U1 artifact). The live-push filter
+    // at the replayed live edge. The live-push filter
     // in TempGraphController only guards new pushes; the 0 enters here, via the
     // recorder, and is replayed later, so it must be rejected at this boundary —
     // the single source feeding every consumer (overlay, mini graph, panel).
@@ -244,8 +227,8 @@ bool TemperatureHistoryManager::add_sample_internal(const std::string& heater_na
     //
     // Logging is per state transition, not per sample (#1348). The predicate is
     // permanent for an open or unmounted thermistor, so a line per rejection is
-    // a line per second per heater forever — one field bundle was 95.5% this
-    // single message, which evicted the whole crash ring. InvalidSampleTracker
+    // a line per second per heater forever, enough to evict the whole crash
+    // ring. InvalidSampleTracker
     // collapses a run into: one line when it opens, a heartbeat on a doubling
     // interval while it lasts, one line when it closes.
     const bool valid = (temp_deci > 0 && temp_deci <= kMaxValidTempDeci);
@@ -254,7 +237,6 @@ bool TemperatureHistoryManager::add_sample_internal(const std::string& heater_na
         return false;
     }
 
-    // Get or create heater history
     HeaterHistory& history = heaters_[heater_name];
 
     // Throttle: reject if within kSampleIntervalMs of last sample
@@ -262,7 +244,6 @@ bool TemperatureHistoryManager::add_sample_internal(const std::string& heater_na
         return false;
     }
 
-    // Store sample in circular buffer
     TempSample sample;
     sample.temp_deci = temp_deci;
     sample.target_deci = target_deci;
@@ -270,15 +251,12 @@ bool TemperatureHistoryManager::add_sample_internal(const std::string& heater_na
 
     history.samples[static_cast<size_t>(history.write_index)] = sample;
 
-    // Advance write index (circular)
     history.write_index = (history.write_index + 1) % kHistorySize;
 
-    // Update count (capped at kHistorySize)
     if (history.count < kHistorySize) {
         history.count++;
     }
 
-    // Update last sample time for throttling
     history.last_sample_ms = timestamp_ms;
 
     return true;
@@ -315,8 +293,8 @@ void TemperatureHistoryManager::seed_from_store(const TemperatureStore& store, i
         //    dropped — inside its own window the store is authoritative.
         //  - No loss of history the store does not have. Seeding re-runs on
         //    every discovery, and a restarted Klipper returns only a few
-        //    seconds of store data; a blanket replace collapsed a 20-minute
-        //    graph to seconds. Local samples strictly OLDER than the store
+        //    seconds of store data, so a blanket replace would collapse a
+        //    20-minute graph to seconds. Local samples strictly OLDER than the store
         //    window survive and are kept as the prefix.
         //
         // Both halves are chronological, so the merged result is strictly
@@ -393,9 +371,6 @@ void TemperatureHistoryManager::seed_from_store(const TemperatureStore& store, i
 
 namespace {
 
-/**
- * @brief Get current Unix timestamp in milliseconds
- */
 int64_t now_ms() {
     using namespace std::chrono;
     return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
@@ -510,7 +485,7 @@ void TemperatureHistoryManager::subscribe_one(const std::string& key, lv_subject
     sub->temp_observer = ObserverGuard(temp_subject, temp_observer_callback, sub->temp_ctx.get());
     // Only for genuinely dynamic subjects. Handing over an EMPTY token reads as
     // "subject already dead", which makes reset() skip lv_observer_remove() and
-    // strand a live observer on a freed context (#816's guard, inverted).
+    // strand a live observer on a freed context (#816).
     if (temp_lifetime) {
         sub->temp_observer.set_alive_token(temp_lifetime);
     }
@@ -638,7 +613,6 @@ void TemperatureHistoryManager::update_recent_sample_target(const std::string& h
 
     HeaterHistory& history = it->second;
 
-    // Find the most recent sample
     int recent_idx = (history.write_index - 1 + kHistorySize) % kHistorySize;
     TempSample& recent = history.samples[static_cast<size_t>(recent_idx)];
 

@@ -956,11 +956,10 @@ TEST_CASE("idempotence: CB1 in-place setup converges after a second run",
 // ============================================================================
 // Display and Remove act on the file that actually defines [spoolman].
 //
-// Both paths previously assumed helixscreen.conf. On a natively-configured
-// Moonraker (CB1) that made the URL display blank and — far worse — made Remove
-// no-op against helixscreen.conf while reporting success and leaving the real
-// [spoolman] in place. That is a false success, the same class of bug as the
-// original "reported connected, wasn't".
+// Neither path may assume helixscreen.conf. On a natively-configured Moonraker
+// (CB1) that would blank the URL display and, far worse, make Remove no-op
+// against helixscreen.conf while reporting success and leaving the real
+// [spoolman] in place: a false success, like "reported connected, wasn't".
 //
 // TEST_MIRROR_OK: simulate_remove() below stands in for
 // SpoolmanOverlay::remove_spoolman_config()'s dispatch on the shared resolution

@@ -1291,9 +1291,6 @@ void Config::remove_printer(const std::string& printer_id) {
 
     data["printers"].erase(printer_id);
     spdlog::info("[Config] Removed printer '{}'", printer_id);
-    if (printer_removed_hook_) {
-        printer_removed_hook_(printer_id);
-    }
 
     // If we just removed the active printer, switch to the first remaining one.
     // find_active_printer_key() skips the non-printer keys; taking
@@ -1639,14 +1636,17 @@ bool preset_targets_this_device(const std::string& moonraker_host) {
 #endif
 }
 
+/// Where presets/<name>.json resolves. find_readable lets the writable user dir
+/// win, then falls back to the shipped read-only seed bundle at
+/// $HELIX_DATA_DIR/assets/config/presets/, which is where install tarballs land
+/// presets: the writable dir alone misses every preset on a fresh install.
+std::string preset_file_path(const std::string& preset_name) {
+    return helix::find_readable(std::string("presets/") + preset_name + ".json");
+}
+
 /// The parsed preset @p preset_name, or nullopt when it is missing or unreadable.
-/// find_readable lets the writable user dir win, then falls back to the shipped
-/// read-only seed bundle at $HELIX_DATA_DIR/assets/config/presets/, which is where
-/// install tarballs land presets: the writable dir alone misses every preset on a
-/// fresh install.
 std::optional<json> load_preset(const std::string& preset_name, bool report_failure) {
-    const std::string preset_path =
-        helix::find_readable(std::string("presets/") + preset_name + ".json");
+    const std::string preset_path = preset_file_path(preset_name);
     if (!hfs::exists(preset_path)) {
         if (report_failure) {
             spdlog::warn("[Config] Preset file not found: {} (looked in writable + seed bundle)",
@@ -1666,6 +1666,10 @@ std::optional<json> load_preset(const std::string& preset_name, bool report_fail
 }
 
 } // namespace
+
+bool Config::preset_file_exists(const std::string& preset_name) {
+    return !preset_name.empty() && hfs::exists(preset_file_path(preset_name));
+}
 
 bool Config::apply_preset_file(const std::string& preset_name) {
     // Guard: only full-apply if wizard hasn't been completed for this printer.

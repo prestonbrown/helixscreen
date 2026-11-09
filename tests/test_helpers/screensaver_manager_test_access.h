@@ -32,9 +32,15 @@ class ScreensaverManagerTestAccess {
         return mgr.active_;
     }
 
-    /// Replaces the CPU clock; the next idle-check tick samples it at once.
-    static void set_cpu_clock(ScreensaverManager& mgr, helix::ui::CpuClockFn clock) {
+    /// Replaces the CPU clock; the next idle-check tick samples it at once. The wall clock
+    /// checked between samples is `wall`, or else the wall half of `clock`.
+    static void set_cpu_clock(ScreensaverManager& mgr, helix::ui::CpuClockFn clock,
+                              helix::ui::WallClockFn wall = {}) {
+        if (!wall) {
+            wall = [clock] { return clock().wall_ns; };
+        }
         mgr.cpu_clock_ = std::move(clock);
+        mgr.wall_clock_ = std::move(wall);
         mgr.sampled_ = false;
     }
 

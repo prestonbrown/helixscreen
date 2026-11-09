@@ -99,7 +99,7 @@ TEST_CASE_METHOD(MappingCancelFixture, "Cancel reverts a toggled auto-color pref
 
 TEST_CASE_METHOD(MappingCancelFixture, "Cancel reverts a toggle in the other direction too",
                  "[filament_mapping][modal][cancel]") {
-    // The mirror case, so the fix cannot be a hardcoded restore-to-true.
+    // The mirror case, so cancel cannot be a hardcoded restore-to-true.
     set_persisted(false);
 
     FilamentMappingModal modal;

@@ -92,7 +92,6 @@ TEST_CASE_METHOD(TouchCalibrationResetFixture,
     // Sanity: we are genuinely mid-session.
     REQUIRE(panel_->get_state() == TouchCalibrationPanel::State::POINT_1);
 
-    // The fix under test.
     panel_->reset();
 
     // Back to a clean start: IDLE, no buffered samples, no pending press.

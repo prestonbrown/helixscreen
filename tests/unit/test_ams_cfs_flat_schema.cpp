@@ -8,7 +8,7 @@
 // `box` status object with ZERO key overlap with the stock schema: a flat
 // `slots[]` array instead of the stock `T1`..`T4` nested unit objects. The
 // stock parser produced 0 units on that payload, so the AMS panel rendered
-// empty on a fully populated 4-bay CFS (debug bundle QJKZEMTS, v0.99.106).
+// empty on a fully populated 4-bay CFS (v0.99.106).
 //
 // The payload below is the real box object from that bundle, verbatim apart
 // from formatting. Sections of it are trimmed only where a subtree is
@@ -35,7 +35,7 @@ using json = nlohmann::json;
 
 namespace {
 
-/// The real flat `box` object from bundle QJKZEMTS (K2 Plus, Jacob10383/kalico
+/// The real flat `box` object from a debug bundle (K2 Plus, Jacob10383/kalico
 /// v2026.08.00, box_count=4, four loaded bays + one external spool entry).
 json make_flat_box_json() {
     return json::parse(R"({
@@ -660,7 +660,7 @@ TEST_CASE("CFS stock schema still parses after the flat split", "[ams][cfs][flat
 }
 
 // ============================================================================
-// Real four-box payload (debug bundle L8MMBCCK, K2 Plus, box_count 4)
+// Real four-box payload (K2 Plus, box_count 4)
 // ============================================================================
 
 namespace {
@@ -1384,8 +1384,8 @@ TEST_CASE("CFS flat: revision 1 ignores boxes[] online flags", "[ams][cfs][flat]
     }
 }
 
-// A K2 Plus on the k2-improvements box.py, API revision 1 with a boxes[] list
-// (bundle EH9J7764). The printer picture picks its CFS variant off a unit that
+// A K2 Plus on the k2-improvements box.py, API revision 1 with a boxes[] list.
+// The printer picture picks its CFS variant off a unit that
 // is connected and not absent, so this payload has to produce one.
 TEST_CASE("CFS flat schema: a k2-improvements revision 1 payload has a present unit",
           "[ams][cfs][flat][printer_image_variants]") {

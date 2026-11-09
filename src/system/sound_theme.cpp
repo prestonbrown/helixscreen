@@ -257,7 +257,6 @@ static std::optional<SoundTheme> parse_theme(const json& j) {
         }
     }
 
-    // Parse each sound definition
     for (auto& [key, val] : j["sounds"].items()) {
         if (!val.is_object()) {
             spdlog::warn("[SoundTheme] Sound '{}' is not an object, skipping", key);
@@ -280,7 +279,6 @@ static std::optional<SoundTheme> parse_theme(const json& j) {
         // BPM for duration calculation: sound-level overrides theme-level
         float effective_bpm = def.bpm;
 
-        // Parse steps
         if (val.contains("steps") && val["steps"].is_array()) {
             for (auto& step_json : val["steps"]) {
                 if (step_json.is_object()) {
@@ -357,7 +355,6 @@ float SoundThemeParser::note_to_freq(const std::string& note) {
     if (pos >= note.size())
         return 0.0f;
 
-    // Parse octave number
     const int octave = helix::text_io::parse_leading<int>(note.substr(pos)).value_or(-1);
 
     if (octave < 0 || octave > 8)
@@ -405,7 +402,6 @@ float SoundThemeParser::musical_duration_to_ms(const std::string& dur, float bpm
         return 0.0f;
     }
 
-    // Parse the numeric divisor
     const int divisor = helix::text_io::parse_leading<int>(working).value_or(0);
 
     if (divisor <= 0)

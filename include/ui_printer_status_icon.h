@@ -91,7 +91,6 @@ class PrinterStatusIcon {
                                           bool ever_connected, bool expected_restart);
 
   private:
-    // Private constructor for singleton
     PrinterStatusIcon() = default;
     ~PrinterStatusIcon() = default;
 

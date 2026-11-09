@@ -67,6 +67,17 @@ slot 0 ahead of `[tool Left]` numbered 1. Tools with no `tool_number` follow the
 ones. Numbers with gaps (0, 1, 5) still map slot by position: slot 2 mounts the third tool,
 but is labelled `T2`.
 
+**Tool number style.** A rig whose `[tool]` sections are all named `T<n>` is labeled that way
+on its docks, so the backend answers `ToolNumberStyle::Gcode` and the nozzle badge, the
+other-tools chip and "Nozzle T1" spell the tool "T0", "T1" instead of "1", "2"
+(`helix::toolchanger_addon::tool_number_style()`, stored by `set_discovery()` into
+`traits().tool_number_style`). It takes `has_tool_changer()`: discovery invents `T<n>` names
+for a multi-extruder printer with no `[tool]` sections, and those say nothing about the
+machine. One configured name (`[tool Left]`) keeps the whole rig 1-based, as does any machine
+a provider in `toolchanger_addon.cpp` claims (MedusaHC, the Z-Mod Creator 5), whose labeling
+is not known to be `T<n>`. The per-printer Tool Numbers setting overrides the answer
+(`docs/devel/TOOL_ABSTRACTION.md` § "Names and labels").
+
 **Per-tool** (`tool T{n}`):
 
 | Variable | Type | Description |
@@ -122,7 +133,7 @@ non-settled states are easy to get wrong:
 | Tool Mapping | Yes | With klipper-toolchanger: `RemapStrategy::Native` - `set_tool_mapping()` emits `ASSIGN_TOOL TOOL="tool T{n}" N={tool}`, so a G-code T-number can point at any physical tool. `parse_toolchanger_state()` resolves `tool_number` back through the forward map. Without it (`tool_commands_.present`, the machine swaps with its own `T<n>` commands): `RemapStrategy::GcodeRewrite` - the job file is rewritten before printing, which needs the HelixPrint plugin. See [the remapper](FILAMENT_MANAGEMENT.md#gcode-tool-remapper) for what that rewrite does and does not move |
 | Bypass Mode | No | Not applicable - each tool is its own path. [The force override](FILAMENT_MANAGEMENT.md#bypass-visibility-and-the-force-override) shows the external spool for tracking only |
 | Spoolman | Fields only | `spoolman_id`/`spoolman_vendor_id` persist in slot overrides; no toolchanger-specific Spoolman wiring exists in the backend |
-| Slot metadata | Yes | Persisted via `FilamentSlotOverrideStore` (`lane_data`, `T<n>` keys). The firmware supplies none of it, so the store is the sole source - see [FILAMENT_SLOT_METADATA.md](FILAMENT_SLOT_METADATA.md#tool-changer-is-the-odd-one-out) |
+| Slot metadata | Yes | The `lane_data` record `T<n>` (writer `helixscreen`) is the tool's identity: material, colour, brand, spool id, weights and nozzle/bed temps. The firmware supplies none of it (Z-Mod's `zmod_color` aside, below), so the record is the sole source, read at connect, after each write and on the 10 s poll. A Mainsail `T<n>` record with no `writer` is read and replaced on the next edit. `initialize_tools()` and every status frame paint the slots through the lane resolver (`apply_resolved_lane`) - see [FILAMENT_SLOT_METADATA.md](FILAMENT_SLOT_METADATA.md#tool-changer-is-the-odd-one-out). MedusaHC and INDX inherit this |
 | Auto-Heat on Load | No | -- |
 | Dryer | No | -- |
 | Device Actions | Machine-dependent | None by default. A tool changer with an add-on feeder exposes `open_feeder`/`close_feeder`, and one with a nozzle-clean command `clean_nozzle` - see [FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md) |
@@ -170,15 +181,16 @@ setting `AFC=1`: `AFC`, `AFC_IFS <unit>` and `AFC_lane lane1..4`, lane N on head
 no `zmod_afclite` object. `PrinterDiscovery::has_zmod_afc()` names it (`AFC` beside
 `zmod_color`, no afclite object), and the same carve-out yields its claim to this row.
 
-Where Z-Mod's Moonraker reads `tools` (`helix::print_start::takes_tool_slots()`: its
-`server.info` lists `print_start_tools` whatever the AFC setting, or, on builds from before
-that flag, the built-in AFC is on), `print_start_params()` answers the print's map as
-`printer.print.start`'s `tools`, each head as its 1-based slot (`helix::print_start`), so
-Z-Mod's colour prompt does not open for a print HelixScreen starts. The remap strategy is
-then Native, not GcodeRewrite: a pick is stored locally (Z-Mod has no `ASSIGN_TOOL`) and
-Print carries it in `tools`, and the job is never rewritten, since Z-Mod routes each `T<n>`
-itself and a rewrite would map every tool twice. A Z-Mod build that advertises neither (the
-afclite shim, or `AFC=0` without the flag) keeps the GcodeRewrite remap and is sent no map.
+Where Z-Mod's Moonraker reads `tools` (`helix::print_start::takes_tool_slots()`),
+`print_start_params()` answers the print's map as `printer.print.start`'s `tools`, each head
+as its 1-based slot (`helix::print_start`), so Z-Mod's colour prompt does not open for a
+print HelixScreen starts. Z-Mod passes `tools` on to `SET_ZCOLOR` as `T<i>=<slot>` whatever
+its `AFC` setting, so this holds with the built-in AFC on or off. The remap strategy is then
+Native, not GcodeRewrite: a pick is stored locally (Z-Mod has no `ASSIGN_TOOL`) and Print
+carries it in `tools`, and the job is never rewritten, since Z-Mod routes each `T<n>` itself
+and a rewrite would map every tool twice. A Creator 5 with the afclite plugin
+(`toolchanger_addon::firmware_picks_lanes_at_print()`) opens that plugin's own lane picker at
+print start, so it keeps the GcodeRewrite remap and is sent no map.
 
 ### Tool reading
 
@@ -271,16 +283,18 @@ printer and exports them through `zmod_color.get_status()`. `read_materials()`
 (`src/printer/toolchanger_addon.cpp#read_materials`, parsing in
 `include/zmod_color_status.h`) turns a frame into per-slot material/hex readings plus
 `valid_types` and `palette`; `apply_material_reading_locked()` files each as an
-`ObservationSource::VendorCache` observation through `helix::ams::ingest()`. A Spoolman
-link still outranks it.
+`ObservationSource::Firmware` observation through `helix::ams::ingest()`, which outranks
+the lane record and Spoolman's details.
 
-Once a frame has carried both `slots` and `palette`, the firmware is the only store for
-colour and material (`src/printer/ams_backend_toolchanger.cpp#firmware_stores_color_and_material`).
-A user edit sends the writer's gcode and files **no** colour or material declaration;
-brand, spool name, Spoolman link and weights are declared as usual. The screen updates
-from the firmware's echo one status frame later, so a rejected write never shows. Before
-the first such frame (a Z-Mod build without ghzserg/z_c5pro#1) the hook answers "none" and
-edits stay local, as on any tool changer.
+Once a frame has carried both `slots` and `palette`, a user edit that moves colour or
+material also sends the writer's gcode
+(`src/printer/ams_backend_toolchanger.cpp#apply_user_edit`). The lane shows the edit as
+pending until an echo matches it or 30 s pass; the firmware's reading then wins. As on
+AD5X IFS and the U1, the `T<n>` record takes the edit's other fields and copies colour and
+material from the firmware on each frame for a head that states both and is not reported
+empty (`apply_material_reading_locked`, `firmware_holds_identity_locked`), so OrcaSlicer
+reads what the head holds. Before the first such frame (a Z-Mod build without
+ghzserg/z_c5pro#1) the edit goes to the record alone, as on any tool changer.
 
 - **Types:** `zmod_color.valid_types` becomes `get_supported_materials()`, so the edit
   dropdown offers only those. `AmsBackend::normalize_material()` maps anything else by

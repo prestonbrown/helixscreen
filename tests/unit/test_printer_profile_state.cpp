@@ -74,6 +74,34 @@ TEST_CASE("PrinterProfileState synthesizes the timelapse option only while avail
     CHECK(profile.pre_print_option_set().find("timelapse") == nullptr);
 }
 
+TEST_CASE("PrinterProfileState offers the heat soak macro as a pre-start step, off by default",
+          "[printer_state][profile][heat_soak]") {
+    PrinterProfileState profile;
+
+    profile.apply_dynamic_options(false, false);
+    CHECK(profile.pre_print_option_set().find("heat_soak") == nullptr);
+
+    profile.set_heat_soak_macro("CHAMBER_SOAK");
+    profile.apply_dynamic_options(false, false);
+    const auto* soak = profile.pre_print_option_set().find("heat_soak");
+    REQUIRE(soak != nullptr);
+    CHECK_FALSE(soak->default_enabled);
+    REQUIRE(soak->strategy_kind == PrePrintStrategyKind::PreStartGcode);
+    const auto* line = std::get_if<PrePrintStrategyPreStartGcode>(&soak->strategy);
+    REQUIRE(line != nullptr);
+    // The macro runs with its own defaults, and only when the toggle is on.
+    CHECK(line->gcode_template == "CHAMBER_SOAK");
+    CHECK_FALSE(line->emit_when_disabled);
+    CHECK(render_pre_start_gcode(*soak, true) == "CHAMBER_SOAK");
+
+    profile.apply_dynamic_options(false, false);
+    CHECK(profile.pre_print_option_set().options.size() == 1);
+
+    profile.set_heat_soak_macro("");
+    profile.apply_dynamic_options(false, false);
+    CHECK(profile.pre_print_option_set().find("heat_soak") == nullptr);
+}
+
 TEST_CASE("PrinterProfileState knows which printers cannot print from a dot-directory",
           "[printer_state][profile][staging]") {
     LVGLTestFixture fixture;

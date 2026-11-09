@@ -207,16 +207,14 @@ void register_print_handlers(std::unordered_map<std::string, MethodHandler>& reg
     //
     // Restarting is trigger_restart()'s job, not a second private imitation of
     // it: a restart drops the print, zeroes the heater targets, clears excluded
-    // objects and reloads everything Klipper reads from printer.cfg. This
-    // handler used to fake only the klippy state, so a restart reached through
-    // the RPC left the mock claiming a print was still running on a machine that
-    // had just rebooted, and left unsaved per-tool offsets alive.
+    // objects and reloads everything Klipper reads from printer.cfg. Faking only
+    // the klippy state would leave the mock claiming a print still runs on a
+    // machine that just rebooted, with unsaved per-tool offsets alive.
     //
-    // It also poked get_printer_state() directly - the process-global one, not
-    // whoever subscribed to THIS client - instead of dispatching the webhooks
-    // status update a real restart arrives as. And it used an lv_timer for the
-    // return to READY, which never fires in a test that does not pump LVGL, so
-    // klippy stayed SHUTDOWN forever there.
+    // trigger_restart() dispatches the webhooks status update a real restart
+    // arrives as, to whoever subscribed to THIS client rather than the
+    // process-global get_printer_state(), and returns to READY without an
+    // lv_timer, which never fires in a test that does not pump LVGL.
     //
     // The ack is right, though, and stays: Moonraker's do_restart() catches
     // "Klippy Disconnected" and returns "ok" (klippy_apis.py). That is exactly

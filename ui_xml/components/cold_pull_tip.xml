@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One reference tip for the Inspect step, as a drawing over its caption. -->
+<component>
+  <api>
+    <prop name="caption" type="string" default=""/>
+    <!-- "true" adds the carbon specks and the old colour -->
+    <prop name="dirty" type="string" default="false"/>
+  </api>
+  <view extends="lv_obj"
+        width="45%" height="content" style_pad_all="#space_sm" style_bg_color="#section_bg_color" style_bg_opa="255"
+        style_radius="#border_radius" style_border_width="0" flex_flow="column" style_flex_cross_place="center"
+        style_pad_gap="0" scrollable="false">
+    <cold_pull_tip_sketch width="100%" height="#spinner_lg" dirty="$dirty"/>
+    <text_small width="100%" text="$caption" long_mode="wrap" style_text_align="center" style_pad_top="#space_xs"/>
+  </view>
+</component>

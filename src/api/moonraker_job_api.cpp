@@ -270,6 +270,15 @@ void MoonrakerJobAPI::start_modified_print(const std::string& original_filename,
                 on_error(err);
                 return;
             }
+            // A 400 refuses the request itself (a path or tool map the plugin
+            // rejected): printer.print.start with the same values is no better.
+            if (err.code == 400) {
+                spdlog::warn("[Moonraker API] helix_print refused '{}' as invalid: {}",
+                             temp_file_path, err.message);
+                helix::screen_start_ledger().withdraw_any();
+                on_error(err);
+                return;
+            }
 
             spdlog::warn("[Moonraker API] helix_print plugin print_modified failed ({}); falling "
                          "back to direct printer.print.start on temp file '{}'. Job history will "

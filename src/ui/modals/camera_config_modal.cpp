@@ -7,6 +7,7 @@
 #if HELIX_HAS_CAMERA
 
 #include "app_globals.h"
+#include "json_utils.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"
@@ -93,14 +94,14 @@ void CameraConfigModal::on_show() {
 void CameraConfigModal::load_config(const nlohmann::json& config) {
     base_config_ = config.is_object() ? config : nlohmann::json::object();
 
-    if (config.contains("rotation") && config["rotation"].is_number_integer())
-        rotation_ = config["rotation"].get<int>();
-    if (config.contains("flip_h") && config["flip_h"].is_boolean())
-        flip_h_ = config["flip_h"].get<bool>();
-    if (config.contains("flip_v") && config["flip_v"].is_boolean())
-        flip_v_ = config["flip_v"].get<bool>();
-    if (config.contains("source") && config["source"].is_string())
-        source_ = config["source"].get<std::string>();
+    if (auto rotation = json_util::read_integer_field(config, "rotation"))
+        rotation_ = *rotation;
+    if (auto flip_h = json_util::read_field<bool>(config, "flip_h"))
+        flip_h_ = *flip_h;
+    if (auto flip_v = json_util::read_field<bool>(config, "flip_v"))
+        flip_v_ = *flip_v;
+    if (auto source = json_util::read_field<std::string>(config, "source"))
+        source_ = std::move(*source);
 
     sync_rotation_subjects();
     sync_flip_subjects();

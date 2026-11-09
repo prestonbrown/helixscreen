@@ -4,10 +4,10 @@
 // Per-backend implicit-chaining policy for the bypass toggle
 // (prestonbrown/helixscreen#1229 defect 6).
 //
-// Enabling bypass from the AMS sidebar used to synthesise an unload the user
-// never asked for: if a slot was loaded, the sidebar fired
-// unload_active_filament() and deferred enable_bypass() to the action
-// observer. On AFC and Happy Hare that is wrong — those users have a console,
+// Enabling bypass from the AMS sidebar must not synthesise an unload the user
+// never asked for (firing unload_active_filament() when a slot is loaded and
+// deferring enable_bypass() to the action observer). On AFC and Happy Hare
+// that is wrong: those users have a console,
 // expect the screen to pass their command straight through, and lose the
 // filament in the toolhead to a command they never issued. OEM backends (CFS,
 // ACE, AD5X IFS, Snapmaker, QIDI) have no console fallback, so they keep the

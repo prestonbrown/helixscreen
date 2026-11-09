@@ -23,18 +23,10 @@
 
 namespace helix {
 
-// ============================================================================
-// Singleton Instance
-// ============================================================================
-
 AbortManager& AbortManager::instance() {
     static AbortManager instance;
     return instance;
 }
-
-// ============================================================================
-// Initialization
-// ============================================================================
 
 void AbortManager::init(IMoonrakerAPI* api, PrinterState* state) {
     api_ = api;
@@ -47,7 +39,6 @@ void AbortManager::init_subjects() {
         return;
     }
 
-    // Register XML component for the modal
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/abort_progress_modal.xml").c_str());
 
@@ -60,11 +51,9 @@ void AbortManager::init_subjects() {
          }},
     });
 
-    // Initialize state subject (default IDLE)
     UI_MANAGED_SUBJECT_INT(abort_state_subject_, static_cast<int>(State::IDLE), "abort_state",
                            subjects_);
 
-    // Initialize progress message subject
     UI_MANAGED_SUBJECT_STRING(progress_message_subject_, progress_message_buf_, "",
                               "abort_progress_message", subjects_);
 
@@ -82,7 +71,6 @@ void AbortManager::deinit_subjects() {
         return;
     }
 
-    // Cancel any pending timers
     cancel_all_timers();
 
     // Clear klippy observer before deinitializing subjects
@@ -93,7 +81,6 @@ void AbortManager::deinit_subjects() {
     // (Display may already be deleted if window was closed via X button)
     helix::ui::safe_delete(backdrop_);
 
-    // Deinitialize all subjects via RAII manager
     subjects_.deinit_all();
 
     subjects_initialized_ = false;
@@ -105,7 +92,6 @@ void AbortManager::deinit_subjects() {
 // ============================================================================
 
 void AbortManager::start_abort(Entry entry) {
-    // Ignore if already aborting
     if (is_aborting()) {
         spdlog::debug("[AbortManager] Already aborting, ignoring start_abort()");
         return;
@@ -279,12 +265,10 @@ void AbortManager::start_probe() {
 
     commands_sent_++;
 
-    // Start timeout timer (one-shot)
     auto* t = lv_timer_create(probe_timer_cb, kProbeTimeoutMs, this);
     lv_timer_set_repeat_count(t, 1);
     probe_timer_.reset(t);
 
-    // Send M115 to probe the queue
     api_->execute_gcode(
         "M115",
         // Success - queue is responsive
@@ -319,7 +303,6 @@ void AbortManager::send_cancel_print() {
 
     commands_sent_++;
 
-    // Start timeout timer (one-shot)
     bool escalation_enabled = SafetySettingsManager::instance().get_cancel_escalation_enabled();
     uint32_t timeout_ms;
     if (escalation_enabled) {
@@ -379,7 +362,6 @@ void AbortManager::escalate_to_estop() {
 
     commands_sent_++;
 
-    // Send M112 emergency stop
     api_->emergency_stop(
         lifetime_.bg_cb("AbortManager::estop_ok", [this]() { on_estop_sent(); }),
         // Even on error, proceed to restart (M112 may have worked)
@@ -410,7 +392,7 @@ void AbortManager::send_firmware_restart() {
     // fault leaves the rpi-MCU bridge (klipper_mcu daemon) shut down, which
     // *traps* a plain printer.firmware_restart — only bouncing klipper_mcu
     // first via helix-recover.sh clears it. Stock Klipper / Pi hosts fall
-    // through to printer.firmware_restart and behave exactly as before.
+    // through to a plain printer.firmware_restart.
     PrinterRecoveryService recovery(api_);
     recovery.recover(
         lifetime_.bg_cb("AbortManager::restart_ok",
@@ -434,7 +416,6 @@ void AbortManager::wait_for_reconnect() {
     set_state(State::WAITING_RECONNECT);
     set_progress_message("Restarting...");
 
-    // Start reconnect timeout timer (one-shot)
     auto* rt = lv_timer_create(reconnect_timer_cb, kReconnectTimeoutMs, this);
     lv_timer_set_repeat_count(rt, 1);
     reconnect_timer_.reset(rt);
@@ -458,11 +439,10 @@ void AbortManager::complete_abort(const char* message) {
     // Clear klippy observer since we're no longer waiting for reconnect
     klippy_observer_.reset();
 
-    // Always clear the suppression flag at end-of-abort. Previously this was
-    // only cleared by on_klippy_state_changed when Klipper transitioned
-    // SHUTDOWN→READY, so a reconnect timeout (K2 with CFS trsync wedged
-    // klipper_mcu — see helix-recover.sh) latched the flag forever and
-    // silently suppressed every future recovery dialog.
+    // Always clear the suppression flag at end-of-abort, not only on a
+    // SHUTDOWN→READY transition: a reconnect timeout (K2 with CFS trsync
+    // wedged klipper_mcu, see helix-recover.sh) never sees READY, and a flag
+    // left set silently suppresses every future recovery dialog.
     bool was_handling_shutdown = shutdown_recovery_in_progress_.exchange(false);
 
     // Set print outcome to CANCELLED for UI badge display
@@ -510,13 +490,11 @@ void AbortManager::on_heater_interrupt_success() {
         return; // Stale callback
     }
 
-    // Cancel timeout timer
     heater_interrupt_timer_.reset();
 
     spdlog::info("[AbortManager] HEATER_INTERRUPT supported (command succeeded)");
     heater_interrupt_support_ = HeaterInterruptSupport::SUPPORTED;
 
-    // Proceed to PROBE_QUEUE
     set_state(State::PROBE_QUEUE);
     set_progress_message("Stopping print...");
     start_probe();
@@ -527,13 +505,11 @@ void AbortManager::on_heater_interrupt_error() {
         return; // Stale callback
     }
 
-    // Cancel timeout timer
     heater_interrupt_timer_.reset();
 
     spdlog::info("[AbortManager] HEATER_INTERRUPT unsupported (command failed)");
     heater_interrupt_support_ = HeaterInterruptSupport::UNSUPPORTED;
 
-    // Proceed to PROBE_QUEUE
     set_state(State::PROBE_QUEUE);
     set_progress_message("Stopping print...");
     start_probe();
@@ -549,7 +525,6 @@ void AbortManager::on_heater_interrupt_timeout() {
     spdlog::warn("[AbortManager] HEATER_INTERRUPT timed out, treating as unsupported");
     heater_interrupt_support_ = HeaterInterruptSupport::UNSUPPORTED;
 
-    // Proceed to PROBE_QUEUE
     set_state(State::PROBE_QUEUE);
     set_progress_message("Stopping print...");
     start_probe();
@@ -560,7 +535,6 @@ void AbortManager::on_probe_response() {
         return; // Stale callback
     }
 
-    // Cancel timeout timer
     probe_timer_.reset();
 
     spdlog::info("[AbortManager] Queue responsive, sending cancel via RPC");
@@ -594,7 +568,6 @@ void AbortManager::on_cancel_success() {
         return; // Stale callback
     }
 
-    // Cancel timeout timer
     cancel_timer_.reset();
 
     // Note: cancel_state_observer_ is cleaned up by complete_abort() → cancel_all_timers()
@@ -671,7 +644,6 @@ void AbortManager::on_klippy_state_changed(KlippyState klippy_state) {
             return;
         }
 
-        // Cancel reconnect timer
         reconnect_timer_.reset();
 
         // Clear the persistent shutdown recovery flag - we've seen READY after SHUTDOWN

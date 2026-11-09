@@ -54,6 +54,8 @@ import re
 import sys
 from pathlib import Path
 
+from source_strip import blank_cxx
+
 OPT_OUT = "TIMER_DTOR_OK"
 
 # `some_timer_ = lv_timer_create(...)` — a member, not a local. Both member
@@ -76,49 +78,6 @@ CANCEL_TMPL = r'\blv_timer_(?:delete|cancel_safe)\s*\(\s*(?:self->|this->)?{name
 METHOD_RE = re.compile(r'\b(\w+)::(~?\w+)\s*\(')
 
 MAX_CALL_DEPTH = 5  # destructor -> cleanup() -> cancel_x() is 2; 5 is slack
-
-
-def strip_comments(text: str) -> str:
-    """Blank out comments and string literals, preserving offsets and line numbers.
-
-    Essential, not cosmetic: prose names methods. A destructor whose comment reads
-    "cleanup() cancels it" would otherwise look like it CALLS cleanup(), and the
-    call-graph walk below would clear the very bug this gate exists to catch.
-    """
-    out = list(text)
-    i, n = 0, len(text)
-    while i < n:
-        c = text[i]
-        if c == '/' and i + 1 < n and text[i + 1] == '/':
-            while i < n and text[i] != '\n':
-                out[i] = ' '
-                i += 1
-        elif c == '/' and i + 1 < n and text[i + 1] == '*':
-            out[i] = out[i + 1] = ' '
-            i += 2
-            while i < n and not (text[i] == '*' and i + 1 < n and text[i + 1] == '/'):
-                if text[i] != '\n':
-                    out[i] = ' '
-                i += 1
-            if i < n:
-                out[i] = ' '
-                if i + 1 < n:
-                    out[i + 1] = ' '
-                i += 2
-        elif c in '"\'':
-            quote = c
-            i += 1
-            while i < n and text[i] != quote:
-                if text[i] == '\\':
-                    out[i] = ' '
-                    i += 1
-                if i < n and text[i] != '\n':
-                    out[i] = ' '
-                i += 1
-            i += 1
-        else:
-            i += 1
-    return ''.join(out)
 
 
 def extract_bodies(text: str) -> dict[tuple[str, str], tuple[str, int]]:
@@ -247,7 +206,7 @@ def scan(path: Path, headers: list[Path]) -> list[str]:
     raw = path.read_text(encoding='utf-8', errors='replace')
     # Analyse code only; keep the raw bodies alongside so the `// TIMER_DTOR_OK`
     # opt-out — which lives in a comment — is still visible.
-    bodies = extract_bodies(strip_comments(raw))
+    bodies = extract_bodies(blank_cxx(raw, strings="body"))
     raw_bodies = extract_bodies(raw)
     if not bodies:
         return []

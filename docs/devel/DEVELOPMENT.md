@@ -61,7 +61,7 @@ F=filament-runout simulation.
 | Flag | Effect |
 |------|--------|
 | `-w`, `--wizard` | Force the first-run configuration wizard |
-| `--wizard-step <step>` | Jump to a specific wizard step (0-12) for testing |
+| `--wizard-step <step>` | Jump to a specific wizard step (0-14) for testing |
 
 `--wizard` is **destructive to wizard-managed config** — it is meant to fully re-run setup, not just re-open it. On startup with `--wizard`, the app clears all wizard-managed state in `settings.json` so a stale or wrong install-time seed is recoverable:
 

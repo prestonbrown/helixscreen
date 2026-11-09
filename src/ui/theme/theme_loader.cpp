@@ -181,8 +181,8 @@ ThemeData get_builtin_fallback_theme() {
  *
  * A key that is missing OR present-but-empty falls back to the corresponding
  * color from the built-in default theme, so no palette field is ever left empty.
- * Empty fields used to flow straight into the color parser, flooding the log with
- * "[Theme] Invalid hex color string:" (one per widget, per redraw) and rendering
+ * An empty field reaching the color parser would flood the log with
+ * "[Theme] Invalid hex color string:" (one per widget, per redraw) and render
  * those widgets black (prestonbrown/helixscreen#989).
  */
 static void parse_mode_palette(const nlohmann::json& palette_json, ModePalette& palette,

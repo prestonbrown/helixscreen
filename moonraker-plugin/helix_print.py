@@ -65,8 +65,13 @@ HELIX_TEMP_TABLE = "helix_temp_files"
 # Maximum age for cleaned database records before deletion (30 days)
 DB_RECORD_MAX_AGE = 30 * 86400
 
+# The status feature saying a linked print's start passes the app's per-print
+# tool map (`tools`) on to Moonraker; unavailable where start_print takes none.
+PRINT_START_TOOLS_FEATURE = "print_start_tools"
+PRINT_START_TOOLS_FEATURE_VERSION = 1
+
 # Plugin version - used for API version detection by clients
-PLUGIN_VERSION = "1.4.0"
+PLUGIN_VERSION = "1.4.1"
 
 # Shape of the status reply; 2 added the `features` map
 STATUS_API = 2
@@ -824,6 +829,7 @@ class HelixPrint:
 
         await self._start_3mf_converter()
         self._register_3mf_feature()
+        self._register_print_start_tools_feature()
         await self._start_isolated("plr", True, self._start_plr)
         await self._start_isolated("file_analysis", False, self._start_analysis)
         await self._start_isolated("event_journal", False, self._start_journal)
@@ -920,6 +926,20 @@ class HelixPrint:
 
         self.register_feature(
             "convert_3mf", 1, acts=False, switch=switch, probe=self._3mf_availability,
+        )
+
+    def _register_print_start_tools_feature(self) -> None:
+        """Whether print_modified and print_edited pass `tools` on: a
+        transport for a print the user started on the screen, so no switch."""
+
+        def availability() -> Tuple[bool, Optional[str]]:
+            if self.start_print_takes_tools():
+                return True, None
+            return False, "start_print_takes_no_tools"
+
+        self.register_feature(
+            PRINT_START_TOOLS_FEATURE, PRINT_START_TOOLS_FEATURE_VERSION, acts=False,
+            switch=always_on, probe=availability,
         )
 
     def _data_dir(self) -> Path:

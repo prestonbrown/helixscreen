@@ -24,6 +24,9 @@ using helix::test::SaverLoad;
 
 namespace {
 
+/// A reading with no print: the sky as it flies between prints.
+const helix::ui::ClockReading kNoPrint{};
+
 // The panel a two-core board drives, so coverage is a fraction of the real canvas.
 constexpr uint32_t kPanelW = 800;
 constexpr uint32_t kPanelH = 480;
@@ -35,13 +38,13 @@ SaverLoad measure(int stars, int frames) {
     FrameTarget target{bytes.data(), kPanelW * 2, kPanelW, kPanelH, helix::ui::PixelFormat::RGB565};
     std::minstd_rand rng(20260916);
     StarfieldSim sim;
-    sim.init(target, rng, 0);
+    sim.init(target, rng, 0, kNoPrint);
     sim.set_active_count(stars);
 
     std::vector<DirtyRect> dirty;
     SaverLoad load;
     for (int f = 0; f < frames; f++) {
-        sim.step(33, target, rng, dirty);
+        sim.step(33, target, rng, kNoPrint, dirty);
         load.add_frame(dirty);
     }
     load.average_over(frames);

@@ -166,3 +166,37 @@ TEST_CASE_METHOD(PresenterFixture, "a pinned chip covers more of the photo than 
     lv_subject_set_int(&compact_subj, 0);
     CHECK(lv_obj_get_style_bg_opa(c, LV_PART_MAIN) == LV_OPA_COVER * 65 / 100);
 }
+
+TEST_CASE_METHOD(PresenterFixture, "the bed glow re-renders only when its plate moves",
+                 "[callout_presenter]") {
+    CalloutPresenter::Parts parts;
+    parts.area = area;
+    parts.image = image;
+    auto bed = chip(CalloutKind::Bed, true);
+    bed.glow = lv_image_create(area);
+    parts.chips = {bed};
+    const ImageRegions r = k1c_regions();
+    CalloutPresenter presenter;
+    REQUIRE(lv_image_get_src(bed.glow) == nullptr);
+
+    presenter.apply(parts, &r, 1601, 1204, config());
+    const void* const first = lv_image_get_src(bed.glow);
+    REQUIRE(first != nullptr);
+
+    SECTION("the same geometry keeps its mask") {
+        presenter.apply(parts, &r, 1601, 1204, config());
+        CHECK(lv_image_get_src(bed.glow) == first);
+    }
+    SECTION("a moved plate gets a new one") {
+        ImageRegions moved = r;
+        moved.bed_left.y = 0.7f;
+        moved.bed_right.y = 0.7f;
+        presenter.apply(parts, &moved, 1601, 1204, config());
+        CHECK(lv_image_get_src(bed.glow) != first);
+    }
+    SECTION("a rebuilt widget with unchanged geometry still gets one") {
+        parts.chips[0].glow = lv_image_create(area);
+        presenter.apply(parts, &r, 1601, 1204, config());
+        CHECK(lv_image_get_src(parts.chips[0].glow) != nullptr);
+    }
+}

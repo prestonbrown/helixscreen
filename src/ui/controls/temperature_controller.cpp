@@ -11,6 +11,7 @@
 #include "core/text_io.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "lvgl.h"
 #include "printer_state.h"
@@ -49,7 +50,7 @@ TemperatureController::TemperatureController(PrinterState& state, IMoonrakerAPI*
  * PLA=0, PETG=0, TPU=0, and only ABS=50. Deriving chamber presets from the
  * slot's material would therefore render Off / Off / 50 / Off and collapse
  * three of the four buttons into duplicates of "Off" on every enclosed printer.
- * That is a functional regression, so chamber deliberately keeps its own
+ * So chamber deliberately keeps its own
  * generic low → high ladder that is independent of which material occupies the
  * slot. Slot N simply gets the Nth rung.
  *
@@ -198,34 +199,6 @@ bool TemperatureController::preset_visible(HeaterType type, int value_c) const {
 }
 
 void TemperatureController::set_target(HeaterType type, double celsius, SendOptions opts) {
-    // Swap-preheat guard: when the caller signals "switching material" intent
-    // (keep_previous_hot), never drop the nozzle below what's needed to purge the
-    // previously loaded filament. Floor the requested target at the hotter of the
-    // latched last-nonzero nozzle target and the current actual nozzle temperature.
-    // Nozzle only — bed/chamber and any call without the flag are untouched, so
-    // cooldown-to-0 and deliberate manual lowers still work.
-    if (type == HeaterType::Nozzle && opts.keep_previous_hot) {
-        const int actual_deci =
-            lv_subject_get_int(state_.temperature_state().get_active_extruder_temp_subject());
-        const double actual_deg =
-            static_cast<double>(helix::ui::temperature::deci_to_degrees_f(actual_deci));
-        const double latched = static_cast<double>(
-            state_.temperature_state().get_active_extruder_last_nonzero_target());
-        const double floor_deg = std::max({latched, actual_deg});
-        if (celsius < floor_deg) {
-            celsius = floor_deg;
-            const int shown = static_cast<int>(std::lround(floor_deg));
-            spdlog::info("[TemperatureController] Swap-preheat: holding nozzle at {}C to purge "
-                         "previous filament (requested lower)",
-                         shown);
-            NOTIFY_INFO(lv_tr("Holding nozzle at {}°C to purge previous filament."), shown);
-            // The holding toast above is now the sole nozzle message. Drop the
-            // caller's success callback so it doesn't also fire a "target set to
-            // {requested}°C" toast that contradicts the temp we actually held.
-            opts.on_success = nullptr;
-        }
-    }
-
     const std::string name = resolved_name(type);
     if (name.empty()) {
         // Only the chamber resolves empty in practice (nozzle -> active extruder,
@@ -252,6 +225,37 @@ void TemperatureController::set_target(const std::string& klipper_name, double c
                                        SendOptions opts) {
     if (!api_ || klipper_name.empty()) {
         return;
+    }
+    // Swap-preheat guard: when the caller signals "switching material" intent
+    // (keep_previous_hot), never drop this nozzle below what's needed to purge the
+    // previously loaded filament. Floor the requested target at the hotter of its
+    // latched last-nonzero target and its current actual temperature. Extruders
+    // only; any call without the flag is untouched, so cooldown-to-0 and deliberate
+    // manual lowers still work.
+    if (opts.keep_previous_hot && helix::is_extruder_name(klipper_name)) {
+        auto& temps = state_.temperature_state();
+        lv_subject_t* actual = temps.get_extruder_temp_subject(klipper_name);
+        const double actual_deg =
+            actual ? static_cast<double>(
+                         helix::ui::temperature::deci_to_degrees_f(lv_subject_get_int(actual)))
+                   : 0.0;
+        const auto it = temps.extruders().find(klipper_name);
+        const double latched = it != temps.extruders().end()
+                                   ? static_cast<double>(it->second.last_nonzero_target)
+                                   : 0.0;
+        const double floor_deg = std::max({latched, actual_deg});
+        if (celsius < floor_deg) {
+            celsius = floor_deg;
+            const int shown = static_cast<int>(std::lround(floor_deg));
+            spdlog::info("[TemperatureController] Swap-preheat: holding {} at {}C to purge "
+                         "previous filament (requested lower)",
+                         klipper_name, shown);
+            NOTIFY_INFO(lv_tr("Holding nozzle at {}°C to purge previous filament."), shown);
+            // The holding toast above is now the sole nozzle message. Drop the
+            // caller's success callback so it doesn't also fire a "target set to
+            // {requested}°C" toast that contradicts the temp we actually held.
+            opts.on_success = nullptr;
+        }
     }
     if (celsius > 0 && helix::is_extruder_name(klipper_name)) {
         // A direct heater target bypasses any M104 guard the printer's own
@@ -337,17 +341,14 @@ ChamberRouteReply parse_chamber_route_reply(const nlohmann::json& resp) {
     if (!result.is_object()) {
         return {ChamberRouteOutcome::Accepted, {}};
     }
-    std::string reason;
-    if (result.contains("reason") && result["reason"].is_string()) {
-        reason = result["reason"].get<std::string>();
-    }
+    std::string reason = helix::json_util::safe_string(result, "reason");
     if (reason == "superseded") {
         return {ChamberRouteOutcome::Superseded, reason};
     }
     if (reason == "klipper_shutdown") {
         return {ChamberRouteOutcome::PrinterShutdown, reason};
     }
-    const nlohmann::json* accepted = result.contains("accepted") ? &result["accepted"] : nullptr;
+    const nlohmann::json* accepted = helix::json_util::find_member(result, "accepted");
     if (accepted && accepted->is_boolean()) {
         return {accepted->get<bool>() ? ChamberRouteOutcome::Accepted
                                       : ChamberRouteOutcome::Refused,
@@ -355,8 +356,7 @@ ChamberRouteReply parse_chamber_route_reply(const nlohmann::json& resp) {
     }
     // accepted null: the route stopped waiting on the device, which may yet
     // take the target. The status frames carry what it does.
-    if (accepted || (result.contains("pending") && result["pending"].is_boolean() &&
-                     result["pending"].get<bool>())) {
+    if (accepted || helix::json_util::read_field<bool>(result, "pending").value_or(false)) {
         return {ChamberRouteOutcome::Pending, reason};
     }
     return {ChamberRouteOutcome::Accepted, reason};

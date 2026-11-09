@@ -309,7 +309,6 @@ void FanWidget::FanPicker::on_created(lv_obj_t* menu_obj) {
         // Highlight for single-select
         lv_obj_set_style_bg_opa(row, is_selected ? 30 : 0, 0);
 
-        // Fan display name
         lv_obj_t* name = lv_label_create(row);
         lv_label_set_text(name, fan.display_name.c_str());
         lv_obj_set_flex_grow(name, 1);

@@ -314,8 +314,8 @@ TEST_CASE("BedMeshCollector handles edge case probe counts", "[bed_mesh_collecto
  * samples into mesh points. Returns the (mesh_point, total) pair the collector
  * would report for every line, in order.
  *
- * This used to reimplement `ceil(count / samples)` locally, which is why it
- * stayed green while production had the #1224 bug — assert against real code.
+ * A local reimplementation of `ceil(count / samples)` stays green while
+ * production is wrong (#1224), so assert against real code.
  */
 static std::vector<std::pair<int, int>> simulate_fallback_probing(int grid_points,
                                                                   int probe_samples) {
@@ -477,9 +477,9 @@ TEST_CASE("parse_adapted_probe_count rejects unrelated lines", "[bed_mesh_collec
 // Sample dedupe — drives the REAL helix::ProbePointCounter
 // ============================================================================
 //
-// These previously ran against a local reimplementation of the dedupe rule,
-// which is why they stayed green while the production collector did no dedupe
-// at all and divided by a config-derived sample count instead (#1224). Feed the
+// A local reimplementation of the dedupe rule stays green while the production
+// collector does no dedupe at all and divides by a config-derived sample count
+// instead (#1224). Feed the
 // real counter real Klipper lines, or the tests prove nothing about shipping
 // code.
 
