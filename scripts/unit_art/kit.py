@@ -194,11 +194,12 @@ def circle_yz(y, z, r, n=24):
     return [(y + r * math.cos(2 * math.pi * i / n), z + r * math.sin(2 * math.pi * i / n)) for i in range(n + 1)]
 
 
-def roller(sc, x0, x1, y, z, r, color, flange, flange_k=1.18, flange_w=0.016, left_flange=True, sheen=None):
+def roller(sc, x0, x1, y, z, r, color, flange, flange_k=1.18, flange_w=0.016, left_flange=True, sheen=None, end_face=None):
     """A drum along x, flanged at its right end and, unless told not to, its left.
 
     sheen is the colour of a highlight along the drum's lit shoulder, for a colour too dark
-    to show its curve by shading alone.
+    to show its curve by shading alone. end_face fills the right end inside its flange,
+    leaving the flange as a thin rim.
     """
     ring = circle_yz(y, z, r)
     edge = circle_yz(y, z, r * flange_k)
@@ -210,6 +211,8 @@ def roller(sc, x0, x1, y, z, r, color, flange, flange_k=1.18, flange_w=0.016, le
         sc.line([(x0 + r * 0.1, y - r * 0.6, z + r * 0.8), (x1 - r * 0.1, y - r * 0.6, z + r * 0.8)], sheen, r * 0.2, 0.75)
     sc.extrude_x(edge, x1, x1 + flange_w, flange, 1.0, front=True)
     sc.poly([(x1 + flange_w, a, b) for a, b in edge], shift(flange, 18))
+    if end_face:
+        sc.poly([(x1 + flange_w + 0.0005, a, b) for a, b in circle_yz(y, z, r * 0.92)], end_face)
 
 
 def tray_profile(profile, base_z, px_per_unit):

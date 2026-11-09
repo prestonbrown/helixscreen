@@ -50,7 +50,7 @@ def _carrier_profile():
 def _feeder(sc, xc, detail):
     """One lane\x27s drive behind the glass: a purple carrier between two flanged rollers."""
     half, reach = 0.044, 0.112
-    rim = {"flange_k": 1.05, "flange_w": 0.008, "sheen": "#716e6a"}
+    rim = {"flange_k": 1.05, "flange_w": 0.008, "sheen": "#716e6a", "end_face": "#3a3836"}
     kit.roller(sc, xc - reach, xc - half - 0.008, ROLLER_Y, ROLLER_Z, ROLLER_R, ROLLER, ACCENT, **rim)
     feeder.solid(sc, _carrier_profile(), xc - half, xc + half, ACCENT)
     kit.roller(sc, xc + half + 0.008, xc + reach, ROLLER_Y, ROLLER_Z, ROLLER_R, ROLLER, ACCENT, **rim)
