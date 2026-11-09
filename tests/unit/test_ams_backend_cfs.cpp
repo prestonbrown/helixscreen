@@ -2934,11 +2934,10 @@ TEST_CASE("CFS a box write Klipper rejects saves nothing and reports the edit",
 
 TEST_CASE("CFS a linked lane's moved material waits on the box and reports a rejection",
           "[ams][cfs][filament_slot_override][firmware_writeback][box_wins]") {
-    helix::test::RegisteredBackend<CfsRemapHelper> reg;
-    CfsRemapHelper& b = *reg;
-    CfsTestAccess::handle_status(
-        b, make_cfs_notification(
-               make_single_unit_box({"101001", "-1", "-1", "-1"}, {"0FF5500", "-1", "-1", "-1"})));
+    helix::test::RegisteredWired<CfsRemapHelper> reg;
+    auto& b = *reg;
+    b.fire_status(make_cfs_notification(
+        make_single_unit_box({"101001", "-1", "-1", "-1"}, {"0FF5500", "-1", "-1", "-1"})));
 
     SlotInfo original = b.get_slot_info(0);
     original.spoolman_id = 149;

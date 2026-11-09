@@ -4,7 +4,7 @@
 // View-level tests for the AMS slot editor overlay redesign: identity dropdown
 // contents (tracked vs untracked), managed-state subject, pre-selection, and
 // view transitions. Uses the full-UI fixture (real XML tree) plus the
-// AmsEditOverlayViewTestAccess friend shim.
+// friend shim below.
 
 #include "ui_ams_edit_overlay.h"
 #include "ui_ams_lane_settings.h"
