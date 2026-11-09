@@ -395,4 +395,22 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan dial: a dial set to Off shows no rpm ov
 
     dial.set_speed(25);
     CHECK(shows(rpm, "3000 RPM"));
+
+    SECTION("the dial's own switch turned Off hides it at once") {
+        lv_obj_t* sw = lv_obj_find_by_name(dial.get_root(), "onoff_switch");
+        REQUIRE(sw != nullptr);
+        REQUIRE(lv_obj_has_state(sw, LV_STATE_CHECKED));
+        lv_obj_remove_state(sw, LV_STATE_CHECKED);
+        lv_obj_send_event(sw, LV_EVENT_VALUE_CHANGED, nullptr);
+        REQUIRE(dial.get_speed() == 0);
+        CHECK(lv_obj_has_flag(rpm, LV_OBJ_FLAG_HIDDEN));
+    }
+    SECTION("the dial's arc dragged to 0 hides it at once") {
+        lv_obj_t* arc = lv_obj_find_by_name(dial.get_root(), "dial_arc");
+        REQUIRE(arc != nullptr);
+        lv_arc_set_value(arc, 0);
+        lv_obj_send_event(arc, LV_EVENT_VALUE_CHANGED, nullptr);
+        REQUIRE(dial.get_speed() == 0);
+        CHECK(lv_obj_has_flag(rpm, LV_OBJ_FLAG_HIDDEN));
+    }
 }
