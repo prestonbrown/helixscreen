@@ -30,8 +30,7 @@ bool visible(lv_obj_t* root, const char* name) {
 }
 } // namespace
 
-TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: an Empty lane is an outline-free slot",
-                 "[ams][lane_bar]") {
+TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: an Empty lane has no outline", "[ams][lane_bar]") {
     ui_ams_lane_bar_register();
     AmsState::instance().init_subjects(true);
     lv_subject_set_int(AmsState::instance().get_slot_lane_state_subject(0),
