@@ -14,6 +14,7 @@
 #include "safety_settings_manager.h"
 #include "spool_latch_gate.h"
 #include "tool_state.h"
+#include "toolhead_homing.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -42,6 +43,12 @@ AmsError needs_attention_refusal() {
                     lv_tr("Resolve it on the filament system screen, then try again"));
 }
 
+AmsError unhomed_tool_change_refusal() {
+    return AmsError(AmsResult::WRONG_STATE, "Tool change blocked: XYZ is not homed",
+                    lv_tr("The printer must be homed before changing tools"),
+                    lv_tr("Use Home All, then try again"));
+}
+
 ToolChangeDecision decide_tool_change(const ToolChangeInputs& in) {
     if (in.already_active) {
         return {ToolChangeVerdict::AlreadyActive};
@@ -58,6 +65,9 @@ ToolChangeDecision decide_tool_change(const ToolChangeInputs& in) {
     }
     if (ams_action_holds_system(in.backend_action)) {
         return {ToolChangeVerdict::Busy};
+    }
+    if (in.requires_homed_toolhead && !in.toolhead_homed) {
+        return {ToolChangeVerdict::RefuseUnhomed, unhomed_tool_change_refusal()};
     }
     // Reaching here while PAUSED means the backend permits filament ops on a
     // paused job: pause-then-swap is the runout and colour-change recovery
@@ -79,7 +89,9 @@ ToolChangeInputs tool_change_inputs(const PrinterState& printer_state, int tool_
     if (AmsBackend* backend = AmsState::instance().get_backend()) {
         in.filament_ops_self_home = backend->filament_ops_self_home();
         in.backend_action = backend->get_system_info().action;
+        in.requires_homed_toolhead = backend->tool_changes_require_homed_toolhead();
     }
+    in.toolhead_homed = toolhead_is_homed(printer_state);
     in.already_active = tool_index == ToolState::instance().active_tool_index();
     in.confirm_enabled = SafetySettingsManager::instance().get_tool_change_require_confirmation();
     return in;
@@ -113,6 +125,7 @@ void report_withheld(const ToolChangeDecision& decision, int tool_index) {
         spdlog::info("[ToolChange] T{} ignored: filament system busy", tool_index);
         break;
     case ToolChangeVerdict::RefuseNeedsAttention:
+    case ToolChangeVerdict::RefuseUnhomed:
     case ToolChangeVerdict::RefuseSpoolsOnBed:
     case ToolChangeVerdict::RefusePrint:
         spdlog::info("[ToolChange] Tool change to T{} refused: {}", tool_index,
@@ -222,6 +235,7 @@ ToolChangeVerdict offer_tool_change(const PrinterState& printer_state, int tool_
     case ToolChangeVerdict::AlreadyActive:
     case ToolChangeVerdict::Busy:
     case ToolChangeVerdict::RefuseNeedsAttention:
+    case ToolChangeVerdict::RefuseUnhomed:
     case ToolChangeVerdict::RefuseSpoolsOnBed:
     case ToolChangeVerdict::RefusePrint:
         report_withheld(decision, tool_index);
