@@ -22,6 +22,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -385,6 +386,18 @@ class AmsEditOverlay : public OverlayBase {
     /// kSaveFailed with save_error_subject_ saying why.
     lv_subject_t save_state_subject_{};
     lv_subject_t save_error_subject_{}; ///< "ams_edit_save_error"
+    /// 1 = the lane and its linked spool disagree ("ams_edit_spool_disagrees")
+    lv_subject_t spool_disagrees_subject_{};
+    lv_subject_t spool_disagreement_text_subject_{}; ///< "ams_edit_spool_disagreement_text"
+    char spool_disagreement_buf_[128] = {0};
+    struct FormSnapshot {
+        SlotInfo working;
+        SpoolEditSelection selection;
+        bool selection_moved = false;
+        uint32_t details_color = 0;
+        bool details_color_set = false;
+    };
+    std::optional<FormSnapshot> note_action_form_;
     char save_error_buf_[192] = {0};
     char temp_buf_[96] = {0};
     char weight_buf_[24] = {0};
@@ -449,8 +462,9 @@ class AmsEditOverlay : public OverlayBase {
     struct SaveCapture {
         uint32_t session = 0;
         int slot_index = -1;
-        SlotInfo original; ///< the diff base
-        SlotInfo saving;   ///< the slot this save commits
+        SlotInfo original;        ///< the diff base
+        SlotInfo saving;          ///< the slot this save commits
+        SlotInfo spoolman_target; ///< what Spoolman is asked to hold
         CompletionCallback owed;
         nlohmann::json chained_spool_patch; ///< More fields riding the Update arm
         int chained_spool_id = 0;
@@ -492,9 +506,11 @@ class AmsEditOverlay : public OverlayBase {
     void handle_weight_tap();       ///< Weight pill → numeric keypad
     void apply_weight(float grams); ///< Keypad result → remaining weight
     void handle_more_toggle();
-    void handle_add_to_spoolman(); ///< Quiet link: create + label
-    void handle_reset_to_tag();    ///< Reset every tag-stated field to the tag
-    void handle_clear_spool();     ///< Take the spool off the slot and close
+    void handle_add_to_spoolman();          ///< Quiet link: create + label
+    void handle_reset_to_tag();             ///< Reset every tag-stated field to the tag
+    void handle_clear_spool();              ///< Take the spool off the slot and close
+    void handle_reapply_linked_spool();     ///< Write the linked spool's identity to the lane
+    void handle_unlink_disagreeing_spool(); ///< Keep the lane's identity, drop the link
 
     // Pure decision for whether handle_save() should create a NEW Spoolman
     // spool from the working slot: only via the explicit "Add to Spoolman"
@@ -517,6 +533,41 @@ class AmsEditOverlay : public OverlayBase {
                                               bool spoolman_available);
 
     static bool is_material_identity_change(const SlotInfo& original, const SlotInfo& edited);
+
+    struct SpoolContradiction {
+        bool material = false;
+        bool color = false;
+        [[nodiscard]] bool any() const {
+            return material || color;
+        }
+    };
+
+    // Pure: which of the lane's material and colour the spool's record states
+    // differently. A field either side leaves unstated contradicts nothing.
+    static SpoolContradiction contradiction_with_spool(const SlotInfo& lane,
+                                                       const SpoolInfo& spool);
+
+    // True when the lane's firmware owns its identity and the linked spool's
+    // loaded record contradicts what the lane held when the editor opened.
+    [[nodiscard]] bool lane_contradicts_linked_spool() const;
+
+    // The two sides of a save as Spoolman sees them. On a lane contradicting
+    // its spool, base holds the spool's identity and target holds that identity
+    // with only the fields the user moved, so the lane's own values never reach
+    // the spool. Elsewhere they are the original and the working slot.
+    struct SpoolmanView {
+        SlotInfo base;
+        SlotInfo target;
+    };
+    [[nodiscard]] SpoolmanView spoolman_view() const;
+
+    // A note action stages onto the form before saving. A save that does not
+    // happen puts the form back on what it showed, so it matches the lane.
+    void remember_form_for_note_action();
+    void restore_form_after_note_action();
+
+    void update_spool_disagreement();
+    void apply_material_defaults(const std::string& material);
 
     // Pure: true when saving would push a changed filament identity onto a
     // LINKED Spoolman spool — material change or color beyond match

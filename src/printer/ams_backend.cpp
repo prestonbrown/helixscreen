@@ -501,8 +501,10 @@ AmsError AmsBackend::commit_user_edit(int slot_index, const SlotInfo& original,
     // An edit that keeps a spool cannot move what the spool states about
     // itself. A catalog pick names the product of the spool that was bound, so
     // binding a different spool takes it off the slot; an unlink keeps it.
-    SlotInfo applied = helix::ams::keep_spool_owned_identity(
-        original, info, helix::ams::lane_sources(lane).spoolman);
+    SlotInfo applied = firmware_owns_lane_identity()
+                           ? info
+                           : helix::ams::keep_spool_owned_identity(
+                                 original, info, helix::ams::lane_sources(lane).spoolman);
     if (binding_changed && info.spoolman_id > 0) {
         applied.catalog_id.clear();
         applied.product_name.clear();
@@ -512,7 +514,8 @@ AmsError AmsBackend::commit_user_edit(int slot_index, const SlotInfo& original,
     // lands. The edit states the new binding, so an earlier Pending it amends
     // names the new spool too.
     const std::uint64_t filed_before = helix::ams::pending_filings(lane);
-    helix::ams::file_pending(lane, helix::ams::user_edit_observation(original, applied));
+    helix::ams::file_pending(
+        lane, helix::ams::user_edit_observation(original, applied, !firmware_owns_lane_identity()));
 
     AmsError err = apply_user_edit(slot_index, applied);
     // A partly applied edit still changed what it applied.

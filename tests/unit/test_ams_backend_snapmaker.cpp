@@ -4946,6 +4946,27 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(h.config_writes().empty());
 }
 
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker an official-flag repair keeps the head\x27s sub-type",
+                 "[ams][snapmaker][filament_record][official_repair]") {
+    lv_init_safe();
+    FilamentRecordHarness h("official_repair_subtype");
+    SlotInfo edit = inland_pla();
+    edit.spool_name.clear();
+    helix::test::edit_slot_as_user(h.backend, 3, edit);
+    h.printer.client.clear_gcode_script_history();
+
+    h.frame(make_written_entry(3, "PLA"));
+    json ptc = make_official_task(3, "PLA", "FF5500FF");
+    ptc["print_task_config"]["filament_sub_type"] =
+        json::array({"NONE", "NONE", "NONE", "SnapSpeed"});
+    h.frame(ptc);
+
+    const auto writes = h.config_writes();
+    REQUIRE(writes.size() == 2);
+    CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=3 VENDOR=Generic "
+                       "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=SnapSpeed FORCE=1");
+}
+
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker leaves an official flag it cannot prove it wrote",
                  "[ams][snapmaker][filament_record][official_repair]") {
     lv_init_safe();
@@ -5160,6 +5181,73 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker a product-line change alone rewrit
     REQUIRE(writes.size() == 1);
     CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 VENDOR=Snapmaker "
                        "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=Matte");
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker an edit naming no product line keeps the sub-type",
+                 "[ams][snapmaker][filament_record]") {
+    lv_init_safe();
+    FilamentRecordHarness h("record_subtype_kept");
+    json ptc = make_task_filament({"NONE", "PLA", "NONE", "NONE"});
+    ptc["print_task_config"]["filament_vendor"] =
+        json::array({"NONE", "Snapmaker", "NONE", "NONE"});
+    ptc["print_task_config"]["filament_sub_type"] =
+        json::array({"NONE", "SnapSpeed", "NONE", "NONE"});
+    ptc["print_task_config"]["filament_color_rgba"] =
+        json::array({"FFFFFFFF", "FF5500FF", "FFFFFFFF", "FFFFFFFF"});
+
+    SlotInfo edit;
+    edit.brand = "Snapmaker";
+    edit.material = "PLA";
+    edit.color_rgb = 0x00FF00;
+
+    SECTION("a colour change sends only the colour") {
+        h.frame(ptc);
+        h.printer.client.clear_gcode_script_history();
+        REQUIRE(helix::test::apply_edit(h.backend, 1, edit).success());
+        FilamentRecordHarness::drain();
+        const auto writes = h.config_writes();
+        REQUIRE(writes.size() == 1);
+        CHECK(writes[0] ==
+              "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 FILAMENT_COLOR_RGBA=00FF00FF");
+    }
+
+    SECTION("a head rewritten whole sends the sub-type it already holds") {
+        h.frame(make_written_entry(1, "PLA"));
+        ptc["print_task_config"]["filament_official"][1] = true;
+        h.frame(ptc);
+        h.printer.client.clear_gcode_script_history();
+        REQUIRE(helix::test::apply_edit(h.backend, 1, edit).success());
+        FilamentRecordHarness::drain();
+        const auto writes = h.config_writes();
+        REQUIRE(writes.size() == 2);
+        CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 VENDOR=Snapmaker "
+                           "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=SnapSpeed FORCE=1");
+    }
+
+    SECTION("a new material does not inherit the old one\x27s sub-type") {
+        h.frame(ptc);
+        h.printer.client.clear_gcode_script_history();
+        edit.material = "PETG";
+        REQUIRE(helix::test::apply_edit(h.backend, 1, edit).success());
+        FilamentRecordHarness::drain();
+        const auto writes = h.config_writes();
+        REQUIRE_FALSE(writes.empty());
+        CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 VENDOR=Snapmaker "
+                           "FILAMENT_TYPE=PETG FILAMENT_SUBTYPE=Basic");
+    }
+
+    SECTION("a named product line still replaces it") {
+        h.frame(ptc);
+        h.printer.client.clear_gcode_script_history();
+        edit.spool_name = "Basic";
+        edit.color_rgb = 0xFF5500;
+        REQUIRE(helix::test::apply_edit(h.backend, 1, edit).success());
+        FilamentRecordHarness::drain();
+        const auto writes = h.config_writes();
+        REQUIRE(writes.size() == 1);
+        CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 VENDOR=Snapmaker "
+                           "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=Basic");
+    }
 }
 
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker an edit never POSTs to filament_detect/set",

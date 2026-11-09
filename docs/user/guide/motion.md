@@ -193,7 +193,7 @@ If your printer supports it, leveling buttons appear at the bottom of the right 
 - **QGL** - runs Quad Gantry Level. Shown only on printers configured with `quad_gantry_level` (common on Voron 2.x and similar four-Z-motor gantries). Levels the gantry against the bed using the corner probe points.
 - **Z-Tilt** - runs Z-Tilt Adjust. Shown only on printers configured with `z_tilt_adjust` (common on dual- or triple-Z printers like the Voron Trident). Compensates for tilt between independent Z lead screws.
 
-Tap either button to start the routine. A status message confirms when it begins and when it completes. Both buttons are disabled during an active print and while another leveling or homing operation is already running.
+Tap either button to start the routine. If you picked a macro for **Bed Level** in [Macro Buttons](settings/printing.md#standard-macros), both buttons run that macro instead. A status message confirms when it begins and when it completes. Both buttons are disabled during an active print and while another leveling or homing operation is already running.
 
 > These same buttons are also available on the **Controls** panel - see [Leveling on the Controls Panel](#leveling-on-the-controls-panel) below.
 

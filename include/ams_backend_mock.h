@@ -141,6 +141,11 @@ class AmsBackendMock : public AmsBackend,
         tracks_consumption_natively_ = value;
     }
 
+    /// Test hook: answer firmware_owns_lane_identity() as a box-held backend does.
+    void set_firmware_owns_lane_identity_for_testing(bool value) {
+        firmware_owns_lane_identity_ = value;
+    }
+
     /**
      * @brief Test hook: enable identity extruder->slot mapping so routing tests
      *        can exercise the per-extruder dispatch path. When true,
@@ -1164,6 +1169,7 @@ class AmsBackendMock : public AmsBackend,
     // Test override for native-tracking capability. False in production; tests
     // flip this to exercise the FilamentConsumptionTracker gating path.
     bool tracks_consumption_natively_ = false;
+    bool firmware_owns_lane_identity_ = false;
 
     // Test override for tool->slot identity mapping. False in production;
     // Phase 5 routing tests set this true to simulate a tool-changer and

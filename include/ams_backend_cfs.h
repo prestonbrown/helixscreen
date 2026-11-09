@@ -209,6 +209,7 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
         // the box, and the next print feeds it back from there, so the toolhead
         // sensor reads empty for the whole time the printer sits idle.
         t.parks_filament_off_toolhead_when_idle = true;
+        t.firmware_owns_lane_identity = true;
         return t;
     }();
     /// kTraits, plus the pre-print send on Fork firmware with BOX_PRINT_MAP.

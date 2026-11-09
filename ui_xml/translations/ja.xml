@@ -3042,6 +3042,7 @@
   <translation tag="Random" ja="ランダム"/>
   <translation tag="Raspberry Pi" ja="Raspberry Pi"/>
   <translation tag="Raspberry Pi (32-bit)" ja="Raspberry Pi (32-bit)"/>
+  <translation tag="Re-apply spool" ja="スプールを再適用"/>
   <translation tag="Re-identify" ja="再識別"/>
   <translation tag="Re-measure" ja="再測定"/>
   <translation tag="Re-measure (~{} min)" ja="再測定(約{}分)"/>
@@ -3897,6 +3898,7 @@
   <translation tag="The helper macros are installed and activate after Klipper restarts." ja="ヘルパーマクロはインストール済みで、Klipper の再起動後に有効になります。"/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." ja="ラッチが開き、{}が落ちる可能性があります。続行する前に手で支え、その後ドックに戻してください。"/>
   <translation tag="The left RFID reader in this CFS unit may need service" ja="この CFS ユニットの左側 RFID リーダーは修理が必要な可能性があります"/>
+  <translation tag="The linked spool says {}." ja="リンクされたスプールの情報: {}"/>
   <translation tag="The loaded slot is not known yet" ja="装填済みのスロットはまだ不明です"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." ja="装填中のスプールは {} ですが、このファイルは {} 用にスライスされています。充填材入りフィラメントはフローレートが低くなり、硬化ノズルが必要です。"/>
   <translation tag="The message your printer&apos;s macros show (M117)" ja="プリンターのマクロが表示するメッセージ (M117)"/>
@@ -4260,6 +4262,7 @@
   <translation tag="Unknown Spool" ja="不明なスプール"/>
   <translation tag="Unknown Step" ja="不明なステップ"/>
   <translation tag="Unknown error" ja="不明なエラー"/>
+  <translation tag="Unlink" ja="リンク解除"/>
   <translation tag="Unlink, keep on this slot" ja="リンク解除、このスロットに保持"/>
   <translation tag="Unload" ja="排出"/>
   <translation tag="Unload Distance" ja="アンロード距離"/>

@@ -149,7 +149,8 @@ template <typename Member> constexpr bool skipped = std::is_null_pointer_v<Membe
 
 } // namespace
 
-Observation user_edit_observation(const SlotInfo& original, const SlotInfo& edited) {
+Observation user_edit_observation(const SlotInfo& original, const SlotInfo& edited,
+                                  bool spool_owns_linked_fields) {
     Observation obs(ObservationSource::Pending);
     const bool binding_changed = edited.spoolman_id != original.spoolman_id;
     if (binding_changed) {
@@ -157,7 +158,7 @@ Observation user_edit_observation(const SlotInfo& original, const SlotInfo& edit
     }
     // On an edit that keeps a linked spool the spool owns what it states
     // about itself, so a move of those fields is not the edit's to write.
-    const bool keeps_spool = !binding_changed && edited.spoolman_id > 0;
+    const bool keeps_spool = spool_owns_linked_fields && !binding_changed && edited.spoolman_id > 0;
     for_each_field([&](const auto& f) {
         using Row = std::decay_t<decltype(f)>;
         if constexpr (!skipped<decltype(f.slot)>) {

@@ -175,6 +175,7 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     slot_index_ = slot_index;
     original_info_ = initial_info;
     working_info_ = initial_info;
+    note_action_form_.reset();
     // Picker-entry mode: a selection commits + closes. Cleared when the picker
     // is later re-entered via the header Spoolman button.
     opened_on_picker_ = open_on_picker;
@@ -264,6 +265,11 @@ void AmsEditOverlay::apply_linked_spool(int spool_id, const SpoolInfo& spool) {
     // spool already carries its record's identity.
     if (original_info_.spoolman_id == spool_id) {
         const bool keep_working = selection_moved_ || identity_reset_;
+        // Where the lane's firmware owns its identity and this record
+        // contradicts it, the lane's values stand and the note names the spool.
+        const AmsBackend* backend = AmsState::instance().get_backend();
+        const bool lane_values_stand = backend && backend->firmware_owns_lane_identity() &&
+                                       contradiction_with_spool(original_info_, spool).any();
         if (spool.filament_id > 0) {
             working_info_.spoolman_filament_id = spool.filament_id;
         }
@@ -285,6 +291,9 @@ void AmsEditOverlay::apply_linked_spool(int spool_id, const SpoolInfo& spool) {
                 info->spoolman_vendor_id = spool.vendor_id;
             }
             info->spoolman_orca_filament_id = spool.orca_filament_id;
+            if (lane_values_stand) {
+                continue;
+            }
             if (!spool.vendor.empty()) {
                 info->brand = spool.vendor;
             }
@@ -333,6 +342,7 @@ void AmsEditOverlay::apply_linked_spool(int spool_id, const SpoolInfo& spool) {
         populate_detail_fields();
         update_sync_button_state();
     }
+    update_spool_disagreement();
 }
 
 void AmsEditOverlay::return_to_editor() {
@@ -475,6 +485,9 @@ void AmsEditOverlay::init_subjects() {
         // Managed-vs-untracked signal: drives the header Spoolman badge, the
         // More section's Spoolman-owned fields and the Add-link's absence.
         UI_MANAGED_SUBJECT_INT(is_managed_subject_, 0, "ams_edit_is_managed", subjects_);
+        UI_MANAGED_SUBJECT_INT(spool_disagrees_subject_, 0, "ams_edit_spool_disagrees", subjects_);
+        UI_MANAGED_SUBJECT_STRING(spool_disagreement_text_subject_, spool_disagreement_buf_, "",
+                                  "ams_edit_spool_disagreement_text", subjects_);
 
         // Scan QR reachability: Spoolman availability AND a camera on this
         // build. The header button binds its hidden flag to this.
@@ -1202,6 +1215,7 @@ void AmsEditOverlay::repopulate() {
 // ============================================================================
 
 void AmsEditOverlay::update_summary() {
+    update_spool_disagreement();
     // Identity: "eSUN Silk PETG, Blue" — brand + the selected type + colour
     // name. The type comes from the SELECTION (live per tap), not the slot.
     const std::string type = catalog_ ? selected_type(sel_, *catalog_) : working_info_.material;
@@ -1878,6 +1892,18 @@ void AmsEditOverlay::handle_print_label() {
 // Save Orchestration
 // ============================================================================
 
+void AmsEditOverlay::apply_material_defaults(const std::string& material) {
+    // No product: temperatures follow the material's database range.
+    working_info_.nozzle_temp_recommended = 0;
+    working_info_.catalog_id.clear();
+    working_info_.product_name.clear();
+    if (auto mat = filament::find_material(material)) {
+        working_info_.nozzle_temp_min = mat->nozzle_min;
+        working_info_.nozzle_temp_max = mat->nozzle_max;
+        working_info_.bed_temp = mat->bed_temp;
+    }
+}
+
 void AmsEditOverlay::stage_selection_into_working() {
     if (!selection_moved_ || !catalog_) {
         return;
@@ -1900,15 +1926,7 @@ void AmsEditOverlay::stage_selection_into_working() {
             return;
         }
     }
-    // No product: temperatures follow the material's database range.
-    working_info_.nozzle_temp_recommended = 0;
-    working_info_.catalog_id.clear();
-    working_info_.product_name.clear();
-    if (auto mat = filament::find_material(type)) {
-        working_info_.nozzle_temp_min = mat->nozzle_min;
-        working_info_.nozzle_temp_max = mat->nozzle_max;
-        working_info_.bed_temp = mat->bed_temp;
-    }
+    apply_material_defaults(type);
     helix::ams::drop_stale_spool_name(original_info_, working_info_);
 }
 
@@ -1955,6 +1973,46 @@ void AmsEditOverlay::handle_clear_spool() {
     close_editor(false);
 }
 
+void AmsEditOverlay::handle_reapply_linked_spool() {
+    if (save_in_flight_ || !lane_contradicts_linked_spool()) {
+        return;
+    }
+    remember_form_for_note_action();
+    const SpoolInfo& spool = detail_original_;
+    spdlog::info("[AmsEditOverlay] Re-applying spool {} to slot {}", spool.id, slot_index_);
+    if (!spool.material.empty()) {
+        working_info_.material = spool.material;
+        apply_material_defaults(spool.material);
+    }
+    if (!spool.vendor.empty()) {
+        working_info_.brand = spool.vendor;
+    }
+    uint32_t rgb = 0;
+    if (!spool.color_hex.empty() && helix::parse_hex_color(spool.color_hex.c_str(), rgb)) {
+        working_info_.color_rgb = rgb;
+        working_info_.color_name.clear();
+        working_info_.multi_color_hexes.clear();
+    }
+    sel_ = selection_from_slot(working_info_);
+    selection_moved_ = false;
+    details_color_ = working_info_.color_rgb;
+    details_color_set_ = false;
+    handle_save();
+}
+
+void AmsEditOverlay::handle_unlink_disagreeing_spool() {
+    if (save_in_flight_ || !lane_contradicts_linked_spool()) {
+        return;
+    }
+    spdlog::info("[AmsEditOverlay] Unlinking disagreeing spool {} from slot {}",
+                 working_info_.spoolman_id, slot_index_);
+    remember_form_for_note_action();
+    stage_selection_into_working();
+    stage_pending_color_into_working();
+    working_info_.unlink_as_different_filament(original_info_);
+    handle_save();
+}
+
 void AmsEditOverlay::handle_back() {
     int view = lv_subject_get_int(&view_mode_subject_);
     if (save_in_flight_) {
@@ -1998,6 +2056,106 @@ void AmsEditOverlay::prompt_unsaved_changes() {
 bool AmsEditOverlay::should_create_new_spool(const SlotInfo& working_info, bool add_requested) {
     return add_requested && working_info.spoolman_id == 0 &&
            helix::SpoolmanSlotSaver::is_filament_complete(working_info);
+}
+
+AmsEditOverlay::SpoolContradiction
+AmsEditOverlay::contradiction_with_spool(const SlotInfo& lane, const SpoolInfo& spool) {
+    SpoolContradiction result;
+    result.material = !lane.material.empty() && !spool.material.empty() &&
+                      !helix::FilamentMapper::materials_match(lane.material, spool.material);
+    uint32_t spool_rgb = 0;
+    if (helix::ams::is_declarable_color(lane.color_rgb) && !spool.color_hex.empty() &&
+        helix::parse_hex_color(spool.color_hex.c_str(), spool_rgb)) {
+        result.color = !helix::FilamentMapper::colors_match(lane.color_rgb, spool_rgb);
+    }
+    return result;
+}
+
+bool AmsEditOverlay::lane_contradicts_linked_spool() const {
+    if (working_info_.spoolman_id <= 0 || working_info_.spoolman_id != original_info_.spoolman_id ||
+        details_spool_id_ != working_info_.spoolman_id) {
+        return false;
+    }
+    const AmsBackend* backend = AmsState::instance().get_backend();
+    return backend && backend->firmware_owns_lane_identity() &&
+           contradiction_with_spool(original_info_, detail_original_).any();
+}
+
+AmsEditOverlay::SpoolmanView AmsEditOverlay::spoolman_view() const {
+    SpoolmanView view{original_info_, working_info_};
+    if (!lane_contradicts_linked_spool()) {
+        return view;
+    }
+    const SpoolInfo& spool = detail_original_;
+    if (!spool.material.empty()) {
+        view.base.material = spool.material;
+    }
+    if (!spool.vendor.empty()) {
+        view.base.brand = spool.vendor;
+    }
+    uint32_t rgb = 0;
+    if (!spool.color_hex.empty() && helix::parse_hex_color(spool.color_hex.c_str(), rgb)) {
+        view.base.color_rgb = rgb;
+    }
+    if (working_info_.material == original_info_.material) {
+        view.target.material = view.base.material;
+    }
+    if (working_info_.brand == original_info_.brand) {
+        view.target.brand = view.base.brand;
+    }
+    if (working_info_.color_rgb == original_info_.color_rgb) {
+        view.target.color_rgb = view.base.color_rgb;
+    }
+    view.base.catalog_id = view.target.catalog_id;
+    view.base.product_name = view.target.product_name;
+    return view;
+}
+
+void AmsEditOverlay::remember_form_for_note_action() {
+    note_action_form_ =
+        FormSnapshot{working_info_, sel_, selection_moved_, details_color_, details_color_set_};
+}
+
+void AmsEditOverlay::restore_form_after_note_action() {
+    if (!note_action_form_) {
+        return;
+    }
+    working_info_ = note_action_form_->working;
+    sel_ = note_action_form_->selection;
+    selection_moved_ = note_action_form_->selection_moved;
+    details_color_ = note_action_form_->details_color;
+    details_color_set_ = note_action_form_->details_color_set;
+    note_action_form_.reset();
+    if (editor_entered_) {
+        rebuild_option_lists();
+        update_summary();
+        update_temp_display();
+    }
+}
+
+void AmsEditOverlay::update_spool_disagreement() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    const bool disagrees = lane_contradicts_linked_spool();
+    if (disagrees) {
+        const SpoolContradiction differs =
+            contradiction_with_spool(original_info_, detail_original_);
+        std::string stated;
+        if (differs.material) {
+            stated = detail_original_.material;
+        }
+        uint32_t rgb = 0;
+        if (differs.color && helix::parse_hex_color(detail_original_.color_hex.c_str(), rgb)) {
+            const std::string color = helix::get_color_name_from_hex(rgb);
+            stated += stated.empty() ? color : ", " + color;
+        }
+        const std::string note =
+            fmt::format(fmt::runtime(lv_tr("The linked spool says {}.")), stated);
+        snprintf(spool_disagreement_buf_, sizeof(spool_disagreement_buf_), "%s", note.c_str());
+        lv_subject_copy_string(&spool_disagreement_text_subject_, spool_disagreement_buf_);
+    }
+    lv_subject_set_int(&spool_disagrees_subject_, disagrees ? 1 : 0);
 }
 
 bool AmsEditOverlay::needs_identity_confirmation(const SlotInfo& original, const SlotInfo& edited) {
@@ -2116,10 +2274,10 @@ void AmsEditOverlay::handle_save() {
         commit_capture(cap);
         return;
     }
-    logistics_pending_ = has_logistics_diff && details_loaded &&
-                         !may_write_spoolman_now(original_info_, working_info_);
-    if (details_loaded && api_ && !logistics_pending_ &&
-        may_write_spoolman_now(original_info_, working_info_)) {
+    const SpoolmanView spoolman = spoolman_view();
+    const bool spoolman_writable = may_write_spoolman_now(spoolman.base, spoolman.target);
+    logistics_pending_ = has_logistics_diff && details_loaded && !spoolman_writable;
+    if (details_loaded && api_ && !logistics_pending_ && spoolman_writable) {
         nlohmann::json spool_patch;
         nlohmann::json filament_patch;
         SpoolmanSlotSaver::build_spool_patches(detail_original_, detail_working_, spool_patch,
@@ -2191,7 +2349,9 @@ AmsEditOverlay::SaveCapture AmsEditOverlay::capture_save() const {
     SaveCapture cap;
     cap.session = session_;
     cap.slot_index = slot_index_;
-    cap.original = original_info_;
+    const SpoolmanView spoolman = spoolman_view();
+    cap.original = spoolman.base;
+    cap.spoolman_target = spoolman.target;
     cap.saving = working_info_;
     cap.owed = completion_callback_;
     cap.chained_spool_id = detail_working_.id;
@@ -2329,6 +2489,7 @@ void AmsEditOverlay::finish_awaited_save(const SaveCapture& cap, helix::ams::Pen
     if (AmsBackend* backend = AmsState::instance().get_backend()) {
         original_info_ = backend->get_slot_info(cap.slot_index);
     }
+    restore_form_after_note_action();
     set_save_state(kSaveFailed, not_saved_message(outcome, reason));
     update_sync_button_state();
 }
@@ -2341,12 +2502,14 @@ void AmsEditOverlay::commit_capture(const SaveCapture& cap) {
     const bool live = save_is_live(cap);
     const SlotInfo& original = cap.original;
     const SlotInfo& saving = cap.saving;
+    const SlotInfo& spoolman_target = cap.spoolman_target;
 
     // Spoolman can go away between staging a brand or material and saving it.
     // The change has nowhere to go, and committing it locally would leave the
     // slot claiming an identity the server never heard.
     if (identity_locked(original, saving, get_printer_state().is_spoolman_available()) &&
-        (saving.brand != original.brand || saving.material != original.material)) {
+        (spoolman_target.brand != original.brand ||
+         spoolman_target.material != original.material)) {
         report_save_problem(live,
                             lv_tr("Spoolman is offline, so brand and material can't be saved."));
         return;
@@ -2362,7 +2525,7 @@ void AmsEditOverlay::commit_capture(const SaveCapture& cap) {
     }
 
     if (api_ && get_printer_state().is_spoolman_available()) {
-        if (needs_identity_confirmation(original, saving)) {
+        if (needs_identity_confirmation(original, spoolman_target)) {
             // Only an open editor can ask. A detached save never gets here: the
             // logistics PATCH that runs ahead of this needs no prompt.
             if (live) {
@@ -2371,7 +2534,7 @@ void AmsEditOverlay::commit_capture(const SaveCapture& cap) {
             return;
         }
         if (saving.spoolman_id > 0 &&
-            helix::SpoolmanSlotSaver::detect_changes(original, saving).any()) {
+            helix::SpoolmanSlotSaver::detect_changes(original, spoolman_target).any()) {
             run_spoolman_save(cap, helix::SpoolmanSlotSaver::LinkIntent::UpdateLinked);
             return; // the save's completion commits
         }
@@ -2382,6 +2545,7 @@ void AmsEditOverlay::commit_capture(const SaveCapture& cap) {
 }
 
 void AmsEditOverlay::stay_open_after_failed_save() {
+    restore_form_after_note_action();
     update_sync_button_state();
 }
 
@@ -2403,6 +2567,7 @@ void AmsEditOverlay::report_save_problem(bool live, const char* message) {
         return;
     }
     if (live) {
+        restore_form_after_note_action();
         set_save_state(kSaveFailed, message);
         update_sync_button_state();
         return;
@@ -2443,7 +2608,7 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
     }
     begin_slot_save(cap.slot_index);
     saver->save(
-        cap.original, cap.saving, intent,
+        cap.original, cap.spoolman_target, intent,
         [this, token, cap, saver](const helix::SaveResult& result) {
             // Spoolman callback arrives on a background thread — defer
             // to the UI thread before touching LVGL.
@@ -2493,6 +2658,16 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                 }
                 SlotInfo committed = cap.saving;
                 helix::SpoolmanSlotSaver::apply_save_result_identity(committed, result);
+                SlotInfo spool_now = cap.spoolman_target;
+                helix::SpoolmanSlotSaver::apply_save_result_identity(spool_now, result);
+                // What Spoolman now holds never rewrites a lane it disagrees with.
+                if (cap.spoolman_target.material != cap.saving.material ||
+                    cap.spoolman_target.brand != cap.saving.brand ||
+                    cap.spoolman_target.color_rgb != cap.saving.color_rgb) {
+                    committed.material = cap.saving.material;
+                    committed.brand = cap.saving.brand;
+                    committed.color_rgb = cap.saving.color_rgb;
+                }
                 if (result.repointed_filament) {
                     // The spool now carries the identity this save
                     // wrote. File it as the lane's Spoolman record
@@ -2504,10 +2679,10 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                     repointed.id = committed.spoolman_id;
                     repointed.filament_id = result.new_filament_id;
                     repointed.vendor_id = result.new_vendor_id;
-                    repointed.vendor = committed.brand;
-                    repointed.material = committed.material;
-                    repointed.filament_name = committed.spool_name;
-                    repointed.color_hex = helix::color_to_hex_string(committed.color_rgb);
+                    repointed.vendor = spool_now.brand;
+                    repointed.material = spool_now.material;
+                    repointed.filament_name = spool_now.spool_name;
+                    repointed.color_hex = helix::color_to_hex_string(spool_now.color_rgb);
                     if (auto* owner = AmsState::instance().get_backend()) {
 #if !defined(HELIX_PLATFORM_ESP32)
                         // spoolman_manager.cpp is scoped out of the ESP32
@@ -2681,6 +2856,10 @@ void AmsEditOverlay::register_callbacks() {
          [](lv_event_t*) { get_ams_edit_overlay().handle_reset_to_tag(); }},
         {"ams_edit_clear_spool_cb",
          [](lv_event_t*) { get_ams_edit_overlay().handle_clear_spool(); }},
+        {"ams_edit_reapply_spool_cb",
+         [](lv_event_t*) { get_ams_edit_overlay().handle_reapply_linked_spool(); }},
+        {"ams_edit_unlink_spool_cb",
+         [](lv_event_t*) { get_ams_edit_overlay().handle_unlink_disagreeing_spool(); }},
         {"ams_edit_color_swatch_cb",
          [](lv_event_t* e) {
              get_ams_edit_overlay().handle_color_swatch(lv_event_get_target_obj(e));

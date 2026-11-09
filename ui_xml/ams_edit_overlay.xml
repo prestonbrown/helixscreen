@@ -217,6 +217,36 @@
           <tag_badge subject="ams_edit_tag_temps"/>
         </lv_obj>
 
+        <!-- The lane holds one filament and its linked spool says another. The
+             lane's values stand above; the note names the spool's and offers
+             both ways to settle it. -->
+        <lv_obj name="spool_disagreement_note"
+                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
+                style_pad_gap="#space_xs" scrollable="false" hidden="true">
+          <bind_flag_if_eq subject="ams_edit_spool_disagrees" flag="hidden" ref_value="0"/>
+          <icon src="alert" size="xs" variant="warning"/>
+          <text_small name="spool_disagreement_text"
+                      flex_grow="1" long_mode="wrap" bind_text="ams_edit_spool_disagreement_text"/>
+          <lv_obj name="btn_unlink_disagreeing"
+                  width="content" height="content" style_pad_hor="#space_xs" style_pad_ver="#space_xxs" flex_flow="row"
+                  style_flex_cross_place="center" style_radius="#border_radius" style_bg_opa="0" style_border_width="0"
+                  clickable="true" scrollable="false" ext_click_area="#ams_edit_bar_hit">
+            <style name="styles.press_wash" selector="pressed"/>
+            <event_cb trigger="clicked" callback="ams_edit_unlink_spool_cb"/>
+            <text_small text="Unlink" style_text_color="#primary" clickable="false" event_bubble="true"/>
+          </lv_obj>
+          <!-- The margin keeps this button's hit reach off Unlink beside it. -->
+          <lv_obj name="btn_reapply_spool"
+                  width="content" height="content" style_margin_left="#ams_edit_bar_hit" style_pad_hor="#space_xs"
+                  style_pad_ver="#space_xxs" flex_flow="row" style_flex_cross_place="center"
+                  style_radius="#border_radius" style_bg_opa="0" style_border_width="0" clickable="true"
+                  scrollable="false" ext_click_area="#ams_edit_bar_hit">
+            <style name="styles.press_wash" selector="pressed"/>
+            <event_cb trigger="clicked" callback="ams_edit_reapply_spool_cb"/>
+            <text_small text="Re-apply spool" style_text_color="#primary" clickable="false" event_bubble="true"/>
+          </lv_obj>
+        </lv_obj>
+
         <!-- Two layouts, both built, one hidden (bind_flag, not a structural
              <if>: the engine refuses <repeat> nested inside <if>). The short
              landscape class (min dimension <= 272, not portrait) splits -

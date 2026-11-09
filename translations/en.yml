@@ -3237,6 +3237,7 @@ translations:
   Random: Random
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
+  Re-apply spool: Re-apply spool
   Re-identify: Re-identify
   Re-measure: Re-measure
   Re-measure (~{} min): Re-measure (~{} min)
@@ -4164,6 +4165,7 @@ translations:
   The helper macros are installed and activate after Klipper restarts.: The helper macros are installed and activate after Klipper restarts.
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: The latch opens and {} can drop. Hold it before you continue, then put it in its dock.
   The left RFID reader in this CFS unit may need service: The left RFID reader in this CFS unit may need service
+  The linked spool says {}.: The linked spool says {}.
   The loaded slot is not known yet: The loaded slot is not known yet
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
@@ -4591,6 +4593,7 @@ translations:
   Unknown Spool: Unknown Spool
   Unknown Step: Unknown Step
   Unknown error: Unknown error
+  Unlink: Unlink
   Unlink, keep on this slot: Unlink, keep on this slot
   Unload: Unload
   Unload Distance: Unload Distance

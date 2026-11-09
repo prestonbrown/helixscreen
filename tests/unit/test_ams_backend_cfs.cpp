@@ -2932,6 +2932,37 @@ TEST_CASE("CFS a box write Klipper rejects saves nothing and reports the edit",
     CHECK(b.get_slot_info(0).color_rgb == 0xFF5500u);
 }
 
+TEST_CASE("CFS a linked lane's moved material waits on the box and reports a rejection",
+          "[ams][cfs][filament_slot_override][firmware_writeback][box_wins]") {
+    helix::test::RegisteredWired<CfsRemapHelper> reg;
+    auto& b = *reg;
+    b.fire_status(make_cfs_notification(
+        make_single_unit_box({"101001", "-1", "-1", "-1"}, {"0FF5500", "-1", "-1", "-1"})));
+
+    SlotInfo original = b.get_slot_info(0);
+    original.spoolman_id = 149;
+    SlotInfo edit = original;
+    edit.material = "ASA";
+    const std::uint64_t since = helix::ams::pending_filings(reg.lane(0));
+
+    SECTION("in flight, the lane holds the edit as pending") {
+        (void)b.commit_user_edit(0, original, edit);
+        const auto pending = helix::ams::lane_sources(reg.lane(0)).pending;
+        REQUIRE(pending.has_value());
+        CHECK(pending->material == "ASA");
+    }
+    SECTION("a rejected write settles as failed") {
+        b.reject = true;
+        (void)b.commit_user_edit(0, original, edit);
+        std::optional<helix::ams::PendingOutcome> heard;
+        helix::ams::await_pending(
+            reg.lane(0), since,
+            [&heard](helix::ams::PendingOutcome outcome, const std::string&) { heard = outcome; });
+        REQUIRE(heard.has_value());
+        CHECK(*heard == helix::ams::PendingOutcome::Failed);
+    }
+}
+
 TEST_CASE("CFS refuses a box write while a print holds the printer",
           "[ams][cfs][filament_slot_override][firmware_writeback]") {
     struct PrintingCfs : CfsRemapHelper {
