@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fan RPM on standard Klipper** (#2071, #2082) - fans with a tachometer now show their speed in RPM on the Fan control screen, on the part cooling fan's dial as well as on the automatic fan cards. Before, only Creality's own fan feedback showed RPM.
 - **Portrait splash screens** (#2073) - Pi and desktop installs with a portrait display get a full-screen splash image drawn for that shape, instead of the logo scaled at startup.
 - **Anycubic Kobra X picture** (#2074) - the Kobra X now has its own printer image instead of a generic frame.
+- **Z-Tilt and QGL use your Bed Level macro** (#2083) - if you assigned a macro to Bed Level in Standard Macros, the Z-Tilt and Quad Gantry Level buttons run it too.
 - **Jacobean K2 Plus firmware** (#2087) - K2 Plus printers running Jacobean's Kalico-based firmware are recognised as such, with their own print-start progress, instead of being taken for k2-improvements.
 
 - **A tour of what's new** - the first start after updating from 1.0 shows a short tour of the rebuilt home screen, the new Print Status screen and the Filament and filament system screens, with your own printer's picture. A new install gets the full tour, and Help & About replays it.
