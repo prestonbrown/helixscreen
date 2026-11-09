@@ -3165,6 +3165,7 @@
   <translation tag="Reboot" ru="Перезагрузка"/>
   <translation tag="Reboot failed" ru="Ошибка перезагрузки"/>
   <translation tag="Reboot failed — host is still reachable" ru="Ошибка перезагрузки — хост всё ещё доступен"/>
+  <translation tag="Reboot the printer to finish the plugin update." ru="Перезагрузите принтер, чтобы завершить обновление плагина."/>
   <translation tag="Recalibrate input shaping?" ru="Откалибровать компенсацию вибраций?"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." ru="Перекалибруйте или просмотрите подробные результаты в любое время в Настройках."/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." ru="От принтера получены слишком большие данные ({} байт). Возможна ошибка связи."/>

@@ -3393,6 +3393,7 @@ translations:
   Reboot failed: Échec du redémarrage
   Reboot failed — host is still reachable: Échec du redémarrage — l'hôte est toujours
     joignable
+  Reboot the printer to finish the plugin update.: "Redémarrez l'imprimante pour terminer la mise à jour du plugin."
   Recalibrate input shaping?: 'Recalibrer l''Input Shaping ?'
   Recalibrate or view detailed results anytime in Settings.: Recalibrez ou consultez
     les résultats détaillés à tout moment dans les paramètres.

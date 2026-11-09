@@ -3108,6 +3108,7 @@
   <translation tag="Reboot" it="Riavvia"/>
   <translation tag="Reboot failed" it="Riavvio fallito"/>
   <translation tag="Reboot failed — host is still reachable" it="Riavvio fallito — l&apos;host è ancora raggiungibile"/>
+  <translation tag="Reboot the printer to finish the plugin update." it="Riavvia la stampante per completare l&apos;aggiornamento del plugin."/>
   <translation tag="Recalibrate input shaping?" it="Ricalibrare l&apos;Input Shaping?"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." it="Ricalibra o visualizza i risultati dettagliati in qualsiasi momento nelle Impostazioni."/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." it="Ricevuti dati troppo grandi dalla stampante ({} byte). Potrebbe indicare un errore di comunicazione."/>

@@ -3108,6 +3108,7 @@
   <translation tag="Reboot" zh="重启"/>
   <translation tag="Reboot failed" zh="重启失败"/>
   <translation tag="Reboot failed — host is still reachable" zh="重启失败 — 主机仍可访问"/>
+  <translation tag="Reboot the printer to finish the plugin update." zh="重启打印机以完成插件更新。"/>
   <translation tag="Recalibrate input shaping?" zh="重新校准输入整形？"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." zh="可随时在设置中重新校准或查看详细结果。"/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." zh="从打印机收到的数据过大（{} 字节）。这可能表示通信错误。"/>

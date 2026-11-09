@@ -526,6 +526,10 @@ TEST_CASE("restart_moonraker_for_plugin reads install.sh --restart-moonraker's e
         sandbox.write_script("exit 3");
         CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::NeedsManual);
     }
+    SECTION("Moonraker names no service of its own") {
+        sandbox.write_script("exit 8");
+        CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::NoService);
+    }
     SECTION("a print holds it off") {
         sandbox.write_script("exit 4");
         CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::HeldForPrint);
@@ -574,6 +578,8 @@ TEST_CASE("plugin_restart_finished: a finished restart, or one needing a manual 
     CHECK(helix::plugin_restart_finished(Outcome::NeedsManual, true));
     // With no plugin loaded, a restart that did not load one is tried again.
     CHECK_FALSE(helix::plugin_restart_finished(Outcome::NeedsManual, false));
+    CHECK(helix::plugin_restart_finished(Outcome::NoService, true));
+    CHECK_FALSE(helix::plugin_restart_finished(Outcome::NoService, false));
     for (const bool loaded : {true, false}) {
         CHECK_FALSE(helix::plugin_restart_finished(Outcome::HeldForPrint, loaded));
         CHECK_FALSE(helix::plugin_restart_finished(Outcome::JobUnknown, loaded));

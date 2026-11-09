@@ -3,6 +3,7 @@
 
 #include "plugin_self_heal.h"
 
+#include "ui_notification.h"
 #include "ui_toast_manager.h"
 
 #include "config.h"
@@ -241,6 +242,14 @@ void PluginSelfHeal::on_restarted(PluginRestartOutcome outcome) {
                       restart_facts_.plugin_file);
         ToastManager::instance().show(ToastSeverity::WARNING,
                                       lv_tr("Restart Moonraker to finish the plugin change"));
+        return;
+    case PluginRestartOutcome::NoService:
+        // Nothing on this host can restart Moonraker's service, and the
+        // attempt is remembered, so the advice also goes to the history.
+        spdlog::warn("[PluginSelfHeal] Moonraker does not name a service to restart, so it was "
+                     "not restarted for the HelixPrint plugin; it runs the old plugin code until "
+                     "the printer reboots");
+        ui_notification_warning(lv_tr("Reboot the printer to finish the plugin update."));
         return;
     case PluginRestartOutcome::NeedsManual:
     case PluginRestartOutcome::JobUnknown:

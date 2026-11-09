@@ -3108,6 +3108,7 @@
   <translation tag="Reboot" en="Reboot"/>
   <translation tag="Reboot failed" en="Reboot failed"/>
   <translation tag="Reboot failed — host is still reachable" en="Reboot failed — host is still reachable"/>
+  <translation tag="Reboot the printer to finish the plugin update." en="Reboot the printer to finish the plugin update."/>
   <translation tag="Recalibrate input shaping?" en="Recalibrate input shaping?"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." en="Recalibrate or view detailed results anytime in Settings."/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." en="Received oversized data from printer ({} bytes). This may indicate a communication error."/>

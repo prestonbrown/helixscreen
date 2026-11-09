@@ -3108,6 +3108,7 @@
   <translation tag="Reboot" ja="再起動"/>
   <translation tag="Reboot failed" ja="再起動に失敗しました"/>
   <translation tag="Reboot failed — host is still reachable" ja="再起動に失敗しました — ホストに依然として到達可能です"/>
+  <translation tag="Reboot the printer to finish the plugin update." ja="プラグインの更新を完了するにはプリンターを再起動してください。"/>
   <translation tag="Recalibrate input shaping?" ja="インプットシェーピングを再キャリブレーションしますか？"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." ja="設定からいつでも再キャリブレーションや詳細結果の確認ができます。"/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." ja="プリンターからサイズ超過のデータを受信しました ({} バイト)。通信エラーの可能性があります。"/>

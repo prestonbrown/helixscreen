@@ -3221,6 +3221,7 @@ translations:
   Reboot: 再起動
   Reboot failed: 再起動に失敗しました
   Reboot failed — host is still reachable: 再起動に失敗しました — ホストに依然として到達可能です
+  Reboot the printer to finish the plugin update.: プラグインの更新を完了するにはプリンターを再起動してください。
   Recalibrate input shaping?: 'インプットシェーピングを再キャリブレーションしますか？'
   Recalibrate or view detailed results anytime in Settings.: 設定からいつでも再キャリブレーションや詳細結果の確認ができます。
   Received oversized data from printer ({} bytes). This may indicate a communication error.: プリンターからサイズ超過のデータを受信しました ({} バイト)。通信エラーの可能性があります。

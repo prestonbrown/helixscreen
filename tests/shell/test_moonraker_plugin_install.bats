@@ -2004,7 +2004,7 @@ bundled_version() {
         printf '%s' "$info" > "$mr/system_info"
         : > "$mr/log"
         run env HOME="$home" sh "$SCRIPT" --restart-moonraker
-        [ "$status" -eq 3 ] || fail "$info: want 3, got $status: $output"
+        [ "$status" -eq 8 ] || fail "$info: want 8, got $status: $output"
         if grep -q '^POST' "$mr/log"; then fail "$info: restarted a guessed service: $(cat "$mr/log")"; fi
         contains "Restart Moonraker or reboot the printer to finish the plugin update" "$output"
     done
