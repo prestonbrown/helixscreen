@@ -434,18 +434,10 @@ is a layout call with `ctl geom` at 800x480 and the smallest breakpoint before i
 5. **Firmware-managed packs.** On printers whose firmware ships or pins our files (Snapmaker U1
    under paxx), should the plugin rename at all, or report only?
 
-6. **Narrowing the forwarders again (option B).** Today a printer that ever had a visible name keeps
-   all eleven forwarders, because a forwarder answers a sliced file's call silently and nothing
-   proves the printer clean. B: each forwarder announces itself (`RESPOND TYPE=command
-   MSG="HELIX:ALIAS:HELIX_READY"` before calling `_HELIX_READY`), the app records every name it
-   hears, and a name with no hit over K completed prints with the forwarders loaded is dropped
-   (DropAliases, OUTDATED). It is real evidence but still statistical: a file printed rarely can
-   call a dropped name after K and answer `Unknown command` once, after which the recording brings
-   the name back. It changes D1's forwarder shape and the content tests, and needs a K.
-
 ## Decisions (Preston, 2026-11-07)
 
 - The plugin renames the legacy marker blocks at load, on by default, with the `[helix_print] migrate_signal_macros: False` opt-out.
+- Narrow the forwarders (option B, decided 2026-11-08): each forwarder announces itself with `RESPOND TYPE=command MSG="HELIX:ALIAS:<name>"` before calling the hidden macro, the app records every name it hears, and a name with no hit over K completed prints with the forwarders loaded is dropped through DropAliases. K is not chosen yet, and this changes D1's forwarder shape and the content tests.
 
 ## Status (2026-11-07)
 
