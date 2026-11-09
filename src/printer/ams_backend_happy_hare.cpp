@@ -1603,10 +1603,11 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
         bool same = true;
         for (int u = 0; u < num_units_; ++u) {
             same = same && system_info_.units[u].slot_count == unit_counts[u] &&
-                   system_info_.units[u].name == unit_name(u) &&
-                   system_info_.units[u].model == unit_model(u);
+                   system_info_.units[u].name == unit_name(u);
         }
         if (same) {
+            for (int u = 0; u < num_units_; ++u)
+                system_info_.units[u].model = unit_model(u);
             update_unit_topologies();
             return;
         }

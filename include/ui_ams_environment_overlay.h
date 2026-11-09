@@ -213,7 +213,6 @@ class AmsEnvironmentOverlay : public OverlayBase {
     ObserverGuard env_humidity_observer_;
     ObserverGuard dryer_active_observer_;
     ObserverGuard dryer_temp_observer_;
-    ObserverGuard animations_observer_;
 
     /// Widget pointers (found after create)
     lv_obj_t* preset_dropdown_ = nullptr;

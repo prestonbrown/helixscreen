@@ -613,12 +613,6 @@ void AmsEnvironmentOverlay::on_activate() {
             ams.get_subjects_lifetime());
     }
 
-    auto& display = DisplaySettingsManager::instance();
-    animations_observer_ = observe<int>(
-        display.subject_animations_enabled(), this,
-        [refresh_if_visible](AmsEnvironmentOverlay* self, int) { refresh_if_visible(self); },
-        display.get_subjects_lifetime());
-
     // Pull current state immediately on activation.
     refresh();
 
@@ -630,8 +624,6 @@ void AmsEnvironmentOverlay::on_deactivating(DeactivateReason) {
     env_humidity_observer_.reset();
     dryer_active_observer_.reset();
     dryer_temp_observer_.reset();
-    animations_observer_.reset();
-
     if (overlay_root_) {
         helix::ui::unit_art_set_glow(lv_obj_find_by_name(overlay_root_, "unit_art_picture"),
                                      helix::ui::UnitArtGlow::Off);
