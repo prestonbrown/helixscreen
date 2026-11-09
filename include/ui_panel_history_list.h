@@ -163,6 +163,16 @@ class HistoryListPanel : public OverlayBase {
      */
     void on_deactivating(DeactivateReason reason) override;
 
+  protected:
+    /**
+     * @brief Start a fresh session: default filters, top of the list
+     *
+     * Runs on every show() from the dashboard, and never on Back from the
+     * detail overlay, which returns to the list as the user left it.
+     */
+    void before_show() override;
+
+  public:
     //
     // === Public API ===
     //
@@ -363,6 +373,9 @@ class HistoryListPanel : public OverlayBase {
      * @brief Clear all row widgets from the list
      */
     void clear_list();
+
+    /// Default filters and sort, first page, no rows: the state a fresh open starts from.
+    void reset_view_state();
 
     /**
      * @brief Update the empty state visibility and message

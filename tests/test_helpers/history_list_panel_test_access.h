@@ -99,6 +99,11 @@ struct HistoryListPanelTestAccess {
         p.refresh_from_manager();
     }
 
+    /// The per-open hook show() runs before the push.
+    static void before_show(HistoryListPanel& p) {
+        p.before_show();
+    }
+
     // Production opens the detail overlay from a row click on a created panel.
     static void show_detail_overlay(HistoryListPanel& p, lv_obj_t* parent,
                                     const PrintHistoryJob& job) {
