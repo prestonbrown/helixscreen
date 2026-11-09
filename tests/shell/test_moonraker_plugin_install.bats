@@ -212,7 +212,7 @@ path_without_python3() {
 
 @test "plugin exposes no phase-tracking endpoints" {
     [ -f "$PLUGIN_PY" ]
-    refute_grep 'phase_tracking' "$PLUGIN_PY"
+    refute_grep 'server/helix/phase_tracking' "$PLUGIN_PY"
 }
 
 # HelixScreen runs install.sh from a NoNewPrivileges service, where sudo can

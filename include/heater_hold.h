@@ -40,7 +40,9 @@ class HeaterHold {
     }
 
   private:
+#ifndef ESP_PLATFORM // Firmware has no POSIX signals, so no handler reads this.
     static_assert(std::atomic<int>::is_always_lock_free);
+#endif
     inline static std::atomic<int> s_count{0};
     bool held_ = false;
 };
