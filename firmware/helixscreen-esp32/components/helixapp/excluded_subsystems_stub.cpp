@@ -331,4 +331,6 @@ WizardPreferencesStep* get_wizard_preferences_step() {
 // The firmware cannot build these panels, so no owned calibration heat exists at shutdown.
 void BedMeshPanel::before_disconnect() {}
 void ZOffsetCalibrationPanel::before_disconnect() {}
-void helix::ui::PACalibrationPanel::before_disconnect() {}
+namespace helix::ui {
+void PACalibrationPanel::before_disconnect() {}
+} // namespace helix::ui
