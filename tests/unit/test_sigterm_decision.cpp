@@ -60,3 +60,15 @@ TEST_CASE("heater hold: a destroyed holder releases", "[sigterm][heater_hold]") 
     hold.reset();
     CHECK_FALSE(HeaterHold::any_held_signal_safe());
 }
+
+TEST_CASE("A duplicate SIGTERM in the same millisecond is still a duplicate", "[sigterm]") {
+    for (uint32_t now_ms : {1000u, 1001u, 0xFFFFFFFEu}) {
+        const uint32_t stamp = helix::sigterm_stamp(now_ms);
+        CHECK(stamp != 0);
+        CHECK(sigterm_action(true, true, helix::ms_since_sigterm_stamp(now_ms, stamp)) ==
+              SigtermAction::Ignore);
+    }
+    const uint32_t stamp = helix::sigterm_stamp(1000u);
+    CHECK(sigterm_action(true, true, helix::ms_since_sigterm_stamp(3100u, stamp)) ==
+          SigtermAction::FastExit);
+}

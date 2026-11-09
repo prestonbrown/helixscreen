@@ -17,6 +17,16 @@ enum class SigtermAction {
 /// is that duplicate; after it, a repeat means the graceful quit is stuck.
 inline constexpr uint32_t kSigtermRepeatWindowMs = 2000;
 
+/// Nonzero stamp for a graceful SIGTERM, where zero means none has been taken.
+constexpr uint32_t sigterm_stamp(uint32_t now_ms) noexcept {
+    return now_ms | 1u;
+}
+
+/// Time since `stamp`. Stamps `now_ms` first, so a repeat in the same millisecond reads as 0.
+constexpr uint32_t ms_since_sigterm_stamp(uint32_t now_ms, uint32_t stamp) noexcept {
+    return sigterm_stamp(now_ms) - stamp;
+}
+
 /// Pure and async-signal-safe.
 /// @param heater_cleanup_pending A heater is on that only this app will turn off
 /// @param graceful_underway An earlier SIGTERM already chose GracefulQuit

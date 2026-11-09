@@ -392,15 +392,15 @@ void graceful_quit_signal_handler(int sig) {
     if (sig == SIGTERM) {
         const uint32_t now_ms = monotonic_ms_signal_safe();
         const uint32_t graceful_at = s_graceful_sigterm_ms.load(std::memory_order_relaxed);
-        const helix::SigtermAction action = helix::sigterm_action(
-            helix::HeaterHold::any_held_signal_safe(), graceful_at != 0, now_ms - graceful_at);
+        const helix::SigtermAction action =
+            helix::sigterm_action(helix::HeaterHold::any_held_signal_safe(), graceful_at != 0,
+                                  helix::ms_since_sigterm_stamp(now_ms, graceful_at));
         if (action == helix::SigtermAction::Ignore) {
             return;
         }
         if (action == helix::SigtermAction::GracefulQuit) {
             const int saved_errno = errno;
-            // Zero means none taken, so the stored time is never zero.
-            s_graceful_sigterm_ms.store(now_ms | 1u, std::memory_order_relaxed);
+            s_graceful_sigterm_ms.store(helix::sigterm_stamp(now_ms), std::memory_order_relaxed);
             static const char held_msg[] =
                 "[Application] SIGTERM with a heater held: graceful quit\n";
             ssize_t written = write(STDERR_FILENO, held_msg, sizeof(held_msg) - 1);

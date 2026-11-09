@@ -142,7 +142,9 @@ TEST_CASE("kVisibleNames lists every signal macro the bundled pack defines", "[s
 
     std::vector<std::string> pack_signals;
     for (const auto& name : hidden_sections(pack)) {
-        if (name != "_HELIX_STATE") {
+        // State, the plan and the two signals that were never spelled visibly have no forwarder.
+        if (name != "_HELIX_STATE" && name != "_HELIX_PLAN" && name != "_HELIX_PHASE_SOAKING" &&
+            name != "_HELIX_PHASE_HEATING_CHAMBER") {
             pack_signals.push_back(name);
         }
     }
@@ -387,7 +389,7 @@ const json kOldPackObjects =
                  "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_UNLOAD_FILAMENT"});
 
 const json kCurrentPackObjects =
-    json::array({"gcode_macro _HELIX_READY", "gcode_macro _HELIX_STATE",
+    json::array({"gcode_macro _HELIX_READY", "gcode_macro _HELIX_STATE", "gcode_macro _HELIX_PLAN",
                  "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_UNLOAD_FILAMENT"});
 
 } // namespace

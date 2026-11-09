@@ -314,9 +314,10 @@ TEST_CASE("MacroManager - the forwarded content has one section per name", "[con
 
 TEST_CASE("MacroManager - the forwarders leave the pack version alone", "[config][content]") {
     PrinterDiscovery forwarded;
-    forwarded.parse_objects(json::array(
-        {"gcode_macro HELIX_READY", "gcode_macro _HELIX_READY", "gcode_macro _HELIX_STATE",
-         "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_UNLOAD_FILAMENT"}));
+    forwarded.parse_objects(
+        json::array({"gcode_macro HELIX_READY", "gcode_macro _HELIX_READY",
+                     "gcode_macro _HELIX_STATE", "gcode_macro _HELIX_PLAN",
+                     "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_UNLOAD_FILAMENT"}));
 
     CHECK(MacroManager::evaluate_status(forwarded) == MacroInstallStatus::INSTALLED);
 }

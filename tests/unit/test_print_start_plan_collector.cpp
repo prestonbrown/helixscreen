@@ -233,11 +233,25 @@ TEST_CASE_METHOD(PlanFixture, "A plan stored on the printer survives a screen re
     helix::PrinterDiscovery discovery;
     discovery.parse_objects(json::array({"gcode_macro _HELIX_PLAN"}));
 
-    SECTION("restored at start") {
+    SECTION("restored when the app rejoins a start under way") {
+        client().set_object_status("print_stats", json{{"total_duration", 120.0}});
         state().set_hardware(discovery);
         begin();
         tick_eta();
         CHECK(remaining() >= 6000);
+    }
+    SECTION("left behind by an aborted start, a fresh print ignores it") {
+        client().set_object_status("print_stats", json{{"total_duration", 3.0}});
+        state().set_hardware(discovery);
+        begin();
+        tick_eta();
+        CHECK(remaining() < 6000);
+    }
+    SECTION("not restored when the printer cannot say how old the print is") {
+        state().set_hardware(discovery);
+        begin();
+        tick_eta();
+        CHECK(remaining() < 6000);
     }
     SECTION("a live line replaces the stored copy") {
         state().set_hardware(discovery);

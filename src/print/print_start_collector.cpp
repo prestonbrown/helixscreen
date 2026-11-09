@@ -2202,7 +2202,8 @@ void PrintStartCollector::query_stored_plan() {
         return;
     }
     static const std::string kStateObject = "gcode_macro _HELIX_STATE";
-    json params = {{"objects", json::object({{kStateObject, json::array({"plan"})}})}};
+    json params = {{"objects", json::object({{kStateObject, json::array({"plan"})},
+                                             {"print_stats", json::array({"total_duration"})}})}};
     auto self = shared_from_this();
     const uint64_t run = run_generation_.load();
     client_.send_jsonrpc(
@@ -2217,6 +2218,14 @@ void PrintStartCollector::query_stored_plan() {
             }
             const auto macro = (*result)["status"].find(kStateObject);
             if (macro == (*result)["status"].end()) {
+                return;
+            }
+            // An aborted start clears nothing, so a stored plan belongs to this print
+            // only when the app joined a start already under way.
+            constexpr double kFreshPrintSeconds = 60.0;
+            const auto stats = (*result)["status"].find("print_stats");
+            if (stats == (*result)["status"].end() ||
+                json_util::safe_double(*stats, "total_duration", 0.0) <= kFreshPrintSeconds) {
                 return;
             }
             const std::string stored = json_util::safe_string(*macro, "plan", "");
