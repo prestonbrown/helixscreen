@@ -284,7 +284,7 @@ HelixScreen looks for common macros in your Klipper config and uses them for eac
 | **Resume** | Resuming a print | RESUME |
 | **Cancel** | Canceling a print | CANCEL_PRINT |
 | **Bed Mesh** | Bed mesh calibration | BED_MESH_CALIBRATE |
-| **Bed Level** | Manual bed leveling | BED_SCREWS_ADJUST, SCREWS_TILT_CALCULATE |
+| **Bed Level** | Physical bed leveling. A macro you pick here also runs from the **QGL** and **Z-Tilt** buttons | QUAD_GANTRY_LEVEL, QGL, Z_TILT_ADJUST |
 | **Clean Nozzle** | Nozzle cleaning | CLEAN_NOZZLE, NOZZLE_CLEAN |
 | **Heat Soak** | Chamber heat soak | HEAT_SOAK |
 | **Park** | Parking the toolhead (Motion screen, Move tab) | PARK, PARK_TOOLHEAD, TOOLHEAD_PARK |

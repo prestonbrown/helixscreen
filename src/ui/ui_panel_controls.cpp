@@ -1083,6 +1083,18 @@ void ControlsPanel::handle_home_z() {
     home_axes_action("Z", lv_tr("Homing Z..."));
 }
 
+namespace {
+
+/// The gcode a dedicated leveling button sends. Only a macro the user assigned
+/// counts, so a button only changes what it sends when the user asks it to.
+std::string leveling_command(const char* builtin) {
+    const std::string& assigned =
+        StandardMacros::instance().get(StandardMacroSlot::BedLevel).configured_macro;
+    return assigned.empty() ? builtin : assigned;
+}
+
+} // namespace
+
 void ControlsPanel::handle_qgl() {
     spdlog::debug("[{}] QGL clicked", get_name());
     run_quick_action(IAdvancedAPI::kLevelingTimeoutMs,
@@ -1091,8 +1103,8 @@ void ControlsPanel::handle_qgl() {
                       lv_tr("QGL may still be running — response timed out"),
                       lv_tr("QGL failed: {}")},
                      [this](IMoonrakerAPI::SuccessCallback ok, IMoonrakerAPI::ErrorCallback err) {
-                         api_->execute_gcode("QUAD_GANTRY_LEVEL", std::move(ok), std::move(err),
-                                             IAdvancedAPI::kLevelingTimeoutMs);
+                         api_->execute_gcode(leveling_command("QUAD_GANTRY_LEVEL"), std::move(ok),
+                                             std::move(err), IAdvancedAPI::kLevelingTimeoutMs);
                      });
 }
 
@@ -1104,8 +1116,8 @@ void ControlsPanel::handle_z_tilt() {
                       lv_tr("Z-Tilt may still be running — response timed out"),
                       lv_tr("Z-Tilt failed: {}")},
                      [this](IMoonrakerAPI::SuccessCallback ok, IMoonrakerAPI::ErrorCallback err) {
-                         api_->execute_gcode("Z_TILT_ADJUST", std::move(ok), std::move(err),
-                                             IAdvancedAPI::kLevelingTimeoutMs);
+                         api_->execute_gcode(leveling_command("Z_TILT_ADJUST"), std::move(ok),
+                                             std::move(err), IAdvancedAPI::kLevelingTimeoutMs);
                      });
 }
 
