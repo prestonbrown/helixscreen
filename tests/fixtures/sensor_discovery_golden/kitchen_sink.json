@@ -242,7 +242,8 @@
     ],
     "beacon": [
       "last_z_result",
-      "z_offset"
+      "z_offset",
+      "name"
     ],
     "bed_mesh": [
       "profile_name",
@@ -255,7 +256,8 @@
     "bltouch": [
       "last_query",
       "last_z_result",
-      "z_offset"
+      "z_offset",
+      "name"
     ],
     "bme280 enclosure": [
       "temperature",
@@ -409,7 +411,8 @@
     "probe": [
       "last_query",
       "last_z_result",
-      "z_offset"
+      "z_offset",
+      "name"
     ],
     "stepper_enable": [
       "steppers"
