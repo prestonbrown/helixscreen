@@ -37,6 +37,24 @@ def solid(sc, profile, x0, x1, color):
     sc.poly([(x1, y, z) for y, z in profile], kit.shade(cam, color, (1, 0, 0), amb=0.72, dif=0.5, spec=0))
 
 
+def glass(sc, profile, x0, x1, color, opacity, edge):
+    """A clear or smoked shell of a closed side profile, its camera-facing panes only."""
+    cam = sc.camera
+    for a, b in zip(profile, profile[1:] + profile[:1]):
+        d = (b[0] - a[0], b[1] - a[1])
+        if d == (0, 0):
+            continue
+        n = kit.norm((0, -d[1], d[0]))
+        if kit.dot(n, cam.view) > 0:
+            sc.poly([(x0, a[0], a[1]), (x1, a[0], a[1]), (x1, b[0], b[1]), (x0, b[0], b[1])], color, opacity)
+    sc.poly([(x1, y, z) for y, z in profile], color, opacity * 0.8)
+    sc.line([(x1, y, z) for y, z in profile + profile[:1]], edge, 0.0025, 0.75)
+    y_front = min(y for y, _ in profile)
+    z_top = max(z for _, z in profile)
+    z_bottom = min(z for _, z in profile)
+    sc.line([(x0, y_front, z_bottom), (x0, y_front, z_top), (x1, y_front, z_top)], edge, 0.0025, 0.55)
+
+
 def rounded_profile(y0, y1, z0, z1, r):
     """A rounded (y, z) side profile in solid() order."""
     return kit.fillet([(y0, z0), (y0, z1), (y1, z1), (y1, z0)], [r] * 4, closed=True, steps=5)

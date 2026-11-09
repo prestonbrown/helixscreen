@@ -341,3 +341,17 @@ def test_a_tube_ends_clear_of_the_inlet_it_leaves(unit):
     unit.stub_art(scene, ["#ffffff"] * unit.lanes, "full")
     for tube in (i for i in scene.items if i.lane == 0):
         assert math.dist(tube.points[0], tube.points[-1]) > 0.08
+
+
+def test_the_htlf_body_continues_below_its_inlets():
+    assert htlf.PANEL_TOP > 0
+    assert htlf.INLET_Z - htlf.PANEL_TOP > 0
+    assert htlf.PROFILE[0] == (0.0, 0.0)
+
+
+def test_the_canvas_shell_lets_its_dark_frame_show():
+    scene = kit.Scene(kit.ART_CAMERA)
+    elegoo_canvas.UNIT.stub_art(scene, ["#ffffff"] * 4, "full")
+    panes = [i for i in scene.items if i.lane is None and i.closed and i.fill == elegoo_canvas.SMOKE]
+    assert panes and all(i.opacity < 0.5 for i in panes)
+    assert any(i.fill == elegoo_canvas.FRAME or i.fill.startswith("#0") or i.fill.startswith("#1") for i in scene.items)

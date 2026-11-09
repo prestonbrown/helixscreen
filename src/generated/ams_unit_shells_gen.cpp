@@ -50,7 +50,7 @@ constexpr FrontPart k_3ms_front[] = {{FrontAnchor::Span, 1.00f, 1.00f, 1.00f, 13
 constexpr ProfilePoint k_3ms_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 constexpr FrontPart k_ad5x_ifs_front[] = {{FrontAnchor::Span, 1.00f, 1.00f, 1.00f, 13.00f, 0x8a7f76, 3}, {FrontAnchor::Lane, -14.00f, 14.00f, 4.00f, 10.00f, 0xe7e4dc, 2}};
 constexpr ProfilePoint k_ad5x_ifs_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
-constexpr FrontPart k_elegoo_canvas_front[] = {{FrontAnchor::Span, 1.00f, 1.00f, 1.00f, 13.00f, 0xa9acb1, 3}, {FrontAnchor::Lane, -14.00f, 14.00f, 4.00f, 10.00f, 0x5ab0ff, 2}};
+constexpr FrontPart k_elegoo_canvas_front[] = {{FrontAnchor::Span, 1.00f, 1.00f, 1.00f, 13.00f, 0x1a1b1f, 3}, {FrontAnchor::Lane, -14.00f, 14.00f, 4.00f, 10.00f, 0x5ab0ff, 2}};
 constexpr ProfilePoint k_elegoo_canvas_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 
 const UnitShell kShells[] = {
@@ -70,7 +70,7 @@ const UnitShell kShells[] = {
     {"htlf", k_htlf_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, false, 0x3f9a6e, 0x000000, k_htlf_front, 2, true, 0x0},
     {"3ms", k_3ms_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, false, 0x35c4c4, 0x000000, k_3ms_front, 2, true, 0x0},
     {"ad5x_ifs", k_ad5x_ifs_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, false, 0x8a7f76, 0x000000, k_ad5x_ifs_front, 2, true, 0x0},
-    {"elegoo_canvas", k_elegoo_canvas_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, false, 0xa9acb1, 0x000000, k_elegoo_canvas_front, 2, true, 0x0},
+    {"elegoo_canvas", k_elegoo_canvas_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, false, 0x1a1b1f, 0x000000, k_elegoo_canvas_front, 2, true, 0x0},
 };
 } // namespace
 
