@@ -8,6 +8,7 @@
 #include "../../include/ui_temp_graph.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/temp_graph_controller_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -686,4 +687,37 @@ TEST_CASE("sample_due puts every series on the same wall-clock slots", "[temp_gr
     // Early in a slot, then late in the same one: not due, though nearly an
     // interval has elapsed.
     CHECK_FALSE(TempGraphController::sample_due(base + 100, base + slot - 100));
+}
+
+// ============================================================================
+// A controller whose chart was deleted stops feeding it
+// ============================================================================
+
+TEST_CASE_METHOD(TempGraphControllerFixture,
+                 "Controller makes no graph calls after its container is deleted",
+                 "[controller][temp_graph_controller][log_once]") {
+    auto& temps = get_printer_state().temperature_state();
+    lv_obj_t* container = lv_obj_create(screen);
+
+    TempGraphControllerConfig cfg;
+    cfg.series = {{"extruder", lv_color_hex(0xFF0000), true}};
+    auto controller = std::make_unique<TempGraphController>(container, cfg);
+    REQUIRE(controller->is_valid());
+
+    int64_t now_ms = 1'000'000;
+    TempGraphControllerTestAccess::set_clock(*controller, [&now_ms]() { return now_ms; });
+
+    lv_obj_delete(container);
+    CHECK_FALSE(controller->is_valid());
+
+    helix::LogCapture log;
+    for (int i = 0; i < 4; ++i) {
+        now_ms += UI_TEMP_GRAPH_SAMPLE_INTERVAL_SEC * 1000;
+        lv_subject_set_int(temps.get_extruder_temp_subject("extruder"), 2000 + i * 10);
+        lv_subject_set_int(temps.get_extruder_target_subject("extruder"), 2100 + i * 10);
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    CHECK(log.count_containing("[TempGraph]") == 0);
+
+    controller.reset();
 }

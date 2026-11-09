@@ -37,6 +37,8 @@
 
 #include "lvgl/lvgl.h"
 
+#include <vector>
+
 struct temp_graph_tooltip_t; // owned by src/ui/controls/temp_graph_tooltip.cpp
 
 // Default configuration
@@ -217,6 +219,12 @@ struct ui_temp_graph_t {
     // Tap-to-caption state. nullptr = tooltip disabled (the default). Owned and
     // defined by temp_graph_tooltip.cpp so no tooltip state leaks into this struct.
     struct temp_graph_tooltip_t* tooltip = nullptr;
+
+    // Misuse is reported once, not once per call: an owner that outlives its
+    // container keeps feeding the graph on every sample.
+    bool chart_gone_reported = false;
+    bool bad_range_reported = false;     // cleared by the next valid range
+    std::vector<int> missing_series_ids; // ids already reported missing
 };
 
 /**

@@ -16,6 +16,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -53,6 +54,49 @@ static ui_temp_series_meta_t* find_series(ui_temp_graph_t* graph, SeriesId serie
         return nullptr;
     }
     return helix::temp_graph_internal::find_meta_by_id(graph, series_id);
+}
+
+// False when @p graph cannot be drawn into. LVGL deletes the chart with its
+// parent while the struct survives with its owner, which may keep calling on
+// every sample, so a dead chart is reported once per graph. A null graph has
+// no state to remember the report in and is reported once per process.
+static bool graph_usable(ui_temp_graph_t* graph, const char* call) {
+    if (graph && graph->chart) {
+        return true;
+    }
+    if (!graph) {
+        static bool s_null_reported = false;
+        if (!s_null_reported) {
+            s_null_reported = true;
+            spdlog::error("[TempGraph] NULL graph in {}", call);
+        }
+        return false;
+    }
+    if (!graph->chart_gone_reported) {
+        graph->chart_gone_reported = true;
+        spdlog::warn("[TempGraph {}] Chart was deleted; ignoring {} and every later call",
+                     fmt::ptr(graph), call);
+    }
+    return false;
+}
+
+// find_series() for calls that need the series to exist. Series ids are never
+// reused, so an id that is missing stays missing: one report per id.
+static ui_temp_series_meta_t* find_series_or_report(ui_temp_graph_t* graph, SeriesId series_id,
+                                                    const char* call) {
+    if (!graph_usable(graph, call)) {
+        return nullptr;
+    }
+    ui_temp_series_meta_t* meta = helix::temp_graph_internal::find_meta_by_id(graph, series_id);
+    if (!meta) {
+        auto& seen = graph->missing_series_ids;
+        const int id = static_cast<int>(series_id);
+        if (std::find(seen.begin(), seen.end(), id) == seen.end()) {
+            seen.push_back(id);
+            spdlog::error("[TempGraph] Series {} not found in {}", series_id, call);
+        }
+    }
+    return meta;
 }
 
 namespace helix::temp_graph_internal {
@@ -1937,9 +1981,8 @@ SeriesId ui_temp_graph_add_series(ui_temp_graph_t* graph, const char* name, lv_c
 }
 
 void ui_temp_graph_remove_series(ui_temp_graph_t* graph, SeriesId series_id) {
-    ui_temp_series_meta_t* meta = find_series(graph, series_id);
+    ui_temp_series_meta_t* meta = find_series_or_report(graph, series_id, __func__);
     if (!meta) {
-        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -1978,9 +2021,8 @@ void helix::temp_graph_set_series_name(ui_temp_graph_t* graph, SeriesId series_i
 
 // Show or hide a series
 void ui_temp_graph_show_series(ui_temp_graph_t* graph, SeriesId series_id, bool visible) {
-    ui_temp_series_meta_t* meta = find_series(graph, series_id);
+    ui_temp_series_meta_t* meta = find_series_or_report(graph, series_id, __func__);
     if (!meta) {
-        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -2022,9 +2064,8 @@ static void push_target_sample(ui_temp_series_meta_t* meta) {
 
 // Add a single temperature point (push mode)
 void ui_temp_graph_update_series(ui_temp_graph_t* graph, SeriesId series_id, float temp) {
-    ui_temp_series_meta_t* meta = find_series(graph, series_id);
+    ui_temp_series_meta_t* meta = find_series_or_report(graph, series_id, __func__);
     if (!meta) {
-        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -2055,9 +2096,8 @@ void ui_temp_graph_update_series(ui_temp_graph_t* graph, SeriesId series_id, flo
 // Add temperature point with timestamp (for X-axis labels)
 void ui_temp_graph_update_series_with_time(ui_temp_graph_t* graph, SeriesId series_id, float temp,
                                            int64_t timestamp_ms) {
-    ui_temp_series_meta_t* meta = find_series(graph, series_id);
+    ui_temp_series_meta_t* meta = find_series_or_report(graph, series_id, __func__);
     if (!meta) {
-        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -2246,9 +2286,8 @@ void ui_temp_graph_clear(ui_temp_graph_t* graph) {
 
 // Clear data for a specific series
 void ui_temp_graph_clear_series(ui_temp_graph_t* graph, SeriesId series_id) {
-    ui_temp_series_meta_t* meta = find_series(graph, series_id);
+    ui_temp_series_meta_t* meta = find_series_or_report(graph, series_id, __func__);
     if (!meta) {
-        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -2271,9 +2310,8 @@ void ui_temp_graph_clear_series(ui_temp_graph_t* graph, SeriesId series_id) {
 // Set target temperature and visibility
 void ui_temp_graph_set_series_target(ui_temp_graph_t* graph, SeriesId series_id, float target,
                                      bool show) {
-    ui_temp_series_meta_t* meta = find_series(graph, series_id);
+    ui_temp_series_meta_t* meta = find_series_or_report(graph, series_id, __func__);
     if (!meta) {
-        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -2287,9 +2325,8 @@ void ui_temp_graph_set_series_target(ui_temp_graph_t* graph, SeriesId series_id,
 
 // Show or hide target temperature line
 void ui_temp_graph_show_target(ui_temp_graph_t* graph, SeriesId series_id, bool show) {
-    ui_temp_series_meta_t* meta = find_series(graph, series_id);
+    ui_temp_series_meta_t* meta = find_series_or_report(graph, series_id, __func__);
     if (!meta) {
-        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -2300,9 +2337,8 @@ void ui_temp_graph_show_target(ui_temp_graph_t* graph, SeriesId series_id, bool 
 // The buffer push happens on the next actuals sample (push_target_sample).
 void ui_temp_graph_set_current_target(ui_temp_graph_t* graph, SeriesId series_id, float target,
                                       bool show) {
-    ui_temp_series_meta_t* meta = find_series(graph, series_id);
+    ui_temp_series_meta_t* meta = find_series_or_report(graph, series_id, __func__);
     if (!meta) {
-        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -2315,10 +2351,19 @@ void ui_temp_graph_set_current_target(ui_temp_graph_t* graph, SeriesId series_id
 }
 
 void ui_temp_graph_set_temp_range(ui_temp_graph_t* graph, float min, float max) {
-    if (!graph || !graph->chart || min >= max) {
-        spdlog::error("[TempGraph] Invalid temperature range");
+    if (!graph_usable(graph, __func__)) {
         return;
     }
+    // Reported once per run of bad ranges: a valid one ends the run, so a later
+    // bad range is a new problem and is reported again.
+    if (min >= max) {
+        if (!graph->bad_range_reported) {
+            graph->bad_range_reported = true;
+            spdlog::error("[TempGraph] Invalid temperature range {:.1f}..{:.1f}", min, max);
+        }
+        return;
+    }
+    graph->bad_range_reported = false;
 
     // Only invalidate the gradient cache if the range actually changed — the
     // curve→pixel mapping is unchanged otherwise, so a no-op call must not force
@@ -2374,9 +2419,8 @@ void ui_temp_graph_set_point_count(ui_temp_graph_t* graph, int count) {
 // Set gradient opacity for a series
 void ui_temp_graph_set_series_gradient(ui_temp_graph_t* graph, SeriesId series_id,
                                        lv_opa_t bottom_opa, lv_opa_t top_opa) {
-    ui_temp_series_meta_t* meta = find_series(graph, series_id);
+    ui_temp_series_meta_t* meta = find_series_or_report(graph, series_id, __func__);
     if (!meta) {
-        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -2393,8 +2437,7 @@ void ui_temp_graph_set_series_gradient(ui_temp_graph_t* graph, SeriesId series_i
 }
 
 void ui_temp_graph_set_y_axis(ui_temp_graph_t* graph, float increment, bool show) {
-    if (!graph || !graph->chart) {
-        spdlog::error("[TempGraph] NULL graph in set_y_axis");
+    if (!graph_usable(graph, __func__)) {
         return;
     }
 
@@ -2412,8 +2455,7 @@ void ui_temp_graph_set_y_axis(ui_temp_graph_t* graph, float increment, bool show
 
 // Set axis label font size
 void ui_temp_graph_set_axis_size(ui_temp_graph_t* graph, const char* size) {
-    if (!graph || !graph->chart) {
-        spdlog::error("[TempGraph] NULL graph in set_axis_size");
+    if (!graph_usable(graph, __func__)) {
         return;
     }
 
@@ -2468,8 +2510,7 @@ void ui_temp_graph_set_axis_size(ui_temp_graph_t* graph, const char* size) {
 
 // Set which chart features are visible
 void ui_temp_graph_set_features(ui_temp_graph_t* graph, uint32_t features) {
-    if (!graph || !graph->chart) {
-        spdlog::error("[TempGraph] NULL graph in set_features");
+    if (!graph_usable(graph, __func__)) {
         return;
     }
 
