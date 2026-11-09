@@ -846,8 +846,8 @@ class TestNextStepHint:
 def _write_helix_macros_cfg(config_dir):
     # The old enable refuses to instrument PRINT_START unless it can already
     # see the HELIX_PHASE_* macros defined somewhere in config_dir. A printer it
-    # instrumented has the pack under its visible names, as
-    # MacroManager::with_visible_signal_names produces it.
+    # instrumented had the pack under its visible names, which this fixture
+    # rebuilds from the bundled pack by dropping the leading underscore.
     repo_root = Path(__file__).resolve().parents[2]
     macros_cfg = repo_root / "assets" / "config" / "helix_macros.cfg"
     visible = re.sub(rb"_(HELIX_(?:READY|ENDED|RESET|PHASE_))", rb"\1", macros_cfg.read_bytes())
@@ -1037,3 +1037,236 @@ def test_a_legacy_body_with_a_blank_line_still_strips_leaving_its_duplicated_tai
     # is untouched: QUAD_GANTRY_LEVEL and M109 each still appear twice.
     assert stripped.count("QUAD_GANTRY_LEVEL") == 2
     assert stripped.count("M109 S{EXTRUDER_TEMP}") == 2
+
+
+# ============================================================================
+# Rename to the hidden signal names (#2006)
+# ============================================================================
+
+
+def _instrumented_by_the_old_writer(config_dir):
+    _write_helix_macros_cfg(config_dir)
+    cfg = config_dir / "printer.cfg"
+    write(
+        cfg,
+        "[gcode_macro PRINT_START]\n"
+        "gcode:\n"
+        "    G28\n"
+        "    QUAD_GANTRY_LEVEL\n"
+        "    BED_MESH_CALIBRATE\n"
+        "    M109 S{EXTRUDER_TEMP}\n"
+        "    CLEAN_NOZZLE\n",
+    )
+    assert old_writer.enable(config_dir)["success"] is True
+    return cfg
+
+
+def _underscored_calls(text):
+    return re.sub(r"(?m)^([ \t]*)(HELIX_PHASE_[A-Z_]+|HELIX_READY)([ \t]*)$", r"\1_\2\3", text)
+
+
+class TestRenameHidden:
+    def test_rename_on_the_old_writers_output_adds_only_the_underscores(self, tmp_path):
+        cfg = _instrumented_by_the_old_writer(tmp_path)
+        instrumented = read(cfg)
+
+        result = strip.compute_renamed_content(cfg.read_bytes())
+
+        assert result.status == "renamed"
+        assert result.blocks == 6
+        assert result.names == {
+            "_HELIX_PHASE_HOMING", "_HELIX_PHASE_QGL", "_HELIX_PHASE_BED_MESH",
+            "_HELIX_PHASE_HEATING_NOZZLE", "_HELIX_PHASE_CLEANING", "_HELIX_READY",
+        }
+        expected = _underscored_calls(instrumented)
+        assert expected != instrumented
+        assert result.new_bytes.decode() == expected
+        assert result.new_bytes.decode().count(BEGIN) == instrumented.count(BEGIN)
+
+    def test_rename_keeps_crlf_and_tab_indentation_byte_exact(self):
+        original = (
+            "[gcode_macro PRINT_START]\r\n"
+            "gcode:\r\n"
+            "\tG28\r\n"
+            f"\t{BEGIN}\r\n"
+            "\tHELIX_PHASE_HOMING \r\n"
+            f"\t{END}\r\n"
+            "\tM109 S{EXTRUDER_TEMP}"
+        ).encode()
+
+        result = strip.compute_renamed_content(original)
+
+        assert result.status == "renamed"
+        assert result.new_bytes == original.replace(
+            b"\tHELIX_PHASE_HOMING \r\n", b"\t_HELIX_PHASE_HOMING \r\n"
+        )
+
+    def test_a_second_rename_finds_its_own_output_clean_and_writes_no_backup(self, tmp_path):
+        cfg = _instrumented_by_the_old_writer(tmp_path)
+
+        first = strip.process_file(str(cfg), mode="rename")
+        assert first["status"] == "edited"
+        after_first = cfg.read_bytes()
+        backups = list(tmp_path.glob("printer.cfg.bak.*"))
+        assert len(backups) == 1
+
+        assert strip.compute_renamed_content(after_first).status == "clean"
+        second = strip.process_file(str(cfg), mode="rename")
+        assert second["status"] == "clean"
+        assert cfg.read_bytes() == after_first
+        assert list(tmp_path.glob("printer.cfg.bak.*")) == backups
+
+    @pytest.mark.parametrize("content", [
+        f"[gcode_macro PRINT_START]\ngcode:\n    G28\n    {BEGIN}\n    HELIX_PHASE_HOMING\n",
+        f"[gcode_macro PRINT_START]\ngcode:\n    G28\n    HELIX_PHASE_HOMING\n    {END}\n",
+        f"[gcode_macro PRINT_START]\ngcode:\n    {BEGIN}\n    {BEGIN}\n    HELIX_PHASE_HOMING\n    {END}\n",
+        f"[gcode_macro PRINT_START]\ngcode:\n    {BEGIN}\n    G28\n    {END}\n",
+        "[printer]\nkinematics: corexy\n\n" + VALID_BLOCK + "\n[extruder]\nstep_pin: PA1\n",
+        f"[gcode_macro PRINT_START]\ngcode:\n    {BEGIN}\n    HELIX_PHASE_HOMING\n    G28\n    {END}\n",
+    ], ids=["unmatched_begin", "end_without_begin", "nested", "not_a_signal_call",
+            "outside_a_gcode_body", "four_line_block"])
+    def test_every_anomaly_is_left_byte_for_byte_alone(self, tmp_path, content):
+        cfg = tmp_path / "printer.cfg"
+        write(cfg, content)
+
+        assert strip.compute_renamed_content(content.encode()).status == "anomaly"
+        result = strip.process_file(str(cfg), mode="rename")
+
+        assert result["status"] == "skipped"
+        assert read(cfg) == content
+        assert not list(tmp_path.glob("*.bak.*"))
+
+    def test_strip_removes_a_renamed_block(self, tmp_path):
+        cfg = tmp_path / "printer.cfg"
+        write(cfg, "[gcode_macro PRINT_START]\ngcode:\n    G28\n"
+                   f"    {BEGIN}\n    _HELIX_READY\n    {END}\n")
+
+        assert strip.main([str(tmp_path)]) == strip.EXIT_OK
+
+        assert read(cfg) == "[gcode_macro PRINT_START]\ngcode:\n    G28\n"
+
+    def test_a_mix_of_renamed_and_visible_blocks_renames_only_the_visible(self):
+        original = (
+            "[gcode_macro PRINT_START]\ngcode:\n"
+            f"    {BEGIN}\n    _HELIX_PHASE_HOMING\n    {END}\n"
+            f"    {BEGIN}\n    HELIX_READY\n    {END}\n"
+        ).encode()
+
+        result = strip.compute_renamed_content(original)
+
+        assert result.status == "renamed"
+        assert result.blocks == 1
+        assert result.names == {"_HELIX_READY"}
+
+    def test_process_file_skips_a_rename_calling_names_outside_the_allowed_set(self, tmp_path):
+        cfg = _instrumented_by_the_old_writer(tmp_path)
+        before = cfg.read_bytes()
+
+        result = strip.process_file(str(cfg), mode="rename", allowed_names={"_HELIX_READY"})
+
+        assert result["status"] == "skipped"
+        assert "_HELIX_PHASE_HOMING" in result["reason"]
+        assert cfg.read_bytes() == before
+        assert not list(tmp_path.glob("printer.cfg.bak.*"))
+
+
+class TestRunTree:
+    def test_a_dry_run_plans_writes_nothing_and_names_what_it_needs(self, tmp_path):
+        cfg = _instrumented_by_the_old_writer(tmp_path)
+        before = cfg.read_bytes()
+
+        report = strip.run_tree(str(tmp_path), mode="rename", dry_run=True)
+
+        assert cfg.read_bytes() == before
+        assert not list(tmp_path.glob("printer.cfg.bak.*"))
+        assert [r["path"] for r in report.would_edit] == [str(cfg.resolve())]
+        assert report.edited == []
+        assert report.names_needed() == {
+            "_HELIX_PHASE_HOMING", "_HELIX_PHASE_QGL", "_HELIX_PHASE_BED_MESH",
+            "_HELIX_PHASE_HEATING_NOZZLE", "_HELIX_PHASE_CLEANING", "_HELIX_READY",
+        }
+        assert report.exit_status() == strip.EXIT_OK
+        assert report.summary_line("would rename") == (
+            "would rename 6 call(s) in 1 file(s): printer.cfg (6)"
+        )
+
+    def test_the_summary_line_names_skipped_and_failed_files(self, tmp_path):
+        _instrumented_by_the_old_writer(tmp_path)
+        write(tmp_path / "broken.cfg",
+              f"[gcode_macro X]\ngcode:\n    {BEGIN}\n    HELIX_READY\n")
+
+        report = strip.run_tree(str(tmp_path), mode="rename", dry_run=True)
+
+        assert report.exit_status() == strip.EXIT_NEEDS_ATTENTION
+        assert report.summary_line("renaming") == (
+            "renaming 6 call(s) in 1 file(s): printer.cfg (6); 1 file(s) left alone: broken.cfg"
+        )
+
+    def test_nothing_to_rename_says_so(self, tmp_path):
+        write(tmp_path / "printer.cfg", "[gcode_macro PRINT_START]\ngcode:\n    G28\n")
+
+        report = strip.run_tree(str(tmp_path), mode="rename", dry_run=True)
+
+        assert report.summary_line("renaming") == "renaming 0 call(s) in 0 file(s)"
+        assert report.names_needed() == set()
+
+    def test_a_missing_config_dir_is_an_empty_report(self, tmp_path):
+        report = strip.run_tree(str(tmp_path / "absent"), mode="rename")
+
+        assert report.exit_status() == strip.EXIT_OK
+        assert report.edited == report.would_edit == report.skipped == report.failed == []
+
+    def test_a_real_run_renames_and_reports_the_backup(self, tmp_path):
+        cfg = _instrumented_by_the_old_writer(tmp_path)
+        instrumented = cfg.read_bytes()
+
+        report = strip.run_tree(str(tmp_path), mode="rename")
+
+        assert len(report.edited) == 1
+        entry = report.edited[0]
+        assert entry["blocks"] == 6
+        assert Path(entry["backup"]).read_bytes() == instrumented
+        assert read(cfg) == _underscored_calls(instrumented.decode())
+
+
+class TestRenameCommandLine:
+    def test_dry_run_prints_the_plan_and_writes_nothing(self, tmp_path, capsys):
+        cfg = _instrumented_by_the_old_writer(tmp_path)
+        before = cfg.read_bytes()
+
+        status = strip.main(["--rename-hidden", "--dry-run", str(tmp_path)])
+
+        assert status == strip.EXIT_OK
+        assert cfg.read_bytes() == before
+        assert not list(tmp_path.glob("printer.cfg.bak.*"))
+        assert "would rename 6 call(s) in 1 file(s): printer.cfg (6)" in capsys.readouterr().out
+
+    def test_rename_hidden_renames(self, tmp_path, capsys):
+        cfg = _instrumented_by_the_old_writer(tmp_path)
+        instrumented = read(cfg)
+
+        assert strip.main(["--rename-hidden", str(tmp_path)]) == strip.EXIT_OK
+
+        assert read(cfg) == _underscored_calls(instrumented)
+        out = capsys.readouterr().out
+        assert "renamed 6 signal call(s) in" in out
+        assert "next Klipper restart" in out
+
+    def test_no_new_flag_keeps_todays_output_and_status(self, tmp_path, capsys):
+        cfg = tmp_path / "printer.cfg"
+        write(cfg, "[gcode_macro PRINT_START]\ngcode:\n    G28\n" + VALID_BLOCK)
+        write(tmp_path / "broken.cfg", f"[gcode_macro X]\ngcode:\n    {BEGIN}\n    HELIX_READY\n")
+
+        status = strip.main([str(tmp_path)])
+
+        out = capsys.readouterr().out.splitlines()
+        backup = next(tmp_path.glob("printer.cfg.bak.*"))
+        assert status == strip.EXIT_NEEDS_ATTENTION
+        assert out == [
+            f"INFO: stripped phase-tracking instrumentation from {cfg} (backup: {backup})",
+            f"WARN: left {tmp_path / 'broken.cfg'} untouched: unmatched BEGIN marker at line 3",
+            "WARN: next step: " + strip._next_step_hint(str(tmp_path / "broken.cfg"), "anomaly"),
+            "INFO: This takes effect at the next Klipper restart. "
+            "Loaded macros keep working until then.",
+            "INFO: phase-tracking strip summary: edited 1, skipped 1, failed 0",
+        ]

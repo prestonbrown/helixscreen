@@ -3936,6 +3936,9 @@ translations:
   Shutting down...: Выключение...
   Signal: Сигнал
   'Signal #': Сигнал №
+  Signal macro renaming: 'Переименование сигнальных макросов'
+  Signal macros are hidden from Fluidd and Mainsail macro lists.: 'Сигнальные макросы скрыты из списков макросов Fluidd и Mainsail.'
+  Signal macros keep their old names too, so older calls still work.: 'Сигнальные макросы сохраняют и старые имена, поэтому старые вызовы продолжают работать.'
   Similarity: "Схожесть"
   Single object: 'Один объект'
   Single toggle macro. State is not tracked.: Один макрос переключения. Состояние
@@ -4290,6 +4293,7 @@ translations:
     skipping bed mesh for quick reprints.
   : Плагин HelixPrint позволяет быстро модифицировать G-code прямо на принтере — например,
     пропускать сетку стола для быстрых перепечаток.
+  The HelixPrint plugin moves old PRINT_START calls to the hidden names.: 'Плагин HelixPrint переводит старые вызовы в PRINT_START на скрытые имена.'
   The IFS state file can't be read.: "Не удаётся прочитать файл состояния IFS."
   The IP address cannot be the subnet's network or broadcast address.: 'IP-адрес не может быть сетевым или широковещательным адресом подсети.'
   The IP address is not a valid address.: 'IP-адрес не является допустимым адресом.'
@@ -4549,6 +4553,8 @@ translations:
   This needs the plugin's file analysis, which isn't running.: "Нужен анализ файлов плагина, но он не запущен."
   This plugin asks for no special permissions.: 'Этот плагин не запрашивает специальных разрешений.'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'Этот плагин позволяет HelixScreen управлять опциями начала печати, такими как сетка стола и QGL.'
+  This print called {}, which the printer no longer has.: 'Эта печать вызвала {}, которых больше нет на принтере.'
+  This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back.: 'Эта печать вызвала {}, которых больше нет на принтере. Нажмите «Обновить вспомогательные макросы» в разделе «Дополнительно», чтобы вернуть их.'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: 'Эту печать нельзя продолжить. Перезапустите её или отключите проверку стола, если это повторяется.'
   This print does not report layers, so no layer pause can be scheduled.: 'Эта печать не сообщает слои, поэтому паузу на слое запланировать нельзя.'
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: Для
@@ -4834,6 +4840,7 @@ translations:
   Update Success: Обновление успешно
   Update from a Terminal: Обновление через терминал
   Update installed!: Обновление установлено!
+  Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'Обновите плагин HelixPrint до 1.5.0, чтобы скрыть старые вызовы в PRINT_START.'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Обновить и модель нагревателя INDX? В {} теперь {}: плотность {:.2f}, теплоёмкость {:.2f}.'
   Update your security PIN: Обновите ваш PIN-код
   Updates: Обновления

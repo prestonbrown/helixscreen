@@ -3888,6 +3888,9 @@ translations:
   Shutting down...: Apagando...
   Signal: Señal
   'Signal #': Señal n.º
+  Signal macro renaming: 'Cambio de nombre de las macros de señal'
+  Signal macros are hidden from Fluidd and Mainsail macro lists.: 'Las macros de señal están ocultas en las listas de macros de Fluidd y Mainsail.'
+  Signal macros keep their old names too, so older calls still work.: 'Las macros de señal conservan también sus nombres antiguos, así que las llamadas antiguas siguen funcionando.'
   Similarity: "Similitud"
   Single object: 'Un solo objeto'
   Single toggle macro. State is not tracked.: Macro de alternancia único. El estado
@@ -4237,6 +4240,7 @@ translations:
     skipping bed mesh for quick reprints.
   : El plugin HelixPrint permite modificaciones rápidas de G-code directamente en
     su impresora, como omitir la malla de cama para reimpresiones rápidas.
+  The HelixPrint plugin moves old PRINT_START calls to the hidden names.: 'El plugin HelixPrint cambia las llamadas antiguas de PRINT_START a los nombres ocultos.'
   The IFS state file can't be read.: "No se puede leer el archivo de estado del IFS."
   The IP address cannot be the subnet's network or broadcast address.: 'La dirección IP no puede ser la dirección de red ni la de difusión de la subred.'
   The IP address is not a valid address.: 'La dirección IP no es una dirección válida.'
@@ -4502,6 +4506,8 @@ translations:
   This needs the plugin's file analysis, which isn't running.: "Esto necesita el análisis de archivos del plugin, que no está en marcha."
   This plugin asks for no special permissions.: 'Este plugin no pide permisos especiales.'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'Este plugin permite que HelixScreen controle opciones de inicio de impresión como malla de cama y QGL.'
+  This print called {}, which the printer no longer has.: 'Esta impresión llamó a {}, que la impresora ya no tiene.'
+  This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back.: 'Esta impresión llamó a {}, que la impresora ya no tiene. Toque «Actualizar macros de ayuda» en Avanzado para recuperarlos.'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: 'Esta impresión no se puede reanudar. Reiníciala o desactiva la comprobación de cama si sigue ocurriendo.'
   This print does not report layers, so no layer pause can be scheduled.: 'Esta impresión no informa capas, así que no se puede programar una pausa en una capa.'
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: Esta
@@ -4790,6 +4796,7 @@ translations:
   Update Success: Actualización correcta
   Update from a Terminal: Actualizar desde un terminal
   Update installed!: ¡Actualización instalada!
+  Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'Actualice el plugin HelixPrint a 1.5.0 para ocultar las llamadas antiguas de PRINT_START.'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': '¿Actualizar también el modelo del calentador INDX? {} ahora tiene {}: densidad {:.2f}, capacidad calorífica {:.2f}.'
   Update your security PIN: Actualice su PIN de seguridad
     en esta instalación.

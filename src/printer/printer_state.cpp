@@ -570,6 +570,7 @@ void PrinterState::set_hardware(helix::PrinterDiscovery hardware) {
 
     // Fold the helper-macro install status in with the same snapshot.
     plugin_status_state_.set_helix_macros_base_status(MacroManager::evaluate_status(discovery_));
+    plugin_status_state_.set_signal_macro_scan(discovery_.signal_macro_scan());
 
     // Stored option settings belong to the machine that reported them. New
     // hardware starts from none: a self-storing firmware reports its own in the
@@ -714,6 +715,12 @@ void PrinterState::set_helix_plugin_features(helix::PluginFeatureMap features,
                           [this, features = std::move(features), announce]() mutable {
                               plugin_status_state_.set_features(std::move(features), announce);
                           });
+}
+
+void PrinterState::set_signal_migration_report(helix::signal_macros::SignalMigrationReport report) {
+    async_lifetime_.defer("PrinterState::set_signal_migration_report", [this, report]() {
+        plugin_status_state_.set_signal_migration_report(report);
+    });
 }
 
 void PrinterState::set_macro_option_count(size_t count) {

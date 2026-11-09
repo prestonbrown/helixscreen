@@ -6,6 +6,8 @@
 #include "core/observer_factory.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
+#include "moonraker_error.h"
 #include "plr_plugin_rpc.h"
 #include "printer_state.h"
 
@@ -18,6 +20,30 @@ using ui::observe;
 namespace {
 constexpr const char* kHandlerName = "PluginStatusRefresh";
 constexpr const char* kFeaturesChanged = "notify_helix_features_changed";
+constexpr const char* kSignalMigration = "signal_macro_migration";
+
+/// Reads the plugin's last signal macro migration report into PrinterState.
+/// Only a plugin that reports the feature serves it; any other reads Unknown.
+void fetch_signal_migration_report(IMoonrakerClient& client) {
+    using signal_macros::SignalMigrationReport;
+    if (!get_printer_state().plugin_status_state().plugin_feature_reported(kSignalMigration, 1)) {
+        get_printer_state().set_signal_migration_report(SignalMigrationReport::Unknown);
+        return;
+    }
+    client.send_jsonrpc(
+        "server.helix.signal_migration", nlohmann::json::object(),
+        [](const nlohmann::json& response) {
+            const nlohmann::json* result = json_util::find_member(response, "result");
+            const std::string state =
+                result != nullptr ? json_util::safe_string(*result, "state", "") : std::string();
+            get_printer_state().set_signal_migration_report(
+                signal_macros::signal_migration_report(state));
+        },
+        [](const MoonrakerError&) {
+            get_printer_state().set_signal_migration_report(SignalMigrationReport::Unknown);
+        },
+        0, /*silent=*/true);
+}
 } // namespace
 
 PluginStatusRefresh::PluginStatusRefresh() {
@@ -44,6 +70,7 @@ void PluginStatusRefresh::on_probed() {
                                   }
                               });
     IMoonrakerClient& client = api->get_client();
+    fetch_signal_migration_report(client);
     if (notified_client_ == &client) {
         return;
     }
@@ -62,6 +89,7 @@ void PluginStatusRefresh::refresh() {
     spdlog::debug("[PluginStatusRefresh] Reading the plugin's status again");
     // A job start that changes nothing re-runs no probe observer.
     plr_rpc::refresh_features(*api, FeatureAnnounce::IfChanged);
+    fetch_signal_migration_report(api->get_client());
 }
 
 } // namespace helix

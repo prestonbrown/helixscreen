@@ -3575,6 +3575,9 @@
   <translation tag="Shutting down..." pt="Desligando..."/>
   <translation tag="Signal" pt="Sinal"/>
   <translation tag="Signal #" pt="Sinal #"/>
+  <translation tag="Signal macro renaming" pt="Renomeação das macros de sinal"/>
+  <translation tag="Signal macros are hidden from Fluidd and Mainsail macro lists." pt="As macros de sinal estão ocultas nas listas de macros do Fluidd e do Mainsail."/>
+  <translation tag="Signal macros keep their old names too, so older calls still work." pt="As macros de sinal mantêm também os nomes antigos, para que as chamadas antigas continuem a funcionar."/>
   <translation tag="Similarity" pt="Similaridade"/>
   <translation tag="Single object" pt="Objeto único"/>
   <translation tag="Single toggle macro. State is not tracked." pt="Macro de alternância única. O estado não é rastreado."/>
@@ -3891,6 +3894,7 @@
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." pt="O CFS ficou sem filamento. A impressão continua com o que resta no tubo."/>
   <translation tag="The DNS server is not a valid address." pt="O servidor DNS não é um endereço válido."/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." pt="O plugin HelixPrint permite modificações rápidas de G-code diretamente na sua impressora—como pular malha da mesa para reimpressões rápidas."/>
+  <translation tag="The HelixPrint plugin moves old PRINT_START calls to the hidden names." pt="O plugin HelixPrint passa as chamadas antigas do PRINT_START para os nomes ocultos."/>
   <translation tag="The IFS state file can&apos;t be read." pt="Não é possível ler o arquivo de estado do IFS."/>
   <translation tag="The IP address cannot be the subnet&apos;s network or broadcast address." pt="O endereço IP não pode ser o endereço de rede ou de broadcast da sub-rede."/>
   <translation tag="The IP address is not a valid address." pt="O endereço IP não é um endereço válido."/>
@@ -4106,6 +4110,8 @@
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." pt="Isto precisa da análise de arquivos do plugin, que não está em execução."/>
   <translation tag="This plugin asks for no special permissions." pt="Este plugin não pede permissões especiais."/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." pt="Este plugin permite que o HelixScreen controle opções de início de impressão como malha da mesa e QGL."/>
+  <translation tag="This print called {}, which the printer no longer has." pt="Esta impressão chamou {}, que a impressora já não tem."/>
+  <translation tag="This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back." pt="Esta impressão chamou {}, que a impressora já não tem. Toque em «Atualizar macros de ajuda» em Avançado para os repor."/>
   <translation tag="This print can&apos;t be resumed. Restart it, or turn off the bed check if it keeps happening." pt="Esta impressão não pode ser retomada. Reinicie-a ou desligue a verificação da mesa se isso continuar acontecendo."/>
   <translation tag="This print does not report layers, so no layer pause can be scheduled." pt="Esta impressão não informa camadas, então não é possível agendar uma pausa em uma camada."/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" pt="Esta impressão precisa de cerca de %.0fg, mas o carretel tem cerca de %.0fg restantes. Iniciar mesmo assim?"/>
@@ -4365,6 +4371,7 @@
   <translation tag="Update heater model?" pt="Atualizar o modelo do aquecedor?"/>
   <translation tag="Update in Spoolman" pt="Atualizar no Spoolman"/>
   <translation tag="Update installed!" pt="Atualização instalada!"/>
+  <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." pt="Atualize o plugin HelixPrint para 1.5.0 para ocultar as chamadas antigas do PRINT_START."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." pt="Atualizar também o modelo do aquecedor INDX? {} agora contém {}: densidade {:.2f}, capacidade térmica {:.2f}."/>
   <translation tag="Update your security PIN" pt="Atualize seu PIN de segurança nesta instalação."/>
   <translation tag="Updates" pt="Atualizações"/>

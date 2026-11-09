@@ -198,6 +198,43 @@
           <setting_info_row name="row_helix_macros_restart_pending"
                             label="Helper Macros" icon="script_text" value="Restart pending"/>
         </lv_obj>
+        <!-- What the signal macro names look like on this printer: one line per
+             helix_macros_signal_names value (signal_macros::SignalNamesLine);
+             0 says nothing. The outer container hides on 0 and each line on
+             any value but its own, nested so two bindings never share a flag. -->
+        <lv_obj name="container_helix_macros_signal_names"
+                width="100%" height="content" style_pad_top="0" style_pad_left="0" style_pad_bottom="0"
+                scrollable="false">
+          <bind_flag_if_eq subject="helix_macros_signal_names" flag="hidden" ref_value="0"/>
+          <lv_obj width="100%"
+                  height="content" style_pad_left="#space_xl" style_pad_right="#space_lg" style_pad_top="0"
+                  style_pad_bottom="#space_md" scrollable="false" flex_flow="row" style_flex_cross_place="start"
+                  style_pad_gap="#space_sm">
+            <icon src="info" size="xs" variant="secondary"/>
+            <lv_obj height="content" flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column">
+              <text_small name="signal_names_all_hidden"
+                          width="100%" text="Signal macros are hidden from Fluidd and Mainsail macro lists."
+                          long_mode="wrap" style_text_color="#text_muted">
+                <bind_flag_if_not_eq subject="helix_macros_signal_names" flag="hidden" ref_value="1"/>
+              </text_small>
+              <text_small name="signal_names_aliases_kept"
+                          width="100%" text="Signal macros keep their old names too, so older calls still work."
+                          long_mode="wrap" style_text_color="#text_muted">
+                <bind_flag_if_not_eq subject="helix_macros_signal_names" flag="hidden" ref_value="2"/>
+              </text_small>
+              <text_small name="signal_names_plugin_renames"
+                          width="100%" text="The HelixPrint plugin moves old PRINT_START calls to the hidden names."
+                          long_mode="wrap" style_text_color="#text_muted">
+                <bind_flag_if_not_eq subject="helix_macros_signal_names" flag="hidden" ref_value="3"/>
+              </text_small>
+              <text_small name="signal_names_update_plugin"
+                          width="100%" text="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls."
+                          long_mode="wrap" style_text_color="#text_muted">
+                <bind_flag_if_not_eq subject="helix_macros_signal_names" flag="hidden" ref_value="4"/>
+              </text_small>
+            </lv_obj>
+          </lv_obj>
+        </lv_obj>
       </setting_group>
       <!-- ================================================================== -->
       <!-- CALIBRATION SECTION -->

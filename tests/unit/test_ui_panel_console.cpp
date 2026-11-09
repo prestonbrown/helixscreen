@@ -566,6 +566,13 @@ TEST_CASE("Console: should_display() suppresses firmware noise", "[ui][console_f
     CHECK(ConsolePanel::should_display(real, false, true, true, eng));
 }
 
+TEST_CASE("Console: should_display() hides a forwarder announcing itself", "[ui][console_filter]") {
+    helix::ui::ConsoleFilterEngine eng;
+    CHECK_FALSE(
+        ConsolePanel::should_display("// HELIX:ALIAS:HELIX_READY", false, false, false, eng));
+    CHECK(ConsolePanel::should_display("// HELIX:READY", false, false, false, eng));
+}
+
 TEST_CASE("Console: should_display() honours the firmware-noise toggle", "[ui][console_filter]") {
     helix::ui::ConsoleFilterEngine eng;
     REQUIRE(eng.add("prefix:// data_send:"));

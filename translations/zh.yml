@@ -3690,6 +3690,9 @@ translations:
   Shutting down...: 正在关机...
   Signal: 信号
   'Signal #': '信号 #'
+  Signal macro renaming: '信号宏重命名'
+  Signal macros are hidden from Fluidd and Mainsail macro lists.: '信号宏已从 Fluidd 和 Mainsail 的宏列表中隐藏。'
+  Signal macros keep their old names too, so older calls still work.: '信号宏同时保留旧名称，旧的调用仍可正常工作。'
   Similarity: "相似度"
   Single object: '单个对象'
   Single toggle macro. State is not tracked.: 单个切换宏。不跟踪状态。
@@ -4021,6 +4024,7 @@ translations:
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
   : HelixPrint 插件可在打印机上直接进行快速 G-code 修改——例如跳过热床网格以快速重新打印。
+  The HelixPrint plugin moves old PRINT_START calls to the hidden names.: 'HelixPrint 插件会将 PRINT_START 中的旧调用改为隐藏名称。'
   The IFS state file can't be read.: "无法读取 IFS 状态文件。"
   The IP address cannot be the subnet's network or broadcast address.: 'IP 地址不能是子网的网络地址或广播地址。'
   The IP address is not a valid address.: 'IP 地址不是有效地址。'
@@ -4267,6 +4271,8 @@ translations:
   This needs the plugin's file analysis, which isn't running.: "这需要插件的文件分析，但它未在运行。"
   This plugin asks for no special permissions.: '此插件不请求任何特殊权限。'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: '此插件让 HelixScreen 控制打印启动选项，如热床网格和 QGL。'
+  This print called {}, which the printer no longer has.: '此打印调用了 {}，但打印机已不再有这些宏。'
+  This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back.: '此打印调用了 {}，但打印机已不再有这些宏。请在高级中点击“更新帮助宏”以恢复它们。'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: '此打印无法继续。请重新开始打印；如果反复出现，可关闭热床检查。'
   This print does not report layers, so no layer pause can be scheduled.: '此打印未报告层信息，因此无法设置按层暂停。'
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: 本次打印需要约
@@ -4539,6 +4545,7 @@ translations:
   Update Success: 更新成功
   Update from a Terminal: 通过终端更新
   Update installed!: 更新已安装！
+  Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: '将 HelixPrint 插件更新到 1.5.0 以隐藏 PRINT_START 中的旧调用。'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 同时更新INDX加热器模型？{}现在装的是{}：密度 {:.2f}，热容 {:.2f}。
   Update your security PIN: 更新您的安全 PIN
   Updates: 更新

@@ -3632,6 +3632,9 @@
   <translation tag="Shutting down..." ru="Выключение..."/>
   <translation tag="Signal" ru="Сигнал"/>
   <translation tag="Signal #" ru="Сигнал №"/>
+  <translation tag="Signal macro renaming" ru="Переименование сигнальных макросов"/>
+  <translation tag="Signal macros are hidden from Fluidd and Mainsail macro lists." ru="Сигнальные макросы скрыты из списков макросов Fluidd и Mainsail."/>
+  <translation tag="Signal macros keep their old names too, so older calls still work." ru="Сигнальные макросы сохраняют и старые имена, поэтому старые вызовы продолжают работать."/>
   <translation tag="Similarity" ru="Схожесть"/>
   <translation tag="Single object" ru="Один объект"/>
   <translation tag="Single toggle macro. State is not tracked." ru="Один макрос переключения. Состояние не отслеживается."/>
@@ -3954,6 +3957,7 @@
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." ru="В CFS закончился филамент. Печать продолжается остатком в трубке."/>
   <translation tag="The DNS server is not a valid address." ru="DNS-сервер не является допустимым адресом."/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." ru="Плагин HelixPrint позволяет быстро модифицировать G-code прямо на принтере — например, пропускать сетку стола для быстрых перепечаток."/>
+  <translation tag="The HelixPrint plugin moves old PRINT_START calls to the hidden names." ru="Плагин HelixPrint переводит старые вызовы в PRINT_START на скрытые имена."/>
   <translation tag="The IFS state file can&apos;t be read." ru="Не удаётся прочитать файл состояния IFS."/>
   <translation tag="The IP address cannot be the subnet&apos;s network or broadcast address." ru="IP-адрес не может быть сетевым или широковещательным адресом подсети."/>
   <translation tag="The IP address is not a valid address." ru="IP-адрес не является допустимым адресом."/>
@@ -4169,6 +4173,8 @@
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." ru="Нужен анализ файлов плагина, но он не запущен."/>
   <translation tag="This plugin asks for no special permissions." ru="Этот плагин не запрашивает специальных разрешений."/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." ru="Этот плагин позволяет HelixScreen управлять опциями начала печати, такими как сетка стола и QGL."/>
+  <translation tag="This print called {}, which the printer no longer has." ru="Эта печать вызвала {}, которых больше нет на принтере."/>
+  <translation tag="This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back." ru="Эта печать вызвала {}, которых больше нет на принтере. Нажмите «Обновить вспомогательные макросы» в разделе «Дополнительно», чтобы вернуть их."/>
   <translation tag="This print can&apos;t be resumed. Restart it, or turn off the bed check if it keeps happening." ru="Эту печать нельзя продолжить. Перезапустите её или отключите проверку стола, если это повторяется."/>
   <translation tag="This print does not report layers, so no layer pause can be scheduled." ru="Эта печать не сообщает слои, поэтому паузу на слое запланировать нельзя."/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" ru="Для этой печати нужно около %.0fг, но на катушке осталось около %.0fг. Всё равно начать?"/>
@@ -4428,6 +4434,7 @@
   <translation tag="Update heater model?" ru="Обновить модель нагревателя?"/>
   <translation tag="Update in Spoolman" ru="Обновить в Spoolman"/>
   <translation tag="Update installed!" ru="Обновление установлено!"/>
+  <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." ru="Обновите плагин HelixPrint до 1.5.0, чтобы скрыть старые вызовы в PRINT_START."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." ru="Обновить и модель нагревателя INDX? В {} теперь {}: плотность {:.2f}, теплоёмкость {:.2f}."/>
   <translation tag="Update your security PIN" ru="Обновите ваш PIN-код"/>
   <translation tag="Updates" ru="Обновления"/>

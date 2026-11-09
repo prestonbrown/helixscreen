@@ -3575,6 +3575,9 @@
   <translation tag="Shutting down..." it="Spegnimento in corso..."/>
   <translation tag="Signal" it="Segnale"/>
   <translation tag="Signal #" it="Segnale #"/>
+  <translation tag="Signal macro renaming" it="Rinomina delle macro di segnale"/>
+  <translation tag="Signal macros are hidden from Fluidd and Mainsail macro lists." it="Le macro di segnale sono nascoste negli elenchi di macro di Fluidd e Mainsail."/>
+  <translation tag="Signal macros keep their old names too, so older calls still work." it="Le macro di segnale mantengono anche i vecchi nomi, così le chiamate precedenti funzionano ancora."/>
   <translation tag="Similarity" it="Similitudine"/>
   <translation tag="Single object" it="Oggetto singolo"/>
   <translation tag="Single toggle macro. State is not tracked." it="Singola macro toggle. Lo stato non è tracciato."/>
@@ -3891,6 +3894,7 @@
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." it="Il CFS ha esaurito il filamento. La stampa continua con quello rimasto nel tubo."/>
   <translation tag="The DNS server is not a valid address." it="Il server DNS non è un indirizzo valido."/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." it="Il plugin HelixPrint abilita modifiche G-code rapide direttamente sulla stampante, come saltare la mesh piano per ristampe veloci."/>
+  <translation tag="The HelixPrint plugin moves old PRINT_START calls to the hidden names." it="Il plugin HelixPrint sposta le vecchie chiamate di PRINT_START sui nomi nascosti."/>
   <translation tag="The IFS state file can&apos;t be read." it="Impossibile leggere il file di stato dell&apos;IFS."/>
   <translation tag="The IP address cannot be the subnet&apos;s network or broadcast address." it="L&apos;indirizzo IP non può essere l&apos;indirizzo di rete o di broadcast della sottorete."/>
   <translation tag="The IP address is not a valid address." it="L&apos;indirizzo IP non è un indirizzo valido."/>
@@ -4106,6 +4110,8 @@
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." it="Serve l&apos;analisi dei file del plugin, che non è in esecuzione."/>
   <translation tag="This plugin asks for no special permissions." it="Questo plugin non richiede permessi speciali."/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." it="Questo plugin permette a HelixScreen di controllare opzioni avvio stampa come mesh piano e QGL."/>
+  <translation tag="This print called {}, which the printer no longer has." it="Questa stampa ha richiamato {}, che la stampante non ha più."/>
+  <translation tag="This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back." it="Questa stampa ha richiamato {}, che la stampante non ha più. Tocca «Aggiorna macro di ausilio» in Avanzate per ripristinarle."/>
   <translation tag="This print can&apos;t be resumed. Restart it, or turn off the bed check if it keeps happening." it="Questa stampa non può essere ripresa. Riavviala, oppure disattiva il controllo del piano se continua a succedere."/>
   <translation tag="This print does not report layers, so no layer pause can be scheduled." it="Questa stampa non riporta gli strati, quindi non è possibile programmare una pausa a uno strato."/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" it="Questa stampa richiede circa %.0fg ma la bobina ne ha circa %.0fg rimanenti. Avviare comunque?"/>
@@ -4365,6 +4371,7 @@
   <translation tag="Update heater model?" it="Aggiornare il modello del riscaldatore?"/>
   <translation tag="Update in Spoolman" it="Aggiorna in Spoolman"/>
   <translation tag="Update installed!" it="Aggiornamento installato!"/>
+  <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." it="Aggiorna il plugin HelixPrint alla 1.5.0 per nascondere le vecchie chiamate di PRINT_START."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." it="Aggiornare anche il modello del riscaldatore INDX? {} ora contiene {}: densità {:.2f}, capacità termica {:.2f}."/>
   <translation tag="Update your security PIN" it="Aggiorna il tuo PIN di sicurezza in questa installazione."/>
   <translation tag="Updates" it="Aggiornamenti"/>

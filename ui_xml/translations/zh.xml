@@ -3575,6 +3575,9 @@
   <translation tag="Shutting down..." zh="正在关机..."/>
   <translation tag="Signal" zh="信号"/>
   <translation tag="Signal #" zh="信号 #"/>
+  <translation tag="Signal macro renaming" zh="信号宏重命名"/>
+  <translation tag="Signal macros are hidden from Fluidd and Mainsail macro lists." zh="信号宏已从 Fluidd 和 Mainsail 的宏列表中隐藏。"/>
+  <translation tag="Signal macros keep their old names too, so older calls still work." zh="信号宏同时保留旧名称，旧的调用仍可正常工作。"/>
   <translation tag="Similarity" zh="相似度"/>
   <translation tag="Single object" zh="单个对象"/>
   <translation tag="Single toggle macro. State is not tracked." zh="单个切换宏。不跟踪状态。"/>
@@ -3891,6 +3894,7 @@
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." zh="CFS 耗材已用完。打印将使用管内剩余的耗材继续。"/>
   <translation tag="The DNS server is not a valid address." zh="DNS 服务器不是有效地址。"/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." zh="HelixPrint 插件可在打印机上直接进行快速 G-code 修改——例如跳过热床网格以快速重新打印。"/>
+  <translation tag="The HelixPrint plugin moves old PRINT_START calls to the hidden names." zh="HelixPrint 插件会将 PRINT_START 中的旧调用改为隐藏名称。"/>
   <translation tag="The IFS state file can&apos;t be read." zh="无法读取 IFS 状态文件。"/>
   <translation tag="The IP address cannot be the subnet&apos;s network or broadcast address." zh="IP 地址不能是子网的网络地址或广播地址。"/>
   <translation tag="The IP address is not a valid address." zh="IP 地址不是有效地址。"/>
@@ -4106,6 +4110,8 @@
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." zh="这需要插件的文件分析，但它未在运行。"/>
   <translation tag="This plugin asks for no special permissions." zh="此插件不请求任何特殊权限。"/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." zh="此插件让 HelixScreen 控制打印启动选项，如热床网格和 QGL。"/>
+  <translation tag="This print called {}, which the printer no longer has." zh="此打印调用了 {}，但打印机已不再有这些宏。"/>
+  <translation tag="This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back." zh="此打印调用了 {}，但打印机已不再有这些宏。请在高级中点击“更新帮助宏”以恢复它们。"/>
   <translation tag="This print can&apos;t be resumed. Restart it, or turn off the bed check if it keeps happening." zh="此打印无法继续。请重新开始打印；如果反复出现，可关闭热床检查。"/>
   <translation tag="This print does not report layers, so no layer pause can be scheduled." zh="此打印未报告层信息，因此无法设置按层暂停。"/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" zh="本次打印需要约 %.0fg，但料盘仅剩约 %.0fg。仍要开始吗？"/>
@@ -4365,6 +4371,7 @@
   <translation tag="Update heater model?" zh="更新加热器模型？"/>
   <translation tag="Update in Spoolman" zh="在 Spoolman 中更新"/>
   <translation tag="Update installed!" zh="更新已安装！"/>
+  <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." zh="将 HelixPrint 插件更新到 1.5.0 以隐藏 PRINT_START 中的旧调用。"/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." zh="同时更新INDX加热器模型？{}现在装的是{}：密度 {:.2f}，热容 {:.2f}。"/>
   <translation tag="Update your security PIN" zh="更新您的安全 PIN"/>
   <translation tag="Updates" zh="更新"/>
