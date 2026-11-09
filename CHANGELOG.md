@@ -12,6 +12,16 @@ landed on the trunk after the 1.1 feature freeze. The remaining 1.1 betas and
 1.1.0 itself ship from the 1.1 branch, so this line is not published until 1.1.0
 is out.
 
+## [1.1.0-beta.19] - UNRELEASED
+
+### Added
+
+- **A tour of what's new** - the first start after updating from 1.0 shows a short tour of the rebuilt home screen, the new Print Status screen and the Filament and filament system screens, with your own printer's picture. A new install gets the full tour, and Help & About replays it.
+
+### Fixed
+
+- **Sensors in Settings no longer need a filament sensor** - the Sensors row under Hardware & Devices holds the temperature sensors and the chamber sensor and heater choices, but it only appeared on printers with a filament sensor. It now always appears.
+
 ## [1.1.0-beta.18] - 2026-11-08
 
 ### Added
@@ -89,6 +99,173 @@ is out.
 - **The flip clock's folding flap** shows its edge and casts a shadow.
 - **Sound** (#2010) - a race when playing sounds is fixed.
 - **Less CPU after a sound plays** - a finished sound no longer keeps the audio device busy every millisecond until the next one.
+
+## [1.1.0-beta.17] - 2026-11-06
+
+### Added
+
+- **Snapmaker U1 Top Cover** (#2015) - the Fans screen now has the cover's purifier modes and fans, and Fan settings has its mode targets. The first time the cover is fitted, a notice opens the Fans screen and offers to recalibrate input shaping, and you get a warning if it is removed. The Filter meter follows the filter fan's own run hours, and Reset clears the printer's counter.
+- **Resume asks first in a hot chamber** (#2015) - while a chamber air mode holds the chamber under a ceiling and the sensor reads above the firmware's alarm temperature, Resume warns you before continuing.
+- **Anycubic Kobra X detection** - this printer was detected as a Neptune 4 Pro and is now recognized correctly.
+- **Undo for a removed home widget** - removing a widget in edit mode shows "Widget removed · Undo" for a few seconds, and Undo puts it back where it was.
+- **OpenCreator on the Creator 5** - HelixScreen recognizes OpenCreator firmware and uses its own settings: Vertical Artifact Compensation and the tool offset wizard run through OpenCreator's macros, Park Tool docks the mounted head, and the chamber heat fan shows as a heater fan.
+- **A home screen made for tool changers** - on tool changers such as the Creator 5 and Snapmaker U1, the default home screen leaves out the nozzle and bed temperature tile, because the tool switcher and the printer picture already show those temperatures. It keeps an open space beside the printer picture for widgets you add. A home screen you have never changed switches to the new layout once; one you have arranged yourself stays as it is.
+
+### Fixed
+
+**Printing**
+
+- **Leaving the heater calibration screen no longer stops a print** - if that screen was stuck on a running calibration, leaving it during a print turned the heaters off and could end the print. It now leaves the heaters and part fan alone while a print is running.
+- **Calibration during a pause turns its fan off** - a calibration started while a print was paused left its fan running afterward.
+- **MPC calibration finishes on Kalico** - Kalico sends its whole MPC result as one message, so the calibration screen never saw it finish.
+- **Print Status heater colors** - heater chips now use the same state colors as the rest of the app: red while heating, green at temperature and blue while cooling. Amber is kept for a heater off target during a print, and the printer picture only glows while a heater is climbing.
+
+**Filament**
+
+- **Your tool mapping reaches Z-Mod** (#2033) - with Z-Mod's built-in AFC turned on, an AD5X or Creator 5 Pro ignored the tool mapping you chose before a print and showed Z-Mod's own colour prompt. HelixScreen now hands Z-Mod the mapping when the print starts, so the print uses the slots you picked with no second prompt. The AD5X keeps its IFS view and the Creator 5 Pro its tool changer view, and older Z-Mod versions work as before.
+- **A remap made for one print is undone when it ends, even after a restart** - if HelixScreen restarted during a print, the tool map you changed in the print dialog could be put back in the middle of the print, or never put back at all. It now waits until it knows whether a print is running, and restores the original map when that print ends.
+- **The clog tile no longer looks like an alarm** - on printers with a filament motion sensor, the tile read "Disarmed" above "Clog" whenever nothing was printing. Its caption now reads "Clog detection".
+- **Spoolman gets the slicer's material** - saving a lane filed a precise type such as ABS+ as Spoolman's material with no temperatures, so OrcaSlicer fell back to Generic PLA. Spoolman now gets the base material (ABS) with nozzle and bed temperatures, and a linked AFC lane sends the same base.
+- **No more silent reuse of the wrong filament** - an existing Spoolman filament is reused only when its material, color and name match exactly. A close match asks "Use existing filament?", and the editor no longer shows the type twice.
+- **The spool picker marks only the linked spool** - an unlinked slot showed the most recent spool as its current one.
+- **No false runout after a print on a K2 with a CFS** - the CFS pulls filament back after every print, which raised "Filament removed". A runout during a print still alerts.
+
+**Home screen**
+
+- **Half-size widgets drag properly** - a 0.5x0.5 widget started a resize on almost any press. It now drags from anywhere inside it.
+- **The trash button no longer deletes by accident** - a drag that started on it, a long press, or the second tap of a double tap deleted the widget. The trash, configure and delete-page buttons now act only on a plain tap that ends on them, and the trash and configure buttons ignore taps for a moment after they appear.
+- **Small widgets keep their buttons outside the tile** - on small tiles, the trash and configure buttons sit just outside, so they no longer cover the widget you are trying to drag. They stay clear of neighbouring widgets' centers and the delete-page button.
+- **The printer image holds still** - moving a home widget could make the printer image visibly redraw itself, with its chips disappearing for a moment.
+- **The printer image no longer goes missing** - if the screen changed while the printer picture was still being prepared, it could stay blank until the next restart.
+
+**Timelapse**
+
+- **Snapmaker U1 timelapse controls** - on the U1, the Timelapse Settings screen talks to an interface the firmware ignores, so its settings came back as off. That screen and the Print Status timelapse button no longer appear there. Use Record Timelapse when you start a print.
+- **The timelapse button shows the real setting** - on printers with the timelapse plugin, the Print Status button read as off until you tapped it, and enabling timelapse in Settings could be turned back off at the next print start.
+
+**Stability**
+
+- **3D G-code preview falls back to 2D when graphics memory runs out** - a Pi 4 with 1 GB could crash during the 3D upload.
+- **Motion panel crash after a rotation** - resizing or rotating the window on Android could leave the jog pad pointing at freed memory.
+- **Less CPU while idle and asleep** - the screen no longer wakes the board about 115 times a second when nothing is happening, and hidden loading spinners stop animating. On a Creator 5 Pro, sleeping use dropped from 3.5% to 3.0% of a core and idle use from 4.5% to 3.6%.
+
+**Printers**
+
+- **No false "newly discovered" fan on a stock Creator 5 Pro** - the preset listed the chamber heat fan as a heater fan, but stock firmware declares it as a generic fan, so Hardware Health flagged it on first boot.
+- **Creator 5 comes up the right way round** - a fresh install through Z-Mod's own installer started sideways. It now starts in landscape with no probe.
+- **The rotation probe asks again if nobody answers** - with no tap during the first-boot probe, the screen was saved as unrotated and never asked again. It now asks again at the next boot, keeps the backlight on while it asks, and picking a rotation in Settings ends it.
+- **Forge-X AD5X macros are found** - includes written with `./` or `../` were dropped, so PRINT_START analysis reported no macro.
+- **No phantom light on a stock AD5X** - Z-Mod declares a chamber light on every AD5X even though a stock printer has none, so HelixScreen offered light controls that did nothing. New AD5X setups now leave the light controls off, and an existing setup is unchanged. If you have fitted a light, turn on **Chamber light fitted** in Settings > Devices.
+- **Time zones on printers with no zone files** (#2003) - on images such as a Creator 5 Pro on Reforge, every clock, ETA and log line read as UTC even with a zone set.
+
+**Label printing**
+
+- **Label printers that require encryption** (#2034) - when a network label printer refused a plain IPP job with "426 Upgrade Required", printing failed. HelixScreen now resends the job securely over IPPS.
+
+## [1.1.0-beta.16] - 2026-11-04
+
+The sixteenth beta of 1.1 is mostly fixes as we near 1.1.0. Filament slots keep their details when Moonraker is slow, slow print starts no longer end as failures, the AD5X starts without pegging Moonraker, and new installs of the helper macros stay out of your Fluidd and Mainsail macro list.
+
+### Added
+
+- **Set each Snapmaker U1 toolhead's nozzle** (#1927) - after a swap, pick its size and Standard or High Flow in the filament system's Toolhead settings. High Flow is available at 0.4 mm only, and a refused change is reported and the setting goes back. Thanks to Roman Lisunov.
+- **Orca filament ids from Spoolman** (#2002, #1923) - a Spoolman filament with an `orca_filament_id` extra publishes that id for the slot its spool is linked to, so OrcaSlicer can pick that exact preset. It clears when the spool or the extra is removed. The id must be a single token with a letter, so a record id or preset name typed into the field does not replace a good catalog id. Thanks to Roman Lisunov.
+
+### Changed
+
+- **HelixScreen's print signals stay out of your macro list** - a new install of the helper macros names its signals with a leading underscore (`_HELIX_READY`, `_HELIX_ENDED`, `_HELIX_RESET` and `_HELIX_PHASE_*`). A printer that already has the macros keeps the old names, including when it updates, so an existing `PRINT_START` needs no change. On a new install, add `_HELIX_READY` to the end of `PRINT_START`; a guide that still says `HELIX_READY` gets you an `Unknown command` message and no ready signal.
+- **AD5M Pro fan names and sound** - aux is the side fan and chamber is circulation, existing Forge-X and Z-Mod settings are corrected, and the KlipperMod AD5M Pro ships with sound off.
+- **The runout dialog leads with Load on an AD5X** - a paused, homed AD5X can now load, so that is the first choice offered.
+
+### Fixed
+
+**Printing**
+
+- **A slow print start stays preparing** (#1898) - a printer that runs a long start sequence before answering no longer has the job marked failed while it carries on. Stop can still cancel it, and a start refused with the connection down fails right away.
+- **Print start collector** (#1875) - fixed a crash risk from its timer being deleted off the UI thread.
+
+**Filament**
+
+- **Filament slots keep their details when Moonraker is slow to answer** (#2008) - if the printer's saved lane records could not be read within 5 seconds of connecting, HelixScreen could overwrite them with what the firmware reports, losing the catalog product, color name, vendor and any color or material you set. It now holds its writes until it has read them.
+- **AD5X paused loads** - a load refuses while filament sits at the toolhead, the refusal names homing only when homing is the reason, and the runout Load sends the right channel.
+- **A purge that timed out does not run late** - a slow home no longer times out the purge on screen and then runs it anyway, and a purge that failed on the way to the bin stays cancelled.
+
+**Calibration**
+
+- **A failed Z-offset run closes its probe session** (#1994) - Mainsail and Fluidd no longer keep a manual probe dialog open after the failure, and the error stays on screen.
+- **Purge chute calibration never moves the head unasked** - on a K1 with a CFS, Cancel, Back or a sleeping screen could move the toolhead, even after a print had started from another client. These now send nothing during a print, sleep keeps your session, and Save refuses when the printer is not homed.
+
+**Startup**
+
+- **Moonraker stays responsive on a large config folder** - each HelixScreen start walked the whole config folder three times, which held Moonraker near 100% for about 4 minutes on an AD5X. It now lists only the folders it needs.
+
+**Sound**
+
+- **`M300` stays silent during a print** - on a printer whose only speaker is its `M300` beeper, such as the KlipperMod AD5M Pro, a tune played mid-print stalled the toolhead. A paused or idle printer still beeps, and a preset's sound default now applies at once.
+
+**Installer**
+
+- **K1 with the Guilouz Helper Script** (#1894) - the installer no longer mistakes these printers for Simple AF, so the Creality backend stays available to Creality Print and Creality Cloud, and uninstall can restore what it disabled.
+
+**Interface and sensors**
+
+- **Humidity chips name their temperature** (#1922) - a humidity chip's temperature reading now names its chip.
+- **Color picker leak** - each close of the color picker no longer leaks memory.
+- **Plugin install result icon** - the result screen shows its icon correctly.
+- **Sample Bed Level button** - the settings template and configuration guide named a macro that does not exist. They now use `HELIX_BED_MESH_IF_NEEDED`.
+
+## [1.1.0-beta.15] - 2026-11-02
+
+The fifteenth beta of 1.1 is almost all fixes as we near 1.1.0. Lua plugins that send G-code or register callbacks no longer crash the screen at startup, and builds without a camera view no longer show a Camera button that does nothing. The WiFi radio gets its country back after a firmware update resets it, so 5 GHz networks reconnect on their own. A printer whose Moonraker requires a login can now take its API key on the screen. A K2 Pro running k2-improvements is recognized as a K2 Pro with its stock probe, a QIDI Box shows the material and color its own screen saved, and the Snapmaker U1 checks its heads before pressure advance calibration instead of pausing two minutes into a print.
+
+### Added
+
+- **Enter the Moonraker API key on the screen** (#1929, #1930) - Settings > Connection has an API Key row, and the Change Host dialog a masked key field beside the host and port; saving reconnects with the key at once. The setup wizard shows the field when Test Connection finds a printer that requires a login. A printer that refuses the login says so once, with a button to the key, instead of a toast for every refused request, and fixing the login on the Moonraker side clears the warning.
+- **Set a slot's material in one tap before printing** - when the filament check stops a print because a slot has no material set and a calibration needs one, it offers to set the slot to the material the file names. A file that names no material gets no button, since a guess would calibrate at another material's settings.
+
+### Changed
+
+- **WiFi country** - the United States, United Kingdom, Germany, Canada, Australia and France are listed first. A country the printer's own system set is remembered, so when a firmware update resets the radio to the restricted worldwide mode, HelixScreen sets it again at the next start and 5 GHz networks reconnect without a visit to the settings.
+- **Print Status shows the chamber temperature with the chamber heater off** - the chamber chip appeared only while the chamber heated or was above 50°C, so a QIDI Q2 printing PLA, or a printer with only a chamber sensor, never showed it. It now shows whenever the printer has a chamber.
+
+### Fixed
+
+**Printing**
+
+- **Pressure advance calibration on the Snapmaker U1** - a head holding filament with no material set made the printer pause two minutes into the start. The filament check now stops the print before it heats, and only when calibration needs the material; with calibration off the head prints as it is.
+- **Pre-print ends when the printer's own start macro does** - on the FlashForge Creator 5 with OpenCreator's Kalico, the start macro runs before the file streams, and the screen sat on Purge until the first layer. It now moves on when the macro returns, and this also works for the second and later prints in a session.
+- **K2 pre-print steps** - the checklist no longer marks Purge done while the nozzle is being cleaned. The cleaning step pushes a little filament to check flow, which read as the purge; Purge now shows once, after the bed mesh, when the real purge runs.
+
+**Filament systems**
+
+- **K2 with a CFS at boot** (#1933) - a K2 that has a CFS no longer looks like a single-spool printer for a moment while the CFS is still answering at boot, after a Klipper restart, or after Refresh RFID or Comm test.
+- **QIDI Box with newer Box firmware** - slots set on the Box's own screen (Box firmware 02.03.01.21 and later) showed no color or material; they now show both, and the same spool is no longer mistaken for a new one before the Box has described it.
+- **AD5X purge on Z-Mod** - Purge moves to the bin first, using Z-Mod's own bin macros, instead of extruding wherever the nozzle happened to be. Forge-X is unchanged.
+- **Filament use with a multiACE on a Snapmaker U1** - filament a nozzle drew from an ACE bay was charged to the head's lane instead of the bay's spool, so the bay's remaining weight never went down.
+
+**Plugins**
+
+- **Lua plugins on K1, AD5X, Creator 5 and K2 builds** (#1995) - a plugin that sent G-code, or registered a `helix.ui.on` or `helix.settings.on_change` handler, crashed the screen at startup and kept it in a crash loop. On these builds the compiler gave every plugin binding's private state one shared slot, so each binding read another's state as its own. Each binding now keeps its own.
+
+**Printers and calibration**
+
+- **K2 Pro with k2-improvements** - it was detected as a K2 Plus, because the mod had an entry only for the Plus. The K2 Pro has its own now, and on both a K2 that kept the stock PRTouch probe no longer shows it as a Cartographer, so its probe tools work. A fitted Cartographer still shows as one.
+- **Centauri Carbon bed screws** - Bed Screws shows Klipper's own turns again, measured from a base screw, instead of COSMOS's manual-leveling numbers that asked for about two turns on every corner of a nearly level bed. The Bed Screws and Bed Mesh quick actions run again instead of failing with "Invalid macro name".
+- **AD5X stale filament sensor** - AD5X installs first set up on 1.0.x stop reporting a missing `runout_sensor` on every boot. The settings migration drops or renames the stale entry and keeps your role for it.
+
+**Screen and devices**
+
+- **Camera button on builds without a camera view** (#1993) - the K1-family, AD5X, AD5M, K2, Centauri Carbon and Snapmaker U1 builds have no on-screen camera view, but still showed a Camera row in Settings > Hardware that did nothing, and on a remote screen a More button with an empty menu. Both are hidden on those builds now. The camera guide lists which printers have no camera view.
+- **WiFi says 5 GHz when it sees 5 GHz** - the country row stopped claiming "2.4 GHz only" on radios whose 5 GHz support shows up only in scan results, and the WiFi address shows even when wpa_supplicant leaves it out.
+- **Ethernet status** - an unplugged port reads No cable and shows no address, even when the old address is still on the interface. Hidden networks no longer appear in the scan list as rows of dots, and with WiFi and Ethernet both connected the Test Network button stays on screen.
+- **Color picker crash** (#1836) - closing a screen while a color picker was open could crash the next color picker opened.
+- **Closing a camera view** no longer freezes the screen for up to 3 seconds on a camera that stopped answering.
+- **Smaller fixes** - the uptime text is translated, the Last print failed icon is red, and an idle Centauri Carbon no longer re-reads print-time estimates four times a second.
+
+**Updates and installing**
+
+- **Snapmaker U1 env file permissions** (#1682) - the directory holding `helixscreen.env` belongs to the printer_data owner with mode 755, so a save from the web UI no longer leaves the launcher refusing it. When it does refuse, it gives the `chmod` that fixes it instead of a `chown` the next save undoes.
+- **Installs on ZFS** - a freshly downloaded update is no longer rejected as "too small" on a ZFS filesystem.
 
 ## [1.1.0-beta.14] - 2026-10-28
 
