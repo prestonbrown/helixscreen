@@ -3,8 +3,12 @@
 
 #include "timelapse_host_mock.h"
 
+#include "helix_fs.h"
+#include "text_io.h"
+
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
@@ -54,7 +58,13 @@ ProcessRunner timelapse_host_runner() {
         }
         spdlog::info("[MockTimelapseHost] {}", cmd);
         std::this_thread::sleep_for(kStepDelay);
-        if (cmd.find("--link-timelapse") != std::string::npos) {
+        if (std::find(argv.begin(), argv.end(), "clone") != argv.end()) {
+            const std::string dest = argv.back();
+            r.exit_code = fs::create_directories(dest + "/component") &&
+                                  text_io::write_file(dest + "/component/timelapse.py", "")
+                              ? 0
+                              : 1;
+        } else if (cmd.find("--link-timelapse") != std::string::npos) {
             linked().store(true);
         } else if (cmd.find("command -v") != std::string::npos &&
                    cmd.find("ffmpeg") != std::string::npos) {

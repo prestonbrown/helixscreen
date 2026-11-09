@@ -5,7 +5,13 @@
 
 #include "helix_fs.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
+
+#include <cerrno>
+#include <cstring>
+#include <string>
+#include <unistd.h>
 
 namespace helix {
 
@@ -43,6 +49,8 @@ LocalPluginPlan make_local_plugin_plan(const LocalPluginRecipe& recipe, const st
     plan.install_script = install_script;
     if (!recipe.repo_url.empty()) {
         plan.repo_dir = home + "/" + recipe.repo_dir_name;
+        plan.fetch_dir =
+            home + "/." + recipe.repo_dir_name + ".partial-" + std::to_string(::getpid());
         plan.repo_present = fs::exists(plan.repo_dir + "/" + recipe.repo_marker);
     }
     return plan;
@@ -59,16 +67,31 @@ LocalPluginResult install_plugin_locally(const LocalPluginRecipe& recipe,
 
     if (!recipe.repo_url.empty() && !plan.repo_present) {
         stage(LocalPluginStage::Fetch);
-        spdlog::info("[PluginInstaller] Cloning {} into {}", recipe.repo_url, plan.repo_dir);
+        spdlog::info("[PluginInstaller] Cloning {} into {} for {}", recipe.repo_url, plan.fetch_dir,
+                     plan.repo_dir);
+        // fetch_dir is this installer's own name, so whatever is there is ours to clear.
+        fs::remove_all(plan.fetch_dir);
         // GIT_TERMINAL_PROMPT=0: a repository that asks for credentials fails at once
         // instead of waiting on a prompt nobody sees.
         const CommandResult r =
             run({"env", "GIT_TERMINAL_PROMPT=0", "git", "-c", kFetchLowSpeedLimit, "-c",
-                 kFetchLowSpeedTime, "clone", recipe.repo_url, plan.repo_dir},
+                 kFetchLowSpeedTime, "clone", recipe.repo_url, plan.fetch_dir},
                 kFetchTimeoutSeconds);
         log_command_output("git clone", r.output, r.succeeded());
         if (!r.succeeded()) {
+            fs::remove_all(plan.fetch_dir);
             return failed(LocalPluginStage::Fetch, r);
+        }
+        // rename() refuses a non-empty directory in repo_dir, which is the user's.
+        if (!fs::rename(plan.fetch_dir, plan.repo_dir)) {
+            const int err = errno;
+            fs::remove_all(plan.fetch_dir);
+            CommandResult in_the_way = r;
+            in_the_way.exit_code = 1;
+            in_the_way.output = fmt::format("{} is in the way ({}); move it aside and retry",
+                                            plan.repo_dir, std::strerror(err));
+            spdlog::warn("[PluginInstaller] {}", in_the_way.output);
+            return failed(LocalPluginStage::Fetch, in_the_way);
         }
     } else if (!recipe.repo_url.empty()) {
         spdlog::info("[PluginInstaller] Using the existing {} checkout at {}", recipe.name,

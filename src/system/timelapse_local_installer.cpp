@@ -3,6 +3,7 @@
 
 #include "timelapse_local_installer.h"
 
+#include "app_globals.h"
 #include "runtime_config.h"
 #include "timelapse_host_mock.h"
 
@@ -37,6 +38,10 @@ const LocalPluginRecipe& timelapse_plugin_recipe() {
 }
 
 std::string timelapse_install_home() {
+    // The simulated install's clone lands somewhere, and never in the real home.
+    if (get_runtime_config()->should_mock_moonraker()) {
+        return get_helix_cache_dir("mock_timelapse_home");
+    }
     const char* home = std::getenv("HOME");
     return home ? home : "";
 }

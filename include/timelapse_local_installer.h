@@ -64,7 +64,8 @@ TimelapseSetupPath decide_timelapse_setup_path(const TimelapseSetupFacts& facts)
 const LocalPluginRecipe& timelapse_plugin_recipe();
 
 /// The home directory a local install clones under: $HOME, or empty when it is
-/// unset or empty, and then the install takes the SSH route instead.
+/// unset or empty, and then the install takes the SSH route instead. Against a
+/// mock Moonraker, a scratch directory the simulated clone fills.
 std::string timelapse_install_home();
 
 /// The runner a local install uses: real processes that @p cancel stops, or the
