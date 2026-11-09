@@ -958,3 +958,4 @@ src/calibration/shaper_csv_parser.cpp
 src/system/host_identity.cpp
 src/system/env_refusal_notice.cpp
 src/system/home_layout_share.cpp
+src/ui/controls/opa_pulse.cpp

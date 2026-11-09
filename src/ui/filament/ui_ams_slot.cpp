@@ -559,9 +559,8 @@ static void apply_spool_spin(AmsSlotData* data) {
         int_of(ams.get_ams_action_subject(), static_cast<int>(AmsAction::IDLE)));
     in.lane_active_loaded = int_of(ams.get_slot_active_loaded_subject(data->slot_index), 0) != 0;
     PrinterState& printer = get_printer_state();
-    in.printing = static_cast<PrintJobState>(
-                      lv_subject_get_int(printer.print_state().get_print_state_enum_subject())) ==
-                  PrintJobState::PRINTING;
+    // RAW_PRINT_STATE_OK: a spool turns only while filament moves, so a paused job stands still.
+    in.printing = printer.print_state().get_print_job_state() == PrintJobState::PRINTING;
     in.extruder_velocity_centimm =
         lv_subject_get_int(printer.motion_state().get_live_extruder_velocity_subject());
     in.animations_enabled = DisplaySettingsManager::instance().get_animations_enabled();
