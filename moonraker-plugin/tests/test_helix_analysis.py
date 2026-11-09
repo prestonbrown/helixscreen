@@ -807,6 +807,15 @@ class TestWorker:
         assert proc.returncode is not None
 
     @pytest.mark.asyncio
+    async def test_close_returns_once_the_queue_has_stopped(self, gc):
+        # A queue left starting a worker wedges the loop's teardown: its
+        # cancel-all also cancels the pipe connection the spawn waits on.
+        helix, comp = await make(gc, files={"no_define.gcode"})
+        await asyncio.wait_for(comp.close(), 5)
+        assert comp._queue._task.done()
+        assert not comp._runner.running
+
+    @pytest.mark.asyncio
     async def test_a_print_starting_on_one_core_kills_the_worker_and_requeues(
             self, gc, tmp_path, monkeypatch):
         argv, log = fake_worker(tmp_path, "time.sleep(60)")
@@ -936,6 +945,9 @@ class TestRobustness:
         await ask(comp, "no_define.gcode")
         await asyncio.sleep(0.01)
         assert "scan exploded" in caplog.text
+        # The ask queued a pass; stop it before the loop's teardown cancels it
+        # mid-spawn.
+        await comp.close()
 
     @pytest.mark.asyncio
     async def test_the_prune_spares_the_file_being_analyzed(self, gc, monkeypatch):
