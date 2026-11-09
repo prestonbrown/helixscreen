@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import build, kit, spool  # noqa: E402
-from unit_art.units import ace_pro, ams_ht, box_turtle, cfs  # noqa: E402
+from unit_art.units import ace_pro, ams_ht, bmcu, box_turtle, cfs, night_owl  # noqa: E402
 
 
 def test_camera_is_the_agreed_three_quarter():
@@ -135,6 +135,36 @@ def test_units_differ_by_their_fronts():
     assert colors(ace_pro.UNIT) != colors(cfs.UNIT)
     assert 0xee6a1f in colors(ace_pro.UNIT)
     assert 0xee6a1f not in colors(cfs.UNIT)
+
+
+def _saturation(fill):
+    r, g, b = kit.rgb(fill)
+    return max(r, g, b) - min(r, g, b)
+
+
+@pytest.mark.parametrize("tier", ["full", "thumb"])
+def test_only_the_bmcu_levers_carry_colour(tier):
+    scene = kit.Scene(kit.ART_CAMERA)
+    bmcu.UNIT.draw_art(scene, ["#ffffff"] * 4, tier)
+    shell = [i for i in scene.items if i.lane is None and i.fill.startswith("#") and len(i.fill) == 7]
+    levers = [i for i in shell if i.tag == "lever"]
+    assert len({tuple(i.points[0]) for i in levers}) >= 4
+    assert all(_saturation(i.fill) > 40 for i in levers)
+    assert not [i.fill for i in shell if i.tag != "lever" and _saturation(i.fill) > 12]
+
+
+def test_the_bmcu_tray_front_is_neutral_but_for_its_levers():
+    tinted = {part[5] for part in bmcu.UNIT.tray.front if _saturation(kit.hexc(kit.rgb(f"{part[5]:06x}"))) > 12}
+    assert tinted == {int(bmcu.LEVER[1:], 16)}
+
+
+def test_the_night_owl_spools_rest_on_the_base_and_share_its_width():
+    assert night_owl.UNIT.lanes == 2
+    for xc in night_owl.CENTERS:
+        half = night_owl.SPOOL_R / 0.42 * 0.294 / 2
+        assert 0 < xc - half and xc + half < night_owl.W
+    touch = math.hypot(night_owl.SPOOL_Y - night_owl.ROLLER_Y, night_owl.SPOOL_Z - night_owl.ROLLER_Z)
+    assert touch == pytest.approx(night_owl.SPOOL_R + night_owl.ROLLER_R)
 
 
 def test_generated_shell_table_is_current():
