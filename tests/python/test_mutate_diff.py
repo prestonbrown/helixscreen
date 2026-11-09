@@ -860,17 +860,21 @@ class FakeThreadSched:
             monkeypatch.setattr(os, name, getattr(self, name), raising=False)
 
     def sched_getscheduler(self, pid):
+        assert pid == 0, "the calling thread, not the process leader"
         return self.policy
 
     def sched_setscheduler(self, pid, policy, param):
+        assert pid == 0, "the calling thread, not the process leader"
         if self.deny_lift and policy == os.SCHED_OTHER:
             raise PermissionError
         self.policy = policy
 
     def getpriority(self, which, who):
+        assert (which, who) == (os.PRIO_PROCESS, 0), "the calling thread"
         return self.niceness
 
     def setpriority(self, which, who, niceness):
+        assert (which, who) == (os.PRIO_PROCESS, 0), "the calling thread"
         self.niceness = niceness
 
     @property
