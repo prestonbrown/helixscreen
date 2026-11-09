@@ -231,15 +231,15 @@ void HistoryListPanel::on_activate() {
     // Register as history manager observer if manager available
     if (history_manager_ && !history_observer_) {
         history_observer_ = [this]() {
-            if (!is_active_) {
-                return;
-            }
-
             // If detail overlay is open, just mark that history changed - will refresh on return
             if (detail_overlay_open_) {
                 history_changed_while_detail_open_ = true;
                 spdlog::debug("[{}] History changed while detail open, deferring refresh",
                               get_name());
+                return;
+            }
+
+            if (!is_active_) {
                 return;
             }
 
@@ -287,18 +287,41 @@ void HistoryListPanel::on_ui_destroyed() {
     history_changed_while_detail_open_ = false;
 }
 
-void HistoryListPanel::on_deactivating(DeactivateReason) {
-    spdlog::debug("[{}] on_deactivating()", get_name());
+void HistoryListPanel::before_show() {
+    detail_overlay_open_ = false;
+    history_changed_while_detail_open_ = false;
+    reset_view_state();
+}
+
+void HistoryListPanel::on_deactivating(DeactivateReason reason) {
+    spdlog::debug("[{}] on_deactivating({})", get_name(), deactivate_reason_name(reason));
 
     is_active_ = false;
 
+    // Cancel any pending search timer
+    search_debounce_.cancel();
+
+    // Covered by its own detail overlay: Back returns here, to the rows,
+    // scroll and filters the user left. The observer stays to flag history
+    // that changes meanwhile, so the return knows to refresh.
+    if (detail_overlay_open_ && reason != DeactivateReason::Shutdown &&
+        reason != DeactivateReason::Rebuild) {
+        return;
+    }
+
+    // Remove history manager observer
     if (history_manager_ && history_observer_) {
         history_manager_->remove_observer(&history_observer_);
         history_observer_ = nullptr;
     }
 
-    search_debounce_.cancel();
+    // Clear the received flag so next activation will refresh
+    jobs_received_ = false;
 
+    reset_view_state();
+}
+
+void HistoryListPanel::reset_view_state() {
     // Reset filter state for fresh start on next activation
     search_query_.clear();
     status_filter_ = HistoryStatusFilter::ALL;
@@ -316,9 +339,6 @@ void HistoryListPanel::on_deactivating(DeactivateReason) {
     if (sort_dropdown_) {
         lv_dropdown_set_selected(sort_dropdown_, 0);
     }
-
-    // Clear the received flag so next activation will refresh
-    jobs_received_ = false;
 
     // Reset pagination state
     load_more_guard_.release();
