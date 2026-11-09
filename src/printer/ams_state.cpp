@@ -2126,6 +2126,12 @@ void AmsState::sync_current_loaded_from_backend() {
 
     if (registry_.count() == 0) {
         set_current_loaded_defaults();
+        // With no AMS the external spool, which Spoolman's active spool feeds, is what is loaded.
+        if (const auto ext = get_external_spool_info();
+            ext && ext->color_rgb != kAmsDefaultSlotColor) {
+            set_current_paint(ext->color_rgb, ext->multi_color_hexes,
+                              filament_finish_name(ext->finish()));
+        }
         return;
     }
 

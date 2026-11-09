@@ -905,7 +905,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
 
             // fan (part cooling fan)
             if (objects.contains("fan")) {
-                status_obj["fan"] = {{"speed", 0.0}, {"rpm", nullptr}};
+                status_obj["fan"] = mock_internal::part_fan_status(0.0);
             }
 
             // Print-start / state macros — the discovery sequence subscribes to

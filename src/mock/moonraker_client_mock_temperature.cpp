@@ -661,7 +661,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
              {{"live_position", {x, y, z + z_offset, 0.0}},
               {"live_velocity", feed_mm_s * (speed / 100.0)},
               {"live_extruder_velocity", extruder_mm_s}}},
-            {"fan", {{"speed", fan / 255.0}}},
+            {"fan", mock_internal::part_fan_status(fan / 255.0)},
             {"print_stats",
              {{"state", print_state_str},
               {"filename", filename},
@@ -818,7 +818,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             std::lock_guard<std::mutex> lock(fan_mutex_);
             for (const auto& [name, spd] : fan_speeds_) {
                 if (name == "fan") {
-                    status_obj["fan"] = {{"speed", spd}};
+                    status_obj["fan"] = mock_internal::part_fan_status(spd);
                 } else {
                     status_obj[name] = {{"speed", spd}};
                 }

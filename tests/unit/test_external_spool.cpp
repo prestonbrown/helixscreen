@@ -183,6 +183,35 @@ TEST_CASE("AmsState external_spool_color subject updates on set", "[external_spo
     CHECK(color == static_cast<int>(0xDDEEFF));
 }
 
+TEST_CASE("With no AMS the current paint follows the external spool",
+          "[external_spool][ams_state]") {
+    ExternalSpoolCommitFixture fixture;
+    AmsState& ams = AmsState::instance();
+    ams.init_subjects(false);
+    ams.clear_backends();
+    ams.clear_external_spool_info();
+    lv_subject_t* paint = ams.get_current_color_subject();
+    REQUIRE(lv_subject_get_int(paint) == static_cast<int>(kNoFilamentPaint));
+
+    SlotInfo spool;
+    spool.color_rgb = 0x12AB34;
+    spool.material = "PETG";
+    ams.set_external_spool_info(spool);
+    CHECK(lv_subject_get_int(paint) == 0x12AB34);
+
+    SECTION("a spool with no color keeps the no-filament paint") {
+        ams.clear_external_spool_info();
+        spool.color_rgb = kAmsDefaultSlotColor;
+        ams.set_external_spool_info(spool);
+        CHECK(lv_subject_get_int(paint) == static_cast<int>(kNoFilamentPaint));
+    }
+    SECTION("clearing the spool clears the paint") {
+        ams.clear_external_spool_info();
+        CHECK(lv_subject_get_int(paint) == static_cast<int>(kNoFilamentPaint));
+    }
+    ams.clear_external_spool_info();
+}
+
 TEST_CASE("AmsState external_spool_color subject defaults to 0 when no spool",
           "[external_spool][ams_state]") {
     ExternalSpoolCommitFixture fixture;

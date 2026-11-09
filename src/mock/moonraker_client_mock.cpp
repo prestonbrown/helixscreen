@@ -2316,7 +2316,7 @@ void MoonrakerClientMock::dispatch_initial_state() {
           {"speed_factor", speed / 100.0},
           {"extrude_factor", flow / 100.0},
           {"homing_origin", {gcode_offset_x_.load(), gcode_offset_y_.load(), z_offset, 0.0}}}},
-        {"fan", {{"speed", fan / 255.0}}},
+        {"fan", mock_internal::part_fan_status(fan / 255.0)},
         {"webhooks",
          {{"state", klippy_str},
           {"state_message", klippy == KlippyState::SHUTDOWN ? std::string(kM112ShutdownMessage)
@@ -2353,7 +2353,7 @@ void MoonrakerClientMock::dispatch_initial_state() {
         std::lock_guard<std::mutex> lock(fan_mutex_);
         for (const auto& [name, spd] : fan_speeds_) {
             if (name == "fan") {
-                initial_status["fan"] = {{"speed", spd}};
+                initial_status["fan"] = mock_internal::part_fan_status(spd);
             } else {
                 initial_status[name] = {{"speed", spd}};
             }
@@ -2793,7 +2793,7 @@ void MoonrakerClientMock::set_fan_speed_internal(const std::string& fan_name, do
     json fan_status;
     if (fan_name == "fan") {
         // Part cooling fan uses simple format
-        fan_status["fan"] = {{"speed", speed}};
+        fan_status["fan"] = mock_internal::part_fan_status(speed);
     } else {
         // Generic/heater fans use full name as key
         fan_status[fan_name] = {{"speed", speed}};

@@ -253,3 +253,111 @@ TEST_CASE("a composited splash fits every panel the manifest describes",
         REQUIRE(composite <= h);
     }
 }
+
+namespace {
+
+/// The manifest's portrait rule: on a panel taller than it is wide, the first
+/// class in splash_portrait whose canvas fits. Mirrors splash_portrait_class in
+/// scripts/platform_manifest.py.
+std::string evaluate_portrait(const json& classes, int width, int height) {
+    if (height <= width)
+        return "";
+    for (const auto& cls : classes["splash_portrait"]) {
+        const std::string name = cls.get<std::string>();
+        if (classes["splash_composite_width"][name].get<int>() <= width &&
+            classes["splash_composite_height"][name].get<int>() <= height)
+            return name;
+    }
+    return "";
+}
+
+std::string portrait_name(int w, int h) {
+    const char* name = get_splash_3d_portrait_size_name(w, h);
+    return name ? name : "";
+}
+
+} // namespace
+
+TEST_CASE("compiled portrait splash choice matches the manifest", "[assets][splash][manifest]") {
+    const json manifest = load_manifest();
+    const json& classes = manifest["size_classes"];
+    REQUIRE_FALSE(classes["splash_portrait"].empty());
+
+    for (int w : probe_axis()) {
+        for (int h : probe_axis()) {
+            INFO("resolution " << w << "x" << h);
+            REQUIRE(portrait_name(w, h) == evaluate_portrait(classes, w, h));
+        }
+    }
+}
+
+TEST_CASE("a portrait panel takes the largest portrait canvas that fits", "[assets][splash]") {
+    struct Case {
+        int w, h;
+        const char* expected;
+    };
+    const Case cases[] = {
+        {480, 800, "medium-portrait"},  {600, 1024, "large-portrait"},
+        {720, 1280, "xlarge-portrait"}, {1080, 1920, "xlarge-portrait"},
+        {540, 960, "medium-portrait"},  {600, 800, "medium-portrait"},
+        {720, 1024, "large-portrait"},  {800, 1280, "xlarge-portrait"},
+    };
+    for (const Case& c : cases) {
+        INFO(c.w << "x" << c.h);
+        REQUIRE(portrait_name(c.w, c.h) == c.expected);
+        // The canvas the name stands for fits the panel on both axes.
+        REQUIRE(get_splash_3d_target_width(c.expected) <= c.w);
+        REQUIRE(get_splash_3d_target_height(c.expected) <= c.h);
+    }
+
+    SECTION("the portrait canvases are the landscape ones turned on end") {
+        REQUIRE(get_splash_3d_target_width("medium-portrait") == 480);
+        REQUIRE(get_splash_3d_target_height("medium-portrait") == 800);
+        REQUIRE(get_splash_3d_target_width("large-portrait") == 600);
+        REQUIRE(get_splash_3d_target_height("large-portrait") == 1024);
+        REQUIRE(get_splash_3d_target_width("xlarge-portrait") == 720);
+        REQUIRE(get_splash_3d_target_height("xlarge-portrait") == 1280);
+    }
+
+    SECTION("a portrait panel smaller than every portrait canvas gets none") {
+        REQUIRE(portrait_name(479, 800) == "");
+        REQUIRE(portrait_name(480, 799) == "");
+        REQUIRE(portrait_name(320, 480) == "");
+        REQUIRE(portrait_name(272, 480) == "");
+    }
+
+    SECTION("a landscape or square panel never gets a portrait canvas") {
+        REQUIRE(portrait_name(800, 480) == "");
+        REQUIRE(portrait_name(1280, 720) == "");
+        REQUIRE(portrait_name(1920, 440) == "");
+        REQUIRE(portrait_name(720, 720) == "");
+        REQUIRE(portrait_name(1280, 1280) == "");
+    }
+
+    SECTION("the tier ladder is unchanged by the portrait choice") {
+        REQUIRE(std::string(get_splash_3d_size_name(480, 800)) == "medium");
+        REQUIRE(std::string(get_splash_size_name(480, 800)) == "medium");
+    }
+}
+
+TEST_CASE("no fixed panel in the manifest selects a portrait canvas",
+          "[assets][splash][manifest]") {
+    // Every embedded panel is landscape once rotated, so none of their packages
+    // needs a portrait canvas, and none must ship one.
+    const json manifest = load_manifest();
+
+    for (auto it = manifest["platforms"].begin(); it != manifest["platforms"].end(); ++it) {
+        const json& panel = it.value()["panel"];
+        if (panel.value("variable", false) || !panel.contains("width"))
+            continue;
+
+        int w = panel["width"].get<int>();
+        int h = panel["height"].get<int>();
+        const int rotate = panel.value("rotate", 0);
+        if (rotate == 90 || rotate == 270)
+            std::swap(w, h);
+
+        INFO("platform " << it.key() << " effective " << w << "x" << h);
+        REQUIRE(portrait_name(w, h) == "");
+    }
+}
