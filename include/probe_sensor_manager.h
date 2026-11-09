@@ -57,8 +57,8 @@ class ProbeSensorManager : public SensorManager {
 
     /// Every probe subscription: the per-type object and its fields. Each probe the
     /// object list keeps is mapped to the object its module publishes on; types
-    /// without a usable last_query skip it. z_offset is requested everywhere; a
-    /// module without it answers null.
+    /// without a usable last_query skip it. z_offset and name are requested
+    /// everywhere; a module without one answers null.
     [[nodiscard]] nlohmann::json extra_subscriptions(const PrinterDiscovery& hw) const override;
 
   protected:
@@ -82,6 +82,10 @@ class ProbeSensorManager : public SensorManager {
     bool apply_type_override_locked();
 
     std::map<std::string, ProbeSensorState> readings_; ///< by klipper_name
+    /// The probe object that config-only sections folded into, and the
+    /// configured z_offset of each of those sections, by section name.
+    std::string folded_probe_;
+    std::map<std::string, float> folded_z_offsets_;
     lv_subject_t z_offset_{};
     /// From the printer database; STANDARD = none.
     ProbeSensorType type_override_ = ProbeSensorType::STANDARD;

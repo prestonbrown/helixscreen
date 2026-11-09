@@ -572,34 +572,36 @@ TEST_CASE("Subscription: probe objects narrow to ProbeSensorManager reads",
     };
 
     // z_offset is requested everywhere: the Creality and QIDI forks publish it
-    // on their probe, and Klipper answers a module without it with null.
-    SECTION("ProbeCommandHelper objects: last_query + last_z_result + z_offset") {
+    // on their probe, and Klipper answers a module without it with null. name
+    // says which folded section a multi-coil probe is using.
+    SECTION("ProbeCommandHelper objects: last_query + last_z_result + z_offset + name") {
         for (const auto* name : {"probe", "bltouch", "smart_effector"}) {
-            requires_fields(build_with({name}), name, {"last_query", "last_z_result", "z_offset"});
+            requires_fields(build_with({name}), name,
+                            {"last_query", "last_z_result", "z_offset", "name"});
         }
     }
 
-    SECTION("objects with no usable last_query: last_z_result + z_offset") {
-        requires_fields(build_with({"beacon"}), "beacon", {"last_z_result", "z_offset"});
+    SECTION("objects with no usable last_query: last_z_result + z_offset + name") {
+        requires_fields(build_with({"beacon"}), "beacon", {"last_z_result", "z_offset", "name"});
         requires_fields(build_with({"probe_eddy_current btt"}), "probe_eddy_current btt",
-                        {"last_z_result", "z_offset"});
+                        {"last_z_result", "z_offset", "name"});
     }
 
     SECTION("Cartographer reads its status from the probe object it registers") {
         json subs = build_with({"probe", "cartographer"});
-        requires_fields(subs, "probe", {"last_query", "last_z_result", "z_offset"});
+        requires_fields(subs, "probe", {"last_query", "last_z_result", "z_offset", "name"});
         REQUIRE_FALSE(subs.contains("cartographer"));
     }
 
     SECTION("the [probe] alias is not subscribed beside the specific object") {
         json subs = build_with({"bltouch", "probe"});
-        requires_fields(subs, "bltouch", {"last_query", "last_z_result", "z_offset"});
+        requires_fields(subs, "bltouch", {"last_query", "last_z_result", "z_offset", "name"});
         REQUIRE_FALSE(subs.contains("probe"));
     }
 
     SECTION("an eddy object beside a Cartographer is not subscribed") {
         json subs = build_with({"probe", "probe_eddy_current carto", "cartographer"});
-        requires_fields(subs, "probe", {"last_query", "last_z_result", "z_offset"});
+        requires_fields(subs, "probe", {"last_query", "last_z_result", "z_offset", "name"});
         REQUIRE_FALSE(subs.contains("cartographer"));
         REQUIRE_FALSE(subs.contains("probe_eddy_current carto"));
     }
