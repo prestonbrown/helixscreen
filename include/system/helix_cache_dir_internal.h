@@ -15,7 +15,9 @@
 #include "platform_info.h"
 
 #include <functional>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace helix::cache_internal {
@@ -93,5 +95,29 @@ std::vector<std::string> select_stale_paths(const std::vector<CacheCandidate>& c
  * @return Number of actions taken (renames, subtree moves, removals).
  */
 int migrate_state_root(const std::string& legacy_root, const std::string& current_root);
+
+/**
+ * @brief The state root a board's identity has to leave, and where it goes.
+ *
+ * A Forge-X chroot can also carry /usr/prog, which reads as Z-Mod to a build
+ * that does not probe Forge-X first, so its identity can sit under the Z-Mod
+ * root while its state root is the mod's config dir (#2092). Returns
+ * {Z-Mod root, Forge-X root} for a Forge-X tree on a board where the two
+ * differ, nullopt everywhere else.
+ */
+std::optional<std::pair<std::string, std::string>> state_identity_migration(board::Board board,
+                                                                            FlashForgeModTree tree);
+
+/**
+ * @brief Move the telemetry identity from @p legacy_root into @p current_root.
+ *
+ * Only the identity moves; the cache rebuilds wherever the root is. Creates
+ * @p current_root when the legacy side holds an identity, and follows
+ * telemetry::move_device_identity's rules: synced before the old copy goes,
+ * never replacing an identity already there.
+ *
+ * @return true when the identity now lives only in @p current_root.
+ */
+bool migrate_state_identity(const std::string& legacy_root, const std::string& current_root);
 
 } // namespace helix::cache_internal
