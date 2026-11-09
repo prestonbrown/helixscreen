@@ -21,15 +21,16 @@
        so there are no bars and no lane count. AmsOverviewPanel sizes the stage's height from
        the tile's measured width; style_max_height caps it on a roomy row. -->
   <view name="ams_unit_tile"
-        extends="lv_obj" height="content" scrollable="false" flex_flow="column" style_flex_main_place="start"
-        style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" style_pad_all="0"
-        style_pad_gap="#space_xxs" style_radius="#border_radius" style_min_width="#ams_tile_min_width"
+        extends="lv_obj" height="content" scrollable="false" overflow_visible="true" flex_flow="column"
+        style_flex_main_place="start" style_flex_cross_place="center" style_bg_opa="0" style_border_width="0"
+        style_pad_all="0" style_pad_gap="#space_xxs" style_radius="#border_radius" style_min_width="#ams_tile_min_width"
         style_max_width="#ams_card_max_width" clickable="true">
     <style name="styles.press_wash" selector="pressed"/>
     <bind_state_if_eq subject="$absent" state="disabled" ref_value="1"/>
     <lv_obj name="tile_stage"
             width="100%" height="#ams_tile_art_max_h" style_max_height="#ams_tile_art_max_h" style_pad_all="0"
-            scrollable="false" clickable="false" event_bubble="true" style_bg_opa="0" style_border_width="0">
+            overflow_visible="true" scrollable="false" clickable="false" event_bubble="true" style_bg_opa="0"
+            style_border_width="0">
       <!-- The fade sits on a frame around the art: the art flattens itself to one image, and
            a style on the art would be baked into that image and then applied again. -->
       <lv_obj name="tile_art_frame"
@@ -51,8 +52,9 @@
       <!-- A wrapper carries the breakpoint rule: the indicator binds its own hidden flag to
            whether the unit has readings, and one flag cannot follow two bindings. -->
       <lv_obj name="tile_readout"
-              width="content" height="content" align="bottom_right" style_pad_all="0" scrollable="false"
-              clickable="false" event_bubble="true" style_bg_opa="0" style_border_width="0">
+              width="content" height="content" align="bottom_right" style_translate_x="#space_lg"
+              style_translate_y="#space_lg" style_pad_all="0" scrollable="false" clickable="false" event_bubble="true"
+              style_bg_opa="0" style_border_width="0">
         <bind_flag_if cond="ui_breakpoint le 1" flag="hidden"/>
         <ams_environment_indicator name="env_indicator"
                                    event_bubble="true" hide_icons="true" style_margin_top="0" style_bg_opa="235"

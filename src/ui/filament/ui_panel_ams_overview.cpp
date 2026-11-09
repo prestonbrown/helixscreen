@@ -108,6 +108,12 @@ int32_t helix::ui::overview_peek_card_width(int32_t row_width, int32_t gap,
 }
 
 /// Set a label to "N slots" / "N lanes" text, with null-safety
+// overflow_visible only widens the clip by the extended draw size, and the readout hangs past
+// the tile's corner by this much.
+static void tile_readout_ext_draw_cb(lv_event_t* e) {
+    lv_event_set_ext_draw_size(e, theme_manager_get_spacing("space_lg"));
+}
+
 static void set_slot_count_label(lv_obj_t* label, helix::ui::LaneNoun noun, int slot_count) {
     if (!label) {
         return;
@@ -629,6 +635,12 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         uc.name_label = helix::ui::find_required(uc.card, "unit_name", get_name());
         if (uc.has_art) {
             uc.art_stage = helix::ui::find_required(uc.card, "tile_stage", get_name());
+            for (lv_obj_t* clip : {uc.card, uc.art_stage}) {
+                // DECLARATIVE_OK: extended draw size has no XML form
+                lv_obj_add_event_cb(clip, tile_readout_ext_draw_cb, LV_EVENT_REFR_EXT_DRAW_SIZE,
+                                    nullptr);
+                lv_obj_refresh_ext_draw_size(clip);
+            }
             uc.art = helix::ui::find_required(uc.card, "unit_art", get_name());
         } else {
             uc.logo_image = helix::ui::find_required(uc.card, "unit_logo", get_name());
