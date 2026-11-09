@@ -3144,6 +3144,32 @@ TEST_CASE_METHOD(TelemetryTestFixture,
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Identity: an unreadable one in the identity dir gives way to the config dir's",
+                 "[telemetry][identity][2085]") {
+    auto& tm = TelemetryManager::instance();
+    const IdentityDirs d(temp_dir_);
+    fs::create_directories(d.state);
+    const std::string damaged = "{\"uuid\": ";
+    const std::string good = R"({"uuid": "config-uuid", "salt": "config-salt"})";
+    write_text(d.state / "telemetry_device.json", damaged);
+    write_text(d.config / "telemetry_device.json", good);
+
+    reinit(tm, d);
+
+    CHECK(read_text(d.state / "telemetry_device.json") == good);
+    CHECK_FALSE(fs::exists(d.config / "telemetry_device.json"));
+    // The unreadable file is set aside, not deleted.
+    int set_aside = 0;
+    for (const auto& entry : fs::directory_iterator(d.state)) {
+        if (entry.path().filename().string().rfind("telemetry_device.json.unreadable-", 0) == 0) {
+            ++set_aside;
+            CHECK(read_text(entry.path()) == damaged);
+        }
+    }
+    CHECK(set_aside == 1);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
                  "Identity: a duplicate left in the config dir by an interrupted move is removed",
                  "[telemetry][identity][2085]") {
     auto& tm = TelemetryManager::instance();
