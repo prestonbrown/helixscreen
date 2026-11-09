@@ -104,6 +104,23 @@ TEST_CASE("unit shell: unidentified hardware keeps the generic tray", "[ams][uni
     CHECK(owl->built_in_selector);
 }
 
+TEST_CASE("unit shell: feeders resolve from what their backends report", "[ams][unit-art]") {
+    const auto id = [](AmsType type, const char* name) {
+        const UnitShell* shell = unit_shell_for(one_unit(type, name), 0);
+        return std::string(shell ? shell->id : "none");
+    };
+    CHECK(id(AmsType::AD5X_IFS, "IFS") == "ad5x_ifs");
+    CHECK(id(AmsType::AFC, "HTLF HTLF_1") == "htlf");
+    CHECK(id(AmsType::AFC, "HTLF Turtle_1") == "htlf");
+    // AFC names read "<type> <instance>": only the type token identifies an HTLF.
+    CHECK(id(AmsType::AFC, "Claymore HTLF_claymore_1") == "none");
+    CHECK(id(AmsType::AFC, "Box_Turtle my_htlf") == "box_turtle");
+    CHECK(id(AmsType::HAPPY_HARE, "MMX") == "mmx");
+    CHECK(id(AmsType::HAPPY_HARE, "3MS") == "3ms");
+    // The Canvas is drawn, but no backend reports one.
+    CHECK(helix::ui::tray::unit_shell_by_id("elegoo_canvas") != nullptr);
+}
+
 TEST_CASE("unit shell: the cheek only climbs toward the back", "[ams][unit-art]") {
     const UnitShell* shell = unit_shell_for(one_unit(AmsType::ACE, "ACE 1"), 0);
     REQUIRE(shell != nullptr);

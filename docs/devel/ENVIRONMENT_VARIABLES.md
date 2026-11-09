@@ -1683,6 +1683,19 @@ HELIX_FLOW_SEGMENT=HUB ./build/bin/helix-screen --test -vv &
 
 ---
 
+### `HELIX_UNIT_ART_FEEDER`
+
+Picks which baked drawing a filament unit that holds no spools (BMCU, MMX, HTLF, 3MS, AD5X IFS)
+uses on the overview. Dev-only: read once at first use, not a setting.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `spools`, `stubs` |
+| **Default** | `spools`: 200 mm spools behind the body |
+
+`stubs` draws the body alone, framed to itself, with a coloured tube leaving each inlet. Any other
+value means `spools`.
+
 ## Debugging
 
 ### `HELIX_DEBUG_SUBJECTS`

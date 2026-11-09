@@ -16,6 +16,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -74,11 +75,10 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
     lv_obj_set_size(data->flat, lv_pct(100), lv_pct(100));
     lv_obj_set_clickable(data->flat, false);
     lv_obj_set_hidden(data->flat, true);
-    const std::string variant =
-        shell->art_lane_variants != 0 ? std::to_string(lane_count) + "/" : std::string();
+    // A development comparison of the two feeder drawings, fixed for the process's life.
+    static const FeederLook look = parse_feeder_look(std::getenv("HELIX_UNIT_ART_FEEDER"));
     const std::string base =
-        helix::asset_component_uri(std::string("assets/images/units/") + shell->id + "/" + variant +
-                                   (data->tier == UnitArtTier::Full ? "full" : "thumb"));
+        helix::asset_component_uri(unit_art_base_stem(*shell, lane_count, data->tier, look));
     add_layer(data->layers, base + "_back.png");
     for (int lane = 0; lane < lane_count; ++lane) {
         const std::string stem = base + "_lane" + std::to_string(lane);
@@ -169,6 +169,20 @@ void xml_apply(lv_xml_parser_state_t* state, const char** attrs) {
 }
 
 } // namespace
+
+FeederLook parse_feeder_look(const char* value) {
+    return value && std::strcmp(value, "stubs") == 0 ? FeederLook::Stubs : FeederLook::Spools;
+}
+
+std::string unit_art_base_stem(const tray::UnitShell& shell, int lanes, UnitArtTier tier,
+                               FeederLook look) {
+    std::string stem = std::string("assets/images/units/") + shell.id + "/";
+    if (shell.has_stub_art && look == FeederLook::Stubs)
+        stem += "stubs/";
+    if (shell.art_lane_variants != 0)
+        stem += std::to_string(lanes) + "/";
+    return stem + (tier == UnitArtTier::Full ? "full" : "thumb");
+}
 
 UnitArtLane unit_art_lane(const SlotInfo& slot) {
     const bool filled = slot.status != SlotStatus::EMPTY && slot.status != SlotStatus::UNKNOWN;

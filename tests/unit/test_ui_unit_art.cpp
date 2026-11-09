@@ -4,6 +4,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "ams_types.h"
+#include "ams_unit_shell.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -163,4 +164,24 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: a new lane count builds that
 
     unit_art_set_unit(art, quattro_system(3), 0);
     CHECK(lv_obj_is_hidden(art));
+}
+
+TEST_CASE("unit art: a feeder look comes from its dev switch", "[ams][unit-art]") {
+    CHECK(parse_feeder_look("stubs") == FeederLook::Stubs);
+    CHECK(parse_feeder_look("spools") == FeederLook::Spools);
+    CHECK(parse_feeder_look(nullptr) == FeederLook::Spools);
+    CHECK(parse_feeder_look("nonsense") == FeederLook::Spools);
+}
+
+TEST_CASE("unit art: only a unit with a stub look loads it", "[ams][unit-art]") {
+    const auto* feeder = tray::unit_shell_by_id("mmx");
+    const auto* ace = tray::unit_shell_by_id("ace_pro");
+    REQUIRE(feeder != nullptr);
+    REQUIRE(ace != nullptr);
+    CHECK(unit_art_base_stem(*feeder, 4, UnitArtTier::Thumb, FeederLook::Stubs) ==
+          "assets/images/units/mmx/stubs/thumb");
+    CHECK(unit_art_base_stem(*feeder, 4, UnitArtTier::Full, FeederLook::Spools) ==
+          "assets/images/units/mmx/full");
+    CHECK(unit_art_base_stem(*ace, 4, UnitArtTier::Full, FeederLook::Stubs) ==
+          "assets/images/units/ace_pro/full");
 }
