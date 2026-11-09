@@ -127,7 +127,6 @@ class FilamentSensorWidget : public TiledPanelWidget {
     /// matching ui::FilamentTileSource's enum order - see the static_assert next
     /// to init_static_subjects().
     static inline lv_subject_t source_subject_{};
-    static inline bool subjects_initialized_ = false;
 
     static void init_static_subjects();
 
