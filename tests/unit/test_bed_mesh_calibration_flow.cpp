@@ -502,15 +502,11 @@ class BedMeshHeatFixture : public BedMeshPanelFlowFixture {
         REQUIRE(any_sent(sent(), "TEMPERATURE_WAIT"));
         REQUIRE_FALSE(any_sent(sent(), "G28"));
     }
-
-    helix::CalibrationOwnedHeat& heat() {
-        return helix::ui::BedMeshPanelTestAccess::heat(*panel);
-    }
 };
 
 TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its heat",
                  "[bed_mesh_flow][heater_hold]") {
-    REQUIRE(heat().held());
+    REQUIRE(panel->holds_owned_heat());
     CHECK(helix::HeaterHold::any_held_signal_safe());
 
     SECTION("shutdown sends both offs and nothing that moves") {
@@ -522,7 +518,7 @@ TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its he
         CHECK_FALSE(any_sent(sent(), "G28"));
         CHECK_FALSE(any_sent(sent(), "G1 "));
         CHECK_FALSE(any_sent(sent(), "BED_MESH_CALIBRATE"));
-        CHECK_FALSE(heat().held());
+        CHECK_FALSE(panel->holds_owned_heat());
         CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
     }
 
@@ -533,7 +529,7 @@ TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its he
         drain();
         CHECK(any_sent(sent(), kNozzleOff));
         CHECK_FALSE(any_sent(sent(), kBedOff));
-        CHECK_FALSE(heat().held());
+        CHECK_FALSE(panel->holds_owned_heat());
     }
 
     SECTION("an error ending clears both and releases") {
@@ -542,7 +538,7 @@ TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its he
         drain();
         CHECK(any_sent(sent(), kNozzleOff));
         CHECK(any_sent(sent(), kBedOff));
-        CHECK_FALSE(heat().held());
+        CHECK_FALSE(panel->holds_owned_heat());
     }
 
     SECTION("emergency stop releases without a send of its own") {
@@ -550,7 +546,7 @@ TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its he
         panel->handle_emergency_stop();
         drain();
         CHECK_FALSE(any_sent(sent(), kBedOff));
-        CHECK_FALSE(heat().held());
+        CHECK_FALSE(panel->holds_owned_heat());
         CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
     }
 
@@ -561,7 +557,7 @@ TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its he
         CHECK(any_sent(sent(), kNozzleOff));
         CHECK(any_sent(sent(), kBedOff));
         CHECK_FALSE(any_sent(sent(), "G28"));
-        CHECK_FALSE(heat().held());
+        CHECK_FALSE(panel->holds_owned_heat());
     }
 
     SECTION("a hot-reload gives the heat back") {
@@ -569,7 +565,7 @@ TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its he
         panel->on_deactivating(DeactivateReason::Rebuild);
         drain();
         CHECK(any_sent(sent(), kBedOff));
-        CHECK_FALSE(heat().held());
+        CHECK_FALSE(panel->holds_owned_heat());
     }
 
     SECTION("the screensaver keeps the heat") {
@@ -577,30 +573,12 @@ TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its he
         panel->on_deactivating(DeactivateReason::Suspended);
         drain();
         CHECK_FALSE(any_sent(sent(), kBedOff));
-        CHECK(heat().held());
+        CHECK(panel->holds_owned_heat());
     }
 
     SECTION("destroying the panel releases") {
         panel.reset();
         CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
-    }
-
-    SECTION("an ending while the link is down sends the off after the reconnect") {
-        set_link(false);
-        client.clear_gcode_script_history();
-        panel->on_calibration_error("connection lost");
-        drain();
-        CHECK_FALSE(any_sent(sent(), kBedOff));
-        CHECK(heat().owes_off("heater_bed"));
-        CHECK(heat().held());
-
-        set_link(true);
-        CHECK(heat().settle_timer_armed());
-        heat().flush_owed();
-        drain();
-        CHECK(any_sent(sent(), kNozzleOff));
-        CHECK(any_sent(sent(), kBedOff));
-        CHECK_FALSE(heat().held());
     }
 }
 

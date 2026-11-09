@@ -50,15 +50,6 @@ class ZOffsetCalibrationTestAccess {
         panel.send_accept();
     }
 
-    /// A real transition, with everything an ending does.
-    static void set_state(ZOffsetCalibrationPanel& panel, ZOffsetCalibrationPanel::State state) {
-        panel.set_state(state);
-    }
-
-    static void on_calibration_result(ZOffsetCalibrationPanel& panel, bool success) {
-        panel.on_calibration_result(success, "failed");
-    }
-
     /// The API the panel sends through; null until something opens it.
     static helix::IMoonrakerAPI* api(ZOffsetCalibrationPanel& panel) {
         return panel.api_;

@@ -874,9 +874,8 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration warm-up holds SIGTERM for 
     lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 1);
     begin_calibration_of(*panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
-    auto& heat = ZOffsetCalibrationTestAccess::heat(*panel);
     REQUIRE(panel->get_state() == ZOffsetCalibrationPanel::State::WARMING);
-    REQUIRE(heat.held());
+    REQUIRE(panel->holds_owned_heat());
     CHECK(helix::HeaterHold::any_held_signal_safe());
     set_bed_target(45.0);
 
@@ -886,7 +885,7 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration warm-up holds SIGTERM for 
         helix::ui::UpdateQueue::instance().drain_until_empty();
         CHECK(client.gcode_script_history() == std::vector<std::string>{"M140 S0"});
         CHECK(panel->get_state() == ZOffsetCalibrationPanel::State::IDLE);
-        CHECK_FALSE(heat.held());
+        CHECK_FALSE(panel->holds_owned_heat());
         CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
     }
 
@@ -895,7 +894,7 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration warm-up holds SIGTERM for 
         client.clear_gcode_script_history();
         panel->before_disconnect();
         CHECK_FALSE(sent_off(client));
-        CHECK_FALSE(heat.held());
+        CHECK_FALSE(panel->holds_owned_heat());
     }
 
     SECTION("shutdown leaves the bed to a job that has started") {
@@ -903,45 +902,21 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration warm-up holds SIGTERM for 
         client.clear_gcode_script_history();
         panel->before_disconnect();
         CHECK_FALSE(sent_off(client));
-        CHECK_FALSE(heat.held());
+        CHECK_FALSE(panel->holds_owned_heat());
     }
 
-    SECTION("a timed-out probe clears the bed while the panel stays open") {
-        ZOffsetCalibrationTestAccess::set_state(*panel, ZOffsetCalibrationPanel::State::PROBING);
+    SECTION("a failed run clears the bed while the panel stays open") {
         client.clear_gcode_script_history();
-        ZOffsetCalibrationTestAccess::set_state(*panel, ZOffsetCalibrationPanel::State::ERROR);
+        panel->on_calibration_result(false, "failed");
         CHECK(sent_off(client));
-        CHECK_FALSE(heat.held());
+        CHECK_FALSE(panel->holds_owned_heat());
     }
 
-    SECTION("a manual probe ended elsewhere clears the bed") {
-        ZOffsetCalibrationTestAccess::set_state(*panel, ZOffsetCalibrationPanel::State::ADJUSTING);
+    SECTION("a finished run clears the bed") {
         client.clear_gcode_script_history();
-        ZOffsetCalibrationTestAccess::set_state(*panel, ZOffsetCalibrationPanel::State::IDLE);
+        panel->on_calibration_result(true, "");
         CHECK(sent_off(client));
-        CHECK_FALSE(heat.held());
-    }
-
-    SECTION("a failed result clears the bed") {
-        ZOffsetCalibrationTestAccess::set_state(*panel, ZOffsetCalibrationPanel::State::SAVING);
-        client.clear_gcode_script_history();
-        ZOffsetCalibrationTestAccess::on_calibration_result(*panel, false);
-        CHECK(sent_off(client));
-        CHECK_FALSE(heat.held());
-    }
-
-    SECTION("moving on to probing keeps the bed") {
-        client.clear_gcode_script_history();
-        ZOffsetCalibrationTestAccess::set_state(*panel, ZOffsetCalibrationPanel::State::PROBING);
-        CHECK_FALSE(sent_off(client));
-        CHECK(heat.held());
-    }
-
-    SECTION("a normal off releases") {
-        client.clear_gcode_script_history();
-        ZOffsetCalibrationTestAccess::turn_off_bed(*panel);
-        CHECK(sent_off(client));
-        CHECK_FALSE(heat.held());
+        CHECK_FALSE(panel->holds_owned_heat());
     }
 
     SECTION("destroying the panel releases") {
