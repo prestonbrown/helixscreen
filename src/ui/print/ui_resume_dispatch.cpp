@@ -225,6 +225,14 @@ void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
             StandardMacroSlot::Resume, api,
             [log_prefix]() { spdlog::info("{} Resume command sent successfully", log_prefix); },
             [log_prefix, on_failure](const MoonrakerError& err) {
+                // The RPC gave up while RESUME may still be running: a reheat
+                // can outlast it. Whoever is waiting on the resume keeps
+                // waiting for the print state.
+                if (err.command_may_still_run()) {
+                    spdlog::warn("{} Resume still unanswered, waiting on the print state: {}",
+                                 log_prefix, err.message);
+                    return;
+                }
                 spdlog::error("{} Failed to resume: {}", log_prefix, err.message);
                 helix::ui::queue_update(
                     "dispatch_prepared_resume::on_macro_error", [err, on_failure]() {
