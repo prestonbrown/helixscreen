@@ -773,7 +773,7 @@ describe("mapEventToDataPoints", () => {
     expect(dp.blobs![2]).toBe("linux-arm");
     expect(dp.blobs![3]).toBe("Voron 2.4");
     expect(dp.blobs![4]).toBe("corexy");
-    expect(dp.blobs).toHaveLength(12);
+    expect(dp.blobs).toHaveLength(14);
     expect(dp.doubles![0]).toBe(1024);
     expect(dp.doubles![1]).toBe(4);
     expect(dp.doubles![2]).toBe(1);
@@ -860,7 +860,7 @@ describe("mapEventToDataPoints", () => {
     };
     const dp = mapEventToDataPoints(event)[0];
     expect(dp.blobs![9]).toBe("python");
-    expect(dp.blobs).toHaveLength(12);
+    expect(dp.blobs).toHaveLength(14);
   });
 
   it("maps session app.board into blob11", () => {
@@ -872,7 +872,7 @@ describe("mapEventToDataPoints", () => {
     const dp = mapEventToDataPoints(event)[0];
     expect(dp.blobs![10]).toBe("creator5-pro");
     expect(dp.blobs![2]).toBe("mips");
-    expect(dp.blobs).toHaveLength(12);
+    expect(dp.blobs).toHaveLength(14);
   });
 
   it("leaves session board empty for clients that do not send it", () => {
@@ -1285,7 +1285,9 @@ describe("Dashboard endpoints", () => {
         .mockResolvedValueOnce({ data: [{ name: "0.9.19", count: 80 }] })
         .mockResolvedValueOnce({ data: [{ name: "Voron 2.4", count: 50 }] })
         .mockResolvedValueOnce({ data: [{ name: "corexy", count: 90 }] })
-        .mockResolvedValueOnce({ data: [{ name: "btt-octopus", count: 12 }] });
+        .mockResolvedValueOnce({ data: [{ name: "btt-octopus", count: 12 }] })
+        .mockResolvedValueOnce({ data: [{ name: "kiauh", count: 7 }] })
+        .mockResolvedValueOnce({ data: [{ name: "forge_x", count: 5 }] });
 
       const res = await worker.fetch(
         dashboardRequest("/v1/dashboard/adoption?range=7d"),
@@ -1298,6 +1300,8 @@ describe("Dashboard endpoints", () => {
       expect(data.printer_models).toEqual([{ name: "Voron 2.4", count: 50 }]);
       expect(data.kinematics).toEqual([{ name: "corexy", count: 90 }]);
       expect(data.boards).toEqual([{ name: "btt-octopus", count: 12 }]);
+      expect(data.install_sources).toEqual([{ name: "kiauh", count: 7 }]);
+      expect(data.host_mods).toEqual([{ name: "forge_x", count: 5 }]);
     });
   });
 

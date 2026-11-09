@@ -31,7 +31,8 @@ import type { Grouped } from '@/utils/versions'
 const props = withDefaults(
   defineProps<{
     rows: Grouped[]
-    filterKey: DashFilterKey
+    /** Omitted for a dimension the dashboard filters cannot express: bars are then not clickable. */
+    filterKey?: DashFilterKey
     caption: string
     title: string
     /** Dataset label shown in the tooltip. */
@@ -65,12 +66,12 @@ const options = computed((): ChartOptions<'bar'> => ({
   },
   onHover: (evt, elements) => {
     const target = evt.native?.target
-    if (target instanceof HTMLElement) target.style.cursor = elements.length ? 'pointer' : 'default'
+    if (target instanceof HTMLElement) target.style.cursor = elements.length && props.filterKey ? 'pointer' : 'default'
   }
 }))
 
 function onSelect(index: number) {
   const row = props.rows[index]
-  if (row) filters.activate(router, [[props.filterKey, row]])
+  if (row && props.filterKey) filters.activate(router, [[props.filterKey, row]])
 }
 </script>

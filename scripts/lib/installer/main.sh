@@ -155,6 +155,8 @@ usage() {
     echo ""
     echo "Options:"
     echo "  --update       Update existing installation (preserves config)"
+    echo "  --source NAME  Channel running this install, for opt-in telemetry:"
+    echo "                 $(install_source_allowlist | tr ' ' '|'). Kept across --update"
     echo "  --uninstall    Remove HelixScreen"
     echo "  --clean        Clean install: remove old installation completely,"
     echo "                 including config and caches. The disabled-services"
@@ -228,6 +230,8 @@ parse_installer_args() {
     HELIX_MOD_PAYLOAD_UPDATES=""
     STANDALONE_INSTALL=""
     MOD_PAYLOAD_FLAG_GIVEN=""
+    # shellcheck disable=SC2034  # consumed by record_install_source (printer_seed.sh)
+    INSTALL_SOURCE_ARG=""
     # shellcheck disable=SC2034  # consumed by desktop.sh (resolve_x86_flavour)
     X86_FLAVOUR_FLAG=""
 
@@ -282,6 +286,18 @@ parse_installer_args() {
                     exit 1
                 fi
                 _set_local_archive "$2"
+                shift 2
+                ;;
+            --source)
+                if [ -z "${2:-}" ]; then
+                    log_error "--source requires a name"
+                    exit 1
+                fi
+                # shellcheck disable=SC2034  # consumed by record_install_source (printer_seed.sh)
+                INSTALL_SOURCE_ARG=$(install_source_normalize "$2")
+                if [ "$INSTALL_SOURCE_ARG" != "$2" ]; then
+                    log_warn "--source is not a known channel; recording \"$INSTALL_SOURCE_ARG\""
+                fi
                 shift 2
                 ;;
             --skip-kiauh-registration)
@@ -1198,6 +1214,7 @@ apply_install() {
     fi
     seed_install_time_settings "$fresh_install" "$seed_pid"
     seed_update_channel
+    record_install_source
 
     # The camera, include and seed steps above record their uninstall ledgers
     # as plain files in the install dir. Relocate them into printer_data now,
@@ -1273,6 +1290,7 @@ apply_desktop_install() {
     extract_release "$platform"
     verify_binary_deps "$platform"
     seed_update_channel
+    record_install_source
     step_done "$(display_path "$INSTALL_DIR")"
 
     step "Adding HelixScreen to the app menu" "Added HelixScreen to the app menu"
