@@ -35,7 +35,9 @@ except ImportError:
 # Format: (name, width, height, logo_size)
 # Classes are the UiBreakpoint tiers (include/ui_breakpoint.h), selected from the
 # narrow axis by helix::get_splash_3d_size_name(). Logo is 50% of width below
-# 500px tall, 60% at or above.
+# 500px tall, 60% at or above. The -portrait classes are the landscape canvases
+# turned on end, taken by a panel taller than it is wide
+# (helix::get_splash_3d_portrait_size_name()).
 SCREEN_SIZES = [
     ("micro", 480, 272, 240),       # CC1
     ("tiny", 480, 320, 240),        # Snapmaker U1
@@ -44,6 +46,9 @@ SCREEN_SIZES = [
     ("large", 1024, 600, 614),
     ("xlarge", 1280, 720, 768),
     ("ultrawide", 1920, 440, 384),  # Wide, short bar display
+    ("medium-portrait", 480, 800, 288),
+    ("large-portrait", 600, 1024, 360),
+    ("xlarge-portrait", 720, 1280, 432),
 ]
 
 # Source images (relative to project root)
