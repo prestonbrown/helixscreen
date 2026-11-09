@@ -285,6 +285,12 @@ inline bool equals_ignore_case(std::string_view a, std::string_view b) {
     return true;
 }
 
+/// Whether @p text ends with @p suffix, ignoring ASCII case.
+inline bool ends_with_ignore_case(std::string_view text, std::string_view suffix) {
+    return suffix.size() <= text.size() &&
+           equals_ignore_case(text.substr(text.size() - suffix.size()), suffix);
+}
+
 /// Whether @p haystack contains @p needle under to_lower().
 ///
 /// An empty needle matches NOTHING, not everything as std::string::find's

@@ -1201,6 +1201,27 @@ class ExpectedHardwareSuppressFixture : public HardwareValidatorConfigFixture {
 };
 
 TEST_CASE_METHOD(ExpectedHardwareSuppressFixture,
+                 "HardwareValidator - a fan enable pin is not offered as new hardware",
+                 "[hardware][validator][enable-pin]") {
+    setup_config({{"printer",
+                   {{"moonraker_host", "127.0.0.1"},
+                    {"moonraker_port", 7125},
+                    {"hardware",
+                     {{"optional", json::array()},
+                      {"expected", json::array()},
+                      {"last_snapshot", json::object()}}}}}});
+
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"output_pin fan0", "output_pin fan0_en"}));
+
+    HardwareValidator validator;
+    auto result = validator.validate(&config, hw);
+
+    CHECK(has_newly_discovered(result, "output_pin fan0"));
+    CHECK_FALSE(has_newly_discovered(result, "output_pin fan0_en"));
+}
+
+TEST_CASE_METHOD(ExpectedHardwareSuppressFixture,
                  "HardwareValidator - expected LED not reported as newly discovered",
                  "[hardware][validator][expected]") {
     // Printer has a LED strip, user already saved it via hardware health overlay

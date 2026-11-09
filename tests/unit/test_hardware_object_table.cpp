@@ -281,13 +281,3 @@ TEST_CASE("hw table: family predicates", "[hw_object_table]") {
     CHECK(is_filament_sensor(ObjectKind::BackendFilamentSensor));
     CHECK_FALSE(is_filament_sensor(ObjectKind::WidthSensor));
 }
-
-TEST_CASE("an output_pin that enables a fan is not itself a fan", "[hardware_table][enable-pin]") {
-    CHECK(obj("output_pin fan0_en").kind == ObjectKind::Unknown);
-    CHECK(obj("output_pin FAN0_EN").kind == ObjectKind::Unknown);
-    CHECK(obj("output_pin exhaust_fan_enable").kind == ObjectKind::Unknown);
-
-    CHECK(obj("output_pin fan0").kind == ObjectKind::OutputPinFan);
-    CHECK(obj("output_pin fan_en_cooling").kind == ObjectKind::OutputPinFan);
-    CHECK(obj("output_pin fan").kind == ObjectKind::OutputPinFan);
-}
