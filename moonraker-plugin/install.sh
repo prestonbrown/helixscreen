@@ -251,6 +251,19 @@ check_plugin_link() {
     require_moonraker_can_read "$_cpl_file"
 }
 
+# Every pre-flight for linking component @2 into components directory @1 as
+# @3: no regular file sits where the link goes, then check_plugin_link. Sets
+# target and link_to; the caller makes the link (ln -sf "$link_to" "$target")
+# once its other writes are done.
+prepare_component_link() {
+    target="$1/$3"
+    if [ -f "$target" ] && [ ! -L "$target" ]; then
+        error "A file (not symlink) exists at $target
+Please remove it manually before installing."
+    fi
+    check_plugin_link "$1" "$2"
+}
+
 # Find Moonraker's components directory. An explicit path wins, then the
 # user's home, then the Moonraker that is actually running (whatever its
 # layout), then the known vendor roots, then a pip-installed package.
@@ -470,15 +483,7 @@ Please provide the path: ./install.sh /path/to/moonraker"
     info "Components directory: $components_dir"
     printf '\n'
 
-    # Create symlink
-    target="$components_dir/helix_print.py"
-
-    if [ -f "$target" ] && [ ! -L "$target" ]; then
-        error "A file (not symlink) exists at $target
-Please remove it manually before installing."
-    fi
-
-    check_plugin_link "$components_dir"
+    prepare_component_link "$components_dir" "$PLUGIN_FILE" helix_print.py
     # Use ln -sf for atomic replacement (removes existing symlink first)
     ln -sf "$link_to" "$target"
     info "Created symlink: $target -> $link_to"
@@ -758,11 +763,7 @@ link_timelapse() {
 
     components_dir=$(find_moonraker_components "")
     [ -n "$components_dir" ] || error "Could not auto-detect Moonraker installation."
-    target="$components_dir/timelapse.py"
-    if [ -e "$target" ] && [ ! -L "$target" ]; then
-        error "A file (not symlink) exists at $target. Remove it before installing."
-    fi
-    check_plugin_link "$components_dir" "$component"
+    prepare_component_link "$components_dir" "$component" timelapse.py
     ln -sf "$link_to" "$target"
     info "Linked $target -> $link_to"
 
@@ -867,7 +868,7 @@ auto_install() {
 
     # Pre-flight checks, all before the first write: the link can be made,
     # the config can be edited, and Moonraker can read what the link names.
-    check_plugin_link "$components_dir"
+    prepare_component_link "$components_dir" "$PLUGIN_FILE" helix_print.py
 
     section_file=""
     if [ -n "$config_dir" ] && [ -f "$config_dir/moonraker.conf" ]; then
@@ -875,13 +876,6 @@ auto_install() {
         if [ -e "$section_file" ] && [ ! -w "$section_file" ]; then
             error "Cannot write to $section_file"
         fi
-    fi
-
-    # Create symlink
-    target="$components_dir/helix_print.py"
-
-    if [ -f "$target" ] && [ ! -L "$target" ]; then
-        error "A file (not symlink) exists at $target"
     fi
 
     # Auto-configure moonraker.conf if possible

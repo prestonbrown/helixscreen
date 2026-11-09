@@ -104,7 +104,7 @@ class TimelapseInstallOverlay : public OverlayBase {
 
     /// Install the plugin on this host, off the main thread
     void step_install_locally();
-    void on_local_install_done(const helix::TimelapseInstallResult& result);
+    void on_local_install_done(const helix::LocalPluginResult& result);
 
     /// Re-check plugin after user runs SSH install commands
     void recheck_after_install();

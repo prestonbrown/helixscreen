@@ -342,6 +342,7 @@ src/system/diagnostics.cpp
 src/system/display_settings_manager.cpp
 src/system/filament_favorites.cpp
 src/system/helix_plugin_installer.cpp
+src/system/local_plugin_installer.cpp
 src/core/http_executor.cpp
 src/system/input_settings_manager.cpp
 src/system/helix_regex.cpp

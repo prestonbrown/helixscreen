@@ -265,6 +265,17 @@ class HelixPluginInstaller {
     static int64_t read_prompt_clock();
 };
 
+struct LocalPluginRecipe;
+
+/**
+ * @brief HelixPrint's recipe for the local plugin installer
+ *
+ * The plugin ships beside install.sh, so there is nothing to fetch; `install.sh
+ * --no-restart --auto` links it and writes its [helix_print] section, and the
+ * caller restarts Moonraker.
+ */
+LocalPluginRecipe helix_print_plugin_recipe(int install_timeout_seconds);
+
 /// How long closing the install prompt without "don't ask again" holds it off.
 inline constexpr int64_t kPluginPromptSnoozeSeconds = 7 * 24 * 60 * 60;
 
