@@ -59,86 +59,31 @@ class TestDiscoveryClient : public MoonrakerClientMock {
 // Tests
 // ============================================================================
 
-TEST_CASE("Discovery succeeds when Klippy is ready", "[discovery][klippy_gate]") {
+TEST_CASE("Discovery proceeds only when Klippy is ready or shut down", "[discovery][klippy_gate]") {
+    using KS = MoonrakerClientMock::KlippyState;
+    const auto [state, proceeds, reason_word] = GENERATE(table<KS, bool, std::string>({
+        {KS::READY, true, ""},
+        {KS::SHUTDOWN, true, ""},
+        {KS::STARTUP, false, "startup"},
+        {KS::ERROR, false, "error"},
+    }));
     LVGLTestFixture fixture;
 
     TestDiscoveryClient client;
-    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+    client.set_klippy_state(state);
 
     bool completed = false;
-    bool errored = false;
     std::string error_reason;
-
+    bool errored = false;
     client.discover_printer_real([&completed]() { completed = true; },
                                  [&errored, &error_reason](const std::string& reason) {
                                      errored = true;
                                      error_reason = reason;
                                  });
 
-    REQUIRE(completed);
-    REQUIRE_FALSE(errored);
-}
-
-TEST_CASE("Discovery aborts when Klippy in STARTUP state", "[discovery][klippy_gate]") {
-    LVGLTestFixture fixture;
-
-    TestDiscoveryClient client;
-    client.set_klippy_state(MoonrakerClientMock::KlippyState::STARTUP);
-
-    bool completed = false;
-    bool errored = false;
-    std::string error_reason;
-
-    client.discover_printer_real([&completed]() { completed = true; },
-                                 [&errored, &error_reason](const std::string& reason) {
-                                     errored = true;
-                                     error_reason = reason;
-                                 });
-
-    REQUIRE_FALSE(completed);
-    REQUIRE(errored);
-    REQUIRE(error_reason.find("startup") != std::string::npos);
-}
-
-TEST_CASE("Discovery aborts when Klippy in ERROR state", "[discovery][klippy_gate]") {
-    LVGLTestFixture fixture;
-
-    TestDiscoveryClient client;
-    client.set_klippy_state(MoonrakerClientMock::KlippyState::ERROR);
-
-    bool completed = false;
-    bool errored = false;
-    std::string error_reason;
-
-    client.discover_printer_real([&completed]() { completed = true; },
-                                 [&errored, &error_reason](const std::string& reason) {
-                                     errored = true;
-                                     error_reason = reason;
-                                 });
-
-    REQUIRE_FALSE(completed);
-    REQUIRE(errored);
-    REQUIRE(error_reason.find("error") != std::string::npos);
-}
-
-TEST_CASE("Discovery succeeds when Klippy in SHUTDOWN state", "[discovery][klippy_gate]") {
-    LVGLTestFixture fixture;
-
-    TestDiscoveryClient client;
-    client.set_klippy_state(MoonrakerClientMock::KlippyState::SHUTDOWN);
-
-    bool completed = false;
-    bool errored = false;
-    std::string error_reason;
-
-    client.discover_printer_real([&completed]() { completed = true; },
-                                 [&errored, &error_reason](const std::string& reason) {
-                                     errored = true;
-                                     error_reason = reason;
-                                 });
-
-    REQUIRE(completed);
-    REQUIRE_FALSE(errored);
+    REQUIRE(completed == proceeds);
+    REQUIRE(errored == !proceeds);
+    REQUIRE(error_reason.find(reason_word) != std::string::npos);
 }
 
 TEST_CASE("Discovery onto a shut-down Klippy seeds the reason with the state",
