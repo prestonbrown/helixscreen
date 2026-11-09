@@ -30,8 +30,23 @@ USER_VAL="${USER_VAL:-}"
 # Runs as root (inherited from the calling service unit), so no sudo needed.
 
 # Keep in sync with scripts/lib/installer/platform.sh.
-HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json pending_remap.json crash_history.json user_filaments.json .webcams_backup.json .camera_migrated .klipper_includes .k2cam_webcam_disabled .seeded_settings .platform_hook .nginx_webcam_accesslog .nginx_remote_screen .remote_screen_route"
+HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json pending_remap.json crash_history.json user_filaments.json .webcams_backup.json .camera_migrated .klipper_includes .k2cam_webcam_disabled .seeded_settings .platform_hook .nginx_webcam_accesslog .nginx_remote_screen .remote_screen_route telemetry_device.json"
 HELIX_USER_CONFIG_DIRS="custom_images themes printer_database.d"
+
+# Z-Mod (AD5X, AD5M) installs and launches HelixScreen itself at this root, and
+# its Moonraker type:web entry rmtree()s it on every update. There is no
+# printer_data helixscreen/ directory there to link into, so user files live in
+# the state root beside the payload instead (assets/config/platforms.json,
+# storage.user_config_dir). Both are overridable for the test suite only.
+HELIX_ZMOD_PAYLOAD_ROOT="${HELIX_ZMOD_PAYLOAD_ROOT:-/srv/helixscreen}"
+HELIX_ZMOD_USER_CONFIG_DIR="${HELIX_ZMOD_USER_CONFIG_DIR:-/srv/helixscreen-state/config}"
+
+# Echoes the Z-Mod user-config directory when IDIR is the Z-Mod payload root,
+# nothing otherwise.
+zmod_user_config_dir() {
+    [ "${IDIR%/}" = "${HELIX_ZMOD_PAYLOAD_ROOT%/}" ] || return 0
+    printf '%s' "$HELIX_ZMOD_USER_CONFIG_DIR"
+}
 
 # Locate printer_data/config/helixscreen/.
 #
@@ -159,7 +174,7 @@ restore_log() {
     if command -v logger >/dev/null 2>&1; then
         logger -t helixscreen "restore-user-config: $*" 2>/dev/null || true
     fi
-    echo "restore-user-config: $*"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') restore-user-config: $*"
 }
 
 # Write FILE's content to DEST through a temporary file, so DEST is never seen
@@ -236,9 +251,20 @@ restore_config_symlinks() {
     local install_config="${IDIR}/config"
     [ -d "$install_config" ] || return 0
 
-    local pd_helix
+    # move_all: every real user file moves to the store, not only the runtime
+    # state no zip ships. On the Z-Mod layout nothing else ever moves them, and a
+    # real file there is what the app is using, packaged or not.
+    local pd_helix move_all=""
     pd_helix=$(discover_pd_helix)
-    [ -n "$pd_helix" ] || return 0
+    if [ -z "$pd_helix" ]; then
+        pd_helix=$(zmod_user_config_dir)
+        [ -n "$pd_helix" ] || return 0
+        if [ ! -d "$pd_helix" ]; then
+            mkdir -p "$pd_helix" 2>/dev/null || return 0
+            restore_log "created $pd_helix for user config"
+        fi
+        move_all=1
+    fi
 
     for file in $HELIX_USER_CONFIG_FILES; do
         local pd_file="${pd_helix}/${file}"
@@ -252,19 +278,23 @@ restore_config_symlinks() {
             rm -f "$install_file"
         fi
 
-        # A dotfile or pending_remap.json is runtime state no release zip ships.
-        # A real one here with nothing in printer_data was written before it was
-        # linked: move it across so the next rmtree cannot take it. Only these:
-        # this runs after a zip extraction, so any other real file here is the
-        # release's default, not the user's (the installer's own migration,
-        # which runs on a tree the user has been editing, moves every file).
+        # A dotfile, pending_remap.json or telemetry_device.json is runtime state
+        # no release zip ships. A real one here with nothing in the store was
+        # written before it was linked: move it across so the next rmtree cannot
+        # take it. Elsewhere only these: this runs after a zip extraction, so any
+        # other real file here is the release's default, not the user's (the
+        # installer's own migration, which runs on a tree the user has been
+        # editing, moves every file). The copy lands before the link replaces
+        # the original, so an interrupted move leaves two identical files.
+        local movable="$move_all"
         case "$file" in
-            .*|pending_remap.json)
-                if [ ! -e "$pd_file" ] && [ -f "$install_file" ] && [ ! -L "$install_file" ]; then
-                    cp -p "$install_file" "$pd_file" 2>/dev/null || continue
-                fi
-                ;;
+            .*|pending_remap.json|telemetry_device.json) movable=1 ;;
         esac
+        if [ -n "$movable" ] && [ ! -e "$pd_file" ] && [ ! -L "$pd_file" ] \
+            && [ -f "$install_file" ] && [ ! -L "$install_file" ]; then
+            atomic_copy "$install_file" "$pd_file" || continue
+            restore_log "moved $file to $pd_helix"
+        fi
 
         # The record exists only while a restore is owed, so an install that is
         # only ever updated by Moonraker needs an empty one to link before then.
@@ -350,6 +380,15 @@ restore_platform_hooks() {
         chown "$owner" "${IDIR}/platform" "$hooks" 2>/dev/null || true
     fi
 }
+
+# HELIX_RESTORE_ZMOD_ONLY=1 (the launcher's call) acts only on the Z-Mod
+# layout, whose own init script never runs this. Every other layout already ran
+# it from its init script or service units.
+if [ -n "${HELIX_RESTORE_ZMOD_ONLY:-}" ] && [ -z "${HELIX_RESTORE_LIB_ONLY:-}" ]; then
+    if [ -n "$(discover_pd_helix)" ] || [ -z "$(zmod_user_config_dir)" ]; then
+        exit 0
+    fi
+fi
 
 if [ -z "${HELIX_RESTORE_LIB_ONLY:-}" ]; then
     restore_config_symlinks || true
