@@ -117,6 +117,11 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     /// Clear a bed this run warmed while the client can still send.
     void before_disconnect();
 
+    /// Whether this panel still owns a heater target it must turn off.
+    [[nodiscard]] bool holds_owned_heat() const {
+        return heat_.held();
+    }
+
     /// Freed on close; the next open rebuilds it. The calibration state lives in
     /// state_ and the zoffset_cal_state subject, never in the widgets.
     bool destroy_on_close() const override {

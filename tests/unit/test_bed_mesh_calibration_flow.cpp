@@ -590,7 +590,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a finished mesh holds nothing for its
     calibrate_as(panel, "default");
 
     CHECK(any_sent(sent(), kBedOff));
-    CHECK_FALSE(helix::ui::BedMeshPanelTestAccess::heat(panel).held());
+    CHECK_FALSE(panel.holds_owned_heat());
 }
 
 TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a mesh on heaters already running holds nothing",
@@ -606,7 +606,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a mesh on heaters already running hol
     calibrate_as(panel, "default");
     REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
 
-    CHECK_FALSE(helix::ui::BedMeshPanelTestAccess::heat(panel).held());
+    CHECK_FALSE(panel.holds_owned_heat());
     panel.before_disconnect();
     drain();
     CHECK_FALSE(any_sent(sent(), kBedOff));

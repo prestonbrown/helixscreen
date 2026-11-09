@@ -134,6 +134,10 @@ class CalibrationSendFixture : public LVGLUITestFixture {
 
 } // namespace
 
+static void begin_calibration_of(ZOffsetCalibrationPanel& panel) {
+    ZOffsetCalibrationTestAccess::begin_calibration(panel);
+}
+
 TEST_CASE_METHOD(CalibrationSendFixture,
                  "Calibration accept: ZMOD clears the stale probe delta before the offset",
                  "[ui_integration][zoffset][zmod][regression]") {
@@ -868,7 +872,7 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration warm-up holds SIGTERM for 
     panel->set_api(&api);
     panel->init_subjects();
     lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 1);
-    ZOffsetCalibrationTestAccess::begin_calibration(*panel);
+    begin_calibration_of(*panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     auto& heat = ZOffsetCalibrationTestAccess::heat(*panel);
     REQUIRE(panel->get_state() == ZOffsetCalibrationPanel::State::WARMING);
@@ -927,10 +931,10 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     panel.set_api(&api);
     panel.init_subjects();
     lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 1);
-    ZOffsetCalibrationTestAccess::begin_calibration(panel);
+    begin_calibration_of(panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
 
-    CHECK_FALSE(ZOffsetCalibrationTestAccess::heat(panel).held());
+    CHECK_FALSE(panel.holds_owned_heat());
     client.clear_gcode_script_history();
     panel.before_disconnect();
     CHECK_FALSE(sent_off(client));

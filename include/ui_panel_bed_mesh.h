@@ -113,6 +113,11 @@ class BedMeshPanel : public OverlayBase {
     /// Clear heat this run owns while the client can still send.
     void before_disconnect();
 
+    /// Whether this panel still owns a heater target it must turn off.
+    [[nodiscard]] bool holds_owned_heat() const {
+        return heat_.held();
+    }
+
     void hide_all_modals();
 
     // Modal callback action helpers (called from free function callbacks)
