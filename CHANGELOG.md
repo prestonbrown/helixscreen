@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dragging widgets near a page edge** (#2070) - in home screen edit mode, a widget dragged toward the next page waits longer before the page flips, and letting go during the wait keeps it on the page you see.
 - **Splash on portrait screens** (#2072) - a landscape splash image is no longer drawn past the sides of a portrait screen.
 - **Better printer matches after an update** (#2075) - when a newer release recognises your printer better, HelixScreen offers the better match once, even if you answered an earlier type question. If you declined the question before, you will be asked once more.
+- **Quieter log after a screen is rebuilt** - a temperature graph whose screen was rebuilt no longer writes the same error to the log every second, which had pushed everything else out of debug bundles.
 - **Numbering slots from 0** (#2079) - with the option on, the spool strip badges, the tool changer's load prompt and multi-ACE error messages use the same numbers as the rest of the screen.
 - **Phantom fans on the K2** - a fan's separate enable pin is no longer offered as new hardware or put in a fan slot.
 - **Time left while preparing** - the Preparing column on the home print widget no longer cuts off the time remaining.
