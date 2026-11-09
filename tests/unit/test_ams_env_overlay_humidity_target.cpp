@@ -210,7 +210,6 @@ TEST_CASE_METHOD(XMLTestFixture, "The duration field takes hours and the dryer g
     CHECK(backend->starts[0].duration_min == 270);
 
     reset_overlay_singleton();
-    AmsState::instance().set_backend(nullptr);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "The humidity target field is hidden for a dryer that takes none",
@@ -229,7 +228,6 @@ TEST_CASE_METHOD(XMLTestFixture, "The humidity target field is hidden for a drye
     CHECK_FALSE(backend->starts[0].humidity_pct);
 
     reset_overlay_singleton();
-    AmsState::instance().set_backend(nullptr);
 }
 
 TEST_CASE_METHOD(XMLTestFixture,
@@ -258,7 +256,6 @@ TEST_CASE_METHOD(XMLTestFixture,
     }
 
     reset_overlay_singleton();
-    AmsState::instance().set_backend(nullptr);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "A humidity target applies to one start, not the next open",
@@ -282,7 +279,6 @@ TEST_CASE_METHOD(XMLTestFixture, "A humidity target applies to one start, not th
     CHECK_FALSE(backend->starts[0].humidity_pct);
 
     reset_overlay_singleton();
-    AmsState::instance().set_backend(nullptr);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "The blank humidity target shows the target the dryer applies",
@@ -301,7 +297,6 @@ TEST_CASE_METHOD(XMLTestFixture, "The blank humidity target shows the target the
     }
 
     reset_overlay_singleton();
-    AmsState::instance().set_backend(nullptr);
 }
 
 TEST_CASE("A dryer reports its default humidity target only alongside the capability",
@@ -347,7 +342,6 @@ TEST_CASE_METHOD(XMLTestFixture, "The duration field opens in hours when no pres
     CHECK(std::string(lv_textarea_get_text(find_widget("duration_input"))) == "4");
 
     reset_overlay_singleton();
-    AmsState::instance().set_backend(nullptr);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "A preset's fractional hours reach its label and the field",
@@ -366,7 +360,6 @@ TEST_CASE_METHOD(XMLTestFixture, "A preset's fractional hours reach its label an
     CHECK(std::string(lv_textarea_get_text(duration)) == "1.5");
 
     reset_overlay_singleton();
-    AmsState::instance().set_backend(nullptr);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "A running dry shows its phase and time left",
@@ -386,7 +379,6 @@ TEST_CASE_METHOD(XMLTestFixture, "A running dry shows its phase and time left",
     CHECK(std::string(lv_subject_get_string(text)) == "Drying: 3:25 left");
 
     reset_overlay_singleton();
-    AmsState::instance().set_backend(nullptr);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "The overlay pictures the unit it shows, and nothing without one",
