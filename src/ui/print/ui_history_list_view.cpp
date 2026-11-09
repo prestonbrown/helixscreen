@@ -5,6 +5,7 @@
 
 #include "ui_virtual_list.h"
 
+#include "filament_chip_model.h"
 #include "format_utils.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -184,8 +185,8 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
 
     lv_obj_t* filament_label = helix::ui::find_required(row, "row_filament", "HistoryListView");
     if (filament_label) {
-        lv_label_set_text(filament_label,
-                          job.filament_type.empty() ? lv_tr("Unknown") : job.filament_type.c_str());
+        const std::string materials = helix::filament_type_text(job.filament_type);
+        lv_label_set_text(filament_label, materials.empty() ? lv_tr("Unknown") : materials.c_str());
     }
 
     // Status text

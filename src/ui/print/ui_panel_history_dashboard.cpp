@@ -13,6 +13,7 @@
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/text_io.h"
+#include "filament_chip_model.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
@@ -722,15 +723,9 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
             continue;
         }
 
-        // Split semicolon-separated filament types (OrcaSlicer multi-extruder format)
-        std::vector<std::string> types;
-        for (std::string_view sv : helix::text_io::lines(job.filament_type, ';')) {
-            size_t start = sv.find_first_not_of(" \t");
-            size_t end = sv.find_last_not_of(" \t");
-            if (start != std::string_view::npos) {
-                types.emplace_back(sv.substr(start, end - start + 1));
-            }
-        }
+        // A multi-extruder file names one material per tool; unnamed tools take no share.
+        std::vector<std::string> types = helix::split_filament_types(job.filament_type);
+        types.erase(std::remove(types.begin(), types.end(), std::string()), types.end());
 
         if (types.empty()) {
             filament_by_type["Unknown"] += job.filament_used;

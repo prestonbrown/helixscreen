@@ -355,7 +355,7 @@ class HistoryListPanel : public OverlayBase {
     char detail_nozzle_temp_buf_[kSmallBufSize] = {};
     char detail_bed_temp_buf_[kSmallBufSize] = {};
     char detail_filament_buf_[kSmallBufSize] = {};
-    char detail_filament_type_buf_[kSmallBufSize] = {};
+    char detail_filament_type_buf_[kDetailBufSize] = {};
     char detail_spools_buf_[512] = {};
 
     //

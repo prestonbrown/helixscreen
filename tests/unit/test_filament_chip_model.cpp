@@ -262,6 +262,29 @@ TEST_CASE("used_materials_text: the used tools' materials, deduplicated in tool 
 }
 
 // =============================================================================
+// split_filament_types / filament_type_text
+// =============================================================================
+
+TEST_CASE("split_filament_types: one trimmed entry per tool, empties kept in place",
+          "[filament_chip]") {
+    CHECK(split_filament_types("PLA;PLA;PETG") == std::vector<std::string>{"PLA", "PLA", "PETG"});
+    CHECK(split_filament_types(" PLA ; ;PETG") == std::vector<std::string>{"PLA", "", "PETG"});
+    CHECK(split_filament_types("ABS") == std::vector<std::string>{"ABS"});
+    CHECK(split_filament_types("").empty());
+}
+
+TEST_CASE("filament_type_text: each material once, in tool order", "[filament_chip]") {
+    CHECK(filament_type_text("ABS;ABS;ABS;ABS") == "ABS");
+    CHECK(filament_type_text("PLA;PETG;PLA") == "PLA, PETG");
+    CHECK(filament_type_text("PLA") == "PLA");
+    CHECK(filament_type_text("ABS;ABS;") == "ABS");
+    CHECK(filament_type_text(";;PETG; ;") == "PETG");
+    CHECK(filament_type_text(" PLA; PETG ") == "PLA, PETG");
+    CHECK(filament_type_text("").empty());
+    CHECK(filament_type_text(";;").empty());
+}
+
+// =============================================================================
 // loaded_severity
 // =============================================================================
 

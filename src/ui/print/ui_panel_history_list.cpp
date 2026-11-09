@@ -24,6 +24,7 @@
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "filament_accounting.h"
+#include "filament_chip_model.h"
 #include "filament_display_name.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
@@ -1122,8 +1123,9 @@ void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     lv_subject_copy_string(&detail_bed_temp_, temp_buf);
 
     lv_subject_copy_string(&detail_filament_, job.filament_str.c_str());
+    const std::string materials = helix::filament_type_text(job.filament_type);
     lv_subject_copy_string(&detail_filament_type_,
-                           job.filament_type.empty() ? "Unknown" : job.filament_type.c_str());
+                           materials.empty() ? lv_tr("Unknown") : materials.c_str());
 
     // Set reprint availability based on file existence
     lv_subject_set_int(&detail_can_reprint_, job.exists ? 1 : 0);
