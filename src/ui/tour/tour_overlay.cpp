@@ -5,6 +5,7 @@
 
 #include "ui_button.h"
 
+#include "printer_image_manager.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -12,6 +13,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <string>
 
 namespace helix::tour {
 
@@ -283,15 +285,19 @@ void TourOverlay::update_preview(const TourStep& step) {
     lv_obj_t* preview = helix::ui::find_required(tooltip_, "tour_preview", "TourOverlay");
     if (!preview)
         return;
-    const bool show = !step.preview_image.empty() &&
-                      lv_display_get_vertical_resolution(nullptr) >= kMinScreenHeightForPreview;
-    if (!show) {
+    const int screen_h = lv_display_get_vertical_resolution(nullptr);
+    if (!step.shows_print_status_preview || screen_h < kMinScreenHeightForPreview) {
         lv_obj_add_flag(preview, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: per-step, C++-built card
         return;
     }
-    lv_image_set_src(preview, step.preview_image.c_str());
+    const std::string image = helix::PrinterImageManager::instance().get_displayed_image_path(
+        lv_display_get_horizontal_resolution(nullptr));
+    lv_obj_t* printer = helix::ui::find_required(tooltip_, "tour_preview_printer", "TourOverlay");
+    if (printer && !image.empty()) {
+        lv_image_set_src(printer, image.c_str());
+    }
     lv_obj_update_layout(tooltip_);
-    // The screenshot's own 5:3 shape, at whatever width the card has on this screen.
+    // The real screen's 5:3 shape, at whatever width the card has on this display.
     lv_obj_set_height(preview, lv_obj_get_content_width(tooltip_) * 3 / 5);
     lv_obj_clear_flag(preview, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: per-step, C++-built card
 }

@@ -5,6 +5,7 @@
 
 #include "ace_slot_parse.h"
 #include "ams_fault_event.h"
+#include "display_numbering.h"
 #include "klipper_extruder_naming.h"
 #include "lane_source_store.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -816,8 +817,8 @@ void AmsBackendMultiAce::advance_pending_load() {
         if (!active_locked()) {
             dropped = "multiACE stopped driving the ACE units";
         } else if (expired) {
-            dropped =
-                fmt::format("toolhead {} did not empty in time after its unload", pending.head + 1);
+            dropped = fmt::format("toolhead {} did not empty in time after its unload",
+                                  helix::ui::lane_number(pending.head));
         } else if (empty) {
             send = true;
         } else {
@@ -836,7 +837,7 @@ void AmsBackendMultiAce::advance_pending_load() {
                      pending.bay.first + 1, pending.bay.second + 1, pending.head + 1, dropped);
         emit_event(kEventError,
                    fmt::format("ACE {} bay {} was not loaded: {}", pending.bay.first + 1,
-                               pending.bay.second + 1, dropped));
+                               helix::ui::lane_number(pending.bay.second), dropped));
         return;
     }
     spdlog::info("{} Head {} is empty; loading ACE {} bay {}", backend_log_tag(), pending.head + 1,

@@ -191,6 +191,24 @@ TEST_CASE("composite heights match the manifest", "[assets][splash][manifest]") 
     }
 }
 
+TEST_CASE("composite widths match the manifest", "[assets][splash][manifest]") {
+    const json manifest = load_manifest();
+    const json& widths = manifest["size_classes"]["splash_composite_width"];
+    const json& heights = manifest["size_classes"]["splash_composite_height"];
+
+    // A class with a height but no width would read 0 and never be refused on width.
+    REQUIRE(widths.size() == heights.size());
+    for (auto it = heights.begin(); it != heights.end(); ++it) {
+        INFO("class " << it.key());
+        REQUIRE(widths.contains(it.key()));
+        REQUIRE(get_splash_3d_target_width(it.key().c_str()) == widths[it.key()].get<int>());
+    }
+
+    SECTION("an unknown class reports 0 so callers fall back to runtime scaling") {
+        REQUIRE(get_splash_3d_target_width("no-such-class") == 0);
+    }
+}
+
 TEST_CASE("every class the ladder can return has a composite height",
           "[assets][splash][manifest]") {
     const json manifest = load_manifest();
@@ -223,9 +241,12 @@ TEST_CASE("a composited splash fits every panel the manifest describes",
 
         const std::string cls = get_splash_3d_size_name(w, h);
         const int composite = get_splash_3d_target_height(cls.c_str());
+        const int composite_w = get_splash_3d_target_width(cls.c_str());
 
         INFO("platform " << it.key() << " effective " << w << "x" << h << " class " << cls);
         REQUIRE(composite > 0);
+        REQUIRE(composite_w > 0);
+        REQUIRE(composite_w <= w);
         // Now that micro exists, no shipped panel should be overdrawn at all.
         // A class taller than the panel still degrades safely via the PNG
         // fallback, but it means a resolution has no canvas of its own.

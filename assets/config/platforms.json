@@ -75,6 +75,15 @@
       "xlarge": 720,
       "ultrawide": 440
     },
+    "splash_composite_width": {
+      "micro": 480,
+      "tiny": 480,
+      "small": 480,
+      "medium": 800,
+      "large": 1024,
+      "xlarge": 1280,
+      "ultrawide": 1920
+    },
     "splash_2d_logo_classes": [
       "tiny",
       "medium",

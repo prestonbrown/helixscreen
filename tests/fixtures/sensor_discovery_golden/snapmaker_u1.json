@@ -263,19 +263,24 @@
       "nozzle_volume_type"
     ],
     "fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic cavity_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic e1_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic e2_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic e3_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "filament_motion_sensor e0_filament": [
       "filament_detected",
@@ -329,19 +334,24 @@
       "power"
     ],
     "heater_fan e0_nozzle_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_fan e1_nozzle_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_fan e2_nozzle_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_fan e3_nozzle_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_fan power_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "idle_timeout": [
       "state"

@@ -81,9 +81,10 @@ class HardwareSetupPrompter {
         /// sessions: cleared as soon as the user answers either way.
         bool deferred_prompt_shown = false;
         /// The saved-vs-detected type mismatch warning (toast + history entry) is raised
-        /// at most once per session. The persisted TYPE_MISMATCH_SHOWN_FOR flag, written
-        /// by an answer in the review modal or by closing the toast (both mean "keep my
-        /// type"), covers cross-boot. Not re-armed on reconnect, only on a new printer.
+        /// at most once per session. The persisted answered pair (TYPE_MISMATCH_SHOWN_FOR
+        /// and kTypeMismatchShownForDetected), written by an answer in the review modal or
+        /// by closing the toast, covers cross-boot for that saved and detected pair. Not
+        /// re-armed on reconnect, only on a new printer.
         bool type_mismatch_shown = false;
     };
     Guards guards;

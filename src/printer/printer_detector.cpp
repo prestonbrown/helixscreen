@@ -2081,7 +2081,7 @@ const char* PrinterDetector::mismatch_decision_name(MismatchDecision decision) {
     case MismatchDecision::SavedTypeNotSpecific:
         return "saved type is unset or not specific";
     case MismatchDecision::AlreadyDismissed:
-        return "already answered for this saved type";
+        return "already answered for this saved and detected pair";
     }
     return "unknown";
 }
@@ -2149,7 +2149,7 @@ const std::string* contender_for_saved_machine(const std::string& saved_type,
 PrinterDetector::MismatchDecision
 PrinterDetector::classify_type_mismatch(const std::string& saved_type,
                                         const std::string& detected_type, int detected_confidence,
-                                        const std::string& flag_value, int detected_margin) {
+                                        const MismatchAnswer& answered, int detected_margin) {
     // Emptiness is checked before confidence so a no-detection pass is
     // distinguishable in the log from a real candidate that scored short.
     if (detected_type.empty())
@@ -2165,7 +2165,7 @@ PrinterDetector::classify_type_mismatch(const std::string& saved_type,
         return MismatchDecision::MatchesSavedType;
     if (saved_type.empty() || saved_type == "Custom/Other" || saved_type == "Unknown")
         return MismatchDecision::SavedTypeNotSpecific;
-    if (flag_value == saved_type)
+    if (answered.saved == saved_type && answered.detected == detected_type)
         return MismatchDecision::AlreadyDismissed;
     return MismatchDecision::Warn;
 }
@@ -2173,18 +2173,18 @@ PrinterDetector::classify_type_mismatch(const std::string& saved_type,
 PrinterDetector::MismatchDecision
 PrinterDetector::classify_type_mismatch(const std::string& saved_type,
                                         const PrinterDetectionResult& detected,
-                                        const std::string& flag_value) {
+                                        const MismatchAnswer& answered) {
     if (!detected.detected()) {
         return MismatchDecision::NoDetection;
     }
     const std::string* settled = contender_for_saved_machine(saved_type, detected);
     if (settled == nullptr) {
-        return classify_type_mismatch(saved_type, detected.type_name, detected.confidence,
-                                      flag_value, detected.margin());
+        return classify_type_mismatch(saved_type, detected.type_name, detected.confidence, answered,
+                                      detected.margin());
     }
     // A contender is not separated from the winner, so it carries the winner's
     // confidence; the saved type is what separated it from the other machines.
-    return classify_type_mismatch(saved_type, *settled, detected.confidence, flag_value,
+    return classify_type_mismatch(saved_type, *settled, detected.confidence, answered,
                                   kDetectMinMargin);
 }
 

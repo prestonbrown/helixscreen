@@ -25,7 +25,8 @@
     "nozzle_volume_type"
   ],
   "fan": [
-    "speed"
+    "speed",
+    "rpm"
   ],
   "filament_motion_sensor ifs_motion_sensor": [
     "filament_detected",

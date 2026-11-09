@@ -718,6 +718,16 @@ void FanControlOverlay::subscribe_to_fan_speeds() {
         }
     }
 
+    // A tachometer reading changes at a steady speed, which no speed subject reports.
+    fan_rpm_observer_ = observe<int>(
+        printer_state_.fan_state().get_fan_rpm_version_subject(), this,
+        [](FanControlOverlay* self, int /*version*/) {
+            if (self->is_visible()) {
+                self->update_fan_speeds();
+            }
+        },
+        printer_state_.get_subjects_lifetime());
+
     spdlog::trace("[{}] Bound {} animated fan dials, subscribed to {} auto fan subjects",
                   get_name(), animated_fan_dials_.size(), fan_speed_observers_.size());
 }
@@ -730,6 +740,7 @@ void FanControlOverlay::unsubscribe_from_fan_speeds() {
 
     // Clear auto fan observers
     fan_speed_observers_.clear();
+    fan_rpm_observer_.reset();
 
     spdlog::trace("[{}] Unsubscribed from fan speed subjects", get_name());
 }

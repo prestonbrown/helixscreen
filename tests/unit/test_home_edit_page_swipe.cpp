@@ -2382,6 +2382,107 @@ TEST_CASE_METHOD(EditHomeFixture,
 }
 
 TEST_CASE_METHOD(EditHomeFixture,
+                 "a crossing flips only if the finger stays down past the line for its delay",
+                 "[2070][edit-swipe][home][grid_edit]") {
+    build_home();
+    lv_obj_t* widget = widget_on(0, "temperature");
+    enter_edit_mode();
+    const lv_area_t frame = settled_page_area();
+
+    // Grabbed left of center, so one move to the page's right edge carries the
+    // widget's majority past the border.
+    const lv_area_t wa = area_of(widget);
+    const int grab_x = wa.x1 + lv_area_get_width(&wa) * 3 / 10;
+    const int y = (wa.y1 + wa.y2) / 2;
+    indev.grab(grab_x, y);
+    indev.move(grab_x - past_drag_threshold(), y);
+    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    indev.move(frame.x2, y);
+    REQUIRE(armed_session_timer_count() == 1);
+
+    // No reads while time passes, so no edge push moves the widget.
+    process_lvgl(static_cast<int>(helix::kCrossPageCrossingDelayMs - kReadPeriodMs));
+    REQUIRE(current_page() == 0);
+    REQUIRE(grid().page_index() == 0);
+
+    SECTION("held: the flip comes once the delay runs out") {
+        process_lvgl(static_cast<int>(2 * kReadPeriodMs));
+        CHECK(current_page() == 1);
+        CHECK(grid().page_index() == 1);
+        CHECK(GridEditModeTestAccess::dragging(grid()));
+        indev.release((frame.x1 + frame.x2) / 2, y);
+    }
+    SECTION("released during the delay: no flip, ever") {
+        indev.release(frame.x2, y);
+        process_lvgl(static_cast<int>(helix::kCrossPageCrossingDelayMs + kReadPeriodMs));
+        settle();
+        CHECK(current_page() == 0);
+        CHECK(grid().page_index() == 0);
+        CHECK(armed_session_timer_count() == 0);
+    }
+    SECTION("pulled back inside during the delay: the flip is cancelled") {
+        const int mid = (frame.x1 + frame.x2) / 2;
+        indev.move(mid, y);
+        CHECK(armed_session_timer_count() == 0);
+        process_lvgl(static_cast<int>(helix::kCrossPageCrossingDelayMs + kReadPeriodMs));
+        CHECK(current_page() == 0);
+        CHECK(grid().page_index() == 0);
+        CHECK(GridEditModeTestAccess::dragging(grid()));
+        indev.release(mid, y);
+    }
+}
+
+TEST_CASE_METHOD(EditHomeFixture,
+                 "the edge dwell flips only if the pointer stays in the zone for its time",
+                 "[2070][edit-swipe][home][grid_edit]") {
+    build_home();
+    lv_obj_t* widget = widget_on(0, "temperature");
+    enter_edit_mode();
+    const lv_area_t frame = settled_page_area();
+
+    // Grabbed at its center, the widget's majority stays inside the page with
+    // the pointer in the edge zone, so only the dwell runs.
+    const lv_point_t c = center_of(widget);
+    indev.grab(c.x, c.y);
+    indev.move(c.x + past_drag_threshold(), c.y);
+    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    const lv_point_t zone{frame.x2 - edge_zone_px() / 2, c.y};
+    indev.move(zone.x, zone.y);
+    REQUIRE(armed_session_timer_count() == 1);
+
+    // No reads while time passes, so no edge push carries the widget across.
+    process_lvgl(static_cast<int>(helix::kCrossPageDwellMs - kReadPeriodMs));
+    REQUIRE(current_page() == 0);
+    REQUIRE(grid().page_index() == 0);
+
+    SECTION("held: the flip comes once the dwell runs out") {
+        process_lvgl(static_cast<int>(2 * kReadPeriodMs));
+        CHECK(current_page() == 1);
+        CHECK(grid().page_index() == 1);
+        CHECK(GridEditModeTestAccess::dragging(grid()));
+        indev.release((frame.x1 + frame.x2) / 2, c.y);
+    }
+    SECTION("released during the dwell: no flip, ever") {
+        indev.release(zone.x, zone.y);
+        process_lvgl(static_cast<int>(helix::kCrossPageDwellMs + kReadPeriodMs));
+        settle();
+        CHECK(current_page() == 0);
+        CHECK(grid().page_index() == 0);
+        CHECK(armed_session_timer_count() == 0);
+    }
+    SECTION("moved out of the zone during the dwell: the flip is cancelled") {
+        const int mid = (frame.x1 + frame.x2) / 2;
+        indev.move(mid, c.y);
+        CHECK(armed_session_timer_count() == 0);
+        process_lvgl(static_cast<int>(helix::kCrossPageDwellMs + kReadPeriodMs));
+        CHECK(current_page() == 0);
+        CHECK(grid().page_index() == 0);
+        CHECK(GridEditModeTestAccess::dragging(grid()));
+        indev.release(mid, c.y);
+    }
+}
+
+TEST_CASE_METHOD(EditHomeFixture,
                  "a gesture ended by an indev reset leaves no stale arming verdict",
                  "[1638][edit-swipe][home][grid_edit]") {
     build_home();
