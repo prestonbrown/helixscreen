@@ -101,6 +101,8 @@ struct PrintStartAnalysis {
     /// Every macro whose body was analyzed, in call order: a wrapper's chain is
     /// {"PRINT_START", "START_PRINT"}. Operations from all of them are merged.
     std::vector<std::string> macro_chain;
+    /// Some macro in the chain calls _HELIX_PLAN, so a plan is about to arrive.
+    bool declares_plan = false;
 
     // === Detected Operations ===
     std::vector<PrintStartOperation> operations;

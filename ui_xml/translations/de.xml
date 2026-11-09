@@ -3281,6 +3281,8 @@
   <translation tag="Run the chamber dryer too" de="Kammertrockner ebenfalls betreiben"/>
   <translation tag="Run {}?" de="{} ausführen?"/>
   <translation tag="Running loose" de="Läuft locker"/>
+  <translation tag="Running over"/>
+  <translation tag="Running over, {}"/>
   <translation tag="Running tight" de="Läuft straff"/>
   <translation tag="Running {}..." de="{} wird ausgeführt..."/>
   <translation tag="Runout" de="Auslauf"/>

@@ -114,6 +114,46 @@ gcode:
     _HELIX_READY
 ```
 
+### Declaring Phase Durations
+
+An adaptive `PRINT_START` often knows exactly how long a soak or a chamber wait will take. Say so
+once and the countdown trusts it instead of pricing the phase from past prints:
+
+```
+[gcode_macro PRINT_START]
+gcode:
+    {% set bed = params.BED|int %}
+    {% set soak = 600 if bed >= 100 else 0 %}
+    {% set mesh = params.MESH|default(1)|int %}
+    _HELIX_PLAN SOAKING={soak} BED_MESH={90 if mesh else 0}
+    _HELIX_PHASE_HOMING
+    G28
+    _HELIX_PHASE_HEATING_BED
+    M190 S{bed}
+    {% if soak > 0 %}
+    _HELIX_PHASE_SOAKING
+    G4 P{soak * 1000}
+    {% endif %}
+    {% if mesh %}
+    _HELIX_PHASE_BED_MESH
+    BED_MESH_CALIBRATE
+    {% endif %}
+    _HELIX_READY
+```
+
+- `_HELIX_PLAN NAME=SECONDS ...` takes any phase name from the table above, without the
+  `_HELIX_PHASE_` prefix, or its alias (`SOAK`, `HEAT_CHAMBER`, `QUAD_GANTRY_LEVEL`). Durations are
+  per phase; there is no total, because the sum of the phases you declare is the total you know.
+- A value of 0 means the phase will not run. A phase you leave out keeps its usual estimate.
+- The most a phase may declare is 6 hours (21600); a larger value is dropped with a warning.
+- You may call it again from a sub-macro. A later value for a phase replaces the earlier one. For
+  the phase already running, the value means the seconds left from now, so a plan just before
+  `G4 P600000` is right whether it comes before or after the phase signal. A finished phase ignores it.
+- Also signal the phase with its `_HELIX_PHASE_*` macro, so the countdown knows when it starts. While a
+  declared phase runs, a silent macro will not trip the timeouts; if it runs past its declared length,
+  the time label says it is running over.
+- The plan is kept in `_HELIX_STATE`, so a screen that restarts mid-start picks it back up.
+
 ### Option 2: Add Variables to Existing Macro
 
 If you have an existing `_START_PRINT` or `START_PRINT` macro, add state tracking:
@@ -160,6 +200,8 @@ The signal and phase macros below start with an underscore so Fluidd and Mainsai
 |-------|-----------------|
 | `_HELIX_PHASE_HOMING` | "Homing..." |
 | `_HELIX_PHASE_HEATING_BED` | "Heating Bed..." |
+| `_HELIX_PHASE_HEATING_CHAMBER` | "Heating Chamber..." |
+| `_HELIX_PHASE_SOAKING` | "Heat Soaking..." |
 | `_HELIX_PHASE_HEATING_NOZZLE` | "Heating Nozzle..." |
 | `_HELIX_PHASE_BED_MESH` | "Loading Bed Mesh..." |
 | `_HELIX_PHASE_QGL` | "Leveling Gantry..." |

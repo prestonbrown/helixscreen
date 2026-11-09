@@ -297,12 +297,51 @@ TEST_CASE("MacroManager - the hidden pack still reads as the current version",
     // The pack's version is inferred from which macros exist, and a printer on
     // the hidden names must not be offered an update for lacking HELIX_READY.
     PrinterDiscovery hidden;
-    hidden.parse_objects(
-        json::array({"gcode_macro _HELIX_STATE", "gcode_macro _HELIX_READY",
-                     "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_CLEAN_NOZZLE",
-                     "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro HELIX_UNLOAD_FILAMENT"}));
+    hidden.parse_objects(json::array(
+        {"gcode_macro _HELIX_STATE", "gcode_macro _HELIX_READY", "gcode_macro HELIX_START_PRINT",
+         "gcode_macro HELIX_CLEAN_NOZZLE", "gcode_macro HELIX_BED_MESH_IF_NEEDED",
+         "gcode_macro HELIX_UNLOAD_FILAMENT", "gcode_macro _HELIX_PLAN"}));
 
     CHECK(MacroManager::evaluate_status(hidden) == MacroInstallStatus::INSTALLED);
+}
+
+TEST_CASE("MacroManager - the pack carries the plan signals, hidden only", "[config][content]") {
+    const std::string pack = MacroManager::get_macro_content();
+    CHECK(pack.rfind("# helix_macros v2.2.0", 0) == 0);
+    for (const char* section :
+         {"_HELIX_PLAN", "_HELIX_PHASE_SOAKING", "_HELIX_PHASE_HEATING_CHAMBER"}) {
+        INFO(section);
+        CHECK(pack.find(std::string("[gcode_macro ") + section + "]") != std::string::npos);
+    }
+    CHECK(pack.find("variable_plan") != std::string::npos);
+
+    PrinterDiscovery visible;
+    visible.parse_objects(json::array({"gcode_macro HELIX_READY"}));
+    const std::string shipped = MacroManager::macro_content_for(visible);
+    CHECK(shipped.find("[gcode_macro _HELIX_PHASE_SOAKING]") != std::string::npos);
+    CHECK(shipped.find("[gcode_macro _HELIX_PHASE_HEATING_CHAMBER]") != std::string::npos);
+    CHECK(shipped.find("[gcode_macro _HELIX_PLAN]") != std::string::npos);
+    CHECK(shipped.find("[gcode_macro HELIX_PHASE_SOAKING]") == std::string::npos);
+    CHECK(shipped.find("[gcode_macro HELIX_PHASE_QGL]") != std::string::npos);
+    CHECK(shipped.find("[gcode_macro HELIX_PLAN]") == std::string::npos);
+}
+
+TEST_CASE("MacroManager - the plan macro marks the 2.2.0 pack", "[config][content]") {
+    auto discovered = [](std::vector<const char*> extra) {
+        json objects = json::array(
+            {"gcode_macro _HELIX_STATE", "gcode_macro _HELIX_READY",
+             "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_CLEAN_NOZZLE",
+             "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro HELIX_UNLOAD_FILAMENT"});
+        for (const char* name : extra) {
+            objects.push_back(name);
+        }
+        PrinterDiscovery hardware;
+        hardware.parse_objects(objects);
+        return hardware;
+    };
+    CHECK(MacroManager::evaluate_status(discovered({})) == MacroInstallStatus::OUTDATED);
+    CHECK(MacroManager::evaluate_status(discovered({"gcode_macro _HELIX_PLAN"})) ==
+          MacroInstallStatus::INSTALLED);
 }
 
 TEST_CASE("MacroManager - get_macro_names ignores a commented-out section header",

@@ -3581,6 +3581,8 @@ translations:
 
   Run {}?: Exécuter {} ?
   Running loose: 'Détendu'
+  Running over: ''
+  Running over, {}: ''
   Running tight: 'Tendu'
   Running {}...: Exécution de {}...
   Runout: 'Fin de filament'

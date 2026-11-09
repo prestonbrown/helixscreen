@@ -3612,6 +3612,8 @@ translations:
 
   Run {}?: Запустить {}?
   Running loose: 'Ослаблен'
+  Running over: ''
+  Running over, {}: ''
   Running tight: 'Натянут'
   Running {}...: Выполнение {}...
   Runout: 'Окончание'

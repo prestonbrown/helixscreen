@@ -3569,6 +3569,8 @@ translations:
 
   Run {}?: '{} ausführen?'
   Running loose: 'Läuft locker'
+  Running over: ''
+  Running over, {}: ''
   Running tight: 'Läuft straff'
   Running {}...: '{} wird ausgeführt...'
   Runout: 'Auslauf'

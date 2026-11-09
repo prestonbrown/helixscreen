@@ -3387,6 +3387,8 @@ translations:
 
   Run {}?: 运行 {}？
   Running loose: '偏松'
+  Running over: ''
+  Running over, {}: ''
   Running tight: '偏紧'
   Running {}...: 正在运行 {}...
   Runout: '用尽'

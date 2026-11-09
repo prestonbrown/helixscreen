@@ -3281,6 +3281,8 @@
   <translation tag="Run the chamber dryer too" zh="同时运行腔体烘干器"/>
   <translation tag="Run {}?" zh="运行 {}？"/>
   <translation tag="Running loose" zh="偏松"/>
+  <translation tag="Running over"/>
+  <translation tag="Running over, {}"/>
   <translation tag="Running tight" zh="偏紧"/>
   <translation tag="Running {}..." zh="正在运行 {}..."/>
   <translation tag="Runout" zh="用尽"/>
