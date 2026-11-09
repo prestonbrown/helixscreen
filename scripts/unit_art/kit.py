@@ -254,6 +254,8 @@ class UnitDef:
     lane_variants: Tuple[int, ...] = ()
     # A unit with a moving selector: given a lane count, the world-space travel between gates.
     carriage_step: Optional[Callable] = None
+    # The rail's flat colours on the path screen: frame, gate, accent, coupler, head, rod.
+    rail_face: Optional[Tuple[int, ...]] = None
 
 
 @dataclass

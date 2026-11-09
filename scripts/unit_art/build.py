@@ -133,6 +133,10 @@ def generate_shell_table(units):
             carriage = carriage_rows(unit)
             out.append(f"constexpr CarriageTrack k_{unit.id}_carriage[] = {{{', '.join(carriage)}}};")
             track = f", k_{unit.id}_carriage, {len(carriage)}"
+            if unit.rail_face is not None:
+                colors = ", ".join(f"0x{c:06x}" for c in unit.rail_face)
+                out.append(f"constexpr RailFace k_{unit.id}_face = {{{colors}}};")
+                track += f", &k_{unit.id}_face"
         rows.append(
             f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, {dome}, {len(dome_points)}, {unit.lanes}, '
             f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.cap_clearance_px:.1f}f, "

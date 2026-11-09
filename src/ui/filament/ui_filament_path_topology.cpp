@@ -407,10 +407,86 @@ bool hub_has_filament(const FilamentPathData* data, const LinearHubFrame& f) {
     return false;
 }
 
+void fill_rect(lv_layer_t* layer, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t rgb,
+               int32_t radius = 0) {
+    lv_draw_fill_dsc_t dsc;
+    lv_draw_fill_dsc_init(&dsc);
+    dsc.color = lv_color_hex(rgb);
+    dsc.radius = radius;
+    lv_area_t area = {x1, y1, x2, y2};
+    lv_draw_fill(layer, &dsc, &area);
+}
+
+// The selector as seen from the front: rail and one gate under each spool. The carriage is
+// the per-frame overlay's, so a slide never repaints this layer.
+void draw_selector_rail(const RenderCtx& ctx, const LinearHubFrame& f) {
+    FilamentPathData* data = ctx.data;
+    const helix::ui::tray::RailFace& face = *data->selector_rail;
+    const BaseGeometry& g = ctx.geo;
+    const int32_t w = hub_box_width(*data, g, f);
+    const int32_t h = f.hub_h;
+    const int32_t x0 = f.center_x - w / 2, x1 = f.center_x + w / 2;
+    const int32_t y0 = f.hub_y - h / 2, y1 = f.hub_y + h / 2;
+    const int32_t gate_top = y0 + h * 2 / 5;
+    const int32_t end_w = LV_MAX(6, h / 2);
+    lv_layer_t* layer = ctx.layer;
+
+    fill_rect(layer, x0, gate_top, x1, y1, face.gate, 3);
+    fill_rect(layer, x0, y0, x0 + end_w, y1, face.frame, 3);
+    fill_rect(layer, x1 - end_w, y0, x1, y1, face.frame, 3);
+    fill_rect(layer, x0 + end_w, y0 + h / 5, x1 - end_w, y0 + h / 5 + 1, face.rod);
+
+    const int32_t pitch =
+        data->slot_count > 1 ? g.slot_x[1] - g.slot_x[0] : LV_MAX(end_w * 2, w / 2);
+    const int32_t block = rail_block_width(pitch, h);
+    for (int i = 0; i < LV_MIN(data->slot_count, FilamentPathData::kMaxSlots); ++i) {
+        const int32_t cx = g.slot_x[i];
+        fill_rect(layer, cx - block / 2, gate_top - 2, cx + block / 2, gate_top + 2, face.accent,
+                  1);
+        fill_rect(layer, cx - block / 4, y1 - h / 5, cx + block / 4, y1 - 2, face.coupler, 1);
+    }
+
+    const BoxColors tint = resolve_hub_tint(*data, f, hub_has_filament(data, f));
+    lv_draw_border_dsc_t border;
+    lv_draw_border_dsc_init(&border);
+    border.color = tint.border;
+    border.width = 1;
+    border.radius = 3;
+    lv_area_t outline = {x0, y0, x1, y1};
+    lv_draw_border(layer, &border, &outline);
+
+    data->rail_drawn = true;
+    data->rail_top = y0 - g.y_off;
+    data->rail_h = h;
+    data->rail_block_w = block;
+    if (data->hub_callback) {
+        data->hits.hub = {x0, y0, x1, y1};
+        data->hits.hub_valid = true;
+    }
+}
+
+void draw_rail_carriage(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
+    if (!data->selector_rail || !data->rail_drawn)
+        return;
+    const helix::ui::tray::RailFace& face = *data->selector_rail;
+    const BaseGeometry g = compute_base_geometry(obj, data);
+    // output_x_current was recorded at the last paint's origin.
+    const int32_t current = data->anim.output_x_current + g.x_off - data->path_cache.origin.x;
+    const int32_t cx = rail_carriage_x(g.slot_x, data->slot_count, data->active_slot, current,
+                                       data->anim.output_x_active);
+    const int32_t half = data->rail_block_w * 5 / 8;
+    const int32_t y0 = g.y_off + data->rail_top - 2;
+    const int32_t y1 = y0 + data->rail_h + 4;
+    fill_rect(layer, cx - half, y0, cx + half, y1, face.head, 3);
+    fill_rect(layer, cx - half, y0, cx + half, y0 + 3, face.accent, 2);
+    fill_rect(layer, cx - half / 3, y1 - data->rail_h / 3, cx + half / 3, y1 - 2, face.coupler, 2);
+}
+
 // Hub/selector box: state-tinted fill, label, optional gear affordance and
 // the recorded hub hit rect.
 void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     FilamentPathData* data = ctx.data;
+    data->rail_drawn = false;
     if (data->built_in_hub) {
         // A small junction where the lanes meet the trunk; it is not a control.
         const BoxColors tint = resolve_hub_tint(*data, f, hub_has_filament(data, f));
@@ -422,6 +498,10 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
             data->hits.hub = {f.center_x - size * 2, y - size, f.center_x + size * 2, y + size};
             data->hits.hub_valid = true;
         }
+        return;
+    }
+    if (data->selector_rail && data->topology == 0 && !data->hub_on_toolhead) {
+        draw_selector_rail(ctx, f);
         return;
     }
     const BaseGeometry& g = ctx.geo;
@@ -702,6 +782,7 @@ void render_animation_overlay(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData
         draw_animation_parallel(layer, g, states, data);
     } else if (topo == static_cast<int>(PathTopology::LINEAR) ||
                topo == static_cast<int>(PathTopology::HUB)) {
+        draw_rail_carriage(obj, layer, data);
         draw_animation_linear_hub(obj, layer, data);
     }
     // MIXED has no per-frame animation — nothing to paint here.

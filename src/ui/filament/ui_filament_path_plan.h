@@ -19,6 +19,7 @@
 
 #include "ui_filament_path_internal.h"
 
+#include <algorithm>
 #include <string>
 
 namespace helix::ui::fpath {
@@ -95,6 +96,25 @@ struct LinearHubFrame {
 inline bool draws_built_in_hub(bool shell_built_in, helix::PathTopology reported) {
     return shell_built_in &&
            (reported == helix::PathTopology::LINEAR || reported == helix::PathTopology::HUB);
+}
+
+/// A selector rail's gate block: most of the gate pitch, no wider than the rail is tall.
+inline int32_t rail_block_width(int32_t pitch, int32_t rail_h) {
+    return std::min(pitch * 7 / 10, rail_h * 7 / 6);
+}
+
+/// Where a selector rail's carriage is centred. It is under the active gate, on its way
+/// there while sliding, and stays at its last gate when nothing is selected.
+inline int32_t rail_carriage_x(const int32_t* slot_x, int slot_count, int active_slot,
+                               int32_t output_x_current, bool sliding) {
+    if (sliding)
+        return output_x_current;
+    if (active_slot >= 0 && active_slot < slot_count)
+        return slot_x[active_slot];
+    if (slot_count > 0 && output_x_current >= slot_x[0] &&
+        output_x_current <= slot_x[slot_count - 1])
+        return output_x_current;
+    return slot_count > 0 ? slot_x[0] : output_x_current;
 }
 
 /// Where a built-in selector's lanes join: a short drop below their sensors.

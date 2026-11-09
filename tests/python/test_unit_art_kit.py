@@ -342,7 +342,7 @@ def test_the_shell_table_records_the_carriage_track_per_gate_count():
     step_x, step_y = kit.carriage_step(scene, rail.ERCF.carriage_step(9))
     _, _, vw, vh = scene._viewbox()
     assert f"{{9, {step_x:.5f}f, {step_y:.5f}f, {vw / vh:.5f}f}}" in table
-    assert "k_ercf_rail_carriage, 5}" in table
+    assert "k_ercf_rail_carriage, 5," in table
 
 
 def test_units_without_a_carriage_keep_their_table_row_shape():
@@ -350,5 +350,8 @@ def test_units_without_a_carriage_keep_their_table_row_shape():
     assert "carriage" not in table
 
 
-def test_a_rail_merges_inside_the_unit():
-    assert all(u.tray.built_in_selector for u in RAILS)
+def test_a_rail_keeps_the_selector_route_and_names_its_flat_face():
+    assert not any(u.tray.built_in_selector for u in RAILS)
+    table = build.generate_shell_table([rail.ERCF])
+    assert "constexpr RailFace k_ercf_rail_face = {0xc8211f, " in table
+    assert "&k_ercf_rail_face}" in table

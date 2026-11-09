@@ -50,6 +50,16 @@ struct CarriageTrack {
     float aspect; ///< The art's width over its height.
 };
 
+/// A selector rail's colours where it is drawn flat, on the path screen.
+struct RailFace {
+    uint32_t frame;
+    uint32_t gate;
+    uint32_t accent;
+    uint32_t coupler;
+    uint32_t head;
+    uint32_t rod;
+};
+
 struct UnitShell {
     const char* id;
     const ProfilePoint* cheek;
@@ -70,6 +80,7 @@ struct UnitShell {
     uint32_t art_lane_variants = 0;
     const CarriageTrack* carriage = nullptr; ///< One row per baked gate count; nullptr for none.
     int carriage_n = 0;
+    const RailFace* rail_face = nullptr; ///< nullptr when the path screen keeps its selector bar.
 };
 
 /// The carriage track for a unit built with @p lanes gates, or nullptr.

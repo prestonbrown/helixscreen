@@ -45,9 +45,11 @@ constexpr ProfilePoint k_quattro_box_dome[] = {{0.0000f, 0.00f}, {0.0000f, 0.00f
 constexpr FrontPart k_ercf_rail_front[] = {{FrontAnchor::Span, 3.00f, 3.00f, 8.00f, 19.00f, 0x2a2a2e, 3}, {FrontAnchor::Span, 4.00f, 4.00f, 0.00f, 6.00f, 0xc8211f, 2}, {FrontAnchor::Lane, -7.00f, 7.00f, -3.00f, 0.00f, 0xc8211f, 0}, {FrontAnchor::Lane, -1.00f, 1.00f, 2.10f, 5.10f, 0xf7f7f2, 0}};
 constexpr ProfilePoint k_ercf_rail_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 constexpr CarriageTrack k_ercf_rail_carriage[] = {{4, 0.10929f, 0.01905f, 1.41058f}, {6, 0.08969f, 0.01563f, 1.63125f}, {8, 0.07605f, 0.01325f, 1.83051f}, {9, 0.07067f, 0.01232f, 1.92306f}, {12, 0.05831f, 0.01016f, 2.17616f}};
+constexpr RailFace k_ercf_rail_face = {0xc8211f, 0x1d1d20, 0xd42a26, 0x3f8fd9, 0x222226, 0xb9bdc2};
 constexpr FrontPart k_tradrack_rail_front[] = {{FrontAnchor::Span, 3.00f, 3.00f, 8.00f, 19.00f, 0x26272a, 3}, {FrontAnchor::Span, 4.00f, 4.00f, 0.00f, 6.00f, 0x25c275, 2}, {FrontAnchor::Lane, -7.00f, 7.00f, -3.00f, 0.00f, 0x25c275, 0}, {FrontAnchor::Lane, -1.00f, 1.00f, 2.10f, 5.10f, 0xf7f7f2, 0}};
 constexpr ProfilePoint k_tradrack_rail_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 constexpr CarriageTrack k_tradrack_rail_carriage[] = {{4, 0.10929f, 0.01905f, 1.21811f}, {6, 0.08969f, 0.01563f, 1.44602f}, {8, 0.07605f, 0.01325f, 1.66245f}, {9, 0.07067f, 0.01232f, 1.76663f}, {12, 0.05831f, 0.01016f, 2.05751f}};
+constexpr RailFace k_tradrack_rail_face = {0x1c1d20, 0x18191b, 0x25c275, 0x3f9edd, 0x1f2024, 0xa7abb0};
 
 const UnitShell kShells[] = {
     {"ace_pro", k_ace_pro_cheek, 3, k_ace_pro_dome, 17, 4, 31.42f, 44.0f, 7.0f, true, true, 0x3a3b3f, 0x000000, k_ace_pro_front, 5, 0x0},
@@ -62,8 +64,8 @@ const UnitShell kShells[] = {
     {"bmcu", k_bmcu_cheek, 2, nullptr, 0, 4, 0.00f, 40.0f, 8.0f, false, false, 0xc9cbcf, 0x000000, k_bmcu_front, 3, 0x0},
     {"night_owl", k_night_owl_cheek, 4, nullptr, 0, 2, 18.00f, 36.2f, 9.0f, false, true, 0x1d2f55, 0x000000, k_night_owl_front, 4, 0x0},
     {"quattro_box", k_quattro_box_cheek, 2, k_quattro_box_dome, 17, 4, 0.00f, 36.0f, 9.0f, true, true, 0x3b3836, 0x000000, k_quattro_box_front, 3, 0x34},
-    {"ercf_rail", k_ercf_rail_cheek, 2, nullptr, 0, 6, 0.00f, 22.0f, 6.0f, false, true, 0x1d1d20, 0x000000, k_ercf_rail_front, 4, 0x1350, k_ercf_rail_carriage, 5},
-    {"tradrack_rail", k_tradrack_rail_cheek, 2, nullptr, 0, 6, 0.00f, 22.0f, 6.0f, false, true, 0x18191b, 0x000000, k_tradrack_rail_front, 4, 0x1350, k_tradrack_rail_carriage, 5},
+    {"ercf_rail", k_ercf_rail_cheek, 2, nullptr, 0, 6, 0.00f, 22.0f, 6.0f, false, false, 0x1d1d20, 0x000000, k_ercf_rail_front, 4, 0x1350, k_ercf_rail_carriage, 5, &k_ercf_rail_face},
+    {"tradrack_rail", k_tradrack_rail_cheek, 2, nullptr, 0, 6, 0.00f, 22.0f, 6.0f, false, false, 0x18191b, 0x000000, k_tradrack_rail_front, 4, 0x1350, k_tradrack_rail_carriage, 5, &k_tradrack_rail_face},
 };
 } // namespace
 

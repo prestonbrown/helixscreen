@@ -347,6 +347,12 @@ struct FilamentPathData {
     // combiner mounts on the print head; the per-lane tubes run the whole way).
     bool hub_on_toolhead = false;
     bool built_in_hub = false; // lanes merge inside the unit; one line leaves it
+    const helix::ui::tray::RailFace* selector_rail = nullptr; // static generated table entry
+    // The rail as last painted, for the per-frame carriage: offsets from the widget's top.
+    bool rail_drawn = false;
+    int32_t rail_top = 0;
+    int32_t rail_h = 0;
+    int32_t rail_block_w = 0;
     // The LINEAR/HUB path continues past the hub to a toolhead. False for a unit
     // that feeds no nozzle: its lanes end at the hub, with nothing drawn below it.
     bool feeds_toolhead = true;

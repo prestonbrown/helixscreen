@@ -153,11 +153,10 @@ def _unit(style, body, panel, rail_color):
             panel=panel,
             rail=rail_color,
             accent=rail_color,
-            # The carriage picks one gate and one tube leaves it.
-            built_in_selector=True,
         ),
         lane_variants=GATE_COUNTS,
         carriage_step=_step,
+        rail_face=tuple(int(c[1:], 16) for c in (style.frame, style.dark, style.accent, style.coupler, style.head, style.rod)),
     )
 
 

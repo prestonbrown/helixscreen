@@ -512,6 +512,15 @@ void ui_filament_path_canvas_set_built_in_hub(lv_obj_t* obj, bool built_in) {
     layered_mark_dirty(obj);
 }
 
+void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj,
+                                               const helix::ui::tray::RailFace* face) {
+    auto* data = get_data(obj);
+    if (!data || data->selector_rail == face)
+        return;
+    data->selector_rail = face;
+    layered_mark_dirty(obj);
+}
+
 void ui_filament_path_canvas_set_hub_on_toolhead(lv_obj_t* obj, bool on_toolhead) {
     auto* data = get_data(obj);
     if (!data || data->hub_on_toolhead == on_toolhead)
