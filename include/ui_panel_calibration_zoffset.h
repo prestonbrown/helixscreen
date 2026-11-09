@@ -171,6 +171,7 @@ class ZOffsetCalibrationPanel : public OverlayBase {
 
     // State management
     State state_ = State::IDLE;
+    void show_saved_z_offset();
     /// The printer is still running a probe this panel started.
     [[nodiscard]] bool run_in_progress() const {
         return state_ == State::PROBING || state_ == State::ADJUSTING;

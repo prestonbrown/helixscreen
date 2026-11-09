@@ -910,6 +910,19 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration warm-up holds SIGTERM for 
         CHECK_FALSE(panel->holds_owned_heat());
     }
 
+    SECTION("a second run started while the first owes its off holds the bed") {
+        set_link(false);
+        panel->on_calibration_result(false, "connection lost");
+        set_link(true);
+        begin_calibration_of(*panel);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        REQUIRE(panel->get_state() == ZOffsetCalibrationPanel::State::WARMING);
+        CHECK(panel->holds_owned_heat());
+        client.clear_gcode_script_history();
+        panel->before_disconnect();
+        CHECK(sent_off(client));
+    }
+
     SECTION("shutdown leaves the bed to a job that has started") {
         set_printing(true);
         client.clear_gcode_script_history();

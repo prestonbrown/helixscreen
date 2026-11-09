@@ -157,8 +157,16 @@ void ZOffsetCalibrationPanel::setup_widgets() {
     final_offset_label_ = helix::ui::find_required(overlay_root_, "final_offset_label", get_name());
     error_message_ = helix::ui::find_required(overlay_root_, "error_message", get_name());
 
-    // A rebuild mid-run keeps the run: the probe is still going on the printer.
-    set_state(run_in_progress() ? state_ : State::IDLE);
+    // A rebuild mid-run keeps the run, its timeout and its readouts: the probe is
+    // still going on the printer.
+    if (run_in_progress()) {
+        lv_subject_set_int(&s_zoffset_cal_state, static_cast<int>(state_));
+        if (state_ == State::ADJUSTING) {
+            show_saved_z_offset();
+        }
+    } else {
+        set_state(State::IDLE);
+    }
 
     // Subscribe to manual_probe state changes from Klipper
     // This replaces the fake timer with real state tracking
@@ -180,16 +188,7 @@ void ZOffsetCalibrationPanel::setup_widgets() {
                 }
                 self->set_state(State::ADJUSTING);
 
-                // Populate saved z-offset display (snapshot value before calibration)
-                if (self->saved_z_offset_display_) {
-                    PrinterState& state = get_printer_state();
-                    int saved_microns = state.get_configured_z_offset_microns();
-                    char buf[32];
-                    snprintf(buf, sizeof(buf), "%.3f mm", saved_microns / 1000.0);
-                    lv_label_set_text(self->saved_z_offset_display_, buf);
-                    spdlog::debug("[ZOffsetCal] Saved z-offset: {} microns ({} mm)", saved_microns,
-                                  saved_microns / 1000.0);
-                }
+                self->show_saved_z_offset();
             } else if (!is_active && self->state_ == State::ADJUSTING) {
                 // Manual probe mode ended externally (G28 from console, printer error, ABORT from
                 // macros) The state should already have been changed by button handlers for
@@ -222,6 +221,19 @@ void ZOffsetCalibrationPanel::setup_widgets() {
 // ============================================================================
 // LIFECYCLE HOOKS
 // ============================================================================
+
+void ZOffsetCalibrationPanel::show_saved_z_offset() {
+    // The snapshot from before this calibration.
+    if (!saved_z_offset_display_) {
+        return;
+    }
+    const int saved_microns = get_printer_state().get_configured_z_offset_microns();
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.3f mm", saved_microns / 1000.0);
+    lv_label_set_text(saved_z_offset_display_, buf);
+    spdlog::debug("[ZOffsetCal] Saved z-offset: {} microns ({} mm)", saved_microns,
+                  saved_microns / 1000.0);
+}
 
 void ZOffsetCalibrationPanel::on_activate() {
     // Call base class first
@@ -596,10 +608,12 @@ void ZOffsetCalibrationPanel::begin_calibration() {
         char cmd[32];
         snprintf(cmd, sizeof(cmd), "M140 S%d", temp);
         spdlog::info("[ZOffsetCal] Warming bed to {}°C for calibration", temp);
-        // Heat already there is someone's, and only this panel's normal endings clear it.
+        // Heat already there is someone's, and only this panel's normal endings clear
+        // it. A bed an earlier run still owes an off for is this panel's own.
         const bool bed_was_off =
             lv_subject_get_int(get_printer_state().temperature_state().get_bed_target_subject()) ==
-            0;
+                0 ||
+            heat_.owes_off("heater_bed");
         heat_.own("heater_bed", temp, bed_was_off);
 
         auto tok = lifetime_.token();
