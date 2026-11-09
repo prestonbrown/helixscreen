@@ -7,6 +7,7 @@
 #include "moonraker_client_mock.h"
 
 #include <array>
+#include <cmath>
 #include <functional>
 #include <string>
 #include <unordered_map>
@@ -67,6 +68,16 @@ toolhead_axis_minimum(const helix::mock::PersonaDescriptor& persona) {
 [[nodiscard]] inline std::array<double, 4>
 toolhead_axis_maximum(const helix::mock::PersonaDescriptor& persona) {
     return {persona.axis_max.x, persona.axis_max.y, persona.axis_max.z, 0.0};
+}
+
+// The part fan's tachometer at full speed. Klipper reports `rpm` for a fan with a
+// tachometer_pin; the mock's part fan has one, reading in proportion to its speed.
+// NAMESPACE_OK: mock_internal constant, alongside its sibling mock constants
+constexpr double kMockPartFanMaxRpm = 6800.0;
+
+/// The part fan's status block, as every frame the mock serves carries it.
+[[nodiscard]] inline nlohmann::json part_fan_status(double speed) {
+    return {{"speed", speed}, {"rpm", speed > 0.0 ? std::round(kMockPartFanMaxRpm * speed) : 0.0}};
 }
 
 /**

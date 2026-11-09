@@ -96,6 +96,27 @@ def splash_class(manifest, width, height):
     return _first_match(manifest["size_classes"]["splash"], width, height, "class")
 
 
+def splash_portrait_class(manifest, width, height):
+    """The largest portrait canvas that fits a portrait panel, or None.
+
+    The ladder above picks a landscape canvas from the narrow axis, which runs
+    past the sides of a panel taller than it is wide.
+    """
+    if height <= width:
+        return None
+    classes = manifest["size_classes"]
+    for name in classes["splash_portrait"]:
+        if (classes["splash_composite_width"][name] <= width
+                and classes["splash_composite_height"][name] <= height):
+            return name
+    return None
+
+
+def splash_3d_class(manifest, width, height):
+    """The full-screen canvas class a resolution takes: portrait when one fits."""
+    return splash_portrait_class(manifest, width, height) or splash_class(manifest, width, height)
+
+
 def has_2d_logo(manifest, class_name):
     """Whether that class has a 2D logo render, or falls back to scaling the PNG."""
     return class_name in manifest["size_classes"]["splash_2d_logo_classes"]
@@ -149,7 +170,7 @@ def splash_3d_classes_for(manifest, platform_id):
     """
     per_panel = []
     for entry in candidate_panels(manifest, platform_id):
-        classes = [splash_class(manifest, *effective_resolution(entry))]
+        classes = [splash_3d_class(manifest, *effective_resolution(entry))]
         per_panel.append(classes + entry.get("package", {}).get("extra_splash_3d_classes", []))
     return _union(per_panel)
 

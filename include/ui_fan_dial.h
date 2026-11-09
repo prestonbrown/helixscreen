@@ -5,6 +5,8 @@
 #include "lvgl.h"
 
 #include <functional>
+#include <memory>
+#include <optional>
 #include <string>
 
 /**
@@ -66,6 +68,11 @@ class FanDial {
     void set_hold_until_release(bool hold) {
         hold_until_release_ = hold;
     }
+
+    /// Shows the fan's tachometer reading under its speed, or nothing for a fan
+    /// without one (std::nullopt) or one standing still (0). Leaves the speed,
+    /// arc and spin animation untouched.
+    void set_rpm(std::optional<int> rpm);
 
     /**
      * @brief Get current displayed speed
@@ -147,6 +154,17 @@ class FanDial {
     lv_obj_t* fan_icon_ = nullptr;
     lv_obj_t* onoff_switch_ = nullptr;
     lv_obj_t* onoff_label_ = nullptr;
+
+    /// The rpm label's subject: 0 hides the label. Heap-held so its address,
+    /// which the label's bindings keep, survives a move of the dial.
+    struct RpmSubject {
+        lv_subject_t subject{};
+        RpmSubject();
+        ~RpmSubject();
+        RpmSubject(const RpmSubject&) = delete;
+        RpmSubject& operator=(const RpmSubject&) = delete;
+    };
+    std::unique_ptr<RpmSubject> rpm_;
 
     std::string name_;
     std::string fan_id_;
