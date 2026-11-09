@@ -245,6 +245,14 @@ class ScaledScene:
         self.scene.extrude_x(self._pts(profile), x0 * self.k, x1 * self.k, color, opacity, front)
 
 
+def carriage_step(scene, step):
+    """One gate of world-space travel as a fraction of the art's width on screen."""
+    a = scene.camera.project((0.0, 0.0, 0.0))
+    b = scene.camera.project(step)
+    _, _, vw, _ = scene._viewbox()
+    return (b[0] - a[0]) / vw, (b[1] - a[1]) / vw
+
+
 @dataclass
 class TrayShellDef:
     cheek: List[Tuple[float, float]]
@@ -274,6 +282,10 @@ class UnitDef:
     lane_variants: Tuple[int, ...] = ()
     # A second drawing, baked under stubs/: the body alone, tight in its frame, a tube per lane.
     stub_art: Optional[Callable] = None
+    # A unit with a moving selector: given a lane count, the world-space travel between gates.
+    carriage_step: Optional[Callable] = None
+    # The rail's flat colours on the path screen: frame, gate, accent, coupler, head, rod.
+    rail_face: Optional[Tuple[int, ...]] = None
 
 
 @dataclass

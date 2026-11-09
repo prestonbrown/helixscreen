@@ -7,6 +7,7 @@
 extern "C" {
 #endif
 
+#include "ams_unit_shell.h"
 #include "lvgl/lvgl.h"
 
 /**
@@ -95,6 +96,10 @@ void ui_filament_path_canvas_set_hub_on_toolhead(lv_obj_t* obj, bool on_toolhead
 
 /// The unit merges its lanes inside: no selector or hub box, one line leaving it.
 void ui_filament_path_canvas_set_built_in_hub(lv_obj_t* obj, bool built_in);
+
+/// Draw the LINEAR selector as this flat rail in place of its bar; nullptr keeps the bar.
+void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj,
+                                               const helix::ui::tray::RailFace* face);
 
 /**
  * @brief Whether the LINEAR/HUB path continues past the hub to a toolhead

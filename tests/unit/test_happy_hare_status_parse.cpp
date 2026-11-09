@@ -257,6 +257,14 @@ TEST_CASE("Happy Hare layout: v3 publishes per-unit fields but no version",
     CHECK(layout.unit_params_section.empty());
 }
 
+TEST_CASE("Happy Hare machine units read the vendor where each version keeps it",
+          "[happy_hare][status_parse][hh_v4]") {
+    const json live = {{"unit_0", {{"vendor", "Tradrack"}, {"num_gates", 8}}}, {"num_units", 1}};
+    CHECK(happy_hare::read_machine_units(json::object(), live)[0].vendor == "Tradrack");
+    const json v3_settings = {{"mmu_machine", {{"mmu_vendor", "ERCF"}, {"num_gates", 9}}}};
+    CHECK(happy_hare::read_machine_units(v3_settings, json::object())[0].vendor == "ERCF");
+}
+
 TEST_CASE("Happy Hare layout: each tunable is read from its v4 section",
           "[happy_hare][status_parse][hh_v4]") {
     const json fx = test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");

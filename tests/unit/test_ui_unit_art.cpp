@@ -5,6 +5,7 @@
 #include "../lvgl_test_fixture.h"
 #include "ams_types.h"
 #include "ams_unit_shell.h"
+#include "display_settings_manager.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -45,7 +46,114 @@ AmsSystemInfo quattro_system(int lanes) {
     return info;
 }
 
+AmsSystemInfo rail_system(const char* name, const char* model, int gates,
+                          PathTopology topology = PathTopology::LINEAR) {
+    AmsSystemInfo info;
+    info.type = AmsType::HAPPY_HARE;
+    AmsUnit unit;
+    unit.name = name;
+    unit.model = model;
+    unit.slot_count = gates;
+    unit.topology = topology;
+    for (int i = 0; i < gates; ++i)
+        unit.slots.push_back(slot(SlotStatus::AVAILABLE, 0x00ff00));
+    info.units.push_back(unit);
+    return info;
+}
+
+const char* shell_id(const AmsSystemInfo& info) {
+    const tray::UnitShell* shell = tray::unit_shell_for(info, 0);
+    return shell ? shell->id : "";
+}
+
 } // namespace
+
+TEST_CASE("unit art: a selector rail is known by its vendor, on a selector backend",
+          "[ams][unit-art]") {
+    CHECK(std::string(shell_id(rail_system("MMU", "ERCF", 9))) == "ercf_rail");
+    CHECK(std::string(shell_id(rail_system("MMU", "Tradrack", 12))) == "tradrack_rail");
+    CHECK(std::string(shell_id(rail_system("ERCF", "", 6))) == "ercf_rail");
+    // A vendor string on a hub-topology unit is not a rail.
+    CHECK(std::string(shell_id(rail_system("MMU", "ERCF", 6, PathTopology::HUB))) != "ercf_rail");
+    CHECK(std::string(shell_id(rail_system("MMU", "Other", 6))).empty());
+    CHECK(std::string(shell_id(rail_system("MMU", "", 6))).empty());
+}
+
+TEST_CASE("unit art: a rail has art only for the gate counts it is baked in", "[ams][unit-art]") {
+    for (int gates : {4, 6, 8, 9, 12})
+        CHECK(unit_art_available(rail_system("MMU", "ERCF", gates), 0));
+    for (int gates : {3, 5, 7, 10, 11, 14})
+        CHECK_FALSE(unit_art_available(rail_system("MMU", "ERCF", gates), 0));
+}
+
+TEST_CASE("unit art: the carriage offset scales with the art's displayed width",
+          "[ams][unit-art]") {
+    const tray::CarriageTrack track{6, 0.1f, 0.05f, 2.0f};
+    // Width-limited: a 100 x 100 box shows the 2:1 art 100 wide.
+    auto wide = tray::carriage_offset(track, 3, 100, 100);
+    CHECK(wide.x == 30);
+    CHECK(wide.y == 15);
+    // Height-limited: a 400 x 50 box shows the art 100 wide as well.
+    auto tall = tray::carriage_offset(track, 2, 400, 50);
+    CHECK(tall.x == 20);
+    CHECK(tall.y == 10);
+    CHECK(tray::carriage_offset(track, 0, 100, 100).x == 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art: the carriage goes to the active gate",
+                 "[ams][unit-art]") {
+    auto& settings = DisplaySettingsManager::instance();
+    const bool restore = settings.get_animations_enabled();
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 300, 200);
+    lv_obj_update_layout(art);
+    AmsSystemInfo info = rail_system("MMU", "ERCF", 6);
+    info.current_slot = 3;
+
+    const tray::UnitShell* shell = tray::unit_shell_for(info, 0);
+    REQUIRE(shell != nullptr);
+    const tray::CarriageTrack* track = tray::unit_shell_carriage(*shell, 6);
+    REQUIRE(track != nullptr);
+    const auto gate3 = tray::carriage_offset(*track, 3, 300, 200);
+    const auto gate5 = tray::carriage_offset(*track, 5, 300, 200);
+    REQUIRE(gate3.x != gate5.x);
+
+    auto translate_x = [&] {
+        return lv_obj_get_style_translate_x(unit_art_carriage_obj(art), LV_PART_MAIN);
+    };
+
+    settings.set_animations_enabled(false);
+    unit_art_set_unit(art, info, 0);
+    process_lvgl(20);
+    CHECK(unit_art_is_flattened(art));
+    CHECK(translate_x() == gate3.x);
+
+    info.current_slot = 5;
+    unit_art_set_unit(art, info, 0);
+    CHECK(translate_x() == gate5.x); // animations off: there at once
+
+    // Nothing loaded: the selector stays where it was.
+    info.current_slot = -1;
+    unit_art_set_unit(art, info, 0);
+    CHECK(translate_x() == gate5.x);
+
+    settings.set_animations_enabled(true);
+    info.current_slot = 3;
+    unit_art_set_unit(art, info, 0);
+    CHECK(translate_x() == gate5.x); // the slide starts where the carriage is
+    process_lvgl(1200);
+    CHECK(translate_x() == gate3.x);
+    settings.set_animations_enabled(restore);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art: a unit without a selector has no carriage",
+                 "[ams][unit-art]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 200, 200);
+    lv_obj_update_layout(art);
+    unit_art_set_unit(art, ace_system(), 0);
+    CHECK(unit_art_carriage_obj(art) == nullptr);
+}
 
 TEST_CASE("unit art: an empty bay shows no filament", "[ams][unit-art]") {
     CHECK_FALSE(unit_art_lane(slot(SlotStatus::EMPTY, 0x123456)).filled);

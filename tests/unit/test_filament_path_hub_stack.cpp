@@ -297,6 +297,49 @@ TEST_CASE_METHOD(HubStackFixture, "A built-in selector keeps every tube and merg
     CHECK(horizontal);
 }
 
+TEST_CASE("A selector rail's carriage follows the active gate and keeps its place otherwise",
+          "[filament-path][selector-rail]") {
+    const int32_t slots[] = {100, 160, 220, 280};
+    CHECK(rail_carriage_x(slots, 4, 2, 0, false) == 220);
+    CHECK(rail_carriage_x(slots, 4, 2, 175, true) == 175); // mid-slide
+    CHECK(rail_carriage_x(slots, 4, -1, 160, false) == 160);
+    CHECK(rail_carriage_x(slots, 4, -2, 160, false) == 160);
+    CHECK(rail_carriage_x(slots, 4, -1, 0, false) == 100); // never placed: rests at the first gate
+    CHECK(rail_carriage_x(slots, 4, -1, 900, false) == 100);
+}
+
+TEST_CASE("A selector rail's gate block fits between its neighbours",
+          "[filament-path][selector-rail]") {
+    CHECK(rail_block_width(60, 24) == 28);
+    CHECK(rail_block_width(20, 24) == 14);
+    CHECK(rail_block_width(4, 24) == 2);
+}
+
+TEST_CASE_METHOD(HubStackFixture, "A selector rail replaces the bar and keeps its tap",
+                 "[filament-path][selector-rail]") {
+    auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
+    ui_filament_path_canvas_set_topology(c.obj, 0);
+    ui_filament_path_canvas_set_hub_callback(c.obj, [](lv_point_t, void*) {}, nullptr);
+    const helix::ui::tray::RailFace face{0xc8211f, 0x1d1d20, 0xd42a26,
+                                         0x3f8fd9, 0x222226, 0xb9bdc2};
+    render(c);
+    REQUIRE(c.data->hits.hub_valid);
+    const lv_area_t bar = c.data->hits.hub;
+    CHECK_FALSE(c.data->rail_drawn);
+
+    ui_filament_path_canvas_set_selector_rail(c.obj, &face);
+    render(c);
+    CHECK(c.data->rail_drawn);
+    REQUIRE(c.data->hits.hub_valid);
+    CHECK(c.data->hits.hub.x1 == bar.x1);
+    CHECK(c.data->hits.hub.y1 == bar.y1);
+    CHECK(c.data->hits.hub.y2 == bar.y2);
+
+    ui_filament_path_canvas_set_selector_rail(c.obj, nullptr);
+    render(c);
+    CHECK_FALSE(c.data->rail_drawn);
+}
+
 TEST_CASE("A built-in selector leaves routes to separate tools alone",
           "[filament-path][hub-stack]") {
     using helix::PathTopology;

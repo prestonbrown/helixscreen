@@ -7,6 +7,7 @@
 #include "ams_types.h"
 #include "ams_unit_shell.h"
 #include "core/data_root_resolver.h"
+#include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"
@@ -33,6 +34,7 @@ constexpr int kGlowPeakAlpha = 150;
 constexpr int kChamberSpreadDivisor = 24; ///< blur radius is the short side over this
 constexpr int kChamberSpreadGain = 2;     ///< lifts the blur so it reaches past the lanes
 constexpr OpaPulse kGlowPulse{110, LV_OPA_COVER, 2000};
+constexpr uint32_t kCarriageSlideMs = 600;
 
 struct LaneImages {
     lv_obj_t* color;
@@ -53,6 +55,14 @@ struct ArtData {
     lv_obj_t* glow = nullptr;  // WIDGET_PTR_OK: child of this widget, gone with it
     lv_draw_buf_t* glow_buf = nullptr;
     uint64_t glow_key = 0;
+
+    const tray::CarriageTrack* track = nullptr;
+    lv_obj_t* carriage = nullptr;      // WIDGET_PTR_OK: child of this widget, gone with it
+    lv_obj_t* carriage_flat = nullptr; // WIDGET_PTR_OK: child of this widget, gone with it
+    lv_draw_buf_t* carriage_buf = nullptr;
+    int32_t carriage_w = 0, carriage_h = 0;
+    int carriage_gate = 0;
+    bool carriage_placed = false;
 };
 
 /// One blur pass over @p lines lines of @p line_len samples. @p step separates the samples of
@@ -105,6 +115,15 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
         data->retired.push_back(data->glow_buf);
         data->glow_buf = nullptr;
     }
+    if (data->carriage_buf) {
+        data->retired.push_back(data->carriage_buf);
+        data->carriage_buf = nullptr;
+    }
+    data->carriage = nullptr;
+    data->carriage_flat = nullptr;
+    data->carriage_gate = 0;
+    data->carriage_placed = false;
+    data->track = tray::unit_shell_carriage(*shell, lane_count);
     data->layers = lv_obj_create(art);
     lv_obj_remove_style_all(data->layers);
     lv_obj_set_size(data->layers, lv_pct(100), lv_pct(100));
@@ -127,6 +146,13 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
         data->lanes.push_back(images);
     }
     data->front = add_layer(data->layers, base + "_front.png");
+    if (data->track) {
+        data->carriage = add_layer(data->layers, base + "_carriage.png");
+        data->carriage_flat = lv_image_create(art);
+        lv_obj_set_size(data->carriage_flat, lv_pct(100), lv_pct(100));
+        lv_obj_set_clickable(data->carriage_flat, false);
+        lv_obj_set_hidden(data->carriage_flat, true);
+    }
     data->built_id = shell->id;
     data->built_lanes = lane_count;
 }
@@ -142,6 +168,74 @@ void set_lane_visible(lv_obj_t* image, bool visible) {
 void destroy_buf(lv_draw_buf_t* buf) {
     lv_image_cache_drop(buf);
     lv_draw_buf_destroy(buf);
+}
+
+lv_obj_t* live_carriage(const ArtData* data) {
+    return data->carriage_buf ? data->carriage_flat : data->carriage;
+}
+
+void set_translate_x(void* obj, int32_t value) {
+    // DECLARATIVE_OK: per-frame animation of a pre-rendered layer.
+    lv_obj_set_style_translate_x(static_cast<lv_obj_t*>(obj), value, LV_PART_MAIN);
+}
+
+void set_translate_y(void* obj, int32_t value) {
+    // DECLARATIVE_OK: per-frame animation of a pre-rendered layer.
+    lv_obj_set_style_translate_y(static_cast<lv_obj_t*>(obj), value, LV_PART_MAIN);
+}
+
+void place_carriage(lv_obj_t* art, ArtData* data, bool slide) {
+    lv_obj_t* obj = live_carriage(data);
+    if (!obj)
+        return;
+    lv_anim_delete(obj, set_translate_x);
+    lv_anim_delete(obj, set_translate_y);
+    const tray::CarriageOffset to = tray::carriage_offset(
+        *data->track, data->carriage_gate, lv_obj_get_width(art), lv_obj_get_height(art));
+    if (!slide) {
+        set_translate_x(obj, to.x);
+        set_translate_y(obj, to.y);
+        return;
+    }
+    const auto start = [&](lv_anim_exec_xcb_t exec, int32_t from, int32_t end) {
+        if (from == end)
+            return;
+        lv_anim_t anim;
+        lv_anim_init(&anim);
+        lv_anim_set_var(&anim, obj);
+        lv_anim_set_exec_cb(&anim, exec);
+        lv_anim_set_values(&anim, from, end);
+        lv_anim_set_duration(&anim, kCarriageSlideMs);
+        lv_anim_set_path_cb(&anim, lv_anim_path_ease_in_out);
+        lv_anim_start(&anim);
+    };
+    start(set_translate_x, lv_obj_get_style_translate_x(obj, LV_PART_MAIN), to.x);
+    start(set_translate_y, lv_obj_get_style_translate_y(obj, LV_PART_MAIN), to.y);
+}
+
+/// Render the carriage once at gate 0, so moving it is a plain blit of one image.
+void flatten_carriage(lv_obj_t* art, ArtData* data, int32_t width, int32_t height) {
+    if (!data->carriage)
+        return;
+    if (data->carriage_buf && data->carriage_w == width && data->carriage_h == height)
+        return;
+    lv_anim_delete(data->carriage, nullptr);
+    set_translate_x(data->carriage, 0);
+    set_translate_y(data->carriage, 0);
+    lv_obj_set_hidden(data->carriage, false);
+    lv_obj_update_layout(art);
+    lv_draw_buf_t* snap = lv_snapshot_take(data->carriage, LV_COLOR_FORMAT_ARGB8888);
+    lv_obj_set_hidden(data->carriage, true);
+    if (!snap)
+        return;
+    lv_image_set_src(data->carriage_flat, snap);
+    if (data->carriage_buf)
+        destroy_buf(data->carriage_buf);
+    data->carriage_buf = snap;
+    data->carriage_w = width;
+    data->carriage_h = height;
+    lv_obj_set_hidden(data->carriage_flat, false);
+    place_carriage(art, data, false);
 }
 
 /// Replace the stack of decoded layers with one image of the current lane state.
@@ -160,11 +254,19 @@ void flatten(lv_obj_t* art, ArtData* data, uint64_t key) {
     const bool glow_shown = data->glow && !lv_obj_is_hidden(data->glow);
     if (glow_shown)
         lv_obj_set_hidden(data->glow, true); // the glow must not bake into the drawing
+    // The carriage moves on its own, so it stays out of the flat image.
+    if (data->carriage) {
+        lv_obj_set_hidden(data->carriage, true);
+        lv_obj_set_hidden(data->carriage_flat, true);
+    }
     lv_draw_buf_t* snap = lv_snapshot_take(art, LV_COLOR_FORMAT_ARGB8888);
     if (glow_shown)
         lv_obj_set_hidden(data->glow, false);
-    if (!snap)
+    if (!snap) {
+        if (data->carriage)
+            lv_obj_set_hidden(live_carriage(data), false);
         return;
+    }
     lv_image_set_src(data->flat, snap);
     if (data->flat_buf)
         destroy_buf(data->flat_buf);
@@ -172,6 +274,9 @@ void flatten(lv_obj_t* art, ArtData* data, uint64_t key) {
     data->flat_key = key;
     lv_obj_set_hidden(data->flat, false);
     lv_obj_set_hidden(data->layers, true);
+    flatten_carriage(art, data, width, height);
+    if (data->carriage_buf)
+        lv_obj_set_hidden(data->carriage_flat, false);
 }
 
 /// The alpha of @p shown alone, drawn at the widget's size. Empty when it cannot be taken.
@@ -273,6 +378,8 @@ void delete_cb(lv_event_t* e) {
             lv_draw_buf_destroy(data->flat_buf);
         if (data->glow_buf)
             lv_draw_buf_destroy(data->glow_buf);
+        if (data->carriage_buf)
+            lv_draw_buf_destroy(data->carriage_buf);
         for (lv_draw_buf_t* buf : data->retired)
             lv_draw_buf_destroy(buf);
     }
@@ -368,6 +475,20 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
         }
     }
     flatten(art, data, key);
+
+    if (data->track) {
+        const int gate = info.current_slot - unit.first_slot_global_index;
+        const bool on_this_unit = gate >= 0 && gate < unit.slot_count;
+        const bool moved = on_this_unit && gate != data->carriage_gate;
+        if (on_this_unit)
+            data->carriage_gate = gate;
+        if (moved || !data->carriage_placed) {
+            place_carriage(art, data,
+                           moved && data->carriage_placed &&
+                               DisplaySettingsManager::instance().get_animations_enabled());
+        }
+        data->carriage_placed = true;
+    }
 }
 
 bool unit_art_is_flattened(lv_obj_t* art) {
@@ -419,6 +540,11 @@ void unit_art_set_glow(lv_obj_t* art, UnitArtGlow glow) {
 lv_obj_t* unit_art_glow_obj(lv_obj_t* art) {
     ArtData* data = art ? data_of(art) : nullptr;
     return data ? data->glow : nullptr;
+}
+
+lv_obj_t* unit_art_carriage_obj(lv_obj_t* art) {
+    ArtData* data = art ? data_of(art) : nullptr;
+    return data ? live_carriage(data) : nullptr;
 }
 
 lv_obj_t* unit_art_lane_color_obj(lv_obj_t* art, int lane) {

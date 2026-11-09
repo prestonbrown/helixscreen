@@ -1462,6 +1462,7 @@ struct AmsUnit {
     int unit_index = 0;              ///< Unit number (0-based)
     std::string name;                ///< Internal name for matching (e.g., "Box_Turtle Turtle_1")
     std::string display_name;        ///< Pretty name for UI (e.g., "Turtle 1") — empty = use name
+    std::string model;               ///< Hardware the firmware says it is; empty when unreported
     int slot_count = 0;              ///< Number of slots on this unit
     int first_slot_global_index = 0; ///< Global index of first slot
 
