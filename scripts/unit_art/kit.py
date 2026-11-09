@@ -337,6 +337,7 @@ class Scene:
         self.grads = []
         self.layer = "back"
         self.spool_radius = None
+        self.margin = 0.05
 
     def _add(self, pts3, fill, opacity, stroke, sw, closed, lane, tag, blur=False):
         self.items.append(
@@ -390,7 +391,7 @@ class Scene:
     def _viewbox(self):
         xs = [p[0] for i in self.items for p in i.points]
         ys = [p[1] for i in self.items for p in i.points]
-        m = 0.05
+        m = self.margin
         if self.spool_radius is None:
             return min(xs) - m, min(ys) - m, max(xs) - min(xs) + 2 * m, max(ys) - min(ys) + 2 * m
         # Centred across the frame and standing on its floor, so units line up in a row.

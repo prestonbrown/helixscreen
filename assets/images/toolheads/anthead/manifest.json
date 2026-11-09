@@ -1,0 +1,20 @@
+{
+  "id": "anthead",
+  "aspect": 0.5494,
+  "tiers": {
+    "full": {
+      "width": 88,
+      "height": 160,
+      "back": "full.png",
+      "tint": "full_tint.png",
+      "shade": "full_shade.png"
+    },
+    "path": {
+      "width": 40,
+      "height": 72,
+      "back": "path.png",
+      "tint": "path_tint.png",
+      "shade": "path_shade.png"
+    }
+  }
+}

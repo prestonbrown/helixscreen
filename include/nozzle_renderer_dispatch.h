@@ -13,13 +13,18 @@
 #include "nozzle_renderer_jabberwocky.h"
 #include "nozzle_renderer_stealthburner.h"
 #include "settings_manager.h"
+#include "toolhead_art.h"
 
 /// @brief Draw the nozzle matching the user's effective toolhead style setting
 /// @param filament Loaded filament color, or nullopt when no filament is at the nozzle
 inline void draw_nozzle_for_style(lv_layer_t* layer, int32_t cx, int32_t cy,
                                   std::optional<lv_color_t> filament, int32_t scale_unit,
                                   lv_opa_t opa = LV_OPA_COVER) {
-    switch (helix::SettingsManager::instance().get_effective_toolhead_style()) {
+    const helix::ToolheadStyle style =
+        helix::SettingsManager::instance().get_effective_toolhead_style();
+    if (helix::ui::draw_toolhead_art(layer, style, cx, cy, filament, scale_unit, opa))
+        return;
+    switch (style) {
     case helix::ToolheadStyle::A4T:
         draw_nozzle_a4t(layer, cx, cy, filament, scale_unit, opa);
         break;
