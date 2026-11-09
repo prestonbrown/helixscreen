@@ -207,22 +207,22 @@ TEST_CASE("AD5X IFS reports a Z-Mod filament change it did not start",
           "[ams][ad5x_ifs][zmod_status][1714]") {
     helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
     backend.fire_status(change_macro_frame(99));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     REQUIRE(backend.can_cancel_operation());
 
     // The runout auto-swap starts: last_data carries the target tool.
     backend.fire_status(change_macro_frame(2));
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    CHECK(backend.get_current_action() == AmsAction::SELECTING);
     // Its macro holds the G-code queue; Abort would only land after it.
     CHECK_FALSE(backend.can_cancel_operation());
 
     // A diff frame that carries the macro without last_data changes nothing.
     backend.fire_status(json{{"gcode_macro END_CHANGE_FILAMENT", json::object()}});
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    CHECK(backend.get_current_action() == AmsAction::SELECTING);
 
     // END_CHANGE_FILAMENT resets it to 99: the change is over.
     backend.fire_status(change_macro_frame(99));
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
     CHECK(backend.can_cancel_operation());
 }
 
@@ -254,22 +254,22 @@ TEST_CASE_METHOD(ZmodChangeIdleFixture,
 
     set_idle_state("Printing");
     backend.fire_status(change_macro_frame(1));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    REQUIRE(backend.get_current_action() == AmsAction::SELECTING);
 
     // While the change chain runs, Klipper stays busy and the action holds.
     Ad5xIfsTestAccess::run_action_timeout(backend);
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    CHECK(backend.get_current_action() == AmsAction::SELECTING);
     CHECK_FALSE(backend.can_cancel_operation());
 
     // The unload failed: Klipper is idle again, END_CHANGE_FILAMENT never ran.
     set_idle_state("Ready");
     Ad5xIfsTestAccess::run_action_timeout(backend);
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
     CHECK(backend.can_cancel_operation());
 
     // last_data.channel still names the abandoned change; it does not re-grab.
     backend.fire_status(change_macro_frame(1));
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
 }
 
 TEST_CASE_METHOD(ZmodChangeIdleFixture,
@@ -282,21 +282,21 @@ TEST_CASE_METHOD(ZmodChangeIdleFixture,
     // before Klipper was seen busy proves nothing about the change.
     backend.fire_status(change_macro_frame(1));
     Ad5xIfsTestAccess::run_action_timeout(backend);
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    CHECK(backend.get_current_action() == AmsAction::SELECTING);
 
     set_idle_state("Printing");
     Ad5xIfsTestAccess::run_action_timeout(backend);
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    CHECK(backend.get_current_action() == AmsAction::SELECTING);
     set_idle_state("Ready");
     Ad5xIfsTestAccess::run_action_timeout(backend);
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
 
     // The next change starts with no busy sighting of its own: the last
     // change's Printing says nothing about this one.
     backend.fire_status(change_macro_frame(99));
     backend.fire_status(change_macro_frame(2));
     Ad5xIfsTestAccess::run_action_timeout(backend);
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    CHECK(backend.get_current_action() == AmsAction::SELECTING);
 }
 
 // A successful change's last frame often carries END_CHANGE_FILAMENT's idle
@@ -309,12 +309,12 @@ TEST_CASE_METHOD(ZmodChangeIdleFixture,
     backend.fire_status(change_macro_frame(99));
     set_idle_state("Printing");
     backend.fire_status(change_macro_frame(2));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    REQUIRE(backend.get_current_action() == AmsAction::SELECTING);
 
     LogCapture log;
     set_idle_state("Ready");
     backend.fire_status(change_macro_frame(99));
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
     CHECK(log.count_containing("went idle mid-change") == 0);
     CHECK(log.count_containing("filament change released") == 0);
 }
@@ -327,9 +327,9 @@ TEST_CASE("AD5X IFS leaves an action it did not set to its owner",
     // it, and its return to 99 does not clear it.
     Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
     backend.fire_status(change_macro_frame(1));
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+    CHECK(backend.get_current_action() == AmsAction::LOADING);
     backend.fire_status(change_macro_frame(99));
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+    CHECK(backend.get_current_action() == AmsAction::LOADING);
 }
 
 // Z-Mod takes the print's tool map as printer.print.start's `tools`, each
