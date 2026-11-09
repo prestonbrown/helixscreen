@@ -255,6 +255,7 @@
   <translation tag="Added to queue (position {})" es="Añadido a la cola (posición {})"/>
   <translation tag="Added to queue (position {}) - queue is paused" es="Añadido a la cola (posición {}): la cola está en pausa"/>
   <translation tag="Adding printer" es="Añadiendo impresora"/>
+  <translation tag="Adding the timelapse plugin to Moonraker..." es="Añadiendo el plugin de timelapse a Moonraker..."/>
   <translation tag="Adding to queue..." es="Añadiendo a la cola..."/>
   <translation tag="Address" es="Dirección"/>
   <translation tag="Adds to:" es="Añade a:"/>
@@ -690,6 +691,7 @@
   <translation tag="Checking extruders..." es="Comprobando extrusores..."/>
   <translation tag="Checking filament..." es="Comprobando filamento..."/>
   <translation tag="Checking file…" es="Comprobando archivo…"/>
+  <translation tag="Checking for ffmpeg..." es="Buscando ffmpeg..."/>
   <translation tag="Checking for plugin..." es="Buscando plugin..."/>
   <translation tag="Checking for webcam..." es="Comprobando webcam..."/>
   <translation tag="Checking plugin" es="Comprobando plugin"/>
@@ -891,6 +893,7 @@
   <translation tag="Corner roundness" es="Redondeo de esquinas"/>
   <translation tag="Corners differ by {} mm" es="Las esquinas difieren {} mm"/>
   <translation tag="Correction (Ki)" es="Corrección (Ki)"/>
+  <translation tag="Could not add the timelapse plugin to Moonraker." es="No se pudo añadir el plugin de timelapse a Moonraker."/>
   <translation tag="Could not add to queue" es="No se pudo añadir a la cola"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." es="No se pudo analizar la macro PRINT_START. Algunas opciones de impresión pueden no estar disponibles."/>
   <translation tag="Could not answer the connection request" es="No se pudo responder a la solicitud de conexión"/>
@@ -901,6 +904,7 @@
   <translation tag="Could not copy the printer&apos;s layout" es="No se pudo copiar el diseño de la impresora"/>
   <translation tag="Could not copy {} from USB: {}" es="No se pudo copiar {} desde USB: {}"/>
   <translation tag="Could not disconnect from WiFi" es="No se pudo desconectar del WiFi"/>
+  <translation tag="Could not download the timelapse plugin. Check the printer&apos;s internet connection." es="No se pudo descargar el plugin de timelapse. Comprueba la conexión a internet de la impresora."/>
   <translation tag="Could not extract plate {} of {}: {}" es="No se pudo extraer la placa {} de {}: {}"/>
   <translation tag="Could not forget device" es="No se pudo olvidar el dispositivo"/>
   <translation tag="Could not free space" es="No se pudo liberar espacio"/>
@@ -1086,6 +1090,7 @@
   <translation tag="Door switches, buttons, and other on/off inputs" es="Interruptores de puerta, botones y otras entradas de encendido/apagado"/>
   <translation tag="Download update?" es="¿Descargar actualización?"/>
   <translation tag="Download v{}?" es="¿Descargar v{}?"/>
+  <translation tag="Downloading the timelapse plugin..." es="Descargando el plugin de timelapse..."/>
   <translation tag="Downloading..." es="Descargando..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" es="Descargando... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" es="Dibuja una onda en cada toque — ayuda a diagnosticar desfases"/>
@@ -1842,6 +1847,9 @@
   <translation tag="Installation timed out" es="La instalación agotó el tiempo de espera"/>
   <translation tag="Installation timed out. The script may be stuck." es="La instalación agotó el tiempo de espera. El script puede estar bloqueado."/>
   <translation tag="Installed" es="Instalado"/>
+  <translation tag="Installing ffmpeg. This can take several minutes..." es="Instalando ffmpeg. Esto puede tardar varios minutos..."/>
+  <translation tag="Installing restarts Moonraker, so it waits until the print is finished or cancelled." es="La instalación reinicia Moonraker, así que espera a que la impresión termine o se cancele."/>
+  <translation tag="Installing the timelapse plugin..." es="Instalando el plugin de timelapse..."/>
   <translation tag="Installing..." es="Instalando..."/>
   <translation tag="Intensity" es="Intensidad"/>
   <translation tag="Interactive calibration for all lanes" es="Calibración interactiva para todos los carriles"/>
@@ -3873,6 +3881,7 @@
   <translation tag="The speed of one fan you choose" es="La velocidad de un ventilador elegido"/>
   <translation tag="The time, date, and system uptime" es="Hora, fecha y tiempo de actividad"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." es="La carpeta de timelapse o de registros se solapa con una carpeta protegida, por eso la limpieza está desactivada."/>
+  <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password." es="El plugin de timelapse está instalado. Para crear vídeos también se necesita ffmpeg, que HelixScreen no pudo instalar sin contraseña."/>
   <translation tag="The tool change under way finished, and the tool was not parked" es="El cambio de herramienta en curso terminó y la herramienta no se aparcó"/>
   <translation tag="The tool change under way finished, and {} was not put back on the carriage" es="El cambio de herramienta en curso terminó y {} no se volvió a poner en el carro"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" es="El cabezal tiene filamento, pero ninguna ranura del AMS informa que esté cargado. Retírelo manualmente antes de imprimir. ¿Iniciar de todos modos?"/>
@@ -4016,6 +4025,7 @@
   <translation tag="Tips" es="Consejos"/>
   <translation tag="Tips database format error" es="Error de formato de la base de datos de consejos"/>
   <translation tag="Tips database not found" es="Base de datos de consejos no encontrada"/>
+  <translation tag="To make videos, run this on your printer via SSH:" es="Para crear vídeos, ejecuta esto en tu impresora por SSH:"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." es="Para mapear el filamento, HelixScreen reescribe el archivo de impresión antes de imprimirlo. El Moonraker de esta impresora es demasiado antiguo para que el plugin HelixPrint restaure después el nombre de archivo original, por lo que el trabajo terminado aparece con el nombre reescrito. El mapeo de filamento en sí funciona con normalidad."/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." es="Para mapear el filamento, HelixScreen reescribe el archivo de impresión antes de imprimirlo. Sin el plugin HelixPrint, la copia reescrita es la que queda en el historial de impresión, por lo que los trabajos terminados aparecen con nombres como modified_1730824_benchy.gcode en lugar del archivo elegido.&#10;&#10;Instalar el plugin toma un momento y no requiere reiniciar."/>
   <translation tag="Toggle" es="Alternar"/>

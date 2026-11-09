@@ -260,6 +260,7 @@ translations:
   Added to queue (position {}): Added to queue (position {})
   Added to queue (position {}) - queue is paused: Added to queue (position {}) - queue is paused
   Adding printer: Adding printer
+  Adding the timelapse plugin to Moonraker...: Adding the timelapse plugin to Moonraker...
   Adding to queue...: Adding to queue...
   Address: Address
   'Adds to:': 'Adds to:'
@@ -732,6 +733,7 @@ translations:
   'Checking extruders...': 'Checking extruders...'
   Checking file…: 'Checking file…'
   Checking filament...: Checking filament...
+  Checking for ffmpeg...: Checking for ffmpeg...
   Checking for plugin...: Checking for plugin...
   Checking for webcam...: Checking for webcam...
   Checking plugin: Checking plugin
@@ -950,6 +952,7 @@ translations:
   Corner roundness: Corner roundness
   Corners differ by {} mm: Corners differ by {} mm
   Correction (Ki): Correction (Ki)
+  Could not add the timelapse plugin to Moonraker.: Could not add the timelapse plugin to Moonraker.
   Could not add to queue: Could not add to queue
   Could not analyze PRINT_START macro. Some print options may be unavailable.: Could
     not analyze PRINT_START macro. Some print options may be unavailable.
@@ -987,6 +990,7 @@ translations:
   Could not copy the printer's layout: Could not copy the printer's layout
   'Could not copy {} from USB: {}': 'Could not copy {} from USB: {}'
   Could not disconnect from WiFi: Could not disconnect from WiFi
+  Could not download the timelapse plugin. Check the printer's internet connection.: Could not download the timelapse plugin. Check the printer's internet connection.
   'Could not extract plate {} of {}: {}': 'Could not extract plate {} of {}: {}'
   Could not forget device: Could not forget device
   Could not free space: Could not free space
@@ -1175,6 +1179,7 @@ translations:
   Door switches, buttons, and other on/off inputs: Door switches, buttons, and other on/off inputs
   Download update?: Download update?
   Download v{}?: Download v{}?
+  Downloading the timelapse plugin...: Downloading the timelapse plugin...
   Downloading...: Downloading...
   Downloading... {:.1f}/{:.1f} MB: Downloading... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: Draw a ripple at each touch
@@ -1979,6 +1984,9 @@ translations:
   Installation timed out. The script may be stuck.: Installation timed out. The script
     may be stuck.
   Installed: Installed
+  Installing ffmpeg. This can take several minutes...: Installing ffmpeg. This can take several minutes...
+  Installing restarts Moonraker, so it waits until the print is finished or cancelled.: Installing restarts Moonraker, so it waits until the print is finished or cancelled.
+  Installing the timelapse plugin...: Installing the timelapse plugin...
   Installing...: Installing...
   Intensity: Intensity
   Interactive calibration for all lanes: Interactive calibration for all lanes
@@ -4150,6 +4158,8 @@ translations:
   The speed of one fan you choose: The speed of one fan you choose
   The time, date, and system uptime: The time, date, and system uptime
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: The timelapse or logs folder overlaps a protected folder, so cleanup is off.
+  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password.
+  : The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password.
   The tool change under way finished, and the tool was not parked: The tool change under way finished, and the tool was not parked
   The tool change under way finished, and {} was not put back on the carriage: The tool change under way finished, and {} was not put back on the carriage
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?
@@ -4335,6 +4345,7 @@ translations:
   Tips: Tips
   Tips database format error: Tips database format error
   Tips database not found: Tips database not found
+  'To make videos, run this on your printer via SSH:': 'To make videos, run this on your printer via SSH:'
   ? To map filament, HelixScreen rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally.
   : To map filament, HelixScreen rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally.
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."

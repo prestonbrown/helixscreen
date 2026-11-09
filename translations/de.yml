@@ -267,6 +267,7 @@ translations:
   Added to queue (position {}): Zur Warteschlange hinzugefügt (Position {})
   Added to queue (position {}) - queue is paused: Zur Warteschlange hinzugefügt (Position {}) – Warteschlange ist pausiert
   Adding printer: Drucker wird hinzugefügt
+  Adding the timelapse plugin to Moonraker...: 'Zeitraffer-Plugin wird zu Moonraker hinzugefügt...'
   Adding to queue...: Wird zur Warteschlange hinzugefügt...
   Address: Adresse
   'Adds to:': 'Ergänzt:'
@@ -755,6 +756,7 @@ translations:
   Checking extruders...: Prüfe Extruder...
   Checking file…: 'Prüfe Datei…'
   Checking filament...: Prüfe Filament...
+  Checking for ffmpeg...: 'Suche nach ffmpeg...'
   Checking for plugin...: Prüfe Plugin...
   Checking for webcam...: Webcam wird gesucht...
   Checking plugin: Plugin wird geprüft
@@ -979,6 +981,7 @@ translations:
   Corner roundness: Eckenrundung
   Corners differ by {} mm: "Ecken weichen um {} mm ab"
   Correction (Ki): Korrektur (Ki)
+  Could not add the timelapse plugin to Moonraker.: 'Das Zeitraffer-Plugin konnte nicht zu Moonraker hinzugefügt werden.'
   Could not add to queue: Konnte nicht zur Warteschlange hinzufügen
   Could not analyze PRINT_START macro. Some print options may be unavailable.: PRINT_START-Makro
     konnte nicht analysiert werden. Einige Druckoptionen sind möglicherweise nicht
@@ -1017,6 +1020,7 @@ translations:
   Could not copy the printer's layout: "Das Layout des Druckers konnte nicht kopiert werden"
   'Could not copy {} from USB: {}': '{} konnte nicht von USB kopiert werden: {}'
   Could not disconnect from WiFi: WiFi-Verbindung konnte nicht getrennt werden
+  Could not download the timelapse plugin. Check the printer's internet connection.: 'Das Zeitraffer-Plugin konnte nicht heruntergeladen werden. Prüfe die Internetverbindung des Druckers.'
   'Could not extract plate {} of {}: {}': 'Platte {} von {} konnte nicht extrahiert werden: {}'
   Could not forget device: Gerät konnte nicht vergessen werden
   Could not free space: 'Speicher konnte nicht freigegeben werden'
@@ -1211,6 +1215,7 @@ translations:
   Door switches, buttons, and other on/off inputs: Türschalter, Taster und andere Ein/Aus-Eingänge
   Download update?: Update herunterladen?
   Download v{}?: v{} herunterladen?
+  Downloading the timelapse plugin...: 'Zeitraffer-Plugin wird heruntergeladen...'
   Downloading...: Wird heruntergeladen...
   Downloading... {:.1f}/{:.1f} MB: Wird heruntergeladen... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: Bei jeder Berührung einen
@@ -2038,6 +2043,9 @@ translations:
   Installation timed out. The script may be stuck.: Installation – Zeitüberschreitung.
     Das Skript hängt möglicherweise.
   Installed: 'Installiert'
+  Installing ffmpeg. This can take several minutes...: 'ffmpeg wird installiert. Das kann einige Minuten dauern...'
+  Installing restarts Moonraker, so it waits until the print is finished or cancelled.: 'Die Installation startet Moonraker neu und wartet daher, bis der Druck beendet oder abgebrochen ist.'
+  Installing the timelapse plugin...: 'Zeitraffer-Plugin wird installiert...'
   Installing...: Installiere...
   Intensity: Intensität
   Interactive calibration for all lanes: 'Interaktive Kalibrierung für alle Spuren'
@@ -4254,6 +4262,8 @@ translations:
   The speed of one fan you choose: Drehzahl eines gewählten Lüfters
   The time, date, and system uptime: Uhrzeit, Datum und Betriebszeit
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Der Zeitraffer- oder Protokoll-Ordner überlappt einen geschützten Ordner, daher ist die Bereinigung ausgeschaltet."
+  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password.
+  : 'Das Zeitraffer-Plugin ist installiert. Für Videos wird außerdem ffmpeg benötigt, das HelixScreen ohne Passwort nicht installieren konnte.'
   The tool change under way finished, and the tool was not parked: 'Der laufende Werkzeugwechsel wurde abgeschlossen, und das Werkzeug wurde nicht geparkt'
   The tool change under way finished, and {} was not put back on the carriage: 'Der laufende Werkzeugwechsel wurde abgeschlossen, und {} wurde nicht wieder auf den Wagen gesetzt'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: Im Werkzeugkopf befindet sich Filament, aber kein AMS-Slot meldet es als geladen. Ziehen Sie es vor dem Drucken manuell heraus. Trotzdem starten?
@@ -4441,6 +4451,7 @@ translations:
   Tips: 'Tipps'
   Tips database format error: Formatfehler der Tipps-Datenbank
   Tips database not found: Tipps-Datenbank nicht gefunden
+  'To make videos, run this on your printer via SSH:': 'Für Videos führe dies per SSH auf deinem Drucker aus:'
   ? To map filament, HelixScreen rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally.
   : Für die Filament-Zuordnung schreibt HelixScreen die Druckdatei vor dem Drucken um. Das Moonraker dieses Druckers ist zu alt, damit das HelixPrint-Plugin den ursprünglichen Dateinamen danach wiederherstellen kann; der abgeschlossene Auftrag wird daher unter dem umgeschriebenen Namen aufgeführt. Die Filament-Zuordnung selbst funktioniert normal.
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
