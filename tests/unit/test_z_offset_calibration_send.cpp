@@ -580,7 +580,7 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     panel.set_api(&api);
     ZOffsetCalibrationTestAccess::begin_probe_sequence(panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
-    ZOffsetCalibrationTestAccess::send_accept(panel);
+    panel.on_calibration_result(false, "probe failed");
 
     helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
     ZOffsetCalibrationTestAccess::adjust_z(panel, 0.05f);

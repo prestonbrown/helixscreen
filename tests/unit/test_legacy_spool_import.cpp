@@ -22,6 +22,8 @@
 #include "legacy_spool_import.h"
 #include "test_helpers/registered_backend.h"
 
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <unistd.h>
@@ -389,4 +391,30 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(ams.get_backend()->get_slot_info(0).spoolman_id == 0);
     CHECK(printer.client.mock_db_get(legacy::kToolSpoolsDbNamespace, legacy::kToolSpoolsDbKey)
               .is_null());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "an unreadable 1.0 tool_spools.json is not marked imported",
+                 "[legacy_import]") {
+    const auto path = std::filesystem::temp_directory_path() / "helix_unreadable_tool_spools.json";
+    {
+        std::ofstream out(path);
+        out << "{ not json";
+    }
+    MockPrinter printer;
+    AmsOnPrinter scope(printer);
+    auto& ams = AmsState::instance();
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    mock->set_operation_delay(0);
+    ams.set_backend(std::move(mock));
+
+    ams.start_legacy_spool_import(path.string());
+    settle();
+    ams.sync_from_backend();
+    settle();
+
+    Config* config = Config::get_instance();
+    REQUIRE(config != nullptr);
+    CHECK_FALSE(config->get<bool>(config->df() + legacy::kLegacyToolImportDonePath, false));
+    CHECK(std::filesystem::exists(path));
+    std::filesystem::remove(path);
 }

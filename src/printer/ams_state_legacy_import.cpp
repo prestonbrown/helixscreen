@@ -64,6 +64,7 @@ void AmsState::start_legacy_spool_import(const std::string& tool_spools_path) {
                     legacy::tool_spools_from_file(legacy_import_.file, legacy_import_.printer_id);
             }
         }
+        legacy_import_.file_unreadable = !legacy_import_.file.is_object();
     }
     if (api_ == nullptr) {
         legacy_import_.tool_spools = std::move(from_file);
@@ -221,7 +222,7 @@ void AmsState::finish_legacy_tool_import() {
             fs::remove(legacy_import_.file_path);
         }
     }
-    if (owed.empty()) {
+    if (owed.empty() && !legacy_import_.file_unreadable) {
         if (Config* config = Config::get_instance()) {
             config->set<bool>(config->df() + legacy::kLegacyToolImportDonePath, true);
             config->save();

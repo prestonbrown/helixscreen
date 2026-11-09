@@ -2764,6 +2764,7 @@ class AmsState {
         std::string printer_id;
         std::string file_path;
         nlohmann::json file;
+        bool file_unreadable = false; ///< The file exists but did not parse, so it stays owed
         std::optional<std::map<int, int>> tool_spools;
         bool db_key_seen = false;
         /// The Moonraker key's value as read.
