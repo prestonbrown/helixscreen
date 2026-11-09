@@ -310,7 +310,8 @@ class IAdvancedAPI {
     using BedMeshProgressCallback = std::function<void(int current, int total)>;
     using NoiseCheckCallback = std::function<void(float noise_level)>;
     using InputShaperConfigCallback = std::function<void(const InputShaperConfig&)>;
-    using HeaterControlTypeCallback = helix::SharedCallback<void(const std::string& control_type)>;
+    using HeaterControlTypeCallback =
+        helix::SharedCallback<void(const std::string& control_type, bool names_cooling_fan)>;
     using PIDProgressCallback = std::function<void(int sample, float tolerance)>;
     using PIDCalibrateCallback = std::function<void(float kp, float ki, float kd)>;
 

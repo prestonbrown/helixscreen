@@ -3097,9 +3097,11 @@ void MoonrakerAdvancedAPI::get_heater_control_type(
 
             const json& h = settings[heater];
             std::string control = json_util::safe_string(h, "control", "pid");
-            spdlog::debug("[Moonraker API] Heater '{}' control type: {}", heater, control);
+            const bool names_cooling_fan = !json_util::safe_string(h, "cooling_fan", "").empty();
+            spdlog::debug("[Moonraker API] Heater '{}' control type: {}, cooling_fan named: {}",
+                          heater, control, names_cooling_fan);
             if (on_complete) {
-                on_complete(control);
+                on_complete(control, names_cooling_fan);
             }
         },
         [on_error](const MoonrakerError& err) {
