@@ -73,6 +73,7 @@ class PAHeaterFixture : public PACalPanelFixture {
         auto& state = get_printer_state();
         state.temperature_state().init_extruders({"extruder"});
         state.set_klippy_state_sync(helix::KlippyState::READY);
+        set_link(true);
         client_.connect("ws://mock/websocket", []() {}, []() {});
         api_ = std::make_unique<MoonrakerAPI>(client_, state);
         controller_ =
@@ -87,6 +88,7 @@ class PAHeaterFixture : public PACalPanelFixture {
     ~PAHeaterFixture() override {
         panel().before_disconnect();
         panel().set_api(nullptr);
+        set_link(false);
         set_print_state("standby");
         feed_nozzle(25, 0);
         controller_.reset();
@@ -98,6 +100,12 @@ class PAHeaterFixture : public PACalPanelFixture {
     void feed_nozzle(double actual_c, double target_c) {
         get_printer_state().update_from_status(
             {{"extruder", {{"temperature", actual_c}, {"target", target_c}}}});
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    static void set_link(bool up) {
+        lv_subject_set_int(
+            get_printer_state().network_state().get_printer_connection_state_subject(), up ? 2 : 0);
         helix::ui::UpdateQueue::instance().drain();
     }
 
@@ -282,4 +290,126 @@ TEST_CASE_METHOD(PAHeaterFixture,
     REQUIRE(panel().get_state() == PACalibrationPanel::ERROR);
     CHECK(heater_off_sent());
     CHECK_FALSE(panel().heater_held_for_test());
+}
+
+TEST_CASE_METHOD(PAHeaterFixture,
+                 "PA calibration: walking away queues the off behind a measurement",
+                 "[pa_cal][walkaway]") {
+    begin_heating();
+    panel().set_state_for_test(PACalibrationPanel::MEASURING);
+
+    panel().on_deactivating(DeactivateReason::NavigateAway);
+
+    CHECK(heater_off_sent());
+    CHECK(panel().get_state() == PACalibrationPanel::IDLE);
+    CHECK_FALSE(panel().heater_held_for_test());
+}
+
+TEST_CASE_METHOD(PAHeaterFixture, "PA calibration: Stop mid-measurement queues the off too",
+                 "[pa_cal][walkaway]") {
+    begin_heating();
+    panel().set_state_for_test(PACalibrationPanel::MEASURING);
+
+    panel().stop_run_for_test(/*user_requested=*/true);
+
+    CHECK(heater_off_sent());
+}
+
+TEST_CASE_METHOD(PAHeaterFixture, "PA calibration: walking away mid-heat honours the same guards",
+                 "[pa_cal][walkaway]") {
+    SECTION("owned heat goes off") {
+        begin_heating();
+        panel().on_deactivating(DeactivateReason::NavigateAway);
+        CHECK(heater_off_sent());
+    }
+    SECTION("someone else's preheat stays") {
+        feed_nozzle(120, 200);
+        panel().begin_run_for_test();
+        client_.clear_gcode_script_history();
+        panel().on_deactivating(DeactivateReason::NavigateAway);
+        CHECK_FALSE(heater_off_sent());
+    }
+    SECTION("a retarget stays") {
+        begin_heating();
+        feed_nozzle(30, 180);
+        panel().on_deactivating(DeactivateReason::NavigateAway);
+        CHECK_FALSE(heater_off_sent());
+    }
+    SECTION("a job keeps it") {
+        begin_heating();
+        set_print_state("printing");
+        panel().on_deactivating(DeactivateReason::NavigateAway);
+        CHECK_FALSE(heater_off_sent());
+    }
+}
+
+TEST_CASE_METHOD(PAHeaterFixture, "PA calibration: a heat-up that never arrives gives up",
+                 "[pa_cal][walkaway]") {
+    begin_heating();
+    REQUIRE(panel().run_timer_for_test() != nullptr);
+
+    panel().fire_run_timer_for_test();
+
+    CHECK(heater_off_sent());
+    CHECK(panel().get_state() == PACalibrationPanel::ERROR);
+    CHECK_FALSE(panel().heater_held_for_test());
+    CHECK(panel().run_timer_for_test() == nullptr);
+}
+
+TEST_CASE_METHOD(PAHeaterFixture, "PA calibration: a measurement with no answer gives up",
+                 "[pa_cal][walkaway]") {
+    begin_heating();
+    panel().set_state_for_test(PACalibrationPanel::MEASURING);
+
+    panel().fire_run_timer_for_test();
+
+    CHECK(heater_off_sent());
+    CHECK(panel().get_state() == PACalibrationPanel::ERROR);
+}
+
+TEST_CASE_METHOD(PAHeaterFixture, "PA calibration: an ended run stops its deadline",
+                 "[pa_cal][walkaway]") {
+    begin_heating();
+    panel().stop_run_for_test(/*user_requested=*/false);
+    CHECK(panel().run_timer_for_test() == nullptr);
+}
+
+TEST_CASE_METHOD(PAHeaterFixture, "PA calibration: leaving with the link down owes the off",
+                 "[pa_cal][walkaway]") {
+    begin_heating();
+    panel().set_state_for_test(PACalibrationPanel::MEASURING);
+    set_link(false);
+
+    SECTION("left the screen") {
+        panel().on_deactivating(DeactivateReason::NavigateAway);
+    }
+    SECTION("firmware error") {
+        panel().on_error_for_test("connection lost");
+    }
+
+    CHECK_FALSE(heater_off_sent());
+    REQUIRE(panel().run_timer_for_test() == nullptr);
+
+    set_link(true);
+    REQUIRE(panel().run_timer_for_test() != nullptr);
+    CHECK_FALSE(heater_off_sent()); // waits for the printer's fresh status
+
+    panel().fire_run_timer_for_test();
+    CHECK(heater_off_sent());
+    CHECK(panel().run_timer_for_test() == nullptr);
+}
+
+TEST_CASE_METHOD(PAHeaterFixture,
+                 "PA calibration: a job found after the outage keeps the owed heat",
+                 "[pa_cal][walkaway]") {
+    begin_heating();
+    panel().set_state_for_test(PACalibrationPanel::MEASURING);
+    set_link(false);
+    panel().on_deactivating(DeactivateReason::NavigateAway);
+
+    set_link(true);
+    set_print_state("printing");
+    panel().fire_run_timer_for_test();
+
+    CHECK_FALSE(heater_off_sent());
 }
