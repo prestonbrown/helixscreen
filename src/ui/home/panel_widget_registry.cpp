@@ -158,7 +158,7 @@ static std::vector<PanelWidgetDef> s_widget_defs = {
     // is too long. Taller boxes wrap it.
     {"display_message",  TR_NOOP("Printer Message"),   "message",          TR_NOOP("The message your printer's macros show (M117)"), nullptr,  nullptr,                           kCatPrint,    false, 4, 2, 2, 1, kBandColspan, 6, false, true, true},
     {"print_stats",      TR_NOOP("Print Stats"),       "printer_3d",       TR_NOOP("Print hours this week and lifetime totals"),      nullptr,              nullptr,                               kCatPrint,    false, 4, 4, 2, 1, 6, 4, false, true, true},
-    {"maintenance",      TR_NOOP("Maintenance"),       "wrench",           TR_NOOP("Service hours for the filter, nozzle, and rails"), nullptr,           nullptr,                               kCatSystem,   false, 2, 2, 1, 1, 8, 4, false, true, true},
+    {"maintenance",      TR_NOOP("Maintenance"),       "wrench",           TR_NOOP("Service hours for the parts that wear"), nullptr,           nullptr,                               kCatSystem,   false, 2, 2, 1, 1, 8, 4, false, true, true},
     // Two cells square by default: at two cells tall the tile shows a live tail
     // of the console output, and below that it is the icon tile.
     {"gcode_console",    TR_NOOP("GCode Console"),     "console",          TR_NOOP("Send G-code and read the replies"),    nullptr,              nullptr,                               kCatControls, false, 4, 4, 1, 2, kBandColspan, kBandColspan, false, true, true},

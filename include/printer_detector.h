@@ -4,6 +4,7 @@
 #pragma once
 
 #include "belt_tension_types.h"
+#include "maintenance_meters.h"
 #include "plr_profile.h"
 #include "pre_print_option.h"
 
@@ -649,6 +650,11 @@ class PrinterDetector {
     /// The database's `"enclosed": true` flag for @p printer_name
     /// (prestonbrown/helixscreen#1730); false when absent or unknown.
     static bool is_enclosed(const std::string& printer_name);
+
+    /// The model's maintenance meter overrides (`maintenance` in the database row); all
+    /// empty for a model without the field or an unknown printer.
+    [[nodiscard]] static helix::maintenance::ModelDefaults
+    get_maintenance_defaults(const std::string& printer_name);
 
     /// How @p printer_name tensions its belts, from the database's `"belt_tensioner"` string
     /// (`"screw"` or `"spring"`). UNKNOWN when the field is absent, empty, not a string, or

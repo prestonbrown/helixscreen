@@ -34,6 +34,7 @@ namespace {
 HELIX_PSRAM_BSS lv_subject_t s_rung_subject{};
 HELIX_PSRAM_BSS lv_subject_t s_show_total_subject{};
 HELIX_PSRAM_BSS lv_subject_t s_ring_d_subject{};
+HELIX_PSRAM_BSS lv_subject_t s_tile_rows_subject{};
 helix::WidgetSubjects s_subjects{"MaintenanceWidgetSubjects"};
 helix::LiveTileOwner<helix::MaintenanceWidget> s_tile;
 
@@ -46,6 +47,8 @@ void maintenance_init_subjects() {
                                "maintenance_rung", s_subjects);
         UI_MANAGED_SUBJECT_INT(s_show_total_subject, 0, "maintenance_show_total", s_subjects);
         UI_MANAGED_SUBJECT_INT(s_ring_d_subject, 0, "maintenance_ring_d", s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_tile_rows_subject, helix::maintenance::kTileRows,
+                               "maintenance_tile_rows", s_subjects);
     });
 }
 
@@ -68,6 +71,10 @@ int widest_name_px(const lv_font_t* font, bool full_names) {
 /// changes only when an interval does.
 struct Measured {
     helix::RungNeeds needs;
+    int list_row_h = 1;
+    int full_row_h = 1;
+    int row_gap = 0;
+    int full_title_h = 0;
     int caption_h = 0; ///< the name line under the ring, with the gap above it
     int list_w = 0;    ///< the rows beside the ring at Wide, with the gap before them
 };
@@ -93,13 +100,18 @@ Measured measure(const helix::ContentChrome& chrome) {
     const int short_small_w = widest_name_px(small, false);
     const int full_small_w = widest_name_px(small, true);
     const int list_w = short_small_w + col_gap + hours_small_w;
-    const int list_h = helix::maintenance::kMeterCount * line_px(small) +
-                       (helix::maintenance::kMeterCount - 1) * row_gap;
+    // Rows budgeted at Wide and Full: fixed, so enabling a meter never moves the rung.
+    constexpr int kBudgetRows = 3;
+    const int list_h = kBudgetRows * line_px(small) + (kBudgetRows - 1) * row_gap;
     const int bar_h = theme_manager_get_spacing("space_xs");
     const int full_row_h = line_px(small) + row_gap + bar_h;
-    const int full_h = line_px(small) + helix::maintenance::kMeterCount * (row_gap + full_row_h);
+    const int full_h = line_px(small) + kBudgetRows * (row_gap + full_row_h);
 
     Measured m;
+    m.list_row_h = line_px(small);
+    m.full_row_h = full_row_h;
+    m.row_gap = row_gap;
+    m.full_title_h = line_px(small);
     m.caption_h = row_gap + line_px(xs);
     m.list_w = beside_gap + list_w;
     helix::RungNeeds& needs = m.needs;
@@ -145,6 +157,10 @@ MaintenanceTileVerdict MaintenanceWidget::decide(int width_px, int height_px) co
     in.needs = m.needs;
     in.caption_h = m.caption_h;
     in.list_w = m.list_w;
+    in.list_row_h = m.list_row_h;
+    in.full_row_h = m.full_row_h;
+    in.row_gap = m.row_gap;
+    in.full_title_h = m.full_title_h;
     in.total_line_w = measure_text_px(maintenance_model::total_line(), xs);
     in.total_line_h = line_px(xs) + theme_manager_get_spacing("space_xxs");
     return decide_maintenance_tile_layout(in);
@@ -197,6 +213,7 @@ void MaintenanceWidget::refresh() {
     ui::set_int_if_changed(&s_rung_subject, static_cast<int>(v.rung));
     ui::set_int_if_changed(&s_show_total_subject, v.show_total ? 1 : 0);
     ui::set_int_if_changed(&s_ring_d_subject, v.ring_d);
+    ui::set_int_if_changed(&s_tile_rows_subject, v.rows);
     spdlog::trace("[MaintenanceWidget] {}x{} rung={} total={} ring={}", granted_w_, granted_h_,
                   static_cast<int>(v.rung), v.show_total, v.ring_d);
 }

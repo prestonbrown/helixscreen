@@ -14,6 +14,7 @@
 #include "system/moonraker_local_probe.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
+#include "wall_clock_trust.h"
 
 #include <spdlog/spdlog.h>
 
@@ -773,21 +774,8 @@ void HelixPluginInstaller::snooze_install_prompt() {
                                                                snooze.unmeasured_starts);
 }
 
-namespace {
-
-/// A clock reading older than this names no real moment: a device without an
-/// RTC reads 1970 (or its build date) until NTP reaches it. 2020-01-01 UTC;
-/// HelixScreen's first release is 2025.
-constexpr int64_t kEarliestTrustedClockS = 1577836800;
-
-bool plugin_prompt_clock_trusted(int64_t s) {
-    return s >= kEarliestTrustedClockS;
-}
-
-} // namespace
-
 PluginPromptSnooze plugin_prompt_snooze_at(int64_t now_s) {
-    return {plugin_prompt_clock_trusted(now_s) ? now_s : kPluginPromptStampUnknown, 0};
+    return {wall_clock_trusted(now_s) ? now_s : kPluginPromptStampUnknown, 0};
 }
 
 PluginPromptSnoozeTurn decide_plugin_prompt_snooze(PluginPromptSnooze snooze, int64_t now_s,
@@ -795,8 +783,8 @@ PluginPromptSnoozeTurn decide_plugin_prompt_snooze(PluginPromptSnooze snooze, in
     if (snooze.snoozed_at_s <= 0) {
         return {true, snooze};
     }
-    const bool now_trusted = plugin_prompt_clock_trusted(now_s);
-    if (now_trusted && !plugin_prompt_clock_trusted(snooze.snoozed_at_s)) {
+    const bool now_trusted = wall_clock_trusted(now_s);
+    if (now_trusted && !wall_clock_trusted(snooze.snoozed_at_s)) {
         return {false, {now_s, 0}};
     }
     if (now_trusted && now_s >= snooze.snoozed_at_s) {

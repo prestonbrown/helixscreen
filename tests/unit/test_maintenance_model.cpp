@@ -14,6 +14,8 @@
  */
 
 #include "ui_maintenance_overlay.h"
+#include "ui_notification_history.h"
+#include "ui_panel_notification_history.h"
 #include "ui_toast_manager.h"
 
 #include "../helix_test_fixture.h"
@@ -28,6 +30,7 @@
 #include "lvgl.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
+#include "printer_capabilities_state.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "settings_manager.h"
@@ -49,7 +52,8 @@ namespace {
 
 constexpr int kFilter = static_cast<int>(maintenance::MeterId::Filter);
 constexpr int kNozzle = static_cast<int>(maintenance::MeterId::Nozzle);
-constexpr int kRails = static_cast<int>(maintenance::MeterId::Rails);
+constexpr int kRails = static_cast<int>(maintenance::MeterId::XyAxis);
+constexpr int kBelt = static_cast<int>(maintenance::MeterId::BeltTension);
 
 /// Brings the model up fresh against this test's sandboxed config: the model and its
 /// observers belong to whichever PrinterState subjects existed when it last initialized.
@@ -58,6 +62,7 @@ struct MaintenanceModelFixture : public LVGLUITestFixture {
         // A model another test left up saves into this config on its way down.
         StaticSubjectRegistry::instance().deinit_one("MaintenanceModelSubjects");
         erase_record();
+        identify_printer();
         restart_model();
         helix::ui::set_test_toast_hook(
             [this](ToastSeverity, const std::string& msg, uint32_t) { toasts.push_back(msg); });
@@ -66,6 +71,15 @@ struct MaintenanceModelFixture : public LVGLUITestFixture {
         helix::ui::set_test_toast_hook(nullptr);
         // The teardown saves into this test's config, which the next fixture discards.
         StaticSubjectRegistry::instance().deinit_one("MaintenanceModelSubjects");
+        drain();
+    }
+
+    /// Discovery has run on an enclosed printer with a board fan.
+    void identify_printer() {
+        PrinterDiscovery hw;
+        hw.parse_objects(json::array({"extruder", "controller_fan board"}));
+        state().set_hardware(hw);
+        state().capabilities_state().set_has_chamber_filter_fan(true);
         drain();
     }
 
@@ -156,8 +170,35 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     CHECK(meter(kRails).interval_h == 300);
     CHECK(SettingsManager::instance().get_maintenance_record(prefix()).has_value());
     CHECK(subject_int("maintenance_any_on") == 1);
-    CHECK(subject_text("maintenance_m0_left") == "200 h");
+    CHECK(subject_text("maintenance_m4_left") == "200 h");
     CHECK(subject_text("maintenance_total_text") == "Total print time: 0 h");
+    // The seeded meters reach the record with their intervals.
+    const auto saved = SettingsManager::instance().get_maintenance_record(prefix());
+    CHECK(saved->meters[kFilter].seeded);
+}
+
+TEST_CASE_METHOD(MaintenanceModelFixture,
+                 "maintenance model: seeding waits for the printer's capabilities, then saves",
+                 "[maintenance][model]") {
+    state().set_hardware(PrinterDiscovery{});
+    drain();
+    maintenance::State s = maintenance::default_state();
+    REQUIRE(SettingsManager::instance().set_maintenance_record(prefix(), s));
+    // Nothing has reported yet: the hardware generation is what says discovery has run.
+    lv_subject_t* gen = state().capabilities_state().subject(Capability::HardwareGeneration);
+    lv_subject_set_int(gen, 0);
+    restart_model();
+    CHECK_FALSE(meter(kNozzle).seeded);
+    CHECK(meter(kNozzle).interval_h == 0);
+    CHECK_FALSE(
+        SettingsManager::instance().get_maintenance_record(prefix())->meters[kNozzle].seeded);
+
+    identify_printer();
+    CHECK(meter(kNozzle).interval_h == 500);
+    CHECK(meter(static_cast<int>(maintenance::MeterId::ElectronicsFans)).interval_h == 500);
+    CHECK(meter(kBelt).interval_h == 0);
+    CHECK(SettingsManager::instance().get_maintenance_record(prefix())->meters[kNozzle].seeded);
+    CHECK(subject_int("maintenance_belt_available") == 0);
 }
 
 TEST_CASE_METHOD(MaintenanceModelFixture,
@@ -171,7 +212,7 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     CHECK(maintenance_model::state().total_h == Catch::Approx(1.0));
     CHECK(meter(kFilter).used_h == Catch::Approx(1.0));
     CHECK(meter(kRails).used_h == Catch::Approx(1.0));
-    CHECK(subject_text("maintenance_m0_line") == "1 h of 200 h");
+    CHECK(subject_text("maintenance_m4_line") == "1 h of 200 h");
 
     SECTION("an unchanged reading, as while paused or idle, adds nothing") {
         printed(3600);
@@ -234,22 +275,24 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     lv_obj_t* tile =
         static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "panel_widget_maintenance", nullptr));
     REQUIRE(tile != nullptr);
-    lv_obj_t* card = lv_obj_find_by_name(overlay, "mt_card_1");
-    lv_obj_t* row = lv_obj_find_by_name(tile, "mt_row_1");
+    lv_obj_t* card = lv_obj_find_by_name(overlay, "mt_card_2");
     REQUIRE(card != nullptr);
-    REQUIRE(row != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(shown(card));
+    CHECK(subject_text("maintenance_r2_short") == "Nozzle");
 
     maintenance_model::set_interval_choice(kNozzle, 0);
     CHECK(meter(kNozzle).interval_h == 0);
-    CHECK(subject_int("maintenance_m1_on") == 0);
-    CHECK(lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
-    // The interval row stays, so the meter can be turned back on.
-    lv_obj_t* interval_row = lv_obj_find_by_name(overlay, "row_interval_1");
+    CHECK(subject_int("maintenance_m2_on") == 0);
+    CHECK_FALSE(shown(card));
+    CHECK(subject_text("maintenance_r2_short") != "Nozzle");
+    // The intervals screen still lists it, so the meter can be turned back on.
+    lv_obj_t* intervals = static_cast<lv_obj_t*>(
+        lv_xml_create(test_screen(), "maintenance_intervals_overlay", nullptr));
+    REQUIRE(intervals != nullptr);
+    lv_obj_t* interval_row = lv_obj_find_by_name(intervals, "mt_interval_2");
     REQUIRE(interval_row != nullptr);
     CHECK(shown(interval_row));
+    lv_obj_delete(intervals);
 
     const auto saved = SettingsManager::instance().get_maintenance_record(prefix());
     REQUIRE(saved.has_value());
@@ -261,8 +304,8 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     CHECK(meter(kFilter).used_h == Catch::Approx(1.0));
 
     SECTION("every meter off: the tile says so") {
-        maintenance_model::set_interval_choice(kFilter, 0);
-        maintenance_model::set_interval_choice(kRails, 0);
+        for (int i = 0; i < maintenance::kMeterCount; ++i)
+            maintenance_model::set_interval_choice(i, 0);
         CHECK(subject_int("maintenance_any_on") == 0);
         CHECK(subject_text("maintenance_worst_left") == "--");
         CHECK(subject_text("maintenance_worst_name") == "Off");
@@ -274,11 +317,11 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
 TEST_CASE_METHOD(MaintenanceModelFixture,
                  "maintenance model: the overlay's dropdown sets the interval it shows",
                  "[maintenance][model]") {
-    CHECK(subject_int("maintenance_m2_interval") == maintenance::interval_choice_index(300));
+    CHECK(subject_int("maintenance_m0_interval") == maintenance::interval_choice_index(300));
     maintenance_model::set_interval_choice(kRails, maintenance::interval_choice_index(1000));
     CHECK(meter(kRails).interval_h == 1000);
-    CHECK(subject_int("maintenance_m2_interval") == maintenance::interval_choice_index(1000));
-    CHECK(subject_text("maintenance_m2_left") == "1000 h");
+    CHECK(subject_int("maintenance_m0_interval") == maintenance::interval_choice_index(1000));
+    CHECK(subject_text("maintenance_m0_left") == "1000 h");
 
     SECTION("an index outside the choices changes nothing") {
         maintenance_model::set_interval_choice(kRails, -1);
@@ -300,9 +343,8 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     REQUIRE(meter(kFilter).reset_at_h.has_value());
     CHECK(*meter(kFilter).reset_at_h == Catch::Approx(7.0));
     CHECK(meter(kNozzle).used_h == Catch::Approx(7.0));
-    CHECK(subject_text("maintenance_m0_note") == "100% left · reset at 7 h");
     REQUIRE_FALSE(toasts.empty());
-    CHECK(toasts.back() == "HEPA filter meter reset");
+    CHECK(toasts.back() == "Air filter meter reset");
 
     const auto saved = SettingsManager::instance().get_maintenance_record(prefix());
     REQUIRE(saved.has_value());
@@ -326,32 +368,110 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     CHECK(meter(kNozzle).used_h == Catch::Approx(123.5));
     CHECK(meter(kRails).used_h == 0.0);
     CHECK(subject_text("maintenance_total_text") == "Total print time: 124 h");
-    CHECK(subject_text("maintenance_m1_left") == "627 h");
+    CHECK(subject_text("maintenance_m2_left") == "627 h");
 }
 
 TEST_CASE_METHOD(MaintenanceModelFixture,
-                 "maintenance model: passing an interval raises one notice and turns it Danger",
+                 "maintenance model: a crossing mid-print waits for the print to end",
                  "[maintenance][model]") {
     maintenance_model::set_interval_choice(kFilter, maintenance::interval_choice_index(25));
+    lv_subject_set_int(state().print_state().get_print_active_subject(), 1);
+    drain();
     seed();
     printed(24 * 3600);
-    CHECK(subject_int("maintenance_m0_status") == static_cast<int>(ValueStatus::Warn));
+    CHECK(subject_int("maintenance_m4_status") == static_cast<int>(ValueStatus::Warn));
     CHECK(toasts.empty());
 
     printed(25 * 3600);
-    CHECK(subject_int("maintenance_m0_status") == static_cast<int>(ValueStatus::Danger));
+    CHECK(subject_int("maintenance_m4_status") == static_cast<int>(ValueStatus::Danger));
     CHECK(subject_int("maintenance_worst_status") == static_cast<int>(ValueStatus::Danger));
     CHECK(subject_int("maintenance_worst_pct") == 100);
-    CHECK(subject_text("maintenance_worst_name") == "HEPA");
+    CHECK(subject_text("maintenance_worst_name") == "Filter");
+    CHECK(toasts.empty());
+    CHECK_FALSE(meter(kFilter).notified);
+
+    lv_subject_set_int(state().print_state().get_print_active_subject(), 0);
+    drain();
     REQUIRE(toasts.size() == 1);
-    CHECK(toasts[0] == "HEPA filter is due: 25 h reached");
+    CHECK(toasts[0] == "Air filter is due");
     // The latch reaches the record with the notice, so a restart does not repeat it.
     const auto saved = SettingsManager::instance().get_maintenance_record(prefix());
     REQUIRE(saved.has_value());
     CHECK(saved->meters[kFilter].notified);
 
-    printed(30 * 3600);
-    CHECK(toasts.size() == 1);
+    bool found = false;
+    for (const auto& e : NotificationHistory::instance().get_all())
+        found = found || std::string(e.message) == "Air filter is due";
+    CHECK(found);
+}
+
+TEST_CASE_METHOD(
+    MaintenanceModelFixture,
+    "maintenance model: several due meters share one toast and keep a history row each",
+    "[maintenance][model]") {
+    const size_t before = NotificationHistory::instance().get_all().size();
+    maintenance_model::set_interval_choice(kFilter, maintenance::interval_choice_index(25));
+    maintenance_model::set_interval_choice(kNozzle, maintenance::interval_choice_index(25));
+    maintenance_model::set_interval_choice(kRails, maintenance::interval_choice_index(25));
+    lv_subject_set_int(state().print_state().get_print_active_subject(), 1);
+    drain();
+    seed();
+    printed(26 * 3600);
+    lv_subject_set_int(state().print_state().get_print_active_subject(), 0);
+    drain();
+    REQUIRE(toasts.size() == 1);
+    CHECK(toasts[0] == "3 maintenance tasks are due");
+    CHECK(NotificationHistory::instance().get_all().size() == before + 3);
+}
+
+TEST_CASE_METHOD(MaintenanceModelFixture,
+                 "maintenance model: an idle load announces a due meter without a print ending",
+                 "[maintenance][model]") {
+    maintenance::State s = maintenance_model::state();
+    s.meters[kNozzle].used_h = 600.0;
+    REQUIRE(SettingsManager::instance().set_maintenance_record(prefix(), s));
+    restart_model();
+    CHECK(toasts.empty());
+
+    SECTION("idle: announced once") {
+        maintenance_model::check_idle_notices();
+        drain();
+        REQUIRE(toasts.size() == 1);
+        CHECK(toasts[0] == "Nozzle is due");
+        toasts.clear();
+        restart_model();
+        maintenance_model::check_idle_notices();
+        drain();
+        CHECK(toasts.empty());
+    }
+    SECTION("printing: held for the end of the print") {
+        lv_subject_set_int(state().print_state().get_print_active_subject(), 1);
+        drain();
+        maintenance_model::check_idle_notices();
+        drain();
+        CHECK(toasts.empty());
+        lv_subject_set_int(state().print_state().get_print_active_subject(), 0);
+        drain();
+        CHECK(toasts.size() == 1);
+    }
+}
+
+TEST_CASE_METHOD(MaintenanceModelFixture,
+                 "maintenance model: a history action opens that meter's task page",
+                 "[maintenance][model]") {
+    auto open = helix::ui::notification_action_handler("maintenance:filter");
+    REQUIRE(open);
+    open();
+    drain();
+    CHECK(subject_text("maintenance_task_name") == "Air filter");
+    CHECK(maintenance_model::task_meter() == kFilter);
+    CHECK(subject_text("maintenance_task_what").find("saturated") != std::string::npos);
+    CHECK(subject_text("maintenance_task_steps").rfind("1. ", 0) == 0);
+
+    SECTION("an unknown key leaves it alone") {
+        helix::ui::notification_action_handler("maintenance:nope")();
+        CHECK(maintenance_model::task_meter() == kFilter);
+    }
 }
 
 TEST_CASE_METHOD(
@@ -394,28 +514,68 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
                  "maintenance model: the interval dropdowns offer exactly kIntervalChoices",
                  "[maintenance][model]") {
     maintenance_model::set_interval_choice(kNozzle, maintenance::interval_choice_index(750));
-    lv_obj_t* overlay =
-        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "maintenance_overlay", nullptr));
+    maintenance_model::set_days_choice(kRails, maintenance::day_choice_index(90));
+    lv_obj_t* overlay = static_cast<lv_obj_t*>(
+        lv_xml_create(test_screen(), "maintenance_intervals_overlay", nullptr));
     REQUIRE(overlay != nullptr);
-    MaintenanceOverlay::apply_interval_options(overlay);
+    MaintenanceIntervalsOverlay::apply_options(overlay);
     for (int i = 0; i < maintenance::kMeterCount; ++i) {
         INFO("meter " << i);
-        const std::string row_name = "row_interval_" + std::to_string(i);
-        lv_obj_t* row = lv_obj_find_by_name(overlay, row_name.c_str());
-        REQUIRE(row != nullptr);
-        lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
-        REQUIRE(dropdown != nullptr);
+        lv_obj_t* hours = lv_obj_find_by_name(overlay, ("mt_hours_" + std::to_string(i)).c_str());
+        REQUIRE(hours != nullptr);
         std::vector<std::string> options;
-        std::stringstream lines(lv_dropdown_get_options(dropdown));
+        std::stringstream lines(lv_dropdown_get_options(hours));
         for (std::string line; std::getline(lines, line);)
             options.push_back(line);
         REQUIRE(options.size() == maintenance::kIntervalChoices.size());
         CHECK(options.front() == "Off");
         for (size_t k = 1; k < options.size(); ++k)
             CHECK(options[k] == std::to_string(maintenance::kIntervalChoices[k]) + " h");
-        CHECK(static_cast<int>(lv_dropdown_get_selected(dropdown)) ==
+        CHECK(static_cast<int>(lv_dropdown_get_selected(hours)) ==
               maintenance::interval_choice_index(meter(i).interval_h));
+        lv_obj_t* days = lv_obj_find_by_name(overlay, ("mt_days_" + std::to_string(i)).c_str());
+        REQUIRE(days != nullptr);
+        CHECK(lv_dropdown_get_option_count(days) == maintenance::kDayChoices.size());
     }
+    CHECK(lv_dropdown_get_selected(lv_obj_find_by_name(overlay, "mt_days_0")) ==
+          static_cast<uint32_t>(maintenance::day_choice_index(90)));
+    lv_obj_delete(overlay);
+}
+
+TEST_CASE_METHOD(MaintenanceModelFixture,
+                 "maintenance model: seven meters fit the overview at 800x480 without scrolling",
+                 "[maintenance][model]") {
+    maintenance_model::set_interval_choice(kBelt, maintenance::interval_choice_index(300));
+    lv_subject_t* breakpoint = lv_xml_get_subject(nullptr, "ui_breakpoint");
+    REQUIRE(breakpoint != nullptr);
+    const int previous = lv_subject_get_int(breakpoint);
+    lv_subject_set_int(breakpoint, 3);
+    lv_obj_t* overlay =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "maintenance_overlay", nullptr));
+    REQUIRE(overlay != nullptr);
+    lv_obj_set_size(overlay, 708, 480);
+    lv_obj_t* content = lv_obj_find_by_name(overlay, "overlay_content");
+    REQUIRE(content != nullptr);
+    lv_obj_update_layout(overlay);
+    CHECK(lv_obj_get_width(lv_obj_find_by_name(overlay, "mt_cell_0")) < 400);
+    CHECK(lv_obj_get_scroll_bottom(content) <= 0);
+    lv_obj_delete(overlay);
+    lv_subject_set_int(breakpoint, previous);
+}
+
+TEST_CASE_METHOD(MaintenanceModelFixture,
+                 "maintenance model: the belt row shows only where the model has the meter",
+                 "[maintenance][model]") {
+    lv_obj_t* overlay = static_cast<lv_obj_t*>(
+        lv_xml_create(test_screen(), "maintenance_intervals_overlay", nullptr));
+    REQUIRE(overlay != nullptr);
+    lv_obj_t* belt = lv_obj_find_by_name(overlay, "mt_interval_6");
+    REQUIRE(belt != nullptr);
+    CHECK(lv_obj_has_flag(belt, LV_OBJ_FLAG_HIDDEN));
+    lv_subject_t* available = lv_xml_get_subject(nullptr, "maintenance_belt_available");
+    REQUIRE(available != nullptr);
+    lv_subject_set_int(available, 1);
+    CHECK_FALSE(lv_obj_has_flag(belt, LV_OBJ_FLAG_HIDDEN));
     lv_obj_delete(overlay);
 }
 
