@@ -1088,9 +1088,11 @@ void FilamentSensorManager::update_from_status(const json& status) {
                     observed_runouts_.erase(sensor.klipper_name);
                 }
 
-                // Log at WARN if this is a runout (filament gone) on an active sensor
-                if (!state.filament_detected && filament_role(sensor) != FilamentSensorRole::NONE &&
-                    sensor.enabled && state.enabled) {
+                // Log at WARN if this is a runout (filament gone) on an active sensor.
+                // A first reading of empty is the sensor's state, not an edge.
+                if (!state.filament_detected && old_state.reported &&
+                    filament_role(sensor) != FilamentSensorRole::NONE && sensor.enabled &&
+                    state.enabled) {
                     spdlog::warn("[FilamentSensorManager] RUNOUT: {} ({}) filament gone",
                                  sensor.display_name, role_to_config_string(filament_role(sensor)));
                 } else {

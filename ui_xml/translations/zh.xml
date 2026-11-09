@@ -157,7 +157,6 @@
   <translation tag="A cold pull is already running." zh="冷拉清理已在运行。"/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." zh="让腔体内空气经过滤网循环的风扇。在腔体温度界面控制。"/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." zh="需要几分钟，几乎全是加热时间。你无需用肉眼判断任何东西。"/>
-  <translation tag="A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one." zh="此工具头已加载耗材通道。请先卸载;如果系统有旁路,请从旁路送入清洁耗材。"/>
   <translation tag="A folder name in moonraker.conf is unsafe, so cleanup is off." zh="moonraker.conf 中的文件夹名称不安全，因此清理功能已关闭。"/>
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." zh="打印机上已设置热浸(heat soak)宏。HelixScreen 会检测到它,但不会运行。"/>
   <translation tag="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen." zh="为腔体内空气加热的加热器。在腔体温度界面设置温度。"/>
@@ -179,7 +178,6 @@
   <translation tag="A print started" zh="打印已开始"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." zh="在料盘仍标记为放在热床上时开始了打印。如果料盘还在，请立即用紧急停止停下打印机。"/>
   <translation tag="A print took the printer." zh="打印任务接管了打印机。"/>
-  <translation tag="A printer command failed." zh="打印机命令失败。"/>
   <translation tag="A restart is already in progress" zh="重启正在进行中"/>
   <translation tag="A right, B left" zh="A 右,B 左"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." zh="测量到热床距离的传感器。HelixScreen 用它进行 Z 偏移校准,并在探针界面进行探针测试。"/>
@@ -766,6 +764,7 @@
   <translation tag="Clog Manual" zh="手动堵料"/>
   <translation tag="Clog and flow health while printing" zh="打印时的堵料与流量状况"/>
   <translation tag="Clog detection" zh="堵料检测"/>
+  <translation tag="Clogged nozzle? Extruding is optional: tap Done to go on." zh="喷嘴堵塞？挤出是可选的：点击“完成”继续。"/>
   <translation tag="Close" zh="关闭"/>
   <translation tag="Close feeder" zh="关闭送料器"/>
   <translation tag="Close feeder macro" zh="关闭送料器宏"/>
@@ -1002,6 +1001,7 @@
   <translation tag="Cut &amp; retract" zh="切断并回抽"/>
   <translation tag="Cut Distance" zh="切割距离"/>
   <translation tag="Cut filament" zh="切断耗材"/>
+  <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." zh="剪掉拉出的尖端，将耗材重新推入挤出机直到推不动为止，然后点击“挤出”。"/>
   <translation tag="Cut position saved: {}" zh="切割位置已保存: {}"/>
   <translation tag="Cut tip" zh="切断尖端"/>
   <translation tag="Cutter Enabled" zh="切刀已启用"/>
@@ -1057,6 +1057,7 @@
   <translation tag="Deploy" zh="部署"/>
   <translation tag="Depth and lighting on buttons and panels" zh="为按钮和面板添加立体感和光照"/>
   <translation tag="Describe the issue (optional)" zh="描述问题（可选）"/>
+  <translation tag="Detach the filament tube at the toolhead first so you can grip the filament." zh="请先取下工具头处的耗材管，再拉出耗材。"/>
   <translation tag="Detailed" zh="详细"/>
   <translation tag="Details" zh="详情"/>
   <translation tag="Detect automatically" zh="自动检测"/>
@@ -1470,6 +1471,7 @@
   <translation tag="Feed filament from current slot" zh="从当前槽位送入耗材"/>
   <translation tag="Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload" zh="用手将耗材送过传感器后按“恢复”，或取消打印以使用“加载/卸载”"/>
   <translation tag="Feed the cleaning filament" zh="送入清洁耗材"/>
+  <translation tag="Feed the filament back" zh="重新送入耗材"/>
   <translation tag="Feeder" zh="送料器"/>
   <translation tag="Feeders" zh="送料器"/>
   <translation tag="Feeding filament forward" zh="正在向前送料"/>
@@ -2045,6 +2047,7 @@
   <translation tag="Learn More" zh="了解更多"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." zh="了解基本操作：设置向导、在界面间切换以及触摸手势。"/>
   <translation tag="Leave it" zh="保持不变"/>
+  <translation tag="Leave this off for a clogged nozzle." zh="喷嘴堵塞时请保持关闭。"/>
   <translation tag="LedSelect" zh="选择 LED"/>
   <translation tag="Left" zh="左"/>
   <translation tag="Left belt" zh="左皮带"/>
@@ -2988,6 +2991,7 @@
   <translation tag="Purge chute position saved." zh="排料口位置已保存。"/>
   <translation tag="Purge failed: {}" zh="清洗失败: {}"/>
   <translation tag="Purge may still be running — response timed out" zh="清洗可能仍在运行 — 响应超时"/>
+  <translation tag="Purge the loaded filament" zh="清除已装载的耗材"/>
   <translation tag="Purge to bucket" zh="排料到废料桶"/>
   <translation tag="Purge tower and brush settings" zh="排料塔与刷子设置"/>
   <translation tag="Purging" zh="正在清料"/>
@@ -3755,6 +3759,7 @@
   <translation tag="Tangle prevention boosted" zh="防打结已增强"/>
   <translation tag="Tangle sensitivity" zh="打结灵敏度"/>
   <translation tag="Tap + to add" zh="点击 + 添加"/>
+  <translation tag="Tap Extrude more until clean filament comes out of the nozzle, then tap Done." zh="点击“继续挤出”直到喷嘴流出干净的耗材，然后点击“完成”。"/>
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" zh="点按“重启固件”以恢复。在 K2 上这也会重启 rpi MCU 桥接"/>
   <translation tag="Tap Resume to try the load again from {}." zh="点按恢复，从{}重新尝试装载。"/>
   <translation tag="Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman." zh="点击槽位可加载或卸载、选择料盘或编辑详情。您的编辑会与打印机和 Spoolman 保持同步。"/>
@@ -3994,7 +3999,6 @@
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" zh="该单元正在执行其他操作。请等待其完成；若持续卡住，请重置 CFS"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" zh="该单元报告了故障但无更多信息。若反复出现，请重启打印机"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" zh="该单元的板载存储已损坏。需更换 CFS 主板"/>
-  <translation tag="The unload did not finish. Try again, or cancel." zh="卸载未完成。请重试或取消。"/>
   <translation tag="The unload did not start: unload by hand, then start again" zh="卸载未开始:请手动卸载,然后重新开始"/>
   <translation tag="The unload finishes on its own, but the plate will not move." zh="卸载会自行完成,但热床不会移动。"/>
   <translation tag="Theme" zh="主题"/>
@@ -4024,6 +4028,7 @@
   <translation tag="This channel offers v{}, older than the installed v{}. Anything added since then will be removed." zh="此通道提供 v{}，早于已安装的 v{}。此后新增的内容都将被移除。"/>
   <translation tag="This check runs Klipper&apos;s resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.&#10;&#10;Each sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs." zh="此检查会沿每条皮带路径运行 Klipper 的共振测试，并比较两个响应。平衡的皮带会给出形状相同、峰值位于相同频率的曲线。&#10;&#10;每次扫频需要几分钟并会移动工具头；运行期间请远离打印机。"/>
   <translation tag="This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again." zh="这会清除所有无限料盘备用设置。在重新设置无限料盘之前，耗材用尽时打印将停止。"/>
+  <translation tag="This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand." zh="本次冷拉清理使用此工具头中已装载的耗材。挤出机及耗材路径顶部必须能用手够到。"/>
   <translation tag="This device has no wired network connection. If you turn WiFi off, it can only be turned back on from this screen." zh="此设备没有有线网络连接。关闭 WiFi 后，只能在此界面重新开启。"/>
   <translation tag="This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a &quot;Timer Too Close&quot; error or restart mid-test. Continue anyway?" zh="此设备仅有 {} MB 内存。共振校准会占用大量内存，可能导致打印机固件报告 &quot;Timer Too Close&quot; 错误或在测试中途重启。仍要继续吗？"/>
   <translation tag="This device has very little RAM. Resonance calibration is memory-intensive and may cause a &quot;Timer Too Close&quot; error. Continue anyway?" zh="此设备内存极少。共振校准会占用大量内存，可能导致 &quot;Timer Too Close&quot; 错误。仍要继续吗？"/>
@@ -4044,6 +4049,7 @@
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." zh="这是紧急停止：打印机将停机并重启 Klipper。"/>
   <translation tag="This is exactly the data that will be sent" zh="这正是将要发送的数据"/>
   <translation tag="This is what data would be sent if enabled" zh="这是启用后将发送的数据"/>
+  <translation tag="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows." zh="此耗材通道仍显示为已装载，但耗材已离开喷嘴。打印前请将其重新推入挤出机并挤出，直到耗材流出。"/>
   <translation tag="This looks like a {}, but it is set up as a {}" zh="这台打印机看起来是 {}，但被设置为 {}"/>
   <translation tag="This may take up to 30 seconds" zh="这可能需要 30 秒"/>
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." zh="这需要插件的文件分析，但它未在运行。"/>
@@ -4267,7 +4273,6 @@
   <translation tag="Unload filament" zh="卸载耗材"/>
   <translation tag="Unload filament?" zh="卸载耗材?"/>
   <translation tag="Unload from toolhead first" zh="请先从工具头卸载"/>
-  <translation tag="Unload lane" zh="卸载通道"/>
   <translation tag="Unload macro not configured" zh="卸载宏未配置"/>
   <translation tag="Unload stopped" zh="卸载已停止"/>
   <translation tag="Unload the CFS filament before enabling bypass" zh="启用旁通前请先卸载 CFS 耗材"/>

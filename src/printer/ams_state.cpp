@@ -2106,7 +2106,7 @@ void AmsState::set_current_loaded_defaults(bool write_header) {
         lv_subject_copy_string(&current_weight_text_, "");
     }
     lv_subject_set_int(&current_has_weight_, 0);
-    set_current_paint(0x505050);
+    set_current_paint(kNoFilamentPaint);
     lv_subject_set_int(&current_fill_pct_, 0);
 }
 

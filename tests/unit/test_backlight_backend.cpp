@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
 
@@ -208,6 +209,41 @@ TEST_CASE("Sysfs backend discovers fake backlight device", "[api][backlight][sys
 
     REQUIRE(backend->is_available());
     REQUIRE(std::string(backend->name()) == "Sysfs");
+}
+
+// Root ignores file modes, so a root test host probes as an unprivileged user.
+struct ScopedUnprivilegedEuid {
+    const uid_t saved = geteuid();
+    ScopedUnprivilegedEuid() {
+        if (saved == 0) {
+            REQUIRE(seteuid(65534) == 0);
+        }
+    }
+    ~ScopedUnprivilegedEuid() {
+        if (saved == 0 && seteuid(0) != 0) {
+            std::abort();
+        }
+    }
+};
+
+TEST_CASE("Sysfs backend is unavailable when brightness cannot be written",
+          "[api][backlight][sysfs]") {
+    FakeSysfsBacklight fake(255);
+    const fs::path brightness = fake.device_dir / "brightness";
+
+    fs::permissions(brightness, fs::perms::all);
+    {
+        ScopedUnprivilegedEuid unprivileged;
+        REQUIRE(BacklightBackend::create_sysfs(fake.base_dir.string())->is_available());
+    }
+
+    fs::permissions(brightness,
+                    fs::perms::owner_read | fs::perms::group_read | fs::perms::others_read);
+    ScopedUnprivilegedEuid unprivileged;
+    auto backend = BacklightBackend::create_sysfs(fake.base_dir.string());
+
+    CHECK_FALSE(backend->is_available());
+    CHECK_FALSE(backend->set_brightness(50));
 }
 
 TEST_CASE("Sysfs backend set_brightness writes brightness file", "[api][backlight][sysfs]") {
