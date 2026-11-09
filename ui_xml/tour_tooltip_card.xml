@@ -39,7 +39,7 @@
           <lv_obj width="content"
                   height="content" align="top_right" flex_flow="column" scrollable="false" clickable="false"
                   style_bg_opa="0" style_border_width="0" style_pad_all="0" style_pad_gap="#space_xxs">
-            <tour_preview_chip text="210 / 220°"/>
+            <tour_preview_chip text="210°"/>
             <tour_preview_chip text="55°"/>
             <tour_preview_chip text="Part"/>
           </lv_obj>
