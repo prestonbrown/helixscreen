@@ -452,6 +452,7 @@ TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - z_offset subject"
     SECTION("Shows -1 when no sensor holds Z_PROBE") {
         REQUIRE(z_offset_subject() == -1);
         REQUIRE(mgr().get_z_offset() == 0.0f);
+        REQUIRE_FALSE(mgr().has_z_offset());
     }
 
     SECTION("Follows the holder in microns") {
@@ -636,6 +637,32 @@ TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - config-only probe
         discover({"probe"}, json{{"probe", {{"z_offset", "-2.0"}}},
                                  {"dockable_probe", {{"z_offset", "1.0"}}}});
         REQUIRE(z_state()->z_offset == Catch::Approx(-2.0f));
+    }
+
+    // A Snapmaker U1 configures its probe as one [inductance_coil <extruder>] per
+    // head and has no [probe] section; the probe object names the first head's coil.
+    SECTION("inductance_coil sections beside the probe object feed its z_offset") {
+        discover({"probe", "inductance_coil extruder", "inductance_coil extruder1",
+                  "inductance_coil extruder2", "inductance_coil extruder3", "extruder"},
+                 json{{"inductance_coil extruder", {{"z_offset", "-0.05"}}},
+                      {"inductance_coil extruder1", {{"z_offset", "0.0"}}},
+                      {"inductance_coil extruder2", {{"z_offset", "0.0"}}},
+                      {"inductance_coil extruder3", {{"z_offset", "0.0"}}}});
+        REQUIRE(mgr().sensor_count() == 1);
+        auto configs = mgr().get_sensors();
+        REQUIRE(configs[0].klipper_name == "probe");
+        REQUIRE(configs[0].type == ProbeSensorType::EDDY_CURRENT);
+        REQUIRE(mgr().has_z_offset());
+        REQUIRE(mgr().get_z_offset() == Catch::Approx(-0.05f));
+
+        // The U1's probe publishes no z_offset: the configured one stays.
+        json status;
+        status["probe"]["name"] = "inductance_coil extruder";
+        status["probe"]["last_z_result"] = 0.0f;
+        status["probe"]["z_offset"] = nullptr;
+        mgr().update_from_status(status);
+        REQUIRE(mgr().get_z_offset() == Catch::Approx(-0.05f));
+        REQUIRE(z_offset_subject() == -50);
     }
 
     SECTION("with no probe object the section is the sensor") {
@@ -856,6 +883,29 @@ TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - discovery seeds z
     SECTION("Ignores config for another sensor") {
         discover({"probe"}, json{{"unknown_sensor", {{"z_offset", "-0.5"}}}});
         REQUIRE(z_state()->z_offset == 0.0f);
+    }
+
+    SECTION("No section configures an offset: it is unknown, not zero") {
+        discover({"probe"});
+        REQUIRE(z_state().has_value());
+        REQUIRE_FALSE(mgr().has_z_offset());
+
+        json null_status;
+        null_status["probe"]["z_offset"] = nullptr;
+        mgr().update_from_status(null_status);
+        REQUIRE_FALSE(mgr().has_z_offset());
+
+        // A module that publishes its offset makes it known.
+        json status;
+        status["probe"]["z_offset"] = 0.0f;
+        mgr().update_from_status(status);
+        REQUIRE(mgr().has_z_offset());
+        REQUIRE(mgr().get_z_offset() == 0.0f);
+    }
+
+    SECTION("A non-numeric configured offset leaves it unknown") {
+        discover({"probe"}, json{{"probe", {{"z_offset", "oops"}}}});
+        REQUIRE_FALSE(mgr().has_z_offset());
     }
 
     SECTION("A probe whose status reports a null z_offset still shows the configured offset") {

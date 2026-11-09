@@ -84,3 +84,37 @@ TEST_CASE_METHOD(ProbeOverlayZOffsetFixture,
     set("printer_has_tool_offset_cal", 0);
     CHECK_FALSE(button_hidden());
 }
+
+// A probe whose Z offset no status or config section gives shows no value
+// rather than a made-up 0.000 mm (#2089).
+TEST_CASE_METHOD(XMLTestFixture, "Probe overlay hides the Z offset row while the offset is unknown",
+                 "[probe][xml][2089]") {
+    // The XML subject registry is process-global and never forgets an entry, so
+    // the subject outlives every test; ProbeOverlay registers the real one.
+    lv_subject_t* known = lv_xml_get_subject(nullptr, "probe_z_offset_known");
+    if (known == nullptr) {
+        static lv_subject_t subject;
+        lv_subject_init_int(&subject, 0);
+        lv_xml_register_subject(nullptr, "probe_z_offset_known", &subject);
+        known = &subject;
+    }
+    lv_subject_set_int(known, 0);
+    setting_group_register();
+    REQUIRE(register_component("header_bar"));
+    REQUIRE(register_component("setting_section_header"));
+    REQUIRE(register_component("setting_action_row"));
+    REQUIRE(register_component("probe_overlay"));
+
+    lv_obj_t* overlay = create_component("probe_overlay");
+    REQUIRE(overlay != nullptr);
+    lv_obj_t* row = lv_obj_find_by_name(overlay, "probe_z_offset_row");
+    REQUIRE(row != nullptr);
+    process_lvgl(10);
+    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+
+    lv_subject_set_int(known, 1);
+    process_lvgl(10);
+    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+
+    lv_subject_set_int(known, 0);
+}

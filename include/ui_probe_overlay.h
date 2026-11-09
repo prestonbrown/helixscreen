@@ -118,6 +118,7 @@ class ProbeOverlay : public OverlayBase {
     lv_subject_t probe_type_label_{};
     char probe_z_offset_display_buf_[32] = {};
     lv_subject_t probe_z_offset_display_{};
+    lv_subject_t probe_z_offset_known_{}; ///< 1 when the probe's Z offset is known
 
     // State subject for overlay mode
     lv_subject_t probe_overlay_state_{};

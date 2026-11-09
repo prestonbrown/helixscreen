@@ -241,7 +241,9 @@ void ProbeSensorManager::on_discovered(const PrinterDiscovery& hw) {
     // null (flashforge_loadcell); the configfile always has the persisted value.
     for (const auto& entry : entries) {
         if (const auto z_offset = seeded_z_offset(entry.klipper_name, folded, hw)) {
-            readings_[entry.klipper_name].z_offset = *z_offset;
+            ProbeSensorState& state = readings_[entry.klipper_name];
+            state.z_offset = *z_offset;
+            state.z_offset_known = true;
             spdlog::debug("[ProbeSensorManager] Seeded z_offset={:.3f}mm from config for {}",
                           *z_offset, entry.display_name);
         }
@@ -311,6 +313,7 @@ bool ProbeSensorManager::parse_status(const nlohmann::json& status) {
         const auto offset = sensor->find("z_offset");
         if (offset != sensor->end() && offset->is_number()) {
             state.z_offset = offset->get<float>();
+            state.z_offset_known = true;
         }
         // Klipper publishes a bool, Cartographer an int.
         const auto query = sensor->find("last_query");
@@ -319,7 +322,7 @@ bool ProbeSensorManager::parse_status(const nlohmann::json& status) {
         }
 
         if (state.last_z_result != before.last_z_result || state.triggered != before.triggered ||
-            state.z_offset != before.z_offset) {
+            state.z_offset != before.z_offset || state.z_offset_known != before.z_offset_known) {
             changed = true;
             spdlog::debug("[ProbeSensorManager] Sensor {} updated: last_z_result={:.3f}mm, "
                           "last_query={}, z_offset={:.3f}mm",
@@ -377,6 +380,12 @@ float ProbeSensorManager::get_z_offset() const {
     std::lock_guard<std::recursive_mutex> lock(mutex());
     const auto* reading = z_probe_reading_locked();
     return reading ? reading->z_offset : 0.0f;
+}
+
+bool ProbeSensorManager::has_z_offset() const {
+    std::lock_guard<std::recursive_mutex> lock(mutex());
+    const auto* reading = z_probe_reading_locked();
+    return reading != nullptr && reading->z_offset_known;
 }
 
 lv_subject_t* ProbeSensorManager::get_probe_z_offset_subject() {

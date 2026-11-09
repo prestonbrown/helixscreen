@@ -41,6 +41,10 @@ class ProbeSensorManager : public SensorManager {
     /// Z offset in mm of the enabled, available Z_PROBE holder, or 0.0 when none.
     [[nodiscard]] float get_z_offset() const;
 
+    /// Whether that holder's Z offset is known: its status published one or a config
+    /// section configures it. An unknown offset is not a zero one.
+    [[nodiscard]] bool has_z_offset() const;
+
     /// Z offset subject: mm x 1000, -1 when no enabled sensor holds Z_PROBE.
     [[nodiscard]] lv_subject_t* get_probe_z_offset_subject();
 
