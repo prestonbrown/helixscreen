@@ -40,15 +40,20 @@ using namespace helix;
 using json = nlohmann::json;
 using helix::FanType;
 
+static PrinterState& fresh_printer_state() {
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    return state;
+}
+
 namespace {
 
 /// The process-wide PrinterState, reset and with its subjects initialised
 /// without XML registration.
 PrinterState& fresh_state() {
     lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_printer_state();
     return state;
 }
 
@@ -1107,9 +1112,7 @@ TEST_CASE("Fan characterization: Klipper rpm field on tachometer fans (#2071)",
           "[characterization][fan][update][rpm]") {
     lv_init_safe();
 
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_printer_state();
 
     state.fan_state().init_fans({"fan", "heater_fan hotend_fan", "fan_generic aux",
                                  "controller_fan board_fan", "temperature_fan chamber"});
@@ -1182,9 +1185,7 @@ TEST_CASE("Fan characterization: fan_feedback and Klipper rpm on one printer (#2
           "[characterization][fan][update][rpm][fan_feedback]") {
     lv_init_safe();
 
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_printer_state();
 
     state.fan_state().init_fans({"output_pin fan0", "heater_fan hotend_fan"});
     const auto& fans = state.fan_state().get_fans();
