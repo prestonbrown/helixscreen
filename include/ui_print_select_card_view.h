@@ -384,11 +384,6 @@ class PrintSelectCardView : public ContainerDeleteNet {
   private:
 #endif
 
-    /**
-     * @brief Create spacers for virtualization
-     */
-    void create_spacers();
-
     // === Static Callbacks ===
     static void on_card_clicked(lv_event_t* e);
     static void on_card_long_pressed(lv_event_t* e);

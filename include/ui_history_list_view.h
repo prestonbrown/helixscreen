@@ -129,7 +129,6 @@ class HistoryListView : public ContainerDeleteNet {
     // === Internal Methods ===
     /// Build one hidden pool row; false when the row component fails to create
     bool add_pool_row();
-    void create_spacers();
     void configure_row(lv_obj_t* row, size_t data_index, const PrintHistoryJob& job);
 
     /// Drop every cached pointer/counter WITHOUT touching any widget. Safe to

@@ -117,28 +117,6 @@ bool HistoryListView::add_pool_row() {
     return true;
 }
 
-void HistoryListView::create_spacers() {
-    if (!container_) {
-        return;
-    }
-
-    if (!leading_spacer_) {
-        leading_spacer_ = lv_obj_create(container_);
-        lv_obj_remove_style_all(leading_spacer_);
-        lv_obj_remove_flag(leading_spacer_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_width(leading_spacer_, lv_pct(100));
-        lv_obj_set_height(leading_spacer_, 0);
-    }
-
-    if (!trailing_spacer_) {
-        trailing_spacer_ = lv_obj_create(container_);
-        lv_obj_remove_style_all(trailing_spacer_);
-        lv_obj_remove_flag(trailing_spacer_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_width(trailing_spacer_, lv_pct(100));
-        lv_obj_set_height(trailing_spacer_, 0);
-    }
-}
-
 // ============================================================================
 // Static Callbacks
 // ============================================================================
@@ -250,7 +228,7 @@ void HistoryListView::populate(const std::vector<PrintHistoryJob>& jobs, bool pr
         pool_indices_.push_back(-1);
     }
 
-    create_spacers();
+    create_spacers(container_, leading_spacer_, trailing_spacer_);
 
     // Cache row dimensions on first populate
     if (cached_row_height_ == 0 && !pool_.empty() && !jobs.empty()) {
