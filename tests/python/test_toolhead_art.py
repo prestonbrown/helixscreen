@@ -83,7 +83,7 @@ def test_bake_writes_each_tier_at_its_height(tmp_path):
 
 def test_generated_table_is_current():
     generated = build.generate_head_table(HEADS)
-    assert generated == (REPO / "src/generated/toolhead_art_gen.cpp").read_text()
+    assert generated == (REPO / "src/rendering/toolhead_art_gen.cpp").read_text()
 
 
 def test_no_printer_states_a_toolhead_style_twice():

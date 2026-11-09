@@ -12,7 +12,7 @@
 
 namespace helix::ui {
 
-/// One baked head, from src/generated/toolhead_art_gen.cpp.
+/// One baked head, from src/rendering/toolhead_art_gen.cpp.
 struct ToolheadArt {
     ToolheadStyle style;
     const char* id;

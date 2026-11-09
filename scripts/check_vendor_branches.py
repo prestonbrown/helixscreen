@@ -89,6 +89,7 @@ VENDOR_OWNERS = (
     r"^include/mock_",
     r"^src/generated/",
     r"^include/toolhead_style\.h$",
+    r"^src/rendering/toolhead_art_gen\.cpp$",
     r"^(?:src/printer|include)/ams_backend",
     r"^include/ams_types?\.h$",
     r"^(?:src/system|include)/board_identity\.(?:cpp|h)$",

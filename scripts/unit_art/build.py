@@ -315,7 +315,7 @@ def main():
     heads_out = REPO / "assets/images/toolheads"
     for head in HEADS:
         bake_head(head, heads_out)
-    (REPO / "src/generated/toolhead_art_gen.cpp").write_text(generate_head_table(HEADS))
+    (REPO / "src/rendering/toolhead_art_gen.cpp").write_text(generate_head_table(HEADS))
     contact_sheet(out, REPO / "build/unit-art/contact_sheet.png")
 
 
