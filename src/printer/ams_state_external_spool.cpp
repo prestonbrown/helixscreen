@@ -238,6 +238,9 @@ void AmsState::refresh_external_spool() {
     }
     lv_subject_set_int(&external_spool_color_, 0);
     lv_subject_copy_string(&external_spool_material_, "");
+    if (registry_.count() == 0) {
+        sync_current_loaded_from_backend();
+    }
 }
 
 void AmsState::persist_external_spool_identity() {
@@ -271,6 +274,9 @@ void AmsState::notify_external_spool_changed(const SlotInfo& info) {
     // Material string reflector — copy_string only notifies on change, and
     // color observers re-read full spool info anyway, so no force-fire needed.
     lv_subject_copy_string(&external_spool_material_, info.material.c_str());
+    if (registry_.count() == 0) {
+        sync_current_loaded_from_backend();
+    }
 }
 
 void AmsState::clear_external_spool_info() {

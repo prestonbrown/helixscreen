@@ -35,6 +35,21 @@ const char* get_splash_3d_size_name(int screen_width, int screen_height) {
                                         "xlarge");
 }
 
+const char* get_splash_3d_portrait_size_name(int screen_width, int screen_height) {
+    if (screen_height <= screen_width) {
+        return nullptr;
+    }
+    // Largest first, so a panel takes the biggest canvas that fits it on both
+    // axes. Kept in step with splash_portrait in assets/config/platforms.json.
+    for (const char* name : {"xlarge-portrait", "large-portrait", "medium-portrait"}) {
+        if (get_splash_3d_target_width(name) <= screen_width &&
+            get_splash_3d_target_height(name) <= screen_height) {
+            return name;
+        }
+    }
+    return nullptr;
+}
+
 int get_splash_3d_target_height(const char* size_name) {
     // These heights appear in three places: here, splash_composite_height in
     // assets/config/platforms.json, and SCREEN_SIZES in scripts/gen_splash_3d.py.
@@ -57,6 +72,12 @@ int get_splash_3d_target_height(const char* size_name) {
         return 720;
     if (strcmp(size_name, "ultrawide") == 0)
         return 440;
+    if (strcmp(size_name, "medium-portrait") == 0)
+        return 800;
+    if (strcmp(size_name, "large-portrait") == 0)
+        return 1024;
+    if (strcmp(size_name, "xlarge-portrait") == 0)
+        return 1280;
     return 0; // Unknown — caller should fall back to runtime scaling
 }
 
@@ -78,6 +99,12 @@ int get_splash_3d_target_width(const char* size_name) {
         return 1280;
     if (strcmp(size_name, "ultrawide") == 0)
         return 1920;
+    if (strcmp(size_name, "medium-portrait") == 0)
+        return 480;
+    if (strcmp(size_name, "large-portrait") == 0)
+        return 600;
+    if (strcmp(size_name, "xlarge-portrait") == 0)
+        return 720;
     return 0; // Unknown — caller should fall back to runtime scaling
 }
 
