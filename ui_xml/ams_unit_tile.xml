@@ -39,7 +39,8 @@
         <bind_style_if_eq name="styles.unit_offline" subject="$absent" ref_value="1"/>
         <unit_art name="unit_art" width="100%" height="100%" align="center" tier="full"/>
       </lv_obj>
-      <ams_disconnected_chip name="unit_disconnected_chip" align="center" disconnected="$disconnected"/>
+      <ams_disconnected_chip name="unit_disconnected_chip"
+                             align="top_mid" style_bg_color="#screen_bg" style_bg_opa="235" disconnected="$disconnected"/>
       <text_small name="unit_absent_label" align="center" text="Not connected" event_bubble="true">
         <bind_flag_if_eq subject="$absent" flag="hidden" ref_value="0"/>
       </text_small>
