@@ -244,14 +244,16 @@ void PluginSelfHeal::on_restarted(PluginRestartOutcome outcome) {
                                       lv_tr("Restart Moonraker to finish the plugin change"));
         return;
     case PluginRestartOutcome::NoService:
-        // Nothing on this host can restart Moonraker's service, and the
-        // attempt is remembered, so the advice also goes to the history.
-        spdlog::warn("[PluginSelfHeal] Moonraker does not name a service to restart, so it was "
-                     "not restarted for the HelixPrint plugin; it runs the old plugin code until "
-                     "the printer reboots");
+        // Nothing on this host can restart Moonraker's service. The next start
+        // asks again until a reboot loads the plugin, and the advice also goes
+        // to the history.
+        spdlog::warn("[PluginSelfHeal] Moonraker cannot restart its own service on this host, "
+                     "so it was not restarted for the HelixPrint plugin; it runs the old plugin "
+                     "code until the printer reboots");
         ui_notification_warning(lv_tr("Reboot the printer to finish the plugin update."));
         return;
     case PluginRestartOutcome::NeedsManual:
+    case PluginRestartOutcome::Refused:
     case PluginRestartOutcome::JobUnknown:
     case PluginRestartOutcome::Failed:
         spdlog::warn("[PluginSelfHeal] Moonraker was not restarted for the HelixPrint plugin; it "

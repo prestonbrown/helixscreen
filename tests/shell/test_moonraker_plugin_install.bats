@@ -1856,7 +1856,7 @@ bundled_version() {
         fail "an idle printer was not restarted: $(cat "$BATS_TEST_TMPDIR/mr/log")"
     grep -q 'print_stats' "$BATS_TEST_TMPDIR/mr/log" || fail "took the caller's word without asking"
     # Moonraker refuses the restart without a login too.
-    [ "$status" -eq 3 ] || fail "want 3, got $status: $output"
+    [ "$status" -eq 9 ] || fail "want 9, got $status: $output"
     contains "Moonraker refused to restart (401)" "$output"
 }
 
@@ -1905,7 +1905,7 @@ bundled_version() {
     [ ! -e "$log" ] || fail "ran a service manager: $(cat "$log")"
 }
 
-@test "--restart-moonraker exits 3 when Moonraker refuses, or still runs the old plugin" {
+@test "--restart-moonraker exits 9 when Moonraker refuses, 3 when it still runs the old plugin" {
     local home="$BATS_TEST_TMPDIR/home"
     setup_plain_home "$home"
     mock_moonraker_http "$BATS_TEST_TMPDIR/mr"
@@ -1913,7 +1913,7 @@ bundled_version() {
 
     : > "$BATS_TEST_TMPDIR/mr/refuse"
     run env HOME="$home" sh "$SCRIPT" --restart-moonraker
-    [ "$status" -eq 3 ] || fail "refused: want 3, got $status: $output"
+    [ "$status" -eq 9 ] || fail "refused: want 9, got $status: $output"
     contains "Restart Moonraker or reboot the printer to finish the plugin update" "$output"
 
     rm "$BATS_TEST_TMPDIR/mr/refuse"
@@ -1942,7 +1942,7 @@ bundled_version() {
     if printf '%s' "$output" | grep -q 'old HelixPrint plugin'; then fail "blamed an old plugin that never ran: $output"; fi
 }
 
-@test "--restart-moonraker says Moonraker did not restart when its service restart is accepted and does nothing" {
+@test "--restart-moonraker exits 8 and says Moonraker did not restart when its service restart is accepted and does nothing" {
     local home="$BATS_TEST_TMPDIR/home" mr="$BATS_TEST_TMPDIR/mr"
     setup_plain_home "$home"
     mock_moonraker_http "$mr"
@@ -1951,7 +1951,7 @@ bundled_version() {
     : > "$mr/inert"
 
     run env HOME="$home" sh "$SCRIPT" --restart-moonraker
-    [ "$status" -eq 3 ] || fail "want 3, got $status: $output"
+    [ "$status" -eq 8 ] || fail "want 8, got $status: $output"
     contains "Moonraker did not restart: its service restart is not available on this host" "$output"
 }
 
