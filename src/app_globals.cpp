@@ -92,6 +92,7 @@ static lv_subject_t g_wizard_active_subject;
 // (remote control, update checks) and read by the main loop, so it must be a
 // lock-free atomic: only those are async-signal-safe.
 static std::atomic<bool> g_quit_requested{false};
+static std::atomic<bool> g_heater_cleanup_pending{false};
 static_assert(std::atomic<bool>::is_always_lock_free, "quit flag must be async-signal-safe");
 
 // When set, main() will execv() the stored argv after normal cleanup runs.
@@ -354,6 +355,14 @@ void app_request_quit() {
 
 void app_request_quit_signal_safe() {
     g_quit_requested.store(true, std::memory_order_release);
+}
+
+void app_set_heater_cleanup_pending(bool pending) {
+    g_heater_cleanup_pending.store(pending, std::memory_order_release);
+}
+
+bool app_heater_cleanup_pending_signal_safe() {
+    return g_heater_cleanup_pending.load(std::memory_order_acquire);
 }
 
 void app_request_restart() {

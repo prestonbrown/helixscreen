@@ -190,6 +190,63 @@ TEST_CASE_METHOD(RunnerFixture, "cold pull: teardown sends the cleanup before th
     CHECK(client.gcode_script_history().empty());
 }
 
+TEST_CASE_METHOD(RunnerFixture, "cold pull: SIGTERM sees the heater held only while it is",
+                 "[cold_pull][sigterm]") {
+    REQUIRE_FALSE(app_heater_cleanup_pending_signal_safe());
+    REQUIRE(runner->start(ColdPullMaterial::Pla, {230, 90}, false) == ColdPullRefusal::Ok);
+    drain();
+    REQUIRE(runner->flow()->stage() == ColdPullStage::Preparing);
+    CHECK_FALSE(app_heater_cleanup_pending_signal_safe()); // nothing is hot yet
+
+    runner->toolhead_ready();
+    drain();
+    feed("extruder", 25, 230);
+    REQUIRE(app_heater_cleanup_pending_signal_safe());
+
+    SECTION("cancel") {
+        runner->cancel();
+        drain();
+        CHECK_FALSE(app_heater_cleanup_pending_signal_safe());
+    }
+    SECTION("teardown") {
+        runner->before_disconnect();
+        drain();
+        CHECK_FALSE(app_heater_cleanup_pending_signal_safe());
+    }
+    SECTION("runner destroyed") {
+        runner.reset();
+        CHECK_FALSE(app_heater_cleanup_pending_signal_safe());
+    }
+    SECTION("a job takes the machine") {
+        state.update_from_status({{"print_stats", {{"state", "printing"}}}});
+        drain();
+        REQUIRE_FALSE(runner->running());
+        CHECK_FALSE(app_heater_cleanup_pending_signal_safe());
+    }
+    SECTION("the link drops: nothing can be sent") {
+        connection(0);
+        REQUIRE_FALSE(runner->running());
+        CHECK_FALSE(app_heater_cleanup_pending_signal_safe());
+
+        SECTION("held again while the owed target is being read") {
+            client.hold_query = true;
+            connection(2);
+            REQUIRE(client.queries == 1);
+            CHECK(app_heater_cleanup_pending_signal_safe());
+
+            runner->before_disconnect();
+            drain();
+            CHECK_FALSE(app_heater_cleanup_pending_signal_safe());
+        }
+        SECTION("released when the owed read fails") {
+            client.fail_query = true;
+            connection(2);
+            REQUIRE(client.queries == 1);
+            CHECK_FALSE(app_heater_cleanup_pending_signal_safe());
+        }
+    }
+}
+
 TEST_CASE_METHOD(RunnerFixture,
                  "cold pull: a tool change mid-pull leaves the pull on its own heater",
                  "[cold_pull][multi_extruder]") {

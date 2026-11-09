@@ -108,6 +108,7 @@ ColdPullRunner::~ColdPullRunner() {
         spdlog::info("{} Shutting down mid-pull: heater off, fan restored", kLogTag);
         apply(flow_->exit_actions(job_holds_machine(state_.print_state().get_print_lifecycle())));
     }
+    app_set_heater_cleanup_pending(false);
     watch(false);
     lifetime_.invalidate();
     awake_.reset();
@@ -130,7 +131,15 @@ void ColdPullRunner::before_disconnect() {
         (void)flow_->disconnected();
         after_event();
     }
+    sync_heater_cleanup_pending();
     watch(false);
+}
+
+void ColdPullRunner::sync_heater_cleanup_pending() {
+    // An owed cleanup counts only with its query out: before_disconnect() can send it
+    // then, and with the link down no shutdown could.
+    app_set_heater_cleanup_pending((running() && flow_->owned_target_c().value_or(0) != 0) ||
+                                   owed_query_in_flight_);
 }
 
 ColdPullRunner::TimePoint ColdPullRunner::now() const {
@@ -305,6 +314,7 @@ void ColdPullRunner::cancel_tick_timer() {
 }
 
 void ColdPullRunner::after_event() {
+    sync_heater_cleanup_pending();
     if (!flow_) {
         return;
     }
@@ -335,6 +345,10 @@ void ColdPullRunner::after_event() {
 void ColdPullRunner::apply(const ColdPullActions& a) {
     if (a.empty() || !flow_) {
         return;
+    }
+    // Set before the heat command leaves; after_event() clears it once the off has.
+    if (running() && flow_->owned_target_c().value_or(0) != 0) {
+        app_set_heater_cleanup_pending(true);
     }
     const ColdPullParams& p = flow_->params();
     IMoonrakerAPI* api = get_moonraker_api();
@@ -474,6 +488,7 @@ void ColdPullRunner::settle_owed() {
     // The heater's subject still holds what it read before the link went down, so the
     // printer is asked for the target it has now.
     owed_query_in_flight_ = true;
+    sync_heater_cleanup_pending();
     const uint32_t gen = ++owed_gen_;
     const std::string heater = owed_->heater;
     const json params = {{"objects", {{heater, json::array({"target"})}}}};
@@ -501,6 +516,7 @@ void ColdPullRunner::settle_owed() {
                                 return;
                             }
                             owed_query_in_flight_ = false;
+                            sync_heater_cleanup_pending();
                             spdlog::warn("{} Could not read the owed heater's target: {}", kLogTag,
                                          e.message);
                             // Still connected, no other ready edge is coming: go by
@@ -516,6 +532,13 @@ void ColdPullRunner::finish_owed(std::optional<int> target) {
     if (!owed_) {
         return;
     }
+    // Runs after the sends below, on every way out.
+    struct ResyncOnExit {
+        ColdPullRunner* runner;
+        ~ResyncOnExit() {
+            runner->sync_heater_cleanup_pending();
+        }
+    } resync{this};
     const Owed owed = std::move(*owed_);
     owed_.reset();
     connection_observer_.reset();

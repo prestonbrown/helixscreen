@@ -125,6 +125,8 @@ class ColdPullRunner {
     void on_sensor(int value);
     /// @param command_id The flow's name for this send; 0 expects no reply.
     void send_gcode(const std::string& gcode, uint32_t command_id);
+    /// Tell the SIGTERM handler whether a heater is on that this runner can still turn off.
+    void sync_heater_cleanup_pending();
     void settle_owed();
     /// The owed cleanup, once the printer has answered with @p target_c, its heater's
     /// live target (nullopt when it did not say).
