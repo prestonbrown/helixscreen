@@ -15,9 +15,11 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
+#include "display_settings_manager.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
+#include "ui/fan_spin_animation.h"
 
 #include <array>
 #include <string>
@@ -290,6 +292,72 @@ TEST_CASE_METHOD(
         process_lvgl(50);
         CHECK(lv_obj_has_flag(part, LV_OBJ_FLAG_HIDDEN));
     }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "fan overlay: a dial built for a fan at a steady rpm shows it at once (#2082)",
+                 "[fan_overlay][rpm]") {
+    FreshOverlays fresh;
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"extruder", "fan"}));
+    get_printer_state().set_hardware(hw);
+    state().fan_state().init_fans({"fan"});
+    get_printer_state().update_from_status(json{{"fan", {{"speed", 0.5}, {"rpm", 3200.0}}}});
+    seed_nav_panels(test_screen());
+
+    lv_obj_t* root = helix::open_fan_control_overlay(test_screen());
+    REQUIRE(root != nullptr);
+
+    // No queue drain and no further status: the reading comes from the dial's build.
+    lv_obj_t* part = dial_rpm_label(root, state().fan_state().get_fans().front().display_name);
+    REQUIRE(part != nullptr);
+    CHECK(shows(part, "3200 RPM"));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "fan overlay: an rpm-only refresh keeps an auto fan's icon spinning (#2071)",
+                 "[fan_overlay][rpm]") {
+    FreshOverlays fresh;
+    // The fixture turns animations off; the subject is set directly so no Config is written.
+    struct AnimationsOn {
+        lv_subject_t* subject =
+            helix::DisplaySettingsManager::instance().subject_animations_enabled();
+        int32_t before = lv_subject_get_int(subject);
+        AnimationsOn() {
+            lv_subject_set_int(subject, 1);
+        }
+        ~AnimationsOn() {
+            lv_subject_set_int(subject, before);
+        }
+    } animations_on;
+
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"extruder", "heater_fan hotend_fan"}));
+    get_printer_state().set_hardware(hw);
+    state().fan_state().init_fans({"heater_fan hotend_fan"});
+    get_printer_state().update_from_status(
+        json{{"heater_fan hotend_fan", {{"speed", 0.5}, {"rpm", 3000.0}}}});
+    seed_nav_panels(test_screen());
+
+    lv_obj_t* root = helix::open_fan_control_overlay(test_screen());
+    REQUIRE(root != nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(50);
+    helix::ui::UpdateQueue::instance().drain();
+
+    lv_obj_t* icon = lv_obj_find_by_name(root, "fan_icon");
+    REQUIRE(icon != nullptr);
+    REQUIRE(lv_anim_get(icon, helix::ui::fan_spin_anim_cb) != nullptr);
+    process_lvgl(1000);
+    const int32_t turned = lv_obj_get_style_transform_rotation(icon, LV_PART_MAIN);
+    REQUIRE(turned > 0);
+
+    get_printer_state().update_from_status(json{{"heater_fan hotend_fan", {{"rpm", 3100.0}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(1);
+    REQUIRE(has_label(root, "50% \xC2\xB7 3100 RPM"));
+    CHECK(lv_anim_get(icon, helix::ui::fan_spin_anim_cb) != nullptr);
+    CHECK(lv_obj_get_style_transform_rotation(icon, LV_PART_MAIN) >= turned);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "fan dial: an rpm reading leaves the speed display alone",
