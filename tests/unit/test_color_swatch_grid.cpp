@@ -4,10 +4,13 @@
 #include "ui_swatch.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_geometry.h"
+#include "../ui_test_utils.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "lvgl/src/misc/lv_area_private.h" // lv_area_is_in
+#include "theme_manager.h"
 
 #include <algorithm>
 #include <cstring>
@@ -277,6 +280,24 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         }
     }
     display.set_animations_enabled(animations);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "The compact picker's active tab stays readable on primary",
+                 "[color_picker]") {
+    const lv_color_t primary = theme_manager_get_color("primary");
+    const lv_color_t text = theme_manager_get_color("text");
+    REQUIRE(wcag::contrast(text, primary) < 4.0);
+
+    helix::test::ScopedBreakpoint bp(UiBreakpoint::Tiny);
+    helix::ui::ColorPicker picker;
+    picker.show_with_color(test_screen(), 0xFF0000);
+    lv_obj_t* tab = lv_obj_find_by_name(lv_layer_top(), "btn_tab_presets");
+    if (!tab) {
+        tab = lv_obj_find_by_name(test_screen(), "btn_tab_presets");
+    }
+    REQUIRE(tab != nullptr);
+    CHECK(wcag::contrast(lv_obj_get_style_text_color(tab, LV_PART_MAIN), primary) >= 4.0);
+    picker.hide();
 }
 
 TEST_CASE("the general palette leads with the filament colours people load",

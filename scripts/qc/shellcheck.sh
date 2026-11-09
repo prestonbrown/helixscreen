@@ -41,12 +41,12 @@ SHELLCHECK_BASELINE=""
 # Post-update maintenance scripts that live in config/ because the release zip
 # ships them, but are written and held to the installer bar (warning severity,
 # `local` allowed for BusyBox ash) rather than the hook/init bar.
-SHELLCHECK_CONFIG_SCRIPTS="config/restore-user-config.sh config/refresh-service-units.sh"
+SHELLCHECK_CONFIG_SCRIPTS="config/restore-user-config.sh config/refresh-service-units.sh config/fix-user-config-owner.sh"
 
 SHELL_FILES=""
 if [ "$STAGED_ONLY" = true ]; then
   SHELL_FILES=$(git diff --cached --name-only --diff-filter=ACM | \
-    grep -E '(config/platform/.*\.sh|config/.*\.init|^scripts/.*\.sh|^config/(restore-user-config|refresh-service-units)\.sh)$' || true)
+    grep -E '(config/platform/.*\.sh|config/.*\.init|^scripts/.*\.sh|^config/(restore-user-config|refresh-service-units|fix-user-config-owner)\.sh)$' || true)
 else
   SHELL_FILES=$(find config/platform -name "*.sh" 2>/dev/null || true)
   # Every init script at the top of config/ ships to devices (helixscreen.init,
@@ -89,7 +89,7 @@ if [ -n "$SHELL_FILES" ]; then
       out="$2/$(printf "%s" "$f" | tr "/" "_")"
       if [ ! -f "$f" ]; then : > "$out.skip"; exit 0; fi
       case "$f" in
-        scripts/*|config/restore-user-config.sh|config/refresh-service-units.sh) flags="-S warning -e $3" ;;
+        scripts/*|config/restore-user-config.sh|config/refresh-service-units.sh|config/fix-user-config-owner.sh) flags="-S warning -e $3" ;;
         *)         flags="" ;;
       esac
       shellcheck $flags "$f" > "$out.out" 2>/dev/null || : > "$out.bad"

@@ -621,6 +621,7 @@
   <translation tag="Cannot park while a print is active" en="Cannot park while a print is active"/>
   <translation tag="Cannot perform this action now" en="Cannot perform this action now"/>
   <translation tag="Cannot reprint: not connected to printer" en="Cannot reprint: not connected to printer"/>
+  <translation tag="Cannot restart Moonraker while printing" en="Cannot restart Moonraker while printing"/>
   <translation tag="Cannot restart — no filename" en="Cannot restart — no filename"/>
   <translation tag="Cannot run filament operation while printing" en="Cannot run filament operation while printing"/>
   <translation tag="Cannot save offsets while printing" en="Cannot save offsets while printing"/>
@@ -2576,6 +2577,7 @@
   <translation tag="Nozzle:" en="Nozzle:"/>
   <translation tag="Nozzles still heating: {}" en="Nozzles still heating: {}"/>
   <translation tag="Number Pad Layout" en="Number Pad Layout"/>
+  <translation tag="Number slots from 0" en="Number slots from 0"/>
   <translation tag="Nylon" en="Nylon"/>
   <translation tag="OD" en="OD"/>
   <translation tag="OFF" en="OFF"/>
@@ -3191,6 +3193,7 @@
   <translation tag="Restart Klipper?" en="Restart Klipper?"/>
   <translation tag="Restart Moonraker" en="Restart Moonraker"/>
   <translation tag="Restart Moonraker to finish the plugin change" en="Restart Moonraker to finish the plugin change"/>
+  <translation tag="Restart Moonraker?" en="Restart Moonraker?"/>
   <translation tag="Restart Now" en="Restart Now"/>
   <translation tag="Restart Required" en="Restart Required"/>
   <translation tag="Restart failed: not connected" en="Restart failed: not connected"/>
@@ -3406,7 +3409,7 @@
   <translation tag="Select Spool" en="Select Spool"/>
   <translation tag="Select a filament slot to load" en="Select a filament slot to load"/>
   <translation tag="Select a valid number" en="Select a valid number"/>
-  <translation tag="Select a valid number (1-{})" en="Select a valid number (1-{})"/>
+  <translation tag="Select a valid number ({}-{})" en="Select a valid number ({}-{})"/>
   <translation tag="Select a valid tool" en="Select a valid tool"/>
   <translation tag="Select a valid {}" en="Select a valid {}"/>
   <translation tag="Select a {}" en="Select a {}"/>
@@ -3502,6 +3505,7 @@
   <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" en="Show print speed and flow as mm/s and mm³/s instead of percent"/>
   <translation tag="Show printer icon in navigation bar" en="Show printer icon in navigation bar"/>
   <translation tag="Show sliced colors" en="Show sliced colors"/>
+  <translation tag="Show slots, lanes, gates and tools counting from 0, matching T0 in G-code" en="Show slots, lanes, gates and tools counting from 0, matching T0 in G-code"/>
   <translation tag="Show temp for" en="Show temp for"/>
   <translation tag="Show text labels on icon-only home screen widgets" en="Show text labels on icon-only home screen widgets"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" en="Show this screen as a webcam in Mainsail and Fluidd"/>
@@ -3977,6 +3981,7 @@
   <translation tag="The right RFID reader in this CFS unit may need service" en="The right RFID reader in this CFS unit may need service"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" en="The runout sensor indicates no filament is loaded. Start print anyway?"/>
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." en="The saved position is kept. Reconnect or restart the screen to be offered the resume again."/>
+  <translation tag="The screen will lose its connection to the printer for a few seconds." en="The screen will lose its connection to the printer for a few seconds."/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" en="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service"/>
   <translation tag="The speed of one fan you choose" en="The speed of one fan you choose"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." en="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24."/>

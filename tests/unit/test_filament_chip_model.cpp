@@ -9,6 +9,7 @@
  */
 
 #include "filament_chip_model.h"
+#include "test_helpers/zero_lane_numbering.h"
 
 #include <optional>
 #include <set>
@@ -116,6 +117,19 @@ TEST_CASE("chip_slot_label: one unit prints the bare 1-based number", "[filament
     std::vector<AvailableSlot> slots = {make_slot(0, 0, "PLA"), make_slot(1, 0, "PLA"),
                                         make_slot(2, 0, "PLA"), make_slot(3, 0, "PLA")};
     CHECK(chip_slot_label(slots[2], slots) == "3");
+}
+
+TEST_CASE("chip_slot_label: counting from zero renumbers the slot, not the unit",
+          "[filament_chip][numbering]") {
+    std::vector<AvailableSlot> one_unit = {make_slot(0, 0, "PLA"), make_slot(1, 0, "PLA")};
+    ScopedZeroLaneNumbering zero;
+    CHECK(chip_slot_label(one_unit[0], one_unit) == "0");
+
+    std::vector<AvailableSlot> two_units = one_unit;
+    two_units[1].unit_index = 1;
+    two_units[1].local_slot_index = 0;
+    CHECK(chip_slot_label(two_units[1], two_units) ==
+          std::string("2") + helix::ui::kUnitSeparator + "0");
 }
 
 TEST_CASE("chip_slot_label: two units in one backend name the unit", "[filament_chip]") {

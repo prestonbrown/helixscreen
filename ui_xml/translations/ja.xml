@@ -621,6 +621,7 @@
   <translation tag="Cannot park while a print is active" ja="印刷中はパーキングできません"/>
   <translation tag="Cannot perform this action now" ja="現在この操作は実行できません"/>
   <translation tag="Cannot reprint: not connected to printer" ja="再印刷できません: プリンター未接続"/>
+  <translation tag="Cannot restart Moonraker while printing" ja="印刷中はMoonrakerを再起動できません"/>
   <translation tag="Cannot restart — no filename" ja="再起動できません — ファイル名がありません"/>
   <translation tag="Cannot run filament operation while printing" ja="印刷中はフィラメント操作を実行できません"/>
   <translation tag="Cannot save offsets while printing" ja="印刷中はオフセットを保存できません"/>
@@ -2576,6 +2577,7 @@
   <translation tag="Nozzle:" ja="ノズル:"/>
   <translation tag="Nozzles still heating: {}" ja="加熱中のノズル: {}"/>
   <translation tag="Number Pad Layout" ja="テンキーの配列"/>
+  <translation tag="Number slots from 0" ja="スロット番号を0から始める"/>
   <translation tag="Nylon" ja="ナイロン"/>
   <translation tag="OD" ja="OD"/>
   <translation tag="OFF" ja="OFF"/>
@@ -3191,6 +3193,7 @@
   <translation tag="Restart Klipper?" ja="Klipper を再起動しますか？"/>
   <translation tag="Restart Moonraker" ja="Moonraker を再起動"/>
   <translation tag="Restart Moonraker to finish the plugin change" ja="プラグインの変更を完了するには Moonraker を再起動してください"/>
+  <translation tag="Restart Moonraker?" ja="Moonrakerを再起動しますか?"/>
   <translation tag="Restart Now" ja="今すぐ再起動"/>
   <translation tag="Restart Required" ja="再起動が必要です"/>
   <translation tag="Restart failed: not connected" ja="再起動に失敗: 未接続"/>
@@ -3406,7 +3409,7 @@
   <translation tag="Select Spool" ja="スプールを選択"/>
   <translation tag="Select a filament slot to load" ja="装填するフィラメントスロットを選択"/>
   <translation tag="Select a valid number" ja="有効な番号を選択してください"/>
-  <translation tag="Select a valid number (1-{})" ja="有効な番号を選択してください（1-{}）"/>
+  <translation tag="Select a valid number ({}-{})" ja="有効な番号を選択してください（{}-{}）"/>
   <translation tag="Select a valid tool" ja="有効なツールを選択してください"/>
   <translation tag="Select a valid {}" ja="有効な{}を選択してください"/>
   <translation tag="Select a {}" ja="{}を選択してください"/>
@@ -3502,6 +3505,7 @@
   <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" ja="印刷速度とフローをパーセントではなく mm/s と mm³/s で表示"/>
   <translation tag="Show printer icon in navigation bar" ja="ナビゲーションバーにプリンターアイコンを表示"/>
   <translation tag="Show sliced colors" ja="スライスした色を表示"/>
+  <translation tag="Show slots, lanes, gates and tools counting from 0, matching T0 in G-code" ja="スロット、レーン、ゲート、ツールを0から数えます（G-codeのT0と一致）"/>
   <translation tag="Show temp for" ja="温度表示対象"/>
   <translation tag="Show text labels on icon-only home screen widgets" ja="アイコンのみのホーム画面ウィジェットにテキストラベルを表示"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" ja="この画面をMainsailとFluiddでウェブカメラとして表示"/>
@@ -3977,6 +3981,7 @@
   <translation tag="The right RFID reader in this CFS unit may need service" ja="この CFS ユニットの右側 RFID リーダーは修理が必要な可能性があります"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" ja="フィラメント切れセンサーがフィラメント未装填を検出しました。それでも印刷を開始しますか？"/>
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." ja="保存された位置は残ります。再接続するか画面を再起動すると、再開が再び提示されます。"/>
+  <translation tag="The screen will lose its connection to the printer for a few seconds." ja="画面とプリンターの接続が数秒間切断されます。"/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" ja="この CFS ユニットのセンサーを読み取れません。接続を確認してください。改善しない場合は修理が必要です"/>
   <translation tag="The speed of one fan you choose" ja="選んだファン1つの速度"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." ja="サブネットマスクが無効です。255.255.255.0 や 24 のような形式で入力してください。"/>

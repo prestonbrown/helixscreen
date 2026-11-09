@@ -262,6 +262,35 @@ TEST_CASE("tray projection: a unit's lid takes its real profile", "[ams][tray]")
     CHECK(out[8].y < out[16].y);
 }
 
+TEST_CASE("tray projection: front parts anchor to the row, a lane or an end", "[ams][tray]") {
+    TrayBox b{};
+    b.fl = 100;
+    b.fr = 300;
+    b.ft = 50;
+    b.fb = 90;
+    float box[4];
+    // At half the reference spool, every length halves.
+    front_part_box(b, {FrontAnchor::Span, 4, 8, 2, 6, 0, 0}, 55.0f, 0, box);
+    CHECK(box[0] == Approx(102.0f));
+    CHECK(box[2] == Approx(296.0f));
+    CHECK(box[1] == Approx(51.0f));
+    CHECK(box[3] == Approx(53.0f));
+    front_part_box(b, {FrontAnchor::Lane, -2, 2, -4, 0, 0, 0}, 55.0f, 150, box);
+    CHECK(box[0] == Approx(149.0f));
+    CHECK(box[2] == Approx(151.0f));
+    CHECK(box[1] == Approx(48.0f));
+    front_part_box(b, {FrontAnchor::Center, -2, 2, 0, 1, 0, 0}, 55.0f, 0, box);
+    CHECK(box[0] == Approx(199.0f));
+    front_part_box(b, {FrontAnchor::Left, 2, 6, 0, 1, 0, 0}, 55.0f, 0, box);
+    CHECK(box[0] == Approx(101.0f));
+    // A part wider than the row stops at the unit's end.
+    front_part_box(b, {FrontAnchor::Left, 2, 900, 0, 1, 0, 0}, 55.0f, 0, box);
+    CHECK(box[2] == Approx(300.0f));
+    front_part_box(b, {FrontAnchor::Right, 2, 6, 0, 1, 0, 0}, 55.0f, 0, box);
+    CHECK(box[0] == Approx(297.0f));
+    CHECK(box[2] == Approx(299.0f));
+}
+
 TEST_CASE("tray projection: any climate data gets glass", "[ams][tray]") {
     helix::AmsUnit unit;
     unit.slots.resize(4);

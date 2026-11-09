@@ -12,6 +12,84 @@ landed on the trunk after the 1.1 feature freeze. The remaining 1.1 betas and
 1.1.0 itself ship from the 1.1 branch, so this line is not published until 1.1.0
 is out.
 
+## [1.1.0-beta.18] - 2026-11-08
+
+### Added
+
+- **Restart Moonraker from Advanced** - the action bar at the bottom of Advanced has a Restart Moonraker button beside Restart Klipper, Firmware Restart and E-Stop. It asks before restarting, and is unavailable while offline, during a print or while Klipper is restarting.
+- **Number slots from 0** - a per-printer setting in Settings > Printing shows slots, lanes, gates, tools and nozzles counting from 0, matching T0 in G-code. It is off by default, and the G-code HelixScreen sends does not change.
+- **Pick a .3mf plate on printers that print .3mf files themselves** - on Z-Mod 1.7.5 and later, Print Files offers the plates the printer lists, and the chosen plate starts straight from the .3mf with its filament mapping. Reprint starts the same plate, and print status shows that plate's picture, time and materials (#2063).
+- **BTT Eddy probes** (#1994) - Z-offset calibration runs the Eddy calibration and saves it.
+- **Join a hidden WiFi network** (#1975) - the setup wizard and Network settings both have Add Hidden Network.
+
+### Fixed
+
+**Printing and calibration**
+
+- **Z-offset calibration keeps its result** (#1994) - Save after a calibration no longer replaces the new offset with the old one. On Creality K1 and K2 printers this happened on every calibration, and on other printers whenever a Z babystep was active. Saving a babystep on a printer without `Z_OFFSET_APPLY_PROBE` now says so instead of failing with "Unknown command".
+- **A Klipper error at startup is shown** - when Klipper is already in error or shut down as HelixScreen starts, including a config Klipper cannot load, the recovery dialog opens with Klipper's own message, also right after the setup wizard. A mainboard switched off through a Moonraker power device stays quiet.
+- **The screensaver no longer stops or loses work in progress** - heater (PID and MPC), pressure advance, Z-offset, bed mesh, input shaper and screws tilt calibrations keep running behind it and still save their results, and waking the screen shows their progress instead of a frozen screen. A calibration that finishes behind the screensaver now saves on its own, which restarts Klipper, just as it does with the screen on.
+- **Crash recovery restarts more reliably** - the crash recovery screen now runs separately from the process that restarts HelixScreen, so a failure while closing the screen can no longer stop the restart.
+- **The crash screen follows your display rotation** - the crash dialog now rotates the same way the app does, and a crash that keeps repeating opens Safe Mode after two minutes instead of leaving the screen stuck.
+- **Waking the screen keeps what was open** - the filament runout guidance, a pending print, QR scans, the spool wizard, touch calibration, unsaved macro visibility edits and the timelapse install wizard.
+- **The Creator 5 shows Preparing right away** (#2054) - a print started on Z-Mod no longer shows the previous job's result while the printer picks up its tool and heats, Stop works during that start, and no other print can start over it. The print status follows the Creator 5's own start sequence: tool pickup and docking, nozzle settling, mesh progress, the bed wait, and a purge only when the real line purge runs. Tested on Z-Mod 1.7.5.
+- **Your tool mapping reaches every Z-Mod that understands it** (#2033, #2038) - when Z-Mod advertises it, HelixScreen hands the mapping to the printer at print start whether or not its built-in AFC is on, including prints the HelixPrint plugin starts.
+- **PRINT_START options load on Reforge** (#2061) - on printers whose config files Moonraker refuses to serve, such as Reforge on the Creator 5 Pro, HelixScreen reads the start macro from Klipper's own config and skips any file it cannot read.
+- **Preparing ends on time on a Voron V0** - when the slicer sets the layer count before PRINT_START, Preparing no longer runs into the first layer.
+- **Chamber warm-up says so** - while a print waits for the chamber, the pre-print screen says "Heating chamber" instead of "Heat soak", which is kept for an actual soak.
+- **Z-offset tools respect per-head firmware** - on the Creator 5 and Snapmaker U1, HelixScreen no longer offers the single-offset calibration screens, and the Tune nudge says it is saved for the mounted head only.
+- **Saved Z-offset in Print Tune** (#1998) - the Z-offset adjustment shows the saved value beside it. Printers that keep a Z-offset per head do not show this line.
+- **MPC calibration uses the right fan** (#2016).
+- **The layer line after a cancel shows the last layer printed** (#2055) - after a cancelled print, print status shows the height of the last layer printed instead of the height the head parked at.
+- **Print start ignores long firmware telemetry lines** - print start no longer scans very long firmware telemetry lines, such as the pressure traces K2 printers report while probing.
+- **The G-code preview keeps up after a slow frame** (#2035) - the print status preview no longer gets stuck drawing one layer at a time for the rest of a print after a single slow frame.
+- **A pending tool-map restore survives an update** (#2032) - a tool-map restore HelixScreen still owes the printer is kept across a HelixScreen update.
+
+**Filament**
+
+- **Spool information comes from the printer on every filament system** - HelixScreen now reads and writes each lane's spool through the printer's own records (AFC, Happy Hare, OpenAMS, CFS, QIDI, ACE, AD5X IFS, Snapmaker U1 and tool changers), so Mainsail, Fluidd and other screens see the same spool, and nothing stale is kept on the screen. Spool details from 1.0 are carried over on first start.
+- **AFC lane changes made elsewhere show up live** - brand, name, temperature, colour and Keep Spool Info changes made in Mainsail or by AFC now reach HelixScreen as they happen, instead of after a restart.
+- **Spool details cleared elsewhere clear here too** - when Mainsail or another client removes an AFC lane's brand or name, or unlinks or ejects its spool, HelixScreen stops showing the old brand and name.
+- **A lane with no colour stays uncoloured** - clearing a lane on a CFS, AD5X, Snapmaker U1 or tool changer no longer records it as grey for Mainsail and other screens.
+- **The spool editor's Save waits for a change** - Save is disabled until you edit something and the printer's records have loaded.
+- **Your Standard Macros choice for Load and Unload is used** (#2067) - a Load or Unload macro you pick in Standard Macros now runs on filament systems that otherwise load or unload by hand, instead of only showing the manual message.
+- **Purge uses the waste chute on Creality printers with a CFS** (#2065) - without a purge macro, Purge on the Filament panel now moves the nozzle over the CFS waste chute before extruding and parks it afterwards, the way loading does, so filament no longer lands on the bed or a paused print. Printers without a configured chute position, or not yet homed, purge in place as before.
+- **Tool changers with gaps in their tool numbers** - on a klipper-toolchanger numbered T0, T2, T3 and so on, HelixScreen marks the right head as mounted, unloads the right head, labels each tool with its own number, and Reset Tool Mappings returns every tool to its own number instead of its position. Gapped tools can be remapped from the screen.
+- **An empty tool changer carriage mounts no tool** (#2058) - on a klipper-toolchanger printer with no tool on the carriage, HelixScreen no longer reports tool 0 as mounted.
+- **The colour palette leads with filament colours** - the colour picker now opens with the colours people actually load: black, white, grey, red, orange, yellow, green, teal, blue, navy, purple, pink, brown, silver and gold, with fewer near-identical browns and yellows.
+- **Picking a spool on a five-slot or larger system selects that spool** - a tap could select the neighbouring spool, and the slot numbers were hidden.
+- **A recovered AFC lane loses its error marking** (#2049) - a successful lane reset clears AFC's leftover error, and a lane that still shows one has Clear Error in its menu. A faulted spool glows red (#2050).
+- **AFC keeps or forgets spool info the way AFC does** - when AFC reports `remember_spool`, an emptied lane forgets its spool in HelixScreen as it does in AFC and Mainsail, and Keep Spool Info sets AFC's own setting. The slot card's top line shows the spool's brand when it fits.
+- **Spoolman filaments get the recommended nozzle temperature** (#2029).
+- **CFS lanes are named the way Creality names them** - the tool dropdown and the slot menu call CFS lanes "1A" to "4D".
+- **RFID-tagged third-party spools in a CFS keep the details you give them** (#2048) - when the CFS reads an RFID tag on a third-party spool, a brand you set is no longer replaced by "Creality" or a raw tag id the box could not decode, and the lane is linked to a Spoolman spool only from a tag written in Creality's own layout, so a third-party RFID tag no longer links it to an unrelated spool.
+- **Printer Manager counts make sense** - a filament system's count says what it is ("CFS · 4 slots"), and a single-toolhead printer names each tool by the slot it feeds.
+- **Snapmaker U1 tool changer fields** (#2012).
+
+**Setup and settings**
+
+- **A K2 Plus or Pro on k2-improvements is identified correctly** - when detection cannot tell the two apart, HelixScreen asks instead of keeping a stock K2 profile that loads the wrong print-start steps.
+- **Firmware-variant installs keep their own hardware** (#2064) - a Z-Mod or other variant install no longer gains the stock printer's fans and runout switch in its expected hardware on every boot.
+- **The Fans setup screen no longer reopens at every launch** (#2040) - on printers whose preset names fans the machine does not have, such as a Z-Mod Adventurer 5M Pro, a fan you set to None stays None.
+- **Settings save after a sudo install with a separate service user** - on printers such as the QIDI Q2, an install run with sudo for a non-root service user left HelixScreen's config folder owned by root, so settings never saved. The installer now gives the folder back to the service user, and the service repairs it at every start, so an in-app update heals an affected install too.
+- **A missing extruder can be ignored** - Hardware Health offers Ignore on critical rows, and a printer with `kinematics: none` is not asked for an extruder.
+- **One API key field** (#1970, #1971) - Add Printer accepts a key.
+- **Label printing tells you when a printer needs encryption** (#2034).
+- **An oversized Moonraker reply no longer leaves the screen offline** until a restart.
+- **Faster connect** (#2053) - the event journal asks Moonraker for the latest 200 console lines instead of 1000.
+- **Network settings follows the Ethernet cable** (#1976).
+- **WiFi recovers from a slow or busy wpa_supplicant** (#2066) - one reply that came back late no longer makes every later WiFi command read the wrong answer, which emptied the network list and showed "scan failed" or "Internal WiFi error" on a working radio. Turning WiFi on also starts the WiFi system when it did not start at boot, instead of answering "WiFi system not ready" until a restart.
+
+**Home screen and UI**
+
+- **Delete Page moved to the nav bar** (#2023) - in edit mode the nav bar shows Add, Delete Page and Done.
+- **Dialog buttons fit on 480x272 screens** (#2024).
+- **Menu rows respond across the whole menu** - on portrait and taller screens, every row of a stacked menu responds across its full width.
+- **No page swipe with the paging arrows** (#1978), and **the keyboard has an underscore key** (#1977).
+- **The flip clock's folding flap** shows its edge and casts a shadow.
+- **Sound** (#2010) - a race when playing sounds is fixed.
+- **Less CPU after a sound plays** - a finished sound no longer keeps the audio device busy every millisecond until the next one.
+
 ## [1.1.0-beta.14] - 2026-10-28
 
 The fourteenth beta of 1.1, and the first after the 1.1 feature freeze, so most of it is fixes. Stop during a print's preparation now cancels a start the printer has already accepted instead of letting it go on to print, the AD5X IFS unloads the lane that is really loaded, a K2 without a CFS is treated as the single-spool printer it is, and the Android app shows https cameras. The fit check reads the nozzle each Snapmaker U1 head really has and judges only the tools a file uses. The last features before the freeze arrive with it: a Toolhead widget you can move the toolhead from, moves that lift clear of a print still on the bed, filament chips on the file screen that change a tool's slot in place, warnings for an open door and for files that mix high- and low-temperature materials, QIDI's full M604 load wizard, and Creator 5 calibrations and chamber air modes on Z-Mod.

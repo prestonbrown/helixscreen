@@ -721,6 +721,7 @@ translations:
   Cannot perform this action now: Сейчас это действие выполнить нельзя
   'Cannot reprint: not connected to printer': 'Невозможно перепечатать: не подключено
     к принтеру'
+  Cannot restart Moonraker while printing: "Нельзя перезапустить Moonraker во время печати"
   Cannot restart — no filename: Не удалось перезапустить — нет имени файла
   Cannot run filament operation while printing: Во время печати нельзя выполнять операции с филаментом
   'Cannot schedule a pause: printer not connected': 'Невозможно запланировать паузу: принтер не подключён'
@@ -2850,6 +2851,7 @@ translations:
   'Nozzle:': 'Сопло:'
   'Nozzles still heating: {}': 'Сопла всё ещё нагреваются: {}'
   Number Pad Layout: Раскладка цифровой клавиатуры
+  Number slots from 0: Нумеровать слоты с 0
   Nylon: "Нейлон"
   OD: OD
   'OFF': ВЫКЛ
@@ -3514,6 +3516,7 @@ translations:
   Restart Klipper?: 'Перезапустить Klipper?'
   Restart Moonraker: Перезапустить Moonraker
   Restart Moonraker to finish the plugin change: Перезапустите Moonraker, чтобы завершить изменение плагина
+  Restart Moonraker?: "Перезапустить Moonraker?"
   Restart Now: Перезапустить сейчас
   Restart Required: Требуется перезапуск
   'Restart failed: not connected': 'Перезапуск не удался: нет подключения'
@@ -3752,7 +3755,7 @@ translations:
   Select Spool: Выбрать катушку
   Select a filament slot to load: Выберите слот филамента для загрузки
   Select a valid number: Выберите корректный номер
-  Select a valid number (1-{}): Выберите корректный номер (1-{})
+  Select a valid number ({}-{}): Выберите корректный номер ({}-{})
   Select a valid tool: Выберите корректный инструмент
   Select a valid {}: 'Выберите допустимое значение для {}'
   Select a {}: 'Выберите {}'
@@ -3861,6 +3864,7 @@ translations:
   Show print speed and flow as mm/s and mm³/s instead of percent: "Показывать скорость и поток в мм/с и мм³/с вместо процентов"
   Show printer icon in navigation bar: Показывать значок принтера в панели навигации
   Show sliced colors: Показать цвета из слайсера
+  Show slots, lanes, gates and tools counting from 0, matching T0 in G-code: Считать слоты, каналы, шлюзы и инструменты с 0, как T0 в G-коде
   Show temp for: Показывать темп. для
   Show text labels on icon-only home screen widgets: Показывать текстовые подписи
     на виджетах главного экрана
@@ -4400,6 +4404,7 @@ translations:
   The runout sensor indicates no filament is loaded. Start print anyway?: Датчик окончания
     филамента показывает, что филамент не загружен. Всё равно начать печать?
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: Сохранённая позиция остаётся. Переподключитесь или перезапустите экран, чтобы снова получить предложение продолжить.
+  The screen will lose its connection to the printer for a few seconds.: "Экран потеряет связь с принтером на несколько секунд."
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Не удаётся считать датчик этого блока CFS. Проверьте подключение, иначе блоку требуется обслуживание
   The speed of one fan you choose: Скорость выбранного вентилятора
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или 24.'

@@ -704,6 +704,23 @@ class SettingsManager {
         return settings_.subject(Key::FilamentAutoOpenEditor);
     }
 
+    /**
+     * @brief Show filament positions counted from 0 rather than 1.
+     *
+     * Default false. Per-printer setting. Display only; helix::ui::lane_number() reads it.
+     */
+    bool get_number_lanes_from_zero() const {
+        return settings_.get_bool(Key::NumberLanesFromZero);
+    }
+
+    /** @brief Set whether filament positions count from 0 */
+    void set_number_lanes_from_zero(bool enabled);
+
+    /** @brief Number-lanes-from-zero subject (integer: 0=off, 1=on) */
+    lv_subject_t* subject_number_lanes_from_zero() {
+        return settings_.subject(Key::NumberLanesFromZero);
+    }
+
     // =========================================================================
     // CONSOLE FILTERS (owned by SettingsManager — gcode console noise toggles)
     // =========================================================================
@@ -952,6 +969,7 @@ class SettingsManager {
         AmsForceBypassControls,
         FilamentAutoCooldown,
         FilamentAutoOpenEditor,
+        NumberLanesFromZero,
         ConsoleFilterTemps,
         ConsoleFilterFirmwareNoise,
         DetectionEnabled,

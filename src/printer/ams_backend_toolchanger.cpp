@@ -1974,7 +1974,7 @@ helix::mount_feed::Request AmsBackendToolChanger::build_feed_request(const std::
     std::vector<int> docked;
     std::vector<int> on_carriage;
     for (const mf::HeadRequest& hr : req.heads) {
-        (hr.mount_gcode.empty() ? on_carriage : docked).push_back(hr.head + 1);
+        (hr.mount_gcode.empty() ? on_carriage : docked).push_back(helix::ui::lane_number(hr.head));
     }
     const auto numbers = [](const std::vector<int>& tools) {
         std::string list;

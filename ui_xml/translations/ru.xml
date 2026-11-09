@@ -663,6 +663,7 @@
   <translation tag="Cannot park while a print is active" ru="Нельзя припарковать во время печати"/>
   <translation tag="Cannot perform this action now" ru="Сейчас это действие выполнить нельзя"/>
   <translation tag="Cannot reprint: not connected to printer" ru="Невозможно перепечатать: не подключено к принтеру"/>
+  <translation tag="Cannot restart Moonraker while printing" ru="Нельзя перезапустить Moonraker во время печати"/>
   <translation tag="Cannot restart — no filename" ru="Не удалось перезапустить — нет имени файла"/>
   <translation tag="Cannot run filament operation while printing" ru="Во время печати нельзя выполнять операции с филаментом"/>
   <translation tag="Cannot save offsets while printing" ru="Нельзя сохранить смещения во время печати"/>
@@ -2624,6 +2625,7 @@
   <translation tag="Nozzle:" ru="Сопло:"/>
   <translation tag="Nozzles still heating: {}" ru="Сопла всё ещё нагреваются: {}"/>
   <translation tag="Number Pad Layout" ru="Раскладка цифровой клавиатуры"/>
+  <translation tag="Number slots from 0" ru="Нумеровать слоты с 0"/>
   <translation tag="Nylon" ru="Нейлон"/>
   <translation tag="OD" ru="OD"/>
   <translation tag="OFF" ru="ВЫКЛ"/>
@@ -3248,6 +3250,7 @@
   <translation tag="Restart Klipper?" ru="Перезапустить Klipper?"/>
   <translation tag="Restart Moonraker" ru="Перезапустить Moonraker"/>
   <translation tag="Restart Moonraker to finish the plugin change" ru="Перезапустите Moonraker, чтобы завершить изменение плагина"/>
+  <translation tag="Restart Moonraker?" ru="Перезапустить Moonraker?"/>
   <translation tag="Restart Now" ru="Перезапустить сейчас"/>
   <translation tag="Restart Required" ru="Требуется перезапуск"/>
   <translation tag="Restart failed: not connected" ru="Перезапуск не удался: нет подключения"/>
@@ -3463,7 +3466,7 @@
   <translation tag="Select Spool" ru="Выбрать катушку"/>
   <translation tag="Select a filament slot to load" ru="Выберите слот филамента для загрузки"/>
   <translation tag="Select a valid number" ru="Выберите корректный номер"/>
-  <translation tag="Select a valid number (1-{})" ru="Выберите корректный номер (1-{})"/>
+  <translation tag="Select a valid number ({}-{})" ru="Выберите корректный номер ({}-{})"/>
   <translation tag="Select a valid tool" ru="Выберите корректный инструмент"/>
   <translation tag="Select a valid {}" ru="Выберите допустимое значение для {}"/>
   <translation tag="Select a {}" ru="Выберите {}"/>
@@ -3559,6 +3562,7 @@
   <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" ru="Показывать скорость и поток в мм/с и мм³/с вместо процентов"/>
   <translation tag="Show printer icon in navigation bar" ru="Показывать значок принтера в панели навигации"/>
   <translation tag="Show sliced colors" ru="Показать цвета из слайсера"/>
+  <translation tag="Show slots, lanes, gates and tools counting from 0, matching T0 in G-code" ru="Считать слоты, каналы, шлюзы и инструменты с 0, как T0 в G-коде"/>
   <translation tag="Show temp for" ru="Показывать темп. для"/>
   <translation tag="Show text labels on icon-only home screen widgets" ru="Показывать текстовые подписи на виджетах главного экрана"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" ru="Показывать этот экран как веб-камеру в Mainsail и Fluidd"/>
@@ -4040,6 +4044,7 @@
   <translation tag="The right RFID reader in this CFS unit may need service" ru="Правому RFID-считывателю этого блока CFS может требоваться обслуживание"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" ru="Датчик окончания филамента показывает, что филамент не загружен. Всё равно начать печать?"/>
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." ru="Сохранённая позиция остаётся. Переподключитесь или перезапустите экран, чтобы снова получить предложение продолжить."/>
+  <translation tag="The screen will lose its connection to the printer for a few seconds." ru="Экран потеряет связь с принтером на несколько секунд."/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" ru="Не удаётся считать датчик этого блока CFS. Проверьте подключение, иначе блоку требуется обслуживание"/>
   <translation tag="The speed of one fan you choose" ru="Скорость выбранного вентилятора"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." ru="Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или 24."/>

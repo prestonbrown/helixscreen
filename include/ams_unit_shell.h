@@ -26,6 +26,19 @@ struct ProfilePoint {
     float height_px;
 };
 
+/// Where a front part measures its x from.
+enum class FrontAnchor : uint8_t { Span, Lane, Center, Left, Right };
+
+/// One rectangle on a unit's front. Lengths are pixels at the reference spool; y runs down
+/// from the front wall's top, and a negative y stands above it.
+struct FrontPart {
+    FrontAnchor anchor;
+    float x0, x1;
+    float y0, y1;
+    uint32_t color;
+    int radius;
+};
+
 struct UnitShell {
     const char* id;
     const ProfilePoint* cheek;
@@ -35,15 +48,12 @@ struct UnitShell {
     int art_lanes;
     float back_extra_px;
     float front_wall_px;
-    float rail_px;
     float cap_clearance_px;
     bool lid_spans_row;
-    bool has_latch;
     uint32_t body;
-    uint32_t panel;
-    uint32_t rail;
-    uint32_t accent;
-    uint32_t corner; ///< Corner block colour; 0 when the unit has none.
+    uint32_t corner; ///< Rear corner block colour; 0 when the unit has none.
+    const FrontPart* front;
+    int front_n;
 };
 
 /// The generated shell named @p id, or nullptr.
