@@ -2091,3 +2091,55 @@ MOCK
         fail "no service restart: $(cat "$BATS_TEST_TMPDIR/mr/log")"
     contains "Auto-install complete" "$output"
 }
+
+# A moonraker-timelapse checkout with the two files its installer links.
+setup_timelapse_checkout() {
+    mkdir -p "$1/component" "$1/klipper_macro"
+    printf '# timelapse component\n' > "$1/component/timelapse.py"
+    printf '[gcode_macro TIMELAPSE_TAKE_FRAME]\ngcode:\n' > "$1/klipper_macro/timelapse.cfg"
+}
+
+@test "link-timelapse links the component and the macro file, and leaves the config alone" {
+    local home="$BATS_TEST_TMPDIR/home"
+    setup_plain_home "$home"
+    setup_timelapse_checkout "$home/moonraker-timelapse"
+    local c="$home/printer_data/config"
+    cp "$c/moonraker.conf" "$BATS_TEST_TMPDIR/conf.before"
+
+    run env HOME="$home" sh "$SCRIPT" --link-timelapse "$home/moonraker-timelapse"
+    [ "$status" -eq 0 ] || fail "link failed ($status): $output"
+
+    [ "$(readlink "$home/moonraker/moonraker/components/timelapse.py")" = "$home/moonraker-timelapse/component/timelapse.py" ] ||
+        fail "component link: $(readlink "$home/moonraker/moonraker/components/timelapse.py")"
+    [ "$(readlink "$c/timelapse.cfg")" = "$home/moonraker-timelapse/klipper_macro/timelapse.cfg" ] ||
+        fail "macro link: $(readlink "$c/timelapse.cfg")"
+    cmp -s "$BATS_TEST_TMPDIR/conf.before" "$c/moonraker.conf" || fail "edited moonraker.conf"
+}
+
+@test "link-timelapse refuses a directory that is not a timelapse checkout" {
+    local home="$BATS_TEST_TMPDIR/home"
+    setup_plain_home "$home"
+    mkdir -p "$home/moonraker-timelapse"
+
+    run env HOME="$home" sh "$SCRIPT" --link-timelapse "$home/moonraker-timelapse"
+    [ "$status" -eq 1 ] || fail "want 1, got $status: $output"
+    [[ "$output" == *"Not a moonraker-timelapse checkout"* ]] || fail "unclear refusal: $output"
+    [ ! -e "$home/moonraker/moonraker/components/timelapse.py" ] || fail "linked anyway"
+}
+
+@test "link-timelapse never replaces a regular timelapse.py or timelapse.cfg" {
+    local home="$BATS_TEST_TMPDIR/home"
+    setup_plain_home "$home"
+    setup_timelapse_checkout "$home/moonraker-timelapse"
+    printf 'mine\n' > "$home/printer_data/config/timelapse.cfg"
+
+    run env HOME="$home" sh "$SCRIPT" --link-timelapse "$home/moonraker-timelapse"
+    [ "$status" -eq 0 ] || fail "link failed ($status): $output"
+    [ "$(cat "$home/printer_data/config/timelapse.cfg")" = "mine" ] || fail "replaced the user's macro file"
+
+    rm "$home/moonraker/moonraker/components/timelapse.py"
+    printf 'copied\n' > "$home/moonraker/moonraker/components/timelapse.py"
+    run env HOME="$home" sh "$SCRIPT" --link-timelapse "$home/moonraker-timelapse"
+    [ "$status" -eq 1 ] || fail "want 1 over a regular file, got $status: $output"
+    [ "$(cat "$home/moonraker/moonraker/components/timelapse.py")" = "copied" ] || fail "replaced it"
+}

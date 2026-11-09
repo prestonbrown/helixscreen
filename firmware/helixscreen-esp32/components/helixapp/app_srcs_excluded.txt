@@ -20,12 +20,14 @@
 # only newly-undecided files are added. Delete this file first for a re-seed.
 
 # --- whole directories excluded ---
+src/api/timelapse_host_mock.cpp  # not in the v1 Core+AMS cut
 src/bluetooth/  # all 9 src/ files beneath
 src/config/  # all 1 src/ files beneath
 src/input/  # all 1 src/ files beneath
 src/lvgl-demo/  # all 1 src/ files beneath
 src/network/  # all 2 src/ files beneath
 src/remote/  # all 8 src/ files beneath
+src/system/timelapse_local_installer.cpp  # not in the v1 Core+AMS cut
 src/tools/  # all 1 src/ files beneath
 
 # --- individual files (same dir, partially compiled) ---
