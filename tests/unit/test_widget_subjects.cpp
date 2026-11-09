@@ -29,34 +29,7 @@ bool registered(const char* name) {
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLTestFixture, "WidgetSubjects runs its init once until deinit",
-                 "[core][subjects][1802]") {
-    static constexpr const char* kName = "WidgetSubjectsTestOnce";
-    helix::WidgetSubjects subjects{kName};
-    lv_subject_t subject{};
-    int init_runs = 0;
-    auto init = [&] {
-        ++init_runs;
-        lv_subject_init_int(&subject, 7);
-        subjects.publish("widget_subjects_test_once", &subject);
-    };
-
-    REQUIRE_FALSE(subjects.initialized());
-    REQUIRE_FALSE(registered(kName));
-
-    CHECK(subjects.ensure_init(init));
-    CHECK(init_runs == 1);
-    CHECK(subjects.initialized());
-    CHECK(registered(kName));
-    CHECK(lv_xml_get_subject(nullptr, "widget_subjects_test_once") == &subject);
-
-    CHECK_FALSE(subjects.ensure_init(init));
-    CHECK(init_runs == 1);
-
-    REQUIRE(StaticSubjectRegistry::instance().deinit_one(kName));
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "WidgetSubjects deinit withdraws its subjects and re-inits",
+TEST_CASE_METHOD(LVGLTestFixture, "WidgetSubjects inits once, and again after its deinit",
                  "[core][subjects][1802]") {
     static constexpr const char* kName = "WidgetSubjectsTestReinit";
     helix::WidgetSubjects subjects{kName};
@@ -68,7 +41,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "WidgetSubjects deinit withdraws its subjects 
         subjects.publish("widget_subjects_test_reinit", &subject);
     };
 
+    REQUIRE_FALSE(subjects.initialized());
     REQUIRE(subjects.ensure_init(init));
+    CHECK(lv_xml_get_subject(nullptr, "widget_subjects_test_reinit") == &subject);
+    CHECK_FALSE(subjects.ensure_init(init));
+    CHECK(init_runs == 1);
     const SubjectLifetime first_generation = subjects.get_subjects_lifetime();
     REQUIRE(first_generation);
     REQUIRE(*first_generation);

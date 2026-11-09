@@ -24,6 +24,10 @@
 #include "core/static_subject_registry.h"
 #include "detection_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "lock_manager.h"
+#include "print_completion.h"
+#include "src/ui/panel_widgets/dryer_model.h"
+#include "src/ui/panel_widgets/filament_sensor_widget.h"
 
 #include <algorithm>
 #include <functional>
@@ -93,10 +97,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AMS sidebar gating subjects outlive a print
     }
 }
 
-TEST_CASE_METHOD(
-    LVGLUITestFixture,
-    "On-demand subjects stay published across a switch and withdraw their names at exit",
-    "[modal][ams][subjects][shutdown]") {
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Static subjects drop their names and observers at deinit and come back at init",
+                 "[modal][ams][subjects][shutdown][1959]") {
     const auto attach_status = [](const char* flow) {
         const helix::ui::GuidedDeviceFlow* found = helix::ui::find_guided_device_flow(flow);
         REQUIRE(found != nullptr);
@@ -106,30 +109,47 @@ TEST_CASE_METHOD(
         const char* registry_name;
         const char* subject;
         std::function<void()> init;
+        bool on_demand; ///< Published once per process, so a printer switch spares it.
     };
     helix::ui::register_builtin_guided_device_flows();
     const Source sources[] = {
-        {"BufferStatusModalSubjects", "buf_fault_distance", [] { BufferStatusModal modal; }},
+        {"BufferStatusModalSubjects", "buf_fault_distance", [] { BufferStatusModal modal; }, true},
         {"AmsContextMenuSubjects", "ams_slot_park",
-         [] { helix::ui::AmsContextMenu::init_subjects(); }},
+         [] { helix::ui::AmsContextMenu::init_subjects(); }, true},
         {"DetectionManager", "detection_bed_check_switchable",
-         [] { helix::detection::DetectionManager::instance().init(nullptr, nullptr); }},
+         [] { helix::detection::DetectionManager::instance().init(nullptr, nullptr); }, true},
 #if HELIX_HAS_CFS
-        {"CfsCutterSubjects", "cfs_cutter_status", [&] { attach_status("cfs_cutter"); }},
+        {"CfsCutterSubjects", "cfs_cutter_status", [&] { attach_status("cfs_cutter"); }, true},
 #endif
-        {"IndxFlowSubjects", "indx_flow_status", [&] { attach_status("indx_cycle_all"); }},
+        {"IndxFlowSubjects", "indx_flow_status", [&] { attach_status("indx_cycle_all"); }, true},
+        {"FilamentSensorWidget", "filament_tile_state",
+         [] { helix::register_filament_sensor_widget(); }, false},
+        {"DryerModelSubjects", "home_dryer_available", [] { helix::dryer_model::init_subjects(); },
+         false},
+        {"PrintCompletion", "print_completion_has_estimate",
+         [] { ObserverGuard completion = init_print_completion_observer(); }, false},
+        {"LockManager", "lock_pin_set", [] { helix::LockManager::instance().init_subjects(); },
+         false},
     };
     for (const Source& source : sources) {
         CAPTURE(source.registry_name);
         source.init();
-        CHECK(survives_switch(source.registry_name));
-        CHECK(lv_xml_get_subject(nullptr, source.subject) != nullptr);
+        if (source.on_demand) {
+            CHECK(survives_switch(source.registry_name));
+        }
+        lv_subject_t* subject = lv_xml_get_subject(nullptr, source.subject);
+        REQUIRE(subject != nullptr);
+        lv_obj_t* bound = lv_obj_create(lv_screen_active());
+        lv_subject_add_observer_obj(subject, [](lv_observer_t*, lv_subject_t*) {}, bound, nullptr);
 
         REQUIRE(StaticSubjectRegistry::instance().deinit_one(source.registry_name));
         CHECK(lv_xml_get_subject(nullptr, source.subject) == nullptr);
+        CHECK(lv_ll_get_head(&subject->subs_ll) == nullptr);
+        // Its observer went with the subject, so the object deletes without touching it.
+        lv_obj_delete(bound);
 
         source.init();
         CHECK(registered(source.registry_name));
-        CHECK(lv_xml_get_subject(nullptr, source.subject) != nullptr);
+        CHECK(lv_xml_get_subject(nullptr, source.subject) == subject);
     }
 }
