@@ -34,6 +34,7 @@
 #include "tool_state.h"
 
 #include <algorithm>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -71,6 +72,7 @@ class CalibrationSendFixture : public LVGLUITestFixture {
         helix::PrinterStateTestAccess::reset(state());
         state().init_subjects(false);
         state().set_klippy_state_sync(helix::KlippyState::READY);
+        set_link(true);
         // The discovery snapshot persists on the process-wide state across test
         // cases; start each one plain so only set_zmod() cases see the provider.
         state().set_hardware(helix::PrinterDiscovery{});
@@ -101,6 +103,19 @@ class CalibrationSendFixture : public LVGLUITestFixture {
     void set_printing(bool printing) {
         state().update_from_status(
             json{{"print_stats", json{{"state", printing ? "printing" : "standby"}}}});
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
+
+    void set_link(bool up) {
+        lv_subject_set_int(state().network_state().get_printer_connection_state_subject(),
+                           static_cast<int>(up ? helix::ConnectionState::CONNECTED
+                                               : helix::ConnectionState::DISCONNECTED));
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
+
+    void set_bed_target(double target) {
+        state().update_from_status(
+            json{{"heater_bed", json{{"temperature", 24.0}, {"target", target}}}});
         helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
@@ -833,4 +848,91 @@ TEST_CASE_METHOD(
     // with a jog total that would put -0.150 on a head running at +3.4.
     const std::string sent = accept_sends();
     CHECK(sent.find("SET_GCODE_OFFSET") == std::string::npos);
+}
+
+namespace {
+
+bool sent_off(MoonrakerClientMock& client) {
+    const auto& history = client.gcode_script_history();
+    return std::find(history.begin(), history.end(), "M140 S0") != history.end();
+}
+
+} // namespace
+
+TEST_CASE_METHOD(CalibrationSendFixture, "Calibration warm-up holds SIGTERM for the bed it warmed",
+                 "[zoffset][heater_hold]") {
+    set_bed_target(0.0);
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    auto panel = std::make_unique<ZOffsetCalibrationPanel>();
+    panel->set_api(&api);
+    panel->init_subjects();
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 1);
+    ZOffsetCalibrationTestAccess::begin_calibration(*panel);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    auto& heat = ZOffsetCalibrationTestAccess::heat(*panel);
+    REQUIRE(panel->get_state() == ZOffsetCalibrationPanel::State::WARMING);
+    REQUIRE(heat.held());
+    CHECK(helix::HeaterHold::any_held_signal_safe());
+    set_bed_target(45.0);
+
+    SECTION("shutdown clears the bed and sends nothing that moves") {
+        client.clear_gcode_script_history();
+        panel->before_disconnect();
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(client.gcode_script_history() == std::vector<std::string>{"M140 S0"});
+        CHECK(panel->get_state() == ZOffsetCalibrationPanel::State::IDLE);
+        CHECK_FALSE(heat.held());
+        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    }
+
+    SECTION("shutdown leaves a target someone has set since") {
+        set_bed_target(90.0);
+        client.clear_gcode_script_history();
+        panel->before_disconnect();
+        CHECK_FALSE(sent_off(client));
+        CHECK_FALSE(heat.held());
+    }
+
+    SECTION("shutdown leaves the bed to a job that has started") {
+        set_printing(true);
+        client.clear_gcode_script_history();
+        panel->before_disconnect();
+        CHECK_FALSE(sent_off(client));
+        CHECK_FALSE(heat.held());
+    }
+
+    SECTION("a normal off releases") {
+        client.clear_gcode_script_history();
+        ZOffsetCalibrationTestAccess::turn_off_bed(*panel);
+        CHECK(sent_off(client));
+        CHECK_FALSE(heat.held());
+    }
+
+    SECTION("destroying the panel releases") {
+        panel.reset();
+        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    }
+
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 0);
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration warm-up on a bed already heating holds nothing",
+                 "[zoffset][heater_hold]") {
+    set_bed_target(60.0);
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+    panel.init_subjects();
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 1);
+    ZOffsetCalibrationTestAccess::begin_calibration(panel);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    CHECK_FALSE(ZOffsetCalibrationTestAccess::heat(panel).held());
+    client.clear_gcode_script_history();
+    panel.before_disconnect();
+    CHECK_FALSE(sent_off(client));
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 0);
 }

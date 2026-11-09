@@ -9,6 +9,7 @@
 #include "async_lifetime_guard.h"
 #include "bed_mesh_calibration_plan.h"
 #include "bed_mesh_probe_temp.h"
+#include "calibration_owned_heat.h"
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "i_moonraker_api.h"
@@ -109,6 +110,9 @@ class BedMeshPanel : public OverlayBase {
     void show_rename_modal(const std::string& profile_name);
     void show_delete_confirm_modal(const std::string& profile_name);
     void show_save_config_modal();
+    /// Clear heat this run owns while the client can still send.
+    void before_disconnect();
+
     void hide_all_modals();
 
     // Modal callback action helpers (called from free function callbacks)
@@ -287,14 +291,17 @@ class BedMeshPanel : public OverlayBase {
     /// The profiles the printer stored when the calibration began.
     helix::bed_mesh::StoredMeshes meshes_before_;
 
-    // True for a heater that was off when probing began. The panel's preheat or a
-    // self-preparing sequence turns it on; cooldown_after_probing() turns it off.
-    bool preheat_turned_on_nozzle_ = false;
-    bool preheat_turned_on_bed_ = false;
+    /// Sends one owned heater's off through the TemperatureController.
+    static void send_heater_off(const std::string& heater);
+
+    // The heaters that were off when probing began. The panel's preheat or a
+    // self-preparing sequence turns them on; cooldown_after_probing() turns them off.
+    helix::CalibrationOwnedHeat heat_{"BedMeshPanel", &BedMeshPanel::send_heater_off};
 
     // ========== Private Methods ==========
     /// Record which heaters are off now, for cooldown_after_probing() to restore.
-    void remember_heaters_probing_turns_on();
+    /// @param nozzle_c, bed_c The targets probing sets; 0 when a sequence chooses them
+    void remember_heaters_probing_turns_on(int nozzle_c, int bed_c);
     void preheat_for_probing();
     void cooldown_after_probing();
     void start_home_and_probe();
