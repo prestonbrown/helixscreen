@@ -37,6 +37,18 @@ itself from its own `cartographer` object. The base K2
 entry is the preset's `preset_default`, so a K2 preset install that identifies no K2 machine
 persists "Creality K2". Its image is a copy of the K2 Plus photo until one of the base model exists.
 
+Jacobean's K2 Plus firmware ([Jacob10383/k2-plus-custom-firmware](https://github.com/Jacob10383/k2-plus-custom-firmware))
+replaces Creality's firmware with a Linux image running Jacob10383's Kalico fork and its own CFS,
+motor, probe and power-loss modules. Its shipped configs (`config/k2` in
+[Jacob10383/kalico](https://github.com/Jacob10383/kalico)) carry a `_START_PRINT_VARS` of their
+own and no `product_param`, so without an entry of its own it ties the two k2-improvements entries.
+`Creality K2 Plus (Jacobean firmware)` is a variant of the K2 Plus keyed on its
+`extended_zone_transform` object, which every other K2 entry excludes. It has no preset (its fans,
+sensors and CFS macros differ from the `k2` preset's), no `probe_type` (Cartographer or its own
+`prtouch`, never `prtouch_v3`), and its own `k2_jacobean` print-start profile written from its
+START_PRINT's STATUS_MSG text. Its detection fixture is derived from those configs, not captured
+from a printer (#2087).
+
 ## Hardware (Confirmed on K2 Plus — 2026-03-23)
 
 | Spec | Value |
