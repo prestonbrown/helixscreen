@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_temperature_utils.h"
+
 #include "lvgl/lvgl.h"
 #include "plate_glow.h"
 
@@ -26,5 +28,9 @@ void register_plate_glow_widget();
 /// Show `mask`, placed at its x/y in the parent's coordinates. An empty mask
 /// leaves the widget drawing nothing.
 void plate_glow_set_mask(lv_obj_t* obj, const PlateGlowMask& mask);
+
+/// Breathe a heat glow while its heater climbs, when animations are on; at rest
+/// otherwise. Every screen's heat glow goes through here, so they agree.
+void heat_glow_update_pulse(lv_obj_t* glow, temperature::HeatState heat);
 
 } // namespace helix::ui

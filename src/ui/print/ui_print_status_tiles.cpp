@@ -4,6 +4,7 @@
 #include "ui_print_status_tiles.h"
 
 #include "ui_event_safety.h"
+#include "ui_plate_glow.h"
 #include "ui_temperature_utils.h"
 #include "ui_timer_guard.h"
 
@@ -471,9 +472,12 @@ ChipContent PrintStatusTiles::heater(PrintStatusChip chip, bool show_power) {
     ChipContent c =
         heater_chip(present, current, target, status, printing, show_power, badge,
                     heat_start(chip, current, target), chip == PrintStatusChip::Chamber);
-    // The plate glows by how hot it is, at target or cooling as much as climbing.
+    // The plate and the chamber glow by how hot they are, at target or cooling as
+    // much as climbing.
     if (chip == PrintStatusChip::Bed && present)
         c.glow = bed_glow_level(current);
+    if (chip == PrintStatusChip::Chamber && present)
+        c.glow = chamber_glow_level(current);
     return c;
 }
 
@@ -587,13 +591,13 @@ void PrintStatusTiles::paint_heat_chip(PrintStatusChip chip, const ChipContent& 
     if (chip == PrintStatusChip::Nozzle) {
         paint(lv_obj_find_by_name(root, "ps_chip_toolhead"));
     }
-    // The plate glow takes its color from the XML; the region discs take the heat's.
-    lv_obj_t* glow = chip == PrintStatusChip::Bed
+    // Bed and chamber glows take their color from the XML; the others take the heat's.
+    lv_obj_t* glow = chip == PrintStatusChip::Bed || chip == PrintStatusChip::Chamber
                          ? nullptr
                          : lv_obj_find_by_name(root, ("ps_glow_" + key).c_str());
     if (glow) {
         // DECLARATIVE_OK: heat color comes from get_heating_state_color()
-        lv_obj_set_style_bg_color(glow, color, LV_PART_MAIN);
+        lv_obj_set_style_image_recolor(glow, color, LV_PART_MAIN);
     }
 }
 
@@ -845,7 +849,13 @@ void PrintStatusTiles::place_and_publish(const std::string& th_text) {
             }
         }
         const ChipContent& shown = out.unlabeled && is_fan(chip) ? lo.bare[i] : lo.contents[i];
-        publish(chip, shown, shown.shown && !dropped, glows && shown.glow, line);
+        // A warm chamber's glow covers the same windows as the light's, and heat wins.
+        const bool yields = chip == PrintStatusChip::Light &&
+                            light_glow_yields(lo.contents[index_of(PrintStatusChip::Chamber)]);
+        publish(chip, shown, shown.shown && !dropped, glows && shown.glow && !yields, line);
+        if (chip == PrintStatusChip::Bed || chip == PrintStatusChip::Chamber) {
+            ui::heat_glow_update_pulse(lo.parts.chips[i].glow, shown.heat);
+        }
     }
     set_string(&toolhead_text_, toolhead_text_buf_, sizeof(toolhead_text_buf_), th_text);
     set_int(&toolhead_merged_, out.toolhead_merged ? 1 : 0);

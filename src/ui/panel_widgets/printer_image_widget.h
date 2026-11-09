@@ -150,7 +150,6 @@ class PrinterImageWidget : public PanelWidget {
     /// Moves and sizes printer_image to `moved`, or back to filling its
     /// container when null; refreshes the image only when the rect changes.
     void place_printer_image(const CalloutRect* moved);
-    void set_glow_pulse(bool on); ///< start/stop the bed glow's opacity pulse
     void handle_callout_clicked(CalloutKind kind);
     /// Recovers the widget from a chip's event (chip -> callout_layer -> printer_container).
     static PrinterImageWidget* widget_from_chip(lv_event_t* e);

@@ -48,6 +48,28 @@ TEST_CASE("parse_image_regions: required, optional and malformed entries",
     CHECK(m.count("bad_pt") == 0);
 }
 
+TEST_CASE("parse_image_regions: windows are a list of quads", "[printer_image][regions]") {
+    const auto m = parse_image_regions(R"({
+      "two":  {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]],
+               "windows": [[[0.1, 0.2], [0.5, 0.2], [0.5, 0.8], [0.1, 0.8]],
+                           [[0.6, 0.3], [0.9, 0.3], [0.9, 0.7], [0.6, 0.7]]]},
+      "none": {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]]},
+      "bad":  {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]],
+               "windows": [[[0.1, 0.2], [0.5, 0.2], [0.5, 0.8]],
+                           [[0.1, 0.2], [0.5, "x"], [0.5, 0.8], [0.1, 0.8]],
+                           [[0.6, 0.3], [0.9, 0.3], [0.9, 0.7], [0.6, 0.7]]]},
+      "odd":  {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]], "windows": 3}
+    })");
+    REQUIRE(m.at("two").windows.size() == 2);
+    CHECK(m.at("two").windows[1][2].x == Catch::Approx(0.9f));
+    CHECK(m.at("two").windows[1][2].y == Catch::Approx(0.7f));
+    CHECK(m.at("none").windows.empty());
+    // A malformed quad is dropped; the rest of the entry stands.
+    REQUIRE(m.at("bad").windows.size() == 1);
+    CHECK(m.at("bad").windows[0][0].x == Catch::Approx(0.6f));
+    CHECK(m.at("odd").windows.empty());
+}
+
 TEST_CASE("parse_image_regions: malformed document yields empty map", "[printer_image][regions]") {
     CHECK(parse_image_regions("{not json").empty());
     CHECK(parse_image_regions("[]").empty());
@@ -473,4 +495,19 @@ TEST_CASE("review chips: every part's chip and shown subject is in the tagger XM
         CHECK(xml.find("name=\"" + review_chip_name(kind) + "\"") != std::string::npos);
         CHECK(xml.find("subject=\"" + review_chip_shown_subject(kind) + "\"") != std::string::npos);
     }
+}
+
+TEST_CASE("save_user_image_regions: windows survive a save", "[printer_image][regions]") {
+    const ConfigDirGuard cfg("regions_windows_save");
+    ImageRegions r;
+    r.src_w = 300;
+    r.src_h = 200;
+    r.nozzle = {0.5f, 0.25f};
+    r.bed_left = {0.25f, 0.75f};
+    r.bed_right = {0.75f, 0.75f};
+    r.windows.push_back({{{0.1f, 0.2f}, {0.5f, 0.2f}, {0.5f, 0.8f}, {0.1f, 0.8f}}});
+    REQUIRE(save_user_image_regions("custom:mine", r));
+    const auto back = parse_image_regions(read_user_file(cfg));
+    REQUIRE(back.at("custom:mine").windows.size() == 1);
+    CHECK(back.at("custom:mine").windows[0][2].y == Catch::Approx(0.8f));
 }

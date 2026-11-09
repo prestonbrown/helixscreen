@@ -3,11 +3,13 @@
 
 #include "ui_plate_glow.h"
 
+#include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "lv_draw_buf_guard.h"
 #include "lvgl/src/misc/cache/instance/lv_image_cache.h" // not in the lvgl.h umbrella
+#include "ui/opa_pulse.h"
 
 #include <spdlog/spdlog.h>
 
@@ -16,6 +18,10 @@
 namespace helix::ui {
 
 namespace {
+
+/// A climbing heater's glow breathes between these image opacities; its level
+/// (the XML's style_opa) scales both.
+constexpr OpaPulse kHeatGlowPulse{150, LV_OPA_COVER, 1200};
 
 lv_draw_buf_t* mask_buf_of(lv_obj_t* obj) {
     return static_cast<lv_draw_buf_t*>(lv_obj_get_user_data(obj));
@@ -82,7 +88,17 @@ void plate_glow_set_mask(lv_obj_t* obj, const PlateGlowMask& mask) {
     // DECLARATIVE_OK: measured callout layout places the mask over the plate.
     lv_obj_set_pos(obj, mask.x, mask.y);
     // DECLARATIVE_OK: measured callout layout
-    lv_obj_set_size(obj, mask.w, mask.h);
+    lv_obj_set_size(obj, mask.w * mask.step, mask.h * mask.step);
+    // A coarse mask stretches back over the area it stands for.
+    lv_image_set_inner_align(obj, LV_IMAGE_ALIGN_STRETCH);
+}
+
+void heat_glow_update_pulse(lv_obj_t* glow, temperature::HeatState heat) {
+    if (!glow)
+        return;
+    const bool on = temperature::heater_region_glows(heat) &&
+                    DisplaySettingsManager::instance().get_animations_enabled();
+    set_image_opa_pulse(glow, on, kHeatGlowPulse);
 }
 
 } // namespace helix::ui

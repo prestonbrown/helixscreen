@@ -7,6 +7,7 @@
 #include "ui_fan_control_overlay.h"
 #include "ui_icon_codepoints.h"
 #include "ui_overlay_temp_graph.h"
+#include "ui_plate_glow.h"
 #include "ui_printer_manager_overlay.h"
 #include "ui_temperature_utils.h"
 #include "ui_timer_guard.h"
@@ -69,6 +70,7 @@ static lv_subject_t s_callout_light_shown;
 static lv_subject_t s_callout_light_on;
 static lv_subject_t s_callout_bed_heating;
 static lv_subject_t s_callout_bed_glow_level;
+static lv_subject_t s_callout_chamber_glow_level;
 static lv_subject_t s_callout_nozzle_text;
 static char s_callout_nozzle_text_buf[32];
 static lv_subject_t s_callout_bed_text;
@@ -88,10 +90,6 @@ namespace {
 constexpr const char* kLineNames[] = {"callout_line_nozzle", "callout_line_bed",
                                       "callout_line_chamber", "callout_line_fan",
                                       "callout_line_light"};
-
-/// A climbing bed's glow breathes between these image opacities; its level
-/// (the XML's style_opa) scales both.
-constexpr helix::ui::OpaPulse kGlowPulse{150, LV_OPA_COVER, 1200};
 
 /// Writes a chip's text, compact while the chips are pinned. True on a change.
 bool publish_callout_text(lv_subject_t* text, const std::string& full) {
@@ -155,6 +153,7 @@ static void printer_image_widget_init_subjects() {
             {&s_callout_light_on, "callout_light_on"},
             {&s_callout_bed_heating, "callout_bed_heating"},
             {&s_callout_bed_glow_level, "callout_bed_glow_level"},
+            {&s_callout_chamber_glow_level, "callout_chamber_glow_level"},
         };
         for (const auto& s : int_subjects) {
             // 0 doubles as CalloutMode::ImageOnly for the mode subject and as
@@ -314,7 +313,11 @@ void PrinterImageWidget::detach() {
                 lv_line_set_points(line, nullptr, 0);
         }
     }
-    set_glow_pulse(false);
+    if (widget_obj_) {
+        for (const char* name : {"callout_bed_glow", "callout_chamber_glow"})
+            helix::ui::heat_glow_update_pulse(lv_obj_find_by_name(widget_obj_, name),
+                                              helix::ui::temperature::HeatState::Off);
+    }
     cancel_callout_timer();
 
     // Cancel any pending timers. detach() runs from the destructor, so cancelling
@@ -791,12 +794,22 @@ void PrinterImageWidget::update_callouts() {
     const int bed_heating = heater_region_glows(bed_heat) ? 1 : 0;
     lv_subject_set_int(&s_callout_bed_heating, bed_heating);
     const int glow_level = bed_glow_level(bed_cur);
-    if (lv_subject_get_int(&s_callout_bed_glow_level) != glow_level)
+    if (lv_subject_get_int(&s_callout_bed_glow_level) != glow_level) {
         lv_subject_set_int(&s_callout_bed_glow_level, glow_level);
-    heater(read_int_or_zero(ps.temperature_state().get_chamber_temp_subject()),
-           read_int_or_zero(ps.temperature_state().get_chamber_effective_target_subject()),
-           read_int_or_zero(ps.capabilities_state().subject(Capability::HasChamber)) != 0,
-           &s_callout_chamber_shown, CalloutKind::Chamber, &s_callout_chamber_text);
+        changed = true;
+    }
+    const int chamber_cur = read_int_or_zero(ps.temperature_state().get_chamber_temp_subject());
+    const int chamber_tgt =
+        read_int_or_zero(ps.temperature_state().get_chamber_effective_target_subject());
+    const bool has_chamber =
+        read_int_or_zero(ps.capabilities_state().subject(Capability::HasChamber)) != 0;
+    heater(chamber_cur, chamber_tgt, has_chamber, &s_callout_chamber_shown, CalloutKind::Chamber,
+           &s_callout_chamber_text);
+    const int chamber_level = has_chamber ? chamber_glow_level(chamber_cur) : 0;
+    if (lv_subject_get_int(&s_callout_chamber_glow_level) != chamber_level) {
+        lv_subject_set_int(&s_callout_chamber_glow_level, chamber_level);
+        changed = true;
+    }
 
     const int fan = read_int_or_zero(ps.fan_state().get_fan_speed_subject());
     char fan_buf[8];
@@ -814,7 +827,12 @@ void PrinterImageWidget::update_callouts() {
                                     fan_buf));
 
     const bool animate = DisplaySettingsManager::instance().get_animations_enabled();
-    set_glow_pulse(bed_heating && animate);
+    if (widget_obj_) {
+        helix::ui::heat_glow_update_pulse(lv_obj_find_by_name(widget_obj_, "callout_bed_glow"),
+                                          bed_heat);
+        helix::ui::heat_glow_update_pulse(lv_obj_find_by_name(widget_obj_, "callout_chamber_glow"),
+                                          heater_display(chamber_cur, chamber_tgt).state);
+    }
     // Restarting a spin resets its rotation, so only a speed or preference
     // change touches it, never a temperature tick.
     const int spin = animate ? fan : 0;
@@ -966,8 +984,13 @@ void PrinterImageWidget::apply_callout_layout() {
         part.chip = lv_obj_find_by_name(widget_obj_, c.name);
         part.line =
             k < std::size(kLineNames) ? lv_obj_find_by_name(widget_obj_, kLineNames[k]) : nullptr;
-        if (c.kind == CalloutKind::Bed)
+        if (c.kind == CalloutKind::Bed) {
             part.glow = lv_obj_find_by_name(widget_obj_, "callout_bed_glow");
+            part.glowing = lv_subject_get_int(&s_callout_bed_glow_level) != 0;
+        } else if (c.kind == CalloutKind::Chamber) {
+            part.glow = lv_obj_find_by_name(widget_obj_, "callout_chamber_glow");
+            part.glowing = lv_subject_get_int(&s_callout_chamber_glow_level) != 0;
+        }
         part.in_budget = c.capable;
         part.active = lv_subject_get_int(c.shown) != 0;
         part.icons = c.icons;
@@ -999,10 +1022,4 @@ void PrinterImageWidget::place_printer_image(const CalloutRect* moved) {
     // relayouts, and that relayout finds the rect unchanged, so this cannot loop.
     if (presenter_.place_image(img, moved))
         schedule_image_refresh();
-}
-
-void PrinterImageWidget::set_glow_pulse(bool on) {
-    lv_obj_t* glow = widget_obj_ ? lv_obj_find_by_name(widget_obj_, "callout_bed_glow") : nullptr;
-    if (glow)
-        helix::ui::set_image_opa_pulse(glow, on, kGlowPulse);
 }

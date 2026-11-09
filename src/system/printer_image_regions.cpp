@@ -27,6 +27,29 @@ std::optional<NormPoint> read_point(const nlohmann::json& v) {
     return NormPoint{v[0].get<float>(), v[1].get<float>()};
 }
 
+/// Each well-formed quad under `v`; a malformed one is dropped with a warning.
+std::vector<std::array<NormPoint, 4>> read_windows(const nlohmann::json& v,
+                                                   const std::string& name) {
+    std::vector<std::array<NormPoint, 4>> out;
+    if (!v.is_array())
+        return out;
+    for (const auto& quad : v) {
+        std::array<NormPoint, 4> pts{};
+        bool ok = quad.is_array() && quad.size() == pts.size();
+        for (size_t i = 0; ok && i < pts.size(); ++i) {
+            const auto p = read_point(quad[i]);
+            ok = p.has_value();
+            if (ok)
+                pts[i] = *p;
+        }
+        if (ok)
+            out.push_back(pts);
+        else
+            spdlog::warn("[PrinterImageRegions] '{}': skipping a malformed window", name);
+    }
+    return out;
+}
+
 /// One regions file, read on first use. Main-thread only.
 struct RegionsTable {
     std::unordered_map<std::string, ImageRegions> entries;
@@ -112,6 +135,16 @@ nlohmann::json entry_json(const ImageRegions& r) {
         e["chamber"] = point_json(*r.chamber);
     if (r.light)
         e["light"] = point_json(*r.light);
+    if (!r.windows.empty()) {
+        nlohmann::json windows = nlohmann::json::array();
+        for (const auto& quad : r.windows) {
+            nlohmann::json q = nlohmann::json::array();
+            for (const NormPoint& p : quad)
+                q.push_back(point_json(p));
+            windows.push_back(std::move(q));
+        }
+        e["windows"] = std::move(windows);
+    }
     return e;
 }
 
@@ -175,6 +208,8 @@ std::unordered_map<std::string, ImageRegions> parse_image_regions(const std::str
             r.chamber = read_point(e["chamber"]);
         if (e.contains("light"))
             r.light = read_point(e["light"]);
+        if (e.contains("windows"))
+            r.windows = read_windows(e["windows"], name);
         out.emplace(name, r);
     }
     return out;

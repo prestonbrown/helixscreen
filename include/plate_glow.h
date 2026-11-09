@@ -18,6 +18,10 @@ namespace helix {
 /// the temperature, not the target, so a plate cooling from 100°C still glows.
 int bed_glow_level(int current_deci);
 
+/// The same scale for a chamber's air: 0 at room temperature, then 1 past 30°C,
+/// 2 from 45°C and 3 from 60°C.
+int chamber_glow_level(int current_deci);
+
 /// An 8-bit coverage mask placed in its owner's coordinates.
 struct PlateGlowMask {
     int x = 0;
@@ -25,7 +29,24 @@ struct PlateGlowMask {
     int w = 0;
     int h = 0;
     std::vector<uint8_t> alpha; ///< w * h bytes, row-major
+    int step = 1;               ///< on-screen pixels per mask pixel; draw it at w*step x h*step
 };
+
+/// A region mask never holds more than this many bytes; a larger one renders
+/// coarser (PlateGlowMask::step) and is drawn scaled up.
+constexpr size_t kMaxGlowMaskBytes = 160 * 1024;
+
+/// One four-cornered region of a picture, in pixels.
+using GlowQuad = std::array<CalloutPoint, 4>;
+
+/// A wash of light confined to `quads`, brightest at `source` and easing to
+/// `floor` (0..1 of `peak`) at `reach` pixels from it. Edges feather inward, so
+/// nothing lands outside a quad. Empty for no quads or quads with no area.
+PlateGlowMask render_region_glow(const std::vector<GlowQuad>& quads, CalloutPoint source,
+                                 float reach, float floor, float peak);
+
+/// A soft disc: full at `center`, fading to nothing at `radius` pixels.
+PlateGlowMask render_disc_glow(CalloutPoint center, int radius);
 
 /// The glow for a plate pictured at `quad` (near-left, near-right, far-right,
 /// far-left, in pixels), with the haze reaching `rise` pixels above the plate's
