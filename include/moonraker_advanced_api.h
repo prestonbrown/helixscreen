@@ -89,7 +89,8 @@ class MoonrakerAdvancedAPI : public helix::IAdvancedAPI {
     using InputShaperConfigCallback = std::function<void(const InputShaperConfig&)>;
 
     /// Callback for heater control type query (returns "pid", "mpc", etc.)
-    using HeaterControlTypeCallback = helix::SharedCallback<void(const std::string& control_type)>;
+    using HeaterControlTypeCallback =
+        helix::SharedCallback<void(const std::string& control_type, bool names_cooling_fan)>;
 
     /// Callback for PID calibration progress (sample number, tolerance value; -1.0 = n/a)
     using PIDProgressCallback = std::function<void(int sample, float tolerance)>;

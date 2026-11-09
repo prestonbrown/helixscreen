@@ -256,3 +256,38 @@ TEST_CASE("Migration works when the section has no active control key", "[mpc_mi
         REQUIRE(result->find("\ncontrol: pid") != std::string::npos);
     }
 }
+
+// ============================================================================
+// cooling_fan offer for heaters already on MPC
+// ============================================================================
+
+TEST_CASE("cooling_fan is offered only to an MPC heater with a free part fan", "[mpc_migration]") {
+    const auto offers = PIDCalibrationPanel::offers_cooling_fan;
+    CHECK(offers(ControlType::MPC, CalibMethod::MPC, false, "fan"));
+
+    CHECK_FALSE(offers(ControlType::MPC, CalibMethod::MPC, true, "fan"));
+    CHECK_FALSE(offers(ControlType::MPC, CalibMethod::MPC, false, ""));
+    CHECK_FALSE(offers(ControlType::PID, CalibMethod::MPC, false, "fan"));
+    CHECK_FALSE(offers(ControlType::MPC, CalibMethod::PID, false, "fan"));
+    CHECK_FALSE(offers(ControlType::UNKNOWN, CalibMethod::MPC, false, "fan"));
+}
+
+TEST_CASE("The cooling_fan edit adds the fan and touches nothing else", "[mpc_migration]") {
+    KlipperConfigEditor editor;
+    const auto edits = PIDCalibrationPanel::build_cooling_fan_edits("fan_generic part");
+    REQUIRE(edits.size() == 1);
+
+    const auto added =
+        editor.apply_edits("[extruder]\ncontrol: mpc\nheater_power: 50\n", "extruder", edits);
+    REQUIRE(added);
+    CHECK(added->find("\ncooling_fan: fan_generic part") != std::string::npos);
+    CHECK(added->find("control: mpc") != std::string::npos);
+    CHECK(added->find("heater_power: 50") != std::string::npos);
+
+    const auto kept = editor.apply_edits("[extruder]\ncooling_fan: fan\n", "extruder", edits);
+    REQUIRE(kept);
+    CHECK(kept->find("cooling_fan: fan\n") != std::string::npos);
+    CHECK(kept->find("fan_generic part") == std::string::npos);
+
+    CHECK(PIDCalibrationPanel::build_cooling_fan_edits("").empty());
+}

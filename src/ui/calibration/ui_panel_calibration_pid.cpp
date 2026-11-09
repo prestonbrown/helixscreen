@@ -160,6 +160,8 @@ void PIDCalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(subj_show_wattage_, 0, "cal_show_wattage", subjects_);
     UI_MANAGED_SUBJECT_INT(subj_needs_migration_, 0, "cal_needs_migration", subjects_);
     UI_MANAGED_SUBJECT_INT(subj_show_fan_config_, 0, "cal_show_fan_config", subjects_);
+    UI_MANAGED_SUBJECT_INT(subj_offer_cooling_fan_, 0, "cal_offer_cooling_fan", subjects_);
+    UI_MANAGED_SUBJECT_INT(subj_add_cooling_fan_, 0, "cal_add_cooling_fan", subjects_);
     UI_MANAGED_SUBJECT_INT(subj_fan_is_quick_, 1, "cal_fan_is_quick", subjects_);
     UI_MANAGED_SUBJECT_INT(subj_fan_is_detailed_, 0, "cal_fan_is_detailed", subjects_);
     UI_MANAGED_SUBJECT_INT(subj_fan_is_thorough_, 0, "cal_fan_is_thorough", subjects_);
@@ -226,6 +228,11 @@ void PIDCalibrationPanel::init_subjects() {
              [](lv_event_t*) { get_global_pid_cal_panel().handle_method_pid_clicked(); }},
             {"on_cal_method_mpc",
              [](lv_event_t*) { get_global_pid_cal_panel().handle_method_mpc_clicked(); }},
+            {"on_cal_add_cooling_fan_toggled",
+             [](lv_event_t* e) {
+                 lv_subject_set_int(&get_global_pid_cal_panel().subj_add_cooling_fan_,
+                                    helix::ui::event_checked(e) ? 1 : 0);
+             }},
             {"on_cal_wattage_up",
              [](lv_event_t*) { get_global_pid_cal_panel().handle_wattage_up(); }},
             {"on_cal_wattage_down",
@@ -358,6 +365,7 @@ void PIDCalibrationPanel::on_activate() {
     needs_migration_ = false;
     supports_mpc_ = false;
     current_control_ = ControlType::UNKNOWN;
+    heater_names_cooling_fan_ = true;
     lv_subject_copy_string(&subj_migration_notice_, "");
 
     update_fan_section_visibility();
@@ -599,6 +607,18 @@ void PIDCalibrationPanel::update_fan_section_visibility() {
     bool is_mpc = (selected_method_ == CalibMethod::MPC);
     lv_subject_set_int(&subj_show_pid_fan_, (part_fan_reaches_heater() && !is_mpc) ? 1 : 0);
     lv_subject_set_int(&subj_show_fan_config_, (is_extruder && is_mpc) ? 1 : 0);
+
+    const bool offer = offers_cooling_fan(current_control_, selected_method_,
+                                          heater_names_cooling_fan_, mpc_cooling_fan());
+    lv_subject_set_int(&subj_offer_cooling_fan_, offer ? 1 : 0);
+    if (!offer) {
+        lv_subject_set_int(&subj_add_cooling_fan_, 0);
+    }
+}
+
+bool PIDCalibrationPanel::adding_cooling_fan() {
+    return lv_subject_get_int(&subj_offer_cooling_fan_) == 1 &&
+           lv_subject_get_int(&subj_add_cooling_fan_) == 1;
 }
 
 void PIDCalibrationPanel::update_temp_display() {
@@ -955,7 +975,7 @@ void PIDCalibrationPanel::handle_start_clicked() {
             return;
         }
     }
-    if (needs_migration_) {
+    if (needs_migration_ || adding_cooling_fan()) {
         confirm_migration();
         return;
     }
@@ -980,17 +1000,22 @@ void PIDCalibrationPanel::confirm_migration() {
     // Start looks like the dangerous button, but Cancel is the one that bites:
     // aborting a running calibration is M112 plus a firmware restart. Confirm
     // before the config is touched, so declining costs nothing.
+    const bool adding_fan = adding_cooling_fan();
     const char* what =
-        to_mpc ? lv_tr("Switching to MPC changes how this heater is controlled, then calibrates "
-                       "it. That takes several minutes at temperature.")
-               : lv_tr("Switching back to PID changes how this heater is controlled, then "
-                       "calibrates it. That takes several minutes at temperature.");
+        adding_fan
+            ? lv_tr("Naming the part fan lets MPC account for its cooling. Klipper restarts, then "
+                    "this heater is calibrated. That takes several minutes at temperature.")
+        : to_mpc ? lv_tr("Switching to MPC changes how this heater is controlled, then calibrates "
+                         "it. That takes several minutes at temperature.")
+                 : lv_tr("Switching back to PID changes how this heater is controlled, then "
+                         "calibrates it. That takes several minutes at temperature.");
 
     helix::ui::ConfirmOptions opts;
     opts.owner_token = lifetime_.token();
 
     helix::ui::confirm_config_rewrite(
-        lv_tr("Change heater control?"), what, lv_tr("Continue"),
+        adding_fan ? lv_tr("Add part fan to MPC?") : lv_tr("Change heater control?"), what,
+        lv_tr("Continue"),
         [this]() {
             set_state(State::MIGRATING);
             start_migration(selected_method_);
@@ -1419,11 +1444,8 @@ PIDCalibrationPanel::build_control_migration_edits(CalibMethod target, int heate
             {ConfigEdit::Type::ADD_KEY, "control", "mpc"},
             {ConfigEdit::Type::ADD_KEY, "heater_power", std::to_string(heater_wattage)},
         };
-        // Without cooling_fan, MPC_CALIBRATE measures no fan_ambient_transfer and
-        // the model ignores the part fan. A fan the user already named stays.
-        if (!cooling_fan.empty()) {
-            edits.push_back({ConfigEdit::Type::ADD_IF_ABSENT, "cooling_fan", cooling_fan});
-        }
+        const auto fan_edits = build_cooling_fan_edits(cooling_fan);
+        edits.insert(edits.end(), fan_edits.begin(), fan_edits.end());
         return edits;
     }
 
@@ -1442,6 +1464,23 @@ PIDCalibrationPanel::build_control_migration_edits(CalibMethod target, int heate
         {ConfigEdit::Type::REMOVE_KEY, "fan_ambient_transfer", ""},
         {ConfigEdit::Type::REMOVE_KEY, "cooling_fan", ""},
     };
+}
+
+bool PIDCalibrationPanel::offers_cooling_fan(ControlType current, CalibMethod target,
+                                             bool names_cooling_fan, const std::string& part_fan) {
+    return current == ControlType::MPC && target == CalibMethod::MPC && !names_cooling_fan &&
+           !part_fan.empty();
+}
+
+std::vector<helix::system::ConfigEdit>
+PIDCalibrationPanel::build_cooling_fan_edits(const std::string& cooling_fan) {
+    using helix::system::ConfigEdit;
+    if (cooling_fan.empty()) {
+        return {};
+    }
+    // Without cooling_fan, MPC_CALIBRATE measures no fan_ambient_transfer and
+    // the model ignores the part fan. A fan the user already named stays.
+    return {{ConfigEdit::Type::ADD_IF_ABSENT, "cooling_fan", cooling_fan}};
 }
 
 std::vector<helix::system::ConfigEdit>
@@ -1479,13 +1518,14 @@ void PIDCalibrationPanel::detect_heater_control_type(bool preselect_mpc) {
     auto token = lifetime_.token();
     api_->advanced().get_heater_control_type(
         heater,
-        [this, token, preselect_mpc](const std::string& type) {
-            token.defer([this, type, preselect_mpc]() {
+        [this, token, preselect_mpc](const std::string& type, bool names_cooling_fan) {
+            token.defer([this, type, names_cooling_fan, preselect_mpc]() {
                 // Query succeeded: the firmware reports a control type, so it supports MPC
                 supports_mpc_ = true;
                 lv_subject_set_int(&subj_supports_mpc_, 1);
 
                 current_control_ = (type == "mpc") ? ControlType::MPC : ControlType::PID;
+                heater_names_cooling_fan_ = names_cooling_fan;
 
                 if (preselect_mpc) {
                     // MPC is the recommended method on firmware that offers it
@@ -1515,9 +1555,14 @@ void PIDCalibrationPanel::start_migration(CalibMethod target) {
 
     const std::string section = heater_name();
     const bool to_mpc = target == CalibMethod::MPC;
-    std::vector<helix::system::ConfigEdit> edits = control_migration_edits(target);
+    const bool adding_fan = adding_cooling_fan();
+    std::vector<helix::system::ConfigEdit> edits =
+        adding_fan ? build_cooling_fan_edits(mpc_cooling_fan()) : control_migration_edits(target);
 
-    if (to_mpc) {
+    if (adding_fan) {
+        spdlog::info("[PIDCal] Adding cooling_fan='{}' to MPC heater '{}'", mpc_cooling_fan(),
+                     section);
+    } else if (to_mpc) {
         spdlog::info("[PIDCal] Starting PID->MPC migration for '{}' with heater_power={}W, "
                      "cooling_fan='{}'",
                      section, heater_wattage_, mpc_cooling_fan());
@@ -1534,6 +1579,7 @@ void PIDCalibrationPanel::start_migration(CalibMethod target) {
             token.defer([this, target]() {
                 current_control_ =
                     (target == CalibMethod::MPC) ? ControlType::MPC : ControlType::PID;
+                heater_names_cooling_fan_ = target == CalibMethod::MPC;
                 update_migration_notice();
                 spdlog::info("[PIDCal] Migration complete, starting calibration");
                 begin_calibration(target);

@@ -890,6 +890,15 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         return stepper_z_endstop_null_;
     }
 
+    /// Fan a Kalico-mode [extruder] names as `cooling_fan`; "" leaves the key out.
+    void set_extruder_cooling_fan(std::string fan) {
+        extruder_cooling_fan_ = std::move(fan);
+    }
+
+    [[nodiscard]] const std::string& extruder_cooling_fan() const {
+        return extruder_cooling_fan_;
+    }
+
     /**
      * @brief Override the extruder max_temp reported in configfile.settings
      *
@@ -2564,6 +2573,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::string shaper_type_y_{"ei"};
     double shaper_freq_y_{47.6};
     bool shaper_csv_writable_{true};     ///< When false, SHAPER_CALIBRATE skips writing the CSV
+    std::string extruder_cooling_fan_;   ///< Kalico-mode [extruder] cooling_fan; "" for none
     bool stepper_z_endstop_null_{false}; ///< When true, position_endstop is reported as JSON null
     std::set<std::string> unregistered_gcode_commands_; ///< Left out of printer.gcode.help
     double extruder_max_temp_{300.0};         ///< Extruder max_temp reported in configfile.settings

@@ -259,6 +259,7 @@ translations:
   Add: Adicionar
   Add Filament: Adicionar Filamento
   Add Hidden Network: Adicionar Rede Oculta
+  Add Part Fan to MPC: ''
   Add Printer: Adicionar Impressora
   Add Vendor: Adicionar Fornecedor
   Add Widget: Adicionar Widget
@@ -266,6 +267,7 @@ translations:
   Add custom filament: Adicionar filamento personalizado
   Add new: "Adicionar novo"
   Add page: 'Adicionar página'
+  Add part fan to MPC?: ''
   Add to Mainsail/Fluidd Webcams: 'Adicionar às webcams do Mainsail/Fluidd'
   Add to Queue: Adicionar à fila
   Added: Adicionado
@@ -2218,6 +2220,7 @@ translations:
   Klipper ready: Klipper pronto
   Klipper reserves 'default' for new calibrations. Choose another name.: "O Klipper reserva 'default' para novas calibrações. Escolha outro nome."
   Klipper restarting - macros activating: 'Reiniciando o Klipper - ativando macros'
+  Klipper restarts before calibrating.: ''
   Klipper shut down: Klipper desligou
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "O Klipper parou de informar o progresso. A análise pode ficar sem memória em impressoras pequenas e deixar o Klipper travado, onde um reinício de firmware não o alcança. Desligue e ligue a impressora (ou reinicie o Klipper via SSH) e tente novamente."
@@ -2604,6 +2607,8 @@ translations:
   Name, image and model: Nome, imagem e modelo
   'Name:': 'Nome:'
   Named actions in the LED Controls widget. Not shown under LED selection.: Ações nomeadas no widget Controles LED. Não aparecem na seleção de LED.
+  ? Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
+  : ''
   Needs attention: Requer atenção
   Needs the {} package to switch spools: 'Precisa do plugin {} para trocar de carretel'
   'Needs {}x{} free: remove or shrink a widget first': 'Precisa de {}x{} livres: primeiro remova ou reduza um widget'

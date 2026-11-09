@@ -259,6 +259,7 @@ translations:
   Add: Aggiungi
   Add Filament: Aggiungi filamento
   Add Hidden Network: Aggiungi rete nascosta
+  Add Part Fan to MPC: ''
   Add Printer: Aggiungi stampante
   Add Vendor: Aggiungi fornitore
   Add Widget: Aggiungi widget
@@ -266,6 +267,7 @@ translations:
   Add custom filament: Aggiungi filamento personalizzato
   Add new: "Aggiungi nuovo"
   Add page: 'Aggiungi pagina'
+  Add part fan to MPC?: ''
   Add to Mainsail/Fluidd Webcams: 'Aggiungi alle webcam di Mainsail/Fluidd'
   Add to Queue: Aggiungi alla coda
   Added: Aggiunto
@@ -2215,6 +2217,7 @@ translations:
   Klipper ready: Klipper pronto
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper riserva 'default' alle nuove calibrazioni. Scegli un altro nome."
   Klipper restarting - macros activating: 'Riavvio di Klipper - attivazione delle macro'
+  Klipper restarts before calibrating.: ''
   Klipper shut down: Klipper arrestato
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipper non segnala più i progressi. La sua analisi può esaurire la memoria sulle stampanti piccole e bloccare Klipper, che un riavvio firmware non riesce più a raggiungere. Spegni e riaccendi la stampante (o riavvia Klipper via SSH), quindi riprova."
@@ -2602,6 +2605,8 @@ translations:
   Name, image and model: Nome, immagine e modello
   'Name:': 'Nome:'
   Named actions in the LED Controls widget. Not shown under LED selection.: Azioni con nome nel widget Controlli LED. Non mostrate nella selezione LED.
+  ? Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
+  : ''
   Needs attention: Richiede attenzione
   Needs the {} package to switch spools: 'Richiede il plugin {} per cambiare bobina'
   'Needs {}x{} free: remove or shrink a widget first': 'Serve {}x{} liberi: prima rimuovi o riduci un widget'
