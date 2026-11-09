@@ -138,6 +138,62 @@ TEST_CASE("write_file_atomic replaces the target and leaves no tmp", "[text_io]"
     }
 }
 
+// Every symlinked layout links config/<file> into a store outside the install
+// root. A rename onto the link would replace it with a real file inside the
+// install root, which the next update deletes (#2085).
+TEST_CASE("write_file_atomic through a symlink updates the target and keeps the link",
+          "[text_io][2085]") {
+    ScratchDir dir;
+    fs::create_directories(dir.file("store"));
+    fs::create_directories(dir.file("config"));
+    const std::string target = dir.file("store/tool_spools.json");
+    REQUIRE(tio::write_file(target, "old"));
+
+    struct Link {
+        std::string path;
+        std::string points_at;
+    };
+    const Link links[] = {
+        {dir.file("config/tool_spools.json"), target}, // absolute, as the installer makes
+        {dir.file("config/relative.json"), "../store/tool_spools.json"},
+    };
+    for (const Link& link : links) {
+        fs::create_symlink(link.points_at, link.path);
+        for (auto d : {tio::Durability::None, tio::Durability::Fsync}) {
+            INFO("link " << link.path << " durability " << static_cast<int>(d));
+            REQUIRE(tio::write_file_atomic(link.path, "new via " + link.path, d));
+            CHECK(fs::is_symlink(link.path));
+            CHECK(fs::read_symlink(link.path) == link.points_at);
+            CHECK(tio::read_file(target) == "new via " + link.path);
+            CHECK(helix::test::staging_files_beside(target) == 0);
+            CHECK(helix::test::staging_files_beside(link.path) == 0);
+        }
+    }
+}
+
+TEST_CASE("write_file_atomic through a dangling symlink re-creates the file it names",
+          "[text_io][2085]") {
+    ScratchDir dir;
+    fs::create_directories(dir.file("store"));
+    fs::create_directories(dir.file("config"));
+    const std::string target = dir.file("store/settings.json");
+    const std::string link = dir.file("config/settings.json");
+    fs::create_symlink(target, link);
+    REQUIRE_FALSE(fs::exists(target));
+
+    REQUIRE(tio::write_file_atomic(link, "fresh"));
+    CHECK(fs::is_symlink(link));
+    CHECK(tio::read_file(target) == "fresh");
+
+    // A link into a directory that is gone has nothing to re-create, so the
+    // save still lands at the path it was given.
+    const std::string orphan = dir.file("config/orphan.json");
+    fs::create_symlink(dir.file("missing-dir/orphan.json"), orphan);
+    REQUIRE(tio::write_file_atomic(orphan, "here"));
+    CHECK_FALSE(fs::is_symlink(orphan));
+    CHECK(tio::read_file(orphan) == "here");
+}
+
 TEST_CASE("write_file_atomic failure keeps the target and removes the tmp", "[text_io]") {
     ScratchDir dir;
     const std::string target = dir.file("target");

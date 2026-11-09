@@ -175,8 +175,12 @@ std::string strip_trailing_slash(const std::string& path);
  * and that link is all that keeps them alive when Moonraker's update rmtree()s
  * the install dir. So a save resolves the link first and renames onto its target.
  *
- * Returns @p path unchanged when it is not a symlink or does not resolve (a
- * dangling link), since there is no better target to write.
+ * A dangling link resolves to the file it names, so the save re-creates that
+ * file and the link survives. Returns @p path unchanged when it is not a
+ * symlink, or when the link's destination directory does not exist.
+ *
+ * text_io::write_file_atomic() applies this itself, so every atomic save writes
+ * through a link (#2085).
  */
 std::string write_target(const std::string& path);
 
