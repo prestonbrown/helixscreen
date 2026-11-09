@@ -288,6 +288,45 @@ void PACalibrationPanel::on_deactivating(DeactivateReason reason) {
     stop_heat_tracking();
 }
 
+void PACalibrationPanel::before_disconnect() {
+    if (state_ != HEATING && state_ != MEASURING) {
+        return;
+    }
+    stop_heat_tracking();
+    if (pa_cancel_) {
+        pa_cancel_();
+        pa_cancel_ = nullptr;
+    }
+
+    auto& state = get_printer_state();
+    const std::string heater = selected_heater();
+    lv_subject_t* target = state.temperature_state().get_extruder_target_subject(heater);
+    const int live_target_c =
+        target ? helix::ui::temperature::deci_to_degrees(lv_subject_get_int(target)) : 0;
+    // A live target of 0 is this run's own send, not yet reported back.
+    const bool retargeted =
+        state_ == HEATING && live_target_c != 0 && live_target_c != target_temp_;
+    if (retargeted || job_holds_machine(state.print_state().get_print_lifecycle())) {
+        spdlog::info("[{}] Disconnecting mid-run: {} is no longer this run's", get_name(), heater);
+    } else {
+        // Klipper runs gcode scripts one at a time, so during a measurement this
+        // waits for the firmware command to finish and cannot cool the nozzle under it.
+        spdlog::info("[{}] Disconnecting mid-run: turning {} off", get_name(), heater);
+        turn_off_owned_heat();
+    }
+    set_state(IDLE);
+    lv_subject_set_int(&progress_, 0);
+}
+
+void PACalibrationPanel::turn_off_owned_heat() {
+    if (prior_target_c_ != 0) {
+        return;
+    }
+    if (auto* controller = get_temperature_controller()) {
+        controller->set_target(selected_heater(), 0.0, {.toast = false});
+    }
+}
+
 void PACalibrationPanel::cleanup() {
     active_tool_observer_.reset();
     stop_heat_tracking();
@@ -380,6 +419,7 @@ void PACalibrationPanel::update_temp_display() {
 void PACalibrationPanel::set_state(State s) {
     state_ = s;
     lv_subject_set_int(&state_subject_, static_cast<int>(s));
+    heater_hold_.set((s == HEATING || s == MEASURING) && prior_target_c_ == 0);
 
     const bool live = (s == IDLE || s == COMPLETE || s == ERROR);
     lv_subject_set_int(&inputs_live_, live ? 1 : 0);
@@ -481,7 +521,13 @@ void PACalibrationPanel::begin_run() {
         show_error("Temperature control is unavailable.");
         return;
     }
-    controller->set_target(selected_heater(), static_cast<double>(target_temp_));
+    const std::string heater = selected_heater();
+    lv_subject_t* prior_target =
+        get_printer_state().temperature_state().get_extruder_target_subject(heater);
+    prior_target_c_ =
+        prior_target ? helix::ui::temperature::deci_to_degrees(lv_subject_get_int(prior_target))
+                     : 0;
+    controller->set_target(heater, static_cast<double>(target_temp_));
 
     set_state(HEATING);
     lv_subject_copy_string(&phase_label_, lv_tr("Heating nozzle"));
@@ -495,6 +541,7 @@ void PACalibrationPanel::begin_measure() {
     auto proc = helix::pacal::procedure_for(get_printer_state().get_discovery(), selected_tool_,
                                             target_temp_);
     if (!proc) {
+        turn_off_owned_heat();
         show_error("This printer cannot measure pressure advance automatically.");
         return;
     }
@@ -679,6 +726,7 @@ void PACalibrationPanel::start_heat_tracking() {
     if (!temp_subj) {
         spdlog::warn("[{}] No temperature subject for {}", get_name(), selected_heater());
         // Without a thermometer there is no way to know when to measure.
+        turn_off_owned_heat();
         show_error("The printer is not reporting this tool's temperature.");
         return;
     }

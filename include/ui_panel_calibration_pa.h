@@ -6,6 +6,7 @@
 #include "ui_observer_guard.h"
 
 #include "core/static_panel_registry.h"
+#include "heater_hold.h"
 #include "i_moonraker_api.h"
 #include "overlay_base.h"
 #include "pa_calibration.h"
@@ -144,6 +145,10 @@ class PACalibrationPanel : public OverlayBase {
         return result_k_;
     }
 
+    /// Ends a run while the client can still send, turning its heat off. Shutdown
+    /// and printer switches reach the panel only after the client is gone.
+    void before_disconnect();
+
     /// Whether this printer can measure pressure advance at all. The Controls
     /// entry is bound to the same capability through `printer_has_pa_cal`.
     static bool printer_supports_calibration();
@@ -153,6 +158,12 @@ class PACalibrationPanel : public OverlayBase {
     //
 
     /// Drive the state machine directly, without a printer.
+    void begin_run_for_test() {
+        begin_run();
+    }
+    bool heater_held_for_test() const {
+        return heater_hold_.held();
+    }
     void set_state_for_test(State s) {
         set_state(s);
     }
@@ -181,6 +192,8 @@ class PACalibrationPanel : public OverlayBase {
     void begin_run();
     void begin_measure();
     void stop_run(bool user_requested);
+    /// Clears the nozzle target unless the run began on someone else's heat.
+    void turn_off_owned_heat();
     /// Typical minutes for a run on this printer, for the pre-run copy.
     int estimate_minutes() const;
     void on_result(float k);
@@ -245,6 +258,11 @@ class PACalibrationPanel : public OverlayBase {
     /// running command, so a stop mid-measurement leaves the firmware to
     /// finish while the screen stops waiting for it.
     std::function<void()> pa_cancel_;
+
+    /// Target the nozzle already had when the run began. Nonzero means someone
+    /// else's heat, which shutdown leaves alone.
+    int prior_target_c_ = 0;
+    HeaterHold heater_hold_;
 
     /// Ticks when the current phase began, for the remaining-time clock.
     uint32_t phase_start_tick_ms_ = 0;
