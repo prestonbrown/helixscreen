@@ -37,7 +37,7 @@ constexpr ProfilePoint k_ams_ht_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 constexpr ProfilePoint k_ams_ht_dome[] = {{0.0000f, 0.00f}, {0.0037f, 18.49f}, {0.0147f, 27.51f}, {0.0442f, 40.14f}, {0.0879f, 51.06f}, {0.1237f, 57.08f}, {0.1852f, 63.87f}, {0.2531f, 67.65f}, {0.7000f, 68.38f}, {0.7469f, 67.65f}, {0.8148f, 63.87f}, {0.8763f, 57.08f}, {0.9121f, 51.06f}, {0.9558f, 40.14f}, {0.9853f, 27.51f}, {0.9963f, 18.49f}, {1.0000f, 0.00f}};
 constexpr FrontPart k_bmcu_front[] = {{FrontAnchor::Span, 2.00f, 2.00f, 2.00f, 38.00f, 0xb4b6ba, 3}, {FrontAnchor::Lane, -14.00f, 14.00f, 34.00f, 39.00f, 0xd6d8dc, 2}, {FrontAnchor::Lane, -11.00f, 11.00f, 5.00f, 32.00f, 0x173a6e, 3}};
 constexpr ProfilePoint k_bmcu_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
-constexpr FrontPart k_night_owl_front[] = {{FrontAnchor::Span, 0.00f, 0.00f, 0.00f, 36.16f, 0xe9761c, 3}, {FrontAnchor::Span, 7.00f, 7.00f, 7.00f, 31.16f, 0x26272a, 2}, {FrontAnchor::Lane, -17.00f, 17.00f, -8.00f, 0.00f, 0x2e2f33, 4}, {FrontAnchor::Lane, -3.00f, 3.00f, -11.00f, 2.00f, 0xe9761c, 1}};
+constexpr FrontPart k_night_owl_front[] = {{FrontAnchor::Span, 0.00f, 0.00f, 0.00f, 36.16f, 0x1d2f55, 3}, {FrontAnchor::Span, 7.00f, 7.00f, 7.00f, 31.16f, 0x14171f, 2}, {FrontAnchor::Lane, -17.00f, 17.00f, -8.00f, 0.00f, 0x2e2f33, 4}, {FrontAnchor::Lane, -3.00f, 3.00f, -11.00f, 2.00f, 0x1d2f55, 1}};
 constexpr ProfilePoint k_night_owl_cheek[] = {{0.0000f, 0.00f}, {0.2500f, 0.00f}, {0.6200f, 18.00f}, {1.0000f, 18.00f}};
 constexpr FrontPart k_quattro_box_front[] = {{FrontAnchor::Span, 2.00f, 2.00f, 3.00f, 34.00f, 0x2a2826, 3}, {FrontAnchor::Lane, -11.00f, 11.00f, 5.00f, 24.00f, 0x7b2fd0, 2}, {FrontAnchor::Lane, -5.00f, 5.00f, 9.00f, 20.00f, 0x62e6a0, 1}};
 constexpr ProfilePoint k_quattro_box_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
@@ -54,7 +54,7 @@ const UnitShell kShells[] = {
     {"kms", k_kms_cheek, 2, k_kms_dome, 17, 4, 0.00f, 61.6f, 12.0f, true, true, 0x55575b, 0x000000, k_kms_front, 2, 0x0},
     {"ams_ht", k_ams_ht_cheek, 2, k_ams_ht_dome, 17, 1, 0.00f, 66.5f, 7.0f, true, true, 0x3a3b40, 0x000000, k_ams_ht_front, 2, 0x0},
     {"bmcu", k_bmcu_cheek, 2, nullptr, 0, 4, 0.00f, 40.0f, 8.0f, false, false, 0xc9cbcf, 0x000000, k_bmcu_front, 3, 0x0},
-    {"night_owl", k_night_owl_cheek, 4, nullptr, 0, 2, 18.00f, 36.2f, 9.0f, false, true, 0xe9761c, 0x000000, k_night_owl_front, 4, 0x0},
+    {"night_owl", k_night_owl_cheek, 4, nullptr, 0, 2, 18.00f, 36.2f, 9.0f, false, true, 0x1d2f55, 0x000000, k_night_owl_front, 4, 0x0},
     {"quattro_box", k_quattro_box_cheek, 2, k_quattro_box_dome, 17, 4, 0.00f, 36.0f, 9.0f, true, true, 0x3b3836, 0x000000, k_quattro_box_front, 3, 0x34},
 };
 } // namespace
