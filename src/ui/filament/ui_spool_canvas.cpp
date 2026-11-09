@@ -32,6 +32,8 @@
 #include <utility>
 #include <vector>
 
+using namespace helix::ui;
+
 // Geometry constants for Bambu-style 3D spool (SIDE VIEW)
 // Spool axis is HORIZONTAL - we view from an angle
 // Shows: back flange (left), filament cylinder (middle), front flange (right), hub hole (center)
@@ -182,7 +184,7 @@ static void cache_put(const SpoolCacheKey& key, std::vector<uint8_t>&& pixels) {
 
 static helix::WidgetDataRegistry<SpoolCanvasData> s_registry;
 
-SpoolCanvasData* spool_canvas_data(lv_obj_t* obj) {
+SpoolCanvasData* helix::ui::spool_canvas_data(lv_obj_t* obj) {
     return s_registry.get(obj);
 }
 
@@ -985,7 +987,7 @@ static void redraw_spool(SpoolCanvasData* data) {
 //   - cache hit (idea #2): memcpy cached pixels into draw_buf
 //   - cache miss: full render + capture into cache
 // Returns true when the buffer now holds a different render.
-bool redraw_spool_pixels(SpoolCanvasData* data) {
+bool helix::ui::redraw_spool_pixels(SpoolCanvasData* data) {
     if (!data || !data->canvas || !data->draw_buf)
         return false;
 

@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../test_helpers/happy_hare_fixture.h"
-#include "ams_types.h"
 #include "happy_hare_status_parse.h"
-
-#include <utility>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"

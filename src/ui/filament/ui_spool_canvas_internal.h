@@ -11,6 +11,8 @@
 #include <cstdint>
 #include <vector>
 
+namespace helix::ui {
+
 static constexpr int32_t kDefaultSize = 64;
 static constexpr uint32_t kDefaultColor = 0xE0E0E0; // Default white/light filament
 
@@ -56,3 +58,5 @@ SpoolCanvasData* spool_canvas_data(lv_obj_t* obj);
 
 /// Paint the spool's pixels; false when the draw buffer is unavailable.
 bool redraw_spool_pixels(SpoolCanvasData* data);
+
+} // namespace helix::ui

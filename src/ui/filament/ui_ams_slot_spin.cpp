@@ -13,7 +13,8 @@
 #include "spool_spin.h"
 #include "ui/ams_drawing_utils.h"
 
-using namespace helix;
+namespace helix {
+
 using helix::ui::observe;
 
 void apply_spool_spin(AmsSlotData* data) {
@@ -55,3 +56,5 @@ void observe_slot_spin(AmsSlotData* data) {
     data->animations_enabled_observer = observe<int>(display.subject_animations_enabled(), obj,
                                                      respin, display.get_subjects_lifetime());
 }
+
+} // namespace helix

@@ -63,7 +63,7 @@ static helix::WidgetDataRegistry<AmsSlotData> s_slot_registry;
 /**
  * @brief Get AmsSlotData for an object from the registry
  */
-AmsSlotData* get_slot_data(lv_obj_t* obj) {
+AmsSlotData* helix::get_slot_data(lv_obj_t* obj) {
     return s_slot_registry.get(obj);
 }
 

@@ -9,6 +9,8 @@
 #include "ams_lane_state.h"
 #include "lvgl/lvgl.h"
 
+namespace helix {
+
 /// Per-widget state of one ams_slot.
 struct AmsSlotData {
     int slot_index = -1;
@@ -95,3 +97,5 @@ void apply_spool_spin(AmsSlotData* data);
 
 /// Observe what turns the spool beyond the slot's own subjects.
 void observe_slot_spin(AmsSlotData* data);
+
+} // namespace helix

@@ -351,6 +351,7 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
 
         // Stamp the unit index on the environment indicator so its click handler
         // knows which unit's overlay to open.
+        // required-names: ams_unit_tile ams_unit_card
         if (lv_obj_t* ind = helix::ui::find_required(uc.card, "env_indicator", get_name())) {
             lv_obj_set_user_data(ind, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
         }
