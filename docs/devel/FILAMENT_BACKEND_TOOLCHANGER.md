@@ -249,7 +249,9 @@ firmware's own string fixes:
 ### T_INFO: the read-only carriage query
 
 `T_INFO` answers where every tool sits and moves nothing (zmod's own doc). The backend
-sends it once at start and again on `notify_klippy_ready`, and parses its rows through
+sends it once per edge of `klippy_state` into READY (`AmsBackend::on_klippy_ready()`, the
+connect and every restart), or at start when Klipper already reads ready, so a start
+ahead of READY never sends a query Klipper refuses (#2091). It parses its rows through
 the same console listener as the swap markers: `T<n>: HEAD` names the carriage tool,
 `T<n>: home` seats a dock, `ERROR (both)` is the disagreeing-sensors fault, and the
 trailing `Offset:` row closes the block — the only place "nothing is on the carriage"

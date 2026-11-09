@@ -12,6 +12,7 @@
 #include "../test_helpers/ad5x_ifs_test_access.h"
 #include "../test_helpers/afc_test_access.h"
 #include "../test_helpers/cfs_test_access.h"
+#include "../test_helpers/gcode_recording_api.h"
 #include "../test_helpers/snapmaker_test_access.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
@@ -24,8 +25,11 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "moonraker_client_mock.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -44,8 +48,12 @@ class RestartRecordingBackend : public helix::AmsBackendMock {
     RestartRecordingBackend() : helix::AmsBackendMock(4) {}
 
     int restarts = 0;
+    int readies = 0;
     void on_klipper_restarted() override {
         ++restarts;
+    }
+    void on_klippy_ready() override {
+        ++readies;
     }
 };
 
@@ -227,4 +235,115 @@ TEST_CASE_METHOD(KlipperRestartFixture,
 
     CHECK_FALSE(helix::ToolChangerTestAccess::has_pending_dispatch(backend));
     CHECK(backend.get_current_action() == AmsAction::IDLE);
+}
+
+TEST_CASE_METHOD(KlipperRestartFixture, "Every edge into READY tells the backends Klipper is ready",
+                 "[ams][klipper_restart_expiry][klippy_ready]") {
+    get_printer_state().set_klippy_state_sync(KlippyState::SHUTDOWN);
+    AmsState::instance().init_subjects(true);
+    settle();
+
+    auto owned = std::make_unique<RestartRecordingBackend>();
+    auto* backend = owned.get();
+    AmsState::instance().set_backend(std::move(owned));
+
+    // The connect: ready, but nothing restarted.
+    get_printer_state().set_klippy_state_sync(KlippyState::READY);
+    settle();
+    CHECK(backend->readies == 1);
+    CHECK(backend->restarts == 0);
+
+    get_printer_state().set_klippy_state_sync(KlippyState::READY);
+    settle();
+    CHECK(backend->readies == 1);
+
+    restart_klipper();
+    CHECK(backend->readies == 2);
+    CHECK(backend->restarts == 1);
+}
+
+TEST_CASE_METHOD(KlipperRestartFixture, "Installing the observer under a READY Klipper is no edge",
+                 "[ams][klipper_restart_expiry][klippy_ready]") {
+    auto owned = std::make_unique<RestartRecordingBackend>();
+    auto* backend = owned.get();
+    AmsState::instance().set_backend(std::move(owned));
+
+    AmsState::instance().init_subjects(true);
+    settle();
+    CHECK(backend->readies == 0);
+}
+
+namespace {
+
+/// The Creator 5 Pro on Z-Mod with its read-only T_INFO macro.
+helix::PrinterDiscovery zmod_c5_tinfo_discovery() {
+    json objects = json::array({"zmod", "zmod_color", "save_variables", "extruder", "extruder1",
+                                "extruder2", "extruder3", "heater_bed", "toolhead", "gcode_move",
+                                "configfile", "gcode_macro T_INFO"});
+    for (int i = 1; i <= 4; ++i) {
+        objects.push_back("gcode_button extruder_pos" + std::to_string(i));
+        objects.push_back("gcode_button extruder_grab" + std::to_string(i));
+    }
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
+}
+
+int tinfo_count(const helix::test::GcodeRecordingApi& api) {
+    return static_cast<int>(std::count(api.sent.begin(), api.sent.end(), std::string("T_INFO")));
+}
+
+} // namespace
+
+TEST_CASE_METHOD(KlipperRestartFixture,
+                 "The Z-Mod tool-state query goes out once Klipper first reads ready",
+                 "[ams][toolchanger][zmod][tinfo][klippy_ready]") {
+    // #2091: the backend can start before klippy_state turns READY, and Klipper
+    // refuses gcode until it does.
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    helix::PrinterState api_state;
+    api_state.init_subjects(false);
+    helix::test::GcodeRecordingApi api{client, api_state};
+
+    const auto hw = zmod_c5_tinfo_discovery();
+    auto owned = std::make_unique<helix::AmsBackendToolChanger>(&api, &client);
+    auto* backend = owned.get();
+    backend->set_discovery(hw);
+    backend->set_discovered_tools({"T0", "T1", "T2", "T3"});
+
+    SECTION("Klipper becomes ready after the backend starts") {
+        get_printer_state().set_klippy_state_sync(KlippyState::SHUTDOWN);
+        AmsState::instance().init_subjects(true);
+        settle();
+        AmsState::instance().set_backend(std::move(owned));
+        REQUIRE(backend->start().success());
+        settle();
+        CHECK(tinfo_count(api) == 0);
+
+        get_printer_state().set_klippy_state_sync(KlippyState::READY);
+        settle();
+        CHECK(tinfo_count(api) == 1);
+
+        get_printer_state().set_klippy_state_sync(KlippyState::READY);
+        settle();
+        CHECK(tinfo_count(api) == 1);
+    }
+    SECTION("Klipper is already ready when the backend starts") {
+        AmsState::instance().set_backend(std::move(owned));
+        REQUIRE(backend->start().success());
+        settle();
+        CHECK(tinfo_count(api) == 1);
+    }
+    SECTION("a restart re-seeds it once") {
+        AmsState::instance().set_backend(std::move(owned));
+        REQUIRE(backend->start().success());
+        settle();
+        REQUIRE(tinfo_count(api) == 1);
+        restart_klipper();
+        CHECK(tinfo_count(api) == 2);
+    }
+
+    backend->stop();
+    AmsState::instance().set_backend(nullptr);
+    settle();
 }

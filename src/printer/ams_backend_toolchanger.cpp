@@ -12,6 +12,7 @@
 #include "ams_state.h"
 #include "ams_tool_map_sync.h"
 #include "app_constants.h"
+#include "app_globals.h"
 #include "color_utils.h"
 #include "display_numbering.h"
 #include "filament_op_slot_resolver.h"
@@ -163,6 +164,14 @@ void AmsBackendToolChanger::query_zmod_tool_state() {
     if (!api_ || !zmod_c5_row_active() || !tinfo_macro_present_) {
         return;
     }
+    // Klipper refuses gcode until it reads READY, and a backend can start
+    // ahead of that (#2091). on_klippy_ready() sends it on the edge instead.
+    if (!get_printer_state().are_subjects_initialized() ||
+        lv_subject_get_int(get_printer_state().network_state().get_klippy_state_subject()) !=
+            static_cast<int>(KlippyState::READY)) {
+        spdlog::debug("[AMS ToolChanger] T_INFO query waits for Klipper to read ready");
+        return;
+    }
     // Captureless callbacks only: the query is fire-and-forget (its answer
     // arrives on the console listener), and a failed probe is log-only —
     // claiming error ownership here would mute Klipper's own `!!` line.
@@ -172,6 +181,14 @@ void AmsBackendToolChanger::query_zmod_tool_state() {
             spdlog::debug("[AMS ToolChanger] T_INFO query refused: {}", err.message);
         },
         0, false, nullptr, /*caller_surfaces_errors=*/false);
+}
+
+void AmsBackendToolChanger::on_klippy_ready() {
+    // FIRMWARE_RESTART reloads the macros, and the first READY of a connect can
+    // land after start(): either way this query re-seeds the carriage reading.
+    if (is_running()) {
+        query_zmod_tool_state();
+    }
 }
 
 void AmsBackendToolChanger::on_stopping() {
@@ -228,14 +245,6 @@ void AmsBackendToolChanger::register_zmod_marker_listener() {
             token.defer("AmsBackendToolChanger::zmod_marker_apply",
                         [this, line = std::move(line)]() mutable { on_zmod_marker_line(line); });
         });
-
-    // FIRMWARE_RESTART reloads the macros; the tool-state query is what
-    // re-seeds the carriage reading after klippy comes back.
-    client_->register_method_callback(
-        "notify_klippy_ready", handler_name, [this, token](const json& /*msg*/) {
-            token.defer("AmsBackendToolChanger::zmod_klippy_ready_apply",
-                        [this]() { query_zmod_tool_state(); });
-        });
 }
 
 void AmsBackendToolChanger::unregister_zmod_marker_listener() {
@@ -243,7 +252,6 @@ void AmsBackendToolChanger::unregister_zmod_marker_listener() {
         return;
     }
     client_->unregister_method_callback("notify_gcode_response", "toolchanger_zmod_marker_watcher");
-    client_->unregister_method_callback("notify_klippy_ready", "toolchanger_zmod_marker_watcher");
 }
 
 void AmsBackendToolChanger::on_zmod_marker_line(const std::string& line) {

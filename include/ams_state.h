@@ -2694,8 +2694,9 @@ class AmsState {
     /// can be after the pause, read from gcode_store.
     ObserverGuard stop_reason_observer_;
 
-    /// Ends every backend's busy operation when klippy_state enters READY from
-    /// any other state: a Klipper restart ends every firmware-side operation.
+    /// On each klippy_state edge into READY, tells every backend Klipper is
+    /// ready (on_klippy_ready()), and on a restart edge first ends its busy
+    /// operation: a Klipper restart ends every firmware-side operation.
     ObserverGuard klippy_state_observer_;
     /// The klippy_state the observer last saw; -1 before its first fire.
     int last_klippy_state_ = -1;
