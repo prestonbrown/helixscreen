@@ -105,6 +105,31 @@ TEST_CASE_METHOD(OwnedHeatFixture, "owned heat holds only what it will clear", "
         CHECK(offs == std::vector<std::string>{"extruder"});
     }
 
+    SECTION("adopting a heater takes the new run's hold") {
+        heat.own("heater_bed", 60, /*hold=*/false);
+        heat.own("heater_bed", 60);
+        CHECK(heat.held());
+        heat.before_disconnect();
+        CHECK(offs == std::vector<std::string>{"heater_bed"});
+    }
+
+    SECTION("firmware takes over a target that is still the run's") {
+        heat.own("heater_bed", 60);
+        set_bed_target(60.0);
+        heat.let_firmware_set("heater_bed");
+        set_bed_target(75.0);
+        heat.turn_off();
+        CHECK(offs == std::vector<std::string>{"heater_bed"});
+    }
+
+    SECTION("firmware never takes over a target someone else set") {
+        heat.own("heater_bed", 60);
+        set_bed_target(80.0);
+        heat.let_firmware_set("heater_bed");
+        heat.turn_off();
+        CHECK(offs.empty());
+    }
+
     SECTION("forgetting drops the heat without a send") {
         heat.own("heater_bed", 60);
         heat.forget();

@@ -40,11 +40,15 @@ class CalibrationOwnedHeat {
     CalibrationOwnedHeat& operator=(const CalibrationOwnedHeat&) = delete;
 
     /// Record a heater this flow turned on. Taking one already recorded adopts it
-    /// for the new run and cancels any off still owed on it.
+    /// for the new run, with the new run's hold, and cancels any off still owed on it.
     /// @param expected_c The target being set; 0 when firmware chooses
     /// @param hold False for a heater that already had someone's target, which
     ///             the flow clears on its normal endings but not at shutdown
     void own(const std::string& heater, int expected_c, bool hold = true);
+
+    /// From here on firmware may set this heater's target, so any target counts as
+    /// the run's. Skipped once someone else has retargeted it.
+    void let_firmware_set(const std::string& heater);
 
     [[nodiscard]] bool owns(const std::string& heater) const;
     [[nodiscard]] bool any() const;

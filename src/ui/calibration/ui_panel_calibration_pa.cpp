@@ -554,7 +554,7 @@ void PACalibrationPanel::begin_measure() {
     // The firmware command may set a target of its own from here on. Klipper runs
     // one command at a time, so no other client's target can land before it ends
     // and an off waits behind it instead of cooling the nozzle under the firmware.
-    heat_.own(selected_heater(), 0);
+    heat_.let_firmware_set(selected_heater());
 
     set_state(MEASURING);
     arm_run_timer(static_cast<uint32_t>(proc->timeout_ms) + kMeasureDeadlineGraceMs);

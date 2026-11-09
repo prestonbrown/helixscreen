@@ -157,8 +157,8 @@ void ZOffsetCalibrationPanel::setup_widgets() {
     final_offset_label_ = helix::ui::find_required(overlay_root_, "final_offset_label", get_name());
     error_message_ = helix::ui::find_required(overlay_root_, "error_message", get_name());
 
-    // Set initial state
-    set_state(State::IDLE);
+    // A rebuild mid-run keeps the run: the probe is still going on the printer.
+    set_state(run_in_progress() ? state_ : State::IDLE);
 
     // Subscribe to manual_probe state changes from Klipper
     // This replaces the fake timer with real state tracking
@@ -233,7 +233,7 @@ void ZOffsetCalibrationPanel::on_activate() {
     // probe, a save or a result that landed behind it, and the reference-tool
     // question if it was open.
     const bool waking = take_wake();
-    if (waking && state_ != State::IDLE) {
+    if ((waking && state_ != State::IDLE) || run_in_progress()) {
         spdlog::info("[ZOffsetCal] Woke - keeping state {}", static_cast<int>(state_));
         return;
     }

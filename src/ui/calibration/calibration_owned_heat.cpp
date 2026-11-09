@@ -47,12 +47,22 @@ void CalibrationOwnedHeat::own(const std::string& heater, int expected_c, bool h
         entries_.push_back({heater, expected_c, hold, false});
     } else {
         it->expected_c = expected_c;
+        it->hold = hold;
         it->owed = false;
     }
     if (std::none_of(entries_.begin(), entries_.end(), [](const Entry& e) { return e.owed; })) {
         stop_waiting();
     }
     update_hold();
+}
+
+void CalibrationOwnedHeat::let_firmware_set(const std::string& heater) {
+    auto it = std::find_if(entries_.begin(), entries_.end(),
+                           [&](const Entry& e) { return e.heater == heater; });
+    if (it != entries_.end() &&
+        owned_heat_may_clear(it->expected_c, live_target_c(heater), /*job_holds=*/false)) {
+        it->expected_c = 0;
+    }
 }
 
 bool CalibrationOwnedHeat::owns(const std::string& heater) const {

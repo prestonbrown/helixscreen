@@ -1240,9 +1240,7 @@ void BedMeshPanel::start_calibration_probing() {
     // A wrapper around BED_MESH_CALIBRATE may set targets of its own from here on.
     const std::string nozzle = get_printer_state().temperature_state().active_extruder_name();
     for (const std::string& heater : {nozzle, std::string(kBedHeater)}) {
-        if (heat_.owns(heater)) {
-            heat_.own(heater, 0);
-        }
+        heat_.let_firmware_set(heater);
     }
 
     auto token = lifetime_.token();

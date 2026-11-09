@@ -918,6 +918,30 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration warm-up holds SIGTERM for 
         CHECK_FALSE(panel->holds_owned_heat());
     }
 
+    SECTION("moving on to probing keeps the bed") {
+        state().update_from_status(
+            json{{"toolhead",
+                  {{"homed_axes", "xyz"},
+                   {"axis_minimum", json::array({0.0, 0.0, 0.0, 0.0})},
+                   {"axis_maximum", json::array({350.0, 350.0, 340.0, 0.0})}}}});
+        client.clear_gcode_script_history();
+        begin_probe_sequence_of(*panel);
+        // The mock answers at once, so the run may already be adjusting.
+        const auto running = panel->get_state();
+        REQUIRE((running == ZOffsetCalibrationPanel::State::PROBING ||
+                 running == ZOffsetCalibrationPanel::State::ADJUSTING));
+        CHECK_FALSE(sent_off(client));
+        CHECK(panel->holds_owned_heat());
+
+        SECTION("and a re-activation mid-run keeps the run and the bed") {
+            client.clear_gcode_script_history();
+            panel->on_activate();
+            CHECK(panel->get_state() == running);
+            CHECK_FALSE(sent_off(client));
+            CHECK(panel->holds_owned_heat());
+        }
+    }
+
     SECTION("a failed run clears the bed while the panel stays open") {
         client.clear_gcode_script_history();
         panel->on_calibration_result(false, "failed");
