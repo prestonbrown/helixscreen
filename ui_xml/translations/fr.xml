@@ -613,7 +613,6 @@
   <translation tag="Camera checks the bed is empty before each print" fr="La caméra vérifie que le plateau est vide avant chaque impression"/>
   <translation tag="Can&apos;t connect — try forgetting and re-pairing the printer" fr="Connexion impossible — essayez d&apos;oublier et de réappairer l&apos;imprimante"/>
   <translation tag="Can&apos;t move filament while the print is paused" fr="Impossible de déplacer le filament pendant une impression en pause"/>
-  <translation tag="Can&apos;t reach the camera, so this screen takes photos." fr="Caméra injoignable : cet écran prend donc les photos."/>
   <translation tag="Can&apos;t reach this printer. Save anyway?" fr="Imprimante injoignable. Enregistrer quand même ?"/>
   <translation tag="Can&apos;t read filament RFID tag" fr="Impossible de lire l&apos;étiquette RFID du filament"/>
   <translation tag="Cancel" fr="Annuler"/>
@@ -3990,6 +3989,7 @@
   <translation tag="The peak of {} moved out of the zone. Widening it." fr="Le pic de {} est sorti de la zone. Élargissement."/>
   <translation tag="The plate and the spools are still hot. Use gloves." fr="Le plateau et les bobines sont encore chauds. Portez des gants."/>
   <translation tag="The plate finishes its current move, but drying will not start." fr="Le plateau termine son déplacement en cours, mais le séchage ne démarrera pas."/>
+  <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." fr="Le plugin n&apos;atteint pas la caméra, cet écran prend donc les photos."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." fr="Le plugin ne peut pas enregistrer ses données de reprise."/>
   <translation tag="The plugin didn&apos;t say why." fr="Le plugin n&apos;a pas donné de raison."/>
   <translation tag="The plugin is turned off in moonraker.conf." fr="Le plugin est désactivé dans moonraker.conf."/>

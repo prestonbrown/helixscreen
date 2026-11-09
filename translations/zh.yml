@@ -4128,7 +4128,7 @@ translations:
   The plate and the spools are still hot. Use gloves.: 热床和料盘仍然很烫。请戴手套。
 
   The plate finishes its current move, but drying will not start.: '热床会完成当前移动,但烘干不会开始。'
-  Can't reach the camera, so this screen takes photos.: "无法连接摄像头，因此由此屏幕拍照。"
+  The plugin can't reach the camera, so this screen takes the photos.: "插件无法连接摄像头，因此由此屏幕拍照。"
   The plugin can't save its recovery data to disk.: "插件无法保存其恢复数据。"
   The plugin is turned off in moonraker.conf.: "插件已在 moonraker.conf 中关闭。"
   The previous IPv4 settings come back when the print ends.: '打印结束后将恢复之前的 IPv4 设置。'

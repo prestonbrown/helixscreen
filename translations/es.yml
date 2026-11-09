@@ -4346,7 +4346,7 @@ translations:
   The plate and the spools are still hot. Use gloves.: La cama y las bobinas siguen calientes. Usa guantes.
 
   The plate finishes its current move, but drying will not start.: 'La cama termina su movimiento actual, pero el secado no empezará.'
-  Can't reach the camera, so this screen takes photos.: "No se puede acceder a la cámara, así que esta pantalla toma las fotos."
+  The plugin can't reach the camera, so this screen takes the photos.: "El plugin no llega a la cámara, así que esta pantalla toma las fotos."
   The plugin can't save its recovery data to disk.: "El plugin no puede guardar sus datos de recuperación."
   The plugin is turned off in moonraker.conf.: "El plugin está desactivado en moonraker.conf."
   The previous IPv4 settings come back when the print ends.: 'La configuración IPv4 anterior volverá cuando termine la impresión.'

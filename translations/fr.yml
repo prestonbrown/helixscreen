@@ -4371,7 +4371,7 @@ translations:
   The plate and the spools are still hot. Use gloves.: Le plateau et les bobines sont encore chauds. Portez des gants.
 
   The plate finishes its current move, but drying will not start.: 'Le plateau termine son déplacement en cours, mais le séchage ne démarrera pas.'
-  Can't reach the camera, so this screen takes photos.: "Caméra injoignable : cet écran prend donc les photos."
+  The plugin can't reach the camera, so this screen takes the photos.: "Le plugin n'atteint pas la caméra, cet écran prend donc les photos."
   The plugin can't save its recovery data to disk.: "Le plugin ne peut pas enregistrer ses données de reprise."
   The plugin is turned off in moonraker.conf.: "Le plugin est désactivé dans moonraker.conf."
   The previous IPv4 settings come back when the print ends.: 'Les paramètres IPv4 précédents reviendront à la fin de l''impression.'
