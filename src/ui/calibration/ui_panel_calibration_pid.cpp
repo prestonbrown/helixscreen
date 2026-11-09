@@ -1016,9 +1016,13 @@ void PIDCalibrationPanel::confirm_migration() {
     helix::ui::confirm_config_rewrite(
         adding_fan ? lv_tr("Add part fan to MPC?") : lv_tr("Change heater control?"), what,
         lv_tr("Continue"),
-        [this]() {
+        [this, adding_fan]() {
+            if (!migration_still_valid(adding_fan, adding_cooling_fan(), needs_migration_)) {
+                spdlog::warn("[PIDCal] Config rewrite no longer applies; nothing changed");
+                return;
+            }
             set_state(State::MIGRATING);
-            start_migration(selected_method_);
+            start_migration(selected_method_, adding_fan);
         },
         opts);
 }
@@ -1549,13 +1553,12 @@ void PIDCalibrationPanel::detect_heater_control_type(bool preselect_mpc) {
         });
 }
 
-void PIDCalibrationPanel::start_migration(CalibMethod target) {
+void PIDCalibrationPanel::start_migration(CalibMethod target, bool adding_fan) {
     if (!api_)
         return;
 
     const std::string section = heater_name();
     const bool to_mpc = target == CalibMethod::MPC;
-    const bool adding_fan = adding_cooling_fan();
     std::vector<helix::system::ConfigEdit> edits =
         adding_fan ? build_cooling_fan_edits(mpc_cooling_fan()) : control_migration_edits(target);
 

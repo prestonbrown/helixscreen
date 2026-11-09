@@ -118,6 +118,13 @@ class PIDCalibrationPanel : public OverlayBase {
      * @param names_cooling_fan Whether the heater's section already has a cooling_fan
      * @param part_fan Klipper object of the fan reaching this heater; empty for none
      */
+    /// Whether a confirmed config rewrite may still run: the state the dialog
+    /// promised has to hold when Continue is tapped.
+    [[nodiscard]] static bool migration_still_valid(bool promised_fan, bool adding_fan,
+                                                    bool needs_migration) {
+        return promised_fan ? adding_fan : needs_migration;
+    }
+
     [[nodiscard]] static bool offers_cooling_fan(ControlType current, CalibMethod target,
                                                  bool names_cooling_fan,
                                                  const std::string& part_fan);
@@ -501,7 +508,7 @@ class PIDCalibrationPanel : public OverlayBase {
      *        it, and a late answer must not override a PID choice made since.
      */
     void detect_heater_control_type(bool preselect_mpc = true);
-    void start_migration(CalibMethod target);
+    void start_migration(CalibMethod target, bool adding_fan);
     void confirm_migration();
     void begin_calibration(CalibMethod method);
     void update_migration_notice();

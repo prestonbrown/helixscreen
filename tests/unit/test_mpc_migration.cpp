@@ -291,3 +291,14 @@ TEST_CASE("The cooling_fan edit adds the fan and touches nothing else", "[mpc_mi
 
     CHECK(PIDCalibrationPanel::build_cooling_fan_edits("").empty());
 }
+
+TEST_CASE("A confirmed rewrite runs only while the promise it showed still holds",
+          "[mpc_migration]") {
+    using P = PIDCalibrationPanel;
+    CHECK(P::migration_still_valid(true, true, false));
+    CHECK_FALSE(P::migration_still_valid(true, false, false));
+    CHECK_FALSE(P::migration_still_valid(true, false, true));
+    CHECK(P::migration_still_valid(false, false, true));
+    CHECK_FALSE(P::migration_still_valid(false, false, false));
+    CHECK_FALSE(P::migration_still_valid(false, true, false));
+}
