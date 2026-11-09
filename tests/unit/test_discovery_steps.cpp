@@ -36,6 +36,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <unistd.h>
 #include <vector>
@@ -450,4 +451,29 @@ TEST_CASE_METHOD(
 
     // Opening it hands the panel the discovery's API first.
     CHECK(ZOffsetCalibrationTestAccess::api(panel) == nullptr);
+}
+
+// The set_hardware step hands discovery's tachometer map to the fan state, so a
+// separately published RPM reaches the fan it measures.
+TEST_CASE_METHOD(StepFixture, "set_hardware hands the tachometer map to the fan state",
+                 "[discovery_steps][fan_tach]") {
+    api.hardware().parse_objects(json::array({"fan", "output_pin fan2", "fan_feedback"}));
+    api.hardware().set_fan_tachometers({{"fan_feedback", "fan2_speed", "fan"}});
+    auto ctx = context(/*hw_changed=*/true);
+    bool ran_step = false;
+    for (const DiscoveryStep& step : helix::discovery_core_steps()) {
+        if (std::string(step.name) == "set_hardware") {
+            step.run(ctx);
+            ran_step = true;
+        }
+    }
+    REQUIRE(ran_step);
+
+    get_printer_state().update_from_status({{"fan_feedback", {{"fan2_speed", 6857}}}});
+    std::optional<int> part, pin2;
+    for (const auto& fan : get_printer_state().fan_state().get_fans()) {
+        (fan.object_name == "fan" ? part : pin2) = fan.rpm;
+    }
+    CHECK(part == std::optional<int>(6857));
+    CHECK_FALSE(pin2.has_value());
 }
