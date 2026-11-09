@@ -25,24 +25,22 @@
             width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
             style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
       <setting_info_row name="plugin_overview_version"
-                        label="Version" label_tag="Version" icon="puzzle_outline" bind_value="plugin_overview_version"
+                        label="Version" icon="puzzle_outline" bind_value="plugin_overview_version"
                         style_pad_top="#space_sm" style_pad_bottom="#space_sm"/>
-      <setting_section_header name="running_header"
-                              style_pad_top="#space_md" title="RUNNING" title_tag="RUNNING" hide_icon="true">
+      <setting_section_header name="running_header" style_pad_top="#space_md" title="RUNNING" hide_icon="true">
         <bind_flag_if_eq subject="plugin_overview_running_count" flag="hidden" ref_value="0"/>
       </setting_section_header>
       <responsive_grid name="running_rows"
                        width="100%" height="content" min_col_width="#plugin_overview_col_min" max_cols="3"
                        style_pad_all="0" style_pad_column="0" style_pad_row="0" scrollable="false"/>
-      <setting_section_header name="off_header" style_pad_top="#space_md" title="OFF" title_tag="OFF" hide_icon="true">
+      <setting_section_header name="off_header" style_pad_top="#space_md" title="OFF" hide_icon="true">
         <bind_flag_if_eq subject="plugin_overview_off_count" flag="hidden" ref_value="0"/>
       </setting_section_header>
       <lv_obj name="off_rows"
               width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
               flex_flow="column" style_pad_row="0"/>
       <setting_section_header name="unavailable_header"
-                              style_pad_top="#space_md" title="NOT AVAILABLE HERE" title_tag="NOT AVAILABLE HERE"
-                              hide_icon="true">
+                              style_pad_top="#space_md" title="NOT AVAILABLE HERE" hide_icon="true">
         <bind_flag_if_eq subject="plugin_overview_unavailable_count" flag="hidden" ref_value="0"/>
       </setting_section_header>
       <lv_obj name="unavailable_rows"
