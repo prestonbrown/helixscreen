@@ -112,3 +112,5 @@ UNIT.tray.front = [
     kit.right(32, 50, 5, 8, 0xe0602a),
     kit.right(10, 28, 5, 8, 0xe8c72e),
 ]
+
+UNIT.tray.built_in_selector = True

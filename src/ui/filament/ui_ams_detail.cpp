@@ -31,6 +31,7 @@
 #include "printer_detector.h"
 #include "printer_state.h" // PrinterState, complete for get_print_lifecycle()
 #include "sort_small.h"
+#include "src/ui/filament/ui_filament_path_plan.h"
 #include "theme_manager.h"
 #include "tool_change_request.h"
 #include "ui/ams_drawing_utils.h"
@@ -814,8 +815,21 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         }
     }
 
-    // The environment pill stands against the box's right end, as tall as the box.
-    if (w.env_indicator && !lv_obj_has_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN)) {
+    // A unit with its own drawing keeps its pill low and tucked over the end of the body,
+    // where it covers neither a spool nor the lid's outline.
+    if (shell && w.env_indicator && !lv_obj_has_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN)) {
+        const int32_t tuck = theme_manager_get_spacing("space_sm");
+        // DECLARATIVE_OK: measured layout; the pill's place depends on the drawn unit
+        lv_obj_set_height(w.env_indicator, LV_SIZE_CONTENT);
+        clear_translate(w.env_indicator);
+        lv_obj_update_layout(w.env_indicator);
+        lv_area_t a;
+        lv_obj_get_coords(w.env_indicator, &a);
+        const int32_t left = origin.x + (int32_t)std::lround(tray::pill_left_x(box)) - tuck;
+        const int32_t pill_bottom = origin.y + (int32_t)std::lround(box.fb) + tuck;
+        lv_obj_set_style_translate_x(w.env_indicator, left - a.x1, LV_PART_MAIN);
+        lv_obj_set_style_translate_y(w.env_indicator, pill_bottom - a.y2, LV_PART_MAIN);
+    } else if (w.env_indicator && !lv_obj_has_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN)) {
         const int32_t pill_top = origin.y + (int32_t)std::lround(top);
         const int32_t pill_bottom = origin.y + (int32_t)std::lround(box.fb);
         const int32_t box_right = origin.x + (int32_t)std::lround(tray::pill_left_x(box));
@@ -937,8 +951,17 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     // outputs, and each tube runs the full height to the combiner.
     if (backend->hub_on_toolhead())
         topo = helix::PathTopology::HUB;
+    // Whatever moves inside a unit with a built-in selector, one line leaves its middle.
+    // A unit's enclosed and open drawings merge their lanes alike, so no climate lookup.
+    const tray::UnitShell* drawn_unit = tray::unit_shell_for(
+        info, (unit_index < 0 && info.units.size() == 1) ? 0 : unit_index, false);
+    const bool built_in_hub =
+        helix::ui::fpath::draws_built_in_hub(drawn_unit && drawn_unit->built_in_selector, topo);
+    if (built_in_hub)
+        topo = helix::PathTopology::HUB;
     ui_filament_path_canvas_set_topology(canvas, static_cast<int>(topo));
     ui_filament_path_canvas_set_hub_on_toolhead(canvas, backend->hub_on_toolhead());
+    ui_filament_path_canvas_set_built_in_hub(canvas, built_in_hub);
     // A unit the overview joins to no nozzle (an unwired hub) ends at its hub
     // here too: the overview's own rule decides both. A hub mounted on the head feeds
     // it by construction, and the all-units view always reaches a toolhead.

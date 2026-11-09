@@ -88,3 +88,5 @@ UNIT.tray.front = [
     kit.span(8, 8, 8, _WALL - 6, 0xc4c7cb, 2),
     kit.center(-2.5, 2.5, 8, _WALL - 6, UNIT.tray.body),
 ]
+
+UNIT.tray.built_in_selector = True

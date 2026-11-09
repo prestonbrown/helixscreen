@@ -346,6 +346,7 @@ struct FilamentPathData {
     // toolhead and the shared hub->nozzle run is a short stub (printers whose
     // combiner mounts on the print head; the per-lane tubes run the whole way).
     bool hub_on_toolhead = false;
+    bool built_in_hub = false; // lanes merge inside the unit; one line leaves it
     // The LINEAR/HUB path continues past the hub to a toolhead. False for a unit
     // that feeds no nozzle: its lanes end at the hub, with nothing drawn below it.
     bool feeds_toolhead = true;

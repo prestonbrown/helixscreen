@@ -100,3 +100,5 @@ UNIT.tray.front = [
     kit.span(3, 3, 3, _WALL - 6, 0x0c0d10, 2),
     kit.span(8, 8, 8, 11, 0xd8dbdf),
 ]
+
+UNIT.tray.built_in_selector = True

@@ -75,6 +75,7 @@ def _dot_sites(c, size):
 
 def draw_spool(scene, center, radius, color, c, lane, detail=True, stripes=11):
     """Draw one spool; color None leaves the bare core with hollow vents."""
+    scene.spool_radius = radius
     xc, yc, zc = center
     cam = scene.camera
     R = radius

@@ -8,7 +8,7 @@ from ..kit import TrayShellDef, UnitDef
 
 W, D = 1.0, 0.62
 TOP = 0.19
-# Centred in the frame's depth, with its diameter about 40% of the frame's width.
+# Centred in the frame's depth, with its diameter half of the frame's width.
 SPOOL_Y = 0.31
 POST = 0.07
 PANEL_Z0, PANEL_Z1 = 0.04, 0.15
@@ -19,7 +19,7 @@ STALK = "#e9e9e4"
 STALK_TIP = "#b49a6a"
 HOLE = "#0e2c1f"
 CENTERS = [0.15, 0.39, 0.63, 0.865]
-SPOOL_R = 0.20
+SPOOL_R = 0.25
 TRAY_PX_PER_UNIT = 46.2 / SPOOL_R
 _REPO = Path(__file__).resolve().parents[3]
 
@@ -71,7 +71,7 @@ def draw_art(sc, colors, tier, rear_posts_to=None):
     if rear_posts_to:
         _posts(sc, ((0.0, D - 0.05), (W - 0.05, D - 0.05)), TOP + 0.02, rear_posts_to)
     for lane, (xc, col) in enumerate(zip(CENTERS, colors)):
-        spool.draw_spool(sc, (xc, SPOOL_Y, TOP + 0.13), SPOOL_R, col, c, lane, detail=detail)
+        spool.draw_spool(sc, (xc, SPOOL_Y, TOP + 0.18), SPOOL_R, col, c, lane, detail=detail)
 
     sc.layer = "front"
     sc.prism(foot, 0.018, TOP, FRAME, amb=0.8, dif=0.5, spec=0.15, power=20)
@@ -97,7 +97,7 @@ def draw_art(sc, colors, tier, rear_posts_to=None):
         _corner(sc, cx, cy)
 
 
-ENCLOSURE_TOP = 0.61
+ENCLOSURE_TOP = 0.65
 GLASS = "#8d8579"
 
 

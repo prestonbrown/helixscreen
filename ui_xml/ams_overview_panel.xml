@@ -117,9 +117,9 @@
              which is why the canvas positions its own entry stems rather than
              tracking these cards. -->
         <lv_obj name="unit_cards_row"
-                width="100%" height="content" style_pad_all="0" style_pad_bottom="#space_xs" style_pad_gap="#space_md"
-                flex_flow="row" style_flex_main_place="start" style_flex_cross_place="start" scrollable="true"
-                scrollbar_mode="active">
+                width="100%" height="content" style_pad_all="0" style_pad_bottom="#space_xs" style_pad_right="#space_lg"
+                style_pad_gap="#space_md" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="start"
+                scrollable="true" scrollbar_mode="active">
           <bind_flag_if_eq subject="ams_unit_view_active" flag="hidden" ref_value="1"/>
           <!-- Unit cards created dynamically by AmsOverviewPanel::create_unit_cards() -->
         </lv_obj>

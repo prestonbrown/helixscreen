@@ -411,6 +411,19 @@ bool hub_has_filament(const FilamentPathData* data, const LinearHubFrame& f) {
 // the recorded hub hit rect.
 void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     FilamentPathData* data = ctx.data;
+    if (data->built_in_hub) {
+        // A small junction where the lanes meet the trunk; it is not a control.
+        const BoxColors tint = resolve_hub_tint(*data, f, hub_has_filament(data, f));
+        const int32_t size = LV_MAX(10, f.hub_h / 2);
+        draw_hub_box(ctx, f.center_x, f.hub_y - f.hub_h / 2, size * 2, size, tint.bg, tint.border,
+                     "", LV_OPA_COVER, /*interactive=*/false);
+        if (data->hub_callback) {
+            const int32_t y = f.hub_y - f.hub_h / 2;
+            data->hits.hub = {f.center_x - size * 2, y - size, f.center_x + size * 2, y + size};
+            data->hits.hub_valid = true;
+        }
+        return;
+    }
     const BaseGeometry& g = ctx.geo;
 
     // Hub box - tint based on an error at the hub, or filament color

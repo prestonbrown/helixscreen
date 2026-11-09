@@ -27,7 +27,12 @@ constexpr ShellRow kShellRows[] = {
     // Ahead of the Box Turtle row: AFC names read "<type> <instance>", and an instance may
     // be called anything.
     {"afc", "vivid", "btt_vivid", nullptr, 0},
+    {"afc", "night_owl", "night_owl", nullptr, 0},
+    {"afc", "bmcu", "bmcu", nullptr, 0},
+    {"afc", "quattro_box", "quattro_box", nullptr, 0},
     {"afc", "turtle", "box_turtle", "box_turtle_enclosed", 0},
+    // Happy Hare's display_name defaults to the unit's vendor, "QuattroBox".
+    {"happy_hare", "quattro", "quattro_box", nullptr, 0},
     {"cfs", nullptr, "cfs", nullptr, 0},
     {"qidi_box", nullptr, "qidi_box", nullptr, 0},
     // An OpenAMS hub reports no model: its single-lane unit is the AMS HT.

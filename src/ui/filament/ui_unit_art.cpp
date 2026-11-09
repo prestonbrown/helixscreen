@@ -24,6 +24,8 @@ namespace helix::ui {
 
 namespace {
 
+constexpr uint64_t kFnvPrime = 1099511628211ull;
+
 struct LaneImages {
     lv_obj_t* color;
     lv_obj_t* shade;
@@ -32,6 +34,7 @@ struct LaneImages {
 struct ArtData {
     UnitArtTier tier = UnitArtTier::Thumb;
     const char* built_id = nullptr;
+    int built_lanes = 0;
     std::vector<LaneImages> lanes;
     lv_obj_t* layers = nullptr; // WIDGET_PTR_OK: child of this widget, gone with it
     lv_obj_t* flat = nullptr;   // WIDGET_PTR_OK: child of this widget, gone with it
@@ -54,7 +57,7 @@ lv_obj_t* add_layer(lv_obj_t* art, const std::string& path) {
     return image;
 }
 
-void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell) {
+void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, int lane_count) {
     // Runs under subject observers, where a synchronous delete corrupts the event batch.
     helix::ui::safe_clean_children(art);
     data->lanes.clear();
@@ -71,11 +74,13 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell) {
     lv_obj_set_size(data->flat, lv_pct(100), lv_pct(100));
     lv_obj_set_clickable(data->flat, false);
     lv_obj_set_hidden(data->flat, true);
+    const std::string variant =
+        shell->art_lane_variants != 0 ? std::to_string(lane_count) + "/" : std::string();
     const std::string base =
-        helix::asset_component_uri(std::string("assets/images/units/") + shell->id + "/" +
+        helix::asset_component_uri(std::string("assets/images/units/") + shell->id + "/" + variant +
                                    (data->tier == UnitArtTier::Full ? "full" : "thumb"));
     add_layer(data->layers, base + "_back.png");
-    for (int lane = 0; lane < shell->art_lanes; ++lane) {
+    for (int lane = 0; lane < lane_count; ++lane) {
         const std::string stem = base + "_lane" + std::to_string(lane);
         LaneImages images{add_layer(data->layers, stem + ".png"),
                           add_layer(data->layers, stem + "_shade.png")};
@@ -85,6 +90,7 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell) {
     }
     add_layer(data->layers, base + "_front.png");
     data->built_id = shell->id;
+    data->built_lanes = lane_count;
 }
 
 void set_lane_visible(lv_obj_t* image, bool visible) {
@@ -104,7 +110,12 @@ void destroy_buf(lv_draw_buf_t* buf) {
 /// Each layer would otherwise be decoded from its PNG on every redraw.
 void flatten(lv_obj_t* art, ArtData* data, uint64_t key) {
     lv_obj_update_layout(art);
-    if (lv_obj_get_width(art) <= 0 || lv_obj_get_height(art) <= 0 || key == data->flat_key)
+    const int32_t width = lv_obj_get_width(art);
+    const int32_t height = lv_obj_get_height(art);
+    // The image is one bitmap at the widget's size, so a new size is a new image.
+    key = (key ^ static_cast<uint64_t>(width)) * kFnvPrime;
+    key = (key ^ static_cast<uint64_t>(height)) * kFnvPrime;
+    if (width <= 0 || height <= 0 || key == data->flat_key)
         return;
     lv_obj_set_hidden(data->layers, false);
     lv_obj_set_hidden(data->flat, true);
@@ -166,7 +177,8 @@ UnitArtLane unit_art_lane(const SlotInfo& slot) {
 
 bool unit_art_available(const AmsSystemInfo& info, int unit_index, bool has_dryer) {
     const tray::UnitShell* shell = tray::unit_shell_for(info, unit_index, has_dryer);
-    return shell && info.units[static_cast<size_t>(unit_index)].slot_count == shell->art_lanes;
+    return shell && tray::unit_shell_has_art_for(
+                        *shell, info.units[static_cast<size_t>(unit_index)].slot_count);
 }
 
 void register_unit_art_widget() {
@@ -186,16 +198,16 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
         return;
     }
     const tray::UnitShell* shell = tray::unit_shell_for(info, unit_index, has_dryer);
-    if (data->built_id != shell->id)
-        build_layers(art, data, shell);
+    const AmsUnit& unit = info.units[static_cast<size_t>(unit_index)];
+    if (data->built_id != shell->id || data->built_lanes != unit.slot_count)
+        build_layers(art, data, shell, unit.slot_count);
     lv_obj_set_hidden(art, false);
 
-    const AmsUnit& unit = info.units[static_cast<size_t>(unit_index)];
     uint64_t key = 1469598103934665603ull;
     for (size_t i = 0; i < data->lanes.size(); ++i) {
         const UnitArtLane lane =
             i < unit.slots.size() ? unit_art_lane(unit.slots[i]) : UnitArtLane{};
-        key = (key ^ (lane.filled ? static_cast<uint64_t>(lane.color) + 1 : 0)) * 1099511628211ull;
+        key = (key ^ (lane.filled ? static_cast<uint64_t>(lane.color) + 1 : 0)) * kFnvPrime;
         set_lane_visible(data->lanes[i].color, lane.filled);
         set_lane_visible(data->lanes[i].shade, lane.filled);
         if (lane.filled) {

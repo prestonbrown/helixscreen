@@ -627,6 +627,9 @@ class AmsBackendMock : public AmsBackend,
      */
     void set_afc_mode(bool enabled);
 
+    /// Report unit 0 under @p name, as AFC reports "<type> <instance>".
+    void set_afc_unit_name(const std::string& name);
+
     /**
      * @brief Check if AFC mode is enabled
      * @return true if simulating an AFC Box Turtle

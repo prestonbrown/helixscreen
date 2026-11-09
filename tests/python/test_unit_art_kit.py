@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import build, kit, spool  # noqa: E402
-from unit_art.units import ace_pro, ams_ht, box_turtle, cfs  # noqa: E402
+from unit_art.units import ace_pro, ams_ht, bmcu, box_turtle, cfs, night_owl, quattro_box  # noqa: E402
 
 
 def test_camera_is_the_agreed_three_quarter():
@@ -137,6 +137,58 @@ def test_units_differ_by_their_fronts():
     assert 0xee6a1f not in colors(cfs.UNIT)
 
 
+def _saturation(fill):
+    r, g, b = kit.rgb(fill)
+    return max(r, g, b) - min(r, g, b)
+
+
+@pytest.mark.parametrize("tier", ["full", "thumb"])
+def test_only_the_bmcu_levers_carry_colour(tier):
+    scene = kit.Scene(kit.ART_CAMERA)
+    bmcu.UNIT.draw_art(scene, ["#ffffff"] * 4, tier)
+    shell = [i for i in scene.items if i.lane is None and i.fill.startswith("#") and len(i.fill) == 7]
+    levers = [i for i in shell if i.tag == "lever"]
+    assert len({tuple(i.points[0]) for i in levers}) >= 4
+    assert all(_saturation(i.fill) > 40 for i in levers)
+    assert not [i.fill for i in shell if i.tag != "lever" and _saturation(i.fill) > 12]
+
+
+def test_the_bmcu_tray_front_is_neutral_but_for_its_levers():
+    tinted = {part[5] for part in bmcu.UNIT.tray.front if _saturation(kit.hexc(kit.rgb(f"{part[5]:06x}"))) > 12}
+    assert tinted == {int(bmcu.LEVER[1:], 16)}
+
+
+def test_the_night_owl_spools_rest_on_the_base_and_share_its_width():
+    assert night_owl.UNIT.lanes == 2
+    half = night_owl.SPOOL_R / 0.42 * 0.294 / 2 / night_owl.SCALE
+    for xc in night_owl.CENTERS:
+        assert 0 < xc - half and xc + half < night_owl.W
+    touch = math.hypot(night_owl.SPOOL_Y - night_owl.ROLLER_Y, night_owl.SPOOL_Z - night_owl.ROLLER_Z)
+    assert touch == pytest.approx(night_owl.LOCAL_R + night_owl.ROLLER_R)
+
+
+@pytest.mark.parametrize("unit", [bmcu, night_owl], ids=["bmcu", "night_owl"])
+def test_a_scaled_unit_draws_the_one_spool_size(unit):
+    assert unit.SPOOL_R == 0.25
+    seen = []
+    real = spool.draw_spool
+    unit.spool.draw_spool = lambda sc, center, radius, *a, **k: seen.append(radius)
+    try:
+        unit.UNIT.draw_art(kit.Scene(kit.ART_CAMERA), ["#ffffff"] * unit.UNIT.lanes, "full")
+    finally:
+        unit.spool.draw_spool = real
+    assert seen == [0.25] * unit.UNIT.lanes
+
+
+def test_a_scaled_scene_scales_lengths_and_strokes():
+    scene = kit.Scene(kit.ART_CAMERA)
+    kit.ScaledScene(scene, 0.5).line([(1.0, 0.0, 0.0), (2.0, 0.0, 0.0)], "#000000", 0.02)
+    direct = kit.Scene(kit.ART_CAMERA)
+    direct.line([(0.5, 0.0, 0.0), (1.0, 0.0, 0.0)], "#000000", 0.01)
+    assert scene.items[0].points == direct.items[0].points
+    assert scene.items[0].stroke_width == direct.items[0].stroke_width
+
+
 def test_generated_shell_table_is_current():
     generated = REPO / "src/generated/ams_unit_shells_gen.cpp"
     assert generated.read_text() == build.generate_shell_table(build.UNITS)
@@ -155,3 +207,76 @@ def test_manifest_lists_every_lane_mask(tmp_path):
         assert len(t["lanes"]) == 4
         for name in [t["back"], t["front"]] + [p for lane in t["lanes"] for p in lane.values()]:
             assert (tmp_path / ace_pro.UNIT.id / name).is_file()
+
+
+@pytest.mark.parametrize("unit", build.UNITS, ids=lambda u: u.id)
+def test_every_spool_draws_at_one_size_and_the_unit_fits_its_frame(unit):
+    scene = kit.Scene(kit.ART_CAMERA)
+    unit.draw_art(scene, ["#ffffff"] * unit.lanes, "full")
+    assert scene.spool_radius is not None
+    vx, vy, vw, vh = scene._viewbox()
+    assert vw / scene.spool_radius == pytest.approx(kit.ART_FRAME[0] / kit.ART_SPOOL_R)
+    assert vh / scene.spool_radius == pytest.approx(kit.ART_FRAME[1] / kit.ART_SPOOL_R)
+    xs = [p[0] for i in scene.items for p in i.points]
+    ys = [p[1] for i in scene.items for p in i.points]
+    assert vx <= min(xs) and max(xs) <= vx + vw
+    assert vy <= min(ys) and max(ys) <= vy + vh
+
+
+@pytest.mark.parametrize("lanes", quattro_box.UNIT.lane_variants)
+def test_a_variable_unit_draws_each_lane_count(lanes):
+    scene = kit.Scene(kit.ART_CAMERA)
+    quattro_box.UNIT.draw_art(scene, ["#ffffff"] * lanes, "full")
+    assert {i.lane for i in scene.items if i.lane is not None} == set(range(lanes))
+
+
+def test_a_variable_units_width_is_two_caps_and_a_pitch_per_lane():
+    widths = [quattro_box.width(n) for n in (2, 3, 4, 5)]
+    assert widths[0] == pytest.approx(2 * quattro_box.CAP + quattro_box.PITCH)
+    steps = {round(b - a, 6) for a, b in zip(widths, widths[1:])}
+    assert steps == {round(quattro_box.PITCH, 6)}
+
+
+@pytest.mark.parametrize("lanes", (2, 5))
+def test_quattro_spools_stay_inside_the_body(lanes):
+    c = spool.spool_constants(REPO)
+    half = c["spool_width"] * (quattro_box.SPOOL_R / c["flange_radius"]) / 2
+    centers = quattro_box.centers(lanes)
+    assert len(centers) == lanes
+    assert centers[0] - half > 0
+    assert centers[-1] + half < quattro_box.width(lanes)
+    assert quattro_box.SPOOL_Y + quattro_box.SPOOL_R < quattro_box.D
+    assert quattro_box.SPOOL_Z + quattro_box.SPOOL_R < quattro_box.H
+
+
+def test_a_variable_unit_bakes_one_set_per_lane_count(tmp_path):
+    build.bake_unit(quattro_box.UNIT, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    root = tmp_path / quattro_box.UNIT.id
+    assert not (root / "manifest.json").exists()
+    for lanes in quattro_box.UNIT.lane_variants:
+        manifest = json.loads((root / str(lanes) / "manifest.json").read_text())
+        assert manifest["lanes"] == lanes
+        for tier in ("full", "thumb"):
+            t = manifest["tiers"][tier]
+            assert len(t["lanes"]) == lanes
+            for name in [t["back"], t["front"]] + [p for lane in t["lanes"] for p in lane.values()]:
+                assert (root / str(lanes) / name).is_file()
+
+
+def test_the_shell_table_records_which_lane_counts_have_art():
+    table = build.generate_shell_table([quattro_box.UNIT, ace_pro.UNIT])
+
+    def row(uid):
+        return next(line for line in table.splitlines() if line.strip().startswith('{"%s"' % uid))
+
+    assert row("quattro_box").rstrip().endswith("0x34},")
+    assert row("ace_pro").rstrip().endswith("0x0},")
+
+
+def test_a_unit_wider_than_the_frame_widens_it_to_fit():
+    scene = kit.Scene(kit.ART_CAMERA)
+    quattro_box.UNIT.draw_art(scene, ["#ffffff"] * 5, "full")
+    vx, vy, vw, vh = scene._viewbox()
+    assert vw / scene.spool_radius > kit.ART_FRAME[0] / kit.ART_SPOOL_R
+    xs = [p[0] for i in scene.items for p in i.points]
+    assert vx <= min(xs) and max(xs) <= vx + vw

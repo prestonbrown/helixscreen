@@ -52,6 +52,11 @@ class Camera:
 
 
 ART_CAMERA = Camera(27, 20)
+# Every unit is framed so its spools draw at one size: the frame, in the units of a
+# drawing whose spool radius is ART_SPOOL_R, has room for any unit of up to four lanes.
+# A wider unit widens its own frame, so its spools draw a little smaller.
+ART_SPOOL_R = 0.25
+ART_FRAME = (1.43, 1.21)
 LIGHT = norm((-0.35, -0.75, 0.62))
 
 
@@ -190,6 +195,28 @@ def tray_profile(profile, base_z, px_per_unit):
     return [((y - y0) / (y1 - y0), (z - base_z) * px_per_unit) for y, z in profile]
 
 
+class ScaledScene:
+    """Draws into a scene with every length multiplied by k, so a body keeps its own units."""
+
+    def __init__(self, scene, k):
+        self.scene, self.k, self.camera = scene, k, scene.camera
+
+    def _pts(self, pts):
+        return [tuple(a * self.k for a in p) for p in pts]
+
+    def poly(self, pts3, fill, opacity=1.0, stroke=None, sw=0.0, **kw):
+        self.scene.poly(self._pts(pts3), fill, opacity, stroke, sw * self.k, **kw)
+
+    def line(self, pts3, stroke, sw, opacity=1.0, **kw):
+        self.scene.line(self._pts(pts3), stroke, sw * self.k, opacity, **kw)
+
+    def prism(self, foot, z0, z1, color, **kw):
+        self.scene.prism(self._pts(foot), z0 * self.k, z1 * self.k, color, **kw)
+
+    def extrude_x(self, profile, x0, x1, color, opacity, front):
+        self.scene.extrude_x(self._pts(profile), x0 * self.k, x1 * self.k, color, opacity, front)
+
+
 @dataclass
 class TrayShellDef:
     cheek: List[Tuple[float, float]]
@@ -206,6 +233,7 @@ class TrayShellDef:
     accent: int
     corner: int = 0
     front: Optional[list] = None
+    built_in_selector: bool = False
 
 
 @dataclass
@@ -214,6 +242,8 @@ class UnitDef:
     lanes: int
     draw_art: Callable
     tray: Optional[TrayShellDef] = None
+    # Lane counts this design is built in, each baked to its own set. Empty: only 'lanes'.
+    lane_variants: Tuple[int, ...] = ()
 
 
 @dataclass
@@ -264,6 +294,7 @@ class Scene:
         self.items = []
         self.grads = []
         self.layer = "back"
+        self.spool_radius = None
 
     def _add(self, pts3, fill, opacity, stroke, sw, closed, lane, tag, blur=False):
         self.items.append(
@@ -318,7 +349,14 @@ class Scene:
         xs = [p[0] for i in self.items for p in i.points]
         ys = [p[1] for i in self.items for p in i.points]
         m = 0.05
-        return min(xs) - m, min(ys) - m, max(xs) - min(xs) + 2 * m, max(ys) - min(ys) + 2 * m
+        if self.spool_radius is None:
+            return min(xs) - m, min(ys) - m, max(xs) - min(xs) + 2 * m, max(ys) - min(ys) + 2 * m
+        # Centred across the frame and standing on its floor, so units line up in a row.
+        scale = self.spool_radius / ART_SPOOL_R
+        vw, vh = ART_FRAME[0] * scale, ART_FRAME[1] * scale
+        fit = max(1.0, (max(xs) - min(xs) + 2 * m * scale) / vw, (max(ys) - min(ys) + 2 * m * scale) / vh)
+        vw, vh = vw * fit, vh * fit
+        return (min(xs) + max(xs)) / 2 - vw / 2, max(ys) + m * scale - vh, vw, vh
 
     def _wrap(self, width, body, extra_defs=""):
         vx, vy, vw, vh = self._viewbox()

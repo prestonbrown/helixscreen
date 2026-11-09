@@ -34,7 +34,8 @@ TEST_CASE("unit shell: a Box Turtle is found by its unit's name", "[ams][unit-ar
     REQUIRE(shell != nullptr);
     CHECK(std::string(shell->id) == "box_turtle");
     CHECK(shell->dome_n == 0);
-    CHECK(unit_shell_for(one_unit(AmsType::AFC, "Night_Owl Owl_1"), 0) == nullptr);
+    CHECK(std::string(unit_shell_for(one_unit(AmsType::AFC, "Box_Turtle Owl_1"), 0)->id) ==
+          "box_turtle");
 }
 
 TEST_CASE("unit shell: climate data means the enclosed Box Turtle", "[ams][unit-art]") {
@@ -57,6 +58,8 @@ TEST_CASE("unit shell: each identified unit finds its own drawing", "[ams][unit-
     CHECK(id(AmsType::QIDI_BOX, "Box 1") == "qidi_box");
     CHECK(id(AmsType::AFC, "ViViD_1") == "btt_vivid");
     CHECK(id(AmsType::AFC, "ViViD turtle_2") == "btt_vivid");
+    CHECK(id(AmsType::AFC, "Night_Owl Owl_1") == "night_owl");
+    CHECK(id(AmsType::AFC, "Night_Owl Turtle_1") == "night_owl");
     CHECK(id(AmsType::OPENAMS, "oams1") == "ams_2_pro");
     AmsSystemInfo single = one_unit(AmsType::OPENAMS, "oams1");
     single.units[0].slot_count = 1;
@@ -64,9 +67,41 @@ TEST_CASE("unit shell: each identified unit finds its own drawing", "[ams][unit-
     CHECK(std::string(unit_shell_for(single, 0)->id) == "ams_ht");
 }
 
+TEST_CASE("unit shell: a Quattro Box is found through both of its firmwares", "[ams][unit-art]") {
+    const auto id = [](AmsType type, const char* name) {
+        const UnitShell* shell = unit_shell_for(one_unit(type, name), 0);
+        return std::string(shell ? shell->id : "none");
+    };
+    CHECK(id(AmsType::AFC, "Quattro_Box QuattroBox_1") == "quattro_box");
+    // AFC names read "<type> <instance>", and the instance is the user's.
+    CHECK(id(AmsType::AFC, "Quattro_Box Turtle_1") == "quattro_box");
+    CHECK(id(AmsType::HAPPY_HARE, "QuattroBox") == "quattro_box");
+    CHECK(id(AmsType::HAPPY_HARE, "Quattro Box 2") == "quattro_box");
+    CHECK(id(AmsType::HAPPY_HARE, "ERCF") == "none");
+}
+
+TEST_CASE("unit shell: a variable unit keeps its shell at every lane count", "[ams][unit-art]") {
+    AmsSystemInfo info = one_unit(AmsType::AFC, "Quattro_Box QuattroBox_1");
+    for (int lanes : {1, 2, 3, 5, 8}) {
+        info.units[0].slot_count = lanes;
+        REQUIRE(unit_shell_for(info, 0) != nullptr);
+        CHECK(std::string(unit_shell_for(info, 0)->id) == "quattro_box");
+    }
+    CHECK(unit_shell_for(info, 0)->built_in_selector);
+}
+
 TEST_CASE("unit shell: unidentified hardware keeps the generic tray", "[ams][unit-art]") {
     CHECK(unit_shell_for(one_unit(AmsType::HAPPY_HARE, "MMU"), 0) == nullptr);
     CHECK(unit_shell_for(one_unit(AmsType::ACE, "ACE 1"), 5) == nullptr);
+    const UnitShell* bmcu = helix::ui::tray::unit_shell_by_id("bmcu");
+    REQUIRE(bmcu != nullptr);
+    CHECK(unit_shell_for(one_unit(AmsType::AFC, "BMCU BMCU_1"), 0) == bmcu);
+    CHECK(bmcu->art_lanes == 4);
+    CHECK_FALSE(bmcu->built_in_selector);
+    const UnitShell* owl = helix::ui::tray::unit_shell_by_id("night_owl");
+    REQUIRE(owl != nullptr);
+    CHECK(owl->art_lanes == 2);
+    CHECK(owl->built_in_selector);
 }
 
 TEST_CASE("unit shell: the cheek only climbs toward the back", "[ams][unit-art]") {
