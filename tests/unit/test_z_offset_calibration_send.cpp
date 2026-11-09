@@ -514,6 +514,81 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     CHECK(after_accept(sent) == std::vector<std::string>{"SAVE_CONFIG"});
 }
 
+// The strategy is fixed when the run starts: a rediscovery that drops the eddy
+// mid-session must not turn the open manual probe's jogs and Accept into
+// G1 and SET_GCODE_OFFSET.
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration session: losing the eddy mid-run keeps the manual probe commands",
+                 "[ui_integration][zoffset][eddy][1994]") {
+    auto& ps = get_printer_state();
+    helix::PrinterStateTestAccess::pin_z_offset_strategy(
+        ps, ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    ps.update_from_status(json{{"toolhead",
+                                {{"homed_axes", "xyz"},
+                                 {"axis_minimum", json::array({0.0, 0.0, 0.0, 0.0})},
+                                 {"axis_maximum", json::array({350.0, 350.0, 340.0, 0.0})}}}});
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    discover_eddy();
+
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, ps);
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+    ZOffsetCalibrationTestAccess::begin_probe_sequence(panel);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    REQUIRE(client.last_send_script().find("PROBE_EDDY_CURRENT_CALIBRATE") != std::string::npos);
+
+    helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
+    REQUIRE(helix::sensors::ProbeSensorManager::instance().get_sensors().empty());
+
+    ZOffsetCalibrationTestAccess::adjust_z(panel, -0.05f);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    CHECK(client.last_send_script() == "TESTZ Z=-0.050");
+
+    SECTION("accept") {
+        ZOffsetCalibrationTestAccess::send_accept(panel);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        const auto sent = client.gcode_script_history();
+        CHECK(std::find(sent.begin(), sent.end(), "ACCEPT") != sent.end());
+        CHECK(std::none_of(sent.begin(), sent.end(), [](const std::string& s) {
+            return s.find("SET_GCODE_OFFSET") != std::string::npos;
+        }));
+    }
+    SECTION("abort") {
+        ZOffsetCalibrationTestAccess::force_state(panel, ZOffsetCalibrationPanel::State::ADJUSTING);
+        panel.on_deactivate(DeactivateReason::NavigateAway);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        CHECK(client.last_send_script() == "ABORT");
+    }
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration session: a finished run releases its strategy",
+                 "[ui_integration][zoffset][eddy][1994]") {
+    // The next run follows the probe list as it is then, not the last run's.
+    auto& ps = get_printer_state();
+    helix::PrinterStateTestAccess::pin_z_offset_strategy(
+        ps, ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    discover_eddy();
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, ps);
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+    ZOffsetCalibrationTestAccess::begin_probe_sequence(panel);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    ZOffsetCalibrationTestAccess::on_calibration_result(panel, false);
+
+    helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
+    ZOffsetCalibrationTestAccess::adjust_z(panel, 0.05f);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    const auto sent = client.gcode_script_history();
+    CHECK(std::any_of(sent.begin(), sent.end(), [](const std::string& s) {
+        return s.find("G1 Z0.050 F300") != std::string::npos;
+    }));
+    CHECK(std::none_of(sent.begin(), sent.end(),
+                       [](const std::string& s) { return s.find("TESTZ") != std::string::npos; }));
+}
+
 TEST_CASE_METHOD(CalibrationSendFixture,
                  "Calibration start: a nozzle reading point ignores the probe offset",
                  "[ui_integration][zoffset][zoffset_center]") {
