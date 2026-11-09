@@ -1951,6 +1951,62 @@ bundled_version() {
     contains "Moonraker did not restart: its service restart is not available on this host" "$output"
 }
 
+# Wrap mock_moonraker_http's curl in $1 with Moonraker's process samples: a
+# /machine/proc_stats GET reports $1/samples of them, and a carried-out service
+# restart starts the count again and answers every probe, as a restart quicker
+# than the one-second probes does.
+mock_fast_service_restart() {
+    local d="$1" bin="$BATS_TEST_TMPDIR/bin" body
+    mv "$bin/curl" "$bin/curl.inner"
+    echo 30 > "$d/samples"
+    body="d='$d' inner='$bin/curl.inner'
+$(cat <<'MOCK'
+case "$*" in
+    *machine/proc_stats*)
+        echo "GET proc_stats" >> "$d/log"
+        n=$(cat "$d/samples") stats='' i=0
+        while [ "$i" -lt "$n" ]; do
+            stats="$stats${stats:+,}{\"time\":$i}"
+            i=$((i + 1))
+        done
+        printf '{"result":{"moonraker_stats":[%s]}}\n200' "$stats"
+        exit 0 ;;
+esac
+"$inner" "$@"
+rc=$?
+case "$*" in
+    *POST*machine/services/restart*)
+        if [ ! -e "$d/inert" ] && [ ! -e "$d/refuse" ]; then
+            rm -f "$d/bounce"
+            echo 1 > "$d/samples"
+        fi ;;
+esac
+exit $rc
+MOCK
+)"
+    mock_command_script "curl" "$body"
+}
+
+@test "--restart-moonraker exits 3, not 8, when a quick service restart still runs the old plugin" {
+    local home="$BATS_TEST_TMPDIR/home" mr="$BATS_TEST_TMPDIR/mr"
+    setup_plain_home "$home"
+    mock_moonraker_http "$mr"
+    echo 0.0.1 > "$mr/version"
+    mock_fast_service_restart "$mr"
+
+    run env HOME="$home" sh "$SCRIPT" --restart-moonraker
+    [ "$status" -eq 3 ] || fail "want 3, got $status: $output"
+    contains "still runs the old HelixPrint plugin" "$output"
+    grep -qx 'POST http://127.0.0.1:7125/machine/services/restart?service=moonraker' "$mr/log" ||
+        fail "no service restart: $(cat "$mr/log")"
+
+    # The same samples with a restart that does nothing still read as no service.
+    : > "$mr/inert"
+    echo 30 > "$mr/samples"
+    run env HOME="$home" sh "$SCRIPT" --restart-moonraker
+    [ "$status" -eq 8 ] || fail "inert: want 8, got $status: $output"
+}
+
 @test "--restart-moonraker restarts nothing when Moonraker runs this tree's plugin already" {
     local home="$BATS_TEST_TMPDIR/home" mr="$BATS_TEST_TMPDIR/mr"
     setup_plain_home "$home"
