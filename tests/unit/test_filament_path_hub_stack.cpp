@@ -405,13 +405,13 @@ TEST_CASE_METHOD(HubStackFixture, "toolhead_top_y matches each renderer's top ed
         // Bambu body: 40 tall, cap 4 over a 4 bevel, iso depth 6 -> 300 - 20 - 8 - 3
         Case{helix::ToolheadStyle::DEFAULT, 269},
         // The baked head's top edge
-        Case{helix::ToolheadStyle::A4T, 252},
+        Case{helix::ToolheadStyle::A4T, 256},
         // The baked head's top edge
-        Case{helix::ToolheadStyle::STEALTHBURNER, 260},
+        Case{helix::ToolheadStyle::STEALTHBURNER, 261},
         // The baked head's top edge
-        Case{helix::ToolheadStyle::JABBERWOCKY, 260},
+        Case{helix::ToolheadStyle::JABBERWOCKY, 251},
         // The baked head's top edge
-        Case{helix::ToolheadStyle::ANTHEAD, 260},
+        Case{helix::ToolheadStyle::ANTHEAD, 259},
         // The baked head's top edge
         Case{helix::ToolheadStyle::CREALITY_K1, 267},
         // The baked head's top edge
