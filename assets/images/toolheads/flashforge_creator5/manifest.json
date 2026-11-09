@@ -1,9 +1,9 @@
 {
   "id": "flashforge_creator5",
-  "aspect": 0.865,
+  "aspect": 0.8679,
   "tiers": {
     "full": {
-      "width": 138,
+      "width": 139,
       "height": 160,
       "back": "full.png",
       "tint": "full_tint.png",

@@ -19,8 +19,10 @@ BLOCK_OUTLINE = [
 TIP = (0.365, NOZZLE_Y, -0.08)
 CHANNEL_END = [(0.43, 0.108), (0.455, 0.12), (0.465, 0.145), (0.465, 0.185), (0.45, 0.215)]
 CHANNEL_OUTLINE = [(BLOCK_RIGHT, BLOCK_BOTTOM), (BLOCK_RIGHT, 0.108)] + CHANNEL_END
-BLOCK_FOOT_OUTLINE = [(BLOCK_LEFT, BLOCK_BOTTOM), (BLOCK_LEFT, 0.108)] + CHANNEL_END + [(BLOCK_RIGHT, BLOCK_BOTTOM)]
+
 CHANNEL_WIDTH = 0.16
+EDGE_ROUND, FRONT_BEVEL = 0.035, 0.024
+FRONT_OUTLINE = [(BLOCK_LEFT, 0.108)] + CHANNEL_END + [(BLOCK_RIGHT, BLOCK_BOTTOM)] + BLOCK_OUTLINE[2:]
 
 
 def _tool_fan(d):
@@ -41,7 +43,7 @@ def _tool_fan(d):
 
 
 def _tool(d):
-    d.solid(rounded([(TOOL_LEFT, TOOL_BOTTOM), (TOOL_RIGHT, TOOL_BOTTOM), (TOOL_RIGHT, TOP), (TOOL_LEFT, TOP)], 0.045), TOOL_FRONT, TOOL_BACK, TOOL, bevel=0.016)
+    d.solid(rounded([(TOOL_LEFT, TOOL_BOTTOM), (TOOL_RIGHT, TOOL_BOTTOM), (TOOL_RIGHT, TOP), (TOOL_LEFT, TOP)], 0.045), TOOL_FRONT, TOOL_BACK, TOOL, bevel=FRONT_BEVEL)
     y = TOOL_FRONT - 0.002
     d.face(rounded([(0.23, 0.42), (0.38, 0.42), (0.38, 0.62), (0.23, 0.62)], 0.012), y, DARK, amb=0.9, dif=0.2, spec=0.0)
     if d.detail:
@@ -63,14 +65,14 @@ def draw_art(scene, tier):
     d = Drawing(scene, tier)
     d.solid(CHANNEL_OUTLINE, BLOCK_DEPTH - CHANNEL_WIDTH, BLOCK_DEPTH, DUCT)
     d.solid([(BLOCK_LEFT, 0.108), (BLOCK_RIGHT, 0.108), (BLOCK_RIGHT, BLOCK_BOTTOM), (BLOCK_LEFT, BLOCK_BOTTOM)], CHANNEL_WIDTH, BLOCK_DEPTH, DUCT)
-    d.solid(BLOCK_FOOT_OUTLINE, 0.0, CHANNEL_WIDTH, DUCT)
-    d.solid(BLOCK_OUTLINE, 0.0, BLOCK_DEPTH, BLOCK)
-    if d.detail:
-        wordmark(d, "FLASHFORGE", -0.22, 0.43, 0.042, 0.062, 0.012, "#e4e5e7", 0.008)
+    d.solid(rounded(BLOCK_OUTLINE, EDGE_ROUND), 0.0, BLOCK_DEPTH, BLOCK)
     _hotend(d)
     _tool(d)
-    # The near channel passes in front of the tool and hotend, continuing the foot it was drawn with.
-    d.solid(CHANNEL_OUTLINE, 0.0, CHANNEL_WIDTH, DUCT)
+    # The front slab runs from the block into the near channel, in front of the tool and hotend.
+    d.solid(rounded(FRONT_OUTLINE, EDGE_ROUND), 0.0, CHANNEL_WIDTH, BLOCK, bevel=FRONT_BEVEL)
+    d.scene.line([(BLOCK_LEFT + 0.03, -0.001, BLOCK_BOTTOM), (BLOCK_RIGHT - 0.02, -0.001, BLOCK_BOTTOM)], "#66686d", 0.005)
+    if d.detail:
+        wordmark(d, "FLASHFORGE", -0.22, 0.43, 0.042, 0.062, 0.012, "#e4e5e7", 0.008)
 
 
 HEAD = HeadDef("flashforge_creator5", "FLASHFORGE_CREATOR5", draw_art, TIP, entry=(0.34, NOZZLE_Y, TOP + 0.05), size=0.85)

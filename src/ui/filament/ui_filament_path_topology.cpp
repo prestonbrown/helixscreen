@@ -623,21 +623,23 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     plan_linear_hub(f, *data, ctx.geo, plan);
     warn_if_dropped(plan);
 
+    // A hub that feeds no toolhead ends at the hub: nothing below it is drawn.
+    const bool feeds = data->feeds_toolhead;
+    // The tube is painted over the head, so it stays visible across the top surface to the inlet.
+    if (feeds)
+        draw_nozzle_glyph(ctx, f);
+
     const TubePalette pal = tube_palette(*data);
     paint_tubes(layer, plan, pal);
     draw_offpage_stubs(ctx, f);
 
     draw_hub_section(ctx, f);
-    // A hub that feeds no toolhead ends at the hub: nothing below it is drawn.
-    const bool feeds = data->feeds_toolhead;
     if (feeds && f.has_buffer)
         draw_buffer_section(ctx, f, plan);
     // Bands on the hub/selector edges clamp the tube where it enters the box.
     paint_box_bands(layer, plan, pal);
     if (feeds && data->show_bypass)
         record_bypass_hit(ctx, f);
-    if (feeds)
-        draw_nozzle_glyph(ctx, f);
 
     data->path_cache.path = (plan.active_route >= 0) ? filled_prefix(plan.routes[plan.active_route])
                                                      : pg::FilamentPath{};

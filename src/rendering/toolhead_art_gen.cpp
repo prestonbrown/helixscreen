@@ -20,7 +20,7 @@ const ToolheadArt kToolheadArt[] = {
     {ToolheadStyle::XOL, "xol", 0.6039f, 0.3694f, 0.9342f, 0.9338f, 0.3838f, 0.0424f},
     {ToolheadStyle::SNAPMAKER_U1, "snapmaker_u1", 0.6515f, 0.4456f, 0.9394f, 0.9561f, 0.4950f, 0.0640f},
     {ToolheadStyle::FLASHFORGE_AD5, "flashforge_ad5", 0.6127f, 0.3908f, 0.9910f, 0.9366f, 0.5316f, 0.0489f},
-    {ToolheadStyle::FLASHFORGE_CREATOR5, "flashforge_creator5", 0.8650f, 0.7962f, 0.9953f, 1.0230f, 0.7780f, 0.1389f},
+    {ToolheadStyle::FLASHFORGE_CREATOR5, "flashforge_creator5", 0.8679f, 0.7962f, 0.9952f, 1.0195f, 0.7780f, 0.1360f},
     {ToolheadStyle::ELEGOO_CENTAURI, "elegoo_centauri", 0.6866f, 0.3608f, 0.9837f, 0.9622f, 0.5704f, 0.0420f},
     {ToolheadStyle::ARTILLERY_M1, "artillery_m1", 0.7136f, 0.3440f, 0.9846f, 1.0335f, 0.4636f, 0.1120f},
     {ToolheadStyle::QIDI, "qidi", 0.5807f, 0.3123f, 0.9860f, 0.9637f, 0.4636f, 0.1172f},
