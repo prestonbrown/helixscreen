@@ -302,9 +302,12 @@ def test_a_rail_draws_a_filament_stub_per_gate_and_no_spools(unit, gates):
 
 
 @pytest.mark.parametrize("unit", RAILS, ids=lambda u: u.id)
-def test_a_rail_runs_diagonally_across_the_tile(unit):
+def test_a_rail_runs_along_x_at_the_shared_camera(unit):
+    assert unit.carriage_step(6) == (rail.PITCH, 0.0, 0.0)
     step_x, step_y = kit.carriage_step(_rail_scene(unit, 6), unit.carriage_step(6))
-    assert step_x > 0 and 0.2 < step_y / step_x < 0.9
+    yaw, pitch = math.radians(27), math.radians(20)
+    assert step_x > 0
+    assert step_y / step_x == pytest.approx(math.tan(yaw) * math.sin(pitch))
 
 
 @pytest.mark.parametrize("unit", RAILS, ids=lambda u: u.id)

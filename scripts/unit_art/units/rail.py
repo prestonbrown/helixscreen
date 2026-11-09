@@ -1,12 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Selector rails: a long linear unit lying askew, one gate block per lane, and a sliding carriage."""
+"""Selector rails: a long linear unit along x, one gate block per lane, and a sliding carriage."""
 from dataclasses import dataclass
 
 from .. import kit
 from ..kit import TrayShellDef, UnitDef
 
 # Lengths are in scene units along the rail (u), across it (v), and up (z).
-TURN = -32  # Degrees the rail is turned on the table; the near end drops to the right.
 PITCH = 0.19
 LEFT, RIGHT = 0.5, 0.24
 GATE_V0, GATE_V1, GATE_Z0, GATE_Z = 0.08, 0.34, 0.07, 0.2
@@ -101,10 +100,9 @@ def _carriage(sc, style, detail):
         sc.poly(kit.rrect_front(u - half * 0.75, u + half * 0.75, ROD_Z - 0.06, ROD_Z + 0.04, 0.008, FRONT_ROD - 0.082), kit.shift(style.head, 18))
 
 
-def _draw(style, sc0, colors, tier):
+def _draw(style, sc, colors, tier):
     detail = tier == "full"
     gates = len(colors)
-    sc = kit.RotatedScene(sc0, TURN)
     end = length(gates)
     rail0, rail1 = LEFT - 0.1, end - RIGHT + 0.1
     sc.poly([(0.02, -0.14, -0.12), (end, -0.14, -0.12), (end, 0.52, -0.12), (0.02, 0.52, -0.12)], "#000", 0.5, blur=True)
@@ -134,8 +132,7 @@ def _draw(style, sc0, colors, tier):
 
 
 def _step(gates):
-    rot = kit.RotatedScene(kit.Scene(kit.ART_CAMERA), TURN)
-    return rot.world((PITCH, 0.0, 0.0))
+    return (PITCH, 0.0, 0.0)
 
 
 def _unit(style, body, panel, rail_color):

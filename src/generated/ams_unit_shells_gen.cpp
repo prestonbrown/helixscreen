@@ -44,10 +44,10 @@ constexpr ProfilePoint k_quattro_box_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00
 constexpr ProfilePoint k_quattro_box_dome[] = {{0.0000f, 0.00f}, {0.0000f, 0.00f}, {0.0000f, 0.00f}, {0.0000f, 0.00f}, {0.0000f, 71.15f}, {0.0000f, 71.15f}, {0.0000f, 71.15f}, {0.0000f, 71.15f}, {0.1733f, 95.17f}, {0.1733f, 95.17f}, {0.1733f, 95.17f}, {0.1733f, 95.17f}, {0.8267f, 95.17f}, {0.8267f, 95.17f}, {1.0000f, 60.06f}, {1.0000f, 60.06f}, {1.0000f, 0.00f}};
 constexpr FrontPart k_ercf_rail_front[] = {{FrontAnchor::Span, 3.00f, 3.00f, 8.00f, 19.00f, 0x2a2a2e, 3}, {FrontAnchor::Span, 4.00f, 4.00f, 0.00f, 6.00f, 0xc8211f, 2}, {FrontAnchor::Lane, -7.00f, 7.00f, -3.00f, 0.00f, 0xc8211f, 0}, {FrontAnchor::Lane, -1.00f, 1.00f, 2.10f, 5.10f, 0xf7f7f2, 0}};
 constexpr ProfilePoint k_ercf_rail_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
-constexpr CarriageTrack k_ercf_rail_carriage[] = {{4, 0.07357f, 0.04188f, 1.10037f}, {6, 0.06413f, 0.03651f, 1.15576f}, {8, 0.05684f, 0.03236f, 1.20254f}, {9, 0.05378f, 0.03062f, 1.22329f}, {12, 0.04631f, 0.02636f, 1.27718f}};
+constexpr CarriageTrack k_ercf_rail_carriage[] = {{4, 0.10929f, 0.01905f, 1.41058f}, {6, 0.08969f, 0.01563f, 1.63125f}, {8, 0.07605f, 0.01325f, 1.83051f}, {9, 0.07067f, 0.01232f, 1.92306f}, {12, 0.05831f, 0.01016f, 2.17616f}};
 constexpr FrontPart k_tradrack_rail_front[] = {{FrontAnchor::Span, 3.00f, 3.00f, 8.00f, 19.00f, 0x26272a, 3}, {FrontAnchor::Span, 4.00f, 4.00f, 0.00f, 6.00f, 0x25c275, 2}, {FrontAnchor::Lane, -7.00f, 7.00f, -3.00f, 0.00f, 0x25c275, 0}, {FrontAnchor::Lane, -1.00f, 1.00f, 2.10f, 5.10f, 0xf7f7f2, 0}};
 constexpr ProfilePoint k_tradrack_rail_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
-constexpr CarriageTrack k_tradrack_rail_carriage[] = {{4, 0.07357f, 0.04188f, 1.02683f}, {6, 0.06413f, 0.03651f, 1.11764f}, {8, 0.05684f, 0.03236f, 1.19814f}, {9, 0.05378f, 0.03062f, 1.22329f}, {12, 0.04631f, 0.02636f, 1.27718f}};
+constexpr CarriageTrack k_tradrack_rail_carriage[] = {{4, 0.10929f, 0.01905f, 1.21811f}, {6, 0.08969f, 0.01563f, 1.44602f}, {8, 0.07605f, 0.01325f, 1.66245f}, {9, 0.07067f, 0.01232f, 1.76663f}, {12, 0.05831f, 0.01016f, 2.05751f}};
 
 const UnitShell kShells[] = {
     {"ace_pro", k_ace_pro_cheek, 3, k_ace_pro_dome, 17, 4, 31.42f, 44.0f, 7.0f, true, true, 0x3a3b3f, 0x000000, k_ace_pro_front, 5, 0x0},
