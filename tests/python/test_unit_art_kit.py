@@ -155,3 +155,17 @@ def test_manifest_lists_every_lane_mask(tmp_path):
         assert len(t["lanes"]) == 4
         for name in [t["back"], t["front"]] + [p for lane in t["lanes"] for p in lane.values()]:
             assert (tmp_path / ace_pro.UNIT.id / name).is_file()
+
+
+@pytest.mark.parametrize("unit", build.UNITS, ids=lambda u: u.id)
+def test_every_spool_draws_at_one_size_and_the_unit_fits_its_frame(unit):
+    scene = kit.Scene(kit.ART_CAMERA)
+    unit.draw_art(scene, ["#ffffff"] * unit.lanes, "full")
+    assert scene.spool_radius is not None
+    vx, vy, vw, vh = scene._viewbox()
+    assert vw / scene.spool_radius == pytest.approx(kit.ART_FRAME[0] / kit.ART_SPOOL_R)
+    assert vh / scene.spool_radius == pytest.approx(kit.ART_FRAME[1] / kit.ART_SPOOL_R)
+    xs = [p[0] for i in scene.items for p in i.points]
+    ys = [p[1] for i in scene.items for p in i.points]
+    assert vx <= min(xs) and max(xs) <= vx + vw
+    assert vy <= min(ys) and max(ys) <= vy + vh

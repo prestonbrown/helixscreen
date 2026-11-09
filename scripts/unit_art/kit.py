@@ -52,6 +52,10 @@ class Camera:
 
 
 ART_CAMERA = Camera(27, 20)
+# Every unit is framed so its spools draw at one size: the frame, in the units of a
+# drawing whose spool radius is ART_SPOOL_R, has room for the widest and tallest unit.
+ART_SPOOL_R = 0.25
+ART_FRAME = (1.62, 1.25)
 LIGHT = norm((-0.35, -0.75, 0.62))
 
 
@@ -265,6 +269,7 @@ class Scene:
         self.items = []
         self.grads = []
         self.layer = "back"
+        self.spool_radius = None
 
     def _add(self, pts3, fill, opacity, stroke, sw, closed, lane, tag, blur=False):
         self.items.append(
@@ -319,7 +324,12 @@ class Scene:
         xs = [p[0] for i in self.items for p in i.points]
         ys = [p[1] for i in self.items for p in i.points]
         m = 0.05
-        return min(xs) - m, min(ys) - m, max(xs) - min(xs) + 2 * m, max(ys) - min(ys) + 2 * m
+        if self.spool_radius is None:
+            return min(xs) - m, min(ys) - m, max(xs) - min(xs) + 2 * m, max(ys) - min(ys) + 2 * m
+        # Centred across the frame and standing on its floor, so units line up in a row.
+        scale = self.spool_radius / ART_SPOOL_R
+        vw, vh = ART_FRAME[0] * scale, ART_FRAME[1] * scale
+        return (min(xs) + max(xs)) / 2 - vw / 2, max(ys) + m * scale - vh, vw, vh
 
     def _wrap(self, width, body, extra_defs=""):
         vx, vy, vw, vh = self._viewbox()
