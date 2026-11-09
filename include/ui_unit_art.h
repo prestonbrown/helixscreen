@@ -13,6 +13,7 @@
 #include "lvgl/lvgl.h"
 
 #include <cstdint>
+#include <vector>
 
 namespace helix {
 struct AmsSystemInfo;
@@ -30,9 +31,14 @@ enum class UnitArtGlow { Off, Steady, Pulsing };
 /// animations are on.
 UnitArtGlow unit_art_glow_for(bool drying, bool animations_enabled, bool reduced_effects);
 
-/// Strength of the glow at one pixel of a @p w by @p h drawing whose own alpha there is
-/// @p art_alpha. Zero wherever the drawing is transparent, so it takes the unit's outline.
-uint8_t unit_art_glow_alpha(uint8_t art_alpha, int x, int y, int w, int h);
+/// Where the chamber lights up, one byte per pixel of a @p w by @p h drawing: the union of the
+/// lane regions, softened and spread a little around them, then shadowed by whatever the front
+/// layer draws over it. Solid case and frame pieces stay dark; glass lets the light through.
+std::vector<uint8_t> unit_art_chamber_mask(const std::vector<uint8_t>& lane_alpha,
+                                           const std::vector<uint8_t>& front_alpha, int w, int h);
+
+/// Strength of the glow at one pixel, from the chamber mask and the drawing's own alpha.
+uint8_t unit_art_glow_alpha(uint8_t chamber, uint8_t art_alpha);
 
 struct UnitArtLane {
     bool filled = false;

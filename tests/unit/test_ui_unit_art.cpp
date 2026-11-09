@@ -173,14 +173,69 @@ TEST_CASE("unit art glow: only a drying unit on a capable board glows", "[ams][u
     CHECK(unit_art_glow_for(true, false, true) == UnitArtGlow::Off);
 }
 
-TEST_CASE("unit art glow: follows the outline and fades from the middle", "[ams][unit-art][glow]") {
-    CHECK(unit_art_glow_alpha(0, 50, 50, 100, 100) == 0);
-    const int middle = unit_art_glow_alpha(255, 50, 50, 100, 100);
-    const int off_centre = unit_art_glow_alpha(255, 80, 50, 100, 100);
-    CHECK(middle > off_centre);
-    CHECK(off_centre > 0);
-    CHECK(unit_art_glow_alpha(255, 0, 0, 100, 100) == 0);
-    CHECK(unit_art_glow_alpha(128, 50, 50, 100, 100) < middle);
+TEST_CASE("unit art glow: the chamber lights around the lanes, not the case",
+          "[ams][unit-art][glow]") {
+    constexpr int kSide = 48;
+    const auto at = [](const std::vector<uint8_t>& px, int x, int y) {
+        return px[static_cast<size_t>(y * kSide + x)];
+    };
+    std::vector<uint8_t> lanes(kSide * kSide, 0);
+    for (int y = 12; y < 24; ++y)
+        for (int x = 12; x < 36; ++x)
+            lanes[static_cast<size_t>(y * kSide + x)] = 255;
+    std::vector<uint8_t> front(kSide * kSide, 0);
+
+    const auto open = unit_art_chamber_mask(lanes, front, kSide, kSide);
+    REQUIRE(open.size() == lanes.size());
+    CHECK(at(open, 24, 18) == 255);
+    CHECK(at(open, 24, 25) > 0);  // spreads a little past the lane
+    CHECK(at(open, 24, 40) == 0); // and no further
+
+    for (int y = 16; y < 24; ++y)
+        for (int x = 0; x < kSide; ++x)
+            front[static_cast<size_t>(y * kSide + x)] = y < 20 ? 64 : 255; // glass, then case
+    const auto shaded = unit_art_chamber_mask(lanes, front, kSide, kSide);
+    CHECK(at(shaded, 24, 14) == 255);
+    CHECK(at(shaded, 24, 18) == 191);
+    CHECK(at(shaded, 24, 22) == 0);
+
+    CHECK(unit_art_chamber_mask(lanes, front, kSide, kSide + 1).empty());
+}
+
+TEST_CASE("unit art glow: strength stays inside the drawing and under its peak",
+          "[ams][unit-art][glow]") {
+    CHECK(unit_art_glow_alpha(0, 255) == 0);
+    CHECK(unit_art_glow_alpha(255, 0) == 0);
+    CHECK(unit_art_glow_alpha(255, 255) == 100);
+    CHECK(unit_art_glow_alpha(128, 255) < 100);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art glow: lights only part of the drawing",
+                 "[ams][unit-art][glow]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 120, 120);
+    unit_art_set_unit(art, ace_system(), 0);
+    REQUIRE(unit_art_is_flattened(art));
+    unit_art_set_glow(art, UnitArtGlow::Steady);
+    REQUIRE(unit_art_glow_obj(art) != nullptr);
+    lv_obj_t* flat = lv_obj_get_child(art, 1);
+    const auto* flat_buf = static_cast<const lv_draw_buf_t*>(lv_image_get_src(flat));
+    const auto* glow_buf =
+        static_cast<const lv_draw_buf_t*>(lv_image_get_src(unit_art_glow_obj(art)));
+    int drawn = 0;
+    int lit = 0;
+    for (int y = 0; y < 120; ++y) {
+        const auto* f = static_cast<const uint8_t*>(lv_draw_buf_goto_xy(flat_buf, 0, y));
+        const auto* g = static_cast<const uint8_t*>(lv_draw_buf_goto_xy(glow_buf, 0, y));
+        for (int x = 0; x < 120; ++x) {
+            drawn += f[x * 4 + 3] > 200 ? 1 : 0;
+            lit += g[x * 4 + 3] > 0 ? 1 : 0;
+        }
+    }
+    REQUIRE(drawn > 0);
+    CHECK(lit > 0);
+    CAPTURE(drawn, lit);
+    CHECK(lit * 100 < drawn * 70);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "unit art glow: pulses, holds steady, and stops",
