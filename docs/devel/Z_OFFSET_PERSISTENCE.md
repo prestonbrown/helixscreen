@@ -88,6 +88,13 @@ So detection **latches immediately**: the moment a row matches, discovery calls
 `FIRMWARE_MANAGED`. There is deliberately no "detect provisionally, confirm
 later" window — that window is the dangerous direction.
 
+**Scanning probes still calibrate.** A Cartographer, Beacon or `probe_eddy_current`
+calibration is the probe's own paper test and sweep, which ACCEPT stages and
+`SAVE_CONFIG` alone keeps; it never folds the gcode offset into the probe. So the
+Z-offset panel runs that calibration under PROBE_CALIBRATE's sequence even on a
+`FIRMWARE_MANAGED` printer (`zoffset_cal::run_strategy()`, #1994). Baby-step saves
+and every other probe keep `FIRMWARE_MANAGED`.
+
 Most rows detect on a macro that belongs to exactly one firmware, so the match
 cannot be wrong. The Helper-Script row cannot: it keys on the **wrapper** object,
 which proves something shadows `SET_GCODE_OFFSET` but not that the shadow stores

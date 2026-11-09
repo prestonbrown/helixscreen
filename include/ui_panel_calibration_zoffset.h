@@ -29,6 +29,7 @@ class PrinterState;
  * - PROBE_CALIBRATE: Klipper's PROBE_CALIBRATE -> TESTZ -> ACCEPT -> SAVE_CONFIG
  * - ENDSTOP: Z_ENDSTOP_CALIBRATE -> TESTZ -> ACCEPT -> SAVE_CONFIG
  * - FIRMWARE_MANAGED: G28 -> move to center -> G1 Z adjustments -> SET_GCODE_OFFSET
+ *   (a scanning probe runs PROBE_CALIBRATE's sequence with its own calibrate command)
  *
  * ## State Machine:
  * - IDLE: Shows instructions and Start button
@@ -177,6 +178,10 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     bool can_begin_now() const;
     /// Close the mounted-tool question, if it is open, without starting anything.
     void close_tool_confirm();
+    /// The printer's strategy as this panel runs it: a scanning probe runs its
+    /// own calibrate command even on a FIRMWARE_MANAGED printer
+    /// (zoffset_cal::run_strategy()).
+    helix::ZOffsetCalibrationStrategy run_strategy() const;
     void begin_probe_sequence(); ///< Start homing/probing (called after warming or directly)
     void adjust_z(float delta);
     void send_accept();

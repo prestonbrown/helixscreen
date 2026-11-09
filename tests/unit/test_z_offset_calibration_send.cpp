@@ -480,6 +480,40 @@ TEST_CASE_METHOD(CalibrationSendFixture,
           "G90\nG1 Z5.0 F600\nG1 X175.0 Y175.0 F6000\nPROBE_EDDY_CURRENT_CALIBRATE CHIP=btt_eddy");
 }
 
+// A Helper-Script or Z-Mod SET_GCODE_OFFSET wrapper makes the printer
+// FIRMWARE_MANAGED; an eddy there still needs its paper test and coil sweep (#1994).
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration start: an eddy probe on a firmware-managed printer runs its sweep",
+                 "[ui_integration][zoffset][zoffset_center][eddy][1994]") {
+    discover_eddy();
+    CHECK(start_script(ZOffsetCalibrationStrategy::FIRMWARE_MANAGED,
+                       "PROBE_EDDY_CURRENT_CALIBRATE") ==
+          "G90\nG1 Z5.0 F600\nG1 X175.0 Y175.0 F6000\nPROBE_EDDY_CURRENT_CALIBRATE CHIP=btt_eddy");
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration start: a contact probe on a firmware-managed printer keeps the "
+                 "manual gcode offset",
+                 "[ui_integration][zoffset][zoffset_center][1994]") {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"probe"}));
+    helix::sensors::ProbeSensorManager::instance().discover(hw);
+    REQUIRE_FALSE(helix::sensors::ProbeSensorManager::instance().get_sensors().empty());
+    CHECK(start_script(ZOffsetCalibrationStrategy::FIRMWARE_MANAGED, "G1 Z0.1") ==
+          "G90\nG1 Z5.0 F600\nG1 X175.0 Y175.0 F6000\nG1 Z0.1 F300");
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration accept: an eddy probe on a firmware-managed printer saves its sweep",
+                 "[ui_integration][zoffset][save-toggle][eddy][1994]") {
+    discover_eddy();
+    const auto sent = probe_accept_scripts(helix::zoffset::SaveMode::Show,
+                                           ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    CHECK_FALSE(sent_any(sent, "SET_GCODE_OFFSET"));
+    CHECK_FALSE(sent_any(sent, "Z_OFFSET_APPLY"));
+    CHECK(after_accept(sent) == std::vector<std::string>{"SAVE_CONFIG"});
+}
+
 TEST_CASE_METHOD(CalibrationSendFixture,
                  "Calibration start: a nozzle reading point ignores the probe offset",
                  "[ui_integration][zoffset][zoffset_center]") {

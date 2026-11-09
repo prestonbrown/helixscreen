@@ -18,6 +18,25 @@ ToolGate reference_tool_gate(ZOffsetCalibrationStrategy strategy, std::optional<
     return active_tool == *reference_tool ? ToolGate::Proceed : ToolGate::ConfirmFirst;
 }
 
+bool is_scanning_probe(sensors::ProbeSensorType probe_type) {
+    switch (probe_type) {
+    case sensors::ProbeSensorType::CARTOGRAPHER:
+    case sensors::ProbeSensorType::BEACON:
+    case sensors::ProbeSensorType::EDDY_CURRENT:
+        return true;
+    default:
+        return false;
+    }
+}
+
+ZOffsetCalibrationStrategy run_strategy(ZOffsetCalibrationStrategy strategy,
+                                        sensors::ProbeSensorType probe_type) {
+    if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED && is_scanning_probe(probe_type)) {
+        return ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
+    }
+    return strategy;
+}
+
 CalibrationCommand calibration_command(ZOffsetCalibrationStrategy strategy,
                                        sensors::ProbeSensorType probe_type, std::string_view chip) {
     switch (strategy) {
