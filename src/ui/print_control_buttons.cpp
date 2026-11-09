@@ -181,12 +181,13 @@ void PrintControlButtons::handle_primary_button() {
         // suppress_auto_toast=true: the on_error below surfaces a contextual
         // toast; the generic RPC_ERROR auto-toast + Klipper's `!!` broadcast
         // for the same root cause would be redundant noise.
+        auto sending = std::make_shared<std::atomic<bool>>(true);
         macros.execute(
             StandardMacroSlot::Pause, api_, []() { spdlog::info("[PrintControl] Pause sent"); },
-            [](const MoonrakerError& err) {
-                // The RPC gave up, not the printer: the print state or the
-                // backstop settles the pending pause.
-                if (err.command_may_still_run()) {
+            [sending](const MoonrakerError& err) {
+                // The RPC or the socket gave up, not the printer: the print
+                // state or the backstop settles the pending pause.
+                if (err.command_may_still_run(!sending->load())) {
                     spdlog::warn("[PrintControl] Pause still unanswered: {}", err.message);
                     return;
                 }
@@ -195,6 +196,7 @@ void PrintControlButtons::handle_primary_button() {
                 PrintControlButtons::instance().clear_pending_action();
             },
             /*timeout_ms=*/0, /*suppress_auto_toast=*/true);
+        sending->store(false);
         // RAW_PRINT_STATE_OK: Resume is only meaningful once the PRINTER says
         // it is paused.
     } else if (state == helix::PrintJobState::PAUSED) {
