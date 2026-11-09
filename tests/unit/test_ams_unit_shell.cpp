@@ -93,10 +93,9 @@ TEST_CASE("unit shell: a variable unit keeps its shell at every lane count", "[a
 TEST_CASE("unit shell: unidentified hardware keeps the generic tray", "[ams][unit-art]") {
     CHECK(unit_shell_for(one_unit(AmsType::HAPPY_HARE, "MMU"), 0) == nullptr);
     CHECK(unit_shell_for(one_unit(AmsType::ACE, "ACE 1"), 5) == nullptr);
-    // Drawn, but nothing a BMCU reports identifies it.
-    CHECK(unit_shell_for(one_unit(AmsType::AFC, "BMCU 1"), 0) == nullptr);
     const UnitShell* bmcu = helix::ui::tray::unit_shell_by_id("bmcu");
     REQUIRE(bmcu != nullptr);
+    CHECK(unit_shell_for(one_unit(AmsType::AFC, "BMCU BMCU_1"), 0) == bmcu);
     CHECK(bmcu->art_lanes == 4);
     CHECK_FALSE(bmcu->built_in_selector);
     const UnitShell* owl = helix::ui::tray::unit_shell_by_id("night_owl");

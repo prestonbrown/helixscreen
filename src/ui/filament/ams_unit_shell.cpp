@@ -28,6 +28,7 @@ constexpr ShellRow kShellRows[] = {
     // be called anything.
     {"afc", "vivid", "btt_vivid", nullptr, 0},
     {"afc", "night_owl", "night_owl", nullptr, 0},
+    {"afc", "bmcu", "bmcu", nullptr, 0},
     {"afc", "quattro_box", "quattro_box", nullptr, 0},
     {"afc", "turtle", "box_turtle", "box_turtle_enclosed", 0},
     // Happy Hare's display_name defaults to the unit's vendor, "QuattroBox".
