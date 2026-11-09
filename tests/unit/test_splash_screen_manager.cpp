@@ -4,12 +4,15 @@
 #include "display/lv_display_private.h"
 #include "display_manager.h"
 #include "lvgl_test_fixture.h"
+#include "proc_comm.h"
 #include "remote_screen_sink.h"
 #include "splash_screen_manager.h"
 #include "test_helpers/display_manager_test_access.h"
 
 #include <chrono>
 #include <csignal>
+#include <cstdio>
+#include <cstring>
 #include <memory>
 #include <sys/wait.h>
 #include <thread>
@@ -332,3 +335,22 @@ TEST_CASE("SplashScreenManager: cooperative splash exits on SIGUSR1", "[splash][
     // Process should have exited cleanly
     CHECK(result == child);
 }
+
+#ifdef __linux__
+TEST_CASE("proc_comm_is matches a PID's exact process name", "[application][splash]") {
+    char own[64] = {0};
+    FILE* f = fopen("/proc/self/comm", "r");
+    REQUIRE(f != nullptr);
+    REQUIRE(fgets(own, sizeof(own), f) != nullptr);
+    fclose(f);
+    own[strcspn(own, "\n")] = '\0';
+
+    CHECK(helix::proc_comm_is(getpid(), own));
+    CHECK_FALSE(helix::proc_comm_is(getpid(), "helix-splash"));
+    // A prefix of the real name is a different process.
+    own[1] = '\0';
+    CHECK_FALSE(helix::proc_comm_is(getpid(), own));
+    CHECK_FALSE(helix::proc_comm_is(0, "init"));
+    CHECK_FALSE(helix::proc_comm_is(-1, "init"));
+}
+#endif
