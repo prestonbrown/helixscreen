@@ -20,6 +20,10 @@ This is the first 1.1 release candidate. Unless testing turns up a problem, it i
 
 - **A tour of what's new** - the first start after updating from 1.0 shows a short tour of the rebuilt home screen, the new Print Status screen and the Filament and filament system screens, with your own printer's picture. A new install gets the full tour, and Help & About replays it.
 
+### Changed
+
+- **A tidier HelixPrint Plugin page** - Advanced > HelixPrint Plugin now lists features in short rows grouped as Running, Off and Not available here, so the whole list fits on the screen, and a feature that can't run says why in one plain line.
+
 ### Fixed
 
 - **Dragging widgets near a page edge** (#2070) - in home screen edit mode, a widget dragged toward the next page waits longer before the page flips, and letting go during the wait keeps it on the page you see.

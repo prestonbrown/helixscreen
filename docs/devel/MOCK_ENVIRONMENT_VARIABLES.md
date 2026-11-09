@@ -547,7 +547,7 @@ plugin absent or `disabled` the knob does nothing.
 
 | Property | Value |
 |----------|-------|
-| Values | `generic`, `qidi_print_state` (the status `backend`); anything else = off |
+| Values | `generic`, `qidi_print_state` (the status `backend`); `not_listed` reports `features.plr` unavailable with reason `not_listed`, as on a printer model the plugin has no recipe for; anything else = off |
 | Default | off |
 | Affects | `server.helix.status` (`features.plr` ready, version 2), `server.helix.plr.*`, the newest `server.history.list` job (`interrupted`) |
 

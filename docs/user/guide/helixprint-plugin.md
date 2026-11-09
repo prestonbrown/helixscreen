@@ -408,11 +408,11 @@ applies it; tap the row again to take the line out. Uninstalling the plugin remo
 ## The Plugin Overview
 
 **Advanced > HelixPrint Plugin** shows the plugin's version and every feature it runs on your
-printer, each marked:
+printer, in three groups:
 
-- **Active**: running.
+- **Running**: on and working.
 - **Off**: available, but switched off in its setting.
-- **Unavailable**: cannot run on this printer, with the reason the plugin gave.
+- **Not available here**: cannot run on this printer, with a short line saying why.
 
 Tap a feature that has a setting to go to the page where its switch is: Settings > Printing,
 Safety & Alerts, Devices, Spoolman or System > Storage. The overview itself has no switches.
