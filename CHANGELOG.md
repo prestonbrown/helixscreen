@@ -5,7 +5,9 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0-beta.19] - UNRELEASED
+## [1.1.0-rc.1] - UNRELEASED
+
+This is the first 1.1 release candidate. Unless testing turns up a problem, it is what ships as 1.1.0. Since beta.18 it fixes printer identification on Creality, FlashForge and Snapmaker printers, keeps your files across web updates on Z-Mod, and shows fan speeds in RPM wherever a fan reports them.
 
 ### Added
 
@@ -35,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Plugin updates on printers that can't restart Moonraker** (#2090) - when a restart for the HelixPrint plugin doesn't happen, HelixScreen says to reboot the printer and asks again on the next start, instead of giving up silently.
 - **Creator 5 Pro tool dock state at startup** (#2091) - the startup check of which tool is docked now runs once Klipper is ready, so a stale dock state is corrected.
 - **Forge-X on the AD5X** (#2092) - an AD5X running Forge-X is no longer mistaken for Z-Mod, and its telemetry id moves to the Forge-X state folder once.
+- **Fan RPM on Creality printers** (#2071) - on the K1 and K2 series, each fan's RPM now shows on that fan's own dial. Before, the part fan's speed could appear under a different fan, and a dial set to Off no longer shows a leftover RPM over its zero mark.
+- **No error after powering off on purpose** (#2076) - turning the printer off from HelixScreen or Mainsail, through a power device that also stops Klipper, no longer shows the "Printer Shutdown" dialog.
 - **Re-apply on a spool** - Re-apply now takes the spool's name, and fixing only the colour keeps the spool's temperatures.
 
 - **Sensors in Settings no longer need a filament sensor** - the Sensors row under Hardware & Devices holds the temperature sensors and the chamber sensor and heater choices, but it only appeared on printers with a filament sensor. It now always appears.
@@ -10334,6 +10338,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.1.0-rc.1]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.18...v1.1.0-rc.1
 [1.1.0-beta.18]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.17...v1.1.0-beta.18
 [1.1.0-beta.17]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.16...v1.1.0-beta.17
 [1.1.0-beta.16]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.15...v1.1.0-beta.16
