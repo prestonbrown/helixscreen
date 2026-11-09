@@ -45,7 +45,7 @@ std::optional<std::vector<std::optional<Slot>>> parse_slots(const nlohmann::json
         Slot slot;
         if (auto mat = entry.find("Material"); mat != entry.end() && mat->is_string()) {
             slot.material = mat->get<std::string>();
-            if (slot.material == "?") {
+            if (is_unset_type(slot.material)) {
                 slot.material.clear();
             }
         }
@@ -85,7 +85,7 @@ std::optional<std::vector<std::string>> parse_valid_types(const nlohmann::json& 
     }
     std::vector<std::string> out;
     for (const auto& entry : *it) {
-        if (entry.is_string() && entry.get<std::string>() != "?") {
+        if (entry.is_string() && !is_unset_type(entry.get<std::string>())) {
             out.push_back(entry.get<std::string>());
         }
     }

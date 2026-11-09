@@ -4172,7 +4172,8 @@ bool AmsBackendAd5xIfs::on_gcode_response_line(const std::string& line) {
                 // line string). empty optional == "not present in this gcode".
                 std::optional<std::string> parsed_type;
                 helix::RegexMatch tm;
-                if (helix::regex_search(line, tm, type_re)) {
+                if (helix::regex_search(line, tm, type_re) &&
+                    !helix::zmod_color::is_unset_type(tm[1].str())) {
                     parsed_type = tm[1].str();
                 }
                 std::optional<std::string> parsed_hex;
@@ -4324,7 +4325,9 @@ bool AmsBackendAd5xIfs::apply_color_menu_slot_row(const std::string& line) {
 
     helix::RegexMatch tm;
     helix::RegexMatch hm;
-    const bool has_type = helix::regex_search(line, tm, type_re);
+    // TYPE=? names no material, so the row carries no type reading.
+    const bool has_type =
+        helix::regex_search(line, tm, type_re) && !helix::zmod_color::is_unset_type(tm[1].str());
     const bool has_hex = helix::regex_search(line, hm, hex_re);
     if (!has_type && !has_hex)
         return false;
@@ -4914,7 +4917,7 @@ bool AmsBackendAd5xIfs::read_ifs_materials_object(const json& obj, ZColorSilentR
             slot.material = type->get<std::string>();
             // The stock-UI unset sentinel, same one the zmod_color reader and
             // parse_adventurer_json normalise - a live "?" must never render.
-            if (slot.material == "?") {
+            if (helix::zmod_color::is_unset_type(slot.material)) {
                 slot.material.clear();
             }
         }
@@ -5745,6 +5748,9 @@ AmsBackendAd5xIfs::parse_zcolor_silent(const std::vector<std::string>& lines, co
                 slot.hex = rest.substr(last_slash + 1);
                 slot_lines_with_hex++;
             }
+            if (helix::zmod_color::is_unset_type(slot.material)) {
+                slot.material.clear();
+            }
             result.slots[static_cast<size_t>(n - 1)] = std::move(slot);
         }
     }
@@ -5822,7 +5828,7 @@ void AmsBackendAd5xIfs::parse_adventurer_json(const std::string& content) {
             // Firmware-native unset sentinel: live stock ZMOD writes ffmType='?'
             // for an entry with no assigned material. Map it to empty so the UI
             // renders '--' rather than a literal '?'.
-            if (type == "?")
+            if (helix::zmod_color::is_unset_type(type))
                 type.clear();
 
             int idx = port - 1;
