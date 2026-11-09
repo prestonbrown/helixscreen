@@ -26,6 +26,7 @@
 #include "macro_param_defaults.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "safety_settings_manager.h"
 #include "standard_macros.h"
@@ -235,6 +236,63 @@ TEST_CASE_METHOD(QuickButtonMacroFixture, "Quick button sends no params without 
     // No record: the macro runs bare, the way it always has.
     REQUIRE(script_sent_containing(mock_client, "MY_MACRO"));
     CHECK_FALSE(script_sent_containing(mock_client, "MY_MACRO TEMP"));
+}
+
+// =============================================================================
+// The dedicated leveling buttons
+// =============================================================================
+
+TEST_CASE_METHOD(QuickButtonMacroFixture, "Leveling buttons run the macro assigned to Bed Level",
+                 "[controls][quick_action][leveling_macro]") {
+    StandardMacros::instance().reset();
+    StandardMacros::instance().set_macro(StandardMacroSlot::BedLevel, "Z_TILT_LEVEL");
+
+    SECTION("Z-Tilt") {
+        panel.handle_z_tilt();
+    }
+    SECTION("QGL") {
+        panel.handle_qgl();
+    }
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(script_sent_containing(mock_client, "Z_TILT_LEVEL"));
+    CHECK_FALSE(script_sent_containing(mock_client, "Z_TILT_ADJUST"));
+    CHECK_FALSE(script_sent_containing(mock_client, "QUAD_GANTRY_LEVEL"));
+}
+
+TEST_CASE_METHOD(QuickButtonMacroFixture, "Leveling buttons ignore a Bed Level nobody assigned",
+                 "[controls][quick_action][leveling_macro]") {
+    StandardMacros::instance().reset();
+
+    SECTION("a detected macro does not redirect the button") {
+        helix::PrinterDiscovery hardware;
+        hardware.parse_objects(nlohmann::json{"extruder", "gcode_macro QGL"});
+        StandardMacros::instance().init(hardware);
+        REQUIRE(StandardMacros::instance().get(StandardMacroSlot::BedLevel).detected_macro ==
+                "QGL");
+    }
+    SECTION("an assigned macro the printer no longer has does not redirect the button") {
+        StandardMacros::instance().set_macro(StandardMacroSlot::BedLevel, "GONE_MACRO");
+        helix::PrinterDiscovery hardware;
+        hardware.parse_objects(nlohmann::json{"extruder"});
+        StandardMacros::instance().init(hardware);
+    }
+
+    panel.handle_z_tilt();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(script_sent_containing(mock_client, "Z_TILT_ADJUST"));
+    CHECK_FALSE(script_sent_containing(mock_client, "GONE_MACRO"));
+}
+
+TEST_CASE_METHOD(QuickButtonMacroFixture, "The QGL button sends its own command by default",
+                 "[controls][quick_action][leveling_macro]") {
+    StandardMacros::instance().reset();
+
+    panel.handle_qgl();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(script_sent_containing(mock_client, "QUAD_GANTRY_LEVEL"));
 }
 
 // =============================================================================
