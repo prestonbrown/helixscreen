@@ -254,6 +254,10 @@ std::vector<std::string> read_config_list(const nlohmann::json* v) {
 MachineUnit read_machine_unit(const nlohmann::json& settings, const nlohmann::json& fields) {
     MachineUnit u;
     u.display_name = read_string_member(fields, "display_name");
+    // Live unit_N fields say `vendor`; an old [mmu_machine] section says `mmu_vendor`.
+    u.vendor = read_string_member(fields, "vendor");
+    if (u.vendor.empty())
+        u.vendor = read_string_member(fields, "mmu_vendor");
     u.selector_type = read_string_member(fields, "selector_type");
     if (const auto* first = find_member(fields, "first_gate")) {
         u.first_gate = ams::read_integer(*first).value_or(-1);
@@ -713,6 +717,36 @@ MmuStatusDelta parse_mmu_status(const nlohmann::json& mmu) {
         }
     }
     return d;
+}
+
+/// Happy Hare's espooler word ("rewind", "assist", "" for idle) as an action.
+SpoolMotorAction spool_motor_action(const std::string& state) {
+    if (state.empty()) {
+        return SpoolMotorAction::None;
+    }
+    if (state == "rewind") {
+        return SpoolMotorAction::Rewinding;
+    }
+    if (state == "assist") {
+        return SpoolMotorAction::Assisting;
+    }
+    return SpoolMotorAction::Other;
+}
+
+/// Happy Hare's sync_feedback_state as the system buffer's motion: nullopt
+/// when sync feedback is absent or "disabled"; "compressed" advances,
+/// "tension" trails, anything else ("neutral") has no direction.
+std::optional<BufferMotion> sync_feedback_motion(const std::string& state) {
+    if (state.empty() || state == "disabled") {
+        return std::nullopt;
+    }
+    if (state == "compressed") {
+        return BufferMotion::Advancing;
+    }
+    if (state == "tension") {
+        return BufferMotion::Trailing;
+    }
+    return BufferMotion::Unknown;
 }
 
 } // namespace helix::happy_hare

@@ -552,6 +552,9 @@ src/ui/components/ui_multiselect.cpp
 src/ui/filament/ui_batch_filament_modal.cpp
 src/ui/filament/ui_ams_sidebar.cpp
 src/ui/filament/ui_ams_slot.cpp
+src/ui/filament/spool_spin.cpp
+src/ui/filament/ui_ams_slot_spin.cpp
+src/ui/filament/ui_spool_canvas_spin.cpp
 src/ui/filament/ui_buffer_slider.cpp
 src/ui/ui_busy_overlay.cpp
 src/ui/components/ui_button.cpp
@@ -655,6 +658,7 @@ src/ui/plugin/ui_plugin_overview_overlay.cpp
 src/ui/plugin/ui_plugin_feature_row.cpp
 src/ui/filament/ui_panel_ams.cpp
 src/ui/filament/ui_panel_ams_overview.cpp
+src/ui/filament/ui_panel_ams_overview_cards.cpp
 src/ui/ui_panel_base.cpp
 src/ui/ui_panel_common.cpp
 src/ui/controls/ui_panel_console.cpp
@@ -955,6 +959,10 @@ src/calibration/shaper_csv_parser.cpp
 # MOCK: src/mock/moonraker_client_mock_layer_pause.cpp
 # MOCK: src/mock/moonraker_client_mock_plr.cpp
 # MOCK: src/printer/ams_backend_mock.cpp
+# MOCK: src/printer/ams_backend_mock_identity.cpp
 src/system/host_identity.cpp
 src/system/env_refusal_notice.cpp
 src/system/home_layout_share.cpp
+src/ui/controls/opa_pulse.cpp
+src/rendering/toolhead_art_gen.cpp
+src/rendering/toolhead_art.cpp

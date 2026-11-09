@@ -73,35 +73,6 @@ int unit_index_for_gate(const AmsSystemInfo& info, int gate) {
     return -1;
 }
 
-/// Happy Hare's espooler word ("rewind", "assist", "" for idle) as an action.
-SpoolMotorAction hh_spool_motor_action(const std::string& state) {
-    if (state.empty()) {
-        return SpoolMotorAction::None;
-    }
-    if (state == "rewind") {
-        return SpoolMotorAction::Rewinding;
-    }
-    if (state == "assist") {
-        return SpoolMotorAction::Assisting;
-    }
-    return SpoolMotorAction::Other;
-}
-
-/// Happy Hare's sync_feedback_state as the system buffer's motion: nullopt
-/// when sync feedback is absent or "disabled"; "compressed" advances,
-/// "tension" trails, anything else ("neutral") has no direction.
-std::optional<BufferMotion> hh_sync_feedback_motion(const std::string& state) {
-    if (state.empty() || state == "disabled") {
-        return std::nullopt;
-    }
-    if (state == "compressed") {
-        return BufferMotion::Advancing;
-    }
-    if (state == "tension") {
-        return BufferMotion::Trailing;
-    }
-    return BufferMotion::Unknown;
-}
 } // namespace
 
 // ============================================================================
@@ -893,12 +864,12 @@ void AmsBackendHappyHare::apply_mmu_telemetry_locked(const happy_hare::MmuTeleme
         espooler_active_ = system_info_.espooler_state;
         spdlog::trace("[AMS HappyHare] eSpooler state: {}", system_info_.espooler_state);
     }
-    system_info_.spool_motor = hh_spool_motor_action(system_info_.espooler_state);
+    system_info_.spool_motor = happy_hare::spool_motor_action(system_info_.espooler_state);
 
     if (t.sync_feedback_state) {
         system_info_.sync_feedback_state = *t.sync_feedback_state;
         system_info_.system_buffer_motion =
-            hh_sync_feedback_motion(system_info_.sync_feedback_state);
+            happy_hare::sync_feedback_motion(system_info_.sync_feedback_state);
         spdlog::trace("[AMS HappyHare] Sync feedback: {}", system_info_.sync_feedback_state);
     }
 
@@ -1592,6 +1563,11 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
                                      : std::string("MMU");
     };
 
+    auto unit_model = [this](int u) {
+        return u < static_cast<int>(machine_units_.size()) ? machine_units_[u].vendor
+                                                           : std::string{};
+    };
+
     // The split mmu_machine names usually matches the one already built; only
     // the topologies can still change then.
     if (resplit && static_cast<int>(system_info_.units.size()) == num_units_) {
@@ -1601,6 +1577,8 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
                    system_info_.units[u].name == unit_name(u);
         }
         if (same) {
+            for (int u = 0; u < num_units_; ++u)
+                system_info_.units[u].model = unit_model(u);
             update_unit_topologies();
             return;
         }
@@ -1623,6 +1601,7 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
         AmsUnit unit;
         unit.unit_index = u;
         unit.name = unit_name(u);
+        unit.model = unit_model(u);
         unit.slot_count = unit_gates;
         unit.first_slot_global_index = global_offset;
         unit.connected = true;

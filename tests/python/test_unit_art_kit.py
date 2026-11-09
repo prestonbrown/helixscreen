@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import build, kit, spool  # noqa: E402
-from unit_art.units import ace_pro, ams_ht, bmcu, box_turtle, cfs, night_owl, quattro_box  # noqa: E402
+from unit_art.units import ace_pro, ad5x_ifs, ams_ht, bmcu, box_turtle, cfs, elegoo_canvas, htlf, mmx, night_owl, quattro_box, rail, three_ms  # noqa: E402
 
 
 def test_camera_is_the_agreed_three_quarter():
@@ -209,7 +209,7 @@ def test_manifest_lists_every_lane_mask(tmp_path):
             assert (tmp_path / ace_pro.UNIT.id / name).is_file()
 
 
-@pytest.mark.parametrize("unit", build.UNITS, ids=lambda u: u.id)
+@pytest.mark.parametrize("unit", [u for u in build.UNITS if u.carriage_step is None], ids=lambda u: u.id)
 def test_every_spool_draws_at_one_size_and_the_unit_fits_its_frame(unit):
     scene = kit.Scene(kit.ART_CAMERA)
     unit.draw_art(scene, ["#ffffff"] * unit.lanes, "full")
@@ -280,3 +280,151 @@ def test_a_unit_wider_than_the_frame_widens_it_to_fit():
     assert vw / scene.spool_radius > kit.ART_FRAME[0] / kit.ART_SPOOL_R
     xs = [p[0] for i in scene.items for p in i.points]
     assert vx <= min(xs) and max(xs) <= vx + vw
+
+
+FEEDERS = [bmcu.UNIT, mmx.UNIT, htlf.UNIT, three_ms.UNIT, ad5x_ifs.UNIT, elegoo_canvas.UNIT]
+
+
+@pytest.mark.parametrize("unit", FEEDERS, ids=lambda u: u.id)
+def test_a_feeders_stub_look_frames_its_own_body_with_one_tube_per_lane(unit):
+    scene = kit.Scene(kit.ART_CAMERA)
+    unit.stub_art(scene, ["#ffffff"] * unit.lanes, "full")
+    assert scene.spool_radius is None
+    tubes = [i for i in scene.items if i.lane is not None]
+    assert {i.lane for i in tubes} == set(range(unit.lanes))
+    assert all(not i.closed for i in tubes)
+    assert all(i.layer == "back" for i in tubes)
+
+
+@pytest.mark.parametrize("unit", FEEDERS, ids=lambda u: u.id)
+def test_a_feeders_spool_look_stands_in_the_shared_frame(unit):
+    scene = kit.Scene(kit.ART_CAMERA)
+    unit.draw_art(scene, ["#ffffff"] * unit.lanes, "full")
+    assert scene.spool_radius == 0.25
+    assert any(i.layer == "front" for i in scene.items)
+
+
+@pytest.mark.parametrize("unit", FEEDERS, ids=lambda u: u.id)
+def test_a_feeder_shows_a_slim_strip_and_no_enclosure(unit):
+    t = unit.tray
+    assert t.dome == []
+    assert t.front_wall_px <= 16
+    assert not t.lid_spans_row
+
+
+def test_a_feeder_bakes_both_looks(tmp_path):
+    build.bake_unit(mmx.UNIT, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    root = tmp_path / mmx.UNIT.id
+    for sub in (root, root / "stubs"):
+        assert json.loads((sub / "manifest.json").read_text())["lanes"] == mmx.UNIT.lanes
+        assert (sub / "full_lane3.png").is_file()
+
+
+def test_a_unit_without_a_stub_look_bakes_only_its_own_art(tmp_path):
+    build.bake_unit(ace_pro.UNIT, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    assert not (tmp_path / ace_pro.UNIT.id / "stubs").exists()
+
+
+def test_the_shell_table_records_which_units_have_a_stub_look():
+    table = build.generate_shell_table([mmx.UNIT, ace_pro.UNIT])
+
+    def row(uid):
+        return next(line for line in table.splitlines() if line.strip().startswith(chr(123) + chr(34) + uid))
+
+    assert row("mmx").rstrip().endswith("true, 0x0},")
+    assert row("ace_pro").rstrip().endswith("false, 0x0},")
+
+
+@pytest.mark.parametrize("unit", FEEDERS, ids=lambda u: u.id)
+def test_a_tube_ends_clear_of_the_inlet_it_leaves(unit):
+    scene = kit.Scene(kit.ART_CAMERA)
+    unit.stub_art(scene, ["#ffffff"] * unit.lanes, "full")
+    for tube in (i for i in scene.items if i.lane == 0):
+        assert math.dist(tube.points[0], tube.points[-1]) > 0.08
+
+
+def test_the_htlf_body_continues_below_its_inlets():
+    assert htlf.PANEL_TOP > 0
+    assert htlf.INLET_Z - htlf.PANEL_TOP > 0
+    assert htlf.PROFILE[0] == (0.0, 0.0)
+
+
+def test_the_canvas_shell_lets_its_dark_frame_show():
+    scene = kit.Scene(kit.ART_CAMERA)
+    elegoo_canvas.UNIT.stub_art(scene, ["#ffffff"] * 4, "full")
+    panes = [i for i in scene.items if i.lane is None and i.closed and i.fill == elegoo_canvas.SMOKE]
+    assert panes and all(i.opacity < 0.5 for i in panes)
+    assert any(i.fill == elegoo_canvas.FRAME or i.fill.startswith("#0") or i.fill.startswith("#1") for i in scene.items)
+RAILS = [rail.ERCF, rail.TRADRACK]
+
+
+def _rail_scene(unit, gates, tier="full"):
+    scene = kit.Scene(kit.ART_CAMERA)
+    unit.draw_art(scene, ["#ffffff"] * gates, tier)
+    return scene
+
+
+@pytest.mark.parametrize("unit", RAILS, ids=lambda u: u.id)
+@pytest.mark.parametrize("gates", (4, 6, 8, 9, 12))
+def test_a_rail_draws_a_filament_stub_per_gate_and_no_spools(unit, gates):
+    assert gates in unit.lane_variants
+    scene = _rail_scene(unit, gates)
+    assert {i.lane for i in scene.items if i.lane is not None} == set(range(gates))
+    assert scene.spool_radius is None
+    assert not [i for i in scene.items if i.lane is not None and i.layer != "back"]
+
+
+@pytest.mark.parametrize("unit", RAILS, ids=lambda u: u.id)
+def test_a_rail_runs_along_x_at_the_shared_camera(unit):
+    assert unit.carriage_step(6) == (rail.PITCH, 0.0, 0.0)
+    step_x, step_y = kit.carriage_step(_rail_scene(unit, 6), unit.carriage_step(6))
+    yaw, pitch = math.radians(27), math.radians(20)
+    assert step_x > 0
+    assert step_y / step_x == pytest.approx(math.tan(yaw) * math.sin(pitch))
+
+
+@pytest.mark.parametrize("unit", RAILS, ids=lambda u: u.id)
+@pytest.mark.parametrize("gates", (4, 12))
+def test_the_carriage_stays_in_the_frame_at_every_gate(unit, gates):
+    scene = _rail_scene(unit, gates)
+    carriage = [i for i in scene.items if i.layer == "carriage"]
+    assert carriage and all(i.lane is None for i in carriage)
+    vx, vy, vw, vh = scene._viewbox()
+    step_x, step_y = kit.carriage_step(scene, unit.carriage_step(gates))
+    for gate in (0, gates - 1):
+        dx, dy = gate * step_x * vw, gate * step_y * vw
+        for item in carriage:
+            for x, y in item.points:
+                assert vx <= x + dx <= vx + vw
+                assert vy <= y + dy <= vy + vh
+
+
+def test_the_carriage_bakes_to_its_own_layer_and_only_rails_have_one(tmp_path):
+    build.bake_unit(rail.ERCF, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    build.bake_unit(ace_pro.UNIT, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    manifest = json.loads((tmp_path / rail.ERCF.id / "6" / "manifest.json").read_text())
+    for tier in ("full", "thumb"):
+        assert (tmp_path / rail.ERCF.id / "6" / manifest["tiers"][tier]["carriage"]).is_file()
+    ace = json.loads((tmp_path / ace_pro.UNIT.id / "manifest.json").read_text())
+    assert "carriage" not in ace["tiers"]["full"]
+
+
+def test_the_shell_table_records_the_carriage_track_per_gate_count():
+    table = build.generate_shell_table([rail.ERCF])
+    scene = _rail_scene(rail.ERCF, 9)
+    step_x, step_y = kit.carriage_step(scene, rail.ERCF.carriage_step(9))
+    _, _, vw, vh = scene._viewbox()
+    assert f"{{9, {step_x:.5f}f, {step_y:.5f}f, {vw / vh:.5f}f}}" in table
+    assert "k_ercf_rail_carriage, 5," in table
+
+
+def test_units_without_a_carriage_keep_their_table_row_shape():
+    table = build.generate_shell_table([ace_pro.UNIT])
+    assert "carriage" not in table
+
+
+def test_a_rail_keeps_the_selector_route_and_names_its_flat_face():
+    assert not any(u.tray.built_in_selector for u in RAILS)
+    table = build.generate_shell_table([rail.ERCF])
+    assert "constexpr RailFace k_ercf_rail_face = {0xc8211f, " in table
+    assert "&k_ercf_rail_face}" in table

@@ -189,6 +189,42 @@ def arch_profile(y0, y1, z0, z1, flat=0.0, riser=0.0, steps=20):
     return [(y0, z0)] + pts + [(y1, z0)] if riser else pts
 
 
+def circle_yz(y, z, r, n=24):
+    """A closed circle in the (y, z) side plane."""
+    return [(y + r * math.cos(2 * math.pi * i / n), z + r * math.sin(2 * math.pi * i / n)) for i in range(n + 1)]
+
+
+def _roller_end(sc, x, y, z, r, face, hub):
+    sc.poly([(x, a, b) for a, b in circle_yz(y, z, r * 0.92)], face)
+    if hub:
+        sc.poly([(x, a, b) for a, b in circle_yz(y, z, r * 0.42)], hub)
+
+
+def roller(sc, x0, x1, y, z, r, color, flange, flange_k=1.18, flange_w=0.016, left_flange=True, sheen=None, end_face=None, end_hub=None, solid=False):
+    """A drum along x, flanged at its right end and, unless told not to, its left.
+
+    sheen is the colour of a highlight along the drum's lit shoulder, for a colour too dark
+    to show its curve by shading alone. end_face fills each flange inside its edge,
+    leaving a thin rim, and end_hub
+    colours a boss at the middle of that face. solid draws the barrel and flange
+    bands' camera-facing halves; without it their far halves show, like a hollow sleeve.
+    """
+    ring = circle_yz(y, z, r)
+    edge = circle_yz(y, z, r * flange_k)
+    if left_flange:
+        sc.extrude_x(edge, x0 - flange_w, x0, flange, 1.0, front=not solid)
+        sc.poly([(x0, a, b) for a, b in edge], shift(flange, 18))
+        if end_face:
+            _roller_end(sc, x0 + 0.0005, y, z, r, end_face, end_hub)
+    sc.extrude_x(ring, x0, x1, color, 1.0, front=not solid)
+    if sheen:
+        sc.line([(x0 + r * 0.1, y - r * 0.6, z + r * 0.8), (x1 - r * 0.1, y - r * 0.6, z + r * 0.8)], sheen, r * 0.2, 0.75)
+    sc.extrude_x(edge, x1, x1 + flange_w, flange, 1.0, front=not solid)
+    sc.poly([(x1 + flange_w, a, b) for a, b in edge], shift(flange, 18))
+    if end_face:
+        _roller_end(sc, x1 + flange_w + 0.0005, y, z, r, end_face, end_hub)
+
+
 def tray_profile(profile, base_z, px_per_unit):
     """A (y, z) side profile as tray points: (depth fraction, pixels above the front wall)."""
     y0, y1 = profile[0][0], profile[-1][0]
@@ -215,6 +251,14 @@ class ScaledScene:
 
     def extrude_x(self, profile, x0, x1, color, opacity, front):
         self.scene.extrude_x(self._pts(profile), x0 * self.k, x1 * self.k, color, opacity, front)
+
+
+def carriage_step(scene, step):
+    """One gate of world-space travel as a fraction of the art's width on screen."""
+    a = scene.camera.project((0.0, 0.0, 0.0))
+    b = scene.camera.project(step)
+    _, _, vw, _ = scene._viewbox()
+    return (b[0] - a[0]) / vw, (b[1] - a[1]) / vw
 
 
 @dataclass
@@ -244,6 +288,12 @@ class UnitDef:
     tray: Optional[TrayShellDef] = None
     # Lane counts this design is built in, each baked to its own set. Empty: only 'lanes'.
     lane_variants: Tuple[int, ...] = ()
+    # A second drawing, baked under stubs/: the body alone, tight in its frame, a tube per lane.
+    stub_art: Optional[Callable] = None
+    # A unit with a moving selector: given a lane count, the world-space travel between gates.
+    carriage_step: Optional[Callable] = None
+    # The rail's flat colours on the path screen: frame, gate, accent, coupler, head, rod.
+    rail_face: Optional[Tuple[int, ...]] = None
 
 
 @dataclass
@@ -295,6 +345,7 @@ class Scene:
         self.grads = []
         self.layer = "back"
         self.spool_radius = None
+        self.margin = 0.05
 
     def _add(self, pts3, fill, opacity, stroke, sw, closed, lane, tag, blur=False):
         self.items.append(
@@ -348,7 +399,7 @@ class Scene:
     def _viewbox(self):
         xs = [p[0] for i in self.items for p in i.points]
         ys = [p[1] for i in self.items for p in i.points]
-        m = 0.05
+        m = self.margin
         if self.spool_radius is None:
             return min(xs) - m, min(ys) - m, max(xs) - min(xs) + 2 * m, max(ys) - min(ys) + 2 * m
         # Centred across the frame and standing on its floor, so units line up in a row.

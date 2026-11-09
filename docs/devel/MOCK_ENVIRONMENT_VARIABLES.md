@@ -763,6 +763,8 @@ HELIX_MOCK_PRINTER=snapmaker_u1 HELIX_MOCK_AMS=multiace HELIX_MOCK_MULTIACE_MODE
 HELIX_MOCK_MULTIACE_UNITS=2 ./build/bin/helix-screen --test
 ```
 
+`HELIX_MOCK_AMS=ercf` and `HELIX_MOCK_AMS=tradrack` report the Happy Hare mock as that selector rail; `HELIX_AMS_GATES` picks the gate count (art exists for 4, 6, 8, 9 and 12).
+
 `HELIX_MOCK_AMS=indx` takes these knobs (read when the mock builds its object list):
 
 | Variable | Default | Effect |

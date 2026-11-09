@@ -6,6 +6,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/ui/text_metrics.h"
 #include "theme_manager.h"
+#include "toolhead_art.h"
 
 #include <cstring>
 
@@ -82,6 +83,10 @@ GlyphBounds toolhead_bounds(ToolheadStyle style, int32_t cx, int32_t nozzle_y, i
     if (style == ToolheadStyle::ANTHEAD)
         style = ToolheadStyle::DEFAULT;
 #endif
+    if (const ToolheadArt* art = toolhead_art_for(style)) {
+        const ToolheadArtRect r = toolhead_art_rect(*art, cx, nozzle_y, scale);
+        return {r.x, r.y, r.x + r.w - 1, r.y + r.h - 1};
+    }
     const Extent e = extent_of(style);
     return {cx - tenths_up(scale, e.left), top_of(style, nozzle_y, scale),
             cx + tenths_up(scale, e.right), nozzle_y + tenths_up(scale, e.bottom)};

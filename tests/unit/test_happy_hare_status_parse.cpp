@@ -257,6 +257,14 @@ TEST_CASE("Happy Hare layout: v3 publishes per-unit fields but no version",
     CHECK(layout.unit_params_section.empty());
 }
 
+TEST_CASE("Happy Hare machine units read the vendor where each version keeps it",
+          "[happy_hare][status_parse][hh_v4]") {
+    const json live = {{"unit_0", {{"vendor", "Tradrack"}, {"num_gates", 8}}}, {"num_units", 1}};
+    CHECK(happy_hare::read_machine_units(json::object(), live)[0].vendor == "Tradrack");
+    const json v3_settings = {{"mmu_machine", {{"mmu_vendor", "ERCF"}, {"num_gates", 9}}}};
+    CHECK(happy_hare::read_machine_units(v3_settings, json::object())[0].vendor == "ERCF");
+}
+
 TEST_CASE("Happy Hare layout: each tunable is read from its v4 section",
           "[happy_hare][status_parse][hh_v4]") {
     const json fx = test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
@@ -484,4 +492,48 @@ TEST_CASE("Happy Hare v4 status parse reads gate_vendor", "[happy_hare][status_p
 
     const auto none = happy_hare::parse_mmu_status(json::object());
     CHECK_FALSE(none.identity.vendor);
+}
+
+TEST_CASE("path_segment_from_happy_hare_pos maps every filament_pos and rejects the rest",
+          "[ams][happy_hare][v4][edge]") {
+    const std::pair<int, PathSegment> rows[] = {
+        {-100, PathSegment::NONE}, {-1, PathSegment::NONE},  {0, PathSegment::SPOOL},
+        {1, PathSegment::PREP},    {2, PathSegment::PREP},   {3, PathSegment::LANE},
+        {4, PathSegment::HUB},     {5, PathSegment::OUTPUT}, {6, PathSegment::TOOLHEAD},
+        {7, PathSegment::NOZZLE},  {8, PathSegment::NOZZLE}, {9, PathSegment::NOZZLE},
+        {10, PathSegment::NOZZLE}, {11, PathSegment::NONE},  {255, PathSegment::NONE},
+    };
+    for (const auto& [pos, segment] : rows) {
+        INFO("filament_pos " << pos);
+        CHECK(path_segment_from_happy_hare_pos(pos) == segment);
+    }
+}
+
+TEST_CASE("ams_action_from_string maps every Happy Hare action, unknown to IDLE",
+          "[ams][happy_hare][v4][edge]") {
+    const std::pair<const char*, AmsAction> rows[] = {
+        {"Idle", AmsAction::IDLE},
+        {"Loading", AmsAction::LOADING},
+        {"Loading Ext", AmsAction::LOADING},
+        {"Unloading", AmsAction::UNLOADING},
+        {"Exiting Ext", AmsAction::UNLOADING},
+        {"Selecting", AmsAction::SELECTING},
+        {"Homing", AmsAction::RESETTING},
+        {"Resetting", AmsAction::RESETTING},
+        {"Cutting", AmsAction::CUTTING},
+        {"Cutting Tip", AmsAction::CUTTING},
+        {"Cutting Filament", AmsAction::CUTTING},
+        {"Forming Tip", AmsAction::FORMING_TIP},
+        {"Heating", AmsAction::HEATING},
+        {"Checking", AmsAction::CHECKING},
+        {"Purging", AmsAction::PURGING},
+        {"Paused (user)", AmsAction::PAUSED},
+        {"Error: filament jam", AmsAction::ERROR},
+        {"SomeNewV5Action", AmsAction::IDLE},
+        {"", AmsAction::IDLE},
+    };
+    for (const auto& [text, action] : rows) {
+        INFO("action \"" << text << "\"");
+        CHECK(ams_action_from_string(text) == action);
+    }
 }

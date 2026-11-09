@@ -250,7 +250,7 @@ const std::vector<Row>& rows() {
          "qidi_eject_velocity", true, SETI(sm().set_ams_eject_velocity),
          GET(sm().get_ams_eject_velocity), SUBJ(sm().subject_ams_eject_velocity)},
         {"settings_toolhead_style", Mgr::Settings, true, "appearance/toolhead_style", false, 0, 0,
-         7, "toolhead_style", true,
+         12, "toolhead_style", true,
          [](int v) { sm().set_toolhead_style(static_cast<ToolheadStyle>(v)); },
          GET(sm().get_toolhead_style), SUBJ(sm().subject_toolhead_style)},
         {"settings_tool_number_style", Mgr::Settings, true, "appearance/tool_number_style", false,

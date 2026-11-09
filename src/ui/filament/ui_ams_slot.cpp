@@ -4,6 +4,7 @@
 #include "ui_ams_slot.h"
 
 #include "ui_ams_lane_spool.h"
+#include "ui_ams_slot_internal.h"
 #include "ui_ams_slot_layout.h"
 #include "ui_fonts.h"
 #include "ui_humidity_drop.h"
@@ -55,80 +56,6 @@ using namespace helix;
  * Contains the slot index and observer handles. Managed via static registry
  * rather than lv_obj user_data to ensure safe cleanup during lv_deinit().
  */
-struct AmsSlotData {
-    int slot_index = -1;
-    int total_count = 4; // Total slots being displayed (for stagger calculation)
-    helix::ui::AmsSlotHitBand hit_band;
-
-    /// Backend whose subjects the observers below are bound to (captured at
-    /// setup_slot_observers time from the active backend). Kept so later
-    /// re-reads (apply_slot_label) hit the same backend the
-    /// observers are bound to, even if the active backend moved on.
-    int backend_index = 0;
-
-    // Last lane classification seen from the per-slot lane_state subject. The
-    // material label's text and ghost strength depend on it (an Empty lane
-    // reads "Empty", a Ghosted one dims alongside its spool), and lane_state
-    // and material arrive on SEPARATE subjects with no ordering guarantee - so
-    // the material path reads the classification from here rather than racing
-    // for it.
-    helix::ui::LaneState last_lane_state = helix::ui::LaneState::Empty;
-
-    // RAII observer handles - automatically removed when this struct is destroyed
-    ObserverGuard status_observer;     ///< Per-slot status -> badge color
-    ObserverGuard lane_state_observer; ///< Per-slot lane_state -> label text + ghost
-    ObserverGuard material_observer;   ///< Per-slot material type label (static subject)
-    ObserverGuard name_observer;       ///< Per-slot spool name line
-    ObserverGuard remaining_observer;  ///< Per-slot remaining length (primary backend)
-    ObserverGuard current_slot_observer;
-    ObserverGuard filament_loaded_observer;
-    ObserverGuard active_loaded_observer; ///< Per-slot active-loaded (single highlight source)
-    ObserverGuard action_observer;
-    ObserverGuard target_slot_observer;
-    ObserverGuard slots_version_observer; ///< Spool table renumber -> badge number
-
-    // Lifetime tokens paired with the observers that bind per-backend subjects
-    // (status, lane_state, material, name). Secondary-backend (index > 0) subjects
-    // are DYNAMIC - recreated on backend rediscovery - so those observers need
-    // tokens that expire when AmsState tears the subject down (L084). For
-    // backend 0 the accessors return AmsState's subjects lifetime. Each MUST be
-    // reset BEFORE its matching observer (see cleanup paths, #705).
-    SubjectLifetime status_lifetime;
-    SubjectLifetime lane_state_lifetime;
-    SubjectLifetime material_lifetime;
-    SubjectLifetime name_lifetime;
-
-    lv_obj_t* spool_container = nullptr; // Container for the lane spool + badges
-
-    // The lane spool graphic (spool, placeholder, error glow) renders itself
-    // from the per-slot subjects; ams_slot only points it at a slot index.
-    lv_obj_t* lane_spool = nullptr;
-
-    // Other UI elements
-    lv_obj_t* name_label = nullptr; // Brand, above the material
-    lv_obj_t* material_label = nullptr;
-    lv_obj_t* leader_line = nullptr;     // Dotted line connecting label to spool (when staggered)
-    lv_point_precise_t leader_points[2]; // Points for leader line (per-slot storage)
-    lv_obj_t* status_badge_bg = nullptr; // Status badge background (colored circle)
-    lv_obj_t* slot_badge = nullptr;      // Slot number label inside status badge
-    lv_obj_t* tool_badge_bg = nullptr;   // Tool badge background (top-left corner)
-    lv_obj_t* tool_badge = nullptr;      // Tool badge label (T0, T1, etc.)
-    lv_obj_t* container = nullptr;       // The ams_slot widget itself
-    lv_obj_t* lane_humidity = nullptr;   // Droplet + value row, under a per-lane lid
-    lv_obj_t* lane_humidity_text = nullptr; // The row's value
-    lv_obj_t* lane_humidity_drop = nullptr; // The row's drop, filled to the value
-    lv_obj_t* lane_temp_row = nullptr;      // Thermometer + value, above the humidity
-    lv_obj_t* lane_temp_text = nullptr;
-    lv_obj_t* lane_remaining = nullptr; // Measured remaining length, under the material
-    bool show_lane_humidity = false;
-    lv_obj_t* drying_badge = nullptr;       // Top-right drying-state badge
-    lv_obj_t* drying_icons[4] = {};         // Queued, active, complete, cancelled
-    lv_subject_t* drying_subject = nullptr; // Subject the badge is bound to
-
-    // Pulsing state - when true, highlight updates are skipped to preserve animation
-    bool is_pulsing = false;
-};
-
 // Static registry mapping lv_obj_t* -> AmsSlotData*
 // Used for safe cleanup during lv_deinit() when user_data may be unreliable
 static helix::WidgetDataRegistry<AmsSlotData> s_slot_registry;
@@ -136,7 +63,7 @@ static helix::WidgetDataRegistry<AmsSlotData> s_slot_registry;
 /**
  * @brief Get AmsSlotData for an object from the registry
  */
-static AmsSlotData* get_slot_data(lv_obj_t* obj) {
+AmsSlotData* helix::get_slot_data(lv_obj_t* obj) {
     return s_slot_registry.get(obj);
 }
 
@@ -178,6 +105,9 @@ static void unregister_slot_data(lv_obj_t* obj) {
             data->active_loaded_observer.reset();
             data->action_observer.reset();
             data->target_slot_observer.reset();
+            data->print_state_observer.reset();
+            data->extruder_velocity_observer.reset();
+            data->animations_enabled_observer.reset();
         }
         s_slot_registry.take(obj);
     }
@@ -212,6 +142,9 @@ static void cleanup_all_slot_data() {
         data->active_loaded_observer.reset();
         data->action_observer.reset();
         data->target_slot_observer.reset();
+        data->print_state_observer.reset();
+        data->extruder_velocity_observer.reset();
+        data->animations_enabled_observer.reset();
 
         delete data;
     });
@@ -783,6 +716,7 @@ static void setup_slot_observers(AmsSlotData* data) {
                 if (d) {
                     evaluate_pulse_state(d);
                     apply_current_slot_highlight(d, current_slot);
+                    apply_spool_spin(d);
                 }
             },
             state.get_subjects_lifetime());
@@ -814,6 +748,7 @@ static void setup_slot_observers(AmsSlotData* data) {
                 auto* d = get_slot_data(o);
                 if (d) {
                     evaluate_pulse_state(d);
+                    apply_spool_spin(d);
                     apply_current_slot_highlight(d, d->slot_index);
                 }
             },
@@ -827,8 +762,10 @@ static void setup_slot_observers(AmsSlotData* data) {
             action_subject, obj,
             [](lv_obj_t* o, int /*action*/) {
                 auto* d = get_slot_data(o);
-                if (d)
+                if (d) {
                     evaluate_pulse_state(d);
+                    apply_spool_spin(d);
+                }
             },
             state.get_subjects_lifetime());
     }
@@ -840,11 +777,15 @@ static void setup_slot_observers(AmsSlotData* data) {
             target_subject, obj,
             [](lv_obj_t* o, int /*target*/) {
                 auto* d = get_slot_data(o);
-                if (d)
+                if (d) {
                     evaluate_pulse_state(d);
+                    apply_spool_spin(d);
+                }
             },
             state.get_subjects_lifetime());
     }
+
+    observe_slot_spin(data);
 
     // Slots version observer: the badge number follows the whole spool table,
     // not only this lane's own status. A routing change re-numbers lanes that

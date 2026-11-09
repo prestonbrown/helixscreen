@@ -25,7 +25,16 @@ struct SpoolVentFace {
     float size = 0.0f;
     float skew = 1.0f;
     SpoolVentDetail detail = SpoolVentDetail::None;
+    float rotation_cos = 1.0f; ///< the face's rotation, set by spool_vent_face_set_phase()
+    float rotation_sin = 0.0f;
 };
+
+/// Vent phases a turning spool steps through before its vents repeat, 1 when
+/// there are no vents to turn. A phase is 7.5 degrees of rotation.
+int spool_vent_phase_count(SpoolVentDetail detail);
+
+/// Turn @p face to rotation @p phase; phases wrap at spool_vent_phase_count().
+void spool_vent_face_set_phase(SpoolVentFace& face, int phase);
 
 /// How much of the pixel centred on (@p x, @p y) is open vent, 0..1, with an
 /// anti-aliased edge. 0 everywhere when the face's detail is None.

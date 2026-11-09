@@ -10,6 +10,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "first_run_tour.h"
 #include "printer_image_manager.h"
 #include "tour_overlay.h"
@@ -182,6 +183,8 @@ TEST_CASE("Tour steps: the full tour opens with welcome and ends on the navbar",
     CHECK(steps.front().target_name.empty());
     CHECK(steps.back().target_name == "nav_btn_settings");
     CHECK(step_titled(steps, "Customize your home screen").target_name == "fan_stack");
+    CHECK(step_titled(steps, "Customize your home screen").fallback_target_name == "printer_image");
+    CHECK(step_titled(steps, "Your printer at a glance").fallback_target_name == "print_status");
     CHECK_FALSE(has_title(steps, "New in 1.1"));
 }
 
@@ -247,6 +250,30 @@ TEST_CASE("FirstRunTour gate: a 1.0 upgrader is offered the tour", "[tour]") {
     CHECK(FirstRunTour::should_auto_start());
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: navigating elsewhere cancels and stays there",
+                 "[tour]") {
+    reset_tour_settings();
+    auto& nav = NavigationManager::instance();
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels)
+        p = lv_obj_create(lv_screen_active());
+    nav.set_panels(panels.data());
+    nav.set_active(helix::PanelId::Home);
+
+    auto& t = FirstRunTour::instance();
+    t.start();
+    REQUIRE(t.is_running());
+
+    nav.set_active(helix::PanelId::Controls);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(50);
+
+    CHECK_FALSE(t.is_running());
+    CHECK(nav.get_active() == helix::PanelId::Controls);
+    CHECK(Config::get_instance()->get<bool>("/tour/completed", false));
+    nav.shutdown();
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: steps open their panel, skip returns Home",
                  "[tour]") {
     reset_tour_settings();
@@ -272,6 +299,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: steps open their panel, skip 
     t.skip();
     CHECK(nav.get_active() == helix::PanelId::Home);
     CHECK_FALSE(t.is_running());
+    nav.shutdown();
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: start() sets is_running", "[tour]") {

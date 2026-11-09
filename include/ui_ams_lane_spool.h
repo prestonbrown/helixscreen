@@ -53,6 +53,7 @@ void ui_ams_lane_spool_register(void);
 #ifdef __cplusplus
 
 #include "ams_lane_state.h"
+#include "spool_spin.h"
 
 namespace helix::ui {
 
@@ -101,6 +102,9 @@ enum class SpoolHighlight { None, Steady, Pulse };
  *        overhang up as ext draw size (pass_child_overhang).
  */
 void ams_lane_spool_set_highlight(lv_obj_t* spool, SpoolHighlight highlight);
+
+/// Turn the lane's spool as @p spin says. Survives a size or style rebuild.
+void ams_lane_spool_set_spin(lv_obj_t* spool, const SpoolSpin& spin);
 
 /**
  * @brief Resize the spool graphic (px; <= 0 is refused)

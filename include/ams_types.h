@@ -631,23 +631,6 @@ inline const char* tip_method_to_string(TipMethod method) {
     return "Unknown";
 }
 
-/**
- * @brief Get user-friendly step label for tip handling
- * @param method The tip method enum value
- * @return Untranslated English key; the display site passes it through lv_tr()
- */
-inline const char* tip_method_step_label(TipMethod method) {
-    switch (method) {
-    case TipMethod::CUT:
-        return TR_NOOP("Cut & retract");
-    case TipMethod::TIP_FORM:
-        return TR_NOOP("Form tip & retract");
-    case TipMethod::NONE:
-    default:
-        return TR_NOOP("Retract");
-    }
-}
-
 // ============================================================================
 // Filament Path Visualization Types
 // ============================================================================
@@ -1462,6 +1445,7 @@ struct AmsUnit {
     int unit_index = 0;              ///< Unit number (0-based)
     std::string name;                ///< Internal name for matching (e.g., "Box_Turtle Turtle_1")
     std::string display_name;        ///< Pretty name for UI (e.g., "Turtle 1") — empty = use name
+    std::string model;               ///< Hardware the firmware says it is; empty when unreported
     int slot_count = 0;              ///< Number of slots on this unit
     int first_slot_global_index = 0; ///< Global index of first slot
 

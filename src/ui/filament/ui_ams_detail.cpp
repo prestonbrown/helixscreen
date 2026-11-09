@@ -962,6 +962,10 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     ui_filament_path_canvas_set_topology(canvas, static_cast<int>(topo));
     ui_filament_path_canvas_set_hub_on_toolhead(canvas, backend->hub_on_toolhead());
     ui_filament_path_canvas_set_built_in_hub(canvas, built_in_hub);
+    // Only the gate counts the rail art exists for trade the bar for a rail.
+    const bool rail = drawn_unit && topo == helix::PathTopology::LINEAR &&
+                      tray::unit_shell_carriage(*drawn_unit, slot_count) != nullptr;
+    ui_filament_path_canvas_set_selector_rail(canvas, rail ? drawn_unit->rail_face : nullptr);
     // A unit the overview joins to no nozzle (an unwired hub) ends at its hub
     // here too: the overview's own rule decides both. A hub mounted on the head feeds
     // it by construction, and the all-units view always reaches a toolhead.

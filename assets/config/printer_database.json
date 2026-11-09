@@ -2870,6 +2870,7 @@
     },
     {
       "id": "creality_ender_3_v3",
+      "toolhead_style": "ender3_integrated",
       "name": "Creality Ender-3 V3",
       "manufacturer": "Creality",
       "image": "creality-ender-3.png",
@@ -2937,6 +2938,7 @@
     },
     {
       "id": "creality_ender_3_v3_ke",
+      "toolhead_style": "ender3_integrated",
       "name": "Creality Ender-3 V3 KE",
       "manufacturer": "Creality",
       "image": "creality-ender-3-v3-ke.png",
@@ -3066,6 +3068,7 @@
     },
     {
       "id": "creality_ender_3",
+      "toolhead_style": "ender3_bowden",
       "name": "Creality Ender 3",
       "manufacturer": "Creality",
       "image": "creality-ender-3.png",

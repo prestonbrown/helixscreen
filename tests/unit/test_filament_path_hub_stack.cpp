@@ -297,6 +297,49 @@ TEST_CASE_METHOD(HubStackFixture, "A built-in selector keeps every tube and merg
     CHECK(horizontal);
 }
 
+TEST_CASE("A selector rail's carriage follows the active gate and keeps its place otherwise",
+          "[filament-path][selector-rail]") {
+    const int32_t slots[] = {100, 160, 220, 280};
+    CHECK(rail_carriage_x(slots, 4, 2, 0, false) == 220);
+    CHECK(rail_carriage_x(slots, 4, 2, 175, true) == 175); // mid-slide
+    CHECK(rail_carriage_x(slots, 4, -1, 160, false) == 160);
+    CHECK(rail_carriage_x(slots, 4, -2, 160, false) == 160);
+    CHECK(rail_carriage_x(slots, 4, -1, 0, false) == 100); // never placed: rests at the first gate
+    CHECK(rail_carriage_x(slots, 4, -1, 900, false) == 100);
+}
+
+TEST_CASE("A selector rail's gate block fits between its neighbours",
+          "[filament-path][selector-rail]") {
+    CHECK(rail_block_width(60, 24) == 28);
+    CHECK(rail_block_width(20, 24) == 14);
+    CHECK(rail_block_width(4, 24) == 2);
+}
+
+TEST_CASE_METHOD(HubStackFixture, "A selector rail replaces the bar and keeps its tap",
+                 "[filament-path][selector-rail]") {
+    auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
+    ui_filament_path_canvas_set_topology(c.obj, 0);
+    ui_filament_path_canvas_set_hub_callback(c.obj, [](lv_point_t, void*) {}, nullptr);
+    const helix::ui::tray::RailFace face{0xc8211f, 0x1d1d20, 0xd42a26,
+                                         0x3f8fd9, 0x222226, 0xb9bdc2};
+    render(c);
+    REQUIRE(c.data->hits.hub_valid);
+    const lv_area_t bar = c.data->hits.hub;
+    CHECK_FALSE(c.data->rail_drawn);
+
+    ui_filament_path_canvas_set_selector_rail(c.obj, &face);
+    render(c);
+    CHECK(c.data->rail_drawn);
+    REQUIRE(c.data->hits.hub_valid);
+    CHECK(c.data->hits.hub.x1 == bar.x1);
+    CHECK(c.data->hits.hub.y1 == bar.y1);
+    CHECK(c.data->hits.hub.y2 == bar.y2);
+
+    ui_filament_path_canvas_set_selector_rail(c.obj, nullptr);
+    render(c);
+    CHECK_FALSE(c.data->rail_drawn);
+}
+
 TEST_CASE("A built-in selector leaves routes to separate tools alone",
           "[filament-path][hub-stack]") {
     using helix::PathTopology;
@@ -361,18 +404,18 @@ TEST_CASE_METHOD(HubStackFixture, "toolhead_top_y matches each renderer's top ed
     const Case c = GENERATE(
         // Bambu body: 40 tall, cap 4 over a 4 bevel, iso depth 6 -> 300 - 20 - 8 - 3
         Case{helix::ToolheadStyle::DEFAULT, 269},
-        // Design y 0 vs center 630, render 12*10 = 120 over 2000 -> -37.8, truncated
-        Case{helix::ToolheadStyle::A4T, 263},
-        // Design y 78 vs center 500, render 100 over 1000 -> -42.2, truncated
-        Case{helix::ToolheadStyle::STEALTHBURNER, 258},
-        // Design y 2 vs center 687, render 100 over 2400 -> -28.5, truncated
-        Case{helix::ToolheadStyle::JABBERWOCKY, 272},
-        // Image row 0 vs pivot 81 of 163, scaled to 65 px -> -32.3, truncated
-        Case{helix::ToolheadStyle::ANTHEAD, 268},
-        // Body 48 tall, iso depth 6 -> 300 - 24 - 3
-        Case{helix::ToolheadStyle::CREALITY_K1, 273},
-        // Body 48 tall, iso depth 5 -> 300 - 24 - 2
-        Case{helix::ToolheadStyle::CREALITY_K2, 274});
+        // The baked head's top edge
+        Case{helix::ToolheadStyle::A4T, 252},
+        // The baked head's top edge
+        Case{helix::ToolheadStyle::STEALTHBURNER, 260},
+        // The baked head's top edge
+        Case{helix::ToolheadStyle::JABBERWOCKY, 260},
+        // The baked head's top edge
+        Case{helix::ToolheadStyle::ANTHEAD, 260},
+        // The baked head's top edge
+        Case{helix::ToolheadStyle::CREALITY_K1, 260},
+        // The baked head's top edge
+        Case{helix::ToolheadStyle::CREALITY_K2, 260});
     ScopedToolheadStyle scoped(c.style);
     CAPTURE(static_cast<int>(c.style));
     REQUIRE(helix::SettingsManager::instance().get_effective_toolhead_style() == c.style);

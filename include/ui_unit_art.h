@@ -7,26 +7,59 @@
  * @brief <unit_art tier="full|thumb">: a baked drawing of a filament unit with live lane colours.
  *
  * Layers, bottom to top: the shell's back, each filled lane's tinted region and its shading,
- * then the shell's front. A unit with no matching art hides the widget.
+ * then the shell's front. A unit with a sliding selector has one more layer on top, moved to
+ * the active gate. A unit with no matching art hides the widget.
  */
 
 #include "lvgl/lvgl.h"
 
 #include <cstdint>
+#include <string>
+#include <vector>
 
 namespace helix {
 struct AmsSystemInfo;
 struct SlotInfo;
 } // namespace helix
 
+namespace helix::ui::tray {
+struct UnitShell;
+}
+
 namespace helix::ui {
 
 enum class UnitArtTier { Full, Thumb };
+
+/// How the art shows that its unit is heating.
+enum class UnitArtGlow { Off, Steady, Pulsing };
+
+/// Off unless the unit is drying and the board can afford the effect; it only moves where
+/// animations are on.
+UnitArtGlow unit_art_glow_for(bool drying, bool animations_enabled, bool reduced_effects);
+
+/// Where the chamber lights up, one byte per pixel of a @p w by @p h drawing: the union of the
+/// lane regions, softened and spread a little around them, then shadowed by whatever the front
+/// layer draws over it. Solid case and frame pieces stay dark; glass lets the light through.
+std::vector<uint8_t> unit_art_chamber_mask(const std::vector<uint8_t>& lane_alpha,
+                                           const std::vector<uint8_t>& front_alpha, int w, int h);
+
+/// Strength of the glow at one pixel, from the chamber mask and the drawing's own alpha.
+uint8_t unit_art_glow_alpha(uint8_t chamber, uint8_t art_alpha);
 
 struct UnitArtLane {
     bool filled = false;
     uint32_t color = 0;
 };
+
+/// Which drawing a unit that holds no spools uses: spools behind it, or tube stubs.
+enum class FeederLook { Spools, Stubs };
+
+/// The look named by the HELIX_UNIT_ART_FEEDER value @p value; Spools unless it says stubs.
+FeederLook parse_feeder_look(const char* value);
+
+/// The asset path, without extension or layer, of a unit's drawing at @p lanes bays.
+std::string unit_art_base_stem(const tray::UnitShell& shell, int lanes, UnitArtTier tier,
+                               FeederLook look);
 
 /// What one bay shows.
 UnitArtLane unit_art_lane(const SlotInfo& slot);
@@ -42,7 +75,16 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
 /// Whether the widget currently shows its single flattened image.
 bool unit_art_is_flattened(lv_obj_t* art);
 
+/// Show @p glow inside the drawing. A widget without a drawing yet shows none.
+void unit_art_set_glow(lv_obj_t* art, UnitArtGlow glow);
+
+/// The glow image, or nullptr when no glow has been shown.
+lv_obj_t* unit_art_glow_obj(lv_obj_t* art);
+
 /// The tinted image of @p lane, or nullptr before the widget has art.
 lv_obj_t* unit_art_lane_color_obj(lv_obj_t* art, int lane);
+
+/// The image currently showing the sliding selector, or nullptr for a unit without one.
+lv_obj_t* unit_art_carriage_obj(lv_obj_t* art);
 
 } // namespace helix::ui

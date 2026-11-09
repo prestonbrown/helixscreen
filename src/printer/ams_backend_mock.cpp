@@ -2533,12 +2533,6 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
     }
 }
 
-void AmsBackendMock::set_afc_unit_name(const std::string& name) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!system_info_.units.empty())
-        system_info_.units[0].name = name;
-}
-
 bool AmsBackendMock::is_afc_mode() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return afc_mode_;
@@ -3176,18 +3170,6 @@ void AmsBackendMock::set_ifs_mode(bool enabled) {
         system_info_.current_slot = 0;
         system_info_.filament_loaded = true;
     }
-}
-
-void AmsBackendMock::rename_unit(int unit_index, const std::string& name) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (unit_index >= 0 && unit_index < static_cast<int>(system_info_.units.size()))
-        system_info_.units[static_cast<size_t>(unit_index)].name = name;
-}
-
-void AmsBackendMock::set_ace_identity() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    system_info_.type = AmsType::ACE;
-    system_info_.type_name = "ACE";
 }
 
 void AmsBackendMock::set_snapmaker_mode(bool enabled) {
@@ -4140,20 +4122,6 @@ void AmsBackendMock::schedule_completion(AmsAction action, const std::string& co
 // ============================================================================
 // Endless spool implementation
 // ============================================================================
-
-void AmsBackendMock::set_endless_spool_supported(bool supported) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    endless_spool_supported_ = supported;
-    // Update system_info to reflect the new capability
-    system_info_.endless_spool_enabled = supported;
-    spdlog::debug("[AmsBackendMock] Endless spool supported set to {}", supported);
-}
-
-void AmsBackendMock::set_endless_spool_editable(bool editable) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    endless_spool_editable_ = editable;
-    spdlog::debug("[AmsBackendMock] Endless spool editable set to {}", editable);
-}
 
 helix::printer::EndlessSpoolCapabilities AmsBackendMock::get_endless_spool_capabilities() const {
     std::lock_guard<std::mutex> lock(mutex_);

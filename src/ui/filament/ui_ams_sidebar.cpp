@@ -23,6 +23,7 @@
 #include "ams_gate_selector.h"
 #include "ams_state.h"
 #include "ams_step_model.h"
+#include "ams_tip_label.h"
 #include "ams_types.h"
 #include "app_constants.h"
 #include "app_globals.h"
