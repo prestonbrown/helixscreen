@@ -375,6 +375,7 @@ void FanControlOverlay::populate_fans() {
             afd.owned_role = role;
             afd.dial = std::make_unique<FanDial>(fans_container_, fan.display_name, fan.object_name,
                                                  fan.speed_percent);
+            afd.dial->set_rpm(fan.rpm);
 
             // Set callback for user-initiated speed changes (dial interaction)
             if (role) {
@@ -512,8 +513,19 @@ void FanControlOverlay::populate_fans() {
 void FanControlOverlay::update_fan_speeds() {
     const auto& fans = printer_state_.fan_state().get_fans();
 
-    // Note: FanDial widgets are updated via AnimatedValue bindings in subscribe_to_fan_speeds()
-    // This method only updates auto fan cards which don't need animation
+    // FanDial speeds follow their AnimatedValue bindings in subscribe_to_fan_speeds(); only
+    // the tachometer reading is pushed here.
+    for (auto& afd : animated_fan_dials_) {
+        if (afd.synthetic || !afd.dial) {
+            continue;
+        }
+        for (const auto& fan : fans) {
+            if (fan.object_name == afd.object_name) {
+                afd.dial->set_rpm(fan.rpm);
+                break;
+            }
+        }
+    }
 
     // Update auto fan card labels and arcs (immediate, no animation)
     for (auto& card_info : auto_fan_cards_) {
