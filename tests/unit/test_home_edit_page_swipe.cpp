@@ -2336,6 +2336,49 @@ TEST_CASE_METHOD(EditHomeFixture, "a crossing held in the edge zone flips exactl
 }
 
 TEST_CASE_METHOD(EditHomeFixture,
+                 "a zone stay spent by a crossing flip stays spent when the widget drifts back "
+                 "inside",
+                 "[2070][edit-swipe][home][grid_edit]") {
+    build_home(2, 3); // a third page, so a second flip has a page to land on
+    lv_obj_t* widget = widget_on(0, "temperature");
+    enter_edit_mode();
+    const lv_area_t frame = settled_page_area();
+
+    const lv_point_t c = center_of(widget);
+    indev.grab(c.x, c.y);
+    indev.move(c.x + past_drag_threshold(), c.y);
+    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+
+    // Grabbed at its center with the pointer in the edge zone, the dwell runs
+    // until the push carries the widget's majority across; that crossing cuts
+    // the dwell off and flips first.
+    const int x = frame.x2 - edge_zone_px() / 2;
+    indev.move(x, c.y);
+    uint32_t held_ms = 0;
+    while (grid().page_index() == 0 && held_ms < 2 * helix::kCrossPageDwellMs) {
+        indev.hold(kReadPeriodMs);
+        held_ms += kReadPeriodMs;
+    }
+    INFO("flipped after " << held_ms << "ms");
+    REQUIRE(grid().page_index() == 1);
+    REQUIRE(held_ms < helix::kCrossPageDwellMs);
+
+    // Back along the zone, far enough that the widget's majority is inside the
+    // new page again, and held there. The zone stay already flipped once, so
+    // neither the dwell nor the push's next crossing flips again.
+    const int back_x = frame.x2 - edge_zone_px() + 2;
+    indev.move(back_x, c.y);
+    const lv_area_t back_area = area_of(widget);
+    REQUIRE_FALSE(
+        helix::cross_page_past_right_border(frame.x2, back_area.x1, lv_area_get_width(&back_area)));
+    indev.hold(2 * helix::kCrossPageDwellMs);
+    CHECK(grid().page_index() == 1);
+    CHECK(current_page() == 1);
+    CHECK(GridEditModeTestAccess::dragging(grid()));
+    indev.release(back_x, c.y);
+}
+
+TEST_CASE_METHOD(EditHomeFixture,
                  "a crossing released before its flip leaves the next drag able to cross",
                  "[1638][edit-swipe][home][grid_edit]") {
     build_home();
@@ -2629,6 +2672,31 @@ TEST_CASE_METHOD(EditHomeFixture,
 
     indev.release(drag.pointer.x, drag.pointer.y);
     settle();
+}
+
+TEST_CASE_METHOD(EditHomeFixture,
+                 "a release while the crossing flip waits stays on the visible page (#2070)",
+                 "[1638][edit-swipe][home][grid_edit]") {
+    build_home(1, 1);
+    lv_obj_t* widget = widget_on(0, "temperature");
+    enter_edit_mode();
+    const lv_area_t frame = settled_page_area();
+    const lv_area_t wa = area_of(widget);
+    const bool right = GENERATE(true, false);
+    CAPTURE(right);
+    const int grab_x = wa.x1 + lv_area_get_width(&wa) * (right ? 3 : 7) / 10;
+    const int y = (wa.y1 + wa.y2) / 2;
+    const int edge_x = right ? frame.x2 : frame.x1;
+    indev.grab(grab_x, y);
+    indev.move(grab_x + (right ? -past_drag_threshold() : past_drag_threshold()), y);
+    REQUIRE(grid().is_dragging());
+    indev.move(edge_x, y);
+    REQUIRE(armed_session_timer_count() == 1);
+
+    indev.release(edge_x, y);
+    settle();
+    CHECK(config().page_count() == 1);
+    CHECK(current_page() == 0);
 }
 
 TEST_CASE_METHOD(EditHomeFixture,
@@ -4308,91 +4376,6 @@ TEST_CASE_METHOD(EditHomeFixture,
     // The session and the carousel are on the page 'fan' landed on.
     REQUIRE(config().page_count() == 3);
     CHECK(count_on_page(1, "fan") == 1);
-    CHECK(grid().page_index() == 1);
-    check_session_on_screen();
-}
-
-TEST_CASE_METHOD(EditHomeFixture,
-                 "a release with the widget's majority past the last page's border creates the "
-                 "page before any flip and slides there from its origin page",
-                 "[1638][edit-swipe][home][grid_edit]") {
-    build_home(1, 1);
-    lv_obj_t* widget = widget_on(0, "temperature");
-    enter_edit_mode();
-    const helix::PanelWidgetEntry origin = entry_on_page(0, "temperature");
-
-    // Grabbed left of center, so one move to the page's right edge carries the
-    // widget's majority past the border.
-    const lv_area_t wa = area_of(widget);
-    const int grab_x = wa.x1 + lv_area_get_width(&wa) * 3 / 10;
-    const int y = (wa.y1 + wa.y2) / 2;
-    indev.grab(grab_x, y);
-    REQUIRE(GridEditModeTestAccess::press_armed(grid()));
-    indev.move(grab_x - past_drag_threshold(), y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
-    const int edge_x = settled_page_area().x2;
-    indev.move(edge_x, y);
-    REQUIRE(GridEditModeTestAccess::snap_row(grid()) == origin.row);
-
-    // The release follows in the same read period, before the crossing flips.
-    REQUIRE(grid().page_index() == 0);
-    REQUIRE(current_page() == 0);
-    const PageSetChange change = watch_page_set_change();
-    indev.release(edge_x, y);
-    // The origin page survives, and it is the page on screen: the rebuilt
-    // carousel comes up there, and one slide carries it to the new page, where
-    // the session goes.
-    run_page_set_rebuild(change, 0, 1);
-    CHECK(grid().page_index() == 1);
-
-    // The page past the last one is created, with the widget in its rightmost
-    // columns on the row the drag previewed.
-    CHECK(config().page_count() == 2);
-    CHECK(count_on_page(0, "temperature") == 0);
-    REQUIRE(count_on_page(1, "temperature") == 1);
-    const helix::PanelWidgetEntry landed = entry_on_page(1, "temperature");
-    const helix::CellMetrics m = page_metrics(1);
-    CHECK(landed.col == m.cols - origin.colspan);
-    CHECK(landed.row == origin.row);
-    CHECK(grid().page_index() == 1);
-    check_session_on_screen();
-}
-
-TEST_CASE_METHOD(EditHomeFixture,
-                 "a release past the last page's border that empties its origin page lands the "
-                 "new page on the origin's index with nothing to slide",
-                 "[1638][edit-swipe][home][grid_edit]") {
-    build_home(); // 'temperature' on page 0, 'fan' alone on page 1, the last page
-    lv_obj_t* widget = widget_on(1, "fan");
-    enter_edit_mode(1);
-    const helix::PanelWidgetEntry origin = entry_on_page(1, "fan");
-
-    // Grabbed left of center, so one move to the page's right edge carries the
-    // widget's majority past the border, and the release follows in the same
-    // read period, before the crossing flips.
-    const lv_area_t wa = area_of(widget);
-    const int grab_x = wa.x1 + lv_area_get_width(&wa) * 3 / 10;
-    const int y = (wa.y1 + wa.y2) / 2;
-    indev.grab(grab_x, y);
-    indev.move(grab_x - past_drag_threshold(), y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
-    const int edge_x = settled_page_area().x2;
-    indev.move(edge_x, y);
-    REQUIRE(grid().page_index() == 1);
-    REQUIRE(current_page() == 1);
-    const PageSetChange change = watch_page_set_change();
-    indev.release(edge_x, y);
-    // Page 1 emptied and was removed, so the page the drop created is page 1, the
-    // index of the page on screen: the carousel comes up on it with nothing to
-    // slide.
-    REQUIRE(config().page_count() == 2);
-    run_page_set_rebuild(change, 1);
-    settle();
-
-    REQUIRE(count_on_page(1, "fan") == 1);
-    const helix::PanelWidgetEntry landed = entry_on_page(1, "fan");
-    CHECK(landed.col == page_metrics(1).cols - origin.colspan);
-    CHECK(landed.row == origin.row);
     CHECK(grid().page_index() == 1);
     check_session_on_screen();
 }

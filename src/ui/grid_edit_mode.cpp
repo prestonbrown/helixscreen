@@ -2342,6 +2342,11 @@ helix::DropInput GridEditMode::drop_input() const {
         settled_content_area().x2, drag_widget_pos_.x, lv_area_get_width(&widget_area));
     in.past_left_border = helix::cross_page_past_left_border(
         settled_content_area().x1, drag_widget_pos_.x, lv_area_get_width(&widget_area));
+    // A release while a crossing flip waits stays on the visible page (#2070).
+    if (crossing_flip_timer_) {
+        in.past_right_border = false;
+        in.past_left_border = false;
+    }
     return in;
 }
 
