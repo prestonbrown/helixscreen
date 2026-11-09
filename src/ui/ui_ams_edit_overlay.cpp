@@ -1992,13 +1992,15 @@ void AmsEditOverlay::handle_reapply_linked_spool() {
     remember_form_for_note_action();
     const SpoolInfo& spool = detail_original_;
     spdlog::info("[AmsEditOverlay] Re-applying spool {} to slot {}", spool.id, slot_index_);
-    if (!spool.material.empty()) {
+    if (!spool.material.empty() &&
+        !helix::text_io::equals_ignore_case(spool.material, working_info_.material)) {
         working_info_.material = spool.material;
         apply_material_defaults(spool.material);
     }
     if (!spool.vendor.empty()) {
         working_info_.brand = spool.vendor;
     }
+    working_info_.spool_name = spool.filament_name;
     uint32_t rgb = 0;
     if (!spool.color_hex.empty() && helix::parse_hex_color(spool.color_hex.c_str(), rgb)) {
         working_info_.color_rgb = rgb;

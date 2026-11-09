@@ -162,6 +162,24 @@ wait_for_line() { # <substring> <file>
     contains "awake: -is $SCRIPT --help" "$output"
 }
 
+@test "a lock connection lost right after locking reports the failed start" {
+    mock_command_script ssh '
+while [ $# -gt 0 ]; do
+    case "$1" in -o) shift 2 ;; -*) shift ;; *) break ;; esac
+done
+shift
+if [ "$*" = "bash -s" ]; then
+    while IFS= read -r line; do [ "$line" = hold ] && break; done
+    echo LOCKED
+    exit 0
+fi
+exec "$@"'
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -eq 255 ]
+    contains "could not start the job" "$output"
+    ! contains "unbound variable" "$output"
+}
+
 @test "a run over the load ceiling waits, then starts when the load falls" {
     export HELIX_TEST_MAX_LOAD=72 HELIX_TEST_LOAD_POLL_SECS=1
     export HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/loadavg"
