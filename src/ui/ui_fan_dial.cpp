@@ -292,6 +292,7 @@ void FanDial::set_speed(int percent) {
     update_onoff_state(percent);
     update_knob_glow(percent);
     update_fan_animation(percent);
+    refresh_rpm_label();
 
     syncing_ = false;
 
@@ -307,7 +308,15 @@ void FanDial::set_rpm(std::optional<int> rpm) {
     if (!rpm_) {
         return;
     }
-    const int value = rpm.value_or(0) > 0 ? *rpm : 0;
+    rpm_->reading = rpm.value_or(0) > 0 ? *rpm : 0;
+    refresh_rpm_label();
+}
+
+void FanDial::refresh_rpm_label() {
+    if (!rpm_) {
+        return;
+    }
+    const int value = current_speed_ > 0 ? rpm_->reading : 0;
     if (lv_subject_get_int(&rpm_->subject) != value) {
         lv_subject_set_int(&rpm_->subject, value);
     }
