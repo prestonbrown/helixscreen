@@ -1347,3 +1347,45 @@ TEST_CASE("resolve_channel skips a malformed value", "[sound][pwm]") {
     CHECK(chip == -1); // a rejected value never half-writes the outputs
     CHECK_FALSE(PWMSoundBackend::resolve_channel("", nullptr, chip, channel));
 }
+
+// ============================================================================
+// open_named_channel: the named-buzzer step of SoundManager::create_backend
+// ============================================================================
+
+TEST_CASE("open_named_channel opens a configured channel whose sysfs node exists", "[sound][pwm]") {
+    auto base = create_mock_sysfs(1, 2);
+
+    auto pwm = PWMSoundBackend::open_named_channel("1:2", nullptr, base);
+    REQUIRE(pwm != nullptr);
+    CHECK(pwm->channel_path() == base + "/pwmchip1/pwm2");
+    // A channel named for HelixScreen alone: a Klipper M300 never displaces it.
+    CHECK_FALSE(pwm->owns_sysfs_pwm_channel());
+    pwm.reset();
+
+    cleanup_mock_sysfs(base);
+}
+
+TEST_CASE("open_named_channel offers nothing when no channel is configured", "[sound][pwm]") {
+    // A real channel sits under the root, so only the missing setting can refuse it.
+    auto base = create_mock_sysfs(0, 6);
+    std::ofstream(base + "/pwmchip0/export") << "42";
+
+    CHECK(PWMSoundBackend::open_named_channel("", nullptr, base) == nullptr);
+    CHECK(PWMSoundBackend::open_named_channel("", "", base) == nullptr);
+    CHECK(PWMSoundBackend::open_named_channel("garbage", nullptr, base) == nullptr);
+    CHECK(read_sysfs_file(base + "/pwmchip0/export") == "42");
+
+    cleanup_mock_sysfs(base);
+}
+
+TEST_CASE("open_named_channel falls through when the configured node is absent", "[sound][pwm]") {
+    std::string tmpl = "/tmp/pwm_test_XXXXXX";
+    char* dir = mkdtemp(tmpl.data());
+    REQUIRE(dir != nullptr);
+    std::string base(dir);
+
+    // No pwmchip under the root at all: a board without a sysfs PWM controller.
+    CHECK(PWMSoundBackend::open_named_channel("0:6", nullptr, base) == nullptr);
+
+    cleanup_mock_sysfs(base);
+}

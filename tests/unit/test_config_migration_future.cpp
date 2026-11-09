@@ -8,9 +8,9 @@
 // from the devel channel back to stable installs an OLDER binary on top of a
 // config the newer build already migrated. Every migration gate is `version <
 // N`, so none of them fire — but the stamp at the end of the chain is
-// unconditional, so the older build used to rewrite config_version DOWN to its
-// own. The newer build would then re-run migrations it had already applied,
-// against data already in the new shape.
+// unconditional, so without a guard the older build would rewrite
+// config_version DOWN to its own, and the newer build would then re-run
+// migrations it had already applied, against data already in the new shape.
 //
 // The contract pinned here: a future config is left entirely alone — not
 // migrated, not stamped, and its unknown keys survive a save round trip through

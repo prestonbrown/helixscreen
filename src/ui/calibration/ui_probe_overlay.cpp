@@ -44,7 +44,6 @@ using helix::sensors::ProbeSensorType;
 // GLOBAL INSTANCE AND ROW CLICK HANDLER
 // ============================================================================
 
-// Forward declarations
 IMoonrakerAPI* get_moonraker_api();
 IMoonrakerClient* get_moonraker_client();
 
@@ -599,7 +598,7 @@ void ProbeOverlay::handle_probe_accuracy() {
              all_homed ? lv_tr("Preparing...") : lv_tr("Homing first..."));
     lv_subject_copy_string(&probe_acc_progress_text_, probe_acc_progress_text_buf_);
 
-    accuracy_modal_ = Modal::show("probe_accuracy_modal");
+    accuracy_modal_ = helix::ui::ComponentModal::show_owned("probe_accuracy_modal");
     if (!accuracy_modal_) {
         spdlog::error("[Probe] Failed to show accuracy modal");
         lv_subject_set_int(&probe_acc_state_, 0);
@@ -790,12 +789,10 @@ void ProbeOverlay::handle_accuracy_estop() {
         probe_acc_handler_name_.clear();
     }
 
-    // Send emergency stop
     if (api_) {
         api_->execute_gcode("M112", nullptr, nullptr);
     }
 
-    // Close the modal
     handle_accuracy_close();
 }
 
@@ -972,8 +969,7 @@ void ProbeOverlay::handle_config_edit(const std::string& field_key, const std::s
              configured.c_str());
     lv_subject_copy_string(&probe_config_edit_value_, probe_config_edit_value_buf_);
 
-    // Show the modal
-    edit_modal_ = Modal::show("probe_config_edit_modal");
+    edit_modal_ = helix::ui::ComponentModal::show_owned("probe_config_edit_modal");
     if (!edit_modal_) {
         spdlog::error("[Probe] Failed to show config edit modal");
     } else if (auto* input = lv_obj_find_by_name(edit_modal_, "probe_config_input")) {

@@ -9,6 +9,8 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ams_backend_mock_timing_test_access.h"
+#include "../test_helpers/backend_user_edit.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_backend_mock.h"
 #include "ams_error.h"
@@ -97,6 +99,15 @@ TEST_CASE("the suggested span is 1-based", "[ams][numbering]") {
           "Select a valid number (1-16)");
 }
 
+TEST_CASE("the suggested span starts where the labels start", "[ams][numbering]") {
+    ScopedZeroLaneNumbering zero;
+    CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Gate, 9, 3).suggestion ==
+          "Select a valid number (0-3)");
+    // A single position still has a span: 0 is a real number here.
+    CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Gate, 4, 0).suggestion ==
+          "Select a valid number (0-0)");
+}
+
 TEST_CASE("the suggested span survives a one-position backend", "[ams][numbering]") {
     // A single-position backend passes max_slot 0 - ams_backend_ace.cpp passes
     // the literal, and any slot_count() - 1 site does it with one position. The
@@ -154,7 +165,7 @@ TEST_CASE("Happy Hare reports an out-of-range gate as a gate", "[ams][numbering]
     helix::AmsBackendHappyHare backend(nullptr, nullptr);
     REQUIRE(backend.lane_noun() == ui::LaneNoun::Gate);
 
-    const auto err = backend.sync_external_identity(2, helix::SlotInfo{});
+    const auto err = helix::test::apply_edit(backend, 2, helix::SlotInfo{});
     CHECK(err.result == AmsResult::INVALID_SLOT);
     CHECK(err.user_msg == "Gate: Invalid number");
 }
@@ -166,7 +177,7 @@ TEST_CASE("the mock backend reports a bad index without deadlocking", "[ams][num
     // assertion.
     AmsBackendMock mock(4);
     REQUIRE(mock.get_type() == AmsType::HAPPY_HARE); // the mock's default persona
-    const auto err = mock.sync_external_identity(9, helix::SlotInfo{});
+    const auto err = helix::test::apply_edit(mock, 9, helix::SlotInfo{});
     CHECK(err.result == AmsResult::INVALID_SLOT);
     CHECK(err.user_msg == "Gate: Invalid number");
 }

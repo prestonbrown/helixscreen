@@ -47,6 +47,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from source_strip import blank_cxx, blank_xml_comments
+
 UI_XML_DIR = Path("ui_xml")
 CROSS_MK = Path("mk/cross.mk")
 SCAN_DIRS = ("src", "include")
@@ -61,30 +63,7 @@ CALL_RE = re.compile(r'theme_manager_get_spacing\(\s*"([^"]*)"')
 
 PX_DECL_RE = re.compile(r'<px\b[^>]*?\bname\s*=\s*"([^"]*)"', re.DOTALL)
 
-XML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
-
-# String literals first so a `//` or `/*` inside one is not read as a comment.
-CXX_COMMENT_RE = re.compile(
-    r'"(?:\\.|[^"\\])*"' r"|'(?:\\.|[^'\\])*'" r"|/\*.*?\*/" r"|//[^\n]*", re.DOTALL
-)
-
 DEV_PANEL_RE = re.compile(r"^DEV_PANEL_XML\s*:?=\s*(.*)$")
-
-
-def blank_out(match: re.Match) -> str:
-    """Replace a comment with its newlines so line numbers stay right."""
-    return "\n" * match.group(0).count("\n")
-
-
-def strip_xml_comments(text: str) -> str:
-    return XML_COMMENT_RE.sub(blank_out, text)
-
-
-def strip_cxx_comments(text: str) -> str:
-    def repl(m: re.Match) -> str:
-        return blank_out(m) if m.group(0).startswith("/") else m.group(0)
-
-    return CXX_COMMENT_RE.sub(repl, text)
 
 
 def line_of(text: str, index: int) -> int:
@@ -116,7 +95,7 @@ def declaring_files(ui_xml: Path) -> dict[str, set[str]]:
         if not path.is_file():
             continue
         try:
-            text = strip_xml_comments(path.read_text(encoding="utf-8"))
+            text = blank_xml_comments(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError):
             continue
         for m in PX_DECL_RE.finditer(text):
@@ -132,7 +111,7 @@ def collect_references(dirs: tuple[str, ...]) -> dict[str, list[tuple[str, int]]
             if path.suffix not in SOURCE_SUFFIXES or not path.is_file():
                 continue
             try:
-                text = strip_cxx_comments(path.read_text(encoding="utf-8"))
+                text = blank_cxx(path.read_text(encoding="utf-8"), strings="keep")
             except (OSError, UnicodeDecodeError):
                 continue
             for m in CALL_RE.finditer(text):

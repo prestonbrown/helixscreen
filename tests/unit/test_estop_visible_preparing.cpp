@@ -5,14 +5,12 @@
 //
 // A host-side pre-start block (the K2's forced bed mesh) homes and probes while
 // print_stats.state still reads standby, or the PREVIOUS job's terminal state.
-// EmergencyStopOverlay used to cover that by hand-ORing the raw job state with
-// "print_start_phase != 0" and watching two subjects to catch both halves. That
-// is job_holds_machine(print_lifecycle) spelled out, so it now asks the
-// lifecycle once, through one observer.
+// Hand-ORing the raw job state with "print_start_phase != 0" and watching two
+// subjects would be job_holds_machine(print_lifecycle) spelled out, so
+// EmergencyStopOverlay asks the lifecycle once, through one observer.
 //
-// Nothing about the button's visibility should change - that is the point, and
-// it is why this file exists: nothing previously asserted estop_visible == 1
-// during a pre-print block, so the de-duplication had no safety net.
+// This file asserts estop_visible == 1 during a pre-print block, which nothing
+// else does.
 
 #include "ui_emergency_stop.h"
 

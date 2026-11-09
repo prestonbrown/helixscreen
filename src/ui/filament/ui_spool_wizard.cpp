@@ -1071,7 +1071,7 @@ void SpoolWizardOverlay::show_create_vendor_modal() {
     }
 
     // Show the modal
-    create_vendor_dialog_ = Modal::show("create_vendor_modal");
+    create_vendor_dialog_ = helix::ui::ComponentModal::show_owned("create_vendor_modal");
 
     if (create_vendor_dialog_) {
         // Register keyboards for text inputs
@@ -1495,7 +1495,7 @@ void SpoolWizardOverlay::show_create_filament_modal() {
     set_can_proceed(false);
 
     // Show the modal
-    create_filament_dialog_ = Modal::show("create_filament_modal");
+    create_filament_dialog_ = helix::ui::ComponentModal::show_owned("create_filament_modal");
 
     if (create_filament_dialog_) {
         // Register keyboards for text inputs

@@ -293,14 +293,16 @@ int pa_to_subject(float k) {
     return static_cast<int>(std::lround(k * 10000.0f));
 }
 
-/// Single extruder: "Nozzle". Multiple: "Nozzle 1", "Nozzle 2", ... in the
-/// current language.
+/// Single extruder: "Nozzle". Multiple: "Nozzle 1", "Nozzle 2", ... ("Nozzle T0"
+/// in the printer's G-code tool number style) in the current language.
 std::string extruder_display_name(size_t index, bool multi) {
     if (!multi) {
         return lv_tr("Nozzle");
     }
+    const int i = static_cast<int>(index);
     return std::string(lv_tr("Nozzle")) + " " +
-           helix::ui::lane_number_text(static_cast<int>(index));
+           helix::ui::tool_number_text(helix::ui::active_tool_number_style(),
+                                       helix::ui::tool_label(i), i);
 }
 
 } // namespace

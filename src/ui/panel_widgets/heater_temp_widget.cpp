@@ -117,8 +117,7 @@ void HeaterTempWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     }
 
     // Bind the heating icon animator. The binder owns its own temperature
-    // observers, so this widget no longer needs temp_observer_/target_observer_
-    // just to feed an icon tint.
+    // observers, so this widget keeps none of its own just to feed an icon tint.
     icon_binder_.bind(widget_obj_, printer_state_, cfg_.heater);
 
     spdlog::debug("{} Attached", cfg_.log_tag);

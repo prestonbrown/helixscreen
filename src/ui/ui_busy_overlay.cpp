@@ -37,7 +37,6 @@ constexpr uint8_t kOverlayBackdropOpacity = 180;
 // Spacing between spinner and label
 constexpr lv_coord_t kSpinnerLabelGap = 16;
 
-// Forward declarations
 void create_overlay_internal();
 void destroy_overlay_internal();
 
@@ -101,7 +100,6 @@ void create_overlay_internal() {
         }
     }
 
-    // Create progress label
     g_label = lv_label_create(container);
     lv_obj_set_style_text_color(g_label, theme_manager_get_color("text"), LV_PART_MAIN);
     lv_obj_set_style_text_font(g_label, theme_manager_get_font("font_small"), LV_PART_MAIN);
@@ -199,14 +197,12 @@ void BusyOverlay::set_progress(const std::string& operation, float percent) {
     // Update pending text (in case overlay not yet visible)
     g_pending_text = buf;
 
-    // Update label if visible
     if (g_overlay && g_label) {
         lv_label_set_text(g_label, buf);
     }
 }
 
 void BusyOverlay::hide() {
-    // Cancel grace timer if pending
     if (g_grace_timer) {
         lv_timer_delete(g_grace_timer);
         g_grace_timer = nullptr;
@@ -216,7 +212,6 @@ void BusyOverlay::hide() {
     g_pending_show = false;
     g_pending_text.clear();
 
-    // Destroy overlay if visible
     if (g_overlay) {
         destroy_overlay_internal();
     }

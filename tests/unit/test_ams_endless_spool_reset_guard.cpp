@@ -65,8 +65,8 @@ TEST_CASE("reset_endless_spool refuses a backend with no slot count",
     CHECK_FALSE(result.user_msg.empty()); // something to put in front of the user
     CHECK(backend.writes == 0);
 
-    // The sibling that always had this guard answers the same way, which is the
-    // consistency the fix is about.
+    // The sibling with the same guard answers the same way; that consistency
+    // is the point.
     auto sibling = backend.set_endless_spool_backup(0, -1);
     CHECK_FALSE(sibling.success());
     CHECK(sibling.result == result.result);

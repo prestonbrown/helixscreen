@@ -126,9 +126,9 @@ TEST_CASE_METHOD(ThumbnailRaceFixture,
 // ---------------------------------------------------------------------------
 // process_file_async: the read belongs to the worker, not the caller.
 //
-// ThumbnailCache::process_and_callback() used to slurp the whole PNG on the
-// MAIN thread and hand the bytes to process_async() — once per file while a
-// file listing populated, so scrolling a gcode folder put a synchronous
+// ThumbnailCache::process_and_callback() must not slurp the whole PNG on the
+// MAIN thread and hand the bytes to process_async(): once per file while a file
+// listing populates, scrolling a gcode folder would put a synchronous
 // whole-file read on the LVGL loop per card. process_file_async() takes the
 // path instead and opens it inside the pool task.
 // ---------------------------------------------------------------------------
@@ -225,8 +225,8 @@ TEST_CASE_METHOD(ThumbnailRaceFixture, "process_async racing shutdown never uses
     // landing in that window is a use-after-free — and because commit()
     // restarts a stopped pool, it also leaks worker threads past teardown.
     //
-    // Repeated because it is a timing window: with the fix every iteration is
-    // clean; without it, ASAN/TSAN trip and even an uninstrumented build
+    // Repeated because it is a timing window: every iteration must be clean;
+    // unguarded, ASAN/TSAN trip and even an uninstrumented build
     // eventually faults.
     constexpr int kIterations = 40;
     constexpr int kSubmitters = 4;

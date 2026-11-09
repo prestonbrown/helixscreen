@@ -107,6 +107,11 @@
         <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
         <event_cb trigger="clicked" callback="on_filament_extrude"/>
       </ui_button>
+      <!-- Chevrons stream down the column while extruding, up while retracting -->
+      <filament_motion_glyph name="filament_motion_glyph"
+                             width="#filament_motion_glyph_w" height="100%" bind_motion="filament_manual_motion"
+                             bind_color="current_color" style_line_color="#info" style_border_color="#text_muted"
+                             style_bg_color="#text_muted"/>
       <ui_button name="btn_retract"
                  height="100%" flex_grow="1" icon="arrow_up" text="Retract" style_text_font="#font_small"
                  bind_op_state="filament_op_retract_state">

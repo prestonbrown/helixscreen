@@ -616,7 +616,6 @@ static void bed_mesh_delete_cb(lv_event_t* e) {
             spdlog::trace("[bed_mesh] Stopped render thread");
         }
 
-        // Destroy renderer
         if (data->renderer) {
             bed_mesh_renderer_destroy(data->renderer);
             data->renderer = nullptr;
@@ -653,7 +652,6 @@ static void* bed_mesh_xml_create(lv_xml_parser_state_t* state, const char** attr
     // Allocate widget data struct with RAII (exception-safe)
     auto data_ptr = std::make_unique<bed_mesh_widget_data_t>();
 
-    // Create renderer
     data_ptr->renderer = bed_mesh_renderer_create();
     if (!data_ptr->renderer) {
         spdlog::error("[bed_mesh] Failed to create renderer");

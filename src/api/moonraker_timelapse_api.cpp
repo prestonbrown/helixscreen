@@ -16,10 +16,6 @@
 
 using namespace helix;
 
-// ============================================================================
-// Constructor
-// ============================================================================
-
 MoonrakerTimelapseAPI::MoonrakerTimelapseAPI(IMoonrakerClient& client,
                                              const std::string& http_base_url)
     : client_(client), http_base_url_(http_base_url) {}
@@ -123,7 +119,6 @@ void MoonrakerTimelapseAPI::set_timelapse_settings(const TimelapseSettings& sett
         return;
     }
 
-    // Validate mode parameter
     if (settings.mode != "layermacro" && settings.mode != "hyperlapse") {
         helix::report_validation_error(
             on_error, "set_timelapse_settings",

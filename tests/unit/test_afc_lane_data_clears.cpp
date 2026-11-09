@@ -51,44 +51,6 @@ TEST_CASE("AFC lane_data null spool_id unlinks one lane and leaves the other", "
     CHECK(afc.get_slot_info(1).spoolman_id == 99);
 }
 
-TEST_CASE("AFC lane_data applies the user's slot overrides", "[ams][afc][1195]") {
-    helix::test::RegisteredBackend<AmsBackendAfc> afc_reg(nullptr, nullptr);
-    AmsBackendAfc& afc = *afc_reg;
-    helix::test::init_afc_lanes(afc, {"lane1", "lane2"});
-
-    helix::ams::FilamentSlotOverride o;
-    o.brand = "Polymaker";
-    o.material = "ASA";
-    o.spoolman_id = 77;
-    {
-        std::lock_guard<std::mutex> lock(AfcTestAccess::mutex(afc));
-        AfcTestAccess::overrides(afc)[0] = o;
-    }
-    helix::test::file_override_as_lane_records(afc, 0, o);
-
-    SECTION("override wins where firmware echoes the same spool") {
-        feed_lane_data(afc, both_lanes(json{{"material", "PLA"}, {"spool_id", 77}}));
-        CHECK(afc.get_slot_info(0).brand == "Polymaker");
-        CHECK(afc.get_slot_info(0).material == "ASA");
-    }
-
-    SECTION("override re-supplies identity across the null clear") {
-        // Firmware clears on eject, and the override is the only thing that
-        // puts the user's spool back.
-        feed_lane_data(afc, both_lanes(lane_record(nullptr)));
-        CHECK(afc.get_slot_info(0).spoolman_id == 77);
-        CHECK(afc.get_slot_info(0).brand == "Polymaker");
-    }
-
-    SECTION("a lane with no override takes firmware's word") {
-        feed_lane_data(afc,
-                       both_lanes(json::object(), json{{"material", "PETG"}, {"spool_id", 5}}));
-        CHECK(afc.get_slot_info(1).material == "PETG");
-        CHECK(afc.get_slot_info(1).spoolman_id == 5);
-        CHECK(afc.get_slot_info(1).brand.empty());
-    }
-}
-
 TEST_CASE("AFC lane_data names and brands yield to the user's own", "[ams][afc][833]") {
     helix::test::RegisteredBackend<AmsBackendAfc> afc_reg(nullptr, nullptr);
     AmsBackendAfc& afc = *afc_reg;

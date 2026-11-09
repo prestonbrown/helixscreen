@@ -124,11 +124,11 @@ TEST_CASE("get_helix_cache_dir different subdirs get different paths", "[cache]"
 // peek_helix_cache_dir() — resolution without materialization
 // ============================================================================
 //
-// The cascade used to answer "where does the cache go?" by calling ensure_dir()
-// and reading success as the verdict, so asking the question created the
-// answer. Anything that only wanted the path — a sweep classifying a directory
-// found on disk as live-or-stale, a diagnostic printing the location — left a
-// directory tree behind as the cost of asking.
+// The cascade must not answer "where does the cache go?" by calling ensure_dir()
+// and reading success as the verdict: asking the question would create the
+// answer, and anything that only wants the path (a sweep classifying a
+// directory found on disk as live-or-stale, a diagnostic printing the location)
+// would leave a directory tree behind as the cost of asking.
 
 // Unique per run so the /var/tmp and /tmp rungs of the cascade can be asserted
 // absent without colliding with a real cache or a previous test run.

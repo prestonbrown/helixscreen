@@ -31,6 +31,20 @@ Out of the box, HelixScreen tracks filament on its own. Nothing to enable.
 
 This information persists on the printer — it survives restarts, and it's written where OrcaSlicer 2.3.2+ can read it, so your slicer's filament panel stays in sync. See [Syncing with OrcaSlicer](filament.md#syncing-with-orcaslicer-232-and-later).
 
+### Where a lane's details come from
+
+HelixScreen keeps no copy of your lanes of its own. Everything a lane shows lives on the printer:
+
+- **What your filament system holds.** AFC, Happy Hare, the CFS, the ACE, the QIDI Box, the AD5X and the Snapmaker U1 each remember some of a spool's details themselves (color and material at least). Those come first.
+- **The printer's shared lane record.** The rest (brand, spool name, weights, the Spoolman link where the system can't hold it) is kept in a record on the printer that OrcaSlicer, Mainsail, Fluidd and other screens can read too.
+- **Spoolman**, for the spool the lane is linked to, fills in whatever the two above leave blank.
+
+Because it all lives on the printer:
+
+- **A second screen sees the same thing.** Another HelixScreen, Mainsail or Fluidd showing the same printer agrees with this one. A change made on any of them shows here within about ten seconds.
+- **Saving waits for the printer.** When you save a spool edit, the editor shows **Saving...** and closes once the printer has the new details. If the printer can't take them, the editor stays open with a line under Save, for example **Not saved: Spoolman is offline. Try again.**, and keeps what you entered so you can try again. Nothing is queued to retry later.
+- **Editing waits for the connection.** While HelixScreen is connecting, or reading the lanes for the first time, **Edit Spool** is unavailable and the editor shows **Loading lane details…**. While the printer is disconnected, edits are refused.
+
 ### How remaining weight is estimated
 
 When you set a spool's remaining weight, HelixScreen keeps it current on its own:
@@ -75,12 +89,10 @@ With Spoolman connected, HelixScreen doesn't decrement weight itself — Spoolma
 
 > **Note:** Because Spoolman owns consumption for any spool you've assigned from it, HelixScreen's own estimator stands down for those spools — you won't get two systems fighting over the same number. HelixScreen only writes to Spoolman when *you* make an explicit change (assigning a spool, editing weight, or creating a spool), plus switching the active spool when a lane loads or, with **Switch spools at each tool change** on, when the tool changes.
 
-> **Color from the printer's own screen (AD5X):** on a lane with a Spoolman spool
-> linked, the spool's own color wins over anything the machine itself reports - a change
-> made in the printer's color menu does not override it. Pick a color in HelixScreen's
-> lane editor instead (a color you pick beats the linked spool's), or edit the spool in
-> Spoolman. Lanes with no spool linked are unaffected.
-> See [Troubleshooting](../TROUBLESHOOTING.md#color-set-on-the-printers-own-screen-reverts-ad5x-with-spoolman).
+> **What the printer holds comes first.** A lane shows what your filament system or the
+> printer itself holds for it; Spoolman's details fill in only what the printer leaves
+> blank, and only for the spool the lane is linked to. So a color set on the printer's own
+> menu (on an AD5X, for example) shows on the lane even when a Spoolman spool is linked.
 
 ### Browsing and assigning spools
 

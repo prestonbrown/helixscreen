@@ -68,7 +68,7 @@ void BusThread::stop() {
 void BusThread::drain_and_break_promises_locked(const char* reason) {
     while (!queue_.empty()) {
         // Move the promise out before popping so set_exception runs on a local
-        // — defensive against any future change that lets pop_front destroy it.
+        // that pop_front cannot destroy.
         auto p = std::move(queue_.front().second);
         queue_.pop_front();
         p.set_exception(std::make_exception_ptr(std::runtime_error(reason)));

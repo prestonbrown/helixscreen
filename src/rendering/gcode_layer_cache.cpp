@@ -124,7 +124,6 @@ GCodeLayerCache::get_or_load(size_t layer_index,
         // Still cache empty layers to avoid repeated loads
     }
 
-    // Calculate memory needed
     size_t needed = estimate_memory(segments);
 
     // A layer larger than the whole budget is held alone rather than refused: the
@@ -151,7 +150,6 @@ GCodeLayerCache::get_or_load(size_t layer_index,
         return CacheResult{nullptr, false, true};
     }
 
-    // Add to LRU tracking
     lru_order_.push_front(layer_index);
     lru_map_[layer_index] = lru_order_.begin();
     current_memory_ += needed;
@@ -217,7 +215,6 @@ bool GCodeLayerCache::insert(size_t layer_index, std::vector<ToolpathSegment>&& 
         return false;
     }
 
-    // Make room
     evict_for_space(needed);
 
     // Insert - use shared_ptr for thread-safe lifetime management
@@ -240,9 +237,8 @@ void GCodeLayerCache::clear() {
     //
     // Callers tear down the data source immediately after clearing (see
     // GCodeStreamingController::close(), which resets data_source_ next), and a
-    // loader closure captures that source. While get_or_load() held mutex_
-    // across the load this barrier was implicit; now that the load runs
-    // unlocked, waiting here is what keeps a loader from outliving the file it
+    // loader closure captures that source. get_or_load() runs the load without
+    // mutex_, so waiting here is what keeps a loader from outliving the file it
     // is reading.
     load_done_.wait(lock, [this] { return loading_.empty(); });
 
@@ -272,7 +268,6 @@ bool GCodeLayerCache::evict(size_t layer_index) {
     // Update memory tracking (safe subtract prevents underflow)
     subtract_memory(it->second.memory_bytes);
 
-    // Remove from cache
     cache_.erase(it);
 
     spdlog::debug("[LayerCache] Evicted layer {}", layer_index);

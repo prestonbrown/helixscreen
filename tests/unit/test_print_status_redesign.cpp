@@ -5,6 +5,7 @@
 // state: what each chip and checklist subject publishes, and how the callout
 // layout drops, glows and relayouts across a phase switch.
 
+#include "ui_gcode_viewer.h"
 #include "ui_print_status_tiles.h"
 
 #include "../test_helpers/print_status_panel_fixture.h"
@@ -102,7 +103,9 @@ class TileFixture : public PrintStatusPanelFixture {
         lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
         tile_ = lv_obj_find_by_name(root_, "ps_printer_tile");
         REQUIRE(tile_ != nullptr);
-        tiles().set_image_source([]() { return tagged_image("A:test-printer.png"); });
+        // No picture file: the chips lay out against the tagged regions alone,
+        // and no case pays for a cache generation it does not ask for.
+        tiles().set_image_source([]() { return tagged_image(""); });
         settle();
     }
 
@@ -193,6 +196,40 @@ TEST_CASE_METHOD(Landscape800, "printing hides checklist and shows preview", "[p
     CHECK(subject_str("ps_step_position_text").empty());
 }
 
+TEST_CASE_METHOD(Landscape800, "the G-code viewer does not draw under the opaque checklist",
+                 "[print_status][gcode_viewer]") {
+    lv_obj_t* viewer = PrintStatusPanelTestAccess::gcode_viewer(panel());
+    REQUIRE(viewer != nullptr);
+    panel().on_activate();
+    PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
+    settle();
+    REQUIRE_FALSE(helix::ui::gcode_viewer_is_paused(viewer));
+
+    tiles().set_checklist_source([]() -> std::optional<PreprintChecklistInput> {
+        PreprintChecklistInput in;
+        in.current = PrintStartPhase::HOMING;
+        return in;
+    });
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::HOMING));
+    UpdateQueue::instance().drain();
+    process_lvgl(900); // the preparing view shows after its debounce
+    REQUIRE(subject_int("preparing_visible") == 1);
+    CHECK(helix::ui::gcode_viewer_is_paused(viewer));
+
+    // The deferred G-code load re-shows the viewer while the checklist still covers it.
+    PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
+    CHECK(helix::ui::gcode_viewer_is_paused(viewer));
+
+    tiles().set_checklist_source(
+        []() -> std::optional<PreprintChecklistInput> { return PreprintChecklistInput{}; });
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::IDLE));
+    UpdateQueue::instance().drain();
+    REQUIRE(subject_int("preparing_visible") == 0);
+    CHECK_FALSE(helix::ui::gcode_viewer_is_paused(viewer));
+}
+
 TEST_CASE_METHOD(Landscape800, "phase switch relayouts and clears pre-print glows",
                  "[print_status]") {
     auto& temps = state().temperature_state();
@@ -245,15 +282,15 @@ TEST_CASE_METHOD(Landscape800, "a heater chip paints every part from its heat st
     CHECK(same(lv_obj_get_style_text_color(text, LV_PART_MAIN), HeatState::Heating));
     CHECK(same(lv_obj_get_style_border_color(chip, LV_PART_MAIN), HeatState::Heating));
     CHECK(same(lv_obj_get_style_bg_color(bar, LV_PART_INDICATOR), HeatState::Heating));
-    CHECK(same(lv_obj_get_style_bg_color(glow, LV_PART_MAIN), HeatState::Heating));
-    CHECK(subject_int("ps_glow_bed") == 1);
+    CHECK(subject_int("ps_glow_bed") == 0); // 30°C is too cool for the plate to glow
 
     set_int(temps.get_bed_temp_subject(), 900);
     settle();
     CHECK(same(lv_obj_get_style_text_color(glyph, LV_PART_MAIN), HeatState::Cooling));
     CHECK(same(lv_obj_get_style_text_color(text, LV_PART_MAIN), HeatState::Cooling));
     CHECK(same(lv_obj_get_style_border_color(chip, LV_PART_MAIN), HeatState::Cooling));
-    CHECK(subject_int("ps_glow_bed") == 0);
+    CHECK(subject_int("ps_glow_bed") == 3); // cooling from 90°C still glows its hottest
+    CHECK_FALSE(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
 
     set_int(temps.get_bed_temp_subject(), 600);
     settle();
@@ -516,6 +553,44 @@ TEST_CASE_METHOD(Landscape800, "the checklist shows a row per step and none past
     REQUIRE(subject_int("preparing_visible") == 0);
     CHECK(hidden(root_, "ps_job_checklist"));
     CHECK_FALSE(hidden(root_, "ps_strip_print_line"));
+}
+
+TEST_CASE_METHOD(Landscape800,
+                 "the checklist shows no picture for a file without a thumbnail (#2057)",
+                 "[print_status]") {
+    tiles().set_checklist_source(five_steps);
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::HEATING_NOZZLE));
+    UpdateQueue::instance().drain();
+    process_lvgl(900);
+    REQUIRE_FALSE(hidden(root_, "ps_job_checklist"));
+
+    // The subject is seeded with the stand-in image before any print.
+    CHECK(subject_int("print_has_thumbnail") == 0);
+    CHECK(hidden(root_, "ps_checklist_thumbnail"));
+
+    auto& ps = state().print_state();
+    ps.set_print_thumbnail("part.gcode", "A:assets/images/part.png");
+    CHECK(subject_int("print_has_thumbnail") == 1);
+    CHECK_FALSE(hidden(root_, "ps_checklist_thumbnail"));
+
+    // A file with none, or a start whose file is not known yet, publishes the
+    // stand-in: that is a different model, so no picture shows at all.
+    ps.set_print_thumbnail("plain.gcode", PrinterPrintState::no_thumbnail_placeholder());
+    CHECK(subject_int("print_has_thumbnail") == 0);
+    CHECK(hidden(root_, "ps_checklist_thumbnail"));
+    CHECK_FALSE(hidden(root_, "ps_checklist_list"));
+    // The preview card under it, and in Thumbnail Only mode, shows none either.
+    CHECK(hidden(root_, "print_thumbnail"));
+
+    // Firmware keeps its thumbnail in PSRAM and publishes only the stand-in path.
+    CHECK(
+        PrinterPrintState::has_own_thumbnail(PrinterPrintState::no_thumbnail_placeholder(), true));
+    CHECK_FALSE(PrinterPrintState::has_own_thumbnail("", false));
+    CHECK(PrinterPrintState::has_own_thumbnail("A:assets/images/part.png", false));
+
+    set_int(ps.get_print_start_phase_subject(), static_cast<int>(PrintStartPhase::IDLE));
+    UpdateQueue::instance().drain();
 }
 
 TEST_CASE_METHOD(Portrait272, "a narrow job tile shows the current step compactly",
@@ -853,6 +928,43 @@ TEST_CASE_METHOD(Landscape800, "a fan spinning up mid-print does not change the 
     PrinterStateTestAccess::get_fan_state(state()).init_fans({});
 }
 
+TEST_CASE_METHOD(Landscape800, "a heater duty change places the chips without a full chip pass",
+                 "[print_status]") {
+    // Beside the picture with labeled fans, the column has room for the bed's duty.
+    auto& temps = state().temperature_state();
+    lv_subject_t* duty = state().get_heater_power_subject(HeaterType::Bed);
+    set_int(temps.get_bed_target_subject(), 600);
+    set_int(temps.get_bed_temp_subject(), 600);
+    set_int(duty, 7);
+    size_printer_area(root_, 400, 260);
+    three_fans_stopped(*this);
+    REQUIRE(subject_int("ps_callout_mode") == static_cast<int>(CalloutMode::OneSide));
+    REQUIRE(subject_str("ps_chip_bed_text") == "60° · 7%");
+    const int layouts = tiles().layout_count();
+
+    set_int(duty, 12);
+    UpdateQueue::instance().drain();
+    process_lvgl(50);
+    CHECK(tiles().layout_count() == layouts);
+    const std::string text = subject_str("ps_chip_bed_text");
+    CHECK(text.find("12%") != std::string::npos);
+
+    // What a full pass would publish and place.
+    const auto bed_rect = [&] {
+        for (const auto& c : tiles().last_layout().chips) {
+            if (c.kind == CalloutKind::Bed) {
+                return c.rect;
+            }
+        }
+        return CalloutRect{};
+    };
+    const CalloutRect placed = bed_rect();
+    tiles().update_now();
+    CHECK(subject_str("ps_chip_bed_text") == text);
+    CHECK(same_rect(bed_rect(), placed));
+    PrinterStateTestAccess::get_fan_state(state()).init_fans({});
+}
+
 TEST_CASE_METHOD(Landscape800, "a tuned speed does not change the mode", "[print_status]") {
     size_printer_area(root_, 200, 280);
     three_fans_stopped(*this);
@@ -1024,9 +1136,17 @@ TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's
             CHECK(hidden(obj(std::string("ps_glow_") + other)) == (k != other));
             CHECK(hidden(obj(std::string("ps_line_") + other)) == (k != other));
         }
-        const int soft = lv_obj_get_style_bg_opa(glow, LV_PART_MAIN);
-        set_int(subj("ps_chip_" + k + "_tone"), static_cast<int>(ChipTone::Active));
-        CHECK(lv_obj_get_style_bg_opa(glow, LV_PART_MAIN) > soft);
+        if (k == "bed") {
+            // The plate glow's strength is its heat level, not the chip's tone.
+            const int warm = lv_obj_get_style_opa(glow, LV_PART_MAIN);
+            set_int(subj("ps_glow_bed"), 3);
+            CHECK(lv_obj_get_style_opa(glow, LV_PART_MAIN) > warm);
+            set_int(subj("ps_glow_bed"), 1);
+        } else {
+            const int soft = lv_obj_get_style_bg_opa(glow, LV_PART_MAIN);
+            set_int(subj("ps_chip_" + k + "_tone"), static_cast<int>(ChipTone::Active));
+            CHECK(lv_obj_get_style_bg_opa(glow, LV_PART_MAIN) > soft);
+        }
         set_int(subj("ps_chip_" + k + "_shown"), 0);
         CHECK(hidden(line));
         set_int(subj("ps_chip_" + k + "_shown"), 1);
@@ -1101,33 +1221,45 @@ TEST_CASE_METHOD(Landscape800,
 
 TEST_CASE_METHOD(Landscape800, "a cache generation landing after deinit leaves the tile alone",
                  "[print_status]") {
-    const std::string source = helix::PrinterImageManager::instance().get_displayed_image_path(
-        lv_display_get_horizontal_resolution(lv_display_get_default()));
+    auto& images = helix::PrinterImageManager::instance();
+    const int32_t screen_w = lv_display_get_horizontal_resolution(lv_display_get_default());
+    const std::string source = images.get_displayed_image_path(screen_w);
+    images.set_active_image("shipped:qidi-q2");
+    const std::string other = images.get_displayed_image_path(screen_w);
+    images.set_active_image("");
     REQUIRE_FALSE(source.empty());
+    REQUIRE(other != source);
     std::string shown;
     tiles().set_image_source([&shown]() { return tagged_image(shown); });
     settle();
     lv_obj_update_layout(root_);
     lv_obj_t* img = lv_obj_find_by_name(root_, "ps_printer_image");
     REQUIRE(img != nullptr);
-    const std::string cache_path =
-        helix::get_cached_printer_image_path(source, lv_obj_get_width(img), lv_obj_get_height(img));
+    const int32_t w = lv_obj_get_width(img), h = lv_obj_get_height(img);
+    const std::string cache_path = helix::get_cached_printer_image_path(source, w, h);
+    const std::string other_cache = helix::get_cached_printer_image_path(other, w, h);
     std::error_code ec;
     std::filesystem::remove(cache_path, ec);
+    std::filesystem::remove(other_cache, ec);
 
     // Another picture's generation holds the slot until a drain, so this miss is refused.
-    shown = "A:not-a-printer.png";
+    shown = other;
     tiles().update_now();
     shown = source;
     tiles().update_now();
     REQUIRE(subject_str("ps_printer_image_src") == source);
     tiles().deinit();
     // The refused miss is still written; no result may reach the subject.
-    REQUIRE(wait_until([&]() { return std::filesystem::exists(cache_path); }, kGenerationBudgetMs));
+    REQUIRE(wait_until(
+        [&]() {
+            return std::filesystem::exists(cache_path) && std::filesystem::exists(other_cache);
+        },
+        kGenerationBudgetMs));
     process_lvgl(50);
     UpdateQueue::instance().drain();
     CHECK(subject_str("ps_printer_image_src") == source);
     std::filesystem::remove(cache_path, ec);
+    std::filesystem::remove(other_cache, ec);
 }
 
 TEST_CASE_METHOD(Landscape800, "the other-tools chip lists every head but the printing one",

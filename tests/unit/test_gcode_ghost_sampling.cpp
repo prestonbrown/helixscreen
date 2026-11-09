@@ -20,7 +20,7 @@
  * for minutes, evicted the LRU entries the visible layer needed, and left the
  * UI unable to keep up with touch.
  *
- * The fix bounds the work instead of the fidelity: a streamed ghost visits at
+ * The ghost bounds the work instead of the fidelity: a streamed ghost visits at
  * most one layer per row of the ghost buffer, spaced evenly so the silhouette
  * still spans the whole model. The default view is FRONT, where a layer's Z is
  * its screen row, so a budget below the row count would show as stripes and one

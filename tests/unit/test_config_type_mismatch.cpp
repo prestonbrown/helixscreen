@@ -318,7 +318,7 @@ TEST_CASE_METHOD(MistypedInputSettingsFixture,
                      {"scroll_throw", {{"value", 12}}},       // object where int belongs
                      {"debug_touches", json::array({true})}}; // array where bool belongs
 
-    // Before the fix this threw type_error.302 out of init_subjects(), after
+    // An unchecked read throws type_error.302 out of init_subjects(), after
     // some subjects had been pushed into subjects_ but before
     // subjects_initialized_ was set.
     REQUIRE_NOTHROW(helix_test::reload_input_settings());

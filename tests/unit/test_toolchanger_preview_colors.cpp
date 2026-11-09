@@ -109,10 +109,10 @@ std::set<int> tools_in_layer(GCodeStreamingController& ctrl, size_t layer) {
 
 TEST_CASE("Layer index: a standalone T survives leading whitespace",
           "[gcode][toolchanger][layer_index]") {
-    // The index used to hand-roll its T parse as `line[0] == 'T'`, which is
-    // looser than the canonical tool_index_for_line() in two directions: it
-    // misses an indented tool change and accepts "T0 X1" (not a tool change at
-    // all). Both now go through the one parser the full-file path uses.
+    // A hand-rolled T parse such as `line[0] == 'T'` is looser than the
+    // canonical tool_index_for_line() in two directions: it misses an indented
+    // tool change and accepts "T0 X1" (not a tool change at all). The index
+    // goes through the one parser the full-file path uses.
     TempGCodeFile file(R"(G28
 T0 X1
   T2 ; indented tool change
@@ -195,9 +195,9 @@ TEST_CASE("Layer index: the running tool is recorded per layer, not just the fil
 
 TEST_CASE("Layer index: layers before the file's first tool change have no tool",
           "[gcode][toolchanger][layer_index]") {
-    // -1 is what makes the streaming controller fall back to initial_tool_index,
-    // reproducing the pre-fix seeding for the layers that genuinely predate any
-    // tool change. A single-extruder file must not suddenly claim T0 here.
+    // -1 is what makes the streaming controller fall back to initial_tool_index
+    // for the layers that genuinely predate any tool change. A single-extruder
+    // file must not suddenly claim T0 here.
     TempGCodeFile file(R"(M82
 G28
 G1 Z0.3 F1000
@@ -298,9 +298,9 @@ TEST_CASE("build_used_tool_info: tools outside the palette are dropped, empty se
 
 TEST_CASE("Palette: a shorter override vector does not truncate the slicer palette",
           "[gcode][toolchanger][palette]") {
-    // set_tool_color_overrides() used to resize() the palette down to the
-    // override count. Tools at or above it then resolved to the renderer's
-    // single fallback — which streaming init had set to T0's filament color,
+    // set_tool_color_overrides() must not resize() the palette down to the
+    // override count: tools at or above it would resolve to the renderer's
+    // single fallback, which streaming init sets to T0's filament color,
     // painting every dropped tool T0.
     GCodeColorPalette pal;
     pal.set_from_hex_palette({"#FF0000", "#00FF00", "#0000FF", "#FFFF00"});
@@ -321,12 +321,12 @@ TEST_CASE("Palette: a shorter override vector does not truncate the slicer palet
 
 TEST_CASE("Palette: an empty interior slot keeps its index instead of compacting",
           "[gcode][toolchanger][palette]") {
-    // set_from_hex_palette() used to SKIP entries it could not parse, so a
-    // slot-aligned palette collapsed and every tool past the gap inherited its
-    // neighbour's colour: {"#A", "", "#B"} became size 2, tool 1 rendered #B,
-    // and tool 2 fell off the end to the fallback. The 3D builder indexes the
-    // original strings and painted the same file correctly - one file, two
-    // renderers, two answers. gcode_color_metadata.h guarantees the palette is
+    // set_from_hex_palette() must not SKIP entries it cannot parse: a
+    // slot-aligned palette would collapse and every tool past the gap would
+    // inherit its neighbour's colour ({"#A", "", "#B"} becomes size 2, tool 1
+    // renders #B, tool 2 falls off the end to the fallback), while the 3D
+    // builder indexes the original strings and paints the same file correctly.
+    // gcode_color_metadata.h guarantees the palette is
     // slot-aligned ("#A;;#B" -> {"#A", "", "#B"}), so this must preserve it.
     GCodeColorPalette pal;
     pal.set_from_hex_palette({"#FF0000", "", "#0000FF"});

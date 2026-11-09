@@ -148,6 +148,18 @@ TEST_CASE("the grid samples the analytic surface", "[screensaver][aqua]") {
         CAPTURE(x, z);
         CHECK(water.height_at(x, z) == Catch::Approx(water.exact_height(x, z, t)).margin(0.01));
     }
+
+    // Before the first impulse only the modes and waves stand, and amplitude 0 flattens both.
+    const double before_impulse = 0.3;
+    AquaWater flat;
+    flat.init(rng, 160, 64, u_max);
+    flat.set_amplitude(0.0f);
+    flat.evaluate(before_impulse, rng);
+    for (const float h : flat.heights()) {
+        REQUIRE(h == Catch::Approx(0.0f).margin(1e-5));
+    }
+    CHECK(flat.exact_height(1.0f, 5.0f, before_impulse) == Catch::Approx(0.0f).margin(1e-5));
+    CHECK(flat.exact_height(-2.0f, 6.5f, before_impulse) == Catch::Approx(0.0f).margin(1e-5));
 }
 
 TEST_CASE("impulses start behind the near edge and expire after 12 sim seconds",
@@ -346,6 +358,217 @@ TEST_CASE("during a print the top ring is progress", "[screensaver][aqua][clock]
     r.mode = ClockMode::DONE;
     r.progress_pct = 100;
     CHECK(aqua_rings(r).top == Catch::Approx(1.0f));
+}
+
+TEST_CASE("the water stands higher as the print goes", "[screensaver][aqua][clock]") {
+    using helix::ui::aqua_level_target;
+    using helix::ui::kAquaBrimRise;
+    ClockReading r = reading_at(9 * 3600);
+    CHECK(aqua_level_target(r) == 0.0f);
+    r.mode = ClockMode::PROGRESS;
+    r.progress_pct = 0;
+    CHECK(aqua_level_target(r) == 0.0f);
+    r.mode = ClockMode::COUNTDOWN;
+    r.progress_pct = 50;
+    CHECK(aqua_level_target(r) == Catch::Approx(kAquaBrimRise * 0.5f));
+    r.progress_pct = 100;
+    CHECK(aqua_level_target(r) == Catch::Approx(kAquaBrimRise));
+    r.mode = ClockMode::PAUSED;
+    r.progress_pct = 50;
+    CHECK(aqua_level_target(r) == Catch::Approx(kAquaBrimRise * 0.5f));
+    r.mode = ClockMode::DONE;
+    CHECK(aqua_level_target(r) == Catch::Approx(kAquaBrimRise));
+    r.mode = ClockMode::FAILED;
+    CHECK(aqua_level_target(r) == 0.0f);
+    r.mode = ClockMode::CANCELLED;
+    CHECK(aqua_level_target(r) == 0.0f);
+    CHECK(kAquaBrimRise < 0.8f);
+}
+
+namespace {
+
+/// Water pixels (not black) in the top half of an 800x480 aqua frame after 30 frames of `r`.
+size_t water_above_middle(const ClockReading& r) {
+    TestFrame frame(800, 480, PixelFormat::XRGB8888);
+    std::minstd_rand rng(7);
+    AquaSim sim;
+    sim.init(frame.target, rng, 1, r);
+    std::vector<DirtyRect> dirty;
+    for (int i = 0; i < 30; i++) {
+        sim.step(33, frame.target, rng, r, dirty);
+    }
+    const PixelWriter writer(frame.target);
+    size_t n = 0;
+    for (int32_t y = 0; y < 240; y++) {
+        for (int32_t x = 0; x < 800; x++) {
+            const Rgb c = writer.get(x, y);
+            n += (c.r + c.g + c.b) > 12 ? 1 : 0;
+        }
+    }
+    return n;
+}
+
+/// Bytes per frame that move by more than the water's shimmer, over 60 frames of `r` at rung 1:
+/// a measure of motion, not of the fine per-frame flicker every rung keeps.
+double frame_change(const ClockReading& r) {
+    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    std::minstd_rand rng(5);
+    AquaSim sim;
+    sim.init(frame.target, rng, 1, r);
+    std::vector<DirtyRect> dirty;
+    for (int i = 0; i < 10; i++) {
+        sim.step(33, frame.target, rng, r, dirty);
+    }
+    size_t changed = 0;
+    for (int i = 0; i < 60; i++) {
+        const std::vector<uint8_t> before = frame.bytes;
+        sim.step(33, frame.target, rng, r, dirty);
+        for (size_t b = 0; b < before.size(); b++) {
+            changed += std::abs(before[b] - frame.bytes[b]) > 6 ? 1 : 0;
+        }
+    }
+    return static_cast<double>(changed) / 60.0;
+}
+
+} // namespace
+
+TEST_CASE("the water line rises with progress", "[screensaver][aqua][clock]") {
+    ClockReading r = reading_at(9 * 3600);
+    r.mode = ClockMode::COUNTDOWN;
+    r.progress_pct = 0;
+    const size_t low = water_above_middle(r);
+    r.progress_pct = 100;
+    const size_t high = water_above_middle(r);
+    // Ten more rows of water across the screen, at least: the far water is dim enough that
+    // part of the rise does not count.
+    CHECK(high > low + 800 * 10);
+}
+
+TEST_CASE("paused water calms", "[screensaver][aqua][clock]") {
+    ClockReading r = reading_at(9 * 3600);
+    r.mode = ClockMode::COUNTDOWN;
+    r.progress_pct = 40;
+    const double running = frame_change(r);
+    r.mode = ClockMode::PAUSED;
+    const double paused = frame_change(r);
+    REQUIRE(running > 0.0);
+    CHECK(paused < running * 0.8);
+}
+
+TEST_CASE("droplets are drawn where the risen water's camera sees them",
+          "[screensaver][aqua][droplets]") {
+    TestFrame frame(800, 480, PixelFormat::XRGB8888);
+    std::minstd_rand rng(3);
+    AquaSim sim;
+    ClockReading r = reading_at(9 * 3600);
+    r.mode = ClockMode::COUNTDOWN;
+    r.progress_pct = 60;
+    sim.init(frame.target, rng, 1, r);
+    std::vector<DirtyRect> dirty;
+    const PixelWriter writer(frame.target);
+    // This canvas's projection: focal 1000 px, horizon row 56, and a camera 0.8 over rest water.
+    const float cam_h = 0.8f - helix::ui::kAquaBrimRise * 0.6f;
+    size_t in_clear_air = 0;
+    size_t lit = 0;
+    for (int i = 0; i < 600; i++) {
+        sim.step(33, frame.target, rng, r, dirty);
+        const DirtyRect& clock = sim.clock_layout().bounds;
+        for (const AquaDroplet& d : sim.splashes().droplets()) {
+            const auto x = static_cast<int32_t>(std::lround(d.x * 1000.0f / d.z + 400.0f));
+            const auto y = static_cast<int32_t>(std::lround(56.0f + (cam_h - d.y) * 1000.0f / d.z));
+            if (x < 2 || x > 797 || y < 2 ||
+                static_cast<float>(y + 6) >= sim.renderer().top_at(x / 2) * 2.0f ||
+                (x >= clock.x1 - 2 && x <= clock.x2 + 2 && y >= clock.y1 - 2 &&
+                 y <= clock.y2 + 2)) {
+                continue;
+            }
+            in_clear_air++;
+            bool found = false;
+            for (int32_t py = y - 1; py <= y + 1; py++) {
+                for (int32_t px = x - 1; px <= x + 1; px++) {
+                    const Rgb c = writer.get(px, py);
+                    found = found || (c.r | c.g | c.b) != 0;
+                }
+            }
+            lit += found ? 1 : 0;
+        }
+    }
+    REQUIRE(in_clear_air >= 5);
+    CHECK(lit == in_clear_air);
+}
+
+TEST_CASE("a finished print sends one burst of bubbles up from the bottom",
+          "[screensaver][aqua][clock]") {
+    // Lit pixels low in the dark water four seconds after the first DONE frame; a saver started
+    // on a print already done has seen no finish.
+    const auto low_bubbles = [](ClockMode first) {
+        TestFrame frame(800, 480, PixelFormat::XRGB8888);
+        std::minstd_rand rng(5);
+        AquaSim sim;
+        ClockReading r = reading_at(9 * 3600);
+        r.mode = first;
+        r.progress_pct = 100;
+        sim.init(frame.target, rng, 1, r);
+        r.mode = ClockMode::DONE;
+        std::vector<DirtyRect> dirty;
+        for (int i = 0; i < 120; i++) {
+            sim.step(33, frame.target, rng, r, dirty);
+        }
+        const PixelWriter writer(frame.target);
+        const DirtyRect& clock = sim.clock_layout().bounds;
+        size_t n = 0;
+        for (int32_t y = 405; y < 468; y++) {
+            for (int32_t x = 0; x < 800; x++) {
+                const Rgb c = writer.get(x, y);
+                const bool in_clock =
+                    x >= clock.x1 && x <= clock.x2 && y >= clock.y1 && y <= clock.y2;
+                n += !in_clock && c.r + c.g + c.b > 150 ? 1 : 0;
+            }
+        }
+        return n;
+    };
+    const size_t finished_here = low_bubbles(ClockMode::COUNTDOWN);
+    const size_t already_done = low_bubbles(ClockMode::DONE);
+    CAPTURE(finished_here, already_done);
+    CHECK(finished_here > 3 * already_done);
+}
+
+TEST_CASE("the still rung repaints the water only per level step", "[screensaver][aqua][clock]") {
+    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    std::minstd_rand rng(3);
+    AquaSim sim;
+    ClockReading r = reading_at(9 * 3600);
+    r.mode = ClockMode::COUNTDOWN;
+    r.progress_pct = 0;
+    sim.init(frame.target, rng, helix::ui::kAquaLevelCount - 1, r);
+    std::vector<DirtyRect> dirty;
+    const DirtyRect whole = DirtyRect::whole(400, 240);
+    size_t full = 0;
+    // A whole print at the still rung's 250 ms frames, 100 frames per percent.
+    for (int pct = 0; pct <= 100; pct++) {
+        r.progress_pct = pct;
+        for (int i = 0; i < 100; i++) {
+            sim.step(250, frame.target, rng, r, dirty);
+            full += std::count(dirty.begin(), dirty.end(), whole) > 0 ? 1 : 0;
+        }
+    }
+    CHECK(full >= 5);
+    CHECK(full <=
+          static_cast<size_t>(helix::ui::kAquaBrimRise / helix::ui::kAquaStillLevelStep) + 2);
+
+    // The print ends and the printer goes idle: the water drops back in one repaint, not one
+    // per step on the way down.
+    r.mode = ClockMode::DONE;
+    for (int i = 0; i < 40; i++) {
+        sim.step(250, frame.target, rng, r, dirty);
+    }
+    r.mode = ClockMode::CLOCK;
+    size_t after = 0;
+    for (int i = 0; i < 400; i++) {
+        sim.step(250, frame.target, rng, r, dirty);
+        after += std::count(dirty.begin(), dirty.end(), whole) > 0 ? 1 : 0;
+    }
+    CHECK(after <= 1);
 }
 
 TEST_CASE("the clock fits in the water at every drift and screen size",
@@ -735,6 +958,29 @@ TEST_CASE_METHOD(LVGLTestFixture, "the aqua saver shows the print its source rep
     REQUIRE(ss.is_active());
     CHECK(ss.clock().mode() == ClockMode::COUNTDOWN);
     CHECK(AquaScreensaverTestAccess::line(ss).text().rfind("ETA ", 0) == 0);
+
+    // The water and the running line are cool; only the paused amber is far redder than blue.
+    const auto amber_pixels = [&ss] {
+        lv_obj_t* overlay = lv_obj_get_child(lv_layer_top(), -1);
+        const FrameTarget frame =
+            helix::test::frame_of(lv_canvas_get_draw_buf(lv_obj_get_child(overlay, 0)));
+        const PixelWriter writer(frame);
+        const DirtyRect& box = ss.sim().clock_layout().text;
+        size_t n = 0;
+        for (int32_t y = box.y1; y <= box.y2; y++) {
+            for (int32_t x = box.x1; x <= box.x2; x++) {
+                const Rgb c = writer.get(x, y);
+                n += c.r - c.b > 60 ? 1 : 0;
+            }
+        }
+        return n;
+    };
+    advance_saver(ss, 33);
+    CHECK(amber_pixels() == 0);
+    reported.print.phase = ClockPrintPhase::PAUSED;
+    advance_saver(ss, 33);
+    REQUIRE(ss.clock().mode() == ClockMode::PAUSED);
+    CHECK(amber_pixels() > 0);
 
     reported.print.phase = ClockPrintPhase::NONE;
     reported.print.remaining_s = -1;

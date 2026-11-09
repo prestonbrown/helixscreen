@@ -332,6 +332,79 @@ gcode sequence do nothing — see
 [CREALITY_CFS_K1_INTERNALS.md](../printer-research/CREALITY_CFS_K1_INTERNALS.md). **Read it before changing anything
 the CFS backend emits on K1.**
 
+#### K1C geometry and the purge chute
+
+A K1C with the official CFS upgrade reported these values from its `printer.cfg` and
+`box.cfg` ([#2007](https://github.com/prestonbrown/helixscreen/issues/2007), firestorm986):
+
+| Setting | Value |
+|---------|-------|
+| `[stepper_x]` `position_max` / `gcode_position_max` | 229 / 220 |
+| `[stepper_y]` `position_max` / `gcode_position_max` | 227.5 / 215 |
+| `extrude_pos_x` / `extrude_pos_y` (chute centre, park) | 152.5 / 221.5 |
+| `clean_left_pos` / `clean_right_pos` (wiper, X/Y) | 153.5/225.3 and 178.0/225.3 |
+| `cut_pos` / `pre_cut_pos` (X/Y) | 46.0/221.5 and 46.0/180.0 |
+| `safe_pos_y` / `extrude_pos_z` | 160 / 40 |
+
+That leaves 6 mm of Y travel past park before the axis ends. The wiper is a soft silicone
+flap, and the reporter describes touching it as harmless: `clean_left_pos` is where
+Creality's own wipe macro puts the nozzle on purpose. The K1 Max's chute is at Y 304 on an axis
+that ends at 307.5 (one K1 Max's log; see
+[the K1 Max geometry](../printer-research/CREALITY_CFS_K1_INTERNALS.md#machine-geometry-from-the-same-log)),
+and the purge chute checks from #2007 have not yet run on a K1 Max.
+
+#### The local CFS daemon on port 9999 (reported, not verified by us)
+
+A contributor reports that Creality's backend daemon on a K1C with CFS listens on
+`ws://127.0.0.1:9999` and is what keeps Creality Print and the Creality Cloud app in step with
+the spools ([#2048](https://github.com/prestonbrown/helixscreen/issues/2048)). The thread names
+it `master-server.bin`, and also `cx_server` and `/usr/bin/web-server`. A `set` frame updates
+one slot:
+
+```json
+{"method": "set", "params": {"modifyMaterial": {
+  "boxId": 1, "id": 0, "rfid": "", "type": "PLA", "vendor": "Creality",
+  "name": "CR-PLA", "color": "#0ffffff", "minTemp": 190.0, "maxTemp": 240.0,
+  "pressure": "0.04"}}}
+```
+
+`boxId` 1 to 4 is box T1 to T4 and 0 the external spool; `id` 0 to 3 is slot A to D. Colours are
+`#0RRGGBB`, the same seven-digit form `BOX_MODIFY_TN_DATA ... PART=color_value` stores without
+the `#`. A `get` with `{"boxsInfo": 1}` returns every box and slot. A spool with a third-party
+RFID tag reports only the raw tag UID, and Creality's software then locks the slot's editor.
+None of this has been captured or tested by us; HelixScreen does not talk to this daemon.
+
+## Z-offset calibration on Creality's Klipper
+
+Creality's Klipper for the K1 and K2 ([klippy/extras/probe.py](https://github.com/CrealityOfficial/K1_Series_Klipper/blob/main/klippy/extras/probe.py) in
+[CrealityOfficial/K1_Series_Klipper](https://github.com/CrealityOfficial/K1_Series_Klipper) and
+[K2_Series_Klipper](https://github.com/CrealityOfficial/K2_Series_Klipper)) stages a calibration
+the same way mainline does: `probe_calibrate_finalize` writes the new `z_offset` into
+`configfile`, and `SAVE_CONFIG` commits it. Its `cmd_Z_OFFSET_APPLY_PROBE` differs. The
+"Nothing to do: Z Offset is 0" guard is commented out, so the command always overwrites the
+staged value with the `z_offset` loaded at startup minus `gcode_move.homing_origin.z`. Sent
+after ACCEPT, it undoes the calibration. HelixScreen therefore saves an accepted calibration
+with `SAVE_CONFIG` alone on every printer
+(`src/ui/calibration/z_offset_utils.cpp#save_accepted_calibration`), and sends
+`Z_OFFSET_APPLY_PROBE` only when saving a babystep from Controls or Print Tune
+([#1994](https://github.com/prestonbrown/helixscreen/issues/1994)).
+
+**BTT Eddy on a K1C.** The K1C in #1994 runs the community Eddy port
+[vsevolod-volkov/k1-klipper-eddy](https://github.com/vsevolod-volkov/k1-klipper-eddy), installed by
+[mikeinredding/K1Max-Klipper-Eddy](https://github.com/mikeinredding/K1Max-Klipper-Eddy).
+HelixScreen calibrates an Eddy probe with `PROBE_EDDY_CURRENT_CALIBRATE CHIP=<chip>`; the coil
+sweep runs after ACCEPT and stages its table in `[probe_eddy_current]`. The reporter says the
+port does not register `Z_OFFSET_APPLY_PROBE`, but the port's bundled
+[klippy/extras/upgrade/probe.py](https://github.com/vsevolod-volkov/k1-klipper-eddy/blob/main/klippy/extras/upgrade/probe.py) registers it through its own `ProbeCommandHelper`, so that
+report is unexplained. Mainline Klipper's [probe_eddy_current.py](https://github.com/Klipper3d/klipper/blob/master/klippy/extras/probe_eddy_current.py) builds a
+`ProbeCommandHelper` too, so mainline Eddy printers have the command.
+
+**`gcode_position_max`.** The K1C in #2007 carries a `gcode_position_max` option in
+`[stepper_x]` and `[stepper_y]` below `position_max`. The reporter describes it as a Creality
+option that clamps ordinary G-code travel while macros and service moves reach
+`position_max`. Klipper rejects unknown options, so the shipped firmware accepts it, but the
+public CrealityOfficial source does not contain it, and we have not checked its behaviour.
+
 ## Sound
 
 The board has an ALSA codec (`card 0: icodecsoundcard`, `/dev/snd/pcmC0D0p`) and the

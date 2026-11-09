@@ -68,9 +68,9 @@ void AmsDeviceOperationsOverlay::init_subjects() {
                                subjects_);
 
         // Keep-spool-info-on-eject row visibility. Gates on
-        // AmsBackend::printer_reports_spool_ids() in update_from_backend().
-        UI_MANAGED_SUBJECT_INT(reports_spool_ids_subject_, 0, "ams_device_ops_reports_spool_ids",
-                               subjects_);
+        // AmsBackend::lane_record_is_only_identity() in update_from_backend().
+        UI_MANAGED_SUBJECT_INT(record_only_identity_subject_, 0,
+                               "ams_device_ops_record_only_identity", subjects_);
 
         // Link-spools-from-tags row visibility. Gates on
         // AmsBackend::tags_name_spoolman_spools() in update_from_backend().
@@ -367,7 +367,7 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
         lv_subject_set_int(&hw_bypass_sensor_subject_, 0);
         lv_subject_set_int(&supports_auto_heat_subject_, 0);
         lv_subject_set_int(&bypass_is_virtual_subject_, 0);
-        lv_subject_set_int(&reports_spool_ids_subject_, 0);
+        lv_subject_set_int(&record_only_identity_subject_, 0);
         lv_subject_set_int(&tags_name_spools_subject_, 0);
         lv_subject_set_int(&printer_retains_spool_info_subject_, 0);
         lv_subject_set_int(&firmware_owns_spool_retention_subject_, 0);
@@ -437,10 +437,11 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
     // hides when disengaged, i.e. where the reported bypass is virtual.
     lv_subject_set_int(&bypass_is_virtual_subject_, backend->bypass_is_virtual() ? 1 : 0);
 
-    // Keep-spool-info-on-eject is only meaningful where the firmware reports
-    // spool ids per lane (AFC, Happy Hare); other systems clear on a detected
-    // spool swap regardless of the toggle, so the row stays hidden there.
-    lv_subject_set_int(&reports_spool_ids_subject_, backend->printer_reports_spool_ids() ? 1 : 0);
+    // HelixScreen's Keep Spool Info on Eject decides something only where its
+    // lane record is a lane's only identity; firmware that holds the spool
+    // decides an eject itself.
+    lv_subject_set_int(&record_only_identity_subject_,
+                       backend->lane_record_is_only_identity() ? 1 : 0);
 
     // Linking a lane from its tag means something only where a tag can name a
     // Spoolman spool.

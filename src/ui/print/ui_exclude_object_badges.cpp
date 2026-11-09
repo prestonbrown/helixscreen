@@ -29,7 +29,7 @@ std::vector<ObjectBadge> compute_object_badges(const PrinterExcludedObjectsState
         ObjectBadge b;
         b.defined_index = i;
         b.name = defined[static_cast<size_t>(i)];
-        b.number = lane_number_text(i);
+        b.number = std::to_string(display_ordinal(i));
         b.excluded = excluded.count(b.name) > 0;
         b.current = !current.empty() && b.name == current;
 
@@ -76,7 +76,7 @@ std::string object_display_name(const std::string& name, int defined_index, cons
     if (defined_index < 0) {
         return lv_tr("Object");
     }
-    return fmt::format(fmt::runtime(lv_tr("Object {}")), lane_number_text(defined_index));
+    return fmt::format(fmt::runtime(lv_tr("Object {}")), display_ordinal(defined_index));
 }
 
 int defined_object_index(const std::vector<std::string>& defined, const std::string& name) {

@@ -159,8 +159,11 @@ ClockLines clock_lines(const ClockReading& reading) {
 }
 
 const ClockLines& ClockTextCache::get(const ClockReading& reading) {
-    if (!built_ || !clock_text_same(reading, built_for_)) {
-        lines_ = clock_lines(reading);
+    const bool minute_moved =
+        by_minute_ && (reading.time.hour_of_day != built_for_.time.hour_of_day ||
+                       reading.time.minute != built_for_.time.minute);
+    if (!built_ || minute_moved || !clock_text_same(reading, built_for_)) {
+        lines_ = build_(reading);
         built_for_ = reading;
         built_ = true;
     }

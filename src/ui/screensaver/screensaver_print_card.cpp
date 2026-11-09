@@ -158,8 +158,11 @@ PrintCardLayout layout_print_card(int32_t screen_w, int32_t screen_h) {
 }
 
 DirtyRect print_card_home(int32_t screen_w, int32_t screen_h, const PrintCardLayout& layout) {
+    // The bottom margin is also the drift's vertical room (clock_drift_range), so it stays at
+    // least a few pixels.
+    const int32_t margin = std::max({layout.pad, screen_h / 40, int32_t{2}});
     const int32_t x1 = (screen_w - layout.w) / 2;
-    const int32_t y1 = std::max<int32_t>(0, screen_h - 2 * layout.h);
+    const int32_t y1 = std::max<int32_t>(0, screen_h - margin - layout.h);
     return {x1, y1, x1 + layout.w - 1, y1 + layout.h - 1};
 }
 

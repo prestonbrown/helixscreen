@@ -335,10 +335,8 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
     // Destroy controller (tears down observers, destroys graph)
     controller_.reset();
 
-    // Clear series
     series_.clear();
 
-    // Clear chip row
     if (chip_row_) {
         helix::ui::safe_clean_children(chip_row_);
     }

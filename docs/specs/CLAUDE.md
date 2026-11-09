@@ -14,8 +14,9 @@ this directory is published conventions only.
   HelixScreen; read by OrcaSlicer 2.3.2+ (verified unchanged through
   2.4.0-beta). Happy Hare writes `lane_data` directly via its Moonraker
   component (`push_lane_data`), and OrcaSlicer prefers that over the live `mmu`
-  object. As of v1.5 the spec splits filament identity into a slicer-matchable
-  `material` and a precise `helix_material` (see the changelog).
+  object. Since v2.0 it follows RFC 0001 (Lane Status Surface): one writer per
+  machine, records carrying `writer` / `lss_version` / `lane_name` / `loaded`,
+  and `null` for unknown values.
 
 ## Style
 

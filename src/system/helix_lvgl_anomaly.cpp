@@ -52,8 +52,8 @@ extern "C" void helix_lvgl_anomaly(const char* code, const char* context) {
     // Stable anchor: runtime address of helix_lvgl_anomaly itself.
     // Python-side resolver uses this to compute load_base directly
     // (base = runtime_anchor - file_offset_of_helix_lvgl_anomaly), avoiding
-    // the heuristic guesswork that fails on PIE binaries. Backwards-compat:
-    // pre-fix bundles lack this field and the resolver falls back to raw hex.
+    // the heuristic guesswork that fails on PIE binaries. Bundles from older
+    // builds lack this field and the resolver falls back to raw hex.
     {
         char anchor_buf[40];
         std::snprintf(anchor_buf, sizeof(anchor_buf), "runtime_anchor=0x%lx | ",

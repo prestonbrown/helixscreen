@@ -1,0 +1,351 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Guided cold pull (prestonbrown/helixscreen#2011). One view per ColdPullStage on
+     cold_pull_stage: 0 Setup, 1 Preparing, 2 Heating, 3 Feed, 4 Cooling,
+     5 Pull, 6 Inspect, 7 Finished, 8 Cancelled, 9 Abandoned.
+     ColdPullRunner owns the run and every subject here. -->
+<component>
+  <view name="cold_pull_overlay" extends="overlay_panel" title="Cold Pull" bg_color="#screen_bg">
+    <lv_obj name="overlay_content"
+            width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="false" flex_flow="column"
+            style_pad_gap="#space_sm">
+      <!-- ================================================================ -->
+      <!-- SETUP (0) -->
+      <!-- ================================================================ -->
+      <lv_obj name="cold_pull_setup"
+              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
+              scrollable="false">
+        <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="0"/>
+        <lv_obj width="100%"
+                flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scroll_dir="ver">
+          <text_small width="100%" text="Material" style_text_color="#text_muted"/>
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs" scrollable="false">
+            <ui_button name="btn_cold_pull_pla" flex_grow="1" text="PLA">
+              <bind_style name="styles.choice_selected" subject="cold_pull_material" ref_value="0"/>
+              <bind_style_if name="styles.choice_idle" cond="cold_pull_material ne 0"/>
+              <event_cb trigger="clicked" callback="on_cold_pull_material" user_data="0"/>
+            </ui_button>
+            <ui_button name="btn_cold_pull_nylon" flex_grow="1" text="Nylon">
+              <bind_style name="styles.choice_selected" subject="cold_pull_material" ref_value="1"/>
+              <bind_style_if name="styles.choice_idle" cond="cold_pull_material ne 1"/>
+              <event_cb trigger="clicked" callback="on_cold_pull_material" user_data="1"/>
+            </ui_button>
+            <ui_button name="btn_cold_pull_cleaning" flex_grow="1" text="Cleaning">
+              <bind_style name="styles.choice_selected" subject="cold_pull_material" ref_value="2"/>
+              <bind_style_if name="styles.choice_idle" cond="cold_pull_material ne 2"/>
+              <event_cb trigger="clicked" callback="on_cold_pull_material" user_data="2"/>
+            </ui_button>
+          </lv_obj>
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
+                  style_flex_cross_place="center" scrollable="false">
+            <text_body flex_grow="1" text="Soak"/>
+            <ui_button name="btn_cold_pull_soak_down" width="13%" text="-5" variant="secondary">
+              <event_cb trigger="clicked" callback="on_cold_pull_soak" user_data="-5"/>
+            </ui_button>
+            <text_heading name="cold_pull_soak_value"
+                          width="15%" style_text_align="center" bind_text="cold_pull_soak_text"/>
+            <ui_button name="btn_cold_pull_soak_up" width="13%" text="+5" variant="secondary">
+              <event_cb trigger="clicked" callback="on_cold_pull_soak" user_data="5"/>
+            </ui_button>
+          </lv_obj>
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
+                  style_flex_cross_place="center" scrollable="false">
+            <text_body flex_grow="1" text="Pull"/>
+            <ui_button name="btn_cold_pull_pull_down" width="13%" text="-5" variant="secondary">
+              <event_cb trigger="clicked" callback="on_cold_pull_pull" user_data="-5"/>
+            </ui_button>
+            <text_heading name="cold_pull_pull_value"
+                          width="15%" style_text_align="center" bind_text="cold_pull_pull_text"/>
+            <ui_button name="btn_cold_pull_pull_up" width="13%" text="+5" variant="secondary">
+              <event_cb trigger="clicked" callback="on_cold_pull_pull" user_data="5"/>
+            </ui_button>
+          </lv_obj>
+          <lv_checkbox name="cold_pull_hold_pressure"
+                       width="100%" text="Keep pushing filament while it cools" bind_checked="cold_pull_hold_pressure"/>
+          <text_small width="100%"
+                      long_mode="wrap" style_text_color="#text_muted" text="Leave this off for a clogged nozzle."/>
+          <text_small width="100%"
+                      long_mode="wrap" style_text_color="#warning"
+                      text="Do not cold pull a coated nozzle. The cold pull runs on the active tool."/>
+          <text_small name="cold_pull_refused_job"
+                      width="100%" long_mode="wrap" style_text_color="#danger" text="A print holds the printer.">
+            <bind_flag_if_not_eq subject="cold_pull_refusal" flag="hidden" ref_value="1"/>
+          </text_small>
+          <text_small name="cold_pull_refused_preheat"
+                      width="100%" long_mode="wrap" style_text_color="#danger"
+                      text="Another filament operation is heating the nozzle.">
+            <bind_flag_if_not_eq subject="cold_pull_refusal" flag="hidden" ref_value="2"/>
+          </text_small>
+          <text_small name="cold_pull_refused_not_ready"
+                      width="100%" long_mode="wrap" style_text_color="#danger" text="The printer is not ready.">
+            <bind_flag_if_not_eq subject="cold_pull_refusal" flag="hidden" ref_value="3"/>
+          </text_small>
+          <text_small name="cold_pull_refused_no_heater"
+                      width="100%" long_mode="wrap" style_text_color="#danger"
+                      text="The active tool has no nozzle heater.">
+            <bind_flag_if_not_eq subject="cold_pull_refusal" flag="hidden" ref_value="4"/>
+          </text_small>
+          <text_small name="cold_pull_refused_running"
+                      width="100%" long_mode="wrap" style_text_color="#danger" text="A cold pull is already running.">
+            <bind_flag_if_not_eq subject="cold_pull_refusal" flag="hidden" ref_value="5"/>
+          </text_small>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+          <ui_button name="btn_cold_pull_setup_cancel" flex_grow="1" text="Cancel" variant="secondary">
+            <event_cb trigger="clicked" callback="on_cold_pull_close"/>
+          </ui_button>
+          <ui_button name="btn_cold_pull_start" flex_grow="2" text="Start" moves_machine="true">
+            <event_cb trigger="clicked" callback="on_cold_pull_start"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
+      <!-- ================================================================ -->
+      <!-- PREPARE (1) -->
+      <!-- ================================================================ -->
+      <lv_obj name="cold_pull_prepare"
+              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
+              scrollable="false">
+        <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="1"/>
+        <lv_obj width="100%"
+                flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scroll_dir="ver">
+          <text_heading width="100%" text="Prepare the toolhead" long_mode="wrap"/>
+          <text_body width="100%"
+                     long_mode="wrap"
+                     text="Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.">
+            <bind_flag_if_eq subject="cold_pull_toolhead_loaded" flag="hidden" ref_value="1"/>
+          </text_body>
+          <text_body name="cold_pull_prepare_loaded"
+                     width="100%" long_mode="wrap"
+                     text="This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand.">
+            <bind_flag_if_eq subject="cold_pull_toolhead_loaded" flag="hidden" ref_value="0"/>
+          </text_body>
+          <ui_button name="btn_cold_pull_home_park"
+                     width="100%" text="Home and park" moves_machine="true" variant="secondary">
+            <bind_flag_if_eq subject="cold_pull_can_home_park" flag="hidden" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_cold_pull_home_park"/>
+          </ui_button>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+          <ui_button name="btn_cold_pull_prepare_cancel" flex_grow="1" text="Cancel" variant="secondary">
+            <event_cb trigger="clicked" callback="on_cold_pull_cancel"/>
+          </ui_button>
+          <ui_button name="btn_cold_pull_continue" flex_grow="2" text="Continue">
+            <event_cb trigger="clicked" callback="on_cold_pull_continue"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
+      <!-- ================================================================ -->
+      <!-- HEATING (2), FEED (3), COOLING (4), PULL (5): ring beside the step -->
+      <!-- ================================================================ -->
+      <lv_obj name="cold_pull_active"
+              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
+              scrollable="false">
+        <bind_flag_if cond="cold_pull_stage lt 2 or cold_pull_stage gt 5" flag="hidden"/>
+        <lv_obj width="100%"
+                flex_grow="1" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+          <lv_obj name="cold_pull_ring_col"
+                  width="35%" height="100%" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
+                  style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
+            <lv_obj name="cold_pull_ring_box"
+                    width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                    scrollable="false">
+              <helix_progress_arc name="cold_pull_ring" align="center" bind_value="cold_pull_progress"/>
+            </lv_obj>
+            <text_body name="cold_pull_temp" bind_text="cold_pull_temp_text" style_text_align="center"/>
+          </lv_obj>
+          <lv_obj width="0"
+                  height="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
+                  scroll_dir="ver">
+            <text_small name="cold_pull_pass_label" bind_text="cold_pull_pass_text" style_text_color="#text_muted"/>
+            <!-- Heating -->
+            <text_heading width="100%" long_mode="wrap" text="Heating the nozzle">
+              <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="2"/>
+            </text_heading>
+            <text_body width="100%" long_mode="wrap" text="Soaking hot enough to melt what is left in the nozzle.">
+              <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="2"/>
+            </text_body>
+            <!-- Feed -->
+            <text_heading width="100%" long_mode="wrap" text="Feed the cleaning filament">
+              <bind_flag_if cond="cold_pull_stage ne 3 or cold_pull_feed_mode ne 0" flag="hidden"/>
+            </text_heading>
+            <text_heading name="cold_pull_feed_loaded_heading"
+                          width="100%" long_mode="wrap" text="Purge the loaded filament">
+              <bind_flag_if cond="cold_pull_stage ne 3 or cold_pull_feed_mode ne 1" flag="hidden"/>
+            </text_heading>
+            <text_heading name="cold_pull_refeed_heading" width="100%" long_mode="wrap" text="Feed the filament back">
+              <bind_flag_if cond="cold_pull_stage ne 3 or cold_pull_feed_mode ne 2" flag="hidden"/>
+            </text_heading>
+            <text_body width="100%"
+                       long_mode="wrap"
+                       text="Push the cleaning filament into the extruder until it stops, then tap Extrude.">
+              <bind_flag_if cond="cold_pull_stage ne 3 or cold_pull_feed_stage eq 2 or cold_pull_feed_mode ne 0"
+                            flag="hidden"/>
+            </text_body>
+            <text_body name="cold_pull_feed_loaded"
+                       width="100%" long_mode="wrap"
+                       text="Tap Extrude more until clean filament comes out of the nozzle, then tap Done.">
+              <bind_flag_if cond="cold_pull_stage ne 3 or cold_pull_feed_mode ne 1" flag="hidden"/>
+            </text_body>
+            <text_body name="cold_pull_refeed"
+                       width="100%" long_mode="wrap"
+                       text="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.">
+              <bind_flag_if cond="cold_pull_stage ne 3 or cold_pull_feed_stage eq 2 or cold_pull_feed_mode ne 2"
+                            flag="hidden"/>
+            </text_body>
+            <text_body width="100%" long_mode="wrap" text="Does clean filament come out of the nozzle?">
+              <bind_flag_if cond="cold_pull_stage ne 3 or cold_pull_feed_stage ne 2 or cold_pull_feed_mode eq 1"
+                            flag="hidden"/>
+            </text_body>
+            <text_small name="cold_pull_feed_optional"
+                        width="100%" long_mode="wrap" style_text_color="#text_muted"
+                        text="Clogged nozzle? Extruding is optional: tap Done to go on.">
+              <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="3"/>
+            </text_small>
+            <!-- Cooling -->
+            <text_heading width="100%" long_mode="wrap" text="Cooling the nozzle">
+              <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="4"/>
+            </text_heading>
+            <text_body width="100%" long_mode="wrap" text="Do not touch the filament yet.">
+              <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="4"/>
+            </text_body>
+            <text_small width="100%"
+                        long_mode="wrap" style_text_color="#text_muted" text="Cooling without a fan; this takes longer.">
+              <bind_flag_if cond="cold_pull_stage ne 4 or cold_pull_has_fan ne 0" flag="hidden"/>
+            </text_small>
+            <!-- Pull -->
+            <text_heading name="cold_pull_pull_heading" width="100%" long_mode="wrap" text="Pull now">
+              <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="5"/>
+            </text_heading>
+            <text_body name="cold_pull_pull_direct"
+                       width="100%" long_mode="wrap"
+                       text="Direct drive: release the extruder tension and pull the filament out in one firm motion.">
+              <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="5"/>
+            </text_body>
+            <text_body name="cold_pull_pull_bowden"
+                       width="100%" long_mode="wrap"
+                       text="Bowden: pull the tube from the extruder end, then pull the filament.">
+              <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="5"/>
+            </text_body>
+            <text_small width="100%"
+                        long_mode="wrap" style_text_color="#text_muted"
+                        text="If the extruder has no tension lever, see your printer's manual.">
+              <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="5"/>
+            </text_small>
+            <text_small name="cold_pull_pull_tube"
+                        width="100%" long_mode="wrap" style_text_color="#warning"
+                        text="Detach the filament tube at the toolhead first so you can grip the filament.">
+              <bind_flag_if cond="cold_pull_stage ne 5 or cold_pull_toolhead_loaded eq 0" flag="hidden"/>
+            </text_small>
+          </lv_obj>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+          <ui_button name="btn_cold_pull_active_cancel" flex_grow="1" text="Cancel" variant="secondary">
+            <event_cb trigger="clicked" callback="on_cold_pull_cancel"/>
+          </ui_button>
+          <ui_button name="btn_cold_pull_extrude" flex_grow="1" text="Extrude" moves_machine="true">
+            <bind_flag_if cond="cold_pull_stage ne 3 or cold_pull_feed_stage eq 2" flag="hidden"/>
+            <bind_state_if_eq subject="cold_pull_busy" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_cold_pull_extrude"/>
+          </ui_button>
+          <ui_button name="btn_cold_pull_more"
+                     flex_grow="1" text="Extrude more" variant="secondary" moves_machine="true">
+            <bind_flag_if cond="cold_pull_stage ne 3 or cold_pull_feed_stage ne 2" flag="hidden"/>
+            <bind_state_if_eq subject="cold_pull_busy" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_cold_pull_extrude"/>
+          </ui_button>
+          <ui_button name="btn_cold_pull_fed" flex_grow="1" text="Done">
+            <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="3"/>
+            <event_cb trigger="clicked" callback="on_cold_pull_fed"/>
+          </ui_button>
+          <ui_button name="btn_cold_pull_pulled" flex_grow="2" text="Pulled">
+            <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="5"/>
+            <event_cb trigger="clicked" callback="on_cold_pull_pulled"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
+      <!-- ================================================================ -->
+      <!-- INSPECT (6): drawn tips, no image assets -->
+      <!-- ================================================================ -->
+      <lv_obj name="cold_pull_inspect"
+              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
+              scrollable="false">
+        <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="6"/>
+        <lv_obj width="100%"
+                flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scroll_dir="ver">
+          <text_heading width="100%" long_mode="wrap" bind_text="cold_pull_pass_text"/>
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_evenly"
+                  scrollable="false">
+            <cold_pull_tip name="cold_pull_tip_clean" caption="Clean: a cone, no specks" dirty="false"/>
+            <cold_pull_tip name="cold_pull_tip_dirty" caption="Dirty: dark specks, old colour" dirty="true"/>
+          </lv_obj>
+          <text_small width="100%"
+                      long_mode="wrap" style_text_color="#text_muted"
+                      text="Stretched thin: pull a little colder. Snapped: pull a little warmer. The pull temperature is on the setup step."/>
+          <text_small name="cold_pull_reseat_inspect"
+                      width="100%" long_mode="wrap" style_text_color="#warning"
+                      text="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.">
+            <bind_flag_if_eq subject="cold_pull_lane_needs_reseat" flag="hidden" ref_value="0"/>
+          </text_small>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+          <ui_button name="btn_cold_pull_repeat" flex_grow="1" text="Repeat" variant="secondary">
+            <event_cb trigger="clicked" callback="on_cold_pull_repeat"/>
+          </ui_button>
+          <ui_button name="btn_cold_pull_done" flex_grow="1" text="Done">
+            <event_cb trigger="clicked" callback="on_cold_pull_done"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
+      <!-- ================================================================ -->
+      <!-- FINISHED (7), CANCELLED (8), ABANDONED (9) -->
+      <!-- ================================================================ -->
+      <lv_obj name="cold_pull_end"
+              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
+              style_flex_cross_place="center" style_pad_gap="#space_md" scrollable="false">
+        <bind_flag_if cond="cold_pull_stage lt 7" flag="hidden"/>
+        <text_heading width="100%" style_text_align="center" long_mode="wrap" text="Cold pull finished">
+          <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="7"/>
+        </text_heading>
+        <text_heading width="100%" style_text_align="center" long_mode="wrap" text="Cold pull cancelled">
+          <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="8"/>
+        </text_heading>
+        <text_heading width="100%" style_text_align="center" long_mode="wrap" text="Cold pull stopped">
+          <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="9"/>
+        </text_heading>
+        <text_body width="90%"
+                   style_text_align="center" long_mode="wrap" text="The nozzle waited too long; start again.">
+          <bind_flag_if cond="cold_pull_stage ne 9 or cold_pull_end_reason ne 2" flag="hidden"/>
+        </text_body>
+        <text_body width="90%" style_text_align="center" long_mode="wrap" text="The temperature was changed elsewhere.">
+          <bind_flag_if cond="cold_pull_stage ne 9 or cold_pull_end_reason ne 3" flag="hidden"/>
+        </text_body>
+        <text_body width="90%" style_text_align="center" long_mode="wrap" text="A print took the printer.">
+          <bind_flag_if cond="cold_pull_stage ne 9 or cold_pull_end_reason ne 4" flag="hidden"/>
+        </text_body>
+        <text_body width="90%" style_text_align="center" long_mode="wrap" text="Lost the printer.">
+          <bind_flag_if cond="cold_pull_stage ne 9 or cold_pull_end_reason ne 5" flag="hidden"/>
+        </text_body>
+        <text_body width="90%" style_text_align="center" long_mode="wrap" text="The nozzle target never arrived.">
+          <bind_flag_if cond="cold_pull_stage ne 9 or cold_pull_end_reason ne 6" flag="hidden"/>
+        </text_body>
+        <text_body name="cold_pull_reseat_end"
+                   width="90%" style_text_align="center" long_mode="wrap" style_text_color="#warning"
+                   text="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.">
+          <bind_flag_if_eq subject="cold_pull_lane_needs_reseat" flag="hidden" ref_value="0"/>
+        </text_body>
+        <ui_button name="btn_cold_pull_close" width="40%" text="Close">
+          <event_cb trigger="clicked" callback="on_cold_pull_close"/>
+        </ui_button>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

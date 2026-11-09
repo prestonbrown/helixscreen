@@ -135,7 +135,6 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
         return;
     }
 
-    // Safely extract action
     auto action_it = event.find("action");
     if (action_it == event.end() || !action_it->is_string()) {
         spdlog::debug("[TimelapseState] Event missing or invalid 'action' field");
@@ -169,7 +168,6 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
         spdlog::debug("[TimelapseState] New frame captured");
 
     } else if (action == "render") {
-        // Extract render status and progress
         std::string status;
         int progress = 0;
         std::string error_msg;

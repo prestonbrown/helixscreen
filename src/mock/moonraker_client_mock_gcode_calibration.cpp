@@ -174,7 +174,6 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_bed_mesh(const std::
             // Check if profile exists in stored data
             auto it = stored_bed_mesh_profiles_.find(profile_name);
             if (it != stored_bed_mesh_profiles_.end()) {
-                // Load stored mesh data
                 active_bed_mesh_ = it->second;
                 spdlog::info("[MoonrakerClientMock] BED_MESH_PROFILE LOAD: loaded profile '{}'",
                              profile_name);
@@ -223,7 +222,6 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_bed_mesh(const std::
             }
         }
     } else if (gcode.find("BED_MESH_CLEAR") != std::string::npos) {
-        // Clear the active bed mesh
         active_bed_mesh_.name = "";
         active_bed_mesh_.probed_matrix.clear();
         active_bed_mesh_.x_count = 0;

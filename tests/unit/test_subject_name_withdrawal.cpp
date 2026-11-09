@@ -5,13 +5,13 @@
  * @file test_subject_name_withdrawal.cpp
  * @brief Subject names must leave the XML scope when their owner is torn down.
  *
- * prestonbrown/helixscreen#1538: objects freed mid-process by
- * StaticPanelRegistry::destroy_all() published names into the global XML
- * subject scope without withdrawing them, so the next lv_xml_create() that
- * bound one installed an observer inside freed storage. The fix moves
- * registration onto SubjectManager (names recorded at registration, withdrawn
- * before deinit) and hardens deinit_all() against the silent variant where a
- * subject was registered WITHOUT a name while still published under one.
+ * prestonbrown/helixscreen#1538: an object freed mid-process by
+ * StaticPanelRegistry::destroy_all() that leaves its names in the global XML
+ * subject scope makes the next lv_xml_create() that binds one install an
+ * observer inside freed storage. Registration lives on SubjectManager (names
+ * recorded at registration, withdrawn before deinit), and deinit_all() is
+ * hardened against the silent variant where a subject was registered WITHOUT a
+ * name while still published under one.
  */
 
 #include "ui_ams_device_operations_overlay.h"
@@ -146,7 +146,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Converted overlays withdraw their subject name
          {"ams_device_ops_system_info", "ams_device_ops_supports_bypass",
           "ams_device_ops_fw_supports_bypass", "ams_device_ops_hw_bypass_sensor",
           "ams_device_ops_supports_auto_heat", "ams_device_ops_has_backend",
-          "ams_device_ops_bypass_is_virtual", "ams_device_ops_reports_spool_ids",
+          "ams_device_ops_bypass_is_virtual", "ams_device_ops_record_only_identity",
           "ams_device_ops_printer_retains_spool_info", "ams_device_ops_can_reset_endless_spool",
           "ams_device_ops_can_abort", "ams_device_ops_can_home", "ams_device_ops_can_recover"}},
     };

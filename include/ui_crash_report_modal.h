@@ -24,7 +24,6 @@ class CrashReportModal : public Modal {
     explicit CrashReportModal(CrashReporter& reporter);
     ~CrashReportModal() override;
 
-    // Non-copyable
     CrashReportModal(const CrashReportModal&) = delete;
     CrashReportModal& operator=(const CrashReportModal&) = delete;
 

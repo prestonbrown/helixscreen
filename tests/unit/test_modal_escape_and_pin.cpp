@@ -63,29 +63,21 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ESC closes the runout modal without resumin
     CHECK(ModalStack::instance().top_dialog() != dialog);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the PIN pad covers the navbar while it is open",
-                 "[modal][pin_entry][modal_covers_navbar]") {
-    REQUIRE_FALSE(ui::chrome_covered());
-
-    ui::PinEntryModal::show_pin_entry("Enter PIN",
-                                      [](const std::string&) { return std::string(); });
-    CHECK(ui::chrome_covered());
-
-    ui::PinEntryModal::dismiss();
-    process_lvgl(50);
-    CHECK_FALSE(ui::chrome_covered());
-}
-
 TEST_CASE_METHOD(LVGLUITestFixture, "a PIN pad opened from a PIN callback keeps the navbar covered",
-                 "[modal][pin_entry][modal_covers_navbar]") {
+                 "[modal][pin_entry][modal_covers_navbar][from_event]") {
+    REQUIRE_FALSE(ui::chrome_covered());
     ui::PinEntryModal::show_pin_entry("Enter PIN", [](const std::string&) {
         ui::PinEntryModal::show_pin_entry("Confirm PIN",
                                           [](const std::string&) { return std::string(); });
         return std::string();
     });
     REQUIRE(ui::chrome_covered());
+    lv_obj_t* first_close = lv_obj_find_by_name(lv_screen_active(), "pin_close_btn");
+    REQUIRE(first_close != nullptr);
 
-    ui::PinEntryModal::dismiss(); // fires the callback, which opens the second pad
+    // Cancelling the first pad opens the second; the closing pad's button then answers nothing.
+    lv_obj_send_event(first_close, LV_EVENT_CLICKED, nullptr);
+    lv_obj_send_event(first_close, LV_EVENT_CLICKED, nullptr);
     process_lvgl(50);
     CHECK(ui::chrome_covered());
 

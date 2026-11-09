@@ -48,6 +48,14 @@ struct DryingPreset {
     DryingPreset() = default;
 };
 
+/// What a running cycle is doing right now. Unknown where the backend does not say,
+/// which is every backend whose firmware reports only on/off.
+enum class DryingPhase : int {
+    Unknown = 0,
+    Heating = 1, ///< Climbing to the target
+    Holding = 2, ///< At the target, counting down
+};
+
 /**
  * @brief Dryer capability and state information
  *
@@ -61,11 +69,12 @@ struct DryerInfo {
     bool allows_during_print = false; ///< Can run while printing? (backend capability)
 
     // Current state
-    float current_temp_c = 0.0f; ///< Current chamber temperature
-    float target_temp_c = 0.0f;  ///< Target temperature (0 = off)
-    int duration_min = 0;        ///< Total drying duration set
-    int remaining_min = 0;       ///< Minutes remaining
-    int fan_pct = 0;             ///< Current fan speed (0-100)
+    float current_temp_c = 0.0f;              ///< Current chamber temperature
+    float target_temp_c = 0.0f;               ///< Target temperature (0 = off)
+    int duration_min = 0;                     ///< Total drying duration set
+    int remaining_min = 0;                    ///< Minutes remaining
+    int fan_pct = 0;                          ///< Current fan speed (0-100)
+    DryingPhase phase = DryingPhase::Unknown; ///< Meaningful only while active
 
     // Hardware capabilities
     float min_temp_c = 35.0f;          ///< Minimum settable temperature

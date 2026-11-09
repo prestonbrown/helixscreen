@@ -22,7 +22,6 @@
 #include <string>
 #include <vector>
 
-// Forward declarations
 struct FileInfo;
 
 namespace helix::ui {

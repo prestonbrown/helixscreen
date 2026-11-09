@@ -130,7 +130,6 @@ class PrintHistoryManager {
 
     ~PrintHistoryManager();
 
-    // Non-copyable
     PrintHistoryManager(const PrintHistoryManager&) = delete;
     PrintHistoryManager& operator=(const PrintHistoryManager&) = delete;
 
@@ -472,11 +471,6 @@ class PrintHistoryManager {
      */
     void notify_observers();
 
-    /// A job printed from a copy this app rewrote names the rewrite, whose file
-    /// (and thumbnails) are deleted when the print ends. When the name places
-    /// the original (gcode::trusted_original_path()), present the job as the
-    /// original's print: its name, and its existence, mtime and thumbnails from
-    /// one metadata request per original. Otherwise it reads as missing.
     /// Whether the archive @p filename is still listed, for a printer that
     /// keeps no metadata for archives; answers through on_original_answered().
     void look_for_archive(const std::string& filename, uint64_t generation);
@@ -484,6 +478,11 @@ class PrintHistoryManager {
     /// to modified time), or as missing when the listing failed (null).
     void answer_archive_listing(const std::string& dir, uint64_t generation,
                                 const std::unordered_map<std::string, double>* listed);
+    /// A job printed from a copy this app rewrote names the rewrite, whose file
+    /// (and thumbnails) are deleted when the print ends. When the name places
+    /// the original (gcode::trusted_original_path()), present the job as the
+    /// original's print: its name, and its existence, mtime and thumbnails from
+    /// one metadata request per original. Otherwise it reads as missing.
     void adopt_original(PrintHistoryJob& job);
 
     /// What the original's metadata answered. It reads as missing while the

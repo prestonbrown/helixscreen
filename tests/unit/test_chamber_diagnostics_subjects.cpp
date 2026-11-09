@@ -42,13 +42,18 @@ nlohmann::json faulted_diagnostics_status() {
       "output_pin dragonbreath_filter": {"value": 1.0}})");
 }
 
+/// LVGL up and a temperature state with its subjects initialized.
+struct ChamberTemps : LVGLTestFixture {
+    PrinterTemperatureState ts;
+    ChamberTemps() {
+        ts.init_subjects(false);
+    }
+};
+
 } // namespace
 
-TEST_CASE("dragonbreath status drives diagnostics subjects", "[chamber][subjects]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "dragonbreath status drives diagnostics subjects",
+                 "[chamber][subjects]") {
     ts.set_chamber_heater_name("heater_generic dragonbreath");
     ts.set_chamber_diagnostics_source("dragonbreath", "dragonbreath",
                                       "output_pin dragonbreath_filter");
@@ -71,20 +76,16 @@ TEST_CASE("dragonbreath status drives diagnostics subjects", "[chamber][subjects
     CHECK(ts.chamber_diagnostics_object() == "dragonbreath");
 }
 
-TEST_CASE("fault reason kinds map to translated phrases at the subject border",
-          "[chamber][subjects]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "fault reason kinds map to translated phrases at the subject border",
+                 "[chamber][subjects]") {
     ts.set_chamber_diagnostics_source("dragonbreath", "dragonbreath",
                                       "output_pin dragonbreath_filter");
 
-    auto fault_with_reason = [&ts](const char* reason) {
+    auto fault_with_reason = [this](const char* reason) {
         ts.update_from_status(
             {{"dragonbreath", {{"fault", true}, {"fault_reason", reason}, {"ptc_temp", 24.9}}}});
     };
-    auto text = [&ts]() {
+    auto text = [this]() {
         return std::string(
             lv_subject_get_string(ts.get_chamber_heater_fault_reason_text_subject()));
     };
@@ -104,11 +105,8 @@ TEST_CASE("fault reason kinds map to translated phrases at the subject border",
     CHECK(text().empty());
 }
 
-TEST_CASE("absent diagnostics objects in a delta frame keep last values", "[chamber][subjects]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "absent diagnostics objects in a delta frame keep last values",
+                 "[chamber][subjects]") {
     ts.set_chamber_heater_name("heater_generic dragonbreath");
     ts.set_chamber_diagnostics_source("dragonbreath", "dragonbreath",
                                       "output_pin dragonbreath_filter");
@@ -134,12 +132,9 @@ TEST_CASE("absent diagnostics objects in a delta frame keep last values", "[cham
 // report of absence. The frame after a fault latch mentions only ptc_temp
 // (the one field that moves every poll) and must leave the latched fault,
 // its reason, and the reported fan speed exactly where they were.
-TEST_CASE("a ptc_temp-only delta keeps the latched fault, reason, and fan percent",
-          "[chamber][subjects][1290]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps,
+                 "a ptc_temp-only delta keeps the latched fault, reason, and fan percent",
+                 "[chamber][subjects][1290]") {
     ts.set_chamber_diagnostics_source("dragonbreath", "dragonbreath",
                                       "output_pin dragonbreath_filter");
 
@@ -173,11 +168,8 @@ TEST_CASE("a ptc_temp-only delta keeps the latched fault, reason, and fan percen
 // A delta that toggles only the fan carries no ptc_temp, so recognition of a
 // dragonbreath frame cannot hinge on that one field: the frame must parse and
 // the reported speed must land.
-TEST_CASE("a fan-percent-only delta updates the reported speed", "[chamber][subjects][1290]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "a fan-percent-only delta updates the reported speed",
+                 "[chamber][subjects][1290]") {
     ts.set_chamber_diagnostics_source("dragonbreath", "dragonbreath",
                                       "output_pin dragonbreath_filter");
 
@@ -197,11 +189,8 @@ TEST_CASE("a fan-percent-only delta updates the reported speed", "[chamber][subj
 
 // Absence and false are different reports: a frame that carries fault: false
 // is the device clearing the latch, and must clear it.
-TEST_CASE("an explicit fault false delta clears a latched fault", "[chamber][subjects][1290]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "an explicit fault false delta clears a latched fault",
+                 "[chamber][subjects][1290]") {
     ts.set_chamber_diagnostics_source("dragonbreath", "dragonbreath",
                                       "output_pin dragonbreath_filter");
 
@@ -214,11 +203,8 @@ TEST_CASE("an explicit fault false delta clears a latched fault", "[chamber][sub
 
 // fault_reason: null in a frame is the device ANSWERING "no reason", not the
 // field being absent: it engages as an empty reason and clears the text.
-TEST_CASE("a fault_reason null delta clears the reason text", "[chamber][subjects][1290]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "a fault_reason null delta clears the reason text",
+                 "[chamber][subjects][1290]") {
     ts.set_chamber_diagnostics_source("dragonbreath", "dragonbreath",
                                       "output_pin dragonbreath_filter");
 
@@ -239,12 +225,8 @@ TEST_CASE("a fault_reason null delta clears the reason text", "[chamber][subject
 // issue #1290). The running-state subjects must follow the reported fan
 // speed, not the pin, or the card shows "100%" beside a
 // switch that is off.
-TEST_CASE("device-driven filter fan keeps the switch on the reported speed",
-          "[chamber][subjects]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "device-driven filter fan keeps the switch on the reported speed",
+                 "[chamber][subjects]") {
     ts.set_chamber_diagnostics_source("dragonbreath", "dragonbreath",
                                       "output_pin dragonbreath_filter");
 
@@ -278,11 +260,8 @@ TEST_CASE("device-driven filter fan keeps the switch on the reported speed",
 // the device saying it is unreachable — that drives chamber_heater_offline.
 // Unknown (absent key, or a backend with no link report at all) is NOT
 // offline.
-TEST_CASE("connected reports drive chamber_heater_offline", "[chamber][subjects][1290]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "connected reports drive chamber_heater_offline",
+                 "[chamber][subjects][1290]") {
     ts.set_chamber_diagnostics_source("dragonbreath", "dragonbreath",
                                       "output_pin dragonbreath_filter");
     REQUIRE(lv_subject_get_int(ts.get_chamber_heater_offline_subject()) == 0);
@@ -309,11 +288,8 @@ TEST_CASE("connected reports drive chamber_heater_offline", "[chamber][subjects]
 // does not mention connected carries no news about it, so the heater stays
 // offline — while the field the frame DOES carry (ptc_temp) lands, proving
 // the frame was parsed rather than dropped.
-TEST_CASE("a delta without connected keeps the offline state", "[chamber][subjects][1290]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "a delta without connected keeps the offline state",
+                 "[chamber][subjects][1290]") {
     ts.set_chamber_diagnostics_source("dragonbreath", "dragonbreath",
                                       "output_pin dragonbreath_filter");
 
@@ -337,11 +313,8 @@ TEST_CASE("a delta without connected keeps the offline state", "[chamber][subjec
 // A backend with no link report (a plain heater_generic chamber) must leave
 // the offline subject at 0 forever, even when some other object in the frame
 // carries connected: false — unknown is not offline.
-TEST_CASE("a generic chamber heater never reports offline", "[chamber][subjects][1290]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "a generic chamber heater never reports offline",
+                 "[chamber][subjects][1290]") {
     ts.set_chamber_heater_name("heater_generic chamber");
     ts.set_chamber_diagnostics_source("generic", "", "");
 
@@ -358,11 +331,8 @@ TEST_CASE("a generic chamber heater never reports offline", "[chamber][subjects]
 
 // The vendor protocol_error string dies at the subject border: the frame is
 // parsed (its other fields land) and the error reaches no UI subject.
-TEST_CASE("protocol_error never reaches a UI subject", "[chamber][subjects][1290]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "protocol_error never reaches a UI subject",
+                 "[chamber][subjects][1290]") {
     ts.set_chamber_diagnostics_source("dragonbreath", "dragonbreath",
                                       "output_pin dragonbreath_filter");
 
@@ -380,11 +350,8 @@ TEST_CASE("protocol_error never reaches a UI subject", "[chamber][subjects][1290
           "24.9°C");
 }
 
-TEST_CASE("filter fan pin maps output_pin value to on/off", "[chamber][subjects]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "filter fan pin maps output_pin value to on/off",
+                 "[chamber][subjects]") {
     ts.set_chamber_diagnostics_source("dragonbreath", "dragonbreath",
                                       "output_pin dragonbreath_filter");
 
@@ -404,11 +371,8 @@ TEST_CASE("filter fan pin maps output_pin value to on/off", "[chamber][subjects]
     CHECK(lv_subject_get_int(ts.get_chamber_filter_fan_on_subject()) == 1);
 }
 
-TEST_CASE("diagnostics objects are ignored without a configured source", "[chamber][subjects]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "diagnostics objects are ignored without a configured source",
+                 "[chamber][subjects]") {
     // set_chamber_diagnostics_source() intentionally NOT called — capability off.
 
     ts.update_from_status(faulted_diagnostics_status());
@@ -627,12 +591,8 @@ TEST_CASE("set_hardware wires the stock panda_breath surfaces and no others",
 // externally_controlled is computed from mode + source + lease_owned, so it is
 // an answer only when a frame carries all three. Its surface is informational:
 // another controller driving the heater is not a fault.
-TEST_CASE("externally-controlled reaches its subject only on a complete trio",
-          "[chamber][subjects][1290]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "externally-controlled reaches its subject only on a complete trio",
+                 "[chamber][subjects][1290]") {
     ts.set_chamber_diagnostics_source("dragonbreath", "dragonbreath",
                                       "output_pin dragonbreath_filter");
 
@@ -666,11 +626,8 @@ TEST_CASE("externally-controlled reaches its subject only on a complete trio",
 // Measured on a U1: the appliance reports connected:false for exactly one poll
 // roughly every twenty minutes and recovers on the next frame. Raising the
 // banner on that would flash an alarm several times an hour for nothing.
-TEST_CASE("a one-poll link flap never reaches the banner", "[chamber][subjects][1290]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "a one-poll link flap never reaches the banner",
+                 "[chamber][subjects][1290]") {
     ts.set_chamber_diagnostics_source("dragonbreath", "dragonbreath",
                                       "output_pin dragonbreath_filter");
 
@@ -706,15 +663,12 @@ TEST_CASE("a one-poll link flap never reaches the banner", "[chamber][subjects][
 // target, since an appliance alone often plateaus below it, and follows every
 // frame; a delta that names only the countdown leaves the running flag alone,
 // and the cycle ending clears both.
-TEST_CASE("stock drying status drives the dryer subjects", "[chamber][subjects][dryer][1299]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps, "stock drying status drives the dryer subjects",
+                 "[chamber][subjects][dryer][1299]") {
     ts.set_chamber_heater_name("heater_generic panda_breath");
     ts.set_chamber_diagnostics_source("panda_breath", "panda_breath", "");
 
-    auto text = [&ts] {
+    auto text = [this] {
         return std::string(lv_subject_get_string(ts.get_chamber_dryer_text_subject()));
     };
     const std::string left = lv_tr("left");
@@ -785,12 +739,9 @@ TEST_CASE("set_hardware raises the dryer capability for a backend with one",
     settings.set_chamber_sensor_assignment("auto");
 }
 
-TEST_CASE("chamber::apply_resolution publishes the resolved chamber to its domains",
-          "[chamber][subjects][hardware]") {
-    LVGLTestFixture fixture;
-
-    PrinterTemperatureState ts;
-    ts.init_subjects(false);
+TEST_CASE_METHOD(ChamberTemps,
+                 "chamber::apply_resolution publishes the resolved chamber to its domains",
+                 "[chamber][subjects][hardware]") {
     PrinterCapabilitiesState caps;
     caps.init_subjects(false);
 

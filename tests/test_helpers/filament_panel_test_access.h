@@ -136,6 +136,25 @@ struct FilamentPanelTestAccess {
         return lv_subject_get_int(&p.op_extrude_state_subject_);
     }
 
+    static void execute_retract(FilamentPanel& p) {
+        p.execute_retract();
+    }
+
+    /// The filament_manual_motion subject (helix::FilamentMotion value).
+    static int manual_motion(FilamentPanel& p) {
+        return lv_subject_get_int(&p.manual_motion_subject_);
+    }
+
+    /// The one-shot timer that ends the motion display after the move's duration.
+    static lv_timer_t* motion_timer(FilamentPanel& p) {
+        return p.motion_timer_.get();
+    }
+
+    /// Stand in for the move's G1 answering `ok`.
+    static void manual_motion_answered(FilamentPanel& p) {
+        p.manual_motion_answered();
+    }
+
     static bool backend_op_active(const FilamentPanel& p) {
         return p.backend_op_active_;
     }

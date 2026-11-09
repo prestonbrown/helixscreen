@@ -49,6 +49,7 @@
 #include "ui_panel_screws_tilt.h"
 #include "ui_stepper_resonance_cal_modal.h"
 #include "ui_toast_manager.h"
+#include "ui_wizard_appearance.h"
 #include "ui_wizard_preferences.h"
 
 #include "esp_attr.h"
@@ -315,9 +316,12 @@ void MacroManager::remove_skips(SuccessCallback, ErrorCallback) {}
 
 } // namespace helix
 
-// The firmware runs no first-run wizard, so the registry's Preferences step
-// never runs; the accessor only has to resolve.
+// The firmware runs no first-run wizard, so the registry's Appearance and Preferences
+// steps never run; the accessors only have to resolve.
 namespace helix::wizard {
+WizardAppearanceStep* get_wizard_appearance_step() {
+    return nullptr;
+}
 WizardPreferencesStep* get_wizard_preferences_step() {
     return nullptr;
 }

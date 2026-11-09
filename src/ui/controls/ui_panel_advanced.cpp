@@ -18,6 +18,7 @@
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
+#include "cold_pull_runner.h"
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
@@ -95,6 +96,7 @@ void AdvancedPanel::init_subjects() {
         {"on_timelapse_videos_clicked", on_timelapse_videos_clicked},
         {"on_timelapse_setup_clicked", on_timelapse_setup_clicked},
         {"on_advanced_power_clicked", on_advanced_power_clicked},
+        {"on_cold_pull_row_clicked", [](lv_event_t*) { helix::ui::open_cold_pull_overlay(); }},
     });
 
     // Note: Input shaping uses on_input_shaper_row_clicked registered by InputShaperPanel

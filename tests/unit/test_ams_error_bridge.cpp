@@ -421,7 +421,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsErrorBridge does not toast on non-ERROR 
 // fault text via fault_surface_correlation.
 //
 // These drive the REAL router through GcodeErrorRouterTestAccess rather than
-// seeding the registry by hand: the recording site is half the fix.
+// seeding the registry by hand: the recording site is half the contract.
 // ============================================================================
 
 namespace {

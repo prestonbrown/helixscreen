@@ -22,6 +22,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/ams_panel_test_access.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/scoped_geometry.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
@@ -1087,7 +1088,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     SlotInfo spool;
     spool.color_rgb = 0x3366CC;
     spool.material = "PETG";
-    ams.set_external_spool_info_in_memory(spool);
+    helix::AmsStateTestAccess::seed_external_spool(spool);
     helix::ui::bypass_spool_sync_from_state(w);
     REQUIRE(helix::ui::bypass_node_visible_for(ams.get_backend()));
     CHECK_FALSE(lv_obj_has_flag(w.box, LV_OBJ_FLAG_HIDDEN));

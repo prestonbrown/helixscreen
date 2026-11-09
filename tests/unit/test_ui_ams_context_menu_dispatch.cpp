@@ -21,6 +21,7 @@
 #include "ui_ams_detail.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../ui_test_utils.h"
@@ -130,7 +131,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: clears the external spool wit
     ext.global_index = -2;
     ext.spoolman_id = 139;
     ext.material = "ASA";
-    helix::AmsState::instance().set_external_spool_info(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
     REQUIRE(helix::AmsState::instance().get_external_spool_info().has_value());
 
     CHECK(helix::ui::ams_dispatch_backend_action(MenuAction::CLEAR_SPOOL, -2, nullptr));
@@ -323,9 +324,8 @@ namespace {
 class PartialClearMock : public helix::AmsBackendMock {
   public:
     using helix::AmsBackendMock::AmsBackendMock;
-    helix::AmsError apply_user_edit(int slot_index, const helix::SlotInfo& info,
-                                    const helix::ams::Observation& declared) override {
-        (void)helix::AmsBackendMock::apply_user_edit(slot_index, info, declared);
+    helix::AmsError apply_user_edit(int slot_index, const helix::SlotInfo& info) override {
+        (void)helix::AmsBackendMock::apply_user_edit(slot_index, info);
         helix::AmsError partial(helix::AmsResult::COMMAND_FAILED, "firmware refused",
                                 "Couldn't clear", "HelixScreen cleared its own copy.");
         partial.partially_applied = true;

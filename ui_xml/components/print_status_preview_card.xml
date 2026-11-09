@@ -30,7 +30,7 @@
                      width="100%" height="100%" gradient_name="gradient_background" viewer_name="print_gcode_viewer"
                      thumbnail_name="print_thumbnail" hint_name="rotate_hint" gradient_hidden="exclude_map_active eq 1"
                      viewer_hidden="gcode_viewer_mode eq 0"
-                     thumbnail_hidden="gcode_viewer_mode gt 0 or exclude_map_active eq 1"
+                     thumbnail_hidden="gcode_viewer_mode gt 0 or exclude_map_active eq 1 or print_has_thumbnail eq 0"
                      hint_hidden="gcode_viewer_mode ne 1"/>
       <!-- Live camera in place of the preview, cover-fit and clipped to the
            band. It takes taps so they do nothing rather than reach the paused

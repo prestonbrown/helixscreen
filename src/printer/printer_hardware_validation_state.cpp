@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_hardware_validation_state.cpp
- * @brief Hardware validation state management extracted from PrinterState
+ * @brief Hardware validation state management (a PrinterState sub-state)
  *
  * Manages hardware validation subjects for UI display including issue counts,
  * severity levels, and formatted status text for the Settings panel.
- *
- * Extracted from PrinterState as part of god class decomposition.
  */
 
 #include "printer_hardware_validation_state.h"
@@ -63,17 +61,14 @@ void PrinterHardwareValidationState::set_hardware_validation_result(
     hardware_validation_result_ = result;
     has_result_ = true;
 
-    // Update summary subjects
     lv_subject_set_int(&hardware_status_level_, static_cast<int>(result.headline_level()));
 
-    // Update category counts
     lv_subject_set_int(&hardware_critical_count_, static_cast<int>(result.critical_missing.size()));
     lv_subject_set_int(&hardware_warning_count_, static_cast<int>(result.expected_missing.size()));
     lv_subject_set_int(&hardware_info_count_, static_cast<int>(result.newly_discovered.size()));
     lv_subject_set_int(&hardware_session_count_,
                        static_cast<int>(result.changed_from_last_session.size()));
 
-    // Update status text
     if (!result.has_issues()) {
         snprintf(hardware_status_title_buf_, sizeof(hardware_status_title_buf_), "%s",
                  lv_tr("All Healthy"));
@@ -87,7 +82,6 @@ void PrinterHardwareValidationState::set_hardware_validation_result(
                 fmt::runtime(ui::tr_plural("1 Issue Detected", "{} Issues Detected", total)), total)
                 .c_str());
 
-        // Build detail string
         std::string detail;
         if (!result.critical_missing.empty()) {
             detail += fmt::format(lv_tr("{} critical"), result.critical_missing.size());

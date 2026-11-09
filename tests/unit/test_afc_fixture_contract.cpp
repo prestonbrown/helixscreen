@@ -127,7 +127,7 @@ TEST_CASE("AFC fixtures carry every field our parsers read", "[ams][afc][1154][f
         // get_status() has never published it — the only writers upstream are
         // _webhooks_status() (GET /printer/afc/status, which we do not call) and
         // save_vars(). Toolchanger discovery therefore has to come from the flat
-        // `extruders` array, and it silently did not until 6bcfb067b.
+        // `extruders` array.
         //
         // If a refreshed capture makes this fail, upstream started publishing
         // `system` on the status object: keep the flat-array derivation as the

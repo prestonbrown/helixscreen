@@ -17,25 +17,25 @@ using helix::wizard::preference_rows;
 using helix::wizard::StepId;
 
 TEST_CASE("Preference rows: global rows only on the first printer", "[wizard][preferences]") {
-    CHECK(preference_rows(false, false, false, false, false).global);
-    CHECK_FALSE(preference_rows(true, false, false, false, false).global);
+    CHECK(preference_rows(false, false, false, false).global);
+    CHECK_FALSE(preference_rows(true, false, false, false).global);
 }
 
 TEST_CASE("Preference rows: AMS rows follow what the backend does", "[wizard][preferences]") {
-    CHECK_FALSE(preference_rows(false, false, false, false, false).bypass_spool);
-    CHECK(preference_rows(false, true, false, false, false).bypass_spool);
+    CHECK_FALSE(preference_rows(false, false, false, false).bypass_spool);
+    CHECK(preference_rows(false, true, false, false).bypass_spool);
 
-    CHECK_FALSE(preference_rows(false, false, false, false, false).keep_spool_info);
-    CHECK(preference_rows(false, false, true, false, false).keep_spool_info);
-    // Firmware that keeps the spool itself leaves the toggle with nothing to do.
-    CHECK_FALSE(preference_rows(false, false, true, true, false).keep_spool_info);
+    CHECK_FALSE(preference_rows(false, false, false, false).keep_spool_info);
+    // Only where the lane record is a lane's only identity does the setting
+    // decide anything.
+    CHECK(preference_rows(false, false, true, false).keep_spool_info);
 }
 
 TEST_CASE("Preference rows: Sounds need a sound backend on the first printer",
           "[wizard][preferences]") {
-    CHECK_FALSE(preference_rows(false, false, false, false, false).sounds);
-    CHECK(preference_rows(false, false, false, false, true).sounds);
-    CHECK_FALSE(preference_rows(true, false, false, false, true).sounds);
+    CHECK_FALSE(preference_rows(false, false, false, false).sounds);
+    CHECK(preference_rows(false, false, false, true).sounds);
+    CHECK_FALSE(preference_rows(true, false, false, true).sounds);
 }
 
 TEST_CASE("Preferences step sits between InputShaper and Summary", "[wizard][preferences]") {

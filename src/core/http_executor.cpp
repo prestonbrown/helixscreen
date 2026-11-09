@@ -224,7 +224,7 @@ void HttpExecutor::loop(std::shared_ptr<SharedState> state, HttpExecutor* owner,
 
 HttpExecutor& HttpExecutor::fast() {
     // 4 workers: preserves burst parallelism for thumbnail loading and
-    // concurrent status polls without reintroducing unbounded spawning.
+    // concurrent status polls while keeping the thread count bounded.
     static HttpExecutor instance("fast", 4);
     return instance;
 }

@@ -87,7 +87,6 @@ bool iface_has_global_ipv4(const std::string& iface) {
 } // namespace
 
 int wifi_compute_signal_icon_state(int strength_percent, bool secured) {
-    // Clamp to valid range
     strength_percent = std::max(0, std::min(100, strength_percent));
 
     // Determine base state from signal strength (1-4)
@@ -164,7 +163,6 @@ std::string wifi_get_device_mac(const std::string& interface) {
 
     std::string mac = result.substr(mac_start, mac_end - mac_start);
 
-    // Remove trailing whitespace
     mac.erase(
         std::find_if(mac.rbegin(), mac.rend(), [](unsigned char ch) { return !std::isspace(ch); })
             .base(),
@@ -185,7 +183,6 @@ std::string wifi_get_device_mac(const std::string& interface) {
 
     std::string mac = *first_line;
 
-    // Remove trailing newline/whitespace
     mac.erase(
         std::find_if(mac.rbegin(), mac.rend(), [](unsigned char ch) { return !std::isspace(ch); })
             .base(),

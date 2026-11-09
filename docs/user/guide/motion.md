@@ -86,6 +86,7 @@ Besides the distances, the Jog-tab layout and the jog speed are adjustable. Ther
 | Setting | What It Does |
 |---------|--------------|
 | **Layout** | Which [Jog layout](#jog-layouts) the Jog tab uses. Remembered per printer. |
+| **Z Buttons Move** | Whether the Z arrows follow the bed or the nozzle and the Z value. **Auto** (default) picks from your printer type; **Bed** makes the up arrow raise the bed toward the nozzle, which lowers Z; **Nozzle** makes the up arrow raise Z. Each Z button's Z+ or Z− tag shows which way it moves Z under the choice you make. Remembered per printer. See [Z-Axis Controls](#z-axis-controls). |
 | **Jog Speed XY** | How fast the toolhead travels on X/Y taps, in mm/s. The slider tops out at what the printer itself allows - its reported maximum feedrates - so you cannot ask for more than the machine will do. If you stored a speed and the printer later reports a lower ceiling (a firmware change, a different printer), the stored choice is kept but applied at the new ceiling. |
 | **Jog Speed Z** | Same, for the Z axis. |
 | **Fine / Coarse / Turbo distances** | The inner- and outer-ring distance for each of the three jog modes. Each distance is tapped in on a keypad; the inner and outer values of a mode cannot cross. The arrow layouts offer all of them as steps. |
@@ -112,6 +113,10 @@ The Z buttons behave a little differently: a button that would move past a Z lim
 ## Z-Axis Controls
 
 The right column has four Z buttons (two large steps and two small steps, up and down) with a label between them. The label reads **Bed** on printers whose bed moves up and down (such as the Voron Trident or the Snapmaker U1) and **Print Head** where the head or gantry moves in Z (bed-slingers, the Voron 2.4, deltas). The arrows show the direction of whatever moves: on a **Bed** printer the up arrow raises the bed toward the nozzle, and on a **Print Head** printer it lifts the head away from the bed.
+
+Each Z button also carries a **Z+** or **Z−** tag after its distance (for example "10mm · Z+"), saying what the button does to the Z number in the coordinates. On a **Bed** printer the up arrow reads Z−: raising the bed brings it closer to the nozzle, so Z goes down. The arrow layouts' Z keys carry the tag on its own. The tag always matches the move the button sends.
+
+If you would rather the arrows follow the Z value than the bed, set **Z Buttons Move** to **Nozzle** in [Motion Settings](#motion-settings); **Bed** forces the bed convention, and **Auto** goes back to choosing from your printer type.
 
 ---
 

@@ -120,7 +120,7 @@ The widget you long-pressed is selected, not picked up, however long you keep ho
 
 A long press on a control you drag does not enter Edit Mode: the arc on a Fan Speeds carousel, and the plate of a homed [Toolhead widget](#toolhead-widget). Long-press another part of the widget, or another widget, instead.
 
-![Edit Mode — widget selected with gear and trash icons, toolbar at top](../../images/user/home-edit-mode.png)
+![Edit Mode with the Fan Speeds widget's menu open, showing Configure and Remove](../../images/user/home-edit-mode.png)
 
 ### Selecting a Widget
 
@@ -128,12 +128,13 @@ A long press on a control you drag does not enter Edit Mode: the arc on a Fan Sp
 - The corner brackets **pulse** gently to indicate the active selection
 - **Tap empty space** to deselect the current widget
 - Only one widget can be selected at a time
+- **Tap the selected widget again**, or **press and hold any widget**, to open its menu. A held menu appears while your finger is still down: lift without moving to keep it open, or keep moving to drag the widget instead. The menu sits beside the widget, which stays outlined, and lists what you can do to it: **Configure** for widgets that have settings, and **Remove**. Tap outside the menu to close it without doing anything.
 - Pressing a widget that is not selected only selects it, even if your finger then slides: a slide across the grid swipes pages rather than dragging a widget
 
 ### Moving a Widget
 
 1. **Select** a widget by tapping it (the widget you long-pressed to enter Edit Mode is already selected)
-2. **Press it again and drag** it to a new position. You can also skip the tap: **press and hold** any widget for about half a second to pick it up, then drag
+2. **Press it again and drag** it to a new position. You can also skip the tap: **press and hold** any widget for about half a second until its menu appears, then keep your finger down and drag. The menu closes and the widget moves
 3. As you drag, a **snap preview** appears showing where the widget will land:
    - **Blue/accent preview** = valid drop position
    - **Red preview** = invalid position (would overlap another widget)
@@ -220,21 +221,21 @@ The **Reset** button in the catalog header resets your whole dashboard — see [
 
 ### Removing a Widget
 
-1. **Select** the widget you want to remove
-2. A **trash icon** appears at the widget's upper-right corner - tap it
+1. **Tap** the widget you want to remove to select it, then tap it again to open its menu. You can also press and hold the widget, then lift your finger without moving it.
+2. Tap **Remove** in the menu.
 3. The widget is removed from your grid, and a **Widget removed** message appears with an **Undo** button for a few seconds. Tap **Undo** to put the widget back where it was, with its settings. If something has taken its spot, it goes to a free space on its page. Opening the Widget Catalog, deleting a page, or tapping **Done** ends the chance to undo.
 
 Removing a widget you can add only once keeps its settings, so adding it back from the Widget Catalog brings them back. A widget you can add more than once, like Fan, Macro Button, or LED Light, is added as a new copy each time, and removing a copy you added deletes that copy along with its settings.
 
-![Widget selected with trash icon in upper-right corner](../../images/user/home-widget-trash.png)
+![The Temperature Graph widget's menu, with Configure and Remove](../../images/user/home-widget-trash.png)
 
 ### Configuring a Widget
 
-Some widgets have settings you can change directly from Edit Mode. When you select one of these configurable widgets, a **gear icon** appears in the upper-left corner (the trash icon is in the upper-right).
+Some widgets have settings you can change directly from Edit Mode. The menu of one of these configurable widgets has a **Configure** row above **Remove**. Widgets without settings show only **Remove**.
 
 **Configurable widgets:**
 
-| Widget | What the gear button does |
+| Widget | What Configure does |
 |--------|--------------------------|
 | **Temperatures** | Toggles between Stack and Carousel display mode |
 | **Fan Speeds** | Toggles between Stack and Carousel display mode |
@@ -253,13 +254,12 @@ Some widgets have settings you can change directly from Edit Mode. When you sele
 **To configure a widget:**
 
 1. Enter Edit Mode (long-press the widget grid)
-2. **Tap** the widget you want to configure — corner brackets and action buttons appear
-3. **Tap the gear icon** in the upper-left corner
-4. For Temperatures/Fan Speeds: the widget immediately switches between Stack and Carousel mode. Tap the gear again to switch back.
+2. **Tap** the widget you want to configure to select it, then tap it again to open its menu
+3. Tap **Configure**
+4. For Temperatures/Fan Speeds: the widget immediately switches between Stack and Carousel mode. Choose **Configure** again to switch back.
 5. For Macro Buttons: a config modal opens with three tabs. **Macro** lists all available Klipper macros — tap one to assign it, and the button updates immediately. **Appearance** sets the icon and color. **Options** holds **Require Confirmation?**, described below.
 6. For Filament Sensor: a picker opens listing the sensor sources (Auto, Runout, Toolhead, Entry). Tap one to assign it - the tile updates immediately.
 
-![Configurable widget selected — gear icon (upper-left) and trash icon (upper-right)](../../images/user/home-edit-mode.png)
 ![Macro picker — select from available Klipper macros](../../images/user/home-macro-picker.png)
 
 ### Resetting to Defaults
@@ -321,10 +321,10 @@ These are the same 5 groups the Widget Catalog uses on the device.
 | **Chamber Temperature** | Live chamber temperature with current and target readings, shown with a chamber icon and an animated heating indicator. Tap to open the temperature graph overlay focused on the chamber. Only available on printers with a chamber temperature sensor or heater. | 1x1 | 0.5x1 | Full grid | Yes | Chamber sensor or heater |
 | **Temperatures** | Stacked view showing nozzle, bed, and chamber temperatures in one widget. Each row shows current temp and target. Also available in Carousel mode (see [Display Modes](#display-modes-stack-vs-carousel) below). Tap any reading to open the temperature graph. | 1x1 | 1x1 | 3x2 | Yes | — |
 | **Temperature Sensors** | Monitor additional temperature sensors (chamber, enclosure heater, filament dryer, etc.) in a single-sensor or carousel view. A sensor that has a target (a `[heater_generic]` or `[temperature_fan]`) shows current / target, and tapping it opens the keypad to set the target. You can add multiple instances, each configured to a different sensor. Also available in Carousel mode. | 1x1 | 0.5x1 | Full grid | Yes | Extra temp sensors |
-| **Temperature Graph** | Live temperature chart with configurable sensor series. Shows colored lines for each sensor with optional target setpoint lines. Content adapts to size — larger sizes show legends, axis labels, gradients, and temperature readouts. Tap to open the full-screen graph overlay. Configure which sensors to display via the gear icon in Edit Mode. You can add multiple instances. | 2x2 | 1x1 | Full width x4 | Yes | — |
+| **Temperature Graph** | Live temperature chart with configurable sensor series. Shows colored lines for each sensor with optional target setpoint lines. Content adapts to size — larger sizes show legends, axis labels, gradients, and temperature readouts. Tap to open the full-screen graph overlay. Choose which sensors to display with Configure in the widget's Edit Mode menu. You can add multiple instances. | 2x2 | 1x1 | Full width x4 | Yes | — |
 | **Preheat** | Quick preheat buttons with material selection. Tap a material to instantly set nozzle and bed temperatures to that material's profile. | 3x1 | 2x1 | 4x1 | Horizontal only | — |
 | **Fan Speeds** | Part cooling, hotend, and auxiliary fan speeds at a glance. Each row shows its fan's full name when there is room, then the short names Part, Hotend and Aux, then P, H and A on a narrow widget. Fan icons spin when running. Also available in Carousel mode with arc slider controls. Tap to open the Fan Control overlay. You can add multiple instances. | 1x1 | 1x1 | 3x2 | Yes | — |
-| **Fan** | Monitor a single fan's speed. Tap to open a fan picker to choose which fan to display. You can add multiple instances, each showing a different fan. Configure via the gear icon in Edit Mode. | 1x1 | 0.5x1 | Full grid | Yes | — |
+| **Fan** | Monitor a single fan's speed. Tap to open a fan picker to choose which fan to display. You can add multiple instances, each showing a different fan. Choose the fan with Configure in the widget's Edit Mode menu. | 1x1 | 0.5x1 | Full grid | Yes | — |
 
 ### Filament
 
@@ -332,9 +332,9 @@ These are the same 5 groups the Widget Catalog uses on the device.
 |--------|-------------|---------|-----|-----|-----------|-------------------|
 | **Active Spool** | Shows the currently loaded Spoolman spool: it displays the spool color, material type, brand, and remaining weight. Tap it to edit the spool in the loaded slot; with no slot loaded, the tap opens the [External Spool](filament.md#external-spool-configuration) editor instead. At compact sizes (1x1) shows just the colored spool icon; at wider sizes shows material details alongside. | 1x1 | 1x1 | 4x2 | Yes | Spoolman configured |
 | **AMS Status** | A live view of your multi-material spool lanes. At 1x it's a compact row of colored bars — one per lane, each filled to show roughly how much filament is left. At 2x and wider it switches to a detailed view: a small spool for each lane with its lane number, material type (PLA, PETG…), and percent remaining, and the currently loaded lane's number badge is highlighted green. The spools size to fit the widget — 2 across at 2x, 4 across at 4x — and any lanes that don't fit scroll sideways. Tap for the full AMS panel. | 1x1 | 1x1 | 4x2 | Yes | AMS/MMU detected |
-| **Filament Sensor** | Filament runout detection status. Tap to load, unload, or purge filament - what happens depends on what's going on: if the sensor is turned off, tapping opens its settings instead; while a print is running the modal is a status readout only; and if the print is paused you also get **Resume Print** and **Cancel Print**, so a runout pause can be dealt with without leaving the home screen. Canceling asks you to confirm first. Configurable via the gear icon in Edit Mode - choose which sensor the tile follows. See [Configuring a Widget](#configuring-a-widget) above. | 1x1 | 0.5x1 | Full grid | Yes | Filament sensor |
+| **Filament Sensor** | Filament runout detection status. Tap to load, unload, or purge filament - what happens depends on what's going on: if the sensor is turned off, tapping opens its settings instead; while a print is running the modal is a status readout only; and if the print is paused you also get **Resume Print** and **Cancel Print**, so a runout pause can be dealt with without leaving the home screen. Canceling asks you to confirm first. Use Configure in the widget's Edit Mode menu to choose which sensor the tile follows. See [Configuring a Widget](#configuring-a-widget) above. | 1x1 | 0.5x1 | Full grid | Yes | Filament sensor |
 | **Width Sensor** | Live filament width reading from a diameter sensor. | 1x1 | 1x1 | 2x2 | Yes | Width sensor |
-| **Clog Detection** | Filament clog and flow health monitor. Shows the FlowGuard bar. Tap to open the Buffer Status detail modal. Configurable via the gear icon in Edit Mode. See [Clog Detection Widget](#clog-detection-widget) below. | 2x1 | 2x1 | 4x2 | Yes | AMS/MMU detected |
+| **Clog Detection** | Filament clog and flow health monitor. Shows the FlowGuard bar. Tap to open the Buffer Status detail modal. Set it up with Configure in the widget's Edit Mode menu. See [Clog Detection Widget](#clog-detection-widget) below. | 2x1 | 2x1 | 4x2 | Yes | AMS/MMU detected |
 | **Filament Buffer** | Where the filament buffer between your feeder and extruder sits against its target: an upright slider (loose up, tight down) beside a big colored reading; an OpenAMS pressure sensor is a fill gauge instead, rising from the bottom with a tick at its target. At 2x1 it adds the target, the last minute as a trace, and says whether the filament is running tight, loose or balanced (OpenAMS: at, above or below target). Tap for Buffer Status. | 1x1 | 1x1 | 2x1 | Yes | A filament pressure sensor or sync feedback |
 | **Bypass** | One-tap toggle for external-spool bypass. Shows the bypass state (icon changes, and the external spool's color and material while engaged) - tap to toggle. Same guards as the AMS panel's bypass toggle: if filament is loaded from a lane it unloads first, and while a job holds the printer (preparing, printing, or paused) the tap is refused with a "Bypass cannot be changed while printing" warning. | 1x1 | 0.5x1 | Full grid | Yes | Filament system with bypass |
 | **Humidity** | Enclosure humidity reading from a connected sensor, beside a water drop filled to the same level (an empty outline while the sensor has no reading). | 1x1 | 1x1 | 2x2 | Yes | Humidity sensor |
@@ -344,15 +344,15 @@ These are the same 5 groups the Widget Catalog uses on the device.
 
 | Widget | Description | Default | Min | Max | Resizable | Hardware Required |
 |--------|-------------|---------|-----|-----|-----------|-------------------|
-| **Macro Button** | One-tap buttons to run configured macros. Add as many Macro Button widgets as you like, each independently configurable — assign a macro to each via the gear icon in Edit Mode. See [Macro Button confirmation](#macro-button-confirmation). | 1x1 | 1x1 | 2x1 | Horizontal only | — |
+| **Macro Button** | One-tap buttons to run configured macros. Add as many Macro Button widgets as you like, each independently configurable — assign a macro to each with Configure in the widget's Edit Mode menu. See [Macro Button confirmation](#macro-button-confirmation). | 1x1 | 1x1 | 2x1 | Horizontal only | — |
 | **Macros** | One-tap shortcut to open the [Macros](advanced.md#macro-execution) panel for browsing and executing Klipper macros. | 1x1 | 0.5x1 | Full grid | Yes | — |
 | **G-code Console** | One-tap shortcut to open the [G-code Console](advanced.md#g-code-console) overlay for sending commands and viewing Klipper responses. See [G-code Console Widget](#g-code-console-widget) below. | 1x1 | 0.5x1 | Full grid | Yes | — |
 | **Motion** | One-tap shortcut to open the [Motion](motion.md) panel for jogging the toolhead and homing. | 1x1 | 0.5x1 | Full grid | Yes | — |
-| **Toolhead** | Where the toolhead is: X, Y and Z, each shown as `--` until that axis is homed. At 0.5x1 and 1x1 it lists the axes; from 1.5x1 it draws the print bed with a crosshair for the nozzle and a bar for Z, and once the printer is homed you can tap or drag on that plate to move the toolhead. During a print the small sizes show the Z height instead. At 2x2 and larger a **Home All** button appears while an axis is not homed, and during a print the active tool and live speed take its place. At 2x3 a row of three preset buttons sits under the plate, set from the gear icon in Edit Mode. See [Toolhead Widget](#toolhead-widget). | 2x2 | 0.5x0.5 | 4x4 | Yes | - |
+| **Toolhead** | Where the toolhead is: X, Y and Z, each shown as `--` until that axis is homed. At 0.5x1 and 1x1 it lists the axes; from 1.5x1 it draws the print bed with a crosshair for the nozzle and a bar for Z, and once the printer is homed you can tap or drag on that plate to move the toolhead. During a print the small sizes show the Z height instead. At 2x2 and larger a **Home All** button appears while an axis is not homed, and during a print the active tool and live speed take its place. At 2x3 a row of three preset buttons sits under the plate, set with Configure in the widget's Edit Mode menu. See [Toolhead Widget](#toolhead-widget). | 2x2 | 0.5x0.5 | 4x4 | Yes | - |
 | **Bed Mesh** | The active bed mesh as a color heatmap, with how flat it is: the Z range is green below 0.15 mm, amber below 0.30 mm and red above. Wider sizes add the profile name, the lowest and highest point and the grid size, then a color scale and the number of saved profiles. Tap to open the Bed Mesh screen. See [Bed Mesh Widget](#bed-mesh-widget) below. | 2x2 | 0.5x0.5 | 6x4 | Yes | Bed mesh support |
 | **Tool Switcher** | Quick tool switching for multi-tool printers (IDEX, toolchangers, multi-head). Shows each tool with its loaded filament color, lets you switch the active tool with one tap, and parks the mounted tool on printers that support it. See [Tool Switcher Widget](#tool-switcher-widget) below. | 1x1 | 1x1 | 2x2 | Yes | Multi-tool printer |
 | **Power** | Toggle a Moonraker power device (PSU, lights, etc.) with one tap. You can add multiple instances, each bound to a different device. Shows the device name, state, and a customizable icon. Pick a color in the device picker and the tile shows it while the device is on, and a faded version of it while off; a device locked during a print keeps its gray locked look. With no color picked, the tile uses red for on and gray for off. | 1x1 | 1x1 | Full grid | Yes | Power devices |
-| **LED Light** | Turns one light on or off — pick which one, or **All lights**, from the gear icon in Edit Mode; defaults to the chamber light. At 2x1 or wider, an arrow next to the bulb opens full color, brightness, and effects for it in the LEDs overlay. You can add more than one, each controlling a different light. | 1x1 | 0.5x1 | Full grid | Yes | A light HelixScreen can switch |
+| **LED Light** | Turns one light on or off — pick which one, or **All lights**, with Configure in the widget's Edit Mode menu; defaults to the chamber light. At 2x1 or wider, an arrow next to the bulb opens full color, brightness, and effects for it in the LEDs overlay. You can add more than one, each controlling a different light. | 1x1 | 0.5x1 | Full grid | Yes | A light HelixScreen can switch |
 | **LED Controls** | One-tap shortcut to open the LEDs overlay directly, on whichever light you last looked at (or the chamber light). | 1x1 | 0.5x1 | Full grid | Yes | Any LED device |
 
 ### System
@@ -425,7 +425,7 @@ Full-size swipeable pages with one item per page. Indicator dots at the bottom s
 
 ### Switching Modes
 
-Long-press the grid to enter Edit Mode, select the Temperatures or Fan Speeds widget, and tap the **gear icon** in the upper-left corner. Each tap toggles the mode. For **Temperature Sensors**, the gear icon opens the sensor list instead: tick one sensor for the single view, or several for the Carousel. Your preference is saved per widget and persists across restarts.
+Long-press the grid to enter Edit Mode, open the Temperatures or Fan Speeds widget's menu, and tap **Configure**. Each time you choose it, the mode toggles. For **Temperature Sensors**, Configure opens the sensor list instead: tick one sensor for the single view, or several for the Carousel. Your preference is saved per widget and persists across restarts.
 
 ---
 
@@ -456,7 +456,7 @@ While **not** in Edit Mode, widgets respond to taps and other gestures:
 | Bed Temperature | Opens temperature graph overlay |
 | Chamber Temperature | Opens temperature graph overlay focused on the chamber |
 | Temperatures | Opens temperature graph for the tapped sensor |
-| Temperature Sensors | A heater or temperature fan: opens the keypad to set its target. A read-only sensor: opens the sensor picker. Carousel: opens the sensor list. To change which sensor a heater tile shows, use the gear icon in Edit Mode |
+| Temperature Sensors | A heater or temperature fan: opens the keypad to set its target. A read-only sensor: opens the sensor picker. Carousel: opens the sensor list. To change which sensor a heater tile shows, use Configure in the widget's Edit Mode menu |
 | Temperature Graph | Opens full-screen temperature graph overlay |
 | Preheat | Sets nozzle and bed temperature to the tapped material profile |
 | Humidity | — (display only) |
@@ -497,8 +497,8 @@ constantly and always the same way.
 
 **Require Confirmation?** turns it off, per button:
 
-1. Enter Edit Mode (long-press the widget grid) and tap the Macro Button
-2. Tap the gear icon, then the **Options** tab
+1. Enter Edit Mode (long-press the widget grid) and open the Macro Button's menu
+2. Tap **Configure**, then the **Options** tab
 3. Turn **Require Confirmation?** off
 
 That button now runs its macro on a single tap, with no parameters and no dialog.
@@ -624,7 +624,7 @@ Where your printer has a filament buffer with a proportional reading, the modal 
 
 ### Configuring Clog Detection
 
-In Edit Mode, select the Clog Detection widget and tap the **gear icon** to open the configuration modal:
+In Edit Mode, open the Clog Detection widget's menu and tap **Configure** to open the configuration modal:
 
 | Setting | Options |
 |---------|---------|
@@ -864,8 +864,8 @@ Then a tap on the plate opens the Motion panel, like a tap anywhere else on the 
 
 At 2x3 and larger, three preset buttons sit under the plate. By default they are **Front**, **Center** and **Park**. To change them:
 
-1. Enter Edit Mode and tap the Toolhead widget.
-2. Tap the **gear icon** in the upper-left corner. The **Presets** picker opens with a tab for each of the three buttons.
+1. Enter Edit Mode and open the Toolhead widget's menu.
+2. Tap **Configure**. The **Presets** picker opens with a tab for each of the three buttons.
 3. Pick a tab, then pick what that button does. Your choice is saved straight away.
 
 | Choice | What the button does |
@@ -992,7 +992,7 @@ If you downgrade and a widget type no longer exists, it's silently removed from 
 - **Your arrangement is carried over**, in proportion. A widget that filled the left third of the screen still fills the left third; two widgets that were touching stay touching
 - **Sizes can shift slightly.** The new grid does not divide the screen the same way, so a widget lands on the nearest size it is allowed to hold. Some widgets have a minimum of one full cell and will grow to it
 - **A widget that will not fit is re-placed automatically**, and only that widget. On a screen that got shorter or narrower this can happen to one or two of them; the rest keep their spots
-- **Which widgets you have is remembered.** A widget you deleted with the trash button stays gone; one you added stays added, including extra Macro Buttons, Power widgets, and other multiples
+- **Which widgets you have is remembered.** A widget you removed stays gone; one you added stays added, including extra Macro Buttons, Power widgets, and other multiples
 - **Per-widget settings are kept** — display modes, assigned fans and macros all survive
 - Extra pages are kept, and widgets are converted within the page they were already on
 
@@ -1079,8 +1079,8 @@ Tap the camera feed to open a **fullscreen view**. Tap again or press back to re
 If your camera is mounted at an angle or its image comes in mirrored, you can correct it without changing anything in Moonraker:
 
 1. Enter **Edit Mode** (long-press the grid)
-2. **Tap** the Camera widget to select it
-3. **Tap the gear icon** in the upper-left corner to open the Camera configuration modal
+2. **Tap** the Camera widget to select it, then tap it again to open its menu
+3. Tap **Configure** to open the Camera configuration modal
 4. Adjust the settings and tap **Save** (or **Cancel** to discard)
 
 The modal offers:

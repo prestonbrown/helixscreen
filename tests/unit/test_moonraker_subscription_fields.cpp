@@ -253,19 +253,21 @@ TEST_CASE("Subscription: fan field shape varies by object type", "[moonraker][su
 
     json subs = fx.build();
 
-    SECTION("standard fans: {speed}") {
+    SECTION("standard fans: {speed, rpm}") {
         for (const auto& f : {"fan", "heater_fan hotend_fan", "fan_generic part_cooling",
                               "controller_fan board_fan"}) {
             CAPTURE(f);
             REQUIRE(has_field(subs, f, "speed"));
-            REQUIRE(subs[f].size() == 1);
+            REQUIRE(has_field(subs, f, "rpm"));
+            REQUIRE(subs[f].size() == 2);
         }
     }
 
-    SECTION("temperature_fan: {temperature, target, speed} (sensor + fan union)") {
+    SECTION("temperature_fan: {temperature, target, speed, rpm} (sensor + fan union)") {
         REQUIRE(has_field(subs, "temperature_fan chamber", "temperature"));
         REQUIRE(has_field(subs, "temperature_fan chamber", "target"));
         REQUIRE(has_field(subs, "temperature_fan chamber", "speed"));
+        REQUIRE(has_field(subs, "temperature_fan chamber", "rpm"));
     }
 
     SECTION("output_pin fan: {value} (Creality-style)") {
@@ -423,11 +425,37 @@ TEST_CASE("Subscription: AFC field lists are exactly the parsers' inputs",
                                     "hubs",
                                     "extruders",
                                     "buffers"});
-    const json stepper =
-        json::array({"buffer_status",   "color",         "current_map", "dist_hub",      "extruder",
-                     "filament_status", "hub",           "load",        "loaded_to_hub", "map",
-                     "material",        "prep",          "runout_lane", "spool_id",      "status",
-                     "td1_color",       "td1_scan_time", "td1_td",      "tool_loaded",   "weight"});
+    const json stepper = json::array({"bed_temp",
+                                      "buffer_status",
+                                      "color",
+                                      "current_map",
+                                      "dist_hub",
+                                      "endstops",
+                                      "extruder",
+                                      "extruder_temp",
+                                      "filament_name",
+                                      "filament_status",
+                                      "filament_status_led",
+                                      "hub",
+                                      "initial_weight",
+                                      "load",
+                                      "loaded_to_hub",
+                                      "map",
+                                      "material",
+                                      "multi_color_hexes",
+                                      "prep",
+                                      "remember_spool",
+                                      "runout_lane",
+                                      "selector",
+                                      "spool_id",
+                                      "spool_vendor",
+                                      "status",
+                                      "td1_color",
+                                      "td1_scan_time",
+                                      "td1_td",
+                                      "tool_loaded",
+                                      "vendor_name",
+                                      "weight"});
 
     CHECK(subs["AFC"] == state);
     CHECK(subs["AFC_stepper lane1"] == stepper);

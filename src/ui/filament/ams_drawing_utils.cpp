@@ -106,7 +106,7 @@ std::string get_unit_display_name(const helix::AmsUnit& unit, int unit_index) {
     } else if (!unit.name.empty()) {
         raw = unit.name;
     } else {
-        return "Unit " + std::to_string(helix::ui::lane_number(unit_index));
+        return "Unit " + std::to_string(helix::ui::display_ordinal(unit_index));
     }
 
     // Replace underscores with spaces for readability
@@ -803,11 +803,21 @@ ToolBadgeLabels compute_tool_badge_labels(const SystemToolLayout& layout,
         for (const auto& group : layout.hub_groups) {
             if (!group.hub_id.empty() && group.physical_tool >= 0 &&
                 group.physical_tool < static_cast<int>(out.numbers.size())) {
-                out.numbers[group.physical_tool] = helix::ui::lane_number(group.physical_tool);
+                out.numbers[group.physical_tool] = group.physical_tool;
             }
         }
     }
     return out;
+}
+
+std::string lane_badge_text(int number) { // NAMESPACE_OK: sits with create_lane_badge in ams_draw
+    return number < 0 ? std::string() : std::to_string(number);
+}
+
+void set_lane_badge_number(lv_obj_t* badge, int lane_number) { // NAMESPACE_OK: in ams_draw
+    if (lv_obj_t* lbl = badge ? lv_obj_get_child(badge, 0) : nullptr) {
+        lv_label_set_text(lbl, lane_badge_text(lane_number).c_str());
+    }
 }
 
 lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, bool active) {
@@ -824,9 +834,7 @@ lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, boo
     lv_obj_remove_flag(badge, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(badge, LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_obj_t* lbl = lv_label_create(badge);
-    char txt[8];
-    snprintf(txt, sizeof(txt), "%d", lane_number); // 1-based; lane numbers not translated
-    lv_label_set_text(lbl, txt);
+    lv_label_set_text(lbl, lane_badge_text(lane_number).c_str());
     const lv_font_t* f = theme_manager_get_font("font_xs");
     if (f)
         lv_obj_set_style_text_font(lbl, f, LV_PART_MAIN);

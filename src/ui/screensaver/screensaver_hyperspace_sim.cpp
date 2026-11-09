@@ -62,6 +62,24 @@ constexpr int32_t kTunnelSpanMs = 6000;
 
 constexpr uint32_t kHueCycleMs = 24000; // once round the colour wheel
 
+// How fast the flight follows the print, per ms: speed and light gain as shares, the tunnel's
+// fade as a share of the swept-in tunnel, and the light's radius by an easing time.
+constexpr float kSpeedEasePerMs = 1.0f / 800.0f;
+constexpr float kDropOutPerMs = 1.0f / static_cast<float>(kHyperspaceDropOutMs);
+constexpr float kTunnelFadePerMs = 1.0f / 2000.0f;
+constexpr float kLightGainPerMs = 1.0f / 2500.0f;
+constexpr float kLightEaseMs = 700.0f;
+// The light: warm white, hottest at its centre.
+constexpr Rgb kLightColor = {255, 236, 200};
+
+/// `value` moved toward `target` by at most `step`, landing on it exactly.
+float approach(float value, float target, float step) {
+    if (std::fabs(target - value) <= step) {
+        return target;
+    }
+    return target > value ? value + step : value - step;
+}
+
 // Tunnel geometry: a pixel r half-heights from the vanishing point sees the wall kTunnelDepth / r
 // texture rows away. Depth is capped, and shade levels darken the far wall toward the centre.
 constexpr float kTunnelDepth = 64.0f;
@@ -92,7 +110,8 @@ uint8_t wave85(float phase) {
 
 } // namespace
 
-void HyperspaceSim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t level) {
+void HyperspaceSim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t level,
+                         const ClockReading& reading) {
     w_ = static_cast<int32_t>(frame.w);
     h_ = static_cast<int32_t>(frame.h);
     format_ = frame.format;
@@ -144,6 +163,48 @@ void HyperspaceSim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t
     bursts_started_ = 0;
     // The tunnel tables are sized here, for the start level, so a frame allocates nothing.
     build_tables();
+
+    mode_ = reading.mode;
+    follow_print(reading, 0, true);
+    shown_tunnel_ = 0;
+}
+
+void HyperspaceSim::follow_print(const ClockReading& reading, uint32_t dt_ms, bool snap) {
+    const ClockMode m = reading.mode;
+    mode_ = m;
+    const bool ended = clock_mode_is_end(m);
+    const float ms = static_cast<float>(dt_ms);
+
+    float speed = 1.0f;
+    if (m == ClockMode::PAUSED) {
+        speed = kHyperspacePausedSpeed;
+    } else if (m == ClockMode::DONE) {
+        speed = kHyperspaceDoneDriftSpeed;
+    }
+    const float speed_rate = m == ClockMode::DONE ? kDropOutPerMs : kSpeedEasePerMs;
+    speed_scale_ = snap ? speed : approach(speed_scale_, speed, speed_rate * ms);
+    const float fade = ended ? 0.0f : 1.0f;
+    tunnel_fade_ = snap ? fade : approach(tunnel_fade_, fade, kTunnelFadePerMs * ms);
+
+    const bool lit = m != ClockMode::CLOCK && m != ClockMode::FAILED && m != ClockMode::CANCELLED;
+    light_gain_ =
+        snap ? (lit ? 1.0f : 0.0f) : approach(light_gain_, lit ? 1.0f : 0.0f, kLightGainPerMs * ms);
+    // A failed print's light keeps its size while it dims; no print leaves it where it was.
+    if (lit) {
+        const float p = static_cast<float>(std::clamp(reading.progress_pct, 0, 100)) / 100.0f;
+        light_progress_ =
+            snap ? p : light_progress_ + (p - light_progress_) * ms / (ms + kLightEaseMs);
+    }
+}
+
+float HyperspaceSim::light_radius() const {
+    if (light_gain_ <= 0.0f) {
+        return 0.0f;
+    }
+    const float side = static_cast<float>(std::min(w_, h_));
+    const float end_share = kHyperspaceLevels[level_].block == 0 ? kHyperspaceCheapLightEndShare
+                                                                 : kHyperspaceLightEndShare;
+    return kHyperspaceLightStartPx + (end_share * side - kHyperspaceLightStartPx) * light_progress_;
 }
 
 void HyperspaceSim::clear() {
@@ -272,7 +333,8 @@ void HyperspaceSim::advance(uint32_t dt_ms, std::minstd_rand& rng) {
     const auto wave = [t](double rate, double phase) {
         return static_cast<float>(std::sin(t * rate + phase));
     };
-    camera_.speed = kBaseSpeed * (1.0f + 0.3f * wave(0.21, 0.0) + 0.15f * wave(0.53, 1.0));
+    camera_.speed =
+        kBaseSpeed * (1.0f + 0.3f * wave(0.21, 0.0) + 0.15f * wave(0.53, 1.0)) * speed_scale_;
     camera_.roll = kHyperspaceMaxRoll * (kRollSlow * wave(0.13, 0.5) + kRollFast * wave(0.31, 1.0));
     const float drift = kDriftShare * static_cast<float>(h_);
     camera_.drift_x = drift * (0.7f * wave(0.17, 0.0) + 0.3f * wave(0.41, 2.0));
@@ -301,7 +363,8 @@ void HyperspaceSim::advance(uint32_t dt_ms, std::minstd_rand& rng) {
         }
     }
 
-    burst_in_ms_ -= static_cast<int32_t>(dt_ms);
+    // A finished print throws no more starbursts.
+    burst_in_ms_ -= mode_ == ClockMode::DONE ? 0 : static_cast<int32_t>(dt_ms);
     if (burst_in_ms_ <= 0) {
         throw_starburst(rng);
         burst_in_ms_ = random_int(rng, kBurstGapMinMs, kBurstGapMinMs + kBurstGapSpanMs - 1);
@@ -388,7 +451,7 @@ void HyperspaceSim::build_tables() {
 
 void HyperspaceSim::build_palettes() {
     const uint32_t hue = this->hue();
-    const uint32_t fade = tunnel_amount_;
+    const uint32_t fade = shown_tunnel_;
     // Each texel's colour band sits up to 3/4 of the way round the wheel, and the brightest
     // texels burn toward white.
     // A level without a tunnel holds no tunnel palette.
@@ -419,7 +482,7 @@ void HyperspaceSim::build_palettes() {
 
 template <typename Px> void HyperspaceSim::draw_background(FrameTarget& frame) {
     const HyperspaceLevel& lv = kHyperspaceLevels[level_];
-    const bool tunnel = lv.block != 0 && tunnel_amount_ != 0;
+    const bool tunnel = lv.block != 0 && shown_tunnel_ != 0;
     const bool goo = lv.goo && lv.block != 0;
     if (!tunnel && !goo) {
         for (int32_t y = 0; y < h_; y++) {
@@ -530,6 +593,47 @@ template <typename Px> void HyperspaceSim::draw_background(FrameTarget& frame) {
     }
 }
 
+template <typename Px> void HyperspaceSim::draw_light(FrameTarget& frame) {
+    const float radius = light_radius();
+    if (radius <= 0.0f) {
+        return;
+    }
+    const int32_t block = std::max<int32_t>(1, kHyperspaceLevels[level_].block);
+    const float vx = static_cast<float>(w_) / 2.0f + camera_.drift_x;
+    const float vy = static_cast<float>(h_) / 2.0f + camera_.drift_y;
+    const auto reach = static_cast<int32_t>(std::ceil(radius));
+    const int32_t bx0 = std::max(0, static_cast<int32_t>(vx) - reach) / block * block;
+    const int32_t by0 = std::max(0, static_cast<int32_t>(vy) - reach) / block * block;
+    const int32_t bx1 = std::min(w_ - 1, static_cast<int32_t>(vx) + reach);
+    const int32_t by1 = std::min(h_ - 1, static_cast<int32_t>(vy) + reach);
+    const float inv_r = 1.0f / radius;
+    const float gain = light_gain_ * 255.0f;
+    for (int32_t by = by0; by <= by1; by += block) {
+        const float fy = static_cast<float>(by) + static_cast<float>(block) / 2.0f - vy;
+        for (int32_t bx = bx0; bx <= bx1; bx += block) {
+            const float fx = static_cast<float>(bx) + static_cast<float>(block) / 2.0f - vx;
+            const float d = std::sqrt(fx * fx + fy * fy) * inv_r;
+            if (d >= 1.0f) {
+                continue;
+            }
+            const float glow = (1.0f - d) * (1.0f - d);
+            const auto i = static_cast<uint32_t>(gain * glow);
+            if (i == 0) {
+                continue;
+            }
+            const uint32_t r = kLightColor.r * i >> 8;
+            const uint32_t g = kLightColor.g * i >> 8;
+            const uint32_t b = kLightColor.b * i >> 8;
+            for (int32_t y = by; y < std::min(h_, by + block); y++) {
+                Px* out = frame_row<Px>(frame, y);
+                for (int32_t x = bx; x < std::min(w_, bx + block); x++) {
+                    add_light(&out[x], r, g, b);
+                }
+            }
+        }
+    }
+}
+
 template <typename Px>
 void HyperspaceSim::draw_flare(FrameTarget& frame, float x, float y, float z, float size,
                                uint8_t hue_offset, uint32_t brightness) {
@@ -573,7 +677,7 @@ void HyperspaceSim::draw_flare(FrameTarget& frame, float x, float y, float z, fl
 }
 
 void HyperspaceSim::step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng,
-                         std::vector<DirtyRect>& dirty) {
+                         const ClockReading& reading, std::vector<DirtyRect>& dirty) {
     if (pending_level_ != level_) {
         const bool new_block =
             kHyperspaceLevels[pending_level_].block != kHyperspaceLevels[level_].block;
@@ -581,7 +685,10 @@ void HyperspaceSim::step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& r
         tables_stale_ = tables_stale_ || new_block;
     }
     // A long stall advances the flight a bounded step, so nothing jumps across the screen.
-    advance(std::min<uint32_t>(dt_ms, 250), rng);
+    const uint32_t flown_ms = std::min<uint32_t>(dt_ms, 250);
+    follow_print(reading, flown_ms, false);
+    advance(flown_ms, rng);
+    shown_tunnel_ = static_cast<uint8_t>(static_cast<float>(tunnel_amount_) * tunnel_fade_ + 0.5f);
     if (tables_stale_) {
         build_tables();
     }
@@ -593,6 +700,7 @@ void HyperspaceSim::step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& r
     const auto draw = [&](auto pixel_type) {
         using Px = decltype(pixel_type);
         draw_background<Px>(frame);
+        draw_light<Px>(frame);
         const size_t count = std::min<size_t>(kHyperspaceLevels[level_].stars, stars_.size());
         for (size_t i = 0; i < count; i++) {
             const Star& star = stars_[i];

@@ -449,6 +449,61 @@ SUITE
     done
 }
 
+# The run's own cap, not the suite's timeout: --max-minutes stops a suite that is
+# still running, and its runner and the child the runner spawned die with it.
+stub_tests_that_outlast_the_cap() {
+    cat > "$WORK/build/bin/helix-tests" <<'SUITE'
+#!/usr/bin/env bash
+grep -q NEW_BEHAVIOR src/feature.cpp && grep -qs NEW_BEHAVIOR src/second.cpp && exit 0
+echo $$ >> "$PIDS"
+sleep 300 >/dev/null 2>&1 &
+echo $! >> "$PIDS"
+wait
+SUITE
+    chmod +x "$WORK/build/bin/helix-tests"
+}
+
+assert_all_dead() {
+    [ -s "$PIDS" ] || fail "the suite never ran the mutant"
+    for p in $(cat "$PIDS"); do
+        n=0
+        while kill -0 "$p" 2>/dev/null && [ "$n" -lt 50 ]; do
+            sleep 0.1; n=$((n + 1))
+        done
+        if kill -0 "$p" 2>/dev/null; then kill -9 "$p"; fail "pid $p outlived the --max-minutes stop"; fi
+    done
+}
+
+@test "the time cap stops a running suite and the child it spawned" {
+    export PIDS="$BATS_TEST_TMPDIR/suite-pids"
+    printf 'int g() { return 1; }  // NEW_BEHAVIOR\n' > "$WORK/src/second.cpp"
+    stub_tests_that_outlast_the_cap
+    SECONDS=0
+    run mutate --max-minutes 0.1 --timeout 600
+    [ "$SECONDS" -lt 60 ] || fail "the run waited ${SECONDS}s for the suite the cap stopped"
+    [ "$status" -eq 3 ] || fail "$output"
+    contains "UNEXAMINED    src/feature.cpp:1" "$output"
+    assert_all_dead
+}
+
+@test "the time cap stops a running suite in a worker copy too" {
+    export PIDS="$BATS_TEST_TMPDIR/suite-pids"
+    printf 'int g() { return 1; }\n' > "$WORK/src/second.cpp"
+    git -C "$WORK" add src/second.cpp
+    git -C "$WORK" commit -qm second -- src/second.cpp
+    BASE=$(git -C "$WORK" rev-parse HEAD)
+    printf 'int g() { return 2; }  // NEW_BEHAVIOR\n' > "$WORK/src/second.cpp"
+    stub_tests_that_outlast_the_cap
+    SECONDS=0
+    MUTATE_DIFF_PLAIN_COPY=1 run mutate --max-minutes 0.1 --timeout 600 --workers 2
+    [ "$SECONDS" -lt 60 ] || fail "the run waited ${SECONDS}s for the suite the cap stopped"
+    [ "$status" -eq 3 ] || fail "$output"
+    contains "2 workers, each in a copy of the tree" "$output"
+    contains "UNEXAMINED    src/feature.cpp:1" "$output"
+    contains "UNEXAMINED    src/second.cpp:1" "$output"
+    assert_all_dead
+}
+
 @test "a suite that outruns the limit once is judged by its re-run, not killed" {
     cat > "$WORK/build/bin/helix-tests" <<'SUITE'
 #!/usr/bin/env bash

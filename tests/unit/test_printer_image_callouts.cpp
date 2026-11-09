@@ -1021,16 +1021,25 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: wide widget draws a line to the b
     settle();
     REQUIRE(mode_now() == static_cast<int>(CalloutMode::BothSides));
     CHECK_FALSE(lv_obj_has_flag(h.child("callout_line_bed"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(h.child("callout_bed_glow"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_color_eq(lv_obj_get_style_bg_color(h.child("callout_bed_glow"), LV_PART_MAIN),
-                      helix::ui::temperature::get_heating_state_color(
-                          helix::ui::temperature::HeatState::Heating)));
     CHECK(lv_obj_has_flag(h.child("callout_line_nozzle"), LV_OBJ_FLAG_HIDDEN));
-    lv_subject_set_int(state().temperature_state().get_bed_temp_subject(),
-                       600); // at target: glow off, line stays
-    settle();
+    // 40°C is too cool to glow, though the bed is climbing.
+    const auto level = [] {
+        return lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_bed_glow_level"));
+    };
+    CHECK(level() == 0);
     CHECK(lv_obj_has_flag(h.child("callout_bed_glow"), LV_OBJ_FLAG_HIDDEN));
+    // At target the plate still glows; the line stays.
+    lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 600);
+    settle();
+    CHECK(level() == 1);
+    CHECK_FALSE(lv_obj_has_flag(h.child("callout_bed_glow"), LV_OBJ_FLAG_HIDDEN));
     CHECK_FALSE(lv_obj_has_flag(h.child("callout_line_bed"), LV_OBJ_FLAG_HIDDEN));
+    // Cooling from very hot glows strongest, with the target gone.
+    lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 0);
+    lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 950);
+    settle();
+    CHECK(level() == 3);
+    CHECK_FALSE(lv_obj_has_flag(h.child("callout_bed_glow"), LV_OBJ_FLAG_HIDDEN));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "callouts: pinned mode draws no lines",
@@ -1290,7 +1299,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: the disconnected overlay is centr
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "callouts: the bed glow covers the bed edge and pulses while animations are on",
+                 "callouts: the bed glow covers the plate and pulses while animations are on",
                  "[printer_image][callouts]") {
     const auto regions = prepare_tagged_widget();
     auto& display = DisplaySettingsManager::instance();
@@ -1298,20 +1307,21 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     display.set_animations_enabled(true);
     PanelWidgetHarness<PrinterImageWidget> h(test_screen());
     h.resize(8, 4, 480, 160);
-    lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
-    lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 400);
+    lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 1000);
+    lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 600);
     settle();
     lv_obj_update_layout(h.root());
     lv_obj_t* glow = h.child("callout_bed_glow");
     REQUIRE_FALSE(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
+    // Spans the plate's near edge, ends at it, and rises above it.
     const CalloutRect img = fitted_image(h);
     const int x0 = img.x + int(0.308f * float(img.w));
-    const int w = img.x + int(0.611f * float(img.w)) - x0;
-    const int cy = img.y + int((0.571f + 0.573f) / 2 * float(img.h));
+    const int near_bottom = img.y + int(0.573f * float(img.h));
     CHECK(lv_obj_get_x(glow) == x0);
-    CHECK(lv_obj_get_width(glow) == w);
-    CHECK(lv_obj_get_height(glow) == w / 4);
-    CHECK(lv_obj_get_y(glow) == cy - w / 8);
+    CHECK(lv_obj_get_width(glow) == img.x + int(0.611f * float(img.w)) - x0);
+    CHECK(lv_obj_get_y(glow) + lv_obj_get_height(glow) - 1 == near_bottom);
+    CHECK(lv_obj_get_y(glow) < img.y + int(0.571f * float(img.h)) - 1);
+    CHECK(lv_image_get_src(glow) != nullptr);
     CHECK(lv_anim_get(glow, nullptr) != nullptr);
 
     display.set_animations_enabled(false);
@@ -1333,11 +1343,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: an untagged image draws no bed gl
     const ScopedImageRegions untagged({});
     PanelWidgetHarness<PrinterImageWidget> h(test_screen());
     h.resize(8, 4, 480, 160);
-    lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
-    lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 400);
+    lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 1000);
+    lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 600);
     settle();
     REQUIRE(mode_now() == static_cast<int>(CalloutMode::Docked));
-    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_bed_heating")) == 1);
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_bed_glow_level")) > 0);
     CHECK(lv_obj_has_flag(h.child("callout_bed_glow"), LV_OBJ_FLAG_HIDDEN));
 }
 

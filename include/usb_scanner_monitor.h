@@ -32,7 +32,6 @@ class UsbScannerMonitor {
     UsbScannerMonitor() = default;
     ~UsbScannerMonitor();
 
-    // Non-copyable
     UsbScannerMonitor(const UsbScannerMonitor&) = delete;
     UsbScannerMonitor& operator=(const UsbScannerMonitor&) = delete;
 

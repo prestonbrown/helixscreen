@@ -118,7 +118,6 @@ void MoonrakerAPI::set_device_power(const std::string& device, const std::string
         return;
     }
 
-    // Validate action
     if (action != "on" && action != "off" && action != "toggle") {
         report_validation_error(on_error, "set_device_power",
                                 "Invalid action (must be on, off, or toggle)",
@@ -138,7 +137,6 @@ void MoonrakerAPI::set_device_power(const std::string& device, const std::string
 
     std::string encoded_device = HUrl::escape(device);
 
-    // Build URL with query params
     std::string url = http_base_url_ + "/machine/device_power/device?device=" + encoded_device +
                       "&action=" + action;
 

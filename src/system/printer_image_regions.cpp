@@ -46,6 +46,10 @@ RegionsTable& user() {
 }
 
 constexpr const char* kUserRegionsFile = "printer_image_regions.json";
+/// An untagged plate's depth as a share of its pictured width, and how much
+/// narrower its far edge is on each side.
+constexpr float kPlateDepthRatio = 0.3f;
+constexpr float kPlateFarInset = 0.08f;
 
 /// `set_aside_bad`: a file that reads but does not parse is renamed to
 /// `<path>.bad` and the table starts empty, so the next save writes a fresh
@@ -98,6 +102,10 @@ nlohmann::json entry_json(const ImageRegions& r) {
     nlohmann::json e = {{"size", {r.src_w, r.src_h}},
                         {"nozzle", point_json(r.nozzle)},
                         {"bed", {point_json(r.bed_left), point_json(r.bed_right)}}};
+    if (r.bed_far) {
+        e["bed"].push_back(point_json(r.bed_far->right));
+        e["bed"].push_back(point_json(r.bed_far->left));
+    }
     if (r.part_fan)
         e["part_fan"] = point_json(*r.part_fan);
     if (r.chamber)
@@ -143,9 +151,13 @@ std::unordered_map<std::string, ImageRegions> parse_image_regions(const std::str
         const auto nozzle =
             e.is_object() && e.contains("nozzle") ? read_point(e["nozzle"]) : std::nullopt;
         const auto& bed = e.is_object() && e.contains("bed") ? e["bed"] : nlohmann::json();
-        const auto bl = bed.is_array() && bed.size() == 2 ? read_point(bed[0]) : std::nullopt;
-        const auto br = bed.is_array() && bed.size() == 2 ? read_point(bed[1]) : std::nullopt;
-        if (!size || !nozzle || !bl || !br) {
+        // Two points are the plate's near edge; four go on round its far edge.
+        const bool bed_ok = bed.is_array() && (bed.size() == 2 || bed.size() == 4);
+        const auto bl = bed_ok ? read_point(bed[0]) : std::nullopt;
+        const auto br = bed_ok ? read_point(bed[1]) : std::nullopt;
+        const auto fr = bed_ok && bed.size() == 4 ? read_point(bed[2]) : std::nullopt;
+        const auto fl = bed_ok && bed.size() == 4 ? read_point(bed[3]) : std::nullopt;
+        if (!size || !nozzle || !bl || !br || (bed_ok && bed.size() == 4 && (!fr || !fl))) {
             spdlog::warn("[PrinterImageRegions] skipping '{}': needs size, nozzle and bed", name);
             continue;
         }
@@ -155,6 +167,8 @@ std::unordered_map<std::string, ImageRegions> parse_image_regions(const std::str
         r.nozzle = *nozzle;
         r.bed_left = *bl;
         r.bed_right = *br;
+        if (fr && fl)
+            r.bed_far = ImageRegions::FarEdge{*fr, *fl};
         if (e.contains("part_fan"))
             r.part_fan = read_point(e["part_fan"]);
         if (e.contains("chamber"))
@@ -254,9 +268,24 @@ std::string printer_image_region_key(std::string_view path) {
     return is_shipped ? stem : "custom:" + stem;
 }
 
+std::array<NormPoint, 4> plate_quad(const ImageRegions& r) {
+    if (r.bed_far)
+        return {r.bed_left, r.bed_right, r.bed_far->right, r.bed_far->left};
+    // A three-quarter render shows the plate about a third as deep as it is
+    // wide, its far edge a little narrower. Depth is measured in pixels, so
+    // it is scaled by the image's aspect to land in normalized y.
+    const float dx = r.bed_right.x - r.bed_left.x;
+    const float aspect = r.src_h > 0 ? float(r.src_w) / float(r.src_h) : 1.f;
+    const float rise = std::abs(dx) * aspect * kPlateDepthRatio;
+    const float inset = dx * kPlateFarInset;
+    return {r.bed_left, r.bed_right, NormPoint{r.bed_right.x - inset, r.bed_right.y - rise},
+            NormPoint{r.bed_left.x + inset, r.bed_left.y - rise}};
+}
+
 bool ImageTagSession::can_skip() const {
     const auto p = prompt();
-    return p == TagPrompt::PartFan || p == TagPrompt::Chamber || p == TagPrompt::Light;
+    return p == TagPrompt::PartFan || p == TagPrompt::BedFarRight || p == TagPrompt::BedFarLeft ||
+           p == TagPrompt::Chamber || p == TagPrompt::Light;
 }
 
 void ImageTagSession::tap(NormPoint p) {
@@ -285,6 +314,9 @@ ImageRegions ImageTagSession::regions(int natural_w, int natural_h) const {
     r.nozzle = at(TagPrompt::Nozzle).value_or(NormPoint{});
     r.bed_left = at(TagPrompt::BedLeft).value_or(NormPoint{});
     r.bed_right = at(TagPrompt::BedRight).value_or(NormPoint{});
+    // A far edge needs both corners; one alone is no better than the estimate.
+    if (const auto fr = at(TagPrompt::BedFarRight), fl = at(TagPrompt::BedFarLeft); fr && fl)
+        r.bed_far = ImageRegions::FarEdge{*fr, *fl};
     r.part_fan = at(TagPrompt::PartFan);
     r.chamber = at(TagPrompt::Chamber);
     r.light = at(TagPrompt::Light);

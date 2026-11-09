@@ -170,6 +170,7 @@ struct KnownPluginFeature {
 inline constexpr const char* kIfsAbsentReasons[] = {"no_adventurer_json", nullptr};
 inline constexpr const char* kAceAbsentReasons[] = {"no_ace_bridge", "ace_objects_carry_slots",
                                                     nullptr};
+inline constexpr const char* kStartToolsAbsentReasons[] = {"start_print_takes_no_tools", nullptr};
 
 /// Every feature this app can name. A feature the plugin reports that is not
 /// listed shows by its key, with no setting to lead to.
@@ -194,6 +195,8 @@ inline constexpr KnownPluginFeature kKnownPluginFeatures[] = {
      kIfsAbsentReasons},
     {"vendor_ace", TR_NOOP("ACE updates without polling"), "sync", PluginFeatureHome::None,
      kAceAbsentReasons},
+    {"print_start_tools", TR_NOOP("Filament Mapping at print start"), "swap_horizontal",
+     PluginFeatureHome::None, kStartToolsAbsentReasons},
 };
 
 /// What a reason code the plugin reports means, for the overview. Text is

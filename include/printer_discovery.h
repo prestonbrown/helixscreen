@@ -127,9 +127,11 @@ class PrinterDiscovery {
     /**
      * @brief Reset all discovered hardware to initial state
      *
-     * @note This clears ALL fields including printer info (hostname, versions, etc).
-     *       When using parse_objects(), call printer info setters AFTER parse_objects()
-     *       since it calls clear() internally.
+     * @note This clears ALL fields including printer info (hostname, versions, etc),
+     *       except server_takes_print_start_tools(), which discovery reads from
+     *       server.info before the object list. When using parse_objects(), call
+     *       the other printer info setters AFTER parse_objects(), since it calls
+     *       clear() internally.
      */
     void clear();
 
@@ -550,8 +552,28 @@ class PrinterDiscovery {
      * whose tool_names are in tool-number order. Tools it does not list (no
      * tool_number) follow in name order. A status with no tool_names leaves the
      * list as discovered.
+     *
+     * The same status's tool_numbers, paired with its tool_names, become
+     * tool_numbers(): Klipper's number for each tool, which can skip (T0 and T2
+     * only), so it is not always the tool's position.
      */
     void order_tools_by_number(const nlohmann::json& toolchanger_status);
+
+    /// Record each `[tool <name>]` section's configured `tool_number` from a
+    /// configfile.settings object. That is the tool's own number, which an
+    /// ASSIGN_TOOL at runtime does not change. Keyed by the lowercased tool
+    /// name, as Klipper lowercases settings section names.
+    void parse_configured_tool_numbers(const nlohmann::json& settings);
+    [[nodiscard]] const std::unordered_map<std::string, int>& configured_tool_numbers() const {
+        return configured_tool_numbers_;
+    }
+
+    /// @brief klipper-toolchanger's tool number for each entry of tool_names(),
+    /// -1 for a tool it does not number. Empty until order_tools_by_number() has
+    /// seen tool_numbers, or once tool_names() changes after it.
+    [[nodiscard]] std::vector<int> tool_numbers() const {
+        return tool_numbers_.size() == tool_names_.size() ? tool_numbers_ : std::vector<int>{};
+    }
 
     /// @brief Alias for tool_names() - compatibility with PrinterCapabilities API
     [[nodiscard]] const std::vector<std::string>& get_tool_names() const {
@@ -1094,6 +1116,7 @@ class PrinterDiscovery {
     std::vector<std::string> afc_buffer_names_;   // Buffer suffixes: "TN", "TN1", etc.
     std::vector<std::string> afc_extruder_names_; // [AFC_extruder <name>]: "extruder", ...
     std::vector<std::string> tool_names_;
+    std::vector<int> tool_numbers_; // Parallel to tool_names_ (order_tools_by_number)
     std::vector<std::string> filament_sensor_names_;
     std::vector<std::string> width_sensor_objects_;
     std::vector<std::string> mmu_encoder_names_;
@@ -1165,6 +1188,7 @@ class PrinterDiscovery {
     int chamber_fan_resting_deci_ = 0; ///< Cooling fan's configured resting/off target
                                        ///< (decidegrees), from configfile.settings
                                        ///< target_temp. 0 = unknown. M141 S0 returns here.
+    std::unordered_map<std::string, int> configured_tool_numbers_;
     std::unordered_map<std::string, double> fan_max_power_; ///< Per-fan max_power from
                                                             ///< configfile.settings, keyed by
                                                             ///< lowercased object name. Used to

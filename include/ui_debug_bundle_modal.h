@@ -20,7 +20,6 @@ class DebugBundleModal : public Modal {
     DebugBundleModal();
     ~DebugBundleModal() override;
 
-    // Non-copyable
     DebugBundleModal(const DebugBundleModal&) = delete;
     DebugBundleModal& operator=(const DebugBundleModal&) = delete;
 

@@ -88,8 +88,8 @@ TEST_CASE_METHOD(
     // Tree dies while the handler is still sitting in the queue.
     delete_widget_tree();
 
-    // Pre-fix this ran on_print_start_progress_changed() against the freed
-    // preparing bar: lv_bar_set_value() on freed memory. SIGSEGV.
+    // Unguarded, this would run on_print_start_progress_changed() against the
+    // freed preparing bar: lv_bar_set_value() on freed memory. SIGSEGV.
     UpdateQueue::instance().drain();
 
     // The handler must have RUN, not been skipped: it still publishes its own

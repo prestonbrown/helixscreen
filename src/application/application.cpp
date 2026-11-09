@@ -18,6 +18,7 @@
 #include "ams_backend.h"
 #include "ams_error_bridge.h"
 #include "app_constants.h"
+#include "asleep_status_wiring.h"
 #include "asset_manager.h"
 #include "cjk_font_manager.h"
 #include "config.h"
@@ -94,6 +95,7 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_fan_control_overlay.h"
+#include "ui_filament_motion_glyph.h"
 #include "ui_gcode_viewer.h"
 #include "ui_gradient_canvas.h"
 #include "ui_guided_device_flow.h"
@@ -128,6 +130,7 @@
 #include "ui_panel_screws_tilt.h"
 #include "ui_panel_settings.h"
 #include "ui_panel_spoolman.h"
+#include "ui_plate_glow.h"
 #include "ui_preflight_check_modal.h"
 #include "ui_print_tune_overlay.h"
 #include "ui_printer_status_icon.h"
@@ -149,6 +152,7 @@
 #include "ui_tile_rung.h"
 #include "ui_toast_manager.h"
 #include "ui_touch_calibration_overlay.h"
+#include "ui_unit_art.h"
 #include "ui_utils.h"
 #include "ui_wizard.h"
 #include "ui_wizard_ams_identify.h"
@@ -181,6 +185,8 @@
 #if HELIX_ENABLE_SCREENSAVER
 #include "screensaver.h"
 #endif
+#include "ui_perf_report.h"
+
 #include "display_metrics.h"
 #include "k2_stock_detection_source.h"
 #include "led/ui_led_control_overlay.h"
@@ -1103,17 +1109,6 @@ bool Application::init_config() {
     spdlog::info("[Application] Using config: {}", config_path);
     m_config->init(config_path);
 
-    // Route per-tool writable state (tool_spools.json) through the same
-    // HELIX_CONFIG_DIR override that Config::init honors. Without this,
-    // ToolState::config_dir_ stays at the default "config" (relative to CWD)
-    // and spool-per-tool saves silently fail on read-only baseline installs
-    // where the install tree is on a squashfs rootfs.
-    if (const char* env_dir = std::getenv("HELIX_CONFIG_DIR");
-        env_dir != nullptr && env_dir[0] != '\0') {
-        helix::ToolState::instance().set_config_dir(env_dir);
-        spdlog::info("[Application] ToolState config dir: {}", env_dir);
-    }
-
     // Load persisted thermal heating rates so estimates are available immediately
     ThermalRateManager::instance().load_from_config(*m_config);
 
@@ -1313,6 +1308,8 @@ bool Application::init_display() {
         }
     });
 #endif
+
+    helix::wire_asleep_status(*m_display, [this] { return m_session.moonraker().get(); });
 
     // Register LVGL log handler AFTER lv_init() (called inside display->init())
     // Must be after lv_init() because it resets global state and clears callbacks
@@ -1596,7 +1593,10 @@ bool Application::register_widgets() {
     helix::ui::gcode_viewer_register();
     ui_gradient_canvas_register();
     helix::ui::register_helix_sparkline_widget();
+    helix::ui::register_unit_art_widget();
     helix::ui::register_humidity_drop_widget();
+    helix::ui::register_filament_motion_glyph_widget();
+    helix::ui::register_plate_glow_widget();
 
     // Initialize component systems
     ui_component_header_bar_init();
@@ -2047,6 +2047,7 @@ int Application::main_loop() {
     // One line a minute during a print, so a report of a stalled print carries what the
     // UI was costing the board at the time.
     helix::attach_print_health_counters(m_display->display());
+    helix::install_ui_perf_bundle_provider();
     helix::PrintHealthLog print_health(
         [this] { return helix::read_print_health_sample(m_display->display()); });
 

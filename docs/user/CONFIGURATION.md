@@ -612,6 +612,7 @@ Located in the `appearance` section:
 {
   "appearance": {
     "toolhead_style": 0,
+    "tool_number_style": 0,
     "show_widget_labels": false
   }
 }
@@ -622,6 +623,12 @@ Located in the `appearance` section:
 **Default:** `0`
 **Values:** `0` (Default), `1` (Creality K1), `2` (Creality K2)
 **Description:** Which toolhead illustration is drawn on the temperature panel. Normally auto-detected from your printer type, so you rarely need to set it by hand. Override only if the wrong toolhead graphic is shown.
+
+### `tool_number_style`
+**Type:** integer
+**Default:** `0`
+**Values:** `0` (Auto), `1` (1, 2, 3), `2` (T0, T1, T2)
+**Description:** How tool numbers are written on a printer with more than one nozzle. Auto shows "T0, T1" on a tool changer whose Klipper tools are all named `T<n>` and "1, 2" everywhere else. Set per printer; adjustable in Settings > Appearance > Tool Numbers.
 
 ### `show_widget_labels`
 **Type:** boolean
@@ -814,11 +821,13 @@ Located in the `printer` section:
     "moonraker_api_key": false,
     "heaters": {
       "bed": "heater_bed",
-      "hotend": "extruder"
+      "hotend": "extruder",
+      "chamber": "auto"
     },
     "temp_sensors": {
       "bed": "temperature_sensor bed",
-      "hotend": "temperature_sensor extruder"
+      "hotend": "temperature_sensor extruder",
+      "chamber": "auto"
     },
     "fans": {
       "hotend": "heater_fan hotend_fan",
@@ -826,8 +835,6 @@ Located in the `printer` section:
       "chamber": "",
       "exhaust": ""
     },
-    "chamber_heater": "auto",
-    "chamber_sensor": "auto",
     "leds": {
       "strip": "",
       "selected_strips": [],
@@ -899,13 +906,13 @@ Located in the `printer` section:
 **Default:** `""` (none)
 **Description:** Klipper fan name for exhaust fan (e.g., `"fan_generic exhaust_fan"`). Leave empty if not available.
 
-### `chamber_heater`
+### `heaters.chamber`
 **Type:** string
 **Default:** `"auto"`
 **Values:** `"auto"`, `"none"`, or a Klipper object name
 **Description:** Which heater warms the enclosure/chamber. `"auto"` lets HelixScreen pick it by name heuristics, `"none"` disables chamber-heater controls, or you can name the Klipper object explicitly (e.g., `"heater_generic chamber"`). Most printers work fine on `"auto"`.
 
-### `chamber_sensor`
+### `temp_sensors.chamber`
 **Type:** string
 **Default:** `"auto"`
 **Values:** `"auto"`, `"none"`, or a Klipper object name
@@ -937,7 +944,7 @@ Located in the `printer` section:
 
 ## LED Settings
 
-Located in the `printer.leds` section. Startup and Automatic LED Control are configured via **Settings > Devices > LED Settings**; which light each Home Panel Light button controls is set from that button's own gear icon in Edit Mode (see [Panel Widget Settings](#panel-widget-settings) below and [Home Panel > LED Controls](guide/home-panel.md#led-controls)).
+Located in the `printer.leds` section. Startup and Automatic LED Control are configured via **Settings > Devices > LED Settings**; which light each Home Panel Light button controls is set from that button's own Configure in its Edit Mode menu (see [Panel Widget Settings](#panel-widget-settings) below and [Home Panel > LED Controls](guide/home-panel.md#led-controls)).
 
 ### `leds.strip`
 **Type:** string
@@ -1316,7 +1323,7 @@ See [Filament → When Bypass Doesn't Appear](guide/filament.md#when-bypass-does
 #### `keep_spool_info_on_eject`
 **Type:** boolean
 **Default:** `true`
-**Description:** Keep a lane's spool details after it empties, so reloading the same spool after maintenance needs no re-selection. Turn it off to start fresh whenever a lane empties. Applies only to spools selected in HelixScreen; a spool assigned elsewhere (such as Mainsail) clears with the lane. On AFC versions that report their own per-lane setting (`remember_spool`), the printer's setting is used instead of this one, so HelixScreen, Mainsail and every other screen agree: the **Keep Spool Info on Eject** switch then changes the setting on the printer for every lane, and a lane set not to remember clears in HelixScreen when it empties. The toggle (**Keep Spool Info on Eject**, in the AMS Management overlay) is shown only on systems whose firmware tracks spool ids per lane (AFC, Happy Hare); systems that detect spool swaps by tag always refresh on a swap regardless of this setting.
+**Description:** Keep a lane's spool details after it empties, so reloading the same spool after maintenance needs no re-selection. Turn it off to start fresh whenever a lane empties. Applies only where HelixScreen's lane record is the lane's only spool information: tool changers (including MedusaHC and INDX), OpenAMS without its `[openams_spoolman]` component, and the ACE without the ACEPRO driver. When such a lane empties, the record is marked unloaded and keeps (on) or drops (off) its spool details; every screen that reads the record sees the same. Where the firmware holds the spool (AFC, Happy Hare, CFS, AD5X, QIDI Box, Snapmaker U1), the firmware decides what an eject keeps and this setting is not shown. On AFC versions that report their own per-lane setting (`remember_spool`), the **Keep Spool Info on Eject** switch in the AMS Management overlay changes that setting on the printer for every lane instead.
 
 #### `tag_links_spoolman`
 **Type:** boolean
@@ -1390,7 +1397,7 @@ Each widget object has:
 - `rowspan` — Height in half cells (`2` = one cell tall)
 > **What `col: -1` / `row: -1` means.** The widget is switched on but has nowhere to sit right now, usually because the grid was full when HelixScreen last laid out the page. It is *not* disabled: as soon as a cell frees up - you remove another widget, unplug the hardware another widget needed, or view the same layout on a screen with a bigger grid - it places itself again automatically. You do not need to re-add it from the catalog.
 
-- `config` — (optional) Per-widget settings object, written by the gear button in Edit Mode. Which keys apply depends on the widget:
+- `config` — (optional) Per-widget settings object, written by a widget's Configure in Edit Mode. Which keys apply depends on the widget:
 
 | Key | Widgets | Values |
 |-----|---------|--------|
@@ -1626,6 +1633,8 @@ Located in the `filament` section:
 **Type:** array of strings
 **Default:** `[]`
 **Description:** The filament types you have starred, in star order. Written whenever you tap a star in a filament selector; each entry is the filament's product id. Edit it only to reorder or clear: a hand-added id that matches nothing simply never shows.
+
+The external (bypass) spool is not a setting. It is stored on the printer, in Moonraker's database, as a filament lane record named `bypass`, so every screen connected to the printer shows the same spool. An `external_spool` section left in `filament` by an earlier version is removed when the settings file is upgraded.
 
 ---
 

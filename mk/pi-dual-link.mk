@@ -300,6 +300,6 @@ verify-fbdev: $(FBDEV_TARGET)
 	@echo "$(GREEN)✓ fbdev binary clean — no DRM/GLES symbols$(RESET)"
 
 # Include dependency files for fbdev-specific compilations
--include $(wildcard $(FBDEV_DISPLAY_DIR)/*.d)
--include $(wildcard $(FBDEV_VARIANT_DIR)/*.d)
--include $(wildcard $(FBDEV_GLES_VARIANT_DIR)/*.d)
+-include $(call depfiles,$(FBDEV_DISPLAY_DIR)/*.d)
+-include $(call depfiles,$(FBDEV_VARIANT_DIR)/*.d)
+-include $(call depfiles,$(FBDEV_GLES_VARIANT_DIR)/*.d)

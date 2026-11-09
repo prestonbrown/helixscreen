@@ -72,6 +72,8 @@ class AmsTrayPanelFixture : public XMLTestFixture {
         else
             mock->set_afc_mode(true);
         mock->set_environment_mode(env_mode);
+        // These cases cover the generic box, which a unit with its own drawing does not use.
+        mock->rename_unit(0, "Generic Unit");
         REQUIRE(mock->start().success());
         AmsState::instance().set_backend(std::move(mock));
         AmsState::instance().init_subjects(true);

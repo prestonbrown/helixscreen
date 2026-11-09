@@ -40,6 +40,7 @@
 #include "print_3mf.h"
 #include "print_job_ref.h"
 #include "printer_state.h"
+#include "system/helix_paths.h"
 #include "tool_state.h"
 
 #include <spdlog/spdlog.h>
@@ -236,10 +237,10 @@ void PrintStartController::execute_print_start() {
     // print start takes the map, these are what decide this print.
     helix::PrintStartParams start_params = print_start_params();
 
-    // Timelapse application now lives SOLELY in
+    // Timelapse application lives SOLELY in
     // PrintPreparationManager::start_print(), which dispatches the timelapse
-    // RuntimeCommand in BOTH directions (on/off). The redundant enable-only
-    // write that used to live here caused a double write on print start (#1094).
+    // RuntimeCommand in BOTH directions (on/off). Writing it here too would
+    // double-write on print start (#1094).
 
     // Capture callbacks for use in lambdas
     auto on_started = on_print_started_;
@@ -247,7 +248,6 @@ void PrintStartController::execute_print_start() {
     auto update_button = update_print_button_;
     auto show_detail = show_detail_view_;
 
-    // Capture thumbnail path for lambda
     std::string thumbnail_path = thumbnail_path_;
     std::vector<std::string> exclude_picks = std::move(exclude_picks_);
     exclude_picks_.clear();
@@ -281,7 +281,6 @@ void PrintStartController::execute_print_start() {
             navigate_to_print_status_();
         }
 
-        // Delegate to PrintPreparationManager
         prep_manager->start_print(
             filename_to_print, path,
             // Navigation callback - called when Moonraker confirms print start
@@ -1707,8 +1706,15 @@ void PrintStartController::check_restore_confirmed() {
 
 static constexpr const char* kPendingRemapFilename = "pending_remap.json";
 
-static std::string pending_remap_path() {
+static std::string pending_remap_link_path() {
     return hfs::join_path(helix::get_user_config_dir(), kPendingRemapFilename);
+}
+
+// The installer links this file out to printer_data (HELIX_USER_CONFIG_FILES) so it
+// survives an update. Reads and writes act on the link's target: a rename onto the
+// link would replace it with a file the next update deletes.
+static std::string pending_remap_path() {
+    return helix::paths::write_target(pending_remap_link_path());
 }
 
 namespace {
@@ -1760,6 +1766,16 @@ void write_remap_file(const nlohmann::json& j) {
     const std::string path = pending_remap_path();
     const auto* printers = helix::json_util::find_member(j, "printers");
     if (!printers || !printers->is_object() || printers->empty()) {
+        // A linked record is emptied, not removed: removing the target leaves a dangling
+        // link, and the installer links only a file that exists, so the next record
+        // would be written into the install dir.
+        if (hfs::is_symlink(pending_remap_link_path())) {
+            if (hfs::exists(path) && !tio::write_file_atomic(path, "{}\n")) {
+                spdlog::warn("[PrintStartController] Failed to clear remap state: {}",
+                             std::strerror(errno));
+            }
+            return;
+        }
         if (hfs::exists(path) && !hfs::remove(path)) {
             spdlog::warn("[PrintStartController] Failed to clear remap state: {}",
                          std::strerror(errno));

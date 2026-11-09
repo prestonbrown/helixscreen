@@ -434,6 +434,10 @@ TEST_CASE("the route's reply parses with or without the result wrapper",
     CHECK(parse_chamber_route_reply({{"accepted", nullptr}, {"reason", "klipper_shutdown"}})
               .outcome == ChamberRouteOutcome::PrinterShutdown);
     CHECK(parse_chamber_route_reply({{"result", "ok"}}).outcome == ChamberRouteOutcome::Accepted);
+    // Only a JSON boolean pending counts; an accepted of any type is pending.
+    CHECK(parse_chamber_route_reply({{"pending", 1}}).outcome == ChamberRouteOutcome::Accepted);
+    CHECK(parse_chamber_route_reply({{"accepted", 0}}).outcome == ChamberRouteOutcome::Pending);
+    CHECK(parse_chamber_route_reply({{"accepted", false}, {"reason", 7}}).reason.empty());
 }
 
 TEST_CASE_METHOD(RouteFixture, "Try again resends the target the heater turned down",

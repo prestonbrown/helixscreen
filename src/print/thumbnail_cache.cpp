@@ -99,8 +99,8 @@ ThumbnailCache::ThumbnailCache()
     // (5 MB), so feeding a small value in through configured_max_ gets raised
     // straight back and eviction still never fires. Making eviction reachable
     // is the entire point here — without it the decode-vs-evict interaction
-    // that debug bundle 6F3QJLFG implicates cannot be exercised under a
-    // sanitizer, only in the standalone stress test (#960).
+    // cannot be exercised under a sanitizer, only in the standalone stress
+    // test (#960).
     //
     // Env rather than config so it composes with HELIX_CACHE_DIR in a one-line
     // launch, matching how the rest of the test surface is driven.
@@ -158,7 +158,6 @@ void ThumbnailCache::load_config() {
     int low_mb =
         config->get<int>("/cache/disk_low_mb", static_cast<int>(kDefaultDiskLow / (1024 * 1024)));
 
-    // Convert to bytes and store
     configured_max_ = static_cast<size_t>(max_mb) * 1024 * 1024;
     disk_critical_ = static_cast<size_t>(critical_mb) * 1024 * 1024;
     disk_low_ = static_cast<size_t>(low_mb) * 1024 * 1024;
@@ -234,7 +233,7 @@ std::string ThumbnailCache::get_if_cached(const std::string& relative_path,
             }
         } else {
             spdlog::warn("[ThumbnailCache] Failed to check cache age: {}", std::strerror(errno));
-            // On error, assume cache is valid (don't break existing behavior)
+            // On error, assume the cache is valid.
         }
     }
 
@@ -518,11 +517,10 @@ void ThumbnailCache::note_write_and_evict(const std::string& path) {
 }
 
 void ThumbnailCache::evict_locked() {
-    // No directory walk in the steady state. This used to scan the whole cache
-    // — a stat per file — on every fetch(), fetch_optimized() and
-    // save_raw_png(), whether or not anything was evicted
-    // (prestonbrown/helixscreen#1207). It is now arithmetic over an index kept
-    // current by the write sites, plus a reconcile every
+    // No directory walk in the steady state (prestonbrown/helixscreen#1207):
+    // fetch(), fetch_optimized() and save_raw_png() all land here, so a stat
+    // per file would run on every one of them. This is arithmetic over an
+    // index kept current by the write sites, plus a reconcile every
     // kIndexReconcileInterval checks.
     refresh_index_locked();
     size_t current_size = index_total_;
@@ -811,7 +809,6 @@ std::string ThumbnailCache::save_raw_png(ThumbnailSource source, const std::stri
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        // Write PNG data to cache file
         if (!helix::text_io::write_file(cache_path,
                                         {reinterpret_cast<const char*>(png.data()), png.size()})) {
             spdlog::error("[ThumbnailCache] Failed to create cache file: {}", cache_path);
@@ -1067,7 +1064,7 @@ std::string ThumbnailCache::get_if_optimized(const std::string& relative_path,
         } else {
             spdlog::warn("[ThumbnailCache] Failed to check optimized cache age: {}",
                          std::strerror(errno));
-            // On error, assume cache is valid (don't break existing behavior)
+            // On error, assume the cache is valid.
         }
     }
 
@@ -1141,7 +1138,7 @@ void ThumbnailCache::fetch_optimized(IMoonrakerAPI* api, const std::string& rela
     std::string cache_path = get_cache_path(relative_path);
     spdlog::debug("[ThumbnailCache] Downloading for optimization: {} -> {}", relative_path,
                   cache_path);
-    // Cold fetch — the state the reporter's device was in when it aborted.
+    // Cold fetch: the crumb tells a crash bundle this load missed the cache.
     crash_handler::breadcrumb::note("thumb", "fetch_cold", 0);
 
     // Capture target and callbacks for the download completion handler
@@ -1183,11 +1180,11 @@ void ThumbnailCache::process_and_callback(const std::string& png_lvgl_path,
     }
 
     // Hand the PATH to the processor, not the bytes. This runs on the main
-    // thread once per file while a listing populates; reading the whole PNG here
-    // only to pass it straight to the pool put a synchronous file read on the
-    // LVGL loop for every card. process_file_async() does the read on the worker
-    // and reports a read failure through on_error, which the lambda below turns
-    // back into the same PNG fallback this code always used.
+    // thread once per file while a listing populates, so reading the PNG here
+    // would put a synchronous file read on the LVGL loop for every card.
+    // process_file_async() does the read on the worker and reports a read
+    // failure through on_error, which the lambda below turns back into the
+    // PNG fallback.
     helix::ThumbnailProcessor::instance().process_file_async(
         local_path, source_path, target,
         // Success - return optimized path

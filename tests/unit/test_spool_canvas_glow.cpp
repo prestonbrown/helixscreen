@@ -185,6 +185,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "spool_canvas: glow follows the shape, not t
         lv_obj_t* c = make_canvas(test_screen());
         int32_t m = 0;
         lv_obj_t* g = make_glow(c, simple, &m);
+        // A full wind stands proud of the notch between the flanges, so its halo differs.
+        ui_spool_canvas_set_fill_level(c, 1.0f);
+        helix::ui::spool_glow_paint(g, c, SPOOL, helix::ui::tube_accent(), simple);
         const Pixels full = snapshot(g);
 
         // A new color is the same silhouette: same glow.
@@ -200,7 +203,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "spool_canvas: glow follows the shape, not t
             CHECK_FALSE(same(full, snapshot(g)));
 
         // Back to full: the cached glow, identical.
-        ui_spool_canvas_set_fill_level(c, 0.8f);
+        ui_spool_canvas_set_fill_level(c, 1.0f);
         helix::ui::spool_glow_paint(g, c, SPOOL, helix::ui::tube_accent(), simple);
         CHECK(same(full, snapshot(g)));
 

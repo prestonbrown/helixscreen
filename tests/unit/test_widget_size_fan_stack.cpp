@@ -28,13 +28,13 @@
  * name + speed horizontally (panel_widget_fan_stack.xml), so a resolved name
  * ("Hotend" instead of "H") only ever competes for room along the width
  * axis; extra height just centers the same three rows, it never widens one.
- * Height used to also drive "bigger" (an OR), but Large/XLarge's single-row
- * cell height alone already clears h_tall() (141px, 169px) — wider than
- * h_tall()'s own calibration point (Micro's genuinely-2-row 131px) — so a
- * plain 1x1 widget on those two tiers read as "bigger" and squeezed resolved
- * names into a ~107-134px row. Three cases cover this: sub-threshold on both
+ * Height must not also drive "bigger" (an OR): Large/XLarge's single-row
+ * cell height alone already clears h_tall() (141px, 169px), wider than
+ * h_tall()'s own calibration point (Micro's genuinely-2-row 131px), so a
+ * plain 1x1 widget on those two tiers would read as "bigger" and squeeze
+ * resolved names into a ~107-134px row. Three cases cover this: sub-threshold on both
  * axes (compact), width alone (bigger), and height alone at a Large/XLarge-
- * shaped extent, which must stay compact now that height no longer counts.
+ * shaped extent, which must stay compact because height does not count.
  *
  * Row geometry (`fan_stack_{part,hotend,aux}_row` width/flex alignment,
  * `fan_stack_widget.cpp`) is no longer branch-dependent: both tiers run the
@@ -163,8 +163,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack labels/names follow pixels, not s
 
     // --- Height alone, at a real Large-tier 1x1 extent (107x141, from the
     // measured tier table): a plain 1x1 widget must stay compact here.
-    // Before this fix, height_px(141) >= h_tall() alone flipped this to
-    // "bigger" and squeezed "Hotend"/"Aux" into a 107px-wide row.
+    // height_px(141) >= h_tall() alone must not flip this to
+    // "bigger", which would squeeze "Hotend"/"Aux" into a 107px-wide row.
     // Contradicting span: 1x1 (old rowspan/colspan predicate -> compact, so
     // this also proves pixels don't silently regress to spans).
     h.resize(1, 1, 107, 141);
@@ -206,9 +206,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack labels/names follow pixels, not s
     // --- Micro-tier 1x2 (70x131): the legitimate tall case. Narrower than
     // any of the Large/XLarge false positives above, and genuinely
     // rowspan==2 — but this widget's "bigger" is width-only now, so a
-    // colspan==1 widget stays compact here regardless of row count. That is
-    // a real behavior change from the pre-fix OR (which showed resolved
-    // names in this same 70px row), traded deliberately: full names never
+    // colspan==1 widget stays compact here regardless of row count. An OR of
+    // width and height would show resolved names in this same 70px row; the
+    // trade is deliberate: full names never
     // fit a 70px row named/iconed/valued in three parts, tall or not.
     h.resize(1, 2, 70, 131);
     process_lvgl(30);

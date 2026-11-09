@@ -92,6 +92,7 @@ void AmsState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(ams_is_tool_changer, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_nozzle_heat_blocked, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_can_cancel, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(ams_lane_records_ready, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_is_filament_system, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_action, static_cast<int>(AmsAction::IDLE), subjects_, register_xml);
     action_mirror_.store(AmsAction::IDLE, std::memory_order_relaxed);
@@ -118,9 +119,9 @@ void AmsState::init_subjects(bool register_xml) {
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_bypass_active", &bypass_active_);
 
-    // External spool color subject (loaded from persistent settings)
+    // External spool color subject (the bypass record, once one has been read)
     {
-        auto ext_spool = helix::SettingsManager::instance().get_external_spool_info();
+        auto ext_spool = get_external_spool_info();
         int initial_color = ext_spool.has_value() ? static_cast<int>(ext_spool->color_rgb) : 0;
         lv_subject_init_int(&external_spool_color_, initial_color);
         subjects_.register_subject(&external_spool_color_,
@@ -249,7 +250,7 @@ void AmsState::init_subjects(bool register_xml) {
         helix::xml::register_subject_in_current_scope("ams_current_has_weight",
                                                       &current_has_weight_);
 
-    INIT_SUBJECT_INT(current_color, 0x505050, subjects_, register_xml);
+    INIT_SUBJECT_INT(current_color, kNoFilamentPaint, subjects_, register_xml);
     // Read by C++ alongside current_color (ui_ams_current_tool.cpp), never bound in XML.
     INIT_SUBJECT_STRING(current_colors, "", subjects_, false);
     INIT_SUBJECT_STRING(current_finish, "", subjects_, false);
@@ -686,15 +687,22 @@ void AmsState::install_connection_state_observer() {
     // on the operator, or on a frame): this edge reaches it either way.
     connection_state_observer_.reset();
     last_connection_state_ = -1;
+    connection_lost_ = false;
     connection_state_observer_ = helix::ui::observe<int>(
         get_printer_state().network_state().get_printer_connection_state_subject(), this,
         [](AmsState* self, int state) {
             constexpr int kConnected = static_cast<int>(ConnectionState::CONNECTED);
             const int prev = self->last_connection_state_;
             self->last_connection_state_ = state;
+            if (state == kConnected && self->connection_lost_) {
+                self->connection_lost_ = false;
+                self->sync_lane_records_ready();
+            }
             if (prev != kConnected || state == kConnected) {
                 return;
             }
+            self->connection_lost_ = true;
+            self->sync_lane_records_ready();
             for (int i = 0; i < self->backend_count(); ++i) {
                 if (AmsBackend* backend = self->get_backend(i)) {
                     backend->on_connection_lost();
@@ -746,6 +754,8 @@ void AmsState::register_xml_subject_names() {
     helix::xml::register_subject_in_current_scope("ams_nozzle_heat_blocked",
                                                   &ams_nozzle_heat_blocked_);
     helix::xml::register_subject_in_current_scope("ams_can_cancel", &ams_can_cancel_);
+    helix::xml::register_subject_in_current_scope("ams_lane_records_ready",
+                                                  &ams_lane_records_ready_);
     helix::xml::register_subject_in_current_scope("ams_is_filament_system",
                                                   &ams_is_filament_system_);
     helix::xml::register_subject_in_current_scope("ams_action", &ams_action_);
@@ -998,6 +1008,7 @@ void AmsState::deinit_subjects() {
     // before AmsState re-initializes. Without this, sync_from_backend() would
     // dereference a freed pointer on the next init_subjects() cycle.
     api_ = nullptr;
+    restart_bypass_reads();
 
     // Tear down the print-state observer BEFORE deiniting subjects so the
     // LVGL observer is removed cleanly (reset(), not release() — see project

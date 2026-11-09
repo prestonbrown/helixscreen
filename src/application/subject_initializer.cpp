@@ -47,6 +47,7 @@
 #include "bed_drying_controller.h"
 #include "bed_mesh_state.h"
 #include "chamber_stall_prompt.h"
+#include "cold_pull_runner.h"
 #include "core/update_queue.h"
 #include "filament_accounting_controller.h"
 #include "filament_catalog.h"
@@ -100,6 +101,13 @@ SubjectInitializer::~SubjectInitializer() {
     widgets.unregister_shared_resource<helix::BedDryingController>(m_bed_drying.get());
     widgets.unregister_shared_resource<helix::TemperatureController>(m_temp_controller.get());
     widgets.unregister_shared_resource<helix::ui::FilamentOpHeater>(m_filament_op_heater.get());
+    widgets.unregister_shared_resource<helix::ui::ColdPullRunner>(m_cold_pull_runner.get());
+}
+
+void SubjectInitializer::before_disconnect() {
+    if (m_cold_pull_runner) {
+        m_cold_pull_runner->before_disconnect();
+    }
 }
 
 void SubjectInitializer::init_core_and_state() {
@@ -391,6 +399,14 @@ void SubjectInitializer::init_temperature_control(helix::IMoonrakerAPI* api) {
     m_filament_op_heater = std::make_unique<helix::ui::FilamentOpHeater>(get_printer_state());
     helix::PanelWidgetManager::instance().register_shared_resource<helix::ui::FilamentOpHeater>(
         m_filament_op_heater.get());
+
+    // The guided cold pull: here for the same reason, the overlay can close while
+    // the nozzle is hot.
+    m_cold_pull_runner = std::make_unique<helix::ui::ColdPullRunner>(get_printer_state());
+    m_cold_pull_runner->init_subjects();
+    helix::PanelWidgetManager::instance().register_shared_resource<helix::ui::ColdPullRunner>(
+        m_cold_pull_runner.get());
+    helix::ui::register_cold_pull_flow();
 
     // Drying on the heated bed (prestonbrown/helixscreen#1730). restore() brings
     // back a persisted spools-on-the-bed latch before any panel can move the
