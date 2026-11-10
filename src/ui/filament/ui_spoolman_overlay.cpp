@@ -404,27 +404,6 @@ void SpoolmanOverlay::on_deactivating(DeactivateReason) {
 }
 
 // ============================================================================
-// SERVER SETUP
-// ============================================================================
-
-void SpoolmanOverlay::set_setup_status(const char* text, bool is_error) {
-    lv_subject_copy_string(&setup_status_subject_, text);
-    lv_subject_set_int(&setup_status_error_subject_, is_error ? 1 : 0);
-}
-
-void SpoolmanOverlay::set_connecting(bool connecting) {
-    if (!connect_btn_)
-        return;
-    if (connecting) {
-        lv_obj_add_state(connect_btn_, LV_STATE_DISABLED);
-        ui_button_set_text(connect_btn_, lv_tr("Connecting..."));
-    } else {
-        lv_obj_remove_state(connect_btn_, LV_STATE_DISABLED);
-        ui_button_set_text(connect_btn_, lv_tr("Connect"));
-    }
-}
-
-// ============================================================================
 // BARCODE SCANNER PICKER
 // ============================================================================
 
@@ -444,6 +423,23 @@ void SpoolmanOverlay::update_scanner_status_text() {
 // ============================================================================
 // SERVER SETUP
 // ============================================================================
+
+void SpoolmanOverlay::set_setup_status(const char* text, bool is_error) {
+    lv_subject_copy_string(&setup_status_subject_, text);
+    lv_subject_set_int(&setup_status_error_subject_, is_error ? 1 : 0);
+}
+
+void SpoolmanOverlay::set_connecting(bool connecting) {
+    if (!connect_btn_)
+        return;
+    if (connecting) {
+        lv_obj_add_state(connect_btn_, LV_STATE_DISABLED);
+        ui_button_set_text(connect_btn_, lv_tr("Connecting..."));
+    } else {
+        lv_obj_remove_state(connect_btn_, LV_STATE_DISABLED);
+        ui_button_set_text(connect_btn_, lv_tr("Connect"));
+    }
+}
 
 void SpoolmanOverlay::handle_connect_clicked() {
     const char* host_raw = host_input_ ? lv_textarea_get_text(host_input_) : "";
