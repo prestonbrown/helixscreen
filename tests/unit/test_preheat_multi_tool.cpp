@@ -87,9 +87,8 @@ static void add_tool(std::vector<ToolInfo>& tools, const char* extruder, const c
     ToolInfo t;
     t.index = static_cast<int>(tools.size());
     t.name = "T" + std::to_string(tools.size());
-    if (extruder) {
-        t.extruder_name = extruder;
-    }
+    // ToolInfo names "extruder" by default; a null here means no name at all.
+    t.extruder_name = extruder ? std::optional<std::string>(extruder) : std::nullopt;
     if (heater) {
         t.heater_name = heater;
     }
@@ -98,9 +97,12 @@ static void add_tool(std::vector<ToolInfo>& tools, const char* extruder, const c
 
 TEST_CASE("PreheatWidget: collect_preheat_heaters reads each tool's own heater, in tool order",
           "[preheat][panel_widget]") {
+    // effective_heater() falls back to "extruder" for a tool with no name at
+    // all, so no tool here names "extruder": a kept nameless tool shows up.
     std::vector<ToolInfo> tools;
-    add_tool(tools, "extruder", nullptr);      // plain first hotend
+    add_tool(tools, "extruder5", nullptr);     // plain first hotend
     add_tool(tools, "extruder3", nullptr);     // gap in the numbering, on purpose
+    add_tool(tools, nullptr, nullptr);         // no extruder, no heater: skipped
     add_tool(tools, "extruder1", "extruder7"); // heater_name outranks extruder_name
     add_tool(tools, nullptr, "extruder9");     // heater only, no extruder
     add_tool(tools, "extruder2", nullptr);
@@ -108,28 +110,11 @@ TEST_CASE("PreheatWidget: collect_preheat_heaters reads each tool's own heater, 
     auto heaters = PreheatWidget::collect_preheat_heaters(tools, -1);
 
     REQUIRE(heaters.size() == 5);
-    CHECK(heaters[0] == "extruder");
+    CHECK(heaters[0] == "extruder5");
     CHECK(heaters[1] == "extruder3");
     CHECK(heaters[2] == "extruder7");
     CHECK(heaters[3] == "extruder9");
     CHECK(heaters[4] == "extruder2");
-}
-
-TEST_CASE("PreheatWidget: collect_preheat_heaters skips a tool with no heater at all",
-          "[preheat][panel_widget]") {
-    // effective_heater() falls back to "extruder" when both names are unset, so
-    // a tool that is skipped and a tool that is kept are distinguishable only by
-    // the result size and the absence of that fallback.
-    std::vector<ToolInfo> tools;
-    add_tool(tools, "extruder", nullptr);
-    add_tool(tools, nullptr, nullptr); // no extruder, no heater
-    add_tool(tools, "extruder4", nullptr);
-
-    auto heaters = PreheatWidget::collect_preheat_heaters(tools, -1);
-
-    REQUIRE(heaters.size() == 2);
-    CHECK(heaters[0] == "extruder");
-    CHECK(heaters[1] == "extruder4");
 }
 
 // ============================================================================
@@ -318,31 +303,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
 // count it returns is also what the confirmation toast reports.
 // ============================================================================
 
-TEST_CASE("PreheatWidget: collect_preheat_heaters collapses lanes sharing one heater",
-          "[preheat][panel_widget]") {
-    // What set_ams_topology() leaves behind on a 4-lane AMS + one extruder:
-    // four tools, every one of them mapped to "extruder".
-    std::vector<ToolInfo> tools;
-    for (int i = 0; i < 4; ++i) {
-        ToolInfo t;
-        t.index = i;
-        t.name = "T" + std::to_string(i);
-        t.extruder_name = "extruder";
-        tools.push_back(t);
-    }
-
-    auto heaters = PreheatWidget::collect_preheat_heaters(tools, -1);
-
-    REQUIRE(heaters.size() == 1);
-    REQUIRE(heaters[0] == "extruder");
-}
-
 TEST_CASE("PreheatWidget: collect_preheat_heaters keeps every distinct heater in tool order",
           "[preheat][panel_widget]") {
-    // Paired with the case above: a collapse that kept only the first heater
-    // would pass that one and silently stop heating a toolchanger's other
-    // hotends. Two extra lanes are hung off T0's heater to prove the dedup
-    // removes duplicates rather than truncating the list.
+    // Lanes sharing a heater collapse to it, as set_ams_topology() leaves an
+    // AMS on one extruder; a collapse that kept only the first heater would
+    // stop heating a toolchanger's other hotends. Two extra lanes hang off
+    // existing heaters to prove the dedup removes duplicates rather than
+    // truncating the list.
     auto tools = make_test_tools(3);
     ToolInfo lane;
     lane.index = 3;
