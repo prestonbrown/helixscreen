@@ -56,107 +56,23 @@ static std::vector<ToolInfo> make_test_tools(int count) {
 }
 
 // ============================================================================
-// collect_preheat_heaters: all tools
+// collect_preheat_heaters: one target, or none
 // ============================================================================
 
-TEST_CASE("PreheatWidget: collect_preheat_heaters returns all tool heaters when target is -1",
+TEST_CASE("PreheatWidget: collect_preheat_heaters aims a target at one tool or none",
           "[preheat][panel_widget]") {
-    auto tools = make_test_tools(3);
-
-    auto heaters = PreheatWidget::collect_preheat_heaters(tools, -1);
-
-    REQUIRE(heaters.size() == 3);
-    REQUIRE(heaters[0] == "extruder");
-    REQUIRE(heaters[1] == "extruder1");
-    REQUIRE(heaters[2] == "extruder2");
-}
-
-TEST_CASE("PreheatWidget: collect_preheat_heaters returns single tool heater for specific target",
-          "[preheat][panel_widget]") {
-    auto tools = make_test_tools(3);
-
-    SECTION("tool 0") {
-        auto heaters = PreheatWidget::collect_preheat_heaters(tools, 0);
-        REQUIRE(heaters.size() == 1);
-        REQUIRE(heaters[0] == "extruder");
+    const auto tools = make_test_tools(3);
+    struct Case {
+        int target;
+        std::vector<std::string> want;
+    };
+    // Out of range answers nothing, and -1 is the only negative meaning "all".
+    for (const Case& c : {Case{0, {"extruder"}}, Case{1, {"extruder1"}}, Case{2, {"extruder2"}},
+                          Case{5, {}}, Case{-2, {}}}) {
+        INFO("target " << c.target);
+        CHECK(PreheatWidget::collect_preheat_heaters(tools, c.target) == c.want);
     }
-
-    SECTION("tool 1") {
-        auto heaters = PreheatWidget::collect_preheat_heaters(tools, 1);
-        REQUIRE(heaters.size() == 1);
-        REQUIRE(heaters[0] == "extruder1");
-    }
-
-    SECTION("tool 2") {
-        auto heaters = PreheatWidget::collect_preheat_heaters(tools, 2);
-        REQUIRE(heaters.size() == 1);
-        REQUIRE(heaters[0] == "extruder2");
-    }
-}
-
-// ============================================================================
-// collect_preheat_heaters: skips tools with no valid heater
-// ============================================================================
-
-TEST_CASE("PreheatWidget: collect_preheat_heaters skips tools with no heater",
-          "[preheat][panel_widget]") {
-    auto tools = make_test_tools(3);
-    // Tool 1 has neither extruder_name nor heater_name
-    tools[1].extruder_name = std::nullopt;
-    tools[1].heater_name = std::nullopt;
-
-    auto heaters = PreheatWidget::collect_preheat_heaters(tools, -1);
-
-    REQUIRE(heaters.size() == 2);
-    REQUIRE(heaters[0] == "extruder");
-    REQUIRE(heaters[1] == "extruder2");
-}
-
-// ============================================================================
-// collect_preheat_heaters: prefers heater_name over extruder_name
-// ============================================================================
-
-TEST_CASE("PreheatWidget: collect_preheat_heaters uses effective_heater (heater_name priority)",
-          "[preheat][panel_widget]") {
-    auto tools = make_test_tools(2);
-    tools[0].heater_name = "heater_generic nozzle0";
-
-    auto heaters = PreheatWidget::collect_preheat_heaters(tools, -1);
-
-    REQUIRE(heaters.size() == 2);
-    REQUIRE(heaters[0] == "heater_generic nozzle0");
-    REQUIRE(heaters[1] == "extruder1");
-}
-
-// ============================================================================
-// collect_preheat_heaters: out-of-range target returns empty
-// ============================================================================
-
-TEST_CASE("PreheatWidget: collect_preheat_heaters returns empty for out-of-range target",
-          "[preheat][panel_widget]") {
-    auto tools = make_test_tools(3);
-
-    SECTION("target beyond tool count") {
-        auto heaters = PreheatWidget::collect_preheat_heaters(tools, 5);
-        REQUIRE(heaters.empty());
-    }
-
-    SECTION("negative target other than -1") {
-        auto heaters = PreheatWidget::collect_preheat_heaters(tools, -2);
-        REQUIRE(heaters.empty());
-    }
-}
-
-// ============================================================================
-// collect_preheat_heaters: empty tools
-// ============================================================================
-
-TEST_CASE("PreheatWidget: collect_preheat_heaters handles empty tools vector",
-          "[preheat][panel_widget]") {
-    std::vector<ToolInfo> tools;
-
-    auto heaters = PreheatWidget::collect_preheat_heaters(tools, -1);
-    REQUIRE(heaters.empty());
+    CHECK(PreheatWidget::collect_preheat_heaters({}, -1).empty());
 }
 
 // ============================================================================

@@ -126,6 +126,17 @@ TEST_CASE_METHOD(PowerTileFixture, "Power tile: follows its device across a Klip
     CHECK(status_text() == "ON");
     notify("printer_psu", "off");
     CHECK(status_text() == "OFF");
+
+    // An unknown status shows the Configure prompt; a known one brings the name back.
+    lv_obj_t* name = harness_->child("power_device_name");
+    SubjectLifetime lifetime;
+    lv_subject_t* status = PowerDeviceState::instance().get_status_subject("printer_psu", lifetime);
+    lv_subject_set_int(status, -1);
+    drain();
+    CHECK(lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN));
+    lv_subject_set_int(status, 1);
+    drain();
+    CHECK_FALSE(lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN));
 }
 
 // With no user colour each tile wears its own state's colours.
@@ -315,26 +326,4 @@ TEST_CASE_METHOD(PowerTileFixture, "Power tile: a picked device with no state re
     CHECK_FALSE(lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN));
     CHECK(std::string(lv_label_get_text(name)) ==
           helix::get_display_name("bed_lamp", helix::DeviceType::POWER_DEVICE));
-}
-
-// An unknown status shows the Configure prompt; a known one brings the name back.
-TEST_CASE_METHOD(PowerTileFixture, "Power tile: the name returns after an unknown status",
-                 "[power_device_widget]") {
-    PowerDeviceState::instance().set_devices({{"printer_psu", "gpio", "off", false}});
-    make_tile({{"device", "printer_psu"}});
-    lv_obj_t* name = harness_->child("power_device_name");
-    REQUIRE(name != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN));
-
-    SubjectLifetime lifetime;
-    lv_subject_t* status = PowerDeviceState::instance().get_status_subject("printer_psu", lifetime);
-    REQUIRE(status != nullptr);
-    lv_subject_set_int(status, -1);
-    drain();
-    CHECK(lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN));
-
-    lv_subject_set_int(status, 1);
-    drain();
-    CHECK_FALSE(lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN));
-    CHECK(status_text() == "ON");
 }
