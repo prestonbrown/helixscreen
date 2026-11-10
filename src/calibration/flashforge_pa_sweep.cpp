@@ -138,7 +138,8 @@ std::string Sweep::force_restore() {
     latched_ = false;
     awaiting_ = false;
     phase_ = Phase::Done;
-    return restore_script(/*homed=*/true);
+    // No time to ask: trust homing unless the run already learned otherwise.
+    return restore_script(homed_for_restore_);
 }
 
 Step Sweep::next() {
@@ -460,6 +461,13 @@ std::string stale_latch_recovery_gcode(const json& first, const json& second) {
     const json* idle = status_member(second, "idle_timeout");
     if (!idle || json_util::safe_string(*idle, "state") == "Printing") {
         return {}; // Klipper is busy: not proof that nothing owns the latch
+    }
+    // A print start waiting on heat reads idle but owns the machine.
+    if (const json* stats = status_member(second, "print_stats")) {
+        const std::string state = json_util::safe_string(*stats, "state");
+        if (state == "printing" || state == "paused") {
+            return {};
+        }
     }
 
     std::string s = latch_recovery_gcode(1.f, 1.f);

@@ -78,7 +78,8 @@ struct Config {
     int park_x_feed = 6000;
     int park_y_feed = 24000;
     int park_approach_feed = 6000;
-    /// Line height, G-code Z. Raised to, never lowered to.
+    /// Line height, G-code Z. Raised to before any travel; lowered to only once
+    /// the head is over the chute.
     float line_z = 8.f;
     int line_z_feed = 3000;
 };
@@ -226,8 +227,8 @@ class Sweep {
 
 /// The connect-time fix for a run that died with the latch set, judged from two
 /// printer.objects.query results taken kStaleCheckMs apart (each the response's
-/// result.status: the two pins, toolhead.position, idle_timeout.state and
-/// configfile.settings). A live sweep moves the planned position every few
+/// result.status: the two pins, toolhead.position, idle_timeout.state,
+/// print_stats.state and configfile.settings). A live sweep moves the planned position every few
 /// seconds and keeps Klipper busy, so only a latch that stayed set while
 /// nothing moved and Klipper sat idle is stale. Then: release the latch and
 /// unhome (latch_recovery_gcode), put the motion limits and every extruder's

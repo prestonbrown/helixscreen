@@ -322,6 +322,15 @@ TEST_CASE("PA sweep forced restore assumes the machine is still homed", "[pa_swe
 
     Sweep fresh(Config{}, 0, "extruder", homed_snapshot());
     REQUIRE(fresh.force_restore().empty());
+
+    // Unless the homed check already answered that it is not.
+    Sweep unhomed = sweep_at_first_line();
+    unhomed.stop();
+    REQUIRE(unhomed.next().phase == Phase::CheckHomed);
+    unhomed.on_homed(false);
+    const std::string r2 = unhomed.force_restore();
+    CHECK(r2.find("SET_KINEMATIC_POSITION") == std::string::npos);
+    CHECK(r2.find("M84") != std::string::npos);
 }
 
 TEST_CASE("PA sweep applies the result for the session after restoring", "[pa_sweep]") {
@@ -450,6 +459,11 @@ TEST_CASE("PA sweep recovery acts only on a latch that stayed still and idle", "
     SECTION("a busy Klipper is not proof the latch is abandoned") {
         CHECK(stale_latch_recovery_gcode(still, latch_status(1.f, {200, 80, 8, 0}, "Printing"))
                   .empty());
+    }
+    SECTION("a print start waiting on heat reads idle but owns the machine") {
+        auto starting = latch_status(1.f, {200, 80, 8, 0}, "Ready");
+        starting["print_stats"] = {{"state", "printing"}};
+        CHECK(stale_latch_recovery_gcode(still, starting).empty());
     }
     SECTION("a latch released between the looks needs nothing") {
         CHECK(

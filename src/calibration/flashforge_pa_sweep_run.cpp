@@ -170,6 +170,8 @@ class SweepRun final : public pacal::Run, public std::enable_shared_from_this<Sw
              json::array({"homed_axes", "max_accel", "square_corner_velocity", "extruder"})},
             {"gcode_move", json::array({"gcode_position"})},
             {req_.extruder, json::array({"pressure_advance", "smooth_time"})},
+            {std::string(kPinX), nullptr},
+            {std::string(kPinY), nullptr},
         };
         auto self = shared_from_this();
         client_.send_jsonrpc(
@@ -200,6 +202,15 @@ class SweepRun final : public pacal::Run, public std::enable_shared_from_this<Sw
         snap.gcode_z = array_at(member(status, "gcode_move"), "gcode_position", 2).value_or(0.f);
         if (snap.max_accel <= 0.f || snap.square_corner_velocity <= 0.f) {
             end_without_sweep("The printer did not report its motion limits.");
+            return;
+        }
+        // A latch already set means the park would not move the head, and the
+        // restore would then replay a park it never reached. It is another
+        // run's, live or stale; the connect check or a Klipper restart clears
+        // a stale one.
+        if (pin_value(status, kPinX) != 0.f || pin_value(status, kPinY) != 0.f) {
+            end_without_sweep("The X/Y drivers are still switched off by an earlier pressure "
+                              "advance run. Wait a moment and start again, or restart Klipper.");
             return;
         }
         // Every G1 E drives the mounted extruder, and the candidates go to the
@@ -568,11 +579,9 @@ std::shared_ptr<pacal::Run> start_run(IMoonrakerAPI& api, IMoonrakerClient& clie
 void check_interrupted_run(std::function<IMoonrakerAPI*()> api_now,
                            std::function<void()> on_recovered) {
     const json objects = {
-        {std::string(kPinX), nullptr},
-        {std::string(kPinY), nullptr},
-        {"toolhead", json::array({"position"})},
-        {"idle_timeout", json::array({"state"})},
-        {"configfile", json::array({"settings"})},
+        {std::string(kPinX), nullptr},           {std::string(kPinY), nullptr},
+        {"toolhead", json::array({"position"})}, {"idle_timeout", json::array({"state"})},
+        {"print_stats", json::array({"state"})}, {"configfile", json::array({"settings"})},
     };
     IMoonrakerAPI* api = api_now();
     if (!api) {

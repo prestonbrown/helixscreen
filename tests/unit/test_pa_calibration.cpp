@@ -543,3 +543,16 @@ TEST_CASE_METHOD(PaSweepRunFixture, "PA sweep run ends when a line never gets a 
     CHECK(pin("output_pin enable_pin_tmc_x") == 0.f);
     CHECK(sent("RESTORE_GCODE_STATE NAME=helix_pa_sweep"));
 }
+
+TEST_CASE_METHOD(PaSweepRunFixture, "PA sweep run refuses to start while the latch is already set",
+                 "[pa_sweep]") {
+    mock_client_.gcode_script("SET_PIN PIN=enable_pin_tmc_x VALUE=1.00");
+    mock_client_.clear_gcode_script_history();
+    start();
+    REQUIRE(wait_until([this]() { return done_.load(); }));
+    INFO("error: " << error_);
+    CHECK(error_.find("still switched off") != std::string::npos);
+    CHECK_FALSE(sent("G28"));
+    CHECK_FALSE(sent("SAVE_GCODE_STATE"));
+    CHECK(pin("output_pin enable_pin_tmc_x") == 1.f);
+}
