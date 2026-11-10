@@ -43,6 +43,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     auto* step = get_wizard_led_select_step();
     step->init_subjects();
+    step->register_callbacks();
     lv_obj_t* root = step->create(test_screen());
     REQUIRE(root != nullptr);
     lv_obj_t* dropdown = lv_obj_find_by_name(root, "led_main_dropdown");
@@ -50,4 +51,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // get_display_name(..., DeviceType::LED) would read "Caselight LED".
     CHECK(std::string(lv_dropdown_get_options(dropdown)) == "None\nCaselight\nChamber Light");
+
+    // Picking a light stages its index for cleanup() to save.
+    lv_dropdown_set_selected(dropdown, 2);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+    CHECK(lv_subject_get_int(step->get_led_strip_subject()) == 2);
 }

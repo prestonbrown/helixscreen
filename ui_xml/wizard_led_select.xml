@@ -23,7 +23,9 @@
       <text_body text="Main LED Strip" style_pad_bottom="#space_sm"/>
       <lv_dropdown name="led_main_dropdown"
                    width="100%" height="#wizard_dropdown_height" options="(None)" style_border_opa="100%"
-                   style_radius="#border_radius" style_pad_all="#space_lg"/>
+                   style_radius="#border_radius" style_pad_all="#space_lg">
+        <event_cb trigger="value_changed" callback="on_led_main_dropdown_changed"/>
+      </lv_dropdown>
     </ui_card>
   </view>
 </component>

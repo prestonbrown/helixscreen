@@ -34,17 +34,6 @@ class IMoonrakerAPI;
 class PrinterHardware;
 
 /**
- * @brief Generic dropdown change callback for wizard selectors
- *
- * Updates subject when dropdown selection changes. Use with lv_xml_register_event_cb().
- *
- * **User data:** Pass lv_subject_t* as user_data when registering callback.
- *
- * @param e Event with dropdown target
- */
-void wizard_hardware_dropdown_changed_cb(lv_event_t* e);
-
-/**
  * @brief Discover, populate, and restore a hardware selector dropdown
  *
  * This consolidates the pattern used in all 4 wizard selector screens:

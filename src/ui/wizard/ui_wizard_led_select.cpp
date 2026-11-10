@@ -18,7 +18,6 @@
 #include "lvgl/lvgl.h"
 #include "printer_discovery.h"
 #include "printer_hardware.h"
-#include "ui/ui_widget_helpers.h"
 #include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
@@ -79,8 +78,12 @@ void WizardLedSelectStep::init_subjects() {
 // ============================================================================
 
 void WizardLedSelectStep::register_callbacks() {
-    // No XML callbacks needed - dropdowns attached programmatically in create()
-    spdlog::debug("[{}] Callback registration (none needed for hardware selectors)", get_name());
+    lv_xml_register_event_cb(nullptr, "on_led_main_dropdown_changed", [](lv_event_t* e) {
+        auto* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+        lv_subject_set_int(get_wizard_led_select_step()->get_led_strip_subject(),
+                           static_cast<int>(lv_dropdown_get_selected(dropdown)));
+    });
+    spdlog::debug("[{}] Registered dropdown callback", get_name());
 }
 
 // ============================================================================
@@ -122,15 +125,6 @@ lv_obj_t* WizardLedSelectStep::create(lv_obj_t* parent) {
                 return led::device_display_name(device);
             });
 
-        spdlog::debug("[{}] Dropdown populated, attaching callback", get_name());
-
-        // Attach LED dropdown callback programmatically
-        lv_obj_t* led_dropdown =
-            helix::ui::find_required(screen_root_, "led_main_dropdown", get_name());
-        if (led_dropdown) {
-            lv_obj_add_event_cb(led_dropdown, wizard_hardware_dropdown_changed_cb,
-                                LV_EVENT_VALUE_CHANGED, &led_strip_selected_);
-        }
     } catch (const std::exception& ex) {
         spdlog::error("[{}] EXCEPTION during create: {}", get_name(), ex.what());
         return nullptr;
