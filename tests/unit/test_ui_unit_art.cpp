@@ -79,13 +79,6 @@ TEST_CASE("unit art: a selector rail is known by its vendor, on a selector backe
     CHECK(std::string(shell_id(rail_system("MMU", "", 6))).empty());
 }
 
-TEST_CASE("unit art: a rail has art only for the gate counts it is baked in", "[ams][unit-art]") {
-    for (int gates : {4, 6, 8, 9, 12})
-        CHECK(unit_art_available(rail_system("MMU", "ERCF", gates), 0));
-    for (int gates : {3, 5, 7, 10, 11, 14})
-        CHECK_FALSE(unit_art_available(rail_system("MMU", "ERCF", gates), 0));
-}
-
 TEST_CASE("unit art: the carriage offset scales with the art's displayed width",
           "[ams][unit-art]") {
     const tray::CarriageTrack track{6, 0.1f, 0.05f, 2.0f};
@@ -155,38 +148,30 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art: a unit without a selector has no ca
     CHECK(unit_art_carriage_obj(art) == nullptr);
 }
 
-TEST_CASE("unit art: an empty bay shows no filament", "[ams][unit-art]") {
+TEST_CASE("unit art: an empty bay shows no filament; black filament is still filament",
+          "[ams][unit-art]") {
     CHECK_FALSE(unit_art_lane(slot(SlotStatus::EMPTY, 0x123456)).filled);
     CHECK_FALSE(unit_art_lane(slot(SlotStatus::UNKNOWN, 0x123456)).filled);
-}
-
-TEST_CASE("unit art: black filament is still filament", "[ams][unit-art]") {
     const UnitArtLane lane = unit_art_lane(slot(SlotStatus::LOADED, 0x000000));
-    CHECK(lane.filled);
-    CHECK(lane.color == 0x000000);
+    CHECK((lane.filled && lane.color == 0x000000));
 }
 
-TEST_CASE("unit art: drawn only where the bays match the art", "[ams][unit-art]") {
+TEST_CASE("unit art: drawn only at the lane counts its art is baked in", "[ams][unit-art]") {
     CHECK(unit_art_available(ace_system(), 0));
     CHECK_FALSE(unit_art_available(ace_system(6), 0));
     CHECK_FALSE(unit_art_available(ace_system(), 3));
+    for (int lanes : {1, 2, 3, 4, 5, 6})
+        CHECK(unit_art_available(quattro_system(lanes), 0) ==
+              (lanes == 2 || lanes == 4 || lanes == 5));
+    for (int gates : {3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14})
+        CHECK(unit_art_available(rail_system("MMU", "ERCF", gates), 0) ==
+              (gates == 4 || gates == 6 || gates == 8 || gates == 9 || gates == 12));
 }
 
-TEST_CASE("unit art: a variable unit has art only at its baked lane counts", "[ams][unit-art]") {
-    for (int lanes : {2, 4, 5})
-        CHECK(unit_art_available(quattro_system(lanes), 0));
-    for (int lanes : {1, 3, 6})
-        CHECK_FALSE(unit_art_available(quattro_system(lanes), 0));
-}
-
-TEST_CASE("unit art: a disconnected unit keeps its drawing", "[ams][unit-art]") {
+TEST_CASE("unit art: a disconnected unit keeps its drawing; units on one rig resolve alone",
+          "[ams][unit-art]") {
     AmsSystemInfo info = ace_system();
     info.units[0].connected = false;
-    CHECK(unit_art_available(info, 0));
-}
-
-TEST_CASE("unit art: units on one rig resolve on their own", "[ams][unit-art]") {
-    AmsSystemInfo info = ace_system();
     AmsUnit other;
     other.name = "ACE 2";
     other.slot_count = 2;

@@ -240,17 +240,6 @@ TEST_CASE_METHOD(HubStackFixture,
     CHECK(seg_end(route.segs[route.count - 1]).y == Catch::Approx(inlet_y(c)).margin(0.01));
 }
 
-TEST_CASE_METHOD(HubStackFixture, "HUB with the bypass shown keeps the ratio layout",
-                 "[filament-path][hub-stack]") {
-    auto c = make(true, true);
-    load(c, static_cast<int>(helix::PathSegment::NOZZLE));
-    render(c);
-    REQUIRE(c.data->hits.hub_valid);
-    REQUIRE(c.data->hits.buffer_valid);
-    CHECK(center_y(c.data->hits.hub) == Catch::Approx(ratio_y(c, kHubYRatio)).margin(1));
-    CHECK(center_y(c.data->hits.buffer) == Catch::Approx(ratio_y(c, kBufferYRatio)).margin(1));
-}
-
 TEST_CASE_METHOD(HubStackFixture, "A built-in selector keeps every tube and merges them at a point",
                  "[filament-path][hub-stack]") {
     auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
@@ -397,8 +386,17 @@ TEST_CASE_METHOD(HubStackFixture, "LINEAR never stacks its selector or buffer",
     CHECK(center_y(c.data->hits.buffer) == Catch::Approx(ratio_y(c, kBufferYRatio)).margin(1));
 }
 
-TEST_CASE_METHOD(HubStackFixture, "HUB on a canvas too short to stack keeps the ratio layout",
+TEST_CASE_METHOD(HubStackFixture,
+                 "HUB keeps the ratio layout with the bypass shown or a canvas too short to stack",
                  "[filament-path][hub-stack]") {
+    auto shown = make(true, true);
+    load(shown, static_cast<int>(helix::PathSegment::NOZZLE));
+    render(shown);
+    REQUIRE((shown.data->hits.hub_valid && shown.data->hits.buffer_valid));
+    CHECK(center_y(shown.data->hits.hub) == Catch::Approx(ratio_y(shown, kHubYRatio)).margin(1));
+    CHECK(center_y(shown.data->hits.buffer) ==
+          Catch::Approx(ratio_y(shown, kBufferYRatio)).margin(1));
+
     auto c = make(false, false);
     lv_obj_set_size(c.obj, kCanvasW, 100);
     load(c, static_cast<int>(helix::PathSegment::NOZZLE));

@@ -804,10 +804,8 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         if (lowest != INT32_MIN)
             lv_obj_set_style_translate_y(w.labels_layer, label_bottom - lowest, LV_PART_MAIN);
     }
-    // Each lane's number sits at the bottom right of its bay on the box front, never below it.
-    // The bay is the lane pitch wide; the lids are narrower so they can tuck behind each other.
+    // Each lane's number sits at the bottom right of its bay (a lane pitch wide) on the box front.
     if (w.badge_layer) {
-        const float bay_half = spacing / 2.0f;
         lv_area_t layer;
         lv_obj_get_coords(w.badge_layer, &layer);
         const float inset = (float)theme_manager_get_spacing("space_xxs");
@@ -816,7 +814,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             if (!badge || lv_obj_get_parent(badge) != w.badge_layer)
                 continue;
             lv_obj_update_layout(badge);
-            const tray::PointF p = tray::lane_badge_origin(box, s_tray.lane_x[i], bay_half,
+            const tray::PointF p = tray::lane_badge_origin(box, s_tray.lane_x[i], spacing / 2.0f,
                                                            (float)lv_obj_get_width(badge),
                                                            (float)lv_obj_get_height(badge), inset);
             // The badge's own translate offsets it from its position.
