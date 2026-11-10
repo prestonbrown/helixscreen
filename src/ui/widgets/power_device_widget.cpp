@@ -550,6 +550,10 @@ void PowerDeviceWidget::select_device(const std::string& name) {
                         self->update_display(status);
                     },
                     lifetime);
+            } else {
+                // Nothing to report for this device yet: drop the previous
+                // device's state rather than show it under the new name.
+                update_display(-1);
             }
 
             set_name_text(

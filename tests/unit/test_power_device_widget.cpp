@@ -15,6 +15,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/update_queue.h"
+#include "device_display_name.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_types.h"
@@ -285,4 +286,33 @@ TEST_CASE("tile_color: the stored colour is read tolerantly", "[tile_color]") {
     CHECK(tile_color::color_from_config({{"color", 0x1000000}}) == 0);
     CHECK(tile_color::color_from_config(nlohmann::json::object()) == 0);
     CHECK(tile_color::color_from_config(nlohmann::json()) == 0);
+}
+
+// A device that left discovery while the picker was open has no state to show
+// yet, so the tile names it and shows no ON/OFF rather than the last device's.
+TEST_CASE_METHOD(PowerTileFixture, "Power tile: a picked device with no state reads unknown",
+                 "[power_device_widget][select_device]") {
+    PowerDeviceState::instance().set_devices(
+        {{"bed_lamp", "gpio", "off", false}, {"printer_psu", "gpio", "on", false}});
+    auto& widget = make_tile({{"device", "printer_psu"}});
+    REQUIRE(status_text() == "ON");
+
+    Access::set_screen(widget, test_screen(), harness_->root());
+    Access::show_picker(widget);
+    lv_obj_t* list = lv_obj_find_by_name(Access::backdrop(test_screen()), "device_list");
+    REQUIRE(list != nullptr);
+    lv_obj_t* lamp_row = lv_obj_get_child(list, 1); // after All Devices, sorted
+    REQUIRE(lamp_row != nullptr);
+
+    PowerDeviceState::instance().set_devices({{"printer_psu", "gpio", "on", false}});
+    lv_obj_send_event(lamp_row, LV_EVENT_CLICKED, nullptr);
+    drain();
+
+    REQUIRE(Access::device_name(widget) == "bed_lamp");
+    CHECK(status_text().empty());
+    lv_obj_t* name = harness_->child("power_device_name");
+    REQUIRE(name != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN));
+    CHECK(std::string(lv_label_get_text(name)) ==
+          helix::get_display_name("bed_lamp", helix::DeviceType::POWER_DEVICE));
 }
