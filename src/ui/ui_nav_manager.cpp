@@ -1017,10 +1017,10 @@ void NavigationManager::ensure_delete_hook(lv_obj_t* widget) {
 }
 
 void NavigationManager::rebuild_active_views() {
-    rebuild_views(true);
+    rebuild_views(true, true);
 }
 
-void NavigationManager::rebuild_views(bool rebuild_top_modal) {
+void NavigationManager::rebuild_views(bool rebuild_panel, bool rebuild_top_modal) {
     if (shutting_down_) {
         spdlog::debug("[NavigationManager] rebuild_active_views: shutting down, skipping");
         return;
@@ -1028,7 +1028,8 @@ void NavigationManager::rebuild_views(bool rebuild_top_modal) {
     spdlog::info("[NavigationManager] Rebuilding active views");
 
     // Active main panel
-    if (auto* p = panels_.instance(static_cast<int>(active_panel_))) {
+    auto* p = rebuild_panel ? panels_.instance(static_cast<int>(active_panel_)) : nullptr;
+    if (p) {
         p->rebuild();
     }
 
@@ -1048,12 +1049,11 @@ void NavigationManager::rebuild_views(bool rebuild_top_modal) {
         inst->rebuild();
     }
     // A rebuilt root is created on top of the screen, over the chrome (the
-    // E-stop) and any open modal. Stack the open overlays back in navigation
-    // order, chrome above them, then the modals above all of it.
+    // E-stop). Stack the open overlays back in navigation order, chrome above
+    // them; rebuild_top() below brings the modals back above all of it.
     for (size_t i = 1; i < panel_stack_.size(); ++i) {
         helix::ui::bring_to_front(panel_stack_[i]);
     }
-    ModalStack::instance().raise_visible_to_foreground();
 
     // Top modal — rebuild via Modal::rebuild_top()
     if (rebuild_top_modal && ModalStack::instance().top_dialog()) {
@@ -1065,10 +1065,48 @@ void NavigationManager::rebuild_for_layout_change() {
     if (shutting_down_) {
         return;
     }
-    panels_.mark_stale_except(static_cast<int>(active_panel_));
-    // Modals stay as built: rebuild_top() hides one backed by a C++ instance,
-    // which would dismiss it, and the next modal builds at the new layout.
-    rebuild_views(false);
+    panels_.mark_stale_except(-1);
+    layout_rebuild_pending_ = true;
+    try_layout_rebuild();
+}
+
+bool NavigationManager::layout_rebuild_is_safe() const {
+    // A rebuild deactivates what it rebuilds, which expires the lifetime token
+    // an open confirm checks, cancels a running measurement and drops edits.
+    if (suspended_ || panel_stack_.size() > 1 || !pending_pushes_.empty() ||
+        !queued_targets_.empty() || !ModalStack::instance().stack_empty() ||
+        KeyboardManager::instance().is_visible()) {
+        return false;
+    }
+    // go_back() pops the stack before the slide-out; deleting a root mid-slide
+    // cancels the animation that retires it.
+    for (const auto* map : {&overlay_instances_, &persistent_overlay_instances_}) {
+        for (const auto& [root, inst] : *map) {
+            if (root && lv_anim_get(root, nullptr)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+void NavigationManager::try_layout_rebuild() {
+    if (!layout_rebuild_pending_ || shutting_down_) {
+        return;
+    }
+    if (!layout_rebuild_is_safe()) {
+        layout_rebuild_retry_.schedule_once([] {
+            if (!NavigationManager::is_destroyed()) {
+                NavigationManager::instance().try_layout_rebuild();
+            }
+        });
+        return;
+    }
+    layout_rebuild_pending_ = false;
+    layout_rebuild_retry_.cancel();
+    // Nothing is open, so there is no modal to keep or overlay to re-stack. A
+    // panel shown while the rebuild waited was rebuilt by set_active().
+    rebuild_views(panels_.is_stale(static_cast<int>(active_panel_)), false);
 }
 
 void NavigationManager::activate_initial_panel() {
@@ -1624,6 +1662,8 @@ bool NavigationManager::has_open_overlays() const {
 void NavigationManager::shutdown() {
     spdlog::trace("[NavigationManager] Shutting down...");
     shutting_down_ = true;
+    layout_rebuild_pending_ = false;
+    layout_rebuild_retry_.cancel();
 
     printer_badge_.shutdown();
 
@@ -1679,6 +1719,8 @@ void NavigationManager::trigger_add_printer() {
 }
 
 void NavigationManager::deinit_subjects() {
+    layout_rebuild_pending_ = false;
+    layout_rebuild_retry_.cancel();
     if (!subjects_initialized_) {
         return;
     }

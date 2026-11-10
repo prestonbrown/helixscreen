@@ -107,7 +107,7 @@ lv_theme_t* theme_init_lvgl(lv_display_t* display, const theme_palette_t* palett
 
 /// Make @p font the theme's default text font, restyling every widget that
 /// inherits it. No-op when it already is.
-void theme_set_base_font(lv_display_t* display, const lv_font_t* font, bool is_dark);
+void theme_set_base_font(lv_display_t* display, const lv_font_t* font);
 
 /// Re-point the ThemeManager palettes and the handle styles at the active
 /// theme without rebuilding the LVGL theme.

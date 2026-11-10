@@ -405,7 +405,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
 void theme_manager_refresh_base_font(lv_display_t* display) {
     if (!runtime().current_theme)
         return;
-    helix::theme_detail::theme_set_base_font(display, resolve_base_font(display), runtime().dark);
+    helix::theme_detail::theme_set_base_font(display, resolve_base_font(display));
 }
 
 // NAMESPACE_OK: joins the global theme_manager_init/deinit family

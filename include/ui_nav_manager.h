@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_coalesced_timer.h"
 #include "ui_nav.h"
 #include "ui_nav_backdrop.h"
 #include "ui_nav_panel_registry.h"
@@ -267,10 +268,12 @@ class NavigationManager {
     /**
      * @brief Rebuild for a layout the views were not built at (a resize across a tier)
      *
-     * Rebuilds the active panel and every overlay now, and marks every other
-     * built main panel stale; set_active() rebuilds a stale panel before it
-     * shows it. Open modals are left as built, so none is dismissed. Call after
-     * the tokens are refreshed and the components re-registered.
+     * Marks every built main panel stale; set_active() rebuilds a stale panel
+     * before it shows it. The visible panel and the closed overlays are rebuilt
+     * once nothing is in use: no overlay open or closing, no modal, no keyboard,
+     * not suspended. Until then a timer retries, so an open dialog, a running
+     * measurement or a half-typed field is never torn down. Call after the
+     * tokens are refreshed and the components re-registered.
      */
     void rebuild_for_layout_change();
 
@@ -683,8 +686,12 @@ class NavigationManager {
     // re-entrant navigation from on_activate() can arm a fresh close cleanly.
     void activate_restored_target();
 
-    // Rebuild the active panel and every overlay, then the top modal if asked.
-    void rebuild_views(bool rebuild_top_modal);
+    // Rebuild every overlay, and the active panel and the top modal if asked.
+    void rebuild_views(bool rebuild_panel, bool rebuild_top_modal);
+    // Nothing on screen is in use, so a layout rebuild loses nothing.
+    bool layout_rebuild_is_safe() const;
+    // Run a pending layout rebuild now if it is safe, else retry shortly.
+    void try_layout_rebuild();
     // The lifecycle on screen now: the topmost overlay's, else the active
     // main panel's. Null when the top overlay has none.
     IPanelLifecycle* visible_lifecycle();
@@ -775,6 +782,8 @@ class NavigationManager {
     lv_subject_t active_panel_subject_{};
     helix::PanelId active_panel_ = helix::PanelId::Home;
     bool suspended_ = false; // True when screensaver has suspended lifecycle
+    bool layout_rebuild_pending_ = false;
+    helix::ui::CoalescedTimer layout_rebuild_retry_{250};
     DeactivateReason suspend_reason_ = DeactivateReason::Suspended;
     IPanelLifecycle* suspended_view_ = nullptr; // what resume_active() wakes
 
