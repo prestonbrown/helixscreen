@@ -167,6 +167,13 @@ TEST_CASE_METHOD(SideListFixture, "Side list rebuilds its rows when the defined 
     for (lv_obj_t* row : after) {
         CHECK(std::find(before.begin(), before.end(), row) == before.end());
     }
+    lv_obj_t* empty = lv_obj_find_by_name(list.root(), "empty_state");
+    CHECK(lv_obj_has_flag(empty, LV_OBJ_FLAG_HIDDEN));
+
+    // No objects shows the empty state.
+    objects().set_defined_objects({});
+    settle();
+    CHECK_FALSE(lv_obj_has_flag(empty, LV_OBJ_FLAG_HIDDEN));
 }
 
 namespace {

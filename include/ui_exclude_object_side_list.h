@@ -76,7 +76,6 @@ class ExcludeObjectSideList {
     // never touched again.
     WidgetRef root_;
     WidgetRef rows_container_;
-    WidgetRef empty_state_;
     WidgetRef gcode_viewer_;
 
     PrinterExcludedObjectsState* state_{nullptr};
