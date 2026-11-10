@@ -53,9 +53,7 @@ class FavoriteMacroWidget : public TiledPanelWidget {
 
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
-    lv_obj_t* icon_badge_ = nullptr;
     lv_obj_t* icon_label_ = nullptr;
-    lv_obj_t* name_label_ = nullptr;
 
     std::string macro_name_;           ///< Assigned macro (e.g., "CLEAN_NOZZLE")
     std::string icon_name_;            ///< Custom icon name, empty = "play" default
@@ -64,6 +62,15 @@ class FavoriteMacroWidget : public TiledPanelWidget {
     helix::AsyncLifetimeGuard lifetime_;
 
     std::unique_ptr<FavoriteMacroConfigModal> config_modal_;
+
+    // This instance's name and badge colour, bound by its component. Owned per
+    // instance because two macro tiles can sit on the home grid at once.
+    lv_subject_t name_subject_{};
+    char name_buffer_[128] = {};
+    /// 1 while a macro is assigned; 0 draws the "Configure" prompt.
+    lv_subject_t named_subject_{};
+    lv_subject_t badge_color_subject_{};
+    SubjectManager subjects_;
 
     IMoonrakerAPI* get_api() const;
 
