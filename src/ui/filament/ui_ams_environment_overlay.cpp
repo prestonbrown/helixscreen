@@ -260,8 +260,9 @@ lv_obj_t* AmsEnvironmentOverlay::create(lv_obj_t* parent) {
 
 void AmsEnvironmentOverlay::show_zone(lv_obj_t* parent_screen,
                                       std::vector<helix::printer::EnvironmentZone> zones,
-                                      size_t selected, bool with_selector) {
+                                      size_t selected, bool with_selector, int scope_unit) {
     zones_ = std::move(zones);
+    scope_unit_ = scope_unit;
     selected_zone_ = zones_.empty() ? 0 : std::min(selected, zones_.size() - 1);
     with_selector_ =
         with_selector && zones_.size() > 1 && zones_.size() <= helix::printer::kMaxZoneTabs;
@@ -653,11 +654,10 @@ void AmsEnvironmentOverlay::update_from_backend() {
     AmsBackend* backend = AmsState::instance().get_backend();
     if (backend) {
         if (zones_.empty()) {
-            // No prior show_zone() to re-match against, so a caller that pulls a fresh
-            // reading before ever calling show_zone() (this overlay's own tests do, to
-            // exercise refresh() without pushing onto the nav stack). No unit is known
-            // yet, so pull everything the printer reports rather than guessing one.
-            zones_ = backend->get_environment_zones(-1);
+            // Nothing to re-match against: an empty scope, or a refresh() before any
+            // show_zone(). Pull what the scope reports, so a unit with no zones stays
+            // empty rather than filling with every other unit's.
+            zones_ = backend->get_environment_zones(scope_unit_);
         } else {
             // Keep the set the caller chose and refresh its values in place. Re-deriving
             // by a single unit would narrow a multi-unit set to one, and on_activate() calls
@@ -1272,12 +1272,14 @@ void open_environment_for_unit(int unit_index) {
         get_ams_zone_overview_overlay().show(lv_screen_active(), std::move(zones));
         return;
     case helix::printer::ZonePresentation::Tabs:
-        get_ams_environment_overlay().show_zone(lv_screen_active(), std::move(zones), 0, true);
+        get_ams_environment_overlay().show_zone(lv_screen_active(), std::move(zones), 0, true,
+                                                unit_index);
         return;
     case helix::printer::ZonePresentation::Single:
         break;
     }
-    get_ams_environment_overlay().show_zone(lv_screen_active(), std::move(zones), 0, false);
+    get_ams_environment_overlay().show_zone(lv_screen_active(), std::move(zones), 0, false,
+                                            unit_index);
 }
 
 void ensure_ams_env_indicator_registered() {

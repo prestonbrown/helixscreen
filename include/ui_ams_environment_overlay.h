@@ -93,9 +93,11 @@ class AmsEnvironmentOverlay : public OverlayBase {
      * @param selected      Index into @p zones to open on
      * @param with_selector Whether to offer the tab strip. False when one zone was drilled
      *                      into from the overview, where Back is the way between zones.
+     * @param scope_unit    The unit @p zones were drawn from, or -1 for every unit. Refreshes
+     *                      stay within it, so a unit with no zones keeps its empty state.
      */
     void show_zone(lv_obj_t* parent_screen, std::vector<helix::printer::EnvironmentZone> zones,
-                   size_t selected, bool with_selector);
+                   size_t selected, bool with_selector, int scope_unit = -1);
 
     /// Switch the shown zone without rebuilding the detail widgets.
     void select_zone(size_t index);
@@ -202,6 +204,8 @@ class AmsEnvironmentOverlay : public OverlayBase {
     size_t selected_zone_ = 0;
     /// Whether the tab strip is offered for the current zones_.
     bool with_selector_ = false;
+    /// The unit zones_ was drawn from, or -1 for every unit.
+    int scope_unit_ = -1;
 
     /// Live-update observers. Environment temperature/humidity and dryer state do
     /// NOT bump AmsState's slots_version (that tracks slot data only), so the
