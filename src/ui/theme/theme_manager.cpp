@@ -168,6 +168,69 @@ static void publish_int_subject(lv_subject_t& subject, bool& ready, int32_t valu
     }
 }
 
+/// The theme's default text font: font_body at the display's breakpoint, never null.
+static const lv_font_t* resolve_base_font(lv_display_t* display) {
+    // Read responsive font based on current breakpoint
+    // NOTE: We read the variant directly because base constants are removed to enable
+    // responsive overrides (LVGL ignores lv_xml_register_const for existing constants)
+    int32_t resp_res = responsive_dimension(display);
+    const char* size_suffix = theme_manager_get_breakpoint_suffix(resp_res);
+
+    char font_variant_name[64];
+    snprintf(font_variant_name, sizeof(font_variant_name), "font_body%s", size_suffix);
+    const char* font_body_name = lv_xml_get_const(nullptr, font_variant_name);
+
+    // An absent tier falls back the way responsive spacing/font tokens do.
+    if (!font_body_name && strcmp(size_suffix, "_xxlarge") == 0) {
+        font_body_name = lv_xml_get_const(nullptr, "font_body_xlarge");
+        if (!font_body_name)
+            font_body_name = lv_xml_get_const(nullptr, "font_body_large");
+    } else if (!font_body_name && strcmp(size_suffix, "_xlarge") == 0) {
+        font_body_name = lv_xml_get_const(nullptr, "font_body_large");
+    } else if (!font_body_name && strcmp(size_suffix, "_micro") == 0) {
+        font_body_name = lv_xml_get_const(nullptr, "font_body_tiny");
+        if (!font_body_name)
+            font_body_name = lv_xml_get_const(nullptr, "font_body_small");
+    } else if (!font_body_name && strcmp(size_suffix, "_tiny") == 0) {
+        font_body_name = lv_xml_get_const(nullptr, "font_body_small");
+    }
+
+    // The reads above resolve the suffixed variant const (e.g. font_body_medium),
+    // which is supplied by globals.xml's component consts. On the firmware
+    // release path that nullptr-scope read can miss it, but the responsive font
+    // registrar (theme_manager_register_responsive_fonts, run before this) always
+    // registers the breakpoint-selected BASE name "font_body" into this same
+    // scope — so fall back to it. Desktop resolves the variant directly and
+    // never reaches this line.
+    if (!font_body_name) {
+        font_body_name = lv_xml_get_const(nullptr, "font_body");
+    }
+
+    const lv_font_t* base_font =
+        font_body_name ? lv_xml_get_font(nullptr, font_body_name) : nullptr;
+    if (!base_font) {
+        // Resolve the fallback through the font REGISTRY (returns NULL if the
+        // face isn't linked/registered — e.g. a pruned firmware tier has no
+        // "noto_sans_16"), NOT via the &noto_sans_16 symbol: on such builds that
+        // symbol can resolve to a NULL/weak address and theme_init_lvgl would
+        // dereference it (Guru Meditation, PC=0). If even that misses, use
+        // LVGL's built-in default, which is always valid. NEVER hand a NULL font
+        // to LVGL.
+        const lv_font_t* fallback = lv_xml_get_font(nullptr, "noto_sans_16");
+        if (fallback) {
+            spdlog::warn("[Theme] Failed to get font '{}', using noto_sans_16", font_variant_name);
+            base_font = fallback;
+        } else {
+            spdlog::error("[Theme] Failed to get font '{}' and fallback noto_sans_16 is not "
+                          "registered; using lv_font_get_default()",
+                          font_variant_name);
+            base_font = lv_font_get_default();
+        }
+    }
+
+    return base_font;
+}
+
 void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     auto tm_init_start = std::chrono::steady_clock::now();
 
@@ -306,63 +369,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
 
     spdlog::trace("[Theme] Runtime constants set for {} mode", runtime().dark ? "dark" : "light");
 
-    // Read responsive font based on current breakpoint
-    // NOTE: We read the variant directly because base constants are removed to enable
-    // responsive overrides (LVGL ignores lv_xml_register_const for existing constants)
-    int32_t resp_res = responsive_dimension(display);
-    const char* size_suffix = theme_manager_get_breakpoint_suffix(resp_res);
-
-    char font_variant_name[64];
-    snprintf(font_variant_name, sizeof(font_variant_name), "font_body%s", size_suffix);
-    const char* font_body_name = lv_xml_get_const(nullptr, font_variant_name);
-
-    // An absent tier falls back the way responsive spacing/font tokens do.
-    if (!font_body_name && strcmp(size_suffix, "_xxlarge") == 0) {
-        font_body_name = lv_xml_get_const(nullptr, "font_body_xlarge");
-        if (!font_body_name)
-            font_body_name = lv_xml_get_const(nullptr, "font_body_large");
-    } else if (!font_body_name && strcmp(size_suffix, "_xlarge") == 0) {
-        font_body_name = lv_xml_get_const(nullptr, "font_body_large");
-    } else if (!font_body_name && strcmp(size_suffix, "_micro") == 0) {
-        font_body_name = lv_xml_get_const(nullptr, "font_body_tiny");
-        if (!font_body_name)
-            font_body_name = lv_xml_get_const(nullptr, "font_body_small");
-    } else if (!font_body_name && strcmp(size_suffix, "_tiny") == 0) {
-        font_body_name = lv_xml_get_const(nullptr, "font_body_small");
-    }
-
-    // The reads above resolve the suffixed variant const (e.g. font_body_medium),
-    // which is supplied by globals.xml's component consts. On the firmware
-    // release path that nullptr-scope read can miss it, but the responsive font
-    // registrar (theme_manager_register_responsive_fonts, run just above) always
-    // registers the breakpoint-selected BASE name "font_body" into this same
-    // scope — so fall back to it. Desktop resolves the variant directly and
-    // never reaches this line.
-    if (!font_body_name) {
-        font_body_name = lv_xml_get_const(nullptr, "font_body");
-    }
-
-    const lv_font_t* base_font =
-        font_body_name ? lv_xml_get_font(nullptr, font_body_name) : nullptr;
-    if (!base_font) {
-        // Resolve the fallback through the font REGISTRY (returns NULL if the
-        // face isn't linked/registered — e.g. a pruned firmware tier has no
-        // "noto_sans_16"), NOT via the &noto_sans_16 symbol: on such builds that
-        // symbol can resolve to a NULL/weak address and theme_init_lvgl would
-        // dereference it (Guru Meditation, PC=0). If even that misses, use
-        // LVGL's built-in default, which is always valid. NEVER hand a NULL font
-        // to LVGL.
-        const lv_font_t* fallback = lv_xml_get_font(nullptr, "noto_sans_16");
-        if (fallback) {
-            spdlog::warn("[Theme] Failed to get font '{}', using noto_sans_16", font_variant_name);
-            base_font = fallback;
-        } else {
-            spdlog::error("[Theme] Failed to get font '{}' and fallback noto_sans_16 is not "
-                          "registered; using lv_font_get_default()",
-                          font_variant_name);
-            base_font = lv_font_get_default();
-        }
-    }
+    const lv_font_t* base_font = resolve_base_font(display);
 
     // Build palette from current mode
     const helix::ModePalette& mode_palette = get_current_mode_palette();
@@ -393,6 +400,12 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
                       .count(),
                   helix::theme_tokens::enabled() ? "on" : "off");
     runtime().fully_initialized = true;
+}
+
+void theme_manager_refresh_base_font(lv_display_t* display) {
+    if (!runtime().current_theme)
+        return;
+    helix::theme_detail::theme_set_base_font(display, resolve_base_font(display));
 }
 
 // NAMESPACE_OK: joins the global theme_manager_init/deinit family

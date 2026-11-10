@@ -17,6 +17,7 @@ void PanelRegistry::set_widgets(lv_obj_t* const* panels) {
     for (int i = 0; i < kCount; i++) {
         widgets_[i] = panels[i];
     }
+    stale_.fill(false);
 }
 
 lv_obj_t* PanelRegistry::widget(int idx) const {
@@ -29,7 +30,24 @@ lv_obj_t* PanelRegistry::replace_widget(int idx, lv_obj_t* widget) {
     }
     lv_obj_t* displaced = widgets_[idx].get();
     widgets_[idx] = widget;
+    stale_[idx] = false;
     return displaced;
+}
+
+void PanelRegistry::mark_stale_except(int keep) {
+    for (int i = 0; i < kCount; i++) {
+        stale_[i] = i != keep && widgets_[i].get() != nullptr;
+    }
+}
+
+bool PanelRegistry::is_stale(int idx) const {
+    return in_range(idx) && stale_[idx];
+}
+
+void PanelRegistry::clear_stale(int idx) {
+    if (in_range(idx)) {
+        stale_[idx] = false;
+    }
 }
 
 int PanelRegistry::index_of(const lv_obj_t* obj) const {
@@ -105,6 +123,7 @@ void PanelRegistry::reset() {
     for (int i = 0; i < kCount; i++) {
         widgets_[i] = nullptr;
     }
+    stale_.fill(false);
     clear_instances();
 }
 

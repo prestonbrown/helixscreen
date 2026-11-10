@@ -529,8 +529,19 @@ void theme_manager_register_responsive_spacing(lv_display_t* display);
  * to override previously-registered values.
  *
  * @param display LVGL display instance
+ * @return true when a px token or a breakpoint moved: widgets built before the
+ *         refresh still carry the old values. The overlay widths, which follow
+ *         every pixel, do not count.
  */
-void theme_manager_refresh_layout_constants(lv_display_t* display);
+bool theme_manager_refresh_layout_constants(lv_display_t* display);
+
+/**
+ * @brief Re-point the theme's default text font at the display's breakpoint
+ *
+ * Labels without a font of their own inherit it. Called by
+ * theme_manager_refresh_layout_constants() once the tier's fonts are registered.
+ */
+void theme_manager_refresh_base_font(lv_display_t* display);
 
 /**
  * @brief Republish ui_is_portrait and ui_is_ultrawide from the override-aware source.
