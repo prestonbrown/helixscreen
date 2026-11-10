@@ -82,6 +82,9 @@ class FilamentProductEditModal : public Modal {
     // "Restore Defaults" (built-in with an override). Hidden in Add mode.
     lv_subject_t secondary_text_subject_{};
     char secondary_text_buf_[40]{};
+    lv_subject_t show_secondary_subject_{}; ///< 1 when the secondary button applies
+    lv_subject_t title_subject_{};          ///< "Add Filament" / "Edit Filament"
+    char title_buf_[64]{};
 
     // === Internal Methods ===
     void init_subjects();
