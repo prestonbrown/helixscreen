@@ -30,8 +30,8 @@
           <bind_flag_if_eq subject="settings_sounds_enabled" flag="hidden" ref_value="0"/>
           <setting_slider_row name="row_volume"
                               label="Volume" icon="volume_high" description="Master volume level" min="0" max="100"
-                              value="80" min_icon="volume_off" max_icon="volume_high" callback="on_volume_changed"
-                              commit_callback="on_volume_commit"/>
+                              value="80" value_subject="settings_volume" value_format="%d%%" min_icon="volume_off"
+                              max_icon="volume_high" callback="on_volume_changed" commit_callback="on_volume_commit"/>
         </lv_obj>
         <!-- UI Sounds Toggle (hidden when master sounds off) -->
         <lv_obj name="container_ui_sounds" width="100%" style_pad_all="0" scrollable="false">

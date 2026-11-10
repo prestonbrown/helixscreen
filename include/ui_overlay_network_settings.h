@@ -226,6 +226,8 @@ class NetworkSettingsOverlay : public OverlayBase {
     // Password modal subjects
     lv_subject_t wifi_connecting_{};          // 0=idle, 1=connecting (toggles modal form)
     lv_subject_t wifi_password_modal_ssid_{}; // SSID displayed in password modal
+    lv_subject_t password_status_{};          // password modal's error line
+    lv_subject_t password_status_shown_{};    // 1 while that line has something to say
 
     // String buffers (subjects need stable char* pointers)
     char ssid_buffer_[64];
@@ -235,6 +237,7 @@ class NetworkSettingsOverlay : public OverlayBase {
     char eth_ip_buffer_[32];
     char eth_mac_buffer_[32];
     char password_modal_ssid_buffer_[64];
+    char password_status_buffer_[160];
 
     // Integration
     std::shared_ptr<helix::WiFiManager> wifi_manager_;
@@ -362,8 +365,7 @@ class NetworkSettingsOverlay : public OverlayBase {
     void apply_wifi_status(const WifiBackend::ConnectionStatus& status);
     void confirm_forget(const std::string& ssid);
     void clear_network_list();
-    void show_placeholder(bool show);
-    void update_signal_icons(lv_obj_t* item, int icon_state);
+    void show_password_status(const std::string& text);
 
     void handle_network_test_close();
 

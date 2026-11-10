@@ -3,7 +3,6 @@
 #include "ui_printer_manager_overlay.h"
 
 #include "ui_callback_helpers.h"
-#include "ui_event_safety.h"
 #include "ui_keyboard_manager.h"
 #include "ui_nav.h"
 #include "ui_overlay_printer_image.h"
@@ -91,43 +90,6 @@ lv_obj_t* PrinterManagerOverlay::create(lv_obj_t* parent) {
     // Find name editing widgets (visibility driven by pm_name_editing subject via XML bindings)
     name_input_ = helix::ui::find_required(overlay_root_, "pm_printer_name_input", get_name());
 
-    // Register READY/CANCEL on textarea for name edit lifecycle
-    // (acceptable exception to declarative rule — textarea lifecycle event, like DELETE cleanup)
-    if (name_input_) {
-        lv_obj_add_event_cb(
-            name_input_,
-            [](lv_event_t*) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[PrinterManagerOverlay] name_input_ready");
-                get_printer_manager_overlay().finish_name_edit();
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_READY, nullptr);
-        lv_obj_add_event_cb(
-            name_input_,
-            [](lv_event_t*) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[PrinterManagerOverlay] name_input_cancel");
-                get_printer_manager_overlay().cancel_name_edit();
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_CANCEL, nullptr);
-    }
-
-    // Clicking anywhere in the body while editing saves and dismisses the input.
-    // LVGL DEFOCUSED events don't fire reliably on touchscreens, so we use a
-    // click handler on the body instead; the body's containers (the scrolling
-    // details column among them) set event_bubble so a tap on them lands here.
-    if (auto* content = helix::ui::find_required(overlay_root_, "overlay_content", get_name())) {
-        lv_obj_add_event_cb(
-            content,
-            [](lv_event_t*) {
-                auto& pm = get_printer_manager_overlay();
-                if (lv_subject_get_int(&pm.name_editing_) != 0) {
-                    pm.finish_name_edit();
-                }
-            },
-            LV_EVENT_CLICKED, nullptr);
-    }
-
 #if defined(HELIX_PLATFORM_ESP32)
     // The ESP32 image has no camera, so timelapse is unavailable whatever the
     // printer reports. That is a compile-time fact no subject carries, so the
@@ -148,6 +110,22 @@ lv_obj_t* PrinterManagerOverlay::create(lv_obj_t* parent) {
 
 void PrinterManagerOverlay::register_callbacks() {
     register_xml_callbacks({
+        // The name input's keyboard OK saves the edit, and its cancel drops it
+        {"pm_name_input_ready",
+         [](lv_event_t*) { get_printer_manager_overlay().finish_name_edit(); }},
+        {"pm_name_input_cancel",
+         [](lv_event_t*) { get_printer_manager_overlay().cancel_name_edit(); }},
+        // A tap anywhere in the body while editing saves and dismisses the input.
+        // DEFOCUSED does not fire reliably on touchscreens; the body's containers
+        // (the scrolling details column among them) set event_bubble so a tap on
+        // them lands here.
+        {"pm_body_clicked",
+         [](lv_event_t*) {
+             auto& pm = get_printer_manager_overlay();
+             if (lv_subject_get_int(&pm.name_editing_) != 0) {
+                 pm.finish_name_edit();
+             }
+         }},
         {"pm_chip_clicked",
          [](lv_event_t* e) {
              auto* chip = static_cast<lv_obj_t*>(lv_event_get_current_target(e));

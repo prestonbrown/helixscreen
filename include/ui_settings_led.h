@@ -117,6 +117,7 @@ class LedSettingsOverlay : public OverlayBase {
     SubjectManager subjects_;
     lv_subject_t auto_state_enabled_subject_{};
     lv_subject_t led_on_at_start_subject_{};
+    lv_subject_t startup_brightness_subject_{}; ///< percent, the slider row's readout
     lv_subject_t print_macros_drive_leds_subject_{};
     /// The colour presets every auto-state row's swatches show
     /// (led_auto_color_swatches.xml), and which one each row has picked.
@@ -126,6 +127,9 @@ class LedSettingsOverlay : public OverlayBase {
     /// One per kStateRows entry: the preset index ringed, or -1.
     helix::xml::IndexedSubjectPool auto_color_selected_pool_{
         "led_auto_color_sel", helix::xml::IndexedSubjectPool::Type::Int};
+    /// One per kStateRows entry: 1 while its action has a detail panel to show.
+    helix::xml::IndexedSubjectPool auto_detail_shown_pool_{
+        "led_auto_detail_shown", helix::xml::IndexedSubjectPool::Type::Int};
     std::vector<std::string> action_type_options_; // Maps dropdown index to action type string
     int editing_macro_index_ = -1;                 // -1 = no macro device being edited
 };

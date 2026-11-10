@@ -9,13 +9,26 @@
  * whether a reset changed anything with operator==, so both predicates are
  * behaviour, not accessors. Display formatting goes through
  * helix::format::format_speed_mm_s / format_accel_mm_s2, covered in
- * test_format_utils.cpp.
+ * test_format_utils.cpp. The overlay case checks the printer's read-only Z
+ * limits reach their rows.
  *
  * @see include/calibration_types.h - MachineLimits
  * @see src/ui/settings/ui_settings_machine_limits.cpp - MachineLimitsOverlay
  */
 
+#include "ui_nav_manager.h"
+#include "ui_settings_machine_limits.h"
+
+#include "../lvgl_ui_test_fixture.h"
 #include "calibration_types.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
+#include "moonraker_api.h"
+#include "moonraker_client_mock.h"
+#include "printer_state.h"
+
+#include <array>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -92,4 +105,42 @@ TEST_CASE("MachineLimits equality compares every field", "[calibration][machine_
         REQUIRE(differs_in([](MachineLimits& l) { l.max_z_velocity += 1.0; }));
         REQUIRE(differs_in([](MachineLimits& l) { l.max_z_accel += 1.0; }));
     }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Machine Limits: the Z rows show the printer's reported limits",
+                 "[calibration][machine_limits]") {
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels) {
+        p = lv_obj_create(lv_screen_active());
+    }
+    NavigationManager::instance().set_panels(panels.data());
+
+    PrinterState state;
+    state.init_subjects(false);
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::GENERIC_COREXY);
+    MoonrakerAPI api(client, state);
+
+    auto& overlay = helix::settings::get_machine_limits_overlay();
+    overlay.set_api(&api);
+    REQUIRE(overlay.show(lv_screen_active()));
+    for (int i = 0; i < 5; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(20);
+    }
+
+    auto row_value = [](const char* row_name) {
+        lv_obj_t* row = lv_obj_find_by_name(lv_screen_active(), row_name);
+        REQUIRE(row != nullptr);
+        lv_obj_t* value = lv_obj_find_by_name(row, "value");
+        REQUIRE(value != nullptr);
+        return std::string(lv_label_get_text(value));
+    };
+    // The mock toolhead reports max_z_velocity 40 and max_z_accel 1000.
+    CHECK(row_value("row_max_z_velocity").rfind("40", 0) == 0);
+    CHECK(row_value("row_max_z_accel").rfind("1000", 0) == 0);
+
+    overlay.set_api(nullptr);
+    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
 }

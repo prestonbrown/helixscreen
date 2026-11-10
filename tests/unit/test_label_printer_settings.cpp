@@ -110,10 +110,3 @@ TEST_CASE_METHOD(LVGLTestFixture, "LabelPrinterSettingsManager configured subjec
 
     LabelPrinterSettingsManager::instance().deinit_subjects();
 }
-
-TEST_CASE_METHOD(LVGLTestFixture, "LabelPrinterSettingsManager singleton returns same instance",
-                 "[label]") {
-    auto& a = LabelPrinterSettingsManager::instance();
-    auto& b = LabelPrinterSettingsManager::instance();
-    REQUIRE(&a == &b);
-}

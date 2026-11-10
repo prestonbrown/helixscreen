@@ -5,6 +5,12 @@
   <!-- Printer List Item - Reusable Component -->
   <!-- Displays printer name, connection dot, and optional delete button -->
   <!-- Active printer indicated via LV_STATE_CHECKED - adds left border accent -->
+  <api>
+    <!-- "1" on the active printer's row: its check and connection dot show -->
+    <prop name="active" type="string" default="0"/>
+    <!-- "1" while there is more than one printer to choose between -->
+    <prop name="deletable" type="string" default="0"/>
+  </api>
   <styles>
     <style name="checked_style"
            border_width="#space_xs" border_side="left" border_color="#primary" bg_color="#elevated_bg"/>
@@ -15,18 +21,25 @@
         style_flex_cross_place="center" style_pad_gap="#space_sm">
     <style name="checked_style" selector="checked"/>
     <event_cb trigger="clicked" callback="printer_list_row_cb"/>
-    <!-- Active check icon placeholder (fixed width reserves space for alignment in all rows) -->
-    <icon name="active_check"
-          width="16" src="check" size="xs" variant="secondary" clickable="false" event_bubble="true" style_text_opa="0"/>
+    <!-- Active check icon (a fixed-width slot reserves its space in every row) -->
+    <lv_obj width="16"
+            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" clickable="false"
+            event_bubble="true" scrollable="false">
+      <icon name="active_check"
+            width="16" src="check" size="xs" variant="secondary" clickable="false" event_bubble="true"
+            hidden_if_prop_not_eq="$active|1"/>
+    </lv_obj>
     <!-- Printer name -->
     <text_body name="printer_name" clickable="false" event_bubble="true" flex_grow="1" style_text_opa="255"/>
     <!-- Connection status dot: only the connected printer's state is known, so the list shows
          it on that row alone -->
     <lv_obj name="connection_dot"
-            width="8" height="8" hidden="true" style_radius="32767" style_bg_color="#success" style_bg_opa="255"
-            style_border_width="0" style_pad_all="0" clickable="false" event_bubble="true" scrollable="false"/>
+            width="8" height="8" hidden_if_prop_not_eq="$active|1" style_radius="32767" style_bg_color="#success"
+            style_bg_opa="255" style_border_width="0" style_pad_all="0" clickable="false" event_bubble="true"
+            scrollable="false"/>
     <!-- Delete button (hidden when only 1 printer) -->
-    <icon name="delete_btn" src="delete" size="sm" variant="danger" clickable="true" hidden="true">
+    <icon name="delete_btn"
+          src="delete" size="sm" variant="danger" clickable="true" hidden_if_prop_not_eq="$deletable|1">
       <event_cb trigger="clicked" callback="printer_list_delete_cb"/>
     </icon>
   </view>

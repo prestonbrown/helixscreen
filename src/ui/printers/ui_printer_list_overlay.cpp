@@ -29,6 +29,27 @@ namespace helix::ui {
 
 namespace {
 
+/// A row's display name, as a subject the row owns: a user-chosen name may
+/// begin with '#', which a component prop would resolve as a constant.
+struct PrinterRowName {
+    char buf[128];
+    lv_subject_t subject{};
+
+    explicit PrinterRowName(const std::string& name) {
+        std::snprintf(buf, sizeof(buf), "%s", name.c_str());
+        lv_subject_init_string(&subject, buf, nullptr, sizeof(buf), buf);
+    }
+    ~PrinterRowName() {
+        lv_subject_deinit(&subject);
+    }
+    PrinterRowName(const PrinterRowName&) = delete;
+    PrinterRowName& operator=(const PrinterRowName&) = delete;
+};
+
+void free_row_name_cb(lv_event_t* e) {
+    delete static_cast<PrinterRowName*>(lv_event_get_user_data(e));
+}
+
 /// Walk up the parent chain to find the printer_list_item row.
 /// The row is the child of "printer_list_container" and has the printer ID as its name.
 std::string find_printer_id_from_event(lv_event_t* e) {
@@ -134,8 +155,11 @@ void PrinterListOverlay::populate_printer_list() {
         bool is_active = (id == active_id);
         std::string name = cfg->get_printer_display_name(id, id);
 
-        // Create row from XML component
-        auto* row = static_cast<lv_obj_t*>(lv_xml_create(container, "printer_list_item", nullptr));
+        // Create row from XML component: the active row shows its check and
+        // connection dot, and every row offers Delete while there is more than one.
+        const char* attrs[] = {"active", is_active ? "1" : "0", "deletable",
+                               printer_ids.size() > 1 ? "1" : "0", nullptr};
+        auto* row = static_cast<lv_obj_t*>(lv_xml_create(container, "printer_list_item", attrs));
         if (!row) {
             spdlog::warn("[{}] Failed to create printer_list_item for '{}'", get_name(), id);
             continue;
@@ -144,22 +168,17 @@ void PrinterListOverlay::populate_printer_list() {
         // Tag with printer ID so callbacks can identify it
         lv_obj_set_name(row, id.c_str());
 
-        lv_obj_t* name_label = find_required(row, "printer_name", get_name());
-        if (name_label) {
-            lv_label_set_text(name_label, name.c_str());
+        if (lv_obj_t* name_label = find_required(row, "printer_name", get_name())) {
+            auto* row_name = new PrinterRowName(name);
+            lv_obj_add_event_cb(row, free_row_name_cb, LV_EVENT_DELETE, row_name);
+            lv_label_bind_text(name_label, &row_name->subject, nullptr);
         }
 
         // Mark active printer with checked state (triggers left border accent style)
         if (is_active) {
             lv_obj_add_state(row, LV_STATE_CHECKED);
-            // Show check icon for active printer
-            lv_obj_t* check_icon = find_required(row, "active_check", get_name());
-            if (check_icon) {
-                lv_obj_set_style_text_opa(check_icon, LV_OPA_COVER, LV_PART_MAIN);
-            }
             lv_obj_t* dot = find_required(row, "connection_dot", get_name());
             if (dot) {
-                lv_obj_remove_flag(dot, LV_OBJ_FLAG_HIDDEN);
                 active_dot_ = dot;
                 active_dot_observer_ = observe<int>(
                     get_printer_state().network_state().get_printer_connection_state_subject(),
@@ -171,14 +190,6 @@ void PrinterListOverlay::populate_printer_list() {
                         }
                     },
                     get_printer_state().get_subjects_lifetime());
-            }
-        }
-
-        // Show delete button when more than 1 printer
-        if (printer_ids.size() > 1) {
-            lv_obj_t* del_btn = find_required(row, "delete_btn", get_name());
-            if (del_btn) {
-                lv_obj_remove_flag(del_btn, LV_OBJ_FLAG_HIDDEN);
             }
         }
     }

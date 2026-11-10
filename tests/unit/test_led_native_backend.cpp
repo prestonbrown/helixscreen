@@ -82,29 +82,14 @@ struct LedPinConfigFixture : public HelixTestFixture {
     }
 };
 
-TEST_CASE("NativeBackend: set_color with null API calls error callback", "[led][native]") {
+TEST_CASE("NativeBackend: with no API, set_color and turn_off report why", "[led][native]") {
     helix::led::NativeBackend backend;
-    // No API set
-
-    bool error_called = false;
-    std::string error_msg;
-    backend.set_color("neopixel test", 1.0, 0.0, 0.0, 0.0, nullptr, [&](const std::string& err) {
-        error_called = true;
-        error_msg = err;
-    });
-
-    REQUIRE(error_called);
-    REQUIRE(!error_msg.empty());
-}
-
-TEST_CASE("NativeBackend: turn_off with null API calls error callback", "[led][native]") {
-    helix::led::NativeBackend backend;
-
-    bool error_called = false;
-    backend.turn_off("neopixel test", nullptr,
-                     [&](const std::string& err) { error_called = true; });
-
-    REQUIRE(error_called);
+    std::vector<std::string> errors;
+    auto record = [&](const std::string& err) { errors.push_back(err); };
+    backend.set_color("neopixel test", 1.0, 0.0, 0.0, 0.0, nullptr, record);
+    backend.turn_off("neopixel test", nullptr, record);
+    REQUIRE(errors.size() == 2);
+    CHECK_FALSE(errors[0].empty());
 }
 
 TEST_CASE("NativeBackend: null error callback with null API doesn't crash", "[led][native]") {

@@ -22,7 +22,8 @@
         <setting_slider_row name="row_startup_brightness"
                             label="Startup Brightness" icon="lightbulb_on_50"
                             description="Brightness level when LEDs turn on at startup" min="1" max="100" value="80"
-                            min_icon="lightbulb_on_10" max_icon="lightbulb_on" callback="on_startup_brightness_changed"
+                            value_subject="led_startup_brightness" value_format="%d%%" min_icon="lightbulb_on_10"
+                            max_icon="lightbulb_on" callback="on_startup_brightness_changed"
                             commit_callback="on_startup_brightness_commit">
           <bind_flag_if_eq subject="led_on_at_start_enabled" flag="hidden" ref_value="0"/>
         </setting_slider_row>

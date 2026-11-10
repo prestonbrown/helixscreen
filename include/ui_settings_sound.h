@@ -48,9 +48,6 @@ class SoundSettingsOverlay : public OverlayBase {
     void init_volume_slider();
     void init_sound_theme_dropdown();
     void init_audio_device_dropdown();
-
-    /// Volume value label text
-    char volume_value_buf_[8]; // e.g., "100%"
 };
 
 inline SoundSettingsOverlay& get_sound_settings_overlay() {
