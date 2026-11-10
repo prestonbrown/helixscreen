@@ -3,6 +3,8 @@
 
 #include "spool_vents.h"
 
+#include "ams_tray_projection.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -12,13 +14,14 @@ namespace helix::ui {
 namespace {
 
 // Geometry as fractions of the canvas size, measured on the unskewed face.
-constexpr float kSlotInner = 0.165f;        // slot centre line starts clear of the hub
-constexpr float kSlotOuter = 0.335f;        // and ends inside the flange rim
-constexpr float kSlotHalfWidth = 0.05f;     // wide enough to read at 32 px
-constexpr float kDotPitch = 0.03f;          // square lattice centred on the face
-constexpr float kDotRadius = 0.007f;        // about 1.5 px across at 96 px
-constexpr float kDotBandInner = 0.15f;      // dots stay off the hub boss
-constexpr float kDotBandOuter = 0.39f;      // and off the flange rim
+constexpr float kSlotInner = 0.165f;    // slot centre line starts clear of the hub
+constexpr float kSlotOuter = 0.335f;    // and ends inside the flange rim
+constexpr float kSlotHalfWidth = 0.05f; // wide enough to read at 32 px
+constexpr float kRimClearPx = 4.0f;     // solid flange on screen between a slot's end and the rim
+constexpr float kDotPitch = 0.03f;      // square lattice centred on the face
+constexpr float kDotRadius = 0.007f;    // about 1.5 px across at 96 px
+constexpr float kDotBandInner = 0.15f;  // dots stay off the hub boss
+constexpr float kDotBandOuter = 0.39f;  // and off the flange rim
 constexpr float kDotSlotClearance = 0.025f; // a solid web between a dot and a slot
 
 constexpr int kSlotCount = 6;
@@ -78,10 +81,18 @@ const Dir& nearest_slot(float u, float v) {
     return *best;
 }
 
-// Nearest point on a slot's centre line to (u, v), in face units.
-Dir nearest_on_slot(const Dir& dir, float u, float v, float size) {
-    const float t = std::clamp(u * dir.u + v * dir.v, kSlotInner * size, kSlotOuter * size);
+// Nearest point on a slot's centre line to (u, v), in face units, the line ending at @p outer.
+Dir nearest_on_slot(const Dir& dir, float u, float v, float size, float outer) {
+    const float t = std::clamp(u * dir.u + v * dir.v, kSlotInner * size, outer);
     return {t * dir.u, t * dir.v};
+}
+
+// Where a slot's centre line ends: kSlotOuter, or sooner on a small or squashed face, so its
+// rounded end stays kRimClearPx inside the rim measured along the slot on screen.
+float slot_outer(const Dir& dir, float size, float skew) {
+    const float squash = std::sqrt(dir.u * dir.u * skew * skew + dir.v * dir.v);
+    return std::min(kSlotOuter * size,
+                    (tray::kSpoolFlangeRadius - kSlotHalfWidth) * size - kRimClearPx / squash);
 }
 
 float coverage_from(float signed_distance) {
@@ -89,7 +100,8 @@ float coverage_from(float signed_distance) {
 }
 
 float slot_coverage(float u, float v, float size, float skew) {
-    const Dir q = nearest_on_slot(nearest_slot(u, v), u, v, size);
+    const Dir& dir = nearest_slot(u, v);
+    const Dir q = nearest_on_slot(dir, u, v, size, slot_outer(dir, size, skew));
     return coverage_from(screen_signed_distance(u, v, q.u, q.v, kSlotHalfWidth * size, skew));
 }
 
@@ -98,7 +110,7 @@ bool dot_site_open(float gu, float gv, float size) {
     if (r <= kDotBandInner * size || r >= kDotBandOuter * size)
         return false;
     const float keep_out = (kSlotHalfWidth + kDotRadius + kDotSlotClearance) * size;
-    const Dir q = nearest_on_slot(nearest_slot(gu, gv), gu, gv, size);
+    const Dir q = nearest_on_slot(nearest_slot(gu, gv), gu, gv, size, kSlotOuter * size);
     const float du = gu - q.u;
     const float dv = gv - q.v;
     return du * du + dv * dv >= keep_out * keep_out;
