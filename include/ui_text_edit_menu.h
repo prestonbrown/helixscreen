@@ -70,7 +70,7 @@ class TextEditMenu : public ContextMenu {
  */
 void text_edit_long_press_cb(lv_event_t* e);
 
-/// Close and drop the shared menu, for a UI teardown.
+/// Close the shared menu, for a UI teardown.
 void text_edit_menu_reset();
 
 } // namespace helix::ui

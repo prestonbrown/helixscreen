@@ -6,12 +6,12 @@
 #include "ui_callback_helpers.h"
 #include "ui_utils.h"
 
+#include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
 
 #include <spdlog/spdlog.h>
 
-#include <memory>
 #include <string>
 
 namespace helix::ui {
@@ -26,11 +26,6 @@ lv_subject_t s_can_cut{};
 lv_subject_t s_can_copy{};
 lv_subject_t s_can_paste{};
 bool s_subjects_ready = false;
-
-std::unique_ptr<TextEditMenu>& shared_menu() {
-    static std::unique_ptr<TextEditMenu> menu;
-    return menu;
-}
 
 void ensure_subjects() {
     if (s_subjects_ready) {
@@ -155,21 +150,20 @@ void text_edit_long_press_cb(lv_event_t* e) {
     if (textarea == nullptr) {
         return;
     }
-    auto& menu = shared_menu();
-    if (!menu) {
-        menu = std::make_unique<TextEditMenu>();
-    }
-    if (menu->is_visible()) {
+    auto& menu = helix::lazy_global<TextEditMenu>("TextEditMenu");
+    if (menu.is_visible()) {
         return;
     }
-    if (menu->show_for(textarea)) {
+    if (menu.show_for(textarea)) {
         // The release would otherwise click the field and move its cursor.
         end_press(e);
     }
 }
 
 void text_edit_menu_reset() {
-    shared_menu().reset();
+    if (auto* menu = helix::lazy_global_if_exists<TextEditMenu>()) {
+        menu->hide();
+    }
 }
 
 } // namespace helix::ui

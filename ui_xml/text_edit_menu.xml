@@ -6,7 +6,7 @@
        field so it stays in view. Each row shows only when it applies to that
        field (helix::clipboard::actions_for_field). -->
   <view name="text_edit_menu" extends="context_menu_backdrop">
-    <context_menu_card title="Clipboard" title_tag="Clipboard">
+    <context_menu_card title="Clipboard">
       <ui_button name="text_edit_cut"
                  height="#button_height_sm" icon="content_cut" text="Cut" variant="ghost" focusable="false"
                  style_flex_main_place="start">
