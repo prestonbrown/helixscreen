@@ -2,7 +2,6 @@
 #include "ui_filament_catalog_selector.h"
 
 #include "ui_callback_helpers.h"
-#include "ui_icon_codepoints.h"
 #include "ui_row_text.h"
 #include "ui_utils.h"
 
@@ -11,7 +10,6 @@
 #include "filament_variants.h"
 #include "lvgl.h"
 #include "sort_small.h"
-#include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
