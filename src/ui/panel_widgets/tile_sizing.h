@@ -134,6 +134,15 @@ class TileSizing {
     /// Call from the widget's constructor, before the component is parsed.
     void add_subject_attr(const char* prop, const std::string& subject_name);
 
+    /// Publish an initialised @p subject the widget owns under
+    /// "<instance id>_<suffix>" and pass that name to the component as prop
+    /// @p prop. The name is unique per instance because instance ids are, so
+    /// two tiles of one kind never bind each other's state. @p owner is the
+    /// widget's own manager: it frees the subject with the widget's storage.
+    /// Call from the widget's constructor, before the component is parsed.
+    void publish_instance_subject(SubjectManager& owner, lv_subject_t* subject, const char* prop,
+                                  const char* suffix);
+
     const std::string& icon_subject_name() const {
         return icon_name_;
     }
@@ -159,6 +168,7 @@ class TileSizing {
     /// label's presence is part of the measurement.
     void follow_label_setting();
 
+    std::string instance_id_;
     std::string icon_name_;
     std::string label_name_;
     std::string dir_name_;

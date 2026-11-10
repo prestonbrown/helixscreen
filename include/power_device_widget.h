@@ -58,11 +58,7 @@ class PowerDeviceWidget : public TiledPanelWidget {
 
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
-    lv_obj_t* badge_obj_ = nullptr;
     lv_obj_t* icon_obj_ = nullptr;
-    lv_obj_t* name_label_ = nullptr;
-    lv_obj_t* status_label_ = nullptr;
-    lv_obj_t* lock_icon_ = nullptr;
 
     ObserverGuard status_observer_;
     helix::AsyncLifetimeGuard lifetime_;
@@ -169,9 +165,25 @@ class PowerDeviceWidget : public TiledPanelWidget {
     /// shows none, and reserving it would leave the badge above an empty gap.
     void apply_status_presence();
 
+    /// The device name on the tile, or "All Devices"; shown while named_subject_ is 1.
+    void set_name_text(const char* text);
+
+    // This instance's tile state, bound by its component. Owned per instance
+    // because two power tiles can sit on the home grid at once.
     /// 1 while a device is configured, so the state line is drawn.
     lv_subject_t has_status_subject_{};
-    std::string has_status_name_ = instance_id_ + "_has_status";
+    /// 0=off, 1=on, 2=locked, -1=unconfigured: the lock overlay follows it.
+    lv_subject_t state_subject_{};
+    /// 1 while name_subject_ holds a name; 0 draws the "Configure" prompt.
+    lv_subject_t named_subject_{};
+    lv_subject_t name_subject_{};
+    char name_buf_[128] = {};
+    lv_subject_t status_text_subject_{};
+    char status_text_buf_[32] = {};
+    /// The badge disc's fill and opacity and the state line's colour.
+    lv_subject_t accent_subject_{};
+    lv_subject_t badge_opa_subject_{};
+    lv_subject_t status_color_subject_{};
     SubjectManager subjects_;
 
     static TileSizing::Content status_content(bool has_status) {

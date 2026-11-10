@@ -127,19 +127,40 @@ TEST_CASE_METHOD(PowerTileFixture, "Power tile: follows its device across a Klip
     CHECK(status_text() == "OFF");
 }
 
-TEST_CASE_METHOD(PowerTileFixture, "Power tile: no user colour keeps the state colours",
+// With no user colour each tile wears its own state's colours.
+TEST_CASE_METHOD(PowerTileFixture, "Power tile: two tiles keep their own state",
                  "[power_device_widget][tile_color]") {
-    PowerDeviceState::instance().set_devices({{"printer_psu", "gpio", "on", false}});
-    make_tile({{"device", "printer_psu"}});
-
+    PowerDeviceState::instance().set_devices(
+        {{"printer_psu", "gpio", "on", false}, {"bed_lamp", "gpio", "off", false}});
+    PanelWidgetHarness<PowerDeviceWidget> psu(
+        test_screen(), HarnessConfig{{{"device", "printer_psu"}}, true}, "power_device:1");
+    PanelWidgetHarness<PowerDeviceWidget> lamp(
+        test_screen(), HarnessConfig{{{"device", "bed_lamp"}}, true}, "power_device:2");
+    psu.create_tile(test_screen());
+    lamp.create_tile(test_screen());
+    drain();
+    auto text = [](PanelWidgetHarnessBase& h, const char* name) {
+        return std::string(lv_label_get_text(h.child(name)));
+    };
+    auto badge = [](PanelWidgetHarnessBase& h) {
+        return rgb(lv_obj_get_style_bg_color(h.child("power_badge"), LV_PART_MAIN));
+    };
+    auto icon = [](PanelWidgetHarnessBase& h) {
+        return rgb(lv_obj_get_style_text_color(h.child("power_icon"), LV_PART_MAIN));
+    };
     const uint32_t danger = rgb(theme_manager_get_color("danger"));
-    CHECK(status_text() == "ON");
-    CHECK(icon_rgb() == danger);
-    CHECK(badge_rgb() == danger);
+    const uint32_t muted = rgb(theme_manager_get_color("text_muted"));
+    CHECK(text(psu, "power_device_status") == "ON");
+    CHECK(text(lamp, "power_device_status") == "OFF");
+    CHECK(text(psu, "power_device_name") != text(lamp, "power_device_name"));
+    CHECK((badge(psu) == danger && icon(psu) == danger));
+    CHECK((badge(lamp) == muted && icon(lamp) == muted_variant_rgb(test_screen())));
 
     notify("printer_psu", "off");
-    CHECK(icon_rgb() == muted_variant_rgb(test_screen()));
-    CHECK(badge_rgb() == rgb(theme_manager_get_color("text_muted")));
+    notify("bed_lamp", "on");
+    CHECK(text(psu, "power_device_status") == "OFF");
+    CHECK(text(lamp, "power_device_status") == "ON");
+    CHECK((badge(psu) == muted && badge(lamp) == danger));
 }
 
 TEST_CASE_METHOD(PowerTileFixture, "Power tile: a user colour paints on, mutes off, spares locked",
