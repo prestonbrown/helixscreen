@@ -281,6 +281,17 @@ class SpoolmanOverlay : public OverlayBase {
 
     // === Barcode Scanner Picker ===
     lv_subject_t scanner_device_status_subject_{};
+
+    // Server setup: the status line under the address fields (red when it
+    // reports a failure), the "Connected to" line, and 1 while the user is
+    // changing a configured server, which shows the setup card in place of the
+    // status card until setup ends.
+    lv_subject_t setup_status_subject_{};
+    char setup_status_buf_[160] = {};
+    lv_subject_t setup_status_error_subject_{};
+    lv_subject_t server_url_subject_{};
+    char server_url_buf_[192] = {};
+    lv_subject_t setup_editing_subject_{};
     char scanner_status_buf_[64] = {0};
 
     void handle_barcode_scanner_clicked();
@@ -469,11 +480,7 @@ class SpoolmanOverlay : public OverlayBase {
     // === Server Setup Widgets ===
     lv_obj_t* host_input_ = nullptr;
     lv_obj_t* port_input_ = nullptr;
-    lv_obj_t* setup_status_text_ = nullptr;
-    lv_obj_t* server_url_text_ = nullptr;
     helix::ui::WidgetRef connect_btn_;
-    lv_obj_t* setup_card_ = nullptr;
-    lv_obj_t* status_card_ = nullptr;
 
     friend class ::SpoolmanOverlayTestAccess;
 };

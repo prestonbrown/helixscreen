@@ -4,6 +4,11 @@
 <!-- Spoolman Settings Overlay Panel -->
 <!-- Configures Spoolman integration (sync, polling) and label printer settings -->
 <component>
+  <styles>
+    <!-- The setup status line's color; bound, so no inline color outranks it -->
+    <style name="setup_status_muted" text_color="#text_muted"/>
+    <style name="setup_status_error" text_color="#danger"/>
+  </styles>
   <view name="spoolman_settings" extends="overlay_panel" title="Spoolman" bg_color="#screen_bg">
     <!-- Content Area (scrollable) -->
     <lv_obj name="overlay_content"
@@ -15,12 +20,13 @@
                   style_pad_left="#space_md" style_pad_right="#space_md" style_pad_bottom="#space_sm"/>
       <setting_group name="group_server">
         <!-- ================================================================== -->
-        <!-- Server Setup (shown when Spoolman NOT configured)                   -->
+        <!-- Server Setup (shown when Spoolman NOT configured, or while the      -->
+        <!-- user changes the configured server)                               -->
         <!-- ================================================================== -->
         <lv_obj name="setup_card"
                 width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
                 style_pad_hor="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
-          <bind_flag_if_eq subject="printer_has_spoolman" flag="hidden" ref_value="1"/>
+          <bind_flag_if cond="printer_has_spoolman eq 1 and spoolman_setup_editing eq 0" flag="hidden"/>
           <text_body text="Server Setup"/>
           <text_small text="Enter the IP address and port of your Spoolman server." style_text_color="#text_muted"/>
           <!-- Host + Port inputs side by side -->
@@ -38,8 +44,11 @@
                           width="100%" placeholder_text="7912" max_length="5" keyboard_hint="numeric" text="7912"/>
             </lv_obj>
           </lv_obj>
-          <!-- Status text (for errors/progress) -->
-          <text_small name="setup_status_text" width="100%" text="" style_text_color="#text_muted"/>
+          <!-- Status text (for errors/progress); red for an error -->
+          <text_small name="setup_status_text" width="100%" bind_text="spoolman_setup_status">
+            <bind_style name="setup_status_muted" subject="spoolman_setup_status_error" ref_value="0"/>
+            <bind_style name="setup_status_error" subject="spoolman_setup_status_error" ref_value="1"/>
+          </text_small>
           <!-- Action buttons -->
           <lv_obj width="100%"
                   height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
@@ -57,7 +66,7 @@
         <lv_obj name="status_card"
                 width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
                 style_pad_hor="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
-          <bind_flag_if_eq subject="printer_has_spoolman" flag="hidden" ref_value="0"/>
+          <bind_flag_if cond="printer_has_spoolman eq 0 or spoolman_setup_editing eq 1" flag="hidden"/>
           <lv_obj width="100%"
                   height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
                   style_flex_cross_place="center" scrollable="false">
@@ -65,7 +74,7 @@
             <lv_obj height="content"
                     style_pad_all="0" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_xs"
                     scrollable="false">
-              <text_small name="server_url_text" text="Connected" style_text_color="#text_muted"/>
+              <text_small name="server_url_text" bind_text="spoolman_server_url" style_text_color="#text_muted"/>
               <icon src="check_circle" size="sm" color="#success"/>
             </lv_obj>
           </lv_obj>
