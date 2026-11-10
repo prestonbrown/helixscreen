@@ -206,8 +206,11 @@ usage() {
     echo "  --own-display  With --target-root: disable an enabled KlipperScreen so"
     echo "                 HelixScreen owns the display (default: KlipperScreen keeps"
     echo "                 it and HelixScreen is installed but not enabled)"
-    echo "  --first-boot   Finish an image install on the booted printer (run by"
-    echo "                 helixscreen-firstboot.service)"
+    echo "  --first-boot   Finish an image install on the booted printer: the steps"
+    echo "                 before the screen starts (helixscreen-firstboot.service)"
+    echo "  --first-boot-moonraker"
+    echo "                 The steps that need Moonraker, after the screen starts"
+    echo "                 (helixscreen-firstboot-moonraker.service)"
     echo "  --help         Show this help message"
     echo ""
     echo "Examples:"
@@ -251,6 +254,7 @@ parse_installer_args() {
     IMAGE_USER_ARG=""
     IMAGE_OWN_DISPLAY=""
     first_boot_mode=false
+    FIRST_BOOT_PHASE=local
 
     while [ $# -gt 0 ]; do
         case $1 in
@@ -392,8 +396,9 @@ parse_installer_args() {
                 IMAGE_OWN_DISPLAY=1
                 shift
                 ;;
-            --first-boot)
+            --first-boot|--first-boot-moonraker)
                 first_boot_mode=true
+                if [ "$1" = --first-boot-moonraker ]; then FIRST_BOOT_PHASE=moonraker; fi
                 shift
                 ;;
             --help|-h)
@@ -446,7 +451,7 @@ _image_refuse() {
 image_check_args() {
     if [ "${first_boot_mode:-false}" = true ]; then
         [ -z "${IMAGE_TARGET_ROOT:-}" ] ||
-            _image_refuse "--first-boot runs on the booted printer; it cannot be combined with --target-root"
+            _image_refuse "--first-boot and --first-boot-moonraker run on the booted printer; neither combines with --target-root"
         return 0
     fi
     if [ -z "${IMAGE_TARGET_ROOT:-}" ]; then
@@ -997,7 +1002,7 @@ main() {
 
     # The first-boot pass of an image install, on the printer that booted it.
     if [ "$first_boot_mode" = true ]; then
-        image_first_boot "$platform"
+        image_first_boot "$platform" "$FIRST_BOOT_PHASE"
         exit 0
     fi
 

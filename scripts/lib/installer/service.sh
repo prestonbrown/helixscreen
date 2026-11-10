@@ -43,17 +43,22 @@ _template_service_unit() {
     _template_install_paths "$1"
 }
 
-# The oneshot unit an image install leaves behind to finish its setup on the
-# printer's first boot (image.sh). It does nothing once that has run, but it is
-# ours, so an uninstall or a clean reinstall removes it.
+# The oneshot units an image install leaves behind to finish its setup on the
+# printer's first boot (image.sh). They do nothing once that has run, but they
+# are ours, so an uninstall or a clean reinstall removes them.
 HELIX_FIRST_BOOT_UNIT="helixscreen-firstboot.service"
+HELIX_FIRST_BOOT_MOONRAKER_UNIT="helixscreen-firstboot-moonraker.service"
 
 remove_first_boot_unit() {
-    local unit="${HELIX_SYSTEMD_UNIT_DIR:-/etc/systemd/system}/${HELIX_FIRST_BOOT_UNIT}"
-    [ -f "$unit" ] || return 0
-    $SUDO systemctl disable "$HELIX_FIRST_BOOT_UNIT" 2>/dev/null || true
-    $SUDO rm -f "$unit"
-    log_info "Removed $HELIX_FIRST_BOOT_UNIT"
+    local unit name
+    for name in "$HELIX_FIRST_BOOT_UNIT" "$HELIX_FIRST_BOOT_MOONRAKER_UNIT"; do
+        unit="${HELIX_SYSTEMD_UNIT_DIR:-/etc/systemd/system}/${name}"
+        [ -f "$unit" ] || continue
+        $SUDO systemctl disable "$name" 2>/dev/null || true
+        $SUDO rm -f "$unit"
+        log_info "Removed $name"
+    done
+    return 0
 }
 
 # Returns true if this process is running under the NoNewPrivileges systemd constraint.
