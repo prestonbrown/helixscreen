@@ -27,6 +27,7 @@ from helix_plr import (
     classify_block_device,
     effective_tier,
     parse_profile,
+    unlisted_guard,
     saving_enabled,
     storage_verdict,
     user_enabled,
@@ -274,7 +275,7 @@ def helix(tmp_path, fake_sys):
 def test_plr_feature_is_unavailable_without_a_profile(helix):
     status = run(helix._handle_status(None))
     assert status["features"]["plr"] == {
-        "version": 2, "available": False, "enabled": False, "reason": "not_listed",
+        "version": 3, "available": False, "enabled": False, "reason": "not_listed",
         "saving": False}
 
 
@@ -298,7 +299,7 @@ def test_plr_feature_defaults_off_on_a_listed_printer(helix):
     run(helix.database.insert_item("helix-screen", "plr_profile", {"tier": 1}))
     status = run(helix._handle_status(None))
     assert status["features"]["plr"] == {
-        "version": 2, "available": True, "enabled": False, "reason": None, "saving": False}
+        "version": 3, "available": True, "enabled": False, "reason": None, "saving": False}
 
 
 def test_plr_feature_follows_a_profile_written_after_start(helix):
@@ -309,6 +310,158 @@ def test_plr_feature_follows_a_profile_written_after_start(helix):
     run(db.insert_item("helix-screen", "plr_profile", {"tier": 0}))
     entry = run(helix._handle_status(None))["features"]["plr"]
     assert (entry["available"], entry["reason"]) == (False, "not_listed")
+
+
+# --------------------------------------------------------------------------
+# The default profile of a printer the app's database does not list
+# --------------------------------------------------------------------------
+
+# What the app writes for a printer without a `plr` block (#1863).
+UNLISTED = {"tier": 1, "backend": "generic", "storage_hint": "unknown",
+            "z_holds_unpowered": False, "listed": False, "reason": None}
+
+
+def test_parse_profile_reads_listed_and_reason():
+    assert parse_profile(UNLISTED).listed is False
+    # Every record an app wrote before `listed` came from a database block.
+    assert parse_profile({"tier": 1}).listed is True
+    assert parse_profile({"tier": 1, "listed": "no"}).listed is True
+    assert parse_profile({"tier": 0, "reason": "gantry_drops"}).reason == "gantry_drops"
+    assert parse_profile({"tier": 0, "reason": ""}).reason is None
+    assert parse_profile({"tier": 0, "reason": 7}).reason is None
+
+
+@pytest.mark.parametrize(
+    "settings, status, qidi, expected",
+    [
+        ({}, {}, False, None),
+        ({"printer": {"kinematics": "corexy"}, "z_tilt": {}}, {}, False, None),
+        ({"quad_gantry_level": {"gantry_corners": []}}, {}, False, "gantry_drops"),
+        ({}, {"print_stats": {"state": "standby", "power_loss": 0}}, False, "firmware_recovery"),
+        ({}, {"print_stats": {"state": "standby", "power_loss": None}}, False, None),
+        ({}, {"virtual_sdcard": {"pl_env_valid": 0}}, False, "firmware_recovery"),
+        ({}, {}, True, "firmware_recovery"),
+        (None, None, False, None),
+    ],
+)
+def test_unlisted_guard(settings, status, qidi, expected):
+    assert unlisted_guard(settings, status, qidi) == expected
+
+
+def ready_with(helix, settings=None, status=None, kinematics="corexy"):
+    """Klippy ready on a printer whose configfile holds `settings` and whose
+    subscription answers `status`."""
+    apis = helix.klippy_apis
+    cfg = {"printer": {"kinematics": kinematics}}
+    cfg.update(settings or {})
+
+    async def query(objects):
+        return {"configfile": {"settings": cfg},
+                "toolhead": {"axis_minimum": [0, 0, 0, 0], "axis_maximum": [220, 220, 250, 0]}}
+
+    apis.query_objects.side_effect = query
+    apis.get_object_list.return_value = ["print_stats", "virtual_sdcard", "toolhead"]
+    apis.subscribe_objects.return_value = status or {}
+    run(helix.plr.on_klippy_ready())
+
+
+def plr_entry(helix):
+    return run(helix._handle_status(None))["features"]["plr"]
+
+
+def test_an_unlisted_printer_acts_at_tier_1(helix):
+    run(helix.database.insert_item("helix-screen", "plr_profile", UNLISTED))
+    ready_with(helix)
+    entry = plr_entry(helix)
+    assert (entry["available"], entry["reason"]) == (True, None)
+    assert helix.plr.backend(run(helix.plr.profile())) == ("generic", 1)
+    reply = run(helix.plr.status_reply())
+    assert (reply["tier"], reply["backend"]) == (1, "generic")
+
+
+def test_an_unlisted_printer_saves_nothing_by_default_on_an_sd_card(helix, fake_sys):
+    disk = fake_sys.disk("mmcblk0", {"device/type": "SD"})
+    helix.plr.runtime_storage = classify_block_device(fake_sys.root, fake_sys.link(disk))
+    run(helix.database.insert_item("helix-screen", "plr_profile", UNLISTED))
+    ready_with(helix)
+    entry = plr_entry(helix)
+    assert (entry["available"], entry["saving"]) == (True, False)
+
+
+def test_an_unlisted_printer_saves_by_default_on_emmc(helix, fake_sys):
+    disk = fake_sys.disk("mmcblk0", {"device/type": "MMC"})
+    helix.plr.runtime_storage = classify_block_device(fake_sys.root, fake_sys.link(disk))
+    run(helix.database.insert_item("helix-screen", "plr_profile", UNLISTED))
+    ready_with(helix)
+    assert plr_entry(helix)["saving"] is True
+
+
+@pytest.mark.parametrize(
+    "settings, status, reason",
+    [
+        ({"quad_gantry_level": {}}, None, "gantry_drops"),
+        ({}, {"print_stats": {"power_loss": 0}}, "firmware_recovery"),
+        ({}, {"virtual_sdcard": {"pl_env_valid": 1}}, "firmware_recovery"),
+    ],
+)
+def test_an_unlisted_printer_klipper_rules_out_is_unavailable(helix, settings, status, reason):
+    db = helix.database
+    run(db.insert_item("helix-screen", "plr_profile", UNLISTED))
+    run(db.insert_item("helix-screen", "plr_user", {"enabled": True}))
+    events = []
+    helix.server.send_event = lambda name, payload: events.append(name)
+    ready_with(helix, settings, status)
+    entry = plr_entry(helix)
+    assert (entry["available"], entry["reason"], entry["saving"]) == (False, reason, False)
+    assert helix.plr.backend(run(helix.plr.profile())) == ("none", 0)
+    assert run(helix.plr._saving()) is False
+    # The screens read the map before Klippy was ready; they read it again.
+    assert "helix_print:helix_features_changed" in events
+
+
+def test_a_listed_printer_keeps_its_tier_on_a_levelled_gantry(helix):
+    run(helix.database.insert_item("helix-screen", "plr_profile",
+                                   {"tier": 1, "listed": True}))
+    ready_with(helix, {"quad_gantry_level": {}}, {"print_stats": {"power_loss": 0}})
+    assert plr_entry(helix)["available"] is True
+    assert helix.plr.backend(run(helix.plr.profile())) == ("generic", 1)
+
+
+@pytest.mark.parametrize(
+    "settings, kinematics, reason",
+    [
+        ({}, "delta", "delta_kinematics"),
+        ({"homing_override": {"axes": "xyz", "gcode": "G28 Z\nG28 X Y"}}, "corexy",
+         "override_homes_z"),
+        ({"homing_override": {"gcode": "MY_HOME_ALL"}}, "corexy", "override_unknown"),
+    ],
+)
+def test_an_unlisted_printer_with_unsafe_xy_homing_acts_at_tier_0(helix, settings, kinematics,
+                                                                   reason):
+    run(helix.database.insert_item("helix-screen", "plr_profile", UNLISTED))
+    ready_with(helix, settings, kinematics=kinematics)
+    assert helix.plr.homing.reason == reason
+    assert helix.plr.backend(run(helix.plr.profile())) == ("none", 0)
+    reply = run(helix.plr.status_reply())
+    assert reply["tier"] == 0 and "not_supported" in reply["offer"]["blocked_by"]
+
+
+@pytest.mark.parametrize("reason", ["gantry_drops", "delta_kinematics", "firmware_recovery"])
+def test_a_model_listed_at_tier_0_reports_its_reason(helix, reason):
+    run(helix.database.insert_item("helix-screen", "plr_profile",
+                                   {"tier": 0, "listed": True, "reason": reason}))
+    ready_with(helix)
+    entry = plr_entry(helix)
+    assert (entry["available"], entry["reason"]) == (False, reason)
+
+
+def test_a_vendor_listing_never_acts(helix):
+    run(helix.database.insert_item("helix-screen", "plr_profile",
+                                   {"tier": 0, "backend": "vendor", "listed": True,
+                                    "reason": "firmware_recovery"}))
+    ready_with(helix, {}, {"print_stats": {"power_loss": 0}})
+    assert plr_entry(helix)["reason"] == "firmware_recovery"
+    assert helix.plr.backend(run(helix.plr.profile())) == ("none", 0)
 
 
 def test_plr_profile_tier_is_read_at_init(tmp_path, fake_sys):

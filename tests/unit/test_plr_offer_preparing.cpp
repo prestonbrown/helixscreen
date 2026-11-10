@@ -320,10 +320,11 @@ class PluginPlrOfferFixture : public LVGLTestFixture {
         settle();
     }
 
-    static void set_plr_feature(bool available, bool enabled) {
+    static void set_plr_feature(bool available, bool enabled,
+                                int version = helix::kPlrFeatureMinVersion) {
         auto& plugin = get_printer_state().plugin_status_state();
         helix::PluginFeatureEntry entry;
-        entry.version = helix::kPlrFeatureMinVersion;
+        entry.version = version;
         entry.available = available;
         entry.enabled = enabled;
         plugin.set_features({{helix::kPlrFeatureName, entry}});
@@ -688,6 +689,40 @@ TEST_CASE_METHOD(PluginPlrOfferFixture,
 }
 
 TEST_CASE_METHOD(PluginPlrOfferFixture,
+                 "Plugin PLR writes tier 1 for an unlisted printer to a plugin that guards it",
+                 "[plr][generic][profile]") {
+    auto& ps = get_printer_state();
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    MoonrakerAPIMock api{client, ps};
+    set_moonraker_api(&api);
+    ps.set_printer_type_sync("Voron Trident");
+    int expected_tier = -1;
+    SECTION("a plugin with the unlisted-printer guards") {
+        set_plr_feature(true, false, helix::kPlrUnlistedTierMinVersion);
+        expected_tier = 1;
+    }
+    SECTION("an older plugin") {
+        set_plr_feature(true, false, helix::kPlrUnlistedTierMinVersion - 1);
+        expected_tier = 0;
+    }
+    lv_subject_set_int(ps.network_state().get_printer_connection_state_subject(),
+                       static_cast<int>(ConnectionState::CONNECTED));
+    settle();
+
+    PlrOfferController controller;
+    settle();
+
+    const json profile = client.mock_db_get(helix::kPlrDbNamespace, helix::kPlrProfileKey);
+    set_moonraker_api(nullptr);
+    REQUIRE(profile.is_object());
+    CHECK(profile["tier"] == expected_tier);
+    CHECK(profile["backend"] == "generic");
+    REQUIRE(profile.contains("listed"));
+    CHECK(profile["listed"] == false);
+    ps.set_printer_type_sync("");
+}
+
+TEST_CASE_METHOD(PluginPlrOfferFixture,
                  "Plugin PLR never writes the previous printer's profile after a switch",
                  "[plr][generic][profile]") {
     // The profile write re-reads the plugin's features; the mock must answer
@@ -784,7 +819,7 @@ TEST_CASE_METHOD(PluginPlrOfferFixture,
     client.mock_db_set(helix::kPlrDbNamespace, helix::kPlrProfileKey,
                        helix::plr_profile_json(helix::plr_resolve_profile(
                            PrinterDetector::get_plr_block("Qidi Q2"), helix::PlrUserOverride{},
-                           helix::PlrHomingCheck{})));
+                           helix::PlrHomingCheck{}, true)));
     const int status_reads = client.call_count("server.helix.status");
     lv_subject_set_int(ps.network_state().get_printer_connection_state_subject(),
                        static_cast<int>(ConnectionState::CONNECTED));
@@ -861,7 +896,7 @@ TEST_CASE_METHOD(PluginPlrOfferFixture, "Plugin PLR leaves an identical stored p
     client.mock_db_set(helix::kPlrDbNamespace, helix::kPlrProfileKey,
                        helix::plr_profile_json(helix::plr_resolve_profile(
                            PrinterDetector::get_plr_block("Qidi Q2"), helix::PlrUserOverride{},
-                           helix::PlrHomingCheck{})));
+                           helix::PlrHomingCheck{}, true)));
     lv_subject_set_int(ps.network_state().get_printer_connection_state_subject(),
                        static_cast<int>(ConnectionState::CONNECTED));
     PlrOfferController controller;

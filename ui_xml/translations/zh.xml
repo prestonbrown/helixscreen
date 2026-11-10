@@ -150,6 +150,7 @@
   <translation tag="A 0.2 mm nozzle can&apos;t print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." zh="0.2 mm 喷嘴无法打印部分耗材，如 PA、PC、TPU、CF 或 GF 增强型。如果此工具头装有其中之一，打印机会清除其耗材信息，需要重新设置。"/>
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." zh="用于提示和声音的蜂鸣器或扬声器。在声音设置中选择播放内容。"/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." zh="Moonraker 推流的摄像头。将摄像头小组件添加到主屏幕即可查看,打印时也能看到。"/>
+  <translation tag="A delta printer can&apos;t home X and Y without moving Z, so a print can&apos;t be resumed." zh="Delta 打印机无法在不移动 Z 轴的情况下将 X 和 Y 轴归零，因此无法恢复打印。"/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." zh="让腔体内空气经过滤网循环的风扇。在腔体温度界面控制。"/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." zh="需要几分钟，几乎全是加热时间。你无需用肉眼判断任何东西。"/>
   <translation tag="A folder name in moonraker.conf is unsafe." zh="moonraker.conf 中的某个文件夹名称不安全。"/>
@@ -3965,6 +3966,8 @@
   <translation tag="This printer&apos;s INDX macros are missing: {}" zh="此打印机的 INDX 宏缺少：{}"/>
   <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." zh="此打印机的 Moonraker 拒绝了其 API 密钥。请在 设置 &gt; 连接 中检查密钥。"/>
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." zh="此打印机的 Moonraker 要求登录。请在 设置 &gt; 连接 中添加其 API 密钥。"/>
+  <translation tag="This printer&apos;s firmware has its own power-loss recovery." zh="此打印机的固件自带断电恢复。"/>
+  <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." zh="此打印机的龙门在断电时会下落，因此无法恢复打印。"/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" zh="此打印机的网络服务控制 WiFi 无线模块"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" zh="此打印机的网络服务管理已保存的 WiFi 网络"/>
   <translation tag="This printer&apos;s screen has not shared a layout" zh="此打印机的屏幕尚未共享布局"/>

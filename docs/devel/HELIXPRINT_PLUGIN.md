@@ -367,6 +367,9 @@ its row there.
 | `no_virtual_sdcard` | `plr` | Klipper has no [virtual_sdcard] section. |
 | `store_unwritable` | `plr` | The plugin can't save its recovery data to disk. |
 | `not_listed` | `plr` | Not set up for this printer model yet. |
+| `gantry_drops` | `plr` | This printer's gantry drops when the power is cut, so a print can't be resumed. |
+| `delta_kinematics` | `plr` | A delta printer can't home X and Y without moving Z, so a print can't be resumed. |
+| `firmware_recovery` | `plr` | This printer's firmware has its own power-loss recovery. |
 | `snapshot_unreachable` | `photos` | The plugin can't reach the camera, so this screen takes the photos. |
 | `unsafe_staging_dir` | `storage`, `storage_auto_cleanup` | A folder name in moonraker.conf is unsafe. |
 | `unsafe_root` | `storage`, `storage_auto_cleanup` | Timelapse or logs folder overlaps a protected one. |

@@ -201,6 +201,7 @@ translations:
   : "Сопло 0,2 мм может печатать не все филаменты: в их числе PA, PC, TPU и материалы с углеволокном или стекловолокном. Если в эту печатающую головку загружен один из них, принтер сотрёт данные о филаменте, и их нужно будет задать заново."
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Зуммер или динамик для оповещений и звуков. Что воспроизводится, настраивается в настройках звука.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Камера, которую транслирует Moonraker. Добавьте виджет камеры на главный экран, чтобы смотреть ее, в том числе во время печати.'
+  A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Дельта-принтер не может выполнить парковку X и Y без движения Z, поэтому печать нельзя продолжить."
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Вентилятор, который прогоняет воздух камеры через фильтр. Управляйте им на экране температуры камеры.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Несколько минут, почти всё время нагрев. Ничего не нужно оценивать на глаз.'
   A folder name in moonraker.conf is unsafe.: "Имя папки в moonraker.conf небезопасно."
@@ -4401,6 +4402,8 @@ translations:
   "This printer's INDX macros are missing: {}": "В макросах INDX этого принтера отсутствует: {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'Moonraker этого принтера отклонил его API-ключ. Проверьте ключ в Настройки > Соединение.'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Moonraker этого принтера требует входа. Добавьте его API-ключ в Настройки > Соединение.'
+  This printer's firmware has its own power-loss recovery.: "Прошивка этого принтера имеет собственное восстановление после отключения питания."
+  This printer's gantry drops when the power is cut, so a print can't be resumed.: "Портал этого принтера опускается при отключении питания, поэтому печать нельзя продолжить."
   This printer's network service controls the WiFi radio: WiFi-модулем управляет сетевая служба этого принтера
   This printer's network service manages saved WiFi networks: Сохранёнными сетями WiFi управляет сетевая служба этого принтера
   This printer's screen has not shared a layout: "Экран этого принтера не поделился раскладкой"
