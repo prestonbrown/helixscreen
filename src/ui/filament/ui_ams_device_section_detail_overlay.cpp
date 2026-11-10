@@ -59,6 +59,8 @@ void AmsDeviceSectionDetailOverlay::init_subjects() {
         // Constant 1: a disabled action's row names it as its `disabled` subject, so the
         // row component greys its label and control the way every settings row does.
         UI_MANAGED_SUBJECT_INT(action_disabled_subject_, 1, kActionDisabledSubject, subjects_);
+        UI_MANAGED_SUBJECT_STRING(title_subject_, title_buf_, "", "ams_device_section_title",
+                                  subjects_);
     });
 }
 
@@ -96,14 +98,9 @@ void AmsDeviceSectionDetailOverlay::show(lv_obj_t* parent_screen, const std::str
 }
 
 void AmsDeviceSectionDetailOverlay::before_show() {
-    // The overlay_panel title is static at XML creation, so it is set here. The name
-    // comes from the extended overlay_panel, not this component's own XML. The section
-    // name stands alone: the back button already leads to the system it belongs to, and
-    // a 480px header has room for little more than the name.
-    if (lv_obj_t* header_title =
-            helix::ui::find_required(overlay_root_, "header_title", get_name())) {
-        lv_label_set_text(header_title, lv_tr(section_label_.c_str()));
-    }
+    // The section name stands alone: the back button already leads to the system
+    // it belongs to, and a 480px header has room for little more than the name.
+    lv_subject_copy_string(&title_subject_, lv_tr(section_label_.c_str()));
     refresh();
 }
 

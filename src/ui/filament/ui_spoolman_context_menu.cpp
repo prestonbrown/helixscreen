@@ -6,8 +6,10 @@
 #include "ui_callback_helpers.h"
 #include "ui_plugin_menu_rows.h"
 
+#include "helix_psram_attr.h"
 #include "plugin_menu_context.h"
 #include "ui/ui_widget_helpers.h"
+#include "widget_subjects.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -15,6 +17,35 @@
 #include "hv/json.hpp"
 
 namespace helix::ui {
+
+namespace {
+// Bound only by the menu's XML and written only by on_created(); one menu is on
+// screen at a time, so every owner shares them.
+helix::WidgetSubjects s_subjects{"SpoolmanContextMenuSubjects",
+                                 StaticSubjectRegistry::Lifetime::Process};
+HELIX_PSRAM_BSS lv_subject_t s_header_subject;
+HELIX_PSRAM_BSS char s_header_buf[128];
+// Spoolman's filament.name, the subtitle under a header that already carries
+// vendor + material; hidden when the filament has no name.
+HELIX_PSRAM_BSS lv_subject_t s_filament_subject;
+HELIX_PSRAM_BSS char s_filament_buf[128];
+HELIX_PSRAM_BSS lv_subject_t s_filament_shown_subject;
+// 0 for the active spool: it is feeding the printer.
+HELIX_PSRAM_BSS lv_subject_t s_archive_shown_subject;
+
+void init_menu_subjects() {
+    s_subjects.ensure_init([] {
+        UI_MANAGED_SUBJECT_STRING(s_header_subject, s_header_buf, "", "spoolman_menu_header",
+                                  s_subjects);
+        UI_MANAGED_SUBJECT_STRING(s_filament_subject, s_filament_buf, "", "spoolman_menu_filament",
+                                  s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_filament_shown_subject, 0, "spoolman_menu_filament_shown",
+                               s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_archive_shown_subject, 1, "spoolman_menu_archive_shown",
+                               s_subjects);
+    });
+}
+} // namespace
 
 // Static member initialization
 bool SpoolmanContextMenu::callbacks_registered_ = false;
@@ -24,6 +55,7 @@ bool SpoolmanContextMenu::callbacks_registered_ = false;
 // ============================================================================
 
 SpoolmanContextMenu::SpoolmanContextMenu() {
+    init_menu_subjects();
     spdlog::debug("[SpoolmanContextMenu] Constructed");
 }
 
@@ -74,59 +106,21 @@ bool SpoolmanContextMenu::show_for_spool(lv_obj_t* parent, const SpoolInfo& spoo
 
 void SpoolmanContextMenu::on_created(lv_obj_t* menu_obj) {
     // Header: "Vendor Material" (e.g., "Polymaker PLA")
-    lv_obj_t* header = lv_obj_find_by_name(menu_obj, "spool_header");
-    if (header) {
-        std::string name;
-        if (!pending_spool_.vendor.empty()) {
-            name = pending_spool_.vendor;
+    std::string name = pending_spool_.vendor;
+    if (!pending_spool_.material.empty()) {
+        if (!name.empty()) {
+            name += " ";
         }
-        if (!pending_spool_.material.empty()) {
-            if (!name.empty()) {
-                name += " ";
-            }
-            name += pending_spool_.material;
-        }
-        if (name.empty()) {
-            name = fmt::format(lv_tr("Spool #{}"), pending_spool_.id);
-        }
-        lv_label_set_text(header, name.c_str());
+        name += pending_spool_.material;
     }
+    if (name.empty()) {
+        name = fmt::format(lv_tr("Spool #{}"), pending_spool_.id);
+    }
+    lv_subject_copy_string(&s_header_subject, name.c_str());
 
-    // Filament-name subtitle (e.g., "PLA Matte Charcoal") -- hidden when the
-    // spool's filament has no name. The XML widget is still called
-    // "spool_color_label" for compatibility; the string it has always shown is
-    // Spoolman's filament.name, which is the useful subtitle under a header
-    // that already carries vendor + material.
-    lv_obj_t* color_label =
-        helix::ui::find_required(menu_obj, "spool_color_label", "SpoolmanContextMenu");
-    if (color_label) {
-        if (pending_spool_.filament_name.empty()) {
-            lv_obj_add_flag(color_label, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_label_set_text(color_label, pending_spool_.filament_name.c_str());
-        }
-    }
-
-    // Vendor subtitle is unused (vendor already in header); hide the XML element
-    lv_obj_t* vendor_label =
-        helix::ui::find_required(menu_obj, "spool_vendor_label", "SpoolmanContextMenu");
-    if (vendor_label) {
-        lv_obj_add_flag(vendor_label, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    if (!archive_allowed_) {
-        lv_obj_t* btn_archive =
-            helix::ui::find_required(menu_obj, "btn_archive", "SpoolmanContextMenu");
-        if (btn_archive) {
-            // Per-instance decision at menu-creation time, next to the imperative
-            // header fill above. No subject models the Spoolman active-spool id,
-            // so a bind_flag_if has nothing to bind to; the panel passes the
-            // decision per show (the AMS menu's on_created does the same for its
-            // conditional entries).
-            // DECLARATIVE_OK: per-show visibility decision with no subject to bind
-            lv_obj_add_flag(btn_archive, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    lv_subject_copy_string(&s_filament_subject, pending_spool_.filament_name.c_str());
+    lv_subject_set_int(&s_filament_shown_subject, pending_spool_.filament_name.empty() ? 0 : 1);
+    lv_subject_set_int(&s_archive_shown_subject, archive_allowed_ ? 1 : 0);
 
     if (plugin_menu::any_declared(plugin_menu::MenuKind::Spool)) {
         const plugin_menu::json context = plugin_menu::spool_context(pending_spool_);

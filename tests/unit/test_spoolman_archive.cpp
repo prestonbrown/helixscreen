@@ -178,42 +178,45 @@ lv_obj_t* make_spool_row(int spool_id) {
     return row;
 }
 
-TEST_CASE("context menu hides Archive for the active spool", "[spoolman][archive]") {
+TEST_CASE("context menu withholds Archive from the active spool only, and titles the spool",
+          "[spoolman][archive]") {
     SpoolmanArchiveFixture f;
     SpoolmanPanel& panel = get_global_spoolman_panel();
     SpoolmanPanelTestAccess::seed_cached_spools(
-        panel, {make_spool(41, "Ambrosia Pink"), make_spool(42, "Jet Black")});
+        panel, {make_spool(41, "Ambrosia Pink"), make_spool(42, "")});
     SpoolmanPanelTestAccess::set_active_spool_id(panel, 41);
 
-    lv_obj_t* row = make_spool_row(41);
-    SpoolmanPanelTestAccess::open_context_menu(panel, row);
+    // The menu's subjects outlive each show, so each spool must get its own answer
+    // whichever was shown before it.
+    struct Case {
+        int id;
+        bool archive_shown;
+        const char* subtitle; ///< nullptr: hidden, the filament has no name
+    };
+    const Case cases[] = {
+        {41, false, "Ambrosia Pink"}, {42, true, nullptr}, {41, false, "Ambrosia Pink"}};
+    for (const Case& c : cases) {
+        CAPTURE(c.id);
+        lv_obj_t* row = make_spool_row(c.id);
+        SpoolmanPanelTestAccess::open_context_menu(panel, row);
 
-    lv_obj_t* archive = lv_obj_find_by_name(lv_screen_active(), "btn_archive");
-    REQUIRE(archive != nullptr); // the menu actually built
-    CHECK(lv_obj_has_flag(archive, LV_OBJ_FLAG_HIDDEN));
+        lv_obj_t* archive = lv_obj_find_by_name(lv_screen_active(), "btn_archive");
+        REQUIRE(archive != nullptr); // the menu actually built
+        CHECK(lv_obj_has_flag(archive, LV_OBJ_FLAG_HIDDEN) == !c.archive_shown);
+        lv_obj_t* header = lv_obj_find_by_name(lv_screen_active(), "spool_header");
+        REQUIRE(header != nullptr);
+        CHECK(std::string(lv_label_get_text(header)) == "Polymaker PLA");
+        lv_obj_t* subtitle = lv_obj_find_by_name(lv_screen_active(), "spool_color_label");
+        REQUIRE(subtitle != nullptr);
+        CHECK(lv_obj_has_flag(subtitle, LV_OBJ_FLAG_HIDDEN) == (c.subtitle == nullptr));
+        if (c.subtitle) {
+            CHECK(std::string(lv_label_get_text(subtitle)) == c.subtitle);
+        }
 
-    SpoolmanPanelTestAccess::hide_context_menu(panel);
-    f.process_lvgl(50);
-    lv_obj_delete(row);
-}
-
-TEST_CASE("context menu offers Archive for a non-active spool", "[spoolman][archive]") {
-    SpoolmanArchiveFixture f;
-    SpoolmanPanel& panel = get_global_spoolman_panel();
-    SpoolmanPanelTestAccess::seed_cached_spools(
-        panel, {make_spool(41, "Ambrosia Pink"), make_spool(42, "Jet Black")});
-    SpoolmanPanelTestAccess::set_active_spool_id(panel, 41);
-
-    lv_obj_t* row = make_spool_row(42);
-    SpoolmanPanelTestAccess::open_context_menu(panel, row);
-
-    lv_obj_t* archive = lv_obj_find_by_name(lv_screen_active(), "btn_archive");
-    REQUIRE(archive != nullptr); // the menu actually built
-    CHECK_FALSE(lv_obj_has_flag(archive, LV_OBJ_FLAG_HIDDEN));
-
-    SpoolmanPanelTestAccess::hide_context_menu(panel);
-    f.process_lvgl(50);
-    lv_obj_delete(row);
+        SpoolmanPanelTestAccess::hide_context_menu(panel);
+        f.process_lvgl(50);
+        lv_obj_delete(row);
+    }
 }
 
 TEST_CASE("a queued refresh on a resurrected shell panel does nothing", "[spoolman][1402]") {

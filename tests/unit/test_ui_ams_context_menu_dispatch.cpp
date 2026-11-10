@@ -522,10 +522,23 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(lv_subject_get_int(clear_error) == 0);
     }
 
-    SECTION("the external spool menu never offers it") {
+    SECTION("the external spool menu never offers it, nor a lane's Check Slot") {
         lv_subject_set_int(clear_error, 2);
+        lv_subject_t* gate_check = lv_xml_get_subject(nullptr, "ams_slot_gate_check");
+        REQUIRE(gate_check != nullptr);
+        lv_subject_set_int(gate_check, 2);
         helix::ui::AmsContextMenu menu;
         REQUIRE(menu.show_for_external_spool(test_screen(), test_screen(), true));
         CHECK(lv_subject_get_int(clear_error) == 0);
+        lv_obj_t* btn_gate_check = lv_obj_find_by_name(test_screen(), "btn_gate_check");
+        REQUIRE(btn_gate_check != nullptr);
+        CHECK(lv_obj_has_flag(btn_gate_check, LV_OBJ_FLAG_HIDDEN));
+        // Its own rows come on, under its own header.
+        lv_obj_t* btn_purge = lv_obj_find_by_name(test_screen(), "btn_purge");
+        REQUIRE(btn_purge != nullptr);
+        CHECK_FALSE(lv_obj_has_flag(btn_purge, LV_OBJ_FLAG_HIDDEN));
+        lv_obj_t* header = lv_obj_find_by_name(test_screen(), "slot_header");
+        REQUIRE(header != nullptr);
+        CHECK(std::string(lv_label_get_text(header)) == "External Spool");
     }
 }
