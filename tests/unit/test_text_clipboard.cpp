@@ -151,7 +151,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clipboard: holding a managed field raises t
     keyboard.register_textarea(field);
     lv_obj_send_event(field, LV_EVENT_LONG_PRESSED, nullptr);
     CHECK(ui::ContextMenu::active_as<ui::TextEditMenu>() != nullptr);
-    ui::text_edit_menu_reset();
+    // A UI teardown closes the menu along with the keyboard.
+    keyboard.reset();
+    CHECK(ui::ContextMenu::active() == nullptr);
+    keyboard.init(test_screen());
 
     // A field that opted out of typing does not offer a paste either.
     keyboard.unregister_textarea(field);

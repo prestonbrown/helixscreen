@@ -328,6 +328,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK_FALSE(hex_is("danger"));
     lv_textarea_set_text(hex, "#12");
     CHECK(hex_is("danger"));
+    // Leaving the field puts the selected colour back untinted; the next bad entry tints again.
+    lv_obj_send_event(hex, LV_EVENT_DEFOCUSED, nullptr);
+    CHECK(std::string(lv_textarea_get_text(hex)) == "#FF0000");
+    CHECK_FALSE(hex_is("danger"));
+    lv_textarea_set_text(hex, "#12");
+    CHECK(hex_is("danger"));
     lv_textarea_set_text(hex, "#123456");
     CHECK_FALSE(hex_is("danger"));
     picker.hide();

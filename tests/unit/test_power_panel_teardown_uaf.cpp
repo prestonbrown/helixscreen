@@ -283,3 +283,20 @@ TEST_CASE_METHOD(PowerPanelTeardownFixture,
     process_lvgl(50);
     SUCCEED("widget tree torn down after the panel without touching freed memory");
 }
+
+TEST_CASE_METHOD(PowerPanelTeardownFixture,
+                 "A rebuilt PowerPanel tree shows no empty state until its fetch answers",
+                 "[power][teardown]") {
+    // The last tree heard "no devices".
+    lv_subject_t* has_devices = lv_xml_get_subject(nullptr, "power_has_devices");
+    REQUIRE(has_devices != nullptr);
+    lv_subject_set_int(has_devices, 0);
+    REQUIRE_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(root(), "empty_state")));
+    delete_widget_tree();
+
+    auto* rebuilt = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "power_panel", nullptr));
+    REQUIRE(rebuilt != nullptr);
+    panel().setup(rebuilt, test_screen());
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(rebuilt, "empty_state")));
+    destroy_panel();
+}

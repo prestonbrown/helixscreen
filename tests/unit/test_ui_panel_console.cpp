@@ -5,13 +5,27 @@
  * @file test_ui_panel_console.cpp
  * @brief Unit tests for ConsolePanel G-code history functionality
  *
- * Tests the static helper methods and logic for parsing G-code console entries.
- * These tests don't require LVGL initialization since they test pure C++ logic.
+ * Tests the static helpers that parse G-code console entries as pure C++, and
+ * the overlay's input and history list over the mock printer.
  */
 
+#include "ui_nav_manager.h"
+#include "ui_utils.h"
+
+#include "../lvgl_ui_test_fixture.h"
+#include "app_globals.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
+#include "moonraker_api_mock.h"
+#include "moonraker_client_mock.h"
+#include "printer_cache_registry.h"
+#include "printer_state.h"
+
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <deque>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -410,4 +424,90 @@ TEST_CASE("Console: should_display() never drops errors that match no pattern",
     CHECK(ConsolePanel::should_display("!! Move out of range", false, true, true, eng));
     CHECK(ConsolePanel::should_display("!! Shutdown due to webhooks request", false, true, true,
                                        eng));
+}
+
+// ============================================================================
+// The overlay: input and history list
+// ============================================================================
+
+using namespace helix;
+
+namespace {
+
+/// The mock printer as the app's globals, so the console fetches its stored history.
+struct ConsoleOverlayFx : LVGLUITestFixture {
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    std::unique_ptr<MoonrakerAPIMock> api;
+    helix::IMoonrakerAPI* previous_api = nullptr;
+    helix::IMoonrakerClient* previous_client = nullptr;
+
+    ConsoleOverlayFx() {
+        client.connect("ws://mock/websocket", []() {}, []() {});
+        api = std::make_unique<MoonrakerAPIMock>(client, get_printer_state());
+        previous_api = get_moonraker_api();
+        previous_client = get_moonraker_client();
+        set_moonraker_api(api.get());
+        set_moonraker_client(&client);
+        std::array<lv_obj_t*, kUiPanelCount> panels{};
+        for (auto& p : panels)
+            p = lv_obj_create(lv_screen_active());
+        NavigationManager::instance().set_panels(panels.data());
+    }
+
+    ~ConsoleOverlayFx() override {
+        helix::PrinterCacheRegistry::instance().invalidate_all();
+        helix::ui::destroy_static_panels();
+        helix::ui::UpdateQueue::instance().drain();
+        set_moonraker_client(previous_client);
+        set_moonraker_api(previous_api);
+        client.stop_temperature_simulation();
+        client.disconnect();
+    }
+
+    lv_obj_t* open() {
+        REQUIRE(get_global_console_panel().show(lv_screen_active()));
+        // The push, then the fetched history's own deferral.
+        for (int i = 0; i < 3; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+        }
+        lv_obj_t* root = get_global_console_panel().get_root();
+        REQUIRE(root != nullptr);
+        return root;
+    }
+};
+
+lv_obj_t* named(lv_obj_t* root, const char* name) {
+    lv_obj_t* obj = lv_obj_find_by_name(root, name);
+    REQUIRE(obj != nullptr);
+    return obj;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(
+    ConsoleOverlayFx,
+    "Console: Enter sends the typed command, Up recalls it, history hides the empty state",
+    "[ui][console_overlay]") {
+    lv_obj_t* root = open();
+    lv_obj_t* input = named(root, "gcode_input");
+    CHECK(lv_obj_is_hidden(named(root, "empty_state")));
+
+    for (const char* cmd : {"M105", "M114"}) {
+        lv_textarea_set_text(input, cmd);
+        lv_obj_send_event(input, LV_EVENT_READY, nullptr);
+        CHECK(std::string(lv_textarea_get_text(input)).empty());
+    }
+    // One Up press is one step back: the newest command first.
+    uint32_t up = LV_KEY_UP;
+    lv_obj_send_event(input, LV_EVENT_KEY, &up);
+    CHECK(std::string(lv_textarea_get_text(input)) == "M114");
+    lv_obj_send_event(input, LV_EVENT_KEY, &up);
+    CHECK(std::string(lv_textarea_get_text(input)) == "M105");
+
+    // Reopened over a full history, the rebuilt list does not show its empty state.
+    NavigationManager::instance().go_back();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(50);
+    root = open();
+    CHECK(lv_obj_is_hidden(named(root, "empty_state")));
 }

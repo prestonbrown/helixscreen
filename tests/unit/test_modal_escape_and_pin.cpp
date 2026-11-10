@@ -156,3 +156,43 @@ TEST_CASE_METHOD(LVGLUITestFixture, "two PIN pads show their own dots and error 
         lv_obj_delete(b);
     }
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture, "the PIN pad's dots and error line follow its keys",
+                 "[modal][pin_entry]") {
+    std::string entered;
+    ui::PinEntryModal::show_pin_entry("Enter PIN", [&entered](const std::string& pin) {
+        entered = pin;
+        return std::string("Wrong PIN");
+    });
+    lv_obj_t* screen = lv_screen_active();
+    auto press = [screen](const char* name) {
+        lv_obj_t* key = lv_obj_find_by_name(screen, name);
+        REQUIRE(key != nullptr);
+        lv_obj_send_event(key, LV_EVENT_CLICKED, nullptr);
+    };
+    auto filled = [screen] {
+        int n = 0;
+        for (int i = 0; i < 6; ++i) {
+            const std::string name = "pin_dot_" + std::to_string(i);
+            n += lv_obj_get_style_bg_opa(lv_obj_find_by_name(screen, name.c_str()), LV_PART_MAIN) ==
+                 LV_OPA_COVER;
+        }
+        return n;
+    };
+    auto error = [screen] {
+        return std::string(lv_label_get_text(lv_obj_find_by_name(screen, "pin_error_label")));
+    };
+
+    for (const char* key : {"pin_digit_1", "pin_digit_9", "pin_digit_0", "pin_digit_4"}) {
+        press(key);
+    }
+    CHECK(filled() == 4);
+    press("pin_confirm");
+    CHECK(entered == "1904");
+    // A rejected PIN clears the dots and says why.
+    CHECK(filled() == 0);
+    CHECK(error() == "Wrong PIN");
+
+    ui::PinEntryModal::dismiss();
+    process_lvgl(50);
+}

@@ -22,6 +22,7 @@
  */
 
 #include "ui_keyboard_manager.h"
+#include "ui_text_edit_menu.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "core/update_queue.h"
@@ -228,6 +229,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Keyboard: password context is detected from
     // latched at registration.
     lv_textarea_set_password_mode(secret, false);
     REQUIRE_FALSE(KeyboardManager::instance().is_password_context());
+    // Declared a password field, it stays secret to the clipboard once unmasked.
+    CHECK(helix::ui::is_secret_field(secret));
 
     KeyboardManager::instance().show(nullptr);
     REQUIRE_FALSE(KeyboardManager::instance().is_password_context());
