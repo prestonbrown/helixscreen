@@ -277,6 +277,7 @@ TEST_CASE("a reused checkout on a detached HEAD is put back on main for the upda
                                 git_in(plan, "symbolic-ref -q HEAD"),
                                 git_in(plan, "status --porcelain"),
                                 git_in(plan, "rev-parse -q --verify refs/heads/main"),
+                                git_in(plan, "merge-base --is-ancestor HEAD refs/heads/main"),
                                 git_in(plan, "checkout -q main"), link_cmd(plan), kFindFfmpeg});
     }
     SECTION("local changes keep it detached") {
@@ -296,6 +297,14 @@ TEST_CASE("a reused checkout on a detached HEAD is put back on main for the upda
                                        git_in(plan, "status --porcelain"),
                                        git_in(plan, "rev-parse -q --verify refs/heads/main"),
                                        link_cmd(plan), kFindFfmpeg});
+    }
+    SECTION("a main that does not contain HEAD keeps it detached: no downgrade") {
+        fake.answers[git_in(plan, "merge-base --is-ancestor HEAD refs/heads/main")] = exited(1);
+        const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
+        CHECK(result.outcome == LocalPluginOutcome::Installed);
+        CHECK(std::find(fake.calls.begin(), fake.calls.end(), git_in(plan, "checkout -q main")) ==
+              fake.calls.end());
+        CHECK(fake.calls.back() == kFindFfmpeg);
     }
     SECTION("a failed switch still installs the plugin") {
         fake.answers[git_in(plan, "checkout -q main")] = exited(1, "error: cannot switch\n");
