@@ -11,7 +11,7 @@
  * Initialization order:
  *   1. ui_keypad_init_subjects() - before XML creation
  *   2. Register XML components
- *   3. ui_keypad_init(parent) - creates widget, wires events
+ *   3. ui_keypad_init(parent) - registers callbacks; the widget is built on first show
  */
 
 #pragma once
@@ -99,7 +99,7 @@ void ui_keypad_deinit_subjects();
 /**
  * @brief Initialize keypad widget
  *
- * Creates the keypad from XML and wires button events.
+ * Registers the keypad callbacks; the widget is built from XML on first show.
  * Call AFTER XML component registration.
  *
  * @param parent Parent widget (usually screen)

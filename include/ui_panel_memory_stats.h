@@ -5,6 +5,7 @@
 #include "ui_widget_ref.h"
 
 #include "lvgl/lvgl.h"
+#include "subject_managed_panel.h"
 
 /**
  * @brief Memory Stats Overlay - Development tool for monitoring memory usage
@@ -63,6 +64,9 @@ class MemoryStatsOverlay {
      */
     void update();
 
+    /// Text tone of a delta or pressure value: the index its bind_styles select.
+    enum class Tone : int { Ok = 0, Warn = 1, Bad = 2 };
+
   private:
     MemoryStatsOverlay() = default;
     ~MemoryStatsOverlay();
@@ -70,13 +74,25 @@ class MemoryStatsOverlay {
     MemoryStatsOverlay(const MemoryStatsOverlay&) = delete;
     MemoryStatsOverlay& operator=(const MemoryStatsOverlay&) = delete;
 
+    void init_subjects();
+
     helix::ui::WidgetRef overlay_;
-    lv_obj_t* rss_label_ = nullptr;
-    lv_obj_t* hwm_label_ = nullptr;
-    lv_obj_t* private_label_ = nullptr;
-    lv_obj_t* delta_label_ = nullptr;
-    lv_obj_t* pressure_label_ = nullptr;
     lv_timer_t* update_timer_ = nullptr;
+
+    SubjectManager subjects_;
+    lv_subject_t rss_text_{};
+    lv_subject_t hwm_text_{};
+    lv_subject_t private_text_{};
+    lv_subject_t delta_text_{};
+    lv_subject_t pressure_text_{};
+    lv_subject_t delta_tone_{};
+    lv_subject_t pressure_tone_{};
+    char rss_buf_[16] = {};
+    char hwm_buf_[16] = {};
+    char private_buf_[16] = {};
+    char delta_buf_[16] = {};
+    char pressure_buf_[16] = {};
+    bool subjects_initialized_ = false;
 
     int64_t baseline_rss_kb_ = 0;
     bool initialized_ = false;

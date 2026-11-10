@@ -26,6 +26,7 @@
 #include "ui_leader_line.h"
 #include "ui_lock_screen.h"
 #include "ui_markdown.h"
+#include "ui_nav.h"
 #include "ui_notification_badge.h"
 #include "ui_overlay_temp_graph.h"
 #include "ui_panel_home.h"
@@ -254,9 +255,14 @@ static void on_setting_info_clicked(lv_event_t* e) {
     }
     if (!desc)
         return;
+    // One shared callback discloses the tapped row's description for every
+    // setting-row component; the open/closed state belongs to that row alone and
+    // no C++ object owns the row to publish it from.
     if (lv_obj_has_flag(desc, LV_OBJ_FLAG_HIDDEN)) {
+        // DECLARATIVE_OK: per-row disclosure toggle with no owning object (see above)
         lv_obj_remove_flag(desc, LV_OBJ_FLAG_HIDDEN);
     } else {
+        // DECLARATIVE_OK: per-row disclosure toggle with no owning object (see above)
         lv_obj_add_flag(desc, LV_OBJ_FLAG_HIDDEN);
     }
     LVGL_SAFE_EVENT_CB_END();
@@ -438,6 +444,8 @@ void register_xml_components() {
                              [](lv_event_t*) { get_global_home_panel().exit_grid_edit_mode(); });
     lv_xml_register_event_cb(nullptr, "on_edit_add_widget_clicked",
                              [](lv_event_t*) { get_global_home_panel().open_widget_catalog(); });
+    lv_xml_register_event_cb(nullptr, "on_nav_printer_badge_clicked",
+                             [](lv_event_t*) { helix::nav::toggle_printer_menu(); });
     lv_xml_register_event_cb(nullptr, "on_edit_delete_page_clicked", [](lv_event_t*) {
         get_global_home_panel().request_delete_edit_page();
     });

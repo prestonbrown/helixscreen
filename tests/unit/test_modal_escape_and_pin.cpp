@@ -3,12 +3,14 @@
 #include "ui_effects.h"
 #include "ui_modal.h"
 #include "ui_pin_entry_modal.h"
+#include "ui_pin_utils.h"
 #include "ui_runout_guidance_modal.h"
 #include "ui_spaghetti_detection_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
 
 #include <memory>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -104,4 +106,53 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     ui::PinEntryModal::dismiss();
     process_lvgl(50);
     CHECK_FALSE(ui::chrome_covered());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "two PIN pads show their own dots and error line",
+                 "[modal][pin_entry]") {
+    struct Pad {
+        const char* component;
+        const char* dot_prefix;
+        const char* error_label;
+    };
+    for (const Pad& pad : {Pad{"pin_entry_modal", "pin_dot_", "pin_error_label"},
+                           Pad{"lock_screen", "lock_dot_", "lock_error_label"}}) {
+        CAPTURE(pad.component);
+        ui::PinDisplay first("test_pin");
+        ui::PinDisplay second("test_pin");
+        auto* a =
+            static_cast<lv_obj_t*>(lv_xml_create(test_screen(), pad.component, first.attrs()));
+        auto* b =
+            static_cast<lv_obj_t*>(lv_xml_create(test_screen(), pad.component, second.attrs()));
+        REQUIRE(a != nullptr);
+        REQUIRE(b != nullptr);
+        auto filled = [&pad](lv_obj_t* root) {
+            int n = 0;
+            for (int i = 0; i < 6; ++i) {
+                const std::string name = pad.dot_prefix + std::to_string(i);
+                n += lv_obj_get_style_bg_opa(lv_obj_find_by_name(root, name.c_str()),
+                                             LV_PART_MAIN) == LV_OPA_COVER;
+            }
+            return n;
+        };
+        auto error = [&pad](lv_obj_t* root) {
+            return std::string(lv_label_get_text(lv_obj_find_by_name(root, pad.error_label)));
+        };
+
+        first.set_digit_count(3);
+        first.show_error("Wrong PIN");
+        CHECK(filled(a) == 3);
+        CHECK(error(a) == "Wrong PIN");
+        CHECK(filled(b) == 0);
+        CHECK(error(b) == " ");
+
+        second.set_digit_count(6);
+        first.hide_error();
+        CHECK(filled(a) == 3);
+        CHECK(filled(b) == 6);
+        CHECK(error(a) == " ");
+
+        lv_obj_delete(a);
+        lv_obj_delete(b);
+    }
 }

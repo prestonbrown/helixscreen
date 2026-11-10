@@ -4,14 +4,14 @@
 #include "ui_panel_memory_stats.h"
 
 #include "core/static_panel_registry.h"
+#include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "memory_monitor.h"
 #include "memory_utils.h"
-#include "theme_manager.h"
-#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
+#include <cstdio>
 #include <utility>
 
 // Update interval in milliseconds
@@ -41,6 +41,29 @@ MemoryStatsOverlay::~MemoryStatsOverlay() {
     }
 }
 
+void MemoryStatsOverlay::init_subjects() {
+    if (subjects_initialized_) {
+        return;
+    }
+    UI_MANAGED_SUBJECT_STRING(rss_text_, rss_buf_, "--", "memory_stats_rss_text", subjects_);
+    UI_MANAGED_SUBJECT_STRING(hwm_text_, hwm_buf_, "--", "memory_stats_hwm_text", subjects_);
+    UI_MANAGED_SUBJECT_STRING(private_text_, private_buf_, "--", "memory_stats_private_text",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(delta_text_, delta_buf_, "--", "memory_stats_delta_text", subjects_);
+    UI_MANAGED_SUBJECT_STRING(pressure_text_, pressure_buf_, "--", "memory_stats_pressure_text",
+                              subjects_);
+    UI_MANAGED_SUBJECT_INT(delta_tone_, static_cast<int>(Tone::Ok), "memory_stats_delta_tone",
+                           subjects_);
+    UI_MANAGED_SUBJECT_INT(pressure_tone_, static_cast<int>(Tone::Ok), "memory_stats_pressure_tone",
+                           subjects_);
+    subjects_initialized_ = true;
+    StaticSubjectRegistry::instance().register_deinit("MemoryStatsOverlay", []() {
+        auto& self = instance();
+        self.subjects_.deinit_all();
+        self.subjects_initialized_ = false;
+    });
+}
+
 void MemoryStatsOverlay::init(lv_obj_t* /*parent*/, bool initially_visible) {
     if (initialized_) {
         spdlog::debug("[MemoryStats] Already initialized");
@@ -54,18 +77,15 @@ void MemoryStatsOverlay::init(lv_obj_t* /*parent*/, bool initially_visible) {
         return;
     }
 
+    // The overlay's labels bind these, so they exist before it does.
+    init_subjects();
+
     // Create overlay from XML on the top layer
     overlay_ = static_cast<lv_obj_t*>(lv_xml_create(top_layer, "memory_stats_overlay", nullptr));
     if (!overlay_) {
         spdlog::error("[MemoryStats] Failed to create overlay from XML");
         return;
     }
-
-    rss_label_ = helix::ui::find_required(overlay_, "rss_value", "MemoryStats");
-    hwm_label_ = helix::ui::find_required(overlay_, "hwm_value", "MemoryStats");
-    private_label_ = helix::ui::find_required(overlay_, "private_value", "MemoryStats");
-    delta_label_ = helix::ui::find_required(overlay_, "delta_value", "MemoryStats");
-    pressure_label_ = helix::ui::find_required(overlay_, "pressure_value", "MemoryStats");
 
     // Capture baseline RSS
     int64_t rss_kb = 0, hwm_kb = 0;
@@ -141,13 +161,8 @@ void MemoryStatsOverlay::shutdown() {
         update_timer_ = nullptr;
     }
 
-    // Clear all LVGL object pointers (objects will be destroyed by lv_deinit)
+    // The overlay itself is destroyed by lv_deinit
     overlay_ = nullptr;
-    rss_label_ = nullptr;
-    hwm_label_ = nullptr;
-    private_label_ = nullptr;
-    delta_label_ = nullptr;
-    pressure_label_ = nullptr;
 
     initialized_ = false;
 }
@@ -159,92 +174,63 @@ void MemoryStatsOverlay::update() {
     // 2. Display deletion destroys all UI objects
     // 3. Same lv_timer_handler() call continues and runs this timer
     // overlay_ reads nullptr once the display deletion has destroyed it.
-    if (!lv_is_initialized() || !overlay_ || !is_visible())
+    if (!lv_is_initialized() || !subjects_initialized_ || !overlay_ || !is_visible())
         return;
 
     int64_t rss_kb = 0, hwm_kb = 0, private_kb = 0;
+    char buf[16];
+
+    // Format as MB with one decimal place
+    auto set_mb = [&buf](lv_subject_t& subject, const char* sign, int64_t kb) {
+        int mb = static_cast<int>(kb / 1024);
+        int decimal = static_cast<int>((kb % 1024) * 10 / 1024);
+        snprintf(buf, sizeof(buf), "%s%d.%d", sign, mb, decimal);
+        lv_subject_copy_string(&subject, buf);
+    };
 
     if (helix::read_memory_stats(rss_kb, hwm_kb)) {
         helix::read_private_dirty(private_kb);
 
         int64_t delta_kb = rss_kb - baseline_rss_kb_;
 
-        // Format as MB with one decimal place
-        auto format_mb = [](int64_t kb) -> std::pair<int, int> {
-            int mb = static_cast<int>(kb / 1024);
-            int decimal = static_cast<int>((kb % 1024) * 10 / 1024);
-            return {mb, decimal};
-        };
-
-        // Update labels with nicely formatted MB values
-        if (rss_label_) {
-            auto [mb, dec] = format_mb(rss_kb);
-            lv_label_set_text_fmt(rss_label_, "%d.%d", mb, dec);
+        set_mb(rss_text_, "", rss_kb);
+        set_mb(hwm_text_, "", hwm_kb);
+        if (private_kb > 0) {
+            set_mb(private_text_, "", private_kb);
+        } else {
+            lv_subject_copy_string(&private_text_, "--");
         }
-        if (hwm_label_) {
-            auto [mb, dec] = format_mb(hwm_kb);
-            lv_label_set_text_fmt(hwm_label_, "%d.%d", mb, dec);
-        }
-        if (private_label_) {
-            if (private_kb > 0) {
-                auto [mb, dec] = format_mb(private_kb);
-                lv_label_set_text_fmt(private_label_, "%d.%d", mb, dec);
-            } else {
-                lv_label_set_text(private_label_, "--");
-            }
-        }
-        if (delta_label_) {
-            auto [mb, dec] = format_mb(delta_kb >= 0 ? delta_kb : -delta_kb);
-            lv_label_set_text_fmt(delta_label_, "%s%d.%d", delta_kb >= 0 ? "+" : "-", mb, dec);
-            // Color based on growth: green = stable, yellow = growing, red = high growth
-            if (delta_kb < 500) {
-                lv_obj_set_style_text_color(delta_label_, theme_manager_get_color("success"),
-                                            LV_PART_MAIN);
-            } else if (delta_kb < 2000) {
-                lv_obj_set_style_text_color(delta_label_, theme_manager_get_color("warning"),
-                                            LV_PART_MAIN);
-            } else {
-                lv_obj_set_style_text_color(delta_label_, theme_manager_get_color("danger"),
-                                            LV_PART_MAIN);
-            }
-        }
+        set_mb(delta_text_, delta_kb >= 0 ? "+" : "-", delta_kb >= 0 ? delta_kb : -delta_kb);
+        // Growth tone: stable, growing, high growth
+        const Tone tone = delta_kb < 500 ? Tone::Ok : (delta_kb < 2000 ? Tone::Warn : Tone::Bad);
+        lv_subject_set_int(&delta_tone_, static_cast<int>(tone));
     } else {
         // Not available
-        if (rss_label_)
-            lv_label_set_text(rss_label_, "N/A");
-        if (hwm_label_)
-            lv_label_set_text(hwm_label_, "N/A");
-        if (private_label_)
-            lv_label_set_text(private_label_, "N/A");
-        if (delta_label_)
-            lv_label_set_text(delta_label_, "N/A");
+        lv_subject_copy_string(&rss_text_, "N/A");
+        lv_subject_copy_string(&hwm_text_, "N/A");
+        lv_subject_copy_string(&private_text_, "N/A");
+        lv_subject_copy_string(&delta_text_, "N/A");
     }
 
     // Pressure level is available regardless of /proc stats
-    if (pressure_label_) {
-        auto level = helix::MemoryMonitor::instance().pressure_level();
-        const char* level_str = nullptr;
-        const char* color_token = nullptr;
-        switch (level) {
-        case helix::MemoryPressureLevel::none:
-            level_str = "OK";
-            color_token = "success";
-            break;
-        case helix::MemoryPressureLevel::elevated:
-            level_str = "ELEVATED";
-            color_token = "warning";
-            break;
-        case helix::MemoryPressureLevel::warning:
-            level_str = "WARNING";
-            color_token = "warning";
-            break;
-        case helix::MemoryPressureLevel::critical:
-            level_str = "CRITICAL";
-            color_token = "danger";
-            break;
-        }
-        lv_label_set_text_fmt(pressure_label_, "%s", level_str);
-        lv_obj_set_style_text_color(pressure_label_, theme_manager_get_color(color_token),
-                                    LV_PART_MAIN);
+    const char* level_str = "OK";
+    Tone tone = Tone::Ok;
+    switch (helix::MemoryMonitor::instance().pressure_level()) {
+    case helix::MemoryPressureLevel::none:
+        break;
+    case helix::MemoryPressureLevel::elevated:
+        level_str = "ELEVATED";
+        tone = Tone::Warn;
+        break;
+    case helix::MemoryPressureLevel::warning:
+        level_str = "WARNING";
+        tone = Tone::Warn;
+        break;
+    case helix::MemoryPressureLevel::critical:
+        level_str = "CRITICAL";
+        tone = Tone::Bad;
+        break;
     }
+    lv_subject_copy_string(&pressure_text_, level_str);
+    lv_subject_set_int(&pressure_tone_, static_cast<int>(tone));
 }

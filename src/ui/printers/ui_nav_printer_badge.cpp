@@ -3,9 +3,6 @@
 
 #include "ui_nav_printer_badge.h"
 
-#include "app_globals.h"
-#include "core/observer_factory.h"
-#include "printer_state.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -26,24 +23,6 @@ lv_color_t connection_dot_color(int connection_state) {
 
 void PrinterBadgeMenu::wire(lv_obj_t* navbar) {
     navbar_ = navbar;
-
-    lv_obj_t* printer_badge = lv_obj_find_by_name(navbar, "nav_printer_badge");
-    if (printer_badge) {
-        lv_obj_add_event_cb(printer_badge, badge_clicked_cb, LV_EVENT_CLICKED, this);
-    }
-
-    // Connection status dot — color reflects WebSocket connection state
-    dot_ = lv_obj_find_by_name(navbar, "nav_printer_dot");
-    if (dot_) {
-        dot_observer_ = observe<int>(
-            get_printer_state().network_state().get_printer_connection_state_subject(), this,
-            [](PrinterBadgeMenu* self, int state) {
-                if (!self->dot_)
-                    return;
-                lv_obj_set_style_bg_color(self->dot_, connection_dot_color(state), 0);
-            },
-            get_printer_state().get_subjects_lifetime());
-    }
 }
 
 void PrinterBadgeMenu::set_callbacks(SwitchCallback switch_cb, AddCallback add_cb) {
@@ -71,15 +50,8 @@ void PrinterBadgeMenu::shutdown() {
     // The menu's widget is a child of the screen.
     menu_.hide();
 
-    dot_observer_.reset();
-    dot_ = nullptr;
-
     switch_cb_ = nullptr;
     add_cb_ = nullptr;
-}
-
-void PrinterBadgeMenu::badge_clicked_cb(lv_event_t* e) {
-    static_cast<PrinterBadgeMenu*>(lv_event_get_user_data(e))->toggle_menu();
 }
 
 void PrinterBadgeMenu::toggle_menu() {

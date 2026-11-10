@@ -97,7 +97,13 @@ void ExcludeObjectSideList::create(lv_obj_t* parent, PrinterExcludedObjectsState
     lv_obj_add_flag(root_, LV_OBJ_FLAG_FLOATING);
 
     rows_container_ = helix::ui::find_required(root_, "rows_container", "ExcludeObjectSideList");
-    empty_state_ = helix::ui::find_required(root_, "empty_state", "ExcludeObjectSideList");
+    // The empty state follows this list's own state, which need not be the one
+    // published under "defined_objects_count".
+    if (lv_obj_t* empty_state =
+            helix::ui::find_required(root_, "empty_state", "ExcludeObjectSideList")) {
+        lv_obj_bind_flag_if_not_eq(empty_state, state_->get_defined_objects_count_subject(),
+                                   LV_OBJ_FLAG_HIDDEN, 0);
+    }
 
     // Force layout so we know the pixel extent to travel for the slide.
     lv_obj_update_layout(parent);
@@ -193,7 +199,6 @@ void ExcludeObjectSideList::destroy() {
 
     root_ = nullptr;
     rows_container_ = nullptr;
-    empty_state_ = nullptr;
     on_object_tapped_ = nullptr;
 
     open_lists().remove(this);
@@ -219,14 +224,6 @@ void ExcludeObjectSideList::rebuild_rows() {
     }
 
     const auto& defined = state_->get_defined_objects();
-
-    if (empty_state_) {
-        if (defined.empty()) {
-            lv_obj_remove_flag(empty_state_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(empty_state_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
 
     if (defined == row_names_) {
         update_row_states();

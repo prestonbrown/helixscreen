@@ -256,6 +256,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the loading-error modal carries the graphic
 
     CHECK(graphic_visible(modal.dialog()));
     CHECK(shown == kPreGearSentence);
+    auto text_of = [&modal](const char* name) {
+        return std::string(lv_label_get_text(lv_obj_find_by_name(modal.dialog(), name)));
+    };
+    CHECK(text_of("error_message") == shown);
+    CHECK(text_of("error_hint") == "Check the filament path and try again.");
 
     modal.hide();
     process_lvgl(20);
@@ -265,6 +270,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the loading-error modal carries the graphic
     REQUIRE(modal.show(lv_screen_active(), plain, []() {}));
     process_lvgl(20);
     CHECK_FALSE(graphic_visible(modal.dialog()));
+    CHECK(text_of("error_message") == plain);
 
     modal.hide();
     process_lvgl(20);

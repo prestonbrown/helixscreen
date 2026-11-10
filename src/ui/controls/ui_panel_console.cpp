@@ -172,6 +172,11 @@ void ConsolePanel::register_callbacks() {
                                       ModalSeverity::Info, lv_tr("Clear"),
                                       [] { get_global_console_panel().clear_display(); });
          }},
+        // Enter in the one-line input fires READY and submits.
+        {"on_console_input_ready",
+         [](lv_event_t* /*e*/) { get_global_console_panel().send_gcode_command(); }},
+        {"on_console_input_key",
+         [](lv_event_t* e) { get_global_console_panel().step_history(lv_event_get_key(e)); }},
         {"on_console_settings_clicked",
          [](lv_event_t* /*e*/) {
              spdlog::debug("[Console] Settings gear clicked - opening overlay");
@@ -211,62 +216,6 @@ lv_obj_t* ConsolePanel::create(lv_obj_t* parent) {
             panel->user_scrolled_up_ = (scroll_bottom > 5);
         },
         LV_EVENT_SCROLL, this);
-
-    if (gcode_input_) {
-        // Enter key submits the command (LV_EVENT_READY fires on Enter
-        // in a one-line textarea)
-        lv_obj_add_event_cb(
-            gcode_input_,
-            [](lv_event_t* e) {
-                auto* panel = static_cast<ConsolePanel*>(lv_event_get_user_data(e));
-                panel->send_gcode_command();
-            },
-            LV_EVENT_READY, this);
-
-        // Up/Down arrow keys navigate command history
-        lv_obj_add_event_cb(
-            gcode_input_,
-            [](lv_event_t* e) {
-                auto* panel = static_cast<ConsolePanel*>(lv_event_get_user_data(e));
-                uint32_t key = lv_event_get_key(e);
-
-                if (key == LV_KEY_UP) {
-                    if (panel->command_history_.empty()) {
-                        return;
-                    }
-                    // Save current input on first press into history
-                    if (panel->history_index_ == -1) {
-                        const char* cur = lv_textarea_get_text(panel->gcode_input_);
-                        panel->saved_input_ = cur ? cur : "";
-                    }
-                    // Move to older command (increment index)
-                    int next = panel->history_index_ + 1;
-                    if (next < static_cast<int>(panel->command_history_.size())) {
-                        panel->history_index_ = next;
-                        lv_textarea_set_text(
-                            panel->gcode_input_,
-                            panel->command_history_[static_cast<size_t>(next)].c_str());
-                    }
-                } else if (key == LV_KEY_DOWN) {
-                    if (panel->history_index_ < 0) {
-                        return;
-                    }
-                    // Move to newer command (decrement index)
-                    int next = panel->history_index_ - 1;
-                    if (next >= 0) {
-                        panel->history_index_ = next;
-                        lv_textarea_set_text(
-                            panel->gcode_input_,
-                            panel->command_history_[static_cast<size_t>(next)].c_str());
-                    } else {
-                        // Restore saved input
-                        panel->history_index_ = -1;
-                        lv_textarea_set_text(panel->gcode_input_, panel->saved_input_.c_str());
-                    }
-                }
-            },
-            LV_EVENT_KEY, this);
-    }
 
     // Show timestamps on medium+ screens. Gate on the constrained axis (min of
     // width/height): the timestamp column is horizontal, so a narrow portrait
@@ -550,6 +499,34 @@ void ConsolePanel::on_entry_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
+std::optional<int> ConsolePanel::next_history_index(int index, size_t history_size, uint32_t key) {
+    if (key == LV_KEY_UP) {
+        const int next = index + 1;
+        return next < static_cast<int>(history_size) ? std::optional<int>(next) : std::nullopt;
+    }
+    if (key == LV_KEY_DOWN && index >= 0) {
+        return index - 1;
+    }
+    return std::nullopt;
+}
+
+// Up/Down walk the command history, keeping what was typed for the way back.
+void ConsolePanel::step_history(uint32_t key) {
+    const auto next = next_history_index(history_index_, command_history_.size(), key);
+    if (!gcode_input_ || !next) {
+        return;
+    }
+    if (history_index_ == -1) {
+        const char* cur = lv_textarea_get_text(gcode_input_);
+        saved_input_ = cur ? cur : "";
+    }
+    history_index_ = *next;
+    lv_textarea_set_text(gcode_input_,
+                         history_index_ < 0
+                             ? saved_input_.c_str()
+                             : command_history_[static_cast<size_t>(history_index_)].c_str());
+}
+
 void ConsolePanel::clear_entries() {
     entries_.clear();
 
@@ -564,13 +541,13 @@ void ConsolePanel::clear_entries() {
     // corrupts LVGL's event linked list (lv_event_mark_deleted crashes).
     if (empty_state_) {
         lv_obj_set_parent(empty_state_, lv_obj_get_parent(console_container_));
-        lv_obj_add_flag(empty_state_, LV_OBJ_FLAG_HIDDEN);
     }
     helix::ui::safe_clean_children(console_container_);
     if (empty_state_) {
         lv_obj_set_parent(empty_state_, console_container_);
-        lv_obj_remove_flag(empty_state_, LV_OBJ_FLAG_HIDDEN);
     }
+    // console_has_entries shows the empty state.
+    lv_subject_set_int(&has_entries_subject_, 0);
 }
 
 void ConsolePanel::scroll_to_bottom() {

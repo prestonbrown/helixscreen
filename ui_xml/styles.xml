@@ -77,7 +77,13 @@
     <style name="text_tone_primary" text_color="#primary"/>
     <style name="text_tone_danger" text_color="#danger"/>
     <style name="text_tone_success" text_color="#success"/>
+    <style name="text_tone_warning" text_color="#warning"/>
     <style name="text_tone_info" text_color="#info"/>
+
+    <!-- A printer connection dot: connected, connecting or reconnecting, down. -->
+    <style name="connection_dot_up" bg_color="#success"/>
+    <style name="connection_dot_trying" bg_color="#warning"/>
+    <style name="connection_dot_down" bg_color="#danger"/>
 
     <!-- The count-badge box paired with each tile icon rung: 2/5 of
          the glyph (tile_badge_* tokens), the proportion the AMS lane badge

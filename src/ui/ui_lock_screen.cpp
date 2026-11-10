@@ -5,7 +5,6 @@
 #include "ui_callback_helpers.h"
 #include "ui_event_safety.h"
 #include "ui_next_tick.h"
-#include "ui_pin_utils.h"
 #include "ui_utils.h"
 
 #include "lock_manager.h"
@@ -80,7 +79,8 @@ void LockScreenOverlay::create_overlay() {
     lv_obj_move_foreground(overlay_);
 
     // Instantiate the lock_screen XML component (defines background, card, keypad)
-    lv_xml_create(overlay_, "lock_screen", nullptr);
+    pin_display_ = std::make_unique<PinDisplay>("lock_pin");
+    lv_xml_create(overlay_, "lock_screen", pin_display_->attrs());
 
     clear_digits();
 
@@ -99,6 +99,7 @@ void LockScreenOverlay::destroy_overlay() {
         // LVGL's event linked list in lv_event_mark_deleted (#543).
         lv_obj_delete_async(overlay_);
         overlay_ = nullptr;
+        pin_display_.reset();
         digit_buffer_.clear();
         spdlog::debug("[LockScreen] Overlay destroyed");
     }
@@ -171,11 +172,13 @@ void LockScreenOverlay::on_confirm() {
 }
 
 // ============================================================================
-// Dot indicator updates (imperative — allowed exception for animation state)
+// Dot indicator updates
 // ============================================================================
 
 void LockScreenOverlay::update_dots() {
-    update_pin_dots(overlay_, "lock_dot_", kMaxDigits, static_cast<int>(digit_buffer_.size()));
+    if (pin_display_) {
+        pin_display_->set_digit_count(static_cast<int>(digit_buffer_.size()));
+    }
 }
 
 void LockScreenOverlay::clear_digits() {
@@ -190,11 +193,15 @@ void LockScreenOverlay::clear_digits() {
 // ============================================================================
 
 void LockScreenOverlay::show_error(const char* text) {
-    show_pin_error(overlay_, "lock_error_label", text);
+    if (pin_display_) {
+        pin_display_->show_error(text);
+    }
 }
 
 void LockScreenOverlay::hide_error() {
-    hide_pin_error(overlay_, "lock_error_label");
+    if (pin_display_) {
+        pin_display_->hide_error();
+    }
 }
 
 // ============================================================================
@@ -245,34 +252,10 @@ void LockScreenOverlay::shake_dots() {
 static void lock_digit_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("lock_digit_clicked");
 
-    auto* btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    if (!btn) {
+    const int digit = key_digit(e);
+    if (digit < 0) {
         return;
     }
-
-    // Button names are "lock_digit_0" through "lock_digit_9"
-    // Parse the digit from the trailing character of the name
-    const char* name = lv_obj_get_name(btn);
-    if (!name) {
-        spdlog::warn("[LockScreen] Digit button has no name");
-        return;
-    }
-
-    // Name format: "lock_digit_N" — last character is the digit
-    size_t len = strlen(name);
-    if (len < 1) {
-        spdlog::warn("[LockScreen] Digit button name '{}' too short to parse", name);
-        return;
-    }
-
-    char last = name[len - 1];
-    if (last < '0' || last > '9') {
-        spdlog::warn("[LockScreen] Cannot parse digit from button name '{}'", name);
-        return;
-    }
-
-    int digit = last - '0';
-    spdlog::debug("[LockScreen] Digit {} clicked (button={})", digit, name);
     LockScreenOverlay::instance().on_digit(digit);
 
     LVGL_SAFE_EVENT_CB_END();

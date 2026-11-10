@@ -282,7 +282,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     display.set_animations_enabled(animations);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "The compact picker's active tab stays readable on primary",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "The compact picker's tabs swap content and the open pill stays readable",
                  "[color_picker]") {
     const lv_color_t primary = theme_manager_get_color("primary");
     const lv_color_t text = theme_manager_get_color("text");
@@ -291,12 +292,44 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The compact picker's active tab stays reada
     helix::test::ScopedBreakpoint bp(UiBreakpoint::Tiny);
     helix::ui::ColorPicker picker;
     picker.show_with_color(test_screen(), 0xFF0000);
-    lv_obj_t* tab = lv_obj_find_by_name(lv_layer_top(), "btn_tab_presets");
-    if (!tab) {
-        tab = lv_obj_find_by_name(test_screen(), "btn_tab_presets");
-    }
-    REQUIRE(tab != nullptr);
-    CHECK(wcag::contrast(lv_obj_get_style_text_color(tab, LV_PART_MAIN), primary) >= 4.0);
+    auto settle = [] { helix::ui::UpdateQueue::instance().drain(); }; // deferred contrast pass
+    settle();
+    lv_obj_t* root =
+        lv_obj_find_by_name(lv_layer_top(), "btn_tab_presets") ? lv_layer_top() : test_screen();
+    auto find = [root](const char* name) {
+        lv_obj_t* obj = lv_obj_find_by_name(root, name);
+        REQUIRE(obj != nullptr);
+        return obj;
+    };
+    // The open tab is the filled pill, its label readable on primary.
+    auto open_tab_is = [&](const char* open, const char* closed) {
+        lv_obj_t* label = lv_obj_get_child(find(open), 0);
+        CHECK(lv_obj_get_style_bg_opa(find(open), LV_PART_MAIN) == LV_OPA_COVER);
+        CHECK(lv_obj_get_style_bg_opa(find(closed), LV_PART_MAIN) == LV_OPA_TRANSP);
+        CHECK(wcag::contrast(lv_obj_get_style_text_color(label, LV_PART_MAIN), primary) >= 4.0);
+    };
+
+    open_tab_is("btn_tab_presets", "btn_tab_custom");
+    CHECK_FALSE(lv_obj_has_flag(find("presets_content"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(find("custom_content"), LV_OBJ_FLAG_HIDDEN));
+
+    lv_obj_send_event(find("btn_tab_custom"), LV_EVENT_CLICKED, nullptr);
+    settle();
+    open_tab_is("btn_tab_custom", "btn_tab_presets");
+    CHECK(lv_obj_has_flag(find("presets_content"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(find("custom_content"), LV_OBJ_FLAG_HIDDEN));
+
+    // A hex field that does not parse turns danger until it does.
+    lv_obj_t* hex = find("hex_input_tiny");
+    auto hex_is = [hex](const char* token) {
+        return lv_color_eq(lv_obj_get_style_text_color(hex, LV_PART_MAIN),
+                           theme_manager_get_color(token));
+    };
+    CHECK_FALSE(hex_is("danger"));
+    lv_textarea_set_text(hex, "#12");
+    CHECK(hex_is("danger"));
+    lv_textarea_set_text(hex, "#123456");
+    CHECK_FALSE(hex_is("danger"));
     picker.hide();
 }
 

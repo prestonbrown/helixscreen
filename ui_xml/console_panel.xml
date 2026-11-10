@@ -40,7 +40,10 @@
         <!-- G-code text input (chrome removed — the row provides it) -->
         <text_input name="gcode_input"
                     flex_grow="1" placeholder="Enter G-code command..." placeholder_tag="Enter G-code command..."
-                    one_line="true" style_bg_opa="0" style_border_width="0" style_radius="0" style_pad_hor="0"/>
+                    one_line="true" style_bg_opa="0" style_border_width="0" style_radius="0" style_pad_hor="0">
+          <event_cb trigger="ready" callback="on_console_input_ready"/>
+          <event_cb trigger="key" callback="on_console_input_key"/>
+        </text_input>
         <!-- Clear button -->
         <ui_button name="clear_btn"
                    width="#button_height_sm" height="#button_height_sm" style_radius="#button_height_sm" variant="ghost"

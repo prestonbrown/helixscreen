@@ -116,13 +116,8 @@ bool FilamentProductEditModal::show_for_edit(lv_obj_t* parent, const std::string
 // ============================================================================
 
 void FilamentProductEditModal::on_show() {
-    // Title.
-    lv_obj_t* title = find_widget("header_title");
-    if (title) {
-        lv_label_set_text(title,
-                          mode_ == Mode::Add ? lv_tr("Add Filament") : lv_tr("Edit Filament"));
-    }
-
+    lv_subject_copy_string(&title_subject_,
+                           mode_ == Mode::Add ? lv_tr("Add Filament") : lv_tr("Edit Filament"));
     populate_fields();
     register_keyboards();
     configure_secondary_button();
@@ -138,6 +133,10 @@ void FilamentProductEditModal::init_subjects() {
     lv_subject_init_string(&secondary_text_subject_, secondary_text_buf_, nullptr,
                            sizeof(secondary_text_buf_), lv_tr("Delete"));
     subjects_.publish("filament_product_secondary_text", &secondary_text_subject_);
+    lv_subject_init_int(&show_secondary_subject_, 0);
+    subjects_.publish("filament_product_show_secondary", &show_secondary_subject_);
+    lv_subject_init_string(&title_subject_, title_buf_, nullptr, sizeof(title_buf_), "");
+    subjects_.publish("filament_product_title", &title_subject_);
     subjects_initialized_ = true;
 }
 
@@ -235,18 +234,10 @@ FilamentFormValues FilamentProductEditModal::read_form() const {
 }
 
 void FilamentProductEditModal::configure_secondary_button() {
-    lv_obj_t* btn = find_widget("btn_secondary");
-    if (!btn)
-        return;
-
     // Add mode has no destructive action; edit of a pristine built-in (no
-    // override yet) likewise has nothing to remove. Hide the button in both.
+    // override yet) likewise has nothing to remove. The button shows otherwise.
     const bool show_secondary = (mode_ == Mode::Edit) && (has_overlay_ || !is_builtin_);
-    if (!show_secondary) {
-        lv_obj_add_flag(btn, LV_OBJ_FLAG_HIDDEN);
-        return;
-    }
-    lv_obj_remove_flag(btn, LV_OBJ_FLAG_HIDDEN);
+    lv_subject_set_int(&show_secondary_subject_, show_secondary ? 1 : 0);
     // Built-in with an override -> restore; purely user entry -> delete.
     lv_subject_copy_string(&secondary_text_subject_,
                            is_builtin_ ? lv_tr("Restore Defaults") : lv_tr("Delete"));

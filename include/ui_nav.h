@@ -105,4 +105,7 @@ bool is_push_pending(lv_obj_t* panel);
 /// opening a panel twice asks this.
 bool is_showing(lv_obj_t* panel);
 
+/// Open or close the printer switch menu under the navbar's printer badge.
+void toggle_printer_menu();
+
 } // namespace helix::nav

@@ -6,8 +6,6 @@
 #include "ui_printer_switch_menu.h"
 #include "ui_widget_ref.h"
 
-#include "core/observer_guard.h"
-
 #include <functional>
 #include <string>
 
@@ -28,8 +26,12 @@ class PrinterBadgeMenu {
     using SwitchCallback = std::function<void(const std::string& printer_id)>;
     using AddCallback = std::function<void()>;
 
-    /// Attach the badge tap and the connection dot found in @p navbar.
+    /// Remember the navbar whose badge the menu opens under. The badge's tap
+    /// (on_nav_printer_badge_clicked) and its connection dot are bound in XML.
     void wire(lv_obj_t* navbar);
+
+    /// Open or close the switch menu under the badge.
+    void toggle_menu();
 
     void set_callbacks(SwitchCallback switch_cb, AddCallback add_cb);
 
@@ -39,17 +41,12 @@ class PrinterBadgeMenu {
     /// Run the registered add-printer callback; logs when none is registered.
     void trigger_add();
 
-    /// Close the menu, stop following the connection state and drop the callbacks.
+    /// Close the menu and drop the callbacks.
     /// They capture Application pointers that are invalid after a soft restart.
     void shutdown();
 
   private:
-    static void badge_clicked_cb(lv_event_t* e);
-    void toggle_menu();
-
     WidgetRef navbar_;
-    WidgetRef dot_;
-    ObserverGuard dot_observer_;
     PrinterSwitchMenu menu_;
     SwitchCallback switch_cb_;
     AddCallback add_cb_;

@@ -150,10 +150,6 @@ class ColorPicker : public Modal {
 
     // === Compact mode tab switching (MICRO + TINY share the same layout) ===
     bool is_tiny_mode_ = false; // Covers both MICRO and TINY breakpoints
-    lv_obj_t* presets_content_ = nullptr;
-    lv_obj_t* custom_content_ = nullptr;
-    lv_obj_t* btn_tab_presets_ = nullptr;
-    lv_obj_t* btn_tab_custom_ = nullptr;
 
     // === Internal Methods ===
     void init_subjects();

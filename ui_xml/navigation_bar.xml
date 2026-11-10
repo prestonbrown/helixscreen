@@ -259,12 +259,20 @@
       <!-- Shown when the setting is on, and hidden during grid edit mode with the nav buttons -->
       <bind_flag_if cond="show_printer_switcher eq 1 and home_edit_mode eq 0" flag="hidden" invert="true"/>
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
+      <event_cb trigger="clicked" callback="on_nav_printer_badge_clicked"/>
       <lv_obj name="nav_printer_icon_wrap"
               clickable="false" event_bubble="true" style_pad_all="0" style_border_width="0" style_bg_opa="0">
         <icon src="printer_3d" size="#icon_size" variant="secondary" clickable="false" event_bubble="true"/>
+        <!-- Connection dot: printer_connection_state 2 connected, 1 connecting,
+             3 reconnecting, otherwise down. Matches connection_dot_color(). -->
         <lv_obj name="nav_printer_dot"
-                width="8" height="8" style_radius="4" style_bg_opa="255" style_bg_color="#success" align="top_right"
-                clickable="false" event_bubble="true"/>
+                width="8" height="8" style_radius="4" style_bg_opa="255" align="top_right" clickable="false"
+                event_bubble="true">
+          <style name="styles.connection_dot_down"/>
+          <bind_style_if name="styles.connection_dot_up" cond="printer_connection_state eq 2"/>
+          <bind_style_if name="styles.connection_dot_trying"
+                         cond="printer_connection_state eq 1 or printer_connection_state eq 3"/>
+        </lv_obj>
       </lv_obj>
     </ui_button>
     <!-- Room for the spools-on-the-bed button while a bed-drying run has them

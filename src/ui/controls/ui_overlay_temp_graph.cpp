@@ -161,6 +161,14 @@ void TempGraphOverlay::init_subjects() {
                                "temp_graph_nozzle_status_state", subjects_);
         UI_MANAGED_SUBJECT_STRING(nozzle_card_status_subject_, nozzle_card_status_buffer_, "",
                                   "temp_graph_nozzle_status", subjects_);
+        UI_MANAGED_SUBJECT_INT(multi_extruder_subject_, 0, "temp_graph_multi_extruder", subjects_);
+        static const char* const kChamberPresetVisible[kMaxPresets] = {
+            "temp_graph_chamber_preset_0_visible", "temp_graph_chamber_preset_1_visible",
+            "temp_graph_chamber_preset_2_visible", "temp_graph_chamber_preset_3_visible"};
+        for (int i = 0; i < kMaxPresets; ++i) {
+            UI_MANAGED_SUBJECT_INT(chamber_preset_visible_subjects_[i], 1, kChamberPresetVisible[i],
+                                   subjects_);
+        }
     }
 }
 
@@ -729,32 +737,19 @@ void TempGraphOverlay::configure_control_strip() {
         helix::TemperatureController* c = temp_control_panel_->controller();
         if (c)
             c->ensure_limits(helix::HeaterType::Chamber);
-        static const char* kChamberPresetNames[kMaxPresets] = {
-            "chamber_preset_off", "chamber_preset_1", "chamber_preset_2", "chamber_preset_3"};
         for (int i = 0; i < kMaxPresets; ++i) {
-            lv_obj_t* btn = lv_obj_find_by_name(active_strip, kChamberPresetNames[i]);
-            if (!btn) {
-                continue;
-            }
             // No controller → default to showing all presets.
-            bool show = !c || c->preset_visible(heater_type, preset_values[i]);
-            if (show) {
-                lv_obj_remove_flag(btn, LV_OBJ_FLAG_HIDDEN);
-            } else {
-                lv_obj_add_flag(btn, LV_OBJ_FLAG_HIDDEN);
-            }
+            const bool show = !c || c->preset_visible(heater_type, preset_values[i]);
+            lv_subject_set_int(&chamber_preset_visible_subjects_[i], show ? 1 : 0);
         }
     }
 
     // Extruder selector: show only in nozzle mode with multiple extruders
-    if (extruder_selector_row_) {
-        auto& temp_state = printer_state_->temperature_state();
-        if (mode_ == Mode::Nozzle && temp_state.extruder_count() > 1) {
-            lv_obj_remove_flag(extruder_selector_row_, LV_OBJ_FLAG_HIDDEN);
-            rebuild_extruder_selector();
-        } else {
-            lv_obj_add_flag(extruder_selector_row_, LV_OBJ_FLAG_HIDDEN);
-        }
+    const bool multi =
+        mode_ == Mode::Nozzle && printer_state_->temperature_state().extruder_count() > 1;
+    lv_subject_set_int(&multi_extruder_subject_, multi ? 1 : 0);
+    if (multi) {
+        rebuild_extruder_selector();
     }
 }
 

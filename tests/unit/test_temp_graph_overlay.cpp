@@ -123,42 +123,41 @@ TEST_CASE_METHOD(
     // run from ~TempGraphOverlay via the subjects_ member) must withdraw all
     // six names so they do not outlive the overlay. This pins both halves:
     // the publish count AND the destructor cleanup. If another subject is
-    // ever added, bump the +6 and name the newcomer here so the withdrawal
-    // stays covered too.
-    auto name_present = [](const std::string& needle) {
+    // ever added, add its name here so the withdrawal stays covered too.
+    const std::vector<std::string> published = {"temp_graph_mode",
+                                                "temp_graph_nozzle_badge",
+                                                "temp_graph_nozzle_temp",
+                                                "temp_graph_nozzle_target",
+                                                "temp_graph_nozzle_status_state",
+                                                "temp_graph_nozzle_status",
+                                                "temp_graph_multi_extruder",
+                                                "temp_graph_chamber_preset_0_visible",
+                                                "temp_graph_chamber_preset_1_visible",
+                                                "temp_graph_chamber_preset_2_visible",
+                                                "temp_graph_chamber_preset_3_visible"};
+    auto present = [&published]() {
         auto all = SubjectDebugRegistry::instance().list_all();
-        return std::any_of(all.begin(), all.end(),
-                           [&](const auto& entry) { return entry.first == needle; });
+        size_t n = 0;
+        for (const auto& name : published) {
+            n += std::any_of(all.begin(), all.end(),
+                             [&](const auto& entry) { return entry.first == name; });
+        }
+        return n;
     };
 
     const size_t before = SubjectDebugRegistry::instance().list_all().size();
-    REQUIRE_FALSE(name_present("temp_graph_mode"));
+    REQUIRE(present() == 0);
 
     {
         TempGraphOverlay overlay;
         overlay.init_subjects();
-
-        // Exactly six subjects published: temp_graph_mode,
-        // temp_graph_nozzle_badge, temp_graph_nozzle_temp,
-        // temp_graph_nozzle_target, temp_graph_nozzle_status_state,
-        // temp_graph_nozzle_status.
-        REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before + 6);
-        REQUIRE(name_present("temp_graph_mode"));
-        REQUIRE(name_present("temp_graph_nozzle_badge"));
-        REQUIRE(name_present("temp_graph_nozzle_temp"));
-        REQUIRE(name_present("temp_graph_nozzle_target"));
-        REQUIRE(name_present("temp_graph_nozzle_status_state"));
-        REQUIRE(name_present("temp_graph_nozzle_status"));
+        REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before + published.size());
+        REQUIRE(present() == published.size());
         // Destructor runs here.
     }
 
     REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before);
-    REQUIRE_FALSE(name_present("temp_graph_mode"));
-    REQUIRE_FALSE(name_present("temp_graph_nozzle_badge"));
-    REQUIRE_FALSE(name_present("temp_graph_nozzle_temp"));
-    REQUIRE_FALSE(name_present("temp_graph_nozzle_target"));
-    REQUIRE_FALSE(name_present("temp_graph_nozzle_status_state"));
-    REQUIRE_FALSE(name_present("temp_graph_nozzle_status"));
+    REQUIRE(present() == 0);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "TempGraphOverlay: cleanup after init_subjects does not crash",

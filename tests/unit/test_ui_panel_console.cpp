@@ -10,7 +10,6 @@
  */
 
 #include <algorithm>
-#include <cctype>
 #include <cstdint>
 #include <deque>
 #include <string>
@@ -39,257 +38,60 @@ const auto parse_html_spans = &helix::ui::parse_console_html_spans;
 // Error Message Detection Tests
 // ============================================================================
 
-TEST_CASE("Console: is_error_message() with empty string", "[ui][error_detection]") {
-    REQUIRE(is_error_message("") == false);
+TEST_CASE("Console: is_error_message() flags !! and a leading Error, any case",
+          "[ui][error_detection]") {
+    for (const char* line : {"!! Error: Heater not responding", "!!Thermistor disconnected", "!! ",
+                             "Error: Command failed", "ERROR: Unknown G-code",
+                             "error: invalid parameter", "ErRoR: mixed case", "Error", "Errorx",
+                             "!! Move out of range: 0.000 250.000 0.500 [0.000]",
+                             "!! MCU 'mcu' shutdown: Timer too close"}) {
+        CAPTURE(line);
+        CHECK(is_error_message(line));
+    }
+    for (const char* line : {"", "ok", "// Klipper state: Ready", "B:60.0 /60.0 T0:210.0 /210.0",
+                             "No error detected", "G-code M112 for error stop", "!", "E", "Err",
+                             "Erro", "echo: G28 homing completed", "Recv: ok"}) {
+        CAPTURE(line);
+        CHECK_FALSE(is_error_message(line));
+    }
 }
 
-TEST_CASE("Console: is_error_message() with !! prefix", "[ui][error_detection]") {
-    REQUIRE(is_error_message("!! Error: Heater not responding") == true);
-    REQUIRE(is_error_message("!!Thermistor disconnected") == true);
-    REQUIRE(is_error_message("!! ") == true);
-}
-
-TEST_CASE("Console: is_error_message() with Error prefix", "[ui][error_detection]") {
-    REQUIRE(is_error_message("Error: Command failed") == true);
-    REQUIRE(is_error_message("ERROR: Unknown G-code") == true);
-    REQUIRE(is_error_message("error: invalid parameter") == true);
-    REQUIRE(is_error_message("ErRoR: mixed case") == true);
-}
-
-TEST_CASE("Console: is_error_message() with normal responses", "[ui][error_detection]") {
-    // Normal OK responses
-    REQUIRE(is_error_message("ok") == false);
-    REQUIRE(is_error_message("// Klipper state: Ready") == false);
-    REQUIRE(is_error_message("B:60.0 /60.0 T0:210.0 /210.0") == false);
-
-    // Messages containing "error" but not at start
-    REQUIRE(is_error_message("No error detected") == false);
-    REQUIRE(is_error_message("G-code M112 for error stop") == false);
-}
-
-TEST_CASE("Console: is_error_message() with single character", "[ui][error_detection]") {
-    REQUIRE(is_error_message("!") == false); // Only one !, not two
-    REQUIRE(is_error_message("E") == false); // Not enough characters for "Error"
-}
-
-TEST_CASE("Console: is_error_message() with boundary cases", "[ui][error_detection]") {
-    REQUIRE(is_error_message("Err") == false);   // Too short for "Error"
-    REQUIRE(is_error_message("Erro") == false);  // Still too short
-    REQUIRE(is_error_message("Error") == true);  // Exactly "Error"
-    REQUIRE(is_error_message("Errorx") == true); // Starts with "Error"
-}
-
-// ============================================================================
-// Real-World Error Message Tests
-// ============================================================================
-
-TEST_CASE("Console: typical Klipper error messages", "[ui][error_detection]") {
-    // Real Klipper error message patterns
-    REQUIRE(is_error_message("!! Move out of range: 0.000 250.000 0.500 [0.000]") == true);
-    REQUIRE(is_error_message("!! Timer too close") == true);
-    REQUIRE(is_error_message("!! MCU 'mcu' shutdown: Timer too close") == true);
-    REQUIRE(is_error_message("Error: Bed heater not responding") == true);
-}
-
-TEST_CASE("Console: typical Klipper info messages", "[ui][error_detection]") {
-    // Normal Klipper messages that should NOT be flagged as errors
-    REQUIRE(is_error_message("// Klipper state: Ready") == false);
-    REQUIRE(is_error_message("// probe at 150.000,150.000 is z=1.234567") == false);
-    REQUIRE(is_error_message("echo: G28 homing completed") == false);
-    REQUIRE(is_error_message("Recv: ok") == false);
-}
-
-// ============================================================================
-// Temperature Message Detection Tests
-// ============================================================================
-
-TEST_CASE("Console: is_temp_message() with empty string", "[ui][temp_filter]") {
-    REQUIRE(is_temp_message("") == false);
-}
-
-TEST_CASE("Console: is_temp_message() with standard temp reports", "[ui][temp_filter]") {
-    // Standard Klipper temperature reports
-    REQUIRE(is_temp_message("T:210.0 /210.0 B:60.0 /60.0") == true);
-    REQUIRE(is_temp_message("ok T:210.5 /210.0 B:60.2 /60.0") == true);
-    REQUIRE(is_temp_message("B:60.0 /60.0 T0:210.0 /210.0") == true);
-    REQUIRE(is_temp_message("T0:200.0 /200.0 T1:0.0 /0.0 B:55.0 /55.0") == true);
-}
-
-TEST_CASE("Console: is_temp_message() with partial temp formats", "[ui][temp_filter]") {
-    // Partial formats that should still be detected
-    REQUIRE(is_temp_message("T:25.0 /0.0") == true); // Cold extruder
-    REQUIRE(is_temp_message("B:22.0 /0.0") == true); // Cold bed
-}
-
-TEST_CASE("Console: is_temp_message() with non-temp messages", "[ui][temp_filter]") {
-    // These should NOT be flagged as temperature messages
-    REQUIRE(is_temp_message("ok") == false);
-    REQUIRE(is_temp_message("// Klipper state: Ready") == false);
-    REQUIRE(is_temp_message("echo: G28 completed") == false);
-    REQUIRE(is_temp_message("!! Error: Heater failed") == false);
-    REQUIRE(is_temp_message("M104 S200") == false); // Temp command, not status
-    REQUIRE(is_temp_message("G28 X Y") == false);
-}
-
-TEST_CASE("Console: is_temp_message() edge cases", "[ui][temp_filter]") {
-    // Edge cases that look like temps but aren't
-    REQUIRE(is_temp_message("T:") == false);               // No value or slash
-    REQUIRE(is_temp_message("B:60") == false);             // No slash
-    REQUIRE(is_temp_message("Setting T: value") == false); // No digit after T:
-
-    // Edge cases that might have slashes but no temp
-    REQUIRE(is_temp_message("path/to/file") == false); // No T: or B:
-    REQUIRE(is_temp_message("50/50 complete") == false);
-}
-
-TEST_CASE("Console: is_temp_message() tightened heuristic rejects non-digit after T:/B:",
+TEST_CASE("Console: is_temp_message() needs a digit right after T: or B: and a slash",
           "[ui][temp_filter]") {
-    // These have T: or B: with "/" but no digit after the colon
-    // Old heuristic would match, new one correctly rejects
-    REQUIRE(is_temp_message("T: see docs/here") == false);
-    REQUIRE(is_temp_message("B: test/path") == false);
-    REQUIRE(is_temp_message("T: abc/def") == false);
-    REQUIRE(is_temp_message("Set T: to 200/250") == false); // space after T:
-
-    // These should still match (digit immediately follows colon)
-    REQUIRE(is_temp_message("T:0 /0") == true);
-    REQUIRE(is_temp_message("B:0.0 /0.0") == true);
-    REQUIRE(is_temp_message("ok T:25.3 /210.0") == true);
-}
-
-// ============================================================================
-// Timestamp Formatting Tests
-// ============================================================================
-
-#include <ctime>
-
-static std::string format_timestamp(double timestamp) {
-    time_t t;
-    if (timestamp > 0.0) {
-        t = static_cast<time_t>(timestamp);
-    } else {
-        t = std::time(nullptr);
+    for (const char* line :
+         {"T:210.0 /210.0 B:60.0 /60.0", "ok T:210.5 /210.0 B:60.2 /60.0",
+          "B:60.0 /60.0 T0:210.0 /210.0", "T0:200.0 /200.0 T1:0.0 /0.0 B:55.0 /55.0", "T:25.0 /0.0",
+          "B:22.0 /0.0", "T:0 /0", "B:0.0 /0.0", "ok T:25.3 /210.0"}) {
+        CAPTURE(line);
+        CHECK(is_temp_message(line));
     }
-    struct tm tm_buf {};
-    localtime_r(&t, &tm_buf);
-    char buf[12];
-    std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d ", tm_buf.tm_hour, tm_buf.tm_min,
-                  tm_buf.tm_sec);
-    return std::string(buf);
-}
-
-TEST_CASE("Console: format_timestamp() with known timestamp", "[ui][timestamp]") {
-    // Use a known UTC timestamp and convert to local time for comparison
-    // 2024-01-01 00:00:00 UTC = 1704067200
-    double ts = 1704067200.0;
-    std::string result = format_timestamp(ts);
-
-    // Should be in HH:MM:SS format with trailing space
-    REQUIRE(result.size() == 9); // "HH:MM:SS "
-    REQUIRE(result[2] == ':');
-    REQUIRE(result[5] == ':');
-    REQUIRE(result[8] == ' ');
-    // All characters should be digits or colons or space
-    for (size_t i = 0; i < 8; i++) {
-        REQUIRE((std::isdigit(result[i]) || result[i] == ':'));
+    for (const char* line :
+         {"", "ok", "// Klipper state: Ready", "echo: G28 completed", "!! Error: Heater failed",
+          "M104 S200", "G28 X Y", "T:", "B:60", "Setting T: value", "path/to/file",
+          "50/50 complete", "T: see docs/here", "B: test/path", "T: abc/def",
+          "Set T: to 200/250"}) {
+        CAPTURE(line);
+        CHECK_FALSE(is_temp_message(line));
     }
-}
-
-TEST_CASE("Console: format_timestamp() with zero uses current time", "[ui][timestamp]") {
-    std::string result = format_timestamp(0.0);
-
-    // Should produce valid format
-    REQUIRE(result.size() == 9);
-    REQUIRE(result[2] == ':');
-    REQUIRE(result[5] == ':');
-    REQUIRE(result[8] == ' ');
-
-    // Hour should be 00-23
-    int hour = std::stoi(result.substr(0, 2));
-    REQUIRE(hour >= 0);
-    REQUIRE(hour <= 23);
-
-    // Minute should be 00-59
-    int minute = std::stoi(result.substr(3, 2));
-    REQUIRE(minute >= 0);
-    REQUIRE(minute <= 59);
-
-    // Second should be 00-59
-    int second = std::stoi(result.substr(6, 2));
-    REQUIRE(second >= 0);
-    REQUIRE(second <= 59);
 }
 
 // ============================================================================
 // Command History Buffer Tests
 // ============================================================================
 
-TEST_CASE("Console: command history deque operations", "[ui][command_history]") {
-    std::deque<std::string> history;
-    constexpr size_t kMaxHistory = 20;
-
-    SECTION("push and recall") {
-        history.push_front("G28");
-        history.push_front("M104 S200");
-        history.push_front("G1 X10 Y10");
-
-        REQUIRE(history.size() == 3);
-        REQUIRE(history[0] == "G1 X10 Y10"); // Most recent
-        REQUIRE(history[1] == "M104 S200");
-        REQUIRE(history[2] == "G28"); // Oldest
-    }
-
-    SECTION("overflow at MAX_HISTORY") {
-        for (int i = 0; i < 25; i++) {
-            history.push_front("CMD_" + std::to_string(i));
-            if (history.size() > kMaxHistory) {
-                history.pop_back();
-            }
-        }
-
-        REQUIRE(history.size() == kMaxHistory);
-        REQUIRE(history[0] == "CMD_24"); // Most recent
-        // Oldest should be CMD_5 (0-4 were popped)
-        REQUIRE(history.back() == "CMD_5");
-    }
-
-    SECTION("up/down navigation simulation") {
-        history.push_front("G28");
-        history.push_front("M104 S200");
-        history.push_front("G1 X10");
-
-        int index = -1;
-        std::string saved_input = "partial";
-
-        // Up: save input, go to most recent
-        index = 0;
-        REQUIRE(history[static_cast<size_t>(index)] == "G1 X10");
-
-        // Up again: go to older
-        index = 1;
-        REQUIRE(history[static_cast<size_t>(index)] == "M104 S200");
-
-        // Up again: go to oldest
-        index = 2;
-        REQUIRE(history[static_cast<size_t>(index)] == "G28");
-
-        // Up again: should stay at 2 (bounds check)
-        int next = index + 1;
-        REQUIRE(next >= static_cast<int>(history.size()));
-        // Index stays at 2
-
-        // Down: go to newer
-        index = 1;
-        REQUIRE(history[static_cast<size_t>(index)] == "M104 S200");
-
-        // Down: go to most recent
-        index = 0;
-        REQUIRE(history[static_cast<size_t>(index)] == "G1 X10");
-
-        // Down: restore saved input
-        index = -1;
-        REQUIRE(saved_input == "partial");
-    }
+TEST_CASE("Console: Up and Down walk the history cursor and stop at its ends",
+          "[ui][command_history]") {
+    const auto step = &ConsolePanel::next_history_index;
+    // From the typed input (-1), Up reaches the newest command, then older ones.
+    CHECK(step(-1, 3, LV_KEY_UP) == 0);
+    CHECK(step(1, 3, LV_KEY_UP) == 2);
+    CHECK(step(2, 3, LV_KEY_UP) == std::nullopt);  // the oldest
+    CHECK(step(-1, 0, LV_KEY_UP) == std::nullopt); // no history
+    // Down returns toward the typed input and stops there.
+    CHECK(step(2, 3, LV_KEY_DOWN) == 1);
+    CHECK(step(0, 3, LV_KEY_DOWN) == -1);
+    CHECK(step(-1, 3, LV_KEY_DOWN) == std::nullopt);
+    CHECK(step(0, 3, LV_KEY_ENTER) == std::nullopt);
 }
 
 // ============================================================================
