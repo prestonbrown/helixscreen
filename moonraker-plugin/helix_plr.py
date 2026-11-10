@@ -1195,8 +1195,11 @@ class HelixPlr:
         self.klippy_ready = True
         self._klippy_generation += 1
         self.gantry_settings = None
+        # The guard is decided from this ready's own read: a superseded
+        # ready's write to gantry_settings can land during these awaits.
+        settings = None  # type: Optional[Dict[str, Any]]
         try:
-            await self._refresh_homing()
+            settings = await self._refresh_homing()
         except Exception as e:
             logging.warning("HelixPrint: PLR could not read the homing config: %s", e)
         try:
@@ -1207,9 +1210,9 @@ class HelixPlr:
         self.status = {}
         self._merge(status)
         await self._detect_qidi(apis)
-        if self.gantry_settings is None:
+        if settings is None:
             return GUARD_UNREAD
-        return unlisted_guard(self.gantry_settings, self.status, self.qidi is not None)
+        return unlisted_guard(settings, self.status, self.qidi is not None)
 
     def _set_guard(self, guard: Optional[str]) -> bool:
         """Apply `guard`; True when it changed. The saving switch's cached
@@ -1261,11 +1264,15 @@ class HelixPlr:
         value, read_at = self._switch
         now = self.clock()
         if now - read_at >= SWITCH_CACHE_S:
+            guard = self.guard
             value = await self.saving_enabled() and self.availability()[0]
             profile = await self.profile()
             self._macro_vars = profile.macro_vars
             self._active_backend = self.backend(profile)[0]
-            self._switch = (value, now)
+            # A guard that changed during the awaits reset the cache; an answer
+            # decided under the old one is not kept.
+            if self.guard == guard:
+                self._switch = (value, now)
         return value
 
     async def on_status_update(self, status: Dict[str, Any], *args: Any) -> None:
@@ -1702,7 +1709,9 @@ class HelixPlr:
             raise self._error("plr_klippy_error", str(e), 503)
         return result if isinstance(result, dict) else {}
 
-    async def _refresh_homing(self) -> None:
+    async def _refresh_homing(self) -> Optional[Dict[str, Any]]:
+        """Read the homing, axis and mesh config; returns configfile's
+        settings, or None when Klipper gave none."""
         status = await self._query({"configfile": ["settings"],
                                     "toolhead": ["axis_minimum", "axis_maximum"]})
         settings = _obj(status, "configfile").get("settings")
@@ -1724,6 +1733,7 @@ class HelixPlr:
         sy = settings.get("stepper_y") if isinstance(settings.get("stepper_y"), dict) else {}
         px, py = _num(sx.get("position_endstop")), _num(sy.get("position_endstop"))
         self.park_xy = (px, py) if px is not None and py is not None else None
+        return self.gantry_settings
 
     async def _newest_job_status(self, newest: Optional[Dict[str, Any]]) -> Optional[str]:
         if not newest:
