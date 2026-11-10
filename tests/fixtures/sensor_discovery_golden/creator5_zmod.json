@@ -65,6 +65,8 @@
       "zmod",
       "zmod_color",
       "save_variables",
+      "output_pin enable_pin_tmc_x",
+      "output_pin enable_pin_tmc_y",
       "zmod_afclite",
       "AFC",
       "AFC_unit C5",
