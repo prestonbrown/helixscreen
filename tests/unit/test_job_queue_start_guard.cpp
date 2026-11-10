@@ -748,3 +748,36 @@ TEST_CASE_METHOD(helix::test::QueuedStartMockedFixture,
     CHECK_FALSE(helix::queue::queued_job_starter().in_flight());
     CHECK(starts() == 0);
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "the job queue modal's state line and empty state follow the queue",
+                 "[job_queue]") {
+    JobQueueState jqs{nullptr, nullptr};
+    helix::ScopedJobQueueSubjects subject_guard;
+    jqs.init_subjects();
+    auto* modal = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "job_queue_modal", nullptr));
+    REQUIRE(modal != nullptr);
+    auto shown = [modal](const char* name) {
+        return !lv_obj_has_flag(lv_obj_find_by_name(modal, name), LV_OBJ_FLAG_HIDDEN);
+    };
+    auto set = [](const char* subject, int v) {
+        lv_subject_set_int(lv_xml_get_subject(nullptr, subject), v);
+    };
+
+    set("job_queue_count", 0);
+    set("job_queue_run_state", static_cast<int>(helix::QueueRunState::Ready));
+    CHECK(shown("modal_empty_state"));
+    CHECK(shown("queue_state_label"));
+    CHECK_FALSE(shown("queue_paused_label"));
+    CHECK(shown("btn_toggle_queue"));
+    CHECK_FALSE(shown("btn_start_queue"));
+
+    set("job_queue_count", 2);
+    set("job_queue_run_state", static_cast<int>(helix::QueueRunState::Paused));
+    CHECK_FALSE(shown("modal_empty_state"));
+    CHECK_FALSE(shown("queue_state_label"));
+    CHECK(shown("queue_paused_label"));
+    CHECK_FALSE(shown("btn_toggle_queue"));
+    CHECK(shown("btn_start_queue"));
+    lv_obj_delete(modal);
+}

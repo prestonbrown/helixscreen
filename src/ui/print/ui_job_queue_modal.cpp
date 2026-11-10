@@ -3,7 +3,6 @@
 
 #include "ui_job_queue_modal.h"
 
-#include "ui_button.h"
 #include "ui_error_reporting.h"
 #include "ui_panel_print_select.h"
 #include "ui_row_text.h"
@@ -143,7 +142,6 @@ void JobQueueModal::on_show() {
                         self->list_rebuild_pending_ = false;
                         if (self->is_visible()) {
                             self->populate_job_list();
-                            self->update_queue_state_ui();
                         }
                     });
                 }
@@ -152,7 +150,6 @@ void JobQueueModal::on_show() {
     }
 
     populate_job_list();
-    update_queue_state_ui();
 }
 
 void JobQueueModal::on_hide() {
@@ -165,28 +162,9 @@ void JobQueueModal::on_ok() {
     hide();
 }
 
-void JobQueueModal::update_queue_state_ui() {
-    auto* state_label = find_widget("queue_state_label");
-    auto* toggle_btn = find_widget("btn_toggle_queue");
-    if (!state_label)
-        return;
-
-    auto* jqs = get_job_queue_state();
-    if (!jqs)
-        return;
-
-    const bool is_paused = jqs->run_state() == helix::QueueRunState::Paused;
-
-    // Whole strings, not "Queue: %s" over an untranslated state word.
-    lv_label_set_text(state_label, is_paused ? lv_tr("Queue: Paused") : lv_tr("Queue: Ready"));
-    if (toggle_btn) {
-        ui_button_set_text(toggle_btn, is_paused ? lv_tr("Start") : lv_tr("Pause"));
-    }
-}
-
 void JobQueueModal::populate_job_list() {
+    // modal_empty_state binds job_queue_count.
     auto* list = find_widget("modal_job_list");
-    auto* empty_state = find_widget("modal_empty_state");
     if (!list)
         return;
 
@@ -195,14 +173,7 @@ void JobQueueModal::populate_job_list() {
 
     auto* jqs = get_job_queue_state();
     if (!jqs || !jqs->is_loaded() || jqs->get_jobs().empty()) {
-        if (empty_state) {
-            lv_obj_remove_flag(empty_state, LV_OBJ_FLAG_HIDDEN);
-        }
         return;
-    }
-
-    if (empty_state) {
-        lv_obj_add_flag(empty_state, LV_OBJ_FLAG_HIDDEN);
     }
 
     const auto& jobs = jqs->get_jobs();
@@ -270,7 +241,6 @@ void JobQueueModal::toggle_queue() {
             auto* jqs2 = get_job_queue_state();
             if (jqs2)
                 jqs2->fetch();
-            update_queue_state_ui();
         });
     };
 

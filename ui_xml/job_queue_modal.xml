@@ -31,8 +31,19 @@
             height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_sm"
             style_pad_bottom="#space_sm" style_bg_opa="0%" style_border_width="0" flex_flow="row"
             style_flex_main_place="space_between" style_flex_cross_place="center" clickable="false" scrollable="false">
-      <text_muted name="queue_state_label" text="Queue: Ready"/>
+      <!-- job_queue_run_state 3 is QueueRunState::Paused -->
+      <text_muted name="queue_state_label" text="Queue: Ready">
+        <bind_flag_if_eq subject="job_queue_run_state" flag="hidden" ref_value="3"/>
+      </text_muted>
+      <text_muted name="queue_paused_label" text="Queue: Paused">
+        <bind_flag_if_not_eq subject="job_queue_run_state" flag="hidden" ref_value="3"/>
+      </text_muted>
       <ui_button name="btn_toggle_queue" height="#button_height_sm" text="Pause" variant="primary">
+        <bind_flag_if_eq subject="job_queue_run_state" flag="hidden" ref_value="3"/>
+        <event_cb trigger="clicked" callback="on_jq_modal_toggle_queue"/>
+      </ui_button>
+      <ui_button name="btn_start_queue" height="#button_height_sm" text="Start" variant="primary">
+        <bind_flag_if_not_eq subject="job_queue_run_state" flag="hidden" ref_value="3"/>
         <event_cb trigger="clicked" callback="on_jq_modal_toggle_queue"/>
       </ui_button>
     </lv_obj>
@@ -46,6 +57,8 @@
     <!-- Empty state -->
     <text_muted name="modal_empty_state"
                 width="100%" text="No jobs in queue" style_text_align="center" style_pad_top="#space_md"
-                style_pad_bottom="#space_md" hidden="true"/>
+                style_pad_bottom="#space_md">
+      <bind_flag_if_not_eq subject="job_queue_count" flag="hidden" ref_value="0"/>
+    </text_muted>
   </view>
 </component>
