@@ -50,30 +50,46 @@ bool ColorPicker::callbacks_registered_ = false;
 
 namespace {
 
-// Drives the <if cond="color_picker_palette eq 1"> in color_picker.xml, which
-// builds either the general or the theme preset grid — never both. Process-wide
-// rather than per-instance: only one picker is visible at a time, and the XML
-// name must outlive any individual ColorPicker (the LED overlay holds a static
-// one, the theme editor a unique_ptr).
+// The picker's view state, bound by color_picker.xml: color_picker_palette
+// drives the <if cond="color_picker_palette eq 1"> that builds either the general
+// or the theme preset grid, never both; color_picker_custom_tab picks the MICRO/TINY
+// tab (0 Presets, 1 Custom); color_picker_hex_invalid tints the hex field while it
+// does not parse. Process-wide rather than per-instance: only one picker is
+// visible at a time, and the XML names must outlive any individual ColorPicker
+// (the LED overlay holds a static one, the theme editor a unique_ptr).
 lv_subject_t s_palette_subject{};
-bool s_palette_subject_ready = false;
+lv_subject_t s_custom_tab_subject{};
+lv_subject_t s_hex_invalid_subject{};
+bool s_view_subjects_ready = false;
 
-void ensure_palette_subject() {
-    if (s_palette_subject_ready) {
+void ensure_view_subjects() {
+    if (s_view_subjects_ready) {
         return;
     }
     lv_subject_init_int(&s_palette_subject, static_cast<int>(ColorPicker::Palette::General));
     lv_xml_register_subject(nullptr, "color_picker_palette", &s_palette_subject);
-    s_palette_subject_ready = true;
+    lv_subject_init_int(&s_custom_tab_subject, 0);
+    lv_xml_register_subject(nullptr, "color_picker_custom_tab", &s_custom_tab_subject);
+    lv_subject_init_int(&s_hex_invalid_subject, 0);
+    lv_xml_register_subject(nullptr, "color_picker_hex_invalid", &s_hex_invalid_subject);
+    s_view_subjects_ready = true;
 
-    // Self-register cleanup so the subject is torn down before lv_deinit().
+    // Self-register cleanup so the subjects are torn down before lv_deinit().
     StaticSubjectRegistry::instance().register_deinit("ColorPickerPalette", []() {
-        if (s_palette_subject_ready) {
+        if (s_view_subjects_ready) {
             lv_xml_unregister_subject(nullptr, "color_picker_palette");
+            lv_xml_unregister_subject(nullptr, "color_picker_custom_tab");
+            lv_xml_unregister_subject(nullptr, "color_picker_hex_invalid");
             lv_subject_deinit(&s_palette_subject);
-            s_palette_subject_ready = false;
+            lv_subject_deinit(&s_custom_tab_subject);
+            lv_subject_deinit(&s_hex_invalid_subject);
+            s_view_subjects_ready = false;
         }
     });
+}
+
+void set_hex_invalid(bool invalid) {
+    lv_subject_set_int(&s_hex_invalid_subject, invalid ? 1 : 0);
 }
 
 lv_subject_t s_selected_swatch_subject{};
@@ -189,9 +205,11 @@ bool ColorPicker::show_with_color(lv_obj_t* parent, uint32_t initial_color) {
 
     // Select the preset grid BEFORE Modal::show() builds the tree — the <if>
     // in color_picker.xml reads this subject as it constructs the view.
-    ensure_palette_subject();
+    ensure_view_subjects();
     ensure_swatch_grid_subjects();
     lv_subject_set_int(&s_palette_subject, static_cast<int>(palette_));
+    lv_subject_set_int(&s_custom_tab_subject, 0);
+    set_hex_invalid(false);
 
     // Show the modal via Modal
     if (!Modal::show(parent)) {
@@ -254,12 +272,6 @@ void ColorPicker::on_show() {
         lv_obj_set_size(dialog_, LV_PCT(100), LV_PCT(100));
         lv_obj_set_style_radius(dialog_, 0, 0);
 
-        // Find TINY-specific containers
-        presets_content_ = find_widget("presets_content");
-        custom_content_ = find_widget("custom_content");
-        btn_tab_presets_ = find_widget("btn_tab_presets");
-        btn_tab_custom_ = find_widget("btn_tab_custom");
-
         // Wire up TINY-mode HSV picker
         if (hsv_picker_tiny_) {
             ui_hsv_picker_set_color_rgb(hsv_picker_tiny_, selected_color_);
@@ -308,10 +320,6 @@ void ColorPicker::on_hide() {
     hsv_picker_tiny_ = nullptr;
     name_label_ = nullptr;
     name_label_tiny_ = nullptr;
-    presets_content_ = nullptr;
-    custom_content_ = nullptr;
-    btn_tab_presets_ = nullptr;
-    btn_tab_custom_ = nullptr;
     is_tiny_mode_ = false;
 
     // Call dismiss callback if set (fires on any close - select, cancel, or backdrop)
@@ -372,16 +380,14 @@ void ColorPicker::update_preview(uint32_t color_rgb, bool from_hsv_picker, bool 
     // Update hex input (unless change came from hex input itself)
     if (!from_hex_input) {
         snprintf(hex_buf_, sizeof(hex_buf_), "#%06X", color_rgb);
-        auto text_color = theme_manager_get_color("text");
+        set_hex_invalid(false);
         if (hex_input_) {
             hex_input_updating_ = true;
             lv_textarea_set_text(hex_input_, hex_buf_);
-            lv_obj_set_style_text_color(hex_input_, text_color, LV_PART_MAIN);
             hex_input_updating_ = false;
         }
         if (hex_input_tiny_ && hex_input_tiny_ != hex_input_) {
             lv_textarea_set_text(hex_input_tiny_, hex_buf_);
-            lv_obj_set_style_text_color(hex_input_tiny_, text_color, LV_PART_MAIN);
         }
     }
 
@@ -444,13 +450,10 @@ void ColorPicker::handle_hex_input_changed() {
     const char* text = lv_textarea_get_text(hex_input_);
     uint32_t parsed_color;
 
-    if (helix::parse_hex_color(text, parsed_color)) {
-        // Valid - normal text color, update preview
-        lv_obj_set_style_text_color(hex_input_, theme_manager_get_color("text"), LV_PART_MAIN);
+    const bool valid = helix::parse_hex_color(text, parsed_color);
+    set_hex_invalid(!valid);
+    if (valid) {
         update_preview(parsed_color, false, true); // from_hex_input=true
-    } else {
-        // Invalid - show error color
-        lv_obj_set_style_text_color(hex_input_, theme_manager_get_color("danger"), LV_PART_MAIN);
     }
 }
 
@@ -467,7 +470,7 @@ void ColorPicker::handle_hex_input_defocused() {
         hex_input_updating_ = true;
         snprintf(hex_buf_, sizeof(hex_buf_), "#%06X", selected_color_);
         lv_textarea_set_text(hex_input_, hex_buf_);
-        lv_obj_set_style_text_color(hex_input_, theme_manager_get_color("text"), LV_PART_MAIN);
+        set_hex_invalid(false);
         hex_input_updating_ = false;
     }
 }
@@ -538,43 +541,8 @@ void ColorPicker::register_callbacks() {
 void ColorPicker::switch_tab(bool show_custom) {
     if (!is_tiny_mode_)
         return;
-
-    if (presets_content_) {
-        if (show_custom)
-            lv_obj_add_flag(presets_content_, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_remove_flag(presets_content_, LV_OBJ_FLAG_HIDDEN);
-    }
-    if (custom_content_) {
-        if (show_custom)
-            lv_obj_remove_flag(custom_content_, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_add_flag(custom_content_, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    // Style active tab as a filled segmented-control pill; matches the
-    // extrude_length_btn_selected pattern (primary fill / text-on-primary).
-    const auto primary = theme_manager_get_color("primary");
-    const auto text = theme_manager_get_color("text");
-    const auto text_muted = theme_manager_get_color("text_muted");
-
-    auto apply_tab_style = [&](lv_obj_t* btn, bool active) {
-        if (!btn) {
-            return;
-        }
-        if (active) {
-            lv_obj_set_style_bg_color(btn, primary, LV_PART_MAIN);
-            lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
-            lv_obj_set_style_text_color(
-                btn, theme_manager_get_contrast_adjusted_text(text, primary), LV_PART_MAIN);
-        } else {
-            lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
-            lv_obj_set_style_text_color(btn, text_muted, LV_PART_MAIN);
-        }
-    };
-
-    apply_tab_style(btn_tab_presets_, !show_custom);
-    apply_tab_style(btn_tab_custom_, show_custom);
+    // The tab contents and the tab pills bind color_picker_custom_tab.
+    lv_subject_set_int(&s_custom_tab_subject, show_custom ? 1 : 0);
 }
 
 // ============================================================================

@@ -83,15 +83,16 @@ static bool is_walker_replaced_style(const lv_style_t* style) {
 
 /// True when `prop` at `selector` comes from a style someone chose for `obj`:
 /// a bound style, a component <style> or one added from C++. Checked for a
-/// label's text color and a button's bg and border colors. A local value, an
+/// label's or text field's text color and a button's bg and border colors. A local value, an
 /// LVGL theme style and is_walker_replaced_style() do not count; those are
 /// what the walker is there to replace.
 static bool color_from_chosen_style(lv_obj_t* obj, lv_style_prop_t prop,
                                     lv_style_selector_t selector) {
-    const bool applies = prop == LV_STYLE_TEXT_COLOR
-                             ? lv_obj_check_type(obj, &lv_label_class)
-                             : (prop == LV_STYLE_BG_COLOR || prop == LV_STYLE_BORDER_COLOR) &&
-                                   lv_obj_check_type(obj, &lv_button_class);
+    const bool applies =
+        prop == LV_STYLE_TEXT_COLOR
+            ? lv_obj_check_type(obj, &lv_label_class) || lv_obj_check_type(obj, &lv_textarea_class)
+            : (prop == LV_STYLE_BG_COLOR || prop == LV_STYLE_BORDER_COLOR) &&
+                  lv_obj_check_type(obj, &lv_button_class);
     if (!applies)
         return false;
     for (uint32_t i = 0; i < obj->style_cnt; i++) {
