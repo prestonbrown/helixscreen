@@ -214,7 +214,8 @@
           <!-- Extruder selector (shown when multiple extruders detected) -->
           <lv_obj name="extruder_selector_row"
                   width="100%" height="content" style_pad_all="0" scrollable="false" style_border_opa="0"
-                  flex_flow="row" style_pad_gap="#tg_picker_gap" style_flex_main_place="center" hidden="true">
+                  flex_flow="row" style_pad_gap="#tg_picker_gap" style_flex_main_place="center">
+            <bind_flag_if_eq subject="temp_graph_multi_extruder" flag="hidden" ref_value="0"/>
             <!-- Populated programmatically in C++ -->
           </lv_obj>
           <!-- Spacer -->
@@ -322,7 +323,8 @@
                   style_border_opa="0">
             <lv_obj name="extruder_selector_row"
                     width="100%" height="content" style_pad_all="0" scrollable="false" style_border_opa="0"
-                    flex_flow="row" style_pad_gap="#space_xs" style_flex_main_place="center" hidden="true">
+                    flex_flow="row" style_pad_gap="#space_xs" style_flex_main_place="center">
+              <bind_flag_if_eq subject="temp_graph_multi_extruder" flag="hidden" ref_value="0"/>
               <!-- Populated programmatically in C++ -->
             </lv_obj>
             <lv_obj name="nozzle_preset_grid"
@@ -682,9 +684,11 @@
             <ui_button name="chamber_preset_off"
                        width="48%" height="100%" text="Off" variant="ghost" style_border_width="#border_width"
                        style_border_color="#border" style_border_opa="255">
+              <bind_flag_if_eq subject="temp_graph_chamber_preset_0_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
             <ui_button name="chamber_preset_1" width="48%" height="100%" text="40°C">
+              <bind_flag_if_eq subject="temp_graph_chamber_preset_1_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
           </lv_obj>
@@ -693,9 +697,11 @@
                   style_flex_main_place="space_between" style_pad_gap="#space_xs">
             <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
             <ui_button name="chamber_preset_2" width="48%" height="100%" text="50°C">
+              <bind_flag_if_eq subject="temp_graph_chamber_preset_2_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
             <ui_button name="chamber_preset_3" width="48%" height="100%" text="60°C">
+              <bind_flag_if_eq subject="temp_graph_chamber_preset_3_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
           </lv_obj>
@@ -805,15 +811,19 @@
             <ui_button name="chamber_preset_off"
                        height="#button_height" flex_grow="1" text="Off" variant="ghost"
                        style_border_width="#border_width" style_border_color="#border" style_border_opa="255">
+              <bind_flag_if_eq subject="temp_graph_chamber_preset_0_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
             <ui_button name="chamber_preset_1" height="#button_height" flex_grow="1" text="40°C">
+              <bind_flag_if_eq subject="temp_graph_chamber_preset_1_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
             <ui_button name="chamber_preset_2" height="#button_height" flex_grow="1" text="50°C">
+              <bind_flag_if_eq subject="temp_graph_chamber_preset_2_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
             <ui_button name="chamber_preset_3" height="#button_height" flex_grow="1" text="60°C">
+              <bind_flag_if_eq subject="temp_graph_chamber_preset_3_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
           </lv_obj>

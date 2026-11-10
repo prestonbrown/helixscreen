@@ -186,7 +186,7 @@ class TempGraphOverlay : public OverlayBase {
     lv_obj_t* nozzle_strip_ = nullptr;
     lv_obj_t* bed_strip_ = nullptr;
     lv_obj_t* chamber_strip_ = nullptr;
-    lv_obj_t* extruder_selector_row_ = nullptr;
+    lv_obj_t* extruder_selector_row_ = nullptr; ///< Its buttons are built in C++
     std::vector<SeriesInfo> series_;
 
     // Thermal tint for the largest heater glyphs in the product (size="xl", one
@@ -236,6 +236,11 @@ class TempGraphOverlay : public OverlayBase {
     lv_subject_t nozzle_card_status_state_subject_{};
     lv_subject_t nozzle_card_status_subject_{};
     char nozzle_card_status_buffer_[16]{};
+
+    /// 1 when the nozzle strip shows its extruder selector (several extruders).
+    lv_subject_t multi_extruder_subject_{};
+    /// Per chamber preset (Off, 1-3): 1 while the configured ceiling allows it.
+    lv_subject_t chamber_preset_visible_subjects_[4]{};
     /// Last power reading (whole percent, -1 unknown) from the displayed
     /// extruder's power subject.
     int nozzle_card_power_ = -1;
