@@ -64,7 +64,7 @@
       <lv_obj name="tour_buttons"
               width="content" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row"
               style_pad_gap="#space_sm">
-        <!-- The callbacks reach the overlay on screen (TourOverlay::on_*_cb) -->
+        <!-- The callbacks find their overlay through its root (TourOverlay::on_*_cb) -->
         <ui_button name="tour_skip_btn" variant="ghost" text="Skip">
           <event_cb trigger="clicked" callback="on_tour_skip"/>
         </ui_button>

@@ -35,8 +35,15 @@ inline int tooltip_margin() {
     return theme_manager_get_spacing("space_sm");
 }
 
-/// The overlay on screen, which the card's XML button callbacks reach.
-TourOverlay* s_active = nullptr;
+/// The overlay a card button belongs to: its root sits on lv_layer_top() and
+/// carries the overlay as user data.
+TourOverlay* overlay_of(lv_event_t* e) {
+    auto* obj = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    while (obj && lv_obj_get_parent(obj) != lv_layer_top()) {
+        obj = lv_obj_get_parent(obj);
+    }
+    return obj ? static_cast<TourOverlay*>(lv_obj_get_user_data(obj)) : nullptr;
+}
 } // namespace
 
 TourOverlay::TourOverlay(std::vector<TourStep> steps, AdvanceCb on_next, SkipCb on_skip)
@@ -52,14 +59,10 @@ TourOverlay::TourOverlay(std::vector<TourStep> steps, AdvanceCb on_next, SkipCb 
     subjects_.publish("tour_next_text", &next_text_subject_);
     lv_xml_register_event_cb(nullptr, "on_tour_skip", on_skip_cb);
     lv_xml_register_event_cb(nullptr, "on_tour_next", on_next_cb);
-    s_active = this;
     build_tree();
 }
 
 TourOverlay::~TourOverlay() {
-    if (s_active == this) {
-        s_active = nullptr;
-    }
     if (root_) {
         lv_obj_delete(root_); // full-screen overlay, not owned by any panel
         root_ = nullptr;
@@ -75,6 +78,7 @@ void TourOverlay::build_tree() {
     const int screen_h = lv_display_get_vertical_resolution(nullptr);
 
     root_ = lv_obj_create(top);
+    lv_obj_set_user_data(root_, this); // the card buttons find their overlay here
     lv_obj_set_pos(root_, 0, 0);
     lv_obj_set_size(root_, screen_w, screen_h);
     lv_obj_set_style_bg_opa(root_, 0, 0);
@@ -122,15 +126,15 @@ void TourOverlay::build_tree() {
     lv_obj_update_layout(tooltip_);
 }
 
-void TourOverlay::on_skip_cb(lv_event_t* /*e*/) {
-    TourOverlay* self = s_active;
+void TourOverlay::on_skip_cb(lv_event_t* e) {
+    TourOverlay* self = overlay_of(e);
     if (!self || !self->on_skip_cb_)
         return;
     self->on_skip_cb_();
 }
 
-void TourOverlay::on_next_cb(lv_event_t* /*e*/) {
-    TourOverlay* self = s_active;
+void TourOverlay::on_next_cb(lv_event_t* e) {
+    TourOverlay* self = overlay_of(e);
     if (!self || !self->on_next_cb_)
         return;
     self->on_next_cb_();
