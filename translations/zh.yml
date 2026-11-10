@@ -174,7 +174,8 @@ translations:
   "A new Print Status screen": "全新的打印状态屏幕"
   A newer version of the helper macros is available: '有更新版本的帮助宏可用'
   A picture of your printer: 打印机的图片
-  A pressure advance run was interrupted. The X/Y drivers were released; home the printer before moving it.: '压力提前测量被中断。X/Y 驱动已释放；移动打印机前请先归位。'
+  ? A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it.
+  : '压力提前测量被中断。X/Y 驱动已释放，运动限制和压力提前已恢复；移动打印机前请先归位。'
   A print holds the printer.: "打印任务正在占用打印机。"
   A print is already running.: 已有打印正在进行。
   A print is in progress - restart still pending: '打印进行中 - 重启待执行'

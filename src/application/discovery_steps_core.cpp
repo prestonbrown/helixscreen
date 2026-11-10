@@ -99,33 +99,22 @@ void zoffset_persistence_step(DiscoveryContext& ctx) {
 // Undo what an interrupted pressure-advance run left on the printer. A run this
 // app drives can change printer state that only its own restore puts back (the
 // stock FlashForge sweep disables the X/Y drivers), and a crash or a lost link
-// skips that restore. What to look for and what to send live behind
-// pacal::recovery_gcode() in include/pa_calibration_run.h.
+// skips that restore. What to look for, how to tell a stale change from a live
+// run, and what to send live behind pacal::check_interrupted_run().
 void pa_run_recovery_step(DiscoveryContext& ctx) {
     if (ctx.print_active) {
         return;
     }
-    const std::string fix = pacal::recovery_gcode(ctx.hw, ctx.status);
-    if (fix.empty()) {
-        return;
-    }
-    spdlog::warn("[PACalibration] An interrupted run left the printer changed; undoing it");
-    ctx.api.execute_gcode(
-        fix,
+    pacal::check_interrupted_run(
+        ctx.hw, []() -> IMoonrakerAPI* { return get_moonraker_api(); },
         []() {
-            ui::queue_update("discovery_steps::pa_run_recovery_step", []() {
-                ToastManager::instance().show(
-                    ToastSeverity::WARNING,
-                    lv_tr("A pressure advance run was interrupted. The X/Y drivers were "
-                          "released; home the printer before moving it."),
-                    8000);
-            });
-        },
-        [](const MoonrakerError& err) {
-            spdlog::error("[PACalibration] Undoing the interrupted run failed: {}", err.message);
-        },
-        0, /*silent=*/true, /*on_queued=*/nullptr,
-        /*caller_surfaces_errors=*/false);
+            ToastManager::instance().show(
+                ToastSeverity::WARNING,
+                lv_tr("A pressure advance run was interrupted. The X/Y drivers were released and "
+                      "the motion limits and pressure advance reset; home the printer before "
+                      "moving it."),
+                8000);
+        });
 }
 
 // Seed temperature graphs from Moonraker's cached history. Fired after init_fans so

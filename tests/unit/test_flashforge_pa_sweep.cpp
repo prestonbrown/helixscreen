@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix::flashforge::pa_sweep;
 using Catch::Approx;
@@ -29,6 +30,8 @@ Sweep sweep_at_first_line(int tool = 0, Snapshot snap = homed_snapshot()) {
     Step st = s.next();
     if (st.phase == Phase::Home) {
         s.step_done();
+        REQUIRE(s.next().phase == Phase::ReadZ);
+        s.on_z(snap.gcode_z);
         st = s.next();
     }
     REQUIRE(st.phase == Phase::Prologue);
@@ -38,6 +41,15 @@ Sweep sweep_at_first_line(int tool = 0, Snapshot snap = homed_snapshot()) {
     REQUIRE(s.next().phase == Phase::Latch);
     s.step_done();
     return s;
+}
+
+/// After the last line: the homed check, then the restore it leads to.
+Step to_restore(Sweep& s, bool homed = true) {
+    const Step check = s.next();
+    REQUIRE(check.phase == Phase::CheckHomed);
+    REQUIRE(check.script.empty());
+    s.on_homed(homed);
+    return s.next();
 }
 
 /// Feed one whole sweep of verdicts, one per candidate in candidate order.
@@ -63,6 +75,8 @@ TEST_CASE("PA sweep homes first only when the printer is not homed", "[pa_sweep]
     REQUIRE(home.phase == Phase::Home);
     REQUIRE(home.script == "G28");
     s.step_done();
+    REQUIRE(s.next().phase == Phase::ReadZ);
+    s.on_z(2.f);
     REQUIRE(s.next().phase == Phase::Prologue);
 
     Sweep homed(Config{}, 0, "extruder", homed_snapshot());
@@ -97,13 +111,6 @@ TEST_CASE("PA sweep parks before it latches the X/Y drivers", "[pa_sweep]") {
     REQUIRE(pos_of(latch.script, "SET_PIN PIN=enable_pin_tmc_x VALUE=1.00") != std::string::npos);
     REQUIRE(pos_of(latch.script, "SET_PIN PIN=enable_pin_tmc_y VALUE=1.00") != std::string::npos);
     REQUIRE(s.latched());
-}
-
-TEST_CASE("PA sweep never lowers Z to the line height", "[pa_sweep]") {
-    Snapshot snap = homed_snapshot();
-    snap.gcode_z = 20.f;
-    Sweep s(Config{}, 0, "extruder", snap);
-    REQUIRE(pos_of(s.next().script, "G1 Z") == std::string::npos);
 }
 
 TEST_CASE("PA sweep parks each tool at its own chute offset", "[pa_sweep]") {
@@ -158,7 +165,7 @@ TEST_CASE("PA sweep takes the smallest pass per sweep and the mean of three", "[
     REQUIRE_FALSE(s.result().has_value());
     run_sweep(s, {0, 0, 0, 0, 9, 9, 0}); // 0.025 0.030 -> 0.025
     // Three winners end the run without a fourth sweep.
-    const Step restore = s.next();
+    const Step restore = to_restore(s);
     REQUIRE(restore.phase == Phase::Restore);
     REQUIRE(s.result().has_value());
     REQUIRE(*s.result() == Approx((0.020f + 0.015f + 0.025f) / 3.f));
@@ -171,7 +178,7 @@ TEST_CASE("PA sweep skips a sweep with no pass and keeps going", "[pa_sweep]") {
     run_sweep(s, {0, 9, 0, 0, 0, 0, 0});
     run_sweep(s, {0, 9, 0, 0, 0, 0, 0});
     run_sweep(s, {0, 9, 0, 0, 0, 0, 0});
-    REQUIRE(s.next().phase == Phase::Restore);
+    REQUIRE(to_restore(s).phase == Phase::Restore);
     REQUIRE(*s.result() == Approx(0.020f));
     REQUIRE(s.lines_done() == 28);
 }
@@ -183,7 +190,7 @@ TEST_CASE("PA sweep fails after five sweeps with fewer than three winners", "[pa
     run_sweep(s, {0, 0, 0, 0, 0, 0, 0});
     run_sweep(s, {0, 0, 0, 3, 0, 0, 0});
     run_sweep(s, {0, 9, 0, 0, 0, 0, 0});
-    REQUIRE(s.next().phase == Phase::Restore);
+    REQUIRE(to_restore(s).phase == Phase::Restore);
     REQUIRE_FALSE(s.result().has_value());
     REQUIRE(s.failure() == Failure::TooFewWinners);
 }
@@ -194,7 +201,7 @@ TEST_CASE("PA sweep refuses a run where every line got the same verdict", "[pa_s
         for (int i = 0; i < 3; ++i) {
             run_sweep(s, {9, 9, 9, 9, 9, 9, 9});
         }
-        REQUIRE(s.next().phase == Phase::Restore);
+        REQUIRE(to_restore(s).phase == Phase::Restore);
         REQUIRE_FALSE(s.result().has_value());
         REQUIRE(s.failure() == Failure::NoDiscrimination);
     }
@@ -203,37 +210,39 @@ TEST_CASE("PA sweep refuses a run where every line got the same verdict", "[pa_s
         for (int i = 0; i < 5; ++i) {
             run_sweep(s, {0, 0, 0, 0, 0, 0, 0});
         }
-        REQUIRE(s.next().phase == Phase::Restore);
+        REQUIRE(to_restore(s).phase == Phase::Restore);
         REQUIRE(s.failure() == Failure::NoDiscrimination);
     }
 }
 
-TEST_CASE("PA sweep restore releases the latch before replaying the position", "[pa_sweep]") {
+TEST_CASE("PA sweep restore fixes the position before it releases the latch", "[pa_sweep]") {
     Sweep s = sweep_at_first_line();
     (void)s.next(); // a line in flight
     s.stop();
     s.on_verdict(9); // the reply still arrives; it is ignored
-    const Step r = s.next();
+    const Step r = to_restore(s);
     REQUIRE(r.phase == Phase::Restore);
     REQUIRE_FALSE(s.latched());
-    const size_t disarm = pos_of(r.script, "PA_ACTION ACTION=0 PC=666");
+    const size_t where = pos_of(r.script, "SET_KINEMATIC_POSITION X=300.000 Y=250.000\n");
     const size_t pin_x = pos_of(r.script, "SET_PIN PIN=enable_pin_tmc_x VALUE=0.00");
     const size_t pin_y = pos_of(r.script, "SET_PIN PIN=enable_pin_tmc_y VALUE=0.00");
+    const size_t disarm = pos_of(r.script, "PA_ACTION ACTION=0 PC=666");
     const size_t limits =
         pos_of(r.script, "SET_VELOCITY_LIMIT ACCEL=20000 SQUARE_CORNER_VELOCITY=9");
     const size_t pa = pos_of(
         r.script, "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.030000 SMOOTH_TIME=0.040000");
     const size_t state = pos_of(r.script, "RESTORE_GCODE_STATE NAME=helix_pa_sweep");
-    const size_t where = pos_of(r.script, "SET_KINEMATIC_POSITION X=300.000 Y=250.000");
-    REQUIRE(disarm == 0);
-    REQUIRE(pin_x != std::string::npos);
-    REQUIRE(pin_y != std::string::npos);
-    REQUIRE(limits > pin_y);
-    REQUIRE(pa != std::string::npos);
+    // The planned moves drain, Klipper learns where the head really is while
+    // the drivers are still off, and only then do they come back.
+    REQUIRE(r.script.rfind("M400\n", 0) == 0);
+    REQUIRE(where != std::string::npos);
+    REQUIRE(pin_x > where);
+    REQUIRE(pin_y > where);
+    REQUIRE(disarm > pin_y);
+    REQUIRE(limits > disarm);
+    REQUIRE(pa > limits);
     REQUIRE(state > pa);
-    REQUIRE(where > state);
-    // Z never moved, so it is not replayed.
-    REQUIRE(pos_of(r.script, "SET_KINEMATIC_POSITION X=300.000 Y=250.000 Z") == std::string::npos);
+    REQUIRE(r.script.find("M84") == std::string::npos);
 
     s.step_done();
     REQUIRE(s.next().phase == Phase::Done);
@@ -241,12 +250,86 @@ TEST_CASE("PA sweep restore releases the latch before replaying the position", "
     REQUIRE_FALSE(s.result().has_value());
 }
 
+TEST_CASE("PA sweep restore keeps a machine that lost its homing unhomed", "[pa_sweep]") {
+    Sweep s = sweep_at_first_line();
+    s.stop();
+    const Step r = to_restore(s, /*homed=*/false);
+    REQUIRE(r.script.find("SET_KINEMATIC_POSITION") == std::string::npos);
+    const size_t pin_y = pos_of(r.script, "SET_PIN PIN=enable_pin_tmc_y VALUE=0.00");
+    const size_t m84 = pos_of(r.script, "M84");
+    REQUIRE(pin_y != std::string::npos);
+    REQUIRE(m84 > pin_y);
+}
+
+TEST_CASE("PA sweep restores without a position when homed_axes cannot be read", "[pa_sweep]") {
+    Sweep s = sweep_at_first_line();
+    s.stop();
+    REQUIRE(s.next().phase == Phase::CheckHomed);
+    s.fail("query failed");
+    const Step r = s.next();
+    REQUIRE(r.phase == Phase::Restore);
+    REQUIRE(r.script.find("SET_KINEMATIC_POSITION") == std::string::npos);
+    REQUIRE(r.script.find("M84") != std::string::npos);
+}
+
+TEST_CASE("PA sweep stopped while restoring applies nothing", "[pa_sweep]") {
+    Sweep s = sweep_at_first_line();
+    for (int i = 0; i < 3; ++i) {
+        run_sweep(s, {0, 9, 0, 0, 0, 0, 0});
+    }
+    REQUIRE(to_restore(s).phase == Phase::Restore);
+    s.stop(); // Stop tapped, or the screen left, while the restore runs
+    s.step_done();
+    REQUIRE(s.next().phase == Phase::Done);
+    REQUIRE_FALSE(s.result().has_value());
+    REQUIRE(s.failure() == Failure::Stopped);
+}
+
+TEST_CASE("PA sweep re-reads Z after homing before it plans the park", "[pa_sweep]") {
+    Snapshot snap = homed_snapshot();
+    snap.homed = false;
+    snap.gcode_z = 120.f; // left high by the last print, then motors off
+    Sweep s(Config{}, 0, "extruder", snap);
+    REQUIRE(s.next().phase == Phase::Home);
+    s.step_done();
+    REQUIRE(s.next().phase == Phase::ReadZ);
+    s.on_z(0.5f); // where the home really left it
+    const std::string pro = s.next().script;
+    const size_t raise = pos_of(pro, "G1 Z8.000 F3000");
+    REQUIRE(raise != std::string::npos);
+    REQUIRE(raise < pos_of(pro, "G1 X250.000 F6000"));
+}
+
+TEST_CASE("PA sweep comes down to the line height only over the chute", "[pa_sweep]") {
+    Snapshot snap = homed_snapshot();
+    snap.gcode_z = 120.f;
+    Sweep s(Config{}, 0, "extruder", snap);
+    const std::string pro = s.next().script;
+    const size_t at_chute = pos_of(pro, "G1 X275.000 F6000");
+    const size_t lower = pos_of(pro, "G1 Z8.000 F3000");
+    REQUIRE(at_chute != std::string::npos);
+    REQUIRE(lower > at_chute);
+}
+
+TEST_CASE("PA sweep forced restore assumes the machine is still homed", "[pa_sweep]") {
+    Sweep s = sweep_at_first_line();
+    (void)s.next();
+    const std::string r = s.force_restore();
+    REQUIRE(pos_of(r, "SET_KINEMATIC_POSITION X=300.000 Y=250.000") <
+            pos_of(r, "SET_PIN PIN=enable_pin_tmc_x VALUE=0.00"));
+    REQUIRE(s.finished());
+    REQUIRE(s.force_restore().empty());
+
+    Sweep fresh(Config{}, 0, "extruder", homed_snapshot());
+    REQUIRE(fresh.force_restore().empty());
+}
+
 TEST_CASE("PA sweep applies the result for the session after restoring", "[pa_sweep]") {
     Sweep s = sweep_at_first_line(1, homed_snapshot());
     for (int i = 0; i < 3; ++i) {
         run_sweep(s, {0, 9, 0, 0, 0, 0, 0});
     }
-    REQUIRE(s.next().phase == Phase::Restore);
+    REQUIRE(to_restore(s).phase == Phase::Restore);
     s.step_done();
     const Step apply = s.next();
     REQUIRE(apply.phase == Phase::Apply);
@@ -326,4 +409,54 @@ TEST_CASE("PA sweep latch recovery releases and unhomes only when latched", "[pa
 TEST_CASE("PA sweep reports a typical run as three sweeps of seven", "[pa_sweep]") {
     Sweep s(Config{}, 0, "extruder", homed_snapshot());
     REQUIRE(s.expected_lines() == 21);
+}
+
+namespace {
+
+nlohmann::json latch_status(float pin, std::vector<double> position, const char* idle) {
+    return {{"output_pin enable_pin_tmc_x", {{"value", pin}}},
+            {"output_pin enable_pin_tmc_y", {{"value", pin}}},
+            {"toolhead", {{"position", position}}},
+            {"idle_timeout", {{"state", idle}}},
+            {"configfile",
+             {{"settings",
+               {{"printer", {{"max_accel", 20000.0}, {"square_corner_velocity", 9.0}}},
+                {"extruder", {{"pressure_advance", 0.03}, {"pressure_advance_smooth_time", 0.04}}},
+                {"extruder1", {{"pressure_advance", 0.025}}},
+                {"extruder_stepper belt", {{"pressure_advance", 0.5}}}}}}}};
+}
+
+} // namespace
+
+TEST_CASE("PA sweep recovery acts only on a latch that stayed still and idle", "[pa_sweep]") {
+    const auto still = latch_status(1.f, {200, 80, 8, 0}, "Idle");
+    const std::string fix = stale_latch_recovery_gcode(still, still);
+    REQUIRE(pos_of(fix, "SET_PIN PIN=enable_pin_tmc_x VALUE=0.00") == 0);
+    const size_t m84 = pos_of(fix, "M84");
+    const size_t limits = pos_of(fix, "SET_VELOCITY_LIMIT ACCEL=20000 SQUARE_CORNER_VELOCITY=9");
+    REQUIRE(m84 != std::string::npos);
+    REQUIRE(limits > m84);
+    REQUIRE(fix.find("SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.030000") !=
+            std::string::npos);
+    REQUIRE(fix.find("SET_PRESSURE_ADVANCE EXTRUDER=extruder1 ADVANCE=0.025000") !=
+            std::string::npos);
+    REQUIRE(fix.find("extruder_stepper") == std::string::npos);
+    REQUIRE(fix.substr(fix.rfind('\n') + 1) == "RESTORE_GCODE_STATE NAME=helix_pa_sweep");
+
+    SECTION("a sweep still drawing lines moves the planned position") {
+        CHECK(
+            stale_latch_recovery_gcode(still, latch_status(1.f, {200, 85, 8, 0}, "Idle")).empty());
+    }
+    SECTION("a busy Klipper is not proof the latch is abandoned") {
+        CHECK(stale_latch_recovery_gcode(still, latch_status(1.f, {200, 80, 8, 0}, "Printing"))
+                  .empty());
+    }
+    SECTION("a latch released between the looks needs nothing") {
+        CHECK(
+            stale_latch_recovery_gcode(still, latch_status(0.f, {200, 80, 8, 0}, "Idle")).empty());
+    }
+    SECTION("a printer with the latch off needs nothing") {
+        const auto clear = latch_status(0.f, {200, 80, 8, 0}, "Idle");
+        CHECK(stale_latch_recovery_gcode(clear, clear).empty());
+    }
 }

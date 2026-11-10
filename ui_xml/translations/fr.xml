@@ -171,7 +171,7 @@
   <translation tag="A new Print Status screen" fr="Un nouvel écran d&apos;état de l&apos;impression"/>
   <translation tag="A newer version of the helper macros is available" fr="Une version plus récente des macros d&apos;aide est disponible"/>
   <translation tag="A picture of your printer" fr="Une photo de votre imprimante"/>
-  <translation tag="A pressure advance run was interrupted. The X/Y drivers were released; home the printer before moving it." fr="Une mesure de pressure advance a été interrompue. Les pilotes X/Y ont été libérés ; référencez l&apos;imprimante avant de la déplacer."/>
+  <translation tag="A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it." fr="Une mesure de pressure advance a été interrompue. Les pilotes X/Y ont été libérés et les limites de mouvement et le pressure advance réinitialisés ; référencez l&apos;imprimante avant de la déplacer."/>
   <translation tag="A print holds the printer." fr="Une impression occupe l&apos;imprimante."/>
   <translation tag="A print is already running." fr="Une impression est déjà en cours."/>
   <translation tag="A print is in progress - restart still pending" fr="Une impression est en cours - redémarrage en attente"/>

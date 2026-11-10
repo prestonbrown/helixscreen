@@ -28,10 +28,12 @@
 // Sweep is the procedure as a pure state machine; the driver that sends its
 // steps and reads PA_GET lives behind helix::pacal::start_run().
 
+#include "json_fwd.h"
 #include "pa_calibration_run.h"
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -92,13 +94,15 @@ struct Snapshot {
 };
 
 enum class Phase : uint8_t {
-    Home,     ///< G28, only when the snapshot is not homed
-    Prologue, ///< state saved, limits set, Z raised, parked over the chute
-    Locate,   ///< no script: the driver reads toolhead.position, then on_located()
-    Latch,    ///< X/Y drivers disabled
-    Line,     ///< one candidate; ends with PA_GET, answered by on_verdict()
-    Restore,  ///< pins released, limits and K restored, position replayed
-    Apply,    ///< the measured K installed for this Klipper session
+    Home,       ///< G28, only when the snapshot is not homed
+    ReadZ,      ///< no script: after a home, the driver reads gcode Z again, then on_z()
+    Prologue,   ///< state saved, limits set, Z raised, parked over the chute
+    Locate,     ///< no script: the driver reads toolhead.position, then on_located()
+    Latch,      ///< X/Y drivers disabled
+    Line,       ///< one candidate; ends with PA_GET, answered by on_verdict()
+    CheckHomed, ///< no script: the driver reads homed_axes before the restore, then on_homed()
+    Restore,    ///< position replayed, pins released, limits and K restored
+    Apply,      ///< the measured K installed for this Klipper session
     Done,
 };
 
@@ -130,6 +134,16 @@ class Sweep {
     void on_located(float raw_x, float raw_y);
     /// The PA_GET value for the Line just sent.
     void on_verdict(int value);
+    /// gcode_move.gcode_position Z after the home.
+    void on_z(float gcode_z);
+    /// Whether toolhead.homed_axes still covers x, y and z before the restore.
+    /// When it does not, something unhomed the machine mid-run, so the restore
+    /// keeps it unhomed instead of replaying a position.
+    void on_homed(bool homed);
+
+    /// The restore to send at once, with no queries, when the link is about to
+    /// go down; empty when nothing is owed. Ends the run.
+    [[nodiscard]] std::string force_restore();
 
     /// End the run: the next step is Restore if anything needs restoring, else Done.
     void stop();
@@ -162,8 +176,9 @@ class Sweep {
     [[nodiscard]] std::string prologue_script() const;
     [[nodiscard]] std::string latch_script() const;
     [[nodiscard]] std::string line_script(int index) const;
-    [[nodiscard]] std::string restore_script() const;
+    [[nodiscard]] std::string restore_script(bool homed) const;
     void end_sweep_if_complete();
+    [[nodiscard]] Phase restore_phase() const;
     void enter_restore_or_done();
 
     Config cfg_;
@@ -177,6 +192,7 @@ class Sweep {
     bool latched_ = false;
     bool line_sent_ = false;
     bool located_ = false;
+    bool homed_for_restore_ = true;
     float raw_x_ = 0.f;
     float raw_y_ = 0.f;
 
@@ -204,10 +220,31 @@ class Sweep {
 /// everything would otherwise report the smallest candidate as a measurement.
 [[nodiscard]] bool discriminates(const std::vector<std::vector<int>>& verdicts_by_sweep);
 
-/// The connect-time fix for a run that died with the latch set: release both
-/// pins, then M84 so nothing moves until the machine is homed again. Empty when
-/// both pins read released.
+/// Release both latch pins, then M84 so nothing moves until the machine is homed
+/// again. Empty when both pins read released.
 [[nodiscard]] std::string latch_recovery_gcode(float pin_x_value, float pin_y_value);
+
+/// The connect-time fix for a run that died with the latch set, judged from two
+/// printer.objects.query results taken kStaleCheckMs apart (each the response's
+/// result.status: the two pins, toolhead.position, idle_timeout.state and
+/// configfile.settings). A live sweep moves the planned position every few
+/// seconds and keeps Klipper busy, so only a latch that stayed set while
+/// nothing moved and Klipper sat idle is stale. Then: release the latch and
+/// unhome (latch_recovery_gcode), put the motion limits and every extruder's
+/// pressure advance back to the config's values, and restore the gcode state
+/// the run saved. Empty when the latch is not stale.
+[[nodiscard]] std::string stale_latch_recovery_gcode(const nlohmann::json& first,
+                                                     const nlohmann::json& second);
+
+/// Gap between the two looks: longer than two test lines.
+inline constexpr uint32_t kStaleCheckMs = 12000;
+
+/// Look for a latch an interrupted run left set, and undo it when it is stale.
+/// `api_now` is asked for the API at each step, since the second look comes
+/// seconds later and the connection may have been replaced. `on_recovered`
+/// runs on the main thread after the fix was accepted.
+void check_interrupted_run(std::function<IMoonrakerAPI*()> api_now,
+                           std::function<void()> on_recovered);
 
 /// Run the sweep on a printer, reporting through `callbacks`. Reached only
 /// through pacal::start_run(), which decides that this printer needs it.

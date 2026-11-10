@@ -1530,7 +1530,7 @@ status object) and its two X/Y driver-latch pins, `output_pin enable_pin_tmc_x` 
 `_y`, so the PA calibration screen runs the stock eBoard sweep. `SET_PIN` on either pin
 updates its status, `PA_ACTION` is accepted and ignored, and each `PA_GET` answers
 `// Result is value=<n>` from `HELIX_MOCK_PA_VERDICTS` (a comma list, cycled; default
-`0,9,0,9,0,0,0`, so every sweep's winner is 0.020).
+`0,9,0,9,0,0,0`, so every sweep's winner is 0.020; a negative entry sends no reply).
 
 `HELIX_MOCK_ZMOD_AFC=1` swaps the afclite shim's objects for Z-Mod's built-in AFC
 emulation (mod setting `AFC=1`): `AFC`, `AFC_IFS IFS` and `AFC_lane lane1..4`, with

@@ -5,6 +5,7 @@
 
 #include "app_globals.h"
 #include "core/http_executor.h"
+#include "core/run_after.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "printer_state.h"
@@ -45,20 +46,6 @@ std::atomic<bool> g_chain_running{false};
 
 void end_chain() {
     g_chain_running.store(false);
-}
-
-/// Run @p fn on the main thread once @p delay_ms has passed. Captures nothing
-/// of a caller's object, so it outlives whatever started it.
-void run_after_ms(uint32_t delay_ms, std::function<void()> fn) {
-    auto* holder = new std::function<void()>(std::move(fn));
-    lv_timer_t* timer = lv_timer_create(
-        [](lv_timer_t* t) {
-            std::unique_ptr<std::function<void()>> owned(
-                static_cast<std::function<void()>*>(lv_timer_get_user_data(t)));
-            (*owned)();
-        },
-        delay_ms, holder);
-    lv_timer_set_repeat_count(timer, 1);
 }
 
 } // namespace

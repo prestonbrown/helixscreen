@@ -372,27 +372,12 @@ std::shared_ptr<Run> start_run(IMoonrakerAPI& api, IMoonrakerClient& client,
     return nullptr;
 }
 
-std::vector<std::string> recovery_status_objects(const PrinterDiscovery& hw) {
+void check_interrupted_run(const PrinterDiscovery& hw, std::function<IMoonrakerAPI*()> api_now,
+                           std::function<void()> on_recovered) {
     const Provider* p = match(hw);
     if (p && p->kind == Kind::HostSweep) {
-        return {std::string(eboard_sweep::kPinX), std::string(eboard_sweep::kPinY)};
+        eboard_sweep::check_interrupted_run(std::move(api_now), std::move(on_recovered));
     }
-    return {};
-}
-
-std::string recovery_gcode(const PrinterDiscovery& hw, const nlohmann::json& status) {
-    const Provider* p = match(hw);
-    if (!p || p->kind != Kind::HostSweep || !status.is_object()) {
-        return {};
-    }
-    const auto pin = [&status](std::string_view name) {
-        const auto it = status.find(std::string(name));
-        if (it == status.end() || !it->is_object()) {
-            return 0.f;
-        }
-        return json_util::safe_float(*it, "value", 0.f);
-    };
-    return eboard_sweep::latch_recovery_gcode(pin(eboard_sweep::kPinX), pin(eboard_sweep::kPinY));
 }
 
 } // namespace helix::pacal

@@ -957,6 +957,12 @@ json MoonrakerClientMock::pa_latch_pin_status(const std::string& object) const {
     return json::object();
 }
 
+std::string MoonrakerClientMock::toolhead_extruder() const {
+    const int tool =
+        printer_type_ == PrinterType::FLASHFORGE_CREATOR5_ZMOD ? zmod_active_tool_.load() : 0;
+    return tool <= 0 ? "extruder" : "extruder" + std::to_string(tool);
+}
+
 void MoonrakerClientMock::set_pa_verdicts(std::vector<int> verdicts) {
     std::lock_guard<std::mutex> lock(pa_mutex_);
     pa_verdicts_ = std::move(verdicts);
@@ -999,7 +1005,10 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_pa_adjust(const std:
                 verdict = pa_verdicts_[pa_verdict_next_ % pa_verdicts_.size()];
                 ++pa_verdict_next_;
             }
-            dispatch_gcode_response("// Result is value=" + std::to_string(verdict));
+            // A negative entry stands for an eBoard that never answers.
+            if (verdict >= 0) {
+                dispatch_gcode_response("// Result is value=" + std::to_string(verdict));
+            }
             continue;
         }
         for (auto [pin, store] : {std::pair{"PIN=enable_pin_tmc_x ", &pa_latch_x_},

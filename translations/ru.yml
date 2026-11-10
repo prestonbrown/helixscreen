@@ -226,7 +226,8 @@ translations:
   "A new Print Status screen": "Новый экран статуса печати"
   A newer version of the helper macros is available: 'Доступна более новая версия вспомогательных макросов'
   A picture of your printer: Изображение вашего принтера
-  A pressure advance run was interrupted. The X/Y drivers were released; home the printer before moving it.: 'Измерение pressure advance было прервано. Драйверы X/Y освобождены; запаркуйте принтер, прежде чем двигать его.'
+  ? A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it.
+  : 'Измерение pressure advance было прервано. Драйверы X/Y освобождены, ограничения движения и pressure advance сброшены; запаркуйте принтер, прежде чем двигать его.'
   A print holds the printer.: "Принтер занят печатью."
   A print is already running.: Печать уже идёт.
   A print is in progress - restart still pending: 'Идёт печать - перезапуск ещё отложен'

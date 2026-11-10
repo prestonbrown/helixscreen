@@ -1423,13 +1423,6 @@ json MoonrakerDiscoverySequence::build_subscription_objects(const PrinterDiscove
         subscription_objects[obj] = nullptr;
     }
 
-    // A pressure-advance run this app drives can leave printer state that only
-    // its restore undoes; the connect step checks these to undo it after a
-    // crash. See include/pa_calibration_run.h.
-    for (const auto& obj : helix::pacal::recovery_status_objects(hw)) {
-        subscription_objects[obj] = nullptr;
-    }
-
     // Firmware that reports faults as structured codes keeps the standing
     // list in its own status object; a fault that survived a restart is never
     // printed to the console again, so without this subscription it stays

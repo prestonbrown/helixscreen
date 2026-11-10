@@ -333,22 +333,35 @@ machine over the stock constants, and a driver (`src/calibration/flashforge_pa_s
 that sends each step as one `gcode/script` call and reads `Result is value=` off the console.
 Where it differs from the stock app:
 
-- It homes first when needed, saves and restores the gcode state, motion limits and the
-  extruder's own K, and raises Z to 8 mm (never lowers it) before parking.
-- `SET_KINEMATIC_POSITION` replays only X and Y, from the raw `toolhead.position` read right
-  after the park. Z never moves during the sweep.
+- It refuses to start unless the selected tool is the mounted one (`toolhead.extruder`):
+  every `G1 E` drives the mounted extruder.
+- It homes first when needed and reads Z again afterwards. It raises Z to 8 mm before any
+  travel and, if the head started higher, comes down to 8 mm only once it is over the chute.
+- It saves and restores the gcode state, motion limits and the extruder's own K.
+- The restore reads `homed_axes` first. If the machine is still homed it sets
+  `SET_KINEMATIC_POSITION` X/Y (from the raw `toolhead.position` read right after the park; Z
+  never moves) while the drivers are still off, and only then releases them. If something
+  unhomed it mid-run, it releases them and sends `M84` instead. If the restore itself fails, a
+  release plus `M84` follows.
+- A line whose `PA_GET` reply has not arrived 5 s after its script returned ends the run.
 - A run where every line got the same verdict is refused: a sensor answering 9 to
   everything would otherwise report 0.0100 as a measurement.
 - On success it applies K with `SET_PRESSURE_ADVANCE EXTRUDER=<extruder>` for the session.
+  A stop at any point, including during the restore, applies nothing.
 
 A stop ends the run after the line in flight and sends the restore. While a run is live it
 holds a `CleanupHold`, so SIGTERM takes the graceful path and the panel's
-`before_disconnect()` sends the restore. A crash or a lost link skips all of that, so the
-`pa_run_recovery` connect step (`src/application/discovery_steps_core.cpp`) reads the two pins
-and, when either is set and no print is running, releases both and sends `M84`, so the next
-move must home. Tests: `[pa_sweep]`, `[pa_calibration]`, `[pa_cal]`. Mock: the
+`before_disconnect()` sends the restore at once. A crash or a lost link skips all of that, so
+the `pa_run_recovery` connect step (`src/application/discovery_steps_core.cpp`) calls
+`pacal::check_interrupted_run()`. On this printer that reads the two pins, `toolhead.position`
+and `idle_timeout.state`, and when either pin is set, looks again 12 s later. A live sweep (this
+app's, or another screen's) moves the planned position every few seconds and keeps Klipper busy,
+so only a latch that stayed set while nothing moved and Klipper sat idle is treated as stale.
+Then it releases both pins, sends `M84`, puts `max_accel`, `square_corner_velocity` and each
+extruder's pressure advance back to the config's values, and restores the saved gcode state.
+Tests: `[pa_sweep]`, `[pa_calibration]`, `[pa_cal]`. Mock: the
 `creator5_zmod` persona carries `[pa_adjust]` and the pins, with `PA_GET` verdicts from
-`HELIX_MOCK_PA_VERDICTS`.
+`HELIX_MOCK_PA_VERDICTS` (a negative entry is a reply that never comes).
 
 Not yet run on hardware. Before trusting it, with filament loaded and the chute clear:
 
@@ -359,7 +372,7 @@ Not yet run on hardware. Before trusting it, with filament loaded and the chute 
    notice shows.
 4. Afterwards `pressure_advance` (apart from the applied K), both pins, `max_accel` and
    `square_corner_velocity` are back where they started.
-5. The 8 mm line height clears the chute on every tool.
+5. The 8 mm line height clears the chute on every tool, and where Z ends after a G28.
 
 ### The `creator5_zmod` mock persona
 

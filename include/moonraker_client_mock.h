@@ -1526,6 +1526,15 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     json pa_latch_pin_status(const std::string& object) const;
 
+    /// toolhead.extruder: the mounted head's extruder on the Z-Mod persona
+    /// ("extruder" for T0 or nothing mounted, "extruder<n>" for Tn), else "extruder".
+    std::string toolhead_extruder() const;
+
+    /// Test hook: mount Z-Mod head `tool` (-1 for none) without the swap narration.
+    void set_zmod_active_tool(int tool) {
+        zmod_active_tool_.store(tool);
+    }
+
     /// The verdicts PA_GET answers with, cycled. Defaults to
     /// HELIX_MOCK_PA_VERDICTS (comma list), else 0,9,0,9,0,0,0.
     void set_pa_verdicts(std::vector<int> verdicts);

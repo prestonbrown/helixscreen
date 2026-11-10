@@ -173,7 +173,8 @@ translations:
   "A new Print Status screen": "A new Print Status screen"
   A newer version of the helper macros is available: A newer version of the helper macros is available
   A picture of your printer: A picture of your printer
-  A pressure advance run was interrupted. The X/Y drivers were released; home the printer before moving it.: A pressure advance run was interrupted. The X/Y drivers were released; home the printer before moving it.
+  ? A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it.
+  : A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it.
   A print holds the printer.: A print holds the printer.
   A print is already running.: A print is already running.
   A print is in progress - restart still pending: A print is in progress - restart still pending

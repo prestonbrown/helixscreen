@@ -179,7 +179,8 @@ translations:
   "A new Print Status screen": "Una nueva pantalla de Estado de Impresión"
   A newer version of the helper macros is available: 'Hay una versión más reciente de las macros de ayuda disponible'
   A picture of your printer: Una imagen de tu impresora
-  A pressure advance run was interrupted. The X/Y drivers were released; home the printer before moving it.: 'Se interrumpió una calibración de pressure advance. Se liberaron los drivers X/Y; referencie la impresora antes de moverla.'
+  ? A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it.
+  : 'Se interrumpió una calibración de pressure advance. Se liberaron los drivers X/Y y se restablecieron los límites de movimiento y el pressure advance; referencie la impresora antes de moverla.'
   A print holds the printer.: "Una impresión ocupa la impresora."
   A print is already running.: Ya hay una impresión en curso.
   A print is in progress - restart still pending: 'Hay una impresión en curso - reinicio pendiente'

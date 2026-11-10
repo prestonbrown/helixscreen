@@ -373,8 +373,6 @@ TEST_CASE("PA calibration recognises the stock FlashForge sweep by config and la
     CHECK_FALSE(t.firmware_runs_procedure);
     // No single command to send: the sweep is driven step by step.
     CHECK_FALSE(pacal::procedure_for(hw, 0, 220).has_value());
-    CHECK(pacal::recovery_status_objects(hw) ==
-          std::vector<std::string>{"output_pin enable_pin_tmc_x", "output_pin enable_pin_tmc_y"});
 
     // [pa_adjust] alone, without the latch the sweep needs, is not enough.
     PrinterDiscovery no_pins = with_objects({"extruder"});
@@ -392,27 +390,9 @@ TEST_CASE("PA calibration prefers the Klipper4FlashForge command over the stock 
     CHECK(t.firmware_runs_procedure);
     CHECK(t.kept == pacal::Kept::Nothing);
     REQUIRE(pacal::procedure_for(hw, 1, 220).has_value());
-    CHECK(pacal::recovery_status_objects(hw).empty());
 
     CHECK(pacal::traits(u1())->kept == pacal::Kept::Permanently);
     CHECK(pacal::traits(u1())->firmware_runs_procedure);
-    CHECK(pacal::recovery_status_objects(u1()).empty());
-}
-
-TEST_CASE("PA recovery releases a latch an interrupted sweep left set", "[pa_calibration]") {
-    const PrinterDiscovery hw = stock_creator5();
-    const nlohmann::json clean = {{"output_pin enable_pin_tmc_x", {{"value", 0.0}}},
-                                  {"output_pin enable_pin_tmc_y", {{"value", 0.0}}}};
-    CHECK(pacal::recovery_gcode(hw, clean).empty());
-    CHECK(pacal::recovery_gcode(hw, nlohmann::json::object()).empty());
-
-    const nlohmann::json stuck = {{"output_pin enable_pin_tmc_x", {{"value", 1.0}}},
-                                  {"output_pin enable_pin_tmc_y", {{"value", 1.0}}}};
-    const std::string fix = pacal::recovery_gcode(hw, stuck);
-    CHECK(fix.find("SET_PIN PIN=enable_pin_tmc_x VALUE=0.00") != std::string::npos);
-    CHECK(fix.find("M84") != std::string::npos);
-    // A printer without the sweep never gets that gcode, whatever its status says.
-    CHECK(pacal::recovery_gcode(u1(), stuck).empty());
 }
 
 class PaSweepRunFixture : public LVGLTestFixture {
@@ -529,4 +509,37 @@ TEST_CASE_METHOD(PaSweepRunFixture, "PA sweep run sends the restore at once on d
     process_lvgl(200);
     CHECK_FALSE(done_.load());
     CHECK(attempts_.size() == 2);
+}
+
+TEST_CASE_METHOD(PaSweepRunFixture, "PA sweep run refuses a tool that is not mounted",
+                 "[pa_sweep]") {
+    mock_client_.set_zmod_active_tool(2); // T2 on the carriage, T0 asked for
+    start();
+    REQUIRE(wait_until([this]() { return done_.load(); }));
+    INFO("error: " << error_);
+    CHECK(error_.find("T0 is not mounted") != std::string::npos);
+    CHECK_FALSE(sent("G28"));
+    CHECK_FALSE(sent("SAVE_GCODE_STATE"));
+}
+
+TEST_CASE_METHOD(PaSweepRunFixture,
+                 "PA sweep run that loses its link before starting sends nothing", "[pa_sweep]") {
+    start();
+    run_->before_disconnect(); // before the snapshot query has even gone out
+    process_lvgl(300);
+    CHECK_FALSE(done_.load());
+    CHECK_FALSE(sent("G28"));
+    CHECK_FALSE(sent("SAVE_GCODE_STATE"));
+}
+
+TEST_CASE_METHOD(PaSweepRunFixture, "PA sweep run ends when a line never gets a verdict",
+                 "[pa_sweep]") {
+    mock_client_.set_pa_verdicts({0, -1}); // the second line's PA_GET is never answered
+    start();
+    REQUIRE(wait_until([this]() { return done_.load(); }, 15000));
+    INFO("error: " << error_);
+    CHECK(error_.find("did not report a verdict") != std::string::npos);
+    CHECK(attempts_.size() == 1);
+    CHECK(pin("output_pin enable_pin_tmc_x") == 0.f);
+    CHECK(sent("RESTORE_GCODE_STATE NAME=helix_pa_sweep"));
 }

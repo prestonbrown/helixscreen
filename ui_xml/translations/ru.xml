@@ -207,7 +207,7 @@
   <translation tag="A new Print Status screen" ru="Новый экран статуса печати"/>
   <translation tag="A newer version of the helper macros is available" ru="Доступна более новая версия вспомогательных макросов"/>
   <translation tag="A picture of your printer" ru="Изображение вашего принтера"/>
-  <translation tag="A pressure advance run was interrupted. The X/Y drivers were released; home the printer before moving it." ru="Измерение pressure advance было прервано. Драйверы X/Y освобождены; запаркуйте принтер, прежде чем двигать его."/>
+  <translation tag="A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it." ru="Измерение pressure advance было прервано. Драйверы X/Y освобождены, ограничения движения и pressure advance сброшены; запаркуйте принтер, прежде чем двигать его."/>
   <translation tag="A print holds the printer." ru="Принтер занят печатью."/>
   <translation tag="A print is already running." ru="Печать уже идёт."/>
   <translation tag="A print is in progress - restart still pending" ru="Идёт печать - перезапуск ещё отложен"/>

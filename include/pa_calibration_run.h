@@ -5,8 +5,6 @@
 // printer needs (see pa_calibration.h). The panel holds a Run and never learns
 // which kind it is.
 
-#include "json_fwd.h"
-
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -64,11 +62,12 @@ class Run {
                                              const PrinterDiscovery& hw, const RunRequest& req,
                                              RunCallbacks callbacks);
 
-/// Status objects the connect-time recovery check reads. Empty for most printers.
-[[nodiscard]] std::vector<std::string> recovery_status_objects(const PrinterDiscovery& hw);
-
-/// Gcode that undoes what an interrupted run left on the printer, judged from
-/// a printer.objects.query status, or empty when nothing is stuck.
-[[nodiscard]] std::string recovery_gcode(const PrinterDiscovery& hw, const nlohmann::json& status);
+/// Look for what an interrupted run left on the printer, and undo it once it is
+/// shown to be stale. Does nothing on a printer whose runs leave nothing behind.
+/// `api_now` is asked for the API at each step, since the check takes seconds
+/// and the connection can be replaced meanwhile. `on_recovered` runs on the
+/// main thread after the printer accepted the fix.
+void check_interrupted_run(const PrinterDiscovery& hw, std::function<IMoonrakerAPI*()> api_now,
+                           std::function<void()> on_recovered);
 
 } // namespace helix::pacal

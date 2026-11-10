@@ -171,7 +171,7 @@
   <translation tag="A new Print Status screen" zh="全新的打印状态屏幕"/>
   <translation tag="A newer version of the helper macros is available" zh="有更新版本的帮助宏可用"/>
   <translation tag="A picture of your printer" zh="打印机的图片"/>
-  <translation tag="A pressure advance run was interrupted. The X/Y drivers were released; home the printer before moving it." zh="压力提前测量被中断。X/Y 驱动已释放；移动打印机前请先归位。"/>
+  <translation tag="A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it." zh="压力提前测量被中断。X/Y 驱动已释放，运动限制和压力提前已恢复；移动打印机前请先归位。"/>
   <translation tag="A print holds the printer." zh="打印任务正在占用打印机。"/>
   <translation tag="A print is already running." zh="已有打印正在进行。"/>
   <translation tag="A print is in progress - restart still pending" zh="打印进行中 - 重启待执行"/>

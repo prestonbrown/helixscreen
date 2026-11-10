@@ -175,7 +175,8 @@ translations:
   "A new Print Status screen": "新しい印刷ステータス画面"
   A newer version of the helper macros is available: 'ヘルパーマクロの新しいバージョンが利用可能です'
   A picture of your printer: プリンターの画像
-  A pressure advance run was interrupted. The X/Y drivers were released; home the printer before moving it.: 'プレッシャーアドバンスの測定が中断されました。X/Yドライバーを解放しました。動かす前にプリンターをホーミングしてください。'
+  ? A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it.
+  : 'プレッシャーアドバンスの測定が中断されました。X/Yドライバーを解放し、動作制限とプレッシャーアドバンスを元に戻しました。動かす前にプリンターをホーミングしてください。'
   A print holds the printer.: "印刷中のためプリンターを使用できません。"
   A print is already running.: すでに印刷中です。
   A print is in progress - restart still pending: '印刷中です - 再起動は保留中'

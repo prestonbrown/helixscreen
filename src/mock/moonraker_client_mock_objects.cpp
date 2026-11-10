@@ -573,7 +573,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     {"position", {0.0, 0.0, 0.0, 0.0}},
                     {"axis_minimum", mock_internal::toolhead_axis_minimum(persona)},
                     {"axis_maximum", mock_internal::toolhead_axis_maximum(persona)},
-                    {"homed_axes", self->get_homed_axes()}};
+                    {"homed_axes", self->get_homed_axes()},
+                    {"extruder", self->toolhead_extruder()}};
             }
 
             // stepper_enable (for motors_enabled state - immediate response to M84)
@@ -901,6 +902,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     {"axis_minimum", mock_internal::toolhead_axis_minimum(persona)},
                     {"axis_maximum", mock_internal::toolhead_axis_maximum(persona)},
                     {"homed_axes", self->get_homed_axes()},
+                    {"extruder", self->toolhead_extruder()},
                     {"print_time", 0.0},
                     {"estimated_print_time", 0.0},
                     {"extruder", "extruder"}};
