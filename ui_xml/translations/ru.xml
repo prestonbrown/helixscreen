@@ -821,6 +821,7 @@
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." ru="Освободите стол и загрузите {}. Башня печатается в центре стола."/>
   <translation tag="Cleared" ru="Очищено"/>
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" ru="Удалено из настроек; не удалось отменить сопряжение в системе, возможно нужен Bluetooth ОС"/>
+  <translation tag="Clipboard" ru="Буфер обмена"/>
   <translation tag="Clipboard unavailable - use SSH" ru="Буфер обмена недоступен - используйте SSH"/>
   <translation tag="Clog" ru="Засор"/>
   <translation tag="Clog Auto" ru="Засор: авто"/>
@@ -1067,6 +1068,7 @@
   <translation tag="Customize Macro Button" ru="Настроить кнопку макроса"/>
   <translation tag="Customize preset temperatures" ru="Настройка пресетов температур"/>
   <translation tag="Customize your home screen" ru="Настройте главный экран"/>
+  <translation tag="Cut" ru="Вырезать"/>
   <translation tag="Cut &amp; retract" ru="Обрезка и ретракция"/>
   <translation tag="Cut Distance" ru="Расстояние реза"/>
   <translation tag="Cut filament" ru="Обрезать филамент"/>
@@ -2798,6 +2800,7 @@
   <translation tag="Password cannot be empty" ru="Пароль не может быть пустым"/>
   <translation tag="Password is required for secured networks" ru="Для защищённых сетей требуется пароль"/>
   <translation tag="Past Y {:.1f} mm, X moves only in {:.1f} mm steps" ru="За Y {:.1f} мм X движется только шагами {:.1f} мм"/>
+  <translation tag="Paste" ru="Вставить"/>
   <translation tag="Path A" ru="Путь A"/>
   <translation tag="Path B" ru="Путь B"/>
   <translation tag="Pause" ru="Пауза"/>

@@ -629,6 +629,7 @@ translations:
   CHANGED FROM LAST SESSION: ИЗМЕНЕНО С ПРОШЛОЙ СЕССИИ
   CLOG: ЗАСОР
   COLOR SENSORS: ДАТЧИКИ ЦВЕТА
+  Clipboard: "Буфер обмена"
   'Completed: {}': 'Завершено: {}'
   CONFIGURATION: КОНФИГУРАЦИЯ
   CONNECTION TYPE: ТИП ПОДКЛЮЧЕНИЯ
@@ -1079,6 +1080,7 @@ translations:
     быть недоступны.
   Could not answer the connection request: 'Не удалось ответить на запрос подключения'
   'Could not check {} - it stays in the queue': 'Не удалось проверить {} – остаётся в очереди'
+  Cut: "Вырезать"
   "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "Во время печати вы видите индикатор каждого нагревателя, вентилятора и подсветки, список шагов запуска, а также прогресс и управление в одной полосе."
   "Every screen and setting explained": "Описание всех экранов и настроек"
   "Getting Started": "Начало работы"
@@ -1094,6 +1096,7 @@ translations:
   'Moonraker answered at {}.': "Moonraker ответил по адресу {}."
   "New in 1.1": "Новое в 1.1"
   No filament was inserted in time: 'Филамент не был вставлен вовремя'
+  Paste: "Вставить"
   Print hours between filter changes. Off hides this meter.: 'Часы печати между заменами фильтра. «Выкл» скрывает этот счётчик.'
   Print hours between nozzle changes. Off hides this meter.: 'Часы печати между заменами сопла. «Выкл» скрывает этот счётчик.'
   Print hours between rail cleaning and lubrication. Off hides this meter.: 'Часы печати между чисткой и смазкой направляющих. «Выкл» скрывает этот счётчик.'

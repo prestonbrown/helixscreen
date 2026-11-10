@@ -779,6 +779,7 @@
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." de="Räume das Heizbett und lade {}. Der Turm wird in der Mitte des Betts gedruckt."/>
   <translation tag="Cleared" de="Geräumt"/>
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" de="Aus Einstellungen entfernt – System-Entkopplung fehlgeschlagen, ggf. OS-Bluetooth nötig"/>
+  <translation tag="Clipboard" de="Zwischenablage"/>
   <translation tag="Clipboard unavailable - use SSH" de="Zwischenablage nicht verfügbar - verwenden Sie SSH"/>
   <translation tag="Clog" de="Verstopfung"/>
   <translation tag="Clog Auto" de="Verstopfung Automatisch"/>
@@ -1022,6 +1023,7 @@
   <translation tag="Customize Macro Button" de="Makro-Schaltfläche anpassen"/>
   <translation tag="Customize preset temperatures" de="Voreingestellte Temperaturen anpassen"/>
   <translation tag="Customize your home screen" de="Startbildschirm anpassen"/>
+  <translation tag="Cut" de="Ausschneiden"/>
   <translation tag="Cut &amp; retract" de="Schneiden &amp; einziehen"/>
   <translation tag="Cut Distance" de="Schnittweg"/>
   <translation tag="Cut filament" de="Filament schneiden"/>
@@ -2750,6 +2752,7 @@
   <translation tag="Password cannot be empty" de="Passwort darf nicht leer sein"/>
   <translation tag="Password is required for secured networks" de="Passwort ist für gesicherte Netzwerke erforderlich"/>
   <translation tag="Past Y {:.1f} mm, X moves only in {:.1f} mm steps" de="Hinter Y {:.1f} mm bewegt sich X nur in Schritten von {:.1f} mm"/>
+  <translation tag="Paste" de="Einfügen"/>
   <translation tag="Path A" de="Pfad A"/>
   <translation tag="Path B" de="Pfad B"/>
   <translation tag="Pause" de="Pause"/>

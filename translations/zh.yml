@@ -550,6 +550,7 @@ translations:
   CHANGED FROM LAST SESSION: 与上次会话相比有更改
   CLOG: 堵料
   COLOR SENSORS: 颜色传感器
+  Clipboard: "剪贴板"
   'Completed: {}': '已完成：{}'
   CONFIGURATION: 配置
   CONNECTION TYPE: 连接类型
@@ -962,6 +963,7 @@ translations:
     PRINT_START 宏。部分打印选项可能不可用。
   Could not answer the connection request: '无法响应连接请求'
   'Could not check {} - it stays in the queue': '无法检查 {} – 保留在队列中'
+  Cut: "剪切"
   "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "打印时，您可以看到每个加热器、风扇和灯的状态标签、启动流程清单，以及集中在一条栏中的进度和控制按钮。"
   "Every screen and setting explained": "每个界面和设置的说明"
   "Getting Started": "入门"
@@ -977,6 +979,7 @@ translations:
   'Moonraker answered at {}.': "Moonraker 在 {} 响应。"
   "New in 1.1": "1.1 新功能"
   No filament was inserted in time: '未及时插入耗材'
+  Paste: "粘贴"
   Print hours between filter changes. Off hides this meter.: '两次更换过滤器之间的打印小时数。关闭则隐藏此计数器。'
   Print hours between nozzle changes. Off hides this meter.: '两次更换喷嘴之间的打印小时数。关闭则隐藏此计数器。'
   Print hours between rail cleaning and lubrication. Off hides this meter.: '两次清洁和润滑导轨之间的打印小时数。关闭则隐藏此计数器。'

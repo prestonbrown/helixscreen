@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Cut / Copy / Paste for the text field the user held, placed around the
+       field so it stays in view. Each row shows only when it applies to that
+       field (helix::clipboard::actions_for_field). -->
+  <view name="text_edit_menu" extends="context_menu_backdrop">
+    <context_menu_card title="Clipboard" title_tag="Clipboard">
+      <ui_button name="text_edit_cut"
+                 height="#button_height_sm" icon="content_cut" text="Cut" variant="ghost" focusable="false"
+                 style_flex_main_place="start">
+        <bind_flag_if_eq subject="text_edit_can_cut" flag="hidden" ref_value="0"/>
+        <event_cb trigger="clicked" callback="text_edit_cut_cb"/>
+      </ui_button>
+      <ui_button name="text_edit_copy"
+                 height="#button_height_sm" icon="content_copy" text="Copy" variant="ghost" focusable="false"
+                 style_flex_main_place="start">
+        <bind_flag_if_eq subject="text_edit_can_copy" flag="hidden" ref_value="0"/>
+        <event_cb trigger="clicked" callback="text_edit_copy_cb"/>
+      </ui_button>
+      <ui_button name="text_edit_paste"
+                 height="#button_height_sm" icon="content_paste" text="Paste" variant="ghost" focusable="false"
+                 style_flex_main_place="start">
+        <bind_flag_if_eq subject="text_edit_can_paste" flag="hidden" ref_value="0"/>
+        <event_cb trigger="clicked" callback="text_edit_paste_cb"/>
+      </ui_button>
+    </context_menu_card>
+  </view>
+</component>

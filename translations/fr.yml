@@ -584,6 +584,7 @@ translations:
   CHANGED FROM LAST SESSION: MODIFIÉ DEPUIS LA DERNIÈRE SESSION
   CLOG: BOUCHON
   COLOR SENSORS: CAPTEURS DE COULEUR
+  Clipboard: "Presse-papiers"
   'Completed: {}': 'Terminé : {}'
   CONFIGURATION: CONFIGURATION
   CONNECTION TYPE: TYPE DE CONNEXION
@@ -1036,6 +1037,7 @@ translations:
     d'analyser la macro PRINT_START. Certaines options d'impression peuvent être indisponibles.
   Could not answer the connection request: 'Impossible de répondre à la demande de connexion'
   'Could not check {} - it stays in the queue': 'Impossible de vérifier {} – reste dans la file'
+  Cut: "Couper"
   "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "Pendant une impression, retrouvez une pastille pour chaque chauffage, ventilateur et lumière, la liste des étapes de démarrage, ainsi que la progression et les commandes dans un seul bandeau."
   "Every screen and setting explained": "Chaque écran et réglage expliqué"
   "Getting Started": "Premiers pas"
@@ -1051,6 +1053,7 @@ translations:
   'Moonraker answered at {}.': "Moonraker a répondu à {}."
   "New in 1.1": "Nouveautés de la 1.1"
   No filament was inserted in time: 'Aucun filament n''a été inséré à temps'
+  Paste: "Coller"
   Print hours between filter changes. Off hides this meter.: 'Heures d’impression entre deux changements de filtre. Désactivé masque ce compteur.'
   Print hours between nozzle changes. Off hides this meter.: 'Heures d’impression entre deux changements de buse. Désactivé masque ce compteur.'
   Print hours between rail cleaning and lubrication. Off hides this meter.: 'Heures d’impression entre deux nettoyages et graissages des rails. Désactivé masque ce compteur.'

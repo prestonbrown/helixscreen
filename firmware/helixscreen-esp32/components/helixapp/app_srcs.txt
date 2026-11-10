@@ -773,6 +773,8 @@ src/ui/controls/ui_temp_graph.cpp
 src/ui/controls/ui_temperature_utils.cpp
 src/ui/components/ui_text.cpp
 src/ui/home/ui_tile_rung.cpp
+src/ui/components/text_clipboard.cpp
+src/ui/components/ui_text_edit_menu.cpp
 src/ui/components/ui_text_input.cpp
 src/ui/settings/ui_theme_editor_overlay.cpp
 src/ui/notify/ui_toast_manager.cpp

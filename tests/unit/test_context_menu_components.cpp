@@ -44,6 +44,7 @@ constexpr const char* kMenus[] = {
     "spoolman_context_menu",
     "belt_retest_menu",
     "ams_context_menu",
+    "text_edit_menu",
 };
 
 } // namespace

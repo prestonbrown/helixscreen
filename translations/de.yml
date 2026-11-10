@@ -585,6 +585,7 @@ translations:
   CHANGED FROM LAST SESSION: SEIT LETZTER SITZUNG GEÄNDERT
   CLOG: VERSTOPFUNG
   COLOR SENSORS: FARBSENSOREN
+  Clipboard: "Zwischenablage"
   'Completed: {}': 'Abgeschlossen: {}'
   CONFIGURATION: KONFIGURATION
   CONNECTION TYPE: VERBINDUNGSTYP
@@ -1034,6 +1035,7 @@ translations:
     verfügbar.
   Could not answer the connection request: 'Verbindungsanfrage konnte nicht beantwortet werden'
   'Could not check {} - it stays in the queue': '{} konnte nicht geprüft werden – bleibt in der Warteschlange'
+  Cut: "Ausschneiden"
   "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "Während des Drucks sehen Sie je einen Chip für Heizungen, Lüfter und Licht, eine Checkliste der Startsequenz sowie Fortschritt und Steuerung in einer Leiste."
   "Every screen and setting explained": "Jeder Bildschirm und jede Einstellung erklärt"
   "Getting Started": "Erste Schritte"
@@ -1049,6 +1051,7 @@ translations:
   'Moonraker answered at {}.': "Moonraker hat unter {} geantwortet."
   "New in 1.1": "Neu in 1.1"
   No filament was inserted in time: 'Kein Filament wurde rechtzeitig eingeführt'
+  Paste: "Einfügen"
   Print hours between filter changes. Off hides this meter.: 'Druckstunden zwischen Filterwechseln. Aus blendet diesen Zähler aus.'
   Print hours between nozzle changes. Off hides this meter.: 'Druckstunden zwischen Düsenwechseln. Aus blendet diesen Zähler aus.'
   Print hours between rail cleaning and lubrication. Off hides this meter.: 'Druckstunden zwischen Reinigen und Schmieren der Linearschienen. Aus blendet diesen Zähler aus.'

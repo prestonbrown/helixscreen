@@ -551,6 +551,7 @@ translations:
   CHANGED FROM LAST SESSION: 前回のセッションから変更
   CLOG: 詰まり
   COLOR SENSORS: カラーセンサー
+  Clipboard: "クリップボード"
   'Completed: {}': '完了: {}'
   CONFIGURATION: 設定
   CONNECTION TYPE: 接続タイプ
@@ -964,6 +965,7 @@ translations:
     マクロを分析できませんでした。一部の印刷オプションが利用できない場合があります。
   Could not answer the connection request: '接続リクエストに応答できませんでした'
   'Could not check {} - it stays in the queue': '{} を確認できませんでした – キューに残ります'
+  Cut: "切り取り"
   "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "印刷中は、ヒーター、ファン、ライトごとのチップ、開始シーケンスのチェックリスト、進行状況と操作をまとめたバーが表示されます。"
   "Every screen and setting explained": "すべての画面と設定の説明"
   "Getting Started": "はじめに"
@@ -979,6 +981,7 @@ translations:
   'Moonraker answered at {}.': "{} でMoonrakerが応答しました。"
   "New in 1.1": "1.1 の新機能"
   No filament was inserted in time: '時間内にフィラメントが挿入されませんでした'
+  Paste: "貼り付け"
   Print hours between filter changes. Off hides this meter.: 'フィルター交換までの印刷時間。オフにするとこのメーターを非表示にします。'
   Print hours between nozzle changes. Off hides this meter.: 'ノズル交換までの印刷時間。オフにするとこのメーターを非表示にします。'
   Print hours between rail cleaning and lubrication. Off hides this meter.: 'レールの清掃と給油までの印刷時間。オフにするとこのメーターを非表示にします。'

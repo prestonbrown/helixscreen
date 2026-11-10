@@ -580,6 +580,7 @@ translations:
   CHANGED FROM LAST SESSION: MODIFICATO DALLA SESSIONE PRECEDENTE
   CLOG: INTASAMENTO
   COLOR SENSORS: SENSORI DI COLORE
+  Clipboard: "Appunti"
   'Completed: {}': 'Completato: {}'
   CONFIGURATION: CONFIGURAZIONE
   CONNECTION TYPE: TIPO DI CONNESSIONE
@@ -1026,6 +1027,7 @@ translations:
     disponibili.
   Could not answer the connection request: 'Impossibile rispondere alla richiesta di connessione'
   'Could not check {} - it stays in the queue': 'Impossibile verificare {} – resta in coda'
+  Cut: "Taglia"
   "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "Durante la stampa vedi un indicatore per ogni riscaldatore, ventola e luce, l'elenco della sequenza di avvio, e avanzamento e comandi in un'unica barra."
   "Every screen and setting explained": "Ogni schermata e impostazione spiegata"
   "Getting Started": "Primi passi"
@@ -1041,6 +1043,7 @@ translations:
   'Moonraker answered at {}.': "Moonraker ha risposto su {}."
   "New in 1.1": "Novità della 1.1"
   No filament was inserted in time: 'Nessun filamento inserito in tempo'
+  Paste: "Incolla"
   Print hours between filter changes. Off hides this meter.: 'Ore di stampa tra un cambio filtro e l’altro. Spento nasconde questo contatore.'
   Print hours between nozzle changes. Off hides this meter.: 'Ore di stampa tra un cambio ugello e l’altro. Spento nasconde questo contatore.'
   Print hours between rail cleaning and lubrication. Off hides this meter.: 'Ore di stampa tra una pulizia e lubrificazione delle guide e l’altra. Spento nasconde questo contatore.'
