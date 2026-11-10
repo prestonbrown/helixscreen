@@ -640,6 +640,16 @@ void NavigationManager::set_active(PanelId panel_id) {
     panels_.ensure_built(static_cast<int>(panel_id));
     SwitchTrace::mark("build");
 
+    // A panel built for an earlier layout is rebuilt while still hidden and
+    // inactive, so the activation below is its only one.
+    if (panels_.is_stale(static_cast<int>(panel_id))) {
+        panels_.clear_stale(static_cast<int>(panel_id));
+        if (PanelBase* stale = panels_.instance(static_cast<int>(panel_id))) {
+            stale->rebuild();
+        }
+        SwitchTrace::mark("rebuild");
+    }
+
     PanelId old_panel = active_panel_;
 
     // Replace only the base panel and keep any overlays above it: closing an
@@ -1007,11 +1017,15 @@ void NavigationManager::ensure_delete_hook(lv_obj_t* widget) {
 }
 
 void NavigationManager::rebuild_active_views() {
+    rebuild_views(true);
+}
+
+void NavigationManager::rebuild_views(bool rebuild_top_modal) {
     if (shutting_down_) {
         spdlog::debug("[NavigationManager] rebuild_active_views: shutting down, skipping");
         return;
     }
-    spdlog::info("[NavigationManager] Rebuilding active views for hot-reload");
+    spdlog::info("[NavigationManager] Rebuilding active views");
 
     // Active main panel
     if (auto* p = panels_.instance(static_cast<int>(active_panel_))) {
@@ -1025,18 +1039,36 @@ void NavigationManager::rebuild_active_views() {
         if (inst)
             overlays.push_back(inst);
     }
+    // A persistent overlay is in both maps and is rebuilt once.
     for (auto& [w, inst] : persistent_overlay_instances_) {
-        if (inst)
+        if (inst && std::find(overlays.begin(), overlays.end(), inst) == overlays.end())
             overlays.push_back(inst);
     }
     for (auto* inst : overlays) {
         inst->rebuild();
     }
+    // A rebuilt root is created on top of the screen, over the chrome (the
+    // E-stop) and any open modal. Stack the open overlays back in navigation
+    // order, chrome above them, then the modals above all of it.
+    for (size_t i = 1; i < panel_stack_.size(); ++i) {
+        helix::ui::bring_to_front(panel_stack_[i]);
+    }
+    ModalStack::instance().raise_visible_to_foreground();
 
     // Top modal — rebuild via Modal::rebuild_top()
-    if (ModalStack::instance().top_dialog()) {
+    if (rebuild_top_modal && ModalStack::instance().top_dialog()) {
         Modal::rebuild_top();
     }
+}
+
+void NavigationManager::rebuild_for_layout_change() {
+    if (shutting_down_) {
+        return;
+    }
+    panels_.mark_stale_except(static_cast<int>(active_panel_));
+    // Modals stay as built: rebuild_top() hides one backed by a C++ instance,
+    // which would dismiss it, and the next modal builds at the new layout.
+    rebuild_views(false);
 }
 
 void NavigationManager::activate_initial_panel() {

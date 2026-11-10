@@ -517,6 +517,19 @@ lv_theme_t* theme_init_lvgl(lv_display_t* display, const theme_palette_t* palett
     return &helix_theme;
 }
 
+void theme_set_base_font(lv_display_t* display, const lv_font_t* font, bool is_dark) {
+    if (!font || helix_theme.font_normal == font)
+        return;
+    // The default theme's screen style carries the font every label without
+    // its own inherits; re-initialised with the same colours, only that moves.
+    default_theme_backup = lv_theme_default_init(display, helix_theme.color_primary,
+                                                 helix_theme.color_secondary, is_dark, font);
+    helix_theme.font_small = font;
+    helix_theme.font_normal = font;
+    helix_theme.font_large = font;
+    lv_obj_report_style_change(nullptr);
+}
+
 /**
  * @brief Update theme colors without full re-initialization
  */

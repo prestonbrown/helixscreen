@@ -105,6 +105,10 @@ void resync_palette_manager(bool is_dark);
 lv_theme_t* theme_init_lvgl(lv_display_t* display, const theme_palette_t* palette, bool is_dark,
                             const lv_font_t* base_font);
 
+/// Make @p font the theme's default text font, restyling every widget that
+/// inherits it. No-op when it already is.
+void theme_set_base_font(lv_display_t* display, const lv_font_t* font, bool is_dark);
+
 /// Re-point the ThemeManager palettes and the handle styles at the active
 /// theme without rebuilding the LVGL theme.
 void theme_update_colors(bool is_dark);

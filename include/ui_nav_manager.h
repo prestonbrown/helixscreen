@@ -265,6 +265,16 @@ class NavigationManager {
     void rebuild_active_views();
 
     /**
+     * @brief Rebuild for a layout the views were not built at (a resize across a tier)
+     *
+     * Rebuilds the active panel and every overlay now, and marks every other
+     * built main panel stale; set_active() rebuilds a stale panel before it
+     * shows it. Open modals are left as built, so none is dismissed. Call after
+     * the tokens are refreshed and the components re-registered.
+     */
+    void rebuild_for_layout_change();
+
+    /**
      * @brief Activate the initial panel after all panels are registered
      *
      * Calls on_activate() on the current active panel. This should be called
@@ -673,6 +683,8 @@ class NavigationManager {
     // re-entrant navigation from on_activate() can arm a fresh close cleanly.
     void activate_restored_target();
 
+    // Rebuild the active panel and every overlay, then the top modal if asked.
+    void rebuild_views(bool rebuild_top_modal);
     // The lifecycle on screen now: the topmost overlay's, else the active
     // main panel's. Null when the top overlay has none.
     IPanelLifecycle* visible_lifecycle();
