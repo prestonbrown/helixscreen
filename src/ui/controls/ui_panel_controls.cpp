@@ -775,7 +775,7 @@ void ControlsPanel::populate_secondary_fans() {
     // use-after-free when observe<int> callbacks fire after widget deletion.
     ++fan_populate_gen_;
 
-    // Cleanup order: lifetimes → observers → tracking → hide → delete widgets.
+    // Cleanup order: lifetimes → observers → tracking → delete widgets.
     // Reset the dynamic-subject lifetime tokens BEFORE the observers so each guard's
     // weak_ptr is already expired when reset() runs — otherwise reset() calls
     // lv_observer_remove() on a subject that may have been freed by fan rediscovery.
@@ -785,7 +785,6 @@ void ControlsPanel::populate_secondary_fans() {
     }
     secondary_fan_observers_.clear();
     secondary_fan_rows_.clear();
-    lv_obj_add_flag(secondary_fans_list_, LV_OBJ_FLAG_HIDDEN);
     helix::ui::safe_clean_children(secondary_fans_list_);
 
     // Collect non-part-cooling fans and sort by display priority
@@ -845,9 +844,6 @@ void ControlsPanel::populate_secondary_fans() {
 
     // Subscribe to per-fan speed subjects for reactive updates
     subscribe_to_secondary_fan_speeds();
-
-    // Unhide container now that repopulation is complete
-    lv_obj_remove_flag(secondary_fans_list_, LV_OBJ_FLAG_HIDDEN);
 
     spdlog::trace("[{}] Populated {} secondary fans ({} visible, {} additional)", get_name(),
                   secondary_fans.size(), visible_count, additional);
