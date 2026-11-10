@@ -257,11 +257,14 @@ void PrintControlButtons::dispatch_resume() {
     spdlog::info("[PrintControl] Resuming print");
     start_pending_action(PendingAction::Resuming);
     // dispatch_prepared_resume runs the backend prepare_for_resume → Resume
-    // chain. The optimistic spinner spans the whole window; only clear on
-    // failure (success waits on the PrinterState observer confirmation, which
-    // clears the pending action when state transitions to Printing).
+    // chain. The optimistic spinner spans the whole window. A failure clears
+    // it; success waits on the PrinterState observer, which clears it when the
+    // state turns to Printing. The sequence number ties each callback to this
+    // press, so a late answer to an earlier RESUME never settles a newer one.
+    const int seq = ++resume_seq_;
     helix::ui::dispatch_prepared_resume(
-        api_, "[PrintControl]", []() { PrintControlButtons::instance().clear_pending_action(); });
+        api_, "[PrintControl]", [seq]() { PrintControlButtons::instance().on_resume_failed(seq); },
+        [seq]() { PrintControlButtons::instance().on_resume_answered(seq); });
 }
 
 void PrintControlButtons::handle_stop_button() {
@@ -571,10 +574,17 @@ uint32_t pending_action_backstop_ms(PendingAction action) {
     // drain. Resume can run for minutes before paused->printing fires: an
     // auto-feed backend heats, feeds and flushes (Snapmaker U1, 40-90s), and a
     // firmware whose PAUSE turns the nozzle off reheats it first (Z-Mod, ~3
-    // min). The resume backstop therefore waits as long as the RPC does, so it
-    // can never release the button while the printer may still be resuming.
+    // min). The resume backstop runs as long as the RPC's own timeout. It starts
+    // when the button is pressed, before any backend prepare and before RESUME
+    // is sent, so it bounds the whole press-to-printing window: a long prepare
+    // followed by a long reheat can outlast it and re-enable Resume early.
     return (action == PendingAction::Resuming) ? IMoonrakerAPI::kMacroTimeoutMs : 25000u;
 }
+
+// RESUME's `ok` can reach the UI before the status update that turns the print
+// to printing. Several Moonraker status intervals (~250 ms each) pass before a
+// resume that answered after a `!!` is judged to have left the print paused.
+constexpr uint32_t kResumeSettleMs = 1500;
 
 void PrintControlButtons::start_pending_action(PendingAction action) {
     clear_pending_action(); // supersede any in-flight action (also deletes prior timer)
@@ -607,11 +617,13 @@ PrintControlButtons::~PrintControlButtons() {
     // `this`. lv_timer_cancel_safe() self-guards on lv_is_initialized(), which is
     // what makes it safe from a static's destructor (#750, #751, #1173).
     cancel_pending_action_timer();
+    cancel_resume_settle_timer();
     cancel_confirm_timer();
 }
 
 void PrintControlButtons::teardown_subjects() {
     cancel_pending_action_timer();
+    cancel_resume_settle_timer();
     reset_cancel();
     subjects_.deinit_all();
     subjects_initialized_ = false;
@@ -624,18 +636,86 @@ void PrintControlButtons::cancel_pending_action_timer() {
     }
 }
 
+void PrintControlButtons::cancel_resume_settle_timer() {
+    if (resume_settle_timer_) {
+        helix::ui::lv_timer_cancel_safe(resume_settle_timer_);
+        resume_settle_timer_ = nullptr;
+    }
+}
+
 void PrintControlButtons::clear_pending_action() {
     cancel_pending_action_timer();
+    cancel_resume_settle_timer();
     pending_action_ = PendingAction::None;
+    resume_answered_ = false;
+    resume_error_seen_ = false;
     recompute();
+}
+
+void PrintControlButtons::on_resume_failed(int seq) {
+    if (seq != resume_seq_ || pending_action_ != PendingAction::Resuming) {
+        return;
+    }
+    clear_pending_action();
+}
+
+void PrintControlButtons::on_resume_answered(int seq) {
+    if (seq != resume_seq_ || pending_action_ != PendingAction::Resuming) {
+        return;
+    }
+    resume_answered_ = true;
+    if (resume_error_seen_) {
+        arm_resume_settle();
+    }
+}
+
+void PrintControlButtons::arm_resume_settle() {
+    if (resume_settle_timer_) {
+        return;
+    }
+    resume_settle_seq_ = resume_seq_;
+    resume_settle_timer_ = lv_timer_create(
+        [](lv_timer_t* t) {
+            auto* self = static_cast<PrintControlButtons*>(lv_timer_get_user_data(t));
+            if (!self)
+                return;
+            self->cancel_resume_settle_timer();
+            // RAW_PRINT_STATE_OK: the same wire state the print-state observer
+            // clears the pending action on.
+            const bool still_paused = get_printer_state().print_state().get_print_job_state() ==
+                                      helix::PrintJobState::PAUSED;
+            if (self->pending_action_ != PendingAction::Resuming ||
+                self->resume_settle_seq_ != self->resume_seq_ || !still_paused) {
+                return;
+            }
+            spdlog::warn("[PrintControl] RESUME finished after a Klipper error with the print "
+                         "still paused - releasing the button");
+            self->clear_pending_action();
+        },
+        kResumeSettleMs, this);
+    lv_timer_set_repeat_count(resume_settle_timer_, 1);
 }
 
 void PrintControlButtons::notify_printer_error(const std::string& detail) {
     if (pending_action_ == PendingAction::None) {
         return;
     }
-    const char* verb = (pending_action_ == PendingAction::Resuming) ? "Resume" : "Pause";
-    spdlog::warn("[PrintControl] Klipper error while {} pending — releasing the button: {}", verb,
+    if (pending_action_ == PendingAction::Resuming && !resume_answered_) {
+        spdlog::info("[PrintControl] Klipper error while RESUME still runs - waiting for it to "
+                     "answer: {}",
+                     detail);
+        resume_error_seen_ = true;
+        return;
+    }
+    if (pending_action_ == PendingAction::Resuming) {
+        spdlog::info("[PrintControl] Klipper error after RESUME answered - releasing the button "
+                     "if the print stays paused: {}",
+                     detail);
+        resume_error_seen_ = true;
+        arm_resume_settle();
+        return;
+    }
+    spdlog::warn("[PrintControl] Klipper error while Pause pending — releasing the button: {}",
                  detail);
     clear_pending_action();
 }

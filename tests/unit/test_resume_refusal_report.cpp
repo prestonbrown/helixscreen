@@ -431,6 +431,22 @@ MoonrakerError connection_lost() {
     return err;
 }
 
+MoonrakerError timed_out() {
+    MoonrakerError err;
+    err.type = MoonrakerErrorType::TIMEOUT;
+    err.message = "Request timed out after 5m";
+    err.method = "printer.gcode.script";
+    return err;
+}
+
+MoonrakerError refused() {
+    MoonrakerError err;
+    err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+    err.message = "resume macro failed";
+    err.method = "printer.gcode.script";
+    return err;
+}
+
 } // namespace
 
 TEST_CASE_METHOD(ResumeRefusalFixture,
@@ -495,6 +511,190 @@ TEST_CASE_METHOD(ResumeRefusalFixture,
 
     CHECK(toasts.empty());
     CHECK(ButtonsAccess::pending() == PendingAction::Pausing);
+
+    get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
+}
+
+// Klipper's `!!` is not always the end of a macro: RESPOND TYPE=error prints one
+// and the macro carries on. Only once RESUME has answered does a `!!` say the
+// resume ended without the print running.
+constexpr const char* kMacroErrorLine = "!! Nozzle below extrude temperature, waiting";
+// Past the buttons' settle after RESUME answers (kResumeSettleMs).
+constexpr int kResumeSettleWaitMs = 1600;
+
+TEST_CASE_METHOD(ResumeRefusalFixture,
+                 "a printer error while RESUME still runs keeps the resume pending",
+                 "[resume][resume_timeout]") {
+    using ui::PendingAction;
+    attach_router();
+    PrintControlScope buttons(api.get());
+    get_printer_state().update_from_status({{"print_stats", {{"state", "paused"}}}});
+    settle();
+
+    mock.defer_next("printer.gcode.script");
+    ui::PrintControlButtons::instance().request_resume();
+    settle();
+    mock.dispatch_gcode_response(kMacroErrorLine);
+    settle();
+    CHECK(ButtonsAccess::pending() == PendingAction::Resuming);
+    CHECK(primary_enabled() == 0);
+
+    SECTION("RESUME answering with the print still paused releases it after the settle") {
+        mock.fire_deferred("printer.gcode.script");
+        settle();
+        CHECK(ButtonsAccess::pending() == PendingAction::Resuming);
+        CHECK(primary_enabled() == 0);
+        process_lvgl(kResumeSettleWaitMs);
+        settle();
+        CHECK(ButtonsAccess::pending() == PendingAction::None);
+    }
+    SECTION("RESUME answering just before the print runs never re-enables Resume") {
+        mock.fire_deferred("printer.gcode.script");
+        settle();
+        CHECK(ButtonsAccess::pending() == PendingAction::Resuming);
+        CHECK(primary_enabled() == 0);
+        get_printer_state().update_from_status({{"print_stats", {{"state", "printing"}}}});
+        settle();
+        CHECK(ButtonsAccess::pending() == PendingAction::None);
+        // The settle armed by the answer finds the print running and does nothing.
+        process_lvgl(kResumeSettleWaitMs);
+        settle();
+        CHECK(ButtonsAccess::pending() == PendingAction::None);
+    }
+    SECTION("a socket lost before RESUME answered leaves it to the print state") {
+        mock.fire_deferred_error("printer.gcode.script", connection_lost());
+        settle();
+        CHECK(ButtonsAccess::pending() == PendingAction::Resuming);
+    }
+    SECTION("an RPC timeout leaves it pending until the backstop") {
+        mock.fire_deferred_error("printer.gcode.script", timed_out());
+        settle();
+        CHECK(ButtonsAccess::pending() == PendingAction::Resuming);
+        process_lvgl(ui::pending_action_backstop_ms(PendingAction::Resuming));
+        settle();
+        CHECK(ButtonsAccess::pending() == PendingAction::None);
+    }
+    SECTION("RESUME refused over RPC releases it") {
+        mock.fire_deferred_error("printer.gcode.script", refused());
+        settle();
+        CHECK(ButtonsAccess::pending() == PendingAction::None);
+    }
+    SECTION("the print running releases it, and the answer after is inert") {
+        get_printer_state().update_from_status({{"print_stats", {{"state", "printing"}}}});
+        settle();
+        CHECK(ButtonsAccess::pending() == PendingAction::None);
+        mock.fire_deferred("printer.gcode.script");
+        settle();
+        CHECK(ButtonsAccess::pending() == PendingAction::None);
+    }
+
+    get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
+}
+
+TEST_CASE_METHOD(
+    ResumeRefusalFixture,
+    "a printer error after RESUME answered releases the resume if the print stays paused",
+    "[resume][resume_timeout]") {
+    using ui::PendingAction;
+    attach_router();
+    PrintControlScope buttons(api.get());
+    get_printer_state().update_from_status({{"print_stats", {{"state", "paused"}}}});
+    settle();
+
+    ui::PrintControlButtons::instance().request_resume();
+    settle();
+    // An answer alone says nothing: the print state is a status update behind it.
+    REQUIRE(ButtonsAccess::pending() == PendingAction::Resuming);
+
+    mock.dispatch_gcode_response(kMacroErrorLine);
+    settle();
+    CHECK(ButtonsAccess::pending() == PendingAction::Resuming);
+    process_lvgl(kResumeSettleWaitMs);
+    settle();
+    CHECK(ButtonsAccess::pending() == PendingAction::None);
+    CHECK(std::string(lv_subject_get_string(
+              lv_xml_get_subject(nullptr, "print_control_primary_label"))) == "Resume");
+
+    get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
+}
+
+// A `!!` seen by a resume the print state then settled is not carried into the
+// next resume: that one's answer alone says nothing about whether it worked.
+TEST_CASE_METHOD(ResumeRefusalFixture, "a settled resume leaves no printer error for the next",
+                 "[resume][resume_timeout]") {
+    using ui::PendingAction;
+    attach_router();
+    PrintControlScope buttons(api.get());
+    get_printer_state().update_from_status({{"print_stats", {{"state", "paused"}}}});
+    settle();
+
+    mock.defer_next("printer.gcode.script");
+    ui::PrintControlButtons::instance().request_resume();
+    settle();
+    mock.dispatch_gcode_response(kMacroErrorLine);
+    settle();
+    REQUIRE(ButtonsAccess::pending() == PendingAction::Resuming);
+    get_printer_state().update_from_status({{"print_stats", {{"state", "printing"}}}});
+    settle();
+    REQUIRE(ButtonsAccess::pending() == PendingAction::None);
+
+    get_printer_state().update_from_status({{"print_stats", {{"state", "paused"}}}});
+    settle();
+    ui::PrintControlButtons::instance().request_resume();
+    settle();
+    process_lvgl(kResumeSettleWaitMs);
+    settle();
+    CHECK(ButtonsAccess::pending() == PendingAction::Resuming);
+
+    // The first press's late answer is inert too.
+    mock.fire_deferred("printer.gcode.script");
+    settle();
+    process_lvgl(kResumeSettleWaitMs);
+    settle();
+    CHECK(ButtonsAccess::pending() == PendingAction::Resuming);
+
+    get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
+}
+
+// The backstop can release a Resume whose RESUME is still unanswered, and the
+// user can press again. The first RESUME's late answer belongs to a press that
+// is over and must not settle the second.
+TEST_CASE_METHOD(ResumeRefusalFixture,
+                 "a late answer to an earlier RESUME does not settle a newer resume",
+                 "[resume][resume_timeout]") {
+    using ui::PendingAction;
+    attach_router();
+    PrintControlScope buttons(api.get());
+    get_printer_state().update_from_status({{"print_stats", {{"state", "paused"}}}});
+    settle();
+
+    mock.defer_next("printer.gcode.script");
+    ui::PrintControlButtons::instance().request_resume();
+    settle();
+    process_lvgl(ui::pending_action_backstop_ms(PendingAction::Resuming));
+    settle();
+    REQUIRE(ButtonsAccess::pending() == PendingAction::None);
+
+    // The second press's RESUME times out unanswered, and a `!!` arrives while
+    // it is pending.
+    mock.force_next_gcode_error(MoonrakerErrorType::TIMEOUT, "Request timed out after 5m",
+                                "RESUME");
+    ui::PrintControlButtons::instance().request_resume();
+    settle();
+    mock.dispatch_gcode_response(kMacroErrorLine);
+    settle();
+    REQUIRE(ButtonsAccess::pending() == PendingAction::Resuming);
+
+    SECTION("the first RESUME's ok") {
+        mock.fire_deferred("printer.gcode.script");
+        settle();
+        CHECK(ButtonsAccess::pending() == PendingAction::Resuming);
+    }
+    SECTION("the first RESUME's refusal") {
+        mock.fire_deferred_error("printer.gcode.script", refused());
+        settle();
+        CHECK(ButtonsAccess::pending() == PendingAction::Resuming);
+    }
 
     get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
 }

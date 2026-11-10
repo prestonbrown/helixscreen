@@ -90,16 +90,19 @@ class PrintControlButtons {
     /// Klipper broadcast a `!!` error while a Pause/Resume was in flight.
     ///
     /// The optimistic spinner is cleared only by the real print-state transition
-    /// or by the backstop, and neither fires when Klipper *aborts* the macro:
+    /// or by the backstop, and neither fires when a macro refuses and returns:
     /// RESUME's own runout check prints `!! ... has detected that the filament
-    /// has run out` and returns, yet `printer.gcode.script` still answers `ok`,
+    /// has run out` and ends, yet `printer.gcode.script` still answers `ok`,
     /// so the RPC error path never runs. The button then reads "Resuming..." and
     /// stays DISABLED until the backstop — the user cannot retry even after
     /// fixing the filament (bundle JX2FVRB9).
     ///
-    /// Clearing on the error is safe in the other direction too: if the command
-    /// did land despite an unrelated error, the state observer clears the same
-    /// pending action a moment later and the clear is idempotent.
+    /// A pending Pause is released at once. A pending Resume is released only
+    /// once its RESUME has also answered `ok` and the print is still paused
+    /// kResumeSettleMs later: a `!!` does not end a macro (RESPOND TYPE=error
+    /// prints one and carries on), a Resume re-enabled while RESUME still
+    /// reheats queues a second one, and the `ok` can arrive before the status
+    /// update that says the print runs again.
     ///
     /// Main thread only. No-op when nothing is pending.
     void notify_printer_error(const std::string& detail);
@@ -167,6 +170,8 @@ class PrintControlButtons {
     /// the destructor — a timer cancelled on only some of those paths stays armed
     /// on a freed `this` on the others.
     void cancel_pending_action_timer();
+    /// Shared the same way as cancel_pending_action_timer().
+    void cancel_resume_settle_timer();
 
     /// Tear the owned subjects down, signalling death first.
     ///
@@ -181,6 +186,24 @@ class PrintControlButtons {
     bool subjects_initialized_ = false;
     PendingAction pending_action_ = PendingAction::None;
     lv_timer_t* pending_action_timeout_ = nullptr;
+    /// Bumped per RESUME sent, so a late answer to an earlier one is ignored.
+    int resume_seq_ = 0;
+    /// The pending resume's RESUME answered `ok`.
+    bool resume_answered_ = false;
+    /// A `!!` arrived while the resume was pending.
+    bool resume_error_seen_ = false;
+    /// RESUME number @p seq answered `ok`.
+    void on_resume_answered(int seq);
+    /// Resume number @p seq ended without RESUME running: a refusal, a failed
+    /// prepare, or a restart offered instead.
+    void on_resume_failed(int seq);
+    /// RESUME answered and a `!!` arrived: release the button once the print
+    /// state has had time to report printing, if it is still paused then.
+    void arm_resume_settle();
+    /// Armed by arm_resume_settle(); deleted by every clear.
+    lv_timer_t* resume_settle_timer_ = nullptr;
+    /// The resume the settle timer was armed for.
+    int resume_settle_seq_ = 0;
     CancelState cancel_state_ = CancelState::Idle;
     /// The preparing epoch the cancel was requested for.
     int cancel_epoch_ = 0;

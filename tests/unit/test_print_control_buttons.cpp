@@ -119,16 +119,12 @@ TEST_CASE_METHOD(ControlButtonsFixture, "pending action set then cleared on stat
     REQUIRE(read_str("print_control_primary_label") == "Resume");
 }
 
-// Klipper rejects a RESUME by broadcasting `!!` and returning normally — the
-// gcode.script RPC still answers `ok`, so dispatch_prepared_resume's error path
-// never runs and the optimistic spinner is left to the backstop. Until then
-// the button reads "Resuming..." AND is disabled, so the user cannot retry even
-// after clearing the runout (one AD5X log: RESUME at 07:33:29 rejected for
-// filament-out, pending finally cleared at 07:35:59).
-//
-// Mutation check: make notify_printer_error() a no-op and the first REQUIRE in
-// "klipper error releases a pending resume" fails with pending == Resuming.
-TEST_CASE_METHOD(ControlButtonsFixture, "klipper error releases a pending resume",
+// A `!!` does not end a macro: RESPOND TYPE=error prints one and the macro
+// carries on, so a Resume re-enabled on the error alone lets a second tap send
+// RESUME while the first still reheats. The release, once RESUME has answered
+// and the print stays paused, is pinned in [resume_timeout], where a mock
+// RESUME can answer.
+TEST_CASE_METHOD(ControlButtonsFixture, "a klipper error alone keeps a pending resume",
                  "[print_control][slow]") {
     using helix::ui::PendingAction;
     using helix::ui::PrintControlButtons;
@@ -136,21 +132,17 @@ TEST_CASE_METHOD(ControlButtonsFixture, "klipper error releases a pending resume
     set_print_state(helix::PrintJobState::PAUSED);
     ButtonsAccess::set_pending(PendingAction::Resuming);
     REQUIRE(read_str("print_control_primary_label") == "Resuming...");
-    REQUIRE(read_int("print_control_primary_enabled") == 0);
 
-    // The `!!` line Klipper actually emitted on the reporter's AD5X.
+    // The `!!` line Klipper emitted on an AD5X whose RESUME found the
+    // filament run out.
     PrintControlButtons::instance().notify_printer_error(
         "\"head_switch_sensor\" has detected that the filament has run out, "
         "please load it and press RESUME");
+    process_lvgl(2000);
 
-    REQUIRE(ButtonsAccess::pending() == PendingAction::None);
-    REQUIRE(read_int("print_pending_action") == static_cast<int>(PendingAction::None));
-    // Back to the actionable label. primary_enabled is NOT asserted here: this
-    // harness runs no printer discovery, so the Resume macro slot is empty and
-    // the enable term is pinned to 0 regardless (see "primary disabled when
-    // macro slots empty"). The pending->enabled half lives in
-    // [print_control_view], where the slot availability is an input.
-    REQUIRE(read_str("print_control_primary_label") == "Resume");
+    CHECK(ButtonsAccess::pending() == PendingAction::Resuming);
+    CHECK(read_str("print_control_primary_label") == "Resuming...");
+    CHECK(read_int("print_control_primary_enabled") == 0);
 }
 
 TEST_CASE_METHOD(ControlButtonsFixture, "klipper error also releases a pending pause",
