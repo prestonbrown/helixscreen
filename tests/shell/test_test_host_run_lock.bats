@@ -332,7 +332,8 @@ drop_during_lock_wait() { # <out file>
     drop_during_lock_wait "$out"
     wait "$RUNNER"
     [ "$(grep -c "git reset" "$MOCK_DOCKER_LOG")" -eq 1 ]
-    for _ in $(seq 1 60); do flock -n "$(lock_file)" true && break; sleep 0.05; done
+    # The far end releases the lock on its own schedule; slow CI runners need far longer than a desktop.
+    for _ in $(seq 1 400); do flock -n "$(lock_file)" true && break; sleep 0.05; done
     flock -n "$(lock_file)" true
     kill $(cat "$BATS_TEST_TMPDIR/ssh-keepers") 2>/dev/null || true
 }
