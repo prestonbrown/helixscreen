@@ -3,15 +3,20 @@
 
 #include "ui_button.h"
 #include "ui_overlay_timelapse_install.h"
+#include "ui_overlay_timelapse_settings.h"
+#include "ui_timelapse_macro_card.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/unique_temp_dir.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
+#include "macro_manager.h"
 #include "moonraker_api.h"
+#include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_config_manager.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 
 #include <algorithm>
@@ -434,4 +439,107 @@ TEST_CASE_METHOD(LocalInstallFixture, "no HOME to clone under takes the SSH rout
     overlay.on_deactivate(DeactivateReason::NavigateAway);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     overlay.cleanup();
+}
+
+// ============================================================================
+// The timelapse macro card both screens share
+// ============================================================================
+
+namespace {
+using MacroCard = helix::ui::TimelapseMacroCard::Card;
+
+constexpr const char* kMacroPack = "# helix_macros v2.0.0\n[gcode_macro HELIX_READY]\ngcode:\n";
+
+/// Klipper's objects: the helper macros and/or TIMELAPSE_TAKE_FRAME.
+helix::PrinterDiscovery klipper_with(bool helix_macros, bool frame_macro) {
+    json objects = json::array({"bed_mesh", "timelapse"});
+    if (helix_macros) {
+        for (const char* m : {"gcode_macro HELIX_READY", "gcode_macro HELIX_START_PRINT",
+                              "gcode_macro HELIX_CLEAN_NOZZLE"}) {
+            objects.push_back(m);
+        }
+    }
+    if (frame_macro) {
+        objects.push_back("gcode_macro TIMELAPSE_TAKE_FRAME");
+    }
+    helix::PrinterDiscovery d;
+    d.parse_objects(objects);
+    return d;
+}
+
+/// LocalInstallFixture plus a mock Moonraker whose config root holds helix_macros.cfg.
+struct MacroCardFixture : public LocalInstallFixture {
+    MacroCardFixture() {
+        api_.set_config_files(
+            {{"printer.cfg", "[include helix_macros.cfg]\n"}, {"helix_macros.cfg", kMacroPack}});
+        helix::ui::timelapse_macro_card().init_subjects();
+    }
+    ~MacroCardFixture() override {
+        helix::ui::timelapse_macro_card().clear();
+        get_printer_state().set_hardware(helix::PrinterDiscovery{});
+    }
+    static MacroCard card() {
+        return helix::ui::timelapse_macro_card().card();
+    }
+    std::string staged_macros() {
+        return api_.get_uploaded_config("helix_macros.cfg").value_or("");
+    }
+
+    MoonrakerClientMock client_;
+    helix::PrinterState state_;
+    MoonrakerAPIMock api_{client_, state_};
+};
+} // namespace
+
+TEST_CASE_METHOD(MacroCardFixture,
+                 "the macro card includes the timelapse macros through helix_macros.cfg",
+                 "[timelapse][macro_card]") {
+    auto& card_ui = helix::ui::timelapse_macro_card();
+
+    SECTION("helper macros loaded and no frame macro: include, then offer the restart") {
+        const auto klipper = klipper_with(true, false);
+        card_ui.refresh(&api_, klipper);
+        REQUIRE(settle_until([] { return card() != MacroCard::None; }));
+        CHECK(card() == MacroCard::RestartKlipper);
+        CHECK(helix::MacroManager::has_timelapse_include(staged_macros()));
+
+        // Never during a job: the tap is refused and the offer stays.
+        set_job_holds(true);
+        card_ui.restart_klipper();
+        CHECK(card() == MacroCard::RestartKlipper);
+        card_ui.clear();
+    }
+    SECTION("no helper macros: the line to add, and helix_macros.cfg untouched") {
+        const auto klipper = klipper_with(false, false);
+        card_ui.refresh(&api_, klipper);
+        CHECK(card() == MacroCard::IncludeLine);
+        CHECK(staged_macros() == kMacroPack);
+    }
+    SECTION("the frame macro already loaded: no card, no write") {
+        const auto klipper = klipper_with(true, true);
+        card_ui.refresh(&api_, klipper);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(card() == MacroCard::None);
+        CHECK(staged_macros() == kMacroPack);
+    }
+    SECTION("helix_macros.cfg cannot be read: the line to add") {
+        api_.set_config_files({{"printer.cfg", "[include helix_macros.cfg]\n"}});
+        const auto klipper = klipper_with(true, false);
+        card_ui.refresh(&api_, klipper);
+        REQUIRE(settle_until([] { return card() != MacroCard::None; }));
+        CHECK(card() == MacroCard::IncludeLine);
+    }
+}
+
+TEST_CASE_METHOD(MacroCardFixture,
+                 "opening timelapse settings on an installed plugin shows the macro card",
+                 "[timelapse][macro_card]") {
+    get_printer_state().set_hardware(klipper_with(true, false));
+    TimelapseSettingsOverlay overlay(&api_);
+    overlay.init_subjects();
+    overlay.on_activate();
+
+    REQUIRE(settle_until([] { return card() != MacroCard::None; }));
+    CHECK(card() == MacroCard::RestartKlipper);
+    CHECK(helix::MacroManager::has_timelapse_include(staged_macros()));
 }

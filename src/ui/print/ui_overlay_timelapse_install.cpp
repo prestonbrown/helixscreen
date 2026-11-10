@@ -8,6 +8,7 @@
 #include "ui_emergency_stop.h"
 #include "ui_nav.h"
 #include "ui_step_progress.h"
+#include "ui_timelapse_macro_card.h"
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
@@ -20,7 +21,6 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "lvgl.h"
-#include "macro_manager.h"
 #include "moonraker_config_manager.h"
 #include "moonraker_types.h"
 #include "printer_state.h"
@@ -72,6 +72,7 @@ TimelapseInstallOverlay::~TimelapseInstallOverlay() {
 }
 
 void TimelapseInstallOverlay::init_subjects() {
+    helix::ui::timelapse_macro_card().init_subjects();
     init_subjects_guarded([this]() {
         UI_MANAGED_SUBJECT_STRING(status_subject_, status_buf_, "", "timelapse_install_status",
                                   subjects_);
@@ -84,19 +85,13 @@ void TimelapseInstallOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(ffmpeg_command_subject_, ffmpeg_command_buf_,
                                   kFfmpegInstallCommand, "timelapse_install_ffmpeg_command",
                                   subjects_);
-        UI_MANAGED_SUBJECT_INT(macro_card_subject_, static_cast<int>(MacroCard::None),
-                               "timelapse_install_macro_card", subjects_);
-        UI_MANAGED_SUBJECT_STRING(include_line_subject_, include_line_buf_, kTimelapseIncludeLine,
-                                  "timelapse_install_include_line", subjects_);
     });
 }
 
 void TimelapseInstallOverlay::register_callbacks() {
     register_xml_callbacks({{"on_timelapse_install_action",
-                             [](lv_event_t*) { get_global_timelapse_install().press_action(); }},
-                            {"on_timelapse_install_restart_klipper", [](lv_event_t*) {
-                                 get_global_timelapse_install().restart_klipper_for_macros();
-                             }}});
+                             [](lv_event_t*) { get_global_timelapse_install().press_action(); }}});
+    helix::ui::timelapse_macro_card().register_callbacks();
 }
 
 void TimelapseInstallOverlay::press_action() {
@@ -125,7 +120,6 @@ lv_obj_t* TimelapseInstallOverlay::create(lv_obj_t* parent) {
 
     hide_action_button();
     show_card(Card::None);
-    show_macro_card(MacroCard::None);
 
     return overlay_root_;
 }
@@ -167,10 +161,9 @@ void TimelapseInstallOverlay::start_wizard() {
     waiting_on_earlier_install_ = false;
     action_callback_ = nullptr;
     ffmpeg_missing_ = false;
-    macro_manager_.reset();
 
     show_card(Card::None);
-    show_macro_card(MacroCard::None);
+    helix::ui::timelapse_macro_card().clear();
     hide_action_button();
 
     step_check_webcam();
@@ -214,17 +207,10 @@ void TimelapseInstallOverlay::show_card(Card card) {
     reveal_card();
 }
 
-void TimelapseInstallOverlay::show_macro_card(MacroCard card) {
-    if (subjects_initialized_) {
-        lv_subject_set_int(&macro_card_subject_, static_cast<int>(card));
-    }
-    reveal_card();
-}
-
 void TimelapseInstallOverlay::reveal_card() {
     if (!overlay_root_ || !subjects_initialized_ ||
         (lv_subject_get_int(&card_subject_) == static_cast<int>(Card::None) &&
-         lv_subject_get_int(&macro_card_subject_) == static_cast<int>(MacroCard::None))) {
+         helix::ui::timelapse_macro_card().card() == helix::ui::TimelapseMacroCard::Card::None)) {
         return;
     }
     // The step list fills the first screen, so the card with commands to run, the
@@ -856,7 +842,11 @@ void TimelapseInstallOverlay::step_verify() {
                             show_action_button(lv_tr("Done"), []() { helix::nav::go_back(); });
                             ToastManager::instance().show(
                                 ToastSeverity::SUCCESS, lv_tr("Timelapse plugin installed!"), 3000);
-                            setup_timelapse_macros(gen);
+                            helix::ui::timelapse_macro_card().refresh(
+                                api_, get_printer_state().get_discovery(), [this, gen]() {
+                                    if (is_current(gen, Step::VERIFY))
+                                        reveal_card();
+                                });
                         }),
         lifetime_.bg_cb("TimelapseInstallOverlay::verify_err", [this, gen](const MoonrakerError&) {
             if (!is_current(gen, Step::VERIFY))
@@ -866,88 +856,6 @@ void TimelapseInstallOverlay::step_verify() {
                 lv_tr("Plugin not responding after restart.\nIt may need more time to load."));
             show_action_button(lv_tr("Check Again"), [this]() { step_verify(); });
         }));
-}
-
-// ============================================================================
-// KLIPPER MACROS
-// ============================================================================
-
-void TimelapseInstallOverlay::setup_timelapse_macros(unsigned gen) {
-    const auto& discovery = get_printer_state().get_discovery();
-    const MacroInstallStatus helix_status = MacroManager::evaluate_status(discovery);
-    const bool helix_loaded = helix_status == MacroInstallStatus::INSTALLED ||
-                              helix_status == MacroInstallStatus::OUTDATED;
-    const bool has_frame_macro = discovery.has_macro(kTimelapseFrameMacro);
-    const TimelapseMacroSetup setup = decide_timelapse_macro_setup(has_frame_macro, helix_loaded);
-    spdlog::info("[{}] Timelapse macros: {}={} helix_macros={} -> {}", get_name(),
-                 kTimelapseFrameMacro, has_frame_macro, helix_loaded, static_cast<int>(setup));
-
-    switch (setup) {
-    case TimelapseMacroSetup::Loaded:
-        show_macro_card(MacroCard::None);
-        return;
-    case TimelapseMacroSetup::ShowIncludeLine:
-        show_macro_card(MacroCard::IncludeLine);
-        return;
-    case TimelapseMacroSetup::IncludeFromHelixMacros:
-        break;
-    }
-
-    if (!api_) {
-        show_macro_card(MacroCard::IncludeLine);
-        return;
-    }
-    macro_manager_ = std::make_unique<MacroManager>(*api_, discovery);
-    // MacroManager lands both callbacks on the main thread.
-    macro_manager_->include_timelapse_macros(
-        [this, gen]() {
-            if (!is_current(gen, Step::VERIFY))
-                return;
-            spdlog::info("[{}] {} includes the timelapse macros; they load at the next Klipper "
-                         "restart",
-                         get_name(), kHelixMacrosFilename);
-            show_macro_card(MacroCard::RestartKlipper);
-        },
-        [this, gen](const MoonrakerError& err) {
-            if (!is_current(gen, Step::VERIFY))
-                return;
-            spdlog::warn("[{}] Could not add the timelapse macros to {} ({}); showing the line "
-                         "to add",
-                         get_name(), kHelixMacrosFilename, err.message);
-            show_macro_card(MacroCard::IncludeLine);
-        });
-}
-
-void TimelapseInstallOverlay::restart_klipper_for_macros() {
-    // The button greys while a job holds the machine (moves_machine); this is the backstop.
-    if (job_holds_now()) {
-        ToastManager::instance().show(
-            ToastSeverity::INFO, lv_tr("A print is in progress - restart still pending"), 3000);
-        return;
-    }
-    if (!macro_manager_) {
-        return;
-    }
-    spdlog::info("[{}] Restarting Klipper to load the timelapse macros", get_name());
-    show_macro_card(MacroCard::None);
-    // The restart passes through SHUTDOWN on its way back to READY.
-    EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::NORMAL);
-    const unsigned gen = run_generation_;
-    // The same restart the helper macros activate with; both callbacks land on main.
-    macro_manager_->request_restart(
-        [this, gen]() {
-            if (!is_current(gen, Step::VERIFY))
-                return;
-            set_status(
-                lv_tr("Klipper is restarting. Timelapse frames are captured from the next print."));
-        },
-        [this, gen](const MoonrakerError& err) {
-            spdlog::error("[{}] Klipper restart request failed: {}", get_name(), err.message);
-            ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Failed to restart Klipper"),
-                                          4000);
-            if (is_current(gen, Step::VERIFY))
-                show_macro_card(MacroCard::RestartKlipper);
-        });
 }
 
 // ============================================================================

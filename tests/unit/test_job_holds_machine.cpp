@@ -348,7 +348,7 @@ constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/probe_bltouch_panel.xml", 2},
     {"ui_xml/probe_beacon_panel.xml", 2},
     {"ui_xml/temp_graph_overlay.xml", 2},
-    {"ui_xml/timelapse_install_overlay.xml", 1},
+    {"ui_xml/components/timelapse_macro_card.xml", 1},
     {"ui_xml/components/tool_switcher_feeder_segment.xml", 1},
     {"ui_xml/components/tool_switcher_park_segment.xml", 1},
 };
@@ -655,6 +655,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/theme_preview_overlay.xml",
     "ui_xml/theme_save_as_modal.xml",
     "ui_xml/tile_edit_callout.xml",
+    "ui_xml/timelapse_install_overlay.xml",
     "ui_xml/timelapse_settings_overlay.xml",
     "ui_xml/timelapse_video_card.xml",
     "ui_xml/timelapse_videos_overlay.xml",
