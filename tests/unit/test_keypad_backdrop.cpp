@@ -234,12 +234,12 @@ TEST_CASE_METHOD(KeypadBackdropFixture,
         CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "keypad_allow_decimal")) == 1);
         CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "keypad_allow_negative")) == 0);
         tap("btn_backspace");
+        tap("btn_backspace");
+        tap("btn_dot");
         tap("btn_7");
         CHECK(display() == "192.168.1.7");
 
-        lv_event_cb_t confirm = lv_xml_get_event_cb(nullptr, "on_keypad_confirm");
-        REQUIRE(confirm != nullptr);
-        confirm(nullptr);
+        tap("action_button"); // the header's Set
         helix::ui::UpdateQueue::instance().drain();
         process_lvgl(600);
         helix::ui::UpdateQueue::instance().drain();

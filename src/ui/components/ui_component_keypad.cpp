@@ -17,6 +17,7 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_nav.h"
+#include "ui_pin_utils.h"
 #include "ui_slider_scale.h"
 #include "ui_utils.h"
 
@@ -88,7 +89,6 @@ static helix::ui::KeypadInput input;
 // ============================================================================
 static void update_display();
 static void handle_confirm();
-static void wire_button_events();
 
 // ============================================================================
 // Subject Initialization (call BEFORE XML creation)
@@ -155,8 +155,31 @@ void ui_keypad_init(lv_obj_t* parent) {
     ui_keypad_init_subjects();
 
     helix::ui::store_until_deleted(&keypad_parent, parent);
-    // The in-pad confirm key (phone layout, integer fields) does what the header's Set does.
+    // The in-pad confirm key (phone layout, integer fields) and the header's Set
+    // both confirm.
     register_xml_callbacks({
+        {"on_keypad_digit",
+         [](lv_event_t* e) {
+             helix::ui::event_safe_call("keypad_digit", [e]() {
+                 const int digit = helix::ui::key_digit(e);
+                 if (digit >= 0 && input.append_digit(digit))
+                     update_display();
+             });
+         }},
+        {"on_keypad_dot",
+         [](lv_event_t*) {
+             helix::ui::event_safe_call("keypad_dot", []() {
+                 if (input.append_dot())
+                     update_display();
+             });
+         }},
+        {"on_keypad_backspace",
+         [](lv_event_t*) {
+             helix::ui::event_safe_call("keypad_backspace", []() {
+                 if (input.backspace())
+                     update_display();
+             });
+         }},
         {"on_keypad_confirm",
          [](lv_event_t*) {
              helix::ui::event_safe_call("keypad_confirm", []() { handle_confirm(); });
@@ -191,7 +214,6 @@ static bool ensure_keypad_built() {
         return false;
     }
 
-    wire_button_events();
     spdlog::debug("[Keypad] Numeric keypad built on first use");
     return true;
 }
@@ -382,76 +404,4 @@ static void handle_confirm() {
     }
 
     ui_keypad_hide();
-}
-
-// ============================================================================
-// Event Wiring
-// ============================================================================
-static void wire_button_events() {
-    if (!keypad_widget)
-        return;
-
-    // Number buttons 0-9
-    const char* btn_names[] = {"btn_0", "btn_1", "btn_2", "btn_3", "btn_4",
-                               "btn_5", "btn_6", "btn_7", "btn_8", "btn_9"};
-
-    for (int i = 0; i < 10; i++) {
-        lv_obj_t* btn = lv_obj_find_by_name(keypad_widget, btn_names[i]);
-        if (btn) {
-            lv_obj_add_event_cb(
-                btn,
-                [](lv_event_t* e) {
-                    helix::ui::event_safe_call("keypad_digit", [e]() {
-                        int digit = (int)(intptr_t)lv_event_get_user_data(e);
-                        if (input.append_digit(digit))
-                            update_display();
-                    });
-                },
-                LV_EVENT_CLICKED, (void*)(intptr_t)i);
-        }
-    }
-
-    // Dot button
-    lv_obj_t* btn_dot = helix::ui::find_required(keypad_widget, "btn_dot", "Keypad");
-    if (btn_dot) {
-        lv_obj_add_event_cb(
-            btn_dot,
-            [](lv_event_t*) {
-                helix::ui::event_safe_call("keypad_dot", []() {
-                    if (input.append_dot())
-                        update_display();
-                });
-            },
-            LV_EVENT_CLICKED, nullptr);
-    }
-
-    // Backspace button
-    lv_obj_t* btn_back = helix::ui::find_required(keypad_widget, "btn_backspace", "Keypad");
-    if (btn_back) {
-        lv_obj_add_event_cb(
-            btn_back,
-            [](lv_event_t*) {
-                helix::ui::event_safe_call("keypad_backspace", []() {
-                    if (input.backspace())
-                        update_display();
-                });
-            },
-            LV_EVENT_CLICKED, nullptr);
-    }
-
-    // NOTE: Back button is handled by header_bar's default on_header_back_clicked callback
-    // Do NOT add a second handler here - it would cause double navigation!
-
-    // Action button (OK in header_bar) → confirm
-    lv_obj_t* ok_btn = helix::ui::find_required(keypad_widget, "action_button", "Keypad");
-    if (ok_btn) {
-        lv_obj_add_event_cb(
-            ok_btn,
-            [](lv_event_t*) {
-                helix::ui::event_safe_call("keypad_confirm", []() { handle_confirm(); });
-            },
-            LV_EVENT_CLICKED, nullptr);
-    }
-
-    spdlog::debug("[Keypad] Events wired");
 }

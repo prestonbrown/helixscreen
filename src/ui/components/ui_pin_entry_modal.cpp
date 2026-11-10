@@ -289,24 +289,9 @@ void PinEntryModal::on_digit_clicked(lv_event_t* e) {
         return;
     }
 
-    auto* btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    if (!btn) {
-        return;
-    }
-
-    // Button names are "pin_digit_0" through "pin_digit_9"
-    const char* name = lv_obj_get_name(btn);
-    if (!name) {
-        return;
-    }
-
-    // Parse digit from trailing character: "pin_digit_5" → 5
-    size_t len = strlen(name);
-    if (len >= 1 && name[len - 1] >= '0' && name[len - 1] <= '9') {
-        int digit = name[len - 1] - '0';
+    const int digit = key_digit(e);
+    if (digit >= 0) {
         pad->on_digit(digit);
-    } else {
-        spdlog::warn("[PinEntryModal] Could not parse digit from button name '{}'", name);
     }
     LVGL_SAFE_EVENT_CB_END();
 }

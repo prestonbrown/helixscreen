@@ -2,12 +2,27 @@
 
 #include "ui_pin_utils.h"
 
+#include <spdlog/spdlog.h>
+
+#include <cstring>
+
 namespace helix::ui {
 
 namespace {
 // The error line is blank rather than empty, so it keeps its height.
 constexpr const char* kBlankError = " ";
 } // namespace
+
+int key_digit(lv_event_t* e) {
+    const auto* key = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    const char* name = key ? lv_obj_get_name(key) : nullptr;
+    const size_t len = name ? strlen(name) : 0;
+    if (len == 0 || name[len - 1] < '0' || name[len - 1] > '9') {
+        spdlog::warn("[Keypad] Cannot read a digit from key '{}'", name ? name : "");
+        return -1;
+    }
+    return name[len - 1] - '0';
+}
 
 PinDisplay::PinDisplay(const char* prefix) {
     static unsigned next_id = 0;

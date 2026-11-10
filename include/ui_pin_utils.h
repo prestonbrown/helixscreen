@@ -9,6 +9,14 @@
 namespace helix::ui {
 
 /**
+ * The digit a keypad key stands for, read from the last character of its name
+ * ("btn_7", "pin_digit_7", "lock_digit_7" all give 7); -1 when the clicked
+ * object is unnamed or its name does not end in a digit. Keypads share one
+ * clicked callback across their ten digit keys this way.
+ */
+int key_digit(lv_event_t* e);
+
+/**
  * The dot row and error line of a PIN pad, as subjects its component binds.
  *
  * Each pad owns one and passes attrs() to lv_xml_create(), so the component's

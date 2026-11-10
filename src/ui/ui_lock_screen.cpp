@@ -252,34 +252,10 @@ void LockScreenOverlay::shake_dots() {
 static void lock_digit_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("lock_digit_clicked");
 
-    auto* btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    if (!btn) {
+    const int digit = key_digit(e);
+    if (digit < 0) {
         return;
     }
-
-    // Button names are "lock_digit_0" through "lock_digit_9"
-    // Parse the digit from the trailing character of the name
-    const char* name = lv_obj_get_name(btn);
-    if (!name) {
-        spdlog::warn("[LockScreen] Digit button has no name");
-        return;
-    }
-
-    // Name format: "lock_digit_N" — last character is the digit
-    size_t len = strlen(name);
-    if (len < 1) {
-        spdlog::warn("[LockScreen] Digit button name '{}' too short to parse", name);
-        return;
-    }
-
-    char last = name[len - 1];
-    if (last < '0' || last > '9') {
-        spdlog::warn("[LockScreen] Cannot parse digit from button name '{}'", name);
-        return;
-    }
-
-    int digit = last - '0';
-    spdlog::debug("[LockScreen] Digit {} clicked (button={})", digit, name);
     LockScreenOverlay::instance().on_digit(digit);
 
     LVGL_SAFE_EVENT_CB_END();
