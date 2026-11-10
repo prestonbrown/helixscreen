@@ -18,13 +18,17 @@
 namespace helix::pacal {
 namespace {
 
+// VENDOR_OK: the provider table is where a firmware row meets the module that runs it.
+namespace eboard_sweep = flashforge::pa_sweep;
+
 /// One firmware that can measure pressure advance without a human judging a
 /// printed part.
 enum class Kind : uint8_t {
     /// One firmware command runs the whole procedure and prints the result.
     FirmwareCommand,
-    /// This app drives the stock FlashForge eBoard sweep (flashforge_pa_sweep.h).
-    FlashforgeSweep,
+    /// This app drives the sweep step by step (the stock eBoard sweep,
+    /// flashforge_pa_sweep.h).
+    HostSweep,
 };
 
 struct Provider {
@@ -185,12 +189,12 @@ bool detect_stock_eboard_sweep(const PrinterDiscovery& hw) {
     const auto has = [&objects](std::string_view name) {
         return std::find(objects.begin(), objects.end(), name) != objects.end();
     };
-    return has(flashforge::pa_sweep::kPinX) && has(flashforge::pa_sweep::kPinY);
+    return has(eboard_sweep::kPinX) && has(eboard_sweep::kPinY);
 }
 
-constexpr Provider kFlashforgeStockSweep{
+constexpr Provider kStockEboardSweep{
     "FlashForge eBoard sweep",
-    Kind::FlashforgeSweep,
+    Kind::HostSweep,
     /*detect_macro=*/nullptr,
     /*detect_object=*/nullptr,
     detect_stock_eboard_sweep,
@@ -210,8 +214,7 @@ constexpr Provider kFlashforgeStockSweep{
 /// The table. One entry per firmware that can do this.
 // Klipper4FlashForge machines carry [pa_adjust] too; their own command is the
 // better path there, so it is matched first.
-constexpr const Provider* kProviders[] = {&SNAPMAKER_U1, &kFlashforgeEboard,
-                                          &kFlashforgeStockSweep};
+constexpr const Provider* kProviders[] = {&SNAPMAKER_U1, &kFlashforgeEboard, &kStockEboardSweep};
 
 const Provider* match(const PrinterDiscovery& hw) {
     for (const Provider* p : kProviders) {
@@ -362,24 +365,24 @@ std::shared_ptr<Run> start_run(IMoonrakerAPI& api, IMoonrakerClient& client,
         run->start(api, *proc, std::move(callbacks));
         return run;
     }
-    case Kind::FlashforgeSweep:
+    case Kind::HostSweep:
         spdlog::info("[pacal] Measuring via {} on T{}", p->name, req.tool_index);
-        return flashforge::pa_sweep::start_run(api, client, req, std::move(callbacks));
+        return eboard_sweep::start_run(api, client, req, std::move(callbacks));
     }
     return nullptr;
 }
 
 std::vector<std::string> recovery_status_objects(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
-    if (p && p->kind == Kind::FlashforgeSweep) {
-        return {std::string(flashforge::pa_sweep::kPinX), std::string(flashforge::pa_sweep::kPinY)};
+    if (p && p->kind == Kind::HostSweep) {
+        return {std::string(eboard_sweep::kPinX), std::string(eboard_sweep::kPinY)};
     }
     return {};
 }
 
 std::string recovery_gcode(const PrinterDiscovery& hw, const nlohmann::json& status) {
     const Provider* p = match(hw);
-    if (!p || p->kind != Kind::FlashforgeSweep || !status.is_object()) {
+    if (!p || p->kind != Kind::HostSweep || !status.is_object()) {
         return {};
     }
     const auto pin = [&status](std::string_view name) {
@@ -389,8 +392,7 @@ std::string recovery_gcode(const PrinterDiscovery& hw, const nlohmann::json& sta
         }
         return json_util::safe_float(*it, "value", 0.f);
     };
-    return flashforge::pa_sweep::latch_recovery_gcode(pin(flashforge::pa_sweep::kPinX),
-                                                      pin(flashforge::pa_sweep::kPinY));
+    return eboard_sweep::latch_recovery_gcode(pin(eboard_sweep::kPinX), pin(eboard_sweep::kPinY));
 }
 
 } // namespace helix::pacal
