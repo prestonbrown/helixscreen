@@ -502,8 +502,10 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     }
 }
 
-TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS tray: a drawn unit's readout tucks low over its end",
-                 "[ams][tray][ui_integration]") {
+TEST_CASE_METHOD(
+    AmsTrayPanelFixture,
+    "AMS tray: a drawn unit's readout tucks low over its end, clear of the last number",
+    "[ams][tray][ui_integration]") {
     build("dryer", 4, /*tool_changer=*/false, /*ace=*/true);
     lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
     REQUIRE(pill != nullptr);
@@ -513,7 +515,12 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS tray: a drawn unit's readout tucks lo
     lv_obj_get_coords(pill, &pill_area);
     lv_obj_get_coords(container_, &box_area);
     const int32_t tuck = theme_manager_get_spacing("space_sm");
-    CHECK(pill_area.x1 == box_area.x1 + (int32_t)std::lround(tray::pill_left_x(box_)) - tuck);
+    lv_obj_t* badges = lv_obj_find_by_name(panel_obj_, "badge_layer");
+    REQUIRE((badges != nullptr && lv_obj_get_child_count(badges) > 0));
+    lv_area_t last;
+    lv_obj_get_coords(lv_obj_get_child(badges, -1), &last);
+    CHECK(pill_area.x1 > last.x2);
+    CHECK(pill_area.x1 >= box_area.x1 + (int32_t)std::lround(tray::pill_left_x(box_)) - tuck);
     CHECK(pill_area.y2 == box_area.y1 + (int32_t)std::lround(box_.fb) + tuck);
 }
 

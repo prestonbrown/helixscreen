@@ -590,17 +590,6 @@ void helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
         lv_obj_get_coords(s_tray.container, &c);
         lv_obj_get_coords(slot_grid, &g);
         offset = c.y1 + (int32_t)std::lround(s_tray.box.fb) - g.y1;
-        // The lane numbers sit on the box front; the lanes and their sensors start under them.
-        if (lv_obj_t* badges = lv_obj_find_by_name(lv_obj_get_parent(slot_grid), "badge_layer")) {
-            for (uint32_t i = 0; i < lv_obj_get_child_count(badges); ++i) {
-                lv_obj_t* badge = lv_obj_get_child(badges, (int32_t)i);
-                if (lv_obj_has_flag(badge, LV_OBJ_FLAG_HIDDEN))
-                    continue;
-                lv_area_t b;
-                lv_obj_get_coords(badge, &b);
-                offset = std::max(offset, b.y2 + 1 - g.y1);
-            }
-        }
     } else if (slot_grid && !draws_tray()) {
         // With no housing the lanes leave from under the spools' flanges.
         lv_obj_update_layout(slot_grid);
@@ -714,9 +703,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
 
     const tray::LidMode climate_lid = unit_lid_mode(unit_index);
     const tray::UnitShell* shell = view_shell(unit_index, climate_lid != tray::LidMode::None);
-    const tray::LidMode lid = !shell               ? climate_lid
-                              : shell->dome_n == 0 ? tray::LidMode::None
-                                                   : tray::LidMode::Unit;
+    const tray::LidMode lid = shell ? tray::lid_mode(*shell) : climate_lid;
     show_lane_humidity(slot_widgets, n, lid);
     lv_obj_update_layout(container);
     lv_area_t c;
@@ -808,7 +795,9 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         if (lowest != INT32_MIN)
             lv_obj_set_style_translate_y(w.labels_layer, label_bottom - lowest, LV_PART_MAIN);
     }
-    // Each lane's number sits at the bottom right of its bay (a lane pitch wide) on the box front.
+    // Each lane's number stands just right of where its tube leaves, inside its bay; the
+    // environment pill keeps clear of the last one.
+    float badges_right = 0;
     if (w.badge_layer) {
         lv_area_t layer;
         lv_obj_get_coords(w.badge_layer, &layer);
@@ -818,9 +807,11 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             if (!badge || lv_obj_get_parent(badge) != w.badge_layer)
                 continue;
             lv_obj_update_layout(badge);
-            const tray::PointF p = tray::lane_badge_origin(box, s_tray.lane_x[i], spacing / 2.0f,
-                                                           (float)lv_obj_get_width(badge),
-                                                           (float)lv_obj_get_height(badge), inset);
+            const float bw = (float)lv_obj_get_width(badge);
+            const tray::PointF p =
+                tray::lane_badge_origin(box, cx[i], std::min(spacing / 2.0f, bw + 2 * inset), bw,
+                                        (float)lv_obj_get_height(badge), inset);
+            badges_right = std::max(badges_right, p.x + bw + inset);
             // The badge's own translate offsets it from its position.
             lv_obj_set_pos(badge,
                            origin.x + (int32_t)std::lround(p.x) - layer.x1 -
@@ -840,14 +831,16 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         lv_obj_update_layout(w.env_indicator);
         lv_area_t a;
         lv_obj_get_coords(w.env_indicator, &a);
-        const int32_t left = origin.x + (int32_t)std::lround(tray::pill_left_x(box)) - tuck;
+        const int32_t left =
+            origin.x + (int32_t)std::lround(std::max(tray::pill_left_x(box) - tuck, badges_right));
         const int32_t pill_bottom = origin.y + (int32_t)std::lround(box.fb) + tuck;
         lv_obj_set_style_translate_x(w.env_indicator, left - a.x1, LV_PART_MAIN);
         lv_obj_set_style_translate_y(w.env_indicator, pill_bottom - a.y2, LV_PART_MAIN);
     } else if (w.env_indicator && !lv_obj_has_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN)) {
         const int32_t pill_top = origin.y + (int32_t)std::lround(top);
         const int32_t pill_bottom = origin.y + (int32_t)std::lround(box.fb);
-        const int32_t box_right = origin.x + (int32_t)std::lround(tray::pill_left_x(box));
+        const int32_t box_right =
+            origin.x + (int32_t)std::lround(std::max(tray::pill_left_x(box), badges_right));
         // DECLARATIVE_OK: measured layout; the pill is as tall as the box it stands against
         lv_obj_set_height(w.env_indicator, std::max<int32_t>(0, pill_bottom - pill_top + 1));
         clear_translate(w.env_indicator);

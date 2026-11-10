@@ -312,6 +312,11 @@ TEST_CASE("tray projection: any climate data gets glass", "[ams][tray]") {
     SECTION("no climate data") {
         CHECK(lid_mode(unit, true, false) == LidMode::None);
     }
+    SECTION("a drawn unit: its own lids, or none without a dome") {
+        CHECK(lid_mode(*helix::ui::tray::unit_shell_by_id("cfs")) == LidMode::Unit);
+        CHECK(lid_mode(*helix::ui::tray::unit_shell_by_id("emu")) == LidMode::PerLane);
+        CHECK(lid_mode(*helix::ui::tray::unit_shell_by_id("night_owl")) == LidMode::None);
+    }
 }
 
 TEST_CASE("slot layout: a pitch cap holds up to four slots, centered", "[ams][tray]") {
@@ -400,9 +405,6 @@ TEST_CASE("lane badge: on the front face, inside the lane's bay", "[ams][tray][b
         CHECK(p.y == Approx(104));
         CHECK(p.y + 20 <= b.fb);
         CHECK(p.y >= b.ft);
-    }
-    SECTION("the last lane's badge stays on the face, short of its right end") {
-        CHECK(lane_badge_origin(b, b.fr - 15, 40, 20, 20, 2).x == Approx(b.fr - 22));
     }
     SECTION("a tight pitch centers it on the lane") {
         const PointF p = lane_badge_origin(b, 100, 6, 16, 16, 2);

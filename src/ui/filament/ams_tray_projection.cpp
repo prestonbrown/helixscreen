@@ -173,8 +173,7 @@ float unit_top_y(const TrayBox& b, float lid_h, bool has_lid) {
 
 PointF lane_badge_origin(const TrayBox& b, float lane_x, float lane_half, float badge_w,
                          float badge_h, float inset) {
-    const float right = std::min(lane_x + lane_half, b.fr) - badge_w - inset;
-    const float x = std::max(lane_x - badge_w / 2.0f, right);
+    const float x = std::max(lane_x - badge_w / 2.0f, lane_x + lane_half - badge_w - inset);
     const float y = std::max(b.ft, b.fb - badge_h - inset);
     return {x, y};
 }
@@ -193,6 +192,12 @@ LidMode lid_mode(const AmsUnit& unit, bool has_physical_tray, bool dryer_support
             return LidMode::PerLane;
     }
     return LidMode::None;
+}
+
+LidMode lid_mode(const UnitShell& shell) {
+    if (shell.dome_n == 0)
+        return LidMode::None;
+    return shell.lid_spans_row ? LidMode::Unit : LidMode::PerLane;
 }
 
 float lane_lid_half_width(float slot_spacing, const TrayBox& b) {

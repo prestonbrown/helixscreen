@@ -22,6 +22,7 @@ from unit_art.units import (  # noqa: E402
     btt_vivid,
     cfs,
     elegoo_canvas,
+    emu,
     htlf,
     kms,
     mmx,
@@ -50,6 +51,7 @@ UNITS = [
     three_ms.UNIT,
     ad5x_ifs.UNIT,
     elegoo_canvas.UNIT,
+    emu.UNIT,
     rail.ERCF,
     rail.TRADRACK,
 ]

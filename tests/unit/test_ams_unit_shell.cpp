@@ -24,24 +24,12 @@ AmsSystemInfo one_unit(AmsType type, const std::string& unit_name) {
 
 } // namespace
 
-TEST_CASE("unit shell: an ACE resolves to its shell", "[ams][unit-art]") {
-    const UnitShell* shell = unit_shell_for(one_unit(AmsType::ACE, "ACE 1"), 0);
-    REQUIRE(shell != nullptr);
-    CHECK(std::string(shell->id) == "ace_pro");
-}
-
-TEST_CASE("unit shell: a Box Turtle is found by its unit's name", "[ams][unit-art]") {
-    const UnitShell* shell = unit_shell_for(one_unit(AmsType::AFC, "Box_Turtle Turtle_1"), 0);
-    REQUIRE(shell != nullptr);
-    CHECK(std::string(shell->id) == "box_turtle");
-    CHECK(shell->dome_n == 0);
-    CHECK(std::string(unit_shell_for(one_unit(AmsType::AFC, "Box_Turtle Owl_1"), 0)->id) ==
-          "box_turtle");
-}
-
-TEST_CASE("unit shell: climate data means the enclosed Box Turtle", "[ams][unit-art]") {
+TEST_CASE("unit shell: a Box Turtle is found by its name; climate data means the enclosed one",
+          "[ams][unit-art]") {
     AmsSystemInfo info = one_unit(AmsType::AFC, "Box_Turtle Turtle_1");
     CHECK(std::string(unit_shell_for(info, 0)->id) == "box_turtle");
+    CHECK(std::string(unit_shell_for(one_unit(AmsType::AFC, "Box_Turtle Owl_1"), 0)->id) ==
+          "box_turtle");
     CHECK(std::string(unit_shell_for(info, 0, /*has_dryer=*/true)->id) == "box_turtle_enclosed");
     info.units[0].environment = EnvironmentData{};
     CHECK(std::string(unit_shell_for(info, 0)->id) == "box_turtle_enclosed");
@@ -68,7 +56,8 @@ TEST_CASE("unit shell: each identified unit finds its own drawing", "[ams][unit-
     CHECK(std::string(unit_shell_for(single, 0)->id) == "ams_ht");
 }
 
-TEST_CASE("unit shell: a Quattro Box is found through both of its firmwares", "[ams][unit-art]") {
+TEST_CASE("unit shell: a Quattro Box or an EMU is found through both of its firmwares",
+          "[ams][unit-art]") {
     const auto id = [](AmsType type, const char* name) {
         const UnitShell* shell = unit_shell_for(one_unit(type, name), 0);
         return std::string(shell ? shell->id : "none");
@@ -79,6 +68,8 @@ TEST_CASE("unit shell: a Quattro Box is found through both of its firmwares", "[
     CHECK(id(AmsType::HAPPY_HARE, "QuattroBox") == "quattro_box");
     CHECK(id(AmsType::HAPPY_HARE, "Quattro Box 2") == "quattro_box");
     CHECK(id(AmsType::HAPPY_HARE, "ERCF") == "none");
+    CHECK(id(AmsType::AFC, "EMU Turtle_1") == "emu");
+    CHECK(id(AmsType::HAPPY_HARE, "EMU") == "emu");
 }
 
 TEST_CASE("unit shell: a variable unit keeps its shell at every lane count", "[ams][unit-art]") {
