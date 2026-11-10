@@ -106,8 +106,6 @@ void TipsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     auto* tip_container = lv_obj_find_by_name(widget_obj_, "tip_container");
     if (tip_container) {
         lv_obj_set_user_data(tip_container, this);
-        // Pressed feedback: dim on touch
-        lv_obj_set_style_opa(tip_container, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
     }
 
     // Cache tip label for fade animation
@@ -153,6 +151,7 @@ void TipsWidget::detach() {
 void TipsWidget::on_activate() {
     // Reset label opacity in case deactivation interrupted a mid-fade animation
     if (tip_label_) {
+        // DECLARATIVE_OK: the tip fade animates this opacity frame by frame.
         lv_obj_set_style_opa(tip_label_, LV_OPA_COVER, LV_PART_MAIN);
     }
 
@@ -282,6 +281,7 @@ void TipsWidget::start_tip_fade_transition(const PrintingTip& new_tip) {
         current_tip_ = pending_tip_;
         std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", pending_tip_.title.c_str());
         lv_subject_copy_string(&s_status_subject, s_status_buffer);
+        // DECLARATIVE_OK: the tip fade animates this opacity frame by frame.
         lv_obj_set_style_opa(tip_label_, LV_OPA_COVER, LV_PART_MAIN);
         tip_animating_ = false;
         spdlog::debug("[TipsWidget] Animations disabled - applied tip instantly");
@@ -300,6 +300,7 @@ void TipsWidget::start_tip_fade_transition(const PrintingTip& new_tip) {
     lv_anim_set_exec_cb(&anim, [](void* var, int32_t value) {
         auto* self = static_cast<TipsWidget*>(var);
         if (self->tip_label_) {
+            // DECLARATIVE_OK: the tip fade animates this opacity frame by frame.
             lv_obj_set_style_opa(self->tip_label_, static_cast<lv_opa_t>(value), LV_PART_MAIN);
         }
     });
@@ -324,6 +325,7 @@ void TipsWidget::apply_pending_tip() {
     // Skip animation if disabled — show at full opacity immediately
     if (!DisplaySettingsManager::instance().get_animations_enabled()) {
         if (tip_label_) {
+            // DECLARATIVE_OK: the tip fade animates this opacity frame by frame.
             lv_obj_set_style_opa(tip_label_, LV_OPA_COVER, LV_PART_MAIN);
         }
         tip_animating_ = false;
@@ -342,6 +344,7 @@ void TipsWidget::apply_pending_tip() {
     lv_anim_set_exec_cb(&anim, [](void* var, int32_t value) {
         auto* self = static_cast<TipsWidget*>(var);
         if (self->tip_label_) {
+            // DECLARATIVE_OK: the tip fade animates this opacity frame by frame.
             lv_obj_set_style_opa(self->tip_label_, static_cast<lv_opa_t>(value), LV_PART_MAIN);
         }
     });

@@ -155,9 +155,8 @@ TEST_CASE("a pressed tile area dims and an idle one does not", "[action_tile][11
     LVGLUITestFixture fixture;
     init_widget_registrations();
     const std::vector<std::pair<std::string, std::string>> kAreas = {
-        {"printer_image", "printer_container"},
-        {"temp_stack", "temp_stack_nozzle_row"},
-        {"temp_stack", "temp_stack_bed_row"},
+        {"printer_image", "printer_container"},   {"tips", "tip_container"},
+        {"temp_stack", "temp_stack_nozzle_row"},  {"temp_stack", "temp_stack_bed_row"},
         {"temp_stack", "temp_stack_chamber_row"},
     };
     for (const auto& [id, area] : kAreas) {
