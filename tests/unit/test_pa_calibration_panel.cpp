@@ -187,6 +187,12 @@ TEST_CASE_METHOD(PASweepPanelFixture,
     REQUIRE(off >= 0);
     CHECK(restore < off);
     CHECK(script_index("SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.020000") >= 0);
+    // The note says the value is live only until a restart, all of it.
+    lv_subject_t* note = lv_xml_get_subject(nullptr, "pa_cal_keep_note");
+    REQUIRE(note != nullptr);
+    CHECK(std::string(lv_subject_get_string(note)) ==
+          "The printer is using this value until Klipper restarts. To keep it, add it as "
+          "pressure_advance in this tool's extruder section of printer.cfg.");
 }
 
 TEST_CASE_METHOD(PACalPanelFixture, "PA calibration: the screensaver does not stop a measurement",

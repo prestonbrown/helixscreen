@@ -342,7 +342,6 @@ void AmsEditOverlay::apply_linked_spool(int spool_id, const SpoolInfo& spool) {
         populate_detail_fields();
         update_sync_button_state();
     }
-    update_spool_disagreement();
 }
 
 void AmsEditOverlay::return_to_editor() {

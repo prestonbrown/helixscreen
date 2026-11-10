@@ -1259,6 +1259,8 @@ TEST_CASE("Overview row: a row that fits lets flex share it", "[ams][overview-ti
     CHECK(helix::ui::overview_peek_card_width(430, 12, {}) == 0);
     // 5 * 77 + 4 * 12 = 433: the row is three pixels short, so it overflows.
     CHECK(helix::ui::overview_peek_card_width(430, 12, {77, 77, 77, 77, 77}) > 0);
+    // A mixed row sizes every card by the widest floor.
+    CHECK(helix::ui::overview_peek_card_width(430, 12, {72, 72, 72, 72, 100, 72}) >= 100);
 }
 
 TEST_CASE("Overview row: an overflowing row leaves the next card cut off",
@@ -1281,12 +1283,6 @@ TEST_CASE("Overview row: an overflowing row leaves the next card cut off",
             CHECK(shown <= w * 4 / 5);
         }
     }
-}
-
-TEST_CASE("Overview row: a mixed row sizes every card by the widest floor",
-          "[ams][overview-tiles]") {
-    const int32_t w = helix::ui::overview_peek_card_width(430, 12, {72, 72, 72, 72, 100, 72});
-    CHECK(w >= 100);
 }
 
 TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with art is the art, not a card",
@@ -1384,6 +1380,13 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: an overflowing row shows part of
     process_lvgl(50);
 
     lv_obj_t* row = lv_obj_get_parent(cards()[0]);
+    // A row that narrows sizes its tiles again: unsized, it would end 4 px into the fourth.
+    if (GENERATE(false, true)) {
+        lv_obj_set_width(row, lv_obj_get_x(cards()[3]) + 4);
+        lv_obj_update_layout(row);
+        settle();
+        process_lvgl(50);
+    }
     lv_obj_update_layout(row);
     REQUIRE(lv_obj_get_scroll_right(row) > 0);
     lv_area_t row_box;

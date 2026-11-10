@@ -1020,6 +1020,68 @@ def test_normal_priority_restores_the_thread_when_the_body_raises(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# A renamed file
+# ---------------------------------------------------------------------------
+# Long enough that the one-line edit keeps git's rename detection above 50%.
+RENAMED_BODY = "".join(f"int pad{i}() {{ return {i}; }}\n" for i in range(12))
+
+
+def _rename_fixture(tmp_path, makefile):
+    """src/feature.cpp moved to the header src/renamed.h with an edit and a mode
+    change, staged; returns work."""
+    work = _fixture(tmp_path, makefile.replace("src/feature.cpp", "src/renamed.h"))
+    (work / "src" / "feature.cpp").write_text(ORIGINAL + RENAMED_BODY)
+    _git(work, "commit", "-qam", "longer")
+    _git(work, "mv", "src/feature.cpp", "src/renamed.h")
+    (work / "src" / "renamed.h").write_text(CHANGED + RENAMED_BODY)
+    (work / "src" / "renamed.h").chmod(0o755)
+    _git(work, "add", "src/renamed.h")
+    with open(work / ".git" / "info" / "exclude", "a") as f:
+        f.write("__pycache__/\nmutate.log*\n")     # the run's own byproducts
+    assert "R" in _git(work, "status", "--porcelain", "src")[:2]
+    suite = work / "build" / "bin" / "helix-tests"
+    suite.write_text(DETECTING_SUITE.replace("src/feature.cpp", "src/renamed.h"))
+    return work
+
+
+@pytest.mark.parametrize("route", ["normal", "capped", "signalled"])
+def test_reverting_a_renamed_file_leaves_no_path_behind(tmp_path, route):
+    slow = SLOW_MUTANT_MAKEFILE.replace("{secs}", "60")
+    work = _rename_fixture(tmp_path, FAST_MAKEFILE if route == "normal" else slow)
+    status = _git(work, "status", "--porcelain", "--untracked-files=all")
+    before = (work / "src" / "renamed.h").read_bytes()
+    mode = (work / "src" / "renamed.h").stat().st_mode
+    base = _git(work, "rev-parse", "HEAD").strip()
+    if route == "signalled":
+        proc = subprocess.Popen(
+            [sys.executable, "scripts/mutate_diff.py", "--base", base, "--shards", "1",
+             "--log", str(work / "mutate.log")],
+            cwd=work, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            start_new_session=True, env=ENV)
+        try:
+            _wait_for(work / ".mutant-build-started")
+            os.kill(proc.pid, signal.SIGTERM)
+            out, _ = proc.communicate(timeout=60)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+        assert proc.returncode == 128 + signal.SIGTERM, out
+    else:
+        r = _mutate(work, "--base", base, *(["--max-minutes", "0.05"] if route == "capped" else []))
+        out = r.stdout
+        if route == "normal":
+            # The edit reverted in place is the mutant, and the suite reading it kills it.
+            assert r.returncode == 0, out
+            assert "killed" in out and "src/renamed.h" in out, out
+        else:
+            assert r.returncode == 3, out
+    assert not (work / "src" / "feature.cpp").exists(), out
+    assert (work / "src" / "renamed.h").read_bytes() == before, out
+    assert (work / "src" / "renamed.h").stat().st_mode == mode, out
+    assert _git(work, "status", "--porcelain", "--untracked-files=all") == status, out
+
+
+# ---------------------------------------------------------------------------
 # Parallel workers
 # ---------------------------------------------------------------------------
 # Hunks f0..f5. The suite detects f0, f2 and f4 and ignores the others, and
