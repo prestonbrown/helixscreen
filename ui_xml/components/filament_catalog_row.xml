@@ -23,12 +23,11 @@
     <prop name="editable" type="string" default="0"/>
   </api>
   <styles>
-    <!-- Colors and the check's opacity are styles, not inline attrs, so the
-         checked (current / starred) state can outrank them. -->
+    <!-- The check's opacity, like the row's text tones, is a style rather
+         than an inline attr, so the checked (current / starred) state can
+         outrank it. -->
     <style name="check_off" text_opa="0"/>
     <style name="check_on" text_opa="255"/>
-    <style name="muted_text" text_color="#text_muted"/>
-    <style name="accent_text" text_color="#primary"/>
   </styles>
   <view name="catalog_row"
         extends="lv_obj" width="100%" height="content" flex_flow="row" style_flex_cross_place="center"
@@ -50,15 +49,15 @@
          ellipsizes on narrow screens. -->
     <text_body name="name_label"
                text="" flex_grow="1" long_mode="dots" clickable="false" event_bubble="true" checked="$current">
-      <style name="accent_text" selector="checked"/>
+      <style name="styles.text_tone_primary" selector="checked"/>
     </text_body>
     <!-- Variant-disambiguation chip (e.g. "ASA-CF" under the ASA heading), on
          a variant row whose type differs from the family heading. -->
     <lv_label name="variant_chip"
               text="" hidden_if_prop_not_eq="$chip_shown|1" style_text_font="#font_body" clickable="false"
               event_bubble="true" checked="$current">
-      <style name="muted_text"/>
-      <style name="accent_text" selector="checked"/>
+      <style name="styles.text_tone_muted"/>
+      <style name="styles.text_tone_primary" selector="checked"/>
     </lv_label>
     <!-- Recommended nozzle / bed temps ("210° / 60°"). -->
     <lv_label name="temp_label"
@@ -70,8 +69,8 @@
     <lv_label name="star_icon"
               text="#icon_star" style_text_font="#icon_font_xs" style_min_width="20" style_text_align="center"
               clickable="true" checked="$starred">
-      <style name="muted_text"/>
-      <style name="accent_text" selector="checked"/>
+      <style name="styles.text_tone_muted"/>
+      <style name="styles.text_tone_primary" selector="checked"/>
       <event_cb trigger="clicked" callback="catalog_row_star_cb"/>
     </lv_label>
     <!-- Trailing edit affordance. Unlike the other children it STAYS clickable

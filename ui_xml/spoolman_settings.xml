@@ -4,11 +4,6 @@
 <!-- Spoolman Settings Overlay Panel -->
 <!-- Configures Spoolman integration (sync, polling) and label printer settings -->
 <component>
-  <styles>
-    <!-- The setup status line's color; bound, so no inline color outranks it -->
-    <style name="setup_status_muted" text_color="#text_muted"/>
-    <style name="setup_status_error" text_color="#danger"/>
-  </styles>
   <view name="spoolman_settings" extends="overlay_panel" title="Spoolman" bg_color="#screen_bg">
     <!-- Content Area (scrollable) -->
     <lv_obj name="overlay_content"
@@ -46,8 +41,8 @@
           </lv_obj>
           <!-- Status text (for errors/progress); red for an error -->
           <text_small name="setup_status_text" width="100%" bind_text="spoolman_setup_status">
-            <bind_style name="setup_status_muted" subject="spoolman_setup_status_error" ref_value="0"/>
-            <bind_style name="setup_status_error" subject="spoolman_setup_status_error" ref_value="1"/>
+            <bind_style name="styles.text_tone_muted" subject="spoolman_setup_status_error" ref_value="0"/>
+            <bind_style name="styles.text_tone_danger" subject="spoolman_setup_status_error" ref_value="1"/>
           </text_small>
           <!-- Action buttons -->
           <lv_obj width="100%"

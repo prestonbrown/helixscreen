@@ -44,12 +44,6 @@
          an inline style_bg_opa would outrank any bound style. -->
     <style name="temp_graph_card_shown" bg_opa="255"/>
     <style name="temp_graph_card_spacer" bg_opa="0"/>
-    <!-- Current-temperature colors by HeatState (filament_*_heat_state):
-         get_heating_state_color()'s tokens. -->
-    <style name="heat_off" text_color="#text_muted"/>
-    <style name="heat_heating" text_color="#danger"/>
-    <style name="heat_at_temp" text_color="#success"/>
-    <style name="heat_cooling" text_color="#info"/>
   </styles>
   <!-- Filament Management Panel -->
   <!-- Landscape: two columns, left (temp status + AMS) and right (material +
@@ -95,10 +89,10 @@
                     style_pad_gap="#space_xxs" clickable="false" event_bubble="true">
               <text_body name="nozzle_current_temp"
                          bind_text="filament_nozzle_current" clickable="false" event_bubble="true">
-                <bind_style name="heat_off" subject="filament_nozzle_heat_state" ref_value="0"/>
-                <bind_style name="heat_heating" subject="filament_nozzle_heat_state" ref_value="1"/>
-                <bind_style name="heat_at_temp" subject="filament_nozzle_heat_state" ref_value="2"/>
-                <bind_style name="heat_cooling" subject="filament_nozzle_heat_state" ref_value="3"/>
+                <bind_style name="styles.text_tone_muted" subject="filament_nozzle_heat_state" ref_value="0"/>
+                <bind_style name="styles.text_tone_danger" subject="filament_nozzle_heat_state" ref_value="1"/>
+                <bind_style name="styles.text_tone_success" subject="filament_nozzle_heat_state" ref_value="2"/>
+                <bind_style name="styles.text_tone_info" subject="filament_nozzle_heat_state" ref_value="3"/>
               </text_body>
               <text_body text="/" clickable="false" event_bubble="true"/>
               <text_body name="nozzle_target_temp"
@@ -118,10 +112,10 @@
                     style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
                     style_pad_gap="#space_xxs" clickable="false" event_bubble="true">
               <text_body name="bed_current_temp" bind_text="filament_bed_current" clickable="false" event_bubble="true">
-                <bind_style name="heat_off" subject="filament_bed_heat_state" ref_value="0"/>
-                <bind_style name="heat_heating" subject="filament_bed_heat_state" ref_value="1"/>
-                <bind_style name="heat_at_temp" subject="filament_bed_heat_state" ref_value="2"/>
-                <bind_style name="heat_cooling" subject="filament_bed_heat_state" ref_value="3"/>
+                <bind_style name="styles.text_tone_muted" subject="filament_bed_heat_state" ref_value="0"/>
+                <bind_style name="styles.text_tone_danger" subject="filament_bed_heat_state" ref_value="1"/>
+                <bind_style name="styles.text_tone_success" subject="filament_bed_heat_state" ref_value="2"/>
+                <bind_style name="styles.text_tone_info" subject="filament_bed_heat_state" ref_value="3"/>
               </text_body>
               <text_body text="/" clickable="false" event_bubble="true"/>
               <text_body name="bed_target_temp" bind_text="filament_bed_target" clickable="false" event_bubble="true"/>
@@ -141,10 +135,10 @@
                     style_pad_gap="#space_xxs" clickable="false" event_bubble="true">
               <text_body name="chamber_current_temp"
                          bind_text="filament_chamber_current" clickable="false" event_bubble="true">
-                <bind_style name="heat_off" subject="filament_chamber_heat_state" ref_value="0"/>
-                <bind_style name="heat_heating" subject="filament_chamber_heat_state" ref_value="1"/>
-                <bind_style name="heat_at_temp" subject="filament_chamber_heat_state" ref_value="2"/>
-                <bind_style name="heat_cooling" subject="filament_chamber_heat_state" ref_value="3"/>
+                <bind_style name="styles.text_tone_muted" subject="filament_chamber_heat_state" ref_value="0"/>
+                <bind_style name="styles.text_tone_danger" subject="filament_chamber_heat_state" ref_value="1"/>
+                <bind_style name="styles.text_tone_success" subject="filament_chamber_heat_state" ref_value="2"/>
+                <bind_style name="styles.text_tone_info" subject="filament_chamber_heat_state" ref_value="3"/>
               </text_body>
               <text_body text="/" clickable="false" event_bubble="true"/>
               <text_body name="chamber_target_temp"
@@ -224,10 +218,10 @@
                       style_pad_gap="#space_xs" clickable="false" event_bubble="true">
                 <text_body name="nozzle_current_temp"
                            bind_text="filament_nozzle_current" clickable="false" event_bubble="true">
-                  <bind_style name="heat_off" subject="filament_nozzle_heat_state" ref_value="0"/>
-                  <bind_style name="heat_heating" subject="filament_nozzle_heat_state" ref_value="1"/>
-                  <bind_style name="heat_at_temp" subject="filament_nozzle_heat_state" ref_value="2"/>
-                  <bind_style name="heat_cooling" subject="filament_nozzle_heat_state" ref_value="3"/>
+                  <bind_style name="styles.text_tone_muted" subject="filament_nozzle_heat_state" ref_value="0"/>
+                  <bind_style name="styles.text_tone_danger" subject="filament_nozzle_heat_state" ref_value="1"/>
+                  <bind_style name="styles.text_tone_success" subject="filament_nozzle_heat_state" ref_value="2"/>
+                  <bind_style name="styles.text_tone_info" subject="filament_nozzle_heat_state" ref_value="3"/>
                 </text_body>
                 <text_body text="/" clickable="false" event_bubble="true"/>
                 <lv_obj name="nozzle_target_tap"
@@ -254,10 +248,10 @@
                       style_pad_gap="#space_xs" clickable="false" event_bubble="true">
                 <text_body name="bed_current_temp"
                            bind_text="filament_bed_current" clickable="false" event_bubble="true">
-                  <bind_style name="heat_off" subject="filament_bed_heat_state" ref_value="0"/>
-                  <bind_style name="heat_heating" subject="filament_bed_heat_state" ref_value="1"/>
-                  <bind_style name="heat_at_temp" subject="filament_bed_heat_state" ref_value="2"/>
-                  <bind_style name="heat_cooling" subject="filament_bed_heat_state" ref_value="3"/>
+                  <bind_style name="styles.text_tone_muted" subject="filament_bed_heat_state" ref_value="0"/>
+                  <bind_style name="styles.text_tone_danger" subject="filament_bed_heat_state" ref_value="1"/>
+                  <bind_style name="styles.text_tone_success" subject="filament_bed_heat_state" ref_value="2"/>
+                  <bind_style name="styles.text_tone_info" subject="filament_bed_heat_state" ref_value="3"/>
                 </text_body>
                 <text_body text="/" clickable="false" event_bubble="true"/>
                 <lv_obj name="bed_target_tap"
@@ -283,10 +277,10 @@
                       style_pad_gap="#space_xs" clickable="false" event_bubble="true">
                 <text_body name="chamber_current_temp"
                            bind_text="filament_chamber_current" clickable="false" event_bubble="true">
-                  <bind_style name="heat_off" subject="filament_chamber_heat_state" ref_value="0"/>
-                  <bind_style name="heat_heating" subject="filament_chamber_heat_state" ref_value="1"/>
-                  <bind_style name="heat_at_temp" subject="filament_chamber_heat_state" ref_value="2"/>
-                  <bind_style name="heat_cooling" subject="filament_chamber_heat_state" ref_value="3"/>
+                  <bind_style name="styles.text_tone_muted" subject="filament_chamber_heat_state" ref_value="0"/>
+                  <bind_style name="styles.text_tone_danger" subject="filament_chamber_heat_state" ref_value="1"/>
+                  <bind_style name="styles.text_tone_success" subject="filament_chamber_heat_state" ref_value="2"/>
+                  <bind_style name="styles.text_tone_info" subject="filament_chamber_heat_state" ref_value="3"/>
                 </text_body>
                 <text_body text="/" clickable="false" event_bubble="true"/>
                 <lv_obj name="chamber_target_tap"
