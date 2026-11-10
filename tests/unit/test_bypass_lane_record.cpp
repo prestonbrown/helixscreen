@@ -110,27 +110,20 @@ SlotInfo petg_spool() {
 
 // --- No filament backend: AmsState keeps the record in lane_data ----------
 
-TEST_CASE_METHOD(LVGLTestFixture, "the bypass spool is the bypass record Moonraker holds",
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "the bypass spool is the bypass record Moonraker holds, as it changes",
                  "[bypass][lane][refresh]") {
     MockPrinter printer;
     printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "PETG", "#1E5AA8"));
     OwnBypassStore store(printer);
-
     const auto spool = AmsState::instance().get_external_spool_info();
     REQUIRE(spool.has_value());
     CHECK(spool->material == "PETG");
     CHECK(spool->color_rgb == 0x1E5AA8u);
     CHECK(spool->slot_index == helix::ams::kBypassSlotIndex);
     CHECK(helix::ams::lane_sources(helix::ams::kBypassLaneId).record.has_value());
-}
 
-TEST_CASE_METHOD(LVGLTestFixture,
-                 "another client's change to the bypass record shows on the next read",
-                 "[bypass][lane][refresh]") {
-    MockPrinter printer;
-    printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "PETG", "#1E5AA8"));
-    OwnBypassStore store(printer);
-    REQUIRE(AmsState::instance().get_external_spool_info()->material == "PETG");
+    // Another client's change shows on the next read.
 
     printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "ABS", "#FF0000"));
     AmsState::instance().refresh_bypass_record();

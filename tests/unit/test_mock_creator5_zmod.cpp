@@ -197,36 +197,28 @@ TEST_CASE("The Z-Mod C5 persona narrates its swaps for the step bar", "[mock][cr
     CHECK(markers.wait_for_line_containing("_T_OUT"));
 }
 
-TEST_CASE("The Reforge persona's mock AMS is a tool changer", "[mock][creator5]") {
+TEST_CASE("The mock persona and HELIX_MOCK_AMS pick the mock AMS's type",
+          "[mock][creator5][ams][afc]") {
     MockTopologyGuards guards;
-    helix::ScopedEnv reforge{"HELIX_MOCK_PRINTER", "creator5"};
-
     ScopedRuntimeConfig scoped_config;
     auto* config = get_runtime_config();
     config->test_mode = true;
     config->use_real_ams = false;
     REQUIRE(config->should_mock_ams());
 
-    // No HELIX_MOCK_AMS: the persona, not the generic Happy Hare default, picks
-    // the mock's topology.
+    // Reforge: the persona, not the generic Happy Hare default, picks the
+    // topology. Then every spelling HELIX_MOCK_AMS accepts for an AFC mock.
+    auto [variable, value, type] = GENERATE(table<const char*, const char*, helix::AmsType>(
+        {{"HELIX_MOCK_PRINTER", "creator5", helix::AmsType::TOOL_CHANGER},
+         {"HELIX_MOCK_AMS", "afc", helix::AmsType::AFC},
+         {"HELIX_MOCK_AMS", "box_turtle", helix::AmsType::AFC},
+         {"HELIX_MOCK_AMS", "boxturtle", helix::AmsType::AFC},
+         {"HELIX_MOCK_AMS", "quattro_box", helix::AmsType::AFC}}));
+    CAPTURE(variable, value);
+    helix::ScopedEnv env{variable, value};
     auto backend = helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr);
     REQUIRE(backend != nullptr);
-    CHECK(backend->get_system_info().type == helix::AmsType::TOOL_CHANGER);
-}
-
-TEST_CASE("HELIX_MOCK_AMS names an AFC mock by each of its spellings", "[mock][ams][afc]") {
-    MockTopologyGuards guards;
-    ScopedRuntimeConfig scoped_config;
-    auto* config = get_runtime_config();
-    config->test_mode = true;
-    config->use_real_ams = false;
-
-    const char* spelling = GENERATE("afc", "box_turtle", "boxturtle", "quattro_box");
-    CAPTURE(spelling);
-    helix::ScopedEnv ams{"HELIX_MOCK_AMS", spelling};
-    auto backend = helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr);
-    REQUIRE(backend != nullptr);
-    CHECK(backend->get_system_info().type == helix::AmsType::AFC);
+    CHECK(backend->get_system_info().type == type);
 }
 
 TEST_CASE("A mock-hardware persona declines the mock AMS backend", "[mock][creator5][zmod]") {
