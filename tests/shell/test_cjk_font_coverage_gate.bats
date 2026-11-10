@@ -25,8 +25,10 @@ setup() {
     cp assets/fonts/cjk/noto_sans_cjk_14.bin "$FIXTURE/assets/fonts/cjk/"
     cp assets/fonts/cjk/.cjk_codepoints.manifest "$FIXTURE/assets/fonts/cjk/"
     cp -r assets/fonts/cjk/filename "$FIXTURE/assets/fonts/cjk/"
-    mkdir -p "$FIXTURE/ui_xml"
+    mkdir -p "$FIXTURE/ui_xml" "$FIXTURE/include/core"
     cp ui_xml/globals.xml "$FIXTURE/ui_xml/"
+    cp include/cjk_font_faces.inc include/helix_features.h "$FIXTURE/include/"
+    cp include/core/cjk_ranges.inc "$FIXTURE/include/core/"
 }
 
 run_gate() {
@@ -88,4 +90,19 @@ run_gate() {
     run_gate
     [ "$status" -eq 1 ] || fail "missing filename size must fail, got $status: $output"
     echo "$output" | grep -q "noto_sans_cjk_filename_16.bin: missing" || fail "did not name it: $output"
+}
+
+@test "red when contains_cjk() accepts a range no bin covers" {
+    # Bopomofo: detected once listed as ALL, baked nowhere.
+    echo 'HELIX_CJK_RANGE(0x3105, 0x312F, ALL)' >> "$FIXTURE/include/core/cjk_ranges.inc"
+    run_gate
+    [ "$status" -eq 1 ] || fail "an unbaked ALL range must fail, got $status: $output"
+    echo "$output" | grep -q "ㄅ" || fail "did not name a missing character: $output"
+}
+
+@test "red when a listed character lies outside every LISTED range" {
+    sed -i '/0x4E00, 0x9FFF, LISTED/d' "$FIXTURE/include/core/cjk_ranges.inc"
+    run_gate
+    [ "$status" -eq 1 ] || fail "listed characters contains_cjk() never loads must fail, got $status: $output"
+    echo "$output" | grep -q "outside every LISTED range" || fail "did not explain: $output"
 }

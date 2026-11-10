@@ -18,8 +18,6 @@ mk/images.mk, which asks it which splash classes a platform needs:
 
 import json
 import os
-import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -111,29 +109,28 @@ def font_breakpoint(manifest, width, height):
     return _first_match(rules, width, height, "class")
 
 
-def filename_font_sizes_for(manifest, platform_id):
-    """Pixel sizes of the CJK filename glyphs this package's panels can draw,
-    or None when the panel is unbounded and every size ships."""
+def filename_font_sizes_for(manifest, platform_id, max_font_tier=None):
+    """Pixel sizes of the CJK filename glyphs this package can draw at any UI
+    scale: every tier when the panel is unbounded, else its panels' tiers, in a
+    build of @p max_font_tier (every face when None)."""
+    tier = cjk_filename_fonts.MAX_FONT_TIER if max_font_tier is None else max_font_tier
+    by_tier = cjk_filename_fonts.sizes_by_tier(Path(REPO_ROOT), tier)
     panels = candidate_panels(manifest, platform_id)
-    if not panels:
-        return None
-    by_tier = cjk_filename_fonts.sizes_by_tier(Path(REPO_ROOT))
-    sizes = set()
-    for entry in panels:
-        sizes.update(by_tier[font_breakpoint(manifest, *effective_resolution(entry))])
-    return sorted(sizes)
+    if panels:
+        tiers = {font_breakpoint(manifest, *effective_resolution(entry)) for entry in panels}
+    else:
+        tiers = set(by_tier)
+    return sorted({px for t in tiers for px in by_tier[t]})
 
 
-def _prune_cjk_filename_fonts(manifest, platform_id, root):
+def _prune_cjk_filename_fonts(manifest, platform_id, root, max_font_tier):
     """(doomed paths, notes) for the CJK filename bins. Raises when a size the
-    panel draws has no bin staged, so a prune can never ship without one."""
+    package can draw has no bin staged, so a prune can never ship without one."""
     cjk_dir = os.path.join(root, "assets", "fonts", "cjk")
     if not os.path.isdir(cjk_dir):
         return [], ["no CJK fonts staged"]
     bin_dir = os.path.join(root, str(cjk_filename_fonts.FILENAME_BIN_DIR))
-    wanted = filename_font_sizes_for(manifest, platform_id)
-    if wanted is None:
-        wanted = cjk_filename_fonts.all_sizes(Path(REPO_ROOT))
+    wanted = filename_font_sizes_for(manifest, platform_id, max_font_tier)
     keep = {cjk_filename_fonts.bin_name(px) for px in wanted}
     staged = set(os.listdir(bin_dir)) if os.path.isdir(bin_dir) else set()
     missing = sorted(keep - staged)
@@ -145,36 +142,14 @@ def _prune_cjk_filename_fonts(manifest, platform_id, root):
     return doomed, [f"keeping CJK filename glyphs at {'/'.join(map(str, wanted))}px"]
 
 
-CJK_FACE_TABLE = os.path.join(REPO_ROOT, "include", "cjk_font_faces.inc")
-FEATURE_DEFAULTS = os.path.join(REPO_ROOT, "include", "helix_features.h")
-
-
-def cjk_ui_bins_for_tier(max_font_tier):
-    """The translation CJK bins a build's CjkFontManager can load: the face
-    table run through the host C preprocessor with the build's
-    HELIX_MAX_FONT_TIER and the feature defaults, so its guards decide."""
-    cmd = ["cc", "-E", "-P", "-x", "c", f"-DHELIX_MAX_FONT_TIER={int(max_font_tier)}",
-           "-include", FEATURE_DEFAULTS,
-           "-DHELIX_CJK_FACE(face,bin,px)=HELIX_CJK_BIN bin", CJK_FACE_TABLE]
-    try:
-        out = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    except OSError as e:
-        raise ManifestError(f"cannot run the C preprocessor for the CJK face table: {e}")
-    if out.returncode != 0:
-        raise ManifestError(f"preprocessing {CJK_FACE_TABLE} failed: {out.stderr.strip()}")
-    bins = re.findall(r'HELIX_CJK_BIN\s+"([^"]+)"', out.stdout)
-    if not bins:
-        raise ManifestError(f"{CJK_FACE_TABLE} maps no bins at tier {max_font_tier}")
-    return set(bins)
-
-
 def _prune_cjk_ui_fonts(platform_id, root, max_font_tier):
-    """(doomed paths, notes) for the translation CJK bins the build cannot load.
-    Raises when one it can load is not staged."""
+    """(doomed paths, notes) for the translation CJK bins the build cannot load
+    (cjk_filename_fonts.face_rows at its tier). Raises when one it can load is
+    not staged."""
     cjk_dir = os.path.join(root, "assets", "fonts", "cjk")
     if max_font_tier is None or not os.path.isdir(cjk_dir):
         return [], []
-    needed = cjk_ui_bins_for_tier(max_font_tier)
+    needed = {b for _face, b, _px in cjk_filename_fonts.face_rows(max_font_tier, Path(REPO_ROOT))}
     staged = {n for n in os.listdir(cjk_dir) if n.endswith(".bin")}
     missing = sorted(needed - staged)
     if missing:
@@ -322,7 +297,7 @@ def prune_assets(manifest, platform_id, root, dry_run=False, max_font_tier=None)
             doomed.append(path)
             notes.append(f"dropped ui_xml/translations/{name}: no locale loads it")
 
-    for font_doomed, font_notes in (_prune_cjk_filename_fonts(manifest, platform_id, root),
+    for font_doomed, font_notes in (_prune_cjk_filename_fonts(manifest, platform_id, root, max_font_tier),
                                     _prune_cjk_ui_fonts(platform_id, root, max_font_tier)):
         doomed.extend(font_doomed)
         notes.extend(font_notes)
@@ -486,7 +461,7 @@ def main(argv):
         return 2
     try:
         handler(load(), args)
-    except ManifestError as e:
+    except (ManifestError, cjk_filename_fonts.FilenameFontError) as e:
         print(f"platform_manifest: {e}", file=sys.stderr)
         return 1
     return 0

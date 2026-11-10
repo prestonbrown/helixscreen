@@ -53,9 +53,21 @@ std::string get_filename_basename(const std::string& path) {
     return last_sep == std::string::npos ? path : path.substr(last_sep + 1);
 }
 
+namespace {
+struct CjkRange {
+    unsigned first;
+    unsigned last;
+};
+#define HELIX_CJK_RANGE(first, last, policy) {first, last},
+constexpr CjkRange kCjkRanges[] = {
+#include "core/cjk_ranges.inc"
+};
+#undef HELIX_CJK_RANGE
+} // namespace
+
 bool contains_cjk(std::string_view text) {
-    // Every CJK block named in the header lies in U+3000..U+FFEF: a 3-byte
-    // UTF-8 sequence with lead byte 0xE3..0xEF.
+    // Every range lies in U+3000..U+FFFF: a 3-byte UTF-8 sequence with lead
+    // byte 0xE3..0xEF.
     for (size_t i = 0; i + 2 < text.size(); ++i) {
         const auto b0 = static_cast<unsigned char>(text[i]);
         if (b0 < 0xE3 || b0 > 0xEF)
@@ -65,9 +77,10 @@ bool contains_cjk(std::string_view text) {
         if ((b1 & 0xC0) != 0x80 || (b2 & 0xC0) != 0x80)
             continue;
         const unsigned cp = ((b0 & 0x0Fu) << 12) | ((b1 & 0x3Fu) << 6) | (b2 & 0x3Fu);
-        if ((cp >= 0x3000 && cp <= 0x30FF) || (cp >= 0x3400 && cp <= 0x4DBF) ||
-            (cp >= 0x4E00 && cp <= 0x9FFF) || (cp >= 0xFF00 && cp <= 0xFFEF))
-            return true;
+        for (const auto& range : kCjkRanges) {
+            if (cp >= range.first && cp <= range.last)
+                return true;
+        }
         i += 2;
     }
     return false;

@@ -95,7 +95,7 @@ def check_filename_bins(root: Path, ui_manifest: set[int], summary: bool) -> int
     """Failures among the filename bins: a size with no bin, or a filename-set
     character neither the translation bins nor the filename bin carries."""
     try:
-        needed = cjk_filename_fonts.filename_codepoints() - ui_manifest
+        needed = cjk_filename_fonts.filename_codepoints(root) - ui_manifest
         sizes = cjk_filename_fonts.all_sizes(root)
     except (OSError, cjk_filename_fonts.FilenameFontError) as exc:
         print(f'✗ filename CJK set: {exc}')

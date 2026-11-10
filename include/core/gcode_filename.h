@@ -88,9 +88,10 @@ std::string strip_gcode_extension(const std::string& filename);
  */
 std::string get_display_filename(const std::string& path);
 
-/// True when @p text (UTF-8) holds a codepoint in a CJK block: CJK punctuation,
-/// hiragana, katakana, the unified ideographs and extension A, or the
-/// halfwidth/fullwidth forms. Malformed sequences are skipped.
+/// True when @p text (UTF-8) holds a codepoint in one of the ranges of
+/// core/cjk_ranges.inc: CJK punctuation, kana, the unified ideographs and
+/// extension A, fullwidth ASCII and halfwidth katakana. Malformed sequences
+/// are skipped.
 bool contains_cjk(std::string_view text);
 
 /// Called with a filename about to be shown, when it contains CJK. Registered

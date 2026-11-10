@@ -512,14 +512,18 @@ TEST_CASE("contains_cjk() finds the CJK blocks and nothing beside them", "[filen
     CHECK(contains_cjk("\xe3\x83\xbf")); // U+30FF, last katakana
     CHECK(contains_cjk("\xe3\x90\x80")); // U+3400, extension A
     CHECK(contains_cjk("\xe9\xbf\xbf")); // U+9FFF
-    CHECK(contains_cjk("\xef\xbf\xaf")); // U+FFEF
+    CHECK(contains_cjk("\xef\xbd\x9e")); // U+FF5E, last fullwidth ASCII
+    CHECK(contains_cjk("\xef\xbd\xa1")); // U+FF61, first halfwidth katakana
+    CHECK(contains_cjk("\xef\xbe\x9f")); // U+FF9F, last halfwidth katakana
     CHECK_FALSE(contains_cjk(""));
     CHECK_FALSE(contains_cjk("benchy_v2.gcode"));
     CHECK_FALSE(contains_cjk("Überteil — Привет"));
     CHECK_FALSE(contains_cjk("한국어"));
     CHECK_FALSE(contains_cjk("\xe3\x84\x85"));     // U+3105 bopomofo, past katakana
     CHECK_FALSE(contains_cjk("\xe4\xb7\x80"));     // U+4DC0, between ext A and unified
-    CHECK_FALSE(contains_cjk("\xef\xbf\xb0"));     // U+FFF0, past the fullwidth forms
+    CHECK_FALSE(contains_cjk("\xef\xbd\x9f"));     // U+FF5F, a fullwidth paren nothing bakes
+    CHECK_FALSE(contains_cjk("\xef\xbe\xa0"));     // U+FFA0, halfwidth hangul
+    CHECK_FALSE(contains_cjk("\xe3\x82\x97"));     // U+3097, unassigned in hiragana
     CHECK_FALSE(contains_cjk("\xf0\x9f\x98\x80")); // emoji
     CHECK_FALSE(contains_cjk("\xe6\xb5"));         // truncated sequence
     CHECK_FALSE(contains_cjk("\xe6\x41\x8b"));     // broken continuation byte

@@ -713,25 +713,27 @@ EOF
 make_font_stage() {
     make_stage
     mkdir -p "$STAGE/assets/fonts/cjk/filename"
-    for px in 10 11 12 14 16 18 20 24 26 32; do
+    for px in 10 11 12 14 16 18 20 24 26 28 32 40 48 64; do
         echo x > "$STAGE/assets/fonts/cjk/filename/noto_sans_cjk_filename_$px.bin"
     done
 }
 
-@test "prune: a fixed panel keeps only the filename glyph sizes its tier draws" {
-    make_font_stage
-    run python3 "$DERIVE" prune-assets ad5m "$STAGE"
+@test "prune: a fixed panel keeps only the filename glyph sizes its tier reaches at any UI scale" {
+    # 800x480 in a font tier 4 build: font_body 18 steps up to 28 (32 is not
+    # linked), font_small light_16 to 18 and font_xs light_12 to 18.
+    make_ui_font_stage
+    run python3 "$DERIVE" prune-assets ad5m "$STAGE" 4
     [ "$status" -eq 0 ] || fail "prune failed: $output"
     run ls "$STAGE/assets/fonts/cjk/filename"
-    [ "$(echo "$output" | tr '\n' ' ')" = "noto_sans_cjk_filename_12.bin noto_sans_cjk_filename_16.bin noto_sans_cjk_filename_18.bin " ] \
-        || fail "800x480 kept: $output"
+    [ "$(echo "$output" | tr '\n' ' ')" = "$(printf 'noto_sans_cjk_filename_%s.bin ' 12 14 16 18 20 24 26 28)" ] \
+        || fail "800x480 at tier 4 kept: $output"
 }
 
 @test "prune: an unbounded panel keeps every filename glyph size" {
     make_font_stage
     run python3 "$DERIVE" prune-assets pi "$STAGE"
     [ "$status" -eq 0 ] || fail "prune failed: $output"
-    [ "$(ls "$STAGE/assets/fonts/cjk/filename" | wc -l)" -eq 10 ] || fail "pruned a pi filename font"
+    [ "$(ls "$STAGE/assets/fonts/cjk/filename" | wc -l)" -eq 14 ] || fail "pruned a pi filename font"
 }
 
 @test "prune: refuses a package missing a filename glyph size its panel draws" {
@@ -790,4 +792,36 @@ make_ui_font_stage() {
     run python3 "$DERIVE" prune-assets ad5m "$STAGE"
     [ "$status" -eq 0 ] || fail "prune failed: $output"
     [ "$(ls "$STAGE"/assets/fonts/cjk/*.bin | wc -l)" -eq "$before" ] || fail "pruned without a tier"
+}
+
+@test "prune: every filename size a label reaches at any UI scale ships in every package" {
+    for platform in pi pi32 ad5m cc1 mips k1-dynamic k2 snapmaker-u1 x86 x86-desktop; do
+        tier=$(scratch_make -s PLATFORM_TARGET="$platform" print-var-HELIX_MAX_FONT_TIER | tail -n1)
+        make_ui_font_stage
+        run python3 "$DERIVE" prune-assets "$platform" "$STAGE" "$tier"
+        [ "$status" -eq 0 ] || fail "$platform prune failed: $output"
+        run python3 - "$platform" "$tier" "$STAGE" <<'PY'
+import os, re, sys
+sys.path.insert(0, "scripts"); sys.path.insert(0, "scripts/translations")
+import platform_manifest as pm, cjk_filename_fonts as cf
+platform, tier, stage = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+m = pm.load()
+panels = pm.candidate_panels(m, platform)
+tiers = {pm.font_breakpoint(m, *pm.effective_resolution(e)) for e in panels} or set(cf.TIERS)
+text = open("ui_xml/globals.xml", encoding="utf-8").read()
+reach = {l.split(":")[0]: l.split(":")[1].split()
+         for l in open("scripts/translations/font_scale_reach.txt") if ":" in l}
+linked = {f: px for f, _b, px in cf.face_rows(tier)}
+missing = []
+for t in tiers:
+    for token in cf.FILENAME_FONT_TOKENS:
+        face = re.search(f'name="{token}_{t}" value="([a-z0-9_]+)"', text).group(1)
+        for f in reach[face]:
+            path = f"{stage}/assets/fonts/cjk/filename/noto_sans_cjk_filename_{linked[f]}.bin" if f in linked else None
+            if path and not os.path.isfile(path):
+                missing.append(f"{t}:{token}->{f}")
+print(" ".join(missing))
+PY
+        [ -z "$output" ] || fail "$platform (tier $tier) lacks bins for: $output"
+    done
 }
