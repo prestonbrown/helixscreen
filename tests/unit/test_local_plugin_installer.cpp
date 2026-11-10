@@ -117,6 +117,16 @@ std::string link_cmd(const LocalPluginPlan& plan) {
     return "sh " + kInstallScript + " --link-timelapse " + plan.repo_dir;
 }
 
+std::string git_in(const LocalPluginPlan& plan, const std::string& args) {
+    return "git -C " + plan.repo_dir + " " + args;
+}
+
+/// A checkout already in home, so the install reuses it.
+void make_existing_checkout(const TempHome& home) {
+    std::filesystem::create_directories(home.repo() + "/component");
+    std::ofstream(home.repo() + "/component/timelapse.py") << "# plugin\n";
+}
+
 } // namespace
 
 // ============================================================================
@@ -196,8 +206,69 @@ TEST_CASE("a local install reuses a checkout already there", "[timelapse][local_
     const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
 
     CHECK(result.outcome == LocalPluginOutcome::Installed);
-    CHECK(fake.calls == std::vector<std::string>{link_cmd(plan), kFindFfmpeg});
+    // On a branch already: nothing in the checkout is touched.
+    CHECK(fake.calls == std::vector<std::string>{git_in(plan, "symbolic-ref -q HEAD"),
+                                                 link_cmd(plan), kFindFfmpeg});
     CHECK(std::filesystem::exists(home.repo() + "/local-edit"));
+}
+
+TEST_CASE("a reused checkout on a detached HEAD is put back on main for the update manager",
+          "[timelapse][local_install]") {
+    TempHome home;
+    make_existing_checkout(home);
+    FakeRunner fake;
+    const auto plan = home.plan();
+    REQUIRE(plan.repo_present);
+    fake.answers[git_in(plan, "symbolic-ref -q HEAD")] = exited(1);
+
+    SECTION("a clean tree with a local main switches to it") {
+        const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
+        CHECK(result.outcome == LocalPluginOutcome::Installed);
+        CHECK(fake.calls == std::vector<std::string>{
+                                git_in(plan, "symbolic-ref -q HEAD"),
+                                git_in(plan, "status --porcelain"),
+                                git_in(plan, "rev-parse -q --verify refs/heads/main"),
+                                git_in(plan, "checkout -q main"), link_cmd(plan), kFindFfmpeg});
+    }
+    SECTION("local changes keep it detached") {
+        fake.answers[git_in(plan, "status --porcelain")] = exited(0, " M component/timelapse.py\n");
+        const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
+        CHECK(result.outcome == LocalPluginOutcome::Installed);
+        CHECK(fake.calls == std::vector<std::string>{git_in(plan, "symbolic-ref -q HEAD"),
+                                                     git_in(plan, "status --porcelain"),
+                                                     link_cmd(plan), kFindFfmpeg});
+    }
+    SECTION("no local main keeps it detached") {
+        fake.answers[git_in(plan, "rev-parse -q --verify refs/heads/main")] = exited(1);
+        const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
+        CHECK(result.outcome == LocalPluginOutcome::Installed);
+        CHECK(fake.calls ==
+              std::vector<std::string>{git_in(plan, "symbolic-ref -q HEAD"),
+                                       git_in(plan, "status --porcelain"),
+                                       git_in(plan, "rev-parse -q --verify refs/heads/main"),
+                                       link_cmd(plan), kFindFfmpeg});
+    }
+    SECTION("a failed switch still installs the plugin") {
+        fake.answers[git_in(plan, "checkout -q main")] = exited(1, "error: cannot switch\n");
+        const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
+        CHECK(result.outcome == LocalPluginOutcome::Installed);
+        CHECK(fake.calls.back() == kFindFfmpeg);
+    }
+}
+
+TEST_CASE("a reused directory that is not a git repository is left alone",
+          "[timelapse][local_install]") {
+    TempHome home;
+    make_existing_checkout(home);
+    FakeRunner fake;
+    const auto plan = home.plan();
+    fake.answers[git_in(plan, "symbolic-ref -q HEAD")] =
+        exited(128, "fatal: not a git repository\n");
+    const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
+
+    CHECK(result.outcome == LocalPluginOutcome::Installed);
+    CHECK(fake.calls == std::vector<std::string>{git_in(plan, "symbolic-ref -q HEAD"),
+                                                 link_cmd(plan), kFindFfmpeg});
 }
 
 TEST_CASE("a failed clone stops the install and names git's last line",

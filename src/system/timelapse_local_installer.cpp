@@ -28,6 +28,7 @@ const LocalPluginRecipe& timelapse_plugin_recipe() {
         r.repo_url = kTimelapseRepoUrl;
         r.repo_dir_name = kTimelapseRepoDirName;
         r.repo_marker = "component/timelapse.py";
+        r.repo_branch = "main";
         r.install_args = {"--link-timelapse", kLocalPluginRepoDirArg};
         // install.sh walks /proc and the config; it never waits on Moonraker.
         r.install_timeout_seconds = 60;
