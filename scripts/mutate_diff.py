@@ -812,28 +812,37 @@ def collect_hunks(root, base):
     `git apply -R` can undo that hunk alone while its siblings stay applied.
     The diff is taken over the WHOLE tree; what may be mutated is decided by
     classify(), which reports what it declines rather than filtering it away.
+
+    A hunk is reverted in place, in the file as it exists now (in_place_header).
+    `old_file` is where its pre-image lived at `base`, which differs from
+    `file` only for a rename or copy.
     """
     r = run(['git', '-c', 'core.quotePath=false', 'diff', '-U3', base], cwd=root)
     if r.returncode != 0:
         sys.exit(f'git diff failed:\n{r.stdout}')
-    hunks, path, current, hdr_lines = [], None, None, []
+    hunks, path, old_path, current, hdr_lines = [], None, None, None, []
 
     def flush():
         if path and current:
-            hunks.append({'file': path, 'line': current['line'],
+            hunks.append({'file': path, 'old_file': old_path or path,
+                          'line': current['line'],
                           'old_line': current['old_line'],
                           'body': list(current['body']),
-                          'patch': ''.join(hdr_lines + current['body'])})
+                          'patch': ''.join(in_place_header(hdr_lines) + current['body'])})
 
     for line in r.stdout.splitlines(keepends=True):
         if line.startswith('diff --git '):
             flush()
-            current = None
+            current, old_path = None, None
             hdr_lines = [line]
             path = line.split(' b/')[-1].strip()
+        elif current is None and line.startswith(('rename from ', 'copy from ')):
+            old_path = line.split(' from ', 1)[1].rstrip('\n')
+            hdr_lines.append(line)
         elif current is None and (line.startswith(('index ', '--- ', '+++ ',
                                                    'old mode', 'new mode',
-                                                   'similarity', 'rename ',
+                                                   'similarity', 'dissimilarity',
+                                                   'rename ', 'copy ',
                                                    'new file', 'deleted file'))):
             hdr_lines.append(line)
         elif line.startswith('@@'):
@@ -845,6 +854,34 @@ def collect_hunks(root, base):
             current['body'].append(line)
     flush()
     return hunks
+
+
+# Headers that make `git apply -R` do more than undo the hunk's lines: it would
+# move a renamed file back to its old path, or chmod the file, and restoring the
+# bytes at the current path puts back neither. The mutant is the edit; a rename
+# or mode change on its own is a compile-only question no suite answers.
+_NOT_IN_PLACE = ('old mode ', 'new mode ', 'similarity index ', 'dissimilarity index ',
+                 'rename from ', 'rename to ', 'copy from ', 'copy to ')
+
+
+def in_place_header(hdr_lines):
+    """A file header whose reversal touches only the file at its current path."""
+    out = []
+    for line in hdr_lines:
+        if line.startswith(_NOT_IN_PLACE):
+            continue
+        if line.startswith('index '):
+            # `index a..b 100644`: the mode suffix belongs to a mode change too.
+            line = ' '.join(line.split()[:2]) + '\n'
+        out.append(line)
+    plus = next((ln for ln in out if ln.startswith('+++ ')), None)
+    if plus is None or plus.startswith('+++ /dev/null'):
+        return out                      # no text hunk, or a deletion: the old path IS the path
+    name = plus[4:].rstrip('\n')       # `b/<path>`, or `"b/<path>"` when quoted
+    a_name = '"a/' + name[3:] if name.startswith('"') else 'a/' + name[2:]
+    return [f'diff --git {a_name} {name}\n' if ln.startswith('diff --git ')
+            else f'--- {a_name}\n' if ln.startswith('--- ') and not ln.startswith('--- /dev/null')
+            else ln for ln in out]
 
 
 # ---------------------------------------------------------------------------
@@ -1009,6 +1046,7 @@ def hunk_changed_lines(root, base, h, cache):
     as usual rather than guess from a partial read.
     """
     path = h['file']
+    old_path = h.get('old_file', path)
     syntax = comment_syntax(path)
 
     def sides(key, loader):
@@ -1020,10 +1058,10 @@ def hunk_changed_lines(root, base, h, cache):
         return cache[key]
 
     def pre_loader():
-        r = run(['git', 'show', f'{base}:{path}'], cwd=root)
+        r = run(['git', 'show', f'{base}:{old_path}'], cwd=root)
         return r.stdout if r.returncode == 0 else ''
 
-    pre = sides(('pre', path), pre_loader)
+    pre = sides(('pre', old_path), pre_loader)
     post = sides(('post', path), lambda: (root / path).read_text(errors='replace'))
     if pre is None or post is None:
         return False
@@ -2789,26 +2827,35 @@ def binary_fingerprint(path):
     return st.st_size, st.st_mtime_ns
 
 
-def restore_file(root, rel, original):
-    """Put one file back the way the run found it.
+def file_mode(path):
+    """The permission bits of `path`, or None when it is not a file."""
+    return stat.S_IMODE(path.stat().st_mode) if path.is_file() else None
+
+
+def restore_file(root, rel, original, mode=None):
+    """Put one file back the way the run found it: its bytes, and its `mode`
+    when given, since `git apply` writes a file anew with the umask's bits.
 
     touch(1)ed because make compares mtimes: a byte-identical restore with an
     older mtime leaves make nothing to do, and the next mutant's suite runs the
     previous mutant's binary.
 
     Returns whether anything had to be written. A file already holding its
-    original bytes is left alone, mtime included: it never held a mutant, so
-    no build has seen one, and touching it would only recompile it.
+    original bytes and mode is left alone, mtime included: it never held a
+    mutant, so no build has seen one, and touching it would only recompile it.
     """
     target = root / rel
     current = target.read_bytes() if target.is_file() else None
-    if current == original:
+    if current == original and (mode is None or file_mode(target) in (None, mode)):
         return False
     if original is None:
         target.unlink(missing_ok=True)
         return True
-    target.write_bytes(original)
-    os.utime(target, None)
+    if current != original:
+        target.write_bytes(original)
+        os.utime(target, None)
+    if mode is not None:
+        target.chmod(mode)
     return True
 
 
@@ -2847,24 +2894,26 @@ class TreeGuard:
 
     def __init__(self, root):
         self.root, self.pristine, self.dirty = root, {}, set()
+        self.modes = {}
         # A restored source leaves its mutant in the binary until the next build.
         self.binary_holds_mutant = False
 
     def capture(self, rel):
         target = self.root / rel
         self.pristine.setdefault(rel, target.read_bytes() if target.is_file() else None)
+        self.modes.setdefault(rel, file_mode(target))
 
     def mark(self, rel):
         self.dirty.add(rel)
 
     def restore(self, rel):
-        restore_file(self.root, rel, self.pristine[rel])
+        restore_file(self.root, rel, self.pristine[rel], self.modes.get(rel))
         self.dirty.discard(rel)
 
     def restore_all(self):
         """Restore every marked file; the paths that needed writing."""
         written = [rel for rel in sorted(self.dirty)
-                   if restore_file(self.root, rel, self.pristine[rel])]
+                   if restore_file(self.root, rel, self.pristine[rel], self.modes.get(rel))]
         self.dirty.clear()
         return written
 
@@ -3677,7 +3726,7 @@ def make_worker_trees(root, args, n, guard, suites):
     for dst in dsts:
         verify_pristine(dst, guard.pristine, f'in the worker copy {dst}')
         g = TreeGuard(dst)
-        g.pristine = dict(guard.pristine)
+        g.pristine, g.modes = dict(guard.pristine), dict(guard.modes)
         trees.append(WorkerTree(dst, g, suites.for_tree(dst, io.StringIO())))
     return trees
 
@@ -4493,7 +4542,7 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
         finally:
             untrack_proc(p)
         for path in paths:
-            if restore_file(root, path, guard.pristine[path]):
+            if restore_file(root, path, guard.pristine[path], guard.modes.get(path)):
                 print(f'  RESTORED      {path}: the group left it changed', flush=True)
             guard.dirty.discard(path)
         codes.append(p.returncode if p.returncode >= 0 else 128 - p.returncode)
