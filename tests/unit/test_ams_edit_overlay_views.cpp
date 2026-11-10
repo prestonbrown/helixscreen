@@ -988,6 +988,39 @@ TEST_CASE_METHOD(BoxWinsFixture,
     ModalStack::instance().clear();
 }
 
+TEST_CASE_METHOD(BoxWinsFixture,
+                 "a similar filament adopted for a disagreeing lane leaves the lane's own filament",
+                 "[ams_edit_overlay][box_wins][similar_filament]") {
+    // The spool is red ASA, the lane red PLA. Moving the colour to blue offers
+    // Spoolman's navy ASA, and taking it repoints the spool only.
+    client.spoolman_mock().get_mock_spools().back().color_hex = "FF0000";
+    client.spoolman_mock().add_vendor(5, "Elegoo");
+    client.spoolman_mock().add_filament(88, 5, "ASA", "0000F0", "Navy ASA");
+    open(true, box_lane());
+
+    SlotInfo edited = access.working_info();
+    edited.color_rgb = 0x0000FF;
+    access.set_working_info(edited);
+    access.call_handle_save();
+    settle();
+    REQUIRE_FALSE(ModalStack::instance().stack_empty());
+    access.call_do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent::UpdateLinked);
+    settle();
+    lv_obj_t* offer = ModalStack::instance().top_dialog();
+    REQUIRE(offer != nullptr);
+    REQUIRE(helix::test::subtree_text(offer).find("Navy ASA") != std::string::npos);
+    lv_obj_send_event(lv_obj_find_by_name(offer, "btn_primary"), LV_EVENT_CLICKED, nullptr);
+    settle();
+    settle();
+
+    CHECK(client.spoolman_mock().get_mock_spools().back().filament_id == 88);
+    REQUIRE(fired);
+    CHECK(captured.slot_info.material == "PLA");
+    CHECK(captured.slot_info.brand == "Creality");
+    CHECK(captured.slot_info.color_rgb == 0x0000FFU);
+    ModalStack::instance().clear();
+}
+
 namespace {
 struct RefusingBoxBackend : AmsBackendMock {
     using AmsBackendMock::AmsBackendMock;
