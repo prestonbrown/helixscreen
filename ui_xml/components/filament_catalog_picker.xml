@@ -25,6 +25,7 @@
     <modal_button_row primary_text="Select"
                       primary_callback="catalog_picker_select_cb" secondary_text="Cancel"
                       secondary_callback="catalog_picker_close_cb" tertiary_text="Reset to defaults"
-                      tertiary_callback="catalog_picker_reset_cb" tertiary_variant="secondary" hide_tertiary="false"/>
+                      tertiary_callback="catalog_picker_reset_cb" tertiary_variant="secondary" hide_tertiary="false"
+                      tertiary_show_subject="catalog_picker_reset_shown"/>
   </view>
 </component>
