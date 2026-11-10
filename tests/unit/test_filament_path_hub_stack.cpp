@@ -307,7 +307,6 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     LinearHubFrame f{};
     const PathPlan& plan = plan_of(c, &f);
     REQUIRE((art != nullptr && c.data->rail_drawn && f.rail.w > 0));
-    // Centred, clear of the lanes' sensors above and the buffer below.
     CHECK(std::abs(f.rail.x + f.rail.w / 2 - f.center_x) <= 1);
     CHECK((f.rail.y > f.prep_y && f.rail.y + f.rail.h < f.buffer_y));
     CHECK((c.data->hits.hub.x1 == f.rail.x && c.data->hits.hub.y2 == f.rail.y + f.rail.h));
