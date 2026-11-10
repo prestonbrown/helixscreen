@@ -970,4 +970,5 @@ src/system/env_refusal_notice.cpp
 src/system/home_layout_share.cpp
 src/ui/controls/opa_pulse.cpp
 src/rendering/toolhead_art_gen.cpp
+src/rendering/baked_art.cpp
 src/rendering/toolhead_art.cpp

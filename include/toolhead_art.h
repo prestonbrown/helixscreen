@@ -48,10 +48,6 @@ ToolheadArtPoint toolhead_art_entry(const ToolheadArt& art, int32_t cx, int32_t 
 void toolhead_art_compose(uint8_t* body, const uint8_t* mask, const uint8_t* shade, int32_t w,
                           int32_t h, lv_color_t tint);
 
-/// Area-averages ARGB8888 @p src to @p dst, weighting colour by alpha so edges stay clean.
-void toolhead_art_resample(const uint8_t* src, int32_t src_w, int32_t src_h, uint8_t* dst,
-                           int32_t dst_w, int32_t dst_h);
-
 /// Draws @p style's art as one image. False when the style has none or its files cannot load.
 bool draw_toolhead_art(lv_layer_t* layer, ToolheadStyle style, int32_t cx, int32_t nozzle_y,
                        std::optional<lv_color_t> filament, int32_t scale, lv_opa_t opa);

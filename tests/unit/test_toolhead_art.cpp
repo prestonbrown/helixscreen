@@ -3,6 +3,7 @@
 #include "ui_toolhead_badge.h"
 
 #include "../lvgl_test_fixture.h"
+#include "baked_art.h"
 #include "toolhead_art.h"
 
 #include <vector>
@@ -78,7 +79,7 @@ TEST_CASE("toolhead art: resampling keeps colour and ignores transparent neighbo
     src[4] = 255; // the transparent pixel's colour must not bleed in
     src[7] = 0;
     std::vector<uint8_t> dst(4);
-    toolhead_art_resample(src.data(), 2, 1, dst.data(), 1, 1);
+    baked_art_resample(src.data(), 2, 1, dst.data(), 1, 1);
     CHECK(dst[0] == 0);
     CHECK(dst[2] == 200);
     CHECK(dst[3] == Catch::Approx(127).margin(2));
