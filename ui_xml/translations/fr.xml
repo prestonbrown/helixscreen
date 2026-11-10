@@ -3853,6 +3853,10 @@
   <translation tag="Tap the light" fr="Touchez l&apos;éclairage"/>
   <translation tag="Tap the nozzle tip" fr="Touchez la pointe de la buse"/>
   <translation tag="Tap the part cooling fan" fr="Touchez le ventilateur de refroidissement pièce"/>
+  <translation tag="Tap the window&apos;s bottom-left corner" fr="Touchez le coin inférieur gauche de la vitre"/>
+  <translation tag="Tap the window&apos;s bottom-right corner" fr="Touchez le coin inférieur droit de la vitre"/>
+  <translation tag="Tap the window&apos;s top-left corner, or skip if there is none" fr="Touchez le coin supérieur gauche de la vitre, ou passez s&apos;il n&apos;y en a pas"/>
+  <translation tag="Tap the window&apos;s top-right corner" fr="Touchez le coin supérieur droit de la vitre"/>
   <translation tag="Tap to assign" fr="Appuyez pour assigner"/>
   <translation tag="Target" fr="Cible"/>
   <translation tag="Target RH" fr="HR cible"/>

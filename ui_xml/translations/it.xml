@@ -3853,6 +3853,10 @@
   <translation tag="Tap the light" it="Tocca la luce"/>
   <translation tag="Tap the nozzle tip" it="Tocca la punta dell&apos;ugello"/>
   <translation tag="Tap the part cooling fan" it="Tocca la ventola raffreddamento pezzo"/>
+  <translation tag="Tap the window&apos;s bottom-left corner" it="Tocca l&apos;angolo in basso a sinistra della finestra"/>
+  <translation tag="Tap the window&apos;s bottom-right corner" it="Tocca l&apos;angolo in basso a destra della finestra"/>
+  <translation tag="Tap the window&apos;s top-left corner, or skip if there is none" it="Tocca l&apos;angolo in alto a sinistra della finestra, o salta se non c&apos;è"/>
+  <translation tag="Tap the window&apos;s top-right corner" it="Tocca l&apos;angolo in alto a destra della finestra"/>
   <translation tag="Tap to assign" it="Tocca per assegnare"/>
   <translation tag="Target" it="Target"/>
   <translation tag="Target RH" it="UR target"/>
