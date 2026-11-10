@@ -29,6 +29,9 @@ std::optional<ImageTagTarget> displayed_image_tag_target();
 std::optional<NormPoint> tagger_tap_point(const lv_area_t& image_box, lv_point_t tap, int natural_w,
                                           int natural_h);
 
+/// What the tagger asks the user to tap for `p`; Done's text asks for the review.
+const char* tag_prompt_text(TagPrompt p);
+
 /// The review chip for `k`'s part in printer_image_tagger_overlay.xml, and the
 /// subject that shows it.
 std::string review_chip_name(CalloutKind k);

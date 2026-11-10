@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <set>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -509,6 +510,17 @@ TEST_CASE("user regions: reset with no user entry writes nothing",
     reload_user_image_regions();
     CHECK(reset_user_image_regions("custom:none"));
     CHECK_FALSE(std::filesystem::exists(cfg.dir / "printer_image_regions.json"));
+}
+
+TEST_CASE("tag_prompt_text: every prompt asks for its own part and none for the review",
+          "[printer_image][image_tagger]") {
+    std::set<std::string> seen;
+    for (int i = 0; i < ImageTagSession::kPromptCount; ++i) {
+        const std::string text = tag_prompt_text(static_cast<TagPrompt>(i));
+        INFO("prompt " << i << ": " << text);
+        CHECK(text != tag_prompt_text(TagPrompt::Done));
+        CHECK(seen.insert(text).second);
+    }
 }
 
 TEST_CASE("tagger_tap_point: screen taps map through the image box, letterboxed on either axis",
