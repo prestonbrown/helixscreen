@@ -4378,6 +4378,12 @@ def main():
     if unproven or unjudged or uncovered or deferred or unexamined:
         incomplete = True
 
+    if incomplete and (survived or inside_survived):
+        # The survivors decide the exit, but the summary still names the part of
+        # the change this run never judged.
+        print(report_incomplete(uncovered, deferred, unproven, unjudged,
+                                unexamined=len(unexamined), stop_reason=stop_reason,
+                                survived=True))
     if inside_survived and not survived:
         sys.stdout.flush()
         print(f'\nFAIL: {len(inside_survived)} inside mutant(s) survived, and no test detects them:',
@@ -4459,7 +4465,7 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
         passthrough += ['--worker-dir', args.worker_dir]
     for pattern in args.first or ():
         passthrough += ['--first', pattern]
-    codes = []
+    codes, not_started = [], 0
     for i, ((filt, shell, python), paths) in enumerate(groups, 1):
         left = args.max_minutes - (time.monotonic() - started) / 60
         if args.max_minutes > 0 and left < 1:
@@ -4467,7 +4473,8 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
                   f'{args.max_minutes:g} reached ===')
             for path in paths:
                 print(f'  UNEXAMINED    {path}')
-            codes.append(3)
+            not_started += len(paths)
+            codes.append(None)
             continue
         print(f'\n=== group {i}/{len(groups)}: {describe_key((filt, shell, python))}  '
               f'({len(paths)} file(s)) ===', flush=True)
@@ -4498,9 +4505,15 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
     if RUN_STATE.flaky_sites:
         print('\n'.join(flaky_lines()))
     for (key, paths), code in zip(groups, codes):
-        print(f'  exit {code}  {describe_key(key)}  ({len(paths)} file(s))')
-    if incomplete:
-        print(report_incomplete(uncovered, deferred, survived=1 in codes))
+        print(f'  exit {3 if code is None else code}  {describe_key(key)}  '
+              f'({len(paths)} file(s))')
+    short_groups = codes.count(3)
+    if incomplete or not_started or short_groups:
+        print(report_incomplete(
+            uncovered, deferred, survived=1 in codes, short_groups=short_groups,
+            not_started=not_started,
+            stop_reason=f'--max-minutes {args.max_minutes:g} reached before their group started'))
+    codes = [3 if code is None else code for code in codes]
     worst = combine_exits(codes + ([3] if incomplete else []))
     if worst == 3 and args.allow_incomplete:
         return 0
@@ -4511,10 +4524,12 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
 
 
 def report_incomplete(uncovered, deferred, unproven=(), unjudged=(), unexamined=0,
-                      stop_reason='', survived=False):
+                      stop_reason='', survived=False, short_groups=0, not_started=0):
     """The line that stops a partial run from reading like a whole one.
 
-    `survived`: a group of this run has survivors of its own, listed above.
+    `survived`: the run has survivors, listed above. `short_groups`: groups that
+    ran but did not examine all of their own files. `not_started`: files whose
+    group never started, for `stop_reason`.
     """
     parts = []
     if uncovered:
@@ -4527,9 +4542,13 @@ def report_incomplete(uncovered, deferred, unproven=(), unjudged=(), unexamined=
         parts.append(f'{deferred} hunk(s) deferred by --only/--limit')
     if unexamined:
         parts.append(f'{unexamined} hunk(s) UNEXAMINED: {stop_reason}')
+    if short_groups:
+        parts.append(f'{short_groups} group(s) INCOMPLETE, each named above')
+    if not_started:
+        parts.append(f'{not_started} file(s) UNEXAMINED: {stop_reason}')
     return ('\nVERDICT: INCOMPLETE - this run did not examine the whole change: '
             + '; '.join(parts) + '.\n'
-            + ('Hunks SURVIVED in the groups above: each needs a test that pins it. '
+            + ('Hunks SURVIVED above: each needs a test that pins it. '
                if survived else
                'Nothing survived, but that is not evidence for the part above. ')
             + 'Mutate it by hand and say so in the commit body, or accept it with '
