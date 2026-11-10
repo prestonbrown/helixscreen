@@ -4,6 +4,7 @@
 # in any other shipped screen must be registered there. List a screen only when
 # nothing the firmware compiles opens it; a path the firmware stops shipping
 # must come off the list.
+action_prompt_modal.xml
 barcode_scanner_settings.xml
 bed_mesh_calibrate_modal.xml
 bed_mesh_panel.xml

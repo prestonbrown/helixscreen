@@ -105,6 +105,7 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture, "ActionPromptModal: 4 regular button
 
     const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
     REQUIRE(btns.size() == 4);
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(modal_.dialog(), "footer_divider")));
 
     // All four buttons must be on the SAME visual row. If the 4th wraps, its y
     // jumps down by ~one button-height (>= ~48px) — far outside this tolerance.
@@ -187,6 +188,7 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
 
     const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
     REQUIRE(btns.size() == 6); // 5 regular + 1 footer
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(modal_.dialog(), "footer_divider")));
 
     // Every regular button must be able to show its label in full.
     for (size_t i = 0; i < 5; ++i) {
