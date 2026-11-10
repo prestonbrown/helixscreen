@@ -20,6 +20,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/wizard_touch_calibration_test_access.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "touch_calibration_session.h"
 
 #include <string>
@@ -131,4 +132,26 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     WizardTouchCalibrationTestAccess::invoke_retry(step);
 
     REQUIRE(sink.affine_enabled == false);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A destroyed touch calibration step lets go of the widgets bound to its subjects",
+                 "[touch_cal][wizard][lifetime]") {
+    lv_obj_t* bound = lv_obj_create(test_screen());
+    const uint32_t unbound = lv_obj_get_event_count(bound);
+    {
+        WizardTouchCalibrationStep step;
+        step.init_subjects();
+        for (const char* name :
+             {"touch_cal_current_step", "touch_cal_valid", "touch_cal_wizard_state"}) {
+            lv_subject_t* subject = lv_xml_get_subject(nullptr, name);
+            REQUIRE(subject != nullptr);
+            lv_obj_bind_flag_if_eq(bound, subject, LV_OBJ_FLAG_HIDDEN, 99);
+        }
+        REQUIRE(lv_obj_get_event_count(bound) == unbound + 3);
+    }
+    // Every binding's delete hook went with its subject: the widget's own
+    // deletion reaches no freed subject.
+    CHECK(lv_obj_get_event_count(bound) == unbound);
+    lv_obj_delete(bound);
 }

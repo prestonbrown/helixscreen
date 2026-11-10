@@ -17,6 +17,7 @@
 #include <fstream>
 #include <map>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -70,20 +71,22 @@ TEST_CASE("swatch_needs_edge: a swatch too close to its surface gets an edge, in
     constexpr uint32_t kDarkDialog = 0x4C566A;
     constexpr uint32_t kLightScreen = 0xECEFF4;
     constexpr uint32_t kLightDialog = 0xEDEFF6;
-    // Dark-on-dark.
-    CHECK(helix::ui::swatch_needs_edge(0x000000, kDarkScreen));
-    CHECK(helix::ui::swatch_needs_edge(0x1A1A1A, kDarkScreen));
-    CHECK(helix::ui::swatch_needs_edge(0x4A4A4A, kDarkScreen));
-    CHECK(helix::ui::swatch_needs_edge(0x4A4A4A, kDarkDialog));
-    // Light-on-light.
-    CHECK(helix::ui::swatch_needs_edge(0xFFFFFF, kLightScreen));
-    CHECK(helix::ui::swatch_needs_edge(0xE8E8E8, kLightDialog));
-    CHECK(helix::ui::swatch_needs_edge(0xE0D5C7, kLightScreen));
-    // Plenty of contrast: no edge.
-    CHECK_FALSE(helix::ui::swatch_needs_edge(0xFFFFFF, kDarkScreen));
-    CHECK_FALSE(helix::ui::swatch_needs_edge(0x808080, kDarkScreen));
-    CHECK_FALSE(helix::ui::swatch_needs_edge(0x1A1A1A, kLightScreen));
-    CHECK_FALSE(helix::ui::swatch_needs_edge(0xE53935, kLightDialog));
+    // Dark-on-dark and light-on-light get an edge; plenty of contrast does not.
+    for (const auto& [color, surface, edge] :
+         std::vector<std::tuple<uint32_t, uint32_t, bool>>{{0x000000, kDarkScreen, true},
+                                                           {0x1A1A1A, kDarkScreen, true},
+                                                           {0x4A4A4A, kDarkScreen, true},
+                                                           {0x4A4A4A, kDarkDialog, true},
+                                                           {0xFFFFFF, kLightScreen, true},
+                                                           {0xE8E8E8, kLightDialog, true},
+                                                           {0xE0D5C7, kLightScreen, true},
+                                                           {0xFFFFFF, kDarkScreen, false},
+                                                           {0x808080, kDarkScreen, false},
+                                                           {0x1A1A1A, kLightScreen, false},
+                                                           {0xE53935, kLightDialog, false}}) {
+        CAPTURE(color, surface);
+        CHECK(helix::ui::swatch_needs_edge(color, surface) == edge);
+    }
 }
 
 namespace {
@@ -325,6 +328,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         return lv_color_eq(lv_obj_get_style_text_color(hex, LV_PART_MAIN),
                            theme_manager_get_color(token));
     };
+    CHECK_FALSE(hex_is("danger"));
+    lv_textarea_set_text(hex, "#12");
+    CHECK(hex_is("danger"));
+    // Leaving the field puts the selected colour back untinted; the next bad entry tints again.
+    lv_obj_send_event(hex, LV_EVENT_DEFOCUSED, nullptr);
+    CHECK(std::string(lv_textarea_get_text(hex)) == "#FF0000");
     CHECK_FALSE(hex_is("danger"));
     lv_textarea_set_text(hex, "#12");
     CHECK(hex_is("danger"));
