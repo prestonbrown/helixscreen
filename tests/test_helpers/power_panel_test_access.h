@@ -24,9 +24,6 @@ struct PowerPanelTestAccess {
     static lv_obj_t* device_list_container(PowerPanel& p) {
         return p.device_list_container_;
     }
-    static lv_obj_t* empty_state_container(PowerPanel& p) {
-        return p.empty_state_container_;
-    }
     static lv_obj_t* cached_overlay(PowerPanel& p) {
         return p.cached_overlay_;
     }

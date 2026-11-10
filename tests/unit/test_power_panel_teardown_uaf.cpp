@@ -68,7 +68,6 @@ class PowerPanelTeardownFixture : public LVGLUITestFixture {
         // would pass for the wrong reason (null pointers are already safe).
         REQUIRE(PowerPanelTestAccess::chip_container(*panel_) != nullptr);
         REQUIRE(PowerPanelTestAccess::device_list_container(*panel_) != nullptr);
-        REQUIRE(PowerPanelTestAccess::empty_state_container(*panel_) != nullptr);
     }
 
     ~PowerPanelTeardownFixture() override {
@@ -126,7 +125,6 @@ TEST_CASE_METHOD(PowerPanelTeardownFixture,
 
     CHECK(PowerPanelTestAccess::chip_container(panel()) == nullptr);
     CHECK(PowerPanelTestAccess::device_list_container(panel()) == nullptr);
-    CHECK(PowerPanelTestAccess::empty_state_container(panel()) == nullptr);
     CHECK(PowerPanelTestAccess::cached_overlay(panel()) == nullptr);
     CHECK(PowerPanelTestAccess::device_row_count(panel()) == 0);
 }
@@ -169,7 +167,7 @@ TEST_CASE_METHOD(PowerPanelTeardownFixture,
     delete_widget_tree();
 
     // populate_device_list() is what the get_power_devices reply defers to. It
-    // dereferences device_list_container_/empty_state_container_ and runs
+    // dereferences device_list_container_ and runs
     // clear_device_list() over device_rows_ — all stale after the delete.
     PowerPanelTestAccess::populate_device_list(panel(), sample_devices());
     UpdateQueue::instance().drain();

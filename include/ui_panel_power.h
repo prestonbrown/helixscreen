@@ -76,13 +76,12 @@ class PowerPanel : public PanelBase {
 
     // Subjects for reactive binding
     lv_subject_t status_subject_{};
+    lv_subject_t has_devices_subject_{}; ///< -1 not loaded, 0 none, 1 some: list or empty state
     char status_buf_[128] = "Loading devices...";
 
     // Widget references into a tree this panel does not own. forget_widget_tree()
     // drops them when that tree is deleted — see on_panel_deleted().
     lv_obj_t* device_list_container_ = nullptr;
-    lv_obj_t* empty_state_container_ = nullptr;
-    lv_obj_t* status_label_ = nullptr; ///< Write-only: cached by setup(), never read
 
     // Device state tracking
     struct DeviceRow {

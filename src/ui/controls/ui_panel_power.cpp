@@ -63,6 +63,7 @@ void PowerPanel::init_subjects() {
 
     // Initialize status subject for reactive binding
     UI_MANAGED_SUBJECT_STRING(status_subject_, status_buf_, status_buf_, "power_status", subjects_);
+    UI_MANAGED_SUBJECT_INT(has_devices_subject_, -1, "power_has_devices", subjects_);
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized: power_status", get_name());
@@ -108,9 +109,6 @@ void PowerPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     if (overlay_content) {
         device_list_container_ =
             helix::ui::find_required(overlay_content, "device_list", get_name());
-        empty_state_container_ =
-            helix::ui::find_required(overlay_content, "empty_state", get_name());
-        status_label_ = helix::ui::find_required(overlay_content, "status_message", get_name());
         chip_container_ =
             helix::ui::find_required(overlay_content, "power_chip_container", get_name());
     }
@@ -119,6 +117,8 @@ void PowerPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         return;
     }
 
+    // A rebuilt tree shows neither the empty state nor a stale list until the fetch answers.
+    lv_subject_set_int(&has_devices_subject_, -1);
     fetch_devices();
 
     spdlog::info("[{}] Setup complete!", get_name());
@@ -178,21 +178,8 @@ void PowerPanel::populate_device_list(const std::vector<PowerDevice>& devices) {
 
     bool has_devices = !devices.empty();
 
-    // Toggle visibility: show device list OR empty state
-    if (device_list_container_) {
-        if (has_devices) {
-            lv_obj_remove_flag(device_list_container_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(device_list_container_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-    if (empty_state_container_) {
-        if (has_devices) {
-            lv_obj_add_flag(empty_state_container_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(empty_state_container_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    // The panel shows the device list OR the empty state
+    lv_subject_set_int(&has_devices_subject_, has_devices ? 1 : 0);
 
     if (!has_devices) {
         status_buf_[0] = '\0'; // Clear status
@@ -221,8 +208,16 @@ void PowerPanel::create_device_row(const PowerDevice& device) {
     std::string friendly_name =
         helix::get_display_name(device.device, helix::DeviceType::POWER_DEVICE);
 
+    // Check if device is locked during printing. job_holds_machine() rather
+    // than the wire: the lock has to cover the pre-print window, where the
+    // printer still reports standby while the toolhead homes and probes, and
+    // cutting the PSU there is what the flag exists to prevent.
+    bool is_locked = device.locked_while_printing &&
+                     job_holds_machine(printer_state_.print_state().get_print_lifecycle());
+
     // Create row using XML component with prettified device_name prop
-    const char* attrs[] = {"device_name", friendly_name.c_str(), nullptr, nullptr};
+    const char* attrs[] = {"device_name", friendly_name.c_str(), "locked",
+                           is_locked ? "true" : "false", nullptr};
     lv_obj_t* row =
         static_cast<lv_obj_t*>(lv_xml_create(device_list_container_, "power_device_row", attrs));
 
@@ -245,29 +240,9 @@ void PowerPanel::create_device_row(const PowerDevice& device) {
         lv_obj_remove_state(toggle, LV_STATE_CHECKED);
     }
 
-    // Check if device is locked during printing. job_holds_machine() rather
-    // than the wire: the lock has to cover the pre-print window, where the
-    // printer still reports standby while the toolhead homes and probes, and
-    // cutting the PSU there is what the flag exists to prevent.
-    bool is_locked = device.locked_while_printing &&
-                     job_holds_machine(printer_state_.print_state().get_print_lifecycle());
-
+    // The row's locked prop shows the lock and its note; the toggle refuses input.
     if (is_locked) {
-        // Disable toggle interaction
         lv_obj_add_state(toggle, LV_STATE_DISABLED);
-
-        // Show lock icon
-        lv_obj_t* lock_icon = helix::ui::find_required(row, "lock_icon", get_name());
-        if (lock_icon) {
-            lv_obj_remove_flag(lock_icon, LV_OBJ_FLAG_HIDDEN);
-        }
-
-        // Show status text explaining why it's locked
-        lv_obj_t* status_label = helix::ui::find_required(row, "device_status", get_name());
-        if (status_label) {
-            lv_label_set_text(status_label, lv_tr("Locked during print"));
-            lv_obj_remove_flag(status_label, LV_OBJ_FLAG_HIDDEN);
-        }
     }
 
     // Store device row info (use technical name for API calls)
@@ -444,17 +419,12 @@ void PowerPanel::forget_widget_tree() {
     panel_ = nullptr;
     cached_overlay_ = nullptr;
     device_list_container_ = nullptr;
-    empty_state_container_ = nullptr;
     chip_container_ = nullptr;
 
     // The rows are children of device_list_container_ and died with it. Keeping
     // them would leave clear_device_list() calling safe_delete() on freed widgets
     // and on_power_device_toggle() indexing rows whose toggles no longer exist.
     device_rows_.clear();
-
-    // status_label_ is deliberately left alone: setup() caches it and no code
-    // reads it, so no path can dereference it. The status message reaches the XML
-    // through the power_status subject, not through this pointer.
 }
 
 void PowerPanel::populate_device_chips() {
