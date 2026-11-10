@@ -123,6 +123,8 @@ bool timelapse_viewer_available() {
 //
 // src/ui/print/ui_overlay_timelapse_install.cpp
 TimelapseInstallOverlay::TimelapseInstallOverlay(helix::IMoonrakerAPI* api) : api_(api) {}
+TimelapseInstallOverlay::~TimelapseInstallOverlay() = default;
+void TimelapseInstallOverlay::init_subjects() {}
 void TimelapseInstallOverlay::register_callbacks() {}
 lv_obj_t* TimelapseInstallOverlay::create(lv_obj_t*) {
     return nullptr;
