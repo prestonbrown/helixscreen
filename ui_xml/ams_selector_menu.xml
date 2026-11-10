@@ -27,6 +27,7 @@
       <lv_obj name="servo_row"
               width="content" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
               style_flex_cross_place="center" scrollable="false">
+        <bind_flag_if_eq subject="ams_selector_has_servo" flag="hidden" ref_value="0"/>
         <text_small text="Servo"/>
         <ui_button name="btn_servo_up" height="#button_height_sm" icon="arrow_up" variant="secondary" clickable="true">
           <event_cb trigger="clicked" callback="ams_selector_servo_up_cb"/>
