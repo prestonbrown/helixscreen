@@ -93,15 +93,13 @@ class WizardWifiStatusFixture : public LVGLUITestFixture {
         REQUIRE(wait_until([&]() { return *delivered; }));
     }
 
-    /// Stands in for the XML dialog: the widgets the connect handler looks up.
+    /// Stands in for the XML dialog: the input the connect handler reads.
     lv_obj_t* make_modal() {
         lv_obj_t* modal = lv_obj_create(test_screen());
         REQUIRE(modal != nullptr);
         lv_obj_t* input = lv_textarea_create(modal);
         lv_obj_set_name(input, "password_input");
         lv_textarea_set_text(input, "some-password");
-        lv_obj_t* status = lv_label_create(modal);
-        lv_obj_set_name(status, "modal_status");
         return modal;
     }
 
@@ -142,7 +140,8 @@ TEST_CASE_METHOD(WizardWifiStatusFixture,
 TEST_CASE_METHOD(WizardWifiStatusFixture,
                  "wizard wifi: the network list marks the connected network from an async read",
                  "[wizard_wifi][wifi_status_async]") {
-    Access::refresh_list(step(), {WiFiNetwork("Other", 90, true), WiFiNetwork(kSsid, 70, true)});
+    Access::refresh_list(step(),
+                         {WiFiNetwork("Other", 90, true, "WPA3"), WiFiNetwork(kSsid, 70, true)});
 
     auto connected_rows = [&]() {
         lv_obj_t* list = Access::network_list(step());
@@ -156,6 +155,20 @@ TEST_CASE_METHOD(WizardWifiStatusFixture,
     };
     REQUIRE(wait_until([&]() { return connected_rows() == 1 && shows_connection(); }));
     CHECK(no_read_on_this_thread());
+
+    // Each row shows its own security type and signal icon.
+    lv_obj_t* list = Access::network_list(step());
+    lv_obj_t* other = nullptr;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(list) && !other; ++i) {
+        lv_obj_t* ssid = lv_obj_find_by_name(lv_obj_get_child(list, i), "ssid_label");
+        if (ssid && std::string(lv_label_get_text(ssid)) == "Other") {
+            other = lv_obj_get_child(list, i);
+        }
+    }
+    REQUIRE(other != nullptr);
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(other, "security_label"))) == "WPA3");
+    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(other, "sig_4_lock"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(lv_obj_find_by_name(other, "sig_4"), LV_OBJ_FLAG_HIDDEN));
 }
 
 TEST_CASE_METHOD(WizardWifiStatusFixture,

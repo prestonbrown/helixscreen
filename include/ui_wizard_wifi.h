@@ -145,6 +145,8 @@ class WizardWifiStep : public helix::wizard::Step {
      * @brief Hide password entry modal
      */
     void hide_password_modal();
+    /// The password modal's error line; empty hides it.
+    void show_password_status(const char* text);
 
     /**
      * @brief Get step name for logging
@@ -170,6 +172,8 @@ class WizardWifiStep : public helix::wizard::Step {
     lv_subject_t ethernet_mac_{};
     lv_subject_t wifi_scanning_{};
     lv_subject_t wifi_password_modal_ssid_{};
+    lv_subject_t password_status_{};
+    lv_subject_t password_status_shown_{};
     lv_subject_t wifi_connecting_{};
     lv_subject_t wifi_hardware_available_{};
     lv_subject_t wifi_can_toggle_radio_{}; ///< 1 if the backend can move the radio
@@ -181,6 +185,7 @@ class WizardWifiStep : public helix::wizard::Step {
     char ethernet_status_buffer_[64];
     char ethernet_mac_buffer_[32];
     char wifi_password_modal_ssid_buffer_[64];
+    char password_status_buffer_[256];
 
     // WiFiManager and EthernetManager (shared_ptr for async safety)
     std::shared_ptr<helix::WiFiManager> wifi_manager_;
