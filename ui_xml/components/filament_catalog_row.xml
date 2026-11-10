@@ -4,12 +4,32 @@
 <component>
   <!-- One product row of the filament catalog selector:
        [check_indicator] [name_label ....] [variant_chip] [temp_label] [star_icon] [edit_icon].
-       All layout / sizes / fonts / padding / radii / colors live here via design
-       tokens; C++ only sets label text, data-driven theme colors, and show/hide
-       on the optional children. Non-interactive children carry event_bubble so a
+       C++ creates one per product with props for its state, and sets the name
+       and chip texts (a product or brand name may begin with '#', which a prop
+       would read as a const). Non-interactive children carry event_bubble so a
        tap falls through to the clickable row; star_icon and edit_icon intercept
        their own taps (clickable, NO event_bubble) so starring and editing never
        fire row-select. -->
+  <api>
+    <!-- The highlighted product: its check shows and its texts take the accent -->
+    <prop name="current" type="boolean" default="false"/>
+    <!-- The row carries a variant (or, in favorites, brand) chip -->
+    <prop name="chip_shown" type="string" default="0"/>
+    <!-- Recommended nozzle / bed temps ("210° / 60°") -->
+    <prop name="temps" type="string" default=""/>
+    <!-- A favorite: the star takes the accent -->
+    <prop name="starred" type="boolean" default="false"/>
+    <!-- The host offers editing (standalone picker, not slot assignment) -->
+    <prop name="editable" type="string" default="0"/>
+  </api>
+  <styles>
+    <!-- Colors and the check's opacity are styles, not inline attrs, so the
+         checked (current / starred) state can outrank them. -->
+    <style name="check_off" text_opa="0"/>
+    <style name="check_on" text_opa="255"/>
+    <style name="muted_text" text_color="#text_muted"/>
+    <style name="accent_text" text_color="#primary"/>
+  </styles>
   <view name="catalog_row"
         extends="lv_obj" width="100%" height="content" flex_flow="row" style_flex_cross_place="center"
         style_pad_hor="#space_md" style_pad_ver="#space_sm" style_pad_gap="#space_sm" style_radius="#border_radius"
@@ -18,30 +38,40 @@
          Row-level style_radius matches the wash radius token, no override. -->
     <style name="styles.press_wash" selector="pressed"/>
     <event_cb trigger="clicked" callback="catalog_row_clicked_cb"/>
-    <!-- Selected-row checkmark. C++ sets the check codepoint + accent color on
-         the highlighted row and clears it elsewhere. min_width reserves the
+    <!-- Selected-row checkmark, transparent elsewhere: min_width reserves the
          column so every row's name aligns whether or not the check shows. -->
     <lv_label name="check_indicator"
-              text="" style_text_font="#icon_font_xs" style_min_width="16" clickable="false" event_bubble="true"/>
+              text="#icon_check" style_text_font="#icon_font_xs" style_text_color="#primary" style_min_width="16"
+              clickable="false" event_bubble="true" checked="$current">
+      <style name="check_off"/>
+      <style name="check_on" selector="checked"/>
+    </lv_label>
     <!-- Product name. Flex-grows to push temps / edit to the trailing edge and
          ellipsizes on narrow screens. -->
-    <text_body name="name_label" text="" flex_grow="1" long_mode="dots" clickable="false" event_bubble="true"/>
-    <!-- Variant-disambiguation chip (e.g. "ASA-CF" under the ASA heading).
-         Hidden until C++ shows it for a variant row whose type differs from the
-         family heading. -->
+    <text_body name="name_label"
+               text="" flex_grow="1" long_mode="dots" clickable="false" event_bubble="true" checked="$current">
+      <style name="accent_text" selector="checked"/>
+    </text_body>
+    <!-- Variant-disambiguation chip (e.g. "ASA-CF" under the ASA heading), on
+         a variant row whose type differs from the family heading. -->
     <lv_label name="variant_chip"
-              text="" hidden="true" style_text_font="#font_body" style_text_color="#text_muted" clickable="false"
-              event_bubble="true"/>
-    <!-- Recommended nozzle / bed temps ("210 / 60"), formatted by C++. -->
+              text="" hidden_if_prop_not_eq="$chip_shown|1" style_text_font="#font_body" clickable="false"
+              event_bubble="true" checked="$current">
+      <style name="muted_text"/>
+      <style name="accent_text" selector="checked"/>
+    </lv_label>
+    <!-- Recommended nozzle / bed temps ("210° / 60°"). -->
     <lv_label name="temp_label"
-              text="" style_text_font="#font_body" style_text_color="#text" clickable="false" event_bubble="true"/>
-    <!-- Favorite (star) toggle. Accent-colored by C++ when starred, muted when
+              text="$temps" style_text_font="#font_body" style_text_color="#text" clickable="false" event_bubble="true"/>
+    <!-- Favorite (star) toggle. Accent-colored when starred, muted when
          not — this is where favorites get built, so it shows in every host.
          Like edit_icon it STAYS clickable with NO event_bubble: a tap
          hit-tests to the icon, not the row. -->
     <lv_label name="star_icon"
-              text="#icon_star" style_text_font="#icon_font_xs" style_text_color="#text_muted" style_min_width="20"
-              style_text_align="center" clickable="true">
+              text="#icon_star" style_text_font="#icon_font_xs" style_min_width="20" style_text_align="center"
+              clickable="true" checked="$starred">
+      <style name="muted_text"/>
+      <style name="accent_text" selector="checked"/>
       <event_cb trigger="clicked" callback="catalog_row_star_cb"/>
     </lv_label>
     <!-- Trailing edit affordance. Unlike the other children it STAYS clickable
@@ -49,8 +79,8 @@
          target) and the row-select handler never fires — declarative
          stop-propagation. Hidden unless the host opts into edit affordances. -->
     <lv_label name="edit_icon"
-              text="#icon_pencil" hidden="true" style_text_font="#icon_font_xs" style_text_color="#text_muted"
-              style_min_width="20" style_text_align="center" clickable="true">
+              text="#icon_pencil" hidden_if_prop_not_eq="$editable|1" style_text_font="#icon_font_xs"
+              style_text_color="#text_muted" style_min_width="20" style_text_align="center" clickable="true">
       <event_cb trigger="clicked" callback="catalog_row_edit_cb"/>
     </lv_label>
   </view>

@@ -7,6 +7,7 @@
 #include "core/update_queue.h"
 #include "filament_favorites.h"
 #include "filament_variants.h"
+#include "theme_manager.h"
 
 #include <algorithm>
 #include <sstream>
@@ -61,6 +62,21 @@ TEST_CASE_METHOD(XMLTestFixture, "selector populates and reports a highlighted p
     REQUIRE(sel.highlighted() != nullptr);
     REQUIRE(got != nullptr);
     CHECK(got->type == "PLA");
+
+    // The highlighted row (after the add-custom row) shows its check and
+    // takes the accent; the next row's check stays transparent.
+    lv_obj_t* list = lv_obj_find_by_name(root, "product_list");
+    REQUIRE(lv_obj_get_child_count(list) > 2);
+    auto part = [&](int row, const char* name) {
+        lv_obj_t* obj = lv_obj_find_by_name(lv_obj_get_child(list, row), name);
+        REQUIRE(obj != nullptr);
+        return obj;
+    };
+    CHECK(lv_obj_get_style_text_opa(part(1, "check_indicator"), LV_PART_MAIN) == LV_OPA_COVER);
+    CHECK(lv_obj_get_style_text_opa(part(2, "check_indicator"), LV_PART_MAIN) == LV_OPA_TRANSP);
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(part(1, "name_label"), LV_PART_MAIN),
+                      theme_manager_get_color("primary")));
+    CHECK(std::string(lv_label_get_text(part(1, "name_label"))) == got->name);
 
     sel.detach();
     helix::ui::UpdateQueue::instance().drain();
@@ -543,6 +559,11 @@ TEST_CASE_METHOD(XMLTestFixture, "starring a product floats it to the top of its
     sel.toggle_star_for_test(matte_id);
     auto after = sel.product_names_for_test();
     CHECK(after.front() == "Matte PLA");
+    lv_obj_t* star = lv_obj_find_by_name(
+        lv_obj_get_child(lv_obj_find_by_name(root, "product_list"), 1), "star_icon");
+    REQUIRE(star != nullptr);
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(star, LV_PART_MAIN),
+                      theme_manager_get_color("primary")));
     // Everything below the starred row keeps the existing display ranking.
     std::vector<std::string> expected;
     std::copy_if(before.begin(), before.end(), std::back_inserter(expected),
