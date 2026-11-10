@@ -688,6 +688,8 @@ TEST_CASE_METHOD(ResumeRefusalFixture,
     SECTION("the first RESUME's ok") {
         mock.fire_deferred("printer.gcode.script");
         settle();
+        process_lvgl(kResumeSettleWaitMs);
+        settle();
         CHECK(ButtonsAccess::pending() == PendingAction::Resuming);
     }
     SECTION("the first RESUME's refusal") {
