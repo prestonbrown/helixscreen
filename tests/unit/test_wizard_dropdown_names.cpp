@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_wizard_fan_select.h"
 #include "ui_wizard_helpers.h"
 #include "ui_wizard_led_select.h"
 
@@ -56,4 +57,55 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_dropdown_set_selected(dropdown, 2);
     lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
     CHECK(lv_subject_get_int(step->get_led_strip_subject()) == 2);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "wizard fan step shows the optional row past two fans and flags a reused fan",
+                 "[wizard][fan][dropdown]") {
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    helix::PrinterState state;
+    MoonrakerAPIMock api{client, state};
+    set_moonraker_api(&api);
+    struct ApiGuard {
+        ~ApiGuard() {
+            set_moonraker_api(nullptr);
+        }
+    } api_guard;
+    auto* step = get_wizard_fan_select_step();
+    step->register_callbacks();
+    auto shown = [](lv_obj_t* root, const char* name) {
+        lv_obj_t* obj = lv_obj_find_by_name(root, name);
+        REQUIRE(obj != nullptr);
+        return !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    };
+
+    api.hardware().parse_objects(nlohmann::json::array({"heater_fan hotend_fan", "fan"}));
+    step->init_subjects();
+    lv_obj_t* root = step->create(test_screen());
+    REQUIRE(root != nullptr);
+    CHECK_FALSE(shown(root, "optional_fans_row"));
+    step->cleanup();
+    lv_obj_delete(root);
+
+    api.hardware().parse_objects(
+        nlohmann::json::array({"heater_fan hotend_fan", "fan", "fan_generic nevermore"}));
+    step->init_subjects();
+    root = step->create(test_screen());
+    REQUIRE(root != nullptr);
+    CHECK(shown(root, "optional_fans_row"));
+    CHECK_FALSE(shown(root, "fan_status_text"));
+
+    // The part fan's own fan picked again as the chamber fan.
+    lv_obj_t* part = lv_obj_find_by_name(root, "part_cooling_fan_dropdown");
+    lv_obj_t* chamber = lv_obj_find_by_name(root, "chamber_fan_dropdown");
+    REQUIRE((part && chamber));
+    char picked[64];
+    lv_dropdown_get_selected_str(part, picked, sizeof(picked));
+    const int32_t again = lv_dropdown_get_option_index(chamber, picked);
+    REQUIRE(again > 0);
+    lv_dropdown_set_selected(chamber, again);
+    lv_obj_send_event(chamber, LV_EVENT_VALUE_CHANGED, nullptr);
+    CHECK(shown(root, "fan_status_text"));
+    step->cleanup();
+    lv_obj_delete(root);
 }
