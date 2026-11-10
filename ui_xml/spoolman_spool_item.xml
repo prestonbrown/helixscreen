@@ -20,11 +20,12 @@
   <consts>
     <!-- Picker-row sizing. Component-scoped (only this component uses them),
          resolved responsively as #spool_row_min_height / #spool_swatch_size. -->
-    <!-- spool_row_min_height: touch-target min height. _small=44 is the hard
-         floor for a reliable touch target; scales up on larger panels. -->
-    <px name="spool_row_min_height_micro" value="40"/>
-    <px name="spool_row_min_height_tiny" value="42"/>
-    <px name="spool_row_min_height_small" value="44"/>
+    <!-- spool_row_min_height: touch-target min height. A 480x320 panel shows
+         one more spool per screen at 34 than at 44, and 34px is still a
+         fingertip-sized row on those 4-5" screens. -->
+    <px name="spool_row_min_height_micro" value="32"/>
+    <px name="spool_row_min_height_tiny" value="34"/>
+    <px name="spool_row_min_height_small" value="40"/>
     <px name="spool_row_min_height_medium" value="46"/>
     <px name="spool_row_min_height_large" value="60"/>
     <px name="spool_row_min_height_xlarge" value="68"/>

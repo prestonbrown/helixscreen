@@ -19,9 +19,15 @@ mk/images.mk, which asks it which splash classes a platform needs:
 import json
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from translation_packs import UNLOADED_TRANSLATION_FILES  # noqa: E402
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "translations"))
+import cjk_filename_fonts  # noqa: E402
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 MANIFEST_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -94,6 +100,64 @@ def _first_match(rules, width, height, key):
 def splash_class(manifest, width, height):
     """The size class a resolution selects. One ladder for 2D and 3D alike."""
     return _first_match(manifest["size_classes"]["splash"], width, height, "class")
+
+
+def font_breakpoint(manifest, width, height):
+    """The breakpoint tier the panel's fonts come from: the splash ladder's
+    cramped-axis rules, without the rules that pick a canvas by shape."""
+    rules = [r for r in manifest["size_classes"]["splash"] if set(r) <= {"class", "max_narrow"}]
+    return _first_match(rules, width, height, "class")
+
+
+def filename_font_sizes_for(manifest, platform_id, max_font_tier=None):
+    """Pixel sizes of the CJK filename glyphs this package can draw at any UI
+    scale: every tier when the panel is unbounded, else its panels' tiers, in a
+    build of @p max_font_tier (every face when None)."""
+    tier = cjk_filename_fonts.MAX_FONT_TIER if max_font_tier is None else max_font_tier
+    by_tier = cjk_filename_fonts.sizes_by_tier(Path(REPO_ROOT), tier)
+    panels = candidate_panels(manifest, platform_id)
+    if panels:
+        tiers = {font_breakpoint(manifest, *effective_resolution(entry)) for entry in panels}
+    else:
+        tiers = set(by_tier)
+    return sorted({px for t in tiers for px in by_tier[t]})
+
+
+def _prune_cjk_filename_fonts(manifest, platform_id, root, max_font_tier):
+    """(doomed paths, notes) for the CJK filename bins. Raises when a size the
+    package can draw has no bin staged, so a prune can never ship without one."""
+    cjk_dir = os.path.join(root, "assets", "fonts", "cjk")
+    if not os.path.isdir(cjk_dir):
+        return [], ["no CJK fonts staged"]
+    bin_dir = os.path.join(root, str(cjk_filename_fonts.FILENAME_BIN_DIR))
+    wanted = filename_font_sizes_for(manifest, platform_id, max_font_tier)
+    keep = {cjk_filename_fonts.bin_name(px) for px in wanted}
+    staged = set(os.listdir(bin_dir)) if os.path.isdir(bin_dir) else set()
+    missing = sorted(keep - staged)
+    if missing:
+        raise ManifestError(f"{platform_id}: CJK filename font(s) its panel draws are not "
+                            f"staged: {', '.join(missing)}")
+    doomed = [os.path.join(bin_dir, n) for n in sorted(staged)
+              if n.endswith(".bin") and n not in keep]
+    return doomed, [f"keeping CJK filename glyphs at {'/'.join(map(str, wanted))}px"]
+
+
+def _prune_cjk_ui_fonts(platform_id, root, max_font_tier):
+    """(doomed paths, notes) for the translation CJK bins the build cannot load
+    (cjk_filename_fonts.face_rows at its tier). Raises when one it can load is
+    not staged."""
+    cjk_dir = os.path.join(root, "assets", "fonts", "cjk")
+    if max_font_tier is None or not os.path.isdir(cjk_dir):
+        return [], []
+    needed = {b for _face, b, _px in cjk_filename_fonts.face_rows(max_font_tier, Path(REPO_ROOT))}
+    staged = {n for n in os.listdir(cjk_dir) if n.endswith(".bin")}
+    missing = sorted(needed - staged)
+    if missing:
+        raise ManifestError(f"{platform_id}: CJK font(s) its build loads are not staged: "
+                            f"{', '.join(missing)}")
+    doomed = sorted(staged - needed)
+    return ([os.path.join(cjk_dir, n) for n in doomed],
+            [f"dropped {len(doomed)} CJK font(s) a font tier {max_font_tier} build never loads"])
 
 
 def splash_portrait_class(manifest, width, height):
@@ -201,7 +265,7 @@ def _remove_all(paths, root):
             path = os.path.dirname(path)
 
 
-def prune_assets(manifest, platform_id, root, dry_run=False):  # noqa: C901
+def prune_assets(manifest, platform_id, root, dry_run=False, max_font_tier=None):  # noqa: C901
     """Remove staged assets the platform's panel can never ask for.
 
     Generating fewer classes is not enough on its own: a release copies whatever
@@ -232,6 +296,11 @@ def prune_assets(manifest, platform_id, root, dry_run=False):  # noqa: C901
         if os.path.isfile(path):
             doomed.append(path)
             notes.append(f"dropped ui_xml/translations/{name}: no locale loads it")
+
+    for font_doomed, font_notes in (_prune_cjk_filename_fonts(manifest, platform_id, root, max_font_tier),
+                                    _prune_cjk_ui_fonts(platform_id, root, max_font_tier)):
+        doomed.extend(font_doomed)
+        notes.extend(font_notes)
 
     keep_classes = splash_3d_classes_for(manifest, platform_id)
     keep_sizes = printer_image_sizes_for(manifest, platform_id)
@@ -333,10 +402,15 @@ def _cmd_effective_resolution(manifest, args):
 
 
 def _cmd_prune_assets(manifest, args):
-    platform_id, root = args
+    platform_id, root = args[:2]
+    max_font_tier = None
+    if len(args) == 3:
+        if not args[2].isdigit():
+            raise ManifestError(f"max font tier {args[2]!r} is not a tier number")
+        max_font_tier = int(args[2])
     if not os.path.isdir(root):
         raise ManifestError(f"staged release root {root!r} does not exist")
-    _removed, notes = prune_assets(manifest, platform_id, root)
+    _removed, notes = prune_assets(manifest, platform_id, root, max_font_tier=max_font_tier)
     for note in notes:
         print(f"  {note}")
 
@@ -369,7 +443,7 @@ COMMANDS = {
     "splash-2d-size": (_cmd_splash_2d_size, 1),
     "printer-image-size": (_cmd_printer_image_size, 1),
     "effective-resolution": (_cmd_effective_resolution, 1),
-    "prune-assets": (_cmd_prune_assets, 2),
+    "prune-assets": (_cmd_prune_assets, (2, 3)),
     "list": (_cmd_list, 0),
     "get": (_cmd_get, 2),
 }
@@ -382,12 +456,12 @@ def main(argv):
         return 2
     handler, argc = COMMANDS[argv[1]]
     args = argv[2:]
-    if len(args) != argc:
+    if len(args) not in (argc if isinstance(argc, tuple) else (argc,)):
         print(f"{argv[1]} takes {argc} argument(s), got {len(args)}", file=sys.stderr)
         return 2
     try:
         handler(load(), args)
-    except ManifestError as e:
+    except (ManifestError, cjk_filename_fonts.FilenameFontError) as e:
         print(f"platform_manifest: {e}", file=sys.stderr)
         return 1
     return 0

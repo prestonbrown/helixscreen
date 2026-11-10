@@ -114,13 +114,16 @@ know, since such a variant would never match.
 
 ## Tagging parts for live callouts
 
-The home panel's printer widget pins live chips (nozzle, part fan, chamber, light, bed) onto
-the image at points hand-tagged in `assets/images/printers/regions.json`:
+The home panel's printer widget and the print status page pin live chips (nozzle, part fan,
+chamber, light, bed) onto the image, and draw heat and light glows on it, at points and regions
+hand-tagged in `assets/images/printers/regions.json`:
 
 ```json
 "creality-k1c": {"size": [947, 1188], "nozzle": [0.522, 0.276], "part_fan": [0.48, 0.202],
                  "chamber": [0.184, 0.377], "light": [0.197, 0.159],
-                 "bed": [[0.175, 0.572], [0.688, 0.574], [0.688, 0.566], [0.175, 0.564]]}
+                 "bed": [[0.175, 0.572], [0.688, 0.574], [0.688, 0.566], [0.175, 0.564]],
+                 "windows": [[[0.03, 0.12], [0.74, 0.09], [0.737, 0.843], [0.061, 0.818]]],
+                 "cutouts": [[[0.451, 0.795], [0.738, 0.803], [0.71, 0.943], [0.415, 0.925]]]}
 ```
 
 - Points are normalized 0..1 over the source PNG. The prerendered tiers and the exact-size
@@ -132,8 +135,18 @@ the image at points hand-tagged in `assets/images/printers/regions.json`:
   where the plate actually ends in perspective. A bed seen nearly edge-on has its far edge only
   just above the near edge. Two points (near-left, near-right) are still accepted; the far edge
   is then estimated.
-- `size`, `nozzle` and `bed` are required; `part_fan`, `chamber` and `light` are optional -
-  omit whichever the printer doesn't have.
+- `windows` lists the see-through parts of the enclosure, one convex quad each, corners in
+  order top-left, top-right, bottom-right, bottom-left: the front door, a side panel, a top
+  hat. The chamber's heat and the light glow only inside them, so nothing washes over the
+  printer's frame or panels. A printer with no windows (an open frame) gets no `windows` key,
+  and its chamber and light glows fall back to a soft disc at their point.
+- `cutouts` are quads, in the same corner order, for anything opaque in front of a window
+  (a touchscreen, a spool holder, a label). The glow fades out inside them. They only matter
+  where they overlap a window.
+- A window or cutout that is not a convex quad (crossed corners, a dent, three corners on a
+  line) is dropped on load with a warning naming the image.
+- `size`, `nozzle` and `bed` are required; `part_fan`, `chamber`, `light`, `windows` and
+  `cutouts` are optional - omit whichever the printer doesn't have.
 - `size` is the source PNG's width and height. `tests/unit/test_printer_image_regions.cpp`
   (`[regions]`) fails, naming the image, when a PNG no longer matches its recorded size.
   `scripts/trim_printer_images.py` rewrites the entry when it crops; **re-cropping a tagged
@@ -142,22 +155,34 @@ the image at points hand-tagged in `assets/images/printers/regions.json`:
 ### Tagging tool
 
 ```bash
-python3 -m http.server -d . 8000
-# open http://localhost:8000/tools/printer-regions-tagger.html
+tools/printer-regions-server.py          # serves the repo on localhost:8123
+# tap-to-tag:  http://localhost:8123/tools/printer-regions-tagger.html
+# windows:     http://localhost:8123/tools/printer-regions-tagger.html?windows
 ```
 
 Tap-to-tag: nozzle tip, part fan, bed near-left corner, bed near-right corner, bed far-right
-corner, bed far-left corner, an empty spot inside the enclosure, the light. Part fan, chamber
-and light can be skipped, and so can the two far corners, which leaves a two-point `bed`. A
-review step renders chips and the plate quad at the tapped points before saving. Progress is
-kept in the browser; paste the tool's output over `regions.json` to ship. Images are listed in
-telemetry popularity, refreshed by hand, then alphabetically.
+corner, bed far-left corner, an empty spot inside the enclosure, the window's four corners, the
+light. Part fan, chamber, window and light can be skipped, and so can the two far corners,
+which leaves a two-point `bed`. A review step renders chips and the plate quad at the tapped
+points before saving. Progress is kept in the browser; paste the tool's output over
+`regions.json` to ship. Images are listed in telemetry popularity, refreshed by hand, then
+alphabetically.
+
+`?windows` is the window review: every image with a `chamber` tag, one at a time, with its
+windows and cutouts drawn as quads whose corners drag. **+ Add region** adds a window (a side
+panel, a top hat), **+ Add cutout** a cyan cutout, and the × on a quad removes it; **No window
+here** clears both for an open printer. Enter approves the image and moves on, and each approval
+writes `regions.json` straight to disk through the server, one line per image, so a diff shows
+exactly what moved. The approved list lives in the browser and survives a reload; to walk every
+image again for a new pass, give the pass a name (`?windows=cutouts`), which keeps its own list.
 
 ### Tags users make on the device
 
-Tag parts in the printer image picker runs the same eight prompts on the screen, for the image
+Tag parts in the printer image picker runs the same twelve prompts on the screen, for the image
 the home widget shows, and writes `<config dir>/printer_image_regions.json` in this same
-format. Its entries override `regions.json` for their key only: a shipped image by basename,
+format. It asks for one window (skipping its first corner skips it) and no cutouts; corners
+tapped out of order are put back in order, and four that do not bound an area save no window.
+Re-tagging an image replaces its whole entry, so cutouts added to it by hand are lost. Its entries override `regions.json` for their key only: a shipped image by basename,
 a custom image as `custom:<name>`. Their `size` is the natural size of the image that was
 tagged (the prerendered tier or imported `.bin` the widget draws, not the source PNG), and an
 entry whose `size` no longer matches that image (another screen tier, or re-cut art) is

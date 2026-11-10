@@ -14,7 +14,7 @@
     <!-- Spool-picker list max height: caps the scroll viewport so the picker
          stays inside the overlay. Tuned to show ~5 rows at each breakpoint. -->
     <px name="spool_list_max_height_micro" value="130"/>
-    <px name="spool_list_max_height_tiny" value="150"/>
+    <px name="spool_list_max_height_tiny" value="184"/>
     <px name="spool_list_max_height_small" value="180"/>
     <px name="spool_list_max_height_medium" value="250"/>
     <px name="spool_list_max_height_large" value="330"/>

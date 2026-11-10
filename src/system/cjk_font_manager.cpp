@@ -7,106 +7,40 @@
 
 #include "spdlog/spdlog.h"
 
+#include <algorithm>
+
 #ifndef HELIX_MAX_FONT_TIER
 #define HELIX_MAX_FONT_TIER 6 // default: all tiers (micro=0 .. xxlarge=6)
 #endif
 
 namespace helix::system {
 
-struct FontMapping {
+namespace {
+
+struct FaceRow {
     lv_font_t* compiled;
     const char* bin_filename;
+    int px;
 };
 
-// NOTE: xlarge (≥5) and xxlarge (≥6) font entries are guarded with
-// HELIX_MAX_FONT_TIER checks because those font symbols are pruned from the
-// link on constrained platforms (e.g. AD5M ships only medium+large tiers). The
-// 48/64 regular/bold and 32/40 light faces need a second, narrower guard,
-// HELIX_HAS_HIDPI_FONTS: a platform can reach tier 6 (ESP32 does) while still
-// not linking those high-DPI-only rungs, matching the same flag's use in
-// asset_manager.cpp register_xxlarge_tier_fonts() and
-// ui_wizard_language_chooser.cpp. Taking either guard's faces' address
-// unconditionally would produce undefined references.
-// clang-format off
-static const FontMapping kRegularFonts[] = {
-    {&noto_sans_8, "noto_sans_cjk_8.bin"},
-    {&noto_sans_10, "noto_sans_cjk_10.bin"},
-    {&noto_sans_11, "noto_sans_cjk_11.bin"},
-    {&noto_sans_12, "noto_sans_cjk_12.bin"},
-    {&noto_sans_14, "noto_sans_cjk_14.bin"},
-    {&noto_sans_16, "noto_sans_cjk_16.bin"},
-    {&noto_sans_18, "noto_sans_cjk_18.bin"},
-    {&noto_sans_20, "noto_sans_cjk_20.bin"},
-    {&noto_sans_24, "noto_sans_cjk_24.bin"},
-#if HELIX_MAX_FONT_TIER >= 3
-    {&noto_sans_26, "noto_sans_cjk_26.bin"},
-#endif
-#if HELIX_MAX_FONT_TIER >= 4
-    {&noto_sans_28, "noto_sans_cjk_28.bin"},
-#endif
-#if HELIX_MAX_FONT_TIER >= 5
-    {&noto_sans_32, "noto_sans_cjk_32.bin"},
-#endif
-#if HELIX_MAX_FONT_TIER >= 6
-    {&noto_sans_40, "noto_sans_cjk_40.bin"},
-#if HELIX_HAS_HIDPI_FONTS
-    // 48/64 are the high-DPI scale rungs (DisplayMetrics::scaled_font_name).
-    // A platform that reaches tier 6 without linking them (HELIX_HAS_HIDPI_FONTS=0,
-    // e.g. ESP32) has no compiled symbol to take the address of.
-    {&noto_sans_48, "noto_sans_cjk_48.bin"},
-    {&noto_sans_64, "noto_sans_cjk_64.bin"},
-#endif
-#endif
+#define HELIX_CJK_FACE(face, bin, px) {&face, bin, px},
+const FaceRow kFaces[] = {
+#include "cjk_font_faces.inc"
 };
+#undef HELIX_CJK_FACE
 
-static const FontMapping kBoldFonts[] = {
-    {&noto_sans_bold_14, "noto_sans_cjk_bold_14.bin"},
-    {&noto_sans_bold_16, "noto_sans_cjk_bold_16.bin"},
-    {&noto_sans_bold_18, "noto_sans_cjk_bold_18.bin"},
-    {&noto_sans_bold_20, "noto_sans_cjk_bold_20.bin"},
-    {&noto_sans_bold_24, "noto_sans_cjk_bold_24.bin"},
-    {&noto_sans_bold_28, "noto_sans_cjk_bold_28.bin"},
-#if HELIX_MAX_FONT_TIER >= 5
-    {&noto_sans_bold_32, "noto_sans_cjk_bold_32.bin"},
-#endif
-#if HELIX_MAX_FONT_TIER >= 6
-    {&noto_sans_bold_40, "noto_sans_cjk_bold_40.bin"},
-#if HELIX_HAS_HIDPI_FONTS
-    // High-DPI scale rungs; see the noto_sans_48/64 note above.
-    {&noto_sans_bold_48, "noto_sans_cjk_bold_48.bin"},
-    {&noto_sans_bold_64, "noto_sans_cjk_bold_64.bin"},
-#endif
-#endif
-};
+constexpr const char* kCjkFontDir = "A:assets/fonts/cjk/";
+constexpr const char* kFilenameFontDir = "A:assets/fonts/cjk/filename/";
 
-static const FontMapping kLightFonts[] = {
-    {&noto_sans_light_10, "noto_sans_cjk_light_10.bin"},
-    {&noto_sans_light_11, "noto_sans_cjk_light_11.bin"},
-    {&noto_sans_light_12, "noto_sans_cjk_light_12.bin"},
-#if HELIX_MAX_FONT_TIER >= 4
-    {&noto_sans_light_14, "noto_sans_cjk_light_14.bin"},
-#endif
-#if HELIX_MAX_FONT_TIER >= 3
-    {&noto_sans_light_16, "noto_sans_cjk_light_16.bin"},
-#endif
-#if HELIX_MAX_FONT_TIER >= 4
-    {&noto_sans_light_18, "noto_sans_cjk_light_18.bin"},
-#endif
-#if HELIX_MAX_FONT_TIER >= 5
-    {&noto_sans_light_20, "noto_sans_cjk_light_20.bin"},
-#endif
-#if HELIX_MAX_FONT_TIER >= 6
-    {&noto_sans_light_26, "noto_sans_cjk_light_26.bin"},
-#if HELIX_HAS_HIDPI_FONTS
-    // High-DPI scale rungs; see the noto_sans_48/64 note above.
-    {&noto_sans_light_32, "noto_sans_cjk_light_32.bin"},
-    {&noto_sans_light_40, "noto_sans_cjk_light_40.bin"},
-#endif
-#endif
-};
-// clang-format on
+lv_font_t* load_bin(const std::string& path) {
+    lv_font_t* font = lv_binfont_create(path.c_str());
+    if (!font) {
+        spdlog::warn("[CjkFontManager] Failed to load: {}", path);
+    }
+    return font;
+}
 
-static constexpr const char* kCjkFontDir = "A:assets/fonts/cjk/";
+} // namespace
 
 CjkFontManager& CjkFontManager::instance() {
     static CjkFontManager s_instance;
@@ -133,33 +67,46 @@ void CjkFontManager::on_language_changed(const std::string& lang) {
     }
 }
 
-void CjkFontManager::set_fallback(lv_font_t* compiled, lv_font_t* cjk) {
-    compiled->fallback = cjk;
-}
-
-void CjkFontManager::clear_fallback(lv_font_t* compiled) {
-    compiled->fallback = nullptr;
+// Every fallback pointer is derived here from what is loaded, so the language
+// and filename paths never have to know about each other's links.
+void CjkFontManager::relink() {
+    auto filename_at = [this](int px) -> const FilenameFonts* {
+        for (const auto& f : filename_fonts_) {
+            if (f.px == px && f.names)
+                return &f;
+        }
+        return nullptr;
+    };
+    for (const auto& row : kFaces) {
+        const FilenameFonts* names = filename_at(row.px);
+        lv_font_t* lang = nullptr;
+        for (auto& entry : loaded_fonts_) {
+            if (entry.compiled_font == row.compiled)
+                lang = entry.cjk_font;
+        }
+        if (lang) {
+            lang->fallback = names ? names->names : nullptr;
+            row.compiled->fallback = lang;
+        } else if (names) {
+            row.compiled->fallback = names->ui ? names->ui : names->names;
+        } else {
+            row.compiled->fallback = nullptr;
+        }
+    }
+    for (auto& f : filename_fonts_) {
+        if (f.ui)
+            f.ui->fallback = f.names;
+    }
 }
 
 bool CjkFontManager::load() {
     spdlog::info("[CjkFontManager] Loading CJK runtime fonts...");
 
-    auto load_set = [this](const FontMapping* mappings, size_t count) {
-        for (size_t i = 0; i < count; ++i) {
-            std::string path = std::string(kCjkFontDir) + mappings[i].bin_filename;
-            lv_font_t* cjk = lv_binfont_create(path.c_str());
-            if (cjk) {
-                set_fallback(mappings[i].compiled, cjk);
-                loaded_fonts_.push_back({mappings[i].compiled, cjk});
-            } else {
-                spdlog::warn("[CjkFontManager] Failed to load: {}", path);
-            }
+    for (const auto& row : kFaces) {
+        if (lv_font_t* cjk = load_bin(std::string(kCjkFontDir) + row.bin_filename)) {
+            loaded_fonts_.push_back({row.compiled, cjk});
         }
-    };
-
-    load_set(kRegularFonts, std::size(kRegularFonts));
-    load_set(kBoldFonts, std::size(kBoldFonts));
-    load_set(kLightFonts, std::size(kLightFonts));
+    }
 
     if (loaded_fonts_.empty()) {
         spdlog::error("[CjkFontManager] No CJK fonts loaded — check assets/fonts/cjk/");
@@ -167,6 +114,9 @@ bool CjkFontManager::load() {
     }
 
     loaded_ = true;
+    relink();
+    // The language bins now sit in front of the filename glyphs.
+    destroy_filename_ui_fonts();
     spdlog::info("[CjkFontManager] Loaded {} CJK fallback fonts", loaded_fonts_.size());
     return true;
 }
@@ -177,18 +127,106 @@ void CjkFontManager::unload() {
 
     spdlog::info("[CjkFontManager] Unloading {} CJK fonts", loaded_fonts_.size());
 
-    // Clear fallback first so no render call can follow a dangling pointer
-    for (auto& entry : loaded_fonts_) {
-        clear_fallback(entry.compiled_font);
+    // Relink before destroying, so no render call can follow a dangling pointer.
+    loaded_ = false;
+    std::vector<FontEntry> doomed;
+    doomed.swap(loaded_fonts_);
+    load_filename_ui_fonts();
+    relink();
+    for (auto& entry : doomed) {
         lv_binfont_destroy(entry.cjk_font);
     }
-    loaded_fonts_.clear();
-    loaded_ = false;
     current_lang_.clear();
 }
 
+void CjkFontManager::load_filename_ui_fonts() {
+    if (loaded_)
+        return;
+    for (auto& f : filename_fonts_) {
+        if (!f.names || f.ui)
+            continue;
+        for (const auto& row : kFaces) {
+            if (row.px == f.px) {
+                f.ui = load_bin(std::string(kCjkFontDir) + row.bin_filename);
+                break;
+            }
+        }
+    }
+}
+
+void CjkFontManager::destroy_filename_ui_fonts() {
+    std::vector<lv_font_t*> doomed;
+    for (auto& f : filename_fonts_) {
+        if (f.ui) {
+            doomed.push_back(f.ui);
+            f.ui = nullptr;
+        }
+    }
+    relink();
+    for (lv_font_t* font : doomed) {
+        lv_binfont_destroy(font);
+    }
+}
+
+void CjkFontManager::ensure_filename_glyphs(std::initializer_list<const lv_font_t*> faces) {
+#if HELIX_HAS_CJK
+    bool added = false;
+    for (const lv_font_t* face : faces) {
+        const auto row = std::find_if(std::begin(kFaces), std::end(kFaces),
+                                      [face](const FaceRow& r) { return r.compiled == face; });
+        if (row == std::end(kFaces))
+            continue;
+        const int px = row->px;
+        const bool known = std::any_of(filename_fonts_.begin(), filename_fonts_.end(),
+                                       [px](const FilenameFonts& f) { return f.px == px; });
+        if (known)
+            continue;
+        // A size with no bin (pruned, or a high-DPI rung) is remembered as
+        // tried, so later filenames do not retry the open.
+        FilenameFonts fonts{px};
+        fonts.names = lv_binfont_create((std::string(kFilenameFontDir) + "noto_sans_cjk_filename_" +
+                                         std::to_string(px) + ".bin")
+                                            .c_str());
+        spdlog::info("[CjkFontManager] Filename glyphs at {}px: {}", px,
+                     fonts.names ? "loaded" : "no bin, skipped");
+        filename_fonts_.push_back(fonts);
+        added = added || fonts.names != nullptr;
+    }
+    if (added) {
+        load_filename_ui_fonts();
+        relink();
+        // A label laid out before this load measured its CJK text with missing
+        // glyphs; a style refresh makes every label measure and wrap it again.
+        lv_obj_report_style_change(nullptr);
+    }
+#else
+    (void)faces;
+#endif
+}
+
+std::vector<int> CjkFontManager::filename_glyph_sizes() const {
+    std::vector<int> sizes;
+    for (const auto& f : filename_fonts_) {
+        if (f.names)
+            sizes.push_back(f.px);
+    }
+    std::sort(sizes.begin(), sizes.end());
+    return sizes;
+}
+
 void CjkFontManager::shutdown() {
-    unload();
+    std::vector<FilenameFonts> doomed;
+    doomed.swap(filename_fonts_);
+    if (loaded_)
+        unload();
+    else
+        relink();
+    for (auto& f : doomed) {
+        if (f.ui)
+            lv_binfont_destroy(f.ui);
+        if (f.names)
+            lv_binfont_destroy(f.names);
+    }
 }
 
 } // namespace helix::system

@@ -2905,7 +2905,11 @@ define release-clean-assets
 	@# takes whatever build/ happens to hold, so this is the step that bounds the
 	@# payload. A platform whose panel is unbounded keeps every size class and the
 	@# source PNGs; one whose manifest names candidate boards ships their union.
-	$(if $(2),@$(PLATFORM_MANIFEST) prune-assets $(2) $(1))
+	@# The CJK bins go by the build's HELIX_MAX_FONT_TIER, asked of this Makefile
+	@# for that target so this file stays its only definition: a bin for a face
+	@# the build does not link is one CjkFontManager never loads.
+	$(if $(2),@tier="$$($(MAKE) -s --no-print-directory PLATFORM_TARGET=$(2) print-var-HELIX_MAX_FONT_TIER | tail -n1)" && \
+		$(PLATFORM_MANIFEST) prune-assets $(2) $(1) "$$tier")
 endef
 
 # PII / runtime-state files that must NEVER ship in a release tarball.

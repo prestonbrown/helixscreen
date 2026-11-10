@@ -560,6 +560,7 @@ void PrintSelectCardView::configure_card(lv_obj_t* card, size_t pool_index, size
     if (file.filename == "..") {
         display_name = "..";
     } else if (file.is_dir) {
+        helix::gcode::note_displayed_filename(file.filename);
         display_name = file.filename + "/";
     } else {
         display_name = strip_gcode_extension(file.filename);

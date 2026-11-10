@@ -1071,6 +1071,7 @@ static void set_date_time_subjects(double timestamp, lv_subject_t* date, lv_subj
 
 void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     // Update string subjects using lv_subject_copy_string (LVGL 9.4 API)
+    helix::gcode::note_displayed_filename(job.filename);
     lv_subject_copy_string(&detail_filename_, job.filename.c_str());
     lv_subject_copy_string(&detail_status_, lv_tr(status_to_label(job.status)));
     lv_subject_copy_string(&detail_status_icon_, status_to_icon(job.status));
