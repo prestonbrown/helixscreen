@@ -70,6 +70,15 @@
     <style name="heater_duty_heating" text_color="#danger"/>
     <style name="heater_duty_muted" text_color="#text_muted"/>
 
+    <!-- Text tones a subject or state swaps between. Bind them (or select them
+         by state) and leave the color off the widget's inline attrs, which
+         would outrank every one of them. -->
+    <style name="text_tone_muted" text_color="#text_muted"/>
+    <style name="text_tone_primary" text_color="#primary"/>
+    <style name="text_tone_danger" text_color="#danger"/>
+    <style name="text_tone_success" text_color="#success"/>
+    <style name="text_tone_info" text_color="#info"/>
+
     <!-- The count-badge box paired with each tile icon rung: 2/5 of
          the glyph (tile_badge_* tokens), the proportion the AMS lane badge
          uses on its spool. Only the box rides here; the circle radius lives

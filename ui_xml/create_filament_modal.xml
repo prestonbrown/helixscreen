@@ -28,7 +28,10 @@
         <!-- Material dropdown -->
         <lv_obj height="content"
                 flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false">
-          <text_small name="material_label" text="Material" style_text_color="#text_muted"/>
+          <text_small name="material_label" text="Material">
+            <bind_style name="styles.text_tone_muted" subject="spool_wizard_material_error" ref_value="0"/>
+            <bind_style name="styles.text_tone_danger" subject="spool_wizard_material_error" ref_value="1"/>
+          </text_small>
           <lv_dropdown name="material_dropdown" width="100%" options="PLA">
             <event_cb trigger="value_changed" callback="on_wizard_material_changed"/>
           </lv_dropdown>
@@ -50,7 +53,10 @@
               scrollable="false">
         <!-- Color swatch + picker -->
         <lv_obj height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false">
-          <text_small name="color_label" text="Color" style_text_color="#text_muted"/>
+          <text_small name="color_label" text="Color">
+            <bind_style name="styles.text_tone_muted" subject="spool_wizard_color_error" ref_value="0"/>
+            <bind_style name="styles.text_tone_danger" subject="spool_wizard_color_error" ref_value="1"/>
+          </text_small>
           <lv_obj width="content"
                   height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xs"
                   style_flex_cross_place="center" scrollable="false">

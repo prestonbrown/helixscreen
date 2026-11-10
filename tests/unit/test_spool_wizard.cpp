@@ -5,11 +5,14 @@
 
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
+#include "core/text_io.h"
 #include "filament_database.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "spoolman_types.h"
+#include "theme_manager.h"
 
 #include <algorithm>
 #include <string>
@@ -96,17 +99,38 @@ TEST_CASE("SpoolWizardOverlay can_proceed starts as false", "[spool_wizard]") {
     CHECK_FALSE(wizard.can_proceed());
 }
 
-TEST_CASE("SpoolWizardOverlay step label updates correctly", "[spool_wizard]") {
+TEST_CASE_METHOD(LVGLUITestFixture, "SpoolWizardOverlay header and field labels follow subjects",
+                 "[spool_wizard]") {
     SpoolWizardOverlay wizard;
+    wizard.init_subjects();
     CHECK(wizard.step_label() == "New Spool: Step 1 of 3");
+    auto* root = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spool_wizard", nullptr));
+    REQUIRE(root != nullptr);
+    lv_obj_t* title = lv_obj_find_by_name(root, "header_title");
+    REQUIRE(title != nullptr);
+    for (const char* step : {"2", "3"}) {
+        wizard.set_can_proceed(true);
+        wizard.navigate_next();
+        const std::string expected = std::string("New Spool: Step ") + step + " of 3";
+        CHECK(wizard.step_label() == expected);
+        CHECK(helix::text_io::to_lower(lv_label_get_text(title)) ==
+              helix::text_io::to_lower(expected));
+    }
 
-    wizard.set_can_proceed(true);
-    wizard.navigate_next();
-    CHECK(wizard.step_label() == "New Spool: Step 2 of 3");
-
-    wizard.set_can_proceed(true);
-    wizard.navigate_next();
-    CHECK(wizard.step_label() == "New Spool: Step 3 of 3");
+    // A required field the user left empty turns its label red.
+    auto* modal =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "create_filament_modal", nullptr));
+    REQUIRE(modal != nullptr);
+    lv_obj_t* material = lv_obj_find_by_name(modal, "material_label");
+    REQUIRE(material != nullptr);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "spool_wizard_material_error"), 1);
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(material, LV_PART_MAIN),
+                      theme_manager_get_color("danger")));
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "spool_wizard_material_error"), 0);
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(material, LV_PART_MAIN),
+                      theme_manager_get_color("text_muted")));
+    lv_obj_delete(modal);
+    lv_obj_delete(root);
 }
 
 // ============================================================================

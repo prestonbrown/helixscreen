@@ -8,6 +8,7 @@
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_panel_common.h"
+#include "ui_row_text.h"
 #include "ui_search_debounce.h"
 #include "ui_subject_registry.h"
 #include "ui_swatch.h"
@@ -80,10 +81,15 @@ void SpoolWizardOverlay::init_subjects() {
         // Can proceed — drives Next/Create button disabled state
         UI_MANAGED_SUBJECT_INT(can_proceed_subject_, 0, "spool_wizard_can_proceed", subjects_);
 
-        // Step label string — "Step 1 of 3"
-        std::snprintf(step_label_buf_, sizeof(step_label_buf_), "%s", lv_tr("Step 1 of 3"));
+        // Header title — "New Spool: Step 1 of 3"
+        std::snprintf(step_label_buf_, sizeof(step_label_buf_), "%s", step_label().c_str());
         UI_MANAGED_SUBJECT_STRING(step_label_subject_, step_label_buf_, step_label_buf_,
                                   "spool_wizard_step_label", subjects_);
+
+        // Create Filament modal: missing-field highlights
+        UI_MANAGED_SUBJECT_INT(material_error_subject_, 0, "spool_wizard_material_error",
+                               subjects_);
+        UI_MANAGED_SUBJECT_INT(color_error_subject_, 0, "spool_wizard_color_error", subjects_);
 
         // Creating spinner state
         UI_MANAGED_SUBJECT_INT(creating_subject_, 0, "wizard_creating", subjects_);
@@ -573,17 +579,9 @@ void SpoolWizardOverlay::update_step_label() {
     std::string label = step_label();
     std::snprintf(step_label_buf_, sizeof(step_label_buf_), "%s", label.c_str());
 
-    // Update subject if initialized
+    // The header title binds it.
     if (subjects_initialized_) {
         lv_subject_copy_string(&step_label_subject_, step_label_buf_);
-    }
-
-    // Update header title directly
-    if (overlay_root_) {
-        lv_obj_t* title = helix::ui::find_required(overlay_root_, "header_title", get_name());
-        if (title) {
-            lv_label_set_text(title, step_label_buf_);
-        }
     }
 }
 
@@ -1037,20 +1035,11 @@ void SpoolWizardOverlay::populate_vendor_list() {
         // Store index in user_data for click handling
         lv_obj_set_user_data(row, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
 
-        // Set vendor name
-        lv_obj_t* name_label = helix::ui::find_required(row, "vendor_name", get_name());
-        if (name_label) {
-            lv_label_set_text(name_label, vendor.name.c_str());
-        }
-
-        // Set source badge
-        lv_obj_t* source_label = helix::ui::find_required(row, "vendor_source", get_name());
-        if (source_label) {
-            // A vendor not yet on the server is one the user is creating.
-            lv_label_set_text(source_label, vendor.from_server
-                                                ? "Spoolman"
-                                                : ""); // i18n: product name, do not translate
-        }
+        helix::ui::set_row_label_text(row, "vendor_name", vendor.name.c_str());
+        // A vendor not yet on the server is one the user is creating.
+        helix::ui::set_row_label_text(
+            row, "vendor_source",
+            vendor.from_server ? "Spoolman" : ""); // i18n: product name, do not translate
     }
 
     spdlog::debug("[{}] Populated {} vendor rows", get_name(), filtered_vendors_.size());
@@ -1431,26 +1420,18 @@ void SpoolWizardOverlay::populate_filament_list() {
                 helix::ui::swatch_finish_from_variant(fil.material + " " + fil.name));
         }
 
-        // Set combined material - name label
-        lv_obj_t* material_label = helix::ui::find_required(row, "filament_material", get_name());
-        if (material_label) {
-            std::string display = fil.material;
-            if (!fil.name.empty()) {
-                display += " - " + fil.name;
-            }
-            lv_label_set_text(material_label, display.c_str());
+        std::string display = fil.material;
+        if (!fil.name.empty()) {
+            display += " - " + fil.name;
         }
+        helix::ui::set_row_label_text(row, "filament_material", display.c_str());
 
-        // Set temps label
-        lv_obj_t* temps_label = helix::ui::find_required(row, "filament_temps", get_name());
-        if (temps_label) {
-            char temp_buf[32] = {};
-            if (fil.nozzle_temp_max > 0) {
-                helix::ui::temperature::format_temperature_range(
-                    fil.nozzle_temp_min, fil.nozzle_temp_max, temp_buf, sizeof(temp_buf));
-            }
-            lv_label_set_text(temps_label, temp_buf);
+        char temp_buf[32] = {};
+        if (fil.nozzle_temp_max > 0) {
+            helix::ui::temperature::format_temperature_range(
+                fil.nozzle_temp_min, fil.nozzle_temp_max, temp_buf, sizeof(temp_buf));
         }
+        helix::ui::set_row_label_text(row, "filament_temps", temp_buf);
     }
 
     spdlog::debug("[{}] Populated {} filament rows", get_name(), all_filaments_.size());
@@ -1495,6 +1476,8 @@ void SpoolWizardOverlay::show_create_filament_modal() {
     set_can_proceed(false);
 
     // Show the modal
+    lv_subject_set_int(&material_error_subject_, 0);
+    lv_subject_set_int(&color_error_subject_, 0);
     create_filament_dialog_ = helix::ui::ComponentModal::show_owned("create_filament_modal");
 
     if (create_filament_dialog_) {
@@ -1578,35 +1561,13 @@ void SpoolWizardOverlay::pick_filament_color() {
 void SpoolWizardOverlay::confirm_create_filament() {
     spdlog::debug("[SpoolWizard] Confirm create filament");
 
-    // Helper to set/clear error highlighting on a named label within the modal
-    lv_obj_t* dialog = create_filament_dialog_;
-    auto& theme = ThemeManager::instance();
-    auto set_field_error = [dialog, &theme](const char* label_name, bool error) {
-        if (!dialog)
-            return;
-        lv_obj_t* label = lv_obj_find_by_name(dialog, label_name);
-        if (!label)
-            return;
-        lv_color_t color = error ? theme.get_color("danger") : theme.get_color("text_muted");
-        lv_obj_set_style_text_color(label, color, LV_PART_MAIN);
-    };
+    // Validate required fields; a missing one's label turns red.
+    const bool material_missing = new_filament_material_.empty();
+    const bool color_missing = new_filament_color_hex_.empty();
+    lv_subject_set_int(&material_error_subject_, material_missing ? 1 : 0);
+    lv_subject_set_int(&color_error_subject_, color_missing ? 1 : 0);
 
-    // Validate required fields
-    bool has_error = false;
-
-    bool material_missing = new_filament_material_.empty();
-    set_field_error("material_label", material_missing);
-    if (material_missing) {
-        has_error = true;
-    }
-
-    bool color_missing = new_filament_color_hex_.empty();
-    set_field_error("color_label", color_missing);
-    if (color_missing) {
-        has_error = true;
-    }
-
-    if (has_error) {
+    if (material_missing || color_missing) {
         spdlog::warn("[SpoolWizard] Cannot create filament — missing required fields");
         ToastManager::instance().show(ToastSeverity::WARNING,
                                       lv_tr("Please fill in the highlighted fields"));

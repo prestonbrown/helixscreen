@@ -294,6 +294,10 @@ class SpoolWizardOverlay : public OverlayBase {
     lv_subject_t step_subject_{};
     lv_subject_t can_proceed_subject_{};
     lv_subject_t step_label_subject_{};
+    // 1 while Create is refused for a missing material / color: the Create
+    // Filament modal's field label turns red.
+    lv_subject_t material_error_subject_{};
+    lv_subject_t color_error_subject_{};
     lv_subject_t creating_subject_{};
     lv_subject_t selected_vendor_name_subject_{};
     lv_subject_t summary_vendor_subject_{};
