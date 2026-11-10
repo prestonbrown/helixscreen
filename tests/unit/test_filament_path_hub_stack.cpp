@@ -296,26 +296,21 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     ui_filament_path_canvas_set_active_slot(c.obj, -1);
     ui_filament_path_canvas_set_active_slot(c.obj, 2);
     render(c);
-    REQUIRE(c.data->hits.hub_valid);
+    REQUIRE((c.data->hits.hub_valid && !c.data->rail_drawn));
     const lv_area_t bar = c.data->hits.hub;
-    CHECK_FALSE(c.data->rail_drawn);
-
     const helix::ui::tray::UnitShell* ercf = helix::ui::tray::unit_shell_by_id("ercf_rail");
     REQUIRE(ercf != nullptr);
     CHECK(helix::ui::tray::unit_shell_face_art(*ercf, 5) == nullptr);
     const helix::ui::tray::RailFaceArt* art = helix::ui::tray::unit_shell_face_art(*ercf, 4);
-    REQUIRE(art != nullptr);
     ui_filament_path_canvas_set_selector_rail(c.obj, ercf->id, art);
     render(c);
-    REQUIRE(c.data->rail_drawn);
     LinearHubFrame f{};
     const PathPlan& plan = plan_of(c, &f);
-    REQUIRE(f.rail.w > 0);
+    REQUIRE((art != nullptr && c.data->rail_drawn && f.rail.w > 0));
     // Centred, taller than the bar, clear of the lanes' sensors above and the buffer below.
     CHECK(std::abs(f.rail.x + f.rail.w / 2 - f.center_x) <= 1);
     CHECK(f.rail.h > bar.y2 - bar.y1);
-    CHECK(f.rail.y > f.prep_y);
-    CHECK(f.rail.y + f.rail.h < f.buffer_y);
+    CHECK((f.rail.y > f.prep_y && f.rail.y + f.rail.h < f.buffer_y));
     CHECK((c.data->hits.hub.x1 == f.rail.x && c.data->hits.hub.y2 == f.rail.y + f.rail.h));
     const float in_y = (float)(f.rail.y + (int32_t)std::lround(art->inlet_y * f.rail.h));
     for (int i = 0; i < 4; ++i) {
@@ -333,7 +328,7 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     CHECK(f.output_y >= f.rail.y + f.rail.h * 9 / 10);
 
     BaseGeometry short_canvas = compute_base_geometry(c.obj, c.data);
-    short_canvas.height = 120;
+    short_canvas.height = 120; // too short for the art: the bar comes back
     CHECK(rail_art_rect(*c.data, short_canvas).w == 0);
 
     ui_filament_path_canvas_set_selector_rail(c.obj, nullptr, nullptr);
