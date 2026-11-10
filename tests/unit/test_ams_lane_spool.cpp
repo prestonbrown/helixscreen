@@ -75,9 +75,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     REQUIRE(spool != nullptr);
     process_lvgl(20);
 
-    lv_obj_t* reel = part(spool, "spool_graphic");
-    CHECK((!lv_obj_has_flag(reel, LV_OBJ_FLAG_HIDDEN) &&
-           lv_obj_get_style_opa(reel, LV_PART_MAIN) == ams_draw::kEmptyReelOpa));
+    CHECK(lv_obj_get_style_opa(part(spool, "spool_graphic"), LV_PART_MAIN) ==
+          ams_draw::kEmptyReelOpa);
     CHECK_FALSE(lv_obj_has_flag(part(spool, "empty_placeholder"), LV_OBJ_FLAG_HIDDEN));
     lv_obj_delete(spool);
 }

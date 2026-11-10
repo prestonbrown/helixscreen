@@ -176,7 +176,6 @@ TEST_CASE("tray projection: per-lane lids meet the box corners", "[ams][tray]") 
     TrayBox row = b;
     row.fl = slots[0] - h;
     row.fr = slots[3] + h;
-    CHECK(slots[0] - h == Approx(row.fl));
     const float lid_h = lid_height(row, kFlangeRy);
     const PointF last_cap_back = cap_point(row, lid_h, slots[3] + h, 0);
     const PointF br_t = tray_faces(row).back_wall[1];
