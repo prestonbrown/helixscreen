@@ -4,6 +4,7 @@
 #include "timelapse_local_installer.h"
 
 #include "app_globals.h"
+#include "helix_fs.h"
 #include "runtime_config.h"
 #include "timelapse_host_mock.h"
 
@@ -21,13 +22,30 @@ TimelapseSetupPath decide_timelapse_setup_path(const TimelapseSetupFacts& facts)
     return facts.job_holds ? TimelapseSetupPath::WaitForJob : TimelapseSetupPath::LocalInstall;
 }
 
-TimelapseMacroSetup decide_timelapse_macro_setup(bool klipper_has_frame_macro,
-                                                 bool helix_macros_loaded) {
-    if (klipper_has_frame_macro) {
+TimelapseMacroSetup decide_timelapse_macro_setup(const TimelapseMacroFacts& facts) {
+    if (!facts.objects_reported) {
+        return TimelapseMacroSetup::NotYetKnown;
+    }
+    if (facts.has_frame_macro) {
         return TimelapseMacroSetup::Loaded;
     }
-    return helix_macros_loaded ? TimelapseMacroSetup::IncludeFromHelixMacros
-                               : TimelapseMacroSetup::ShowIncludeLine;
+    return facts.helix_macros_loaded && facts.macro_file_known
+               ? TimelapseMacroSetup::IncludeFromHelixMacros
+               : TimelapseMacroSetup::ShowIncludeLine;
+}
+
+std::string timelapse_macro_repo_on_host(bool moonraker_local) {
+    const std::string home = timelapse_install_home();
+    if (!moonraker_local || home.empty() || home.front() != '/') {
+        return {};
+    }
+    const std::string repo = home + "/" + kTimelapseRepoDirName;
+    // HELIX_MOCK_TIMELAPSE=helix-macros: a plugin installed before this run, with its checkout.
+    if (get_runtime_config()->should_mock_moonraker() && mock::timelapse_helix_macros_loaded() &&
+        !fs::exists(repo + "/" + kTimelapseMacroFile)) {
+        mock::write_stub_timelapse_checkout(repo);
+    }
+    return fs::exists(repo + "/" + kTimelapseMacroFile) ? repo : std::string();
 }
 
 const LocalPluginRecipe& timelapse_plugin_recipe() {

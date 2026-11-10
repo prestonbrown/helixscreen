@@ -69,15 +69,6 @@ namespace helix {
 constexpr const char* kHelixMacrosFilename = "helix_macros.cfg";
 
 /**
- * @brief The line helix_macros.cfg carries to load moonraker-timelapse's macros
- *
- * A glob that matches only timelapse.cfg beside helix_macros.cfg: Klipper
- * refuses to start on a plain include whose file is missing, and skips a glob
- * that matches nothing, so removing the timelapse plugin never stops Klipper.
- */
-constexpr const char* kTimelapseMacrosInclude = "[include timelapse.cf[g]]";
-
-/**
  * @brief Status of HelixScreen macro installation
  */
 enum class MacroInstallStatus {
@@ -227,22 +218,40 @@ class MacroManager {
     /**
      * @brief Make helix_macros.cfg load moonraker-timelapse's timelapse.cfg
      *
-     * Adds kTimelapseMacrosInclude to the helix_macros.cfg on the printer,
-     * which update_files() then keeps and uninstall() removes with the file.
-     * The caller decides it is needed: Klipper has the helper macros loaded and
-     * no TIMELAPSE_TAKE_FRAME. Writes nothing when the line is there already.
-     * Does NOT restart Klipper; the macros load at the next restart.
+     * Adds timelapse_include_line(@p repo_dir) to the helix_macros.cfg on the
+     * printer, which update_files() then keeps and uninstall() removes with the
+     * file. The caller decides it is needed: Klipper has the helper macros
+     * loaded, no TIMELAPSE_TAKE_FRAME, and @p repo_dir is the checkout's
+     * absolute path on the Klipper host. Writes nothing when a timelapse include
+     * is there already. Does NOT restart Klipper; the macros load at the next
+     * restart.
      *
      * @param on_success Called when helix_macros.cfg carries the include
      * @param on_error Called when helix_macros.cfg could not be read or written
      */
-    void include_timelapse_macros(SuccessCallback on_success, ErrorCallback on_error);
+    void include_timelapse_macros(const std::string& repo_dir, SuccessCallback on_success,
+                                  ErrorCallback on_error);
 
-    /// Whether helix_macros.cfg @p content has the timelapse include as a live line.
+    /**
+     * @brief The include line for the macro file in the checkout at @p repo_dir
+     *
+     * The real file by absolute path, globbed so it matches nothing once the
+     * checkout is gone: Klipper refuses to start on a plain include whose file
+     * is missing and skips a glob that matches nothing. Never the config-root
+     * timelapse.cfg, a symlink into the checkout that a glob still matches
+     * after the checkout is deleted, and that Klipper then cannot open.
+     */
+    [[nodiscard]] static std::string timelapse_include_line(const std::string& repo_dir);
+
+    /// The live timelapse include line in helix_macros.cfg @p content, or empty.
+    [[nodiscard]] static std::string find_timelapse_include(const std::string& content);
+
+    /// Whether helix_macros.cfg @p content has a timelapse include as a live line.
     [[nodiscard]] static bool has_timelapse_include(const std::string& content);
 
-    /// @p content with the timelapse include appended, unless it has one already.
-    [[nodiscard]] static std::string with_timelapse_include(const std::string& content);
+    /// @p content with @p line appended, unless it has a timelapse include already.
+    [[nodiscard]] static std::string with_timelapse_include(const std::string& content,
+                                                            const std::string& line);
 
     /**
      * @brief Request a Klipper restart to load staged macro files
@@ -348,7 +357,8 @@ class MacroManager {
                            SuccessCallback on_success, ErrorCallback on_error);
 
     /// update_files() once it knows whether to keep the timelapse include.
-    void stage_update(bool keep_timelapse_include, SuccessCallback on_success,
+    /// @p timelapse_include is the installed file's include line to keep, or empty.
+    void stage_update(const std::string& timelapse_include, SuccessCallback on_success,
                       ErrorCallback on_error);
 
     /// Upload helix_skips.cfg when stages_skips(); succeed at once otherwise.

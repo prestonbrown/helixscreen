@@ -11,13 +11,15 @@
  * show (ui_xml/components/timelapse_macro_card.xml). refresh() reads Klipper's
  * objects through decide_timelapse_macro_setup():
  *
- * - Loaded: no card.
- * - IncludeFromHelixMacros: helix_macros.cfg gains the timelapse include
- *   (MacroManager::include_timelapse_macros) as the screen's own step, then the
+ * - NotYetKnown (Klipper's objects not in yet) or Loaded: no card.
+ * - IncludeFromHelixMacros: helix_macros.cfg gains an include of the checkout's
+ *   macro file by absolute path (MacroManager::include_timelapse_macros) as the
+ *   screen's own step, then the
  *   card offers a Klipper restart. The restart is only ever the user's tap, and
  *   it is refused while a job holds the machine.
- * - ShowIncludeLine, or a helix_macros.cfg that could not be written: the card
- *   shows the line to add to printer.cfg.
+ * - ShowIncludeLine (no helper macros, or Moonraker not on this host so the
+ *   checkout's path on the Klipper host is unknown), or a helix_macros.cfg that
+ *   could not be written: the card shows the line to add to printer.cfg.
  */
 
 #include "subject_managed_panel.h"
@@ -53,10 +55,11 @@ class TimelapseMacroCard {
      *
      * @param api Moonraker; null shows the include line when an include is needed
      * @param discovery Klipper's objects; must outlive the refresh's reply
+     * @param moonraker_local Moonraker runs on this host, so the checkout's path is ours to know
      * @param on_shown Called on the main thread whenever a card appears, so the
      *                 screen can scroll it into view; may be empty
      */
-    void refresh(IMoonrakerAPI* api, const PrinterDiscovery& discovery,
+    void refresh(IMoonrakerAPI* api, const PrinterDiscovery& discovery, bool moonraker_local,
                  std::function<void()> on_shown = {});
 
     /// Hide the card; replies of an earlier refresh are dropped.

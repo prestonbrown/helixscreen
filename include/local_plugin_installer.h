@@ -18,7 +18,8 @@
  *      it is whole; a failed one leaves nothing behind, and a directory already
  *      in repo_dir is never replaced or removed. A checkout already there that
  *      sits on a detached HEAD is switched to the recipe's repo_branch when its
- *      tree is clean and that branch exists locally, since Moonraker's update
+ *      tree is clean and that branch exists locally and contains HEAD (so the
+ *      switch never goes back or strands commits), since Moonraker's update
  *      manager refuses to track a detached checkout. Nothing is fetched for it.
  *   2. Install: install.sh in the recipe's mode. install.sh owns where Moonraker
  *      lives, the link pre-flights, and any config section it writes.

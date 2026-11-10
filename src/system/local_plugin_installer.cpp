@@ -39,7 +39,8 @@ LocalPluginResult failed(LocalPluginStage stage, const CommandResult& r) {
 
 /// Moves an existing checkout on a detached HEAD back onto recipe.repo_branch, so
 /// Moonraker's update manager can validate it. Local git only, and only when the
-/// tree is clean and the branch exists; any other case is logged and left alone.
+/// tree is clean and the branch exists and contains HEAD; any other case is
+/// logged and left alone.
 void attach_checkout_to_branch(const LocalPluginRecipe& recipe, const std::string& repo_dir,
                                const ProcessRunner& run) {
     if (recipe.repo_branch.empty()) {
@@ -81,6 +82,19 @@ void attach_checkout_to_branch(const LocalPluginRecipe& recipe, const std::strin
         spdlog::info("[PluginInstaller] {} is on a detached HEAD and has no local {} branch; "
                      "leaving it as it is",
                      repo_dir, recipe.repo_branch);
+        return;
+    }
+
+    // Only forward: a stale local branch would downgrade the plugin, and commits
+    // on no branch would be left behind.
+    const CommandResult ahead =
+        git({"merge-base", "--is-ancestor", "HEAD", "refs/heads/" + recipe.repo_branch});
+    if (!ahead.succeeded()) {
+        spdlog::info("[PluginInstaller] {} is on a detached HEAD that its {} branch does not "
+                     "contain ({}); leaving it as it is",
+                     repo_dir, recipe.repo_branch,
+                     ahead.exit_code == 1 ? std::string("switching would go back")
+                                          : failure_detail(ahead));
         return;
     }
 

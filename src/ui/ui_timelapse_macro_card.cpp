@@ -81,20 +81,27 @@ void TimelapseMacroCard::clear() {
 }
 
 void TimelapseMacroCard::refresh(IMoonrakerAPI* api, const PrinterDiscovery& discovery,
-                                 std::function<void()> on_shown) {
+                                 bool moonraker_local, std::function<void()> on_shown) {
     clear();
     on_shown_ = std::move(on_shown);
     const unsigned gen = generation_;
 
     const MacroInstallStatus helix_status = MacroManager::evaluate_status(discovery);
-    const bool helix_loaded = helix_status == MacroInstallStatus::INSTALLED ||
-                              helix_status == MacroInstallStatus::OUTDATED;
-    const bool has_frame_macro = discovery.has_macro(kTimelapseFrameMacro);
-    const TimelapseMacroSetup setup = decide_timelapse_macro_setup(has_frame_macro, helix_loaded);
-    spdlog::info("[Timelapse Macros] {}={} helix_macros={} -> {}", kTimelapseFrameMacro,
-                 has_frame_macro, helix_loaded, static_cast<int>(setup));
+    const std::string repo = timelapse_macro_repo_on_host(moonraker_local);
+    TimelapseMacroFacts facts;
+    facts.objects_reported = discovery.objects_reported();
+    facts.has_frame_macro = discovery.has_macro(kTimelapseFrameMacro);
+    facts.helix_macros_loaded = helix_status == MacroInstallStatus::INSTALLED ||
+                                helix_status == MacroInstallStatus::OUTDATED;
+    facts.macro_file_known = !repo.empty();
+    const TimelapseMacroSetup setup = decide_timelapse_macro_setup(facts);
+    spdlog::info("[Timelapse Macros] objects={} {}={} helix_macros={} macro_file={} -> {}",
+                 facts.objects_reported, kTimelapseFrameMacro, facts.has_frame_macro,
+                 facts.helix_macros_loaded, repo.empty() ? "unknown" : repo,
+                 static_cast<int>(setup));
 
     switch (setup) {
+    case TimelapseMacroSetup::NotYetKnown:
     case TimelapseMacroSetup::Loaded:
         return;
     case TimelapseMacroSetup::ShowIncludeLine:
@@ -111,6 +118,7 @@ void TimelapseMacroCard::refresh(IMoonrakerAPI* api, const PrinterDiscovery& dis
     macro_manager_ = std::make_unique<MacroManager>(*api, discovery);
     // MacroManager lands both callbacks on the main thread.
     macro_manager_->include_timelapse_macros(
+        repo,
         [this, gen]() {
             if (gen != generation_)
                 return;
