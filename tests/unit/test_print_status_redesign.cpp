@@ -272,6 +272,11 @@ TEST_CASE_METHOD(Landscape800, "phase switch relayouts and clears pre-print glow
     REQUIRE(subject_int("ps_chip_nozzle_shown") == 1);
     REQUIRE(subject_int("ps_glow_nozzle") == 1);
     REQUIRE(subject_int("ps_chip_nozzle_tone") == static_cast<int>(ChipTone::Active));
+    // The nozzle's glow is an image tinted with the heat's colour.
+    CHECK(lv_color_eq(
+        lv_obj_get_style_image_recolor(lv_obj_find_by_name(root_, "ps_glow_nozzle"), LV_PART_MAIN),
+        helix::ui::temperature::get_heating_state_color(
+            helix::ui::temperature::HeatState::Heating)));
     const int layouts = tiles().layout_count();
 
     // The start sequence ends and its macro drops the preheat in the same batch.

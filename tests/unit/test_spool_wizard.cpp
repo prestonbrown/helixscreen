@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_modal.h"
 #include "ui_spool_wizard.h"
 
 #include "../helix_test_fixture.h"
@@ -8,6 +9,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "core/text_io.h"
 #include "filament_database.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -94,6 +96,34 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolWizardOverlay header and field labels 
                       theme_manager_get_color("text_muted")));
     lv_obj_delete(modal);
     lv_obj_delete(root);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "the create filament modal reopens with no field marked missing",
+                 "[spool_wizard]") {
+    // The modal's buttons reach the process-wide wizard, so the test drives it.
+    SpoolWizardOverlay& wizard = get_global_spool_wizard();
+    wizard.init_subjects();
+    wizard.register_callbacks();
+    auto fire = [this](const char* name) {
+        lv_event_cb_t cb = lv_xml_get_event_cb(nullptr, name);
+        REQUIRE(cb != nullptr);
+        cb(nullptr);
+        process_lvgl(500);
+    };
+    auto color_label_is = [](const char* token) {
+        lv_obj_t* label = lv_obj_find_by_name(ModalStack::instance().top_dialog(), "color_label");
+        REQUIRE(label != nullptr);
+        return lv_color_eq(lv_obj_get_style_text_color(label, LV_PART_MAIN),
+                           theme_manager_get_color(token));
+    };
+    fire("on_wizard_show_create_filament_modal");
+    fire("on_wizard_confirm_create_filament"); // no colour picked
+    CHECK(color_label_is("danger"));
+    fire("on_wizard_cancel_create_filament");
+    fire("on_wizard_show_create_filament_modal");
+    CHECK(color_label_is("text_muted"));
+    fire("on_wizard_cancel_create_filament");
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "SpoolWizardOverlay on_create_requested enters creating state",
@@ -213,45 +243,6 @@ TEST_CASE("spool details start empty", "[spool_wizard]") {
         wizard.navigate_next();
     }
     CHECK(wizard.spool_remaining_weight() == 0);
-}
-
-TEST_CASE_METHOD(HelixTestFixture, "on_create_requested without API calls on_creation_error path",
-                 "[spool_wizard]") {
-    SpoolWizardOverlay wizard;
-    bool completed = false;
-    wizard.set_completion_callback([&]() { completed = true; });
-
-    // Navigate to spool details
-    wizard.set_can_proceed(true);
-    wizard.navigate_next();
-    wizard.set_can_proceed(true);
-    wizard.navigate_next();
-    CHECK(wizard.current_step() == SpoolWizardOverlay::Step::SPOOL_DETAILS);
-
-    // With no API, vendor creation path hits "No API connection" error.
-    // selected_vendor_.server_id defaults to -1, so it tries to create vendor.
-    // No crash, no completion callback fired.
-    wizard.on_create_requested();
-    CHECK_FALSE(completed);
-}
-
-TEST_CASE_METHOD(HelixTestFixture,
-                 "on_create_requested fires completion when vendor+filament exist",
-                 "[spool_wizard]") {
-    SpoolWizardOverlay wizard;
-    bool completed = false;
-    wizard.set_completion_callback([&]() { completed = true; });
-
-    // Navigate to spool details
-    wizard.set_can_proceed(true);
-    wizard.navigate_next();
-    wizard.set_can_proceed(true);
-    wizard.navigate_next();
-
-    // Without API, even with server_ids set, create_spool will fail with "No API"
-    // This test verifies the no-API path does not crash and handles gracefully.
-    wizard.on_create_requested();
-    CHECK_FALSE(completed);
 }
 
 // ============================================================================

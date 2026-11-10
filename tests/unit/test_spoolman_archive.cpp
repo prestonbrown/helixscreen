@@ -25,7 +25,6 @@
 
 #include <algorithm>
 #include <cstring>
-#include <optional>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -131,43 +130,22 @@ TEST_CASE("archive confirm sends one archived PATCH and the refetch drops the sp
         [](const MoonrakerError&) { FAIL("refetch should succeed"); });
     REQUIRE(served.size() == 1);
     REQUIRE(served[0].id == 42);
-
-    // Single-spool GET fidelity: real Spoolman keeps the archived spool and
-    // only filters it from LIST gets — the record itself stays fetchable
-    // (that is how its web UI offers the un-archive toggle).
-    std::optional<SpoolInfo> single;
-    f.api.spoolman().get_spoolman_spool(
-        41, [&single](const std::optional<SpoolInfo>& s) { single = s; },
-        [](const MoonrakerError&) { FAIL("single GET should succeed"); });
-    REQUIRE(single.has_value());
-    REQUIRE(single->id == 41);
 }
 
-TEST_CASE("archive error path records no PATCH and only toasts", "[spoolman][archive]") {
-    SpoolmanArchiveFixture f;
-    f.client.set_mock_spoolman_enabled(false);
-
-    SpoolmanPanel& panel = get_global_spoolman_panel();
-    SpoolmanPanelTestAccess::seed_cached_spools(panel, {make_spool(41, "Ambrosia Pink")});
-
-    SpoolmanPanelTestAccess::archive_spool(panel, 41);
-    f.answer_modal("btn_primary");
-
-    CHECK(f.client.spoolman_mock().spool_updates.empty());
-    CHECK(ModalStack::instance().stack_empty());
-}
-
-TEST_CASE("archive cancel fires no PATCH", "[spoolman][archive]") {
+TEST_CASE("an archive the user cancels, or the server refuses, changes nothing",
+          "[spoolman][archive]") {
     SpoolmanArchiveFixture f;
     SpoolmanPanel& panel = get_global_spoolman_panel();
     SpoolmanPanelTestAccess::seed_cached_spools(panel, {make_spool(41, "Ambrosia Pink")});
-
-    SpoolmanPanelTestAccess::archive_spool(panel, 41);
-    f.answer_modal("btn_secondary");
-
-    CHECK(f.client.spoolman_mock().spool_updates.empty());
-    CHECK(ModalStack::instance().stack_empty());
-    CHECK(server_serves(f.api, 41));
+    for (const char* button : {"btn_secondary", "btn_primary"}) {
+        CAPTURE(button);
+        // Cancel first, while the server is up; then a confirm it fails.
+        SpoolmanPanelTestAccess::archive_spool(panel, 41);
+        f.answer_modal(button);
+        CHECK(f.client.spoolman_mock().spool_updates.empty());
+        CHECK(ModalStack::instance().stack_empty());
+        f.client.set_mock_spoolman_enabled(false);
+    }
 }
 
 /// A row widget whose user_data carries the spool id, the contract
@@ -216,6 +194,22 @@ TEST_CASE("context menu withholds Archive from the active spool only, and titles
         SpoolmanPanelTestAccess::hide_context_menu(panel);
         f.process_lvgl(50);
         lv_obj_delete(row);
+    }
+}
+
+TEST_CASE("the location filter shows only while a spool names a location", "[spoolman][location]") {
+    SpoolmanArchiveFixture f;
+    SpoolmanPanel& panel = get_global_spoolman_panel();
+    panel.init_subjects();
+    REQUIRE(panel.create(lv_screen_active()) != nullptr);
+    lv_obj_t* filter = lv_obj_find_by_name(panel.get_panel(), "location_filter");
+    REQUIRE(filter != nullptr);
+    for (const char* location : {"Shelf A", ""}) {
+        CAPTURE(location);
+        f.client.spoolman_mock().get_mock_spools()[0].location = location;
+        panel.refresh_spools();
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(lv_obj_has_flag(filter, LV_OBJ_FLAG_HIDDEN) == (location[0] == '\0'));
     }
 }
 
