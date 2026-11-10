@@ -550,6 +550,47 @@ def test_a_new_veto_stops_the_cached_saving_switch_at_once(helix, fake_sys):
     assert run(helix.plr._saving()) is False
 
 
+def test_a_superseded_ready_config_never_decides_the_guard(helix):
+    run(helix.database.insert_item("helix-screen", "plr_profile", UNLISTED))
+    ready_with(helix)
+    assert helix.plr.guard is None
+
+    async def query(objects):
+        # An older ready's read lands while this one's read fails.
+        helix.plr.gantry_settings = {"printer": {"kinematics": "corexy"}}
+        raise RuntimeError("Klippy went away")
+
+    helix.klippy_apis.query_objects.side_effect = query
+    run(helix.plr.on_klippy_ready())
+    assert helix.plr.guard == "klipper_config_unread"
+    assert plr_entry(helix)["available"] is False
+
+
+def test_a_saving_answer_decided_under_an_old_guard_is_not_cached(helix, fake_sys):
+    disk = fake_sys.disk("mmcblk0", {"device/type": "MMC"})
+    helix.plr.runtime_storage = classify_block_device(fake_sys.root, fake_sys.link(disk))
+    run(helix.database.insert_item("helix-screen", "plr_profile", UNLISTED))
+    helix.plr.clock = lambda: 1000.0
+    ready_with(helix)
+    plr = helix.plr
+    profile = plr.profile
+
+    calls = []
+
+    async def veto_meanwhile():
+        # _saving's own profile read, after the switch answered under the old guard.
+        calls.append(1)
+        answer = await profile()
+        if len(calls) == 2:
+            plr._set_guard("gantry_drops")
+        return answer
+
+    plr.profile = veto_meanwhile
+    run(plr._saving())
+    plr.profile = profile
+    assert run(plr._saving()) is False
+
+
 @pytest.mark.parametrize("reason", ["gantry_drops", "delta_kinematics", "firmware_recovery"])
 def test_a_model_listed_at_tier_0_reports_its_reason(helix, reason):
     run(helix.database.insert_item("helix-screen", "plr_profile",
