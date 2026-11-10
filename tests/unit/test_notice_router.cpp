@@ -102,15 +102,13 @@ TEST_CASE("A notice reaches the toast of its severity and duration", "[toast][no
     CHECK(log.shown[3].severity == ToastSeverity::ERROR);
     // Matches ToastManager::show()'s own default.
     CHECK(log.shown[3].duration_ms == 4000);
-}
 
-TEST_CASE("A notice with no subscriber is dropped", "[toast][notification]") {
-    ToastLog log;
+    // With no subscriber a notice is dropped.
     const helix::NoticeSubscriber previous = helix::set_notice_subscriber(nullptr);
     publish_notice({NoticeSeverity::ERROR, "nobody is listening"});
     helix::set_notice_subscriber(previous);
     drain();
-    CHECK(log.shown.empty());
+    CHECK(log.shown.size() == 4);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -258,9 +256,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CAPTURE(static_cast<int>(kind));
         estop.suppress_recovery_dialog(0);
         REQUIRE_FALSE(estop.is_recovery_suppressed());
-
         publish_ui_request({kind});
-
         CHECK(estop.is_recovery_suppressed());
     }
     estop.suppress_recovery_dialog(0);
