@@ -15,6 +15,7 @@
     <lv_obj name="printer_container"
             width="100%" flex_grow="1" style_bg_color="#screen_bg" style_pad_all="#space_sm" scrollable="false"
             align="center" clickable="true">
+      <style name="styles.press_dim" selector="pressed"/>
       <event_cb trigger="clicked" callback="printer_manager_clicked_cb"/>
       <!-- Fills the container; a one-side callout layout moves and shrinks it
            (apply_callout_layout), so it is placed from the top-left. -->

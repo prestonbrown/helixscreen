@@ -149,3 +149,25 @@ TEST_CASE("a tap on a home tile reaches the widget that owns it", "[action_tile]
     NavigationManager::instance().shutdown();
     helix::ui::destroy_static_panels();
 }
+
+TEST_CASE("a pressed tile area dims and an idle one does not", "[action_tile][1142]") {
+    // The dim is an XML style on the pressed state; nothing in C++ sets it.
+    LVGLUITestFixture fixture;
+    init_widget_registrations();
+    const std::vector<std::pair<std::string, std::string>> kAreas = {
+        {"printer_image", "printer_container"},
+        {"temp_stack", "temp_stack_nozzle_row"},
+        {"temp_stack", "temp_stack_bed_row"},
+        {"temp_stack", "temp_stack_chamber_row"},
+    };
+    for (const auto& [id, area] : kAreas) {
+        INFO("tile " << id << " area " << area);
+        RegistryWidgetHarness harness(fixture.test_screen(), *find_widget_def(id));
+        REQUIRE(harness.created());
+        lv_obj_t* obj = harness.child(area.c_str());
+        REQUIRE(obj != nullptr);
+        CHECK(lv_obj_get_style_opa(obj, LV_PART_MAIN) == LV_OPA_COVER);
+        lv_obj_add_state(obj, LV_STATE_PRESSED);
+        CHECK(lv_obj_get_style_opa(obj, LV_PART_MAIN) == LV_OPA_70);
+    }
+}

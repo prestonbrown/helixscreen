@@ -256,8 +256,6 @@ void PrinterImageWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     auto* container = lv_obj_find_by_name(widget_obj_, "printer_container");
     if (container) {
         lv_obj_set_user_data(container, this);
-        // Pressed feedback: dim on touch
-        lv_obj_set_style_opa(container, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
     }
 
     // Load printer image and info from config
