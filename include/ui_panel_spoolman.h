@@ -105,6 +105,8 @@ class SpoolmanPanel : public OverlayBase {
     SubjectManager subjects_;            ///< RAII subject manager
     lv_subject_t panel_state_subject_{}; ///< Panel display state (loading/empty/spools)
     lv_subject_t header_title_subject_{};
+    /// 1 = the location filter is offered: at least one spool names a location.
+    lv_subject_t location_filter_shown_subject_{};
     char header_title_buf_[64];
 
     // ========== Private Methods ==========

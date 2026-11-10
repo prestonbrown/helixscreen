@@ -25,7 +25,8 @@
         <event_cb trigger="value_changed" callback="on_spoolman_search_changed"/>
       </text_input>
       <lv_dropdown name="location_filter"
-                   height="#input_height" options="" style_min_width="100" style_radius="#border_radius" hidden="true">
+                   height="#input_height" options="" style_min_width="100" style_radius="#border_radius">
+        <bind_flag_if_eq subject="spoolman_location_filter_shown" flag="hidden" ref_value="0"/>
         <event_cb trigger="value_changed" callback="on_spoolman_location_filter_changed"/>
       </lv_dropdown>
     </lv_obj>
