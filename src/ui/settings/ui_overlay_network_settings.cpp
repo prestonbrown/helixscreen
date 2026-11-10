@@ -55,18 +55,25 @@ using namespace helix;
 struct NetworkSettingsItemData {
     std::string ssid;
     bool is_secured;
+    char ssid_buffer[64];
     char band_buffer[16];
+    /// String subject bound to ssid_label. An SSID may begin with '#', which a
+    /// component prop would resolve as a constant, so it rides a subject.
+    lv_subject_t ssid_text{};
     lv_subject_t band_text{};    ///< String subject bound to band_label's text
     lv_subject_t band_visible{}; ///< 1 when the badge should be shown, else 0
 
     NetworkSettingsItemData(const std::string& ssid_, bool secured, const std::string& band)
         : ssid(ssid_), is_secured(secured) {
+        std::snprintf(ssid_buffer, sizeof(ssid_buffer), "%s", ssid_.c_str());
+        lv_subject_init_string(&ssid_text, ssid_buffer, nullptr, sizeof(ssid_buffer), ssid_buffer);
         std::snprintf(band_buffer, sizeof(band_buffer), "%s", band.c_str());
         lv_subject_init_string(&band_text, band_buffer, nullptr, sizeof(band_buffer), band_buffer);
         lv_subject_init_int(&band_visible, band.empty() ? 0 : 1);
     }
 
     ~NetworkSettingsItemData() {
+        lv_subject_deinit(&ssid_text);
         lv_subject_deinit(&band_text);
         lv_subject_deinit(&band_visible);
     }
@@ -200,6 +207,9 @@ void NetworkSettingsOverlay::init_subjects() {
     UI_MANAGED_SUBJECT_INT(wifi_connecting_, 0, "wifi_connecting", subjects_);
     UI_MANAGED_SUBJECT_STRING(wifi_password_modal_ssid_, password_modal_ssid_buffer_, "",
                               "wifi_password_modal_ssid", subjects_);
+    UI_MANAGED_SUBJECT_STRING(password_status_, password_status_buffer_, "",
+                              "network_password_status", subjects_);
+    UI_MANAGED_SUBJECT_INT(password_status_shown_, 0, "network_password_status_shown", subjects_);
 
     subjects_initialized_ = true;
     spdlog::debug("[NetworkSettingsOverlay] Subjects initialized");
@@ -782,9 +792,6 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
     snprintf(count_buffer_, sizeof(count_buffer_), "(%zu)", networks.size());
     lv_subject_notify(&network_count_);
 
-    // Show/hide placeholder
-    show_placeholder(networks.empty());
-
     // Sort by signal strength
     std::vector<WiFiNetwork> sorted_networks = networks;
     helix::sort_small(sorted_networks.begin(), sorted_networks.end(),
@@ -802,7 +809,14 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
     // Create network items
     static int item_counter = 0;
     for (const auto& network : sorted_networks) {
-        const char* item_attrs[] = {"click_callback", "on_network_settings_item_clicked", nullptr};
+        const int icon_state = helix::ui::wifi::wifi_compute_signal_icon_state(
+            network.signal_strength, network.is_secured);
+        const std::string signal_state = std::to_string(icon_state);
+        const char* item_attrs[] = {
+            "click_callback", "on_network_settings_item_clicked",
+            "signal_state",   signal_state.c_str(),
+            "security",       network.is_secured ? network.security_type.c_str() : "",
+            nullptr};
         lv_obj_t* item =
             static_cast<lv_obj_t*>(lv_xml_create(networks_list_, "wifi_network_item", item_attrs));
         if (!item) {
@@ -814,27 +828,6 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
         char item_name[32];
         snprintf(item_name, sizeof(item_name), "network_item_%d", item_counter++);
         lv_obj_set_name(item, item_name);
-
-        // Set SSID
-        lv_obj_t* ssid_label = helix::ui::find_required(item, "ssid_label", get_name());
-        if (ssid_label) {
-            lv_label_set_text(ssid_label, network.ssid.c_str());
-        }
-
-        // Set security label
-        lv_obj_t* security_label = helix::ui::find_required(item, "security_label", get_name());
-        if (security_label) {
-            if (network.is_secured) {
-                lv_label_set_text(security_label, network.security_type.c_str());
-            } else {
-                lv_label_set_text(security_label, "");
-            }
-        }
-
-        // Update signal icons
-        int icon_state = helix::ui::wifi::wifi_compute_signal_icon_state(network.signal_strength,
-                                                                         network.is_secured);
-        update_signal_icons(item, icon_state);
 
         // Mark connected network with LV_STATE_CHECKED
         bool is_connected = (!connected_ssid.empty() && network.ssid == connected_ssid);
@@ -850,7 +843,10 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
         auto* data = new NetworkSettingsItemData(network.ssid, network.is_secured, band_text);
         lv_obj_set_user_data(item, data);
 
-        // Bind the band badge to this row's own subjects
+        // Bind the SSID and band badge to this row's own subjects
+        if (lv_obj_t* ssid_label = helix::ui::find_required(item, "ssid_label", get_name())) {
+            lv_label_bind_text(ssid_label, &data->ssid_text, nullptr);
+        }
         lv_obj_t* band_label = helix::ui::find_required(item, "band_label", get_name());
         if (band_label) {
             lv_label_bind_text(band_label, &data->band_text, nullptr);
@@ -915,51 +911,9 @@ void NetworkSettingsOverlay::clear_network_list() {
     spdlog::debug("[NetworkSettingsOverlay] Network list cleared");
 }
 
-void NetworkSettingsOverlay::show_placeholder(bool show) {
-    if (!networks_list_) {
-        return;
-    }
-
-    lv_obj_t* placeholder = lv_obj_find_by_name(networks_list_, "no_networks_placeholder");
-    if (placeholder) {
-        if (show) {
-            lv_obj_remove_flag(placeholder, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(placeholder, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-}
-
-void NetworkSettingsOverlay::update_signal_icons(lv_obj_t* item, int icon_state) {
-    if (!item) {
-        return;
-    }
-
-    lv_obj_t* signal_icons = helix::ui::find_required(item, "signal_icons", get_name());
-    if (!signal_icons) {
-        return;
-    }
-
-    // Icon names and their corresponding states
-    static const struct {
-        const char* name;
-        int state;
-    } icon_bindings[] = {
-        {"sig_1", 1},      {"sig_2", 2},      {"sig_3", 3},      {"sig_4", 4},
-        {"sig_1_lock", 5}, {"sig_2_lock", 6}, {"sig_3_lock", 7}, {"sig_4_lock", 8},
-    };
-
-    // Show only the icon matching current state
-    for (const auto& binding : icon_bindings) {
-        lv_obj_t* icon = lv_obj_find_by_name(signal_icons, binding.name);
-        if (icon) {
-            if (binding.state == icon_state) {
-                lv_obj_remove_flag(icon, LV_OBJ_FLAG_HIDDEN);
-            } else {
-                lv_obj_add_flag(icon, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-    }
+void NetworkSettingsOverlay::show_password_status(const std::string& text) {
+    lv_subject_copy_string(&password_status_, text.c_str());
+    lv_subject_set_int(&password_status_shown_, text.empty() ? 0 : 1);
 }
 
 // ============================================================================
@@ -1060,7 +1014,6 @@ void NetworkSettingsOverlay::apply_wlan_toggle(bool enabled) {
         wifi_manager_->stop_scan();
         lv_subject_set_int(&wifi_scanning_, 0);
         clear_network_list();
-        show_placeholder(true);
     }
 
     arm_wlan_toggle_backstop();
@@ -1119,7 +1072,6 @@ void NetworkSettingsOverlay::finish_wlan_toggle(bool requested, bool success, bo
         }
         lv_subject_set_int(&wifi_scanning_, 0);
         clear_network_list();
-        show_placeholder(true);
 
         // Update connection status
         lv_subject_set_int(&wifi_connected_, 0);
@@ -1534,9 +1486,18 @@ void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
     // Reset connecting state
     lv_subject_set_int(&wifi_connecting_, 0);
 
+    // No error line from a previous attempt
+    show_password_status("");
+
     // Show modal
-    const char* modal_attrs[] = {"cancel_callback", "on_network_settings_password_cancel",
-                                 "connect_callback", "on_network_settings_password_connect",
+    const char* modal_attrs[] = {"cancel_callback",
+                                 "on_network_settings_password_cancel",
+                                 "connect_callback",
+                                 "on_network_settings_password_connect",
+                                 "status_subject",
+                                 "network_password_status",
+                                 "status_shown_subject",
+                                 "network_password_status_shown",
                                  nullptr};
     password_modal_ = helix::ui::ComponentModal::show_owned("wifi_password_modal", modal_attrs);
     if (!password_modal_) {
@@ -1555,12 +1516,6 @@ void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
         if (group) {
             lv_group_focus_obj(password_input);
         }
-    }
-
-    // Hide any previous error message
-    lv_obj_t* modal_status = lv_obj_find_by_name(password_modal_, "modal_status");
-    if (modal_status) {
-        lv_obj_add_flag(modal_status, LV_OBJ_FLAG_HIDDEN);
     }
 
     spdlog::debug("[NetworkSettingsOverlay] Password modal shown");
@@ -1597,12 +1552,7 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
 
     const char* password = lv_textarea_get_text(password_input);
     if (!password || strlen(password) == 0) {
-        // Show error in modal
-        lv_obj_t* modal_status = lv_obj_find_by_name(password_modal_, "modal_status");
-        if (modal_status) {
-            lv_label_set_text(modal_status, lv_tr("Password cannot be empty"));
-            lv_obj_remove_flag(modal_status, LV_OBJ_FLAG_HIDDEN);
-        }
+        show_password_status(lv_tr("Password cannot be empty"));
         return;
     }
 
@@ -1651,16 +1601,8 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
                     // gets the canned password text - everything else carries a
                     // reason the user has to read.
                     if (password_modal_) {
-                        lv_obj_t* modal_status =
-                            lv_obj_find_by_name(password_modal_, "modal_status");
-                        if (modal_status) {
-                            lv_label_set_text(
-                                modal_status,
-                                helix::connect_failure_message(
-                                    result, error, lv_tr("Connection failed. Check password."))
-                                    .c_str());
-                            lv_obj_remove_flag(modal_status, LV_OBJ_FLAG_HIDDEN);
-                        }
+                        show_password_status(helix::connect_failure_message(
+                            result, error, lv_tr("Connection failed. Check password.")));
                     }
                     // The join's start dropped any status answer in flight.
                     update_wifi_status();

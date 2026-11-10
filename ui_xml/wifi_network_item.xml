@@ -9,6 +9,10 @@
   <!-- Click triggers the owner's callback, named by the click_callback prop -->
   <api>
     <prop name="click_callback" type="string" default=""/>
+    <!-- Which of the eight signal icons shows: 1-4 open, 5-8 secured (with lock) -->
+    <prop name="signal_state" type="string" default="4"/>
+    <!-- Security type text, empty for an open network -->
+    <prop name="security" type="string" default=""/>
   </api>
   <styles>
     <!-- Style applied when item has LV_STATE_CHECKED (connected network) -->
@@ -21,26 +25,37 @@
         style_flex_cross_place="center" style_pad_gap="#space_sm">
     <style name="checked_style" selector="checked"/>
     <event_cb trigger="clicked" callback="$click_callback"/>
-    <!-- Signal strength icons - 8 variants controlled by signal_icon_state subject -->
+    <!-- Signal strength icons: the one matching signal_state shows -->
     <!-- States 1-4: unsecured networks, States 5-8: secured networks (with lock) -->
-    <!-- Only one icon visible at a time via bind_flag_if_not_eq binding -->
     <lv_obj name="signal_icons" style_pad_all="0" clickable="false">
       <!-- Unsecured: strength 1 (weak) -->
-      <icon name="sig_1" src="wifi_strength_1" size="sm" variant="primary" clickable="false" hidden="true"/>
+      <icon name="sig_1"
+            src="wifi_strength_1" size="sm" variant="primary" clickable="false" hidden_if_prop_not_eq="$signal_state|1"/>
       <!-- Unsecured: strength 2 (fair) -->
-      <icon name="sig_2" src="wifi_strength_2" size="sm" variant="primary" clickable="false" hidden="true"/>
+      <icon name="sig_2"
+            src="wifi_strength_2" size="sm" variant="primary" clickable="false" hidden_if_prop_not_eq="$signal_state|2"/>
       <!-- Unsecured: strength 3 (good) -->
-      <icon name="sig_3" src="wifi_strength_3" size="sm" variant="primary" clickable="false" hidden="true"/>
-      <!-- Unsecured: strength 4 (strong) - default visible -->
-      <icon name="sig_4" src="wifi_strength_4" size="sm" variant="primary" clickable="false"/>
+      <icon name="sig_3"
+            src="wifi_strength_3" size="sm" variant="primary" clickable="false" hidden_if_prop_not_eq="$signal_state|3"/>
+      <!-- Unsecured: strength 4 (strong) -->
+      <icon name="sig_4"
+            src="wifi_strength_4" size="sm" variant="primary" clickable="false" hidden_if_prop_not_eq="$signal_state|4"/>
       <!-- Secured: strength 1 (weak) -->
-      <icon name="sig_1_lock" src="wifi_strength_1_lock" size="sm" variant="primary" clickable="false" hidden="true"/>
+      <icon name="sig_1_lock"
+            src="wifi_strength_1_lock" size="sm" variant="primary" clickable="false"
+            hidden_if_prop_not_eq="$signal_state|5"/>
       <!-- Secured: strength 2 (fair) -->
-      <icon name="sig_2_lock" src="wifi_strength_2_lock" size="sm" variant="primary" clickable="false" hidden="true"/>
+      <icon name="sig_2_lock"
+            src="wifi_strength_2_lock" size="sm" variant="primary" clickable="false"
+            hidden_if_prop_not_eq="$signal_state|6"/>
       <!-- Secured: strength 3 (good) -->
-      <icon name="sig_3_lock" src="wifi_strength_3_lock" size="sm" variant="primary" clickable="false" hidden="true"/>
+      <icon name="sig_3_lock"
+            src="wifi_strength_3_lock" size="sm" variant="primary" clickable="false"
+            hidden_if_prop_not_eq="$signal_state|7"/>
       <!-- Secured: strength 4 (strong) -->
-      <icon name="sig_4_lock" src="wifi_strength_4_lock" size="sm" variant="primary" clickable="false" hidden="true"/>
+      <icon name="sig_4_lock"
+            src="wifi_strength_4_lock" size="sm" variant="primary" clickable="false"
+            hidden_if_prop_not_eq="$signal_state|8"/>
     </lv_obj>
     <!-- SSID and security type column (center) -->
     <lv_obj flex_grow="1"
@@ -57,7 +72,7 @@
              subjects owned by the C++ list builder. -->
         <text_small name="band_label" clickable="false" hidden="true"/>
         <!-- Security type -->
-        <text_small name="security_label" clickable="false"/>
+        <text_small name="security_label" text="$security" clickable="false"/>
       </lv_obj>
     </lv_obj>
   </view>
