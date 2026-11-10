@@ -16,15 +16,58 @@ is out.
 
 - **Macros can declare how long each pre-print phase will take** - a `PRINT_START` can call `_HELIX_PLAN SOAKING=600 BED_MESH=90` and the pre-print countdown uses those durations from the start, and the time label says when a phase runs over. New `_HELIX_PHASE_SOAKING` and `_HELIX_PHASE_HEATING_CHAMBER` signals come with it. Update the HelixScreen macros from Settings to get them.
 
-## [1.1.0-beta.19] - UNRELEASED
+## [1.1.0-rc.1] - 2026-11-10
+
+This is the first 1.1 release candidate. Unless testing turns up a problem, it is what ships as 1.1.0. Since beta.18 it fixes printer identification on Creality and FlashForge printers, keeps your files across web updates on Z-Mod, and shows fan speeds in RPM wherever a fan reports them.
 
 ### Added
 
+- **Fan RPM on standard Klipper** (#2071, #2082) - fans with a tachometer now show their speed in RPM on the Fan control screen, on the part cooling fan's dial as well as on the automatic fan cards. Before, only Creality's own fan feedback showed RPM.
+- **Portrait splash screens** (#2073) - Pi and desktop installs with a portrait display get a full-screen splash image drawn for that shape, instead of the logo scaled at startup.
+- **Anycubic Kobra X picture** (#2074) - the Kobra X now has its own printer image instead of a generic frame.
+- **Z-Tilt and QGL use your Bed Level macro** (#2083) - if you assigned a macro to Bed Level in Standard Macros, the Z-Tilt and Quad Gantry Level buttons run it too.
+- **Jacobean K2 Plus firmware** (#2087) - K2 Plus printers running Jacobean's Kalico-based firmware are recognised as such, with their own print-start progress, instead of being taken for k2-improvements.
+- **Timelapse setup installs the plugin for you** - when HelixScreen runs on the same machine as Moonraker, Setup Timelapse downloads and installs the timelapse plugin itself instead of asking you to do it over SSH. If ffmpeg, which timelapse needs to make videos, is missing, the last screen says so and shows the command that installs it.
+- **Power loss recovery on more printers** (#1863) - with the HelixPrint plugin installed, a printer that isn't in HelixScreen's database now gets assisted power loss recovery, where you guide the nozzle back onto the part before the print resumes. Printers that can't resume safely are left out and the HelixPrint Plugin page says why: a Voron 2.4 style gantry that drops when the power is cut, a delta, or firmware that has its own recovery.
+
 - **A tour of what's new** - the first start after updating from 1.0 shows a short tour of the rebuilt home screen, the new Print Status screen and the Filament and filament system screens, with your own printer's picture. A new install gets the full tour, and Help & About replays it.
+
+### Changed
+
+- **A tidier HelixPrint Plugin page** - Advanced > HelixPrint Plugin now lists features in short rows grouped as Running, Off and Not available here, so the whole list fits on the screen, and a feature that can't run says why in one plain line.
 
 ### Fixed
 
+- **Dragging widgets near a page edge** (#2070) - in home screen edit mode, a widget dragged toward the next page waits longer before the page flips, and letting go during the wait keeps it on the page you see.
+- **Splash on portrait screens** (#2072) - a landscape splash image is no longer drawn past the sides of a portrait screen.
+- **Better printer matches after an update** (#2075) - when a newer release recognises your printer better, HelixScreen offers the better match once, even if you answered an earlier type question. If you declined the question before, you will be asked once more.
+- **Resume while the printer reheats** - Resume no longer reports a failure or offers the button again while the printer is still reheating to resume, which on Z-Mod printers can take several minutes after a filament error. A warning the printer prints during that reheat no longer re-enables Resume either, so a second tap can't start the resume sequence again in the middle of the print.
+- **Quieter log after a screen is rebuilt** - a temperature graph whose screen was rebuilt no longer writes the same error to the log every second, which had pushed everything else out of debug bundles.
+- **Numbering slots from 0** (#2079) - with the option on, the spool strip badges, the tool changer's load prompt and multi-ACE error messages use the same numbers as the rest of the screen.
+- **Phantom fans on the K2** - a fan's separate enable pin is no longer offered as new hardware or put in a fan slot.
+- **Time left while preparing** - the Preparing column on the home print widget no longer cuts off the time remaining.
+- **Eddy, Beacon and Cartographer calibration** (#1994) - the probe screen's calibrate buttons open the Z-offset calibration screen, so you can jog, accept or abort on the printer. On printers with Creality Helper-Script or Z-Mod, an Eddy probe now runs its full calibration sweep instead of a plain Z-offset adjustment.
+- **Keeping your files across web updates on Z-Mod** (#2085) - updating HelixScreen from Fluidd or Mainsail on a Z-Mod printer no longer deletes tool spools, saved filaments or crash history. The update that installs this fix still loses them once, because the old version is what gets replaced. The telemetry device id now also survives web updates on every printer, though it changes once on the first update.
+- **Z-Mod AD5X filament changes** (#2086) - after a failed filament change, Unload and Cancel come back as soon as the printer goes idle instead of after three minutes. A new lane no longer shows "?" as its material or a false "Same spool?" prompt, and one failure shows one message.
+- **Plugin updates on Z-Mod** (#2086) - when the HelixPrint plugin needs a restart that only a reboot can give, the message now says to reboot the printer and stays in the notification history.
+- **Touch stops working on some Pi 5 screens** (#2069) - when a USB touch controller resets, as some HDMI touchscreens do when the picture changes, HelixScreen reopens it instead of losing touch until a restart.
+- **K2 "set up as stock" message** (#2087) - the type mismatch message now goes away once you change the printer type, instead of staying on screen.
+- **Z offset on the Snapmaker U1** (#2089) - the probe screen shows the printer's real Z offset instead of 0.000, and hides the value on printers that don't report one.
+- **Plugin updates on printers that can't restart Moonraker** (#2090) - when a restart for the HelixPrint plugin doesn't happen, HelixScreen says to reboot the printer and asks again on the next start, instead of giving up silently.
+- **Creator 5 Pro tool dock state at startup** (#2091) - the startup check of which tool is docked now runs once Klipper is ready, so a stale dock state is corrected.
+- **Forge-X on the AD5X** (#2092) - an AD5X running Forge-X is no longer mistaken for Z-Mod, and its telemetry id moves to the Forge-X state folder once.
+- **Fan RPM on Creality printers** (#2071) - on the K1 and K2 series, a fan's RPM now shows on that fan's own dial or card. Before, one fan's RPM could show under another, such as the part fan's under an auxiliary fan. A dial set to Off also no longer shows a leftover RPM over its zero mark.
+- **No error after powering off on purpose** (#2076) - turning the printer off from HelixScreen or Mainsail, through a power device that also stops Klipper, no longer shows the "Printer Shutdown" dialog.
+- **Power tiles show the right device** - a power tile switched to another device no longer shows the old device's ON or OFF under the new name, and a tile that lost its device's status gets the device's name back when the status returns.
+- **More spools in the picker on small screens** - on 480x320 and similar panels the spool picker's rows are shorter, so about five spools fit on screen instead of three.
+- **SnapSpeed filament on the Snapmaker U1** - changing only a spool's colour no longer turns a SnapSpeed filament into Basic. A new material or brand still starts at Basic.
+- **Check Again in Setup Timelapse** - the Check Again button on the install step is always on screen, and the empty blue square in the top corner of that screen is gone.
+- **Re-apply on a spool** - Re-apply now takes the spool's name, and fixing only the colour keeps the spool's temperatures.
+
 - **Sensors in Settings no longer need a filament sensor** - the Sensors row under Hardware & Devices holds the temperature sensors and the chamber sensor and heater choices, but it only appeared on printers with a filament sensor. It now always appears.
+- **View Full History is always on screen** - the button that opens the full print history now sits in the Print History header, so you no longer have to scroll down to find it on smaller screens.
+- **Print history after viewing a job** - going back from a job's details to the full history list shows the list where you left it, instead of a blank screen.
+- **Materials in print history** - a print's details and its row in the history list name each material once, such as "ABS, PETG", instead of the slicer's raw per-tool list, and a long list wraps instead of being cut off.
 
 ## [1.1.0-beta.18] - 2026-11-08
 
@@ -10321,6 +10364,11 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.1.0-rc.1]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.18...v1.1.0-rc.1
+[1.1.0-beta.18]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.17...v1.1.0-beta.18
+[1.1.0-beta.17]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.16...v1.1.0-beta.17
+[1.1.0-beta.16]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.15...v1.1.0-beta.16
+[1.1.0-beta.15]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.14...v1.1.0-beta.15
 [1.1.0-beta.14]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.13...v1.1.0-beta.14
 [1.1.0-beta.13]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.12...v1.1.0-beta.13
 [1.1.0-beta.12]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.11...v1.1.0-beta.12
