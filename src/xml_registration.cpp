@@ -26,7 +26,7 @@
 #include "ui_leader_line.h"
 #include "ui_lock_screen.h"
 #include "ui_markdown.h"
-#include "ui_nav_manager.h"
+#include "ui_nav.h"
 #include "ui_notification_badge.h"
 #include "ui_overlay_temp_graph.h"
 #include "ui_panel_home.h"
@@ -444,9 +444,8 @@ void register_xml_components() {
                              [](lv_event_t*) { get_global_home_panel().exit_grid_edit_mode(); });
     lv_xml_register_event_cb(nullptr, "on_edit_add_widget_clicked",
                              [](lv_event_t*) { get_global_home_panel().open_widget_catalog(); });
-    lv_xml_register_event_cb(nullptr, "on_nav_printer_badge_clicked", [](lv_event_t*) {
-        NavigationManager::instance().toggle_printer_menu();
-    });
+    lv_xml_register_event_cb(nullptr, "on_nav_printer_badge_clicked",
+                             [](lv_event_t*) { helix::nav::toggle_printer_menu(); });
     lv_xml_register_event_cb(nullptr, "on_edit_delete_page_clicked", [](lv_event_t*) {
         get_global_home_panel().request_delete_edit_page();
     });

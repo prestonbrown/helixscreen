@@ -163,3 +163,11 @@ void NavigationManager::wire_status_icons(lv_obj_t* navbar) {
         spdlog::trace("[NavigationManager] Status icon {} wired", button_names[i]);
     }
 }
+
+void NavigationManager::toggle_printer_menu() {
+    printer_badge_.toggle_menu();
+}
+
+void helix::nav::toggle_printer_menu() {
+    NavigationManager::instance().toggle_printer_menu();
+}

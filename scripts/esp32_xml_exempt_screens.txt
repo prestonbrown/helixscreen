@@ -27,6 +27,7 @@ components/upgrade_banner.xml
 crash_report_modal.xml
 input_shaper_panel.xml
 label_printer_settings.xml
+memory_stats_overlay.xml
 pa_tuning_overlay.xml
 panel_belt_tension.xml
 printer_image_tagger_overlay.xml

@@ -1135,17 +1135,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker row names a spool by its filament na
     CHECK(name_of(14) == "#14 Polymaker PLA");
 
     // Only the linked spool's row is checked; a weight shows when Spoolman has one.
-    const auto shown = [&row_for](int spool_id, const char* name) {
-        return !lv_obj_has_flag(lv_obj_find_by_name(row_for(spool_id), name), LV_OBJ_FLAG_HIDDEN);
+    auto part = [&row_for](int id, const char* name) {
+        return lv_obj_find_by_name(row_for(id), name);
     };
-    CHECK(shown(13, "selected_icon"));
-    CHECK_FALSE(shown(12, "selected_icon"));
-    const auto weight_of = [&row_for](int spool_id) {
-        return std::string(
-            lv_label_get_text(lv_obj_find_by_name(row_for(spool_id), "spool_weight")));
-    };
-    CHECK(weight_of(12) == "750g");
-    CHECK(weight_of(14).empty());
+    CHECK_FALSE(lv_obj_has_flag(part(13, "selected_icon"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(part(12, "selected_icon"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(std::string(lv_label_get_text(part(12, "spool_weight"))) == "750g");
+    CHECK(std::string(lv_label_get_text(part(14, "spool_weight"))).empty());
 
     // The row prints the filament name once, whatever the layout.
     const auto visible_text = [](lv_obj_t* root) {
