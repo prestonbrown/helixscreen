@@ -84,7 +84,6 @@ class ClogDetectionConfigModal : public Modal {
     void sync_threshold_text();
     void sync_det_length_text();
     void send_detection_mode_gcode(const std::string& cmd, int mode);
-    void update_source_visibility();
 
     static void on_source_auto(lv_event_t* e);
     static void on_source_encoder(lv_event_t* e);
@@ -123,6 +122,10 @@ class ClogDetectionConfigModal : public Modal {
     lv_subject_t src_encoder_active_{};
     lv_subject_t src_flowguard_active_{};
     lv_subject_t src_afc_active_{};
+    // 1 when the backend reports that source: its button shows
+    lv_subject_t src_encoder_available_{};
+    lv_subject_t src_flowguard_available_{};
+    lv_subject_t src_afc_available_{};
     lv_subject_t mode_auto_active_{};
     lv_subject_t mode_manual_active_{};
 };
