@@ -21,7 +21,6 @@
 #include "filament_sensor_manager.h"
 #include "lvgl/lvgl.h"
 #include "system_settings_manager.h"
-#include "ui/ui_widget_helpers.h"
 #include "utils/network_validation.h"
 #include "wizard_config_paths.h"
 
@@ -257,6 +256,11 @@ void WizardSummaryStep::init_subjects() {
     UI_SUBJECT_INIT_AND_REGISTER_INT(input_shaper_visible_, input_shaper_visible,
                                      "summary_input_shaper_visible");
 
+    // The telemetry opt-in is asked once, on the first printer's wizard
+    UI_SUBJECT_INIT_AND_REGISTER_INT(telemetry_visible_,
+                                     config->get_printer_ids().size() > 1 ? 0 : 1,
+                                     "summary_telemetry_visible");
+
     // The info modal's text belongs to the telemetry step; this step's modal binds to it.
     get_wizard_telemetry_step()->init_info_text_subject();
 
@@ -298,23 +302,6 @@ lv_obj_t* WizardSummaryStep::create(lv_obj_t* parent) {
     if (!screen_root_) {
         spdlog::error("[{}] Failed to create screen from XML", get_name());
         return nullptr;
-    }
-
-    // Toggle state synced via bind_state_if_eq on settings_telemetry_enabled subject
-
-    // Hide telemetry opt-in for subsequent printers (already shown on first wizard run)
-    auto* cfg = Config::get_instance();
-    if (cfg->get_printer_ids().size() > 1) {
-        lv_obj_t* telemetry_row =
-            helix::ui::find_required(screen_root_, "telemetry_opt_in_row", get_name());
-        if (telemetry_row) {
-            lv_obj_add_flag(telemetry_row, LV_OBJ_FLAG_HIDDEN);
-        }
-        lv_obj_t* telemetry_divider =
-            helix::ui::find_required(screen_root_, "telemetry_divider", get_name());
-        if (telemetry_divider) {
-            lv_obj_add_flag(telemetry_divider, LV_OBJ_FLAG_HIDDEN);
-        }
     }
 
     spdlog::debug("[{}] Screen created successfully", get_name());

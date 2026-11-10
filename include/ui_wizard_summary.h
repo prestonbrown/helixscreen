@@ -148,6 +148,8 @@ class WizardSummaryStep : public helix::wizard::Step {
     lv_subject_t ams_visible_{};
     lv_subject_t input_shaper_{};
     lv_subject_t input_shaper_visible_{};
+    /// 1 on the first printer's wizard: the telemetry opt-in shows
+    lv_subject_t telemetry_visible_{};
 
     // String buffers (must be persistent for subject lifetimes)
     char printer_name_buffer_[128];
