@@ -1010,8 +1010,6 @@ static void ensure_overview_registered() {
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/ams_unit_card.xml").c_str());
     lv_xml_register_component_from_file(
-        helix::asset_component_uri("ui_xml/ams_unit_tile.xml").c_str());
-    lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/components/ams_sidebar.xml").c_str());
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/ams_overview_panel.xml").c_str());

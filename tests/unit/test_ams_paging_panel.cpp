@@ -1384,6 +1384,17 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: an overflowing row shows part of
     process_lvgl(50);
 
     lv_obj_t* row = lv_obj_get_parent(cards()[0]);
+    // A row that narrows sizes its tiles again: unsized, it would end 4 px into the fourth.
+    if (GENERATE(false, true)) {
+        lv_area_t before;
+        lv_area_t fourth;
+        lv_obj_get_coords(row, &before);
+        lv_obj_get_coords(cards()[3], &fourth);
+        lv_obj_set_width(row, fourth.x1 - before.x1 + 4);
+        lv_obj_update_layout(row);
+        settle();
+        process_lvgl(50);
+    }
     lv_obj_update_layout(row);
     REQUIRE(lv_obj_get_scroll_right(row) > 0);
     lv_area_t row_box;
