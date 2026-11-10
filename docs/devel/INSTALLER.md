@@ -86,7 +86,7 @@ curl -sSL https://releases.helixscreen.org/install.sh | sh
 | `--version VER` | Install specific version (e.g., `--version v1.1.0`) |
 | `--local FILE` | Install from a local archive (.zip or .tar.gz, skip download) |
 | `--target-root DIR` | Install into a disk image's root filesystem; see [Installing Into a Disk Image](#installing-into-a-disk-image) |
-| `--first-boot` | Finish an image install on the booted printer (run by `helixscreen-firstboot.service`) |
+| `--first-boot`, `--first-boot-moonraker` | Finish an image install on the booted printer: the steps before the screen starts, then the ones that need Moonraker (run by `helixscreen-firstboot.service` and `helixscreen-firstboot-moonraker.service`) |
 | `FILE` | An existing `.zip`, `.tar.gz` or `.tgz` named on its own is `--local FILE`; any other bare word stays `Unknown option`. Two different archives are refused |
 
 ### 2. Local Archive Install
@@ -187,19 +187,23 @@ CustomPiOS case, where the module runs inside the image's chroot.
   with no `moonraker.conf` yet gets the stanza on first boot.
 - **Source.** `.install_source` records `--source` when given, else `other`. A dedicated `image`
   channel needs the app's validator and the telemetry worker's schema to learn it first.
-- **First boot.** What needs the printer itself is listed, one step per line, in
-  `config/.first_boot_pending`: `config-links` (the printer_data links, whose targets are absolute),
-  `permission-rules`, `alsa`, `remote-screen`, `kiauh` (unless `--skip-kiauh-registration`) and
-  `moonraker` when deferred. The oneshot unit, ordered before `helixscreen.service` and gated on
-  that file, runs `<install>/install.sh --first-boot`; `image_first_boot` runs each step, moves
-  the ledgers into printer_data, and writes back only the steps that did not finish, deleting the
-  file when none is left; a step left over fails the unit and the next boot tries it again.
-  `remote-screen` and `moonraker` first wait for Moonraker to answer
-  (`HELIX_FIRST_BOOT_MOONRAKER_SECS`, default 120) and stay when it never does, since without it
-  the route settles on the LAN; `moonraker` also stays unless its restart reported done
-  (`MOONRAKER_RESTART_RC`). A release whose bundled `install.sh` predates `--first-boot` is refused.
+- **First boot.** What needs the printer itself is listed in `config/.first_boot_pending`, one
+  step per line with the number of boots it has failed on: `config-links` (the printer_data links,
+  whose targets are absolute), `permission-rules`, `alsa`, `remote-screen`, `kiauh` (unless
+  `--skip-kiauh-registration`) and `moonraker` when deferred. Two oneshots gated on that file work
+  through it. `helixscreen-firstboot.service`, ordered before `helixscreen.service`, runs
+  `<install>/install.sh --first-boot`: the local steps only, so the screen never waits on
+  Moonraker. `helixscreen-firstboot-moonraker.service`, ordered after it and after
+  `moonraker.service` and before nothing, runs `--first-boot-moonraker`: `remote-screen` and
+  `moonraker`. Those wait for Moonraker to answer (`HELIX_FIRST_BOOT_MOONRAKER_SECS`, default 120)
+  and stay when it never does, since without it the route settles on the LAN; `moonraker` also
+  stays unless its restart reported done (`MOONRAKER_RESTART_RC`), and `remote-screen` with no
+  nginx finishes at once. `image_first_boot` writes back only the unfinished steps, each with its
+  count raised, deleting the file when none is left; a step left over fails that unit, and one
+  that has failed on `HELIX_FIRST_BOOT_MAX_TRIES` boots (default 5) is dropped with a warning
+  naming it. A release whose bundled `install.sh` predates `--first-boot-moonraker` is refused.
 - **Uninstall** on the booted printer is the ordinary `--uninstall`; `remove_first_boot_unit`
-  removes the oneshot.
+  removes both oneshots.
 
 Tests: `tests/shell/test_image_install.bats`, a scratch directory as the image root with every
 service, package manager and network path stubbed to record and fail.

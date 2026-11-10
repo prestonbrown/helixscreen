@@ -22,8 +22,11 @@ _HELIX_IMAGE_SOURCED=1
 # Moonraker's path:, symlink targets) is the booted printer's path alone.
 #
 # What needs the booted printer is listed, one step per line, in this file in
-# the install's config/; the first-boot unit runs `install.sh --first-boot`
-# while it exists, and that run deletes it once every step has passed.
+# the install's config/, each with the number of boots it has failed on. Two
+# units work through it while it exists: helixscreen-firstboot.service runs the
+# local steps before the screen starts (`install.sh --first-boot`), and
+# helixscreen-firstboot-moonraker.service runs the steps that need Moonraker
+# after it (`--first-boot-moonraker`), so the screen never waits on Moonraker.
 IMAGE_FIRST_BOOT_MARKER=".first_boot_pending"
 
 # The image's passwd fields for user $1 as "uid:gid:home", from the image's own
@@ -193,28 +196,39 @@ _image_enable_unit() {
     done
 }
 
-# The oneshot that runs the first-boot steps before HelixScreen first starts.
-# It stays enabled and inert once the marker is gone; a failed run keeps the
-# marker, so the next boot tries again.
-_image_first_boot_unit() {
-    cat <<EOF
+# The two oneshots that run the first-boot steps. Each stays enabled and inert
+# once the marker is gone; a step left over keeps it, so the next boot tries
+# again. Only the local one is ordered before the screen, and the Moonraker one
+# after it, so the two never rewrite the marker at once.
+_image_first_boot_unit() { # phase
+    local _ifbu_desc _ifbu_flag _ifbu_order
+    if [ "$1" = moonraker ]; then
+        _ifbu_desc="HelixScreen first-boot setup (Moonraker)"
+        _ifbu_flag="--first-boot-moonraker"
+        _ifbu_order="After=${HELIX_FIRST_BOOT_UNIT} moonraker.service network.target"
+    else
+        _ifbu_desc="HelixScreen first-boot setup"
+        _ifbu_flag="--first-boot"
+        _ifbu_order="After=local-fs.target
+Before=${SERVICE_NAME}.service"
+    fi
+    cat <<UNIT
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Finishes an image install on the printer's first boot: the setup steps listed
 # in ${IMAGE_INSTALL_DIR}/config/${IMAGE_FIRST_BOOT_MARKER}. Inert once that file is gone.
 [Unit]
-Description=HelixScreen first-boot setup
+Description=${_ifbu_desc}
 ConditionPathExists=${IMAGE_INSTALL_DIR}/config/${IMAGE_FIRST_BOOT_MARKER}
-After=local-fs.target network.target moonraker.service
-Before=${SERVICE_NAME}.service
+${_ifbu_order}
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh ${IMAGE_INSTALL_DIR}/install.sh --first-boot
+ExecStart=/bin/sh ${IMAGE_INSTALL_DIR}/install.sh ${_ifbu_flag}
 TimeoutStartSec=300
 
 [Install]
 WantedBy=multi-user.target
-EOF
+UNIT
 }
 
 image_install_units() {
@@ -233,9 +247,11 @@ image_install_units() {
         cp "$INSTALL_DIR/config/$_iiu_unit" "$_iiu_dir/$_iiu_unit"
         ( INSTALL_DIR="$IMAGE_INSTALL_DIR"; _template_install_paths "$_iiu_dir/$_iiu_unit" )
     done
-    _image_first_boot_unit > "$_iiu_dir/$HELIX_FIRST_BOOT_UNIT"
+    _image_first_boot_unit local > "$_iiu_dir/$HELIX_FIRST_BOOT_UNIT"
+    _image_first_boot_unit moonraker > "$_iiu_dir/$HELIX_FIRST_BOOT_MOONRAKER_UNIT"
 
     _image_enable_unit "$HELIX_FIRST_BOOT_UNIT"
+    _image_enable_unit "$HELIX_FIRST_BOOT_MOONRAKER_UNIT"
     # The update watcher restarts HelixScreen after a Moonraker update, so it
     # is enabled only where HelixScreen is the screen that starts.
     if [ "$IMAGE_DISPLAY_OWNER" = helixscreen ]; then
@@ -293,7 +309,7 @@ image_fix_ownership() {
 # The installed copy of install.sh runs the first-boot pass, so the release
 # must ship one that knows it. On refusal the tree this run created goes again.
 _image_require_first_boot_support() {
-    grep -q -- '--first-boot' "$INSTALL_DIR/install.sh" 2>/dev/null && return 0
+    grep -q -- '--first-boot-moonraker' "$INSTALL_DIR/install.sh" 2>/dev/null && return 0
     case "$INSTALL_DIR" in
         */helixscreen) rm -rf "$INSTALL_DIR" ;;
     esac
@@ -406,16 +422,37 @@ _image_moonraker_up() {
     done
 }
 
+# How many boots a step may fail on before it is given up: a Moonraker that is
+# disabled, missing or bound where this cannot reach it never answers, and a
+# step retried forever fails its unit on every boot.
+IMAGE_FIRST_BOOT_MAX_TRIES="${HELIX_FIRST_BOOT_MAX_TRIES:-5}"
+
+# The phase a first-boot step runs in: moonraker for the steps that talk to it,
+# local for the rest (unknown names included, so they are reported and dropped
+# before the screen starts).
+_image_first_boot_phase() {
+    case "$1" in
+        remote-screen | moonraker) echo moonraker ;;
+        *) echo local ;;
+    esac
+}
+
 # Run first-boot step $1; true only when it is finished. A step that talks to
 # Moonraker counts as finished only when Moonraker answered, since without it
 # install_remote_screen_route settles on the LAN and returns success, and a
-# stanza the moonraker step adds stays unread until Moonraker restarts.
+# stanza the moonraker step adds stays unread until Moonraker restarts. With no
+# nginx there is no route to add, so remote-screen finishes without waiting.
 _image_first_boot_step() {
     case "$1" in
         config-links) setup_config_symlink && pin_env_file ;;
         permission-rules) install_permission_rules "$platform" ;;
         alsa) configure_alsa_default ;;
-        remote-screen) _image_moonraker_up && install_remote_screen_route ;;
+        remote-screen)
+            if _nginx_bin >/dev/null 2>&1; then
+                _image_moonraker_up || return 1
+            fi
+            install_remote_screen_route
+            ;;
         kiauh) install_kiauh_extension false ;;
         moonraker)
             _image_moonraker_up || return 1
@@ -427,13 +464,16 @@ _image_first_boot_step() {
     esac
 }
 
-# --first-boot, on the booted printer: run each step the marker lists, then
-# write back only the ones that did not finish, deleting the marker when none
-# is left. Paths come from main()'s own detection, which finds the install the
-# image carries. A step left over makes the run fail, so the unit shows it, and
-# the next boot tries that step again.
+# --first-boot / --first-boot-moonraker, on the booted printer: run each step
+# of phase $2 (local or moonraker) the marker lists, carry the other phase's
+# lines through untouched, and write back what is left, deleting the marker
+# when nothing is. A step that did not finish goes back with its failed-boot
+# count raised, and is given up, with a warning, at IMAGE_FIRST_BOOT_MAX_TRIES.
+# Paths come from main()'s own detection, which finds the install the image
+# carries. A step not finished this run makes it fail, so the unit shows it.
 image_first_boot() {
-    local platform="$1" _ifb_marker _ifb_steps _ifb_step _ifb_left=""
+    local platform="$1" phase="${2:-local}" _ifb_marker _ifb_lines _ifb_line _ifb_step _ifb_tries
+    local _ifb_left="" _ifb_unfinished=""
     _ifb_marker="$INSTALL_DIR/config/$IMAGE_FIRST_BOOT_MARKER"
     if [ ! -f "$_ifb_marker" ]; then
         log_info "No first-boot setup is pending at $INSTALL_DIR"
@@ -441,23 +481,44 @@ image_first_boot() {
     fi
     detect_init_system
     # Read whole first: a step reading stdin must not eat the list.
-    _ifb_steps=$(cat "$_ifb_marker")
-    for _ifb_step in $_ifb_steps; do
-        if ! _image_first_boot_step "$_ifb_step" </dev/null; then
+    _ifb_lines=$(cat "$_ifb_marker")
+    while IFS= read -r _ifb_line; do
+        # shellcheck disable=SC2086  # "step [tries]", two words
+        set -- $_ifb_line
+        [ $# -gt 0 ] || continue
+        _ifb_step="$1"
+        _ifb_tries="${2:-0}"
+        case "$_ifb_tries" in '' | *[!0-9]*) _ifb_tries=0 ;; esac
+        if [ "$(_image_first_boot_phase "$_ifb_step")" != "$phase" ]; then
+            _ifb_left="${_ifb_left}${_ifb_line}
+"
+            continue
+        fi
+        _image_first_boot_step "$_ifb_step" </dev/null && continue
+        _ifb_tries=$((_ifb_tries + 1))
+        _ifb_unfinished="${_ifb_unfinished} ${_ifb_step}"
+        if [ "$_ifb_tries" -ge "$IMAGE_FIRST_BOOT_MAX_TRIES" ]; then
+            log_warn "Giving up on first-boot step $_ifb_step after $_ifb_tries boots; re-run the installer to finish it"
+        else
             log_warn "First-boot step not finished: $_ifb_step; the next boot tries again"
-            _ifb_left="${_ifb_left}${_ifb_step}
+            _ifb_left="${_ifb_left}${_ifb_step} ${_ifb_tries}
 "
         fi
-    done
+    done <<LINES
+$_ifb_lines
+LINES
     # The steps above record their uninstall ledgers in the install dir; move
     # them into printer_data, where a Moonraker update cannot delete them.
     setup_config_symlink quiet
     fix_user_config_ownership
     if [ -n "$_ifb_left" ]; then
         printf '%s' "$_ifb_left" > "$_ifb_marker"
-        log_error "First-boot setup is not finished: $(printf '%s' "$_ifb_left" | tr '\n' ' ')"
+    else
+        rm -f "$_ifb_marker"
+    fi
+    if [ -n "$_ifb_unfinished" ]; then
+        log_error "First-boot setup ($phase) is not finished:${_ifb_unfinished}"
         exit 1
     fi
-    rm -f "$_ifb_marker"
-    log_success "First-boot setup finished"
+    log_success "First-boot setup ($phase) finished"
 }
