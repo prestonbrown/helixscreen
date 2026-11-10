@@ -190,6 +190,8 @@ void PrintStatusWidget::init_static_subjects() {
     s_static_subjects.publish( // SUBJECT_OK: attach_progress_arc() publishes into this by
                                // pointer and helix_progress_arc.xml bind_styles read it
         "print_status_arc_thickness_tier", &arc_thickness_tier_subject_);
+    lv_subject_init_int(&picker_detailed_subject_, 0);
+    s_static_subjects.publish("print_status_picker_detailed", &picker_detailed_subject_);
     detailed_subjects_initialized_ = true;
 
     StaticSubjectRegistry::instance().register_deinit("PrintStatusWidgetSubjects", []() {
@@ -1721,14 +1723,8 @@ void PrintStatusWidget::ConfigurePicker::apply_visuals() {
                      fmt::ptr(lib_btn), fmt::ptr(det_btn));
     }
 
-    // Show Sections only applies to the Library layout — hide in Detailed.
-    lv_obj_t* show_sections = lv_obj_find_by_name(backdrop, "show_sections_group");
-    if (show_sections) {
-        if (owner_.layout_style_ == "detailed")
-            lv_obj_add_flag(show_sections, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_remove_flag(show_sections, LV_OBJ_FLAG_HIDDEN);
-    }
+    // Show Sections only applies to the Library layout; the group hides on this.
+    lv_subject_set_int(&picker_detailed_subject_, owner_.layout_style_ == "detailed" ? 1 : 0);
 }
 
 void PrintStatusWidget::ConfigurePicker::apply_state() {
