@@ -359,6 +359,33 @@ def test_max_minutes_stops_the_run_and_names_what_it_never_reached(tmp_path):
     assert not _alive(child), "the capped build's grandchild outlived the run"
 
 
+# other.cpp's mutant build hangs; a suite that detects nothing lets feature.cpp's survive.
+OTHER_HANGS_MAKEFILE = SLOW_MUTANT_MAKEFILE.replace("{secs}", "60").replace(
+    "NEW_BEHAVIOR src/feature.cpp", "NEW_TOO src/other.cpp")
+
+
+@pytest.mark.parametrize("grouped", [False, True])
+def test_a_capped_run_ends_on_a_summary_naming_what_it_never_reached(tmp_path, grouped):
+    work, base = _two_hunk_fixture(tmp_path, OTHER_HANGS_MAKEFILE)
+    (work / "build" / "bin" / "helix-tests").write_text("#!/usr/bin/env bash\nexit 0\n")
+    if grouped:
+        # Under a minute left, so neither group starts.
+        r = _mutate(work, "--base", base, "--max-minutes", "0.1",
+                    "--tests-for", "src/feature.cpp=[feat]", "--tests-for", "src/other.cpp=[oth]")
+        assert r.returncode == 3, r.stdout
+        tail = r.stdout[r.stdout.rindex("exit 3"):]
+        assert "VERDICT: INCOMPLETE" in tail, r.stdout
+        assert "2 file(s) UNEXAMINED: --max-minutes 0.1 reached" in tail, r.stdout
+        return
+    r = _mutate(work, "--base", base, "--max-minutes", "0.1")
+    # The survivor decides the exit; the summary still says the run stopped short.
+    assert r.returncode == 1, r.stdout
+    assert "src/feature.cpp:1" in r.stdout[r.stdout.index("FAIL: 1 hunk(s) survived"):]
+    tail = r.stdout[r.stdout.rindex("=" * 68):]
+    assert "1 hunk(s) UNEXAMINED: --max-minutes 0.1 reached" in tail, r.stdout
+    assert "Hunks SURVIVED above" in tail, r.stdout
+
+
 # A baseline suite that takes 30s while the change is in place, noting each start.
 SLOW_BASELINE_SUITE = """#!/usr/bin/env bash
 case "$*" in *--list-tests*) exit 0 ;; esac
@@ -2185,7 +2212,7 @@ def test_a_surviving_group_makes_the_whole_run_fail(tmp_path):
 
 
 @pytest.mark.parametrize("other_detected, code, says", [
-    (False, 1, "Hunks SURVIVED in the groups above"),
+    (False, 1, "Hunks SURVIVED above"),
     (True, 3, "Nothing survived"),
 ])
 def test_an_incomplete_group_run_tells_the_truth_about_survivors(
