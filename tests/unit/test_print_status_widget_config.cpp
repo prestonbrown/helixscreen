@@ -64,10 +64,7 @@ TEST_CASE_METHOD(XMLTestFixture, "PrintStatusWidget picker: Show Sections follow
     w.attach(tile, test_screen());
     w.on_edit_configure();
 
-    lv_obj_t* group = lv_obj_find_by_name(lv_layer_top(), "show_sections_group");
-    if (!group) {
-        group = lv_obj_find_by_name(test_screen(), "show_sections_group");
-    }
+    lv_obj_t* group = lv_obj_find_by_name(test_screen(), "show_sections_group");
     REQUIRE(group != nullptr);
     CHECK(lv_obj_has_flag(group, LV_OBJ_FLAG_HIDDEN));
 

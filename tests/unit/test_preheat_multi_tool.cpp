@@ -188,33 +188,6 @@ ToolTopology lane_topology(int lanes) {
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLTestFixture,
-                 "PreheatWidget: cycle_tool_target walks every nozzle then wraps back to all",
-                 "[preheat][panel_widget]") {
-    seed_extruders(3);
-
-    PreheatWidget widget(get_printer_state());
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
-
-    // all -> T0 -> T1 -> T2 -> all. Asserted step by step rather than as a set,
-    // because the ordering is what the button caption promises the user.
-    PreheatWidgetTestAccess::cycle(widget);
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == 0);
-
-    PreheatWidgetTestAccess::cycle(widget);
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == 1);
-
-    PreheatWidgetTestAccess::cycle(widget);
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == 2);
-
-    PreheatWidgetTestAccess::cycle(widget);
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
-
-    // A second lap lands on the same values, so the wrap left no residue.
-    PreheatWidgetTestAccess::cycle(widget);
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == 0);
-}
-
 TEST_CASE_METHOD(LVGLUITestFixture, "PreheatWidget: the tool target button cycles its own widget",
                  "[preheat][panel_widget][from_event]") {
     // XML resolves preheat_tool_target_cb at parse time, so it must be registered first.
@@ -251,21 +224,24 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "PreheatWidget: cycle_tool_target visits every nozzle in one lap",
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "PreheatWidget: cycle_tool_target walks every nozzle in order, then wraps to all",
                  "[preheat][panel_widget]") {
-    // Paired with the ordering case: a cycle that skipped a nozzle, or stopped
-    // one short, would leave a hotend the user cannot aim a preheat at.
+    // A cycle that skipped a nozzle, or stopped one short, would leave a hotend
+    // the user cannot aim a preheat at; the order is what the caption promises.
+    // The second lap starts where the first did, so the wrap left no residue.
     seed_extruders(6);
 
     PreheatWidget widget(get_printer_state());
+    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
 
     std::vector<int> seen;
-    for (int i = 0; i < 7; ++i) {
+    for (int i = 0; i < 8; ++i) {
         PreheatWidgetTestAccess::cycle(widget);
         seen.push_back(PreheatWidgetTestAccess::tool_target(widget));
     }
 
-    REQUIRE(seen == std::vector<int>{0, 1, 2, 3, 4, 5, -1});
+    REQUIRE(seen == std::vector<int>{0, 1, 2, 3, 4, 5, -1, 0});
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "PreheatWidget: cycle_tool_target collapses to all on one nozzle",
