@@ -163,6 +163,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_t* root = lv_obj_create(lv_screen_active());
     WizardTouchCalibrationTestAccess::invoke_calibration_complete(step, cal, root);
+    // The screen's surfaces follow the panel into COMPLETE.
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "touch_cal_wizard_state")) ==
+          static_cast<int>(TouchCalibrationPanel::State::COMPLETE));
 
     // Before 'Next': the preview already runs the solved range.
     INFO("preview range X(" << sink.range.min_x << ".." << sink.range.max_x << ") Y("
@@ -181,6 +184,33 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(sink.range.max_x == kDeclared.max_x);
     CHECK(sink.source == TouchRangeSource::Declared);
 
+    lv_obj_delete(root);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Wizard touch screen shows each surface in its own states",
+                 "[wizard][touch][calibration]") {
+    WizardTouchCalibrationStep step;
+    step.init_subjects();
+    lv_obj_t* root =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "wizard_touch_calibration", nullptr));
+    REQUIRE(root != nullptr);
+    lv_subject_t* state = lv_xml_get_subject(nullptr, "touch_cal_wizard_state");
+    REQUIRE(state != nullptr);
+    auto shown = [&](const char* name) {
+        lv_obj_t* obj = lv_obj_find_by_name(root, name);
+        REQUIRE(obj != nullptr);
+        return !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    };
+    // IDLE, POINT_1-3, VERIFY, COMPLETE
+    const bool surface[] = {true, true, true, true, false, false};
+    const bool crosshair[] = {false, true, true, true, false, false};
+    for (int s = 0; s < 6; ++s) {
+        CAPTURE(s);
+        lv_subject_set_int(state, s);
+        CHECK(shown("touch_capture_overlay") == surface[s]);
+        CHECK(shown("crosshair") == crosshair[s]);
+        CHECK(shown("test_area_container") == (s == 5));
+    }
     lv_obj_delete(root);
 }
 
