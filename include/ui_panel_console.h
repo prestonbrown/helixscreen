@@ -74,6 +74,13 @@ class ConsolePanel : public OverlayBase {
 
     /// Send the current G-code command from the input field via Moonraker
     void send_gcode_command();
+    /// Up/Down in the input step through the command history.
+    void step_history(uint32_t key);
+
+    /// Where Up (older) or Down (newer) moves the history cursor: an index into
+    /// a history of @p history_size commands, newest at 0, or -1 for the input
+    /// the user was typing. nullopt when the key does not move it.
+    static std::optional<int> next_history_index(int index, size_t history_size, uint32_t key);
 
     /// Clear all entries from the console display and show empty state
     void clear_display();

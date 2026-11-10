@@ -224,72 +224,19 @@ TEST_CASE("Console: format_timestamp() with zero uses current time", "[ui][times
 // Command History Buffer Tests
 // ============================================================================
 
-TEST_CASE("Console: command history deque operations", "[ui][command_history]") {
-    std::deque<std::string> history;
-    constexpr size_t kMaxHistory = 20;
-
-    SECTION("push and recall") {
-        history.push_front("G28");
-        history.push_front("M104 S200");
-        history.push_front("G1 X10 Y10");
-
-        REQUIRE(history.size() == 3);
-        REQUIRE(history[0] == "G1 X10 Y10"); // Most recent
-        REQUIRE(history[1] == "M104 S200");
-        REQUIRE(history[2] == "G28"); // Oldest
-    }
-
-    SECTION("overflow at MAX_HISTORY") {
-        for (int i = 0; i < 25; i++) {
-            history.push_front("CMD_" + std::to_string(i));
-            if (history.size() > kMaxHistory) {
-                history.pop_back();
-            }
-        }
-
-        REQUIRE(history.size() == kMaxHistory);
-        REQUIRE(history[0] == "CMD_24"); // Most recent
-        // Oldest should be CMD_5 (0-4 were popped)
-        REQUIRE(history.back() == "CMD_5");
-    }
-
-    SECTION("up/down navigation simulation") {
-        history.push_front("G28");
-        history.push_front("M104 S200");
-        history.push_front("G1 X10");
-
-        int index = -1;
-        std::string saved_input = "partial";
-
-        // Up: save input, go to most recent
-        index = 0;
-        REQUIRE(history[static_cast<size_t>(index)] == "G1 X10");
-
-        // Up again: go to older
-        index = 1;
-        REQUIRE(history[static_cast<size_t>(index)] == "M104 S200");
-
-        // Up again: go to oldest
-        index = 2;
-        REQUIRE(history[static_cast<size_t>(index)] == "G28");
-
-        // Up again: should stay at 2 (bounds check)
-        int next = index + 1;
-        REQUIRE(next >= static_cast<int>(history.size()));
-        // Index stays at 2
-
-        // Down: go to newer
-        index = 1;
-        REQUIRE(history[static_cast<size_t>(index)] == "M104 S200");
-
-        // Down: go to most recent
-        index = 0;
-        REQUIRE(history[static_cast<size_t>(index)] == "G1 X10");
-
-        // Down: restore saved input
-        index = -1;
-        REQUIRE(saved_input == "partial");
-    }
+TEST_CASE("Console: Up and Down walk the history cursor and stop at its ends",
+          "[ui][command_history]") {
+    const auto step = &ConsolePanel::next_history_index;
+    // From the typed input (-1), Up reaches the newest command, then older ones.
+    CHECK(step(-1, 3, LV_KEY_UP) == 0);
+    CHECK(step(1, 3, LV_KEY_UP) == 2);
+    CHECK(step(2, 3, LV_KEY_UP) == std::nullopt);  // the oldest
+    CHECK(step(-1, 0, LV_KEY_UP) == std::nullopt); // no history
+    // Down returns toward the typed input and stops there.
+    CHECK(step(2, 3, LV_KEY_DOWN) == 1);
+    CHECK(step(0, 3, LV_KEY_DOWN) == -1);
+    CHECK(step(-1, 3, LV_KEY_DOWN) == std::nullopt);
+    CHECK(step(0, 3, LV_KEY_ENTER) == std::nullopt);
 }
 
 // ============================================================================
