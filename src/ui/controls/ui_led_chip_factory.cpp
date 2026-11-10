@@ -102,6 +102,7 @@ static void update_led_chip_state(lv_obj_t* chip, bool selected) {
         lv_obj_set_style_text_color(chip, text, 0);
 
         if (icon) {
+            // DECLARATIVE_OK: the chip and its icon are built in C++ above; no XML layer
             lv_obj_set_style_opa(icon, LV_OPA_COVER, 0);
         }
     } else {
@@ -112,7 +113,8 @@ static void update_led_chip_state(lv_obj_t* chip, bool selected) {
         }
 
         if (icon) {
-            // Invisible but still occupies layout space
+            // Invisible but still occupies layout space.
+            // DECLARATIVE_OK: the chip and its icon are built in C++ above; no XML layer
             lv_obj_set_style_opa(icon, LV_OPA_TRANSP, 0);
         }
     }
