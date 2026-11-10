@@ -242,8 +242,7 @@ TEST_CASE_METHOD(
 
             lv_obj_t* image = lv_obj_find_by_name(test_screen(), "thumbnail_image");
             lv_obj_t* fallback = lv_obj_find_by_name(test_screen(), "thumbnail_fallback");
-            REQUIRE(image != nullptr);
-            REQUIRE(fallback != nullptr);
+            REQUIRE((image && fallback));
             CHECK(lv_obj_has_flag(image, LV_OBJ_FLAG_HIDDEN) != with_thumbnail);
             CHECK(lv_obj_has_flag(fallback, LV_OBJ_FLAG_HIDDEN) == with_thumbnail);
             if (with_thumbnail) {
