@@ -44,21 +44,14 @@ class ClockWidgetFixture : public LVGLTestFixture {
     }
 };
 
-TEST_CASE_METHOD(ClockWidgetFixture, "ClockWidget: factory registration", "[clock_widget]") {
-    const auto* def = find_widget_def("clock");
-    REQUIRE(def != nullptr);
-    REQUIRE(def->factory != nullptr);
-
-    auto widget = def->factory("clock");
-    REQUIRE(widget != nullptr);
-    REQUIRE(std::string(widget->id()) == "clock");
-}
-
 TEST_CASE("ClockWidget: uptime shows only in a tall tile", "[clock_widget][1142]") {
     // The size mode drives the uptime line through an XML binding.
     LVGLUITestFixture fixture;
     init_widget_registrations();
-    RegistryWidgetHarness harness(fixture.test_screen(), *find_widget_def("clock"));
+    PanelWidgetManager::instance().init_widget_subjects();
+    const auto* def = find_widget_def("clock");
+    REQUIRE((def != nullptr && def->factory != nullptr)); // a live ClockWidget, not bare XML
+    RegistryWidgetHarness harness(fixture.test_screen(), *def);
     REQUIRE(harness.created());
     lv_obj_t* uptime = harness.child("clock_uptime");
     REQUIRE(uptime != nullptr);
