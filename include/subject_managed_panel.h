@@ -346,6 +346,14 @@ class SubjectManager {
     SubjectLifetime subjects_lifetime_ = std::make_shared<bool>(true);
 };
 
+/// "<base>_<n>", n unique per process: a prefix for the subjects of a surface
+/// that can exist twice, so two instances publish distinct XML names and never
+/// bind each other's state. Pass the names to the component as props.
+inline std::string next_instance_prefix(const char* base) {
+    static unsigned next_id = 0;
+    return std::string(base) + "_" + std::to_string(next_id++);
+}
+
 /**
  * @brief Helper macro to init, register with XML system, AND register with SubjectManager
  *

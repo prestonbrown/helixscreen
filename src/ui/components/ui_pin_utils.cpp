@@ -25,8 +25,7 @@ int key_digit(lv_event_t* e) {
 }
 
 PinDisplay::PinDisplay(const char* prefix) {
-    static unsigned next_id = 0;
-    const std::string base = std::string(prefix) + "_" + std::to_string(next_id++);
+    const std::string base = next_instance_prefix(prefix);
     digits_name_ = base + "_digits";
     error_name_ = base + "_error";
 

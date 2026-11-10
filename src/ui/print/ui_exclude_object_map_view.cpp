@@ -42,6 +42,7 @@ ExcludeObjectMapView::~ExcludeObjectMapView() {
     if (root_ || canvas_buf_) {
         destroy();
     }
+    subjects_.deinit_all();
 }
 
 // ============================================================================
@@ -82,9 +83,14 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
 
     open_map_views().add(this);
 
-    root_ = static_cast<lv_obj_t*>(mode_ == ExcludeMapMode::Mini
-                                       ? lv_xml_create(parent, "exclude_object_map_mini", nullptr)
-                                       : lv_xml_create(parent, "exclude_object_map", nullptr));
+    if (mode_ == ExcludeMapMode::Mini) {
+        root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "exclude_object_map_mini", nullptr));
+    } else {
+        publish_view_subjects();
+        const char* attrs[] = {"dims_subject", dims_name_.c_str(), "has_objects_subject",
+                               has_objects_name_.c_str(), nullptr};
+        root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "exclude_object_map", attrs));
+    }
     if (!root_) {
         spdlog::error("[ExcludeObjectMapView] lv_xml_create failed");
         open_map_views().remove(this);
@@ -203,15 +209,11 @@ void ExcludeObjectMapView::build_surface() {
     coord_min_x_ = coord_min_x;
     coord_min_y_ = coord_min_y;
 
-    // Update plate dimensions label
+    // Plate dimensions line
     if (mode_ == ExcludeMapMode::Interactive) {
-        lv_obj_t* dims_label =
-            helix::ui::find_required(root_, "plate_dims_label", "ExcludeObjectMapView");
-        if (dims_label) {
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%.0f×%.0f mm", bed_w_mm_, bed_h_mm_);
-            lv_label_set_text(dims_label, buf);
-        }
+        char buf[sizeof(dims_buf_)];
+        snprintf(buf, sizeof(buf), "%.0f×%.0f mm", bed_w_mm_, bed_h_mm_);
+        lv_subject_copy_string(&dims_text_, buf);
     }
 
     // Build mapper after layout so plate_area has real dimensions
@@ -259,6 +261,17 @@ void ExcludeObjectMapView::resize() {
 // ============================================================================
 // Destroy
 // ============================================================================
+
+void ExcludeObjectMapView::publish_view_subjects() {
+    subjects_.deinit_all();
+    const std::string base = next_instance_prefix("exclude_map");
+    dims_name_ = base + "_dims";
+    has_objects_name_ = base + "_has_objects";
+    lv_subject_init_string(&dims_text_, dims_buf_, nullptr, sizeof(dims_buf_), "");
+    subjects_.publish(dims_name_.c_str(), &dims_text_);
+    lv_subject_init_int(&has_objects_, 1);
+    subjects_.publish(has_objects_name_.c_str(), &has_objects_);
+}
 
 void ExcludeObjectMapView::destroy() {
     // A tree deleted under the view leaves root_ null but the buffer and the
@@ -318,6 +331,9 @@ void ExcludeObjectMapView::destroy() {
         plate_area_ = nullptr;
         object_container_ = nullptr;
     }
+    // Withdraws the names before the subjects go; the deferred delete above
+    // finds no observer left on them.
+    subjects_.deinit_all();
 
     state_ = nullptr;
     on_object_tapped_ = nullptr;
@@ -393,16 +409,9 @@ void ExcludeObjectMapView::build_object_rects() {
     spdlog::debug("[ExcludeObjectMapView] Built {} rects from {} defined objects", rects_created,
                   badges.size());
 
-    // Show or hide the empty message imperatively. The XML component scope
-    // persists across create/destroy cycles, so we cannot use lv_xml_register_subject
-    // here — the scope would hold a dangling pointer after destroy() deinits it.
-    lv_obj_t* empty_msg = helix::ui::find_required(root_, "empty_message", "ExcludeObjectMapView");
-    if (empty_msg) {
-        if (rects_created > 0) {
-            lv_obj_add_flag(empty_msg, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(empty_msg, LV_OBJ_FLAG_HIDDEN);
-        }
+    // The empty message binds this view's has_objects subject.
+    if (mode_ == ExcludeMapMode::Interactive) {
+        lv_subject_set_int(&has_objects_, rects_created > 0 ? 1 : 0);
     }
 
     // Draw polygon outlines on canvas (from parsed GCode or Moonraker data)
