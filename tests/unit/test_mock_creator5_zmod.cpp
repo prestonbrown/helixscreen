@@ -214,6 +214,21 @@ TEST_CASE("The Reforge persona's mock AMS is a tool changer", "[mock][creator5]"
     CHECK(backend->get_system_info().type == helix::AmsType::TOOL_CHANGER);
 }
 
+TEST_CASE("HELIX_MOCK_AMS names an AFC mock by each of its spellings", "[mock][ams][afc]") {
+    MockTopologyGuards guards;
+    ScopedRuntimeConfig scoped_config;
+    auto* config = get_runtime_config();
+    config->test_mode = true;
+    config->use_real_ams = false;
+
+    const char* spelling = GENERATE("afc", "box_turtle", "boxturtle", "quattro_box");
+    CAPTURE(spelling);
+    helix::ScopedEnv ams{"HELIX_MOCK_AMS", spelling};
+    auto backend = helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr);
+    REQUIRE(backend != nullptr);
+    CHECK(backend->get_system_info().type == helix::AmsType::AFC);
+}
+
 TEST_CASE("A mock-hardware persona declines the mock AMS backend", "[mock][creator5][zmod]") {
     MockTopologyGuards guards;
     helix::ScopedEnv zmod{"HELIX_MOCK_PRINTER", "creator5_zmod"};
