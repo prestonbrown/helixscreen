@@ -120,6 +120,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* kb = KeyboardManager::instance().get_instance();
     REQUIRE(kb != nullptr);
 
+    // 'g' carries an alternate, the path most likely to log a character.
+    REQUIRE(find_key(kb, 'g') != UINT32_MAX);
+
     init_console_logging();
 
     // Type a realistic passphrase. Digits and symbols live on other layers, so

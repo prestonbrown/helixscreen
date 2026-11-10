@@ -130,6 +130,15 @@ TEST_CASE("archive confirm sends one archived PATCH and the refetch drops the sp
         [](const MoonrakerError&) { FAIL("refetch should succeed"); });
     REQUIRE(served.size() == 1);
     REQUIRE(served[0].id == 42);
+
+    // Real Spoolman filters an archived spool only from list GETs; the record
+    // stays fetchable by id, which is how its web UI offers un-archive.
+    std::optional<SpoolInfo> single;
+    f.api.spoolman().get_spoolman_spool(
+        41, [&single](const std::optional<SpoolInfo>& s) { single = s; },
+        [](const MoonrakerError&) { FAIL("single GET should succeed"); });
+    REQUIRE(single.has_value());
+    REQUIRE(single->id == 41);
 }
 
 TEST_CASE("an archive the user cancels, or the server refuses, changes nothing",
