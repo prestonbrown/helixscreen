@@ -103,7 +103,6 @@ TEST_CASE("A notice reaches the toast of its severity and duration", "[toast][no
     // Matches ToastManager::show()'s own default.
     CHECK(log.shown[3].duration_ms == 4000);
 
-    // With no subscriber a notice is dropped.
     const helix::NoticeSubscriber previous = helix::set_notice_subscriber(nullptr);
     publish_notice({NoticeSeverity::ERROR, "nobody is listening"});
     helix::set_notice_subscriber(previous);
