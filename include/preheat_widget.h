@@ -7,6 +7,7 @@
 
 #include "core/observer_guard.h"
 #include "panel_widget.h"
+#include "subject_managed_panel.h"
 
 #include <cstdint>
 #include <memory>
@@ -55,8 +56,13 @@ class PreheatWidget : public PanelWidget {
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
     lv_obj_t* split_btn_ = nullptr;
-    lv_obj_t* tool_target_btn_ = nullptr;
-    lv_obj_t* tool_target_label_ = nullptr;
+
+    // The tool target button's caption, bound by the component. The button's
+    // visibility binds ToolState's extruder_count. Preheat is single-instance
+    // on the home grid, so the name is fixed.
+    lv_subject_t tool_target_text_{};
+    char tool_target_text_buf_[64] = {};
+    SubjectManager subjects_;
 
     int selected_material_ = 0; // index into helix::presets slots, not a fixed material
     bool heaters_active_ = false;
@@ -71,6 +77,7 @@ class PreheatWidget : public PanelWidget {
     SubjectLifetime bed_target_lifetime_;
     ObserverGuard bed_target_obs_;
     ObserverGuard language_obs_;
+    ObserverGuard tools_version_obs_;
     int cached_extruder_target_ = 0;
     int cached_bed_target_ = 0;
 

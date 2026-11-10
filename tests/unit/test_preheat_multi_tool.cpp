@@ -232,14 +232,9 @@ TEST_CASE("PreheatWidget: collect_preheat_heaters skips a tool with no heater at
 
 namespace {
 
-/// Rebuild ToolState around `extruders` real hotends and drain, so
-/// extruder_count() reports that number before the cycle runs.
-/// init_tools() enumerates extruders out of the discovered Klipper objects.
-void seed_extruders(int extruders) {
-    auto& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
+/// A discovered printer with `extruders` real hotends, for init_tools() to
+/// enumerate.
+helix::PrinterDiscovery extruder_discovery(int extruders) {
     nlohmann::json arr = nlohmann::json::array();
     for (int i = 0; i < extruders; ++i) {
         arr.push_back(i == 0 ? "extruder" : "extruder" + std::to_string(i));
@@ -248,8 +243,17 @@ void seed_extruders(int extruders) {
     arr.push_back("fan");
     helix::PrinterDiscovery disc;
     disc.parse_objects(arr);
+    return disc;
+}
 
-    ts.init_tools(disc);
+/// Rebuild ToolState around `extruders` real hotends and drain, so
+/// extruder_count() reports that number before the cycle runs.
+/// `register_xml` publishes its subjects for a tile to bind.
+void seed_extruders(int extruders, bool register_xml = false) {
+    auto& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(register_xml);
+    ts.init_tools(extruder_discovery(extruders));
     helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(ts.extruder_count() == extruders);
 }
@@ -307,6 +311,28 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PreheatWidget: the tool target button cycle
     lv_obj_send_event(a.child("preheat_tool_target"), LV_EVENT_CLICKED, nullptr);
     CHECK(std::string(lv_label_get_text(a.child("tool_target_label"))) != b_before);
     CHECK(std::string(lv_label_get_text(b.child("tool_target_label"))) == b_before);
+}
+
+// The nozzle count can change under an attached tile (discovery finishing, a
+// toolchanger reconfigured), and the button follows it.
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "PreheatWidget: the tool target button follows the nozzle count",
+                 "[preheat][panel_widget]") {
+    register_preheat_widget();
+    seed_extruders(1, true);
+    PanelWidgetHarness<PreheatWidget> h(test_screen(), get_printer_state());
+    lv_obj_t* btn = h.child("preheat_tool_target");
+    REQUIRE(btn != nullptr);
+    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+
+    ToolState::instance().init_tools(extruder_discovery(2));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(std::string(lv_label_get_text(h.child("tool_target_label"))) == "All (2)");
+
+    ToolState::instance().init_tools(extruder_discovery(1));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "PreheatWidget: cycle_tool_target visits every nozzle in one lap",
@@ -556,28 +582,25 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(ts.heated_heads().size() == 7);
 
     PreheatWidget widget(get_printer_state());
-    lv_obj_t* label = lv_label_create(test_screen());
 
     // The target counts heads, and head 5 is extruder5: tool 5 is a lane of
     // extruder4, and lane 8 is the head's lowest, not the one it holds.
     PreheatWidgetTestAccess::set_tool_target(widget, 5);
-    const std::string head5 = PreheatWidgetTestAccess::tool_target_caption(widget, label);
+    const std::string head5 = PreheatWidgetTestAccess::tool_target_caption(widget);
     CHECK(head5 == ts.tools()[10].display_label);
     CHECK(head5 != ts.tools()[8].display_label);
     CHECK(head5 != ts.tools()[5].display_label);
 
     // With no lane seated, a head falls back to its lowest lane.
     PreheatWidgetTestAccess::set_tool_target(widget, 6);
-    CHECK(PreheatWidgetTestAccess::tool_target_caption(widget, label) ==
-          ts.tools()[12].display_label);
+    CHECK(PreheatWidgetTestAccess::tool_target_caption(widget) == ts.tools()[12].display_label);
 
     // The mounted head names the lane it prints through, over a seat the
     // backend reports for another of its lanes.
     ts.set_ams_topology(helix::test::make_hub_topology(9, {10}));
     helix::ui::UpdateQueue::instance().drain_until_empty();
     PreheatWidgetTestAccess::set_tool_target(widget, 5);
-    CHECK(PreheatWidgetTestAccess::tool_target_caption(widget, label) ==
-          ts.tools()[9].display_label);
+    CHECK(PreheatWidgetTestAccess::tool_target_caption(widget) == ts.tools()[9].display_label);
 
     ts.clear_ams_topology();
     helix::ui::UpdateQueue::instance().drain_until_empty();
