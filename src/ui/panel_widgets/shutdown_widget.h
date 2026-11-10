@@ -40,7 +40,6 @@ class ShutdownWidget : public TiledPanelWidget {
     IMoonrakerAPI* api_;
 
     lv_obj_t* widget_obj_ = nullptr;
-    lv_obj_t* shutdown_btn_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
 
     ShutdownModal shutdown_modal_;

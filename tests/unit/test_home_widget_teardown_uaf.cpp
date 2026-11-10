@@ -686,7 +686,6 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     UpdateQueue::instance().drain();
 
     CHECK(ShutdownWidgetTestAccess::widget_obj(*widget) == nullptr);
-    CHECK(ShutdownWidgetTestAccess::shutdown_btn(*widget) == nullptr);
     CHECK(ShutdownWidgetTestAccess::parent_screen(*widget) == nullptr);
 
     // The path that would have written into the freed tile.

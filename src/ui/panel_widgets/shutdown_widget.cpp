@@ -352,11 +352,6 @@ void ShutdownWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
 
-    shutdown_btn_ = lv_obj_find_by_name(widget_obj_, "shutdown_button");
-    if (shutdown_btn_) {
-        lv_obj_add_event_cb(shutdown_btn_, shutdown_clicked_cb, LV_EVENT_CLICKED, this);
-    }
-
     install_delete_hook(widget_obj_);
 }
 
@@ -368,7 +363,6 @@ void ShutdownWidget::detach() {
         shutdown_modal_.hide();
     }
 
-    shutdown_btn_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 }
@@ -379,7 +373,6 @@ void ShutdownWidget::on_hooked_root_deleted() {
     // than in this tile tree, so it is still alive here and hiding it needs a
     // non-delete context. detach() still runs later and does that.
     lifetime_.invalidate();
-    shutdown_btn_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 }
@@ -531,7 +524,7 @@ void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetim
 
 void ShutdownWidget::shutdown_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[ShutdownWidget] shutdown_clicked_cb");
-    auto* self = static_cast<ShutdownWidget*>(lv_event_get_user_data(e));
+    auto* self = panel_widget_from_event<ShutdownWidget>(e);
     if (self) {
         self->record_interaction();
         self->handle_click();
