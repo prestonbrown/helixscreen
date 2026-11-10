@@ -114,10 +114,9 @@ def draw_art(sc, colors, tier):
         sc.extrude_x(WINDOW, x0 + WALL, x1 - WALL, GLASS, 0.16 if detail else 0.1, front=True)
 
 
-# On the tray: the dock is the front wall, each box's black base rises toward the back as
-# the body's contour, and each box's red top stands on it around its glass.
-_WALL = 26.0
-_BAND = 10.0  # each box's base along the top of the wall; the dock below it runs the whole row
+# On the tray: the dock is the front wall, each box's base rises toward the back as the
+# body's contour, and each box's red top stands on it around its glass.
+_WALL = 26.0  # the dock's front, across every box
 DOCK_COLOR = "#36373c"
 _RISE = (BLACK_REAR - BLACK_TOP) * TRAY_PX_PER_UNIT
 _RED, _BLACK = int(RED[1:], 16), int(BLACK[1:], 16)
@@ -140,7 +139,7 @@ UNIT = UnitDef(
         rail=_BLACK,
         accent=_RED,
         # The lane's number badge stands where its status light is on the real dock.
-        front=[kit.span(0, 0, 0, _WALL, int(DOCK_COLOR[1:], 16), 2), kit.lane(-28, 28, 0, _BAND, _BLACK, 1)],
+        front=[kit.span(0, 0, 0, _WALL, int(DOCK_COLOR[1:], 16), 2)],
         # Lanes leave each box through its own sensors and meet in a separate printed combiner.
         lane_join="junction",
         lid_color=_RED,
