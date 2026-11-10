@@ -2022,7 +2022,9 @@ translations:
   Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error.: Klipper
     がシャットダウン状態になりました。緊急停止、熱暴走、または設定エラーが原因の可能性があります。
   Klipper has no [virtual_sdcard] section.: "Klipperに[virtual_sdcard]セクションがありません。"
+  'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper がタイムラプスマクロを読み込んでいないため、フレームは撮影されません。この行を printer.cfg に追加して Klipper を再起動してください:'
   Klipper is halted — restart firmware to continue: Klipper が停止しています — 続行するにはファームウェアを再起動してください
+  Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper を再起動しています。タイムラプスのフレームは次の印刷から撮影されます。'
   Klipper ready: Klipper準備完了
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper は 'default' を新しいキャリブレーション用に予約しています。別の名前を選んでください。"
   Klipper restarting - macros activating: 'Klipper を再起動しています - マクロを有効化中'
@@ -4039,6 +4041,7 @@ translations:
   The speed of one fan you choose: 選んだファン1つの速度
   The time, date, and system uptime: 時間、日付、稼働時間
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"
+  Timelapse frames start after Klipper restarts.: 'タイムラプスのフレームは Klipper の再起動後に撮影されます。'
   Timelapse or logs folder overlaps a protected one.: "タイムラプスまたはログのフォルダーが保護フォルダーと重なっています。"
   ? The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.
   : 'タイムラプスプラグインはインストールされました。動画の作成にはffmpegも必要ですが、このプリンターにはインストールされていません。'

@@ -21,6 +21,15 @@ TimelapseSetupPath decide_timelapse_setup_path(const TimelapseSetupFacts& facts)
     return facts.job_holds ? TimelapseSetupPath::WaitForJob : TimelapseSetupPath::LocalInstall;
 }
 
+TimelapseMacroSetup decide_timelapse_macro_setup(bool klipper_has_frame_macro,
+                                                 bool helix_macros_loaded) {
+    if (klipper_has_frame_macro) {
+        return TimelapseMacroSetup::Loaded;
+    }
+    return helix_macros_loaded ? TimelapseMacroSetup::IncludeFromHelixMacros
+                               : TimelapseMacroSetup::ShowIncludeLine;
+}
+
 const LocalPluginRecipe& timelapse_plugin_recipe() {
     static const LocalPluginRecipe recipe = [] {
         LocalPluginRecipe r;

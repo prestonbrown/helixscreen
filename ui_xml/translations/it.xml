@@ -1935,7 +1935,9 @@
   <translation tag="Klipper has entered shutdown state." it="Klipper è entrato in stato di arresto."/>
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." it="Klipper è entrato in stato di arresto. Questo potrebbe essere dovuto a un arresto di emergenza, fuga termica o errore di configurazione."/>
   <translation tag="Klipper has no [virtual_sdcard] section." it="Klipper non ha una sezione [virtual_sdcard]."/>
+  <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" it="Klipper non ha caricato le macro del timelapse, quindi non vengono catturati fotogrammi. Aggiungi questa riga a printer.cfg e riavvia Klipper:"/>
   <translation tag="Klipper is halted — restart firmware to continue" it="Klipper è fermo — riavvia il firmware per continuare"/>
+  <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." it="Klipper si sta riavviando. I fotogrammi del timelapse vengono catturati dalla prossima stampa."/>
   <translation tag="Klipper ready" it="Klipper pronto"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." it="Klipper riserva &apos;default&apos; alle nuove calibrazioni. Scegli un altro nome."/>
   <translation tag="Klipper restarting - macros activating" it="Riavvio di Klipper - attivazione delle macro"/>
@@ -4017,6 +4019,7 @@
   <translation tag="Timelapse Available" it="Timelapse disponibile"/>
   <translation tag="Timelapse Settings" it="Impostazioni timelapse"/>
   <translation tag="Timelapse Videos" it="Video timelapse"/>
+  <translation tag="Timelapse frames start after Klipper restarts." it="I fotogrammi del timelapse iniziano dopo il riavvio di Klipper."/>
   <translation tag="Timelapse or logs folder overlaps a protected one." it="La cartella timelapse o dei log si sovrappone a una protetta."/>
   <translation tag="Timelapse plugin installed successfully!" it="Plugin timelapse installato con successo!"/>
   <translation tag="Timelapse plugin installed!" it="Plugin timelapse installato!"/>

@@ -1935,7 +1935,9 @@
   <translation tag="Klipper has entered shutdown state." en="Klipper has entered shutdown state."/>
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." en="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error."/>
   <translation tag="Klipper has no [virtual_sdcard] section." en="Klipper has no [virtual_sdcard] section."/>
+  <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" en="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:"/>
   <translation tag="Klipper is halted — restart firmware to continue" en="Klipper is halted — restart firmware to continue"/>
+  <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." en="Klipper is restarting. Timelapse frames are captured from the next print."/>
   <translation tag="Klipper ready" en="Klipper ready"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." en="Klipper reserves &apos;default&apos; for new calibrations. Choose another name."/>
   <translation tag="Klipper restarting - macros activating" en="Klipper restarting - macros activating"/>
@@ -4017,6 +4019,7 @@
   <translation tag="Timelapse Available" en="Timelapse Available"/>
   <translation tag="Timelapse Settings" en="Timelapse Settings"/>
   <translation tag="Timelapse Videos" en="Timelapse Videos"/>
+  <translation tag="Timelapse frames start after Klipper restarts." en="Timelapse frames start after Klipper restarts."/>
   <translation tag="Timelapse or logs folder overlaps a protected one." en="Timelapse or logs folder overlaps a protected one."/>
   <translation tag="Timelapse plugin installed successfully!" en="Timelapse plugin installed successfully!"/>
   <translation tag="Timelapse plugin installed!" en="Timelapse plugin installed!"/>

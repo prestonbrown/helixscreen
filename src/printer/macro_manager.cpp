@@ -332,8 +332,40 @@ void MacroManager::install_files(SuccessCallback on_success, ErrorCallback on_er
 void MacroManager::update_files(SuccessCallback on_success, ErrorCallback on_error) {
     spdlog::info("[HelixMacroManager] Staging macro update...");
 
+    // The installed file decides whether the regenerated one keeps the
+    // timelapse include; a regeneration that dropped it would silently stop
+    // timelapse frames.
+    auto token = lifetime_.token();
+    api_.transfers().download_file(
+        "config", kHelixMacrosFilename,
+        [this, token, on_success, on_error](const std::string& installed) {
+            const bool keep = has_timelapse_include(installed);
+            token.defer("MacroManager::update_stage", [this, keep, on_success, on_error]() {
+                stage_update(keep, on_success, on_error);
+            });
+        },
+        lifetime_.bg_cb("MacroManager::update_read_failed",
+                        [this, on_success, on_error](const MoonrakerError& err) {
+                            if (err.type == MoonrakerErrorType::FILE_NOT_FOUND) {
+                                stage_update(false, on_success, on_error);
+                                return;
+                            }
+                            spdlog::error("[HelixMacroManager] Failed to read the installed {}: {}",
+                                          kHelixMacrosFilename, err.message);
+                            if (on_error) {
+                                on_error(err);
+                            }
+                        }));
+}
+
+void MacroManager::stage_update(bool keep_timelapse_include, SuccessCallback on_success,
+                                ErrorCallback on_error) {
+    std::string content = macro_content_for(hardware_);
+    if (keep_timelapse_include) {
+        content = with_timelapse_include(content);
+    }
     upload_macro_file(
-        kHelixMacrosFilename, macro_content_for(hardware_),
+        kHelixMacrosFilename, content,
         [this, on_success, on_error]() {
             if (!stages_skips()) {
                 if (on_success) {
@@ -347,6 +379,63 @@ void MacroManager::update_files(SuccessCallback on_success, ErrorCallback on_err
                               on_error);
         },
         on_error);
+}
+
+void MacroManager::include_timelapse_macros(SuccessCallback on_success, ErrorCallback on_error) {
+    spdlog::info("[HelixMacroManager] Adding the timelapse macros to {}", kHelixMacrosFilename);
+
+    auto token = lifetime_.token();
+    api_.transfers().download_file(
+        "config", kHelixMacrosFilename,
+        [this, token, on_success, on_error](const std::string& content) {
+            if (has_timelapse_include(content)) {
+                spdlog::info("[HelixMacroManager] {} already includes the timelapse macros",
+                             kHelixMacrosFilename);
+                token.defer("MacroManager::timelapse_include_present", [on_success]() {
+                    if (on_success) {
+                        on_success();
+                    }
+                });
+                return;
+            }
+            token.defer("MacroManager::timelapse_include_upload",
+                        [this, on_success, on_error, updated = with_timelapse_include(content)]() {
+                            upload_macro_file(kHelixMacrosFilename, updated, on_success, on_error);
+                        });
+        },
+        lifetime_.bg_cb("MacroManager::timelapse_include_read_failed",
+                        [on_error](const MoonrakerError& err) {
+                            spdlog::warn("[HelixMacroManager] Could not read {}: {}",
+                                         kHelixMacrosFilename, err.message);
+                            if (on_error) {
+                                on_error(err);
+                            }
+                        }));
+}
+
+bool MacroManager::has_timelapse_include(const std::string& content) {
+    std::istringstream input(content);
+    std::string line;
+    while (std::getline(input, line)) {
+        if (helix::text_io::trim(line) == kTimelapseMacrosInclude) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::string MacroManager::with_timelapse_include(const std::string& content) {
+    if (has_timelapse_include(content)) {
+        return content;
+    }
+    std::string out = content;
+    if (!out.empty() && out.back() != '\n') {
+        out += '\n';
+    }
+    out += "\n# moonraker-timelapse's macros, added by the HelixScreen timelapse setup\n";
+    out += kTimelapseMacrosInclude;
+    out += '\n';
+    return out;
 }
 
 bool MacroManager::stages_skips() const {

@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <functional>
+#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
@@ -18,7 +19,8 @@ struct TimelapseSettings;
 struct MoonrakerError;
 namespace helix {
 class IMoonrakerAPI;
-}
+class MacroManager;
+} // namespace helix
 
 /**
  * @file ui_overlay_timelapse_install.h
@@ -31,7 +33,9 @@ class IMoonrakerAPI;
  *    through SSH instructions otherwise
  * 4. Configure moonraker.conf with [timelapse] section
  * 5. Restart Moonraker service
- * 6. Verify plugin is loaded
+ * 6. Verify plugin is loaded, then get its Klipper macros loaded: through
+ *    helix_macros.cfg when Klipper has HelixScreen's macros, or by showing the
+ *    line to add to printer.cfg
  */
 class TimelapseInstallOverlay : public OverlayBase {
   public:
@@ -126,6 +130,15 @@ class TimelapseInstallOverlay : public OverlayBase {
     /// Which instructions card shows (timelapse_install_card)
     enum class Card { None = 0, Ssh = 1, Ffmpeg = 2 };
     void show_card(Card card);
+
+    /// Which macro card shows (timelapse_install_macro_card)
+    enum class MacroCard { None = 0, IncludeLine = 1, RestartKlipper = 2 };
+    void show_macro_card(MacroCard card);
+
+    /// After verify: get TIMELAPSE_TAKE_FRAME loaded (decide_timelapse_macro_setup)
+    void setup_timelapse_macros(unsigned gen);
+    /// The macro card's Restart Klipper button; refused while a job holds the machine
+    void restart_klipper_for_macros();
     /// Scroll the card on show into view
     void reveal_card();
 
@@ -151,6 +164,12 @@ class TimelapseInstallOverlay : public OverlayBase {
     lv_subject_t card_subject_{};
     lv_subject_t ffmpeg_command_subject_{};
     char ffmpeg_command_buf_[64] = {};
+    lv_subject_t macro_card_subject_{};
+    lv_subject_t include_line_subject_{};
+    char include_line_buf_[64] = {};
+
+    /// Adds the timelapse include to helix_macros.cfg; its callbacks die with it
+    std::unique_ptr<helix::MacroManager> macro_manager_;
 
     /// The local install left ffmpeg missing; the last screen says how to add it
     bool ffmpeg_missing_ = false;

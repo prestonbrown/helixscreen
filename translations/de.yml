@@ -2144,7 +2144,9 @@ translations:
     ist in den Shutdown-Zustand gewechselt. Dies kann auf einen Notaus, thermisches
     Durchgehen oder einen Konfigurationsfehler zurückzuführen sein.
   Klipper has no [virtual_sdcard] section.: "Klipper hat keinen Abschnitt [virtual_sdcard]."
+  'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper hat die Zeitraffer-Makros nicht geladen, daher werden keine Bilder aufgenommen. Füge diese Zeile zur printer.cfg hinzu und starte Klipper neu:'
   Klipper is halted — restart firmware to continue: Klipper ist angehalten — Firmware neu starten, um fortzufahren
+  Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper startet neu. Zeitraffer-Bilder werden ab dem nächsten Druck aufgenommen.'
   Klipper ready: Klipper bereit
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper reserviert 'default' für neue Kalibrierungen. Wählen Sie einen anderen Namen."
   Klipper restarting - macros activating: 'Klipper startet neu - Makros werden aktiviert'
@@ -4263,6 +4265,7 @@ translations:
   The speed of one fan you choose: Drehzahl eines gewählten Lüfters
   The time, date, and system uptime: Uhrzeit, Datum und Betriebszeit
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Der Zeitraffer- oder Protokoll-Ordner überlappt einen geschützten Ordner, daher ist die Bereinigung ausgeschaltet."
+  Timelapse frames start after Klipper restarts.: 'Zeitraffer-Bilder werden nach dem Neustart von Klipper aufgenommen.'
   Timelapse or logs folder overlaps a protected one.: "Timelapse- oder Log-Ordner überschneidet sich mit einem geschützten Ordner."
   ? The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.
   : 'Das Zeitraffer-Plugin ist installiert. Für Videos wird außerdem ffmpeg benötigt, das auf diesem Drucker nicht installiert ist.'

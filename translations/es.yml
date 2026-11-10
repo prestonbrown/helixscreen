@@ -2136,7 +2136,9 @@ translations:
     ha entrado en estado de apagado. Esto puede ser debido a una parada de emergencia,
     descontrol térmico o error de configuración.
   Klipper has no [virtual_sdcard] section.: "Klipper no tiene una sección [virtual_sdcard]."
+  'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper no ha cargado las macros de timelapse, así que no se capturan fotogramas. Añade esta línea a printer.cfg y reinicia Klipper:'
   Klipper is halted — restart firmware to continue: Klipper está detenido — reinicia el firmware para continuar
+  Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper se está reiniciando. Los fotogramas del timelapse se capturan a partir de la próxima impresión.'
   Klipper ready: Klipper listo
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper reserva 'default' para nuevas calibraciones. Elija otro nombre."
   Klipper restarting - macros activating: 'Reiniciando Klipper - activando macros'
@@ -4255,6 +4257,7 @@ translations:
   The speed of one fan you choose: La velocidad de un ventilador elegido
   The time, date, and system uptime: Hora, fecha y tiempo de actividad
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "La carpeta de timelapse o de registros se solapa con una carpeta protegida, por eso la limpieza está desactivada."
+  Timelapse frames start after Klipper restarts.: 'Los fotogramas del timelapse empiezan después de reiniciar Klipper.'
   Timelapse or logs folder overlaps a protected one.: "La carpeta de timelapse o de registros se solapa con una protegida."
   ? The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.
   : 'El plugin de timelapse está instalado. Para crear vídeos también se necesita ffmpeg, que no está instalado en esta impresora.'
