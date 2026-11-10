@@ -4320,6 +4320,9 @@ translations:
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'このプリンターのMoonrakerはログインを要求しています。設定 > 接続 でAPIキーを追加してください。'
   This printer's firmware has its own power-loss recovery.: "このプリンターのファームウェアには独自の停電からの復帰機能があります。"
   This printer's gantry drops when the power is cut, so a print can't be resumed.: "このプリンターのガントリーは電源が切れると落下するため、印刷を再開できません。"
+  This printer's homing override homes Z along with X and Y, so a print can't be resumed.: "このプリンターのhoming overrideはXとYと同時にZもホーミングするため、印刷を再開できません。"
+  This printer's homing override sets the Z position when it homes X and Y, so a print can't be resumed.: "このプリンターのhoming overrideはXとYのホーミング時にZ位置を設定するため、印刷を再開できません。"
+  This printer's homing override runs commands that may move Z, so a print can't be resumed.: "このプリンターのhoming overrideはZを動かす可能性のあるコマンドを実行するため、印刷を再開できません。"
   This printer's network service controls the WiFi radio: このプリンターのネットワークサービスが WiFi 無線を制御しています
   This printer's network service manages saved WiFi networks: このプリンターのネットワークサービスが保存済みの WiFi ネットワークを管理しています
   This printer's screen has not shared a layout: "このプリンターの画面はレイアウトを共有していません"
@@ -4663,6 +4666,7 @@ translations:
   Waiting for the chamber to heat: チャンバーの加熱を待っています
   Waiting for the filament system to report its state: フィラメントシステムの状態報告を待機中
   Waiting for the printer: プリンターを待っています
+  Waiting to read the printer's configuration from Klipper.: "Klipperからプリンターの設定を読み込むのを待っています。"
   Warm: ウォーム
   Warm Bed: ベッドを予熱
   Warm up for a material in one tap: 素材に合わせてワンタップで予熱

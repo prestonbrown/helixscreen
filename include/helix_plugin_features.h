@@ -227,6 +227,16 @@ inline constexpr PluginReasonText kPluginReasonTexts[] = {
     {"delta_kinematics",
      TR_NOOP("A delta printer can't home X and Y without moving Z, so a print can't be resumed.")},
     {"firmware_recovery", TR_NOOP("This printer's firmware has its own power-loss recovery.")},
+    {"klipper_config_unread", TR_NOOP("Waiting to read the printer's configuration from Klipper.")},
+    {"override_homes_z",
+     TR_NOOP("This printer's homing override homes Z along with X and Y, so a print can't be "
+             "resumed.")},
+    {"override_sets_z",
+     TR_NOOP("This printer's homing override sets the Z position when it homes X and Y, so a "
+             "print can't be resumed.")},
+    {"override_unknown",
+     TR_NOOP("This printer's homing override runs commands that may move Z, so a print can't be "
+             "resumed.")},
     {"snapshot_unreachable",
      TR_NOOP("The plugin can't reach the camera, so this screen takes the photos.")},
     {"unsafe_staging_dir", TR_NOOP("A folder name in moonraker.conf is unsafe.")},

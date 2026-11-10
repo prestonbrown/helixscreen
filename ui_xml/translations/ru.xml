@@ -4211,6 +4211,9 @@
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." ru="Moonraker этого принтера требует входа. Добавьте его API-ключ в Настройки &gt; Соединение."/>
   <translation tag="This printer&apos;s firmware has its own power-loss recovery." ru="Прошивка этого принтера имеет собственное восстановление после отключения питания."/>
   <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." ru="Портал этого принтера опускается при отключении питания, поэтому печать нельзя продолжить."/>
+  <translation tag="This printer&apos;s homing override homes Z along with X and Y, so a print can&apos;t be resumed." ru="Homing override этого принтера паркует Z вместе с X и Y, поэтому печать нельзя продолжить."/>
+  <translation tag="This printer&apos;s homing override runs commands that may move Z, so a print can&apos;t be resumed." ru="Homing override этого принтера выполняет команды, которые могут сдвинуть Z, поэтому печать нельзя продолжить."/>
+  <translation tag="This printer&apos;s homing override sets the Z position when it homes X and Y, so a print can&apos;t be resumed." ru="Homing override этого принтера задаёт положение Z при парковке X и Y, поэтому печать нельзя продолжить."/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" ru="WiFi-модулем управляет сетевая служба этого принтера"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" ru="Сохранёнными сетями WiFi управляет сетевая служба этого принтера"/>
   <translation tag="This printer&apos;s screen has not shared a layout" ru="Экран этого принтера не поделился раскладкой"/>
@@ -4546,6 +4549,7 @@
   <translation tag="Waiting for the chamber to heat" ru="Ожидание нагрева камеры"/>
   <translation tag="Waiting for the filament system to report its state" ru="Ожидание состояния системы филамента"/>
   <translation tag="Waiting for the printer" ru="Ожидание принтера"/>
+  <translation tag="Waiting to read the printer&apos;s configuration from Klipper." ru="Ожидание чтения конфигурации принтера из Klipper."/>
   <translation tag="Warm" ru="Тёплый"/>
   <translation tag="Warm Bed" ru="Прогреть стол"/>
   <translation tag="Warm up for a material in one tap" ru="Преднагрев под материал одним нажатием"/>

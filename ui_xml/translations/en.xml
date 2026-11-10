@@ -4148,6 +4148,9 @@
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." en="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection."/>
   <translation tag="This printer&apos;s firmware has its own power-loss recovery." en="This printer&apos;s firmware has its own power-loss recovery."/>
   <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." en="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed."/>
+  <translation tag="This printer&apos;s homing override homes Z along with X and Y, so a print can&apos;t be resumed." en="This printer&apos;s homing override homes Z along with X and Y, so a print can&apos;t be resumed."/>
+  <translation tag="This printer&apos;s homing override runs commands that may move Z, so a print can&apos;t be resumed." en="This printer&apos;s homing override runs commands that may move Z, so a print can&apos;t be resumed."/>
+  <translation tag="This printer&apos;s homing override sets the Z position when it homes X and Y, so a print can&apos;t be resumed." en="This printer&apos;s homing override sets the Z position when it homes X and Y, so a print can&apos;t be resumed."/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" en="This printer&apos;s network service controls the WiFi radio"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" en="This printer&apos;s network service manages saved WiFi networks"/>
   <translation tag="This printer&apos;s screen has not shared a layout" en="This printer&apos;s screen has not shared a layout"/>
@@ -4483,6 +4486,7 @@
   <translation tag="Waiting for the chamber to heat" en="Waiting for the chamber to heat"/>
   <translation tag="Waiting for the filament system to report its state" en="Waiting for the filament system to report its state"/>
   <translation tag="Waiting for the printer" en="Waiting for the printer"/>
+  <translation tag="Waiting to read the printer&apos;s configuration from Klipper." en="Waiting to read the printer&apos;s configuration from Klipper."/>
   <translation tag="Warm" en="Warm"/>
   <translation tag="Warm Bed" en="Warm Bed"/>
   <translation tag="Warm up for a material in one tap" en="Warm up for a material in one tap"/>

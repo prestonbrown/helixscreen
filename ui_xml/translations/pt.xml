@@ -4148,6 +4148,9 @@
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." pt="O Moonraker desta impressora exige login. Adicione a chave de API em Configurações &gt; Conexão."/>
   <translation tag="This printer&apos;s firmware has its own power-loss recovery." pt="O firmware desta impressora tem a sua própria recuperação após queda de energia."/>
   <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." pt="O pórtico desta impressora cai quando a energia é cortada, então uma impressão não pode ser retomada."/>
+  <translation tag="This printer&apos;s homing override homes Z along with X and Y, so a print can&apos;t be resumed." pt="O homing override desta impressora faz home de Z junto com X e Y, então uma impressão não pode ser retomada."/>
+  <translation tag="This printer&apos;s homing override runs commands that may move Z, so a print can&apos;t be resumed." pt="O homing override desta impressora executa comandos que podem mover Z, então uma impressão não pode ser retomada."/>
+  <translation tag="This printer&apos;s homing override sets the Z position when it homes X and Y, so a print can&apos;t be resumed." pt="O homing override desta impressora define a posição Z ao fazer home de X e Y, então uma impressão não pode ser retomada."/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" pt="O serviço de rede desta impressora controla o rádio WiFi"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" pt="O serviço de rede desta impressora gerencia as redes WiFi salvas"/>
   <translation tag="This printer&apos;s screen has not shared a layout" pt="A tela desta impressora não compartilhou um layout"/>
@@ -4483,6 +4486,7 @@
   <translation tag="Waiting for the chamber to heat" pt="Aguardando a câmara aquecer"/>
   <translation tag="Waiting for the filament system to report its state" pt="Aguardando o sistema de filamento informar seu estado"/>
   <translation tag="Waiting for the printer" pt="Aguardando a impressora"/>
+  <translation tag="Waiting to read the printer&apos;s configuration from Klipper." pt="Aguardando a leitura da configuração da impressora no Klipper."/>
   <translation tag="Warm" pt="Quente"/>
   <translation tag="Warm Bed" pt="Aquecer Mesa"/>
   <translation tag="Warm up for a material in one tap" pt="Pré-aquecer para um material em um toque"/>
