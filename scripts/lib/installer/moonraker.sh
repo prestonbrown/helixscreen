@@ -80,20 +80,12 @@ MOONRAKER_SRC_PATHS="
 # Returns: path to the update_manager directory, or empty string.
 find_moonraker_update_manager_dir() {
     local root
-    local sub
 
     # Dynamic: the detected Klipper user's home first (same precedence as
     # find_moonraker_conf), then the static fallback list.
     for root in ${KLIPPER_HOME:+"${KLIPPER_HOME}/moonraker"} $MOONRAKER_SRC_PATHS; do
         [ -n "$root" ] || continue
-        for sub in "$root/moonraker/components/update_manager" \
-                   "$root/components/update_manager" \
-                   "$root/moonraker/moonraker/components/update_manager"; do
-            if [ -d "$sub" ]; then
-                echo "$sub"
-                return 0
-            fi
-        done
+        moonraker_update_manager_dir_under "$root" && return 0
     done
 
     # Last, the running Moonraker itself, seen through its own root: Forge-X
@@ -106,6 +98,21 @@ find_moonraker_update_manager_dir() {
     fi
 
     echo ""
+}
+
+# Print the update_manager directory of the Moonraker install at $1, in any of
+# the three layouts above. Returns 1, printing nothing, when there is none.
+moonraker_update_manager_dir_under() {
+    local sub
+    for sub in "$1/moonraker/components/update_manager" \
+               "$1/components/update_manager" \
+               "$1/moonraker/moonraker/components/update_manager"; do
+        if [ -d "$sub" ]; then
+            echo "$sub"
+            return 0
+        fi
+    done
+    return 1
 }
 
 # Print the running Moonraker's python package directory (the one holding
@@ -139,8 +146,12 @@ running_moonraker_package_dir() {
 #
 # Echoes exactly one of: supported | unsupported | undetermined
 moonraker_asset_name_support() {
-    local um
-    um=$(find_moonraker_update_manager_dir)
+    moonraker_asset_name_support_in "$(find_moonraker_update_manager_dir)"
+}
+
+# The verdict above for the update_manager directory $1 (empty: none found).
+moonraker_asset_name_support_in() {
+    local um="$1"
 
     if [ -z "$um" ]; then
         # No Moonraker source anywhere we know to look (vendor layout we don't

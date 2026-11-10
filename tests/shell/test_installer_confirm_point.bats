@@ -15,8 +15,9 @@ PLAN="$WORKTREE_ROOT/scripts/lib/installer/plan.sh"
 
 # Functions known to only read. Adding one here is a claim that it, and every
 # function it calls, writes nothing and runs no sudo, apt or systemctl change.
-# uninstall is the exception: it is a separate mode that exits before
-# confirm_point is reached, so it never runs on the install path.
+# uninstall, image_install and image_first_boot are the exceptions: each is a
+# separate mode that exits before confirm_point is reached, so none runs on the
+# install path.
 READ_ONLY="host_profile_probe parse_installer_args mod_payload_autodetect
 _refuse_uninstall_from_install_dir _refuse_if_firmware_managed detect_platform
 get_download_platform print_platform_banner mod_check_chroot_context
@@ -26,6 +27,7 @@ detect_missing_runtime_deps check_disk_space detect_init_system
 check_klipper_ecosystem resolve_update_channel parse_tarball_version
 get_latest_version match_channel_to_version detect_competing_uis
 detect_moonraker_integration detect_kiauh probe_release usage uninstall
+image_install image_first_boot
 log_info log_warn log_error log_note log_success plan_set plan_count_steps
 print_banner print_plan plan_missing_libs plan_adds_line plan_printer_line
 parse_json_string_field display_path tty_confirm _has_no_new_privs step
