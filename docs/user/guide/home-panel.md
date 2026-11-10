@@ -1194,7 +1194,7 @@ To place the chips on a picture that does not know its parts yet, or to correct 
 
 1. Open the Image Picker (see [Changing the Printer Image](#changing-the-printer-image)) and select the picture
 2. Tap **Tag parts** under the preview
-3. Tap each part as you are asked: the nozzle tip, the part cooling fan, the bed's front-left corner, the bed's front-right corner, an empty spot inside the enclosure, and the light. The fan, enclosure and light can be skipped with **Skip** if your printer does not have them; **Undo** steps back one tap
+3. Tap each part as you are asked: the nozzle tip, the part cooling fan, the bed's four corners, an empty spot inside the enclosure, the four corners of the enclosure's front window, and the light. The fan, the bed's back corners, the enclosure, the window and the light can be skipped with **Skip** if your printer does not have them or you cannot see them; **Undo** steps back one tap. A tagged window keeps the chamber's heat glow and the light's glow inside the glass instead of spilling onto the printer's frame
 4. Check where the chips will sit, then tap **Save**
 
 Your tags are kept for that picture, as long as its size does not change: replace a custom image with a file of different dimensions and you will need to tag it again. **Reset tags**, which appears once a picture has your own tags, puts the picture back to its shipped positions (or to chips along the edge, for a picture that has none).

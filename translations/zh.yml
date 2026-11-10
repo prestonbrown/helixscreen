@@ -3973,6 +3973,10 @@ translations:
   Tap the light: 点击灯
   Tap the nozzle tip: 点击喷嘴尖端
   Tap the part cooling fan: 点击零件冷却风扇
+  "Tap the window's top-left corner, or skip if there is none": "点击透明面板的左上角,没有则跳过"
+  "Tap the window's top-right corner": "点击透明面板的右上角"
+  "Tap the window's bottom-right corner": "点击透明面板的右下角"
+  "Tap the window's bottom-left corner": "点击透明面板的左下角"
   Tap to assign: 点击分配
   Target: '目标'
   Target RH: 目标湿度

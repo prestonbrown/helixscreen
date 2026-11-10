@@ -252,6 +252,20 @@ TEST_CASE("ImageTagSession: prompt order, skips, undo", "[printer_image][image_t
     CHECK_FALSE(s.regions(300, 200).bed_far.has_value()); // one far corner is no edge
     s.tap({0.25f, 0.6f});
     s.tap({0.3f, 0.4f});
+    // A window is all four corners or none: only its first corner can be skipped,
+    // and skipping it skips the rest.
+    CHECK(s.prompt() == TagPrompt::WindowTopLeft);
+    CHECK(s.can_skip());
+    s.tap({0.1f, 0.1f});
+    CHECK(s.prompt() == TagPrompt::WindowTopRight);
+    CHECK_FALSE(s.skip());
+    s.undo();
+    CHECK(s.prompt() == TagPrompt::WindowTopLeft);
+    CHECK(s.skip());
+    CHECK(s.prompt() == TagPrompt::Light);
+    s.undo(); // back over the whole skipped window
+    CHECK(s.prompt() == TagPrompt::WindowTopLeft);
+    CHECK(s.skip());
     CHECK(s.prompt() == TagPrompt::Light);
     CHECK(s.skip());
     CHECK(s.done());
@@ -270,12 +284,30 @@ TEST_CASE("ImageTagSession: prompt order, skips, undo", "[printer_image][image_t
     REQUIRE(r.chamber.has_value());
     CHECK(r.chamber->y == Catch::Approx(0.4f));
     CHECK_FALSE(r.light.has_value());
+    CHECK(r.windows.empty());
 
     // Undo from the end, past a skip, returns to that prompt.
     s.undo();
     CHECK(s.prompt() == TagPrompt::Light);
     s.tap({0.1f, 0.1f});
     CHECK(s.regions(300, 200).light.has_value());
+
+    // Corners tapped out of order still make one window; three corners on a line make none.
+    s.undo();
+    s.undo();
+    REQUIRE(s.prompt() == TagPrompt::WindowTopLeft);
+    for (const NormPoint p : {NormPoint{0.1f, 0.1f}, NormPoint{0.9f, 0.9f}, NormPoint{0.9f, 0.1f},
+                              NormPoint{0.1f, 0.9f}})
+        s.tap(p);
+    const auto w = s.regions(300, 200).windows;
+    REQUIRE(w.size() == 1);
+    CHECK(w[0][0].x == Catch::Approx(0.1f));
+    CHECK(w[0][0].y == Catch::Approx(0.1f));
+    CHECK(w[0][2].x == Catch::Approx(0.9f));
+    CHECK(w[0][2].y == Catch::Approx(0.9f));
+    s.undo();
+    s.tap({0.5f, 0.1f});
+    CHECK(s.regions(300, 200).windows.empty());
 }
 
 TEST_CASE("user regions: save writes the entry, reset removes only its key",
@@ -291,6 +323,9 @@ TEST_CASE("user regions: save writes the entry, reset removes only its key",
     s.tap({0.625f, 0.5f});
     s.tap({0.375f, 0.5f});
     s.skip();
+    for (const NormPoint p : {NormPoint{0.125f, 0.125f}, NormPoint{0.875f, 0.125f},
+                              NormPoint{0.875f, 0.875f}, NormPoint{0.125f, 0.875f}})
+        s.tap(p);
     s.tap({0.375f, 0.125f});
     REQUIRE(s.done());
     REQUIRE(save_user_image_regions("custom:mine", s.regions(300, 200)));
@@ -299,7 +334,8 @@ TEST_CASE("user regions: save writes the entry, reset removes only its key",
     const auto doc = nlohmann::json::parse(read_user_file(cfg));
     CHECK(doc["custom:mine"] == nlohmann::json::parse(R"({"size": [300, 200], "nozzle": [0.5, 0.25],
                                     "part_fan": [0.5, 0.125], "light": [0.375, 0.125],
-                                    "bed": [[0.25, 0.75], [0.75, 0.75], [0.625, 0.5], [0.375, 0.5]]})"));
+                                    "bed": [[0.25, 0.75], [0.75, 0.75], [0.625, 0.5], [0.375, 0.5]],
+                                    "windows": [[[0.125, 0.125], [0.875, 0.125], [0.875, 0.875], [0.125, 0.875]]]})"));
     // The file reads back through the same parser as regions.json.
     CHECK(parse_image_regions(read_user_file(cfg)).size() == 2);
     // The saved tags take effect without a reload.

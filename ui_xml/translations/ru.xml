@@ -3916,6 +3916,10 @@
   <translation tag="Tap the light" ru="Нажмите на подсветку"/>
   <translation tag="Tap the nozzle tip" ru="Нажмите на кончик сопла"/>
   <translation tag="Tap the part cooling fan" ru="Нажмите на вентилятор охлаждения детали"/>
+  <translation tag="Tap the window&apos;s bottom-left corner" ru="Нажмите на нижний левый угол окна"/>
+  <translation tag="Tap the window&apos;s bottom-right corner" ru="Нажмите на нижний правый угол окна"/>
+  <translation tag="Tap the window&apos;s top-left corner, or skip if there is none" ru="Нажмите на верхний левый угол окна или пропустите, если его нет"/>
+  <translation tag="Tap the window&apos;s top-right corner" ru="Нажмите на верхний правый угол окна"/>
   <translation tag="Tap to assign" ru="Нажмите для назначения"/>
   <translation tag="Target" ru="Цель"/>
   <translation tag="Target RH" ru="Цель ОВ"/>

@@ -354,7 +354,7 @@ std::array<NormPoint, 4> plate_quad(const ImageRegions& r) {
 bool ImageTagSession::can_skip() const {
     const auto p = prompt();
     return p == TagPrompt::PartFan || p == TagPrompt::BedFarRight || p == TagPrompt::BedFarLeft ||
-           p == TagPrompt::Chamber || p == TagPrompt::Light;
+           p == TagPrompt::Chamber || p == TagPrompt::WindowTopLeft || p == TagPrompt::Light;
 }
 
 void ImageTagSession::tap(NormPoint p) {
@@ -366,13 +366,20 @@ void ImageTagSession::tap(NormPoint p) {
 bool ImageTagSession::skip() {
     if (!can_skip())
         return false;
-    points_[step_++].reset();
+    const int run = prompt() == TagPrompt::WindowTopLeft ? kWindowCorners : 1;
+    for (int i = 0; i < run; ++i)
+        points_[step_++].reset();
     return true;
 }
 
 void ImageTagSession::undo() {
-    if (step_ > 0)
-        points_[--step_].reset();
+    if (step_ == 0)
+        return;
+    points_[--step_].reset();
+    // A skipped window's corners are all empty: step back over them as one.
+    const int first = static_cast<int>(TagPrompt::WindowTopLeft);
+    if (step_ > first && step_ < first + kWindowCorners && !points_[first])
+        step_ = first;
 }
 
 ImageRegions ImageTagSession::regions(int natural_w, int natural_h) const {
@@ -389,6 +396,26 @@ ImageRegions ImageTagSession::regions(int natural_w, int natural_h) const {
     r.part_fan = at(TagPrompt::PartFan);
     r.chamber = at(TagPrompt::Chamber);
     r.light = at(TagPrompt::Light);
+    std::array<NormPoint, 4> window;
+    bool all_corners = true;
+    for (int i = 0; i < kWindowCorners; ++i) {
+        const auto p = points_[static_cast<int>(TagPrompt::WindowTopLeft) + i];
+        all_corners = all_corners && p.has_value();
+        window[i] = p.value_or(NormPoint{});
+    }
+    if (all_corners) {
+        // Corners tapped out of order still bound one window: walk them around their centre.
+        const float cx = (window[0].x + window[1].x + window[2].x + window[3].x) / 4.f;
+        const float cy = (window[0].y + window[1].y + window[2].y + window[3].y) / 4.f;
+        std::sort(window.begin(), window.end(), [cx, cy](const NormPoint& a, const NormPoint& b) {
+            return std::atan2(a.y - cy, a.x - cx) < std::atan2(b.y - cy, b.x - cx);
+        });
+        if (is_convex(window))
+            r.windows.push_back(window);
+        else
+            spdlog::info("[PrinterImageRegions] tagged window corners do not bound an area; "
+                         "the window is left out");
+    }
     return r;
 }
 

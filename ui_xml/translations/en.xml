@@ -3853,6 +3853,10 @@
   <translation tag="Tap the light" en="Tap the light"/>
   <translation tag="Tap the nozzle tip" en="Tap the nozzle tip"/>
   <translation tag="Tap the part cooling fan" en="Tap the part cooling fan"/>
+  <translation tag="Tap the window&apos;s bottom-left corner" en="Tap the window&apos;s bottom-left corner"/>
+  <translation tag="Tap the window&apos;s bottom-right corner" en="Tap the window&apos;s bottom-right corner"/>
+  <translation tag="Tap the window&apos;s top-left corner, or skip if there is none" en="Tap the window&apos;s top-left corner, or skip if there is none"/>
+  <translation tag="Tap the window&apos;s top-right corner" en="Tap the window&apos;s top-right corner"/>
   <translation tag="Tap to assign" en="Tap to assign"/>
   <translation tag="Target" en="Target"/>
   <translation tag="Target RH" en="Target RH"/>

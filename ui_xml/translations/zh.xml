@@ -3853,6 +3853,10 @@
   <translation tag="Tap the light" zh="点击灯"/>
   <translation tag="Tap the nozzle tip" zh="点击喷嘴尖端"/>
   <translation tag="Tap the part cooling fan" zh="点击零件冷却风扇"/>
+  <translation tag="Tap the window&apos;s bottom-left corner" zh="点击透明面板的左下角"/>
+  <translation tag="Tap the window&apos;s bottom-right corner" zh="点击透明面板的右下角"/>
+  <translation tag="Tap the window&apos;s top-left corner, or skip if there is none" zh="点击透明面板的左上角,没有则跳过"/>
+  <translation tag="Tap the window&apos;s top-right corner" zh="点击透明面板的右上角"/>
   <translation tag="Tap to assign" zh="点击分配"/>
   <translation tag="Target" zh="目标"/>
   <translation tag="Target RH" zh="目标湿度"/>

@@ -4210,6 +4210,10 @@ translations:
   Tap the light: 'Touchez l''éclairage'
   Tap the nozzle tip: Touchez la pointe de la buse
   Tap the part cooling fan: Touchez le ventilateur de refroidissement pièce
+  "Tap the window's top-left corner, or skip if there is none": "Touchez le coin supérieur gauche de la vitre, ou passez s'il n'y en a pas"
+  "Tap the window's top-right corner": "Touchez le coin supérieur droit de la vitre"
+  "Tap the window's bottom-right corner": "Touchez le coin inférieur droit de la vitre"
+  "Tap the window's bottom-left corner": "Touchez le coin inférieur gauche de la vitre"
   Tap to assign: Appuyez pour assigner
   Target: 'Cible'
   Target RH: HR cible

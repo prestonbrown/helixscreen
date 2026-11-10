@@ -4186,6 +4186,10 @@ translations:
   Tap the light: Toque la luz
   Tap the nozzle tip: Toque la punta de la boquilla
   Tap the part cooling fan: Toque el ventilador de enfriamiento de pieza
+  "Tap the window's top-left corner, or skip if there is none": "Toque la esquina superior izquierda de la ventana, u omita si no hay"
+  "Tap the window's top-right corner": "Toque la esquina superior derecha de la ventana"
+  "Tap the window's bottom-right corner": "Toque la esquina inferior derecha de la ventana"
+  "Tap the window's bottom-left corner": "Toque la esquina inferior izquierda de la ventana"
   Tap to assign: Toca para asignar
   Target: 'Objetivo'
   Target RH: HR obj.

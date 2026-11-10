@@ -3853,6 +3853,10 @@
   <translation tag="Tap the light" ja="ライトをタップ"/>
   <translation tag="Tap the nozzle tip" ja="ノズルの先端をタップ"/>
   <translation tag="Tap the part cooling fan" ja="パーツ冷却ファンをタップ"/>
+  <translation tag="Tap the window&apos;s bottom-left corner" ja="ガラス面の左下の角をタップ"/>
+  <translation tag="Tap the window&apos;s bottom-right corner" ja="ガラス面の右下の角をタップ"/>
+  <translation tag="Tap the window&apos;s top-left corner, or skip if there is none" ja="ガラス面の左上の角をタップ(なければスキップ)"/>
+  <translation tag="Tap the window&apos;s top-right corner" ja="ガラス面の右上の角をタップ"/>
   <translation tag="Tap to assign" ja="タップして割当"/>
   <translation tag="Target" ja="目標"/>
   <translation tag="Target RH" ja="目標湿度"/>

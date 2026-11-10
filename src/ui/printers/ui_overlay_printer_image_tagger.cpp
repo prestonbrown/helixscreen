@@ -57,6 +57,14 @@ const char* prompt_text(TagPrompt p) {
         return lv_tr("Tap the bed's back-left corner");
     case TagPrompt::Chamber:
         return lv_tr("Tap an empty spot inside the enclosure");
+    case TagPrompt::WindowTopLeft:
+        return lv_tr("Tap the window's top-left corner, or skip if there is none");
+    case TagPrompt::WindowTopRight:
+        return lv_tr("Tap the window's top-right corner");
+    case TagPrompt::WindowBottomRight:
+        return lv_tr("Tap the window's bottom-right corner");
+    case TagPrompt::WindowBottomLeft:
+        return lv_tr("Tap the window's bottom-left corner");
     case TagPrompt::Light:
         return lv_tr("Tap the light");
     case TagPrompt::Done:
