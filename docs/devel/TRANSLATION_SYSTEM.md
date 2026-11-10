@@ -496,5 +496,5 @@ Print filenames are user text, so they get a second, larger set whatever the UI 
 
 1. Verify the call site uses `helix::ui::tr_plural()` with the plural key as a literal
 2. Verify the dictionary sits on the plural (`other_key`) entry and has an `other` form
-3. Check the language has a rule in `helix::ui::plural_category()` (`src/ui/i18n_plural.cpp`)
+3. Check the language has a rule in `helix::ui::plural_category()` (`src/core/i18n_plural.cpp`)
 4. Check the regenerated `ui_xml/translations/<lang>.xml` carries the `<key>_<category>` tags
