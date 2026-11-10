@@ -10,6 +10,7 @@
 #include "core/static_panel_registry.h"
 #include "overlay_base.h"
 #include "printer_state.h"
+#include "subject_managed_panel.h"
 #include "ui/animated_value.h"
 
 #include <memory>
@@ -191,7 +192,15 @@ class FanControlOverlay : public OverlayBase {
     struct AutoFanCard {
         std::string object_name;
         lv_obj_t* card = nullptr;
-        lv_obj_t* speed_label = nullptr;
+        /// The card's speed line, which its component binds. Heap-held so the
+        /// binding's address survives the vector growing.
+        struct SpeedText {
+            lv_subject_t subject{};
+            char buf[32] = {};
+            std::string name;
+            SubjectManager manager;
+        };
+        std::unique_ptr<SpeedText> speed;
         lv_obj_t* arc = nullptr;      ///< Arc widget for live speed updates
         lv_obj_t* fan_icon = nullptr; ///< Fan icon for spin animation
         int last_speed_pct = 0;       ///< Cached speed for animation refresh
@@ -215,6 +224,9 @@ class FanControlOverlay : public OverlayBase {
     //
 
     void update_auto_fan_animation(AutoFanCard& card, int speed_pct);
+    /// The card's speed line: "40%", or "40% · 3100 RPM" with a tachometer reading.
+    static void set_auto_fan_speed_text(AutoFanCard::SpeedText& speed, int speed_pct,
+                                        std::optional<int> rpm);
     void refresh_all_auto_fan_animations();
 };
 

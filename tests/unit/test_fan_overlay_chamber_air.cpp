@@ -449,15 +449,15 @@ TEST_CASE_METHOD(
 
     lv_obj_t* root = helix::open_fan_control_overlay(test_screen());
     REQUIRE(root != nullptr);
+    std::string part_name, aux_name;
+    for (const auto& f : state().fan_state().get_fans()) {
+        (f.object_name == "fan" ? part_name : aux_name) = f.display_name;
+    }
+    // No queue drain and no further status yet: a steady reading comes from the dial's build.
+    CHECK(shows(dial_rpm_label(root, part_name), "3200 RPM"));
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(50);
     helix::ui::UpdateQueue::instance().drain();
-
-    const auto& fans = state().fan_state().get_fans();
-    std::string part_name, aux_name;
-    for (const auto& f : fans) {
-        (f.object_name == "fan" ? part_name : aux_name) = f.display_name;
-    }
     lv_obj_t* part = dial_rpm_label(root, part_name);
     lv_obj_t* aux = dial_rpm_label(root, aux_name);
     REQUIRE(part != nullptr);
@@ -473,39 +473,15 @@ TEST_CASE_METHOD(
         CHECK(lv_obj_has_flag(aux, LV_OBJ_FLAG_HIDDEN));
     }
 
-    SECTION("a reading that goes away hides the label") {
-        get_printer_state().update_from_status(json{{"fan", {{"rpm", nullptr}}}});
-        helix::ui::UpdateQueue::instance().drain();
-        process_lvgl(50);
-        CHECK(lv_obj_has_flag(part, LV_OBJ_FLAG_HIDDEN));
+    SECTION("a reading that goes away, or a stopped fan's 0 rpm, hides the label") {
+        for (const json& gone : {json(nullptr), json(0.0)}) {
+            get_printer_state().update_from_status(json{{"fan", {{"rpm", 3200.0}}}});
+            get_printer_state().update_from_status(json{{"fan", {{"rpm", gone}}}});
+            helix::ui::UpdateQueue::instance().drain();
+            process_lvgl(50);
+            CHECK(lv_obj_has_flag(part, LV_OBJ_FLAG_HIDDEN));
+        }
     }
-
-    SECTION("a stopped fan reading 0 rpm shows none") {
-        get_printer_state().update_from_status(json{{"fan", {{"rpm", 0.0}}}});
-        helix::ui::UpdateQueue::instance().drain();
-        process_lvgl(50);
-        CHECK(lv_obj_has_flag(part, LV_OBJ_FLAG_HIDDEN));
-    }
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "fan overlay: a dial built for a fan at a steady rpm shows it at once (#2082)",
-                 "[fan_overlay][rpm]") {
-    FreshOverlays fresh;
-    PrinterDiscovery hw;
-    hw.parse_objects(json::array({"extruder", "fan"}));
-    get_printer_state().set_hardware(hw);
-    state().fan_state().init_fans({"fan"});
-    get_printer_state().update_from_status(json{{"fan", {{"speed", 0.5}, {"rpm", 3200.0}}}});
-    seed_nav_panels(test_screen());
-
-    lv_obj_t* root = helix::open_fan_control_overlay(test_screen());
-    REQUIRE(root != nullptr);
-
-    // No queue drain and no further status: the reading comes from the dial's build.
-    lv_obj_t* part = dial_rpm_label(root, state().fan_state().get_fans().front().display_name);
-    REQUIRE(part != nullptr);
-    CHECK(shows(part, "3200 RPM"));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -526,11 +502,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     } animations_on;
 
     PrinterDiscovery hw;
-    hw.parse_objects(json::array({"extruder", "heater_fan hotend_fan"}));
+    hw.parse_objects(json::array({"extruder", "heater_fan hotend_fan", "controller_fan board"}));
     get_printer_state().set_hardware(hw);
-    state().fan_state().init_fans({"heater_fan hotend_fan"});
+    state().fan_state().init_fans({"heater_fan hotend_fan", "controller_fan board"});
+    // A second auto fan's card keeps its own speed line.
     get_printer_state().update_from_status(
-        json{{"heater_fan hotend_fan", {{"speed", 0.5}, {"rpm", 3000.0}}}});
+        json{{"heater_fan hotend_fan", {{"speed", 0.5}, {"rpm", 3000.0}}},
+             {"controller_fan board", {{"speed", 0.25}}}});
     seed_nav_panels(test_screen());
 
     lv_obj_t* root = helix::open_fan_control_overlay(test_screen());
@@ -550,27 +528,49 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(1);
     REQUIRE(has_label(root, "50% \xC2\xB7 3100 RPM"));
+    CHECK(has_label(root, "25%"));
     CHECK(lv_anim_get(icon, helix::ui::fan_spin_anim_cb) != nullptr);
     CHECK(lv_obj_get_style_transform_rotation(icon, LV_PART_MAIN) >= turned);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "fan dial: an rpm reading leaves the speed display alone",
+TEST_CASE_METHOD(LVGLUITestFixture, "fan dial: two dials keep their own speed, switch text and rpm",
                  "[fan_overlay][rpm]") {
     FanDial dial(test_screen(), "Part Fan", "fan", 40);
-    lv_obj_t* rpm = lv_obj_find_by_name(dial.get_root(), "rpm_label");
-    lv_obj_t* speed = lv_obj_find_by_name(dial.get_root(), "speed_label");
-    REQUIRE(rpm != nullptr);
-    REQUIRE(speed != nullptr);
-    CHECK(lv_obj_has_flag(rpm, LV_OBJ_FLAG_HIDDEN));
-    const std::string speed_text = lv_label_get_text(speed);
+    FanDial other(test_screen(), "Exhaust", "fan", 0, /*label_bottom=*/true);
+    auto named = [](FanDial& d, const char* name) {
+        lv_obj_t* obj = lv_obj_find_by_name(d.get_root(), name);
+        REQUIRE(obj != nullptr);
+        return obj;
+    };
+    auto visible = [](lv_obj_t* obj) { return !lv_obj_is_hidden(obj); };
+    lv_obj_t* rpm = named(dial, "rpm_label");
+    lv_obj_t* speed = named(dial, "speed_label");
+    CHECK(lv_obj_is_hidden(rpm));
+    CHECK(shows(speed, "40%"));
+    CHECK(shows(named(other, "speed_label"), "Off"));
+    CHECK(visible(named(dial, "onoff_label_on")));
+    CHECK_FALSE(visible(named(dial, "onoff_label")));
+    CHECK(visible(named(other, "onoff_label")));
+    CHECK_FALSE(visible(named(other, "onoff_label_on")));
+    // The carousel layout names the fan under the arc; the dial's arc has a knob to grab.
+    CHECK(visible(named(dial, "name_label")));
+    CHECK_FALSE(visible(named(other, "name_label")));
+    CHECK(visible(named(other, "name_label_bottom")));
+    CHECK(lv_obj_get_style_bg_opa(named(dial, "dial_arc"), LV_PART_KNOB) == LV_OPA_COVER);
 
     dial.set_rpm(2500);
     CHECK(shows(rpm, "2500 RPM"));
-    CHECK(std::string(lv_label_get_text(speed)) == speed_text);
+    CHECK(shows(speed, "40%"));
     CHECK(dial.get_speed() == 40);
+    CHECK_FALSE(visible(named(other, "rpm_label")));
+
+    other.set_speed(75);
+    CHECK(shows(named(other, "speed_label"), "75%"));
+    CHECK(visible(named(other, "onoff_label_on")));
+    CHECK(shows(speed, "40%"));
 
     dial.set_rpm(std::nullopt);
-    CHECK(lv_obj_has_flag(rpm, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(rpm));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "fan dial: a dial set to Off shows no rpm over its zero knob",

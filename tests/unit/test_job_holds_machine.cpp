@@ -521,7 +521,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/estop_confirmation_dialog.xml",
     "ui_xml/exclude_object_modal.xml",
     "ui_xml/factory_reset_modal.xml",
-    // Chamber air modes only set fan speeds.
+    // Chamber air modes only set fan speeds; fan_arc_core carries the dial's arc and icon.
+    "ui_xml/fan_arc_core.xml",
     "ui_xml/fan_control_overlay.xml",
     "ui_xml/fan_dial.xml",
     "ui_xml/fan_rename_modal.xml",

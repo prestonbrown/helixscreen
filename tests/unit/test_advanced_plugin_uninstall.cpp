@@ -136,6 +136,12 @@ struct PluginUninstallFixture : LVGLUITestFixture {
         return lv_label_get_text(message);
     }
 
+    /// Whether the open dialog shows its part named @p name.
+    bool shown(const char* name) {
+        lv_obj_t* obj = lv_obj_find_by_name(ModalStack::instance().top_dialog(), name);
+        return obj && !lv_obj_is_hidden(obj) && !lv_obj_is_hidden(lv_obj_get_parent(obj));
+    }
+
     /// A backdrop tap: the dismissal path no button answers.
     void dismiss_modal() {
         lv_obj_t* dialog = ModalStack::instance().top_dialog();
@@ -229,6 +235,7 @@ TEST_CASE_METHOD(PluginUninstallFixture,
 
     CHECK(restarts == 1);
     CHECK(message.find("restarting") != std::string::npos);
+    CHECK((shown("result_title") && !shown("result_title_failed") && !shown("local_button_row")));
     // Files on disk are not a loaded plugin: the reconnect's check decides.
     CHECK(plugin_installed() == 0);
 }
@@ -242,6 +249,7 @@ TEST_CASE_METHOD(PluginUninstallFixture, "a failed install restarts nothing",
 
     CHECK(restarts == 0);
     CHECK(message.find("restarting") == std::string::npos);
+    CHECK((shown("result_title_failed") && !shown("result_title") && shown("btn_ok")));
     CHECK(plugin_installed() == 0);
 }
 
