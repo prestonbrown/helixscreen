@@ -786,9 +786,10 @@ void WizardWifiStep::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(wifi_password_modal_ssid_, wifi_password_modal_ssid_buffer_, "",
                               "wifi_password_modal_ssid", subjects_);
     UI_MANAGED_SUBJECT_STRING(password_status_, password_status_buffer_, "",
-                              "wizard_wifi_password_status", subjects_);
+                              "wizard_wifi_password_status",
+                              subjects_); // SUBJECT_OK: bound via modal attrs
     UI_MANAGED_SUBJECT_INT(password_status_shown_, 0, "wizard_wifi_password_status_shown",
-                           subjects_);
+                           subjects_); // SUBJECT_OK: bound via modal attrs
     UI_MANAGED_SUBJECT_STRING(wifi_status_, wifi_status_buffer_, get_status_text("disabled"),
                               "wifi_status", subjects_);
     UI_MANAGED_SUBJECT_STRING(wifi_ip_, wifi_ip_buffer_, "", "wifi_ip", subjects_);
