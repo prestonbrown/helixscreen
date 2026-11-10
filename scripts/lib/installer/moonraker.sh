@@ -918,10 +918,15 @@ open_plugin_to_moonraker() {
 # config change, over Moonraker's HTTP API at installer_moonraker_url. It
 # reports what it did and what is left to the user, a Moonraker that is not
 # running or a print holding the restart off included. Always returns 0: a
-# restart that did not happen must never abort an install.
+# restart that did not happen must never abort an install. The verdict, a
+# HELIX_RESTART_* code, is left in MOONRAKER_RESTART_RC for a caller that has to
+# know the new config is loaded (image.sh's first-boot moonraker step).
 restart_moonraker() {
     log_info "Restarting Moonraker to apply configuration..."
-    moonraker_restart config "$(installer_moonraker_url)" log_info log_warn || :
+    # shellcheck disable=SC2034  # consumed by image.sh (_image_first_boot_step)
+    MOONRAKER_RESTART_RC=0
+    # shellcheck disable=SC2034  # consumed by image.sh (_image_first_boot_step)
+    moonraker_restart config "$(installer_moonraker_url)" log_info log_warn || MOONRAKER_RESTART_RC=$?
     return 0
 }
 

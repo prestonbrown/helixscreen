@@ -192,8 +192,12 @@ CustomPiOS case, where the module runs inside the image's chroot.
   `permission-rules`, `alsa`, `remote-screen`, `kiauh` (unless `--skip-kiauh-registration`) and
   `moonraker` when deferred. The oneshot unit, ordered before `helixscreen.service` and gated on
   that file, runs `<install>/install.sh --first-boot`; `image_first_boot` runs each step, moves
-  the ledgers into printer_data, and deletes the file. A failing step keeps it, so the next boot
-  tries again. A release whose bundled `install.sh` predates `--first-boot` is refused.
+  the ledgers into printer_data, and writes back only the steps that did not finish, deleting the
+  file when none is left; a step left over fails the unit and the next boot tries it again.
+  `remote-screen` and `moonraker` first wait for Moonraker to answer
+  (`HELIX_FIRST_BOOT_MOONRAKER_SECS`, default 120) and stay when it never does, since without it
+  the route settles on the LAN; `moonraker` also stays unless its restart reported done
+  (`MOONRAKER_RESTART_RC`). A release whose bundled `install.sh` predates `--first-boot` is refused.
 - **Uninstall** on the booted printer is the ordinary `--uninstall`; `remove_first_boot_unit`
   removes the oneshot.
 

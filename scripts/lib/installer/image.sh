@@ -282,6 +282,12 @@ image_configure_moonraker() {
 image_fix_ownership() {
     chown -Rh "${IMAGE_UID}:${IMAGE_GID}" "$INSTALL_DIR" 2>/dev/null ||
         log_warn "Could not hand $IMAGE_INSTALL_DIR to $IMAGE_USER; the service fixes ownership when it first starts"
+    # The copy add_update_manager_section keeps of moonraker.conf sits in the
+    # user's printer_data beside it.
+    local _ifo_bak="$IMAGE_ROOT${IMAGE_MOONRAKER_CONF}.bak.helixscreen"
+    [ ! -f "$_ifo_bak" ] || chown "${IMAGE_UID}:${IMAGE_GID}" "$_ifo_bak" 2>/dev/null ||
+        log_warn "Could not hand ${IMAGE_MOONRAKER_CONF}.bak.helixscreen to $IMAGE_USER"
+    return 0
 }
 
 # The installed copy of install.sh runs the first-boot pass, so the release
@@ -369,36 +375,89 @@ image_install() {
     image_print_summary
 }
 
+# How long first boot waits for Moonraker to answer before the steps that talk
+# to it are left for the next boot. It starts alongside this unit, and on a
+# Pi with several MCUs it can take a minute or more to listen.
+IMAGE_FIRST_BOOT_MOONRAKER_SECS="${HELIX_FIRST_BOOT_MOONRAKER_SECS:-120}"
+
+# True once Moonraker answers /server/info at the URL this install would use,
+# probing once a second for IMAGE_FIRST_BOOT_MOONRAKER_SECS. The answer is kept
+# for the rest of the run.
+_image_moonraker_up() {
+    case "${_IMAGE_MOONRAKER_UP:-}" in
+        yes) return 0 ;;
+        no) return 1 ;;
+    esac
+    local _imu_url _imu_end
+    _imu_url=$(installer_moonraker_url)
+    _imu_end=$(($(helix_now) + IMAGE_FIRST_BOOT_MOONRAKER_SECS))
+    while :; do
+        moonraker_request GET "$_imu_url/server/info" 2 || :
+        if [ -n "$HTTP_STATUS" ]; then
+            _IMAGE_MOONRAKER_UP=yes
+            return 0
+        fi
+        if [ "$(helix_now)" -ge "$_imu_end" ]; then
+            log_warn "Moonraker did not answer within ${IMAGE_FIRST_BOOT_MOONRAKER_SECS} seconds; its steps wait for the next boot"
+            _IMAGE_MOONRAKER_UP=no
+            return 1
+        fi
+        sleep 1
+    done
+}
+
+# Run first-boot step $1; true only when it is finished. A step that talks to
+# Moonraker counts as finished only when Moonraker answered, since without it
+# install_remote_screen_route settles on the LAN and returns success, and a
+# stanza the moonraker step adds stays unread until Moonraker restarts.
+_image_first_boot_step() {
+    case "$1" in
+        config-links) setup_config_symlink && pin_env_file ;;
+        permission-rules) install_permission_rules "$platform" ;;
+        alsa) configure_alsa_default ;;
+        remote-screen) _image_moonraker_up && install_remote_screen_route ;;
+        kiauh) install_kiauh_extension false ;;
+        moonraker)
+            _image_moonraker_up || return 1
+            MOONRAKER_RESTART_RC=""
+            configure_moonraker_updates "$platform" || return 1
+            [ "${MOONRAKER_RESTART_RC:-$HELIX_RESTART_DONE}" = "$HELIX_RESTART_DONE" ]
+            ;;
+        *) log_warn "Skipping unknown first-boot step: $1" ;;
+    esac
+}
+
 # --first-boot, on the booted printer: run each step the marker lists, then
-# delete it. Paths come from main()'s own detection, which finds the install
-# the image carries. Any failing step stops the run with the marker kept.
+# write back only the ones that did not finish, deleting the marker when none
+# is left. Paths come from main()'s own detection, which finds the install the
+# image carries. A step left over makes the run fail, so the unit shows it, and
+# the next boot tries that step again.
 image_first_boot() {
-    local platform="$1" _ifb_marker _ifb_step
+    local platform="$1" _ifb_marker _ifb_steps _ifb_step _ifb_left=""
     _ifb_marker="$INSTALL_DIR/config/$IMAGE_FIRST_BOOT_MARKER"
     if [ ! -f "$_ifb_marker" ]; then
         log_info "No first-boot setup is pending at $INSTALL_DIR"
         return 0
     fi
     detect_init_system
-    while IFS= read -r _ifb_step; do
-        case "$_ifb_step" in
-            "") ;;
-            config-links) setup_config_symlink && pin_env_file ;;
-            permission-rules) install_permission_rules "$platform" ;;
-            alsa) configure_alsa_default || true ;;
-            remote-screen) install_remote_screen_route || true ;;
-            kiauh) install_kiauh_extension false || true ;;
-            moonraker) configure_moonraker_updates "$platform" ;;
-            *) log_warn "Skipping unknown first-boot step: $_ifb_step" ;;
-        esac || {
-            log_error "First-boot step failed: $_ifb_step; the next boot tries again"
-            exit 1
-        }
-    done < "$_ifb_marker"
+    # Read whole first: a step reading stdin must not eat the list.
+    _ifb_steps=$(cat "$_ifb_marker")
+    for _ifb_step in $_ifb_steps; do
+        if ! _image_first_boot_step "$_ifb_step" </dev/null; then
+            log_warn "First-boot step not finished: $_ifb_step; the next boot tries again"
+            _ifb_left="${_ifb_left}${_ifb_step}
+"
+        fi
+    done
     # The steps above record their uninstall ledgers in the install dir; move
     # them into printer_data, where a Moonraker update cannot delete them.
     setup_config_symlink quiet
     fix_user_config_ownership
+    if [ -n "$_ifb_left" ]; then
+        printf '%s' "$_ifb_left" > "$_ifb_marker"
+        log_error "First-boot setup is not finished: $(printf '%s' "$_ifb_left" | tr '\n' ' ')"
+        exit 1
+    fi
     rm -f "$_ifb_marker"
     log_success "First-boot setup finished"
 }
