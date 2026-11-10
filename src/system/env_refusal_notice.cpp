@@ -20,8 +20,7 @@
 
 #include "env_refusal_notice.h"
 
-#include "ui_notification.h"
-
+#include "core/notification_api.h"
 #include "i18n_plural.h"
 #include "lvgl.h"
 

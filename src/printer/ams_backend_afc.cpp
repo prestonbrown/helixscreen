@@ -3,9 +3,6 @@
 
 #include "ams_backend_afc.h"
 
-#include "ui_error_reporting.h"
-#include "ui_notification.h"
-
 #include "action_prompt_manager.h"
 #include "afc_defaults.h"
 #include "ams_bypass_policy.h"
@@ -13,6 +10,7 @@
 #include "ams_fault_event.h"
 #include "ams_status_json.h"
 #include "config.h"
+#include "core/error_reporting.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "filament_variants.h"
@@ -4346,8 +4344,11 @@ AmsError AmsBackendAfc::execute_gcode_notify(const std::string& gcode,
                 spdlog::warn("[AMS AFC] G-code response timed out (may still be running): {}",
                              gcode);
                 if (!error_prefix.empty()) {
-                    helix::ui::notify_tr(ToastSeverity::WARNING, TR_NOOP("{} — response timed out"),
-                                         error_prefix);
+                    // On the main thread: a language switch there frees what lv_tr() returns.
+                    helix::ui::run_on_main("AmsBackendAfc::gcode_timeout", [error_prefix]() {
+                        NOTIFY_WARNING(::fmt::runtime(lv_tr("{} — response timed out")),
+                                       error_prefix);
+                    });
                 }
             } else if (!error_prefix.empty()) {
                 NOTIFY_ERROR("{}: {}", error_prefix, err.message);
