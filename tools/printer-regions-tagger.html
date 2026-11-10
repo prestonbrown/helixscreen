@@ -218,7 +218,9 @@ function load(i, fresh) {
 
 // Window review: every image with a chamber tag, its corners draggable.
 const REVIEW = new URLSearchParams(location.search).has("windows");
-const OK_KEY = "hx-window-ok";
+// ?windows=<pass> keeps a separate approval list, so a later pass walks every image again.
+const PASS = new URLSearchParams(location.search).get("windows");
+const OK_KEY = PASS ? `hx-window-ok-${PASS}` : "hx-window-ok";
 const CORNERS = ["TL", "TR", "BR", "BL"];
 const DEFAULT_WINDOW = [[.2, .2], [.8, .2], [.8, .8], [.2, .8]];
 let approved = new Set(), quads = null, cuts = [];
