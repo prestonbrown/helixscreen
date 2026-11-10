@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "cleanup_hold.h"
 #include "core/observer_guard.h"
-#include "heater_hold.h"
 #include "lvgl/lvgl.h"
 
 #include <cstdint>
@@ -92,7 +92,7 @@ class CalibrationOwnedHeat {
     std::vector<Entry> entries_;
     ObserverGuard connection_observer_;
     lv_timer_t* settle_timer_ = nullptr;
-    HeaterHold heater_hold_;
+    CleanupHold heater_hold_;
 };
 
 } // namespace helix

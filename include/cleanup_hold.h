@@ -6,21 +6,23 @@
 namespace helix {
 
 /**
- * @brief Marks a flow as owning a heater target that only this app will clear
+ * @brief Marks a flow as owing the printer a cleanup that only this app will send
  *
- * While any hold is set, SIGTERM takes the graceful path so teardown can send
- * the off (sigterm_action()). A holder must therefore send that off from
- * before_disconnect(), while the client is still connected. Take a hold only
- * when the flow will clear the heater. Several flows can hold at once.
+ * A heater target the flow set and must clear, or a printer state it changed
+ * and must restore. While any hold is set, SIGTERM takes the graceful path so
+ * teardown can send that cleanup (sigterm_action()). A holder must therefore
+ * send it from before_disconnect(), while the client is still connected. Take
+ * a hold only when the flow will send the cleanup. Several flows can hold at
+ * once.
  */
-class HeaterHold {
+class CleanupHold {
   public:
-    HeaterHold() = default;
-    ~HeaterHold() {
+    CleanupHold() = default;
+    ~CleanupHold() {
         set(false);
     }
-    HeaterHold(const HeaterHold&) = delete;
-    HeaterHold& operator=(const HeaterHold&) = delete;
+    CleanupHold(const CleanupHold&) = delete;
+    CleanupHold& operator=(const CleanupHold&) = delete;
 
     /// Idempotent per object. One thread per object; distinct objects may race.
     void set(bool held) {

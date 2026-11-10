@@ -73,7 +73,7 @@ TEST_CASE_METHOD(OwnedHeatFixture, "owned heat holds only what it will clear", "
     SECTION("owning takes the hold and turning off releases it") {
         heat.own("heater_bed", 60);
         CHECK(heat.held());
-        CHECK(helix::HeaterHold::any_held_signal_safe());
+        CHECK(helix::CleanupHold::any_held_signal_safe());
         heat.turn_off();
         CHECK(offs == std::vector<std::string>{"heater_bed"});
         CHECK_FALSE(heat.held());
@@ -216,5 +216,5 @@ TEST_CASE_METHOD(OwnedHeatFixture, "teardown gives both calibration panels their
 
     CHECK_FALSE(mesh.held());
     CHECK_FALSE(zoffset.held());
-    CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
 }

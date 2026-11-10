@@ -16,9 +16,9 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_shared_resource.h"
 #include "app_globals.h"
+#include "cleanup_hold.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
-#include "heater_hold.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -189,10 +189,10 @@ TEST_CASE_METHOD(PACalPanelFixture, "PA calibration: a result is still shown on 
 
 TEST_CASE_METHOD(PAHeaterFixture, "PA calibration: SIGTERM sees the heater held only during a run",
                  "[pa_cal][sigterm]") {
-    REQUIRE_FALSE(helix::HeaterHold::any_held_signal_safe());
+    REQUIRE_FALSE(helix::CleanupHold::any_held_signal_safe());
 
     begin_heating();
-    CHECK(helix::HeaterHold::any_held_signal_safe());
+    CHECK(helix::CleanupHold::any_held_signal_safe());
 
     panel().set_state_for_test(PACalibrationPanel::MEASURING);
     CHECK(panel().heater_held_for_test());
@@ -207,7 +207,7 @@ TEST_CASE_METHOD(PAHeaterFixture, "PA calibration: SIGTERM sees the heater held 
         panel().before_disconnect();
     }
     CHECK_FALSE(panel().heater_held_for_test());
-    CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
 }
 
 TEST_CASE_METHOD(PAHeaterFixture, "PA calibration: a disconnect mid-heat turns the nozzle off",

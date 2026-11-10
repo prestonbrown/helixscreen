@@ -15,10 +15,10 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
+#include "cleanup_hold.h"
 #include "cold_pull_flow.h"
 #include "core/observer_guard.h"
 #include "display_awake_hold.h"
-#include "heater_hold.h"
 #include "print_lifecycle_state.h"
 #include "subject_managed_panel.h"
 
@@ -148,7 +148,7 @@ class ColdPullRunner {
     std::optional<ColdPullFlow> flow_;
     std::optional<Owed> owed_;
     bool owed_query_in_flight_ = false;
-    HeaterHold heater_hold_;
+    CleanupHold heater_hold_;
     /// Counts flows and owed queries, so a reply that lands late is matched to what
     /// sent it and ignored once that is gone.
     uint32_t flow_gen_ = 0;

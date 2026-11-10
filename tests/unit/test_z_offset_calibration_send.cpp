@@ -889,7 +889,7 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration warm-up holds SIGTERM for 
     helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(panel->get_state() == ZOffsetCalibrationPanel::State::WARMING);
     REQUIRE(panel->holds_owned_heat());
-    CHECK(helix::HeaterHold::any_held_signal_safe());
+    CHECK(helix::CleanupHold::any_held_signal_safe());
     set_bed_target(45.0);
 
     SECTION("shutdown clears the bed and sends nothing that moves") {
@@ -899,7 +899,7 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration warm-up holds SIGTERM for 
         CHECK(client.gcode_script_history() == std::vector<std::string>{"M140 S0"});
         CHECK(panel->get_state() == ZOffsetCalibrationPanel::State::IDLE);
         CHECK_FALSE(panel->holds_owned_heat());
-        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
     }
 
     SECTION("shutdown leaves a target someone has set since") {
@@ -971,7 +971,7 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration warm-up holds SIGTERM for 
 
     SECTION("destroying the panel releases") {
         panel.reset();
-        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
     }
 
     lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 0);

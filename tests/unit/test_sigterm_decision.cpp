@@ -5,7 +5,7 @@
  * @brief What one SIGTERM delivery does (prestonbrown/helixscreen#2011).
  */
 
-#include "heater_hold.h"
+#include "cleanup_hold.h"
 #include "sigterm_decision.h"
 
 #include <memory>
@@ -38,27 +38,27 @@ TEST_CASE("sigterm: a later repeat ends a stuck graceful quit", "[sigterm][cold_
 }
 
 TEST_CASE("heater hold: overlapping holds cannot release each other", "[sigterm][heater_hold]") {
-    using helix::HeaterHold;
-    REQUIRE_FALSE(HeaterHold::any_held_signal_safe());
-    HeaterHold first;
-    HeaterHold second;
+    using helix::CleanupHold;
+    REQUIRE_FALSE(CleanupHold::any_held_signal_safe());
+    CleanupHold first;
+    CleanupHold second;
     first.set(true);
     first.set(true); // a repeat is not a second hold
     second.set(true);
     first.set(false);
     first.set(false); // nor is a repeat release
-    CHECK(HeaterHold::any_held_signal_safe());
+    CHECK(CleanupHold::any_held_signal_safe());
     second.set(false);
-    CHECK_FALSE(HeaterHold::any_held_signal_safe());
+    CHECK_FALSE(CleanupHold::any_held_signal_safe());
 }
 
 TEST_CASE("heater hold: a destroyed holder releases", "[sigterm][heater_hold]") {
-    using helix::HeaterHold;
-    auto hold = std::make_unique<HeaterHold>();
+    using helix::CleanupHold;
+    auto hold = std::make_unique<CleanupHold>();
     hold->set(true);
-    REQUIRE(HeaterHold::any_held_signal_safe());
+    REQUIRE(CleanupHold::any_held_signal_safe());
     hold.reset();
-    CHECK_FALSE(HeaterHold::any_held_signal_safe());
+    CHECK_FALSE(CleanupHold::any_held_signal_safe());
 }
 
 TEST_CASE("A duplicate SIGTERM in the same millisecond is still a duplicate", "[sigterm]") {

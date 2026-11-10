@@ -716,7 +716,7 @@ void HelixTestFixture::reset_all() {
     // later test that syncs a snapshot with no backend detector.
     helix::FilamentSensorManagerTestAccess::clear_sensors(helix::FilamentSensorManager::instance());
 
-    // A pending post-op cooldown holds a HeaterHold, which every later case would
+    // A pending post-op cooldown holds a CleanupHold, which every later case would
     // read as SIGTERM's graceful path. After the drains, so no queued schedule()
     // re-arms it. Cases that schedule cooldowns init() the manager themselves.
     PostOpCooldownManager::instance().shutdown();

@@ -6,9 +6,9 @@
 #include "ams_feeder_control.h"
 #include "ams_step_model.h"
 #include "ams_subscription_backend.h"
+#include "cleanup_hold.h"
 #include "core/timer_guard.h"
 #include "filament_slot_override_store.h"
-#include "heater_hold.h"
 #include "mount_feed_sequence.h"
 #include "notice.h"
 #include "toolchanger_addon.h"
@@ -745,7 +745,7 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     int purge_mm_ = helix::mount_feed::kDefaultPurgeMm;
     /// The run in progress. Main thread only; feed_active_ mirrors it under mutex_.
     std::optional<helix::mount_feed::Run> feed_run_;
-    helix::HeaterHold feed_heater_hold_;
+    helix::CleanupHold feed_heater_hold_;
     uint64_t feed_generation_ = 0;
     bool feed_active_ = false;
     AmsAction feed_action_ = AmsAction::IDLE;

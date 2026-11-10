@@ -23,11 +23,11 @@
 #include "ams_backend_toolchanger.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "cleanup_hold.h"
 #include "config.h"
 #include "connection_state.h"
 #include "core/update_queue.h"
 #include "filament_op_slot_resolver.h"
-#include "heater_hold.h"
 #include "macro_param_cache.h"
 #include "mount_feed_sequence.h"
 #include "printer_discovery.h"
@@ -981,30 +981,30 @@ TEST_CASE("MedusaHC ends the run and says so when the cleanup itself cannot be s
 
 TEST_CASE("a mount-to-feed run holds its heaters once it has started",
           "[toolchanger][mount_feed][sigterm]") {
-    using helix::HeaterHold;
+    using helix::CleanupHold;
     auto tc = std::make_unique<AckingChanger>(4);
     tc->feed_status("ready", 0);
-    REQUIRE_FALSE(HeaterHold::any_held_signal_safe());
+    REQUIRE_FALSE(CleanupHold::any_held_signal_safe());
     REQUIRE(tc->load_filament(3).success());
     tc->ack(); // the prompt is up: nothing has heated
-    CHECK_FALSE(HeaterHold::any_held_signal_safe());
+    CHECK_FALSE(CleanupHold::any_held_signal_safe());
     ToolChangerTestAccess::feed_operator_reply(*tc, mf::Reply::Continue);
     tc->ack(); // mounted; the heat stage is in flight
-    REQUIRE(HeaterHold::any_held_signal_safe());
+    REQUIRE(CleanupHold::any_held_signal_safe());
 
     SECTION("teardown sends the off, and moves nothing") {
         tc->before_disconnect();
         CHECK(tc->sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder3 TARGET=0");
         CHECK(tc->get_current_action() == AmsAction::IDLE);
-        CHECK_FALSE(HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(CleanupHold::any_held_signal_safe());
     }
     SECTION("the link drops: nothing can be sent") {
         tc->lose();
-        CHECK_FALSE(HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(CleanupHold::any_held_signal_safe());
     }
     SECTION("destroyed") {
         tc.reset();
-        CHECK_FALSE(HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(CleanupHold::any_held_signal_safe());
     }
 }
 

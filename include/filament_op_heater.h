@@ -29,10 +29,10 @@
 
 #pragma once
 
+#include "cleanup_hold.h"
 #include "core/observer_guard.h"
 #include "filament_op_execute.h"
 #include "filament_op_slot_resolver.h"
-#include "heater_hold.h"
 #include "helix_shared_callback.h"
 
 #include <chrono>
@@ -340,7 +340,7 @@ class FilamentOpHeater {
     FilamentOpTicket next_ticket_ = 0;
     std::vector<Heated> heated_;
     std::optional<Handoff> handoff_;
-    HeaterHold heater_hold_;
+    CleanupHold heater_hold_;
     std::vector<Owed> owed_;
     std::vector<Watch> watches_;
     ObserverGuard temp_observer_;
