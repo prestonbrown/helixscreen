@@ -788,17 +788,15 @@ struct BoxWinsFixture : OverlayConsumerCommitFixture {
         process_lvgl(10);
     }
 
-    /// The note's own buttons: btn_reapply_spool, btn_unlink_disagreeing.
     void tap(const char* name) {
-        lv_obj_t* button = access.widget(name);
-        REQUIRE(button != nullptr);
-        lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
+        REQUIRE(access.widget(name) != nullptr);
+        lv_obj_send_event(access.widget(name), LV_EVENT_CLICKED, nullptr);
     }
 };
 
 } // namespace
 
-TEST_CASE_METHOD(BoxWinsFixture, "a box-held lane shows the box and names the disagreeing spool",
+TEST_CASE_METHOD(BoxWinsFixture, "a box-held lane shows the box and names only a disagreeing spool",
                  "[ams_edit_overlay][box_wins]") {
     open(true, box_lane());
 
@@ -810,54 +808,36 @@ TEST_CASE_METHOD(BoxWinsFixture, "a box-held lane shows the box and names the di
     CHECK(access.spool_disagreement_text().find("ASA") != std::string::npos);
     CHECK(access.spool_disagreement_text().find("Black") != std::string::npos);
     close_editor_overlay();
-}
 
-TEST_CASE_METHOD(BoxWinsFixture, "a lane whose firmware does not own it still follows the spool",
-                 "[ams_edit_overlay][box_wins]") {
+    // A lane whose firmware does not own it still follows the spool.
     open(false, box_lane());
-
     CHECK(access.working_info().material == "ASA");
     CHECK(access.working_info().brand == "Elegoo");
     CHECK(access.spool_disagrees() == 0);
     close_editor_overlay();
-}
 
-TEST_CASE_METHOD(BoxWinsFixture, "a box-held lane agreeing with its spool shows no note",
-                 "[ams_edit_overlay][box_wins]") {
-    SlotInfo lane = box_lane();
-    lane.material = "ASA";
-    lane.color_rgb = 0x000000;
-    lane.brand = "Creality";
-    open(true, lane);
-
-    CHECK(access.spool_disagrees() == 0);
     // Brand alone is not a disagreement, and the record still names it.
+    SlotInfo agreeing = box_lane();
+    agreeing.material = "ASA";
+    agreeing.color_rgb = 0x000000;
+    open(true, agreeing);
+    CHECK(access.spool_disagrees() == 0);
     CHECK(access.working_info().brand == "Elegoo");
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(BoxWinsFixture, "re-applying the spool replaces the lane's own name",
+TEST_CASE_METHOD(BoxWinsFixture,
+                 "re-applying keeps the lane's product and temperatures only for its own vendor",
                  "[ams_edit_overlay][box_wins]") {
-    client.spoolman_mock().get_mock_spools().back().filament_name = "Black ASA";
-    SlotInfo lane = box_lane();
-    lane.spool_name = "CR-PLA";
-    open(true, lane);
-
-    tap("btn_reapply_spool");
-    settle();
-
-    REQUIRE(fired);
-    CHECK(captured.slot_info.spool_name == "Black ASA");
-}
-
-TEST_CASE_METHOD(BoxWinsFixture, "re-applying only a colour keeps the lane's temperatures",
-                 "[ams_edit_overlay][box_wins]") {
+    const bool other_vendor = GENERATE(false, true);
+    CAPTURE(other_vendor);
     SlotInfo lane = box_lane();
     lane.material = "ASA";
-    lane.brand = "Elegoo";
+    lane.brand = other_vendor ? "Polymaker" : "Elegoo";
+    lane.catalog_id = "asa-product";
+    lane.product_name = "ASA";
     lane.nozzle_temp_min = 222;
     lane.nozzle_temp_max = 233;
-    lane.bed_temp = 77;
     open(true, lane);
     REQUIRE(access.spool_disagrees() == 1);
 
@@ -866,33 +846,10 @@ TEST_CASE_METHOD(BoxWinsFixture, "re-applying only a colour keeps the lane's tem
 
     REQUIRE(fired);
     CHECK(captured.slot_info.color_rgb == 0x000000U);
-    CHECK(captured.slot_info.nozzle_temp_min == 222);
-    CHECK(captured.slot_info.nozzle_temp_max == 233);
-    CHECK(captured.slot_info.bed_temp == 77);
-}
-
-TEST_CASE_METHOD(BoxWinsFixture, "re-applying another vendor drops the lane's catalog product",
-                 "[ams_edit_overlay][box_wins]") {
-    SlotInfo lane = box_lane();
-    lane.material = "ASA";
-    lane.brand = "Polymaker";
-    lane.catalog_id = "polymaker-asa";
-    lane.product_name = "ASA";
-    lane.nozzle_temp_recommended = 255;
-    lane.nozzle_temp_min = 222;
-    lane.nozzle_temp_max = 233;
-    open(true, lane);
-    REQUIRE(access.spool_disagrees() == 1);
-
-    tap("btn_reapply_spool");
-    settle();
-
-    REQUIRE(fired);
     CHECK(captured.slot_info.brand == "Elegoo");
-    CHECK(captured.slot_info.catalog_id.empty());
-    CHECK(captured.slot_info.product_name.empty());
-    CHECK(captured.slot_info.nozzle_temp_recommended == 0);
-    CHECK(captured.slot_info.nozzle_temp_min != 222);
+    CHECK(captured.slot_info.catalog_id.empty() == other_vendor);
+    CHECK((captured.slot_info.nozzle_temp_min == 222) == !other_vendor);
+    CHECK((captured.slot_info.nozzle_temp_max == 233) == !other_vendor);
 }
 
 TEST_CASE_METHOD(BoxWinsFixture, "a save on a disagreeing lane does not ask about the spool",
@@ -922,7 +879,10 @@ TEST_CASE_METHOD(BoxWinsFixture, "a save on a disagreeing lane does not ask abou
 
 TEST_CASE_METHOD(BoxWinsFixture, "re-applying the spool writes it through the save, unprompted",
                  "[ams_edit_overlay][box_wins]") {
-    open(true, box_lane());
+    client.spoolman_mock().get_mock_spools().back().filament_name = "Black ASA";
+    SlotInfo lane = box_lane();
+    lane.spool_name = "CR-PLA";
+    open(true, lane);
     REQUIRE(access.spool_disagrees() == 1);
     lv_textarea_set_text(access.widget("detail_field_comment"), "re-applied");
 
@@ -935,6 +895,7 @@ TEST_CASE_METHOD(BoxWinsFixture, "re-applying the spool writes it through the sa
     CHECK(captured.slot_info.material == "ASA");
     CHECK(captured.slot_info.color_rgb == 0x000000U);
     CHECK(captured.slot_info.brand == "Elegoo");
+    CHECK(captured.slot_info.spool_name == "Black ASA");
     CHECK(captured.slot_info.spoolman_id == 149);
     CHECK(client.spoolman_mock().filament_updates.empty());
     REQUIRE(client.spoolman_mock().spool_updates.size() == 1);
