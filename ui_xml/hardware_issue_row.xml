@@ -8,6 +8,9 @@
   <api>
     <prop name="severity" type="string"/>
     <!-- "error", "warning", "info" -->
+    <prop name="hardware_name" type="string" default="Hardware Name"/>
+    <!-- A translation key: the row shows it in the current language -->
+    <prop name="message" type="string" default=""/>
   </api>
   <!-- severity_card selects the per-severity icon; the enclosing group supplies the card -->
   <view name="hardware_issue_row"
@@ -32,20 +35,20 @@
     <lv_obj flex_grow="1"
             style_pad_all="0" style_pad_right="#space_md" scrollable="false" flex_flow="column"
             style_pad_gap="#space_xxs">
-      <text_body name="hardware_name" width="100%" text="Hardware Name" long_mode="wrap"/>
-      <text_small name="issue_message" width="100%" text="Issue description" long_mode="wrap"/>
+      <text_body name="hardware_name" width="100%" text="$hardware_name" long_mode="wrap"/>
+      <text_small name="issue_message" width="100%" text="Issue description" translation_tag="$message" long_mode="wrap"/>
     </lv_obj>
-    <!-- Action buttons container (hidden by default, shown by C++ for non-critical issues) -->
+    <!-- Action buttons: every issue can be ignored -->
     <lv_obj name="action_buttons"
-            width="content" height="content" hidden="true" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
+            width="content" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
             scrollable="false" style_flex_cross_place="center">
       <!-- Ignore button (mark as optional) -->
       <ui_button name="ignore_btn"
                  width="content" height="#button_height" style_min_width="64" variant="ghost" text="Ignore"/>
-      <!-- Save button (add to expected list) - only for INFO severity -->
+      <!-- Save button (add to expected list): only newly discovered (info) hardware -->
       <ui_button name="save_btn"
-                 width="content" height="#button_height" hidden="true" style_min_width="64" variant="primary"
-                 text="Save"/>
+                 width="content" height="#button_height" hidden_if_prop_not_eq="$severity|info" style_min_width="64"
+                 variant="primary" text="Save"/>
     </lv_obj>
   </view>
 </component>
