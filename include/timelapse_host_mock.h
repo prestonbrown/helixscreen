@@ -31,6 +31,10 @@ bool parse_timelapse_helix_macros(const char* value);
 /// parse_timelapse_helix_macros() of the environment.
 bool timelapse_helix_macros_loaded();
 
+/// Leave a stub moonraker-timelapse checkout at @p repo: its component and macro
+/// file, as a clone leaves them. False when they could not be written.
+bool write_stub_timelapse_checkout(const std::string& repo);
+
 /// The mock's helix_macros.cfg while timelapse_helix_macros_loaded(): what the
 /// mock file API serves and stores for that one file. Main thread only.
 std::string& timelapse_mock_helix_macros_file();

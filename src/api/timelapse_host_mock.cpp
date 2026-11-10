@@ -82,6 +82,14 @@ bool timelapse_plugin_present() {
     return host_from_env() == TimelapseHost::Present || linked().load();
 }
 
+bool write_stub_timelapse_checkout(const std::string& repo) {
+    return fs::create_directories(repo + "/component") &&
+           fs::create_directories(repo + "/klipper_macro") &&
+           text_io::write_file(repo + "/component/timelapse.py", "") &&
+           text_io::write_file(repo + "/klipper_macro/timelapse.cfg",
+                               "[gcode_macro TIMELAPSE_TAKE_FRAME]\ngcode:\n");
+}
+
 ProcessRunner timelapse_host_runner() {
     return [](const std::vector<std::string>& argv, int /*timeout_seconds*/) {
         const TimelapseHost host = host_from_env();
@@ -95,11 +103,7 @@ ProcessRunner timelapse_host_runner() {
         spdlog::info("[MockTimelapseHost] {}", cmd);
         std::this_thread::sleep_for(kStepDelay);
         if (std::find(argv.begin(), argv.end(), "clone") != argv.end()) {
-            const std::string dest = argv.back();
-            r.exit_code = fs::create_directories(dest + "/component") &&
-                                  text_io::write_file(dest + "/component/timelapse.py", "")
-                              ? 0
-                              : 1;
+            r.exit_code = write_stub_timelapse_checkout(argv.back()) ? 0 : 1;
         } else if (cmd.find("--link-timelapse") != std::string::npos) {
             linked().store(true);
         } else if (cmd.find("command -v") != std::string::npos &&

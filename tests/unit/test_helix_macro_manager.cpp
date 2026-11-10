@@ -897,17 +897,27 @@ TEST_CASE_METHOD(MacroStageFixture, "a commented-out include is neither counted 
 // moonraker-timelapse's macros through helix_macros.cfg
 // ============================================================================
 
-TEST_CASE("the timelapse include is appended once and only a live line counts",
+namespace {
+constexpr const char* kTimelapseRepo = "/home/biqu/moonraker-timelapse";
+constexpr const char* kTimelapseLine =
+    "[include /home/biqu/moonraker-timelapse/klipper_macro/timelapse.cf[g]]";
+} // namespace
+
+TEST_CASE("the timelapse include names the checkout's file, never the config-root symlink",
           "[config][timelapse]") {
+    // The config-root timelapse.cfg is a symlink into the checkout: a glob still
+    // matches it once the checkout is gone, and Klipper cannot open it.
+    CHECK(MacroManager::timelapse_include_line(kTimelapseRepo) == kTimelapseLine);
+
     const std::string pack = "# helix_macros v2.0.0\n[gcode_macro HELIX_READY]\ngcode:\n";
-    const std::string with = MacroManager::with_timelapse_include(pack);
+    const std::string with = MacroManager::with_timelapse_include(pack, kTimelapseLine);
     CHECK(with.rfind(pack, 0) == 0);
-    CHECK(MacroManager::has_timelapse_include(with));
-    CHECK(MacroManager::with_timelapse_include(with) == with);
+    CHECK(MacroManager::find_timelapse_include(with) == kTimelapseLine);
+    CHECK(MacroManager::with_timelapse_include(with, kTimelapseLine) == with);
     CHECK_FALSE(MacroManager::has_timelapse_include(pack));
-    CHECK_FALSE(MacroManager::has_timelapse_include("#[include timelapse.cf[g]]\n"));
-    // A glob, so a missing timelapse.cfg never stops Klipper from starting.
-    CHECK(std::string(kTimelapseMacrosInclude) == "[include timelapse.cf[g]]");
+    CHECK_FALSE(MacroManager::has_timelapse_include(std::string("#") + kTimelapseLine + "\n"));
+    CHECK_FALSE(MacroManager::has_timelapse_include("[include timelapse.cf[g]]\n"));
+    CHECK_FALSE(MacroManager::has_timelapse_include("[include timelapse.cfg]\n"));
 }
 
 TEST_CASE_METHOD(MacroStageFixture,
@@ -919,20 +929,21 @@ TEST_CASE_METHOD(MacroStageFixture,
 
     bool done = false;
     std::optional<MoonrakerError> error;
-    manager_.include_timelapse_macros([&] { done = true; },
-                                      [&](const MoonrakerError& err) { error = err; });
+    manager_.include_timelapse_macros(
+        kTimelapseRepo, [&] { done = true; }, [&](const MoonrakerError& err) { error = err; });
     settle();
 
     REQUIRE_FALSE(error.has_value());
     REQUIRE(done);
     const std::string staged = api_.get_uploaded_config("helix_macros.cfg").value_or("");
-    CHECK(staged == MacroManager::with_timelapse_include(pack));
+    CHECK(staged == MacroManager::with_timelapse_include(pack, kTimelapseLine));
     CHECK(api_.get_uploaded_config("printer.cfg").value_or("") == printer_cfg);
     CHECK(backup_count() == 0);
 
     SECTION("a second run writes nothing new") {
         done = false;
-        manager_.include_timelapse_macros([&] { done = true; }, [](const MoonrakerError&) {});
+        manager_.include_timelapse_macros(
+            kTimelapseRepo, [&] { done = true; }, [](const MoonrakerError&) {});
         settle();
         CHECK(done);
         CHECK(api_.get_uploaded_config("helix_macros.cfg").value_or("") == staged);
@@ -945,7 +956,7 @@ TEST_CASE_METHOD(MacroStageFixture,
         REQUIRE(updated);
         const std::string regenerated = api_.get_uploaded_config("helix_macros.cfg").value_or("");
         CHECK(regenerated.find("[gcode_macro HELIX_CLEAN_NOZZLE]") != std::string::npos);
-        CHECK(MacroManager::has_timelapse_include(regenerated));
+        CHECK(MacroManager::find_timelapse_include(regenerated) == kTimelapseLine);
     }
     SECTION("uninstall removes it with the file") {
         manager_.uninstall([] {}, [](const MoonrakerError&) {});
@@ -959,18 +970,25 @@ TEST_CASE_METHOD(MacroStageFixture,
 TEST_CASE_METHOD(MacroStageFixture, "update_files adds no timelapse include the pack never had",
                  "[config][install][timelapse]") {
     hardware_.parse_objects(json::array({"gcode_macro HELIX_READY", "bed_mesh"}));
-    manager_.update_files([] {}, [](const MoonrakerError&) {});
+    bool updated = false;
+    std::optional<MoonrakerError> error;
+    manager_.update_files([&] { updated = true; }, [&](const MoonrakerError& err) { error = err; });
     settle();
-    CHECK_FALSE(MacroManager::has_timelapse_include(
-        api_.get_uploaded_config("helix_macros.cfg").value_or("")));
+    // No installed helix_macros.cfg to read is a fresh printer: the update still lands.
+    REQUIRE_FALSE(error.has_value());
+    CHECK(updated);
+    const auto staged = api_.get_uploaded_config("helix_macros.cfg");
+    REQUIRE(staged.has_value());
+    CHECK(staged->find("[gcode_macro HELIX_READY]") != std::string::npos);
+    CHECK_FALSE(MacroManager::has_timelapse_include(*staged));
 }
 
 TEST_CASE_METHOD(MacroStageFixture, "include_timelapse_macros fails without a helix_macros.cfg",
                  "[config][install][timelapse]") {
     bool done = false;
     std::optional<MoonrakerError> error;
-    manager_.include_timelapse_macros([&] { done = true; },
-                                      [&](const MoonrakerError& err) { error = err; });
+    manager_.include_timelapse_macros(
+        kTimelapseRepo, [&] { done = true; }, [&](const MoonrakerError& err) { error = err; });
     settle();
     CHECK_FALSE(done);
     REQUIRE(error.has_value());
