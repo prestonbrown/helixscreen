@@ -36,6 +36,7 @@
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "spoolman_manager.h"
 #include "spoolman_slot_saver.h"
 #include "src/ui/panel_widgets/active_spool_widget.h"
@@ -80,12 +81,6 @@ class AmsEditOverlayViewTestAccess {
     }
     std::string selected_family() {
         return overlay_.sel_.family;
-    }
-    void call_handle_reapply() {
-        overlay_.handle_reapply_linked_spool();
-    }
-    void call_handle_unlink_disagreeing() {
-        overlay_.handle_unlink_disagreeing_spool();
     }
     bool dirty() {
         return overlay_.is_dirty();
@@ -792,6 +787,13 @@ struct BoxWinsFixture : OverlayConsumerCommitFixture {
         UpdateQueue::instance().drain();
         process_lvgl(10);
     }
+
+    /// The note's own buttons: btn_reapply_spool, btn_unlink_disagreeing.
+    void tap(const char* name) {
+        lv_obj_t* button = access.widget(name);
+        REQUIRE(button != nullptr);
+        lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
+    }
 };
 
 } // namespace
@@ -841,7 +843,7 @@ TEST_CASE_METHOD(BoxWinsFixture, "re-applying the spool replaces the lane's own 
     lane.spool_name = "CR-PLA";
     open(true, lane);
 
-    access.call_handle_reapply();
+    tap("btn_reapply_spool");
     settle();
 
     REQUIRE(fired);
@@ -859,7 +861,7 @@ TEST_CASE_METHOD(BoxWinsFixture, "re-applying only a colour keeps the lane's tem
     open(true, lane);
     REQUIRE(access.spool_disagrees() == 1);
 
-    access.call_handle_reapply();
+    tap("btn_reapply_spool");
     settle();
 
     REQUIRE(fired);
@@ -882,7 +884,7 @@ TEST_CASE_METHOD(BoxWinsFixture, "re-applying another vendor drops the lane's ca
     open(true, lane);
     REQUIRE(access.spool_disagrees() == 1);
 
-    access.call_handle_reapply();
+    tap("btn_reapply_spool");
     settle();
 
     REQUIRE(fired);
@@ -896,6 +898,13 @@ TEST_CASE_METHOD(BoxWinsFixture, "re-applying another vendor drops the lane's ca
 TEST_CASE_METHOD(BoxWinsFixture, "a save on a disagreeing lane does not ask about the spool",
                  "[ams_edit_overlay][box_wins]") {
     open(true, box_lane());
+    // Spoolman gone after the record landed: the lane's own material is no edit of the spool.
+    const bool spoolman_offline = GENERATE(false, true);
+    CAPTURE(spoolman_offline);
+    if (spoolman_offline) {
+        get_printer_state().capabilities_state().set_spoolman_available(false);
+        settle();
+    }
 
     SlotInfo edited = access.working_info();
     edited.remaining_weight_g = 400.0f;
@@ -915,8 +924,9 @@ TEST_CASE_METHOD(BoxWinsFixture, "re-applying the spool writes it through the sa
                  "[ams_edit_overlay][box_wins]") {
     open(true, box_lane());
     REQUIRE(access.spool_disagrees() == 1);
+    lv_textarea_set_text(access.widget("detail_field_comment"), "re-applied");
 
-    access.call_handle_reapply();
+    tap("btn_reapply_spool");
     settle();
 
     CHECK(ModalStack::instance().stack_empty());
@@ -927,6 +937,17 @@ TEST_CASE_METHOD(BoxWinsFixture, "re-applying the spool writes it through the sa
     CHECK(captured.slot_info.brand == "Elegoo");
     CHECK(captured.slot_info.spoolman_id == 149);
     CHECK(client.spoolman_mock().filament_updates.empty());
+    REQUIRE(client.spoolman_mock().spool_updates.size() == 1);
+    CHECK(client.spoolman_mock().spool_updates[0].patch.dump().find("re-applied") !=
+          std::string::npos);
+
+    // The next editor's failed save keeps its own form, not the re-applied lane's.
+    open(false, untracked_slot());
+    lv_textarea_set_text(access.widget("detail_field_price"), "-1");
+    access.call_handle_save();
+    settle();
+    CHECK(access.working_info().material == "PETG");
+    close_editor_overlay();
 }
 
 TEST_CASE_METHOD(BoxWinsFixture, "unlinking from the note keeps the lane's own filament",
@@ -934,7 +955,7 @@ TEST_CASE_METHOD(BoxWinsFixture, "unlinking from the note keeps the lane's own f
     open(true, box_lane());
     REQUIRE(access.spool_disagrees() == 1);
 
-    access.call_handle_unlink_disagreeing();
+    tap("btn_unlink_disagreeing");
     settle();
 
     CHECK(ModalStack::instance().stack_empty());
@@ -957,6 +978,7 @@ TEST_CASE_METHOD(BoxWinsFixture,
         client.spoolman_mock().add_vendor(5, "Elegoo");
         client.spoolman_mock().add_filament(88, 5, "ASA", "0000F0", "Navy ASA");
     }
+    REQUIRE(helix::test::apply_edit(*backend, 0, box_lane()).success());
     open(true, box_lane());
 
     SlotInfo edited = access.working_info();
@@ -984,6 +1006,10 @@ TEST_CASE_METHOD(BoxWinsFixture,
     CHECK(captured.slot_info.material == "PLA");
     CHECK(captured.slot_info.brand == "Creality");
     CHECK(captured.slot_info.color_rgb == 0x0000FFU);
+    // The lane's Spoolman record is the repointed spool, not the lane.
+    const auto filed = helix::ams::lane_sources(backend->lane_id(0)).spoolman;
+    REQUIRE(filed.has_value());
+    CHECK(filed->material == std::optional<std::string>("ASA"));
     ModalStack::instance().clear();
 }
 
@@ -1026,10 +1052,10 @@ TEST_CASE_METHOD(BoxWinsFixture, "a refused note action leaves the form on the l
     REQUIRE(access.spool_disagrees() == 1);
 
     SECTION("re-apply") {
-        access.call_handle_reapply();
+        tap("btn_reapply_spool");
     }
     SECTION("unlink") {
-        access.call_handle_unlink_disagreeing();
+        tap("btn_unlink_disagreeing");
     }
     bool tool_staged = false;
     SECTION("re-apply over a refused tool assignment") {
@@ -1037,7 +1063,7 @@ TEST_CASE_METHOD(BoxWinsFixture, "a refused note action leaves the form on the l
         refusing->refuse_tool = true;
         REQUIRE(access.pick_dropdown("tool_dropdown", "T1"));
         tool_staged = true;
-        access.call_handle_reapply();
+        tap("btn_reapply_spool");
     }
     settle();
 
@@ -1058,7 +1084,7 @@ TEST_CASE_METHOD(BoxWinsFixture, "a note action stopped before it commits leaves
     REQUIRE(price != nullptr);
     lv_textarea_set_text(price, "-1");
 
-    access.call_handle_reapply();
+    tap("btn_reapply_spool");
     settle();
 
     CHECK_FALSE(fired);
@@ -1344,7 +1370,16 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     lv_obj_t* title = access.widget("header_title");
     REQUIRE(title != nullptr);
     CHECK(std::string(lv_label_get_text(title)) == "GATE 3");
+    close_editor_overlay();
 
+    // A tool changer's lane is the tool, spelled in the tool number style.
+    backend->set_tool_changer_mode(true);
+    SettingsManager::instance().init_subjects();
+    SettingsManager::instance().set_tool_number_style_setting(ToolNumberStyleSetting::Gcode);
+    REQUIRE(overlay.show_for_slot(test_screen(), 2, info, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    CHECK(std::string(lv_label_get_text(access.widget("header_title"))) == "T2");
+    SettingsManager::instance().set_tool_number_style_setting(ToolNumberStyleSetting::Auto);
     close_editor_overlay();
 }
 
