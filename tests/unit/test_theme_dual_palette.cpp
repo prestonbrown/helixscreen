@@ -3,6 +3,7 @@
 
 #include "theme_loader.h"
 
+#include <array>
 #include <cstdio>
 #include <unistd.h>
 
@@ -104,58 +105,28 @@ TEST_CASE("ThemeData mode support - dual", "[theme][dual-palette]") {
     REQUIRE(theme.get_mode_support() == ThemeModeSupport::DUAL_MODE);
 }
 
-TEST_CASE("ThemeData mode support - dark only", "[theme][dual-palette]") {
-    ThemeData theme;
-    theme.name = "Test";
-    // Fill only dark palette (same values as above)
-    theme.dark.screen_bg = "#282828";
-    theme.dark.overlay_bg = "#282828";
-    theme.dark.card_bg = "#282828";
-    theme.dark.elevated_bg = "#282828";
-    theme.dark.border = "#282828";
-    theme.dark.text = "#FFFFFF";
-    theme.dark.text_muted = "#CCCCCC";
-    theme.dark.text_subtle = "#999999";
-    theme.dark.primary = "#88C0D0";
-    theme.dark.secondary = "#A3BE8C";
-    theme.dark.tertiary = "#D08770";
-    theme.dark.info = "#81A1C1";
-    theme.dark.success = "#A3BE8C";
-    theme.dark.warning = "#EBCB8B";
-    theme.dark.danger = "#BF616A";
-    theme.dark.focus = "#88C0D0";
-    // light palette empty
-
-    REQUIRE(theme.supports_dark());
-    REQUIRE_FALSE(theme.supports_light());
-    REQUIRE(theme.get_mode_support() == ThemeModeSupport::DARK_ONLY);
-}
-
-TEST_CASE("ThemeData mode support - light only", "[theme][dual-palette]") {
-    ThemeData theme;
-    theme.name = "Test";
-    // dark palette empty
-    // Fill only light palette
-    theme.light.screen_bg = "#FFFFFF";
-    theme.light.overlay_bg = "#F0F0F0";
-    theme.light.card_bg = "#FFFFFF";
-    theme.light.elevated_bg = "#F5F5F5";
-    theme.light.border = "#E0E0E0";
-    theme.light.text = "#282828";
-    theme.light.text_muted = "#555555";
-    theme.light.text_subtle = "#888888";
-    theme.light.primary = "#5E81AC";
-    theme.light.secondary = "#A3BE8C";
-    theme.light.tertiary = "#D08770";
-    theme.light.info = "#5E81AC";
-    theme.light.success = "#3FA47D";
-    theme.light.warning = "#B08900";
-    theme.light.danger = "#B23A48";
-    theme.light.focus = "#5E81AC";
-
-    REQUIRE_FALSE(theme.supports_dark());
-    REQUIRE(theme.supports_light());
-    REQUIRE(theme.get_mode_support() == ThemeModeSupport::LIGHT_ONLY);
+TEST_CASE("ThemeData mode support - one palette filled", "[theme][dual-palette]") {
+    // In ModePalette::color_names() order, screen_bg through focus.
+    const std::array<const char*, 16> dark = {
+        "#282828", "#282828", "#282828", "#282828", "#282828", "#FFFFFF", "#CCCCCC", "#999999",
+        "#88C0D0", "#A3BE8C", "#D08770", "#81A1C1", "#A3BE8C", "#EBCB8B", "#BF616A", "#88C0D0"};
+    const std::array<const char*, 16> light = {
+        "#FFFFFF", "#F0F0F0", "#FFFFFF", "#F5F5F5", "#E0E0E0", "#282828", "#555555", "#888888",
+        "#5E81AC", "#A3BE8C", "#D08770", "#5E81AC", "#3FA47D", "#B08900", "#B23A48", "#5E81AC"};
+    for (const bool dark_only : {true, false}) {
+        CAPTURE(dark_only);
+        ThemeData theme;
+        theme.name = "Test";
+        ModePalette& filled = dark_only ? theme.dark : theme.light;
+        const auto& colors = dark_only ? dark : light;
+        for (size_t i = 0; i < colors.size(); ++i) {
+            filled.at(i) = colors[i];
+        }
+        CHECK(theme.supports_dark() == dark_only);
+        CHECK(theme.supports_light() == !dark_only);
+        CHECK(theme.get_mode_support() ==
+              (dark_only ? ThemeModeSupport::DARK_ONLY : ThemeModeSupport::LIGHT_ONLY));
+    }
 }
 
 TEST_CASE("parse_theme_json - new format dual mode", "[theme][dual-palette]") {

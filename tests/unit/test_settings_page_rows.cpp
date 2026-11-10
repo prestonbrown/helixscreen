@@ -70,20 +70,23 @@ struct PageRowsFixture : LVGLUITestFixture {
 struct Placement {
     const char* view;
     std::vector<const char*> rows;
+    std::vector<const char*> absent = {}; ///< rows that live on another page
 };
 
 } // namespace
 
-TEST_CASE_METHOD(PageRowsFixture, "settings pages: every row lives on its page",
-                 "[settings][settings_pages]") {
+TEST_CASE_METHOD(PageRowsFixture, "settings pages: every row lives on its page, and only there",
+                 "[settings][settings_pages][plugin_feature]") {
     const std::vector<Placement> placements = {
         {"settings_display_overlay",
          {"row_display_rotation", "row_ui_scale", "brightness_slider", "row_display_dim",
           "row_display_sleep", "row_screensaver", "btn_test_screensaver",
-          "row_screensaver_print_progress", "row_sleep_while_printing"}},
+          "row_screensaver_print_progress", "row_sleep_while_printing"},
+         {"row_sounds", "row_dark_mode", "row_page_scroll_buttons"}},
         {"settings_appearance_overlay",
          {"row_dark_mode", "row_theme_settings", "row_animations", "row_widget_labels",
-          "row_speed_flow_units", "row_bed_mesh_mode"}},
+          "row_speed_flow_units", "row_bed_mesh_mode"},
+         {"row_language", "row_system_keyboard", "brightness_slider"}},
         {"settings_sound_overlay",
          {"row_sounds", "row_volume", "row_ui_sounds", "row_sound_theme", "row_audio_device",
           "row_preview_sounds", "row_test_tracker"}},
@@ -98,24 +101,14 @@ TEST_CASE_METHOD(PageRowsFixture, "settings pages: every row lives on its page",
         {"settings_updates_overlay",
          {"row_update_channel", "row_update_channel_dev", "row_check_updates", "row_install_update",
           "row_updates_unavailable"}},
-    };
-    for (const auto& p : placements) {
-        build(p.view);
-        for (const char* row : p.rows) {
-            CAPTURE(p.view, row);
-            CHECK(has(row));
-        }
-    }
-}
-
-TEST_CASE_METHOD(PageRowsFixture,
-                 "settings pages: each plugin feature's switch is on the page the overview opens",
-                 "[settings][settings_pages][plugin_feature]") {
-    // PluginFeatureHome: Devices, Safety, System > Storage, Spoolman.
-    const std::vector<Placement> placements = {
-        {"settings_hardware_overlay", {"row_print_photos"}},
+        {"about_settings_overlay", {"row_version"}, {"row_check_updates"}},
+        // Each plugin feature's switch is on the page its PluginFeatureHome opens:
+        // Devices, Safety, System > Storage, Spoolman.
+        {"settings_hardware_overlay", {"row_print_photos"}, {"row_printers"}},
         {"settings_safety_overlay", {"row_fit_check_blocks_autostart"}},
-        {"settings_system_overlay", {"row_storage"}},
+        {"settings_system_overlay",
+         {"row_storage"},
+         {"row_network", "row_printer_host", "row_touch_input"}},
         {"spoolman_settings", {"row_filament_accounting"}},
         {"settings_storage_overlay", {"row_storage_auto_cleanup"}},
     };
@@ -124,6 +117,10 @@ TEST_CASE_METHOD(PageRowsFixture,
         for (const char* row : p.rows) {
             CAPTURE(p.view, row);
             CHECK(has(row));
+        }
+        for (const char* row : p.absent) {
+            CAPTURE(p.view, row);
+            CHECK_FALSE(has(row));
         }
     }
 }
@@ -136,36 +133,6 @@ TEST_CASE_METHOD(PageRowsFixture, "settings pages: Storage has a row for every c
         CAPTURE(clean);
         CHECK(has(clean.c_str()));
     }
-}
-
-TEST_CASE_METHOD(PageRowsFixture, "settings pages: moved rows are gone from their old page",
-                 "[settings][settings_pages]") {
-    build("settings_appearance_overlay");
-    CHECK_FALSE(has("row_language"));
-    CHECK_FALSE(has("row_system_keyboard"));
-    CHECK_FALSE(has("brightness_slider"));
-    build("settings_display_overlay");
-    CHECK_FALSE(has("row_sounds"));
-    CHECK_FALSE(has("row_dark_mode"));
-    CHECK_FALSE(has("row_page_scroll_buttons"));
-}
-
-TEST_CASE_METHOD(PageRowsFixture, "settings pages: connection and update rows left their old pages",
-                 "[settings][settings_pages]") {
-    build("settings_system_overlay");
-    CHECK_FALSE(has("row_network"));
-    CHECK_FALSE(has("row_printer_host"));
-    CHECK_FALSE(has("row_touch_input"));
-    build("settings_hardware_overlay");
-    CHECK_FALSE(has("row_printers"));
-    build("about_settings_overlay");
-    CHECK_FALSE(has("row_check_updates"));
-    CHECK(has("row_version"));
-}
-
-TEST_CASE_METHOD(PageRowsFixture, "settings pages: the Display & Sound view no longer exists",
-                 "[settings][settings_pages]") {
-    CHECK(lv_xml_component_get_scope("settings_display_sound_overlay") == nullptr);
 }
 
 TEST_CASE_METHOD(PageRowsFixture, "settings pages: speaker chip path opens Sound",

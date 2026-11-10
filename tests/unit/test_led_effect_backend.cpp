@@ -5,28 +5,15 @@
 
 #include "../catch_amalgamated.hpp"
 
-TEST_CASE("LedEffectBackend: activate with null API calls error callback", "[led][effects]") {
+TEST_CASE("LedEffectBackend: with no API, activate and stop report an error", "[led][effects]") {
     helix::led::LedEffectBackend backend;
+    int errors = 0;
+    auto count = [&](const std::string&) { ++errors; };
+    backend.activate_effect("led_effect breathing", nullptr, count);
+    backend.stop_all_effects(nullptr, count);
+    CHECK(errors == 2);
 
-    bool error_called = false;
-    backend.activate_effect("led_effect breathing", nullptr,
-                            [&](const std::string& err) { error_called = true; });
-
-    REQUIRE(error_called);
-}
-
-TEST_CASE("LedEffectBackend: stop_all with null API calls error callback", "[led][effects]") {
-    helix::led::LedEffectBackend backend;
-
-    bool error_called = false;
-    backend.stop_all_effects(nullptr, [&](const std::string& err) { error_called = true; });
-
-    REQUIRE(error_called);
-}
-
-TEST_CASE("LedEffectBackend: null callbacks with null API don't crash", "[led][effects]") {
-    helix::led::LedEffectBackend backend;
-
+    // With no callbacks either, nothing is left to report to.
     REQUIRE_NOTHROW(backend.activate_effect("led_effect breathing", nullptr, nullptr));
     REQUIRE_NOTHROW(backend.stop_all_effects(nullptr, nullptr));
 }
