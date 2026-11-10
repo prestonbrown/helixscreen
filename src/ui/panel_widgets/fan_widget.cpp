@@ -17,7 +17,6 @@
 
 #include <spdlog/spdlog.h>
 
-#include <cstring>
 #include <utility>
 
 #include "hv/json.hpp"
@@ -62,7 +61,15 @@ FanWidget::FanWidget(const std::string& instance_id)
                                 /*label_always_drawn=*/true};
     content.label_is_identity = true;
     sizing_.set_content(std::move(content));
-    std::strcpy(speed_buffer_, "--");
+
+    // Published before the manager parses the component, which drops a
+    // binding whose subject is missing at parse time.
+    lv_subject_init_string(&speed_subject_, speed_buffer_, nullptr, sizeof(speed_buffer_), "--");
+    sizing_.publish_instance_subject(subjects_, &speed_subject_, "speed_subject", "speed");
+    lv_subject_init_string(&name_subject_, name_buffer_, nullptr, sizeof(name_buffer_), "");
+    sizing_.publish_instance_subject(subjects_, &name_subject_, "name_subject", "name");
+    lv_subject_init_int(&named_subject_, 0);
+    sizing_.publish_instance_subject(subjects_, &named_subject_, "named_subject", "named");
 }
 
 FanWidget::~FanWidget() {
@@ -86,11 +93,6 @@ std::string FanWidget::get_component_name() const {
 void FanWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
-
-    // Cache label pointers
-    speed_label_ = lv_obj_find_by_name(widget_obj_, "fan_speed");
-    name_label_ = lv_obj_find_by_name(widget_obj_, "fan_name");
-    fan_icon_ = lv_obj_find_by_name(widget_obj_, "fan_widget_icon");
 
     // Only bind if fans are already discovered (e.g. reconnection, panel re-entry).
     // At startup, fan subjects don't exist yet — the version observer (below)
@@ -138,9 +140,6 @@ void FanWidget::detach() {
         widget_obj_ = nullptr;
     }
     parent_screen_ = nullptr;
-    speed_label_ = nullptr;
-    name_label_ = nullptr;
-    fan_icon_ = nullptr;
 
     spdlog::debug("[FanWidget] Detached");
 }
@@ -209,42 +208,34 @@ void FanWidget::select_fan(const std::string& object_name) {
     spdlog::info("[FanWidget] Selected fan: {} ({})", display_name_, object_name);
 }
 
-void FanWidget::on_speed_changed(int speed_pct) {
-    snprintf(speed_buffer_, sizeof(speed_buffer_), "%d%%", speed_pct);
+void FanWidget::set_speed_text(const char* text) {
+    lv_subject_copy_string(&speed_subject_, text);
+}
 
-    if (speed_label_) {
-        lv_label_set_text(speed_label_, speed_buffer_);
-    }
+void FanWidget::on_speed_changed(int speed_pct) {
+    char text[16];
+    snprintf(text, sizeof(text), "%d%%", speed_pct);
+    set_speed_text(text);
 
     spdlog::trace("[FanWidget] {} = {}%", display_name_, speed_pct);
 }
 
 void FanWidget::update_display() {
-    if (speed_label_) {
-        if (selected_fan_.empty()) {
-            lv_label_set_text(speed_label_, "--");
-        } else {
-            // Read current value from subject
-            auto& ps = get_printer_state();
-            lv_subject_t* subj = ps.fan_state().get_fan_speed_subject(selected_fan_);
-            if (subj) {
-                int speed = lv_subject_get_int(subj);
-                snprintf(speed_buffer_, sizeof(speed_buffer_), "%d%%", speed);
-                lv_label_set_text(speed_label_, speed_buffer_);
-            } else {
-                lv_label_set_text(speed_label_, "--");
-            }
-        }
+    lv_subject_t* subj = selected_fan_.empty()
+                             ? nullptr
+                             : get_printer_state().fan_state().get_fan_speed_subject(selected_fan_);
+    if (subj) {
+        on_speed_changed(lv_subject_get_int(subj));
+    } else {
+        set_speed_text("--");
     }
 
-    if (name_label_) {
-        if (selected_fan_.empty()) {
-            // A tag, not lv_tr() text: the label then re-translates itself.
-            lv_label_set_translation_tag(name_label_, "Select fan");
-        } else {
-            lv_label_set_text(name_label_, display_name_.c_str());
-        }
+    // An empty selection shows the component's own "Select fan" label, which
+    // re-translates itself.
+    if (!selected_fan_.empty()) {
+        lv_subject_copy_string(&name_subject_, display_name_.c_str());
     }
+    lv_subject_set_int(&named_subject_, selected_fan_.empty() ? 0 : 1);
 }
 
 void FanWidget::save_config() {

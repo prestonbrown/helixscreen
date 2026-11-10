@@ -9,6 +9,10 @@
     <prop name="tile_label_subject" type="string" default=""/>
     <prop name="tile_dir_subject" type="string" default=""/>
     <prop name="tile_target_subject" type="string" default=""/>
+    <!-- The reading, the fan's name, and 1 while a fan is selected -->
+    <prop name="speed_subject" type="string" default=""/>
+    <prop name="name_subject" type="string" default=""/>
+    <prop name="named_subject" type="string" default=""/>
   </api>
   <view name="panel_widget_fan"
         extends="lv_obj" height="100%" flex_grow="1" style_pad_ver="0" style_pad_gap="#space_xxs" scrollable="false"
@@ -28,14 +32,23 @@
             clickable="false" event_bubble="true">
       <style name="styles.tile_column"/>
       <bind_style_if_eq name="styles.tile_fill" subject="$tile_dir_subject" ref_value="1"/>
-      <text_body name="fan_speed" text="--" clickable="false" event_bubble="true">
+      <text_body name="fan_speed" bind_text="$speed_subject" clickable="false" event_bubble="true">
         <bind_tile_rung ladder="value" subject="$tile_icon_subject"/>
       </text_body>
       <text_tiny name="fan_name"
+                 width="100%" bind_text="$name_subject" style_text_align="center" long_mode="dots" clickable="false"
+                 event_bubble="true">
+        <bind_tile_rung ladder="label" subject="$tile_icon_subject" one_line="true"/>
+        <bind_flag_if_eq subject="$tile_label_subject" flag="hidden" ref_value="0"/>
+        <bind_flag_if_eq subject="$named_subject" flag="hidden" ref_value="0"/>
+      </text_tiny>
+      <!-- Until a fan is picked: a literal, so it re-translates itself -->
+      <text_tiny name="fan_name_prompt"
                  width="100%" text="Select fan" style_text_align="center" long_mode="dots" clickable="false"
                  event_bubble="true">
         <bind_tile_rung ladder="label" subject="$tile_icon_subject" one_line="true"/>
         <bind_flag_if_eq subject="$tile_label_subject" flag="hidden" ref_value="0"/>
+        <bind_flag_if_eq subject="$named_subject" flag="hidden" ref_value="1"/>
       </text_tiny>
     </lv_obj>
   </view>
