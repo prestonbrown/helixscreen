@@ -40,7 +40,8 @@ void on_displayed_filename(std::string_view /*name*/) {
 
 } // namespace
 
-void install_cjk_filename_glyphs() {
+void init_cjk_fonts(const std::string& lang) {
+    system::CjkFontManager::instance().on_language_changed(lang);
     gcode::set_displayed_filename_hook(&on_displayed_filename);
 }
 

@@ -21,7 +21,6 @@
 #include "asleep_status_wiring.h"
 #include "asset_manager.h"
 #include "cjk_filename_glyphs.h"
-#include "cjk_font_manager.h"
 #include "config.h"
 #include "core/http_executor.h"
 #include "core/update_queue.h"
@@ -1713,9 +1712,7 @@ bool Application::init_translations() {
     // English the UI is already correct without any registered pack.
     lv_translation_set_language(lang.c_str());
 
-    // Load CJK runtime fonts if persisted language is CJK
-    helix::system::CjkFontManager::instance().on_language_changed(lang);
-    helix::install_cjk_filename_glyphs();
+    helix::init_cjk_fonts(lang);
 
     // Re-enable translation warnings for runtime (post-init warnings are actionable)
     helix::logging::set_suppress_translation_warnings(false);

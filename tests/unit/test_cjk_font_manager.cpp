@@ -217,7 +217,7 @@ TEST_CASE_METHOD(CjkFilenameFixture,
                  "CjkFontManager: a CJK filename loads filename glyphs, an ASCII one does not",
                  "[cjk_font][cjk_filename]") {
     auto& mgr = CjkFontManager::instance();
-    helix::install_cjk_filename_glyphs();
+    helix::init_cjk_fonts("en");
 
     helix::gcode::get_display_filename("models/benchy_v2.gcode");
     REQUIRE(mgr.filename_glyph_sizes().empty());
@@ -234,7 +234,7 @@ TEST_CASE_METHOD(CjkFilenameFixture,
                  "CjkFontManager: filename glyphs survive a switch to zh and back",
                  "[cjk_font][cjk_filename]") {
     auto& mgr = CjkFontManager::instance();
-    helix::install_cjk_filename_glyphs();
+    helix::init_cjk_fonts("en");
     helix::gcode::get_display_filename("猫.gcode");
     REQUIRE(filename_fonts_draw(kFilenameOnlyGlyph));
 
