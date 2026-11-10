@@ -249,14 +249,19 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A print start asks the UI for the print sta
     drain();
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "A power device going off holds the recovery dialog back",
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "A power device going off or a Moonraker restart holds the recovery dialog back",
                  "[notification][notice][recovery]") {
     auto& estop = EmergencyStopOverlay::instance();
-    estop.suppress_recovery_dialog(0);
-    REQUIRE_FALSE(estop.is_recovery_suppressed());
+    for (UiRequestKind kind :
+         {UiRequestKind::ExpectKlippyDisconnect, UiRequestKind::ExpectMoonrakerRestart}) {
+        CAPTURE(static_cast<int>(kind));
+        estop.suppress_recovery_dialog(0);
+        REQUIRE_FALSE(estop.is_recovery_suppressed());
 
-    publish_ui_request({UiRequestKind::ExpectKlippyDisconnect});
+        publish_ui_request({kind});
 
-    CHECK(estop.is_recovery_suppressed());
+        CHECK(estop.is_recovery_suppressed());
+    }
     estop.suppress_recovery_dialog(0);
 }

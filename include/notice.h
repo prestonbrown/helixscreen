@@ -60,6 +60,7 @@ enum class UiRequestKind {
     OpenPrintStatus,        ///< Main thread; a no-op while print status is on the stack
     ExpectKlippyDisconnect, ///< Any thread; in effect before publish returns
     ExpectKlippyRestart,    ///< Any thread; @ref UiRequest::api is the connection about to drop
+    ExpectMoonrakerRestart, ///< Any thread; in effect before publish returns
     kCount
 };
 
