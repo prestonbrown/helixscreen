@@ -20,11 +20,10 @@
             style_pad_right="#space_lg" style_pad_top="#space_lg" style_pad_bottom="#space_md" flex_flow="column"
             style_pad_gap="#space_md" scrollable="true" scroll_snap_y="none">
       <!-- Error message text -->
-      <text_body name="error_message" width="100%" text="An error occurred while loading filament." long_mode="wrap"/>
+      <text_body name="error_message" width="100%" bind_text="ams_loading_error_message" long_mode="wrap"/>
       <!-- Hint text -->
       <text_small name="error_hint"
-                  width="100%" text="Check the filament path and try again." style_text_color="#text_muted"
-                  long_mode="wrap"/>
+                  width="100%" bind_text="ams_loading_error_hint" style_text_color="#text_muted" long_mode="wrap"/>
     </lv_obj>
     <!-- AFC filament position diagram — self-hides unless AmsPanel recognised the fault
          message (prestonbrown/helixscreen#1184). Outside the scrollable text area so the
