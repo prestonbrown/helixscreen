@@ -51,6 +51,32 @@ void ThemeEditorOverlay::set_editing_dark_mode(bool is_dark) {
 // OVERLAYBASE IMPLEMENTATION
 // ============================================================================
 
+ThemeEditorOverlay::~ThemeEditorOverlay() {
+    deinit_subjects();
+}
+
+void ThemeEditorOverlay::init_subjects() {
+    init_subjects_guarded([this]() {
+        UI_MANAGED_SUBJECT_STRING(title_subject_, title_buf_, lv_tr("Edit Theme Colors"),
+                                  "theme_editor_title", subjects_);
+        UI_MANAGED_SUBJECT_INT(dirty_subject_, 0, "theme_editor_dirty", subjects_);
+        UI_MANAGED_SUBJECT_STRING(radius_name_subject_, radius_name_buf_, "",
+                                  "theme_editor_radius_name", subjects_);
+        UI_MANAGED_SUBJECT_INT(border_width_subject_, 0, "theme_editor_border_width", subjects_);
+        UI_MANAGED_SUBJECT_INT(border_opacity_subject_, 0, "theme_editor_border_opacity",
+                               subjects_);
+        UI_MANAGED_SUBJECT_INT(shadow_subject_, 0, "theme_editor_shadow", subjects_);
+        UI_MANAGED_SUBJECT_STRING(save_as_status_subject_, save_as_status_buf_, "",
+                                  "theme_save_as_status", subjects_);
+        UI_MANAGED_SUBJECT_INT(save_as_status_shown_subject_, 0, "theme_save_as_status_shown",
+                               subjects_);
+    });
+}
+
+void ThemeEditorOverlay::deinit_subjects() {
+    deinit_subjects_base(subjects_);
+}
+
 lv_obj_t* ThemeEditorOverlay::create(lv_obj_t* parent) {
     // The swatches bind their colour subjects by name as the XML is built.
     swatch_color_pool_.ensure_size(helix::ModePalette::color_names().size());
@@ -228,6 +254,7 @@ void ThemeEditorOverlay::update_swatch_colors() {
 }
 
 void ThemeEditorOverlay::update_property_sliders() {
+    publish_property_values();
     if (!overlay_root_) {
         return;
     }
@@ -238,9 +265,6 @@ void ThemeEditorOverlay::update_property_sliders() {
     if (radius_slider) {
         lv_slider_set_value(radius_slider, editing_theme_.properties.border_radius_size,
                             LV_ANIM_OFF);
-        update_slider_value_label(
-            "row_border_radius",
-            lv_tr(helix::BorderRadiusSizes::name(editing_theme_.properties.border_radius_size)));
     }
 
     // Update border width slider
@@ -274,28 +298,17 @@ void ThemeEditorOverlay::update_property_sliders() {
                   editing_theme_.properties.shadow_intensity);
 }
 
-void ThemeEditorOverlay::update_slider_value_label(const char* row_name, int value) {
-    if (!overlay_root_) {
+// The slider rows' readouts bind these.
+void ThemeEditorOverlay::publish_property_values() {
+    if (!subjects_initialized_) {
         return;
     }
-
-    lv_obj_t* row = lv_obj_find_by_name(overlay_root_, row_name);
-    lv_obj_t* label = helix::ui::find_required(row, "value_label", get_name());
-    if (label) {
-        char buf[16];
-        std::snprintf(buf, sizeof(buf), "%d", value);
-        lv_label_set_text(label, buf);
-    }
-}
-
-void ThemeEditorOverlay::update_slider_value_label(const char* row_name, const char* text) {
-    if (!overlay_root_)
-        return;
-    lv_obj_t* row = lv_obj_find_by_name(overlay_root_, row_name);
-    lv_obj_t* label = helix::ui::find_required(row, "value_label", get_name());
-    if (label) {
-        lv_label_set_text(label, text);
-    }
+    const auto& props = editing_theme_.properties;
+    lv_subject_copy_string(&radius_name_subject_,
+                           lv_tr(helix::BorderRadiusSizes::name(props.border_radius_size)));
+    lv_subject_set_int(&border_width_subject_, props.border_width);
+    lv_subject_set_int(&border_opacity_subject_, props.border_opacity);
+    lv_subject_set_int(&shadow_subject_, props.shadow_intensity);
 }
 
 void ThemeEditorOverlay::mark_dirty() {
@@ -315,32 +328,21 @@ void ThemeEditorOverlay::clear_dirty() {
 }
 
 void ThemeEditorOverlay::update_title_dirty_indicator() {
-    if (!overlay_root_) {
+    if (!subjects_initialized_) {
         return;
     }
+    // The header title and the Save button bind these
+    lv_subject_copy_string(&title_subject_, dirty_ ? lv_tr("Edit Theme Colors (Modified)")
+                                                   : lv_tr("Edit Theme Colors"));
+    lv_subject_set_int(&dirty_subject_, dirty_ ? 1 : 0);
+}
 
-    // Find the header bar and its title label
-    lv_obj_t* header = helix::ui::find_required(overlay_root_, "overlay_header", get_name());
-    lv_obj_t* title_label = helix::ui::find_required(header, "header_title", get_name());
-    if (!title_label) {
+void ThemeEditorOverlay::show_save_as_status(const char* text) {
+    if (!subjects_initialized_) {
         return;
     }
-
-    // Find save button to enable/disable based on dirty state
-    lv_obj_t* save_btn = helix::ui::find_required(overlay_root_, "btn_save", get_name());
-
-    // Update title text and save button state
-    if (dirty_) {
-        lv_label_set_text(title_label, lv_tr("Edit Theme Colors (Modified)"));
-        if (save_btn) {
-            lv_obj_remove_state(save_btn, LV_STATE_DISABLED);
-        }
-    } else {
-        lv_label_set_text(title_label, lv_tr("Edit Theme Colors"));
-        if (save_btn) {
-            lv_obj_add_state(save_btn, LV_STATE_DISABLED);
-        }
-    }
+    lv_subject_copy_string(&save_as_status_subject_, text);
+    lv_subject_set_int(&save_as_status_shown_subject_, text[0] != '\0' ? 1 : 0);
 }
 
 // ============================================================================
@@ -382,7 +384,7 @@ void ThemeEditorOverlay::handle_border_radius_changed(int value) {
     editing_theme_.properties.border_radius_size = clamped;
     mark_dirty();
     theme_manager_preview(editing_theme_);
-    update_slider_value_label("row_border_radius", lv_tr(helix::BorderRadiusSizes::name(clamped)));
+    publish_property_values();
     spdlog::debug("[{}] Border radius size changed to {} ({})", get_name(), clamped,
                   helix::BorderRadiusSizes::name(clamped));
 }
@@ -391,7 +393,7 @@ void ThemeEditorOverlay::handle_border_width_changed(int value) {
     editing_theme_.properties.border_width = value;
     mark_dirty();
     theme_manager_preview(editing_theme_);
-    update_slider_value_label("row_border_width", value);
+    publish_property_values();
     spdlog::debug("[{}] Border width changed to {}", get_name(), value);
 }
 
@@ -399,7 +401,7 @@ void ThemeEditorOverlay::handle_border_opacity_changed(int value) {
     editing_theme_.properties.border_opacity = value;
     mark_dirty();
     theme_manager_preview(editing_theme_);
-    update_slider_value_label("row_border_opacity", value);
+    publish_property_values();
     spdlog::debug("[{}] Border opacity changed to {}", get_name(), value);
 }
 
@@ -407,7 +409,7 @@ void ThemeEditorOverlay::handle_shadow_intensity_changed(int value) {
     editing_theme_.properties.shadow_intensity = value;
     mark_dirty();
     theme_manager_preview(editing_theme_);
-    update_slider_value_label("row_shadow_intensity", value);
+    publish_property_values();
     spdlog::debug("[{}] Shadow intensity changed to {}", get_name(), value);
 }
 
@@ -591,6 +593,9 @@ void ThemeEditorOverlay::show_save_as_dialog() {
         save_as_dialog_ = nullptr;
     }
 
+    // No error line from a previous attempt
+    show_save_as_status("");
+
     // Show save as modal
     save_as_dialog_ = helix::ui::ComponentModal::show_owned("theme_save_as_modal");
     if (!save_as_dialog_) {
@@ -673,13 +678,7 @@ void ThemeEditorOverlay::handle_save_as_confirm() {
 
     const char* raw_name = lv_textarea_get_text(input);
     if (!raw_name || std::strlen(raw_name) == 0) {
-        // Show error in status field
-        // required-names: theme_save_as_modal
-        lv_obj_t* status = helix::ui::find_required(save_as_dialog_, "save_as_status", get_name());
-        if (status) {
-            lv_label_set_text(status, lv_tr("Please enter a theme name"));
-            lv_obj_remove_flag(status, LV_OBJ_FLAG_HIDDEN);
-        }
+        show_save_as_status(lv_tr("Please enter a theme name"));
         return;
     }
 
@@ -701,12 +700,7 @@ void ThemeEditorOverlay::handle_save_as_confirm() {
     std::string filepath = themes_dir + "/" + unique_filename + ".json";
     if (!helix::save_theme_to_file(editing_theme_, filepath)) {
         spdlog::error("[{}] Failed to save theme to '{}'", get_name(), filepath);
-        // required-names: theme_save_as_modal
-        lv_obj_t* status = helix::ui::find_required(save_as_dialog_, "save_as_status", get_name());
-        if (status) {
-            lv_label_set_text(status, lv_tr("Failed to save theme file"));
-            lv_obj_remove_flag(status, LV_OBJ_FLAG_HIDDEN);
-        }
+        show_save_as_status(lv_tr("Failed to save theme file"));
         return;
     }
 
