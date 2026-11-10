@@ -32,6 +32,9 @@
 #include "lvgl/lvgl.h"
 #include "theme_manager.h"
 
+#include <cstdlib>
+#include <fstream>
+#include <iterator>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -246,5 +249,44 @@ TEST_CASE_METHOD(XMLTestFixture, "Switch size presets follow a runtime breakpoin
         CHECK(lv_obj_get_style_width(sw, LV_PART_MAIN) == 80);
         CHECK(lv_obj_get_style_height(sw, LV_PART_MAIN) == 40);
         lv_obj_delete(sw);
+    }
+}
+
+// scripts/translations/registered_text_fonts.txt lists the text face names each
+// breakpoint registers. A scaled-up font token resolves only to a registered
+// name, so the CJK filename bake and prune read it to size their bins.
+// HELIX_UPDATE_GOLDEN=1 rewrites it.
+TEST_CASE_METHOD(XMLTestFixture,
+                 "Each breakpoint registers the text faces the registered-fonts file lists",
+                 "[font_tier][cjk_filename]") {
+    std::string expected;
+    for (int tier = 0; tier <= 6; ++tier) {
+        expected += std::to_string(tier) + ":";
+        for (const auto& name : AssetManager::text_font_names_for_breakpoint(tier))
+            expected += " " + name;
+        expected += "\n";
+    }
+    const std::string path = "scripts/translations/registered_text_fonts.txt";
+    if (std::getenv("HELIX_UPDATE_GOLDEN")) {
+        std::ofstream(path) << expected;
+        WARN("rewrote " << path);
+    } else {
+        std::ifstream in(path);
+        REQUIRE(in.good());
+        const std::string actual((std::istreambuf_iterator<char>(in)),
+                                 std::istreambuf_iterator<char>());
+        CHECK(actual == expected);
+    }
+
+    // Replaying startup tier by tier registers exactly the rows each tier adds,
+    // plus the six icon faces with the first.
+    AssetManager::reset_for_test();
+    size_t before = 0;
+    for (int tier = 0; tier <= 6; ++tier) {
+        const size_t now = AssetManager::text_font_names_for_breakpoint(tier).size();
+        const size_t icons = tier == 0 ? 6 : 0;
+        CHECK(AssetManager::register_fonts_for_tier(tier) ==
+              static_cast<int>(now - before + icons));
+        before = now;
     }
 }

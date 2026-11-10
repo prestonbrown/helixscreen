@@ -20,7 +20,7 @@
 #include "app_constants.h"
 #include "asleep_status_wiring.h"
 #include "asset_manager.h"
-#include "cjk_font_manager.h"
+#include "cjk_filename_glyphs.h"
 #include "config.h"
 #include "core/http_executor.h"
 #include "core/update_queue.h"
@@ -1439,6 +1439,7 @@ bool Application::init_display() {
         const helix::LayoutType layout_before = layout.type();
         layout.init(w, h);
         const bool tokens_moved = theme_manager_refresh_layout_constants(disp);
+        helix::refresh_cjk_filename_glyphs();
         // Built widgets keep the tokens, fonts and layout variant they were built
         // with. Only a change to one of those rebuilds them, so a window drag
         // rebuilds at a tier crossing rather than at every debounced step (#1214).
@@ -1711,8 +1712,7 @@ bool Application::init_translations() {
     // English the UI is already correct without any registered pack.
     lv_translation_set_language(lang.c_str());
 
-    // Load CJK runtime fonts if persisted language is CJK
-    helix::system::CjkFontManager::instance().on_language_changed(lang);
+    helix::init_cjk_fonts(lang);
 
     // Re-enable translation warnings for runtime (post-init warnings are actionable)
     helix::logging::set_suppress_translation_warnings(false);

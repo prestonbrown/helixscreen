@@ -208,6 +208,8 @@ void PrintSelectListView::configure_row(lv_obj_t* row, size_t pool_index, size_t
         return;
     }
 
+    if (file.is_dir)
+        helix::gcode::note_displayed_filename(file.filename);
     std::string display_name =
         file.is_dir ? file.filename + "/" : strip_gcode_extension(file.filename);
 
