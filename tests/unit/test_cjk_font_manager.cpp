@@ -251,3 +251,26 @@ TEST_CASE_METHOD(CjkFilenameFixture,
     CHECK(theme_manager_get_font("font_body")->fallback == nullptr);
     CHECK_FALSE(filename_fonts_draw(kFilenameOnlyGlyph));
 }
+
+TEST_CASE_METHOD(CjkFilenameFixture,
+                 "CjkFontManager: a label laid out before the load is measured again after it",
+                 "[cjk_font][cjk_filename]") {
+    const lv_font_t* body = theme_manager_get_font("font_body");
+    auto make_label = [body]() {
+        lv_obj_t* label = lv_label_create(lv_screen_active());
+        lv_obj_set_style_text_font(label, body, 0);
+        lv_label_set_text(label, "猫猫猫猫");
+        return label;
+    };
+    lv_obj_t* early = make_label();
+    lv_obj_update_layout(early);
+    const int32_t placeholder_width = lv_obj_get_width(early);
+
+    helix::init_cjk_fonts("en");
+    helix::gcode::get_display_filename("猫.gcode");
+
+    lv_obj_t* fresh = make_label();
+    lv_obj_update_layout(lv_screen_active());
+    REQUIRE(lv_obj_get_width(fresh) != placeholder_width);
+    CHECK(lv_obj_get_width(early) == lv_obj_get_width(fresh));
+}

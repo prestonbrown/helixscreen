@@ -195,6 +195,9 @@ void CjkFontManager::ensure_filename_glyphs(std::initializer_list<const lv_font_
     if (added) {
         load_filename_ui_fonts();
         relink();
+        // A label laid out before this load measured its CJK text with missing
+        // glyphs; a style refresh makes every label measure and wrap it again.
+        lv_obj_report_style_change(nullptr);
     }
 #else
     (void)faces;
