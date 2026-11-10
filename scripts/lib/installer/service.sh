@@ -31,6 +31,31 @@ _template_install_paths() {
     done
 }
 
+# Fill every placeholder an installed helixscreen.service carries: the service
+# user and group, the printer_data config dir it records for
+# restore-user-config.sh, and the install paths (from INSTALL_DIR, as
+# _template_install_paths reads it).
+# Args: UNIT_FILE USER GROUP PD_HELIX_DIR
+_template_service_unit() {
+    _sed_inplace "s|@@HELIX_USER@@|$2|g" "$1"
+    _sed_inplace "s|@@HELIX_GROUP@@|$3|g" "$1"
+    _sed_inplace "s|@@HELIX_PD_HELIX@@|$(sed_escape_replacement "$4")|g" "$1"
+    _template_install_paths "$1"
+}
+
+# The oneshot unit an image install leaves behind to finish its setup on the
+# printer's first boot (image.sh). It does nothing once that has run, but it is
+# ours, so an uninstall or a clean reinstall removes it.
+HELIX_FIRST_BOOT_UNIT="helixscreen-firstboot.service"
+
+remove_first_boot_unit() {
+    local unit="${HELIX_SYSTEMD_UNIT_DIR:-/etc/systemd/system}/${HELIX_FIRST_BOOT_UNIT}"
+    [ -f "$unit" ] || return 0
+    $SUDO systemctl disable "$HELIX_FIRST_BOOT_UNIT" 2>/dev/null || true
+    $SUDO rm -f "$unit"
+    log_info "Removed $HELIX_FIRST_BOOT_UNIT"
+}
+
 # Returns true if this process is running under the NoNewPrivileges systemd constraint.
 # When helix-screen self-updates, it spawns install.sh as a child process.  The
 # helixscreen.service unit has NoNewPrivileges=true, so ALL sudo calls in install.sh
@@ -525,17 +550,11 @@ install_service_systemd() {
 
     $SUDO cp "$service_src" "$service_dest"
 
-    # Template placeholders (match SysV pattern in install_service_sysv).
     # KLIPPER_GROUP is the user's actual primary group (resolved via id -gn);
     # falling back to KLIPPER_USER breaks the QIDI Q2, where the `mks` user
     # has no `mks` group and systemd refuses to spawn the unit.
-    local helix_user="${KLIPPER_USER:-root}"
-    local helix_group="${KLIPPER_GROUP:-${KLIPPER_USER:-root}}"
-
-    _sed_inplace "s|@@HELIX_USER@@|${helix_user}|g" "$service_dest"
-    _sed_inplace "s|@@HELIX_GROUP@@|${helix_group}|g" "$service_dest"
-    _sed_inplace "s|@@HELIX_PD_HELIX@@|$(sed_escape_replacement "$(helix_pd_helix_dir)")|g" "$service_dest"
-    _template_install_paths "$service_dest"
+    _template_service_unit "$service_dest" "${KLIPPER_USER:-root}" \
+        "${KLIPPER_GROUP:-${KLIPPER_USER:-root}}" "$(helix_pd_helix_dir)"
 
     if ! run_logged $SUDO systemctl daemon-reload; then
         log_error "Failed to reload systemd daemon."

@@ -749,6 +749,7 @@ uninstall() {
         $SUDO systemctl disable helixscreen-update.path 2>/dev/null || true
         $SUDO rm -f /etc/systemd/system/helixscreen-update.path
         $SUDO rm -f /etc/systemd/system/helixscreen-update.service
+        remove_first_boot_unit
         uninstall_qidi_3mf_thumbs
         remove_permission_rules
         $SUDO systemctl daemon-reload
@@ -1044,6 +1045,7 @@ clean_old_installation() {
     $SUDO systemctl disable helixscreen-update.path 2>/dev/null || true
     $SUDO rm -f /etc/systemd/system/helixscreen-update.path
     $SUDO rm -f /etc/systemd/system/helixscreen-update.service
+    remove_first_boot_unit
     uninstall_qidi_3mf_thumbs
     remove_permission_rules
     $SUDO systemctl daemon-reload 2>/dev/null || true

@@ -196,6 +196,18 @@ usage() {
     echo "  --auto-update  Also write the [update_manager helixscreen] stanza"
     echo "                 into the mod's user.moonraker.conf (opt-in: a stanza"
     echo "                 is a real side effect)"
+    echo "  --target-root DIR  Install into a disk image's root filesystem at DIR,"
+    echo "                 for image builders: needs --platform pi|pi32 and --local FILE."
+    echo "                 Starts nothing and asks no Moonraker; what needs the booted"
+    echo "                 printer runs once on its first boot"
+    echo "  --platform P   With --target-root: the image's platform (pi or pi32)"
+    echo "  --user NAME    With --target-root: the image's Klipper user (default:"
+    echo "                 klipper.service's User=, else the one home with printer_data)"
+    echo "  --own-display  With --target-root: disable an enabled KlipperScreen so"
+    echo "                 HelixScreen owns the display (default: KlipperScreen keeps"
+    echo "                 it and HelixScreen is installed but not enabled)"
+    echo "  --first-boot   Finish an image install on the booted printer (run by"
+    echo "                 helixscreen-firstboot.service)"
     echo "  --help         Show this help message"
     echo ""
     echo "Examples:"
@@ -234,6 +246,11 @@ parse_installer_args() {
     INSTALL_SOURCE_ARG=""
     # shellcheck disable=SC2034  # consumed by desktop.sh (resolve_x86_flavour)
     X86_FLAVOUR_FLAG=""
+    IMAGE_TARGET_ROOT=""
+    IMAGE_PLATFORM_ARG=""
+    IMAGE_USER_ARG=""
+    IMAGE_OWN_DISPLAY=""
+    first_boot_mode=false
 
     while [ $# -gt 0 ]; do
         case $1 in
@@ -359,6 +376,26 @@ parse_installer_args() {
                 MOD_PAYLOAD_FLAG_GIVEN=1
                 shift
                 ;;
+            --target-root|--platform|--user)
+                if [ -z "${2:-}" ]; then
+                    log_error "$1 requires an argument"
+                    exit 1
+                fi
+                case $1 in
+                    --target-root) IMAGE_TARGET_ROOT="$2" ;;
+                    --platform) IMAGE_PLATFORM_ARG="$2" ;;
+                    *) IMAGE_USER_ARG="$2" ;;
+                esac
+                shift 2
+                ;;
+            --own-display)
+                IMAGE_OWN_DISPLAY=1
+                shift
+                ;;
+            --first-boot)
+                first_boot_mode=true
+                shift
+                ;;
             --help|-h)
                 usage
                 exit 0
@@ -394,6 +431,47 @@ parse_installer_args() {
         log_error "--dry-run cannot be combined with --uninstall; nothing was removed"
         exit 1
     fi
+
+    image_check_args
+}
+
+# Print an image-install refusal and stop; image.sh refuses through it too.
+_image_refuse() {
+    log_error "$1"
+    exit 1
+}
+
+# Arguments an image install needs and refuses, checked by
+# parse_installer_args once every flag is read.
+image_check_args() {
+    if [ "${first_boot_mode:-false}" = true ]; then
+        [ -z "${IMAGE_TARGET_ROOT:-}" ] ||
+            _image_refuse "--first-boot runs on the booted printer; it cannot be combined with --target-root"
+        return 0
+    fi
+    if [ -z "${IMAGE_TARGET_ROOT:-}" ]; then
+        [ -z "${IMAGE_PLATFORM_ARG:-}" ] || _image_refuse "--platform only applies to --target-root"
+        [ -z "${IMAGE_USER_ARG:-}" ] || _image_refuse "--user only applies to --target-root"
+        [ -z "${IMAGE_OWN_DISPLAY:-}" ] || _image_refuse "--own-display only applies to --target-root"
+        return 0
+    fi
+    case "${IMAGE_PLATFORM_ARG:-}" in
+        pi | pi32) ;;
+        "") _image_refuse "--target-root needs --platform: pi (64-bit image) or pi32 (32-bit image)" ;;
+        *) _image_refuse "--target-root installs --platform pi or pi32, not ${IMAGE_PLATFORM_ARG}" ;;
+    esac
+    [ -n "${local_tarball:-}" ] ||
+        _image_refuse "--target-root installs a release archive you name: add --local FILE"
+    local _ica_flag=""
+    [ "${update_mode:-false}" = true ] && _ica_flag="--update"
+    [ "${uninstall_mode:-false}" = true ] && _ica_flag="--uninstall"
+    [ "${clean_mode:-false}" = true ] && _ica_flag="--clean"
+    [ -n "${version:-}" ] && _ica_flag="--version"
+    [ "${STANDALONE_INSTALL:-}" = 1 ] && _ica_flag="--standalone"
+    [ -n "${MOD_PAYLOAD_ROOT:-}" ] && _ica_flag="--payload-root"
+    [ -n "${X86_FLAVOUR_FLAG:-}" ] && _ica_flag="--${X86_FLAVOUR_FLAG}"
+    [ -z "$_ica_flag" ] || _image_refuse "$_ica_flag cannot be combined with --target-root"
+    return 0
 }
 
 # Record the archive this run installs; naming two is a mistake, not a choice.
@@ -837,6 +915,12 @@ main() {
     # its install-dir gate needs to know whether the mod's payload root is ours
     # to write. Autodetect (probe) plus the operator's overrides decide.
     parse_installer_args "$@"
+    # An image install targets another root filesystem: nothing below, all of
+    # which reads this machine, applies to it.
+    if [ -n "$IMAGE_TARGET_ROOT" ]; then
+        image_install
+        exit 0
+    fi
     mod_payload_autodetect
     # Before the platform settles: an x86 package's flavour feeds that choice.
     detect_package_beside_installer
@@ -910,6 +994,12 @@ main() {
 
     # Check permissions
     check_permissions "$platform"
+
+    # The first-boot pass of an image install, on the printer that booted it.
+    if [ "$first_boot_mode" = true ]; then
+        image_first_boot "$platform"
+        exit 0
+    fi
 
     # Handle uninstall (doesn't need all checks). The self-delete guard also
     # ran early (before platform detection); this second call covers the normal
