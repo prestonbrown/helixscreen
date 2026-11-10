@@ -21,10 +21,37 @@ namespace helix {
 
 namespace {
 
-std::optional<NormPoint> read_point(const nlohmann::json& v) {
+/// Two numbers, as written.
+std::optional<NormPoint> read_pair(const nlohmann::json& v) {
     if (!v.is_array() || v.size() != 2 || !v[0].is_number() || !v[1].is_number())
         return std::nullopt;
     return NormPoint{v[0].get<float>(), v[1].get<float>()};
+}
+
+/// A point on the picture. A little outside it is a hand's slip; far outside is a
+/// broken file, held near the picture so no glow or layout reaches for it.
+std::optional<NormPoint> read_point(const nlohmann::json& v) {
+    const auto p = read_pair(v);
+    if (!p)
+        return std::nullopt;
+    const auto clamp = [](float f) { return std::clamp(f, -1.f, 2.f); };
+    return NormPoint{clamp(p->x), clamp(p->y)};
+}
+
+/// True when the quad turns the same way at every corner: no bowtie, no dent.
+bool is_convex(const std::array<NormPoint, 4>& q) {
+    int sign = 0;
+    for (size_t i = 0; i < q.size(); ++i) {
+        const NormPoint& a = q[i];
+        const NormPoint& b = q[(i + 1) % q.size()];
+        const NormPoint& c = q[(i + 2) % q.size()];
+        const float cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+        const int s = cross > 0.f ? 1 : cross < 0.f ? -1 : 0;
+        if (s == 0 || (sign != 0 && s != sign))
+            return false;
+        sign = s;
+    }
+    return true;
 }
 
 /// Each well-formed quad under `v`; a malformed one is dropped with a warning.
@@ -42,10 +69,11 @@ std::vector<std::array<NormPoint, 4>> read_windows(const nlohmann::json& v,
             if (ok)
                 pts[i] = *p;
         }
-        if (ok)
+        if (ok && is_convex(pts))
             out.push_back(pts);
         else
-            spdlog::warn("[PrinterImageRegions] '{}': skipping a malformed window", name);
+            spdlog::warn("[PrinterImageRegions] '{}': skipping a malformed or non-convex window",
+                         name);
     }
     return out;
 }
@@ -179,8 +207,7 @@ std::unordered_map<std::string, ImageRegions> parse_image_regions(const std::str
         return out;
     }
     for (const auto& [name, e] : doc.items()) {
-        const auto size =
-            e.is_object() && e.contains("size") ? read_point(e["size"]) : std::nullopt;
+        const auto size = e.is_object() && e.contains("size") ? read_pair(e["size"]) : std::nullopt;
         const auto nozzle =
             e.is_object() && e.contains("nozzle") ? read_point(e["nozzle"]) : std::nullopt;
         const auto& bed = e.is_object() && e.contains("bed") ? e["bed"] : nlohmann::json();

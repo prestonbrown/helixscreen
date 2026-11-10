@@ -208,6 +208,26 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_bed_heating")) == 1);
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a warm chamber glows at its level",
+                 "[printer_image][callouts]") {
+    const auto regions = prepare_tagged_widget();
+    PanelWidgetHarness<PrinterImageWidget> h(test_screen());
+    h.resize(8, 4, 480, 160);
+    lv_subject_set_int(state().capabilities_state().subject(Capability::HasChamber), 1);
+    lv_subject_set_int(state().temperature_state().get_chamber_temp_subject(), 500);
+    settle();
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_chamber_glow_level")) == 2);
+    lv_obj_t* glow = h.child("callout_chamber_glow");
+    CHECK_FALSE(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_image_get_src(glow) != nullptr);
+
+    lv_subject_set_int(state().temperature_state().get_chamber_temp_subject(), 250);
+    settle();
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_chamber_glow_level")) == 0);
+    CHECK(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
+    lv_subject_set_int(state().capabilities_state().subject(Capability::HasChamber), 0);
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "callouts: idle cold printer shows no chips",
                  "[printer_image][callouts]") {
     const auto regions = prepare_tagged_widget();
@@ -606,8 +626,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a recycled instance drives its ne
     widget.attach(comp1, test_screen());
     lv_obj_update_layout(comp1);
     widget.on_size_changed(4, 4, 160, 160);
-    lv_subject_set_int(get_printer_state().temperature_state().get_bed_target_subject(), 600);
-    lv_subject_set_int(get_printer_state().temperature_state().get_bed_temp_subject(), 400);
+    lv_subject_set_int(get_printer_state().temperature_state().get_bed_target_subject(), 800);
+    lv_subject_set_int(get_printer_state().temperature_state().get_bed_temp_subject(), 600);
     lv_subject_set_int(get_printer_state().fan_state().get_fan_speed_subject(), 60);
     settle();
     REQUIRE(lv_anim_get(lv_obj_find_by_name(comp1, "callout_bed_glow"), nullptr) != nullptr);
@@ -622,7 +642,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a recycled instance drives its ne
     CHECK(lv_obj_has_flag(lv_obj_find_by_name(comp2, "callout_layer"), LV_OBJ_FLAG_HIDDEN));
     lv_obj_update_layout(comp2);
     widget.on_size_changed(4, 4, 160, 160);
-    lv_subject_set_int(get_printer_state().temperature_state().get_bed_target_subject(), 650);
+    lv_subject_set_int(get_printer_state().temperature_state().get_bed_target_subject(), 850);
     settle();
     lv_obj_update_layout(comp2);
     lv_obj_t* bed = lv_obj_find_by_name(comp2, "callout_chip_bed");

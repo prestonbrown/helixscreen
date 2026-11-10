@@ -1226,6 +1226,35 @@ TEST_CASE_METHOD(Landscape800, "a chip the phase sheds is never placed without r
     clear_all_eight_chips(*this);
 }
 
+TEST_CASE_METHOD(Landscape800, "a warm chamber's glow takes over from the light's",
+                 "[print_status]") {
+    auto& ctrl = helix::led::LedController::instance();
+    helix::led::LedStripInfo strip;
+    strip.id = strip.name = "neopixel chamber_light";
+    strip.backend = helix::led::LedBackendType::NATIVE;
+    strip.supports_color = true;
+    ctrl.native().add_strip(strip);
+    ctrl.update_from_status({{"neopixel chamber_light", {{"color_data", {{1.0, 1.0, 1.0, 0.0}}}}}});
+    set_int(lv_xml_get_subject(nullptr, "led_controllable"), 1);
+    set_int(state().capabilities_state().subject(Capability::HasChamber), 1);
+    auto& temps = state().temperature_state();
+    set_int(temps.get_chamber_temp_subject(), 250);
+    settle();
+    settle();
+    REQUIRE(subject_int("ps_chip_light_tone") == static_cast<int>(ChipTone::Active));
+    CHECK(subject_int("ps_glow_light") == 1);
+    CHECK(subject_int("ps_glow_chamber") == 0);
+
+    set_int(temps.get_chamber_temp_subject(), 450);
+    settle();
+    settle();
+    CHECK(subject_int("ps_glow_chamber") == 2);
+    CHECK(subject_int("ps_glow_light") == 0);
+
+    set_int(state().capabilities_state().subject(Capability::HasChamber), 0);
+    set_int(lv_xml_get_subject(nullptr, "led_controllable"), 0);
+}
+
 TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's subjects",
                  "[print_status]") {
     const char* keys[] = {"nozzle",     "bed",     "chamber", "part_fan",

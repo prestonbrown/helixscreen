@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "ui_plate_glow.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "callout_presenter.h"
+#include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 
 #include "../catch_amalgamated.hpp"
@@ -206,6 +209,27 @@ TEST_CASE_METHOD(PresenterFixture, "the bed glow re-renders only when its plate 
         presenter.apply(parts, &r, 1601, 1204, config());
         CHECK(lv_image_get_src(parts.chips[0].glow) == nullptr);
     }
+}
+
+TEST_CASE_METHOD(PresenterFixture, "a heat glow breathes only while climbing, shown and animated",
+                 "[callout_presenter]") {
+    using helix::ui::temperature::HeatState;
+    auto& display = DisplaySettingsManager::instance();
+    const bool animations = display.get_animations_enabled();
+    display.set_animations_enabled(true);
+    lv_obj_t* glow = lv_image_create(area);
+    const auto pulsing = [&] { return lv_anim_get(glow, nullptr) != nullptr; };
+
+    helix::ui::heat_glow_update_pulse(glow, HeatState::Heating, true);
+    CHECK(pulsing());
+    helix::ui::heat_glow_update_pulse(glow, HeatState::Heating, false);
+    CHECK_FALSE(pulsing());
+    helix::ui::heat_glow_update_pulse(glow, HeatState::AtTemp, true);
+    CHECK_FALSE(pulsing());
+    display.set_animations_enabled(false);
+    helix::ui::heat_glow_update_pulse(glow, HeatState::Heating, true);
+    CHECK_FALSE(pulsing());
+    display.set_animations_enabled(animations);
 }
 
 TEST_CASE_METHOD(PresenterFixture, "the chamber glow fills its windows, or a disc without them",

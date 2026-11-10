@@ -194,9 +194,11 @@ void CalloutPresenter::place_glow(const Chip& part, const ImageRegions& r,
     };
     // A rebuilt widget starts with no mask, whatever geometry it inherits.
     const auto is_current = [&](uint32_t key) {
-        const bool current = lv_image_get_src(part.glow) && key == glow_key_[k];
-        glow_key_[k] = key;
-        return current;
+        return lv_image_get_src(part.glow) && key == glow_key_[k];
+    };
+    // A mask that could not be allocated leaves the key unset, so the next layout retries.
+    const auto show = [&](uint32_t key, const PlateGlowMask& mask) {
+        glow_key_[k] = plate_glow_set_mask(part.glow, mask) ? key : 0;
     };
 
     if (part.kind == CalloutKind::Bed) {
@@ -216,7 +218,7 @@ void CalloutPresenter::place_glow(const Chip& part, const ImageRegions& r,
         uint32_t key = hash_quad(kFnvBasis, quad);
         key = hash_int(key, rise);
         if (!is_current(key))
-            plate_glow_set_mask(part.glow, render_plate_glow(quad, rise));
+            show(key, render_plate_glow(quad, rise));
         return;
     }
 
@@ -242,17 +244,16 @@ void CalloutPresenter::place_glow(const Chip& part, const ImageRegions& r,
         }
         const float reach = float(std::max(image.w, image.h)) * kWashReachShare;
         const bool chamber = part.kind == CalloutKind::Chamber;
-        plate_glow_set_mask(part.glow,
-                            render_region_glow(quads, source, reach,
-                                               chamber ? kChamberWashFloor : kLightWashFloor,
-                                               chamber ? kChamberWashPeak : kLightWashPeak));
+        show(key,
+             render_region_glow(quads, source, reach, chamber ? kChamberWashFloor : kLightWashFloor,
+                                chamber ? kChamberWashPeak : kLightWashPeak));
         return;
     }
 
     const int radius = int(float(image.w) * kDiscRadiusShare);
     key = hash_int(key, radius);
     if (!is_current(key))
-        plate_glow_set_mask(part.glow, render_disc_glow(source, radius));
+        show(key, render_disc_glow(source, radius));
 }
 
 void CalloutPresenter::place_line(const CalloutChipOut& c, const Chip& part) {

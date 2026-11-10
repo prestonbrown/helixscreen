@@ -62,19 +62,19 @@ void register_plate_glow_widget() {
     spdlog::trace("[PlateGlow] Registered <plate_glow> widget");
 }
 
-void plate_glow_set_mask(lv_obj_t* obj, const PlateGlowMask& mask) {
+bool plate_glow_set_mask(lv_obj_t* obj, const PlateGlowMask& mask) {
     if (!obj)
-        return;
+        return false;
     if (mask.w <= 0 || mask.h <= 0) {
         lv_image_set_src(obj, nullptr);
         release_buf(obj);
-        return;
+        return true;
     }
     lv_draw_buf_t* buf =
         lv_draw_buf_create(uint32_t(mask.w), uint32_t(mask.h), LV_COLOR_FORMAT_A8, LV_STRIDE_AUTO);
     if (!buf) {
         spdlog::error("[PlateGlow] Failed to create a {}x{} mask", mask.w, mask.h);
-        return;
+        return false;
     }
     for (int row = 0; row < mask.h; ++row) {
         std::memcpy(buf->data + size_t(row) * buf->header.stride,
@@ -91,12 +91,13 @@ void plate_glow_set_mask(lv_obj_t* obj, const PlateGlowMask& mask) {
     lv_obj_set_size(obj, mask.w * mask.step, mask.h * mask.step);
     // A coarse mask stretches back over the area it stands for.
     lv_image_set_inner_align(obj, LV_IMAGE_ALIGN_STRETCH);
+    return true;
 }
 
-void heat_glow_update_pulse(lv_obj_t* glow, temperature::HeatState heat) {
+void heat_glow_update_pulse(lv_obj_t* glow, temperature::HeatState heat, bool shown) {
     if (!glow)
         return;
-    const bool on = temperature::heater_region_glows(heat) &&
+    const bool on = shown && temperature::heater_region_glows(heat) &&
                     DisplaySettingsManager::instance().get_animations_enabled();
     set_image_opa_pulse(glow, on, kHeatGlowPulse);
 }

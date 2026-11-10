@@ -54,8 +54,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     widget.on_size_changed(4, 4, 160, 160);
 
     auto& temps = get_printer_state().temperature_state();
-    lv_subject_set_int(temps.get_bed_target_subject(), 600);
-    lv_subject_set_int(temps.get_bed_temp_subject(), 400);
+    // Warm enough to glow, still climbing.
+    lv_subject_set_int(temps.get_bed_target_subject(), 800);
+    lv_subject_set_int(temps.get_bed_temp_subject(), 600);
     settle();
 
     lv_obj_t* glow = lv_obj_find_by_name(comp, "callout_bed_glow");

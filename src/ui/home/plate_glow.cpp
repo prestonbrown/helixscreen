@@ -67,10 +67,15 @@ float signed_area(const GlowQuad& q) {
     return area / 2.f;
 }
 
-/// 1 well inside the quad, easing to 0 at its edge, 0 outside.
-float quad_cover(const GlowQuad& q, float x, float y) {
+/// A convex quad's edges as lines nx*x + ny*y + c, positive on its inner side.
+struct QuadEdges {
+    std::array<float, 4> nx{}, ny{}, c{};
+    size_t count = 0;
+};
+
+QuadEdges edges_of(const GlowQuad& q) {
+    QuadEdges e;
     const float winding = signed_area(q) >= 0.f ? 1.f : -1.f;
-    float nearest = kRegionFeatherPx;
     for (size_t i = 0; i < q.size(); ++i) {
         const CalloutPoint& a = q[i];
         const CalloutPoint& b = q[(i + 1) % q.size()];
@@ -78,8 +83,19 @@ float quad_cover(const GlowQuad& q, float x, float y) {
         const float len = std::sqrt(ex * ex + ey * ey);
         if (len <= 0.f)
             continue;
-        // Positive on the quad's inner side of this edge.
-        const float d = winding * (ex * (y - float(a.y)) - ey * (x - float(a.x))) / len;
+        e.nx[e.count] = -winding * ey / len;
+        e.ny[e.count] = winding * ex / len;
+        e.c[e.count] = -(e.nx[e.count] * float(a.x) + e.ny[e.count] * float(a.y));
+        ++e.count;
+    }
+    return e;
+}
+
+/// 1 well inside the quad, easing to 0 at its edge, 0 outside.
+float quad_cover(const QuadEdges& e, float x, float y) {
+    float nearest = kRegionFeatherPx;
+    for (size_t i = 0; i < e.count; ++i) {
+        const float d = e.nx[i] * x + e.ny[i] * y + e.c[i];
         if (d <= 0.f)
             return 0.f;
         nearest = std::min(nearest, d);
@@ -127,14 +143,18 @@ PlateGlowMask render_region_glow(const std::vector<GlowQuad>& quads, CalloutPoin
     m.w = (full_w + step - 1) / step;
     m.h = (full_h + step - 1) / step;
     m.alpha.assign(size_t(m.w) * size_t(m.h), 0);
+    std::vector<QuadEdges> edges;
+    edges.reserve(quads.size());
+    for (const GlowQuad& q : quads)
+        edges.push_back(edges_of(q));
 
     for (int row = 0; row < m.h; ++row) {
         const float y = float(m.y) + (float(row) + 0.5f) * float(step);
         for (int col = 0; col < m.w; ++col) {
             const float x = float(m.x) + (float(col) + 0.5f) * float(step);
             float cover = 0.f;
-            for (const GlowQuad& q : quads)
-                cover = std::max(cover, quad_cover(q, x, y));
+            for (const QuadEdges& e : edges)
+                cover = std::max(cover, quad_cover(e, x, y));
             if (cover <= 0.f)
                 continue;
             const float dx = x - float(source.x), dy = y - float(source.y);

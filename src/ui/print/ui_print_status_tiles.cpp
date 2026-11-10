@@ -852,9 +852,10 @@ void PrintStatusTiles::place_and_publish(const std::string& th_text) {
         // A warm chamber's glow covers the same windows as the light's, and heat wins.
         const bool yields = chip == PrintStatusChip::Light &&
                             light_glow_yields(lo.contents[index_of(PrintStatusChip::Chamber)]);
-        publish(chip, shown, shown.shown && !dropped, glows && shown.glow && !yields, line);
+        const bool glow = glows && shown.glow && !yields;
+        publish(chip, shown, shown.shown && !dropped, glow, line);
         if (chip == PrintStatusChip::Bed || chip == PrintStatusChip::Chamber) {
-            ui::heat_glow_update_pulse(lo.parts.chips[i].glow, shown.heat);
+            ui::heat_glow_update_pulse(lo.parts.chips[i].glow, shown.heat, glow);
         }
     }
     set_string(&toolhead_text_, toolhead_text_buf_, sizeof(toolhead_text_buf_), th_text);

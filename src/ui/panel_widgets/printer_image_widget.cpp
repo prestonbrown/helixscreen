@@ -316,7 +316,7 @@ void PrinterImageWidget::detach() {
     if (widget_obj_) {
         for (const char* name : {"callout_bed_glow", "callout_chamber_glow"})
             helix::ui::heat_glow_update_pulse(lv_obj_find_by_name(widget_obj_, name),
-                                              helix::ui::temperature::HeatState::Off);
+                                              helix::ui::temperature::HeatState::Off, false);
     }
     cancel_callout_timer();
 
@@ -827,12 +827,9 @@ void PrinterImageWidget::update_callouts() {
                                     fan_buf));
 
     const bool animate = DisplaySettingsManager::instance().get_animations_enabled();
-    if (widget_obj_) {
-        helix::ui::heat_glow_update_pulse(lv_obj_find_by_name(widget_obj_, "callout_bed_glow"),
-                                          bed_heat);
-        helix::ui::heat_glow_update_pulse(lv_obj_find_by_name(widget_obj_, "callout_chamber_glow"),
-                                          heater_display(chamber_cur, chamber_tgt).state);
-    }
+    callout_bed_heat_ = bed_heat;
+    callout_chamber_heat_ = heater_display(chamber_cur, chamber_tgt).state;
+    update_glow_pulses();
     // Restarting a spin resets its rotation, so only a speed or preference
     // change touches it, never a temperature tick.
     const int spin = animate ? fan : 0;
@@ -1010,10 +1007,25 @@ void PrinterImageWidget::apply_callout_layout() {
 
     lv_subject_set_int(&s_callout_toolhead_merged, out.toolhead_merged ? 1 : 0);
     lv_subject_set_int(&s_printer_callout_mode, static_cast<int>(out.mode));
+    update_glow_pulses();
     for (const auto& t : kCalloutTexts)
         publish_callout_text(t.subject, callout_full_text_[static_cast<size_t>(t.kind)]);
     if (presenter_.image_changed())
         schedule_image_refresh();
+}
+
+void PrinterImageWidget::update_glow_pulses() {
+    if (!widget_obj_)
+        return;
+    // The XML hides a glow at level 0 and in the modes with nothing to draw on.
+    const auto mode = static_cast<CalloutMode>(lv_subject_get_int(&s_printer_callout_mode));
+    const bool drawable = mode != CalloutMode::ImageOnly && mode != CalloutMode::Docked;
+    helix::ui::heat_glow_update_pulse(
+        lv_obj_find_by_name(widget_obj_, "callout_bed_glow"), callout_bed_heat_,
+        drawable && lv_subject_get_int(&s_callout_bed_glow_level) != 0);
+    helix::ui::heat_glow_update_pulse(
+        lv_obj_find_by_name(widget_obj_, "callout_chamber_glow"), callout_chamber_heat_,
+        drawable && lv_subject_get_int(&s_callout_chamber_glow_level) != 0);
 }
 
 void PrinterImageWidget::place_printer_image(const CalloutRect* moved) {

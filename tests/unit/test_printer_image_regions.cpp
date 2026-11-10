@@ -58,7 +58,12 @@ TEST_CASE("parse_image_regions: windows are a list of quads", "[printer_image][r
                "windows": [[[0.1, 0.2], [0.5, 0.2], [0.5, 0.8]],
                            [[0.1, 0.2], [0.5, "x"], [0.5, 0.8], [0.1, 0.8]],
                            [[0.6, 0.3], [0.9, 0.3], [0.9, 0.7], [0.6, 0.7]]]},
-      "odd":  {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]], "windows": 3}
+      "odd":  {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]], "windows": 3},
+      "shapes": {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]],
+               "windows": [[[0.1, 0.1], [0.5, 0.5], [0.5, 0.1], [0.1, 0.5]],
+                           [[0.1, 0.1], [0.5, 0.1], [0.2, 0.2], [0.1, 0.5]],
+                           [[0.6, 0.3], [0.6, 0.7], [0.9, 0.7], [0.9, 0.3]]]},
+      "far":  {"size": [10, 10], "nozzle": [1e30, -1e30], "bed": [[0.1, 0.9], [0.9, 0.9]]}
     })");
     REQUIRE(m.at("two").windows.size() == 2);
     CHECK(m.at("two").windows[1][2].x == Catch::Approx(0.9f));
@@ -68,6 +73,12 @@ TEST_CASE("parse_image_regions: windows are a list of quads", "[printer_image][r
     REQUIRE(m.at("bad").windows.size() == 1);
     CHECK(m.at("bad").windows[0][0].x == Catch::Approx(0.6f));
     CHECK(m.at("odd").windows.empty());
+    // A bowtie and a dented quad are dropped; a counter-clockwise one is fine.
+    REQUIRE(m.at("shapes").windows.size() == 1);
+    CHECK(m.at("shapes").windows[0][1].y == Catch::Approx(0.7f));
+    // A point far off the picture is pulled back near it.
+    CHECK(m.at("far").nozzle.x == Catch::Approx(2.f));
+    CHECK(m.at("far").nozzle.y == Catch::Approx(-1.f));
 }
 
 TEST_CASE("parse_image_regions: malformed document yields empty map", "[printer_image][regions]") {
