@@ -25,44 +25,46 @@ void press_escape(lv_obj_t* dialog) {
     lv_obj_send_event(backdrop, LV_EVENT_KEY, &key);
 }
 
-} // namespace
-
-TEST_CASE_METHOD(LVGLUITestFixture, "ESC closes the spaghetti modal without aborting the print",
-                 "[modal][escape]") {
-    int aborted = 0, resumed = 0;
-    auto owned = std::make_unique<SpaghettiDetectionModal>();
-    auto* modal = owned.get();
-    modal->set_on_abort([&] { ++aborted; });
-    modal->set_on_resume([&] { ++resumed; });
-    modal->set_detection("detected noodle", nullptr);
-    REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
-    lv_obj_t* dialog = ModalStack::instance().top_dialog();
-    REQUIRE(dialog != nullptr);
-
-    press_escape(dialog);
-    process_lvgl(50);
-
-    CHECK(aborted == 0);
-    CHECK(resumed == 0);
-    CHECK(ModalStack::instance().top_dialog() != dialog);
+/// How many of a PIN pad's six dots show filled.
+int filled_dots(lv_obj_t* root, const std::string& prefix) {
+    int n = 0;
+    for (int i = 0; i < 6; ++i) {
+        const std::string name = prefix + std::to_string(i);
+        n += lv_obj_get_style_bg_opa(lv_obj_find_by_name(root, name.c_str()), LV_PART_MAIN) ==
+             LV_OPA_COVER;
+    }
+    return n;
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "ESC closes the runout modal without resuming the print",
+std::string label_text(lv_obj_t* root, const char* name) {
+    return lv_label_get_text(lv_obj_find_by_name(root, name));
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ESC closes a print-safety modal without acting on the print",
                  "[modal][escape]") {
-    int resumed = 0, cancelled = 0;
-    auto owned = std::make_unique<RunoutGuidanceModal>();
-    owned->set_on_resume([&] { ++resumed; });
-    owned->set_on_cancel_print([&] { ++cancelled; });
-    REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
-    lv_obj_t* dialog = ModalStack::instance().top_dialog();
-    REQUIRE(dialog != nullptr);
+    int acted = 0;
+    auto closes_on_escape = [this](std::unique_ptr<Modal> owned) {
+        REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
+        lv_obj_t* dialog = ModalStack::instance().top_dialog();
+        REQUIRE(dialog != nullptr);
+        press_escape(dialog);
+        process_lvgl(50);
+        return ModalStack::instance().top_dialog() != dialog;
+    };
 
-    press_escape(dialog);
-    process_lvgl(50);
+    auto spaghetti = std::make_unique<SpaghettiDetectionModal>();
+    spaghetti->set_on_abort([&] { ++acted; });
+    spaghetti->set_on_resume([&] { ++acted; });
+    spaghetti->set_detection("detected noodle", nullptr);
+    CHECK(closes_on_escape(std::move(spaghetti)));
 
-    CHECK(resumed == 0);
-    CHECK(cancelled == 0);
-    CHECK(ModalStack::instance().top_dialog() != dialog);
+    auto runout = std::make_unique<RunoutGuidanceModal>();
+    runout->set_on_resume([&] { ++acted; });
+    runout->set_on_cancel_print([&] { ++acted; });
+    CHECK(closes_on_escape(std::move(runout)));
+    CHECK(acted == 0);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "a PIN pad opened from a PIN callback keeps the navbar covered",
@@ -126,18 +128,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "two PIN pads show their own dots and error 
             static_cast<lv_obj_t*>(lv_xml_create(test_screen(), pad.component, second.attrs()));
         REQUIRE(a != nullptr);
         REQUIRE(b != nullptr);
-        auto filled = [&pad](lv_obj_t* root) {
-            int n = 0;
-            for (int i = 0; i < 6; ++i) {
-                const std::string name = pad.dot_prefix + std::to_string(i);
-                n += lv_obj_get_style_bg_opa(lv_obj_find_by_name(root, name.c_str()),
-                                             LV_PART_MAIN) == LV_OPA_COVER;
-            }
-            return n;
-        };
-        auto error = [&pad](lv_obj_t* root) {
-            return std::string(lv_label_get_text(lv_obj_find_by_name(root, pad.error_label)));
-        };
+        auto filled = [&pad](lv_obj_t* root) { return filled_dots(root, pad.dot_prefix); };
+        auto error = [&pad](lv_obj_t* root) { return label_text(root, pad.error_label); };
 
         first.set_digit_count(3);
         first.show_error("Wrong PIN");
@@ -170,28 +162,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the PIN pad's dots and error line follow it
         REQUIRE(key != nullptr);
         lv_obj_send_event(key, LV_EVENT_CLICKED, nullptr);
     };
-    auto filled = [screen] {
-        int n = 0;
-        for (int i = 0; i < 6; ++i) {
-            const std::string name = "pin_dot_" + std::to_string(i);
-            n += lv_obj_get_style_bg_opa(lv_obj_find_by_name(screen, name.c_str()), LV_PART_MAIN) ==
-                 LV_OPA_COVER;
-        }
-        return n;
-    };
-    auto error = [screen] {
-        return std::string(lv_label_get_text(lv_obj_find_by_name(screen, "pin_error_label")));
-    };
-
     for (const char* key : {"pin_digit_1", "pin_digit_9", "pin_digit_0", "pin_digit_4"}) {
         press(key);
     }
-    CHECK(filled() == 4);
+    CHECK(filled_dots(screen, "pin_dot_") == 4);
     press("pin_confirm");
     CHECK(entered == "1904");
     // A rejected PIN clears the dots and says why.
-    CHECK(filled() == 0);
-    CHECK(error() == "Wrong PIN");
+    CHECK(filled_dots(screen, "pin_dot_") == 0);
+    CHECK(label_text(screen, "pin_error_label") == "Wrong PIN");
 
     ui::PinEntryModal::dismiss();
     process_lvgl(50);

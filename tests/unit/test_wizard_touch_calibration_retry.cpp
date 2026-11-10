@@ -138,7 +138,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "A destroyed touch calibration step lets go of the widgets bound to its subjects",
                  "[touch_cal][wizard][lifetime]") {
     lv_obj_t* bound = lv_obj_create(test_screen());
-    std::vector<int32_t> counts;
+    const uint32_t unbound = lv_obj_get_event_count(bound);
     {
         WizardTouchCalibrationStep step;
         step.init_subjects();
@@ -147,11 +147,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             lv_subject_t* subject = lv_xml_get_subject(nullptr, name);
             REQUIRE(subject != nullptr);
             lv_obj_bind_flag_if_eq(bound, subject, LV_OBJ_FLAG_HIDDEN, 99);
-            counts.push_back(static_cast<int32_t>(lv_obj_get_event_count(bound)));
         }
+        REQUIRE(lv_obj_get_event_count(bound) == unbound + 3);
     }
-    // Each binding's delete hook left with its subject, so the widget's own
-    // later deletion reaches no freed subject.
-    CHECK(static_cast<int32_t>(lv_obj_get_event_count(bound)) == counts.front() - 1);
+    // Every binding's delete hook went with its subject: the widget's own
+    // deletion reaches no freed subject.
+    CHECK(lv_obj_get_event_count(bound) == unbound);
     lv_obj_delete(bound);
 }
