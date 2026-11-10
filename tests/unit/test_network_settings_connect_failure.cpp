@@ -16,6 +16,7 @@
  * password is correct to retype it indefinitely.
  */
 
+#include "ui_modal.h"
 #include "ui_overlay_network_settings.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -58,20 +59,6 @@ class ConnectFailureFixture : public LVGLUITestFixture {
         return wm;
     }
 
-    /// The password modal built from its XML, wired to the overlay's status
-    /// subjects the way show_password_modal() wires it.
-    lv_obj_t* make_modal() {
-        const char* attrs[] = {"status_subject", "network_password_status", "status_shown_subject",
-                               "network_password_status_shown", nullptr};
-        auto* modal =
-            static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "wifi_password_modal", attrs));
-        REQUIRE(modal != nullptr);
-        lv_obj_t* input = lv_obj_find_by_name(modal, "password_input");
-        REQUIRE(input != nullptr);
-        lv_textarea_set_text(input, "some-password");
-        return modal;
-    }
-
     static std::string label_text(lv_obj_t* modal, const char* name) {
         lv_obj_t* label = lv_obj_find_by_name(modal, name);
         REQUIRE(label != nullptr);
@@ -95,39 +82,7 @@ struct ErrorToastCapture {
 
 } // namespace
 
-TEST_CASE_METHOD(ConnectFailureFixture,
-                 "Password modal shows the backend's reason, not a password prompt",
-                 "[network_settings][1542][wifi]") {
-    auto wm = make_manager();
-    auto overlay = std::make_unique<NetworkSettingsOverlay>();
-    overlay->init_subjects();
-    overlay->register_callbacks();
-    Access::wifi_manager(*overlay) = wm;
-    REQUIRE(overlay->create(test_screen()) != nullptr);
-
-    lv_obj_t* modal = make_modal();
-    lv_obj_t* status = lv_obj_find_by_name(modal, "modal_status");
-    REQUIRE(status != nullptr);
-    REQUIRE(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
-    Access::password_modal(*overlay) = modal;
-    Access::set_current_ssid(*overlay, kUnknownSsid);
-
-    Access::password_connect_clicked(*overlay);
-    REQUIRE(helix::WiFiManagerTestAccess::settle(*wm));
-
-    const std::string shown = label_text(modal, "modal_status");
-    // The reason reached the label. Asserting the precondition first: an
-    // empty label would mean the failure branch never ran, and then the
-    // inequality below would pass having tested nothing.
-    REQUIRE_FALSE(shown.empty());
-    REQUIRE(shown != lv_tr("Connection failed. Check password."));
-    REQUIRE(shown.find(kUnknownSsid) != std::string::npos);
-    CHECK_FALSE(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
-
-    Access::password_modal(*overlay) = nullptr;
-}
-
-TEST_CASE_METHOD(ConnectFailureFixture, "Tapping an open network that fails to join tells the user",
+TEST_CASE_METHOD(ConnectFailureFixture, "Tapping a network that fails to join tells the user why",
                  "[network_settings][1542][wifi]") {
     ErrorToastCapture toasts;
 
@@ -212,6 +167,32 @@ TEST_CASE_METHOD(ConnectFailureFixture, "Tapping an open network that fails to j
             named_the_reason = true;
     }
     REQUIRE(named_the_reason);
+
+    // A secured row opens the password modal, whose status line says why
+    // Connect did nothing, then carries the backend's reason rather than a
+    // canned password prompt.
+    lv_obj_send_event(locked_row, LV_EVENT_CLICKED, nullptr);
+    lv_obj_t* modal = ModalStack::instance().top_dialog();
+    REQUIRE(modal != nullptr);
+    lv_obj_t* status = lv_obj_find_by_name(modal, "modal_status");
+    lv_obj_t* connect = lv_obj_find_by_name(modal, "modal_connect_btn");
+    REQUIRE(status != nullptr);
+    REQUIRE(connect != nullptr);
+    REQUIRE(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_send_event(connect, LV_EVENT_CLICKED, nullptr);
+    CHECK(label_text(modal, "modal_status") == lv_tr("Password cannot be empty"));
+    CHECK_FALSE(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+
+    lv_textarea_set_text(lv_obj_find_by_name(modal, "password_input"), "some-password");
+    lv_obj_send_event(connect, LV_EVENT_CLICKED, nullptr);
+    REQUIRE(helix::WiFiManagerTestAccess::settle(*wm));
+    const std::string shown = label_text(modal, "modal_status");
+    // Not empty first: an empty label would pass the inequality having tested nothing.
+    REQUIRE_FALSE(shown.empty());
+    CHECK(shown != lv_tr("Connection failed. Check password."));
+    CHECK(shown.find(secured_net.ssid) != std::string::npos);
+    CHECK_FALSE(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_send_event(lv_obj_find_by_name(modal, "modal_cancel_btn"), LV_EVENT_CLICKED, nullptr);
 
     Access::wifi_manager(overlay) = previous;
 }

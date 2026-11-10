@@ -15,6 +15,7 @@
 #include "ui_theme_editor_overlay.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "border_radius_sizes.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
@@ -60,9 +61,10 @@ uint32_t rgb(lv_color_t c) {
 
 } // namespace
 
-TEST_CASE_METHOD(ThemeEditorSwatchFixture,
-                 "Theme editor swatches are painter circles showing the palette",
-                 "[theme_editor][swatch]") {
+TEST_CASE_METHOD(
+    ThemeEditorSwatchFixture,
+    "Theme editor swatches are painter circles showing the palette, and a tap opens the picker",
+    "[theme_editor][swatch]") {
     auto& editor = get_theme_editor_overlay();
     REQUIRE(editor.show(lv_screen_active()));
     settle();
@@ -89,18 +91,10 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture,
         CHECK(rgb(swatch_color_of(swatch)) ==
               rgb(theme_manager_parse_hex_color(palette.at(i).c_str())));
     }
-}
 
-TEST_CASE_METHOD(ThemeEditorSwatchFixture, "Tapping a theme swatch opens the picker",
-                 "[theme_editor][swatch]") {
-    auto& editor = get_theme_editor_overlay();
-    REQUIRE(editor.show(lv_screen_active()));
-    settle();
-    lv_obj_t* swatch = lv_obj_find_by_name(editor.get_root(), "swatch_5");
-    REQUIRE(swatch != nullptr);
+    // A tap opens the picker for that slot.
     REQUIRE(ModalStack::instance().empty());
-
-    lv_obj_send_event(swatch, LV_EVENT_CLICKED, nullptr);
+    lv_obj_send_event(lv_obj_find_by_name(root, "swatch_5"), LV_EVENT_CLICKED, nullptr);
     settle();
     CHECK(ModalStack::instance().top_component_name() == "color_picker");
 }
@@ -128,6 +122,13 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture, "The back button asks before dropping
     };
     CHECK(lv_obj_has_state(save, LV_STATE_DISABLED));
     CHECK(upper(title).find("MODIFIED") == std::string::npos);
+    // Opening fills the readouts from the theme being edited.
+    const helix::ThemeData theme =
+        helix::load_theme_from_file(DisplaySettingsManager::instance().get_theme_name());
+    lv_obj_t* radius =
+        lv_obj_find_by_name(lv_obj_find_by_name(root, "row_border_radius"), "value_label");
+    CHECK(std::string(lv_label_get_text(radius)) ==
+          lv_tr(helix::BorderRadiusSizes::name(theme.properties.border_radius_size)));
 
     lv_slider_set_value(slider, 10, LV_ANIM_OFF);
     lv_obj_send_event(slider, LV_EVENT_VALUE_CHANGED, nullptr);
@@ -145,8 +146,7 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture, "The back button asks before dropping
     CHECK(editor.get_root() == root);
 
     // The slider previewed its edit across the app.
-    theme_manager_preview(
-        helix::load_theme_from_file(DisplaySettingsManager::instance().get_theme_name()));
+    theme_manager_preview(theme);
 }
 
 TEST_CASE_METHOD(ThemeEditorSwatchFixture, "Save As with an empty name says why it did nothing",
@@ -173,5 +173,14 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture, "Save As with an empty name says why 
 
     CHECK_FALSE(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
     CHECK(std::string(lv_label_get_text(status)) == lv_tr("Please enter a theme name"));
+
+    // Save As again opens a fresh dialog with no error from the last attempt.
+    lv_obj_send_event(lv_obj_find_by_name(editor.get_root(), "btn_save_as"), LV_EVENT_CLICKED,
+                      nullptr);
+    settle();
+    REQUIRE(ModalStack::instance().top_dialog() != dialog);
+    status = lv_obj_find_by_name(ModalStack::instance().top_dialog(), "save_as_status");
+    REQUIRE(status != nullptr);
+    CHECK(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
     ModalStack::instance().clear();
 }

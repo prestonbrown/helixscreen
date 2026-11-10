@@ -209,5 +209,13 @@ TEST_CASE_METHOD(ThemeExplorerFixture,
     settle();
     CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
 
+    // The explorer is rebuilt on every open, and a fresh one has no pick yet.
+    close_explorer();
+    overlay().handle_theme_settings_clicked();
+    settle();
+    row = lv_obj_find_by_name(lv_screen_active(), "dark_mode_toggle_container");
+    REQUIRE(row != nullptr);
+    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+
     lv_subject_set_int(available, saved);
 }
