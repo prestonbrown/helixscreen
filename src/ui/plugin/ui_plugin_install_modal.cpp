@@ -5,13 +5,14 @@
 
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
-#include "ui_icon.h"
 #include "ui_toast_manager.h"
 
+#include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
+#include "subject_managed_panel.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -67,13 +68,73 @@ bool helix::ui::request_moonraker_restart_for_plugin(helix::IMoonrakerAPI* api) 
 // Static member initialization
 bool PluginInstallModal::callbacks_registered_ = false;
 
+namespace {
+
+/// What the dialog shows; plugin_install_modal.xml binds each part to its phases.
+enum class Phase : int {
+    LocalPrompt = 0,
+    RemotePrompt = 1,
+    Installing = 2,
+    Succeeded = 3,
+    Failed = 4
+};
+
+/// plugin_install_copy_result: which Copy Command outcome is shown, if any.
+enum class CopyResult : int { Hidden = 0, Copied = 1, Failed = 2, NoClipboard = 3 };
+
+// One set for the class: a single plugin dialog is on screen at a time, and
+// each show() sets them afresh.
+struct InstallSubjects {
+    lv_subject_t phase{};
+    lv_subject_t copy_result{};
+    lv_subject_t result_message{};
+    char result_message_buf[256] = {};
+    SubjectManager manager;
+    bool initialized = false;
+};
+
+InstallSubjects& install_subjects() {
+    static InstallSubjects s;
+    return s;
+}
+
+void init_install_subjects() {
+    auto& s = install_subjects();
+    if (s.initialized) {
+        return;
+    }
+    UI_MANAGED_SUBJECT_INT(s.phase, static_cast<int>(Phase::LocalPrompt), "plugin_install_phase",
+                           s.manager);
+    UI_MANAGED_SUBJECT_INT(s.copy_result, static_cast<int>(CopyResult::Hidden),
+                           "plugin_install_copy_result", s.manager);
+    UI_MANAGED_SUBJECT_STRING(s.result_message, s.result_message_buf, "",
+                              "plugin_install_result_message", s.manager);
+    s.initialized = true;
+    StaticSubjectRegistry::instance().register_deinit("PluginInstallModal", []() {
+        auto& subjects = install_subjects();
+        subjects.manager.deinit_all();
+        subjects.initialized = false;
+    });
+}
+
+void set_phase(Phase phase) {
+    lv_subject_set_int(&install_subjects().phase, static_cast<int>(phase));
+}
+
+void set_copy_result(CopyResult result) {
+    lv_subject_set_int(&install_subjects().copy_result, static_cast<int>(result));
+}
+
+} // namespace
+
 // ============================================================================
 // Constructor
 // ============================================================================
 
 PluginInstallModal::PluginInstallModal() {
-    // Register callbacks once before any modal is shown
+    // Register callbacks and the dialog's subjects once before any modal is shown
     register_callbacks();
+    init_install_subjects();
 }
 
 // ============================================================================
@@ -97,55 +158,21 @@ void PluginInstallModal::register_callbacks() {
 // ============================================================================
 
 void PluginInstallModal::on_show() {
-    local_description_ = find_widget("local_description");
-    remote_description_ = find_widget("remote_description");
     command_textarea_ = find_widget("command_textarea");
-    local_button_row_ = find_widget("local_button_row");
-    remote_button_row_ = find_widget("remote_button_row");
-    result_button_row_ = find_widget("result_button_row");
-    installing_container_ = find_widget("installing_container");
-    result_container_ = find_widget("result_container");
-    checkbox_container_ = find_widget("checkbox_container");
     dont_ask_checkbox_ = find_widget("dont_ask_checkbox");
-    copy_feedback_ = find_widget("copy_feedback");
 
     // Determine mode based on installer
     is_local_mode_ = installer_ && installer_->is_local_moonraker();
 
     spdlog::info("[Plugin Install] Showing in {} mode", is_local_mode_ ? "LOCAL" : "REMOTE");
 
-    if (is_local_mode_) {
-        // LOCAL mode: Show install button
-        if (local_description_)
-            lv_obj_remove_flag(local_description_, LV_OBJ_FLAG_HIDDEN);
-        if (remote_description_)
-            lv_obj_add_flag(remote_description_, LV_OBJ_FLAG_HIDDEN);
-        if (local_button_row_)
-            lv_obj_remove_flag(local_button_row_, LV_OBJ_FLAG_HIDDEN);
-        if (remote_button_row_)
-            lv_obj_add_flag(remote_button_row_, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        // REMOTE mode: Show curl command
-        if (local_description_)
-            lv_obj_add_flag(local_description_, LV_OBJ_FLAG_HIDDEN);
-        if (remote_description_)
-            lv_obj_remove_flag(remote_description_, LV_OBJ_FLAG_HIDDEN);
-        if (local_button_row_)
-            lv_obj_add_flag(local_button_row_, LV_OBJ_FLAG_HIDDEN);
-        if (remote_button_row_)
-            lv_obj_remove_flag(remote_button_row_, LV_OBJ_FLAG_HIDDEN);
+    set_phase(is_local_mode_ ? Phase::LocalPrompt : Phase::RemotePrompt);
+    set_copy_result(CopyResult::Hidden);
 
-        // Populate the curl command
-        if (command_textarea_ && installer_) {
-            std::string cmd = installer_->get_remote_install_command();
-            lv_textarea_set_text(command_textarea_, cmd.c_str());
-        }
-
-        // Reset copy feedback from previous show
-        if (copy_feedback_) {
-            lv_label_set_text(copy_feedback_, "");
-            lv_obj_add_flag(copy_feedback_, LV_OBJ_FLAG_HIDDEN);
-        }
+    // REMOTE mode shows the curl command to run over SSH
+    if (!is_local_mode_ && command_textarea_ && installer_) {
+        std::string cmd = installer_->get_remote_install_command();
+        lv_textarea_set_text(command_textarea_, cmd.c_str());
     }
 
     // Wire cancel button and set user_data for all buttons
@@ -163,17 +190,8 @@ void PluginInstallModal::on_hide() {
     }
 
     // Clear widget references
-    local_description_ = nullptr;
-    remote_description_ = nullptr;
     command_textarea_ = nullptr;
-    local_button_row_ = nullptr;
-    remote_button_row_ = nullptr;
-    result_button_row_ = nullptr;
-    installing_container_ = nullptr;
-    result_container_ = nullptr;
-    checkbox_container_ = nullptr;
     dont_ask_checkbox_ = nullptr;
-    copy_feedback_ = nullptr;
 }
 
 void PluginInstallModal::on_cancel() {
@@ -196,58 +214,12 @@ void PluginInstallModal::on_dismissed() {
 // ============================================================================
 
 void PluginInstallModal::show_installing_state() {
-    // Hide all content except installing spinner
-    if (local_description_)
-        lv_obj_add_flag(local_description_, LV_OBJ_FLAG_HIDDEN);
-    if (remote_description_)
-        lv_obj_add_flag(remote_description_, LV_OBJ_FLAG_HIDDEN);
-    if (local_button_row_)
-        lv_obj_add_flag(local_button_row_, LV_OBJ_FLAG_HIDDEN);
-    if (remote_button_row_)
-        lv_obj_add_flag(remote_button_row_, LV_OBJ_FLAG_HIDDEN);
-    if (checkbox_container_)
-        lv_obj_add_flag(checkbox_container_, LV_OBJ_FLAG_HIDDEN);
-
-    if (installing_container_)
-        lv_obj_remove_flag(installing_container_, LV_OBJ_FLAG_HIDDEN);
+    set_phase(Phase::Installing);
 }
 
 void PluginInstallModal::show_result_state(bool success, const std::string& message) {
-    if (installing_container_)
-        lv_obj_add_flag(installing_container_, LV_OBJ_FLAG_HIDDEN);
-
-    if (result_container_)
-        lv_obj_remove_flag(result_container_, LV_OBJ_FLAG_HIDDEN);
-
-    if (result_button_row_)
-        lv_obj_remove_flag(result_button_row_, LV_OBJ_FLAG_HIDDEN);
-
-    // Update result content
-    lv_obj_t* result_icon = find_widget("result_icon");
-    lv_obj_t* result_title = find_widget("result_title");
-    lv_obj_t* result_message = find_widget("result_message");
-
-    if (success) {
-        if (result_icon) {
-            helix::ui::icon::set_source(result_icon, "check_circle");
-            helix::ui::icon::set_variant(result_icon, "success");
-        }
-        if (result_title) {
-            lv_label_set_text(result_title, lv_tr("Success!"));
-        }
-    } else {
-        if (result_icon) {
-            helix::ui::icon::set_source(result_icon, "alert_circle");
-            helix::ui::icon::set_variant(result_icon, "danger");
-        }
-        if (result_title) {
-            lv_label_set_text(result_title, lv_tr("Installation Failed"));
-        }
-    }
-
-    if (result_message) {
-        lv_label_set_text(result_message, message.c_str());
-    }
+    lv_subject_copy_string(&install_subjects().result_message, message.c_str());
+    set_phase(success ? Phase::Succeeded : Phase::Failed);
 }
 
 // ============================================================================
@@ -309,22 +281,16 @@ void PluginInstallModal::on_copy_clicked() {
     // Use SDL's cross-platform clipboard API (safe, no shell injection)
     int result = SDL_SetClipboardText(cmd);
 
-    if (copy_feedback_) {
-        if (result == 0) {
-            lv_label_set_text(copy_feedback_, lv_tr("Copied to clipboard!"));
-            spdlog::debug("[Plugin Install] Command copied successfully");
-        } else {
-            lv_label_set_text(copy_feedback_, lv_tr("Copy failed - use SSH manually"));
-            spdlog::warn("[Plugin Install] SDL clipboard failed: {}", SDL_GetError());
-        }
-        lv_obj_remove_flag(copy_feedback_, LV_OBJ_FLAG_HIDDEN);
+    if (result == 0) {
+        set_copy_result(CopyResult::Copied);
+        spdlog::debug("[Plugin Install] Command copied successfully");
+    } else {
+        set_copy_result(CopyResult::Failed);
+        spdlog::warn("[Plugin Install] SDL clipboard failed: {}", SDL_GetError());
     }
 #else
     // No clipboard support on framebuffer displays
-    if (copy_feedback_) {
-        lv_label_set_text(copy_feedback_, lv_tr("Clipboard unavailable - use SSH"));
-        lv_obj_remove_flag(copy_feedback_, LV_OBJ_FLAG_HIDDEN);
-    }
+    set_copy_result(CopyResult::NoClipboard);
     spdlog::info("[Plugin Install] Clipboard not available on this platform");
 #endif
 }
