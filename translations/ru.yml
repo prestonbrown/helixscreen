@@ -4239,6 +4239,10 @@ translations:
   Tap the light: Нажмите на подсветку
   Tap the nozzle tip: Нажмите на кончик сопла
   Tap the part cooling fan: Нажмите на вентилятор охлаждения детали
+  "Tap the window's top-left corner, or skip if there is none": "Нажмите на верхний левый угол окна или пропустите, если его нет"
+  "Tap the window's top-right corner": "Нажмите на верхний правый угол окна"
+  "Tap the window's bottom-right corner": "Нажмите на нижний правый угол окна"
+  "Tap the window's bottom-left corner": "Нажмите на нижний левый угол окна"
   Tap to assign: Нажмите для назначения
   Target: 'Цель'
   Target RH: Цель ОВ

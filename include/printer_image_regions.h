@@ -93,16 +93,21 @@ enum class TagPrompt {
     BedFarRight,
     BedFarLeft,
     Chamber,
+    WindowTopLeft,
+    WindowTopRight,
+    WindowBottomRight,
+    WindowBottomLeft,
     Light,
     Done
 };
 
 /// One pass of tapping an image's parts: a tap answers the current prompt, the
-/// optional ones (part fan, the plate's far corners, chamber, light) can be skipped, and undo steps
-/// back.
+/// optional ones (part fan, the plate's far corners, chamber, window, light) can be skipped, and
+/// undo steps back. A window is its four corners or nothing: skipping its first corner skips all
+/// four, and undo steps back over them as one.
 class ImageTagSession {
   public:
-    static constexpr int kPromptCount = 8;
+    static constexpr int kPromptCount = 12;
 
     TagPrompt prompt() const {
         return static_cast<TagPrompt>(step_);
@@ -125,6 +130,7 @@ class ImageTagSession {
     ImageRegions regions(int natural_w, int natural_h) const;
 
   private:
+    static constexpr int kWindowCorners = 4;
     std::optional<NormPoint> points_[kPromptCount];
     int step_ = 0;
 };

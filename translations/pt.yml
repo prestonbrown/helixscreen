@@ -4191,6 +4191,10 @@ translations:
   Tap the light: Toque na luz
   Tap the nozzle tip: Toque na ponta do bico
   Tap the part cooling fan: Toque na ventoinha de resfriamento da peça
+  "Tap the window's top-left corner, or skip if there is none": "Toque no canto superior esquerdo da janela, ou pule se não houver"
+  "Tap the window's top-right corner": "Toque no canto superior direito da janela"
+  "Tap the window's bottom-right corner": "Toque no canto inferior direito da janela"
+  "Tap the window's bottom-left corner": "Toque no canto inferior esquerdo da janela"
   Tap to assign: Toque para atribuir
   Target: 'Alvo'
   Target RH: UR alvo

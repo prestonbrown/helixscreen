@@ -4099,6 +4099,10 @@ translations:
   Tap the light: Tap the light
   Tap the nozzle tip: Tap the nozzle tip
   Tap the part cooling fan: Tap the part cooling fan
+  "Tap the window's top-left corner, or skip if there is none": "Tap the window's top-left corner, or skip if there is none"
+  "Tap the window's top-right corner": "Tap the window's top-right corner"
+  "Tap the window's bottom-right corner": "Tap the window's bottom-right corner"
+  "Tap the window's bottom-left corner": "Tap the window's bottom-left corner"
   Tap to assign: Tap to assign
   Target: Target
   Target RH: Target RH

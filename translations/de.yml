@@ -4192,6 +4192,10 @@ translations:
   Tap the light: Auf die Beleuchtung tippen
   Tap the nozzle tip: Auf die Düsenspitze tippen
   Tap the part cooling fan: Auf den Teile-Kühllüfter tippen
+  "Tap the window's top-left corner, or skip if there is none": "Auf die obere linke Ecke des Fensters tippen oder überspringen, wenn es keins gibt"
+  "Tap the window's top-right corner": "Auf die obere rechte Ecke des Fensters tippen"
+  "Tap the window's bottom-right corner": "Auf die untere rechte Ecke des Fensters tippen"
+  "Tap the window's bottom-left corner": "Auf die untere linke Ecke des Fensters tippen"
   Tap to assign: Zum Zuweisen tippen
   Target: 'Ziel'
   Target RH: Ziel-RF

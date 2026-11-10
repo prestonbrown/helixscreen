@@ -3981,6 +3981,10 @@ translations:
   Tap the light: ライトをタップ
   Tap the nozzle tip: ノズルの先端をタップ
   Tap the part cooling fan: パーツ冷却ファンをタップ
+  "Tap the window's top-left corner, or skip if there is none": "ガラス面の左上の角をタップ(なければスキップ)"
+  "Tap the window's top-right corner": "ガラス面の右上の角をタップ"
+  "Tap the window's bottom-right corner": "ガラス面の右下の角をタップ"
+  "Tap the window's bottom-left corner": "ガラス面の左下の角をタップ"
   Tap to assign: タップして割当
   Target: '目標'
   Target RH: 目標湿度
