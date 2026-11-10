@@ -26,23 +26,27 @@ PrintHistoryJob job_at(double start_time, double end_time) {
 
 } // namespace
 
-TEST_CASE("count_trend_buckets: an end_time-0 job lands by its start_time",
+TEST_CASE("count_trend_buckets places one job by its end_time, else its start_time",
           "[history][dashboard][trend]") {
-    const auto counts = count_trend_buckets({job_at(kNow - 3600.0, 0.0)}, kNow, 7, kDay, false);
-    REQUIRE(counts == std::vector<int>{0, 0, 0, 0, 0, 0, 1});
-}
-
-TEST_CASE("count_trend_buckets: a finished job lands by its end_time",
-          "[history][dashboard][trend]") {
-    const auto counts =
-        count_trend_buckets({job_at(kNow - 2.5 * kDay, kNow - 1.5 * kDay)}, kNow, 7, kDay, false);
-    REQUIRE(counts == std::vector<int>{0, 0, 0, 0, 0, 1, 0});
-}
-
-TEST_CASE("count_trend_buckets: a job with no timestamps is not counted",
-          "[history][dashboard][trend]") {
-    const auto counts = count_trend_buckets({job_at(0.0, 0.0)}, kNow, 7, kDay, true);
-    REQUIRE(counts == std::vector<int>(7, 0));
+    const struct {
+        const char* what;
+        PrintHistoryJob job;
+        bool all_time;
+        std::vector<int> counts;
+    } cases[] = {
+        {"end_time 0: by start", job_at(kNow - 3600.0, 0.0), false, {0, 0, 0, 0, 0, 0, 1}},
+        {"finished: by end",
+         job_at(kNow - 2.5 * kDay, kNow - 1.5 * kDay),
+         false,
+         {0, 0, 0, 0, 0, 1, 0}},
+        {"no timestamps: uncounted", job_at(0.0, 0.0), true, std::vector<int>(7, 0)},
+        {"older than a fixed window: dropped", job_at(kNow - 8 * kDay, kNow - 7.5 * kDay), false,
+         std::vector<int>(7, 0)},
+    };
+    for (const auto& c : cases) {
+        INFO(c.what);
+        CHECK(count_trend_buckets({c.job}, kNow, 7, kDay, c.all_time) == c.counts);
+    }
 }
 
 TEST_CASE("count_trend_buckets: all time spans from the oldest job and keeps it",
@@ -56,11 +60,4 @@ TEST_CASE("count_trend_buckets: all time spans from the oldest job and keeps it"
     };
     const auto counts = count_trend_buckets(jobs, kNow, 12, kDay, true);
     REQUIRE(counts == std::vector<int>{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1});
-}
-
-TEST_CASE("count_trend_buckets: a fixed window drops a job older than its span",
-          "[history][dashboard][trend]") {
-    const auto counts =
-        count_trend_buckets({job_at(kNow - 8 * kDay, kNow - 7.5 * kDay)}, kNow, 7, kDay, false);
-    REQUIRE(counts == std::vector<int>(7, 0));
 }

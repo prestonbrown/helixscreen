@@ -29,75 +29,30 @@
 // has_timelapse_section
 // ============================================================================
 
-TEST_CASE("has_timelapse_section: detects existing section", "[timelapse][config]") {
-    std::string config = "[printer]\nkinematics: corexy\n\n[timelapse]\n\n[update_manager]\n";
-    REQUIRE(TimelapseInstallOverlay::has_timelapse_section(config) == true);
-}
-
-TEST_CASE("has_timelapse_section: returns false when missing", "[timelapse][config]") {
-    std::string config = "[printer]\nkinematics: corexy\n\n[heater_bed]\n";
-    REQUIRE(TimelapseInstallOverlay::has_timelapse_section(config) == false);
-}
-
-TEST_CASE("has_timelapse_section: returns false for empty string", "[timelapse][config]") {
-    REQUIRE(TimelapseInstallOverlay::has_timelapse_section("") == false);
-}
-
-TEST_CASE("has_timelapse_section: ignores commented-out lines", "[timelapse][config]") {
-    std::string config = "[printer]\n# [timelapse]\n[heater_bed]\n";
-    REQUIRE(TimelapseInstallOverlay::has_timelapse_section(config) == false);
-}
-
-TEST_CASE("has_timelapse_section: ignores indented comment lines", "[timelapse][config]") {
-    std::string config = "[printer]\n  # [timelapse]\n[heater_bed]\n";
-    REQUIRE(TimelapseInstallOverlay::has_timelapse_section(config) == false);
-}
-
-TEST_CASE("has_timelapse_section: handles surrounding sections", "[timelapse][config]") {
-    std::string config = "[server]\nhost: 0.0.0.0\nport: 7125\n\n"
-                         "[timelapse]\n\n"
-                         "[update_manager]\n";
-    REQUIRE(TimelapseInstallOverlay::has_timelapse_section(config) == true);
-}
-
-TEST_CASE("has_timelapse_section: does not match similar section names", "[timelapse][config]") {
-    std::string config = "[printer]\n[timelapse_settings]\n[heater_bed]\n";
-    REQUIRE(TimelapseInstallOverlay::has_timelapse_section(config) == false);
-}
-
-TEST_CASE("has_timelapse_section: does not match update_manager timelapse", "[timelapse][config]") {
-    std::string config = "[printer]\n[update_manager timelapse]\ntype: git_repo\n";
-    REQUIRE(TimelapseInstallOverlay::has_timelapse_section(config) == false);
-}
-
-TEST_CASE("has_timelapse_section: matches with leading whitespace", "[timelapse][config]") {
-    std::string config = "[printer]\n  [timelapse]\n";
-    REQUIRE(TimelapseInstallOverlay::has_timelapse_section(config) == true);
-}
-
-TEST_CASE("has_timelapse_section: matches with leading tab", "[timelapse][config]") {
-    std::string config = "[printer]\n\t[timelapse]\n";
-    REQUIRE(TimelapseInstallOverlay::has_timelapse_section(config) == true);
-}
-
-TEST_CASE("has_timelapse_section: section at very start of file", "[timelapse][config]") {
-    std::string config = "[timelapse]\nsome_option: value\n";
-    REQUIRE(TimelapseInstallOverlay::has_timelapse_section(config) == true);
-}
-
-TEST_CASE("has_timelapse_section: section at end without trailing newline", "[timelapse][config]") {
-    std::string config = "[printer]\n[timelapse]";
-    REQUIRE(TimelapseInstallOverlay::has_timelapse_section(config) == true);
-}
-
-TEST_CASE("has_timelapse_section: handles trailing spaces", "[timelapse][config]") {
-    std::string config = "[printer]\n[timelapse]   \n";
-    REQUIRE(TimelapseInstallOverlay::has_timelapse_section(config) == true);
-}
-
-TEST_CASE("has_timelapse_section: handles Windows line endings", "[timelapse][config]") {
-    std::string config = "[printer]\r\n[timelapse]\r\n";
-    REQUIRE(TimelapseInstallOverlay::has_timelapse_section(config) == true);
+TEST_CASE("has_timelapse_section finds a live [timelapse] header and nothing else",
+          "[timelapse][config]") {
+    const struct {
+        const char* config;
+        bool found;
+    } cases[] = {
+        {"[printer]\nkinematics: corexy\n\n[timelapse]\n\n[update_manager]\n", true},
+        {"[timelapse]\nsome_option: value\n", true}, // first line
+        {"[printer]\n[timelapse]", true},            // last line, no newline
+        {"[printer]\n  [timelapse]\n", true},        // indented
+        {"[printer]\n\t[timelapse]\n", true},        // tab-indented
+        {"[printer]\n[timelapse]   \n", true},       // trailing spaces
+        {"[printer]\r\n[timelapse]\r\n", true},      // CRLF
+        {"", false},
+        {"[printer]\nkinematics: corexy\n\n[heater_bed]\n", false},
+        {"[printer]\n# [timelapse]\n[heater_bed]\n", false},
+        {"[printer]\n  # [timelapse]\n[heater_bed]\n", false},
+        {"[printer]\n[timelapse_settings]\n[heater_bed]\n", false},
+        {"[printer]\n[update_manager timelapse]\ntype: git_repo\n", false},
+    };
+    for (const auto& c : cases) {
+        INFO(c.config);
+        CHECK(TimelapseInstallOverlay::has_timelapse_section(c.config) == c.found);
+    }
 }
 
 // ============================================================================

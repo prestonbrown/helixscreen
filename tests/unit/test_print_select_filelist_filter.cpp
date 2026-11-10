@@ -17,76 +17,34 @@
 
 #include "../catch_amalgamated.hpp"
 
-TEST_CASE("filelist_change_affects_gcodes: gcodes root refreshes", "[print_select][filelist]") {
-    // An empty source root is a frame carrying no source_item at all: uploads,
-    // creates and deletes all arrive that way.
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("gcodes", "") == true);
-}
-
-TEST_CASE("filelist_change_affects_gcodes: config root does not refresh",
-          "[print_select][filelist][regression]") {
-    // The two writers that flooded L53W5PKG, both under the config root.
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("config", "") == false);
-}
-
-TEST_CASE("filelist_change_affects_gcodes: other Moonraker roots do not refresh",
-          "[print_select][filelist]") {
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("logs", "") == false);
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("timelapse", "") == false);
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("config_examples", "") == false);
-}
-
-TEST_CASE("filelist_change_affects_gcodes: unknown payload shape still refreshes",
-          "[print_select][filelist]") {
-    // A notification we could not parse a root out of must not silently stop
-    // refreshing the list — going stale is worse than an extra round trip.
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("", "") == true);
-}
-
-TEST_CASE("filelist_change_affects_gcodes: match is exact, not a prefix",
-          "[print_select][filelist]") {
-    // "gcodes_backup" is a distinct root; a substring match would let it
-    // through and reintroduce the storm for anyone with such a directory
-    // registered.
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("gcodes_backup", "") == false);
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("my_gcodes", "") == false);
-}
-
-TEST_CASE("filelist_change_affects_gcodes: a move out of gcodes refreshes",
-          "[print_select][filelist][1575]") {
-    // Moonraker builds `item` from the move DESTINATION and attaches the
-    // origin as `source_item`, so a gcodes -> config move reports
-    // item.root == "config" with source_item.root == "gcodes". The listing
-    // still names the file, so it must refresh.
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("config", "gcodes") == true);
-}
-
-TEST_CASE("filelist_change_affects_gcodes: a change confined to other roots does not refresh",
-          "[print_select][filelist][1575]") {
-    // Positive control for the case above: with neither end of the operation
-    // in gcodes the filter still rejects, so the config-root storm stays
-    // filtered out.
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("config", "config") == false);
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("logs", "timelapse") == false);
-}
-
-TEST_CASE("filelist_change_affects_gcodes: empty source root is not relevant",
-          "[print_select][filelist][1575]") {
-    // source_item rides along only on a move or copy; an empty one is the
-    // norm for uploads, creates and deletes. Treating it as relevant would
-    // admit every root again and make the filter inert.
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("config", "") == false);
-}
-
-TEST_CASE("filelist_change_affects_gcodes: source match is exact, not a prefix",
-          "[print_select][filelist][1575]") {
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("config", "gcodes_backup") == false);
-}
-
-TEST_CASE("filelist_change_affects_gcodes: unparseable item shape still refreshes with source",
-          "[print_select][filelist][1575]") {
-    // The item side keeps its fail-safe rule even when a source root was
-    // parsed: an unrecognised payload shape must not silently stop refreshing.
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("", "config") == true);
-    REQUIRE(helix::json_util::filelist_change_affects_gcodes("", "gcodes") == true);
+TEST_CASE("filelist_change_affects_gcodes refreshes only when gcodes is either end",
+          "[print_select][filelist][regression][1575]") {
+    // A move reports its DESTINATION as the item root and its origin as the
+    // source root; uploads, creates and deletes carry no source (""). An item
+    // root that could not be parsed ("") refreshes: stale is worse than a round trip.
+    const struct {
+        const char* item_root;
+        const char* source_root;
+        bool refresh;
+    } cases[] = {
+        {"gcodes", "", true},
+        {"", "", true},       // unparseable payload
+        {"", "config", true}, // unparseable item keeps its fail-safe with a source
+        {"", "gcodes", true},
+        {"config", "gcodes", true}, // moved out of gcodes: the listing still names it
+        {"config", "", false},      // the L53W5PKG storm: AFC vars, saved_variables.cfg
+        {"logs", "", false},
+        {"timelapse", "", false},
+        {"config_examples", "", false},
+        {"gcodes_backup", "", false}, // exact root names, never a prefix or substring
+        {"my_gcodes", "", false},
+        {"config", "gcodes_backup", false},
+        {"config", "config", false},
+        {"logs", "timelapse", false},
+    };
+    for (const auto& c : cases) {
+        INFO(c.item_root << " <- " << c.source_root);
+        CHECK(helix::json_util::filelist_change_affects_gcodes(c.item_root, c.source_root) ==
+              c.refresh);
+    }
 }
