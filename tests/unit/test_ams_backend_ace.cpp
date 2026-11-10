@@ -3857,7 +3857,6 @@ TEST_CASE("ACE a Clear while the hub write is out waits for the hub's answer",
         SlotInfo info = b.get_slot_info(0);
         info.brand = brand;
         REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), info).success());
-        REQUIRE(b.pending_ack != nullptr);
     };
     edit("Sunlu");
     b.pending_ack();

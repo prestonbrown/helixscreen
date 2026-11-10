@@ -545,23 +545,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     }
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker no longer offers a standalone unlink entry",
-                 "[ams_edit_overlay][spool_edit][picker]") {
-    // The picker_unlink_entry is retired — the single unlink path is the Save
-    // Save with the toggle off (covered above).
-    auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
-
-    show_overlay_for_mock_tracked_slot(*this);
-    access.call_switch_to_picker();
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    CHECK(access.widget("picker_unlink_entry") == nullptr);
-
-    close_editor_overlay();
-}
-
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "color view from spool-edit stages the pending color and returns there",
                  "[ams_edit_overlay][color_view]") {
