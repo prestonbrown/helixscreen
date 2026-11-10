@@ -55,3 +55,4 @@ def _tubes(scene, colors, width):
 
 SPOOLS, STUBS = feeder.looks(_body, W / 2, D, _tubes)
 UNIT = UnitDef("elegoo_canvas", 4, SPOOLS, feeder.tray_strip(0x1a1b1f, 0x5ab0ff), stub_art=STUBS)
+UNIT.tray.lane_join = "block"

@@ -424,7 +424,7 @@ def test_units_without_a_carriage_keep_their_table_row_shape():
 
 
 def test_a_rail_keeps_the_selector_route_and_names_its_flat_face():
-    assert not any(u.tray.built_in_selector for u in RAILS)
+    assert all(u.tray.lane_join == "hub" for u in RAILS)
     table = build.generate_shell_table([rail.ERCF])
     assert "constexpr RailFace k_ercf_rail_face = {0xc8211f, " in table
     assert "&k_ercf_rail_face}" in table

@@ -95,7 +95,7 @@ void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology);
 void ui_filament_path_canvas_set_hub_on_toolhead(lv_obj_t* obj, bool on_toolhead);
 
 /// The unit merges its lanes inside: no selector or hub box, one line leaving it.
-void ui_filament_path_canvas_set_built_in_hub(lv_obj_t* obj, bool built_in);
+void ui_filament_path_canvas_set_lane_join(lv_obj_t* obj, helix::ui::tray::LaneJoin join);
 
 /// Draw the LINEAR selector as this flat rail in place of its bar; nullptr keeps the bar.
 void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj,

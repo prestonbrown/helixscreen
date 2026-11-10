@@ -254,6 +254,12 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
 
     if (linear)
         f.hub_y = f.prep_y + f.sensor_r + f.hub_h / 2;
+    if (data.lanes_merge_inside) {
+        // No box to clear: the lanes curve in from where they leave the unit.
+        const int32_t drop = (f.hub_y - f.hub_h / 2 - f.prep_band_y) / 2;
+        f.hub_h = 2 * f.sensor_r;
+        f.hub_y = f.prep_band_y + drop + f.hub_h / 2;
+    }
     // Output sensor butted against the hub bottom (mirrors the hub-top entries)
     f.output_y = f.hub_y + f.hub_h / 2;
 
@@ -327,7 +333,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     const int32_t min_width = LV_CLAMP(theme.hub_width, want_w, max_width);
     // Outer tube + its halo + 2 px between halos, and never less than two bands.
     const int32_t separation = LV_MAX(theme.tube_gauge + kHaloWidthExtra + 2, 2 * f.sensor_r + 2);
-    if (hub_lanes > 2 && !data.hub_on_toolhead && !f.hub_stacked) {
+    if (hub_lanes > 2 && !data.hub_on_toolhead && !f.hub_stacked && !data.lanes_merge_inside) {
         // Borrow unused output-run height before widening the hub. Keep the
         // buffer/bypass area clear and leave on-toolhead hubs in place.
         float deepest_start = fit_in[0].start_y;
@@ -624,7 +630,8 @@ void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame&
                          const FilamentPathData& data) {
     if (!data.hub_on_toolhead && data.has_hub_sensor) {
         add_band(plan, BandKind::Trunk, {(float)f.output_x, (float)f.output_y}, {0, 1},
-                 lane.band(PathSegment::OUTPUT), lane.color, /*on_box_edge=*/true);
+                 lane.band(PathSegment::OUTPUT), lane.color,
+                 /*on_box_edge=*/!data.lanes_merge_inside);
     }
 }
 
@@ -852,7 +859,9 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
             add_band(out, BandKind::Lane, {x, (float)f.prep_band_y}, {0, 1},
                      lane.band(PathSegment::PREP), s.color, f.prep_on_box_edge);
         }
-        append_line(r, x, (float)f.prep_band_y, x, (float)f.prep_y, lane.style(PathSegment::LANE));
+        if (!data.lanes_merge_inside)
+            append_line(r, x, (float)f.prep_band_y, x, (float)f.prep_y,
+                        lane.style(PathSegment::LANE));
 
         if (linear) {
             append_line(r, x, (float)f.prep_y, x, hub_top, lane.style(PathSegment::LANE));
@@ -879,7 +888,10 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
                 }
                 append_line(r, x, sel_top, x, pts[0].y, unpainted(lane.style(PathSegment::LANE)));
             } else {
-                pts[0].y = (float)f.prep_y;
+                pts[0].y = (float)(data.lanes_merge_inside ? f.prep_band_y : f.prep_y);
+                // A short merge leaves the lane's straight run its first third.
+                if (data.lanes_merge_inside)
+                    pts[1].y = pts[0].y + (hub_top - pts[0].y) / 3;
                 if (load_band) {
                     const float load_y = load_band_y(f, pts[1].y);
                     append_line(r, x, pts[0].y, x, load_y, lane.style(PathSegment::LANE));
@@ -888,7 +900,12 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
                 }
             }
             // With no box to land on, every lane drops to a shared bus and meets on the trunk.
-            if (data.built_in_hub) {
+            if (data.lanes_merge_inside) {
+                const float run = (hub_top - pts[0].y) / 5;
+                pts[1] = {x, pts[0].y + run};
+                pts[2] = {cx, hub_top - run};
+                pts[3] = {cx, hub_top};
+            } else if (data.built_in_hub) {
                 const float bus = (float)built_in_bus_y(f);
                 pts[1] = {x, bus};
                 pts[2] = {cx, bus};
@@ -896,8 +913,10 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
             }
             pg::FilamentPath fan;
             // Long S-bends: as round as the lane's distance from the trunk allows.
-            const float bend =
-                data.built_in_hub ? std::clamp(std::fabs(x - cx) / 2.0f, 0.5f, 18.0f) : 8.0f;
+            const float bend = data.lanes_merge_inside ? std::fabs(x - cx)
+                               : data.built_in_hub
+                                   ? std::clamp(std::fabs(x - cx) / 2.0f, 0.5f, 18.0f)
+                                   : 8.0f;
             pg::route_polyline_filleted(fan, pts, 4, bend);
             route_append(r, fan, lane.style(PathSegment::LANE));
             if (!lane.on)

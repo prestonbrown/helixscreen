@@ -955,13 +955,13 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     // A unit's enclosed and open drawings merge their lanes alike, so no climate lookup.
     const tray::UnitShell* drawn_unit = tray::unit_shell_for(
         info, (unit_index < 0 && info.units.size() == 1) ? 0 : unit_index, false);
-    const bool built_in_hub =
-        helix::ui::fpath::draws_built_in_hub(drawn_unit && drawn_unit->built_in_selector, topo);
-    if (built_in_hub)
+    const tray::LaneJoin join = helix::ui::fpath::drawn_lane_join(
+        drawn_unit ? drawn_unit->lane_join : tray::LaneJoin::Hub, topo);
+    if (join == tray::LaneJoin::Junction || join == tray::LaneJoin::Inside)
         topo = helix::PathTopology::HUB;
     ui_filament_path_canvas_set_topology(canvas, static_cast<int>(topo));
     ui_filament_path_canvas_set_hub_on_toolhead(canvas, backend->hub_on_toolhead());
-    ui_filament_path_canvas_set_built_in_hub(canvas, built_in_hub);
+    ui_filament_path_canvas_set_lane_join(canvas, join);
     // Only the gate counts the rail art exists for trade the bar for a rail.
     const bool rail = drawn_unit && topo == helix::PathTopology::LINEAR &&
                       tray::unit_shell_carriage(*drawn_unit, slot_count) != nullptr;

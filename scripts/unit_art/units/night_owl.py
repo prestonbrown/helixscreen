@@ -138,7 +138,7 @@ def _tray_shell():
             kit.lane(-17, 17, -8, 0, int(RUBBER[1:], 16), 4),
             kit.lane(-3, 3, -11, 2, _FRAME, 1),
         ],
-        built_in_selector=True,
+        lane_join="junction",
     )
 
 

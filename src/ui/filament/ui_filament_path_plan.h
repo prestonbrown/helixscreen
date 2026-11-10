@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ams_unit_shell.h"
+
 /**
  * @file ui_filament_path_plan.h
  * @brief Route plan for the LINEAR/HUB detail canvas: frame → plan → paint.
@@ -92,11 +94,13 @@ struct LinearHubFrame {
     SlotRenderStates states;
 };
 
-/// A built-in selector redraws only routes that merge to one nozzle; PARALLEL and MIXED
-/// units send lanes to separate tools.
-inline bool draws_built_in_hub(bool shell_built_in, helix::PathTopology reported) {
-    return shell_built_in &&
-           (reported == helix::PathTopology::LINEAR || reported == helix::PathTopology::HUB);
+/// The join a unit draws with: routes that do not merge to one nozzle (PARALLEL and MIXED)
+/// keep the separate-tool drawing whatever the unit is.
+inline helix::ui::tray::LaneJoin drawn_lane_join(helix::ui::tray::LaneJoin shell,
+                                                 helix::PathTopology reported) {
+    return reported == helix::PathTopology::LINEAR || reported == helix::PathTopology::HUB
+               ? shell
+               : helix::ui::tray::LaneJoin::Hub;
 }
 
 /// A selector rail's gate block: most of the gate pitch, no wider than the rail is tall.
