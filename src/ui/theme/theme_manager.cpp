@@ -402,7 +402,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     runtime().fully_initialized = true;
 }
 
-void theme_manager_refresh_base_font(lv_display_t* display) {
+void theme_manager_refresh_base_font(lv_display_t* display) { // NAMESPACE_OK: theme_manager C API
     if (!runtime().current_theme)
         return;
     helix::theme_detail::theme_set_base_font(display, resolve_base_font(display));

@@ -541,7 +541,7 @@ bool theme_manager_refresh_layout_constants(lv_display_t* display);
  * Labels without a font of their own inherit it. Called by
  * theme_manager_refresh_layout_constants() once the tier's fonts are registered.
  */
-void theme_manager_refresh_base_font(lv_display_t* display);
+void theme_manager_refresh_base_font(lv_display_t* display); // NAMESPACE_OK: theme_manager C API
 
 /**
  * @brief Republish ui_is_portrait and ui_is_ultrawide from the override-aware source.
