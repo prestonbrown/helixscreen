@@ -85,8 +85,8 @@ float unit_top_y(const TrayBox& b, float lid_h, bool has_lid);
 
 /// Top-left of lane @p lane_x's number badge on the box front. It sits inside the
 /// front face, @p inset above its bottom edge, with its right edge @p inset inside
-/// the lane's lid edge (lane_x + @p lane_half); where the pitch is too tight for
-/// that, centered on the lane instead.
+/// the lane's bay (lane_x + @p lane_half) and the face's right end; where the pitch
+/// is too tight for that, centered on the lane instead.
 PointF lane_badge_origin(const TrayBox& b, float lane_x, float lane_half, float badge_w,
                          float badge_h, float inset);
 

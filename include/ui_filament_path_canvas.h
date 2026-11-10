@@ -3,11 +3,12 @@
 
 #pragma once
 
+#include "ams_unit_shell.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "ams_unit_shell.h"
 #include "lvgl/lvgl.h"
 
 /**
@@ -97,9 +98,10 @@ void ui_filament_path_canvas_set_hub_on_toolhead(lv_obj_t* obj, bool on_toolhead
 /// The unit merges its lanes inside: no selector or hub box, one line leaving it.
 void ui_filament_path_canvas_set_lane_join(lv_obj_t* obj, helix::ui::tray::LaneJoin join);
 
-/// Draw the LINEAR selector as this flat rail in place of its bar; nullptr keeps the bar.
-void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj,
-                                               const helix::ui::tray::RailFace* face);
+/// Draw the LINEAR selector as @p unit_id's head-on rail art in place of its bar; nullptr keeps
+/// the bar.
+void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj, const char* unit_id,
+                                               const helix::ui::tray::RailFaceArt* art);
 
 /**
  * @brief Whether the LINEAR/HUB path continues past the hub to a toolhead

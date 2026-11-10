@@ -22,6 +22,7 @@
 #include "ui_filament_path_internal.h"
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 
 namespace helix::ui::fpath {
@@ -46,6 +47,11 @@ struct OffpageStub {
 /// The label an off-page stub carries: "N units", "1 unit" for one.
 std::string offpage_label_text(int count);
 
+/// Where a selector rail's head-on art is drawn; w == 0 when the canvas draws the bar instead.
+struct RailArtRect {
+    int32_t x = 0, y = 0, w = 0, h = 0;
+};
+
 // Everything the LINEAR/HUB plan needs for one draw: layout Ys, resolved
 // colors, filament/error state and the HUB merge-fan plan.
 struct LinearHubFrame {
@@ -64,6 +70,7 @@ struct LinearHubFrame {
     int32_t bypass_merge_y = 0;
     int32_t center_x = 0;
     int32_t output_x = 0; // LINEAR: under the active slot (possibly animating)
+    RailArtRect rail;     // LINEAR with rail art: where it is drawn
 
     int32_t buffer_y = 0;
     int32_t buf_fil_top = 0;
@@ -103,9 +110,31 @@ inline helix::ui::tray::LaneJoin drawn_lane_join(helix::ui::tray::LaneJoin shell
                : helix::ui::tray::LaneJoin::Hub;
 }
 
-/// A selector rail's gate block: most of the gate pitch, no wider than the rail is tall.
-inline int32_t rail_block_width(int32_t pitch, int32_t rail_h) {
-    return std::min(pitch * 7 / 10, rail_h * 7 / 6);
+/// Where the lanes leave the unit: the spool box's front edge when it stands clear above the
+/// lane run, else the prep sensors' row.
+int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g);
+
+/// The art's place: between the lanes' sensors and the buffer, centred, as tall as fits.
+/// Empty for a canvas without rail art, and for one too small to show it.
+RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g);
+
+/// Where @p gate's lane goes into the art drawn at @p r.
+inline int32_t rail_gate_x(const helix::ui::tray::RailFaceArt& art, const RailArtRect& r,
+                           int gate) {
+    return r.x + static_cast<int32_t>(std::lround((art.gate0_x + gate * art.gate_step_x) * r.w));
+}
+
+/// Where the filament leaves the carriage when it stands at @p gate.
+inline int32_t rail_outlet_x(const helix::ui::tray::RailFaceArt& art, const RailArtRect& r,
+                             int gate) {
+    return r.x + static_cast<int32_t>(std::lround((art.outlet_x + gate * art.gate_step_x) * r.w));
+}
+
+/// Where a LINEAR selector's output leaves with @p slot selected: under the slot, or at the rail
+/// art's carriage coupler.
+inline int32_t linear_exit_x(const FilamentPathData& data, const BaseGeometry& g, int slot) {
+    const RailArtRect r = rail_art_rect(data, g);
+    return r.w > 0 ? rail_outlet_x(*data.rail_art, r, slot) : g.slot_x[slot];
 }
 
 /// Where a selector rail's carriage is centred. It is under the active gate, on its way

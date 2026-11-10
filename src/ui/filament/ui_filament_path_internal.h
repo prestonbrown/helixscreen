@@ -350,12 +350,16 @@ struct FilamentPathData {
     bool built_in_hub = false;       // no hub box: the lanes meet at a junction or inside the unit
     bool lanes_merge_inside = false; // a built_in_hub whose short merge has no junction drawn
     bool fixed_selector = false;     // the selector is a fixed block with one port per lane
-    const helix::ui::tray::RailFace* selector_rail = nullptr; // static generated table entry
-    // The rail as last painted, for the per-frame carriage: offsets from the widget's top.
+    // A selector rail drawn head-on in place of the bar: static generated table entry, and the
+    // unit whose art it is.
+    const helix::ui::tray::RailFaceArt* rail_art = nullptr;
+    const char* rail_unit = nullptr;
+    // The rail art as last painted, for the per-frame carriage: offsets from the widget's corner.
     bool rail_drawn = false;
+    int32_t rail_left = 0;
     int32_t rail_top = 0;
+    int32_t rail_w = 0;
     int32_t rail_h = 0;
-    int32_t rail_block_w = 0;
     // The LINEAR/HUB path continues past the hub to a toolhead. False for a unit
     // that feeds no nozzle: its lanes end at the hub, with nothing drawn below it.
     bool feeds_toolhead = true;

@@ -50,14 +50,16 @@ struct CarriageTrack {
     float aspect; ///< The art's width over its height.
 };
 
-/// A selector rail's colours where it is drawn flat, on the path screen.
-struct RailFace {
-    uint32_t frame;
-    uint32_t gate;
-    uint32_t accent;
-    uint32_t coupler;
-    uint32_t head;
-    uint32_t rod;
+/// A selector rail drawn head-on on the path screen, for one gate count. Positions are shares
+/// of the art's width (x) and height (y); the carriage layer is baked at gate 0.
+struct RailFaceArt {
+    int lanes;
+    float aspect;      ///< The art's width over its height.
+    float gate0_x;     ///< Where gate 0's lane goes in.
+    float gate_step_x; ///< From one gate's inlet to the next, and the carriage's travel per gate.
+    float inlet_y;     ///< The height every lane goes in at.
+    float outlet_x;    ///< Where the selected filament's tube leaves the art, carriage at gate 0.
+    float outlet_y;
 };
 
 /// How a unit's lanes meet on the path screen.
@@ -90,8 +92,18 @@ struct UnitShell {
     uint32_t art_lane_variants = 0;
     const CarriageTrack* carriage = nullptr; ///< One row per baked gate count; nullptr for none.
     int carriage_n = 0;
-    const RailFace* rail_face = nullptr; ///< nullptr when the path screen keeps its selector bar.
+    const RailFaceArt* face_art = nullptr; ///< One row per baked gate count; nullptr for none.
+    int face_art_n = 0;
 };
+
+/// The head-on art for a unit built with @p lanes gates, or nullptr.
+inline const RailFaceArt* unit_shell_face_art(const UnitShell& shell, int lanes) {
+    for (int i = 0; i < shell.face_art_n; ++i) {
+        if (shell.face_art[i].lanes == lanes)
+            return &shell.face_art[i];
+    }
+    return nullptr;
+}
 
 /// The carriage track for a unit built with @p lanes gates, or nullptr.
 inline const CarriageTrack* unit_shell_carriage(const UnitShell& shell, int lanes) {

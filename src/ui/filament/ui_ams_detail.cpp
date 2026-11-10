@@ -804,8 +804,10 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         if (lowest != INT32_MIN)
             lv_obj_set_style_translate_y(w.labels_layer, label_bottom - lowest, LV_PART_MAIN);
     }
-    // Each lane's number sits on the box front, never below it.
+    // Each lane's number sits at the bottom right of its bay on the box front, never below it.
+    // The bay is the lane pitch wide; the lids are narrower so they can tuck behind each other.
     if (w.badge_layer) {
+        const float bay_half = spacing / 2.0f;
         lv_area_t layer;
         lv_obj_get_coords(w.badge_layer, &layer);
         const float inset = (float)theme_manager_get_spacing("space_xxs");
@@ -814,9 +816,9 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             if (!badge || lv_obj_get_parent(badge) != w.badge_layer)
                 continue;
             lv_obj_update_layout(badge);
-            const tray::PointF p =
-                tray::lane_badge_origin(box, s_tray.lane_x[i], half, (float)lv_obj_get_width(badge),
-                                        (float)lv_obj_get_height(badge), inset);
+            const tray::PointF p = tray::lane_badge_origin(box, s_tray.lane_x[i], bay_half,
+                                                           (float)lv_obj_get_width(badge),
+                                                           (float)lv_obj_get_height(badge), inset);
             // The badge's own translate offsets it from its position.
             lv_obj_set_pos(badge,
                            origin.x + (int32_t)std::lround(p.x) - layer.x1 -
@@ -974,9 +976,10 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     ui_filament_path_canvas_set_hub_on_toolhead(canvas, backend->hub_on_toolhead());
     ui_filament_path_canvas_set_lane_join(canvas, join);
     // Only the gate counts the rail art exists for trade the bar for a rail.
-    const bool rail = drawn_unit && topo == helix::PathTopology::LINEAR &&
-                      tray::unit_shell_carriage(*drawn_unit, slot_count) != nullptr;
-    ui_filament_path_canvas_set_selector_rail(canvas, rail ? drawn_unit->rail_face : nullptr);
+    const tray::RailFaceArt* rail = drawn_unit && topo == helix::PathTopology::LINEAR
+                                        ? tray::unit_shell_face_art(*drawn_unit, slot_count)
+                                        : nullptr;
+    ui_filament_path_canvas_set_selector_rail(canvas, rail ? drawn_unit->id : nullptr, rail);
     // A unit the overview joins to no nozzle (an unwired hub) ends at its hub
     // here too: the overview's own rule decides both. A hub mounted on the head feeds
     // it by construction, and the all-units view always reaches a toolhead.

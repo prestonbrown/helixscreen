@@ -525,12 +525,19 @@ void ui_filament_path_canvas_set_lane_join(lv_obj_t* obj, helix::ui::tray::LaneJ
 }
 
 // NAMESPACE_OK: one of the canvas C-style setters
-void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj,
-                                               const helix::ui::tray::RailFace* face) {
+void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj, const char* unit_id,
+                                               const helix::ui::tray::RailFaceArt* art) {
     auto* data = get_data(obj);
-    if (!data || data->selector_rail == face)
+#if defined(HELIX_PLATFORM_ESP32)
+    // The firmware image carries no unit art.
+    art = nullptr;
+#endif
+    if (!art)
+        unit_id = nullptr;
+    if (!data || (data->rail_art == art && data->rail_unit == unit_id))
         return;
-    data->selector_rail = face;
+    data->rail_art = art;
+    data->rail_unit = unit_id;
     layered_mark_dirty(obj);
 }
 
@@ -639,10 +646,11 @@ void ui_filament_path_canvas_set_active_slot(lv_obj_t* obj, int slot) {
         lv_area_t coords;
         lv_obj_get_coords(obj, &coords);
         int32_t x_off = coords.x1;
-        int32_t new_x = x_off + get_slot_x(data, slot, x_off);
+        const BaseGeometry g = compute_base_geometry(obj, data);
+        int32_t new_x = helix::ui::fpath::linear_exit_x(*data, g, slot);
         int32_t old_x = data->anim.output_x_current;
         if (old_x == 0)
-            old_x = x_off + get_slot_x(data, old_slot, x_off);
+            old_x = helix::ui::fpath::linear_exit_x(*data, g, old_slot);
         start_output_x_animation(obj, data, old_x, new_x);
     }
 

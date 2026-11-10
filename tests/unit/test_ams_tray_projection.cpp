@@ -392,7 +392,7 @@ TEST_CASE("stagger labels: below medium a label keeps to its two-lane span",
     CHECK(ams_stagger_label_width(0, UiBreakpoint::Micro, 4) == 0);
 }
 
-TEST_CASE("lane badge: on the front face, inside the lane's lid edge", "[ams][tray][badge]") {
+TEST_CASE("lane badge: on the front face, inside the lane's bay", "[ams][tray][badge]") {
     const TrayBox b = reference_box(); // front face y 101..126
     SECTION("a wide pitch puts it at the lane's front bottom-right") {
         const PointF p = lane_badge_origin(b, 100, 40, 20, 20, 2);
@@ -400,6 +400,9 @@ TEST_CASE("lane badge: on the front face, inside the lane's lid edge", "[ams][tr
         CHECK(p.y == Approx(104));
         CHECK(p.y + 20 <= b.fb);
         CHECK(p.y >= b.ft);
+    }
+    SECTION("the last lane's badge stays on the face, short of its right end") {
+        CHECK(lane_badge_origin(b, b.fr - 15, 40, 20, 20, 2).x == Approx(b.fr - 22));
     }
     SECTION("a tight pitch centers it on the lane") {
         const PointF p = lane_badge_origin(b, 100, 6, 16, 16, 2);

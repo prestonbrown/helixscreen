@@ -55,11 +55,11 @@ constexpr ProfilePoint k_elegoo_canvas_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.
 constexpr FrontPart k_ercf_rail_front[] = {{FrontAnchor::Span, 3.00f, 3.00f, 8.00f, 19.00f, 0x2a2a2e, 3}, {FrontAnchor::Span, 4.00f, 4.00f, 0.00f, 6.00f, 0xc8211f, 2}, {FrontAnchor::Lane, -7.00f, 7.00f, -3.00f, 0.00f, 0xc8211f, 0}, {FrontAnchor::Lane, -1.00f, 1.00f, 2.10f, 5.10f, 0xf7f7f2, 0}};
 constexpr ProfilePoint k_ercf_rail_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 constexpr CarriageTrack k_ercf_rail_carriage[] = {{4, 0.10929f, 0.01905f, 1.41058f}, {6, 0.08969f, 0.01563f, 1.63125f}, {8, 0.07605f, 0.01325f, 1.83051f}, {9, 0.07067f, 0.01232f, 1.92306f}, {12, 0.05831f, 0.01016f, 2.17616f}};
-constexpr RailFace k_ercf_rail_face = {0xc8211f, 0x1d1d20, 0xd42a26, 0x3f8fd9, 0x222226, 0xb9bdc2};
+constexpr RailFaceArt k_ercf_rail_face[] = {{4, 1.73607f, 0.44646f, 0.09050f, 0.39565f, 0.44646f, 0.99205f}, {6, 2.05029f, 0.37803f, 0.07663f, 0.39565f, 0.37803f, 0.99205f}, {8, 2.36451f, 0.32780f, 0.06645f, 0.39565f, 0.32780f, 0.99205f}, {9, 2.52162f, 0.30737f, 0.06231f, 0.39565f, 0.30737f, 0.99205f}, {12, 2.99295f, 0.25897f, 0.05249f, 0.39565f, 0.25897f, 0.99205f}};
 constexpr FrontPart k_tradrack_rail_front[] = {{FrontAnchor::Span, 3.00f, 3.00f, 8.00f, 19.00f, 0x26272a, 3}, {FrontAnchor::Span, 4.00f, 4.00f, 0.00f, 6.00f, 0x25c275, 2}, {FrontAnchor::Lane, -7.00f, 7.00f, -3.00f, 0.00f, 0x25c275, 0}, {FrontAnchor::Lane, -1.00f, 1.00f, 2.10f, 5.10f, 0xf7f7f2, 0}};
 constexpr ProfilePoint k_tradrack_rail_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 constexpr CarriageTrack k_tradrack_rail_carriage[] = {{4, 0.10929f, 0.01905f, 1.21811f}, {6, 0.08969f, 0.01563f, 1.44602f}, {8, 0.07605f, 0.01325f, 1.66245f}, {9, 0.07067f, 0.01232f, 1.76663f}, {12, 0.05831f, 0.01016f, 2.05751f}};
-constexpr RailFace k_tradrack_rail_face = {0x1c1d20, 0x18191b, 0x25c275, 0x3f9edd, 0x1f2024, 0xa7abb0};
+constexpr RailFaceArt k_tradrack_rail_face[] = {{4, 1.63626f, 0.47250f, 0.09083f, 0.37280f, 0.43917f, 0.98965f}, {6, 1.93351f, 0.39986f, 0.07687f, 0.37280f, 0.37165f, 0.98965f}, {8, 2.23076f, 0.34658f, 0.06663f, 0.37280f, 0.32213f, 0.98965f}, {9, 2.37939f, 0.32493f, 0.06246f, 0.37280f, 0.30201f, 0.98965f}, {12, 2.82527f, 0.27365f, 0.05261f, 0.37280f, 0.25434f, 0.98965f}};
 
 const UnitShell kShells[] = {
     {"ace_pro", k_ace_pro_cheek, 3, k_ace_pro_dome, 17, 4, 31.42f, 44.0f, 7.0f, true, LaneJoin::Junction, 0x3a3b3f, 0x000000, k_ace_pro_front, 5, false, 0x0},
@@ -79,8 +79,8 @@ const UnitShell kShells[] = {
     {"3ms", k_3ms_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, LaneJoin::Hub, 0x35c4c4, 0x000000, k_3ms_front, 2, true, 0x0},
     {"ad5x_ifs", k_ad5x_ifs_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, LaneJoin::FixedBlock, 0x8a7f76, 0x000000, k_ad5x_ifs_front, 2, true, 0x0},
     {"elegoo_canvas", k_elegoo_canvas_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, LaneJoin::FixedBlock, 0x1a1b1f, 0x000000, k_elegoo_canvas_front, 2, true, 0x0},
-    {"ercf_rail", k_ercf_rail_cheek, 2, nullptr, 0, 6, 0.00f, 22.0f, 6.0f, false, LaneJoin::Hub, 0x1d1d20, 0x000000, k_ercf_rail_front, 4, false, 0x1350, k_ercf_rail_carriage, 5, &k_ercf_rail_face},
-    {"tradrack_rail", k_tradrack_rail_cheek, 2, nullptr, 0, 6, 0.00f, 22.0f, 6.0f, false, LaneJoin::Hub, 0x18191b, 0x000000, k_tradrack_rail_front, 4, false, 0x1350, k_tradrack_rail_carriage, 5, &k_tradrack_rail_face},
+    {"ercf_rail", k_ercf_rail_cheek, 2, nullptr, 0, 6, 0.00f, 22.0f, 6.0f, false, LaneJoin::Hub, 0x1d1d20, 0x000000, k_ercf_rail_front, 4, false, 0x1350, k_ercf_rail_carriage, 5, k_ercf_rail_face, 5},
+    {"tradrack_rail", k_tradrack_rail_cheek, 2, nullptr, 0, 6, 0.00f, 22.0f, 6.0f, false, LaneJoin::Hub, 0x18191b, 0x000000, k_tradrack_rail_front, 4, false, 0x1350, k_tradrack_rail_carriage, 5, k_tradrack_rail_face, 5},
 };
 } // namespace
 

@@ -52,6 +52,8 @@ class Camera:
 
 
 ART_CAMERA = Camera(27, 20)
+# A selector rail on the path screen: straight on, a little from above so the gate tops read.
+FACE_CAMERA = Camera(0, 7)
 # Every unit is framed so its spools draw at one size: the frame, in the units of a
 # drawing whose spool radius is ART_SPOOL_R, has room for any unit of up to four lanes.
 # A wider unit widens its own frame, so its spools draw a little smaller.
@@ -292,8 +294,9 @@ class UnitDef:
     stub_art: Optional[Callable] = None
     # A unit with a moving selector: given a lane count, the world-space travel between gates.
     carriage_step: Optional[Callable] = None
-    # The rail's flat colours on the path screen: frame, gate, accent, coupler, head, rod.
-    rail_face: Optional[Tuple[int, ...]] = None
+    # A rail's head-on drawing for the path screen: draw(scene, gates, tier) -> rail_face.FaceAnchors,
+    # the carriage in its own layer at gate 0. Baked per lane variant under face/.
+    face_art: Optional[Callable] = None
 
 
 @dataclass
@@ -418,6 +421,10 @@ class Scene:
 
     def svg(self, width):
         return self._wrap(width, "".join(i.svg() for i in self.items))
+
+    def layers_svg(self, layers, width):
+        """Everything drawn in any of layers, filament included."""
+        return self._wrap(width, "".join(i.svg() for i in self.items if i.layer in layers))
 
     def layer_svg(self, layer, width):
         """A shell layer, without any tintable filament."""
