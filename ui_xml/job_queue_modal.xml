@@ -58,7 +58,8 @@
     <text_muted name="modal_empty_state"
                 width="100%" text="No jobs in queue" style_text_align="center" style_pad_top="#space_md"
                 style_pad_bottom="#space_md">
-      <bind_flag_if_not_eq subject="job_queue_count" flag="hidden" ref_value="0"/>
+      <!-- Disconnected, the count is a stale fetch's: say so rather than show nothing. -->
+      <bind_flag_if cond="job_queue_loaded eq 1 and job_queue_count gt 0" flag="hidden"/>
     </text_muted>
   </view>
 </component>

@@ -774,6 +774,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     set("job_queue_count", 2);
     set("job_queue_run_state", static_cast<int>(helix::QueueRunState::Paused));
+    set("job_queue_loaded", 0); // disconnected: the count is a stale fetch's
+    CHECK(shown("modal_empty_state"));
+    set("job_queue_loaded", 1);
     CHECK_FALSE(shown("modal_empty_state"));
     CHECK_FALSE(shown("queue_state_label"));
     CHECK(shown("queue_paused_label"));
