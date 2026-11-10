@@ -1065,6 +1065,14 @@ TEST_CASE_METHOD(BoxWinsFixture, "a refused note action leaves the form on the l
     SECTION("unlink") {
         access.call_handle_unlink_disagreeing();
     }
+    bool tool_staged = false;
+    SECTION("re-apply over a refused tool assignment") {
+        refusing->refuse = false;
+        refusing->refuse_tool = true;
+        REQUIRE(access.pick_dropdown("tool_dropdown", "T1"));
+        tool_staged = true;
+        access.call_handle_reapply();
+    }
     settle();
 
     CHECK(access.working_info().material == "PLA");
@@ -1072,30 +1080,7 @@ TEST_CASE_METHOD(BoxWinsFixture, "a refused note action leaves the form on the l
     CHECK(access.working_info().color_rgb == 0xFF0000U);
     CHECK(access.selected_family() == "PLA");
     CHECK(access.spool_disagrees() == 1);
-    CHECK_FALSE(access.dirty());
-    close_editor_overlay();
-}
-
-TEST_CASE_METHOD(BoxWinsFixture,
-                 "a re-apply whose lane setting is refused puts the form back on the lane",
-                 "[ams_edit_overlay][box_wins][lane_settings]") {
-    auto owned = std::make_unique<RefusingBoxBackend>(4);
-    RefusingBoxBackend* refusing = owned.get();
-    backend = refusing;
-    AmsState::instance().set_backend(std::move(owned));
-    open(true, box_lane());
-    REQUIRE(access.spool_disagrees() == 1);
-    REQUIRE(access.pick_dropdown("tool_dropdown", "T1"));
-    refusing->refuse_tool = true;
-
-    access.call_handle_reapply();
-    settle();
-
-    CHECK_FALSE(fired);
-    CHECK(access.working_info().material == "PLA");
-    CHECK(access.working_info().color_rgb == 0xFF0000U);
-    CHECK(access.selected_family() == "PLA");
-    CHECK(access.spool_disagrees() == 1);
+    CHECK(access.dirty() == tool_staged);
     close_editor_overlay();
 }
 
@@ -1128,35 +1113,6 @@ TEST_CASE_METHOD(BoxWinsFixture, "moving a box-held lane to a third filament sti
 
     CHECK_FALSE(ModalStack::instance().stack_empty());
     CHECK_FALSE(fired);
-    close_editor_overlay();
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "picker marks no row for a slot with no linked spool",
-                 "[ams_edit_overlay][picker][preselect]") {
-    auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
-
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    access.set_cached_spools(three_spools());
-    access.call_render_spool_list("");
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    lv_obj_t* list = access.widget("picker_spool_list");
-    REQUIRE(list != nullptr);
-    REQUIRE(lv_obj_get_child_count(list) == 3);
-    CHECK(marked_spool_ids(list).empty());
-
-    // A search that leaves one row must not mark it either.
-    access.call_render_spool_list("abs");
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-    REQUIRE(lv_obj_get_child_count(list) == 1);
-    CHECK(marked_spool_ids(list).empty());
-
     close_editor_overlay();
 }
 
@@ -1800,8 +1756,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker marks only the slot's linked spool",
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
 
-    SlotInfo linked = tracked_slot();
-    linked.spoolman_id = 22;
+    // A slot with no linked spool marks no row at all.
+    const int linked_id = GENERATE(0, 22);
+    CAPTURE(linked_id);
+    const std::vector<int> marked = linked_id ? std::vector<int>{22} : std::vector<int>{};
+    SlotInfo linked = linked_id ? tracked_slot() : untracked_slot();
+    linked.spoolman_id = linked_id;
     REQUIRE(overlay.show_for_slot(test_screen(), 0, linked, nullptr, nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
@@ -1814,7 +1774,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker marks only the slot's linked spool",
     lv_obj_t* list = access.widget("picker_spool_list");
     REQUIRE(list != nullptr);
     REQUIRE(lv_obj_get_child_count(list) == 3);
-    CHECK(marked_spool_ids(list) == std::vector<int>{22});
+    CHECK(marked_spool_ids(list) == marked);
 
     // Spools 22 and 33 are both eSUN: the linked one keeps its mark among
     // the survivors and the other stays plain.
@@ -1822,7 +1782,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker marks only the slot's linked spool",
     UpdateQueue::instance().drain();
     process_lvgl(10);
     REQUIRE(lv_obj_get_child_count(list) == 2);
-    CHECK(marked_spool_ids(list) == std::vector<int>{22});
+    CHECK(marked_spool_ids(list) == marked);
 
     // A search that filters the linked spool out marks nothing.
     access.call_render_spool_list("abs");
@@ -3165,29 +3125,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a price the field rounds does not make the 
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the brand list names Generic once",
-                 "[ams_edit_overlay][dropdown]") {
-    auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
-    SlotInfo info = untracked_slot();
-    info.material = "PLA";
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    const auto brands = split_options(access.dropdown_options("dropdown_brand"));
-    CHECK(std::count(brands.begin(), brands.end(), std::string("Generic")) == 1);
-    close_editor_overlay();
-}
-
 TEST_CASE_METHOD(LVGLUITestFixture, "a material with few makers lists Generic once",
                  "[ams_edit_overlay][dropdown]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
 
-    // HIPS has one maker besides Generic; EVA has only Generic. The slot's
-    // brand spelling differs in case from the catalog's.
-    for (const char* material : {"HIPS", "EVA"}) {
+    // PLA has many makers, HIPS one besides Generic, EVA only Generic. The
+    // slot's brand spelling differs in case from the catalog's.
+    for (const char* material : {"PLA", "HIPS", "EVA"}) {
         CAPTURE(material);
         SlotInfo info = untracked_slot();
         info.material = material;

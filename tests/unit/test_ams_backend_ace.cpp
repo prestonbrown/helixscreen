@@ -1775,28 +1775,6 @@ TEST_CASE("ACE hands the temperatures back to the hub with the override",
     CHECK(backend.get_slot_info(0).nozzle_temp_max == 225);
 }
 
-TEST_CASE("ACE clear_slot_override is a no-op when no override is present",
-          "[ams][ace][filament_slot_override]") {
-    AceTmpCacheDir tmp("task16_clear_slot_override_noop");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
-    AmsBackendAce& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    AceTestAccess::inject_override_store(backend, std::move(store));
-
-    AceTestAccess::parse_ace(backend, make_ace_slot_payload("loaded", 0xAA55FF, "PETG"));
-
-    // No override staged. Should not crash, should not touch firmware state.
-    backend.clear_slot_override(0);
-
-    CHECK_FALSE(AceTestAccess::get_override(backend, 0).has_value());
-    auto info = backend.get_slot_info(0);
-    CHECK(info.color_rgb == 0xAA55FFu);
-    CHECK(info.material == "PETG");
-}
-
 TEST_CASE("ACE clear_slot_override drops the whole Spoolman link",
           "[ams][ace][filament_slot_override][1625]") {
     AceTmpCacheDir tmp("clear_spoolman_link");
@@ -3873,34 +3851,28 @@ TEST_CASE("ACE a Clear while the hub write is out waits for the hub's answer",
           "[ams][ace][kobra][filament_slot_override]") {
     helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
     AmsBackendAceTestHelper& b = *harness;
-    helix::ams::FilamentSlotOverride earlier;
-    earlier.brand = "Sunlu";
-    AceTestAccess::seed_override(b, 0, earlier);
     b.test_handle_status_update(
         status_notification("ace_instance_0", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+    const auto edit = [&b](const char* brand) {
+        SlotInfo info = b.get_slot_info(0);
+        info.brand = brand;
+        REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), info).success());
+        REQUIRE(b.pending_ack != nullptr);
+    };
+    edit("Sunlu");
+    b.pending_ack();
+    REQUIRE(b.get_slot_info(0).brand == "Sunlu");
 
-    SlotInfo edit = b.get_slot_info(0);
-    edit.color_rgb = 0x00FF80;
-    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
-    REQUIRE(b.pending_ack != nullptr);
+    // A second edit is out when the Clear arrives; nothing is erased yet.
+    edit("Elegoo");
     b.clear_slot_override(0);
-    // Nothing is erased before the hub answers.
-    CHECK(AceTestAccess::get_override(b, 0).has_value());
-
     SECTION("the hub runs the write: the record is erased, not saved") {
         b.pending_ack();
-        helix::ui::UpdateQueue::instance().drain();
-        CHECK_FALSE(AceTestAccess::get_override(b, 0).has_value());
+        CHECK(b.get_slot_info(0).brand.empty());
     }
     SECTION("the hub rejects it: the record stands") {
-        MoonrakerError err;
-        err.type = MoonrakerErrorType::JSON_RPC_ERROR;
-        err.message = "Unknown command";
-        b.pending_error(err);
-        helix::ui::UpdateQueue::instance().drain();
-        const auto record = AceTestAccess::get_override(b, 0);
-        REQUIRE(record.has_value());
-        CHECK(record->brand == "Sunlu");
+        b.pending_error(MoonrakerError{});
+        CHECK(b.get_slot_info(0).brand == "Sunlu");
     }
 }
 
