@@ -170,3 +170,45 @@ TEST_CASE_METHOD(LedSettingsSwatchFixture,
     CHECK(selected_for_idle() == 2);
     CHECK(lv_obj_find_by_name(ctx, "led_auto_swatch_2") == third);
 }
+
+TEST_CASE_METHOD(LedSettingsSwatchFixture,
+                 "LED settings: the startup readout and detail panels follow their subjects",
+                 "[led][settings]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.set_startup_brightness(65);
+    helix::led::LedStateAction brightness;
+    brightness.action_type = "brightness";
+    helix::led::LedAutoState::instance().set_mapping("idle", brightness);
+
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+
+    lv_obj_t* row = lv_obj_find_by_name(lv_screen_active(), "row_startup_brightness");
+    REQUIRE(row != nullptr);
+    lv_obj_t* readout = lv_obj_find_by_name(row, "value_label");
+    REQUIRE(readout != nullptr);
+    CHECK(std::string(lv_label_get_text(readout)) == "65%");
+    overlay.handle_startup_brightness_changed(42);
+    CHECK(std::string(lv_label_get_text(readout)) == "42%");
+
+    // A row with an action shows its detail panel; an "off" row hides it.
+    lv_obj_t* idle = lv_obj_find_by_name(lv_screen_active(), "detail_idle");
+    lv_obj_t* heating = lv_obj_find_by_name(lv_screen_active(), "detail_heating");
+    REQUIRE(idle != nullptr);
+    REQUIRE(heating != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(idle, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(heating, LV_OBJ_FLAG_HIDDEN));
+
+    // Picking "off" (the first option) in the idle row's dropdown hides its panel.
+    lv_obj_t* idle_row = lv_obj_get_sibling(idle, -1);
+    REQUIRE(idle_row != nullptr);
+    lv_obj_t* dropdown = lv_obj_find_by_name(idle_row, "dropdown");
+    REQUIRE(dropdown != nullptr);
+    lv_dropdown_set_selected(dropdown, 0);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+    settle();
+    CHECK(lv_obj_has_flag(idle, LV_OBJ_FLAG_HIDDEN));
+
+    ctrl.set_startup_brightness(80);
+}
