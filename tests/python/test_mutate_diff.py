@@ -16,6 +16,7 @@ when the change's marker is gone.
 import json
 import os
 import re
+import shlex
 import shutil
 import signal
 import subprocess
@@ -1079,6 +1080,58 @@ def test_reverting_a_renamed_file_leaves_no_path_behind(tmp_path, route):
     assert (work / "src" / "renamed.h").read_bytes() == before, out
     assert (work / "src" / "renamed.h").stat().st_mode == mode, out
     assert _git(work, "status", "--porcelain", "--untracked-files=all") == status, out
+
+
+# ---------------------------------------------------------------------------
+# A path git quotes
+# ---------------------------------------------------------------------------
+# A space, a non-ASCII letter, a literal ` b/` and a double quote: the quote
+# makes git C-quote the name, and the space makes it end `---`/`+++` with a tab.
+ODD_PATH = 'src/odd b/na\u00efve "q".cpp'
+
+
+def test_git_unquote_reads_every_escape_git_writes():
+    assert md.git_unquote('"a/na\\303\\257ve \\"q\\"\\t\\\\.c"') == 'a/na\u00efve "q"\t\\.c'
+    assert md.git_unquote('a/plain b/name.c') == 'a/plain b/name.c'
+
+
+@pytest.mark.parametrize("change", ["edit", "rename"])
+def test_a_quoted_path_is_mutated_at_its_real_name_and_restored(tmp_path, change):
+    work = _fixture(tmp_path)
+    odd = work / ODD_PATH
+    odd.parent.mkdir()
+    (work / "src" / "feature.cpp").write_text(ORIGINAL + RENAMED_BODY)
+    if change == "edit":
+        odd.write_text(ORIGINAL + RENAMED_BODY)
+    _git(work, "add", "src")
+    _git(work, "commit", "-qm", "odd base")
+    if change == "rename":
+        _git(work, "mv", "src/feature.cpp", ODD_PATH)
+    odd.write_text(CHANGED + RENAMED_BODY)
+    _git(work, "add", "src")
+    with open(work / ".git" / "info" / "exclude", "a") as f:
+        f.write("__pycache__/\nmutate.log*\n")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    assert '"' in _git(work, "diff", "--name-only", base)      # git quotes this name
+    suite = work / "build" / "bin" / "helix-tests"
+    suite.write_text(DETECTING_SUITE.replace("src/feature.cpp", shlex.quote(ODD_PATH)))
+
+    hunks = md.collect_hunks(work, base)
+    assert [(h['file'], h['old_file']) for h in hunks] == [
+        (ODD_PATH, ODD_PATH if change == "edit" else "src/feature.cpp")]
+    assert md.changed_files(work, base) == [(ODD_PATH, False)]
+    quoted = ODD_PATH.replace('"', '\\"')
+    header = [ln for ln in hunks[0]['patch'].splitlines() if not ln.startswith('index ')]
+    assert header[:3] == [
+        f'diff --git "a/{quoted}" "b/{quoted}"', f'--- "a/{quoted}"\t', f'+++ "b/{quoted}"\t']
+
+    status = _git(work, "status", "--porcelain", "--untracked-files=all")
+    before = odd.read_bytes()
+    r = _mutate(work, "--base", base)
+    assert r.returncode == 0, r.stdout
+    assert f"{ODD_PATH}:1" in r.stdout and "killed" in r.stdout, r.stdout
+    assert odd.read_bytes() == before, r.stdout
+    assert _git(work, "status", "--porcelain", "--untracked-files=all") == status, r.stdout
 
 
 # ---------------------------------------------------------------------------

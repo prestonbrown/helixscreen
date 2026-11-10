@@ -254,7 +254,49 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from diff_base import base_line, resolve_base, short_sha  # noqa: E402
 
 HUNK_RE = re.compile(r'^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
-RAW_RE = re.compile(r'^:(\d+) (\d+) [0-9a-f]+ [0-9a-f]+ (\w)\d*\t(.*)$')
+RAW_RE = re.compile(r'^:(\d+) (\d+) [0-9a-f]+ [0-9a-f]+ (\w)\d*$')
+
+_C_ESCAPES = {'a': 7, 'b': 8, 't': 9, 'n': 10, 'v': 11, 'f': 12, 'r': 13, '"': 34, '\\': 92}
+
+
+def git_unquote(name):
+    """A path as git prints it, with its C-style quoting undone.
+
+    Git wraps a name holding a double quote, a backslash or a control byte (and,
+    without core.quotePath=false, any non-ASCII byte) in double quotes, writing
+    those bytes as `\\"`, `\\t` or octal `\\303\\251`. A bare name is returned as is.
+    """
+    if not name.startswith('"'):
+        return name
+    out, i = bytearray(), 1
+    while i < len(name) and name[i] != '"':
+        if name[i] == '\\' and i + 1 < len(name):
+            nxt = name[i + 1]
+            if nxt in '01234567':
+                out.append(int(name[i + 1:i + 4], 8) & 0xFF)
+                i += 4
+                continue
+            out.append(_C_ESCAPES.get(nxt, ord(nxt)))
+            i += 2
+            continue
+        out += name[i].encode('utf-8', 'surrogateescape')
+        i += 1
+    return out.decode('utf-8', 'surrogateescape')
+
+
+def patch_side(line):
+    """(name, path) from a `--- a/X` or `+++ b/X` header line.
+
+    `name` is the token exactly as git wrote it, quotes and prefix included;
+    `path` is the real file name, or None for /dev/null. Git ends the line with
+    a tab when the name holds a space; a name with a real tab in it is quoted.
+    """
+    name = line[4:].rstrip('\n')
+    if name.endswith('\t'):
+        name = name[:-1]
+    if name == '/dev/null':
+        return name, None
+    return name, git_unquote(name)[2:]
 
 # Files the suite physically cannot execute (no headless GL, no device). Shared
 # with scripts/cov_diff.py so both tools agree on what is un-judgeable rather
@@ -790,18 +832,22 @@ def changed_files(root, base):
     Read from `git diff --raw` rather than from the hunks, so a file the text
     diff has nothing to say about -- a binary asset, a submodule pointer, a mode
     change -- still reaches the report instead of vanishing between the two.
+    `-z` hands every path over unquoted, each in its own NUL-separated field.
     """
-    r = run(['git', '-c', 'core.quotePath=false', 'diff', '--raw', base], cwd=root)
+    r = run(['git', 'diff', '--raw', '-z', base], cwd=root)
     if r.returncode != 0:
         sys.exit(f'git diff --raw failed:\n{r.stdout}')
-    out = []
-    for line in r.stdout.splitlines():
-        m = RAW_RE.match(line)
+    fields, out, i = r.stdout.split('\0'), [], 0
+    while i < len(fields):
+        m = RAW_RE.match(fields[i])
         if not m:
+            i += 1
             continue
-        old_mode, new_mode, _status, paths = m.groups()
-        path = paths.split('\t')[-1]          # rename: destination is what exists now
+        old_mode, new_mode, status = m.groups()
+        npaths = 2 if status in 'RC' else 1
+        path = fields[i + npaths]               # rename: destination is what exists now
         out.append((path, '160000' in (old_mode, new_mode)))
+        i += 1 + npaths
     return out
 
 
@@ -815,7 +861,9 @@ def collect_hunks(root, base):
 
     A hunk is reverted in place, in the file as it exists now (in_place_header).
     `old_file` is where its pre-image lived at `base`, which differs from
-    `file` only for a rename or copy.
+    `file` only for a rename or copy. Both come from the `---`/`+++` lines,
+    unquoted: the `diff --git a/X b/Y` line cannot be split reliably when a
+    name holds ` b/` itself.
     """
     r = run(['git', '-c', 'core.quotePath=false', 'diff', '-U3', base], cwd=root)
     if r.returncode != 0:
@@ -823,8 +871,8 @@ def collect_hunks(root, base):
     hunks, path, old_path, current, hdr_lines = [], None, None, None, []
 
     def flush():
-        if path and current:
-            hunks.append({'file': path, 'old_file': old_path or path,
+        if (path or old_path) and current:
+            hunks.append({'file': path or old_path, 'old_file': old_path or path,
                           'line': current['line'],
                           'old_line': current['old_line'],
                           'body': list(current['body']),
@@ -834,12 +882,15 @@ def collect_hunks(root, base):
         if line.startswith('diff --git '):
             flush()
             current, old_path = None, None
-            hdr_lines = [line]
-            path = line.split(' b/')[-1].strip()
-        elif current is None and line.startswith(('rename from ', 'copy from ')):
-            old_path = line.split(' from ', 1)[1].rstrip('\n')
+            hdr_lines, path = [line], None
+        elif current is None and line.startswith(('--- ', '+++ ')):
+            side = patch_side(line)[1]
+            if line.startswith('--- '):
+                old_path = side
+            else:
+                path = side
             hdr_lines.append(line)
-        elif current is None and (line.startswith(('index ', '--- ', '+++ ',
+        elif current is None and (line.startswith(('index ',
                                                    'old mode', 'new mode',
                                                    'similarity', 'dissimilarity',
                                                    'rename ', 'copy ',
@@ -877,10 +928,11 @@ def in_place_header(hdr_lines):
     plus = next((ln for ln in out if ln.startswith('+++ ')), None)
     if plus is None or plus.startswith('+++ /dev/null'):
         return out                      # no text hunk, or a deletion: the old path IS the path
-    name = plus[4:].rstrip('\n')       # `b/<path>`, or `"b/<path>"` when quoted
+    name = patch_side(plus)[0]         # `b/<path>`, or `"b/<path>"` when quoted
     a_name = '"a/' + name[3:] if name.startswith('"') else 'a/' + name[2:]
+    tail = plus[4 + len(name):]        # git's tab after a name with a space, and the newline
     return [f'diff --git {a_name} {name}\n' if ln.startswith('diff --git ')
-            else f'--- {a_name}\n' if ln.startswith('--- ') and not ln.startswith('--- /dev/null')
+            else f'--- {a_name}{tail}' if ln.startswith('--- ') and not ln.startswith('--- /dev/null')
             else ln for ln in out]
 
 
