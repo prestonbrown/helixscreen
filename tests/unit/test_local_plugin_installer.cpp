@@ -170,11 +170,51 @@ TEST_CASE("timelapse setup takes the local route only for a local Moonraker it c
 
 TEST_CASE("the timelapse macros are included only when Klipper lacks them",
           "[timelapse][local_install]") {
-    CHECK(decide_timelapse_macro_setup(true, true) == TimelapseMacroSetup::Loaded);
-    CHECK(decide_timelapse_macro_setup(true, false) == TimelapseMacroSetup::Loaded);
-    CHECK(decide_timelapse_macro_setup(false, true) == TimelapseMacroSetup::IncludeFromHelixMacros);
-    CHECK(decide_timelapse_macro_setup(false, false) == TimelapseMacroSetup::ShowIncludeLine);
+    TimelapseMacroFacts f;
+    f.objects_reported = true;
+    f.helix_macros_loaded = true;
+    f.macro_file_known = true;
+    CHECK(decide_timelapse_macro_setup(f) == TimelapseMacroSetup::IncludeFromHelixMacros);
+
+    SECTION("Klipper's objects not in yet: nothing is said") {
+        f.objects_reported = false;
+        CHECK(decide_timelapse_macro_setup(f) == TimelapseMacroSetup::NotYetKnown);
+        f.helix_macros_loaded = false;
+        CHECK(decide_timelapse_macro_setup(f) == TimelapseMacroSetup::NotYetKnown);
+    }
+    SECTION("the frame macro is loaded") {
+        f.has_frame_macro = true;
+        CHECK(decide_timelapse_macro_setup(f) == TimelapseMacroSetup::Loaded);
+        f.helix_macros_loaded = false;
+        CHECK(decide_timelapse_macro_setup(f) == TimelapseMacroSetup::Loaded);
+    }
+    SECTION("no helper macros") {
+        f.helix_macros_loaded = false;
+        CHECK(decide_timelapse_macro_setup(f) == TimelapseMacroSetup::ShowIncludeLine);
+    }
+    SECTION("the checkout's path on the Klipper host is unknown") {
+        f.macro_file_known = false;
+        CHECK(decide_timelapse_macro_setup(f) == TimelapseMacroSetup::ShowIncludeLine);
+    }
     CHECK(std::string(kTimelapseIncludeLine) == "[include timelapse.cfg]");
+}
+
+TEST_CASE("the macro file is known only on Moonraker's host with the checkout there",
+          "[timelapse][local_install]") {
+    TempHome home;
+    const char* old_home = std::getenv("HOME");
+    const std::string saved = old_home ? old_home : "";
+    setenv("HOME", home.path.c_str(), 1);
+    CHECK(timelapse_macro_repo_on_host(true).empty());
+    std::filesystem::create_directories(home.repo() + "/klipper_macro");
+    std::ofstream(home.repo() + "/klipper_macro/timelapse.cfg") << "\n";
+    CHECK(timelapse_macro_repo_on_host(true) == home.repo());
+    CHECK(timelapse_macro_repo_on_host(false).empty());
+    if (old_home) {
+        setenv("HOME", saved.c_str(), 1);
+    } else {
+        unsetenv("HOME");
+    }
 }
 
 TEST_CASE("a fresh local install clones, links, and finds ffmpeg", "[timelapse][local_install]") {

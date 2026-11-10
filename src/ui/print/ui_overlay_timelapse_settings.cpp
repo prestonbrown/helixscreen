@@ -131,7 +131,9 @@ void TimelapseSettingsOverlay::on_activate() {
 
 void TimelapseSettingsOverlay::refresh_macro_card() {
     // An install made before the wizard checked the macros is fixed here.
-    helix::ui::timelapse_macro_card().refresh(api_, get_printer_state().get_discovery());
+    helix::ui::timelapse_macro_card().refresh(api_, get_printer_state().get_discovery(),
+                                              get_printer_state().moonraker_locality() ==
+                                                  helix::MoonrakerLocality::Local);
 }
 
 void TimelapseSettingsOverlay::fetch_settings() {

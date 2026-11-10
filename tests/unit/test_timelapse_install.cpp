@@ -473,11 +473,18 @@ struct MacroCardFixture : public LocalInstallFixture {
         api_.set_config_files(
             {{"printer.cfg", "[include helix_macros.cfg]\n"}, {"helix_macros.cfg", kMacroPack}});
         helix::ui::timelapse_macro_card().init_subjects();
+        // The checkout a local install leaves under HOME.
+        repo_ = std::string(std::getenv("HOME")) + "/moonraker-timelapse";
+        std::filesystem::create_directories(repo_ + "/klipper_macro");
+        std::ofstream(repo_ + "/klipper_macro/timelapse.cfg")
+            << "[gcode_macro TIMELAPSE_TAKE_FRAME]\n";
     }
     ~MacroCardFixture() override {
         helix::ui::timelapse_macro_card().clear();
         get_printer_state().set_hardware(helix::PrinterDiscovery{});
+        get_printer_state().clear_moonraker_locality();
     }
+    std::string repo_;
     static MacroCard card() {
         return helix::ui::timelapse_macro_card().card();
     }
@@ -498,10 +505,12 @@ TEST_CASE_METHOD(MacroCardFixture,
 
     SECTION("helper macros loaded and no frame macro: include, then offer the restart") {
         const auto klipper = klipper_with(true, false);
-        card_ui.refresh(&api_, klipper);
+        card_ui.refresh(&api_, klipper, true);
         REQUIRE(settle_until([] { return card() != MacroCard::None; }));
         CHECK(card() == MacroCard::RestartKlipper);
-        CHECK(helix::MacroManager::has_timelapse_include(staged_macros()));
+        // The checkout's own file by absolute path, never the config-root symlink.
+        CHECK(helix::MacroManager::find_timelapse_include(staged_macros()) ==
+              helix::MacroManager::timelapse_include_line(repo_));
 
         // Never during a job: the tap is refused and the offer stays.
         set_job_holds(true);
@@ -511,21 +520,43 @@ TEST_CASE_METHOD(MacroCardFixture,
     }
     SECTION("no helper macros: the line to add, and helix_macros.cfg untouched") {
         const auto klipper = klipper_with(false, false);
-        card_ui.refresh(&api_, klipper);
+        card_ui.refresh(&api_, klipper, true);
         CHECK(card() == MacroCard::IncludeLine);
         CHECK(staged_macros() == kMacroPack);
     }
     SECTION("the frame macro already loaded: no card, no write") {
         const auto klipper = klipper_with(true, true);
-        card_ui.refresh(&api_, klipper);
+        card_ui.refresh(&api_, klipper, true);
         helix::ui::UpdateQueue::instance().drain();
         CHECK(card() == MacroCard::None);
+        CHECK(staged_macros() == kMacroPack);
+    }
+    SECTION("Klipper's objects not in yet: no card, no write") {
+        helix::PrinterDiscovery klipper;
+        card_ui.refresh(&api_, klipper, true);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(card() == MacroCard::None);
+        CHECK(staged_macros() == kMacroPack);
+    }
+    SECTION("Moonraker on another host: the checkout's path is unknown, so the line to add") {
+        const auto klipper = klipper_with(true, false);
+        card_ui.refresh(&api_, klipper, false);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(card() == MacroCard::IncludeLine);
+        CHECK(staged_macros() == kMacroPack);
+    }
+    SECTION("no macro file in the checkout: the line to add, nothing written") {
+        std::filesystem::remove_all(repo_);
+        const auto klipper = klipper_with(true, false);
+        card_ui.refresh(&api_, klipper, true);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(card() == MacroCard::IncludeLine);
         CHECK(staged_macros() == kMacroPack);
     }
     SECTION("helix_macros.cfg cannot be read: the line to add") {
         api_.set_config_files({{"printer.cfg", "[include helix_macros.cfg]\n"}});
         const auto klipper = klipper_with(true, false);
-        card_ui.refresh(&api_, klipper);
+        card_ui.refresh(&api_, klipper, true);
         REQUIRE(settle_until([] { return card() != MacroCard::None; }));
         CHECK(card() == MacroCard::IncludeLine);
     }
@@ -535,6 +566,7 @@ TEST_CASE_METHOD(MacroCardFixture,
                  "opening timelapse settings on an installed plugin shows the macro card",
                  "[timelapse][macro_card]") {
     get_printer_state().set_hardware(klipper_with(true, false));
+    get_printer_state().set_moonraker_is_remote(false);
     TimelapseSettingsOverlay overlay(&api_);
     overlay.init_subjects();
     overlay.on_activate();
@@ -542,4 +574,17 @@ TEST_CASE_METHOD(MacroCardFixture,
     REQUIRE(settle_until([] { return card() != MacroCard::None; }));
     CHECK(card() == MacroCard::RestartKlipper);
     CHECK(helix::MacroManager::has_timelapse_include(staged_macros()));
+}
+
+TEST_CASE_METHOD(MacroCardFixture,
+                 "timelapse settings says nothing before Klipper's objects arrive",
+                 "[timelapse][macro_card]") {
+    get_printer_state().set_hardware(helix::PrinterDiscovery{});
+    get_printer_state().set_moonraker_is_remote(false);
+    TimelapseSettingsOverlay overlay(&api_);
+    overlay.init_subjects();
+    overlay.on_activate();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(card() == MacroCard::None);
+    CHECK(staged_macros() == kMacroPack);
 }
