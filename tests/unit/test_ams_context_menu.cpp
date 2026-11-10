@@ -39,6 +39,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -668,43 +669,28 @@ TEST_CASE("A no-feed tool changer's menu offers Mount and Park, never a filament
 // ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "AmsContextMenu: the slot header uses the backend's own word for a position",
-                 "[ui][ams][context_menu]") {
-    // AmsBackendMock reports Happy Hare, whose noun is Gate. A header reading
-    // "Slot 3" on this backend is the English word for something the firmware,
-    // the macros and every other surface call a gate.
-    auto backend = std::make_unique<AmsBackendMock>(4);
-    REQUIRE(backend->lane_noun() == LaneNoun::Gate);
-
+                 "AmsContextMenu: the slot header names the position as the hardware does",
+                 "[ui][ams][context_menu][cfs]") {
     // ams_context_menu.xml is registered lazily by AmsPanel/AmsOverviewPanel
     // rather than by helix::register_xml_components(), so the fixture's
     // "every component" registration does not cover it.
     REQUIRE(lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml") == LV_RESULT_OK);
-
-    AmsContextMenu menu;
-    REQUIRE(menu.show_near_widget(test_screen(), /*slot_index=*/2, test_screen(),
-                                  /*is_loaded=*/false, backend.get()));
-
-    lv_obj_t* header = lv_obj_find_by_name(test_screen(), "slot_header");
-    REQUIRE(header != nullptr);
-    CHECK(std::string(lv_label_get_text(header)) == "Gate 3");
-}
-
-TEST_CASE_METHOD(
-    LVGLUITestFixture,
-    "AmsContextMenu: the slot header uses the lane's own name when the backend has one",
-    "[ui][ams][context_menu][cfs]") {
+    // AmsBackendMock reports Happy Hare, whose noun is Gate: "Slot 3" would be the
+    // English word for what the firmware and every other surface call a gate.
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    REQUIRE(mock->lane_noun() == LaneNoun::Gate);
     // A CFS prints box number and bay letter on each bay: global slot 5 is 2B.
-    helix::printer::AmsBackendCfs backend(nullptr, nullptr);
-    REQUIRE(lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml") == LV_RESULT_OK);
-
-    AmsContextMenu menu;
-    REQUIRE(menu.show_near_widget(test_screen(), /*slot_index=*/5, test_screen(),
-                                  /*is_loaded=*/false, &backend));
-
-    lv_obj_t* header = lv_obj_find_by_name(test_screen(), "slot_header");
-    REQUIRE(header != nullptr);
-    CHECK(std::string(lv_label_get_text(header)) == "2B");
+    helix::printer::AmsBackendCfs cfs(nullptr, nullptr);
+    const std::tuple<AmsBackend*, int, const char*> cases[] = {{mock.get(), 2, "Gate 3"},
+                                                               {&cfs, 5, "2B"}};
+    for (const auto& [backend, slot, want] : cases) {
+        AmsContextMenu menu;
+        REQUIRE(menu.show_near_widget(test_screen(), slot, test_screen(), /*is_loaded=*/false,
+                                      backend));
+        lv_obj_t* header = lv_obj_find_by_name(test_screen(), "slot_header");
+        REQUIRE(header != nullptr);
+        CHECK(std::string(lv_label_get_text(header)) == want);
+    }
 }
 
 // ============================================================================
