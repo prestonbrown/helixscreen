@@ -304,6 +304,14 @@ def check_xy_homing(configfile_settings: Any, kinematics: str) -> HomingCheck:
 # Status fields a firmware's own power-loss recovery publishes; mainline
 # Klipper has none of them.
 FIRMWARE_RECOVERY_FIELDS = (("print_stats", "power_loss"), ("virtual_sdcard", "pl_env_valid"))
+# configfile sections of QIDI's stock recovery macros, as Klipper names them
+# (lowercased). The app's own QIDI detection looks for the same two macros.
+FIRMWARE_RECOVERY_SECTIONS = ("gcode_macro detect_interruption",
+                              "gcode_macro resume_interrupted")
+
+# The guard until unlisted_guard() runs over a configfile read on the current
+# Klippy connection: an unlisted printer is withheld until Klipper is read.
+GUARD_UNREAD = "klipper_config_unread"
 
 
 def unlisted_guard(configfile_settings: Any, status: Any, firmware_resume: bool) -> Optional[str]:
@@ -314,10 +322,14 @@ def unlisted_guard(configfile_settings: Any, status: Any, firmware_resume: bool)
       On belts it drops and racks when the power goes, and levelling it
       again probes over the part.
     - `firmware_recovery`: the firmware runs its own recovery (one of
-      FIRMWARE_RECOVERY_FIELDS, or a firmware the print_state adapter serves).
+      FIRMWARE_RECOVERY_FIELDS or FIRMWARE_RECOVERY_SECTIONS, or a firmware
+      the print_state adapter serves).
     """
-    if isinstance(configfile_settings, dict) and "quad_gantry_level" in configfile_settings:
-        return "gantry_drops"
+    if isinstance(configfile_settings, dict):
+        if "quad_gantry_level" in configfile_settings:
+            return "gantry_drops"
+        if any(str(name).lower() in FIRMWARE_RECOVERY_SECTIONS for name in configfile_settings):
+            return "firmware_recovery"
     if firmware_resume:
         return "firmware_recovery"
     if isinstance(status, dict):
@@ -978,8 +990,10 @@ class HelixPlr:
         self.listed_tier = 0
         self.listed = True
         self.listed_reason = None  # type: Optional[str]
-        # unlisted_guard() for this Klippy connection.
-        self.guard = None  # type: Optional[str]
+        self.listed_profile = PlrProfile()
+        # unlisted_guard() for this Klippy connection, GUARD_UNREAD until
+        # its configfile is read.
+        self.guard = GUARD_UNREAD  # type: Optional[str]
         self.gantry_settings = None  # type: Optional[Dict[str, Any]]
         self._writing = False
         self._macro_vars = {}  # type: Dict[str, Tuple[str, ...]]
@@ -1040,6 +1054,7 @@ class HelixPlr:
         self.listed_tier = profile.tier
         self.listed = profile.listed
         self.listed_reason = profile.reason
+        self.listed_profile = profile
         return profile
 
     async def verdict(self, profile: Optional[PlrProfile] = None) -> StorageVerdict:
@@ -1080,8 +1095,13 @@ class HelixPlr:
         if self.listed_tier < 1:
             # No profile yet, or a model the app's database lists at tier 0.
             return False, self.listed_reason or "not_listed"
-        if not self.listed and self.guard is not None:
-            return False, self.guard
+        if not self.listed:
+            if self.guard is not None:
+                return False, self.guard
+            # An unlisted printer that can never home XY safely is not offered.
+            tier, reason = effective_tier(self.listed_profile, self.homing)
+            if tier < 1:
+                return False, reason
         return True, None
 
     def start(self) -> None:
@@ -1137,8 +1157,9 @@ class HelixPlr:
         connection, then announce the status they decide (PLR_STATUS_EVENT)."""
         token = object()
         self._ready_token = token
+        guard = GUARD_UNREAD  # type: Optional[str]
         try:
-            await self._klippy_ready()
+            guard = await self._klippy_ready()
         except Exception:
             # A status still answers, and is announced, with what was read.
             logging.exception("HelixPrint: PLR could not read Klipper at ready")
@@ -1147,23 +1168,33 @@ class HelixPlr:
             if self._ready_token is token:
                 self._ready_settled = True
         if self._ready_token is token:
+            if self._set_guard(guard):
+                # A screen that read the features before Klippy was ready
+                # reads an unlisted printer's availability again.
+                try:
+                    self.helix.notify_features_changed()
+                except Exception as e:
+                    logging.warning("HelixPrint: PLR could not announce the features: %s", e)
             try:
                 self._notify(PLR_STATUS_EVENT, await self.status_reply())
             except Exception as e:
                 logging.warning("HelixPrint: PLR could not announce its status: %s", e)
 
-    async def _klippy_ready(self) -> None:
+    async def _klippy_ready(self) -> Optional[str]:
+        """Read this connection's objects, config and backend; returns the
+        guard they decide, GUARD_UNREAD when any read that decides it fails."""
         apis = self.helix.klippy_apis
         if apis is None:
-            return
+            return GUARD_UNREAD
         try:
             objects = await apis.get_object_list()
         except Exception as e:
             logging.warning("HelixPrint: PLR could not list Klipper objects: %s", e)
-            return
+            return GUARD_UNREAD
         self.has_virtual_sdcard = "virtual_sdcard" in objects
         self.klippy_ready = True
         self._klippy_generation += 1
+        self.gantry_settings = None
         try:
             await self._refresh_homing()
         except Exception as e:
@@ -1172,16 +1203,22 @@ class HelixPlr:
             status = await apis.subscribe_objects(snapshot_objects(objects))
         except Exception as e:
             logging.warning("HelixPrint: PLR could not subscribe: %s", e)
-            return
+            return GUARD_UNREAD
         self.status = {}
         self._merge(status)
         await self._detect_qidi(apis)
-        guard = unlisted_guard(self.gantry_settings, self.status, self.qidi is not None)
-        if guard != self.guard:
-            self.guard = guard
-            # A screen that read the features before Klippy was ready reads
-            # an unlisted printer's availability again.
-            self.helix.notify_features_changed()
+        if self.gantry_settings is None:
+            return GUARD_UNREAD
+        return unlisted_guard(self.gantry_settings, self.status, self.qidi is not None)
+
+    def _set_guard(self, guard: Optional[str]) -> bool:
+        """Apply `guard`; True when it changed. The saving switch's cached
+        answer was decided under the old guard, so it is read afresh."""
+        if guard == self.guard:
+            return False
+        self.guard = guard
+        self._switch = (False, float("-inf"))
+        return True
 
     async def _detect_qidi(self, apis: Any) -> None:
         """Select the QIDI print_state adapter when Klipper is QIDI's fork AND
@@ -1621,6 +1658,8 @@ class HelixPlr:
 
     def on_klippy_gone(self, *args: Any) -> None:
         self.klippy_ready = False
+        self.gantry_settings = None
+        self._set_guard(GUARD_UNREAD)
         self._ready_settled = False
         self._ready_token = None
         self._klippy_generation += 1
