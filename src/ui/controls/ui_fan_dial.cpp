@@ -9,6 +9,7 @@
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "subject_managed_panel.h"
 #include "theme_manager.h"
 #include "ui/fan_spin_animation.h"
 #include "ui/ui_widget_helpers.h"
@@ -17,6 +18,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 
 using namespace helix;
 
@@ -24,89 +26,85 @@ using namespace helix;
 // FanDial Implementation
 // ============================================================================
 
-FanDial::RpmSubject::RpmSubject() {
-    lv_subject_init_int(&subject, 0);
-}
+namespace {
+constexpr const char* kRootName = "fan_dial_root";
+} // namespace
 
-FanDial::RpmSubject::~RpmSubject() {
-    lv_subject_deinit(&subject);
-}
+// NAMESPACE_OK: the definition of FanDial's own nested type
+struct FanDial::Subjects {
+    lv_subject_t speed{};
+    char speed_buf[16] = {};
+    lv_subject_t on{};
+    lv_subject_t rpm{};
+    int reading = 0; ///< last tachometer reading, shown only while speed > 0
+    std::string speed_name;
+    std::string on_name;
+    SubjectManager manager;
+
+    Subjects() {
+        // Two dials can show one fan id (and tests build dials for the same fan),
+        // so the published names come from a per-process counter instead.
+        static unsigned next_id = 0;
+        const std::string base = "fan_dial_" + std::to_string(next_id++);
+        speed_name = base + "_speed";
+        on_name = base + "_on";
+        lv_subject_init_string(&speed, speed_buf, nullptr, sizeof(speed_buf), "");
+        manager.publish(speed_name.c_str(), &speed);
+        lv_subject_init_int(&on, 0);
+        manager.publish(on_name.c_str(), &on);
+        lv_subject_init_int(&rpm, 0);
+        manager.register_subject(&rpm);
+    }
+    ~Subjects() {
+        manager.deinit_all();
+    }
+    Subjects(const Subjects&) = delete;
+    Subjects& operator=(const Subjects&) = delete;
+};
 
 FanDial::FanDial(lv_obj_t* parent, const std::string& name, const std::string& fan_id,
                  int initial_speed, bool label_bottom)
-    : name_(name), fan_id_(fan_id), current_speed_(initial_speed) {
-    // Build attributes array for XML creation
+    : subjects_(std::make_unique<Subjects>()), name_(name), fan_id_(fan_id),
+      current_speed_(initial_speed) {
     char initial_value_str[16];
     snprintf(initial_value_str, sizeof(initial_value_str), "%d", initial_speed);
 
-    const char* attrs[] = {"fan_name",      name.c_str(),      "fan_id", fan_id.c_str(),
-                           "initial_value", initial_value_str, nullptr};
+    const char* attrs[] = {"fan_name",      name.c_str(),
+                           "fan_id",        fan_id.c_str(),
+                           "initial_value", initial_value_str,
+                           "label_bottom",  label_bottom ? "true" : "false",
+                           "speed_subject", subjects_->speed_name.c_str(),
+                           "on_subject",    subjects_->on_name.c_str(),
+                           nullptr};
 
-    // Create widget from XML component
     root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "fan_dial", attrs));
     if (!root_) {
         spdlog::error("[FanDial] Failed to create fan_dial component for '{}'", name);
         return;
     }
+    // The XML callbacks find this dial through its root.
+    lv_obj_set_user_data(root_, this);
 
-    // Carousel layout: label below arc
-    if (label_bottom) {
-        lv_obj_t* top_label = helix::ui::find_required(root_, "name_label", "FanDial");
-        lv_obj_t* bot_label = helix::ui::find_required(root_, "name_label_bottom", "FanDial");
-        if (top_label)
-            lv_obj_add_flag(top_label, LV_OBJ_FLAG_HIDDEN);
-        if (bot_label)
-            lv_obj_remove_flag(bot_label, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    // Find child widgets by name
     arc_ = helix::ui::find_required(root_, "dial_arc", "FanDial");
-    speed_label_ = helix::ui::find_required(root_, "speed_label", "FanDial");
     fan_icon_ = helix::ui::find_required(root_, "fan_icon", "FanDial");
     onoff_switch_ = helix::ui::find_required(root_, "onoff_switch", "FanDial");
-    onoff_label_ = helix::ui::find_required(root_, "onoff_label", "FanDial");
 
-    if (!arc_ || !speed_label_ || !onoff_switch_ || !onoff_label_) {
+    if (!arc_ || !onoff_switch_) {
         return;
     }
 
     if (lv_obj_t* rpm_label = helix::ui::find_required(root_, "rpm_label", "FanDial")) {
-        rpm_ = std::make_unique<RpmSubject>();
-        lv_label_bind_text(rpm_label, &rpm_->subject, "%d RPM");
-        lv_obj_bind_flag_if_eq(rpm_label, &rpm_->subject, LV_OBJ_FLAG_HIDDEN, 0);
+        lv_label_bind_text(rpm_label, &subjects_->rpm, "%d RPM");
+        lv_obj_bind_flag_if_eq(rpm_label, &subjects_->rpm, LV_OBJ_FLAG_HIDDEN, 0);
     }
 
     // Set rotation pivot on fan icon for spin animation
     if (fan_icon_) {
         lv_obj_set_style_transform_pivot_x(fan_icon_, LV_PCT(50), 0);
         lv_obj_set_style_transform_pivot_y(fan_icon_, LV_PCT(50), 0);
-
-        // Make the fan icon clickable (for opening the fan overlay)
-        lv_obj_add_flag(fan_icon_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_event_cb(fan_icon_, on_icon_clicked, LV_EVENT_CLICKED, this);
     }
 
-    // Add event callbacks with this pointer as user data
-    lv_obj_add_event_cb(arc_, on_arc_value_changed, LV_EVENT_VALUE_CHANGED, this);
-    // Touch release flushes any pending debounced send immediately so the user
-    // sees the printer react the moment they let go (5X touchscreens may also
-    // miss intermediate VALUE_CHANGED ticks; the timer is the safety net).
-    lv_obj_add_event_cb(arc_, on_arc_released, LV_EVENT_RELEASED, this);
-    lv_obj_add_event_cb(arc_, on_arc_released, LV_EVENT_PRESS_LOST, this);
-    lv_obj_add_event_cb(onoff_switch_, on_switch_changed, LV_EVENT_VALUE_CHANGED, this);
-
-    // The shared helix_progress_arc is tuned for read-only progress displays: it
-    // strips LV_OBJ_FLAG_CLICKABLE and hides the knob (transparent fill, zero
-    // size). A fan dial is interactive, so restore drag input and a visible,
-    // grabbable thumb — a filled circle with a thin border, matching the app's
-    // slider knobs. Without this the arc swallows no input (presses bubble to the
-    // card and trip the long-press rename) and shows no handle to drag.
-    lv_obj_add_flag(arc_, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_bg_opa(arc_, LV_OPA_COVER, LV_PART_KNOB);
-    lv_obj_set_style_bg_color(arc_, theme_manager_get_color("primary"), LV_PART_KNOB);
-    lv_obj_set_style_radius(arc_, LV_RADIUS_CIRCLE, LV_PART_KNOB);
-    lv_obj_set_style_border_color(arc_, theme_manager_get_color("border"), LV_PART_KNOB);
-    lv_obj_set_style_border_width(arc_, 1, LV_PART_KNOB);
+    // The knob's padding is display-density scaled, which XML pixel values are not.
     lv_obj_set_style_pad_all(arc_, lv_dpx(4), LV_PART_KNOB);
 
     // Attach auto-resize callback for dynamic arc scaling
@@ -135,22 +133,19 @@ FanDial::~FanDial() {
     // Stop fan icon spin animation (uses icon obj as var, not this)
     helix::ui::fan_spin_stop(fan_icon_);
 
-    // Remove event callbacks to prevent stale 'this' dispatch if events
-    // are still pending in the LVGL event queue after widget deletion
-    helix::ui::remove_event_cb_if_alive(arc_, on_arc_value_changed, this);
-    helix::ui::remove_event_cb_if_alive(arc_, on_arc_released, this);
-    helix::ui::remove_event_cb_if_alive(onoff_switch_, on_switch_changed, this);
-    helix::ui::remove_event_cb_if_alive(fan_icon_, on_icon_clicked, this);
+    // An event still queued for the tree must not reach a freed dial.
+    if (root_) {
+        lv_obj_set_user_data(root_, nullptr);
+    }
 
     spdlog::trace("[FanDial] Destroyed '{}'", name_);
 }
 
 FanDial::FanDial(FanDial&& other) noexcept
-    : root_(other.root_.get()), arc_(other.arc_.get()), speed_label_(other.speed_label_),
-      fan_icon_(other.fan_icon_.get()), onoff_switch_(other.onoff_switch_.get()),
-      onoff_label_(other.onoff_label_), rpm_(std::move(other.rpm_)), name_(std::move(other.name_)),
-      fan_id_(std::move(other.fan_id_)), current_speed_(other.current_speed_),
-      on_speed_changed_(std::move(other.on_speed_changed_)),
+    : root_(other.root_.get()), arc_(other.arc_.get()), fan_icon_(other.fan_icon_.get()),
+      onoff_switch_(other.onoff_switch_.get()), subjects_(std::move(other.subjects_)),
+      name_(std::move(other.name_)), fan_id_(std::move(other.fan_id_)),
+      current_speed_(other.current_speed_), on_speed_changed_(std::move(other.on_speed_changed_)),
       on_icon_clicked_(std::move(other.on_icon_clicked_)), syncing_(other.syncing_),
       last_user_input_(other.last_user_input_), hold_until_release_(other.hold_until_release_) {
     // Drop any pending debounce timer on the source — its user_data still points
@@ -161,29 +156,14 @@ FanDial::FanDial(FanDial&& other) noexcept
     // Clear the source pointers so other's destructor is a no-op
     other.root_ = nullptr;
     other.arc_ = nullptr;
-    other.speed_label_ = nullptr;
     other.fan_icon_ = nullptr;
     other.onoff_switch_ = nullptr;
-    other.onoff_label_ = nullptr;
 
     // Re-target label animation var from old instance to this one
     lv_anim_delete(&other, label_anim_exec_cb);
 
-    // Update event callback user_data to point to this instance
-    if (arc_) {
-        lv_obj_remove_event_cb(arc_, on_arc_value_changed);
-        lv_obj_remove_event_cb(arc_, on_arc_released);
-        lv_obj_add_event_cb(arc_, on_arc_value_changed, LV_EVENT_VALUE_CHANGED, this);
-        lv_obj_add_event_cb(arc_, on_arc_released, LV_EVENT_RELEASED, this);
-        lv_obj_add_event_cb(arc_, on_arc_released, LV_EVENT_PRESS_LOST, this);
-    }
-    if (onoff_switch_) {
-        lv_obj_remove_event_cb(onoff_switch_, on_switch_changed);
-        lv_obj_add_event_cb(onoff_switch_, on_switch_changed, LV_EVENT_VALUE_CHANGED, this);
-    }
-    if (fan_icon_) {
-        lv_obj_remove_event_cb(fan_icon_, on_icon_clicked);
-        lv_obj_add_event_cb(fan_icon_, on_icon_clicked, LV_EVENT_CLICKED, this);
+    if (root_) {
+        lv_obj_set_user_data(root_, this);
     }
 }
 
@@ -193,28 +173,18 @@ FanDial& FanDial::operator=(FanDial&& other) noexcept {
         cancel_pending_send();
         other.cancel_pending_send();
 
-        // Clean up current resources: stop animations and remove callbacks first
+        // Clean up current resources: stop animations first
         lv_anim_delete(this, label_anim_exec_cb);
         helix::ui::fan_spin_stop(fan_icon_);
-        if (arc_) {
-            lv_obj_remove_event_cb(arc_, on_arc_value_changed);
-            lv_obj_remove_event_cb(arc_, on_arc_released);
-        }
-        if (onoff_switch_)
-            lv_obj_remove_event_cb(onoff_switch_, on_switch_changed);
-        if (fan_icon_)
-            lv_obj_remove_event_cb(fan_icon_, on_icon_clicked);
-        // Child widgets are destroyed with root_
+        // Child widgets are destroyed with root_, before the subjects they bind
         helix::ui::safe_delete(root_);
 
         // Move resources
         root_ = other.root_.get();
         arc_ = other.arc_.get();
-        speed_label_ = other.speed_label_;
         fan_icon_ = other.fan_icon_.get();
         onoff_switch_ = other.onoff_switch_.get();
-        onoff_label_ = other.onoff_label_;
-        rpm_ = std::move(other.rpm_);
+        subjects_ = std::move(other.subjects_);
         name_ = std::move(other.name_);
         fan_id_ = std::move(other.fan_id_);
         current_speed_ = other.current_speed_;
@@ -231,26 +201,11 @@ FanDial& FanDial::operator=(FanDial&& other) noexcept {
         // Clear source pointers so other's destructor is a no-op
         other.root_ = nullptr;
         other.arc_ = nullptr;
-        other.speed_label_ = nullptr;
         other.fan_icon_ = nullptr;
         other.onoff_switch_ = nullptr;
-        other.onoff_label_ = nullptr;
 
-        // Update event callback user_data to point to this instance
-        if (arc_) {
-            lv_obj_remove_event_cb(arc_, on_arc_value_changed);
-            lv_obj_remove_event_cb(arc_, on_arc_released);
-            lv_obj_add_event_cb(arc_, on_arc_value_changed, LV_EVENT_VALUE_CHANGED, this);
-            lv_obj_add_event_cb(arc_, on_arc_released, LV_EVENT_RELEASED, this);
-            lv_obj_add_event_cb(arc_, on_arc_released, LV_EVENT_PRESS_LOST, this);
-        }
-        if (onoff_switch_) {
-            lv_obj_remove_event_cb(onoff_switch_, on_switch_changed);
-            lv_obj_add_event_cb(onoff_switch_, on_switch_changed, LV_EVENT_VALUE_CHANGED, this);
-        }
-        if (fan_icon_) {
-            lv_obj_remove_event_cb(fan_icon_, on_icon_clicked);
-            lv_obj_add_event_cb(fan_icon_, on_icon_clicked, LV_EVENT_CLICKED, this);
+        if (root_) {
+            lv_obj_set_user_data(root_, this);
         }
     }
     return *this;
@@ -304,20 +259,20 @@ void FanDial::restore_speed(int percent) {
 }
 
 void FanDial::set_rpm(std::optional<int> rpm) {
-    if (!rpm_) {
+    if (!subjects_) {
         return;
     }
-    rpm_->reading = rpm.value_or(0) > 0 ? *rpm : 0;
+    subjects_->reading = rpm.value_or(0) > 0 ? *rpm : 0;
     refresh_rpm_label();
 }
 
 void FanDial::refresh_rpm_label() {
-    if (!rpm_) {
+    if (!subjects_) {
         return;
     }
-    const int value = current_speed_ > 0 ? rpm_->reading : 0;
-    if (lv_subject_get_int(&rpm_->subject) != value) {
-        lv_subject_set_int(&rpm_->subject, value);
+    const int value = current_speed_ > 0 ? subjects_->reading : 0;
+    if (lv_subject_get_int(&subjects_->rpm) != value) {
+        lv_subject_set_int(&subjects_->rpm, value);
     }
 }
 
@@ -351,22 +306,27 @@ void FanDial::update_onoff_state(int percent) {
         }
         syncing_ = false;
     }
-    if (onoff_label_) {
-        lv_label_set_text(onoff_label_, lv_tr(is_on ? "On" : "Off"));
+    if (subjects_ && lv_subject_get_int(&subjects_->on) != (is_on ? 1 : 0)) {
+        lv_subject_set_int(&subjects_->on, is_on ? 1 : 0);
     }
 }
 
+// The knob glow is computed per value (a colour mix and a shadow scaled to the
+// measured arc width) and runs on every frame of the speed animation, so it has
+// no declarative form. Off draws no glow.
 void FanDial::update_knob_glow(int percent) {
     if (!arc_)
         return;
 
+    int shadow_w = 0;
+    int spread = 0;
+    lv_opa_t knob_opa = LV_OPA_TRANSP;
+    lv_color_t color = theme_manager_get_color("tertiary");
     if (percent > 0) {
         // Color gradient: tertiary → secondary → primary (shifts with speed)
-        lv_color_t color;
         if (percent <= 50) {
             uint8_t mix = static_cast<uint8_t>(percent * 255 / 50);
-            color = lv_color_mix(theme_manager_get_color("secondary"),
-                                 theme_manager_get_color("tertiary"), mix);
+            color = lv_color_mix(theme_manager_get_color("secondary"), color, mix);
         } else {
             uint8_t mix = static_cast<uint8_t>((percent - 50) * 255 / 50);
             color = lv_color_mix(theme_manager_get_color("primary"),
@@ -376,29 +336,32 @@ void FanDial::update_knob_glow(int percent) {
         // Quadratic opacity: 0%→0, 50%→35, 100%→140
         constexpr int kMaxOpa = 140;
         int opa = (percent * percent * kMaxOpa) / 10000;
+        knob_opa = static_cast<lv_opa_t>(std::min(opa + 60, 255));
 
         // Knob shadow — scale with actual arc indicator width
         int32_t arc_w = lv_obj_get_style_arc_width(arc_, LV_PART_INDICATOR);
-        int shadow_w = (arc_w * 2 + (percent * arc_w * 8) / 100) / 10;
-        int spread = (shadow_w * percent) / 500;
-        lv_obj_set_style_shadow_width(arc_, shadow_w, LV_PART_KNOB);
-        lv_obj_set_style_shadow_spread(arc_, spread, LV_PART_KNOB);
-        lv_obj_set_style_shadow_color(arc_, color, LV_PART_KNOB);
-        int knob_opa = std::min(opa + 60, 255);
-        lv_obj_set_style_shadow_opa(arc_, static_cast<lv_opa_t>(knob_opa), LV_PART_KNOB);
-    } else {
-        lv_obj_set_style_shadow_width(arc_, 0, LV_PART_KNOB);
-        lv_obj_set_style_shadow_opa(arc_, LV_OPA_TRANSP, LV_PART_KNOB);
+        shadow_w = (arc_w * 2 + (percent * arc_w * 8) / 100) / 10;
+        spread = (shadow_w * percent) / 500;
     }
+    // DECLARATIVE_OK: computed glow, see above
+    lv_obj_set_style_shadow_width(arc_, shadow_w, LV_PART_KNOB);
+    // DECLARATIVE_OK: computed glow, see above
+    lv_obj_set_style_shadow_spread(arc_, spread, LV_PART_KNOB);
+    // DECLARATIVE_OK: computed glow, see above
+    lv_obj_set_style_shadow_color(arc_, color, LV_PART_KNOB);
+    // DECLARATIVE_OK: computed glow, see above
+    lv_obj_set_style_shadow_opa(arc_, knob_opa, LV_PART_KNOB);
 }
 
 void FanDial::update_speed_label(int percent) {
-    if (!speed_label_)
+    if (!subjects_)
         return;
 
     char buf[8];
-    lv_label_set_text(speed_label_,
-                      lv_tr(helix::format::format_fan_speed(percent, buf, sizeof(buf))));
+    const char* text = lv_tr(helix::format::format_fan_speed(percent, buf, sizeof(buf)));
+    if (std::strcmp(lv_subject_get_string(&subjects_->speed), text) != 0) {
+        lv_subject_copy_string(&subjects_->speed, text);
+    }
 }
 
 void FanDial::handle_arc_changed() {
@@ -564,50 +527,49 @@ void FanDial::update_fan_animation(int speed_pct) {
 }
 
 // ============================================================================
-// Static Event Callbacks
+// XML Event Callbacks
 // ============================================================================
-// Named rather than lambdas: lv_obj_remove_event_cb finds a callback by its
-// function pointer, and a move re-binds these to the new instance.
+
+FanDial* FanDial::from_event(lv_event_t* e) {
+    for (auto* o = static_cast<lv_obj_t*>(lv_event_get_current_target(e)); o;
+         o = lv_obj_get_parent(o)) {
+        const char* obj_name = lv_obj_get_name(o);
+        if (obj_name && std::strcmp(obj_name, kRootName) == 0) {
+            return static_cast<FanDial*>(lv_obj_get_user_data(o));
+        }
+    }
+    return nullptr;
+}
 
 void FanDial::on_arc_value_changed(lv_event_t* e) {
-    if (auto* self = static_cast<FanDial*>(lv_event_get_user_data(e))) {
+    if (auto* self = from_event(e)) {
         self->handle_arc_changed();
     }
 }
 
 void FanDial::on_arc_released(lv_event_t* e) {
-    if (auto* self = static_cast<FanDial*>(lv_event_get_user_data(e))) {
+    if (auto* self = from_event(e)) {
         self->handle_arc_released();
     }
 }
 
 void FanDial::on_switch_changed(lv_event_t* e) {
-    if (auto* self = static_cast<FanDial*>(lv_event_get_user_data(e))) {
+    if (auto* self = from_event(e)) {
         self->handle_switch_changed();
     }
 }
 
 void FanDial::on_icon_clicked(lv_event_t* e) {
-    if (auto* self = static_cast<FanDial*>(lv_event_get_user_data(e))) {
+    if (auto* self = from_event(e)) {
         self->handle_icon_clicked();
     }
 }
 
-// ============================================================================
-// XML Callback Registration
-// ============================================================================
-
-// These are no-op placeholders for XML event callbacks
-// The actual event handling is done via lv_obj_add_event_cb in the constructor
-// with user_data pointing to the FanDial instance
-
-static void xml_fan_dial_switch_changed(lv_event_t* /*e*/) {
-    // No-op: actual handling is via C++ event callbacks with user_data
-}
-
 void register_fan_dial_callbacks() {
-    // Register XML callbacks (required for XML parsing, but we use C++ callbacks)
-    lv_xml_register_event_cb(nullptr, "on_fan_dial_switch_changed", xml_fan_dial_switch_changed);
+    lv_xml_register_event_cb(nullptr, "on_fan_dial_switch_changed", FanDial::on_switch_changed);
+    lv_xml_register_event_cb(nullptr, "on_fan_dial_arc_changed", FanDial::on_arc_value_changed);
+    lv_xml_register_event_cb(nullptr, "on_fan_dial_arc_released", FanDial::on_arc_released);
+    lv_xml_register_event_cb(nullptr, "on_fan_dial_icon_clicked", FanDial::on_icon_clicked);
 
     spdlog::trace("[FanDial] Registered XML event callbacks");
 }

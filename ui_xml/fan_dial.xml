@@ -10,22 +10,31 @@
     <prop name="fan_name" type="string" default="Fan"/>
     <prop name="fan_id" type="string" default="fan"/>
     <prop name="initial_value" type="number" default="0"/>
+    <!-- "true" puts the name under the arc (carousel layout) -->
+    <prop name="label_bottom" type="string" default="false"/>
+    <!-- Per-instance subjects FanDial publishes: the speed text, and 1 while on -->
+    <prop name="speed_subject" type="string" default=""/>
+    <prop name="on_subject" type="string" default=""/>
   </api>
   <view name="fan_dial_root"
         extends="ui_card" width="#fan_card_base_width" height="#fan_card_height" style_min_width="#fan_card_min_width"
         style_max_width="#fan_card_max_width" flex_flow="column" style_flex_main_place="start"
         style_flex_cross_place="center" style_pad_all="#space_sm" style_pad_bottom="#space_xs" style_pad_gap="0"
         scrollable="false">
-    <!-- Fan name label at top (hidden via C++ when label_bottom=true) — non-clickable for event bubble -->
+    <!-- Fan name label at top unless label_bottom — non-clickable for event bubble -->
     <text_small name="name_label"
                 width="100%" text="$fan_name" long_mode="clip" style_text_align="center" clickable="false"
-                event_bubble="true"/>
-    <!-- Arc dial core - shared component with arc + icon + speed label -->
-    <fan_arc_core initial_value="$initial_value"/>
-    <!-- Fan name label at bottom (hidden by default, shown via C++ when label_bottom=true) -->
+                event_bubble="true" hidden_if_prop_eq="$label_bottom|true"/>
+    <!-- Arc dial core - shared component with arc + icon + speed label, made interactive here -->
+    <fan_arc_core initial_value="$initial_value"
+                  speed_subject="$speed_subject" arc_clickable="true" knob_opa="255" knob_border_width="1"
+                  arc_changed_callback="on_fan_dial_arc_changed" arc_released_callback="on_fan_dial_arc_released"
+                  icon_clickable="true" icon_callback="on_fan_dial_icon_clicked"/>
+    <!-- Fan name label at bottom when label_bottom -->
     <text_tiny name="name_label_bottom"
-               width="100%" text="$fan_name" long_mode="clip" style_text_align="center" hidden="true"
-               style_margin_top="-4" style_pad_all="0" clickable="false" event_bubble="true"/>
+               width="100%" text="$fan_name" long_mode="clip" style_text_align="center"
+               hidden_if_prop_not_eq="$label_bottom|true" style_margin_top="-4" style_pad_all="0" clickable="false"
+               event_bubble="true"/>
     <!-- Off/On switch row at bottom. Height is content-sized so the
          switch's intrinsic height (which varies by screen breakpoint) doesn't
          clip against the card. Column-flex pad_gap is zeroed on the parent
@@ -36,7 +45,12 @@
       <ui_switch name="onoff_switch" size="tiny">
         <event_cb trigger="value_changed" callback="on_fan_dial_switch_changed"/>
       </ui_switch>
-      <text_small name="onoff_label" text="Off" clickable="false" event_bubble="true"/>
+      <text_small name="onoff_label" text="Off" clickable="false" event_bubble="true">
+        <bind_flag_if_eq subject="$on_subject" flag="hidden" ref_value="1"/>
+      </text_small>
+      <text_small name="onoff_label_on" text="On" clickable="false" event_bubble="true">
+        <bind_flag_if_eq subject="$on_subject" flag="hidden" ref_value="0"/>
+      </text_small>
     </lv_obj>
   </view>
 </component>

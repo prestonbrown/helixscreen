@@ -6,6 +6,16 @@
 <component>
   <api>
     <prop name="initial_value" type="number" default="0"/>
+    <!-- An interactive dial (FanDial) passes the rest; every other user leaves the arc
+         read-only, with no knob, no events and a speed label it sets itself. -->
+    <prop name="speed_subject" type="string" default=""/>
+    <prop name="arc_clickable" type="bool" default="false"/>
+    <prop name="knob_opa" type="string" default="0"/>
+    <prop name="knob_border_width" type="string" default="0"/>
+    <prop name="arc_changed_callback" type="string" default=""/>
+    <prop name="arc_released_callback" type="string" default=""/>
+    <prop name="icon_clickable" type="bool" default="false"/>
+    <prop name="icon_callback" type="string" default=""/>
   </api>
   <view name="dial_container"
         extends="lv_obj" width="#fan_arc_size" height="#fan_arc_size" style_pad_all="0" style_pad_top="#space_sm"
@@ -13,14 +23,24 @@
     <!-- 270-degree dial — shared helix_progress_arc handles the common
          styling + diameter-driven stroke thickness via attach_progress_arc()
          in fan_arc_resize.cpp. Size is set dynamically by that helper. -->
-    <helix_progress_arc name="dial_arc" align="center" value="$initial_value"/>
+    <helix_progress_arc name="dial_arc"
+                        align="center" value="$initial_value" clickable="$arc_clickable" style_bg_opa-knob="$knob_opa"
+                        style_bg_color-knob="#primary" style_radius-knob="32767" style_border_color-knob="#border"
+                        style_border_width-knob="$knob_border_width">
+      <event_cb trigger="value_changed" callback="$arc_changed_callback"/>
+      <!-- A lost press flushes like a release: some touchscreens never send one. -->
+      <event_cb trigger="released" callback="$arc_released_callback"/>
+      <event_cb trigger="press_lost" callback="$arc_released_callback"/>
+    </helix_progress_arc>
     <!-- Centered icon + percentage column — children non-clickable so long-press bubbles to card -->
     <lv_obj name="center_content"
             width="content" height="content" align="center" style_pad_all="0" scrollable="false" flex_flow="column"
             style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="0" clickable="false"
             event_bubble="true">
-      <icon name="fan_icon" src="fan" size="sm" variant="secondary" clickable="false" event_bubble="true"/>
-      <text_heading name="speed_label" text="Off" clickable="false" event_bubble="true"/>
+      <icon name="fan_icon" src="fan" size="sm" variant="secondary" clickable="$icon_clickable" event_bubble="true">
+        <event_cb trigger="clicked" callback="$icon_callback"/>
+      </icon>
+      <text_heading name="speed_label" text="Off" bind_text="$speed_subject" clickable="false" event_bubble="true"/>
       <!-- Tachometer reading: FanDial binds its text and visibility; hidden on every other user -->
       <text_tiny name="rpm_label"
                  text="" hidden="true" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
