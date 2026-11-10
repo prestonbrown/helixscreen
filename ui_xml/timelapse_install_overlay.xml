@@ -63,40 +63,8 @@
         </lv_obj>
       </lv_obj>
 
-      <!-- Klipper has not loaded the timelapse macros and HelixScreen cannot include them -->
-      <lv_obj name="include_line_container"
-              width="100%" height="content" style_pad_all="#space_md" style_bg_color="#card_bg"
-              style_radius="#border_radius" style_bg_opa="255">
-        <bind_flag_if_not_eq subject="timelapse_install_macro_card" flag="hidden" ref_value="1"/>
-        <lv_obj width="100%" height="content" flex_flow="column" style_pad_row="#space_sm" style_bg_opa="0">
-          <text_body width="100%"
-                     text="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:"
-                     style_text_color="#text_muted" long_mode="wrap"/>
-          <lv_obj width="100%"
-                  height="content" style_bg_color="#overlay_bg" style_radius="#border_radius" style_pad_all="#space_sm"
-                  style_bg_opa="255">
-            <text_small name="include_line"
-                        width="100%" bind_text="timelapse_install_include_line" style_text_color="#text"
-                        long_mode="wrap"/>
-          </lv_obj>
-        </lv_obj>
-      </lv_obj>
-
-      <!-- HelixScreen's macro file now includes the timelapse macros: Klipper loads them at a restart -->
-      <lv_obj name="restart_klipper_container"
-              width="100%" height="content" style_pad_all="#space_md" style_bg_color="#card_bg"
-              style_radius="#border_radius" style_bg_opa="255">
-        <bind_flag_if_not_eq subject="timelapse_install_macro_card" flag="hidden" ref_value="2"/>
-        <lv_obj width="100%" height="content" flex_flow="column" style_pad_row="#space_sm" style_bg_opa="0">
-          <text_body width="100%"
-                     text="Timelapse frames start after Klipper restarts." style_text_color="#text_muted"
-                     long_mode="wrap"/>
-          <ui_button name="restart_klipper_button"
-                     width="100%" text="Restart Klipper" variant="secondary" moves_machine="true">
-            <event_cb trigger="clicked" callback="on_timelapse_install_restart_klipper"/>
-          </ui_button>
-        </lv_obj>
-      </lv_obj>
+      <!-- moonraker-timelapse's Klipper macros: the include line or the restart that loads them -->
+      <timelapse_macro_card name="timelapse_macro_card"/>
 
     </lv_obj>
 

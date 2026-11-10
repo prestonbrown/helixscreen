@@ -420,6 +420,12 @@ TEST_CASE("HELIX_MOCK_TIMELAPSE values", "[timelapse][local_install]") {
     CHECK(mock::parse_timelapse_host("no-ffmpeg") == TimelapseHost::NoFfmpeg);
     CHECK(mock::parse_timelapse_host("no-sudo") == TimelapseHost::Present);
     CHECK(mock::parse_timelapse_host("bogus") == TimelapseHost::Present);
+    CHECK(mock::parse_timelapse_host("helix-macros, no-ffmpeg") == TimelapseHost::NoFfmpeg);
+    CHECK(mock::parse_timelapse_host("helix-macros") == TimelapseHost::Present);
+    CHECK(mock::parse_timelapse_helix_macros("absent,helix-macros"));
+    CHECK(mock::parse_timelapse_helix_macros("helix-macros"));
+    CHECK_FALSE(mock::parse_timelapse_helix_macros("absent"));
+    CHECK_FALSE(mock::parse_timelapse_helix_macros(nullptr));
 }
 
 // ============================================================================

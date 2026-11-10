@@ -4,6 +4,7 @@
 #include "ui_overlay_timelapse_settings.h"
 
 #include "ui_callback_helpers.h"
+#include "ui_timelapse_macro_card.h"
 
 #include "app_globals.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -74,7 +75,13 @@ lv_obj_t* TimelapseSettingsOverlay::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
+void TimelapseSettingsOverlay::init_subjects() {
+    // The macro card's subjects exist before create() binds the component to them.
+    helix::ui::timelapse_macro_card().init_subjects();
+}
+
 void TimelapseSettingsOverlay::register_callbacks() {
+    helix::ui::timelapse_macro_card().register_callbacks();
     register_xml_callbacks({
         {"on_timelapse_enabled_changed",
          [](lv_event_t* e) {
@@ -119,6 +126,12 @@ void TimelapseSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
     spdlog::debug("[{}] on_activate() - fetching current settings", get_name());
     fetch_settings();
+    refresh_macro_card();
+}
+
+void TimelapseSettingsOverlay::refresh_macro_card() {
+    // An install made before the wizard checked the macros is fixed here.
+    helix::ui::timelapse_macro_card().refresh(api_, get_printer_state().get_discovery());
 }
 
 void TimelapseSettingsOverlay::fetch_settings() {

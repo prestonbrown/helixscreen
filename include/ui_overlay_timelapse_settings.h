@@ -45,6 +45,7 @@ class TimelapseSettingsOverlay : public OverlayBase {
         return "timelapse_settings_overlay";
     }
 
+    void init_subjects() override;
     lv_obj_t* create(lv_obj_t* parent) override;
     void register_callbacks() override;
     void on_activate() override;
@@ -77,6 +78,9 @@ class TimelapseSettingsOverlay : public OverlayBase {
      * @brief Fetch current settings from Moonraker
      */
     void fetch_settings();
+
+    /// Show the timelapse macro card when Klipper lacks TIMELAPSE_TAKE_FRAME
+    void refresh_macro_card();
 
     /**
      * @brief Update mode info text based on current selection
