@@ -222,7 +222,8 @@ struct Route {
 /// dropped and counted in Route::dropped; returns false when any were.
 bool route_append(Route& r, const pg::FilamentPath& piece, SpanStyle s);
 
-enum class BandState : uint8_t { Empty, Loaded, Active, Error };
+/// Sync: a rail's sync sensor at its outlet, banded in the buffer's colour (fill).
+enum class BandState : uint8_t { Empty, Loaded, Active, Error, Sync };
 
 struct SensorBand {
     pg::PathPoint at;

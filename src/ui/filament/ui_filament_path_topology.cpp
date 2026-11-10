@@ -607,16 +607,18 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
 // Buffer (TurtleNeck / eSpooler) "BUF" box over the trunk, plus its recorded
 // hit rect. Mirrors draw_buffer_coil()'s internal clamping so the click
 // handler never re-derives the geometry.
+void record_buffer_hit(FilamentPathData* data, const LinearHubFrame& f, int32_t cx, int32_t cy) {
+    const int32_t buf_hit_w = LV_MAX(36, data->theme.hub_width * 4 / 5);
+    const int32_t buf_hit_h = LV_MAX(16, f.hub_h);
+    data->hits.buffer = {cx - buf_hit_w / 2, cy - buf_hit_h / 2, cx + buf_hit_w / 2,
+                         cy + buf_hit_h / 2};
+    data->hits.buffer_valid = true;
+}
+
 void draw_buffer_section(const RenderCtx& ctx, const LinearHubFrame& f, const PathPlan& plan) {
-    FilamentPathData* data = ctx.data;
     draw_buffer_coil(ctx, f.center_x, f.buffer_y, f.hub_h, plan.buffer_has_filament,
                      plan.buffer_fill);
-
-    int32_t buf_hit_w = LV_MAX(36, data->theme.hub_width * 4 / 5);
-    int32_t buf_hit_h = LV_MAX(16, f.hub_h);
-    data->hits.buffer = {f.center_x - buf_hit_w / 2, f.buffer_y - buf_hit_h / 2,
-                         f.center_x + buf_hit_w / 2, f.buffer_y + buf_hit_h / 2};
-    data->hits.buffer_valid = true;
+    record_buffer_hit(ctx.data, f, f.center_x, f.buffer_y);
 }
 
 // Bypass spool hit region (absolute coords). The spool is a sibling widget,
@@ -689,6 +691,8 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     draw_hub_section(ctx, f);
     if (feeds && f.has_buffer)
         draw_buffer_section(ctx, f, plan);
+    else if (feeds && f.rail.w > 0 && data->buffer_present) // the rail's outlet band
+        record_buffer_hit(data, f, f.output_x, f.output_y);
     // Bands on the hub/selector edges clamp the tube where it enters the box.
     paint_box_bands(layer, plan, pal);
     if (feeds && data->show_bypass)

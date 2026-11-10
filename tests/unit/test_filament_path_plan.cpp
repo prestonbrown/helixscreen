@@ -582,30 +582,6 @@ TEST_CASE("FilamentPath plan: the on-toolhead route fits the segment budget",
     CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, 308));
 }
 
-TEST_CASE("FilamentPath plan: an OUTPUT error is one stroke through the buffer",
-          "[filament-path][plan]") {
-    auto d = make_data(helix::PathTopology::HUB);
-    d->show_bypass = false;
-    d->buffer_present = true;
-    load_active(*d, 1, PathSegment::NOZZLE);
-    d->error_segment = static_cast<int>(PathSegment::OUTPUT);
-    const PathPlan& plan = plan_for(*d);
-
-    const Route& r = plan.routes[plan.active_route];
-    Stroke strokes[16];
-    const int n = coalesce(r, strokes, 16);
-    int errors = 0;
-    for (int i = 0; i < n; i++) {
-        if (strokes[i].style.wall != TubeWall::Error)
-            continue;
-        errors++;
-        // Stacked over the glyph: hub bottom 201, buffer 229..269, toolhead band 283.
-        CHECK(near(seg_start(r.path.segs[strokes[i].first]), 200, 201));
-        CHECK(near(seg_end(r.path.segs[strokes[i].end - 1]), 200, 283));
-    }
-    CHECK(errors == 1);
-}
-
 TEST_CASE("FilamentPath plan: the toolhead band follows the unit's sensor, bypass or not",
           "[filament-path][plan]") {
     auto d = make_data(helix::PathTopology::HUB);

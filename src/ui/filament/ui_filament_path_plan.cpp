@@ -304,8 +304,10 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     f.output_y = f.hub_y + f.hub_h / 2;
     f.rail = rail_art_rect(data, g);
     if (f.rail.w > 0) {
-        // The art stands in for the bar; the filament leaves at the carriage's coupler.
+        // The art stands in for the bar; the filament leaves at the carriage's coupler. A rail
+        // has no buffer: its sync sensor is that outlet's band.
         f.output_y = f.rail.y + (int32_t)std::lround(data.rail_art->outlet_y * f.rail.h);
+        f.has_buffer = false;
     }
 
     f.idle_color = theme.color_idle;
@@ -670,14 +672,21 @@ SpanStyle unpainted(SpanStyle s) {
 
 namespace {
 
-// The hub's output sensor, on the hub box's bottom edge.
+// The hub's output sensor, on the hub box's bottom edge. A rail's outlet carries its sync
+// sensor instead, banded in the buffer's colour while there is a reading to judge.
 void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame& f,
                          const FilamentPathData& data) {
-    if (!data.hub_on_toolhead && data.has_hub_sensor) {
-        add_band(plan, BandKind::Trunk, {(float)f.output_x, (float)f.output_y}, {0, 1},
-                 lane.band(PathSegment::OUTPUT), lane.color,
-                 /*on_box_edge=*/!data.lanes_merge_inside);
+    const bool sync = f.rail.w > 0 && data.buffer_present;
+    if (!sync && (data.hub_on_toolhead || !data.has_hub_sensor))
+        return;
+    BandState state = lane.band(PathSegment::OUTPUT);
+    lv_color_t fill = lane.color;
+    if (sync && state != BandState::Error && data.buffer_fault_state >= 0) {
+        state = BandState::Sync;
+        fill = buffer_box_colors(data, false, fill).border;
     }
+    add_band(plan, BandKind::Trunk, {(float)f.output_x, (float)f.output_y}, {0, 1}, state, fill,
+             /*on_box_edge=*/!data.lanes_merge_inside);
 }
 
 // Hub bottom → inlet, appended to the route that owns the trunk. Ends at the
@@ -1066,10 +1075,11 @@ void paint_bands(lv_layer_t* layer, const PathPlan& plan, const TubePalette& pal
         const SensorBand& b = plan.bands[i];
         if (b.on_box_edge != on_box_edge)
             continue;
-        const lv_color_t color = b.state == BandState::Active   ? pal.accent
-                                 : b.state == BandState::Error  ? pal.error
-                                 : b.state == BandState::Loaded ? b.fill
-                                                                : pal.idle_wall;
+        const lv_color_t color = b.state == BandState::Active  ? pal.accent
+                                 : b.state == BandState::Error ? pal.error
+                                 : b.state == BandState::Loaded || b.state == BandState::Sync
+                                     ? b.fill
+                                     : pal.idle_wall;
         draw_sensor_band(layer, b, pal.gauge, color);
     }
 }

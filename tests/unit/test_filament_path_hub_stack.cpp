@@ -324,6 +324,17 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     // The selected filament leaves under the carriage, standing at gate 2, clear of the art.
     CHECK((f.output_x == rail_outlet_x(*art, f.rail, 2) &&
            f.output_y >= f.rail.y + f.rail.h * 9 / 10));
+    // A rail's sync sensor is at its outlet: no buffer box, the outlet band shows its state.
+    ui_filament_path_canvas_set_buffer_info(c.obj, true, 0);
+    ui_filament_path_canvas_set_buffer_fault_state(c.obj, 2);
+    render(c);
+    const PathPlan& synced = plan_of(c, &f);
+    bool sync_band = false;
+    for (int b = 0; b < synced.band_count; ++b)
+        sync_band = sync_band || (synced.bands[b].state == BandState::Sync &&
+                                  synced.bands[b].at.y == (float)f.output_y &&
+                                  lv_color_eq(synced.bands[b].fill, c.data->theme.color_buffer[2]));
+    CHECK((!f.has_buffer && sync_band && center_y(c.data->hits.buffer) == f.output_y));
     // A new selection slides the exit toward that gate's outlet, before any repaint.
     ui_filament_path_canvas_set_active_slot(c.obj, 3);
     CHECK(c.data->anim.output_x_target == rail_outlet_x(*art, f.rail, 3));
@@ -336,7 +347,7 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     ui_filament_path_canvas_set_selector_rail(c.obj, "no_such_unit", art);
     render(c);
     plan_of(c, &f);
-    CHECK((!c.data->rail_drawn && f.rail.w == 0));
+    CHECK((!c.data->rail_drawn && f.rail.w == 0 && f.has_buffer));
     ui_filament_path_canvas_set_lane_join(c.obj, LaneJoin::FixedBlock);
     render(c);
     CHECK(
