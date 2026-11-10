@@ -62,12 +62,6 @@ void NetworkWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     parent_screen_ = parent_screen;
     active_ = true;
 
-    // Register click handler via per-callback user_data
-    lv_obj_t* btn = lv_obj_find_by_name(widget_obj_, "network_btn");
-    if (btn) {
-        lv_obj_add_event_cb(btn, network_clicked_cb, LV_EVENT_CLICKED, this);
-    }
-
     // Use module-owned subjects (initialized via network_widget_init_subjects)
     network_icon_state_ = &s_network_icon_state;
 
@@ -365,7 +359,7 @@ void NetworkWidget::signal_poll_timer_cb(lv_timer_t* timer) {
 
 void NetworkWidget::network_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[NetworkWidget] network_clicked_cb");
-    auto* self = static_cast<NetworkWidget*>(lv_event_get_user_data(e));
+    auto* self = panel_widget_from_event<NetworkWidget>(e);
     if (self) {
         self->record_interaction();
         self->handle_network_clicked();
