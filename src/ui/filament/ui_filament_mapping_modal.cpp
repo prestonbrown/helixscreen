@@ -3,6 +3,7 @@
 #include "ui_filament_mapping_modal.h"
 
 #include "ui_fonts.h"
+#include "ui_row_text.h"
 #include "ui_swatch.h"
 #include "ui_utils.h"
 
@@ -59,45 +60,6 @@ void init_note_subjects() {
         n.manager.deinit_all();
         n.initialized = false;
     });
-}
-/// One row's three texts, as subjects the row owns: a tool name, material or
-/// lane label may begin with '#', which a component prop would resolve as a
-/// constant.
-struct MappingRowText {
-    char tool_buf[32];
-    char material_buf[64];
-    char slot_buf[128];
-    lv_subject_t tool{};
-    lv_subject_t material{};
-    lv_subject_t slot{};
-
-    MappingRowText(const std::string& tool_text, const std::string& material_text,
-                   const std::string& slot_text) {
-        std::snprintf(tool_buf, sizeof(tool_buf), "%s", tool_text.c_str());
-        std::snprintf(material_buf, sizeof(material_buf), "%s", material_text.c_str());
-        std::snprintf(slot_buf, sizeof(slot_buf), "%s", slot_text.c_str());
-        lv_subject_init_string(&tool, tool_buf, nullptr, sizeof(tool_buf), tool_buf);
-        lv_subject_init_string(&material, material_buf, nullptr, sizeof(material_buf),
-                               material_buf);
-        lv_subject_init_string(&slot, slot_buf, nullptr, sizeof(slot_buf), slot_buf);
-    }
-    ~MappingRowText() {
-        lv_subject_deinit(&tool);
-        lv_subject_deinit(&material);
-        lv_subject_deinit(&slot);
-    }
-    MappingRowText(const MappingRowText&) = delete;
-    MappingRowText& operator=(const MappingRowText&) = delete;
-};
-
-void free_row_text_cb(lv_event_t* e) {
-    delete static_cast<MappingRowText*>(lv_event_get_user_data(e));
-}
-
-void bind_row_label(lv_obj_t* row, const char* name, lv_subject_t* subject) {
-    if (lv_obj_t* label = lv_obj_find_by_name(row, name)) {
-        lv_label_bind_text(label, subject, nullptr);
-    }
 }
 } // namespace
 
@@ -235,7 +197,8 @@ lv_obj_t* FilamentMappingModal::create_tool_row(int tool_index) {
     const auto& tool = tool_info_[static_cast<size_t>(tool_index)];
 
     // Row layout lives in ui_xml/components/filament_mapping_tool_row.xml.
-    // C++ passes the row's shape as props, binds its texts and paints its
+    // C++ passes the row's shape as props, sets its texts (a tool name,
+    // material or lane label is data, and may begin with '#') and paints its
     // swatches; auto-color mode reaches every row through filament_mapping_auto.
     const auto* mapped = find_mapped_slot(mapping);
     const bool multi_tool = tool_info_.size() > 1;
@@ -255,12 +218,11 @@ lv_obj_t* FilamentMappingModal::create_tool_row(int tool_index) {
     // DECLARATIVE_OK: per-item payload on a generated row, read by row_clicked_cb.
     lv_obj_set_user_data(row, reinterpret_cast<void*>(static_cast<intptr_t>(tool_index)));
 
-    auto* text = new MappingRowText(multi_tool ? helix::ui::tool_label(tool.tool_index) : "",
-                                    tool.material, get_slot_display_text(mapping));
-    lv_obj_add_event_cb(row, free_row_text_cb, LV_EVENT_DELETE, text);
-    bind_row_label(row, "tool_label", &text->tool);
-    bind_row_label(row, "material_label", &text->material);
-    bind_row_label(row, "slot_text", &text->slot);
+    if (multi_tool) {
+        set_row_label_text(row, "tool_label", helix::ui::tool_label(tool.tool_index).c_str());
+    }
+    set_row_label_text(row, "material_label", tool.material.c_str());
+    set_row_label_text(row, "slot_text", get_slot_display_text(mapping).c_str());
 
     lv_color_t gcode_color = lv_color_hex(tool.color_rgb);
     if (auto* expected_swatch = helix::ui::find_required(row, "expected_swatch", get_name())) {

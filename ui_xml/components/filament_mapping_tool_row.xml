@@ -4,10 +4,9 @@
 <component>
   <!-- One row of the Filament Mapping modal: [expected_swatch (hosting Tx)]
        [material] [→] [trigger: chosen_swatch | slot_text | warn | chevron].
-       The row's shape comes in as props when C++ creates it; its three texts
-       bind subjects the row owns (a tool name, material or lane label may
-       begin with '#', which a prop would read as a constant); swatch colors
-       are painted from C++. In auto-color mode (filament_mapping_auto) every
+       The row's shape comes in as props when C++ creates it; C++ sets its
+       three texts (a tool name, material or lane label may begin with '#',
+       which a prop would read as a constant) and paints its swatches. In auto-color mode (filament_mapping_auto) every
        row dims, drops its chevron and stops taking taps. -->
   <api>
     <!-- "1" on a multi-tool file: the Tx label shows on the expected swatch -->
