@@ -550,22 +550,18 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     void refresh_gate_statuses_locked();
 
     /**
-     * @brief Blank the identity only a departed source could have stated.
+     * @brief Blank the weights of the spool a gate no longer holds.
      *
      * A gate the gate map moves to another spool stops resolving the previous
-     * spool's Spoolman details. The fields below are the ones
-     * apply_mmu_status_locked() never writes, so nothing restates them, and
-     * apply_resolved() does not write a field no source observed. They would otherwise stand on a
-     * gate describing a spool that has nothing to do with it - on a re-bind, the incoming spool
-     * wearing the outgoing one's brand (prestonbrown/helixscreen#1672).
+     * spool's Spoolman details, and apply_resolved() does not write a field no
+     * source observed, so the outgoing spool's weights would stand on the
+     * incoming one until its own record is read (prestonbrown/helixscreen#1672).
+     * The identity fields need no blanking here: the repaint every frame ends
+     * with clears each field only a lane record states.
      *
-     * Colour, material, gate name and the spool id are left alone: the gate map
-     * states each of them and this frame has already written them.
-     *
-     * Caller must hold mutex_. The paint at the end of apply_mmu_status_locked() is
-     * what fills these back in from whatever still speaks for the gate.
+     * Caller must hold mutex_.
      */
-    void retire_departed_identity_locked(int gate);
+    void retire_departed_weights_locked(int gate);
 
     /**
      * @brief Initialize slot structures based on gate_status array size
