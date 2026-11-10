@@ -604,12 +604,13 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
     spdlog::error("[GcodeError] sev={} src={} code={}: {}", static_cast<int>(ev->severity),
                   static_cast<int>(ev->source), ev->code.empty() ? "-" : ev->code, ev->detail);
 
-    // Release an optimistic Pause/Resume spinner. Klipper aborts a rejected
-    // RESUME by broadcasting `!!` and returning normally, so the gcode.script
-    // RPC still answers `ok` and the dispatch error path never runs; the button
-    // would otherwise sit disabled on "Resuming..." for the full 150s backstop.
-    // Deliberately BEFORE the RPC-dedup return below — that suppression is about
-    // avoiding a duplicate *toast*, not about whether the command failed.
+    // Release an optimistic Pause/Resume spinner. A RESUME macro can refuse by
+    // printing `!!` and returning normally, so the gcode.script RPC still
+    // answers `ok` and the dispatch error path never runs; the button would
+    // otherwise sit disabled on "Resuming..." until the backstop. The buttons
+    // decide whether this error ended the action. Deliberately BEFORE the
+    // RPC-dedup return below: that suppression is about avoiding a duplicate
+    // *toast*, not about whether the command failed.
     ui::PrintControlButtons::instance().notify_printer_error(ev->detail);
 
     // Cross-source dedup: when an RPC caller triggered the gcode that

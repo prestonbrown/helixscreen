@@ -40,8 +40,12 @@ namespace helix::ui {
 /// @param on_failure   Optional. Invoked on the main thread on either
 ///                     error path AFTER the failure has been reported.
 ///                     Default: no-op.
+/// @param on_answered  Optional. Invoked on the main thread when the Resume
+///                     macro answers `ok`, which says it has finished, not
+///                     that the print runs again. Default: no-op.
 void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
-                              std::function<void()> on_failure = {});
+                              std::function<void()> on_failure = {},
+                              std::function<void()> on_answered = {});
 
 /// Confirm, then cancel the running print through the configured Cancel
 /// StandardMacro.

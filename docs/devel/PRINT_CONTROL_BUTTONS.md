@@ -322,13 +322,35 @@ void PrintControlButtons::start_pending_action(PendingAction action) {
   pending state stays and no failure toast is shown, so a WiFi blip mid-reheat
   cannot re-enable Resume and queue a second RESUME. A client that refuses the
   request before sending it (not connected) still releases the button and toasts.
+  Each Resume press carries a sequence number (`resume_seq_`), so a late answer
+  or failure from an earlier RESUME never settles a newer press.
+- **Cleared on a Klipper error** (`notify_printer_error()`, called by
+  `GcodeErrorRouter::process_line` for every `!!` line). A macro can refuse by
+  printing `!!` and returning normally, so the RPC still answers `ok` and the
+  error path never runs. A pending Pause is released at once. A pending Resume
+  is released only once its RESUME has also answered `ok`, in either order (`!!`
+  then `ok`, or `ok` then `!!`), and even then not at once: the `ok` can reach
+  the UI before the status update that turns the print to printing, so a
+  one-shot settle timer (`kResumeSettleMs`, 1.5 s, several Moonraker status
+  intervals) releases the button only if the same press is still pending and
+  the print is still paused when it fires. The print-state observer clearing
+  first deletes the timer. A `!!` alone does
+  not end a macro (`RESPOND TYPE=error` prints one and carries on, for example
+  while RESUME reheats), and a Resume re-enabled mid-macro lets the user queue a
+  second RESUME, which on a firmware without an `is_paused` guard (Z-Mod) runs
+  its wipe moves mid-print. A `!!` followed by an RPC timeout or a dropped
+  socket stays pending until the print state or the backstop settles it.
+  `clear_pending_action()` resets the answered and error-seen flags and deletes
+  the settle timer (as do the destructor and the subject teardown), so every
+  action starts clean.
 - **Backstop** - if Klipper never confirms, the timer fires a warning toast and
   clears (`pending_action_backstop_ms()`: 25 s for pause; for resume the same
   5-minute ceiling the RPC waits on, `IMoonrakerAPI::kMacroTimeoutMs`). A resume
   can take minutes before paused->printing fires: an auto-feed backend heats,
   feeds and flushes, and a firmware whose PAUSE turns the nozzle off (Z-Mod)
-  reheats it first. A shorter backstop would re-enable Resume while the printer
-  is still resuming.
+  reheats it first. The timer starts at the press, before any backend prepare
+  and before RESUME is sent, so it bounds the whole press-to-printing window; a
+  long prepare followed by a long reheat can outlast it.
 
 `pending_action_` is mirrored into the `print_pending_action` subject so other
 UI (the print-status panel's paused overlay) can react to the optimistic state.
@@ -396,7 +418,8 @@ still PAUSED), so the tap feels instantly acknowledged.
 | Test file | Tags | Covers |
 |-----------|------|--------|
 | `tests/unit/test_print_control_view.cpp` | `[print_control_view]` | The pure view function — printing→Pause, paused→Resume(play), idle→both disabled, pending→hourglass+disabled, missing-macro→disabled. No LVGL fixture. |
-| `tests/unit/test_print_control_buttons.cpp` | `[print_control][slow]` | Controller integration — subject registration, label tracks state, macro-gated enable, pending publishes hourglass, pending cleared on state arrival. |
+| `tests/unit/test_print_control_buttons.cpp` | `[print_control][slow]` | Controller integration — subject registration, label tracks state, macro-gated enable, pending publishes hourglass, pending cleared on state arrival, Klipper `!!` release rules. |
+| `tests/unit/test_resume_refusal_report.cpp` | `[resume][resume_timeout]` | Real dispatch through the mock: refusal reporting, RPC timeout and socket loss keeping the action pending, `!!` before and after RESUME answers, a late answer to an earlier RESUME. |
 | `tests/unit/test_z_offset_utils.cpp` | `[zoffset]` | Tune/Z-offset: `build_z_adjust_gcode` (incl. the `MOVE=1` suffix and the `Z=` vs `Z_ADJUST=` branch), `format_delta`, displayed-offset resolution. |
 | `tests/unit/test_timelapse_state.cpp` | `[timelapse_state]` | Timelapse control state. |
 

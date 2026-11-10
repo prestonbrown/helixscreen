@@ -19,6 +19,10 @@ struct PrintControlButtonsTestAccess {
             lv_timer_delete(s.pending_action_timeout_);
             s.pending_action_timeout_ = nullptr;
         }
+        if (s.resume_settle_timer_) {
+            lv_timer_delete(s.resume_settle_timer_);
+            s.resume_settle_timer_ = nullptr;
+        }
         // Go through the shared teardown rather than reaching for deinit_all()
         // directly: it is what signals subject death to outside ObserverGuards.
         // This runs on EVERY HelixTestFixture construction, so a hand-rolled
@@ -26,6 +30,17 @@ struct PrintControlButtonsTestAccess {
         // process (PrintStatusPanel::pending_action_observer_ above all).
         s.teardown_subjects();
         s.pending_action_ = PendingAction::None;
+        s.resume_answered_ = false;
+        s.resume_error_seen_ = false;
+    }
+
+    /// Fire the pending action's backstop timer now.
+    static void fire_backstop() {
+        auto& s = PrintControlButtons::instance();
+        if (s.pending_action_timeout_) {
+            lv_timer_ready(s.pending_action_timeout_);
+            lv_timer_handler();
+        }
     }
 
     /// What the cancel modal's confirm button runs.
@@ -63,6 +78,25 @@ struct PrintControlButtonsTestAccess {
 
     static void set_pending(PendingAction a) {
         PrintControlButtons::instance().start_pending_action(a);
+    }
+
+    /// Fire the resume settle timer now instead of waiting for it.
+    static void fire_resume_settle() {
+        auto& s = PrintControlButtons::instance();
+        if (s.resume_settle_timer_) {
+            lv_timer_ready(s.resume_settle_timer_);
+            lv_timer_handler();
+        }
+    }
+
+    static bool resume_settle_armed() {
+        return PrintControlButtons::instance().resume_settle_timer_ != nullptr;
+    }
+
+    /// The pending resume's RESUME answered `ok`.
+    static void answer_resume() {
+        auto& s = PrintControlButtons::instance();
+        s.on_resume_answered(s.resume_seq_);
     }
 
     static PendingAction pending() {
