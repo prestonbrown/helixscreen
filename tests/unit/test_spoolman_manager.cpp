@@ -10,6 +10,7 @@
  * the internal state machine via the SpoolmanManagerTestAccess friend class.
  */
 
+#include "ui_nav_manager.h"
 #include "ui_spoolman_overlay.h"
 
 #include "../lvgl_test_fixture.h"
@@ -163,75 +164,28 @@ bool SpoolmanFixture::queue_initialized = false;
 // Polling Refcount Tests
 // ============================================================================
 
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: start increments refcount", "[spoolman]") {
-    auto& mgr = SpoolmanManager::instance();
-    set_spoolman_available(true);
-
-    REQUIRE(TA::poll_refcount(mgr) == 0);
-
-    mgr.start_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 1);
-
-    mgr.start_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 2);
-}
-
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: stop decrements refcount", "[spoolman]") {
-    auto& mgr = SpoolmanManager::instance();
-    set_spoolman_available(true);
-
-    mgr.start_spoolman_polling();
-    mgr.start_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 2);
-
-    mgr.stop_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 1);
-
-    mgr.stop_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 0);
-}
-
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: multiple starts and stops balance",
+TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: polling requests count up and down",
                  "[spoolman]") {
     auto& mgr = SpoolmanManager::instance();
+
+    // A stop with nothing started clamps at zero.
+    mgr.stop_spoolman_polling();
+    mgr.stop_spoolman_polling();
+    REQUIRE(TA::poll_refcount(mgr) == 0);
+
     set_spoolman_available(true);
+    for (int expected : {1, 2, 3}) {
+        mgr.start_spoolman_polling();
+        CHECK(TA::poll_refcount(mgr) == expected);
+    }
+    for (int expected : {2, 1, 0}) {
+        mgr.stop_spoolman_polling();
+        CHECK(TA::poll_refcount(mgr) == expected);
+    }
 
+    // Restart after a full stop.
     mgr.start_spoolman_polling();
-    mgr.start_spoolman_polling();
-    mgr.start_spoolman_polling();
-
-    mgr.stop_spoolman_polling();
-    mgr.stop_spoolman_polling();
-    mgr.stop_spoolman_polling();
-
-    REQUIRE(TA::poll_refcount(mgr) == 0);
-}
-
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: stop below zero clamps at 0", "[spoolman]") {
-    auto& mgr = SpoolmanManager::instance();
-
-    // Stop without any prior start
-    mgr.stop_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 0);
-
-    // Multiple excess stops
-    mgr.stop_spoolman_polling();
-    mgr.stop_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 0);
-}
-
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: start after full stop restarts cleanly",
-                 "[spoolman]") {
-    auto& mgr = SpoolmanManager::instance();
-    set_spoolman_available(true);
-
-    mgr.start_spoolman_polling();
-    mgr.stop_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 0);
-
-    // Restart — refcount goes from 0 back to 1
-    mgr.start_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 1);
+    CHECK(TA::poll_refcount(mgr) == 1);
 }
 
 // ============================================================================
@@ -267,30 +221,6 @@ TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: set_api resets circuit break
     mgr.set_api(nullptr);
 
     REQUIRE(TA::consecutive_failures(mgr) == 0);
-    REQUIRE(TA::cb_open(mgr) == false);
-}
-
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: set_consecutive_failures updates count",
-                 "[spoolman]") {
-    auto& mgr = SpoolmanManager::instance();
-
-    TA::set_consecutive_failures(mgr, 3);
-    REQUIRE(TA::consecutive_failures(mgr) == 3);
-
-    TA::set_consecutive_failures(mgr, 0);
-    REQUIRE(TA::consecutive_failures(mgr) == 0);
-}
-
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: set_cb_open toggles circuit breaker",
-                 "[spoolman]") {
-    auto& mgr = SpoolmanManager::instance();
-
-    REQUIRE(TA::cb_open(mgr) == false);
-
-    TA::set_cb_open(mgr, true);
-    REQUIRE(TA::cb_open(mgr) == true);
-
-    TA::set_cb_open(mgr, false);
     REQUIRE(TA::cb_open(mgr) == false);
 }
 
@@ -392,19 +322,19 @@ class SpoolmanOverlayTestAccess {
 
 using OverlayTA = SpoolmanOverlayTestAccess;
 
-TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanOverlay: Change shows setup until Cancel",
+TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanOverlay: Change shows setup until Cancel or Back",
                  "[spoolman][overlay][setup]") {
     // The XML callbacks reach the process-wide overlay, so the test drives it.
     auto& overlay = helix::ui::get_spoolman_overlay();
     overlay.init_subjects();
     overlay.register_callbacks();
-    lv_obj_t* root = overlay.create(test_screen());
-    REQUIRE(root != nullptr);
     get_printer_state().capabilities_state().set_spoolman_available(true);
-    helix::ui::UpdateQueue::instance().drain_until_empty();
-
+    auto open = [&] {
+        REQUIRE(overlay.show(lv_screen_active()));
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    };
     auto find = [&](const char* name) {
-        lv_obj_t* obj = lv_obj_find_by_name(root, name);
+        lv_obj_t* obj = lv_obj_find_by_name(overlay.get_root(), name);
         REQUIRE(obj != nullptr);
         return obj;
     };
@@ -412,6 +342,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanOverlay: Change shows setup until C
     auto click = [&](const char* name) {
         lv_obj_send_event(find(name), LV_EVENT_CLICKED, nullptr);
     };
+    auto status = [&] { return std::string(lv_label_get_text(find("setup_status_text"))); };
+    open();
 
     CHECK(hidden("setup_card"));
     CHECK_FALSE(hidden("status_card"));
@@ -422,16 +354,27 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanOverlay: Change shows setup until C
 
     // Connect with no address: the status line reports it in red.
     click("connect_btn");
-    lv_obj_t* status = find("setup_status_text");
-    CHECK_FALSE(std::string(lv_label_get_text(status)).empty());
-    CHECK(lv_color_eq(lv_obj_get_style_text_color(status, LV_PART_MAIN),
+    CHECK_FALSE(status().empty());
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(find("setup_status_text"), LV_PART_MAIN),
                       theme_manager_get_color("danger")));
 
     click("cancel_setup_btn");
     CHECK(hidden("setup_card"));
     CHECK_FALSE(hidden("status_card"));
-    CHECK(std::string(lv_label_get_text(status)).empty());
-    lv_obj_delete(root);
+    CHECK(status().empty());
+
+    // Leaving a Change by Back: the next open starts on the configured state.
+    click("change_btn");
+    click("connect_btn");
+    REQUIRE_FALSE(status().empty());
+    NavigationManager::instance().go_back();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    open();
+    CHECK(hidden("setup_card"));
+    CHECK_FALSE(hidden("status_card"));
+    CHECK(status().empty());
+    NavigationManager::instance().go_back();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanOverlay: repeated opens do not leak poll references",
