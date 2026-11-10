@@ -556,3 +556,33 @@ TEST_CASE_METHOD(PaSweepRunFixture, "PA sweep run refuses to start while the lat
     CHECK_FALSE(sent("SAVE_GCODE_STATE"));
     CHECK(pin("output_pin enable_pin_tmc_x") == 1.f);
 }
+
+TEST_CASE("PA calibration is offered on the creator5_zmod persona through its query answers",
+          "[pa_calibration][zmod]") {
+    // The discovery sequence learns objects from printer.objects.list and
+    // [pa_adjust] only from configfile.config; feed both the way it does.
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::FLASHFORGE_CREATOR5_ZMOD);
+    std::vector<std::string> objects;
+    nlohmann::json config;
+    mock.send_jsonrpc("printer.objects.list", nlohmann::json::object(),
+                      [&objects](const nlohmann::json& r) {
+                          for (const auto& o : r["result"]["objects"]) {
+                              objects.push_back(o.get<std::string>());
+                          }
+                      });
+    mock.send_jsonrpc("printer.objects.query",
+                      {{"objects", {{"configfile", nlohmann::json::array({"config"})}}}},
+                      [&config](const nlohmann::json& r) {
+                          config = r["result"]["status"]["configfile"]["config"];
+                      });
+    REQUIRE_FALSE(objects.empty());
+    REQUIRE(config.is_object());
+
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    hw.set_printer_objects(objects);
+    hw.parse_config_keys(config);
+    CHECK(hw.has_pa_adjust());
+    CHECK(pacal::is_supported(hw));
+    CHECK_FALSE(pacal::traits(hw)->firmware_runs_procedure);
+}

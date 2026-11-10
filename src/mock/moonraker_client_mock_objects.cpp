@@ -119,6 +119,16 @@ static json input_button_configfile_sections(const MoonrakerClientMock* self) {
     return sections;
 }
 
+// configfile section of stock FlashForge's [pa_adjust] (creator5_zmod persona).
+// It has no status object, so this section is the only sign of it.
+static json pa_adjust_configfile_sections(const MoonrakerClientMock* self) {
+    json sections = json::object();
+    if (self->get_printer_type() == helix::mock::PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
+        sections["pa_adjust"] = json::object();
+    }
+    return sections;
+}
+
 // configfile sections of the led_effect objects populate_capabilities()
 // lists; empty for a persona that omits them.
 static json led_effect_configfile_sections(const MoonrakerClientMock* self) {
@@ -539,6 +549,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["configfile"]["config"].merge_patch(toolchanger_sections);
                 status_obj["configfile"]["config"].merge_patch(
                     input_button_configfile_sections(self));
+                status_obj["configfile"]["config"].merge_patch(pa_adjust_configfile_sections(self));
+                status_obj["configfile"]["settings"].merge_patch(
+                    pa_adjust_configfile_sections(self));
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and
@@ -1248,6 +1261,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["configfile"]["config"].merge_patch(toolchanger_sections);
                 status_obj["configfile"]["config"].merge_patch(
                     input_button_configfile_sections(self));
+                status_obj["configfile"]["config"].merge_patch(pa_adjust_configfile_sections(self));
+                status_obj["configfile"]["settings"].merge_patch(
+                    pa_adjust_configfile_sections(self));
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and

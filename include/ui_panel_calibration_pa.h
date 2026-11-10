@@ -347,9 +347,9 @@ class PACalibrationPanel : public OverlayBase {
     lv_subject_t result_{};
     char result_buf_[16] = {};
     lv_subject_t result_sanity_{};
-    char result_sanity_buf_[128] = {};
+    char result_sanity_buf_[256] = {};
     lv_subject_t keep_note_{};
-    char keep_note_buf_[128] = {};
+    char keep_note_buf_[384] = {};
 
     lv_subject_t error_title_{};
     char error_title_buf_[64] = {};
