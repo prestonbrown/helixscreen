@@ -148,6 +148,8 @@ INST=home/pi/helixscreen
     grep -qx '\[update_manager helixscreen\]' "$conf"
     grep -qx 'path: /home/pi/helixscreen' "$conf"
     grep -qx 'helixscreen' "$R/home/pi/printer_data/moonraker.asvc"
+    [ -f "$conf.bak.helixscreen" ]
+    grep -qx "chown 1000:1000 $conf.bak.helixscreen" "$CALLS"
     [ "$(cat "$R/$INST/config/.install_source")" = other ]
     grep -qx "chown -Rh 1000:1000 $R/$INST" "$CALLS"
 
@@ -264,36 +266,97 @@ INST=home/pi/helixscreen
     done
 }
 
-@test "first boot runs each pending step, then deletes the marker; a failing step keeps it" {
+# The booted printer: a recorder for every step function, and a Moonraker that
+# stays silent for the first $MR_DOWN probes ($MR_DOWN unset: always silent).
+booted_printer() {
     INSTALL_DIR="$BATS_TEST_TMPDIR/booted/helixscreen"
+    MARKER="$INSTALL_DIR/config/.first_boot_pending"
     mkdir -p "$INSTALL_DIR/config"
-    printf 'config-links\npermission-rules\nalsa\nremote-screen\nkiauh\nmoonraker\nfuture-step\n' \
-        > "$INSTALL_DIR/config/.first_boot_pending"
     detect_init_system() { INIT_SYSTEM=systemd; }
     for f in setup_config_symlink pin_env_file install_permission_rules configure_alsa_default \
              install_remote_screen_route install_kiauh_extension configure_moonraker_updates \
              fix_user_config_ownership; do
         eval "$f() { echo \"STEP $f \$*\" >> '$CALLS'; }"
     done
+    installer_moonraker_url() { echo http://127.0.0.1:7125; }
+    echo 0 > "$BATS_TEST_TMPDIR/mr-probes"
+    moonraker_request() {
+        local n
+        n=$(($(cat "$BATS_TEST_TMPDIR/mr-probes") + 1))
+        echo "$n" > "$BATS_TEST_TMPDIR/mr-probes"
+        HTTP_BODY=""
+        HTTP_STATUS=""
+        if [ -n "${MR_DOWN:-}" ] && [ "$n" -gt "$MR_DOWN" ]; then HTTP_STATUS=200; fi
+        [ -n "$HTTP_STATUS" ]
+    }
+    mock_fake_clock
+}
+
+@test "first boot runs each pending step, then deletes the marker; a failing step alone stays" {
+    booted_printer
+    MR_DOWN=0
+    printf 'config-links\npermission-rules\nalsa\nremote-screen\nkiauh\nmoonraker\nfuture-step\n' > "$MARKER"
     run image_first_boot pi
     [ "$status" -eq 0 ] || fail "first boot failed ($status): $output"
-    [ ! -e "$INSTALL_DIR/config/.first_boot_pending" ]
+    [ ! -e "$MARKER" ]
     [ "$(grep '^STEP' "$CALLS")" = "$(printf '%s\n' 'STEP setup_config_symlink ' 'STEP pin_env_file ' \
         'STEP install_permission_rules pi' 'STEP configure_alsa_default ' 'STEP install_remote_screen_route ' \
         'STEP install_kiauh_extension false' 'STEP configure_moonraker_updates pi' \
         'STEP setup_config_symlink quiet' 'STEP fix_user_config_ownership ')" ]
     contains "unknown first-boot step: future-step" "$output"
 
-    printf 'permission-rules\nalsa\n' > "$INSTALL_DIR/config/.first_boot_pending"
+    printf 'permission-rules\nalsa\n' > "$MARKER"
     install_permission_rules() { return 1; }
     run image_first_boot pi
     [ "$status" -ne 0 ]
-    [ -f "$INSTALL_DIR/config/.first_boot_pending" ]
+    [ "$(cat "$MARKER")" = permission-rules ]
 
-    rm "$INSTALL_DIR/config/.first_boot_pending"
+    rm "$MARKER"
     run image_first_boot pi
     [ "$status" -eq 0 ]
     contains "No first-boot setup is pending" "$output"
+}
+
+@test "first boot waits for Moonraker to answer, and keeps its steps for the next boot when it never does" {
+    booted_printer
+    MR_DOWN=5
+    printf 'alsa\nremote-screen\n' > "$MARKER"
+    run image_first_boot pi
+    [ "$status" -eq 0 ] || fail "first boot failed ($status): $output"
+    grep -qx 'STEP install_remote_screen_route ' "$CALLS"
+    [ ! -e "$MARKER" ]
+    [ "$(cat "$BATS_TEST_TMPDIR/mr-probes")" -eq 6 ]
+
+    : > "$CALLS"
+    unset MR_DOWN
+    printf 'alsa\nremote-screen\nmoonraker\n' > "$MARKER"
+    run image_first_boot pi
+    [ "$status" -ne 0 ]
+    contains "Moonraker did not answer" "$output"
+    if grep -q 'install_remote_screen_route\|configure_moonraker_updates' "$CALLS"; then
+        fail "a Moonraker step ran with no Moonraker: $(calls)"
+    fi
+    grep -qx 'STEP configure_alsa_default ' "$CALLS"
+    [ "$(cat "$MARKER")" = "$(printf 'remote-screen\nmoonraker')" ]
+    [ "$(cat "$BATS_TEST_TMPDIR/clock")" -le $((1000 + 130)) ]
+}
+
+@test "a Moonraker step whose restart did not complete stays for the next boot" {
+    booted_printer
+    MR_DOWN=0
+    printf 'moonraker\n' > "$MARKER"
+    # The real restart_moonraker, over setup()'s stub, with Moonraker's answer scripted.
+    eval "$(sed -n '/^restart_moonraker()/,/^}/p' "$LIB/moonraker.sh")"
+    configure_moonraker_updates() { echo "STEP configure_moonraker_updates $*" >> "$CALLS"; restart_moonraker; }
+    moonraker_restart() { return "$HELIX_RESTART_DOWN"; }
+    run image_first_boot pi
+    [ "$status" -ne 0 ]
+    [ "$(cat "$MARKER")" = moonraker ]
+
+    moonraker_restart() { return "$HELIX_RESTART_DONE"; }
+    run image_first_boot pi
+    [ "$status" -eq 0 ] || fail "first boot failed ($status): $output"
+    [ ! -e "$MARKER" ]
 }
 
 @test "an uninstall removes the first-boot unit" {
