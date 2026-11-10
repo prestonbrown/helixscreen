@@ -713,9 +713,9 @@ namespace {
 
 /// Result of examining the spool visual after status update.
 struct SpoolVisualState {
-    bool any_ghosted = false;      ///< true if any child has opa/bg_opa == LV_OPA_30
-    bool any_spool_hidden = false; ///< true if spool_canvas or spool rings are hidden
-    int child_count = 0;           ///< For diagnostic purposes
+    bool any_ghosted = false; ///< true if any child has opa/bg_opa == LV_OPA_30
+    bool shows_empty = false; ///< true if the spool is drawn as an empty lane's bare reel
+    int child_count = 0;      ///< For diagnostic purposes
 };
 
 /// Inspect spool_container children to determine the ghost/placeholder state.
@@ -739,8 +739,8 @@ SpoolVisualState inspect_spool_state(lv_obj_t* spool_container) {
     if (opa == LV_OPA_30 || bg_opa == LV_OPA_30) {
         st.any_ghosted = true;
     }
-    if (hidden) {
-        st.any_spool_hidden = true;
+    if (hidden || opa == ams_draw::kEmptyReelOpa) {
+        st.shows_empty = true;
     }
     return st;
 }
@@ -797,7 +797,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AMS slot ghosts empty slot with brand-only 
     // material label dims in lockstep with the spool ("assigned, not present").
     auto st = inspect_spool_state(spool_container);
     REQUIRE(st.any_ghosted);
-    REQUIRE_FALSE(st.any_spool_hidden);
+    REQUIRE_FALSE(st.shows_empty);
     lv_obj_t* label = UITest::find_by_name(slot, "material_label");
     REQUIRE(label != nullptr);
     REQUIRE(lv_obj_get_style_text_opa(label, LV_PART_MAIN) == ams_draw::kGhostOpa);
@@ -827,7 +827,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AMS slot ghosts empty slot with spool_name-
 
     auto st = inspect_spool_state(spool_container);
     REQUIRE(st.any_ghosted);
-    REQUIRE_FALSE(st.any_spool_hidden);
+    REQUIRE_FALSE(st.shows_empty);
 
     AmsState::instance().clear_backends();
 }
@@ -851,10 +851,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AMS slot hides empty slot with no metadata 
     lv_obj_t* spool_container = UITest::find_by_name(slot, "spool_container");
     REQUIRE(spool_container != nullptr);
 
-    // With no override metadata, the main spool visual is hidden (placeholder
-    // shown). Regression guard for the original is_assigned behavior.
+    // With no override metadata, the lane draws as empty: a bare reel under its plus.
     auto st = inspect_spool_state(spool_container);
-    REQUIRE(st.any_spool_hidden);
+    REQUIRE(st.shows_empty);
     REQUIRE_FALSE(st.any_ghosted);
 
     AmsState::instance().clear_backends();
@@ -977,12 +976,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a secondary backend's slot paints
     CHECK(ui_ams_slot_get_fill_level(slot) == Catch::Approx(0.30f));
     lv_obj_t* graphic = lv_obj_find_by_name(slot, "spool_graphic");
     REQUIRE(graphic != nullptr);
-    CHECK(lv_obj_has_flag(graphic, LV_OBJ_FLAG_HIDDEN)); // secondary lane is Empty
+    CHECK(lv_obj_get_style_opa(graphic, LV_PART_MAIN) == ams_draw::kEmptyReelOpa); // Empty
 
     // A later change on the secondary lane flows through.
     lv_subject_set_int(sec_state, static_cast<int>(helix::ui::LaneState::Present));
     process_lvgl(50);
-    CHECK_FALSE(lv_obj_has_flag(graphic, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_get_style_opa(graphic, LV_PART_MAIN) == LV_OPA_COVER);
 
     lv_obj_delete(slot);
     ams.set_active_backend(0);
