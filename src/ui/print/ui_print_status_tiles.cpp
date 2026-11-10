@@ -889,8 +889,10 @@ void PrintStatusTiles::update_heater_chips() {
         const size_t i = index_of(c);
         const int icons = chip_icons_px(m, i);
         const ChipContent plain = heater(c, false);
+        // heater_shown() returns one of its arguments, so both outlive `shown`.
+        const ChipContent with_power = heater(c, true);
         const ChipContent& shown =
-            heater_shown(plain, heater(c, true), m, icons, laid_out_.column_w, last_mode_);
+            heater_shown(plain, with_power, m, icons, laid_out_.column_w, last_mode_);
         CalloutPresenter::Chip& part = laid_out_.parts.chips[i];
         part.active = shown.shown;
         part.expendable = shown.expendable;
