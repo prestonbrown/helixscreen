@@ -8,6 +8,7 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_panel_ams_overview.h"
+#include "ui_row_text.h"
 #include "ui_system_path_canvas.h"
 #include "ui_unit_art.h"
 #include "ui_utils.h"
@@ -379,9 +380,7 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
 
         // Set dynamic content only — unit name and slot count vary per unit
         uc.display_name = ams_draw::get_unit_display_name(unit, i);
-        if (uc.name_label) {
-            lv_label_set_text(uc.name_label, uc.display_name.c_str());
-        }
+        helix::ui::set_row_label_text(uc.card, "unit_name", uc.display_name.c_str());
 
         set_slot_count_label(uc.slot_count_label, noun, unit.slot_count);
 
@@ -416,9 +415,7 @@ void AmsOverviewPanel::update_unit_card(UnitCard& card, const AmsUnit& unit,
     // Update name label. Keep display_name in step - it is the only untruncated
     // copy, and publish_cards_compact() measures it.
     card.display_name = ams_draw::get_unit_display_name(unit, card.unit_index);
-    if (card.name_label) {
-        lv_label_set_text(card.name_label, card.display_name.c_str());
-    }
+    helix::ui::set_row_label_text(card.card, "unit_name", card.display_name.c_str());
 
     // Rebuild the mini bars only when a geometry input changed (lane count or
     // the measured width). Color, fill, active and error repaint in place

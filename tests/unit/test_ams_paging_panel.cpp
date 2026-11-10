@@ -1305,6 +1305,7 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with art is the art, not 
         lv_obj_t* name = lv_obj_find_by_name(card, "unit_name");
         REQUIRE(name != nullptr);
         CHECK(lv_obj_get_style_text_align(name, LV_PART_MAIN) == LV_TEXT_ALIGN_CENTER);
+        CHECK(std::string(lv_label_get_text(name)).find("ACE ") != std::string::npos);
     }
 
     tap(tiles[1]);
