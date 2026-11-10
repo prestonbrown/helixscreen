@@ -48,10 +48,10 @@
 
 #include "async_lifetime_guard.h"
 #include "boot_yield.h"
+#include "core/data_root_resolver.h"
 #include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml_component_private.h"
 #include "helix_fs.h"
-#include "layout_manager.h"
 #include "page_scroll_auto_inject.h"
 #include "theme_manager.h"
 #include "z_offset_utils.h"
@@ -269,8 +269,7 @@ static void on_setting_info_clicked(lv_event_t* e) {
 }
 
 static bool register_xml(const char* filename) {
-    auto& lm = helix::LayoutManager::instance();
-    std::string path = "A:" + lm.resolve_xml_path(filename);
+    std::string path = "A:" + helix::asset_path(std::string("ui_xml/") + filename);
     const bool ok = lv_xml_register_component_from_file(path.c_str()) == LV_RESULT_OK;
     if (!ok) {
         spdlog::error("[XML Registration] Failed to register: {}", path);
@@ -309,8 +308,7 @@ static std::unordered_set<std::string> s_loaded;
 /**
  * The engine's component loader: registers a component the first time a tag,
  * an extends= base, lv_xml_create() or a C++ scope lookup names it. The file is
- * <name>.xml at the top of ui_xml/ or under components/, through the same
- * layout-variant resolution register_xml() applies.
+ * <name>.xml at the top of ui_xml/ or under components/.
  */
 static void register_on_first_use(const char* name) {
     if (!on_lvgl_thread()) {
@@ -320,10 +318,9 @@ static void register_on_first_use(const char* name) {
     }
     if (s_no_file.count(name))
         return;
-    auto& lm = helix::LayoutManager::instance();
     for (const char* dir : {"", "components/"}) {
         std::string file = std::string(dir) + name + ".xml";
-        if (helix::fs::exists(lm.resolve_xml_path(file))) {
+        if (helix::fs::exists(helix::asset_path("ui_xml/" + file))) {
             spdlog::debug("[XML Registration] Registering {} on first use", file);
             // A file that does not parse is not read again on every lookup; the
             // hot reloader registers a fixed copy from its own buffer.

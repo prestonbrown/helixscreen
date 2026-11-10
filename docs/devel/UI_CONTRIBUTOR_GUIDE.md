@@ -24,7 +24,7 @@ The `-s WIDTHxHEIGHT` flag sets the window size. The `--test` flag runs against 
 
 | Size | Category | Notes |
 |------|----------|-------|
-| `480x272` | Micro | Smallest supported. Has its own `ui_xml/micro/` overrides. |
+| `480x272` | Micro | Smallest supported. Controls switches to a denser arrangement here. |
 | `480x320` | Tiny | Where most bugs live. |
 | `800x480` | Standard / Medium | The "default" target. Most common screen. |
 | `1024x600` | Large | Waveshare 7" and similar. |
@@ -155,11 +155,11 @@ LVGL ignores duplicate variable registrations. If the base name `space_lg` is al
 
 ### CRITICAL: Responsive tokens only work at the top level of `ui_xml/`
 
-Token discovery does not recurse. `theme_manager_find_xml_files()` skips subdirectories, so only `ui_xml/*.xml` is ever scanned for suffixed tokens. A `<px name="nav_width_small">` declared in `ui_xml/components/`, `ui_xml/portrait/`, `ui_xml/micro/` or any other subdirectory is never registered, and every `#nav_width` that reads it silently resolves to nothing.
+Token discovery does not recurse. `theme_manager_find_xml_files()` skips subdirectories, so only `ui_xml/*.xml` is ever scanned for suffixed tokens. A `<px name="nav_width_small">` declared in `ui_xml/components/` or any other subdirectory is never registered, and every `#nav_width` that reads it silently resolves to nothing.
 
-That is deliberate. Discovery is alphabetical last-wins, so if variant directories were scanned a portrait-only token would shadow its base token *globally* — including while the standard layout is active — rather than only when that variant is in use.
+That is deliberate. Discovery is alphabetical last-wins, so scanning subdirectories would let a component's token shadow a top-level one of the same name *globally*.
 
-So declare responsive tokens in `ui_xml/globals.xml` (or another top-level token file such as `ams_tokens.xml`) and reference them with `#token` from the variant file. Non-responsive component-local `<consts>` are fine inside `ui_xml/components/`; they resolve through the component's own scope and never reach discovery.
+So declare responsive tokens in `ui_xml/globals.xml` (or another top-level token file such as `ams_tokens.xml`) and reference them with `#token` from anywhere. Non-responsive component-local `<consts>` are fine inside `ui_xml/components/`; they resolve through the component's own scope and never reach discovery.
 
 `scripts/check_responsive_token_scope.py` fails the build if a suffixed token is declared below the top level. Background: prestonbrown/helixscreen#1211.
 
@@ -887,9 +887,9 @@ Background: `include/overlay_class.h` and prestonbrown/helixscreen#1178.
 
 ---
 
-## 7. Layout Overrides
+## 7. Layout Classes
 
-HelixScreen supports layout-specific XML overrides so you can rearrange panels for different screen shapes without touching the standard layouts.
+Every panel is one XML file that serves every screen shape. Where a shape needs a different arrangement, the panel branches in place on the layout subjects (`ui_is_portrait`, `ui_is_ultrawide`, `ui_breakpoint`); there are no per-layout copies to keep in step.
 
 ### Layout types
 
@@ -903,55 +903,32 @@ HelixScreen supports layout-specific XML overrides so you can rearrange panels f
 | `tiny` | Max dimension <= 480, landscape | 480x320, 320x240 |
 | `tiny_portrait` | Max dimension <= 480, portrait | 320x480, 240x320 |
 
-Detection lives in `LayoutManager::detect()` (`src/layout_manager.cpp`). Portrait
-sub-classes (`micro_portrait`, `tiny_portrait`) fall back through the shared
-`portrait/` layer before the standard layout -- see `variant_chain()`.
+Detection lives in `LayoutManager::detect()` (`src/layout_manager.cpp`). Every portrait class
+sets `ui_is_portrait`, and `ui_is_ultrawide` marks the ultrawide one; the breakpoint tiers
+come from the screen size on their own.
 
 Force a layout with `--layout ultrawide` on the command line, or set `display.layout` in `settings.json`.
 
-### Directory structure
+### Adapting a panel
 
-```
-ui_xml/
-  globals.xml              <-- Shared by ALL layouts (never override this)
-  home_panel.xml           <-- Standard home panel
-  controls_panel.xml       <-- Standard controls panel
-  ...                      <-- ~230 top-level XML files (components/ holds ~100 more)
-  micro/                   <-- Micro (480x272) overrides (4 files)
-    controls_panel.xml
-    header_bar.xml
-    ...
-  portrait/                <-- Portrait overrides (2 files)
-    print_status_panel.xml
-    print_tune_panel.xml
-  micro_portrait/          <-- Micro-portrait overrides (dir present, empty)
-  ultrawide/               <-- Does NOT exist yet (no overrides created)
-  tiny/, tiny_portrait/    <-- Do NOT exist yet
-```
-
-### How overrides work
-
-If `ui_xml/<layout>/<panel>.xml` exists, it's used instead of `ui_xml/<panel>.xml`. Otherwise the standard version is loaded. You only need to override the panels that actually need different layouts -- everything else falls through automatically.
-
-### Creating an override
-
-1. Copy the standard layout as a starting point:
-   ```bash
-   cp ui_xml/controls_panel.xml ui_xml/ultrawide/controls_panel.xml
-   ```
-
-2. Edit the copy for the target screen shape.
-
-3. Test it:
+1. Screenshot the panel at the target size first:
    ```bash
    ./build/bin/helix-screen --test -vv --layout ultrawide -s 1920x480
    ```
 
-4. No rebuild needed. XML loads at runtime.
+2. Edit the panel's own file. Pick the lightest construct that expresses the difference: a
+   `bind_style_if` pair for spacing or flex direction, a `bind_flag_if` for a block that
+   comes and goes, `<if cond="ui_is_portrait eq 1">…<else/>…</if>` for a different subtree.
+   A local attribute (or a widget that styles itself at creation, like `ui_card`) outranks a
+   bound style; a style selected on a state outranks it. `LAYOUT_SYSTEM.md` § "Adapting a
+   Panel" has the full table and the 480x272 Controls panel as the worked example.
+
+3. No rebuild needed. XML loads at runtime. Then check every other size the panel serves
+   is unchanged.
 
 ### The rules you must follow
 
-When creating a layout override, you're rearranging the same content for a different screen shape. The C++ code still expects certain widgets, bindings, and callbacks to exist.
+When you restructure a panel for a screen shape, every branch rearranges the same content. The C++ code still expects certain widgets, bindings, and callbacks to exist in each.
 
 1. **Keep all named widgets** that C++ looks up via `lv_obj_find_by_name()`. Search the panel's `.cpp` file to find required names:
    ```bash
@@ -964,7 +941,7 @@ When creating a layout override, you're rearranging the same content for a diffe
 
 4. **Use design tokens** for all colors, spacing, and fonts. No hardcoded values.
 
-5. **Don't change existing values in globals.xml.** They're shared across all layouts. *Adding* a new suffixed token there is correct, and is the only place a variant-specific token can live -- token discovery never recurses into `ui_xml/` subdirectories, so a `<px name="foo_small">` declared next to your override is silently never registered (see section 2).
+5. **Don't change existing values in globals.xml.** They're shared across all layouts. *Adding* a new suffixed token there is correct, and is the only place a layout-specific token can live -- token discovery never recurses into `ui_xml/` subdirectories, so a `<px name="foo_small">` declared in `components/` is silently never registered (see section 2).
 
 You're free to rearrange the visual hierarchy, change flex directions, adjust sizes, hide optional decorative elements, or add new layout containers. Just preserve the functional widgets.
 
@@ -972,17 +949,17 @@ You're free to rearrange the visual hierarchy, change flex directions, adjust si
 
 **Ultrawide (1920x480):** Tons of horizontal space, very little vertical. Favor `flex_flow="row"` to spread content across columns. Aim for everything visible at once with no scrolling. Think "dashboard with columns" -- put related info side by side instead of stacking it.
 
-**Portrait (480x800):** Lots of vertical space, narrow width. Content stacks naturally with `flex_flow="column"`. The navbar and app shell already move to the bottom automatically (`ui_is_portrait`) — no override needed.
+**Portrait (480x800):** Lots of vertical space, narrow width. Content stacks naturally with `flex_flow="column"`. The navbar and app shell already move to the bottom automatically (`ui_is_portrait`).
 
 **Tiny (480x320):** Very limited in both directions. Reduce information density, use bigger touch targets (48px minimum), show fewer labels. Hide optional elements with conditional visibility or just remove decorative content.
 
 ### One tree, restyled for portrait
 
-A panel usually needs no portrait override. The print file detail view is the pattern: one widget tree, with complementary `bind_style` pairs keyed on `ui_is_portrait` carrying every restyle that is a style property (row vs column, which side grows, the button tier). The inline attribute for a restyled property must come off the widget, because an inline attribute beats a bound style and freezes one orientation. What styles cannot express (a size measured from runtime pixels) is measured in C++: `src/ui/print/ui_print_select_detail_view.cpp#fit_portrait_preview` reads the options column's real content height and sets the preview card's height from `include/print_detail_layout.h#decide_detail_portrait_preview`. See `ui_xml/print_file_detail.xml` for the whole shape.
+A panel usually needs no portrait-only structure. The print file detail view is the pattern: one widget tree, with complementary `bind_style` pairs keyed on `ui_is_portrait` carrying every restyle that is a style property (row vs column, which side grows, the button tier). The inline attribute for a restyled property must come off the widget, because an inline attribute beats a bound style and freezes one orientation. What styles cannot express (a size measured from runtime pixels) is measured in C++: `src/ui/print/ui_print_select_detail_view.cpp#fit_portrait_preview` reads the options column's real content height and sets the preview card's height from `include/print_detail_layout.h#decide_detail_portrait_preview`. See `ui_xml/print_file_detail.xml` for the whole shape.
 
 The Controls panel's top row (`ui_xml/controls_panel.xml`) is the same pattern with a wrapping flow: three cards side by side in landscape, and in portrait the row wraps to Position beside Temperature with Cooling across the full width below. Two traps it shows: a style that sets `flex_flow` needs `layout="flex"` with it, because the inline attribute it replaces set both; and `ui_card` sets its own size locally when it is created, so no bound style can resize it. Put the card in a plain `lv_obj` cell that carries the bound sizes, and give the card `width="100%" height="100%"`.
 
-### Priority panels to override
+### Priority panels to adapt
 
 Start with the panels that matter most:
 
@@ -995,8 +972,7 @@ Start with the panels that matter most:
 | Low | Overlays | Usually modal dialogs that adapt reasonably well |
 
 `app_layout.xml` and `navigation_bar.xml` are not in this table: both already adapt their
-chrome and nav position to `ui_is_portrait` in place, so a new layout family only needs to
-override them if its chrome is a genuinely different design, not just a different axis.
+chrome and nav position to `ui_is_portrait` in place.
 
 ### Responsive Setting Rows (no micro/ overrides)
 
@@ -1136,20 +1112,18 @@ These panels work well and can serve as reference for how to do things right:
 
 ### Ultrawide Status
 
-- Not started -- `ui_xml/ultrawide/` does not exist yet, so ultrawide screens
-  currently fall through to the standard layout.
+- Mostly the standard layout. `ui_xml/panel_belt_tension.xml` branches on
+  `ui_is_ultrawide`, and the home grid widens its columns itself.
 - Wide open for contributions. Force it with `--layout ultrawide -s 1920x480`.
 
 ### Portrait / Micro Status
 
-- `ui_xml/portrait/` exists with one override (`print_tune_panel.xml`); the app shell,
-  the navigation bar and the print status panel are single files that adapt via
-  `ui_is_portrait` and measured layout instead.
-- `ui_xml/micro/` exists with one override (`controls_panel.xml`, a different design).
-  The header bar, the theme explorer and editor and the material temperatures
-  overlay adapt in place with `bind_style_if_eq` on `ui_breakpoint`.
-- `ui_xml/micro_portrait/` does not exist; the `portrait/` layer serves 272x480.
-- `tiny/`, `tiny_portrait/` do not exist yet. Wide open for contributions.
+- The app shell, the navigation bar, the print status panel and Print Tune adapt to
+  portrait in their own files, through `ui_is_portrait` and measured layout.
+- At 480x272 the Controls panel switches to a denser arrangement in its own file (the
+  `controls_micro` subject); the header bar, the theme explorer and editor and the
+  material temperatures overlay adapt with `bind_style_if_eq` on `ui_breakpoint`.
+- Tiny and tiny-portrait screens use the same files; wide open for contributions.
 
 ---
 
@@ -1251,7 +1225,7 @@ PRs are welcome. To make review smooth:
 
 - Include **before/after screenshots** at the target resolution.
 - Test at the target size **and** at standard (800x480) to verify no regression.
-- If you created a layout override, mention which named widgets you found in the C++ source so reviewers can verify coverage.
+- If you restructured a panel for a screen shape, mention which named widgets you found in the C++ source so reviewers can verify every branch keeps them.
 - Keep changes focused. One panel per PR is easier to review than five.
 
 ---

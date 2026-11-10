@@ -286,9 +286,8 @@ TEST_CASE_METHOD(XMLTestFixture, "Micro-portrait wraps the temp inputs to two ro
     check_two_by_two_reflow(*this, 272, 480);
 }
 
-// TINY (480x320) and TINY_PORTRAIT (320x480) have no ui_xml/tiny*/ override, so
-// LayoutManager::variant_chain() falls through to this base file's own
-// four-across row. Each column fills its own share of the row instead of
+// TINY (480x320) and TINY_PORTRAIT (320x480) keep this file's four-across
+// row. Each column fills its own share of the row instead of
 // carrying a fixed input width, so the row has to shrink with the screen
 // rather than overflow it (prestonbrown/helixscreen#1263).
 namespace {

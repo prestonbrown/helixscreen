@@ -3,10 +3,10 @@
 
 #include "ui_fault_path.h"
 
+#include "core/data_root_resolver.h"
 #include "core/static_subject_registry.h"
 #include "fault_path_position.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "layout_manager.h"
 #include "subject_managed_panel.h"
 
 #include <spdlog/spdlog.h>
@@ -54,8 +54,7 @@ void fault_path_register() {
     // ams_loading_error_modal.xml (lazily registered by AmsPanel),
     // action_prompt_modal.xml and recovery_fault_modal.xml reference
     // <fault_path/>, so it has to exist before any of them is parsed.
-    const std::string path =
-        "A:" + LayoutManager::instance().resolve_xml_path("components/fault_path.xml");
+    const std::string path = "A:" + helix::asset_path("ui_xml/components/fault_path.xml");
     if (lv_xml_register_component_from_file(path.c_str()) != LV_RESULT_OK) {
         spdlog::error("[FaultPath] Failed to register: {}", path);
     }

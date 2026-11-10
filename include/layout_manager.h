@@ -23,7 +23,7 @@ enum class LayoutType {
 /// same answer. Application initialises the theme (phase 6) well before the
 /// layout manager (phase 8b), and the overlay-width constants computed there
 /// have to know whether the nav bar is a vertical strip or a bottom bar. Sharing
-/// one implementation keeps the threshold that selects ui_xml/portrait/ and the
+/// one implementation keeps the threshold that sets ui_is_portrait and the
 /// threshold that sizes overlays from ever disagreeing.
 LayoutType detect_layout_type(int width, int height);
 
@@ -57,15 +57,6 @@ class LayoutManager {
 
     LayoutType type() const;
     const std::string& name() const;
-    std::string resolve_xml_path(const std::string& filename) const;
-    bool has_override(const std::string& filename) const;
-    /// Variant directory currently supplying `filename`, or "" when the base
-    /// ui_xml/ copy is in effect. `filename` takes the same form as
-    /// resolve_xml_path() ("home_panel.xml", "components/progress_bar.xml").
-    std::string active_variant_dir(const std::string& filename) const;
-    /// True when `dir` names a layout-variant directory under ui_xml/, as
-    /// opposed to a content subdirectory such as components/.
-    static bool is_variant_dir(const std::string& dir);
     bool is_standard() const;
 
     /// True after init() has resolved type_ (from dims or override). Callers
@@ -75,13 +66,12 @@ class LayoutManager {
         return initialized_;
     }
 
-    /// Variant directories to search for a layout override, most specific
-    /// first. The base (ui_xml/, and the top-level "anchors" table in
-    /// default_layout.json) is always the final fallback and is not included
-    /// here. Portrait sub-classes inherit the shared portrait/ layer, so
-    /// TINY_PORTRAIT yields {"tiny_portrait", "portrait"}.
+    /// Layout names to search for a per-layout table, most specific first. The
+    /// base (the top-level "anchors" table in default_layout.json) is always the
+    /// final fallback and is not included here. Portrait sub-classes inherit
+    /// the shared portrait layer, so TINY_PORTRAIT yields
+    /// {"tiny_portrait", "portrait"}.
     ///
-    /// Public because the same search order keys more than XML files:
     /// PanelWidgetConfig::build_default_grid() picks its anchor table this way,
     /// so a portrait panel cannot end up on anchors authored for a 6-column
     /// landscape grid (#1216).

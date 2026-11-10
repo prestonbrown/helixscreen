@@ -1,26 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "layout_manager.h"
 
-#include "core/data_root_resolver.h"
-
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
-#include <unistd.h>
-
-namespace {
-// Every directory name under ui_xml/ that can hold a layout override. Content
-// subdirectories (components/, translations/) are deliberately absent.
-constexpr const char* kVariantDirs[] = {"micro_portrait", "tiny_portrait", "portrait",
-                                        "ultrawide",      "micro",         "tiny"};
-} // namespace
 
 namespace helix {
-
-bool LayoutManager::is_variant_dir(const std::string& dir) {
-    return std::find(std::begin(kVariantDirs), std::end(kVariantDirs), dir) !=
-           std::end(kVariantDirs);
-}
 
 LayoutManager& LayoutManager::instance() {
     static LayoutManager instance;
@@ -68,8 +53,8 @@ bool LayoutManager::is_standard() const {
 
 std::vector<std::string> LayoutManager::variant_chain() const {
     switch (type_) {
-    // Portrait sub-classes fall back to the shared portrait/ layer before base,
-    // so they only need to carry files that actually differ from portrait/.
+    // Portrait sub-classes fall back to the shared portrait layer before base,
+    // so they only need to carry entries that actually differ from portrait.
     case LayoutType::MICRO_PORTRAIT:
         return {"micro_portrait", "portrait"};
     case LayoutType::TINY_PORTRAIT:
@@ -86,26 +71,6 @@ std::vector<std::string> LayoutManager::variant_chain() const {
     default:
         return {};
     }
-}
-
-std::string LayoutManager::active_variant_dir(const std::string& filename) const {
-    for (const auto& dir : variant_chain()) {
-        std::string variant_path = helix::asset_path("ui_xml/" + dir + "/" + filename);
-        if (access(variant_path.c_str(), F_OK) == 0) {
-            return dir;
-        }
-    }
-    return {};
-}
-
-std::string LayoutManager::resolve_xml_path(const std::string& filename) const {
-    std::string variant = active_variant_dir(filename);
-    return variant.empty() ? helix::asset_path("ui_xml/" + filename)
-                           : helix::asset_path("ui_xml/" + variant + "/" + filename);
-}
-
-bool LayoutManager::has_override(const std::string& filename) const {
-    return !active_variant_dir(filename).empty();
 }
 
 bool is_ultrawide_aspect(int width, int height) {
