@@ -2939,26 +2939,6 @@ TEST_CASE("CFS a box write Klipper rejects saves nothing and reports the edit",
     CHECK(b.get_slot_info(0).color_rgb == 0xFF5500u);
 }
 
-TEST_CASE("CFS a Clear while the box write is out erases the record Klipper's OK would save",
-          "[ams][cfs][filament_slot_override][firmware_writeback]") {
-    helix::test::RegisteredWired<CfsRemapHelper> reg;
-    auto& b = *reg;
-    b.fire_status(make_cfs_notification(
-        make_single_unit_box({"101001", "-1", "-1", "-1"}, {"0FF5500", "-1", "-1", "-1"})));
-    b.hold = true;
-
-    SlotInfo edit = b.get_slot_info(0);
-    edit.color_rgb = 0x00FF00;
-    edit.brand = "Sunlu";
-    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
-    REQUIRE(b.held_ack != nullptr);
-    b.clear_slot_override(0);
-
-    b.held_ack();
-    const auto record = CfsTestAccess::get_override(b, 0);
-    CHECK((!record.has_value() || record->brand != "Sunlu"));
-}
-
 TEST_CASE("CFS a linked lane's moved material waits on the box and reports a rejection",
           "[ams][cfs][filament_slot_override][firmware_writeback][box_wins]") {
     helix::test::RegisteredWired<CfsRemapHelper> reg;
@@ -3041,6 +3021,19 @@ TEST_CASE("CFS Clear Spool writes the box's clear once",
         b.fire_status(make_cfs_notification(make_flat_fork_box()));
         clear_as_the_menu_does();
         CHECK(count("_BOX_SLOT_CLEAR SLOT=0") == 1);
+    }
+    SECTION("a Clear while an edit's box write is out erases what Klipper's OK would save") {
+        b.fire_status(make_cfs_notification(
+            make_single_unit_box({"101001", "-1", "-1", "-1"}, {"0FF5500", "-1", "-1", "-1"})));
+        b.hold = true;
+        SlotInfo edit = b.get_slot_info(0);
+        edit.brand = "Sunlu";
+        REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+        REQUIRE(b.held_ack != nullptr);
+        static_cast<helix::AmsBackend&>(b).clear_slot_override(0);
+        b.held_ack();
+        const auto record = CfsTestAccess::get_override(b, 0);
+        CHECK((!record.has_value() || record->brand != "Sunlu"));
     }
 }
 
