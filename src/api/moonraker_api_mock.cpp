@@ -1812,8 +1812,16 @@ MoonrakerTimelapseAPIMock::MoonrakerTimelapseAPIMock(MoonrakerClient& client,
 void MoonrakerTimelapseAPIMock::get_timelapse_settings(TimelapseSettingsCallback on_success,
                                                        ErrorCallback on_error) {
     if (helix::mock::timelapse_plugin_present()) {
+        // The body real Moonraker sends: the plugin's dict wrapped in "result",
+        // with floats where the app reads integers.
+        static constexpr const char* kSettingsBody =
+            R"({"result":{"enabled":false,"mode":"layermacro","output_framerate":30,)"
+            R"("autorender":true,"park_retract_distance":1.0,"park_extrude_speed":15,)"
+            R"("hyperlapse_cycle":30,"blockedsettings":[]}})";
+        TimelapseSettings settings;
+        helix::parse_timelapse_settings(kSettingsBody, settings);
         if (on_success) {
-            on_success(TimelapseSettings{});
+            on_success(settings);
         }
         return;
     }
