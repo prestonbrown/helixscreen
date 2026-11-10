@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_subscription_guard.h"
+#include "subscription_guard.h"
 
 #include "i_moonraker_api.h"
 

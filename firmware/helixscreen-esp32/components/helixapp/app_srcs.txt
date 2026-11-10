@@ -762,7 +762,7 @@ src/spoolman/spoolman_catalog_search.cpp
 src/spoolman/spoolman_types.cpp
 src/ui/components/ui_status_pill.cpp
 src/ui/components/ui_step_progress.cpp
-src/ui/ui_subscription_guard.cpp
+src/api/subscription_guard.cpp
 src/ui/components/ui_search_debounce.cpp
 src/ui/ui_coalesced_timer.cpp
 src/ui/components/ui_swatch.cpp
