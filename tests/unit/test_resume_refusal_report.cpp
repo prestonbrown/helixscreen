@@ -651,6 +651,8 @@ TEST_CASE_METHOD(ResumeRefusalFixture,
     SECTION("the first RESUME's ok") {
         mock.fire_deferred("printer.gcode.script");
         settle();
+        PrintControlButtonsTestAccess::fire_resume_settle();
+        settle();
         CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::Resuming);
     }
     SECTION("the first RESUME's refusal") {
