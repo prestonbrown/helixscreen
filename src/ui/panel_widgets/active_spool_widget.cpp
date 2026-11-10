@@ -36,6 +36,7 @@ void register_active_spool_widget() {
         auto* api = PanelWidgetManager::instance().shared_resource<IMoonrakerAPI>();
         return std::make_unique<ActiveSpoolWidget>(api);
     });
+    lv_xml_register_event_cb(nullptr, "active_spool_clicked_cb", ActiveSpoolWidget::clicked_cb);
 }
 
 // The compact form: a spool one line of the rung's icon face square, over one
@@ -50,6 +51,14 @@ ActiveSpoolWidget::ActiveSpoolWidget(IMoonrakerAPI* api)
     // binding whose subject is missing at parse time.
     UI_MANAGED_SUBJECT_INT(wide_subject_, 0, "active_spool_wide", subjects_);
     UI_MANAGED_SUBJECT_INT(loaded_subject_, 0, "active_spool_loaded", subjects_);
+    lv_subject_init_string(&material_subject_, material_buf_, nullptr, sizeof(material_buf_), "");
+    subjects_.publish("active_spool_material", &material_subject_);
+    lv_subject_init_string(&brand_subject_, brand_buf_, nullptr, sizeof(brand_buf_), "");
+    subjects_.publish("active_spool_brand", &brand_subject_);
+    UI_MANAGED_SUBJECT_INT(has_brand_subject_, 0, "active_spool_has_brand", subjects_);
+    lv_subject_init_string(&weight_subject_, weight_buf_, nullptr, sizeof(weight_buf_), "");
+    subjects_.publish("active_spool_weight", &weight_subject_);
+    UI_MANAGED_SUBJECT_INT(has_weight_subject_, 0, "active_spool_has_weight", subjects_);
 }
 
 ActiveSpoolWidget::~ActiveSpoolWidget() {
@@ -63,18 +72,9 @@ void ActiveSpoolWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     if (!widget_obj_)
         return;
 
-    // Register click handler via per-callback user_data
-    auto* btn = lv_obj_find_by_name(widget_obj_, "spoolman_btn");
-    if (btn) {
-        lv_obj_add_event_cb(btn, clicked_cb, LV_EVENT_CLICKED, this);
-    }
-
-    // Cache element pointers
+    // Cache the spool canvases, which draw procedurally.
     spool_compact_ = lv_obj_find_by_name(widget_obj_, "spool_compact");
     spool_wide_ = lv_obj_find_by_name(widget_obj_, "spool_wide");
-    material_label_ = lv_obj_find_by_name(widget_obj_, "spoolman_material");
-    brand_color_label_ = lv_obj_find_by_name(widget_obj_, "spoolman_brand_color");
-    weight_label_ = lv_obj_find_by_name(widget_obj_, "spoolman_weight");
 
     // Observe spool changes from all sources
     auto token = lifetime_.token();
@@ -129,9 +129,6 @@ void ActiveSpoolWidget::detach() {
     parent_screen_ = nullptr;
     spool_compact_ = nullptr;
     spool_wide_ = nullptr;
-    material_label_ = nullptr;
-    brand_color_label_ = nullptr;
-    weight_label_ = nullptr;
 
     spdlog::debug("[ActiveSpoolWidget] Detached");
 }
@@ -236,56 +233,34 @@ void ActiveSpoolWidget::update_spool_display() {
         lv_obj_set_style_opa(active_spool, has_spool ? LV_OPA_COVER : LV_OPA_40, 0);
     }
 
-    // Update text labels (wide mode)
-    if (material_label_) {
-        if (has_spool) {
-            lv_label_set_text(material_label_, active->material_name.c_str());
-            lv_obj_set_style_text_align(material_label_, LV_TEXT_ALIGN_LEFT, 0);
-        } else {
-            // A tag, not lv_tr() text: the label then re-translates itself.
-            if (is_wide_) {
-                lv_label_set_translation_tag(material_label_, "No Spool");
-            } else {
-                lv_label_set_text(material_label_, "");
-            }
-            lv_obj_set_style_text_align(material_label_, LV_TEXT_ALIGN_CENTER, 0);
-        }
+    // The wide row's text. With no spool the component shows its own
+    // "No Spool" line in place of the material, which re-translates itself.
+    lv_subject_copy_string(&material_subject_, has_spool ? active->material_name.c_str() : "");
+
+    std::string brand_color_str;
+    if (has_spool && source_slot) {
+        // Same precedence as the AMS "currently loaded" card. Spoolman keeps
+        // vendor and filament name out of SlotInfo on purpose (see
+        // filament_display_name.h), so a Spoolman-linked lane on a backend
+        // that reports no brand of its own -- AFC -- can only be named
+        // through the identity cache.
+        const auto identity = SpoolmanManager::find_identity(source_slot->spoolman_id);
+        const auto parts =
+            resolve_filament_label_parts(*source_slot, identity ? &*identity : nullptr,
+                                         get_color_name_from_hex(source_slot->color_rgb));
+        // The material has its own row above this one, so it is joined out.
+        brand_color_str = compose_filament_label(parts.brand, parts.name, "");
     }
-    if (brand_color_label_) {
-        std::string brand_color_str;
-        if (has_spool && source_slot) {
-            // Same precedence as the AMS "currently loaded" card. Spoolman keeps
-            // vendor and filament name out of SlotInfo on purpose (see
-            // filament_display_name.h), so a Spoolman-linked lane on a backend
-            // that reports no brand of its own -- AFC -- can only be named
-            // through the identity cache.
-            const auto identity = SpoolmanManager::find_identity(source_slot->spoolman_id);
-            const auto parts =
-                resolve_filament_label_parts(*source_slot, identity ? &*identity : nullptr,
-                                             get_color_name_from_hex(source_slot->color_rgb));
-            // The material has its own row above this one, so it is joined out.
-            brand_color_str = compose_filament_label(parts.brand, parts.name, "");
-        }
-        lv_label_set_text(brand_color_label_, brand_color_str.c_str());
-        if (brand_color_str.empty()) {
-            lv_obj_add_flag(brand_color_label_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(brand_color_label_, LV_OBJ_FLAG_HIDDEN);
-        }
+    lv_subject_copy_string(&brand_subject_, brand_color_str.c_str());
+    lv_subject_set_int(&has_brand_subject_, brand_color_str.empty() ? 0 : 1);
+
+    std::string weight_str;
+    if (has_spool && total_weight > 0) {
+        weight_str = std::to_string(static_cast<int>(remaining_weight)) + "g / " +
+                     std::to_string(static_cast<int>(total_weight)) + "g";
     }
-    if (weight_label_) {
-        std::string weight_str;
-        if (has_spool && total_weight > 0) {
-            weight_str = std::to_string(static_cast<int>(remaining_weight)) + "g / " +
-                         std::to_string(static_cast<int>(total_weight)) + "g";
-        }
-        lv_label_set_text(weight_label_, weight_str.c_str());
-        if (weight_str.empty()) {
-            lv_obj_add_flag(weight_label_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(weight_label_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    lv_subject_copy_string(&weight_subject_, weight_str.c_str());
+    lv_subject_set_int(&has_weight_subject_, weight_str.empty() ? 0 : 1);
 
     lv_subject_set_int(&loaded_subject_, has_spool ? 1 : 0);
 }
@@ -351,7 +326,7 @@ void ActiveSpoolWidget::open_external_spool_edit() {
 
 void ActiveSpoolWidget::clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[ActiveSpoolWidget] clicked_cb");
-    auto* self = static_cast<ActiveSpoolWidget*>(lv_event_get_user_data(e));
+    auto* self = panel_widget_from_event<ActiveSpoolWidget>(e);
     if (self) {
         self->record_interaction();
         self->handle_clicked();

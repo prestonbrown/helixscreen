@@ -18,9 +18,9 @@
  *     (apply_layout_visibility)
  *   - whichever spool canvas (`spool_wide` / `spool_compact`) carries the
  *     real filament color (update_spool_display's `active_spool` pick)
- *   - `spoolman_no_spool_label` hidden flag and `spoolman_material` text,
- *     both of which only branch on `is_wide_` in the no-spool case
- *     (update_spool_display)
+ *   - the compact `spoolman_no_spool_label` and the wide row's own
+ *     `spoolman_no_spool_wide` line, both of which only branch on `is_wide_`
+ *     in the no-spool case
  *
  * The first two cases use spans that contradict the pixel verdict
  * (`colspan>=2` would land the opposite mode), so an implementation that
@@ -44,6 +44,7 @@
 #include "../test_helpers/scoped_widget_labels.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "panel_widget_size.h"
@@ -62,6 +63,16 @@ constexpr uint32_t kDefaultWhite = 0xE0E0E0;   // ui_spool_canvas.cpp kDefaultCo
 bool color_is(lv_color_t c, uint32_t rgb) {
     return c.red == ((rgb >> 16) & 0xFF) && c.green == ((rgb >> 8) & 0xFF) &&
            c.blue == (rgb & 0xFF);
+}
+
+/// Drawn unless it or an ancestor is hidden.
+bool shown(lv_obj_t* obj) {
+    for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
+        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 } // namespace
@@ -107,31 +118,67 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     AmsState::instance().clear_external_spool_info();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "active_spool no-spool label and material text follow pixels, not spans",
+TEST_CASE_METHOD(LVGLUITestFixture, "active_spool no-spool label follows pixels, not spans",
                  "[widget_size][active_spool][panel_widget]") {
     AmsState::instance().clear_external_spool_info();
 
     PanelWidgetHarness<ActiveSpoolWidget> h(test_screen(), api());
 
     lv_obj_t* no_spool_label = h.child("spoolman_no_spool_label");
-    lv_obj_t* material_label = h.child("spoolman_material");
+    lv_obj_t* no_spool_wide = h.child("spoolman_no_spool_wide");
     REQUIRE(no_spool_label != nullptr);
-    REQUIRE(material_label != nullptr);
+    REQUIRE(no_spool_wide != nullptr);
 
-    // Compact + no spool: label visible, material text blank.
-    CHECK_FALSE(lv_obj_has_flag(no_spool_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(std::string(lv_label_get_text(material_label)).empty());
+    // Compact + no spool: the caption says so.
+    CHECK(shown(no_spool_label));
+    CHECK_FALSE(shown(no_spool_wide));
 
-    // Wide by pixel, contradicting span (colspan=1).
+    // Wide by pixel, contradicting span (colspan=1): the text row says so.
     h.resize(1, 1, w_normal(), h_tall());
-    CHECK(lv_obj_has_flag(no_spool_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(std::string(lv_label_get_text(material_label)) == lv_tr("No Spool"));
+    CHECK_FALSE(shown(no_spool_label));
+    CHECK(shown(no_spool_wide));
 
     // Back to compact by pixel, contradicting span (colspan=3).
     h.resize(3, 3, w_normal() - 1, h_tall() - 1);
-    CHECK_FALSE(lv_obj_has_flag(no_spool_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(std::string(lv_label_get_text(material_label)).empty());
+    CHECK(shown(no_spool_label));
+    CHECK_FALSE(shown(no_spool_wide));
+}
+
+// The wide row's text lines come from the active spool, and an empty brand or
+// weight line leaves no gap.
+TEST_CASE_METHOD(LVGLUITestFixture, "active_spool's wide row names the loaded spool",
+                 "[widget_size][active_spool][panel_widget]") {
+    SlotInfo ext;
+    ext.color_rgb = kTestSpoolColor;
+    ext.material = "PETG";
+    ext.brand = "TestBrand";
+    ext.total_weight_g = 1000.0f;
+    ext.remaining_weight_g = 500.0f;
+    helix::AmsStateTestAccess::seed_external_spool(ext);
+
+    PanelWidgetHarness<ActiveSpoolWidget> h(test_screen(), api());
+    h.resize(1, 1, w_normal(), h_tall());
+
+    lv_obj_t* material = h.child("spoolman_material");
+    lv_obj_t* brand = h.child("spoolman_brand_color");
+    lv_obj_t* weight = h.child("spoolman_weight");
+    REQUIRE(material != nullptr);
+    CHECK(shown(material));
+    CHECK_FALSE(shown(h.child("spoolman_no_spool_wide")));
+    CHECK(std::string(lv_label_get_text(material)) == "PETG");
+    CHECK(shown(brand));
+    CHECK(std::string(lv_label_get_text(brand)).find("TestBrand") != std::string::npos);
+    CHECK(shown(weight));
+    CHECK(std::string(lv_label_get_text(weight)) == "500g / 1000g");
+
+    // A new color, so the widget's spool observer fires.
+    ext.color_rgb = 0x0000FF;
+    ext.total_weight_g = 0.0f;
+    helix::AmsStateTestAccess::seed_external_spool(ext);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK_FALSE(shown(weight));
+
+    AmsState::instance().clear_external_spool_info();
 }
 
 // The #1109 shape, driven through the pixel predicate. A rebuild that
