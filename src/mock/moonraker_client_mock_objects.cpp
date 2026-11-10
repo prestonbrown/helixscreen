@@ -642,6 +642,14 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             if (objects.contains("zmod_color")) {
                 status_obj["zmod_color"] = self->zmod_color_status();
             }
+            // Stock FlashForge driver-latch pins (creator5_zmod persona).
+            for (const char* pin : {"output_pin enable_pin_tmc_x", "output_pin enable_pin_tmc_y"}) {
+                if (objects.contains(pin)) {
+                    if (auto st = self->pa_latch_pin_status(pin); !st.empty()) {
+                        status_obj[pin] = st;
+                    }
+                }
+            }
             // The U1 defect_detection module's stored config.
             if (objects.contains("defect_detection")) {
                 if (auto dd = self->defect_detection_status(); !dd.empty()) {
@@ -970,6 +978,14 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             // Z-Mod's colour registry (creator5_zmod persona).
             if (objects.contains("zmod_color")) {
                 status_obj["zmod_color"] = self->zmod_color_status();
+            }
+            // Stock FlashForge driver-latch pins (creator5_zmod persona).
+            for (const char* pin : {"output_pin enable_pin_tmc_x", "output_pin enable_pin_tmc_y"}) {
+                if (objects.contains(pin)) {
+                    if (auto st = self->pa_latch_pin_status(pin); !st.empty()) {
+                        status_obj[pin] = st;
+                    }
+                }
             }
             // The U1 defect_detection module's stored config.
             if (objects.contains("defect_detection")) {

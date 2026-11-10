@@ -1525,6 +1525,13 @@ stores the slot's Material/HEX: upper-cased when the HEX is one of Z-Mod's 24
 palette colours, snapped to white (`FFFFFF`, palette index 0) when it is not,
 exactly as the firmware does. An unknown `TYPE` is refused with a gcode error.
 
+The persona also carries stock FlashForge's `[pa_adjust]` (a config section with no
+status object) and its two X/Y driver-latch pins, `output_pin enable_pin_tmc_x` and
+`_y`, so the PA calibration screen runs the stock eBoard sweep. `SET_PIN` on either pin
+updates its status, `PA_ACTION` is accepted and ignored, and each `PA_GET` answers
+`// Result is value=<n>` from `HELIX_MOCK_PA_VERDICTS` (a comma list, cycled; default
+`0,9,0,9,0,0,0`, so every sweep's winner is 0.020).
+
 `HELIX_MOCK_ZMOD_AFC=1` swaps the afclite shim's objects for Z-Mod's built-in AFC
 emulation (mod setting `AFC=1`): `AFC`, `AFC_IFS IFS` and `AFC_lane lane1..4`, with
 `CHANGE_TOOL LANE=lane<n+1>` mounting head `n`. Discovery still hands the printer to the

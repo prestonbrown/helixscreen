@@ -181,6 +181,7 @@ translations:
   "A new Print Status screen": "Ein neuer Druckstatus-Bildschirm"
   A newer version of the helper macros is available: 'Eine neuere Version der Hilfsmakros ist verfügbar'
   A picture of your printer: Ein Bild Ihres Druckers
+  A pressure advance run was interrupted. The X/Y drivers were released; home the printer before moving it.: 'Ein Pressure-Advance-Lauf wurde unterbrochen. Die X/Y-Treiber wurden freigegeben; referenzieren Sie den Drucker, bevor Sie ihn bewegen.'
   A print holds the printer.: "Ein Druck belegt den Drucker."
   A print is already running.: Ein Druck läuft bereits.
   A print is in progress - restart still pending: 'Ein Druck läuft - Neustart noch ausstehend'
@@ -4102,6 +4103,7 @@ translations:
   Stopped between Lane and Hub: Zwischen Spur und Hub gestoppt
   Stopped between Spool and Lane: Zwischen Spule und Spur gestoppt
   Stopped drying %s: 'Trocknen gestoppt: %s'
+  Stopping after the current test line.: 'Stoppt nach der aktuellen Testlinie.'
   Stops all motion. Requires firmware restart.: Stoppt alle Bewegung. Erfordert Firmware-Neustart.
   Storage: 'Speicher'
   Storage report: 'Speicherbericht'
@@ -4405,6 +4407,8 @@ translations:
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: Der Drucker ist nicht referenziert. Wenn Sie fortfahren, werden alle Achsen referenziert und der Werkzeugkopf bewegt sich. Stellen Sie sicher, dass das Heizbett frei ist.
   The printer is not ready.: "Der Drucker ist nicht bereit."
   The printer is shut down.: 'Der Drucker ist heruntergefahren.'
+  ? The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool's extruder section of printer.cfg.
+  : 'Der Drucker nutzt diesen Wert bis zum nächsten Klipper-Neustart. Um ihn zu behalten, tragen Sie ihn als pressure_advance im Extruder-Abschnitt dieses Werkzeugs in printer.cfg ein.'
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'Der Drucker wartet, bis die Kammer eine Temperatur erreicht, und nur ein Notaus mit Firmware-Neustart beendet dieses Warten. Der Druck stoppt sofort und kann nicht fortgesetzt werden.'
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: Der Drucker erkennt derzeit kein geladenes Filament. Was möchten Sie tun?

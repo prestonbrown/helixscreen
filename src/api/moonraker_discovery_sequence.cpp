@@ -35,6 +35,7 @@
 #include "moonraker_auth.h"
 #include "moonraker_client.h"
 #include "moonraker_subscription_merge.h"
+#include "pa_calibration_run.h"
 #include "pause_descriptor.h"
 #include "platform_info.h"
 #include "plr_backend.h"
@@ -1419,6 +1420,13 @@ json MoonrakerDiscoverySequence::build_subscription_objects(const PrinterDiscove
     // whatever object stores it; without this the Z-offset row reads 0.000
     // whenever such a printer is idle. See include/z_offset_persistence.h.
     for (const auto& obj : helix::zoffset::required_status_objects(hw)) {
+        subscription_objects[obj] = nullptr;
+    }
+
+    // A pressure-advance run this app drives can leave printer state that only
+    // its restore undoes; the connect step checks these to undo it after a
+    // crash. See include/pa_calibration_run.h.
+    for (const auto& obj : helix::pacal::recovery_status_objects(hw)) {
         subscription_objects[obj] = nullptr;
     }
 

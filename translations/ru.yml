@@ -226,6 +226,7 @@ translations:
   "A new Print Status screen": "Новый экран статуса печати"
   A newer version of the helper macros is available: 'Доступна более новая версия вспомогательных макросов'
   A picture of your printer: Изображение вашего принтера
+  A pressure advance run was interrupted. The X/Y drivers were released; home the printer before moving it.: 'Измерение pressure advance было прервано. Драйверы X/Y освобождены; запаркуйте принтер, прежде чем двигать его.'
   A print holds the printer.: "Принтер занят печатью."
   A print is already running.: Печать уже идёт.
   A print is in progress - restart still pending: 'Идёт печать - перезапуск ещё отложен'
@@ -4148,6 +4149,7 @@ translations:
   Stopped between Lane and Hub: Остановка между каналом и хабом
   Stopped between Spool and Lane: Остановка между катушкой и каналом
   Stopped drying %s: 'Сушка остановлена: %s'
+  Stopping after the current test line.: 'Остановка после текущей тестовой линии.'
   Stops all motion. Requires firmware restart.: Останавливает всё движение. Требуется
     перезапуск прошивки.
   Storage: 'Хранилище'
@@ -4449,6 +4451,8 @@ translations:
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: Принтер не запаркован. Продолжение выполнит парковку всех осей, печатающая головка переместится. Убедитесь, что стол свободен.
   The printer is not ready.: "Принтер не готов."
   The printer is shut down.: 'Принтер выключен.'
+  ? The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool's extruder section of printer.cfg.
+  : 'Принтер использует это значение до перезапуска Klipper. Чтобы сохранить его, добавьте его как pressure_advance в секцию экструдера этого инструмента в printer.cfg.'
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'Принтер ждёт, пока камера достигнет температуры, и прервать это ожидание могут только аварийная остановка и перезапуск прошивки. Печать остановится сразу, продолжить её будет нельзя.'
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: Принтер не обнаруживает загруженный филамент. Что вы хотите сделать?

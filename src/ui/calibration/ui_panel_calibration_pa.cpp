@@ -21,6 +21,7 @@
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "pa_calibration.h"
+#include "pa_calibration_run.h"
 #include "pa_tuning.h"
 #include "preset_materials.h"
 #include "printer_state.h"
@@ -290,16 +291,18 @@ void PACalibrationPanel::on_deactivating(DeactivateReason reason) {
 }
 
 void PACalibrationPanel::before_disconnect() {
+    // The run's restore goes out ahead of the heater off; Klipper runs both
+    // behind whatever command is running.
+    if (run_) {
+        run_->before_disconnect();
+        run_.reset();
+    }
     heat_.before_disconnect();
     if (state_ != HEATING && state_ != MEASURING) {
         cancel_run_timer();
         return;
     }
     stop_heat_tracking();
-    if (pa_cancel_) {
-        pa_cancel_();
-        pa_cancel_ = nullptr;
-    }
     spdlog::info("[{}] Disconnecting mid-run", get_name());
     set_state(IDLE);
     lv_subject_set_int(&progress_, 0);
@@ -542,22 +545,25 @@ void PACalibrationPanel::begin_run() {
 }
 
 void PACalibrationPanel::begin_measure() {
-    auto proc = helix::pacal::procedure_for(get_printer_state().get_discovery(), selected_tool_,
-                                            target_temp_);
-    if (!proc) {
+    const auto& hw = get_printer_state().get_discovery();
+    const auto traits = helix::pacal::traits(hw);
+    if (!traits) {
         abandon_run_heat();
         show_error("This printer cannot measure pressure advance automatically.");
         return;
     }
-    attempts_expected_ = proc->expected_attempts;
+    attempts_expected_ = traits->expected_attempts;
 
-    // The firmware command may set a target of its own from here on. Klipper runs
+    // A firmware command may set a target of its own from here on. Klipper runs
     // one command at a time, so no other client's target can land before it ends
     // and an off waits behind it instead of cooling the nozzle under the firmware.
-    heat_.let_firmware_set(selected_heater());
+    // A run this app drives leaves the heater ours.
+    if (traits->firmware_runs_procedure) {
+        heat_.let_firmware_set(selected_heater());
+    }
 
     set_state(MEASURING);
-    arm_run_timer(static_cast<uint32_t>(proc->timeout_ms) + kMeasureDeadlineGraceMs);
+    arm_run_timer(traits->timeout_ms + kMeasureDeadlineGraceMs);
     phase_start_tick_ms_ = lv_tick_get();
     lv_subject_copy_string(&phase_label_, lv_tr("Measuring"));
     lv_subject_copy_string(&big_, "...");
@@ -566,31 +572,38 @@ void PACalibrationPanel::begin_measure() {
                            lv_tr("The printer extrudes in a corner and repeats until the readings "
                                  "agree. You do not judge anything by eye."));
 
-    spdlog::info("[{}] Measuring via {}: {}", get_name(), proc->provider, proc->start_gcode);
-
     // tok.defer, not queue_update: these fire on the response thread and the
     // guard drops the call if the panel is gone before the main-thread drain.
     auto tok = lifetime_.token();
-    pa_cancel_ = api_->advanced().start_pa_calibrate(
-        *proc,
-        [this, tok](float k) {
-            tok.defer("PACalibrationPanel::on_result", [this, k]() { on_result(k); });
-        },
-        [this, tok](const MoonrakerError& err) {
-            const std::string msg = err.message;
-            tok.defer("PACalibrationPanel::on_error", [this, msg]() { on_error(msg); });
-        },
-        [this, tok](int attempt, int expected, float k_so_far) {
-            tok.defer("PACalibrationPanel::on_attempt", [this, attempt, expected, k_so_far]() {
-                on_attempt(attempt, expected, k_so_far);
-            });
-        });
+    helix::pacal::RunCallbacks callbacks;
+    callbacks.on_result = [this, tok](float k) {
+        tok.defer("PACalibrationPanel::on_result", [this, k]() { on_result(k); });
+    };
+    callbacks.on_error = [this, tok](const std::string& message) {
+        tok.defer("PACalibrationPanel::on_error", [this, message]() { on_error(message); });
+    };
+    callbacks.on_attempt = [this, tok](const helix::pacal::Attempt& attempt) {
+        tok.defer("PACalibrationPanel::on_attempt", [this, attempt]() { on_attempt(attempt); });
+    };
+    run_ = helix::pacal::start_run(*api_, api_->get_client(), hw,
+                                   {selected_tool_, target_temp_, selected_heater()},
+                                   std::move(callbacks));
+    if (!run_) {
+        abandon_run_heat();
+        show_error("This printer cannot measure pressure advance automatically.");
+    }
+}
+
+void PACalibrationPanel::stop_measurement() {
+    if (run_) {
+        run_->stop();
+        run_.reset();
+    }
 }
 
 int PACalibrationPanel::estimate_minutes() const {
-    const auto proc = helix::pacal::procedure_for(get_printer_state().get_discovery(),
-                                                  selected_tool_, target_temp_);
-    return proc ? proc->estimate_minutes : helix::pacal::Procedure{}.estimate_minutes;
+    const auto traits = helix::pacal::traits(get_printer_state().get_discovery());
+    return traits ? traits->estimate_minutes : helix::pacal::Traits{}.estimate_minutes;
 }
 
 void PACalibrationPanel::stop_run(bool user_requested) {
@@ -600,14 +613,17 @@ void PACalibrationPanel::stop_run(bool user_requested) {
     stop_heat_tracking();
 
     if (state_ == MEASURING) {
-        // The command is running and Klipper cannot interrupt it, so the
-        // screen stops waiting and the off is queued behind the firmware.
-        if (pa_cancel_) {
-            pa_cancel_();
-            pa_cancel_ = nullptr;
-        }
+        const auto traits = helix::pacal::traits(get_printer_state().get_discovery());
+        stop_measurement();
+        // A firmware command cannot be interrupted, so the screen stops waiting
+        // and the off is queued behind it. A run this app drives ends after the
+        // step in flight, with the printer's state put back first.
         ToastManager::instance().show(
-            ToastSeverity::INFO, lv_tr("The printer finishes this measurement on its own."), 5000);
+            ToastSeverity::INFO,
+            traits && traits->firmware_runs_procedure
+                ? lv_tr("The printer finishes this measurement on its own.")
+                : lv_tr("Stopping after the current test line."),
+            5000);
         abandon_run_heat();
     } else if (user_requested) {
         // Nothing was sent yet: the heat-up is ours, so it is ours to undo.
@@ -626,7 +642,7 @@ void PACalibrationPanel::on_result(float k) {
     if (state_ != MEASURING) {
         return;
     }
-    pa_cancel_ = nullptr;
+    run_.reset();
     stop_heat_tracking();
 
     result_k_ = k;
@@ -641,11 +657,15 @@ void PACalibrationPanel::on_result(float k) {
     const auto& hw = get_printer_state().get_discovery();
     // Whether the value already lives on the printer decides what the user has
     // left to do with it.
-    const auto proc = helix::pacal::procedure_for(hw, selected_tool_, target_temp_);
+    const auto traits = helix::pacal::traits(hw);
+    const helix::pacal::Kept kept = traits ? traits->kept : helix::pacal::Kept::Nothing;
     lv_subject_copy_string(
         &keep_note_,
-        proc && proc->applies_result
+        kept == helix::pacal::Kept::Permanently
             ? lv_tr("The printer applied this value and keeps it for this tool.")
+        : kept == helix::pacal::Kept::ThisSession
+            ? lv_tr("The printer is using this value until Klipper restarts. To keep it, add it "
+                    "as pressure_advance in this tool's extruder section of printer.cfg.")
             : lv_tr("Copy it into this filament's slicer profile. The printer keeps nothing."));
 
     // The kind lands inside a translated sentence, so it is translated too.
@@ -681,22 +701,23 @@ void PACalibrationPanel::on_error(const std::string& message) {
     if (state_ != MEASURING) {
         return;
     }
-    pa_cancel_ = nullptr;
+    run_.reset();
     stop_heat_tracking();
     finish_run_heat();
     show_error(message);
 }
 
-void PACalibrationPanel::on_attempt(int attempt, int expected, float k_so_far) {
+void PACalibrationPanel::on_attempt(const helix::pacal::Attempt& a) {
     if (state_ != MEASURING) {
         return;
     }
-    attempts_seen_ = attempt;
-    if (expected > 0) {
-        attempts_expected_ = expected;
+    const float k_so_far = a.k_tried;
+    attempts_seen_ = a.index;
+    if (a.expected > 0) {
+        attempts_expected_ = a.expected;
     }
     lv_subject_copy_string(&phase_meta_[kPhaseMeasure],
-                           fmt::format(fmt::runtime(lv_tr("attempt {}")), attempt).c_str());
+                           fmt::format(fmt::runtime(lv_tr("attempt {}")), a.index).c_str());
 
     // The candidate the printer is trying right now. Without it the big
     // readout sits empty for the whole measuring phase and a machine that is
@@ -780,10 +801,7 @@ void PACalibrationPanel::handle_run_timer() {
     }
     spdlog::warn("[{}] Run passed its deadline in state {}", get_name(), static_cast<int>(state_));
     stop_heat_tracking();
-    if (pa_cancel_) {
-        pa_cancel_();
-        pa_cancel_ = nullptr;
-    }
+    stop_measurement();
     abandon_run_heat();
     show_error("The printer did not finish in time, so the run was stopped.");
 }

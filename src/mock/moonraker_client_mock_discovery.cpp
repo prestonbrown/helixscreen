@@ -277,6 +277,10 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back("zmod");
         mock_objects.push_back("zmod_color");
         mock_objects.push_back("save_variables");
+        // Stock firmware's second X/Y driver latch, which its pressure-advance
+        // sweep sets ([pa_adjust] in printer.base.cfg).
+        mock_objects.push_back("output_pin enable_pin_tmc_x");
+        mock_objects.push_back("output_pin enable_pin_tmc_y");
         // Z-Mod's AFC-shaped objects, which exist so Fluidd/Mainsail draw an
         // AFC panel for the C5's heads: the built-in emulation's lane1..4 under
         // HELIX_MOCK_ZMOD_AFC, else Z-Mod 1.7.4's afclite shim (names from
@@ -673,6 +677,11 @@ void MoonrakerClientMock::populate_capabilities() {
                                          {"horizontal_move_z", "10"}};
     // Provide kinematics so bed_moves detection works
     mock_config["printer"] = {{"kinematics", kinematics()}};
+    // [pa_adjust] has no status object either: stock FlashForge firmware's
+    // PA_ACTION / PA_GET forwarder, which the creator5_zmod persona carries.
+    if (printer_type_ == PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
+        mock_config["pa_adjust"] = json::object();
+    }
     // Add gcode_macro entries for param detection (shared with configfile.config response)
     mock_config.merge_patch(mock_internal::get_mock_gcode_macro_config());
     mock_config.merge_patch(skip_wrapper_sections());

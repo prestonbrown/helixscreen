@@ -21,14 +21,17 @@
 #include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "temperature_controller.h"
 
 #include <array>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::ui::get_global_pa_cal_panel;
 using helix::ui::PACalibrationPanel;
@@ -69,7 +72,9 @@ class PACalPanelFixture : public LVGLUITestFixture {
 
 class PAHeaterFixture : public PACalPanelFixture {
   protected:
-    PAHeaterFixture() : client_(MoonrakerClientMock::PrinterType::VORON_24) {
+    explicit PAHeaterFixture(
+        MoonrakerClientMock::PrinterType type = MoonrakerClientMock::PrinterType::VORON_24)
+        : client_(type) {
         auto& state = get_printer_state();
         state.temperature_state().init_extruders({"extruder"});
         state.set_klippy_state_sync(helix::KlippyState::READY);
@@ -126,14 +131,19 @@ class PAHeaterFixture : public PACalPanelFixture {
         client_.clear_gcode_script_history();
     }
 
-    [[nodiscard]] bool heater_off_sent() const {
-        for (const auto& script : client_.gcode_script_history()) {
-            if (script.find("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0") !=
-                std::string::npos) {
-                return true;
+    /// Index of the first script containing `needle`, or -1.
+    [[nodiscard]] int script_index(const char* needle) const {
+        const auto& history = client_.gcode_script_history();
+        for (size_t i = 0; i < history.size(); ++i) {
+            if (history[i].find(needle) != std::string::npos) {
+                return static_cast<int>(i);
             }
         }
-        return false;
+        return -1;
+    }
+
+    [[nodiscard]] bool heater_off_sent() const {
+        return script_index("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0") >= 0;
     }
 
     MoonrakerClientMock client_;
@@ -141,7 +151,43 @@ class PAHeaterFixture : public PACalPanelFixture {
     std::unique_ptr<helix_test::ScopedSharedResource<helix::TemperatureController>> controller_;
 };
 
+/// A stock Z-Mod Creator 5, whose sweep this app drives.
+class PASweepPanelFixture : public PAHeaterFixture {
+  protected:
+    PASweepPanelFixture()
+        : PAHeaterFixture(MoonrakerClientMock::PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
+        helix::PrinterDiscovery hw;
+        const std::vector<std::string> objects = {"extruder", "output_pin enable_pin_tmc_x",
+                                                  "output_pin enable_pin_tmc_y"};
+        hw.parse_objects(objects);
+        hw.set_printer_objects(objects);
+        hw.parse_config_keys(nlohmann::json{{"pa_adjust", nlohmann::json::object()}});
+        get_printer_state().set_hardware(std::move(hw));
+    }
+    ~PASweepPanelFixture() override {
+        panel().before_disconnect();
+        settle();
+        get_printer_state().set_hardware(helix::PrinterDiscovery{});
+    }
+};
+
 } // namespace
+
+TEST_CASE_METHOD(PASweepPanelFixture,
+                 "PA calibration: a driven sweep restores the printer before the heater off",
+                 "[pa_cal][pa_sweep]") {
+    begin_heating();
+    feed_nozzle(run_target(), run_target());
+    REQUIRE(wait_until([this]() { return panel().get_state() == PACalibrationPanel::COMPLETE; },
+                       20000));
+    settle();
+    const int restore = script_index("RESTORE_GCODE_STATE NAME=helix_pa_sweep");
+    const int off = script_index("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0");
+    REQUIRE(restore >= 0);
+    REQUIRE(off >= 0);
+    CHECK(restore < off);
+    CHECK(script_index("SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.020000") >= 0);
+}
 
 TEST_CASE_METHOD(PACalPanelFixture, "PA calibration: the screensaver does not stop a measurement",
                  "[pa_cal][1516]") {

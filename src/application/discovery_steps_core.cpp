@@ -9,6 +9,7 @@
 #include "ui_panel_filament.h"
 #include "ui_panel_print_select.h"
 #include "ui_print_start_controller.h"
+#include "ui_toast_manager.h"
 
 #include "app_globals.h"
 #include "config.h"
@@ -17,6 +18,7 @@
 #include "hardware_role_registry.h"
 #include "json_utils.h"
 #include "light_button_config.h"
+#include "pa_calibration_run.h"
 #include "printer_detector.h"
 #include "printer_fan_state.h"
 #include "printer_print_state.h"
@@ -89,6 +91,38 @@ void zoffset_persistence_step(DiscoveryContext& ctx) {
             // synchronised.
             ui::queue_update("zoffset_release_claim",
                              []() { zoffset::release_persistence_enable(Config::get_instance()); });
+        },
+        0, /*silent=*/true, /*on_queued=*/nullptr,
+        /*caller_surfaces_errors=*/false);
+}
+
+// Undo what an interrupted pressure-advance run left on the printer. A run this
+// app drives can change printer state that only its own restore puts back (the
+// stock FlashForge sweep disables the X/Y drivers), and a crash or a lost link
+// skips that restore. What to look for and what to send live behind
+// pacal::recovery_gcode() in include/pa_calibration_run.h.
+void pa_run_recovery_step(DiscoveryContext& ctx) {
+    if (ctx.print_active) {
+        return;
+    }
+    const std::string fix = pacal::recovery_gcode(ctx.hw, ctx.status);
+    if (fix.empty()) {
+        return;
+    }
+    spdlog::warn("[PACalibration] An interrupted run left the printer changed; undoing it");
+    ctx.api.execute_gcode(
+        fix,
+        []() {
+            ui::queue_update("discovery_steps::pa_run_recovery_step", []() {
+                ToastManager::instance().show(
+                    ToastSeverity::WARNING,
+                    lv_tr("A pressure advance run was interrupted. The X/Y drivers were "
+                          "released; home the printer before moving it."),
+                    8000);
+            });
+        },
+        [](const MoonrakerError& err) {
+            spdlog::error("[PACalibration] Undoing the interrupted run failed: {}", err.message);
         },
         0, /*silent=*/true, /*on_queued=*/nullptr,
         /*caller_surfaces_errors=*/false);
@@ -219,6 +253,7 @@ void settle_light_buttons_step(DiscoveryContext&) {
 constexpr DiscoveryStep kCoreSteps[] = {
     {"set_hardware", false, set_hardware_step, nullptr},
     {"zoffset_persistence", false, zoffset_persistence_step, nullptr},
+    {"pa_run_recovery", false, pa_run_recovery_step, nullptr},
     {"temp_graph_seed", false, temp_graph_seed_step, nullptr},
     {"status_dispatch", false, status_dispatch_step, "post_status_dispatch"},
     {"software_versions", false, software_versions_step, nullptr},

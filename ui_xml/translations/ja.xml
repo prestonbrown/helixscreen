@@ -171,6 +171,7 @@
   <translation tag="A new Print Status screen" ja="新しい印刷ステータス画面"/>
   <translation tag="A newer version of the helper macros is available" ja="ヘルパーマクロの新しいバージョンが利用可能です"/>
   <translation tag="A picture of your printer" ja="プリンターの画像"/>
+  <translation tag="A pressure advance run was interrupted. The X/Y drivers were released; home the printer before moving it." ja="プレッシャーアドバンスの測定が中断されました。X/Yドライバーを解放しました。動かす前にプリンターをホーミングしてください。"/>
   <translation tag="A print holds the printer." ja="印刷中のためプリンターを使用できません。"/>
   <translation tag="A print is already running." ja="すでに印刷中です。"/>
   <translation tag="A print is in progress - restart still pending" ja="印刷中です - 再起動は保留中"/>
@@ -3770,6 +3771,7 @@
   <translation tag="Stopped between Spool and Lane" ja="スプールとレーンの間で停止"/>
   <translation tag="Stopped drying %s" ja="乾燥を停止しました: %s"/>
   <translation tag="Stopped. Restart Moonraker to start it again." ja="停止しました。Moonrakerを再起動すると再開します。"/>
+  <translation tag="Stopping after the current test line." ja="現在のテストラインの後で停止します。"/>
   <translation tag="Stops all motion. Requires firmware restart." ja="すべての動作を停止します。ファームウェアの再起動が必要です。"/>
   <translation tag="Storage" ja="ストレージ"/>
   <translation tag="Storage report" ja="ストレージレポート"/>
@@ -4035,6 +4037,7 @@
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." ja="プリンターがホーミングされていません。続行すると全軸がホーミングされ、ツールヘッドが移動します。ベッドに物がないことを確認してください。"/>
   <translation tag="The printer is not ready." ja="プリンターの準備ができていません。"/>
   <translation tag="The printer is shut down." ja="プリンターはシャットダウンしています。"/>
+  <translation tag="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg." ja="この値はKlipperが再起動するまで使われます。保持するには、printer.cfgのこのツールのエクストルーダーセクションにpressure_advanceとして追加してください。"/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." ja="プリンターはチャンバーが温度に達するのを待っており、この待機を終わらせるには緊急停止とファームウェアの再起動しかありません。印刷はすぐに停止し、再開できません。"/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" ja="プリンターは現在フィラメントが装填されていることを検出していません。どうしますか？"/>
   <translation tag="The printer kept printing after the cancel." ja="キャンセル後もプリンターは印刷を続けています。"/>

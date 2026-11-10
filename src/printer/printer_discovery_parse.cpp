@@ -903,6 +903,9 @@ void PrinterDiscovery::parse_config_keys(const nlohmann::json& config) {
     if (config.contains("spoollink")) {
         has_spoollink_ = true;
     }
+    if (config.contains("pa_adjust")) {
+        has_pa_adjust_ = true;
+    }
     // [indx] on Kalico may have no get_status(), so the configfile section is
     // the only sign of it, and it arrives after parse_objects() registered the
     // filament systems.
@@ -1118,6 +1121,7 @@ void PrinterDiscovery::clear() {
     has_indx_ = false;
     has_save_variables_ = false;
     has_spoollink_ = false;
+    has_pa_adjust_ = false;
     has_chamber_heater_ = false;
     has_chamber_sensor_ = false;
     chamber_sensor_name_.clear();

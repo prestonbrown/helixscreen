@@ -21,6 +21,7 @@
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/pa_calibration.h"
+#include "../../include/pa_calibration_run.h"
 #include "../../include/printer_discovery.h"
 #include "../../include/printer_state.h"
 #include "../../lvgl/lvgl.h"
@@ -341,4 +342,191 @@ TEST_CASE_METHOD(PACalibrateTestFixture, "PA collector completes exactly once", 
     REQUIRE_FALSE(result_received_.load());
     REQUIRE_FALSE(error_received_.load());
     REQUIRE(captured_k_ == Catch::Approx(0.0412f).margin(0.00001f));
+}
+
+// ============================================================================
+// Stock FlashForge eBoard sweep: detection and the run driver
+// ============================================================================
+
+namespace {
+
+/// A stock or Z-Mod Creator 5: [pa_adjust] in the config, the two latch pins
+/// on the object list.
+PrinterDiscovery stock_creator5(std::vector<std::string> extra = {}) {
+    std::vector<std::string> objects = {"extruder", "output_pin enable_pin_tmc_x",
+                                        "output_pin enable_pin_tmc_y"};
+    objects.insert(objects.end(), extra.begin(), extra.end());
+    PrinterDiscovery hw = with_objects(objects);
+    hw.parse_config_keys(nlohmann::json{{"pa_adjust", nlohmann::json::object()}});
+    return hw;
+}
+
+} // namespace
+
+TEST_CASE("PA calibration recognises the stock FlashForge sweep by config and latch pins",
+          "[pa_calibration]") {
+    const PrinterDiscovery hw = stock_creator5();
+    REQUIRE(pacal::is_supported(hw));
+    REQUIRE(pacal::is_per_tool(hw));
+    const auto t = pacal::traits(hw).value();
+    CHECK(t.kept == pacal::Kept::ThisSession);
+    CHECK_FALSE(t.firmware_runs_procedure);
+    // No single command to send: the sweep is driven step by step.
+    CHECK_FALSE(pacal::procedure_for(hw, 0, 220).has_value());
+    CHECK(pacal::recovery_status_objects(hw) ==
+          std::vector<std::string>{"output_pin enable_pin_tmc_x", "output_pin enable_pin_tmc_y"});
+
+    // [pa_adjust] alone, without the latch the sweep needs, is not enough.
+    PrinterDiscovery no_pins = with_objects({"extruder"});
+    no_pins.parse_config_keys(nlohmann::json{{"pa_adjust", nlohmann::json::object()}});
+    CHECK_FALSE(pacal::is_supported(no_pins));
+    // Nor are the pins without [pa_adjust].
+    CHECK_FALSE(pacal::is_supported(
+        with_objects({"extruder", "output_pin enable_pin_tmc_x", "output_pin enable_pin_tmc_y"})));
+}
+
+TEST_CASE("PA calibration prefers the Klipper4FlashForge command over the stock sweep",
+          "[pa_calibration]") {
+    const PrinterDiscovery hw = stock_creator5({"ff_pa"});
+    const auto t = pacal::traits(hw).value();
+    CHECK(t.firmware_runs_procedure);
+    CHECK(t.kept == pacal::Kept::Nothing);
+    REQUIRE(pacal::procedure_for(hw, 1, 220).has_value());
+    CHECK(pacal::recovery_status_objects(hw).empty());
+
+    CHECK(pacal::traits(u1())->kept == pacal::Kept::Permanently);
+    CHECK(pacal::traits(u1())->firmware_runs_procedure);
+    CHECK(pacal::recovery_status_objects(u1()).empty());
+}
+
+TEST_CASE("PA recovery releases a latch an interrupted sweep left set", "[pa_calibration]") {
+    const PrinterDiscovery hw = stock_creator5();
+    const nlohmann::json clean = {{"output_pin enable_pin_tmc_x", {{"value", 0.0}}},
+                                  {"output_pin enable_pin_tmc_y", {{"value", 0.0}}}};
+    CHECK(pacal::recovery_gcode(hw, clean).empty());
+    CHECK(pacal::recovery_gcode(hw, nlohmann::json::object()).empty());
+
+    const nlohmann::json stuck = {{"output_pin enable_pin_tmc_x", {{"value", 1.0}}},
+                                  {"output_pin enable_pin_tmc_y", {{"value", 1.0}}}};
+    const std::string fix = pacal::recovery_gcode(hw, stuck);
+    CHECK(fix.find("SET_PIN PIN=enable_pin_tmc_x VALUE=0.00") != std::string::npos);
+    CHECK(fix.find("M84") != std::string::npos);
+    // A printer without the sweep never gets that gcode, whatever its status says.
+    CHECK(pacal::recovery_gcode(u1(), stuck).empty());
+}
+
+class PaSweepRunFixture : public LVGLTestFixture {
+  public:
+    PaSweepRunFixture() : mock_client_(MoonrakerClientMock::PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
+        state_.init_subjects(false);
+        state_.set_klippy_state_sync(helix::KlippyState::READY);
+        api_ = std::make_unique<MoonrakerAPI>(mock_client_, state_);
+        hw_ = stock_creator5();
+        mock_client_.set_pa_verdicts({0, 9, 0, 9, 0, 0, 0}); // 0.020 wins every sweep
+    }
+    ~PaSweepRunFixture() override {
+        run_.reset();
+        api_.reset();
+    }
+
+    void start() {
+        pacal::RunCallbacks cb;
+        cb.on_result = [this](float k) {
+            k_ = k;
+            done_.store(true);
+        };
+        cb.on_error = [this](const std::string& m) {
+            error_ = m;
+            done_.store(true);
+        };
+        cb.on_attempt = [this](const pacal::Attempt& a) {
+            attempts_.push_back(a);
+            if (at_attempt_ && static_cast<int>(attempts_.size()) == at_attempt_n_) {
+                at_attempt_();
+            }
+        };
+        run_ = pacal::start_run(*api_, mock_client_, hw_, {0, 220, "extruder"}, std::move(cb));
+        REQUIRE(run_);
+    }
+
+    std::vector<std::string> scripts() const {
+        return mock_client_.gcode_script_history();
+    }
+
+    bool sent(const std::string& needle) const {
+        for (const auto& s : scripts()) {
+            if (s.find(needle) != std::string::npos) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    float pin(const char* object) const {
+        return mock_client_.pa_latch_pin_status(object).value("value", -1.f);
+    }
+
+    MoonrakerClientMock mock_client_;
+    PrinterState state_;
+    std::unique_ptr<MoonrakerAPI> api_;
+    PrinterDiscovery hw_;
+    std::shared_ptr<pacal::Run> run_;
+    std::atomic<bool> done_{false};
+    /// Runs inside the Nth attempt callback, as a tap on Stop mid-run would.
+    std::function<void()> at_attempt_;
+    int at_attempt_n_ = 0;
+    float k_ = 0.f;
+    std::string error_;
+    std::vector<pacal::Attempt> attempts_;
+};
+
+TEST_CASE_METHOD(PaSweepRunFixture, "PA sweep run measures, restores and applies the result",
+                 "[pa_sweep]") {
+    start();
+    REQUIRE(wait_until([this]() { return done_.load(); }, 20000));
+    INFO("error: " << error_);
+    CHECK(error_.empty());
+    CHECK(k_ == Catch::Approx(0.020f));
+    // Three sweeps of seven lines, each judged.
+    REQUIRE(attempts_.size() == 21);
+    CHECK(attempts_[1].verdict == pacal::Verdict::Pass);
+    CHECK(attempts_[0].verdict == pacal::Verdict::Fail);
+    CHECK(attempts_[2].k_tried == Catch::Approx(0.015f));
+    // The latch is released and the result installed for the session.
+    CHECK(pin("output_pin enable_pin_tmc_x") == 0.f);
+    CHECK(pin("output_pin enable_pin_tmc_y") == 0.f);
+    CHECK(sent("SET_KINEMATIC_POSITION X="));
+    CHECK(scripts().back() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.020000");
+}
+
+TEST_CASE_METHOD(PaSweepRunFixture, "PA sweep run stopped mid-sweep restores and reports nothing",
+                 "[pa_sweep]") {
+    at_attempt_n_ = 3;
+    at_attempt_ = [this]() { run_->stop(); };
+    start();
+    REQUIRE(wait_until([this]() { return sent("RESTORE_GCODE_STATE NAME=helix_pa_sweep"); }));
+    process_lvgl(200);
+    CHECK_FALSE(done_.load());
+    CHECK(attempts_.size() == 3);
+    CHECK(pin("output_pin enable_pin_tmc_x") == 0.f);
+    CHECK(pin("output_pin enable_pin_tmc_y") == 0.f);
+    CHECK_FALSE(sent("SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.020000"));
+}
+
+TEST_CASE_METHOD(PaSweepRunFixture, "PA sweep run sends the restore at once on disconnect",
+                 "[pa_sweep]") {
+    float latched_at_disconnect = -1.f;
+    at_attempt_n_ = 2;
+    at_attempt_ = [this, &latched_at_disconnect]() {
+        latched_at_disconnect = pin("output_pin enable_pin_tmc_x");
+        run_->before_disconnect();
+    };
+    start();
+    REQUIRE(wait_until(
+        [this]() { return !attempts_.empty() && pin("output_pin enable_pin_tmc_y") == 0.f; }));
+    CHECK(latched_at_disconnect == 1.f);
+    CHECK(sent("SET_VELOCITY_LIMIT ACCEL=10000 SQUARE_CORNER_VELOCITY=5"));
+    process_lvgl(200);
+    CHECK_FALSE(done_.load());
+    CHECK(attempts_.size() == 2);
 }
