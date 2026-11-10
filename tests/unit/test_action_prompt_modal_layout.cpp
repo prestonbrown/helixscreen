@@ -95,7 +95,11 @@ class ActionPromptLayoutFixture : public LVGLUITestFixture {
 TEST_CASE_METHOD(ActionPromptLayoutFixture, "ActionPromptModal: 4 regular buttons fit on one row",
                  "[action_prompt][layout][ui_integration]") {
     auto data = make_regular_prompt(4);
+    // A title past the title's 511 bytes is cut before a 2-byte character, never inside it.
+    data.title = std::string(510, 'a') + "\xC3\xA9";
     REQUIRE(modal_.show_prompt(test_screen(), data));
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(modal_.dialog(), "dialog_title"))) ==
+          std::string(510, 'a'));
 
     // Force a synchronous layout pass on the whole tree so geometry settles.
     lv_obj_update_layout(test_screen());

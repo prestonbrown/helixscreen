@@ -10,6 +10,7 @@
 
 #include "color_utils.h"
 #include "core/static_subject_registry.h"
+#include "core/text_io.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "panel_widget_size.h"
 #include "sound_manager.h"
@@ -313,7 +314,10 @@ void ActionPromptModal::populate_content() {
     // duplicate-title suppression looks up (#1389). The red error icon shows only for
     // severity "error"; both are set on every show, since the subjects outlive one.
     auto& subjects = prompt_subjects();
-    lv_subject_copy_string(&subjects.title, prompt_data_.title.c_str());
+    // A title longer than the buffer is cut whole characters short, never mid-character.
+    const std::string title(
+        text_io::utf8_prefix(prompt_data_.title, sizeof(subjects.title_buf) - 1));
+    lv_subject_copy_string(&subjects.title, title.c_str());
     lv_subject_set_int(&subjects.error, prompt_data_.severity == "error" ? 1 : 0);
     lv_subject_set_int(&subjects.has_text, prompt_data_.text_lines.empty() ? 0 : 1);
 
