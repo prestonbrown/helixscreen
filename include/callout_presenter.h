@@ -87,10 +87,9 @@ class CalloutPresenter {
     /// lv_line keeps the pointer it is given, so each kind's points live here.
     std::array<std::array<lv_point_precise_t, 3>, kCalloutKindCount> line_pts_{};
     bool image_changed_ = false;
-    /// The plate glow's last geometry, so a relayout that leaves it in place
-    /// does not re-render the mask.
-    std::array<CalloutPoint, 4> plate_quad_{};
-    int plate_rise_ = -1;
+    /// Each glow's last geometry, so a relayout that leaves it in place does
+    /// not re-render its mask.
+    std::array<uint32_t, kCalloutKindCount> glow_key_{};
 };
 
 } // namespace helix::ui

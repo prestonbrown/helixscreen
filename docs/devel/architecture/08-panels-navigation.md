@@ -209,7 +209,7 @@ The picture and chips are placed by the same engine as the home printer image, `
 | `Docked` | untagged image or custom photo | Chips line the free band or bottom edge; no leaders, no glows. |
 | `ImageOnly` | one grid cell, or the area is shorter than three chip heights | The picture alone. |
 
-Leaders are dotted and have three points: the part's point, an elbow, and the chip's inner edge. The first segment runs at 45 degrees (steeper when the chip is close), the last is always horizontal into a side-band chip (`callout_detail::leader_elbow`). Glows mark only active regions: strong while a heater climbs, a fan spins or the light is on, soft otherwise.
+Leaders are dotted and have three points: the part's point, an elbow, and the chip's inner edge. The first segment runs at 45 degrees (steeper when the chip is close), the last is always horizontal into a side-band chip (`callout_detail::leader_elbow`). Glows mark only active regions: strong while a fan spins, a nozzle climbs or the light is on, soft otherwise. The bed's plate and the chamber glow by how hot they actually are (`bed_glow_level()`, `chamber_glow_level()`, `include/plate_glow.h`), and both breathe while climbing (`heat_glow_update_pulse()`). Chamber heat and the light are confined to the printer's tagged `windows` (`assets/images/printers/regions.json`, drawn by `render_region_glow()`), so nothing spills onto the outside of the machine; an image with no windows gets a soft disc. Heat wins over the light where both would show. The home widget draws the bed and chamber glows only.
 
 Three rules keep the picture still and the chips readable:
 

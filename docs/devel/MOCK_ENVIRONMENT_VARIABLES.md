@@ -1660,6 +1660,18 @@ Force the K2 spaghetti-detection source's capability probe, so the Settings > Sa
 HELIX_MOCK_DETECTION_CAPABLE=1 ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_CHAMBER_TARGET`
+
+Start the mock's chamber heater at this target, in whole degrees C, as if it had been set
+before the screen connected. The simulated chamber climbs toward it at its usual rate, so a
+hot chamber (its chip, its glow over the printer picture's windows) shows up without
+driving the UI. It needs a printer whose mock has a chamber heater and sensor:
+
+```bash
+HELIX_MOCK_OBJECTS="temperature_sensor chamber_temp heater_generic chamber_heater" \
+  HELIX_MOCK_CHAMBER_TARGET=60 ./build/bin/helix-screen --test --sim-speed 6 -vv
+```
+
 ### `HELIX_MOCK_DRAGONBREATH_FAULT`
 
 Latch a fault into every synthesized dragonbreath status frame — the diagnostics object reports `fault: true` with a `fault_reason` instead of the nominal healthy payload. Pairs with the `HELIX_MOCK_OBJECTS` dragonbreath trio to exercise fault UI paths without hardware.

@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "ui_plate_glow.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "callout_presenter.h"
+#include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 
 #include "../catch_amalgamated.hpp"
@@ -174,6 +177,7 @@ TEST_CASE_METHOD(PresenterFixture, "the bed glow re-renders only when its plate 
     parts.image = image;
     auto bed = chip(CalloutKind::Bed, true);
     bed.glow = lv_image_create(area);
+    bed.glowing = true;
     parts.chips = {bed};
     const ImageRegions r = k1c_regions();
     CalloutPresenter presenter;
@@ -198,5 +202,77 @@ TEST_CASE_METHOD(PresenterFixture, "the bed glow re-renders only when its plate 
         parts.chips[0].glow = lv_image_create(area);
         presenter.apply(parts, &r, 1601, 1204, config());
         CHECK(lv_image_get_src(parts.chips[0].glow) != nullptr);
+    }
+    SECTION("a part that is not glowing draws no mask") {
+        parts.chips[0].glow = lv_image_create(area);
+        parts.chips[0].glowing = false;
+        presenter.apply(parts, &r, 1601, 1204, config());
+        CHECK(lv_image_get_src(parts.chips[0].glow) == nullptr);
+    }
+}
+
+TEST_CASE_METHOD(PresenterFixture, "a heat glow breathes only while climbing, shown and animated",
+                 "[callout_presenter]") {
+    using helix::ui::temperature::HeatState;
+    auto& display = DisplaySettingsManager::instance();
+    const bool animations = display.get_animations_enabled();
+    display.set_animations_enabled(true);
+    lv_obj_t* glow = lv_image_create(area);
+    const auto pulsing = [&] { return lv_anim_get(glow, nullptr) != nullptr; };
+
+    helix::ui::heat_glow_update_pulse(glow, HeatState::Heating, true);
+    CHECK(pulsing());
+    helix::ui::heat_glow_update_pulse(glow, HeatState::Heating, false);
+    CHECK_FALSE(pulsing());
+    helix::ui::heat_glow_update_pulse(glow, HeatState::AtTemp, true);
+    CHECK_FALSE(pulsing());
+    display.set_animations_enabled(false);
+    helix::ui::heat_glow_update_pulse(glow, HeatState::Heating, true);
+    CHECK_FALSE(pulsing());
+    display.set_animations_enabled(animations);
+}
+
+TEST_CASE_METHOD(PresenterFixture, "the chamber glow fills its windows, or a disc without them",
+                 "[callout_presenter]") {
+    CalloutPresenter::Parts parts;
+    parts.area = area;
+    parts.image = image;
+    auto chamber = chip(CalloutKind::Chamber, true);
+    chamber.glow = lv_image_create(area);
+    chamber.glowing = true;
+    parts.chips = {chamber};
+    ImageRegions r = k1c_regions();
+    r.chamber = NormPoint{0.5f, 0.5f};
+    CalloutPresenter presenter;
+
+    const auto drawn_w = [&] { return lv_obj_get_style_width(chamber.glow, LV_PART_MAIN); };
+    const auto drawn_h = [&] { return lv_obj_get_style_height(chamber.glow, LV_PART_MAIN); };
+
+    SECTION("no windows: a square disc on the chamber's point") {
+        presenter.apply(parts, &r, 1601, 1204, config());
+        REQUIRE(lv_image_get_src(chamber.glow) != nullptr);
+        CHECK(drawn_w() == drawn_h());
+        CHECK(drawn_w() > 0);
+    }
+    SECTION("windows: the mask spans them, and a moved window redraws it") {
+        r.windows.push_back({{NormPoint{0.1f, 0.1f}, NormPoint{0.9f, 0.1f}, NormPoint{0.9f, 0.4f},
+                              NormPoint{0.1f, 0.4f}}});
+        presenter.apply(parts, &r, 1601, 1204, config());
+        const void* const first = lv_image_get_src(chamber.glow);
+        REQUIRE(first != nullptr);
+        CHECK(drawn_w() > drawn_h());
+
+        presenter.apply(parts, &r, 1601, 1204, config());
+        CHECK(lv_image_get_src(chamber.glow) == first);
+
+        r.windows[0][2].y = 0.6f;
+        presenter.apply(parts, &r, 1601, 1204, config());
+        const void* const second = lv_image_get_src(chamber.glow);
+        CHECK(second != first);
+
+        r.cutouts.push_back({{NormPoint{0.4f, 0.2f}, NormPoint{0.6f, 0.2f}, NormPoint{0.6f, 0.3f},
+                              NormPoint{0.4f, 0.3f}}});
+        presenter.apply(parts, &r, 1601, 1204, config());
+        CHECK(lv_image_get_src(chamber.glow) != second);
     }
 }

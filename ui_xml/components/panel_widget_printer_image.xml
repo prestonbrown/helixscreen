@@ -43,16 +43,15 @@
               clickable="false" ignore_layout="true">
         <bind_flag_if_eq subject="printer_callout_mode" flag="hidden" ref_value="0"/>
 
-        <!-- Under the chips, so lines and glow draw beneath them. The plate's
-             heat: its level (callout_bed_glow_level, from the bed's temperature)
-             sets the strength. Docked (2) means untagged, so it has no plate. -->
-        <plate_glow name="callout_bed_glow" style_image_recolor="#warning" style_image_recolor_opa="255">
-          <style name="styles.plate_glow_warm"/>
-          <bind_style_if_eq name="styles.plate_glow_hot" subject="callout_bed_glow_level" ref_value="2"/>
-          <bind_style_if_eq name="styles.plate_glow_very_hot" subject="callout_bed_glow_level" ref_value="3"/>
-          <bind_flag_if cond="callout_bed_glow_level eq 0 or printer_callout_mode eq 0 or printer_callout_mode eq 2"
-                        flag="hidden"/>
-        </plate_glow>
+        <!-- Under the chips, so lines and glow draw beneath them. The plate's and
+             the chamber's heat: the level, from the temperature, sets the strength.
+             Docked (2) means untagged, so there is nothing to draw them on. -->
+        <heat_glow name="callout_bed_glow"
+                   level_subject="callout_bed_glow_level"
+                   hidden_when="callout_bed_glow_level eq 0 or printer_callout_mode eq 0 or printer_callout_mode eq 2"/>
+        <heat_glow name="callout_chamber_glow"
+                   color="#danger" level_subject="callout_chamber_glow_level"
+                   hidden_when="callout_chamber_glow_level eq 0 or printer_callout_mode eq 0 or printer_callout_mode eq 2"/>
         <leader_line name="callout_line_nozzle" style_line_width="1" style_line_color="#text_muted">
           <style name="styles.leader_dotted"/>
           <bind_flag_if cond="printer_callout_mode lt 3 or callout_nozzle_shown eq 0" flag="hidden"/>

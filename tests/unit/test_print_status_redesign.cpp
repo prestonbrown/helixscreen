@@ -1226,12 +1226,41 @@ TEST_CASE_METHOD(Landscape800, "a chip the phase sheds is never placed without r
     clear_all_eight_chips(*this);
 }
 
+TEST_CASE_METHOD(Landscape800, "a warm chamber's glow takes over from the light's",
+                 "[print_status]") {
+    auto& ctrl = helix::led::LedController::instance();
+    helix::led::LedStripInfo strip;
+    strip.id = strip.name = "neopixel chamber_light";
+    strip.backend = helix::led::LedBackendType::NATIVE;
+    strip.supports_color = true;
+    ctrl.native().add_strip(strip);
+    ctrl.update_from_status({{"neopixel chamber_light", {{"color_data", {{1.0, 1.0, 1.0, 0.0}}}}}});
+    set_int(lv_xml_get_subject(nullptr, "led_controllable"), 1);
+    set_int(state().capabilities_state().subject(Capability::HasChamber), 1);
+    auto& temps = state().temperature_state();
+    set_int(temps.get_chamber_temp_subject(), 250);
+    settle();
+    settle();
+    REQUIRE(subject_int("ps_chip_light_tone") == static_cast<int>(ChipTone::Active));
+    CHECK(subject_int("ps_glow_light") == 1);
+    CHECK(subject_int("ps_glow_chamber") == 0);
+
+    set_int(temps.get_chamber_temp_subject(), 450);
+    settle();
+    settle();
+    CHECK(subject_int("ps_glow_chamber") == 2);
+    CHECK(subject_int("ps_glow_light") == 0);
+
+    set_int(state().capabilities_state().subject(Capability::HasChamber), 0);
+    set_int(lv_xml_get_subject(nullptr, "led_controllable"), 0);
+}
+
 TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's subjects",
                  "[print_status]") {
     const char* keys[] = {"nozzle",     "bed",     "chamber", "part_fan",
                           "hotend_fan", "aux_fan", "light",   "speed_flow"};
-    const char* colors[] = {nullptr, nullptr, nullptr,   "info",
-                            "info",  "info",  "warning", "warning"};
+    const char* colors[] = {nullptr, "warning", "danger",  "info",
+                            "info",  "info",    "warning", "warning"};
     const auto subj = [](const std::string& name) {
         lv_subject_t* s = lv_xml_get_subject(nullptr, name.c_str());
         REQUIRE(s != nullptr);
@@ -1255,9 +1284,9 @@ TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's
         INFO(k);
         lv_obj_t* glow = obj("ps_glow_" + k);
         lv_obj_t* line = obj("ps_line_" + k);
-        // A heater glow is painted from its heat state, not from the markup.
+        // The nozzle's glow is painted from its heat state, not from the markup.
         if (colors[i])
-            CHECK(lv_color_eq(lv_obj_get_style_bg_color(glow, LV_PART_MAIN),
+            CHECK(lv_color_eq(lv_obj_get_style_image_recolor(glow, LV_PART_MAIN),
                               theme_manager_get_color(colors[i])));
         set_int(subj("ps_glow_" + k), 1);
         set_int(subj("ps_line_" + k), 1);
@@ -1266,16 +1295,16 @@ TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's
             CHECK(hidden(obj(std::string("ps_glow_") + other)) == (k != other));
             CHECK(hidden(obj(std::string("ps_line_") + other)) == (k != other));
         }
-        if (k == "bed") {
-            // The plate glow's strength is its heat level, not the chip's tone.
+        if (k == "bed" || k == "chamber") {
+            // These glows' strength is their heat level, not the chip's tone.
             const int warm = lv_obj_get_style_opa(glow, LV_PART_MAIN);
-            set_int(subj("ps_glow_bed"), 3);
+            set_int(subj("ps_glow_" + k), 3);
             CHECK(lv_obj_get_style_opa(glow, LV_PART_MAIN) > warm);
-            set_int(subj("ps_glow_bed"), 1);
+            set_int(subj("ps_glow_" + k), 1);
         } else {
-            const int soft = lv_obj_get_style_bg_opa(glow, LV_PART_MAIN);
+            const int soft = lv_obj_get_style_opa(glow, LV_PART_MAIN);
             set_int(subj("ps_chip_" + k + "_tone"), static_cast<int>(ChipTone::Active));
-            CHECK(lv_obj_get_style_bg_opa(glow, LV_PART_MAIN) > soft);
+            CHECK(lv_obj_get_style_opa(glow, LV_PART_MAIN) > soft);
         }
         set_int(subj("ps_chip_" + k + "_shown"), 0);
         CHECK(hidden(line));

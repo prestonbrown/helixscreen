@@ -6,6 +6,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 namespace helix {
 
@@ -33,6 +34,12 @@ struct ImageRegions {
     std::optional<NormPoint> part_fan;
     std::optional<NormPoint> chamber; ///< empty spot inside the enclosure
     std::optional<NormPoint> light;
+    /// The see-through regions of the enclosure (front, side, top), each clockwise
+    /// from its top-left. Chamber heat and the light show only inside these.
+    std::vector<std::array<NormPoint, 4>> windows;
+    /// What sits in front of a window (a touchscreen, a spool), in the same form;
+    /// the glow is cut out of it.
+    std::vector<std::array<NormPoint, 4>> cutouts;
 };
 
 /// Parse a regions document. Entries missing `size`, `nozzle` or `bed`, or

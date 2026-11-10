@@ -21,10 +21,62 @@ namespace helix {
 
 namespace {
 
-std::optional<NormPoint> read_point(const nlohmann::json& v) {
+/// Two numbers, as written.
+std::optional<NormPoint> read_pair(const nlohmann::json& v) {
     if (!v.is_array() || v.size() != 2 || !v[0].is_number() || !v[1].is_number())
         return std::nullopt;
     return NormPoint{v[0].get<float>(), v[1].get<float>()};
+}
+
+/// A point on the picture. A little outside it is a hand's slip; far outside is a
+/// broken file, held near the picture so no glow or layout reaches for it.
+std::optional<NormPoint> read_point(const nlohmann::json& v) {
+    const auto p = read_pair(v);
+    if (!p)
+        return std::nullopt;
+    const auto clamp = [](float f) { return std::clamp(f, -1.f, 2.f); };
+    return NormPoint{clamp(p->x), clamp(p->y)};
+}
+
+/// True when the quad turns the same way at every corner: no bowtie, no dent.
+bool is_convex(const std::array<NormPoint, 4>& q) {
+    int sign = 0;
+    for (size_t i = 0; i < q.size(); ++i) {
+        const NormPoint& a = q[i];
+        const NormPoint& b = q[(i + 1) % q.size()];
+        const NormPoint& c = q[(i + 2) % q.size()];
+        const float cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+        const int s = cross > 0.f ? 1 : cross < 0.f ? -1 : 0;
+        if (s == 0 || (sign != 0 && s != sign))
+            return false;
+        sign = s;
+    }
+    return true;
+}
+
+/// Each well-formed quad under `v` (`what` names them in the log); a malformed one
+/// is dropped with a warning.
+std::vector<std::array<NormPoint, 4>> read_quads(const nlohmann::json& v, const std::string& name,
+                                                 const char* what) {
+    std::vector<std::array<NormPoint, 4>> out;
+    if (!v.is_array())
+        return out;
+    for (const auto& quad : v) {
+        std::array<NormPoint, 4> pts{};
+        bool ok = quad.is_array() && quad.size() == pts.size();
+        for (size_t i = 0; ok && i < pts.size(); ++i) {
+            const auto p = read_point(quad[i]);
+            ok = p.has_value();
+            if (ok)
+                pts[i] = *p;
+        }
+        if (ok && is_convex(pts))
+            out.push_back(pts);
+        else
+            spdlog::warn("[PrinterImageRegions] '{}': skipping a malformed or non-convex {}", name,
+                         what);
+    }
+    return out;
 }
 
 /// One regions file, read on first use. Main-thread only.
@@ -112,6 +164,20 @@ nlohmann::json entry_json(const ImageRegions& r) {
         e["chamber"] = point_json(*r.chamber);
     if (r.light)
         e["light"] = point_json(*r.light);
+    const auto quads_json = [](const std::vector<std::array<NormPoint, 4>>& quads) {
+        nlohmann::json out = nlohmann::json::array();
+        for (const auto& quad : quads) {
+            nlohmann::json q = nlohmann::json::array();
+            for (const NormPoint& p : quad)
+                q.push_back(point_json(p));
+            out.push_back(std::move(q));
+        }
+        return out;
+    };
+    if (!r.windows.empty())
+        e["windows"] = quads_json(r.windows);
+    if (!r.cutouts.empty())
+        e["cutouts"] = quads_json(r.cutouts);
     return e;
 }
 
@@ -146,8 +212,7 @@ std::unordered_map<std::string, ImageRegions> parse_image_regions(const std::str
         return out;
     }
     for (const auto& [name, e] : doc.items()) {
-        const auto size =
-            e.is_object() && e.contains("size") ? read_point(e["size"]) : std::nullopt;
+        const auto size = e.is_object() && e.contains("size") ? read_pair(e["size"]) : std::nullopt;
         const auto nozzle =
             e.is_object() && e.contains("nozzle") ? read_point(e["nozzle"]) : std::nullopt;
         const auto& bed = e.is_object() && e.contains("bed") ? e["bed"] : nlohmann::json();
@@ -175,6 +240,10 @@ std::unordered_map<std::string, ImageRegions> parse_image_regions(const std::str
             r.chamber = read_point(e["chamber"]);
         if (e.contains("light"))
             r.light = read_point(e["light"]);
+        if (e.contains("windows"))
+            r.windows = read_quads(e["windows"], name, "window");
+        if (e.contains("cutouts"))
+            r.cutouts = read_quads(e["cutouts"], name, "cutout");
         out.emplace(name, r);
     }
     return out;

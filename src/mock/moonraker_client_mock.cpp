@@ -185,6 +185,9 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
         purifier_.present = !(top && std::string(top) == "0");
     }
     panda_breath_auto_ = helix::env_flag("HELIX_MOCK_PANDA_BREATH_AUTO");
+    if (const char* chamber = std::getenv("HELIX_MOCK_CHAMBER_TARGET"); chamber && *chamber) {
+        chamber_target_.store(helix::text_io::parse_leading<int>(chamber).value_or(0));
+    }
     // Another screen's toolhead offset calibration, already holding the state at connect.
     nozzle_cal_active_ = helix::env_flag("HELIX_MOCK_NOZZLE_CAL_HELD");
 

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_heater_icon_binder.h"
+#include "ui_temperature_utils.h"
 
 #include "callout_layout.h"
 #include "callout_presenter.h"
@@ -145,12 +146,13 @@ class PrinterImageWidget : public PanelWidget {
     void arm_callout_observers();
     void update_callouts();         ///< subjects -> chip text/shown; relayout on change
     void schedule_callout_layout(); ///< one-shot deferred apply_callout_layout()
+    /// Breathe the bed and chamber glows while they climb and are on screen.
+    void update_glow_pulses();
     void cancel_callout_timer();
     void apply_callout_layout(); ///< measure, decide, position
     /// Moves and sizes printer_image to `moved`, or back to filling its
     /// container when null; refreshes the image only when the rect changes.
     void place_printer_image(const CalloutRect* moved);
-    void set_glow_pulse(bool on); ///< start/stop the bed glow's opacity pulse
     void handle_callout_clicked(CalloutKind kind);
     /// Recovers the widget from a chip's event (chip -> callout_layer -> printer_container).
     static PrinterImageWidget* widget_from_chip(lv_event_t* e);
@@ -162,6 +164,9 @@ class PrinterImageWidget : public PanelWidget {
     int callout_colspan_ = 0;
     int callout_rowspan_ = 0;
     int callout_spin_pct_ = -1; ///< speed the fan icons spin at; -1 = not yet applied
+    helix::ui::temperature::HeatState callout_bed_heat_ = helix::ui::temperature::HeatState::Off;
+    helix::ui::temperature::HeatState callout_chamber_heat_ =
+        helix::ui::temperature::HeatState::Off;
     helix::ui::CalloutPresenter presenter_;
     std::vector<ObserverGuard> callout_observers_;
     /// Each text chip's full text, indexed by CalloutKind. Its subject carries the

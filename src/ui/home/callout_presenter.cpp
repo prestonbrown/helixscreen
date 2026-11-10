@@ -17,11 +17,26 @@ namespace {
 /// How far the plate's haze rises, as a share of the plate's pictured width.
 constexpr float kPlateHazeRise = 0.55f;
 
-bool same_quad(const std::array<CalloutPoint, 4>& a, const std::array<CalloutPoint, 4>& b) {
-    for (size_t i = 0; i < a.size(); ++i)
-        if (a[i].x != b[i].x || a[i].y != b[i].y)
-            return false;
-    return true;
+/// A soft disc's radius, as a share of the picture's width.
+constexpr float kDiscRadiusShare = 0.15f;
+/// How far a window wash carries from its source, as a share of the picture's longer side.
+constexpr float kWashReachShare = 0.9f;
+/// Chamber heat fills its windows evenly; a light falls away from where it sits.
+constexpr float kChamberWashFloor = 0.5f;
+constexpr float kChamberWashPeak = 150.f;
+constexpr float kLightWashFloor = 0.15f;
+constexpr float kLightWashPeak = 235.f;
+
+constexpr uint32_t kFnvBasis = 2166136261u;
+
+uint32_t hash_int(uint32_t h, int v) {
+    return (h ^ static_cast<uint32_t>(v)) * 16777619u;
+}
+
+uint32_t hash_quad(uint32_t h, const GlowQuad& q) {
+    for (const CalloutPoint& p : q)
+        h = hash_int(hash_int(h, p.x), p.y);
+    return h;
 }
 
 const CalloutPresenter::Chip* part_for(const CalloutPresenter::Parts& parts, CalloutKind kind) {
@@ -168,49 +183,84 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
 
 void CalloutPresenter::place_glow(const Chip& part, const ImageRegions& r,
                                   const CalloutRect& image) {
-    if (!part.glow)
+    if (!part.glow || !part.glowing)
+        return;
+    const auto k = static_cast<size_t>(part.kind);
+    if (k >= glow_key_.size())
         return;
     using callout_detail::px;
-    int x, y, w, h;
+    const auto to_px = [&](NormPoint p) {
+        return CalloutPoint{px(p.x, image.x, image.w), px(p.y, image.y, image.h)};
+    };
+    // A rebuilt widget starts with no mask, whatever geometry it inherits.
+    const auto is_current = [&](uint32_t key) {
+        return lv_image_get_src(part.glow) && key == glow_key_[k];
+    };
+    // A mask that could not be allocated leaves the key unset, so the next layout retries.
+    const auto show = [&](uint32_t key, const PlateGlowMask& mask) {
+        glow_key_[k] = plate_glow_set_mask(part.glow, mask) ? key : 0;
+    };
+
     if (part.kind == CalloutKind::Bed) {
         // The plate's quad as pictured, with the haze rising into the picture
         // above it but never past the picture's top.
-        std::array<CalloutPoint, 4> quad{};
+        GlowQuad quad{};
         const auto norm = plate_quad(r);
         int top = image.y + image.h, left = image.x + image.w, right = image.x;
         for (size_t i = 0; i < quad.size(); ++i) {
-            quad[i] = {px(norm[i].x, image.x, image.w), px(norm[i].y, image.y, image.h)};
+            quad[i] = to_px(norm[i]);
             top = std::min(top, quad[i].y);
             left = std::min(left, quad[i].x);
             right = std::max(right, quad[i].x);
         }
         const int rise =
             std::clamp(int(float(right - left) * kPlateHazeRise), 0, std::max(0, top - image.y));
-        // A rebuilt widget starts with no mask, whatever geometry it inherits.
-        if (!lv_image_get_src(part.glow) || !same_quad(quad, plate_quad_) || rise != plate_rise_) {
-            plate_quad_ = quad;
-            plate_rise_ = rise;
-            plate_glow_set_mask(part.glow, render_plate_glow(quad, rise));
-        }
+        uint32_t key = hash_quad(kFnvBasis, quad);
+        key = hash_int(key, rise);
+        if (!is_current(key))
+            show(key, render_plate_glow(quad, rise));
         return;
     }
+
     const auto a = region_anchor(r, part.kind);
     if (!a)
         return;
-    // A disc centred on the region's point.
-    w = h = image.w / 5;
-    x = px(a->x, image.x, image.w) - w / 2;
-    y = px(a->y, image.y, image.h) - h / 2;
-    if (lv_obj_get_style_x(part.glow, LV_PART_MAIN) != x ||
-        lv_obj_get_style_y(part.glow, LV_PART_MAIN) != y) {
-        // DECLARATIVE_OK: measured callout layout
-        lv_obj_set_pos(part.glow, x, y);
+    const CalloutPoint source = to_px(*a);
+    uint32_t key = hash_int(hash_int(kFnvBasis, source.x), source.y);
+
+    const bool washes = part.kind == CalloutKind::Chamber || part.kind == CalloutKind::Light;
+    if (washes && !r.windows.empty()) {
+        const auto to_quads = [&](const std::vector<std::array<NormPoint, 4>>& norms) {
+            std::vector<GlowQuad> out;
+            out.reserve(norms.size());
+            for (const auto& norm : norms) {
+                GlowQuad q{};
+                for (size_t i = 0; i < q.size(); ++i)
+                    q[i] = to_px(norm[i]);
+                key = hash_quad(key, q);
+                out.push_back(q);
+            }
+            return out;
+        };
+        const std::vector<GlowQuad> quads = to_quads(r.windows);
+        // A marker between the lists, so a quad moving from one to the other re-renders.
+        key = hash_int(key, -1);
+        const std::vector<GlowQuad> cutouts = to_quads(r.cutouts);
+        if (is_current(key)) {
+            return;
+        }
+        const float reach = float(std::max(image.w, image.h)) * kWashReachShare;
+        const bool chamber = part.kind == CalloutKind::Chamber;
+        show(key,
+             render_region_glow(quads, source, reach, chamber ? kChamberWashFloor : kLightWashFloor,
+                                chamber ? kChamberWashPeak : kLightWashPeak, cutouts));
+        return;
     }
-    if (lv_obj_get_style_width(part.glow, LV_PART_MAIN) != w ||
-        lv_obj_get_style_height(part.glow, LV_PART_MAIN) != h) {
-        // DECLARATIVE_OK: measured callout layout
-        lv_obj_set_size(part.glow, w, h);
-    }
+
+    const int radius = int(float(image.w) * kDiscRadiusShare);
+    key = hash_int(key, radius);
+    if (!is_current(key))
+        show(key, render_disc_glow(source, radius));
 }
 
 void CalloutPresenter::place_line(const CalloutChipOut& c, const Chip& part) {
