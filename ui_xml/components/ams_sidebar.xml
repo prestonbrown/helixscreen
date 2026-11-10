@@ -105,7 +105,8 @@
          scrolls the column and the status line above it off screen. -->
     <lv_obj name="progress_stepper_container"
             width="100%" height="content" flex_grow="1" style_pad_all="0" scrollable="true" scroll_dir="ver"
-            scrollbar_mode="auto" hidden="true">
+            scrollbar_mode="auto">
+      <bind_flag_if_eq subject="ams_sidebar_stepper_shown" flag="hidden" ref_value="0"/>
       <!-- Step progress widget created dynamically by AmsOperationSidebar -->
     </lv_obj>
     <!-- Flex spacer - pushes action buttons to bottom of column. During an
@@ -234,14 +235,14 @@
            and unloads/reloads each lane to test its sensor - so a job owning the
            machine disables it via ams_sidebar_check_gates_disabled. -->
       <ui_button name="btn_check_gates"
-                 variant="secondary" icon="refresh" text="Check Slots" hidden="true"
-                 stacked_subject="ams_actions_stacked" stacked_if_eq="1" long_mode="dots"
-                 icon_hidden_subject="ams_actions_text_only" icon_hidden_if_eq="1">
+                 variant="secondary" icon="refresh" text="Check Slots" stacked_subject="ams_actions_stacked"
+                 stacked_if_eq="1" long_mode="dots" icon_hidden_subject="ams_actions_text_only" icon_hidden_if_eq="1">
         <style name="styles.action_cell"/>
         <bind_style_if name="styles.action_cell_text" cond="ams_actions_text_only eq 1"/>
         <bind_style_if name="styles.action_cell_stacked" cond="ams_actions_stacked eq 1"/>
         <bind_style_if name="styles.action_cell_quarter" cond="ui_is_portrait eq 1 and ui_breakpoint lt 3"/>
         <bind_state_if_eq subject="ams_sidebar_check_gates_disabled" state="disabled" ref_value="1"/>
+        <bind_flag_if_eq subject="ams_sidebar_check_gates_shown" flag="hidden" ref_value="0"/>
         <event_cb trigger="clicked" callback="ams_sidebar_check_gates_clicked"/>
       </ui_button>
       <!-- Settings Button (full width): opens the device operations, shown

@@ -93,10 +93,11 @@
         <bind_style_if_eq name="left_portrait" subject="ui_is_portrait" ref_value="1"/>
         <!-- Disable content when printer not connected or klippy not ready -->
         <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
-        <!-- Backend selector (hidden by default, shown when multiple backends present) -->
+        <!-- Backend selector (shown when multiple backends present) -->
         <lv_obj name="backend_selector_row"
                 width="100%" height="content" style_pad_all="0" style_pad_bottom="#space_sm" flex_flow="row"
-                style_flex_main_place="center" style_pad_gap="#space_xs" scrollable="false" hidden="true">
+                style_flex_main_place="center" style_pad_gap="#space_xs" scrollable="false">
+          <bind_flag_if_lt subject="backend_count" flag="hidden" ref_value="2"/>
           <!-- Segments created dynamically in C++ -->
         </lv_obj>
         <!-- System logo + name now displayed in header bar (setup_system_header) -->

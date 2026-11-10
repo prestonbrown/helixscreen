@@ -167,6 +167,15 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(20);
     CHECK_FALSE(hidden(card, "buffer_mini"));
     CHECK_FALSE(hidden(card, "clog_meter"));
+
+    // Nothing to report: the check stands in for the arc and the reading.
+    lv_subject_t* safe = ams.clog_meter_subjects().safe;
+    for (int is_safe : {1, 0}) {
+        lv_subject_set_int(safe, is_safe);
+        CHECK(hidden(card, "clog_arc") == (is_safe == 1));
+        CHECK(hidden(card, "clog_value_text") == (is_safe == 1));
+        CHECK(hidden(card, "clog_safe_icon") == (is_safe == 0));
+    }
     lv_subject_set_int(clog_mode, clog_mode_before);
 
     lv_subject_set_int(bp, original);

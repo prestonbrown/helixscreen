@@ -222,6 +222,10 @@ HELIX_PSRAM_BSS lv_subject_t s_action_reason_shown{};
 HELIX_PSRAM_BSS char s_action_reason_buf[192];
 HELIX_PSRAM_BSS lv_subject_t s_supports_reset{};
 HELIX_PSRAM_BSS lv_subject_t s_cancel_shown{};
+/// 1 where the backend can check its gates: Check Slots shows.
+HELIX_PSRAM_BSS lv_subject_t s_check_gates_shown{};
+/// 1 while an operation's step bar is shown.
+HELIX_PSRAM_BSS lv_subject_t s_stepper_shown{};
 bool s_gating_subjects_initialized = false;
 SubjectManager s_subjects;
 
@@ -253,6 +257,8 @@ void reset_button_gating_subjects() {
     // where Reset has nothing to clear.
     lv_subject_set_int(&s_supports_reset, 1);
     lv_subject_set_int(&s_cancel_shown, 0);
+    lv_subject_set_int(&s_check_gates_shown, 0);
+    lv_subject_set_int(&s_stepper_shown, 0);
 }
 
 void init_button_gating_subjects() {
@@ -263,7 +269,7 @@ void init_button_gating_subjects() {
          {&s_unload_disabled, &s_load_disabled, &s_reset_disabled, &s_check_gates_disabled,
           &s_load_hidden, &s_unload_hidden, &s_unload_picks, &s_mount_hidden, &s_mount_disabled,
           &s_park_hidden, &s_park_disabled, &s_action_reason_shown, &s_supports_reset,
-          &s_cancel_shown}) {
+          &s_cancel_shown, &s_check_gates_shown, &s_stepper_shown}) {
         lv_subject_init_int(subject, 0);
     }
     lv_subject_init_string(&s_action_reason, s_action_reason_buf, nullptr,
@@ -284,6 +290,8 @@ void init_button_gating_subjects() {
     s_subjects.publish("ams_sidebar_action_reason_shown", &s_action_reason_shown);
     s_subjects.publish("ams_sidebar_supports_reset", &s_supports_reset);
     s_subjects.publish("ams_sidebar_cancel_shown", &s_cancel_shown);
+    s_subjects.publish("ams_sidebar_check_gates_shown", &s_check_gates_shown);
+    s_subjects.publish("ams_sidebar_stepper_shown", &s_stepper_shown);
     s_gating_subjects_initialized = true;
 
     // The subjects are created once, from the AMS panels' process-once XML
@@ -829,16 +837,8 @@ void AmsOperationSidebar::update_check_gates_visibility() {
     if (!active_ || !sidebar_root_) {
         return;
     }
-    lv_obj_t* btn = lv_obj_find_by_name(sidebar_root_, "btn_check_gates");
-    if (!btn) {
-        return;
-    }
     AmsBackend* backend = AmsState::instance().get_backend();
-    if (backend && backend->supports_gate_check()) {
-        lv_obj_remove_flag(btn, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(btn, LV_OBJ_FLAG_HIDDEN);
-    }
+    lv_subject_set_int(&s_check_gates_shown, backend && backend->supports_gate_check() ? 1 : 0);
 }
 
 // ============================================================================
@@ -944,9 +944,7 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
         // toolhead, and the status line above already names what it is doing.
         if (current_step_model_.suppressed) {
             current_step_count_ = 0;
-            if (step_progress_container_) {
-                lv_obj_add_flag(step_progress_container_, LV_OBJ_FLAG_HIDDEN);
-            }
+            lv_subject_set_int(&s_stepper_shown, 0);
             spdlog::debug("[AmsSidebar] Backend suppressed the step bar for op_type={}",
                           static_cast<int>(op_type));
             return;
@@ -1337,9 +1335,7 @@ void AmsOperationSidebar::start_operation(StepOperationType op_type, int target_
     // layout pass runs against a visible (non-collapsed) container. The step
     // connectors also relayout on SIZE_CHANGED, but revealing first keeps the
     // very first paint correct.
-    if (step_progress_container_) {
-        lv_obj_remove_flag(step_progress_container_, LV_OBJ_FLAG_HIDDEN);
-    }
+    lv_subject_set_int(&s_stepper_shown, 1);
 
     // An operation this UI starts begins now: no narration from before it
     // belongs to it.
@@ -1432,10 +1428,8 @@ void AmsOperationSidebar::update_step_progress(AmsAction action) {
     // hardcoded lists that disagreed about both SELECTING and PURGING, so a tool
     // changer's bar appeared for the dock half of a swap and vanished for the
     // pick half.
-    if (is_active_action) {
-        lv_obj_remove_flag(step_progress_container_, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(step_progress_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_subject_set_int(&s_stepper_shown, is_active_action ? 1 : 0);
+    if (!is_active_action) {
         target_load_slot_ = -1;
         if (heat_label_showing_temp_) {
             int reset_idx = (live_temp_step_index_ >= 0) ? live_temp_step_index_ : 0;
@@ -2083,9 +2077,7 @@ void AmsOperationSidebar::show_preheat_feedback(int current_temp, int target_tem
         preheat_status_text(step_progress_ != nullptr, current_temp, target_temp);
     AmsState::instance().set_action_detail(status);
 
-    if (step_progress_container_) {
-        lv_obj_remove_flag(step_progress_container_, LV_OBJ_FLAG_HIDDEN);
-    }
+    lv_subject_set_int(&s_stepper_shown, 1);
     if (step_progress_) {
         ui_step_progress_set_current(step_progress_, 0);
     }

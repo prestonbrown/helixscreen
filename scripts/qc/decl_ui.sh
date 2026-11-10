@@ -28,7 +28,7 @@ echo -n "🎨 Checking declarative UI (imperative XML-widget mutation)..."
 # as deliberate pragmatism (the XML engine couldn't express it at the time), some
 # are plain mistakes — both are debt. The number may go DOWN (port a site, then
 # lower this baseline) but must never go up.
-if python3 scripts/check_imperative_ui.py --max-allowed 243 --summary >/tmp/imperative_ui.out 2>&1; then
+if python3 scripts/check_imperative_ui.py --max-allowed 141 --summary >/tmp/imperative_ui.out 2>&1; then
   section_time $SECTION_START
   echo ""
   tail -1 /tmp/imperative_ui.out
@@ -354,7 +354,7 @@ echo -n "🧷 Checking raw cached widget pointers..."
 # rise. A cached widget outlives its widget whenever something other than its
 # owner deletes the tree, and owner-keyed guards still read valid then. Hold
 # new ones as helix::ui::WidgetRef, or annotate `// WIDGET_PTR_OK: <why>`.
-if python3 scripts/check_cached_widget_pointers.py --max-allowed=356 \
+if python3 scripts/check_cached_widget_pointers.py --max-allowed=340 \
     >/tmp/cached_widget_ptrs.out 2>&1; then
   section_time $SECTION_START
   echo ""

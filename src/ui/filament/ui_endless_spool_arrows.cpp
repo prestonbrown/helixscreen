@@ -689,6 +689,9 @@ void ui_endless_spool_arrows_set_groups(lv_obj_t* obj,
     }
     data->config = config;
     spdlog::debug("[EndlessSpoolArrows] Config updated with {} group(s)", config.groups.size());
+    // A relation with nothing to draw over these slots gives its row back.
+    lv_obj_set_flag(obj, LV_OBJ_FLAG_HIDDEN,
+                    helix::ui::endless_spool_marks(config, data->slot_count).empty());
     lv_obj_invalidate(obj);
 }
 
@@ -696,6 +699,7 @@ void ui_endless_spool_arrows_clear(lv_obj_t* obj) {
     auto* data = get_data(obj);
     if (data) {
         data->config.groups.clear();
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
         lv_obj_invalidate(obj);
     }
 }

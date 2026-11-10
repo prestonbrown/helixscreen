@@ -413,7 +413,9 @@ static void slot_pressed_cb(lv_event_t* e) {
     lv_obj_t* slot = lv_event_get_current_target_obj(e);
     lv_obj_t* spool = lv_obj_find_by_name(slot, "spool_container");
     if (spool) {
-        lv_obj_set_style_opa(spool, 140, 0);
+        // The press lands on whichever child was hit, so a pressed-state
+        // selector on the spool would miss most taps.
+        lv_obj_set_style_opa(spool, 140, 0); // DECLARATIVE_OK: press on any child
     }
 }
 
@@ -421,7 +423,7 @@ static void slot_released_cb(lv_event_t* e) {
     lv_obj_t* slot = lv_event_get_current_target_obj(e);
     lv_obj_t* spool = lv_obj_find_by_name(slot, "spool_container");
     if (spool) {
-        lv_obj_set_style_opa(spool, LV_OPA_COVER, 0);
+        lv_obj_set_style_opa(spool, LV_OPA_COVER, 0); // DECLARATIVE_OK: see slot_pressed_cb
     }
 }
 
@@ -682,7 +684,9 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     lv_obj_t* container = lv_obj_get_parent(w.slot_grid);
 
     if (!draws_tray()) {
-        lv_obj_add_flag(w.slot_tray, LV_OBJ_FLAG_HIDDEN);
+        // The tray is a draw-hook canvas; this renderer decides per unit
+        // whether it has anything to draw.
+        lv_obj_add_flag(w.slot_tray, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: draw-hook canvas
         if (!container || !slot_widgets || slot_count <= 0)
             return;
         const int n = std::min(slot_count, kAmsDetailMaxSlots);
@@ -691,7 +695,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         place_env_pill_beside_spools(w.env_indicator, container, slot_widgets, n);
         return;
     }
-    lv_obj_remove_flag(w.slot_tray, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(w.slot_tray, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: as above
 
     // Attach draw callbacks once per object instance. This function runs on every
     // panel rebuild, so remove-then-add is what keeps it idempotent:
@@ -1140,12 +1144,15 @@ void ams_detail_pre_show_env_indicator(AmsDetailWidgets& w, int unit_index) {
     helix::AmsState::instance().set_detail_env_unit(u);
     lv_obj_set_user_data(w.env_indicator, reinterpret_cast<void*>(static_cast<intptr_t>(u)));
 
+    // Shown ahead of its first reading, so the flex layout that sizes the slots
+    // reserves its width; ams_env_ind_detail_visible takes over from the next
+    // reading on.
     auto* backend = helix::AmsState::instance().get_backend();
     if (backend && backend->has_environment_sensors()) {
-        lv_obj_remove_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: layout
         spdlog::debug("[AmsDetail] Pre-showed env indicator for unit {}", u);
     } else {
-        lv_obj_add_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: as above
     }
 }
 

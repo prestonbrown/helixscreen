@@ -92,10 +92,10 @@ void reset_to_defaults() {
 } // namespace helix::filament_presets
 
 using helix::ui::observe;
+using helix::ui::temperature::classify_heat_state;
 using helix::ui::temperature::deci_to_degrees;
 using helix::ui::temperature::format_target_or_off;
 using helix::ui::temperature::format_temperature_pair;
-using helix::ui::temperature::get_heating_state_color;
 
 // The shared MacroParamModal and the tier-3 gcode fallbacks now live in
 // filament_op_router.h so AmsOperationSidebar and FilamentRunoutHandler reach
@@ -421,6 +421,31 @@ void FilamentPanel::init_subjects() {
         UI_MANAGED_SUBJECT_INT(manual_motion_subject_, 0, helix::kFilamentMotionSubjectName,
                                subjects_);
 
+        // Current-temperature colors, as HeatState values (0 = Off)
+        UI_MANAGED_SUBJECT_INT(nozzle_heat_state_subject_, 0, "filament_nozzle_heat_state",
+                               subjects_);
+        UI_MANAGED_SUBJECT_INT(bed_heat_state_subject_, 0, "filament_bed_heat_state", subjects_);
+        UI_MANAGED_SUBJECT_INT(chamber_heat_state_subject_, 0, "filament_chamber_heat_state",
+                               subjects_);
+
+        // Spool card mode and the external spool row's text
+        UI_MANAGED_SUBJECT_INT(external_spool_mode_subject_, 0, "filament_external_spool_mode",
+                               subjects_);
+        UI_MANAGED_SUBJECT_INT(external_spool_assigned_subject_, 0,
+                               "filament_external_spool_assigned", subjects_);
+        UI_MANAGED_SUBJECT_STRING(external_spool_material_subject_, external_spool_material_buf_,
+                                  "", "filament_external_spool_material", subjects_);
+        UI_MANAGED_SUBJECT_STRING(external_spool_detail_subject_, external_spool_detail_buf_, "",
+                                  "filament_external_spool_detail", subjects_);
+
+        // Spool preset button
+        UI_MANAGED_SUBJECT_INT(spool_preset_shown_subject_, 0, "filament_spool_preset_shown",
+                               subjects_);
+        UI_MANAGED_SUBJECT_STRING(spool_preset_name_subject_, spool_preset_name_buf_, "",
+                                  "filament_spool_preset_name", subjects_);
+        UI_MANAGED_SUBJECT_STRING(spool_preset_temps_subject_, spool_preset_temps_buf_, "",
+                                  "filament_spool_preset_temps", subjects_);
+
         // Card title subject (dynamic: "Multi-Filament" or "External Spool")
         std::strncpy(card_title_buf_, lv_tr("Multi-Filament"), sizeof(card_title_buf_) - 1);
         UI_MANAGED_SUBJECT_STRING(card_title_subject_, card_title_buf_, card_title_buf_,
@@ -587,12 +612,6 @@ void FilamentPanel::bind_widgets() {
     // repaint instead of early-returning against the tree that is already gone.
     last_status_branch_ = StatusBranch::None;
 
-    // Find temperature labels for color updates. The portrait chips carry the
-    // same names as the landscape rows, so these resolve in either branch.
-    nozzle_current_label_ = lv_obj_find_by_name(panel_, "nozzle_current_temp");
-    bed_current_label_ = lv_obj_find_by_name(panel_, "bed_current_temp");
-    chamber_current_label_ = lv_obj_find_by_name(panel_, "chamber_current_temp");
-
     // Find temp graph for dynamic sizing when bottom card changes
     temp_graph_card_ = lv_obj_find_by_name(panel_, "temp_graph_card");
     // Fresh tree: the graph starts shown, so the spacer bookkeeping does too.
@@ -602,27 +621,18 @@ void FilamentPanel::bind_widgets() {
 
     // Find spool card widgets (serves both Multi-Filament and External Spool modes)
     spool_card_ = helix::ui::find_required(panel_, "spool_card", get_name());
-    spool_card_header_row_ = helix::ui::find_required(panel_, "spool_card_header_row", get_name());
     extruder_selector_group_ =
         helix::ui::find_required(panel_, "extruder_selector_group", get_name());
     extruder_dropdown_ = helix::ui::find_required(panel_, "extruder_dropdown", get_name());
     btn_manage_slots_ = helix::ui::find_required(panel_, "btn_manage_slots", get_name());
-    ams_manage_row_ = helix::ui::find_required(panel_, "ams_manage_row", get_name());
 
     // Find external spool row widgets
-    external_spool_row_ = helix::ui::find_required(panel_, "external_spool_row", get_name());
     external_spool_container_ =
         helix::ui::find_required(panel_, "external_spool_container", get_name());
-    external_spool_material_label_ =
-        helix::ui::find_required(panel_, "external_spool_material_label", get_name());
-    external_spool_color_label_ =
-        helix::ui::find_required(panel_, "external_spool_color_label", get_name());
 
     // Find spool preset widgets
     spool_preset_row_ = helix::ui::find_required(panel_, "spool_preset_row", get_name());
     spool_preset_button_ = helix::ui::find_required(panel_, "preset_spool", get_name());
-    spool_preset_label_ = helix::ui::find_required(panel_, "spool_preset_label", get_name());
-    spool_preset_temps_ = helix::ui::find_required(panel_, "spool_preset_temps", get_name());
 
     // Setup external spool display (creates canvas, wires observer)
     setup_external_spool_display();
@@ -712,21 +722,6 @@ void FilamentPanel::setup_temp_graph() {
     if (temp_control_panel_) {
         temp_control_panel_->setup_mini_combined_graph(graph_container);
         spdlog::debug("[{}] Temperature graph initialized", get_name());
-    }
-
-    // Click-to-open overlay: the CLICKABLE flag itself comes from the XML
-    // (bind_flag_if_eq on filament_graph_spacer); only the handler is wired
-    // here, once per tree.
-    if (temp_graph_card_) {
-        lv_obj_add_event_cb(
-            temp_graph_card_,
-            [](lv_event_t* e) {
-                auto* self = static_cast<FilamentPanel*>(lv_event_get_user_data(e));
-                if (self) {
-                    self->open_temp_graph_overlay();
-                }
-            },
-            LV_EVENT_CLICKED, this);
     }
 }
 
@@ -1294,12 +1289,10 @@ void FilamentPanel::update_chamber_temp_display() {
     lv_subject_copy_string(&chamber_current_subject_, chamber_current_buf_);
     lv_subject_copy_string(&chamber_target_subject_, chamber_target_buf_);
 
-    // Apply 4-state heating color (matches nozzle/bed)
-    if (chamber_current_label_) {
-        int target_deg = deci_to_degrees(chamber_target_);
-        lv_color_t color = get_heating_state_color(chamber_current_, target_deg);
-        lv_obj_set_style_text_color(chamber_current_label_, color, LV_PART_MAIN);
-    }
+    // 4-state heating color (matches nozzle/bed)
+    lv_subject_set_int(
+        &chamber_heat_state_subject_,
+        static_cast<int>(classify_heat_state(chamber_current_, deci_to_degrees(chamber_target_))));
 }
 
 void FilamentPanel::update_left_card_temps() {
@@ -1315,16 +1308,12 @@ void FilamentPanel::update_left_card_temps() {
     lv_subject_copy_string(&nozzle_target_subject_, nozzle_target_buf_);
     lv_subject_copy_string(&bed_target_subject_, bed_target_buf_);
 
-    // Update temperature label colors using 4-state heating logic
+    // Temperature label colors use the 4-state heating logic
     // (matches temp_display widget: gray=off, red=heating, green=at-temp, blue=cooling)
-    if (nozzle_current_label_) {
-        lv_color_t nozzle_color = get_heating_state_color(nozzle_current_, nozzle_target_);
-        lv_obj_set_style_text_color(nozzle_current_label_, nozzle_color, LV_PART_MAIN);
-    }
-    if (bed_current_label_) {
-        lv_color_t bed_color = get_heating_state_color(bed_current_, bed_target_);
-        lv_obj_set_style_text_color(bed_current_label_, bed_color, LV_PART_MAIN);
-    }
+    lv_subject_set_int(&nozzle_heat_state_subject_,
+                       static_cast<int>(classify_heat_state(nozzle_current_, nozzle_target_)));
+    lv_subject_set_int(&bed_heat_state_subject_,
+                       static_cast<int>(classify_heat_state(bed_current_, bed_target_)));
 }
 
 void FilamentPanel::update_status_icon_for_state() {
@@ -1897,47 +1886,10 @@ void FilamentPanel::update_multi_filament_card_visibility() {
     bool has_ams = (lv_subject_get_int(AmsState::instance().get_ams_type_subject()) != 0);
     bool multi_tool = helix::ToolState::instance().is_multi_tool();
 
-    // Card is ALWAYS visible
-    lv_obj_remove_flag(spool_card_, LV_OBJ_FLAG_HIDDEN);
-
-    // AMS manage row visible when AMS or multi-tool
-    if (ams_manage_row_) {
-        if (has_ams || multi_tool) {
-            lv_obj_remove_flag(ams_manage_row_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(ams_manage_row_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
+    // The card swaps its AMS row for the external spool row, centers it and
+    // drops its header in this mode (filament_spool_card.xml).
     bool external_spool_mode = !has_ams && !multi_tool;
-
-    // External spool row visible when no AMS and no multi-tool
-    if (external_spool_row_) {
-        if (external_spool_mode) {
-            lv_obj_remove_flag(external_spool_row_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(external_spool_row_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
-    // Header row (icon + title) hidden in external spool mode, and in
-    // portrait where the card is a bottom strip that cannot afford the title
-    // line (320x480 leaves it no room above the AMS row).
-    lv_subject_t* portrait_subject = lv_xml_get_subject(nullptr, "ui_is_portrait");
-    const bool portrait = portrait_subject && lv_subject_get_int(portrait_subject) != 0;
-    if (spool_card_header_row_) {
-        lv_obj_set_flag(spool_card_header_row_, LV_OBJ_FLAG_HIDDEN,
-                        external_spool_mode || portrait);
-    }
-
-    // Center the external spool row within the card when in external spool mode
-    if (external_spool_mode) {
-        lv_obj_set_style_flex_main_place(spool_card_, LV_FLEX_ALIGN_CENTER, 0);
-        lv_obj_set_style_flex_cross_place(spool_card_, LV_FLEX_ALIGN_CENTER, 0);
-    } else {
-        lv_obj_set_style_flex_main_place(spool_card_, LV_FLEX_ALIGN_START, 0);
-        lv_obj_set_style_flex_cross_place(spool_card_, LV_FLEX_ALIGN_START, 0);
-    }
+    lv_subject_set_int(&external_spool_mode_subject_, external_spool_mode ? 1 : 0);
 
     // Swap which card is the flex filler. Without AMS at MICRO/TINY the spool
     // card has almost no content, so hand the freed space to the temp graph.
@@ -2000,51 +1952,44 @@ void FilamentPanel::update_external_spool_from_state() {
             (ext->total_weight_g > 0) ? ext->remaining_weight_g / ext->total_weight_g : 1.0f;
         ui_spool_canvas_set_fill_level(external_spool_canvas_, fill);
 
-        // Update labels with material info
-        if (external_spool_material_label_) {
-            std::string mat_text;
-            if (!ext->brand.empty() && !ext->material.empty()) {
-                mat_text = ext->brand + " " + ext->material;
-            } else if (!ext->material.empty()) {
-                mat_text = ext->material;
-            } else {
-                mat_text = lv_tr("Unknown");
-            }
-            // Append Spoolman spool ID when linked (e.g., "Prusament PLA #129")
-            if (ext->spoolman_id > 0) {
-                char id_buf[16];
-                snprintf(id_buf, sizeof(id_buf), " #%d", ext->spoolman_id);
-                mat_text += id_buf; // i18n: do not translate — Spoolman ID
-            }
-            lv_label_set_text(external_spool_material_label_, mat_text.c_str());
+        // Material line
+        std::string mat_text;
+        if (!ext->brand.empty() && !ext->material.empty()) {
+            mat_text = ext->brand + " " + ext->material;
+        } else if (!ext->material.empty()) {
+            mat_text = ext->material;
+        } else {
+            mat_text = lv_tr("Unknown");
         }
-        if (external_spool_color_label_) {
-            // Build second line: color name + remaining weight in grams
-            std::string detail;
-            if (!ext->color_name.empty()) {
-                detail = ext->color_name;
-            }
-            if (ext->remaining_weight_g > 0) {
-                char weight_str[16];
-                snprintf(weight_str, sizeof(weight_str), "%.0fg", ext->remaining_weight_g);
-                if (!detail.empty()) {
-                    detail += " · ";
-                }
-                detail += weight_str;
-            }
-            lv_label_set_text(external_spool_color_label_, detail.c_str());
+        // Append Spoolman spool ID when linked (e.g., "Prusament PLA #129")
+        if (ext->spoolman_id > 0) {
+            char id_buf[16];
+            snprintf(id_buf, sizeof(id_buf), " #%d", ext->spoolman_id);
+            mat_text += id_buf; // i18n: do not translate — Spoolman ID
         }
+        lv_subject_copy_string(&external_spool_material_subject_, mat_text.c_str());
+
+        // Second line: color name + remaining weight in grams
+        std::string detail;
+        if (!ext->color_name.empty()) {
+            detail = ext->color_name;
+        }
+        if (ext->remaining_weight_g > 0) {
+            char weight_str[16];
+            snprintf(weight_str, sizeof(weight_str), "%.0fg", ext->remaining_weight_g);
+            if (!detail.empty()) {
+                detail += " · ";
+            }
+            detail += weight_str;
+        }
+        lv_subject_copy_string(&external_spool_detail_subject_, detail.c_str());
+        lv_subject_set_int(&external_spool_assigned_subject_, 1);
     } else {
-        // No spool assigned - show muted empty spool
+        // No spool assigned - show muted empty spool; the row's own
+        // placeholder lines take over from the bound text.
         ui_spool_canvas_set_color(external_spool_canvas_, lv_color_hex(0x505050));
         ui_spool_canvas_set_fill_level(external_spool_canvas_, 0.0f);
-
-        if (external_spool_material_label_) {
-            lv_label_set_text(external_spool_material_label_, lv_tr("No spool assigned"));
-        }
-        if (external_spool_color_label_) {
-            lv_label_set_text(external_spool_color_label_, lv_tr("Tap to assign"));
-        }
+        lv_subject_set_int(&external_spool_assigned_subject_, 0);
     }
     ui_spool_canvas_redraw(external_spool_canvas_);
 }
@@ -2359,11 +2304,8 @@ void FilamentPanel::handle_spool_preset_button() {
 void FilamentPanel::update_spool_preset() {
     cached_active_material_ = helix::get_active_material();
 
-    if (!spool_preset_button_)
-        return;
-
     if (!cached_active_material_.has_value()) {
-        lv_obj_add_flag(spool_preset_button_, LV_OBJ_FLAG_HIDDEN);
+        lv_subject_set_int(&spool_preset_shown_subject_, 0);
         return;
     }
 
@@ -2376,24 +2318,17 @@ void FilamentPanel::update_spool_preset() {
         preset_lower = helix::text_io::to_lower(preset_lower);
         mat_lower = helix::text_io::to_lower(mat_lower);
         if (preset_lower == mat_lower) {
-            lv_obj_add_flag(spool_preset_button_, LV_OBJ_FLAG_HIDDEN);
+            lv_subject_set_int(&spool_preset_shown_subject_, 0);
             return;
         }
     }
 
     // Novel material — show spool preset button.
-    // Using lv_label_set_text directly: text is dynamic (material name + computed temps)
-    // so subject binding is not practical here.
-    lv_obj_remove_flag(spool_preset_button_, LV_OBJ_FLAG_HIDDEN);
-
-    if (spool_preset_label_) {
-        lv_label_set_text(spool_preset_label_, active.material_name.c_str());
-    }
-    if (spool_preset_temps_) {
-        auto text = fmt::format("{} / {}°C", active.material_info.nozzle_recommended(),
-                                active.material_info.bed_temp);
-        lv_label_set_text(spool_preset_temps_, text.c_str());
-    }
+    lv_subject_copy_string(&spool_preset_name_subject_, active.material_name.c_str());
+    auto text = fmt::format("{} / {}°C", active.material_info.nozzle_recommended(),
+                            active.material_info.bed_temp);
+    lv_subject_copy_string(&spool_preset_temps_subject_, text.c_str());
+    lv_subject_set_int(&spool_preset_shown_subject_, 1);
 
     // Deselect spool button initially (user must tap)
     if (spool_preset_button_) {

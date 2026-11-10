@@ -33,6 +33,7 @@
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
+#include "theme_manager.h"
 #include "tool_state.h"
 
 #include <lvgl.h>
@@ -138,4 +139,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "FilamentPanel: an unset nozzle target reads
 
     h.set_nozzle(40.0, 215.0);
     CHECK(text() == "40 / 215°C");
+    // The readout colors itself by heating state: red while heating.
+    lv_obj_t* current = lv_obj_find_by_name(h.root, "nozzle_current_temp");
+    REQUIRE(current != nullptr);
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(current, LV_PART_MAIN),
+                      theme_manager_get_color("danger")));
 }

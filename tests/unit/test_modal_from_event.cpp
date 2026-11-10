@@ -241,8 +241,24 @@ TEST_CASE_METHOD(FromEventFixture,
     bool b_done = false;
     a.set_completion_callback([&](bool) { a_done = true; });
     b.set_completion_callback([&](bool) { b_done = true; });
-    REQUIRE(a.show_for_spool(test_screen(), SpoolInfo{}, nullptr));
-    REQUIRE(b.show_for_spool(test_screen(), SpoolInfo{}, nullptr));
+    SpoolInfo spool_a;
+    spool_a.id = 7;
+    spool_a.material = "PETG";
+    spool_a.vendor = "eSUN";
+    SpoolInfo spool_b;
+    spool_b.id = 9;
+    REQUIRE(a.show_for_spool(test_screen(), spool_a, nullptr));
+    REQUIRE(b.show_for_spool(test_screen(), spool_b, nullptr));
+
+    // Each dialog names its own spool.
+    auto text = [&](helix::ui::SpoolEditModal& m, const char* name) {
+        return std::string(lv_label_get_text(named(m.dialog(), name)));
+    };
+    CHECK(text(a, "header_title").find("#7") != std::string::npos);
+    CHECK(text(b, "header_title").find("#9") != std::string::npos);
+    CHECK(text(a, "material_label") == "PETG");
+    CHECK(text(a, "vendor_label") == "eSUN");
+    CHECK(text(b, "vendor_label") == "Unknown");
 
     lv_obj_send_event(named(a.dialog(), "btn_close"), LV_EVENT_CLICKED, nullptr);
     CHECK(a_done);

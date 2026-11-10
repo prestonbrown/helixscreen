@@ -13,6 +13,7 @@
 #include "ui_spoolman_overlay.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/ad5x_ifs_test_access.h"
 #include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/backend_user_edit.h"
@@ -37,6 +38,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "spoolman_manager.h"
+#include "theme_manager.h"
 #include "tool_state.h"
 
 #include <algorithm>
@@ -389,6 +391,48 @@ class SpoolmanOverlayTestAccess {
 };
 
 using OverlayTA = SpoolmanOverlayTestAccess;
+
+TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanOverlay: Change shows setup until Cancel",
+                 "[spoolman][overlay][setup]") {
+    // The XML callbacks reach the process-wide overlay, so the test drives it.
+    auto& overlay = helix::ui::get_spoolman_overlay();
+    overlay.init_subjects();
+    overlay.register_callbacks();
+    lv_obj_t* root = overlay.create(test_screen());
+    REQUIRE(root != nullptr);
+    get_printer_state().capabilities_state().set_spoolman_available(true);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    auto find = [&](const char* name) {
+        lv_obj_t* obj = lv_obj_find_by_name(root, name);
+        REQUIRE(obj != nullptr);
+        return obj;
+    };
+    auto hidden = [&](const char* name) { return lv_obj_has_flag(find(name), LV_OBJ_FLAG_HIDDEN); };
+    auto click = [&](const char* name) {
+        lv_obj_send_event(find(name), LV_EVENT_CLICKED, nullptr);
+    };
+
+    CHECK(hidden("setup_card"));
+    CHECK_FALSE(hidden("status_card"));
+
+    click("change_btn");
+    CHECK_FALSE(hidden("setup_card"));
+    CHECK(hidden("status_card"));
+
+    // Connect with no address: the status line reports it in red.
+    click("connect_btn");
+    lv_obj_t* status = find("setup_status_text");
+    CHECK_FALSE(std::string(lv_label_get_text(status)).empty());
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(status, LV_PART_MAIN),
+                      theme_manager_get_color("danger")));
+
+    click("cancel_setup_btn");
+    CHECK(hidden("setup_card"));
+    CHECK_FALSE(hidden("status_card"));
+    CHECK(std::string(lv_label_get_text(status)).empty());
+    lv_obj_delete(root);
+}
 
 TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanOverlay: repeated opens do not leak poll references",
                  "[spoolman][overlay]") {

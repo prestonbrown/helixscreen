@@ -51,11 +51,9 @@ class UiClogMeter {
     void resize_arc();
 
   private:
-    /// Redraw the arc for one sample: range and mode, sweep, colour, and the
-    /// check icon that stands in when there is nothing to report.
+    /// Redraw the arc for one sample: range and mode, sweep and colour.
     void apply(const ClogMeterSample& s);
     void update_arc_color(const ClogMeterSample& s);
-    void update_safe_state(const ClogMeterSample& s);
 
     static void on_card_size_changed(lv_event_t* e);
 
@@ -63,9 +61,6 @@ class UiClogMeter {
     lv_obj_t* arc_ = nullptr;
     lv_obj_t* arc_container_ = nullptr;
     bool in_resize_ = false;
-
-    lv_obj_t* safe_icon_ = nullptr;  ///< check_circle shown when there is nothing to report
-    lv_obj_t* value_text_ = nullptr; ///< XML-bound clog_value_text, hidden in the safe state
 
     /// Constructed last, once the named lookups above have succeeded.
     std::optional<ClogMeterModel> model_;

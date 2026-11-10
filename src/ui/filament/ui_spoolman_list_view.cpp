@@ -163,11 +163,13 @@ void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int
     if (rw.id_label) {
         char id_buf[16];
         snprintf(id_buf, sizeof(id_buf), "#%d", spool.id);
+        // DECLARATIVE_OK: a recycled pool row rebound to the spool it now shows
         lv_label_set_text(rw.id_label, id_buf);
     }
 
     // Update spool name (Material - Color)
     if (rw.name_label) {
+        // DECLARATIVE_OK: a recycled pool row rebound to the spool it now shows
         lv_label_set_text(rw.name_label, spool.display_name().c_str());
     }
 
@@ -177,6 +179,7 @@ void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int
         if (!spool.location.empty()) {
             vendor_text += " \xC2\xB7 " + spool.location; // middle dot: U+00B7
         }
+        // DECLARATIVE_OK: a recycled pool row rebound to the spool it now shows
         lv_label_set_text(rw.vendor_label, vendor_text.c_str());
     }
 
@@ -184,6 +187,7 @@ void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int
     if (rw.weight_label) {
         char weight_buf[32];
         snprintf(weight_buf, sizeof(weight_buf), "%.0fg", spool.remaining_weight_g);
+        // DECLARATIVE_OK: a recycled pool row rebound to the spool it now shows
         lv_label_set_text(rw.weight_label, weight_buf);
     }
 
@@ -192,6 +196,7 @@ void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int
         char percent_buf[16];
         helix::format::format_percent(static_cast<int>(spool.remaining_percent()), percent_buf,
                                       sizeof(percent_buf));
+        // DECLARATIVE_OK: a recycled pool row rebound to the spool it now shows
         lv_label_set_text(rw.percent_label, percent_buf);
     }
 

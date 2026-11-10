@@ -2,7 +2,7 @@
 #include "ui_filament_catalog_selector.h"
 
 #include "ui_callback_helpers.h"
-#include "ui_icon_codepoints.h"
+#include "ui_row_text.h"
 #include "ui_utils.h"
 
 #include "core/text_io.h"
@@ -10,7 +10,6 @@
 #include "filament_variants.h"
 #include "lvgl.h"
 #include "sort_small.h"
-#include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
@@ -589,14 +588,6 @@ void FilamentCatalogSelector::rebuild_product_list() {
     // so it reads as a "create new" action and never gets buried under the list.
     lv_xml_create(list, "filament_catalog_add_row", nullptr);
 
-    // Data-driven theme colors (accent/text/muted) are set in C++ — the row's
-    // structure, fonts, padding, radii and pressed styling all live in
-    // ui_xml/components/filament_catalog_row.xml.
-    lv_color_t accent = theme_manager_get_color("primary");
-    lv_color_t text_color = theme_manager_get_color("text");
-    lv_color_t muted = theme_manager_get_color("text_muted");
-    const char* check = helix::ui::icon::lookup_codepoint("check");
-    const char* pencil = helix::ui::icon::lookup_codepoint("pencil");
     const bool favorites_view = is_favorites_vendor(current_vendor());
     const std::vector<std::string> favorite_ids = filament_favorites::load_favorite_ids();
     const std::set<std::string> starred(favorite_ids.begin(), favorite_ids.end());
@@ -611,21 +602,6 @@ void FilamentCatalogSelector::rebuild_product_list() {
     }
 
     for (const auto* p : products) {
-        const bool is_current = (highlighted_id_ == p->id);
-        auto* row = static_cast<lv_obj_t*>(lv_xml_create(list, "filament_catalog_row", nullptr));
-        if (!row)
-            continue;
-        lv_obj_set_name(row, p->id.c_str()); // identity for click handlers (L069)
-
-        if (auto* ind =
-                helix::ui::find_required(row, "check_indicator", "FilamentCatalogSelector")) {
-            lv_label_set_text(ind, (is_current && check) ? check : "");
-            lv_obj_set_style_text_color(ind, accent, 0);
-        }
-        if (auto* nm = helix::ui::find_required(row, "name_label", "FilamentCatalogSelector")) {
-            lv_label_set_text(nm, p->name.c_str());
-            lv_obj_set_style_text_color(nm, is_current ? accent : text_color, 0);
-        }
         // Variant chip: under a collapsed family heading the row's own type is
         // the only thing separating ASA-CF from ASA-GF, and it is exactly the
         // string this selection emits. Base-type rows carry no chip — the
@@ -633,38 +609,27 @@ void FilamentCatalogSelector::rebuild_product_list() {
         // (L070). In the favorites view the chip carries the BRAND instead —
         // the one disambiguator a cross-brand flat list has (the type is
         // usually already part of the product name).
-        if (auto* chip = helix::ui::find_required(row, "variant_chip", "FilamentCatalogSelector")) {
-            const std::string chip_text = favorites_view ? p->brand : p->type;
-            if (!chip_text.empty() && (favorites_view || chip_text != family)) {
-                lv_label_set_text(chip, chip_text.c_str());
-                lv_obj_set_style_text_color(chip, is_current ? accent : muted, 0);
-                lv_obj_remove_flag(chip, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-        if (auto* temp = helix::ui::find_required(row, "temp_label", "FilamentCatalogSelector")) {
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%d\xC2\xB0 / %d\xC2\xB0", p->nozzle_recommended,
-                     p->bed_temp);
-            lv_label_set_text(temp, buf);
-        }
-        // Edit pencil: shown only where the host opts in (standalone picker),
-        // not the AMS slot-assignment selector. The icon intercepts its own tap
-        // declaratively (clickable, no event_bubble in the XML), so editing
-        // never triggers row-select.
-        if (auto* edit = helix::ui::find_required(row, "edit_icon", "FilamentCatalogSelector")) {
-            if (show_edit_affordances_) {
-                if (pencil)
-                    lv_label_set_text(edit, pencil); // XML already sets #icon_pencil
-                lv_obj_remove_flag(edit, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-        // Star toggle: present in every host — this is where favorites get
-        // built. Accent when starred, muted when not; the glyph is the XML
-        // #icon_star token. Like the edit icon it intercepts its own tap, so
-        // starring never triggers row-select.
-        if (auto* star = helix::ui::find_required(row, "star_icon", "FilamentCatalogSelector")) {
-            // DECLARATIVE_OK: per-row star state is Config data, not a subject
-            lv_obj_set_style_text_color(star, starred.count(p->id) ? accent : muted, 0);
+        const std::string chip_text = favorites_view ? p->brand : p->type;
+        const bool chip_shown = !chip_text.empty() && (favorites_view || chip_text != family);
+        char temps[32];
+        snprintf(temps, sizeof(temps), "%d\xC2\xB0 / %d\xC2\xB0", p->nozzle_recommended,
+                 p->bed_temp);
+        // The edit pencil shows only where the host opts in (standalone
+        // picker), not the AMS slot-assignment selector; the star shows in
+        // every host, since this is where favorites get built.
+        const char* attrs[] = {"current",    highlighted_id_ == p->id ? "true" : "false",
+                               "chip_shown", chip_shown ? "1" : "0",
+                               "temps",      temps,
+                               "starred",    starred.count(p->id) ? "true" : "false",
+                               "editable",   show_edit_affordances_ ? "1" : "0",
+                               nullptr};
+        auto* row = static_cast<lv_obj_t*>(lv_xml_create(list, "filament_catalog_row", attrs));
+        if (!row)
+            continue;
+        lv_obj_set_name(row, p->id.c_str()); // identity for click handlers (L069)
+        helix::ui::set_row_label_text(row, "name_label", p->name.c_str());
+        if (chip_shown) {
+            helix::ui::set_row_label_text(row, "variant_chip", chip_text.c_str());
         }
     }
 }

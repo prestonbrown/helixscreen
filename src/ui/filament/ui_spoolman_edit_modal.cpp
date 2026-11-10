@@ -27,6 +27,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <tuple>
 
 namespace helix::ui {
 
@@ -110,6 +111,16 @@ void SpoolEditModal::init_subjects() {
     lv_subject_init_string(&save_button_text_subject_, save_button_text_buf_, nullptr,
                            sizeof(save_button_text_buf_), lv_tr("Close"));
     subjects_.publish("spoolman_edit_save_text", &save_button_text_subject_);
+    for (auto [subject, buf, size, name] :
+         {std::make_tuple(&title_subject_, title_buf_, sizeof(title_buf_), "spoolman_edit_title"),
+          std::make_tuple(&material_subject_, material_buf_, sizeof(material_buf_),
+                          "spoolman_edit_material"),
+          std::make_tuple(&color_subject_, color_buf_, sizeof(color_buf_), "spoolman_edit_color"),
+          std::make_tuple(&vendor_subject_, vendor_buf_, sizeof(vendor_buf_),
+                          "spoolman_edit_vendor")}) {
+        lv_subject_init_string(subject, buf, nullptr, size, "");
+        subjects_.publish(name, subject);
+    }
 
     lv_xml_register_subject(lv_xml_component_get_scope("spoolman_edit_modal"),
                             "label_printer_configured", helix::label_printer_configured_subject());
@@ -128,44 +139,30 @@ void SpoolEditModal::populate_fields() {
         return;
     }
 
-    // Title — modal_header names its title widget "header_title".
-    lv_obj_t* title = find_widget("header_title");
-    if (title) {
-        std::string title_text = fmt::format(lv_tr("Edit Spool #{}"), working_spool_.id);
-        lv_label_set_text(title, title_text.c_str());
-    }
+    const std::string title_text = fmt::format(lv_tr("Edit Spool #{}"), working_spool_.id);
+    lv_subject_copy_string(&title_subject_, title_text.c_str());
 
-    // Read-only info labels
-    lv_obj_t* material_label = find_widget("material_label");
-    if (material_label) {
-        const char* material =
-            working_spool_.material.empty() ? lv_tr("Unknown") : working_spool_.material.c_str();
-        lv_label_set_text(material_label, material);
-    }
+    // Read-only info lines
+    lv_subject_copy_string(&material_subject_, working_spool_.material.empty()
+                                                   ? lv_tr("Unknown")
+                                                   : working_spool_.material.c_str());
 
-    lv_obj_t* color_label = find_widget("color_label");
-    if (color_label) {
-        // Spoolman stores no colour name — only color_hex — so the human label
-        // is derived, the same way the AMS card derives it. Showing
-        // SpoolInfo::filament_name here (what this row used to do) put the
-        // filament's name under a "Colour" heading: "PLA Matte Charcoal".
-        std::string color;
-        auto rgb = helix::parse_hex_color(working_spool_.color_hex);
-        if (rgb) {
-            color = helix::get_color_name_from_hex(*rgb);
-        }
-        if (color.empty()) {
-            color = working_spool_.color_hex.empty() ? lv_tr("No color") : working_spool_.color_hex;
-        }
-        lv_label_set_text(color_label, color.c_str());
+    // Spoolman stores no colour name, only color_hex, so the human label is
+    // derived the same way the AMS card derives it; filament_name is the
+    // user's own filament name and does not belong under a "Colour" heading.
+    std::string color;
+    auto rgb = helix::parse_hex_color(working_spool_.color_hex);
+    if (rgb) {
+        color = helix::get_color_name_from_hex(*rgb);
     }
+    if (color.empty()) {
+        color = working_spool_.color_hex.empty() ? lv_tr("No color") : working_spool_.color_hex;
+    }
+    lv_subject_copy_string(&color_subject_, color.c_str());
 
-    lv_obj_t* vendor_label = find_widget("vendor_label");
-    if (vendor_label) {
-        const char* vendor =
-            working_spool_.vendor.empty() ? lv_tr("Unknown") : working_spool_.vendor.c_str();
-        lv_label_set_text(vendor_label, vendor);
-    }
+    lv_subject_copy_string(&vendor_subject_, working_spool_.vendor.empty()
+                                                 ? lv_tr("Unknown")
+                                                 : working_spool_.vendor.c_str());
 
     // Editable fields
     lv_obj_t* remaining_field = find_widget("field_remaining");
@@ -508,11 +505,8 @@ void SpoolEditModal::handle_color_clicked() {
         // Spoolman filament name.
 
         // Update color label and spool preview
-        lv_obj_t* color_label = find_widget("color_label");
-        if (color_label) {
-            std::string display = color_name.empty() ? working_spool_.color_hex : color_name;
-            lv_label_set_text(color_label, display.c_str());
-        }
+        const std::string display = color_name.empty() ? working_spool_.color_hex : color_name;
+        lv_subject_copy_string(&color_subject_, display.c_str());
         update_spool_preview();
         update_save_button_text();
     });

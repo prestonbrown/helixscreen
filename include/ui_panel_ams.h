@@ -275,7 +275,6 @@ class AmsPanel : public PanelBase {
     // === UI Update Handlers ===
 
     void update_slot_colors();
-    void update_slot_status(int slot_index);
     void update_current_slot_highlight(int slot_index);
 
     // === Event Callbacks (static trampolines) ===
