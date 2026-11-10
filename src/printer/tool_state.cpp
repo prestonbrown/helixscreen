@@ -92,6 +92,7 @@ void ToolState::init_subjects(bool register_xml) {
     INIT_SUBJECT_STRING(tool_badge_text, "", subjects_, register_xml);
     INIT_SUBJECT_INT(show_tool_badge, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(names_mounted_nozzle, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(extruder_count, 0, subjects_, register_xml);
 
     // Per-tool offsets: which axes this printer keeps per toolhead, and the
     // aggregate save affordance. Defaults say "this printer has none and we
@@ -292,7 +293,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
         }
     }
 
-    heads_cache_.reset();
+    invalidate_heads();
 
     // Update subjects
     lv_subject_set_int(&tool_count_, static_cast<int>(tools_.size()));
@@ -320,7 +321,7 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
                          ams_topology_tool_extruder_ != topo.tool_extruder;
     if (heads_share_heater_ != topo.heads_share_heater) {
         heads_share_heater_ = topo.heads_share_heater;
-        heads_cache_.reset();
+        invalidate_heads();
     }
 
     ams_topology_active_ = true;
@@ -390,7 +391,7 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
             }
             tools_.push_back(std::move(t));
         }
-        heads_cache_.reset();
+        invalidate_heads();
         lv_subject_set_int(&tool_count_, static_cast<int>(tools_.size()));
         int version = lv_subject_get_int(&tools_version_) + 1;
         lv_subject_set_int(&tools_version_, version);
@@ -409,7 +410,7 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
         }
     }
     if (seated_changed) {
-        heads_cache_.reset();
+        invalidate_heads();
     }
 
     int new_active = topo.active_tool;
@@ -438,7 +439,7 @@ void ToolState::clear_ams_topology() {
     ams_topology_tool_extruder_.clear();
     heads_share_heater_ = false;
     tools_.clear();
-    heads_cache_.reset();
+    invalidate_heads();
     active_tool_index_ = 0;
     lv_subject_set_int(&tool_count_, 0);
     lv_subject_set_int(&active_tool_, 0);
@@ -605,7 +606,7 @@ void ToolState::update_from_status(const nlohmann::json& status) {
             std::optional<std::string> new_val = ext.empty() ? std::nullopt : std::optional(ext);
             if (new_val != tool.extruder_name) {
                 tool.extruder_name = new_val;
-                heads_cache_.reset();
+                invalidate_heads();
                 changed = true;
             }
         }
@@ -868,6 +869,13 @@ std::vector<PhysicalHead> ToolState::heated_heads() const {
         }
     }
     return heated;
+}
+
+void ToolState::invalidate_heads() {
+    heads_cache_.reset();
+    if (subjects_initialized_) {
+        lv_subject_set_int(&extruder_count_, extruder_count());
+    }
 }
 
 int ToolState::extruder_count() const {

@@ -158,6 +158,10 @@ class PrintStatusWidget : public PanelWidget {
     /// resizes; consumed by XML bind_style entries in print_status_detailed_active.
     /// Public so the static helper in the .cpp can publish to it without a friend.
     static inline lv_subject_t arc_thickness_tier_subject_{};
+    // 1 while the open Layout picker shows Detailed, which hides its Show
+    // Sections group. Process-wide: ContextMenu keeps one picker open at a
+    // time, and apply_visuals() writes it before the user sees the card.
+    static inline lv_subject_t picker_detailed_subject_{};
 
     // Test accessors (always compiled — used by unit tests)
     const std::string& layout_style_for_test() const {

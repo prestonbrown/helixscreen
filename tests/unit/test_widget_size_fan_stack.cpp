@@ -572,3 +572,32 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack stacks icons above name+speed onl
     CHECK(lv_obj_get_style_text_font(part_speed, LV_PART_MAIN) ==
           theme_manager_get_font("font_xs"));
 }
+
+// Two fan stacks can sit on the home grid at once, and each tile's text and
+// aux row come from its own widget. Both are built before either tile is
+// parsed, the order PanelWidgetManager builds a page in.
+TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack: two tiles keep their own text",
+                 "[widget_size][fan_stack][panel_widget]") {
+    state().fan_state().init_fans({"fan", "heater_fan hotend_fan"});
+    state().fan_state().update_fan_speed("fan", 0.35);
+    helix::ui::UpdateQueue::instance().drain();
+
+    PanelWidgetHarness<FanStackWidget> a(
+        test_screen(), HarnessConfig{nlohmann::json::object(), true}, "fan_stack", state());
+    PanelWidgetHarness<FanStackWidget> b(
+        test_screen(), HarnessConfig{nlohmann::json::object(), true}, "fan_stack:1", state());
+    a.create_tile(test_screen());
+    b.create_tile(test_screen());
+    a.resize(1, 1, w_normal() - 1, h_tall() - 1);
+    b.resize(1, 1, w_normal(), h_tall() - 1);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(30);
+
+    for (auto* h : {&a, &b}) {
+        CHECK(std::string(lv_label_get_text(h->child("fan_stack_part_speed"))) == "35%");
+        CHECK(lv_obj_has_flag(h->child("fan_stack_aux_row"), LV_OBJ_FLAG_HIDDEN));
+    }
+    // The narrow tile names its rows by letter, the wider one in full.
+    CHECK(std::string(lv_label_get_text(a.child("fan_stack_part_name"))) == lv_tr("P"));
+    CHECK(std::string(lv_label_get_text(b.child("fan_stack_part_name"))) != lv_tr("P"));
+}

@@ -1515,11 +1515,13 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
 
     // Build the home-panel component + controller, then tap it the way a user
     // does — the widget's own completion wiring is the code under test.
+    lv_xml_register_event_cb(nullptr, "active_spool_clicked_cb", ActiveSpoolWidget::clicked_cb);
     lv_obj_t* comp =
         static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "panel_widget_active_spool", nullptr));
     REQUIRE(comp != nullptr);
     ActiveSpoolWidget widget(&api);
-    widget.attach(comp, test_screen());
+    lv_obj_add_flag(comp, helix::kPanelWidgetTileFlag);
+    widget.attach_tile(comp, test_screen());
 
     lv_obj_t* btn = lv_obj_find_by_name(comp, "spoolman_btn");
     REQUIRE(btn != nullptr);

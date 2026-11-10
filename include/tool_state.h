@@ -316,6 +316,12 @@ class ToolState {
     lv_subject_t* get_names_mounted_nozzle_subject() {
         return &names_mounted_nozzle_;
     }
+    /// extruder_count() as a subject, published as "extruder_count": refreshed
+    /// whenever the head list is invalidated, so a control shown only on a
+    /// multi-nozzle printer follows the hardware rather than its attach-time value.
+    lv_subject_t* get_extruder_count_subject() {
+        return &extruder_count_;
+    }
 
     // ---- Per-tool offsets (helix::tool_offsets) -----------------------------
     //
@@ -394,6 +400,9 @@ class ToolState {
 
     /// Recompute any_tool_offset_dirty from tools_.
     void refresh_any_tool_dirty();
+    /// Drop heads_cache_ after anything it derives from changed, and republish
+    /// extruder_count_ from the rebuilt list.
+    void invalidate_heads();
 
     ToolState() = default;
 
@@ -419,6 +428,7 @@ class ToolState {
     char tool_badge_text_buf_[16] = {};
     lv_subject_t show_tool_badge_{};
     lv_subject_t names_mounted_nozzle_{};
+    lv_subject_t extruder_count_{};
 
     // Per-tool offsets (helix::tool_offsets). Only a tool changer has any; on
     // every other printer the *_supported trio stays 0 and the aggregate is

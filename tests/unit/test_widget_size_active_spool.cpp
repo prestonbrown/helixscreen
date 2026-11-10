@@ -18,9 +18,9 @@
  *     (apply_layout_visibility)
  *   - whichever spool canvas (`spool_wide` / `spool_compact`) carries the
  *     real filament color (update_spool_display's `active_spool` pick)
- *   - `spoolman_no_spool_label` hidden flag and `spoolman_material` text,
- *     both of which only branch on `is_wide_` in the no-spool case
- *     (update_spool_display)
+ *   - the compact `spoolman_no_spool_label` and the wide row's own
+ *     `spoolman_no_spool_wide` line, both of which only branch on `is_wide_`
+ *     in the no-spool case
  *
  * The first two cases use spans that contradict the pixel verdict
  * (`colspan>=2` would land the opposite mode), so an implementation that
@@ -64,6 +64,16 @@ bool color_is(lv_color_t c, uint32_t rgb) {
            c.blue == (rgb & 0xFF);
 }
 
+/// Drawn unless it or an ancestor is hidden.
+bool shown(lv_obj_t* obj) {
+    for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
+        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -97,6 +107,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK_FALSE(lv_obj_has_flag(wide_layout, LV_OBJ_FLAG_HIDDEN));
     CHECK(lv_obj_has_flag(spool_compact, LV_OBJ_FLAG_HIDDEN));
     CHECK(color_is(ui_spool_canvas_get_color(spool_wide), kTestSpoolColor));
+    // The wide row names the spool, in place of its No Spool line.
+    CHECK(std::string(lv_label_get_text(h.child("spoolman_material"))) == "PLA");
+    CHECK(shown(h.child("spoolman_material")));
+    CHECK_FALSE(shown(h.child("spoolman_no_spool_wide")));
+    CHECK(shown(h.child("spoolman_brand_color")));
+    CHECK(std::string(lv_label_get_text(h.child("spoolman_weight"))) == "500g / 1000g");
+    CHECK(shown(h.child("spoolman_weight")));
 
     // Back to compact by pixel, contradicting span (colspan=3 -> old predicate goes wide).
     h.resize(3, 3, w_normal() - 1, h_tall() - 1);
@@ -107,31 +124,30 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     AmsState::instance().clear_external_spool_info();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "active_spool no-spool label and material text follow pixels, not spans",
+TEST_CASE_METHOD(LVGLUITestFixture, "active_spool no-spool label follows pixels, not spans",
                  "[widget_size][active_spool][panel_widget]") {
     AmsState::instance().clear_external_spool_info();
 
     PanelWidgetHarness<ActiveSpoolWidget> h(test_screen(), api());
 
     lv_obj_t* no_spool_label = h.child("spoolman_no_spool_label");
-    lv_obj_t* material_label = h.child("spoolman_material");
+    lv_obj_t* no_spool_wide = h.child("spoolman_no_spool_wide");
     REQUIRE(no_spool_label != nullptr);
-    REQUIRE(material_label != nullptr);
+    REQUIRE(no_spool_wide != nullptr);
 
-    // Compact + no spool: label visible, material text blank.
-    CHECK_FALSE(lv_obj_has_flag(no_spool_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(std::string(lv_label_get_text(material_label)).empty());
+    // Compact + no spool: the caption says so.
+    CHECK(shown(no_spool_label));
+    CHECK_FALSE(shown(no_spool_wide));
 
-    // Wide by pixel, contradicting span (colspan=1).
+    // Wide by pixel, contradicting span (colspan=1): the text row says so.
     h.resize(1, 1, w_normal(), h_tall());
-    CHECK(lv_obj_has_flag(no_spool_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(std::string(lv_label_get_text(material_label)) == lv_tr("No Spool"));
+    CHECK_FALSE(shown(no_spool_label));
+    CHECK(shown(no_spool_wide));
 
     // Back to compact by pixel, contradicting span (colspan=3).
     h.resize(3, 3, w_normal() - 1, h_tall() - 1);
-    CHECK_FALSE(lv_obj_has_flag(no_spool_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(std::string(lv_label_get_text(material_label)).empty());
+    CHECK(shown(no_spool_label));
+    CHECK_FALSE(shown(no_spool_wide));
 }
 
 // The #1109 shape, driven through the pixel predicate. A rebuild that

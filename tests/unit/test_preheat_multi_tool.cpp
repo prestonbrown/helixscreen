@@ -56,107 +56,23 @@ static std::vector<ToolInfo> make_test_tools(int count) {
 }
 
 // ============================================================================
-// collect_preheat_heaters: all tools
+// collect_preheat_heaters: one target, or none
 // ============================================================================
 
-TEST_CASE("PreheatWidget: collect_preheat_heaters returns all tool heaters when target is -1",
+TEST_CASE("PreheatWidget: collect_preheat_heaters aims a target at one tool or none",
           "[preheat][panel_widget]") {
-    auto tools = make_test_tools(3);
-
-    auto heaters = PreheatWidget::collect_preheat_heaters(tools, -1);
-
-    REQUIRE(heaters.size() == 3);
-    REQUIRE(heaters[0] == "extruder");
-    REQUIRE(heaters[1] == "extruder1");
-    REQUIRE(heaters[2] == "extruder2");
-}
-
-TEST_CASE("PreheatWidget: collect_preheat_heaters returns single tool heater for specific target",
-          "[preheat][panel_widget]") {
-    auto tools = make_test_tools(3);
-
-    SECTION("tool 0") {
-        auto heaters = PreheatWidget::collect_preheat_heaters(tools, 0);
-        REQUIRE(heaters.size() == 1);
-        REQUIRE(heaters[0] == "extruder");
+    const auto tools = make_test_tools(3);
+    struct Case {
+        int target;
+        std::vector<std::string> want;
+    };
+    // Out of range answers nothing, and -1 is the only negative meaning "all".
+    for (const Case& c : {Case{0, {"extruder"}}, Case{1, {"extruder1"}}, Case{2, {"extruder2"}},
+                          Case{5, {}}, Case{-2, {}}}) {
+        INFO("target " << c.target);
+        CHECK(PreheatWidget::collect_preheat_heaters(tools, c.target) == c.want);
     }
-
-    SECTION("tool 1") {
-        auto heaters = PreheatWidget::collect_preheat_heaters(tools, 1);
-        REQUIRE(heaters.size() == 1);
-        REQUIRE(heaters[0] == "extruder1");
-    }
-
-    SECTION("tool 2") {
-        auto heaters = PreheatWidget::collect_preheat_heaters(tools, 2);
-        REQUIRE(heaters.size() == 1);
-        REQUIRE(heaters[0] == "extruder2");
-    }
-}
-
-// ============================================================================
-// collect_preheat_heaters: skips tools with no valid heater
-// ============================================================================
-
-TEST_CASE("PreheatWidget: collect_preheat_heaters skips tools with no heater",
-          "[preheat][panel_widget]") {
-    auto tools = make_test_tools(3);
-    // Tool 1 has neither extruder_name nor heater_name
-    tools[1].extruder_name = std::nullopt;
-    tools[1].heater_name = std::nullopt;
-
-    auto heaters = PreheatWidget::collect_preheat_heaters(tools, -1);
-
-    REQUIRE(heaters.size() == 2);
-    REQUIRE(heaters[0] == "extruder");
-    REQUIRE(heaters[1] == "extruder2");
-}
-
-// ============================================================================
-// collect_preheat_heaters: prefers heater_name over extruder_name
-// ============================================================================
-
-TEST_CASE("PreheatWidget: collect_preheat_heaters uses effective_heater (heater_name priority)",
-          "[preheat][panel_widget]") {
-    auto tools = make_test_tools(2);
-    tools[0].heater_name = "heater_generic nozzle0";
-
-    auto heaters = PreheatWidget::collect_preheat_heaters(tools, -1);
-
-    REQUIRE(heaters.size() == 2);
-    REQUIRE(heaters[0] == "heater_generic nozzle0");
-    REQUIRE(heaters[1] == "extruder1");
-}
-
-// ============================================================================
-// collect_preheat_heaters: out-of-range target returns empty
-// ============================================================================
-
-TEST_CASE("PreheatWidget: collect_preheat_heaters returns empty for out-of-range target",
-          "[preheat][panel_widget]") {
-    auto tools = make_test_tools(3);
-
-    SECTION("target beyond tool count") {
-        auto heaters = PreheatWidget::collect_preheat_heaters(tools, 5);
-        REQUIRE(heaters.empty());
-    }
-
-    SECTION("negative target other than -1") {
-        auto heaters = PreheatWidget::collect_preheat_heaters(tools, -2);
-        REQUIRE(heaters.empty());
-    }
-}
-
-// ============================================================================
-// collect_preheat_heaters: empty tools
-// ============================================================================
-
-TEST_CASE("PreheatWidget: collect_preheat_heaters handles empty tools vector",
-          "[preheat][panel_widget]") {
-    std::vector<ToolInfo> tools;
-
-    auto heaters = PreheatWidget::collect_preheat_heaters(tools, -1);
-    REQUIRE(heaters.empty());
+    CHECK(PreheatWidget::collect_preheat_heaters({}, -1).empty());
 }
 
 // ============================================================================
@@ -171,9 +87,8 @@ static void add_tool(std::vector<ToolInfo>& tools, const char* extruder, const c
     ToolInfo t;
     t.index = static_cast<int>(tools.size());
     t.name = "T" + std::to_string(tools.size());
-    if (extruder) {
-        t.extruder_name = extruder;
-    }
+    // ToolInfo names "extruder" by default; a null here means no name at all.
+    t.extruder_name = extruder ? std::optional<std::string>(extruder) : std::nullopt;
     if (heater) {
         t.heater_name = heater;
     }
@@ -182,9 +97,12 @@ static void add_tool(std::vector<ToolInfo>& tools, const char* extruder, const c
 
 TEST_CASE("PreheatWidget: collect_preheat_heaters reads each tool's own heater, in tool order",
           "[preheat][panel_widget]") {
+    // effective_heater() falls back to "extruder" for a tool with no name at
+    // all, so no tool here names "extruder": a kept nameless tool shows up.
     std::vector<ToolInfo> tools;
-    add_tool(tools, "extruder", nullptr);      // plain first hotend
+    add_tool(tools, "extruder5", nullptr);     // plain first hotend
     add_tool(tools, "extruder3", nullptr);     // gap in the numbering, on purpose
+    add_tool(tools, nullptr, nullptr);         // no extruder, no heater: skipped
     add_tool(tools, "extruder1", "extruder7"); // heater_name outranks extruder_name
     add_tool(tools, nullptr, "extruder9");     // heater only, no extruder
     add_tool(tools, "extruder2", nullptr);
@@ -192,28 +110,11 @@ TEST_CASE("PreheatWidget: collect_preheat_heaters reads each tool's own heater, 
     auto heaters = PreheatWidget::collect_preheat_heaters(tools, -1);
 
     REQUIRE(heaters.size() == 5);
-    CHECK(heaters[0] == "extruder");
+    CHECK(heaters[0] == "extruder5");
     CHECK(heaters[1] == "extruder3");
     CHECK(heaters[2] == "extruder7");
     CHECK(heaters[3] == "extruder9");
     CHECK(heaters[4] == "extruder2");
-}
-
-TEST_CASE("PreheatWidget: collect_preheat_heaters skips a tool with no heater at all",
-          "[preheat][panel_widget]") {
-    // effective_heater() falls back to "extruder" when both names are unset, so
-    // a tool that is skipped and a tool that is kept are distinguishable only by
-    // the result size and the absence of that fallback.
-    std::vector<ToolInfo> tools;
-    add_tool(tools, "extruder", nullptr);
-    add_tool(tools, nullptr, nullptr); // no extruder, no heater
-    add_tool(tools, "extruder4", nullptr);
-
-    auto heaters = PreheatWidget::collect_preheat_heaters(tools, -1);
-
-    REQUIRE(heaters.size() == 2);
-    CHECK(heaters[0] == "extruder");
-    CHECK(heaters[1] == "extruder4");
 }
 
 // ============================================================================
@@ -232,14 +133,9 @@ TEST_CASE("PreheatWidget: collect_preheat_heaters skips a tool with no heater at
 
 namespace {
 
-/// Rebuild ToolState around `extruders` real hotends and drain, so
-/// extruder_count() reports that number before the cycle runs.
-/// init_tools() enumerates extruders out of the discovered Klipper objects.
-void seed_extruders(int extruders) {
-    auto& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-
+/// A discovered printer with `extruders` real hotends, for init_tools() to
+/// enumerate.
+helix::PrinterDiscovery extruder_discovery(int extruders) {
     nlohmann::json arr = nlohmann::json::array();
     for (int i = 0; i < extruders; ++i) {
         arr.push_back(i == 0 ? "extruder" : "extruder" + std::to_string(i));
@@ -248,8 +144,17 @@ void seed_extruders(int extruders) {
     arr.push_back("fan");
     helix::PrinterDiscovery disc;
     disc.parse_objects(arr);
+    return disc;
+}
 
-    ts.init_tools(disc);
+/// Rebuild ToolState around `extruders` real hotends and drain, so
+/// extruder_count() reports that number before the cycle runs.
+/// `register_xml` publishes its subjects for a tile to bind.
+void seed_extruders(int extruders, bool register_xml = false) {
+    auto& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(register_xml);
+    ts.init_tools(extruder_discovery(extruders));
     helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(ts.extruder_count() == extruders);
 }
@@ -268,33 +173,6 @@ ToolTopology lane_topology(int lanes) {
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLTestFixture,
-                 "PreheatWidget: cycle_tool_target walks every nozzle then wraps back to all",
-                 "[preheat][panel_widget]") {
-    seed_extruders(3);
-
-    PreheatWidget widget(get_printer_state());
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
-
-    // all -> T0 -> T1 -> T2 -> all. Asserted step by step rather than as a set,
-    // because the ordering is what the button caption promises the user.
-    PreheatWidgetTestAccess::cycle(widget);
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == 0);
-
-    PreheatWidgetTestAccess::cycle(widget);
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == 1);
-
-    PreheatWidgetTestAccess::cycle(widget);
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == 2);
-
-    PreheatWidgetTestAccess::cycle(widget);
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
-
-    // A second lap lands on the same values, so the wrap left no residue.
-    PreheatWidgetTestAccess::cycle(widget);
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == 0);
-}
-
 TEST_CASE_METHOD(LVGLUITestFixture, "PreheatWidget: the tool target button cycles its own widget",
                  "[preheat][panel_widget][from_event]") {
     // XML resolves preheat_tool_target_cb at parse time, so it must be registered first.
@@ -309,39 +187,77 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PreheatWidget: the tool target button cycle
     CHECK(std::string(lv_label_get_text(b.child("tool_target_label"))) == b_before);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "PreheatWidget: cycle_tool_target visits every nozzle in one lap",
+// The tool target follows the nozzle count under a live tile. A shared-heater
+// flip keeps the tool list, so no new version arrives, but the count drops to
+// one: a target on head 1 must fall back to all.
+TEST_CASE_METHOD(LVGLUITestFixture, "PreheatWidget: the tool target follows the nozzle count",
+                 "[preheat][panel_widget][shared_heater]") {
+    register_preheat_widget();
+    seed_extruders(2, true);
+    ToolTopology topo = helix::test::make_head_topology(2);
+    ToolState::instance().set_ams_topology(topo);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, get_printer_state());
+    TemperatureController controller(get_printer_state(), &api);
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+    helix::PanelWidgetManager::instance().register_shared_resource<helix::TemperatureController>(
+        &controller);
+
+    PanelWidgetHarness<PreheatWidget> h(test_screen(), get_printer_state());
+    helix::ui::UpdateQueue::instance().drain_until_empty(); // the observers' first delivery
+    lv_obj_t* btn = h.child("preheat_tool_target");
+    lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr); // head 0
+    lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr); // head 1
+    REQUIRE(PreheatWidgetTestAccess::tool_target(h.widget()) == 1);
+    helix::LogCapture log(64);
+    PreheatWidgetTestAccess::set_temperatures_multi(h.widget(), 200, 60);
+    // Named the way its button names it, never the 0-based G-code form.
+    CHECK(log.count_containing("Preheat: Tool 2 + bed set") >= 1);
+    CHECK(log.count_containing("Preheat: T1 + bed set") == 0);
+
+    topo.heads_share_heater = true;
+    ToolState::instance().set_ams_topology(topo);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(ToolState::instance().extruder_count() == 1);
+
+    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(PreheatWidgetTestAccess::tool_target(h.widget()) == -1);
+    CHECK(std::string(lv_label_get_text(h.child("tool_target_label"))) == "All (1)");
+    PreheatWidgetTestAccess::set_temperatures_multi(h.widget(), 200, 60);
+    CHECK(log.count_containing("Preheat: all") >= 1);
+
+    topo.heads_share_heater = false;
+    ToolState::instance().set_ams_topology(topo);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(std::string(lv_label_get_text(h.child("tool_target_label"))) == "All (2)");
+
+    ToolState::instance().clear_ams_topology();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    helix::PanelWidgetManager::instance().register_shared_resource<helix::TemperatureController>(
+        std::shared_ptr<TemperatureController>{});
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "PreheatWidget: cycle_tool_target walks every nozzle in order, then wraps to all",
                  "[preheat][panel_widget]") {
-    // Paired with the ordering case: a cycle that skipped a nozzle, or stopped
-    // one short, would leave a hotend the user cannot aim a preheat at.
+    // A cycle that skipped a nozzle, or stopped one short, would leave a hotend
+    // the user cannot aim a preheat at; the order is what the caption promises.
+    // The second lap starts where the first did, so the wrap left no residue.
     seed_extruders(6);
 
     PreheatWidget widget(get_printer_state());
+    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
 
     std::vector<int> seen;
-    for (int i = 0; i < 7; ++i) {
+    for (int i = 0; i < 8; ++i) {
         PreheatWidgetTestAccess::cycle(widget);
         seen.push_back(PreheatWidgetTestAccess::tool_target(widget));
     }
 
-    REQUIRE(seen == std::vector<int>{0, 1, 2, 3, 4, 5, -1});
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "PreheatWidget: cycle_tool_target collapses to all on one nozzle",
-                 "[preheat][panel_widget]") {
-    seed_extruders(1);
-
-    PreheatWidget widget(get_printer_state());
-
-    // Seeded with a stale per-tool target, as a recycled widget instance carries
-    // one across a home-panel rebuild onto a printer with fewer nozzles.
-    PreheatWidgetTestAccess::set_tool_target(widget, 2);
-
-    PreheatWidgetTestAccess::cycle(widget);
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
-
-    // Still "all" however many times it is pressed - there is nothing to cycle to.
-    PreheatWidgetTestAccess::cycle(widget);
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
+    REQUIRE(seen == std::vector<int>{0, 1, 2, 3, 4, 5, -1, 0});
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "PreheatWidget: cycle_tool_target counts nozzles, not AMS lanes",
@@ -356,7 +272,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "PreheatWidget: cycle_tool_target counts nozzl
     REQUIRE(ts.tool_count() == 4);
     REQUIRE(ts.extruder_count() == 1);
 
+    // Seeded with a stale per-head target, as a recycled widget carries one onto
+    // a printer with fewer nozzles; however often it is pressed it stays "all".
     PreheatWidget widget(get_printer_state());
+    PreheatWidgetTestAccess::set_tool_target(widget, 2);
+    PreheatWidgetTestAccess::cycle(widget);
+    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
     PreheatWidgetTestAccess::cycle(widget);
     REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
 
@@ -400,31 +321,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
 // count it returns is also what the confirmation toast reports.
 // ============================================================================
 
-TEST_CASE("PreheatWidget: collect_preheat_heaters collapses lanes sharing one heater",
-          "[preheat][panel_widget]") {
-    // What set_ams_topology() leaves behind on a 4-lane AMS + one extruder:
-    // four tools, every one of them mapped to "extruder".
-    std::vector<ToolInfo> tools;
-    for (int i = 0; i < 4; ++i) {
-        ToolInfo t;
-        t.index = i;
-        t.name = "T" + std::to_string(i);
-        t.extruder_name = "extruder";
-        tools.push_back(t);
-    }
-
-    auto heaters = PreheatWidget::collect_preheat_heaters(tools, -1);
-
-    REQUIRE(heaters.size() == 1);
-    REQUIRE(heaters[0] == "extruder");
-}
-
 TEST_CASE("PreheatWidget: collect_preheat_heaters keeps every distinct heater in tool order",
           "[preheat][panel_widget]") {
-    // Paired with the case above: a collapse that kept only the first heater
-    // would pass that one and silently stop heating a toolchanger's other
-    // hotends. Two extra lanes are hung off T0's heater to prove the dedup
-    // removes duplicates rather than truncating the list.
+    // Lanes sharing a heater collapse to it, as set_ams_topology() leaves an
+    // AMS on one extruder; a collapse that kept only the first heater would
+    // stop heating a toolchanger's other hotends. Two extra lanes hang off
+    // existing heaters to prove the dedup removes duplicates rather than
+    // truncating the list.
     auto tools = make_test_tools(3);
     ToolInfo lane;
     lane.index = 3;
@@ -447,34 +350,6 @@ TEST_CASE("PreheatWidget: collect_preheat_heaters keeps every distinct heater in
 // ============================================================================
 // set_temperatures_multi: the "Preheat: ..." confirmation toast
 // ============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture,
-                 "PreheatWidget: single-tool preheat announces the tool as a label",
-                 "[preheat][panel_widget]") {
-    seed_extruders(2);
-
-    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
-    MoonrakerAPI api(client, get_printer_state());
-    TemperatureController controller(get_printer_state(), &api);
-    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
-    helix::PanelWidgetManager::instance().register_shared_resource<helix::TemperatureController>(
-        &controller);
-
-    PreheatWidget widget(get_printer_state());
-    PreheatWidgetTestAccess::set_tool_target(widget, 1); // T1
-
-    helix::LogCapture log(64);
-    PreheatWidgetTestAccess::set_temperatures_multi(widget, 200, 60);
-
-    // The toast names the tool the way its button does, never the 0-based
-    // G-code form.
-    CHECK(log.count_containing("Preheat: Tool 2 + bed set") >= 1);
-    CHECK(log.count_containing("Preheat: T1 + bed set") == 0);
-
-    // Drop the registration so later tests' get_temperature_controller() sees none.
-    helix::PanelWidgetManager::instance().register_shared_resource<helix::TemperatureController>(
-        std::shared_ptr<TemperatureController>{});
-}
 
 // ============================================================================
 // Heads with no heater: a changer with more tools than enumerated extruders
@@ -556,28 +431,25 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(ts.heated_heads().size() == 7);
 
     PreheatWidget widget(get_printer_state());
-    lv_obj_t* label = lv_label_create(test_screen());
 
     // The target counts heads, and head 5 is extruder5: tool 5 is a lane of
     // extruder4, and lane 8 is the head's lowest, not the one it holds.
     PreheatWidgetTestAccess::set_tool_target(widget, 5);
-    const std::string head5 = PreheatWidgetTestAccess::tool_target_caption(widget, label);
+    const std::string head5 = PreheatWidgetTestAccess::tool_target_caption(widget);
     CHECK(head5 == ts.tools()[10].display_label);
     CHECK(head5 != ts.tools()[8].display_label);
     CHECK(head5 != ts.tools()[5].display_label);
 
     // With no lane seated, a head falls back to its lowest lane.
     PreheatWidgetTestAccess::set_tool_target(widget, 6);
-    CHECK(PreheatWidgetTestAccess::tool_target_caption(widget, label) ==
-          ts.tools()[12].display_label);
+    CHECK(PreheatWidgetTestAccess::tool_target_caption(widget) == ts.tools()[12].display_label);
 
     // The mounted head names the lane it prints through, over a seat the
     // backend reports for another of its lanes.
     ts.set_ams_topology(helix::test::make_hub_topology(9, {10}));
     helix::ui::UpdateQueue::instance().drain_until_empty();
     PreheatWidgetTestAccess::set_tool_target(widget, 5);
-    CHECK(PreheatWidgetTestAccess::tool_target_caption(widget, label) ==
-          ts.tools()[9].display_label);
+    CHECK(PreheatWidgetTestAccess::tool_target_caption(widget) == ts.tools()[9].display_label);
 
     ts.clear_ams_topology();
     helix::ui::UpdateQueue::instance().drain_until_empty();

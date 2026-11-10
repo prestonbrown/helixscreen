@@ -55,7 +55,13 @@ void register_preheat_widget() {
     lv_xml_register_event_cb(nullptr, "preheat_tool_target_cb", PreheatWidget::tool_target_cb);
 }
 
-PreheatWidget::PreheatWidget(PrinterState& printer_state) : printer_state_(printer_state) {}
+PreheatWidget::PreheatWidget(PrinterState& printer_state) : printer_state_(printer_state) {
+    // Published before the manager parses the component, which drops a binding
+    // whose subject is missing at parse time.
+    lv_subject_init_string(&tool_target_text_, tool_target_text_buf_, nullptr,
+                           sizeof(tool_target_text_buf_), "");
+    subjects_.publish("preheat_tool_target_text", &tool_target_text_);
+}
 
 PreheatWidget::~PreheatWidget() {
     detach();
@@ -81,13 +87,6 @@ void PreheatWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         update_button_label();
     }
 
-    // Clamp tool_target_ to prevent a stale index when the printer's extruder
-    // count changes between sessions. PanelWidget instances are recycled across
-    // home-panel rebuilds, so tool_target_ outlives any one attach.
-    if (tool_target_ >= static_cast<int>(ToolState::instance().heated_heads().size())) {
-        tool_target_ = -1; // Reset to "all" if stale
-    }
-
     // Update label when widget resizes (e.g. breakpoint change, initial layout)
     lv_obj_add_event_cb(
         widget_obj_,
@@ -98,21 +97,23 @@ void PreheatWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         },
         LV_EVENT_SIZE_CHANGED, nullptr);
 
-    // Tool target button - only visible when the printer has more than one
-    // nozzle to aim a preheat at. Counts extruders, not tools: an AMS expands
-    // ToolState's tool list to one entry per filament lane, and every lane on a
-    // single-hotend printer shares the one heater, so "T0 / T1 / T2 / T3" would
-    // offer four names for the same thing.
-    tool_target_btn_ = lv_obj_find_by_name(widget_obj_, "preheat_tool_target");
-    tool_target_label_ = lv_obj_find_by_name(widget_obj_, "tool_target_label");
-    if (tool_target_btn_) {
-        if (!ToolState::instance().has_multiple_extruders()) {
-            lv_obj_add_flag(tool_target_btn_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(tool_target_btn_, LV_OBJ_FLAG_HIDDEN);
-            update_tool_target_label();
-        }
-    }
+    // The tool target button shows only when the printer has more than one
+    // nozzle to aim a preheat at: the component binds ToolState's
+    // extruder_count. Extruders, not tools: an AMS expands ToolState's tool
+    // list to one entry per filament lane, and every lane on a single-hotend
+    // printer shares the one heater, so "T0 / T1 / T2 / T3" would offer four
+    // names for the same thing. The target and caption follow both the tool
+    // list and the nozzle count: a shared-heater flip changes the count
+    // without a new tool list.
+    sync_tool_target();
+    tools_version_obs_ = helix::ui::observe<int>(
+        ToolState::instance().get_tools_version_subject(), this,
+        [](PreheatWidget* self, int /*version*/) { self->sync_tool_target(); },
+        ToolState::instance().get_subjects_lifetime());
+    extruder_count_obs_ = helix::ui::observe<int>(
+        ToolState::instance().get_extruder_count_subject(), this,
+        [](PreheatWidget* self, int /*count*/) { self->sync_tool_target(); },
+        ToolState::instance().get_subjects_lifetime());
 
     // Tint the two heater glyphs. The numbers beside them already carry the
     // 4-state thermal color, so leaving the icons flat made them disagree
@@ -155,10 +156,10 @@ void PreheatWidget::detach() {
     bed_target_lifetime_.reset();
     bed_target_obs_.reset();
     language_obs_.reset();
+    tools_version_obs_.reset();
+    extruder_count_obs_.reset();
 
     split_btn_ = nullptr;
-    tool_target_btn_ = nullptr;
-    tool_target_label_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 
@@ -216,10 +217,16 @@ void PreheatWidget::update_heater_state() {
     }
 }
 
-void PreheatWidget::update_tool_target_label() {
-    if (!tool_target_label_)
-        return;
+void PreheatWidget::sync_tool_target() {
+    // tool_target_ outlives any one attach and any one head list, so a head it
+    // names can be gone: aim at all of them again.
+    if (tool_target_ >= ToolState::instance().extruder_count()) {
+        tool_target_ = -1;
+    }
+    update_tool_target_label();
+}
 
+void PreheatWidget::update_tool_target_label() {
     // Holds ToolInfo::display_label, a translated noun plus a number:
     // Russian renders LaneNoun::Toolhead as "Печатающая головка 16" at 40 bytes.
     char label[64];
@@ -235,7 +242,7 @@ void PreheatWidget::update_tool_target_label() {
     } else {
         label[0] = '\0';
     }
-    lv_label_set_text(tool_target_label_, label);
+    lv_subject_copy_string(&tool_target_text_, label);
 }
 
 void PreheatWidget::handle_selection_changed() {

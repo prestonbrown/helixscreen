@@ -53,13 +53,11 @@ class PreheatWidgetTestAccess {
         widget.handle_apply();
     }
 
-    /// The tool-target caption update_tool_target_label() writes into @p label,
-    /// standing in for the attached tile's own label.
-    static std::string tool_target_caption(PreheatWidget& widget, lv_obj_t* label) {
-        widget.tool_target_label_ = label;
+    /// The tool-target caption update_tool_target_label() publishes for the
+    /// tile's label to bind.
+    static std::string tool_target_caption(PreheatWidget& widget) {
         widget.update_tool_target_label();
-        widget.tool_target_label_ = nullptr;
-        return lv_label_get_text(label);
+        return lv_subject_get_string(&widget.tool_target_text_);
     }
 };
 

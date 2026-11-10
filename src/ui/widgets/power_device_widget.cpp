@@ -243,6 +243,9 @@ void PowerDeviceWidget::update_display(int status) {
     if (status == -1) {
         // The component's own "Configure" label, which re-translates itself.
         lv_subject_set_int(&named_subject_, 0);
+    } else if (!device_name_.empty() && !is_all_devices()) {
+        set_name_text(
+            helix::get_display_name(device_name_, helix::DeviceType::POWER_DEVICE).c_str());
     }
 }
 
@@ -550,6 +553,10 @@ void PowerDeviceWidget::select_device(const std::string& name) {
                         self->update_display(status);
                     },
                     lifetime);
+            } else {
+                // Nothing to report for this device yet: drop the previous
+                // device's state rather than show it under the new name.
+                update_display(-1);
             }
 
             set_name_text(

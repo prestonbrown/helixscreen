@@ -44,12 +44,18 @@ class ActiveSpoolWidget : public TiledPanelWidget {
 
     // Wide mode elements
     helix::ui::WidgetRef spool_wide_;
-    helix::ui::WidgetRef material_label_;
-    helix::ui::WidgetRef brand_color_label_;
-    helix::ui::WidgetRef weight_label_;
 
     lv_subject_t wide_subject_{};   ///< 1 while the wide row is shown
     lv_subject_t loaded_subject_{}; ///< 1 while a spool is active
+    // The wide row's three text lines. An empty brand or weight line hides.
+    lv_subject_t material_subject_{};
+    char material_buf_[64] = {};
+    lv_subject_t brand_subject_{};
+    char brand_buf_[128] = {};
+    lv_subject_t has_brand_subject_{};
+    lv_subject_t weight_subject_{};
+    char weight_buf_[32] = {};
+    lv_subject_t has_weight_subject_{};
     SubjectManager subjects_;
 
     ObserverGuard spool_color_observer_;
