@@ -1250,6 +1250,11 @@ TEST_CASE_METHOD(Landscape800, "a warm chamber's glow takes over from the light'
     settle();
     CHECK(subject_int("ps_glow_chamber") == 2);
     CHECK(subject_int("ps_glow_light") == 0);
+    // The chamber's wash keeps its markup color while its chip is painted with the heat's.
+    lv_obj_t* glow = lv_obj_find_by_name(root_, "ps_glow_chamber");
+    REQUIRE(glow != nullptr);
+    CHECK(lv_color_eq(lv_obj_get_style_image_recolor(glow, LV_PART_MAIN),
+                      theme_manager_get_color("danger")));
 
     set_int(state().capabilities_state().subject(Capability::HasChamber), 0);
     set_int(lv_xml_get_subject(nullptr, "led_controllable"), 0);
