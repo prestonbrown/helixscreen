@@ -157,7 +157,7 @@
   <translation tag="A cold pull is already running." it="Un cold pull è già in corso."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." it="Una ventola che fa passare l&apos;aria della camera attraverso un filtro. Controllala nella schermata della temperatura camera."/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." it="Pochi minuti, quasi tutti di riscaldamento. Non giudichi nulla a occhio."/>
-  <translation tag="A folder name in moonraker.conf is unsafe, so cleanup is off." it="Un nome di cartella in moonraker.conf non è sicuro, quindi la pulizia è disattivata."/>
+  <translation tag="A folder name in moonraker.conf is unsafe." it="Un nome di cartella in moonraker.conf non è sicuro."/>
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." it="Sulla stampante è configurata una macro di heat soak. HelixScreen la rileva ma non la esegue."/>
   <translation tag="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen." it="Un riscaldatore che scalda l&apos;aria dentro la camera. Imposta la temperatura nella schermata della temperatura camera."/>
   <translation tag="A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen." it="Una mappa delle altezze del piano che Klipper usa per compensare una superficie irregolare. Visualizzala e calibrala nella schermata Mesh piano."/>
@@ -265,6 +265,7 @@
   <translation tag="Added to queue (position {})" it="Aggiunto alla coda (posizione {})"/>
   <translation tag="Added to queue (position {}) - queue is paused" it="Aggiunto alla coda (posizione {}) – la coda è in pausa"/>
   <translation tag="Adding printer" it="Aggiunta stampante"/>
+  <translation tag="Adding the timelapse plugin to Moonraker..." it="Aggiunta del plugin timelapse a Moonraker..."/>
   <translation tag="Adding to queue..." it="Aggiunta alla coda..."/>
   <translation tag="Address" it="Indirizzo"/>
   <translation tag="Adds to:" it="Aggiunge a:"/>
@@ -308,6 +309,7 @@
   <translation tag="An accelerometer was detected on your printer." it="È stato rilevato un accelerometro sulla stampante."/>
   <translation tag="An app on your network is asking to connect to this printer." it="Un&apos;app sulla tua rete chiede di connettersi a questa stampante."/>
   <translation tag="An earlier IPv4 change is still being undone. Try again shortly." it="Una modifica IPv4 precedente è ancora in fase di annullamento. Riprova tra poco."/>
+  <translation tag="An earlier install is still finishing..." it="Un&apos;installazione precedente è ancora in corso..."/>
   <translation tag="An error occurred during calibration." it="Si è verificato un errore durante la calibrazione."/>
   <translation tag="An error occurred during filament loading." it="Si è verificato un errore durante il caricamento del filamento."/>
   <translation tag="An error occurred during probing." it="Si è verificato un errore durante il sondaggio."/>
@@ -722,6 +724,7 @@
   <translation tag="Checking extruders..." it="Verifica estrusori..."/>
   <translation tag="Checking filament..." it="Controllo filamento..."/>
   <translation tag="Checking file…" it="Verifica del file in corso…"/>
+  <translation tag="Checking for ffmpeg..." it="Ricerca di ffmpeg..."/>
   <translation tag="Checking for plugin..." it="Ricerca plugin..."/>
   <translation tag="Checking for webcam..." it="Ricerca webcam in corso..."/>
   <translation tag="Checking plugin" it="Verifica plugin"/>
@@ -936,6 +939,7 @@
   <translation tag="Corner roundness" it="Arrotondamento angoli"/>
   <translation tag="Corners differ by {} mm" it="Gli angoli differiscono di {} mm"/>
   <translation tag="Correction (Ki)" it="Correzione (Ki)"/>
+  <translation tag="Could not add the timelapse plugin to Moonraker." it="Impossibile aggiungere il plugin timelapse a Moonraker."/>
   <translation tag="Could not add to queue" it="Impossibile aggiungere alla coda"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." it="Impossibile analizzare la macro PRINT_START. Alcune opzioni di stampa potrebbero non essere disponibili."/>
   <translation tag="Could not answer the connection request" it="Impossibile rispondere alla richiesta di connessione"/>
@@ -947,6 +951,7 @@
   <translation tag="Could not copy the printer&apos;s layout" it="Impossibile copiare il layout della stampante"/>
   <translation tag="Could not copy {} from USB: {}" it="Impossibile copiare {} da USB: {}"/>
   <translation tag="Could not disconnect from WiFi" it="Impossibile disconnettersi dal WiFi"/>
+  <translation tag="Could not download the timelapse plugin. Check the printer&apos;s internet connection." it="Impossibile scaricare il plugin timelapse. Controlla la connessione internet della stampante."/>
   <translation tag="Could not extract plate {} of {}: {}" it="Impossibile estrarre il piatto {} da {}: {}"/>
   <translation tag="Could not forget device" it="Impossibile dimenticare il dispositivo"/>
   <translation tag="Could not free space" it="Impossibile liberare spazio"/>
@@ -1145,6 +1150,7 @@
   <translation tag="Door switches, buttons, and other on/off inputs" it="Interruttori porta, pulsanti e altri ingressi on/off"/>
   <translation tag="Download update?" it="Scaricare aggiornamento?"/>
   <translation tag="Download v{}?" it="Scaricare v{}?"/>
+  <translation tag="Downloading the timelapse plugin..." it="Download del plugin timelapse..."/>
   <translation tag="Downloading..." it="Download in corso..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" it="Download in corso... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" it="Disegna un&apos;onda a ogni tocco — aiuta a diagnosticare gli scostamenti"/>
@@ -1458,6 +1464,7 @@
   <translation tag="Failed to start installer: " it="Impossibile avviare l&apos;installer: "/>
   <translation tag="Failed to start print: {}" it="Impossibile avviare stampa: {}"/>
   <translation tag="Failed to start uninstaller: " it="Impossibile avviare il programma di disinstallazione: "/>
+  <translation tag="Failed to start. See the Moonraker log." it="Avvio non riuscito. Vedi il log di Moonraker."/>
   <translation tag="Failed to subscribe to printer updates: {}" it="Impossibile iscriversi agli aggiornamenti della stampante: {}"/>
   <translation tag="Failed to toggle %s" it="Commutazione di %s non riuscita"/>
   <translation tag="Failed to toggle timelapse: {}" it="Impossibile attivare/disattivare timelapse: {}"/>
@@ -1926,6 +1933,8 @@
   <translation tag="Installation timed out" it="Installazione scaduta"/>
   <translation tag="Installation timed out. The script may be stuck." it="Installazione scaduta. Lo script potrebbe essere bloccato."/>
   <translation tag="Installed" it="Installato"/>
+  <translation tag="Installing restarts Moonraker, so it waits until the print is finished or cancelled." it="L&apos;installazione riavvia Moonraker, quindi attende che la stampa sia finita o annullata."/>
+  <translation tag="Installing the timelapse plugin..." it="Installazione del plugin timelapse..."/>
   <translation tag="Installing..." it="Installazione in corso..."/>
   <translation tag="Intensity" it="Intensità"/>
   <translation tag="Interactive calibration for all lanes" it="Calibrazione interattiva per tutte le corsie"/>
@@ -2383,13 +2392,16 @@
   <translation tag="My Printer" it="La mia stampante"/>
   <translation tag="NEW HIGH SCORE!&#10;{}&#10;Tap to play again" it="NUOVO RECORD!&#10;{}&#10;Tocca per rigiocare"/>
   <translation tag="NEWLY DISCOVERED" it="APPENA RILEVATO"/>
+  <translation tag="NOT AVAILABLE HERE" it="NON DISPONIBILE QUI"/>
   <translation tag="Name" it="Nome"/>
   <translation tag="Name (optional)" it="Nome (facoltativo)"/>
   <translation tag="Name, image and model" it="Nome, immagine e modello"/>
   <translation tag="Name:" it="Nome:"/>
   <translation tag="Named actions in the LED Controls widget. Not shown under LED selection." it="Azioni con nome nel widget Controlli LED. Non mostrate nella selezione LED."/>
   <translation tag="Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature." it="Indicare la ventola pezzo permette a MPC di considerarne il raffreddamento. Klipper si riavvia, poi questo riscaldatore viene calibrato. Richiede alcuni minuti in temperatura."/>
+  <translation tag="Needs a newer Moonraker to hold uploads." it="Richiede un Moonraker più recente per trattenere i caricamenti."/>
   <translation tag="Needs attention" it="Richiede attenzione"/>
+  <translation tag="Needs file analysis, which isn&apos;t running." it="Richiede l&apos;analisi dei file, che non è attiva."/>
   <translation tag="Needs the {} package to switch spools" it="Richiede il plugin {} per cambiare bobina"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" it="Serve {}x{} liberi: prima rimuovi o riduci un widget"/>
   <translation tag="Net Weight (g)" it="Peso netto (g)"/>
@@ -2565,6 +2577,7 @@
   <translation tag="Not now" it="Non ora"/>
   <translation tag="Not saved: {}. Try again." it="Non salvato: {}. Riprova."/>
   <translation tag="Not set" it="Non impostato"/>
+  <translation tag="Not set up for this printer model yet." it="Non ancora configurato per questo modello di stampante."/>
   <translation tag="Not turned" it="Non girato"/>
   <translation tag="Not yet available on this display" it="Non ancora disponibile su questo display"/>
   <translation tag="Not yet calibrated" it="Non ancora calibrato"/>
@@ -2819,7 +2832,6 @@
   <translation tag="Power was lost during the print; the printer stopped and saved its progress" it="È mancata la corrente durante la stampa; la stampante si è fermata e ha salvato l&apos;avanzamento"/>
   <translation tag="Power was lost less than a minute ago." it="La corrente è mancata meno di un minuto fa."/>
   <translation tag="Power-loss recovery" it="Ripresa dopo interruzione di corrente"/>
-  <translation tag="Power-loss recovery isn&apos;t supported on this printer yet." it="La ripresa dopo interruzione di corrente non è ancora supportata su questa stampante."/>
   <translation tag="Pre-heat the extruder first" it="Preriscaldare prima l&apos;estrusore"/>
   <translation tag="Pre-print command failed: {}" it="Comando pre-stampa fallito: {}"/>
   <translation tag="Pre-print homing..." it="Homing pre-stampa..."/>
@@ -3075,6 +3087,7 @@
   <translation tag="RH" it="UR"/>
   <translation tag="RSS" it="RSS"/>
   <translation tag="RSS:" it="RSS:"/>
+  <translation tag="RUNNING" it="IN ESECUZIONE"/>
   <translation tag="Rails" it="Guide"/>
   <translation tag="Raise" it="Alza"/>
   <translation tag="Raise and lower the bed or gantry through its travel." it="Alza e abbassa il piano o il portale per tutta la corsa."/>
@@ -3752,6 +3765,7 @@
   <translation tag="Stopped between Lane and Hub" it="Fermo tra corsia e Hub"/>
   <translation tag="Stopped between Spool and Lane" it="Fermo tra bobina e corsia"/>
   <translation tag="Stopped drying %s" it="Essiccazione interrotta: %s"/>
+  <translation tag="Stopped. Restart Moonraker to start it again." it="Arrestato. Riavvia Moonraker per avviarlo di nuovo."/>
   <translation tag="Stops all motion. Requires firmware restart." it="Ferma tutto il movimento. Richiede riavvio firmware."/>
   <translation tag="Storage" it="Archiviazione"/>
   <translation tag="Storage report" it="Rapporto archiviazione"/>
@@ -3977,6 +3991,7 @@
   <translation tag="The plate finishes its current move, but drying will not start." it="Il piano termina lo spostamento in corso, ma l&apos;essiccazione non partirà."/>
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." it="Il plugin non raggiunge la fotocamera, quindi le foto le scatta questo schermo."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." it="Il plugin non può salvare i dati di ripresa."/>
+  <translation tag="The plugin didn&apos;t say why." it="Il plugin non ha indicato il motivo."/>
   <translation tag="The plugin is turned off in moonraker.conf." it="Il plugin è disattivato in moonraker.conf."/>
   <translation tag="The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it." it="I passaggi preliminari disattivati non possono essere applicati a questo .3mf. Riattivali per stamparlo."/>
   <translation tag="The previous IPv4 settings come back when the print ends." it="Le impostazioni IPv4 precedenti torneranno al termine della stampa."/>
@@ -4048,6 +4063,7 @@
   <translation tag="The temperature was changed elsewhere." it="La temperatura è stata modificata altrove."/>
   <translation tag="The time, date, and system uptime" it="Ora, data e tempo di attività"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." it="La cartella timelapse o di log sovrappone una cartella protetta, quindi la pulizia è disattivata."/>
+  <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." it="Il plugin timelapse è installato. Per creare i video serve anche ffmpeg, che non è installato su questa stampante."/>
   <translation tag="The tool change under way finished, and the tool was not parked" it="Il cambio utensile in corso è terminato e l&apos;utensile non è stato parcheggiato"/>
   <translation tag="The tool change under way finished, and {} was not put back on the carriage" it="Il cambio utensile in corso è terminato e {} non è stato rimesso sul carrello"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" it="La testina contiene filamento ma nessuno slot AMS lo riporta come caricato. Estrailo manualmente prima di stampare. Avviare comunque?"/>
@@ -4081,7 +4097,6 @@
   <translation tag="This AFC system does not support bypass mode" it="Questo sistema AFC non supporta la modalità bypass"/>
   <translation tag="This CFS firmware exposes no external spool slot" it="Questo firmware CFS non offre uno slot per bobine esterne"/>
   <translation tag="This Happy Hare system does not support bypass mode" it="Questo sistema Happy Hare non supporta la modalità bypass"/>
-  <translation tag="This Moonraker version can&apos;t hold uploads. Update Moonraker." it="Questa versione di Moonraker non può trattenere i caricamenti. Aggiorna Moonraker."/>
   <translation tag="This button controls" it="Questo pulsante controlla"/>
   <translation tag="This calibration uses the paper friction method to set your Z-offset." it="Questa calibrazione utilizza il metodo della frizione della carta per impostare lo Z-offset."/>
   <translation tag="This cannot be undone." it="Questa azione non può essere annullata."/>
@@ -4095,9 +4110,7 @@
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?" it="Non corrisponde alla bobina Spoolman collegata. Aggiungerla come nuova bobina o aggiornare quella collegata?"/>
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?" it="Non corrisponde alla bobina Spoolman collegata. Aggiornarla in Spoolman oppure scollegarla e tenerla su questo slot?"/>
   <translation tag="This dryer cannot run while filament from the unit is loaded" it="Questo essiccatore non può funzionare finché è caricato filamento dell&apos;unità"/>
-  <translation tag="This feature failed to start. The Moonraker log says why." it="Questa funzione non si è avviata. Il log di Moonraker spiega perché."/>
   <translation tag="This feature requires different hardware or configuration" it="Questa funzione richiede hardware o configurazione diversi"/>
-  <translation tag="This feature stopped. Restart Moonraker to start it again." it="Questa funzione si è fermata. Riavvia Moonraker per avviarla di nuovo."/>
   <translation tag="This filament system does not report buffer or flow data." it="Questo sistema filamento non riporta dati di buffer o flusso."/>
   <translation tag="This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures." it="Questo file stampa {0} e {1} con un solo ugello. {0} può bruciarsi e ostruire l&apos;ugello alle temperature di {1}."/>
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." it="Questo file stampa {0} e {1} insieme. Il calore di camera e piano richiesto da {1} può ammorbidire {0} e intasarne l&apos;ugello."/>
@@ -4112,7 +4125,6 @@
   <translation tag="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows." it="Questa corsia risulta ancora caricata, ma il suo filamento è fuori dall&apos;ugello. Prima di stampare, spingilo di nuovo nell&apos;estrusore ed estrudi finché non scorre."/>
   <translation tag="This looks like a {}, but it is set up as a {}" it="Questa stampante sembra una {}, ma è configurata come {}"/>
   <translation tag="This may take up to 30 seconds" it="Questo potrebbe richiedere fino a 30 secondi"/>
-  <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." it="Serve l&apos;analisi dei file del plugin, che non è in esecuzione."/>
   <translation tag="This plugin asks for no special permissions." it="Questo plugin non richiede permessi speciali."/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." it="Questo plugin permette a HelixScreen di controllare opzioni avvio stampa come mesh piano e QGL."/>
   <translation tag="This print called {}, which the printer no longer has." it="Questa stampa ha richiamato {}, che la stampante non ha più."/>
@@ -4179,6 +4191,7 @@
   <translation tag="Timelapse Available" it="Timelapse disponibile"/>
   <translation tag="Timelapse Settings" it="Impostazioni timelapse"/>
   <translation tag="Timelapse Videos" it="Video timelapse"/>
+  <translation tag="Timelapse or logs folder overlaps a protected one." it="La cartella timelapse o dei log si sovrappone a una protetta."/>
   <translation tag="Timelapse plugin installed successfully!" it="Plugin timelapse installato con successo!"/>
   <translation tag="Timelapse plugin installed!" it="Plugin timelapse installato!"/>
   <translation tag="Timelapse plugin is already installed!" it="Plugin timelapse già installato!"/>
@@ -4196,6 +4209,7 @@
   <translation tag="Tips" it="Suggerimenti"/>
   <translation tag="Tips database format error" it="Errore nel formato del database dei suggerimenti"/>
   <translation tag="Tips database not found" it="Database dei suggerimenti non trovato"/>
+  <translation tag="To make videos, run this on your printer via SSH:" it="Per creare i video, esegui questo sulla stampante via SSH:"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." it="Per mappare il filamento, HelixScreen riscrive il file di stampa prima di stamparlo. Il Moonraker di questa stampante è troppo vecchio perché il plugin HelixPrint ripristini in seguito il nome del file originale, quindi il lavoro completato viene elencato con il nome riscritto. La mappatura filamento stessa funziona normalmente."/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." it="Per mappare il filamento, HelixScreen riscrive il file di stampa prima di stamparlo. Senza il plugin HelixPrint, la copia riscritta è quella che finisce nella cronologia di stampa, quindi i lavori completati vengono elencati con nomi come modified_1730824_benchy.gcode invece del file scelto.&#10;&#10;L&apos;installazione del plugin richiede un momento e non è necessario riavviare."/>
   <translation tag="Toggle" it="Alterna"/>

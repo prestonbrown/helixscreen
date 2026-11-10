@@ -4,10 +4,10 @@
 
 #include "ui_buffer_slider.h"
 #include "ui_modal.h"
-#include "ui_observer_guard.h"
 
 #include "ams_types.h"
 #include "buffer_reading.h"
+#include "core/observer_guard.h"
 
 #include <memory>
 

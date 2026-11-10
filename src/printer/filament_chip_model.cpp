@@ -3,6 +3,7 @@
 
 #include "filament_chip_model.h"
 
+#include "core/text_io.h"
 #include "display_numbering.h"
 #include "lvgl.h"
 
@@ -187,6 +188,18 @@ std::string used_materials_text(const std::vector<std::string>& materials,
         text += m;
     }
     return text;
+}
+
+std::vector<std::string> split_filament_types(std::string_view filament_type) {
+    std::vector<std::string> materials;
+    for (std::string_view sv : text_io::lines(filament_type, ';')) {
+        materials.emplace_back(text_io::trim(sv));
+    }
+    return materials;
+}
+
+std::string filament_type_text(std::string_view filament_type) {
+    return used_materials_text(split_filament_types(filament_type), std::nullopt);
 }
 
 ChipSeverity loaded_severity(const GcodeToolInfo& tool, const LoadedFilament& loaded,

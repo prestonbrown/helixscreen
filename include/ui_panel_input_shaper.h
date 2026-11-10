@@ -5,12 +5,12 @@
 
 #include "ui_frequency_response_chart.h"
 #include "ui_shaper_sweep_chart.h"
-#include "ui_timer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "calibration_types.h" // For InputShaperResult
 #include "core/static_panel_registry.h"
+#include "core/timer_guard.h"
 #include "input_shaper_calibrator.h"
 #include "klipper_config_editor.h"
 #include "live_sweep_preview.h"
@@ -359,7 +359,7 @@ class InputShaperPanel : public OverlayBase {
     // Analysis-phase elapsed label. The analysis reports no percent, so while
     // its spinner is shown a 1 Hz timer refreshes the step label
     // ("Analyzing data... Ns") from the tick stored when the phase began.
-    // ElapsedLabelTimer (ui_timer_guard.h) owns the timer; its destructor and
+    // ElapsedLabelTimer (core/timer_guard.h) owns the timer; its destructor and
     // cancel() are both cancel-safe from every teardown path.
     helix::ui::ElapsedLabelTimer analysis_elapsed_;
 

@@ -7,6 +7,7 @@
  */
 
 #include "display_numbering.h"
+#include "lane_count_label.h"
 #include "lvgl.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "test_helpers/zero_lane_numbering.h"

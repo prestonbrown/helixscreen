@@ -16,9 +16,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "capability_chip_text.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"

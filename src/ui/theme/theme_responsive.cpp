@@ -419,13 +419,14 @@ void helix::theme_manager_remove_layout_refresh_hook(int id) {
         hooks.end());
 }
 
-void theme_manager_refresh_layout_constants(lv_display_t* display) {
+bool theme_manager_refresh_layout_constants(lv_display_t* display) {
     int32_t hor_res = lv_display_get_horizontal_resolution(display);
     int32_t ver_res = lv_display_get_vertical_resolution(display);
 
     lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
     if (!scope)
-        return;
+        return false;
+    bool moved = false;
 
     // Update every responsive px token for the new size — nav_width included.
     // Same resolver as startup, which is the point: a separate selection chain
@@ -434,6 +435,8 @@ void theme_manager_refresh_layout_constants(lv_display_t* display) {
     // ladder. See theme_manager_resolve_px_tokens().
     int32_t resp_res = responsive_dimension(display);
     for (const auto& [base_name, value] : theme_manager_resolve_px_tokens(display)) {
+        const char* before = lv_xml_get_const_silent(scope, base_name.c_str());
+        moved = moved || !before || value != before;
         lv_xml_set_const(scope, base_name.c_str(), value.c_str());
     }
 
@@ -461,6 +464,7 @@ void theme_manager_refresh_layout_constants(lv_display_t* display) {
 
     lv_subject_t* bp_subject = lv_xml_get_subject(nullptr, "ui_breakpoint");
     if (bp_subject) {
+        moved = moved || lv_subject_get_int(bp_subject) != to_int(bp);
         lv_subject_set_int(bp_subject, to_int(bp));
     }
 
@@ -469,8 +473,9 @@ void theme_manager_refresh_layout_constants(lv_display_t* display) {
     // still claiming the height it no longer has.
     lv_subject_t* bp_v_subject = lv_xml_get_subject(nullptr, "ui_breakpoint_v");
     if (bp_v_subject) {
-        lv_subject_set_int(bp_v_subject,
-                           to_int(breakpoint_for(responsive_vertical_dimension(display))));
+        const int bp_v = to_int(breakpoint_for(responsive_vertical_dimension(display)));
+        moved = moved || lv_subject_get_int(bp_v_subject) != bp_v;
+        lv_subject_set_int(bp_v_subject, bp_v);
     }
 
     // Orientation follows the same axis swap. theme_manager_refresh_orientation
@@ -491,6 +496,7 @@ void theme_manager_refresh_layout_constants(lv_display_t* display) {
     // existence check in theme_manager_register_responsive_fonts().
     AssetManager::register_fonts_for_tier(to_int(bp));
     theme_manager_register_responsive_fonts(display);
+    theme_manager_refresh_base_font(display);
 
     // Switch size presets are the same ladder expressed as plain C++ values,
     // and were likewise chosen once at startup (#1210, Notes).
@@ -502,6 +508,7 @@ void theme_manager_refresh_layout_constants(lv_display_t* display) {
     spdlog::info("[Theme] Responsive state refreshed for {}x{}: nav={}px, "
                  "overlay transient={}px destination={}px (breakpoint={})",
                  hor_res, ver_res, nav_width, widths.transient, widths.destination, to_int(bp));
+    return moved;
 }
 
 /**

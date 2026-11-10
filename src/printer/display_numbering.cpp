@@ -4,14 +4,12 @@
 #include "display_numbering.h"
 
 #include "ams_state.h"
-#include "i18n_plural.h"
 #include "lvgl.h"
 #include "settings_manager.h"
 
 #include <spdlog/fmt/fmt.h>
 
 #include <atomic>
-#include <cstdio>
 
 namespace helix::ui {
 
@@ -215,37 +213,6 @@ std::string lane_range_label(LaneNoun noun, int first_index, int last_index) {
     if (first == last)
         return lane_label(noun, first_index);
     return noun_text_plural(noun) + " " + std::to_string(first) + "-" + std::to_string(last);
-}
-
-std::string lane_count_label(LaneNoun noun, int count) {
-    // Wide enough for the longest form: ru "Печатающие головки" is 35 bytes.
-    // Each tr_plural() sits inside its snprintf so the format-specifier gate
-    // sees the pair - a format held in a variable between the two is invisible
-    // to it. No default: a new enumerator must fail to compile here, not pass a
-    // null format to snprintf.
-    char buf[64];
-    const auto n = static_cast<uint64_t>(count);
-    switch (noun) {
-    case LaneNoun::Lane:
-        snprintf(buf, sizeof(buf), tr_plural(nullptr, "%d lanes", n), count);
-        return buf;
-    case LaneNoun::Gate:
-        snprintf(buf, sizeof(buf), tr_plural(nullptr, "%d gates", n), count);
-        return buf;
-    case LaneNoun::Tool:
-        snprintf(buf, sizeof(buf), tr_plural(nullptr, "%d tools", n), count);
-        return buf;
-    case LaneNoun::Feeder:
-        snprintf(buf, sizeof(buf), tr_plural(nullptr, "%d feeders", n), count);
-        return buf;
-    case LaneNoun::Toolhead:
-        snprintf(buf, sizeof(buf), tr_plural(nullptr, "%d toolheads", n), count);
-        return buf;
-    case LaneNoun::Slot:
-        snprintf(buf, sizeof(buf), tr_plural(nullptr, "%d slots", n), count);
-        return buf;
-    }
-    return {};
 }
 
 LaneNoun active_lane_noun() {

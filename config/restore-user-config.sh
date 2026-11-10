@@ -30,7 +30,7 @@ USER_VAL="${USER_VAL:-}"
 # Runs as root (inherited from the calling service unit), so no sudo needed.
 
 # Keep in sync with scripts/lib/installer/platform.sh.
-HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json pending_remap.json crash_history.json user_filaments.json .webcams_backup.json .camera_migrated .klipper_includes .k2cam_webcam_disabled .seeded_settings .platform_hook .nginx_webcam_accesslog .nginx_remote_screen .remote_screen_route"
+HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json pending_remap.json crash_history.json user_filaments.json .webcams_backup.json .camera_migrated .klipper_includes .k2cam_webcam_disabled .seeded_settings .platform_hook .nginx_webcam_accesslog .nginx_remote_screen .remote_screen_route .install_source"
 HELIX_USER_CONFIG_DIRS="custom_images themes printer_database.d"
 
 # Z-Mod (AD5X, AD5M) installs and launches HelixScreen itself at this root, and

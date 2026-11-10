@@ -4,9 +4,9 @@
 #pragma once
 
 #include "ui_context_menu.h"
-#include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 #include "subject_managed_panel.h"

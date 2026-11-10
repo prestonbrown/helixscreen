@@ -209,6 +209,7 @@ const std::vector<Pinned>& pinned_values() {
 
         // Probes of the machine running the test.
         {"session", "app.zip_tool", "<host>", false},
+        {"session", "app.host_mod", "<host>", false},
         {"session", "host.arch", "<host>", true},
         {"session", "host.cpu_model", "<host>", true},
         {"session", "host.cpu_cores", 0, true},

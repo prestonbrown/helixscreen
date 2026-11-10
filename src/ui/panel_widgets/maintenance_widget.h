@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "panel_widget.h"
 #include "src/ui/panel_widgets/maintenance_tile_layout.h"
 

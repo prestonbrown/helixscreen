@@ -291,6 +291,7 @@ void FanDial::set_speed(int percent) {
     update_onoff_state(percent);
     update_knob_glow(percent);
     update_fan_animation(percent);
+    refresh_rpm_label();
 
     syncing_ = false;
 
@@ -306,7 +307,15 @@ void FanDial::set_rpm(std::optional<int> rpm) {
     if (!rpm_) {
         return;
     }
-    const int value = rpm.value_or(0) > 0 ? *rpm : 0;
+    rpm_->reading = rpm.value_or(0) > 0 ? *rpm : 0;
+    refresh_rpm_label();
+}
+
+void FanDial::refresh_rpm_label() {
+    if (!rpm_) {
+        return;
+    }
+    const int value = current_speed_ > 0 ? rpm_->reading : 0;
     if (lv_subject_get_int(&rpm_->subject) != value) {
         lv_subject_set_int(&rpm_->subject, value);
     }
@@ -407,6 +416,7 @@ void FanDial::handle_arc_changed() {
     update_onoff_state(value);
     update_knob_glow(value);
     update_fan_animation(value);
+    refresh_rpm_label();
 
     // Coalesce mid-drag bursts: stash the latest value and (re)arm a one-shot
     // 500 ms timer. Touch RELEASED flushes immediately, so dragging fast and
@@ -529,6 +539,7 @@ void FanDial::handle_switch_changed() {
     current_speed_ = new_speed;
     animate_speed_label(prev_speed, new_speed);
     update_fan_animation(new_speed);
+    refresh_rpm_label();
 
     if (on_speed_changed_) {
         on_speed_changed_(fan_id_, new_speed);

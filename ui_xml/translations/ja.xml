@@ -157,7 +157,7 @@
   <translation tag="A cold pull is already running." ja="コールドプルはすでに実行中です。"/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." ja="チャンバー内の空気をフィルターに通すファン。チャンバー温度画面で操作できます。"/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." ja="数分かかりますが、そのほとんどは加熱です。目視での判断は不要です。"/>
-  <translation tag="A folder name in moonraker.conf is unsafe, so cleanup is off." ja="moonraker.confのフォルダー名が安全でないため、クリーンアップはオフになっています。"/>
+  <translation tag="A folder name in moonraker.conf is unsafe." ja="moonraker.conf のフォルダー名が安全ではありません。"/>
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." ja="プリンターにヒートソークのマクロが設定されています。HelixScreenは検出しますが実行はしません。"/>
   <translation tag="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen." ja="チャンバー内の空気を温めるヒーター。温度はチャンバー温度画面で設定します。"/>
   <translation tag="A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen." ja="Klipperが凹凸を補正するために使うベッドの高さマップ。ベッドメッシュ画面で確認とキャリブレーションができます。"/>
@@ -265,6 +265,7 @@
   <translation tag="Added to queue (position {})" ja="キューに追加しました（{} 番目）"/>
   <translation tag="Added to queue (position {}) - queue is paused" ja="キューに追加しました（{} 番目）– キューは一時停止中です"/>
   <translation tag="Adding printer" ja="プリンターを追加中"/>
+  <translation tag="Adding the timelapse plugin to Moonraker..." ja="タイムラプスプラグインをMoonrakerに追加中..."/>
   <translation tag="Adding to queue..." ja="キューに追加中..."/>
   <translation tag="Address" ja="アドレス"/>
   <translation tag="Adds to:" ja="追加先:"/>
@@ -308,6 +309,7 @@
   <translation tag="An accelerometer was detected on your printer." ja="プリンターで加速度センサーが検出されました。"/>
   <translation tag="An app on your network is asking to connect to this printer." ja="ネットワーク上のアプリがこのプリンターへの接続を求めています。"/>
   <translation tag="An earlier IPv4 change is still being undone. Try again shortly." ja="以前のIPv4の変更をまだ元に戻しています。しばらくしてからもう一度お試しください。"/>
+  <translation tag="An earlier install is still finishing..." ja="前回のインストールがまだ終わっていません..."/>
   <translation tag="An error occurred during calibration." ja="キャリブレーション中にエラーが発生しました。"/>
   <translation tag="An error occurred during filament loading." ja="フィラメントの読み込み中にエラーが発生しました。"/>
   <translation tag="An error occurred during probing." ja="プローブ中にエラーが発生しました。"/>
@@ -722,6 +724,7 @@
   <translation tag="Checking extruders..." ja="エクストルーダーを確認中..."/>
   <translation tag="Checking filament..." ja="フィラメントを確認中..."/>
   <translation tag="Checking file…" ja="ファイルを確認中…"/>
+  <translation tag="Checking for ffmpeg..." ja="ffmpegを確認中..."/>
   <translation tag="Checking for plugin..." ja="プラグインを確認中..."/>
   <translation tag="Checking for webcam..." ja="ウェブカメラを確認中..."/>
   <translation tag="Checking plugin" ja="プラグインを確認中"/>
@@ -936,6 +939,7 @@
   <translation tag="Corner roundness" ja="角の丸み"/>
   <translation tag="Corners differ by {} mm" ja="四隅の差 {} mm"/>
   <translation tag="Correction (Ki)" ja="補正 (Ki)"/>
+  <translation tag="Could not add the timelapse plugin to Moonraker." ja="タイムラプスプラグインをMoonrakerに追加できませんでした。"/>
   <translation tag="Could not add to queue" ja="キューに追加できませんでした"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." ja="PRINT_START マクロを分析できませんでした。一部の印刷オプションが利用できない場合があります。"/>
   <translation tag="Could not answer the connection request" ja="接続リクエストに応答できませんでした"/>
@@ -947,6 +951,7 @@
   <translation tag="Could not copy the printer&apos;s layout" ja="プリンターのレイアウトをコピーできませんでした"/>
   <translation tag="Could not copy {} from USB: {}" ja="{} を USB からコピーできませんでした: {}"/>
   <translation tag="Could not disconnect from WiFi" ja="WiFi から切断できませんでした"/>
+  <translation tag="Could not download the timelapse plugin. Check the printer&apos;s internet connection." ja="タイムラプスプラグインをダウンロードできませんでした。プリンターのインターネット接続を確認してください。"/>
   <translation tag="Could not extract plate {} of {}: {}" ja="プレート {} を {} から抽出できませんでした: {}"/>
   <translation tag="Could not forget device" ja="デバイスの登録を解除できませんでした"/>
   <translation tag="Could not free space" ja="空き容量を確保できませんでした"/>
@@ -1145,6 +1150,7 @@
   <translation tag="Door switches, buttons, and other on/off inputs" ja="ドアスイッチ、ボタン、その他のオン/オフ入力"/>
   <translation tag="Download update?" ja="アップデートをダウンロードしますか？"/>
   <translation tag="Download v{}?" ja="v{}をダウンロードしますか？"/>
+  <translation tag="Downloading the timelapse plugin..." ja="タイムラプスプラグインをダウンロード中..."/>
   <translation tag="Downloading..." ja="ダウンロード中..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" ja="ダウンロード中... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" ja="タッチごとに波紋を描画 — ズレの診断に役立ちます"/>
@@ -1458,6 +1464,7 @@
   <translation tag="Failed to start installer: " ja="インストーラーの起動に失敗しました: "/>
   <translation tag="Failed to start print: {}" ja="印刷の開始に失敗しました: {}"/>
   <translation tag="Failed to start uninstaller: " ja="アンインストーラーの起動に失敗しました: "/>
+  <translation tag="Failed to start. See the Moonraker log." ja="起動に失敗しました。Moonrakerのログを確認してください。"/>
   <translation tag="Failed to subscribe to printer updates: {}" ja="プリンターの更新を受信できませんでした: {}"/>
   <translation tag="Failed to toggle %s" ja="%s の切り替えに失敗しました"/>
   <translation tag="Failed to toggle timelapse: {}" ja="タイムラプスの切替に失敗しました: {}"/>
@@ -1926,6 +1933,8 @@
   <translation tag="Installation timed out" ja="インストールがタイムアウトしました"/>
   <translation tag="Installation timed out. The script may be stuck." ja="インストールがタイムアウトしました。スクリプトが停止している可能性があります。"/>
   <translation tag="Installed" ja="インストール済み"/>
+  <translation tag="Installing restarts Moonraker, so it waits until the print is finished or cancelled." ja="インストールするとMoonrakerが再起動するため、印刷の終了またはキャンセルまで待機します。"/>
+  <translation tag="Installing the timelapse plugin..." ja="タイムラプスプラグインをインストール中..."/>
   <translation tag="Installing..." ja="インストール中..."/>
   <translation tag="Intensity" ja="強度"/>
   <translation tag="Interactive calibration for all lanes" ja="全レーンの対話式キャリブレーション"/>
@@ -2383,13 +2392,16 @@
   <translation tag="My Printer" ja="マイプリンター"/>
   <translation tag="NEW HIGH SCORE!&#10;{}&#10;Tap to play again" ja="ハイスコア更新！&#10;{}&#10;タップでもう一度"/>
   <translation tag="NEWLY DISCOVERED" ja="新規検出"/>
+  <translation tag="NOT AVAILABLE HERE" ja="この環境では利用不可"/>
   <translation tag="Name" ja="名前"/>
   <translation tag="Name (optional)" ja="名前（オプション）"/>
   <translation tag="Name, image and model" ja="名前、画像、モデル"/>
   <translation tag="Name:" ja="名前:"/>
   <translation tag="Named actions in the LED Controls widget. Not shown under LED selection." ja="LEDコントロールウィジェットの名前付きアクションです。LED選択には表示されません。"/>
   <translation tag="Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature." ja="パーツファンを指定すると、MPCがその冷却を考慮できます。Klipperの再起動後、このヒーターをキャリブレートします。加熱した状態で数分かかります。"/>
+  <translation tag="Needs a newer Moonraker to hold uploads." ja="アップロードを保留するには新しいMoonrakerが必要です。"/>
   <translation tag="Needs attention" ja="対応が必要"/>
+  <translation tag="Needs file analysis, which isn&apos;t running." ja="ファイル解析が必要ですが、実行されていません。"/>
   <translation tag="Needs the {} package to switch spools" ja="スプール切り替えには {} プラグインが必要です"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" ja="空き {}x{} が必要です。先にウィジェットを削除または縮小してください"/>
   <translation tag="Net Weight (g)" ja="正味重量（g）"/>
@@ -2565,6 +2577,7 @@
   <translation tag="Not now" ja="後で"/>
   <translation tag="Not saved: {}. Try again." ja="保存されていません: {}。もう一度お試しください。"/>
   <translation tag="Not set" ja="未設定"/>
+  <translation tag="Not set up for this printer model yet." ja="このプリンターモデルにはまだ対応していません。"/>
   <translation tag="Not turned" ja="未回転"/>
   <translation tag="Not yet available on this display" ja="このディスプレイではまだ利用できません"/>
   <translation tag="Not yet calibrated" ja="未キャリブレーション"/>
@@ -2819,7 +2832,6 @@
   <translation tag="Power was lost during the print; the printer stopped and saved its progress" ja="印刷中に電源が失われました。プリンターは停止し、進行状況を保存しました"/>
   <translation tag="Power was lost less than a minute ago." ja="1分以内に停電しました。"/>
   <translation tag="Power-loss recovery" ja="停電からの復帰"/>
-  <translation tag="Power-loss recovery isn&apos;t supported on this printer yet." ja="このプリンターは停電からの復帰にまだ対応していません。"/>
   <translation tag="Pre-heat the extruder first" ja="先にエクストルーダーを予熱してください"/>
   <translation tag="Pre-print command failed: {}" ja="印刷前コマンドに失敗しました: {}"/>
   <translation tag="Pre-print homing..." ja="印刷前ホーミング中..."/>
@@ -3075,6 +3087,7 @@
   <translation tag="RH" ja="RH"/>
   <translation tag="RSS" ja="RSS"/>
   <translation tag="RSS:" ja="RSS:"/>
+  <translation tag="RUNNING" ja="動作中"/>
   <translation tag="Rails" ja="レール"/>
   <translation tag="Raise" ja="上げる"/>
   <translation tag="Raise and lower the bed or gantry through its travel." ja="ベッドまたはガントリーを全行程で上下させます。"/>
@@ -3752,6 +3765,7 @@
   <translation tag="Stopped between Lane and Hub" ja="レーンとハブの間で停止"/>
   <translation tag="Stopped between Spool and Lane" ja="スプールとレーンの間で停止"/>
   <translation tag="Stopped drying %s" ja="乾燥を停止しました: %s"/>
+  <translation tag="Stopped. Restart Moonraker to start it again." ja="停止しました。Moonrakerを再起動すると再開します。"/>
   <translation tag="Stops all motion. Requires firmware restart." ja="すべての動作を停止します。ファームウェアの再起動が必要です。"/>
   <translation tag="Storage" ja="ストレージ"/>
   <translation tag="Storage report" ja="ストレージレポート"/>
@@ -3977,6 +3991,7 @@
   <translation tag="The plate finishes its current move, but drying will not start." ja="ベッドは現在の移動を完了しますが、乾燥は開始しません。"/>
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." ja="プラグインがカメラに接続できないため、この画面が写真を撮ります。"/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." ja="プラグインが復帰データを保存できません。"/>
+  <translation tag="The plugin didn&apos;t say why." ja="プラグインは理由を示していません。"/>
   <translation tag="The plugin is turned off in moonraker.conf." ja="プラグインはmoonraker.confでオフになっています。"/>
   <translation tag="The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it." ja="オフにした印刷前の手順はこの .3mf に適用できません。印刷するにはオンに戻してください。"/>
   <translation tag="The previous IPv4 settings come back when the print ends." ja="以前のIPv4設定は印刷の終了後に戻ります。"/>
@@ -4048,6 +4063,7 @@
   <translation tag="The temperature was changed elsewhere." ja="温度が別の場所で変更されました。"/>
   <translation tag="The time, date, and system uptime" ja="時間、日付、稼働時間"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." ja="タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"/>
+  <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." ja="タイムラプスプラグインはインストールされました。動画の作成にはffmpegも必要ですが、このプリンターにはインストールされていません。"/>
   <translation tag="The tool change under way finished, and the tool was not parked" ja="実行中のツール変更は完了し、ツールは格納されていません"/>
   <translation tag="The tool change under way finished, and {} was not put back on the carriage" ja="実行中のツール変更は完了し、{}はキャリッジに戻されていません"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" ja="ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。印刷前に手動で引き抜いてください。それでも印刷を開始しますか？"/>
@@ -4081,7 +4097,6 @@
   <translation tag="This AFC system does not support bypass mode" ja="この AFC システムはバイパスモードに対応していません"/>
   <translation tag="This CFS firmware exposes no external spool slot" ja="この CFS ファームウェアには外部スプール用スロットがありません"/>
   <translation tag="This Happy Hare system does not support bypass mode" ja="この Happy Hare システムはバイパスモードに対応していません"/>
-  <translation tag="This Moonraker version can&apos;t hold uploads. Update Moonraker." ja="このバージョンのMoonrakerはアップロードを保留できません。Moonrakerを更新してください。"/>
   <translation tag="This button controls" ja="このボタンの制御対象"/>
   <translation tag="This calibration uses the paper friction method to set your Z-offset." ja="このキャリブレーションは紙の摩擦方式を使用して Z-offset を設定します。"/>
   <translation tag="This cannot be undone." ja="この操作は元に戻せません。"/>
@@ -4095,9 +4110,7 @@
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?" ja="リンクされた Spoolman のスプールと一致しません。新しいスプールとして追加しますか、それともリンク先を一致するよう更新しますか？"/>
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?" ja="リンクされた Spoolman スプールと一致しません。Spoolman で更新するか、リンクを解除してこのスロットに保持しますか？"/>
   <translation tag="This dryer cannot run while filament from the unit is loaded" ja="このユニットのフィラメントが装填されている間は乾燥機を動作できません"/>
-  <translation tag="This feature failed to start. The Moonraker log says why." ja="この機能を開始できませんでした。理由はMoonrakerのログにあります。"/>
   <translation tag="This feature requires different hardware or configuration" ja="この機能には別のハードウェアまたは設定が必要です"/>
-  <translation tag="This feature stopped. Restart Moonraker to start it again." ja="この機能は停止しました。Moonrakerを再起動すると再開します。"/>
   <translation tag="This filament system does not report buffer or flow data." ja="このフィラメントシステムはバッファーやフローのデータを報告しません。"/>
   <translation tag="This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures." ja="このファイルは {0} と {1} を1つのノズルで印刷します。{1} の温度では {0} が過熱してノズルが詰まる可能性があります。"/>
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." ja="このファイルは {0} と {1} を同時に印刷します。{1} に必要なチャンバーとベッドの熱で {0} が柔らかくなり、ノズルが詰まる可能性があります。"/>
@@ -4112,7 +4125,6 @@
   <translation tag="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows." ja="このレーンはロード済みと表示されていますが、フィラメントはノズルから抜けています。印刷前にエクストルーダーに戻し、流れ出るまで押し出してください。"/>
   <translation tag="This looks like a {}, but it is set up as a {}" ja="このプリンターは{}のようですが、{}として設定されています"/>
   <translation tag="This may take up to 30 seconds" ja="最大30秒かかる場合があります"/>
-  <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." ja="プラグインのファイル解析が必要ですが、実行されていません。"/>
   <translation tag="This plugin asks for no special permissions." ja="このプラグインは特別な権限を要求しません。"/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." ja="このプラグインにより、HelixScreen がベッドメッシュや QGL などの印刷開始オプションを制御できます。"/>
   <translation tag="This print called {}, which the printer no longer has." ja="この印刷は {} を使用しましたが、プリンターにはもうありません。"/>
@@ -4179,6 +4191,7 @@
   <translation tag="Timelapse Available" ja="タイムラプス利用可能"/>
   <translation tag="Timelapse Settings" ja="タイムラプス設定"/>
   <translation tag="Timelapse Videos" ja="タイムラプス動画"/>
+  <translation tag="Timelapse or logs folder overlaps a protected one." ja="タイムラプスまたはログのフォルダーが保護フォルダーと重なっています。"/>
   <translation tag="Timelapse plugin installed successfully!" ja="タイムラプスプラグインのインストール成功！"/>
   <translation tag="Timelapse plugin installed!" ja="タイムラプスプラグインをインストールしました！"/>
   <translation tag="Timelapse plugin is already installed!" ja="タイムラプスプラグインは既にインストール済みです！"/>
@@ -4196,6 +4209,7 @@
   <translation tag="Tips" ja="ヒント"/>
   <translation tag="Tips database format error" ja="ヒントデータベースの形式エラー"/>
   <translation tag="Tips database not found" ja="ヒントデータベースが見つかりません"/>
+  <translation tag="To make videos, run this on your printer via SSH:" ja="動画を作成するには、SSHでプリンター上で次を実行してください:"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." ja="フィラメントをマッピングするため、HelixScreenは印刷前にジョブファイルを書き換えます。このプリンターのMoonrakerは旧バージョンのため、HelixPrintプラグインが後から元のファイル名を復元できず、完了したジョブは書き換え後の名前で表示されます。フィラメントマッピング自体は正常に動作します。"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." ja="フィラメントをマッピングするため、HelixScreenは印刷前にジョブファイルを書き換えます。HelixPrintプラグインがない場合、書き換えられたコピーが印刷履歴に残るため、完了したジョブは選んだファイルではなくmodified_1730824_benchy.gcodeのような名前で表示されます。&#10;&#10;プラグインのインストールはすぐに完了し、再起動は必要ありません。"/>
   <translation tag="Toggle" ja="トグル"/>

@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "calibration_owned_heat.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "operation_timeout_guard.h"
@@ -114,6 +114,14 @@ class ZOffsetCalibrationPanel : public OverlayBase {
      */
     void cleanup() override;
 
+    /// Clear a bed this run warmed while the client can still send.
+    void before_disconnect();
+
+    /// Whether this panel still owns a heater target it must turn off.
+    [[nodiscard]] bool holds_owned_heat() const {
+        return heat_.held();
+    }
+
     /// Freed on close; the next open rebuilds it. The calibration state lives in
     /// state_ and the zoffset_cal_state subject, never in the widgets.
     bool destroy_on_close() const override {
@@ -163,6 +171,11 @@ class ZOffsetCalibrationPanel : public OverlayBase {
 
     // State management
     State state_ = State::IDLE;
+    void show_saved_z_offset();
+    /// The printer is still running a probe this panel started.
+    [[nodiscard]] bool run_in_progress() const {
+        return state_ == State::PROBING || state_ == State::ADJUSTING;
+    }
     void set_state(State new_state);
 
     // UI setup (called by create())
@@ -194,6 +207,7 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     void adjust_z(float delta);
     void send_accept();
     void send_abort();
+    void send_bed_off();
     /// Puts ABORT on the wire and leaves the panel state alone.
     void send_manual_probe_abort();
     /// Ends a manual probe session this panel's run left open. Klipper registers
@@ -227,10 +241,11 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     // Warm bed for calibration
     bool tool_confirm_pending_ = false;       ///< The mounted-tool question is on screen
     lv_obj_t* tool_confirm_dialog_ = nullptr; ///< That question's dialog, while open
-    bool bed_was_warmed_ = false;             ///< True if we sent M140 to warm bed this session
-    int warm_bed_target_deci_ = 0;            ///< Target temp in decidegrees during WARMING
-    SubjectLifetime bed_temp_lifetime_;       ///< Lifetime token for bed temp subject (#734)
-    ObserverGuard bed_temp_observer_;         ///< Watches bed temp during WARMING phase
+    /// The bed this panel warmed, until something turns it off.
+    helix::CalibrationOwnedHeat heat_{"ZOffsetCal", [this](const std::string&) { send_bed_off(); }};
+    int warm_bed_target_deci_ = 0;      ///< Target temp in decidegrees during WARMING
+    SubjectLifetime bed_temp_lifetime_; ///< Lifetime token for bed temp subject (#734)
+    ObserverGuard bed_temp_observer_;   ///< Watches bed temp during WARMING phase
 
     // Subject manager for automatic cleanup
     SubjectManager subjects_;

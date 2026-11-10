@@ -7,13 +7,13 @@
 #include "ui_event_safety.h"    // LVGL_SAFE_EVENT_CB_BEGIN / END
 #include "ui_modal.h"
 #include "ui_resume_dispatch.h"
-#include "ui_timer_guard.h" // lv_timer_cancel_safe
 
 #include "abort_manager.h"
 #include "app_globals.h" // get_printer_state()
 #include "chamber_air_modes.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/timer_guard.h" // lv_timer_cancel_safe
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
@@ -181,14 +181,22 @@ void PrintControlButtons::handle_primary_button() {
         // suppress_auto_toast=true: the on_error below surfaces a contextual
         // toast; the generic RPC_ERROR auto-toast + Klipper's `!!` broadcast
         // for the same root cause would be redundant noise.
+        auto sending = std::make_shared<std::atomic<bool>>(true);
         macros.execute(
             StandardMacroSlot::Pause, api_, []() { spdlog::info("[PrintControl] Pause sent"); },
-            [](const MoonrakerError& err) {
+            [sending](const MoonrakerError& err) {
+                // The RPC or the socket gave up, not the printer: the print
+                // state or the backstop settles the pending pause.
+                if (err.command_may_still_run(!sending->load())) {
+                    spdlog::warn("[PrintControl] Pause still unanswered: {}", err.message);
+                    return;
+                }
                 spdlog::error("[PrintControl] Pause failed: {}", err.message);
                 helix::ui::notify_error_tr(TR_NOOP("Failed to pause print: {}"), err);
                 PrintControlButtons::instance().clear_pending_action();
             },
             /*timeout_ms=*/0, /*suppress_auto_toast=*/true);
+        sending->store(false);
         // RAW_PRINT_STATE_OK: Resume is only meaningful once the PRINTER says
         // it is paused.
     } else if (state == helix::PrintJobState::PAUSED) {
@@ -558,22 +566,24 @@ void PrintControlButtons::cancel_confirm_timer() {
     }
 }
 
+uint32_t pending_action_backstop_ms(PendingAction action) {
+    // Pause normally lands in <2s and can stretch to ~20s while buffered moves
+    // drain. Resume can run for minutes before paused->printing fires: an
+    // auto-feed backend heats, feeds and flushes (Snapmaker U1, 40-90s), and a
+    // firmware whose PAUSE turns the nozzle off reheats it first (Z-Mod, ~3
+    // min). The resume backstop therefore waits as long as the RPC does, so it
+    // can never release the button while the printer may still be resuming.
+    return (action == PendingAction::Resuming) ? IMoonrakerAPI::kMacroTimeoutMs : 25000u;
+}
+
 void PrintControlButtons::start_pending_action(PendingAction action) {
     clear_pending_action(); // supersede any in-flight action (also deletes prior timer)
     pending_action_ = action;
     // The authoritative clear is the print_state_observer_ above: when the real
     // print state transitions (paused→printing for Resume, printing→paused for
     // Pause) it clears the pending action. This timer is only a last-resort
-    // backstop for a silently-lost command.
-    //
-    // Pause normally lands in <2s (can stretch to ~20s while buffered moves
-    // drain) → 25s backstop. Resume on an auto-feed backend (Snapmaker U1) runs
-    // AUTO_FEEDING heat+feed+flush + reheat, which takes 40-90s before the
-    // paused→printing transition fires — a 25s backstop false-fired a spurious
-    // "Resume command timed out" toast on a resume that actually succeeded
-    // (#991). Use a 150s ceiling for Resume so the observer wins for any normal
-    // recovery and the timer only trips on a genuinely lost command.
-    const uint32_t timeout_ms = (action == PendingAction::Resuming) ? 150000u : 25000u;
+    // backstop for a silently-lost command (#991).
+    const uint32_t timeout_ms = pending_action_backstop_ms(action);
     pending_action_timeout_ = lv_timer_create(
         [](lv_timer_t* t) {
             auto* self = static_cast<PrintControlButtons*>(lv_timer_get_user_data(t));

@@ -15,6 +15,7 @@
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "enclosure_top.h"
+#include "fan_tachometers.h"
 #include "firmware_fault_codes.h"
 #include "helix_version.h"
 #include "humidity_sensor_types.h"
@@ -1143,6 +1144,10 @@ void MoonrakerDiscoverySequence::apply_configfile_settings(const json& settings)
             }
             hardware_.set_fan_max_power(section, mp);
             spdlog::debug("[Discovery] Fan '{}' max_power: {}", section, mp);
+        }
+        hardware_.set_fan_tachometers(helix::fan_tach::map_from_config(settings));
+        for (const auto& t : hardware_.fan_tachometers()) {
+            spdlog::debug("[Discovery] Tachometer {}.{} -> '{}'", t.object, t.field, t.fan);
         }
     }
 

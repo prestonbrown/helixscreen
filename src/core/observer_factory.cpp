@@ -40,7 +40,7 @@ template <typename Context> Context* context_of(lv_observer_t* obs) {
 // only the DEFERRED lambda, not these copies. Safety therefore depends entirely on
 // ObserverGuard::reset() removing the observer from the subject BEFORE freeing the context (its
 // `delete ctx` cleanup). reset() guarantees that ordering for any observer on
-// a live subject; the per-creation invalidation epoch (ui_observer_guard.h)
+// a live subject; the per-creation invalidation epoch (core/observer_guard.h)
 // ensures an observer created during a printer-state reinit window is still
 // removed rather than orphaned.
 //

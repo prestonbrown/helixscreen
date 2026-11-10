@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_exclude_object_badges.h"
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "bed_coord_mapper.h"
 #include "bed_dimensions.h"
+#include "core/observer_guard.h"
 #include "gcode_parser.h"
 
 #include <cmath>

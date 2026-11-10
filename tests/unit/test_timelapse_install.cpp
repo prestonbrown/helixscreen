@@ -1,9 +1,12 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_button.h"
 #include "ui_overlay_timelapse_install.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/unique_temp_dir.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
@@ -11,7 +14,14 @@
 #include "moonraker_config_manager.h"
 #include "printer_state.h"
 
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <string>
+#include <thread>
 
 #include "../catch_amalgamated.hpp"
 
@@ -213,6 +223,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a screensaver wake resumes the install wiza
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, get_printer_state());
     TimelapseInstallOverlay overlay(&api);
+    overlay.init_subjects();
+    overlay.register_callbacks();
     REQUIRE(overlay.create(test_screen()) != nullptr);
     lv_obj_t* ssh = lv_obj_find_by_name(overlay.get_panel(), "ssh_instructions_container");
     REQUIRE(ssh != nullptr);
@@ -232,4 +244,239 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a screensaver wake resumes the install wiza
     CHECK(lv_obj_has_flag(ssh, LV_OBJ_FLAG_HIDDEN));
     overlay.on_deactivate(DeactivateReason::NavigateAway);
     helix::ui::UpdateQueue::instance().drain_until_empty();
+}
+
+// ============================================================================
+// Layout: the remote route's action is on screen
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "the SSH step's Check Again sits on screen and the header button stays hidden",
+                 "[timelapse][layout][ui_integration]") {
+    REQUIRE_FALSE(get_printer_state().has_webcam());
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, get_printer_state());
+    TimelapseInstallOverlay overlay(&api);
+    overlay.init_subjects();
+    overlay.register_callbacks();
+    lv_obj_t* root = overlay.create(test_screen());
+    REQUIRE(root != nullptr);
+    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+
+    // Locality unknown and no plugin: the webcam and plugin replies end on the SSH route.
+    overlay.on_activate();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    lv_obj_update_layout(test_screen());
+
+    lv_obj_t* footer = lv_obj_find_by_name(root, "install_footer");
+    lv_obj_t* button = lv_obj_find_by_name(root, "install_action_button");
+    lv_obj_t* header = lv_obj_find_by_name(root, "overlay_header");
+    REQUIRE(footer != nullptr);
+    REQUIRE(button != nullptr);
+    REQUIRE(header != nullptr);
+    lv_obj_t* header_action = lv_obj_find_by_name(header, "action_button");
+    REQUIRE(header_action != nullptr);
+
+    CHECK_FALSE(lv_obj_has_flag(footer, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_visible(button));
+    CHECK(lv_obj_has_flag(header_action, LV_OBJ_FLAG_HIDDEN));
+
+    // The SSH card fills the scroll area; the button must still be inside the screen.
+    lv_area_t a;
+    lv_obj_get_coords(button, &a);
+    INFO("button y1=" << a.y1 << " y2=" << a.y2 << " h=" << lv_obj_get_height(button));
+    CHECK(lv_obj_get_height(button) > 0);
+    CHECK(a.y1 >= 0);
+    CHECK(a.y2 < kTestDisplayHeight);
+
+    lv_obj_t* label = ui_button_get_label(button);
+    REQUIRE(label != nullptr);
+    CHECK(std::string(lv_label_get_text(label)) == "Check Again");
+    lv_obj_t* ssh = lv_obj_find_by_name(root, "ssh_instructions_container");
+    lv_obj_t* ffmpeg = lv_obj_find_by_name(root, "ffmpeg_instructions_container");
+    REQUIRE(ssh != nullptr);
+    REQUIRE(ffmpeg != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(ssh, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(ffmpeg, LV_OBJ_FLAG_HIDDEN));
+
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    overlay.cleanup();
+}
+
+// ============================================================================
+// Local install: runs, reopens, prints
+// ============================================================================
+
+namespace {
+using helix::CommandResult;
+
+constexpr const char* kWaitsForPrint =
+    "Installing restarts Moonraker, so it waits until the print is finished or cancelled.";
+
+/// LVGL, the global PrinterState the wizard reads a job and Moonraker's host from,
+/// and a mock Moonraker whose plugin is absent, so an opened wizard reaches step 3.
+struct LocalInstallFixture : public LVGLTestFixture {
+    LocalInstallFixture() : client(MoonrakerClientMock::PrinterType::VORON_24) {
+        const char* home = std::getenv("HOME");
+        had_home_ = home != nullptr;
+        saved_home_ = home ? home : "";
+        std::filesystem::create_directories(home_dir_);
+        setenv("HOME", home_dir_.c_str(), 1);
+        get_printer_state().init_subjects(false);
+        get_printer_state().set_moonraker_is_remote(false);
+        set_job_holds(false);
+    }
+    ~LocalInstallFixture() override {
+        set_job_holds(false);
+        get_printer_state().clear_moonraker_locality();
+        if (had_home_) {
+            setenv("HOME", saved_home_.c_str(), 1);
+        } else {
+            unsetenv("HOME");
+        }
+        std::error_code ec;
+        std::filesystem::remove_all(home_dir_, ec);
+    }
+    static void set_job_holds(bool holds) {
+        lv_subject_set_int(get_printer_state().print_state().get_job_holds_machine_subject(),
+                           holds ? 1 : 0);
+    }
+    static std::string status() {
+        return lv_subject_get_string(lv_xml_get_subject(nullptr, "timelapse_install_status"));
+    }
+    static int card() {
+        return lv_subject_get_int(lv_xml_get_subject(nullptr, "timelapse_install_card"));
+    }
+    static bool action_visible() {
+        return lv_subject_get_int(
+                   lv_xml_get_subject(nullptr, "timelapse_install_action_visible")) != 0;
+    }
+    /// Drain the UI queue until @p done holds, for up to five seconds.
+    template <typename Pred> static bool settle_until(Pred done) {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        while (std::chrono::steady_clock::now() < deadline) {
+            helix::ui::UpdateQueue::instance().drain();
+            if (done()) {
+                return true;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        return false;
+    }
+
+    MoonrakerClientMock client;
+
+  private:
+    bool had_home_ = false;
+    std::string saved_home_;
+    std::string home_dir_ = helix::test::unique_temp_dir("timelapse_home");
+};
+
+/// A runner whose every command blocks until released, then ends with @p exit_code;
+/// a successful clone leaves a checkout at its destination.
+struct GatedRunner {
+    std::atomic<bool> released{false};
+    std::atomic<int> calls{0};
+    int exit_code = 0;
+
+    helix::ProcessRunner runner() {
+        return [this](const std::vector<std::string>& argv, int) {
+            ++calls;
+            while (!released.load()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            }
+            if (exit_code == 0 && std::find(argv.begin(), argv.end(), "clone") != argv.end()) {
+                std::filesystem::create_directories(argv.back() + "/component");
+                std::ofstream(argv.back() + "/component/timelapse.py") << "\n";
+            }
+            CommandResult done;
+            done.started = true;
+            done.exit_code = exit_code;
+            return done;
+        };
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(LocalInstallFixture,
+                 "closing the wizard mid-install: a reopened run waits for it, then installs anew",
+                 "[timelapse][local_install_ui]") {
+    MoonrakerAPI api(client, get_printer_state());
+    TimelapseInstallOverlay overlay(&api);
+    overlay.init_subjects();
+    GatedRunner gate;
+    overlay.set_process_runner(gate.runner());
+
+    overlay.on_activate();
+    REQUIRE(settle_until([&] { return gate.calls.load() == 1; }));
+
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    overlay.on_activate();
+    REQUIRE(settle_until([&] { return status() == "An earlier install is still finishing..."; }));
+    CHECK(action_visible());
+    CHECK(gate.calls.load() == 1);
+
+    // Only the reopened run's own install counts: the first run's result moves nothing.
+    gate.released.store(true);
+    REQUIRE(settle_until([&] { return gate.calls.load() > 1; }));
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    overlay.cleanup();
+}
+
+TEST_CASE_METHOD(LocalInstallFixture, "a print started during the install holds what comes next",
+                 "[timelapse][local_install_ui]") {
+    MoonrakerAPI api(client, get_printer_state());
+    TimelapseInstallOverlay overlay(&api);
+    overlay.init_subjects();
+    GatedRunner gate;
+    overlay.set_process_runner(gate.runner());
+    overlay.on_activate();
+    REQUIRE(settle_until([&] { return gate.calls.load() == 1; }));
+
+    SECTION("configure waits, and Check Again keeps waiting while it prints") {
+        set_job_holds(true);
+        gate.released.store(true);
+        REQUIRE(settle_until([&] { return status() == kWaitsForPrint; }));
+        REQUIRE(action_visible());
+        overlay.press_action();
+        CHECK(status() == kWaitsForPrint);
+    }
+    SECTION("a Retry of a failed install waits too, and runs nothing") {
+        gate.exit_code = 1;
+        gate.released.store(true);
+        REQUIRE(settle_until([&] { return action_visible(); }));
+        const int calls = gate.calls.load();
+        set_job_holds(true);
+        overlay.press_action();
+        CHECK(status() == kWaitsForPrint);
+        CHECK(gate.calls.load() == calls);
+    }
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    overlay.cleanup();
+}
+
+TEST_CASE_METHOD(LocalInstallFixture, "no HOME to clone under takes the SSH route",
+                 "[timelapse][local_install_ui]") {
+    MoonrakerAPI api(client, get_printer_state());
+    TimelapseInstallOverlay overlay(&api);
+    overlay.init_subjects();
+    GatedRunner gate;
+    gate.released.store(true);
+    overlay.set_process_runner(gate.runner());
+
+    SECTION("unset") {
+        unsetenv("HOME");
+    }
+    SECTION("empty") {
+        setenv("HOME", "", 1);
+    }
+    overlay.on_activate();
+    REQUIRE(settle_until([&] { return card() == 1; })); // Card::Ssh
+    CHECK(gate.calls.load() == 0);
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    overlay.cleanup();
 }

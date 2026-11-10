@@ -18,9 +18,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h" // SubjectLifetime
-
 #include "bed_mesh_probe_temp.h"
+#include "core/observer_guard.h"   // SubjectLifetime
 #include "subject_managed_panel.h" // SubjectManager
 
 #include <functional>

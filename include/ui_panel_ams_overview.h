@@ -8,7 +8,6 @@
 #include "ui_ams_edit_overlay.h"
 #include "ui_ams_sidebar.h"
 #include "ui_bypass_spool_widget.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_widget_ref.h"
 
@@ -16,6 +15,7 @@
 #include "ams_types.h"
 #include "ams_unit_pages.h"
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "display_numbering.h"
 
 #include <cstdint>

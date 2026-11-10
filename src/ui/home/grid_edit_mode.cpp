@@ -4,12 +4,12 @@
 
 #include "ui_next_tick.h"
 #include "ui_tile_edit_callout.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 #include "ui_widget_catalog_overlay.h"
 
 #include "app_globals.h"
+#include "core/timer_guard.h"
 #include "display_settings_manager.h"
 #include "grid_layout.h"
 #include "lvgl.h"

@@ -12,7 +12,6 @@
 #include "ui_nav.h"
 #include "ui_panel_common.h"
 #include "ui_print_preparation_manager.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
@@ -26,6 +25,7 @@
 #include "core/http_executor.h"
 #include "core/observer_factory.h"
 #include "core/text_io.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "filament_chip_model.h"

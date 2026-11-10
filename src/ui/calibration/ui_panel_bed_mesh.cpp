@@ -72,6 +72,8 @@ static void on_profile_delete_cb(lv_event_t* e);
 // Constructor / Destructor
 // ============================================================================
 
+static constexpr const char* kBedHeater = "heater_bed";
+
 BedMeshPanel::BedMeshPanel() {
     // Initialize buffer contents
     std::memset(rename_old_name_buf_, 0, sizeof(rename_old_name_buf_));
@@ -625,8 +627,15 @@ void BedMeshPanel::ensure_async_rendering() {
     ui_bed_mesh_redraw(canvas_);
 }
 
-void BedMeshPanel::on_deactivating(DeactivateReason) {
+void BedMeshPanel::on_deactivating(DeactivateReason reason) {
     spdlog::debug("[{}] on_deactivating()", get_name());
+
+    // Anything but Suspended invalidates the callbacks that would end this run,
+    // so its heat is given back here. Klipper runs gcode one at a time: the offs
+    // wait behind a probe or heat wait already running.
+    if (reason != DeactivateReason::Suspended) {
+        cooldown_after_probing();
+    }
 
     // Stop the render thread when panel is not visible to avoid wasting CPU
     if (canvas_) {
@@ -966,19 +975,26 @@ void BedMeshPanel::rename_profile(int index) {
     show_rename_modal(name);
 }
 
-void BedMeshPanel::remember_heaters_probing_turns_on() {
-    auto& state = get_printer_state();
-    // A target of 0 means the heater is off.
-    preheat_turned_on_nozzle_ =
-        lv_subject_get_int(state.temperature_state().get_active_extruder_target_subject()) == 0;
-    preheat_turned_on_bed_ =
-        lv_subject_get_int(state.temperature_state().get_bed_target_subject()) == 0;
+void BedMeshPanel::remember_heaters_probing_turns_on(int nozzle_c, int bed_c) {
+    auto& temps = get_printer_state().temperature_state();
+    const std::string nozzle = temps.active_extruder_name();
+    // A target of 0 means the heater is off. Heat an earlier run still owes an off
+    // for is this panel's own, whatever target it reports.
+    if (lv_subject_get_int(temps.get_active_extruder_target_subject()) == 0 ||
+        heat_.owes_off(nozzle)) {
+        heat_.own(nozzle, nozzle_c);
+    }
+    if (lv_subject_get_int(temps.get_bed_target_subject()) == 0 || heat_.owes_off(kBedHeater)) {
+        heat_.own(kBedHeater, bed_c);
+    }
 }
 
 void BedMeshPanel::preheat_for_probing() {
-    remember_heaters_probing_turns_on();
+    remember_heaters_probing_turns_on(static_cast<int>(kProbeNozzleTemp),
+                                      static_cast<int>(kProbeBedTemp));
 
     auto& state = get_printer_state();
+    const std::string nozzle = state.temperature_state().active_extruder_name();
 
     // Subject values are decidegrees (value * 10)
     int nozzle_target =
@@ -995,47 +1011,39 @@ void BedMeshPanel::preheat_for_probing() {
         }
     };
 
-    if (preheat_turned_on_nozzle_) {
+    if (heat_.owns(nozzle)) {
         spdlog::info("[BedMeshPanel] Preheating nozzle to {}°C for probing", kProbeNozzleTemp);
-        set_temp(state.temperature_state().active_extruder_name(), kProbeNozzleTemp, "nozzle");
+        set_temp(nozzle, kProbeNozzleTemp, "nozzle");
     } else {
         spdlog::info("[BedMeshPanel] Nozzle already heating (target={}°C), skipping",
                      helix::units::from_decidegrees(nozzle_target));
     }
 
-    if (preheat_turned_on_bed_) {
+    if (heat_.owns(kBedHeater)) {
         spdlog::info("[BedMeshPanel] Preheating bed to {}°C for probing", kProbeBedTemp);
-        set_temp("heater_bed", kProbeBedTemp, "bed");
+        set_temp(kBedHeater, kProbeBedTemp, "bed");
     } else {
         spdlog::info("[BedMeshPanel] Bed already heating (target={}°C), skipping",
                      helix::units::from_decidegrees(bed_target));
     }
 }
 
+void BedMeshPanel::send_heater_off(const std::string& heater) {
+    if (auto* c = get_temperature_controller()) {
+        c->set_target(heater, 0.0,
+                      {.toast = false, .on_error = [heater](const MoonrakerError& err) {
+                           spdlog::warn("[BedMeshPanel] Failed to turn off {}: {}", heater,
+                                        err.message);
+                       }});
+    }
+}
+
 void BedMeshPanel::cooldown_after_probing() {
-    if (!preheat_turned_on_nozzle_ && !preheat_turned_on_bed_)
-        return;
+    heat_.turn_off();
+}
 
-    auto turn_off = [](const std::string& heater, const char* label) {
-        spdlog::info("[BedMeshPanel] Turning off {} (was off before probing)", label);
-        if (auto* c = get_temperature_controller()) {
-            c->set_target(heater, 0.0,
-                          {.toast = false, .on_error = [label](const MoonrakerError& err) {
-                               spdlog::warn("[BedMeshPanel] Failed to turn off {}: {}", label,
-                                            err.message);
-                           }});
-        }
-    };
-
-    if (preheat_turned_on_nozzle_) {
-        turn_off(get_printer_state().temperature_state().active_extruder_name(), "nozzle");
-        preheat_turned_on_nozzle_ = false;
-    }
-
-    if (preheat_turned_on_bed_) {
-        turn_off("heater_bed", "bed");
-        preheat_turned_on_bed_ = false;
-    }
+void BedMeshPanel::before_disconnect() {
+    heat_.before_disconnect();
 }
 
 void BedMeshPanel::start_calibration() {
@@ -1140,7 +1148,7 @@ void BedMeshPanel::prepare_and_probe() {
         spdlog::info("[BedMeshPanel] Sequence prepares the printer itself; no preheat or homing");
         // What it heats stays on after it, so the heaters that were off are
         // turned off again once probing is done.
-        remember_heaters_probing_turns_on();
+        remember_heaters_probing_turns_on(0, 0);
         start_calibration_probing();
         return;
     }
@@ -1149,20 +1157,20 @@ void BedMeshPanel::prepare_and_probe() {
     preheat_for_probing();
 
     // If we turned on any heaters, wait for them to reach target before proceeding
-    if (preheat_turned_on_nozzle_ || preheat_turned_on_bed_) {
+    if (heat_.any()) {
         lv_subject_set_int(&bed_mesh_probe_indeterminate_, 1);
         lv_subject_copy_string(&bed_mesh_probe_text_, lv_tr("Heating..."));
 
         // Build TEMPERATURE_WAIT command for heaters we turned on
         std::string wait_cmd;
-        if (preheat_turned_on_nozzle_) {
+        const std::string nozzle = get_printer_state().temperature_state().active_extruder_name();
+        if (heat_.owns(nozzle)) {
             char buf[128];
             std::snprintf(buf, sizeof(buf), "TEMPERATURE_WAIT SENSOR=%s MINIMUM=%.0f\n",
-                          get_printer_state().temperature_state().active_extruder_name().c_str(),
-                          kProbeNozzleTemp);
+                          nozzle.c_str(), kProbeNozzleTemp);
             wait_cmd += buf;
         }
-        if (preheat_turned_on_bed_) {
+        if (heat_.owns(kBedHeater)) {
             char buf[128];
             std::snprintf(buf, sizeof(buf), "TEMPERATURE_WAIT SENSOR=heater_bed MINIMUM=%.0f",
                           kProbeBedTemp);
@@ -1228,6 +1236,12 @@ void BedMeshPanel::start_calibration_probing() {
     }
 
     lv_subject_copy_string(&bed_mesh_probe_text_, lv_tr("Preparing..."));
+
+    // A wrapper around BED_MESH_CALIBRATE may set targets of its own from here on.
+    const std::string nozzle = get_printer_state().temperature_state().active_extruder_name();
+    for (const std::string& heater : {nozzle, std::string(kBedHeater)}) {
+        heat_.let_firmware_set(heater);
+    }
 
     auto token = lifetime_.token();
 
@@ -1742,8 +1756,7 @@ void BedMeshPanel::handle_emergency_stop() {
     spdlog::warn("[BedMeshPanel] Emergency stop during bed mesh calibration");
 
     // E-stop kills all heaters — just reset preheat tracking flags
-    preheat_turned_on_nozzle_ = false;
-    preheat_turned_on_bed_ = false;
+    heat_.forget();
 
     // Suppress recovery dialog — user intentionally triggered E-Stop from this modal
     EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::LONG);

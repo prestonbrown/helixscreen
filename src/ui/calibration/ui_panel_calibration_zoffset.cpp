@@ -157,8 +157,16 @@ void ZOffsetCalibrationPanel::setup_widgets() {
     final_offset_label_ = helix::ui::find_required(overlay_root_, "final_offset_label", get_name());
     error_message_ = helix::ui::find_required(overlay_root_, "error_message", get_name());
 
-    // Set initial state
-    set_state(State::IDLE);
+    // A rebuild mid-run keeps the run, its timeout and its readouts: the probe is
+    // still going on the printer.
+    if (run_in_progress()) {
+        lv_subject_set_int(&s_zoffset_cal_state, static_cast<int>(state_));
+        if (state_ == State::ADJUSTING) {
+            show_saved_z_offset();
+        }
+    } else {
+        set_state(State::IDLE);
+    }
 
     // Subscribe to manual_probe state changes from Klipper
     // This replaces the fake timer with real state tracking
@@ -180,16 +188,7 @@ void ZOffsetCalibrationPanel::setup_widgets() {
                 }
                 self->set_state(State::ADJUSTING);
 
-                // Populate saved z-offset display (snapshot value before calibration)
-                if (self->saved_z_offset_display_) {
-                    PrinterState& state = get_printer_state();
-                    int saved_microns = state.get_configured_z_offset_microns();
-                    char buf[32];
-                    snprintf(buf, sizeof(buf), "%.3f mm", saved_microns / 1000.0);
-                    lv_label_set_text(self->saved_z_offset_display_, buf);
-                    spdlog::debug("[ZOffsetCal] Saved z-offset: {} microns ({} mm)", saved_microns,
-                                  saved_microns / 1000.0);
-                }
+                self->show_saved_z_offset();
             } else if (!is_active && self->state_ == State::ADJUSTING) {
                 // Manual probe mode ended externally (G28 from console, printer error, ABORT from
                 // macros) The state should already have been changed by button handlers for
@@ -223,6 +222,19 @@ void ZOffsetCalibrationPanel::setup_widgets() {
 // LIFECYCLE HOOKS
 // ============================================================================
 
+void ZOffsetCalibrationPanel::show_saved_z_offset() {
+    // The snapshot from before this calibration.
+    if (!saved_z_offset_display_) {
+        return;
+    }
+    const int saved_microns = get_printer_state().get_configured_z_offset_microns();
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.3f mm", saved_microns / 1000.0);
+    lv_label_set_text(saved_z_offset_display_, buf);
+    spdlog::debug("[ZOffsetCal] Saved z-offset: {} microns ({} mm)", saved_microns,
+                  saved_microns / 1000.0);
+}
+
 void ZOffsetCalibrationPanel::on_activate() {
     // Call base class first
     OverlayBase::on_activate();
@@ -233,7 +245,7 @@ void ZOffsetCalibrationPanel::on_activate() {
     // probe, a save or a result that landed behind it, and the reference-tool
     // question if it was open.
     const bool waking = take_wake();
-    if (waking && state_ != State::IDLE) {
+    if ((waking && state_ != State::IDLE) || run_in_progress()) {
         spdlog::info("[ZOffsetCal] Woke - keeping state {}", static_cast<int>(state_));
         return;
     }
@@ -296,7 +308,7 @@ void ZOffsetCalibrationPanel::on_deactivating(DeactivateReason reason) {
     if (state_ == State::ADJUSTING || state_ == State::PROBING) {
         if (reason == DeactivateReason::NavigateAway) {
             spdlog::info("[ZOffsetCal] Aborting calibration on deactivate");
-            send_abort(); // send_abort() calls turn_off_bed_if_needed()
+            send_abort(); // Ends in IDLE, which turns the bed off
         } else {
             spdlog::info("[ZOffsetCal] Leaving calibration running ({})",
                          deactivate_reason_name(reason));
@@ -357,13 +369,14 @@ void ZOffsetCalibrationPanel::set_state(State new_state) {
     state_ = new_state;
     if (new_state == State::IDLE || new_state == State::COMPLETE || new_state == State::ERROR) {
         latched_strategy_.reset();
+        // Every way a run ends lands here, and the panel can stay open afterwards.
+        turn_off_bed_if_needed();
     }
 
     // Manage operation timeout guard based on state transitions
     switch (new_state) {
     case State::WARMING:
         operation_guard_.begin(kWarmingTimeoutMs, [this] {
-            turn_off_bed_if_needed();
             set_state(State::ERROR);
             NOTIFY_WARNING(lv_tr("Bed warming timed out"));
         });
@@ -595,7 +608,13 @@ void ZOffsetCalibrationPanel::begin_calibration() {
         char cmd[32];
         snprintf(cmd, sizeof(cmd), "M140 S%d", temp);
         spdlog::info("[ZOffsetCal] Warming bed to {}°C for calibration", temp);
-        bed_was_warmed_ = true;
+        // Heat already there is someone's, and only this panel's normal endings clear
+        // it. A bed an earlier run still owes an off for is this panel's own.
+        const bool bed_was_off =
+            lv_subject_get_int(get_printer_state().temperature_state().get_bed_target_subject()) ==
+                0 ||
+            heat_.owes_off("heater_bed");
+        heat_.own("heater_bed", temp, bed_was_off);
 
         auto tok = lifetime_.token();
         api_->execute_gcode(
@@ -944,7 +963,6 @@ void ZOffsetCalibrationPanel::send_abort() {
     // If warming, just cancel heating — no calibration gcode was sent yet
     if (state_ == State::WARMING) {
         spdlog::info("[ZOffsetCal] Aborting during bed warming");
-        turn_off_bed_if_needed();
         set_state(State::IDLE);
         return;
     }
@@ -966,7 +984,6 @@ void ZOffsetCalibrationPanel::send_abort() {
         send_manual_probe_abort();
     }
 
-    turn_off_bed_if_needed();
     set_state(State::IDLE);
 }
 
@@ -1044,11 +1061,16 @@ void ZOffsetCalibrationPanel::handle_warm_bed_toggled() {
 }
 
 void ZOffsetCalibrationPanel::turn_off_bed_if_needed() {
-    if (!bed_was_warmed_ || !api_)
+    if (!api_) {
         return;
+    }
+    heat_.turn_off();
+}
 
-    bed_was_warmed_ = false;
-    spdlog::info("[ZOffsetCal] Turning off bed heater after calibration");
+void ZOffsetCalibrationPanel::send_bed_off() {
+    if (!api_) {
+        return;
+    }
     api_->execute_gcode(
         "M140 S0", []() { spdlog::debug("[ZOffsetCal] Bed heater off"); },
         // Log-only handler — see adjust_z().
@@ -1057,6 +1079,14 @@ void ZOffsetCalibrationPanel::turn_off_bed_if_needed() {
         },
         /*timeout_ms=*/0, /*silent=*/false, /*on_queued=*/nullptr,
         /*caller_surfaces_errors=*/false);
+}
+
+void ZOffsetCalibrationPanel::before_disconnect() {
+    // A warm-up reaching its target now would start homing on a printer being left.
+    if (state_ == State::WARMING) {
+        set_state(State::IDLE);
+    }
+    heat_.before_disconnect();
 }
 
 // ============================================================================
@@ -1090,7 +1120,6 @@ void ZOffsetCalibrationPanel::on_calibration_result(bool success, const std::str
                 fmt::format(lv_tr("Accepted Z Position: {:.3f}"), final_offset_);
             lv_label_set_text(final_offset_label_, accepted.c_str());
         }
-        turn_off_bed_if_needed();
         set_state(State::COMPLETE);
     } else {
         if (error_message_) {

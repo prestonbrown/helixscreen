@@ -4,10 +4,11 @@
 #pragma once
 
 #include "ui_container_delete_net.h"
-#include "ui_observer_guard.h"
-#include "ui_timer_guard.h"
 #include "ui_virtual_list.h"
 #include "ui_widget_ref.h"
+
+#include "core/observer_guard.h"
+#include "core/timer_guard.h"
 
 #if defined(HELIX_PLATFORM_ESP32)
 #include "esp_psram_thumbnail.h"

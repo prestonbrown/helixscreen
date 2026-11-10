@@ -7,6 +7,7 @@
 #include "app_globals.h"
 #include "cfs_status_parse.h"
 #include "core/update_queue.h"
+#include "fan_tachometers.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "test_helpers/backend_harness.h"
@@ -119,6 +120,7 @@ TEST_CASE("The k2 persona's motor_control and fan_feedback frames parse",
     json frame;
     const auto id =
         mock.register_notify_update([&frame](const json& n) { frame = n["params"][0]; });
+    mock.gcode_script("M106 S128");
     helix::MoonrakerClientMockTestAccess::dispatch_initial_state(mock);
     mock.unsubscribe_notify_update(id);
     REQUIRE(frame.contains("motor_control"));
@@ -132,17 +134,28 @@ TEST_CASE("The k2 persona's motor_control and fan_feedback frames parse",
     PrinterState& state = get_printer_state();
     PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
-    state.fan_state().init_fans({"output_pin fan0", "output_pin fan1", "output_pin fan2"});
+    state.fan_state().init_fans({"fan", "heater_fan chamber_fan", "output_pin fan2"});
+    state.fan_state().set_tachometers(
+        helix::fan_tach::map_from_config(mock.extra_config_settings()));
+    // The bare [fan] carries its own mock rpm; drop it so only the tachometer feeds it.
+    frame.erase("fan");
     state.update_from_status(frame);
+    // The part fan's tachometer is fan2_speed; output_pin fan2 has none.
+    std::optional<int> part, chamber, pin2;
     for (const auto& fan : state.fan_state().get_fans()) {
-        INFO(fan.object_name);
-        CHECK(fan.rpm.has_value());
+        (fan.object_name == "fan"               ? part
+         : fan.object_name == "output_pin fan2" ? pin2
+                                                : chamber) = fan.rpm;
     }
+    CHECK(part.value_or(0) > 0);
+    CHECK(chamber == std::optional<int>(0));
+    CHECK_FALSE(pin2.has_value());
 }
 
 TEST_CASE("The k2 persona reports the declared 350 bed through discovery", "[mock][persona][k2]") {
     helix::test::PersonaEnv env("k2");
     BuildVolume volume;
+    helix::fan_tach::TachMap tachometers;
     {
         MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::CREALITY_K2_PLUS);
         mock.connect("ws://mock/websocket", [] {}, [] {});
@@ -150,12 +163,22 @@ TEST_CASE("The k2 persona reports the declared 350 bed through discovery", "[moc
         mock.discover_printer([&done] { done = true; });
         REQUIRE(done);
         volume = mock.hardware().build_volume();
+        tachometers = mock.hardware().fan_tachometers();
     }
     // Discovery queues UI-thread callbacks; run them before the test ends.
     helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(volume.declared_bed_x == Catch::Approx(350.0f));
     CHECK(volume.declared_bed_y == Catch::Approx(350.0f));
+
+    // Discovery resolves the tachometer map from the persona's configfile.
+    const helix::fan_tach::TachSource part{"fan_feedback", "fan2_speed", "fan"};
+    CHECK(std::find(tachometers.begin(), tachometers.end(), part) != tachometers.end());
+
+    helix::PrinterDiscovery cleared;
+    cleared.set_fan_tachometers(tachometers);
+    cleared.clear();
+    CHECK(cleared.fan_tachometers().empty());
 }
 
 TEST_CASE("The k2 persona pushes a box script's frames before it answers",

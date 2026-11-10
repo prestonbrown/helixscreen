@@ -79,6 +79,11 @@ bool create_directories(const std::string& p);
 /// with errno ENOENT when `p` did not exist, any other errno on a real failure.
 bool remove(const std::string& p);
 
+/// rm -r: removes `p` and everything under it. A symlink is removed, never
+/// followed, so nothing outside `p` is touched. true when `p` is gone
+/// afterwards, including when it never existed.
+bool remove_all(const std::string& p);
+
 bool rename(const std::string& from, const std::string& to);
 
 /// Copies the bytes of `from` to `to`. With overwrite false, an existing `to`

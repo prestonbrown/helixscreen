@@ -12,14 +12,13 @@
 #else
 #define CONFIG_RECORD_ERROR(...) ((void)0)
 #endif
-#include "ui_error_reporting.h"
-
 #include "ams_types.h"
 #include "app_constants.h"
 #include "config_backup.h"
 #include "config_migrations.h"
 #include "config_testing.h"
 #include "core/data_root_resolver.h"
+#include "core/error_reporting.h"
 #include "core/text_io.h"
 #include "helix_fs.h"
 #include "host_identity.h"

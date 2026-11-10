@@ -3,12 +3,12 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_temp_graph.h"
 #include "ui_temperature_utils.h" // kHeaterStatusBufBytes
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "heater_type.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"

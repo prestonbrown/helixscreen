@@ -6,9 +6,8 @@
 // bytes unchanged into kPhotosDir and writes the job's record, the files and
 // record the plugin would have written.
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "history_job_events.h"
 #include "print_photos.h"
 

@@ -570,7 +570,7 @@ create an observer; the no-argument one is for one-shot reads.
 
 ### The pairing rule: hand the token to `observe_*`
 
-`SubjectLifetime` is `std::shared_ptr<bool>` (`include/ui_observer_guard.h`), and every
+`SubjectLifetime` is `std::shared_ptr<bool>` (`include/core/observer_guard.h`), and every
 token'd accessor is an **out-param that hands you a copy of a token the owner keeps**:
 
 ```cpp
@@ -590,7 +590,7 @@ writes `*lifetime = false` and only then drops its own copy — `printer_fan_sta
 
 ```cpp
 auto locked = alive_token_.lock();
-subject_dead = !locked || !*locked;   // include/ui_observer_guard.h
+subject_dead = !locked || !*locked;   // include/core/observer_guard.h
 ```
 
 **The rule that actually matters: if you fetch a token, you must pass it to the `observe_*`
@@ -659,7 +659,7 @@ first, token second** — i.e. declare the token **before** the observer:
 - **Token first:** the `weak_ptr` expires, `reset()` *skips* `lv_observer_remove()`, and a live
   observer is left orphaned on a live subject while its `LambdaObserverContext` is freed — UAF on
   the next notify. Same failure family the `created_epoch_` machinery exists to prevent
-  (`include/ui_observer_guard.h`, debug bundles 449TVQ82 / X3RA4252).
+  (`include/core/observer_guard.h`, debug bundles 449TVQ82 / X3RA4252).
 
 When the subject is already dead, both orders are safe: the owner set `*token = false` before
 freeing it, and that flag is visible regardless of who dropped their copy when.
@@ -759,7 +759,7 @@ Create observers with the factories in `include/core/observer_factory.h` rather 
 | `observe_print_state<T>()` | typed `PrintJobState` over the raw `print_state_enum` subject, deferred; `Dispatch::Immediate` as the last argument fires synchronously |
 | `observe_print_lifecycle<T>()` | typed `PrintState` over the derived `print_lifecycle` subject |
 
-All return an `ObserverGuard` (`include/ui_observer_guard.h`) for RAII removal.
+All return an `ObserverGuard` (`include/core/observer_guard.h`) for RAII removal.
 
 The print factories are not sugar: `PrintJobState` and `PrintState` do not share
 numbering past index 0, so pairing a factory with the wrong subject (or hand-casting the
@@ -971,11 +971,11 @@ follows.
 ## 10. Timers
 
 LVGL timers created with `lv_timer_create()` are **not** cleaned up automatically. Use
-`LvglTimerGuard` (`include/ui_timer_guard.h`) for RAII, or delete manually in the destructor
+`LvglTimerGuard` (`include/core/timer_guard.h`) for RAII, or delete manually in the destructor
 behind an `lv_is_initialized()` guard.
 
 ```cpp
-#include "ui_timer_guard.h"
+#include "core/timer_guard.h"
 LvglTimerGuard update_timer_;   // deleted on destruction
 ```
 
@@ -988,7 +988,7 @@ armed in LVGL's timer list holding a freed `this` — the callback then fires on
 raw `lv_timer_t*` cancelled in `cleanup()` must also be cancelled in the destructor.**
 
 Share one `cancel_*_timer()` helper between both paths, and cancel with
-`lv_timer_cancel_safe()` (`include/ui_timer_guard.h`) — it self-guards on
+`lv_timer_cancel_safe()` (`include/core/timer_guard.h`) — it self-guards on
 `lv_is_initialized()` and neuters the timer instead of unlinking it, so it is safe to call
 from a destructor and from inside `lv_timer_handler()` (#750, #751). Exemplar:
 `FlyingToasterScreensaver::cancel_timer()` in `src/ui/screensaver/ui_screensaver.cpp`.
@@ -1108,13 +1108,13 @@ Relevant tags: `[state]` (subjects/observers), `[connection]` (WebSocket lifecyc
 |------|----------|
 | `include/core/update_queue.h` | `UpdateQueue`, `queue_update()`, `scoped_freeze()` |
 | `include/async_lifetime_guard.h` | `AsyncLifetimeGuard`, `LifetimeToken`, `bg_cb()` |
-| `include/ui_observer_guard.h` | `ObserverGuard`, `SubjectLifetime` |
+| `include/core/observer_guard.h` | `ObserverGuard`, `SubjectLifetime` |
 | `include/core/observer_factory.h` | `observe<V>` (`Dispatch::Deferred` / `Immediate`), `observe_print_state`, `observe_print_lifecycle` |
 | `include/ui_utils.h` | `safe_delete_deferred`, `safe_clean_children`, `safe_delete_subtree` |
 | `include/core/static_subject_registry.h` | Shutdown cleanup registry |
 | `include/core/http_executor.h` | `HttpExecutor::fast()` / `slow()` pools |
 | `src/bluetooth/bt_bus_thread.h` | BlueZ `BusThread` |
-| `include/ui_timer_guard.h` | `LvglTimerGuard` RAII |
+| `include/core/timer_guard.h` | `LvglTimerGuard` RAII |
 | `include/ui_widget_memory.h` | `lvgl_unique_ptr` / `lvgl_make_unique` |
 | `src/printer/printer_state.cpp` | `set_*_internal()` reference pattern |
 | `src/network/wifi_manager.cpp` | Backend integration reference |

@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
 

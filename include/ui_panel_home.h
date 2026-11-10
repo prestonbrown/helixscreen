@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 
+#include "core/observer_guard.h"
 #include "grid_edit_mode.h"
 #include "panel_widget.h"
 #include "subject_managed_panel.h"

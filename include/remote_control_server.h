@@ -177,6 +177,7 @@ class RemoteControlServer {
     // Determinism toggle: stop/resume animations + periodic timers for
     // reproducible captures. See docs/devel/HELIXCTL.md "Diagnostics & lifecycle".
     nlohmann::json handle_freeze(const nlohmann::json& params);
+    nlohmann::json handle_resize(const nlohmann::json& params);
     nlohmann::json handle_unfreeze(const nlohmann::json& params);
 
     // Phase 3 handlers

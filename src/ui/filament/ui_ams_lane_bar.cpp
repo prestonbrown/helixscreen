@@ -3,11 +3,10 @@
 
 #include "ui_ams_lane_bar.h"
 
-#include "ui_observer_guard.h"
-
 #include "ams_lane_state.h"
 #include "ams_state.h"
 #include "core/observer_factory.h"
+#include "core/observer_guard.h"
 #include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"

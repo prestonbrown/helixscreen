@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "job_queue_tile_state.h"
 #include "moonraker_queue_api.h"
 #include "subject_managed_panel.h" // SubjectManager

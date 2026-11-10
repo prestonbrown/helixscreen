@@ -233,41 +233,86 @@ helix::PluginFeatureEntry running(bool enabled) {
 
 } // namespace
 
-TEST_CASE_METHOD(OverviewFixture, "every overview row shows its status at the right, alike",
+helix::PluginFeatureEntry unavailable(const char* reason) {
+    helix::PluginFeatureEntry e;
+    e.version = 1;
+    e.available = false;
+    e.reason = reason;
+    return e;
+}
+
+bool inside(lv_obj_t* obj, lv_obj_t* container) {
+    for (; obj != nullptr; obj = lv_obj_get_parent(obj)) {
+        if (obj == container) {
+            return true;
+        }
+    }
+    return false;
+}
+
+TEST_CASE_METHOD(OverviewFixture, "the overview groups features into dense rows by status",
                  "[plugin_feature][settings]") {
     auto& plugin = get_printer_state().plugin_status_state();
     plugin.set_installed(true);
     plugin.set_version("1.5.0");
-    plugin.set_features(
-        {{helix::kPrintHooksFeature, running(false)}, {"file_analysis", running(true)}});
+    plugin.set_features({{helix::kPrintHooksFeature, running(false)},
+                         {"file_analysis", running(true)},
+                         {"plr", unavailable("not_listed")}});
 
     helix::ui::PluginOverviewOverlay overview;
+    overview.init_subjects();
     overview.register_callbacks();
     REQUIRE(overview.create(test_screen()) != nullptr);
     overview.refresh();
     lv_obj_update_layout(test_screen());
 
-    lv_obj_t* version = lv_obj_find_by_name(test_screen(), "plugin_overview_version");
-    lv_obj_t* hooks = lv_obj_find_by_name(test_screen(), "plugin_overview_print_hooks");
-    lv_obj_t* analysis = lv_obj_find_by_name(test_screen(), "plugin_overview_file_analysis");
+    auto find = [this](const char* name) { return lv_obj_find_by_name(test_screen(), name); };
+    lv_obj_t* version = find("plugin_overview_version");
+    lv_obj_t* hooks = find("plugin_overview_print_hooks");
+    lv_obj_t* analysis = find("plugin_overview_file_analysis");
+    lv_obj_t* plr = find("plugin_overview_plr");
     REQUIRE(version != nullptr);
     REQUIRE(hooks != nullptr);
     REQUIRE(analysis != nullptr);
+    REQUIRE(plr != nullptr);
 
-    INFO("the status sits in the right-hand value slot of every row");
     CHECK(std::string(lv_label_get_text(label_named(version, "value"))) == "1.5.0");
-    CHECK(std::string(lv_label_get_text(label_named(hooks, "value"))) == "Off");
-    CHECK(std::string(lv_label_get_text(label_named(analysis, "value"))) == "Active");
+
+    INFO("each feature sits in its status group, under a shown header");
+    CHECK(inside(analysis, find("running_rows")));
+    CHECK(inside(hooks, find("off_rows")));
+    CHECK(inside(plr, find("unavailable_rows")));
+    CHECK(shown(find("running_header")));
+    CHECK(shown(find("off_header")));
+    CHECK(shown(find("unavailable_header")));
+
+    INFO("no status word at the right; only the unavailable row has a reason line");
+    CHECK_FALSE(shown(label_named(analysis, "value")));
+    CHECK_FALSE(shown(label_named(hooks, "value")));
+    CHECK_FALSE(shown(label_named(analysis, "description_wrap")));
     CHECK_FALSE(shown(label_named(hooks, "description_wrap")));
+    REQUIRE(shown(label_named(plr, "description_wrap")));
+    CHECK(std::string(lv_label_get_text(label_named(plr, "description"))) ==
+          "Not set up for this printer model yet.");
 
     INFO("only a row that opens a page carries a chevron and takes a tap");
     CHECK(shown(label_named(hooks, "chevron")));
     CHECK(lv_obj_has_flag(hooks, LV_OBJ_FLAG_CLICKABLE));
     CHECK_FALSE(shown(label_named(analysis, "chevron")));
     CHECK_FALSE(lv_obj_has_flag(analysis, LV_OBJ_FLAG_CLICKABLE));
-    CHECK_FALSE(shown(label_named(version, "chevron")));
 
-    INFO("all rows are one height");
-    CHECK(lv_obj_get_height(hooks) == lv_obj_get_height(analysis));
-    CHECK(lv_obj_get_height(version) == lv_obj_get_height(analysis));
+    INFO("a feature row is denser than a standard settings row");
+    auto* standard =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "setting_action_row", nullptr));
+    REQUIRE(standard != nullptr);
+    lv_obj_update_layout(test_screen());
+    CHECK(lv_obj_get_height(analysis) < lv_obj_get_height(standard));
+
+    INFO("a group with no features hides its header");
+    plugin.set_features({{"file_analysis", running(true)}});
+    overview.refresh();
+    lv_obj_update_layout(test_screen());
+    CHECK(shown(find("running_header")));
+    CHECK_FALSE(shown(find("off_header")));
+    CHECK_FALSE(shown(find("unavailable_header")));
 }

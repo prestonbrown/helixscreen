@@ -63,8 +63,7 @@
 
 #pragma once
 
-#include "ui_observer_guard.h" // SubjectLifetime
-
+#include "core/observer_guard.h" // SubjectLifetime
 #include "helix/xml/scoped_subject_registry.h"
 #include "helix_lvgl_anomaly.h"
 #include "lvgl/lvgl.h"

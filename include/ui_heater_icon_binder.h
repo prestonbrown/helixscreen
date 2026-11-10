@@ -4,9 +4,9 @@
 #pragma once
 
 #include "ui_heating_animator.h"
-#include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "heater_type.h"
 #include "lvgl/lvgl.h"
 #include "printer_temperature_state.h" // helix::ChamberMode

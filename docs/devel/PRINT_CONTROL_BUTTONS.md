@@ -306,9 +306,7 @@ void PrintControlButtons::start_pending_action(PendingAction action) {
     pending_action_ = action;
 
     // Backstop timer; the print-state observer is the authoritative clear.
-    // Pause is normally <2s but can stretch ~20s while moves drain; resume can
-    // run 40-90s of AUTO_FEEDING (heat + feed + flush) on auto-feed backends.
-    const uint32_t timeout_ms = (action == PendingAction::Resuming) ? 150000u : 25000u;
+    const uint32_t timeout_ms = pending_action_backstop_ms(action);
     pending_action_timeout_ = lv_timer_create(/* warn + clear_pending_action */, timeout_ms, this);
     lv_timer_set_repeat_count(pending_action_timeout_, 1);
     recompute();                    // publish hourglass state to subjects
@@ -318,9 +316,19 @@ void PrintControlButtons::start_pending_action(PendingAction action) {
 - **Set** when a pause/resume is dispatched.
 - **Cleared** authoritatively when the `print_state_enum` observer sees the real
   transition (PRINTING↔PAUSED).
-- **Cleared on failure** via the dispatch error callback.
-- **Backstop** — if Klipper never confirms, the timer fires a warning toast and
-  clears (25 s for pause, 150 s for resume).
+- **Cleared on failure** via the dispatch error callback, unless the printer may
+  still be running the macro (`MoonrakerError::command_may_still_run(sent)`): an
+  RPC timeout, or a socket that dropped after the request went out. Then the
+  pending state stays and no failure toast is shown, so a WiFi blip mid-reheat
+  cannot re-enable Resume and queue a second RESUME. A client that refuses the
+  request before sending it (not connected) still releases the button and toasts.
+- **Backstop** - if Klipper never confirms, the timer fires a warning toast and
+  clears (`pending_action_backstop_ms()`: 25 s for pause; for resume the same
+  5-minute ceiling the RPC waits on, `IMoonrakerAPI::kMacroTimeoutMs`). A resume
+  can take minutes before paused->printing fires: an auto-feed backend heats,
+  feeds and flushes, and a firmware whose PAUSE turns the nozzle off (Z-Mod)
+  reheats it first. A shorter backstop would re-enable Resume while the printer
+  is still resuming.
 
 `pending_action_` is mirrored into the `print_pending_action` subject so other
 UI (the print-status panel's paused overlay) can react to the optimistic state.

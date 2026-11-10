@@ -5,6 +5,7 @@
 
 #include "ui_toast_manager.h"
 
+#include "core/notification_api.h"
 #include "lvgl.h"
 
 #include <functional>
@@ -65,29 +66,6 @@ void ui_notification_init();
 void ui_notification_deinit();
 
 /**
- * @brief Show an informational toast notification
- *
- * Displays a non-blocking blue toast message that auto-dismisses after 4 seconds.
- *
- * **Thread-safe**: Automatically detects if called from background thread and
- * marshals to LVGL main thread. Safe to call from any thread.
- *
- * @param message Message text to display
- */
-void ui_notification_info(const char* message);
-
-/**
- * @brief Show an informational toast notification with title
- *
- * Like ui_notification_info but includes a title. The toast displays "Title: message"
- * and the title is stored separately in notification history.
- *
- * @param title Title for context (displayed as "Title: message")
- * @param message Message text to display
- */
-void ui_notification_info(const char* title, const char* message);
-
-/**
  * @brief Add an info notification to history only (no toast)
  *
  * Creates a notification history entry with an action identifier.
@@ -117,67 +95,6 @@ void ui_notification_info_with_action(const char* title, const char* message, co
 // NAMESPACE_OK: matches ui_notification_info_with_action, this file's existing global-scope API
 void ui_notification_warning_with_action(const char* title, const char* message,
                                          const char* action);
-
-/**
- * @brief Show a success toast notification
- *
- * Displays a non-blocking green toast message that auto-dismisses after 4 seconds.
- *
- * **Thread-safe**: Automatically detects if called from background thread and
- * marshals to LVGL main thread. Safe to call from any thread.
- *
- * @param message Message text to display
- */
-void ui_notification_success(const char* message);
-
-/**
- * @brief Show a success toast notification with title
- *
- * Like ui_notification_success but includes a title. The toast displays "Title: message"
- * and the title is stored separately in notification history.
- *
- * @param title Title for context (displayed as "Title: message")
- * @param message Message text to display
- */
-void ui_notification_success(const char* title, const char* message);
-
-/**
- * @brief Show a warning notification
- *
- * Displays a non-blocking orange toast message that auto-dismisses after 5 seconds.
- *
- * **Thread-safe**: Automatically detects if called from background thread and
- * marshals to LVGL main thread. Safe to call from any thread.
- *
- * @param message Message text to display
- */
-void ui_notification_warning(const char* message);
-
-/**
- * @brief Show a warning notification with title
- *
- * Like ui_notification_warning but includes a title. The toast displays "Title: message"
- * and the title is stored separately in notification history.
- *
- * @param title Title for context (displayed as "Title: message")
- * @param message Message text to display
- */
-void ui_notification_warning(const char* title, const char* message);
-
-/**
- * @brief Show an error notification
- *
- * Can display either a blocking modal dialog or a toast notification depending
- * on the modal parameter. Critical errors should use modal=true.
- *
- * **Thread-safe**: Automatically detects if called from background thread and
- * marshals to LVGL main thread. Safe to call from any thread.
- *
- * @param title Error title (used for modal dialogs, can be nullptr for toasts)
- * @param message Error message text
- * @param modal If true, shows blocking modal dialog; if false, shows toast
- */
-void ui_notification_error(const char* title, const char* message, bool modal = true);
 
 /**
  * @brief Show a blocking error modal for a fault ON THE PRINTER

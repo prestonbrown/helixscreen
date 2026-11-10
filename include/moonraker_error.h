@@ -74,6 +74,19 @@ struct MoonrakerError {
     }
 
     /**
+     * @brief May the printer still be running a command whose RPC failed?
+     *
+     * A socket that drops after the request went out leaves the command as
+     * unanswered as a timeout does. A client that is not connected refuses the
+     * request before sending it, calling the error back synchronously; callers
+     * track that window with a flag cleared once the send call returns, and
+     * pass @p sent from it.
+     */
+    bool command_may_still_run(bool sent) const {
+        return command_may_still_run() || (sent && is_transport_loss());
+    }
+
+    /**
      * @brief Did Moonraker answer that the thing asked for does not exist?
      *
      * Moonraker's JSON-RPC layer turns a ServerError with status 404 into code

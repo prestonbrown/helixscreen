@@ -157,7 +157,7 @@
   <translation tag="A cold pull is already running." zh="冷拉清理已在运行。"/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." zh="让腔体内空气经过滤网循环的风扇。在腔体温度界面控制。"/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." zh="需要几分钟，几乎全是加热时间。你无需用肉眼判断任何东西。"/>
-  <translation tag="A folder name in moonraker.conf is unsafe, so cleanup is off." zh="moonraker.conf 中的文件夹名称不安全，因此清理功能已关闭。"/>
+  <translation tag="A folder name in moonraker.conf is unsafe." zh="moonraker.conf 中的某个文件夹名称不安全。"/>
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." zh="打印机上已设置热浸(heat soak)宏。HelixScreen 会检测到它,但不会运行。"/>
   <translation tag="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen." zh="为腔体内空气加热的加热器。在腔体温度界面设置温度。"/>
   <translation tag="A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen." zh="Klipper 用来补偿热床不平整的高度图。在热床网格界面查看和校准。"/>
@@ -265,6 +265,7 @@
   <translation tag="Added to queue (position {})" zh="已添加到队列（第 {} 位）"/>
   <translation tag="Added to queue (position {}) - queue is paused" zh="已添加到队列（第 {} 位）– 队列已暂停"/>
   <translation tag="Adding printer" zh="正在添加打印机"/>
+  <translation tag="Adding the timelapse plugin to Moonraker..." zh="正在将延时摄影插件添加到 Moonraker..."/>
   <translation tag="Adding to queue..." zh="正在添加到队列..."/>
   <translation tag="Address" zh="地址"/>
   <translation tag="Adds to:" zh="添加到:"/>
@@ -308,6 +309,7 @@
   <translation tag="An accelerometer was detected on your printer." zh="在您的打印机上检测到加速度计。"/>
   <translation tag="An app on your network is asking to connect to this printer." zh="网络中的某个应用请求连接到此打印机。"/>
   <translation tag="An earlier IPv4 change is still being undone. Try again shortly." zh="之前的 IPv4 更改仍在撤销中。请稍后再试。"/>
+  <translation tag="An earlier install is still finishing..." zh="之前的安装仍在进行中..."/>
   <translation tag="An error occurred during calibration." zh="校准过程中发生错误。"/>
   <translation tag="An error occurred during filament loading." zh="装载耗材时发生错误。"/>
   <translation tag="An error occurred during probing." zh="探测过程中发生错误。"/>
@@ -722,6 +724,7 @@
   <translation tag="Checking extruders..." zh="正在检查挤出机..."/>
   <translation tag="Checking filament..." zh="正在检查耗材……"/>
   <translation tag="Checking file…" zh="正在检查文件…"/>
+  <translation tag="Checking for ffmpeg..." zh="正在检查 ffmpeg..."/>
   <translation tag="Checking for plugin..." zh="正在检查插件..."/>
   <translation tag="Checking for webcam..." zh="正在检查摄像头..."/>
   <translation tag="Checking plugin" zh="正在检查插件"/>
@@ -936,6 +939,7 @@
   <translation tag="Corner roundness" zh="圆角程度"/>
   <translation tag="Corners differ by {} mm" zh="四角相差 {} mm"/>
   <translation tag="Correction (Ki)" zh="校正 (Ki)"/>
+  <translation tag="Could not add the timelapse plugin to Moonraker." zh="无法将延时摄影插件添加到 Moonraker。"/>
   <translation tag="Could not add to queue" zh="无法添加到队列"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." zh="无法分析 PRINT_START 宏。部分打印选项可能不可用。"/>
   <translation tag="Could not answer the connection request" zh="无法响应连接请求"/>
@@ -947,6 +951,7 @@
   <translation tag="Could not copy the printer&apos;s layout" zh="无法复制打印机的布局"/>
   <translation tag="Could not copy {} from USB: {}" zh="无法从 USB 复制 {}：{}"/>
   <translation tag="Could not disconnect from WiFi" zh="无法断开 WiFi 连接"/>
+  <translation tag="Could not download the timelapse plugin. Check the printer&apos;s internet connection." zh="无法下载延时摄影插件。请检查打印机的网络连接。"/>
   <translation tag="Could not extract plate {} of {}: {}" zh="无法提取第 {} 号板（{}）: {}"/>
   <translation tag="Could not forget device" zh="无法忘记设备"/>
   <translation tag="Could not free space" zh="无法释放空间"/>
@@ -1145,6 +1150,7 @@
   <translation tag="Door switches, buttons, and other on/off inputs" zh="门开关、按钮及其他开/关输入"/>
   <translation tag="Download update?" zh="下载更新？"/>
   <translation tag="Download v{}?" zh="下载 v{}？"/>
+  <translation tag="Downloading the timelapse plugin..." zh="正在下载延时摄影插件..."/>
   <translation tag="Downloading..." zh="下载中..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" zh="下载中... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" zh="在每次触摸时绘制涟漪 — 有助于诊断偏移"/>
@@ -1458,6 +1464,7 @@
   <translation tag="Failed to start installer: " zh="启动安装程序失败: "/>
   <translation tag="Failed to start print: {}" zh="开始打印失败: {}"/>
   <translation tag="Failed to start uninstaller: " zh="启动卸载程序失败: "/>
+  <translation tag="Failed to start. See the Moonraker log." zh="启动失败。请查看 Moonraker 日志。"/>
   <translation tag="Failed to subscribe to printer updates: {}" zh="无法接收打印机更新: {}"/>
   <translation tag="Failed to toggle %s" zh="切换 %s 失败"/>
   <translation tag="Failed to toggle timelapse: {}" zh="切换延时摄影失败: {}"/>
@@ -1926,6 +1933,8 @@
   <translation tag="Installation timed out" zh="安装超时"/>
   <translation tag="Installation timed out. The script may be stuck." zh="安装超时。脚本可能已卡住。"/>
   <translation tag="Installed" zh="已安装"/>
+  <translation tag="Installing restarts Moonraker, so it waits until the print is finished or cancelled." zh="安装会重启 Moonraker，因此会等到打印完成或取消后再进行。"/>
+  <translation tag="Installing the timelapse plugin..." zh="正在安装延时摄影插件..."/>
   <translation tag="Installing..." zh="正在安装..."/>
   <translation tag="Intensity" zh="强度"/>
   <translation tag="Interactive calibration for all lanes" zh="所有耗材通道的交互式校准"/>
@@ -2383,13 +2392,16 @@
   <translation tag="My Printer" zh="我的打印机"/>
   <translation tag="NEW HIGH SCORE!&#10;{}&#10;Tap to play again" zh="新纪录！&#10;{}&#10;点按再玩一次"/>
   <translation tag="NEWLY DISCOVERED" zh="新发现"/>
+  <translation tag="NOT AVAILABLE HERE" zh="此处不可用"/>
   <translation tag="Name" zh="名称"/>
   <translation tag="Name (optional)" zh="名称（可选）"/>
   <translation tag="Name, image and model" zh="名称、图片和型号"/>
   <translation tag="Name:" zh="名称:"/>
   <translation tag="Named actions in the LED Controls widget. Not shown under LED selection." zh="在 LED 控制小组件中显示为命名操作。不会出现在 LED 选择中。"/>
   <translation tag="Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature." zh="指定模型风扇后,MPC 可以计入其冷却效果。Klipper 重启后将校准此加热器。在工作温度下需要几分钟。"/>
+  <translation tag="Needs a newer Moonraker to hold uploads." zh="需要更新的 Moonraker 才能暂缓上传。"/>
   <translation tag="Needs attention" zh="需要处理"/>
+  <translation tag="Needs file analysis, which isn&apos;t running." zh="需要文件分析，但它未在运行。"/>
   <translation tag="Needs the {} package to switch spools" zh="切换料盘需要 {} 插件"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" zh="需要 {}x{} 空位。请先移除或缩小小组件"/>
   <translation tag="Net Weight (g)" zh="净重（克）"/>
@@ -2565,6 +2577,7 @@
   <translation tag="Not now" zh="暂不"/>
   <translation tag="Not saved: {}. Try again." zh="未保存：{}。请重试。"/>
   <translation tag="Not set" zh="未设置"/>
+  <translation tag="Not set up for this printer model yet." zh="尚未为此打印机型号配置。"/>
   <translation tag="Not turned" zh="未转动"/>
   <translation tag="Not yet available on this display" zh="此屏幕暂不支持"/>
   <translation tag="Not yet calibrated" zh="尚未校准"/>
@@ -2819,7 +2832,6 @@
   <translation tag="Power was lost during the print; the printer stopped and saved its progress" zh="打印过程中断电，打印机已停止并保存了进度"/>
   <translation tag="Power was lost less than a minute ago." zh="不到一分钟前断电。"/>
   <translation tag="Power-loss recovery" zh="断电恢复"/>
-  <translation tag="Power-loss recovery isn&apos;t supported on this printer yet." zh="此打印机暂不支持断电恢复。"/>
   <translation tag="Pre-heat the extruder first" zh="请先预热挤出机"/>
   <translation tag="Pre-print command failed: {}" zh="打印前命令失败: {}"/>
   <translation tag="Pre-print homing..." zh="打印前归位..."/>
@@ -3075,6 +3087,7 @@
   <translation tag="RH" zh="RH"/>
   <translation tag="RSS" zh="RSS"/>
   <translation tag="RSS:" zh="RSS："/>
+  <translation tag="RUNNING" zh="运行中"/>
   <translation tag="Rails" zh="导轨"/>
   <translation tag="Raise" zh="升高"/>
   <translation tag="Raise and lower the bed or gantry through its travel." zh="让热床或龙门全行程升降。"/>
@@ -3752,6 +3765,7 @@
   <translation tag="Stopped between Lane and Hub" zh="停在耗材通道与集线器之间"/>
   <translation tag="Stopped between Spool and Lane" zh="停在料盘与耗材通道之间"/>
   <translation tag="Stopped drying %s" zh="已停止烘干：%s"/>
+  <translation tag="Stopped. Restart Moonraker to start it again." zh="已停止。重启 Moonraker 以重新启动。"/>
   <translation tag="Stops all motion. Requires firmware restart." zh="停止所有运动。需要固件重启。"/>
   <translation tag="Storage" zh="存储"/>
   <translation tag="Storage report" zh="存储报告"/>
@@ -3977,6 +3991,7 @@
   <translation tag="The plate finishes its current move, but drying will not start." zh="热床会完成当前移动,但烘干不会开始。"/>
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." zh="插件无法连接摄像头，因此由此屏幕拍照。"/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." zh="插件无法保存其恢复数据。"/>
+  <translation tag="The plugin didn&apos;t say why." zh="插件未说明原因。"/>
   <translation tag="The plugin is turned off in moonraker.conf." zh="插件已在 moonraker.conf 中关闭。"/>
   <translation tag="The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it." zh="你关闭的打印前步骤无法应用到此 .3mf。请重新打开它们后再打印。"/>
   <translation tag="The previous IPv4 settings come back when the print ends." zh="打印结束后将恢复之前的 IPv4 设置。"/>
@@ -4048,6 +4063,7 @@
   <translation tag="The temperature was changed elsewhere." zh="温度已在其他位置更改。"/>
   <translation tag="The time, date, and system uptime" zh="时间、日期和系统运行时长"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." zh="延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"/>
+  <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." zh="延时摄影插件已安装。生成视频还需要 ffmpeg，但此打印机上没有安装它。"/>
   <translation tag="The tool change under way finished, and the tool was not parked" zh="正在进行的换工具已完成，工具未停放"/>
   <translation tag="The tool change under way finished, and {} was not put back on the carriage" zh="正在进行的换工具已完成，{}未放回打印头"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。请在打印前手动取出耗材。仍要开始打印吗？"/>
@@ -4081,7 +4097,6 @@
   <translation tag="This AFC system does not support bypass mode" zh="此 AFC 系统不支持旁通模式"/>
   <translation tag="This CFS firmware exposes no external spool slot" zh="此 CFS 固件没有外部料盘槽位"/>
   <translation tag="This Happy Hare system does not support bypass mode" zh="此 Happy Hare 系统不支持旁通模式"/>
-  <translation tag="This Moonraker version can&apos;t hold uploads. Update Moonraker." zh="此版本的 Moonraker 无法暂缓上传。请更新 Moonraker。"/>
   <translation tag="This button controls" zh="此按钮控制"/>
   <translation tag="This calibration uses the paper friction method to set your Z-offset." zh="此校准使用纸张摩擦法设置 Z 偏移。"/>
   <translation tag="This cannot be undone." zh="此操作无法撤销。"/>
@@ -4095,9 +4110,7 @@
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?" zh="这与关联的 Spoolman 料盘不匹配。是否添加为新料盘，或更新关联料盘以匹配？"/>
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?" zh="与关联的 Spoolman 料盘不匹配。在 Spoolman 中更新，还是取消关联并保留在此料位？"/>
   <translation tag="This dryer cannot run while filament from the unit is loaded" zh="此单元的耗材处于装载状态时，烘干机无法运行"/>
-  <translation tag="This feature failed to start. The Moonraker log says why." zh="此功能启动失败。原因见 Moonraker 日志。"/>
   <translation tag="This feature requires different hardware or configuration" zh="此功能需要不同的硬件或配置"/>
-  <translation tag="This feature stopped. Restart Moonraker to start it again." zh="此功能已停止。重启 Moonraker 即可重新启动。"/>
   <translation tag="This filament system does not report buffer or flow data." zh="此耗材系统不报告缓冲区或流量数据。"/>
   <translation tag="This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures." zh="此文件通过同一个喷嘴打印 {0} 和 {1}。在 {1} 的温度下，{0} 可能过热并堵塞喷嘴。"/>
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." zh="此文件同时打印 {0} 和 {1}。{1} 所需的腔体和热床温度可能使 {0} 软化并堵塞其喷嘴。"/>
@@ -4112,7 +4125,6 @@
   <translation tag="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows." zh="此耗材通道仍显示为已装载，但耗材已离开喷嘴。打印前请将其重新推入挤出机并挤出，直到耗材流出。"/>
   <translation tag="This looks like a {}, but it is set up as a {}" zh="这台打印机看起来是 {}，但被设置为 {}"/>
   <translation tag="This may take up to 30 seconds" zh="这可能需要 30 秒"/>
-  <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." zh="这需要插件的文件分析，但它未在运行。"/>
   <translation tag="This plugin asks for no special permissions." zh="此插件不请求任何特殊权限。"/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." zh="此插件让 HelixScreen 控制打印启动选项，如热床网格和 QGL。"/>
   <translation tag="This print called {}, which the printer no longer has." zh="此打印调用了 {}，但打印机已不再有这些宏。"/>
@@ -4179,6 +4191,7 @@
   <translation tag="Timelapse Available" zh="延时摄影可用"/>
   <translation tag="Timelapse Settings" zh="延时摄影设置"/>
   <translation tag="Timelapse Videos" zh="延时摄影视频"/>
+  <translation tag="Timelapse or logs folder overlaps a protected one." zh="延时摄影或日志文件夹与受保护的文件夹重叠。"/>
   <translation tag="Timelapse plugin installed successfully!" zh="延时摄影插件安装成功！"/>
   <translation tag="Timelapse plugin installed!" zh="延时摄影插件已安装！"/>
   <translation tag="Timelapse plugin is already installed!" zh="延时摄影插件已安装！"/>
@@ -4196,6 +4209,7 @@
   <translation tag="Tips" zh="提示"/>
   <translation tag="Tips database format error" zh="提示数据库格式错误"/>
   <translation tag="Tips database not found" zh="未找到提示数据库"/>
+  <translation tag="To make videos, run this on your printer via SSH:" zh="要生成视频，请通过 SSH 在打印机上运行："/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." zh="为了映射耗材，HelixScreen 会在打印前改写任务文件。此打印机的 Moonraker 版本过旧，HelixPrint 插件无法在之后恢复原始文件名，因此完成的任务将以改写后的名称显示。耗材映射本身可正常工作。"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." zh="为了映射耗材，HelixScreen 会在打印前改写任务文件。如果没有 HelixPrint 插件，进入打印历史的就是改写后的副本，因此完成的任务会以类似 modified_1730824_benchy.gcode 的名称显示，而不是您选择的文件。&#10;&#10;安装插件很快，无需重启。"/>
   <translation tag="Toggle" zh="切换"/>

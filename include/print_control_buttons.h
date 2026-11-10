@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_print_cancel_modal.h"
 
+#include "core/observer_guard.h"
 #include "print_control_view.h"
 #include "print_job_ref.h"
 #include "subject_managed_panel.h"
 
+#include <cstdint>
 #include <lvgl.h>
 #include <memory>
 #include <string>
@@ -18,6 +19,10 @@ class IMoonrakerAPI;
 }
 
 namespace helix::ui {
+
+/// How long a pending action waits for the print state before the backstop
+/// releases the button with a warning.
+uint32_t pending_action_backstop_ms(PendingAction action);
 
 /// Singleton owning the LVGL subjects for the two print-control buttons
 /// (primary Pause/Resume + Stop). Observes the GLOBAL `print_state_enum`
@@ -85,11 +90,11 @@ class PrintControlButtons {
     /// Klipper broadcast a `!!` error while a Pause/Resume was in flight.
     ///
     /// The optimistic spinner is cleared only by the real print-state transition
-    /// or by a 150s backstop, and neither fires when Klipper *aborts* the macro:
+    /// or by the backstop, and neither fires when Klipper *aborts* the macro:
     /// RESUME's own runout check prints `!! ... has detected that the filament
     /// has run out` and returns, yet `printer.gcode.script` still answers `ok`,
     /// so the RPC error path never runs. The button then reads "Resuming..." and
-    /// stays DISABLED for the full 150s — the user cannot retry even after
+    /// stays DISABLED until the backstop — the user cannot retry even after
     /// fixing the filament (bundle JX2FVRB9).
     ///
     /// Clearing on the error is safe in the other direction too: if the command

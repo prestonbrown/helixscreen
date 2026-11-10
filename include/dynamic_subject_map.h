@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "ui_observer_guard.h" // SubjectLifetime
-
+#include "core/observer_guard.h" // SubjectLifetime
 #include "lvgl.h"
 
 #include <memory>

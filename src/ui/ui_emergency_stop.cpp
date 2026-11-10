@@ -6,7 +6,6 @@
 #include "ui_callback_helpers.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
@@ -14,6 +13,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "display_wake_request.h"
 #include "fault_modal_registry.h"

@@ -5,8 +5,8 @@
 
 #include "ui_head_picker.h"
 #include "ui_modal.h"
-#include "ui_observer_guard.h"
 
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "i_moonraker_api.h"
 #include "overlay_base.h"

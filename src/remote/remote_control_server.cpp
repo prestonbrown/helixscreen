@@ -342,6 +342,7 @@ void RemoteControlServer::register_builtin_handlers() {
     handlers_["wait_for"] = [this](const nlohmann::json& p) { return handle_wait_for(p); };
     handlers_["wait_idle"] = [this](const nlohmann::json& p) { return handle_wait_idle(p); };
     handlers_["freeze"] = [this](const nlohmann::json& p) { return handle_freeze(p); };
+    handlers_["resize"] = [this](const nlohmann::json& p) { return handle_resize(p); };
     handlers_["unfreeze"] = [this](const nlohmann::json& p) { return handle_unfreeze(p); };
 
     // Phase 3: Widget interaction + scenarios
@@ -1395,6 +1396,25 @@ nlohmann::json RemoteControlServer::handle_wait_idle(const nlohmann::json& param
         last = now;
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
+}
+
+nlohmann::json RemoteControlServer::handle_resize(const nlohmann::json& params) {
+    const int w = params.value("width", 0);
+    const int h = params.value("height", 0);
+    if (w <= 0 || h <= 0) {
+        return {{"error", "resize requires a positive width and height"}};
+    }
+    return execute_on_ui_thread([w, h]() -> nlohmann::json {
+        lv_display_t* disp = lv_display_get_default();
+        if (!disp) {
+            return {{"error", "no display"}};
+        }
+        // The call the SDL driver makes when its window is resized, so the
+        // debounced resize fan-out runs as it would for a window drag.
+        lv_display_set_resolution(disp, w, h);
+        return {{"width", lv_display_get_horizontal_resolution(disp)},
+                {"height", lv_display_get_vertical_resolution(disp)}};
+    });
 }
 
 nlohmann::json RemoteControlServer::handle_freeze(const nlohmann::json& /*params*/) {

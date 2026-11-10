@@ -4,11 +4,11 @@
 #include "bed_drying_controller.h"
 
 #include "ui_notification.h"
-#include "ui_timer_guard.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/timer_guard.h"
 #include "dryer_summary.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"

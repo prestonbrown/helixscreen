@@ -5,9 +5,9 @@
 
 #include "ui_event_safety.h"
 #include "ui_overlay_network_settings.h"
-#include "ui_timer_guard.h"
 
 #include "core/log_redact.h"
+#include "core/timer_guard.h"
 #include "ethernet_manager.h"
 #include "lvgl.h"
 #include "panel_widget_registry.h"

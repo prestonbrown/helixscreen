@@ -11,10 +11,9 @@
  * bookkeeping, with the file view's inputs computed from FileStartFacts.
  */
 
-#include "ui_timer_guard.h"
-
 #include "app_constants.h"
 #include "async_lifetime_guard.h"
+#include "core/timer_guard.h"
 #include "helix_shared_callback.h"
 #include "i_moonraker_sub_apis.h" // JobQueueEntry
 #include "print_start_inputs.h"

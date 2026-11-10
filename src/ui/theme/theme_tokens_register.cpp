@@ -5,9 +5,8 @@
 // supplies, the static constants discovered in ui_xml/, and the swatch
 // description subjects the theme editor binds to.
 
-#include "ui_observer_guard.h"
-
 #include "border_radius_sizes.h"
+#include "core/observer_guard.h"
 #include "display_metrics.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"

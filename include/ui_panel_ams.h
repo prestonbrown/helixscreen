@@ -10,7 +10,6 @@
 #include "ui_ams_selector_menu.h"
 #include "ui_ams_sidebar.h"
 #include "ui_bypass_spool_widget.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_widget_ref.h"
 
@@ -18,6 +17,7 @@
 #include "ams_state.h"
 #include "ams_types.h" // For SlotInfo
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 
 #include <chrono>
 #include <functional>

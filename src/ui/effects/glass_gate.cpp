@@ -3,11 +3,10 @@
 
 #include "glass_gate.h"
 
-#include "ui_timer_guard.h"
-
 #include "board_fingerprint.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/timer_guard.h"
 #include "display_backend.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"

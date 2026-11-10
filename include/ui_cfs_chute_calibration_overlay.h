@@ -3,9 +3,8 @@
 
 #if HELIX_HAS_CFS
 
-#include "ui_observer_guard.h"
-
 #include "chute_jog_guard.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"

@@ -9,11 +9,10 @@
 
 #include "printer_print_state.h"
 
-#include "ui_timer_guard.h" // lv_timer_cancel_safe
-
 #include "config.h"
 #include "core/data_root_resolver.h"
 #include "core/gcode_filename.h"
+#include "core/timer_guard.h" // lv_timer_cancel_safe
 #include "core/update_queue.h"
 #include "firmware_error_envelope.h"
 #include "format_utils.h"

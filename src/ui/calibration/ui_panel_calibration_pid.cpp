@@ -10,7 +10,6 @@
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_temperature_utils.h"
-#include "ui_timer_guard.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
@@ -18,6 +17,7 @@
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
+#include "core/timer_guard.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
 #include "klipper_config_editor.h"

@@ -7,8 +7,8 @@
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
 #include "ui_modal.h"
-#include "ui_timer_guard.h"
 
+#include "core/timer_guard.h"
 #include "display_settings_manager.h"
 #include "exception_policy.h"
 #include "helix-xml/src/xml/lv_xml.h"

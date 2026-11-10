@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "filament_mapper.h"
 #include "helix_shared_callback.h"
 #include "print_lifecycle_state.h"

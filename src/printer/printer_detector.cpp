@@ -3,11 +3,10 @@
 
 #include "printer_detector.h"
 
-#include "ui_error_reporting.h"
-
 #include "app_globals.h"
 #include "config.h"
 #include "core/data_root_resolver.h"
+#include "core/error_reporting.h"
 #include "core/text_io.h"
 #include "filament_sensor_manager.h"
 #include "helix_fs.h"

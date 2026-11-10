@@ -7,11 +7,11 @@
 #include "ui_context_menu.h"
 #include "ui_heater_icon_binder.h"
 #include "ui_job_queue_modal.h"
-#include "ui_observer_guard.h"
 #include "ui_runout_guidance_modal.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "panel_widget.h"
 #if defined(HELIX_PLATFORM_ESP32)
 #include "esp_psram_thumbnail.h"

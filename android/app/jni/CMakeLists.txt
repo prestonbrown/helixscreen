@@ -363,13 +363,9 @@ target_compile_options(main PRIVATE
 )
 
 # Use the same forced-include header as the Makefile build: lvgl.h, helix_xml.h
-# and common STL headers in every TU. json and spdlog stay out of that header
-# because the Makefile build parses it in each TU; a precompiled header parses
-# them once, so here they are listed beside it.
+# and common STL headers in every TU.
 target_precompile_headers(main PRIVATE
     "$<$<COMPILE_LANGUAGE:CXX>:${PROJECT_ROOT}/include/lvgl_pch.h>"
-    "$<$<COMPILE_LANGUAGE:CXX>:<spdlog/spdlog.h>>"
-    "$<$<COMPILE_LANGUAGE:CXX>:\"hv/json.hpp\">"
 )
 # A PCH that records its inputs' mtimes differs on every checkout, so ccache
 # could never reuse an object compiled against it.

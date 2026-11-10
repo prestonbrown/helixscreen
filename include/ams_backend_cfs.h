@@ -18,14 +18,13 @@ namespace helix::printer {
 
 #if HELIX_HAS_CFS
 
-#include "ui_timer_guard.h"
-
 #include "ams_cfs_calibration.h"
 #include "ams_print_routing.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "cfs_daemon_sync.h"
 #include "cfs_status_parse.h"
+#include "core/timer_guard.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lane_binding.h"

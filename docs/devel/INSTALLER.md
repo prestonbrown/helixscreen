@@ -8,7 +8,7 @@ Developer guide for the HelixScreen installer infrastructure: modular shell scri
 
 ## Architecture Overview
 
-The installer is a **modular POSIX shell system** with 21 library modules (in `scripts/lib/installer/`) that get bundled into monolithic scripts for end-user distribution. All shell code targets `/bin/sh` for maximum compatibility, including BusyBox on embedded platforms (AD5M, K1).
+The installer is a **modular POSIX shell system** with 24 library modules (in `scripts/lib/installer/`) that get bundled into monolithic scripts for end-user distribution. All shell code targets `/bin/sh` for maximum compatibility, including BusyBox on embedded platforms (AD5M, K1).
 
 ```
 scripts/
@@ -18,7 +18,7 @@ scripts/
   bundle-installer.sh         # Generates install.sh from modules
   bundle-uninstaller.sh       # Generates uninstall.sh from modules
   helix-launcher.sh           # Runtime launcher with watchdog supervision
-  lib/installer/              # 22 modules (subset shown)
+  lib/installer/              # 24 modules (subset shown)
     main.sh                   # Orchestrator: arg parsing, install flow, KIAUH call
     common.sh                 # Logging, colors, error handler, process killing
     host_profile.sh           # Mod-host probe + mod-owned path guard (see the payload-contract section)
@@ -39,6 +39,7 @@ scripts/
     recovery.sh                # Recovery/rollback support
     uninstall.sh               # Uninstall, clean, re-enable previous UIs
     kiauh.sh                   # KIAUH extension auto-detection and install
+    image.sh                   # Install into a disk image (--target-root) and its --first-boot pass
   kiauh/helixscreen/
     __init__.py                # KIAUH extension constants and install dir detection
     helixscreen_extension.py   # KIAUH BaseExtension implementation
@@ -79,10 +80,13 @@ curl -sSL https://releases.helixscreen.org/install.sh | sh
 | Flag | Description |
 |------|-------------|
 | `--update` | Update existing installation (preserves config) |
+| `--source NAME` | Channel running this install (`helix-installer`, `kiauh`, `helper-script`, `curl`, `other`; anything else maps to `other`). Stored in `config/.install_source` for the opt-in telemetry. A fresh install with no `--source` records `curl`; `--update` keeps an existing marker |
 | `--uninstall` | Remove HelixScreen |
 | `--clean` | Remove old installation completely, then fresh install |
 | `--version VER` | Install specific version (e.g., `--version v1.1.0`) |
 | `--local FILE` | Install from a local archive (.zip or .tar.gz, skip download) |
+| `--target-root DIR` | Install into a disk image's root filesystem; see [Installing Into a Disk Image](#installing-into-a-disk-image) |
+| `--first-boot`, `--first-boot-moonraker` | Finish an image install on the booted printer: the steps before the screen starts, then the ones that need Moonraker (run by `helixscreen-firstboot.service` and `helixscreen-firstboot-moonraker.service`) |
 | `FILE` | An existing `.zip`, `.tar.gz` or `.tgz` named on its own is `--local FILE`; any other bare word stays `Unknown option`. Two different archives are refused |
 
 ### 2. Local Archive Install
@@ -140,6 +144,69 @@ installs the package it sits in (`detect_package_beside_installer` and
 ### 3. KIAUH Extension
 
 See the [KIAUH Integration](#kiauh-integration) section below.
+
+### 3a. Installing Into a Disk Image
+
+For image builders (a CustomPiOS/MainsailOS module, a board vendor's image script, an OEM factory
+image), prestonbrown/helixscreen#1913:
+
+```bash
+sh install.sh --target-root /mnt/image --platform pi --local helixscreen-pi-v1.2.3.tar.gz \
+    [--user pi] [--own-display] [--source NAME] [--skip-kiauh-registration] [--dry-run]
+```
+
+`image_install` (`scripts/lib/installer/image.sh#image_install`) is its own mode, like
+uninstall: main() branches to it straight after argument parsing and it never reaches the
+confirm point. It runs on the builder's machine, so it starts no service, runs no `systemctl`,
+`sudo`, `apt` or `udevadm`, asks no Moonraker and reads nothing of the build host's own state.
+Every write is the target root plus the path the booted printer sees, and every path written into
+a file (unit lines, Moonraker's `path:`) is the printer's path alone. `--target-root /` is the
+CustomPiOS case, where the module runs inside the image's chroot.
+
+- **Inputs.** `--platform pi|pi32` and `--local` are required: an image build installs a pinned
+  archive and nothing is downloaded. `--update`, `--uninstall`, `--clean`, `--version`,
+  `--standalone`, `--payload-root`, `--desktop`/`--kiosk` are refused with it.
+- **User.** `--user`, else `klipper.service`'s `User=` in the image, else the one home holding
+  `printer_data`. It must be in the image's `/etc/passwd`, not root, and its home must hold
+  `printer_data`, `klipper` or `moonraker`; the install goes in `<home>/helixscreen`, which must
+  not exist yet. Ownership is set with the image's numeric ids.
+- **Libraries.** `HELIX_PI_RUNTIME_DEPS` is checked against the image's dpkg database
+  (`dpkg-query --admindir`); a missing package stops the run with the `apt-get` line to add it.
+  An image with no dpkg database is not checked, and the plan says so.
+- **Units.** `helixscreen.service` and the update watcher are templated as `install_service_systemd`
+  templates them (`_template_service_unit`) and enabled by writing the `.wants` links
+  `systemctl enable` would. `helixscreen-firstboot.service` is always enabled.
+- **Display.** With no KlipperScreen enabled in the image, HelixScreen starts at boot. With one
+  enabled, KlipperScreen keeps the display: HelixScreen and its watcher are installed but not
+  enabled, and the summary prints the two commands that switch. `--own-display` removes
+  KlipperScreen's `.wants` links instead and records `systemd:KlipperScreen` in
+  `.disabled_services`, so an uninstall on the printer enables it again.
+- **Moonraker.** `[update_manager helixscreen]` goes into the image's `moonraker.conf` through
+  `add_update_manager_section`, and `helixscreen` into `moonraker.asvc`. A Moonraker in the image
+  that predates asset_name support (`moonraker_asset_name_support_in`) gets no stanza; an image
+  with no `moonraker.conf` yet gets the stanza on first boot.
+- **Source.** `.install_source` records `--source` when given, else `other`. A dedicated `image`
+  channel needs the app's validator and the telemetry worker's schema to learn it first.
+- **First boot.** What needs the printer itself is listed in `config/.first_boot_pending`, one
+  step per line with the number of boots it has failed on: `config-links` (the printer_data links,
+  whose targets are absolute), `permission-rules`, `alsa`, `remote-screen`, `kiauh` (unless
+  `--skip-kiauh-registration`) and `moonraker` when deferred. Two oneshots gated on that file work
+  through it. `helixscreen-firstboot.service`, ordered before `helixscreen.service`, runs
+  `<install>/install.sh --first-boot`: the local steps only, so the screen never waits on
+  Moonraker. `helixscreen-firstboot-moonraker.service`, ordered after it and after
+  `moonraker.service` and before nothing, runs `--first-boot-moonraker`: `remote-screen` and
+  `moonraker`. Those wait for Moonraker to answer (`HELIX_FIRST_BOOT_MOONRAKER_SECS`, default 120)
+  and stay when it never does, since without it the route settles on the LAN; `moonraker` also
+  stays unless its restart reported done (`MOONRAKER_RESTART_RC`), and `remote-screen` with no
+  nginx finishes at once. `image_first_boot` writes back only the unfinished steps, each with its
+  count raised, deleting the file when none is left; a step left over fails that unit, and one
+  that has failed on `HELIX_FIRST_BOOT_MAX_TRIES` boots (default 5) is dropped with a warning
+  naming it. A release whose bundled `install.sh` predates `--first-boot-moonraker` is refused.
+- **Uninstall** on the booted printer is the ordinary `--uninstall`; `remove_first_boot_unit`
+  removes both oneshots.
+
+Tests: `tests/shell/test_image_install.bats`, a scratch directory as the image root with every
+service, package manager and network path stubbed to record and fail.
 
 ### 4. Development Install
 

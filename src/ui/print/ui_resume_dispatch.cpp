@@ -25,6 +25,8 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#include <atomic>
+#include <memory>
 #include <utility>
 
 namespace helix::ui {
@@ -221,10 +223,20 @@ void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
     // even though StandardMacros::execute may invoke this callback from
     // the libhv WebSocket event-loop thread on JSON-RPC failure.
     auto dispatch = [api, log_prefix, on_failure]() {
+        auto sending = std::make_shared<std::atomic<bool>>(true);
         StandardMacros::instance().execute(
             StandardMacroSlot::Resume, api,
             [log_prefix]() { spdlog::info("{} Resume command sent successfully", log_prefix); },
-            [log_prefix, on_failure](const MoonrakerError& err) {
+            [log_prefix, on_failure, sending](const MoonrakerError& err) {
+                // The RPC gave up, or the socket dropped after sending, while
+                // RESUME may still be running: a reheat can outlast both.
+                // Whoever is waiting on the resume keeps waiting for the print
+                // state; a second RESUME would run its moves mid-print.
+                if (err.command_may_still_run(!sending->load())) {
+                    spdlog::warn("{} Resume still unanswered, waiting on the print state: {}",
+                                 log_prefix, err.message);
+                    return;
+                }
                 spdlog::error("{} Failed to resume: {}", log_prefix, err.message);
                 helix::ui::queue_update(
                     "dispatch_prepared_resume::on_macro_error", [err, on_failure]() {
@@ -239,6 +251,7 @@ void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
                     });
             },
             /*timeout_ms=*/0, /*suppress_auto_toast=*/true);
+        sending->store(false);
     };
 
     AmsBackend* backend = AmsState::instance().get_backend();

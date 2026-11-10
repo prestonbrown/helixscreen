@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-#include "ui_timer_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "chamber_wait_line.h"
+#include "core/observer_guard.h"
+#include "core/timer_guard.h"
 
 #include <cstdint>
 #include <optional>

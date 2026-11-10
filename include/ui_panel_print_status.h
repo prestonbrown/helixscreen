@@ -7,7 +7,6 @@
 #include "ui_filament_runout_handler.h"
 #include "ui_heater_icon_binder.h"
 #include "ui_modal.h"
-#include "ui_observer_guard.h"
 #include "ui_print_exclude_object_manager.h"
 #include "ui_print_layer_pause.h"
 #include "ui_print_light_timelapse.h"
@@ -15,6 +14,7 @@
 #include "ui_widget_ref.h"
 
 #include "camera_view.h"
+#include "core/observer_guard.h"
 #include "overlay_base.h"
 #include "print_control_buttons.h"
 #include "print_lifecycle_state.h"

@@ -8,9 +8,8 @@
 // during a print, records the names when the print ends, and the next macro
 // update forwards them (names_to_alias's `extra_names`).
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 
 #include <functional>
 #include <set>

@@ -23,9 +23,9 @@
 #pragma once
 
 #include "ui_modal.h"
-#include "ui_observer_guard.h"
-#include "ui_timer_guard.h"
 
+#include "core/observer_guard.h"
+#include "core/timer_guard.h"
 #include "ethernet_manager.h"
 #include "ipv4_config.h"
 #include "ipv4_config_system.h"

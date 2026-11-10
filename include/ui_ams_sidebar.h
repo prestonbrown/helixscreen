@@ -6,7 +6,6 @@
 #include "ui_buffer_slider.h"
 #include "ui_bypass_toggle_controller.h"
 #include "ui_clog_meter.h"
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "ams_backend.h"
@@ -14,6 +13,7 @@
 #include "ams_step_operation.h"
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_op_heater.h"

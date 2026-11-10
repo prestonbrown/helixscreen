@@ -3,11 +3,10 @@
 
 #include "remote_screen_service.h"
 
-#include "ui_timer_guard.h"
-
 #include "app_globals.h"
 #include "core/data_root_resolver.h"
 #include "core/observer_factory.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "printer_state.h"
 #include "remote_pointer.h"

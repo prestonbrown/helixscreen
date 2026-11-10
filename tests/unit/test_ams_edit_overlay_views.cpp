@@ -545,23 +545,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     }
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker no longer offers a standalone unlink entry",
-                 "[ams_edit_overlay][spool_edit][picker]") {
-    // The picker_unlink_entry is retired — the single unlink path is the Save
-    // Save with the toggle off (covered above).
-    auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
-
-    show_overlay_for_mock_tracked_slot(*this);
-    access.call_switch_to_picker();
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    CHECK(access.widget("picker_unlink_entry") == nullptr);
-
-    close_editor_overlay();
-}
-
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "color view from spool-edit stages the pending color and returns there",
                  "[ams_edit_overlay][color_view]") {
@@ -967,6 +950,13 @@ TEST_CASE_METHOD(BoxWinsFixture,
                  "[ams_edit_overlay][box_wins]") {
     // The spool is red ASA, the lane red PLA: only the material disagrees.
     client.spoolman_mock().get_mock_spools().back().color_hex = "FF0000";
+    // With a navy ASA on file, Spoolman offers it; taking it repoints the spool only.
+    const bool similar_on_file = GENERATE(false, true);
+    CAPTURE(similar_on_file);
+    if (similar_on_file) {
+        client.spoolman_mock().add_vendor(5, "Elegoo");
+        client.spoolman_mock().add_filament(88, 5, "ASA", "0000F0", "Navy ASA");
+    }
     open(true, box_lane());
 
     SlotInfo edited = access.working_info();
@@ -977,10 +967,19 @@ TEST_CASE_METHOD(BoxWinsFixture,
     REQUIRE_FALSE(ModalStack::instance().stack_empty());
     access.call_do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent::UpdateLinked);
     settle();
+    if (similar_on_file) {
+        lv_obj_t* offer = ModalStack::instance().top_dialog();
+        REQUIRE(helix::test::subtree_text(offer).find("Navy ASA") != std::string::npos);
+        lv_obj_send_event(lv_obj_find_by_name(offer, "btn_primary"), LV_EVENT_CLICKED, nullptr);
+        settle();
+        settle();
+        CHECK(client.spoolman_mock().get_mock_spools().back().filament_id == 88);
+    }
 
     const SpoolInfo& spool = client.spoolman_mock().get_mock_spools().back();
     CHECK(spool.material == "ASA");
-    CHECK(spool.vendor == "Elegoo");
+    // The mock names no vendor on a filament seeded with add_filament().
+    CHECK((similar_on_file || spool.vendor == "Elegoo"));
     REQUIRE(fired);
     CHECK(captured.slot_info.material == "PLA");
     CHECK(captured.slot_info.brand == "Creality");
@@ -995,6 +994,13 @@ struct RefusingBoxBackend : AmsBackendMock {
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override {
         if (!refuse) {
             return AmsBackendMock::apply_user_edit(slot_index, info);
+        }
+        return AmsError(AmsResult::WRONG_STATE, "refused", "refused", "", slot_index);
+    }
+    bool refuse_tool = false;
+    AmsError set_tool_mapping_impl(int tool_number, int slot_index) override {
+        if (!refuse_tool) {
+            return AmsBackendMock::set_tool_mapping_impl(tool_number, slot_index);
         }
         return AmsError(AmsResult::WRONG_STATE, "refused", "refused", "", slot_index);
     }
@@ -1025,6 +1031,14 @@ TEST_CASE_METHOD(BoxWinsFixture, "a refused note action leaves the form on the l
     SECTION("unlink") {
         access.call_handle_unlink_disagreeing();
     }
+    bool tool_staged = false;
+    SECTION("re-apply over a refused tool assignment") {
+        refusing->refuse = false;
+        refusing->refuse_tool = true;
+        REQUIRE(access.pick_dropdown("tool_dropdown", "T1"));
+        tool_staged = true;
+        access.call_handle_reapply();
+    }
     settle();
 
     CHECK(access.working_info().material == "PLA");
@@ -1032,7 +1046,7 @@ TEST_CASE_METHOD(BoxWinsFixture, "a refused note action leaves the form on the l
     CHECK(access.working_info().color_rgb == 0xFF0000U);
     CHECK(access.selected_family() == "PLA");
     CHECK(access.spool_disagrees() == 1);
-    CHECK_FALSE(access.dirty());
+    CHECK(access.dirty() == tool_staged);
     close_editor_overlay();
 }
 
@@ -1065,35 +1079,6 @@ TEST_CASE_METHOD(BoxWinsFixture, "moving a box-held lane to a third filament sti
 
     CHECK_FALSE(ModalStack::instance().stack_empty());
     CHECK_FALSE(fired);
-    close_editor_overlay();
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "picker marks no row for a slot with no linked spool",
-                 "[ams_edit_overlay][picker][preselect]") {
-    auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
-
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    access.set_cached_spools(three_spools());
-    access.call_render_spool_list("");
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    lv_obj_t* list = access.widget("picker_spool_list");
-    REQUIRE(list != nullptr);
-    REQUIRE(lv_obj_get_child_count(list) == 3);
-    CHECK(marked_spool_ids(list).empty());
-
-    // A search that leaves one row must not mark it either.
-    access.call_render_spool_list("abs");
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-    REQUIRE(lv_obj_get_child_count(list) == 1);
-    CHECK(marked_spool_ids(list).empty());
-
     close_editor_overlay();
 }
 
@@ -1737,8 +1722,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker marks only the slot's linked spool",
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
 
-    SlotInfo linked = tracked_slot();
-    linked.spoolman_id = 22;
+    // A slot with no linked spool marks no row at all.
+    const int linked_id = GENERATE(0, 22);
+    CAPTURE(linked_id);
+    const std::vector<int> marked = linked_id ? std::vector<int>{22} : std::vector<int>{};
+    SlotInfo linked = linked_id ? tracked_slot() : untracked_slot();
+    linked.spoolman_id = linked_id;
     REQUIRE(overlay.show_for_slot(test_screen(), 0, linked, nullptr, nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
@@ -1751,7 +1740,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker marks only the slot's linked spool",
     lv_obj_t* list = access.widget("picker_spool_list");
     REQUIRE(list != nullptr);
     REQUIRE(lv_obj_get_child_count(list) == 3);
-    CHECK(marked_spool_ids(list) == std::vector<int>{22});
+    CHECK(marked_spool_ids(list) == marked);
 
     // Spools 22 and 33 are both eSUN: the linked one keeps its mark among
     // the survivors and the other stays plain.
@@ -1759,7 +1748,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker marks only the slot's linked spool",
     UpdateQueue::instance().drain();
     process_lvgl(10);
     REQUIRE(lv_obj_get_child_count(list) == 2);
-    CHECK(marked_spool_ids(list) == std::vector<int>{22});
+    CHECK(marked_spool_ids(list) == marked);
 
     // A search that filters the linked spool out marks nothing.
     access.call_render_spool_list("abs");
@@ -3102,29 +3091,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a price the field rounds does not make the 
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the brand list names Generic once",
-                 "[ams_edit_overlay][dropdown]") {
-    auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
-    SlotInfo info = untracked_slot();
-    info.material = "PLA";
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    const auto brands = split_options(access.dropdown_options("dropdown_brand"));
-    CHECK(std::count(brands.begin(), brands.end(), std::string("Generic")) == 1);
-    close_editor_overlay();
-}
-
 TEST_CASE_METHOD(LVGLUITestFixture, "a material with few makers lists Generic once",
                  "[ams_edit_overlay][dropdown]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
 
-    // HIPS has one maker besides Generic; EVA has only Generic. The slot's
-    // brand spelling differs in case from the catalog's.
-    for (const char* material : {"HIPS", "EVA"}) {
+    // PLA has many makers, HIPS one besides Generic, EVA only Generic. The
+    // slot's brand spelling differs in case from the catalog's.
+    for (const char* material : {"PLA", "HIPS", "EVA"}) {
         CAPTURE(material);
         SlotInfo info = untracked_slot();
         info.material = material;

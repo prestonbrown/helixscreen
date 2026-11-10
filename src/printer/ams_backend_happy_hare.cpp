@@ -746,7 +746,7 @@ void AmsBackendHappyHare::apply_gate_binding_locked(const happy_hare::MmuStatusD
             // details stated.
             const int previous = reading.spoolman_id.value_or(0);
             if (previous > 0 && previous != std::max(id, 0)) {
-                retire_departed_identity_locked(static_cast<int>(i));
+                retire_departed_weights_locked(static_cast<int>(i));
             }
             // Happy Hare writes 0 for a gate with no spool, which unlinks the
             // gate rather than naming a spool numbered zero.
@@ -1297,18 +1297,11 @@ void AmsBackendHappyHare::apply_fault_edge_locked(const MmuFrame& frame) {
     }
 }
 
-void AmsBackendHappyHare::retire_departed_identity_locked(int gate) {
+void AmsBackendHappyHare::retire_departed_weights_locked(int gate) {
     auto* entry = slots_.get_mut(gate);
     if (!entry) {
         return;
     }
-    entry->info.brand.clear();
-    entry->info.spool_name.clear();
-    entry->info.catalog_id.clear();
-    entry->info.product_name.clear();
-    entry->info.spoolman_vendor_id = 0;
-    entry->info.spoolman_filament_id = 0;
-    entry->info.spoolman_orca_filament_id.clear();
     entry->info.remaining_weight_g = -1.0F;
     entry->info.total_weight_g = -1.0F;
 }

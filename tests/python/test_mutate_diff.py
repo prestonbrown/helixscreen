@@ -13,6 +13,7 @@ leaves a different binary behind, and the stub suite prints a Catch2 failure
 when the change's marker is gone.
 """
 
+import json
 import os
 import re
 import shutil
@@ -356,6 +357,89 @@ def test_max_minutes_stops_the_run_and_names_what_it_never_reached(tmp_path):
     for p, want in before.items():
         assert (work / p).read_bytes() == want, p
     assert not _alive(child), "the capped build's grandchild outlived the run"
+
+
+# A baseline suite that takes 30s while the change is in place, noting each start.
+SLOW_BASELINE_SUITE = """#!/usr/bin/env bash
+case "$*" in *--list-tests*) exit 0 ;; esac
+echo started >> .mutant-suite-starts
+grep -q NEW_BEHAVIOR src/feature.cpp && sleep 30
+exit 1
+"""
+BASELINE_RECORD = Path("build/mutate-baseline-secs.json")
+WHOLE_KEY = "catch2 shards=1 ~[.]~[slow]"
+
+
+def test_a_baseline_the_cap_cut_off_is_not_started_again_when_it_cannot_fit(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "build" / "bin" / "helix-tests").write_text(SLOW_BASELINE_SUITE)
+    first = _mutate(work, "--base", "main", "--max-minutes", "0.05")
+    assert first.returncode == 3, first.stdout
+    assert "during the baseline" in first.stdout
+    kept = json.loads((work / BASELINE_RECORD).read_text())[WHOLE_KEY]["secs"]
+    assert kept >= 2, kept
+    (work / ".mutant-suite-starts").unlink()
+    t0 = time.monotonic()
+    again = _mutate(work, "--base", "main", "--max-minutes", "0.04")
+    assert again.returncode == 3, again.stdout
+    assert time.monotonic() - t0 < 10, "a baseline known not to fit was started"
+    assert not (work / ".mutant-suite-starts").exists(), again.stdout
+    assert "baseline not started: the catch2 baseline for '~[.]~[slow]' took" in again.stdout
+    assert "UNEXAMINED    src/feature.cpp:1" in again.stdout
+    assert "VERDICT: INCOMPLETE" in again.stdout
+    # With room for it, the same baseline runs, and its green time replaces the bound.
+    (work / "build" / "bin" / "helix-tests").write_text(DETECTING_SUITE)
+    roomy = _mutate(work, "--base", "main", "--no-record")
+    assert roomy.returncode == 0, roomy.stdout
+    entry = json.loads((work / BASELINE_RECORD).read_text())[WHOLE_KEY]
+    assert entry["secs"] < kept and not entry["refused"], entry
+
+
+def _seed_baseline(work, key=WHOLE_KEY, secs=99999):
+    (work / BASELINE_RECORD).write_text(json.dumps({key: {"secs": secs}}))
+
+
+def test_a_refused_baseline_is_measured_again_on_the_next_run(tmp_path):
+    work = _fixture(tmp_path)
+    _seed_baseline(work)                  # one measurement taken under heavy load
+    refused = _mutate(work, "--base", "main", "--no-record")
+    assert refused.returncode == 3, refused.stdout
+    assert "baseline not started" in refused.stdout
+    again = _mutate(work, "--base", "main", "--no-record")
+    assert again.returncode == 0, again.stdout
+    assert "refused last time at 99999s, so measured again" in again.stdout
+    entry = json.loads((work / BASELINE_RECORD).read_text())[WHOLE_KEY]
+    assert entry["secs"] < 60 and not entry["refused"], entry
+    # The fresh time fits, so the run after that starts it without a refusal.
+    third = _mutate(work, "--base", "main", "--no-record")
+    assert third.returncode == 0 and "measured again" not in third.stdout, third.stdout
+
+
+def test_a_baseline_time_is_kept_per_shard_count(tmp_path):
+    work = _fixture(tmp_path)
+    _seed_baseline(work)                  # measured with --shards 1
+    wider = subprocess.run(
+        [sys.executable, "scripts/mutate_diff.py", "--shards", "2", "--log",
+         str(work / "mutate.log"), "--base", "main", "--no-record"],
+        cwd=work, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        timeout=120, env=ENV)
+    assert wider.returncode == 0, wider.stdout
+    assert "baseline not started" not in wider.stdout
+    assert "catch2 shards=2 ~[.]~[slow]" in json.loads((work / BASELINE_RECORD).read_text())
+    narrow = _mutate(work, "--base", "main", "--no-record")
+    assert "baseline not started" in narrow.stdout, narrow.stdout
+
+
+@linux_only
+def test_a_pool_skips_a_whole_suite_baseline_that_cannot_fit_and_judges_the_rest(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    _seed_baseline(work)
+    r = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]", "--no-record")
+    assert r.returncode == 3, r.stdout
+    assert "not started for ~[.]~[slow]" in r.stdout, r.stdout
+    assert re.search(r"killed\s+src/feature.cpp:1", r.stdout), r.stdout
+    assert re.search(r"src/other.cpp:1.*no baseline to judge it by", r.stdout), r.stdout
+    assert "VERDICT: INCOMPLETE" in r.stdout
 
 
 def test_max_minutes_zero_is_no_cap_for_a_release_run(tmp_path):

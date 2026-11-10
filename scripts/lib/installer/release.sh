@@ -1352,6 +1352,8 @@ detect_package_beside_installer() {
     package_platform=""
     [ -z "${version:-}" ] && [ -z "${local_tarball:-}" ] || return 0
     [ "${update_mode:-false}" != true ] && [ "${uninstall_mode:-false}" != true ] || return 0
+    # --first-boot runs the copy of install.sh inside the installed tree.
+    [ "${first_boot_mode:-false}" != true ] || return 0
     _is_self_update && return 0
 
     local dir root asset ver

@@ -14,7 +14,8 @@
  */
 
 #include "ams_type.h"
-#include "core/text_io.h"      // helix::text_io::to_upper
+#include "core/text_io.h" // helix::text_io::to_upper
+#include "fan_tachometers.h"
 #include "filament_database.h" // filament::kDefaultDiameterMm
 #include "fit_check.h"
 #include "hardware_object_table.h"
@@ -355,6 +356,15 @@ class PrinterDiscovery {
     }
     [[nodiscard]] const std::unordered_map<std::string, double>& fan_max_power() const {
         return fan_max_power_;
+    }
+
+    /// Which fan each separately published tachometer reading measures, resolved
+    /// from configfile.settings (fan_tach::map_from_config).
+    void set_fan_tachometers(fan_tach::TachMap map) {
+        fan_tachometers_ = std::move(map);
+    }
+    [[nodiscard]] const fan_tach::TachMap& fan_tachometers() const {
+        return fan_tachometers_;
     }
 
     [[nodiscard]] bool has_led() const {
@@ -1202,6 +1212,7 @@ class PrinterDiscovery {
                                        ///< (decidegrees), from configfile.settings
                                        ///< target_temp. 0 = unknown. M141 S0 returns here.
     std::unordered_map<std::string, int> configured_tool_numbers_;
+    fan_tach::TachMap fan_tachometers_;
     std::unordered_map<std::string, double> fan_max_power_; ///< Per-fan max_power from
                                                             ///< configfile.settings, keyed by
                                                             ///< lowercased object name. Used to

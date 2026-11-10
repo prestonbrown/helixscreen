@@ -5,7 +5,6 @@
 
 #include "ui_component_keypad.h"
 #include "ui_heater_icon_binder.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_print_tune_overlay.h"
 #include "ui_temperature_utils.h"
@@ -13,6 +12,7 @@
 
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "core/observer_guard.h"
 #include "i_moonraker_api.h"
 #include "operation_timeout_guard.h"
 #include "quick_action_buttons.h"

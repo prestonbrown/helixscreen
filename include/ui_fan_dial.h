@@ -72,8 +72,9 @@ class FanDial {
     }
 
     /// Shows the fan's tachometer reading under its speed, or nothing for a fan
-    /// without one (std::nullopt) or one standing still (0). Leaves the speed,
-    /// arc and spin animation untouched.
+    /// without one (std::nullopt), one standing still (0) or one set to Off,
+    /// where the line would sit on the arc's zero knob. Leaves the speed, arc and
+    /// spin animation untouched.
     void set_rpm(std::optional<int> rpm);
 
     /**
@@ -161,12 +162,14 @@ class FanDial {
     /// which the label's bindings keep, survives a move of the dial.
     struct RpmSubject {
         lv_subject_t subject{};
+        int reading = 0; ///< last tachometer reading, shown only while speed > 0
         RpmSubject();
         ~RpmSubject();
         RpmSubject(const RpmSubject&) = delete;
         RpmSubject& operator=(const RpmSubject&) = delete;
     };
     std::unique_ptr<RpmSubject> rpm_;
+    void refresh_rpm_label();
 
     std::string name_;
     std::string fan_id_;

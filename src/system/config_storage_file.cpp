@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "ui_error_reporting.h"
-
 #include "config_storage.h"
+#include "core/error_reporting.h"
 #include "core/text_io.h"
 #include "helix_fs.h"
 #include "system/helix_paths.h"

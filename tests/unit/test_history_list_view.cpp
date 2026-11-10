@@ -247,3 +247,34 @@ TEST_CASE_METHOD(
     }
     std::filesystem::remove(planted);
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "HistoryListPanel - a multi-tool job's materials read once each in row and detail",
+                 "[history][history_list_view][filament_chip]") {
+    ScopedGerman german;
+    // Per-tool types as a slicer writes them: a repeat, an empty tool, a trailing ';'.
+    PrintHistoryJob job = make_test_jobs(1).front();
+    job.filament_type = "ABS;ABS;;PETG;";
+
+    HistoryListView view;
+    lv_obj_t* container = make_scroll_container(test_screen());
+    view.setup(container, nullptr, [](size_t) {});
+    view.populate({job});
+    process_lvgl(50);
+    lv_obj_t* row_filament = lv_obj_find_by_name(container, "row_filament");
+    REQUIRE(row_filament != nullptr);
+    CHECK(std::string(lv_label_get_text(row_filament)) == "ABS, PETG");
+
+    HistoryListPanel panel;
+    panel.init_subjects();
+    lv_subject_t* detail = lv_xml_get_subject(nullptr, "history_detail_filament_type");
+    REQUIRE(detail != nullptr);
+    HistoryListPanelTestAccess::update_detail_subjects(panel, job);
+    CHECK(std::string(lv_subject_get_string(detail)) == "ABS, PETG");
+
+    // Only separators: no material is named.
+    job.filament_type = ";;";
+    HistoryListPanelTestAccess::update_detail_subjects(panel, job);
+    CHECK(std::string(lv_subject_get_string(detail)) == lv_tr("Unknown"));
+    REQUIRE(std::string(lv_tr("Unknown")) != "Unknown");
+}

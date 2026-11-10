@@ -55,6 +55,10 @@ struct BedMeshPanelTestAccess {
         return static_cast<int>(p.bed_mesh_calibrate_state_.type);
     }
 
+    static helix::CalibrationOwnedHeat& heat(BedMeshPanel& p) {
+        return p.heat_;
+    }
+
     /// The calibrate-state machine's current value.
     static int calibrate_state(const BedMeshPanel& p) {
         return p.bed_mesh_calibrate_state_.value.num;

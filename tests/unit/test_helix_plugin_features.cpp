@@ -12,8 +12,7 @@
 #include "hv/json.hpp"
 
 using namespace helix;
-using helix::ui::plugin_feature_reason_text;
-using helix::ui::plugin_feature_status_text;
+using helix::ui::plugin_overview_row;
 using json = nlohmann::json;
 
 namespace {
@@ -116,17 +115,16 @@ TEST_CASE("parse_plugin_features tolerates old and malformed replies", "[plugin_
 
 TEST_CASE("plugin_reason_text says what a reason code means", "[plugin_feature]") {
     CHECK(plugin_reason_text("no_virtual_sdcard") == "Klipper has no [virtual_sdcard] section.");
-    CHECK(plugin_reason_text("not_listed") ==
-          "Power-loss recovery isn't supported on this printer yet.");
+    CHECK(plugin_reason_text("not_listed") == "Not set up for this printer model yet.");
     // A code with a detail suffix maps on the code before the colon.
     CHECK(plugin_reason_text("snapshot_unreachable: /webcam/?action=snapshot") ==
           "The plugin can't reach the camera, so this screen takes the photos.");
     CHECK(plugin_reason_text("load_failed: SyntaxError: bad input") ==
           "Part of the plugin failed to load. Reinstall the plugin.");
     CHECK(plugin_reason_text("unsafe_staging_dir: .") ==
-          "A folder name in moonraker.conf is unsafe, so cleanup is off.");
+          "A folder name in moonraker.conf is unsafe.");
     CHECK(plugin_reason_text("unsafe_root: /home/pi/printer_data/gcodes") ==
-          "The timelapse or logs folder overlaps a protected folder, so cleanup is off.");
+          "Timelapse or logs folder overlaps a protected one.");
     // Anything else reads as the plugin wrote it.
     CHECK(plugin_reason_text("moonraker<0.9") == "moonraker<0.9");
     CHECK(plugin_reason_text("").empty());
@@ -140,7 +138,8 @@ TEST_CASE("every plugin reason code is listed once", "[plugin_feature]") {
     }
 }
 
-TEST_CASE("an overview line keeps its status short and its reason apart", "[plugin_feature]") {
+TEST_CASE("an overview row groups by status and gives only an unavailable feature a reason",
+          "[plugin_feature]") {
     PluginFeatureMap features;
     auto entry = [](bool available, bool enabled, std::string reason) {
         PluginFeatureEntry e;
@@ -151,26 +150,36 @@ TEST_CASE("an overview line keeps its status short and its reason apart", "[plug
         return e;
     };
     features["photos"] = entry(false, false, "snapshot_unreachable: /webcam/?action=snapshot");
+    features["plr"] = entry(false, false, "not_listed");
     features["print_hooks"] = entry(true, false, "");
     features["file_analysis"] = entry(true, true, "");
     features["mystery"] = entry(false, false, "");
 
     const std::vector<PluginFeatureLine> lines = plugin_feature_lines(features);
-    auto line = [&](const std::string& name) {
+    auto row = [&](const std::string& name) {
         const auto it = std::find_if(lines.begin(), lines.end(),
                                      [&](const PluginFeatureLine& l) { return l.name == name; });
         REQUIRE(it != lines.end());
-        return *it;
+        return plugin_overview_row(*it);
     };
 
-    CHECK(plugin_feature_status_text(line("photos")) == "Unavailable");
-    CHECK(plugin_feature_reason_text(line("photos")) ==
+    CHECK(row("photos").status == PluginFeatureStatus::Unavailable);
+    CHECK(row("photos").reason ==
           "The plugin can't reach the camera, so this screen takes the photos.");
-    CHECK(plugin_feature_status_text(line("print_hooks")) == "Off");
-    CHECK(plugin_feature_reason_text(line("print_hooks")).empty());
-    CHECK(plugin_feature_status_text(line("file_analysis")) == "Active");
-    CHECK(plugin_feature_reason_text(line("file_analysis")).empty());
-    // Unavailable with no reason given: the status alone.
-    CHECK(plugin_feature_status_text(line("mystery")) == "Unavailable");
-    CHECK(plugin_feature_reason_text(line("mystery")).empty());
+    CHECK(row("plr").status == PluginFeatureStatus::Unavailable);
+    CHECK(row("plr").reason == "Not set up for this printer model yet.");
+    CHECK(row("print_hooks").status == PluginFeatureStatus::Off);
+    CHECK(row("print_hooks").reason.empty());
+    CHECK(row("file_analysis").status == PluginFeatureStatus::Active);
+    CHECK(row("file_analysis").reason.empty());
+    // Unavailable with no reason given still says something in plain words.
+    CHECK(row("mystery").status == PluginFeatureStatus::Unavailable);
+    CHECK(row("mystery").reason == "The plugin didn't say why.");
+
+    // A reason on a feature that can run is never shown.
+    PluginFeatureLine off;
+    off.name = "print_hooks";
+    off.status = PluginFeatureStatus::Off;
+    off.reason = "load_failed";
+    CHECK(plugin_overview_row(off).reason.empty());
 }

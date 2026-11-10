@@ -161,7 +161,7 @@ translations:
   A cold pull is already running.: "コールドプルはすでに実行中です。"
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'チャンバー内の空気をフィルターに通すファン。チャンバー温度画面で操作できます。'
   A few minutes, nearly all of it heating. You judge nothing by eye.: '数分かかりますが、そのほとんどは加熱です。目視での判断は不要です。'
-  A folder name in moonraker.conf is unsafe, so cleanup is off.: "moonraker.confのフォルダー名が安全でないため、クリーンアップはオフになっています。"
+  A folder name in moonraker.conf is unsafe.: "moonraker.conf のフォルダー名が安全ではありません。"
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'プリンターにヒートソークのマクロが設定されています。HelixScreenは検出しますが実行はしません。'
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'チャンバー内の空気を温めるヒーター。温度はチャンバー温度画面で設定します。'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Klipperが凹凸を補正するために使うベッドの高さマップ。ベッドメッシュ画面で確認とキャリブレーションができます。'
@@ -267,6 +267,7 @@ translations:
   Added to queue (position {}): キューに追加しました（{} 番目）
   Added to queue (position {}) - queue is paused: キューに追加しました（{} 番目）– キューは一時停止中です
   Adding printer: プリンターを追加中
+  Adding the timelapse plugin to Moonraker...: 'タイムラプスプラグインをMoonrakerに追加中...'
   Adding to queue...: キューに追加中...
   Address: アドレス
   'Adds to:': '追加先:'
@@ -306,6 +307,7 @@ translations:
   Always show Android navigation bar instead of using gestures: ジェスチャーの代わりにAndroidナビゲーションバーを常に表示
   Ambient Transfer: 環境熱伝達
   AmsIdentify: AMSを識別
+  An earlier install is still finishing...: '前回のインストールがまだ終わっていません...'
   An API key is 32 characters, each 0-9 or a-f.: 'APIキーは32文字で、各文字は0-9またはa-fです。'
   An accelerometer was detected on your printer.: プリンターで加速度センサーが検出されました。
   An app on your network is asking to connect to this printer.: 'ネットワーク上のアプリがこのプリンターへの接続を求めています。'
@@ -733,6 +735,7 @@ translations:
   Checking extruders...: エクストルーダーを確認中...
   Checking file…: 'ファイルを確認中…'
   Checking filament...: フィラメントを確認中...
+  Checking for ffmpeg...: 'ffmpegを確認中...'
   Checking for plugin...: プラグインを確認中...
   Checking for webcam...: ウェブカメラを確認中...
   Checking plugin: プラグインを確認中
@@ -955,6 +958,7 @@ translations:
   Corner roundness: 角の丸み
   Corners differ by {} mm: "四隅の差 {} mm"
   Correction (Ki): 補正 (Ki)
+  Could not add the timelapse plugin to Moonraker.: 'タイムラプスプラグインをMoonrakerに追加できませんでした。'
   Could not add to queue: キューに追加できませんでした
   Could not analyze PRINT_START macro. Some print options may be unavailable.: PRINT_START
     マクロを分析できませんでした。一部の印刷オプションが利用できない場合があります。
@@ -993,6 +997,7 @@ translations:
   Could not copy the printer's layout: "プリンターのレイアウトをコピーできませんでした"
   'Could not copy {} from USB: {}': '{} を USB からコピーできませんでした: {}'
   Could not disconnect from WiFi: WiFi から切断できませんでした
+  Could not download the timelapse plugin. Check the printer's internet connection.: 'タイムラプスプラグインをダウンロードできませんでした。プリンターのインターネット接続を確認してください。'
   'Could not extract plate {} of {}: {}': 'プレート {} を {} から抽出できませんでした: {}'
   Could not forget device: デバイスの登録を解除できませんでした
   Could not free space: '空き容量を確保できませんでした'
@@ -1197,6 +1202,7 @@ translations:
   Door switches, buttons, and other on/off inputs: ドアスイッチ、ボタン、その他のオン/オフ入力
   Download update?: アップデートをダウンロードしますか？
   Download v{}?: v{}をダウンロードしますか？
+  Downloading the timelapse plugin...: 'タイムラプスプラグインをダウンロード中...'
   Downloading...: ダウンロード中...
   Downloading... {:.1f}/{:.1f} MB: ダウンロード中... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: タッチごとに波紋を描画 — ズレの診断に役立ちます
@@ -2005,6 +2011,8 @@ translations:
   Installation timed out: インストールがタイムアウトしました
   Installation timed out. The script may be stuck.: インストールがタイムアウトしました。スクリプトが停止している可能性があります。
   Installed: 'インストール済み'
+  Installing restarts Moonraker, so it waits until the print is finished or cancelled.: 'インストールするとMoonrakerが再起動するため、印刷の終了またはキャンセルまで待機します。'
+  Installing the timelapse plugin...: 'タイムラプスプラグインをインストール中...'
   Installing...: インストール中...
   Intensity: 強度
   Interactive calibration for all lanes: '全レーンの対話式キャリブレーション'
@@ -2930,7 +2938,7 @@ translations:
   'Power was lost during the print; the printer stopped and saved its progress': '印刷中に電源が失われました。プリンターは停止し、進行状況を保存しました'
   Power was lost less than a minute ago.: 1分以内に停電しました。
   Power-loss recovery: 停電からの復帰
-  Power-loss recovery isn't supported on this printer yet.: "このプリンターは停電からの復帰にまだ対応していません。"
+  Not set up for this printer model yet.: "このプリンターモデルにはまだ対応していません。"
   Pre-heat the extruder first: 先にエクストルーダーを予熱してください
   'Pre-print command failed: {}': '印刷前コマンドに失敗しました: {}'
   Pre-print homing...: 印刷前ホーミング中...
@@ -4207,6 +4215,9 @@ translations:
   The temperature was changed elsewhere.: "温度が別の場所で変更されました。"
   The time, date, and system uptime: 時間、日付、稼働時間
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"
+  Timelapse or logs folder overlaps a protected one.: "タイムラプスまたはログのフォルダーが保護フォルダーと重なっています。"
+  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.
+  : 'タイムラプスプラグインはインストールされました。動画の作成にはffmpegも必要ですが、このプリンターにはインストールされていません。'
   The tool change under way finished, and the tool was not parked: '実行中のツール変更は完了し、ツールは格納されていません'
   The tool change under way finished, and {} was not put back on the carriage: '実行中のツール変更は完了し、{}はキャリッジに戻されていません'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。印刷前に手動で引き抜いてください。それでも印刷を開始しますか？
@@ -4246,7 +4257,7 @@ translations:
   This AFC system does not support bypass mode: 'この AFC システムはバイパスモードに対応していません'
   This CFS firmware exposes no external spool slot: 'この CFS ファームウェアには外部スプール用スロットがありません'
   This Happy Hare system does not support bypass mode: 'この Happy Hare システムはバイパスモードに対応していません'
-  This Moonraker version can't hold uploads. Update Moonraker.: "このバージョンのMoonrakerはアップロードを保留できません。Moonrakerを更新してください。"
+  Needs a newer Moonraker to hold uploads.: "アップロードを保留するには新しいMoonrakerが必要です。"
   This button controls: このボタンの制御対象
   This calibration uses the paper friction method to set your Z-offset.: このキャリブレーションは紙の摩擦方式を使用して
     Z-offset を設定します。
@@ -4264,9 +4275,9 @@ translations:
   : このデバイスの RAM は非常に少ないです。共振キャリブレーションはメモリを大量に消費し、"Timer Too Close" エラーを引き起こす可能性があります。それでも続行しますか？
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: リンクされた Spoolman のスプールと一致しません。新しいスプールとして追加しますか、それともリンク先を一致するよう更新しますか？
   This dryer cannot run while filament from the unit is loaded: 'このユニットのフィラメントが装填されている間は乾燥機を動作できません'
-  This feature failed to start. The Moonraker log says why.: "この機能を開始できませんでした。理由はMoonrakerのログにあります。"
+  Failed to start. See the Moonraker log.: "起動に失敗しました。Moonrakerのログを確認してください。"
   This feature requires different hardware or configuration: この機能には別のハードウェアまたは設定が必要です
-  This feature stopped. Restart Moonraker to start it again.: "この機能は停止しました。Moonrakerを再起動すると再開します。"
+  Stopped. Restart Moonraker to start it again.: "停止しました。Moonrakerを再起動すると再開します。"
   This filament system does not report buffer or flow data.: このフィラメントシステムはバッファーやフローのデータを報告しません。
   This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.: 'このファイルは {0} と {1} を1つのノズルで印刷します。{1} の温度では {0} が過熱してノズルが詰まる可能性があります。'
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'このファイルは {0} と {1} を同時に印刷します。{1} に必要なチャンバーとベッドの熱で {0} が柔らかくなり、ノズルが詰まる可能性があります。'
@@ -4283,7 +4294,7 @@ translations:
   : "このレーンはロード済みと表示されていますが、フィラメントはノズルから抜けています。印刷前にエクストルーダーに戻し、流れ出るまで押し出してください。"
   This looks like a {}, but it is set up as a {}: このプリンターは{}のようですが、{}として設定されています
   This may take up to 30 seconds: 最大30秒かかる場合があります
-  This needs the plugin's file analysis, which isn't running.: "プラグインのファイル解析が必要ですが、実行されていません。"
+  Needs file analysis, which isn't running.: "ファイル解析が必要ですが、実行されていません。"
   This plugin asks for no special permissions.: 'このプラグインは特別な権限を要求しません。'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'このプラグインにより、HelixScreen がベッドメッシュや QGL などの印刷開始オプションを制御できます。'
   This print called {}, which the printer no longer has.: 'この印刷は {} を使用しましたが、プリンターにはもうありません。'
@@ -4382,6 +4393,7 @@ translations:
   Tips: 'ヒント'
   Tips database format error: ヒントデータベースの形式エラー
   Tips database not found: ヒントデータベースが見つかりません
+  'To make videos, run this on your printer via SSH:': '動画を作成するには、SSHでプリンター上で次を実行してください:'
   ? To map filament, HelixScreen rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally.
   : フィラメントをマッピングするため、HelixScreenは印刷前にジョブファイルを書き換えます。このプリンターのMoonrakerは旧バージョンのため、HelixPrintプラグインが後から元のファイル名を復元できず、完了したジョブは書き換え後の名前で表示されます。フィラメントマッピング自体は正常に動作します。
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
@@ -5048,3 +5060,6 @@ translations:
   'from tag': 'タグから'
   'Browse catalog...': 'カタログを見る...'
   ~{:.1f} Hz / turn: "約{:.1f} Hz / 回転"
+  RUNNING: "動作中"
+  NOT AVAILABLE HERE: "この環境では利用不可"
+  The plugin didn't say why.: "プラグインは理由を示していません。"

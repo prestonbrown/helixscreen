@@ -110,7 +110,6 @@
 #include "ui_notification.h"
 #include "ui_notification_history.h"
 #include "ui_notification_manager.h"
-#include "ui_observer_guard.h"
 #include "ui_overlay_network_settings.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
@@ -161,6 +160,7 @@
 #include "ui_wizard_wifi.h"
 
 #include "color_utils.h"
+#include "core/observer_guard.h"
 #include "preflight_validator.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -1431,15 +1431,27 @@ bool Application::init_display() {
         // DPI of the logical pixel, so the scale is decided again before the
         // tokens and fonts that read it are refreshed.
         const helix::ScaleDecision scale = decide_display_scale(disp);
-        if (scale.ui_scale != helix::DisplayMetrics::active_scale()) {
+        const bool scale_moved = scale.ui_scale != helix::DisplayMetrics::active_scale();
+        if (scale_moved) {
             apply_display_scale(disp, scale);
         }
 
+        const helix::LayoutType layout_before = layout.type();
         layout.init(w, h);
-        theme_manager_refresh_layout_constants(disp);
+        const bool tokens_moved = theme_manager_refresh_layout_constants(disp);
+        // Built widgets keep the tokens, fonts and layout variant they were built
+        // with. Only a change to one of those rebuilds them, so a window drag
+        // rebuilds at a tier crossing rather than at every debounced step (#1214).
+        const bool rebuild = tokens_moved || scale_moved || layout.type() != layout_before;
         // Components register with the tokens and layout variant of the moment;
-        // idle ones register again at the new geometry on their next use.
-        helix::unregister_idle_xml_components();
+        // idle ones register again at the new geometry on their next use. A
+        // rebuild registers the live ones again too, then rebuilds the views.
+        if (rebuild) {
+            helix::reregister_xml_components_for_rebuild();
+            NavigationManager::instance().rebuild_for_layout_change();
+        } else {
+            helix::unregister_idle_xml_components();
+        }
 
         // Overlays cache their root widget across show/hide cycles, so the
         // width applied at push time goes stale when the canvas changes size
@@ -1449,8 +1461,8 @@ bool Application::init_display() {
         // constants just refreshed above (#941, #1178).
         NavigationManager::instance().reapply_overlay_widths();
 
-        spdlog::info("[Application] Resize: refreshed theme + layout for {}x{} ({})", w, h,
-                     layout.name());
+        spdlog::info("[Application] Resize: refreshed theme + layout for {}x{} ({}){}", w, h,
+                     layout.name(), rebuild ? ", views rebuilt" : "");
     });
 
     // Tips are NOT loaded here. TipsManager::get_instance() parses the database

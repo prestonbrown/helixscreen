@@ -4,9 +4,9 @@
 #pragma once
 
 #include "ui_notification_history.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 
+#include "core/observer_guard.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "subject_managed_panel.h"
 
