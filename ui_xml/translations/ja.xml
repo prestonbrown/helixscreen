@@ -779,6 +779,7 @@
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." ja="ベッドを片付けて{}をロードしてください。タワーはベッド中央に印刷されます。"/>
   <translation tag="Cleared" ja="クリア済み"/>
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" ja="設定から削除しました。システムのペアリング解除に失敗、OS の Bluetooth 設定が必要な場合があります"/>
+  <translation tag="Clipboard" ja="クリップボード"/>
   <translation tag="Clipboard unavailable - use SSH" ja="クリップボード利用不可 - SSHを使用してください"/>
   <translation tag="Clog" ja="詰まり"/>
   <translation tag="Clog Auto" ja="詰まり: 自動"/>
@@ -1022,6 +1023,7 @@
   <translation tag="Customize Macro Button" ja="マクロボタンをカスタマイズ"/>
   <translation tag="Customize preset temperatures" ja="プリセット温度をカスタマイズ"/>
   <translation tag="Customize your home screen" ja="ホーム画面をカスタマイズ"/>
+  <translation tag="Cut" ja="切り取り"/>
   <translation tag="Cut &amp; retract" ja="切断して引き戻し"/>
   <translation tag="Cut Distance" ja="カット距離"/>
   <translation tag="Cut filament" ja="フィラメントを切断"/>
@@ -2750,6 +2752,7 @@
   <translation tag="Password cannot be empty" ja="パスワードを入力してください"/>
   <translation tag="Password is required for secured networks" ja="セキュリティ保護されたネットワークにはパスワードが必要です"/>
   <translation tag="Past Y {:.1f} mm, X moves only in {:.1f} mm steps" ja="Y {:.1f} mmを超えると、Xは{:.1f} mm単位でのみ移動します"/>
+  <translation tag="Paste" ja="貼り付け"/>
   <translation tag="Path A" ja="パスA"/>
   <translation tag="Path B" ja="パスB"/>
   <translation tag="Pause" ja="一時停止"/>

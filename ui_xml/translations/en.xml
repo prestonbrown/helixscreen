@@ -779,6 +779,7 @@
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." en="Clear the plate and load {}. The tower prints in the middle of the bed."/>
   <translation tag="Cleared" en="Cleared"/>
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" en="Cleared from settings — system unpair failed, may need OS Bluetooth"/>
+  <translation tag="Clipboard" en="Clipboard"/>
   <translation tag="Clipboard unavailable - use SSH" en="Clipboard unavailable - use SSH"/>
   <translation tag="Clog" en="Clog"/>
   <translation tag="Clog Auto" en="Clog Auto"/>
@@ -1022,6 +1023,7 @@
   <translation tag="Customize Macro Button" en="Customize Macro Button"/>
   <translation tag="Customize preset temperatures" en="Customize preset temperatures"/>
   <translation tag="Customize your home screen" en="Customize your home screen"/>
+  <translation tag="Cut" en="Cut"/>
   <translation tag="Cut &amp; retract" en="Cut &amp; retract"/>
   <translation tag="Cut Distance" en="Cut Distance"/>
   <translation tag="Cut filament" en="Cut filament"/>
@@ -2750,6 +2752,7 @@
   <translation tag="Password cannot be empty" en="Password cannot be empty"/>
   <translation tag="Password is required for secured networks" en="Password is required for secured networks"/>
   <translation tag="Past Y {:.1f} mm, X moves only in {:.1f} mm steps" en="Past Y {:.1f} mm, X moves only in {:.1f} mm steps"/>
+  <translation tag="Paste" en="Paste"/>
   <translation tag="Path A" en="Path A"/>
   <translation tag="Path B" en="Path B"/>
   <translation tag="Pause" en="Pause"/>

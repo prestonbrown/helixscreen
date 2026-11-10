@@ -578,6 +578,7 @@ translations:
   CHANGED FROM LAST SESSION: ALTERADO DESDE A ÚLTIMA SESSÃO
   CLOG: OBSTRUÇÃO
   COLOR SENSORS: SENSORES DE COR
+  Clipboard: "Área de transferência"
   'Completed: {}': 'Concluído: {}'
   CONFIGURATION: CONFIGURAÇÃO
   CONNECTION TYPE: TIPO DE CONEXÃO
@@ -1031,6 +1032,7 @@ translations:
     indisponíveis.
   Could not answer the connection request: 'Não foi possível responder à solicitação de conexão'
   'Could not check {} - it stays in the queue': 'Não foi possível verificar {} – permanece na fila'
+  Cut: "Recortar"
   "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "Durante a impressão, veja um indicador para cada aquecedor, ventoinha e luz, uma lista da sequência de início, e o progresso e os controles em uma única faixa."
   "Every screen and setting explained": "Cada tela e configuração explicada"
   "Getting Started": "Primeiros passos"
@@ -1046,6 +1048,7 @@ translations:
   'Moonraker answered at {}.': "O Moonraker respondeu em {}."
   "New in 1.1": "Novidades da 1.1"
   No filament was inserted in time: 'Nenhum filamento foi inserido a tempo'
+  Paste: "Colar"
   Print hours between filter changes. Off hides this meter.: 'Horas de impressão entre trocas de filtro. Desligado oculta este contador.'
   Print hours between nozzle changes. Off hides this meter.: 'Horas de impressão entre trocas de bico. Desligado oculta este contador.'
   Print hours between rail cleaning and lubrication. Off hides this meter.: 'Horas de impressão entre limpeza e lubrificação dos trilhos. Desligado oculta este contador.'

@@ -9,6 +9,7 @@
 #include "ui_fonts.h"
 #include "ui_keycap_style.h"
 #include "ui_nav_manager.h"
+#include "ui_text_edit_menu.h"
 #include "ui_text_input.h"
 #include "ui_utils.h"
 
@@ -1314,6 +1315,9 @@ void KeyboardManager::register_textarea(lv_obj_t* textarea) {
     lv_obj_add_event_cb(textarea, textarea_focus_event_cb, LV_EVENT_FOCUSED, nullptr);
     lv_obj_add_event_cb(textarea, textarea_focus_event_cb, LV_EVENT_DEFOCUSED, nullptr);
     lv_obj_add_event_cb(textarea, textarea_delete_event_cb, LV_EVENT_DELETE, nullptr);
+    // Holding a field offers Cut / Copy / Paste.
+    lv_obj_add_event_cb(textarea, helix::ui::text_edit_long_press_cb, LV_EVENT_LONG_PRESSED,
+                        nullptr);
 
     lv_group_t* default_group = lv_group_get_default();
     if (default_group) {
@@ -1343,6 +1347,7 @@ void KeyboardManager::unregister_textarea(lv_obj_t* textarea) {
     // The focus pair is what raises and lowers the keyboard. The delete hook is left
     // in place: it is the manager's own bookkeeping, not part of the offer to type.
     lv_obj_remove_event_cb(textarea, textarea_focus_event_cb);
+    lv_obj_remove_event_cb(textarea, helix::ui::text_edit_long_press_cb);
 
     // Out of the input group too, or a physical keyboard still routes here.
     lv_group_remove_obj(textarea);
@@ -1356,24 +1361,11 @@ void KeyboardManager::unregister_textarea(lv_obj_t* textarea) {
 }
 
 void KeyboardManager::register_textarea_ex(lv_obj_t* textarea, bool is_password) {
-    if (keyboard_ == nullptr) {
-        spdlog::error("[KeyboardManager] Not initialized - call init() first");
-        return;
-    }
-
-    if (textarea == nullptr) {
-        spdlog::error("[KeyboardManager] Cannot register NULL textarea");
-        return;
-    }
-
-    spdlog::debug("[KeyboardManager] Registering textarea: {} (password: {})", (void*)textarea,
-                  is_password);
-
     // Assert the masking rather than merely recording it. is_password_context()
     // reads the widget's live state, so a caller declaring a password field this
     // way is guaranteed to get log redaction; a flag that were only logged would
     // make the whole overload look protective while doing nothing at all.
-    if (is_password) {
+    if (is_password && textarea != nullptr) {
         lv_textarea_set_password_mode(textarea, true);
     }
 
@@ -1612,6 +1604,9 @@ void KeyboardManager::set_mode(lv_keyboard_mode_t mode) {
 
 void KeyboardManager::reset() {
     spdlog::debug("[KeyboardManager] Resetting state for soft restart");
+
+    // Its field is about to go with the tree.
+    helix::ui::text_edit_menu_reset();
 
     // Delete keyboard widget (child of m_screen, survives app_layout teardown).
     // reset() runs from tear_down_printer_state(), whose callers may be inside an

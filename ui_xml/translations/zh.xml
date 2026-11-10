@@ -779,6 +779,7 @@
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." zh="请清空热床并装入{}。测试塔打印在热床中央。"/>
   <translation tag="Cleared" zh="已清空"/>
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" zh="已从设置中清除；系统解除配对失败，可能需使用系统蓝牙设置"/>
+  <translation tag="Clipboard" zh="剪贴板"/>
   <translation tag="Clipboard unavailable - use SSH" zh="剪贴板不可用 - 请使用 SSH"/>
   <translation tag="Clog" zh="堵料"/>
   <translation tag="Clog Auto" zh="自动堵料"/>
@@ -1022,6 +1023,7 @@
   <translation tag="Customize Macro Button" zh="自定义宏按钮"/>
   <translation tag="Customize preset temperatures" zh="自定义预设温度"/>
   <translation tag="Customize your home screen" zh="自定义主屏幕"/>
+  <translation tag="Cut" zh="剪切"/>
   <translation tag="Cut &amp; retract" zh="切断并回抽"/>
   <translation tag="Cut Distance" zh="切割距离"/>
   <translation tag="Cut filament" zh="切断耗材"/>
@@ -2750,6 +2752,7 @@
   <translation tag="Password cannot be empty" zh="密码不能为空"/>
   <translation tag="Password is required for secured networks" zh="加密网络需要密码"/>
   <translation tag="Past Y {:.1f} mm, X moves only in {:.1f} mm steps" zh="超过 Y {:.1f} mm 后，X 轴只能以 {:.1f} mm 步进移动"/>
+  <translation tag="Paste" zh="粘贴"/>
   <translation tag="Path A" zh="路径 A"/>
   <translation tag="Path B" zh="路径 B"/>
   <translation tag="Pause" zh="暂停"/>

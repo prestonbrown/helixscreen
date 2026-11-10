@@ -568,6 +568,7 @@ translations:
   CHANGED FROM LAST SESSION: CHANGED FROM LAST SESSION
   CLOG: CLOG
   COLOR SENSORS: COLOR SENSORS
+  Clipboard: Clipboard
   'Completed: {}': 'Completed: {}'
   CONFIGURATION: CONFIGURATION
   CONNECTION TYPE: CONNECTION TYPE
@@ -1004,6 +1005,7 @@ translations:
     not analyze PRINT_START macro. Some print options may be unavailable.
   Could not answer the connection request: Could not answer the connection request
   'Could not check {} - it stays in the queue': 'Could not check {} - it stays in the queue'
+  Cut: Cut
   "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip."
   "Every screen and setting explained": "Every screen and setting explained"
   "Getting Started": "Getting Started"
@@ -1019,6 +1021,7 @@ translations:
   'Moonraker answered at {}.': 'Moonraker answered at {}.'
   "New in 1.1": "New in 1.1"
   No filament was inserted in time: No filament was inserted in time
+  Paste: Paste
   Print hours between filter changes. Off hides this meter.: Print hours between filter changes. Off hides this meter.
   Print hours between nozzle changes. Off hides this meter.: Print hours between nozzle changes. Off hides this meter.
   Print hours between rail cleaning and lubrication. Off hides this meter.: Print hours between rail cleaning and lubrication. Off hides this meter.
