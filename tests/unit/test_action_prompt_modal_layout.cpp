@@ -83,6 +83,13 @@ class ActionPromptLayoutFixture : public LVGLUITestFixture {
         helix::DisplaySettingsManager::instance().set_animations_enabled(prev_animations_);
     }
 
+    /// A synchronous layout pass over the screen and the dialog, so geometry settles.
+    void settle_layout() {
+        lv_obj_update_layout(test_screen());
+        if (lv_obj_t* dialog = modal_.dialog())
+            lv_obj_update_layout(dialog);
+    }
+
     helix::ui::ActionPromptModal modal_;
     bool prev_animations_ = true;
 };
@@ -100,12 +107,7 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture, "ActionPromptModal: 4 regular button
     REQUIRE(modal_.show_prompt(test_screen(), data));
     CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(modal_.dialog(), "dialog_title"))) ==
           std::string(510, 'a'));
-
-    // Force a synchronous layout pass on the whole tree so geometry settles.
-    lv_obj_update_layout(test_screen());
-    if (lv_obj_t* dialog = modal_.dialog()) {
-        lv_obj_update_layout(dialog);
-    }
+    settle_layout();
 
     const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
     REQUIRE(btns.size() == 4);
@@ -141,10 +143,7 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     data.buttons.push_back({"Cancel", "CANCEL", "error", "", false, -1});
 
     REQUIRE(modal_.show_prompt(test_screen(), data));
-    lv_obj_update_layout(test_screen());
-    if (lv_obj_t* dialog = modal_.dialog()) {
-        lv_obj_update_layout(dialog);
-    }
+    settle_layout();
 
     const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
     REQUIRE(btns.size() == 3);
@@ -185,10 +184,7 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     data.buttons.push_back({"Cancel", "AFC_CALIBRATION CANCEL=1", "error", "", true, -1});
 
     REQUIRE(modal_.show_prompt(test_screen(), data));
-    lv_obj_update_layout(test_screen());
-    if (lv_obj_t* dialog = modal_.dialog()) {
-        lv_obj_update_layout(dialog);
-    }
+    settle_layout();
 
     const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
     REQUIRE(btns.size() == 6); // 5 regular + 1 footer
@@ -228,10 +224,7 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     }
 
     REQUIRE(modal_.show_prompt(test_screen(), data));
-    lv_obj_update_layout(test_screen());
-    if (lv_obj_t* dialog = modal_.dialog()) {
-        lv_obj_update_layout(dialog);
-    }
+    settle_layout();
 
     const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
     REQUIRE(btns.size() == 7);
