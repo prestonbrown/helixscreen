@@ -1184,6 +1184,8 @@ While the printer is working, small chips on the printer image show what each pa
 - **Part fan** - shows its speed while it is running.
 - **Light** - a small light bulb at the top of the picture, shown whenever your printer has a light HelixScreen can switch. It is lit while the light is on and dark while it is off.
 
+The picture also glows where the printer is warm. The bed's build plate glows orange, brighter the hotter it is. A heated chamber casts a red wash through the enclosure's glass, stronger as the chamber warms, and both pulse gently while they are still heating up. On printers whose pictures know where the windows are, the glow stays inside the glass and leaves the frame, panels and any screen in front of the glass alone; on your own photos it does the same once you tag the window (see below).
+
 Tap a heater chip for its temperature graph or the fan chip for the fan controls. **Tap the light bulb to switch the light on or off.** Press and hold it to open the light's page in the LEDs overlay instead.
 
 On the most common printers the shipped pictures know where each part is, so each chip points at its part: beside the picture with a line to it on a wide tile, or on top of it on a small one. On other pictures, including your own photos, the chips sit along the edge of the picture until you tag its parts.

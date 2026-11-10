@@ -514,14 +514,16 @@ which returns a `CalloutMode`, the image rect, and each chip's rect and leader l
   `activity_chip` takes the chip's shown subject as `shown_subject` and binds a
   `#text_subtle` style on its label for 2, so a residual chip's text is greyed with no C++
   styling (the chip text is already `#text_muted`).
-- **Where the points come from.** Each shipped image's nozzle, bed edge, part fan, chamber
-  and light are hand-tagged, normalized over the source PNG, in
+- **Where the points come from.** Each shipped image's nozzle, bed plate, part fan, chamber
+  and light, plus the enclosure's see-through `windows` and the `cutouts` in front of them,
+  are hand-tagged, normalized over the source PNG, in
   `assets/images/printers/regions.json`; `assets/images/printers/README.md` documents the
   format and `tools/printer-regions-tagger.html` is the tagging tool. `[regions]` fails,
   naming the image, when a PNG no longer matches its recorded size.
 - **Users tag their own.** Tag parts in the printer image picker opens
   `PrinterImageTaggerOverlay` (`src/ui/printers/ui_overlay_printer_image_tagger.cpp`), which walks
-  `helix::ImageTagSession` through the same six prompts on the image the widget displays and
+  `helix::ImageTagSession` through the same twelve prompts (one window, no cutouts) on the
+  image the widget displays and
   saves to `<config dir>/printer_image_regions.json` through `save_user_image_regions()`.
   Both files are keyed by `printer_image_region_key()`, which gives a custom photo
   `custom:<name>`. `lookup_image_regions()` prefers a user entry, but only when its `size`
