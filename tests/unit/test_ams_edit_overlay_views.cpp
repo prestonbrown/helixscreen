@@ -1031,6 +1031,13 @@ struct RefusingBoxBackend : AmsBackendMock {
         }
         return AmsError(AmsResult::WRONG_STATE, "refused", "refused", "", slot_index);
     }
+    bool refuse_tool = false;
+    AmsError set_tool_mapping_impl(int tool_number, int slot_index) override {
+        if (!refuse_tool) {
+            return AmsBackendMock::set_tool_mapping_impl(tool_number, slot_index);
+        }
+        return AmsError(AmsResult::WRONG_STATE, "refused", "refused", "", slot_index);
+    }
 };
 } // namespace
 
@@ -1066,6 +1073,29 @@ TEST_CASE_METHOD(BoxWinsFixture, "a refused note action leaves the form on the l
     CHECK(access.selected_family() == "PLA");
     CHECK(access.spool_disagrees() == 1);
     CHECK_FALSE(access.dirty());
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(BoxWinsFixture,
+                 "a re-apply whose lane setting is refused puts the form back on the lane",
+                 "[ams_edit_overlay][box_wins][lane_settings]") {
+    auto owned = std::make_unique<RefusingBoxBackend>(4);
+    RefusingBoxBackend* refusing = owned.get();
+    backend = refusing;
+    AmsState::instance().set_backend(std::move(owned));
+    open(true, box_lane());
+    REQUIRE(access.spool_disagrees() == 1);
+    REQUIRE(access.pick_dropdown("tool_dropdown", "T1"));
+    refusing->refuse_tool = true;
+
+    access.call_handle_reapply();
+    settle();
+
+    CHECK_FALSE(fired);
+    CHECK(access.working_info().material == "PLA");
+    CHECK(access.working_info().color_rgb == 0xFF0000U);
+    CHECK(access.selected_family() == "PLA");
+    CHECK(access.spool_disagrees() == 1);
     close_editor_overlay();
 }
 
