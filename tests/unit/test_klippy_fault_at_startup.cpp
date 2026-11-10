@@ -15,6 +15,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/emergency_stop_test_access.h"
+#include "../test_helpers/fake_connection_test.h"
 #include "app_globals.h"
 #include "klippy_state.h"
 #include "moonraker_client_mock.h"
@@ -50,6 +51,22 @@ KlippyState klippy_state(PrinterState& ps) {
 
 lv_obj_t* recovery_card() {
     return lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card");
+}
+
+/// The Connection step's status label, once the step's auto-probe (which writes it too) is done.
+lv_obj_t* show_connection_step(LVGLTestFixture& fixture) {
+    WizardConnectionStep* step = get_wizard_connection_step();
+    helix::test::ScopedFakeConnectionTest net; // runs the probe inline
+    ui_wizard_init_subjects();
+    step->init_subjects();
+    lv_obj_t* root = step->create(fixture.test_screen());
+    REQUIRE(root != nullptr);
+    lv_obj_t* status = lv_obj_find_by_name(root, "connection_status_text");
+    REQUIRE(status != nullptr);
+    fixture.process_lvgl(150); // fires the probe's one-shot timer
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "connection_testing")) == 0);
+    return status;
 }
 
 std::string recovery_label(const char* name) {
@@ -328,19 +345,10 @@ TEST_CASE_METHOD(StartupFaultFixture, "Klipper coming up after a startup fault d
 
 TEST_CASE_METHOD(LVGLUITestFixture, "The wizard's Connection step shows Klipper's reason",
                  "[klippy_startup_fault][wizard][connection]") {
-    ui_wizard_init_subjects();
-    WizardConnectionStep* step = get_wizard_connection_step();
-    step->init_subjects();
-    lv_obj_t* root = step->create(test_screen());
-    REQUIRE(root != nullptr);
-    lv_obj_t* status = lv_obj_find_by_name(root, "connection_status_text");
-    REQUIRE(status != nullptr);
-
-    // Let the step's own localhost auto-probe run first: it writes the status too.
-    process_lvgl(300);
+    lv_obj_t* status = show_connection_step(*this);
 
     // Discovery gives up first; the reason lands a round trip later.
-    step->allow_continue_without_klipper();
+    get_wizard_connection_step()->allow_continue_without_klipper();
     process_lvgl(50);
     CHECK(std::string(lv_label_get_text(status)).find("preload_length") == std::string::npos);
 
@@ -348,7 +356,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The wizard's Connection step shows Klipper'
     process_lvgl(100);
 
     CHECK(std::string(lv_label_get_text(status)).find(kConfigError) != std::string::npos);
-    step->cleanup();
+    get_wizard_connection_step()->cleanup();
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -364,17 +372,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     state().init_subjects(true);
     CHECK(state().network_state().get_klippy_fault_message().empty());
 
-    ui_wizard_init_subjects();
-    WizardConnectionStep* step = get_wizard_connection_step();
-    step->init_subjects();
-    lv_obj_t* root = step->create(test_screen());
-    REQUIRE(root != nullptr);
-    lv_obj_t* status = lv_obj_find_by_name(root, "connection_status_text");
-    REQUIRE(status != nullptr);
-    process_lvgl(300);
-
-    step->allow_continue_without_klipper();
+    lv_obj_t* status = show_connection_step(*this);
+    get_wizard_connection_step()->allow_continue_without_klipper();
     process_lvgl(50);
     CHECK(std::string(lv_label_get_text(status)).find("preload_length") == std::string::npos);
-    step->cleanup();
+    get_wizard_connection_step()->cleanup();
 }
