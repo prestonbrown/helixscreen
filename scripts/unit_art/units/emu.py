@@ -116,9 +116,10 @@ def draw_art(sc, colors, tier):
 
 # On the tray: the dock is the front wall, each box's base rises toward the back as the
 # body's contour, and each box's red top stands on it around its glass.
-_WALL = 26.0  # the dock's front, across every box
+_WALL = 30.0  # the boxes' bases across the front, the dock along the bottom of that
+_DOCK_H = 16.0  # the dock's front, tall enough to carry the lane's number
 DOCK_COLOR = "#36373c"
-_RISE = (BLACK_REAR - BLACK_TOP) * TRAY_PX_PER_UNIT
+_RISE = (0.45 - BLACK_TOP) * TRAY_PX_PER_UNIT  # the base rises to a little over half the box height at the back
 _RED, _BLACK = int(RED[1:], 16), int(BLACK[1:], 16)
 UNIT = UnitDef(
     "emu",
@@ -126,8 +127,7 @@ UNIT = UnitDef(
     draw_art,
     TrayShellDef(
         cheek=[(0.0, 0.0), (1.0, _RISE)],
-        # Measured from the spool's bottom, which the tray stands a front wall below the lid.
-        dome=kit.tray_profile(_arch(BLACK_TOP), SPOOL_Z - SPOOL_R + _WALL / TRAY_PX_PER_UNIT, TRAY_PX_PER_UNIT),
+        dome=kit.tray_profile(_arch(BLACK_TOP), SPOOL_Z - SPOOL_R + (_WALL - 11.0) / TRAY_PX_PER_UNIT, TRAY_PX_PER_UNIT),
         back_extra_px=_RISE,
         front_wall_px=_WALL,
         rail_px=6.0,
@@ -139,10 +139,12 @@ UNIT = UnitDef(
         rail=_BLACK,
         accent=_RED,
         # The lane's number badge stands where its status light is on the real dock.
-        front=[kit.span(0, 0, 0, _WALL, int(DOCK_COLOR[1:], 16), 2)],
+        front=[kit.span(0, 0, 0, _WALL, _BLACK, 2), kit.span(0, 0, _WALL - _DOCK_H, _WALL, int(DOCK_COLOR[1:], 16), 2)],
         # Lanes leave each box through its own sensors and meet in a separate printed combiner.
         lane_join="junction",
         lid_color=_RED,
+        # The spool stands a little up in the box, so its base hides the glow under it.
+        spool_lift_px=11.0,
     ),
     lane_variants=(1, 2, 3, 4, 5, 6, 8),
 )

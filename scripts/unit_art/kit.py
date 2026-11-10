@@ -281,6 +281,7 @@ class TrayShellDef:
     front: Optional[list] = None
     lane_join: str = "hub"  # "hub", "junction", "inside" or "block": how the lanes meet
     lid_color: int = 0  # a box per lane: each box's solid top around its glass; 0 for all glass
+    spool_lift_px: float = 0.0  # how far the unit's base reaches below its spools
 
 
 @dataclass

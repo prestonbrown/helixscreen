@@ -174,7 +174,7 @@ float unit_top_y(const TrayBox& b, float lid_h, bool has_lid) {
 PointF lane_badge_origin(const TrayBox& b, float lane_x, float lane_half, float badge_w,
                          float badge_h, float inset) {
     const float x = std::max(lane_x - badge_w / 2.0f, lane_x + lane_half - badge_w - inset);
-    const float y = std::max(b.ft, b.fb - badge_h - inset);
+    const float y = std::max(b.ft, b.fb - badge_h - 2 * inset);
     return {x, y};
 }
 
@@ -202,6 +202,10 @@ LidMode lid_mode(const UnitShell& shell) {
     if (shell.dome_n == 0)
         return LidMode::None;
     return shell.lid_spans_row ? LidMode::Unit : LidMode::PerLane;
+}
+
+float spool_floor_gap(const UnitShell* shell, float shell_scale) {
+    return kSpoolFloorGap + (shell ? shell->spool_lift_px * shell_scale : 0.0f);
 }
 
 float lane_lid_half_width(float slot_spacing, const TrayBox& b) {

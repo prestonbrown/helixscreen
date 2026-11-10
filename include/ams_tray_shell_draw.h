@@ -50,10 +50,10 @@ void fill_cheek(const ShellView& view, lv_layer_t* layer, lv_point_t o, float x,
 void fill_shell_cap(const ShellView& view, lv_layer_t* layer, lv_point_t o, const PointF* cap,
                     float x, lv_color_t color, lv_opa_t opa);
 
-/// One side of a unit's box at @p x, a box per lane: its base's rising contour, then its
-/// solid top above it.
+/// One side of a unit's box at @p x, a box per lane: its base's rising contour, its solid top
+/// above it, and the glass's edge up the front of that top to the crest.
 void fill_box_side(const ShellView& view, lv_layer_t* layer, lv_point_t o, const PointF* cap,
-                   float x);
+                   float x, lv_color_t edge_color, lv_opa_t edge_opa);
 
 /// The body's top edge along one end of the unit.
 void stroke_cheek(const ShellView& view, lv_layer_t* layer, lv_point_t o, float x, lv_color_t color,

@@ -96,6 +96,8 @@ struct UnitShell {
     int face_art_n = 0;
     /// A box per lane: each box's top is this solid colour around its glass. 0: all glass.
     uint32_t lid_color = 0;
+    /// How far the unit's base reaches below its spools, at the reference spool size.
+    float spool_lift_px = 0.0f;
 };
 
 /// The head-on art for a unit built with @p lanes gates, or nullptr.

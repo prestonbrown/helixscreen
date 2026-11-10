@@ -231,12 +231,12 @@ def generate_shell_table(units):
                 faces = [face_row(face_scene(unit, gates), gates) for gates in unit.lane_variants]
                 out.append(f"constexpr RailFaceArt k_{unit.id}_face[] = {{{', '.join(faces)}}};")
                 track += f", k_{unit.id}_face, {len(faces)}"
-        if t.lid_color:
+        if t.lid_color or t.spool_lift_px:
             if not track:
                 track = ", nullptr, 0"
             if ", k_" + unit.id + "_face" not in track:
                 track += ", nullptr, 0"
-            track += f", 0x{t.lid_color:06x}"
+            track += f", 0x{t.lid_color:06x}, {t.spool_lift_px:.1f}f"
         rows.append(
             f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, {dome}, {len(dome_points)}, {unit.lanes}, '
             f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.cap_clearance_px:.1f}f, "

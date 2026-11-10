@@ -84,7 +84,7 @@ int cap_polyline(const TrayBox& b, float lid_h, float x_end, PointF* out, int n)
 float unit_top_y(const TrayBox& b, float lid_h, bool has_lid);
 
 /// Top-left of lane @p lane_x's number badge on the box front. It sits inside the
-/// front face, @p inset above its bottom edge, with its right edge @p inset inside
+/// front face, twice @p inset above its bottom edge, with its right edge @p inset inside
 /// the lane's bay (lane_x + @p lane_half); where the pitch is too tight for that,
 /// centered on the lane instead.
 PointF lane_badge_origin(const TrayBox& b, float lane_x, float lane_half, float badge_w,
@@ -104,6 +104,9 @@ LidMode lid_mode(const AmsUnit& unit, bool has_physical_tray, bool dryer_support
 LidMode lid_mode(const UnitShell& shell);
 /// Per-lane lid half width: each lid's right cap tucks halfway behind the next lid.
 float lane_lid_half_width(float slot_spacing, const TrayBox& b);
+/// How far a spool's flanges stand above the box's front bottom edge: a hair, or a drawn
+/// unit's base below them.
+float spool_floor_gap(const UnitShell* shell, float shell_scale);
 
 // The lid's sheen: one diffuse band, drawn as one horizontal gradient per row.
 inline constexpr int kSheenMaxRows = 25;

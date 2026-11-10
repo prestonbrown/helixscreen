@@ -52,9 +52,9 @@ constexpr FrontPart k_ad5x_ifs_front[] = {{FrontAnchor::Span, 1.00f, 1.00f, 1.00
 constexpr ProfilePoint k_ad5x_ifs_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 constexpr FrontPart k_elegoo_canvas_front[] = {{FrontAnchor::Span, 1.00f, 1.00f, 1.00f, 13.00f, 0x1a1b1f, 3}, {FrontAnchor::Lane, -14.00f, 14.00f, 4.00f, 10.00f, 0x5ab0ff, 2}};
 constexpr ProfilePoint k_elegoo_canvas_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
-constexpr FrontPart k_emu_front[] = {{FrontAnchor::Span, 0.00f, 0.00f, 0.00f, 26.00f, 0x36373c, 2}};
-constexpr ProfilePoint k_emu_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 57.29f}};
-constexpr ProfilePoint k_emu_dome[] = {{0.0000f, -37.09f}, {0.0043f, 27.20f}, {0.0170f, 34.07f}, {0.0670f, 47.00f}, {0.1033f, 52.82f}, {0.1956f, 62.72f}, {0.3087f, 69.71f}, {0.3706f, 71.97f}, {0.5000f, 73.79f}, {0.6294f, 71.97f}, {0.6913f, 69.71f}, {0.8044f, 62.72f}, {0.8967f, 52.82f}, {0.9330f, 47.00f}, {0.9830f, 34.07f}, {0.9957f, 27.20f}, {1.0000f, -37.09f}};
+constexpr FrontPart k_emu_front[] = {{FrontAnchor::Span, 0.00f, 0.00f, 0.00f, 30.00f, 0x4a4b51, 2}, {FrontAnchor::Span, 0.00f, 0.00f, 14.00f, 30.00f, 0x36373c, 2}};
+constexpr ProfilePoint k_emu_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 33.26f}};
+constexpr ProfilePoint k_emu_dome[] = {{0.0000f, -30.09f}, {0.0043f, 34.20f}, {0.0170f, 41.07f}, {0.0670f, 54.00f}, {0.1033f, 59.82f}, {0.1956f, 69.72f}, {0.3087f, 76.71f}, {0.3706f, 78.97f}, {0.5000f, 80.79f}, {0.6294f, 78.97f}, {0.6913f, 76.71f}, {0.8044f, 69.72f}, {0.8967f, 59.82f}, {0.9330f, 54.00f}, {0.9830f, 41.07f}, {0.9957f, 34.20f}, {1.0000f, -30.09f}};
 constexpr FrontPart k_ercf_rail_front[] = {{FrontAnchor::Span, 3.00f, 3.00f, 8.00f, 19.00f, 0x2a2a2e, 3}, {FrontAnchor::Span, 4.00f, 4.00f, 0.00f, 6.00f, 0xc8211f, 2}, {FrontAnchor::Lane, -7.00f, 7.00f, -3.00f, 0.00f, 0xc8211f, 0}, {FrontAnchor::Lane, -1.00f, 1.00f, 2.10f, 5.10f, 0xf7f7f2, 0}};
 constexpr ProfilePoint k_ercf_rail_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 constexpr CarriageTrack k_ercf_rail_carriage[] = {{4, 0.10929f, 0.01905f, 1.41058f}, {6, 0.08969f, 0.01563f, 1.63125f}, {8, 0.07605f, 0.01325f, 1.83051f}, {9, 0.07067f, 0.01232f, 1.92306f}, {12, 0.05831f, 0.01016f, 2.17616f}};
@@ -82,7 +82,7 @@ const UnitShell kShells[] = {
     {"3ms", k_3ms_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, LaneJoin::Hub, 0x35c4c4, 0x000000, k_3ms_front, 2, true, 0x0},
     {"ad5x_ifs", k_ad5x_ifs_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, LaneJoin::FixedBlock, 0x8a7f76, 0x000000, k_ad5x_ifs_front, 2, true, 0x0},
     {"elegoo_canvas", k_elegoo_canvas_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, LaneJoin::FixedBlock, 0x1a1b1f, 0x000000, k_elegoo_canvas_front, 2, true, 0x0},
-    {"emu", k_emu_cheek, 2, k_emu_dome, 17, 4, 57.29f, 26.0f, 6.0f, false, LaneJoin::Junction, 0x4a4b51, 0x000000, k_emu_front, 1, false, 0x17e, nullptr, 0, nullptr, 0, 0xb3201c},
+    {"emu", k_emu_cheek, 2, k_emu_dome, 17, 4, 33.26f, 30.0f, 6.0f, false, LaneJoin::Junction, 0x4a4b51, 0x000000, k_emu_front, 2, false, 0x17e, nullptr, 0, nullptr, 0, 0xb3201c, 11.0f},
     {"ercf_rail", k_ercf_rail_cheek, 2, nullptr, 0, 6, 0.00f, 22.0f, 6.0f, false, LaneJoin::Hub, 0x1d1d20, 0x000000, k_ercf_rail_front, 4, false, 0x1350, k_ercf_rail_carriage, 5, k_ercf_rail_face, 5},
     {"tradrack_rail", k_tradrack_rail_cheek, 2, nullptr, 0, 6, 0.00f, 22.0f, 6.0f, false, LaneJoin::Hub, 0x18191b, 0x000000, k_tradrack_rail_front, 4, false, 0x1350, k_tradrack_rail_carriage, 5, k_tradrack_rail_face, 5},
 };

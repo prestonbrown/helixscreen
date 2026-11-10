@@ -167,9 +167,25 @@ void stroke_lid_top(lv_layer_t* layer, lv_point_t o, const Lid& lid, lv_color_t 
 
 /// A unit's own front wall, rail and side, in the shell's hardware colours.
 void fill_box_side(const ShellView& view, lv_layer_t* layer, lv_point_t o, const PointF* cap,
-                   float x) {
+                   float x, lv_color_t edge_color, lv_opa_t edge_opa) {
     fill_cheek(view, layer, o, x, view.shell->body);
     fill_shell_cap(view, layer, o, cap, x, lv_color_hex(view.shell->lid_color), LV_OPA_COVER);
+    // The glass meets the top from the base up to the crest: the edge starts where the cap's
+    // outline crosses the base's top, not at its first point above it.
+    const int crest = kCapPoints / 2;
+    int first = 0;
+    while (first < crest && cap[first].y > view.box.ft)
+        ++first;
+    PointF edge_pts[kCapPoints];
+    int n = 0;
+    if (first > 0) {
+        const PointF a = cap[first - 1], b = cap[first];
+        const float t = (a.y - view.box.ft) / (a.y - b.y);
+        edge_pts[n++] = {a.x + (b.x - a.x) * t, view.box.ft};
+    }
+    for (int i = first; i <= crest; ++i)
+        edge_pts[n++] = cap[i];
+    stroke(layer, o, edge_pts, n, false, edge_color, edge_opa);
 }
 
 void draw_shell_front(const ShellView& view, lv_layer_t* layer, lv_point_t o) {
@@ -186,6 +202,15 @@ void draw_shell_front(const ShellView& view, lv_layer_t* layer, lv_point_t o) {
         float box[4];
         front_part_box(b, part, view.spool_size, lane_x, box);
         fill_box(layer, o, box[0], box[1], box[2], box[3], part.color, part.radius);
+        // A unit of boxes stands in a tray: its bands run on back along the right side.
+        if (shell.lid_color && part.anchor == FrontAnchor::Span) {
+            const float dx = kDepthSkew * b.depth;
+            const PointF side[4] = {{box[2], box[1]},
+                                    {box[2], box[3]},
+                                    {box[2] + dx, box[3] - b.rise},
+                                    {box[2] + dx, box[1] - b.rise}};
+            fill_convex(layer, o, side, 4, lv_color_hex(part.color), LV_OPA_COVER);
+        }
     };
     for (int p = 0; p < shell.front_n; ++p) {
         const FrontPart& part = shell.front[p];

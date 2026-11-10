@@ -56,8 +56,9 @@
     <lv_obj name="slot_container" width="1" height="content" flex_grow="1" style_pad_all="0" scrollable="false">
       <!-- Slot Grid — back wall of 3D tray drawn via DRAW_MAIN callback on this object -->
       <lv_obj name="slot_grid"
-              width="100%" height="content" style_pad_all="0" style_pad_row="0" style_pad_column="0" flex_flow="row"
-              style_flex_main_place="start" style_flex_cross_place="start" scrollable="false">
+              width="100%" height="content" style_pad_all="0" style_pad_bottom="#space_xs" style_pad_row="0"
+              style_pad_column="0" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="start"
+              scrollable="false">
         <!-- Slots created dynamically by ams_detail_create_slots() -->
       </lv_obj>
       <!-- Labels Layer - renders on top of overlapping slots for 5+ gates -->

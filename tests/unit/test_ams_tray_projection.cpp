@@ -401,14 +401,14 @@ TEST_CASE("lane badge: on the front face, inside the lane's bay", "[ams][tray][b
     SECTION("a wide pitch puts it at the lane's front bottom-right") {
         const PointF p = lane_badge_origin(b, 100, 40, 20, 20, 2);
         CHECK(p.x == Approx(118));
-        CHECK(p.y == Approx(104));
+        CHECK(p.y == Approx(102));
         CHECK(p.y + 20 <= b.fb);
         CHECK(p.y >= b.ft);
     }
     SECTION("a tight pitch centers it on the lane") {
         const PointF p = lane_badge_origin(b, 100, 6, 16, 16, 2);
         CHECK(p.x == Approx(92));
-        CHECK(p.y == Approx(108));
+        CHECK(p.y == Approx(106));
     }
     SECTION("a badge taller than the face keeps to its top, never below the box") {
         TrayBox low = b;

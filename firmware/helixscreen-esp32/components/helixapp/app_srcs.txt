@@ -819,6 +819,7 @@ src/ui/home/ui_tile_edit_callout.cpp
 src/ui/components/ui_hsv_picker.cpp
 src/ui/components/ui_progress_bar.cpp
 src/ui/filament/ui_ams_detail.cpp
+src/ui/filament/ui_ams_detail_tray.cpp
 src/system/helix_paths.cpp
 src/printer/filament_slot_override_store.cpp
 src/printer/filament_temperature_source.cpp
