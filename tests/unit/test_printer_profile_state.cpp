@@ -338,19 +338,15 @@ TEST_CASE("Print Tune shows exactly the label for the resolved z-offset tune hin
         {"z_offset_help_text_per_head", static_cast<int>(ZOffsetTuneHint::AUTO_SAVED_PER_HEAD)},
     };
 
-    for (const char* path :
-         {"ui_xml/print_tune_panel.xml", "ui_xml/portrait/print_tune_panel.xml"}) {
-        INFO(path);
-        const auto values = tune_hint_label_values(path);
-        CHECK(values == expected);
+    const auto values = tune_hint_label_values("ui_xml/print_tune_panel.xml");
+    CHECK(values == expected);
 
-        // On the U1 the tool-change label is the only one left visible.
-        std::vector<std::string> visible;
-        for (const auto& [name, value] : values) {
-            if (value == u1_hint) {
-                visible.push_back(name);
-            }
+    // On the U1 the tool-change label is the only one left visible.
+    std::vector<std::string> visible;
+    for (const auto& [name, value] : values) {
+        if (value == u1_hint) {
+            visible.push_back(name);
         }
-        CHECK(visible == std::vector<std::string>{"z_offset_help_text_tool_change"});
     }
+    CHECK(visible == std::vector<std::string>{"z_offset_help_text_tool_change"});
 }

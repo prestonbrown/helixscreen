@@ -3,6 +3,15 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Controls Panel Dashboard V3 - Position card + 70/30 bottom layout -->
 <component>
+  <subjects>
+    <!-- The 480x272 class (landscape, MICRO tier, not ultrawide). It keeps a denser
+         dashboard: tighter padding, plain-case headings, smaller buttons, and
+         Quad Gantry Level / Z-Tilt as Quick Actions instead of calibration
+         tiles. Widgets that differ there take state user_3, and the *_micro
+         styles below select on it: a state-selected style outranks the local
+         attributes the base layout sets (ui_card pads itself locally). -->
+    <subject_expr name="controls_micro" expr="ui_breakpoint eq 0 and ui_is_portrait eq 0 and ui_is_ultrawide eq 0"/>
+  </subjects>
   <styles>
     <!-- Motion goes inline where the position row is too short to stack -->
     <style name="motion_stacked" flex_flow="column" layout="flex" pad_row="#space_xs"/>
@@ -40,6 +49,26 @@
          a shorter row, which leaves the Calibration card room for labels -->
     <style name="action_row_landscape" height="#button_height"/>
     <style name="action_row_portrait" height="#controls_action_row_portrait"/>
+    <!-- 480x272 overrides, applied in state user_3 (see controls_micro) -->
+    <style name="root_micro" pad_all="#space_xs" pad_gap="#space_xs"/>
+    <style name="gap_micro" pad_gap="#space_xs"/>
+    <style name="top_row_micro" height="50%" pad_gap="#space_xs"/>
+    <style name="card_micro" pad_all="#space_xs"/>
+    <style name="temps_card_micro" pad_all="#space_xs" pad_gap="#space_md" flex_main_place="start"/>
+    <style name="cooling_card_micro" pad_all="#space_xs" pad_gap="0"/>
+    <style name="calib_card_micro" pad_all="#space_xs" border_width="0" flex_grow="2"/>
+    <style name="action_row_micro" height="#button_height_sm"/>
+    <style name="motion_label_micro" text_font="#font_small" text_color="#text"/>
+    <!-- The fan readout moves under the slider -->
+    <style name="fan_row_micro" flex_flow="column" flex_track_place="center" pad_all="0" pad_gap="0"/>
+    <style name="fan_slider_micro"
+           width="80%" height="#space_lg" radius="#space_md" margin_left="#space_md" margin_right="#space_sm"
+           flex_grow="0"/>
+    <style name="fan_readout_micro" width="80%" text_align="right"/>
+    <style name="home_label_micro" min_width="0"/>
+    <!-- A state style would outrank the button's pressed and disabled looks, so
+         the unhomed colour switches by condition instead -->
+    <style name="home_btn_unhomed_micro" bg_color="#card_bg"/>
     <!-- Homing indicator styles for Position card -->
     <style name="indicator_homed" bg_color="#success"/>
     <style name="indicator_unhomed" bg_color="#text_muted"/>
@@ -52,11 +81,15 @@
         style_bg_color="#screen_bg" style_pad_gap="#space_md" scrollable="false">
     <!-- Disable all controls when printer not connected or klippy not ready -->
     <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+    <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+    <style name="root_micro" selector="user_3"/>
     <!-- Row 1: Position card | Temps + Cooling (styles above pick the axis per orientation) -->
     <!-- An explicit height instead of flex-grow avoids the LVGL hidden-object bug -->
     <lv_obj width="100%" style_pad_all="0" style_pad_gap="#space_md" scrollable="false">
       <bind_style_if_eq name="top_row_landscape" subject="ui_is_portrait" ref_value="0"/>
       <bind_style_if_eq name="top_row_portrait" subject="ui_is_portrait" ref_value="1"/>
+      <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+      <style name="top_row_micro" selector="user_3"/>
       <!-- Card 1: Position (Toolhead Position + Motion) -->
       <lv_obj width="40%" style_pad_all="0" scrollable="false">
         <bind_style_if_eq name="top_card_landscape" subject="ui_is_portrait" ref_value="0"/>
@@ -64,13 +97,20 @@
         <ui_card name="card_position"
                  width="100%" height="100%" flex_flow="column" style_flex_main_place="space_between"
                  style_radius="#border_radius" style_pad_all="#space_sm" scrollable="false" clickable="true">
+          <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+          <style name="card_micro" selector="user_3"/>
           <event_cb trigger="clicked" callback="on_controls_quick_actions"/>
           <!-- Header -->
           <lv_obj flex_flow="row"
                   style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="0"
                   style_pad_gap="#space_sm" clickable="false">
             <icon src="axis_arrow" size="sm" variant="primary"/>
-            <text_small text="Position" text_transform="uppercase" style_translate_y="2" style_text_color="#text"/>
+            <text_small text="Position" text_transform="uppercase" style_translate_y="2" style_text_color="#text">
+              <bind_flag_if cond="controls_micro eq 1" flag="hidden"/>
+            </text_small>
+            <text_small text="Position" style_translate_y="2" style_text_color="#text" hidden="true">
+              <bind_flag_if cond="controls_micro eq 0" flag="hidden"/>
+            </text_small>
           </lv_obj>
           <!-- Position display with homing indicators -->
           <!-- Split into static label + dynamic value for proper alignment with proportional fonts -->
@@ -116,7 +156,12 @@
                     style_margin_top="#space_sm" clickable="true" scrollable="false" style_radius="#border_radius">
               <style name="styles.press_wash" selector="pressed"/>
               <event_cb trigger="clicked" callback="on_zoffset_tune"/>
-              <text_muted width="content" text="Z-Offset:"/>
+              <text_muted width="content" text="Z-Offset:">
+                <bind_flag_if cond="controls_micro eq 1" flag="hidden"/>
+              </text_muted>
+              <text_muted width="content" text="Z-Off:" hidden="true">
+                <bind_flag_if cond="controls_micro eq 0" flag="hidden"/>
+              </text_muted>
               <text_body bind_text="controls_z_offset" flex_grow="1" style_text_align="right"/>
               <icon src="chevron_right" size="xs" variant="secondary"/>
             </lv_obj>
@@ -139,6 +184,8 @@
                   style_pad_gap="#space_xs" scrollable="false">
             <bind_style_if_eq name="action_row_landscape" subject="ui_is_portrait" ref_value="0"/>
             <bind_style_if_eq name="action_row_portrait" subject="ui_is_portrait" ref_value="1"/>
+            <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+            <style name="action_row_micro" selector="user_3"/>
             <!-- Icon over label like Motors Off beside it, so the icons share a line
                  and the labels the next; inline where Motors Off is icon-only. -->
             <ui_button name="btn_motion"
@@ -156,6 +203,8 @@
                       src="cursor_move" size="#controls_toggle_icon_size" clickable="false" event_bubble="true"/>
                 <text_tiny text="Motion" clickable="false" event_bubble="true">
                   <bind_style_if name="motion_label_inline" cond="ui_breakpoint le 1 or ui_is_portrait eq 1"/>
+                  <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+                  <style name="motion_label_micro" selector="user_3"/>
                 </text_tiny>
               </lv_obj>
               <event_cb trigger="clicked" callback="on_controls_quick_actions"/>
@@ -178,12 +227,22 @@
                  width="100%" height="100%" flex_flow="column" style_flex_main_place="space_between"
                  style_pad_gap="#space_xxs" style_flex_cross_place="center" style_radius="#border_radius"
                  style_pad_all="#space_sm" scrollable="false" clickable="true">
+          <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+          <style name="temps_card_micro" selector="user_3"/>
           <event_cb trigger="clicked" callback="on_nozzle_temp_clicked"/>
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
                   style_pad_gap="#space_sm" scrollable="false" clickable="false">
+            <bind_flag_if cond="controls_micro eq 1" flag="hidden"/>
             <icon src="thermometer" size="sm" variant="primary"/>
             <text_small text="Temperature" text_transform="uppercase" style_translate_y="2" style_text_color="#text"/>
+          </lv_obj>
+          <lv_obj width="100%"
+                  height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
+                  style_pad_gap="#space_sm" scrollable="false" clickable="false" hidden="true">
+            <bind_flag_if cond="controls_micro eq 0" flag="hidden"/>
+            <icon src="thermometer" size="sm" variant="secondary"/>
+            <text_small text="Temperatures" style_translate_y="2" style_text_color="#text"/>
           </lv_obj>
           <!-- Nozzle section (clickable) -->
           <lv_obj name="btn_nozzle_temp"
@@ -196,11 +255,11 @@
                     height="content" flex_flow="row" style_pad_all="0" scrollable="false"
                     style_flex_cross_place="center" clickable="false" event_bubble="true">
               <bind_style_if_eq name="temp_row_gap_tiny" subject="ui_breakpoint" ref_value="1"/>
-              <bind_style_if_ge name="temp_row_gap_standard" subject="ui_breakpoint" ref_value="2"/>
+              <bind_style_if name="temp_row_gap_standard" cond="ui_breakpoint ge 2 or controls_micro eq 1"/>
               <icon name="nozzle_icon_glyph"
                     src="heater" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
               <text_small bind_text="controls_nozzle_label">
-                <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+                <bind_flag_if cond="ui_breakpoint eq 1 or controls_micro eq 1" flag="hidden"/>
               </text_small>
               <temp_display name="nozzle_temp_display"
                             size="md" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"
@@ -219,6 +278,7 @@
           <lv_obj name="nozzle_status"
                   width="100%" height="content" flex_flow="row" style_flex_main_place="end" style_pad_all="0"
                   scrollable="false" clickable="false">
+            <bind_flag_if cond="controls_micro eq 1" flag="hidden"/>
             <!-- Hidden on TINY screens (breakpoint 0) -->
             <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
             <!-- A portrait half-width card has no height for a status line under each row -->
@@ -236,10 +296,10 @@
                     height="content" flex_flow="row" style_pad_all="0" scrollable="false"
                     style_flex_cross_place="center" clickable="false" event_bubble="true">
               <bind_style_if_eq name="temp_row_gap_tiny" subject="ui_breakpoint" ref_value="1"/>
-              <bind_style_if_ge name="temp_row_gap_standard" subject="ui_breakpoint" ref_value="2"/>
+              <bind_style_if name="temp_row_gap_standard" cond="ui_breakpoint ge 2 or controls_micro eq 1"/>
               <heater_icon src="radiator" glyph_name="bed_icon_glyph" size="xs"/>
               <text_small text="Bed">
-                <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+                <bind_flag_if cond="ui_breakpoint eq 1 or controls_micro eq 1" flag="hidden"/>
               </text_small>
               <temp_display name="bed_temp_display"
                             size="md" show_target="true" bind_current="bed_temp" bind_target="bed_target"
@@ -258,6 +318,7 @@
           <lv_obj name="bed_status"
                   width="100%" height="content" flex_flow="row" style_flex_main_place="end" style_pad_all="0"
                   scrollable="false" clickable="false">
+            <bind_flag_if cond="controls_micro eq 1" flag="hidden"/>
             <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
             <!-- A portrait half-width card has no height for a status line under each row -->
             <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="1"/>
@@ -275,10 +336,10 @@
                     height="content" flex_flow="row" style_pad_all="0" scrollable="false"
                     style_flex_cross_place="center" clickable="false" event_bubble="true">
               <bind_style_if_eq name="temp_row_gap_tiny" subject="ui_breakpoint" ref_value="1"/>
-              <bind_style_if_ge name="temp_row_gap_standard" subject="ui_breakpoint" ref_value="2"/>
+              <bind_style_if name="temp_row_gap_standard" cond="ui_breakpoint ge 2 or controls_micro eq 1"/>
               <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="xs"/>
               <text_small text="Chamb:" clickable="false" event_bubble="true">
-                <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+                <bind_flag_if cond="ui_breakpoint eq 1 or controls_micro eq 1" flag="hidden"/>
               </text_small>
               <temp_display name="chamber_temp_display"
                             size="md" show_target="true" bind_current="chamber_temp"
@@ -298,6 +359,7 @@
           <lv_obj name="chamber_status"
                   width="100%" height="content" flex_flow="row" style_flex_main_place="end" style_pad_all="0"
                   scrollable="false" clickable="false">
+            <bind_flag_if cond="controls_micro eq 1" flag="hidden"/>
             <!-- Hidden on TINY screens (breakpoint 0) and when printer has no chamber -->
             <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
             <!-- A portrait half-width card has no height for a status line under each row -->
@@ -327,12 +389,19 @@
                  width="100%" height="100%" flex_flow="column" style_flex_main_place="start"
                  style_flex_cross_place="center" style_radius="#border_radius" style_pad_all="#space_sm"
                  scrollable="false" clickable="true">
+          <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+          <style name="cooling_card_micro" selector="user_3"/>
           <event_cb trigger="clicked" callback="on_controls_cooling"/>
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
                   style_pad_gap="#space_sm" scrollable="false" clickable="false">
             <icon name="fan_icon" src="fan" size="sm" variant="primary"/>
-            <text_small text="Cooling" text_transform="uppercase" style_translate_y="2" style_text_color="#text"/>
+            <text_small text="Cooling" text_transform="uppercase" style_translate_y="2" style_text_color="#text">
+              <bind_flag_if cond="controls_micro eq 1" flag="hidden"/>
+            </text_small>
+            <text_small text="Cooling" style_translate_y="2" style_text_color="#text" hidden="true">
+              <bind_flag_if cond="controls_micro eq 0" flag="hidden"/>
+            </text_small>
           </lv_obj>
           <!-- Part cooling hero section -->
           <text_small width="100%" text="Part Fan" style_margin_top="#space_sm"/>
@@ -342,11 +411,17 @@
                   scrollable="false" clickable="false">
             <bind_style_if_eq name="slider_container_compact" subject="ui_breakpoint" ref_value="1"/>
             <bind_style_if_ge name="slider_container_standard" subject="ui_breakpoint" ref_value="2"/>
+            <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+            <style name="fan_row_micro" selector="user_3"/>
             <lv_slider name="part_fan_slider" flex_grow="1" bind_value="controls_fan_pct" min_value="0" max_value="100">
               <bind_style_if_eq name="slider_compact" subject="ui_breakpoint" ref_value="1"/>
+              <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+              <style name="fan_slider_micro" selector="user_3"/>
               <event_cb trigger="value_changed" callback="on_controls_fan_slider"/>
             </lv_slider>
             <text_body name="fan_speed_display" width="content" bind_text="controls_fan_speed">
+              <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+              <style name="fan_readout_micro" selector="user_3"/>
               <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
             </text_body>
           </lv_obj>
@@ -363,17 +438,26 @@
     <!-- Row 2: Calibration & Tools (50%) | Quick Actions (50%) -->
     <!-- Using flex_grow here since Row 1 has explicit 55% height -->
     <lv_obj width="100%" flex_grow="1" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+      <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+      <style name="gap_micro" selector="user_3"/>
       <!-- Card 4: Calibration & Tools (50% width, 3x2 grid) -->
       <ui_card name="card_calibration"
                width="0" height="100%" flex_grow="3" flex_flow="column" style_flex_main_place="start"
                style_radius="#border_radius" style_pad_all="#space_sm" style_pad_gap="#space_xs" scrollable="false">
+        <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+        <style name="calib_card_micro" selector="user_3"/>
         <!-- Header Row -->
         <lv_obj width="100%"
                 height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
                 style_pad_gap="#space_sm">
           <icon src="wrench" size="sm" variant="primary"/>
           <text_small text="Calibration &amp; Tools"
-                      text_transform="uppercase" style_translate_y="2" style_text_color="#text"/>
+                      text_transform="uppercase" style_translate_y="2" style_text_color="#text">
+            <bind_flag_if cond="controls_micro eq 1" flag="hidden"/>
+          </text_small>
+          <text_small text="Calibration &amp; Tools" style_translate_y="2" style_text_color="#text" hidden="true">
+            <bind_flag_if cond="controls_micro eq 0" flag="hidden"/>
+          </text_small>
         </lv_obj>
         <!-- Calibration grid: one wrapping flow of tiles, so a hidden tile drops
              out and whatever is visible packs without gaps. Each layout pass
@@ -400,12 +484,12 @@
           <calib_tile icon="spirit_level"
                       label="QGL" callback="on_controls_qgl" button_name="btn_qgl" icon_name="btn_qgl_icon"
                       moves_machine="true" disabled_cond="controls_operation_in_progress eq 1" hidden="true">
-            <bind_flag_if cond="printer_has_qgl eq 0" flag="hidden"/>
+            <bind_flag_if cond="printer_has_qgl eq 0 or controls_micro eq 1" flag="hidden"/>
           </calib_tile>
           <calib_tile icon="spirit_level"
                       label="Z-Tilt" callback="on_controls_z_tilt" button_name="btn_z_tilt" icon_name="btn_z_tilt_icon"
                       moves_machine="true" disabled_cond="controls_operation_in_progress eq 1" hidden="true">
-            <bind_flag_if cond="printer_has_z_tilt eq 0" flag="hidden"/>
+            <bind_flag_if cond="printer_has_z_tilt eq 0 or controls_micro eq 1" flag="hidden"/>
           </calib_tile>
           <calib_tile icon="gauge"
                       label="Pressure Adv." callback="on_calibration_pa" button_name="btn_pa_cal"
@@ -423,25 +507,37 @@
       <ui_card name="card_quick_actions"
                width="0" height="100%" flex_grow="3" flex_flow="column" style_flex_main_place="space_between"
                style_radius="#border_radius" style_pad_all="#space_sm" scrollable="false">
-        <!-- Header (hidden when 2 rows of macro buttons visible to save space) -->
+        <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+        <style name="card_micro" selector="user_3"/>
+        <!-- Header (hidden when 2 rows of macro buttons visible to save space,
+             except at 480x272, which keeps it) -->
         <lv_obj flex_flow="row"
                 style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="0"
                 style_pad_gap="#space_sm">
-          <bind_flag_if_eq subject="macro_header_visible" flag="hidden" ref_value="0"/>
+          <bind_flag_if cond="macro_header_visible eq 0 and controls_micro eq 0" flag="hidden"/>
           <icon src="flash" size="sm" variant="primary"/>
-          <text_small text="Quick Actions" text_transform="uppercase" style_translate_y="2" style_text_color="#text"/>
+          <text_small text="Quick Actions" text_transform="uppercase" style_translate_y="2" style_text_color="#text">
+            <bind_flag_if cond="controls_micro eq 1" flag="hidden"/>
+          </text_small>
+          <text_small text="Quick Actions" style_translate_y="2" style_text_color="#text" hidden="true">
+            <bind_flag_if cond="controls_micro eq 0" flag="hidden"/>
+          </text_small>
         </lv_obj>
         <!-- Home row: label + segmented homing button bar -->
         <lv_obj width="100%"
                 height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
                 style_pad_gap="#space_xs">
-          <text_small text="Home" style_min_width="40"/>
+          <text_small text="Home" style_min_width="40">
+            <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+            <style name="home_label_micro" selector="user_3"/>
+          </text_small>
           <button_group flex_grow="1">
             <button_group_item name="btn_home_all"
                                width="0" style_min_width="content" style_pad_hor="#space_xs" text="All" flex_grow="1"
                                style_border_width="0" moves_machine="true">
               <bind_style name="home_btn_homed" subject="all_homed" ref_value="1"/>
-              <bind_style name="home_btn_unhomed" subject="all_homed" ref_value="0"/>
+              <bind_style_if name="home_btn_unhomed" cond="all_homed eq 0 and controls_micro eq 0"/>
+              <bind_style_if name="home_btn_unhomed_micro" cond="all_homed eq 0 and controls_micro eq 1"/>
               <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_home_all"/>
             </button_group_item>
@@ -449,7 +545,8 @@
                                width="0" style_min_width="content" style_pad_hor="#space_xs" text="X" flex_grow="1"
                                moves_machine="true">
               <bind_style name="home_btn_homed" subject="x_homed" ref_value="1"/>
-              <bind_style name="home_btn_unhomed" subject="x_homed" ref_value="0"/>
+              <bind_style_if name="home_btn_unhomed" cond="x_homed eq 0 and controls_micro eq 0"/>
+              <bind_style_if name="home_btn_unhomed_micro" cond="x_homed eq 0 and controls_micro eq 1"/>
               <bind_flag_if_eq subject="printer_has_individual_xyz_homing" flag="hidden" ref_value="0"/>
               <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_home_x"/>
@@ -458,7 +555,8 @@
                                width="0" style_min_width="content" style_pad_hor="#space_xs" text="Y" flex_grow="1"
                                moves_machine="true">
               <bind_style name="home_btn_homed" subject="y_homed" ref_value="1"/>
-              <bind_style name="home_btn_unhomed" subject="y_homed" ref_value="0"/>
+              <bind_style_if name="home_btn_unhomed" cond="y_homed eq 0 and controls_micro eq 0"/>
+              <bind_style_if name="home_btn_unhomed_micro" cond="y_homed eq 0 and controls_micro eq 1"/>
               <bind_flag_if_eq subject="printer_has_individual_xyz_homing" flag="hidden" ref_value="0"/>
               <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_home_y"/>
@@ -467,7 +565,8 @@
                                width="0" style_min_width="content" style_pad_hor="#space_xs" text="XY" flex_grow="1"
                                moves_machine="true">
               <bind_style name="home_btn_homed" subject="xy_homed" ref_value="1"/>
-              <bind_style name="home_btn_unhomed" subject="xy_homed" ref_value="0"/>
+              <bind_style_if name="home_btn_unhomed" cond="xy_homed eq 0 and controls_micro eq 0"/>
+              <bind_style_if name="home_btn_unhomed_micro" cond="xy_homed eq 0 and controls_micro eq 1"/>
               <bind_flag_if_eq subject="printer_has_individual_xyz_homing" flag="hidden" ref_value="0"/>
               <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_home_xy"/>
@@ -476,129 +575,102 @@
                                width="0" style_min_width="content" style_pad_hor="#space_xs" text="Z" flex_grow="1"
                                moves_machine="true">
               <bind_style name="home_btn_homed" subject="z_homed" ref_value="1"/>
-              <bind_style name="home_btn_unhomed" subject="z_homed" ref_value="0"/>
+              <bind_style_if name="home_btn_unhomed" cond="z_homed eq 0 and controls_micro eq 0"/>
+              <bind_style_if name="home_btn_unhomed_micro" cond="z_homed eq 0 and controls_micro eq 1"/>
               <bind_flag_if_eq subject="printer_has_individual_xyz_homing" flag="hidden" ref_value="0"/>
               <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_home_z"/>
             </button_group_item>
           </button_group>
         </lv_obj>
-        <!-- Macro buttons grid -->
+        <!-- Macro buttons. The <if> has this container to itself because it
+             rebuilds when the layout tier changes. -->
         <lv_obj width="100%"
                 flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column" style_pad_gap="#space_xs"
                 style_flex_main_place="end">
-          <!-- Macro row 1: macro_1 + macro_2 -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_pad_gap="#space_xs">
-            <ui_button name="btn_macro_1"
-                       width="0" height="#button_height" style_pad_ver="0" flex_grow="1" bind_text="macro_1_name"
-                       variant="secondary" style_text_font="#font_small" long_mode="wrap" moves_machine="true">
-              <bind_flag_if_eq subject="macro_1_visible" flag="hidden" ref_value="0"/>
-              <!-- Two disable reasons that compose: moves_machine carries the
-                   job guard, this bind carries the availability half. -->
-              <bind_state_if cond="macro_1_available eq 0" state="disabled"/>
-              <event_cb trigger="clicked" callback="on_controls_macro" user_data="0"/>
-            </ui_button>
-            <!-- The light toggle, when this slot holds it (see resolve_quick_slots) -->
-            <lv_obj name="macro_1_light_cell"
-                    width="0" height="#button_height" flex_grow="1" style_pad_all="0" scrollable="false" hidden="true">
-              <bind_flag_if cond="macro_1_light eq 0 or led_controllable eq 0" flag="hidden"/>
-              <!-- DUPLICATE_NAME_OK: each slot cell hands itself to its own LedWidget, which finds light_button inside that cell -->
-              <ui_button name="light_button"
-                         width="100%" height="100%" style_pad_ver="0" variant="secondary" flex_flow="row"
-                         style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs"
-                         focusable="false">
-                <bind_state_if cond="printer_connection_state ne 2 or led_command_in_flight eq 1" state="disabled"/>
-                <!-- DUPLICATE_NAME_OK: found per cell by that cell's LedWidget -->
-                <icon name="light_icon"
-                      src="lightbulb_outline" size="sm" variant="muted" clickable="false" event_bubble="true"/>
-                <text_small text="Light" clickable="false" event_bubble="true"/>
-                <event_cb trigger="clicked" callback="light_toggle_cb"/>
+          <if cond="controls_micro eq 1">
+            <!-- 480x272: QGL / Z-Tilt (not calibration tiles here) and slot 1, then slots 2-4 -->
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_pad_gap="#space_xs">
+              <ui_button name="btn_qgl_quick"
+                         width="0" height="#button_height_sm" style_pad_ver="0" style_text_font="#font_small"
+                         flex_grow="1" text="Quad Gantry Level" variant="secondary" hidden="true" moves_machine="true">
+                <bind_flag_if_eq subject="printer_has_qgl" flag="hidden" ref_value="0"/>
+                <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
+                <event_cb trigger="clicked" callback="on_controls_qgl"/>
               </ui_button>
-            </lv_obj>
-            <ui_button name="btn_macro_2"
-                       width="0" height="#button_height" style_pad_ver="0" flex_grow="1" bind_text="macro_2_name"
-                       variant="secondary" style_text_font="#font_small" long_mode="wrap" moves_machine="true">
-              <bind_flag_if_eq subject="macro_2_visible" flag="hidden" ref_value="0"/>
-              <!-- Two disable reasons that compose: moves_machine carries the
-                   job guard, this bind carries the availability half. -->
-              <bind_state_if cond="macro_2_available eq 0" state="disabled"/>
-              <event_cb trigger="clicked" callback="on_controls_macro" user_data="1"/>
-            </ui_button>
-            <!-- The light toggle, when this slot holds it (see resolve_quick_slots) -->
-            <lv_obj name="macro_2_light_cell"
-                    width="0" height="#button_height" flex_grow="1" style_pad_all="0" scrollable="false" hidden="true">
-              <bind_flag_if cond="macro_2_light eq 0 or led_controllable eq 0" flag="hidden"/>
-              <!-- DUPLICATE_NAME_OK: each slot cell hands itself to its own LedWidget, which finds light_button inside that cell -->
-              <ui_button name="light_button"
-                         width="100%" height="100%" style_pad_ver="0" variant="secondary" flex_flow="row"
-                         style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs"
-                         focusable="false">
-                <bind_state_if cond="printer_connection_state ne 2 or led_command_in_flight eq 1" state="disabled"/>
-                <!-- DUPLICATE_NAME_OK: found per cell by that cell's LedWidget -->
-                <icon name="light_icon"
-                      src="lightbulb_outline" size="sm" variant="muted" clickable="false" event_bubble="true"/>
-                <text_small text="Light" clickable="false" event_bubble="true"/>
-                <event_cb trigger="clicked" callback="light_toggle_cb"/>
+              <ui_button name="btn_z_tilt_quick"
+                         width="0" height="#button_height_sm" style_pad_ver="0" style_text_font="#font_small"
+                         flex_grow="1" text="Z-Tilt Adjust" variant="secondary" hidden="true" moves_machine="true">
+                <bind_flag_if_eq subject="printer_has_z_tilt" flag="hidden" ref_value="0"/>
+                <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
+                <event_cb trigger="clicked" callback="on_controls_z_tilt"/>
               </ui_button>
+              <quick_action_slot button_name="btn_macro_1"
+                                 name_subject="macro_1_name" visible_subject="macro_1_visible"
+                                 unavailable_cond="macro_1_available eq 0" user_data="0"
+                                 light_cell_name="macro_1_light_cell"
+                                 light_hidden_cond="macro_1_light eq 0 or led_controllable eq 0"
+                                 empty_cond="macro_1_visible eq 0 and (macro_1_light eq 0 or led_controllable eq 0)"
+                                 button_height="#button_height_sm" button_font="#font_body"/>
             </lv_obj>
-          </lv_obj>
-          <!-- Macro row 2: macro_3 + macro_4 -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_pad_gap="#space_xs">
-            <ui_button name="btn_macro_3"
-                       width="0" height="#button_height" style_pad_ver="0" flex_grow="1" bind_text="macro_3_name"
-                       variant="secondary" style_text_font="#font_small" long_mode="wrap" moves_machine="true">
-              <bind_flag_if_eq subject="macro_3_visible" flag="hidden" ref_value="0"/>
-              <!-- Two disable reasons that compose: moves_machine carries the
-                   job guard, this bind carries the availability half. -->
-              <bind_state_if cond="macro_3_available eq 0" state="disabled"/>
-              <event_cb trigger="clicked" callback="on_controls_macro" user_data="2"/>
-            </ui_button>
-            <!-- The light toggle, when this slot holds it (see resolve_quick_slots) -->
-            <lv_obj name="macro_3_light_cell"
-                    width="0" height="#button_height" flex_grow="1" style_pad_all="0" scrollable="false" hidden="true">
-              <bind_flag_if cond="macro_3_light eq 0 or led_controllable eq 0" flag="hidden"/>
-              <!-- DUPLICATE_NAME_OK: each slot cell hands itself to its own LedWidget, which finds light_button inside that cell -->
-              <ui_button name="light_button"
-                         width="100%" height="100%" style_pad_ver="0" variant="secondary" flex_flow="row"
-                         style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs"
-                         focusable="false">
-                <bind_state_if cond="printer_connection_state ne 2 or led_command_in_flight eq 1" state="disabled"/>
-                <!-- DUPLICATE_NAME_OK: found per cell by that cell's LedWidget -->
-                <icon name="light_icon"
-                      src="lightbulb_outline" size="sm" variant="muted" clickable="false" event_bubble="true"/>
-                <text_small text="Light" clickable="false" event_bubble="true"/>
-                <event_cb trigger="clicked" callback="light_toggle_cb"/>
-              </ui_button>
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_pad_gap="#space_xs">
+              <quick_action_slot button_name="btn_macro_2"
+                                 name_subject="macro_2_name" visible_subject="macro_2_visible"
+                                 unavailable_cond="macro_2_available eq 0" user_data="1"
+                                 light_cell_name="macro_2_light_cell"
+                                 light_hidden_cond="macro_2_light eq 0 or led_controllable eq 0"
+                                 empty_cond="macro_2_visible eq 0 and (macro_2_light eq 0 or led_controllable eq 0)"
+                                 button_height="#button_height_sm" button_font="#font_body"/>
+              <quick_action_slot button_name="btn_macro_3"
+                                 name_subject="macro_3_name" visible_subject="macro_3_visible"
+                                 unavailable_cond="macro_3_available eq 0" user_data="2"
+                                 light_cell_name="macro_3_light_cell"
+                                 light_hidden_cond="macro_3_light eq 0 or led_controllable eq 0"
+                                 empty_cond="macro_3_visible eq 0 and (macro_3_light eq 0 or led_controllable eq 0)"
+                                 button_height="#button_height_sm" button_font="#font_body"/>
+              <quick_action_slot button_name="btn_macro_4"
+                                 name_subject="macro_4_name" visible_subject="macro_4_visible"
+                                 unavailable_cond="macro_4_available eq 0" user_data="3"
+                                 light_cell_name="macro_4_light_cell"
+                                 light_hidden_cond="macro_4_light eq 0 or led_controllable eq 0"
+                                 empty_cond="macro_4_visible eq 0 and (macro_4_light eq 0 or led_controllable eq 0)"
+                                 button_height="#button_height_sm" button_font="#font_body"/>
             </lv_obj>
-            <ui_button name="btn_macro_4"
-                       width="0" height="#button_height" style_pad_ver="0" flex_grow="1" bind_text="macro_4_name"
-                       variant="secondary" style_text_font="#font_small" long_mode="wrap" moves_machine="true">
-              <bind_flag_if_eq subject="macro_4_visible" flag="hidden" ref_value="0"/>
-              <!-- Two disable reasons that compose: moves_machine carries the
-                   job guard, this bind carries the availability half. -->
-              <bind_state_if cond="macro_4_available eq 0" state="disabled"/>
-              <event_cb trigger="clicked" callback="on_controls_macro" user_data="3"/>
-            </ui_button>
-            <!-- The light toggle, when this slot holds it (see resolve_quick_slots) -->
-            <lv_obj name="macro_4_light_cell"
-                    width="0" height="#button_height" flex_grow="1" style_pad_all="0" scrollable="false" hidden="true">
-              <bind_flag_if cond="macro_4_light eq 0 or led_controllable eq 0" flag="hidden"/>
-              <!-- DUPLICATE_NAME_OK: each slot cell hands itself to its own LedWidget, which finds light_button inside that cell -->
-              <ui_button name="light_button"
-                         width="100%" height="100%" style_pad_ver="0" variant="secondary" flex_flow="row"
-                         style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs"
-                         focusable="false">
-                <bind_state_if cond="printer_connection_state ne 2 or led_command_in_flight eq 1" state="disabled"/>
-                <!-- DUPLICATE_NAME_OK: found per cell by that cell's LedWidget -->
-                <icon name="light_icon"
-                      src="lightbulb_outline" size="sm" variant="muted" clickable="false" event_bubble="true"/>
-                <text_small text="Light" clickable="false" event_bubble="true"/>
-                <event_cb trigger="clicked" callback="light_toggle_cb"/>
-              </ui_button>
+            <else/>
+            <!-- Slots 1-2, then 3-4 -->
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_pad_gap="#space_xs">
+              <quick_action_slot button_name="btn_macro_1"
+                                 name_subject="macro_1_name" visible_subject="macro_1_visible"
+                                 unavailable_cond="macro_1_available eq 0" user_data="0"
+                                 light_cell_name="macro_1_light_cell"
+                                 light_hidden_cond="macro_1_light eq 0 or led_controllable eq 0"
+                                 empty_cond="macro_1_visible eq 0 and (macro_1_light eq 0 or led_controllable eq 0)"/>
+              <quick_action_slot button_name="btn_macro_2"
+                                 name_subject="macro_2_name" visible_subject="macro_2_visible"
+                                 unavailable_cond="macro_2_available eq 0" user_data="1"
+                                 light_cell_name="macro_2_light_cell"
+                                 light_hidden_cond="macro_2_light eq 0 or led_controllable eq 0"
+                                 empty_cond="macro_2_visible eq 0 and (macro_2_light eq 0 or led_controllable eq 0)"/>
             </lv_obj>
-          </lv_obj>
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_pad_gap="#space_xs">
+              <quick_action_slot button_name="btn_macro_3"
+                                 name_subject="macro_3_name" visible_subject="macro_3_visible"
+                                 unavailable_cond="macro_3_available eq 0" user_data="2"
+                                 light_cell_name="macro_3_light_cell"
+                                 light_hidden_cond="macro_3_light eq 0 or led_controllable eq 0"
+                                 empty_cond="macro_3_visible eq 0 and (macro_3_light eq 0 or led_controllable eq 0)"/>
+              <quick_action_slot button_name="btn_macro_4"
+                                 name_subject="macro_4_name" visible_subject="macro_4_visible"
+                                 unavailable_cond="macro_4_available eq 0" user_data="3"
+                                 light_cell_name="macro_4_light_cell"
+                                 light_hidden_cond="macro_4_light eq 0 or led_controllable eq 0"
+                                 empty_cond="macro_4_visible eq 0 and (macro_4_light eq 0 or led_controllable eq 0)"/>
+            </lv_obj>
+          </if>
         </lv_obj>
       </ui_card>
     </lv_obj>

@@ -168,12 +168,8 @@ struct InventoryFixture : public XMLTestFixture {
     /// Register the base components once, so a panel whose target widget sits
     /// inside a nested component still builds far enough to expose it.
     ///
-    /// The variant directories are deliberately excluded. LVGL names a component
-    /// by its FILE BASENAME, and eight names exist in both the base tree and a
-    /// variant, so registering ui_xml/micro/controls_panel.xml would silently
-    /// replace `controls_panel` for every build after it. Each row registers its
-    /// own file just before building, which is what makes a variant row get the
-    /// variant and a base row get the base.
+    /// Each row also registers its own file just before building, so a row
+    /// always builds the file it names.
     static void register_base_components() {
         if (!registered().empty())
             return;
@@ -308,7 +304,7 @@ TEST_CASE("the double-bind inventory is regenerated when ui_xml changes",
     // was generated from: adding a widget with two bindings on one property, or
     // removing one, moves these and forces a regeneration and a re-run.
     REQUIRE(std::size(kDoubleBindWidgets) + kUndrivableGroups == static_cast<size_t>(kTotalGroups));
-    REQUIRE(kTotalGroups == 77);
+    REQUIRE(kTotalGroups == 67);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a cond binding outlives a subject it reads without reading it",

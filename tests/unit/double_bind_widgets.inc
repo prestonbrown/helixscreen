@@ -34,19 +34,11 @@ static const BindGroup kDoubleBindWidgets[] = {
     {"components/move_preset_grid", "preset_front_right", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}, {"idle_timeout_printing", 0}}, 3, {{0, 1}, {1, 0}, {2, 1}}, 3, true},
     {"components/move_preset_grid", "move_park", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}, {"idle_timeout_printing", 0}}, 3, {{0, 1}, {1, 0}, {2, 1}}, 3, true},
     {"components/move_preset_grid", "move_motors_off", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
-    {"controls_panel", "chamber_status", BindKind::Flag, "hidden", {{"ui_breakpoint", 0}, {"printer_has_chamber", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
     {"controls_panel", "btn_home_all", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
     {"controls_panel", "btn_home_x", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
     {"controls_panel", "btn_home_y", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
     {"controls_panel", "btn_home_xy", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
     {"controls_panel", "btn_home_z", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"micro/controls_panel", "btn_home_all", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"micro/controls_panel", "btn_home_x", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"micro/controls_panel", "btn_home_y", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"micro/controls_panel", "btn_home_xy", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"micro/controls_panel", "btn_home_z", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"micro/controls_panel", "btn_qgl", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"micro/controls_panel", "btn_z_tilt", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
     {"motion_panel", "move_park", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}, {"idle_timeout_printing", 0}}, 3, {{0, 1}, {1, 0}, {2, 1}}, 3, true},
     {"motion_panel", "move_motors_off", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
     {"motion_panel", "btn_qgl", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
@@ -64,8 +56,8 @@ static const BindGroup kDoubleBindWidgets[] = {
 // clang-format on
 
 // Groups the scan found but that no test can drive; see the header comment.
-static constexpr int kUndrivableGroups = 34;
+static constexpr int kUndrivableGroups = 32;
 
 // Total groups in ui_xml/. A new double-bind widget moves this, which is the
 // point: it has to be regenerated and re-run rather than silently uncovered.
-static constexpr int kTotalGroups = 77;
+static constexpr int kTotalGroups = 67;
