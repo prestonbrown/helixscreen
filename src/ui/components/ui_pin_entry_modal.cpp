@@ -14,7 +14,6 @@
 #include "ui_modal.h"
 #include "ui_next_tick.h"
 #include "ui_open_instances.h"
-#include "ui_pin_utils.h"
 #include "ui_utils.h"
 
 #include "theme_manager.h"
@@ -108,7 +107,8 @@ bool PinEntryModal::create() {
     helix::ui::bring_to_front(backdrop_);
 
     // Create the dialog from XML component
-    dialog_ = static_cast<lv_obj_t*>(lv_xml_create(backdrop_, "pin_entry_modal", nullptr));
+    dialog_ =
+        static_cast<lv_obj_t*>(lv_xml_create(backdrop_, "pin_entry_modal", pin_display_.attrs()));
     if (!dialog_) {
         spdlog::error("[PinEntryModal] Failed to create pin_entry_modal from XML");
         uncover_chrome();
@@ -257,7 +257,7 @@ void PinEntryModal::on_cancel() {
 // ============================================================================
 
 void PinEntryModal::update_dots() {
-    update_pin_dots(dialog_, "pin_dot_", kMaxDigits, static_cast<int>(digit_buffer_.size()));
+    pin_display_.set_digit_count(static_cast<int>(digit_buffer_.size()));
 }
 
 void PinEntryModal::clear_digits() {
@@ -271,11 +271,11 @@ void PinEntryModal::clear_digits() {
 // ============================================================================
 
 void PinEntryModal::show_error(const char* text) {
-    show_pin_error(dialog_, "pin_error_label", text);
+    pin_display_.show_error(text);
 }
 
 void PinEntryModal::hide_error() {
-    hide_pin_error(dialog_, "pin_error_label");
+    pin_display_.hide_error();
 }
 
 // ============================================================================

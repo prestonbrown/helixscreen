@@ -2,69 +2,46 @@
 
 #include "ui_pin_utils.h"
 
-#include "theme_manager.h"
-
-#include <spdlog/spdlog.h>
-
-#include <cstdio>
-#include <lvgl.h>
-
 namespace helix::ui {
 
-void update_pin_dots(lv_obj_t* parent, const char* dot_prefix, int max_dots, int filled_count) {
-    if (!parent) {
-        return;
-    }
+namespace {
+// The error line is blank rather than empty, so it keeps its height.
+constexpr const char* kBlankError = " ";
+} // namespace
 
-    lv_color_t text_color = theme_manager_get_color("text");
-    lv_color_t muted_color = theme_manager_get_color("text_muted");
+PinDisplay::PinDisplay(const char* prefix) {
+    static unsigned next_id = 0;
+    const std::string base = std::string(prefix) + "_" + std::to_string(next_id++);
+    digits_name_ = base + "_digits";
+    error_name_ = base + "_error";
 
-    for (int i = 0; i < max_dots; i++) {
-        char name[32];
-        snprintf(name, sizeof(name), "%s%d", dot_prefix, i);
-        lv_obj_t* dot = lv_obj_find_by_name(parent, name);
-        if (!dot) {
-            spdlog::warn("[PinUtils] Dot widget '{}' not found", name);
-            continue;
-        }
+    lv_subject_init_int(&digits_, 0);
+    subjects_.publish(digits_name_.c_str(), &digits_);
+    lv_subject_init_string(&error_, error_buf_, nullptr, sizeof(error_buf_), kBlankError);
+    subjects_.publish(error_name_.c_str(), &error_);
 
-        if (i < filled_count) {
-            // Filled -- digit entered at this position
-            lv_obj_set_style_bg_color(dot, text_color, 0);
-            lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
-            lv_obj_set_style_border_width(dot, 0, 0);
-        } else {
-            // Empty -- not yet entered
-            lv_obj_set_style_bg_opa(dot, LV_OPA_TRANSP, 0);
-            lv_obj_set_style_border_width(dot, 2, 0);
-            lv_obj_set_style_border_color(dot, muted_color, 0);
-            lv_obj_set_style_border_opa(dot, LV_OPA_COVER, 0);
-        }
-    }
+    attrs_[0] = "digits_subject";
+    attrs_[1] = digits_name_.c_str();
+    attrs_[2] = "error_subject";
+    attrs_[3] = error_name_.c_str();
+    attrs_[4] = nullptr;
 }
 
-void show_pin_error(lv_obj_t* parent, const char* label_name, const char* text) {
-    if (!parent) {
-        return;
-    }
-    lv_obj_t* label = lv_obj_find_by_name(parent, label_name);
-    if (label) {
-        if (text) {
-            lv_label_set_text(label, text);
-        }
-        lv_obj_set_style_opa(label, LV_OPA_COVER, 0);
-    }
+PinDisplay::~PinDisplay() {
+    // Before the members holding the subjects go.
+    subjects_.deinit_all();
 }
 
-void hide_pin_error(lv_obj_t* parent, const char* label_name) {
-    if (!parent) {
-        return;
-    }
-    lv_obj_t* label = lv_obj_find_by_name(parent, label_name);
-    if (label) {
-        lv_label_set_text(label, " ");
-        lv_obj_set_style_opa(label, LV_OPA_TRANSP, 0);
-    }
+void PinDisplay::set_digit_count(int count) {
+    lv_subject_set_int(&digits_, count);
+}
+
+void PinDisplay::show_error(const char* text) {
+    lv_subject_copy_string(&error_, text);
+}
+
+void PinDisplay::hide_error() {
+    lv_subject_copy_string(&error_, kBlankError);
 }
 
 } // namespace helix::ui

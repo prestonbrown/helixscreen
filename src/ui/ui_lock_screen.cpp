@@ -5,7 +5,6 @@
 #include "ui_callback_helpers.h"
 #include "ui_event_safety.h"
 #include "ui_next_tick.h"
-#include "ui_pin_utils.h"
 #include "ui_utils.h"
 
 #include "lock_manager.h"
@@ -80,7 +79,8 @@ void LockScreenOverlay::create_overlay() {
     lv_obj_move_foreground(overlay_);
 
     // Instantiate the lock_screen XML component (defines background, card, keypad)
-    lv_xml_create(overlay_, "lock_screen", nullptr);
+    pin_display_ = std::make_unique<PinDisplay>("lock_pin");
+    lv_xml_create(overlay_, "lock_screen", pin_display_->attrs());
 
     clear_digits();
 
@@ -99,6 +99,7 @@ void LockScreenOverlay::destroy_overlay() {
         // LVGL's event linked list in lv_event_mark_deleted (#543).
         lv_obj_delete_async(overlay_);
         overlay_ = nullptr;
+        pin_display_.reset();
         digit_buffer_.clear();
         spdlog::debug("[LockScreen] Overlay destroyed");
     }
@@ -171,11 +172,13 @@ void LockScreenOverlay::on_confirm() {
 }
 
 // ============================================================================
-// Dot indicator updates (imperative — allowed exception for animation state)
+// Dot indicator updates
 // ============================================================================
 
 void LockScreenOverlay::update_dots() {
-    update_pin_dots(overlay_, "lock_dot_", kMaxDigits, static_cast<int>(digit_buffer_.size()));
+    if (pin_display_) {
+        pin_display_->set_digit_count(static_cast<int>(digit_buffer_.size()));
+    }
 }
 
 void LockScreenOverlay::clear_digits() {
@@ -190,11 +193,15 @@ void LockScreenOverlay::clear_digits() {
 // ============================================================================
 
 void LockScreenOverlay::show_error(const char* text) {
-    show_pin_error(overlay_, "lock_error_label", text);
+    if (pin_display_) {
+        pin_display_->show_error(text);
+    }
 }
 
 void LockScreenOverlay::hide_error() {
-    hide_pin_error(overlay_, "lock_error_label");
+    if (pin_display_) {
+        pin_display_->hide_error();
+    }
 }
 
 // ============================================================================

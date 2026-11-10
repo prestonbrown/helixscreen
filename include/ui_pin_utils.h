@@ -1,32 +1,52 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "subject_managed_panel.h"
+
 #include <lvgl.h>
+#include <string>
 
 namespace helix::ui {
 
 /**
- * Update PIN dot indicators -- set filled/empty style based on digit count.
- * @param parent       Parent object to search for dot children
- * @param dot_prefix   Name prefix, e.g. "lock_dot_" or "pin_dot_"
- * @param max_dots     Total number of dots (e.g. 6)
- * @param filled_count Number of dots to show as filled
+ * The dot row and error line of a PIN pad, as subjects its component binds.
+ *
+ * Each pad owns one and passes attrs() to lv_xml_create(), so the component's
+ * digits_subject and error_subject props name this instance's subjects and two
+ * pads alive at once (one closing while the next opens) never share state.
+ * The subjects die with the object.
  */
-void update_pin_dots(lv_obj_t* parent, const char* dot_prefix, int max_dots, int filled_count);
+class PinDisplay {
+  public:
+    /// @param prefix Names the subjects "<prefix>_<n>_digits" and "<prefix>_<n>_error",
+    ///               n unique per process.
+    explicit PinDisplay(const char* prefix);
 
-/**
- * Show an error message on a named label using opacity.
- * @param parent     Parent object containing the label
- * @param label_name Name of the label object (e.g. "lock_error_label")
- * @param text       Error text to display (if nullptr, keeps existing text)
- */
-void show_pin_error(lv_obj_t* parent, const char* label_name, const char* text);
+    ~PinDisplay();
 
-/**
- * Hide the error label by setting opacity to transparent and clearing text.
- * @param parent     Parent object containing the label
- * @param label_name Name of the label object
- */
-void hide_pin_error(lv_obj_t* parent, const char* label_name);
+    PinDisplay(const PinDisplay&) = delete;
+    PinDisplay& operator=(const PinDisplay&) = delete;
+
+    /// Prop list for lv_xml_create(): digits_subject, error_subject, nullptr.
+    const char** attrs() {
+        return attrs_;
+    }
+
+    /// Number of dots shown filled.
+    void set_digit_count(int count);
+    /// Show @p text on the error line.
+    void show_error(const char* text);
+    /// Blank the error line; it keeps its height.
+    void hide_error();
+
+  private:
+    SubjectManager subjects_;
+    lv_subject_t digits_{};
+    lv_subject_t error_{};
+    char error_buf_[128] = {};
+    std::string digits_name_;
+    std::string error_name_;
+    const char* attrs_[5] = {};
+};
 
 } // namespace helix::ui
