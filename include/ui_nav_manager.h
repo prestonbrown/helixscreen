@@ -634,6 +634,9 @@ class NavigationManager {
      */
     void trigger_add_printer();
 
+    /// Open or close the printer switch menu under the navbar's printer badge.
+    void toggle_printer_menu();
+
   private:
     // Private constructor/destructor for singleton
     NavigationManager() = default;

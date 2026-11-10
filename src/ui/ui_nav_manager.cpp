@@ -1718,6 +1718,10 @@ void NavigationManager::trigger_add_printer() {
     printer_badge_.trigger_add();
 }
 
+void NavigationManager::toggle_printer_menu() {
+    printer_badge_.toggle_menu();
+}
+
 void NavigationManager::deinit_subjects() {
     layout_rebuild_pending_ = false;
     layout_rebuild_retry_.cancel();
