@@ -20,13 +20,13 @@ AmsLoadingErrorModal::~AmsLoadingErrorModal() {
 }
 
 void AmsLoadingErrorModal::init_subjects() {
-    if (subjects_.has_subjects()) {
+    if (!names_.empty()) {
         return;
     }
     lv_subject_init_string(&message_subject_, message_buf_, nullptr, sizeof(message_buf_), "");
-    subjects_.publish("ams_loading_error_message", &message_subject_);
+    names_.publish(&message_subject_, "message_subject", "message");
     lv_subject_init_string(&hint_subject_, hint_buf_, nullptr, sizeof(hint_buf_), "");
-    subjects_.publish("ams_loading_error_hint", &hint_subject_);
+    names_.publish(&hint_subject_, "hint_subject", "hint");
 }
 
 // ============================================================================
@@ -48,7 +48,7 @@ bool AmsLoadingErrorModal::show(lv_obj_t* parent, const std::string& error_messa
     lv_subject_copy_string(&hint_subject_, hint_message.c_str());
 
     // Show the modal via Modal base class (buttons wired in on_show())
-    if (!Modal::show(parent)) {
+    if (!Modal::show(parent, names_.attrs())) {
         return false;
     }
 
@@ -80,7 +80,7 @@ void AmsLoadingErrorModal::on_show() {
     wire_ok_button("btn_primary");       // Retry
     wire_cancel_button("btn_secondary"); // Close (bottom)
     wire_cancel_button("btn_close");     // X button (top-right)
-    // The message and hint bind ams_loading_error_message / _hint.
+    // The message and hint bind this instance's subjects (the props show() passed).
 }
 
 void AmsLoadingErrorModal::on_hide() {

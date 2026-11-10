@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "subject_managed_panel.h"
+#include "instance_subjects.h"
 
 #include <lvgl.h>
 #include <string>
@@ -30,14 +30,12 @@ class PinDisplay {
     ///               n unique per process.
     explicit PinDisplay(const char* prefix);
 
-    ~PinDisplay();
-
     PinDisplay(const PinDisplay&) = delete;
     PinDisplay& operator=(const PinDisplay&) = delete;
 
     /// Prop list for lv_xml_create(): digits_subject, error_subject, nullptr.
     const char** attrs() {
-        return attrs_;
+        return names_.attrs();
     }
 
     /// Number of dots shown filled.
@@ -48,13 +46,10 @@ class PinDisplay {
     void hide_error();
 
   private:
-    SubjectManager subjects_;
     lv_subject_t digits_{};
     lv_subject_t error_{};
     char error_buf_[128] = {};
-    std::string digits_name_;
-    std::string error_name_;
-    const char* attrs_[5] = {};
+    helix::InstanceSubjects names_; ///< After the subjects it publishes
 };
 
 } // namespace helix::ui

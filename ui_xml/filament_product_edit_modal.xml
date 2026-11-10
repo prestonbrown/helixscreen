@@ -4,12 +4,18 @@
 <!-- Modal for adding / editing a user filament product (config/user_filaments.json). -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
+  <api>
+    <!-- FilamentProductEditModal's per-instance subjects. -->
+    <prop name="title_subject" type="string" default=""/>
+    <prop name="show_secondary_subject" type="string" default=""/>
+    <prop name="secondary_text_subject" type="string" default=""/>
+  </api>
   <view name="filament_product_edit_modal"
         extends="ui_dialog" width="85%" height="content" style_min_width="380" style_max_width="560" align="center"
         flex_flow="column" style_flex_main_place="start" style_pad_gap="0">
-    <!-- Header: title (Add / Edit, from filament_product_title) + close (X). -->
+    <!-- Header: title (Add / Edit, from title_subject) + close (X). -->
     <modal_header title="Edit Filament"
-                  title_subject="filament_product_title" hide_icon="true" hide_close="false"
+                  title_subject="$title_subject" hide_icon="true" hide_close="false"
                   close_callback="filament_product_close_cb"/>
     <divider_horizontal/>
 
@@ -81,9 +87,9 @@
     </lv_obj>
 
     <!-- Actions: secondary = Delete / Restore Defaults (hidden in Add mode), primary = Save -->
-    <modal_button_row secondary_text="@filament_product_secondary_text"
-                      secondary_show_subject="filament_product_show_secondary" secondary_variant="primary"
-                      secondary_callback="filament_product_secondary_cb" primary_text="Save"
+    <modal_button_row secondary_text="Delete"
+                      secondary_subject="$secondary_text_subject" secondary_show_subject="$show_secondary_subject"
+                      secondary_variant="primary" secondary_callback="filament_product_secondary_cb" primary_text="Save"
                       primary_callback="filament_product_save_cb"/>
   </view>
 </component>

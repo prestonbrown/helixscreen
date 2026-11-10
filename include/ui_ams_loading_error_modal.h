@@ -5,7 +5,7 @@
 
 #include "ui_modal.h"
 
-#include "subject_managed_panel.h"
+#include "instance_subjects.h"
 
 #include <functional>
 #include <string>
@@ -81,12 +81,13 @@ class AmsLoadingErrorModal : public Modal {
     void init_subjects();
 
     std::string error_message_;
-    // The message and hint the dialog binds (ams_loading_error_message/_hint).
-    SubjectManager subjects_;
+    // The message and hint the dialog binds, under names this instance alone
+    // publishes: AmsPanel and the standing-fault dialog each keep one alive.
     lv_subject_t message_subject_{};
     char message_buf_[512] = {};
     lv_subject_t hint_subject_{};
     char hint_buf_[256] = {};
+    helix::InstanceSubjects names_{"ams_loading_error"}; ///< After the subjects it publishes
     RetryCallback retry_callback_;
     DismissCallback dismiss_callback_;
     bool retry_in_progress_ = false; ///< Suppresses dismiss callback during retry

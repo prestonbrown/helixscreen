@@ -24,26 +24,11 @@ int key_digit(lv_event_t* e) {
     return name[len - 1] - '0';
 }
 
-PinDisplay::PinDisplay(const char* prefix) {
-    const std::string base = next_instance_prefix(prefix);
-    digits_name_ = base + "_digits";
-    error_name_ = base + "_error";
-
+PinDisplay::PinDisplay(const char* prefix) : names_(prefix) {
     lv_subject_init_int(&digits_, 0);
-    subjects_.publish(digits_name_.c_str(), &digits_);
+    names_.publish(&digits_, "digits_subject", "digits");
     lv_subject_init_string(&error_, error_buf_, nullptr, sizeof(error_buf_), kBlankError);
-    subjects_.publish(error_name_.c_str(), &error_);
-
-    attrs_[0] = "digits_subject";
-    attrs_[1] = digits_name_.c_str();
-    attrs_[2] = "error_subject";
-    attrs_[3] = error_name_.c_str();
-    attrs_[4] = nullptr;
-}
-
-PinDisplay::~PinDisplay() {
-    // Before the members holding the subjects go.
-    subjects_.deinit_all();
+    names_.publish(&error_, "error_subject", "error");
 }
 
 void PinDisplay::set_digit_count(int count) {
