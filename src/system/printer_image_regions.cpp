@@ -412,6 +412,9 @@ ImageRegions ImageTagSession::regions(int natural_w, int natural_h) const {
         });
         if (is_convex(window))
             r.windows.push_back(window);
+        else
+            spdlog::info("[PrinterImageRegions] tagged window corners do not bound an area; "
+                         "the window is left out");
     }
     return r;
 }
