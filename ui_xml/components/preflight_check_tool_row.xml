@@ -4,18 +4,25 @@
 <component>
   <!-- One row of the pre-flight check modal:
          [Tx label] [intended swatch] [→] [seated swatch | EMPTY label] [severity icon]
-       Colors, label texts, severity glyph/variant, and optional-child
-       visibility are set from C++ in PreflightCheckModal::on_show().
+       The tool label and which of swatch or EMPTY shows come in as props;
+       colors and the severity glyph/variant are set from C++ in
+       PreflightCheckModal::on_show().
        Everything visual (sizes, fonts, padding, borders, radii) lives here
        so it can be tuned without rebuilding. Modeled on
        filament_mapping_tool_row.xml. -->
+  <api>
+    <!-- Tool label: "T0", "T1", ... -->
+    <prop name="tool" type="string" default=""/>
+    <!-- "1" when the mapped slot holds filament: the seated swatch shows, else EMPTY -->
+    <prop name="seated" type="string" default="0"/>
+  </api>
   <view name="preflight_tool_row"
         extends="lv_obj" width="100%" height="content" flex_flow="row" style_flex_cross_place="center"
         style_pad_hor="#space_md" style_pad_ver="#space_sm" style_pad_gap="#space_md" style_radius="#space_sm"
         style_bg_color="#elevated_bg" style_bg_opa="255" scrollable="false" clickable="false">
     <!-- Tool index label ("T0", "T1", …). -->
     <lv_label name="tool_label"
-              text="" align="center" style_text_font="#font_body" style_text_color="#text" clickable="false"
+              text="$tool" align="center" style_text_font="#font_body" style_text_color="#text" clickable="false"
               event_bubble="true"/>
     <!-- Slicer-intended colour (painted from C++). -->
     <color_dot name="intended_swatch" size="#space_2xl" color="#text_muted"/>
@@ -25,11 +32,11 @@
               event_bubble="true"/>
     <!-- Actually-seated slot colour (painted from C++). Hidden when the
          mapped slot is empty/absent — the empty_label is shown instead. -->
-    <color_dot name="seated_swatch" size="#space_2xl" hidden="true"/>
+    <color_dot name="seated_swatch" size="#space_2xl" hidden_if_prop_not_eq="$seated|1"/>
     <!-- "EMPTY" label shown when the mapped slot has no filament. -->
     <lv_label name="empty_label"
-              hidden="true" text="EMPTY" style_text_font="#font_body" style_text_color="#warning" clickable="false"
-              event_bubble="true"/>
+              hidden_if_prop_eq="$seated|1" text="EMPTY" style_text_font="#font_body" style_text_color="#warning"
+              clickable="false" event_bubble="true"/>
     <!-- Severity glyph (✓ success / ⚠ warning / ✗ danger). Source + variant
          set from C++. Pushed to the trailing edge by flex_grow. -->
     <icon name="severity_icon" src="check" size="sm" variant="success" flex_grow="1" style_text_align="right"/>

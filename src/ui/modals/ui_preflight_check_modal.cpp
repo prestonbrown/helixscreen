@@ -83,6 +83,11 @@ PreflightCheckModal::PreflightCheckModal() {
     lv_subject_init_string(&fix_text_subject_, fix_text_buf_, nullptr, sizeof(fix_text_buf_), "");
     subjects_.publish("preflight_material_fix_shown", &fix_shown_subject_);
     subjects_.publish("preflight_material_fix_text", &fix_text_subject_);
+    lv_subject_init_int(&remap_shown_subject_, 0);
+    lv_subject_init_string(&explanation_subject_, explanation_buf_, nullptr,
+                           sizeof(explanation_buf_), "");
+    subjects_.publish("preflight_remap_shown", &remap_shown_subject_);
+    subjects_.publish("preflight_explanation", &explanation_subject_);
     static bool callback_registered = false;
     if (!callback_registered) {
         lv_xml_register_event_cb(nullptr, "on_preflight_set_material", on_set_material_cb);
@@ -144,13 +149,7 @@ void PreflightCheckModal::on_show() {
                                             static_cast<int>(result_.checks.size()));
     }
     const bool remap_supported = block == helix::printer::RemapBlock::None;
-    if (auto* remap_btn = find_widget("btn_tertiary")) {
-        if (remap_supported) {
-            lv_obj_remove_flag(remap_btn, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(remap_btn, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    lv_subject_set_int(&remap_shown_subject_, remap_supported ? 1 : 0);
 
     lv_obj_t* list = find_widget("preflight_tool_list");
     if (!list) {
@@ -160,7 +159,7 @@ void PreflightCheckModal::on_show() {
     build_rows(list);
 
     // Explanation line: describe the first blocking (empty-slot) check.
-    if (auto* explain = find_widget("preflight_explanation")) {
+    {
         const auto slots = AmsState::instance().collect_available_slots();
         std::string text;
         for (const auto& check : result_.checks) {
@@ -208,7 +207,7 @@ void PreflightCheckModal::on_show() {
         if (text.empty()) {
             text = lv_tr("Some filaments don't match the slicer's intent.");
         }
-        lv_label_set_text(explain, text.c_str());
+        lv_subject_copy_string(&explanation_subject_, text.c_str());
     }
 
     // A material the file names for an unset slot is one tap away; the slot's
@@ -243,14 +242,14 @@ lv_obj_t* PreflightCheckModal::create_tool_row(lv_obj_t* list, const helix::Tool
                                                const std::vector<helix::AvailableSlot>& slots) {
     // Component is registered under its filename (preflight_check_tool_row), not
     // its <view name>; lv_xml_create resolves by the registered name.
-    auto* row = static_cast<lv_obj_t*>(lv_xml_create(list, "preflight_check_tool_row", nullptr));
+    // The tool label and which of swatch or EMPTY shows ride the row's props.
+    const auto* seated = find_seated_slot(slots, check);
+    const bool has_filament = check.slot_present && seated && !seated->is_empty;
+    const std::string tool = helix::ui::tool_label(check.tool_index);
+    const char* attrs[] = {"tool", tool.c_str(), "seated", has_filament ? "1" : "0", nullptr};
+    auto* row = static_cast<lv_obj_t*>(lv_xml_create(list, "preflight_check_tool_row", attrs));
     if (!row) {
         return nullptr;
-    }
-
-    // Tool label "Tx".
-    if (auto* tool_label = helix::ui::find_required(row, "tool_label", get_name())) {
-        lv_label_set_text(tool_label, helix::ui::tool_label(check.tool_index).c_str());
     }
 
     // Intended (slicer) color swatch.
@@ -258,22 +257,12 @@ lv_obj_t* PreflightCheckModal::create_tool_row(lv_obj_t* list, const helix::Tool
         helix::ui::apply_swatch_color(intended, check.intended_color, "");
     }
 
-    // Seated swatch / EMPTY label. Look up the live slot by mapped_slot.
-    const auto* seated = find_seated_slot(slots, check);
-    auto* seated_swatch = helix::ui::find_required(row, "seated_swatch", get_name());
-    auto* empty_label = helix::ui::find_required(row, "empty_label", get_name());
-
-    if (check.slot_present && seated && !seated->is_empty) {
-        if (seated_swatch) {
+    // Seated swatch, painted from the live slot found by mapped_slot.
+    if (has_filament) {
+        if (auto* seated_swatch = helix::ui::find_required(row, "seated_swatch", get_name())) {
             helix::ui::apply_swatch_color(seated_swatch, seated->color_rgb,
                                           seated->multi_color_hexes,
                                           helix::ui::swatch_finish(seated->finish));
-            lv_obj_remove_flag(seated_swatch, LV_OBJ_FLAG_HIDDEN);
-        }
-    } else {
-        // Empty / absent slot — show the EMPTY label instead of a swatch.
-        if (empty_label) {
-            lv_obj_remove_flag(empty_label, LV_OBJ_FLAG_HIDDEN);
         }
     }
 

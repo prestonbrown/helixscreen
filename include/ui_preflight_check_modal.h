@@ -110,6 +110,10 @@ class PreflightCheckModal : public Modal {
     lv_subject_t fix_shown_subject_{};
     lv_subject_t fix_text_subject_{};
     char fix_text_buf_[96] = {0};
+    /// 1 when a remap can be carried out: Map Filament shows
+    lv_subject_t remap_shown_subject_{};
+    lv_subject_t explanation_subject_{};
+    char explanation_buf_[256] = {0};
 };
 
 } // namespace helix::ui

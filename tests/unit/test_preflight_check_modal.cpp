@@ -81,6 +81,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PreflightCheckModal renders one visible row
     // Bug 1: every tool check must produce a row. Zero rows means the row
     // component failed to resolve — the create-name/filename mismatch regressed.
     REQUIRE(lv_obj_get_child_count(list) == pf.checks.size());
+    // Each row names its tool; a tool with nothing seated shows EMPTY, no swatch.
+    for (uint32_t i = 0; i < pf.checks.size(); i++) {
+        lv_obj_t* row = lv_obj_get_child(list, i);
+        CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(row, "tool_label"))) ==
+              "T" + std::to_string(i));
+    }
+    lv_obj_t* empty_row = lv_obj_get_child(list, 2);
+    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(empty_row, "empty_label"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(lv_obj_find_by_name(empty_row, "seated_swatch"), LV_OBJ_FLAG_HIDDEN));
 
     // Bug 2: the list must actually occupy vertical space. A flex_grow child in a
     // content-sized parent collapses to zero height, hiding the rows even once
@@ -169,7 +178,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     helix::PreflightResult pf;
     pf.checks = {
-        make_check(0, 0xF5A623, "PETG", /*slot=*/5, false, helix::ToolCheck::Severity::EmptySlot)};
+        make_check(0, 0xF5A623, "PETG", /*slot=*/5, false, helix::ToolCheck::Severity::EmptySlot),
+        make_check(1, 0x2E8B57, "PLA", /*slot=*/0, true, helix::ToolCheck::Severity::Ok)};
 
     auto owned = std::make_unique<helix::ui::PreflightCheckModal>();
     auto* modal = owned.get();
@@ -184,6 +194,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(text.find("Night_Owl") == std::string::npos);
     CHECK(text.find("Lane 2") != std::string::npos);
     CHECK(text.find("Lane 6") == std::string::npos);
+    // A loaded lane's row shows its swatch instead of EMPTY.
+    lv_obj_t* loaded =
+        lv_obj_get_child(lv_obj_find_by_name(test_screen(), "preflight_tool_list"), 1);
+    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(loaded, "seated_swatch"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(lv_obj_find_by_name(loaded, "empty_label"), LV_OBJ_FLAG_HIDDEN));
 
     modal->hide();
     process_lvgl(50);
