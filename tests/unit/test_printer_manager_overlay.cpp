@@ -222,19 +222,15 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(lv_subject_get_int(editing) == 0);
     }
 
-    // A tap on the input itself keeps editing.
-    PrinterManagerOverlayTestAccess::start_name_edit(pm);
-    lv_obj_send_event(lv_obj_find_by_name(root, "pm_printer_name_input"), LV_EVENT_CLICKED,
-                      nullptr);
-    CHECK(lv_subject_get_int(editing) == 1);
-
-    // The keyboard's OK and cancel end the edit too.
+    // A tap on the input itself keeps editing; the keyboard's OK and cancel end it.
     lv_obj_t* input = lv_obj_find_by_name(root, "pm_printer_name_input");
-    lv_obj_send_event(input, LV_EVENT_READY, nullptr);
-    CHECK(lv_subject_get_int(editing) == 0);
-    PrinterManagerOverlayTestAccess::start_name_edit(pm);
-    lv_obj_send_event(input, LV_EVENT_CANCEL, nullptr);
-    CHECK(lv_subject_get_int(editing) == 0);
+    for (const lv_event_code_t ends : {LV_EVENT_READY, LV_EVENT_CANCEL}) {
+        PrinterManagerOverlayTestAccess::start_name_edit(pm);
+        lv_obj_send_event(input, LV_EVENT_CLICKED, nullptr);
+        CHECK(lv_subject_get_int(editing) == 1);
+        lv_obj_send_event(input, ends, nullptr);
+        CHECK(lv_subject_get_int(editing) == 0);
+    }
 
     destroy_printer_manager_overlay();
 }
