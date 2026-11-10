@@ -69,17 +69,14 @@ TEST_CASE_METHOD(XMLTestFixture, "A rising breakpoint registers the font tiers s
     const int rise = AssetManager::register_fonts_for_tier(to_int(UiBreakpoint::XXLarge));
     CHECK(AssetManager::registered_font_tier() == to_int(UiBreakpoint::XXLarge));
 
-    // Only the *additional* tiers, not the whole table again. The four gates
-    // above SMALL contribute 4 (medium) + 4 (large) + 5 (xlarge) + 13 (xxlarge)
-    // faces; update this number when a tier gains or loses a face.
-    //
-    // xxlarge went 7 -> 13 with the six high-DPI rungs (noto_sans_48/64,
-    // bold_48/64, light_32/40) that the UI scale factor steps up into.
-#if HELIX_MAX_FONT_TIER >= 6
-    CHECK(rise == 26);
-#else
-    CHECK(rise > 0);
-#endif
+    // Only the *additional* tiers, not the whole table again: the faces the
+    // registration table adds above SMALL.
+    const auto names_at = [](UiBreakpoint bp) {
+        return AssetManager::text_font_names_for_breakpoint(to_int(bp)).size();
+    };
+    REQUIRE(names_at(UiBreakpoint::XXLarge) > names_at(UiBreakpoint::Small));
+    CHECK(rise ==
+          static_cast<int>(names_at(UiBreakpoint::XXLarge) - names_at(UiBreakpoint::Small)));
 
     // One representative face per gate must now resolve.
     CHECK(lv_xml_get_font_silent(nullptr, "noto_sans_26") != nullptr); // medium gate

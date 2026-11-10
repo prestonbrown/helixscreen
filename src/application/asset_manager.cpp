@@ -186,7 +186,7 @@ int AssetManager::register_fonts_for_tier(int tier) {
         // its tier's ladder (ui_tile_rung.h).
         register_large_icon_fonts();
     }
-    for (int t = std::max(prev + 1, to_int(UiBreakpoint::Tiny)); t <= tier; ++t) {
+    for (int t = std::max<int>(prev + 1, to_int(UiBreakpoint::Tiny)); t <= tier; ++t) {
         registered += register_text_fonts(t);
     }
 
