@@ -1096,6 +1096,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker row names a spool by its filament na
     unnamed.vendor = "Polymaker";
     unnamed.material = "PLA";
     access.set_cached_spools({clear, white, unnamed});
+    SlotInfo linked = untracked_slot();
+    linked.spoolman_id = 13;
+    access.set_working_info(linked);
 
     // Medium renders compact single-line rows, Large the two-line rich rows.
     const UiBreakpoint bp = GENERATE(UiBreakpoint::Medium, UiBreakpoint::Large);
@@ -1130,6 +1133,19 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker row names a spool by its filament na
     CHECK(name_of(12) == "#12 Kingroon Basic PETG Clear");
     CHECK(name_of(13) == "#13 Kingroon Basic PETG White");
     CHECK(name_of(14) == "#14 Polymaker PLA");
+
+    // Only the linked spool's row is checked; a weight shows when Spoolman has one.
+    const auto shown = [&row_for](int spool_id, const char* name) {
+        return !lv_obj_has_flag(lv_obj_find_by_name(row_for(spool_id), name), LV_OBJ_FLAG_HIDDEN);
+    };
+    CHECK(shown(13, "selected_icon"));
+    CHECK_FALSE(shown(12, "selected_icon"));
+    const auto weight_of = [&row_for](int spool_id) {
+        return std::string(
+            lv_label_get_text(lv_obj_find_by_name(row_for(spool_id), "spool_weight")));
+    };
+    CHECK(weight_of(12) == "750g");
+    CHECK(weight_of(14).empty());
 
     // The row prints the filament name once, whatever the layout.
     const auto visible_text = [](lv_obj_t* root) {

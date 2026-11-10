@@ -14,6 +14,7 @@
 #include "ui_filament_catalog_picker.h"
 #include "ui_hsv_picker.h"
 #include "ui_nav.h"
+#include "ui_row_text.h"
 #include "ui_swatch.h"
 #include "ui_utils.h"
 
@@ -898,35 +899,30 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     const bool is_compact = bp <= UiBreakpoint::Medium;
     const char* flow = is_compact ? "row" : "column";
     const char* name_grow = is_compact ? "1" : "0";
-    const char* attrs_plain[] = {"detail_flow", flow, "name_grow", name_grow, nullptr, nullptr};
-    const char* attrs_current[] = {"detail_flow",      flow,    "name_grow", name_grow,
-                                   "hide_edit_pencil", "false", nullptr,     nullptr};
-
     for (const auto& spool : filtered) {
         // Tapping a row selects it, so the checked row and its check mark carry
         // one meaning only: the spool linked to this slot. No link, no mark.
         const bool is_current_spool =
             (working_info_.spoolman_id > 0 && spool.id == working_info_.spoolman_id);
-        lv_obj_t* item = static_cast<lv_obj_t*>(lv_xml_create(
-            spool_list, "spoolman_spool_item", is_current_spool ? attrs_current : attrs_plain));
+        char weight[32] = "";
+        if (spool.remaining_weight_g > 0) {
+            snprintf(weight, sizeof(weight), "%.0fg", spool.remaining_weight_g);
+        }
+        const char* hide = is_current_spool ? "false" : "true";
+        const char* attrs[] = {"detail_flow",      flow,   "name_grow",  name_grow,
+                               "hide_edit_pencil", hide,   "hide_check", hide,
+                               "weight",           weight, nullptr};
+        lv_obj_t* item =
+            static_cast<lv_obj_t*>(lv_xml_create(spool_list, "spoolman_spool_item", attrs));
         if (!item) {
             continue;
         }
 
         lv_obj_set_user_data(item, reinterpret_cast<void*>(static_cast<intptr_t>(spool.id)));
 
-        lv_obj_t* name_label = helix::ui::find_required(item, "spool_name", get_name());
-        if (name_label) {
-            const std::string name = "#" + std::to_string(spool.id) + " " + spool.display_name();
-            lv_label_set_text(name_label, name.c_str());
-        }
-
-        lv_obj_t* weight_label = helix::ui::find_required(item, "spool_weight", get_name());
-        if (weight_label && spool.remaining_weight_g > 0) {
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%.0fg", spool.remaining_weight_g);
-            lv_label_set_text(weight_label, buf);
-        }
+        helix::ui::set_row_label_text(
+            item, "spool_name",
+            ("#" + std::to_string(spool.id) + " " + spool.display_name()).c_str());
 
         lv_obj_t* swatch = helix::ui::find_required(item, "spool_swatch", get_name());
         if (swatch) {
@@ -941,15 +937,7 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
             lv_obj_remove_flag(item, LV_OBJ_FLAG_CLICKABLE);
         }
 
-        if (is_current_spool) {
-            lv_obj_set_state(item, LV_STATE_CHECKED, true);
-            lv_obj_t* check_icon = helix::ui::find_required(item, "selected_icon", get_name());
-            if (check_icon) {
-                lv_obj_remove_flag(check_icon, LV_OBJ_FLAG_HIDDEN);
-            }
-        } else {
-            lv_obj_set_state(item, LV_STATE_CHECKED, false);
-        }
+        lv_obj_set_state(item, LV_STATE_CHECKED, is_current_spool);
     }
 
     lv_subject_set_int(&picker_state_subject_, filtered.empty() ? 3 : 2);
