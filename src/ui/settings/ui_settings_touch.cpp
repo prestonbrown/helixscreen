@@ -22,17 +22,6 @@ namespace helix::settings {
 
 namespace {
 
-// The slider rows nest as: row > slider_container > slider, so the row is the
-// slider's grandparent.
-void sync_slider_value_label(lv_obj_t* slider, int value) {
-    lv_obj_t* row = lv_obj_get_parent(lv_obj_get_parent(slider));
-    if (!row)
-        return;
-    if (lv_obj_t* value_label = helix::ui::find_required(row, "value_label", "ui_settings_touch")) {
-        lv_label_set_text_fmt(value_label, "%d", value);
-    }
-}
-
 bool touch_calibration_applies() {
 #ifdef HELIX_DISPLAY_SDL
     return get_runtime_config()->is_test_mode();
@@ -80,7 +69,6 @@ void TouchSettingsOverlay::register_callbacks() {
          [](lv_event_t* e) {
              lv_obj_t* slider = lv_event_get_current_target_obj(e);
              int value = static_cast<int>(lv_slider_get_value(slider));
-             sync_slider_value_label(slider, value);
              // set_scroll_limit live-applies, so no restart prompt.
              InputSettingsManager::instance().set_scroll_limit(value);
          }},
@@ -88,7 +76,6 @@ void TouchSettingsOverlay::register_callbacks() {
          [](lv_event_t* e) {
              lv_obj_t* slider = lv_event_get_current_target_obj(e);
              int value = static_cast<int>(lv_slider_get_value(slider));
-             sync_slider_value_label(slider, value);
              // set_long_press_time live-applies, so no restart prompt.
              InputSettingsManager::instance().set_long_press_time(value);
          }},
@@ -169,8 +156,8 @@ void TouchSettingsOverlay::handle_touch_calibration_clicked() {
 }
 
 // Sliders capture their value at XML construction from the static `value`
-// prop, so push the persisted value on every activate. Toggle rows bind to
-// subjects directly and need no manual sync.
+// prop, so push the persisted value on every activate. The value readouts and
+// toggle rows bind their settings subjects and need no manual sync.
 void TouchSettingsOverlay::init_input_sliders() {
     if (!overlay_root_) {
         return;
@@ -185,7 +172,6 @@ void TouchSettingsOverlay::init_input_sliders() {
         }
         if (lv_obj_t* slider = helix::ui::find_required(row, "slider", get_name())) {
             lv_slider_set_value(slider, value, LV_ANIM_OFF);
-            sync_slider_value_label(slider, value);
         }
     };
 
