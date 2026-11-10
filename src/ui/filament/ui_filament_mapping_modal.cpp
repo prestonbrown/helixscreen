@@ -20,10 +20,8 @@
 
 namespace helix::ui {
 
-// Layout constants for dynamically created rows.
-// Rows are built in C++ (not XML components) because the number of rows
-// varies per file. lv_obj_add_event_cb and lv_label_set_text are used here
-// as allowed exceptions for dynamic content.
+// One tool row per tool in the file, each an XML component; the toggle row
+// above them is built in C++.
 namespace {
 constexpr int kToolLabelMinW = 32;
 constexpr lv_opa_t kSwatchBorderOpa = 30;
@@ -34,6 +32,8 @@ constexpr lv_opa_t kSwatchBorderOpa = 30;
 struct NoteSubjects {
     lv_subject_t text{};
     lv_subject_t visible{};
+    lv_subject_t auto_mode{}; ///< 1 while rows follow the auto color map
+
     char text_buf[512] = {};
     SubjectManager manager;
     bool initialized = false;
@@ -52,6 +52,7 @@ void init_note_subjects() {
     UI_MANAGED_SUBJECT_STRING_N(s.text, s.text_buf, sizeof(s.text_buf), "", "filament_mapping_note",
                                 s.manager);
     UI_MANAGED_SUBJECT_INT(s.visible, 0, "filament_mapping_note_visible", s.manager);
+    UI_MANAGED_SUBJECT_INT(s.auto_mode, 0, "filament_mapping_auto", s.manager);
     s.initialized = true;
     StaticSubjectRegistry::instance().register_deinit("FilamentMappingModal", []() {
         auto& n = note_subjects();
@@ -59,11 +60,51 @@ void init_note_subjects() {
         n.initialized = false;
     });
 }
+/// One row's three texts, as subjects the row owns: a tool name, material or
+/// lane label may begin with '#', which a component prop would resolve as a
+/// constant.
+struct MappingRowText {
+    char tool_buf[32];
+    char material_buf[64];
+    char slot_buf[128];
+    lv_subject_t tool{};
+    lv_subject_t material{};
+    lv_subject_t slot{};
+
+    MappingRowText(const std::string& tool_text, const std::string& material_text,
+                   const std::string& slot_text) {
+        std::snprintf(tool_buf, sizeof(tool_buf), "%s", tool_text.c_str());
+        std::snprintf(material_buf, sizeof(material_buf), "%s", material_text.c_str());
+        std::snprintf(slot_buf, sizeof(slot_buf), "%s", slot_text.c_str());
+        lv_subject_init_string(&tool, tool_buf, nullptr, sizeof(tool_buf), tool_buf);
+        lv_subject_init_string(&material, material_buf, nullptr, sizeof(material_buf),
+                               material_buf);
+        lv_subject_init_string(&slot, slot_buf, nullptr, sizeof(slot_buf), slot_buf);
+    }
+    ~MappingRowText() {
+        lv_subject_deinit(&tool);
+        lv_subject_deinit(&material);
+        lv_subject_deinit(&slot);
+    }
+    MappingRowText(const MappingRowText&) = delete;
+    MappingRowText& operator=(const MappingRowText&) = delete;
+};
+
+void free_row_text_cb(lv_event_t* e) {
+    delete static_cast<MappingRowText*>(lv_event_get_user_data(e));
+}
+
+void bind_row_label(lv_obj_t* row, const char* name, lv_subject_t* subject) {
+    if (lv_obj_t* label = lv_obj_find_by_name(row, name)) {
+        lv_label_bind_text(label, subject, nullptr);
+    }
+}
 } // namespace
 
 // The XML binds these at creation, so they must exist before show().
 FilamentMappingModal::FilamentMappingModal() {
     init_note_subjects();
+    lv_xml_register_event_cb(nullptr, "filament_mapping_row_cb", row_clicked_cb);
 }
 
 // ============================================================================
@@ -162,6 +203,7 @@ void FilamentMappingModal::rebuild_rows() {
     lv_subject_set_int(
         &note_subjects().visible,
         helix::printer::start_macro_note_shown(!start_macro_note_.empty(), mappings_) ? 1 : 0);
+    lv_subject_set_int(&note_subjects().auto_mode, auto_color_map_ ? 1 : 0);
     if (!tool_list_) {
         return;
     }
@@ -192,92 +234,61 @@ lv_obj_t* FilamentMappingModal::create_tool_row(int tool_index) {
     const auto& mapping = mappings_[static_cast<size_t>(tool_index)];
     const auto& tool = tool_info_[static_cast<size_t>(tool_index)];
 
-    // Row layout lives in ui_xml/components/filament_mapping_tool_row.xml;
-    // everything visual (sizes, padding, fonts, radii) is editable there
-    // without rebuilding. C++ only sets colors, label text, and show/hide
-    // on the conditional children (Tx label, material label, chosen swatch,
-    // warning, chevron).
+    // Row layout lives in ui_xml/components/filament_mapping_tool_row.xml.
+    // C++ passes the row's shape as props, binds its texts and paints its
+    // swatches; auto-color mode reaches every row through filament_mapping_auto.
+    const auto* mapped = find_mapped_slot(mapping);
+    const bool multi_tool = tool_info_.size() > 1;
+    const bool mapped_to_empty = mapped && mapped->is_empty;
+    const char* chosen = !mapped ? "none" : (mapped->is_empty ? "empty" : "filled");
+    const char* attrs[] = {
+        "tool_shown",     multi_tool ? "1" : "0",
+        "material_shown", tool.material.empty() ? "0" : "1",
+        "chosen",         chosen,
+        "warn",           (mapping.material_mismatch || mapped_to_empty) ? "1" : "0",
+        nullptr};
     auto* row =
-        static_cast<lv_obj_t*>(lv_xml_create(tool_list_, "filament_mapping_tool_row", nullptr));
+        static_cast<lv_obj_t*>(lv_xml_create(tool_list_, "filament_mapping_tool_row", attrs));
     if (!row) {
         return nullptr;
     }
+    // DECLARATIVE_OK: per-item payload on a generated row, read by row_clicked_cb.
+    lv_obj_set_user_data(row, reinterpret_cast<void*>(static_cast<intptr_t>(tool_index)));
+
+    auto* text = new MappingRowText(multi_tool ? helix::ui::tool_label(tool.tool_index) : "",
+                                    tool.material, get_slot_display_text(mapping));
+    lv_obj_add_event_cb(row, free_row_text_cb, LV_EVENT_DELETE, text);
+    bind_row_label(row, "tool_label", &text->tool);
+    bind_row_label(row, "material_label", &text->material);
+    bind_row_label(row, "slot_text", &text->slot);
 
     lv_color_t gcode_color = lv_color_hex(tool.color_rgb);
     if (auto* expected_swatch = helix::ui::find_required(row, "expected_swatch", get_name())) {
         helix::ui::apply_swatch_color(expected_swatch, tool.color_rgb, "");
     }
-
-    if (auto* tool_label = helix::ui::find_required(row, "tool_label", get_name())) {
-        if (tool_info_.size() > 1) {
-            lv_label_set_text(tool_label, helix::ui::tool_label(tool.tool_index).c_str());
+    if (multi_tool) {
+        if (auto* tool_label = helix::ui::find_required(row, "tool_label", get_name())) {
+            // DECLARATIVE_OK: contrast against this row's own G-code color.
             lv_obj_set_style_text_color(tool_label,
                                         theme_manager_get_contrast_adjusted_text(
                                             theme_manager_get_color("text"), gcode_color),
                                         0);
-            lv_obj_remove_flag(tool_label, LV_OBJ_FLAG_HIDDEN);
         }
     }
 
-    if (auto* mat_label = helix::ui::find_required(row, "material_label", get_name())) {
-        if (!tool.material.empty()) {
-            lv_label_set_text(mat_label, tool.material.c_str());
-            lv_obj_remove_flag(mat_label, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    trigger_widgets_[static_cast<size_t>(tool_index)] =
+        helix::ui::find_required(row, "trigger", get_name());
 
-    const auto* mapped = find_mapped_slot(mapping);
-    auto* trigger = helix::ui::find_required(row, "trigger", get_name());
-    trigger_widgets_[static_cast<size_t>(tool_index)] = trigger;
-
-    if (auto* chosen_swatch = helix::ui::find_required(row, "chosen_swatch", get_name())) {
-        if (mapped && !mapped->is_empty) {
+    if (mapped && !mapped->is_empty) {
+        if (auto* chosen_swatch = helix::ui::find_required(row, "chosen_swatch", get_name())) {
             helix::ui::apply_swatch_color(chosen_swatch, mapped->color_rgb,
                                           mapped->multi_color_hexes,
                                           helix::ui::swatch_finish(mapped->finish));
-            lv_obj_remove_flag(chosen_swatch, LV_OBJ_FLAG_HIDDEN);
-        } else if (mapped && mapped->is_empty) {
-            helix::ui::clear_swatch_color(chosen_swatch);
-            lv_obj_set_style_border_width(chosen_swatch, 2, 0);
-            lv_obj_set_style_border_color(chosen_swatch, theme_manager_get_color("warning"), 0);
-            lv_obj_set_style_border_opa(chosen_swatch, LV_OPA_COVER, 0);
-            lv_obj_remove_flag(chosen_swatch, LV_OBJ_FLAG_HIDDEN);
         }
-        // Auto/Unmapped (mapped == nullptr) leaves the swatch hidden.
-    }
-
-    if (auto* slot_text = helix::ui::find_required(row, "slot_text", get_name())) {
-        lv_label_set_text(slot_text, get_slot_display_text(mapping).c_str());
-    }
-
-    bool mapped_to_empty = mapped && mapped->is_empty;
-    if (mapping.material_mismatch || mapped_to_empty) {
-        if (auto* warn = helix::ui::find_required(row, "trigger_warn", get_name())) {
-            lv_obj_remove_flag(warn, LV_OBJ_FLAG_HIDDEN);
+    } else if (mapped_to_empty) {
+        if (auto* empty_swatch = helix::ui::find_required(row, "chosen_swatch_empty", get_name())) {
+            helix::ui::clear_swatch_color(empty_swatch);
         }
-    }
-
-    if (!auto_color_map_) {
-        if (auto* chevron = helix::ui::find_required(row, "trigger_chevron", get_name())) {
-            lv_obj_remove_flag(chevron, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
-    if (auto_color_map_) {
-        lv_obj_set_style_opa(row, LV_OPA_50, 0);
-        lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICKABLE);
-    } else {
-        lv_obj_add_event_cb(
-            row,
-            [](lv_event_t* e) {
-                auto* self = static_cast<FilamentMappingModal*>(lv_event_get_user_data(e));
-                lv_obj_t* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-                int idx =
-                    static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(target)));
-                self->on_row_tapped(idx);
-            },
-            LV_EVENT_CLICKED, this);
-        lv_obj_set_user_data(row, reinterpret_cast<void*>(static_cast<intptr_t>(tool_index)));
     }
 
     return row;
@@ -324,6 +335,15 @@ std::string FilamentMappingModal::get_slot_display_text(const helix::ToolMapping
 // ============================================================================
 // Row tap -> slot picker
 // ============================================================================
+
+void FilamentMappingModal::row_clicked_cb(lv_event_t* e) {
+    auto* self = Modal::from_event<FilamentMappingModal>(e);
+    if (!self) {
+        return;
+    }
+    auto* row = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    self->on_row_tapped(static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(row))));
+}
 
 void FilamentMappingModal::on_row_tapped(int tool_index) {
     if (tool_index < 0 || tool_index >= static_cast<int>(tool_info_.size())) {

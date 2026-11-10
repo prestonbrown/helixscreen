@@ -239,3 +239,61 @@ TEST_CASE_METHOD(MappingCancelFixture, "A close no button answered reverts the t
     CHECK_FALSE(modal.is_visible());
     CHECK(persisted());
 }
+
+// The rows share this fixture for the same reason the note does.
+TEST_CASE_METHOD(MappingCancelFixture, "A remap row shows its tool, pick and warning",
+                 "[filament_mapping][modal][rows]") {
+    set_persisted(false);
+    FilamentMappingModal modal;
+    modal.set_tool_info({{0, 0xE72F1D, "PLA"}, {1, 0x080A0D, ""}});
+    modal.set_available_slots({{0, 0, 0x080A0D, "PLA", false, -1}, {1, 0, 0, "", true, -1}});
+    helix::ToolMapping t0;
+    t0.tool_index = 0;
+    t0.mapped_slot = 0;
+    t0.mapped_backend = 0;
+    helix::ToolMapping t1 = t0;
+    t1.tool_index = 1;
+    t1.mapped_slot = 1;
+    modal.set_mappings({t0, t1});
+    REQUIRE(modal.show(test_screen()));
+
+    lv_obj_t* list = lv_obj_find_by_name(modal.dialog(), "mapping_tool_list");
+    REQUIRE(list != nullptr);
+    REQUIRE(lv_obj_get_child_count(list) == 3); // the toggle row, then one per tool
+    auto part = [&](int tool, const char* name) {
+        lv_obj_t* obj = lv_obj_find_by_name(lv_obj_get_child(list, tool + 1), name);
+        REQUIRE(obj != nullptr);
+        return obj;
+    };
+    auto shown = [&](int tool, const char* name) {
+        return !lv_obj_has_flag(part(tool, name), LV_OBJ_FLAG_HIDDEN);
+    };
+    auto text = [&](int tool, const char* name) {
+        return std::string(lv_label_get_text(part(tool, name)));
+    };
+
+    CHECK(text(0, "tool_label") == "T0");
+    CHECK(text(0, "material_label") == "PLA");
+    CHECK(shown(0, "material_label"));
+    CHECK_FALSE(shown(1, "material_label"));
+    CHECK(shown(0, "chosen_swatch"));
+    CHECK_FALSE(shown(0, "chosen_swatch_empty"));
+    CHECK_FALSE(shown(0, "trigger_warn"));
+    // Mapped onto an empty slot: a warning ring and the warning glyph.
+    CHECK_FALSE(shown(1, "chosen_swatch"));
+    CHECK(shown(1, "chosen_swatch_empty"));
+    CHECK(shown(1, "trigger_warn"));
+    CHECK(shown(0, "trigger_chevron"));
+
+    // A tap opens the slot picker on the screen.
+    const uint32_t before = lv_obj_get_child_count(lv_screen_active());
+    lv_obj_send_event(lv_obj_get_child(list, 1), LV_EVENT_CLICKED, nullptr);
+    CHECK(lv_obj_get_child_count(lv_screen_active()) > before);
+
+    // Auto-color mode: the rows dim, lose the chevron and stop taking taps.
+    FilamentMappingModalTestAccess::toggle(modal, true);
+    CHECK_FALSE(shown(0, "trigger_chevron"));
+    CHECK_FALSE(lv_obj_has_flag(lv_obj_get_child(list, 1), LV_OBJ_FLAG_CLICKABLE));
+    FilamentMappingModalTestAccess::cancel(modal);
+    helix::ui::UpdateQueue::instance().drain();
+}
