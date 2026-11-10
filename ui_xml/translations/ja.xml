@@ -3968,6 +3968,9 @@
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." ja="このプリンターのMoonrakerはログインを要求しています。設定 &gt; 接続 でAPIキーを追加してください。"/>
   <translation tag="This printer&apos;s firmware has its own power-loss recovery." ja="このプリンターのファームウェアには独自の停電からの復帰機能があります。"/>
   <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." ja="このプリンターのガントリーは電源が切れると落下するため、印刷を再開できません。"/>
+  <translation tag="This printer&apos;s homing override homes Z along with X and Y, so a print can&apos;t be resumed." ja="このプリンターのhoming overrideはXとYと同時にZもホーミングするため、印刷を再開できません。"/>
+  <translation tag="This printer&apos;s homing override runs commands that may move Z, so a print can&apos;t be resumed." ja="このプリンターのhoming overrideはZを動かす可能性のあるコマンドを実行するため、印刷を再開できません。"/>
+  <translation tag="This printer&apos;s homing override sets the Z position when it homes X and Y, so a print can&apos;t be resumed." ja="このプリンターのhoming overrideはXとYのホーミング時にZ位置を設定するため、印刷を再開できません。"/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" ja="このプリンターのネットワークサービスが WiFi 無線を制御しています"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" ja="このプリンターのネットワークサービスが保存済みの WiFi ネットワークを管理しています"/>
   <translation tag="This printer&apos;s screen has not shared a layout" ja="このプリンターの画面はレイアウトを共有していません"/>
@@ -4297,6 +4300,7 @@
   <translation tag="Waiting for the chamber to heat" ja="チャンバーの加熱を待っています"/>
   <translation tag="Waiting for the filament system to report its state" ja="フィラメントシステムの状態報告を待機中"/>
   <translation tag="Waiting for the printer" ja="プリンターを待っています"/>
+  <translation tag="Waiting to read the printer&apos;s configuration from Klipper." ja="Klipperからプリンターの設定を読み込むのを待っています。"/>
   <translation tag="Warm" ja="ウォーム"/>
   <translation tag="Warm Bed" ja="ベッドを予熱"/>
   <translation tag="Warm up for a material in one tap" ja="素材に合わせてワンタップで予熱"/>

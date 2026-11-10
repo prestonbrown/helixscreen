@@ -4368,6 +4368,9 @@ translations:
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Das Moonraker dieses Druckers verlangt eine Anmeldung. Trage seinen API-Schlüssel unter Einstellungen > Verbindung ein.'
   This printer's firmware has its own power-loss recovery.: "Die Firmware dieses Druckers hat ihre eigene Wiederherstellung nach Stromausfall."
   This printer's gantry drops when the power is cut, so a print can't be resumed.: "Das Portal dieses Druckers sackt bei einem Stromausfall ab, daher kann ein Druck nicht fortgesetzt werden."
+  This printer's homing override homes Z along with X and Y, so a print can't be resumed.: "Der Homing-Override dieses Druckers referenziert Z zusammen mit X und Y, daher kann ein Druck nicht fortgesetzt werden."
+  This printer's homing override sets the Z position when it homes X and Y, so a print can't be resumed.: "Der Homing-Override dieses Druckers setzt die Z-Position, wenn er X und Y referenziert, daher kann ein Druck nicht fortgesetzt werden."
+  This printer's homing override runs commands that may move Z, so a print can't be resumed.: "Der Homing-Override dieses Druckers führt Befehle aus, die Z bewegen können, daher kann ein Druck nicht fortgesetzt werden."
   This printer's network service controls the WiFi radio: Der Netzwerkdienst dieses Druckers steuert das WiFi-Funkmodul
   This printer's network service manages saved WiFi networks: Der Netzwerkdienst dieses Druckers verwaltet gespeicherte WiFi-Netzwerke
   This printer's screen has not shared a layout: "Der Bildschirm dieses Druckers hat kein Layout geteilt"
@@ -4725,6 +4728,7 @@ translations:
   Waiting for the chamber to heat: Warten auf das Aufheizen der Kammer
   Waiting for the filament system to report its state: Warte auf Statusmeldung des Filamentsystems
   Waiting for the printer: Warten auf den Drucker
+  Waiting to read the printer's configuration from Klipper.: "Warte darauf, die Konfiguration des Druckers aus Klipper zu lesen."
   Warm: Warm
   Warm Bed: Bett vorheizen
   Warm up for a material in one tap: Material mit einem Tipp vorheizen

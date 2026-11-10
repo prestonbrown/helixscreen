@@ -3968,6 +3968,9 @@
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." de="Das Moonraker dieses Druckers verlangt eine Anmeldung. Trage seinen API-Schlüssel unter Einstellungen &gt; Verbindung ein."/>
   <translation tag="This printer&apos;s firmware has its own power-loss recovery." de="Die Firmware dieses Druckers hat ihre eigene Wiederherstellung nach Stromausfall."/>
   <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." de="Das Portal dieses Druckers sackt bei einem Stromausfall ab, daher kann ein Druck nicht fortgesetzt werden."/>
+  <translation tag="This printer&apos;s homing override homes Z along with X and Y, so a print can&apos;t be resumed." de="Der Homing-Override dieses Druckers referenziert Z zusammen mit X und Y, daher kann ein Druck nicht fortgesetzt werden."/>
+  <translation tag="This printer&apos;s homing override runs commands that may move Z, so a print can&apos;t be resumed." de="Der Homing-Override dieses Druckers führt Befehle aus, die Z bewegen können, daher kann ein Druck nicht fortgesetzt werden."/>
+  <translation tag="This printer&apos;s homing override sets the Z position when it homes X and Y, so a print can&apos;t be resumed." de="Der Homing-Override dieses Druckers setzt die Z-Position, wenn er X und Y referenziert, daher kann ein Druck nicht fortgesetzt werden."/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" de="Der Netzwerkdienst dieses Druckers steuert das WiFi-Funkmodul"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" de="Der Netzwerkdienst dieses Druckers verwaltet gespeicherte WiFi-Netzwerke"/>
   <translation tag="This printer&apos;s screen has not shared a layout" de="Der Bildschirm dieses Druckers hat kein Layout geteilt"/>
@@ -4297,6 +4300,7 @@
   <translation tag="Waiting for the chamber to heat" de="Warten auf das Aufheizen der Kammer"/>
   <translation tag="Waiting for the filament system to report its state" de="Warte auf Statusmeldung des Filamentsystems"/>
   <translation tag="Waiting for the printer" de="Warten auf den Drucker"/>
+  <translation tag="Waiting to read the printer&apos;s configuration from Klipper." de="Warte darauf, die Konfiguration des Druckers aus Klipper zu lesen."/>
   <translation tag="Warm" de="Warm"/>
   <translation tag="Warm Bed" de="Bett vorheizen"/>
   <translation tag="Warm up for a material in one tap" de="Material mit einem Tipp vorheizen"/>

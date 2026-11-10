@@ -121,6 +121,17 @@ TEST_CASE("plugin_reason_text says what a reason code means", "[plugin_feature]"
           "A delta printer can't home X and Y without moving Z, so a print can't be resumed.");
     CHECK(plugin_reason_text("firmware_recovery") ==
           "This printer's firmware has its own power-loss recovery.");
+    CHECK(plugin_reason_text("klipper_config_unread") ==
+          "Waiting to read the printer's configuration from Klipper.");
+    CHECK(plugin_reason_text("override_homes_z") ==
+          "This printer's homing override homes Z along with X and Y, so a print can't be "
+          "resumed.");
+    CHECK(plugin_reason_text("override_sets_z") ==
+          "This printer's homing override sets the Z position when it homes X and Y, so a print "
+          "can't be resumed.");
+    CHECK(plugin_reason_text("override_unknown") ==
+          "This printer's homing override runs commands that may move Z, so a print can't be "
+          "resumed.");
     // A code with a detail suffix maps on the code before the colon.
     CHECK(plugin_reason_text("snapshot_unreachable: /webcam/?action=snapshot") ==
           "The plugin can't reach the camera, so this screen takes the photos.");
