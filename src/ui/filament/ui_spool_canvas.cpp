@@ -850,6 +850,17 @@ static void render_spool_pixels(SpoolCanvasData* data) {
         lv_color_t edge_dark = ams_draw::darken_color(back_color, 40);
         draw_ellipse_left_edge(&layer, left_x, cy, flange_rx, flange_ry, edge_light, edge_dark, 2);
     }
+    // The back flange is vented as the front is, its slots open to the dark behind the spool;
+    // the filament drawn next covers them as it covers the flange.
+    helix::ui::SpoolVentFace back_face{
+        static_cast<float>(left_x) + 0.5f, static_cast<float>(cy) + 0.5f, static_cast<float>(size),
+        helix::ui::tray::kDepthSkew, helix::ui::spool_vent_detail(size)};
+    helix::ui::spool_vent_face_set_phase(back_face, data->vent_phase);
+    const VentBacking behind{ams_draw::darken_color(back_color, kVentInsideShadeTop),
+                             ams_draw::darken_color(back_color, kVentInsideShadeBottom)};
+    paint_vents(&layer, back_face,
+                {left_x - flange_rx, cy - flange_ry, left_x + flange_rx, cy + flange_ry},
+                [&](float) { return behind; });
 
     // ========================================
     // STEP 2: Draw complete FILAMENT cylinder
@@ -938,12 +949,10 @@ static void render_spool_pixels(SpoolCanvasData* data) {
         helix::ui::spool_vent_face_set_phase(face, data->vent_phase);
         const VentBacking wound{ams_draw::darken_color(filament_color, kVentFilamentShadeTop),
                                 ams_draw::darken_color(filament_color, kVentFilamentShadeBottom)};
-        const VentBacking hollow{ams_draw::darken_color(back_color, kVentInsideShadeTop),
-                                 ams_draw::darken_color(back_color, kVentInsideShadeBottom)};
         const float wound_r = static_cast<float>(filament_ry);
         paint_vents(&layer, face,
                     {right_x - flange_rx, cy - flange_ry, right_x + flange_rx, cy + flange_ry},
-                    [&](float face_radius) { return face_radius <= wound_r ? wound : hollow; });
+                    [&](float face_radius) { return face_radius <= wound_r ? wound : behind; });
     }
 
     // ========================================
