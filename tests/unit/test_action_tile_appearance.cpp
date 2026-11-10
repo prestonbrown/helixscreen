@@ -18,6 +18,7 @@
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_shared_resource.h"
 #include "core/update_queue.h"
@@ -120,6 +121,7 @@ TEST_CASE("a tap on a home tile reaches the widget that owns it", "[action_tile]
         {"shutdown", "shutdown_button"},
         {"temperature", "temp_btn"},
         {"network", "network_btn"},
+        {"active_spool", "spoolman_btn"},
     };
 
     for (const auto& [id, button] : kButtons) {
@@ -133,10 +135,12 @@ TEST_CASE("a tap on a home tile reaches the widget that owns it", "[action_tile]
         REQUIRE_FALSE(NavigationManager::instance().has_open_overlays());
         REQUIRE(ModalStack::instance().empty());
 
+        LogCapture log(64);
         lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
         helix::ui::UpdateQueue::instance().drain_until_empty();
         CHECK(
             (NavigationManager::instance().has_open_overlays() || !ModalStack::instance().empty()));
+        CHECK(log.count_containing("duplicate push") == 0); // one tap, one handler
 
         if (lv_obj_t* top = Modal::get_top()) {
             Modal::hide(top);

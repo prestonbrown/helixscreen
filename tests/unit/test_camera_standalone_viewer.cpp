@@ -28,6 +28,7 @@
 #include "core/http_executor.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 
 #include <atomic>
@@ -101,12 +102,28 @@ TEST_CASE_METHOD(StandaloneViewerFixture,
     REQUIRE(view != nullptr);
     CHECK(view->has_stream());
     CHECK(view->feed().stream_url == kStreamUrl);
-    CHECK(CameraWidgetTestAccess::standalone_overlay() != nullptr);
+    auto spinner_hidden = [] {
+        lv_obj_t* s =
+            lv_obj_find_by_name(CameraWidgetTestAccess::standalone_overlay(), "fullscreen_spinner");
+        REQUIRE(s != nullptr);
+        return lv_obj_has_flag(s, LV_OBJ_FLAG_HIDDEN);
+    };
+    CHECK_FALSE(spinner_hidden());
+    // What the first frame does: with no camera tile placed, the viewer owns the binding.
+    lv_subject_t* connecting = lv_xml_get_subject(nullptr, "camera_fullscreen_connecting");
+    REQUIRE(connecting != nullptr);
+    lv_subject_set_int(connecting, 0);
+    CHECK(spinner_hidden());
 
     CHECK_FALSE(open_standalone_camera_fullscreen(test_screen()));
 
     close_viewer();
     CHECK(CameraWidgetTestAccess::standalone_view() == nullptr);
+    // A reopen waits for its own first frame.
+    REQUIRE(open_standalone_camera_fullscreen(test_screen()));
+    drain();
+    CHECK_FALSE(spinner_hidden());
+    close_viewer();
 }
 
 TEST_CASE_METHOD(StandaloneViewerFixture,

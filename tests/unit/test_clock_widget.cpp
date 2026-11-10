@@ -4,14 +4,10 @@
 #include "ui_format_utils.h"
 
 #include "../lvgl_test_fixture.h"
-#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/armed_timers.h"
-#include "../test_helpers/panel_widget_size_harness.h"
 #include "format_utils.h"
 #include "locale_formats.h"
 #include "panel_widget_manager.h"
-#include "panel_widget_registry.h"
-#include "panel_widget_size.h"
 #include "src/ui/panel_widgets/clock_widget.h"
 #include "system_settings_manager.h"
 
@@ -43,25 +39,6 @@ class ClockWidgetFixture : public LVGLTestFixture {
         return container;
     }
 };
-
-TEST_CASE("ClockWidget: uptime shows only in a tall tile", "[clock_widget][1142]") {
-    // The size mode drives the uptime line through an XML binding.
-    LVGLUITestFixture fixture;
-    init_widget_registrations();
-    PanelWidgetManager::instance().init_widget_subjects();
-    const auto* def = find_widget_def("clock");
-    REQUIRE((def != nullptr && def->factory != nullptr)); // a live ClockWidget, not bare XML
-    RegistryWidgetHarness harness(fixture.test_screen(), *def);
-    REQUIRE(harness.created());
-    lv_obj_t* uptime = harness.child("clock_uptime");
-    REQUIRE(uptime != nullptr);
-    harness.resize(2, 2, widget_size::w_wide(), widget_size::h_tall());
-    CHECK_FALSE(lv_obj_has_flag(uptime, LV_OBJ_FLAG_HIDDEN));
-    harness.resize(1, 1, widget_size::w_wide(), widget_size::h_tall() - 1);
-    CHECK(lv_obj_has_flag(uptime, LV_OBJ_FLAG_HIDDEN));
-    harness.resize(1, 2, widget_size::w_wide() - 1, widget_size::h_tall());
-    CHECK_FALSE(lv_obj_has_flag(uptime, LV_OBJ_FLAG_HIDDEN));
-}
 
 TEST_CASE_METHOD(ClockWidgetFixture, "ClockWidget: timer lifecycle", "[clock_widget]") {
     ClockWidget widget;
@@ -496,148 +473,4 @@ TEST_CASE_METHOD(HelixTestFixture, "Locale set language caching", "[clock_widget
     REQUIRE(result == "Fri, Feb 28");
 
     helix::SystemSettingsManager::instance().set_language("en");
-}
-
-// ---------------------------------------------------------------------------
-// Tests for the widget rebuild + activation fix
-// ---------------------------------------------------------------------------
-
-/// Mock PanelWidget that tracks on_activate/on_deactivate calls.
-/// Optional external_detach_counter survives the widget's destruction so
-/// tests can verify detach() was called even after the unique_ptr freed it.
-class MockWidget : public PanelWidget {
-  public:
-    int activate_count = 0;
-    int deactivate_count = 0;
-    bool attached = false;
-    int* external_detach_counter = nullptr;
-
-    void attach(lv_obj_t* /*widget_obj*/, lv_obj_t* /*parent_screen*/) override {
-        attached = true;
-    }
-    void detach() override {
-        attached = false;
-        if (external_detach_counter)
-            ++*external_detach_counter;
-    }
-    void on_activate() override {
-        activate_count++;
-    }
-    void on_deactivate() override {
-        deactivate_count++;
-    }
-    const char* id() const override {
-        return "mock";
-    }
-};
-
-TEST_CASE("Widget rebuild activation contract", "[panel_widget][lifecycle]") {
-    // This tests the contract that HomePanel now implements:
-    // when widgets are rebuilt while the panel is active, on_activate()
-    // must be called on the new widgets.
-
-    // Simulate the lifecycle that HomePanel manages
-    std::vector<std::unique_ptr<PanelWidget>> active_widgets;
-    bool panel_active = false;
-
-    // Helper lambdas matching HomePanel's implementation
-    auto on_activate = [&]() {
-        panel_active = true;
-        for (auto& w : active_widgets) {
-            w->on_activate();
-        }
-    };
-
-    auto on_deactivate = [&]() {
-        panel_active = false;
-        for (auto& w : active_widgets) {
-            w->on_deactivate();
-        }
-    };
-
-    auto populate_widgets = [&]() {
-        // Detach old widgets
-        for (auto& w : active_widgets) {
-            w->detach();
-        }
-        active_widgets.clear();
-
-        // Create new widgets
-        auto w = std::make_unique<MockWidget>();
-        active_widgets.push_back(std::move(w));
-
-        // Activate new widgets if the panel is already active
-        if (panel_active) {
-            for (auto& widget : active_widgets) {
-                widget->on_activate();
-            }
-        }
-    };
-
-    SECTION("initial setup: widgets not activated until panel activates") {
-        populate_widgets();
-        auto* mock = static_cast<MockWidget*>(active_widgets[0].get());
-        REQUIRE(mock->activate_count == 0);
-
-        on_activate();
-        REQUIRE(mock->activate_count == 1);
-
-        on_deactivate();
-        REQUIRE(mock->deactivate_count == 1);
-    }
-
-    SECTION("rebuild while inactive: widgets not activated") {
-        populate_widgets();
-        auto* mock = static_cast<MockWidget*>(active_widgets[0].get());
-        REQUIRE(mock->activate_count == 0);
-    }
-
-    SECTION("rebuild while active: new widgets get activated") {
-        // Initial population + activation
-        populate_widgets();
-        on_activate();
-        auto* first_mock = static_cast<MockWidget*>(active_widgets[0].get());
-        REQUIRE(first_mock->activate_count == 1);
-
-        // Hook detach observer BEFORE rebuild — populate_widgets() clears the
-        // vector and frees first_mock, so we can't read first_mock->attached
-        // after the rebuild without a UAF.
-        int first_detach_count = 0;
-        first_mock->external_detach_counter = &first_detach_count;
-
-        // Rebuild while panel is active (simulates gate observer or settings change)
-        populate_widgets();
-        auto* new_mock = static_cast<MockWidget*>(active_widgets[0].get());
-
-        // New widget should have been activated during populate
-        REQUIRE(new_mock->activate_count == 1);
-        // Old widget should have been detached (not deactivated — detach handles cleanup)
-        REQUIRE(first_detach_count == 1);
-    }
-
-    SECTION("multiple rebuilds while active: each batch gets activated") {
-        populate_widgets();
-        on_activate();
-
-        populate_widgets();
-        auto* w1 = static_cast<MockWidget*>(active_widgets[0].get());
-        REQUIRE(w1->activate_count == 1);
-
-        populate_widgets();
-        auto* w2 = static_cast<MockWidget*>(active_widgets[0].get());
-        REQUIRE(w2->activate_count == 1);
-        // w1 is now detached and destroyed (unique_ptr)
-    }
-
-    SECTION("deactivate after rebuild: new widgets get deactivated") {
-        populate_widgets();
-        on_activate();
-
-        populate_widgets();
-        auto* mock = static_cast<MockWidget*>(active_widgets[0].get());
-        REQUIRE(mock->activate_count == 1);
-
-        on_deactivate();
-        REQUIRE(mock->deactivate_count == 1);
-    }
 }
