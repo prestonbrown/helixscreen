@@ -1445,6 +1445,9 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
     if ((r = gcode_respond(raw_gcode))) {
         return *r;
     }
+    if (printer_type_ == PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
+        gcode_pa_adjust(raw_gcode);
+    }
     if (printer_type_ == PrinterType::FLASHFORGE_CREATOR5_ZMOD && (r = gcode_zmod(g))) {
         return *r;
     }

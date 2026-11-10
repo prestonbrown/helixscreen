@@ -171,6 +171,7 @@
   <translation tag="A new Print Status screen" zh="全新的打印状态屏幕"/>
   <translation tag="A newer version of the helper macros is available" zh="有更新版本的帮助宏可用"/>
   <translation tag="A picture of your printer" zh="打印机的图片"/>
+  <translation tag="A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it." zh="压力提前测量被中断。X/Y 驱动已释放，运动限制和压力提前已恢复；移动打印机前请先归位。"/>
   <translation tag="A print holds the printer." zh="打印任务正在占用打印机。"/>
   <translation tag="A print is already running." zh="已有打印正在进行。"/>
   <translation tag="A print is in progress - restart still pending" zh="打印进行中 - 重启待执行"/>
@@ -3770,6 +3771,7 @@
   <translation tag="Stopped between Spool and Lane" zh="停在料盘与耗材通道之间"/>
   <translation tag="Stopped drying %s" zh="已停止烘干：%s"/>
   <translation tag="Stopped. Restart Moonraker to start it again." zh="已停止。重启 Moonraker 以重新启动。"/>
+  <translation tag="Stopping after the current test line." zh="将在当前测试线后停止。"/>
   <translation tag="Stops all motion. Requires firmware restart." zh="停止所有运动。需要固件重启。"/>
   <translation tag="Storage" zh="存储"/>
   <translation tag="Storage report" zh="存储报告"/>
@@ -4039,6 +4041,7 @@
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." zh="打印机尚未归位。继续将对所有轴执行归位操作，移动工具头。请确保热床上没有障碍物。"/>
   <translation tag="The printer is not ready." zh="打印机未就绪。"/>
   <translation tag="The printer is shut down." zh="打印机已关机。"/>
+  <translation tag="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg." zh="打印机会使用此值直到 Klipper 重启。如需保留，请将其作为 pressure_advance 添加到 printer.cfg 中此工具的挤出机段。"/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." zh="打印机正在等待腔体达到某个温度，只有紧急停止并重启固件才能结束此等待。打印将立即停止且无法恢复。"/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" zh="打印机未检测到已加载的耗材。请选择下一步操作。"/>
   <translation tag="The printer kept printing after the cancel." zh="取消后打印机仍在继续打印。"/>

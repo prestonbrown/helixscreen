@@ -28,11 +28,11 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
+#include "cleanup_hold.h"
 #include "config.h"
 #include "core/update_queue.h"
 #include "filament_op_heater.h"
 #include "filament_op_router.h"
-#include "heater_hold.h"
 #include "macro_executor.h"
 #include "macro_param_cache.h"
 #include "moonraker_api.h"
@@ -454,11 +454,11 @@ TEST_CASE_METHOD(HeaterFixture, "A second tap while heating cancels and turns th
 TEST_CASE_METHOD(HeaterFixture, "A preheat that turned the heater on holds it until it ends",
                  "[filament][preheat][heater][sigterm]") {
     feed_nozzle(25, 0);
-    REQUIRE_FALSE(helix::HeaterHold::any_held_signal_safe());
+    REQUIRE_FALSE(helix::CleanupHold::any_held_signal_safe());
     press_load(tile);
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(heater->get().pending());
-    REQUIRE(helix::HeaterHold::any_held_signal_safe());
+    REQUIRE(helix::CleanupHold::any_held_signal_safe());
     client.clear_gcode_script_history();
 
     SECTION("teardown sends the off and drops the op") {
@@ -466,17 +466,17 @@ TEST_CASE_METHOD(HeaterFixture, "A preheat that turned the heater on holds it un
         helix::ui::UpdateQueue::instance().drain();
         CHECK(sent(std::string(kHeatGcode) + "0"));
         CHECK_FALSE(heater->get().pending());
-        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
         feed_nozzle(220, 220);
         CHECK_FALSE(sent("LOAD_FILAMENT"));
     }
     SECTION("cancel") {
         REQUIRE(heater->get().cancel());
-        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
     }
     SECTION("the heater is destroyed") {
         heater.reset();
-        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
     }
 }
 
@@ -486,7 +486,7 @@ TEST_CASE_METHOD(HeaterFixture, "A preheat on someone else's target holds nothin
     press_load(tile);
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(heater->get().pending());
-    CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
     client.clear_gcode_script_history();
 
     heater->get().before_disconnect();
@@ -502,7 +502,7 @@ TEST_CASE_METHOD(HeaterFixture, "A pending cooldown holds the heater and flushes
     heater->get().op_succeeded(heated_ticket());
     drain_all();
     REQUIRE(cd.has_pending_timer());
-    REQUIRE(helix::HeaterHold::any_held_signal_safe());
+    REQUIRE(helix::CleanupHold::any_held_signal_safe());
     client.clear_gcode_script_history();
 
     SECTION("flushed: the off goes out now") {
@@ -515,17 +515,17 @@ TEST_CASE_METHOD(HeaterFixture, "A pending cooldown holds the heater and flushes
         app.update_from_status({{"extruder", {{"target", 0.0}}}});
         CHECK(sent(std::string(kHeatGcode) + "0"));
         CHECK_FALSE(cd.has_pending_timer());
-        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
     }
     SECTION("cancelled") {
         cd.cancel();
         drain_all();
-        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
     }
     SECTION("cancelled for its one heater") {
         cd.cancel("extruder");
         drain_all();
-        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
     }
 }
 

@@ -507,7 +507,7 @@ class BedMeshHeatFixture : public BedMeshPanelFlowFixture {
 TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its heat",
                  "[bed_mesh_flow][heater_hold]") {
     REQUIRE(panel->holds_owned_heat());
-    CHECK(helix::HeaterHold::any_held_signal_safe());
+    CHECK(helix::CleanupHold::any_held_signal_safe());
 
     SECTION("shutdown sends both offs and nothing that moves") {
         client.clear_gcode_script_history();
@@ -519,7 +519,7 @@ TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its he
         CHECK_FALSE(any_sent(sent(), "G1 "));
         CHECK_FALSE(any_sent(sent(), "BED_MESH_CALIBRATE"));
         CHECK_FALSE(panel->holds_owned_heat());
-        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
     }
 
     SECTION("shutdown leaves a bed someone has retargeted since") {
@@ -547,7 +547,7 @@ TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its he
         drain();
         CHECK_FALSE(any_sent(sent(), kBedOff));
         CHECK_FALSE(panel->holds_owned_heat());
-        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
     }
 
     SECTION("leaving for another view gives the heat back") {
@@ -578,7 +578,7 @@ TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its he
 
     SECTION("destroying the panel releases") {
         panel.reset();
-        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
     }
 }
 

@@ -947,6 +947,93 @@ void MoonrakerClientMock::push_zmod_builtin_afc_objects(json& objects) {
     }
 }
 
+json MoonrakerClientMock::pa_latch_pin_status(const std::string& object) const {
+    if (printer_type_ != PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
+        return json::object();
+    }
+    if (object == "output_pin enable_pin_tmc_x") {
+        return {{"value", pa_latch_x_.load()}};
+    }
+    if (object == "output_pin enable_pin_tmc_y") {
+        return {{"value", pa_latch_y_.load()}};
+    }
+    return json::object();
+}
+
+std::string MoonrakerClientMock::toolhead_extruder() const {
+    const int tool =
+        printer_type_ == PrinterType::FLASHFORGE_CREATOR5_ZMOD ? zmod_active_tool_.load() : 0;
+    return tool <= 0 ? "extruder" : "extruder" + std::to_string(tool);
+}
+
+void MoonrakerClientMock::set_pa_verdicts(std::vector<int> verdicts) {
+    std::lock_guard<std::mutex> lock(pa_mutex_);
+    pa_verdicts_ = std::move(verdicts);
+    pa_verdict_next_ = 0;
+}
+
+// [pa_adjust] (creator5_zmod persona). PA_ACTION is accepted and ignored; the
+// eBoard's verdict comes from the scripted list. Returns nullopt so the line
+// handlers after this one still see the moves and limits in the same script.
+MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_pa_adjust(const std::string& script) {
+    size_t start = 0;
+    while (start < script.size()) {
+        size_t end = script.find('\n', start);
+        if (end == std::string::npos) {
+            end = script.size();
+        }
+        const std::string line = script.substr(start, end - start);
+        start = end + 1;
+        if (line == "PA_GET") {
+            int verdict = 0;
+            {
+                std::lock_guard<std::mutex> lock(pa_mutex_);
+                if (pa_verdicts_.empty()) {
+                    std::string spec = "0,9,0,9,0,0,0";
+                    if (const char* env = std::getenv("HELIX_MOCK_PA_VERDICTS")) {
+                        spec = env;
+                    }
+                    size_t at = 0;
+                    while (at < spec.size()) {
+                        size_t comma = spec.find(',', at);
+                        if (comma == std::string::npos) {
+                            comma = spec.size();
+                        }
+                        pa_verdicts_.push_back(
+                            helix::text_io::parse_leading<int>(spec.substr(at, comma - at))
+                                .value_or(0));
+                        at = comma + 1;
+                    }
+                }
+                verdict = pa_verdicts_[pa_verdict_next_ % pa_verdicts_.size()];
+                ++pa_verdict_next_;
+            }
+            // A negative entry stands for an eBoard that never answers.
+            if (verdict >= 0) {
+                dispatch_gcode_response("// Result is value=" + std::to_string(verdict));
+            }
+            continue;
+        }
+        for (auto [pin, store] : {std::pair{"PIN=enable_pin_tmc_x ", &pa_latch_x_},
+                                  std::pair{"PIN=enable_pin_tmc_y ", &pa_latch_y_}}) {
+            if (line.rfind("SET_PIN ", 0) != 0 || line.find(pin) == std::string::npos) {
+                continue;
+            }
+            const size_t v = line.find("VALUE=");
+            const float value =
+                v == std::string::npos
+                    ? 0.f
+                    : helix::text_io::parse_leading<float>(line.substr(v + 6)).value_or(0.f);
+            store->store(value);
+            const std::string object =
+                std::string("output_pin ") +
+                (store == &pa_latch_x_ ? "enable_pin_tmc_x" : "enable_pin_tmc_y");
+            dispatch_status_update({{object, {{"value", value}}}});
+        }
+    }
+    return std::nullopt;
+}
+
 // Z-Mod commands (creator5_zmod persona): the zmod_color extra's macros.
 // Matched on the command token exactly, and armed only for this persona.
 MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_zmod(const std::string& gcode) {

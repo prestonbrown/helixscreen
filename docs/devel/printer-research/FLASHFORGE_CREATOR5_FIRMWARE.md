@@ -142,6 +142,37 @@ These reach Z-Mod users, because Z-Mod runs the stock klippy.
 The changelog's "extended print time" fix is most likely the toolhead and
 `virtual_sdcard` throughput work.
 
+### Automatic pressure advance
+
+The stock UI runs the sweep, not Klipper. Recovered from `firmwareExe`
+(`CommMgr::paTestMgr`) by the Klipper4FlashForge project
+(github.com/Klipper4FlashForge/firmware, their note 51, "pa-calibration-recovered"),
+and confirmed against the strings in our C5's 2.0.0 binary on 2026-11-09.
+
+- **Klipper side**: `[pa_adjust]` (`printer.base.cfg`) registers `PA_ACTION ACTION=<a> PC=<pc>`
+  and `PA_GET`, both forwarded to `mcu eboard`. `ACTION=11` arms the eBoard's capture of a
+  16-bit sample stream on its USART3; any other value stops it and the eBoard scores the
+  trace. `PA_GET` replies `Result is value=<n>`, and only 9 passes. Neither command has
+  `desc=`, so neither is in `/printer/gcode/help`, and `pa_adjust` has no status, so it is not
+  in `objects/list`: the config section is the only evidence it exists.
+- **The latch**: `SET_PIN PIN=enable_pin_tmc_x VALUE=1.00` (and `_y`) **disables** the X/Y
+  drivers through a second latch on PH2/PH3 that Klipper knows nothing about. The sweep's
+  `G1` moves are stepped against dead drivers, so the head stays parked over the purge chute
+  (X275 Y254, per-tool offset dx {0, -2, -2, -2}, dy {0, 0, 1.5, -8}) and about 1 g of
+  filament drops into it. Both pins read 0 at rest.
+- **One line per candidate**, in the order 0.0100 0.0200 0.0150 0.0350 0.0250 0.0300 0.0400,
+  Y = 50 + 5·i: `PA_ACTION ACTION=11 PC=666`, `SET_PRESSURE_ADVANCE ADVANCE=<k>`,
+  `G1 X40 Y<y> F30000`, six segments alternating `F1080` / `F10980` at E 0.0568 mm per mm,
+  `PA_ACTION ACTION=0 PC=666` with **no M400 before it**, then `M400`, `PA_GET`.
+- **Selection**: at most 5 sweeps of 7 lines; a sweep's winner is its smallest passing K; the
+  result is the mean of the first 3 winners. Fewer than 3 is a failure.
+- **Restore** (`resetTmcPa`): both pins to 0, then `SET_KINEMATIC_POSITION` to the park.
+- **Apply**: per tool for one print with the stock `SET_PA_ADVANCE T0=.. ENABLE=1`
+  (in FlashForge's virtual_sdcard module), cleared at print end.
+
+HelixScreen runs this sweep itself on stock and Z-Mod firmware; see
+[`FLASHFORGE_CREATOR5_PRO_SUPPORT.md`](../printers/FLASHFORGE_CREATOR5_PRO_SUPPORT.md#automatic-pressure-advance).
+
 ## Stock UI features (1.9.9 and 2.0.0) against HelixScreen
 
 From the English string table in `firmwareExe`, checked against HelixScreen and Z-Mod's

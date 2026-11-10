@@ -8,7 +8,7 @@ namespace helix {
 /// What the SIGTERM handler does with one delivery.
 enum class SigtermAction {
     FastExit,     ///< Skip teardown and _exit(0)
-    GracefulQuit, ///< Request the main loop's quit so teardown can send the heater off
+    GracefulQuit, ///< Request the main loop's quit so teardown can send the owed cleanup
     Ignore,       ///< The same stop delivered twice
 };
 
@@ -28,16 +28,17 @@ constexpr uint32_t ms_since_sigterm_stamp(uint32_t now_ms, uint32_t stamp) noexc
 }
 
 /// Pure and async-signal-safe.
-/// @param heater_cleanup_pending A heater is on that only this app will turn off
+/// @param cleanup_pending The printer is owed a cleanup (a heater off, a restored state) only this
+/// app will send
 /// @param graceful_underway An earlier SIGTERM already chose GracefulQuit
 /// @param ms_since_graceful Time since that SIGTERM; unused otherwise
-constexpr SigtermAction sigterm_action(bool heater_cleanup_pending, bool graceful_underway,
+constexpr SigtermAction sigterm_action(bool cleanup_pending, bool graceful_underway,
                                        uint32_t ms_since_graceful) noexcept {
     if (graceful_underway) {
         return ms_since_graceful < kSigtermRepeatWindowMs ? SigtermAction::Ignore
                                                           : SigtermAction::FastExit;
     }
-    return heater_cleanup_pending ? SigtermAction::GracefulQuit : SigtermAction::FastExit;
+    return cleanup_pending ? SigtermAction::GracefulQuit : SigtermAction::FastExit;
 }
 
 } // namespace helix

@@ -171,6 +171,7 @@
   <translation tag="A new Print Status screen" it="Una nuova schermata Stato stampa"/>
   <translation tag="A newer version of the helper macros is available" it="È disponibile una versione più recente delle macro di ausilio"/>
   <translation tag="A picture of your printer" it="Immagine della tua stampante"/>
+  <translation tag="A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it." it="Una misura del pressure advance è stata interrotta. I driver X/Y sono stati rilasciati e i limiti di movimento e il pressure advance ripristinati; esegui l&apos;homing della stampante prima di muoverla."/>
   <translation tag="A print holds the printer." it="Una stampa occupa la stampante."/>
   <translation tag="A print is already running." it="Una stampa è già in corso."/>
   <translation tag="A print is in progress - restart still pending" it="Stampa in corso - riavvio in attesa"/>
@@ -3770,6 +3771,7 @@
   <translation tag="Stopped between Spool and Lane" it="Fermo tra bobina e corsia"/>
   <translation tag="Stopped drying %s" it="Essiccazione interrotta: %s"/>
   <translation tag="Stopped. Restart Moonraker to start it again." it="Arrestato. Riavvia Moonraker per avviarlo di nuovo."/>
+  <translation tag="Stopping after the current test line." it="Arresto dopo la linea di prova corrente."/>
   <translation tag="Stops all motion. Requires firmware restart." it="Ferma tutto il movimento. Richiede riavvio firmware."/>
   <translation tag="Storage" it="Archiviazione"/>
   <translation tag="Storage report" it="Rapporto archiviazione"/>
@@ -4039,6 +4041,7 @@
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." it="La stampante non ha eseguito l&apos;homing. Continuando verrà eseguito l&apos;homing di tutti gli assi, muovendo la testina. Assicurarsi che il piano sia libero."/>
   <translation tag="The printer is not ready." it="La stampante non è pronta."/>
   <translation tag="The printer is shut down." it="La stampante è spenta."/>
+  <translation tag="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg." it="La stampante usa questo valore fino al riavvio di Klipper. Per mantenerlo, aggiungilo come pressure_advance nella sezione dell&apos;estrusore di questo utensile in printer.cfg."/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." it="La stampante attende che la camera raggiunga una temperatura, e solo un arresto di emergenza con riavvio del firmware termina l&apos;attesa. La stampa si ferma subito e non può essere ripresa."/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" it="La stampante non rileva alcun filamento caricato. Cosa vuoi fare?"/>
   <translation tag="The printer kept printing after the cancel." it="La stampante ha continuato a stampare dopo l&apos;annullamento."/>

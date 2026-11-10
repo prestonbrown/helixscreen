@@ -179,6 +179,8 @@ translations:
   "A new Print Status screen": "Uma nova tela de Status da Impressão"
   A newer version of the helper macros is available: 'Uma versão mais recente das macros de ajuda está disponível'
   A picture of your printer: Uma imagem da sua impressora
+  ? A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it.
+  : 'Uma medição de pressure advance foi interrompida. Os drivers X/Y foram liberados e os limites de movimento e o pressure advance restaurados; faça home na impressora antes de movê-la.'
   A print holds the printer.: "Uma impressão está usando a impressora."
   A print is already running.: Já há uma impressão em andamento.
   A print is in progress - restart still pending: 'Uma impressão está em andamento - reinício pendente'
@@ -4100,6 +4102,7 @@ translations:
   Stopped between Lane and Hub: Parado entre a Lane e o Hub
   Stopped between Spool and Lane: Parado entre o carretel e a Lane
   Stopped drying %s: 'Secagem parada: %s'
+  Stopping after the current test line.: 'Parando após a linha de teste atual.'
   Stops all motion. Requires firmware restart.: Para todo movimento. Requer reinício
     do firmware.
   Storage: 'Armazenamento'
@@ -4406,6 +4409,8 @@ translations:
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: A impressora não fez home. Continuar fará home em todos os eixos, movendo o cabeçote. Certifique-se de que a mesa esteja livre.
   The printer is not ready.: "A impressora não está pronta."
   The printer is shut down.: 'A impressora está desligada.'
+  ? The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool's extruder section of printer.cfg.
+  : 'A impressora usa este valor até o Klipper reiniciar. Para mantê-lo, adicione-o como pressure_advance na seção do extrusor desta ferramenta em printer.cfg.'
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'A impressora aguarda a câmara atingir uma temperatura, e só uma parada de emergência e uma reinicialização do firmware encerram essa espera. A impressão para imediatamente e não pode ser retomada.'
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: A impressora não está detectando nenhum filamento carregado. O que você deseja fazer?

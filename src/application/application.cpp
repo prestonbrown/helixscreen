@@ -240,7 +240,7 @@
 #include "plugin_host.h"
 #include "plugin_source_app.h"
 #endif
-#include "heater_hold.h"
+#include "cleanup_hold.h"
 #include "platform_table.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -393,7 +393,7 @@ void graceful_quit_signal_handler(int sig) {
         const uint32_t now_ms = monotonic_ms_signal_safe();
         const uint32_t graceful_at = s_graceful_sigterm_ms.load(std::memory_order_relaxed);
         const helix::SigtermAction action =
-            helix::sigterm_action(helix::HeaterHold::any_held_signal_safe(), graceful_at != 0,
+            helix::sigterm_action(helix::CleanupHold::any_held_signal_safe(), graceful_at != 0,
                                   helix::ms_since_sigterm_stamp(now_ms, graceful_at));
         if (action == helix::SigtermAction::Ignore) {
             return;
@@ -402,7 +402,7 @@ void graceful_quit_signal_handler(int sig) {
             const int saved_errno = errno;
             s_graceful_sigterm_ms.store(helix::sigterm_stamp(now_ms), std::memory_order_relaxed);
             static const char held_msg[] =
-                "[Application] SIGTERM with a heater held: graceful quit\n";
+                "[Application] SIGTERM with a cleanup owed: graceful quit\n";
             ssize_t written = write(STDERR_FILENO, held_msg, sizeof(held_msg) - 1);
             (void)written;
             app_request_quit_signal_safe();

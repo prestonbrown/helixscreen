@@ -13,7 +13,7 @@
 
 #include "ui_snapmaker_nozzle_offset_overlay.h"
 
-#include "heater_hold.h"
+#include "cleanup_hold.h"
 #include "printer_discovery.h"
 #include "snapmaker_nozzle_offset.h"
 
@@ -500,25 +500,25 @@ TEST_CASE("a run is live from start until it ends", "[snapmaker][nozzle_offset][
 }
 
 TEST_CASE("a live run holds the heater until it ends", "[snapmaker][nozzle_offset][sigterm]") {
-    using helix::HeaterHold;
+    using helix::CleanupHold;
     auto runner = std::make_unique<Runner>(
         Runner::Hooks{[](const std::string&, uint32_t, Runner::Completion) {}, nullptr, nullptr});
-    REQUIRE_FALSE(HeaterHold::any_held_signal_safe());
+    REQUIRE_FALSE(CleanupHold::any_held_signal_safe());
     runner->start();
     REQUIRE(runner->phase() == Runner::Phase::Running);
-    REQUIRE(HeaterHold::any_held_signal_safe());
+    REQUIRE(CleanupHold::any_held_signal_safe());
 
     SECTION("abandoned") {
         runner->abandon();
-        CHECK_FALSE(HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(CleanupHold::any_held_signal_safe());
     }
     SECTION("cancelled: EXIT is on its way") {
         runner->cancel();
-        CHECK_FALSE(HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(CleanupHold::any_held_signal_safe());
     }
     SECTION("destroyed") {
         runner.reset();
-        CHECK_FALSE(HeaterHold::any_held_signal_safe());
+        CHECK_FALSE(CleanupHold::any_held_signal_safe());
     }
 }
 

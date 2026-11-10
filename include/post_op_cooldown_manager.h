@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "heater_hold.h"
+#include "cleanup_hold.h"
 #include "lvgl.h"
 
 #include <atomic>
@@ -79,7 +79,7 @@ class PostOpCooldownManager {
     void fire();
 
     lv_timer_t* timer_ = nullptr;
-    helix::HeaterHold heater_hold_;
+    helix::CleanupHold heater_hold_;
     std::vector<std::string> heaters_; ///< What timer_ turns off; "" is the active extruder
     std::atomic<bool> initialized_{false};
 };

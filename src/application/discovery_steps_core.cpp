@@ -9,6 +9,7 @@
 #include "ui_panel_filament.h"
 #include "ui_panel_print_select.h"
 #include "ui_print_start_controller.h"
+#include "ui_toast_manager.h"
 
 #include "app_globals.h"
 #include "config.h"
@@ -17,6 +18,7 @@
 #include "hardware_role_registry.h"
 #include "json_utils.h"
 #include "light_button_config.h"
+#include "pa_calibration_run.h"
 #include "printer_detector.h"
 #include "printer_fan_state.h"
 #include "printer_print_state.h"
@@ -92,6 +94,27 @@ void zoffset_persistence_step(DiscoveryContext& ctx) {
         },
         0, /*silent=*/true, /*on_queued=*/nullptr,
         /*caller_surfaces_errors=*/false);
+}
+
+// Undo what an interrupted pressure-advance run left on the printer. A run this
+// app drives can change printer state that only its own restore puts back (the
+// stock FlashForge sweep disables the X/Y drivers), and a crash or a lost link
+// skips that restore. What to look for, how to tell a stale change from a live
+// run, and what to send live behind pacal::check_interrupted_run().
+void pa_run_recovery_step(DiscoveryContext& ctx) {
+    if (ctx.print_active) {
+        return;
+    }
+    pacal::check_interrupted_run(
+        ctx.hw, []() -> IMoonrakerAPI* { return get_moonraker_api(); },
+        []() {
+            ToastManager::instance().show(
+                ToastSeverity::WARNING,
+                lv_tr("A pressure advance run was interrupted. The X/Y drivers were released and "
+                      "the motion limits and pressure advance reset; home the printer before "
+                      "moving it."),
+                8000);
+        });
 }
 
 // Seed temperature graphs from Moonraker's cached history. Fired after init_fans so
@@ -219,6 +242,7 @@ void settle_light_buttons_step(DiscoveryContext&) {
 constexpr DiscoveryStep kCoreSteps[] = {
     {"set_hardware", false, set_hardware_step, nullptr},
     {"zoffset_persistence", false, zoffset_persistence_step, nullptr},
+    {"pa_run_recovery", false, pa_run_recovery_step, nullptr},
     {"temp_graph_seed", false, temp_graph_seed_step, nullptr},
     {"status_dispatch", false, status_dispatch_step, "post_status_dispatch"},
     {"software_versions", false, software_versions_step, nullptr},

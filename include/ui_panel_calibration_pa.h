@@ -9,6 +9,7 @@
 #include "i_moonraker_api.h"
 #include "overlay_base.h"
 #include "pa_calibration.h"
+#include "pa_calibration_run.h"
 #include "subject_managed_panel.h"
 
 #include <functional>
@@ -222,7 +223,9 @@ class PACalibrationPanel : public OverlayBase {
     int estimate_minutes() const;
     void on_result(float k);
     void on_error(const std::string& message);
-    void on_attempt(int attempt, int expected, float k_so_far);
+    void on_attempt(const helix::pacal::Attempt& attempt);
+    /// Stop the run in progress, if any, and forget it.
+    void stop_measurement();
 
     // --- state / display ---
     void set_state(State s);
@@ -283,10 +286,9 @@ class PACalibrationPanel : public OverlayBase {
     int result_temp_ = 0;
     std::string result_material_;
 
-    /// Stops listening to the run in progress. Klipper cannot interrupt a
-    /// running command, so a stop mid-measurement leaves the firmware to
-    /// finish while the screen stops waiting for it.
-    std::function<void()> pa_cancel_;
+    /// The run in progress, whatever kind the printer needs. Its stop() ends it
+    /// at the next safe point and sends what the printer is owed.
+    std::shared_ptr<helix::pacal::Run> run_;
 
     /// Target the nozzle already had when the run began. Nonzero means someone
     /// else's heat, which shutdown leaves alone.
@@ -345,9 +347,9 @@ class PACalibrationPanel : public OverlayBase {
     lv_subject_t result_{};
     char result_buf_[16] = {};
     lv_subject_t result_sanity_{};
-    char result_sanity_buf_[128] = {};
+    char result_sanity_buf_[256] = {};
     lv_subject_t keep_note_{};
-    char keep_note_buf_[128] = {};
+    char keep_note_buf_[384] = {};
 
     lv_subject_t error_title_{};
     char error_title_buf_[64] = {};

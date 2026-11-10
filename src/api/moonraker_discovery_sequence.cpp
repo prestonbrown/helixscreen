@@ -35,6 +35,7 @@
 #include "moonraker_auth.h"
 #include "moonraker_client.h"
 #include "moonraker_subscription_merge.h"
+#include "pa_calibration_run.h"
 #include "pause_descriptor.h"
 #include "platform_info.h"
 #include "plr_backend.h"

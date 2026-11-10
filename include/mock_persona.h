@@ -242,7 +242,10 @@ struct PersonaDescriptor {
                 false,
                 &kSnapmakerU1Hardware};
     case PrinterType::FLASHFORGE_CREATOR5_ZMOD:
-        return {"mock-printer", standard, "corexy", kHappyHareMmu, "", true, &kCreator5Hardware};
+        // Travel as a Z-Mod Creator 5 Pro reports it: the purge chute sits
+        // beyond the bed at X275 Y254.
+        return {"mock-printer", {310.0, 260.0, 270.0}, "corexy", kHappyHareMmu,      "",
+                true,           &kCreator5Hardware,    {},       {-5.0, -5.0, -10.0}};
     case PrinterType::VORON_24:
         return {"mock-printer",
                 {175.0, 175.0, 300.0},

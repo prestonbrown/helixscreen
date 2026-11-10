@@ -119,6 +119,16 @@ static json input_button_configfile_sections(const MoonrakerClientMock* self) {
     return sections;
 }
 
+// configfile section of stock FlashForge's [pa_adjust] (creator5_zmod persona).
+// It has no status object, so this section is the only sign of it.
+static json pa_adjust_configfile_sections(const MoonrakerClientMock* self) {
+    json sections = json::object();
+    if (self->get_printer_type() == helix::mock::PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
+        sections["pa_adjust"] = json::object();
+    }
+    return sections;
+}
+
 // configfile sections of the led_effect objects populate_capabilities()
 // lists; empty for a persona that omits them.
 static json led_effect_configfile_sections(const MoonrakerClientMock* self) {
@@ -539,6 +549,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["configfile"]["config"].merge_patch(toolchanger_sections);
                 status_obj["configfile"]["config"].merge_patch(
                     input_button_configfile_sections(self));
+                status_obj["configfile"]["config"].merge_patch(pa_adjust_configfile_sections(self));
+                status_obj["configfile"]["settings"].merge_patch(
+                    pa_adjust_configfile_sections(self));
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and
@@ -573,7 +586,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     {"position", {0.0, 0.0, 0.0, 0.0}},
                     {"axis_minimum", mock_internal::toolhead_axis_minimum(persona)},
                     {"axis_maximum", mock_internal::toolhead_axis_maximum(persona)},
-                    {"homed_axes", self->get_homed_axes()}};
+                    {"homed_axes", self->get_homed_axes()},
+                    {"extruder", self->toolhead_extruder()}};
             }
 
             // stepper_enable (for motors_enabled state - immediate response to M84)
@@ -641,6 +655,14 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             // Z-Mod's colour registry (creator5_zmod persona).
             if (objects.contains("zmod_color")) {
                 status_obj["zmod_color"] = self->zmod_color_status();
+            }
+            // Stock FlashForge driver-latch pins (creator5_zmod persona).
+            for (const char* pin : {"output_pin enable_pin_tmc_x", "output_pin enable_pin_tmc_y"}) {
+                if (objects.contains(pin)) {
+                    if (auto st = self->pa_latch_pin_status(pin); !st.empty()) {
+                        status_obj[pin] = st;
+                    }
+                }
             }
             // The U1 defect_detection module's stored config.
             if (objects.contains("defect_detection")) {
@@ -893,6 +915,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     {"axis_minimum", mock_internal::toolhead_axis_minimum(persona)},
                     {"axis_maximum", mock_internal::toolhead_axis_maximum(persona)},
                     {"homed_axes", self->get_homed_axes()},
+                    {"extruder", self->toolhead_extruder()},
                     {"print_time", 0.0},
                     {"estimated_print_time", 0.0},
                     {"extruder", "extruder"}};
@@ -970,6 +993,14 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             // Z-Mod's colour registry (creator5_zmod persona).
             if (objects.contains("zmod_color")) {
                 status_obj["zmod_color"] = self->zmod_color_status();
+            }
+            // Stock FlashForge driver-latch pins (creator5_zmod persona).
+            for (const char* pin : {"output_pin enable_pin_tmc_x", "output_pin enable_pin_tmc_y"}) {
+                if (objects.contains(pin)) {
+                    if (auto st = self->pa_latch_pin_status(pin); !st.empty()) {
+                        status_obj[pin] = st;
+                    }
+                }
             }
             // The U1 defect_detection module's stored config.
             if (objects.contains("defect_detection")) {
@@ -1230,6 +1261,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["configfile"]["config"].merge_patch(toolchanger_sections);
                 status_obj["configfile"]["config"].merge_patch(
                     input_button_configfile_sections(self));
+                status_obj["configfile"]["config"].merge_patch(pa_adjust_configfile_sections(self));
+                status_obj["configfile"]["settings"].merge_patch(
+                    pa_adjust_configfile_sections(self));
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and
