@@ -65,6 +65,7 @@ void WizardAmsIdentifyStep::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(wizard_ams_details_, ams_details_buffer_, "", "wizard_ams_details",
                               subjects_);
     UI_MANAGED_SUBJECT_INT(wizard_ams_logo_color_, 0, "wizard_ams_logo_color", subjects_);
+    UI_MANAGED_SUBJECT_INT(wizard_ams_logo_visible_, 0, "wizard_ams_logo_visible", subjects_);
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
@@ -129,22 +130,18 @@ void WizardAmsIdentifyStep::update_display() {
     lv_subject_copy_string(&wizard_ams_details_, details.c_str());
     spdlog::debug("[{}] Set details subject: {}", get_name(), details);
 
-    // Set logo image (imperative - images don't support bind_src)
+    // The logo's source is set here: lv_image has no source binding
+    const helix::LogoArt art = backend
+                                   ? helix::AmsState::get_logo(backend->get_system_info().type_name)
+                                   : helix::LogoArt{};
+    const bool has_logo = art.path && art.path[0] != '\0';
     lv_obj_t* logo = helix::ui::find_required(screen_root_, "ams_logo", get_name());
-    if (logo && backend) {
-        const helix::LogoArt art = helix::AmsState::get_logo(backend->get_system_info().type_name);
-        const char* logo_path = art.path;
-        lv_subject_set_int(&wizard_ams_logo_color_, art.color ? 1 : 0);
-        if (logo_path && logo_path[0] != '\0') {
-            lv_image_set_src(logo, logo_path);
-            lv_obj_remove_flag(logo, LV_OBJ_FLAG_HIDDEN);
-            spdlog::debug("[{}] Set logo: {}", get_name(), logo_path);
-        } else {
-            lv_obj_add_flag(logo, LV_OBJ_FLAG_HIDDEN);
-            spdlog::debug("[{}] No logo for type: {}", get_name(),
-                          backend->get_system_info().type_name);
-        }
+    if (logo && has_logo) {
+        lv_image_set_src(logo, art.path);
     }
+    lv_subject_set_int(&wizard_ams_logo_color_, art.color ? 1 : 0);
+    lv_subject_set_int(&wizard_ams_logo_visible_, has_logo ? 1 : 0);
+    spdlog::debug("[{}] Logo: {}", get_name(), has_logo ? art.path : "(none)");
 }
 
 std::string WizardAmsIdentifyStep::get_ams_type_name() const {

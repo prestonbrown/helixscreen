@@ -119,6 +119,7 @@ class WizardAmsIdentifyStep : public helix::wizard::Step {
     lv_subject_t wizard_ams_type_{};
     lv_subject_t wizard_ams_details_{};
     lv_subject_t wizard_ams_logo_color_{}; ///< 1 for full-color logo art, 0 for a tinted mono mark
+    lv_subject_t wizard_ams_logo_visible_{}; ///< 1 when the system has logo art
     static char ams_type_buffer_[64];
     static char ams_details_buffer_[128];
     bool subjects_initialized_{false};
