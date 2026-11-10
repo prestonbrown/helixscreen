@@ -16,35 +16,46 @@
             height="content" style_pad_all="0" style_layout="flex" style_flex_flow="row"
             style_flex_main_place="space_between">
       <lv_label text="RSS:" style_text_font="noto_sans_14" style_text_color="#text_muted"/>
-      <lv_label name="rss_value" text="--" style_text_font="noto_sans_14" style_text_color="#text"/>
+      <lv_label name="rss_value"
+                bind_text="memory_stats_rss_text" style_text_font="noto_sans_14" style_text_color="#text"/>
     </lv_obj>
     <!-- Peak row -->
     <lv_obj width="100%"
             height="content" style_pad_all="0" style_layout="flex" style_flex_flow="row"
             style_flex_main_place="space_between">
       <lv_label text="Peak:" style_text_font="noto_sans_14" style_text_color="#text_muted"/>
-      <lv_label name="hwm_value" text="--" style_text_font="noto_sans_14" style_text_color="#text"/>
+      <lv_label name="hwm_value"
+                bind_text="memory_stats_hwm_text" style_text_font="noto_sans_14" style_text_color="#text"/>
     </lv_obj>
     <!-- Private row -->
     <lv_obj width="100%"
             height="content" style_pad_all="0" style_layout="flex" style_flex_flow="row"
             style_flex_main_place="space_between">
       <lv_label text="Private:" style_text_font="noto_sans_14" style_text_color="#text_muted"/>
-      <lv_label name="private_value" text="--" style_text_font="noto_sans_14" style_text_color="#text"/>
+      <lv_label name="private_value"
+                bind_text="memory_stats_private_text" style_text_font="noto_sans_14" style_text_color="#text"/>
     </lv_obj>
     <!-- Delta row -->
     <lv_obj width="100%"
             height="content" style_pad_all="0" style_layout="flex" style_flex_flow="row"
             style_flex_main_place="space_between">
       <lv_label text="Delta:" style_text_font="noto_sans_14" style_text_color="#text_muted"/>
-      <lv_label name="delta_value" text="--" style_text_font="noto_sans_14" style_text_color="#success"/>
+      <lv_label name="delta_value" bind_text="memory_stats_delta_text" style_text_font="noto_sans_14">
+        <bind_style name="styles.text_tone_success" subject="memory_stats_delta_tone" ref_value="0"/>
+        <bind_style name="styles.text_tone_warning" subject="memory_stats_delta_tone" ref_value="1"/>
+        <bind_style name="styles.text_tone_danger" subject="memory_stats_delta_tone" ref_value="2"/>
+      </lv_label>
     </lv_obj>
     <!-- Pressure row -->
     <lv_obj width="100%"
             height="content" style_pad_all="0" style_layout="flex" style_flex_flow="row"
             style_flex_main_place="space_between">
       <lv_label text="Pressure:" style_text_font="noto_sans_14" style_text_color="#text_muted"/>
-      <lv_label name="pressure_value" text="--" style_text_font="noto_sans_14" style_text_color="#success"/>
+      <lv_label name="pressure_value" bind_text="memory_stats_pressure_text" style_text_font="noto_sans_14">
+        <bind_style name="styles.text_tone_success" subject="memory_stats_pressure_tone" ref_value="0"/>
+        <bind_style name="styles.text_tone_warning" subject="memory_stats_pressure_tone" ref_value="1"/>
+        <bind_style name="styles.text_tone_danger" subject="memory_stats_pressure_tone" ref_value="2"/>
+      </lv_label>
     </lv_obj>
     <!-- Hint -->
     <lv_label name="memory_hint"
