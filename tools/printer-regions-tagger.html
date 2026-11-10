@@ -15,7 +15,8 @@
   Progress is kept in this browser; paste the output into regions.json to ship.
 
   Window review: tools/printer-regions-server.py, then open this page with ?windows
-  to drag the corners of each enclosure window (front, side, top: one region each). Every approval writes regions.json.
+  to drag the corners of each enclosure window (front, side, top: one region each),
+  and of each cutout: whatever sits in front of a window and should not glow. Every approval writes regions.json.
 -->
 <meta charset="utf-8">
 <title>Printer regions tagger</title>
@@ -46,6 +47,8 @@
   body.review .tg-stage{cursor:default;touch-action:none}
   body.review .tg-stage img{max-width:min(1100px,100%);max-height:84vh}
   body.review .quad polygon{fill:rgba(229,72,77,.22);stroke:#ffe14d}
+  body.review .quad.cut polygon,.quad.cut polygon{fill:rgba(0,0,0,.5);stroke:#22d3ee}
+  .hd.cut{border-color:#22d3ee;background:rgba(34,211,238,.3)}
   .hd{position:absolute;width:22px;height:22px;border-radius:50%;transform:translate(-50%,-50%);background:rgba(255,225,77,.35);
       border:2px solid #ffe14d;box-shadow:0 0 0 1px #000;cursor:grab;touch-action:none;display:flex;align-items:center;justify-content:center;
       font-size:9px;font-weight:700;color:#fff;text-shadow:0 0 2px #000;user-select:none}
@@ -129,9 +132,9 @@ function renderList() {
   });
 }
 function clearMarks() { $("stage").querySelectorAll(".mk,.mk-l,.chip,.glow,.quad,.hd,.xb").forEach(e => e.remove()); }
-function addQuad(pts) {
+function addQuad(pts, cls) {
   const ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg"), poly = document.createElementNS(ns, "polygon");
-  svg.setAttribute("class", "quad"); svg.setAttribute("viewBox", "0 0 1 1"); svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("class", cls ? "quad " + cls : "quad"); svg.setAttribute("viewBox", "0 0 1 1"); svg.setAttribute("preserveAspectRatio", "none");
   poly.setAttribute("points", pts.map(([x, y]) => `${x},${y}`).join(" "));
   svg.appendChild(poly); $("stage").appendChild(svg); return poly;
 }
@@ -153,7 +156,8 @@ function drawPreview(reg) {
     else add("glow", Math.min(x1, x2), (y1 + y2) / 2 - w * 0.12, "", {width: (w * 100) + "%", height: (w * 24) + "%"});
     add("chip hot", (x1 + x2) / 2, (y1 + y2) / 2 + 0.05, "▭ 58/60°");
   }
-  (reg.windows || []).forEach(addQuad);
+  (reg.windows || []).forEach(q => addQuad(q));
+  (reg.cutouts || []).forEach(q => addQuad(q, "cut"));
   if (reg.nozzle)   add("chip ok", reg.nozzle[0], reg.nozzle[1], "▼ 220°");
   if (reg.part_fan) add("chip", reg.part_fan[0], reg.part_fan[1], "✣ 80%");
   if (reg.chamber)  add("chip", reg.chamber[0], reg.chamber[1], "⌂ 34°");
@@ -217,7 +221,7 @@ const REVIEW = new URLSearchParams(location.search).has("windows");
 const OK_KEY = "hx-window-ok";
 const CORNERS = ["TL", "TR", "BR", "BL"];
 const DEFAULT_WINDOW = [[.2, .2], [.8, .2], [.8, .8], [.2, .8]];
-let approved = new Set(), quads = null;
+let approved = new Set(), quads = null, cuts = [];
 try { approved = new Set(JSON.parse(localStorage.getItem(OK_KEY) || "[]")); } catch (e) {}
 
 function persist() {
@@ -239,10 +243,15 @@ function renderReviewList() {
 }
 function drawCorners() {
   clearMarks();
-  quads.forEach((quad, q) => {
-    const poly = addQuad(quad);
+  quads.forEach((quad, q) => drawQuad(quad, "", quads.length > 1 ? () => { quads.splice(q, 1); drawCorners(); } : null));
+  // Cutouts draw over the windows they take the glow away from.
+  cuts.forEach((quad, q) => drawQuad(quad, "cut", () => { cuts.splice(q, 1); drawCorners(); }));
+}
+/// One draggable quad; `remove`, when given, puts a × at its middle.
+function drawQuad(quad, cls, remove) {
+    const poly = addQuad(quad, cls);
     quad.forEach(([x, y], n) => {
-      const h = add("hd", x, y, CORNERS[n]);
+      const h = add(cls ? "hd " + cls : "hd", x, y, CORNERS[n]);
       h.onpointerdown = e => { e.preventDefault(); h.setPointerCapture(e.pointerId); h.style.cursor = "grabbing"; };
       h.onpointermove = e => {
         if (!h.hasPointerCapture(e.pointerId)) return;
@@ -253,15 +262,19 @@ function drawCorners() {
       };
       h.onpointerup = () => { h.style.cursor = "grab"; };
     });
-    if (quads.length > 1) {
+    if (remove) {
       const xb = document.createElement("button");
-      xb.className = "xb"; xb.textContent = "×"; xb.title = "Remove this region";
+      xb.className = "xb"; xb.textContent = "×"; xb.title = cls ? "Remove this cutout" : "Remove this region";
       xb.style.left = (quad.reduce((s, p) => s + p[0], 0) / 4 * 100) + "%";
       xb.style.top = (quad.reduce((s, p) => s + p[1], 0) / 4 * 100) + "%";
-      xb.onclick = () => { quads.splice(q, 1); drawCorners(); };
+      xb.onclick = remove;
       $("stage").appendChild(xb);
     }
-  });
+}
+/// A new cutout starts small, in the middle of the picture.
+function addCutout() {
+  cuts.push([[.42, .42], [.58, .42], [.58, .58], [.42, .58]]);
+  drawCorners();
 }
 /// A new region starts in the free space right of the rightmost one.
 function addRegion() {
@@ -277,6 +290,7 @@ function nextReview(after) {
 function approve() {
   const f = IMAGES[cur];
   data[f].windows = quads.map(q => q.map(p => [...p]));
+  if (cuts.length) data[f].cutouts = cuts.map(q => q.map(p => [...p])); else delete data[f].cutouts;
   approved.add(f); persist(); loadReview(nextReview(cur));
 }
 function loadReview(i) {
@@ -285,12 +299,14 @@ function loadReview(i) {
   const f = IMAGES[i];
   $("img").src = IMG_DIR + f + ".png";
   quads = (data[f].windows || [DEFAULT_WINDOW]).map(q => q.map(p => [...p]));
+  cuts = (data[f].cutouts || []).map(q => q.map(p => [...p]));
   $("prompt").textContent = `${approved.size}/${IMAGES.length} approved · ${f}`;
-  $("hint").textContent = "Drag the corners inside each window frame. + Add region for a side or top window. Enter approves.";
+  $("hint").textContent = "Drag the corners inside each window frame. + Add region for a side or top window; + Add cutout (cyan) for a screen or spool in front of one. Enter approves.";
   bar([
     ["Approve → next", approve, 1],
     ["+ Add region", addRegion],
-    ["No window here", () => { delete data[f].windows; approved.add(f); persist(); loadReview(nextReview(cur)); }],
+    ["+ Add cutout", addCutout],
+    ["No window here", () => { delete data[f].windows; delete data[f].cutouts; approved.add(f); persist(); loadReview(nextReview(cur)); }],
     ["Reset this one", () => loadReview(i)],
     ["← Prev", () => loadReview(Math.max(0, i - 1))],
     ["Next →", () => loadReview(Math.min(IMAGES.length - 1, i + 1))],

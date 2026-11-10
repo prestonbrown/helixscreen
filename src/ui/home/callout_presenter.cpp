@@ -230,15 +230,22 @@ void CalloutPresenter::place_glow(const Chip& part, const ImageRegions& r,
 
     const bool washes = part.kind == CalloutKind::Chamber || part.kind == CalloutKind::Light;
     if (washes && !r.windows.empty()) {
-        std::vector<GlowQuad> quads;
-        quads.reserve(r.windows.size());
-        for (const auto& norm : r.windows) {
-            GlowQuad q{};
-            for (size_t i = 0; i < q.size(); ++i)
-                q[i] = to_px(norm[i]);
-            key = hash_quad(key, q);
-            quads.push_back(q);
-        }
+        const auto to_quads = [&](const std::vector<std::array<NormPoint, 4>>& norms) {
+            std::vector<GlowQuad> out;
+            out.reserve(norms.size());
+            for (const auto& norm : norms) {
+                GlowQuad q{};
+                for (size_t i = 0; i < q.size(); ++i)
+                    q[i] = to_px(norm[i]);
+                key = hash_quad(key, q);
+                out.push_back(q);
+            }
+            return out;
+        };
+        const std::vector<GlowQuad> quads = to_quads(r.windows);
+        // A marker between the lists, so a quad moving from one to the other re-renders.
+        key = hash_int(key, -1);
+        const std::vector<GlowQuad> cutouts = to_quads(r.cutouts);
         if (is_current(key)) {
             return;
         }
@@ -246,7 +253,7 @@ void CalloutPresenter::place_glow(const Chip& part, const ImageRegions& r,
         const bool chamber = part.kind == CalloutKind::Chamber;
         show(key,
              render_region_glow(quads, source, reach, chamber ? kChamberWashFloor : kLightWashFloor,
-                                chamber ? kChamberWashPeak : kLightWashPeak));
+                                chamber ? kChamberWashPeak : kLightWashPeak, cutouts));
         return;
     }
 

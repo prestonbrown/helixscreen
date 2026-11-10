@@ -41,9 +41,11 @@ using GlowQuad = std::array<CalloutPoint, 4>;
 
 /// A wash of light confined to `quads`, brightest at `source` and easing to
 /// `floor` (0..1 of `peak`) at `reach` pixels from it. Edges feather inward, so
-/// nothing lands outside a quad. Empty for no quads or quads with no area.
+/// nothing lands outside a quad, and `cutouts` take it away again where they
+/// cover it. Empty for no quads or quads with no area.
 PlateGlowMask render_region_glow(const std::vector<GlowQuad>& quads, CalloutPoint source,
-                                 float reach, float floor, float peak);
+                                 float reach, float floor, float peak,
+                                 const std::vector<GlowQuad>& cutouts = {});
 
 /// A soft disc: full at `center`, fading to nothing at `radius` pixels.
 PlateGlowMask render_disc_glow(CalloutPoint center, int radius);

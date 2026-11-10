@@ -37,6 +37,9 @@ struct ImageRegions {
     /// The see-through regions of the enclosure (front, side, top), each clockwise
     /// from its top-left. Chamber heat and the light show only inside these.
     std::vector<std::array<NormPoint, 4>> windows;
+    /// What sits in front of a window (a touchscreen, a spool), in the same form;
+    /// the glow is cut out of it.
+    std::vector<std::array<NormPoint, 4>> cutouts;
 };
 
 /// Parse a regions document. Entries missing `size`, `nozzle` or `bed`, or

@@ -123,3 +123,17 @@ TEST_CASE("render_disc_glow: full at the center, gone at the rim", "[plate_glow]
     CHECK(alpha_at(m, 30, 40) == 0);
     CHECK(render_disc_glow({5, 5}, 0).w == 0);
 }
+
+TEST_CASE("render_region_glow: a cutout takes the glow away where it sits", "[plate_glow]") {
+    const GlowQuad window{{{0, 0}, {100, 0}, {100, 100}, {0, 100}}};
+    const GlowQuad screen{{{20, 20}, {50, 20}, {50, 50}, {20, 50}}};
+    const PlateGlowMask plain = render_region_glow({window}, {50, 50}, 120.f, 0.5f, 200.f);
+    const PlateGlowMask cut = render_region_glow({window}, {50, 50}, 120.f, 0.5f, 200.f, {screen});
+    REQUIRE(cut.w == plain.w);
+    REQUIRE(cut.h == plain.h);
+    CHECK(alpha_at(plain, 35, 35) > 0);
+    CHECK(alpha_at(cut, 35, 35) == 0);                       // inside the cutout
+    CHECK(alpha_at(cut, 80, 80) == alpha_at(plain, 80, 80)); // the window around it
+    CHECK(alpha_at(cut, 49, 35) < alpha_at(plain, 49, 35));  // its edge feathers too
+    CHECK(alpha_at(cut, 51, 35) == alpha_at(plain, 51, 35));
+}

@@ -114,7 +114,8 @@ int chamber_glow_level(int current_deci) {
 }
 
 PlateGlowMask render_region_glow(const std::vector<GlowQuad>& quads, CalloutPoint source,
-                                 float reach, float floor, float peak) {
+                                 float reach, float floor, float peak,
+                                 const std::vector<GlowQuad>& cutouts) {
     PlateGlowMask m;
     if (quads.empty())
         return m;
@@ -147,6 +148,10 @@ PlateGlowMask render_region_glow(const std::vector<GlowQuad>& quads, CalloutPoin
     edges.reserve(quads.size());
     for (const GlowQuad& q : quads)
         edges.push_back(edges_of(q));
+    std::vector<QuadEdges> cut_edges;
+    cut_edges.reserve(cutouts.size());
+    for (const GlowQuad& q : cutouts)
+        cut_edges.push_back(edges_of(q));
 
     for (int row = 0; row < m.h; ++row) {
         const float y = float(m.y) + (float(row) + 0.5f) * float(step);
@@ -155,6 +160,10 @@ PlateGlowMask render_region_glow(const std::vector<GlowQuad>& quads, CalloutPoin
             float cover = 0.f;
             for (const QuadEdges& e : edges)
                 cover = std::max(cover, quad_cover(e, x, y));
+            float cut = 0.f;
+            for (const QuadEdges& e : cut_edges)
+                cut = std::max(cut, quad_cover(e, x, y));
+            cover *= 1.f - cut;
             if (cover <= 0.f)
                 continue;
             const float dx = x - float(source.x), dy = y - float(source.y);

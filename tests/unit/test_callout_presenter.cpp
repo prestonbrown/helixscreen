@@ -267,6 +267,12 @@ TEST_CASE_METHOD(PresenterFixture, "the chamber glow fills its windows, or a dis
 
         r.windows[0][2].y = 0.6f;
         presenter.apply(parts, &r, 1601, 1204, config());
-        CHECK(lv_image_get_src(chamber.glow) != first);
+        const void* const second = lv_image_get_src(chamber.glow);
+        CHECK(second != first);
+
+        r.cutouts.push_back({{NormPoint{0.4f, 0.2f}, NormPoint{0.6f, 0.2f}, NormPoint{0.6f, 0.3f},
+                              NormPoint{0.4f, 0.3f}}});
+        presenter.apply(parts, &r, 1601, 1204, config());
+        CHECK(lv_image_get_src(chamber.glow) != second);
     }
 }

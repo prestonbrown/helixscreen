@@ -63,7 +63,11 @@ TEST_CASE("parse_image_regions: windows are a list of quads", "[printer_image][r
                "windows": [[[0.1, 0.1], [0.5, 0.5], [0.5, 0.1], [0.1, 0.5]],
                            [[0.1, 0.1], [0.5, 0.1], [0.2, 0.2], [0.1, 0.5]],
                            [[0.6, 0.3], [0.6, 0.7], [0.9, 0.7], [0.9, 0.3]]]},
-      "far":  {"size": [10, 10], "nozzle": [1e30, -1e30], "bed": [[0.1, 0.9], [0.9, 0.9]]}
+      "far":  {"size": [10, 10], "nozzle": [1e30, -1e30], "bed": [[0.1, 0.9], [0.9, 0.9]]},
+      "cut":  {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]],
+               "cutouts": [[[0.2, 0.2], [0.3, 0.2], [0.3, 0.3], [0.2, 0.3]],
+                           [[0.1, 0.1], [0.5, 0.5], [0.5, 0.1], [0.1, 0.5]],
+                           [[0.4, 0.4], [9.0, 0.4], [9.0, 0.6], [0.4, 0.6]]]}
     })");
     REQUIRE(m.at("two").windows.size() == 2);
     CHECK(m.at("two").windows[1][2].x == Catch::Approx(0.9f));
@@ -79,6 +83,11 @@ TEST_CASE("parse_image_regions: windows are a list of quads", "[printer_image][r
     // A point far off the picture is pulled back near it.
     CHECK(m.at("far").nozzle.x == Catch::Approx(2.f));
     CHECK(m.at("far").nozzle.y == Catch::Approx(-1.f));
+    // Cutouts parse like windows: the bowtie goes, a far corner is held near the picture.
+    CHECK(m.at("cut").windows.empty());
+    REQUIRE(m.at("cut").cutouts.size() == 2);
+    CHECK(m.at("cut").cutouts[0][2].x == Catch::Approx(0.3f));
+    CHECK(m.at("cut").cutouts[1][1].x == Catch::Approx(2.f));
 }
 
 TEST_CASE("parse_image_regions: malformed document yields empty map", "[printer_image][regions]") {
@@ -517,8 +526,11 @@ TEST_CASE("save_user_image_regions: windows survive a save", "[printer_image][re
     r.bed_left = {0.25f, 0.75f};
     r.bed_right = {0.75f, 0.75f};
     r.windows.push_back({{{0.1f, 0.2f}, {0.5f, 0.2f}, {0.5f, 0.8f}, {0.1f, 0.8f}}});
+    r.cutouts.push_back({{{0.2f, 0.3f}, {0.3f, 0.3f}, {0.3f, 0.4f}, {0.2f, 0.4f}}});
     REQUIRE(save_user_image_regions("custom:mine", r));
     const auto back = parse_image_regions(read_user_file(cfg));
     REQUIRE(back.at("custom:mine").windows.size() == 1);
     CHECK(back.at("custom:mine").windows[0][2].y == Catch::Approx(0.8f));
+    REQUIRE(back.at("custom:mine").cutouts.size() == 1);
+    CHECK(back.at("custom:mine").cutouts[0][1].x == Catch::Approx(0.3f));
 }

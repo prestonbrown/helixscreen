@@ -54,9 +54,10 @@ bool is_convex(const std::array<NormPoint, 4>& q) {
     return true;
 }
 
-/// Each well-formed quad under `v`; a malformed one is dropped with a warning.
-std::vector<std::array<NormPoint, 4>> read_windows(const nlohmann::json& v,
-                                                   const std::string& name) {
+/// Each well-formed quad under `v` (`what` names them in the log); a malformed one
+/// is dropped with a warning.
+std::vector<std::array<NormPoint, 4>> read_quads(const nlohmann::json& v, const std::string& name,
+                                                 const char* what) {
     std::vector<std::array<NormPoint, 4>> out;
     if (!v.is_array())
         return out;
@@ -72,8 +73,8 @@ std::vector<std::array<NormPoint, 4>> read_windows(const nlohmann::json& v,
         if (ok && is_convex(pts))
             out.push_back(pts);
         else
-            spdlog::warn("[PrinterImageRegions] '{}': skipping a malformed or non-convex window",
-                         name);
+            spdlog::warn("[PrinterImageRegions] '{}': skipping a malformed or non-convex {}", name,
+                         what);
     }
     return out;
 }
@@ -163,16 +164,20 @@ nlohmann::json entry_json(const ImageRegions& r) {
         e["chamber"] = point_json(*r.chamber);
     if (r.light)
         e["light"] = point_json(*r.light);
-    if (!r.windows.empty()) {
-        nlohmann::json windows = nlohmann::json::array();
-        for (const auto& quad : r.windows) {
+    const auto quads_json = [](const std::vector<std::array<NormPoint, 4>>& quads) {
+        nlohmann::json out = nlohmann::json::array();
+        for (const auto& quad : quads) {
             nlohmann::json q = nlohmann::json::array();
             for (const NormPoint& p : quad)
                 q.push_back(point_json(p));
-            windows.push_back(std::move(q));
+            out.push_back(std::move(q));
         }
-        e["windows"] = std::move(windows);
-    }
+        return out;
+    };
+    if (!r.windows.empty())
+        e["windows"] = quads_json(r.windows);
+    if (!r.cutouts.empty())
+        e["cutouts"] = quads_json(r.cutouts);
     return e;
 }
 
@@ -236,7 +241,9 @@ std::unordered_map<std::string, ImageRegions> parse_image_regions(const std::str
         if (e.contains("light"))
             r.light = read_point(e["light"]);
         if (e.contains("windows"))
-            r.windows = read_windows(e["windows"], name);
+            r.windows = read_quads(e["windows"], name, "window");
+        if (e.contains("cutouts"))
+            r.cutouts = read_quads(e["cutouts"], name, "cutout");
         out.emplace(name, r);
     }
     return out;
