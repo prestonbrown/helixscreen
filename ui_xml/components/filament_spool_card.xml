@@ -2,23 +2,30 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!-- Spool card — relevant with or without AMS. C++ swaps between
-       Multi-Filament (AMS/multi-tool rows) and External Spool presentations,
-       and hides the header row in portrait (FilamentPanel::
-       update_multi_filament_card_visibility). Instantiated by both
+  <!-- Spool card — relevant with or without AMS. filament_external_spool_mode
+       swaps between the Multi-Filament (AMS/multi-tool rows) and External
+       Spool presentations (FilamentPanel::update_multi_filament_card_visibility);
+       the header row also hides in portrait. Instantiated by both
        orientation branches of filament_panel.xml so the markup exists exactly
        once; the #filament_ams_row_h ladder it uses is declared in
        filament_panel.xml (top-level files only — see
        bed_mesh_profiles_card.xml for the scope rule). -->
+  <styles>
+    <!-- Flex placement is bound, not inline: an inline one would outrank both. -->
+    <style name="spool_card_start" flex_main_place="start" flex_cross_place="start"/>
+    <style name="spool_card_centered" flex_main_place="center" flex_cross_place="center"/>
+  </styles>
   <view name="spool_card"
         extends="ui_card" width="100%" height="0" flex_grow="1" style_radius="#border_radius" style_pad_ver="#space_xs"
-        style_pad_hor="#space_md" style_pad_gap="#space_xxs" flex_flow="column" style_flex_main_place="start"
-        style_flex_cross_place="start">
+        style_pad_hor="#space_md" style_pad_gap="#space_xxs" flex_flow="column">
+    <bind_style name="spool_card_start" subject="filament_external_spool_mode" ref_value="0"/>
+    <bind_style name="spool_card_centered" subject="filament_external_spool_mode" ref_value="1"/>
     <!-- Header row with icon (hidden when external spool mode — no AMS —
          or in portrait, where the card is a bottom strip) -->
     <lv_obj name="spool_card_header_row"
             width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
             style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
+      <bind_flag_if cond="filament_external_spool_mode eq 1 or ui_is_portrait eq 1" flag="hidden"/>
       <icon src="filament" size="sm" variant="secondary"/>
       <text_body bind_text="filament_card_title"
                  translation_tag="Multi-Filament" text_transform="uppercase" style_translate_y="2"/>
@@ -47,8 +54,8 @@
            button_height is below the mini-status 32px floor). -->
       <lv_obj name="ams_manage_row"
               width="0" height="#filament_ams_row_h" flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="row"
-              style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_sm"
-              hidden="true">
+              style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_sm">
+        <bind_flag_if_eq subject="filament_external_spool_mode" flag="hidden" ref_value="1"/>
         <!-- AMS mini status (auto-binds to AmsState, fills width, stretches to row height) -->
         <ams_mini_status name="ams_mini_status" height="100%" flex_grow="1" bars_align="start"/>
         <!-- Manage Button (shown when single-tool AMS, hidden when multi-tool) -->
@@ -76,11 +83,12 @@
            for entirely by the graph. The status line lives on the AMS panel,
            next to the arrows it explains, and in the slot context menu, which
            is where the disabled-or-absent backup dropdown actually is. -->
-      <!-- External spool row (visible when no AMS and no multi-tool, managed by C++) -->
+      <!-- External spool row (visible when no AMS and no multi-tool) -->
       <lv_obj name="external_spool_row"
               width="0" height="content" flex_grow="1" style_pad_all="0" scrollable="false" clickable="true"
               flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_sm"
-              hidden="true" style_radius="#border_radius">
+              style_radius="#border_radius">
+        <bind_flag_if_eq subject="filament_external_spool_mode" flag="hidden" ref_value="0"/>
         <!-- Pressed wash from the shared style library (ui_xml/styles.xml) -->
         <style name="styles.press_wash" selector="pressed"/>
         <event_cb trigger="clicked" callback="on_external_spool_edit"/>
@@ -91,8 +99,21 @@
         <lv_obj height="content"
                 flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column" style_flex_main_place="center"
                 style_flex_cross_place="start" style_pad_gap="2" clickable="false" event_bubble="true">
-          <text_body name="external_spool_material_label" text="No spool assigned" clickable="false" event_bubble="true"/>
-          <text_small name="external_spool_color_label" text="Tap to assign" clickable="false" event_bubble="true"/>
+          <!-- The assigned spool's lines, or the translated placeholders -->
+          <text_body name="external_spool_material_label"
+                     bind_text="filament_external_spool_material" clickable="false" event_bubble="true">
+            <bind_flag_if_eq subject="filament_external_spool_assigned" flag="hidden" ref_value="0"/>
+          </text_body>
+          <text_small name="external_spool_color_label"
+                      bind_text="filament_external_spool_detail" clickable="false" event_bubble="true">
+            <bind_flag_if_eq subject="filament_external_spool_assigned" flag="hidden" ref_value="0"/>
+          </text_small>
+          <text_body name="external_spool_none_label" text="No spool assigned" clickable="false" event_bubble="true">
+            <bind_flag_if_eq subject="filament_external_spool_assigned" flag="hidden" ref_value="1"/>
+          </text_body>
+          <text_small name="external_spool_assign_label" text="Tap to assign" clickable="false" event_bubble="true">
+            <bind_flag_if_eq subject="filament_external_spool_assigned" flag="hidden" ref_value="1"/>
+          </text_small>
         </lv_obj>
       </lv_obj>
     </lv_obj>

@@ -550,14 +550,20 @@ class FilamentPanel : public PanelBase {
     // Dynamic spool preset button (shown when active material != standard preset)
     lv_obj_t* spool_preset_row_ = nullptr;
     lv_obj_t* spool_preset_button_ = nullptr;
-    lv_obj_t* spool_preset_label_ = nullptr;
-    lv_obj_t* spool_preset_temps_ = nullptr;
     std::optional<helix::ActiveMaterial> cached_active_material_;
+    // 1 while the spool's material is novel enough to earn its own preset
+    // button; the button's two lines bind the name and the temperatures.
+    lv_subject_t spool_preset_shown_subject_{};
+    lv_subject_t spool_preset_name_subject_{};
+    char spool_preset_name_buf_[64] = {};
+    lv_subject_t spool_preset_temps_subject_{};
+    char spool_preset_temps_buf_[32] = {};
 
-    // Temperature labels for color updates (4-state heating color)
-    lv_obj_t* nozzle_current_label_ = nullptr;
-    lv_obj_t* bed_current_label_ = nullptr;
-    lv_obj_t* chamber_current_label_ = nullptr;
+    // HeatState of each current-temperature readout; the XML colors the label
+    // from it (gray off, red heating, green at temp, blue cooling).
+    lv_subject_t nozzle_heat_state_subject_{};
+    lv_subject_t bed_heat_state_subject_{};
+    lv_subject_t chamber_heat_state_subject_{};
 
     // Warning dialogs for filament sensor integration
     helix::ui::WidgetRef load_warning_dialog_;
@@ -586,11 +592,12 @@ class FilamentPanel : public PanelBase {
     // Spool card widgets — serves both Multi-Filament (AMS/multi-tool) and
     // External Spool presentations; C++ swaps the visible rows.
     lv_obj_t* spool_card_ = nullptr;
-    lv_obj_t* spool_card_header_row_ = nullptr;
     lv_obj_t* extruder_selector_group_ = nullptr;
     helix::ui::WidgetRef extruder_dropdown_;
     lv_obj_t* btn_manage_slots_ = nullptr;
-    lv_obj_t* ams_manage_row_ = nullptr;
+    // 1 with no AMS and one tool: the card shows the external spool row in
+    // place of the AMS row, centered, without its header.
+    lv_subject_t external_spool_mode_subject_{};
     ObserverGuard tools_version_observer_;
 
     void populate_extruder_dropdown();
@@ -601,14 +608,18 @@ class FilamentPanel : public PanelBase {
     void revert_extruder_dropdown();
 
     // External spool display (no-AMS mode)
-    lv_obj_t* external_spool_row_ = nullptr;
     lv_obj_t* external_spool_container_ = nullptr;
     lv_obj_t* external_spool_canvas_ = nullptr;
     // The container the spool canvas was last created in; same rebind guard
     // as temp_graph_container_wired_.
     helix::ui::WidgetRef external_spool_container_wired_;
-    lv_obj_t* external_spool_material_label_ = nullptr;
-    lv_obj_t* external_spool_color_label_ = nullptr;
+    // 1 while a spool is assigned; with none the row shows its own
+    // translated "No spool assigned" / "Tap to assign" lines instead.
+    lv_subject_t external_spool_assigned_subject_{};
+    lv_subject_t external_spool_material_subject_{};
+    char external_spool_material_buf_[96] = {};
+    lv_subject_t external_spool_detail_subject_{};
+    char external_spool_detail_buf_[64] = {};
     ObserverGuard external_spool_observer_;
     lv_subject_t card_title_subject_{};
     char card_title_buf_[32] = {};

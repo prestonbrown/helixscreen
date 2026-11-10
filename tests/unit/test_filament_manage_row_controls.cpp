@@ -20,10 +20,12 @@
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_panel_test_access.h"
+#include "../test_helpers/mock_printer.h"
 #include "ams_backend_cfs.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
 #include "theme_manager.h"
 #include "tool_state.h"
@@ -120,6 +122,50 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament manage row: single-tool with AMS g
     REQUIRE_FALSE(h.hidden("ams_manage_row"));
     CHECK_FALSE(h.hidden("btn_manage_slots"));
     CHECK(h.hidden("extruder_selector_group"));
+    CHECK(h.hidden("external_spool_row"));
+    CHECK_FALSE(h.hidden("spool_card_header_row"));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Filament card: one tool and no AMS shows the external spool and its text",
+                 "[filament][ui][tool][external_spool]") {
+    AmsState::instance().clear_external_spool_info();
+    ManageRowHarness h(*this, {"extruder"}, AmsType::NONE);
+
+    CHECK(h.hidden("ams_manage_row"));
+    CHECK(h.hidden("spool_card_header_row"));
+    REQUIRE_FALSE(h.hidden("external_spool_row"));
+    // No spool: the translated placeholders stand in for the spool's lines.
+    CHECK_FALSE(h.hidden("external_spool_none_label"));
+    CHECK(h.hidden("external_spool_material_label"));
+
+    SlotInfo spool;
+    spool.brand = "Prusament";
+    spool.material = "PETG";
+    spool.color_name = "Galaxy Black";
+    spool.color_rgb = 0x202020;
+    spool.spoolman_id = 129;
+    spool.remaining_weight_g = 640;
+    spool.total_weight_g = 1000;
+    // The record lives in the mock Moonraker's database; the write's answer
+    // queues the read that notifies the panel.
+    MockPrinter printer;
+    AmsState::instance().set_moonraker_api(&printer.api);
+    AmsState::instance().set_external_spool_info(spool);
+    for (int i = 0; i < 4; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    h.fx.process_lvgl(30);
+
+    CHECK(h.hidden("external_spool_none_label"));
+    REQUIRE_FALSE(h.hidden("external_spool_material_label"));
+    lv_obj_t* material = lv_obj_find_by_name(h.root, "external_spool_material_label");
+    lv_obj_t* detail = lv_obj_find_by_name(h.root, "external_spool_color_label");
+    CHECK(std::string(lv_label_get_text(material)) == "Prusament PETG #129");
+    CHECK(std::string(lv_label_get_text(detail)) == "Galaxy Black · 640g");
+    AmsState::instance().clear_external_spool_info();
+    helix::ui::UpdateQueue::instance().drain();
+    AmsState::instance().set_moonraker_api(nullptr);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "The panel glyph shows the loaded filament color",
