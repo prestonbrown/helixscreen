@@ -19,6 +19,7 @@
 #include "moonraker_client.h"
 #include "platform_info.h"
 #include "printer_discovery_list.h"
+#include "theme_manager.h"
 #include "utils/network_validation.h"
 #include "wizard_config_paths.h"
 
@@ -546,6 +547,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     WizardConnectionStep* step = get_wizard_connection_step();
     step->init_subjects();
+    step->register_callbacks();
     step->set_mdns_discovery(std::make_unique<MockMdnsDiscovery>());
     lv_obj_t* root = step->create(test_screen());
     REQUIRE(root != nullptr);
@@ -567,6 +569,19 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(text == connect_failure_status(kind, {7125, 80}));
     CHECK(text.find(lv_tr(connect_failure_hint(kind, is_android_platform()))) == 0);
     CHECK(text.find("80") != std::string::npos);
+
+    // One icon shows, in the danger colour.
+    lv_obj_t* icons = lv_obj_find_by_name(root, "connection_status_icon");
+    REQUIRE(icons != nullptr);
+    std::vector<lv_obj_t*> shown;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(icons); ++i) {
+        if (!lv_obj_has_flag(lv_obj_get_child(icons, i), LV_OBJ_FLAG_HIDDEN)) {
+            shown.push_back(lv_obj_get_child(icons, i));
+        }
+    }
+    REQUIRE(shown.size() == 1);
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(shown[0], LV_PART_MAIN),
+                      theme_manager_get_color("danger")));
     step->cleanup();
 }
 
@@ -602,6 +617,7 @@ struct RestoreDefaultPortField {
 
 lv_obj_t* create_step_and_test(WizardConnectionStep* step, lv_obj_t* parent) {
     step->init_subjects();
+    step->register_callbacks();
     step->set_mdns_discovery(std::make_unique<MockMdnsDiscovery>());
     lv_obj_t* root = step->create(parent);
     REQUIRE(root != nullptr);

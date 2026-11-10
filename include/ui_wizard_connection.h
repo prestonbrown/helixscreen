@@ -177,7 +177,8 @@ class WizardConnectionStep : public helix::wizard::Step {
     // Subjects
     lv_subject_t connection_ip_{};
     lv_subject_t connection_port_{};
-    lv_subject_t connection_status_icon_{};
+    /// StatusKind: which icon the status line shows (wizard_connection.xml)
+    lv_subject_t connection_status_kind_{};
     lv_subject_t connection_status_text_{};
     lv_subject_t connection_testing_{};
     lv_subject_t connection_discovering_{};
@@ -189,13 +190,14 @@ class WizardConnectionStep : public helix::wizard::Step {
     // String buffers (must be persistent)
     char connection_ip_buffer_[128];
     char connection_port_buffer_[8];
-    char connection_status_icon_buffer_[8];
-    char connection_status_text_buffer_[256];
+    char connection_status_text_buffer_[1024]; // holds a Klipper error message in full
     char connection_api_key_buffer_[80];
 
     // State tracking (main thread only)
     bool connection_validated_ = false;
     bool subjects_initialized_ = false;
+    /// True while create() fills the inputs: their change handlers ignore it
+    bool prefilling_inputs_ = false;
 
     // Async callback safety — invalidated on cleanup AND on each new connection
     // attempt, replacing both cleanup_called_ and connection_generation_ (#193, #827)
@@ -264,9 +266,16 @@ class WizardConnectionStep : public helix::wizard::Step {
     /// for the hardware discovery the next steps need.
     void connect_confirmed(const helix::LifetimeToken& tok, bool auto_probe, uint32_t timeout_ms);
 
-    // Helper to set status icon and text imperatively with appropriate colors
-    enum class StatusVariant { None, Success, Warning, Danger };
-    void set_status(const char* icon_name, StatusVariant variant, const char* text);
+    /// The status line's icon, matched by value in wizard_connection.xml.
+    enum class StatusKind : int {
+        None = 0,
+        Testing = 1, ///< question mark, muted
+        Success = 2, ///< check, success colour
+        Error = 3,   ///< cross, danger colour
+        Refused = 4, ///< cross, warning colour: the printer wants a key
+        Caution = 5, ///< warning triangle
+    };
+    void set_status(StatusKind kind, const char* text);
 
   public:
     /**
