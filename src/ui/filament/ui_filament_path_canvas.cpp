@@ -64,6 +64,7 @@ bool refresh_theme_colors(FilamentPathData* data) {
     theme.color_idle =
         theme_manager_get_color(dark_mode ? "filament_idle_dark" : "filament_idle_light");
     theme.color_error = theme_manager_get_color("filament_error");
+    theme.color_selected = theme_manager_get_color("primary");
     theme.color_hub_bg =
         theme_manager_get_color(dark_mode ? "filament_hub_bg_dark" : "filament_hub_bg_light");
     theme.color_hub_border = theme_manager_get_color(dark_mode ? "filament_hub_border_dark"
@@ -506,11 +507,20 @@ void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology) {
 }
 
 // NAMESPACE_OK: one of the canvas's C-style setters
-void ui_filament_path_canvas_set_built_in_hub(lv_obj_t* obj, bool built_in) {
+void ui_filament_path_canvas_set_lane_join(lv_obj_t* obj, helix::ui::tray::LaneJoin join) {
+    using helix::ui::tray::LaneJoin;
     auto* data = get_data(obj);
-    if (!data || data->built_in_hub == built_in)
+    if (!data)
+        return;
+    const bool inside = join == LaneJoin::Inside;
+    const bool built_in = inside || join == LaneJoin::Junction;
+    const bool fixed = join == LaneJoin::FixedBlock;
+    if (data->built_in_hub == built_in && data->lanes_merge_inside == inside &&
+        data->fixed_selector == fixed)
         return;
     data->built_in_hub = built_in;
+    data->lanes_merge_inside = inside;
+    data->fixed_selector = fixed;
     layered_mark_dirty(obj);
 }
 

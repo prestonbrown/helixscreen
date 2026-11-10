@@ -131,7 +131,7 @@ UNIT = UnitDef(
         rail=0x55524e,
         accent=0x7b2fd0,
         # A type-B unit: every lane merges at the hub built into the enclosure, and one tube leaves.
-        built_in_selector=True,
+        lane_join="junction",
         front=[
             kit.span(2, 2, 3, _TRAY_WALL - 2, 0x2a2826, 3),
             kit.lane(-11, 11, 5, 24, 0x7b2fd0, 2),

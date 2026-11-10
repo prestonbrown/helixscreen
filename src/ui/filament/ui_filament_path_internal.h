@@ -144,6 +144,7 @@ struct ThemeCache {
     lv_color_t color_error;
     lv_color_t color_hub_bg;
     lv_color_t color_hub_border;
+    lv_color_t color_selected;
     lv_color_t color_text;
     lv_color_t color_bg;        // Canvas background (for hollow tube bore)
     lv_color_t color_success;   // Success color (cached for draw callbacks)
@@ -346,7 +347,9 @@ struct FilamentPathData {
     // toolhead and the shared hub->nozzle run is a short stub (printers whose
     // combiner mounts on the print head; the per-lane tubes run the whole way).
     bool hub_on_toolhead = false;
-    bool built_in_hub = false; // lanes merge inside the unit; one line leaves it
+    bool built_in_hub = false;       // no hub box: the lanes meet at a junction or inside the unit
+    bool lanes_merge_inside = false; // a built_in_hub whose short merge has no junction drawn
+    bool fixed_selector = false;     // the selector is a fixed block with one port per lane
     const helix::ui::tray::RailFace* selector_rail = nullptr; // static generated table entry
     // The rail as last painted, for the per-frame carriage: offsets from the widget's top.
     bool rail_drawn = false;

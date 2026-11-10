@@ -277,7 +277,7 @@ class TrayShellDef:
     accent: int
     corner: int = 0
     front: Optional[list] = None
-    built_in_selector: bool = False
+    lane_join: str = "hub"  # "hub", "junction", "inside" or "block": how the lanes meet
 
 
 @dataclass

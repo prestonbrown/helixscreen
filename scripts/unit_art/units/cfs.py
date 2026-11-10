@@ -119,4 +119,4 @@ UNIT.tray.front = [
     kit.center(12, 30, 15, 29, 0x2b2e33, 1),
 ]
 
-UNIT.tray.built_in_selector = True
+UNIT.tray.lane_join = "inside"
