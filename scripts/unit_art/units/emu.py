@@ -21,12 +21,12 @@ BASE_Z = 0.17  # the dock's height
 BASE_FRONT, BASE_BACK, BASE_LEAN = -0.07, D + 0.03, 0.035
 BASE_SIDE = 0.03  # how far the dock reaches past the end housings
 BLACK_TOP = BASE_Z + 0.1  # a box's black base at its front, under the latch
-BLACK_REAR = 0.48  # the same black base at the back: its side rises toward the rear
 WINDOW_Z = BLACK_TOP + 0.06  # the window's bottom edge, over the red band with the latch
 ARCH_R = D / 2
 ARCH_Z = 0.58  # where the half-round top springs from the walls
+BLACK_REAR = ARCH_Z  # the same black base covers the back wall: its side rises toward the rear
 SPOOL_Y, SPOOL_Z, SPOOL_R = D / 2, ARCH_Z, 0.25
-RED, BLACK = "#b3201c", "#1d1d20"
+RED, BLACK = "#b3201c", "#4a4b51"  # the bases and dock are black; grey reads on a dark screen
 GLASS = "#c9b9b4"
 INTERIOR = "#24100f"
 LED, LED_CORE = "#dff3ec", "#3a4a46"
@@ -114,30 +114,36 @@ def draw_art(sc, colors, tier):
         sc.extrude_x(WINDOW, x0 + WALL, x1 - WALL, GLASS, 0.16 if detail else 0.1, front=True)
 
 
-_WALL = (BLACK_TOP - BASE_Z) * TRAY_PX_PER_UNIT
-_RED = int(RED[1:], 16)
+# On the tray: the dock is the front wall, each box's black base rises toward the back as
+# the body's contour, and each box's red top stands on it around its glass.
+_WALL = 26.0
+_BAND = 10.0  # each box's base along the top of the wall; the dock below it runs the whole row
+DOCK_COLOR = "#36373c"
+_RISE = (BLACK_REAR - BLACK_TOP) * TRAY_PX_PER_UNIT
+_RED, _BLACK = int(RED[1:], 16), int(BLACK[1:], 16)
 UNIT = UnitDef(
     "emu",
     4,
     draw_art,
     TrayShellDef(
-        cheek=[(0.0, 0.0), (1.0, 0.0)],
-        dome=kit.tray_profile(WINDOW, WINDOW_Z, TRAY_PX_PER_UNIT),
-        back_extra_px=0.0,
+        cheek=[(0.0, 0.0), (1.0, _RISE)],
+        # Measured from the spool's bottom, which the tray stands a front wall below the lid.
+        dome=kit.tray_profile(_arch(BLACK_TOP), SPOOL_Z - SPOOL_R + _WALL / TRAY_PX_PER_UNIT, TRAY_PX_PER_UNIT),
+        back_extra_px=_RISE,
         front_wall_px=_WALL,
         rail_px=6.0,
-        # The housings fill their pitch, so the base runs to the outer housing's full width.
-        cap_clearance_px=40.0,
+        cap_clearance_px=6.0,
         lid_spans_row=False,
         has_latch=False,
-        body=_RED,
-        panel=_RED,
-        rail=_RED,
+        body=_BLACK,
+        panel=_BLACK,
+        rail=_BLACK,
         accent=_RED,
-        # The lane's number badge stands where its status light is on the real base.
-        front=[kit.span(0, 0, 0, _WALL, _RED, 2)],
-        # Lanes leave each housing through its own sensors and meet in a separate printed combiner.
+        # The lane's number badge stands where its status light is on the real dock.
+        front=[kit.span(0, 0, 0, _WALL, int(DOCK_COLOR[1:], 16), 2), kit.lane(-28, 28, 0, _BAND, _BLACK, 1)],
+        # Lanes leave each box through its own sensors and meet in a separate printed combiner.
         lane_join="junction",
+        lid_color=_RED,
     ),
     lane_variants=(1, 2, 3, 4, 5, 6, 8),
 )

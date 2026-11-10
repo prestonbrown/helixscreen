@@ -280,6 +280,7 @@ class TrayShellDef:
     corner: int = 0
     front: Optional[list] = None
     lane_join: str = "hub"  # "hub", "junction", "inside" or "block": how the lanes meet
+    lid_color: int = 0  # a box per lane: each box's solid top around its glass; 0 for all glass
 
 
 @dataclass

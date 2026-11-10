@@ -125,10 +125,14 @@ void fill_cheek(const ShellView& view, lv_layer_t* layer, lv_point_t o, float x,
 /// The glass at a lid's end, reaching down to the body's contour.
 void fill_shell_cap(const ShellView& view, lv_layer_t* layer, lv_point_t o, const PointF* cap,
                     float x, lv_color_t color, lv_opa_t opa) {
+    // A solid cap's strips each reach one segment further and overlap, so no anti-aliased seam
+    // shows the background through it; glass keeps single strips, which would double up.
+    const int reach = opa == LV_OPA_COVER ? 2 : 1;
     for (int i = 0; i + 1 < kCapPoints; ++i) {
+        const int j = std::min(i + reach, kCapPoints - 1);
         const PointF low0 = cheek_under(view.box, *view.shell, view.spool_size, x, cap[i]);
-        const PointF low1 = cheek_under(view.box, *view.shell, view.spool_size, x, cap[i + 1]);
-        const PointF strip[4] = {cap[i], cap[i + 1], low1, low0};
+        const PointF low1 = cheek_under(view.box, *view.shell, view.spool_size, x, cap[j]);
+        const PointF strip[4] = {cap[i], cap[j], low1, low0};
         fill_convex(layer, o, strip, 4, color, opa);
     }
 }
@@ -162,6 +166,12 @@ void stroke_lid_top(lv_layer_t* layer, lv_point_t o, const Lid& lid, lv_color_t 
 }
 
 /// A unit's own front wall, rail and side, in the shell's hardware colours.
+void fill_box_side(const ShellView& view, lv_layer_t* layer, lv_point_t o, const PointF* cap,
+                   float x) {
+    fill_cheek(view, layer, o, x, view.shell->body);
+    fill_shell_cap(view, layer, o, cap, x, lv_color_hex(view.shell->lid_color), LV_OPA_COVER);
+}
+
 void draw_shell_front(const ShellView& view, lv_layer_t* layer, lv_point_t o) {
     const UnitShell& shell = *view.shell;
     const TrayBox& b = view.box;

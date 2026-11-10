@@ -116,6 +116,9 @@ lv_obj_t* create_transparent_container(lv_obj_t* parent);
 /// physically present. Shared by the AMS slot widget and the mini status strip
 /// so two views of the same lane cannot ghost to different strengths.
 inline constexpr lv_opa_t kGhostOpa = LV_OPA_30;
+/// An empty lane's bare reel: fainter than a ghosted spool, so "nothing here" reads apart
+/// from "assigned, not loaded".
+inline constexpr lv_opa_t kEmptyReelOpa = LV_OPA_20;
 
 /// A lane badge's text; empty for a negative number, the "no number" value.
 std::string lane_badge_text(int number); // NAMESPACE_OK: sits with create_lane_badge in ams_draw

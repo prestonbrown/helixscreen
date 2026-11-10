@@ -38,8 +38,8 @@ using namespace helix;
 // Spool visual construction (file-local)
 //
 // The layered spool graphic the widget renders: a spool canvas seen from the
-// side or face-on per /ams/spool_style, plus the glow behind it, the dashed
-// empty-lane placeholder and the error dot. Lives here rather than ams_draw because the
+// side or face-on per /ams/spool_style, plus the glow behind it, the "+" over an
+// empty lane's bare reel and the error dot. Lives here rather than ams_draw because the
 // ams_lane_spool widget is its only consumer; kGhostOpa and the error/lane
 // badges it composes with stay shared in ams_drawing_utils.
 // ============================================================================
@@ -51,42 +51,9 @@ struct SpoolVisual {
     int32_t spool_size = 0;
     lv_obj_t* glow = nullptr;              ///< current-lane / error glow, behind the spool (hidden)
     lv_obj_t* canvas = nullptr;            ///< spool canvas: side view (3D) or face-on (flat)
-    lv_obj_t* empty_placeholder = nullptr; ///< dashed-circle "empty" placeholder (hidden)
+    lv_obj_t* empty_placeholder = nullptr; ///< the "+" over an empty lane's bare reel (hidden)
     lv_obj_t* error_indicator = nullptr;   ///< empty lane's error dot, top-right (hidden)
 };
-
-// Draw a dashed circle using segmented arcs (LVGL 9.5 has no dashed border API)
-static void draw_dashed_circle_cb(lv_event_t* e) {
-    auto* obj = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    auto* layer = static_cast<lv_layer_t*>(lv_event_get_layer(e));
-
-    int32_t w = lv_obj_get_width(obj);
-    int32_t h = lv_obj_get_height(obj);
-    lv_area_t coords;
-    lv_obj_get_coords(obj, &coords);
-    int32_t cx = coords.x1 + w / 2;
-    int32_t cy = coords.y1 + h / 2;
-    int32_t radius = LV_MIN(w, h) / 2 - 1;
-
-    lv_draw_arc_dsc_t arc_dsc;
-    lv_draw_arc_dsc_init(&arc_dsc);
-    arc_dsc.center.x = cx;
-    arc_dsc.center.y = cy;
-    arc_dsc.radius = static_cast<uint16_t>(radius);
-    arc_dsc.width = 2;
-    arc_dsc.color = theme_manager_get_color("text_muted");
-    arc_dsc.opa = LV_OPA_20;
-
-    // Draw 16 dashes of 15 degrees each with 7.5 degree gaps
-    constexpr int kDashCount = 16;
-    constexpr int kDashAngle = 15;
-    constexpr int kGapAngle = 7; // 16 * (15 + 7) = 352 - 360
-    for (int d = 0; d < kDashCount; d++) {
-        arc_dsc.start_angle = static_cast<uint16_t>(d * (kDashAngle + kGapAngle));
-        arc_dsc.end_angle = static_cast<uint16_t>(arc_dsc.start_angle + kDashAngle);
-        lv_draw_arc(layer, &arc_dsc);
-    }
-}
 
 bool helix::ui::ams_spool_style_3d() {
     helix::Config* cfg = helix::Config::get_instance();
@@ -143,15 +110,13 @@ static SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) 
         lv_obj_set_name(canvas, "spool_graphic");
     }
 
-    // Create empty slot placeholder (circle outline with plus icon, initially hidden)
+    // The "+" over an empty lane's bare reel (initially hidden)
     {
         lv_obj_t* ph = lv_obj_create(container);
         lv_obj_set_size(ph, spool_size - 4, spool_size - 4);
         lv_obj_align(ph, LV_ALIGN_CENTER, 0, 0);
-        lv_obj_set_style_radius(ph, LV_RADIUS_CIRCLE, LV_PART_MAIN);
         lv_obj_set_style_bg_opa(ph, LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_set_style_border_width(ph, 0, LV_PART_MAIN);
-        lv_obj_add_event_cb(ph, draw_dashed_circle_cb, LV_EVENT_DRAW_MAIN, nullptr);
         // A clickable child would outrank its slot's hit band in an overlapping row.
         lv_obj_remove_flag(ph, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_remove_flag(ph, LV_OBJ_FLAG_CLICKABLE);
@@ -165,7 +130,7 @@ static SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) 
             lv_label_set_text(plus, plus_glyph);
             lv_obj_set_style_text_font(plus, &mdi_icons_24, LV_PART_MAIN);
             lv_obj_set_style_text_color(plus, theme_manager_get_color("text_muted"), LV_PART_MAIN);
-            lv_obj_set_style_text_opa(plus, LV_OPA_20, LV_PART_MAIN);
+            lv_obj_set_style_text_opa(plus, LV_OPA_60, LV_PART_MAIN);
             lv_obj_align(plus, LV_ALIGN_CENTER, 0, 0);
             lv_obj_add_flag(plus, LV_OBJ_FLAG_EVENT_BUBBLE);
         }
@@ -396,14 +361,23 @@ static void apply_error_decoration(LaneSpoolData* d) {
  * purpose: an empty lane has nothing to dim, and an error must stay readable
  * even when the lane carrying it is otherwise ghosted.
  */
+/// The fill the graphic shows: an empty lane's reel is bare, whatever fill is remembered.
+static void show_fill(const LaneSpoolData* d) {
+    spool_visual_set_fill(d->sv,
+                          d->lane_state == helix::ui::LaneState::Empty ? 0.0f : d->fill_level);
+}
+
 static void apply_lane_state(LaneSpoolData* d, helix::ui::LaneState state) {
     if (!d)
         return;
     d->lane_state = state;
 
-    const bool show_spool = state != helix::ui::LaneState::Empty;
-    const lv_opa_t spool_opa =
-        (state == helix::ui::LaneState::Ghosted) ? ams_draw::kGhostOpa : LV_OPA_COVER;
+    // An empty lane shows the bare reel, faint, with a "+" over it; its fill comes back with
+    // the filament.
+    const bool empty = state == helix::ui::LaneState::Empty;
+    const lv_opa_t spool_opa = empty                                    ? ams_draw::kEmptyReelOpa
+                               : state == helix::ui::LaneState::Ghosted ? ams_draw::kGhostOpa
+                                                                        : LV_OPA_COVER;
 
     auto set_visible = [](lv_obj_t* o, bool visible) {
         if (!o)
@@ -419,9 +393,9 @@ static void apply_lane_state(LaneSpoolData* d, helix::ui::LaneState state) {
         lv_obj_set_style_opa(o, opa, LV_PART_MAIN);
     };
 
-    set_visible(d->sv.canvas, show_spool);
     set_opa(d->sv.canvas, spool_opa);
-    set_visible(d->sv.empty_placeholder, !show_spool);
+    show_fill(d);
+    set_visible(d->sv.empty_placeholder, empty);
     apply_error_decoration(d);
 }
 
@@ -460,7 +434,7 @@ static void apply_fill_pct(LaneSpoolData* d, int pct) {
         return;
     pct = std::clamp(pct, 0, 100);
     d->fill_level = static_cast<float>(pct) / 100.0f;
-    spool_visual_set_fill(d->sv, d->fill_level);
+    show_fill(d);
 }
 
 // ============================================================================
@@ -744,7 +718,7 @@ void ams_lane_spool_set_size(lv_obj_t* spool, int32_t spool_size) {
     data->sv = create_spool_visual(spool, spool_size);
 
     // Repaint the fresh layers with the cached presentation.
-    spool_visual_set_fill(data->sv, data->fill_level);
+    show_fill(data);
     apply_lane_state(data, data->lane_state); // also the glow and error dot
     apply_color(data, static_cast<int>(data->color_int));
     spool_canvas_set_spin(data->sv.canvas, data->spin);
@@ -784,7 +758,7 @@ void ams_lane_spool_set_fill_level(lv_obj_t* spool, float fill_level) {
     if (!data)
         return;
     data->fill_level = std::clamp(fill_level, 0.0f, 1.0f);
-    spool_visual_set_fill(data->sv, data->fill_level);
+    show_fill(data);
 }
 
 } // namespace helix::ui

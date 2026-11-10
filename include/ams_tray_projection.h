@@ -93,6 +93,8 @@ PointF lane_badge_origin(const TrayBox& b, float lane_x, float lane_half, float 
 /// Left edge of the environment pill that stands against the box's right end:
 /// the box's back-right corner, where its right side face ends.
 float pill_left_x(const TrayBox& b);
+/// The same, moved right as far as needed to stand clear of @p clear_of.
+float pill_left_x(const TrayBox& b, float clear_of);
 
 enum class LidMode : uint8_t { None, Unit, PerLane };
 /// Any climate data gets glass: a unit reading or a dryer covers the row, per-lane

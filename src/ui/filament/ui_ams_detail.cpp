@@ -183,6 +183,8 @@ void tray_back_draw_cb(lv_event_t* e) {
     if (s_tray.shell) {
         for (int i = 0; i < lids; ++i) {
             tray::build_lid(shell_view(), s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
+            if (s_tray.shell->lid_color) // a box per lane: its left side stands behind the spool
+                tray::fill_box_side(shell_view(), layer, o, lid.left, x0[i]);
             tray::stroke(layer, o, lid.left, tray::kCapPoints, false, c.glass_edge,
                          s_tray.opa.glass_edge);
         }
@@ -225,9 +227,11 @@ void tray_front_draw_cb(lv_event_t* e) {
     const TrayColors& c = s_tray.color;
     const bool simple = helix::ui::reduced_effects();
 
-    if (s_tray.shell && !simple) {
+    // A unit with a box per lane stands them in a dock: its front is drawn after them.
+    const bool dock = s_tray.shell && s_tray.shell->lid_color;
+    if (s_tray.shell && !simple && !dock) {
         tray::draw_shell_front(shell_view(), layer, o);
-    } else if (!simple) {
+    } else if (!s_tray.shell && !simple) {
         lv_draw_rect_dsc_t front;
         lv_draw_rect_dsc_init(&front);
         front.bg_color = c.front;
@@ -258,7 +262,9 @@ void tray_front_draw_cb(lv_event_t* e) {
         tray::build_lid(shell_view(), s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
         if (!simple) {
             tray::fill_convex(layer, o, lid.hull, lid.hull_n, c.glass, a.glass);
-            if (s_tray.shell)
+            if (s_tray.shell && s_tray.shell->lid_color)
+                tray::fill_box_side(shell_view(), layer, o, lid.right, x1[i]);
+            else if (s_tray.shell)
                 tray::fill_shell_cap(shell_view(), layer, o, lid.right, x1[i], c.glass, a.cap);
             else
                 tray::fill_convex(layer, o, lid.right, tray::kCapPoints, c.glass, a.cap);
@@ -276,6 +282,8 @@ void tray_front_draw_cb(lv_event_t* e) {
                          (lv_opa_t)(a.glass_edge * 3 / 10));
         }
     }
+    if (dock && !simple)
+        tray::draw_shell_front(shell_view(), layer, o);
 }
 
 /// Centre of the slot's spool graphic, in slot_container coordinates.
@@ -740,7 +748,8 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     const float front_h = shell ? shell->front_wall_px * shell_scale
                                 : std::max(20.0f, lv_obj_get_height(w.slot_grid) / 6.0f);
     box.ft = box.fb - front_h;
-    const float cap = shell ? tray::cap_width(*shell, size, spacing) : half;
+    // A unit with a box per lane ends its base with the outer boxes.
+    const float cap = shell && !shell->lid_color ? tray::cap_width(*shell, size, spacing) : half;
     box.fl = s_tray.lane_x[0] - cap;
     box.fr = s_tray.lane_x[n - 1] + cap;
 
@@ -795,9 +804,8 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         if (lowest != INT32_MIN)
             lv_obj_set_style_translate_y(w.labels_layer, label_bottom - lowest, LV_PART_MAIN);
     }
-    // Each lane's number stands just right of where its tube leaves, inside its bay; the
-    // environment pill keeps clear of the last one.
-    float badges_right = 0;
+    // Each lane's number stands just right of its tube, inside its bay; the pill clears them.
+    float badge_end = 0;
     if (w.badge_layer) {
         lv_area_t layer;
         lv_obj_get_coords(w.badge_layer, &layer);
@@ -811,7 +819,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             const tray::PointF p =
                 tray::lane_badge_origin(box, cx[i], std::min(spacing / 2.0f, bw + 2 * inset), bw,
                                         (float)lv_obj_get_height(badge), inset);
-            badges_right = std::max(badges_right, p.x + bw + inset);
+            badge_end = std::max(badge_end, p.x + bw + inset);
             // The badge's own translate offsets it from its position.
             lv_obj_set_pos(badge,
                            origin.x + (int32_t)std::lround(p.x) - layer.x1 -
@@ -832,22 +840,21 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         lv_area_t a;
         lv_obj_get_coords(w.env_indicator, &a);
         const int32_t left =
-            origin.x + (int32_t)std::lround(std::max(tray::pill_left_x(box) - tuck, badges_right));
+            origin.x + (int32_t)std::lround(tray::pill_left_x(box, badge_end + tuck)) - tuck;
         const int32_t pill_bottom = origin.y + (int32_t)std::lround(box.fb) + tuck;
         lv_obj_set_style_translate_x(w.env_indicator, left - a.x1, LV_PART_MAIN);
         lv_obj_set_style_translate_y(w.env_indicator, pill_bottom - a.y2, LV_PART_MAIN);
     } else if (w.env_indicator && !lv_obj_has_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN)) {
         const int32_t pill_top = origin.y + (int32_t)std::lround(top);
         const int32_t pill_bottom = origin.y + (int32_t)std::lround(box.fb);
-        const int32_t box_right =
-            origin.x + (int32_t)std::lround(std::max(tray::pill_left_x(box), badges_right));
+        const int32_t right = origin.x + (int32_t)std::lround(tray::pill_left_x(box, badge_end));
         // DECLARATIVE_OK: measured layout; the pill is as tall as the box it stands against
         lv_obj_set_height(w.env_indicator, std::max<int32_t>(0, pill_bottom - pill_top + 1));
         clear_translate(w.env_indicator);
         lv_obj_update_layout(w.env_indicator);
         lv_area_t a;
         lv_obj_get_coords(w.env_indicator, &a);
-        lv_obj_set_style_translate_x(w.env_indicator, box_right - a.x1, LV_PART_MAIN);
+        lv_obj_set_style_translate_x(w.env_indicator, right - a.x1, LV_PART_MAIN);
         lv_obj_set_style_translate_y(w.env_indicator, pill_top - a.y1, LV_PART_MAIN);
     }
 

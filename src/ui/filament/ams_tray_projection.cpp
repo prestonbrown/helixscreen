@@ -182,6 +182,10 @@ float pill_left_x(const TrayBox& b) {
     return proj(b, b.fr, b.ft, b.depth).x;
 }
 
+float pill_left_x(const TrayBox& b, float clear_of) {
+    return std::max(pill_left_x(b), clear_of);
+}
+
 LidMode lid_mode(const AmsUnit& unit, bool has_physical_tray, bool dryer_supported) {
     if (!has_physical_tray)
         return LidMode::None;

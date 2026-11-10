@@ -64,7 +64,7 @@ lv_obj_t* find_error_dot(lv_obj_t* root) {
 } // namespace
 
 TEST_CASE_METHOD(XMLTestFixture,
-                 "ams_lane_spool: an Empty lane hides the spool, shows the placeholder",
+                 "ams_lane_spool: an Empty lane shows a faint bare reel under its plus",
                  "[ams][lane_spool]") {
     ui_ams_lane_spool_register();
     AmsState::instance().init_subjects(true);
@@ -75,7 +75,9 @@ TEST_CASE_METHOD(XMLTestFixture,
     REQUIRE(spool != nullptr);
     process_lvgl(20);
 
-    CHECK(lv_obj_has_flag(part(spool, "spool_graphic"), LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* reel = part(spool, "spool_graphic");
+    CHECK((!lv_obj_has_flag(reel, LV_OBJ_FLAG_HIDDEN) &&
+           lv_obj_get_style_opa(reel, LV_PART_MAIN) == ams_draw::kEmptyReelOpa));
     CHECK_FALSE(lv_obj_has_flag(part(spool, "empty_placeholder"), LV_OBJ_FLAG_HIDDEN));
     lv_obj_delete(spool);
 }
@@ -240,7 +242,7 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_spool: a flat lane dims when ghosted,
 
     lv_subject_set_int(lane, static_cast<int>(helix::ui::LaneState::Empty));
     process_lvgl(20);
-    CHECK(lv_obj_has_flag(graphic, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_get_style_opa(graphic, LV_PART_MAIN) == ams_draw::kEmptyReelOpa);
     CHECK_FALSE(lv_obj_has_flag(part(spool, "empty_placeholder"), LV_OBJ_FLAG_HIDDEN));
 
     lv_obj_delete(spool);
