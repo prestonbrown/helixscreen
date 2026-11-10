@@ -1727,15 +1727,16 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker always offers the setup entry",
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker marks only the slot's linked spool",
+TEST_CASE_METHOD(LVGLUITestFixture, "picker marks the slot's linked spool and pins it first",
                  "[ams_edit_overlay][picker][preselect]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
 
-    // A slot with no linked spool marks no row at all.
-    const int linked_id = GENERATE(0, 22);
+    // A slot with no linked spool marks no row and keeps Spoolman's order.
+    // Spool 33 sits last in that order, so a pinned link moves to the top.
+    const int linked_id = GENERATE(0, 33);
     CAPTURE(linked_id);
-    const std::vector<int> marked = linked_id ? std::vector<int>{22} : std::vector<int>{};
+    const std::vector<int> marked = linked_id ? std::vector<int>{33} : std::vector<int>{};
     SlotInfo linked = linked_id ? tracked_slot() : untracked_slot();
     linked.spoolman_id = linked_id;
     REQUIRE(overlay.show_for_slot(test_screen(), 0, linked, nullptr, nullptr));
@@ -1743,28 +1744,30 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker marks only the slot's linked spool",
     process_lvgl(10);
 
     access.set_cached_spools(three_spools());
-    access.call_render_spool_list("");
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
     lv_obj_t* list = access.widget("picker_spool_list");
     REQUIRE(list != nullptr);
-    REQUIRE(lv_obj_get_child_count(list) == 3);
+    const auto rows_for = [&](const char* filter) {
+        access.call_render_spool_list(filter);
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        std::vector<int> ids;
+        for (uint32_t i = 0; i < lv_obj_get_child_count(list); ++i) {
+            lv_obj_t* row = lv_obj_get_child(list, static_cast<int32_t>(i));
+            ids.push_back(static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(row))));
+        }
+        return ids;
+    };
+
+    CHECK(rows_for("") ==
+          (linked_id ? std::vector<int>{33, 11, 22} : std::vector<int>{11, 22, 33}));
     CHECK(marked_spool_ids(list) == marked);
 
-    // Spools 22 and 33 are both eSUN: the linked one keeps its mark among
-    // the survivors and the other stays plain.
-    access.call_render_spool_list("esun");
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-    REQUIRE(lv_obj_get_child_count(list) == 2);
+    // Spools 22 and 33 are both eSUN: the linked one still leads the survivors.
+    CHECK(rows_for("esun") == (linked_id ? std::vector<int>{33, 22} : std::vector<int>{22, 33}));
     CHECK(marked_spool_ids(list) == marked);
 
-    // A search that filters the linked spool out marks nothing.
-    access.call_render_spool_list("abs");
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-    REQUIRE(lv_obj_get_child_count(list) == 1);
+    // The search applies to the linked spool too: filtered out, nothing is marked.
+    CHECK(rows_for("polymaker") == std::vector<int>{11});
     CHECK(marked_spool_ids(list).empty());
 
     close_editor_overlay();
