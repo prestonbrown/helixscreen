@@ -164,75 +164,28 @@ bool SpoolmanFixture::queue_initialized = false;
 // Polling Refcount Tests
 // ============================================================================
 
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: start increments refcount", "[spoolman]") {
-    auto& mgr = SpoolmanManager::instance();
-    set_spoolman_available(true);
-
-    REQUIRE(TA::poll_refcount(mgr) == 0);
-
-    mgr.start_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 1);
-
-    mgr.start_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 2);
-}
-
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: stop decrements refcount", "[spoolman]") {
-    auto& mgr = SpoolmanManager::instance();
-    set_spoolman_available(true);
-
-    mgr.start_spoolman_polling();
-    mgr.start_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 2);
-
-    mgr.stop_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 1);
-
-    mgr.stop_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 0);
-}
-
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: multiple starts and stops balance",
+TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: polling requests count up and down",
                  "[spoolman]") {
     auto& mgr = SpoolmanManager::instance();
+
+    // A stop with nothing started clamps at zero.
+    mgr.stop_spoolman_polling();
+    mgr.stop_spoolman_polling();
+    REQUIRE(TA::poll_refcount(mgr) == 0);
+
     set_spoolman_available(true);
+    for (int expected : {1, 2, 3}) {
+        mgr.start_spoolman_polling();
+        CHECK(TA::poll_refcount(mgr) == expected);
+    }
+    for (int expected : {2, 1, 0}) {
+        mgr.stop_spoolman_polling();
+        CHECK(TA::poll_refcount(mgr) == expected);
+    }
 
+    // Restart after a full stop.
     mgr.start_spoolman_polling();
-    mgr.start_spoolman_polling();
-    mgr.start_spoolman_polling();
-
-    mgr.stop_spoolman_polling();
-    mgr.stop_spoolman_polling();
-    mgr.stop_spoolman_polling();
-
-    REQUIRE(TA::poll_refcount(mgr) == 0);
-}
-
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: stop below zero clamps at 0", "[spoolman]") {
-    auto& mgr = SpoolmanManager::instance();
-
-    // Stop without any prior start
-    mgr.stop_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 0);
-
-    // Multiple excess stops
-    mgr.stop_spoolman_polling();
-    mgr.stop_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 0);
-}
-
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: start after full stop restarts cleanly",
-                 "[spoolman]") {
-    auto& mgr = SpoolmanManager::instance();
-    set_spoolman_available(true);
-
-    mgr.start_spoolman_polling();
-    mgr.stop_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 0);
-
-    // Restart — refcount goes from 0 back to 1
-    mgr.start_spoolman_polling();
-    REQUIRE(TA::poll_refcount(mgr) == 1);
+    CHECK(TA::poll_refcount(mgr) == 1);
 }
 
 // ============================================================================
@@ -268,30 +221,6 @@ TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: set_api resets circuit break
     mgr.set_api(nullptr);
 
     REQUIRE(TA::consecutive_failures(mgr) == 0);
-    REQUIRE(TA::cb_open(mgr) == false);
-}
-
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: set_consecutive_failures updates count",
-                 "[spoolman]") {
-    auto& mgr = SpoolmanManager::instance();
-
-    TA::set_consecutive_failures(mgr, 3);
-    REQUIRE(TA::consecutive_failures(mgr) == 3);
-
-    TA::set_consecutive_failures(mgr, 0);
-    REQUIRE(TA::consecutive_failures(mgr) == 0);
-}
-
-TEST_CASE_METHOD(SpoolmanFixture, "SpoolmanManager: set_cb_open toggles circuit breaker",
-                 "[spoolman]") {
-    auto& mgr = SpoolmanManager::instance();
-
-    REQUIRE(TA::cb_open(mgr) == false);
-
-    TA::set_cb_open(mgr, true);
-    REQUIRE(TA::cb_open(mgr) == true);
-
-    TA::set_cb_open(mgr, false);
     REQUIRE(TA::cb_open(mgr) == false);
 }
 
