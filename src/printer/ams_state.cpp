@@ -13,8 +13,6 @@
 
 #include "ams_state.h"
 
-#include "ui_color_picker.h"
-
 #include "ams_backend_registry.h"
 #include "ams_bypass_policy.h"
 #include "ams_dryer.h"
@@ -26,6 +24,7 @@
 #include "ams_step_model.h"
 #include "ams_tool_topology.h"
 #include "app_globals.h"
+#include "color_utils.h"
 #include "connection_state.h"
 #include "core/data_root_resolver.h"
 #include "core/error_reporting.h"

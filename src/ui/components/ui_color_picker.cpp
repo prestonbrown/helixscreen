@@ -18,31 +18,6 @@
 
 #include <algorithm>
 
-namespace helix {
-
-// Special preset names that don't follow standard color naming
-static const struct {
-    uint32_t hex;
-    const char* name;
-} SPECIAL_COLOR_NAMES[] = {
-    {0xD4AF37, "Gold"},   {0xCD7F32, "Bronze"},   {0x8B4513, "Wood"},         {0xE8E8FF, "Clear"},
-    {0xC0C0C0, "Silver"}, {0xE0D5C7, "Marble"},   {0xFF7043, "Coral"},        {0x1A237E, "Navy"},
-    {0xBCAAA4, "Taupe"},  {0x7A1E2C, "Burgundy"}, {0x1B5E20, "Forest Green"},
-};
-
-std::string get_color_name_from_hex(uint32_t rgb) {
-    // Check for special preset names first
-    for (const auto& entry : SPECIAL_COLOR_NAMES) {
-        if (entry.hex == rgb) {
-            return entry.name;
-        }
-    }
-    // Use algorithmic color description
-    return helix::describe_color(rgb);
-}
-
-} // namespace helix
-
 namespace helix::ui {
 
 // Static member initialization
