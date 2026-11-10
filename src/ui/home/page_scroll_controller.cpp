@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "page_scroll_controller.h"
 
+#include "ui_open_instances.h"
+
 #include "display_settings_manager.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "page_scroll_math.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -9,7 +12,33 @@
 
 namespace helix::ui {
 
+namespace {
+OpenInstances<PageScrollController>& open_scrollers() {
+    static OpenInstances<PageScrollController> scrollers;
+    return scrollers;
+}
+
+void register_chevron_callbacks() {
+    static bool registered = false;
+    if (registered) {
+        return;
+    }
+    registered = true;
+    lv_xml_register_event_cb(nullptr, "on_page_scroll_up", [](lv_event_t* e) {
+        if (auto* c = open_scrollers().owner_of(lv_event_get_current_target_obj(e))) {
+            c->page_up();
+        }
+    });
+    lv_xml_register_event_cb(nullptr, "on_page_scroll_down", [](lv_event_t* e) {
+        if (auto* c = open_scrollers().owner_of(lv_event_get_current_target_obj(e))) {
+            c->page_down();
+        }
+    });
+}
+} // namespace
+
 PageScrollController::~PageScrollController() {
+    open_scrollers().remove(this);
     // If the container is still alive we own the gutter + mutations; clean up.
     if (container_ != nullptr) {
         detach();
@@ -33,6 +62,7 @@ bool PageScrollController::attach(lv_obj_t* container) {
     saved_scrollbar_mode_ = lv_obj_get_scrollbar_mode(container_);
 
     // Build the chevron column as a floating child of the container.
+    register_chevron_callbacks();
     gutter_ = static_cast<lv_obj_t*>(lv_xml_create(container_, "page_scroll_gutter", nullptr));
     if (gutter_ == nullptr) {
         spdlog::error("[PageScroll] failed to create page_scroll_gutter component");
@@ -60,9 +90,8 @@ bool PageScrollController::attach(lv_obj_t* container) {
     // Suppress the native scrollbar while the gutter is active.
     lv_obj_set_scrollbar_mode(container_, LV_SCROLLBAR_MODE_OFF);
 
-    // Wire per-instance handlers (runtime control — see header note).
-    lv_obj_add_event_cb(up_btn_, up_clicked_cb, LV_EVENT_CLICKED, this);
-    lv_obj_add_event_cb(down_btn_, down_clicked_cb, LV_EVENT_CLICKED, this);
+    // The chevrons' callbacks find this controller through the open set.
+    open_scrollers().add(this);
     lv_obj_add_event_cb(container_, container_event_cb, LV_EVENT_SCROLL, this);
     lv_obj_add_event_cb(container_, container_event_cb, LV_EVENT_SIZE_CHANGED, this);
     lv_obj_add_event_cb(container_, container_event_cb, LV_EVENT_DELETE, this);
@@ -154,15 +183,9 @@ void PageScrollController::detach() {
         return;
     }
     lv_obj_remove_event_cb_with_user_data(container_, container_event_cb, this);
-    // Remove the button click cbs too (they carry `this`) before async-deleting the
-    // gutter, so no orphaned callback can reference this controller — makes teardown
-    // self-evidently safe rather than relying on async-delete timing.
-    if (up_btn_ != nullptr) {
-        lv_obj_remove_event_cb_with_user_data(up_btn_, up_clicked_cb, this);
-    }
-    if (down_btn_ != nullptr) {
-        lv_obj_remove_event_cb_with_user_data(down_btn_, down_clicked_cb, this);
-    }
+    // Leave the open set before async-deleting the gutter, so a chevron tap
+    // during the delete cannot reach this controller.
+    open_scrollers().remove(this);
     remove_reserved_padding();
     lv_obj_set_scrollbar_mode(container_, saved_scrollbar_mode_);
     if (gutter_ != nullptr) {
@@ -190,6 +213,7 @@ void PageScrollController::on_container_deleted() {
     if (gutter_ != nullptr) {
         lv_obj_remove_event_cb_with_user_data(gutter_, gutter_event_cb, this);
     }
+    open_scrollers().remove(this);
     gutter_ = up_btn_ = down_btn_ = nullptr;
     container_ = nullptr;
     pad_applied_ = false;
@@ -206,6 +230,7 @@ void PageScrollController::on_gutter_deleted() {
     // container itself (#1123). A full container teardown never reaches here:
     // on_container_deleted() fires first (parent DELETE precedes child deletion) and
     // removes this watcher. So container_ is alive and safe to restore.
+    open_scrollers().remove(this);
     gutter_ = up_btn_ = down_btn_ = nullptr; // children of the dying gutter
     if (container_ != nullptr) {
         // Unhook from the surviving container and undo what attach() mutated, so it
@@ -246,13 +271,6 @@ void PageScrollController::container_event_cb(lv_event_t* e) {
     default:
         break;
     }
-}
-
-void PageScrollController::up_clicked_cb(lv_event_t* e) {
-    static_cast<PageScrollController*>(lv_event_get_user_data(e))->page_up();
-}
-void PageScrollController::down_clicked_cb(lv_event_t* e) {
-    static_cast<PageScrollController*>(lv_event_get_user_data(e))->page_down();
 }
 
 } // namespace helix::ui

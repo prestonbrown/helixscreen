@@ -12,8 +12,9 @@ namespace helix::ui {
  *  floating chevron column, pages by ~90% of the viewport, and dims/disables
  *  each chevron at its end — hiding the whole gutter when content fits.
  *
- *  Runtime control (not declarative screen XML): per-instance events are wired
- *  with lv_obj_add_event_cb, mirroring ui_carousel. Main-thread only. */
+ *  The chevrons name on_page_scroll_up / on_page_scroll_down, which find their
+ *  controller by the gutter they sit in; the container's scroll, size and delete
+ *  events are wired from C++. Main-thread only. */
 class PageScrollController {
   public:
     PageScrollController() = default;
@@ -39,6 +40,10 @@ class PageScrollController {
     lv_obj_t* gutter() const {
         return gutter_;
     }
+    /// The gutter: what the chevrons' callbacks find this controller by.
+    lv_obj_t* root() const {
+        return gutter_;
+    }
     lv_obj_t* up_button() const {
         return up_btn_;
     }
@@ -55,8 +60,6 @@ class PageScrollController {
   private:
     static void container_event_cb(lv_event_t* e);
     static void gutter_event_cb(lv_event_t* e);
-    static void up_clicked_cb(lv_event_t* e);
-    static void down_clicked_cb(lv_event_t* e);
 
     void scroll_by_page(int32_t direction); // -1 up, +1 down
     void apply_reserved_padding();
