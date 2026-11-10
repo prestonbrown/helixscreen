@@ -520,7 +520,7 @@ src/ui/controls/temperature_service.cpp
 src/ui/theme/theme_loader.cpp
 src/ui/theme/theme_manager_new.cpp
 src/ui/filament/tool_change_request.cpp
-src/ui/calibration/touch_calibration.cpp
+src/platform/input/touch_calibration.cpp
 src/ui/calibration/touch_calibration_layout.cpp
 src/ui/calibration/touch_calibration_controller.cpp
 src/ui/calibration/touch_calibration_panel.cpp

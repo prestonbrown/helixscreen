@@ -1745,7 +1745,7 @@ Unified touch debugging variable that enables both touch point visualization and
 | **Values** | `1` (enable), unset (disable) |
 | **Default** | Disabled |
 | **CLI equivalent** | `--debug-touches` |
-| **Files** | `src/system/runtime_config.cpp`, `include/touch_calibration.h`, `src/ui/calibration/touch_calibration.cpp`, `src/ui/calibration/touch_calibration_panel.cpp`, `src/platform/display/display_backend_fbdev.cpp` |
+| **Files** | `src/system/runtime_config.cpp`, `include/touch_calibration.h`, `src/platform/input/touch_calibration.cpp`, `src/ui/calibration/touch_calibration_panel.cpp`, `src/platform/display/display_backend_fbdev.cpp` |
 | **Legacy alias** | `HELIX_DEBUG_TOUCHES` (still accepted) |
 
 ```bash
