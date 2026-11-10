@@ -170,6 +170,7 @@ callback:on_timelapse_autorender_changed
 callback:on_timelapse_enabled_changed
 callback:on_timelapse_framerate_changed
 callback:on_timelapse_install_action
+callback:on_timelapse_macro_restart_klipper
 callback:on_timelapse_mode_changed
 callback:on_timelapse_render_now
 callback:on_tool_cal_save
@@ -506,6 +507,8 @@ subject:timelapse_install_action_visible
 subject:timelapse_install_card
 subject:timelapse_install_ffmpeg_command
 subject:timelapse_install_status
+subject:timelapse_macro_card_state
+subject:timelapse_macro_include_line
 subject:timelapse_render_progress
 subject:timelapse_render_status
 subject:tool_cal_active
