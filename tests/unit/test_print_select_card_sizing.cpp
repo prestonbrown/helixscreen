@@ -72,6 +72,9 @@ TEST_CASE_METHOD(PrintSelectPanelFixture,
     REQUIRE(container != nullptr);
     REQUIRE(banner != nullptr);
 
+    CHECK(lv_obj_has_flag(lv_obj_find_by_name(panel_obj_, "empty_state_container"),
+                          LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(container, LV_OBJ_FLAG_HIDDEN));
     panel_->set_sort_recent();
     settle();
 
@@ -85,8 +88,9 @@ TEST_CASE_METHOD(PrintSelectPanelFixture,
     CHECK(shown.overflow == 0);
 
     // Hiding the banner hands its height back; the grid regrows to fill it.
-    lv_obj_add_flag(banner, LV_OBJ_FLAG_HIDDEN);
+    panel_->refresh_files(true);
     settle();
+    REQUIRE(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
     const int grown_h = lv_obj_get_content_height(container);
     const FirstScreen regrown = measure_first_screen(container);
     CHECK(regrown.overflow == 0);

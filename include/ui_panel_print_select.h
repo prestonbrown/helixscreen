@@ -761,7 +761,6 @@ class PrintSelectPanel : public PanelBase {
     bool card_resize_pending_ = false;
     lv_obj_t* list_view_container_ = nullptr;
     helix::ui::WidgetRef list_rows_container_;
-    lv_obj_t* empty_state_container_ = nullptr;
     lv_obj_t* view_toggle_btn_ = nullptr;
     lv_obj_t* view_toggle_icon_ = nullptr;
     lv_obj_t* print_status_panel_widget_ = nullptr;
@@ -817,6 +816,12 @@ class PrintSelectPanel : public PanelBase {
 
     /// View mode subject: 0 = CARD, 1 = LIST (XML bindings control visibility)
     lv_subject_t view_mode_subject_{};
+
+    /// 1 = the current directory lists no files: the empty state replaces both views
+    lv_subject_t files_empty_subject_{};
+
+    /// 1 = the "Recently Printed" banner is up (entered through Library > Recent)
+    lv_subject_t context_banner_shown_subject_{};
 
     /// Can start print subject: 1 = can print, 0 = print in progress (disables button via XML
     /// binding)
@@ -1129,7 +1134,7 @@ class PrintSelectPanel : public PanelBase {
     void hide_context_banner();
 
     /**
-     * @brief Update empty state visibility based on file_list_ size
+     * @brief Publish whether file_list_ is empty; XML bindings swap the empty state in
      */
     void update_empty_state();
 

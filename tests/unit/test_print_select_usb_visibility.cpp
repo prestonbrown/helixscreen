@@ -108,3 +108,26 @@ TEST_CASE_METHOD(XMLTestFixture,
     process_lvgl(5);
     REQUIRE(is_hidden(selector));
 }
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "print_select_panel shows the empty state in place of both views while no file "
+                 "is listed",
+                 "[ui_integration][print_select]") {
+    REQUIRE(register_component("print_select_panel"));
+    PrintSelectPanel panel(state(), &api());
+    panel.init_subjects();
+    lv_obj_t* panel_obj = create_component("print_select_panel");
+    REQUIRE(panel_obj != nullptr);
+    panel.setup(panel_obj, test_screen());
+    auto hidden = [&](const char* name) {
+        lv_obj_t* w = lv_obj_find_by_name(panel_obj, name);
+        REQUIRE(w != nullptr);
+        return is_hidden(w);
+    };
+    for (int view = 0; view < 2; ++view) { // list view, then back to cards
+        panel.toggle_view();
+        CHECK_FALSE(hidden("empty_state_container"));
+        CHECK(hidden("card_view_container"));
+        CHECK(hidden("list_view_container"));
+    }
+}

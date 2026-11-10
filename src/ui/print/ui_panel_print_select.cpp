@@ -261,7 +261,6 @@ PrintSelectPanel::~PrintSelectPanel() {
     card_view_container_ = nullptr;
     list_view_container_ = nullptr;
     list_rows_container_ = nullptr;
-    empty_state_container_ = nullptr;
     view_toggle_btn_ = nullptr;
     view_toggle_icon_ = nullptr;
     print_status_panel_widget_ = nullptr;
@@ -329,6 +328,9 @@ void PrintSelectPanel::init_subjects() {
 
     // Initialize view mode subject (0 = CARD, 1 = LIST) - XML bindings control container visibility
     UI_MANAGED_SUBJECT_INT(view_mode_subject_, 0, "print_select_view_mode", subjects_);
+    UI_MANAGED_SUBJECT_INT(files_empty_subject_, 0, "print_select_files_empty", subjects_);
+    UI_MANAGED_SUBJECT_INT(context_banner_shown_subject_, 0, "print_select_context_banner_shown",
+                           subjects_);
 
     // Initialize can print subject (1 = can print, 0 = print in progress)
     // XML binding disables print button when value is 0
@@ -438,12 +440,11 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     card_view_container_ = helix::ui::find_required(panel_, "card_view_container", get_name());
     list_view_container_ = helix::ui::find_required(panel_, "list_view_container", get_name());
     list_rows_container_ = helix::ui::find_required(panel_, "list_rows_container", get_name());
-    empty_state_container_ = helix::ui::find_required(panel_, "empty_state_container", get_name());
     view_toggle_btn_ = helix::ui::find_required(panel_, "view_toggle_btn", get_name());
     view_toggle_icon_ = lv_obj_find_by_name(panel_, "view_toggle_btn_icon");
 
     if (!card_view_container_ || !list_view_container_ || !list_rows_container_ ||
-        !empty_state_container_ || !view_toggle_btn_ || !view_toggle_icon_) {
+        !view_toggle_btn_ || !view_toggle_icon_) {
         spdlog::error("[{}] Failed to find required widgets", get_name());
         return;
     }
@@ -1002,23 +1003,13 @@ void PrintSelectPanel::set_sort_recent() {
     populate_current_view();
 
     // Show "Recently Printed" context banner
-    if (panel_) {
-        auto* banner = helix::ui::find_required(panel_, "context_banner", get_name());
-        if (banner) {
-            lv_obj_remove_flag(banner, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    lv_subject_set_int(&context_banner_shown_subject_, 1);
 
     spdlog::info("[{}] Sort set to recent (MODIFIED descending)", get_name());
 }
 
 void PrintSelectPanel::hide_context_banner() {
-    if (panel_) {
-        auto* banner = helix::ui::find_required(panel_, "context_banner", get_name());
-        if (banner && !lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN)) {
-            lv_obj_add_flag(banner, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    lv_subject_set_int(&context_banner_shown_subject_, 0);
 }
 
 void PrintSelectPanel::refresh_files(bool force) {
@@ -2618,26 +2609,7 @@ void PrintSelectPanel::merge_history_into_file_list() {
 }
 
 void PrintSelectPanel::update_empty_state() {
-    if (!empty_state_container_)
-        return;
-
-    bool is_empty = file_list_.empty();
-
-    if (is_empty) {
-        lv_obj_remove_flag(empty_state_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(card_view_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(list_view_container_, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(empty_state_container_, LV_OBJ_FLAG_HIDDEN);
-
-        if (current_view_mode_ == PrintSelectViewMode::CARD) {
-            lv_obj_remove_flag(card_view_container_, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_add_flag(list_view_container_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(card_view_container_, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(list_view_container_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    lv_subject_set_int(&files_empty_subject_, file_list_.empty() ? 1 : 0);
 }
 
 void PrintSelectPanel::update_print_button_state() {
