@@ -315,7 +315,7 @@ is never queued.
 | `AmsBackendCfs` | `handle_status` tail loop | composite `material_type\|color_value` fingerprint | spool name, Spoolman ids, remaining weight |
 | `AmsBackendToolChanger` | `handle_status` tail loop and `initialize_tools()` tail | none (below) | every field |
 | `AmsBackendAfc` | `parse_afc_stepper` | AFC's own firmware clears | brand, name, colour name, catalog pick, total weight (extras) |
-| `AmsBackendHappyHare` | `gate_spool_id` loop in `handle_status` | the gate's spool id moving retires the departed spool's record-only fields (`retire_departed_identity_locked()`) | brand, name, colour name, catalog pick, total weight (extras) |
+| `AmsBackendHappyHare` | `gate_spool_id` loop in `handle_status` | the gate's spool id moving drops the departed spool's weights (`retire_departed_weights_locked()`); the frame's repaint drops its record-only fields | brand, name, colour name, catalog pick, total weight (extras) |
 
 "Record-only fields" are the fields a user can edit on that backend but the
 firmware never supplies: they come from the `Record`, a Pending edit or Spoolman,

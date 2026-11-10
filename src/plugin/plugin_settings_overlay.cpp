@@ -232,6 +232,7 @@ bool PluginSettingsOverlay::build_row(lv_obj_t* rows, const SettingDecl& d, cons
     if (d.type == SettingType::Int || d.type == SettingType::Float)
         // required-names: setting_slider_row
         if (lv_obj_t* slider = helix::ui::find_required(row, "slider", get_name()))
+            // DECLARATIVE_OK: per-row payload; the RowBinding rides the event, user data is taken
             lv_obj_add_event_cb(slider, slider_value_changed_cb, LV_EVENT_VALUE_CHANGED, &b);
     apply_row_state(b);
     return true;

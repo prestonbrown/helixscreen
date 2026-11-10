@@ -3,10 +3,10 @@
 #pragma once
 
 #include "ui_shaper_sweep_chart.h"
-#include "ui_timer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/timer_guard.h"
 #include "input_shaper_calibrator.h"
 #include "live_sweep_preview.h"
 #include "lvgl/lvgl.h"

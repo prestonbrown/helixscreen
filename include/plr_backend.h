@@ -219,6 +219,9 @@ inline constexpr const char* kPlrFeatureName = "plr";
 /// Version 2 added server.helix.plr.mesh_include, the printer.cfg include
 /// behind the mesh carry-over.
 inline constexpr int kPlrFeatureMinVersion = 2;
+/// Version 3 guards the default tier of a printer the database does not list
+/// (a levelled gantry, a firmware's own recovery), so only it gets that tier.
+inline constexpr int kPlrUnlistedTierMinVersion = 3;
 inline constexpr const char* kPlrStatusRpc = "server.helix.plr.status";
 inline constexpr const char* kPlrPlanRpc = "server.helix.plr.plan";
 inline constexpr const char* kPlrPrepareRpc = "server.helix.plr.prepare";

@@ -173,6 +173,16 @@ def class_body(text: str, cls: str) -> str | None:
     return None
 
 
+_HEADER_TEXT: dict[Path, str] = {}
+
+
+def header_text(path: Path) -> str:
+    """A header's text, read once per run: every armed member asks of every header."""
+    if path not in _HEADER_TEXT:
+        _HEADER_TEXT[path] = path.read_text(encoding='utf-8', errors='replace')
+    return _HEADER_TEXT[path]
+
+
 def member_decl_lines(headers: list[Path], cls: str, member: str) -> list[str]:
     """Declaration lines for `cls::member`, each with the comment block above it.
 
@@ -185,7 +195,11 @@ def member_decl_lines(headers: list[Path], cls: str, member: str) -> list[str]:
     """
     out = []
     for h in headers:
-        body = class_body(h.read_text(encoding='utf-8', errors='replace'), cls)
+        text = header_text(h)
+        # A plain substring test first: the regex search over every header is the cost.
+        if cls not in text:
+            continue
+        body = class_body(text, cls)
         if body is None:
             continue
         lines = body.splitlines()
@@ -204,6 +218,9 @@ def member_decl_lines(headers: list[Path], cls: str, member: str) -> list[str]:
 
 def scan(path: Path, headers: list[Path]) -> list[str]:
     raw = path.read_text(encoding='utf-8', errors='replace')
+    # Every finding starts at an ARM_RE match, which blanking can only remove.
+    if 'lv_timer_create' not in raw:
+        return []
     # Analyse code only; keep the raw bodies alongside so the `// TIMER_DTOR_OK`
     # opt-out — which lives in a comment — is still visible.
     bodies = extract_bodies(blank_cxx(raw, strings="body"))

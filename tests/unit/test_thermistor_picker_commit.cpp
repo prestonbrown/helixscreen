@@ -23,6 +23,7 @@
 #include "../test_fixtures.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/one_line_label.h"
+#include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/thermistor_test_access.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -304,6 +305,22 @@ TEST_CASE_METHOD(ThermistorPickerFixture, "thermistor carousel pages bind name a
     REQUIRE(temp0 != nullptr);
     CHECK(std::string(lv_label_get_text(temp0)).find("42.7") != std::string::npos);
     widget.detach();
+}
+
+// Both widgets exist before either tile is parsed, as the manager builds a page,
+// so a subject name they shared would bind both tiles to the last one's sensor.
+TEST_CASE_METHOD(ThermistorPickerFixture, "two thermistor tiles name their own sensor",
+                 "[thermistor][picker_rows]") {
+    REQUIRE(register_component("components/panel_widget_thermistor"));
+    PanelWidgetHarness<ThermistorWidget> a(
+        test_screen(), HarnessConfig{{{"sensors", json::array({kSensorA})}}, true}, "thermistor:1");
+    PanelWidgetHarness<ThermistorWidget> b(
+        test_screen(), HarnessConfig{{{"sensors", json::array({kSensorB})}}, true}, "thermistor:2");
+    a.create_tile(test_screen());
+    b.create_tile(test_screen());
+    const std::string name_a = lv_label_get_text(a.child("thermistor_name"));
+    CHECK_FALSE(name_a.empty());
+    CHECK(name_a != lv_label_get_text(b.child("thermistor_name")));
 }
 
 // A carousel that shows every sensor can attach before discovery lists any;

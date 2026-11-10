@@ -61,6 +61,8 @@ void SpoolmanPanel::init_subjects() {
 
         UI_MANAGED_SUBJECT_STRING(header_title_subject_, header_title_buf_, "Spoolman",
                                   "spoolman_header_title", subjects_);
+        UI_MANAGED_SUBJECT_INT(location_filter_shown_subject_, 0, "spoolman_location_filter_shown",
+                               subjects_);
     });
 }
 
@@ -442,11 +444,9 @@ void SpoolmanPanel::update_location_filter_dropdown() {
         }
     }
 
-    // Hide dropdown if no locations exist.
-    // Imperative visibility exception: dropdown content is fully dynamic (options
-    // set from C++), so subject-based binding adds no value here.
+    // No location to filter by, no filter.
+    lv_subject_set_int(&location_filter_shown_subject_, locations.empty() ? 0 : 1);
     if (locations.empty()) {
-        lv_obj_add_flag(dropdown, LV_OBJ_FLAG_HIDDEN);
         selected_location_.clear();
         updating_location_dropdown_ = false;
         return;
@@ -479,7 +479,6 @@ void SpoolmanPanel::update_location_filter_dropdown() {
         lv_dropdown_set_selected(dropdown, 0);
     }
 
-    lv_obj_remove_flag(dropdown, LV_OBJ_FLAG_HIDDEN);
     updating_location_dropdown_ = false;
 }
 

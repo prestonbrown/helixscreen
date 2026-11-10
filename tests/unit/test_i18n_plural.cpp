@@ -12,6 +12,7 @@
 #include "../lvgl_test_fixture.h"
 #include "display_numbering.h"
 #include "i18n_plural.h"
+#include "lane_count_label.h"
 #include "lvgl.h"
 #include "translation_loader.h"
 

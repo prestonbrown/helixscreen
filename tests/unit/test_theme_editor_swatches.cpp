@@ -22,6 +22,7 @@
 #include "theme_manager.h"
 
 #include <array>
+#include <cctype>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -114,9 +115,28 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture, "The back button asks before dropping
     REQUIRE(row != nullptr);
     lv_obj_t* slider = lv_obj_find_by_name(row, "slider");
     REQUIRE(slider != nullptr);
+    lv_obj_t* save = lv_obj_find_by_name(root, "btn_save");
+    REQUIRE(save != nullptr);
+    lv_obj_t* title = lv_obj_find_by_name(root, "header_title");
+    REQUIRE(title != nullptr);
+    auto upper = [](lv_obj_t* label) {
+        std::string text = lv_label_get_text(label);
+        for (auto& c : text) {
+            c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        }
+        return text;
+    };
+    CHECK(lv_obj_has_state(save, LV_STATE_DISABLED));
+    CHECK(upper(title).find("MODIFIED") == std::string::npos);
+
     lv_slider_set_value(slider, 10, LV_ANIM_OFF);
     lv_obj_send_event(slider, LV_EVENT_VALUE_CHANGED, nullptr);
     REQUIRE(ModalStack::instance().empty());
+
+    // An edit enables Save, marks the title and moves the readout.
+    CHECK_FALSE(lv_obj_has_state(save, LV_STATE_DISABLED));
+    CHECK(upper(title).find("MODIFIED") != std::string::npos);
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(row, "value_label"))) == "10");
 
     lv_obj_send_event(lv_obj_find_by_name(root, "back_button"), LV_EVENT_CLICKED, nullptr);
     settle();
@@ -127,4 +147,31 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture, "The back button asks before dropping
     // The slider previewed its edit across the app.
     theme_manager_preview(
         helix::load_theme_from_file(DisplaySettingsManager::instance().get_theme_name()));
+}
+
+TEST_CASE_METHOD(ThemeEditorSwatchFixture, "Save As with an empty name says why it did nothing",
+                 "[theme_editor]") {
+    auto& editor = get_theme_editor_overlay();
+    REQUIRE(editor.show(lv_screen_active()));
+    settle();
+    lv_obj_send_event(lv_obj_find_by_name(editor.get_root(), "btn_save_as"), LV_EVENT_CLICKED,
+                      nullptr);
+    settle();
+    lv_obj_t* dialog = ModalStack::instance().top_dialog();
+    REQUIRE(dialog != nullptr);
+    lv_obj_t* status = lv_obj_find_by_name(dialog, "save_as_status");
+    lv_obj_t* input = lv_obj_find_by_name(dialog, "theme_name_input");
+    REQUIRE(status != nullptr);
+    REQUIRE(input != nullptr);
+    CHECK(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+
+    lv_textarea_set_text(input, "");
+    lv_obj_t* confirm = lv_obj_find_by_name(dialog, "btn_primary");
+    REQUIRE(confirm != nullptr);
+    lv_obj_send_event(confirm, LV_EVENT_CLICKED, nullptr);
+    settle();
+
+    CHECK_FALSE(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+    CHECK(std::string(lv_label_get_text(status)) == lv_tr("Please enter a theme name"));
+    ModalStack::instance().clear();
 }

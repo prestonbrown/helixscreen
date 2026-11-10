@@ -18,6 +18,7 @@ import io
 import json
 import os
 import shutil
+import signal
 import sys
 import threading
 import types
@@ -772,12 +773,23 @@ class TestWorker:
 
     @pytest.mark.asyncio
     async def test_a_worker_past_its_timeout_is_killed(self, gc, tmp_path, monkeypatch):
-        argv, log = fake_worker(tmp_path, "time.sleep(60)")
+        # The timeout can land before an interpreter on a loaded host has run a
+        # line of the worker, so the attempts are counted at the spawn, not by
+        # anything the worker does.
+        argv, _ = fake_worker(tmp_path, "time.sleep(120)")
         monkeypatch.setattr(analysis, "worker_command", lambda root, rel: argv)
         monkeypatch.setattr(analysis, "worker_timeout", lambda size: 0.3)
+        spawned = []
+        real_spawn = asyncio.create_subprocess_exec
+
+        async def spawn(*args, **kwargs):
+            proc = await real_spawn(*args, **kwargs)
+            spawned.append(proc)
+            return proc
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", spawn)
         helix, comp = await make(gc, files={"no_define.gcode"})
-        await asyncio.wait_for(settle(comp), 10)
-        assert calls(log) == 2
+        await asyncio.wait_for(settle(comp), 60)
+        assert [p.returncode for p in spawned] == [-signal.SIGKILL] * 2
         assert not comp._runner.running
 
     @pytest.mark.asyncio
@@ -793,6 +805,15 @@ class TestWorker:
         assert proc is not None and proc.returncode is None
         await asyncio.wait_for(comp.close(), 5)
         assert proc.returncode is not None
+
+    @pytest.mark.asyncio
+    async def test_close_returns_once_the_queue_has_stopped(self, gc):
+        # A queue left starting a worker wedges the loop's teardown: its
+        # cancel-all also cancels the pipe connection the spawn waits on.
+        helix, comp = await make(gc, files={"no_define.gcode"})
+        await asyncio.wait_for(comp.close(), 5)
+        assert comp._queue._task.done()
+        assert not comp._runner.running
 
     @pytest.mark.asyncio
     async def test_a_print_starting_on_one_core_kills_the_worker_and_requeues(
@@ -924,6 +945,9 @@ class TestRobustness:
         await ask(comp, "no_define.gcode")
         await asyncio.sleep(0.01)
         assert "scan exploded" in caplog.text
+        # The ask queued a pass; stop it before the loop's teardown cancels it
+        # mid-spawn.
+        await comp.close()
 
     @pytest.mark.asyncio
     async def test_the_prune_spares_the_file_being_analyzed(self, gc, monkeypatch):

@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "json_fwd.h"
 #include "mock_http_file_server.h"
 #include "moonraker_events.h"

@@ -588,6 +588,17 @@ void helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
         lv_obj_get_coords(s_tray.container, &c);
         lv_obj_get_coords(slot_grid, &g);
         offset = c.y1 + (int32_t)std::lround(s_tray.box.fb) - g.y1;
+        // The lane numbers sit on the box front; the lanes and their sensors start under them.
+        if (lv_obj_t* badges = lv_obj_find_by_name(lv_obj_get_parent(slot_grid), "badge_layer")) {
+            for (uint32_t i = 0; i < lv_obj_get_child_count(badges); ++i) {
+                lv_obj_t* badge = lv_obj_get_child(badges, (int32_t)i);
+                if (lv_obj_has_flag(badge, LV_OBJ_FLAG_HIDDEN))
+                    continue;
+                lv_area_t b;
+                lv_obj_get_coords(badge, &b);
+                offset = std::max(offset, b.y2 + 1 - g.y1);
+            }
+        }
     } else if (slot_grid && !draws_tray()) {
         // With no housing the lanes leave from under the spools' flanges.
         lv_obj_update_layout(slot_grid);
@@ -955,13 +966,13 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     // A unit's enclosed and open drawings merge their lanes alike, so no climate lookup.
     const tray::UnitShell* drawn_unit = tray::unit_shell_for(
         info, (unit_index < 0 && info.units.size() == 1) ? 0 : unit_index, false);
-    const bool built_in_hub =
-        helix::ui::fpath::draws_built_in_hub(drawn_unit && drawn_unit->built_in_selector, topo);
-    if (built_in_hub)
+    const tray::LaneJoin join = helix::ui::fpath::drawn_lane_join(
+        drawn_unit ? drawn_unit->lane_join : tray::LaneJoin::Hub, topo);
+    if (join == tray::LaneJoin::Junction || join == tray::LaneJoin::Inside)
         topo = helix::PathTopology::HUB;
     ui_filament_path_canvas_set_topology(canvas, static_cast<int>(topo));
     ui_filament_path_canvas_set_hub_on_toolhead(canvas, backend->hub_on_toolhead());
-    ui_filament_path_canvas_set_built_in_hub(canvas, built_in_hub);
+    ui_filament_path_canvas_set_lane_join(canvas, join);
     // Only the gate counts the rail art exists for trade the bar for a rail.
     const bool rail = drawn_unit && topo == helix::PathTopology::LINEAR &&
                       tray::unit_shell_carriage(*drawn_unit, slot_count) != nullptr;

@@ -24,6 +24,7 @@
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
 #include "job_queue_start.h"
+#include "lane_count_label.h"
 #include "led/ui_led_control_overlay.h"
 #include "lvgl.h"
 #include "printer_capabilities_state.h"

@@ -134,6 +134,9 @@ class MoonrakerTimelapseAPIMock : public MoonrakerTimelapseAPI {
                                        const std::string& http_base_url);
     ~MoonrakerTimelapseAPIMock() override = default;
 
+    /// The plugin's defaults while it answers (HELIX_MOCK_TIMELAPSE), a 404 otherwise.
+    void get_timelapse_settings(TimelapseSettingsCallback on_success,
+                                ErrorCallback on_error) override;
     void render_timelapse(SuccessCallback on_success, ErrorCallback on_error) override;
     void save_timelapse_frames(SuccessCallback on_success, ErrorCallback on_error) override;
     void get_last_frame_info(std::function<void(const LastFrameInfo&)> on_success,

@@ -230,20 +230,62 @@ TEST_CASE_METHOD(
     {
         HistoryListPanel panel;
         panel.init_subjects();
-        helix::ui::HistoryListPanelTestAccess::show_detail_overlay(panel, test_screen(), job);
-        helix::ui::UpdateQueue::instance().drain();
-        process_lvgl(10);
-        helix::ui::UpdateQueue::instance().drain();
+        // Then reopened on a job with no preview: the fallback replaces the last image.
+        for (const bool with_thumbnail : {true, false}) {
+            if (!with_thumbnail) {
+                job.thumbnails.clear();
+            }
+            helix::ui::HistoryListPanelTestAccess::show_detail_overlay(panel, test_screen(), job);
+            helix::ui::UpdateQueue::instance().drain();
+            process_lvgl(10);
+            helix::ui::UpdateQueue::instance().drain();
 
-        lv_obj_t* image = lv_obj_find_by_name(test_screen(), "thumbnail_image");
-        REQUIRE(image != nullptr);
-        const void* src = lv_image_get_src(image);
-        REQUIRE(src != nullptr);
-        REQUIRE(std::string(static_cast<const char*>(src)) == expected);
+            lv_obj_t* image = lv_obj_find_by_name(test_screen(), "thumbnail_image");
+            lv_obj_t* fallback = lv_obj_find_by_name(test_screen(), "thumbnail_fallback");
+            REQUIRE((image && fallback));
+            CHECK(lv_obj_has_flag(image, LV_OBJ_FLAG_HIDDEN) != with_thumbnail);
+            CHECK(lv_obj_has_flag(fallback, LV_OBJ_FLAG_HIDDEN) == with_thumbnail);
+            if (with_thumbnail) {
+                const void* src = lv_image_get_src(image);
+                REQUIRE(src != nullptr);
+                REQUIRE(std::string(static_cast<const char*>(src)) == expected);
+            }
 
-        NavigationManager::instance().go_back();
-        helix::ui::UpdateQueue::instance().drain();
-        process_lvgl(10);
+            NavigationManager::instance().go_back();
+            helix::ui::UpdateQueue::instance().drain();
+            process_lvgl(10);
+        }
     }
     std::filesystem::remove(planted);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "HistoryListPanel - a multi-tool job's materials read once each in row and detail",
+                 "[history][history_list_view][filament_chip]") {
+    ScopedGerman german;
+    // Per-tool types as a slicer writes them: a repeat, an empty tool, a trailing ';'.
+    PrintHistoryJob job = make_test_jobs(1).front();
+    job.filament_type = "ABS;ABS;;PETG;";
+
+    HistoryListView view;
+    lv_obj_t* container = make_scroll_container(test_screen());
+    view.setup(container, nullptr, [](size_t) {});
+    view.populate({job});
+    process_lvgl(50);
+    lv_obj_t* row_filament = lv_obj_find_by_name(container, "row_filament");
+    REQUIRE(row_filament != nullptr);
+    CHECK(std::string(lv_label_get_text(row_filament)) == "ABS, PETG");
+
+    HistoryListPanel panel;
+    panel.init_subjects();
+    lv_subject_t* detail = lv_xml_get_subject(nullptr, "history_detail_filament_type");
+    REQUIRE(detail != nullptr);
+    HistoryListPanelTestAccess::update_detail_subjects(panel, job);
+    CHECK(std::string(lv_subject_get_string(detail)) == "ABS, PETG");
+
+    // Only separators: no material is named.
+    job.filament_type = ";;";
+    HistoryListPanelTestAccess::update_detail_subjects(panel, job);
+    CHECK(std::string(lv_subject_get_string(detail)) == lv_tr("Unknown"));
+    REQUIRE(std::string(lv_tr("Unknown")) != "Unknown");
 }

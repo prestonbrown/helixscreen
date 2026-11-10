@@ -30,29 +30,23 @@ using namespace std::chrono_literals;
 // reset->refresh->fail cycle if root itself ever errors.
 // ============================================================================
 
-TEST_CASE("dir_error_should_reset_to_root: missing-directory error in subfolder resets",
+TEST_CASE("dir_error_should_reset_to_root resets on a missing subfolder only",
           "[print_select][refresh][regression]") {
-    REQUIRE(dir_error_should_reset_to_root(
-                "Directory does not exist (/usr/data/gcodes/Feinkost/Feinkost/Gridfinity)",
-                /*at_root=*/false) == true);
-}
-
-TEST_CASE("dir_error_should_reset_to_root: already at root never resets (no loop)",
-          "[print_select][refresh][regression]") {
-    REQUIRE(dir_error_should_reset_to_root("Directory does not exist (/usr/data/gcodes)",
-                                           /*at_root=*/true) == false);
-}
-
-TEST_CASE("dir_error_should_reset_to_root: unrelated error does not reset",
-          "[print_select][refresh][regression]") {
-    REQUIRE(dir_error_should_reset_to_root("Klippy disconnected", /*at_root=*/false) == false);
-    REQUIRE(dir_error_should_reset_to_root("", /*at_root=*/false) == false);
-}
-
-TEST_CASE("dir_error_should_reset_to_root: match is case-insensitive",
-          "[print_select][refresh][regression]") {
-    REQUIRE(dir_error_should_reset_to_root("DIRECTORY DOES NOT EXIST (/x)",
-                                           /*at_root=*/false) == true);
+    const struct {
+        const char* error;
+        bool at_root;
+        bool reset;
+    } cases[] = {
+        {"Directory does not exist (/usr/data/gcodes/Feinkost/Feinkost/Gridfinity)", false, true},
+        {"DIRECTORY DOES NOT EXIST (/x)", false, true},               // case-insensitive
+        {"Directory does not exist (/usr/data/gcodes)", true, false}, // at root: no loop
+        {"Klippy disconnected", false, false},
+        {"", false, false},
+    };
+    for (const auto& c : cases) {
+        INFO(c.error);
+        CHECK(dir_error_should_reset_to_root(c.error, c.at_root) == c.reset);
+    }
 }
 
 // ============================================================================

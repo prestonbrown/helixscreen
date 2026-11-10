@@ -21,6 +21,7 @@
 #include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "lane_count_label.h"
 #include "lvgl.h"
 #include "printer_detector.h"
 #include "theme_manager.h"
@@ -185,7 +186,7 @@ void AmsOverviewPanel::apply_card_art(UnitCard& card, const AmsUnit& unit,
     if (card.has_art) {
         helix::ui::unit_art_set_unit(card.art, info, card.unit_index,
                                      helix::ui::unit_reports_climate(card.unit_index));
-    } else {
+    } else if (card.logo_image) {
         ams_draw::apply_logo(card.logo_image, unit, info);
     }
 }
@@ -212,7 +213,10 @@ void AmsOverviewPanel::layout_unit_row() {
     for (const auto& uc : unit_cards_) {
         if (!uc.card)
             continue;
-        if (peek_width > 0) {
+        if (uc.compact_width > 0) {
+            lv_obj_set_flex_grow(uc.card, 0);
+            lv_obj_set_width(uc.card, uc.compact_width);
+        } else if (peek_width > 0) {
             lv_obj_set_flex_grow(uc.card, 0);
             lv_obj_set_width(uc.card, peek_width);
         } else {
@@ -269,6 +273,10 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         ams_draw::compute_system_tool_layout(info, AmsState::instance().get_backend())
             .display_order;
 
+    // Beside drawn units, a unit with no drawing is a compact tile of its lane bars.
+    const bool any_art = std::any_of(order.begin(), order.begin() + unit_count,
+                                     [&](int u) { return unit_has_art(info, u); });
+
     for (int slot = 0; slot < unit_count; ++slot) {
         const int i = order[slot];
         const AmsUnit& unit = info.units[i];
@@ -285,11 +293,12 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         const std::string disconnected = AmsState::unit_disconnected_subject_name(i);
         const std::string logo_color = AmsState::unit_logo_color_subject_name(i);
         uc.has_art = unit_has_art(info, i);
+        const bool as_tile = uc.has_art || any_art;
         // A tile takes the card's name: the tour and ctl recipes find a unit by it.
         const char* attrs[] = {"absent",
                                absent.c_str(),
-                               uc.has_art ? "name" : "logo_color",
-                               uc.has_art ? "ams_unit_card" : logo_color.c_str(),
+                               as_tile ? "name" : "logo_color",
+                               as_tile ? "ams_unit_card" : logo_color.c_str(),
                                "disconnected",
                                disconnected.c_str(),
                                "temp_text",
@@ -311,14 +320,20 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
                                nullptr,
                                nullptr};
         uc.card = static_cast<lv_obj_t*>(
-            lv_xml_create(cards_row_, uc.has_art ? "ams_unit_tile" : "ams_unit_card", attrs));
+            lv_xml_create(cards_row_, as_tile ? "ams_unit_tile" : "ams_unit_card", attrs));
         if (!uc.card) {
             spdlog::error("[{}] Failed to create ams_unit_card XML for unit {}", get_name(), i);
             continue;
         }
 
-        // Flex grow so cards share available width equally
-        lv_obj_set_flex_grow(uc.card, 1);
+        // Flex grow so cards share available width equally; a bars tile stays compact.
+        if (uc.has_art || !as_tile)
+            lv_obj_set_flex_grow(uc.card, 1);
+        else {
+            lv_obj_set_style_min_width(uc.card, 0, LV_PART_MAIN);
+            uc.compact_width = theme_manager_get_spacing("ams_tile_art_max_h") * 3 / 2;
+            lv_obj_set_width(uc.card, uc.compact_width);
+        }
 
         // Store unit index for click handler
         // NOTE: lv_obj_add_event_cb used here (not XML event_cb) because each dynamically
@@ -329,17 +344,23 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         // Find child widgets declared in XML
         // required-names: ams_unit_tile ams_unit_card
         uc.name_label = helix::ui::find_required(uc.card, "unit_name", get_name());
-        if (uc.has_art) {
+        if (as_tile) {
             // required-names: ams_unit_tile
-            uc.art_stage = helix::ui::find_required(uc.card, "tile_stage", get_name());
-            for (lv_obj_t* clip : {uc.card, uc.art_stage}) {
+            lv_obj_t* stage = helix::ui::find_required(uc.card, "tile_stage", get_name());
+            uc.art_stage = uc.has_art ? stage : nullptr;
+            for (lv_obj_t* clip : {uc.card, stage}) {
                 // DECLARATIVE_OK: extended draw size has no XML form
                 lv_obj_add_event_cb(clip, tile_readout_ext_draw_cb, LV_EVENT_REFR_EXT_DRAW_SIZE,
                                     nullptr);
                 lv_obj_refresh_ext_draw_size(clip);
             }
-            // required-names: ams_unit_tile
-            uc.art = helix::ui::find_required(uc.card, "unit_art", get_name());
+            if (uc.has_art) {
+                // required-names: ams_unit_tile
+                uc.art = helix::ui::find_required(uc.card, "unit_art", get_name());
+            } else {
+                // required-names: ams_unit_tile
+                uc.bars_container = helix::ui::find_required(uc.card, "bars_container", get_name());
+            }
         } else {
             // required-names: ams_unit_card
             uc.logo_image = helix::ui::find_required(uc.card, "unit_logo", get_name());
@@ -650,8 +671,10 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
 
         if (i < static_cast<int>(tool_layout.units.size())) {
             const auto& utl = tool_layout.units[i];
-            ui_system_path_canvas_set_unit_tools(system_path_, i, utl.tool_count,
-                                                 utl.first_physical_tool);
+            const auto& routed = info.units[i].lane_is_hub_routed;
+            ui_system_path_canvas_set_unit_tools(
+                system_path_, i, utl.tool_count, utl.first_physical_tool,
+                static_cast<int>(std::count(routed.begin(), routed.end(), true)));
 
             // The unit's hub and the buffer under it: the box the unit view shows
             // for the hub's first unit. Units on one hub get one group number.

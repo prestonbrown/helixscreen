@@ -20,7 +20,16 @@ class ZOffsetCalibrationTestAccess {
 
     /// Arms the "we warmed the bed" latch so turn_off_bed() actually sends.
     static void mark_bed_warmed(ZOffsetCalibrationPanel& panel) {
-        panel.bed_was_warmed_ = true;
+        panel.heat_.own("heater_bed", 0);
+    }
+
+    static helix::CalibrationOwnedHeat& heat(ZOffsetCalibrationPanel& panel) {
+        return panel.heat_;
+    }
+
+    /// The warm-up path a run takes with the warm-bed toggle on.
+    static void begin_calibration(ZOffsetCalibrationPanel& panel) {
+        panel.begin_calibration();
     }
 
     /// Sends M140 S0 when the latch above is armed.

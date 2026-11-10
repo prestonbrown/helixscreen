@@ -26,6 +26,7 @@
 #include "panel_widget.h"
 #include "panel_widget_registry.h"
 #include "settings_manager.h"
+#include "src/ui/panel_widgets/fan_widget.h"
 #include "src/ui/panel_widgets/led_widget.h"
 #include "src/ui/panel_widgets/tile_layout.h"
 #include "src/ui/panel_widgets/tile_sizing.h"
@@ -242,6 +243,12 @@ TEST_CASE("two real fan tiles at different sizes draw different glyphs",
     INFO("wide=" << static_cast<const void*>(wide_face)
                  << " narrow=" << static_cast<const void*>(narrow_face));
     CHECK(wide_face != narrow_face);
+
+    // Each tile names its own fan.
+    static_cast<FanWidget&>(*wide).select_fan("fan_a");
+    static_cast<FanWidget&>(*narrow).select_fan("fan_b");
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(wide_obj, "fan_name"))) == "fan_a");
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(narrow_obj, "fan_name"))) == "fan_b");
 
     wide->detach();
     narrow->detach();

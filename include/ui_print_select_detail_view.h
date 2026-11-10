@@ -5,13 +5,13 @@
 
 #include "ui_exclude_mode_controller.h"
 #include "ui_filament_mapping_card.h"
-#include "ui_observer_guard.h"
 #include "ui_plugin_items_menu.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_preparation_manager.h"
 #include "ui_widget_ref.h"
 
 #include "ams_remap.h"
+#include "core/observer_guard.h"
 #include "gcode_footer_summary.h"
 #include "gcode_preview_fetcher.h"
 #include "helix_shared_callback.h"
@@ -820,10 +820,10 @@ class PrintSelectDetailView : public OverlayBase {
     lv_obj_t* purge_line_checkbox_ = nullptr;
     lv_obj_t* timelapse_checkbox_ = nullptr;
 
-    // History status display
-    lv_obj_t* history_status_row_ = nullptr;
-    lv_obj_t* history_status_icon_ = nullptr;
-    lv_obj_t* history_status_label_ = nullptr;
+    // History status display: the FileHistoryStatus value picks the row's icon in XML
+    lv_subject_t detail_history_status_{};
+    lv_subject_t detail_history_text_{};
+    char detail_history_text_buf_[64]{};
 
     // G-code viewer visibility mode (0=thumbnail, 1=3D, 2=2D)
     lv_subject_t detail_gcode_viewer_mode_{};

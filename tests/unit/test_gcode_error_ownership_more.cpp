@@ -104,6 +104,8 @@ TEST_CASE_METHOD(OwnershipMoreFixture, "Z-offset bed-off send leaves the `!!` ro
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
     ZOffsetCalibrationTestAccess::mark_bed_warmed(panel);
+    lv_subject_set_int(state.network_state().get_printer_connection_state_subject(),
+                       static_cast<int>(helix::ConnectionState::CONNECTED));
 
     client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR, kRejection, "M140");
     ZOffsetCalibrationTestAccess::turn_off_bed(panel);

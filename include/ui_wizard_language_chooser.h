@@ -3,8 +3,8 @@
 #pragma once
 
 #include "ui_breakpoint.h"
-#include "ui_timer_guard.h"
 
+#include "core/timer_guard.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 #include "wizard_step.h"

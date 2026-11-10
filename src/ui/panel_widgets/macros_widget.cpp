@@ -29,15 +29,9 @@ MacrosWidget::~MacrosWidget() {
 void MacrosWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
-
-    btn_ = lv_obj_find_by_name(widget_obj_, "macros_button");
-    if (btn_) {
-        lv_obj_add_event_cb(btn_, clicked_cb, LV_EVENT_CLICKED, this);
-    }
 }
 
 void MacrosWidget::detach() {
-    btn_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 }
@@ -48,7 +42,7 @@ void MacrosWidget::handle_click() {
 
 void MacrosWidget::clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[MacrosWidget] clicked_cb");
-    auto* self = static_cast<MacrosWidget*>(lv_event_get_user_data(e));
+    auto* self = panel_widget_from_event<MacrosWidget>(e);
     if (self) {
         self->record_interaction();
         self->handle_click();

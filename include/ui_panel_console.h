@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "console_filter_engine.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "in_flight_guard.h"
 #include "json_fwd.h"

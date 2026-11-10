@@ -57,8 +57,9 @@ enum class UiRequestKind {
     OfferClearAfterUnverifiedInsert,      ///< Main thread; @ref UiRequest::slot is the lane
     PromptEndHeldNozzleOffsetCalibration, ///< Main thread
     OpenHardwareHealth,                   ///< Main thread
-    ExpectKlippyDisconnect,               ///< Any thread; in effect before publish returns
-    ExpectKlippyRestart, ///< Any thread; @ref UiRequest::api is the connection about to drop
+    OpenPrintStatus,        ///< Main thread; a no-op while print status is on the stack
+    ExpectKlippyDisconnect, ///< Any thread; in effect before publish returns
+    ExpectKlippyRestart,    ///< Any thread; @ref UiRequest::api is the connection about to drop
     kCount
 };
 

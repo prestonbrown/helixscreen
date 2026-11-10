@@ -12,11 +12,10 @@
  * is logged, so an attach in that window is visible rather than silent.
  */
 
-#include "ui_observer_guard.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "core/observer_factory.h"
+#include "core/observer_guard.h"
 #include "lvgl_log_handler.h"
 
 #include <string>

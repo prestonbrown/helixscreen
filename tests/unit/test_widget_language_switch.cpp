@@ -352,8 +352,8 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
     fan.widget().select_fan("");
     sensor.widget().select_sensor("chamber");
     sensor.widget().select_sensor("");
-    lv_obj_t* fan_name = fan.child("fan_name");
-    lv_obj_t* sensor_name = sensor.child("thermistor_name");
+    lv_obj_t* fan_name = fan.child("fan_name_prompt");
+    lv_obj_t* sensor_name = sensor.child("thermistor_name_prompt");
     REQUIRE(fan_name != nullptr);
     REQUIRE(sensor_name != nullptr);
     REQUIRE(std::string(lv_label_get_text(fan_name)) == "Select fan");

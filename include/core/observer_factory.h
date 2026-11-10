@@ -16,9 +16,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "connection_state.h"
+#include "core/observer_guard.h"
 #include "core/update_queue.h"
 #include "helix_callback.h"
 #include "lvgl/lvgl.h"

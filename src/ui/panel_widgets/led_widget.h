@@ -4,10 +4,10 @@
 #pragma once
 
 #include "ui_context_menu.h"
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "led/led_backend.h"
 #include "led/led_devices.h"
 #include "src/ui/panel_widgets/tile_sizing.h"

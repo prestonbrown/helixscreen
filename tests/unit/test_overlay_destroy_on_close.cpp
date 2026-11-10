@@ -334,24 +334,6 @@ TEST_CASE_METHOD(DestroyOnCloseFixture, "History List repopulates when closed un
     CHECK(rows() > 0);
 }
 
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Label Printer wires its inputs on every build",
-                 "[overlay_destroy_on_close][label_printer]") {
-    auto& p = get_label_printer_settings_overlay();
-    const auto input_callbacks = [&] {
-        lv_obj_t* input = lv_obj_find_by_name(p.get_root(), "input_address");
-        REQUIRE(input != nullptr);
-        return lv_obj_get_event_count(input);
-    };
-    REQUIRE(p.show(lv_screen_active()));
-    settle();
-    const uint32_t first_build = input_callbacks();
-    NavigationManager::instance().go_back();
-    settle();
-    REQUIRE(p.show(lv_screen_active()));
-    settle();
-    CHECK(input_callbacks() == first_build);
-}
-
 TEST_CASE_METHOD(DestroyOnCloseFixture, "Label Printer keeps an address typed before a tap on Back",
                  "[overlay_destroy_on_close][label_printer]") {
     auto& settings = helix::LabelPrinterSettingsManager::instance();

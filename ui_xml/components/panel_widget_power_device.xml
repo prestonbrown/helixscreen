@@ -10,6 +10,16 @@
     <prop name="tile_target_subject" type="string" default=""/>
     <!-- 1 while a device is configured and so has a state to show -->
     <prop name="status_subject" type="string" default=""/>
+    <!-- 0=off, 1=on, 2=locked, -1=unconfigured -->
+    <prop name="state_subject" type="string" default=""/>
+    <!-- 1 while name_subject holds the device name; 0 shows the Configure prompt -->
+    <prop name="named_subject" type="string" default=""/>
+    <prop name="name_subject" type="string" default=""/>
+    <prop name="status_text_subject" type="string" default=""/>
+    <!-- The state colours, or the user's colour when one is set -->
+    <prop name="accent_subject" type="string" default=""/>
+    <prop name="badge_opa_subject" type="string" default=""/>
+    <prop name="status_color_subject" type="string" default=""/>
   </api>
   <view name="panel_widget_power_device"
         extends="lv_obj" height="100%" flex_grow="1" style_pad_ver="0" style_pad_gap="#space_xxs" scrollable="false"
@@ -22,11 +32,14 @@
     <bind_style_if_eq name="styles.tile_row" subject="$tile_dir_subject" ref_value="1"/>
 
     <tile_badge name="power_badge" icon="power_cycle" icon_name="power_icon" rung_subject="$tile_icon_subject">
+      <bind_style_prop prop="bg_color" subject="$accent_subject"/>
+      <bind_style_prop prop="bg_opa" subject="$badge_opa_subject"/>
       <!-- Lock overlaid at the badge's bottom-right -->
       <icon name="power_lock_icon"
             src="lock" size="xs" variant="muted" clickable="false" event_bubble="true" hidden="true"
             align="bottom_right">
         <bind_tile_rung ladder="icon" subject="$tile_icon_subject" offset="-2"/>
+        <bind_flag_if_not_eq subject="$state_subject" flag="hidden" ref_value="2"/>
       </icon>
     </tile_badge>
 
@@ -37,16 +50,27 @@
       <bind_style_if_eq name="styles.tile_fill" subject="$tile_dir_subject" ref_value="1"/>
       <!-- ON/OFF/LOCKED: the tile's reading, in the value face -->
       <text_tiny name="power_device_status"
-                 text="" style_text_align="center" style_text_color="#text_muted" clickable="false" event_bubble="true">
+                 bind_text="$status_text_subject" style_text_align="center" style_text_color="#text_muted"
+                 clickable="false" event_bubble="true">
+        <bind_style_prop prop="text_color" subject="$status_color_subject"/>
         <bind_tile_rung ladder="value" subject="$tile_icon_subject"/>
         <bind_flag_if_eq subject="$status_subject" flag="hidden" ref_value="0"/>
       </text_tiny>
       <!-- Device name: always drawn, it says which device this is -->
       <text_tiny name="power_device_name"
+                 width="100%" bind_text="$name_subject" style_text_align="center" style_text_color="#text"
+                 long_mode="dots" clickable="false" event_bubble="true">
+        <bind_tile_rung ladder="label" subject="$tile_icon_subject" one_line="true"/>
+        <bind_flag_if_eq subject="$tile_label_subject" flag="hidden" ref_value="0"/>
+        <bind_flag_if_eq subject="$named_subject" flag="hidden" ref_value="0"/>
+      </text_tiny>
+      <!-- Until a device is picked: a literal, so it re-translates itself -->
+      <text_tiny name="power_device_configure"
                  width="100%" text="Configure" style_text_align="center" style_text_color="#text" long_mode="dots"
                  clickable="false" event_bubble="true">
         <bind_tile_rung ladder="label" subject="$tile_icon_subject" one_line="true"/>
         <bind_flag_if_eq subject="$tile_label_subject" flag="hidden" ref_value="0"/>
+        <bind_flag_if_eq subject="$named_subject" flag="hidden" ref_value="1"/>
       </text_tiny>
     </lv_obj>
   </view>

@@ -104,8 +104,9 @@ TEST_CASE_METHOD(ParallelTapFixture, "PARALLEL canvas: a head tap reaches the to
     const BaseGeometry g = compute_base_geometry(canvas, d);
     const ParallelRows rows = parallel_rows(*d, g);
     const int32_t x = g.slot_x[1];
-    const helix::ui::GlyphBounds head = toolhead_glyph_bounds(x, rows.toolhead_y, rows.tool_scale);
-    CAPTURE(head.left, head.top, head.right, head.bottom, rows.sensor_y);
+    const helix::ui::GlyphBounds head =
+        toolhead_glyph_bounds(x + path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).dx,
+                              rows.toolhead_y, rows.tool_scale);
     REQUIRE(head.top > rows.sensor_y);
 
     SECTION("the glyph's middle") {

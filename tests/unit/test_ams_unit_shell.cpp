@@ -6,6 +6,7 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
+using helix::ui::tray::LaneJoin;
 using helix::ui::tray::unit_shell_for;
 using helix::ui::tray::UnitShell;
 
@@ -87,7 +88,7 @@ TEST_CASE("unit shell: a variable unit keeps its shell at every lane count", "[a
         REQUIRE(unit_shell_for(info, 0) != nullptr);
         CHECK(std::string(unit_shell_for(info, 0)->id) == "quattro_box");
     }
-    CHECK(unit_shell_for(info, 0)->built_in_selector);
+    CHECK(unit_shell_for(info, 0)->lane_join == LaneJoin::Junction);
 }
 
 TEST_CASE("unit shell: unidentified hardware keeps the generic tray", "[ams][unit-art]") {
@@ -97,11 +98,11 @@ TEST_CASE("unit shell: unidentified hardware keeps the generic tray", "[ams][uni
     REQUIRE(bmcu != nullptr);
     CHECK(unit_shell_for(one_unit(AmsType::AFC, "BMCU BMCU_1"), 0) == bmcu);
     CHECK(bmcu->art_lanes == 4);
-    CHECK_FALSE(bmcu->built_in_selector);
+    CHECK(bmcu->lane_join == LaneJoin::Hub);
     const UnitShell* owl = helix::ui::tray::unit_shell_by_id("night_owl");
     REQUIRE(owl != nullptr);
     CHECK(owl->art_lanes == 2);
-    CHECK(owl->built_in_selector);
+    CHECK(owl->lane_join == LaneJoin::Junction);
 }
 
 TEST_CASE("unit shell: feeders resolve from what their backends report", "[ams][unit-art]") {

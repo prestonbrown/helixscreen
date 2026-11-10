@@ -75,6 +75,7 @@ struct SystemPathData {
     char unit_buffer_label[kMaxUnits][8] = {};
 
     // Per-unit tool routing (mixed topology support)
+    int unit_hub_lanes[kMaxUnits] = {};      // Lanes converging on the unit's hub, MIXED only
     int unit_tool_count[kMaxUnits] = {};     // Tools per unit (BT=4, OpenAMS=1)
     int unit_first_tool[kMaxUnits] = {};     // First tool index for this unit
     int unit_topology[kMaxUnits] = {};       // 0=LINEAR, 1=HUB, 2=PARALLEL, 3=MIXED

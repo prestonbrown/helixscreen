@@ -118,10 +118,18 @@ std::int64_t mock_file_size() {
 } // namespace
 
 json MoonrakerClientMock::mock_plr_feature_entry() {
+    // HELIX_MOCK_PLR=not_listed: the plugin runs but has no recovery recipe
+    // for this printer model.
+    if (const MockPlrConfig cfg = mock_plr_config(); cfg.backend == "not_listed") {
+        return json{{"version", helix::kPlrFeatureMinVersion},
+                    {"available", false},
+                    {"enabled", false},
+                    {"reason", "not_listed"}};
+    }
     if (!mock_plr_config().active) {
         return nullptr;
     }
-    return json{{"version", helix::kPlrFeatureMinVersion},
+    return json{{"version", helix::kPlrUnlistedTierMinVersion},
                 {"available", true},
                 {"enabled", mock_plr_saving() || mock_plr_interrupted()},
                 {"saving", mock_plr_saving()},

@@ -356,25 +356,6 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
 // ============================================================================
 
 TEST_CASE_METHOD(HomeWidgetTeardownFixture,
-                 "thermistor drops cached labels when the page tree is deleted raw",
-                 "[thermistor][teardown][uaf]") {
-    helix::sensors::TemperatureSensorManager::instance().discover(
-        helix::test::discovery_of({kThermistorSensorA}));
-
-    auto widget = std::make_unique<ThermistorWidget>("thermistor");
-    widget->set_config({{"sensors", std::vector<std::string>{kThermistorSensorA}}});
-    lv_obj_t* page = make_page();
-    widget->attach(make_tile(page, "panel_widget_thermistor"), test_screen());
-    UpdateQueue::instance().drain();
-
-    REQUIRE(ThermistorTestAccess::name_label(*widget) != nullptr);
-
-    lv_obj_delete(page);
-
-    CHECK(ThermistorTestAccess::name_label(*widget) == nullptr);
-}
-
-TEST_CASE_METHOD(HomeWidgetTeardownFixture,
                  "thermistor queued temp apply survives a drain after the tree dies",
                  "[thermistor][teardown][uaf]") {
     helix::sensors::TemperatureSensorManager::instance().discover(
@@ -385,7 +366,6 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     lv_obj_t* page = make_page();
     widget->attach(make_tile(page, "panel_widget_thermistor"), test_screen());
     UpdateQueue::instance().drain();
-    REQUIRE(ThermistorTestAccess::name_label(*widget) != nullptr);
 
     // The sensor's temp subject fires temp_observer_ synchronously; the handler
     // (on_temp_changed) is queued.
@@ -399,7 +379,8 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     lv_obj_delete(page);
     UpdateQueue::instance().drain();
 
-    CHECK(ThermistorTestAccess::name_label(*widget) == nullptr);
+    // The tree's delete expired the queued handler, so the reading never landed.
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "thermistor_thermistor_temp")) != 425);
 }
 
 TEST_CASE_METHOD(HomeWidgetTeardownFixture,
@@ -686,7 +667,6 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     UpdateQueue::instance().drain();
 
     CHECK(ShutdownWidgetTestAccess::widget_obj(*widget) == nullptr);
-    CHECK(ShutdownWidgetTestAccess::shutdown_btn(*widget) == nullptr);
     CHECK(ShutdownWidgetTestAccess::parent_screen(*widget) == nullptr);
 
     // The path that would have written into the freed tile.

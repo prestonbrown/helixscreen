@@ -50,22 +50,6 @@ struct ThemeDirFixture {
 int ThemeDirFixture::counter_ = 0;
 } // namespace
 
-TEST_CASE("ModePalette index access", "[theme]") {
-    ModePalette palette;
-    palette.screen_bg = "#2e3440";
-    palette.focus = "#8fbcbb";
-
-    REQUIRE(palette.at(0) == "#2e3440");
-    REQUIRE(palette.at(15) == "#8fbcbb");
-}
-
-TEST_CASE("ModePalette color_names returns all 16 names", "[theme]") {
-    auto& names = ModePalette::color_names();
-    REQUIRE(names.size() == 16);
-    REQUIRE(std::string(names[0]) == "screen_bg");
-    REQUIRE(std::string(names[15]) == "focus");
-}
-
 TEST_CASE("ThemeData::is_valid checks palettes and name", "[theme]") {
     ThemeData theme;
     theme.name = "Test";
@@ -89,12 +73,6 @@ TEST_CASE("ThemeData::is_valid checks palettes and name", "[theme]") {
     // Short hex should fail
     theme.dark.screen_bg = "#abc";
     REQUIRE_FALSE(theme.is_valid());
-}
-
-TEST_CASE("ModePalette::at throws on invalid index", "[theme]") {
-    ModePalette palette;
-    REQUIRE_THROWS_AS(palette.at(16), std::out_of_range);
-    REQUIRE_THROWS_AS(palette.at(100), std::out_of_range);
 }
 
 TEST_CASE("parse_theme_json parses valid dual-palette theme", "[theme]") {

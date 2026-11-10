@@ -151,6 +151,7 @@ src/printer/afc_defaults.cpp
 src/printer/afc_fault_position.cpp
 src/printer/ams_device_action_rows.cpp
 src/printer/fault_path_position.cpp
+src/printer/fan_tachometers.cpp
 src/printer/ace_slot_parse.cpp
 src/printer/ace_status_parse.cpp
 src/printer/ams_backend.cpp
@@ -341,6 +342,7 @@ src/system/diagnostics.cpp
 src/system/display_settings_manager.cpp
 src/system/filament_favorites.cpp
 src/system/helix_plugin_installer.cpp
+src/system/local_plugin_installer.cpp
 src/core/http_executor.cpp
 src/system/input_settings_manager.cpp
 src/system/helix_regex.cpp
@@ -609,7 +611,8 @@ src/ui/filament/ui_filament_runout_handler.cpp
 src/ui/filament/ui_filament_slot_picker.cpp
 src/core/gcode_filename.cpp
 src/ui/ui_format_utils.cpp
-src/ui/display_numbering.cpp
+src/printer/display_numbering.cpp
+src/ui/lane_count_label.cpp
 src/ui/components/ui_gradient_canvas.cpp
 src/ui/controls/ui_heater_icon_binder.cpp
 src/ui/controls/ui_heating_animator.cpp
@@ -644,7 +647,7 @@ src/ui/notify/ui_notification.cpp
 src/ui/notify/ui_notification_badge.cpp
 src/ui/notify/ui_notification_history.cpp
 src/ui/notify/ui_notification_manager.cpp
-src/ui/ui_observer_guard.cpp
+src/core/observer_guard.cpp
 src/ui/notify/ui_panel_notification_history.cpp
 src/ui/settings/ui_overlay_console_settings.cpp
 src/ui/settings/ui_overlay_network_settings.cpp
@@ -770,6 +773,8 @@ src/ui/controls/ui_temp_graph.cpp
 src/ui/controls/ui_temperature_utils.cpp
 src/ui/components/ui_text.cpp
 src/ui/home/ui_tile_rung.cpp
+src/ui/components/text_clipboard.cpp
+src/ui/components/ui_text_edit_menu.cpp
 src/ui/components/ui_text_input.cpp
 src/ui/settings/ui_theme_editor_overlay.cpp
 src/ui/notify/ui_toast_manager.cpp

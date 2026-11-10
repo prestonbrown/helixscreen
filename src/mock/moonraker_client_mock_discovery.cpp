@@ -10,6 +10,7 @@
 #include "mock_persona.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
+#include "timelapse_host_mock.h"
 #include "tool_state.h"
 
 #include <spdlog/spdlog.h>
@@ -448,7 +449,10 @@ void MoonrakerClientMock::populate_capabilities() {
     }
 
     // Moonraker plugins
-    mock_objects.push_back("timelapse"); // Moonraker-Timelapse plugin
+    // Moonraker-Timelapse plugin; HELIX_MOCK_TIMELAPSE takes it away.
+    if (helix::mock::timelapse_plugin_present()) {
+        mock_objects.push_back("timelapse");
+    }
 
     // MMU/AMS system - Happy Hare uses "mmu" object name.
     // Suppressed in the MedusaHC modes, the standalone IFS module mode, the OpenAMS

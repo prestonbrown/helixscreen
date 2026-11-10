@@ -16,9 +16,9 @@
   </consts>
   <!-- Full-screen backdrop overlay - tap to dismiss -->
   <view name="context_backdrop" extends="context_menu_backdrop">
-    <!-- Context menu card - positioned by C++. Header reads "Slot N", rewritten
-         from C++ through slot_header. -->
-    <context_menu_card title="Slot 1" title_name="slot_header" pad_gap="#space_md">
+    <!-- Context menu card - positioned by C++. The header names the lane, or
+         "External Spool", through ams_slot_header. -->
+    <context_menu_card title_subject="ams_slot_header" title_name="slot_header" pad_gap="#space_md">
       <!-- Action columns. Stacked (flex_flow="column") by default so a short menu
            reads as one list; ContextMenu::fit_card_to_screen() flips this to a row
            when the stacked card would not fit the screen, at which point the two
@@ -36,11 +36,12 @@
                what the card header already said. -->
           <!-- DUPLICATE_NAME_OK: ContextMenu searches per column, lv_obj_find_by_name(col, ...) — the base class iterates arbitrary columns and cannot know per-column names -->
           <context_menu_column_heading name="col_heading" text="Actions"/>
-          <!-- Bypass toggle (external spool only; hidden for lanes). Text is set
-               from C++ because it names the action, not the state. -->
+          <!-- Bypass toggle (external spool only; hidden for lanes). The label names
+               the action, not the state. -->
           <ui_button name="btn_bypass_toggle"
-                     height="#button_height_sm" icon="arrow_left_right" text="Enable Bypass" variant="ghost"
-                     clickable="true" style_flex_main_place="start" hidden="true">
+                     height="#button_height_sm" icon="arrow_left_right" bind_text="ams_slot_bypass_text" variant="ghost"
+                     clickable="true" style_flex_main_place="start">
+            <bind_flag_if_eq subject="ams_slot_bypass_shown" flag="hidden" ref_value="0"/>
             <event_cb trigger="clicked" callback="ams_context_bypass_toggle_cb"/>
           </ui_button>
           <!-- Load Button -->
@@ -67,7 +68,8 @@
                purge action - purging is about what is at the nozzle, not a lane. -->
           <ui_button name="btn_purge"
                      height="#button_height_sm" icon="water" text="Purge" variant="ghost" clickable="true"
-                     style_flex_main_place="start" hidden="true">
+                     style_flex_main_place="start">
+            <bind_flag_if_eq subject="ams_slot_purge_shown" flag="hidden" ref_value="0"/>
             <bind_state_if_eq subject="ams_slot_can_purge" state="disabled" ref_value="0"/>
             <event_cb trigger="clicked" callback="ams_context_purge_cb"/>
           </ui_button>
@@ -86,7 +88,9 @@
           <!-- Check Slot Button (hidden unless backend supports slot check, e.g. Happy Hare MMU_CHECK_GATE) -->
           <ui_button name="btn_gate_check"
                      height="#button_height_sm" icon="refresh" text="Check Slot" variant="ghost" clickable="true"
-                     style_flex_main_place="start" hidden="true">
+                     style_flex_main_place="start">
+            <bind_flag_if_eq subject="ams_slot_gate_check" flag="hidden" ref_value="0"/>
+            <bind_state_if_eq subject="ams_slot_gate_check" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="ams_context_gate_check_cb"/>
           </ui_button>
           <!-- Preload Button (hidden unless the backend supports lane preload) -->
@@ -135,16 +139,18 @@
           <!-- Group heading — see col_filament's. -->
           <!-- DUPLICATE_NAME_OK: ContextMenu searches per column, lv_obj_find_by_name(col, ...) — the base class iterates arbitrary columns and cannot know per-column names -->
           <context_menu_column_heading name="col_heading" text="Spool Info"/>
-          <!-- Select Spool Button (Spoolman quick-assign, hidden by default) -->
+          <!-- Select Spool Button (Spoolman quick-assign, shown when Spoolman is configured) -->
           <ui_button name="btn_spoolman"
                      height="#button_height_sm" icon="spoolman" text="Select Spool" variant="ghost" clickable="true"
-                     style_flex_main_place="start" hidden="true">
+                     style_flex_main_place="start">
+            <bind_flag_if_eq subject="ams_slot_spoolman_shown" flag="hidden" ref_value="0"/>
             <event_cb trigger="clicked" callback="ams_context_spoolman_cb"/>
           </ui_button>
-          <!-- Scan QR Code Button (hidden by default, shown when Spoolman enabled) -->
+          <!-- Scan QR Code Button (shown when Spoolman is configured and the build has a scanner) -->
           <ui_button name="btn_scan_qr"
                      height="#button_height_sm" icon="qrcode_scan" text="Scan QR Code" variant="ghost" clickable="true"
-                     style_flex_main_place="start" hidden="true">
+                     style_flex_main_place="start">
+            <bind_flag_if_eq subject="ams_slot_scan_qr_shown" flag="hidden" ref_value="0"/>
             <event_cb trigger="clicked" callback="ams_context_scan_qr_cb"/>
           </ui_button>
           <!-- Edit Spool Button — always opens the spool editor -->
@@ -161,7 +167,8 @@
           <!-- Clear Spool Button — shown only when the slot has a Spoolman assignment -->
           <ui_button name="btn_clear_spool"
                      height="#button_height_sm" icon="close" text="Clear Spool" variant="ghost" clickable="true"
-                     style_flex_main_place="start" hidden="true">
+                     style_flex_main_place="start">
+            <bind_flag_if_eq subject="ams_slot_clear_shown" flag="hidden" ref_value="0"/>
             <bind_state_if_eq subject="ams_slot_can_clear" state="disabled" ref_value="0"/>
             <event_cb trigger="clicked" callback="ams_context_clear_spool_cb"/>
           </ui_button>

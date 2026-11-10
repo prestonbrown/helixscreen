@@ -15,7 +15,7 @@ from unit_art import build, head, kit  # noqa: E402
 HEADS = build.HEADS
 EXPECTED = {
     "stealthburner", "mini_stealthburner", "dragonburner", "a4t", "anthead", "jabberwocky",
-    "bambu", "creality_k1", "creality_k2", "ender3_bowden", "ender3_integrated",
+    "bambu", "creality_k1", "creality_k2", "ender3", "xol", "snapmaker_u1", "flashforge_ad5", "flashforge_creator5", "elegoo_centauri", "artillery_m1", "qidi", "sovol_sv08",
 }
 
 
@@ -84,3 +84,11 @@ def test_bake_writes_each_tier_at_its_height(tmp_path):
 def test_generated_table_is_current():
     generated = build.generate_head_table(HEADS)
     assert generated == (REPO / "src/rendering/toolhead_art_gen.cpp").read_text()
+
+
+def test_no_printer_states_a_toolhead_style_twice():
+    def unique_style(pairs):
+        assert [key for key, _ in pairs].count("toolhead_style") <= 1, dict(pairs).get("id")
+        return dict(pairs)
+
+    json.loads((REPO / "assets/config/printer_database.json").read_text(), object_pairs_hook=unique_style)

@@ -29,6 +29,9 @@ namespace helix {
 /// without this.
 struct HarnessConfig {
     nlohmann::json value;
+    /// Leave the tile for create_tile(), so several widgets can exist before any
+    /// tile is parsed, the order PanelWidgetManager builds a page in.
+    bool defer_tile = false;
 };
 
 /// Every box from @p w_from x @p h_from to @p w_to x @p h_to, a pixel apart. Hold one
@@ -196,6 +199,12 @@ template <typename W> class PanelWidgetHarness : public PanelWidgetHarnessBase {
     PanelWidgetHarness(lv_obj_t* screen, HarnessConfig config, Args&&... args)
         : widget_(std::forward<Args>(args)...) {
         widget_.set_config(config.value);
+        if (!config.defer_tile) {
+            create_and_attach(screen, widget_);
+        }
+    }
+
+    void create_tile(lv_obj_t* screen) {
         create_and_attach(screen, widget_);
     }
 

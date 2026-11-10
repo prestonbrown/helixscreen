@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "print_job_ref.h"
 #include "print_lifecycle_state.h"
 
@@ -11,6 +10,14 @@
 
 namespace helix {
 class IMoonrakerAPI;
+
+/// Whether the print status screen is on the navigation stack. The UI installs
+/// it; with none installed the user counts as not watching.
+using PrintStatusShownQuery = bool (*)();
+
+/// Install @p query and return the previous one. Not synchronized: the UI installs
+/// it during static initialization, before any print can end.
+PrintStatusShownQuery set_print_status_shown_query(PrintStatusShownQuery query);
 
 /**
  * @brief Initialize print completion notification system

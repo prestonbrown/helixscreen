@@ -165,6 +165,8 @@ static const HelpEntry HELP[] = {
      "skips the update-queue and display-refresh timers so the channel\n"
      "stays alive"},
     {nullptr, "unfreeze", "Reverse freeze: resume paused timers, re-enable animations", nullptr},
+    {nullptr, "resize <w> <h>", "Resize the display, as a window resize does",
+     "the views follow once the 250ms resize debounce settles"},
     {nullptr, "log [-n N]", "Tail the app's in-memory log ring", "default 50 lines"},
     {nullptr, "shutdown, quit", "Ask the running app to exit", nullptr},
     {nullptr, "reset", "Return to home with no overlays/modals",
@@ -638,6 +640,13 @@ static nlohmann::json build_request_from_tokens(const std::vector<std::string>& 
         return build_request("freeze");
     } else if (cmd == "unfreeze") {
         return build_request("unfreeze");
+    } else if (cmd == "resize") {
+        if (tokens.size() < 3 || !is_int(tokens[1]) || !is_int(tokens[2])) {
+            fprintf(stderr, "Error: resize requires a width and a height\n");
+            return {};
+        }
+        return build_request("resize", {{"width", std::atoi(tokens[1].c_str())},
+                                        {"height", std::atoi(tokens[2].c_str())}});
     } else if (cmd == "tap" ||
                (cmd == "click" && tokens.size() >= 3 && is_int(tokens[1]) && is_int(tokens[2]))) {
         if (tokens.size() < 3) {
@@ -861,6 +870,7 @@ static const char* kReplCommands[] = {"ping",
                                       "wait_idle",
                                       "freeze",
                                       "unfreeze",
+                                      "resize",
                                       "ls",
                                       "describe_screen",
                                       "click",

@@ -19,6 +19,7 @@
 #include "ui_panel_advanced.h"
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_belt_tension.h"
+#include "ui_panel_calibration_pa.h"
 #include "ui_panel_calibration_pid.h"
 #include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
@@ -111,6 +112,15 @@ void SubjectInitializer::before_disconnect() {
     }
     if (m_filament_op_heater) {
         m_filament_op_heater->before_disconnect();
+    }
+    if (auto* pa_panel = helix::lazy_global_if_exists<helix::ui::PACalibrationPanel>()) {
+        pa_panel->before_disconnect();
+    }
+    if (auto* mesh_panel = helix::lazy_global_if_exists<BedMeshPanel>()) {
+        mesh_panel->before_disconnect();
+    }
+    if (auto* zoffset_panel = helix::lazy_global_if_exists<ZOffsetCalibrationPanel>()) {
+        zoffset_panel->before_disconnect();
     }
     PostOpCooldownManager::instance().flush_before_disconnect();
 }

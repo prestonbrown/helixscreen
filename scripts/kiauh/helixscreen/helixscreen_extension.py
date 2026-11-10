@@ -103,6 +103,8 @@ def _run_installer(update: bool = False, uninstall: bool = False) -> None:
         sh_cmd.extend(["-s", "--", "--update"])
     elif uninstall:
         sh_cmd.extend(["-s", "--", "--uninstall"])
+    else:
+        sh_cmd.extend(["-s", "--", "--source", "kiauh"])
 
     Logger.print_status("Downloading installer...")
     curl_result = subprocess.run(

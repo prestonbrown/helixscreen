@@ -3,9 +3,8 @@
 
 #if HELIX_HAS_PLUGINS
 
-#include "ui_timer_guard.h"
-
 #include "core/text_io.h"
+#include "core/timer_guard.h"
 #include "lua_bindings.h"
 
 #include <spdlog/spdlog.h>

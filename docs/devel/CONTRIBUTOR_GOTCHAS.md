@@ -372,7 +372,7 @@ auto* s = tsm.get_temp_subject(name, temp_lifetime_);
 temp_observer_ = observe<int>(s, this, handler, temp_lifetime_);  // <- token, not omitted
 ```
 
-Reference: lessons **L077**, **L084**, `include/ui_observer_guard.h`, and `docs/devel/THREADING.md` § 5 (which explains why the older "local lifetime = UAF" phrasing was wrong).
+Reference: lessons **L077**, **L084**, `include/core/observer_guard.h`, and `docs/devel/THREADING.md` § 5 (which explains why the older "local lifetime = UAF" phrasing was wrong).
 
 ---
 

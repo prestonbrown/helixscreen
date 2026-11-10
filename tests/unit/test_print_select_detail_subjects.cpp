@@ -606,9 +606,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_timer_handler(); // the close callback runs on the next tick
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "History row lives in the metadata strip",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "History row sits in the metadata strip and shows the file's last outcome",
                  "[print_select][detail][xml]") {
-    lv_obj_t* const root = make_detail_root(test_screen());
+    register_detail_callbacks();
+    helix::ui::PrintSelectDetailView view;
+    view.init_subjects();
+    lv_obj_t* const root = view.create(test_screen());
     REQUIRE(root != nullptr);
     lv_obj_t* const row = lv_obj_find_by_name(root, "history_status_row");
     lv_obj_t* const strip = lv_obj_find_by_name(root, "detail_metadata_overlay");
@@ -620,6 +624,35 @@ TEST_CASE_METHOD(LVGLUITestFixture, "History row lives in the metadata strip",
     }
     CHECK(inside);
     CHECK(std::string(lv_obj_get_name(lv_obj_get_parent(row))) == "detail_history_wrap");
+
+    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    const struct {
+        FileHistoryStatus status;
+        const char* icon;
+        const char* text;
+    } outcomes[] = {
+        {FileHistoryStatus::CURRENTLY_PRINTING, "history_status_printing", "Currently printing"},
+        {FileHistoryStatus::COMPLETED, "history_status_completed", "Printed 3 times"},
+        {FileHistoryStatus::FAILED, "history_status_failed", "Last print failed"},
+        {FileHistoryStatus::CANCELLED, "history_status_canceled", "Last print canceled"},
+    };
+    for (const auto& o : outcomes) {
+        view.update_history_status(o.status, 3);
+        INFO(o.icon);
+        CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+        CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(row, "history_status_label"))) ==
+              o.text);
+        for (const auto& other : outcomes) {
+            CHECK(lv_obj_has_flag(lv_obj_find_by_name(row, other.icon), LV_OBJ_FLAG_HIDDEN) ==
+                  (&other != &o));
+        }
+    }
+    view.update_history_status(FileHistoryStatus::NEVER_PRINTED, 0);
+    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+
+    view.hide();
+    helix::ui::UpdateQueue::instance().drain();
+    lv_timer_handler(); // the close callback runs on the next tick
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Print button sits outside the options scroll area",

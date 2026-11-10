@@ -16,9 +16,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "core/observer_factory.h"
+#include "core/observer_guard.h"
 #include "printer_state.h"
 
 namespace helix::ui {

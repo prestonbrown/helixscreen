@@ -4,19 +4,16 @@
 #include "print_completion.h"
 
 #include "ui_confetti.h"
-#include "ui_error_reporting.h"
 #include "ui_format_utils.h"
 #include "ui_icon.h"
 #include "ui_modal.h"
-#include "ui_nav.h"
-#include "ui_panel_print_status.h"
 #include "ui_toast_manager.h"
 #include "ui_widget_ref.h"
 
 #include "app_globals.h"
 #include "audio_settings_manager.h"
+#include "core/error_reporting.h"
 #include "core/gcode_filename.h"
-#include "core/static_subject_registry.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
@@ -27,8 +24,8 @@
 #include "printer_state.h"
 #include "screensaver.h"
 #include "sound_manager.h"
-#include "subject_managed_panel.h"
 #include "temperature_controller.h"
+#include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
 
@@ -39,9 +36,16 @@ using helix::gcode::resolve_gcode_filename;
 
 namespace helix {
 
+static PrintStatusShownQuery s_print_status_shown = nullptr;
+
+PrintStatusShownQuery set_print_status_shown_query(PrintStatusShownQuery query) {
+    PrintStatusShownQuery previous = s_print_status_shown;
+    s_print_status_shown = query;
+    return previous;
+}
+
 // --- Subjects for declarative XML bindings in print_completion_modal.xml ---
-static bool s_subjects_initialized = false;
-static SubjectManager s_subjects;
+static helix::WidgetSubjects s_subjects{"PrintCompletion"};
 
 // String subjects with backing buffers
 static char s_title_buf[64];
@@ -67,38 +71,28 @@ static lv_subject_t s_has_estimate_subject;
 static lv_subject_t s_has_filament_subject;
 
 static void init_completion_subjects() {
-    if (s_subjects_initialized)
-        return;
+    s_subjects.ensure_init([] {
+        lv_subject_init_string(&s_title_subject, s_title_buf, nullptr, sizeof(s_title_buf), "");
+        lv_subject_init_string(&s_filename_subject, s_filename_buf, nullptr, sizeof(s_filename_buf),
+                               "");
+        lv_subject_init_string(&s_duration_subject, s_duration_buf, nullptr, sizeof(s_duration_buf),
+                               "");
+        lv_subject_init_string(&s_estimate_subject, s_estimate_buf, nullptr, sizeof(s_estimate_buf),
+                               "");
+        lv_subject_init_string(&s_layers_subject, s_layers_buf, nullptr, sizeof(s_layers_buf), "");
+        lv_subject_init_string(&s_filament_subject, s_filament_buf, nullptr, sizeof(s_filament_buf),
+                               "");
+        lv_subject_init_int(&s_has_estimate_subject, 1);
+        lv_subject_init_int(&s_has_filament_subject, 1);
 
-    lv_subject_init_string(&s_title_subject, s_title_buf, nullptr, sizeof(s_title_buf), "");
-    lv_subject_init_string(&s_filename_subject, s_filename_buf, nullptr, sizeof(s_filename_buf),
-                           "");
-    lv_subject_init_string(&s_duration_subject, s_duration_buf, nullptr, sizeof(s_duration_buf),
-                           "");
-    lv_subject_init_string(&s_estimate_subject, s_estimate_buf, nullptr, sizeof(s_estimate_buf),
-                           "");
-    lv_subject_init_string(&s_layers_subject, s_layers_buf, nullptr, sizeof(s_layers_buf), "");
-    lv_subject_init_string(&s_filament_subject, s_filament_buf, nullptr, sizeof(s_filament_buf),
-                           "");
-    lv_subject_init_int(&s_has_estimate_subject, 1);
-    lv_subject_init_int(&s_has_filament_subject, 1);
-
-    s_subjects.publish("print_completion_title", &s_title_subject);
-    s_subjects.publish("print_completion_filename", &s_filename_subject);
-    s_subjects.publish("print_completion_duration", &s_duration_subject);
-    s_subjects.publish("print_completion_estimate", &s_estimate_subject);
-    s_subjects.publish("print_completion_layers", &s_layers_subject);
-    s_subjects.publish("print_completion_filament", &s_filament_subject);
-    s_subjects.publish("print_completion_has_estimate", &s_has_estimate_subject);
-    s_subjects.publish("print_completion_has_filament", &s_has_filament_subject);
-
-    s_subjects_initialized = true;
-
-    StaticSubjectRegistry::instance().register_deinit("PrintCompletion", []() {
-        if (!s_subjects_initialized)
-            return;
-        s_subjects.deinit_all();
-        s_subjects_initialized = false;
+        s_subjects.publish("print_completion_title", &s_title_subject);
+        s_subjects.publish("print_completion_filename", &s_filename_subject);
+        s_subjects.publish("print_completion_duration", &s_duration_subject);
+        s_subjects.publish("print_completion_estimate", &s_estimate_subject);
+        s_subjects.publish("print_completion_layers", &s_layers_subject);
+        s_subjects.publish("print_completion_filament", &s_filament_subject);
+        s_subjects.publish("print_completion_has_estimate", &s_has_estimate_subject);
+        s_subjects.publish("print_completion_has_filament", &s_has_filament_subject);
     });
 }
 
@@ -390,9 +384,7 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
             break;
         }
 
-        // Check if user is on print status panel
-        lv_obj_t* print_status_panel = get_global_print_status_panel().get_panel();
-        bool on_print_status = helix::nav::is_in_stack(print_status_panel);
+        const bool on_print_status = s_print_status_shown && s_print_status_shown();
 
         auto mode = AudioSettingsManager::instance().get_completion_alert_mode();
 

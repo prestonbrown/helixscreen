@@ -18,9 +18,11 @@
  * This is what covers the rest.
  */
 
+#include "ui_ams_selector_menu.h"
 #include "ui_context_menu.h"
 
 #include "../test_fixtures.h"
+#include "ams_backend_mock.h"
 
 #include <string>
 
@@ -44,6 +46,7 @@ constexpr const char* kMenus[] = {
     "spoolman_context_menu",
     "belt_retest_menu",
     "ams_context_menu",
+    "text_edit_menu",
 };
 
 } // namespace
@@ -111,5 +114,26 @@ TEST_CASE_METHOD(XMLTestFixture,
         CHECK(close_area.x2 == content_right);
 
         lv_obj_delete(backdrop);
+    }
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "selector menu: the servo row shows only on a linear selector",
+                 "[xml][context-menu][ams]") {
+    REQUIRE(register_component("ams_selector_menu"));
+    AmsBackendMock linear(4); // a Happy Hare style selector
+    AmsBackendMock hub(4);
+    hub.set_afc_mode(true);
+    REQUIRE(linear.get_topology() == PathTopology::LINEAR);
+    REQUIRE(hub.get_topology() == PathTopology::HUB);
+    // The row's subject outlives each show, so each menu must set its own.
+    for (AmsBackend* backend : {static_cast<AmsBackend*>(&hub), static_cast<AmsBackend*>(&linear),
+                                static_cast<AmsBackend*>(&hub)}) {
+        helix::ui::AmsSelectorMenu menu;
+        REQUIRE(menu.show_at(test_screen(), test_screen(), {0, 0}, backend));
+        lv_obj_t* row = lv_obj_find_by_name(test_screen(), "servo_row");
+        REQUIRE(row != nullptr);
+        CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN) == (backend == &hub));
+        menu.hide();
+        process_lvgl(20);
     }
 }

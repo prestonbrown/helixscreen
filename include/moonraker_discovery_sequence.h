@@ -311,12 +311,12 @@ class MoonrakerDiscoverySequence {
     void apply_server_components(uint64_t seq, const json& component_list,
                                  const std::string& moonraker_version);
     void query_spoolman_status(uint64_t seq);
-    void query_timelapse_settings();
-    void query_system_info();
+    void query_timelapse_settings(uint64_t seq);
+    void query_system_info(uint64_t seq);
     void on_printer_info(uint64_t seq, const json& printer_response);
     void publish_printer_info(const json& result);
-    void query_configfile();
-    void on_configfile(const json& config_response);
+    void query_configfile(uint64_t seq);
+    void on_configfile(uint64_t seq, const json& config_response);
     void apply_configfile_config(const json& cfg);
 
     /// Everything configfile.settings decides about hardware_, written under one
@@ -330,6 +330,7 @@ class MoonrakerDiscoverySequence {
     void on_mcu_query_failed(uint64_t seq, const std::string& mcu_obj,
                              const std::shared_ptr<McuQueryState>& state,
                              const MoonrakerError& err);
+    void settle_mcu_query(uint64_t seq, McuQueryState& state);
     void publish_mcu_results(McuQueryState& state);
 
     /**

@@ -19,6 +19,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_pointer_indev.h"
 #include "core/update_queue.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_types.h"
@@ -155,4 +156,28 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(TimelapseVideosOverlayTestAccess::pending_delete(overlay) == "a.mp4");
     CHECK(downloads.size() == 1);
     helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(
+    LVGLUITestFixture,
+    "timelapse library swaps its grid for the empty state, and shows play with a player",
+    "[timelapse][videos]") {
+    TimelapseVideosOverlay overlay(nullptr);
+    overlay.init_subjects();
+    lv_obj_t* root = overlay.create(test_screen());
+    REQUIRE(root != nullptr);
+    lv_obj_t* grid = lv_obj_find_by_name(root, "video_grid_container");
+    lv_obj_t* empty = lv_obj_find_by_name(root, "video_grid_empty");
+    const char* attrs[] = {"filename", "a.mp4", "file_info", "", nullptr};
+    auto* card = static_cast<lv_obj_t*>(lv_xml_create(grid, "timelapse_video_card", attrs));
+    lv_obj_t* play = card ? lv_obj_find_by_name(card, "play_overlay") : nullptr;
+    REQUIRE((grid && empty && play));
+    auto hidden = [](lv_obj_t* w) { return lv_obj_has_flag(w, LV_OBJ_FLAG_HIDDEN); };
+    for (const int on : {1, 0}) {
+        lv_subject_set_int(lv_xml_get_subject(nullptr, "timelapse_videos_empty"), on);
+        lv_subject_set_int(lv_xml_get_subject(nullptr, "timelapse_videos_can_play"), on);
+        CHECK(hidden(grid) == (on == 1));
+        CHECK(hidden(empty) == (on == 0));
+        CHECK(hidden(play) == (on == 0));
+    }
 }

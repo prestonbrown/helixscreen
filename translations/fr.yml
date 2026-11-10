@@ -165,9 +165,10 @@ translations:
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Un buzzer ou haut-parleur pour les alertes et les sons. Choisissez ce qui est joué dans les paramètres du son.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Une caméra diffusée par Moonraker. Ajoutez le widget caméra à l''écran d''accueil pour la regarder, y compris pendant une impression.'
   A cold pull is already running.: "Un cold pull est déjà en cours."
+  A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Une imprimante delta ne peut pas référencer X et Y sans déplacer Z, donc une impression ne peut pas être reprise."
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Un ventilateur qui fait passer l''air de l''enceinte à travers un filtre. Commandez-le sur l''écran de température de l''enceinte.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Quelques minutes, presque tout en chauffage. Vous ne jugez rien à l''œil.'
-  A folder name in moonraker.conf is unsafe, so cleanup is off.: "Un nom de dossier dans moonraker.conf n'est pas sûr, le nettoyage est donc désactivé."
+  A folder name in moonraker.conf is unsafe.: "Un nom de dossier dans moonraker.conf n'est pas sûr."
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'Une macro de heat soak est configurée sur l''imprimante. HelixScreen la détecte mais ne l''exécute pas.'
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Un chauffage qui réchauffe l''air de l''enceinte. Réglez sa température sur l''écran de température de l''enceinte.'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Une carte des hauteurs du plateau que Klipper utilise pour compenser une surface irrégulière. Consultez-la et calibrez-la sur l''écran Maillage du plateau.'
@@ -277,6 +278,7 @@ translations:
   Added to queue (position {}): Ajouté à la file (position {})
   Added to queue (position {}) - queue is paused: Ajouté à la file (position {}) – la file est en pause
   Adding printer: Ajout d'une imprimante
+  Adding the timelapse plugin to Moonraker...: 'Ajout du plugin timelapse à Moonraker...'
   Adding to queue...: Ajout à la file...
   Address: Adresse
   'Adds to:': 'Ajoute à :'
@@ -322,6 +324,7 @@ translations:
     la barre de navigation Android au lieu des gestes
   Ambient Transfer: Transfert ambiant
   AmsIdentify: Identifier l'AMS
+  An earlier install is still finishing...: 'Une installation précédente est encore en cours...'
   An API key is 32 characters, each 0-9 or a-f.: 'Une clé API compte 32 caractères, chacun 0-9 ou a-f.'
   An accelerometer was detected on your printer.: Un accéléromètre a été détecté sur
     votre imprimante.
@@ -582,6 +585,7 @@ translations:
   CHANGED FROM LAST SESSION: MODIFIÉ DEPUIS LA DERNIÈRE SESSION
   CLOG: BOUCHON
   COLOR SENSORS: CAPTEURS DE COULEUR
+  Clipboard: "Presse-papiers"
   'Completed: {}': 'Terminé : {}'
   CONFIGURATION: CONFIGURATION
   CONNECTION TYPE: TYPE DE CONNEXION
@@ -788,6 +792,7 @@ translations:
   Checking extruders...: Vérification des extrudeurs...
   Checking file…: 'Vérification du fichier…'
   Checking filament...: Vérification du filament...
+  Checking for ffmpeg...: 'Recherche de ffmpeg...'
   Checking for plugin...: Recherche du plugin...
   Checking for webcam...: Recherche d'une webcam...
   Checking plugin: Vérification du plugin
@@ -1027,11 +1032,13 @@ translations:
   Corner roundness: Arrondi des coins
   Corners differ by {} mm: "Les coins diffèrent de {} mm"
   Correction (Ki): Correction (Ki)
+  Could not add the timelapse plugin to Moonraker.: 'Impossible d''ajouter le plugin timelapse à Moonraker.'
   Could not add to queue: Impossible d'ajouter à la file
   Could not analyze PRINT_START macro. Some print options may be unavailable.: Impossible
     d'analyser la macro PRINT_START. Certaines options d'impression peuvent être indisponibles.
   Could not answer the connection request: 'Impossible de répondre à la demande de connexion'
   'Could not check {} - it stays in the queue': 'Impossible de vérifier {} – reste dans la file'
+  Cut: "Couper"
   "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "Pendant une impression, retrouvez une pastille pour chaque chauffage, ventilateur et lumière, la liste des étapes de démarrage, ainsi que la progression et les commandes dans un seul bandeau."
   "Every screen and setting explained": "Chaque écran et réglage expliqué"
   "Getting Started": "Premiers pas"
@@ -1047,6 +1054,7 @@ translations:
   'Moonraker answered at {}.': "Moonraker a répondu à {}."
   "New in 1.1": "Nouveautés de la 1.1"
   No filament was inserted in time: 'Aucun filament n''a été inséré à temps'
+  Paste: "Coller"
   Print hours between filter changes. Off hides this meter.: 'Heures d’impression entre deux changements de filtre. Désactivé masque ce compteur.'
   Print hours between nozzle changes. Off hides this meter.: 'Heures d’impression entre deux changements de buse. Désactivé masque ce compteur.'
   Print hours between rail cleaning and lubrication. Off hides this meter.: 'Heures d’impression entre deux nettoyages et graissages des rails. Désactivé masque ce compteur.'
@@ -1065,6 +1073,7 @@ translations:
   Could not copy the printer's layout: "Impossible de copier la disposition de l'imprimante"
   'Could not copy {} from USB: {}': 'Impossible de copier {} depuis l''USB : {}'
   Could not disconnect from WiFi: Impossible de se déconnecter du WiFi
+  Could not download the timelapse plugin. Check the printer's internet connection.: 'Impossible de télécharger le plugin timelapse. Vérifiez la connexion internet de l''imprimante.'
   'Could not extract plate {} of {}: {}': 'Impossible d''extraire le plateau {} de {} : {}'
   Could not forget device: Impossible d'oublier l'appareil
   Could not free space: 'Impossible de libérer de l''espace'
@@ -1272,6 +1281,7 @@ translations:
   Door switches, buttons, and other on/off inputs: Interrupteurs de porte, boutons et autres entrées marche/arrêt
   Download update?: Télécharger la mise à jour ?
   Download v{}?: Télécharger v{} ?
+  Downloading the timelapse plugin...: 'Téléchargement du plugin timelapse...'
   Downloading...: Téléchargement...
   Downloading... {:.1f}/{:.1f} MB: Téléchargement... {:.1f}/{:.1f} Mo
   Draw a ripple at each touch — helps diagnose offsets: Dessine une ondulation à chaque
@@ -2127,6 +2137,8 @@ translations:
   Installation timed out. The script may be stuck.: Installation — délai dépassé.
     Le script est peut-être bloqué.
   Installed: 'Installé'
+  Installing restarts Moonraker, so it waits until the print is finished or cancelled.: 'L''installation redémarre Moonraker : elle attend donc que l''impression soit terminée ou annulée.'
+  Installing the timelapse plugin...: 'Installation du plugin timelapse...'
   Installing...: Installation...
   Intensity: Intensité
   Interactive calibration for all lanes: 'Calibration interactive pour toutes les voies'
@@ -3087,7 +3099,7 @@ translations:
   'Power was lost during the print; the printer stopped and saved its progress': 'Une coupure de courant est survenue pendant l''impression ; l''imprimante s''est arrêtée et a enregistré sa progression'
   Power was lost less than a minute ago.: Coupure de courant il y a moins d'une minute.
   Power-loss recovery: Reprise après coupure de courant
-  Power-loss recovery isn't supported on this printer yet.: "La reprise après coupure de courant n'est pas encore prise en charge sur cette imprimante."
+  Not set up for this printer model yet.: "Pas encore configuré pour ce modèle d'imprimante."
   Pre-heat the extruder first: Préchauffez d'abord l'extrudeur
   'Pre-print command failed: {}': 'Échec de la commande pré-impression : {}'
   Pre-print homing...: Référence pré-impression...
@@ -4450,6 +4462,9 @@ translations:
   The temperature was changed elsewhere.: "La température a été modifiée ailleurs."
   The time, date, and system uptime: Heure, date et temps de fonctionnement
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Le dossier timelapse ou de logs chevauche un dossier protégé, le nettoyage est donc désactivé."
+  Timelapse or logs folder overlaps a protected one.: "Le dossier timelapse ou journaux chevauche un dossier protégé."
+  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.
+  : 'Le plugin timelapse est installé. Pour créer des vidéos, ffmpeg est aussi nécessaire, et il n''est pas installé sur cette imprimante.'
   The tool change under way finished, and the tool was not parked: 'Le changement d''outil en cours s''est terminé et l''outil n''a pas été rangé'
   The tool change under way finished, and {} was not put back on the carriage: 'Le changement d''outil en cours s''est terminé et {} n''a pas été remis sur le chariot'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: La tête d'outil contient du filament mais aucun slot de l'AMS ne le signale comme chargé. Retirez-le manuellement avant d'imprimer. Démarrer quand même ?
@@ -4497,7 +4512,7 @@ translations:
   This AFC system does not support bypass mode: 'Ce système AFC ne prend pas en charge le mode bypass'
   This CFS firmware exposes no external spool slot: 'Ce firmware CFS n''expose pas de slot pour bobine externe'
   This Happy Hare system does not support bypass mode: 'Ce système Happy Hare ne prend pas en charge le mode bypass'
-  This Moonraker version can't hold uploads. Update Moonraker.: "Cette version de Moonraker ne peut pas retenir les envois. Mettez Moonraker à jour."
+  Needs a newer Moonraker to hold uploads.: "Nécessite un Moonraker plus récent pour retenir les envois."
   This button controls: Ce bouton contrôle
   This calibration uses the paper friction method to set your Z-offset.: Cette calibration
     utilise la méthode de friction du papier pour définir votre Z-offset.
@@ -4515,9 +4530,9 @@ translations:
   : Cet appareil dispose de très peu de RAM. La calibration de résonance est gourmande en mémoire et peut provoquer une erreur "Timer Too Close". Continuer quand même ?
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: Cela ne correspond pas à la bobine Spoolman liée. L'ajouter comme nouvelle bobine, ou mettre à jour la bobine liée pour correspondre ?
   This dryer cannot run while filament from the unit is loaded: 'Ce séchoir ne peut pas fonctionner tant que du filament de l''unité est chargé'
-  This feature failed to start. The Moonraker log says why.: "Cette fonction n'a pas pu démarrer. Le journal de Moonraker indique pourquoi."
+  Failed to start. See the Moonraker log.: "Échec du démarrage. Voir le journal de Moonraker."
   This feature requires different hardware or configuration: Cette fonctionnalité requiert un autre matériel ou une autre configuration
-  This feature stopped. Restart Moonraker to start it again.: "Cette fonction s'est arrêtée. Redémarrez Moonraker pour la relancer."
+  Stopped. Restart Moonraker to start it again.: "Arrêté. Redémarrez Moonraker pour le relancer."
   This filament system does not report buffer or flow data.: Ce système de filament ne fournit ni données de tampon ni données de débit.
   This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.: 'Ce fichier imprime {0} et {1} avec une seule buse. {0} peut brûler et boucher la buse aux températures de {1}.'
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Ce fichier imprime {0} et {1} ensemble. La chaleur de l''enceinte et du plateau requise par {1} peut ramollir {0} et boucher sa buse.'
@@ -4537,7 +4552,7 @@ translations:
   : "Cette voie apparaît encore comme chargée, mais son filament est sorti de la buse. Avant d'imprimer, repoussez-le dans l'extrudeur et extrudez jusqu'à ce qu'il s'écoule."
   This looks like a {}, but it is set up as a {}: Cette imprimante ressemble à une {}, mais elle est configurée comme {}
   This may take up to 30 seconds: Cela peut prendre jusqu'à 30 secondes
-  This needs the plugin's file analysis, which isn't running.: "Ceci nécessite l'analyse des fichiers du plugin, qui ne tourne pas."
+  Needs file analysis, which isn't running.: "Nécessite l'analyse des fichiers, qui ne tourne pas."
   This plugin asks for no special permissions.: 'Ce plugin ne demande aucune autorisation particulière.'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'Ce plugin permet à HelixScreen de contrôler les options de démarrage d''impression comme le maillage du plateau et QGL.'
   This print called {}, which the printer no longer has.: 'Cette impression a appelé {}, que l''imprimante n''a plus.'
@@ -4561,6 +4576,11 @@ translations:
   "This printer's INDX macros are missing: {}": "Il manque aux macros INDX de cette imprimante : {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'Le Moonraker de cette imprimante a refusé sa clé API. Vérifiez la clé dans Paramètres > Connexion.'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Le Moonraker de cette imprimante exige une connexion. Ajoutez sa clé API dans Paramètres > Connexion.'
+  This printer's firmware has its own power-loss recovery.: "Le firmware de cette imprimante a sa propre reprise après coupure de courant."
+  This printer's gantry drops when the power is cut, so a print can't be resumed.: "Le portique de cette imprimante descend quand le courant est coupé, donc une impression ne peut pas être reprise."
+  This printer's homing override homes Z along with X and Y, so a print can't be resumed.: "Le homing override de cette imprimante référence Z en même temps que X et Y, donc une impression ne peut pas être reprise."
+  This printer's homing override sets the Z position when it homes X and Y, so a print can't be resumed.: "Le homing override de cette imprimante définit la position Z quand il référence X et Y, donc une impression ne peut pas être reprise."
+  This printer's homing override runs commands that may move Z, so a print can't be resumed.: "Le homing override de cette imprimante exécute des commandes qui peuvent déplacer Z, donc une impression ne peut pas être reprise."
   This printer's network service controls the WiFi radio: Le service réseau de cette imprimante contrôle la radio WiFi
   This printer's network service manages saved WiFi networks: Le service réseau de cette imprimante gère les réseaux WiFi enregistrés
   This printer's screen has not shared a layout: "L'écran de cette imprimante n'a pas partagé de disposition"
@@ -4651,6 +4671,7 @@ translations:
   Tips: 'Astuces'
   Tips database format error: Erreur de format de la base de données de conseils
   Tips database not found: Base de données de conseils introuvable
+  'To make videos, run this on your printer via SSH:': 'Pour créer des vidéos, exécutez ceci sur votre imprimante via SSH :'
   ? To map filament, HelixScreen rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally.
   : Pour mapper le filament, HelixScreen réécrit le fichier d'impression avant de l'imprimer. Le Moonraker de cette imprimante est trop ancien pour que le plugin HelixPrint restaure ensuite le nom de fichier original, donc le travail terminé est listé sous le nom réécrit. Le mappage du filament lui-même fonctionne normalement.
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
@@ -4926,6 +4947,7 @@ translations:
   Waiting for the chamber to heat: Attente du chauffage de la chambre
   Waiting for the filament system to report its state: En attente de l'état du système de filament
   Waiting for the printer: Attente de l'imprimante
+  Waiting to read the printer's configuration from Klipper.: "En attente de la lecture de la configuration de l'imprimante depuis Klipper."
   Warm: Chaud
   Warm Bed: Préchauffer le plateau
   Warm up for a material in one tap: Préchauffer pour un matériau en un appui
@@ -5340,3 +5362,6 @@ translations:
   'from tag': 'du tag'
   'Browse catalog...': 'Parcourir le catalogue...'
   ~{:.1f} Hz / turn: "~{:.1f} Hz / tour"
+  RUNNING: "ACTIF"
+  NOT AVAILABLE HERE: "NON DISPONIBLE ICI"
+  The plugin didn't say why.: "Le plugin n'a pas donné de raison."

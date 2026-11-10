@@ -105,19 +105,14 @@ void FanSettingsOverlay::populate_fan_list(lv_obj_t* list, bool controllable) {
         // Create row from XML component
         const char* type_label = lv_tr(helix::fan_type_label(fan.type));
         const char* attrs[] = {
-            "fan_name",   fan.display_name.c_str(), "fan_type", type_label,
-            "fan_object", fan.object_name.c_str(),  nullptr,
+            "fan_name",   fan.display_name.c_str(), "fan_type",  type_label,
+            "fan_object", fan.object_name.c_str(),  "fan_speed", speed_buf,
+            nullptr,
         };
         auto* row = static_cast<lv_obj_t*>(lv_xml_create(list, "fan_settings_row", attrs));
         if (!row) {
             spdlog::warn("[{}] Failed to create row for fan: {}", get_name(), fan.object_name);
             continue;
-        }
-
-        // Update the speed label (not bound to a subject here — refreshed on populate)
-        lv_obj_t* speed_label = helix::ui::find_required(row, "speed_label", get_name());
-        if (speed_label) {
-            lv_label_set_text(speed_label, speed_buf);
         }
 
         // Wire click callback on the entire row for rename

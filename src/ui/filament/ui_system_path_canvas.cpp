@@ -150,7 +150,8 @@ static void draw_buffer_box(lv_layer_t* layer, const SystemPathData* data, int32
 // The single-toolhead layout's buffer, halfway down the trunk.
 static void draw_trunk_buffer(lv_layer_t* layer, const SystemPathData* data, const SysLayout& L) {
     const int32_t hub_bottom = L.hub_y + L.hub_h / 2;
-    const int32_t nozzle_top = L.nozzle_y - data->extruder_scale * 2;
+    const int32_t nozzle_top =
+        helix::ui::toolhead_inlet(data->toolhead_style, L.nozzle_y, data->extruder_scale).y;
     draw_buffer_box(layer, data, L.center_x, hub_bottom + (nozzle_top - hub_bottom) / 2,
                     data->hub_width * 2 / 3, L.hub_h * 2 / 3, data->buffer_fault,
                     data->buffer_label);
@@ -226,7 +227,9 @@ static void draw_tool_row(lv_layer_t* layer, SystemPathData* data, const SysLayo
     for (int t = 0; t < tools; ++t) {
         int32_t tool_x = calc_tool_x(t, data->total_tools, L.x_off, L.width);
         bool is_active_tool = (t == data->active_tool) && data->filament_loaded;
-        draw_nozzle_for_style(layer, tool_x, L.tools_y,
+        const int32_t head_x =
+            tool_x + helix::ui::toolhead_inlet(data->toolhead_style, L.tools_y, small_scale).dx;
+        draw_nozzle_for_style(layer, head_x, L.tools_y,
                               is_active_tool ? std::optional(active) : std::nullopt, small_scale);
     }
     const helix::ui::ToolBadgeLook look = helix::ui::tool_badge_look();
@@ -234,7 +237,10 @@ static void draw_tool_row(lv_layer_t* layer, SystemPathData* data, const SysLayo
         int32_t tool_x = calc_tool_x(t, data->total_tools, L.x_off, L.width);
         helix::ui::draw_toolhead_badge(
             layer, look,
-            helix::ui::toolhead_bounds(data->toolhead_style, tool_x, L.tools_y, small_scale),
+            helix::ui::toolhead_bounds(
+                data->toolhead_style,
+                tool_x + helix::ui::toolhead_inlet(data->toolhead_style, L.tools_y, small_scale).dx,
+                L.tools_y, small_scale),
             data->tool_labels[t]);
     }
 }
@@ -245,14 +251,17 @@ static void draw_single_nozzle(lv_layer_t* layer, SystemPathData* data, const Sy
     const bool bp_active = data->bypass_active && data->filament_loaded;
     const lv_color_t noz_color =
         bp_active ? lv_color_hex(data->bypass_color) : lv_color_hex(data->active_color);
-    draw_nozzle_for_style(layer, L.center_x, L.nozzle_y,
+    const int32_t head_x =
+        L.center_x +
+        helix::ui::toolhead_inlet(data->toolhead_style, L.nozzle_y, data->extruder_scale).dx;
+    draw_nozzle_for_style(layer, head_x, L.nozzle_y,
                           (unit_active || bp_active) ? std::optional(noz_color) : std::nullopt,
                           data->extruder_scale);
 
     // Only when multiple slots feed one toolhead
     if (data->total_tools <= 1 && data->current_tool >= 0) {
         helix::ui::draw_toolhead_badge(layer, helix::ui::tool_badge_look(),
-                                       helix::ui::toolhead_bounds(data->toolhead_style, L.center_x,
+                                       helix::ui::toolhead_bounds(data->toolhead_style, head_x,
                                                                   L.nozzle_y, data->extruder_scale),
                                        data->current_tool_label);
     }
@@ -279,12 +288,16 @@ static void system_path_draw_cb(lv_event_t* e) {
     OverviewBoxes boxes;
     plan_overview(*data, L, plan, boxes);
     const fpath::TubePalette pal = overview_palette(*data);
+    // Heads first: each tube is painted over its head, down to the inlet.
+    if (L.multi_tool)
+        draw_tool_row(layer, data, L);
+    else
+        draw_single_nozzle(layer, data, L);
     fpath::paint_tubes(layer, plan, pal);
 
     if (L.multi_tool) {
         draw_mini_hubs(layer, data, boxes);
         fpath::paint_box_bands(layer, plan, pal);
-        draw_tool_row(layer, data, L);
         draw_status_centered(layer, data, L);
     } else {
         draw_hub_box(layer, L.center_x, L.hub_y, data->hub_width, L.hub_h, boxes.combiner_bg,
@@ -293,7 +306,6 @@ static void system_path_draw_cb(lv_event_t* e) {
         if (data->has_buffer)
             draw_trunk_buffer(layer, data, L);
         fpath::paint_box_bands(layer, plan, pal);
-        draw_single_nozzle(layer, data, L);
         draw_status_beside_nozzle(layer, data, L);
     }
 
@@ -603,13 +615,15 @@ void ui_system_path_canvas_set_unit_lane(lv_obj_t* obj, int unit_index, int segm
 }
 
 void ui_system_path_canvas_set_unit_tools(lv_obj_t* obj, int unit_index, int tool_count,
-                                          int first_tool) {
+                                          int first_tool, int hub_lanes) {
     auto* data = get_data(obj);
     if (!data || unit_index < 0 || unit_index >= SystemPathData::kMaxUnits)
         return;
     if (data->unit_tool_count[unit_index] == tool_count &&
-        data->unit_first_tool[unit_index] == first_tool)
+        data->unit_first_tool[unit_index] == first_tool &&
+        data->unit_hub_lanes[unit_index] == hub_lanes)
         return;
+    data->unit_hub_lanes[unit_index] = hub_lanes;
     data->unit_tool_count[unit_index] = tool_count;
     data->unit_first_tool[unit_index] = first_tool;
     lv_obj_invalidate(obj);

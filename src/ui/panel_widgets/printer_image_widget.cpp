@@ -10,7 +10,6 @@
 #include "ui_plate_glow.h"
 #include "ui_printer_manager_overlay.h"
 #include "ui_temperature_utils.h"
-#include "ui_timer_guard.h"
 #include "ui_utils.h"
 
 #include "ams_state.h"
@@ -20,6 +19,7 @@
 #include "config.h"
 #include "core/http_executor.h"
 #include "core/observer_factory.h"
+#include "core/timer_guard.h"
 #include "display_settings_manager.h"
 #include "grid_layout.h"
 #include "helix_fs.h"
@@ -255,8 +255,6 @@ void PrinterImageWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     auto* container = lv_obj_find_by_name(widget_obj_, "printer_container");
     if (container) {
         lv_obj_set_user_data(container, this);
-        // Pressed feedback: dim on touch
-        lv_obj_set_style_opa(container, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
     }
 
     // Load printer image and info from config

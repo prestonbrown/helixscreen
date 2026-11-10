@@ -116,7 +116,8 @@ class AudioSettingsManager {
      * @brief Refresh the subjects that describe the live sound backend
      *
      * `settings_audio_device_available` (an ALSA device picker applies) and
-     * `settings_music_available` (the backend plays music) cannot be seeded in
+     * `settings_music_available` (the backend plays music and the tracker that
+     * plays it is built in) cannot be seeded in
      * init_subjects() because subjects are initialized before SoundManager
      * picks its backend. Called once after SoundManager::initialize() so the
      * values are correct before any overlay binds to them. A later M300

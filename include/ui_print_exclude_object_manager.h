@@ -20,9 +20,9 @@
  */
 
 #include "ui_exclude_object_modal.h"
-#include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 
 namespace helix {
 enum class PrintJobState;

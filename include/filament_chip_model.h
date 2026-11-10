@@ -13,6 +13,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace helix {
@@ -73,6 +74,15 @@ struct RankedSlot {
 /// @p materials, deduplicated. Empty when there is none.
 [[nodiscard]] std::string used_materials_text(const std::vector<std::string>& materials,
                                               const std::optional<std::set<int>>& used_tools);
+
+/// Per-tool materials from the slicer's ';'-separated filament_type metadata
+/// ("PLA;PLA;PETG" -> PLA, PLA, PETG), each trimmed. Positions are kept, so an
+/// empty entry stays an empty string at its tool's index.
+[[nodiscard]] std::vector<std::string> split_filament_types(std::string_view filament_type);
+
+/// A ';'-separated filament_type as people read it: every named material once,
+/// in tool order ("ABS;ABS;PETG;" -> "ABS, PETG"). Empty when it names none.
+[[nodiscard]] std::string filament_type_text(std::string_view filament_type);
 
 /// What is loaded on a printer with no filament system.
 struct LoadedFilament {

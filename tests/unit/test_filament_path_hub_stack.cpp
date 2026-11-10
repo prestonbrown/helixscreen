@@ -22,6 +22,7 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::ui::fpath;
+using helix::ui::tray::LaneJoin;
 
 namespace {
 
@@ -125,19 +126,6 @@ int32_t center_y(const lv_area_t& a) {
 
 } // namespace
 
-TEST_CASE_METHOD(HubStackFixture, "HUB loaded to the nozzle with a buffer is one contiguous route",
-                 "[filament-path][hub-stack]") {
-    auto c = make(/*buffer=*/true, /*bypass=*/false);
-    load(c, static_cast<int>(helix::PathSegment::NOZZLE));
-    render(c);
-    const auto& route = c.data->path_cache.path;
-    check_contiguous(route);
-    // The route passes the hub's bottom edge and ends in the glyph's inlet.
-    REQUIRE(c.data->hits.hub_valid);
-    CHECK(segment_starting_at(route, (float)c.data->hits.hub.y2) >= 0);
-    CHECK(seg_end(route.segs[route.count - 1]).y == Catch::Approx(inlet_y(c)).margin(0.01));
-}
-
 TEST_CASE_METHOD(HubStackFixture, "HUB output run with a buffer reaches the toolhead unbroken",
                  "[filament-path][hub-stack]") {
     auto c = make(true, false);
@@ -170,6 +158,8 @@ TEST_CASE_METHOD(HubStackFixture, "HUB output run with a buffer reaches the tool
         CHECK(seg_start(r.path.segs[strokes[i].end]).y == Catch::Approx(y1).margin(0.01));
     }
     CHECK(errors == 1);
+    check_contiguous(r.path);
+    CHECK(seg_end(r.path.segs[r.path.count - 1]).y == Catch::Approx(inlet_y(c)).margin(0.01));
 }
 
 namespace {
@@ -265,7 +255,7 @@ TEST_CASE_METHOD(HubStackFixture, "A built-in selector keeps every tube and merg
                  "[filament-path][hub-stack]") {
     auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
     load(c, static_cast<int>(helix::PathSegment::NOZZLE));
-    ui_filament_path_canvas_set_built_in_hub(c.obj, true);
+    ui_filament_path_canvas_set_lane_join(c.obj, LaneJoin::Junction);
     render(c);
     CHECK_FALSE(c.data->hits.hub_valid); // no box, so nothing to tap
 
@@ -338,26 +328,35 @@ TEST_CASE_METHOD(HubStackFixture, "A selector rail replaces the bar and keeps it
     ui_filament_path_canvas_set_selector_rail(c.obj, nullptr);
     render(c);
     CHECK_FALSE(c.data->rail_drawn);
+    ui_filament_path_canvas_set_lane_join(c.obj, LaneJoin::FixedBlock);
+    render(c);
+    CHECK(
+        (c.data->hits.hub_valid && c.data->hits.hub.y1 == bar.y1 && c.data->hits.hub.y2 == bar.y2));
 }
 
-TEST_CASE("A built-in selector leaves routes to separate tools alone",
-          "[filament-path][hub-stack]") {
-    using helix::PathTopology;
-    CHECK(draws_built_in_hub(true, PathTopology::LINEAR));
-    CHECK(draws_built_in_hub(true, PathTopology::HUB));
-    CHECK_FALSE(draws_built_in_hub(true, PathTopology::PARALLEL));
-    CHECK_FALSE(draws_built_in_hub(true, PathTopology::MIXED));
-    CHECK_FALSE(draws_built_in_hub(false, PathTopology::HUB));
-}
-
-TEST_CASE_METHOD(HubStackFixture,
-                 "A built-in selector's junction stays tappable when a tap is wired",
+TEST_CASE_METHOD(HubStackFixture, "A unit that merges inside keeps every sensor and has no box",
                  "[filament-path][hub-stack]") {
     auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
-    ui_filament_path_canvas_set_built_in_hub(c.obj, true);
+    for (int i = 0; i < 4; ++i)
+        c.data->slot_has_prep_sensor[i] = c.data->slot_has_load_sensor[i] = true;
+    ui_filament_path_canvas_set_hub_sensor(c.obj, true, false);
+    load(c, static_cast<int>(helix::PathSegment::NOZZLE));
+    ui_filament_path_canvas_set_lane_join(c.obj, LaneJoin::Inside);
     ui_filament_path_canvas_set_hub_callback(c.obj, [](lv_point_t, void*) {}, nullptr);
     render(c);
-    CHECK(c.data->hits.hub_valid);
+    CHECK(c.data->hits.hub_valid); // no box, but the merge still opens the unit's settings
+    // Routes to separate tools never merge, whatever the unit does inside.
+    CHECK(drawn_lane_join(LaneJoin::Inside, helix::PathTopology::PARALLEL) == LaneJoin::Hub);
+    CHECK(drawn_lane_join(LaneJoin::Junction, helix::PathTopology::MIXED) == LaneJoin::Hub);
+    LinearHubFrame f{};
+    const PathPlan& plan = plan_of(c, &f);
+    CHECK((plan.band_count - plan.trunk_band_count == 8 && plan.trunk_band_count >= 1)); // + hub
+    auto junction = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
+    ui_filament_path_canvas_set_lane_join(junction.obj, LaneJoin::Junction);
+    render(junction);
+    LinearHubFrame outside{};
+    plan_of(junction, &outside);
+    CHECK(f.hub_y < outside.hub_y);
 }
 
 TEST_CASE_METHOD(HubStackFixture, "LINEAR never stacks its selector or buffer",
@@ -405,17 +404,17 @@ TEST_CASE_METHOD(HubStackFixture, "toolhead_top_y matches each renderer's top ed
         // Bambu body: 40 tall, cap 4 over a 4 bevel, iso depth 6 -> 300 - 20 - 8 - 3
         Case{helix::ToolheadStyle::DEFAULT, 269},
         // The baked head's top edge
-        Case{helix::ToolheadStyle::A4T, 252},
+        Case{helix::ToolheadStyle::A4T, 256},
         // The baked head's top edge
-        Case{helix::ToolheadStyle::STEALTHBURNER, 260},
+        Case{helix::ToolheadStyle::STEALTHBURNER, 261},
         // The baked head's top edge
-        Case{helix::ToolheadStyle::JABBERWOCKY, 260},
+        Case{helix::ToolheadStyle::JABBERWOCKY, 251},
         // The baked head's top edge
-        Case{helix::ToolheadStyle::ANTHEAD, 260},
+        Case{helix::ToolheadStyle::ANTHEAD, 259},
         // The baked head's top edge
-        Case{helix::ToolheadStyle::CREALITY_K1, 260},
+        Case{helix::ToolheadStyle::CREALITY_K1, 267},
         // The baked head's top edge
-        Case{helix::ToolheadStyle::CREALITY_K2, 260});
+        Case{helix::ToolheadStyle::CREALITY_K2, 255});
     ScopedToolheadStyle scoped(c.style);
     CAPTURE(static_cast<int>(c.style));
     REQUIRE(helix::SettingsManager::instance().get_effective_toolhead_style() == c.style);

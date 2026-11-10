@@ -13,12 +13,19 @@
  * Run with: ./build/bin/helix-tests "[action_tile]"
  */
 
+#include "ui_modal.h"
+#include "ui_nav_manager.h"
+#include "ui_utils.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "../test_helpers/scoped_shared_resource.h"
+#include "core/update_queue.h"
 #include "helix/ui/shared_font_style.h"
 #include "panel_widget_registry.h"
 #include "theme_manager.h"
 
+#include <array>
 #include <string>
 #include <utility>
 #include <vector>
@@ -90,29 +97,76 @@ TEST_CASE("all seven action tiles share one glyph size", "[action_tile][1559]") 
     CHECK(checked == static_cast<int>(kActionTiles.size()));
 }
 
-TEST_CASE("each action tile keeps the widget name its C++ looks up", "[action_tile][1559]") {
-    // The widgets find these with lv_obj_find_by_name to wire what XML cannot
-    // express. A shared component that renamed them would break every one of
-    // those lookups silently, since a missed lookup is a null and a no-op.
+TEST_CASE("a tap on a home tile reaches the widget that owns it", "[action_tile][1142]") {
+    // The tap is the XML event_cb on the tile's button; the callback finds its
+    // widget through the tile root, not a C++-attached user_data. A callback that
+    // cannot find its widget is a silent no-op, so each tap must open something.
     LVGLUITestFixture fixture;
     init_widget_registrations();
+    helix::ui::destroy_static_panels();
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels) {
+        p = lv_obj_create(fixture.test_screen());
+    }
+    NavigationManager::instance().set_panels(panels.data());
+    REQUIRE(fixture.api() != nullptr); // the shutdown tile asks it what to offer
+    helix_test::ScopedSharedResource<IMoonrakerAPI> api(
+        std::shared_ptr<IMoonrakerAPI>(fixture.api(), [](IMoonrakerAPI*) {}));
 
-    const std::vector<std::pair<std::string, std::string>> kNames = {
-        {"shutdown", "shutdown_button"},
-        {"led_controls", "led_controls_button"},
-        {"macros", "macros_button"},
+    const std::vector<std::pair<std::string, std::string>> kButtons = {
         {"motion", "motion_button"},
-        {"gcode_console", "gcode_console_button"},
-        {"led", "light_button"},
-        {"firmware_restart", "firmware_restart_button_home"},
+        {"macros", "macros_button"},
+        {"led_controls", "led_controls_button"},
+        {"shutdown", "shutdown_button"},
+        {"temperature", "temp_btn"},
+        {"network", "network_btn"},
     };
 
-    for (const auto& [id, widget_name] : kNames) {
+    for (const auto& [id, button] : kButtons) {
+        INFO("tile " << id);
         const auto* def = find_widget_def(id);
         REQUIRE(def != nullptr);
         RegistryWidgetHarness harness(fixture.test_screen(), *def);
         REQUIRE(harness.created());
-        INFO("tile " << id << " must still carry " << widget_name);
-        CHECK(lv_obj_find_by_name(harness.root(), widget_name.c_str()) != nullptr);
+        lv_obj_t* btn = harness.child(button.c_str());
+        REQUIRE(btn != nullptr);
+        REQUIRE_FALSE(NavigationManager::instance().has_open_overlays());
+        REQUIRE(ModalStack::instance().empty());
+
+        lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(
+            (NavigationManager::instance().has_open_overlays() || !ModalStack::instance().empty()));
+
+        if (lv_obj_t* top = Modal::get_top()) {
+            Modal::hide(top);
+        }
+        while (NavigationManager::instance().has_open_overlays()) {
+            NavigationManager::instance().go_back();
+            helix::ui::UpdateQueue::instance().drain_until_empty();
+        }
+    }
+    NavigationManager::instance().shutdown();
+    helix::ui::destroy_static_panels();
+}
+
+TEST_CASE("a pressed tile area dims and an idle one does not", "[action_tile][1142]") {
+    // The dim is an XML style on the pressed state; nothing in C++ sets it.
+    LVGLUITestFixture fixture;
+    init_widget_registrations();
+    const std::vector<std::pair<std::string, std::string>> kAreas = {
+        {"printer_image", "printer_container"},   {"tips", "tip_container"},
+        {"temp_stack", "temp_stack_nozzle_row"},  {"temp_stack", "temp_stack_bed_row"},
+        {"temp_stack", "temp_stack_chamber_row"},
+    };
+    for (const auto& [id, area] : kAreas) {
+        INFO("tile " << id << " area " << area);
+        RegistryWidgetHarness harness(fixture.test_screen(), *find_widget_def(id));
+        REQUIRE(harness.created());
+        lv_obj_t* obj = harness.child(area.c_str());
+        REQUIRE(obj != nullptr);
+        CHECK(lv_obj_get_style_opa(obj, LV_PART_MAIN) == LV_OPA_COVER);
+        lv_obj_add_state(obj, LV_STATE_PRESSED);
+        CHECK(lv_obj_get_style_opa(obj, LV_PART_MAIN) == LV_OPA_70);
     }
 }

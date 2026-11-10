@@ -19,6 +19,9 @@
          of its own gets the LVGL default, which ignores the theme's corner
          setting, so give it one. -->
     <style name="press_wash" bg_color="#primary" bg_opa="30%"/>
+    <!-- Pressed feedback for a tappable area that keeps its own background,
+         such as a picture or a home tile's row: the whole area dims. -->
+    <style name="press_dim" opa="70%"/>
     <!-- A filament unit that is offline or absent. -->
     <style name="unit_offline" opa="128"/>
     <!-- A filament slot picker row, at rest and as the current answer. The

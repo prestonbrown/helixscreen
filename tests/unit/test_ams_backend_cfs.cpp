@@ -129,7 +129,9 @@ class CfsRemapHelper : public AmsBackendCfs {
                            helix::SharedCallback<void(const MoonrakerError&)> on_error,
                            bool /*silent*/) override {
         captured.push_back(gcode);
-        if (reject) {
+        if (hold) {
+            held_ack = std::move(on_complete);
+        } else if (reject) {
             if (on_error) {
                 MoonrakerError err;
                 err.type = MoonrakerErrorType::JSON_RPC_ERROR;
@@ -143,6 +145,8 @@ class CfsRemapHelper : public AmsBackendCfs {
     }
 
     bool reject = false;
+    bool hold = false; // Klipper's answer waits for the test to fire held_ack
+    helix::SharedCallback<void()> held_ack;
 
     // Expose protected firmware-writeback helper for direct test calls.
     // push_slot_identity_to_firmware is protected (called from apply_user_edit
@@ -3014,6 +3018,19 @@ TEST_CASE("CFS Clear Spool writes the box's clear once",
         b.fire_status(make_cfs_notification(make_flat_fork_box()));
         clear_as_the_menu_does();
         CHECK(count("_BOX_SLOT_CLEAR SLOT=0") == 1);
+    }
+    SECTION("a Clear while an edit's box write is out erases what Klipper's OK would save") {
+        b.fire_status(make_cfs_notification(
+            make_single_unit_box({"101001", "-1", "-1", "-1"}, {"0FF5500", "-1", "-1", "-1"})));
+        b.hold = true;
+        SlotInfo edit = b.get_slot_info(0);
+        edit.brand = "Sunlu";
+        REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+        static_cast<helix::AmsBackend&>(b).clear_slot_override(0);
+        b.held_ack();
+        CHECK(CfsTestAccess::get_override(b, 0)
+                  .value_or(helix::ams::FilamentSlotOverride{})
+                  .brand.empty());
     }
 }
 

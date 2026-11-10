@@ -4,8 +4,8 @@
 #pragma once
 
 #include "ui_modal.h"
-#include "ui_observer_guard.h"
 
+#include "core/observer_guard.h"
 #include "filament_macro_profiles.h"
 #include "guided_load_flow.h"
 #include "print_lifecycle_state.h"

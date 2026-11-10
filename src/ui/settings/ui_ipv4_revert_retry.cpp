@@ -4,11 +4,11 @@
 #include "ui_ipv4_revert_retry.h"
 
 #include "ui_error_reporting.h"
-#include "ui_timer_guard.h"
 
 #include "app_globals.h"
 #include "connection_state.h"
 #include "core/http_executor.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "ipv4_config_system.h"
 #include "printer_state.h"

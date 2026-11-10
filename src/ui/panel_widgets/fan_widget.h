@@ -4,10 +4,10 @@
 #pragma once
 
 #include "ui_context_menu.h"
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "src/ui/panel_widgets/tile_sizing.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 
@@ -85,9 +85,6 @@ class FanWidget : public TiledPanelWidget {
     std::string instance_id_;
     helix::ui::WidgetRef widget_obj_;
     helix::ui::WidgetRef parent_screen_;
-    helix::ui::WidgetRef speed_label_;
-    helix::ui::WidgetRef name_label_;
-    helix::ui::WidgetRef fan_icon_;
 
     nlohmann::json config_;
     std::string selected_fan_; // object_name (e.g., "heater_fan hotend_fan")
@@ -96,7 +93,16 @@ class FanWidget : public TiledPanelWidget {
     ObserverGuard speed_observer_;
     ObserverGuard version_observer_;
     helix::AsyncLifetimeGuard lifetime_;
+
+    // This instance's reading and name, bound by its component. Owned per
+    // instance because two fan tiles can sit on the home grid at once.
+    lv_subject_t speed_subject_{};
     char speed_buffer_[16] = {};
+    lv_subject_t name_subject_{};
+    char name_buffer_[64] = {};
+    /// 1 while a fan is selected; 0 draws the "Select fan" prompt.
+    lv_subject_t named_subject_{};
+    SubjectManager subjects_;
 
     // Fan picker context menu (edit-mode gear only)
     FanPicker picker_{*this};
@@ -104,6 +110,7 @@ class FanWidget : public TiledPanelWidget {
     void auto_select_first_fan();
     void bind_speed_observer();
     void on_speed_changed(int speed_pct);
+    void set_speed_text(const char* text);
     void update_display();
     void save_config();
     void show_fan_picker();

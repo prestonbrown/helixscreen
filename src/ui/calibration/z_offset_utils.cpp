@@ -5,10 +5,10 @@
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
-#include "ui_observer_guard.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/observer_guard.h"
 #include "core/static_subject_registry.h"
 #include "gcode_help.h"
 #include "i_moonraker_api.h"

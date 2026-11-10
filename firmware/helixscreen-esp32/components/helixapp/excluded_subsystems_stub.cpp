@@ -42,6 +42,7 @@
 #include "ui_overlay_timelapse_videos.h"
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_belt_tension.h"
+#include "ui_panel_calibration_pa.h"
 #include "ui_panel_calibration_pid.h"
 #include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
@@ -122,6 +123,8 @@ bool timelapse_viewer_available() {
 //
 // src/ui/print/ui_overlay_timelapse_install.cpp
 TimelapseInstallOverlay::TimelapseInstallOverlay(helix::IMoonrakerAPI* api) : api_(api) {}
+TimelapseInstallOverlay::~TimelapseInstallOverlay() = default;
+void TimelapseInstallOverlay::init_subjects() {}
 void TimelapseInstallOverlay::register_callbacks() {}
 lv_obj_t* TimelapseInstallOverlay::create(lv_obj_t*) {
     return nullptr;
@@ -326,3 +329,10 @@ WizardPreferencesStep* get_wizard_preferences_step() {
     return nullptr;
 }
 } // namespace helix::wizard
+
+// The firmware cannot build these panels, so no owned calibration heat exists at shutdown.
+void BedMeshPanel::before_disconnect() {}
+void ZOffsetCalibrationPanel::before_disconnect() {}
+namespace helix::ui {
+void PACalibrationPanel::before_disconnect() {}
+} // namespace helix::ui

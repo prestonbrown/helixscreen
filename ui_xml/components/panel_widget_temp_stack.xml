@@ -13,6 +13,7 @@
             width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
             style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
             style_pad_gap="#space_xs" clickable="true" event_bubble="false">
+      <style name="styles.press_dim" selector="pressed"/>
       <event_cb trigger="clicked" callback="temp_stack_nozzle_cb"/>
       <nozzle_icon name="temp_stack_nozzle_icon" size="xs" badge_subject="" clickable="false" event_bubble="true"/>
       <temp_display name="temp_stack_nozzle_temp"
@@ -25,6 +26,7 @@
             width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
             style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
             style_pad_gap="#space_xs" clickable="true" event_bubble="false">
+      <style name="styles.press_dim" selector="pressed"/>
       <event_cb trigger="clicked" callback="temp_stack_bed_cb"/>
       <heater_icon src="radiator" glyph_name="bed_icon_glyph" size="xs"/>
       <temp_display name="temp_stack_bed_temp"
@@ -37,6 +39,7 @@
             width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
             style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
             style_pad_gap="#space_xs" clickable="true" event_bubble="false">
+      <style name="styles.press_dim" selector="pressed"/>
       <bind_flag_if_eq subject="printer_has_chamber" flag="hidden" ref_value="0"/>
       <event_cb trigger="clicked" callback="temp_stack_chamber_cb"/>
       <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="xs"/>

@@ -64,6 +64,7 @@ bool refresh_theme_colors(FilamentPathData* data) {
     theme.color_idle =
         theme_manager_get_color(dark_mode ? "filament_idle_dark" : "filament_idle_light");
     theme.color_error = theme_manager_get_color("filament_error");
+    theme.color_selected = theme_manager_get_color("primary");
     theme.color_hub_bg =
         theme_manager_get_color(dark_mode ? "filament_hub_bg_dark" : "filament_hub_bg_light");
     theme.color_hub_border = theme_manager_get_color(dark_mode ? "filament_hub_border_dark"
@@ -243,7 +244,8 @@ static void filament_path_click_cb(lv_event_t* e) {
         const BaseGeometry g = compute_base_geometry(obj, data);
         const ParallelRows rows = parallel_rows(*data, g);
         const helix::ui::GlyphBounds glyph =
-            toolhead_glyph_bounds(0, rows.toolhead_y, rows.tool_scale);
+            toolhead_glyph_bounds(path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).dx,
+                                  rows.toolhead_y, rows.tool_scale);
         helix::ui::ParallelTapLayout layout;
         layout.slot_x = g.slot_x;
         layout.slot_count = g.slot_count;
@@ -505,11 +507,20 @@ void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology) {
 }
 
 // NAMESPACE_OK: one of the canvas's C-style setters
-void ui_filament_path_canvas_set_built_in_hub(lv_obj_t* obj, bool built_in) {
+void ui_filament_path_canvas_set_lane_join(lv_obj_t* obj, helix::ui::tray::LaneJoin join) {
+    using helix::ui::tray::LaneJoin;
     auto* data = get_data(obj);
-    if (!data || data->built_in_hub == built_in)
+    if (!data)
+        return;
+    const bool inside = join == LaneJoin::Inside;
+    const bool built_in = inside || join == LaneJoin::Junction;
+    const bool fixed = join == LaneJoin::FixedBlock;
+    if (data->built_in_hub == built_in && data->lanes_merge_inside == inside &&
+        data->fixed_selector == fixed)
         return;
     data->built_in_hub = built_in;
+    data->lanes_merge_inside = inside;
+    data->fixed_selector = fixed;
     layered_mark_dirty(obj);
 }
 
@@ -1223,7 +1234,7 @@ bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out
     const LinearHubFrame f =
         compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
     const helix::ui::GlyphBounds b =
-        toolhead_glyph_bounds(f.center_x, f.nozzle_y, data->theme.extruder_scale);
+        toolhead_glyph_bounds(f.head_x, f.nozzle_y, data->theme.extruder_scale);
     *area_out = {b.left, b.top, b.right, b.bottom};
     return true;
 }

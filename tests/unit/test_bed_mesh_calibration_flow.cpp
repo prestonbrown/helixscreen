@@ -25,6 +25,7 @@
 #include "temperature_controller.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -131,6 +132,7 @@ class BedMeshPanelFlowFixture : public LVGLTestFixture {
         helix::PrinterStateTestAccess::reset(get_printer_state());
         get_printer_state().init_subjects(false);
         get_printer_state().update_from_status({{"toolhead", {{"homed_axes", ""}}}});
+        set_link(true);
         helix::ui::set_test_notification_error_hook(
             [this](const std::string& m) { errors.push_back(m); });
         helix::ui::set_test_notification_success_hook([this](const std::string& m) {
@@ -151,6 +153,19 @@ class BedMeshPanelFlowFixture : public LVGLTestFixture {
 
     static void detect_macros(const json& objects) {
         detect_macros_in(objects);
+    }
+
+    static void set_link(bool up) {
+        lv_subject_set_int(
+            get_printer_state().network_state().get_printer_connection_state_subject(),
+            static_cast<int>(up ? helix::ConnectionState::CONNECTED
+                                : helix::ConnectionState::DISCONNECTED));
+        drain();
+    }
+
+    static void set_nozzle(double target) {
+        get_printer_state().update_from_status(
+            {{"extruder", {{"temperature", 25.0}, {"target", target}}}});
     }
 
     static void set_bed(double temperature, double target) {
@@ -463,6 +478,165 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     CHECK(home >= 0);
     CHECK(wait < home);
     CHECK(home < mesh);
+}
+
+namespace {
+constexpr const char* kNozzleOff = "HEATER=extruder TARGET=0";
+constexpr const char* kBedOff = "HEATER=heater_bed TARGET=0";
+} // namespace
+
+/// A preheat in progress: both heaters were off and the wait never answers.
+class BedMeshHeatFixture : public BedMeshPanelFlowFixture {
+  public:
+    ScopedTemperatureController heaters{get_printer_state(), &api};
+    std::unique_ptr<BedMeshPanel> panel = std::make_unique<BedMeshPanel>();
+
+    BedMeshHeatFixture() {
+        use_printer("");
+        set_nozzle(0.0);
+        set_bed(24.0, 0.0);
+        panel->set_api(&api);
+        panel->init_subjects();
+        client.force_next_gcode_dropped_response("TEMPERATURE_WAIT");
+        calibrate_as(*panel, "default");
+        REQUIRE(any_sent(sent(), "TEMPERATURE_WAIT"));
+        REQUIRE_FALSE(any_sent(sent(), "G28"));
+    }
+};
+
+TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its heat",
+                 "[bed_mesh_flow][heater_hold]") {
+    REQUIRE(panel->holds_owned_heat());
+    CHECK(helix::HeaterHold::any_held_signal_safe());
+
+    SECTION("shutdown sends both offs and nothing that moves") {
+        client.clear_gcode_script_history();
+        panel->before_disconnect();
+        drain();
+        CHECK(any_sent(sent(), kNozzleOff));
+        CHECK(any_sent(sent(), kBedOff));
+        CHECK_FALSE(any_sent(sent(), "G28"));
+        CHECK_FALSE(any_sent(sent(), "G1 "));
+        CHECK_FALSE(any_sent(sent(), "BED_MESH_CALIBRATE"));
+        CHECK_FALSE(panel->holds_owned_heat());
+        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    }
+
+    SECTION("shutdown leaves a bed someone has retargeted since") {
+        set_bed(24.0, 80.0);
+        client.clear_gcode_script_history();
+        panel->before_disconnect();
+        drain();
+        CHECK(any_sent(sent(), kNozzleOff));
+        CHECK_FALSE(any_sent(sent(), kBedOff));
+        CHECK_FALSE(panel->holds_owned_heat());
+    }
+
+    SECTION("an error ending clears both and releases") {
+        client.clear_gcode_script_history();
+        panel->on_calibration_error("Preheat failed");
+        drain();
+        CHECK(any_sent(sent(), kNozzleOff));
+        CHECK(any_sent(sent(), kBedOff));
+        CHECK_FALSE(panel->holds_owned_heat());
+    }
+
+    SECTION("emergency stop releases without a send of its own") {
+        client.clear_gcode_script_history();
+        panel->handle_emergency_stop();
+        drain();
+        CHECK_FALSE(any_sent(sent(), kBedOff));
+        CHECK_FALSE(panel->holds_owned_heat());
+        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    }
+
+    SECTION("leaving for another view gives the heat back") {
+        client.clear_gcode_script_history();
+        panel->on_deactivating(DeactivateReason::NavigateAway);
+        drain();
+        CHECK(any_sent(sent(), kNozzleOff));
+        CHECK(any_sent(sent(), kBedOff));
+        CHECK_FALSE(any_sent(sent(), "G28"));
+        CHECK_FALSE(panel->holds_owned_heat());
+    }
+
+    SECTION("a hot-reload gives the heat back") {
+        client.clear_gcode_script_history();
+        panel->on_deactivating(DeactivateReason::Rebuild);
+        drain();
+        CHECK(any_sent(sent(), kBedOff));
+        CHECK_FALSE(panel->holds_owned_heat());
+    }
+
+    SECTION("the screensaver keeps the heat") {
+        client.clear_gcode_script_history();
+        panel->on_deactivating(DeactivateReason::Suspended);
+        drain();
+        CHECK_FALSE(any_sent(sent(), kBedOff));
+        CHECK(panel->holds_owned_heat());
+    }
+
+    SECTION("destroying the panel releases") {
+        panel.reset();
+        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    }
+}
+
+TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a mesh wrapper's own target is still this run's heat",
+                 "[bed_mesh_flow][heater_hold]") {
+    use_printer("");
+    ScopedTemperatureController heaters(get_printer_state(), &api);
+    set_nozzle(0.0);
+    set_bed(24.0, 0.0);
+    BedMeshPanel panel;
+    panel.set_api(&api);
+    panel.init_subjects();
+    client.force_next_gcode_dropped_response("BED_MESH_CALIBRATE");
+    calibrate_as(panel, "default");
+    REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
+    REQUIRE(panel.holds_owned_heat());
+
+    set_bed(24.0, 70.0);
+    client.clear_gcode_script_history();
+    panel.on_calibration_error("probe failed");
+    drain();
+
+    CHECK(any_sent(sent(), kBedOff));
+    CHECK_FALSE(panel.holds_owned_heat());
+}
+
+TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a finished mesh holds nothing for its heat",
+                 "[bed_mesh_flow][heater_hold]") {
+    use_printer("");
+    ScopedTemperatureController heaters(get_printer_state(), &api);
+    set_nozzle(0.0);
+    set_bed(24.0, 0.0);
+    BedMeshPanel panel;
+    panel.set_api(&api);
+    panel.init_subjects();
+    calibrate_as(panel, "default");
+
+    CHECK(any_sent(sent(), kBedOff));
+    CHECK_FALSE(panel.holds_owned_heat());
+}
+
+TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a mesh on heaters already running holds nothing",
+                 "[bed_mesh_flow][heater_hold]") {
+    use_printer("");
+    ScopedTemperatureController heaters(get_printer_state(), &api);
+    set_nozzle(180.0);
+    set_bed(24.0, 70.0);
+    BedMeshPanel panel;
+    panel.set_api(&api);
+    panel.init_subjects();
+    client.force_next_gcode_dropped_response("BED_MESH_CALIBRATE");
+    calibrate_as(panel, "default");
+    REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
+
+    CHECK_FALSE(panel.holds_owned_heat());
+    panel.before_disconnect();
+    drain();
+    CHECK_FALSE(any_sent(sent(), kBedOff));
 }
 
 TEST_CASE_METHOD(BedMeshPanelFlowFixture,

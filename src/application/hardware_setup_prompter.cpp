@@ -11,7 +11,6 @@
 #include "ui_modal.h"
 #include "ui_notification.h"
 #include "ui_panel_notification_history.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_wizard.h"
 
@@ -19,6 +18,7 @@
 #include "async_lifetime_guard.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/timer_guard.h"
 #include "hardware_role_registry.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"

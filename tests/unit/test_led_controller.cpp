@@ -1,13 +1,12 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_observer_guard.h"
-
 #include "../helix_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/observer_guard.h"
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "led/led_controller.h"

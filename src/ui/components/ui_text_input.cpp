@@ -18,6 +18,7 @@
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
 #include "ui_keyboard_manager.h"
+#include "ui_text_edit_menu.h"
 
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
@@ -379,6 +380,9 @@ static void ui_text_input_apply(lv_xml_parser_state_t* state, const char** attrs
 
     // Apply standard textarea properties (handles height, width, etc.)
     lv_xml_textarea_apply(state, attrs);
+    if (lv_textarea_get_password_mode(textarea)) {
+        helix::ui::mark_secret_field(textarea);
+    }
 
     // Track clear button and suffix settings from attrs
     bool show_clear = false;

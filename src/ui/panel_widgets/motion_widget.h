@@ -22,7 +22,6 @@ class MotionWidget : public TiledPanelWidget {
 
   private:
     lv_obj_t* widget_obj_ = nullptr;
-    lv_obj_t* btn_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
 
     void handle_click();

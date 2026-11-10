@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h" // ObserverGuard, SubjectLifetime
 #include "ui_panel_controls.h"
+
+#include "core/observer_guard.h" // ObserverGuard, SubjectLifetime
 
 #include <string>
 #include <utility>

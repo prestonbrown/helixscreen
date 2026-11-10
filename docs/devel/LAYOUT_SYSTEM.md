@@ -1141,7 +1141,7 @@ register_xml("styles.xml");              // eager
 lv_xml_create(parent, "home_panel", nullptr);  // first use -> loader
 ```
 
-A component's layout variant and the px tokens its `<styles>` use are fixed when it registers. On a runtime resize (`Application`'s resize callback), `helix::unregister_idle_xml_components()` drops every first-use component no live widget is built from, so its next use registers it at the new geometry. Components with live instances, a C++-registered subject or a style another scope borrowed keep their registration, and so keep the old geometry until they are rebuilt.
+A component's layout variant and the px tokens its `<styles>` use are fixed when it registers. On a runtime resize that stays inside one tier (`Application`'s resize callback), `helix::unregister_idle_xml_components()` drops every first-use component no live widget is built from, so its next use registers it at the new geometry. A resize that moves a token, the layout type or the UI scale calls `helix::reregister_xml_components_for_rebuild()` instead, which drops the live ones too and registers `styles.xml` again, before the views are rebuilt (UI_CONTRIBUTOR_GUIDE.md, "Built widgets keep their tokens"). Either way, components with a C++-registered subject, C++-pushed constants or a style another scope borrowed keep their registration and the old geometry.
 
 ### Config
 

@@ -5,14 +5,14 @@
 
 #include "ui_ams_edit_overlay.h"
 #include "ui_filament_catalog_picker.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
-#include "ui_timer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "active_material_provider.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "core/observer_guard.h"
+#include "core/timer_guard.h"
 #include "filament_motion.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"

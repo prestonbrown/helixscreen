@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h" // SubjectLifetime
-
+#include "core/observer_guard.h" // SubjectLifetime
+#include "fan_tachometers.h"
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
 
@@ -189,6 +189,12 @@ class PrinterFanState {
     /// nullopt means the fan has no tachometer
     void update_fan_rpm(const std::string& object_name, std::optional<int> rpm);
 
+    /// Which fan each separate tachometer reading measures (fan_tach::map_from_config).
+    /// An empty map leaves only the rpm a fan object reports itself.
+    void set_tachometers(fan_tach::TachMap map) {
+        tachometers_ = std::move(map);
+    }
+
     /// Rename a fan: saves custom name to Config, updates display_name, bumps fans_version
     void rename_fan(const std::string& object_name, const std::string& new_name);
 
@@ -226,7 +232,7 @@ class PrinterFanState {
      *
      * IMPORTANT: These are dynamic subjects that may be destroyed during reconnection.
      * Always pass the returned lifetime token to your observer factory function
-     * to prevent use-after-free crashes. See ui_observer_guard.h for details.
+     * to prevent use-after-free crashes. See core/observer_guard.h for details.
      *
      * @param object_name Moonraker object name (e.g., "fan", "heater_fan hotend_fan")
      * @param[out] lifetime Receives the subject's lifetime token (empty if not found)
@@ -350,6 +356,9 @@ class PrinterFanState {
     // Per-fan `max_power` from configfile.settings, keyed by lowercased object
     // name. Used to normalize reported speeds (see normalize_speed()).
     std::unordered_map<std::string, double> fan_max_power_;
+
+    // Tachometer readings published outside the fan objects, by field.
+    fan_tach::TachMap tachometers_;
 
     // Configured fan roles from wizard config
     FanRoleConfig roles_;

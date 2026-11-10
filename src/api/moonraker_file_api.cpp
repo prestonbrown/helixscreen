@@ -3,8 +3,7 @@
 
 #include "moonraker_file_api.h"
 
-#include "ui_error_reporting.h"
-
+#include "core/error_reporting.h"
 #include "core/gcode_filename.h"
 #include "core/text_io.h"
 #include "i_moonraker_client.h"

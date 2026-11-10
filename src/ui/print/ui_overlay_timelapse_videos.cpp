@@ -106,6 +106,17 @@ bool helix::ui::timelapse_viewer_available() {
 
 TimelapseVideosOverlay::TimelapseVideosOverlay(helix::IMoonrakerAPI* api) : api_(api) {}
 
+TimelapseVideosOverlay::~TimelapseVideosOverlay() {
+    subjects_.deinit_all();
+}
+
+void TimelapseVideosOverlay::init_subjects() {
+    init_subjects_guarded([this]() {
+        UI_MANAGED_SUBJECT_INT(videos_empty_subject_, 0, "timelapse_videos_empty", subjects_);
+        UI_MANAGED_SUBJECT_INT(can_play_subject_, 0, "timelapse_videos_can_play", subjects_);
+    });
+}
+
 // ============================================================================
 // LIFECYCLE
 // ============================================================================
@@ -136,7 +147,8 @@ lv_obj_t* TimelapseVideosOverlay::create(lv_obj_t* parent) {
 
     video_grid_container_ =
         helix::ui::find_required(overlay_root_, "video_grid_container", get_name());
-    video_grid_empty_ = helix::ui::find_required(overlay_root_, "video_grid_empty", get_name());
+    // The grid shows, empty, until this open's listing says otherwise.
+    lv_subject_set_int(&videos_empty_subject_, 0);
 
     return overlay_root_;
 }
@@ -327,26 +339,8 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
 
     spdlog::info("[{}] Found {} timelapse videos", get_name(), videos_.size());
 
-    if (videos_.empty()) {
-        // Show empty state, hide grid
-        if (video_grid_container_) {
-            lv_obj_add_flag(video_grid_container_, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (video_grid_empty_) {
-            lv_obj_remove_flag(video_grid_empty_, LV_OBJ_FLAG_HIDDEN);
-        }
-        return;
-    }
-
-    // Show grid, hide empty state
-    if (video_grid_container_) {
-        lv_obj_remove_flag(video_grid_container_, LV_OBJ_FLAG_HIDDEN);
-    }
-    if (video_grid_empty_) {
-        lv_obj_add_flag(video_grid_empty_, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    if (!video_grid_container_)
+    lv_subject_set_int(&videos_empty_subject_, videos_.empty() ? 1 : 0);
+    if (videos_.empty() || !video_grid_container_)
         return;
 
     // Calculate responsive card dimensions to fit 2 rows on screen
@@ -398,16 +392,6 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
         lv_obj_add_event_cb(card, on_card_clicked, LV_EVENT_CLICKED, this);
         lv_obj_add_event_cb(card, on_card_long_pressed, LV_EVENT_LONG_PRESSED, this);
 
-        // Show/hide play overlay based on playback capability
-        lv_obj_t* play_overlay = helix::ui::find_required(card, "play_overlay", get_name());
-        if (play_overlay) {
-            if (can_play_) {
-                lv_obj_remove_flag(play_overlay, LV_OBJ_FLAG_HIDDEN);
-            } else {
-                lv_obj_add_flag(play_overlay, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-
         // Load thumbnail (companion image) or show placeholder
         load_thumbnail_for_card(card, video.filename, available_files);
     }
@@ -427,9 +411,11 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
         // No companion thumbnail available -- show placeholder
         spdlog::debug("[{}] No companion thumbnail '{}' for '{}'", get_name(), companion, filename);
         if (no_thumb_icon) {
+            // DECLARATIVE_OK: per-card thumbnail state on a generated collection
             lv_obj_remove_flag(no_thumb_icon, LV_OBJ_FLAG_HIDDEN);
         }
         if (thumbnail) {
+            // DECLARATIVE_OK: per-card thumbnail state on a generated collection
             lv_obj_add_flag(thumbnail, LV_OBJ_FLAG_HIDDEN);
         }
         return;
@@ -457,9 +443,11 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
         spdlog::debug("[{}] Thumbnail cache hit for '{}'", get_name(), filename);
         if (thumbnail) {
             lv_image_set_src(thumbnail, cached.c_str());
+            // DECLARATIVE_OK: per-card thumbnail state on a generated collection
             lv_obj_remove_flag(thumbnail, LV_OBJ_FLAG_HIDDEN);
         }
         if (no_thumb_icon) {
+            // DECLARATIVE_OK: per-card thumbnail state on a generated collection
             lv_obj_add_flag(no_thumb_icon, LV_OBJ_FLAG_HIDDEN);
         }
         return;
@@ -468,6 +456,7 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
     // Not cached -- download the companion file, pre-scale, and update
     if (!api_) {
         if (no_thumb_icon) {
+            // DECLARATIVE_OK: per-card thumbnail state on a generated collection
             lv_obj_remove_flag(no_thumb_icon, LV_OBJ_FLAG_HIDDEN);
         }
         return;
@@ -475,6 +464,7 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
 
     // Show placeholder while loading
     if (no_thumb_icon) {
+        // DECLARATIVE_OK: per-card thumbnail state on a generated collection
         lv_obj_remove_flag(no_thumb_icon, LV_OBJ_FLAG_HIDDEN);
     }
 
@@ -548,9 +538,11 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
                                     child, "no_thumbnail_icon", get_name());
                                 if (thumb) {
                                     lv_image_set_src(thumb, lvbin_path.c_str());
+                                    // DECLARATIVE_OK: per-card thumbnail state
                                     lv_obj_remove_flag(thumb, LV_OBJ_FLAG_HIDDEN);
                                 }
                                 if (icon) {
+                                    // DECLARATIVE_OK: per-card thumbnail state
                                     lv_obj_add_flag(icon, LV_OBJ_FLAG_HIDDEN);
                                 }
                                 spdlog::debug("[Timelapse Videos] Thumbnail loaded for '{}'",
@@ -607,6 +599,7 @@ void TimelapseVideosOverlay::detect_playback_capability() {
 
     can_play_ = cached_can_play;
     player_command_ = cached_player;
+    lv_subject_set_int(&can_play_subject_, can_play_ ? 1 : 0);
 
     // Remote vs same-host playback path follows the live connection verdict
     // (moonraker_is_remote subject) — replaces the hand-rolled websocket-URL

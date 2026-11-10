@@ -80,9 +80,35 @@ using namespace helix;
 PowerDeviceWidget::PowerDeviceWidget(const std::string& instance_id)
     : TiledPanelWidget(instance_id, status_content(false)), instance_id_(instance_id) {
     // Registered before the manager parses the component, which drops a
-    // binding whose subject is missing at parse time.
-    UI_MANAGED_SUBJECT_INT(has_status_subject_, 0, has_status_name_.c_str(), subjects_);
-    sizing_.add_subject_attr("status_subject", has_status_name_);
+    // binding whose subject is missing at parse time. The initial values are
+    // the component's own defaults, so a tile reads the same before its first
+    // update as it always has.
+    lv_subject_init_int(&has_status_subject_, 0);
+    sizing_.publish_instance_subject(subjects_, &has_status_subject_, "status_subject",
+                                     "has_status");
+    lv_subject_init_int(&state_subject_, -1);
+    sizing_.publish_instance_subject(subjects_, &state_subject_, "state_subject", "state");
+    lv_subject_init_int(&named_subject_, 0);
+    sizing_.publish_instance_subject(subjects_, &named_subject_, "named_subject", "named");
+    lv_subject_init_string(&name_subject_, name_buf_, nullptr, sizeof(name_buf_), "");
+    sizing_.publish_instance_subject(subjects_, &name_subject_, "name_subject", "name");
+    lv_subject_init_string(&status_text_subject_, status_text_buf_, nullptr,
+                           sizeof(status_text_buf_), "");
+    sizing_.publish_instance_subject(subjects_, &status_text_subject_, "status_text_subject",
+                                     "status_text");
+    lv_subject_init_color(&accent_subject_, theme_manager_get_color("secondary"));
+    sizing_.publish_instance_subject(subjects_, &accent_subject_, "accent_subject", "accent");
+    lv_subject_init_int(&badge_opa_subject_, 40);
+    sizing_.publish_instance_subject(subjects_, &badge_opa_subject_, "badge_opa_subject",
+                                     "badge_opa");
+    lv_subject_init_color(&status_color_subject_, theme_manager_get_color("text_muted"));
+    sizing_.publish_instance_subject(subjects_, &status_color_subject_, "status_color_subject",
+                                     "status_color");
+}
+
+void PowerDeviceWidget::set_name_text(const char* text) {
+    lv_subject_copy_string(&name_subject_, text);
+    lv_subject_set_int(&named_subject_, 1);
 }
 
 void PowerDeviceWidget::apply_status_presence() {
@@ -122,12 +148,7 @@ void PowerDeviceWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         lv_obj_set_style_opa(widget_obj_, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
     }
 
-    // Cache LVGL object pointers from XML
-    badge_obj_ = lv_obj_find_by_name(widget_obj_, "power_badge");
     icon_obj_ = lv_obj_find_by_name(widget_obj_, "power_icon");
-    name_label_ = lv_obj_find_by_name(widget_obj_, "power_device_name");
-    status_label_ = lv_obj_find_by_name(widget_obj_, "power_device_status");
-    lock_icon_ = lv_obj_find_by_name(widget_obj_, "power_lock_icon");
 
     if (is_all_devices()) {
         // __all__ mode: aggregate toggle for all selected power panel devices.
@@ -142,9 +163,7 @@ void PowerDeviceWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
             },
             get_printer_state().get_subjects_lifetime());
 
-        if (name_label_) {
-            lv_label_set_text(name_label_, lv_tr("All Devices"));
-        }
+        set_name_text(lv_tr("All Devices"));
     } else if (!device_name_.empty()) {
         // Observe the device status subject. Use a LOCAL lifetime variable
         // so the ObserverGuard's weak_ptr expires when deinit_subjects()
@@ -163,12 +182,8 @@ void PowerDeviceWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
                 },
                 lifetime);
 
-            // Set initial display name
-            if (name_label_) {
-                std::string display =
-                    helix::get_display_name(device_name_, helix::DeviceType::POWER_DEVICE);
-                lv_label_set_text(name_label_, display.c_str());
-            }
+            set_name_text(
+                helix::get_display_name(device_name_, helix::DeviceType::POWER_DEVICE).c_str());
         } else {
             spdlog::warn("[PowerDeviceWidget] No status subject for device '{}'", device_name_);
             update_display(-1);
@@ -201,11 +216,7 @@ void PowerDeviceWidget::detach() {
 
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
-    badge_obj_ = nullptr;
     icon_obj_ = nullptr;
-    name_label_ = nullptr;
-    status_label_ = nullptr;
-    lock_icon_ = nullptr;
 
     spdlog::debug("[PowerDeviceWidget] Detached");
 }
@@ -222,34 +233,16 @@ void PowerDeviceWidget::update_display(int status) {
         helix::ui::icon::set_source(icon_obj_, effective_icon);
     }
 
-    if (lock_icon_) {
-        if (status == 2) {
-            lv_obj_remove_flag(lock_icon_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(lock_icon_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    lv_subject_set_int(&state_subject_, status);
+    const char* text = status == 1   ? lv_tr("ON")
+                       : status == 0 ? lv_tr("OFF")
+                       : status == 2 ? lv_tr("LOCKED")
+                                     : "";
+    lv_subject_copy_string(&status_text_subject_, text);
 
-    if (status_label_) {
-        switch (status) {
-        case 1:
-            lv_label_set_text(status_label_, lv_tr("ON"));
-            break;
-        case 0:
-            lv_label_set_text(status_label_, lv_tr("OFF"));
-            break;
-        case 2:
-            lv_label_set_text(status_label_, lv_tr("LOCKED"));
-            break;
-        default:
-            lv_label_set_text(status_label_, "");
-            break;
-        }
-    }
-
-    if (name_label_ && status == -1) {
-        // A tag, not lv_tr() text: the label then re-translates itself.
-        lv_label_set_translation_tag(name_label_, "Configure");
+    if (status == -1) {
+        // The component's own "Configure" label, which re-translates itself.
+        lv_subject_set_int(&named_subject_, 0);
     }
 }
 
@@ -275,10 +268,8 @@ void PowerDeviceWidget::apply_state_colors(int status) {
         accent = tile_color::muted(lv_color_hex(color_), theme_manager_get_color("text_muted"));
     }
 
-    if (badge_obj_) {
-        lv_obj_set_style_bg_color(badge_obj_, accent, 0);
-        lv_obj_set_style_bg_opa(badge_obj_, status == 1 ? 40 : 20, 0);
-    }
+    lv_subject_set_color(&accent_subject_, accent);
+    lv_subject_set_int(&badge_opa_subject_, status == 1 ? 40 : 20);
 
     if (icon_obj_) {
         if (paint == tile_color::Paint::Theme) {
@@ -289,10 +280,10 @@ void PowerDeviceWidget::apply_state_colors(int status) {
     }
 
     // The state line keeps the muted face while off, so OFF still reads as off.
-    if (status_label_ && status != -1) {
-        lv_obj_set_style_text_color(
-            status_label_,
-            paint == tile_color::Paint::Custom ? accent : theme_manager_get_color(token), 0);
+    if (status != -1) {
+        lv_subject_set_color(&status_color_subject_, paint == tile_color::Paint::Custom
+                                                         ? accent
+                                                         : theme_manager_get_color(token));
     }
 }
 
@@ -543,9 +534,7 @@ void PowerDeviceWidget::select_device(const std::string& name) {
                 },
                 get_printer_state().get_subjects_lifetime());
 
-            if (name_label_) {
-                lv_label_set_text(name_label_, lv_tr("All Devices"));
-            }
+            set_name_text(lv_tr("All Devices"));
         } else {
             // Single device mode: observe the specific device status
             SubjectLifetime lifetime;
@@ -563,12 +552,8 @@ void PowerDeviceWidget::select_device(const std::string& name) {
                     lifetime);
             }
 
-            // Update display name
-            if (name_label_) {
-                std::string display =
-                    helix::get_display_name(device_name_, helix::DeviceType::POWER_DEVICE);
-                lv_label_set_text(name_label_, display.c_str());
-            }
+            set_name_text(
+                helix::get_display_name(device_name_, helix::DeviceType::POWER_DEVICE).c_str());
         }
     }
 
@@ -707,17 +692,9 @@ void PowerDeviceWidget::update_all_devices_display(bool any_on) {
         helix::ui::icon::set_source(icon_obj_, effective_icon);
     }
 
-    if (lock_icon_) {
-        lv_obj_add_flag(lock_icon_, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    if (status_label_) {
-        lv_label_set_text(status_label_, any_on ? lv_tr("ON") : lv_tr("OFF"));
-    }
-
-    if (name_label_) {
-        lv_label_set_text(name_label_, lv_tr("All Devices"));
-    }
+    lv_subject_set_int(&state_subject_, last_status_);
+    lv_subject_copy_string(&status_text_subject_, any_on ? lv_tr("ON") : lv_tr("OFF"));
+    set_name_text(lv_tr("All Devices"));
 }
 
 std::string PowerDeviceWidget::auto_match_sensor() const {

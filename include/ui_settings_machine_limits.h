@@ -300,6 +300,8 @@ class MachineLimitsOverlay : public OverlayBase {
     lv_subject_t accel_to_decel_display_subject_{};
     lv_subject_t square_corner_velocity_display_subject_{};
     lv_subject_t extrude_speed_display_subject_{};
+    lv_subject_t max_z_velocity_display_subject_{}; ///< read-only, reported by the printer
+    lv_subject_t max_z_accel_display_subject_{};    ///< read-only, reported by the printer
 
     // String buffers for subject values
     char velocity_buf_[16]{};
@@ -307,6 +309,8 @@ class MachineLimitsOverlay : public OverlayBase {
     char a2d_buf_[16]{};
     char scv_buf_[16]{};
     char extrude_speed_buf_[16]{};
+    char z_velocity_buf_[32]{};
+    char z_accel_buf_[32]{};
 
     //
     // === Static Callbacks ===

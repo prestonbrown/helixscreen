@@ -1135,6 +1135,7 @@ void PrinterDiscovery::clear() {
     probe_xy_offset_.reset();
     firmware_runs_start_macro_before_file_ = false;
     fan_max_power_.clear();
+    fan_tachometers_.clear();
     configured_tool_numbers_.clear();
     has_led_ = false;
     led_effects_.clear();

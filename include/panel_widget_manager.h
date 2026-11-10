@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "helix_type_tag.h"
 #include "panel_widget_config.h"
 

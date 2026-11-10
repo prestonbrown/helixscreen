@@ -4,9 +4,9 @@
 #pragma once
 
 #include "ui_ams_slot_layout.h"
-#include "ui_observer_guard.h"
 
 #include "ams_lane_state.h"
+#include "core/observer_guard.h"
 #include "lvgl/lvgl.h"
 
 namespace helix {

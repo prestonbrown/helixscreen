@@ -3,9 +3,10 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_printer_switch_menu.h"
 #include "ui_widget_ref.h"
+
+#include "core/observer_guard.h"
 
 #include <functional>
 #include <string>

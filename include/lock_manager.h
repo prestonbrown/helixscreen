@@ -71,7 +71,6 @@ class LockManager {
     std::string pin_hash_;
     bool locked_ = false;
     bool auto_lock_ = false;
-    bool subjects_initialized_ = false;
 
     static constexpr int kMinPinLength = 4;
     static constexpr int kMaxPinLength = 6;

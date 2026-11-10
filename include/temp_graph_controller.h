@@ -17,12 +17,12 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_temp_graph.h"
 #include "ui_temp_graph_scaling.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 
 #include <chrono>
 #include <cstdint>
@@ -234,9 +234,10 @@ class TempGraphController {
         return graph_;
     }
 
-    /// Check if graph was created successfully
+    /// True while the graph exists and still has its chart. LVGL deletes the
+    /// chart with the container, and the controller can outlive both.
     bool is_valid() const {
-        return graph_ != nullptr;
+        return ui_temp_graph_is_valid(graph_);
     }
 
     /**

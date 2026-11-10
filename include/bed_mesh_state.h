@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_subscription_guard.h"
 
 #include "async_lifetime_guard.h"
 #include "bed_mesh_stats.h"
+#include "core/observer_guard.h"
 #include "i_moonraker_api.h"
 #include "moonraker_types.h"
 #include "subject_managed_panel.h"

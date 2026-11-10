@@ -4,11 +4,11 @@
 #pragma once
 
 #include "ui_heater_icon_binder.h"
-#include "ui_observer_guard.h"
 #include "ui_temperature_utils.h"
 
 #include "callout_layout.h"
 #include "callout_presenter.h"
+#include "core/observer_guard.h"
 #include "exact_size_image.h"
 #include "panel_widget.h"
 

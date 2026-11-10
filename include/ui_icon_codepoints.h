@@ -101,6 +101,8 @@ static const IconMapping kIconMap[] = {
     {"cog_refresh",        "\xF3\xB1\x91\x9E"},  // F145E cog-refresh
     {"console",            "\xF3\xB0\x86\x8D"},  // F018D console/terminal
     {"content_copy",       "\xF3\xB0\x86\x8F"},  // F018F content-copy (duplicate)
+    {"content_cut",        "\xF3\xB0\x86\x90"},  // F0190 content-cut
+    {"content_paste",      "\xF3\xB0\x86\x92"},  // F0192 content-paste
     {"coolant_temperature","\xF3\xB0\x8F\x88"},  // F03C8 coolant-temperature
     {"cooldown",           "\xF3\xB0\x9C\x97"},  // F0717 snowflake
     {"crosshairs_gps",     "\xF3\xB0\x86\xA4"},  // F01A4 crosshairs-gps (probe)

@@ -4,9 +4,9 @@
 #pragma once
 
 #include "ui_head_picker.h"
-#include "ui_observer_guard.h"
 #include "ui_temp_graph.h"
 
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "klipper_config_editor.h"
 #include "moonraker_advanced_api.h"

@@ -1149,7 +1149,7 @@ TEST_CASE_METHOD(ContentFitsFixture,
             require_no_overflow(harness.root(), exceptions(), "favorite_macro micro half height");
 
             lv_obj_t* badge = harness.child("fav_macro_badge");
-            lv_obj_t* name = harness.child("fav_macro_name");
+            lv_obj_t* name = harness.child("fav_macro_name_prompt");
             REQUIRE(badge != nullptr);
             REQUIRE(name != nullptr);
             CHECK_FALSE(lv_obj_has_flag(badge, LV_OBJ_FLAG_HIDDEN));

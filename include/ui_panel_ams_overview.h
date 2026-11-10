@@ -8,7 +8,6 @@
 #include "ui_ams_edit_overlay.h"
 #include "ui_ams_sidebar.h"
 #include "ui_bypass_spool_widget.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_widget_ref.h"
 
@@ -16,6 +15,7 @@
 #include "ams_types.h"
 #include "ams_unit_pages.h"
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "display_numbering.h"
 
 #include <cstdint>
@@ -166,6 +166,7 @@ class AmsOverviewPanel : public PanelBase {
         lv_obj_t* error_badge = nullptr;      // Error badge dot (top-right)
         lv_obj_t* art_stage = nullptr;        // Art tile: the box the art fills
         lv_obj_t* art = nullptr;              // Art tile: the unit_art widget
+        int32_t compact_width = 0;            // Fixed width of a lane-bar tile; 0 shares the row
         bool has_art = false;                 // An art tile rather than a card
         int unit_index = -1;
         /// What the lane bars were built for; see lane_bars_stale().

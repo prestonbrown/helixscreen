@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "axis.h"
 #include "bed_plate_gesture.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "hold_repeat_timer.h"
 #include "motion_presets.h"

@@ -39,6 +39,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -159,71 +160,36 @@ TEST_CASE("AmsContextMenu::should_show_clear_spool ignores whether filament is p
 // outranks Eject, unattributed recovery defers to it.
 using UnloadMode = AmsContextMenuTestAccess::UnloadMode;
 
-TEST_CASE("AmsContextMenu::decide_unload_mode toolhead-loaded wins over everything",
+TEST_CASE("AmsContextMenu::decide_unload_mode picks one action per lane state",
           "[ams][context_menu]") {
-    // Even if the backend also claims recovery is possible and attributed, a
-    // slot that unloads via the heated toolhead path must take Unload.
-    auto mode = AmsContextMenuTestAccess::decide_unload_mode(
-        /*toolhead_unload=*/true, /*can_recover=*/true, /*recovery_attributed=*/true,
-        /*supports_eject=*/true, /*slot_has_filament=*/true, /*supports_force_eject=*/true,
-        /*slot_empty=*/false);
-    CHECK(mode == UnloadMode::Unload);
-}
-
-TEST_CASE("AmsContextMenu::decide_unload_mode attributed strand outranks Eject",
-          "[ams][context_menu]") {
-    // AFC named this exact lane as active (lane_recovery_is_attributed==true).
-    // Even though the lane also has filament present (would otherwise take
-    // Eject), the confident diagnosis wins.
-    auto mode = AmsContextMenuTestAccess::decide_unload_mode(
-        /*toolhead_unload=*/false, /*can_recover=*/true, /*recovery_attributed=*/true,
-        /*supports_eject=*/true, /*slot_has_filament=*/true, /*supports_force_eject=*/false,
-        /*slot_empty=*/false);
-    CHECK(mode == UnloadMode::RecoverPosition);
-}
-
-TEST_CASE(
-    "AmsContextMenu::decide_unload_mode unattributed strand does not take Eject from a seated lane",
-    "[ams][context_menu]") {
-    // This is the regression the ruling fixes: an unattributed hub-wide trigger
-    // (can_recover=true, recovery_attributed=false) must NOT preempt Eject on a
-    // lane that is simply seated (slot_has_filament=true).
-    auto mode = AmsContextMenuTestAccess::decide_unload_mode(
-        /*toolhead_unload=*/false, /*can_recover=*/true, /*recovery_attributed=*/false,
-        /*supports_eject=*/true, /*slot_has_filament=*/true, /*supports_force_eject=*/false,
-        /*slot_empty=*/false);
-    CHECK(mode == UnloadMode::Eject);
-}
-
-TEST_CASE("AmsContextMenu::decide_unload_mode unattributed lane with nothing ejectable still gets "
-          "Recover",
-          "[ams][context_menu]") {
-    // No filament present to eject (slot_has_filament=false), so Eject is not an
-    // option regardless of attribution — the unattributed Recover arm is the
-    // last resort that still offers a way out for a lane with no other option.
-    auto mode = AmsContextMenuTestAccess::decide_unload_mode(
-        /*toolhead_unload=*/false, /*can_recover=*/true, /*recovery_attributed=*/false,
-        /*supports_eject=*/true, /*slot_has_filament=*/false, /*supports_force_eject=*/false,
-        /*slot_empty=*/true);
-    CHECK(mode == UnloadMode::RecoverPosition);
-}
-
-TEST_CASE("AmsContextMenu::decide_unload_mode falls through to ForceEject and Unavailable",
-          "[ams][context_menu]") {
-    // No toolhead unload, no recovery possible at all, no eject support: an
-    // empty lane with force-eject support gets ForceEject...
-    auto force_eject = AmsContextMenuTestAccess::decide_unload_mode(
-        /*toolhead_unload=*/false, /*can_recover=*/false, /*recovery_attributed=*/false,
-        /*supports_eject=*/false, /*slot_has_filament=*/false, /*supports_force_eject=*/true,
-        /*slot_empty=*/true);
-    CHECK(force_eject == UnloadMode::ForceEject);
-
-    // ...and with nothing at all supported, there is genuinely nothing to do.
-    auto unavailable = AmsContextMenuTestAccess::decide_unload_mode(
-        /*toolhead_unload=*/false, /*can_recover=*/false, /*recovery_attributed=*/false,
-        /*supports_eject=*/false, /*slot_has_filament=*/false, /*supports_force_eject=*/false,
-        /*slot_empty=*/true);
-    CHECK(unavailable == UnloadMode::Unavailable);
+    struct Row {
+        const char* why;
+        bool toolhead_unload, can_recover, attributed, eject, has_filament, force_eject, empty;
+        UnloadMode want;
+    };
+    const Row rows[] = {
+        // A slot that unloads via the heated toolhead takes Unload whatever else is claimed.
+        {"toolhead-loaded wins", true, true, true, true, true, true, false, UnloadMode::Unload},
+        // The backend named this exact lane, so the confident diagnosis beats Eject.
+        {"attributed strand outranks Eject", false, true, true, true, true, false, false,
+         UnloadMode::RecoverPosition},
+        // An unattributed hub-wide trigger must not preempt Eject on a seated lane.
+        {"unattributed strand keeps Eject", false, true, false, true, true, false, false,
+         UnloadMode::Eject},
+        // Nothing to eject: the unattributed Recover is the last way out.
+        {"unattributed, nothing ejectable", false, true, false, true, false, false, true,
+         UnloadMode::RecoverPosition},
+        {"empty lane with force eject", false, false, false, false, false, true, true,
+         UnloadMode::ForceEject},
+        {"nothing supported", false, false, false, false, false, false, true,
+         UnloadMode::Unavailable},
+    };
+    for (const Row& r : rows) {
+        CAPTURE(r.why);
+        CHECK(AmsContextMenuTestAccess::decide_unload_mode(r.toolhead_unload, r.can_recover,
+                                                           r.attributed, r.eject, r.has_filament,
+                                                           r.force_eject, r.empty) == r.want);
+    }
 }
 
 // decide_can_load() must agree with AmsSubscriptionBackend::refuse_if_printing()
@@ -703,43 +669,28 @@ TEST_CASE("A no-feed tool changer's menu offers Mount and Park, never a filament
 // ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "AmsContextMenu: the slot header uses the backend's own word for a position",
-                 "[ui][ams][context_menu]") {
-    // AmsBackendMock reports Happy Hare, whose noun is Gate. A header reading
-    // "Slot 3" on this backend is the English word for something the firmware,
-    // the macros and every other surface call a gate.
-    auto backend = std::make_unique<AmsBackendMock>(4);
-    REQUIRE(backend->lane_noun() == LaneNoun::Gate);
-
+                 "AmsContextMenu: the slot header names the position as the hardware does",
+                 "[ui][ams][context_menu][cfs]") {
     // ams_context_menu.xml is registered lazily by AmsPanel/AmsOverviewPanel
     // rather than by helix::register_xml_components(), so the fixture's
     // "every component" registration does not cover it.
     REQUIRE(lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml") == LV_RESULT_OK);
-
-    AmsContextMenu menu;
-    REQUIRE(menu.show_near_widget(test_screen(), /*slot_index=*/2, test_screen(),
-                                  /*is_loaded=*/false, backend.get()));
-
-    lv_obj_t* header = lv_obj_find_by_name(test_screen(), "slot_header");
-    REQUIRE(header != nullptr);
-    CHECK(std::string(lv_label_get_text(header)) == "Gate 3");
-}
-
-TEST_CASE_METHOD(
-    LVGLUITestFixture,
-    "AmsContextMenu: the slot header uses the lane's own name when the backend has one",
-    "[ui][ams][context_menu][cfs]") {
+    // AmsBackendMock reports Happy Hare, whose noun is Gate: "Slot 3" would be the
+    // English word for what the firmware and every other surface call a gate.
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    REQUIRE(mock->lane_noun() == LaneNoun::Gate);
     // A CFS prints box number and bay letter on each bay: global slot 5 is 2B.
-    helix::printer::AmsBackendCfs backend(nullptr, nullptr);
-    REQUIRE(lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml") == LV_RESULT_OK);
-
-    AmsContextMenu menu;
-    REQUIRE(menu.show_near_widget(test_screen(), /*slot_index=*/5, test_screen(),
-                                  /*is_loaded=*/false, &backend));
-
-    lv_obj_t* header = lv_obj_find_by_name(test_screen(), "slot_header");
-    REQUIRE(header != nullptr);
-    CHECK(std::string(lv_label_get_text(header)) == "2B");
+    helix::printer::AmsBackendCfs cfs(nullptr, nullptr);
+    const std::tuple<AmsBackend*, int, const char*> cases[] = {{mock.get(), 2, "Gate 3"},
+                                                               {&cfs, 5, "2B"}};
+    for (const auto& [backend, slot, want] : cases) {
+        AmsContextMenu menu;
+        REQUIRE(menu.show_near_widget(test_screen(), slot, test_screen(), /*is_loaded=*/false,
+                                      backend));
+        lv_obj_t* header = lv_obj_find_by_name(test_screen(), "slot_header");
+        REQUIRE(header != nullptr);
+        CHECK(std::string(lv_label_get_text(header)) == want);
+    }
 }
 
 // ============================================================================

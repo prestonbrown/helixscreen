@@ -41,6 +41,7 @@
 #include "ui_swatch.h"
 #include "ui_switch.h"
 #include "ui_text.h"
+#include "ui_text_edit_menu.h"
 #include "ui_text_input.h"
 #include "ui_z_offset_indicator.h"
 
@@ -218,6 +219,8 @@ static void on_toggle_password_visibility(lv_event_t* e) {
         return;
 
     bool was_password = lv_textarea_get_password_mode(textarea);
+    // Revealed is still secret: the clipboard must not offer it.
+    helix::ui::mark_secret_field(textarea);
     lv_textarea_set_password_mode(textarea, !was_password);
 
     // Swap icon: eye_off when hidden (password mode), eye when visible
@@ -352,11 +355,14 @@ static bool scope_holds_cpp_state(const char* name, lv_xml_component_scope_t* sc
     return false;
 }
 
-void unregister_idle_xml_components() {
+/// Drop the loaded components a copy from their file can replace; with
+/// @p keep_live, also keep any a live widget is built from.
+static void unregister_loaded_xml_components(bool keep_live) {
     s_no_file.clear();
     for (auto it = s_loaded.begin(); it != s_loaded.end();) {
         lv_xml_component_scope_t* scope = lv_xml_component_find_scope(it->c_str());
-        if (scope && (scope->instance_cnt > 0 || scope_holds_cpp_state(it->c_str(), scope))) {
+        if (scope &&
+            ((keep_live && scope->instance_cnt > 0) || scope_holds_cpp_state(it->c_str(), scope))) {
             ++it;
             continue;
         }
@@ -364,6 +370,17 @@ void unregister_idle_xml_components() {
             lv_xml_component_unregister(it->c_str());
         it = s_loaded.erase(it);
     }
+}
+
+void unregister_idle_xml_components() {
+    unregister_loaded_xml_components(true);
+}
+
+void reregister_xml_components_for_rebuild() {
+    unregister_loaded_xml_components(false);
+    // Its styles resolve theme tokens at registration. The old registration lent
+    // them to live widgets, so it is held until they are gone.
+    register_xml("styles.xml");
 }
 
 void register_xml_on_first_use() {

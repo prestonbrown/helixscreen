@@ -28,7 +28,7 @@ echo -n "🎨 Checking declarative UI (imperative XML-widget mutation)..."
 # as deliberate pragmatism (the XML engine couldn't express it at the time), some
 # are plain mistakes — both are debt. The number may go DOWN (port a site, then
 # lower this baseline) but must never go up.
-if python3 scripts/check_imperative_ui.py --max-allowed 523 --summary >/tmp/imperative_ui.out 2>&1; then
+if python3 scripts/check_imperative_ui.py --max-allowed 353 --summary >/tmp/imperative_ui.out 2>&1; then
   section_time $SECTION_START
   echo ""
   tail -1 /tmp/imperative_ui.out
@@ -354,7 +354,7 @@ echo -n "🧷 Checking raw cached widget pointers..."
 # rise. A cached widget outlives its widget whenever something other than its
 # owner deletes the tree, and owner-keyed guards still read valid then. Hold
 # new ones as helix::ui::WidgetRef, or annotate `// WIDGET_PTR_OK: <why>`.
-if python3 scripts/check_cached_widget_pointers.py --max-allowed=393 \
+if python3 scripts/check_cached_widget_pointers.py --max-allowed=375 \
     >/tmp/cached_widget_ptrs.out 2>&1; then
   section_time $SECTION_START
   echo ""
@@ -369,40 +369,22 @@ fi
 echo ""
 
 SECTION_START=$(date +%s)
-echo -n "🖥️  Checking DRM dumb-buffer mmap offset width..."
+echo -n "🖥️  Checking large-file (64-bit off_t) sites..."
 
-# DRM allocates dumb-buffer mmap offsets from 4 GiB upward, so a 32-bit off_t
-# truncates them and the mapping fails. HelixScreen then falls back to fbdev and
-# the KMS path is silently dead on every 32-bit device (pi32).
-if python3 scripts/check_drm_mmap_lfs.py >/tmp/drm_mmap_lfs.out 2>&1; then
+# Each site's sizeof(off_t) assertion fires only on a 32-bit build, and
+# pi32/ad5m/cc1/k1 are in release.yml's matrix rather than build.yml's, so a
+# dropped fix stays green here. DRM: dumb-buffer mmap offsets start at 4 GiB, a
+# 32-bit off_t truncates them, and the KMS path falls back to fbdev silently.
+# gcode: a dropped mk/rules.mk override makes seeks past 2 GB land wrong.
+if python3 scripts/check_lfs_sites.py >/tmp/lfs_sites.out 2>&1; then
   section_time $SECTION_START
   echo ""
-  echo "✅ DRM mmap uses a 64-bit file offset"
+  grep '^✓' /tmp/lfs_sites.out | sed 's/^✓/✅/'
 else
   section_time $SECTION_START
   echo ""
-  cat /tmp/drm_mmap_lfs.out
-  echo "   Run: python3 scripts/check_drm_mmap_lfs.py"
-  EXIT_CODE=1
-fi
-
-echo ""
-
-SECTION_START=$(date +%s)
-echo -n "📄 Checking gcode reader large-file support..."
-
-# The static_assert in gcode_data_source.cpp only fires on a 32-bit build, and
-# pi32/ad5m/cc1/k1 are in release.yml's matrix rather than build.yml's - so a
-# dropped mk/rules.mk override stays green here and detonates at release.
-if python3 scripts/check_gcode_lfs.py >/tmp/gcode_lfs.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  echo "✅ gcode reader builds with a 64-bit off_t"
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/gcode_lfs.out
-  echo "   Run: python3 scripts/check_gcode_lfs.py"
+  cat /tmp/lfs_sites.out
+  echo "   Run: python3 scripts/check_lfs_sites.py"
   EXIT_CODE=1
 fi
 

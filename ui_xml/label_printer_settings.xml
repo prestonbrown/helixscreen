@@ -44,9 +44,15 @@
                   style_border_width="0" scrollable="false">
             <text_muted name="label_address" width="content" text="Address"/>
             <text_input name="input_address"
-                        width="40%" placeholder_text="192.168.1.50" one_line="true" scrollbar_mode="off"/>
+                        width="40%" placeholder_text="192.168.1.50" one_line="true" scrollbar_mode="off">
+              <event_cb trigger="focused" callback="on_lp_manual_entry_focused"/>
+              <event_cb trigger="defocused" callback="on_lp_address_done"/>
+            </text_input>
             <text_muted name="label_port" width="content" text="Port"/>
-            <text_input name="input_port" width="15%" placeholder_text="9100" one_line="true" scrollbar_mode="off"/>
+            <text_input name="input_port" width="15%" placeholder_text="9100" one_line="true" scrollbar_mode="off">
+              <event_cb trigger="focused" callback="on_lp_manual_entry_focused"/>
+              <event_cb trigger="defocused" callback="on_lp_port_done"/>
+            </text_input>
           </lv_obj>
         </setting_group>
       </lv_obj>

@@ -89,6 +89,9 @@ class AppearanceSettingsOverlay : public OverlayBase {
 
     /// Subject for theme Apply button disabled state (1=disabled, 0=enabled)
     lv_subject_t theme_apply_disabled_subject_{};
+    /// 1 once a theme has been picked in the open explorer: its dark mode row
+    /// then shows even while the active theme has a single mode.
+    lv_subject_t theme_explorer_picked_subject_{};
 };
 
 inline AppearanceSettingsOverlay& get_appearance_settings_overlay() {

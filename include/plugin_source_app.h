@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "ui_timer_guard.h"
-
+#include "core/timer_guard.h"
 #include "i_moonraker_api.h"
 #include "plugin_host.h"
 #include "plugin_source.h"

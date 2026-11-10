@@ -1,16 +1,16 @@
 {
   "id": "anthead",
-  "aspect": 0.5494,
+  "aspect": 0.5389,
   "tiers": {
     "full": {
-      "width": 88,
+      "width": 86,
       "height": 160,
       "back": "full.png",
       "tint": "full_tint.png",
       "shade": "full_shade.png"
     },
     "path": {
-      "width": 40,
+      "width": 39,
       "height": 72,
       "back": "path.png",
       "tint": "path_tint.png",

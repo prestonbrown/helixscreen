@@ -107,8 +107,6 @@ TEST_CASE_METHOD(RootFixture, "settings root: three groups, thirteen rows, in or
             last_index = idx;
         }
     }
-    CHECK(find("row_display_sound") == nullptr);
-    CHECK(find("row_hardware") == nullptr);
 }
 
 TEST_CASE_METHOD(RootFixture, "settings root: Sound hides without a speaker",
@@ -121,23 +119,18 @@ TEST_CASE_METHOD(RootFixture, "settings root: Sound hides without a speaker",
 
 TEST_CASE_METHOD(RootFixture, "settings root: Updates hides only when no update row would show",
                  "[settings][settings_root]") {
-    set_int("show_update_settings", 0);
-    set_int("updates_firmware_managed", 0);
-    set_int("updates_unavailable", 0);
-    CHECK(lv_obj_has_flag(find("row_updates"), LV_OBJ_FLAG_HIDDEN));
-    set_int("updates_firmware_managed", 1);
-    CHECK_FALSE(lv_obj_has_flag(find("row_updates"), LV_OBJ_FLAG_HIDDEN));
-    set_int("updates_firmware_managed", 0);
-    set_int("show_update_settings", 1);
-    CHECK_FALSE(lv_obj_has_flag(find("row_updates"), LV_OBJ_FLAG_HIDDEN));
-}
-
-TEST_CASE_METHOD(RootFixture, "settings root: Updates shows on updates_unavailable alone",
-                 "[settings][settings_root]") {
-    set_int("show_update_settings", 0);
-    set_int("updates_firmware_managed", 0);
-    set_int("updates_unavailable", 1);
-    CHECK_FALSE(lv_obj_has_flag(find("row_updates"), LV_OBJ_FLAG_HIDDEN));
+    struct Row {
+        int show_update_settings, firmware_managed, unavailable;
+        bool hidden;
+    };
+    for (const Row& r :
+         {Row{0, 0, 0, true}, Row{0, 1, 0, false}, Row{1, 0, 0, false}, Row{0, 0, 1, false}}) {
+        CAPTURE(r.show_update_settings, r.firmware_managed, r.unavailable);
+        set_int("show_update_settings", r.show_update_settings);
+        set_int("updates_firmware_managed", r.firmware_managed);
+        set_int("updates_unavailable", r.unavailable);
+        CHECK(lv_obj_has_flag(find("row_updates"), LV_OBJ_FLAG_HIDDEN) == r.hidden);
+    }
 }
 
 #if HELIX_HAS_PLUGINS

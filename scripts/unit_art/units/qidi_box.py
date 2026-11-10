@@ -81,4 +81,4 @@ UNIT.tray.front = [
     kit.center(-2, 2, 2.5, 5.5, 0x8d9096),
 ]
 
-UNIT.tray.built_in_selector = True
+UNIT.tray.lane_join = "junction"

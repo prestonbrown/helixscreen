@@ -49,6 +49,8 @@ export interface AdoptionData {
   printer_models: { name: string; count: number }[]
   kinematics: { name: string; count: number }[]
   boards: { name: string; count: number }[]
+  install_sources: { name: string; count: number }[]
+  host_mods: { name: string; count: number }[]
 }
 
 export interface PrintsData {

@@ -4,11 +4,14 @@
 #include "ui_format_utils.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/armed_timers.h"
+#include "../test_helpers/panel_widget_size_harness.h"
 #include "format_utils.h"
 #include "locale_formats.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
+#include "panel_widget_size.h"
 #include "src/ui/panel_widgets/clock_widget.h"
 #include "system_settings_manager.h"
 
@@ -41,25 +44,23 @@ class ClockWidgetFixture : public LVGLTestFixture {
     }
 };
 
-TEST_CASE_METHOD(ClockWidgetFixture, "ClockWidget: factory registration", "[clock_widget]") {
+TEST_CASE("ClockWidget: uptime shows only in a tall tile", "[clock_widget][1142]") {
+    // The size mode drives the uptime line through an XML binding.
+    LVGLUITestFixture fixture;
+    init_widget_registrations();
+    PanelWidgetManager::instance().init_widget_subjects();
     const auto* def = find_widget_def("clock");
-    REQUIRE(def != nullptr);
-    REQUIRE(def->factory != nullptr);
-
-    auto widget = def->factory("clock");
-    REQUIRE(widget != nullptr);
-    REQUIRE(std::string(widget->id()) == "clock");
-}
-
-TEST_CASE_METHOD(ClockWidgetFixture, "ClockWidget: attach_tile binds user_data", "[clock_widget]") {
-    ClockWidget widget;
-    lv_obj_t* container = create_mock_clock(test_screen());
-
-    widget.attach_tile(container, test_screen());
-    REQUIRE(lv_obj_get_user_data(container) == &widget);
-
-    widget.detach_tile();
-    REQUIRE(lv_obj_get_user_data(container) == nullptr);
+    REQUIRE((def != nullptr && def->factory != nullptr)); // a live ClockWidget, not bare XML
+    RegistryWidgetHarness harness(fixture.test_screen(), *def);
+    REQUIRE(harness.created());
+    lv_obj_t* uptime = harness.child("clock_uptime");
+    REQUIRE(uptime != nullptr);
+    harness.resize(2, 2, widget_size::w_wide(), widget_size::h_tall());
+    CHECK_FALSE(lv_obj_has_flag(uptime, LV_OBJ_FLAG_HIDDEN));
+    harness.resize(1, 1, widget_size::w_wide(), widget_size::h_tall() - 1);
+    CHECK(lv_obj_has_flag(uptime, LV_OBJ_FLAG_HIDDEN));
+    harness.resize(1, 2, widget_size::w_wide() - 1, widget_size::h_tall());
+    CHECK_FALSE(lv_obj_has_flag(uptime, LV_OBJ_FLAG_HIDDEN));
 }
 
 TEST_CASE_METHOD(ClockWidgetFixture, "ClockWidget: timer lifecycle", "[clock_widget]") {

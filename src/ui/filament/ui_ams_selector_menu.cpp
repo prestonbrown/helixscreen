@@ -12,11 +12,27 @@
 #include "ams_gate_selector.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "helix_psram_attr.h"
 #include "ui/ui_widget_helpers.h"
+#include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
 
 namespace helix::ui {
+
+namespace {
+// Bound only by the menu's XML and set per show; one menu is on screen at a time.
+helix::WidgetSubjects s_subjects{"AmsSelectorMenuSubjects",
+                                 StaticSubjectRegistry::Lifetime::Process};
+// 1 = the selector has a physical servo to position (LINEAR topology only).
+HELIX_PSRAM_BSS lv_subject_t s_has_servo_subject;
+
+void init_menu_subjects() {
+    s_subjects.ensure_init([] {
+        UI_MANAGED_SUBJECT_INT(s_has_servo_subject, 0, "ams_selector_has_servo", s_subjects);
+    });
+}
+} // namespace
 
 // Static member initialization
 bool AmsSelectorMenu::callbacks_registered_ = false;
@@ -26,6 +42,7 @@ bool AmsSelectorMenu::callbacks_registered_ = false;
 // ============================================================================
 
 AmsSelectorMenu::AmsSelectorMenu() {
+    init_menu_subjects();
     spdlog::debug("[AmsSelectorMenu] Constructed");
 }
 
@@ -83,15 +100,9 @@ bool AmsSelectorMenu::show_at(lv_obj_t* parent, lv_obj_t* anchor, lv_point_t cli
 // ============================================================================
 
 void AmsSelectorMenu::on_created(lv_obj_t* menu_obj) {
-    // Hide the servo row on hub-based (Type B) / virtual-selector topologies.
-    // Only LINEAR (selector) systems have a physical servo to position.
-    bool has_servo = backend_ && backend_->get_topology() == PathTopology::LINEAR;
-    if (!has_servo) {
-        lv_obj_t* servo_row = helix::ui::find_required(menu_obj, "servo_row", "AmsSelectorMenu");
-        if (servo_row) {
-            lv_obj_add_flag(servo_row, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    // Hub-based (Type B) and virtual-selector topologies have no servo row.
+    const bool has_servo = backend_ && backend_->get_topology() == PathTopology::LINEAR;
+    lv_subject_set_int(&s_has_servo_subject, has_servo ? 1 : 0);
 
     // Initialize the gear-sync switch.
     //

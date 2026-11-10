@@ -26,6 +26,8 @@ struct PrintControlButtonsTestAccess {
         // process (PrintStatusPanel::pending_action_observer_ above all).
         s.teardown_subjects();
         s.pending_action_ = PendingAction::None;
+        s.resume_answered_ = false;
+        s.resume_error_seen_ = false;
     }
 
     /// What the cancel modal's confirm button runs.

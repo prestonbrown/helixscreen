@@ -3,11 +3,11 @@
 #pragma once
 
 #include "ui_coalesced_timer.h"
-#include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
 #include "axis_move.h"
 #include "bed_plate_gesture.h"
+#include "core/observer_guard.h"
 #include "panel_widget.h"
 #include "src/ui/panel_widgets/toolhead_layout.h"
 #include "src/ui/panel_widgets/toolhead_plate.h"

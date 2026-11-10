@@ -21,6 +21,8 @@ class HeadDef:
     style: str
     draw_art: Callable
     tip: Tuple[float, float, float]
+    entry: Tuple[float, float, float] = (0.0, 0.0, 1.0)  # where the filament goes in
+    size: float = 1.0  # relative real-world size, the motor-bearing heads matched to one motor
 
 
 @dataclass
@@ -28,13 +30,17 @@ class HeadFrame:
     aspect: float
     tip_x: float
     tip_y: float
+    world_height: float
+    entry_x: float
+    entry_y: float
 
 
-def head_frame(scene, tip):
-    """The art's width over height, and where the nozzle tip falls in it as shares of each."""
+def head_frame(scene, tip, entry=None):
+    """The art's width over height, and where the nozzle tip and filament entry fall in it as shares of each."""
     vx, vy, vw, vh = scene._viewbox()
     x, y = scene.camera.project(tip)
-    return HeadFrame(vw / vh, (x - vx) / vw, (y - vy) / vh)
+    ex, ey = scene.camera.project(entry if entry is not None else tip)
+    return HeadFrame(vw / vh, (x - vx) / vw, (y - vy) / vh, vh, (ex - vx) / vw, (ey - vy) / vh)
 
 
 def mirror(right):
@@ -62,6 +68,9 @@ def _inset(outline, d):
     return out
 
 
+COLLET_HEIGHT = 0.035
+
+
 class Drawing:
     """One head's drawing calls; detail is False on the small tier."""
 
@@ -71,10 +80,16 @@ class Drawing:
         scene.margin = 0.004
 
     def facet(self, pts, color, lane=None, amb=0.62, dif=0.55, spec=0.18):
-        a, b, c = pts[0], pts[1], pts[2]
+        # Densely sampled outlines can open with collinear points, so take the first corner that spans a plane.
+        a, b = pts[0], pts[1]
         u = tuple(q - p for p, q in zip(a, b))
-        v = tuple(q - p for p, q in zip(a, c))
-        n = kit.norm((u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]))
+        cross = (0.0, 0.0, 0.0)
+        for c in pts[2:]:
+            v = tuple(q - p for p, q in zip(a, c))
+            cross = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+            if kit.dot(cross, cross) > 1e-14:
+                break
+        n = kit.norm(cross)
         if kit.dot(n, self.camera.view) < 0:
             n = tuple(-x for x in n)
         self.scene.poly(pts, kit.shade(self.camera, color, n, amb=amb, dif=dif, spec=spec), lane=lane)
@@ -123,9 +138,13 @@ class Drawing:
 
     def tube(self, cx, cy, z0, z1, r, color, sides=14):
         """An upright cylinder: its camera-facing strips, then its top."""
-        foot = circle(cx, cy, r, sides)[::-1]
+        foot = circle(cx, cy, r, sides)
         self.scene.prism(foot, z0, z1, color, amb=0.6, dif=0.55, spec=0.3)
         self.scene.poly([(x, y, z1) for x, y in foot], kit.shift(color, 26))
+
+    def collet(self, x, y, z, color="#26272b"):
+        """The fitting the filament tube enters, on a top surface at height z; the app draws the tube."""
+        self.tube(x, y, z, z + COLLET_HEIGHT, 0.042, color)
 
     def nozzle(self, x, y, z_top, r_top=0.05, r_tip=0.016, block=None, z_tip=NOZZLE_DROP):
         """The nozzle: a metal shoulder over a tip the runtime tints with the loaded filament."""
@@ -140,6 +159,72 @@ class Drawing:
             nrm = kit.norm((math.cos(mid), math.sin(mid), 0.25))
             if kit.dot(nrm, self.camera.view) > 0:
                 self.scene.poly(pts, kit.shade(self.camera, "#ffffff", nrm, amb=0.62, dif=0.45, spec=0.3), lane=0)
+
+
+def lofted_cover(d, lean, half_width, corner, z0, z1, depth, color, stations=48):
+    """A cover whose face leans back by lean(z) and whose width is half_width(z), its corners rounded by corner."""
+
+    def section(z):
+        y, w = lean(z), half_width(z)
+        pts = [(0.0, y)]
+        for i in range(7):
+            a = math.pi / 2 * i / 6
+            pts.append((w - corner + corner * math.sin(a), y + corner * (1 - math.cos(a))))
+        return pts
+
+    zs = [z0 + (z1 - z0) * i / stations for i in range(stations + 1)]
+    for za, zb in zip(zs, zs[1:]):
+        a, b = section(za), section(zb)
+        for side in (-1, 1):
+            for j in range(len(a) - 1):
+                turn = math.pi / 2 * (j - 0.5) / 6 if j else 0.0
+                if side * math.sin(turn) * d.camera.view[0] - math.cos(turn) * d.camera.view[1] <= 0:
+                    continue
+                d.facet([(side * a[j][0], a[j][1], za), (side * a[j + 1][0], a[j + 1][1], za), (side * b[j + 1][0], b[j + 1][1], zb), (side * b[j][0], b[j][1], zb)], color)
+        d.facet([(a[-1][0], a[-1][1], za), (a[-1][0], depth, za), (b[-1][0], depth, zb), (b[-1][0], b[-1][1], zb)], color)
+    top = section(z1)
+    w = top[-1][0]
+    right = [(x, y, z1) for x, y in top]
+    left = [(-x, y, z1) for x, y in reversed(top[1:])]
+    d.facet(right + [(w, depth, z1), (-w, depth, z1)] + left, color)
+
+
+LETTER_STROKES = {
+    "C": [[(1, 1), (0, 1), (0, 0), (1, 0)]],
+    "R": [[(0, 0), (0, 1), (1, 1), (1, 0.5), (0, 0.5)], [(0.4, 0.5), (1, 0)]],
+    "E": [[(1, 1), (0, 1), (0, 0), (1, 0)], [(0, 0.5), (0.8, 0.5)]],
+    "A": [[(0, 0), (0.5, 1), (1, 0)]],
+    "L": [[(0, 1), (0, 0), (1, 0)]],
+    "I": [[(0.5, 0), (0.5, 1)]],
+    "T": [[(0, 1), (1, 1)], [(0.5, 1), (0.5, 0)]],
+    "Y": [[(0, 1), (0.5, 0.5), (1, 1)], [(0.5, 0.5), (0.5, 0)]],
+    "Q": [[(1, 0.55), (1, 0.8), (0.8, 1), (0.2, 1), (0, 0.8), (0, 0.2), (0.2, 0), (0.5, 0)], [(0.45, 0.5), (1, 0)]],
+    "D": [[(0, 0), (0.75, 0), (1, 0.25), (1, 0.75), (0.75, 1), (0, 1), (0, 0)]],
+    "V": [[(0, 1), (0.5, 0), (1, 1)]],
+    "F": [[(0, 0), (0, 1), (1, 1)], [(0, 0.5), (0.8, 0.5)]],
+    "S": [[(1, 1), (0, 1), (0, 0.5), (1, 0.5), (1, 0), (0, 0)]],
+    "H": [[(0, 0), (0, 1)], [(1, 0), (1, 1)], [(0, 0.5), (1, 0.5)]],
+    "O": [[(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]],
+    "G": [[(1, 1), (0, 1), (0, 0), (1, 0), (1, 0.45), (0.5, 0.45)]],
+    "i": [[(0.5, 0), (0.5, 0.7)], [(0.5, 0.88), (0.5, 1)]],
+    "s": [[(1, 0.7), (0, 0.7), (0, 0.35), (1, 0.35), (1, 0), (0, 0)]],
+    "n": [[(0, 0), (0, 0.7), (1, 0.7), (1, 0)]],
+    "a": [[(0, 0.7), (1, 0.7), (1, 0), (0, 0), (0, 0.35), (1, 0.35)]],
+    "p": [[(0, -0.3), (0, 0.7), (1, 0.7), (1, 0), (0, 0)]],
+    "m": [[(0, 0), (0, 0.7), (1, 0.7), (1, 0)], [(0.5, 0.7), (0.5, 0)]],
+    "k": [[(0, 1), (0, 0)], [(1, 0.7), (0, 0.3), (1, 0)]],
+    "e": [[(1, 0), (0, 0), (0, 0.7), (1, 0.7), (1, 0.35), (0, 0.35)]],
+    "r": [[(0, 0), (0, 0.7), (1, 0.7)]],
+}
+
+
+def wordmark(d, text, cx, z, w, h, gap, color, stroke=0.006, y=-0.002):
+    """Text drawn in straight strokes on the plane at y, centred on cx with its baseline at z."""
+    x = cx - (len(text) * w + (len(text) - 1) * gap) / 2
+    for letter in text:
+        for line in LETTER_STROKES[letter]:
+            d.scene.line([(x + u * w, y, z + v * h) for u, v in line], color, stroke)
+        x += w + gap
 
 
 def circle(cx, cz, r, sides=32):

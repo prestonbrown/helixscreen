@@ -2,13 +2,8 @@
 
 /**
  * @file test_network_settings_hidden_connect.cpp
- * @brief The shared hidden-network modal must ask the backend for a hidden join.
- *
- * `nmcli device wifi connect <ssid>` matches the SSID against NetworkManager's
- * scan cache, and a hidden SSID is by definition absent from it — so the
- * modal's Connect button has to carry the is_hidden flag all the way to the
- * backend or the join can only ever fail with "No network with SSID found".
- * Network settings and the setup wizard both open this one modal.
+ * @brief The shared hidden-network modal must ask the backend for a hidden join:
+ *        a hidden SSID is absent from the scan cache `nmcli device wifi connect` matches.
  */
 
 #include "ui_hidden_network_modal.h"
@@ -50,9 +45,10 @@ class HiddenConnectFixture : public LVGLUITestFixture {
         wm_ = std::make_shared<helix::WiFiManager>(std::move(backend), /*silent=*/true);
         wm_->init_self_reference(wm_);
     }
-    // A join's report lands through the UpdateQueue and writes events_, so it runs
-    // while the fixture's members are alive.
+    // ModalStack::clear() skips the shared modal's on_hide(): left open, it keeps the
+    // manager alive and the join in flight reports into the destroyed events_.
     ~HiddenConnectFixture() override {
+        Modal::hide(Modal::get_top());
         helix::WiFiManagerTestAccess::settle(*wm_);
         helix::ui::UpdateQueue::instance().drain();
     }
@@ -137,6 +133,9 @@ TEST_CASE_METHOD(HiddenConnectFixture,
     CHECK_FALSE(lv_obj_has_flag(spinner, LV_OBJ_FLAG_HIDDEN));
     CHECK(lv_obj_has_flag(connect_btn, LV_OBJ_FLAG_HIDDEN));
     CHECK_FALSE(lv_obj_has_flag(named(modal, "cancel_btn"), LV_OBJ_FLAG_HIDDEN));
+
+    Modal::hide(Modal::get_top());
+    CHECK(wm_.use_count() == 1); // teardown relies on this to end the join
 }
 
 TEST_CASE_METHOD(HiddenConnectFixture, "Add Hidden Network in network settings opens the modal",

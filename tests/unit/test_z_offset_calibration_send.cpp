@@ -34,6 +34,7 @@
 #include "tool_state.h"
 
 #include <algorithm>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -44,6 +45,23 @@
 using helix::PrinterState;
 using helix::ZOffsetCalibrationStrategy;
 using nlohmann::json;
+
+// One name each for the private sends the cases drive.
+static void begin_calibration_of(ZOffsetCalibrationPanel& panel) {
+    ZOffsetCalibrationTestAccess::begin_calibration(panel);
+}
+
+static void send_accept_of(ZOffsetCalibrationPanel& panel) {
+    ZOffsetCalibrationTestAccess::send_accept(panel);
+}
+
+static void begin_probe_sequence_of(ZOffsetCalibrationPanel& panel) {
+    ZOffsetCalibrationTestAccess::begin_probe_sequence(panel);
+}
+
+static void adjust_z_of(ZOffsetCalibrationPanel& panel, float delta) {
+    ZOffsetCalibrationTestAccess::adjust_z(panel, delta);
+}
 
 namespace {
 
@@ -71,6 +89,7 @@ class CalibrationSendFixture : public LVGLUITestFixture {
         helix::PrinterStateTestAccess::reset(state());
         state().init_subjects(false);
         state().set_klippy_state_sync(helix::KlippyState::READY);
+        set_link(true);
         // The discovery snapshot persists on the process-wide state across test
         // cases; start each one plain so only set_zmod() cases see the provider.
         state().set_hardware(helix::PrinterDiscovery{});
@@ -104,6 +123,19 @@ class CalibrationSendFixture : public LVGLUITestFixture {
         helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
+    void set_link(bool up) {
+        lv_subject_set_int(state().network_state().get_printer_connection_state_subject(),
+                           static_cast<int>(up ? helix::ConnectionState::CONNECTED
+                                               : helix::ConnectionState::DISCONNECTED));
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
+
+    void set_bed_target(double target) {
+        state().update_from_status(
+            json{{"heater_bed", json{{"temperature", 24.0}, {"target", target}}}});
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
+
     /// Accept the calibrated -0.150 and return what went on the wire.
     std::string accept_sends() {
         MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
@@ -111,7 +143,7 @@ class CalibrationSendFixture : public LVGLUITestFixture {
         ZOffsetCalibrationPanel panel;
         panel.set_api(&api);
         ZOffsetCalibrationTestAccess::set_cumulative_delta(panel, -0.15f);
-        ZOffsetCalibrationTestAccess::send_accept(panel);
+        send_accept_of(panel);
         helix::ui::UpdateQueue::instance().drain_until_empty();
         return client.last_send_script();
     }
@@ -172,7 +204,7 @@ std::vector<std::string> probe_accept_scripts(
     MoonrakerAPI api(client, get_printer_state());
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
-    ZOffsetCalibrationTestAccess::send_accept(panel);
+    send_accept_of(panel);
     for (int i = 0; i < 20; ++i) {
         helix::ui::UpdateQueue::instance().drain_until_empty();
     }
@@ -426,7 +458,7 @@ StartOutcome start_calibration(ZOffsetCalibrationStrategy strategy, helix::Print
     api.hardware() = std::move(hw);
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
-    ZOffsetCalibrationTestAccess::begin_probe_sequence(panel);
+    begin_probe_sequence_of(panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     return {client.gcode_script_history(), panel.get_state()};
 }
@@ -538,19 +570,19 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     MoonrakerAPI api(client, ps);
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
-    ZOffsetCalibrationTestAccess::begin_probe_sequence(panel);
+    begin_probe_sequence_of(panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(client.last_send_script().find("PROBE_EDDY_CURRENT_CALIBRATE") != std::string::npos);
 
     helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
     REQUIRE(helix::sensors::ProbeSensorManager::instance().get_sensors().empty());
 
-    ZOffsetCalibrationTestAccess::adjust_z(panel, -0.05f);
+    adjust_z_of(panel, -0.05f);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(client.last_send_script() == "TESTZ Z=-0.050");
 
     SECTION("accept") {
-        ZOffsetCalibrationTestAccess::send_accept(panel);
+        send_accept_of(panel);
         helix::ui::UpdateQueue::instance().drain_until_empty();
         const auto sent = client.gcode_script_history();
         CHECK(std::find(sent.begin(), sent.end(), "ACCEPT") != sent.end());
@@ -578,12 +610,12 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     MoonrakerAPI api(client, ps);
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
-    ZOffsetCalibrationTestAccess::begin_probe_sequence(panel);
+    begin_probe_sequence_of(panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     panel.on_calibration_result(false, "probe failed");
 
     helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
-    ZOffsetCalibrationTestAccess::adjust_z(panel, 0.05f);
+    adjust_z_of(panel, 0.05f);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     const auto sent = client.gcode_script_history();
     CHECK(std::any_of(sent.begin(), sent.end(), [](const std::string& s) {
@@ -805,7 +837,7 @@ TEST_CASE_METHOD(ToolGateFixture,
     REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::ADJUSTING);
 
     helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
-    ZOffsetCalibrationTestAccess::adjust_z(panel, -0.05f);
+    adjust_z_of(panel, -0.05f);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(client.last_send_script() == "TESTZ Z=-0.050");
 }
@@ -833,4 +865,134 @@ TEST_CASE_METHOD(
     // with a jog total that would put -0.150 on a head running at +3.4.
     const std::string sent = accept_sends();
     CHECK(sent.find("SET_GCODE_OFFSET") == std::string::npos);
+}
+
+namespace {
+
+bool sent_off(MoonrakerClientMock& client) {
+    const auto& history = client.gcode_script_history();
+    return std::find(history.begin(), history.end(), "M140 S0") != history.end();
+}
+
+} // namespace
+
+TEST_CASE_METHOD(CalibrationSendFixture, "Calibration warm-up holds SIGTERM for the bed it warmed",
+                 "[zoffset][heater_hold]") {
+    set_bed_target(0.0);
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    auto panel = std::make_unique<ZOffsetCalibrationPanel>();
+    panel->set_api(&api);
+    panel->init_subjects();
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 1);
+    begin_calibration_of(*panel);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(panel->get_state() == ZOffsetCalibrationPanel::State::WARMING);
+    REQUIRE(panel->holds_owned_heat());
+    CHECK(helix::HeaterHold::any_held_signal_safe());
+    set_bed_target(45.0);
+
+    SECTION("shutdown clears the bed and sends nothing that moves") {
+        client.clear_gcode_script_history();
+        panel->before_disconnect();
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(client.gcode_script_history() == std::vector<std::string>{"M140 S0"});
+        CHECK(panel->get_state() == ZOffsetCalibrationPanel::State::IDLE);
+        CHECK_FALSE(panel->holds_owned_heat());
+        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    }
+
+    SECTION("shutdown leaves a target someone has set since") {
+        set_bed_target(90.0);
+        client.clear_gcode_script_history();
+        panel->before_disconnect();
+        CHECK_FALSE(sent_off(client));
+        CHECK_FALSE(panel->holds_owned_heat());
+    }
+
+    SECTION("a second run started while the first owes its off holds the bed") {
+        set_link(false);
+        panel->on_calibration_result(false, "connection lost");
+        set_link(true);
+        begin_calibration_of(*panel);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        REQUIRE(panel->get_state() == ZOffsetCalibrationPanel::State::WARMING);
+        CHECK(panel->holds_owned_heat());
+        client.clear_gcode_script_history();
+        panel->before_disconnect();
+        CHECK(sent_off(client));
+    }
+
+    SECTION("shutdown leaves the bed to a job that has started") {
+        set_printing(true);
+        client.clear_gcode_script_history();
+        panel->before_disconnect();
+        CHECK_FALSE(sent_off(client));
+        CHECK_FALSE(panel->holds_owned_heat());
+    }
+
+    SECTION("moving on to probing keeps the bed") {
+        state().update_from_status(
+            json{{"toolhead",
+                  {{"homed_axes", "xyz"},
+                   {"axis_minimum", json::array({0.0, 0.0, 0.0, 0.0})},
+                   {"axis_maximum", json::array({350.0, 350.0, 340.0, 0.0})}}}});
+        client.clear_gcode_script_history();
+        begin_probe_sequence_of(*panel);
+        // The mock answers at once, so the run may already be adjusting.
+        const auto running = panel->get_state();
+        REQUIRE((running == ZOffsetCalibrationPanel::State::PROBING ||
+                 running == ZOffsetCalibrationPanel::State::ADJUSTING));
+        CHECK_FALSE(sent_off(client));
+        CHECK(panel->holds_owned_heat());
+
+        SECTION("and a re-activation mid-run keeps the run and the bed") {
+            client.clear_gcode_script_history();
+            panel->on_activate();
+            CHECK(panel->get_state() == running);
+            CHECK_FALSE(sent_off(client));
+            CHECK(panel->holds_owned_heat());
+        }
+    }
+
+    SECTION("a failed run clears the bed while the panel stays open") {
+        client.clear_gcode_script_history();
+        panel->on_calibration_result(false, "failed");
+        CHECK(sent_off(client));
+        CHECK_FALSE(panel->holds_owned_heat());
+    }
+
+    SECTION("a finished run clears the bed") {
+        client.clear_gcode_script_history();
+        panel->on_calibration_result(true, "");
+        CHECK(sent_off(client));
+        CHECK_FALSE(panel->holds_owned_heat());
+    }
+
+    SECTION("destroying the panel releases") {
+        panel.reset();
+        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    }
+
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 0);
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration warm-up on a bed already heating holds nothing",
+                 "[zoffset][heater_hold]") {
+    set_bed_target(60.0);
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+    panel.init_subjects();
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 1);
+    begin_calibration_of(panel);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    CHECK_FALSE(panel.holds_owned_heat());
+    client.clear_gcode_script_history();
+    panel.before_disconnect();
+    CHECK_FALSE(sent_off(client));
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 0);
 }

@@ -237,16 +237,6 @@ void ClockWidget::on_size_changed(int colspan, int rowspan, int width_px, int he
         lv_obj_set_style_text_font(date_label, date_font, 0);
     }
 
-    // Uptime: visible only in expanded (2) and large (3) modes
-    auto* uptime_label = lv_obj_find_by_name(widget_obj_, "clock_uptime");
-    if (uptime_label) {
-        if (mode >= 2) {
-            lv_obj_remove_flag(uptime_label, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(uptime_label, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
     spdlog::trace("[ClockWidget] Size changed: {}x{} -> mode {}", colspan, rowspan, mode);
 }
 

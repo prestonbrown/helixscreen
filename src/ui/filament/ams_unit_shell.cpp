@@ -29,6 +29,8 @@ constexpr ShellRow kShellRows[] = {
     {"afc", "htlf ", "htlf", nullptr, 0},
     // Ahead of the Box Turtle row: AFC names read "<type> <instance>", and an instance may
     // be called anything.
+    {"afc", "openams", "ams_ht", nullptr, 1},
+    {"afc", "openams", "ams_2_pro", nullptr, 0},
     {"afc", "vivid", "btt_vivid", nullptr, 0},
     {"afc", "night_owl", "night_owl", nullptr, 0},
     {"afc", "bmcu", "bmcu", nullptr, 0},

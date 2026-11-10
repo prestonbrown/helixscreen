@@ -114,6 +114,11 @@ void MachineLimitsOverlay::init_subjects() {
     std::snprintf(extrude_speed_buf_, sizeof(extrude_speed_buf_), "%d mm/s", extrude_speed);
     UI_MANAGED_SUBJECT_STRING(extrude_speed_display_subject_, extrude_speed_buf_,
                               extrude_speed_buf_, "extrude_speed_display", subjects_);
+
+    UI_MANAGED_SUBJECT_STRING(max_z_velocity_display_subject_, z_velocity_buf_, "--",
+                              "max_z_velocity_display", subjects_);
+    UI_MANAGED_SUBJECT_STRING(max_z_accel_display_subject_, z_accel_buf_, "--",
+                              "max_z_accel_display", subjects_);
 }
 
 void MachineLimitsOverlay::register_callbacks() {
@@ -230,33 +235,12 @@ void MachineLimitsOverlay::query_and_show(lv_obj_t* /*parent_screen*/) {
                     update_display();
                     update_sliders();
 
-                    // Update read-only Z values
-                    if (overlay_root_) {
-                        lv_obj_t* z_vel_row = helix::ui::find_required(
-                            overlay_root_, "row_max_z_velocity", get_name());
-                        if (z_vel_row) {
-                            lv_obj_t* value =
-                                helix::ui::find_required(z_vel_row, "value", get_name());
-                            if (value) {
-                                char buf[32];
-                                helix::format::format_speed_mm_s(limits.max_z_velocity, buf,
-                                                                 sizeof(buf));
-                                lv_label_set_text(value, buf);
-                            }
-                        }
-                        lv_obj_t* z_accel_row =
-                            helix::ui::find_required(overlay_root_, "row_max_z_accel", get_name());
-                        if (z_accel_row) {
-                            lv_obj_t* value =
-                                helix::ui::find_required(z_accel_row, "value", get_name());
-                            if (value) {
-                                char buf[32];
-                                helix::format::format_accel_mm_s2(limits.max_z_accel, buf,
-                                                                  sizeof(buf));
-                                lv_label_set_text(value, buf);
-                            }
-                        }
-                    }
+                    // Read-only Z values: their rows bind these subjects
+                    char buf[32];
+                    helix::format::format_speed_mm_s(limits.max_z_velocity, buf, sizeof(buf));
+                    lv_subject_copy_string(&max_z_velocity_display_subject_, buf);
+                    helix::format::format_accel_mm_s2(limits.max_z_accel, buf, sizeof(buf));
+                    lv_subject_copy_string(&max_z_accel_display_subject_, buf);
                 }),
             lifetime_.bg_cb(
                 "MachineLimitsOverlay::query_and_show_error", [this](const MoonrakerError& err) {

@@ -147,9 +147,16 @@ const ToolheadArt* toolhead_art_for(ToolheadStyle style) {
 
 ToolheadArtRect toolhead_art_rect(const ToolheadArt& art, int32_t cx, int32_t nozzle_y,
                                   int32_t scale) {
-    const int32_t h = scale * kHeightPerScale;
+    const int32_t h = std::max<int32_t>(1, std::lround(scale * kHeightPerScale * art.height));
     const int32_t w = std::max<int32_t>(1, std::lround(h * art.aspect));
     return {cx - static_cast<int32_t>(std::lround(w * art.tip_x)), nozzle_y - h / 2, w, h};
+}
+
+ToolheadArtPoint toolhead_art_entry(const ToolheadArt& art, int32_t cx, int32_t nozzle_y,
+                                    int32_t scale) {
+    const ToolheadArtRect r = toolhead_art_rect(art, cx, nozzle_y, scale);
+    return {r.x + static_cast<int32_t>(std::lround(r.w * art.entry_x)),
+            r.y + static_cast<int32_t>(std::lround(r.h * art.entry_y))};
 }
 
 void toolhead_art_compose(uint8_t* body, const uint8_t* mask, const uint8_t* shade, int32_t w,

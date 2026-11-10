@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h" // SubjectLifetime
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h" // SubjectLifetime
 #include "gcode_pause_scan.h"
 #include "height_layer_dwell.h"
 #include "layer_line_z.h"

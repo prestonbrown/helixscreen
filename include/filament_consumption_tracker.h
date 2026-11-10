@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "consumption_sink.h"
+#include "core/observer_guard.h"
 
 namespace helix {
 enum class PrintJobState;

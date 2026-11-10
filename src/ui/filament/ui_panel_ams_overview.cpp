@@ -250,6 +250,7 @@ void AmsOverviewPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     if (page_dots_) {
         lv_obj_add_event_cb(page_dots_, &AmsOverviewPanel::on_page_dots_resized,
                             LV_EVENT_SIZE_CHANGED, this);
+        // DECLARATIVE_OK: re-measures the dots when one is added or removed (layout response)
         lv_obj_add_event_cb(page_dots_, &AmsOverviewPanel::on_page_dots_resized,
                             LV_EVENT_CHILD_CHANGED, this);
     }
@@ -605,6 +606,7 @@ void AmsOverviewPanel::show_unit_view(int unit_index) {
 
         // Start small and transparent
         lv_obj_set_style_transform_scale(detail_container_, kDetailZoomScaleMin, LV_PART_MAIN);
+        // DECLARATIVE_OK: the zoom animation's start frame
         lv_obj_set_style_opa(detail_container_, LV_OPA_TRANSP, LV_PART_MAIN);
 
         // Scale animation
@@ -633,6 +635,7 @@ void AmsOverviewPanel::show_unit_view(int unit_index) {
     } else {
         // No animation — ensure final state
         lv_obj_set_style_transform_scale(detail_container_, kDetailZoomScaleMax, LV_PART_MAIN);
+        // DECLARATIVE_OK: the zoom animation's end frame, applied without the animation
         lv_obj_set_style_opa(detail_container_, LV_OPA_COVER, LV_PART_MAIN);
     }
 }
@@ -704,6 +707,7 @@ void AmsOverviewPanel::reset_to_overview() {
     unit_view_active_ = false;
     if (detail_container_) {
         lv_obj_set_style_transform_scale(detail_container_, kDetailZoomScaleMax, LV_PART_MAIN);
+        // DECLARATIVE_OK: undoes the zoom-out animation's last frame
         lv_obj_set_style_opa(detail_container_, LV_OPA_COVER, LV_PART_MAIN);
     }
     if (context_menu_ && context_menu_->is_visible()) {

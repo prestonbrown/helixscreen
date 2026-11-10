@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "invalid_sample_tracker.h"
 #include "moonraker_types.h"
 #include "printer_state.h"

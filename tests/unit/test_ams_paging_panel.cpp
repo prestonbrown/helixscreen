@@ -1299,7 +1299,7 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with art is the art, not 
     for (lv_obj_t* card : tiles) {
         CHECK(lv_obj_get_style_bg_opa(card, LV_PART_MAIN) == LV_OPA_TRANSP);
         CHECK(lv_obj_get_style_border_width(card, LV_PART_MAIN) == 0);
-        CHECK(lv_obj_find_by_name(card, "bars_container") == nullptr);
+        CHECK(lv_obj_get_child_count(lv_obj_find_by_name(card, "bars_container")) == 0);
         CHECK(lv_obj_find_by_name(card, "slot_count") == nullptr);
         lv_obj_t* art = lv_obj_find_by_name(card, "unit_art");
         REQUIRE(art != nullptr);
@@ -1315,7 +1315,7 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with art is the art, not 
     CHECK(in_unit_view());
 }
 
-TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with no art keeps its card",
+TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with no art is a tile of bars",
                  "[ams][overview-tiles]") {
     install([](PagedFleet& f) {
         art_fleet(f, 2);
@@ -1327,14 +1327,14 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with no art keeps its car
     const auto units = card_units();
     REQUIRE(tiles.size() == 2);
     lv_obj_t* plain = units[0] == 1 ? tiles[0] : tiles[1];
-    CHECK(lv_obj_find_by_name(plain, "unit_art") == nullptr);
-    CHECK(lv_obj_get_style_bg_opa(plain, LV_PART_MAIN) == LV_OPA_COVER);
-    CHECK(lv_obj_get_style_border_width(plain, LV_PART_MAIN) == 1);
+    CHECK(lv_obj_find_by_name(plain, "tile_stage") != nullptr);
+    CHECK(lv_obj_get_style_bg_opa(plain, LV_PART_MAIN) == LV_OPA_TRANSP);
+    CHECK(lv_obj_get_style_border_width(plain, LV_PART_MAIN) == 0);
     lv_obj_t* bars = lv_obj_find_by_name(plain, "bars_container");
     REQUIRE(bars != nullptr);
     CHECK(lv_obj_get_child_count(bars) == kNoArtLanes);
-    CHECK(lv_obj_find_by_name(plain, "unit_logo") != nullptr);
-    CHECK(lv_obj_find_by_name(plain, "slot_count") != nullptr);
+    CHECK(lv_obj_find_by_name(plain, "unit_logo") == nullptr);
+    CHECK(lv_obj_find_by_name(plain, "slot_count") == nullptr);
 }
 
 TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit that gains art becomes a tile",
@@ -1351,7 +1351,7 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit that gains art becomes a 
     settle();
     process_lvgl(50);
 
-    CHECK(lv_obj_find_by_name(root(), "bars_container") == nullptr);
+    CHECK(lv_obj_get_child_count(lv_obj_find_by_name(root(), "bars_container")) == 0);
 }
 
 TEST_CASE_METHOD(PagingFixture, "Overview tile: the readout goes on the smallest breakpoints",

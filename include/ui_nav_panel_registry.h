@@ -30,8 +30,16 @@ class PanelRegistry {
     [[nodiscard]] lv_obj_t* widget(int idx) const;
 
     /// Put @p widget in slot @p idx and return the widget it displaced, or nullptr.
-    /// The displaced widget is not freed.
+    /// The displaced widget is not freed. The slot is no longer stale.
     lv_obj_t* replace_widget(int idx, lv_obj_t* widget);
+
+    /// Mark every built panel but @p keep stale: built for a layout that no
+    /// longer holds, and due a rebuild before it is next shown.
+    void mark_stale_except(int keep);
+
+    [[nodiscard]] bool is_stale(int idx) const;
+
+    void clear_stale(int idx);
 
     /// The slot holding @p obj, or -1.
     [[nodiscard]] int index_of(const lv_obj_t* obj) const;
@@ -73,6 +81,7 @@ class PanelRegistry {
   private:
     WidgetRef widgets_[kCount];
     std::array<PanelBase*, kCount> instances_ = {};
+    std::array<bool, kCount> stale_ = {};
     std::function<void(int)> deferred_builder_;
     bool building_ = false;
 };

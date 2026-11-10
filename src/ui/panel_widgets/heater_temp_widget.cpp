@@ -23,7 +23,6 @@ namespace helix {
 const HeaterTempWidget::Config& nozzle_temp_config() {
     static const HeaterTempWidget::Config cfg{
         "temperature",
-        "temp_btn",
         "nozzle_icon_glyph",
         "[NozzleTempWidget]",
         TempGraphOverlay::Mode::Nozzle,
@@ -36,7 +35,6 @@ const HeaterTempWidget::Config& nozzle_temp_config() {
 const HeaterTempWidget::Config& bed_temp_config() {
     static const HeaterTempWidget::Config cfg{
         "bed_temperature",
-        "bed_temp_btn",
         "bed_icon_glyph",
         "[BedTempWidget]",
         TempGraphOverlay::Mode::Bed,
@@ -49,7 +47,6 @@ const HeaterTempWidget::Config& bed_temp_config() {
 const HeaterTempWidget::Config& chamber_temp_config() {
     static const HeaterTempWidget::Config cfg{
         "chamber_temperature",
-        "chamber_temp_btn",
         "chamber_icon_glyph",
         "[ChamberTempWidget]",
         TempGraphOverlay::Mode::Chamber,
@@ -111,11 +108,6 @@ void HeaterTempWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
 
-    temp_btn_ = lv_obj_find_by_name(widget_obj_, cfg_.button_name);
-    if (temp_btn_) {
-        lv_obj_add_event_cb(temp_btn_, clicked_cb, LV_EVENT_CLICKED, this);
-    }
-
     // Bind the heating icon animator. The binder owns its own temperature
     // observers, so this widget keeps none of its own just to feed an icon tint.
     icon_binder_.bind(widget_obj_, printer_state_, cfg_.heater);
@@ -127,7 +119,6 @@ void HeaterTempWidget::detach() {
     lifetime_.invalidate();
     icon_binder_.unbind();
 
-    temp_btn_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 
@@ -141,7 +132,7 @@ void HeaterTempWidget::handle_temp_clicked() {
 
 void HeaterTempWidget::clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[HeaterTempWidget] clicked_cb");
-    auto* self = static_cast<HeaterTempWidget*>(lv_event_get_user_data(e));
+    auto* self = panel_widget_from_event<HeaterTempWidget>(e);
     if (self) {
         self->record_interaction();
         self->handle_temp_clicked();

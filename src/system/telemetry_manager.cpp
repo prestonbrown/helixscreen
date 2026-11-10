@@ -24,6 +24,7 @@
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "install_provenance.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "load_cell_manager.h"
@@ -1498,6 +1499,9 @@ nlohmann::json TelemetryManager::build_session_event() const {
         return "none";
     }();
     app["zip_tool"] = zip_tool;
+
+    app["install_source"] = helix::install_provenance::read_install_source(config_dir_);
+    app["host_mod"] = helix::install_provenance::detect_host_mod();
 
     event["app"] = app;
 

@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "subject_managed_panel.h" // SubjectManager
 
 #include <lvgl/lvgl.h>

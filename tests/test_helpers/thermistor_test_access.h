@@ -7,10 +7,9 @@
 
 namespace helix {
 
-// Friend access to ThermistorWidget's cached label pointers (single mode)
-// and carousel page labels. The teardown-uaf contract is exactly WHICH raw
-// pointers survive WHICH deletion path (detach vs a raw lv_obj_delete of the
-// page tree), and that is only observable on the privates. Read-only.
+// Friend access to ThermistorWidget's carousel page labels. The teardown-uaf contract is exactly
+// WHICH raw pointers survive WHICH deletion path (detach vs a raw lv_obj_delete of the page tree),
+// and that is only observable on the privates. Read-only.
 //
 // The header forward-declares this class inside namespace helix, so the
 // definition must live in the same namespace — and in ONE place, or two test
@@ -18,10 +17,6 @@ namespace helix {
 // Follows the tests/test_helpers/ TestAccess pattern ([L088]).
 class ThermistorTestAccess {
   public:
-    static lv_obj_t* name_label(const ThermistorWidget& widget) {
-        return widget.name_label_;
-    }
-
     static size_t carousel_page_count(const ThermistorWidget& widget) {
         return widget.carousel_page_count_;
     }

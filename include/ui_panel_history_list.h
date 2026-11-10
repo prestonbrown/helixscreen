@@ -5,10 +5,10 @@
 
 #include "ui_history_list_view.h"
 #include "ui_history_photos.h"
-#include "ui_observer_guard.h"
 #include "ui_search_debounce.h"
 #include "ui_widget_ref.h"
 
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "in_flight_guard.h"
 #include "overlay_base.h"
@@ -167,6 +167,16 @@ class HistoryListPanel : public OverlayBase {
     void on_deactivating(DeactivateReason reason) override;
     void on_ui_destroyed() override;
 
+  protected:
+    /**
+     * @brief Start a fresh session: default filters, top of the list
+     *
+     * Runs on every show() from the dashboard, and never on Back from the
+     * detail overlay, which returns to the list as the user left it.
+     */
+    void before_show() override;
+
+  public:
     //
     // === Public API ===
     //
@@ -322,6 +332,7 @@ class HistoryListPanel : public OverlayBase {
     lv_subject_t detail_has_timelapse_{}; ///< 1 if timelapse available, 0 otherwise
     lv_subject_t detail_spools_{};        ///< The job's per-spool lines, newline-joined
     lv_subject_t detail_has_spools_{};    ///< 1 once the plugin reported the job's spools
+    lv_subject_t detail_thumb_loaded_{};  ///< 1 once the job's thumbnail is on the image
     /// Bumped per detail open, so a spool record still in flight for an
     /// earlier job is dropped.
     uint32_t detail_spools_request_ = 0;
@@ -345,7 +356,7 @@ class HistoryListPanel : public OverlayBase {
     char detail_nozzle_temp_buf_[kSmallBufSize] = {};
     char detail_bed_temp_buf_[kSmallBufSize] = {};
     char detail_filament_buf_[kSmallBufSize] = {};
-    char detail_filament_type_buf_[kSmallBufSize] = {};
+    char detail_filament_type_buf_[kDetailBufSize] = {};
     char detail_spools_buf_[512] = {};
 
     //
@@ -367,6 +378,9 @@ class HistoryListPanel : public OverlayBase {
      * @brief Clear all row widgets from the list
      */
     void clear_list();
+
+    /// Default filters and sort, first page, no rows: the state a fresh open starts from.
+    void reset_view_state();
 
     /**
      * @brief Update the empty state visibility and message

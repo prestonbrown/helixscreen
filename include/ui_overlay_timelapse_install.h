@@ -4,9 +4,14 @@
 #pragma once
 
 #include "overlay_base.h"
+#include "subject_managed_panel.h"
+#include "timelapse_local_installer.h"
 
+#include <atomic>
 #include <functional>
 #include <string>
+#include <thread>
+#include <utility>
 #include <vector>
 
 struct WebcamInfo;
@@ -23,7 +28,8 @@ class IMoonrakerAPI;
  * Guides users through timelapse plugin installation with step progress:
  * 1. Check webcam availability
  * 2. Check if plugin is already installed
- * 3. Show SSH install instructions (if plugin not found)
+ * 3. Install the plugin: by itself when Moonraker runs on this host,
+ *    through SSH instructions otherwise
  * 4. Configure moonraker.conf with [timelapse] section
  * 5. Restart Moonraker service
  * 6. Verify plugin is loaded
@@ -31,6 +37,7 @@ class IMoonrakerAPI;
 class TimelapseInstallOverlay : public OverlayBase {
   public:
     explicit TimelapseInstallOverlay(helix::IMoonrakerAPI* api);
+    ~TimelapseInstallOverlay() override;
 
     const char* get_name() const override {
         return "Timelapse Install";
@@ -42,6 +49,7 @@ class TimelapseInstallOverlay : public OverlayBase {
         return true;
     }
 
+    void init_subjects() override;
     lv_obj_t* create(lv_obj_t* parent) override;
     void register_callbacks() override;
 
@@ -54,6 +62,13 @@ class TimelapseInstallOverlay : public OverlayBase {
     }
     void set_api(helix::IMoonrakerAPI* api) {
         api_ = api;
+    }
+
+    /// Run the footer action, the same as tapping its button
+    void press_action();
+    /// Replace the commands a local install runs
+    void set_process_runner(helix::ProcessRunner runner) {
+        runner_override_ = std::move(runner);
     }
 
     // Config file helpers (public for testability)
@@ -94,8 +109,34 @@ class TimelapseInstallOverlay : public OverlayBase {
     void step_restart_moonraker();
     void step_verify();
 
+    /// Take the route decide_timelapse_setup_path() picks for an absent plugin
+    void step_install_plugin();
+
+    /// Install the plugin on this host, on the install worker
+    void step_install_locally();
+    /// Main thread: the worker started by run @p gen ended with @p result
+    void on_local_install_finished(unsigned gen, const helix::LocalPluginResult& result);
+    void on_local_install_done(const helix::LocalPluginResult& result);
+    /// Join a worker that has ended; never waits on one still running
+    void join_finished_install_worker();
+    /// End the worker's command and join it: well under a second
+    void stop_install_worker();
+
+    /// Whether a reply for run @p gen at @p step still belongs to the run on screen
+    bool is_current(unsigned gen, Step step) const;
+
+    /// While a job holds the machine, say the wizard waits for it and offer
+    /// Check Again, which runs @p resume. Returns whether it is waiting.
+    bool show_wait_for_print(std::function<void()> resume);
+
     /// Re-check plugin after user runs SSH install commands
     void recheck_after_install();
+
+    /// Which instructions card shows (timelapse_install_card)
+    enum class Card { None = 0, Ssh = 1, Ffmpeg = 2 };
+    void show_card(Card card);
+    /// Scroll the card on show into view
+    void reveal_card();
 
     // Config file modification (private: requires API)
     void download_and_modify_config();
@@ -109,19 +150,39 @@ class TimelapseInstallOverlay : public OverlayBase {
 
     helix::IMoonrakerAPI* api_;
     lv_obj_t* step_progress_ = nullptr;
-    lv_obj_t* status_label_ = nullptr;
-    lv_obj_t* action_btn_ = nullptr;
-    lv_obj_t* ssh_container_ = nullptr;
+
+    SubjectManager subjects_;
+    lv_subject_t status_subject_{};
+    char status_buf_[384] = {};
+    lv_subject_t action_text_subject_{};
+    char action_text_buf_[64] = {};
+    lv_subject_t action_visible_subject_{};
+    lv_subject_t card_subject_{};
+    lv_subject_t ffmpeg_command_subject_{};
+    char ffmpeg_command_buf_[64] = {};
+
+    /// The local install left ffmpeg missing; the last screen says how to add it
+    bool ffmpeg_missing_ = false;
+
+    /// The local install's commands. Owned and joined here, never detached:
+    /// install_cancel_ ends its running command, so a join is short.
+    std::thread install_thread_;
+    /// Set by the worker itself, so no closed screen can leave it stuck true.
+    std::atomic<bool> install_running_{false};
+    std::atomic<bool> install_cancel_{false};
+    /// A run that found an earlier run's install going starts its own when that ends
+    bool waiting_on_earlier_install_ = false;
+    /// The commands a local install runs; tests set it, empty means the real runner
+    helix::ProcessRunner runner_override_;
 
     void on_ui_destroyed() override {
         step_progress_ = nullptr;
-        status_label_ = nullptr;
-        action_btn_ = nullptr;
-        ssh_container_ = nullptr;
     }
 
     Step current_step_ = Step::CHECKING_WEBCAM;
     bool wizard_active_ = false;
+    /// Bumped by every start_wizard(); a reply from an earlier run carries an older one
+    unsigned run_generation_ = 0;
     std::function<void()> action_callback_;
 };
 

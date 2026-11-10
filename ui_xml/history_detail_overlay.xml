@@ -47,14 +47,17 @@
           <lv_obj name="thumbnail_fallback"
                   width="100%" height="100%" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
                   style_flex_cross_place="center" scrollable="false" align="center">
+            <bind_flag_if_eq subject="history_detail_thumb_loaded" flag="hidden" ref_value="1"/>
             <icon src="printer_3d" size="xl" variant="secondary"/>
             <text_small text="No preview" style_margin_top="#space_sm"/>
           </lv_obj>
           <!-- Actual thumbnail (overlays fallback when available) -->
-          <!-- Note: Image will be set programmatically when available -->
+          <!-- The source is the job's data, set from C++ once it loads -->
           <lv_image name="thumbnail_image"
-                    width="100%" height="100%" hidden="true" align="center" inner_align="contain"
-                    style_translate_y="#preview_offset_y"/>
+                    width="100%" height="100%" align="center" inner_align="contain"
+                    style_translate_y="#preview_offset_y">
+            <bind_flag_if_eq subject="history_detail_thumb_loaded" flag="hidden" ref_value="0"/>
+          </lv_image>
           <!-- A camera photo of the job over the preview: history_detail_photo_view
                1 = after layer 2, 2 = at the end; state 0 loading, 1 shown, 2 failed -->
           <lv_obj name="photo_layer"
@@ -201,7 +204,8 @@
             </lv_obj>
             <lv_obj flex_grow="1" style_pad_all="0" flex_flow="column" scrollable="false">
               <text_small text="Type"/>
-              <text_body name="filament_type_label" bind_text="history_detail_filament_type"/>
+              <text_body name="filament_type_label"
+                         width="100%" long_mode="wrap" bind_text="history_detail_filament_type"/>
             </lv_obj>
             <lv_obj flex_grow="1" style_pad_all="0" flex_flow="column" scrollable="false">
               <text_small text="Layer Height"/>

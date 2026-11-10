@@ -351,7 +351,7 @@ MEASURING (1)     Progress bar, step labels, Stop button, and the live response 
 Both the panel and the first-run wizard step use the same analysis-phase
 treatment: the sweep shows a determinate bar; the offline analysis reports no
 percent, so the bar hides, a spinner takes over, and a 1 Hz
-`helix::ui::ElapsedLabelTimer` (ui_timer_guard.h) refreshes the status label
+`helix::ui::ElapsedLabelTimer` (core/timer_guard.h) refreshes the status label
 with "Analyzing data... Ns" on the virtual clock. `PIDCalibrationPanel`'s eta
 timer is the same shape and is the intended follow-up consumer of the helper.
   |

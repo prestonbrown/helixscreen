@@ -227,25 +227,41 @@ require_moonraker_can_read() {
 Give that user read access to the plugin files and search access to each directory above them, or install HelixScreen where it can reach them. Nothing was changed."
 }
 
-# Whether a link can be made in directory @1: a probe link is made there and
-# removed. test -w alone passes for root on a read-only filesystem.
+# Whether a link to @2 (default: the plugin) can be made in directory @1: a
+# probe link is made there and removed. test -w alone passes for root on a
+# read-only filesystem.
 can_link_in() {
     probe="$1/.helix_print.probe.$$"
-    ln -s "$PLUGIN_FILE" "$probe" 2>/dev/null || return 1
+    ln -s "${2:-$PLUGIN_FILE}" "$probe" 2>/dev/null || return 1
     rm -f "$probe"
 }
 
-# The pre-flights every link to the plugin takes before it is made in
-# components directory @1: a link can be made there, Moonraker sees the plugin
-# from its root, and it can read what the link names. Sets link_to to the
-# plugin's path as Moonraker names it, which differs from ours when Moonraker
-# runs in a chroot. Stops through error() when one fails.
+# The pre-flights every link to a component takes before it is made in
+# components directory @1: a link can be made there, Moonraker sees the
+# component (@2, default the plugin) from its root, and it can read what the
+# link names. Sets link_to to the component's path as Moonraker names it, which
+# differs from ours when Moonraker runs in a chroot. Stops through error() when
+# one fails.
 check_plugin_link() {
-    can_link_in "$1" || error "Cannot write to components directory: $1"
+    _cpl_file="${2:-$PLUGIN_FILE}"
+    can_link_in "$1" "$_cpl_file" || error "Cannot write to components directory: $1"
     # shellcheck disable=SC2034  # read by the caller that makes the link
-    link_to=$(moonraker_visible_path "$PLUGIN_FILE") ||
-        error "Moonraker cannot see $PLUGIN_FILE from its root ($(running_moonraker_root))"
-    require_moonraker_can_read "$PLUGIN_FILE"
+    link_to=$(moonraker_visible_path "$_cpl_file") ||
+        error "Moonraker cannot see $_cpl_file from its root ($(running_moonraker_root))"
+    require_moonraker_can_read "$_cpl_file"
+}
+
+# Every pre-flight for linking component @2 into components directory @1 as
+# @3: no regular file sits where the link goes, then check_plugin_link. Sets
+# target and link_to; the caller makes the link (ln -sf "$link_to" "$target")
+# once its other writes are done.
+prepare_component_link() {
+    target="$1/$3"
+    if [ -f "$target" ] && [ ! -L "$target" ]; then
+        error "A file (not symlink) exists at $target
+Please remove it manually before installing."
+    fi
+    check_plugin_link "$1" "$2"
 }
 
 # Find Moonraker's components directory. An explicit path wins, then the
@@ -467,15 +483,7 @@ Please provide the path: ./install.sh /path/to/moonraker"
     info "Components directory: $components_dir"
     printf '\n'
 
-    # Create symlink
-    target="$components_dir/helix_print.py"
-
-    if [ -f "$target" ] && [ ! -L "$target" ]; then
-        error "A file (not symlink) exists at $target
-Please remove it manually before installing."
-    fi
-
-    check_plugin_link "$components_dir"
+    prepare_component_link "$components_dir" "$PLUGIN_FILE" helix_print.py
     # Use ln -sf for atomic replacement (removes existing symlink first)
     ln -sf "$link_to" "$target"
     info "Created symlink: $target -> $link_to"
@@ -739,6 +747,41 @@ auto_uninstall() {
     return "$exit_status"
 }
 
+# Link a moonraker-timelapse checkout at @1 into this host's Moonraker
+# (--link-timelapse): component/timelapse.py into the components directory and
+# klipper_macro/timelapse.cfg into the config directory, what that project's
+# own installer links. Its apt and systemctl steps need a password and are left
+# out; the caller adds the config sections and restarts Moonraker. Exit 0
+# linked, 1 failed.
+link_timelapse() {
+    src="$1"
+    component="$src/component/timelapse.py"
+    macro="$src/klipper_macro/timelapse.cfg"
+    if [ -z "$src" ] || [ ! -f "$component" ]; then
+        error "Not a moonraker-timelapse checkout: $src"
+    fi
+
+    components_dir=$(find_moonraker_components "")
+    [ -n "$components_dir" ] || error "Could not auto-detect Moonraker installation."
+    prepare_component_link "$components_dir" "$component" timelapse.py
+    ln -sf "$link_to" "$target"
+    info "Linked $target -> $link_to"
+
+    config_dir=$(find_config_dir)
+    if [ -z "$config_dir" ]; then
+        warn "No config directory found; timelapse.cfg was not linked"
+        return 0
+    fi
+    mtarget="$config_dir/timelapse.cfg"
+    if [ -e "$mtarget" ] && [ ! -L "$mtarget" ]; then
+        warn "Keeping the existing $mtarget"
+    elif [ -f "$macro" ]; then
+        ln -sf "$(path_for_moonraker "$macro")" "$mtarget"
+        info "Linked $mtarget"
+    fi
+    return 0
+}
+
 # Re-point an installed plugin's link at this tree (--relink): what the app
 # runs at startup, so a plugin installed from an install directory that has
 # since moved, or been replaced, loads from the tree beside the running app.
@@ -825,7 +868,7 @@ auto_install() {
 
     # Pre-flight checks, all before the first write: the link can be made,
     # the config can be edited, and Moonraker can read what the link names.
-    check_plugin_link "$components_dir"
+    prepare_component_link "$components_dir" "$PLUGIN_FILE" helix_print.py
 
     section_file=""
     if [ -n "$config_dir" ] && [ -f "$config_dir/moonraker.conf" ]; then
@@ -833,13 +876,6 @@ auto_install() {
         if [ -e "$section_file" ] && [ ! -w "$section_file" ]; then
             error "Cannot write to $section_file"
         fi
-    fi
-
-    # Create symlink
-    target="$components_dir/helix_print.py"
-
-    if [ -f "$target" ] && [ ! -L "$target" ]; then
-        error "A file (not symlink) exists at $target"
     fi
 
     # Auto-configure moonraker.conf if possible
@@ -952,6 +988,9 @@ show_help() {
     printf '%s\n' "                          restart, 4 held off by a print, 6 print state unknown,"
     printf '%s\n' "                          7 Moonraker not answering, 8 only a reboot reloads"
     printf '%s\n' "                          it, 9 Moonraker refused the restart"
+    printf '%s\n' "  --link-timelapse DIR    Link the moonraker-timelapse checkout at DIR into"
+    printf '%s\n' "                          Moonraker and the config directory; exit 0 linked,"
+    printf '%s\n' "                          1 failed. Never restarts Moonraker"
     printf '%s\n' "  --help, -h              Show this help message"
     printf '\n'
     printf '%s\n' "Exit codes for --uninstall and --uninstall-auto:"
@@ -996,6 +1035,10 @@ while [ $# -gt 0 ]; do
             status=0
             relink || status=$?
             exit "$status"
+            ;;
+        --link-timelapse)
+            link_timelapse "$2"
+            exit $?
             ;;
         --restart-moonraker)
             status=0

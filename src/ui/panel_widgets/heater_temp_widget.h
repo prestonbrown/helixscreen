@@ -34,12 +34,11 @@ class HeaterTempWidget : public TiledPanelWidget {
     using SubjectGetter = lv_subject_t* (*)(PrinterState&);
 
     struct Config {
-        const char* widget_id;   // PanelWidget id() (e.g. "bed_temperature")
-        const char* button_name; // ui_button name in the XML component
-        const char* icon_name;   // icon glyph name (exercised by tests; icon lookup
-                                 // itself now goes through HeaterIconBinder's own
-                                 // default_icon_name(heater))
-        const char* log_tag;     // spdlog prefix, e.g. "[BedTemperatureWidget]"
+        const char* widget_id; // PanelWidget id() (e.g. "bed_temperature")
+        const char* icon_name; // icon glyph name (exercised by tests; icon lookup
+                               // itself now goes through HeaterIconBinder's own
+                               // default_icon_name(heater))
+        const char* log_tag;   // spdlog prefix, e.g. "[BedTemperatureWidget]"
         TempGraphOverlay::Mode mode;
         SubjectGetter temp_getter;   // current temperature subject (exercised by tests)
         SubjectGetter target_getter; // target temperature subject (exercised by tests)
@@ -68,7 +67,6 @@ class HeaterTempWidget : public TiledPanelWidget {
     Config cfg_;
 
     lv_obj_t* widget_obj_ = nullptr;
-    lv_obj_t* temp_btn_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
 
     helix::ui::HeaterIconBinder icon_binder_;

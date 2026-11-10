@@ -60,6 +60,14 @@ struct RailFace {
     uint32_t rod;
 };
 
+/// How a unit's lanes meet on the path screen.
+enum class LaneJoin : uint8_t {
+    Hub,        ///< A labelled hub box, or the selector bar of a LINEAR unit.
+    Junction,   ///< Lanes leave the unit and meet at a small unlabelled junction.
+    Inside,     ///< Lanes merge in the unit: a short merge below it, then one tube.
+    FixedBlock, ///< A fixed selector block with one port per lane.
+};
+
 struct UnitShell {
     const char* id;
     const ProfilePoint* cheek;
@@ -71,7 +79,7 @@ struct UnitShell {
     float front_wall_px;
     float cap_clearance_px;
     bool lid_spans_row;
-    bool built_in_selector; ///< Lanes merge inside the unit: no separate selector or hub is drawn.
+    LaneJoin lane_join;
     uint32_t body;
     uint32_t corner; ///< Rear corner block colour; 0 when the unit has none.
     const FrontPart* front;

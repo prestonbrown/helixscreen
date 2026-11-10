@@ -376,6 +376,11 @@ int32_t toolhead_tip_y(int32_t nozzle_y, int32_t extruder_scale) {
     }
 }
 
+helix::ui::ToolheadInlet path_toolhead_inlet(int32_t nozzle_y, int32_t extruder_scale) {
+    const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
+    return helix::ui::toolhead_inlet(style, nozzle_y, drawn_scale(style, extruder_scale));
+}
+
 int32_t toolhead_top_y(int32_t nozzle_y, int32_t extruder_scale) {
     return toolhead_glyph_bounds(0, nozzle_y, extruder_scale).top;
 }

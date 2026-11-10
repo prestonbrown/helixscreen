@@ -2,7 +2,8 @@
 #pragma once
 
 #include "ui_presentation_gate.h"
-#include "ui_timer_guard.h"
+
+#include "core/timer_guard.h"
 
 #include <deque>
 #include <functional>

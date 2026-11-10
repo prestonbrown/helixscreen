@@ -12,7 +12,6 @@
 #include "ui_nav.h"
 #include "ui_panel_common.h"
 #include "ui_print_preparation_manager.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
@@ -26,6 +25,7 @@
 #include "core/http_executor.h"
 #include "core/observer_factory.h"
 #include "core/text_io.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "filament_chip_model.h"
@@ -163,6 +163,11 @@ void PrintSelectDetailView::init_subjects() {
     // thumbnail stays on top until this flips to hide the gray gap.
     UI_MANAGED_SUBJECT_INT(detail_viewer_first_frame_, 0, "detail_viewer_first_frame", subjects_);
     UI_MANAGED_SUBJECT_INT(detail_viewer_hidden_, 1, "detail_viewer_hidden", subjects_);
+    UI_MANAGED_SUBJECT_INT(detail_history_status_,
+                           static_cast<int>(FileHistoryStatus::NEVER_PRINTED),
+                           "detail_history_status", subjects_);
+    UI_MANAGED_SUBJECT_STRING(detail_history_text_, detail_history_text_buf_, "",
+                              "detail_history_text", subjects_);
 
     // Preview color mode: 0 = actual (loaded slot colors), 1 = sliced (slicer intent)
     UI_MANAGED_SUBJECT_INT(detail_prefer_sliced_colors_, 0, "detail_prefer_sliced_colors",
@@ -418,10 +423,6 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
         // Synchronous, on the main thread, so a direct call is safe.
         refresh_preview_colors_and_mismatch();
     });
-
-    history_status_row_ = find_required(overlay_root_, "history_status_row", get_name());
-    history_status_icon_ = find_required(overlay_root_, "history_status_icon", get_name());
-    history_status_label_ = find_required(overlay_root_, "history_status_label", get_name());
 
     spdlog::debug("[DetailView] Detail view created");
     return overlay_root_;
@@ -1159,10 +1160,6 @@ void PrintSelectDetailView::forget_cached_widgets() {
     detail_card_ = nullptr;
 
     filament_mapping_card_.on_ui_destroyed();
-
-    history_status_row_ = nullptr;
-    history_status_icon_ = nullptr;
-    history_status_label_ = nullptr;
 }
 
 void PrintSelectDetailView::uninstall_root_delete_hook() {
@@ -1311,50 +1308,28 @@ void PrintSelectDetailView::handle_resize(lv_obj_t* parent_screen) {
 // ============================================================================
 
 void PrintSelectDetailView::update_history_status(FileHistoryStatus status, int success_count) {
-    if (!history_status_row_ || !history_status_icon_ || !history_status_label_) {
-        return;
-    }
-
+    char buf[64] = "";
     switch (status) {
     case FileHistoryStatus::NEVER_PRINTED:
-        // Hide the row entirely for files with no history
-        lv_obj_add_flag(history_status_row_, LV_OBJ_FLAG_HIDDEN);
         break;
-
     case FileHistoryStatus::CURRENTLY_PRINTING:
-        lv_obj_remove_flag(history_status_row_, LV_OBJ_FLAG_HIDDEN);
-        helix::ui::icon::set_source(history_status_icon_, "clock");
-        helix::ui::icon::set_variant(history_status_icon_, "accent");
-        lv_label_set_text(history_status_label_, lv_tr("Currently printing"));
+        snprintf(buf, sizeof(buf), "%s", lv_tr("Currently printing"));
         break;
-
-    case FileHistoryStatus::COMPLETED: {
-        lv_obj_remove_flag(history_status_row_, LV_OBJ_FLAG_HIDDEN);
-        helix::ui::icon::set_source(history_status_icon_, "check");
-        helix::ui::icon::set_variant(history_status_icon_, "success");
-        char buf[64];
+    case FileHistoryStatus::COMPLETED:
         snprintf(
             buf, sizeof(buf),
             tr_plural("Printed %d time", "Printed %d times", static_cast<uint64_t>(success_count)),
             success_count);
-        lv_label_set_text(history_status_label_, buf);
         break;
-    }
-
     case FileHistoryStatus::FAILED:
-        lv_obj_remove_flag(history_status_row_, LV_OBJ_FLAG_HIDDEN);
-        helix::ui::icon::set_source(history_status_icon_, "alert");
-        helix::ui::icon::set_variant(history_status_icon_, "danger");
-        lv_label_set_text(history_status_label_, lv_tr("Last print failed"));
+        snprintf(buf, sizeof(buf), "%s", lv_tr("Last print failed"));
         break;
-
     case FileHistoryStatus::CANCELLED:
-        lv_obj_remove_flag(history_status_row_, LV_OBJ_FLAG_HIDDEN);
-        helix::ui::icon::set_source(history_status_icon_, "cancel");
-        helix::ui::icon::set_variant(history_status_icon_, "warning");
-        lv_label_set_text(history_status_label_, lv_tr("Last print canceled"));
+        snprintf(buf, sizeof(buf), "%s", lv_tr("Last print canceled"));
         break;
     }
+    lv_subject_copy_string(&detail_history_text_, buf);
+    lv_subject_set_int(&detail_history_status_, static_cast<int>(status));
 }
 
 // ============================================================================
@@ -1478,18 +1453,6 @@ void PrintSelectDetailView::show_gcode_viewer(bool show) {
     if (mode == 0) {
         lv_subject_set_int(&detail_viewer_first_frame_, 0);
         refresh_viewer_visibility();
-    }
-
-    // The 3D render is the preview when the viewer is active, so the
-    // no-thumbnail placeholder glyph must not sit on top of it. (When the
-    // viewer is inactive the print-select panel's has-thumbnail logic owns
-    // whether the placeholder shows.)
-    if (mode > 0 && tree_alive()) {
-        lv_obj_t* no_thumb =
-            helix::ui::find_required(overlay_root_, "detail_no_thumbnail_icon", get_name());
-        if (no_thumb) {
-            lv_obj_add_flag(no_thumb, LV_OBJ_FLAG_HIDDEN);
-        }
     }
 
     // Hide loading spinner now that viewer state is resolved

@@ -334,9 +334,10 @@ exist only because that function derives them.
 
 Note what this does **not** do: `style_text_font` is resolved to a concrete
 `lv_font_t*` at parse time and baked into the widget's style, so re-pointing a token
-does not restyle widgets that already exist. The same has always been true of `px`
-tokens. Widgets built after the refresh pick up the new tier; the eagerly-built root
-panels do not, short of `NavigationManager::rebuild_active_views()`.
+does not restyle widgets that already exist. The same is true of `px` tokens. The
+resize path therefore rebuilds the views when the refresh reports a moved token
+(UI_CONTRIBUTOR_GUIDE.md, "Built widgets keep their tokens"), and
+`theme_manager_refresh_base_font()` re-points the theme's default text font in place.
 
 ---
 

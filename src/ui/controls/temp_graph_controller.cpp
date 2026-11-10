@@ -191,7 +191,7 @@ TempGraphController::~TempGraphController() {
 // ============================================================================
 
 void TempGraphController::set_features(uint32_t features) {
-    if (graph_) {
+    if (is_valid()) {
         ui_temp_graph_set_features(graph_, features);
     }
 }
@@ -363,7 +363,7 @@ void TempGraphController::reattach_observers() {
 void TempGraphController::set_series_name(const std::string& klipper_name,
                                           const std::string& display_name) {
     const SeriesId id = series_id_for(klipper_name);
-    if (graph_ && id != SeriesId::None) {
+    if (is_valid() && id != SeriesId::None) {
         temp_graph_set_series_name(graph_, id, display_name.c_str());
     }
 }
@@ -628,7 +628,7 @@ bool TempGraphController::attach_series_observers(size_t i) {
                 [token, gen, idx](TempGraphController* self, int temp_deci) {
                     if (token.expired() || gen != self->generation_)
                         return;
-                    if (self->paused_ || self->suppress_attach_fire_ || !self->graph_)
+                    if (self->paused_ || self->suppress_attach_fire_ || !self->is_valid())
                         return;
 
                     auto& si = self->series_[idx];
@@ -691,7 +691,7 @@ bool TempGraphController::attach_series_observers(size_t i) {
                 [token, gen, idx](TempGraphController* self, int target_deci) {
                     if (token.expired() || gen != self->generation_)
                         return;
-                    if (!self->graph_)
+                    if (!self->is_valid())
                         return;
 
                     auto& si = self->series_[idx];
@@ -765,7 +765,7 @@ void TempGraphController::setup_connection_observer() {
 
 void TempGraphController::backfill_history() {
     auto* history_mgr = get_temperature_history_manager();
-    if (!graph_ || !history_mgr)
+    if (!is_valid() || !history_mgr)
         return;
 
     int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -837,7 +837,7 @@ void TempGraphController::backfill_history() {
 // ============================================================================
 
 void TempGraphController::apply_auto_range() {
-    if (!graph_)
+    if (!is_valid())
         return;
 
     // Find max relevant temperature (from data and targets)

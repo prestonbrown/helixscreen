@@ -32,6 +32,7 @@
 #include "printer_retarget.h"
 #include "printer_state.h"
 #include "printer_switch_flow.h"
+#include "theme_manager.h"
 #include "utils/network_validation.h"
 
 #include <algorithm>
@@ -675,6 +676,22 @@ std::string status_text(lv_obj_t* dialog) {
     return lv_label_get_text(label);
 }
 
+/// The text colour of the one status icon showing.
+lv_color_t status_icon_color(lv_obj_t* dialog) {
+    lv_obj_t* slot = lv_obj_find_by_name(dialog, "status_icon");
+    REQUIRE(slot != nullptr);
+    lv_obj_t* shown = nullptr;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(slot); ++i) {
+        lv_obj_t* icon = lv_obj_get_child(slot, i);
+        if (!lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN)) {
+            REQUIRE(shown == nullptr);
+            shown = icon;
+        }
+    }
+    REQUIRE(shown != nullptr);
+    return lv_obj_get_style_text_color(shown, LV_PART_MAIN);
+}
+
 nlohmann::json saved_api_key() {
     Config* cfg = Config::get_instance();
     const nlohmann::json* key = cfg->try_get_json(cfg->df() + "moonraker_api_key");
@@ -754,11 +771,13 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     SECTION("no key: it needs one") {
         click(dialog, "btn_test_connection");
         CHECK(status_text(dialog).find("requires an API key") != std::string::npos);
+        CHECK(lv_color_eq(status_icon_color(dialog), theme_manager_get_color("warning")));
     }
     SECTION("a wrong key: it was rejected") {
         type_api_key("ffffffffffffffffffffffffffffffff");
         click(dialog, "btn_test_connection");
         CHECK(status_text(dialog).find("rejected the API key") != std::string::npos);
+        CHECK(lv_color_eq(status_icon_color(dialog), theme_manager_get_color("danger")));
     }
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 0);
     lv_obj_t* save = lv_obj_find_by_name(dialog, "modal_save_btn");

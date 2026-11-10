@@ -406,6 +406,21 @@ it makes the print-start emit `SKIP_LEVELING=0 ADAPTIVE=1` on the `START_PRINT`
 invocation. On a non-adaptive printer the same row reads "Auto Bed Mesh" and
 behaves exactly as before.
 
+### `HELIX_MOCK_TIMELAPSE`
+
+Takes the moonraker-timelapse plugin away from the mock, so Advanced shows **Setup Timelapse** and its wizard reaches the install step. With the mock Moonraker on this host (the default), the wizard takes the local route: a simulated host answers its git, `install.sh --link-timelapse` and ffmpeg commands, and nothing runs on your machine. Its clone is a stub checkout in the `mock_timelapse_home` cache directory, never in your home. Linking the component makes the plugin answer, so the wizard finishes. With `HELIX_MOCK_REMOTE_PRINTER=1` it shows the SSH instructions instead, and Check Again keeps finding the plugin absent.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `absent` (no plugin, ffmpeg installed), `no-ffmpeg` (no ffmpeg, so the last screen shows the command that installs it) |
+| **Default** | unset (plugin present) |
+| **File** | `src/mock/timelapse_host_mock.cpp` |
+
+```bash
+HELIX_MOCK_TIMELAPSE=no-ffmpeg ./build/bin/helix-screen --test -vv             # local install, ffmpeg left to the user
+HELIX_MOCK_TIMELAPSE=absent HELIX_MOCK_REMOTE_PRINTER=1 ./build/bin/helix-screen --test -vv   # SSH instructions
+```
+
 ### `HELIX_MOCK_WEBCAMS`
 
 The webcam list the mock publishes at discovery, as `Name[:service]` entries
@@ -554,7 +569,7 @@ plugin absent or `disabled` the knob does nothing.
 
 | Property | Value |
 |----------|-------|
-| Values | `generic`, `qidi_print_state` (the status `backend`); anything else = off |
+| Values | `generic`, `qidi_print_state` (the status `backend`); `not_listed` reports `features.plr` unavailable with reason `not_listed`, as on a printer model the plugin has no recipe for; anything else = off |
 | Default | off |
 | Affects | `server.helix.status` (`features.plr` ready, version 2), `server.helix.plr.*`, the newest `server.history.list` job (`interrupted`) |
 
