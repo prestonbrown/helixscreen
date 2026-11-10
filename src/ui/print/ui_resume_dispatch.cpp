@@ -208,7 +208,8 @@ void show_restart_required_modal(IMoonrakerAPI* api, const std::string& filename
 }
 
 void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
-                              helix::SharedCallback<void()> on_failure) {
+                              helix::SharedCallback<void()> on_failure,
+                              helix::SharedCallback<void()> on_answered) {
     if (!api) {
         spdlog::warn("{} dispatch_prepared_resume: api is null", log_prefix);
         if (on_failure)
@@ -216,17 +217,19 @@ void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
         return;
     }
 
-    // The macro-dispatch closure. The success path stays on whichever
-    // thread the API delivers it — we only spdlog::info() there (thread
-    // safe). The error path bounces through queue_update so the toast
-    // and `on_failure` body run on the main thread
-    // even though StandardMacros::execute may invoke this callback from
-    // the libhv WebSocket event-loop thread on JSON-RPC failure.
-    auto dispatch = [api, log_prefix, on_failure]() {
+    // The macro-dispatch closure. StandardMacros::execute hands both
+    // callbacks to the main thread (run_on_main), so `on_answered` runs there
+    // directly; the error path still bounces through queue_update so the
+    // toast and `on_failure` run outside the RPC callback.
+    auto dispatch = [api, log_prefix, on_failure, on_answered]() {
         auto sending = std::make_shared<std::atomic<bool>>(true);
         StandardMacros::instance().execute(
             StandardMacroSlot::Resume, api,
-            [log_prefix]() { spdlog::info("{} Resume command sent successfully", log_prefix); },
+            [log_prefix, on_answered]() {
+                spdlog::info("{} Resume command sent successfully", log_prefix);
+                if (on_answered)
+                    on_answered();
+            },
             [log_prefix, on_failure, sending](const MoonrakerError& err) {
                 // The RPC gave up, or the socket dropped after sending, while
                 // RESUME may still be running: a reheat can outlast both.

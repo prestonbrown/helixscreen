@@ -905,6 +905,11 @@
         "CLEANING": 20,
         "PURGING": 15
       },
+      "plr": {
+        "tier": 0,
+        "reason": "gantry_drops",
+        "note": "A flying gantry on four belted Z motors drops and racks when the power goes, and QUAD_GANTRY_LEVEL would probe over the part to level it again, so no tier can resume it."
+      },
       "heuristics": [
         {
           "type": "object_exists",
@@ -1050,6 +1055,11 @@
       "name": "PFA Micron",
       "manufacturer": "PrintersForAnts",
       "image": "pfa-micron.png",
+      "plr": {
+        "tier": 0,
+        "reason": "gantry_drops",
+        "note": "A flying gantry on four belted Z motors drops and racks when the power goes, and QUAD_GANTRY_LEVEL would probe over the part to level it again, so no tier can resume it."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1293,6 +1303,12 @@
       "console_filters": [
         "creality_macro_chatter"
       ],
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1423,6 +1439,12 @@
       "console_filters": [
         "creality_macro_chatter"
       ],
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1566,6 +1588,12 @@
       "console_filters": [
         "creality_macro_chatter"
       ],
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1668,6 +1696,12 @@
       "console_filters": [
         "creality_macro_chatter"
       ],
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1800,6 +1834,12 @@
             "requires_macro": "LOAD_AI_RUN"
           }
         ]
+      },
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
       },
       "heuristics": [
         {
@@ -1955,6 +1995,12 @@
             "requires_macro": "LOAD_AI_RUN"
           }
         ]
+      },
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
       },
       "heuristics": [
         {
@@ -2112,6 +2158,12 @@
         }
       ],
       "print_start_profile": "k2_jacobean",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "object_exists",
@@ -2227,6 +2279,12 @@
             "requires_macro": "LOAD_AI_RUN"
           }
         ]
+      },
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
       },
       "heuristics": [
         {
@@ -2382,6 +2440,12 @@
             "requires_macro": "LOAD_AI_RUN"
           }
         ]
+      },
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
       },
       "heuristics": [
         {
@@ -2572,6 +2636,12 @@
         ]
       },
       "_heuristics_comment": "The K2 platform heuristics minus the active chamber heater: the base K2 has no chamber heater (docs/devel/printers/CREALITY_K2_SUPPORT.md model table). Nothing documents it without motor_control, fan_feedback, load_ai, filament_rack, a chamber thermistor or the optional CFS box, so those stay",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "macro_exclude",
@@ -2707,6 +2777,12 @@
       "console_filters": [
         "creality_macro_chatter"
       ],
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -2788,6 +2864,12 @@
       "console_filters": [
         "creality_macro_chatter"
       ],
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -2877,6 +2959,12 @@
       "console_filters": [
         "creality_macro_chatter"
       ],
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -2934,6 +3022,12 @@
       "display": {
         "resolution": "320x240",
         "notes": "Stock 3.2\" foldable color LCD; HelixScreen runs on a companion display"
+      },
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
       },
       "heuristics": [
         {
@@ -3003,6 +3097,12 @@
         "touch_type": "resistive",
         "notes": "TSC2007 resistive touchscreen; requires affine calibration"
       },
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -3070,6 +3170,12 @@
         "touch_controller": "ns2009",
         "touch_type": "resistive",
         "notes": "NS2009 I2C resistive ADC; axes may be hardware-swapped; requires affine calibration"
+      },
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
       },
       "heuristics": [
         {
@@ -3993,6 +4099,12 @@
       "image": "qidi-x-max-3.png",
       "print_start_profile": "qidi",
       "notes": "Stock display is a TJC HMI on serial bus. Not supported without screen replacement (HDMI/DSI touchscreen required).",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4090,6 +4202,12 @@
       "print_start_profile": "qidi",
       "ams_type": "qidi_box",
       "notes": "Stock display is a TJC HMI on serial bus. Not supported without screen replacement (HDMI/DSI touchscreen required). Compatible with the QIDI Box filament changer (4-slot hub-style, chainable to 16).",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4189,6 +4307,12 @@
       "image": "qidi-x-plus-3.png",
       "print_start_profile": "qidi",
       "notes": "Stock display is a TJC HMI on serial bus. Not supported without screen replacement (HDMI/DSI touchscreen required).",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4285,6 +4409,12 @@
       "image": "qidi-q1-pro.png",
       "print_start_profile": "qidi",
       "notes": "Stock display is a TJC HMI (TJC4827X243_011) on serial bus at 480x272. Not supported without screen replacement.",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4363,6 +4493,12 @@
       "image": "qidi-x-smart-3.png",
       "print_start_profile": "qidi",
       "notes": "Smallest of the Qidi 3-series (175x180x170 build volume, passive enclosure, no active chamber heater). Stock display is a TJC HMI on serial bus at 480x272 -- on-device install requires screen replacement. Works without modification as a remote target when HelixScreen runs on a separate touchscreen.",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4430,6 +4566,12 @@
       "print_start_profile": "qidi",
       "ams_type": "qidi_box",
       "notes": "Linux framebuffer display. Detection + preset are community-tested on-device; the QIDI Box is detected/read via the qidi_box backend, but Max 4 box CONTROL diverges from the Q2/Plus 4 -- eject/unload uses the multi_color_controller dialect (MULTI_COLOR_BOX_UNLOAD SLOT=slotN), not the shared box_stepper FORCE_MOVE primitive (rejected as 'Invalid pin value'). Per-model box dispatch tracked in prestonbrown/helixscreen#1083.",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_exclude",
@@ -4650,6 +4792,12 @@
       "print_start_profile": "qidi",
       "ams_type": "qidi_box",
       "notes": "New-generation QIDI board (RK3308 host, STM32F407 main MCU) with a 480x800 Linux framebuffer display, so HelixScreen runs on-device. Same generation as the Q2 and Max 4. Compatible with the QIDI Box filament changer (4-slot hub-style, chainable to 16). The panel is a portrait 480x800 mounted sideways; HelixScreen's rotation is set by the preset.",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_exclude",
@@ -4773,6 +4921,11 @@
       "name": "FLSUN V400",
       "manufacturer": "FLSUN",
       "image": "flsun-delta.png",
+      "plr": {
+        "tier": 0,
+        "reason": "delta_kinematics",
+        "note": "A delta cannot home X and Y without moving the nozzle down; the plugin also refuses delta kinematics at runtime."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4829,6 +4982,11 @@
       "name": "FLSUN Super Racer",
       "manufacturer": "FLSUN",
       "image": "flsun-delta.png",
+      "plr": {
+        "tier": 0,
+        "reason": "delta_kinematics",
+        "note": "A delta cannot home X and Y without moving the nozzle down; the plugin also refuses delta kinematics at runtime."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4896,6 +5054,11 @@
       "name": "FLSUN Delta",
       "manufacturer": "FLSUN",
       "image": "flsun-delta.png",
+      "plr": {
+        "tier": 0,
+        "reason": "delta_kinematics",
+        "note": "A delta cannot home X and Y without moving the nozzle down; the plugin also refuses delta kinematics at runtime."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4943,6 +5106,11 @@
       "manufacturer": "FLSUN",
       "image": "flsun-s1.png",
       "z_offset_calibration_strategy": "endstop",
+      "plr": {
+        "tier": 0,
+        "reason": "delta_kinematics",
+        "note": "A delta cannot home X and Y without moving the nozzle down; the plugin also refuses delta kinematics at runtime."
+      },
       "heuristics": [
         {
           "type": "object_required",
@@ -5016,6 +5184,11 @@
       "manufacturer": "FLSUN",
       "image": "flsun-t1-pro.png",
       "preset": "flsun_t1",
+      "plr": {
+        "tier": 0,
+        "reason": "delta_kinematics",
+        "note": "A delta cannot home X and Y without moving the nozzle down; the plugin also refuses delta kinematics at runtime."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -5060,6 +5233,11 @@
       "name": "Doron Velta",
       "manufacturer": "Doron",
       "image": "doron_velta.png",
+      "plr": {
+        "tier": 0,
+        "reason": "delta_kinematics",
+        "note": "A delta cannot home X and Y without moving the nozzle down; the plugin also refuses delta kinematics at runtime."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -5121,6 +5299,11 @@
       "name": "Venture Delta",
       "manufacturer": "Venture",
       "image": "venture-delta.png",
+      "plr": {
+        "tier": 0,
+        "reason": "delta_kinematics",
+        "note": "A delta cannot home X and Y without moving the nozzle down; the plugin also refuses delta kinematics at runtime."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -5520,6 +5703,10 @@
       "name": "Sovol SV08",
       "manufacturer": "Sovol",
       "image": "sovol-sv08.png",
+      "plr": {
+        "tier": 1,
+        "note": "Four Z lead screws hold the levelled gantry unpowered, so assisted Z resumes it without re-levelling. Listed so the plugin's quad_gantry_level check for unlisted printers does not refuse it. Not yet run on hardware."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -5611,6 +5798,10 @@
       "name": "Sovol SV08 Max",
       "manufacturer": "Sovol",
       "image": "sovol-sv08-max.png",
+      "plr": {
+        "tier": 1,
+        "note": "Four Z lead screws hold the levelled gantry unpowered, so assisted Z resumes it without re-levelling. Listed so the plugin's quad_gantry_level check for unlisted printers does not refuse it. Not yet run on hardware."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -7321,6 +7512,12 @@
       "z_offset_persists": false,
       "tool_change_resets_z_offset": true,
       "print_start_profile": "snapmaker_u1",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "object_exists",

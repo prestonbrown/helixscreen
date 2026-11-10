@@ -165,6 +165,7 @@ translations:
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Un buzzer ou haut-parleur pour les alertes et les sons. Choisissez ce qui est joué dans les paramètres du son.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Une caméra diffusée par Moonraker. Ajoutez le widget caméra à l''écran d''accueil pour la regarder, y compris pendant une impression.'
   A cold pull is already running.: "Un cold pull est déjà en cours."
+  A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Une imprimante delta ne peut pas référencer X et Y sans déplacer Z, donc une impression ne peut pas être reprise."
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Un ventilateur qui fait passer l''air de l''enceinte à travers un filtre. Commandez-le sur l''écran de température de l''enceinte.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Quelques minutes, presque tout en chauffage. Vous ne jugez rien à l''œil.'
   A folder name in moonraker.conf is unsafe.: "Un nom de dossier dans moonraker.conf n'est pas sûr."
@@ -4575,6 +4576,11 @@ translations:
   "This printer's INDX macros are missing: {}": "Il manque aux macros INDX de cette imprimante : {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'Le Moonraker de cette imprimante a refusé sa clé API. Vérifiez la clé dans Paramètres > Connexion.'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Le Moonraker de cette imprimante exige une connexion. Ajoutez sa clé API dans Paramètres > Connexion.'
+  This printer's firmware has its own power-loss recovery.: "Le firmware de cette imprimante a sa propre reprise après coupure de courant."
+  This printer's gantry drops when the power is cut, so a print can't be resumed.: "Le portique de cette imprimante descend quand le courant est coupé, donc une impression ne peut pas être reprise."
+  This printer's homing override homes Z along with X and Y, so a print can't be resumed.: "Le homing override de cette imprimante référence Z en même temps que X et Y, donc une impression ne peut pas être reprise."
+  This printer's homing override sets the Z position when it homes X and Y, so a print can't be resumed.: "Le homing override de cette imprimante définit la position Z quand il référence X et Y, donc une impression ne peut pas être reprise."
+  This printer's homing override runs commands that may move Z, so a print can't be resumed.: "Le homing override de cette imprimante exécute des commandes qui peuvent déplacer Z, donc une impression ne peut pas être reprise."
   This printer's network service controls the WiFi radio: Le service réseau de cette imprimante contrôle la radio WiFi
   This printer's network service manages saved WiFi networks: Le service réseau de cette imprimante gère les réseaux WiFi enregistrés
   This printer's screen has not shared a layout: "L'écran de cette imprimante n'a pas partagé de disposition"
@@ -4941,6 +4947,7 @@ translations:
   Waiting for the chamber to heat: Attente du chauffage de la chambre
   Waiting for the filament system to report its state: En attente de l'état du système de filament
   Waiting for the printer: Attente de l'imprimante
+  Waiting to read the printer's configuration from Klipper.: "En attente de la lecture de la configuration de l'imprimante depuis Klipper."
   Warm: Chaud
   Warm Bed: Préchauffer le plateau
   Warm up for a material in one tap: Préchauffer pour un matériau en un appui
