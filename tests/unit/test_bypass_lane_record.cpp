@@ -145,6 +145,28 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK_FALSE(AmsState::instance().get_external_spool_info().has_value());
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "a bypass read still out when the backends clear is not filed",
+                 "[bypass][lane][refresh][multi-printer]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "PETG", "#1E5AA8"));
+    OwnBypassStore store(printer);
+    REQUIRE(AmsState::instance().get_external_spool_info().has_value());
+
+    // A read is answered but not yet filed when the printer goes away; the
+    // next printer holds no bypass record.
+    AmsState::instance().refresh_bypass_record();
+    printer.client.mock_db_set("lane_data", "lane1", nullptr);
+    AmsState::instance().clear_backends();
+    CHECK_FALSE(AmsState::instance().get_external_spool_info().has_value());
+
+    // The first pass files what is answered: the departed read must not be.
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(AmsState::instance().get_external_spool_info().has_value());
+    CHECK_FALSE(helix::ams::lane_sources(helix::ams::kBypassLaneId).record.has_value());
+    settle();
+    CHECK_FALSE(AmsState::instance().get_external_spool_info().has_value());
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "a bypass edit writes an RFC record and shows until it echoes",
                  "[bypass][lane][refresh][pending]") {
     MockPrinter printer;

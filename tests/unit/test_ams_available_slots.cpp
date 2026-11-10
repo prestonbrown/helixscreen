@@ -216,6 +216,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "clear_backends returns every backend subject 
         static_cast<const char*>(lv_subject_get_pointer(ams.get_ams_system_logo_subject()));
     CHECK(lv_subject_get_int(ams.get_ams_system_has_logo_subject()) == (logo && logo[0] ? 1 : 0));
     const int slots_version = lv_subject_get_int(ams.get_slots_version_subject());
+    // Engaged on the departing backend, so the clear has a bypass to drop.
+    // The mock refuses bypass over loaded filament, so it unloads first.
+    REQUIRE(mock_ptr->unload_active_filament().success());
+    mock_ptr->wait_for_operation_thread();
+    REQUIRE(mock_ptr->enable_bypass().success());
+    ams.sync_from_backend();
+    REQUIRE(lv_subject_get_int(ams.get_bypass_active_subject()) == 1);
 
     mock_ptr->stop();
     ams.clear_backends();
