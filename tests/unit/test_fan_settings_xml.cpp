@@ -1,10 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// TEST_MIRROR_OK: an XML-fixture test - the shipped code under test is the
-// fans XML itself plus the production <icon> widget it instantiates, driven
-// through the fixture's component registration; there is no production
-// symbol to include.
-
 // The fans overlay and its row render their fan marks through the <icon>
 // widget (an MDI font glyph). "fan" is not a raster image, so an <lv_image
 // src="fan"> spelling resolves against the image map, misses, and leaves a
@@ -14,8 +9,6 @@
 #include "ui_settings_fans.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_fixtures.h"
-#include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
@@ -59,24 +52,6 @@ class ScopedImageMissCounter {
 
 } // namespace
 
-TEST_CASE_METHOD(XMLTestFixture, "fan settings XML renders its fan marks through the icon font",
-                 "[fans][xml][.xml_required]") {
-    ScopedImageMissCounter counter;
-
-    // The row: one fan mark per discovered fan, created repeatedly at runtime.
-    REQUIRE(register_component("fan_settings_row"));
-    lv_obj_t* row = create_component("fan_settings_row");
-    REQUIRE(row != nullptr);
-    REQUIRE(lv_obj_find_by_name(row, "fan_icon") != nullptr);
-
-    // The overlay: section headers plus the no-fans empty state.
-    REQUIRE(register_component("fan_settings_overlay"));
-    lv_obj_t* overlay = create_component("fan_settings_overlay");
-    REQUIRE(overlay != nullptr);
-
-    REQUIRE(ScopedImageMissCounter::count() == 0);
-}
-
 TEST_CASE_METHOD(LVGLUITestFixture, "fan settings rows show each fan's speed", "[fans][settings]") {
     std::array<lv_obj_t*, kUiPanelCount> panels{};
     for (auto& p : panels) {
@@ -99,6 +74,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan settings rows show each fan's speed", "
     lv_obj_t* speed = lv_obj_find_by_name(lv_obj_get_child(list, 0), "speed_label");
     REQUIRE(speed != nullptr);
     CHECK(std::string(lv_label_get_text(speed)) == "50%");
+    CHECK(lv_obj_find_by_name(lv_obj_get_child(list, 0), "fan_icon") != nullptr);
+    CHECK(ScopedImageMissCounter::count() == 0);
 
     fans.update_fan_speed("fan", 0.0);
     StaticPanelRegistry::instance().destroy_all();
