@@ -9,6 +9,7 @@
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
 #include "panel_widget.h"
+#include "subject_managed_panel.h"
 
 #include <functional>
 #include <memory>
@@ -40,6 +41,10 @@ class FanStackWidget : public PanelWidget {
     const char* id() const override {
         return instance_id_.c_str();
     }
+    /// The stack component's per-instance subject names; the carousel binds none.
+    const char** xml_attrs() const override {
+        return is_carousel_mode() ? nullptr : const_cast<const char**>(attrs_.data());
+    }
 
     /// XML event callback — opens fan control overlay
     static void on_fan_stack_clicked(lv_event_t* e);
@@ -56,11 +61,10 @@ class FanStackWidget : public PanelWidget {
     helix::ui::WidgetRef widget_obj_;
     helix::ui::WidgetRef parent_screen_;
 
-    // Labels, names, and icons for each fan row (stack mode)
+    // Speed labels (for their measured font) and icons for each fan row (stack mode)
     helix::ui::WidgetRef part_label_;
     helix::ui::WidgetRef hotend_label_;
     helix::ui::WidgetRef aux_label_;
-    helix::ui::WidgetRef aux_row_;
     helix::ui::WidgetRef part_icon_;
     helix::ui::WidgetRef hotend_icon_;
     helix::ui::WidgetRef aux_icon_;
@@ -79,6 +83,27 @@ class FanStackWidget : public PanelWidget {
     // Animation settings observer
     ObserverGuard anim_settings_observer_;
     ObserverGuard language_observer_;
+
+    /// One stack row's text, bound by the component: the name the measured
+    /// layout picked and the speed.
+    struct RowText {
+        lv_subject_t name{};
+        char name_buf[64] = {};
+        lv_subject_t speed{};
+        char speed_buf[8] = {};
+    };
+    // This instance's stack state, named after its instance id because two
+    // fan stacks can sit on the home grid at once.
+    RowText part_text_;
+    RowText hotend_text_;
+    RowText aux_text_;
+    /// 1 while an aux fan is bound, which shows its row.
+    lv_subject_t has_aux_subject_{};
+    SubjectManager subjects_;
+    std::vector<std::string> attr_storage_;
+    std::vector<const char*> attrs_;
+
+    void publish_row(RowText& row, const char* role, const char* initial_name);
 
     // Resolved fan object names and display names
     std::string part_fan_name_;
@@ -176,7 +201,7 @@ class FanStackWidget : public PanelWidget {
     void select_fan(const std::string& object_name);
     void select_icon(const std::string& name);
     void save_fan_config();
-    void update_label(lv_obj_t* label, int speed_pct);
+    static void update_speed(RowText& row, int speed_pct);
     void update_fan_animation(lv_obj_t* icon, int speed_pct);
     void refresh_all_animations();
 
