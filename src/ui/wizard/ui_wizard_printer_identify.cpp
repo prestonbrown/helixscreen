@@ -331,7 +331,7 @@ void WizardPrinterIdentifyStep::init_subjects() {
 // ============================================================================
 
 void WizardPrinterIdentifyStep::on_printer_name_changed_static(lv_event_t* e) {
-    auto* self = static_cast<WizardPrinterIdentifyStep*>(lv_event_get_user_data(e));
+    WizardPrinterIdentifyStep* self = get_wizard_printer_identify_step();
     if (self) {
         self->handle_printer_name_changed(e);
     }
@@ -472,11 +472,10 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
     search_query_.clear();
     enter_initial_view();
 
-    // Find and set up the name textarea
+    // The name field's edits reach on_printer_name_changed through its XML event_cb
     lv_obj_t* name_ta = helix::ui::find_required(screen_root_, "printer_name_input", get_name());
     if (name_ta) {
         lv_textarea_set_text(name_ta, printer_name_buffer_);
-        lv_obj_add_event_cb(name_ta, on_printer_name_changed_static, LV_EVENT_VALUE_CHANGED, this);
         spdlog::debug("[{}] Name textarea configured (initial: '{}')", get_name(),
                       printer_name_buffer_);
     }
