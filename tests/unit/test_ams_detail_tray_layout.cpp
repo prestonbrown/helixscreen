@@ -897,20 +897,16 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     AmsBackend* backend = AmsState::instance().get_backend();
     REQUIRE(backend != nullptr);
     REQUIRE(backend->get_endless_spool_capabilities().available());
-    REQUIRE(backend->set_endless_spool_backup(kLanes - 2, kLanes - 1).success());
-
-    AmsPanelTestAccess::update_endless_arrows(*panel_);
     lv_obj_t* arrows = lv_obj_find_by_name(panel_obj_, "endless_arrows");
     REQUIRE(arrows != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(arrows, LV_OBJ_FLAG_HIDDEN));
-
+    // With no backup the row has nothing to draw and gives its space back.
+    CHECK(lv_obj_has_flag(arrows, LV_OBJ_FLAG_HIDDEN));
     // One backend leaves nothing to select between.
     lv_obj_t* selector = lv_obj_find_by_name(panel_obj_, "backend_selector_row");
     REQUIRE(selector != nullptr);
     CHECK(lv_obj_has_flag(selector, LV_OBJ_FLAG_HIDDEN));
 
-    // Cleared, the row has nothing to draw and gives its space back.
-    REQUIRE(backend->set_endless_spool_backup(kLanes - 2, -1).success());
+    REQUIRE(backend->set_endless_spool_backup(kLanes - 2, kLanes - 1).success());
     AmsPanelTestAccess::update_endless_arrows(*panel_);
-    CHECK(lv_obj_has_flag(arrows, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(arrows, LV_OBJ_FLAG_HIDDEN));
 }

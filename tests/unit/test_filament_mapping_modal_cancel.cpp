@@ -290,10 +290,14 @@ TEST_CASE_METHOD(MappingCancelFixture, "A remap row shows its tool, pick and war
     lv_obj_send_event(lv_obj_get_child(list, 1), LV_EVENT_CLICKED, nullptr);
     CHECK(lv_obj_get_child_count(lv_screen_active()) > before);
 
-    // Auto-color mode: the rows dim, lose the chevron and stop taking taps.
-    FilamentMappingModalTestAccess::toggle(modal, true);
+    // Auto-color mode, through the toggle row's switch: the rows dim, lose
+    // the chevron and stop taking taps.
+    lv_obj_t* toggle = lv_obj_get_child(lv_obj_get_child(list, 0), -1);
+    lv_obj_add_state(toggle, LV_STATE_CHECKED);
+    lv_obj_send_event(toggle, LV_EVENT_VALUE_CHANGED, nullptr);
     CHECK_FALSE(shown(0, "trigger_chevron"));
     CHECK_FALSE(lv_obj_has_flag(lv_obj_get_child(list, 1), LV_OBJ_FLAG_CLICKABLE));
-    FilamentMappingModalTestAccess::cancel(modal);
+    lv_obj_send_event(lv_obj_find_by_name(modal.dialog(), "btn_secondary"), LV_EVENT_CLICKED,
+                      nullptr);
     helix::ui::UpdateQueue::instance().drain();
 }
