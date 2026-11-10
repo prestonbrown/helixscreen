@@ -22,6 +22,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "audio_settings_manager.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "settings_manager.h"
@@ -187,6 +188,17 @@ TEST_CASE_METHOD(PageRowsFixture, "settings pages: speaker chip path opens Sound
     REQUIRE_FALSE(names.empty());
     CAPTURE(names.back());
     CHECK(names.back().find("sound") != std::string::npos);
+
+    // The volume readout binds settings_volume, so a drag tick's preview shows.
+    lv_obj_t* volume = lv_obj_find_by_name(lv_screen_active(), "row_volume");
+    REQUIRE(volume != nullptr);
+    lv_obj_t* readout = lv_obj_find_by_name(volume, "value_label");
+    REQUIRE(readout != nullptr);
+    const int before = AudioSettingsManager::instance().get_volume();
+    CHECK(std::string(lv_label_get_text(readout)) == std::to_string(before) + "%");
+    AudioSettingsManager::instance().preview_volume(37);
+    CHECK(std::string(lv_label_get_text(readout)) == "37%");
+    AudioSettingsManager::instance().preview_volume(before);
 
     NavigationManager::instance().go_back();
     helix::ui::UpdateQueue::instance().drain();

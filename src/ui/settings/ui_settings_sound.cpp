@@ -4,12 +4,10 @@
 #include "ui_settings_sound.h"
 
 #include "ui_callback_helpers.h"
-#include "ui_event_safety.h"
 #include "ui_sound_preview_overlay.h"
 
 #include "alsa_device_enum.h"
 #include "audio_settings_manager.h"
-#include "format_utils.h"
 #include "sound_manager.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -25,12 +23,6 @@ using helix::ui::event_selected;
 using helix::ui::find_required;
 
 namespace {
-
-void on_volume_released(lv_event_t* /*e*/) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[SoundSettingsOverlay] on_volume_released");
-    SoundManager::instance().play_test_beep();
-    LVGL_SAFE_EVENT_CB_END();
-}
 
 int event_slider_value(lv_event_t* e) {
     return lv_slider_get_value(lv_event_get_current_target_obj(e));
@@ -49,7 +41,10 @@ void SoundSettingsOverlay::register_callbacks() {
              get_sound_settings_overlay().handle_volume_changed(event_slider_value(e));
          }},
         {"on_volume_commit",
-         [](lv_event_t* e) { AudioSettingsManager::instance().set_volume(event_slider_value(e)); }},
+         [](lv_event_t* e) {
+             AudioSettingsManager::instance().set_volume(event_slider_value(e));
+             SoundManager::instance().play_test_beep();
+         }},
         {"on_ui_sounds_changed",
          [](lv_event_t* e) {
              AudioSettingsManager::instance().set_ui_sounds_enabled(event_checked(e));
@@ -75,28 +70,18 @@ void SoundSettingsOverlay::on_activate() {
     init_volume_slider();
     init_sound_theme_dropdown();
     init_audio_device_dropdown();
-
-#ifndef HELIX_HAS_TRACKER
-    if (lv_obj_t* container = find_required(overlay_root_, "container_test_tracker", get_name())) {
-        lv_obj_add_flag(container, LV_OBJ_FLAG_HIDDEN);
-    }
-#endif
 }
 
 // ============================================================================
 // INIT METHODS
 // ============================================================================
 
+// The slider takes its static XML value at construction, so the persisted
+// volume is pushed on every open. The readout binds settings_volume.
 void SoundSettingsOverlay::init_volume_slider() {
     lv_obj_t* row = find_required(overlay_root_, "row_volume", get_name());
     if (lv_obj_t* slider = find_required(row, "slider", get_name())) {
-        int volume = AudioSettingsManager::instance().get_volume();
-        lv_slider_set_value(slider, volume, LV_ANIM_OFF);
-        helix::format::format_percent(volume, volume_value_buf_, sizeof(volume_value_buf_));
-        lv_obj_add_event_cb(slider, on_volume_released, LV_EVENT_RELEASED, nullptr);
-    }
-    if (lv_obj_t* label = find_required(row, "value_label", get_name())) {
-        lv_label_set_text(label, volume_value_buf_);
+        lv_slider_set_value(slider, AudioSettingsManager::instance().get_volume(), LV_ANIM_OFF);
     }
 }
 
@@ -195,14 +180,9 @@ void SoundSettingsOverlay::handle_sounds_changed(bool enabled) {
 }
 
 void SoundSettingsOverlay::handle_volume_changed(int value) {
-    // Per drag tick: subject + readout only. The commit callback persists.
+    // Per drag tick: the subject only, which the readout binds. The commit
+    // callback persists.
     AudioSettingsManager::instance().preview_volume(value);
-    helix::format::format_percent(value, volume_value_buf_, sizeof(volume_value_buf_));
-
-    lv_obj_t* row = find_required(overlay_root_, "row_volume", get_name());
-    if (lv_obj_t* label = find_required(row, "value_label", get_name())) {
-        lv_label_set_text(label, volume_value_buf_);
-    }
 }
 
 void SoundSettingsOverlay::handle_sound_theme_changed(int index) {
