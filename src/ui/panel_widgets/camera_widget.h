@@ -82,14 +82,10 @@ class CameraWidget : public PanelWidget {
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
     lv_obj_t* camera_image_ = nullptr;
-    lv_obj_t* camera_overlay_ = nullptr; // Spinner overlay, hidden on first frame
-    lv_obj_t* camera_status_ = nullptr;  // Status text label inside overlay
 
     // Fullscreen overlay state
     lv_obj_t* fullscreen_overlay_ = nullptr;
     lv_obj_t* fullscreen_image_ = nullptr;
-    lv_obj_t* fullscreen_spinner_ =
-        nullptr; // "Connecting…" overlay in fullscreen, hidden on first frame
 
     CameraView view_;
     bool active_ = false;  // true when on_activate() has been called
@@ -156,7 +152,6 @@ class StandaloneCameraViewer {
 
     lv_obj_t* overlay_ = nullptr;
     lv_obj_t* image_ = nullptr;
-    lv_obj_t* spinner_ = nullptr; // "Connecting..." indicator, hidden on first frame
     CameraView view_;
 
     static StandaloneCameraViewer* s_open_;

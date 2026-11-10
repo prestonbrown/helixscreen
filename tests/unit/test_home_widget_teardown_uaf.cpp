@@ -480,15 +480,11 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     // The tile must have actually populated the pointers under test, or the
     // null checks below would pass for the wrong reason.
     REQUIRE(helix::CameraWidgetTestAccess::camera_image(*attached.widget) != nullptr);
-    REQUIRE(helix::CameraWidgetTestAccess::camera_overlay(*attached.widget) != nullptr);
-    REQUIRE(helix::CameraWidgetTestAccess::camera_status(*attached.widget) != nullptr);
 
     // No detach(): the widget hears only on_hooked_root_deleted().
     lv_obj_delete(attached.page);
 
     CHECK(helix::CameraWidgetTestAccess::camera_image(*attached.widget) == nullptr);
-    CHECK(helix::CameraWidgetTestAccess::camera_overlay(*attached.widget) == nullptr);
-    CHECK(helix::CameraWidgetTestAccess::camera_status(*attached.widget) == nullptr);
     CHECK(helix::CameraWidgetTestAccess::widget_obj(*attached.widget) == nullptr);
 }
 
@@ -562,7 +558,6 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     lv_obj_t* overlay = CameraWidgetTestAccess::fullscreen_overlay(*attached.widget);
     REQUIRE(overlay != nullptr);
     REQUIRE(CameraWidgetTestAccess::fullscreen_image(*attached.widget) != nullptr);
-    REQUIRE(CameraWidgetTestAccess::fullscreen_spinner(*attached.widget) != nullptr);
     REQUIRE(attached.widget->has_overlay_open());
 
     lv_obj_delete(overlay);
@@ -570,13 +565,20 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
 
     CHECK(CameraWidgetTestAccess::fullscreen_overlay(*attached.widget) == nullptr);
     CHECK(CameraWidgetTestAccess::fullscreen_image(*attached.widget) == nullptr);
-    CHECK(CameraWidgetTestAccess::fullscreen_spinner(*attached.widget) == nullptr);
     CHECK_FALSE(attached.widget->has_overlay_open());
 
-    // The single-owner slot is free again: a second overlay opens.
+    // The single-owner slot is free again: a second overlay opens, connecting
+    // even though the last view drew frames.
+    lv_subject_t* connecting = lv_xml_get_subject(nullptr, "camera_fullscreen_connecting");
+    REQUIRE(connecting != nullptr);
+    lv_subject_set_int(connecting, 0);
     CameraWidgetTestAccess::show_fullscreen_overlay(*attached.widget);
     UpdateQueue::instance().drain();
-    REQUIRE(CameraWidgetTestAccess::fullscreen_overlay(*attached.widget) != nullptr);
+    lv_obj_t* reopened = CameraWidgetTestAccess::fullscreen_overlay(*attached.widget);
+    REQUIRE(reopened != nullptr);
+    lv_obj_t* spinner = lv_obj_find_by_name(reopened, "fullscreen_spinner");
+    REQUIRE(spinner != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(spinner, LV_OBJ_FLAG_HIDDEN));
 
     // detach() deletes the live overlay and nothing else.
     attached.widget.reset();
