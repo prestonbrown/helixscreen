@@ -182,6 +182,51 @@ int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g,
                                                                 : data.theme.hub_width;
 }
 
+namespace {
+// Room above the rail art for the lanes to bend in from their slots, as a share of the height.
+constexpr float kRailFanRatio = 0.08f;
+constexpr float kRailMaxWidthRatio = 0.9f;
+// Below this the art's detail is lost; the bar is drawn instead.
+constexpr int32_t kRailArtMinH = 40;
+} // namespace
+
+int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g) {
+    const int32_t prep_y = g.y_off + (int32_t)(g.height * kPrepYRatio);
+    // The lanes leave the spool box at its front edge, through their prep
+    // sensors, when that edge stands clear above the lane run: two tube gauges
+    // and a band of empty tube before the load sensor's row.
+    if (g.lane_entry_y != INT32_MIN &&
+        g.lane_entry_y <= prep_y - 2 * data.theme.tube_gauge - kBandThickness)
+        return g.lane_entry_y;
+    return prep_y;
+}
+
+RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g) {
+    if (!data.rail_art || data.rail_art_failed ||
+        data.topology != static_cast<int>(PathTopology::LINEAR) || data.hub_on_toolhead ||
+        data.rail_art->aspect <= 0)
+        return {};
+    const int32_t sensor_r = data.theme.sensor_radius;
+    const int32_t buffer_box_h = LV_MAX(16, (int32_t)(g.height * kHubHeightRatio));
+    const int32_t top =
+        lanes_leave_y(data, g) + LV_MAX(4 * sensor_r, (int32_t)(g.height * kRailFanRatio));
+    // Clear of the buffer box, or of where the exit's jog to the trunk ends above a buffer.
+    const int32_t buffer_y = g.y_off + (int32_t)(g.height * kBufferYRatio);
+    const int32_t bottom =
+        (data.buffer_present ? buffer_y - buffer_box_h : buffer_y - buffer_box_h / 2) -
+        2 * sensor_r;
+    int32_t h = bottom - top;
+    int32_t w = (int32_t)std::lround(h * data.rail_art->aspect);
+    const int32_t max_w = (int32_t)(g.width * kRailMaxWidthRatio);
+    if (w > max_w) {
+        w = max_w;
+        h = (int32_t)std::lround(w / data.rail_art->aspect);
+    }
+    if (h < kRailArtMinH)
+        return {};
+    return {g.center_x - w / 2, bottom - h, w, h};
+}
+
 // Layout mirrors the ratios at the top of ui_filament_path_internal.h; LINEAR
 // butts the selector against the prep sensors and slides the output exit under
 // the active slot.
@@ -193,14 +238,9 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
 
     f.entry_y = g.y_off + (int32_t)(g.height * kEntryYRatio);
     f.prep_y = g.y_off + (int32_t)(g.height * kPrepYRatio);
-    f.prep_band_y = f.prep_y;
-    // The lanes leave the spool box at its front edge, through their prep
-    // sensors, when that edge stands clear above the lane run: two tube gauges
-    // and a band of empty tube before the load sensor's row.
-    if (g.lane_entry_y != INT32_MIN &&
-        g.lane_entry_y <= f.prep_y - 2 * data.theme.tube_gauge - kBandThickness) {
-        f.entry_y = g.lane_entry_y;
-        f.prep_band_y = g.lane_entry_y;
+    f.prep_band_y = lanes_leave_y(data, g);
+    if (f.prep_band_y != f.prep_y) {
+        f.entry_y = f.prep_band_y;
         f.prep_on_box_edge = true;
     }
     f.hub_y = g.y_off + (int32_t)(g.height * kHubYRatio);
@@ -262,6 +302,11 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     }
     // Output sensor butted against the hub bottom (mirrors the hub-top entries)
     f.output_y = f.hub_y + f.hub_h / 2;
+    f.rail = rail_art_rect(data, g);
+    if (f.rail.w > 0) {
+        // The art stands in for the bar; the filament leaves at the carriage's coupler.
+        f.output_y = f.rail.y + (int32_t)std::lround(data.rail_art->outlet_y * f.rail.h);
+    }
 
     f.idle_color = theme.color_idle;
     f.active_color = lv_color_hex(data.filament_color);
@@ -271,8 +316,8 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
 
     f.output_x = f.center_x;
     if (linear && data.active_slot >= 0 && data.active_slot < g.slot_count) {
-        f.output_x =
-            data.anim.output_x_active ? data.anim.output_x_current : g.slot_x[data.active_slot];
+        f.output_x = data.anim.output_x_active ? data.anim.output_x_current
+                                               : linear_exit_x(data, g, data.active_slot);
     }
 
     f.has_error = data.error_segment > 0;
@@ -859,11 +904,28 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
             add_band(out, BandKind::Lane, {x, (float)f.prep_band_y}, {0, 1},
                      lane.band(PathSegment::PREP), s.color, f.prep_on_box_edge);
         }
-        if (!data.lanes_merge_inside)
+        if (!data.lanes_merge_inside && f.rail.w == 0)
             append_line(r, x, (float)f.prep_band_y, x, (float)f.prep_y,
                         lane.style(PathSegment::LANE));
 
-        if (linear) {
+        if (linear && f.rail.w > 0) {
+            // Each lane bends in above the art to its gate and goes in behind the art's face.
+            const float in_x = (float)rail_gate_x(*data.rail_art, f.rail, i);
+            const float in_y =
+                (float)(f.rail.y + (int32_t)std::lround(data.rail_art->inlet_y * f.rail.h));
+            const float top = (float)f.rail.y;
+            const float leave = (float)f.prep_band_y;
+            const pg::PathPoint pts[4] = {
+                {x, leave}, {x, leave + (top - leave) / 3}, {in_x, top}, {in_x, in_y}};
+            pg::FilamentPath fan;
+            pg::route_polyline_filleted(fan, pts, 4,
+                                        std::clamp(std::fabs(x - in_x) / 2.0f, 0.5f, 18.0f));
+            route_append(r, fan, lane.style(PathSegment::LANE));
+            if (!lane.on)
+                continue;
+            append_line(r, in_x, in_y, (float)f.output_x, (float)f.output_y,
+                        unpainted(lane.style(PathSegment::HUB)));
+        } else if (linear) {
             append_line(r, x, (float)f.prep_y, x, hub_top, lane.style(PathSegment::LANE));
             if (!lane.on)
                 continue;

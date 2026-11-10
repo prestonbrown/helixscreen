@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from .. import kit
 from ..kit import TrayShellDef, UnitDef
+from . import ercf_face, tradrack_face
 
 # Lengths are in scene units along the rail (u), across it (v), and up (z).
 PITCH = 0.19
@@ -135,7 +136,7 @@ def _step(gates):
     return (PITCH, 0.0, 0.0)
 
 
-def _unit(style, body, panel, rail_color):
+def _unit(style, body, panel, rail_color, face_art):
     return UnitDef(
         style.id,
         6,
@@ -156,10 +157,10 @@ def _unit(style, body, panel, rail_color):
         ),
         lane_variants=GATE_COUNTS,
         carriage_step=_step,
-        rail_face=tuple(int(c[1:], 16) for c in (style.frame, style.dark, style.accent, style.coupler, style.head, style.rod)),
+        face_art=face_art,
     )
 
 
 # Colours read off the photos: printed red on black, and black with green latches and blue couplers.
-ERCF = _unit(RailStyle("ercf_rail", "#c8211f", "#1d1d20", "#d42a26", "#3f8fd9", "#26262a", "#b9bdc2", False, "#222226"), 0x1d1d20, 0x2a2a2e, 0xc8211f)
-TRADRACK = _unit(RailStyle("tradrack_rail", "#1c1d20", "#18191b", "#25c275", "#3f9edd", "#2f3134", "#a7abb0", True, "#1f2024"), 0x18191b, 0x26272a, 0x25c275)
+ERCF = _unit(RailStyle("ercf_rail", "#c8211f", "#1d1d20", "#d42a26", "#3f8fd9", "#26262a", "#b9bdc2", False, "#222226"), 0x1d1d20, 0x2a2a2e, 0xc8211f, ercf_face.draw)
+TRADRACK = _unit(RailStyle("tradrack_rail", "#1c1d20", "#18191b", "#25c275", "#3f9edd", "#2f3134", "#a7abb0", True, "#1f2024"), 0x18191b, 0x26272a, 0x25c275, tradrack_face.draw)

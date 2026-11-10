@@ -27,6 +27,7 @@
 #include "ui_filament_path_internal.h"
 #include "ui_filament_path_plan.h"
 
+#include "baked_art.h"
 #include "helix_psram_attr.h"
 
 #include <spdlog/spdlog.h>
@@ -36,6 +37,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <utility>
 
 namespace helix::ui::fpath {
@@ -427,69 +429,58 @@ void fill_rect(lv_layer_t* layer, int32_t x1, int32_t y1, int32_t x2, int32_t y2
     lv_draw_fill(layer, &dsc, &area);
 }
 
-// The selector as seen from the front: rail and one gate under each spool. The carriage is
-// the per-frame overlay's, so a slide never repaints this layer.
-void draw_selector_rail(const RenderCtx& ctx, const LinearHubFrame& f) {
+namespace {
+
+// One baked layer of a rail's head-on art, scaled to @p w x @p h. nullptr when it cannot load.
+lv_draw_buf_t* rail_layer(const FilamentPathData& data, const char* layer, int32_t w, int32_t h) {
+    const std::string path = std::string("assets/images/units/") + data.rail_unit + "/face/" +
+                             std::to_string(data.rail_art->lanes) + "/" + layer + ".png";
+    return helix::ui::baked_art_cached(
+        path + "#" + std::to_string(w) + "x" + std::to_string(h), [&] {
+            return helix::ui::baked_art_buffer(helix::ui::baked_art_decode(path, "RailArt"), w, h);
+        });
+}
+
+} // namespace
+
+// The selector rail as seen from the front. The carriage is the per-frame overlay's, so a
+// slide never repaints this layer. False when the art cannot load.
+bool draw_selector_rail(const RenderCtx& ctx, const LinearHubFrame& f) {
     FilamentPathData* data = ctx.data;
-    const helix::ui::tray::RailFace& face = *data->selector_rail;
-    const BaseGeometry& g = ctx.geo;
-    const int32_t w = hub_box_width(*data, g, f);
-    const int32_t h = f.hub_h;
-    const int32_t x0 = f.center_x - w / 2, x1 = f.center_x + w / 2;
-    const int32_t y0 = f.hub_y - h / 2, y1 = f.hub_y + h / 2;
-    const int32_t gate_top = y0 + h * 2 / 5;
-    const int32_t end_w = LV_MAX(6, h / 2);
-    lv_layer_t* layer = ctx.layer;
-
-    fill_rect(layer, x0, gate_top, x1, y1, face.gate, 3);
-    fill_rect(layer, x0, y0, x0 + end_w, y1, face.frame, 3);
-    fill_rect(layer, x1 - end_w, y0, x1, y1, face.frame, 3);
-    fill_rect(layer, x0 + end_w, y0 + h / 5, x1 - end_w, y0 + h / 5 + 1, face.rod);
-
-    const int32_t pitch =
-        data->slot_count > 1 ? g.slot_x[1] - g.slot_x[0] : LV_MAX(end_w * 2, w / 2);
-    const int32_t block = rail_block_width(pitch, h);
-    for (int i = 0; i < LV_MIN(data->slot_count, FilamentPathData::kMaxSlots); ++i) {
-        const int32_t cx = g.slot_x[i];
-        fill_rect(layer, cx - block / 2, gate_top - 2, cx + block / 2, gate_top + 2, face.accent,
-                  1);
-        fill_rect(layer, cx - block / 4, y1 - h / 5, cx + block / 4, y1 - 2, face.coupler, 1);
-    }
-
-    const BoxColors tint = resolve_hub_tint(*data, f, hub_has_filament(data, f));
-    lv_draw_border_dsc_t border;
-    lv_draw_border_dsc_init(&border);
-    border.color = tint.border;
-    border.width = 1;
-    border.radius = 3;
-    lv_area_t outline = {x0, y0, x1, y1};
-    lv_draw_border(layer, &border, &outline);
-
+    lv_draw_buf_t* body = rail_layer(*data, "body", f.rail.w, f.rail.h);
+    if (!body)
+        return false;
+    helix::ui::baked_art_draw(ctx.layer, body, f.rail.x, f.rail.y);
     data->rail_drawn = true;
-    data->rail_top = y0 - g.y_off;
-    data->rail_h = h;
-    data->rail_block_w = block;
+    data->rail_left = f.rail.x - ctx.geo.x_off;
+    data->rail_top = f.rail.y - ctx.geo.y_off;
+    data->rail_w = f.rail.w;
+    data->rail_h = f.rail.h;
     if (data->hub_callback) {
-        data->hits.hub = {x0, y0, x1, y1};
+        data->hits.hub = {f.rail.x, f.rail.y, f.rail.x + f.rail.w, f.rail.y + f.rail.h};
         data->hits.hub_valid = true;
     }
+    return true;
 }
 
 void draw_rail_carriage(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
-    if (!data->selector_rail || !data->rail_drawn)
+    if (!data->rail_art || !data->rail_drawn)
         return;
-    const helix::ui::tray::RailFace& face = *data->selector_rail;
+    lv_draw_buf_t* carriage = rail_layer(*data, "carriage", data->rail_w, data->rail_h);
+    if (!carriage)
+        return;
     const BaseGeometry g = compute_base_geometry(obj, data);
+    const RailArtRect r{g.x_off + data->rail_left, g.y_off + data->rail_top, data->rail_w,
+                        data->rail_h};
+    int32_t exits[FilamentPathData::kMaxSlots] = {};
+    const int n = LV_MIN(data->slot_count, FilamentPathData::kMaxSlots);
+    for (int i = 0; i < n; ++i)
+        exits[i] = rail_outlet_x(*data->rail_art, r, i);
     // output_x_current was recorded at the last paint's origin.
     const int32_t current = data->anim.output_x_current + g.x_off - data->path_cache.origin.x;
-    const int32_t cx = rail_carriage_x(g.slot_x, data->slot_count, data->active_slot, current,
-                                       data->anim.output_x_active);
-    const int32_t half = data->rail_block_w * 5 / 8;
-    const int32_t y0 = g.y_off + data->rail_top - 2;
-    const int32_t y1 = y0 + data->rail_h + 4;
-    fill_rect(layer, cx - half, y0, cx + half, y1, face.head, 3);
-    fill_rect(layer, cx - half, y0, cx + half, y0 + 3, face.accent, 2);
-    fill_rect(layer, cx - half / 3, y1 - data->rail_h / 3, cx + half / 3, y1 - 2, face.coupler, 2);
+    const int32_t at =
+        rail_carriage_x(exits, n, data->active_slot, current, data->anim.output_x_active);
+    helix::ui::baked_art_draw(layer, carriage, r.x + at - exits[0], r.y);
 }
 
 // A fixed selector block: one port on each lane's own line, the active lane's lit.
@@ -545,10 +536,8 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
         }
         return;
     }
-    if (data->selector_rail && data->topology == 0 && !data->hub_on_toolhead) {
-        draw_selector_rail(ctx, f);
+    if (f.rail.w > 0 && draw_selector_rail(ctx, f))
         return;
-    }
     const BaseGeometry& g = ctx.geo;
 
     // Hub box - tint based on an error at the hub, or filament color
@@ -665,13 +654,18 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
 
     apply_debug_flow_override(obj, data);
     RenderCtx ctx{layer, data, compute_base_geometry(obj, data)};
+    // Rail art whose images do not load gives way to the bar before anything is laid out for it.
+    if (const RailArtRect r = rail_art_rect(*data, ctx.geo); r.w > 0) {
+        if (!rail_layer(*data, "body", r.w, r.h) || !rail_layer(*data, "carriage", r.w, r.h))
+            data->rail_art_failed = true;
+    }
 
-    // LINEAR: the output exit snaps under the active slot unless it is sliding there.
+    // LINEAR: the output exit snaps to the active slot unless it is sliding there.
     const int active = data->active_slot;
     if (data->topology == 0 && active >= 0 && active < ctx.geo.slot_count &&
         !data->anim.output_x_active) {
-        data->anim.output_x_current = ctx.geo.slot_x[active];
-        data->anim.output_x_target = ctx.geo.slot_x[active];
+        data->anim.output_x_current = linear_exit_x(*data, ctx.geo, active);
+        data->anim.output_x_target = data->anim.output_x_current;
     }
 
     const LinearHubFrame f = compute_linear_hub_frame(

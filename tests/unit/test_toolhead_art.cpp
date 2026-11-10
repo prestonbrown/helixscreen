@@ -3,6 +3,7 @@
 #include "ui_toolhead_badge.h"
 
 #include "../lvgl_test_fixture.h"
+#include "baked_art.h"
 #include "toolhead_art.h"
 
 #include <vector>
@@ -53,23 +54,19 @@ struct Canvas {
 
 } // namespace
 
-TEST_CASE("toolhead art: the tint fills the mask and the shade darkens it", "[toolhead-art]") {
-    auto body = flat(1, 1, 0, 0, 0, 0);
-    const auto mask = flat(1, 1, 255, 255, 255, 255);
-    const auto shade = flat(1, 1, 0, 0, 0, 128);
-    toolhead_art_compose(body.data(), mask.data(), shade.data(), 1, 1, lv_color_hex(0xff0000));
-    CHECK(body[3] == 255);
+TEST_CASE("toolhead art: the tint fills the mask, the shade darkens it, the rest is untouched",
+          "[toolhead-art]") {
+    // Pixel 0 is under the mask and half shaded; pixel 1 is outside both.
+    auto body = flat(2, 1, 10, 20, 30, 255);
+    body[3] = 0;
+    auto mask = flat(2, 1, 255, 255, 255, 255);
+    mask[7] = 0;
+    auto shade = flat(2, 1, 0, 0, 0, 128);
+    shade[7] = 0;
+    toolhead_art_compose(body.data(), mask.data(), shade.data(), 2, 1, lv_color_hex(0xff0000));
+    CHECK((body[3] == 255 && body[1] == 0));
     CHECK(body[2] == Catch::Approx(127).margin(2));
-    CHECK(body[1] == 0);
-}
-
-TEST_CASE("toolhead art: outside the mask the body is untouched", "[toolhead-art]") {
-    auto body = flat(1, 1, 10, 20, 30, 255);
-    const auto mask = flat(1, 1, 255, 255, 255, 0);
-    const auto shade = flat(1, 1, 0, 0, 0, 0);
-    toolhead_art_compose(body.data(), mask.data(), shade.data(), 1, 1, lv_color_hex(0xff0000));
-    CHECK(body[0] == 10);
-    CHECK(body[2] == 30);
+    CHECK((body[4] == 10 && body[6] == 30));
 }
 
 TEST_CASE("toolhead art: resampling keeps colour and ignores transparent neighbours",
@@ -78,7 +75,7 @@ TEST_CASE("toolhead art: resampling keeps colour and ignores transparent neighbo
     src[4] = 255; // the transparent pixel's colour must not bleed in
     src[7] = 0;
     std::vector<uint8_t> dst(4);
-    toolhead_art_resample(src.data(), 2, 1, dst.data(), 1, 1);
+    baked_art_resample(src.data(), 2, 1, dst.data(), 1, 1);
     CHECK(dst[0] == 0);
     CHECK(dst[2] == 200);
     CHECK(dst[3] == Catch::Approx(127).margin(2));

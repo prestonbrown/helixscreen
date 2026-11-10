@@ -91,7 +91,8 @@ def test_every_unit_is_baked_through_the_one_camera(tmp_path):
             build.bake_unit(unit, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
     finally:
         build.kit.Scene = real
-    assert seen and all(c is kit.ART_CAMERA for c in seen)
+    # A rail's head-on drawing is the one other view, and the bake picks that camera too.
+    assert seen and all(c is kit.ART_CAMERA or c is kit.FACE_CAMERA for c in seen)
 
 
 def test_the_open_box_turtle_has_no_lid_and_the_enclosed_one_does():
@@ -423,8 +424,28 @@ def test_units_without_a_carriage_keep_their_table_row_shape():
     assert "carriage" not in table
 
 
-def test_a_rail_keeps_the_selector_route_and_names_its_flat_face():
-    assert all(u.tray.lane_join == "hub" for u in RAILS)
-    table = build.generate_shell_table([rail.ERCF])
-    assert "constexpr RailFace k_ercf_rail_face = {0xc8211f, " in table
-    assert "&k_ercf_rail_face}" in table
+@pytest.mark.parametrize("unit", RAILS, ids=lambda u: u.id)
+def test_a_rails_face_art_puts_every_gate_in_line_and_the_coupler_inside(unit):
+    assert unit.tray.lane_join == "hub"
+    for gates in unit.lane_variants:
+        scene = build.face_scene(unit, gates)
+        row = build.face_row(scene, gates)
+        _, aspect, gate0, step, inlet_y, out_x, out_y = (float(v.rstrip("f")) for v in row.strip("{}").split(", "))
+        projected = [scene.camera.project(p) for p in scene.anchors.inlets]
+        assert len(projected) == gates
+        # One step per gate, at one height: the runtime places every inlet from gate 0's.
+        assert all(abs((b[0] - a[0]) - (projected[1][0] - projected[0][0])) < 1e-9 for a, b in zip(projected, projected[1:]))
+        assert all(abs(p[1] - projected[0][1]) < 1e-9 for p in projected)
+        assert 0 < gate0 < gate0 + (gates - 1) * step < 1 and 0 < inlet_y < 1
+        assert 0 < out_x < 1 and inlet_y < out_y < 1 and aspect > 1
+    table = build.generate_shell_table([unit])
+    assert f"constexpr RailFaceArt k_{unit.id}_face[] = {{{{4, " in table
+    assert f"k_{unit.id}_face, {len(unit.lane_variants)}}}," in table
+
+
+def test_a_rails_face_art_bakes_a_body_and_a_carriage_per_gate_count(tmp_path):
+    build.bake_unit(rail.TRADRACK, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    for gates in rail.TRADRACK.lane_variants:
+        assert sorted(f.name for f in (tmp_path / rail.TRADRACK.id / "face" / str(gates)).iterdir()) == ["body.png", "carriage.png"]
+    build.bake_unit(ace_pro.UNIT, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    assert not (tmp_path / ace_pro.UNIT.id / "face").exists()

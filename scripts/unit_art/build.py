@@ -74,6 +74,9 @@ HEADS = [
     sovol_sv08.HEAD,
 ]
 HEAD_TIER_HEIGHT = {"full": 160, "path": 72}
+# A rail's head-on art, baked once at the tallest the path screen draws it.
+FACE_HEIGHT = 240
+FACE_MARGIN = 0.01
 TIER_WIDTH = {"full": 320, "thumb": 40}
 SAMPLE = ["#e2452f", "#ef7a2b", "#2e7fd0", "#d8dadd", "#63a83c", "#6a5597", "#3f9fb5", "#c9b458"]
 
@@ -110,6 +113,37 @@ def bake_unit(unit, out_dir, render=rsvg_render):
         _bake_layers(unit.id, unit.draw_art, target, lanes, render, unit.carriage_step is not None)
     for target, lanes in stub_dirs(unit, out_dir):
         _bake_layers(unit.id, unit.stub_art, target, lanes, render, False)
+    if unit.face_art is not None:
+        for gates in unit.lane_variants:
+            scene = face_scene(unit, gates)
+            target = Path(out_dir) / unit.id / "face" / str(gates)
+            target.mkdir(parents=True, exist_ok=True)
+            _, _, vw, vh = scene._viewbox()
+            width = round(FACE_HEIGHT * vw / vh)
+            render(scene.layers_svg(("back", "front"), width), width, target / "body.png")
+            render(scene.layer_svg("carriage", width), width, target / "carriage.png")
+
+
+def face_scene(unit, gates):
+    """A rail's head-on drawing at one gate count, with the anchors it returned."""
+    scene = kit.Scene(kit.FACE_CAMERA)
+    scene.margin = FACE_MARGIN
+    scene.anchors = unit.face_art(scene, gates, "full")
+    return scene
+
+
+def face_row(scene, gates):
+    """The RailFaceArt row: the art's aspect, then its inlets and outlet as shares of its size."""
+    vx, vy, vw, vh = scene._viewbox()
+
+    def share(p):
+        u, w = scene.camera.project(p)
+        return (u - vx) / vw, (w - vy) / vh
+
+    inlets = [share(p) for p in scene.anchors.inlets]
+    step = inlets[1][0] - inlets[0][0] if len(inlets) > 1 else 0.0
+    out_x, out_y = share(scene.anchors.outlet)
+    return f"{{{gates}, {vw / vh:.5f}f, {inlets[0][0]:.5f}f, {step:.5f}f, {inlets[0][1]:.5f}f, {out_x:.5f}f, {out_y:.5f}f}}"
 
 
 def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
@@ -191,10 +225,10 @@ def generate_shell_table(units):
             carriage = carriage_rows(unit)
             out.append(f"constexpr CarriageTrack k_{unit.id}_carriage[] = {{{', '.join(carriage)}}};")
             track = f", k_{unit.id}_carriage, {len(carriage)}"
-            if unit.rail_face is not None:
-                colors = ", ".join(f"0x{c:06x}" for c in unit.rail_face)
-                out.append(f"constexpr RailFace k_{unit.id}_face = {{{colors}}};")
-                track += f", &k_{unit.id}_face"
+            if unit.face_art is not None:
+                faces = [face_row(face_scene(unit, gates), gates) for gates in unit.lane_variants]
+                out.append(f"constexpr RailFaceArt k_{unit.id}_face[] = {{{', '.join(faces)}}};")
+                track += f", k_{unit.id}_face, {len(faces)}"
         rows.append(
             f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, {dome}, {len(dome_points)}, {unit.lanes}, '
             f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.cap_clearance_px:.1f}f, "
