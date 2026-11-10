@@ -387,6 +387,7 @@ src/system/system_power.cpp
 src/system/system_settings_manager.cpp
 src/core/json_fwd_check.cpp
 src/core/text_io.cpp
+src/core/contract_breach.cpp
 src/system/helix_fs.cpp
 src/system/timezone_env.cpp
 src/system/tips_manager.cpp
