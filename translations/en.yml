@@ -2175,7 +2175,9 @@ translations:
     has entered shutdown state. This may be due to an emergency stop, thermal runaway,
     or configuration error.
   Klipper has no [virtual_sdcard] section.: Klipper has no [virtual_sdcard] section.
+  'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:'
   Klipper is halted — restart firmware to continue: Klipper is halted — restart firmware to continue
+  Klipper is restarting. Timelapse frames are captured from the next print.: Klipper is restarting. Timelapse frames are captured from the next print.
   Klipper ready: Klipper ready
   Klipper reserves 'default' for new calibrations. Choose another name.: Klipper reserves 'default' for new calibrations. Choose another name.
   Klipper restarting - macros activating: Klipper restarting - macros activating
@@ -4348,6 +4350,7 @@ translations:
   The temperature was changed elsewhere.: The temperature was changed elsewhere.
   The time, date, and system uptime: The time, date, and system uptime
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: The timelapse or logs folder overlaps a protected folder, so cleanup is off.
+  Timelapse frames start after Klipper restarts.: Timelapse frames start after Klipper restarts.
   Timelapse or logs folder overlaps a protected one.: "Timelapse or logs folder overlaps a protected one."
   ? The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.
   : 'The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.'

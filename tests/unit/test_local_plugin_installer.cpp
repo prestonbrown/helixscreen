@@ -168,6 +168,15 @@ TEST_CASE("timelapse setup takes the local route only for a local Moonraker it c
 // Command sequence
 // ============================================================================
 
+TEST_CASE("the timelapse macros are included only when Klipper lacks them",
+          "[timelapse][local_install]") {
+    CHECK(decide_timelapse_macro_setup(true, true) == TimelapseMacroSetup::Loaded);
+    CHECK(decide_timelapse_macro_setup(true, false) == TimelapseMacroSetup::Loaded);
+    CHECK(decide_timelapse_macro_setup(false, true) == TimelapseMacroSetup::IncludeFromHelixMacros);
+    CHECK(decide_timelapse_macro_setup(false, false) == TimelapseMacroSetup::ShowIncludeLine);
+    CHECK(std::string(kTimelapseIncludeLine) == "[include timelapse.cfg]");
+}
+
 TEST_CASE("a fresh local install clones, links, and finds ffmpeg", "[timelapse][local_install]") {
     TempHome home;
     FakeRunner fake;

@@ -2110,7 +2110,9 @@ translations:
   Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error.: Klipper
     已进入关机状态。这可能是由于紧急停止、热失控或配置错误引起的。
   Klipper has no [virtual_sdcard] section.: "Klipper 没有 [virtual_sdcard] 部分。"
+  'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper 尚未加载延时摄影宏，因此不会拍摄任何帧。请将这一行添加到 printer.cfg 并重启 Klipper：'
   Klipper is halted — restart firmware to continue: Klipper 已停止 — 请重启固件以继续
+  Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper 正在重启。延时摄影帧将从下一次打印开始拍摄。'
   Klipper ready: Klipper就绪
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper 将 'default' 保留用于新的校准。请选择其他名称。"
   Klipper restarting - macros activating: '正在重启 Klipper - 正在启用宏'
@@ -4219,6 +4221,7 @@ translations:
   The temperature was changed elsewhere.: "温度已在其他位置更改。"
   The time, date, and system uptime: 时间、日期和系统运行时长
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"
+  Timelapse frames start after Klipper restarts.: 'Klipper 重启后开始拍摄延时摄影帧。'
   Timelapse or logs folder overlaps a protected one.: "延时摄影或日志文件夹与受保护的文件夹重叠。"
   ? The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.
   : '延时摄影插件已安装。生成视频还需要 ffmpeg，但此打印机上没有安装它。'

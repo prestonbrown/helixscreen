@@ -58,6 +58,32 @@ struct TimelapseSetupFacts {
  */
 TimelapseSetupPath decide_timelapse_setup_path(const TimelapseSetupFacts& facts);
 
+/// The macro Klipper defines once it loads moonraker-timelapse's timelapse.cfg.
+inline constexpr const char* kTimelapseFrameMacro = "TIMELAPSE_TAKE_FRAME";
+
+/// The line a user adds to printer.cfg when HelixScreen cannot include the macros itself.
+inline constexpr const char* kTimelapseIncludeLine = "[include timelapse.cfg]";
+
+/// How the wizard's last step gets moonraker-timelapse's macros loaded into Klipper.
+enum class TimelapseMacroSetup {
+    Loaded,                 ///< Klipper has TIMELAPSE_TAKE_FRAME: nothing to do
+    IncludeFromHelixMacros, ///< helix_macros.cfg is loaded, so it includes timelapse.cfg
+    ShowIncludeLine,        ///< nothing HelixScreen owns is loaded: the user adds the line
+};
+
+/**
+ * @brief Pick how the macros get loaded
+ *
+ * Decided from what Klipper has loaded, never from printer.cfg's text, so a
+ * printer that already includes timelapse.cfg (directly or through another
+ * file) never gets a second include.
+ *
+ * @param klipper_has_frame_macro Klipper's objects list has gcode_macro TIMELAPSE_TAKE_FRAME
+ * @param helix_macros_loaded Klipper has HelixScreen's helper macros loaded
+ */
+TimelapseMacroSetup decide_timelapse_macro_setup(bool klipper_has_frame_macro,
+                                                 bool helix_macros_loaded);
+
 /// moonraker-timelapse's recipe for the local plugin installer: clone it to
 /// ~/moonraker-timelapse, `install.sh --link-timelapse` links its component and
 /// macro file, and it needs ffmpeg to render videos.

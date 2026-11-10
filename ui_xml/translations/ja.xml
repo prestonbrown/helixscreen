@@ -2027,7 +2027,9 @@
   <translation tag="Klipper has entered shutdown state." ja="Klipper がシャットダウン状態になりました。"/>
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." ja="Klipper がシャットダウン状態になりました。緊急停止、熱暴走、または設定エラーが原因の可能性があります。"/>
   <translation tag="Klipper has no [virtual_sdcard] section." ja="Klipperに[virtual_sdcard]セクションがありません。"/>
+  <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" ja="Klipper がタイムラプスマクロを読み込んでいないため、フレームは撮影されません。この行を printer.cfg に追加して Klipper を再起動してください:"/>
   <translation tag="Klipper is halted — restart firmware to continue" ja="Klipper が停止しています — 続行するにはファームウェアを再起動してください"/>
+  <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." ja="Klipper を再起動しています。タイムラプスのフレームは次の印刷から撮影されます。"/>
   <translation tag="Klipper ready" ja="Klipper準備完了"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." ja="Klipper は &apos;default&apos; を新しいキャリブレーション用に予約しています。別の名前を選んでください。"/>
   <translation tag="Klipper restarting - macros activating" ja="Klipper を再起動しています - マクロを有効化中"/>
@@ -4207,6 +4209,7 @@
   <translation tag="Timelapse Available" ja="タイムラプス利用可能"/>
   <translation tag="Timelapse Settings" ja="タイムラプス設定"/>
   <translation tag="Timelapse Videos" ja="タイムラプス動画"/>
+  <translation tag="Timelapse frames start after Klipper restarts." ja="タイムラプスのフレームは Klipper の再起動後に撮影されます。"/>
   <translation tag="Timelapse or logs folder overlaps a protected one." ja="タイムラプスまたはログのフォルダーが保護フォルダーと重なっています。"/>
   <translation tag="Timelapse plugin installed successfully!" ja="タイムラプスプラグインのインストール成功！"/>
   <translation tag="Timelapse plugin installed!" ja="タイムラプスプラグインをインストールしました！"/>

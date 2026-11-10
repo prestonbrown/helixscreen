@@ -69,6 +69,15 @@ namespace helix {
 constexpr const char* kHelixMacrosFilename = "helix_macros.cfg";
 
 /**
+ * @brief The line helix_macros.cfg carries to load moonraker-timelapse's macros
+ *
+ * A glob that matches only timelapse.cfg beside helix_macros.cfg: Klipper
+ * refuses to start on a plain include whose file is missing, and skips a glob
+ * that matches nothing, so removing the timelapse plugin never stops Klipper.
+ */
+constexpr const char* kTimelapseMacrosInclude = "[include timelapse.cf[g]]";
+
+/**
  * @brief Status of HelixScreen macro installation
  */
 enum class MacroInstallStatus {
@@ -208,15 +217,37 @@ class MacroManager {
     /**
      * @brief Update Helix macros to latest version
      *
-     * Overwrites helix_macros.cfg with the current version. When
+     * Overwrites helix_macros.cfg with the current version, keeping the
+     * timelapse include when the installed file has one. When
      * stages_skips(), also writes helix_skips.cfg and adds its include if
      * missing; otherwise printer.cfg is not touched.
      * Does NOT restart Klipper — same rule as install_files().
      *
      * @param on_success Called when the new file is uploaded
-     * @param on_error Called if upload fails
+     * @param on_error Called if the installed file cannot be read (a missing
+     *                 one is fine) or the upload fails
      */
     void update_files(SuccessCallback on_success, ErrorCallback on_error);
+
+    /**
+     * @brief Make helix_macros.cfg load moonraker-timelapse's timelapse.cfg
+     *
+     * Adds kTimelapseMacrosInclude to the helix_macros.cfg on the printer,
+     * which update_files() then keeps and uninstall() removes with the file.
+     * The caller decides it is needed: Klipper has the helper macros loaded and
+     * no TIMELAPSE_TAKE_FRAME. Writes nothing when the line is there already.
+     * Does NOT restart Klipper; the macros load at the next restart.
+     *
+     * @param on_success Called when helix_macros.cfg carries the include
+     * @param on_error Called when helix_macros.cfg could not be read or written
+     */
+    void include_timelapse_macros(SuccessCallback on_success, ErrorCallback on_error);
+
+    /// Whether helix_macros.cfg @p content has the timelapse include as a live line.
+    [[nodiscard]] static bool has_timelapse_include(const std::string& content);
+
+    /// @p content with the timelapse include appended, unless it has one already.
+    [[nodiscard]] static std::string with_timelapse_include(const std::string& content);
 
     /**
      * @brief Request a Klipper restart to load staged macro files
@@ -323,6 +354,10 @@ class MacroManager {
     /// Upload one file to the printer's config root.
     void upload_macro_file(const std::string& filename, const std::string& content,
                            SuccessCallback on_success, ErrorCallback on_error);
+
+    /// update_files() once it knows whether to keep the timelapse include.
+    void stage_update(bool keep_timelapse_include, SuccessCallback on_success,
+                      ErrorCallback on_error);
 
     /// Upload helix_skips.cfg when stages_skips(); succeed at once otherwise.
     void upload_skips_file(SuccessCallback on_success, ErrorCallback on_error);

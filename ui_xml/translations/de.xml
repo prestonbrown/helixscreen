@@ -2027,7 +2027,9 @@
   <translation tag="Klipper has entered shutdown state." de="Klipper ist in den Shutdown-Zustand gewechselt."/>
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." de="Klipper ist in den Shutdown-Zustand gewechselt. Dies kann auf einen Notaus, thermisches Durchgehen oder einen Konfigurationsfehler zurückzuführen sein."/>
   <translation tag="Klipper has no [virtual_sdcard] section." de="Klipper hat keinen Abschnitt [virtual_sdcard]."/>
+  <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" de="Klipper hat die Zeitraffer-Makros nicht geladen, daher werden keine Bilder aufgenommen. Füge diese Zeile zur printer.cfg hinzu und starte Klipper neu:"/>
   <translation tag="Klipper is halted — restart firmware to continue" de="Klipper ist angehalten — Firmware neu starten, um fortzufahren"/>
+  <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." de="Klipper startet neu. Zeitraffer-Bilder werden ab dem nächsten Druck aufgenommen."/>
   <translation tag="Klipper ready" de="Klipper bereit"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." de="Klipper reserviert &apos;default&apos; für neue Kalibrierungen. Wählen Sie einen anderen Namen."/>
   <translation tag="Klipper restarting - macros activating" de="Klipper startet neu - Makros werden aktiviert"/>
@@ -4207,6 +4209,7 @@
   <translation tag="Timelapse Available" de="Zeitraffer verfügbar"/>
   <translation tag="Timelapse Settings" de="Zeitraffer-Einstellungen"/>
   <translation tag="Timelapse Videos" de="Zeitraffer-Videos"/>
+  <translation tag="Timelapse frames start after Klipper restarts." de="Zeitraffer-Bilder werden nach dem Neustart von Klipper aufgenommen."/>
   <translation tag="Timelapse or logs folder overlaps a protected one." de="Timelapse- oder Log-Ordner überschneidet sich mit einem geschützten Ordner."/>
   <translation tag="Timelapse plugin installed successfully!" de="Zeitraffer-Plugin erfolgreich installiert!"/>
   <translation tag="Timelapse plugin installed!" de="Zeitraffer-Plugin installiert!"/>
