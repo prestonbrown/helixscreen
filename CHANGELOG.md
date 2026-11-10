@@ -47,6 +47,7 @@ This is the first 1.1 release candidate. Unless testing turns up a problem, it i
 - **Forge-X on the AD5X** (#2092) - an AD5X running Forge-X is no longer mistaken for Z-Mod, and its telemetry id moves to the Forge-X state folder once.
 - **Fan RPM on Creality printers** (#2071) - on the K1 and K2 series, a fan's RPM now shows on that fan's own dial or card. Before, one fan's RPM could show under another, such as the part fan's under an auxiliary fan. A dial set to Off also no longer shows a leftover RPM over its zero mark.
 - **No error after powering off on purpose** (#2076) - turning the printer off from HelixScreen or Mainsail, through a power device that also stops Klipper, no longer shows the "Printer Shutdown" dialog.
+- **Power tiles show the right device** - a power tile switched to another device no longer shows the old device's ON or OFF under the new name, and a tile that lost its device's status gets the device's name back when the status returns.
 - **SnapSpeed filament on the Snapmaker U1** - changing only a spool's colour no longer turns a SnapSpeed filament into Basic. A new material or brand still starts at Basic.
 - **Check Again in Setup Timelapse** - the Check Again button on the install step is always on screen, and the empty blue square in the top corner of that screen is gone.
 - **Re-apply on a spool** - Re-apply now takes the spool's name, and fixing only the colour keeps the spool's temperatures.
