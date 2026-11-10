@@ -5,7 +5,7 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0-rc.1] - UNRELEASED
+## [1.1.0-rc.1] - 2026-11-10
 
 This is the first 1.1 release candidate. Unless testing turns up a problem, it is what ships as 1.1.0. Since beta.18 it fixes printer identification on Creality and FlashForge printers, keeps your files across web updates on Z-Mod, and shows fan speeds in RPM wherever a fan reports them.
 
@@ -48,6 +48,7 @@ This is the first 1.1 release candidate. Unless testing turns up a problem, it i
 - **Fan RPM on Creality printers** (#2071) - on the K1 and K2 series, a fan's RPM now shows on that fan's own dial or card. Before, one fan's RPM could show under another, such as the part fan's under an auxiliary fan. A dial set to Off also no longer shows a leftover RPM over its zero mark.
 - **No error after powering off on purpose** (#2076) - turning the printer off from HelixScreen or Mainsail, through a power device that also stops Klipper, no longer shows the "Printer Shutdown" dialog.
 - **Power tiles show the right device** - a power tile switched to another device no longer shows the old device's ON or OFF under the new name, and a tile that lost its device's status gets the device's name back when the status returns.
+- **More spools in the picker on small screens** - on 480x320 and similar panels the spool picker's rows are shorter, so about five spools fit on screen instead of three.
 - **SnapSpeed filament on the Snapmaker U1** - changing only a spool's colour no longer turns a SnapSpeed filament into Basic. A new material or brand still starts at Basic.
 - **Check Again in Setup Timelapse** - the Check Again button on the install step is always on screen, and the empty blue square in the top corner of that screen is gone.
 - **Re-apply on a spool** - Re-apply now takes the spool's name, and fixing only the colour keeps the spool's temperatures.
