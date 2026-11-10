@@ -719,13 +719,13 @@ make_font_stage() {
 }
 
 @test "prune: a fixed panel keeps only the filename glyph sizes its tier reaches at any UI scale" {
-    # 800x480 in a font tier 4 build: font_body 18 steps up to 28 (32 is not
-    # linked), font_small light_16 to 18 and font_xs light_12 to 18.
+    # 800x480 in a font tier 4 build: font_body 18 steps up to 26 (28 registers
+    # only from LARGE), font_small light_16 and font_xs light_12 to light_16.
     make_ui_font_stage
     run python3 "$DERIVE" prune-assets ad5m "$STAGE" 4
     [ "$status" -eq 0 ] || fail "prune failed: $output"
     run ls "$STAGE/assets/fonts/cjk/filename"
-    [ "$(echo "$output" | tr '\n' ' ')" = "$(printf 'noto_sans_cjk_filename_%s.bin ' 12 14 16 18 20 24 26 28)" ] \
+    [ "$(echo "$output" | tr '\n' ' ')" = "$(printf 'noto_sans_cjk_filename_%s.bin ' 12 16 18 20 24 26)" ] \
         || fail "800x480 at tier 4 kept: $output"
 }
 
@@ -812,12 +812,15 @@ text = open("ui_xml/globals.xml", encoding="utf-8").read()
 reach = {l.split(":")[0]: l.split(":")[1].split()
          for l in open("scripts/translations/font_scale_reach.txt") if ":" in l}
 linked = {f: px for f, _b, px in cf.face_rows(tier)}
+registered = {cf.TIERS[int(l.split(":")[0])]: set(l.split(":")[1].split())
+              for l in open("scripts/translations/registered_text_fonts.txt") if ":" in l}
 missing = []
 for t in tiers:
     for token in cf.FILENAME_FONT_TOKENS:
         face = re.search(f'name="{token}_{t}" value="([a-z0-9_]+)"', text).group(1)
         for f in reach[face]:
-            path = f"{stage}/assets/fonts/cjk/filename/noto_sans_cjk_filename_{linked[f]}.bin" if f in linked else None
+            usable = f in linked and (f == face or f in registered[t])
+            path = f"{stage}/assets/fonts/cjk/filename/noto_sans_cjk_filename_{linked[f]}.bin" if usable else None
             if path and not os.path.isfile(path):
                 missing.append(f"{t}:{token}->{f}")
 print(" ".join(missing))

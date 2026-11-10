@@ -10,7 +10,10 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <lvgl.h>
+#include <string>
+#include <vector>
 
 // Mirrors the same guard in cjk_font_manager.cpp and theme_manager.cpp. Without it, a build
 // path that forgot -DHELIX_MAX_FONT_TIER would evaluate every guard below as
@@ -27,108 +30,119 @@ int AssetManager::s_registered_font_tier = -1;
 
 namespace {
 
-/// Faces every breakpoint needs. Registered once, on the first call.
-int register_base_fonts() {
+/// One text face name and the first breakpoint that registers it. Registering
+/// only the faces a breakpoint references keeps larger tiers' .rodata pages
+/// unfaulted; text_font_names_for_breakpoint() reads the same rows, and the CJK
+/// filename bake and prune read its output (scripts/translations/registered_text_fonts.txt).
+struct TextFontRow {
+    const char* name;
+    const lv_font_t* font;
+    int first_tier;
+};
+
+// clang-format off
+const TextFontRow kTextFonts[] = {
+    // Micro-only 8px faces, registered whatever the startup tier: a name entry
+    // costs ~100 bytes and faults no glyph pages, and the breakpoint can fall
+    // at runtime to MICRO, where font_body_micro needs them (#1210).
+    {"noto_sans_8", &noto_sans_8, 0},
+    {"source_code_pro_8", &source_code_pro_8, 0},
+    // "montserrat_*" names for XML compatibility, all backed by Noto Sans.
+    {"montserrat_10", &noto_sans_10, 0},
+    {"montserrat_12", &noto_sans_12, 0},
+    {"montserrat_14", &noto_sans_14, 0},
+    {"montserrat_16", &noto_sans_16, 0},
+    {"montserrat_18", &noto_sans_18, 0},
+    {"montserrat_20", &noto_sans_20, 0},
+    {"montserrat_24", &noto_sans_24, 0},
+    {"noto_sans_10", &noto_sans_10, 0},
+    {"noto_sans_11", &noto_sans_11, 0},
+    {"noto_sans_12", &noto_sans_12, 0},
+    {"noto_sans_14", &noto_sans_14, 0},
+    {"noto_sans_16", &noto_sans_16, 0},
+    {"noto_sans_18", &noto_sans_18, 0},
+    {"noto_sans_20", &noto_sans_20, 0},
+    {"noto_sans_24", &noto_sans_24, 0},
+    {"noto_sans_light_10", &noto_sans_light_10, 0},
+    {"noto_sans_light_11", &noto_sans_light_11, 0},
+    {"noto_sans_light_12", &noto_sans_light_12, 0},
+    // Bold faces at every tier: C++ uses them directly (watchdog bold_16/24)
+    // and so does XML (debug modal bold_28).
+    {"noto_sans_bold_14", &noto_sans_bold_14, 0},
+    {"noto_sans_bold_16", &noto_sans_bold_16, 0},
+    {"noto_sans_bold_18", &noto_sans_bold_18, 0},
+    {"noto_sans_bold_20", &noto_sans_bold_20, 0},
+    {"noto_sans_bold_24", &noto_sans_bold_24, 0},
+    {"noto_sans_bold_28", &noto_sans_bold_28, 0},
+    {"source_code_pro_10", &source_code_pro_10, 0},
+    {"source_code_pro_12", &source_code_pro_12, 0},
+    {"source_code_pro_14", &source_code_pro_14, 0},
+    {"source_code_pro_16", &source_code_pro_16, 0},
+#if HELIX_MAX_FONT_TIER >= 3
+    {"montserrat_26", &noto_sans_26, 3},             // font_heading_medium
+    {"noto_sans_26", &noto_sans_26, 3},              // font_heading_medium
+    {"noto_sans_light_16", &noto_sans_light_16, 3},  // font_small_medium
+    // font_display_medium: the largest bold face, from MEDIUM up because that is
+    // the first tier whose tokens name it.
+    {"noto_sans_bold_40", &noto_sans_bold_40, 3},
+#endif
+#if HELIX_MAX_FONT_TIER >= 4
+    {"montserrat_28", &noto_sans_28, 4},             // font_heading_large
+    {"noto_sans_28", &noto_sans_28, 4},              // font_heading_large
+    {"noto_sans_light_14", &noto_sans_light_14, 4},  // font_xs_large
+    {"noto_sans_light_18", &noto_sans_light_18, 4},  // font_small_large
+#endif
+#if HELIX_MAX_FONT_TIER >= 5
+    {"noto_sans_32", &noto_sans_32, 5},
+    {"noto_sans_bold_32", &noto_sans_bold_32, 5},
+    {"noto_sans_light_20", &noto_sans_light_20, 5},
+    {"source_code_pro_18", &source_code_pro_18, 5},
+#endif
+#if HELIX_MAX_FONT_TIER >= 6
+    {"noto_sans_40", &noto_sans_40, 6},
+    {"noto_sans_light_26", &noto_sans_light_26, 6},
+    {"source_code_pro_20", &source_code_pro_20, 6},
+    {"source_code_pro_24", &source_code_pro_24, 6},
+#if HELIX_HAS_HIDPI_FONTS
+    // Rungs above the authored ladder, reachable only through the high-DPI UI
+    // scale (DisplayMetrics). theme_manager adopts a scaled face only after
+    // lv_xml_get_font_silent() finds it, so registering them is what makes the
+    // scaled selection possible. A platform that does not link them declares
+    // HELIX_HAS_HIDPI_FONTS=0; its panels have no scale above 1.0 to reach them.
+    {"noto_sans_48", &noto_sans_48, 6},
+    {"noto_sans_64", &noto_sans_64, 6},
+    {"noto_sans_bold_48", &noto_sans_bold_48, 6},
+    {"noto_sans_bold_64", &noto_sans_bold_64, 6},
+    {"noto_sans_light_32", &noto_sans_light_32, 6},
+    {"noto_sans_light_40", &noto_sans_light_40, 6},
+#endif
+#endif
+};
+// clang-format on
+
+/// Register the text faces whose first breakpoint is @p first_tier.
+int register_text_fonts(int first_tier) {
     int n = 0;
-    auto reg = [&n](const char* name, const lv_font_t* font) {
-        lv_xml_register_font(nullptr, name, font);
-        n++;
-    };
-
-    // Material Design Icons (various sizes for different UI elements)
-    // Source: https://pictogrammers.com/library/mdi/
-    // All icon sizes needed at all breakpoints (used in watchdog, XML, etc.)
-    reg("mdi_icons_64", &mdi_icons_64);
-    reg("mdi_icons_48", &mdi_icons_48);
-    reg("mdi_icons_32", &mdi_icons_32);
-    reg("mdi_icons_24", &mdi_icons_24);
-    reg("mdi_icons_16", &mdi_icons_16);
-    reg("mdi_icons_14", &mdi_icons_14);
-
-    // Micro-only 8px faces. Registered whatever the startup tier: a name entry
-    // costs ~100 bytes and does not fault the glyph pages, and the symbols are
-    // linked unconditionally anyway. The breakpoint can fall at runtime: without
-    // them a window shrunk to MICRO would find font_body_micro unresolvable and
-    // get bumped up to the _large tier instead of down (#1210).
-    reg("noto_sans_8", &noto_sans_8);
-    reg("source_code_pro_8", &source_code_pro_8);
-
-    // Montserrat text fonts - used by semantic text components. Sizes per breakpoint
-    // (micro/tiny/small/medium/large/xlarge/xxlarge):
-    // - text_heading uses font_heading  (14 / 14 / 20 / 26 / 28 / 32 / 40)
-    // - text_body    uses font_body     (10 / 11 / 14 / 18 / 20 / 24 / 32)
-    // - text_small   uses font_small    (10 / 11 / 12 / 16 / 18 / 20 / 26)
-    // NOTE: Registering as "montserrat_*" for XML compatibility but using noto_sans_* fonts
-    reg("montserrat_10", &noto_sans_10);
-    reg("montserrat_12", &noto_sans_12);
-    reg("montserrat_14", &noto_sans_14);
-    reg("montserrat_16", &noto_sans_16);
-    reg("montserrat_18", &noto_sans_18);
-    reg("montserrat_20", &noto_sans_20);
-    reg("montserrat_24", &noto_sans_24);
-
-    // Noto Sans fonts - same sizes as Montserrat, with extended Unicode support
-    // (includes ©®™€£¥°±•… and other symbols)
-    reg("noto_sans_10", &noto_sans_10);
-    reg("noto_sans_11", &noto_sans_11);
-    reg("noto_sans_12", &noto_sans_12);
-    reg("noto_sans_14", &noto_sans_14);
-    reg("noto_sans_16", &noto_sans_16);
-    reg("noto_sans_18", &noto_sans_18);
-    reg("noto_sans_20", &noto_sans_20);
-    reg("noto_sans_24", &noto_sans_24);
-
-    // Noto Sans Light fonts (for text_small and text_xs)
-    reg("noto_sans_light_10", &noto_sans_light_10);
-    reg("noto_sans_light_11", &noto_sans_light_11);
-    reg("noto_sans_light_12", &noto_sans_light_12);
-
-    // Noto Sans Bold fonts — all registered unconditionally because they're
-    // used directly in C++ (watchdog: bold_16/24) and XML (debug modal: bold_28)
-    reg("noto_sans_bold_14", &noto_sans_bold_14);
-    reg("noto_sans_bold_16", &noto_sans_bold_16);
-    reg("noto_sans_bold_18", &noto_sans_bold_18);
-    reg("noto_sans_bold_20", &noto_sans_bold_20);
-    reg("noto_sans_bold_24", &noto_sans_bold_24);
-    reg("noto_sans_bold_28", &noto_sans_bold_28);
-
-    // Source Code Pro - Monospace (for console/terminal displays)
-    reg("source_code_pro_10", &source_code_pro_10);
-    reg("source_code_pro_12", &source_code_pro_12);
-    reg("source_code_pro_14", &source_code_pro_14);
-    reg("source_code_pro_16", &source_code_pro_16);
-
+    for (const auto& row : kTextFonts) {
+        if (row.first_tier == first_tier) {
+            lv_xml_register_font(nullptr, row.name, row.font);
+            n++;
+        }
+    }
     return n;
 }
 
-/// Faces that MEDIUM (and up) is the first tier to reference.
-int register_medium_tier_fonts() {
-#if HELIX_MAX_FONT_TIER >= 3
-    lv_xml_register_font(nullptr, "montserrat_26", &noto_sans_26);            // font_heading_medium
-    lv_xml_register_font(nullptr, "noto_sans_26", &noto_sans_26);             // font_heading_medium
-    lv_xml_register_font(nullptr, "noto_sans_light_16", &noto_sans_light_16); // font_small_medium
-    // font_display_medium. The largest bold face, registered from MEDIUM up
-    // rather than XXLARGE because that is the first tier whose tokens name it:
-    // a font registered only at its own tier is invisible to every smaller
-    // display, and the token silently resolves to nothing.
-    lv_xml_register_font(nullptr, "noto_sans_bold_40", &noto_sans_bold_40);
-    return 4;
-#else
-    return 0;
-#endif
-}
-
-/// Faces that LARGE (and up) is the first tier to reference.
-int register_large_tier_fonts() {
-#if HELIX_MAX_FONT_TIER >= 4
-    lv_xml_register_font(nullptr, "montserrat_28", &noto_sans_28);            // font_heading_large
-    lv_xml_register_font(nullptr, "noto_sans_28", &noto_sans_28);             // font_heading_large
-    lv_xml_register_font(nullptr, "noto_sans_light_14", &noto_sans_light_14); // font_xs_large
-    lv_xml_register_font(nullptr, "noto_sans_light_18", &noto_sans_light_18); // font_small_large
-    return 4;
-#else
-    return 0;
-#endif
+/// Faces every breakpoint needs. Registered once, on the first call.
+int register_base_fonts() {
+    // Material Design Icons, needed at all breakpoints (watchdog, XML, ...).
+    // Source: https://pictogrammers.com/library/mdi/
+    lv_xml_register_font(nullptr, "mdi_icons_64", &mdi_icons_64);
+    lv_xml_register_font(nullptr, "mdi_icons_48", &mdi_icons_48);
+    lv_xml_register_font(nullptr, "mdi_icons_32", &mdi_icons_32);
+    lv_xml_register_font(nullptr, "mdi_icons_24", &mdi_icons_24);
+    lv_xml_register_font(nullptr, "mdi_icons_16", &mdi_icons_16);
+    lv_xml_register_font(nullptr, "mdi_icons_14", &mdi_icons_14);
+    return 6 + register_text_fonts(0);
 }
 
 /// Icon faces above 64px, each registered wherever it is linked: with its tier,
@@ -142,53 +156,6 @@ void register_large_icon_fonts() {
 #endif
 #if HELIX_HAS_MDI_ICONS_128
     lv_xml_register_font(nullptr, "mdi_icons_128", &mdi_icons_128);
-#endif
-}
-
-/// XLarge tier fonts (HiDPI screens > LARGE_MAX on the constrained axis).
-int register_xlarge_tier_fonts() {
-#if HELIX_MAX_FONT_TIER >= 5
-    lv_xml_register_font(nullptr, "noto_sans_32", &noto_sans_32);
-    lv_xml_register_font(nullptr, "noto_sans_bold_32", &noto_sans_bold_32);
-    lv_xml_register_font(nullptr, "noto_sans_light_20", &noto_sans_light_20);
-    lv_xml_register_font(nullptr, "source_code_pro_18", &source_code_pro_18);
-    return 5;
-#else
-    return 0;
-#endif
-}
-
-/// XXLarge tier fonts (HiDPI screens > XLARGE_MAX, e.g. 2560x1440).
-int register_xxlarge_tier_fonts() {
-#if HELIX_MAX_FONT_TIER >= 6
-    lv_xml_register_font(nullptr, "noto_sans_40", &noto_sans_40);
-    // noto_sans_bold_40 is registered by the MEDIUM tier (font_display), which
-    // every larger tier runs through first.
-    lv_xml_register_font(nullptr, "noto_sans_light_26", &noto_sans_light_26);
-    lv_xml_register_font(nullptr, "source_code_pro_20", &source_code_pro_20);
-    lv_xml_register_font(nullptr, "source_code_pro_24", &source_code_pro_24);
-#if HELIX_HAS_HIDPI_FONTS
-    // Rungs above the authored ladder, reachable only through the high-DPI UI
-    // scale factor (DisplayMetrics). theme_manager only adopts one of these
-    // after lv_xml_get_font_silent() confirms it is linked, so registering them
-    // here is what makes the scaled font selection possible at all — without it
-    // the remap silently falls back to the unscaled tier face.
-    //
-    // Taking their addresses requires the faces to be linked, so a platform that
-    // does not pack them declares HELIX_HAS_HIDPI_FONTS=0 rather than failing to
-    // link. Its panels have no scale factor above 1.0 to reach them with.
-    lv_xml_register_font(nullptr, "noto_sans_48", &noto_sans_48);
-    lv_xml_register_font(nullptr, "noto_sans_64", &noto_sans_64);
-    lv_xml_register_font(nullptr, "noto_sans_bold_48", &noto_sans_bold_48);
-    lv_xml_register_font(nullptr, "noto_sans_bold_64", &noto_sans_bold_64);
-    lv_xml_register_font(nullptr, "noto_sans_light_32", &noto_sans_light_32);
-    lv_xml_register_font(nullptr, "noto_sans_light_40", &noto_sans_light_40);
-    return 13;
-#else
-    return 7;
-#endif
-#else
-    return 0;
 #endif
 }
 
@@ -219,17 +186,8 @@ int AssetManager::register_fonts_for_tier(int tier) {
         // its tier's ladder (ui_tile_rung.h).
         register_large_icon_fonts();
     }
-    if (tier >= to_int(UiBreakpoint::Medium) && prev < to_int(UiBreakpoint::Medium)) {
-        registered += register_medium_tier_fonts();
-    }
-    if (tier >= to_int(UiBreakpoint::Large) && prev < to_int(UiBreakpoint::Large)) {
-        registered += register_large_tier_fonts();
-    }
-    if (tier >= to_int(UiBreakpoint::XLarge) && prev < to_int(UiBreakpoint::XLarge)) {
-        registered += register_xlarge_tier_fonts();
-    }
-    if (tier >= to_int(UiBreakpoint::XXLarge) && prev < to_int(UiBreakpoint::XXLarge)) {
-        registered += register_xxlarge_tier_fonts();
+    for (int t = std::max(prev + 1, to_int(UiBreakpoint::Tiny)); t <= tier; ++t) {
+        registered += register_text_fonts(t);
     }
 
     s_registered_font_tier = tier;
@@ -244,6 +202,15 @@ int AssetManager::register_fonts_for_tier(int tier) {
                      prev, tier, registered);
     }
     return registered;
+}
+
+std::vector<std::string> AssetManager::text_font_names_for_breakpoint(int tier) {
+    std::vector<std::string> names;
+    for (const auto& row : kTextFonts) {
+        if (row.first_tier <= tier)
+            names.emplace_back(row.name);
+    }
+    return names;
 }
 
 int AssetManager::registered_font_tier() {

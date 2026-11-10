@@ -18,8 +18,10 @@ text_small and text_xs read font_body, font_small and font_xs), resolved per
 breakpoint tier from ui_xml/globals.xml, then stepped up by the UI scale the
 way DisplayMetrics::scaled_font_name() does: font_scale_reach.txt, which
 tests/unit/test_display_metrics.cpp keeps equal to that function, lists every
-face each face can become. A step-up only lands on a face the build links, so
-the faces come from include/cjk_font_faces.inc at the build's font tier.
+face each face can become. A step-up only lands on a face the build links (the
+faces of include/cjk_font_faces.inc at the build's font tier) and that
+AssetManager registers at that breakpoint (registered_text_fonts.txt, which
+tests/unit/test_font_tier_refresh.cpp keeps equal to its registration table).
 
 Consumers: regen_text_fonts.sh (what to bake, at which sizes),
 check_cjk_font_coverage.py (what the bake must cover) and
@@ -38,6 +40,7 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent.parent
 LISTS = (HERE / 'hanzi_level1.txt', HERE / 'joyo_kanji.txt')
 SCALE_REACH = HERE / 'font_scale_reach.txt'
+REGISTERED = HERE / 'registered_text_fonts.txt'
 RANGES_INC = Path('include') / 'core' / 'cjk_ranges.inc'
 FACES_INC = Path('include') / 'cjk_font_faces.inc'
 FEATURE_DEFAULTS = Path('include') / 'helix_features.h'
@@ -147,6 +150,18 @@ def scale_reach() -> dict[str, set[str]]:
     return reach
 
 
+def registered_names() -> dict[str, set[str]]:
+    """Breakpoint tier -> every text face name AssetManager registers there."""
+    out = {}
+    for line in REGISTERED.read_text().splitlines():
+        index, _, rest = line.partition(':')
+        if index.strip().isdigit() and int(index) < len(TIERS):
+            out[TIERS[int(index)]] = set(rest.split())
+    if set(out) != set(TIERS):
+        raise FilenameFontError(f'{REGISTERED.name} does not list every breakpoint tier')
+    return out
+
+
 def _tier_faces(root: Path) -> dict[str, set[str]]:
     text = (root / 'ui_xml' / 'globals.xml').read_text(encoding='utf-8')
     values = dict(re.findall(r'<string\s+name="([a-z_]+)"\s+value="([a-z0-9_]+)"', text))
@@ -169,13 +184,17 @@ def sizes_by_tier(root: Path = REPO_ROOT,
     scale, in a build of that font tier."""
     linked = {face: px for face, _bin, px in face_rows(max_font_tier, root)}
     reach = scale_reach()
+    registered = registered_names()
     out = {}
     for tier, faces in _tier_faces(root).items():
         sizes = set()
         for face in faces:
             if face not in reach:
                 raise FilenameFontError(f'{SCALE_REACH.name} has no row for {face}')
-            sizes.update(linked[f] for f in reach[face] | {face} if f in linked)
+            # A scaled face is adopted only when it is linked and registered at
+            # this breakpoint; otherwise the token keeps its authored face.
+            sizes.update(linked[f] for f in reach[face] | {face}
+                         if f in linked and (f == face or f in registered[tier]))
         out[tier] = sorted(sizes)
     return out
 
