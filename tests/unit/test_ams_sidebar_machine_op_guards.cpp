@@ -194,6 +194,13 @@ TEST_CASE_METHOD(SidebarGuardFixture,
 
     lv_subject_set_int(subject, 1);
     CHECK(lv_obj_has_state(btn, LV_STATE_DISABLED));
+
+    // It shows only where the backend can check its gates.
+    lv_subject_t* shown = gate("ams_sidebar_check_gates_shown");
+    lv_subject_set_int(shown, 0);
+    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    lv_subject_set_int(shown, 1);
+    CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
 }
 
 TEST_CASE_METHOD(SidebarDirectionGateFixture,
