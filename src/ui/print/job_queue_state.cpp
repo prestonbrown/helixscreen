@@ -38,6 +38,9 @@ JobQueueState::JobQueueState(helix::IMoonrakerAPI* api, helix::IMoonrakerClient*
 
 void JobQueueState::invalidate() {
     is_loaded_ = false;
+    if (subjects_initialized_) {
+        lv_subject_set_int(&job_queue_loaded_subject_, 0);
+    }
     // A dropped socket may hide a Moonraker restart, and a restart is the
     // only thing that changes server config: re-read it on the next connect.
     automatic_transition_loaded_ = false;
@@ -81,6 +84,8 @@ void JobQueueState::init_subjects() {
 
     lv_subject_init_int(&job_queue_count_subject_, 0);
     subjects_.publish("job_queue_count", &job_queue_count_subject_);
+    lv_subject_init_int(&job_queue_loaded_subject_, is_loaded_ ? 1 : 0);
+    subjects_.publish("job_queue_loaded", &job_queue_loaded_subject_);
 
     lv_subject_init_int(&job_queue_run_state_subject_,
                         static_cast<int>(helix::QueueRunState::Paused));
@@ -362,6 +367,7 @@ void JobQueueState::update_subjects() {
 
     lv_subject_set_int(&job_queue_run_state_subject_, static_cast<int>(run_state()));
     lv_subject_set_int(&job_queue_revision_subject_, jobs_revision_);
+    lv_subject_set_int(&job_queue_loaded_subject_, is_loaded_ ? 1 : 0);
 
     // Count goes LAST, after cached_jobs_ and both text subjects are settled.
     // It is the rebuild trigger the queue surfaces observe, and PrintStatusWidget's

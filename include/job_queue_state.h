@@ -218,6 +218,9 @@ class JobQueueState {
     // rebuilds them, so a queue mutation that does not move this subject is
     // invisible until the next resize.
     lv_subject_t job_queue_count_subject_{};
+    // is_loaded() as 0/1: the count is the last fetch's until the next one, so a
+    // surface that must not show it while disconnected gates on this too.
+    lv_subject_t job_queue_loaded_subject_{};
     // helix::QueueRunState as an int. Published before the count so a count
     // observer reads it settled.
     lv_subject_t job_queue_run_state_subject_{};

@@ -78,10 +78,7 @@ bool FilamentProductEditModal::callbacks_registered_ = false;
 
 FilamentProductEditModal::FilamentProductEditModal() = default;
 
-FilamentProductEditModal::~FilamentProductEditModal() {
-    subjects_.deinit_all();
-    subjects_initialized_ = false;
-}
+FilamentProductEditModal::~FilamentProductEditModal() = default;
 
 void FilamentProductEditModal::set_on_saved(SavedCallback cb) {
     on_saved_ = std::move(cb);
@@ -98,7 +95,7 @@ bool FilamentProductEditModal::show_for_add(lv_obj_t* parent) {
     edit_id_.clear();
     is_builtin_ = false;
     has_overlay_ = false;
-    return Modal::show(parent);
+    return Modal::show(parent, names_.attrs());
 }
 
 bool FilamentProductEditModal::show_for_edit(lv_obj_t* parent, const std::string& product_id) {
@@ -108,7 +105,7 @@ bool FilamentProductEditModal::show_for_edit(lv_obj_t* parent, const std::string
     edit_id_ = product_id;
     is_builtin_ = id_in_builtin(product_id);
     has_overlay_ = id_in_overlay(product_id);
-    return Modal::show(parent);
+    return Modal::show(parent, names_.attrs());
 }
 
 // ============================================================================
@@ -128,16 +125,15 @@ void FilamentProductEditModal::on_show() {
 // ============================================================================
 
 void FilamentProductEditModal::init_subjects() {
-    if (subjects_initialized_)
+    if (!names_.empty())
         return;
     lv_subject_init_string(&secondary_text_subject_, secondary_text_buf_, nullptr,
                            sizeof(secondary_text_buf_), lv_tr("Delete"));
-    subjects_.publish("filament_product_secondary_text", &secondary_text_subject_);
+    names_.publish(&secondary_text_subject_, "secondary_text_subject", "secondary_text");
     lv_subject_init_int(&show_secondary_subject_, 0);
-    subjects_.publish("filament_product_show_secondary", &show_secondary_subject_);
+    names_.publish(&show_secondary_subject_, "show_secondary_subject", "show_secondary");
     lv_subject_init_string(&title_subject_, title_buf_, nullptr, sizeof(title_buf_), "");
-    subjects_.publish("filament_product_title", &title_subject_);
-    subjects_initialized_ = true;
+    names_.publish(&title_subject_, "title_subject", "title");
 }
 
 void FilamentProductEditModal::populate_type_dropdown(const std::string& selected_type) {

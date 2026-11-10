@@ -6,6 +6,7 @@
 #include "ui_modal.h"
 
 #include "filament_product_form.h"
+#include "instance_subjects.h"
 
 #include <functional>
 #include <string>
@@ -75,9 +76,6 @@ class FilamentProductEditModal : public Modal {
     bool has_overlay_ = false; ///< an overlay entry already exists for edit_id_
     SavedCallback on_saved_;
 
-    bool subjects_initialized_ = false;
-    SubjectManager subjects_;
-
     // Secondary (destructive) button label: "Delete" (user entry) or
     // "Restore Defaults" (built-in with an override). Hidden in Add mode.
     lv_subject_t secondary_text_subject_{};
@@ -85,6 +83,9 @@ class FilamentProductEditModal : public Modal {
     lv_subject_t show_secondary_subject_{}; ///< 1 when the secondary button applies
     lv_subject_t title_subject_{};          ///< "Add Filament" / "Edit Filament"
     char title_buf_[64]{};
+    // Published under names this instance alone holds: the Filament panel and
+    // the AMS editor each keep a catalog picker, and with it one of these, alive.
+    helix::InstanceSubjects names_{"filament_product"}; ///< After the subjects it publishes
 
     // === Internal Methods ===
     void init_subjects();

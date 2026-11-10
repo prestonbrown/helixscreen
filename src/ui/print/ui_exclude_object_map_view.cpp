@@ -42,7 +42,6 @@ ExcludeObjectMapView::~ExcludeObjectMapView() {
     if (root_ || canvas_buf_) {
         destroy();
     }
-    subjects_.deinit_all();
 }
 
 // ============================================================================
@@ -87,9 +86,8 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
         root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "exclude_object_map_mini", nullptr));
     } else {
         publish_view_subjects();
-        const char* attrs[] = {"dims_subject", dims_name_.c_str(), "has_objects_subject",
-                               has_objects_name_.c_str(), nullptr};
-        root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "exclude_object_map", attrs));
+        root_ = static_cast<lv_obj_t*>(
+            lv_xml_create(parent, "exclude_object_map", view_subjects_.attrs()));
     }
     if (!root_) {
         spdlog::error("[ExcludeObjectMapView] lv_xml_create failed");
@@ -263,14 +261,11 @@ void ExcludeObjectMapView::resize() {
 // ============================================================================
 
 void ExcludeObjectMapView::publish_view_subjects() {
-    subjects_.deinit_all();
-    const std::string base = next_instance_prefix("exclude_map");
-    dims_name_ = base + "_dims";
-    has_objects_name_ = base + "_has_objects";
+    view_subjects_.reset();
     lv_subject_init_string(&dims_text_, dims_buf_, nullptr, sizeof(dims_buf_), "");
-    subjects_.publish(dims_name_.c_str(), &dims_text_);
+    view_subjects_.publish(&dims_text_, "dims_subject", "dims");
     lv_subject_init_int(&has_objects_, 1);
-    subjects_.publish(has_objects_name_.c_str(), &has_objects_);
+    view_subjects_.publish(&has_objects_, "has_objects_subject", "has_objects");
 }
 
 void ExcludeObjectMapView::destroy() {
@@ -333,7 +328,7 @@ void ExcludeObjectMapView::destroy() {
     }
     // Withdraws the names before the subjects go; the deferred delete above
     // finds no observer left on them.
-    subjects_.deinit_all();
+    view_subjects_.reset();
 
     state_ = nullptr;
     on_object_tapped_ = nullptr;

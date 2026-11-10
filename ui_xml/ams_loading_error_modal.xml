@@ -4,6 +4,11 @@
 <!-- Modal for displaying AMS loading errors with retry option -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
+  <api>
+    <!-- AmsLoadingErrorModal's per-instance subjects: the error message and its hint. -->
+    <prop name="message_subject" type="string" default=""/>
+    <prop name="hint_subject" type="string" default=""/>
+  </api>
   <!-- Dialog card -->
   <view name="ams_loading_error_modal"
         extends="ui_dialog" width="70%" height="content" style_min_width="300" style_max_width="400"
@@ -20,10 +25,10 @@
             style_pad_right="#space_lg" style_pad_top="#space_lg" style_pad_bottom="#space_md" flex_flow="column"
             style_pad_gap="#space_md" scrollable="true" scroll_snap_y="none">
       <!-- Error message text -->
-      <text_body name="error_message" width="100%" bind_text="ams_loading_error_message" long_mode="wrap"/>
+      <text_body name="error_message" width="100%" bind_text="$message_subject" long_mode="wrap"/>
       <!-- Hint text -->
       <text_small name="error_hint"
-                  width="100%" bind_text="ams_loading_error_hint" style_text_color="#text_muted" long_mode="wrap"/>
+                  width="100%" bind_text="$hint_subject" style_text_color="#text_muted" long_mode="wrap"/>
     </lv_obj>
     <!-- AFC filament position diagram — self-hides unless AmsPanel recognised the fault
          message (prestonbrown/helixscreen#1184). Outside the scrollable text area so the

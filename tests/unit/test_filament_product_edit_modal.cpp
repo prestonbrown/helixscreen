@@ -12,30 +12,35 @@
 
 using helix::ui::FilamentProductEditModal;
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "The filament product modal titles itself and offers Delete only for an edit",
-                 "[filament_catalog][modal]") {
-    FilamentProductEditModal modal;
-    auto shown = [](const char* name) {
+TEST_CASE_METHOD(
+    LVGLUITestFixture,
+    "Two filament product modals each title themselves and offer Delete only for an edit",
+    "[filament_catalog][modal]") {
+    // The Filament panel and the AMS editor each keep one alive all session.
+    FilamentProductEditModal add_modal;
+    FilamentProductEditModal edit_modal;
+    auto dialog = [](const char* name) {
         lv_obj_t* obj = lv_obj_find_by_name(ModalStack::instance().top_dialog(), name);
         REQUIRE(obj != nullptr);
-        return !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        return obj;
     };
-    auto title = []() {
-        return std::string(lv_label_get_text(
-            lv_obj_find_by_name(ModalStack::instance().top_dialog(), "header_title")));
+    auto title = [&dialog]() { return std::string(lv_label_get_text(dialog("header_title"))); };
+    auto delete_shown = [&dialog]() {
+        return !lv_obj_has_flag(dialog("btn_secondary"), LV_OBJ_FLAG_HIDDEN);
     };
-
-    REQUIRE(modal.show_for_add(test_screen()));
-    CHECK(title() == "Add Filament");
-    CHECK_FALSE(shown("btn_secondary"));
-    modal.hide();
-    process_lvgl(20);
 
     // An id the shipped catalog does not hold is the user's own: it can be deleted.
-    REQUIRE(modal.show_for_edit(test_screen(), "test_user_only_product"));
-    CHECK(title() == "Edit Filament");
-    CHECK(shown("btn_secondary"));
-    modal.hide();
-    process_lvgl(20);
+    for (int round = 0; round < 2; ++round) {
+        REQUIRE(edit_modal.show_for_edit(test_screen(), "test_user_only_product"));
+        CHECK(title() == "Edit Filament");
+        CHECK(delete_shown());
+        edit_modal.hide();
+        process_lvgl(20);
+
+        REQUIRE(add_modal.show_for_add(test_screen()));
+        CHECK(title() == "Add Filament");
+        CHECK_FALSE(delete_shown());
+        add_modal.hide();
+        process_lvgl(20);
+    }
 }

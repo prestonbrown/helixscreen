@@ -276,6 +276,26 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the loading-error modal carries the graphic
     process_lvgl(20);
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "two loading-error modals each show their own message",
+                 "[afc][fault][modal]") {
+    lv_xml_register_component_from_file("A:ui_xml/ams_loading_error_modal.xml");
+    // AmsPanel and the standing-fault dialog each keep one alive all session.
+    helix::ui::AmsLoadingErrorModal panel_modal;
+    helix::ui::AmsLoadingErrorModal fault_modal;
+    auto shows = [this](helix::ui::AmsLoadingErrorModal& m, const std::string& msg) {
+        REQUIRE(m.show(lv_screen_active(), msg, []() {}));
+        const std::string text =
+            lv_label_get_text(lv_obj_find_by_name(m.dialog(), "error_message"));
+        m.hide();
+        process_lvgl(20);
+        return text;
+    };
+    CHECK(shows(fault_modal, "fault one") == "fault one");
+    CHECK(shows(panel_modal, "load error") == "load error");
+    CHECK(shows(fault_modal, "fault two") == "fault two");
+    CHECK(shows(panel_modal, "load error again") == "load error again");
+}
+
 // ============================================================================
 // ActionPromptModal owns the diagram's state
 // ============================================================================
