@@ -213,6 +213,26 @@ class AmsContextMenu : public ContextMenu {
     // Clear error for a fault that outlived its dialog
     // (AmsBackend::has_clearable_fault()): 0 hidden, 1 disabled, 2 enabled.
     static lv_subject_t slot_clear_error_subject_;
+    // Card header: the lane's own name, or "External Spool".
+    static lv_subject_t slot_header_subject_;
+    static char slot_header_buf_[64];
+    // External-spool-only rows, 1 = shown: Purge, and the bypass toggle whose
+    // label names the action ("Enable Bypass" / "Disable Bypass").
+    static lv_subject_t slot_purge_shown_subject_;
+    static lv_subject_t slot_bypass_shown_subject_;
+    static lv_subject_t slot_bypass_text_subject_;
+    static char slot_bypass_text_buf_[64];
+    // Check Slot (AmsBackend::supports_gate_check()): 0 hidden, 1 disabled, 2 enabled.
+    static lv_subject_t slot_gate_check_subject_;
+    // 1 = the slot carries an assignment, so Clear Spool is offered.
+    static lv_subject_t slot_clear_shown_subject_;
+    // Spoolman rows, 1 = shown. Snapshotted per show so the card is measured
+    // against the rows it will keep; Scan QR is also 0 on a build with no scanner.
+    static lv_subject_t slot_spoolman_shown_subject_;
+    static lv_subject_t slot_scan_qr_shown_subject_;
+
+    /// Sets the Spoolman row subjects from printer_has_spoolman.
+    static void publish_spoolman_rows();
 
     // === Backend the menu's actions are gated on ===
     AmsBackend* backend_ = nullptr;

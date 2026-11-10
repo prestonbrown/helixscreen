@@ -66,6 +66,16 @@ HELIX_PSRAM_BSS char AmsContextMenu::slot_load_hint_buf_[192];
 HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_mount_subject_;
 HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_park_subject_;
 HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_clear_error_subject_;
+HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_header_subject_;
+HELIX_PSRAM_BSS char AmsContextMenu::slot_header_buf_[64];
+HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_purge_shown_subject_;
+HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_bypass_shown_subject_;
+HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_bypass_text_subject_;
+HELIX_PSRAM_BSS char AmsContextMenu::slot_bypass_text_buf_[64];
+HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_gate_check_subject_;
+HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_clear_shown_subject_;
+HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_spoolman_shown_subject_;
+HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_scan_qr_shown_subject_;
 
 // ============================================================================
 // Construction / Destruction
@@ -97,7 +107,31 @@ void AmsContextMenu::init_subjects() {
         UI_MANAGED_SUBJECT_INT(slot_mount_subject_, 0, "ams_slot_mount", s_subjects);
         UI_MANAGED_SUBJECT_INT(slot_park_subject_, 0, "ams_slot_park", s_subjects);
         UI_MANAGED_SUBJECT_INT(slot_clear_error_subject_, 0, "ams_slot_clear_error", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(slot_header_subject_, slot_header_buf_, "", "ams_slot_header",
+                                  s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_purge_shown_subject_, 0, "ams_slot_purge_shown", s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_bypass_shown_subject_, 0, "ams_slot_bypass_shown", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(slot_bypass_text_subject_, slot_bypass_text_buf_, "",
+                                  "ams_slot_bypass_text", s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_gate_check_subject_, 0, "ams_slot_gate_check", s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_clear_shown_subject_, 0, "ams_slot_clear_shown", s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_spoolman_shown_subject_, 0, "ams_slot_spoolman_shown",
+                               s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_scan_qr_shown_subject_, 0, "ams_slot_scan_qr_shown",
+                               s_subjects);
     });
+}
+
+void AmsContextMenu::publish_spoolman_rows() {
+    auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    const bool has_spoolman = spoolman_subj && lv_subject_get_int(spoolman_subj) == 1;
+    lv_subject_set_int(&slot_spoolman_shown_subject_, has_spoolman ? 1 : 0);
+#if defined(HELIX_PLATFORM_ESP32)
+    // No camera on the v1 Core+AMS cut, so no QR scanner to open.
+    lv_subject_set_int(&slot_scan_qr_shown_subject_, 0);
+#else
+    lv_subject_set_int(&slot_scan_qr_shown_subject_, has_spoolman ? 1 : 0);
+#endif
 }
 
 AmsContextMenu::AmsContextMenu() {
@@ -192,6 +226,14 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     // has no gate to preload and no fault of its own.
     lv_subject_set_int(&slot_preload_subject_, 0);
     lv_subject_set_int(&slot_clear_error_subject_, 0);
+    // Rows only one of the two modes offers start hidden; each mode below
+    // shows its own. The subjects outlive any one show, so a value left over
+    // from the previous menu must not reach this one.
+    lv_subject_set_int(&slot_purge_shown_subject_, 0);
+    lv_subject_set_int(&slot_bypass_shown_subject_, 0);
+    lv_subject_set_int(&slot_gate_check_subject_, 0);
+    lv_subject_set_int(&slot_clear_shown_subject_, 0);
+    publish_spoolman_rows();
 
     // External spool mode: Load and Unload apply — kExternalSpoolSlot is a
     // target plan_load()/plan_unload() both resolve, and this menu is where a
@@ -235,35 +277,25 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         lv_subject_set_int(&slot_eject_hint_visible_subject_, 0);
 
         lv_subject_set_int(&slot_can_purge_subject_, ext_gating.purge_disabled ? 0 : 1);
-        if (lv_obj_t* btn_purge =
-                helix::ui::find_required(menu_obj, "btn_purge", "AmsContextMenu")) {
-            lv_obj_remove_flag(btn_purge, LV_OBJ_FLAG_HIDDEN);
-        }
+        lv_subject_set_int(&slot_purge_shown_subject_, 1);
 
         // The bypass toggle is on this menu so the external spool answers every
         // question asked of it in one place. bypass_toggle_offered() is the same
         // answer BypassToggleController refuses on, asked before the button is
         // drawn rather than after the user taps it.
-        if (lv_obj_t* btn_bypass =
-                helix::ui::find_required(menu_obj, "btn_bypass_toggle", "AmsContextMenu")) {
-            const bool bypass_offered =
-                backend &&
-                helix::bypass_toggle_offered(helix::bypass_available_for(ext_sys.supports_bypass),
-                                             ext_sys.has_hardware_bypass_sensor);
-            if (bypass_offered) {
-                lv_obj_remove_flag(btn_bypass, LV_OBJ_FLAG_HIDDEN);
-                // Names the action, not the state, so it reads as a command.
-                ui_button_set_text(btn_bypass, backend->is_bypass_active()
-                                                   ? lv_tr("Disable Bypass")
-                                                   : lv_tr("Enable Bypass"));
-            }
+        const bool bypass_offered =
+            backend &&
+            helix::bypass_toggle_offered(helix::bypass_available_for(ext_sys.supports_bypass),
+                                         ext_sys.has_hardware_bypass_sensor);
+        if (bypass_offered) {
+            // Names the action, not the state, so it reads as a command.
+            lv_subject_copy_string(&slot_bypass_text_subject_, backend->is_bypass_active()
+                                                                   ? lv_tr("Disable Bypass")
+                                                                   : lv_tr("Enable Bypass"));
         }
+        lv_subject_set_int(&slot_bypass_shown_subject_, bypass_offered ? 1 : 0);
 
-        // Set header to "External Spool"
-        lv_obj_t* slot_header = lv_obj_find_by_name(menu_obj, "slot_header");
-        if (slot_header) {
-            lv_label_set_text(slot_header, lv_tr("External Spool"));
-        }
+        lv_subject_copy_string(&slot_header_subject_, lv_tr("External Spool"));
 
         // Show Clear Spool button when external spool has an assignment.
         // btn_edit ("Edit Spool") is always shown so users can reopen the editor.
@@ -271,11 +303,7 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         bool has_assignment =
             ext_info.has_value() && (ext_info->spoolman_id > 0 || !ext_info->material.empty());
 
-        lv_obj_t* btn_clear =
-            helix::ui::find_required(menu_obj, "btn_clear_spool", "AmsContextMenu");
-        if (btn_clear && has_assignment) {
-            lv_obj_clear_flag(btn_clear, LV_OBJ_FLAG_HIDDEN);
-        }
+        lv_subject_set_int(&slot_clear_shown_subject_, has_assignment ? 1 : 0);
 
         // The bypass clear erases the external spool's own assignment, not a
         // lane's metadata, so a print never blocks it. The subjects are shared
@@ -284,24 +312,6 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         lv_subject_set_int(&slot_can_clear_subject_, 1);
         lv_subject_copy_string(&slot_clear_hint_subject_, "");
         lv_subject_set_int(&slot_clear_hint_visible_subject_, 0);
-
-        // Show "Select Spool" and "Scan QR Code" if Spoolman is available
-        auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
-        bool has_spoolman = spoolman_subj && lv_subject_get_int(spoolman_subj) == 1;
-
-        lv_obj_t* btn_spoolman =
-            helix::ui::find_required(menu_obj, "btn_spoolman", "AmsContextMenu");
-        if (btn_spoolman && has_spoolman) {
-            lv_obj_clear_flag(btn_spoolman, LV_OBJ_FLAG_HIDDEN);
-        }
-
-        lv_obj_t* btn_scan_qr = helix::ui::find_required(menu_obj, "btn_scan_qr", "AmsContextMenu");
-        if (btn_scan_qr && has_spoolman) {
-#if !defined(HELIX_PLATFORM_ESP32)
-            // No camera on the v1 Core+AMS cut — keep Scan QR hidden (default).
-            lv_obj_clear_flag(btn_scan_qr, LV_OBJ_FLAG_HIDDEN);
-#endif
-        }
 
         return;
     }
@@ -411,14 +421,7 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
 
     // Show Check Gate button if backend supports it (e.g. Happy Hare)
     if (backend_ && backend_->supports_gate_check()) {
-        lv_obj_t* btn_gate_check =
-            helix::ui::find_required(menu_obj, "btn_gate_check", "AmsContextMenu");
-        if (btn_gate_check) {
-            lv_obj_remove_flag(btn_gate_check, LV_OBJ_FLAG_HIDDEN);
-            if (system_busy) {
-                lv_obj_add_state(btn_gate_check, LV_STATE_DISABLED);
-            }
-        }
+        lv_subject_set_int(&slot_gate_check_subject_, system_busy ? 1 : 2);
     }
 
     // Preload moves filament only between spool and gate, but the firmware
@@ -443,11 +446,7 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     // Spoolman write at the previous spool.
     if (backend_) {
         SlotInfo slot_info = backend_->get_slot_info(slot_index);
-        lv_obj_t* btn_clear =
-            helix::ui::find_required(menu_obj, "btn_clear_spool", "AmsContextMenu");
-        if (btn_clear && should_show_clear_spool(slot_info)) {
-            lv_obj_clear_flag(btn_clear, LV_OBJ_FLAG_HIDDEN);
-        }
+        lv_subject_set_int(&slot_clear_shown_subject_, should_show_clear_spool(slot_info) ? 1 : 0);
 
         // The lane feeding the running print is the lane whose material and
         // colour the print's own surfaces are displaying; clearing it mid-job
@@ -472,25 +471,7 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     // The header names the position as the hardware does: the lane's own name
     // ("2B") when the backend has one, else the backend's word with a 1-based
     // number ("Gate 3").
-    lv_obj_t* slot_header = lv_obj_find_by_name(menu_obj, "slot_header");
-    if (slot_header) {
-        lv_label_set_text(slot_header, menu_lane_label(slot_index).c_str());
-    }
-
-    // Show "Select Spool" and "Scan QR Code" buttons if Spoolman is available
-    auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
-    bool has_spoolman = spoolman_subj && lv_subject_get_int(spoolman_subj) == 1;
-    lv_obj_t* btn_spoolman = helix::ui::find_required(menu_obj, "btn_spoolman", "AmsContextMenu");
-    if (btn_spoolman && has_spoolman) {
-        lv_obj_clear_flag(btn_spoolman, LV_OBJ_FLAG_HIDDEN);
-    }
-    lv_obj_t* btn_scan_qr = helix::ui::find_required(menu_obj, "btn_scan_qr", "AmsContextMenu");
-    if (btn_scan_qr && has_spoolman) {
-#if !defined(HELIX_PLATFORM_ESP32)
-        // No camera on the v1 Core+AMS cut — keep Scan QR hidden (default).
-        lv_obj_clear_flag(btn_scan_qr, LV_OBJ_FLAG_HIDDEN);
-#endif
-    }
+    lv_subject_copy_string(&slot_header_subject_, menu_lane_label(slot_index).c_str());
 
     append_slot_plugin_rows(menu_obj, slot_index);
 }
