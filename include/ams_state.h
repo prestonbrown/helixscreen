@@ -1444,6 +1444,7 @@ class AmsState {
         lv_subject_t* center_text;
         lv_subject_t* label_left;
         lv_subject_t* label_right;
+        lv_subject_t* safe;
     };
 
     /**
@@ -2884,6 +2885,7 @@ class AmsState {
     lv_subject_t clog_meter_value_{};   // 0-100 (encoder/afc) or -100..+100 (flowguard)
     lv_subject_t clog_meter_warning_{}; // 0=ok, 1=warning
     lv_subject_t clog_meter_status_{};  // ClogMeterStatus: 0=ok, 1=warning, 2=fault
+    lv_subject_t clog_meter_safe_{};    // 1 = nothing to report (clog_meter_is_safe)
     lv_subject_t clog_meter_mode_text_{};
     // Mode names render translated: ru "Засор: вручную" is 24 bytes before the
     // NUL, es "Obstrucción automática" the same. Undersized buffers truncate

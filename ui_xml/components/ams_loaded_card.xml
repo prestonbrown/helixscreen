@@ -129,12 +129,15 @@
           <!-- Main arc: helix_progress_arc handles common styling and the
                diameter-driven stroke tier. UiClogMeter syncs the danger/peak
                overlay arcs (created in C++) to match. -->
-          <helix_progress_arc name="clog_arc" align="center"/>
-          <!-- Stands in for the arc when there is nothing to report. UiClogMeter
-               swaps the two, finding this by name under its parent. -->
+          <helix_progress_arc name="clog_arc" align="center">
+            <bind_flag_if_eq subject="clog_meter_safe" flag="hidden" ref_value="1"/>
+          </helix_progress_arc>
+          <!-- Stands in for the arc, and the reading, when there is nothing to report. -->
           <lv_label name="clog_safe_icon"
-                    hidden="true" align="center" text="#icon_check_circle" style_text_font="mdi_icons_16"
-                    style_text_color="#primary" clickable="false"/>
+                    align="center" text="#icon_check_circle" style_text_font="mdi_icons_16" style_text_color="#primary"
+                    clickable="false">
+            <bind_flag_if_eq subject="clog_meter_safe" flag="hidden" ref_value="0"/>
+          </lv_label>
         </lv_obj>
         <!-- The reading sits beside or under the arc rather than inside it: the arc
              lands around 36px, which "11.8mm" does not fit in. -->
@@ -144,6 +147,7 @@
           <bind_style_if name="reading_center" cond="ams_loaded_tiles eq 0"/>
           <bind_style_if name="reading_start" cond="ams_loaded_tiles"/>
           <text_tiny name="clog_value_text" bind_text="clog_meter_center_text" style_text_align="center">
+            <bind_flag_if_eq subject="clog_meter_safe" flag="hidden" ref_value="1"/>
             <bind_style_if name="reading_value" cond="ams_loaded_tiles"/>
           </text_tiny>
           <!-- A motion sensor's reading is a state ("Disarmed"), so its caption

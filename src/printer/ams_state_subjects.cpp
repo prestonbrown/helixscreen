@@ -265,6 +265,7 @@ void AmsState::init_subjects(bool register_xml) {
         clog_meter_warning, 0, subjects_,
         register_xml); // SUBJECT_OK: ClogMeterModel observes it via clog_meter_subjects()
     INIT_SUBJECT_INT(clog_meter_status, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(clog_meter_safe, 0, subjects_, register_xml);
     INIT_SUBJECT_STRING(clog_meter_mode_text, "", subjects_, register_xml);
     INIT_SUBJECT_INT(
         clog_meter_danger_pct, 0, subjects_,
@@ -853,6 +854,7 @@ void AmsState::register_xml_subject_names() {
         "clog_meter_warning",
         &clog_meter_warning_); // SUBJECT_OK: ClogMeterModel observes it via clog_meter_subjects()
     helix::xml::register_subject_in_current_scope("clog_meter_status", &clog_meter_status_);
+    helix::xml::register_subject_in_current_scope("clog_meter_safe", &clog_meter_safe_);
     helix::xml::register_subject_in_current_scope("clog_meter_mode_text", &clog_meter_mode_text_);
     helix::xml::register_subject_in_current_scope(
         "clog_meter_danger_pct",

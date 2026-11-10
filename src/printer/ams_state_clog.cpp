@@ -225,6 +225,7 @@ void publish(const AmsState::ClogMeterSubjects& s, const ClogReading& r) {
     // the same rule, with any threshold override already folded in.
     lv_subject_set_int(s.status, static_cast<int>(helix::ui::clog_meter_status(
                                      r.mode, r.value, r.warning, r.danger_pct)));
+    lv_subject_set_int(s.safe, helix::ui::clog_meter_is_safe(r.mode, r.value) ? 1 : 0);
     copy_string_if_changed(s.mode_text, r.mode_text);
     lv_subject_set_int(s.danger_pct, r.danger_pct);
     lv_subject_set_int(s.peak_pct, r.peak_pct);
@@ -236,10 +237,10 @@ void publish(const AmsState::ClogMeterSubjects& s, const ClogReading& r) {
 } // namespace
 
 AmsState::ClogMeterSubjects AmsState::clog_meter_subjects() {
-    return {&clog_meter_mode_,       &clog_meter_value_,       &clog_meter_warning_,
-            &clog_meter_status_,     &clog_meter_mode_text_,   &clog_meter_danger_pct_,
-            &clog_meter_peak_pct_,   &clog_meter_center_text_, &clog_meter_label_left_,
-            &clog_meter_label_right_};
+    return {&clog_meter_mode_,        &clog_meter_value_,       &clog_meter_warning_,
+            &clog_meter_status_,      &clog_meter_mode_text_,   &clog_meter_danger_pct_,
+            &clog_meter_peak_pct_,    &clog_meter_center_text_, &clog_meter_label_left_,
+            &clog_meter_label_right_, &clog_meter_safe_};
 }
 
 void AmsState::sync_clog_meter_from_info(const AmsSystemInfo& info) {

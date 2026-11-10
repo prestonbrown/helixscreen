@@ -66,10 +66,6 @@ UiClogMeter::UiClogMeter(lv_obj_t* parent) {
         resize_arc();
     }
 
-    // Cached so the safe state can swap the reading for the check icon
-    value_text_ = lv_obj_find_by_name(root_, "clog_value_text");
-    safe_icon_ = lv_obj_find_by_name(root_, "clog_safe_icon");
-
     model_.emplace([this](const ClogMeterSample& s) { apply(s); });
     apply(model_->sample());
     spdlog::debug("[ClogMeter] Initialized");
@@ -88,8 +84,6 @@ UiClogMeter::~UiClogMeter() {
 
     root_ = nullptr;
     arc_ = nullptr;
-    safe_icon_ = nullptr;
-    value_text_ = nullptr;
     // The progress arc's tier subject (allocated via attach_progress_arc_owned)
     // is freed automatically when the arc is deleted by LVGL — no cleanup
     // needed here.
@@ -113,50 +107,20 @@ void UiClogMeter::apply(const ClogMeterSample& s) {
         lv_arc_set_value(arc_, s.value);
     }
 
+    // With nothing to report the check icon stands in for the arc and the
+    // reading (clog_meter_safe in ams_loaded_card.xml).
     update_arc_color(s);
-    update_safe_state(s);
 }
 
 void UiClogMeter::update_arc_color(const ClogMeterSample& s) {
     if (!arc_)
         return;
 
-    // Dynamic indicator colour is an intentional exception to the "no C++
-    // styling" rule. The rule itself lives in clog_meter_geometry.h so the
-    // horizontal bar (#1017) draws the same ramp from the same tokens.
+    // The rule lives in clog_meter_geometry.h so the horizontal bar (#1017)
+    // draws the same ramp from the same tokens.
+    // DECLARATIVE_OK: a colour mixed per reading along a ramp, not a token
     lv_obj_set_style_arc_color(arc_, resolve_clog_tint(s.mode, s.value, s.warning),
                                LV_PART_INDICATOR);
-}
-
-void UiClogMeter::update_safe_state(const ClogMeterSample& s) {
-    // "Nothing to report" rather than "zero danger": the arc goes away
-    // entirely and the check icon stands in for it. The bar reads the same
-    // predicate so the two presentations cannot drift.
-    const bool safe = s.is_safe();
-
-    if (arc_) {
-        if (safe) {
-            lv_obj_add_flag(arc_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(arc_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
-    if (value_text_) {
-        if (safe) {
-            lv_obj_add_flag(value_text_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(value_text_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
-    if (safe_icon_) {
-        if (safe) {
-            lv_obj_remove_flag(safe_icon_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(safe_icon_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
 }
 
 void UiClogMeter::on_card_size_changed(lv_event_t* e) {
