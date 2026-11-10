@@ -891,6 +891,7 @@
     },
     {
       "id": "voron_2_4",
+      "toolhead_style": "stealthburner",
       "maintenance": { "belt_tension": { "hours": 300 } },
       "enclosed": true,
       "name": "Voron 2.4",
@@ -988,6 +989,7 @@
     },
     {
       "id": "voron_0_1",
+      "toolhead_style": "mini_stealthburner",
       "maintenance": { "belt_tension": { "hours": 300 } },
       "enclosed": true,
       "name": "Voron 0.2",
@@ -1154,6 +1156,7 @@
     },
     {
       "id": "voron_trident",
+      "toolhead_style": "stealthburner",
       "maintenance": { "belt_tension": { "hours": 300 } },
       "enclosed": true,
       "name": "Voron Trident",
@@ -1222,6 +1225,7 @@
     },
     {
       "id": "voron_switchwire",
+      "toolhead_style": "stealthburner",
       "maintenance": { "belt_tension": { "hours": 300 } },
       "name": "Voron Switchwire",
       "manufacturer": "Voron",
