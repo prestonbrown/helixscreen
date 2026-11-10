@@ -6,7 +6,6 @@
 #include "ui_settings_label_printer.h"
 
 #include "ui_callback_helpers.h"
-#include "ui_event_safety.h"
 #include "ui_modal.h"
 #include "ui_toast_manager.h"
 
@@ -162,6 +161,14 @@ void LabelPrinterSettingsOverlay::init_subjects() {
 
 void LabelPrinterSettingsOverlay::register_callbacks() {
     register_xml_callbacks({
+        // Typing an address or port takes the choice over from discovery, so a
+        // later discovery report cannot replace what is being typed.
+        {"on_lp_manual_entry_focused",
+         [](lv_event_t*) { get_label_printer_settings_overlay().handle_manual_entry_started(); }},
+        {"on_lp_address_done",
+         [](lv_event_t*) { get_label_printer_settings_overlay().handle_address_changed(); }},
+        {"on_lp_port_done",
+         [](lv_event_t*) { get_label_printer_settings_overlay().handle_port_changed(); }},
         {"on_lp_label_size_changed",
          [](lv_event_t* e) {
              get_label_printer_settings_overlay().handle_label_size_changed(event_selected(e));
@@ -232,8 +239,6 @@ void LabelPrinterSettingsOverlay::on_activate() {
     } else {
         start_label_printer_discovery();
     }
-
-    inputs_initialized_ = true;
 }
 
 void LabelPrinterSettingsOverlay::on_deactivating(DeactivateReason) {
@@ -245,12 +250,6 @@ void LabelPrinterSettingsOverlay::on_deactivating(DeactivateReason) {
 // ============================================================================
 // INTERNAL METHODS
 // ============================================================================
-
-// Typing an address or port takes the choice over from discovery, so a later
-// discovery report cannot replace what is being typed.
-static void manual_entry_focused_cb(lv_event_t*) {
-    get_label_printer_settings_overlay().handle_manual_entry_started();
-}
 
 void LabelPrinterSettingsOverlay::handle_manual_entry_started() {
     auto_picked_ = false;
@@ -268,17 +267,6 @@ void LabelPrinterSettingsOverlay::init_address_input() {
     lv_obj_t* input = helix::ui::find_required(row, "input_address", get_name());
     if (input) {
         lv_textarea_set_text(input, settings.get_printer_address().c_str());
-        if (!inputs_initialized_) {
-            lv_obj_add_event_cb(
-                input,
-                [](lv_event_t*) {
-                    LVGL_SAFE_EVENT_CB_BEGIN("[LabelPrinterSettings] address_done");
-                    get_label_printer_settings_overlay().handle_address_changed();
-                    LVGL_SAFE_EVENT_CB_END();
-                },
-                LV_EVENT_DEFOCUSED, nullptr);
-            lv_obj_add_event_cb(input, manual_entry_focused_cb, LV_EVENT_FOCUSED, nullptr);
-        }
         spdlog::trace("[{}] Address input initialized", get_name());
     }
 }
@@ -296,17 +284,6 @@ void LabelPrinterSettingsOverlay::init_port_input() {
     if (input) {
         auto port_str = fmt::format("{}", settings.get_printer_port());
         lv_textarea_set_text(input, port_str.c_str());
-        if (!inputs_initialized_) {
-            lv_obj_add_event_cb(
-                input,
-                [](lv_event_t*) {
-                    LVGL_SAFE_EVENT_CB_BEGIN("[LabelPrinterSettings] port_done");
-                    get_label_printer_settings_overlay().handle_port_changed();
-                    LVGL_SAFE_EVENT_CB_END();
-                },
-                LV_EVENT_DEFOCUSED, nullptr);
-            lv_obj_add_event_cb(input, manual_entry_focused_cb, LV_EVENT_FOCUSED, nullptr);
-        }
         spdlog::trace("[{}] Port input initialized", get_name());
     }
 }
@@ -400,12 +377,6 @@ void LabelPrinterSettingsOverlay::init_discovery_dropdown() {
     lv_obj_t* row = find_required(overlay_root_, "row_discovered_printers", get_name());
     if (!row)
         return;
-
-    // Hide the empty description text to vertically center the label
-    lv_obj_t* desc = helix::ui::find_required(row, "description", get_name());
-    if (desc) {
-        lv_obj_add_flag(desc, LV_OBJ_FLAG_HIDDEN);
-    }
 
     lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name());
     if (dropdown) {
