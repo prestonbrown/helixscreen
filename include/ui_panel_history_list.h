@@ -332,6 +332,7 @@ class HistoryListPanel : public OverlayBase {
     lv_subject_t detail_has_timelapse_{}; ///< 1 if timelapse available, 0 otherwise
     lv_subject_t detail_spools_{};        ///< The job's per-spool lines, newline-joined
     lv_subject_t detail_has_spools_{};    ///< 1 once the plugin reported the job's spools
+    lv_subject_t detail_thumb_loaded_{};  ///< 1 once the job's thumbnail is on the image
     /// Bumped per detail open, so a spool record still in flight for an
     /// earlier job is dropped.
     uint32_t detail_spools_request_ = 0;

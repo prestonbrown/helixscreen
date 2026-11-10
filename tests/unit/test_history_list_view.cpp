@@ -230,20 +230,32 @@ TEST_CASE_METHOD(
     {
         HistoryListPanel panel;
         panel.init_subjects();
-        helix::ui::HistoryListPanelTestAccess::show_detail_overlay(panel, test_screen(), job);
-        helix::ui::UpdateQueue::instance().drain();
-        process_lvgl(10);
-        helix::ui::UpdateQueue::instance().drain();
+        // Then reopened on a job with no preview: the fallback replaces the last image.
+        for (const bool with_thumbnail : {true, false}) {
+            if (!with_thumbnail) {
+                job.thumbnails.clear();
+            }
+            helix::ui::HistoryListPanelTestAccess::show_detail_overlay(panel, test_screen(), job);
+            helix::ui::UpdateQueue::instance().drain();
+            process_lvgl(10);
+            helix::ui::UpdateQueue::instance().drain();
 
-        lv_obj_t* image = lv_obj_find_by_name(test_screen(), "thumbnail_image");
-        REQUIRE(image != nullptr);
-        const void* src = lv_image_get_src(image);
-        REQUIRE(src != nullptr);
-        REQUIRE(std::string(static_cast<const char*>(src)) == expected);
+            lv_obj_t* image = lv_obj_find_by_name(test_screen(), "thumbnail_image");
+            lv_obj_t* fallback = lv_obj_find_by_name(test_screen(), "thumbnail_fallback");
+            REQUIRE(image != nullptr);
+            REQUIRE(fallback != nullptr);
+            CHECK(lv_obj_has_flag(image, LV_OBJ_FLAG_HIDDEN) != with_thumbnail);
+            CHECK(lv_obj_has_flag(fallback, LV_OBJ_FLAG_HIDDEN) == with_thumbnail);
+            if (with_thumbnail) {
+                const void* src = lv_image_get_src(image);
+                REQUIRE(src != nullptr);
+                REQUIRE(std::string(static_cast<const char*>(src)) == expected);
+            }
 
-        NavigationManager::instance().go_back();
-        helix::ui::UpdateQueue::instance().drain();
-        process_lvgl(10);
+            NavigationManager::instance().go_back();
+            helix::ui::UpdateQueue::instance().drain();
+            process_lvgl(10);
+        }
     }
     std::filesystem::remove(planted);
 }

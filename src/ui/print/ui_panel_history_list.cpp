@@ -942,6 +942,7 @@ void HistoryListPanel::init_detail_subjects() {
     UI_MANAGED_SUBJECT_STRING(detail_spools_, detail_spools_buf_, "", "history_detail_spools",
                               subjects_);
     UI_MANAGED_SUBJECT_INT(detail_has_spools_, 0, "history_detail_has_spools", subjects_);
+    UI_MANAGED_SUBJECT_INT(detail_thumb_loaded_, 0, "history_detail_thumb_loaded", subjects_);
     photo_viewer_.init_subjects(subjects_);
 
     spdlog::debug("[{}] Detail overlay subjects initialized", get_name());
@@ -970,8 +971,8 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
 
     lv_obj_t* thumbnail_image =
         helix::ui::find_required(detail_overlay_, "thumbnail_image", get_name());
-    lv_obj_t* thumbnail_fallback =
-        helix::ui::find_required(detail_overlay_, "thumbnail_fallback", get_name());
+    // The fallback shows until this job's thumbnail lands.
+    lv_subject_set_int(&detail_thumb_loaded_, 0);
 
     // One staleness context per overlay open. Creating it bumps
     // detail_overlay_generation_, so a thumbnail still in flight from a
@@ -980,17 +981,13 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
     // just to read the counter.
     ThumbnailLoadContext ctx = ThumbnailLoadContext::create(lifetime_, &detail_overlay_generation_);
 
-    if (thumbnail_image && thumbnail_fallback) {
+    if (thumbnail_image) {
         // Sized for the image box as laid out (inner_align contain).
         lv_obj_update_layout(detail_overlay_);
         const std::string thumb_path = helix::select_and_resolve_thumbnail(
             job.thumbnails, helix::gcode_dir_of(job.filename), lv_obj_get_width(thumbnail_image),
             lv_obj_get_height(thumbnail_image));
         if (!thumb_path.empty()) {
-            // Show fallback initially while loading
-            lv_obj_add_flag(thumbnail_image, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(thumbnail_fallback, LV_OBJ_FLAG_HIDDEN);
-
             IMoonrakerAPI* api = get_moonraker_api();
 
             // The detail overlay renders the full-resolution PNG, so it asks
@@ -1030,16 +1027,13 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
                                 return;
                             }
 
-                            // Look up widgets by name (safe - fresh lookup each time)
+                            // Look up the image by name (safe - fresh lookup each time)
                             lv_obj_t* image = helix::ui::find_required(
                                 t->panel->detail_overlay_, "thumbnail_image", "History List");
-                            lv_obj_t* fallback = helix::ui::find_required(
-                                t->panel->detail_overlay_, "thumbnail_fallback", "History List");
 
-                            if (image && fallback) {
+                            if (image) {
                                 lv_image_set_src(image, t->path.c_str());
-                                lv_obj_remove_flag(image, LV_OBJ_FLAG_HIDDEN);
-                                lv_obj_add_flag(fallback, LV_OBJ_FLAG_HIDDEN);
+                                lv_subject_set_int(&t->panel->detail_thumb_loaded_, 1);
                                 spdlog::debug("[HistoryListPanel] Thumbnail loaded: {}", t->path);
                             }
                         });
@@ -1050,9 +1044,6 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
                     // Fallback is already showing, nothing to do
                 });
         } else {
-            // No thumbnail path - show fallback
-            lv_obj_add_flag(thumbnail_image, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(thumbnail_fallback, LV_OBJ_FLAG_HIDDEN);
             spdlog::debug("[{}] No thumbnail path, showing fallback", get_name());
         }
     }
