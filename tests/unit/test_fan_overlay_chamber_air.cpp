@@ -502,11 +502,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     } animations_on;
 
     PrinterDiscovery hw;
-    hw.parse_objects(json::array({"extruder", "heater_fan hotend_fan"}));
+    hw.parse_objects(json::array({"extruder", "heater_fan hotend_fan", "controller_fan board"}));
     get_printer_state().set_hardware(hw);
-    state().fan_state().init_fans({"heater_fan hotend_fan"});
+    state().fan_state().init_fans({"heater_fan hotend_fan", "controller_fan board"});
+    // A second auto fan's card keeps its own speed line.
     get_printer_state().update_from_status(
-        json{{"heater_fan hotend_fan", {{"speed", 0.5}, {"rpm", 3000.0}}}});
+        json{{"heater_fan hotend_fan", {{"speed", 0.5}, {"rpm", 3000.0}}},
+             {"controller_fan board", {{"speed", 0.25}}}});
     seed_nav_panels(test_screen());
 
     lv_obj_t* root = helix::open_fan_control_overlay(test_screen());
@@ -526,6 +528,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(1);
     REQUIRE(has_label(root, "50% \xC2\xB7 3100 RPM"));
+    CHECK(has_label(root, "25%"));
     CHECK(lv_anim_get(icon, helix::ui::fan_spin_anim_cb) != nullptr);
     CHECK(lv_obj_get_style_transform_rotation(icon, LV_PART_MAIN) >= turned);
 }
