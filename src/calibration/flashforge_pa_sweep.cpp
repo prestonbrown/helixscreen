@@ -48,7 +48,10 @@ int Sweep::expected_lines() const {
 }
 
 float Sweep::candidate_k(int index) const {
-    return cfg_.candidates.at(static_cast<size_t>(index));
+    if (index < 0 || static_cast<size_t>(index) >= cfg_.candidates.size()) {
+        return 0.f;
+    }
+    return cfg_.candidates[static_cast<size_t>(index)];
 }
 
 std::string Sweep::prologue_script() const {
