@@ -328,7 +328,6 @@ TEST_CASE_METHOD(HubStackFixture, "A selector rail replaces the bar and keeps it
     ui_filament_path_canvas_set_selector_rail(c.obj, nullptr);
     render(c);
     CHECK_FALSE(c.data->rail_drawn);
-    // A fixed block takes the bar's place and its tap too.
     ui_filament_path_canvas_set_lane_join(c.obj, LaneJoin::FixedBlock);
     render(c);
     CHECK(
@@ -351,8 +350,7 @@ TEST_CASE_METHOD(HubStackFixture, "A unit that merges inside keeps every sensor 
     CHECK(drawn_lane_join(LaneJoin::Junction, helix::PathTopology::MIXED) == LaneJoin::Hub);
     LinearHubFrame f{};
     const PathPlan& plan = plan_of(c, &f);
-    CHECK(plan.band_count - plan.trunk_band_count == 8);
-    CHECK(plan.trunk_band_count >= 1);
+    CHECK((plan.band_count - plan.trunk_band_count == 8 && plan.trunk_band_count >= 1)); // + hub
     auto junction = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
     ui_filament_path_canvas_set_lane_join(junction.obj, LaneJoin::Junction);
     render(junction);
