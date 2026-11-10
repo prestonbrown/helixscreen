@@ -18,6 +18,8 @@ mk/images.mk, which asks it which splash classes a platform needs:
 
 import json
 import os
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -143,6 +145,46 @@ def _prune_cjk_filename_fonts(manifest, platform_id, root):
     return doomed, [f"keeping CJK filename glyphs at {'/'.join(map(str, wanted))}px"]
 
 
+CJK_FACE_TABLE = os.path.join(REPO_ROOT, "include", "cjk_font_faces.inc")
+FEATURE_DEFAULTS = os.path.join(REPO_ROOT, "include", "helix_features.h")
+
+
+def cjk_ui_bins_for_tier(max_font_tier):
+    """The translation CJK bins a build's CjkFontManager can load: the face
+    table run through the host C preprocessor with the build's
+    HELIX_MAX_FONT_TIER and the feature defaults, so its guards decide."""
+    cmd = ["cc", "-E", "-P", "-x", "c", f"-DHELIX_MAX_FONT_TIER={int(max_font_tier)}",
+           "-include", FEATURE_DEFAULTS,
+           "-DHELIX_CJK_FACE(face,bin,px)=HELIX_CJK_BIN bin", CJK_FACE_TABLE]
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    except OSError as e:
+        raise ManifestError(f"cannot run the C preprocessor for the CJK face table: {e}")
+    if out.returncode != 0:
+        raise ManifestError(f"preprocessing {CJK_FACE_TABLE} failed: {out.stderr.strip()}")
+    bins = re.findall(r'HELIX_CJK_BIN\s+"([^"]+)"', out.stdout)
+    if not bins:
+        raise ManifestError(f"{CJK_FACE_TABLE} maps no bins at tier {max_font_tier}")
+    return set(bins)
+
+
+def _prune_cjk_ui_fonts(platform_id, root, max_font_tier):
+    """(doomed paths, notes) for the translation CJK bins the build cannot load.
+    Raises when one it can load is not staged."""
+    cjk_dir = os.path.join(root, "assets", "fonts", "cjk")
+    if max_font_tier is None or not os.path.isdir(cjk_dir):
+        return [], []
+    needed = cjk_ui_bins_for_tier(max_font_tier)
+    staged = {n for n in os.listdir(cjk_dir) if n.endswith(".bin")}
+    missing = sorted(needed - staged)
+    if missing:
+        raise ManifestError(f"{platform_id}: CJK font(s) its build loads are not staged: "
+                            f"{', '.join(missing)}")
+    doomed = sorted(staged - needed)
+    return ([os.path.join(cjk_dir, n) for n in doomed],
+            [f"dropped {len(doomed)} CJK font(s) a font tier {max_font_tier} build never loads"])
+
+
 def splash_portrait_class(manifest, width, height):
     """The largest portrait canvas that fits a portrait panel, or None.
 
@@ -248,7 +290,7 @@ def _remove_all(paths, root):
             path = os.path.dirname(path)
 
 
-def prune_assets(manifest, platform_id, root, dry_run=False):  # noqa: C901
+def prune_assets(manifest, platform_id, root, dry_run=False, max_font_tier=None):  # noqa: C901
     """Remove staged assets the platform's panel can never ask for.
 
     Generating fewer classes is not enough on its own: a release copies whatever
@@ -280,9 +322,10 @@ def prune_assets(manifest, platform_id, root, dry_run=False):  # noqa: C901
             doomed.append(path)
             notes.append(f"dropped ui_xml/translations/{name}: no locale loads it")
 
-    font_doomed, font_notes = _prune_cjk_filename_fonts(manifest, platform_id, root)
-    doomed.extend(font_doomed)
-    notes.extend(font_notes)
+    for font_doomed, font_notes in (_prune_cjk_filename_fonts(manifest, platform_id, root),
+                                    _prune_cjk_ui_fonts(platform_id, root, max_font_tier)):
+        doomed.extend(font_doomed)
+        notes.extend(font_notes)
 
     keep_classes = splash_3d_classes_for(manifest, platform_id)
     keep_sizes = printer_image_sizes_for(manifest, platform_id)
@@ -384,10 +427,15 @@ def _cmd_effective_resolution(manifest, args):
 
 
 def _cmd_prune_assets(manifest, args):
-    platform_id, root = args
+    platform_id, root = args[:2]
+    max_font_tier = None
+    if len(args) == 3:
+        if not args[2].isdigit():
+            raise ManifestError(f"max font tier {args[2]!r} is not a tier number")
+        max_font_tier = int(args[2])
     if not os.path.isdir(root):
         raise ManifestError(f"staged release root {root!r} does not exist")
-    _removed, notes = prune_assets(manifest, platform_id, root)
+    _removed, notes = prune_assets(manifest, platform_id, root, max_font_tier=max_font_tier)
     for note in notes:
         print(f"  {note}")
 
@@ -420,7 +468,7 @@ COMMANDS = {
     "splash-2d-size": (_cmd_splash_2d_size, 1),
     "printer-image-size": (_cmd_printer_image_size, 1),
     "effective-resolution": (_cmd_effective_resolution, 1),
-    "prune-assets": (_cmd_prune_assets, 2),
+    "prune-assets": (_cmd_prune_assets, (2, 3)),
     "list": (_cmd_list, 0),
     "get": (_cmd_get, 2),
 }
@@ -433,7 +481,7 @@ def main(argv):
         return 2
     handler, argc = COMMANDS[argv[1]]
     args = argv[2:]
-    if len(args) != argc:
+    if len(args) not in (argc if isinstance(argc, tuple) else (argc,)):
         print(f"{argv[1]} takes {argc} argument(s), got {len(args)}", file=sys.stderr)
         return 2
     try:

@@ -741,3 +741,53 @@ make_font_stage() {
     [ "$status" -ne 0 ] || fail "pruned a package that cannot draw 16px filenames: $output"
     contains "noto_sans_cjk_filename_16.bin" "$output"
 }
+
+# --------------------------------------------------------------------------
+# prune-assets: translation CJK bins by the build's HELIX_MAX_FONT_TIER,
+# evaluated from include/cjk_font_faces.inc's own guards
+# --------------------------------------------------------------------------
+
+make_ui_font_stage() {
+    make_font_stage
+    git ls-files 'assets/fonts/cjk/*.bin' | grep -v '/filename/' | while read -r f; do
+        echo x > "$STAGE/assets/fonts/cjk/$(basename "$f")"
+    done
+}
+
+@test "prune: a font tier 4 build keeps exactly the CJK bins its face table maps" {
+    make_ui_font_stage
+    run python3 "$DERIVE" prune-assets ad5m "$STAGE" 4
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    run ls "$STAGE/assets/fonts/cjk"
+    contains "noto_sans_cjk_28.bin" "$output"
+    contains "noto_sans_cjk_light_18.bin" "$output"
+    contains "noto_sans_cjk_bold_28.bin" "$output"
+    lacks "noto_sans_cjk_32.bin" "$output"
+    lacks "noto_sans_cjk_bold_48.bin" "$output"
+    lacks "noto_sans_cjk_light_20.bin" "$output"
+    [ "$(ls "$STAGE"/assets/fonts/cjk/*.bin | wc -l)" -eq 23 ] || fail "tier 4 kept: $output"
+}
+
+@test "prune: a font tier 6 build keeps every CJK bin" {
+    make_ui_font_stage
+    before=$(ls "$STAGE"/assets/fonts/cjk/*.bin | wc -l)
+    run python3 "$DERIVE" prune-assets pi "$STAGE" 6
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    [ "$(ls "$STAGE"/assets/fonts/cjk/*.bin | wc -l)" -eq "$before" ] || fail "pruned a tier 6 CJK bin"
+}
+
+@test "prune: refuses a package missing a CJK bin its build loads" {
+    make_ui_font_stage
+    rm "$STAGE/assets/fonts/cjk/noto_sans_cjk_28.bin"
+    run python3 "$DERIVE" prune-assets ad5m "$STAGE" 4
+    [ "$status" -ne 0 ] || fail "pruned a package its build cannot draw 28px CJK from: $output"
+    contains "noto_sans_cjk_28.bin" "$output"
+}
+
+@test "prune: without a font tier the translation CJK bins are left alone" {
+    make_ui_font_stage
+    before=$(ls "$STAGE"/assets/fonts/cjk/*.bin | wc -l)
+    run python3 "$DERIVE" prune-assets ad5m "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    [ "$(ls "$STAGE"/assets/fonts/cjk/*.bin | wc -l)" -eq "$before" ] || fail "pruned without a tier"
+}
