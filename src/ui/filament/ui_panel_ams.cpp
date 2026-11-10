@@ -491,12 +491,6 @@ void AmsPanel::on_activate() {
         create_slots(slot_count);
     }
 
-    // path_container is shown unconditionally; bypass_row visibility is managed
-    // by bind_flag_if_eq on the ams_supports_bypass subject.
-    lv_obj_t* path_container = helix::ui::find_required(panel_, "path_container", get_name());
-    if (path_container)
-        lv_obj_remove_flag(path_container, LV_OBJ_FLAG_HIDDEN);
-
     // Re-read non-subject slot fields on reactivation. The MATERIAL label has no
     // backing subject (unlike color, which self-refreshes via sync_from_backend()
     // above), so it is only re-read by refresh_slots(). Without this call the
@@ -689,12 +683,10 @@ void AmsPanel::rebuild_backend_selector() {
     auto& ams = AmsState::instance();
     int count = ams.backend_count();
 
+    // The row hides itself below two backends (backend_count in ams_panel.xml).
     if (count <= 1) {
-        lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
         return;
     }
-
-    lv_obj_remove_flag(row, LV_OBJ_FLAG_HIDDEN);
 
     // Clear existing children. rebuild_backend_selector runs from
     // backend_count_observer_ via object_lifetime_.defer (UpdateQueue batch). [L081]
@@ -1000,7 +992,6 @@ void AmsPanel::update_endless_arrows_from_backend() {
     AmsBackend* backend = AmsState::instance().get_backend();
     if (!backend) {
         ui_endless_spool_arrows_clear(endless_arrows_);
-        lv_obj_add_flag(endless_arrows_, LV_OBJ_FLAG_HIDDEN);
         return;
     }
 
@@ -1008,7 +999,6 @@ void AmsPanel::update_endless_arrows_from_backend() {
     auto capabilities = backend->get_endless_spool_capabilities();
     if (!capabilities.available()) {
         ui_endless_spool_arrows_clear(endless_arrows_);
-        lv_obj_add_flag(endless_arrows_, LV_OBJ_FLAG_HIDDEN);
         return;
     }
 
@@ -1020,7 +1010,6 @@ void AmsPanel::update_endless_arrows_from_backend() {
         helix::ui::endless_spool_marks(config, slot_count).empty()) {
         spdlog::trace("[{}] No endless spool backups configured - hiding arrows", get_name());
         ui_endless_spool_arrows_clear(endless_arrows_);
-        lv_obj_add_flag(endless_arrows_, LV_OBJ_FLAG_HIDDEN);
         return;
     }
     spdlog::trace("[{}] Endless spool relation has {} group(s) over {} slots", get_name(),
@@ -1047,10 +1036,8 @@ void AmsPanel::update_endless_arrows_from_backend() {
     ui_endless_spool_arrows_set_slot_width(endless_arrows_, slot_width);
     ui_endless_spool_arrows_set_slot_overlap(endless_arrows_, overlap);
     ui_endless_spool_arrows_set_slot_offset(endless_arrows_, offset);
+    // Shows the widget: the relation draws at least one mark.
     ui_endless_spool_arrows_set_groups(endless_arrows_, config);
-
-    // Show the canvas
-    lv_obj_remove_flag(endless_arrows_, LV_OBJ_FLAG_HIDDEN);
 
     spdlog::debug("[{}] Endless arrows updated with {} slots", get_name(), slot_count);
 }
@@ -1116,63 +1103,6 @@ void AmsPanel::update_slot_colors() {
         // container re-reads them imperatively. Only non-subject state (tool
         // badge, error indicator) is refreshed from the backend here.
         ui_ams_slot_refresh(slot_widgets_[i]);
-
-        // Update status indicator
-        update_slot_status(i);
-    }
-}
-
-void AmsPanel::update_slot_status(int slot_index) {
-    if (slot_index < 0 || slot_index >= kMaxVisibleSlots || !slot_widgets_[slot_index]) {
-        return;
-    }
-
-    int backend_idx = AmsState::instance().active_backend_index();
-    lv_subject_t* status_subject =
-        AmsState::instance().get_slot_status_subject(backend_idx, slot_index);
-    if (!status_subject) {
-        return;
-    }
-
-    auto status = static_cast<SlotStatus>(lv_subject_get_int(status_subject));
-
-    // Find status indicator icon within slot
-    lv_obj_t* status_icon = lv_obj_find_by_name(slot_widgets_[slot_index], "status_icon");
-    if (!status_icon) {
-        return;
-    }
-
-    // Update icon based on status
-    switch (status) {
-    case SlotStatus::EMPTY:
-        // Show empty indicator
-        lv_obj_remove_flag(status_icon, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_style_opa(status_icon, LV_OPA_30, 0);
-        break;
-
-    case SlotStatus::AVAILABLE:
-    case SlotStatus::FROM_BUFFER:
-        // Show filament available
-        lv_obj_remove_flag(status_icon, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_style_opa(status_icon, LV_OPA_100, 0);
-        break;
-
-    case SlotStatus::LOADED:
-        // Show loaded (highlighted)
-        lv_obj_remove_flag(status_icon, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_style_opa(status_icon, LV_OPA_100, 0);
-        break;
-
-    case SlotStatus::BLOCKED:
-        // Show error state
-        lv_obj_remove_flag(status_icon, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_style_opa(status_icon, LV_OPA_100, 0);
-        break;
-
-    case SlotStatus::UNKNOWN:
-    default:
-        lv_obj_add_flag(status_icon, LV_OBJ_FLAG_HIDDEN);
-        break;
     }
 }
 
