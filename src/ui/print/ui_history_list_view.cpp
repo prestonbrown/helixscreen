@@ -169,16 +169,19 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
 
     lv_obj_t* filename_label = helix::ui::find_required(row, "row_filename", "HistoryListView");
     if (filename_label) {
+        // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
         lv_label_set_text(filename_label, job.filename.c_str());
     }
 
     lv_obj_t* date_label = helix::ui::find_required(row, "row_date", "HistoryListView");
     if (date_label) {
+        // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
         lv_label_set_text(date_label, job.date_str.c_str());
     }
 
     lv_obj_t* duration_label = helix::ui::find_required(row, "row_duration", "HistoryListView");
     if (duration_label) {
+        // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
         lv_label_set_text(duration_label,
                           helix::format::duration(static_cast<int>(job.print_duration)).c_str());
     }
@@ -186,6 +189,7 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
     lv_obj_t* filament_label = helix::ui::find_required(row, "row_filament", "HistoryListView");
     if (filament_label) {
         const std::string materials = helix::filament_type_text(job.filament_type);
+        // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
         lv_label_set_text(filament_label, materials.empty() ? lv_tr("Unknown") : materials.c_str());
     }
 
@@ -195,8 +199,10 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
 
     lv_obj_t* status_label = helix::ui::find_required(row, "row_status", "HistoryListView");
     if (status_label) {
+        // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
         lv_label_set_text(status_label, status_text);
         lv_color_t color = theme_manager_parse_hex_color(status_color);
+        // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
         lv_obj_set_style_text_color(status_label, color, LV_PART_MAIN);
     }
 
@@ -204,6 +210,7 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
     lv_obj_t* status_bar = helix::ui::find_required(row, "status_bar", "HistoryListView");
     if (status_bar) {
         lv_color_t color = theme_manager_parse_hex_color(status_color);
+        // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
         lv_obj_set_style_bg_color(status_bar, color, LV_PART_MAIN);
     }
 
