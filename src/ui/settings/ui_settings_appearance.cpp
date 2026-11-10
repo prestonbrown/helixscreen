@@ -65,6 +65,7 @@ bool theme_is_showing(const helix::ThemeData& theme, bool dark) {
 void AppearanceSettingsOverlay::init_subjects() {
     // Theme Apply button disabled subject (1=disabled initially)
     UI_MANAGED_SUBJECT_INT(theme_apply_disabled_subject_, 1, "theme_apply_disabled", subjects_);
+    UI_MANAGED_SUBJECT_INT(theme_explorer_picked_subject_, 0, "theme_explorer_picked", subjects_);
 }
 
 void AppearanceSettingsOverlay::register_callbacks() {
@@ -248,33 +249,23 @@ void AppearanceSettingsOverlay::handle_explorer_theme_changed(int index) {
     if (theme_explorer_overlay_) {
         lv_obj_t* dark_toggle = helix::ui::find_required(theme_explorer_overlay_,
                                                          "preview_dark_mode_toggle", get_name());
-        lv_obj_t* toggle_container = helix::ui::find_required(
-            theme_explorer_overlay_, "dark_mode_toggle_container", get_name());
-
         if (dark_toggle) {
+            // The dark mode row shows from here on (theme_preview_overlay.xml)
+            lv_subject_set_int(&theme_explorer_picked_subject_, 1);
             if (supports_dark && supports_light) {
                 lv_obj_remove_state(dark_toggle, LV_STATE_DISABLED);
-                if (toggle_container) {
-                    lv_obj_remove_flag(toggle_container, LV_OBJ_FLAG_HIDDEN);
-                }
                 spdlog::debug("[{}] Theme '{}' supports both modes, toggle enabled", get_name(),
                               theme_name);
             } else if (supports_dark) {
                 lv_obj_add_state(dark_toggle, LV_STATE_DISABLED);
                 lv_obj_add_state(dark_toggle, LV_STATE_CHECKED);
                 preview_is_dark_ = true;
-                if (toggle_container) {
-                    lv_obj_remove_flag(toggle_container, LV_OBJ_FLAG_HIDDEN);
-                }
                 spdlog::debug("[{}] Theme '{}' is dark-only, forcing dark mode", get_name(),
                               theme_name);
             } else if (supports_light) {
                 lv_obj_add_state(dark_toggle, LV_STATE_DISABLED);
                 lv_obj_remove_state(dark_toggle, LV_STATE_CHECKED);
                 preview_is_dark_ = false;
-                if (toggle_container) {
-                    lv_obj_remove_flag(toggle_container, LV_OBJ_FLAG_HIDDEN);
-                }
                 spdlog::debug("[{}] Theme '{}' is light-only, forcing light mode", get_name(),
                               theme_name);
             }
@@ -297,6 +288,7 @@ void AppearanceSettingsOverlay::handle_theme_settings_clicked() {
 
     if (!theme_explorer_overlay_) {
         spdlog::debug("[{}] Creating theme explorer overlay...", get_name());
+        lv_subject_set_int(&theme_explorer_picked_subject_, 0);
         theme_explorer_overlay_ =
             helix::ui::create_xml_hidden(parent_screen_, "theme_preview_overlay");
         if (!theme_explorer_overlay_) {
@@ -468,6 +460,7 @@ void AppearanceSettingsOverlay::apply_preview_palette_to_screen_popups() {
         const char* suffix = theme_manager_get_breakpoint_suffix(responsive_dimension(nullptr));
         int radius_px =
             helix::BorderRadiusSizes::pixels(theme.properties.border_radius_size, suffix);
+        // DECLARATIVE_OK: live theme preview; no token holds a theme's radius until applied
         lv_obj_set_style_radius(modal_dialog, radius_px, LV_PART_MAIN);
     }
 }
