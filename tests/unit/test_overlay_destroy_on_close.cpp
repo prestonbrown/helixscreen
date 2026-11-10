@@ -435,6 +435,31 @@ TEST_CASE_METHOD(DestroyOnCloseFixture,
     CHECK(p.get_root() == nullptr);
 }
 
+TEST_CASE_METHOD(DestroyOnCloseFixture,
+                 "Z Offset Calibration readouts follow the panel and a reopen clears the result",
+                 "[overlay_destroy_on_close][zoffset_cal]") {
+    auto& p = get_global_zoffset_cal_panel();
+    auto text = [&](const char* name) {
+        return std::string(lv_label_get_text(lv_obj_find_by_name(p.get_root(), name)));
+    };
+    REQUIRE(p.show(lv_screen_active()));
+    settle();
+    p.update_z_position(0.2f);
+    CHECK(text("z_position_display") == "Z: 0.200");
+    p.on_calibration_result(false, "probe failed");
+    settle();
+    CHECK(text("error_message") == "probe failed");
+    NavigationManager::instance().go_back();
+    settle();
+
+    REQUIRE(p.show(lv_screen_active()));
+    settle();
+    CHECK(text("z_position_display") == "Z: 0.000");
+    CHECK(text("error_message") == "An error occurred during calibration.");
+    NavigationManager::instance().go_back();
+    settle();
+}
+
 TEST_CASE_METHOD(DestroyOnCloseFixture, "Touch Calibration rebuilds its tree on reopen",
                  "[overlay_destroy_on_close][touch_cal]") {
     auto& p = helix::ui::get_touch_calibration_overlay();

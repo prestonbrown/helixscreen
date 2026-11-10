@@ -226,11 +226,20 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     /// Turn off bed heater if we turned it on for calibration
     void turn_off_bed_if_needed();
 
-    // Interactive elements
-    lv_obj_t* saved_z_offset_display_ = nullptr;
-    lv_obj_t* z_position_display_ = nullptr;
-    lv_obj_t* final_offset_label_ = nullptr;
-    lv_obj_t* error_message_ = nullptr;
+    /// The readouts' texts: zoffset_saved_text, zoffset_z_text, zoffset_final_text and
+    /// zoffset_error_text. A no-op until init_subjects().
+    void set_readout(lv_subject_t& subject, const char* text);
+    /// The result texts a freshly built overlay shows
+    void reset_result_texts();
+
+    lv_subject_t saved_text_subject_{};
+    lv_subject_t z_text_subject_{};
+    lv_subject_t final_text_subject_{};
+    lv_subject_t error_text_subject_{};
+    char saved_text_buf_[32] = {0};
+    char z_text_buf_[32] = {0};
+    char final_text_buf_[96] = {0};
+    char error_text_buf_[512] = {0};
 
     // Current Z position during calibration
     float current_z_ = 0.0f;
