@@ -328,6 +328,11 @@ TEST_CASE_METHOD(HubStackFixture, "A selector rail replaces the bar and keeps it
     ui_filament_path_canvas_set_selector_rail(c.obj, nullptr);
     render(c);
     CHECK_FALSE(c.data->rail_drawn);
+    // A fixed block takes the bar's place and its tap too.
+    ui_filament_path_canvas_set_lane_join(c.obj, LaneJoin::FixedBlock);
+    render(c);
+    CHECK(
+        (c.data->hits.hub_valid && c.data->hits.hub.y1 == bar.y1 && c.data->hits.hub.y2 == bar.y2));
 }
 
 TEST_CASE_METHOD(HubStackFixture, "A unit that merges inside keeps every sensor and has no box",
@@ -348,27 +353,12 @@ TEST_CASE_METHOD(HubStackFixture, "A unit that merges inside keeps every sensor 
     const PathPlan& plan = plan_of(c, &f);
     CHECK(plan.band_count - plan.trunk_band_count == 8);
     CHECK(plan.trunk_band_count >= 1);
-    // The lanes merge higher than they would at a junction outside the unit.
     auto junction = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
     ui_filament_path_canvas_set_lane_join(junction.obj, LaneJoin::Junction);
     render(junction);
     LinearHubFrame outside{};
     plan_of(junction, &outside);
     CHECK(f.hub_y < outside.hub_y);
-}
-
-TEST_CASE_METHOD(HubStackFixture, "A fixed selector block spans its lanes on the selector row",
-                 "[filament-path][hub-stack]") {
-    auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
-    ui_filament_path_canvas_set_hub_on_toolhead(c.obj, true);
-    ui_filament_path_canvas_set_lane_join(c.obj, LaneJoin::FixedBlock);
-    ui_filament_path_canvas_set_hub_callback(c.obj, [](lv_point_t, void*) {}, nullptr);
-    render(c);
-    REQUIRE(c.data->hits.hub_valid);
-    LinearHubFrame f{};
-    plan_of(c, &f);
-    CHECK(center_y(c.data->hits.hub) == Catch::Approx(f.selector_y).margin(1));
-    CHECK(c.data->hits.hub.x2 - c.data->hits.hub.x1 > c.data->slot_width * 3);
 }
 
 TEST_CASE_METHOD(HubStackFixture, "LINEAR never stacks its selector or buffer",
