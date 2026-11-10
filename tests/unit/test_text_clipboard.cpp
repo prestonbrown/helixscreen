@@ -9,8 +9,10 @@
 #include "ui_keyboard_manager.h"
 #include "ui_text_edit_menu.h"
 
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
 #include "core/update_queue.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "text_clipboard.h"
 
 #include <string>
@@ -139,9 +141,8 @@ TEST_CASE_METHOD(XMLTestFixture, "clipboard: the menu shows only what the field 
     clipboard::clear();
 }
 
-TEST_CASE_METHOD(XMLTestFixture, "clipboard: holding a managed field raises the menu",
+TEST_CASE_METHOD(LVGLUITestFixture, "clipboard: holding a managed field raises the menu",
                  "[clipboard][context-menu]") {
-    REQUIRE(register_component("text_edit_menu"));
     auto& keyboard = KeyboardManager::instance();
     keyboard.reset();
     keyboard.init(test_screen());
@@ -156,6 +157,25 @@ TEST_CASE_METHOD(XMLTestFixture, "clipboard: holding a managed field raises the 
     keyboard.unregister_textarea(field);
     lv_obj_send_event(field, LV_EVENT_LONG_PRESSED, nullptr);
     CHECK(ui::ContextMenu::active() == nullptr);
+
+    // A password revealed with the eye toggle stays secret: no menu, no paste.
+    clipboard::set_text("clip");
+    lv_obj_t* row = lv_obj_create(test_screen());
+    const char* attrs[] = {"name", "password_input", "password_mode", "true", nullptr};
+    auto* secret = static_cast<lv_obj_t*>(lv_xml_create(row, "text_input", attrs));
+    REQUIRE(secret != nullptr);
+    lv_textarea_set_text(secret, "hunter2");
+    lv_obj_t* eye = lv_button_create(row);
+    lv_event_cb_t toggle = lv_xml_get_event_cb(nullptr, "on_toggle_password_visibility");
+    REQUIRE(toggle != nullptr);
+    lv_obj_add_event_cb(eye, toggle, LV_EVENT_CLICKED, nullptr);
+    lv_obj_send_event(eye, LV_EVENT_CLICKED, nullptr);
+    REQUIRE_FALSE(lv_textarea_get_password_mode(secret));
+    lv_obj_send_event(secret, LV_EVENT_LONG_PRESSED, nullptr);
+    CHECK(ui::ContextMenu::active() == nullptr);
+    CHECK_FALSE(ui::apply_text_edit_action(secret, TextEditAction::Paste));
+    CHECK(field_text(secret) == "hunter2");
+    clipboard::clear();
 
     keyboard.reset();
     helix::ui::UpdateQueue::instance().drain();
