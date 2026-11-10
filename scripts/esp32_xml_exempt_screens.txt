@@ -55,6 +55,7 @@ wizard_filament_sensor_select.xml
 wizard_heater_select.xml
 wizard_input_shaper.xml
 wizard_language_chooser.xml
+wizard_led_select.xml
 wizard_printer_identify.xml
 wizard_summary.xml
 wizard_telemetry.xml

@@ -112,6 +112,18 @@ TEST_CASE_METHOD(XMLTestFixture, "Clog config hides mode/length when the backend
         REQUIRE_FALSE(lv_obj_has_flag(det_length_section, LV_OBJ_FLAG_HIDDEN));
     }
 
+    // A source button shows only while the backend reports that source.
+    for (const char* src : {"encoder", "flowguard", "afc"}) {
+        CAPTURE(src);
+        lv_obj_t* btn = lv_obj_find_by_name(dlg, (std::string("btn_source_") + src).c_str());
+        lv_subject_t* avail =
+            lv_xml_get_subject(nullptr, (std::string("clog_src_") + src + "_available").c_str());
+        REQUIRE((btn && avail));
+        CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        lv_subject_set_int(avail, 1);
+        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    }
+
     // Tear the widget tree down before `modal` (and its subjects) go out of
     // scope — the bindings above observe subjects the modal owns.
     lv_obj_delete(dlg);

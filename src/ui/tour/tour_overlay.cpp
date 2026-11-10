@@ -3,8 +3,6 @@
 
 #include "tour_overlay.h"
 
-#include "ui_button.h"
-
 #include "printer_image_manager.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -36,10 +34,31 @@ inline int highlight_outline_pad() {
 inline int tooltip_margin() {
     return theme_manager_get_spacing("space_sm");
 }
+
+/// The overlay a card button belongs to: its root sits on lv_layer_top() and
+/// carries the overlay as user data.
+TourOverlay* overlay_of(lv_event_t* e) {
+    auto* obj = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    while (obj && lv_obj_get_parent(obj) != lv_layer_top()) {
+        obj = lv_obj_get_parent(obj);
+    }
+    return obj ? static_cast<TourOverlay*>(lv_obj_get_user_data(obj)) : nullptr;
+}
 } // namespace
 
 TourOverlay::TourOverlay(std::vector<TourStep> steps, AdvanceCb on_next, SkipCb on_skip)
     : steps_(std::move(steps)), on_next_cb_(std::move(on_next)), on_skip_cb_(std::move(on_skip)) {
+    lv_subject_init_string(&title_subject_, title_buf_, nullptr, sizeof(title_buf_), "");
+    lv_subject_init_string(&body_subject_, body_buf_, nullptr, sizeof(body_buf_), "");
+    lv_subject_init_string(&counter_subject_, counter_buf_, nullptr, sizeof(counter_buf_), "");
+    lv_subject_init_string(&next_text_subject_, next_text_buf_, nullptr, sizeof(next_text_buf_),
+                           "");
+    subjects_.publish("tour_title", &title_subject_);
+    subjects_.publish("tour_body", &body_subject_);
+    subjects_.publish("tour_counter", &counter_subject_);
+    subjects_.publish("tour_next_text", &next_text_subject_);
+    lv_xml_register_event_cb(nullptr, "on_tour_skip", on_skip_cb);
+    lv_xml_register_event_cb(nullptr, "on_tour_next", on_next_cb);
     build_tree();
 }
 
@@ -59,6 +78,7 @@ void TourOverlay::build_tree() {
     const int screen_h = lv_display_get_vertical_resolution(nullptr);
 
     root_ = lv_obj_create(top);
+    lv_obj_set_user_data(root_, this); // the card buttons find their overlay here
     lv_obj_set_pos(root_, 0, 0);
     lv_obj_set_size(root_, screen_w, screen_h);
     lv_obj_set_style_bg_opa(root_, 0, 0);
@@ -104,29 +124,17 @@ void TourOverlay::build_tree() {
     tooltip_width_ = std::clamp(screen_w * 55 / 100, kTooltipMinWidth, kTooltipMaxWidth);
     lv_obj_set_width(tooltip_, tooltip_width_);
     lv_obj_update_layout(tooltip_);
-
-    // Find the skip/next buttons and attach static callbacks.
-    // Exception: per-instance closure — XML event_cb can't pass `this` captures.
-    // These buttons live and die with the overlay, so no static pointer hazards.
-    lv_obj_t* skip_btn = helix::ui::find_required(tooltip_, "tour_skip_btn", "TourOverlay");
-    lv_obj_t* next_btn = helix::ui::find_required(tooltip_, "tour_next_btn", "TourOverlay");
-    if (skip_btn) {
-        lv_obj_add_event_cb(skip_btn, on_skip_cb, LV_EVENT_CLICKED, this);
-    }
-    if (next_btn) {
-        lv_obj_add_event_cb(next_btn, on_next_cb, LV_EVENT_CLICKED, this);
-    }
 }
 
 void TourOverlay::on_skip_cb(lv_event_t* e) {
-    auto* self = static_cast<TourOverlay*>(lv_event_get_user_data(e));
+    TourOverlay* self = overlay_of(e);
     if (!self || !self->on_skip_cb_)
         return;
     self->on_skip_cb_();
 }
 
 void TourOverlay::on_next_cb(lv_event_t* e) {
-    auto* self = static_cast<TourOverlay*>(lv_event_get_user_data(e));
+    TourOverlay* self = overlay_of(e);
     if (!self || !self->on_next_cb_)
         return;
     self->on_next_cb_();
@@ -252,33 +260,17 @@ void TourOverlay::place_tooltip(const lv_area_t& target_rect, bool has_target, T
 }
 
 void TourOverlay::update_tooltip_text(const TourStep& step, size_t index, size_t total) {
-    if (!tooltip_)
-        return;
-    lv_obj_t* title = helix::ui::find_required(tooltip_, "tour_title", "TourOverlay");
-    lv_obj_t* body = helix::ui::find_required(tooltip_, "tour_body", "TourOverlay");
-    lv_obj_t* next_btn = helix::ui::find_required(tooltip_, "tour_next_btn", "TourOverlay");
-
-    if (title)
-        lv_label_set_text(title, lv_tr(step.title_key.c_str()));
-    if (body)
-        lv_label_set_text(body, lv_tr(step.body_key.c_str()));
-
-    // Change "Next" to "Done" on last step.
-    if (next_btn) {
-        const char* key = (index + 1 == total) ? "Done" : "Next";
-        ui_button_set_text(next_btn, lv_tr(key));
-    }
-
+    lv_subject_copy_string(&title_subject_, lv_tr(step.title_key.c_str()));
+    lv_subject_copy_string(&body_subject_, lv_tr(step.body_key.c_str()));
+    // "Next" reads "Done" on the last step.
+    lv_subject_copy_string(&next_text_subject_, lv_tr((index + 1 == total) ? "Done" : "Next"));
     update_counter(index, total);
 }
 
 void TourOverlay::update_counter(size_t index, size_t total) {
-    lv_obj_t* counter = helix::ui::find_required(tooltip_, "tour_counter", "TourOverlay");
-    if (!counter)
-        return;
     char buf[16];
     std::snprintf(buf, sizeof(buf), "%zu / %zu", index + 1, total);
-    lv_label_set_text(counter, buf);
+    lv_subject_copy_string(&counter_subject_, buf);
 }
 
 void TourOverlay::update_preview(const TourStep& step) {

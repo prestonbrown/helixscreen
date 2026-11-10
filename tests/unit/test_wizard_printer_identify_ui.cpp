@@ -262,6 +262,24 @@ TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture,
     CHECK_FALSE(lv_obj_has_flag(tiles_container(), LV_OBJ_FLAG_HIDDEN));
 }
 
+TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture, "Wizard printer name gates Next on a blank name",
+                 "[wizard][selector]") {
+    require_ready();
+    lv_obj_t* name = lv_obj_find_by_name(step_root, "printer_name_input");
+    REQUIRE(name != nullptr);
+    lv_textarea_set_text(search_input(), "");
+    lv_obj_t* tile = tile_for("Anycubic");
+    REQUIRE(tile != nullptr);
+    lv_obj_send_event(tile, LV_EVENT_CLICKED, nullptr);
+    lv_obj_t* first = visible_rows().at(0);
+    lv_obj_send_event(first, LV_EVENT_CLICKED, nullptr);
+
+    lv_textarea_set_text(name, "Bench V0");
+    CHECK(get_wizard_printer_identify_step()->is_validated());
+    lv_textarea_set_text(name, "   ");
+    CHECK_FALSE(get_wizard_printer_identify_step()->is_validated());
+}
+
 // ============================================================================
 // Vendor drill-in
 // ============================================================================

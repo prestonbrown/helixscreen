@@ -15,6 +15,10 @@
  */
 
 #include "ui_subject_registry.h"
+#include "ui_wizard_summary.h"
+
+#include "../lvgl_ui_test_fixture.h"
+#include "config.h"
 
 #include <cstring>
 #include <string>
@@ -25,78 +29,18 @@
 // Subject Macro Tests
 // ============================================================================
 
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING with separate pointers",
+TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING copies a separate source into the buffer",
           "[wizard][summary][subjects]") {
-    // This is the CORRECT usage pattern - source and dest are different
-    static lv_subject_t test_subject;
-    static char buffer[64];
-    const char* initial_value = "Test Value 123";
-
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(test_subject, buffer, initial_value, "test_subject_1");
-
-    // Verify the buffer contains the initial value
-    REQUIRE(std::string(buffer) == "Test Value 123");
-
-    // Verify the subject can retrieve the value
-    const char* retrieved = lv_subject_get_string(&test_subject);
-    REQUIRE(std::string(retrieved) == "Test Value 123");
-}
-
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING with c_str() from std::string",
-          "[wizard][summary][subjects]") {
+    // Config values arrive as std::string::c_str(), never the buffer itself.
     static lv_subject_t test_subject;
     static char buffer[128];
-    std::string config_value = "FlashForge Adventurer 5M Pro";
-
-    // Pass the c_str() as initial_value, buffer as destination
-    // This is safe because they point to different memory
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(test_subject, buffer, config_value.c_str(),
-                                        "test_subject_2");
-
-    REQUIRE(std::string(buffer) == "FlashForge Adventurer 5M Pro");
-    REQUIRE(std::string(lv_subject_get_string(&test_subject)) == "FlashForge Adventurer 5M Pro");
-}
-
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING handles empty string",
-          "[wizard][summary][subjects]") {
-    static lv_subject_t test_subject;
-    static char buffer[64];
-    std::string empty_value = "";
-
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(test_subject, buffer, empty_value.c_str(),
-                                        "test_subject_3");
-
-    REQUIRE(std::string(buffer) == "");
-    REQUIRE(std::string(lv_subject_get_string(&test_subject)) == "");
-}
-
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING handles default values",
-          "[wizard][summary][subjects]") {
-    static lv_subject_t test_subject;
-    static char buffer[64];
-
-    // Simulate what happens when config returns a default
-    std::string default_value = "Unnamed Printer";
-
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(test_subject, buffer, default_value.c_str(),
-                                        "test_subject_4");
-
-    REQUIRE(std::string(buffer) == "Unnamed Printer");
-    REQUIRE(std::string(lv_subject_get_string(&test_subject)) == "Unnamed Printer");
-}
-
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING handles special characters",
-          "[wizard][summary][subjects]") {
-    static lv_subject_t test_subject;
-    static char buffer[128];
-
-    // Config values might contain special characters
-    std::string special_value = "Heater: extruder, Sensor: heater_bed";
-
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(test_subject, buffer, special_value.c_str(),
-                                        "test_subject_5");
-
-    REQUIRE(std::string(buffer) == "Heater: extruder, Sensor: heater_bed");
+    for (const std::string value : {"FlashForge Adventurer 5M Pro", "", "Unnamed Printer",
+                                    "Heater: extruder, Sensor: heater_bed"}) {
+        CAPTURE(value);
+        UI_SUBJECT_INIT_AND_REGISTER_STRING(test_subject, buffer, value.c_str(), "test_subject");
+        CHECK(std::string(buffer) == value);
+        CHECK(std::string(lv_subject_get_string(&test_subject)) == value);
+    }
 }
 
 TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_INT works correctly", "[wizard][summary][subjects]") {
@@ -107,50 +51,39 @@ TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_INT works correctly", "[wizard][summary]
     REQUIRE(lv_subject_get_int(&test_subject) == 42);
 }
 
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_INT visibility flag pattern",
-          "[wizard][summary][subjects]") {
-    // Test the visibility flag pattern used in wizard summary
-    static lv_subject_t visible_subject;
-    static lv_subject_t hidden_subject;
-
-    // Part fan visible (has a value)
-    std::string part_fan = "fan_generic part_fan";
-    int visible = (part_fan != "None") ? 1 : 0;
-    UI_SUBJECT_INIT_AND_REGISTER_INT(visible_subject, visible, "test_visible_1");
-    REQUIRE(lv_subject_get_int(&visible_subject) == 1);
-
-    // LED strip not visible (set to "None")
-    std::string led_strip = "None";
-    int hidden = (led_strip != "None") ? 1 : 0;
-    UI_SUBJECT_INIT_AND_REGISTER_INT(hidden_subject, hidden, "test_visible_2");
-    REQUIRE(lv_subject_get_int(&hidden_subject) == 0);
-}
-
 // ============================================================================
-// Moonraker Connection String Format Test
+// Summary screen
 // ============================================================================
 
-TEST_CASE("Moonraker connection string formatting", "[wizard][summary]") {
-    // Test the pattern used for moonraker_connection subject
-    std::string moonraker_host = "192.168.1.100";
-    int moonraker_port = 7125;
+TEST_CASE_METHOD(LVGLUITestFixture, "Summary asks for telemetry only on the first printer",
+                 "[wizard][summary]") {
+    auto* cfg = Config::get_instance();
+    const nlohmann::json printers_before = cfg->get<nlohmann::json>("/printers", nlohmann::json());
+    auto* step = get_wizard_summary_step();
+    step->register_callbacks();
 
-    std::string moonraker_connection;
-    if (moonraker_host != "Not configured") {
-        moonraker_connection = moonraker_host + ":" + std::to_string(moonraker_port);
-    } else {
-        moonraker_connection = "Not configured";
-    }
+    auto row_shown = [&](const char* name) {
+        lv_obj_t* root = step->create(test_screen());
+        REQUIRE(root != nullptr);
+        lv_obj_t* obj = lv_obj_find_by_name(root, name);
+        REQUIRE(obj != nullptr);
+        const bool shown = !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        step->cleanup();
+        lv_obj_delete(root);
+        return shown;
+    };
 
-    REQUIRE(moonraker_connection == "192.168.1.100:7125");
+    nlohmann::json one = nlohmann::json::object();
+    one["default"] = nlohmann::json::object();
+    cfg->set<nlohmann::json>("/printers", one);
+    CHECK(row_shown("telemetry_opt_in_row"));
+    CHECK(row_shown("telemetry_divider"));
 
-    // Test default case
-    moonraker_host = "Not configured";
-    if (moonraker_host != "Not configured") {
-        moonraker_connection = moonraker_host + ":" + std::to_string(moonraker_port);
-    } else {
-        moonraker_connection = "Not configured";
-    }
+    nlohmann::json two = one;
+    two["second"] = nlohmann::json::object();
+    cfg->set<nlohmann::json>("/printers", two);
+    CHECK_FALSE(row_shown("telemetry_opt_in_row"));
+    CHECK_FALSE(row_shown("telemetry_divider"));
 
-    REQUIRE(moonraker_connection == "Not configured");
+    cfg->set<nlohmann::json>("/printers", printers_before);
 }

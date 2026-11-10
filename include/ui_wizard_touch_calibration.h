@@ -140,9 +140,8 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     friend class WizardTouchCalibrationTestAccess;
 
     lv_obj_t* screen_root_ = nullptr;
-    helix::ui::WidgetRef crosshair_;          // Reparented to screen for absolute positioning
-    lv_obj_t* test_area_container_ = nullptr; // Container for test area (shown in COMPLETE state)
-    lv_obj_t* test_touch_area_ = nullptr;     // Touch area for testing calibration
+    helix::ui::WidgetRef crosshair_;      // Reparented to screen for absolute positioning
+    lv_obj_t* test_touch_area_ = nullptr; // Touch area for testing calibration
     /// Panel, session, sink resolution, capture, retry and commit. Shared with the
     /// Settings recalibration overlay so neither can drift from the other.
     helix::ui::TouchCalibrationController controller_;
@@ -150,6 +149,9 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     // Subjects for UI state (instruction text uses wizard_subtitle instead)
     lv_subject_t current_step_{}; // 0, 1, 2, 3 (3 = verify)
     lv_subject_t calibration_valid_{};
+    /// The panel's TouchCalibrationPanel::State as an int; the capture surface,
+    /// crosshair and test area bind it
+    lv_subject_t cal_state_{};
 
     bool subjects_initialized_ = false;
     bool calibration_failed_ = false; // True after failed attempt, cleared on first point capture

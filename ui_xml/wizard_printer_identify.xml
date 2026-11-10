@@ -29,7 +29,9 @@
           <text_body width="100%" text="Printer Name"/>
           <text_input name="printer_name_input"
                       width="100%" height="#input_height" bind_text="printer_name" placeholder_text="My Printer"
-                      placeholder_tag="My Printer" translation_tag="My Printer" scrollbar_mode="off"/>
+                      placeholder_tag="My Printer" translation_tag="My Printer" scrollbar_mode="off">
+            <event_cb trigger="value_changed" callback="on_printer_name_changed"/>
+          </text_input>
         </lv_obj>
         <!-- Printer image preview (fills remaining space) -->
         <lv_obj width="100%"

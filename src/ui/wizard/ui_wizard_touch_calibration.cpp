@@ -106,6 +106,7 @@ WizardTouchCalibrationStep::~WizardTouchCalibrationStep() {
     if (subjects_initialized_ && lv_is_initialized()) {
         lv_subject_deinit(&calibration_valid_);
         lv_subject_deinit(&current_step_);
+        lv_subject_deinit(&cal_state_);
         subjects_initialized_ = false;
     }
     screen_root_ = nullptr;
@@ -127,6 +128,7 @@ void WizardTouchCalibrationStep::init_subjects() {
     // Instruction text uses wizard_subtitle (in the header), not a local subject.
     UI_SUBJECT_INIT_AND_REGISTER_INT(current_step_, 0, "touch_cal_current_step");
     UI_SUBJECT_INIT_AND_REGISTER_INT(calibration_valid_, 0, "touch_cal_valid");
+    UI_SUBJECT_INIT_AND_REGISTER_INT(cal_state_, 0, "touch_cal_wizard_state");
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
@@ -190,9 +192,6 @@ lv_obj_t* WizardTouchCalibrationStep::create(lv_obj_t* parent) {
     // (toggled by wizard_show_skip), so lifting the group keeps both accessible.
     raised_skip_ = helix::ui::raise_control_above_capture(lv_screen_active(), "next_skip_group");
 
-    // Find test area widgets (shown in COMPLETE state)
-    test_area_container_ =
-        helix::ui::find_required(screen_root_, "test_area_container", get_name());
     test_touch_area_ = helix::ui::find_required(screen_root_, "test_touch_area", get_name());
 
     // Center the wizard subtitle for this step (keeps it clear of crosshair targets)
@@ -270,7 +269,6 @@ void WizardTouchCalibrationStep::cleanup() {
 
     // Clear widget pointers FIRST to prevent UI updates during cleanup
     // (test area widgets are children of screen_root_, so they're deleted with it)
-    test_area_container_ = nullptr;
     test_touch_area_ = nullptr;
     screen_root_ = nullptr;
 
@@ -592,40 +590,14 @@ void WizardTouchCalibrationStep::update_crosshair_position() {
     // Touch overlay was reparented to screen for full-screen capture
     lv_obj_t* touch_overlay = lv_obj_find_by_name(lv_screen_active(), "touch_capture_overlay");
 
-    auto state = controller_.panel()->get_state();
-
-    // IDLE: show touch overlay (for "tap anywhere to begin") but hide crosshair
-    if (state == helix::TouchCalibrationPanel::State::IDLE) {
-        if (crosshair_) {
-            lv_obj_add_flag(crosshair_, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (touch_overlay) {
-            lv_obj_remove_flag(touch_overlay, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_move_foreground(touch_overlay);
-        }
-        ensure_skip_on_top();
+    // Visibility belongs to the XML: touch_cal_wizard_state shows the capture
+    // surface in IDLE and POINT_1-3 and the crosshair in POINT_1-3 only.
+    // Here only the z-order: the surface stays above the screen to take every tap.
+    if (controller_.panel()->get_state() >= helix::TouchCalibrationPanel::State::VERIFY) {
         return;
-    }
-
-    // Hide crosshair and touch overlay in VERIFY and COMPLETE states
-    if (state == helix::TouchCalibrationPanel::State::VERIFY ||
-        state == helix::TouchCalibrationPanel::State::COMPLETE) {
-        if (crosshair_) {
-            lv_obj_add_flag(crosshair_, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (touch_overlay) {
-            lv_obj_add_flag(touch_overlay, LV_OBJ_FLAG_HIDDEN);
-        }
-        return;
-    }
-
-    // Show crosshair and touch overlay for calibration points
-    if (crosshair_) {
-        lv_obj_remove_flag(crosshair_, LV_OBJ_FLAG_HIDDEN);
     }
     if (touch_overlay) {
-        lv_obj_remove_flag(touch_overlay, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_move_foreground(touch_overlay); // Keep on top for click capture
+        lv_obj_move_foreground(touch_overlay);
     }
     ensure_skip_on_top();
 
@@ -646,19 +618,9 @@ void WizardTouchCalibrationStep::update_crosshair_position() {
 }
 
 void WizardTouchCalibrationStep::update_button_visibility() {
-    if (!screen_root_ || !controller_.panel()) {
+    if (!subjects_initialized_ || !controller_.panel()) {
         return;
     }
-
-    auto state = controller_.panel()->get_state();
-    bool is_complete = (state == helix::TouchCalibrationPanel::State::COMPLETE);
-
-    // Show test area container only in COMPLETE state
-    if (test_area_container_) {
-        if (is_complete) {
-            lv_obj_remove_flag(test_area_container_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(test_area_container_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    // The capture surface, crosshair and test area bind this
+    lv_subject_set_int(&cal_state_, static_cast<int>(controller_.panel()->get_state()));
 }

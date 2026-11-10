@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "subject_managed_panel.h"
 #include "tour_steps.h"
 
 #include <functional>
@@ -49,6 +50,18 @@ class TourOverlay {
     std::vector<TourStep> steps_;
     AdvanceCb on_next_cb_;
     SkipCb on_skip_cb_;
+
+    // The card's texts: tour_title, tour_body, tour_counter and tour_next_text.
+    // One tour runs at a time, so the names are global.
+    SubjectManager subjects_;
+    lv_subject_t title_subject_{};
+    lv_subject_t body_subject_{};
+    lv_subject_t counter_subject_{};
+    lv_subject_t next_text_subject_{};
+    char title_buf_[128] = {0};
+    char body_buf_[512] = {0};
+    char counter_buf_[16] = {0};
+    char next_text_buf_[32] = {0};
 
     lv_obj_t* root_ = nullptr; // on lv_layer_top()
     lv_obj_t* dim_ = nullptr;

@@ -15,6 +15,7 @@
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "../test_helpers/wizard_ams_identify_test_access.h"
 #include "ams_backend_indx.h"
+#include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
@@ -54,6 +55,29 @@ TEST_CASE_METHOD(LVGLTestFixture, "AMS wizard names INDX by its display name",
     EmptyHeadIndx indx;
     WizardAmsIdentifyStep step;
     CHECK(helix::ui::WizardAmsIdentifyStepTestAccess::type_name(step) == "INDX");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "AMS wizard shows a logo only for a system with logo art",
+                 "[ams][wizard]") {
+    helix::AmsState::instance().init_subjects(true);
+    WizardAmsIdentifyStep step;
+    step.init_subjects();
+    auto logo_shown = [&]() {
+        lv_obj_t* root = step.create(test_screen());
+        REQUIRE(root != nullptr);
+        lv_obj_t* logo = lv_obj_find_by_name(root, "ams_logo");
+        REQUIRE(logo != nullptr);
+        const bool shown = !lv_obj_has_flag(logo, LV_OBJ_FLAG_HIDDEN);
+        step.cleanup();
+        lv_obj_delete(root);
+        return shown;
+    };
+    {
+        helix::test::RegisteredBackend<helix::AmsBackendMock> mock(4);
+        REQUIRE(helix::AmsState::get_logo(mock->get_system_info().type_name).path != nullptr);
+        CHECK(logo_shown());
+    }
+    CHECK_FALSE(logo_shown());
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "Extruder PID calibration does not start on a blocked nozzle",

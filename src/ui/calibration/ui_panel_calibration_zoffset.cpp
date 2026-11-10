@@ -71,10 +71,6 @@ ZOffsetCalibrationPanel::~ZOffsetCalibrationPanel() {
 
     // Clear widget pointers (owned by LVGL)
     overlay_root_ = nullptr;
-    saved_z_offset_display_ = nullptr;
-    z_position_display_ = nullptr;
-    final_offset_label_ = nullptr;
-    error_message_ = nullptr;
 }
 
 // ============================================================================
@@ -93,6 +89,14 @@ void ZOffsetCalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(s_zoffset_cal_state, 0, "zoffset_cal_state", subjects_);
     // Warm bed toggle (default off)
     UI_MANAGED_SUBJECT_INT(s_zoffset_warm_bed, 0, "zoffset_warm_bed", subjects_);
+    UI_MANAGED_SUBJECT_STRING(saved_text_subject_, saved_text_buf_, "", "zoffset_saved_text",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(z_text_subject_, z_text_buf_, "Z: 0.000", "zoffset_z_text",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(final_text_subject_, final_text_buf_, "", "zoffset_final_text",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(error_text_subject_, error_text_buf_, "", "zoffset_error_text",
+                              subjects_);
 
     subjects_initialized_ = true;
 
@@ -150,12 +154,9 @@ void ZOffsetCalibrationPanel::setup_widgets() {
     // State visibility is handled via XML subject bindings
     // Event handlers are registered via init_subjects() before XML creation
 
-    // Find display elements (for programmatic updates not covered by subject bindings)
-    saved_z_offset_display_ =
-        helix::ui::find_required(overlay_root_, "saved_z_offset_display", get_name());
-    z_position_display_ = helix::ui::find_required(overlay_root_, "z_position_display", get_name());
-    final_offset_label_ = helix::ui::find_required(overlay_root_, "final_offset_label", get_name());
-    error_message_ = helix::ui::find_required(overlay_root_, "error_message", get_name());
+    if (!run_in_progress()) {
+        reset_result_texts();
+    }
 
     // A rebuild mid-run keeps the run, its timeout and its readouts: the probe is
     // still going on the printer.
@@ -222,15 +223,23 @@ void ZOffsetCalibrationPanel::setup_widgets() {
 // LIFECYCLE HOOKS
 // ============================================================================
 
+void ZOffsetCalibrationPanel::set_readout(lv_subject_t& subject, const char* text) {
+    if (subjects_initialized_) {
+        lv_subject_copy_string(&subject, text);
+    }
+}
+
+void ZOffsetCalibrationPanel::reset_result_texts() {
+    set_readout(final_text_subject_, lv_tr("Accepted Z Position: 0.000"));
+    set_readout(error_text_subject_, lv_tr("An error occurred during calibration."));
+}
+
 void ZOffsetCalibrationPanel::show_saved_z_offset() {
     // The snapshot from before this calibration.
-    if (!saved_z_offset_display_) {
-        return;
-    }
     const int saved_microns = get_printer_state().get_configured_z_offset_microns();
     char buf[32];
     snprintf(buf, sizeof(buf), "%.3f mm", saved_microns / 1000.0);
-    lv_label_set_text(saved_z_offset_display_, buf);
+    set_readout(saved_text_subject_, buf);
     spdlog::debug("[ZOffsetCal] Saved z-offset: {} microns ({} mm)", saved_microns,
                   saved_microns / 1000.0);
 }
@@ -274,9 +283,7 @@ void ZOffsetCalibrationPanel::on_activate() {
     current_z_ = 0.0f;
     final_offset_ = 0.0f;
     cumulative_z_delta_ = 0.0f;
-    if (z_position_display_) {
-        lv_label_set_text(z_position_display_, "Z: 0.000");
-    }
+    set_readout(z_text_subject_, "Z: 0.000");
 
     // Reset the visual indicator
     if (overlay_root_) {
@@ -332,10 +339,6 @@ void ZOffsetCalibrationPanel::cleanup() {
 
     // Nullify widget pointers BEFORE resetting observers — any cascading
     // observer callbacks during teardown will see null and bail out.
-    saved_z_offset_display_ = nullptr;
-    z_position_display_ = nullptr;
-    final_offset_label_ = nullptr;
-    error_message_ = nullptr;
 
     // Reset ObserverGuards (applying [L020])
     manual_probe_active_observer_.reset();
@@ -351,10 +354,6 @@ void ZOffsetCalibrationPanel::cleanup() {
 void ZOffsetCalibrationPanel::on_ui_destroyed() {
     // The tree is gone: no observer or late result may reach its labels. The
     // run itself lives in state_ and the state subject.
-    saved_z_offset_display_ = nullptr;
-    z_position_display_ = nullptr;
-    final_offset_label_ = nullptr;
-    error_message_ = nullptr;
     manual_probe_active_observer_.reset();
     manual_probe_z_observer_.reset();
 }
@@ -1095,11 +1094,9 @@ void ZOffsetCalibrationPanel::before_disconnect() {
 
 void ZOffsetCalibrationPanel::update_z_position(float z_position) {
     current_z_ = z_position;
-    if (z_position_display_) {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "Z: %.3f", z_position);
-        lv_label_set_text(z_position_display_, buf);
-    }
+    char buf[32];
+    snprintf(buf, sizeof(buf), "Z: %.3f", z_position);
+    set_readout(z_text_subject_, buf);
 
     // Update the visual indicator (convert mm to microns)
     if (overlay_root_) {
@@ -1115,16 +1112,12 @@ void ZOffsetCalibrationPanel::update_z_position(float z_position) {
 void ZOffsetCalibrationPanel::on_calibration_result(bool success, const std::string& message) {
     if (success) {
         // Update final offset display
-        if (final_offset_label_) {
-            const std::string accepted =
-                fmt::format(lv_tr("Accepted Z Position: {:.3f}"), final_offset_);
-            lv_label_set_text(final_offset_label_, accepted.c_str());
-        }
+        const std::string accepted =
+            fmt::format(lv_tr("Accepted Z Position: {:.3f}"), final_offset_);
+        set_readout(final_text_subject_, accepted.c_str());
         set_state(State::COMPLETE);
     } else {
-        if (error_message_) {
-            lv_label_set_text(error_message_, message.c_str());
-        }
+        set_readout(error_text_subject_, message.c_str());
         set_state(State::ERROR);
         // An open session keeps the manual probe dialog up in Mainsail and Fluidd.
         abort_manual_probe_if_active();

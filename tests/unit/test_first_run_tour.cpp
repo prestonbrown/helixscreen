@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_button.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_print_select.h"
@@ -363,12 +364,30 @@ TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: a missing target falls back to
     named_box("fallback_target", 40, 200);
     auto with_fallback = plain_step("absent_target");
     with_fallback.fallback_target_name = "fallback_target";
-    helix::tour::TourOverlay overlay({with_fallback, plain_step("absent_target")}, {}, {});
+    int nexts = 0, skips = 0;
+    helix::tour::TourOverlay overlay(
+        {with_fallback, plain_step("absent_target")}, [&] { ++nexts; }, [&] { ++skips; });
+    lv_obj_t* card = tooltip_of(overlay);
+    auto text = [&](const char* name) {
+        return std::string(lv_label_get_text(lv_obj_find_by_name(card, name)));
+    };
+    lv_obj_t* next = lv_obj_find_by_name(card, "tour_next_btn");
+    REQUIRE(next != nullptr);
 
     overlay.show_step(0);
     CHECK_FALSE(lv_obj_has_flag(highlight_of(overlay), LV_OBJ_FLAG_HIDDEN));
+    CHECK(text("tour_title") == "Title");
+    CHECK(text("tour_counter") == "1 / 2");
+    CHECK(std::string(lv_label_get_text(ui_button_get_label(next))) == "Next");
     overlay.show_step(1);
     CHECK(lv_obj_has_flag(highlight_of(overlay), LV_OBJ_FLAG_HIDDEN));
+    CHECK(text("tour_counter") == "2 / 2");
+    CHECK(std::string(lv_label_get_text(ui_button_get_label(next))) == "Done");
+
+    // The card's buttons reach the tour's own callbacks.
+    lv_obj_send_event(next, LV_EVENT_CLICKED, nullptr);
+    lv_obj_send_event(lv_obj_find_by_name(card, "tour_skip_btn"), LV_EVENT_CLICKED, nullptr);
+    CHECK((nexts == 1 && skips == 1));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: LeftNarrowed fits the card beside its target",

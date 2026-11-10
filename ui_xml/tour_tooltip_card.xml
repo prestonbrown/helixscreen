@@ -9,8 +9,8 @@
   <view name="tour_tooltip_card"
         extends="ui_card" height="content" style_shadow_width="16" style_shadow_opa="120" flex_flow="column"
         style_pad_gap="#space_sm">
-    <text_heading name="tour_title" width="100%" text="" translation_tag=""/>
-    <text_body name="tour_body" width="100%" text="" translation_tag="" long_mode="wrap"/>
+    <text_heading name="tour_title" width="100%" bind_text="tour_title"/>
+    <text_body name="tour_body" width="100%" bind_text="tour_body" long_mode="wrap"/>
     <!-- A sample of the Print Status screen. Its height and the printer picture come
          from TourOverlay::update_preview. -->
     <lv_obj name="tour_preview"
@@ -60,15 +60,17 @@
     <lv_obj name="tour_footer"
             width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row"
             style_flex_main_place="space_between" style_flex_cross_place="center">
-      <text_small name="tour_counter" text=""/>
+      <text_small name="tour_counter" bind_text="tour_counter"/>
       <lv_obj name="tour_buttons"
               width="content" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row"
               style_pad_gap="#space_sm">
-        <!-- Buttons wired programmatically from TourOverlay::build_tree — the -->
-        <!-- click handlers need the per-instance `this` pointer, which XML    -->
-        <!-- event_cb registration doesn't support. -->
-        <ui_button name="tour_skip_btn" variant="ghost" text="Skip"/>
-        <ui_button name="tour_next_btn" variant="primary" text="Next"/>
+        <!-- The callbacks find their overlay through its root (TourOverlay::on_*_cb) -->
+        <ui_button name="tour_skip_btn" variant="ghost" text="Skip">
+          <event_cb trigger="clicked" callback="on_tour_skip"/>
+        </ui_button>
+        <ui_button name="tour_next_btn" variant="primary" bind_text="tour_next_text">
+          <event_cb trigger="clicked" callback="on_tour_next"/>
+        </ui_button>
       </lv_obj>
     </lv_obj>
   </view>

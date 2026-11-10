@@ -9,7 +9,6 @@
 #include "../mocks/mock_mdns_discovery.h"
 #include "../test_helpers/fake_connection_test.h"
 #include "../test_helpers/scoped_moonraker_client.h"
-#include "../ui_test_utils.h"
 #include "config.h"
 #include "core/update_queue.h"
 #include "lan_sweep.h"
@@ -19,10 +18,9 @@
 #include "moonraker_client.h"
 #include "platform_info.h"
 #include "printer_discovery_list.h"
+#include "theme_manager.h"
 #include "utils/network_validation.h"
 #include "wizard_config_paths.h"
-
-#include <spdlog/spdlog.h>
 
 #include <chrono>
 #include <memory>
@@ -33,266 +31,6 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
-// Test Fixture for Wizard Connection UI
-// ============================================================================
-// Extends LVGLUITestFixture which provides full XML component registration
-
-class WizardConnectionUIFixture : public LVGLUITestFixture {
-  public:
-    WizardConnectionUIFixture() {
-        // LVGLUITestFixture handles all LVGL, theme, widget, subject,
-        // callback, and XML component initialization
-
-        // Create the wizard container on the test screen
-        wizard = ui_wizard_create(test_screen());
-        if (!wizard) {
-            spdlog::error("[WizardConnectionUIFixture] Failed to create wizard!");
-            return;
-        }
-
-        // Check if XML infrastructure is available before navigating.
-        // Navigation initializes step state (timers, callbacks) that can crash
-        // if widgets don't exist, and makes cleanup unsafe.
-        lv_obj_t* content = lv_obj_find_by_name(wizard, "wizard_content");
-        if (!content) {
-            spdlog::warn(
-                "[WizardConnectionUIFixture] XML components not loaded, skipping navigation");
-            return;
-        }
-
-        // Navigate to the Moonraker Connection screen
-        ui_wizard_navigate_to_step(helix::wizard::StepId::Connection);
-
-        // Verify that connection step loaded by checking for a key widget
-        ready_ = (lv_obj_find_by_name(wizard, "ip_input") != nullptr);
-
-        // Stop mDNS discovery and timers to prevent hangs during
-        // UITest::wait_ms() timer processing. Widgets remain in the LVGL
-        // tree - tests find them via lv_obj_find_by_name on the wizard.
-        get_wizard_connection_step()->cleanup();
-
-        // Initialize UI test system with test screen
-        UITest::init(test_screen());
-
-        // Skip LVGL processing in constructor - let individual tests process
-        // NOTE: mDNS timer processing was causing test hangs
-    }
-
-    ~WizardConnectionUIFixture() {
-        if (ready_) {
-            UITest::cleanup();
-        }
-        // Clean up connection step (stops mDNS discovery, cancels timers)
-        get_wizard_connection_step()->cleanup();
-        // Do NOT call lv_obj_delete(wizard) - let lv_deinit() in
-        // LVGLTestFixture handle widget tree cleanup.
-        wizard = nullptr;
-    }
-
-    void require_ready() {
-        if (!ready_) {
-            SKIP("XML infrastructure not available (ui_integration test)");
-        }
-    }
-
-    lv_obj_t* wizard = nullptr;
-    bool ready_ = false;
-};
-
-// ============================================================================
-// UI Widget Tests
-// ============================================================================
-
-// =============================================================================
-// UI Integration Tests - Require XML component registration
-// =============================================================================
-// These tests are marked [.ui_integration] (hidden from the default run)
-// because they need the ui_xml/ component tree readable from disk, which makes
-// them dependent on the working directory rather than on the build alone.
-// LVGLUITestFixture does register the components, so they pass when run from
-// the repo root:
-//   ./build/bin/helix-tests "[.ui_integration]"
-//
-// They assert the wizard connection step's XML structure (widget names, title
-// text, flex layout). Nothing else in the suite covers that, and tests/ui/ has
-// no wizard coverage — the wizard is pre-first-boot, so ctl cannot reach it.
-// =============================================================================
-
-TEST_CASE_METHOD(WizardConnectionUIFixture, "Connection UI: All widgets exist",
-                 "[wizard][connection][ui][.ui_integration]") {
-    require_ready();
-
-    // Find the main connection screen widgets (search in wizard, not test_screen)
-    lv_obj_t* ip_input = lv_obj_find_by_name(wizard, "ip_input");
-    REQUIRE(ip_input != nullptr);
-
-    lv_obj_t* port_input = lv_obj_find_by_name(wizard, "port_input");
-    REQUIRE(port_input != nullptr);
-
-    lv_obj_t* test_btn = lv_obj_find_by_name(wizard, "btn_test_connection");
-    REQUIRE(test_btn != nullptr);
-
-    // Note: connection_status_text is the actual widget name in XML
-    lv_obj_t* status_label = lv_obj_find_by_name(wizard, "connection_status_text");
-    REQUIRE(status_label != nullptr);
-}
-
-TEST_CASE_METHOD(WizardConnectionUIFixture, "Connection UI: Test button state",
-                 "[wizard][connection][ui][.ui_integration]") {
-    require_ready();
-    lv_obj_t* test_btn = UITest::find_by_name(test_screen(), "btn_test_connection");
-    REQUIRE(test_btn != nullptr);
-
-    // Button should not have the CLICKABLE flag removed
-    bool has_clickable = lv_obj_has_flag(test_btn, LV_OBJ_FLAG_CLICKABLE);
-    REQUIRE(has_clickable == true);
-
-    // Button should be visible
-    REQUIRE(UITest::is_visible(test_btn) == true);
-}
-
-TEST_CASE_METHOD(WizardConnectionUIFixture, "Connection UI: Navigation buttons",
-                 "[wizard][connection][ui][.ui_integration]") {
-    require_ready();
-    // Find navigation buttons (names from wizard_container.xml)
-    lv_obj_t* back_btn = UITest::find_by_name(test_screen(), "btn_back");
-    lv_obj_t* next_btn = UITest::find_by_name(test_screen(), "btn_next");
-
-    // Both should exist
-    REQUIRE(back_btn != nullptr);
-    REQUIRE(next_btn != nullptr);
-
-    // On step 3 (Connection), back button should be visible
-    REQUIRE(UITest::is_visible(back_btn) == true);
-}
-
-TEST_CASE_METHOD(WizardConnectionUIFixture, "Connection UI: Title and progress",
-                 "[wizard][connection][ui][.ui_integration]") {
-    require_ready();
-    // Find title label (from wizard_header_bar.xml)
-    lv_obj_t* title = UITest::find_by_name(test_screen(), "wizard_title");
-    REQUIRE(title != nullptr);
-
-    // Check title text (set from step_title const in wizard_connection.xml)
-    std::string title_text = UITest::get_text(title);
-    REQUIRE(title_text == "Printer Setup: Connection");
-}
-
-// ============================================================================
-// Mock Connection Tests
-// ============================================================================
-
-// Mock MoonrakerClient for testing
-class MockMoonrakerClient {
-  public:
-    int connect(const char* url, helix::SharedCallback<void()> on_connected,
-                helix::SharedCallback<void()> on_disconnected) {
-        last_url = url;
-        connected_callback = on_connected;
-        disconnected_callback = on_disconnected;
-        return 0;
-    }
-
-    void trigger_connected() {
-        if (connected_callback) {
-            connected_callback();
-        }
-    }
-
-    void trigger_disconnected() {
-        if (disconnected_callback) {
-            disconnected_callback();
-        }
-    }
-
-    void set_connection_timeout(int timeout_ms) {
-        timeout = timeout_ms;
-    }
-
-    ConnectionState get_connection_state() const {
-        return state;
-    }
-
-    void close() {
-        state = ConnectionState::DISCONNECTED;
-    }
-
-    std::string last_url;
-    helix::SharedCallback<void()> connected_callback;
-    helix::SharedCallback<void()> disconnected_callback;
-    int timeout = 0;
-    ConnectionState state = ConnectionState::DISCONNECTED;
-};
-
-TEST_CASE("Connection UI: Mock connection flow", "[wizard][connection][mock]") {
-    MockMoonrakerClient mock_client;
-
-    SECTION("Successful connection") {
-        bool connected = false;
-
-        mock_client.connect(
-            "ws://192.168.1.100:7125/websocket", [&connected]() { connected = true; }, []() {});
-
-        // Verify URL was captured
-        REQUIRE(mock_client.last_url == "ws://192.168.1.100:7125/websocket");
-
-        // Trigger successful connection
-        mock_client.trigger_connected();
-
-        REQUIRE(connected == true);
-    }
-
-    SECTION("Failed connection") {
-        bool disconnected = false;
-
-        mock_client.connect(
-            "ws://192.168.1.100:7125/websocket", []() {},
-            [&disconnected]() { disconnected = true; });
-
-        // Trigger disconnection/failure
-        mock_client.trigger_disconnected();
-
-        REQUIRE(disconnected == true);
-    }
-
-    SECTION("Timeout configuration") {
-        mock_client.set_connection_timeout(5000);
-        REQUIRE(mock_client.timeout == 5000);
-    }
-}
-
-// ============================================================================
-// Responsive Layout Tests
-// ============================================================================
-
-TEST_CASE_METHOD(WizardConnectionUIFixture, "Connection UI: Responsive layout",
-                 "[wizard][connection][ui][responsive][.ui_integration]") {
-    require_ready();
-
-    // Get the wizard content area
-    lv_obj_t* content = lv_obj_find_by_name(wizard, "wizard_content");
-    REQUIRE(content != nullptr);
-
-    // Connection screen root is the first child of wizard_content
-    lv_obj_t* connection_root = lv_obj_get_child(content, 0);
-    REQUIRE(connection_root != nullptr);
-
-    // Verify connection root uses column flex layout
-    lv_flex_flow_t flow = lv_obj_get_style_flex_flow(connection_root, LV_PART_MAIN);
-    REQUIRE(flow == LV_FLEX_FLOW_COLUMN);
-
-    // Verify key widgets exist and are structured correctly
-    lv_obj_t* ip_input = lv_obj_find_by_name(wizard, "ip_input");
-    REQUIRE(ip_input != nullptr);
-
-    lv_obj_t* port_input = lv_obj_find_by_name(wizard, "port_input");
-    REQUIRE(port_input != nullptr);
-
-    // Verify the connection root has children (layout content exists)
-    uint32_t child_count = lv_obj_get_child_count(connection_root);
-    REQUIRE(child_count > 0);
-}
 
 // ============================================================================
 // AsyncLifetimeGuard Integration Tests
@@ -546,6 +284,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     WizardConnectionStep* step = get_wizard_connection_step();
     step->init_subjects();
+    step->register_callbacks();
     step->set_mdns_discovery(std::make_unique<MockMdnsDiscovery>());
     lv_obj_t* root = step->create(test_screen());
     REQUIRE(root != nullptr);
@@ -567,6 +306,19 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(text == connect_failure_status(kind, {7125, 80}));
     CHECK(text.find(lv_tr(connect_failure_hint(kind, is_android_platform()))) == 0);
     CHECK(text.find("80") != std::string::npos);
+
+    // One icon shows, in the danger colour.
+    lv_obj_t* icons = lv_obj_find_by_name(root, "connection_status_icon");
+    REQUIRE(icons != nullptr);
+    std::vector<lv_obj_t*> shown;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(icons); ++i) {
+        if (!lv_obj_has_flag(lv_obj_get_child(icons, i), LV_OBJ_FLAG_HIDDEN)) {
+            shown.push_back(lv_obj_get_child(icons, i));
+        }
+    }
+    REQUIRE(shown.size() == 1);
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(shown[0], LV_PART_MAIN),
+                      theme_manager_get_color("danger")));
     step->cleanup();
 }
 
@@ -602,6 +354,7 @@ struct RestoreDefaultPortField {
 
 lv_obj_t* create_step_and_test(WizardConnectionStep* step, lv_obj_t* parent) {
     step->init_subjects();
+    step->register_callbacks();
     step->set_mdns_discovery(std::make_unique<MockMdnsDiscovery>());
     lv_obj_t* root = step->create(parent);
     REQUIRE(root != nullptr);

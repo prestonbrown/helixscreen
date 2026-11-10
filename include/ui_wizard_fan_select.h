@@ -119,11 +119,9 @@ class WizardFanSelectStep : public helix::wizard::Step {
         return exhaust_fan_items_;
     }
 
-    /**
-     * @brief Get the screen root widget (for status text updates)
-     */
-    lv_obj_t* get_screen_root() const {
-        return screen_root_;
+    /// 1 while two roles name the same fan: the status line shows
+    lv_subject_t* get_duplicate_subject() {
+        return &duplicate_;
     }
 
   private:
@@ -136,6 +134,9 @@ class WizardFanSelectStep : public helix::wizard::Step {
     lv_subject_t part_fan_selected_{};
     lv_subject_t chamber_fan_selected_{};
     lv_subject_t exhaust_fan_selected_{};
+    lv_subject_t duplicate_{};
+    /// 1 when the printer has more than two fans: the chamber and exhaust row shows
+    lv_subject_t optional_visible_{};
 
     // Dynamic options storage
     std::vector<std::string> hotend_fan_items_;
