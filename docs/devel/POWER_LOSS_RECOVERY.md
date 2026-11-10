@@ -230,7 +230,8 @@ in the `helix-screen` namespace, so it has them with the screen off:
   asking for an update when the plugin reports no `plr`, and hidden when the
   plugin reports it `available: false` (`python_too_old`, `no_virtual_sdcard`,
   `store_unwritable`, `not_listed`, `gantry_drops`, `delta_kinematics`,
-  `firmware_recovery`). A printer with no `plr_profile`, at tier 0, or whose
+  `firmware_recovery`, `klipper_config_unread`, `override_homes_z`, `override_sets_z`,
+  `override_unknown`). A printer with no `plr_profile`, at tier 0, or whose
   default the plugin vetoes gets no switch; the plugin overview shows the
   feature unavailable with that reason. Its switch follows `plr_saving_enabled`, the
   plugin's own report re-read after each write: the `plr` entry's `saving`, or
@@ -430,10 +431,12 @@ the profile's tier to be 1 or more.
 `HelixPlr.availability()` is the feature's probe, read synchronously on every status
 call: Python 3.8 or newer, a `[virtual_sdcard]`, a writable snapshot store, and a
 profile tier of 1 or more (the profile's `reason` otherwise, `not_listed` without
-one or with no record), and for an unlisted profile no veto (the veto's code). The
-probe cannot read the database, so it answers from `listed_tier`, `listed` and
-`listed_reason`, which every `profile()` read updates, and from `guard`, which
-Klippy ready sets. The plugin reads the profile at component init, and a
+one or with no record). For an unlisted profile it also needs no veto (the veto's
+code) and safe XY homing (the homing check's code when the effective tier is 0, so a
+printer that can never be offered neither reports PLR available nor saves). The
+probe cannot read the database, so it answers from `listed_tier`, `listed`,
+`listed_reason` and `listed_profile`, which every `profile()` read updates, and from
+`guard` and `homing`, which Klippy ready sets. The plugin reads the profile at component init, and a
 features status reads the switch (`feature_enabled()`, which reads the profile) before
 the probe, so a profile the app writes shows in the next status; the app re-reads the
 features map once the stored profile matches what it resolved.
@@ -489,11 +492,16 @@ is wrong for, and reports the code as the feature's reason:
 | Evidence | Code |
 |---|---|
 | A `[quad_gantry_level]` section | `gantry_drops`: a belted flying gantry drops and racks unpowered, and levelling probes over the part |
-| `print_stats.power_loss` or `virtual_sdcard.pl_env_valid` in the status, or the QIDI print_state adapter selected | `firmware_recovery`: the firmware runs its own recovery |
+| `print_stats.power_loss` or `virtual_sdcard.pl_env_valid` in the status, a `[gcode_macro DETECT_INTERRUPTION]` or `[gcode_macro RESUME_INTERRUPTED]` section (QIDI's stock recovery, the same macros `plr_resume_macro_present` looks for), or the QIDI print_state adapter selected | `firmware_recovery`: the firmware runs its own recovery |
+| No configfile read on this Klippy connection yet: before the first ready, after Klippy goes away, or when the object list, the configfile query, the subscription or the QIDI detection fails | `klipper_config_unread`: the veto fails closed, so an unlisted printer is withheld until Klipper is read |
 
-A veto that changes sends `helix_print:helix_features_changed`, so a screen that
-read the features before Klippy was ready reads them again. The delta and homing
-checks above apply to the default as to any profile. Klipper does not report
+The guard starts as `klipper_config_unread` and goes back to it in `on_klippy_gone`;
+only a ready whose configfile read succeeded replaces it. A guard that changes clears
+the saving switch's 5 s cache, and a change at ready sends
+`helix_print:helix_features_changed`, so a screen that read the features before
+Klippy was ready reads them again. The delta and homing checks above apply to the
+default as to any profile, and an unlisted printer they put at tier 0 reports
+the homing code as the feature's reason. Klipper does not report
 whether a Z stepper holds unpowered; tier 1 does not depend on it, since the
 user sets Z on the part.
 
@@ -658,8 +666,10 @@ with, so a second outage can load it again.
 is on, or a saved snapshot is waiting", so switching saving off does not withdraw an
 offer already saved; `saving` is the switch as applied and is what the settings row
 shows. `reason` when unavailable: `python_too_old`, `no_virtual_sdcard`,
-`store_unwritable`, `not_listed`, or a tier-0 profile's or the veto's code
-(`gantry_drops`, `delta_kinematics`, `firmware_recovery`).
+`store_unwritable`, `not_listed`, a tier-0 profile's or the veto's code
+(`gantry_drops`, `delta_kinematics`, `firmware_recovery`, `klipper_config_unread`), or,
+for an unlisted printer, the XY homing check's code (`delta_kinematics`,
+`override_homes_z`, `override_sets_z`, `override_unknown`).
 
 | Method (JSON-RPC / HTTP) | Params | Reply |
 |---|---|---|

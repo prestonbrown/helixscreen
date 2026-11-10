@@ -341,6 +341,11 @@ def test_parse_profile_reads_listed_and_reason():
         ({}, {"print_stats": {"state": "standby", "power_loss": None}}, False, None),
         ({}, {"virtual_sdcard": {"pl_env_valid": 0}}, False, "firmware_recovery"),
         ({}, {}, True, "firmware_recovery"),
+        ({"gcode_macro detect_interruption": {"gcode": "M118 x"}}, {}, False,
+         "firmware_recovery"),
+        ({"gcode_macro resume_interrupted": {"gcode": "M118 x"}}, {}, False,
+         "firmware_recovery"),
+        ({"gcode_macro resume": {"gcode": "RESUME_BASE"}}, {}, False, None),
         (None, None, False, None),
     ],
 )
@@ -402,6 +407,7 @@ def test_an_unlisted_printer_saves_by_default_on_emmc(helix, fake_sys):
         ({"quad_gantry_level": {}}, None, "gantry_drops"),
         ({}, {"print_stats": {"power_loss": 0}}, "firmware_recovery"),
         ({}, {"virtual_sdcard": {"pl_env_valid": 1}}, "firmware_recovery"),
+        ({"gcode_macro detect_interruption": {"gcode": "M118 x"}}, None, "firmware_recovery"),
     ],
 )
 def test_an_unlisted_printer_klipper_rules_out_is_unavailable(helix, settings, status, reason):
@@ -434,6 +440,8 @@ def test_a_listed_printer_keeps_its_tier_on_a_levelled_gantry(helix):
         ({"homing_override": {"axes": "xyz", "gcode": "G28 Z\nG28 X Y"}}, "corexy",
          "override_homes_z"),
         ({"homing_override": {"gcode": "MY_HOME_ALL"}}, "corexy", "override_unknown"),
+        ({"homing_override": {"gcode": "G28 X Y", "set_position_z": 5}}, "corexy",
+         "override_sets_z"),
     ],
 )
 def test_an_unlisted_printer_with_unsafe_xy_homing_acts_at_tier_0(helix, settings, kinematics,
@@ -444,6 +452,102 @@ def test_an_unlisted_printer_with_unsafe_xy_homing_acts_at_tier_0(helix, setting
     assert helix.plr.backend(run(helix.plr.profile())) == ("none", 0)
     reply = run(helix.plr.status_reply())
     assert reply["tier"] == 0 and "not_supported" in reply["offer"]["blocked_by"]
+    # It can never offer, so it neither reports PLR available nor saves.
+    entry = plr_entry(helix)
+    assert (entry["available"], entry["reason"], entry["saving"]) == (False, reason, False)
+    assert run(helix.plr._saving()) is False
+
+
+def test_an_unlisted_printer_with_its_own_xy_homing_stays_available(helix):
+    run(helix.database.insert_item("helix-screen", "plr_profile",
+                                   dict(UNLISTED, xy_home_gcode="MY_HOME_XY")))
+    ready_with(helix, {"homing_override": {"gcode": "MY_HOME_ALL"}})
+    assert plr_entry(helix)["available"] is True
+
+
+def test_an_unlisted_printer_is_unavailable_until_klipper_is_read(helix):
+    run(helix.database.insert_item("helix-screen", "plr_profile", UNLISTED))
+    entry = plr_entry(helix)
+    assert (entry["available"], entry["reason"]) == (False, "klipper_config_unread")
+    assert helix.plr.backend(run(helix.plr.profile())) == ("none", 0)
+
+
+def _configfile_fails(helix, monkeypatch):
+    async def query(objects):
+        raise RuntimeError("Klippy Disconnected")
+    helix.klippy_apis.query_objects.side_effect = query
+
+
+def _settings_missing(helix, monkeypatch):
+    async def query(objects):
+        return {"toolhead": {"axis_minimum": [0, 0, 0, 0], "axis_maximum": [220, 220, 250, 0]}}
+    helix.klippy_apis.query_objects.side_effect = query
+
+
+def _subscribe_fails(helix, monkeypatch):
+    helix.klippy_apis.subscribe_objects.side_effect = RuntimeError("Klippy Disconnected")
+
+
+def _qidi_detection_fails(helix, monkeypatch):
+    async def detect(apis):
+        raise RuntimeError("gcode/help timed out")
+    monkeypatch.setattr(helix.plr, "_detect_qidi", detect)
+
+
+def _object_list_fails(helix, monkeypatch):
+    helix.klippy_apis.get_object_list.side_effect = RuntimeError("Klippy Disconnected")
+
+
+@pytest.mark.parametrize("break_read", [_configfile_fails, _settings_missing, _subscribe_fails,
+                                        _qidi_detection_fails, _object_list_fails])
+def test_an_unlisted_printer_whose_klipper_read_fails_stays_unavailable(helix, fake_sys,
+                                                                        monkeypatch, break_read):
+    disk = fake_sys.disk("mmcblk0", {"device/type": "MMC"})
+    helix.plr.runtime_storage = classify_block_device(fake_sys.root, fake_sys.link(disk))
+    run(helix.database.insert_item("helix-screen", "plr_profile", UNLISTED))
+    apis = helix.klippy_apis
+    apis.get_object_list.return_value = ["print_stats", "virtual_sdcard", "toolhead"]
+    apis.subscribe_objects.return_value = {}
+    ready_with(helix, {"quad_gantry_level": {}})
+    assert helix.plr.guard == "gantry_drops"
+    helix.plr.on_klippy_gone()
+    break_read(helix, monkeypatch)
+    run(helix.plr.on_klippy_ready())
+    entry = plr_entry(helix)
+    assert (entry["available"], entry["reason"], entry["saving"]) == (
+        False, "klipper_config_unread", False)
+    assert helix.plr.backend(run(helix.plr.profile())) == ("none", 0)
+    assert run(helix.plr._saving()) is False
+
+
+def test_klippy_going_away_withholds_an_unlisted_printer_until_read_again(helix):
+    run(helix.database.insert_item("helix-screen", "plr_profile", UNLISTED))
+    ready_with(helix)
+    assert plr_entry(helix)["available"] is True
+    helix.plr.on_klippy_gone()
+    assert plr_entry(helix)["reason"] == "klipper_config_unread"
+    ready_with(helix)
+    assert plr_entry(helix)["available"] is True
+
+
+def test_a_listed_printer_ignores_an_unread_klipper(helix):
+    run(helix.database.insert_item("helix-screen", "plr_profile", {"tier": 1, "listed": True}))
+    helix.klippy_apis.get_object_list.return_value = ["print_stats", "virtual_sdcard"]
+    _configfile_fails(helix, None)
+    run(helix.plr.on_klippy_ready())
+    assert plr_entry(helix)["available"] is True
+
+
+def test_a_new_veto_stops_the_cached_saving_switch_at_once(helix, fake_sys):
+    disk = fake_sys.disk("mmcblk0", {"device/type": "MMC"})
+    helix.plr.runtime_storage = classify_block_device(fake_sys.root, fake_sys.link(disk))
+    run(helix.database.insert_item("helix-screen", "plr_profile", UNLISTED))
+    helix.plr.clock = lambda: 1000.0
+    ready_with(helix)
+    assert run(helix.plr._saving()) is True
+    # A RESTART that adds [quad_gantry_level], inside the switch's cache window.
+    ready_with(helix, {"quad_gantry_level": {}})
+    assert run(helix.plr._saving()) is False
 
 
 @pytest.mark.parametrize("reason", ["gantry_drops", "delta_kinematics", "firmware_recovery"])
