@@ -538,6 +538,7 @@ void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj, const char* unit_i
         return;
     data->rail_art = art;
     data->rail_unit = unit_id;
+    data->rail_art_failed = false;
     layered_mark_dirty(obj);
 }
 
@@ -642,7 +643,8 @@ void ui_filament_path_canvas_set_active_slot(lv_obj_t* obj, int slot) {
     data->active_slot = slot;
 
     // LINEAR topology: animate output_x sliding to new slot position
-    if (data->topology == 0 && slot >= 0 && old_slot >= 0) {
+    if (data->topology == 0 && slot >= 0 && old_slot >= 0 && slot < data->slot_count &&
+        old_slot < data->slot_count) {
         lv_area_t coords;
         lv_obj_get_coords(obj, &coords);
         int32_t x_off = coords.x1;

@@ -354,6 +354,7 @@ struct FilamentPathData {
     // unit whose art it is.
     const helix::ui::tray::RailFaceArt* rail_art = nullptr;
     const char* rail_unit = nullptr;
+    bool rail_art_failed = false; // its images did not load: the bar is drawn instead
     // The rail art as last painted, for the per-frame carriage: offsets from the widget's corner.
     bool rail_drawn = false;
     int32_t rail_left = 0;

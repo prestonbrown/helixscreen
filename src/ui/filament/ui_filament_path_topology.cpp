@@ -435,9 +435,10 @@ namespace {
 lv_draw_buf_t* rail_layer(const FilamentPathData& data, const char* layer, int32_t w, int32_t h) {
     const std::string path = std::string("assets/images/units/") + data.rail_unit + "/face/" +
                              std::to_string(data.rail_art->lanes) + "/" + layer + ".png";
-    return helix::ui::baked_art_cached(path + "#" + std::to_string(h), [&] {
-        return helix::ui::baked_art_buffer(helix::ui::baked_art_decode(path, "RailArt"), w, h);
-    });
+    return helix::ui::baked_art_cached(
+        path + "#" + std::to_string(w) + "x" + std::to_string(h), [&] {
+            return helix::ui::baked_art_buffer(helix::ui::baked_art_decode(path, "RailArt"), w, h);
+        });
 }
 
 } // namespace
@@ -653,6 +654,11 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
 
     apply_debug_flow_override(obj, data);
     RenderCtx ctx{layer, data, compute_base_geometry(obj, data)};
+    // Rail art whose images do not load gives way to the bar before anything is laid out for it.
+    if (const RailArtRect r = rail_art_rect(*data, ctx.geo); r.w > 0) {
+        if (!rail_layer(*data, "body", r.w, r.h) || !rail_layer(*data, "carriage", r.w, r.h))
+            data->rail_art_failed = true;
+    }
 
     // LINEAR: the output exit snaps to the active slot unless it is sliding there.
     const int active = data->active_slot;

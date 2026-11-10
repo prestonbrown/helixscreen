@@ -307,9 +307,8 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     LinearHubFrame f{};
     const PathPlan& plan = plan_of(c, &f);
     REQUIRE((art != nullptr && c.data->rail_drawn && f.rail.w > 0));
-    // Centred, taller than the bar, clear of the lanes' sensors above and the buffer below.
+    // Centred, clear of the lanes' sensors above and the buffer below.
     CHECK(std::abs(f.rail.x + f.rail.w / 2 - f.center_x) <= 1);
-    CHECK(f.rail.h > bar.y2 - bar.y1);
     CHECK((f.rail.y > f.prep_y && f.rail.y + f.rail.h < f.buffer_y));
     CHECK((c.data->hits.hub.x1 == f.rail.x && c.data->hits.hub.y2 == f.rail.y + f.rail.h));
     const float in_y = (float)(f.rail.y + (int32_t)std::lround(art->inlet_y * f.rail.h));
@@ -324,16 +323,18 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
         CHECK(reaches);
     }
     // The selected filament leaves under the carriage, standing at gate 2, clear of the art.
-    CHECK(f.output_x == rail_outlet_x(*art, f.rail, 2));
-    CHECK(f.output_y >= f.rail.y + f.rail.h * 9 / 10);
+    CHECK((f.output_x == rail_outlet_x(*art, f.rail, 2) &&
+           f.output_y >= f.rail.y + f.rail.h * 9 / 10));
 
     BaseGeometry short_canvas = compute_base_geometry(c.obj, c.data);
     short_canvas.height = 120; // too short for the art: the bar comes back
     CHECK(rail_art_rect(*c.data, short_canvas).w == 0);
 
-    ui_filament_path_canvas_set_selector_rail(c.obj, nullptr, nullptr);
+    // Art whose images are missing gives the whole layout back to the bar.
+    ui_filament_path_canvas_set_selector_rail(c.obj, "no_such_unit", art);
     render(c);
-    CHECK_FALSE(c.data->rail_drawn);
+    plan_of(c, &f);
+    CHECK((!c.data->rail_drawn && f.rail.w == 0));
     ui_filament_path_canvas_set_lane_join(c.obj, LaneJoin::FixedBlock);
     render(c);
     CHECK(

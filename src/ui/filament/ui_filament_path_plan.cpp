@@ -202,15 +202,19 @@ int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g) {
 }
 
 RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g) {
-    if (!data.rail_art || data.topology != static_cast<int>(PathTopology::LINEAR) ||
-        data.hub_on_toolhead || data.rail_art->aspect <= 0)
+    if (!data.rail_art || data.rail_art_failed ||
+        data.topology != static_cast<int>(PathTopology::LINEAR) || data.hub_on_toolhead ||
+        data.rail_art->aspect <= 0)
         return {};
     const int32_t sensor_r = data.theme.sensor_radius;
     const int32_t buffer_box_h = LV_MAX(16, (int32_t)(g.height * kHubHeightRatio));
     const int32_t top =
         lanes_leave_y(data, g) + LV_MAX(4 * sensor_r, (int32_t)(g.height * kRailFanRatio));
+    // Clear of the buffer box, or of where the exit's jog to the trunk ends above a buffer.
+    const int32_t buffer_y = g.y_off + (int32_t)(g.height * kBufferYRatio);
     const int32_t bottom =
-        g.y_off + (int32_t)(g.height * kBufferYRatio) - buffer_box_h / 2 - 2 * sensor_r;
+        (data.buffer_present ? buffer_y - buffer_box_h : buffer_y - buffer_box_h / 2) -
+        2 * sensor_r;
     int32_t h = bottom - top;
     int32_t w = (int32_t)std::lround(h * data.rail_art->aspect);
     const int32_t max_w = (int32_t)(g.width * kRailMaxWidthRatio);
