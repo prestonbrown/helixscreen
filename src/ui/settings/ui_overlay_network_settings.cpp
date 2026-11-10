@@ -207,11 +207,11 @@ void NetworkSettingsOverlay::init_subjects() {
     UI_MANAGED_SUBJECT_INT(wifi_connecting_, 0, "wifi_connecting", subjects_);
     UI_MANAGED_SUBJECT_STRING(wifi_password_modal_ssid_, password_modal_ssid_buffer_, "",
                               "wifi_password_modal_ssid", subjects_);
-    // SUBJECT_OK: wifi_password_modal binds it through the attrs show_password_modal() passes
     UI_MANAGED_SUBJECT_STRING(password_status_, password_status_buffer_, "",
-                              "network_password_status", subjects_);
-    // SUBJECT_OK: wifi_password_modal binds it through the attrs show_password_modal() passes
-    UI_MANAGED_SUBJECT_INT(password_status_shown_, 0, "network_password_status_shown", subjects_);
+                              "network_password_status",
+                              subjects_); // SUBJECT_OK: bound via modal attrs
+    UI_MANAGED_SUBJECT_INT(password_status_shown_, 0, "network_password_status_shown",
+                           subjects_); // SUBJECT_OK: bound via modal attrs
 
     subjects_initialized_ = true;
     spdlog::debug("[NetworkSettingsOverlay] Subjects initialized");
