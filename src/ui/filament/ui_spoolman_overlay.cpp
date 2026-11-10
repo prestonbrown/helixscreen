@@ -167,6 +167,10 @@ lv_obj_t* SpoolmanOverlay::create(lv_obj_t* parent) {
 }
 
 void SpoolmanOverlay::before_show() {
+    // Every open starts on the configured state: a Change left by Back, or one
+    // whose verify never reported because the overlay closed, ends here.
+    lv_subject_set_int(&setup_editing_subject_, 0);
+    set_setup_status("");
     load_from_database();
     update_ui_from_subjects();
     update_server_url_display();
