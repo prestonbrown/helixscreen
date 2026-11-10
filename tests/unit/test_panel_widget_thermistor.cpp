@@ -88,29 +88,18 @@ TEST_CASE_METHOD(helix::ThermistorConfigFixture,
     REQUIRE(cfg2["sensor"].get<std::string>() == "temperature_sensor mcu_temp");
 }
 
-TEST_CASE_METHOD(
-    helix::ThermistorConfigFixture,
-    "ThermistorWidget: get_widget_config returns empty object for widget without config",
-    "[thermistor][panel_widget]") {
-    setup_empty_config();
-    PanelWidgetConfig wc("home", config);
-    wc.load();
-
-    auto cfg = wc.get_widget_config("shutdown");
-    REQUIRE(cfg.is_object());
-    REQUIRE(cfg.empty());
-}
-
 TEST_CASE_METHOD(helix::ThermistorConfigFixture,
-                 "ThermistorWidget: get_widget_config returns empty object for unknown widget",
+                 "ThermistorWidget: get_widget_config is an empty object with no config saved",
                  "[thermistor][panel_widget]") {
     setup_empty_config();
     PanelWidgetConfig wc("home", config);
     wc.load();
-
-    auto cfg = wc.get_widget_config("nonexistent_widget_xyz");
-    REQUIRE(cfg.is_object());
-    REQUIRE(cfg.empty());
+    // A known widget that has none, and an id no widget has.
+    for (const char* id : {"shutdown", "nonexistent_widget_xyz"}) {
+        auto cfg = wc.get_widget_config(id);
+        CHECK(cfg.is_object());
+        CHECK(cfg.empty());
+    }
 }
 
 TEST_CASE_METHOD(helix::ThermistorConfigFixture,

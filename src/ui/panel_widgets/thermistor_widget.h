@@ -35,9 +35,6 @@ class ThermistorWidget : public TiledPanelWidget {
     void attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) override;
     void detach() override;
     std::string get_component_name() const override;
-    const char** xml_attrs() const override {
-        return const_cast<const char**>(attrs_.data());
-    }
     const char* id() const override {
         return instance_id_.c_str();
     }
@@ -156,7 +153,6 @@ class ThermistorWidget : public TiledPanelWidget {
 
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
-    lv_obj_t* name_label_ = nullptr;
 
     nlohmann::json config_;
     std::vector<std::string> sensors_; // klipper_names for carousel mode
@@ -174,11 +170,10 @@ class ThermistorWidget : public TiledPanelWidget {
     lv_subject_t temp_subject_{};
     lv_subject_t target_subject_{};
     lv_subject_t available_subject_{}; ///< 1 while the selected sensor is reported
-    std::string temp_subject_name_;
-    std::string target_subject_name_;
-    std::string available_subject_name_;
-    std::vector<std::string> attr_storage_;
-    std::vector<const char*> attrs_;
+    /// The sensor's name, and 1 while one is selected (0 draws "Select sensor").
+    lv_subject_t name_subject_{};
+    char name_buffer_[96] = {};
+    lv_subject_t named_subject_{};
 
     // Carousel mode: each page binds the reading and name subjects of its slot
     // in these pools (thermistor_carousel_page). Declared before the observers

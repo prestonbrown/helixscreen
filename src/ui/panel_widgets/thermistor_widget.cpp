@@ -194,10 +194,7 @@ ThermistorWidget::ThermistorWidget(const std::string& instance_id)
                        TileSizing::Content{"110.0 / 888\u00B0C", "110.0\u00B0C", "Sensor", true, "",
                                            /*label_always_drawn=*/true, TileSizing::IconBox::Glyph,
                                            /*icon_animates=*/false, /*label_is_identity=*/true}),
-      instance_id_(instance_id), temp_subject_name_(instance_id + "_thermistor_temp"),
-      target_subject_name_(instance_id + "_thermistor_target"),
-      available_subject_name_(instance_id + "_thermistor_available"),
-      page_prefix_(instance_id + "_thermistor_page"),
+      instance_id_(instance_id), page_prefix_(instance_id + "_thermistor_page"),
       page_temp_(std::make_unique<IndexedSubjectPool>(
           page_prefix_.c_str(), IndexedSubjectPool::Type::String, 16, "_temp")),
       page_name_(std::make_unique<IndexedSubjectPool>(
@@ -205,20 +202,19 @@ ThermistorWidget::ThermistorWidget(const std::string& instance_id)
     // A widget built outside the panel-subject phase still publishes into live
     // subjects. A no-op once they exist.
     thermistor_widget_init_subjects();
-    UI_MANAGED_SUBJECT_INT(temp_subject_, 0, temp_subject_name_.c_str(), subjects_);
-    UI_MANAGED_SUBJECT_INT(target_subject_, 0, target_subject_name_.c_str(), subjects_);
-    UI_MANAGED_SUBJECT_INT(available_subject_, 0, available_subject_name_.c_str(), subjects_);
-
-    for (const char** a = sizing_.subject_attrs(); *a != nullptr; ++a) {
-        attr_storage_.emplace_back(*a);
-    }
-    attr_storage_.insert(attr_storage_.end(),
-                         {"temp_subject", temp_subject_name_, "target_subject",
-                          target_subject_name_, "available_subject", available_subject_name_});
-    for (const auto& s : attr_storage_) {
-        attrs_.push_back(s.c_str());
-    }
-    attrs_.push_back(nullptr);
+    lv_subject_init_int(&temp_subject_, 0);
+    sizing_.publish_instance_subject(subjects_, &temp_subject_, "temp_subject", "thermistor_temp");
+    lv_subject_init_int(&target_subject_, 0);
+    sizing_.publish_instance_subject(subjects_, &target_subject_, "target_subject",
+                                     "thermistor_target");
+    lv_subject_init_int(&available_subject_, 0);
+    sizing_.publish_instance_subject(subjects_, &available_subject_, "available_subject",
+                                     "thermistor_available");
+    lv_subject_init_string(&name_subject_, name_buffer_, nullptr, sizeof(name_buffer_), "");
+    sizing_.publish_instance_subject(subjects_, &name_subject_, "name_subject", "thermistor_name");
+    lv_subject_init_int(&named_subject_, 0);
+    sizing_.publish_instance_subject(subjects_, &named_subject_, "named_subject",
+                                     "thermistor_named");
 }
 
 ThermistorWidget::~ThermistorWidget() {
@@ -238,9 +234,6 @@ void ThermistorWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 }
 
 void ThermistorWidget::attach_single() {
-    // Cache label pointers
-    name_label_ = lv_obj_find_by_name(widget_obj_, "thermistor_name");
-
     // Apply custom icon
     lv_obj_t* icon_obj = lv_obj_find_by_name(widget_obj_, "thermistor_icon");
     if (icon_obj) {
@@ -437,7 +430,6 @@ void ThermistorWidget::on_hooked_root_deleted() {
 }
 
 void ThermistorWidget::forget_tile_widgets() {
-    name_label_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 }
@@ -597,14 +589,12 @@ void ThermistorWidget::update_display() {
     lv_subject_set_int(&temp_subject_, temp ? lv_subject_get_int(temp) : 0);
     lv_subject_set_int(&target_subject_, target ? lv_subject_get_int(target) : 0);
 
-    if (name_label_) {
-        if (selected_sensor_.empty()) {
-            // A tag, not lv_tr() text: the label then re-translates itself.
-            lv_label_set_translation_tag(name_label_, "Select sensor");
-        } else {
-            lv_label_set_text(name_label_, display_name_.c_str());
-        }
+    // No sensor shows the component's own "Select sensor" label, which
+    // re-translates itself.
+    if (!selected_sensor_.empty()) {
+        lv_subject_copy_string(&name_subject_, display_name_.c_str());
     }
+    lv_subject_set_int(&named_subject_, selected_sensor_.empty() ? 0 : 1);
 }
 
 void ThermistorWidget::set_config(const nlohmann::json& config) {
