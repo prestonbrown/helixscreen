@@ -80,6 +80,20 @@ TEST_CASE_METHOD(ConnectionDotFixture,
     CHECK_FALSE(lv_obj_has_flag(alpha_dot, LV_OBJ_FLAG_HIDDEN));
     CHECK(lv_obj_has_flag(dot_of(root, "beta"), LV_OBJ_FLAG_HIDDEN));
 
+    // The active row alone shows its check; with two printers both offer Delete.
+    auto part_hidden = [&](const char* printer_id, const char* name) {
+        lv_obj_t* part = lv_obj_find_by_name(lv_obj_find_by_name(root, printer_id), name);
+        REQUIRE(part != nullptr);
+        return lv_obj_has_flag(part, LV_OBJ_FLAG_HIDDEN);
+    };
+    CHECK_FALSE(part_hidden("alpha", "active_check"));
+    CHECK(part_hidden("beta", "active_check"));
+    CHECK_FALSE(part_hidden("alpha", "delete_btn"));
+    CHECK_FALSE(part_hidden("beta", "delete_btn"));
+    lv_obj_t* beta_name = lv_obj_find_by_name(lv_obj_find_by_name(root, "beta"), "printer_name");
+    REQUIRE(beta_name != nullptr);
+    CHECK(std::string(lv_label_get_text(beta_name)) == "Beta");
+
     lv_subject_t* state =
         get_printer_state().network_state().get_printer_connection_state_subject();
     lv_subject_set_int(state, 0);
