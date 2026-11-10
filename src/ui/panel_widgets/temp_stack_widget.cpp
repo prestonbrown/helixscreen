@@ -110,14 +110,6 @@ void TempStackWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
 
-    // Pressed feedback: dim each clickable row on touch
-    for (const char* name :
-         {"temp_stack_nozzle_row", "temp_stack_bed_row", "temp_stack_chamber_row"}) {
-        lv_obj_t* row = lv_obj_find_by_name(widget_obj_, name);
-        if (row)
-            lv_obj_set_style_opa(row, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
-    }
-
     if (is_carousel_mode()) {
         attach_carousel(widget_obj);
     } else {
