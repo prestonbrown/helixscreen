@@ -1240,6 +1240,11 @@ The right column, shared by the AMS panel and the overview's unit view
   idle, and hide during any operation (`ams_action ne 0`). From the medium breakpoint up they keep their full form (arc over
   reading over source; slider over reading over label); below it they shrink to one small
   row (a small arc beside its reading, the `swap_vertical` icon beside the buffer reading).
+  While a lane is loaded (`ams_filament_loaded`) a tap on the strip opens that lane in
+  `AmsEditOverlay` (`AmsOperationSidebar::handle_loaded_card_tap`): the editor when the lane
+  links a Spoolman spool or Spoolman is absent, the spool picker when Spoolman is up and the
+  lane links none. With nothing loaded the strip takes no taps. Its inner containers are
+  `clickable="false"`, so a press anywhere on it reaches the strip.
 - **Status** (`status_section`): the action detail in `text_body`, on its own line at every
   size. While the sidebar preheats for a load it reads "Heating nozzle"
   (`preheat_status_text`): the step list's heat step carries the live "current / target"
@@ -1549,7 +1554,9 @@ does nothing, even on a backend that has a remap strategy but presents no filame
 
 The lane context menu's **Edit Spool** opens `AmsEditOverlay`
 (`src/ui/filament/ui_ams_edit_overlay.cpp`) straight into its editor view; **Select
-Spool** opens it on the spool picker instead. The title is the lane in the
+Spool** opens it on the spool picker instead. In the picker the lane's linked spool
+leads the list, checked, so it shows without scrolling; a search still applies to it,
+and the other rows keep Spoolman's recency order. The title is the lane in the
 backend's noun ("Gate 3"). The header carries Save (`action_button`, dirty-gated)
 and, where Spoolman is configured, two round icon buttons left of it on the
 title's centre line: Choose from Spoolman and Scan QR (`ams_edit_scan_enabled`

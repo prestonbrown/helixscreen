@@ -3,6 +3,7 @@
 
 #include "ui_ams_sidebar.h"
 
+#include "ui_ams_context_menu.h"
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_ams_slot_layout.h"
 #include "ui_batch_filament_modal.h"
@@ -379,6 +380,12 @@ void AmsOperationSidebar::register_callbacks_static() {
          }},
         {"ams_sidebar_settings_clicked", on_settings_clicked_cb},
         {"ams_sidebar_cancel_clicked", [](lv_event_t*) { helix::ui::abort_ams_operation(); }},
+        {"ams_sidebar_loaded_card_clicked",
+         [](lv_event_t* e) {
+             if (auto* self = from_event(e)) {
+                 self->handle_loaded_card_tap();
+             }
+         }},
         {"ams_sidebar_load_clicked",
          [](lv_event_t* e) {
              if (auto* self = from_event(e)) {
@@ -1818,6 +1825,27 @@ void AmsOperationSidebar::handle_reset() {
     if (error.result != AmsResult::SUCCESS) {
         helix::ui::notify_ams_error(error, lv_tr("Reset failed"));
     }
+}
+
+void AmsOperationSidebar::handle_loaded_card_tap() {
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        return;
+    }
+    // The card binds its clickable flag to ams_filament_loaded; this re-check
+    // covers a tap that lands as the lane unloads.
+    const AmsSystemInfo info = backend->get_system_info();
+    if (!info.filament_loaded || info.current_slot < 0) {
+        spdlog::debug("[AmsSidebar] Loaded card tapped with no lane loaded");
+        return;
+    }
+    const SlotInfo slot = backend->get_slot_info(info.current_slot);
+    lv_subject_t* spoolman = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    const bool has_spoolman = spoolman && lv_subject_get_int(spoolman) == 1;
+    const bool open_on_picker = has_spoolman && slot.spoolman_id <= 0;
+    spdlog::info("[AmsSidebar] Loaded card tapped: slot {} spoolman_id {} -> {}", info.current_slot,
+                 slot.spoolman_id, open_on_picker ? "picker" : "editor");
+    open_slot_editor(lv_screen_active(), get_moonraker_api(), info.current_slot, open_on_picker);
 }
 
 void AmsOperationSidebar::handle_check_gates() {

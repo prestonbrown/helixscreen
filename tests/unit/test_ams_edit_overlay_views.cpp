@@ -1732,17 +1732,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker marks the slot's linked spool and pi
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
 
-    // A slot with no linked spool marks no row and keeps Spoolman's order.
-    // Spool 33 sits last in that order, so a pinned link moves to the top.
+    // No link: no row marked, Spoolman's order kept. Spool 33 is last, so a link moves it up.
     const int linked_id = GENERATE(0, 33);
     CAPTURE(linked_id);
-    const std::vector<int> marked = linked_id ? std::vector<int>{33} : std::vector<int>{};
     SlotInfo linked = linked_id ? tracked_slot() : untracked_slot();
     linked.spoolman_id = linked_id;
     REQUIRE(overlay.show_for_slot(test_screen(), 0, linked, nullptr, nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-
     access.set_cached_spools(three_spools());
     lv_obj_t* list = access.widget("picker_spool_list");
     REQUIRE(list != nullptr);
@@ -1760,16 +1757,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker marks the slot's linked spool and pi
 
     CHECK(rows_for("") ==
           (linked_id ? std::vector<int>{33, 11, 22} : std::vector<int>{11, 22, 33}));
-    CHECK(marked_spool_ids(list) == marked);
+    CHECK(marked_spool_ids(list) == std::vector<int>(linked_id ? 1 : 0, 33));
 
     // Spools 22 and 33 are both eSUN: the linked one still leads the survivors.
     CHECK(rows_for("esun") == (linked_id ? std::vector<int>{33, 22} : std::vector<int>{22, 33}));
-    CHECK(marked_spool_ids(list) == marked);
+    CHECK(marked_spool_ids(list) == std::vector<int>(linked_id ? 1 : 0, 33));
 
     // The search applies to the linked spool too: filtered out, nothing is marked.
     CHECK(rows_for("polymaker") == std::vector<int>{11});
     CHECK(marked_spool_ids(list).empty());
-
     close_editor_overlay();
 }
 

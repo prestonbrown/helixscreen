@@ -29,6 +29,9 @@
     - buffer_present / buffer_slider / buffer_short_text / buffer_label: the
       filament buffer, drawn by UiBufferSlider into buffer_mini_slider
 
+    The card's containers take no taps, so a host that makes the card clickable
+    gets every press on it.
+
     AmsOperationSidebar paints the filament colour on loaded_swatch and
     loaded_spool, and the remaining fill on loaded_spool.
     Clog arc size/stroke/color dynamically set by UiClogMeter C++ class via
@@ -84,19 +87,19 @@
     <lv_obj name="loaded_body"
             width="1" height="content" flex_grow="1" style_pad_all="0" style_pad_column="#space_sm"
             style_pad_row="#space_xs" flex_flow="row_wrap" style_flex_main_place="start" style_flex_cross_place="center"
-            style_flex_track_place="start" scrollable="false">
+            style_flex_track_place="start" scrollable="false" clickable="false">
       <spool_canvas name="loaded_spool" size="#ams_loaded_spool_size" clickable="false">
         <bind_flag_if cond="ui_breakpoint lt 3" flag="hidden"/>
       </spool_canvas>
       <lv_obj name="loaded_details"
               height="content" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
-              style_flex_cross_place="start" style_pad_gap="0" scrollable="false">
+              style_flex_cross_place="start" style_pad_gap="0" scrollable="false" clickable="false">
         <bind_style_if name="details_full" cond="ui_is_portrait eq 0 and ui_breakpoint lt 3"/>
         <bind_style_if name="details_grow" cond="ui_is_portrait eq 1 or ui_breakpoint ge 3"/>
         <!-- Line 1: where it is loaded from, and how much is left -->
         <lv_obj name="loaded_position_row"
                 width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                style_pad_gap="#space_xs" scrollable="false">
+                style_pad_gap="#space_xs" scrollable="false" clickable="false">
           <text_small name="loaded_position" bind_text="ams_current_slot_text" long_mode="dots">
             <bind_style_if name="position_fill" cond="ui_is_portrait eq 0 or ui_breakpoint lt 3"/>
             <bind_style_if name="position_hug" cond="ui_is_portrait eq 1 and ui_breakpoint ge 3"/>
@@ -113,19 +116,19 @@
                     style_text_color="#text_muted"/>
       </lv_obj>
       <!-- Divider over the tiled meters: shown only when a tile is. -->
-      <divider_horizontal name="loaded_meter_divider" width="100%">
+      <divider_horizontal name="loaded_meter_divider" width="100%" clickable="false">
         <bind_flag_if cond="ams_loaded_tiles eq 0 or ams_action ne 0 or (clog_meter_mode eq 0 and buffer_present eq 0)"
                       flag="hidden"/>
       </divider_horizontal>
       <!-- Clog detection meter: hidden with no source, and during any operation.
            Arc size set dynamically by UiClogMeter C++ SIZE_CHANGED callback. -->
-      <lv_obj name="clog_meter" scrollable="false">
+      <lv_obj name="clog_meter" scrollable="false" clickable="false">
         <bind_flag_if cond="clog_meter_mode eq 0 or ams_action ne 0" flag="hidden"/>
         <bind_style_if name="meter_column" cond="ui_breakpoint ge 3 and ui_is_portrait eq 1"/>
         <bind_style_if name="meter_row" cond="ui_breakpoint lt 3"/>
         <bind_style_if name="meter_tile" cond="ams_loaded_tiles"/>
         <!-- Mini arc (sized by C++) -->
-        <lv_obj name="clog_arc_container" style_pad_all="0" scrollable="false">
+        <lv_obj name="clog_arc_container" style_pad_all="0" scrollable="false" clickable="false">
           <!-- Main arc: helix_progress_arc handles common styling and the
                diameter-driven stroke tier. UiClogMeter syncs the danger/peak
                overlay arcs (created in C++) to match. -->
@@ -143,7 +146,7 @@
              lands around 36px, which "11.8mm" does not fit in. -->
         <lv_obj name="clog_reading"
                 width="content" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="0"
-                scrollable="false">
+                scrollable="false" clickable="false">
           <bind_style_if name="reading_center" cond="ams_loaded_tiles eq 0"/>
           <bind_style_if name="reading_start" cond="ams_loaded_tiles"/>
           <text_tiny name="clog_value_text" bind_text="clog_meter_center_text" style_text_align="center">
@@ -164,7 +167,7 @@
            operation. From medium up the slider shows when there is a set point to
            centre on; below medium the buffer icon stands in for it. The number is
            the short form, so the meter stays narrow. -->
-      <lv_obj name="buffer_mini" scrollable="false">
+      <lv_obj name="buffer_mini" scrollable="false" clickable="false">
         <bind_flag_if cond="buffer_present eq 0 or ams_action ne 0" flag="hidden"/>
         <bind_style_if name="meter_column" cond="ui_breakpoint ge 3 and ui_is_portrait eq 1"/>
         <bind_style_if name="meter_row" cond="ui_breakpoint lt 3"/>
@@ -178,7 +181,7 @@
         </lv_obj>
         <lv_obj name="buffer_reading"
                 width="content" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="0"
-                scrollable="false">
+                scrollable="false" clickable="false">
           <bind_style_if name="reading_center" cond="ams_loaded_tiles eq 0"/>
           <bind_style_if name="reading_start" cond="ams_loaded_tiles"/>
           <text_tiny name="buffer_mini_value"
