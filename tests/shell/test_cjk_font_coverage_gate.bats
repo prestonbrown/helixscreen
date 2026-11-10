@@ -24,6 +24,9 @@ setup() {
     mkdir -p "$FIXTURE/assets/fonts/cjk"
     cp assets/fonts/cjk/noto_sans_cjk_14.bin "$FIXTURE/assets/fonts/cjk/"
     cp assets/fonts/cjk/.cjk_codepoints.manifest "$FIXTURE/assets/fonts/cjk/"
+    cp -r assets/fonts/cjk/filename "$FIXTURE/assets/fonts/cjk/"
+    mkdir -p "$FIXTURE/ui_xml"
+    cp ui_xml/globals.xml "$FIXTURE/ui_xml/"
 }
 
 run_gate() {
@@ -69,4 +72,20 @@ run_gate() {
     run_gate
     [ "$status" -eq 1 ] || fail "truncated bin must fail, got $status: $output"
     echo "$output" | grep -q "cannot parse" || fail "did not name the parse failure: $output"
+}
+
+@test "red when a filename character is in neither the translation nor the filename bins" {
+    # 中 is in the level-1 list and the translation set, so the filename bins
+    # leave it out. Dropping it from the translation manifest makes it theirs.
+    sed -i '/^0x4e2d$/d' "$FIXTURE/assets/fonts/cjk/.cjk_codepoints.manifest"
+    run_gate
+    [ "$status" -eq 1 ] || fail "uncovered filename character must fail, got $status: $output"
+    echo "$output" | grep -q "noto_sans_cjk_filename_.*中" || fail "did not name it: $output"
+}
+
+@test "red when a size a filename label uses has no filename bin" {
+    rm "$FIXTURE/assets/fonts/cjk/filename/noto_sans_cjk_filename_16.bin"
+    run_gate
+    [ "$status" -eq 1 ] || fail "missing filename size must fail, got $status: $output"
+    echo "$output" | grep -q "noto_sans_cjk_filename_16.bin: missing" || fail "did not name it: $output"
 }

@@ -9,6 +9,10 @@ stale or half-written bake cannot hide behind a freshly written manifest.
 A translated string whose glyph is missing renders as tofu with no build
 error and no runtime warning; the manifest alone cannot prove otherwise.
 
+The filename bins (assets/fonts/cjk/filename/) are held to a different set:
+every character of the filename set (translations/cjk_filename_fonts.py) the
+translation manifest does not cover, at every size a filename label uses.
+
 Format reference: lib/lvgl/src/font/binfont_loader/lv_binfont_loader.c
 (cmap_table_bin_t, the section label layout) and
 lib/lvgl/src/font/fmt_txt/lv_font_fmt_txt.c#get_glyph_dsc_id (what "covered"
@@ -22,6 +26,9 @@ import glob
 import struct
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / 'translations'))
+import cjk_filename_fonts  # noqa: E402
 
 # lv_font_fmt_txt.h cmap types. These numeric codes are a wire format shared
 # with lv_font_conv's bin writer (lib/font/table_cmap.js), NOT an enum whose
@@ -84,6 +91,44 @@ def covered_codepoints(data: bytes) -> set[int]:
     return covered
 
 
+def check_filename_bins(root: Path, ui_manifest: set[int], summary: bool) -> int:
+    """Failures among the filename bins: a size with no bin, or a filename-set
+    character neither the translation bins nor the filename bin carries."""
+    try:
+        needed = cjk_filename_fonts.filename_codepoints() - ui_manifest
+        sizes = cjk_filename_fonts.all_sizes(root)
+    except (OSError, cjk_filename_fonts.FilenameFontError) as exc:
+        print(f'✗ filename CJK set: {exc}')
+        return 1
+    if not needed:
+        print('✗ filename CJK set is empty after the translation set: refusing to pass vacuously')
+        return 1
+    failures = 0
+    bin_dir = root / cjk_filename_fonts.FILENAME_BIN_DIR
+    for px in sizes:
+        path = bin_dir / cjk_filename_fonts.bin_name(px)
+        if not path.is_file():
+            print(f'✗ {path.name}: missing; a filename label uses {px}px')
+            failures += 1
+            continue
+        try:
+            covered = covered_codepoints(path.read_bytes())
+        except (BinFormatError, struct.error) as exc:
+            print(f'✗ {path.name}: cannot parse ({exc})')
+            failures += 1
+            continue
+        missing = needed - covered
+        if missing:
+            chars = ''.join(chr(cp) for cp in sorted(missing)[:20])
+            print(f'✗ {path.name}: {len(missing)} filename codepoint(s) have no glyph '
+                  f'in it or in the translation bins: {chars}')
+            failures += 1
+    if summary and not failures:
+        print(f'✓ {len(sizes)} filename .bin fonts cover all {len(needed)} codepoints '
+              'the translation bins lack')
+    return failures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', default='.', help='repository root to check')
@@ -127,6 +172,8 @@ def main() -> int:
             print(f'✗ {Path(bin_path).name}: {len(missing)} manifest codepoint(s) '
                   f'have no glyph: {cps} ({chars})')
             failures += 1
+
+    failures += check_filename_bins(Path(args.root), manifest, args.summary)
 
     if failures:
         print('The manifest records codepoints the baked .bin does not carry.')

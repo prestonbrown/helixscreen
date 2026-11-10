@@ -705,3 +705,39 @@ EOF
     run python3 "$GATE" --quiet --root "$TREE"
     contains "/unswept/helixscreen is searched by the app as a payload root" "$output"
 }
+
+# --------------------------------------------------------------------------
+# prune-assets: CJK filename glyphs (sizes from scripts/translations/cjk_filename_fonts.py)
+# --------------------------------------------------------------------------
+
+make_font_stage() {
+    make_stage
+    mkdir -p "$STAGE/assets/fonts/cjk/filename"
+    for px in 10 11 12 14 16 18 20 24 26 32; do
+        echo x > "$STAGE/assets/fonts/cjk/filename/noto_sans_cjk_filename_$px.bin"
+    done
+}
+
+@test "prune: a fixed panel keeps only the filename glyph sizes its tier draws" {
+    make_font_stage
+    run python3 "$DERIVE" prune-assets ad5m "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    run ls "$STAGE/assets/fonts/cjk/filename"
+    [ "$(echo "$output" | tr '\n' ' ')" = "noto_sans_cjk_filename_12.bin noto_sans_cjk_filename_16.bin noto_sans_cjk_filename_18.bin " ] \
+        || fail "800x480 kept: $output"
+}
+
+@test "prune: an unbounded panel keeps every filename glyph size" {
+    make_font_stage
+    run python3 "$DERIVE" prune-assets pi "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    [ "$(ls "$STAGE/assets/fonts/cjk/filename" | wc -l)" -eq 10 ] || fail "pruned a pi filename font"
+}
+
+@test "prune: refuses a package missing a filename glyph size its panel draws" {
+    make_font_stage
+    rm "$STAGE/assets/fonts/cjk/filename/noto_sans_cjk_filename_16.bin"
+    run python3 "$DERIVE" prune-assets ad5m "$STAGE"
+    [ "$status" -ne 0 ] || fail "pruned a package that cannot draw 16px filenames: $output"
+    contains "noto_sans_cjk_filename_16.bin" "$output"
+}

@@ -5,6 +5,7 @@
 
 #include "ui_virtual_list.h"
 
+#include "core/gcode_filename.h"
 #include "filament_chip_model.h"
 #include "format_utils.h"
 #include "theme_manager.h"
@@ -169,6 +170,7 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
 
     lv_obj_t* filename_label = helix::ui::find_required(row, "row_filename", "HistoryListView");
     if (filename_label) {
+        helix::gcode::note_displayed_filename(job.filename);
         // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
         lv_label_set_text(filename_label, job.filename.c_str());
     }

@@ -501,3 +501,54 @@ TEST_CASE("only the root's staging directories hold the app's copies",
     CHECK(resolve_gcode_filename("jobs/helix_staging/modified_1p_a.gcode") ==
           "jobs/helix_staging/modified_1p_a.gcode");
 }
+
+TEST_CASE("contains_cjk() finds the CJK blocks and nothing beside them", "[filename_utils][cjk]") {
+    using helix::gcode::contains_cjk;
+    CHECK(contains_cjk("测试"));
+    CHECK(contains_cjk("benchy_ねこ"));
+    CHECK(contains_cjk("カメラ"));
+    CHECK(contains_cjk("part（1）"));
+    CHECK(contains_cjk("\xe3\x80\x81")); // U+3001, the first block's comma
+    CHECK(contains_cjk("\xe3\x83\xbf")); // U+30FF, last katakana
+    CHECK(contains_cjk("\xe3\x90\x80")); // U+3400, extension A
+    CHECK(contains_cjk("\xe9\xbf\xbf")); // U+9FFF
+    CHECK(contains_cjk("\xef\xbf\xaf")); // U+FFEF
+    CHECK_FALSE(contains_cjk(""));
+    CHECK_FALSE(contains_cjk("benchy_v2.gcode"));
+    CHECK_FALSE(contains_cjk("Überteil — Привет"));
+    CHECK_FALSE(contains_cjk("한국어"));
+    CHECK_FALSE(contains_cjk("\xe3\x84\x85"));     // U+3105 bopomofo, past katakana
+    CHECK_FALSE(contains_cjk("\xe4\xb7\x80"));     // U+4DC0, between ext A and unified
+    CHECK_FALSE(contains_cjk("\xef\xbf\xb0"));     // U+FFF0, past the fullwidth forms
+    CHECK_FALSE(contains_cjk("\xf0\x9f\x98\x80")); // emoji
+    CHECK_FALSE(contains_cjk("\xe6\xb5"));         // truncated sequence
+    CHECK_FALSE(contains_cjk("\xe6\x41\x8b"));     // broken continuation byte
+}
+
+namespace {
+int g_hook_calls = 0;
+std::string g_hook_name;
+void count_displayed_filename(std::string_view name) {
+    ++g_hook_calls;
+    g_hook_name = std::string(name);
+}
+} // namespace
+
+TEST_CASE("formatting a filename for display reports only CJK names to the hook",
+          "[filename_utils][cjk]") {
+    g_hook_calls = 0;
+    helix::gcode::set_displayed_filename_hook(&count_displayed_filename);
+
+    helix::gcode::get_display_filename("dir/benchy.gcode");
+    helix::gcode::strip_gcode_extension("cube.gcode.3mf");
+    CHECK(g_hook_calls == 0);
+
+    helix::gcode::get_display_filename("模型/猫.gcode");
+    CHECK(g_hook_calls >= 1);
+    CHECK(g_hook_name == "猫.gcode");
+
+    helix::gcode::set_displayed_filename_hook(nullptr);
+    g_hook_calls = 0;
+    helix::gcode::get_display_filename("猫.gcode");
+    CHECK(g_hook_calls == 0);
+}

@@ -42,4 +42,4 @@ echo ""
 # Any locale's catalog can introduce a CJK codepoint, and so can a
 # hardcoded string in src/, an XML layout or the printer database; the
 # artifacts themselves live under assets/fonts/cjk/.
-QC_TRIGGER_qc_cjk_fonts='^translations/|^src/|^include/|^ui_xml/|^assets/config/printer_database\.json$|^assets/fonts/cjk/|^scripts/(regen_text_fonts\.sh|check_cjk_font_staleness\.sh|check_cjk_font_coverage\.py|translations/cjk_charset\.py)$'
+QC_TRIGGER_qc_cjk_fonts='^translations/|^src/|^include/|^ui_xml/|^assets/config/printer_database\.json$|^assets/fonts/cjk/|^scripts/(regen_text_fonts\.sh|check_cjk_font_staleness\.sh|check_cjk_font_coverage\.py|translations/(cjk_charset\.py|cjk_filename_fonts\.py|hanzi_level1\.txt))$'

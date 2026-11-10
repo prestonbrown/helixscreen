@@ -303,6 +303,31 @@ if [ -n "$RUNTIME_CJKCHARS" ]; then
     MANIFEST="assets/fonts/cjk/.cjk_codepoints.manifest"
     echo "$RUNTIME_CJKCHARS" | tr ',' '\n' | sort > "$MANIFEST"
     echo "  Wrote codepoint manifest ($RUNTIME_CJK_COUNT entries) -> $MANIFEST"
+
+    # Print filenames are user text, so they get the common-hanzi + kana set
+    # (translations/cjk_filename_fonts.py), minus what the bins above carry,
+    # at the sizes the filename labels use. CjkFontManager chains a filename
+    # bin behind a translation bin of the same pixel size.
+    FILENAME_CJKCHARS="$(python3 scripts/translations/cjk_filename_fonts.py --codepoints)" || {
+        echo "ERROR: cjk_filename_fonts.py failed - refusing to bake filename fonts" >&2
+        exit 1
+    }
+    FILENAME_SIZES="$(python3 scripts/translations/cjk_filename_fonts.py --sizes)" || exit 1
+    FILENAME_RANGE="$(printf '%s' "$FILENAME_CJKCHARS" | paste -sd, -)"
+    echo ""
+    echo "CJK filename .bin files ($(printf '%s\n' "$FILENAME_CJKCHARS" | wc -l | tr -d ' ') codepoints):"
+    mkdir -p assets/fonts/cjk/filename
+    rm -f assets/fonts/cjk/filename/*.bin
+    for SIZE in $FILENAME_SIZES; do
+        OUTPUT="assets/fonts/cjk/filename/noto_sans_cjk_filename_${SIZE}.bin"
+        echo "    Generating noto_sans_cjk_filename_${SIZE}.bin"
+        lv_font_conv \
+            --font "$FONT_CJK_SC" --size "$SIZE" --range "$FILENAME_RANGE" \
+            --font "$FONT_CJK_JP" --size "$SIZE" --range "$FILENAME_RANGE" \
+            --bpp 4 --format bin \
+            -o "$OUTPUT"
+    done
+    printf '%s\n' "$FILENAME_CJKCHARS" > assets/fonts/cjk/filename/.filename_codepoints.manifest
 else
     echo ""
     echo "WARNING: No CJK characters extracted - skipping .bin generation"

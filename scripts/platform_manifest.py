@@ -19,9 +19,15 @@ mk/images.mk, which asks it which splash classes a platform needs:
 import json
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from translation_packs import UNLOADED_TRANSLATION_FILES  # noqa: E402
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "translations"))
+import cjk_filename_fonts  # noqa: E402
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 MANIFEST_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -94,6 +100,47 @@ def _first_match(rules, width, height, key):
 def splash_class(manifest, width, height):
     """The size class a resolution selects. One ladder for 2D and 3D alike."""
     return _first_match(manifest["size_classes"]["splash"], width, height, "class")
+
+
+def font_breakpoint(manifest, width, height):
+    """The breakpoint tier the panel's fonts come from: the splash ladder's
+    cramped-axis rules, without the rules that pick a canvas by shape."""
+    rules = [r for r in manifest["size_classes"]["splash"] if set(r) <= {"class", "max_narrow"}]
+    return _first_match(rules, width, height, "class")
+
+
+def filename_font_sizes_for(manifest, platform_id):
+    """Pixel sizes of the CJK filename glyphs this package's panels can draw,
+    or None when the panel is unbounded and every size ships."""
+    panels = candidate_panels(manifest, platform_id)
+    if not panels:
+        return None
+    by_tier = cjk_filename_fonts.sizes_by_tier(Path(REPO_ROOT))
+    sizes = set()
+    for entry in panels:
+        sizes.update(by_tier[font_breakpoint(manifest, *effective_resolution(entry))])
+    return sorted(sizes)
+
+
+def _prune_cjk_filename_fonts(manifest, platform_id, root):
+    """(doomed paths, notes) for the CJK filename bins. Raises when a size the
+    panel draws has no bin staged, so a prune can never ship without one."""
+    cjk_dir = os.path.join(root, "assets", "fonts", "cjk")
+    if not os.path.isdir(cjk_dir):
+        return [], ["no CJK fonts staged"]
+    bin_dir = os.path.join(root, str(cjk_filename_fonts.FILENAME_BIN_DIR))
+    wanted = filename_font_sizes_for(manifest, platform_id)
+    if wanted is None:
+        wanted = cjk_filename_fonts.all_sizes(Path(REPO_ROOT))
+    keep = {cjk_filename_fonts.bin_name(px) for px in wanted}
+    staged = set(os.listdir(bin_dir)) if os.path.isdir(bin_dir) else set()
+    missing = sorted(keep - staged)
+    if missing:
+        raise ManifestError(f"{platform_id}: CJK filename font(s) its panel draws are not "
+                            f"staged: {', '.join(missing)}")
+    doomed = [os.path.join(bin_dir, n) for n in sorted(staged)
+              if n.endswith(".bin") and n not in keep]
+    return doomed, [f"keeping CJK filename glyphs at {'/'.join(map(str, wanted))}px"]
 
 
 def splash_portrait_class(manifest, width, height):
@@ -232,6 +279,10 @@ def prune_assets(manifest, platform_id, root, dry_run=False):  # noqa: C901
         if os.path.isfile(path):
             doomed.append(path)
             notes.append(f"dropped ui_xml/translations/{name}: no locale loads it")
+
+    font_doomed, font_notes = _prune_cjk_filename_fonts(manifest, platform_id, root)
+    doomed.extend(font_doomed)
+    notes.extend(font_notes)
 
     keep_classes = splash_3d_classes_for(manifest, platform_id)
     keep_sizes = printer_image_sizes_for(manifest, platform_id)
