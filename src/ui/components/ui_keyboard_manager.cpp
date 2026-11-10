@@ -1361,24 +1361,11 @@ void KeyboardManager::unregister_textarea(lv_obj_t* textarea) {
 }
 
 void KeyboardManager::register_textarea_ex(lv_obj_t* textarea, bool is_password) {
-    if (keyboard_ == nullptr) {
-        spdlog::error("[KeyboardManager] Not initialized - call init() first");
-        return;
-    }
-
-    if (textarea == nullptr) {
-        spdlog::error("[KeyboardManager] Cannot register NULL textarea");
-        return;
-    }
-
-    spdlog::debug("[KeyboardManager] Registering textarea: {} (password: {})", (void*)textarea,
-                  is_password);
-
     // Assert the masking rather than merely recording it. is_password_context()
     // reads the widget's live state, so a caller declaring a password field this
     // way is guaranteed to get log redaction; a flag that were only logged would
     // make the whole overload look protective while doing nothing at all.
-    if (is_password) {
+    if (is_password && textarea != nullptr) {
         lv_textarea_set_password_mode(textarea, true);
     }
 
