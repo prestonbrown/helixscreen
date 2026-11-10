@@ -187,26 +187,57 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PreheatWidget: the tool target button cycle
     CHECK(std::string(lv_label_get_text(b.child("tool_target_label"))) == b_before);
 }
 
-// The nozzle count can change under an attached tile (discovery finishing, a
-// toolchanger reconfigured), and the button follows it.
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "PreheatWidget: the tool target button follows the nozzle count",
-                 "[preheat][panel_widget]") {
+// The tool target follows the nozzle count under a live tile. A shared-heater
+// flip keeps the tool list, so no new version arrives, but the count drops to
+// one: a target on head 1 must fall back to all.
+TEST_CASE_METHOD(LVGLUITestFixture, "PreheatWidget: the tool target follows the nozzle count",
+                 "[preheat][panel_widget][shared_heater]") {
     register_preheat_widget();
-    seed_extruders(1, true);
-    PanelWidgetHarness<PreheatWidget> h(test_screen(), get_printer_state());
-    lv_obj_t* btn = h.child("preheat_tool_target");
-    REQUIRE(btn != nullptr);
-    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    seed_extruders(2, true);
+    ToolTopology topo = helix::test::make_head_topology(2);
+    ToolState::instance().set_ams_topology(topo);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
-    ToolState::instance().init_tools(extruder_discovery(2));
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, get_printer_state());
+    TemperatureController controller(get_printer_state(), &api);
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+    helix::PanelWidgetManager::instance().register_shared_resource<helix::TemperatureController>(
+        &controller);
+
+    PanelWidgetHarness<PreheatWidget> h(test_screen(), get_printer_state());
+    helix::ui::UpdateQueue::instance().drain_until_empty(); // the observers' first delivery
+    lv_obj_t* btn = h.child("preheat_tool_target");
+    lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr); // head 0
+    lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr); // head 1
+    REQUIRE(PreheatWidgetTestAccess::tool_target(h.widget()) == 1);
+    helix::LogCapture log(64);
+    PreheatWidgetTestAccess::set_temperatures_multi(h.widget(), 200, 60);
+    // Named the way its button names it, never the 0-based G-code form.
+    CHECK(log.count_containing("Preheat: Tool 2 + bed set") >= 1);
+    CHECK(log.count_containing("Preheat: T1 + bed set") == 0);
+
+    topo.heads_share_heater = true;
+    ToolState::instance().set_ams_topology(topo);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(ToolState::instance().extruder_count() == 1);
+
+    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(PreheatWidgetTestAccess::tool_target(h.widget()) == -1);
+    CHECK(std::string(lv_label_get_text(h.child("tool_target_label"))) == "All (1)");
+    PreheatWidgetTestAccess::set_temperatures_multi(h.widget(), 200, 60);
+    CHECK(log.count_containing("Preheat: all") >= 1);
+
+    topo.heads_share_heater = false;
+    ToolState::instance().set_ams_topology(topo);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
     CHECK(std::string(lv_label_get_text(h.child("tool_target_label"))) == "All (2)");
 
-    ToolState::instance().init_tools(extruder_discovery(1));
+    ToolState::instance().clear_ams_topology();
     helix::ui::UpdateQueue::instance().drain_until_empty();
-    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    helix::PanelWidgetManager::instance().register_shared_resource<helix::TemperatureController>(
+        std::shared_ptr<TemperatureController>{});
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
@@ -229,24 +260,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(seen == std::vector<int>{0, 1, 2, 3, 4, 5, -1, 0});
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "PreheatWidget: cycle_tool_target collapses to all on one nozzle",
-                 "[preheat][panel_widget]") {
-    seed_extruders(1);
-
-    PreheatWidget widget(get_printer_state());
-
-    // Seeded with a stale per-tool target, as a recycled widget instance carries
-    // one across a home-panel rebuild onto a printer with fewer nozzles.
-    PreheatWidgetTestAccess::set_tool_target(widget, 2);
-
-    PreheatWidgetTestAccess::cycle(widget);
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
-
-    // Still "all" however many times it is pressed - there is nothing to cycle to.
-    PreheatWidgetTestAccess::cycle(widget);
-    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
-}
-
 TEST_CASE_METHOD(LVGLTestFixture, "PreheatWidget: cycle_tool_target counts nozzles, not AMS lanes",
                  "[preheat][panel_widget]") {
     // A 4-lane AMS on a single hotend. tool_count() reports 4; every lane feeds
@@ -259,7 +272,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "PreheatWidget: cycle_tool_target counts nozzl
     REQUIRE(ts.tool_count() == 4);
     REQUIRE(ts.extruder_count() == 1);
 
+    // Seeded with a stale per-head target, as a recycled widget carries one onto
+    // a printer with fewer nozzles; however often it is pressed it stays "all".
     PreheatWidget widget(get_printer_state());
+    PreheatWidgetTestAccess::set_tool_target(widget, 2);
+    PreheatWidgetTestAccess::cycle(widget);
+    REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
     PreheatWidgetTestAccess::cycle(widget);
     REQUIRE(PreheatWidgetTestAccess::tool_target(widget) == -1);
 
@@ -332,34 +350,6 @@ TEST_CASE("PreheatWidget: collect_preheat_heaters keeps every distinct heater in
 // ============================================================================
 // set_temperatures_multi: the "Preheat: ..." confirmation toast
 // ============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture,
-                 "PreheatWidget: single-tool preheat announces the tool as a label",
-                 "[preheat][panel_widget]") {
-    seed_extruders(2);
-
-    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
-    MoonrakerAPI api(client, get_printer_state());
-    TemperatureController controller(get_printer_state(), &api);
-    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
-    helix::PanelWidgetManager::instance().register_shared_resource<helix::TemperatureController>(
-        &controller);
-
-    PreheatWidget widget(get_printer_state());
-    PreheatWidgetTestAccess::set_tool_target(widget, 1); // T1
-
-    helix::LogCapture log(64);
-    PreheatWidgetTestAccess::set_temperatures_multi(widget, 200, 60);
-
-    // The toast names the tool the way its button does, never the 0-based
-    // G-code form.
-    CHECK(log.count_containing("Preheat: Tool 2 + bed set") >= 1);
-    CHECK(log.count_containing("Preheat: T1 + bed set") == 0);
-
-    // Drop the registration so later tests' get_temperature_controller() sees none.
-    helix::PanelWidgetManager::instance().register_shared_resource<helix::TemperatureController>(
-        std::shared_ptr<TemperatureController>{});
-}
 
 // ============================================================================
 // Heads with no heater: a changer with more tools than enumerated extruders

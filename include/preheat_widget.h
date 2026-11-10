@@ -78,6 +78,7 @@ class PreheatWidget : public PanelWidget {
     ObserverGuard bed_target_obs_;
     ObserverGuard language_obs_;
     ObserverGuard tools_version_obs_;
+    ObserverGuard extruder_count_obs_;
     int cached_extruder_target_ = 0;
     int cached_bed_target_ = 0;
 
@@ -92,6 +93,8 @@ class PreheatWidget : public PanelWidget {
     void update_button_label();
     void update_heater_state();
     void update_tool_target_label();
+    /// Drop a target past the heads that remain, then refresh the caption.
+    void sync_tool_target();
     void set_temperatures(int nozzle, int bed);
     void set_temperatures_multi(int nozzle, int bed);
     void cycle_tool_target();
