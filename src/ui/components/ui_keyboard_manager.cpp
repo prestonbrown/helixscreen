@@ -1367,6 +1367,7 @@ void KeyboardManager::register_textarea_ex(lv_obj_t* textarea, bool is_password)
     // make the whole overload look protective while doing nothing at all.
     if (is_password && textarea != nullptr) {
         lv_textarea_set_password_mode(textarea, true);
+        helix::ui::mark_secret_field(textarea);
     }
 
     register_textarea(textarea);

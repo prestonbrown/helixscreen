@@ -41,6 +41,7 @@
 #include "ui_swatch.h"
 #include "ui_switch.h"
 #include "ui_text.h"
+#include "ui_text_edit_menu.h"
 #include "ui_text_input.h"
 #include "ui_z_offset_indicator.h"
 
@@ -218,6 +219,8 @@ static void on_toggle_password_visibility(lv_event_t* e) {
         return;
 
     bool was_password = lv_textarea_get_password_mode(textarea);
+    // Revealed is still secret: the clipboard must not offer it.
+    helix::ui::mark_secret_field(textarea);
     lv_textarea_set_password_mode(textarea, !was_password);
 
     // Swap icon: eye_off when hidden (password mode), eye when visible

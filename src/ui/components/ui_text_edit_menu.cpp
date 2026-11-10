@@ -13,6 +13,7 @@
 #include <spdlog/spdlog.h>
 
 #include <string>
+#include <unordered_set>
 
 namespace helix::ui {
 
@@ -56,6 +57,17 @@ void ensure_subjects() {
         StaticSubjectRegistry::Lifetime::Process);
 }
 
+/// Fields marked secret. Entries leave with their widget, so an address
+/// reused by a later widget is never taken for a secret one.
+std::unordered_set<const lv_obj_t*>& secret_fields() {
+    static std::unordered_set<const lv_obj_t*> fields;
+    return fields;
+}
+
+void forget_secret_field_cb(lv_event_t* e) {
+    secret_fields().erase(lv_event_get_target_obj(e));
+}
+
 bool field_has_text(lv_obj_t* textarea) {
     const char* text = lv_textarea_get_text(textarea);
     return text != nullptr && text[0] != '\0';
@@ -63,12 +75,29 @@ bool field_has_text(lv_obj_t* textarea) {
 
 } // namespace
 
+void mark_secret_field(lv_obj_t* textarea) {
+    if (textarea != nullptr && secret_fields().insert(textarea).second) {
+        // DECLARATIVE_OK: LV_EVENT_DELETE cleanup of the secret-field set.
+        lv_obj_add_event_cb(textarea, forget_secret_field_cb, LV_EVENT_DELETE, nullptr);
+    }
+}
+
+bool is_secret_field(lv_obj_t* textarea) {
+    if (textarea == nullptr) {
+        return false;
+    }
+    if (lv_textarea_get_password_mode(textarea)) {
+        mark_secret_field(textarea);
+    }
+    return secret_fields().count(textarea) != 0;
+}
+
 clipboard::EditActions text_edit_actions(lv_obj_t* textarea) {
     if (textarea == nullptr) {
         return {};
     }
-    return clipboard::actions_for_field(lv_textarea_get_password_mode(textarea),
-                                        field_has_text(textarea), clipboard::has_text());
+    return clipboard::actions_for_field(is_secret_field(textarea), field_has_text(textarea),
+                                        clipboard::has_text());
 }
 
 bool apply_text_edit_action(lv_obj_t* textarea, TextEditAction action) {

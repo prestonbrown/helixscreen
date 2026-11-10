@@ -15,8 +15,22 @@ namespace helix::ui {
 /// One edit a text field's menu can make.
 enum class TextEditAction { Cut, Copy, Paste };
 
+/**
+ * @brief Mark @p textarea as holding a secret, for as long as it lives
+ *
+ * A secret field never gives up its text to the clipboard and never takes a
+ * paste, whether or not it is masked at the moment: a "show password" toggle
+ * unmasks the text without making it any less secret. Every masked field is
+ * marked when it is made (<text_input password_mode>, register_textarea_ex,
+ * the text-entry modal), and a field seen masked is marked from then on.
+ */
+void mark_secret_field(lv_obj_t* textarea);
+
+/// Whether @p textarea is a secret field: marked, or masked right now.
+[[nodiscard]] bool is_secret_field(lv_obj_t* textarea);
+
 /// The edits @p textarea offers right now (helix::clipboard::actions_for_field
-/// over the field's live password mode and text, and the clipboard).
+/// over whether the field is secret, its text, and the clipboard).
 [[nodiscard]] clipboard::EditActions text_edit_actions(lv_obj_t* textarea);
 
 /**
