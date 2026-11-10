@@ -3869,6 +3869,41 @@ TEST_CASE("ACE on the ACEPRO driver shows the hub's colour over a record from an
     CHECK(b.get_slot_info(0).color_rgb == 0xFF5500u);
 }
 
+TEST_CASE("ACE a Clear while the hub write is out waits for the hub's answer",
+          "[ams][ace][kobra][filament_slot_override]") {
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
+    AmsBackendAceTestHelper& b = *harness;
+    helix::ams::FilamentSlotOverride earlier;
+    earlier.brand = "Sunlu";
+    AceTestAccess::seed_override(b, 0, earlier);
+    b.test_handle_status_update(
+        status_notification("ace_instance_0", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+
+    SlotInfo edit = b.get_slot_info(0);
+    edit.color_rgb = 0x00FF80;
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+    REQUIRE(b.pending_ack != nullptr);
+    b.clear_slot_override(0);
+    // Nothing is erased before the hub answers.
+    CHECK(AceTestAccess::get_override(b, 0).has_value());
+
+    SECTION("the hub runs the write: the record is erased, not saved") {
+        b.pending_ack();
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK_FALSE(AceTestAccess::get_override(b, 0).has_value());
+    }
+    SECTION("the hub rejects it: the record stands") {
+        MoonrakerError err;
+        err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+        err.message = "Unknown command";
+        b.pending_error(err);
+        helix::ui::UpdateQueue::instance().drain();
+        const auto record = AceTestAccess::get_override(b, 0);
+        REQUIRE(record.has_value());
+        CHECK(record->brand == "Sunlu");
+    }
+}
+
 TEST_CASE("ACE on the ACEPRO driver refuses an edit the inventory cannot hold",
           "[ams][ace][kobra][filament_slot_override]") {
     helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;

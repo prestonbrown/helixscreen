@@ -129,6 +129,10 @@ class CfsRemapHelper : public AmsBackendCfs {
                            helix::SharedCallback<void(const MoonrakerError&)> on_error,
                            bool /*silent*/) override {
         captured.push_back(gcode);
+        if (hold) {
+            held_ack = std::move(on_complete);
+            return AmsErrorHelper::success();
+        }
         if (reject) {
             if (on_error) {
                 MoonrakerError err;
@@ -143,6 +147,9 @@ class CfsRemapHelper : public AmsBackendCfs {
     }
 
     bool reject = false;
+    // `hold` keeps Klipper's answer back until the test fires `held_ack`.
+    bool hold = false;
+    helix::SharedCallback<void()> held_ack;
 
     // Expose protected firmware-writeback helper for direct test calls.
     // push_slot_identity_to_firmware is protected (called from apply_user_edit
@@ -2930,6 +2937,26 @@ TEST_CASE("CFS a box write Klipper rejects saves nothing and reports the edit",
     CHECK((!record.has_value() || (record->brand != "Sunlu" && record->color_rgb != 0x00FF00u)));
     CHECK_FALSE(helix::ams::lane_sources(reg.lane(0)).pending.has_value());
     CHECK(b.get_slot_info(0).color_rgb == 0xFF5500u);
+}
+
+TEST_CASE("CFS a Clear while the box write is out erases the record Klipper's OK would save",
+          "[ams][cfs][filament_slot_override][firmware_writeback]") {
+    helix::test::RegisteredWired<CfsRemapHelper> reg;
+    auto& b = *reg;
+    b.fire_status(make_cfs_notification(
+        make_single_unit_box({"101001", "-1", "-1", "-1"}, {"0FF5500", "-1", "-1", "-1"})));
+    b.hold = true;
+
+    SlotInfo edit = b.get_slot_info(0);
+    edit.color_rgb = 0x00FF00;
+    edit.brand = "Sunlu";
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+    REQUIRE(b.held_ack != nullptr);
+    b.clear_slot_override(0);
+
+    b.held_ack();
+    const auto record = CfsTestAccess::get_override(b, 0);
+    CHECK((!record.has_value() || record->brand != "Sunlu"));
 }
 
 TEST_CASE("CFS a linked lane's moved material waits on the box and reports a rejection",
