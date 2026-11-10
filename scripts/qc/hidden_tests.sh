@@ -47,7 +47,7 @@ elif [ ! -x "build/bin/helix-tests" ]; then
   echo "   Run 'make test-hidden' by hand to enable this gate."
 elif ! HIDDEN_STALE=$(scripts/check_test_binary_current.sh); then
   echo "⚠️  Test binary is stale — skipping hidden tests"
-  echo "   Behind: $(echo "$HIDDEN_STALE" | head -3 | tr '\n' ' ')"
+  echo "   Behind: $(sed -n '1,3p' <<<"$HIDDEN_STALE" | tr '\n' ' ')"
   echo "   A test build is too slow for a commit hook. Run: make test-hidden"
 else
   SECTION_START=$(date +%s)
