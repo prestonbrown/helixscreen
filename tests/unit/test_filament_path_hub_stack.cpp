@@ -324,6 +324,9 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     // The selected filament leaves under the carriage, standing at gate 2, clear of the art.
     CHECK((f.output_x == rail_outlet_x(*art, f.rail, 2) &&
            f.output_y >= f.rail.y + f.rail.h * 9 / 10));
+    // A new selection slides the exit toward that gate's outlet, before any repaint.
+    ui_filament_path_canvas_set_active_slot(c.obj, 3);
+    CHECK(c.data->anim.output_x_target == rail_outlet_x(*art, f.rail, 3));
 
     BaseGeometry short_canvas = compute_base_geometry(c.obj, c.data);
     short_canvas.height = 120; // too short for the art: the bar comes back

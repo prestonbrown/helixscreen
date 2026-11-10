@@ -42,5 +42,11 @@ TEST_CASE_METHOD(
         CHECK_FALSE(delete_shown());
         add_modal.hide();
         process_lvgl(20);
+
+        // A shipped product the user never overrode has nothing to delete.
+        REQUIRE(edit_modal.show_for_edit(test_screen(), "creality-cr-pla"));
+        CHECK_FALSE(delete_shown());
+        edit_modal.hide();
+        process_lvgl(20);
     }
 }

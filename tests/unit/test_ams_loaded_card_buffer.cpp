@@ -81,6 +81,10 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[ams][buffer][loaded_card]") {
     auto& ams = AmsState::instance();
     ams.init_subjects(true);
+    // A repeat init publishes every name again: drop one the card binds and
+    // let the second init put it back.
+    lv_xml_unregister_subject(nullptr, "clog_meter_safe");
+    ams.init_subjects(true);
     ensure_ams_widgets_registered();
     lv_subject_t* bp = lv_xml_get_subject(nullptr, "ui_breakpoint");
     REQUIRE(bp != nullptr);
