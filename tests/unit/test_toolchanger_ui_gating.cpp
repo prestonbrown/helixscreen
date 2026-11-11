@@ -179,3 +179,29 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The Unload picker reads a fed docked hot en
     Modal::hide(dialog);
     process_lvgl(200);
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture, "The Load picker offers All where every head fits one run",
+                 "[ams][batch][toolchanger]") {
+    AmsState::instance().init_subjects(true);
+    test::RegisteredBackend<FedChanger> tc(4);
+    (*tc).feed_status("ready", 0);
+    ui::UpdateQueue::instance().drain();
+
+    SECTION("Load: All is offered") {
+        REQUIRE(ui::BatchFilamentModal::show_owned(ui::HeadPickOp::Load,
+                                                   [](const std::vector<ui::HeadPickRow>&) {}));
+        lv_obj_t* dialog = Modal::get_top();
+        REQUIRE(dialog != nullptr);
+        CHECK(lv_obj_find_by_name(dialog, "item_all") != nullptr);
+        Modal::hide(dialog);
+    }
+    SECTION("Mount picks one head: no All") {
+        REQUIRE(ui::BatchFilamentModal::show_owned(ui::HeadPickOp::Mount,
+                                                   [](const std::vector<ui::HeadPickRow>&) {}));
+        lv_obj_t* dialog = Modal::get_top();
+        REQUIRE(dialog != nullptr);
+        CHECK(lv_obj_find_by_name(dialog, "item_all") == nullptr);
+        Modal::hide(dialog);
+    }
+    process_lvgl(200);
+}
