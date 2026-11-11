@@ -2104,6 +2104,21 @@ EOF
     lacks "FMT_INCLUDE_OK" "$output"
 }
 
+@test "the json.hpp header lint catches the full library and stays quiet on json_fwd.h and opt-outs" {
+    local f="$BATS_TEST_TMPDIR/json.h"
+    cat > "$f" <<'EOF'
+#include "hv/json.hpp"
+#  include <hv/json.hpp>
+#include "json_fwd.h"
+// #include "hv/json.hpp" in prose
+#include "hv/json.hpp" // JSON_HPP_OK: test fixture
+EOF
+    run code_offenders "$(json_hpp_include_pattern)" JSON_HPP_OK "$f"
+    [ "${#lines[@]}" -eq 2 ]
+    lacks "json_fwd" "$output"
+    lacks "JSON_HPP_OK" "$output"
+}
+
 @test "the Z-offset save-rule lint fails closed on a tree with no save surfaces" {
     fixture_root
     mkdir -p ui_xml

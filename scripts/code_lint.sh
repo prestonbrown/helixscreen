@@ -34,6 +34,7 @@ src rtti_shapes
 src any_type_rtti
 src std_regex
 src bare_fmt_include
+src json_hpp_in_headers
 src raw_threads
 src wifi_manager_owner
 src subjects_value_initialized
@@ -511,6 +512,26 @@ lint_bare_fmt_include() {
     echo "bare <fmt/...> include (not on every host's include path):"
     printf '%s\n' "$offenders"
     echo "Use <spdlog/fmt/fmt.h>."
+    return 1
+}
+
+# The full nlohmann library is about 25K lines that every includer parses. A
+# header that names json only by reference, pointer or return type includes
+# json_fwd.h, and the sources that build or read a json include hv/json.hpp.
+json_hpp_include_pattern() {
+    printf '%s' '#[[:space:]]*include[[:space:]]*[<"]hv/json\.hpp[">]'
+}
+
+lint_json_hpp_in_headers() {
+    local offenders
+    # shellcheck disable=SC2046
+    offenders=$(code_offenders "$(json_hpp_include_pattern)" JSON_HPP_OK \
+        $(git ls-files --cached --others --exclude-standard src include | grep -E '\.h$'))
+    [ -z "$offenders" ] && return 0
+    echo "hv/json.hpp in a header (every includer then parses the whole library):"
+    printf '%s\n' "$offenders"
+    echo "Name json by reference, pointer or return type and include json_fwd.h."
+    echo "Needs the complete type (a member by value, an inline body)? // JSON_HPP_OK: <reason>"
     return 1
 }
 

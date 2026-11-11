@@ -188,7 +188,7 @@ Features, refactors, new panels/widgets/managers: **scope AFTER investigating, n
 | **Formatting** | Manual formatting | Let pre-commit hook (clang-format) fix |
 | **Doc citations** | A line number (`src/printer/printer_state.cpp:638`) | `` `src/printer/printer_state.cpp#update_from_status` ``: path + `#` enclosing scopes (`scripts/doc_anchors.py`). Fix by hand only on a rename |
 | **No auto-mock** | `if(!start()) return Mock()` | Check `RuntimeConfig::should_mock_*()` |
-| **JSON include** | `#include <nlohmann/json.hpp>` | `#include "hv/json.hpp"`; `json_fwd.h` in a header that only names `json` by reference, pointer or return type |
+| **JSON include** | `#include <nlohmann/json.hpp>` | `#include "hv/json.hpp"`; `json_fwd.h` in a header that only names `json` by reference, pointer or return type. Escape hatch `// JSON_HPP_OK: <reason>` |
 | **Build system** | `cmake`, `ninja` | `make` (pure Makefile) |
 | **No RTTI** | `dynamic_cast`, `typeid`, `std::type_index`, `any.type()` | `helix::type_tag<T>()` keys, virtual kind queries, pointer-form `any_cast`. Escape hatch `// RTTI_OK: <reason>` |
 | **No exceptions (firmware)** | `try`/`catch`/`throw`, `j.value("k", d)`, `j.at("k")`, one-arg `json::parse`, `std::stoi`, value-form `any_cast` | `json_util::safe_*`/`as_*`, `json::parse(s, nullptr, false)`, `text_io::parse_leading`, `any_cast<T>(&a)`; `exception_policy.h`. ESP32 builds `-fno-exceptions`: a throw is an abort |
