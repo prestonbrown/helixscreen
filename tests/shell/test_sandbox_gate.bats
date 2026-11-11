@@ -231,6 +231,23 @@ escape() {
     contains "tests/shell/synthetic.bats:7:" "$output"
 }
 
+@test "sandbox: the lint's exemption reaches neither the next @test nor the next file" {
+    . "$BATS_TEST_DIRNAME/../../scripts/code_lint.sh"
+    local mk='ma''ke' ok='REAL_TREE_MAKE''_OK:'
+    # A marker outside any function, then a @test: the @test is not exempt.
+    printf '%s\n' \
+        "# $ok a note above the test" \
+        '@test "unmarked" {' \
+        "    (cd \"\$REPO\" && $mk -n help)" \
+        '}' > "$BATS_TEST_TMPDIR/a.bats"
+    # A marker still open at the end of a file, then a second file.
+    printf '%s\n' "# $ok left open" > "$BATS_TEST_TMPDIR/b.bats"
+    printf '%s\n' "(cd \"\$ROOT\" && $mk -n help)" > "$BATS_TEST_TMPDIR/c.bats"
+    run real_tree_make_offenders "$BATS_TEST_TMPDIR/a.bats" "$BATS_TEST_TMPDIR/b.bats" "$BATS_TEST_TMPDIR/c.bats"
+    contains "a.bats:3:" "$output"
+    contains "c.bats:1:" "$output"
+}
+
 # --- the deliberate escapes -------------------------------------------------
 
 @test "sandbox: a bare killall is blocked and recorded" {
