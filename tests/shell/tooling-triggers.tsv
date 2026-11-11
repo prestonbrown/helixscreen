@@ -64,7 +64,7 @@ tests/shell/test_nightly_esp32_link.bats	.github/workflows/nightly.yml .github/w
 tests/shell/test_esp32_package_release.bats	scripts/esp32_package_release.sh
 tests/shell/test_esp32_xml_bindings_gate.bats	firmware/helixscreen-esp32/components/helixcore/lv_conf.h lv_conf.h scripts/check_esp32_app_srcs.py scripts/check_esp32_xml_bindings.py scripts/check_orphan_callbacks.py scripts/check_orphan_subjects.py scripts/esp32_xml_exempt_screens.txt scripts/qc/esp32_xml_bindings.sh scripts/quality-checks.sh scripts/source_strip.py
 tests/shell/test_feature_gates_gate.bats	Makefile android/app/jni/CMakeLists.txt firmware/helixscreen-esp32/components/helixapp/CMakeLists.txt include/helix_features.h scripts/check_feature_gates.py
-tests/shell/test_filament_ops_neutral_gate.bats	scripts/check_filament_ops_neutral.py
+tests/shell/test_filament_ops_neutral_gate.bats	scripts/check_source_rules.py scripts/source_strip.py
 tests/shell/test_font_tier_coverage_gate.bats	assets/fonts/noto_sans_10.c assets/fonts/noto_sans_12.c assets/fonts/noto_sans_14.c assets/fonts/noto_sans_16.c assets/fonts/noto_sans_26.c assets/fonts/noto_sans_28.c assets/fonts/noto_sans_32.c assets/fonts/noto_sans_40.c assets/fonts/noto_sans_8.c mk/cross.mk mk/fonts.mk scripts/check_font_tier_coverage.py src/application/asset_manager.cpp src/system/cjk_font_manager.cpp
 tests/shell/test_fork_assertion_gate.bats	scripts/code_lint.sh
 tests/shell/test_format_xml_gate.bats	scripts/code_lint.sh scripts/format-xml.py scripts/qc/phase2.sh
@@ -75,7 +75,7 @@ tests/shell/test_generate_manifest.bats	scripts/generate-manifest.sh
 tests/shell/test_generate_whatsnew.bats	CHANGELOG.md VERSION.txt android/whatsnew/ scripts/android-version-code.sh scripts/changelog-section.sh scripts/generate-whatsnew.sh
 tests/shell/test_gpu_lib_callers_gate.bats	scripts/check_gpu_lib_callers.py
 tests/shell/test_gpu_libs_hidden_smoke.bats	.github/workflows/release.yml scripts/ci/gpu_libs_hidden_smoke.sh
-tests/shell/test_grid_metrics_gate.bats	scripts/check_grid_metrics_single_source.py src/ui/home/grid_edit_mode.cpp
+tests/shell/test_grid_metrics_gate.bats	scripts/check_source_rules.py scripts/source_strip.py src/ui/home/grid_edit_mode.cpp
 tests/shell/test_growth_ratchets_gate.bats	.github/workflows/quality.yml lib/lvgl scripts/check_growth_ratchets.py scripts/diff_base.py scripts/qc/_lib.sh scripts/qc/growth_ratchets.sh scripts/source_strip.py ui_xml/globals.xml
 tests/shell/test_layering_gate.bats	scripts/check_layering.py scripts/diff_base.py scripts/qc/_lib.sh scripts/qc/layering.sh
 tests/shell/test_hand_rolled_swatch_gate.bats	docs/devel/COLOR_SWATCHES.md scripts/check_hand_rolled_swatch.py scripts/hand_rolled_swatch_baseline.txt scripts/staged_content.py src/ui/components/ui_swatch.cpp ui_xml/components/color_swatch.xml
@@ -96,7 +96,7 @@ tests/shell/test_index_sync_gate.bats	.githooks/
 tests/shell/test_installer_archive_ownership.bats	Makefile mk/cross.mk scripts/lib/installer/release.sh
 tests/shell/test_installer_step_reachability_gate.bats	scripts/check_installer_step_reachability.py scripts/install-dev.sh scripts/lib/installer/ scripts/qc/installer_reachability.sh scripts/quality-checks.sh
 tests/shell/test_json_const_subscript_gate.bats	scripts/check_subscription_null_safety.py scripts/staged_content.py
-tests/shell/test_json_dump_utf8_gate.bats	scripts/check_json_dump_utf8.py
+tests/shell/test_json_dump_utf8_gate.bats	scripts/check_source_rules.py scripts/source_strip.py
 tests/shell/test_keep_unchanged_mtimes.bats	Makefile mk/deps.mk scripts/keep-unchanged-mtimes.sh
 tests/shell/test_l081_gate.bats	scripts/check_l081_anti_pattern.py scripts/source_strip.py scripts/staged_content.py
 tests/shell/test_land_gate.bats	.githooks/lib/land-gate-stamp.sh .github/workflows/build.yml Makefile mk/tests.mk scripts/check_no_mocks.py scripts/helix-claim scripts/land-gate.sh scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/lib/sweep_location.sh
@@ -138,14 +138,14 @@ tests/shell/test_pool_heavy_runners.bats	scripts/helix-claim scripts/lib/build_h
 tests/shell/test_prepush_land_gate_stamp.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push scripts/lib/build_hosts.sh scripts/quality-checks.sh
 tests/shell/test_prepush_work_branches.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push scripts/quality-checks.sh
 tests/shell/test_print_compile_command.bats	Makefile VERSION.txt include/lvgl_pch.h scripts/compile_command.py scripts/merge_compile_commands.py src/system/config.cpp tests/mocks/mock_websocket_server.cpp tests/unit/application/application_test_fixture.cpp tests/unit/test_json_utils.cpp
-tests/shell/test_print_state_cast_gate.bats	scripts/check_print_state_cast.py
+tests/shell/test_print_state_cast_gate.bats	scripts/check_source_rules.py scripts/source_strip.py
 tests/shell/test_printer_images_gate.bats	scripts/check_printer_images.py scripts/qc/design_pixels.sh
 tests/shell/test_pytest_asyncio_deps_gate.bats	moonraker-plugin/tests/test_helix_print.py requirements.txt scripts/check_pytest_asyncio_deps.py
 tests/shell/test_quality_cache_replay.bats	scripts/qc/_lib.sh scripts/quality-checks.sh
 tests/shell/test_quality_checks_awake.bats	scripts/quality-checks.sh
 tests/shell/test_quality_push_only.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push include/utils/network_validation.h scripts/compile_command.py scripts/merge_compile_commands.py scripts/qc/ scripts/quality-checks.sh scripts/syntax_check.py
 tests/shell/test_r2_prune_plan.bats	scripts/r2-prune-plan.sh
-tests/shell/test_raw_print_job_state_gate.bats	scripts/check_raw_print_job_state.py scripts/qc/decl_ui.sh src/printer/print_lifecycle_state.cpp
+tests/shell/test_raw_print_job_state_gate.bats	scripts/check_source_rules.py scripts/source_strip.py scripts/qc/decl_ui.sh src/printer/print_lifecycle_state.cpp
 tests/shell/test_raw_this_queue_update_gate.bats	scripts/check_raw_this_queue_update.py scripts/source_strip.py scripts/staged_content.py src/ui/filament/ui_spool_wizard.cpp
 tests/shell/test_release_channel.bats	RELEASE_CHANNEL scripts/release-channel.sh
 tests/shell/test_release_config_deploy.bats	Makefile config/99-helixscreen-backlight.rules config/creality-backend.init config/helixscreen.env config/helixscreen.init mk/cross.mk scripts/lib/installer/common.sh scripts/lib/installer/host_profile.sh scripts/lib/installer/release.sh tests/shell/helpers.bash
@@ -194,7 +194,7 @@ tests/shell/test_thumbnail_cache_guard_gate.bats	scripts/check_thumbnail_cache_g
 tests/shell/test_timer_destructor_cancel_gate.bats	scripts/check_timer_destructor_cancel.py scripts/qc/decl_ui.sh scripts/source_strip.py
 tests/shell/test_todo_marker_gate.bats	scripts/check_todo_markers.py scripts/qc/todo_markers.sh scripts/quality-checks.sh
 tests/shell/test_toolhead_census_gate.bats	scripts/check_toolhead_census.py scripts/staged_content.py src/ui/controls/ui_panel_motion.cpp tests/unit/test_job_holds_machine.cpp
-tests/shell/test_touch_rotation_source_gate.bats	scripts/check_touch_rotation_source.py src/platform/display/display_backend_drm.cpp src/platform/display/display_backend_fbdev.cpp
+tests/shell/test_touch_rotation_source_gate.bats	scripts/check_source_rules.py scripts/source_strip.py src/platform/display/display_backend_drm.cpp src/platform/display/display_backend_fbdev.cpp
 tests/shell/test_translation_duplicate_keys.bats	scripts/code_lint.sh scripts/translations/
 tests/shell/test_translation_format_specifiers_gate.bats	scripts/check_translation_format_specifiers.py
 tests/shell/test_translation_identity_gate.bats	scripts/check_translation_identity.py translations/en.yml
@@ -214,7 +214,7 @@ tests/shell/test_worktree_setup.bats	Makefile lib/helix-xml lib/libhv lib/lua li
 tests/shell/test_x11_macro_collisions_gate.bats	scripts/check_x11_macro_collisions.py scripts/qc/decl_ui.sh scripts/source_strip.py
 tests/shell/test_xargs_portable_gates.bats	scripts/qc/ scripts/quality-checks.sh
 tests/shell/test_xml_create_registered_gate.bats	scripts/check_xml_create_registered.py
-tests/shell/test_xml_create_then_hide_gate.bats	scripts/check_xml_create_then_hide.py scripts/qc/decl_ui.sh
+tests/shell/test_xml_create_then_hide_gate.bats	scripts/check_source_rules.py scripts/source_strip.py scripts/qc/decl_ui.sh
 tests/shell/test_xml_schema_staleness_gate.bats	Makefile assets/config/themes/defaults/ include/printer_state.h lib/helix-xml mk/tools.mk scripts/qc/_lib.sh scripts/qc/xml_linter.sh src/ui/components/ui_switch.cpp tools/xml-linter/schema/extract_schema.py tools/xml-linter/schema/schema.json ui_xml/globals.xml
 tests/shell/test_xml_validator_tools_gate.bats	scripts/qc/xml_const.sh scripts/qc/xml_tools.sh scripts/quality-checks.sh tests/unit/test_ui_theme_constants.cpp
 tests/shell/test_zoneinfo_bundle_gate.bats	assets/zoneinfo/ scripts/regen_zoneinfo.sh src/system/display_settings_manager.cpp

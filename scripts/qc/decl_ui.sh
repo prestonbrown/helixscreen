@@ -281,69 +281,23 @@ fi
 echo ""
 
 SECTION_START=$(date +%s)
-echo -n "🔢 Checking print-state enum casts..."
+echo -n "🧭 Checking source rules (print-state casts and reads, JSON dumps, XML create-then-hide, touch rotation, grid metrics)..."
 
-# lv_subject_get_int() returns int, so static_cast<PrintState>(...) compiles
-# against whichever subject was named — and PrintJobState and PrintState do NOT
-# share numbering past index 0 (COMPLETE=3 vs Paused=3). Pairing a cast with
-# the wrong subject is silent: it compiles, runs, and answers a different
-# question. Made twice while migrating guards onto the lifecycle. Use the typed
-# accessors get_print_lifecycle() / get_print_job_state(), which own the
-# pairing; annotate a genuine need `// PRINT_STATE_CAST_OK: <reason>`.
-if python3 scripts/check_print_state_cast.py >/tmp/print_state_cast.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  tail -1 /tmp/print_state_cast.out
+# Shapes the compiler accepts and no unit test reaches; each rule's reason,
+# scope and opt-out marker sit beside it in scripts/check_source_rules.py.
+# filament-ops-neutral, the one rule that runs at commit, is qc_filament_ops_neutral's.
+if python3 scripts/check_source_rules.py --rule print-state-cast --rule json-dump-utf8 \
+    --rule raw-print-state --rule touch-rotation-source --rule grid-metrics-single-source \
+    --rule xml-create-then-hide >/tmp/source_rules.out 2>&1; then
+  :
 else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/print_state_cast.out
   EXIT_CODE=1
 fi
+section_time $SECTION_START
+echo ""
+cat /tmp/source_rules.out
 
-SECTION_START=$(date +%s)
-echo -n "🔤 Checking JSON save paths for bare dumps..."
 
-# nlohmann dumps with error_handler_t::strict, so a string holding bytes UTF-8
-# cannot decode throws json::type_error.316. The text on a save path is the
-# text nothing validates — SSIDs, printer and tool names, file names, macro
-# text, gcode responses — so strict costs the whole document: the throw either
-# unwinds through LVGL's C frames or, behind a catch, drops the user's change
-# silently. Use helix::json_util::safe_dump(), which replaces the offending
-# bytes; annotate a genuine need `// JSON_DUMP_OK: <reason>`.
-if python3 scripts/check_json_dump_utf8.py >/tmp/json_dump_utf8.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  tail -1 /tmp/json_dump_utf8.out
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/json_dump_utf8.out
-  EXIT_CODE=1
-fi
-
-SECTION_START=$(date +%s)
-echo -n "🧭 Checking raw print-state reads..."
-
-# helix::PrintJobState is the WIRE — what print_stats.state said. It cannot
-# express a job the app has committed to but the printer has not reported yet,
-# so a semantic question asked of it is blind for the whole of a pre-print
-# window. That blindness shipped: 21 motion controls live while the toolhead
-# homed, the home print card reading idle, a queue tap deleting the job it then
-# failed to start. Plenty of sites DO want the wire — the parse, terminal
-# formatting, telemetry's phase tracker, the PRINT_START collector — so this
-# does not forbid it. It forbids reading it SILENTLY, because a deliberate wire
-# read and a stale one look identical. Annotate: `// RAW_PRINT_STATE_OK: <why>`.
-if python3 scripts/check_raw_print_job_state.py >/tmp/raw_print_state.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  tail -1 /tmp/raw_print_state.out
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/raw_print_state.out
-  EXIT_CODE=1
-fi
 
 echo ""
 
@@ -411,24 +365,6 @@ fi
 
 echo ""
 
-SECTION_START=$(date +%s)
-echo -n "🔄 Checking touch-range rotation source..."
-
-# The gate lives in create_input_pointer(), which needs a real fbdev/DRM device
-# and cannot run headless - mutation testing confirmed no test kills a revert to
-# the config key. A backend reading /display/rotate instead of the applied
-# rotation leaves #1394 live on any unit rotated via CLI/env.
-if python3 scripts/check_touch_rotation_source.py >/tmp/touch_rotation.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  echo "✅ display backends gate the stored touch range on the applied rotation"
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/touch_rotation.out
-  echo "   Run: python3 scripts/check_touch_rotation_source.py"
-  EXIT_CODE=1
-fi
 
 echo ""
 
@@ -517,44 +453,7 @@ fi
 
 echo ""
 
-SECTION_START=$(date +%s)
-echo -n "⏱️  Checking grid cell-metrics single source..."
 
-# Every drag/resize/preview/lattice path needs the same cols/rows/cell size,
-# and each independent computation is free to drift from the others on
-# gutter handling or int-vs-float rounding. GridEditMode::current_metrics()
-# is the one place allowed to ask GridLayout for the grid's dimensions; this
-# caps GridLayout::get_cols/get_rows/get_dimensions call sites at 2 (the pair
-# inside current_metrics() itself) so a new call site cannot grow a second copy.
-if python3 scripts/check_grid_metrics_single_source.py >/tmp/grid_metrics.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  tail -1 /tmp/grid_metrics.out
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/grid_metrics.out
-  echo "   Take a helix::CellMetrics from GridEditMode::current_metrics() instead."
-  EXIT_CODE=1
-fi
-
-SECTION_START=$(date +%s)
-echo -n "🙈 Checking for XML views hidden right after they are built..."
-
-# A view hidden on return from lv_xml_create() was laid out and queued for
-# redraw while visible, a wasted full render per open on slow displays. Build it
-# with helix::ui::create_xml_hidden(); annotate a deliberate one
-# `// XML_HIDDEN_OK: <reason>`.
-if python3 scripts/check_xml_create_then_hide.py >/tmp/xml_create_then_hide.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  tail -1 /tmp/xml_create_then_hide.out
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/xml_create_then_hide.out
-  EXIT_CODE=1
-fi
 
 echo ""
 
