@@ -298,11 +298,6 @@ const OverlayCase kOverlayCases[] = {
     {"Print Tune", as_base<&get_print_tune_overlay>,
      [] { get_print_tune_overlay().show(lv_screen_active(), nullptr, get_printer_state()); },
      [] { get_print_tune_overlay().update_z_offset_display(-50); }},
-    {"AMS Zone Overview", as_base<&helix::ui::get_ams_zone_overview_overlay>,
-     [] {
-         helix::ui::get_ams_zone_overview_overlay().show(lv_screen_active(),
-                                                         {helix::printer::EnvironmentZone{}});
-     }},
     {"History Dashboard", as_base<&get_global_history_dashboard_panel>, nullptr,
      [] { get_global_history_dashboard_panel().set_time_filter(HistoryTimeFilter::DAY); }},
     {"Sensors", as_base<&get_sensor_settings_overlay>},
@@ -338,6 +333,23 @@ TEST_CASE_METHOD(DestroyOnCloseFixture, "Overlays rebuild on reopen and take lat
     }
     settle();
     CHECK(overlay.get_root() == nullptr);
+}
+
+TEST_CASE_METHOD(DestroyOnCloseFixture,
+                 "AMS Zone Overview reopened on the same zones fills its rows",
+                 "[overlay_destroy_on_close][ams_zone]") {
+    auto& o = helix::ui::get_ams_zone_overview_overlay();
+    helix::printer::EnvironmentZone zone;
+    zone.label = "Box";
+    expect_rebuilt_on_reopen([&] { o.show(lv_screen_active(), {zone}); },
+                             [&] { return o.get_root(); });
+    o.show(lv_screen_active(), {zone});
+    settle();
+    lv_obj_t* label = lv_obj_find_by_name(o.get_root(), "zone_label");
+    lv_subject_t* text = lv_xml_get_subject(nullptr, "zone_ov_label_0");
+    REQUIRE(label != nullptr);
+    REQUIRE(text != nullptr);
+    CHECK(std::string(lv_label_get_text(label)) == lv_subject_get_string(text));
 }
 
 TEST_CASE_METHOD(DestroyOnCloseFixture, "Print Tune stops observing the printer while closed",
