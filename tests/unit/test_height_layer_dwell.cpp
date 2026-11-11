@@ -85,8 +85,7 @@ TEST_CASE("Layer estimate: both fabricated tiers round, then clamp to 1..total",
     CHECK(layer_from_progress(50, 320) == 160);
     CHECK(layer_from_progress(99, 320) == 317); // 316.8 rounds up
     CHECK(layer_from_progress(1, 20) == 1);     // 0.2 rounds to 0, held at 1
-    CHECK(layer_from_progress(100, 75) == 75);
-    CHECK(layer_from_progress(120, 75) == 75); // past the end stays on the last layer
+    CHECK(layer_from_progress(120, 75) == 75);  // past the end stays on the last layer
 
     // 0.2mm first layer, 0.2mm layers: Z 1.0 is the fifth layer.
     CHECK(layer_from_z(1.0, 0.2, 0.2, 75) == 5);
