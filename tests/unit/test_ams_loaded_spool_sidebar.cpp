@@ -271,7 +271,6 @@ void check_action_labels(XMLTestFixture& fx, std::initializer_list<const char*> 
                 {"btn_load", "Load..."},
                 {"btn_reset", reset_key},
                 {"btn_check_gates", "Check Slots"},
-                {"btn_settings", "Settings"},
             };
             for (const auto& [name, key] : buttons) {
                 CAPTURE(name);
@@ -308,7 +307,7 @@ void check_action_labels(XMLTestFixture& fx, std::initializer_list<const char*> 
                 }
                 ++checked;
             }
-            CHECK(checked >= 3);
+            CHECK(checked >= 2);
 
             panel.on_deactivate(DeactivateReason::NavigateAway);
             panel.clear_panel_reference();
@@ -335,4 +334,32 @@ TEST_CASE_METHOD(XMLTestFixture, "AMS sidebar action labels fit at 480x320",
     helix::test::ScopedGeometry tiny(480, 320);
     reregister_ams_components();
     check_action_labels(*this, {"en"});
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "AMS panel header gear follows the device operations gate",
+                 "[ams][sidebar][mounted]") {
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    REQUIRE(mock->start().success());
+    AmsState::instance().set_backend(std::move(mock));
+    AmsState::instance().init_subjects(true);
+    AmsState::instance().sync_from_backend();
+
+    register_ams_widgets_and_xml_once();
+    lv_obj_t* panel_obj =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ams_panel", nullptr));
+    REQUIRE(panel_obj != nullptr);
+    lv_obj_t* header = lv_obj_find_by_name(panel_obj, "overlay_header");
+    REQUIRE(header != nullptr);
+    lv_obj_t* gear = lv_obj_find_by_name(header, "btn_ams_settings");
+    REQUIRE(gear != nullptr);
+    lv_subject_t* ops = lv_xml_get_subject(nullptr, "ams_has_device_ops");
+    REQUIRE(ops != nullptr);
+
+    lv_subject_set_int(ops, 1);
+    CHECK_FALSE(lv_obj_has_flag(gear, LV_OBJ_FLAG_HIDDEN));
+    lv_subject_set_int(ops, 0);
+    CHECK(lv_obj_has_flag(gear, LV_OBJ_FLAG_HIDDEN));
+
+    lv_obj_delete(panel_obj);
+    AmsState::instance().set_backend(nullptr);
 }
