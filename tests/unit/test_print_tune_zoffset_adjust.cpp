@@ -20,6 +20,7 @@
 #include "ui_nav_manager.h"
 #include "ui_print_tune_overlay.h"
 #include "ui_utils.h"
+#include "ui_z_offset_indicator.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "config.h"
@@ -499,6 +500,32 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
           !is_portrait);
     CHECK(std::string(lv_label_get_text(ui_button_get_label(reset))) ==
           (is_portrait ? "Reset" : "Reset Speed & Flow to 100%"));
+
+    lv_subject_set_int(portrait, portrait_before);
+}
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: the z-offset indicator keeps its value across a rotation",
+                 "[ui_integration][zoffset][layout]") {
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    const int portrait_before = lv_subject_get_int(portrait);
+    lv_subject_set_int(portrait, 0);
+    set_live_offset(0.02);
+    set_printing(true);
+
+    lv_obj_t* root = show_overlay().get_root();
+    lv_obj_t* before = lv_obj_find_by_name(root, "z_offset_indicator");
+    REQUIRE(before != nullptr);
+    CHECK(ui_z_offset_indicator_get_value(before) == 20);
+
+    // The orientation <if> rebuilds the indicator in place, before any panel
+    // rebuild runs; the new one has to show the offset straight away.
+    lv_subject_set_int(portrait, 1);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* after = lv_obj_find_by_name(root, "z_offset_indicator");
+    REQUIRE(after != nullptr);
+    CHECK(ui_z_offset_indicator_get_value(after) == 20);
 
     lv_subject_set_int(portrait, portrait_before);
 }
