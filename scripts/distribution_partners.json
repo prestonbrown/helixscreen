@@ -1,0 +1,154 @@
+{
+  "_comment": [
+    "Every third party that installs or updates HelixScreen with its own tooling, and what it",
+    "pulls from a release. scripts/distribution_partners.py reads this file twice: release.yml",
+    "fails a release that is missing an asset listed here, and the table in",
+    "docs/devel/INSTALLER.md § Distribution Partners is rendered from it (`table --write`).",
+    "",
+    "fetches[].asset is an exact release asset name; {tag} stands for the release tag (v1.2.3).",
+    "fetches[].built_by is the release.yml build matrix platform that produces the asset, or",
+    "`installer` for install.sh, so a dry run that builds a platform subset requires only what",
+    "it built. fetches[].via says whose code names the asset: `partner` when the mod's own code",
+    "hardcodes it, `installer` when the mod runs our install.sh and the name is the one",
+    "install.sh asks for on that hardware.",
+    "",
+    "sources cite where each cell comes from, with the commit read. Contacts and owners are",
+    "Preston's call and stay TBD until he sets them."
+  ],
+  "partners": [
+    {
+      "id": "zmod",
+      "name": "Z-Mod",
+      "upstream": "ghzserg/z_ff5m, ghzserg/z_ad5x, ghzserg/z_c5pro",
+      "hardware": "AD5M / AD5M Pro, AD5X, Creator 5 Pro",
+      "finds_release": "Moonraker `type: web` update manager on repo `prestonbrown/helixscreen` (GitHub latest release), downloading the asset named by the `asset_name` that Z-Mod seeds in /srv/helixscreen/release_info.json",
+      "install_source": "none: Z-Mod extracts the zip itself and never runs install.sh",
+      "starts": "Z-Mod's own `S80helixscreen` from `/srv/helixscreen`, selected with `DISPLAY_OFF HELIX=1`",
+      "incumbent_screen": "Stock screen; GuppyScreen and HelixScreen are both offered",
+      "contact": "TBD (Preston)",
+      "fetches": [
+        {"asset": "helixscreen-ad5m.zip", "built_by": "ad5m", "via": "partner"},
+        {"asset": "helixscreen-ad5x.zip", "built_by": "mips", "via": "partner"}
+      ],
+      "sources": [
+        "https://github.com/ghzserg/z_ad5x/blob/b3931ad80ec42496f948c9b780bb5216ec68ca1c/.shell/root/start.sh (release_info.json seeding; same lines in z_ff5m 5634a8b8f9 and z_c5pro 6d5a8709c1)",
+        "https://github.com/ghzserg/z_ad5x/blob/b3931ad80ec42496f948c9b780bb5216ec68ca1c/.shell/plugman/plugins.json (`helixscreen`: type web, repo, path)",
+        "https://github.com/ghzserg/z_ad5x/blob/b3931ad80ec42496f948c9b780bb5216ec68ca1c/.shell/root/S80helixscreen",
+        "https://github.com/ghzserg/zmod/blob/main/docs/en/System.md (`DISPLAY_OFF GUPPY=0 HELIX=1`)"
+      ]
+    },
+    {
+      "id": "forge-x",
+      "name": "Forge-X",
+      "upstream": "DrA1ex/ff5m",
+      "hardware": "AD5M (armv7l), AD5X (mips)",
+      "finds_release": "Forge-X has no HelixScreen code. The user runs our install.sh, which reads the R2 channel manifest and falls back to the GitHub release; on a Forge-X host it installs the payload contract",
+      "install_source": "none (records `curl`)",
+      "starts": "The service lands in the mod chroot's `/etc/init.d`, started by Forge-X's own bootstrap (INSTALLER.md § Mod-Managed Hosts)",
+      "incumbent_screen": "GuppyScreen",
+      "contact": "TBD (Preston)",
+      "fetches": [
+        {"asset": "install.sh", "built_by": "installer", "via": "installer"},
+        {"asset": "helixscreen-ad5m.zip", "built_by": "ad5m", "via": "installer"},
+        {"asset": "helixscreen-ad5m-{tag}.tar.gz", "built_by": "ad5m", "via": "installer"},
+        {"asset": "helixscreen-ad5x.zip", "built_by": "mips", "via": "installer"},
+        {"asset": "helixscreen-ad5x-{tag}.tar.gz", "built_by": "mips", "via": "installer"}
+      ],
+      "sources": [
+        "https://github.com/DrA1ex/ff5m/tree/d14d214956ac1674708392592d833ebc67aca225 (no HelixScreen reference in the tree)",
+        "scripts/lib/installer/release.sh#_release_candidates (zip by fixed name, tar by tag)",
+        "scripts/lib/installer/platform.sh#get_download_platform",
+        "docs/user/guide/install-ad5m.md (Forge-X ships GuppyScreen)"
+      ]
+    },
+    {
+      "id": "paxx",
+      "name": "PAXX (Snapmaker U1 Extended Firmware)",
+      "upstream": "paxx12/SnapmakerU1-Extended-Firmware",
+      "hardware": "Snapmaker U1",
+      "finds_release": "`extended-pkg helixscreen download` fetches `https://github.com/prestonbrown/helixscreen/releases/download/v${PKG_VERSION}/<asset>` at the version pinned in the firmware, checked against a pinned sha256",
+      "install_source": "none: extended-pkg unpacks the archive and never runs install.sh",
+      "starts": "The lmd.d/30-helixscreen.sh hook bind-mounts `helix-screen` over `/usr/bin/gui` when `[components] gui` is `helixscreen`; in-app self-update is off",
+      "incumbent_screen": "Stock Snapmaker GUI; HelixScreen is an opt-in setting (Touchscreen GUI, Experimental)",
+      "contact": "TBD (Preston)",
+      "fetches": [
+        {"asset": "helixscreen-snapmaker-u1-{tag}.tar.gz", "built_by": "snapmaker-u1", "via": "partner"}
+      ],
+      "sources": [
+        "https://github.com/paxx12/SnapmakerU1-Extended-Firmware/blob/7f435c38e011c8f5e24512f617d3bdfacb65b881/overlays/firmware-extended/69-app-helixscreen/root/usr/local/share/extended-pkg/helixscreen (PKG_URL, PKG_VERSION=1.0.8)",
+        "https://github.com/paxx12/SnapmakerU1-Extended-Firmware/blob/7f435c38e011c8f5e24512f617d3bdfacb65b881/overlays/firmware-extended/69-app-helixscreen/root/etc/hooks/lmd.d/30-helixscreen.sh",
+        "https://github.com/paxx12/SnapmakerU1-Extended-Firmware/blob/7f435c38e011c8f5e24512f617d3bdfacb65b881/overlays/firmware-extended/69-app-helixscreen/root/usr/local/share/firmware-config/functions/26_settings_snapmaker_components_gui.yaml"
+      ]
+    },
+    {
+      "id": "kiauh",
+      "name": "KIAUH",
+      "upstream": "dw-0/kiauh (the extension is ours: scripts/kiauh/helixscreen/)",
+      "hardware": "Any Klipper host KIAUH manages (Pi, x86)",
+      "finds_release": "Our KIAUH extension pipes `https://releases.helixscreen.org/install.sh` into `sh`; install.sh then resolves the host's platform archive. Upstream KIAUH has no HelixScreen code; our installer copies the extension in",
+      "install_source": "`--source kiauh`",
+      "starts": "install.sh's systemd unit",
+      "incumbent_screen": "None (a host tool; it also offers KlipperScreen)",
+      "contact": "TBD (Preston)",
+      "fetches": [
+        {"asset": "install.sh", "built_by": "installer", "via": "partner"}
+      ],
+      "sources": [
+        "scripts/kiauh/helixscreen/__init__.py (HELIXSCREEN_INSTALLER_URL)",
+        "scripts/kiauh/helixscreen/helixscreen_extension.py (`--source kiauh`)",
+        "scripts/lib/installer/kiauh.sh#install_kiauh_extension"
+      ]
+    },
+    {
+      "id": "cosmos",
+      "name": "OpenCentauri COSmos",
+      "upstream": "OpenCentauri/cosmos",
+      "hardware": "Elegoo Centauri Carbon 1",
+      "finds_release": "The firmware's Yocto recipe builds HelixScreen from source (`gitsm://` on `main` at a pinned SRCREV), so it fetches no release asset. Our install guide has users run install.sh, which fetches the cc1 archive",
+      "install_source": "none (records `curl`)",
+      "starts": "install.sh registers HelixScreen with COSmos's `gui-switcher` through an allowlist wrapper",
+      "incumbent_screen": "grumpyscreen, atomscreen or guppyscreen, chosen with `config-manager ui screen_ui`",
+      "contact": "TBD (Preston)",
+      "fetches": [
+        {"asset": "install.sh", "built_by": "installer", "via": "installer"},
+        {"asset": "helixscreen-cc1.zip", "built_by": "cc1", "via": "installer"},
+        {"asset": "helixscreen-cc1-{tag}.tar.gz", "built_by": "cc1", "via": "installer"}
+      ],
+      "sources": [
+        "https://github.com/OpenCentauri/cosmos/blob/main/meta-opencentauri/recipes-apps/helixscreen/helixscreen_0.1.bb (SRC_URI, SRCREV)",
+        "docs/user/guide/install-cc1.md"
+      ]
+    },
+    {
+      "id": "helper-script",
+      "name": "Creality Helper Script",
+      "upstream": "Guilouz/Creality-Helper-Script",
+      "hardware": "Creality K1 series",
+      "finds_release": "Nothing: the script has no HelixScreen code. install.sh reserves `--source helper-script`, but nothing passes it yet",
+      "install_source": "none yet (`helper-script` is reserved)",
+      "starts": "Not applicable",
+      "incumbent_screen": "GuppyScreen (the script's own installer)",
+      "contact": "TBD (Preston)",
+      "fetches": [],
+      "sources": [
+        "https://github.com/Guilouz/Creality-Helper-Script/tree/b46787a61b3ce2f04ec04d115a73a46c26814057 (no HelixScreen reference; scripts/guppy_screen.sh)",
+        "scripts/lib/installer/printer_seed.sh (the accepted --source names)"
+      ]
+    },
+    {
+      "id": "simple-af",
+      "name": "Simple AF",
+      "upstream": "pellcorp/creality",
+      "hardware": "Creality K1 series",
+      "finds_release": "Nothing: its installer only skips installing GrumpyScreen when `/etc/init.d/S99helixscreen` exists",
+      "install_source": "none",
+      "starts": "Not applicable",
+      "incumbent_screen": "GrumpyScreen",
+      "contact": "TBD (Preston)",
+      "fetches": [],
+      "sources": [
+        "https://github.com/pellcorp/creality/blob/main/k1/installer.sh (`HelixScreen detected skipping GrumpyScreen`)"
+      ]
+    }
+  ]
+}

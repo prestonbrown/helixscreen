@@ -892,6 +892,17 @@ jobs:
           exit 1
         fi
 
+    # Firmware mods fetch some assets by exact name (Z-Mod's type: web updater, PAXX's
+    # pinned URL, the install.sh every installer route pipes). A rename would leave their
+    # users unable to install or update with no error on our side, so a missing name
+    # fails here, before anything is published. The names live in
+    # scripts/distribution_partners.json, the same data docs/devel/INSTALLER.md's table
+    # is rendered from. The platform list keeps a dry run of a subset green.
+    - name: Verify distribution partner assets are present
+      env:
+        BUILT_PLATFORMS: ${{ needs.plan.outputs.platforms }}
+      run: python3 scripts/distribution_partners.py check release-files --tag "$RELEASE_TAG" --platforms "$BUILT_PLATFORMS"
+
     - name: Prepare symbol files for release
       run: |
         mkdir -p release-files/symbols

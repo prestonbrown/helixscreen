@@ -52,6 +52,7 @@ tests/shell/test_deploy_retired_binaries.bats	Makefile mk/cross.mk scripts/lib/i
 tests/shell/test_deploy_stop_app.bats	mk/cross.mk scripts/deploy-stop-app-remote.sh
 tests/shell/test_device_env_set.bats	config/helixscreen.env scripts/device-env-set-remote.sh scripts/device-env-set.sh
 tests/shell/test_device_profile.bats	mk/cross.mk scripts/device-profile.sh scripts/lib/installer/common.sh scripts/lib/installer/host_profile.sh scripts/lib/installer/main.sh scripts/lib/installer/platform.sh assets/config/platform/
+tests/shell/test_distribution_partners.bats	.github/workflows/release.yml docs/devel/INSTALLER.md scripts/distribution_partners.json scripts/distribution_partners.py
 tests/shell/test_doc_refs_gate.bats	Makefile assets/config/printer_database.json assets/config/themes/defaults/ docs/README.md docs/audits/ docs/devel/ docs/user/ include/ams_types.h mk/patches.mk patches/ scripts/check_doc_refs.py scripts/gen_patch_markers.py android/fastlane/metadata/
 tests/shell/test_duplicate_xml_names_gate.bats	scripts/check_duplicate_xml_names.py scripts/source_strip.py scripts/staged_content.py
 tests/shell/test_env_file_vars_are_live.bats	config/helixscreen.env include/ scripts/helix-launcher.sh src/
