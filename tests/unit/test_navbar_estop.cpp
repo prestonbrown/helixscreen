@@ -174,35 +174,18 @@ TEST_CASE_METHOD(NavbarFixture, "navbar E-stop survives a panel switch",
     nav.go_back();
     helix::ui::UpdateQueue::instance().drain();
     CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
-    nav.unregister_overlay_instance(overlay);
 
-    lv_obj_send_event(lv_obj_find_by_name(navbar_, "nav_btn_home"), LV_EVENT_CLICKED, nullptr);
-    helix::ui::UpdateQueue::instance().drain();
-    REQUIRE(nav.get_active() == PanelId::Home);
-    CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
-}
-
-TEST_CASE_METHOD(NavbarFixture, "a tap on a nav button behind an overlay's backdrop switches panel",
-                 "[estop_navbar][navigation]") {
-    auto& nav = NavigationManager::instance();
-    lv_obj_t* panels[kUiPanelCount] = {nullptr};
-    panels[static_cast<int>(PanelId::Home)] = lv_obj_create(test_screen());
-    panels[static_cast<int>(PanelId::Settings)] = lv_obj_create(test_screen());
-    nav.set_panels(panels);
-    lv_obj_t* overlay = lv_obj_create(test_screen());
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
-    nav.register_overlay_instance(overlay, nullptr);
+    // A tap on a nav button behind an open overlay's backdrop reaches the button.
     nav.push_overlay(overlay);
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(50);
-
-    lv_obj_t* settings = lv_obj_find_by_name(navbar_, "nav_btn_settings");
-    lv_area_t a;
-    lv_obj_get_coords(settings, &a);
+    lv_area_t home;
+    lv_obj_get_coords(lv_obj_find_by_name(navbar_, "nav_btn_home"), &home);
     UITest::init(test_screen());
-    REQUIRE(UITest::click_at((a.x1 + a.x2) / 2, (a.y1 + a.y2) / 2));
+    REQUIRE(UITest::click_at((home.x1 + home.x2) / 2, (home.y1 + home.y2) / 2));
     helix::ui::UpdateQueue::instance().drain();
-    CHECK(nav.get_active() == PanelId::Settings);
+    REQUIRE(nav.get_active() == PanelId::Home);
+    CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
     nav.unregister_overlay_instance(overlay);
 }
 
