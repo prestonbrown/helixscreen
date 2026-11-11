@@ -17,6 +17,7 @@
 #include "ui_ams_environment_overlay.h"
 #include "ui_ams_zone_overview_overlay.h"
 #include "ui_cfs_chute_calibration_overlay.h"
+#include "ui_fan_control_overlay.h"
 #include "ui_maintenance_overlay.h"
 #include "ui_nav_manager.h"
 #include "ui_overlay_console_settings.h"
@@ -268,6 +269,7 @@ const OverlayCase kOverlayCases[] = {
      [] { helix::ui::get_ams_device_section_detail_overlay().refresh(); }},
     {"Screws Tilt", as_base<&get_global_screws_tilt_panel>},
     {"Maintenance", as_base<&helix::get_maintenance_overlay>},
+    {"Fan Control", as_base<&get_fan_control_overlay>},
     {"Printer Events", as_base<&helix::ui::get_printer_events_overlay>, nullptr,
      [] {
          helix::ui::get_printer_events_overlay().show_entries(helix::JournalSource::Screen,

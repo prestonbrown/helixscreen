@@ -55,9 +55,8 @@ class FanControlOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "fan_control_overlay";
     }
-    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
     bool destroy_on_close() const override {
-        return false;
+        return true;
     }
     lv_obj_t* create(lv_obj_t* parent) override;
 
@@ -97,6 +96,10 @@ class FanControlOverlay : public OverlayBase {
     }
 
   private:
+    /// Drops the dials and cards on close. The root's delete hook cannot: the
+    /// close resets overlay_root_ before the deferred delete reaches it.
+    void on_ui_destroyed() override;
+
     /// LV_EVENT_DELETE on the root: drops the dials and cards while their
     /// widgets are still alive, so a tree deleted by anyone else leaves no
     /// pointer into freed memory and the next open recreates it.
