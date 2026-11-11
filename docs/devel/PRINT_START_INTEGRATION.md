@@ -184,7 +184,31 @@ If your slicer supports it, enable layer info in your G-code:
 
 When `helix_macros.cfg` is installed, these macros are available:
 
-The signal and phase macros below start with an underscore so Fluidd and Mainsail leave them out of their macro lists. Every printer gets the pack under the underscore names. A printer that already has the names without an underscore (`HELIX_READY`, `HELIX_PHASE_HOMING` and so on) may call them from its own macros and sliced files, so when the app installs or updates the pack it appends a forwarding macro after the pack for each visible name the printer's loaded config still calls, outside the pack itself and except where the user defined that name themselves (all eleven when the app has not read the config yet) (`[gcode_macro HELIX_READY]` whose body calls `_HELIX_READY`, described `HelixScreen alias for _HELIX_READY`), and an existing `PRINT_START` needs no change. `MacroManager::macro_content_for` builds that file, `signal_macros::scan` (`include/signal_macro_names.h`) finds the callers in `configfile.settings` at discovery, and `signal_macros::alias_block` writes the forwarders. When what is loaded differs from what an update would stage (the old visible pack, a called name with no forwarder, or a forwarder nothing calls), the helper macros read as outdated, so the update is offered. Copying the file over by hand gives only the underscore names, so a printer that calls the old names needs those calls changed as well.
+The signal and phase macros below start with an underscore so Fluidd and Mainsail leave them out of their macro lists. Every printer gets the pack under the underscore names; a printer that still needs the old visible names gets forwarders, described in [Visible names and forwarders](#visible-names-and-forwarders). Copying `helix_macros.cfg` over by hand gives only the underscore names, so a printer that calls the old names needs those calls changed as well.
+
+### Visible names and forwarders
+
+A printer may call the visible spellings (`HELIX_READY`, `HELIX_PHASE_HOMING` and so on) from its own macros or its sliced files (#2006). When the app installs or updates the pack, `MacroManager::macro_content_for` appends one forwarder per visible name it keeps, after the pack in the same `helix_macros.cfg`, so a single upload carries both and no include has to agree with a second file:
+
+```
+[gcode_macro HELIX_READY]
+description: HelixScreen alias for _HELIX_READY
+gcode:
+    RESPOND TYPE=command MSG="HELIX:ALIAS:HELIX_READY"
+    _HELIX_READY
+```
+
+Which names a printer keeps is pure logic in `include/signal_macro_names.h` (`helix::signal_macros`):
+
+- **The scan.** `scan()` reads `configfile.settings` at discovery (`src/api/moonraker_discovery_sequence.cpp`, beside the other configfile analyzers). It looks at every string option of every section, so `[delayed_gcode]`, `[gcode_button]` and `[idle_timeout]` count as well as macro bodies, and it over-matches on purpose: a missed call answers `Unknown command`, a spurious one only keeps a name visible. A `[gcode_macro HELIX_*]` section is our forwarder by its description (`kAliasDescriptionPrefix`), an earlier pack's macro by that name's `kPackDescriptions` entry, and the user's own otherwise. The user's own lands in `foreign` and is never forwarded, since a forwarder would merge into it.
+- **All eleven or none.** `names_to_alias()` keeps all eleven when the visible names were loaded, the config calls one, or a sliced file was heard calling one, because the scan cannot see sliced files and a file may call any of them. A printer that never had them gets none.
+- **Dropping unused forwarders.** Each forwarder announces itself with `HELIX:ALIAS:<name>`. `SlicedSignalWatcher` (`include/sliced_signal_names.h`) counts, per printer, the completed prints each loaded forwarder went unheard; after `kAliasDropAfterPrints` (5) the name is retired and the next update drops it, unless the config still calls it. A print counts only if it completed, had run no more than 60 seconds when the app saw it start (the probes `src/application/gcode_response_routing.cpp` wires in), and had announcing forwarders loaded with `[respond]` present. Any hit clears the count. The console panel hides the announcement lines.
+- **Sliced files.** The same watcher reads `Unknown command:"HELIX_X"` responses during a print (`unknown_signal_command`), records the names under the printer's `helix_macros/sliced_signal_names` setting when the print ends, shows one toast per print, and the next update forwards them again (`extra_names`).
+- **Status.** `drift()` compares what is loaded with what an update would stage (the old visible pack, a called name with no forwarder, or a forwarder that would be dropped); anything but `None` reads the helper macros as outdated, so the update is offered. The helper macros row states the outcome through `signal_names_line()`.
+
+The HelixPrint plugin renames the visible calls the pre-1.1 instrumentation wrote inside `HELIX_TRACKING` marker blocks: [HELIXPRINT_PLUGIN.md § Signal Macro Migration](HELIXPRINT_PLUGIN.md#signal-macro-migration-signal_macro_migration-v1). `configfile.settings` carries no comments, so the app cannot see the blocks; a visible call in `PRINT_START`, `START_PRINT` or `_PRINT_START` stands in for them (`marker_callers_present`).
+
+**Known limit.** A pre-1.2 HelixScreen run against a printer the plugin has renamed sees the forwarders' `HELIX_READY`, so a helper macro update from that app writes the old visible pack, which defines no hidden names. The renamed calls then answer `Unknown command` until the app is updated again or the `.bak.<stamp>` backup is restored.
 
 ### Core Signals
 

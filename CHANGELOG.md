@@ -12,6 +12,13 @@ landed on the trunk after the 1.1 feature freeze. The remaining 1.1 betas and
 1.1.0 itself ship from the 1.1 branch, so this line is not published until 1.1.0
 is out.
 
+**Upgrading from 1.1?**
+
+- **HelixScreen's print signals leave your macro list** (#2006): when you tap **Update Helper Macros** in **Advanced**, the signal macros move to their underscore names (`_HELIX_READY`, `_HELIX_ENDED`, `_HELIX_RESET` and `_HELIX_PHASE_*`), and Mainsail and Fluidd stop listing them. If your printer had the old names, HelixScreen keeps them working with small forwarding macros of the same names, so your own macros and sliced files go on working, and those names stay in the list. A forwarder that no print has used for five completed prints is dropped at the next macro update, and a forwarder your own config still calls is kept; rename those calls to the underscore names and update the macros again to hide them. A macro you wrote yourself under one of the old names is never replaced.
+- **The HelixPrint plugin renames the old phase-tracking lines for you:** the calls an older HelixScreen added to your `PRINT_START`, between `# <<< HELIX_TRACKING v2 >>>` comment lines, get the underscore once Klipper has loaded the new macros. The plugin backs up each file it changes first (`printer.cfg.bak.<date>_<time>`) and never restarts Klipper itself. To turn it off, add `migrate_signal_macros: False` under `[helix_print]` in `moonraker.conf`. On a Snapmaker U1 with the extended firmware, Z-Mod and Forge-X it changes nothing and only reports what it would do.
+- **Re-slice files whose start G-code calls the old names:** HelixScreen cannot see inside sliced files. If your slicer's start G-code calls `HELIX_READY` or a `HELIX_PHASE_` macro directly and the forwarder for it has been dropped, the printer answers `Unknown command`, the print goes on, and the screen misses that signal. HelixScreen then names the macro the file called, and the next Update Helper Macros brings its forwarder back. To fix it for good, change the call in your slicer to the underscore name and re-slice the file.
+- **Going back to 1.1 after the plugin has renamed your calls:** update the helper macros from 1.1 and your `PRINT_START` calls the underscore names that 1.1's macros no longer define. Restore the `.bak` copy the plugin made, or update HelixScreen again.
+
 ### Added
 
 - **Macros can declare how long each pre-print phase will take** - a `PRINT_START` can call `_HELIX_PLAN SOAKING=600 BED_MESH=90` and the pre-print countdown uses those durations from the start, and the time label says when a phase runs over. New `_HELIX_PHASE_SOAKING` and `_HELIX_PHASE_HEATING_CHAMBER` signals come with it. Update the HelixScreen macros from Settings to get them.
