@@ -2784,6 +2784,7 @@ translations:
   Pick up and park each tool in turn: 各ツールを順に取り付けて戻す
   Pick up the tool, heat it, and pull the filament out: "ツールを取り付けて加熱し、フィラメントを引き抜いてください"
   Pick up tool: ツールを取得
+  Pick-up step cancelled; nothing was sent: '装着後の操作を取り消しました。何も送信していません'
   Picking up tool: ツールを取得中
   Pill: ピル
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): 押下がスクロールに変わるまでのピクセル数

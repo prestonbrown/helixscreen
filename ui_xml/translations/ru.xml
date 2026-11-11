@@ -2729,6 +2729,7 @@
   <translation tag="Pick up and park each tool in turn" ru="Взять и поставить на место каждый инструмент по очереди"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" ru="Возьмите инструмент, нагрейте его и вытяните филамент"/>
   <translation tag="Pick up tool" ru="Забрать инструмент"/>
+  <translation tag="Pick-up step cancelled; nothing was sent" ru="Шаг после установки отменён; ничего не отправлено"/>
   <translation tag="Picking up tool" ru="Захват инструмента"/>
   <translation tag="Pill" ru="Овал"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" ru="Пикселей до того, как нажатие станет прокруткой (меньше = прокрутка начинается раньше)"/>
