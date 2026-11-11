@@ -750,8 +750,7 @@ TEST_CASE("tool offsets: only a tool changer running ff_toolchange is Reforge",
     CHECK_FALSE(to_::firmware_stages_axis(bare, Axis::Z));
 }
 
-TEST_CASE("tool offsets: the writable models keep all three axes and stage none",
-          "[tool_offsets]") {
+TEST_CASE("tool offsets: writable models keep all three axes and stage none", "[tool_offsets]") {
     // klipper-toolchanger's gcode_x/y/z_offset are three fields written by one
     // command, and MedusaHC's controller applies t<n>_off_x/y/z together, so a
     // caller may loop kAllAxes. Neither leaves a write to the firmware. INDX is
