@@ -2390,6 +2390,7 @@ translations:
   Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one: Установите новую катушку в этот слот или включите автопополнение для переключения на подходящую
   Load and unload filament at the tool by hand: 'Загружайте и выгружайте филамент вручную на инструменте'
   'Load canceled: nozzle target dropped': 'Загрузка отменена: цель сопла снижена'
+  'Load canceled: the active tool changed': 'Загрузка отменена: активный инструмент сменился'
   Load complete: 'Загрузка завершена'
   Load failed: Ошибка загрузки
   Load filament: 'Загрузка филамента'

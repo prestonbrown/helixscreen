@@ -2140,6 +2140,7 @@
   <translation tag="Load and unload" zh="加载和卸载"/>
   <translation tag="Load and unload filament at the tool by hand" zh="请在工具上手动装入和卸载耗材"/>
   <translation tag="Load canceled: nozzle target dropped" zh="加载已取消：喷嘴目标温度已降低"/>
+  <translation tag="Load canceled: the active tool changed" zh="加载已取消：活动工具已更改"/>
   <translation tag="Load complete" zh="装载完成"/>
   <translation tag="Load failed" zh="装载失败"/>
   <translation tag="Load filament" zh="装载耗材"/>

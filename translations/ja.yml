@@ -2227,6 +2227,7 @@ translations:
   Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one: このスロットに新しいスプールをセットするか、自動補充を有効にして一致するスプールに切り替えてください
   Load and unload filament at the tool by hand: 'フィラメントはツールで手動でロード・アンロードしてください'
   'Load canceled: nozzle target dropped': '装填をキャンセル: ノズルの目標温度が下がりました'
+  'Load canceled: the active tool changed': 'ロードをキャンセルしました：アクティブなツールが変わりました'
   Load complete: 'ロード完了'
   Load failed: 装填に失敗しました
   Load filament: 'フィラメントをロード'

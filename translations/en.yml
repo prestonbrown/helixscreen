@@ -2288,6 +2288,7 @@ translations:
   Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one: Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one
   Load and unload filament at the tool by hand: Load and unload filament at the tool by hand
   'Load canceled: nozzle target dropped': 'Load canceled: nozzle target dropped'
+  'Load canceled: the active tool changed': 'Load canceled: the active tool changed'
   Load complete: Load complete
   Load failed: Load failed
   Load filament: Load filament

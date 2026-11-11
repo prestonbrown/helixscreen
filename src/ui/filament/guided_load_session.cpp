@@ -3,6 +3,8 @@
 
 #include "guided_load_session.h"
 
+#include "ui_error_reporting.h"
+
 #include "ams_state.h"
 #include "app_globals.h"
 #include "cold_pull_runner.h"
@@ -11,6 +13,7 @@
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "printer_state.h"
+#include "tool_state.h"
 
 #include <spdlog/spdlog.h>
 
@@ -26,7 +29,8 @@ constexpr const char* kLogTag = "[GuidedLoad]";
 
 ManualLoadRefusal manual_load_refusal(PrintState lifecycle, bool printer_reachable,
                                       bool preheat_pending, bool cold_pull_running,
-                                      bool tool_active) {
+                                      const std::string& slot_extruder,
+                                      const std::string& active_extruder) {
     if (job_holds_machine(lifecycle)) {
         return ManualLoadRefusal::JobHoldsMachine;
     }
@@ -39,27 +43,38 @@ ManualLoadRefusal manual_load_refusal(PrintState lifecycle, bool printer_reachab
     if (cold_pull_running) {
         return ManualLoadRefusal::ColdPullRunning;
     }
-    if (!tool_active) {
+    if (slot_extruder.empty()) {
+        return ManualLoadRefusal::ToolUnknown;
+    }
+    if (slot_extruder != active_extruder) {
         return ManualLoadRefusal::ToolNotActive;
     }
     return ManualLoadRefusal::None;
 }
 
+std::string manual_load_extruder(AmsBackend* backend, int slot, PrinterState& state) {
+    auto& temps = state.temperature_state();
+    if (!backend || slot < 0) {
+        return temps.active_extruder_name();
+    }
+    // resolve_op_nozzle() falls back to the active extruder here, which is right for
+    // heating and wrong for pushing: G1 E would move whichever nozzle that is.
+    const std::string extruder =
+        ToolState::instance().extruder_name_for_tool(backend->get_slot_info(slot).mapped_tool);
+    if (extruder.empty() || !temps.get_extruder_target_subject(extruder)) {
+        return {};
+    }
+    return extruder;
+}
+
 ManualLoadRefusal manual_load_refusal_now(PrinterState& state, int slot) {
     const FilamentOpHeater* heater = get_filament_op_heater();
     const ColdPullRunner* cold_pull = get_cold_pull_runner();
-    SafetyLimits limits;
-    if (auto* api = get_moonraker_api()) {
-        limits = api->get_safety_limits();
-    }
-    // G1 E moves the active extruder: a load for any other nozzle would push the wrong one.
-    const OpNozzle nozzle =
-        resolve_op_nozzle(AmsState::instance().get_backend(), slot, state, limits);
-    const std::string& active = state.temperature_state().active_extruder_name();
-    const bool tool_active = nozzle.extruder.empty() || nozzle.extruder == active;
-    return manual_load_refusal(state.print_state().get_print_lifecycle(), printer_reachable(state),
-                               heater && heater->pending(), cold_pull && cold_pull->running(),
-                               tool_active);
+    return manual_load_refusal(
+        state.print_state().get_print_lifecycle(), printer_reachable(state),
+        heater && heater->pending(), cold_pull && cold_pull->running(),
+        manual_load_extruder(AmsState::instance().get_backend(), slot, state),
+        state.temperature_state().active_extruder_name());
 }
 
 std::string manual_load_refusal_text(ManualLoadRefusal refusal) {
@@ -74,6 +89,8 @@ std::string manual_load_refusal_text(ManualLoadRefusal refusal) {
         return lv_tr("Wait for the current filament operation to finish");
     case ManualLoadRefusal::ColdPullRunning:
         return lv_tr("A cold pull is already running.");
+    case ManualLoadRefusal::ToolUnknown:
+        return lv_tr("This slot feeds no tool");
     case ManualLoadRefusal::ToolNotActive:
         return lv_tr("Select this tool first, then load it by hand.");
     }
@@ -86,7 +103,8 @@ GuidedLoadSession::GuidedLoadSession(PrinterState& state, filament_macros::Guide
 
 GuidedLoadSession::GuidedLoadSession(PrinterState& state, int slot)
     : state_(state), flow_(GuidedLoadFlow::after_preheat(hand_feed_steps())), manual_(true),
-      slot_(slot) {}
+      slot_(slot),
+      extruder_(manual_load_extruder(AmsState::instance().get_backend(), slot, state)) {}
 
 GuidedLoadSession::~GuidedLoadSession() {
     on_changed_ = nullptr;
@@ -94,6 +112,7 @@ GuidedLoadSession::~GuidedLoadSession() {
     lifecycle_observer_.reset();
     connection_observer_.reset();
     klippy_observer_.reset();
+    active_extruder_observer_.reset();
     lifetime_.invalidate();
 }
 
@@ -113,6 +132,13 @@ void GuidedLoadSession::begin() {
         state_.network_state().get_klippy_state_subject(), this,
         [](GuidedLoadSession* self, int) { self->on_printer_changed(); }, life);
     if (!manual_ || ended()) {
+        return;
+    }
+    // A tool change re-publishes the active extruder's reading, so this sees every switch.
+    active_extruder_observer_ = observe<int>(
+        state_.temperature_state().get_active_extruder_temp_subject(), this,
+        [](GuidedLoadSession* self, int) { self->on_printer_changed(); }, life);
+    if (ended()) {
         return;
     }
 
@@ -198,14 +224,24 @@ void GuidedLoadSession::on_printer_changed() {
         lose("a print took the machine");
     } else if (!printer_reachable(state_)) {
         lose("the printer went away");
+    } else if (!on_heated_extruder()) {
+        lose("the active tool changed", lv_tr("Load canceled: the active tool changed"));
     }
 }
 
-void GuidedLoadSession::lose(const char* why) {
+bool GuidedLoadSession::on_heated_extruder() const {
+    return !manual_ ||
+           (!extruder_.empty() && extruder_ == state_.temperature_state().active_extruder_name());
+}
+
+void GuidedLoadSession::lose(const char* why, const char* toast) {
     if (ended()) {
         return;
     }
     spdlog::info("{} Ending: {}; sending nothing more", kLogTag, why);
+    if (toast) {
+        NOTIFY_WARNING("{}", toast);
+    }
     (void)flow_.cancel();
     // A preheat a job abandoned is the heater's to settle, not ours to cancel.
     if (job_holds_machine(state_.print_state().get_print_lifecycle())) {
@@ -253,6 +289,13 @@ void GuidedLoadSession::send(const std::string& script, bool report_outcome) {
         if (report_outcome) {
             lose("a print took the machine");
         }
+        return;
+    }
+    // G1 E moves the active extruder: never push a nozzle this load did not heat.
+    if (report_outcome && !on_heated_extruder()) {
+        spdlog::warn("{} The active extruder is not {}; not sending: {}", kLogTag, extruder_,
+                     script);
+        lose("the active tool changed", lv_tr("Load canceled: the active tool changed"));
         return;
     }
     IMoonrakerAPI* api = get_moonraker_api();

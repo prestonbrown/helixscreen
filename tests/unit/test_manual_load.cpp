@@ -11,7 +11,10 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/backend_harness.h"
 #include "../test_helpers/scoped_shared_resource.h"
+#include "ams_backend_mock.h"
+#include "ams_backend_snapmaker.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "cleanup_hold.h"
@@ -27,6 +30,7 @@
 #include "safety_settings_manager.h"
 #include "standard_macros.h"
 #include "temperature_controller.h"
+#include "tool_state.h"
 
 #include <algorithm>
 #include <memory>
@@ -74,7 +78,7 @@ class ManualLoadFixture : public LVGLTestFixture {
   public:
     ManualLoadFixture() : client(MoonrakerClientMock::PrinterType::VORON_24) {
         state.init_subjects(false);
-        state.temperature_state().init_extruders({"extruder"});
+        state.temperature_state().init_extruders({"extruder", "extruder1"});
         state.set_klippy_state_sync(helix::KlippyState::READY);
         state.set_printer_connection_state(2, "Connected");
         client.connect("ws://mock/websocket", []() {}, []() {});
@@ -169,23 +173,25 @@ class ManualLoadFixture : public LVGLTestFixture {
 } // namespace
 
 TEST_CASE("manual load refusal: checked in order", "[manual_load]") {
-    using helix::ui::manual_load_refusal;
-    CHECK(manual_load_refusal(PrintState::Idle, true, false, false, true) ==
-          ManualLoadRefusal::None);
-    CHECK(manual_load_refusal(PrintState::Printing, false, true, true, false) ==
+    const auto refusal = [](PrintState lifecycle, bool reachable, bool pending, bool cold_pull,
+                            const char* slot_extruder) {
+        return helix::ui::manual_load_refusal(lifecycle, reachable, pending, cold_pull,
+                                              slot_extruder, "extruder");
+    };
+    CHECK(refusal(PrintState::Idle, true, false, false, "extruder") == ManualLoadRefusal::None);
+    CHECK(refusal(PrintState::Printing, false, true, true, "") ==
           ManualLoadRefusal::JobHoldsMachine);
-    CHECK(manual_load_refusal(PrintState::Paused, true, false, false, true) ==
+    CHECK(refusal(PrintState::Paused, true, false, false, "extruder") ==
           ManualLoadRefusal::JobHoldsMachine);
-    CHECK(manual_load_refusal(PrintState::Idle, false, true, true, false) ==
-          ManualLoadRefusal::NotReady);
-    CHECK(manual_load_refusal(PrintState::Idle, true, true, true, false) ==
-          ManualLoadRefusal::PreheatPending);
-    CHECK(manual_load_refusal(PrintState::Idle, true, false, true, false) ==
-          ManualLoadRefusal::ColdPullRunning);
-    CHECK(manual_load_refusal(PrintState::Complete, true, false, false, false) ==
+    CHECK(refusal(PrintState::Idle, false, true, true, "") == ManualLoadRefusal::NotReady);
+    CHECK(refusal(PrintState::Idle, true, true, true, "") == ManualLoadRefusal::PreheatPending);
+    CHECK(refusal(PrintState::Idle, true, false, true, "") == ManualLoadRefusal::ColdPullRunning);
+    // An unknown tool refuses: it never falls back to the active nozzle.
+    CHECK(refusal(PrintState::Complete, true, false, false, "") == ManualLoadRefusal::ToolUnknown);
+    CHECK(refusal(PrintState::Complete, true, false, false, "extruder1") ==
           ManualLoadRefusal::ToolNotActive);
     CHECK(helix::ui::manual_load_refusal_text(ManualLoadRefusal::None).empty());
-    CHECK_FALSE(helix::ui::manual_load_refusal_text(ManualLoadRefusal::ToolNotActive).empty());
+    CHECK_FALSE(helix::ui::manual_load_refusal_text(ManualLoadRefusal::ToolUnknown).empty());
 }
 
 TEST_CASE_METHOD(ManualLoadFixture, "manual load refusal: read off the live printer",
@@ -290,6 +296,52 @@ TEST_CASE_METHOD(ManualLoadFixture, "manual load: every way out turns the heater
     }
 }
 
+TEST_CASE_METHOD(ManualLoadFixture, "manual load: a tool change mid-load ends it before any push",
+                 "[manual_load]") {
+    begin_at_push();
+    REQUIRE(state.temperature_state().active_extruder_name() == "extruder");
+    state.update_from_status({{"toolhead", {{"extruder", "extruder1"}}}});
+    drain();
+    CHECK(session->ended());
+    session->extrude();
+    drain();
+    // No G1 E reaches extruder1, and the nozzle this load heated goes off.
+    CHECK(api->extrusions.empty());
+    CHECK(count(kHeatOff) == 1);
+    CHECK_FALSE(heater->get().holding());
+}
+
+namespace {
+
+/// Lane 1 feeds tool 1; lane 2 names a tool the printer does not have.
+class MappedLanes : public helix::AmsBackendMock {
+  public:
+    MappedLanes() : helix::AmsBackendMock(4) {}
+    helix::SlotInfo get_slot_info(int slot_index) const override {
+        helix::SlotInfo info = helix::AmsBackendMock::get_slot_info(slot_index);
+        info.mapped_tool = slot_index == 1 ? 1 : (slot_index == 2 ? 5 : -1);
+        return info;
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ManualLoadFixture, "manual load: a slot's tool must resolve to an extruder",
+                 "[manual_load]") {
+    helix::PrinterDiscovery two;
+    two.parse_objects(nlohmann::json{"extruder", "extruder1"});
+    helix::ToolState::instance().init_tools(two);
+    MappedLanes lanes;
+    CHECK(helix::ui::manual_load_extruder(nullptr, -1, state) == "extruder");
+    CHECK(helix::ui::manual_load_extruder(&lanes, 1, state) == "extruder1");
+    CHECK(helix::ui::manual_load_extruder(&lanes, 2, state).empty());
+    CHECK(helix::ui::manual_load_extruder(&lanes, 3, state).empty());
+
+    helix::PrinterDiscovery one;
+    one.parse_objects(nlohmann::json{"extruder"});
+    helix::ToolState::instance().init_tools(one);
+}
+
 TEST_CASE_METHOD(ManualLoadFixture, "manual load: a print taking the machine ends it, heat left",
                  "[manual_load]") {
     begin_at_push();
@@ -318,4 +370,45 @@ TEST_CASE_METHOD(ManualLoadFixture, "load_is_by_hand: no filament system, no loa
     StandardMacros::instance().reset();
     StandardMacros::instance().init(with_macro);
     CHECK_FALSE(helix::ui::load_is_by_hand(nullptr, -1, state));
+}
+
+namespace {
+
+/// Drains what the backend defers while it and AmsState are still alive.
+struct DrainingFixture : public LVGLTestFixture {
+    ~DrainingFixture() override {
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
+};
+
+} // namespace
+
+// A head with no automatic feeder loads by hand: the screen offers the guided
+// manual load (prestonbrown/helixscreen#2000) instead of a feed the firmware refuses.
+TEST_CASE_METHOD(DrainingFixture, "Snapmaker: a head with no automatic feeder loads by hand",
+                 "[ams][snapmaker][manual_load]") {
+    helix::test::RegisteredWired<helix::AmsBackendSnapmaker> backend_reg;
+    auto& backend = *backend_reg;
+    // Before any feeder frame nothing is known: the load stays automatic.
+    CHECK(backend.head_filament_ops(1).load == helix::FilamentOpSupport::Automatic);
+    CHECK_FALSE(backend.head_filament_ops(1).guided_hand_load);
+
+    const bool no_module = GENERATE(true, false);
+    backend.fire_status(nlohmann::json{{"filament_feed left",
+                                        {{"extruder1",
+                                          {{"filament_detected", false},
+                                           {"channel_state", "wait_insert"},
+                                           {"module_exist", !no_module},
+                                           {"disable_auto", !no_module}}}}}});
+    const helix::HeadFilamentOps ops = backend.head_filament_ops(1);
+    CHECK(ops.load == helix::FilamentOpSupport::Manual);
+    CHECK(ops.guided_hand_load);
+    CHECK_FALSE(ops.load_reason.empty());
+    // Only that head: its neighbour's feeder said nothing.
+    CHECK(backend.head_filament_ops(0).load == helix::FilamentOpSupport::Automatic);
+
+    backend.fire_status(
+        nlohmann::json{{"filament_feed left",
+                        {{"extruder1", {{"module_exist", true}, {"disable_auto", false}}}}}});
+    CHECK(backend.head_filament_ops(1).load == helix::FilamentOpSupport::Automatic);
 }

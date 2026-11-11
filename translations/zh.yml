@@ -2221,6 +2221,7 @@ translations:
   Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one: 请在此槽位装入新料盘，或开启自动续料以切换到匹配的料盘
   Load and unload filament at the tool by hand: '请在工具上手动装入和卸载耗材'
   'Load canceled: nozzle target dropped': '加载已取消：喷嘴目标温度已降低'
+  'Load canceled: the active tool changed': '加载已取消：活动工具已更改'
   Load complete: '装载完成'
   Load failed: 装载失败
   Load filament: '装载耗材'

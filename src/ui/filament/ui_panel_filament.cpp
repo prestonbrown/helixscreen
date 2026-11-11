@@ -2747,7 +2747,7 @@ void FilamentPanel::execute_load() {
     AmsBackend* backend = AmsState::instance().get_backend();
     const int target_slot = selected_op_slot();
 
-    if (helix::ui::load_is_by_hand(backend, target_slot, get_printer_state())) {
+    if (helix::ui::load_is_by_hand(backend, target_slot, printer_state_)) {
         spdlog::info("[{}] No filament system and no load macro: opening the manual load",
                      get_name());
         helix::ui::GuidedLoadModal::show_manual(target_slot);

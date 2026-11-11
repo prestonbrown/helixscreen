@@ -2140,6 +2140,7 @@
   <translation tag="Load and unload" pt="Carregar e descarregar"/>
   <translation tag="Load and unload filament at the tool by hand" pt="Carregue e descarregue o filamento à mão na ferramenta"/>
   <translation tag="Load canceled: nozzle target dropped" pt="Carregamento cancelado: o alvo do bico caiu"/>
+  <translation tag="Load canceled: the active tool changed" pt="Carregamento cancelado: a ferramenta ativa mudou"/>
   <translation tag="Load complete" pt="Carregamento concluído"/>
   <translation tag="Load failed" pt="Falha ao carregar"/>
   <translation tag="Load filament" pt="Carregar filamento"/>
