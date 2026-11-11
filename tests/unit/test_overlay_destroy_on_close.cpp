@@ -187,9 +187,27 @@ struct OverlayCase {
 };
 
 const OverlayCase kOverlayCases[] = {
-    {"Motion", as_base<&get_global_motion_panel>},
+    // The homed and position observers outlive the tree and reach for the jog pad.
+    {"Motion", as_base<&get_global_motion_panel>, nullptr,
+     [] {
+         auto* homed = get_printer_state().motion_state().get_homed_axes_subject();
+         lv_subject_copy_string(homed, "xyz");
+         lv_subject_copy_string(homed, "");
+     }},
     {"Macro Buttons", as_base<&get_macro_buttons_overlay>},
     {"Theme Editor", as_base<&get_theme_editor_overlay>},
+    {"Touch Calibration", as_base<&helix::ui::get_touch_calibration_overlay>,
+     [] { REQUIRE(helix::ui::get_touch_calibration_overlay().show(lv_screen_active(), nullptr)); },
+     [] {
+         auto& p = helix::ui::get_touch_calibration_overlay();
+         // The lifted capture surface went back under the root.
+         CHECK(lv_obj_find_by_name(lv_screen_active(), "touch_capture_overlay") == nullptr);
+         p.on_progress();
+         p.on_capture_feedback({10, 10});
+         p.on_verify_feedback({10, 10});
+         p.handle_screen_touched(nullptr);
+         p.handle_screen_released();
+     }},
     {"Temp Graph", as_base<&get_global_temp_graph_overlay>,
      [] {
          get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Nozzle, lv_screen_active());
@@ -404,19 +422,6 @@ TEST_CASE_METHOD(DestroyOnCloseFixture, "Label Printer keeps an address typed be
     settings.set_printer_type(type);
 }
 
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Motion observers fired after close touch no freed tree",
-                 "[overlay_destroy_on_close][motion]") {
-    auto& p = get_global_motion_panel();
-    expect_rebuilt_on_reopen([&] { REQUIRE(p.show(lv_screen_active())); },
-                             [&] { return p.get_root(); });
-    // The homed and position observers outlive the tree and reach for the jog pad.
-    lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
-    settle();
-    lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
-    settle();
-    CHECK(p.get_root() == nullptr);
-}
-
 TEST_CASE_METHOD(DestroyOnCloseFixture, "Motion Settings rebuilds its tree on reopen",
                  "[overlay_destroy_on_close][motion_settings]") {
     expect_rebuilt_on_reopen(
@@ -499,33 +504,6 @@ TEST_CASE_METHOD(DestroyOnCloseFixture,
     CHECK(text("error_message") == "An error occurred during calibration.");
     NavigationManager::instance().go_back();
     settle();
-}
-
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Touch Calibration rebuilds its tree on reopen",
-                 "[overlay_destroy_on_close][touch_cal]") {
-    auto& p = helix::ui::get_touch_calibration_overlay();
-    expect_rebuilt_on_reopen([&] { REQUIRE(p.show(lv_screen_active(), nullptr)); },
-                             [&] { return p.get_root(); });
-    // The lifted capture surface goes back under the root, so nothing is left on the screen.
-    CHECK(lv_obj_find_by_name(lv_screen_active(), "touch_capture_overlay") == nullptr);
-}
-
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Touch Calibration feedback after close touches no tree",
-                 "[overlay_destroy_on_close][touch_cal]") {
-    auto& p = helix::ui::get_touch_calibration_overlay();
-    REQUIRE(p.show(lv_screen_active(), nullptr));
-    settle();
-    NavigationManager::instance().go_back();
-    settle();
-    REQUIRE(p.get_root() == nullptr);
-
-    p.on_progress();
-    p.on_capture_feedback({10, 10});
-    p.on_verify_feedback({10, 10});
-    p.handle_screen_touched(nullptr);
-    p.handle_screen_released();
-    settle();
-    CHECK(p.get_root() == nullptr);
 }
 
 namespace {

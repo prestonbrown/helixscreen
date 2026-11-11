@@ -135,12 +135,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(dials > 0);
 
     if (by_back) {
-        helix::ui::UpdateQueue::instance().drain();
         NavigationManager::instance().go_back();
-        for (int i = 0; i < 5; ++i) {
-            helix::ui::UpdateQueue::instance().drain();
-            process_lvgl(50);
-        }
+        process_lvgl(600);
+        helix::ui::UpdateQueue::instance().drain();
     } else {
         close_all();
         lv_obj_delete(first);
