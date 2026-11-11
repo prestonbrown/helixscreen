@@ -16,6 +16,7 @@
 #include "ui_ams_device_section_detail_overlay.h"
 #include "ui_ams_environment_overlay.h"
 #include "ui_cfs_chute_calibration_overlay.h"
+#include "ui_maintenance_overlay.h"
 #include "ui_nav_manager.h"
 #include "ui_overlay_console_settings.h"
 #include "ui_overlay_printer_image.h"
@@ -262,6 +263,7 @@ const OverlayCase kOverlayCases[] = {
      },
      [] { helix::ui::get_ams_device_section_detail_overlay().refresh(); }},
     {"Screws Tilt", as_base<&get_global_screws_tilt_panel>},
+    {"Maintenance", as_base<&helix::get_maintenance_overlay>},
     {"Belt Tension", as_base<&get_global_belt_tension_panel>, nullptr,
      [] {
          auto* active = get_printer_state().print_state().get_print_active_subject();
