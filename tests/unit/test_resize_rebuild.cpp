@@ -69,6 +69,10 @@ class RebuiltOverlay : public OverlayBase {
     const char* get_name() const override {
         return "RebuiltOverlay";
     }
+    // A closed overlay that keeps its tree is the one these rebuilds reach.
+    bool destroy_on_close() const override {
+        return false;
+    }
 };
 
 /// Two main panels, Home shown, built from one stub component.

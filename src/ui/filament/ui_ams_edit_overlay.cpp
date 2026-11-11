@@ -881,6 +881,16 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     helix::ui::safe_clean_children(spool_list);
 
     auto filtered = filter_spools(cached_spools_, filter, cached_searchables_);
+    // The linked spool leads the list so its check mark is on screen without
+    // scrolling (#2095). The search still applies to it; the rest keep their order.
+    if (working_info_.spoolman_id > 0) {
+        auto linked = std::find_if(filtered.begin(), filtered.end(), [this](const SpoolInfo& s) {
+            return s.id == working_info_.spoolman_id;
+        });
+        if (linked != filtered.end()) {
+            std::rotate(filtered.begin(), linked, linked + 1);
+        }
+    }
     // Spools another lane links are taken. The external spool feeds through no
     // lane, so every lane's spool is taken for it.
     std::set<int> in_use;

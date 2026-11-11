@@ -60,7 +60,7 @@ std::string extract_base_material(std::string_view name);
  *
  * A name that survives reduction unrecognised still gets that permissive
  * answer, deliberately: a firmware-only or hand-typed material should not block
- * the user. The difference is that a name we CAN read is now read.
+ * the user. A name the reduction CAN read is compared by its compat group.
  *
  * @see grades_match() for the finer question this one does not ask.
  */

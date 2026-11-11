@@ -643,16 +643,19 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     PrinterDiscovery hw;
     hw.parse_objects(json::array({"purifier", "fm175xx_reader", "tool", "extruder"}));
     state().set_hardware(hw);
+    // Until the printer reports its counter, print time still moves the filter.
+    seed();
+    printed(3600);
+    CHECK(meter(kFilter).used_h == Catch::Approx(1.0));
     state().update_from_status(json{
         {"purifier", {{"power_detected", true}, {"mode", 3}, {"inner_fan_work_time", 7200.0}}}});
     drain();
     CHECK(meter(kFilter).used_h == Catch::Approx(2.0));
 
     // Print time no longer moves the filter; the other meters still count it.
-    seed();
-    printed(3600);
+    printed(7200);
     CHECK(meter(kFilter).used_h == Catch::Approx(2.0));
-    CHECK(meter(kNozzle).used_h == Catch::Approx(1.0));
+    CHECK(meter(kNozzle).used_h == Catch::Approx(2.0));
 
     state().update_from_status(json{{"purifier", {{"inner_fan_work_time", 10800.0}}}});
     drain();

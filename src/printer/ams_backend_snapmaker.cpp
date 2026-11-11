@@ -3,9 +3,6 @@
 
 #include "ams_backend_snapmaker.h"
 
-#include "ui_error_reporting.h"
-#include "ui_notification.h"
-
 #include "ams_device_action_value.h"
 #include "ams_device_sections.h"
 #include "ams_error.h"
@@ -13,6 +10,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "batch_feed_reconcile.h"
+#include "core/notification_api.h"
 #include "core/text_io.h"
 #include "display_numbering.h"
 #include "filament_database.h"
@@ -250,7 +248,6 @@ nlohmann::json AmsBackendSnapmaker::required_status_objects(const helix::Printer
 
 AmsBackendSnapmaker::AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerClient* client)
     : AmsSubscriptionBackend(api, client) {
-    // Initialize system info
     system_info_.type = AmsType::SNAPMAKER;
     system_info_.type_name = "Snapmaker SnapSwap";
     system_info_.supports_bypass = false;
@@ -261,7 +258,6 @@ AmsBackendSnapmaker::AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerCl
     // "Heat nozzle -> Retract" stepper (see recreate_step_progress_for_operation).
     system_info_.tip_method = TipMethod::NONE;
 
-    // Initialize 1 unit with 4 slots
     AmsUnit unit;
     unit.unit_index = 0;
     unit.name = "SnapSwap";
@@ -292,12 +288,9 @@ AmsBackendSnapmaker::AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerCl
     //
     // It is NOT the print routing, and nothing may read it as such. Which head
     // prints logical tool N lives in print_task_config.extruder_map_table, which
-    // get_tool_mapping() below publishes. This map was originally populated to
-    // stop helix::ui::gcode_viewer_apply_ams_tool_colors() short-circuiting on an empty
-    // map (which left the model black when the first tool's filament was dark) —
-    // i.e. a safety valve was fed data to keep it from tripping, and the "fix"
-    // made every tool render in head-index order. That consumer now resolves
-    // through the routing table instead, so this map has no display job.
+    // get_tool_mapping() below publishes. This map has no display job either:
+    // helix::ui::gcode_viewer_apply_ams_tool_colors() resolves tool colours through the
+    // routing table. Reading this map there would render every tool in head-index order.
     system_info_.tool_to_slot_map.reserve(kNumTools);
     for (int i = 0; i < kNumTools; i++) {
         system_info_.tool_to_slot_map.push_back(i);
@@ -866,6 +859,17 @@ AmsBackendSnapmaker::ChannelSnapshot AmsBackendSnapmaker::channel_snapshot(int s
     return channel_snapshots_[slot_index];
 }
 
+HeadFilamentOps AmsBackendSnapmaker::head_filament_ops(int head) const {
+    HeadFilamentOps ops = AmsBackend::head_filament_ops(head);
+    if (head < 0 || head >= kNumTools || !feeder_absent(channel_snapshot(head))) {
+        return ops;
+    }
+    ops.load = FilamentOpSupport::Manual;
+    ops.load_reason = lv_tr("This toolhead has no automatic feeder. Load the filament by hand.");
+    ops.guided_hand_load = true;
+    return ops;
+}
+
 AmsBackend::FilamentOpEligibility AmsBackendSnapmaker::slot_op_eligibility(int slot_index,
                                                                            bool load) const {
     using E = FilamentOpEligibility;
@@ -977,8 +981,8 @@ AmsError AmsBackendSnapmaker::cancel() {
 // Resume Preparation
 // ============================================================================
 
-// NOTE: This method has no caller in tree right now. The auto-recover-on-pause
-// path that consumed it was pulled after field testing showed the
+// NOTE: This method has no caller in tree. No auto-recover-on-pause path
+// consumes it: field testing showed the
 // motion=false + port=true signal can't distinguish "stale encoder, filament
 // at gear" from "filament preloaded 4-inches short of gear" (firmware assist
 // motor stops at preload_finish). Kept as detection infrastructure for the
@@ -1955,6 +1959,7 @@ void AmsBackendSnapmaker::apply_feed_channel_locked(const snapmaker::FeedChannel
     }
     if (channel.module_exist) {
         snap.module_exist = *channel.module_exist;
+        snap.module_reported = true;
     }
     if (channel.disable_auto) {
         snap.disable_auto = *channel.disable_auto;

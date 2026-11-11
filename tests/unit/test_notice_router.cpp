@@ -102,15 +102,12 @@ TEST_CASE("A notice reaches the toast of its severity and duration", "[toast][no
     CHECK(log.shown[3].severity == ToastSeverity::ERROR);
     // Matches ToastManager::show()'s own default.
     CHECK(log.shown[3].duration_ms == 4000);
-}
 
-TEST_CASE("A notice with no subscriber is dropped", "[toast][notification]") {
-    ToastLog log;
     const helix::NoticeSubscriber previous = helix::set_notice_subscriber(nullptr);
     publish_notice({NoticeSeverity::ERROR, "nobody is listening"});
     helix::set_notice_subscriber(previous);
     drain();
-    CHECK(log.shown.empty());
+    CHECK(log.shown.size() == 4);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -249,14 +246,17 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A print start asks the UI for the print sta
     drain();
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "A power device going off holds the recovery dialog back",
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "A power device going off or a Moonraker restart holds the recovery dialog back",
                  "[notification][notice][recovery]") {
     auto& estop = EmergencyStopOverlay::instance();
-    estop.suppress_recovery_dialog(0);
-    REQUIRE_FALSE(estop.is_recovery_suppressed());
-
-    publish_ui_request({UiRequestKind::ExpectKlippyDisconnect});
-
-    CHECK(estop.is_recovery_suppressed());
+    for (UiRequestKind kind :
+         {UiRequestKind::ExpectKlippyDisconnect, UiRequestKind::ExpectMoonrakerRestart}) {
+        CAPTURE(static_cast<int>(kind));
+        estop.suppress_recovery_dialog(0);
+        REQUIRE_FALSE(estop.is_recovery_suppressed());
+        publish_ui_request({kind});
+        CHECK(estop.is_recovery_suppressed());
+    }
     estop.suppress_recovery_dialog(0);
 }

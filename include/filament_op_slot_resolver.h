@@ -123,13 +123,13 @@ struct OpButtonState {
 
     /// AmsSystemInfo::is_busy() — an AMS operation is already running. Every
     /// backend op goes through check_preconditions(), which refuses on busy, so
-    /// a button offered here is a guaranteed-failure dead end. This is the term
-    /// the filament panel never had: an op started from the AMS panel (or by the
-    /// printer itself) left the panel's Load button lit the whole time.
+    /// a button offered here is a guaranteed-failure dead end. Without this term
+    /// an op started from the AMS panel (or by the printer itself) would leave
+    /// the filament panel's Load button lit the whole time.
     bool system_busy = false;
 
     /// A print would make the backend refuse this op. NOT the raw print_active
-    /// subject — PAUSED is now allowed on backends whose filament macros do not
+    /// subject — PAUSED is allowed on backends whose filament macros do not
     /// home themselves. Always fill this from print_blocks_filament_op() so the
     /// affordance and AmsSubscriptionBackend::refuse_if_printing() cannot drift.
     bool print_blocks_op = false;
@@ -184,11 +184,10 @@ using helix::print_blocks_filament_op;
  * is busy and — per print_blocks_filament_op() — while a print owns the toolhead
  * in a way the backend will not accept. A button offered in either window is a
  * guaranteed-failure dead end, which is exactly what a runout-paused user hits
- * since Klipper's own message tells them to load filament (bundle JX2FVRB9).
+ * since Klipper's own message tells them to load filament.
  *
- * The filament panel and the AMS context menu each carried a partial version of
- * this: the panel had no `system_busy` and no `slot_has_filament` term, the AMS
- * sidebar had no print term at all. One answer now, three callers.
+ * The filament panel, the AMS context menu and the external spool menu all gate
+ * through this one answer, so none of them carries a partial copy of the rule.
  */
 [[nodiscard]] inline OpButtonGating compute_op_button_gating(const OpButtonState& s) {
     const bool nothing_to_feed = s.slot_has_filament.has_value() && !*s.slot_has_filament;
@@ -280,10 +279,11 @@ struct MachineOpGating {
  * mid-print, live on the AMS context menu instead. The field mapping is the part
  * that must not fork: hardcoding unload_is_cold_lane_op = false is what makes
  * PRINTING refuse here, so a surface that filled it any other way would silently
- * re-open bundle JX2FVRB9's dead end.
+ * re-open the runout-pause dead end described at compute_op_button_gating().
  *
- * Split out of AmsOperationSidebar::read_unload_gating_state(), which is now the
- * singleton reads plus one call to this.
+ * No production surface calls it: AmsOperationSidebar gates through
+ * decide_filament_actions() (filament_action_set.h). The unit tests in
+ * tests/unit/test_filament_op_slot_resolver.cpp pin this mapping.
  *
  * @param filament_loaded    ams_filament_loaded — something is at the toolhead.
  * @param system_busy        AmsSystemInfo::is_busy(); false when there is no backend.
@@ -409,13 +409,13 @@ struct PreheatTarget {
  *      the lane names no material). On an external-spool-only printer this is
  *      the one filament there is.
  *
- * FilamentPanel used to consult the external spool FIRST and unconditionally,
- * then fall back to `AmsSystemInfo::get_active_slot()` — the LOADED lane, not
- * the selected one. Both are wrong for a load and both are silent: selecting
- * tool 3 (PETG) while tool 1 (PLA) was loaded preheated to PLA, and any printer
- * with an external spool assigned preheated every load to that spool's material
- * regardless of the lane. AmsOperationSidebar always had this right; the two now
- * share the rule so they cannot drift apart again.
+ * Consulting the external spool FIRST and unconditionally, or falling back to
+ * `AmsSystemInfo::get_active_slot()` — the LOADED lane, not the selected one —
+ * is wrong for a load, and silently so: selecting tool 3 (PETG) while tool 1
+ * (PLA) is loaded would preheat to PLA, and any printer with an external spool
+ * assigned would preheat every load to that spool's material regardless of the
+ * lane. FilamentPanel and AmsOperationSidebar share this rule so they cannot
+ * drift apart.
  *
  * Note the deliberate difference from helix::get_active_material(), which orders
  * AMS-active-slot then external spool. That answers "what is IN the nozzle right

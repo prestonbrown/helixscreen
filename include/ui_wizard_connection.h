@@ -29,22 +29,18 @@
  * - Auto-discovery trigger on success
  * - Configuration persistence
  *
- * ## Class-Based Architecture (Phase 6)
- *
- * This step has been migrated from function-based to class-based design:
- * - Instance members instead of static globals
- * - Async WebSocket callbacks with captured instance reference
- * - Static trampolines for LVGL event callbacks
- * - Global singleton getter for backwards compatibility
- *
- * ## Subject Bindings (6 total):
+ * ## Subject Bindings (10 total):
  *
  * - connection_ip (string) - IP address or hostname
  * - connection_port (string) - Port number (default "7125")
- * - connection_status_icon (string) - MDI icon (check/xmark/empty)
+ * - connection_status_kind (int) - Status icon, a StatusKind value (0=none)
  * - connection_status_text (string) - Status message text
  * - connection_testing (int) - 0=idle, 1=testing (disables button)
  * - connection_discovering (int) - 0=not discovering, 1=discovering (shows spinner)
+ * - connection_api_key (string) - Moonraker API key
+ * - connection_login_required (int) - 1 shows the API key entry
+ * - mdns_status (string) - mDNS discovery status text
+ * - connection_discovery_active (int) - 0=idle, 1=mDNS discovery running
  *
  * ## External Subject:
  *

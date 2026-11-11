@@ -20,6 +20,7 @@
 #include "ui_lock_screen.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
+#include "ui_test_utils.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -153,13 +154,15 @@ TEST_CASE_METHOD(NavbarFixture, "navbar E-stop survives a panel switch",
     auto& nav = NavigationManager::instance();
     lv_obj_t* panels[kUiPanelCount] = {nullptr};
     panels[static_cast<int>(PanelId::Home)] = lv_obj_create(test_screen());
-    panels[static_cast<int>(PanelId::Controls)] = lv_obj_create(test_screen());
+    panels[static_cast<int>(PanelId::Settings)] = lv_obj_create(test_screen());
     nav.set_panels(panels);
     set_visible(1);
     REQUIRE_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
 
-    NavigationManagerTestAccess::switch_to_panel(nav, PanelId::Controls);
+    // A tap on a nav button switches the panel.
+    lv_obj_send_event(lv_obj_find_by_name(navbar_, "nav_btn_settings"), LV_EVENT_CLICKED, nullptr);
     helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(nav.get_active() == PanelId::Settings);
     CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
 
     // Closing an overlay sweeps stray screen children the same way.
@@ -171,11 +174,19 @@ TEST_CASE_METHOD(NavbarFixture, "navbar E-stop survives a panel switch",
     nav.go_back();
     helix::ui::UpdateQueue::instance().drain();
     CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
-    nav.unregister_overlay_instance(overlay);
 
-    NavigationManagerTestAccess::switch_to_panel(nav, PanelId::Home);
+    // A tap on a nav button behind an open overlay's backdrop reaches the button.
+    nav.push_overlay(overlay);
     helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(50);
+    lv_area_t home;
+    lv_obj_get_coords(lv_obj_find_by_name(navbar_, "nav_btn_home"), &home);
+    UITest::init(test_screen());
+    REQUIRE(UITest::click_at((home.x1 + home.x2) / 2, (home.y1 + home.y2) / 2));
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(nav.get_active() == PanelId::Home);
     CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
+    nav.unregister_overlay_instance(overlay);
 }
 
 TEST_CASE_METHOD(NavbarFixture, "navbar E-stop stays bright above an overlay backdrop",
@@ -505,9 +516,8 @@ TEST_CASE("the navbar is the one E-stop where the navbar shows, and screens that
     }
 
     // These sit beside the navbar and drew a second E-stop over their content.
-    for (const char* path :
-         {"ui_xml/home_panel.xml", "ui_xml/controls_panel.xml", "ui_xml/micro/controls_panel.xml",
-          "ui_xml/print_status_panel.xml", "ui_xml/motion_panel.xml"}) {
+    for (const char* path : {"ui_xml/home_panel.xml", "ui_xml/controls_panel.xml",
+                             "ui_xml/print_status_panel.xml", "ui_xml/motion_panel.xml"}) {
         INFO(path);
         const std::string xml = read_xml(path);
         CHECK(xml.find("estop_visible") == std::string::npos);
@@ -561,16 +571,11 @@ TEST_CASE("no root panel takes text input, so the keyboard never opens over a li
     // navbar is inert under an overlay or modal backdrop.
     for (const char* stem : {"home_panel", "print_select_panel", "controls_panel", "filament_panel",
                              "settings_panel", "advanced_panel"}) {
-        for (const char* dir : {"ui_xml/", "ui_xml/micro/", "ui_xml/portrait/"}) {
-            const std::string path = std::string(dir) + stem + ".xml";
-            if (!std::filesystem::exists(path)) {
-                continue;
-            }
-            INFO(path);
-            const std::string xml = read_xml(path);
-            CHECK(xml.find("<text_input") == std::string::npos);
-            CHECK(xml.find("<lv_textarea") == std::string::npos);
-        }
+        const std::string path = std::string("ui_xml/") + stem + ".xml";
+        INFO(path);
+        const std::string xml = read_xml(path);
+        CHECK(xml.find("<text_input") == std::string::npos);
+        CHECK(xml.find("<lv_textarea") == std::string::npos);
     }
 }
 

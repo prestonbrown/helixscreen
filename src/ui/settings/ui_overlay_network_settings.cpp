@@ -146,12 +146,6 @@ NetworkSettingsOverlay::~NetworkSettingsOverlay() {
         subjects_.deinit_all();
         subjects_initialized_ = false;
     }
-
-    // Clear widget pointers (owned by LVGL)
-    overlay_root_ = nullptr;
-    parent_screen_ = nullptr;
-    networks_list_ = nullptr;
-    country_dropdown_ = nullptr;
     // NOTE: Do NOT use spdlog here - it may be destroyed during exit
 }
 
@@ -336,7 +330,6 @@ lv_obj_t* NetworkSettingsOverlay::create(lv_obj_t* parent_screen) {
 // ============================================================================
 
 void NetworkSettingsOverlay::on_activate() {
-    // Call base class first
     OverlayBase::on_activate();
     // A wake from the screensaver keeps lifetime_, so what it registered and
     // what it has in flight are still live.
@@ -352,7 +345,6 @@ void NetworkSettingsOverlay::on_activate() {
 
     spdlog::debug("[NetworkSettingsOverlay] on_activate()");
 
-    // Update connection status
     update_wifi_status();
     update_ethernet_status();
     update_any_network_connected();
@@ -390,6 +382,10 @@ void NetworkSettingsOverlay::on_activate() {
 
     // Start scanning if WiFi enabled
     if (wifi_manager_ && wifi_manager_->is_enabled()) {
+        // A rebuilt tree shows the last scan's rows until this one lands.
+        if (!waking && !cached_networks_.empty()) {
+            populate_network_list(cached_networks_);
+        }
         lv_subject_set_int(&wifi_scanning_, 1);
 
         auto token = lifetime_.token();
@@ -406,13 +402,11 @@ void NetworkSettingsOverlay::on_activate() {
 void NetworkSettingsOverlay::on_deactivating(DeactivateReason) {
     spdlog::debug("[NetworkSettingsOverlay] on_deactivating()");
 
-    // Stop scanning
     if (wifi_manager_) {
         wifi_manager_->stop_scan();
         lv_subject_set_int(&wifi_scanning_, 0);
     }
 
-    // Cancel any running tests
     if (network_tester_ && network_tester_->is_running()) {
         network_tester_->cancel();
         lv_subject_set_int(&test_running_, 0);
@@ -422,6 +416,12 @@ void NetworkSettingsOverlay::on_deactivating(DeactivateReason) {
 // ============================================================================
 // Cleanup
 // ============================================================================
+
+void NetworkSettingsOverlay::on_ui_destroyed() {
+    detach_country_dropdown();
+    networks_list_ = nullptr;
+    pending_wlan_toggle_switch_ = nullptr;
+}
 
 void NetworkSettingsOverlay::cleanup() {
     spdlog::debug("[NetworkSettingsOverlay] Cleaning up");
@@ -456,9 +456,8 @@ void NetworkSettingsOverlay::cleanup() {
     ethernet_manager_.reset();
     network_tester_.reset();
 
-    detach_country_dropdown();
+    on_ui_destroyed();
     parent_screen_ = nullptr;
-    networks_list_ = nullptr;
 
     current_ssid_[0] = '\0';
     current_network_is_secured_ = false;

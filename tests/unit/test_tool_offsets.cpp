@@ -438,36 +438,6 @@ TEST_CASE("tool offsets: a negative tool index emits nothing", "[tool_offsets]")
 // Axes: which of X / Y / Z each firmware keeps
 // ============================================================================
 
-TEST_CASE("tool offsets: klipper-toolchanger keeps all three axes", "[tool_offsets]") {
-    // gcode_x/y/z_offset are three fields on the same object, written by the
-    // same command, so a caller may loop kAllAxes without special cases.
-    PrinterDiscovery hw = toolchanger_printer();
-
-    for (Axis axis : helix::kAllAxes) {
-        CAPTURE(helix::axis_letter(axis));
-        CHECK(to_::supports_axis(hw, axis));
-    }
-}
-
-TEST_CASE("tool offsets: the TOOL_OFFSET macro keeps all three axes", "[tool_offsets]") {
-    // The controller applies t<n>_off_x/y/z together on every swap.
-    PrinterDiscovery hw = tool_offset_macro_printer();
-
-    for (Axis axis : helix::kAllAxes) {
-        CAPTURE(helix::axis_letter(axis));
-        CHECK(to_::supports_axis(hw, axis));
-    }
-}
-
-TEST_CASE("tool offsets: a printer without the capability supports no axis", "[tool_offsets]") {
-    PrinterDiscovery hw = plain_printer();
-
-    for (Axis axis : helix::kAllAxes) {
-        CAPTURE(helix::axis_letter(axis));
-        CHECK_FALSE(to_::supports_axis(hw, axis));
-    }
-}
-
 TEST_CASE("tool offsets: klipper-toolchanger writes X and Y through their own parameter",
           "[tool_offsets]") {
     // One parameter per command: SET_TOOL_PARAMETER takes a single PARAMETER=,
@@ -714,4 +684,91 @@ TEST_CASE("tool offsets: only klipper-toolchanger's probe offset belongs to T0",
     CHECK_FALSE(to_::probe_reference_tool(plain_printer()).has_value());
     CHECK_FALSE(to_::probe_reference_tool(tool_offset_macro_printer()).has_value());
     CHECK_FALSE(to_::probe_reference_tool(stock_medusahc_printer()).has_value());
+}
+
+// ============================================================================
+// Reforge (ff_toolchange): read like klipper-toolchanger, saved by SAVE_CONFIG
+// ============================================================================
+
+namespace {
+
+/// A Creator 5 Pro on Reforge: klipper-toolchanger's objects plus ff_toolchange.
+PrinterDiscovery reforge_printer() {
+    json objects = toolchanger_objects(4);
+    objects.push_back("ff_toolchange");
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
+}
+
+} // namespace
+
+TEST_CASE("tool offsets: Reforge is followed and saved by SAVE_CONFIG, never written",
+          "[tool_offsets][reforge]") {
+    // Reforge registers neither SET_TOOL_PARAMETER nor SAVE_TOOL_PARAMETER,
+    // and its offsets are derived from measured nozzle positions, so no axis
+    // is editable here. Its calibration stages its own result, which makes
+    // the save a bare SAVE_CONFIG: the axes are followed for Save.
+    PrinterDiscovery hw = reforge_printer();
+
+    CHECK(to_::provider_name(hw) == "Reforge ff_toolchange");
+    CHECK_FALSE(to_::supports_per_tool_offsets(hw));
+    CHECK(to_::persist_requires_save_config(hw));
+    CHECK(to_::required_status_objects(hw).empty());
+    CHECK(to_::probe_reference_tool(hw) == std::optional<int>(0));
+    for (Axis axis : helix::kAllAxes) {
+        CAPTURE(helix::axis_letter(axis));
+        CHECK_FALSE(to_::supports_axis(hw, axis));
+        CHECK(to_::reads_axis(hw, axis));
+        CHECK(to_::firmware_stages_axis(hw, axis));
+        CHECK(to_::set_tool_offset_gcode(hw, axis, 1, -50).empty());
+        CHECK(to_::save_tool_offset_gcode(hw, axis, 1, -50).empty());
+        CHECK(to_::activate_mounted_offset_gcode(hw, 1, 1).empty());
+        CHECK(to_::stage_live_offset_gcode(hw, axis, 1) ==
+              (axis == Axis::Z ? "TOOL_Z_ADJUST TOOL=1 ADJUST=0 SAVE=1" : ""));
+    }
+    CHECK(to_::stage_live_offset_gcode(hw, Axis::Z, -1).empty());
+
+    // The derived offsets ride on `tool T<n>`, in klipper-toolchanger's names.
+    auto reader = to_::resolve_reader(hw);
+    const json frame = {
+        {"tool T1",
+         {{"gcode_x_offset", -0.1104}, {"gcode_y_offset", 0.0}, {"gcode_z_offset", 3.2}}}};
+    CHECK(to_::read_tool_offset_microns(reader, frame, Axis::X, 1, "T1") == -110);
+    CHECK(to_::read_tool_offset_microns(reader, frame, Axis::Y, 1, "T1") == 0);
+    CHECK(to_::read_tool_offset_microns(reader, frame, Axis::Z, 1, "T1") == 3200);
+}
+
+TEST_CASE("tool offsets: only a tool changer running ff_toolchange is Reforge",
+          "[tool_offsets][reforge]") {
+    CHECK(to_::provider_name(toolchanger_printer()) == "klipper-toolchanger");
+    CHECK(to_::provider_name(tool_offset_macro_printer()) == "TOOL_OFFSET macro");
+    CHECK(to_::provider_name(indx_printer()) == "INDX save_variables");
+    CHECK(to_::provider_name(plain_printer()).empty());
+
+    // ff_toolchange without klipper-toolchanger's objects is no tool changer.
+    PrinterDiscovery bare;
+    bare.parse_objects(json::array({"gcode_move", "toolhead", "extruder", "ff_toolchange"}));
+    CHECK(to_::provider_name(bare).empty());
+    CHECK_FALSE(to_::firmware_stages_axis(bare, Axis::Z));
+}
+
+TEST_CASE("tool offsets: writable models keep all three axes and stage none", "[tool_offsets]") {
+    // klipper-toolchanger's gcode_x/y/z_offset are three fields written by one
+    // command, and MedusaHC's controller applies t<n>_off_x/y/z together, so a
+    // caller may loop kAllAxes. Neither leaves a write to the firmware. INDX is
+    // read-only and persists its own measurements: nothing staged for Save.
+    for (Axis axis : helix::kAllAxes) {
+        CAPTURE(helix::axis_letter(axis));
+        CHECK(to_::supports_axis(toolchanger_printer(), axis));
+        CHECK_FALSE(to_::firmware_stages_axis(toolchanger_printer(), axis));
+        CHECK(to_::supports_axis(tool_offset_macro_printer(), axis));
+        CHECK_FALSE(to_::firmware_stages_axis(tool_offset_macro_printer(), axis));
+        CHECK_FALSE(to_::firmware_stages_axis(indx_printer(), axis));
+        CHECK_FALSE(to_::supports_axis(plain_printer(), axis));
+        CHECK_FALSE(to_::firmware_stages_axis(plain_printer(), axis));
+        CHECK(to_::stage_live_offset_gcode(toolchanger_printer(), axis, 1).empty());
+        CHECK(to_::stage_live_offset_gcode(tool_offset_macro_printer(), axis, 1).empty());
+        CHECK(to_::stage_live_offset_gcode(indx_printer(), axis, 1).empty());
+    }
 }

@@ -190,5 +190,5 @@ EOF
             || fail "no test case is named: $name"
     done <<< "$names"
     [ "$count" -gt 0 ] || fail "read no entries from the list"
-    [ "$count" -le 21 ] || fail "$count entries: give the new case an assertion instead"
+    [ "$count" -le 18 ] || fail "$count entries: give the new case an assertion instead"
 }

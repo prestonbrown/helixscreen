@@ -76,8 +76,9 @@ inline constexpr float kHubYRatio = 0.30f;      // Hub/selector center
 inline constexpr float kHubHeightRatio = 0.10f; // Hub box height
 // Note: output sensor Y is computed as hub_bottom (butted against hub, no separate ratio)
 inline constexpr float kToolheadYRatio = 0.68f; // Toolhead sensor
-inline constexpr float kNozzleYRatio =
-    0.82f; // Nozzle/extruder center (needs more room for larger extruder)
+// The toolhead glyph stands on this line, so a tall head's art stays on the
+// canvas at every breakpoint; linear_hub_nozzle_y() turns it into the nozzle row.
+inline constexpr float kToolheadGlyphBottomRatio = 0.96f;
 
 // Bypass position (right side of widget)
 inline constexpr float kBypassXRatio = 0.85f; // Right side for bypass spool
@@ -546,6 +547,9 @@ helix::ui::GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t cy, int32_t sca
 /// Topmost drawn Y of the toolhead glyph for the configured style (its cap or
 /// shroud, above the nozzle inlet at nozzle_y - extruder_scale * 2).
 int32_t toolhead_top_y(int32_t nozzle_y, int32_t extruder_scale);
+/// The nozzle row at which draw_toolhead()'s glyph for the configured style,
+/// at base @p scale, ends on @p bottom_y.
+int32_t toolhead_standing_on(int32_t bottom_y, int32_t scale);
 /// The configured head's filament inlet at this nozzle row and scale.
 helix::ui::ToolheadInlet path_toolhead_inlet(int32_t nozzle_y, int32_t extruder_scale);
 

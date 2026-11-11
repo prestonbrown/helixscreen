@@ -175,7 +175,8 @@ TEST_CASE_METHOD(PromptFixture, "the install prompt opens only when the plugin i
         set_plugin_installed(true);
         CHECK(prompt() == nullptr);
     }
-    SECTION("absent: the prompt opens") {
+    SECTION("absent, never answered: the prompt opens") {
+        prefs.cfg->get_json("").erase("plugin_install_declined");
         set_plugin_installed(false);
         CHECK(prompt() != nullptr);
     }
@@ -222,6 +223,18 @@ TEST_CASE_METHOD(PromptFixture, "closing the install prompt snoozes it for seven
     start_at(kReal + 7 * kDay - 1);
     CHECK(prompt() == nullptr);
     start_at(kReal + 7 * kDay);
+    CHECK(prompt() != nullptr);
+}
+
+TEST_CASE_METHOD(PromptFixture, "an install prompt the app closed is not snoozed",
+                 "[plugin_installer][print_select]") {
+    set_plugin_installed(false);
+    REQUIRE(prompt() != nullptr);
+    Modal::hide(prompt(), ModalCloseReason::External);
+    drain();
+    REQUIRE(prompt() == nullptr);
+
+    start_at(kReal + kDay);
     CHECK(prompt() != nullptr);
 }
 

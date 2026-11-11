@@ -13,17 +13,9 @@
  * @brief Wizard summary step - displays configuration overview
  *
  * This is a read-only step that shows all configuration choices made
- * during the wizard. Uses 12 reactive subjects for data binding.
+ * during the wizard. Uses 19 reactive subjects for data binding.
  *
- * ## Class-Based Architecture (Phase 6)
- *
- * This step has been migrated from function-based to class-based design:
- * - Instance members instead of static globals
- * - RAII cleanup for subjects and buffers
- * - Static trampolines for any LVGL callbacks
- * - Global singleton getter for backwards compatibility
- *
- * ## Subject Bindings (14 total):
+ * ## Subject Bindings (19 total):
  *
  * - summary_printer_name (string) - Configured printer name
  * - summary_printer_type (string) - Selected printer type
@@ -39,6 +31,11 @@
  * - summary_led_strip_visible (int) - LED strip row visibility
  * - summary_filament_sensor (string) - Filament sensor selection
  * - summary_filament_sensor_visible (int) - Filament sensor row visibility
+ * - summary_ams_type (string) - Filament system and lane count, e.g. "AFC • 4 lanes"
+ * - summary_ams_visible (int) - Filament system row visibility
+ * - summary_input_shaper (string) - Accelerometer / calibration status
+ * - summary_input_shaper_visible (int) - Input shaper row visibility
+ * - summary_telemetry_visible (int) - Telemetry opt-in row visibility (first printer only)
  */
 
 /**

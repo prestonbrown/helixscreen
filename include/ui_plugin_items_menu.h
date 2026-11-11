@@ -9,7 +9,7 @@
 #include <string>
 #include <string_view>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: context_ held by value
 
 namespace helix::ui {
 

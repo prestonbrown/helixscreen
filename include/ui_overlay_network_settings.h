@@ -140,9 +140,8 @@ class NetworkSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "network_settings_overlay";
     }
-    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
     bool destroy_on_close() const override {
-        return false;
+        return true;
     }
 
     /**
@@ -177,6 +176,11 @@ class NetworkSettingsOverlay : public OverlayBase {
     }
 
     // Note: is_visible() inherited from OverlayBase
+
+  protected:
+    /// Drops the list, the pending switch and the country dropdown's handler
+    /// while the closed tree is still alive.
+    void on_ui_destroyed() override;
 
   private:
     // Widget references (minimal - prefer subjects)

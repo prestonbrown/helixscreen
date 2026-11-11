@@ -535,6 +535,7 @@ translations:
   Buffer: Buffer
   Buffer Status: Buffer Status
   Buffer tube problem: Buffer tube problem
+  Buffer-driven gear speed control: Buffer-driven gear speed control
   Build Volume: Build Volume
   'Build Volume: ': 'Build Volume: '
   'Building preview: %d%%': 'Building preview: %d%%'
@@ -1587,6 +1588,8 @@ translations:
   Fair match: Fair match
   Fan: Fan
   Fan Calibration: Fan Calibration
+  Fan Control: Fan Control
+  Fan Mode: Fan Mode
   Fan Speeds: Fan Speeds
   Fan Tach: Fan Tach
   Fan Transfer: Fan Transfer
@@ -1740,6 +1743,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: Follow your manual to swap the nozzle or hotend.
   'For a first Z home: claim the tool you put on the head': 'For a first Z home: claim the tool you put on the head'
   For materials that need a warm enclosure, like ABS or ASA: For materials that need a warm enclosure, like ABS or ASA
+  Force the MMU fans off or on, or follow Fan Control: Force the MMU fans off or on, or follow Fan Control
   Force/weight sensors: Force/weight sensors
   Forget: Forget
   Forget Network?: Forget Network?
@@ -1875,6 +1879,7 @@ translations:
   Heating the bed: Heating the bed
   Heating the bed and nozzle so the print re-grips and the nozzle lets go of it: Heating the bed and nozzle so the print re-grips and the nozzle lets go of it
   Heating the nozzle: Heating the nozzle
+  Heating the nozzle. Have the filament ready to push in.: Heating the nozzle. Have the filament ready to push in.
   Heating to %d°C... %.0f°C: Heating to %d°C... %.0f°C
   'Heating to %s: %d:%02d left': 'Heating to %s: %d:%02d left'
   Heating to {}°C before {}...: Heating to {}°C before {}...
@@ -2147,6 +2152,7 @@ translations:
   Keep pushing filament while it cools: Keep pushing filament while it cools
   Keep the bypass spool visible when bypass is off: Keep the bypass spool visible when bypass is off
   Keep Tuning: Keep Tuning
+  Keep the rotation distance sync feedback tunes: Keep the rotation distance sync feedback tunes
   Keep waiting: Keep waiting
   'Kept {}: a print started.': 'Kept {}: a print started.'
   Kick away: Kick away
@@ -2175,7 +2181,9 @@ translations:
     has entered shutdown state. This may be due to an emergency stop, thermal runaway,
     or configuration error.
   Klipper has no [virtual_sdcard] section.: Klipper has no [virtual_sdcard] section.
+  'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:'
   Klipper is halted — restart firmware to continue: Klipper is halted — restart firmware to continue
+  Klipper is restarting. Timelapse frames are captured from the next print.: Klipper is restarting. Timelapse frames are captured from the next print.
   Klipper ready: Klipper ready
   Klipper reserves 'default' for new calibrations. Choose another name.: Klipper reserves 'default' for new calibrations. Choose another name.
   Klipper restarting - macros activating: Klipper restarting - macros activating
@@ -2239,6 +2247,7 @@ translations:
   Layout: Layout
   Layout changes are off in safe mode. Restart to edit.: Layout changes are off in safe mode. Restart to edit.
   Learn More: Learn More
+  Leave empty for no unit: Leave empty for no unit
   Leave it: Leave it
   Leave this off for a clogged nozzle.: Leave this off for a clogged nozzle.
   LedSelect: LedSelect
@@ -2279,6 +2288,7 @@ translations:
   Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one: Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one
   Load and unload filament at the tool by hand: Load and unload filament at the tool by hand
   'Load canceled: nozzle target dropped': 'Load canceled: nozzle target dropped'
+  'Load canceled: the active tool changed': 'Load canceled: the active tool changed'
   Load complete: Load complete
   Load failed: Load failed
   Load filament: Load filament
@@ -2578,6 +2588,7 @@ translations:
   Network name cannot be empty: Network name cannot be empty
   'Network, display, sound, printer setup, and more. You can replay this tour anytime from Help & About.': 'Network, display, sound, printer setup, and more. You can replay this tour anytime from Help & About.'
   Neutral: Neutral
+  Neutralize Tension: Neutralize Tension
   Never: Never
   Never sleeps: Never sleeps
   New Spool: New Spool
@@ -2852,6 +2863,7 @@ translations:
   Open the slot editor when you load a new spool: Open the slot editor when you load a new spool
   OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here
   OpenAMS manages this spool's link: OpenAMS manages this spool's link
+  This filament system keeps its own spool records: This filament system keeps its own spool records
   AFC has no Spoolman configured: AFC has no Spoolman configured
   Opened: Opened
   Operation already in progress: Operation already in progress
@@ -3442,6 +3454,7 @@ translations:
   Reset failed: Reset failed
   Reset motor run-time counter: Reset motor run-time counter
   Reset tags: Reset tags
+  Reset Sync Feedback: Reset Sync Feedback
   Reset Tags: Reset Tags
   Reset to Default: Reset to Default
   Reset to defaults: Reset to defaults
@@ -3553,6 +3566,7 @@ translations:
   Run stopped: Run stopped
   Run test sequence on all lanes: Run test sequence on all lanes
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.
+  Run the MMU fans by temperature: Run the MMU fans by temperature
   Run the chamber dryer too: Run the chamber dryer too
   Run {}?: Run {}?
   Running loose: Running loose
@@ -3591,6 +3605,7 @@ translations:
   Save: Save
   Save & Restart: Save & Restart
   Save As New: Save As New
+  Save Autotuned Rotation: Save Autotuned Rotation
   Save Hardware: Save Hardware
   Save Printer Configuration: Save Printer Configuration
   Save Theme As: Save Theme As
@@ -3717,6 +3732,7 @@ translations:
   Select slot failed: Select slot failed
   Select the heaters Klipper uses for your bed and hotend: Select the heaters Klipper
     uses for your bed and hotend
+  Select this tool first, then load it by hand.: Select this tool first, then load it by hand.
   Select which devices the home screen power button controls: Select which devices
     the home screen power button controls
   Select which sensor triggers pause on filament runout: Select which sensor triggers
@@ -4055,7 +4071,9 @@ translations:
     requires a config change and Klipper restart.
   Sync: Sync
   Switching to {}: Switching to {}
+  Sync Feedback: Sync Feedback
   Sync during printing: Sync during printing
+  Sync feedback is off: Sync feedback is off
   Sync with Spoolman: Sync with Spoolman
   Syncing Motors...: Syncing Motors...
   Syncing motors...: Syncing motors...
@@ -4348,6 +4366,7 @@ translations:
   The temperature was changed elsewhere.: The temperature was changed elsewhere.
   The time, date, and system uptime: The time, date, and system uptime
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: The timelapse or logs folder overlaps a protected folder, so cleanup is off.
+  Timelapse frames start after Klipper restarts.: Timelapse frames start after Klipper restarts.
   Timelapse or logs folder overlaps a protected one.: "Timelapse or logs folder overlaps a protected one."
   ? The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.
   : 'The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.'
@@ -4423,6 +4442,7 @@ translations:
     is loaded.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.
   This firmware can only switch slots by loading them: This firmware can only switch slots by loading them
+  This toolhead has no automatic feeder. Load the filament by hand.: This toolhead has no automatic feeder. Load the filament by hand.
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.
@@ -4677,6 +4697,7 @@ translations:
     script may be stuck.
   Unit: Unit
   'Unit ': 'Unit '
+  Unit text: Unit text
   'Units: %d   Boxes: %d   Dryers: %d': 'Units: %d   Boxes: %d   Dryers: %d'
   Unknown: Unknown
   Unknown Error: Unknown Error

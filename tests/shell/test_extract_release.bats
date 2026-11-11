@@ -123,15 +123,13 @@ create_tarball_no_binary() {
 nounzip_path() {
     local b="$BATS_TEST_TMPDIR/nounzip"
     mkdir -p "$b"
+    # One ln per directory: without -f it skips names already linked, so the
+    # first directory holding a command wins, as on PATH.
     for d in /bin /usr/bin /usr/local/bin; do
         [ -d "$d" ] || continue
-        for f in "$d"/*; do
-            local n
-            n=$(basename "$f")
-            [ "$n" = unzip ] && continue
-            [ -e "$b/$n" ] || ln -sf "$f" "$b/$n" 2>/dev/null || true
-        done
+        ln -s "$d"/* "$b"/ 2>/dev/null || true
     done
+    rm -f "$b/unzip"
     echo "$b"
 }
 

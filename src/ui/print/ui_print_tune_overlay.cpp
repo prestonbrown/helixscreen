@@ -38,12 +38,7 @@ using namespace helix;
 
 PrintTuneOverlay::~PrintTuneOverlay() {
     // Clean up observers before subjects
-    speed_observer_.reset();
-    live_velocity_observer_.reset();
-    max_velocity_observer_.reset();
-    extruder_vel_observer_.reset();
-    units_observer_.reset();
-    pa_observer_.reset();
+    release_observers();
 
     // Clean up subjects
     if (subjects_initialized_) {
@@ -52,6 +47,21 @@ PrintTuneOverlay::~PrintTuneOverlay() {
     }
 
     spdlog::trace("[PrintTuneOverlay] Destroyed");
+}
+
+void PrintTuneOverlay::release_observers() {
+    speed_observer_.reset();
+    tools_version_observer_.reset();
+    active_tool_observer_.reset();
+    live_velocity_observer_.reset();
+    max_velocity_observer_.reset();
+    extruder_vel_observer_.reset();
+    units_observer_.reset();
+    pa_observer_.reset();
+}
+
+void PrintTuneOverlay::on_ui_destroyed() {
+    release_observers();
 }
 
 // ============================================================================
@@ -84,6 +94,7 @@ void PrintTuneOverlay::init_subjects() {
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(tune_z_offset_subject_, tune_z_offset_buf_, "0.000mm",
                               "tune_z_offset_display", subjects_);
+    UI_MANAGED_SUBJECT_INT(tune_z_offset_microns_subject_, 0, "tune_z_offset_microns", subjects_);
 
     // Actual speed/flow display subjects (read-only, updated by observers)
     UI_MANAGED_SUBJECT_STRING(tune_actual_speed_subject_, tune_actual_speed_buf_, "",
@@ -262,11 +273,7 @@ void PrintTuneOverlay::sync_to_state() {
     // Opening the overlay starts a new tuning session; travel is bounded from here.
     session_base_z_offset_ = current_z_offset_;
 
-    // Sync the visual indicator
-    if (lv_obj_t* indicator =
-            helix::ui::find_required(overlay_root_, "z_offset_indicator", get_name())) {
-        ui_z_offset_indicator_set_value(indicator, z_offset_microns);
-    }
+    lv_subject_set_int(&tune_z_offset_microns_subject_, z_offset_microns);
 
     update_pa_display();
 
@@ -468,10 +475,10 @@ void PrintTuneOverlay::handle_z_offset_changed(double delta) {
     current_z_offset_ = r.new_offset_mm;
     update_tool_z_displays();
 
+    lv_subject_set_int(&tune_z_offset_microns_subject_,
+                       static_cast<int>(std::lround(current_z_offset_ * 1000.0)));
     if (lv_obj_t* indicator =
             helix::ui::find_required(overlay_root_, "z_offset_indicator", get_name())) {
-        ui_z_offset_indicator_set_value(indicator,
-                                        static_cast<int>(std::lround(current_z_offset_ * 1000.0)));
         ui_z_offset_indicator_flash_direction(indicator, r.applied_delta_mm > 0 ? 1 : -1);
     }
 }

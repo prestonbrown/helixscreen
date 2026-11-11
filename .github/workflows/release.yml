@@ -892,6 +892,27 @@ jobs:
           exit 1
         fi
 
+    # Firmware mods fetch some assets by exact name (Z-Mod's type: web updater, PAXX's
+    # pinned URL, the install.sh every installer route pipes). A rename would leave their
+    # users unable to install or update with no error on our side, so a missing name
+    # fails here, before anything is published. The names live in
+    # scripts/distribution_partners.json, the same data docs/devel/INSTALLER.md's table
+    # is rendered from. The platform list keeps a dry run of a subset green.
+    # Versioned archives are named from VERSION.txt (mk/cross.mk). A tag push checks them
+    # under the tag itself, since PAXX builds its URL from the tag and a VERSION.txt that
+    # disagrees must fail; a dry run's tag is synthetic, so it checks VERSION.txt's name.
+    - name: Verify distribution partner assets are present
+      env:
+        BUILT_PLATFORMS: ${{ needs.plan.outputs.platforms }}
+      run: |
+        set -euo pipefail
+        if [ "$RELEASE_MODE" = publish ]; then
+          ASSET_TAG="$RELEASE_TAG"
+        else
+          ASSET_TAG="v$(cat VERSION.txt)"
+        fi
+        python3 scripts/distribution_partners.py check release-files --tag "$ASSET_TAG" --platforms "$BUILT_PLATFORMS"
+
     - name: Prepare symbol files for release
       run: |
         mkdir -p release-files/symbols

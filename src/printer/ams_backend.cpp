@@ -6,6 +6,7 @@
 #include "ams_backend_afc.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_backend_indx.h"
+#include "ams_backend_lane_status.h"
 #include "ams_backend_openams.h"
 #include "ams_dryer.h"
 #include "ams_state.h"
@@ -198,8 +199,8 @@ constexpr bool http_poll_ams_backends_supported() {
 
 namespace {
 
-/// The one self-backup rejection. Three backends used to phrase this three
-/// different ways for the same condition.
+/// The one self-backup rejection, so every backend phrases the condition the same
+/// way.
 AmsError endless_spool_self_backup_error(int slot_index) {
     return AmsError(AmsResult::INVALID_SLOT,
                     "Slot " + std::to_string(slot_index) +
@@ -440,7 +441,7 @@ std::optional<int> AmsBackend::head_source_slot(int head, const AmsSystemInfo& i
 AmsError AmsBackend::unload_active_filament() {
     // Single source of truth for "unload active slot". Reads current_slot ONCE
     // from the same get_system_info() snapshot the caller would use, then
-    // forwards. Backends' unload_filament overrides no longer re-resolve -1 →
+    // forwards. Backends' unload_filament overrides do not re-resolve -1 →
     // current_slot themselves, so the UI's "is anything loaded?" check and the
     // unload call can't diverge on different snapshots.
     //
@@ -637,8 +638,8 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
 
     // Find the moonraker mock to subscribe to. get_moonraker_client_mock() is
     // the registered client narrowed to the concrete mock type — non-null only
-    // when the client really is a MoonrakerClientMock, which is what the
-    // dynamic_cast here used to establish (the firmware builds -fno-rtti).
+    // when the client really is a MoonrakerClientMock, which is what a
+    // dynamic_cast would establish (the firmware builds -fno-rtti).
     // When the caller named a client explicitly, it only counts if it is that
     // same object. The AmsState init path calls AmsBackend::create(NONE, null,
     // null) before the factory hooks up specific backends, so the registered
@@ -835,11 +836,11 @@ static std::unique_ptr<AmsBackend> try_create_mock(IMoonrakerClient* mock_client
                      mode);
         return nullptr;
     }
-    // multiACE on a U1 and INDX: mock hardware the same way. MoonrakerClientMock
-    // seeds their objects and frames, and the production AmsBackendMultiAce /
-    // AmsBackendIndx run against them (multiACE pairs with
-    // HELIX_MOCK_PRINTER=snapmaker_u1).
-    if (mode == "multiace" || mode == "indx") {
+    // multiACE on a U1, INDX and a lane_status producer: mock hardware the same
+    // way. MoonrakerClientMock seeds their objects and frames, and the
+    // production AmsBackendMultiAce / AmsBackendIndx / AmsBackendLaneStatus run
+    // against them (multiACE pairs with HELIX_MOCK_PRINTER=snapmaker_u1).
+    if (mode == "multiace" || mode == "indx" || mode == "lane_status") {
         spdlog::info("[AMS Backend] HELIX_MOCK_AMS={} selects mock hardware, not a mock "
                      "backend - deferring to real discovery",
                      mode);
@@ -879,6 +880,8 @@ constexpr BackendClassOps kOpenAmsOps{construct_backend<AmsBackendOpenAms>, null
 // Sized and wired by set_discovery() before start().
 constexpr BackendClassOps kIndxOps{construct_backend<AmsBackendIndx>, nullptr,
                                    AmsBackendIndx::required_status_objects};
+constexpr BackendClassOps kLaneStatusOps{construct_backend<AmsBackendLaneStatus>, nullptr,
+                                         AmsBackendLaneStatus::required_status_objects};
 // The caller names the tools through set_discovered_tools() after creation.
 constexpr BackendClassOps kToolChangerOps{construct_backend<AmsBackendToolChanger>};
 
@@ -894,6 +897,7 @@ constexpr std::string_view kAceAliases[] = {"valgace", "ValgACE", "bunnyace", "B
                                             "duckace", "DuckACE", "ace",      "ACE Pro"};
 constexpr std::string_view kQidiAliases[] = {"qidi_box", "QIDI Box", "qidibox"};
 constexpr std::string_view kSnapmakerAliases[] = {"snapmaker", "Snapmaker", "snapswap", "SnapSwap"};
+constexpr std::string_view kLaneStatusAliases[] = {"lane_status", "Lane Status"};
 constexpr std::string_view kToolChangerAliases[] = {"toolchanger", "tool_changer", "Tool Changer"};
 
 constexpr AmsBackendRow make_row(AmsType type, const BackendClassOps& ops, bool needs_http_poll,
@@ -928,6 +932,7 @@ constexpr AmsBackendRow kBackendRows[] = {
     make_row(AmsType::QIDI_BOX, kQidiOps, false, false, true, kQidiAliases),
     // A U1 is both: it swaps heads and feeds each from a lane.
     make_row(AmsType::SNAPMAKER, kSnapmakerOps, false, true, true, kSnapmakerAliases),
+    make_row(AmsType::LANE_STATUS, kLaneStatusOps, false, false, true, kLaneStatusAliases),
     make_row(AmsType::TOOL_CHANGER, kToolChangerOps, false, true, false, kToolChangerAliases,
              "tool_changer"),
 };

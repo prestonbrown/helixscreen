@@ -618,8 +618,9 @@ TEST_CASE_METHOD(MacroUploadFixture, "MacroManager - install reaches the upload 
     CHECK_FALSE(error->message.empty());
 }
 
-TEST_CASE_METHOD(MacroUploadFixture, "MacroManager - update reaches the upload step",
-                 "[config][install]") {
+TEST_CASE_METHOD(MacroUploadFixture,
+                 "MacroManager - update stops when the installed file cannot be read",
+                 "[config][install][timelapse]") {
     hardware_.parse_objects(
         json::array({"gcode_macro HELIX_READY", "gcode_macro HELIX_START_PRINT",
                      "gcode_macro HELIX_CLEAN_NOZZLE", "gcode_macro HELIX_BED_MESH_IF_NEEDED",
@@ -634,7 +635,8 @@ TEST_CASE_METHOD(MacroUploadFixture, "MacroManager - update reaches the upload s
 
     REQUIRE_FALSE(success_called);
     REQUIRE(error.has_value());
-    CHECK(error->method == "upload_file");
+    // It reads helix_macros.cfg first, so a regeneration never drops what that file carries.
+    CHECK(error->method == "download_file");
     CHECK(error->type == MoonrakerErrorType::CONNECTION_LOST);
     CHECK_FALSE(error->message.empty());
 }
@@ -956,4 +958,107 @@ TEST_CASE_METHOD(MacroStageFixture, "a commented-out include is neither counted 
         CHECK(api_.get_uploaded_config("printer.cfg").value_or("") ==
               std::string("#[include helix_skips.cfg]\n") + kPrinterCfg);
     }
+}
+
+// ============================================================================
+// moonraker-timelapse's macros through helix_macros.cfg
+// ============================================================================
+
+namespace {
+constexpr const char* kTimelapseRepo = "/home/biqu/moonraker-timelapse";
+constexpr const char* kTimelapseLine =
+    "[include /home/biqu/moonraker-timelapse/klipper_macro/timelapse.cf[g]]";
+} // namespace
+
+TEST_CASE("the timelapse include names the checkout's file, never the config-root symlink",
+          "[config][timelapse]") {
+    // The config-root timelapse.cfg is a symlink into the checkout: a glob still
+    // matches it once the checkout is gone, and Klipper cannot open it.
+    CHECK(MacroManager::timelapse_include_line(kTimelapseRepo) == kTimelapseLine);
+
+    const std::string pack = "# helix_macros v2.0.0\n[gcode_macro HELIX_READY]\ngcode:\n";
+    const std::string with = MacroManager::with_timelapse_include(pack, kTimelapseLine);
+    CHECK(with.rfind(pack, 0) == 0);
+    CHECK(MacroManager::find_timelapse_include(with) == kTimelapseLine);
+    CHECK(MacroManager::with_timelapse_include(with, kTimelapseLine) == with);
+    CHECK_FALSE(MacroManager::has_timelapse_include(pack));
+    CHECK_FALSE(MacroManager::has_timelapse_include(std::string("#") + kTimelapseLine + "\n"));
+    CHECK_FALSE(MacroManager::has_timelapse_include("[include timelapse.cf[g]]\n"));
+    CHECK_FALSE(MacroManager::has_timelapse_include("[include timelapse.cfg]\n"));
+}
+
+TEST_CASE_METHOD(MacroStageFixture,
+                 "include_timelapse_macros adds the line to helix_macros.cfg only",
+                 "[config][install][timelapse]") {
+    const std::string pack = "# helix_macros v2.0.0\n[gcode_macro HELIX_READY]\ngcode:\n";
+    const std::string printer_cfg = std::string("[include helix_macros.cfg]\n") + kPrinterCfg;
+    api_.set_config_files({{"printer.cfg", printer_cfg}, {"helix_macros.cfg", pack}});
+
+    bool done = false;
+    std::optional<MoonrakerError> error;
+    manager_.include_timelapse_macros(
+        kTimelapseRepo, [&] { done = true; }, [&](const MoonrakerError& err) { error = err; });
+    settle();
+
+    REQUIRE_FALSE(error.has_value());
+    REQUIRE(done);
+    const std::string staged = api_.get_uploaded_config("helix_macros.cfg").value_or("");
+    CHECK(staged == MacroManager::with_timelapse_include(pack, kTimelapseLine));
+    CHECK(api_.get_uploaded_config("printer.cfg").value_or("") == printer_cfg);
+    CHECK(backup_count() == 0);
+
+    SECTION("a second run writes nothing new") {
+        done = false;
+        manager_.include_timelapse_macros(
+            kTimelapseRepo, [&] { done = true; }, [](const MoonrakerError&) {});
+        settle();
+        CHECK(done);
+        CHECK(api_.get_uploaded_config("helix_macros.cfg").value_or("") == staged);
+    }
+    SECTION("update_files keeps it in the regenerated pack") {
+        hardware_.parse_objects(json::array({"gcode_macro HELIX_READY", "bed_mesh"}));
+        bool updated = false;
+        manager_.update_files([&] { updated = true; }, [](const MoonrakerError&) {});
+        settle();
+        REQUIRE(updated);
+        const std::string regenerated = api_.get_uploaded_config("helix_macros.cfg").value_or("");
+        CHECK(regenerated.find("[gcode_macro HELIX_CLEAN_NOZZLE]") != std::string::npos);
+        CHECK(MacroManager::find_timelapse_include(regenerated) == kTimelapseLine);
+    }
+    SECTION("uninstall removes it with the file") {
+        manager_.uninstall([] {}, [](const MoonrakerError&) {});
+        settle();
+        const auto& deleted = api_.files_mock().deleted_files();
+        CHECK(std::find(deleted.begin(), deleted.end(), "config/helix_macros.cfg") !=
+              deleted.end());
+    }
+}
+
+TEST_CASE_METHOD(MacroStageFixture, "update_files adds no timelapse include the pack never had",
+                 "[config][install][timelapse]") {
+    hardware_.parse_objects(json::array({"gcode_macro HELIX_READY", "bed_mesh"}));
+    bool updated = false;
+    std::optional<MoonrakerError> error;
+    manager_.update_files([&] { updated = true; }, [&](const MoonrakerError& err) { error = err; });
+    settle();
+    // No installed helix_macros.cfg to read is a fresh printer: the update still lands.
+    REQUIRE_FALSE(error.has_value());
+    CHECK(updated);
+    const auto staged = api_.get_uploaded_config("helix_macros.cfg");
+    REQUIRE(staged.has_value());
+    CHECK(staged->find("[gcode_macro HELIX_READY]") != std::string::npos);
+    CHECK_FALSE(MacroManager::has_timelapse_include(*staged));
+}
+
+TEST_CASE_METHOD(MacroStageFixture, "include_timelapse_macros fails without a helix_macros.cfg",
+                 "[config][install][timelapse]") {
+    bool done = false;
+    std::optional<MoonrakerError> error;
+    manager_.include_timelapse_macros(
+        kTimelapseRepo, [&] { done = true; }, [&](const MoonrakerError& err) { error = err; });
+    settle();
+    CHECK_FALSE(done);
+    REQUIRE(error.has_value());
+    CHECK(error->type == MoonrakerErrorType::FILE_NOT_FOUND);
+    CHECK_FALSE(api_.get_uploaded_config("helix_macros.cfg").has_value());
 }

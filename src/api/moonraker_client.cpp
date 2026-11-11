@@ -28,6 +28,7 @@
 #include "klippy_notification.h"
 #include "moonraker_auth.h"
 #include "moonraker_auth_http.h"
+#include "moonraker_status_notification.h"
 #include "printer_state.h"
 #include "system/telemetry_manager.h"
 #include "translation_loader.h"

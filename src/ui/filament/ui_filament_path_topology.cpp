@@ -672,8 +672,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
 
     const LinearHubFrame f = compute_linear_hub_frame(
         *data, ctx.geo,
-        toolhead_top_y(ctx.geo.y_off + (int32_t)(ctx.geo.height * kNozzleYRatio),
-                       data->theme.extruder_scale));
+        toolhead_top_y(linear_hub_nozzle_y(*data, ctx.geo), data->theme.extruder_scale));
     PathPlan& plan = plan_scratch();
     plan_linear_hub(f, *data, ctx.geo, plan);
     warn_if_dropped(plan);

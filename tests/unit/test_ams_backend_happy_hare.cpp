@@ -42,6 +42,7 @@
 #include <algorithm>
 #include <any>
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <utility>
@@ -5477,6 +5478,111 @@ TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare v4 takes a drying humidity targ
         CHECK(helper.captured_gcodes ==
               std::vector<std::string>{
                   "MMU_HEATER DRY=1 TEMP=50 TIMER=60 HUMIDITY=15 UNIT=1 GATES=6,7,8,9"});
+    }
+}
+
+namespace {
+/// The v4 sync feedback and fan rows the backend offers now, by id.
+std::map<std::string, helix::printer::DeviceAction>
+v4_control_rows(const AmsBackendHappyHareTestHelper& helper) {
+    std::map<std::string, helix::printer::DeviceAction> rows;
+    for (auto& a : helper.get_device_actions()) {
+        if (a.id.rfind("sync_feedback", 0) == 0 || a.id.rfind("mmu_fan_", 0) == 0) {
+            rows.emplace(a.id, a);
+        }
+    }
+    return rows;
+}
+
+nlohmann::json fan_entry(const char* unit, int first_gate, bool enabled,
+                         const nlohmann::json& modes) {
+    return {{"unit", unit},
+            {"first_gate", first_gate},
+            {"per_gate", modes.size() > 1},
+            {"enabled", enabled},
+            {"modes", modes}};
+}
+} // namespace
+
+TEST_CASE_METHOD(HhFourGatesWithClient,
+                 "Happy Hare v4 sync feedback and fan controls; v3 and absent hardware show none",
+                 "[ams][happy_hare][hh_v4][hh_v4_controls]") {
+    helper.set_running(true);
+    const nlohmann::json both = {{"sync_feedback_enabled", true},
+                                 {"fans", {fan_entry("unit0", 0, true, {2})}}};
+
+    SECTION("v3: no rows, and a control is refused unsent") {
+        feed_params(helper, {{"mmu", both}});
+        CHECK(v4_control_rows(helper).empty());
+        helper.clear_captured_gcodes();
+        CHECK_FALSE(helper.execute_device_action("sync_feedback", std::any(false)).success());
+        CHECK_FALSE(helper.execute_device_action("mmu_fan_mode:unit0", std::any(std::string("On")))
+                        .success());
+        CHECK(helper.captured_gcodes.empty());
+    }
+    SECTION("v4 single unit: each control's command, no UNIT=") {
+        const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+        connect_with_fixture(helper, client, fx);
+        // The fixture's unit has no buffer and no managed fans.
+        feed_params(helper, {{"mmu", fx["mmu_status"]}});
+        CHECK(v4_control_rows(helper).empty());
+
+        feed_params(helper, {{"mmu", both}});
+        auto rows = v4_control_rows(helper);
+        REQUIRE(rows.size() == 6);
+        CHECK(*std::any_cast<bool>(&rows["sync_feedback"].current_value));
+        CHECK_FALSE(*std::any_cast<bool>(&rows["sync_feedback_autotune"].current_value));
+        CHECK(rows["sync_feedback_reset"].enabled);
+        CHECK(rows["sync_feedback_adjust_tension"].moves_machine);
+        CHECK(*std::any_cast<std::string>(&rows["mmu_fan_mode:unit0"].current_value) == "Auto");
+
+        helper.clear_captured_gcodes();
+        CHECK(helper.execute_device_action("sync_feedback", std::any(false)).success());
+        CHECK(helper.execute_device_action("sync_feedback_autotune", std::any(true)).success());
+        CHECK(helper.execute_device_action("sync_feedback_reset", {}).success());
+        CHECK(helper.execute_device_action("sync_feedback_adjust_tension", {}).success());
+        CHECK(helper.execute_device_action("mmu_fan_control:unit0", std::any(false)).success());
+        CHECK(helper.execute_device_action("mmu_fan_mode:unit0", std::any(std::string("On")))
+                  .success());
+        CHECK(helper.captured_gcodes ==
+              std::vector<std::string>{"MMU_SYNC_FEEDBACK ENABLE=0", "MMU_SYNC_FEEDBACK AUTOTUNE=1",
+                                       "MMU_SYNC_FEEDBACK RESET=1",
+                                       "MMU_SYNC_FEEDBACK ADJUST_TENSION=1", "MMU_FAN ENABLE=0",
+                                       "MMU_FAN FAN_FORCED=1"});
+        // Happy Hare does not report AUTOTUNE, so the row shows what was sent.
+        CHECK(
+            *std::any_cast<bool>(&v4_control_rows(helper)["sync_feedback_autotune"].current_value));
+
+        // Off: Reset does nothing in Happy Hare, so it is refused here.
+        feed_params(helper, {{"mmu", {{"sync_feedback_enabled", false}}}});
+        CHECK_FALSE(v4_control_rows(helper)["sync_feedback_reset"].enabled);
+        // Null: the selected unit has no buffer, so its rows go.
+        feed_params(helper, {{"mmu", {{"sync_feedback_enabled", nullptr}}}});
+        CHECK(v4_control_rows(helper).count("sync_feedback") == 0);
+        CHECK(v4_control_rows(helper).count("mmu_fan_mode:unit0") == 1);
+    }
+    SECTION("v4 two units: the command names its unit") {
+        auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
+        connect_with_fixture(helper, client, fx);
+        fx["mmu_status"]["sync_feedback_enabled"] = true;
+        fx["mmu_status"]["fans"] = {fan_entry("ercf", 0, true, {2}),
+                                    fan_entry("bt", 6, false, {0, 1, nullptr, 0})};
+        feed_params(helper, {{"mmu", fx["mmu_status"]}});
+        auto rows = v4_control_rows(helper);
+        // Per-gate fans that disagree have no one mode to show.
+        CHECK(std::any_cast<std::string>(&rows["mmu_fan_mode:bt"].current_value)->empty());
+        CHECK(rows["mmu_fan_mode:bt"].description == "Box Turtle");
+        // Nothing is loaded in this fixture.
+        CHECK_FALSE(rows["sync_feedback_adjust_tension"].enabled);
+
+        helper.clear_captured_gcodes();
+        CHECK(helper.execute_device_action("sync_feedback", std::any(false)).success());
+        CHECK(helper.execute_device_action("mmu_fan_mode:bt", std::any(std::string("Auto")))
+                  .success());
+        CHECK_FALSE(helper.execute_device_action("sync_feedback_adjust_tension", {}).success());
+        CHECK(helper.captured_gcodes ==
+              std::vector<std::string>{"MMU_SYNC_FEEDBACK ENABLE=0 UNIT=1",
+                                       "MMU_FAN FAN_FORCED=2 UNIT=bt"});
     }
 }
 

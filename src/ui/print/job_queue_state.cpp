@@ -25,6 +25,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include "hv/json.hpp"
+
 JobQueueState::JobQueueState(helix::IMoonrakerAPI* api, helix::IMoonrakerClient* client)
     : api_(api), client_(client) {
     std::memset(up_next_text_buffer_, 0, sizeof(up_next_text_buffer_));

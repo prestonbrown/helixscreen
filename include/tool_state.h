@@ -398,6 +398,13 @@ class ToolState {
     /// Whether init_tools() found a per-tool offset on any axis.
     [[nodiscard]] bool per_tool_offsets_supported() const;
 
+    /// Whether status frames update tools_' offsets on @p axis: an axis the UI
+    /// may edit, or one the firmware's own calibration stages for SAVE_CONFIG
+    /// (tool_offsets::firmware_stages_axis), which Save must see without an
+    /// edit control HelixScreen cannot send.
+    [[nodiscard]] bool follows_axis(Axis axis) const;
+    [[nodiscard]] bool follows_any_axis() const;
+
     /// Recompute any_tool_offset_dirty from tools_.
     void refresh_any_tool_dirty();
     /// Drop heads_cache_ after anything it derives from changed, and republish
@@ -412,6 +419,8 @@ class ToolState {
     /// The offset model init_tools() resolved from the hardware, so the
     /// status path - which has no PrinterDiscovery - reads by direct lookup.
     helix::tool_offsets::OffsetReader offset_reader_;
+    /// Per axis, tool_offsets::firmware_stages_axis() as init_tools() found it.
+    std::array<bool, 3> firmware_staged_axes_{};
 
     /// Expires the tool-offset query callbacks, which fire from the WebSocket
     /// thread long after the request was issued. Declared after

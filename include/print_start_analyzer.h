@@ -59,12 +59,9 @@ class IMoonrakerAPI;
 /**
  * @brief Alias for OperationCategory
  *
- * PrintStartOpCategory is now an alias to the shared OperationCategory enum
- * in operation_patterns.h. This provides a single source of truth for
- * operation categories across the codebase.
- *
- * Note: OperationCategory::PURGE_LINE corresponds to what was previously
- * PrintStartOpCategory::PRIMING.
+ * The shared OperationCategory enum in operation_patterns.h is the single
+ * source of truth for operation categories across the codebase. Priming
+ * operations are OperationCategory::PURGE_LINE.
  */
 using PrintStartOpCategory = OperationCategory;
 
@@ -73,8 +70,8 @@ using PrintStartOpCategory = OperationCategory;
  */
 [[nodiscard]] const char* category_to_string(PrintStartOpCategory category);
 
-// ParameterSemantic is now defined in operation_patterns.h (LT3 unification)
-// Use helix::ParameterSemantic from that header
+// ParameterSemantic is defined in operation_patterns.h; use helix::ParameterSemantic
+// from that header
 
 /**
  * @brief An operation detected within a PRINT_START macro

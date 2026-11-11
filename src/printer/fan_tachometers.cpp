@@ -8,6 +8,8 @@
 #include <cmath>
 #include <string_view>
 
+#include "hv/json.hpp"
+
 namespace helix::fan_tach {
 namespace {
 

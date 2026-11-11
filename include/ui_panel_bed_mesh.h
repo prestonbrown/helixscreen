@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "ui_subscription_guard.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
@@ -18,6 +17,7 @@
 #include "overlay_base.h"
 #include "save_config_restart.h"
 #include "subject_managed_panel.h"
+#include "subscription_guard.h"
 
 #include <array>
 #include <functional>

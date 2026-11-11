@@ -412,13 +412,15 @@ Takes the moonraker-timelapse plugin away from the mock, so Advanced shows **Set
 
 | Property | Value |
 |----------|-------|
-| **Values** | `absent` (no plugin, ffmpeg installed), `no-ffmpeg` (no ffmpeg, so the last screen shows the command that installs it) |
+| **Values** | Comma-separated words. `absent` (no plugin, ffmpeg installed), `no-ffmpeg` (no ffmpeg, so the last screen shows the command that installs it), `helix-macros` (Klipper has HelixScreen's helper macros loaded and no `TIMELAPSE_TAKE_FRAME`, so the wizard's last screen and Timelapse Settings add the timelapse include to the mock's `helix_macros.cfg` and offer Restart Klipper; combines with either of the others) |
 | **Default** | unset (plugin present) |
 | **File** | `src/mock/timelapse_host_mock.cpp` |
 
 ```bash
 HELIX_MOCK_TIMELAPSE=no-ffmpeg ./build/bin/helix-screen --test -vv             # local install, ffmpeg left to the user
 HELIX_MOCK_TIMELAPSE=absent HELIX_MOCK_REMOTE_PRINTER=1 ./build/bin/helix-screen --test -vv   # SSH instructions
+HELIX_MOCK_TIMELAPSE=absent,helix-macros ./build/bin/helix-screen --test -vv  # wizard ends on the Restart Klipper card
+HELIX_MOCK_TIMELAPSE=helix-macros ./build/bin/helix-screen --test -vv         # Timelapse Settings shows the Restart Klipper card
 ```
 
 ### `HELIX_MOCK_WEBCAMS`
@@ -731,7 +733,7 @@ Select the mock AMS topology/type.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `none`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace` |
+| **Values** | `none`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace`, `indx`, `lane_status` |
 | **Default** | The persona's own (`helix::mock::effective_mock_ams`): `toolchanger` on `creator5`, `ifs` on `ad5x`, `cfs` on `k2`, `snapmaker` on `snapmaker_u1`; Happy Hare, LINEAR, 4 slots on every other persona |
 | **File** | `src/printer/ams_backend.cpp` |
 
@@ -759,6 +761,7 @@ Select the mock AMS topology/type.
 | `openams` | 1 | **OpenAMS hub - mock HARDWARE, real backend.** Lists and pushes the `oams_manager` status object (4-bay hub unit, FPS lane, groups T0/T1/T2, slot 4 loaded) so real discovery claims OpenAMS and the production `AmsBackendOpenAms` runs. Slots 3 and 4 get ASA identity seeded into `lane_data`; `OPENAMS_UNLOAD` / `OPENAMS_LOAD GROUP=Tn` flip the loaded slot |
 | `multiace` | 1 | **multiACE on a U1 - mock HARDWARE, real backend.** Pushes the U1 feed objects plus the plain `ace` object so real discovery builds the production `AmsBackendMultiAce` and runs it against engine-shaped frames. Pair with `HELIX_MOCK_PRINTER=snapmaker_u1`. See below |
 | `indx` | 1 | **Bondtech INDX - mock HARDWARE, real backend.** Publishes the toolboard module, `save_variables` and Bondtech's macro objects so real discovery builds the production `AmsBackendIndx`. `T<n>` / `CHANGE_TOOL` / `PARK_TOOL` walk park and pickup over a few notifications, and heat is refused with no tool on the head or on a no-hotend tool. See below |
+| `lane_status` | 1 | **A Lane Status Surface producer - mock HARDWARE, real backend.** Publishes a `lane_status` object (producer `mock_lanes`, four lanes, `lane1` current) and writes one RFC 0001 `lane_data` record per lane (`lane3` empty, its keys null), so real discovery builds the generic `AmsBackendLaneStatus`. A controller listing `load` and `unload` by default: `CHANGE_TOOL LANE=` and `TOOL_UNLOAD` move `current_lane`. `HELIX_MOCK_LANE_STATUS_KIND=status_only` makes it status-only, with no capabilities |
 
 `HELIX_MOCK_AMS=multiace` takes two knobs (read once at start by `MoonrakerClientMock`):
 
@@ -1039,8 +1042,8 @@ other macro description.
 the failure path. `tests/unit/test_mock_tool_offset_calibration.cpp` pins it.
 
 **Snapmaker U1 toolhead offset calibration:** the `snapmaker_u1` persona lists the
-`_EXTRUDER_OFFSET_ACTION_*` hook macros, so AMS Management shows **Calibration > Calibrate
-Toolhead Offsets**. Each `EXTRUDER_OFFSET_ACTION_*` command answers about a second later, every
+`_EXTRUDER_OFFSET_ACTION_*` hook macros, so the **Tool Offsets** entry (Advanced, and the
+Controls panel) starts the U1's guided calibration. Each `EXTRUDER_OFFSET_ACTION_*` command answers about a second later, every
 step but PRESTART is refused with the firmware's coded fault until PRESTART has run, and a
 head's PROBE_CALIBRATE moves its `extruder_offset`, which `printer.objects.query` reports.
 `HELIX_MOCK_NOZZLE_CAL_PLATE_REFUSE=<n>` makes the first `n` plate checks report the PEI sheet
@@ -1491,6 +1494,14 @@ HELIX_MOCK_PRINTER=creator5 ./build/bin/helix-screen --test -vv
 # Force a different topology on the same persona
 HELIX_MOCK_PRINTER=creator5 HELIX_MOCK_AMS=afc ./build/bin/helix-screen --test -vv
 ```
+
+Tool offsets save as on Reforge: the persona refuses `SET_TOOL_PARAMETER` and
+`SAVE_TOOL_PARAMETER` with Klipper's unknown-command error, and the
+`ff_toolchange` object selects the Reforge row of `helix::tool_offsets`, so the
+Tool Offsets panel's Save sends `SAVE_CONFIG`, preceded by
+`TOOL_Z_ADJUST TOOL=<n> ADJUST=0 SAVE=1` for a tool whose Z moved
+([FILAMENT_BACKEND_TOOLCHANGER.md](FILAMENT_BACKEND_TOOLCHANGER.md#reforge)). The
+persona still models Reforge without AFC.
 
 The default is the persona's `default_mock_ams` in
 `include/mock_persona.h#descriptor`, applied by

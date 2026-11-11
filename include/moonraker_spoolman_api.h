@@ -5,7 +5,7 @@
  * @file moonraker_spoolman_api.h
  * @brief Spoolman filament tracking operations via Moonraker proxy
  *
- * Extracted from MoonrakerAPI to encapsulate all Spoolman-related functionality
+ * A MoonrakerAPI sub-API that encapsulates all Spoolman-related functionality
  * in a dedicated class. Uses MoonrakerClient for JSON-RPC transport.
  */
 

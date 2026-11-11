@@ -392,7 +392,6 @@ CheckResult gate_material_compatibility(const PrintStartContext& ctx) {
         message = fmt::format(lv_tr("This file was sliced for {} but {} is loaded."),
                               m.expected_material, m.loaded_material);
 
-        // Add temperature details if available
         if (m.expected_nozzle_min > 0 && m.loaded_nozzle_min > 0) {
             message += "\n\n";
             message +=
@@ -418,9 +417,9 @@ CheckResult gate_material_compatibility(const PrintStartContext& ctx) {
                 loaded_temps =
                     fmt::format(" ({}\u2013{}°C)", m.loaded_nozzle_min, m.loaded_nozzle_max);
             }
-            // "needs X (range): You have Y (range)" — clearer than the old
-            // "X -> Y" form, which read as a transformation rather than a
-            // comparison. Two short clauses joined by a colon scan well.
+            // "needs X (range): You have Y (range)" — a colon reads as a
+            // comparison where "X -> Y" would read as a transformation. Two
+            // short clauses joined by a colon scan well.
             message += fmt::format("  {} {}: {} {}{}: {} {}{}\n", LV_SYMBOL_BULLET,
                                    helix::ui::tool_label(m.tool_index), lv_tr("needs"),
                                    m.expected_material, expected_temps, lv_tr("you have"),
@@ -824,7 +823,7 @@ std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartConte
     }
     auto tool_is_used = [&filament_weights](int tool_index) -> bool {
         if (filament_weights.empty()) {
-            return true; // No data → check everything (old behavior).
+            return true; // No data → check everything.
         }
         if (tool_index < 0 || tool_index >= static_cast<int>(filament_weights.size())) {
             return true; // Out-of-range → can't prove unused, be safe.
@@ -878,7 +877,6 @@ std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartConte
                 detail.expected_material = tool->material;
             }
 
-            // Get loaded material from the mapped AMS slot
             for (const auto& slot : slots) {
                 if (slot.slot_index == m.mapped_slot && slot.backend_index == m.mapped_backend) {
                     detail.loaded_material = slot.material;
@@ -911,7 +909,6 @@ std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartConte
                 continue;
             }
 
-            // Look up temperature ranges from the filament database
             auto expected_info = filament::find_material(detail.expected_material);
             if (expected_info) {
                 detail.expected_nozzle_min = expected_info->nozzle_min;
@@ -945,7 +942,6 @@ std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartConte
             return mismatches;
         }
 
-        // Check the first tool (single extruder)
         const auto& expected = gcode_materials[0];
         if (expected.empty()) {
             return mismatches;

@@ -105,7 +105,6 @@ using namespace helix;
 // ============================================================================
 
 PrinterState::PrinterState() {
-    // Load user-configured capability overrides from settings.json
     capability_overrides_.load_from_config();
     plugin_status_state_.set_locality_source(
         [this] { return moonraker_locality() == helix::MoonrakerLocality::Local; });
@@ -209,16 +208,12 @@ void PrinterState::init_subjects(bool register_xml) {
 
     spdlog::trace("[PrinterState] Initializing subjects (register_xml={})", register_xml);
 
-    // Initialize temperature state component (extruder and bed temperatures)
     temperature_state_.init_subjects(register_xml);
 
-    // Initialize motion state component (position, speed/flow, z-offset)
     motion_state_.init_subjects(register_xml);
 
-    // Initialize fan state component (fan speed, multi-fan tracking)
     fan_state_.init_subjects(register_xml);
 
-    // Initialize print state component (progress, state, timing, layers, print start)
     print_domain_.init_subjects(register_xml);
 
     // Initialize capabilities state component (hardware capabilities, feature availability)
@@ -765,7 +760,7 @@ bool PrinterState::is_blocking_operation_active() {
     //
     // Debounced, not the raw subject: the flag is equally true for a one-shot
     // housekeeping macro, and a printer with delayed_gcode loops would otherwise
-    // refuse a jog for ~7% of its idle life (bundle L53W5PKG).
+    // refuse a jog for ~7% of its idle life.
     if (!calibration_state_.idle_timeout_busy().blocking()) {
         return false;
     }
@@ -840,7 +835,6 @@ void PrinterState::set_kinematics(const std::string& kinematics) {
     bool has_qgl = lv_subject_get_int(capabilities_state_.subject(Capability::HasQgl)) != 0;
     auto_detected_bed_moves_ = is_corexy_family && !has_qgl;
 
-    // Apply with user override considered
     apply_effective_bed_moves();
 }
 

@@ -6,10 +6,9 @@
  *        construction, and the one group-to-edge projection.
  *
  * Nothing here touches a backend, a mutex or LVGL widgets, so it is directly
- * unit-testable. The projection in particular must exist exactly once - four
- * backends previously each invented their own, and Happy Hare's
- * `// Use first match` loop is what made a 4-gate group render as four
- * arbitrary arrows.
+ * unit-testable. The projection in particular must exist exactly once: a
+ * per-backend projection (a first-match loop, say) renders a 4-gate group as
+ * four arbitrary arrows.
  */
 
 #include "ams_types.h"

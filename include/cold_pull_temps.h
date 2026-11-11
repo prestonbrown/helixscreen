@@ -15,6 +15,10 @@
 
 namespace helix {
 
+/// The guided device flow id the cold pull registers under, so an alert below the UI
+/// layer (the clog code's recovery action) can name it.
+inline constexpr const char* kColdPullFlowId = "cold_pull";
+
 enum class ColdPullMaterial : int { Pla = 0, Nylon = 1, Cleaning = 2 };
 inline constexpr int kColdPullMaterialCount = 3;
 
@@ -38,7 +42,7 @@ inline constexpr int kMinSoakAboveFloorC = 20;
 /// value. FBRC8 pulls at 145 °C on the UM2, so 140 is the other candidate.
 inline constexpr int kCleaningFilamentPullC = 100;
 
-/// Defaults per material (sources in the cold pull design notes). An unknown value
+/// Defaults per material (sources in docs/devel/COLD_PULL.md). An unknown value
 /// answers PLA's.
 [[nodiscard]] inline ColdPullTemps cold_pull_default_temps(ColdPullMaterial m) {
     switch (m) {

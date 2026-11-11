@@ -380,7 +380,8 @@ you update the helper macros from the screen and restart. Before it changes a fi
 beside the original as `printer.cfg.bak.<date>_<time>`, once: after the first change there is
 nothing left to rename. It never restarts Klipper for you; the change takes effect at your next
 restart. A file that looks hand-edited around those comment lines is left alone. On a Snapmaker
-U1 running the extended firmware it changes nothing and only reports what it would do.
+U1 running the extended firmware, and on Z-Mod and Forge-X, it changes nothing and only reports
+what it would do.
 
 **Setting:** on by default. To turn it off, add `migrate_signal_macros: False` under
 `[helix_print]` in `moonraker.conf` and restart Moonraker.

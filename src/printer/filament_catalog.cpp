@@ -7,6 +7,7 @@
 #include "filament_variants.h"
 #include "helix_fs.h"
 #include "json_utils.h"
+#include "spoolman_types.h"
 #include "system/helix_paths.h"
 
 #include <spdlog/spdlog.h>
@@ -302,9 +303,11 @@ FilamentCatalog::orca_id_map_from(const std::string& builtin_path,
         if (!orca.empty())
             ++carriers[orca];
 
+    // An id no Orca preset can match on the Moonraker path (a Bambu GF code, a
+    // display name) is no id at all: lane_data must not carry it (RFC 0001 §5).
     std::unordered_map<std::string, std::string> out;
     for (auto& [id, orca] : by_product)
-        if (!id.empty() && !orca.empty() && carriers[orca] == 1)
+        if (!id.empty() && carriers[orca] == 1 && is_usable_orca_filament_id(orca))
             out.emplace(id, std::move(orca));
     return out;
 }

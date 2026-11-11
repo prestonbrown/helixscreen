@@ -15,6 +15,11 @@ bool automatic(FilamentOpSupport support) {
     return support == FilamentOpSupport::Automatic;
 }
 
+/// A Load the screen walks the user through by hand (the guided manual load).
+bool loads_by_hand(const HeadFilamentOps& ops) {
+    return ops.load == FilamentOpSupport::Manual && ops.guided_hand_load;
+}
+
 bool gated(const FilamentHeadView& view) {
     return view.system_busy || view.print_blocks_op;
 }
@@ -69,6 +74,10 @@ void set_mount_and_park(const FilamentHeadView& view, FilamentActionSet& out) {
 } // namespace
 
 bool head_can_load(const HeadState& head) {
+    if (loads_by_hand(head.ops)) {
+        // The user pushes the filament into the head, so no lane sensor has to see it.
+        return head.source_slot.has_value() && !head.at_nozzle.value_or(false);
+    }
     return automatic(head.ops.load) && head.source_slot.has_value() &&
            head.source_present.value_or(true) && !head.at_nozzle.value_or(false);
 }
@@ -139,8 +148,9 @@ FilamentActionSet decide_slot_actions(const FilamentHeadView& view, int head) {
     }
 
     const HeadState& state = view.heads[static_cast<size_t>(head)];
-    out.load.enabled = !load_gated(view) && automatic(state.ops.load);
-    if (!automatic(state.ops.load)) {
+    const bool by_hand = loads_by_hand(state.ops);
+    out.load.enabled = !load_gated(view) && (automatic(state.ops.load) || by_hand);
+    if (!automatic(state.ops.load) && !by_hand) {
         out.load.reason = state.ops.load_reason;
     }
     out.unload.enabled = !gated(view) && automatic(state.ops.unload);
@@ -169,7 +179,7 @@ std::vector<HeadPickRow> decide_head_picker_rows(const FilamentHeadView& view, H
         switch (op) {
         case HeadPickOp::Load:
             row.slot = state.source_slot.value_or(-1);
-            if (!automatic(state.ops.load)) {
+            if (!automatic(state.ops.load) && !loads_by_hand(state.ops)) {
                 row.reason = state.ops.load_reason;
             } else if (!state.source_slot) {
                 row.reason = lv_tr("Assign a slot first");

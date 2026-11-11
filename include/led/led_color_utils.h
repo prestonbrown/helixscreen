@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: inline reader of the json
 
 /**
  * @file led_color_utils.h

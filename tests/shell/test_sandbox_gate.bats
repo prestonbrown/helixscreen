@@ -195,31 +195,9 @@ escape() {
 # This catches that shape in the source. A reviewed exception writes
 # `# REAL_TREE_MAKE_OK: <reason>` inside the @test that needs it, which exempts
 # that test's body and nothing else: the exemption ends at the body's closing
-# `}`, so a helper defined after it is still checked.
-real_tree_make_lint() { # <files...>: prints file:line:text for each offender
-    # A directory naming the tree: a repo-root variable, or the path up from
-    # the test file.
-    local tree='"?\\$\\{?((REPO|REPO_ROOT|ROOT|WORKTREE_ROOT|HELIX_TEST_REPO_ROOT)\\}?"?|BATS_TEST_DIRNAME\\}?/\\.\\./\\.\\.)'
-    awk -v tree="$tree" '
-        FNR == 1 || /^@test/ { reviewed = 0 }
-        /REAL_TREE_MAKE_OK:/ { reviewed = 1 }
-        /^}/ { reviewed = 0; next }
-        /^[[:space:]]*#/ || reviewed { next }
-        /(^|[^A-Za-z_-])g?make[[:space:]]/ {
-            if ($0 ~ "cd " tree "[^|]*(&&|;).*(^|[^A-Za-z_-])g?make[[:space:]]" ||
-                $0 ~ "(^|[^A-Za-z_-])g?make[[:space:]].*(-[A-Za-z]*C|--di[a-z]*=?)[[:space:]]*" tree)
-                printf "%s:%d:%s\n", FILENAME, FNR, $0
-        }
-    ' "$@"
-}
-
-@test "sandbox: no test runs make in the tree through a repo-root variable" {
-    local offenders
-    offenders=$(real_tree_make_lint "$BATS_TEST_DIRNAME"/*.bats "$BATS_TEST_DIRNAME/helpers.bash")
-    [ -z "$offenders" ] || fail "make run in the tree under test; use scratch_tree (helpers.bash):
-$offenders"
-}
-
+# `}`, so a helper defined after it is still checked. The lint is
+# real_tree_make_offenders in scripts/code_lint.sh; qc_test_lint runs it over
+# this directory (lint_bats_real_tree_make), and the cases below pin it.
 @test "sandbox: the lint's exemption ends with the marked test's body" {
     local f="$BATS_TEST_TMPDIR/synthetic.bats"
     # Split words keep the fixture's lines from matching the lint over this file.
@@ -237,10 +215,37 @@ $offenders"
         'semicolon() {' \
         "    cd \"\$ROOT\"; $mk -n help" \
         '}' > "$f"
-    run real_tree_make_lint "$f"
+    . "$BATS_TEST_DIRNAME/../../scripts/code_lint.sh"
+    run real_tree_make_offenders "$f"
     lacks "synthetic.bats:3:" "$output"
     contains "synthetic.bats:7:" "$output"
     contains "synthetic.bats:11:" "$output"
+
+    # The lint reads every .bats file and helpers.bash under tests/shell.
+    mkdir -p "$BATS_TEST_TMPDIR/root/tests/shell"
+    cp "$f" "$BATS_TEST_TMPDIR/root/tests/shell/"
+    : > "$BATS_TEST_TMPDIR/root/tests/shell/helpers.bash"
+    cd "$BATS_TEST_TMPDIR/root" || return 1
+    run lint_bats_real_tree_make
+    [ "$status" -eq 1 ]
+    contains "tests/shell/synthetic.bats:7:" "$output"
+}
+
+@test "sandbox: the lint's exemption reaches neither the next @test nor the next file" {
+    . "$BATS_TEST_DIRNAME/../../scripts/code_lint.sh"
+    local mk='ma''ke' ok='REAL_TREE_MAKE''_OK:'
+    # A marker outside any function, then a @test: the @test is not exempt.
+    printf '%s\n' \
+        "# $ok a note above the test" \
+        '@test "unmarked" {' \
+        "    (cd \"\$REPO\" && $mk -n help)" \
+        '}' > "$BATS_TEST_TMPDIR/a.bats"
+    # A marker still open at the end of a file, then a second file.
+    printf '%s\n' "# $ok left open" > "$BATS_TEST_TMPDIR/b.bats"
+    printf '%s\n' "(cd \"\$ROOT\" && $mk -n help)" > "$BATS_TEST_TMPDIR/c.bats"
+    run real_tree_make_offenders "$BATS_TEST_TMPDIR/a.bats" "$BATS_TEST_TMPDIR/b.bats" "$BATS_TEST_TMPDIR/c.bats"
+    contains "a.bats:3:" "$output"
+    contains "c.bats:1:" "$output"
 }
 
 # --- the deliberate escapes -------------------------------------------------

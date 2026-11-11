@@ -141,7 +141,6 @@ nlohmann::json AmsBackendAce::required_status_objects(const helix::PrinterDiscov
 
 AmsBackendAce::AmsBackendAce(IMoonrakerAPI* api, IMoonrakerClient* client)
     : AmsSubscriptionBackend(api, client) {
-    // Initialize system info with ACE defaults
     system_info_.type = AmsType::ACE;
     system_info_.type_name = "ACE";
     system_info_.supports_bypass = false;
@@ -1491,7 +1490,6 @@ void AmsBackendAce::apply_ace_object_locked(const helix::ace::ObjectDelta& d, in
             unit.hub_id = "ace";
         }
 
-        // Resize slots
         if (unit.slots.size() != slots_arr.size()) {
             unit.slots.resize(slots_arr.size());
         }
@@ -1741,7 +1739,7 @@ void AmsBackendAce::apply_ace_object_locked(const helix::ace::ObjectDelta& d, in
     }
 
     // All four seated signals (the ValgACE "loaded" scan, loaded_slot, native
-    // current_filament, and the ACEPRO manager's current_index) have now had
+    // current_filament, and the ACEPRO manager's current_index) have had
     // their say and arbitrated to one slot; publish that as the slot's own
     // status.
     apply_seated_slot_stamp_locked();
@@ -1878,7 +1876,6 @@ void AmsBackendAce::stop_rest_fallback() {
 void AmsBackendAce::rest_polling_loop() {
     spdlog::debug("[ACE] REST polling thread started");
 
-    // Fetch system info first
     poll_info();
     std::chrono::steady_clock::time_point last_data_poll{};
 
@@ -1908,7 +1905,6 @@ void AmsBackendAce::rest_polling_loop() {
             poll_slots();
         }
 
-        // Interruptible sleep
         std::unique_lock<std::mutex> lock(rest_stop_mutex_);
         rest_stop_cv_.wait_for(lock, std::chrono::milliseconds(kPollIntervalMs),
                                [this] { return rest_stop_requested_.load(); });
@@ -1961,7 +1957,6 @@ void AmsBackendAce::poll_info() {
         state->cv.notify_one();
     });
 
-    // Wait for response (with timeout)
     std::unique_lock<std::mutex> lock(state->mtx);
     state->cv.wait_for(lock, std::chrono::seconds(5), [state] { return state->done; });
 }

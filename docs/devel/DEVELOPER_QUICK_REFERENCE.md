@@ -540,10 +540,7 @@ Auto-detects screen aspect ratio and loads alternative XML layouts. Themes contr
 auto& lm = helix::LayoutManager::instance();
 lm.init(display_width, display_height);      // Auto-detect
 lm.set_override("ultrawide");                // Force layout
-
-std::string path = lm.resolve_xml_path("home_panel.xml");
-// Returns "ui_xml/ultrawide/home_panel.xml" if override exists,
-// otherwise "ui_xml/home_panel.xml"
+bool portrait = helix::is_portrait_layout(lm.type());  // what ui_is_portrait publishes
 ```
 
 | Layout | Detection | Example Screens |

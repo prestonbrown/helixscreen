@@ -197,13 +197,11 @@ struct PrinterDatabase {
     void merge_user_extensions() {
         const std::string extensions_dir = helix::writable_path("printer_database.d");
 
-        // Check if extensions directory exists
         if (!hfs::exists(extensions_dir) || !hfs::is_directory(extensions_dir)) {
             spdlog::debug("[PrinterDetector] No user extensions directory at {}", extensions_dir);
             return;
         }
 
-        // Build index of bundled printers by ID for fast lookup
         std::map<std::string, size_t> bundled_index;
         for (size_t i = 0; i < data["printers"].size(); ++i) {
             std::string id = helix::json_util::safe_string(data["printers"][i], "id");
@@ -230,7 +228,6 @@ struct PrinterDatabase {
         // Sort for consistent ordering
         std::sort(extension_files.begin(), extension_files.end());
 
-        // Process each extension file
         for (const auto& file_path : extension_files) {
             merge_extension_file(file_path, bundled_index);
         }
@@ -286,7 +283,6 @@ struct PrinterDatabase {
             return;
         }
 
-        // Process each printer in the extension
         for (const auto& printer : extension_data["printers"]) {
             std::string id = helix::json_util::safe_string(printer, "id");
             if (id.empty()) {
@@ -295,10 +291,8 @@ struct PrinterDatabase {
                 continue;
             }
 
-            // Check if printer is disabled
             bool enabled = helix::json_util::safe_bool(printer, "enabled", true);
 
-            // Check if this overrides a bundled printer
             auto it = bundled_index.find(id);
             if (it != bundled_index.end()) {
                 // Override bundled printer
@@ -313,7 +307,6 @@ struct PrinterDatabase {
                 }
                 user_overrides++;
             } else {
-                // Add new printer
                 if (enabled) {
                     // Validate required fields for new printers
                     std::string name = helix::json_util::safe_string(printer, "name");
@@ -381,7 +374,6 @@ bool has_pattern(const std::vector<std::string>& objects, const std::string& pat
 
 namespace {
 
-// Check if all patterns in array are present
 bool has_all_patterns(const std::vector<std::string>& objects, const json& patterns) {
     for (const auto& pattern : patterns) {
         if (!pattern.is_string())
@@ -508,7 +500,6 @@ bool check_build_volume_range(const BuildVolume& volume, const json& heuristic) 
             return false;
     }
 
-    // Check Y range
     if (heuristic.contains("min_y")) {
         float min_y = helix::json_util::safe_float(heuristic, "min_y", 0.0f);
         if (y_size < min_y)
@@ -661,7 +652,6 @@ int execute_heuristic(const json& heuristic, const PrinterHardwareData& hardware
             }
         }
     } else if (type == "build_volume_range") {
-        // Check if build volume is within specified range
         if (check_build_volume_range(hardware.build_volume, heuristic)) {
             spdlog::debug("[PrinterDetector] Matched build volume range (confidence: {})",
                           confidence);
@@ -744,7 +734,6 @@ int execute_heuristic(const json& heuristic, const PrinterHardwareData& hardware
         std::string pattern_lower = helix::text_io::to_lower(pattern);
 
         for (const auto& obj : hardware.printer_objects) {
-            // Check if object is a G-code macro
             if (obj.rfind("gcode_macro ", 0) == 0) {
                 // Extract macro name (everything after "gcode_macro ")
                 std::string macro_name = obj.substr(12);
@@ -1353,7 +1342,6 @@ struct ListCache {
         const json* printers = database_printers();
         if (printers == nullptr) {
             spdlog::warn("[PrinterDetector] Cannot build list without database");
-            // Fallback to just Custom/Other and Unknown
             names = {"Custom/Other", "Unknown"};
             entries = {{"Custom/Other", ""}, {"Unknown", ""}};
             options = "Custom/Other\nUnknown";
@@ -1396,7 +1384,6 @@ struct ListCache {
         entries.push_back({"Custom/Other", ""});
         entries.push_back({"Unknown", ""});
 
-        // Build newline-separated string for list display
         for (size_t i = 0; i < names.size(); ++i) {
             options += names[i];
             if (i < names.size() - 1) {
@@ -1504,7 +1491,6 @@ int PrinterDetector::find_list_index(const std::string& printer_name) {
         }
     }
 
-    // Return Unknown index if not found
     return get_unknown_list_index();
 }
 
@@ -1571,7 +1557,6 @@ int PrinterDetector::find_list_index(const std::string& printer_name,
         }
     }
 
-    // Return Unknown index in filtered list
     return get_unknown_list_index(kinematics);
 }
 
@@ -1827,7 +1812,6 @@ PrinterDetector::LoadStatus PrinterDetector::get_load_status() {
 // ============================================================================
 
 PrinterDetectionResult PrinterDetector::auto_detect(const helix::PrinterDiscovery& discovery) {
-    // Build PrinterHardwareData from discovery
     PrinterHardwareData hw_data;
     hw_data.heaters = discovery.heaters();
     hw_data.sensors = discovery.sensors();
@@ -1909,7 +1893,6 @@ bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discov
         return false;
     }
 
-    // Check if printer type is already set
     std::string saved_type =
         config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
     if (!saved_type.empty()) {
@@ -1919,9 +1902,9 @@ bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discov
         // preset migration path. apply_preset_file checks wizard_completed and
         // only writes filament_sensors when the user's block is empty/missing —
         // a no-op for fully-configured installs, a one-shot fix for users whose
-        // older preset didn't seed the block (Snapmaker U1 shipped pre-2026-05
-        // with role=none on e1/e2/e3; tonight's preset fix only helped fresh
-        // installs without this hook).
+        // saved preset did not seed the block (Snapmaker U1 presets shipped
+        // before 2026-05 with role=none on e1/e2/e3, and a fresh install is
+        // the only other path that reads the current preset).
         std::string saved_preset =
             boot_migration_preset(get_preset_for_name(saved_type), config->get_preset());
         if (!saved_preset.empty()) {
@@ -2005,7 +1988,6 @@ bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discov
                      result.type_name, result.confidence, result.reason);
     }
 
-    // Save to config
     config->set<std::string>(config->df() + helix::wizard::PRINTER_TYPE, result.type_name);
     if (!result.preset.empty()) {
         std::string applied = apply_preset_with_variants(config, result.preset, discovery);

@@ -3,7 +3,7 @@
 
 #include "lvgl.h"
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: config_ held by value
 
 #if HELIX_HAS_CAMERA
 

@@ -22,6 +22,7 @@
 #include "printer_state.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using json = nlohmann::json;
 using namespace helix;
@@ -325,12 +326,12 @@ constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/components/panel_widget_toolhead.xml", 6},
     {"ui_xml/components/panel_widget_z_offset.xml", 2},
     {"ui_xml/calibration_pa_panel.xml", 2},
-    {"ui_xml/controls_panel.xml", 17},
+    {"ui_xml/controls_panel.xml", 15},
+    {"ui_xml/components/quick_action_slot.xml", 1},
     {"ui_xml/guided_load_modal.xml", 2},
     {"ui_xml/header_bar.xml", 1},
     {"ui_xml/pa_tuning_overlay.xml", 1},
     {"ui_xml/plr_wizard_overlay.xml", 4},
-    {"ui_xml/micro/controls_panel.xml", 17},
     {"ui_xml/motion_panel.xml", 8},
     {"ui_xml/components/move_preset_grid.xml", 11},
     {"ui_xml/components/motion_bed_map.xml", 2},
@@ -348,6 +349,7 @@ constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/probe_bltouch_panel.xml", 2},
     {"ui_xml/probe_beacon_panel.xml", 2},
     {"ui_xml/temp_graph_overlay.xml", 2},
+    {"ui_xml/components/timelapse_macro_card.xml", 1},
     {"ui_xml/components/tool_switcher_feeder_segment.xml", 1},
     {"ui_xml/components/tool_switcher_park_segment.xml", 1},
 };
@@ -578,7 +580,6 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/panel_belt_tension.xml",
     "ui_xml/plugin_feature_toggle_row.xml",
     "ui_xml/plugin_install_modal.xml",
-    "ui_xml/portrait/print_tune_panel.xml",
     "ui_xml/power_device_picker.xml",
     "ui_xml/power_device_row.xml",
     "ui_xml/print_completion_modal.xml",
@@ -653,6 +654,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/theme_editor_overlay.xml",
     "ui_xml/theme_preview_overlay.xml",
     "ui_xml/theme_save_as_modal.xml",
+    "ui_xml/thermistor_configure_picker.xml",
     "ui_xml/tile_edit_callout.xml",
     "ui_xml/timelapse_install_overlay.xml",
     "ui_xml/timelapse_settings_overlay.xml",

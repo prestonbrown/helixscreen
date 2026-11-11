@@ -8,6 +8,7 @@
 #include "ui_component_keypad.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
+#include "ui_guided_load_modal.h"
 #include "ui_icon.h"
 #include "ui_manual_pull_prompt.h"
 #include "ui_nav.h"
@@ -2745,6 +2746,13 @@ helix::ui::FilamentOpSurface FilamentPanel::op_surface(FilamentOp op) {
 void FilamentPanel::execute_load() {
     AmsBackend* backend = AmsState::instance().get_backend();
     const int target_slot = selected_op_slot();
+
+    if (helix::ui::load_is_by_hand(backend, target_slot, printer_state_)) {
+        spdlog::info("[{}] No filament system and no load macro: opening the manual load",
+                     get_name());
+        helix::ui::GuidedLoadModal::show_manual(target_slot);
+        return;
+    }
 
     helix::ui::FilamentOpSurface surface = op_surface(FilamentOp::Load);
     // The refusal copy and the slot-picker redirect are this panel's, and only

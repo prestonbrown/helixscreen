@@ -23,9 +23,6 @@ struct AxisBounds {
     bool has_z = false;
 };
 
-/// Shift machine-space bounds into G-code space. machine = gcode + homing_origin
-/// (SET_GCODE_OFFSET, saved Z offset, toolchanger tool offsets), so the valid
-/// G-code range per axis is [min - origin, max - origin]. Has-bits are untouched.
 /// Resolution of the stored gcode_position subjects: centimillimetres,
 /// truncated, so a reading sits up to this far below the real position.
 inline constexpr double kPositionResolutionMm = 0.01;
@@ -49,6 +46,9 @@ inline AxisBounds inset_bounds(const AxisBounds& b, double margin) {
     return r;
 }
 
+/// Shift machine-space bounds into G-code space. machine = gcode + homing_origin
+/// (SET_GCODE_OFFSET, saved Z offset, toolchanger tool offsets), so the valid
+/// G-code range per axis is [min - origin, max - origin]. Has-bits are untouched.
 inline AxisBounds to_gcode_space(const AxisBounds& machine, double ox, double oy, double oz) {
     AxisBounds g = machine;
     g.x_min = static_cast<float>(machine.x_min - ox);

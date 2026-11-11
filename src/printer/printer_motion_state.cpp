@@ -9,7 +9,7 @@
 #include "printer_motion_state.h"
 
 #include "state/subject_macros.h"
-#include "unit_conversions.h"
+#include "unit_conversions_json.h"
 #include "z_offset_persistence.h"
 
 #include <spdlog/spdlog.h>
@@ -129,7 +129,7 @@ void PrinterMotionState::update_from_status(const nlohmann::json& status) {
             if (strcmp(lv_subject_get_string(&homed_axes_), axes.c_str()) != 0) {
                 lv_subject_copy_string(&homed_axes_, axes.c_str());
             }
-            // Note: Derived homing subjects (xy_homed, z_homed, all_homed) are now
+            // Note: Derived homing subjects (xy_homed, z_homed, all_homed) are
             // panel-local in ControlsPanel, which observes this homed_axes string.
         }
     }

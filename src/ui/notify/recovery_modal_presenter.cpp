@@ -4,6 +4,7 @@
 #include "recovery_modal_presenter.h"
 
 #include "ui_error_reporting.h"
+#include "ui_guided_device_flow.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
 #include "ui_temperature_utils.h"
@@ -15,6 +16,7 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "core/timer_guard.h"
+#include "core/update_queue.h"
 #include "error_event.h"
 #include "error_modal_view.h"
 #include "i_moonraker_api.h"
@@ -156,8 +158,13 @@ void RecoveryModalPresenter::present(const helix::ErrorEvent& e) {
 
     if (!modal_) {
         modal_ = std::make_unique<helix::ui::RecoveryFaultModal>();
-        modal_->set_action_callback(
-            [this](const std::string& gcode) { on_recovery_tapped(gcode); });
+        modal_->set_action_callback([this](const helix::RecoveryAction& action) {
+            if (!action.guided_flow.empty()) {
+                on_guided_flow_tapped(action);
+            } else {
+                on_recovery_tapped(action.gcode);
+            }
+        });
         // Every close but this class's own hide(): a button (including the
         // empty-gcode dismiss), backdrop, ESC, or a sweep. The user has
         // answered this fault.
@@ -252,6 +259,24 @@ void RecoveryModalPresenter::on_recovery_tapped(const std::string& gcode) {
     }
 
     continue_recovery(gcode, tag, label, needs_hot_nozzle);
+}
+
+void RecoveryModalPresenter::on_guided_flow_tapped(const helix::RecoveryAction& action) {
+    mark_handled();
+    shown_detail_.clear();
+    spdlog::info("[RecoveryModal] User tapped {}: opening guided flow '{}'", action.log_tag,
+                 action.guided_flow);
+    // Deferred past the dialog's own close, which runs after this callback and
+    // must not land on top of the flow's surface.
+    helix::ui::queue_update("recovery_guided_flow", [id = action.guided_flow,
+                                                     label = action.label]() {
+        const GuidedDeviceFlow* flow = find_guided_device_flow(id);
+        if (!flow || !flow->start) {
+            spdlog::warn("[RecoveryModal] Guided flow '{}' is not registered; nothing opened", id);
+            return;
+        }
+        flow->start(label);
+    });
 }
 
 void RecoveryModalPresenter::continue_recovery(const std::string& gcode, const std::string& tag,

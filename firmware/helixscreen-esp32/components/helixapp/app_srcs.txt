@@ -164,7 +164,9 @@ src/printer/afc_status_parse.cpp
 src/printer/ams_backend_cfs.cpp
 src/printer/ams_backend_cfs_calibration.cpp
 src/printer/ams_backend_happy_hare.cpp
+src/printer/ams_backend_happy_hare_device.cpp
 src/printer/ams_backend_indx.cpp
+src/printer/ams_backend_lane_status.cpp
 src/printer/ams_backend_multiace.cpp
 src/printer/ams_backend_openams.cpp
 src/printer/ams_bypass_policy.cpp
@@ -194,6 +196,7 @@ src/printer/cfs_status_parse.cpp
 src/printer/lane_resolver.cpp
 src/printer/lane_apply.cpp
 src/printer/lane_source_store.cpp
+src/printer/lane_status_parse.cpp
 src/printer/lane_translation.cpp
 src/printer/lane_binding.cpp
 src/printer/bed_dimensions.cpp
@@ -264,6 +267,7 @@ src/printer/helix_plugin_features.cpp
 src/printer/vendor_state_push.cpp
 src/printer/printer_event_journal.cpp
 src/printer/printer_print_state.cpp
+src/printer/printer_print_state_status.cpp
 src/printer/printer_profile_state.cpp
 src/printer/printer_recovery_service.cpp
 src/printer/printer_state.cpp
@@ -387,6 +391,7 @@ src/system/system_power.cpp
 src/system/system_settings_manager.cpp
 src/core/json_fwd_check.cpp
 src/core/text_io.cpp
+src/core/contract_breach.cpp
 src/system/helix_fs.cpp
 src/system/timezone_env.cpp
 src/system/tips_manager.cpp
@@ -422,6 +427,7 @@ src/ui/filament/filament_motion.cpp
 src/ui/filament/filament_path_geometry.cpp
 src/ui/filament/filament_tube_stroker.cpp
 src/ui/filament/guided_load_flow.cpp
+src/ui/filament/guided_load_session.cpp
 src/ui/filament/cold_pull_flow.cpp
 src/ui/filament/cold_pull_runner.cpp
 src/ui/filament/ui_cold_pull_overlay.cpp
@@ -435,7 +441,7 @@ src/ui/components/keyboard_layout_provider.cpp
 src/ui/home/layout_port.cpp
 src/ui/home/light_button_config.cpp
 src/ui/home/home_macro_run.cpp
-src/ui/i18n_plural.cpp
+src/core/i18n_plural.cpp
 src/ui/locale_formats.cpp
 src/ui/printers/printer_discovery_list.cpp
 src/ui/modals/buffer_status_modal.cpp
@@ -520,7 +526,7 @@ src/ui/controls/temperature_service.cpp
 src/ui/theme/theme_loader.cpp
 src/ui/theme/theme_manager_new.cpp
 src/ui/filament/tool_change_request.cpp
-src/ui/calibration/touch_calibration.cpp
+src/platform/input/touch_calibration.cpp
 src/ui/calibration/touch_calibration_layout.cpp
 src/ui/calibration/touch_calibration_controller.cpp
 src/ui/calibration/touch_calibration_panel.cpp
@@ -762,7 +768,7 @@ src/spoolman/spoolman_catalog_search.cpp
 src/spoolman/spoolman_types.cpp
 src/ui/components/ui_status_pill.cpp
 src/ui/components/ui_step_progress.cpp
-src/ui/ui_subscription_guard.cpp
+src/api/subscription_guard.cpp
 src/ui/components/ui_search_debounce.cpp
 src/ui/ui_coalesced_timer.cpp
 src/ui/components/ui_swatch.cpp
@@ -777,6 +783,7 @@ src/ui/components/ui_text.cpp
 src/ui/home/ui_tile_rung.cpp
 src/ui/components/text_clipboard.cpp
 src/ui/components/ui_text_edit_menu.cpp
+src/ui/components/ui_text_entry_modal.cpp
 src/ui/components/ui_text_input.cpp
 src/ui/settings/ui_theme_editor_overlay.cpp
 src/ui/notify/ui_toast_manager.cpp

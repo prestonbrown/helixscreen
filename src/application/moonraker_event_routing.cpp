@@ -43,8 +43,7 @@ MoonrakerEventDecision decide_moonraker_event(MoonrakerEventType type, bool is_e
             // a fresh install there is no saved host at all, so the address
             // that "failed" is only the 127.0.0.1 default the wizard exists to
             // replace, and on a standalone display the message even claims
-            // Klipper runs on this machine. Bundle L53W5PKG: pushed over the
-            // Language step and left sitting there for 16.5 minutes.
+            // Klipper runs on this machine.
             //
             // Suppressed, not degraded to a toast like the modal case below:
             // there the user is doing something else and needs to learn the
@@ -55,10 +54,9 @@ MoonrakerEventDecision decide_moonraker_event(MoonrakerEventType type, bool is_e
             }
             // Never steal an open modal. This event is latched and fires 60 s
             // after startup, which on an unreachable printer is exactly when the
-            // user is in Settings > Network typing a WiFi password to fix it —
-            // and the prompt lands on top of that keyboard (bundle 865DXBQ7:
-            // pushed at stack depth 2, the password re-entered from scratch
-            // afterwards). Degrade to a toast: same information, no focus theft,
+            // user is in Settings > Network typing a WiFi password to fix it,
+            // and the prompt lands on top of that keyboard, forcing the password to be
+            // re-entered from scratch. Degrade to a toast: same information, no focus theft,
             // no dialog to dismiss before getting back to the field. The
             // disconnected status icon still carries the state afterwards.
             if (modal_active) {

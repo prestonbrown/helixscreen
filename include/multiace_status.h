@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: a std::optional json member
 
 namespace helix {
 class PrinterDiscovery;

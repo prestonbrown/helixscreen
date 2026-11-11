@@ -43,6 +43,8 @@
 #include <utility>
 #include <vector>
 
+#include "hv/json.hpp"
+
 namespace helix::test {
 
 class FakeMoonrakerClient : public helix::IMoonrakerClient {

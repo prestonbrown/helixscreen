@@ -553,6 +553,7 @@
   <translation tag="Buffer" ru="Буфер"/>
   <translation tag="Buffer Status" ru="Статус буфера"/>
   <translation tag="Buffer tube problem" ru="Проблема с буферной трубкой"/>
+  <translation tag="Buffer-driven gear speed control" ru="Скорость шестерни по буферу"/>
   <translation tag="Build Volume" ru="Область печати"/>
   <translation tag="Build Volume: " ru="Область печати: "/>
   <translation tag="Building preview: %d%%" ru="Создание предпросмотра: %d%%"/>
@@ -1529,6 +1530,8 @@
   <translation tag="Fair match" ru="Среднее совпадение"/>
   <translation tag="Fan" ru="Вентилятор"/>
   <translation tag="Fan Calibration" ru="Калибровка вентилятора"/>
+  <translation tag="Fan Control" ru="Управление вентилятором"/>
+  <translation tag="Fan Mode" ru="Режим вентилятора"/>
   <translation tag="Fan Speeds" ru="Скорости вентиляторов"/>
   <translation tag="Fan Tach" ru="Тахометр вентилятора"/>
   <translation tag="Fan Transfer" ru="Теплообмен с вентилятором"/>
@@ -1678,6 +1681,7 @@
   <translation tag="Follow your manual to swap the nozzle or hotend." ru="Замените сопло или хотенд по руководству."/>
   <translation tag="For a first Z home: claim the tool you put on the head" ru="Для первой парковки Z: закрепить инструмент, установленный на головку"/>
   <translation tag="For materials that need a warm enclosure, like ABS or ASA" ru="Для материалов, которым нужен тёплый закрытый корпус, например ABS или ASA"/>
+  <translation tag="Force the MMU fans off or on, or follow Fan Control" ru="Принудительно выключить или включить вентиляторы MMU, или следовать управлению вентилятором"/>
   <translation tag="Force/weight sensors" ru="Датчики силы/веса"/>
   <translation tag="Forget" ru="Забыть"/>
   <translation tag="Forget Network?" ru="Забыть сеть?"/>
@@ -1808,6 +1812,7 @@
   <translation tag="Heating the bed" ru="Нагрев стола"/>
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" ru="Нагрев стола и сопла, чтобы печать снова прилипла, а сопло отделилось от неё"/>
   <translation tag="Heating the nozzle" ru="Нагрев сопла"/>
+  <translation tag="Heating the nozzle. Have the filament ready to push in." ru="Сопло нагревается. Приготовьте филамент, чтобы вставить его."/>
   <translation tag="Heating to %d°C... %.0f°C" ru="Нагрев до %d°C... %.0f°C"/>
   <translation tag="Heating to %s: %d:%02d left" ru="Нагрев до %s: осталось %d:%02d"/>
   <translation tag="Heating to {}°C before {}..." ru="Нагрев до {}°C перед «{}»..."/>
@@ -2055,6 +2060,7 @@
   <translation tag="Keep its own data on this screen (up to 256 KB)." ru="Хранит собственные данные на этом экране (до 256 КБ)."/>
   <translation tag="Keep pushing filament while it cools" ru="Продолжайте подавать филамент, пока он остывает"/>
   <translation tag="Keep the bypass spool visible when bypass is off" ru="Показывать катушку байпаса, даже когда байпас выключен"/>
+  <translation tag="Keep the rotation distance sync feedback tunes" ru="Сохранять дистанцию вращения, подобранную обратной связью синхронизации"/>
   <translation tag="Keep waiting" ru="Продолжить ожидание"/>
   <translation tag="Kept {}: a print started." ru="{} оставлен: началась печать."/>
   <translation tag="Kick away" ru="Сброс остатка"/>
@@ -2075,7 +2081,9 @@
   <translation tag="Klipper has entered shutdown state." ru="Klipper перешёл в состояние остановки."/>
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." ru="Klipper перешёл в состояние остановки. Это может быть вызвано аварийной остановкой, тепловым разгоном или ошибкой конфигурации."/>
   <translation tag="Klipper has no [virtual_sdcard] section." ru="В Klipper нет раздела [virtual_sdcard]."/>
+  <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" ru="Klipper не загрузил макросы таймлапса, поэтому кадры не снимаются. Добавьте эту строку в printer.cfg и перезапустите Klipper:"/>
   <translation tag="Klipper is halted — restart firmware to continue" ru="Klipper остановлен — перезапустите прошивку, чтобы продолжить"/>
+  <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." ru="Klipper перезапускается. Кадры таймлапса будут сниматься со следующей печати."/>
   <translation tag="Klipper ready" ru="Klipper готов"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." ru="Klipper резервирует &apos;default&apos; для новых калибровок. Выберите другое имя."/>
   <translation tag="Klipper restarting - macros activating" ru="Перезапуск Klipper - активация макросов"/>
@@ -2137,6 +2145,7 @@
   <translation tag="Layout changes are off in safe mode. Restart to edit." ru="Изменение раскладки отключено в безопасном режиме. Перезапустите, чтобы редактировать."/>
   <translation tag="Learn More" ru="Подробнее"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." ru="Основы: мастер настройки, переход между экранами и жесты касания."/>
+  <translation tag="Leave empty for no unit" ru="Оставьте пустым, чтобы скрыть единицу"/>
   <translation tag="Leave it" ru="Оставить"/>
   <translation tag="Leave this off for a clogged nozzle." ru="Если сопло забито, оставьте это выключенным."/>
   <translation tag="LedSelect" ru="Выбрать LED"/>
@@ -2179,6 +2188,7 @@
   <translation tag="Load and unload" ru="Загрузка и выгрузка"/>
   <translation tag="Load and unload filament at the tool by hand" ru="Загружайте и выгружайте филамент вручную на инструменте"/>
   <translation tag="Load canceled: nozzle target dropped" ru="Загрузка отменена: цель сопла снижена"/>
+  <translation tag="Load canceled: the active tool changed" ru="Загрузка отменена: активный инструмент сменился"/>
   <translation tag="Load complete" ru="Загрузка завершена"/>
   <translation tag="Load failed" ru="Ошибка загрузки"/>
   <translation tag="Load filament" ru="Загрузка филамента"/>
@@ -2467,6 +2477,7 @@
   <translation tag="Network name cannot be empty" ru="Имя сети не может быть пустым"/>
   <translation tag="Network, display, sound, printer setup, and more. You can replay this tour anytime from Help &amp; About." ru="Сеть, дисплей, звук, настройка принтера и многое другое. Этот тур можно повторить в любой момент из раздела «Справка и о программе»."/>
   <translation tag="Neutral" ru="Нейтральный"/>
+  <translation tag="Neutralize Tension" ru="Снять натяжение"/>
   <translation tag="Never" ru="Никогда"/>
   <translation tag="Never sleeps" ru="Никогда не спит"/>
   <translation tag="New Spool" ru="Новая катушка"/>
@@ -3297,6 +3308,7 @@
   <translation tag="Reset Motor Timer" ru="Сбросить таймер мотора"/>
   <translation tag="Reset Servo Counter" ru="Сбросить счётчик сервопривода"/>
   <translation tag="Reset Speed &amp; Flow to 100%" ru="Сбросить скорость и поток на 100%"/>
+  <translation tag="Reset Sync Feedback" ru="Сбросить обратную связь синхронизации"/>
   <translation tag="Reset Tags" ru="Сбросить отметки"/>
   <translation tag="Reset all settings and restart wizard" ru="Сбросить все настройки и перезапустить мастер"/>
   <translation tag="Reset failed" ru="Ошибка сброса"/>
@@ -3405,6 +3417,7 @@
   <translation tag="Run stopped" ru="Запуск остановлен"/>
   <translation tag="Run test sequence on all lanes" ru="Запустить тестовую последовательность на всех каналах"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." ru="Запустите установщик HelixScreen с ключом --update в терминале на этом принтере. Отсканируйте код, чтобы получить команду для вашей платформы."/>
+  <translation tag="Run the MMU fans by temperature" ru="Включать вентиляторы MMU по температуре"/>
   <translation tag="Run the chamber dryer too" ru="Включить и сушилку камеры"/>
   <translation tag="Run {}?" ru="Запустить {}?"/>
   <translation tag="Running loose" ru="Ослаблен"/>
@@ -3438,6 +3451,7 @@
   <translation tag="Save" ru="Сохранить"/>
   <translation tag="Save &amp; Restart" ru="Сохранить и перезапустить"/>
   <translation tag="Save As New" ru="Сохранить как новый"/>
+  <translation tag="Save Autotuned Rotation" ru="Сохранять автоподбор вращения"/>
   <translation tag="Save Hardware" ru="Сохранить оборудование"/>
   <translation tag="Save Offsets" ru="Сохранить смещения"/>
   <translation tag="Save Printer Configuration" ru="Сохранить конфигурацию принтера"/>
@@ -3553,6 +3567,7 @@
   <translation tag="Select sensor" ru="Выбрать датчик"/>
   <translation tag="Select slot failed" ru="Ошибка выбора слота"/>
   <translation tag="Select the heaters Klipper uses for your bed and hotend" ru="Выберите нагреватели Klipper для стола и хотенда"/>
+  <translation tag="Select this tool first, then load it by hand." ru="Сначала выберите этот инструмент, затем загрузите его вручную."/>
   <translation tag="Select which devices the home screen power button controls" ru="Выберите устройства для кнопки питания на главном экране"/>
   <translation tag="Select which sensor triggers pause on filament runout" ru="Выберите датчик, который ставит на паузу при окончании филамента"/>
   <translation tag="Select your preferred language" ru="Выберите предпочитаемый язык"/>
@@ -3872,7 +3887,9 @@
   <translation tag="Switching to MPC requires a config change and Klipper restart." ru="Переход на MPC требует изменения конфига и перезапуска Klipper."/>
   <translation tag="Switching to {}" ru="Переключение на {}"/>
   <translation tag="Sync" ru="Синхр."/>
+  <translation tag="Sync Feedback" ru="Обратная связь синхронизации"/>
   <translation tag="Sync during printing" ru="Синхронизация во время печати"/>
+  <translation tag="Sync feedback is off" ru="Обратная связь синхронизации выключена"/>
   <translation tag="Sync with Spoolman" ru="Синхронизация со Spoolman"/>
   <translation tag="Syncing Motors..." ru="Синхронизация моторов..."/>
   <translation tag="Syncing motors..." ru="Синхронизация моторов..."/>
@@ -4186,6 +4203,7 @@
   <translation tag="This dryer cannot run while filament from the unit is loaded" ru="Сушилка не может работать, пока загружен филамент из этого узла"/>
   <translation tag="This feature requires different hardware or configuration" ru="Для этой функции требуется другое оборудование или конфигурация"/>
   <translation tag="This filament system does not report buffer or flow data." ru="Эта система филамента не сообщает данные буфера и потока."/>
+  <translation tag="This filament system keeps its own spool records" ru="Эта система подачи филамента сама ведёт записи о катушках"/>
   <translation tag="This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures." ru="Этот файл печатает {0} и {1} через одно сопло. При температурах {1} материал {0} может пригореть и забить сопло."/>
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." ru="Этот файл печатает {0} и {1} вместе. Нагрев камеры и стола, нужный для {1}, может размягчить {0} и забить его сопло."/>
   <translation tag="This file was sliced for {} but {} is loaded." ru="Файл нарезан для {}, но загружен {}."/>
@@ -4236,6 +4254,7 @@
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." ru="Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз."/>
   <translation tag="This system does not support bypass mode" ru="Эта система не поддерживает режим обхода"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." ru="Этот инструмент проверяет каждый винт стола и показывает, насколько его нужно отрегулировать."/>
+  <translation tag="This toolhead has no automatic feeder. Load the filament by hand." ru="У этой печатающей головки нет автоматического фидера. Загрузите филамент вручную."/>
   <translation tag="This update asks for new permissions:" ru="Это обновление запрашивает новые разрешения:"/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." ru="Это ожидание заканчивается только по достижении температуры: для отмены нужны аварийная остановка и перезапуск прошивки."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." ru="Z-offset будет применён к вашему концевику, и Klipper перезапустится для сохранения конфигурации. Принтер ненадолго отключится."/>
@@ -4270,6 +4289,7 @@
   <translation tag="Timelapse Available" ru="Таймлапс доступен"/>
   <translation tag="Timelapse Settings" ru="Настройки таймлапса"/>
   <translation tag="Timelapse Videos" ru="Видео таймлапс"/>
+  <translation tag="Timelapse frames start after Klipper restarts." ru="Кадры таймлапса начнут сниматься после перезапуска Klipper."/>
   <translation tag="Timelapse or logs folder overlaps a protected one." ru="Папка таймлапсов или журналов пересекается с защищённой."/>
   <translation tag="Timelapse plugin installed successfully!" ru="Плагин таймлапса успешно установлен!"/>
   <translation tag="Timelapse plugin installed!" ru="Плагин таймлапса установлен!"/>
@@ -4408,6 +4428,7 @@
   <translation tag="Uninstallation timed out. The script may be stuck." ru="Время удаления истекло. Скрипт мог зависнуть."/>
   <translation tag="Unit" ru="Узел"/>
   <translation tag="Unit " ru="Узел "/>
+  <translation tag="Unit text" ru="Обозначение единицы"/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d" ru="Узлы: %d   Коробки: %d   Сушилки: %d"/>
   <translation tag="Unknown" ru="Неизвестно"/>
   <translation tag="Unknown Error" ru="Неизвестная ошибка"/>

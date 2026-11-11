@@ -182,8 +182,7 @@ struct PrintStartGate {
 /// Start Anyway naming that material. Pass otherwise.
 [[nodiscard]] CheckResult gate_door_open(const PrintStartContext& ctx);
 
-/// Per-tool material mismatch detail (ported verbatim from
-/// PrintStartController::MaterialMismatchDetail).
+/// Per-tool material mismatch detail.
 struct MaterialMismatchDetail {
     int tool_index = 0;
     /// Same polymer, different filler: the file wants PLA-CF and the lane
@@ -236,8 +235,8 @@ struct LaneWeightShortfall {
  *
  * The lane-fed counterpart to insufficient_spool_weight_in(), which can only
  * ever weigh the single external spool and therefore says nothing useful about
- * an AMS print (it compared the whole file against a spool the print would not
- * touch, and no remap could change either input).
+ * an AMS print (it compares the whole file against a spool the print would not
+ * touch, and no remap can change either input).
  *
  * Silent - deliberately, in every direction where the data does not support an
  * answer:

@@ -29,7 +29,6 @@ void PrinterExcludedObjectsState::init_subjects(bool register_xml) {
     spdlog::trace("[PrinterExcludedObjectsState] Initializing subjects (register_xml={})",
                   register_xml);
 
-    // Initialize version subject to 0 (no changes yet)
     INIT_SUBJECT_INT(excluded_objects_version, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(defined_objects_version, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(defined_objects_count, 0, subjects_, register_xml);
@@ -131,11 +130,9 @@ void PrinterExcludedObjectsState::deinit_subjects() {
 
 void PrinterExcludedObjectsState::set_excluded_objects(
     const std::unordered_set<std::string>& objects) {
-    // Only update if the set actually changed
     if (excluded_objects_ != objects) {
         excluded_objects_ = objects;
 
-        // Increment version to notify observers
         int version = lv_subject_get_int(&excluded_objects_version_);
         lv_subject_set_int(&excluded_objects_version_, version + 1);
 
@@ -146,11 +143,9 @@ void PrinterExcludedObjectsState::set_excluded_objects(
 }
 
 void PrinterExcludedObjectsState::set_defined_objects(const std::vector<std::string>& objects) {
-    // Only update if the list actually changed
     if (defined_objects_ != objects) {
         defined_objects_ = objects;
 
-        // Increment version to notify observers
         int version = lv_subject_get_int(&defined_objects_version_);
         lv_subject_set_int(&defined_objects_version_, version + 1);
         lv_subject_set_int(&defined_objects_count_, static_cast<int>(defined_objects_.size()));

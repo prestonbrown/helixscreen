@@ -25,6 +25,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 namespace {

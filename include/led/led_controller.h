@@ -18,7 +18,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: configfile_config_ held by value
 
 namespace helix {
 class IMoonrakerAPI;

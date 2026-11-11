@@ -386,10 +386,9 @@ class AmsOperationSidebar {
     // ---- Action button gating (filament_op_slot_resolver.h) -----------------
     // Recompute every gated sidebar button and publish the results on
     // ams_sidebar_unload_disabled, ams_sidebar_load_disabled,
-    // ams_sidebar_reset_disabled and ams_sidebar_check_gates_disabled. Unload
-    // and Load come from the same compute_op_button_gating() rule the filament
-    // panel and the AMS context menu use; Reset and Check slots come from
-    // compute_machine_op_gating().
+    // ams_sidebar_reset_disabled and ams_sidebar_check_gates_disabled. Load
+    // and Unload come from decide_filament_actions() (filament_action_set.h); Reset and Check slots
+    // come from compute_machine_op_gating().
     void refresh_button_gating();
 
     // What the Load and Unload cells offer, decided by decide_filament_actions()
@@ -436,6 +435,9 @@ class AmsOperationSidebar {
     void handle_bypass_toggle();
     void handle_reset();
     void handle_check_gates();
+    /// The loaded card's tap: the loaded lane's spool in the editor, or the
+    /// spool picker when Spoolman is up and the lane links no spool (#2094).
+    void handle_loaded_card_tap();
 
     // Action display (sidebar-relevant parts only)
     void update_action_display(AmsAction action);

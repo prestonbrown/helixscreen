@@ -545,6 +545,7 @@ translations:
   Buffer: Buffer
   Buffer Status: Estado do Buffer
   Buffer tube problem: Problema no tubo do buffer
+  Buffer-driven gear speed control: "Velocidade da engrenagem controlada pelo buffer"
   Build Volume: 'Volume de impressão'
   'Build Volume: ': 'Volume de Impressão: '
   'Building preview: %d%%': 'Gerando visualização: %d%%'
@@ -1629,6 +1630,8 @@ translations:
   Fair match: "Correspondência razoável"
   Fan: Ventoinha
   Fan Calibration: Calibração da Ventoinha
+  Fan Control: "Controle da ventoinha"
+  Fan Mode: "Modo da ventoinha"
   Fan Speeds: 'Velocidades das ventoinhas'
   Fan Tach: 'Tacômetro do ventilador'
   Fan Transfer: Transferência da Ventoinha
@@ -1786,6 +1789,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: "Siga o manual para trocar o bico ou hotend."
   'For a first Z home: claim the tool you put on the head': 'Para a primeira referência de Z: registrar a ferramenta colocada no cabeçote'
   For materials that need a warm enclosure, like ABS or ASA: 'Para materiais que precisam de um gabinete quente, como ABS ou ASA'
+  Force the MMU fans off or on, or follow Fan Control: "Forçar as ventoinhas do MMU desligadas ou ligadas, ou seguir o controle da ventoinha"
   Force/weight sensors: 'Sensores de força/peso'
   Forget: Esquecer
   Forget Network?: Esquecer Rede?
@@ -1923,6 +1927,7 @@ translations:
   Heating the bed: Aquecendo a mesa
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Aquecendo a mesa e o bico para que a impressão volte a aderir e o bico se solte dela"
   Heating the nozzle: Aquecendo o bico
+  Heating the nozzle. Have the filament ready to push in.: "Aquecendo o bico. Deixe o filamento pronto para inserir."
   Heating to %d°C... %.0f°C: Aquecendo a %d°C... %.0f°C
   'Heating to %s: %d:%02d left': 'Aquecendo a %s: %d:%02d restante'
   Heating to {}°C before {}...: Aquecendo a {}°C antes de {}...
@@ -2202,6 +2207,7 @@ translations:
   Keep pushing filament while it cools: "Continue empurrando o filamento enquanto esfria"
   Keep the bypass spool visible when bypass is off: Manter o carretel de bypass visível quando o bypass estiver desligado
   Keep Tuning: Continuar
+  Keep the rotation distance sync feedback tunes: "Salvar a distância de rotação ajustada pelo feedback de sincronização"
   Keep waiting: 'Continuar aguardando'
   'Kept {}: a print started.': '{} mantido: uma impressão começou.'
   Kick away: 'Expulsar'
@@ -2230,7 +2236,9 @@ translations:
     Klipper entrou em estado de desligamento. Isso pode ser devido a uma parada de
     emergência, fuga térmica ou erro de configuração.
   Klipper has no [virtual_sdcard] section.: "O Klipper não tem uma seção [virtual_sdcard]."
+  'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'O Klipper não carregou as macros de timelapse, então nenhum quadro é capturado. Adicione esta linha ao printer.cfg e reinicie o Klipper:'
   Klipper is halted — restart firmware to continue: O Klipper está parado — reinicie o firmware para continuar
+  Klipper is restarting. Timelapse frames are captured from the next print.: 'O Klipper está reiniciando. Os quadros do timelapse são capturados a partir da próxima impressão.'
   Klipper ready: Klipper pronto
   Klipper reserves 'default' for new calibrations. Choose another name.: "O Klipper reserva 'default' para novas calibrações. Escolha outro nome."
   Klipper restarting - macros activating: 'Reiniciando o Klipper - ativando macros'
@@ -2297,6 +2305,7 @@ translations:
   Layout: Disposição
   Layout changes are off in safe mode. Restart to edit.: 'As alterações de layout estão desativadas no Modo Seguro. Reinicie para editar.'
   Learn More: Saiba Mais
+  Leave empty for no unit: 'Deixar vazio para não mostrar unidade'
   Leave it: 'Deixar'
   Leave this off for a clogged nozzle.: "Deixe desativado se o bico estiver entupido."
   LedSelect: Selecionar LED
@@ -2338,6 +2347,7 @@ translations:
   Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one: Carregue um novo carretel neste slot, ou ative o reabastecimento automático para mudar para um equivalente
   Load and unload filament at the tool by hand: 'Carregue e descarregue o filamento à mão na ferramenta'
   'Load canceled: nozzle target dropped': 'Carregamento cancelado: o alvo do bico caiu'
+  'Load canceled: the active tool changed': 'Carregamento cancelado: a ferramenta ativa mudou'
   Load complete: 'Carregamento concluído'
   Load failed: Falha ao carregar
   Load filament: 'Carregar filamento'
@@ -2637,6 +2647,7 @@ translations:
   Network name cannot be empty: O nome da rede não pode estar vazio
   'Network, display, sound, printer setup, and more. You can replay this tour anytime from Help & About.': 'Rede, tela, som, configuração da impressora e muito mais. Você pode repetir este tour a qualquer momento em Ajuda e sobre.'
   Neutral: Neutro
+  Neutralize Tension: "Neutralizar tensão"
   Never: Nunca
   Never sleeps: Nunca dorme
   New Spool: Novo carretel
@@ -2917,6 +2928,7 @@ translations:
   Open the slot editor when you load a new spool: 'Abrir o editor de slot ao carregar um novo carretel'
   OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "O OpenAMS guarda este carretel no Spoolman, que aqui aceita apenas material, cor, marca e peso"
   OpenAMS manages this spool's link: "O OpenAMS gerencia o vínculo deste carretel"
+  This filament system keeps its own spool records: "Este sistema de filamento mantém os próprios registros de carretéis"
   AFC has no Spoolman configured: "O AFC não tem o Spoolman configurado"
   Opened: Aberta
   Operation already in progress: Operação já em andamento
@@ -3517,6 +3529,7 @@ translations:
   Reset failed: Falha ao redefinir
   Reset motor run-time counter: 'Resetar o contador de horas de funcionamento do motor'
   Reset tags: Resetar marcações
+  Reset Sync Feedback: "Resetar feedback de sincronização"
   Reset Tags: Resetar marcações
   Reset to Default: Restaurar Padrão
   Reset to defaults: Restaurar padrões
@@ -3627,6 +3640,7 @@ translations:
   Run stopped: 'Execução interrompida'
   Run test sequence on all lanes: 'Executar a sequência de teste em todas as lanes'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: Execute o instalador do HelixScreen com --update em um terminal nesta impressora. Escaneie para ver o comando da sua plataforma.
+  Run the MMU fans by temperature: "Acionar as ventoinhas do MMU pela temperatura"
   Run the chamber dryer too: Usar também o secador da câmara
 
   Run {}?: Executar {}?
@@ -3667,6 +3681,7 @@ translations:
   Save: Salvar
   Save & Restart: Salvar & Reiniciar
   Save As New: Salvar Como Novo
+  Save Autotuned Rotation: "Salvar rotação autoajustada"
   Save Hardware: Salvar Hardware
   Save Printer Configuration: Salvar Configuração da Impressora
   Save Theme As: Salvar Tema Como
@@ -3796,6 +3811,7 @@ translations:
   Select slot failed: Falha ao selecionar slot
   Select the heaters Klipper uses for your bed and hotend: Selecione os aquecedores
     que o Klipper usa para a mesa e o hotend
+  Select this tool first, then load it by hand.: "Selecione esta ferramenta primeiro e depois carregue-a manualmente."
   Select which devices the home screen power button controls: Selecione quais dispositivos
     o botão de energia controla
   Select which sensor triggers pause on filament runout: Selecione qual sensor aciona
@@ -4147,7 +4163,9 @@ translations:
     alteração de configuração e reinicialização do Klipper.
   Sync: 'Sinc.'
   Switching to {}: Mudando para {}
+  Sync Feedback: "Feedback de sincronização"
   Sync during printing: Sincronizar durante a impressão
+  Sync feedback is off: "O feedback de sincronização está desligado"
   Sync with Spoolman: Sincronizar com Spoolman
   Syncing Motors...: Sincronizando motores...
   Syncing motors...: Sincronizando motores...
@@ -4449,6 +4467,7 @@ translations:
   The temperature was changed elsewhere.: "A temperatura foi alterada em outro lugar."
   The time, date, and system uptime: Hora, data e tempo ativo
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "A pasta de timelapse ou de logs sobrepõe-se a uma pasta protegida, por isso a limpeza está desligada."
+  Timelapse frames start after Klipper restarts.: 'Os quadros do timelapse começam depois que o Klipper reinicia.'
   Timelapse or logs folder overlaps a protected one.: "A pasta de timelapse ou de logs se sobrepõe a uma protegida."
   ? The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.
   : 'O plugin de timelapse está instalado. Para criar vídeos também é preciso o ffmpeg, que não está instalado nesta impressora.'
@@ -4525,6 +4544,7 @@ translations:
     mas {} está carregado.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Este arquivo foi fatiado para {}, mas {} está carregado. A impressão será mais lenta e mais quente do que o carretel carregado precisa.
   This firmware can only switch slots by loading them: 'Este firmware só pode trocar de slot carregando-o'
+  This toolhead has no automatic feeder. Load the filament by hand.: "Este cabeçote não tem alimentador automático. Carregue o filamento manualmente."
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Isto instala as macros de ajuda do HelixScreen na impressora e as adiciona ao printer.cfg. Uma impressão está em andamento, então o Klipper será reiniciado ao término.'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: 'Isto instala as macros de ajuda do HelixScreen na impressora, as adiciona ao printer.cfg e reinicia o Klipper.'
@@ -4781,6 +4801,7 @@ translations:
     O script pode estar travado.
   Unit: Unidade
   'Unit ': 'Unidade '
+  Unit text: 'Texto da unidade'
   'Units: %d   Boxes: %d   Dryers: %d': 'Unidades: %d   Caixas: %d   Secadores: %d'
   Unknown: Desconhecido
   Unknown Error: 'Erro desconhecido'

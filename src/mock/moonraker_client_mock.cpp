@@ -20,6 +20,7 @@
 #include "mock_persona.h"
 #include "mock_planted_gcodes.h"
 #include "moonraker_client_mock_internal.h"
+#include "moonraker_status_notification.h"
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "shaper_response.h"
@@ -232,6 +233,9 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
     // whole of filament identity there. Without these records every lane renders
     // at kAmsDefaultSlotColor, which makes colour and ghost bugs invisible.
     // Outer key style is T<n> (lane_key_style_for), inner "lane" is 0-based.
+    if (is_mock_lane_status()) {
+        seed_lane_status_records();
+    }
     if (mock_medusa_variant() != MedusaVariant::NONE) {
         // Each lane mirrors a spool from the mock Spoolman inventory - id,
         // vendor, material, colour and weights - so the active-spool card and
@@ -2583,6 +2587,10 @@ void MoonrakerClientMock::dispatch_initial_state() {
         initial_status.update(indx);
         std::lock_guard<std::mutex> lock(indx_mutex_);
         indx_published_ = indx;
+    }
+
+    if (is_mock_lane_status()) {
+        initial_status["lane_status"] = lane_status_json();
     }
 
     // multiACE mock: the `ace` object and both filament_feed sides at rest, so

@@ -289,10 +289,9 @@ std::vector<ToolMapping> FilamentMapper::compute_defaults(const std::vector<Gcod
                     break;
                 }
             }
-            // No routed lane: rather than grab an arbitrary unclaimed lane (the
-            // old material-blind behavior that misrouted prints — a PLA tool into a
-            // PETG/TPU lane), take the first unclaimed lane that is not known to be
-            // incompatible. Unknown/empty materials can't be proven incompatible, so
+            // No routed lane: rather than grab an arbitrary unclaimed lane (which
+            // misroutes a PLA tool into a PETG/TPU lane), take the first unclaimed lane that is not
+            // known to be incompatible. Unknown/empty materials can't be proven incompatible, so
             // they stay eligible (backends that don't publish material keep this
             // fallback). If none qualifies the tool stays unmatched for preflight.
             if (mapping.mapped_slot < 0 && guess == FreeLaneGuess::Allowed) {
@@ -555,7 +554,7 @@ std::vector<uint32_t> FilamentMapper::routed_tool_colors(const std::vector<int>&
         info.color_known = false;
         tools.push_back(std::move(info));
 
-        // An EMPTY lane keeps reporting the color of whatever used to be in it
+        // An EMPTY lane keeps reporting the color of whatever it last held
         // (a U1 with nothing in head 1 still says 0xE2DEDB), so a tool routed
         // there must resolve to "unknown", not to a filament that is not loaded.
         // The pre-print matcher already refuses to match empty lanes; this is the

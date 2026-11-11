@@ -96,7 +96,6 @@ void SlotRegistry::reorganize(
                 entry.info.slot_index = s;
                 slots_.push_back(std::move(entry));
             } else {
-                // New slot with defaults
                 SlotEntry entry;
                 entry.global_index = global_offset + s;
                 entry.unit_index = unit_idx;
@@ -217,8 +216,8 @@ void SlotRegistry::set_tool_mapping(int global_index, int tool_number, MappingSo
     if (!is_valid_index(global_index) || tool_number < 0)
         return;
 
-    // Bump before the early-outs below can't happen (there are none past this
-    // point) but after validation, so a rejected write never counts as
+    // There are no early-outs past this point, so bumping here, after
+    // validation, counts exactly the accepted writes: a rejected write never counts as
     // confirmation. Counted per accepted firmware write rather than per
     // changed value: a firmware report that MATCHES what we optimistically
     // wrote is still proof the printer applied it, and is the common case for
@@ -245,10 +244,8 @@ void SlotRegistry::set_tool_mapping(int global_index, int tool_number, MappingSo
         }
     }
 
-    // Set the mapping
     slots_[global_index].info.mapped_tool = tool_number;
 
-    // Grow tool_to_slot_ if needed
     if (tool_number >= static_cast<int>(tool_to_slot_.size())) {
         tool_to_slot_.resize(tool_number + 1, -1);
     }
@@ -278,7 +275,6 @@ void SlotRegistry::set_tool_map(const std::vector<int>& tool_to_slot, MappingSou
         ++firmware_mapping_generation_;
     }
 
-    // Clear all existing mappings
     for (auto& slot : slots_) {
         slot.info.mapped_tool = -1;
     }
@@ -373,7 +369,6 @@ void SlotRegistry::rebuild_reverse_maps() {
         name_to_index_[slots_[i].backend_name] = i;
     }
 
-    // Rebuild tool_to_slot_ from slots
     tool_to_slot_.clear();
     for (int i = 0; i < static_cast<int>(slots_.size()); ++i) {
         int tool = slots_[i].info.mapped_tool;

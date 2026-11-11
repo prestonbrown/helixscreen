@@ -143,6 +143,9 @@ void ToolState::deinit_subjects() {
     ams_topology_tool_count_ = 0;
     ams_topology_tool_to_slot_.clear();
     ams_topology_tool_extruder_.clear();
+    // The editable-axis subjects die below; the staged half of follows_axis()
+    // must not outlive them into the next printer.
+    firmware_staged_axes_ = {};
 
     subjects_.deinit_all();
     subjects_initialized_ = false;
@@ -189,7 +192,9 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
     for (Axis axis : kAllAxes) {
         const bool supported = helix::tool_offsets::supports_axis(hardware, axis);
         lv_subject_set_int(get_per_tool_axis_supported_subject(axis), supported ? 1 : 0);
-        if (supported) {
+        firmware_staged_axes_[axis_index(axis)] =
+            helix::tool_offsets::firmware_stages_axis(hardware, axis);
+        if (follows_axis(axis)) {
             axes += axis_letter(axis);
         }
     }
@@ -625,10 +630,10 @@ void ToolState::update_from_status(const nlohmann::json& status) {
     // loop above. That loop skips a tool whose `tool T<n>` object is not in
     // this frame, and on a firmware that keeps every tool's offset on ONE
     // object (see helix::tool_offsets) that would skip the offsets entirely.
-    if (per_tool_offsets_supported()) {
+    if (follows_any_axis()) {
         for (int i = 0; i < static_cast<int>(tools_.size()); ++i) {
             for (Axis axis : kAllAxes) {
-                if (lv_subject_get_int(get_per_tool_axis_supported_subject(axis)) != 1) {
+                if (!follows_axis(axis)) {
                     continue;
                 }
                 auto microns = helix::tool_offsets::read_tool_offset_microns(
@@ -678,9 +683,22 @@ bool ToolState::per_tool_offsets_supported() const {
            get(per_tool_z_supported_) == 1;
 }
 
+bool ToolState::follows_axis(Axis axis) const {
+    // The getter and lv_subject_get_int take non-const pointers but only read.
+    auto* self = const_cast<ToolState*>(this);
+    return lv_subject_get_int(self->get_per_tool_axis_supported_subject(axis)) == 1 ||
+           firmware_staged_axes_[axis_index(axis)];
+}
+
+bool ToolState::follows_any_axis() const {
+    return per_tool_offsets_supported() ||
+           std::any_of(firmware_staged_axes_.begin(), firmware_staged_axes_.end(),
+                       [](bool staged) { return staged; });
+}
+
 void ToolState::query_tool_offsets(IMoonrakerClient* client,
                                    const helix::PrinterDiscovery& hardware) {
-    if (!client || tools_.empty() || !per_tool_offsets_supported()) {
+    if (!client || tools_.empty() || !follows_any_axis()) {
         return;
     }
 

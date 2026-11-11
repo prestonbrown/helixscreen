@@ -354,7 +354,7 @@ void DisplaySleepController::tick() {
     // active prints. We still need to honor wake-from-sleep touches: the
     // display may have entered sleep BEFORE the print started, and bailing out
     // here would strand the user on a blank screen for the duration of the
-    // print (debug bundle RYAQGL6C: 8 touch events, 18-minute wake delay).
+    // print.
     bool inhibit_sleep_entry = false;
     if (!DisplaySettingsManager::instance().get_sleep_while_printing()) {
         // Lifecycle: a user who turned off sleep-while-printing wants the
@@ -575,7 +575,6 @@ void DisplaySleepController::wake() {
     bool was_preview = m_screensaver_is_preview;
     m_screensaver_is_preview = false;
     m_preview_start_tick_ms = 0;
-    // Stop screensaver on wake
     if (m_screensaver_active) {
         ScreensaverManager::instance().stop(m_wake_from_input ? helix::SaverRunEnd::TOUCH
                                                               : helix::SaverRunEnd::OTHER);
@@ -734,7 +733,6 @@ void DisplaySleepController::set_dim_timeout(int seconds) {
 void DisplaySleepController::restore_on_shutdown() {
     DisplayBackend* backend = m_host.backend.get();
 
-    // Clean up software sleep overlay if active
     destroy_sleep_overlay();
     show_screen_after_dark_panel();
 

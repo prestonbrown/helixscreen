@@ -146,16 +146,6 @@ class XmlHotReloader {
     /// Map: absolute file path -> LVGL registration path ("A:ui_xml/...")
     std::unordered_map<std::string, std::string> file_to_lvgl_path_;
 
-    /// Map: absolute file path -> the path LayoutManager resolves against, i.e.
-    /// the file's location under the watch root with any leading layout-variant
-    /// directory stripped ("home_panel.xml", "components/progress_bar.xml").
-    std::unordered_map<std::string, std::string> file_to_logical_path_;
-
-    /// Map: absolute file path -> layout-variant directory the file lives in
-    /// ("micro", "portrait", …), or "" for the base copy. A file only reloads
-    /// while its variant is the one the active layout resolves to.
-    std::unordered_map<std::string, std::string> file_to_variant_;
-
     /// Optional test callback — if set, called instead of LVGL unregister/register
     ReloadCallback reload_callback_;
 

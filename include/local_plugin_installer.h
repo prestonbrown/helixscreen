@@ -16,7 +16,11 @@
  *   1. Fetch: git clone the recipe's repository, unless the checkout is there
  *      or the plugin ships with this app. The clone lands in repo_dir only once
  *      it is whole; a failed one leaves nothing behind, and a directory already
- *      in repo_dir is never replaced or removed.
+ *      in repo_dir is never replaced or removed. A checkout already there that
+ *      sits on a detached HEAD is switched to the recipe's repo_branch when its
+ *      tree is clean and that branch exists locally and contains HEAD (so the
+ *      switch never goes back or strands commits), since Moonraker's update
+ *      manager refuses to track a detached checkout. Nothing is fetched for it.
  *   2. Install: install.sh in the recipe's mode. install.sh owns where Moonraker
  *      lives, the link pre-flights, and any config section it writes.
  *   3. Each dependency: probe for it, and report a missing one to the user.
@@ -50,6 +54,8 @@ struct LocalPluginRecipe {
     std::string repo_url;      ///< git repository to clone; empty when it ships with the app
     std::string repo_dir_name; ///< the clone's directory under home
     std::string repo_marker;   ///< a file only a checkout of this plugin holds
+    /// The branch Moonraker's update manager tracks; a detached checkout is put back on it.
+    std::string repo_branch;
     std::vector<std::string> install_args; ///< install.sh's arguments after its path
     int install_timeout_seconds = 60;
     std::vector<LocalPluginDependency> dependencies;
@@ -92,6 +98,23 @@ struct LocalPluginResult {
     /// The dependency left to the user, when outcome is InstalledMissingDependency.
     std::string missing_dependency;
 };
+
+/**
+ * @brief Put a checkout on a detached HEAD back on @p recipe's repo_branch
+ *
+ * Moonraker's update manager refuses to track a detached checkout. Local git
+ * only: the read-only probes go through @p run, the `git checkout` itself
+ * through @p switch_run (@p run when empty), so a caller can let a started
+ * checkout finish rather than stop it with the tree half updated. The switch
+ * happens only when the tree is clean and the branch exists and contains HEAD,
+ * so it never goes back or strands commits. A checkout already on a branch
+ * costs one git call; every other case is logged and left as it is. Blocks on
+ * git, so it belongs on a worker thread.
+ *
+ * @return true only when it switched the checkout onto the branch
+ */
+bool attach_checkout_to_branch(const LocalPluginRecipe& recipe, const std::string& repo_dir,
+                               const ProcessRunner& run, const ProcessRunner& switch_run = {});
 
 /**
  * @brief Run a local install of @p recipe through @p run

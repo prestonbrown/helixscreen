@@ -32,6 +32,8 @@
 #include <cstdio>
 #include <memory>
 
+#include "hv/json.hpp"
+
 using namespace helix;
 
 // ============================================================================

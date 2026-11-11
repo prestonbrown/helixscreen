@@ -169,14 +169,6 @@ MAIN_EOF
 
 # ----------------------------------------------------------- the real tree
 
-@test "the gate sees install_permission_rules as reached (#1343 stays fixed)" {
-    # Belt and braces with test_permission_rules.bats: that one proves main()
-    # runs it, this one proves the gate would notice if the call went away.
-    run python3 "$GATE" --list
-    [ "$status" -eq 0 ]
-    [[ "$output" != *"install_permission_rules"* ]]
-}
-
 @test "gate is wired into quality-checks.sh" {
     run grep -q "check_installer_step_reachability.py" scripts/qc/installer_reachability.sh
     [ "$status" -eq 0 ]

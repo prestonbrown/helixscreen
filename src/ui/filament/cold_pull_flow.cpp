@@ -13,13 +13,6 @@ namespace helix {
 
 namespace {
 
-filament_macros::GuidedLoad feed_steps() {
-    filament_macros::GuidedLoad steps;
-    steps.feed = ui::extrude_gcode(kFeedMm, kFeedSpeedMmMin);
-    steps.retry = ui::extrude_gcode(kPurgeMoreMm, kPurgeSpeedMmMin);
-    return steps;
-}
-
 bool within(int a, int b, int tolerance) {
     return std::abs(a - b) <= tolerance;
 }
@@ -53,7 +46,7 @@ void ColdPullFlow::clear_in_flight() {
 
 GuidedLoadFlow ColdPullFlow::new_feed() const {
     // Filament already in the nozzle has nothing to push: only the purge is left.
-    return GuidedLoadFlow(feed_steps(),
+    return GuidedLoadFlow(hand_feed_steps(),
                           /*waits_for_push=*/feed_mode() != ColdPullFeedMode::Loaded);
 }
 

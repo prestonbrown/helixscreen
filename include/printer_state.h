@@ -73,8 +73,8 @@ enum class PrinterStatus {
  * Represents the state of the current print job as reported by Klipper/Moonraker.
  * This is the canonical enum for print job state throughout HelixScreen.
  *
- * @note Values are chosen to match the integer representation used internally
- *       by MoonrakerClientMock for backward compatibility.
+ * @note Values match the integer print_state_ that MoonrakerClientMock stores;
+ *       keep the two in sync.
  */
 enum class PrintJobState {
     STANDBY = 0,   ///< No active print, printer idle (Moonraker: "standby")
@@ -250,8 +250,8 @@ class PrinterState {
     /**
      * @brief Deinitialize all subjects across all state components
      *
-     * Cascades to all 13 sub-component deinit_subjects() methods and
-     * then deinitializes PrinterState's own subjects.
+     * Cascades to every domain component's deinit_subjects() and then
+     * deinitializes PrinterState's own subjects.
      */
     void deinit_subjects();
 
@@ -411,8 +411,9 @@ class PrinterState {
      * The per-domain tokens above are narrower — one component's subjects, or a
      * single dynamic subject. This one is flipped false at the top of
      * `deinit_subjects()`, before any component tears its subjects down, so it
-     * covers the whole tree: temperature, motion, fan, LED, print, capabilities,
-     * excluded objects, and PrinterState's own.
+     * covers the whole tree: every domain component's subjects (temperature,
+     * motion, fan, print, capabilities, excluded objects and the rest) and
+     * PrinterState's own.
      *
      * Any observer whose owner can outlive a `deinit_subjects()` cycle MUST pass
      * this (or a narrower token for the same subject) to `observe_*`. Panels held
@@ -456,7 +457,7 @@ class PrinterState {
      * @brief Set printer connection state (Moonraker WebSocket)
      *
      * Updates both printer_connection_state and printer_connection_message subjects.
-     * Called by main.cpp WebSocket callbacks.
+     * Called from MoonrakerManager's WebSocket connection callbacks.
      *
      * @param state 0=disconnected, 1=connecting, 2=connected, 3=reconnecting, 4=failed
      * @param message Status message ("Connecting...", "Ready", "Disconnected", etc.)
@@ -530,7 +531,7 @@ class PrinterState {
      *
      * Updates subjects that control visibility of pre-print option checkboxes.
      * Applies user-configured overrides from settings.json before updating subjects.
-     * Called by main.cpp after MoonrakerClient::discover_printer() completes.
+     * Called by the discovery sequence once printer discovery completes.
      *
      * @param hardware PrinterDiscovery populated from printer.objects.list
      */
@@ -548,7 +549,7 @@ class PrinterState {
      * @brief Set Klipper software version from printer.info
      *
      * Updates klipper_version_ subject for Settings panel About section.
-     * Called by main.cpp after MoonrakerClient::discover_printer() completes.
+     * Called by the discovery sequence once printer discovery completes.
      *
      * @param version Version string (e.g., "v0.12.0-108-g2c7a9d58")
      */
@@ -558,7 +559,7 @@ class PrinterState {
      * @brief Set Moonraker software version from server.info
      *
      * Updates moonraker_version_ subject for Settings panel About section.
-     * Called by main.cpp after MoonrakerClient::discover_printer() completes.
+     * Called by the discovery sequence once printer discovery completes.
      *
      * @param version Version string (e.g., "v0.8.0-143-g2c7a9d58")
      */
@@ -568,7 +569,7 @@ class PrinterState {
      * @brief Set OS version from machine.system_info
      *
      * Updates os_version_ subject for Settings panel About section.
-     * Called after MoonrakerClient::discover_printer() completes.
+     * Called by the discovery sequence once printer discovery completes.
      *
      * @param version OS distribution name (e.g., "Forge-X 1.4.0")
      */
@@ -776,14 +777,14 @@ class PrinterState {
      * NOT blocking; motion sent into an episode someone else started is not.
      * Manual probe remains an absolute block. Guards for discretionary gcode use
      * THIS predicate so back-to-back jogs don't self-block — idle_timeout reports
-     * "Printing" during any move, including our own jog (spec 2026-07-15).
+     * "Printing" during any move, including our own jog.
      *
      * @return true if a blocking non-print operation NOT caused by the app is active
      */
     bool is_external_blocking_operation_active();
 
-    /// App-initiated motion (jog) activity tracker; Task 3 stamps it from the
-    /// motion API so is_external_blocking_operation_active() can subtract self-busy.
+    /// App-initiated motion (jog) activity tracker; the motion API stamps it
+    /// so is_external_blocking_operation_active() can subtract self-busy.
     helix::AppMotionActivity& app_motion_activity() {
         return app_motion_activity_;
     }

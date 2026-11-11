@@ -10,6 +10,8 @@
 #include <cmath>
 #include <string_view>
 
+#include "hv/json.hpp"
+
 namespace helix::calibration {
 
 float ResonanceTesterConfig::sweep_seconds() const {

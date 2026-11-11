@@ -31,19 +31,63 @@ std::atomic<bool>& linked() {
 constexpr auto kStepDelay = std::chrono::milliseconds(800);
 } // namespace
 
+namespace {
+/// Calls @p fn on each comma-separated word of @p value until it returns true.
+template <typename Fn> bool any_word(const char* value, Fn fn) {
+    std::string_view rest = value ? value : "";
+    while (!rest.empty()) {
+        const size_t comma = rest.find(',');
+        if (fn(text_io::trim(rest.substr(0, comma)))) {
+            return true;
+        }
+        if (comma == std::string_view::npos) {
+            break;
+        }
+        rest.remove_prefix(comma + 1);
+    }
+    return false;
+}
+} // namespace
+
 TimelapseHost parse_timelapse_host(const char* value) {
-    const std::string_view v = value ? value : "";
-    if (v == "absent") {
-        return TimelapseHost::Absent;
-    }
-    if (v == "no-ffmpeg") {
-        return TimelapseHost::NoFfmpeg;
-    }
-    return TimelapseHost::Present;
+    TimelapseHost host = TimelapseHost::Present;
+    any_word(value, [&](std::string_view w) {
+        if (w == "absent") {
+            host = TimelapseHost::Absent;
+            return true;
+        }
+        if (w == "no-ffmpeg") {
+            host = TimelapseHost::NoFfmpeg;
+            return true;
+        }
+        return false;
+    });
+    return host;
+}
+
+bool parse_timelapse_helix_macros(const char* value) {
+    return any_word(value, [](std::string_view w) { return w == "helix-macros"; });
+}
+
+bool timelapse_helix_macros_loaded() {
+    return parse_timelapse_helix_macros(std::getenv("HELIX_MOCK_TIMELAPSE"));
+}
+
+std::string& timelapse_mock_helix_macros_file() {
+    static std::string content = "# helix_macros (mock, HELIX_MOCK_TIMELAPSE=helix-macros)\n";
+    return content;
 }
 
 bool timelapse_plugin_present() {
     return host_from_env() == TimelapseHost::Present || linked().load();
+}
+
+bool write_stub_timelapse_checkout(const std::string& repo) {
+    return fs::create_directories(repo + "/component") &&
+           fs::create_directories(repo + "/klipper_macro") &&
+           text_io::write_file(repo + "/component/timelapse.py", "") &&
+           text_io::write_file(repo + "/klipper_macro/timelapse.cfg",
+                               "[gcode_macro TIMELAPSE_TAKE_FRAME]\ngcode:\n");
 }
 
 ProcessRunner timelapse_host_runner() {
@@ -59,11 +103,7 @@ ProcessRunner timelapse_host_runner() {
         spdlog::info("[MockTimelapseHost] {}", cmd);
         std::this_thread::sleep_for(kStepDelay);
         if (std::find(argv.begin(), argv.end(), "clone") != argv.end()) {
-            const std::string dest = argv.back();
-            r.exit_code = fs::create_directories(dest + "/component") &&
-                                  text_io::write_file(dest + "/component/timelapse.py", "")
-                              ? 0
-                              : 1;
+            r.exit_code = write_stub_timelapse_checkout(argv.back()) ? 0 : 1;
         } else if (cmd.find("--link-timelapse") != std::string::npos) {
             linked().store(true);
         } else if (cmd.find("command -v") != std::string::npos &&

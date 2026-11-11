@@ -126,13 +126,15 @@ The toolhead picture used on the Home screen and the print status screen.
 
 | Option | Picture |
 |--------|---------|
-| **Auto** (default) | HelixScreen works out your toolhead from its printer list or your Klipper config |
-| **Stealthburner** | Voron Stealthburner |
+| **Auto** (default) | HelixScreen works out your toolhead from its printer list or your filament system |
+| **Default** | A generic toolhead |
 | **A4T** | Armored Turtle A4T |
 | **AntHead** | AntHead |
 | **JabberWocky** | JabberWocky |
+| **Stealthburner**, **Mini Stealthburner**, **Dragonburner** | The Voron toolheads of those names |
+| **Creality K1**, **Creality K2**, **Bambu Lab**, **Ender 3**, **XOL**, **Snapmaker U1**, **FlashForge AD5**, **FlashForge Creator 5**, **Elegoo Centauri**, **Artillery M1**, **Qidi**, **Sovol SV08** | That printer's or toolhead's own head |
 
-Leave it on **Auto** unless HelixScreen shows the wrong toolhead, or you've fitted an aftermarket one. Printers with their own built-in toolhead picture (such as the Creality K1 and K2) get it automatically; those pictures aren't in the menu.
+Leave it on **Auto** unless HelixScreen shows the wrong toolhead, or you've fitted an aftermarket one. Printers with their own toolhead picture get it automatically on Auto. The `toolhead_style` numbers for `settings.json` are in [Configuration](../../CONFIGURATION.md#toolhead_style).
 
 ### Tool Numbers
 

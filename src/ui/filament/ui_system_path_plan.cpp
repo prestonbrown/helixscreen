@@ -912,8 +912,8 @@ SysLayout compute_sys_layout(const SystemPathData& data, const lv_area_t& obj_co
     // the combiner sits, fixed fractions of the run down to them.
     const float bottom_ratio = L.multi_tool ? kMultiGlyphBottomRatio : kSingleGlyphBottomRatio;
     const int32_t scale = L.multi_tool ? small_tool_scale(data) : data.extruder_scale;
-    const int32_t toolhead_y = L.y_off + (int32_t)(L.height * bottom_ratio) -
-                               helix::ui::toolhead_bounds(data.toolhead_style, 0, 0, scale).bottom;
+    const int32_t toolhead_y = helix::ui::toolhead_nozzle_standing_on(
+        data.toolhead_style, L.y_off + (int32_t)(L.height * bottom_ratio), scale);
     const int32_t run = toolhead_y - L.entry_y;
     const float merge = L.multi_tool ? 0.35f : 0.30f;
     const float hub = L.multi_tool ? 0.61f : 0.52f;

@@ -102,11 +102,11 @@ class AmsBackendMock : public AmsBackend,
      *
      * Mirrors AmsBackendToolChanger::can_unload_from_toolhead(). Without this the
      * mock inherits AmsBackend's PARALLEL rule (slot.is_present()), which holds for
-     * every toolhead forever — so the context menu offered Unload on tools parked in
-     * their docks and, through decide_can_load()'s inverted `!toolhead_unload`
-     * factor, disabled Load on all of them. That is prestonbrown/helixscreen#1199,
-     * fixed in the real backend but never reproduced here, which left the fix
-     * unguarded against regression in every mock-driven check.
+     * every toolhead forever — so the context menu would offer Unload on tools
+     * parked in their docks and, through decide_can_load()'s inverted
+     * `!toolhead_unload` factor, disable Load on all of them
+     * (prestonbrown/helixscreen#1199). Mirroring the real backend keeps that fix
+     * guarded in every mock-driven check.
      *
      * Scoped to tool-changer mode: the mock also stands in for lane-based systems,
      * where the inherited LOADED-status rule is the correct one.
@@ -134,8 +134,8 @@ class AmsBackendMock : public AmsBackend,
 
     /**
      * @brief Test hook: make get_slot_for_extruder / tracks_consumption_natively() return
-     *        the given value. Test-only setter on the mock, not on a production backend
-     *        (per CLAUDE L065 the mock is test infrastructure).
+     *        the given value. Test-only setter on the mock, not on a production backend:
+     *        the mock is test infrastructure.
      */
     void set_tracks_consumption_natively_for_testing(bool value) {
         tracks_consumption_natively_ = value;
@@ -276,8 +276,8 @@ class AmsBackendMock : public AmsBackend,
     // Endless spool. The mock keeps its edges in the SlotRegistry, so its config
     // is the same one-liner AFC uses. reset_endless_spool() is NOT overridden -
     // the base's clear-every-slot loop is exactly the behaviour the mock wants,
-    // and its absence is why the mock used to advertise editable=true while
-    // returning NOT_SUPPORTED from reset.
+    // and without it the mock would advertise editable=true while returning
+    // NOT_SUPPORTED from reset.
     /// @note Takes `mutex_`; callers must NOT hold it.
     [[nodiscard]] helix::printer::EndlessSpoolCapabilities
     get_endless_spool_capabilities() const override;
@@ -290,10 +290,10 @@ class AmsBackendMock : public AmsBackend,
     /// In Snapmaker mode that gate is AmsBackendSnapmaker::task_routing(): empty
     /// until a task is configured, because the U1's idle table is a firmware
     /// default and not a statement about any file. Returning the attachment map
-    /// there published a confident [0,1,2,3] the real machine never publishes,
+    /// there would publish a confident [0,1,2,3] the real machine never publishes,
     /// and FilamentMapper::effective_routing() takes any non-empty answer as the
-    /// truth - so every --test run resolved each tool to its own head index and
-    /// rehearsed a branch the hardware does not take.
+    /// truth - so every --test run would resolve each tool to its own head index
+    /// and rehearse a branch the hardware does not take.
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
     /// Four fixed heads in Snapmaker mode, lane-per-tool otherwise. The
     /// inherited identity agrees for T0-T3 and diverges from T4 up, which is
@@ -304,10 +304,8 @@ class AmsBackendMock : public AmsBackend,
     /// mode stands in for a backend that owns its tool->slot table and writes it
     /// directly (AFC, CFS, Happy Hare, QIDI, the tool changer).
     ///
-    /// It used to answer None for all of those while its retired capability
-    /// query answered "editable", which is the contradiction this pair of knobs
-    /// exists to stop. The cost was not cosmetic: every `can this backend remap`
-    /// gate was dead under --test, so the remap picker those five backends reach
+    /// Answering None for those modes would leave every `can this backend remap`
+    /// gate dead under --test, so the remap picker those five backends reach
     /// could not be opened in a mock run at all.
     [[nodiscard]] RemapStrategy get_remap_strategy() const override;
     [[nodiscard]] bool remap_ready() const override;
@@ -372,10 +370,6 @@ class AmsBackendMock : public AmsBackend,
     // Mock-specific methods (for testing)
     // ========================================================================
 
-    /**
-     * @brief Simulate an error condition
-     * @param error The error to trigger
-     */
     void simulate_error(AmsResult error);
 
     /**
@@ -683,9 +677,6 @@ class AmsBackendMock : public AmsBackend,
      */
     void set_stealth_mode(bool enabled);
 
-    /**
-     * @brief Check if multi-unit mode is active
-     */
     [[nodiscard]] bool is_multi_unit_mode() const;
 
     /**
@@ -700,9 +691,6 @@ class AmsBackendMock : public AmsBackend,
      */
     void set_mixed_topology_mode(bool enabled);
 
-    /**
-     * @brief Check if mixed topology mode is active
-     */
     [[nodiscard]] bool is_mixed_topology_mode() const;
 
     /**
@@ -775,9 +763,6 @@ class AmsBackendMock : public AmsBackend,
      */
     [[nodiscard]] bool is_vivid_mixed_mode() const;
 
-    /**
-     * @brief Check if HTLF+Toolchanger mode is active
-     */
     [[nodiscard]] bool is_htlf_toolchanger_mode() const;
 
     /**
@@ -816,9 +801,6 @@ class AmsBackendMock : public AmsBackend,
      */
     [[nodiscard]] std::pair<std::string, std::any> get_last_executed_action() const;
 
-    /**
-     * @brief Clear the last executed action state
-     */
     void clear_last_executed_action();
 
     /**
@@ -854,8 +836,8 @@ class AmsBackendMock : public AmsBackend,
     /**
      * @brief "Transport" for the mock: write the edge straight to the registry.
      *
-     * Every guard the mock used to carry (support, editability, both ranges,
-     * self-backup) now lives in AmsBackend::set_endless_spool_backup().
+     * Every guard (support, editability, both ranges, self-backup) lives in
+     * AmsBackend::set_endless_spool_backup().
      *
      * @note Takes `mutex_`; the base calls this with no lock held.
      */
@@ -1175,8 +1157,8 @@ class AmsBackendMock : public AmsBackend,
     bool firmware_owns_lane_identity_ = false;
 
     // Test override for tool->slot identity mapping. False in production;
-    // Phase 5 routing tests set this true to simulate a tool-changer and
-    // exercise per-extruder dispatch.
+    // routing tests set this true to simulate a tool-changer and exercise
+    // per-extruder dispatch.
     bool identity_extruder_mapping_ = false;
 };
 

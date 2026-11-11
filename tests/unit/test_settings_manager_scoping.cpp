@@ -625,7 +625,8 @@ TEST_CASE_METHOD(SettingsScopeFixture,
         CHECK(effective("PFA Micron") == ToolheadStyle::ANTHEAD);
         CHECK(effective("PFA Stealthfork") == ToolheadStyle::ANTHEAD);
         CHECK(effective("Creality K1") == ToolheadStyle::CREALITY_K1);
-        CHECK(effective("Voron 2.4") == ToolheadStyle::DEFAULT);
+        CHECK(effective("Voron 2.4") == ToolheadStyle::STEALTHBURNER);
+        CHECK(effective("Prusa MK4") == ToolheadStyle::DEFAULT);
         CHECK(effective("Creality Ender 3") == ToolheadStyle::ENDER3);
         CHECK(effective("Creality Ender-3 V3") == ToolheadStyle::ENDER3);
     }

@@ -1809,6 +1809,9 @@
         "bind_mode": {
           "type": "string"
         },
+        "bind_unit": {
+          "type": "string"
+        },
         "event_cb": {
           "type": "string"
         }
@@ -1953,7 +1956,11 @@
       "inherits": "lv_obj"
     },
     "z_offset_indicator": {
-      "attributes": {},
+      "attributes": {
+        "bind_microns": {
+          "type": "string"
+        }
+      },
       "inherits": "lv_obj"
     },
     "belt_gap_gauge": {

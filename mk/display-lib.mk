@@ -13,11 +13,8 @@ DISPLAY_LIB := $(BUILD_DIR)/lib/libhelix-display.a
 # Core display backend sources (always included)
 # Split into API sources and other sources for proper object path handling
 DISPLAY_API_SRCS := \
-    src/platform/display/display_backend.cpp
-
-# Touch calibration and shared calibration wrapper
-DISPLAY_UI_SRCS := \
-    src/ui/calibration/touch_calibration.cpp
+    src/platform/display/display_backend.cpp \
+    src/platform/input/touch_calibration.cpp
 
 # Platform-specific backends
 ifeq ($(UNAME_S),Darwin)
@@ -39,8 +36,7 @@ endif
 
 # Generate object file paths for each source category
 DISPLAY_API_OBJS := $(patsubst %.cpp,$(BUILD_DIR)/display/%.o,$(notdir $(DISPLAY_API_SRCS)))
-DISPLAY_UI_OBJS := $(DISPLAY_UI_SRCS:src/ui/calibration/%.cpp=$(BUILD_DIR)/display/%.o)
-DISPLAY_OBJS := $(DISPLAY_API_OBJS) $(DISPLAY_UI_OBJS)
+DISPLAY_OBJS := $(DISPLAY_API_OBJS)
 
 # Display library needs LVGL headers, project includes, libhv (for config.h -> json.hpp), and SDL2
 DISPLAY_CXXFLAGS := $(CXXFLAGS) -I$(INC_DIR) -isystem lib $(LVGL_INC) $(SPDLOG_INC) $(LIBHV_INC) $(SDL2_INC)
@@ -52,11 +48,6 @@ $(BUILD_DIR)/display/%.o: src/platform/display/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_H
 	$(Q)$(CXX) $(DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/display/%.o: src/platform/input/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/display
-	@echo "[CXX] $<"
-	$(Q)$(CXX) $(DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
-
-# Build object files from src/ui/calibration/ (with dependency tracking)
-$(BUILD_DIR)/display/%.o: src/ui/calibration/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/display
 	@echo "[CXX] $<"
 	$(Q)$(CXX) $(DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 

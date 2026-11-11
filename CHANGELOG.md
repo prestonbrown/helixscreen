@@ -12,9 +12,34 @@ landed on the trunk after the 1.1 feature freeze. The remaining 1.1 betas and
 1.1.0 itself ship from the 1.1 branch, so this line is not published until 1.1.0
 is out.
 
+**Upgrading from 1.1?**
+
+- **HelixScreen's print signals leave your macro list** (#2006): when you tap **Update Helper Macros** in **Advanced**, the signal macros move to their underscore names (`_HELIX_READY`, `_HELIX_ENDED`, `_HELIX_RESET` and `_HELIX_PHASE_*`), and Mainsail and Fluidd stop listing them. If your printer had the old names, HelixScreen keeps them working with small forwarding macros of the same names, so your own macros and sliced files go on working, and those names stay in the list. A forwarder that no print has used for five completed prints is dropped at the next macro update, and a forwarder your own config still calls is kept; rename those calls to the underscore names and update the macros again to hide them. A macro you wrote yourself under one of the old names is never replaced.
+- **The HelixPrint plugin renames the old phase-tracking lines for you:** the calls an older HelixScreen added to your `PRINT_START`, between `# <<< HELIX_TRACKING v2 >>>` comment lines, get the underscore once Klipper has loaded the new macros. The plugin backs up each file it changes first (`printer.cfg.bak.<date>_<time>`) and never restarts Klipper itself. To turn it off, add `migrate_signal_macros: False` under `[helix_print]` in `moonraker.conf`. On a Snapmaker U1 with the extended firmware, Z-Mod and Forge-X it changes nothing and only reports what it would do.
+- **Re-slice files whose start G-code calls the old names:** HelixScreen cannot see inside sliced files. If your slicer's start G-code calls `HELIX_READY` or a `HELIX_PHASE_` macro directly and the forwarder for it has been dropped, the printer answers `Unknown command`, the print goes on, and the screen misses that signal. HelixScreen then names the macro the file called, and the next Update Helper Macros brings its forwarder back. To fix it for good, change the call in your slicer to the underscore name and re-slice the file.
+- **Going back to 1.1 after the plugin has renamed your calls:** update the helper macros from 1.1 and your `PRINT_START` calls the underscore names that 1.1's macros no longer define. Restore the `.bak` copy the plugin made, or update HelixScreen again.
+
 ### Added
 
 - **Macros can declare how long each pre-print phase will take** - a `PRINT_START` can call `_HELIX_PLAN SOAKING=600 BED_MESH=90` and the pre-print countdown uses those durations from the start, and the time label says when a phase runs over. New `_HELIX_PHASE_SOAKING` and `_HELIX_PHASE_HEATING_CHAMBER` signals come with it. Update the HelixScreen macros from Settings to get them.
+- **Guided cold pull** - Advanced has a Cold Pull walkthrough that heats the nozzle for your material, has you push filament through, cools it to the pull temperature and tells you when to pull, repeating until the filament comes out clean. When the printer reports a nozzle clog, its alert now offers Cold Pull alongside a plain OK.
+- **Happy Hare v4 sync feedback and fan controls** - on Happy Hare v4, Device settings > Accessories can turn sync feedback on and off, save the autotuned rotation distance, reset sync feedback and neutralize the filament tension, and from Happy Hare 4.1 set each unit's fan on, off or automatic.
+- **Your own unit on a sensor tile** - a temperature sensor tile on the home screen can show your own unit text, such as % or PSI, or none at all, set from the tile's configure card.
+- **Chinese and Japanese file names on every screen** - print file names in Chinese and Japanese show their characters in any interface language, not only when the interface is set to Chinese or Japanese.
+
+### Fixed
+
+- **Saving tool offsets on Reforge** - Save sends only `SAVE_CONFIG` on Reforge, which keeps the offsets its own calibration measured, instead of tool parameter commands Reforge rejects. Print Tune's Z control on Reforge adjusts the machine-wide offset, as Reforge's own babystep does.
+- **Toolhead pictures fit the filament path at every screen size** - the Stealthburner and other tall heads are no longer cut off at the bottom on 480x272 screens.
+
+## [1.1.0-rc.2] - UNRELEASED
+
+### Fixed
+
+- **Timelapse settings show the real values** - the Timelapse Settings screen reads the plugin's settings as Moonraker sends them, so Enable Timelapse, Auto-render and the other options show what is actually set instead of the defaults.
+- **Timelapse frames are captured after setup** - when Klipper has not loaded the timelapse macros, HelixScreen adds them to its own helix_macros.cfg and offers Restart Klipper, on the setup screen and on Timelapse Settings. When it can't, it shows the line to add to printer.cfg. Before this, a new install never captured a frame until printer.cfg was edited by hand.
+- **Timelapse updates after a reinstall** - when HelixScreen runs on the printer, setting up timelapse or opening Timelapse Settings puts an older moonraker-timelapse checkout back on its main branch when that is safe, so Moonraker can update it again.
+- **Timelapse video previews** - Timelapse Videos shows the preview image moonraker-timelapse saves with each video instead of a placeholder.
 
 ## [1.1.0-rc.1] - 2026-11-10
 

@@ -8,6 +8,7 @@
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "moonraker_client.h"
+#include "moonraker_status_notification.h"
 #include "pause_descriptor.h"
 #include "printer_discovery.h"
 #include "printer_state.h"

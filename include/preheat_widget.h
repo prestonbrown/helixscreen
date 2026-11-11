@@ -14,6 +14,8 @@
 #include <string>
 #include <vector>
 
+#include "hv/json.hpp" // JSON_HPP_OK: config_ held by value
+
 namespace helix {
 
 struct ToolInfo;

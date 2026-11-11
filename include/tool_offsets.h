@@ -53,6 +53,13 @@ bool supports_axis(const PrinterDiscovery& hw, Axis axis);
 /// read_tool_offset_microns() can answer it.
 bool reads_axis(const PrinterDiscovery& hw, Axis axis);
 
+/// Whether the printer's own calibration stages THIS axis per tool for a
+/// SAVE_CONFIG, on a model HelixScreen cannot write. There a moved value is
+/// unsaved work all the same, and its save is that SAVE_CONFIG alone. False
+/// wherever supports_axis() is true, and for a read-only model that persists
+/// its own measurements.
+bool firmware_stages_axis(const PrinterDiscovery& hw, Axis axis);
+
 /// Extra Klipper status objects this printer needs subscribed for
 /// read_tool_offset_microns() to ever return a value. Empty when the offsets
 /// ride on the `tool T*` objects the tool-changer subscription already requests.
@@ -130,6 +137,13 @@ std::string set_tool_offset_gcode(const PrinterDiscovery& hw, Axis axis, int too
 /// persist_requires_save_config().
 std::string save_tool_offset_gcode(const PrinterDiscovery& hw, Axis axis, int tool_index,
                                    int microns);
+
+/// Gcode that stages tool @p tool_index's LIVE @p axis offset for the
+/// SAVE_CONFIG a save ends in, on a model HelixScreen cannot write
+/// (firmware_stages_axis()). The model's own command re-stages what the tool
+/// already holds, so no value is passed. Empty where everything that moves the
+/// axis stages it already, on every other model, and for a negative index.
+std::string stage_live_offset_gcode(const PrinterDiscovery& hw, Axis axis, int tool_index);
 
 /// Gcode that applies tool @p tool_index's stored offset to the head now, sent
 /// after a set or save of that tool's offset. Empty unless @p tool_index is the

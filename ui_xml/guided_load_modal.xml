@@ -2,7 +2,8 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Guided filament load: the steps a printer's stock load wizard leaves to its screen.
-     guided_load_view: 0 = push filament in, 1 = working, 2 = is filament coming out. -->
+     guided_load_view: 0 = push filament in, 1 = working, 2 = is filament coming out,
+     3 = heating the nozzle (a manual load heats first). -->
 <component>
   <view name="guided_load_modal"
         extends="ui_dialog" width="85%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
@@ -15,6 +16,17 @@
               style_flex_main_place="center" style_flex_cross_place="center">
         <icon src="filament" size="md" variant="primary"/>
         <text_heading text="Load Filament"/>
+      </lv_obj>
+
+      <!-- View 3: heating the nozzle before the hand push -->
+      <lv_obj name="heating_container"
+              width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_md"
+              style_flex_cross_place="center">
+        <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="3"/>
+        <text_body width="100%"
+                   long_mode="wrap" style_text_align="center"
+                   text="Heating the nozzle. Have the filament ready to push in."/>
+        <text_heading name="heat_text" style_text_align="center" bind_text="guided_load_heat_text"/>
       </lv_obj>
 
       <!-- View 0: waiting for the hand push -->
@@ -52,6 +64,12 @@
                       hide_secondary="true" primary_name="btn_cancel_working" primary_text="Cancel"
                       primary_variant="secondary" primary_callback="on_guided_load_cancel">
       <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="1"/>
+    </modal_button_row>
+
+    <modal_button_row name="heating_buttons"
+                      hide_secondary="true" primary_name="btn_cancel_heating" primary_text="Cancel"
+                      primary_variant="secondary" primary_callback="on_guided_load_cancel">
+      <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="3"/>
     </modal_button_row>
 
     <modal_button_row name="confirm_buttons"

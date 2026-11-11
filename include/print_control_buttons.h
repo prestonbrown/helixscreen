@@ -1,4 +1,3 @@
-// include/print_control_buttons.h
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
@@ -27,11 +26,8 @@ uint32_t pending_action_backstop_ms(PendingAction action);
 /// Singleton owning the LVGL subjects for the two print-control buttons
 /// (primary Pause/Resume + Stop). Observes the GLOBAL `print_state_enum`
 /// subject independently and drives the subjects through the pure
-/// compute_control_button_view() function. Multiple views (PrintStatusPanel,
-/// future home widget) bind these subjects.
-///
-/// Click handlers and the cancel modal are stubs in this revision; they are
-/// wired up in a later task.
+/// compute_control_button_view() function. Views such as PrintStatusPanel
+/// bind these subjects.
 class PrintControlButtons {
   public:
     static PrintControlButtons& instance();
@@ -95,7 +91,7 @@ class PrintControlButtons {
     /// has run out` and ends, yet `printer.gcode.script` still answers `ok`,
     /// so the RPC error path never runs. The button then reads "Resuming..." and
     /// stays DISABLED until the backstop — the user cannot retry even after
-    /// fixing the filament (bundle JX2FVRB9).
+    /// fixing the filament.
     ///
     /// A pending Pause is released at once. A pending Resume is released only
     /// once its RESUME has also answered `ok` and the print is still paused
@@ -117,8 +113,8 @@ class PrintControlButtons {
     /**
      * @brief Gather every input and decide both buttons
      *
-     * Public so the stop handler can ask the same question the enablement
-     * asked, rather than re-deriving the routing condition beside it.
+     * The stop handler asks this same question the enablement asked, rather
+     * than re-deriving the routing condition beside it.
      */
     [[nodiscard]] helix::ui::ControlButtonView current_view() const;
     void start_pending_action(PendingAction action);
@@ -226,10 +222,9 @@ class PrintControlButtons {
     char primary_icon_buf_[32] = "\xF3\xB0\x8F\xA4";
     char primary_label_buf_[16] = "Pause";
 
-    // print_state_enum is a STATIC global subject (singleton lifetime), so a
-    // bare member ObserverGuard with NO SubjectLifetime token is correct.
-    // SubjectLifetime is only required for dynamic per-fan/sensor/extruder
-    // subjects that can be destroyed and recreated during rediscovery.
+    // print_state_enum belongs to PrinterState; this observer carries
+    // PrinterState's subjects lifetime token, so a deinit_subjects() cycle
+    // cannot leave it removing freed observer nodes.
     ObserverGuard print_state_observer_;
     /// The UI lifecycle axis. Pause/Cancel affordance is a function of
     /// PrintState, and PrintState changes without print_state_enum changing at

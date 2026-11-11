@@ -3,8 +3,6 @@
 
 #include "display_settings_manager.h"
 
-#include "ui_toast_manager.h"
-
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
@@ -13,6 +11,7 @@
 #include "helix-xml/src/xml/lv_xml_style.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
+#include "notice.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
 #include "screensaver_canvas.h"
@@ -607,8 +606,7 @@ void DisplaySettingsManager::set_display_dim_sec(int seconds) {
         lv_subject_set_int(&display_sleep_subject_, seconds);
         config->set<int>("/display/sleep_sec", seconds);
         config->save();
-        ToastManager::instance().show(ToastSeverity::INFO,
-                                      lv_tr("Sleep adjusted to match dim timeout"), 2000);
+        publish_notice({NoticeSeverity::INFO, lv_tr("Sleep adjusted to match dim timeout"), 2000});
     }
 
     spdlog::debug("[DisplaySettingsManager] Display dim set to {}s", seconds);
@@ -633,8 +631,8 @@ void DisplaySettingsManager::set_display_sleep_sec(int seconds) {
             spdlog::info("[DisplaySettingsManager] Clamping sleep {}s to dim {}s", seconds,
                          dim_sec);
             seconds = dim_sec;
-            ToastManager::instance().show(ToastSeverity::INFO,
-                                          lv_tr("Sleep adjusted to match dim timeout"), 2000);
+            publish_notice(
+                {NoticeSeverity::INFO, lv_tr("Sleep adjusted to match dim timeout"), 2000});
         }
     }
 

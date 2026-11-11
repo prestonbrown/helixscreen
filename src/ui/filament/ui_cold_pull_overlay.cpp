@@ -118,7 +118,7 @@ void open_cold_pull_overlay() {
 void register_cold_pull_flow() {
     GuidedDeviceFlow flow;
     flow.start = [](const std::string&) { open_cold_pull_overlay(); };
-    register_guided_device_flow("cold_pull", std::move(flow));
+    register_guided_device_flow(kColdPullFlowId, std::move(flow));
 }
 
 } // namespace helix::ui

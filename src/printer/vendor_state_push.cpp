@@ -8,6 +8,8 @@
 
 #include <utility>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 using json = nlohmann::json;

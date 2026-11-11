@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 #include "../catch_amalgamated.hpp"
 
@@ -107,9 +108,8 @@ float inlet_y(const HubCanvas& c) {
 const PathPlan& plan_of(const HubCanvas& c, LinearHubFrame* frame_out) {
     static PathPlan plan;
     const BaseGeometry g = compute_base_geometry(c.obj, c.data);
-    const int32_t nozzle_y = g.y_off + (int32_t)(g.height * kNozzleYRatio);
-    *frame_out = compute_linear_hub_frame(*c.data, g,
-                                          toolhead_top_y(nozzle_y, c.data->theme.extruder_scale));
+    *frame_out = compute_linear_hub_frame(
+        *c.data, g, toolhead_top_y(linear_hub_nozzle_y(*c.data, g), c.data->theme.extruder_scale));
     plan_linear_hub(*frame_out, *c.data, g, plan);
     return plan;
 }
@@ -417,7 +417,8 @@ TEST_CASE_METHOD(HubStackFixture,
     const int32_t hub_h = (int32_t)(100 * kHubHeightRatio);
     const int32_t gap = hub_h / 2 + 2 * c.data->theme.sensor_radius;
     const int32_t glyph_top =
-        toolhead_top_y(ratio_y(c, kNozzleYRatio), c.data->theme.extruder_scale);
+        toolhead_top_y(linear_hub_nozzle_y(*c.data, compute_base_geometry(c.obj, c.data)),
+                       c.data->theme.extruder_scale);
     REQUIRE(glyph_top - 2 * gap - hub_h / 2 <= ratio_y(c, kHubYRatio));
     CHECK(center_y(c.data->hits.hub) == Catch::Approx(ratio_y(c, kHubYRatio)).margin(1));
 }
@@ -449,4 +450,25 @@ TEST_CASE_METHOD(HubStackFixture, "toolhead_top_y matches each renderer's top ed
     CAPTURE(static_cast<int>(c.style));
     REQUIRE(helix::SettingsManager::instance().get_effective_toolhead_style() == c.style);
     CHECK(toolhead_top_y(300, 10) == c.top);
+}
+
+// The AMS panel's path canvas height (ctl geom) and the theme's extruder scale
+// there, LV_MAX(8, space_md), at 480x272 and 800x480.
+TEST_CASE_METHOD(HubStackFixture,
+                 "Every toolhead's glyph stays on the path canvas at 480x272 and 800x480",
+                 "[filament-path][hub-stack][toolhead-fit]") {
+    const auto bp =
+        GENERATE(std::pair<int32_t, int32_t>{119, 8}, std::pair<int32_t, int32_t>{262, 10});
+    const int style_id = GENERATE(range(1, helix::kLastToolheadStyle + 1));
+    ScopedToolheadStyle scoped(static_cast<helix::ToolheadStyle>(style_id));
+    REQUIRE(static_cast<int>(helix::SettingsManager::instance().get_effective_toolhead_style()) ==
+            style_id);
+    FilamentPathData d;
+    d.theme.extruder_scale = bp.second;
+    BaseGeometry g;
+    g.height = bp.first;
+    const helix::ui::GlyphBounds b = toolhead_glyph_bounds(0, linear_hub_nozzle_y(d, g), bp.second);
+    CAPTURE(style_id, bp.first, b.top, b.bottom);
+    CHECK(b.top >= 0);
+    CHECK(b.bottom < bp.first);
 }

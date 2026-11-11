@@ -121,4 +121,15 @@ Key nearest_palette_key(const Entries& entries, uint32_t rgb, Key fallback) {
     return best;
 }
 
+/**
+ * @brief Map hex color value to human-readable name
+ *
+ * Uses algorithmic color naming (HSL-based) with special names for
+ * preset colors that have non-standard names (Gold, Bronze, Wood, etc.)
+ *
+ * @param rgb Color as RGB packed uint32_t
+ * @return Human-readable color name
+ */
+std::string get_color_name_from_hex(uint32_t rgb);
+
 } // namespace helix

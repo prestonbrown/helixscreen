@@ -24,7 +24,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: Config holds its document by value and its getters are templates
 
 namespace helix {
 

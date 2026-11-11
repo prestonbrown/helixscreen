@@ -545,7 +545,6 @@ std::string PrinterHardware::guess_runout_sensor(const std::vector<std::string>&
 // ============================================================================
 
 bool PrinterHardware::is_ams_sensor_substring(const std::string& sensor_name) {
-    // Convert to lowercase for case-insensitive matching
     std::string lower_name = sensor_name;
     lower_name = helix::text_io::to_lower(lower_name);
 

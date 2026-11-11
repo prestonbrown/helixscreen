@@ -591,7 +591,7 @@ additional configuration. **Verified against OrcaSlicer upstream/main
 | CFS (Creality K2) | HelixScreen (`FilamentSlotOverrideStore`) | `laneN` (1-based) | `lane_data` namespace |
 | OpenAMS (klipper_openams) | HelixScreen (`FilamentSlotOverrideStore`) | `laneN` (1-based) | `lane_data` namespace |
 | AFC / Box Turtle | AFC's own Klipper plugin | `T(n)` per mapping (virtual-tools firmware, #832); `laneN` (1-based) before | `lane_data` namespace (AFC is the originator) |
-| Happy Hare | Happy Hare's own Klipper plugin (components/mmu_server.py `push_lane_data`) | `laneN` (1-based) | `lane_data` namespace — Orca prefers it over the live `mmu` object |
+| Happy Hare | Happy Hare's own Klipper plugin (components/mmu_server.py `push_lane_data`) | `lane<gate>` (0-based: `lane0`) | `lane_data` namespace — Orca prefers it over the live `mmu` object |
 | Tool Changer | HelixScreen (`FilamentSlotOverrideStore`) | `T<n>` (0-based) | `lane_data` namespace |
 
 The key style is derived from the AMS type (`lane_key_style_for(get_type())`),
@@ -730,7 +730,7 @@ summary:
 
 - **Writers and their key style**: HelixScreen (`T<n>` on tool changers,
   `laneN` otherwise), AFC (`T(n)` per mapping since the virtual-tools firmware,
-  `laneN` before), Happy Hare (`laneN`), Mainsail #2510
+  `laneN` before), Happy Hare (`lane<gate>`, 0-based), Mainsail #2510
   (`T<n>` on Spoolman + tool changer).
 - **Readers**: OrcaSlicer is **key-opaque** (reads the inner `lane` field, never
   the outer key — MoonrakerPrinterAgent.cpp:780), requires the inner `lane`
@@ -1240,6 +1240,11 @@ The right column, shared by the AMS panel and the overview's unit view
   idle, and hide during any operation (`ams_action ne 0`). From the medium breakpoint up they keep their full form (arc over
   reading over source; slider over reading over label); below it they shrink to one small
   row (a small arc beside its reading, the `swap_vertical` icon beside the buffer reading).
+  While a lane is loaded (`ams_filament_loaded`) a tap on the strip opens that lane in
+  `AmsEditOverlay` (`AmsOperationSidebar::handle_loaded_card_tap`): the editor when the lane
+  links a Spoolman spool or Spoolman is absent, the spool picker when Spoolman is up and the
+  lane links none. With nothing loaded the strip takes no taps. Its inner containers are
+  `clickable="false"`, so a press anywhere on it reaches the strip.
 - **Status** (`status_section`): the action detail in `text_body`, on its own line at every
   size. While the sidebar preheats for a load it reads "Heating nozzle"
   (`preheat_status_text`): the step list's heat step carries the live "current / target"
@@ -1549,7 +1554,9 @@ does nothing, even on a backend that has a remap strategy but presents no filame
 
 The lane context menu's **Edit Spool** opens `AmsEditOverlay`
 (`src/ui/filament/ui_ams_edit_overlay.cpp`) straight into its editor view; **Select
-Spool** opens it on the spool picker instead. The title is the lane in the
+Spool** opens it on the spool picker instead. In the picker the lane's linked spool
+leads the list, checked, so it shows without scrolling; a search still applies to it,
+and the other rows keep Spoolman's recency order. The title is the lane in the
 backend's noun ("Gate 3"). The header carries Save (`action_button`, dirty-gated)
 and, where Spoolman is configured, two round icon buttons left of it on the
 title's centre line: Choose from Spoolman and Scan QR (`ams_edit_scan_enabled`
@@ -2159,8 +2166,38 @@ hot and the filament sensor switched off. A cancel on the waiting generation als
 the printer's load state (`SET_PRINT_MAIN_STATUS MAIN_STATUS=ready`). Commands only the
 waiting generation knows are never sent to the other: an unknown command aborts the whole
 script it sits in. `GuidedLoadFlow` (`include/guided_load_flow.h`) makes every decision
-without UI or I/O, so `[guided_load]` tests it directly; `helix-screen ctl demo guided-load`
-and `guided-load-confirm` open the two starting views on `guided_load_example()`.
+without UI or I/O, so `[guided_load]` tests it directly. `GuidedLoadSession`
+(`include/guided_load_session.h`) sends what it decides and ends it when a job takes the
+machine or the printer goes away; the modal is a view over the session.
+`helix-screen ctl demo guided-load` and `guided-load-confirm` open the two starting views on
+`guided_load_example()`; `ctl demo manual-load` opens the manual load below on the mock.
+
+### Manual load: heat, push, prime
+
+A Load the user does by hand runs the same modal with a Heating step in front
+(prestonbrown/helixscreen#2000): `GuidedLoadModal::show_manual(slot)` builds a
+`GuidedLoadSession` on `GuidedLoadFlow::after_preheat(hand_feed_steps())`. It opens in two places:
+
+| Where | Asked how |
+|---|---|
+| A head whose backend answers `HeadFilamentOps::load == Manual` with `guided_hand_load` | `notify_if_filament_op_unavailable()` opens it in place of the reason toast, so every Load surface gets it. `filament_action_set` enables that Load. Today only `AmsBackendSnapmaker` answers it, for a head the firmware reports with no feeder module or its feeder out of automatic mode (`feeder_absent()`); `AmsBackendMultiAce` keeps the generic answer |
+| The Filament panel's Load with no filament system and no load macro (`load_is_by_hand()`: the plan falls to the raw tier) and no job | `FilamentPanel::execute_load()`. During a job the raw tier stays: a paused reload runs at the print's heat |
+
+The steps: heat through `FilamentOpHeater` (the lane's or external spool's material, else the
+default load temperature; the user's "allow cold" skips it), then Push, then the feed
+(`M83` + `G1 E60 F300`), then the question with Extrude more (`G1 E20 F300`) or Done.
+`manual_load_refusal()` refuses, in order: a job holds the machine, the printer is not
+reachable, another filament op is heating, a cold pull is running, the slot's nozzle is not
+the active extruder (`G1 E` moves the active one). The refusal is a toast and nothing opens.
+
+The heater is `FilamentOpHeater`'s throughout. While the user pushes, the session holds the heat
+(`FilamentOpHeater::hold_heat()`), which keeps SIGTERM on the graceful path and makes
+`before_disconnect()` turn that heater off and end the session. Done reports
+`op_succeeded()`, so the post-op cooldown cools it after the configured delay. Every other
+ending reports `op_cancelled()`, which turns the heater off at once: Cancel, Escape, a dismissal
+or the app closing the dialog, and a failed extrusion. With the printer unreachable it schedules the
+cooldown instead. A job taking the machine ends the session with nothing sent and the heater
+left to the job. Tests: `[manual_load]` (`tests/unit/test_manual_load.cpp`).
 
 A second firmware with a wizard of the same shape is one more row in that file. One whose
 steps differ grows `GuidedLoad` and the flow, never the callers.
@@ -2435,6 +2472,7 @@ Each backend has its own leaf doc covering the protocol, data sources, G-code co
 | QIDI Box | QIDI PLUS4 / Q2 / MAX4 RFID hub, chainable to 4 boxes | [FILAMENT_BACKEND_QIDI_BOX.md](FILAMENT_BACKEND_QIDI_BOX.md) |
 | Snapmaker U1 | SnapSwap 4-toolhead parallel toolchanger with per-channel RFID | [FILAMENT_BACKEND_SNAPMAKER_U1.md](FILAMENT_BACKEND_SNAPMAKER_U1.md) |
 | multiACE | Snapmaker U1 with 1-4 ACE Pro units upstream of its heads; the U1 backend plus ACE units, chosen in the factory from the discovered hardware | [FILAMENT_BACKEND_MULTIACE.md](FILAMENT_BACKEND_MULTIACE.md) |
+| Lane Status | Any producer of the Lane Status Surface (lane-status-spec RFC 0001) that no backend above reads: the `lane_status` object plus its `lane_data` records | [FILAMENT_BACKEND_LANE_STATUS.md](FILAMENT_BACKEND_LANE_STATUS.md) |
 
 ### AmsType Enum
 
@@ -2449,7 +2487,9 @@ enum class AmsType {
     CFS = 6,          // Creality Filament System (K2 series, RS-485)
     SNAPMAKER = 7,    // Snapmaker U1 SnapSwap toolchanger
     QIDI_BOX = 8,     // QIDI Box (PLUS4 / Q2 / MAX4, hub-style, 4 slots chainable to 16)
-    OPENAMS = 9       // klipper_openams through its versioned oams_manager API
+    OPENAMS = 9,      // klipper_openams through its versioned oams_manager API
+    INDX = 10,        // Bondtech INDX: docked passive nozzles, one extruder and heater
+    LANE_STATUS = 11  // Any Lane Status Surface producer (lane-status-spec RFC 0001)
 };
 ```
 
@@ -3361,7 +3401,7 @@ The `AmsBackendMock` simulates any of the supported backend types for UI develop
 
 Mock mode is activated when `RuntimeConfig::should_mock_ams()` returns true (typically via the `--test` CLI flag). The factory method `AmsBackend::create()` automatically returns a mock backend in this case.
 
-Pass `--real-ams` alongside `--test` to opt back out and drive a real backend (e.g. `AmsBackendHappyHare`) against the mock Moonraker client instead of `AmsBackendMock`. This is what makes backend-specific chokepoints reachable under `--test` — for example `AmsSubscriptionBackend::ensure_homed_then()`'s G28 in front of an unhomed operation, which `AmsBackendMock` never goes near since it doesn't inherit `AmsSubscriptionBackend`. The mock Moonraker client only simulates a minimal, static `mmu` status for Happy Hare (`moonraker_client_mock_objects.cpp`'s `get_mock_mmu_status()`: 4 gates, a mix of loaded/empty, no operation state machine) — it is a plumbing harness for exercising backend code paths, not a UI development tool. Use plain `--test` + `HELIX_MOCK_AMS` (below) for that.
+Pass `--real-ams` alongside `--test` to opt back out and drive a real backend (e.g. `AmsBackendHappyHare`) against the mock Moonraker client instead of `AmsBackendMock`. This is what makes backend-specific chokepoints reachable under `--test` — for example `AmsSubscriptionBackend::ensure_homed_then()`'s G28 in front of an unhomed operation, which `AmsBackendMock` never goes near since it doesn't inherit `AmsSubscriptionBackend`. The mock Moonraker client only simulates a minimal, static `mmu` status for Happy Hare (`moonraker_client_mock_objects.cpp`'s `get_mock_mmu_status()`: 4 gates, a mix of loaded/empty, no operation state machine; as a v4 single unit with a buffer and one fan, its `sync_feedback_enabled` and `fans` follow `MMU_SYNC_FEEDBACK ENABLE=` and `MMU_FAN ENABLE=`/`FAN_FORCED=` from `moonraker_client_mock_happy_hare.cpp`, so the Accessories sync feedback and fan rows can be driven and screenshotted) — it is a plumbing harness for exercising backend code paths, not a UI development tool. Use plain `--test` + `HELIX_MOCK_AMS` (below) for that.
 
 **`--real-ams` seeds Happy Hare only and does not compose with `HELIX_MOCK_AMS`.** The backend comes from mock hardware discovery, not from `HELIX_MOCK_AMS` — that variable is read inside `AmsBackend::create()`'s mock branch (`src/printer/ams_backend.cpp`), which `--real-ams` bypasses entirely. So `HELIX_MOCK_AMS=toolchanger` combined with `--real-ams` still swaps in a real `AmsBackendToolChanger`, but with zero seeded state — a silently empty panel, not a toolchanger simulation.
 

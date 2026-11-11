@@ -631,7 +631,7 @@ After a runout, HelixScreen has the printer refeed the head from its feeder (hea
 
 ### Toolhead Offset Calibration
 
-The U1 measures how far each toolhead's nozzle sits from the others, so every head prints in the same place. Open **AMS Management**, then **Calibration**, then **Calibrate Toolhead Offsets**. It takes about 20 minutes and runs the printer's own calibration, the same one as the stock screen's Multi-toolhead Offset Calibration:
+The U1 measures how far each toolhead's nozzle sits from the others, so every head prints in the same place. Open **Advanced > Tool Offsets**, or tap **Tool Offsets** on the Controls panel. It takes about 20 minutes and runs the printer's own calibration, the same one as the stock screen's Multi-toolhead Offset Calibration:
 
 1. The printer preheats and homes, then for each toolhead in turn heats the nozzle, purges and wipes it, and parks it at the front.
 2. For each parked toolhead, HelixScreen asks you to brush the nozzle clean with the wire brush that came with the printer, then tap **Next**. The nozzle is hot.

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_capabilities_state.cpp
- * @brief Printer capabilities state management extracted from PrinterState
+ * @brief Printer capabilities state, one of PrinterState's domain sub-states
  *
  * Manages capability subjects that control UI feature visibility based on
- * hardware detection and user overrides. Extracted from PrinterState as
- * part of god class decomposition.
+ * hardware detection and user overrides.
  */
 
 #include "printer_capabilities_state.h"

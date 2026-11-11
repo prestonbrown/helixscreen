@@ -4,7 +4,7 @@
 /**
  * @file test_is_portrait_subject.cpp
  * @brief ui_is_portrait exposes orientation to XML so <if cond="ui_is_portrait eq 1">
- *        can branch layout inline instead of maintaining ui_xml/portrait/ variant files.
+ *        can branch a panel's layout inside its one file.
  *
  * ui_breakpoint classifies the cramped-axis *tier* and cannot answer "is this
  * portrait" -- 480x800 and 800x480 can land on the same tier. This subject is

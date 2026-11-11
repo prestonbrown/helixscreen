@@ -73,6 +73,24 @@ the firmware's ninja joins the machine-wide pool; `scripts/esp32_build_debug_hea
 `docker run` line, including the extra read-only mount a `setup-worktree.sh` tree needs for its symlinked `lib/`.
 Natively, source ESP-IDF's environment first (`. $IDF_PATH/export.sh`).
 
+### Code-generation flags
+
+`helixapp` and `helixnet` build with `-fno-ipa-sra -fno-ipa-cp-clone -fno-partial-inlining`, which stops GCC
+emitting a private copy of the same inline helper in every translation unit (about 160 KB of image). Leave the
+Xtensa literal-pool placement at its default. Measured on helixapp with LTO on (#1921), against a 6,197,264 byte
+image with 5,208,040 bytes of `.flash.text`:
+
+| Flags on helixapp and the LTO link | Image (bytes) | `.flash.text` change | Result |
+|------|---:|---:|------|
+| none (default) | 6,197,264 | | |
+| `-mtext-section-literals` | 6,806,128 | +608,860 | Links, 9.6 KB under the 0x680000 OTA slot |
+| `-mauto-litpools` | 6,879,968 | +682,796 | Overflows both OTA slots by 0xfae0 |
+
+`.flash.rodata` moves by under 100 bytes, and IRAM and DRAM not at all. The likely cause is sharing: in the default
+layout the linker can share one literal among the functions of a `.literal` section, while pools in `.text` give each
+function its own copies. `-mauto-litpools` implies
+text-section literals, so the two together are no better than `-mauto-litpools` alone.
+
 ### Local configuration
 
 `sdkconfig.local` in the firmware directory is git-ignored and layered over `sdkconfig.defaults` when present. Put

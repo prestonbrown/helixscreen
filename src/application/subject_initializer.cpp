@@ -128,10 +128,10 @@ void SubjectInitializer::before_disconnect() {
 void SubjectInitializer::init_core_and_state() {
     spdlog::debug("[SubjectInitializer] Initializing core and state subjects...");
 
-    // Phase 1: Core subjects (must be first)
+    // Core subjects: must be first.
     init_core_subjects();
 
-    // Phase 2: PrinterState subjects (panels depend on these)
+    // PrinterState subjects: panels depend on these.
     init_printer_state_subjects();
 
     // Settings subjects next: panels built from here on observe the language
@@ -155,7 +155,6 @@ void SubjectInitializer::init_core_and_state() {
     // warm_orca_tables() above — see FILAMENT_MANAGEMENT.md § "User overlay format".
     filament::merge_user_orca_overrides(helix::printer::FilamentCatalog::load_user_orca_type_map());
 
-    // Phase 3: AMS and filament sensor subjects
     init_ams_subjects();
 
     // Z-offset save availability. Derived from PrinterState's strategy and
@@ -167,7 +166,7 @@ void SubjectInitializer::init_core_and_state() {
     // exist from here, so neither depends on the panel having been opened.
     helix::BedMeshState::instance().init_subjects();
 
-    // Phase 4: Navigation subjects — MUST register AFTER PrinterState/AmsState
+    // Navigation subjects: MUST register AFTER PrinterState/AmsState
     // so that in reverse deinit order, NavigationManager cleans up its observers
     // on PrinterState subjects BEFORE PrinterState deinits those subjects.
     NavigationManager::instance().init();
@@ -180,20 +179,18 @@ void SubjectInitializer::init_panels(helix::IMoonrakerAPI* api,
     spdlog::debug("[SubjectInitializer] Initializing panel subjects (api={})...",
                   api ? "valid" : "nullptr");
 
-    // Phase 4: Panel subjects
     init_panel_subjects(api);
 }
 
 void SubjectInitializer::init_post(helix::IMoonrakerAPI* api, const RuntimeConfig& runtime_config) {
     spdlog::debug("[SubjectInitializer] Initializing post-panel subjects...");
 
-    // Phase 5: Observers (depend on subjects being ready)
+    // Observers depend on the subjects being ready.
     init_observers(api);
 
-    // Phase 6: Utility subjects
     init_utility_subjects();
 
-    // Phase 7: USB manager (needs notification system)
+    // The USB manager needs the notification system.
     init_usb_manager(runtime_config);
 
     m_initialized = true;
@@ -295,8 +292,8 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     // SpoolmanPanel uses lazy initialization via get_global_spoolman_panel()
     // and is initialized on first access in AdvancedPanel::handle_spoolman_clicked()
 
-    // HistoryDashboardPanel is now lazy-initialized (OverlayBase pattern)
-    // HistoryListPanel is now lazy-initialized by HistoryDashboardPanel (OverlayBase pattern)
+    // HistoryDashboardPanel is lazy-initialized (OverlayBase pattern)
+    // HistoryListPanel is lazy-initialized by HistoryDashboardPanel (OverlayBase pattern)
 
     // Timelapse state (event-driven, not a panel)
     helix::TimelapseState::instance().init_subjects();
@@ -321,7 +318,7 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     init_global_retraction_settings(api);
     get_global_retraction_settings().init_subjects();
 
-    // ConsolePanel is now lazy-initialized by AdvancedPanel (OverlayBase pattern)
+    // ConsolePanel is lazy-initialized by AdvancedPanel (OverlayBase pattern)
 
     // Row handlers for advanced features
     init_screws_tilt_row_handler();
@@ -338,15 +335,13 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     ui_wizard_init_subjects();
     ui_keypad_init_subjects();
 
-    // PrinterStatusIcon and StatusBar subjects — cleanup self-registered inside init_subjects()
-
     // Note: PrintSelectPanel registers its own deinit+destroy callback in get_print_select_panel()
     m_print_select_panel = get_print_select_panel(get_printer_state(), api);
     m_print_select_panel->init_subjects();
     if (api)
         m_print_select_panel->set_api(api);
 
-    // Shared print-control buttons own the renamed pause/resume/stop subjects +
+    // Shared print-control buttons own the pause/resume/stop subjects +
     // shared callbacks; register before the print-status panel (and any home
     // widget) XML binds them.
     auto& print_controls = helix::ui::PrintControlButtons::instance();

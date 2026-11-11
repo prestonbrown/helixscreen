@@ -511,6 +511,7 @@
   <translation tag="Buffer" it="Buffer"/>
   <translation tag="Buffer Status" it="Stato buffer"/>
   <translation tag="Buffer tube problem" it="Problema al tubo del buffer"/>
+  <translation tag="Buffer-driven gear speed control" it="Velocità ingranaggio regolata dal buffer"/>
   <translation tag="Build Volume" it="Volume di stampa"/>
   <translation tag="Build Volume: " it="Volume di stampa: "/>
   <translation tag="Building preview: %d%%" it="Creazione anteprima: %d%%"/>
@@ -1484,6 +1485,8 @@
   <translation tag="Fair match" it="Corrispondenza discreta"/>
   <translation tag="Fan" it="Ventola"/>
   <translation tag="Fan Calibration" it="Calibrazione ventola"/>
+  <translation tag="Fan Control" it="Controllo ventola"/>
+  <translation tag="Fan Mode" it="Modalità ventola"/>
   <translation tag="Fan Speeds" it="Velocità delle ventole"/>
   <translation tag="Fan Tach" it="Tachimetro ventola"/>
   <translation tag="Fan Transfer" it="Trasferimento ventola"/>
@@ -1633,6 +1636,7 @@
   <translation tag="Follow your manual to swap the nozzle or hotend." it="Segui il manuale per sostituire ugello o hotend."/>
   <translation tag="For a first Z home: claim the tool you put on the head" it="Per il primo homing Z: registra lo strumento messo sulla testina"/>
   <translation tag="For materials that need a warm enclosure, like ABS or ASA" it="Per materiali che richiedono un&apos;enclosure calda, come ABS o ASA"/>
+  <translation tag="Force the MMU fans off or on, or follow Fan Control" it="Forza le ventole MMU spente o accese, o segui il controllo ventola"/>
   <translation tag="Force/weight sensors" it="Sensori di forza/peso"/>
   <translation tag="Forget" it="Dimentica"/>
   <translation tag="Forget Network?" it="Dimenticare la rete?"/>
@@ -1760,6 +1764,7 @@
   <translation tag="Heating the bed" it="Riscaldamento del piano"/>
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" it="Riscaldamento di piano e ugello: la stampa torna ad aderire e l&apos;ugello si stacca"/>
   <translation tag="Heating the nozzle" it="Riscaldamento dell&apos;ugello"/>
+  <translation tag="Heating the nozzle. Have the filament ready to push in." it="Riscaldamento dell&apos;ugello. Tieni pronto il filamento da inserire."/>
   <translation tag="Heating to %d°C... %.0f°C" it="Riscaldamento a %d°C... %.0f°C"/>
   <translation tag="Heating to %s: %d:%02d left" it="Riscaldamento a %s: %d:%02d rimanente"/>
   <translation tag="Heating to {}°C before {}..." it="Riscaldamento a {}°C prima di {}..."/>
@@ -2007,6 +2012,7 @@
   <translation tag="Keep its own data on this screen (up to 256 KB)." it="Conserva i propri dati su questo schermo (fino a 256 KB)."/>
   <translation tag="Keep pushing filament while it cools" it="Continuare a spingere il filamento mentre si raffredda"/>
   <translation tag="Keep the bypass spool visible when bypass is off" it="Mantieni visibile la bobina di bypass quando il bypass è disabilitato"/>
+  <translation tag="Keep the rotation distance sync feedback tunes" it="Salva la distanza di rotazione regolata dal feedback di sincronizzazione"/>
   <translation tag="Keep waiting" it="Continua ad attendere"/>
   <translation tag="Kept {}: a print started." it="{} mantenuto: è iniziata una stampa."/>
   <translation tag="Kick away" it="Espelli"/>
@@ -2027,7 +2033,9 @@
   <translation tag="Klipper has entered shutdown state." it="Klipper è entrato in stato di arresto."/>
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." it="Klipper è entrato in stato di arresto. Questo potrebbe essere dovuto a un arresto di emergenza, fuga termica o errore di configurazione."/>
   <translation tag="Klipper has no [virtual_sdcard] section." it="Klipper non ha una sezione [virtual_sdcard]."/>
+  <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" it="Klipper non ha caricato le macro del timelapse, quindi non vengono catturati fotogrammi. Aggiungi questa riga a printer.cfg e riavvia Klipper:"/>
   <translation tag="Klipper is halted — restart firmware to continue" it="Klipper è fermo — riavvia il firmware per continuare"/>
+  <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." it="Klipper si sta riavviando. I fotogrammi del timelapse vengono catturati dalla prossima stampa."/>
   <translation tag="Klipper ready" it="Klipper pronto"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." it="Klipper riserva &apos;default&apos; alle nuove calibrazioni. Scegli un altro nome."/>
   <translation tag="Klipper restarting - macros activating" it="Riavvio di Klipper - attivazione delle macro"/>
@@ -2089,6 +2097,7 @@
   <translation tag="Layout changes are off in safe mode. Restart to edit." it="Le modifiche al layout sono disattivate in modalità provvisoria. Riavvia per modificare."/>
   <translation tag="Learn More" it="Scopri di più"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." it="Le basi: la procedura guidata di configurazione, come spostarsi tra le schermate e i gesti touch."/>
+  <translation tag="Leave empty for no unit" it="Lasciare vuoto per nessuna unità"/>
   <translation tag="Leave it" it="Lascia stare"/>
   <translation tag="Leave this off for a clogged nozzle." it="Lascia disattivato se l&apos;ugello è ostruito."/>
   <translation tag="LedSelect" it="Seleziona LED"/>
@@ -2131,6 +2140,7 @@
   <translation tag="Load and unload" it="Carica e scarica"/>
   <translation tag="Load and unload filament at the tool by hand" it="Carica e scarica il filamento a mano sullo strumento"/>
   <translation tag="Load canceled: nozzle target dropped" it="Caricamento annullato: il target dell&apos;ugello è sceso"/>
+  <translation tag="Load canceled: the active tool changed" it="Caricamento annullato: lo strumento attivo è cambiato"/>
   <translation tag="Load complete" it="Caricamento completato"/>
   <translation tag="Load failed" it="Caricamento non riuscito"/>
   <translation tag="Load filament" it="Carica il filamento"/>
@@ -2419,6 +2429,7 @@
   <translation tag="Network name cannot be empty" it="Il nome della rete non può essere vuoto"/>
   <translation tag="Network, display, sound, printer setup, and more. You can replay this tour anytime from Help &amp; About." it="Rete, schermo, suono, configurazione stampante e altro. Puoi rivedere questo tour in qualsiasi momento da Aiuto e informazioni."/>
   <translation tag="Neutral" it="Neutro"/>
+  <translation tag="Neutralize Tension" it="Neutralizza tensione"/>
   <translation tag="Never" it="Mai"/>
   <translation tag="Never sleeps" it="Non va mai in sospensione"/>
   <translation tag="New Spool" it="Nuova bobina"/>
@@ -3240,6 +3251,7 @@
   <translation tag="Reset Motor Timer" it="Ripristina il timer del motore"/>
   <translation tag="Reset Servo Counter" it="Ripristina il contatore del servo"/>
   <translation tag="Reset Speed &amp; Flow to 100%" it="Ripristina velocità e flusso al 100%"/>
+  <translation tag="Reset Sync Feedback" it="Ripristina feedback di sincronizzazione"/>
   <translation tag="Reset Tags" it="Ripristina contrassegni"/>
   <translation tag="Reset all settings and restart wizard" it="Ripristina tutte le impostazioni e riavvia procedura guidata"/>
   <translation tag="Reset failed" it="Reset fallito"/>
@@ -3348,6 +3360,7 @@
   <translation tag="Run stopped" it="Esecuzione fermata"/>
   <translation tag="Run test sequence on all lanes" it="Esegui la sequenza di test su tutte le corsie"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." it="Esegui l&apos;installer di HelixScreen con --update da un terminale su questa stampante. Scansiona per il comando della tua piattaforma."/>
+  <translation tag="Run the MMU fans by temperature" it="Aziona le ventole MMU in base alla temperatura"/>
   <translation tag="Run the chamber dryer too" it="Usa anche l&apos;essiccatore della camera"/>
   <translation tag="Run {}?" it="Eseguire {}?"/>
   <translation tag="Running loose" it="Allentato"/>
@@ -3381,6 +3394,7 @@
   <translation tag="Save" it="Salva"/>
   <translation tag="Save &amp; Restart" it="Salva e riavvia"/>
   <translation tag="Save As New" it="Salva come nuovo"/>
+  <translation tag="Save Autotuned Rotation" it="Salva rotazione autoregolata"/>
   <translation tag="Save Hardware" it="Salva hardware"/>
   <translation tag="Save Offsets" it="Salva offset"/>
   <translation tag="Save Printer Configuration" it="Salva configurazione stampante"/>
@@ -3496,6 +3510,7 @@
   <translation tag="Select sensor" it="Seleziona sensore"/>
   <translation tag="Select slot failed" it="Selezione slot fallita"/>
   <translation tag="Select the heaters Klipper uses for your bed and hotend" it="Seleziona i riscaldatori Klipper per piano e hotend"/>
+  <translation tag="Select this tool first, then load it by hand." it="Seleziona prima questo strumento, poi caricalo a mano."/>
   <translation tag="Select which devices the home screen power button controls" it="Seleziona quali dispositivi controlla il pulsante di accensione"/>
   <translation tag="Select which sensor triggers pause on filament runout" it="Seleziona quale sensore attiva la pausa all&apos;esaurimento filamento"/>
   <translation tag="Select your preferred language" it="Seleziona la lingua preferita"/>
@@ -3809,7 +3824,9 @@
   <translation tag="Switching to MPC requires a config change and Klipper restart." it="Il passaggio a MPC richiede una modifica alla configurazione e il riavvio di Klipper."/>
   <translation tag="Switching to {}" it="Passaggio a {}"/>
   <translation tag="Sync" it="Sinc."/>
+  <translation tag="Sync Feedback" it="Feedback di sincronizzazione"/>
   <translation tag="Sync during printing" it="Sincronizza durante la stampa"/>
+  <translation tag="Sync feedback is off" it="Il feedback di sincronizzazione è disattivato"/>
   <translation tag="Sync with Spoolman" it="Sincronizza con Spoolman"/>
   <translation tag="Syncing Motors..." it="Sincronizzazione motori..."/>
   <translation tag="Syncing motors..." it="Sincronizzazione motori..."/>
@@ -4123,6 +4140,7 @@
   <translation tag="This dryer cannot run while filament from the unit is loaded" it="Questo essiccatore non può funzionare finché è caricato filamento dell&apos;unità"/>
   <translation tag="This feature requires different hardware or configuration" it="Questa funzione richiede hardware o configurazione diversi"/>
   <translation tag="This filament system does not report buffer or flow data." it="Questo sistema filamento non riporta dati di buffer o flusso."/>
+  <translation tag="This filament system keeps its own spool records" it="Questo sistema di filamento gestisce da sé i dati delle bobine"/>
   <translation tag="This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures." it="Questo file stampa {0} e {1} con un solo ugello. {0} può bruciarsi e ostruire l&apos;ugello alle temperature di {1}."/>
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." it="Questo file stampa {0} e {1} insieme. Il calore di camera e piano richiesto da {1} può ammorbidire {0} e intasarne l&apos;ugello."/>
   <translation tag="This file was sliced for {} but {} is loaded." it="Questo file è stato sezionato per {} ma è caricato {}."/>
@@ -4173,6 +4191,7 @@
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." it="I dettagli di questa bobina non sono ancora stati caricati da Spoolman. Premi di nuovo Salva."/>
   <translation tag="This system does not support bypass mode" it="Questo sistema non supporta la modalità bypass"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." it="Questo strumento sonda ogni vite del piano e indica quanto regolare."/>
+  <translation tag="This toolhead has no automatic feeder. Load the filament by hand." it="Questa testina non ha un alimentatore automatico. Carica il filamento a mano."/>
   <translation tag="This update asks for new permissions:" it="Questo aggiornamento richiede nuovi permessi:"/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." it="Questa attesa termina solo alla sua temperatura: l&apos;annullamento richiede un arresto di emergenza e un riavvio del firmware."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." it="Questo applicherà lo Z-offset al tuo endstop e riavvierà Klipper per salvare la configurazione. La stampante si disconnetterà brevemente."/>
@@ -4207,6 +4226,7 @@
   <translation tag="Timelapse Available" it="Timelapse disponibile"/>
   <translation tag="Timelapse Settings" it="Impostazioni timelapse"/>
   <translation tag="Timelapse Videos" it="Video timelapse"/>
+  <translation tag="Timelapse frames start after Klipper restarts." it="I fotogrammi del timelapse iniziano dopo il riavvio di Klipper."/>
   <translation tag="Timelapse or logs folder overlaps a protected one." it="La cartella timelapse o dei log si sovrappone a una protetta."/>
   <translation tag="Timelapse plugin installed successfully!" it="Plugin timelapse installato con successo!"/>
   <translation tag="Timelapse plugin installed!" it="Plugin timelapse installato!"/>
@@ -4345,6 +4365,7 @@
   <translation tag="Uninstallation timed out. The script may be stuck." it="Disinstallazione scaduta. Lo script potrebbe essere bloccato."/>
   <translation tag="Unit" it="Unità"/>
   <translation tag="Unit " it="Unità "/>
+  <translation tag="Unit text" it="Testo dell&apos;unità"/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d" it="Unità: %d   Scatole: %d   Essiccatori: %d"/>
   <translation tag="Unknown" it="Sconosciuto"/>
   <translation tag="Unknown Error" it="Errore sconosciuto"/>

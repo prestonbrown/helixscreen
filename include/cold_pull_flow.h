@@ -33,10 +33,6 @@ inline constexpr int kPullBandC = 3;
 inline constexpr int kHoldPressureMarginC = 15;
 /// A target on the head further than this from the last one sent was set elsewhere.
 inline constexpr int kForeignTargetToleranceC = 2;
-inline constexpr int kFeedMm = 60;
-inline constexpr int kFeedSpeedMmMin = 300;
-inline constexpr int kPurgeMoreMm = 20;
-inline constexpr int kPurgeSpeedMmMin = 300;
 inline constexpr int kHoldPressureMm = 1;
 inline constexpr int kHoldPressureSpeedMmMin = 60;
 inline constexpr std::chrono::seconds kHoldPressureInterval{3};

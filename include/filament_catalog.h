@@ -73,7 +73,8 @@ class FilamentCatalog {
      *
      * "" when the product carries no `orca_id`, or carries one that another
      * product in the effective catalog (built-ins plus user overlay) also
-     * carries: a shared id does not name this product exactly. Keeps only a
+     * carries: a shared id does not name this product exactly. Also "" for an
+     * id is_usable_orca_filament_id() refuses (a Bambu GF code). Keeps only a
      * flat catalog id -> Orca id map resident, rebuilt after a user-overlay
      * write. Thread-safe.
      */
@@ -104,8 +105,8 @@ class FilamentCatalog {
     static std::map<std::string, std::string> load_user_orca_type_map_from(const std::string& path);
 
     /// Atomically replace the user overlay's `filaments` section with
-    /// `products`, preserving its other sections (`types`, `orca_type_map`). Legacy bare-array
-    /// overlays are migrated to object form on first save. Caller provides
+    /// `products`, preserving its other sections (`types`, `orca_type_map`). A bare-array
+    /// overlay is rewritten in object form on save. Caller provides
     /// pre-built product objects (typically from a modal's form fields); each
     /// entry should carry at minimum an `id`. Written via temp-file + rename
     /// (POSIX rename is atomic within a filesystem), so a *process* crash
@@ -128,7 +129,7 @@ class FilamentCatalog {
 
     /// Read the user overlay's authored `filaments` entries as raw JSON objects
     /// (sparse — type inheritance is NOT applied), for read-modify-write by the
-    /// product-edit UI. Accepts both the object form and the legacy bare array.
+    /// product-edit UI. Accepts both the object form and a bare array.
     /// Empty when no overlay exists or it can't be parsed. This is the read half
     /// of the save_user_products round-trip.
     static std::vector<nlohmann::json> load_user_products();

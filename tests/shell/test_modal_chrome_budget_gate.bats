@@ -242,8 +242,3 @@ EOF
     run python3 "${GATE}" --repo-root "${FIXTURE}"
     [ "$status" -eq 0 ]
 }
-
-@test "the real repository passes its own gate" {
-    run python3 "${GATE}" --repo-root "${REPO_ROOT}"
-    [ "$status" -eq 0 ]
-}

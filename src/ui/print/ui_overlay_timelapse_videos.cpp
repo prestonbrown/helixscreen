@@ -402,14 +402,11 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
     lv_obj_t* thumbnail = helix::ui::find_required(card, "thumbnail", get_name());
     lv_obj_t* no_thumb_icon = helix::ui::find_required(card, "no_thumbnail_icon", get_name());
 
-    // Use the companion filename (e.g., "video.thumb.jpg") as the Moonraker path
-    // within the "timelapse" root for ThumbnailCache
-    auto companion = helix::timelapse::companion_filename(filename);
-
-    // Check if companion thumbnail file exists in the timelapse directory listing
-    if (available_files.find(companion) == available_files.end()) {
-        // No companion thumbnail available -- show placeholder
-        spdlog::debug("[{}] No companion thumbnail '{}' for '{}'", get_name(), companion, filename);
+    // The preview beside the video in the "timelapse" root, as Moonraker lists it.
+    const std::string companion =
+        helix::timelapse::find_companion_thumbnail(filename, available_files);
+    if (companion.empty()) {
+        spdlog::debug("[{}] No companion thumbnail for '{}'", get_name(), filename);
         if (no_thumb_icon) {
             // DECLARATIVE_OK: per-card thumbnail state on a generated collection
             lv_obj_remove_flag(no_thumb_icon, LV_OBJ_FLAG_HIDDEN);

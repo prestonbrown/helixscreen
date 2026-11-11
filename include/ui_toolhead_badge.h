@@ -27,6 +27,11 @@ struct GlyphBounds {
 /// @p scale. ANTHEAD reports the default glyph on ESP32, which draws it there.
 GlyphBounds toolhead_bounds(ToolheadStyle style, int32_t cx, int32_t nozzle_y, int32_t scale);
 
+/// The nozzle row at which @p style's glyph, drawn at @p scale, ends on @p bottom_y.
+/// A layout that stands its head on a line keeps every head's art inside the
+/// space above that line, whatever the head's proportions.
+int32_t toolhead_nozzle_standing_on(ToolheadStyle style, int32_t bottom_y, int32_t scale);
+
 /// Where filament meets a head: @p dx shifts the head sideways so its entry sits on the
 /// filament column it is centered on, and @p y is the entry's row.
 struct ToolheadInlet {

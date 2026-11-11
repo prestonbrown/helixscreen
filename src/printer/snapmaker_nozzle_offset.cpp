@@ -20,6 +20,8 @@
 #include <mutex>
 #include <optional>
 
+#include "hv/json.hpp"
+
 namespace helix::snapmaker::nozzle_offset {
 
 namespace {

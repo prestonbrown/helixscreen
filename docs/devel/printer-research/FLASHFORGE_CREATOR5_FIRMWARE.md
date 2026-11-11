@@ -176,7 +176,8 @@ HelixScreen runs this sweep itself on stock and Z-Mod firmware; see
 ## Stock UI features (1.9.9 and 2.0.0) against HelixScreen
 
 From the English string table in `firmwareExe`, checked against HelixScreen and Z-Mod's
-Creator 5 macros (`ghzserg/z_c5pro`, `translate/en/c5pro_generic.cfg`).
+Creator 5 macros (`ghzserg/z_c5pro`: `translate/en/c5pro_display_off.cfg` for the calibration
+macros and door buttons, `translate/en/c5pro_generic.cfg` for chamber air).
 
 | Stock feature | Printer-side hook | HelixScreen |
 |---------------|-------------------|-------------|

@@ -377,6 +377,13 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
         return helix::ui::GuidedLoadModal::show_owned(*steps, name == "guided-load");
     }
 
+    if (name == "manual-load") {
+        // Every mock persona has a load macro and its filament system feeds the head,
+        // so no Load reaches the manual load there. This opens it on the active nozzle,
+        // against the mock's heater: Heating, then the hand push.
+        return helix::ui::GuidedLoadModal::show_manual(-1);
+    }
+
     if (name == "ams-error-toast") {
         // The widest thing the AMS error renderer ever has to lay out: the
         // longest suggestion any backend produces (96 chars) under a 44-char

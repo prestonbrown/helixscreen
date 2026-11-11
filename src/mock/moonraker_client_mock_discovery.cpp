@@ -308,7 +308,8 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back("heater_generic chamber_heater");
         mock_objects.push_back("gcode_button frontDoor");
         mock_objects.push_back("gcode_button topDoor");
-        // c5pro_generic.cfg's calibration macros.
+        // Z-Mod's calibration macros (c5pro_display_off.cfg) and chamber air
+        // macros (c5pro_generic.cfg).
         mock_objects.push_back("gcode_macro CALIBRATE_EXTRUDERS");
         mock_objects.push_back("gcode_macro CALIBRATE_VFA");
         mock_objects.push_back("gcode_macro AIR_CIRCULATION_INTERNAL");
@@ -457,13 +458,21 @@ void MoonrakerClientMock::populate_capabilities() {
     if (helix::mock::timelapse_plugin_present()) {
         mock_objects.push_back("timelapse");
     }
+    // HELIX_MOCK_TIMELAPSE=helix-macros: helper macros loaded, no TIMELAPSE_TAKE_FRAME.
+    if (helix::mock::timelapse_helix_macros_loaded()) {
+        for (const char* m : {"HELIX_READY", "HELIX_ENDED", "HELIX_RESET", "HELIX_START_PRINT",
+                              "HELIX_CLEAN_NOZZLE", "HELIX_BED_MESH_IF_NEEDED",
+                              "HELIX_UNLOAD_FILAMENT", "_HELIX_STATE"}) {
+            mock_objects.push_back(std::string("gcode_macro ") + m);
+        }
+    }
 
     // MMU/AMS system - Happy Hare uses "mmu" object name.
     // Suppressed in the MedusaHC modes, the standalone IFS module mode, the OpenAMS
     // mode and any persona that omits it: "mmu" detects Happy Hare (priority over every
     // other filament system) and would stand the wrong backend up.
     if (mmu_enabled_ && !is_mock_medusahc() && !is_mock_ifs_module() && !is_mock_openams() &&
-        !is_mock_indx() && inherits(kHappyHareMmu)) {
+        !is_mock_indx() && !is_mock_lane_status() && inherits(kHappyHareMmu)) {
         mock_objects.push_back("mmu");
     }
 
@@ -657,6 +666,12 @@ void MoonrakerClientMock::populate_capabilities() {
     if (is_mock_indx()) {
         read_indx_knobs();
         append_indx_objects(mock_objects);
+    }
+
+    // Lane Status Surface mock hardware (HELIX_MOCK_AMS=lane_status): the
+    // neutral object, which real discovery hands the generic backend.
+    if (is_mock_lane_status()) {
+        mock_objects.push_back("lane_status");
     }
 
     append_skip_wrapper_objects(mock_objects);

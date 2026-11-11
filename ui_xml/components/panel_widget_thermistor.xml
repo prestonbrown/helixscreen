@@ -16,6 +16,8 @@
     <!-- The sensor's name, and 1 while one is selected -->
     <prop name="name_subject" type="string" default=""/>
     <prop name="named_subject" type="string" default=""/>
+    <!-- The unit text after the reading: the tile's override, or the default -->
+    <prop name="unit_subject" type="string" default=""/>
   </api>
   <view name="panel_widget_thermistor"
         extends="lv_obj" height="100%" flex_grow="1" style_pad_ver="0" style_pad_gap="#space_xxs" scrollable="false"
@@ -42,12 +44,13 @@
       <temp_display name="thermistor_temp"
                     size_target_subject="$tile_target_subject" rung_subject="$tile_icon_subject" size="sm"
                     show_target="true" hide_target_when_off="true" hide_target_below_bp="small"
-                    bind_current="$temp_subject" bind_target="$target_subject" align="center" clickable="false"
-                    event_bubble="true">
+                    bind_current="$temp_subject" bind_target="$target_subject" bind_unit="$unit_subject" align="center"
+                    clickable="false" event_bubble="true">
         <bind_flag_if_eq subject="$available_subject" flag="hidden" ref_value="0"/>
       </temp_display>
       <!-- No sensor selected, or the saved one is not reported (yet). -->
-      <text_body name="thermistor_unavailable" text="--°C" clickable="false" event_bubble="true">
+      <text_body name="thermistor_unavailable"
+                 bind_text="$unit_subject" bind_text-fmt="--%s" clickable="false" event_bubble="true">
         <bind_tile_rung ladder="value" subject="$tile_icon_subject"/>
         <bind_flag_if_eq subject="$available_subject" flag="hidden" ref_value="1"/>
       </text_body>

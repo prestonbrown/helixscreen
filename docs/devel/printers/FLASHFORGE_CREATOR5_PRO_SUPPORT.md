@@ -272,7 +272,8 @@ step-bar markers on a live swap remains open (prestonbrown/helixscreen#1714).
 
 ### Calibration and chamber air macros
 
-HelixScreen drives three more Z-Mod macro families from `c5pro_generic.cfg`. Each is a row in
+HelixScreen drives three more Z-Mod macro families: the two calibrations from
+`translate/en/c5pro_display_off.cfg` and chamber air from `translate/en/c5pro_generic.cfg`. Each is a row in
 a capability provider table; the tool offset and stepper resonance rows detect the macro by
 capability rather than by naming the machine.
 
@@ -481,3 +482,12 @@ directly (`src/system/timezone_env.cpp#apply`). The reporter confirmed the fix o
 v1.1.0-beta.17, including a switch to `Asia/Tokyo` that moved the log clock by nine hours
 ([#2003](https://github.com/prestonbrown/helixscreen/issues/2003)). The setting is read from
 `display.timezone` in `settings.json`; a top-level `timezone` key is ignored.
+
+**Tool offsets are measured, not set.** Reforge has no `SET_TOOL_PARAMETER` or
+`SAVE_TOOL_PARAMETER`: its `tool T<n>` offsets are derived from each head's measured nozzle
+position, and its `CALIBRATE_TOOL_OFFSETS` stages the measurement for `SAVE_CONFIG`. The
+Reforge row of `src/printer/tool_offsets.cpp#providers` writes nothing per tool by value. The
+Tool Offsets panel's Save stages a live `TOOL_Z_ADJUST` tune with
+`TOOL_Z_ADJUST TOOL=<n> ADJUST=0 SAVE=1` and then sends `SAVE_CONFIG`
+([FILAMENT_BACKEND_TOOLCHANGER.md](../FILAMENT_BACKEND_TOOLCHANGER.md#reforge)). Not yet run on a Reforge printer
+([#2030](https://github.com/prestonbrown/helixscreen/issues/2030)).

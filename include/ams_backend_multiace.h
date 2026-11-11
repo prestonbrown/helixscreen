@@ -77,6 +77,11 @@ class AmsBackendMultiAce : public AmsBackendSnapmaker, public helix::IDryer {
     /// feed is its own source.
     [[nodiscard]] std::optional<int> head_source_slot(int head,
                                                       const AmsSystemInfo& info) const override;
+    /// An ACE feeds a head the U1 frame reports with no feeder module, so no head
+    /// here is a hand load.
+    [[nodiscard]] HeadFilamentOps head_filament_ops(int head) const override {
+        return AmsBackend::head_filament_ops(head);
+    }
 
     /// Also drops a bay load waiting behind its head's unload: the restart
     /// ended that unload, so the load's second step must not follow it.
@@ -102,7 +107,7 @@ class AmsBackendMultiAce : public AmsBackendSnapmaker, public helix::IDryer {
 
     /// A bay edit lands on the bay's own SlotInfo and the shared override
     /// store, keyed by the global slot index; nothing is written to the engine,
-    /// whose own spool table never sees the edit (phase 4). A head keeps the
+    /// whose own spool table never sees the edit. A head keeps the
     /// base's path, which also writes the head's firmware record.
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     /// A head's clear is Snapmaker's; a bay has no head firmware record to

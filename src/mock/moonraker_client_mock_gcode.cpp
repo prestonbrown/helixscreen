@@ -1457,6 +1457,12 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
     if (is_mock_openams() && (r = gcode_openams(g))) {
         return *r;
     }
+    if (is_mock_lane_status() && (r = gcode_lane_status(g))) {
+        return *r;
+    }
+    if (mmu_enabled_ && (r = gcode_happy_hare(g))) {
+        return *r;
+    }
     if ((r = gcode_u1_feeding(g))) {
         return *r;
     }
@@ -1552,11 +1558,11 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
     if (has_token(g, "SET_GCODE_OFFSET")) {
         gcode_set_gcode_offset(g);
     }
-    if (has_token(g, "SET_TOOL_PARAMETER")) {
-        gcode_set_tool_parameter(g);
+    if (has_token(g, "SET_TOOL_PARAMETER") && (r = gcode_set_tool_parameter(g))) {
+        return *r;
     }
-    if (has_token(g, "SAVE_TOOL_PARAMETER")) {
-        gcode_save_tool_parameter(g);
+    if (has_token(g, "SAVE_TOOL_PARAMETER") && (r = gcode_save_tool_parameter(g))) {
+        return *r;
     }
     if (has_token(g, "SHAPER_CALIBRATE")) {
         gcode_shaper_calibrate(g);

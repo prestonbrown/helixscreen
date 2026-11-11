@@ -63,9 +63,8 @@ inline constexpr int32_t kPortraitSideListFallbackPct = 50;
  *
  * The list's job is to cover the controls, so it is sized from the CONTROLS —
  * measured, every time — rather than from a share of the column. A percentage
- * cannot notice that the control stack shrank, which is how a rule written when
- * the controls were ~55% survived them falling to 14-34% and started eating a
- * live tappable object map instead.
+ * cannot notice that the control stack shrank, and then covers a live tappable
+ * object map instead.
  *
  * @param controls_h Measured height of the controls the list covers. <= 0 means unmeasured.
  * @param content_h  Measured CONTENT height of `overlay_content` — what a

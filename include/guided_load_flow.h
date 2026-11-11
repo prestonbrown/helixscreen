@@ -22,7 +22,20 @@
 
 namespace helix {
 
+/// A hand-pushed feed: from the extruder gears through the melt zone to the nozzle.
+inline constexpr int kFeedMm = 60;
+inline constexpr int kFeedSpeedMmMin = 300;
+/// Extrude more: nothing came out of the nozzle yet.
+inline constexpr int kPurgeMoreMm = 20;
+inline constexpr int kPurgeSpeedMmMin = 300;
+
+/// The steps for filament the user pushed into the extruder by hand: a slow feed to
+/// the nozzle, then a shorter extrusion for each Extrude more. Nothing to flush,
+/// release or clean up, because no printer wizard is waiting.
+[[nodiscard]] filament_macros::GuidedLoad hand_feed_steps();
+
 enum class GuidedLoadStage {
+    Heating,       ///< The nozzle is heating for the load; nothing is sent until it is hot.
     AwaitPush,     ///< The macro stopped; the user pushes filament into the extruder.
     Feeding,       ///< Extruding to the nozzle (feed or retry in flight).
     ConfirmOutput, ///< Asking whether new filament comes out of the nozzle.
@@ -38,6 +51,10 @@ class GuidedLoadFlow {
     ///        the question and has no feed, flush or release step.
     GuidedLoadFlow(filament_macros::GuidedLoad steps, bool waits_for_push);
 
+    /// A load whose nozzle the screen heats first: opens on Heating, and heated()
+    /// moves it on to the hand push.
+    [[nodiscard]] static GuidedLoadFlow after_preheat(filament_macros::GuidedLoad steps);
+
     [[nodiscard]] GuidedLoadStage stage() const {
         return stage_;
     }
@@ -48,6 +65,8 @@ class GuidedLoadFlow {
         return stage_ == GuidedLoadStage::Finished || stage_ == GuidedLoadStage::Cancelled;
     }
 
+    /// The nozzle reached the load temperature. Moves Heating on to AwaitPush.
+    void heated();
     /// The filament sensor went from empty to detected. Feeds from AwaitPush only.
     [[nodiscard]] std::string filament_detected();
     /// The user asked to extrude: the feed from AwaitPush, a retry from ConfirmOutput.

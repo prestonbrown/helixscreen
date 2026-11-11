@@ -152,10 +152,29 @@ write_and_run() {
 
 # --- 4. the real tree stays clean -------------------------------------------------
 
-@test "every ui_xml file parses and is formatted" {
-    run bash -c "$PY $FORMATTER --check \$(find ui_xml -name '*.xml' | sort)"
-    [ "$status" -eq 0 ]
-    [[ "$output" != *"could not be processed"* ]]
+@test "the ui_xml lint fails on an unparseable or unformatted file and passes a formatted one" {
+    # lint_ui_xml_formatted (scripts/code_lint.sh) is the hard verdict over the
+    # real ui_xml/, run by qc_code_lint at push; here it reads a fixture root.
+    local root="$BATS_TEST_TMPDIR/root"
+    mkdir -p "$root/ui_xml" "$root/scripts"
+    ln -s "$PWD/$FORMATTER" "$root/$FORMATTER"
+    # The whole venv: a lone link to its python loses pyvenv.cfg, and with it lxml.
+    ln -s "$(cd .venv && pwd -P)" "$root/.venv"
+    . scripts/code_lint.sh
+    printf '<component><view><lv_obj name="a"/></view></component>' > "$root/ui_xml/good.xml"
+    cd "$root" || return 1
+    run lint_ui_xml_formatted
+    [ "$status" -eq 1 ]
+    contains "good.xml" "$output"
+
+    "$PY" "$FORMATTER" ui_xml/good.xml >/dev/null
+    run lint_ui_xml_formatted
+    [ "$status" -eq 0 ] || fail "$output"
+
+    printf '<component><view' > ui_xml/broken.xml
+    run lint_ui_xml_formatted
+    [ "$status" -eq 1 ]
+    contains "broken.xml" "$output"
 }
 
 # --- 5. the pre-commit auto-fix must not sweep held-back work ---------------------

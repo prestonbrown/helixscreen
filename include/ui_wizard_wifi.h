@@ -35,15 +35,7 @@ struct WiFiNetwork;
  * - Connection status feedback
  * - Ethernet status display
  *
- * ## Class-Based Architecture (Phase 6)
- *
- * This step has been migrated from function-based to class-based design:
- * - Instance members instead of static globals
- * - Shared pointer WiFiManager for async callback safety
- * - Static trampolines for LVGL event callbacks
- * - Global singleton getter for backwards compatibility
- *
- * ## Subject Bindings (7 total):
+ * ## Subject Bindings (13 total):
  *
  * - wifi_enabled (int) - 0=off, 1=on
  * - wifi_status (string) - Status message
@@ -52,6 +44,12 @@ struct WiFiNetwork;
  * - wifi_password_modal_ssid (string) - SSID for password modal
  * - wifi_connecting (int) - 0=idle, 1=connecting
  * - wifi_hardware_available (int) - 0=unavailable, 1=available
+ * - wifi_can_toggle_radio (int) - 1 when the backend can switch the radio on and off
+ * - wifi_ip (string) - WiFi IP address
+ * - wifi_mac (string) - WiFi MAC address
+ * - ethernet_mac (string) - Ethernet MAC address
+ * - wizard_wifi_password_status (string) - Status line in the password modal
+ * - wizard_wifi_password_status_shown (int) - 1 while that status line has text
  *
  * Initialization Order (CRITICAL):
  *   1. Register XML components (wizard_wifi_setup.xml, wifi_password_modal.xml)

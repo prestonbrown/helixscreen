@@ -43,6 +43,13 @@ inline ToolheadStyle toolhead_style_from_name(std::string_view name) {
         ToolheadStyle style;
     };
     static constexpr Entry kNames[] = {
+        {"stealthburner", ToolheadStyle::STEALTHBURNER},
+        {"mini_stealthburner", ToolheadStyle::MINI_STEALTHBURNER},
+        {"dragonburner", ToolheadStyle::DRAGONBURNER},
+        {"a4t", ToolheadStyle::A4T},
+        {"jabberwocky", ToolheadStyle::JABBERWOCKY},
+        {"bambu", ToolheadStyle::BAMBU},
+        {"xol", ToolheadStyle::XOL},
         {"creality_k1", ToolheadStyle::CREALITY_K1},
         {"creality_k2", ToolheadStyle::CREALITY_K2},
         {"anthead", ToolheadStyle::ANTHEAD},

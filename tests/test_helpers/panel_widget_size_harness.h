@@ -3,7 +3,6 @@
 #pragma once
 
 #include "helix-xml/src/xml/lv_xml.h"
-#include "json_fwd.h"
 #include "lvgl/lvgl.h"
 #include "panel_widget.h"
 #include "panel_widget_registry.h"
@@ -18,6 +17,7 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 namespace helix {
 

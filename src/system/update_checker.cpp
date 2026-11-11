@@ -15,17 +15,15 @@
 
 #include "system/update_checker.h"
 
-#include "ui_emergency_stop.h"
 #include "ui_event_safety.h"
 #include "ui_modal.h"
-#include "ui_notification.h"
-#include "ui_panel_settings.h"
 #include "ui_settings_updates.h"
 
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
 #include "core/log_redact.h"
+#include "core/notification_api.h"
 #include "core/text_io.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
@@ -40,6 +38,7 @@
 #include "klipper_config_includes.h"
 #include "lvgl.h"
 #include "moonraker_config_manager.h"
+#include "notice.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "replace_method_callback.h"
@@ -3334,8 +3333,7 @@ void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t g
                 }
                 // The app's websocket drops with it and reconnects on its own; that
                 // rediscovery syncs again, finds the stanza matching, and stops.
-                EmergencyStopOverlay::instance().suppress_recovery_dialog(
-                    recovery_suppression::LONG);
+                helix::publish_ui_request({helix::UiRequestKind::ExpectMoonrakerRestart});
                 api_ptr->restart_moonraker(
                     []() {
                         spdlog::info(
@@ -3506,6 +3504,20 @@ void handle_update_response(const json& msg) {
 }
 } // namespace
 
+void helix::request_update_manager_refresh(helix::IMoonrakerClient& client,
+                                           const std::string& name) {
+    client.send_jsonrpc(
+        "machine.update.refresh", json{{"name", name}},
+        [name](const json&) {
+            spdlog::info("[UpdateChecker] Moonraker refreshed its update status for {}", name);
+        },
+        [name](const MoonrakerError& err) {
+            spdlog::debug("[UpdateChecker] Moonraker update refresh of {} declined: {}", name,
+                          err.message);
+        },
+        0, /*silent=*/true);
+}
+
 void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
     {
         namespace fs = std::filesystem;
@@ -3517,19 +3529,8 @@ void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
             // Moonraker re-reads release_info.json only on a refresh, and its
             // own schedule can be a week apart, so Mainsail keeps showing the
             // version we just replaced. "helixscreen" is the update_manager
-            // section the installer writes; a missing or renamed section, or a
-            // print in progress, just gets an error back.
-            client.send_jsonrpc(
-                "machine.update.refresh", json{{"name", "helixscreen"}},
-                [](const json&) {
-                    spdlog::info("[UpdateChecker] Moonraker refreshed its HelixScreen "
-                                 "version after the update");
-                },
-                [](const MoonrakerError& err) {
-                    spdlog::debug("[UpdateChecker] Moonraker update refresh declined: {}",
-                                  err.message);
-                },
-                0, /*silent=*/true);
+            // section the installer writes.
+            helix::request_update_manager_refresh(client, "helixscreen");
         }
         // Legacy: best-effort under PrivateTmp (sees private /tmp,
         // not real /tmp — stale real sentinels cleaned on reboot)

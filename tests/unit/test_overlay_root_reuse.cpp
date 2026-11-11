@@ -120,8 +120,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "two callers opening the LED overlay share o
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "a fan overlay tree deleted out from under the singleton is rebuilt on next open",
+                 "a fan overlay tree closed or deleted under the singleton is rebuilt on next open",
                  "[overlays][fan_control][overlay-root-reuse]") {
+    const bool by_back = GENERATE(false, true);
+    CAPTURE(by_back);
     FreshOverlays fresh;
     state().fan_state().init_fans({"fan", "fan_generic chamber"});
     seed_nav_panels(test_screen());
@@ -132,8 +134,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     const size_t dials = FanControlOverlayTestAccess::dial_count(overlay);
     REQUIRE(dials > 0);
 
-    close_all();
-    lv_obj_delete(first);
+    if (by_back) {
+        NavigationManager::instance().go_back();
+        process_lvgl(600);
+        helix::ui::UpdateQueue::instance().drain();
+    } else {
+        close_all();
+        lv_obj_delete(first);
+    }
 
     // The dials point into the deleted tree; they must be gone before anything
     // (the next open's repopulate included) touches them.

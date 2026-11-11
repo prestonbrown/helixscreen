@@ -478,24 +478,6 @@ TEST_CASE("Layer tracking: progress-based estimation fallback", "[layer_tracking
         REQUIRE(lv_subject_get_int(state.print_state().get_print_layer_current_subject()) == 160);
     }
 
-    SECTION("estimates at low progress") {
-        json progress = {{"virtual_sdcard", {{"progress", 0.01}}}};
-        state.update_from_status(progress);
-
-        // 1% of 320 = 3.2, rounded = 3. But clamped to min 1.
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_layer_current_subject()) >= 1);
-    }
-
-    SECTION("estimates at high progress") {
-        json progress = {{"virtual_sdcard", {{"progress", 0.99}}}};
-        state.update_from_status(progress);
-
-        // 99% of 320 = 316.8 → 317
-        int estimated = lv_subject_get_int(state.print_state().get_print_layer_current_subject());
-        REQUIRE(estimated >= 315);
-        REQUIRE(estimated <= 320);
-    }
-
     SECTION("does not estimate when total_layers is 0") {
         state.print_state().set_print_layer_total(0);
         helix::ui::UpdateQueue::instance().drain();

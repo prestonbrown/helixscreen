@@ -572,7 +572,7 @@ make that never meets either layer passes no guard: one called by absolute path
 (`/usr/bin/make`), and one a non-bash callee runs under a replaced PATH (`env
 PATH=/usr/bin:/bin make -C ...`, or `env PATH=... sh -c 'make ...'`), since neither
 the shim nor the exported function reaches it. Those shapes are left to review, and
-`test_sandbox_gate.bats` lints the source for a make pointed at a repo-root
+`lint_bats_real_tree_make` (`scripts/code_lint.sh`, `qc_test_lint`) lints the source for a make pointed at a repo-root
 variable or `$BATS_TEST_DIRNAME/../..` (exception: `# REAL_TREE_MAKE_OK: <reason>` inside
 the @test). A test that needs the real Makefile runs it in `scratch_tree` (helpers.bash):
 every top-level entry symlinked, with a `build/` of its own, safe for parsing, print-style
@@ -619,8 +619,8 @@ A test that forks keeps every Catch2 macro on the parent side: fork, run the chi
 to `_exit()`, and only then `REQUIRE(pid > 0)`. A macro evaluated in the child is
 reported by the child, and Catch2's XML writer flushes each element into the report file
 description the child shares, so a `--success` report (`make suite-report`) comes out
-with the child's elements spliced into the parent's. `tests/shell/test_fork_assertion_gate.bats`
-enforces it.
+with the child's elements spliced into the parent's. `lint_fork_assertions` in
+`scripts/code_lint.sh` enforces it (`qc_test_lint`).
 
 XML subjects still register into LVGL's **global** scope (per-test scopes are blocked by LVGL
 internals). Each test refreshes them with `init_subjects(true)`.

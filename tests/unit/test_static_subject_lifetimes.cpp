@@ -18,6 +18,7 @@
 #include "ui_ams_slot.h"
 #include "ui_color_picker.h"
 #include "ui_guided_device_flow.h"
+#include "ui_tile_edit_callout.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "buffer_status_modal.h"
@@ -28,6 +29,8 @@
 #include "print_completion.h"
 #include "src/ui/panel_widgets/dryer_model.h"
 #include "src/ui/panel_widgets/filament_sensor_widget.h"
+#include "src/ui/panel_widgets/print_status_widget.h"
+#include "tile_color.h"
 
 #include <algorithm>
 #include <functional>
@@ -53,18 +56,6 @@ bool survives_switch(const char* name) {
 } // namespace
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Per-widget AMS cleanups run at a printer switch and stay registered",
-                 "[ams][subjects][shutdown]") {
-    ui_ams_slot_register(); // registers ams_lane_spool too
-    ui_ams_lane_bar_register();
-
-    for (const char* name : {"AmsSlotWidgets", "AmsLaneSpoolWidgets", "AmsLaneBarWidgets"}) {
-        CAPTURE(name);
-        CHECK(survives_switch(name));
-    }
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture,
                  "Subjects registered with the XML components outlive a printer switch",
                  "[subjects][shutdown]") {
     // The fixture runs helix::register_xml_components(), which registers both.
@@ -76,12 +67,16 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_xml_get_subject(nullptr, "color_picker_selected_swatch") != nullptr);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "AMS sidebar gating subjects outlive a printer switch",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "AMS sidebar gating subjects and per-widget cleanups outlive a printer switch",
                  "[ams][sidebar][subjects][shutdown]") {
     // Created by the AMS panels' process-once registration, which a switch
     // never re-runs.
     helix::ui::AmsOperationSidebar::register_callbacks_static();
-    for (const char* name : {"AmsSidebarButtonGatingReset", "AmsSidebarButtonGating"}) {
+    ui_ams_slot_register(); // registers ams_lane_spool too
+    ui_ams_lane_bar_register();
+    for (const char* name : {"AmsSidebarButtonGatingReset", "AmsSidebarButtonGating",
+                             "AmsSlotWidgets", "AmsLaneSpoolWidgets", "AmsLaneBarWidgets"}) {
         CAPTURE(name);
         CHECK(survives_switch(name));
     }
@@ -130,10 +125,22 @@ TEST_CASE_METHOD(LVGLUITestFixture,
          [] { ObserverGuard completion = init_print_completion_observer(); }, false},
         {"LockManager", "lock_pin_set", [] { helix::LockManager::instance().init_subjects(); },
          false},
+        {"PrintStatusWidgetSubjects", "print_status_view",
+         [] { PrintStatusWidget::init_static_subjects(); }, false},
+        {"TileColorSubjects", "tile_color_selected", [] { helix::tile_color::register_subjects(); },
+         true},
+        {"TileEditCallout", "tile_callout_title",
+         [] { helix::ui::TileEditCallout::register_callbacks(); }, true},
     };
     for (const Source& source : sources) {
         CAPTURE(source.registry_name);
+        // From down, the init adds one entry: a second would tear these subjects down again.
+        if (registered(source.registry_name)) {
+            REQUIRE(StaticSubjectRegistry::instance().deinit_one(source.registry_name));
+        }
+        const size_t entries = StaticSubjectRegistry::instance().count();
         source.init();
+        CHECK(StaticSubjectRegistry::instance().count() == entries + 1);
         if (source.on_demand) {
             CHECK(survives_switch(source.registry_name));
         }

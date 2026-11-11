@@ -9,6 +9,7 @@
 #include "display_numbering.h" // helix::ui::tool_label
 #include "json_utils.h"
 #include "klipper_extruder_naming.h" // count_extruder_names
+#include "lane_status_parse.h"       // lane_status::kObject
 #include "macro_patterns.h"
 #include "openams_api.h" // OpenAMS claims only a manager speaking its API
 #include "printer_discovery.h"
@@ -41,7 +42,6 @@ PrinterDiscovery::~PrinterDiscovery() = default;
 void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
     clear();
 
-    // Validate input is an array
     if (!objects.is_array()) {
         return;
     }
@@ -139,13 +139,11 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
     };
 
     for (const auto& obj : objects) {
-        // Skip non-string elements
         if (!obj.is_string()) {
             continue;
         }
         std::string name = obj.template get<std::string>();
 
-        // Skip empty strings
         if (name.empty()) {
             continue;
         }
@@ -277,6 +275,11 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
         // object. settle_status_claims() decides once the status is read.
         else if (name == openams::kManagerObject) {
             has_openams_manager_ = true;
+        }
+        // The Lane Status Surface's neutral object. Any filament system may
+        // publish it, so it never claims a printer a backend of its own reads.
+        else if (name == lane_status::kObject) {
+            has_lane_status_ = true;
         }
         // CFS detection (Creality Filament System).
         //
@@ -474,12 +477,10 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
             // macro_config_name().
             macro_config_names_.emplace(upper_macro, macro_name);
 
-            // Check for HelixScreen helper macros
             if (upper_macro.rfind("HELIX_", 0) == 0) {
                 helix_macros_.insert(upper_macro);
             }
 
-            // Check for Klippain Shake&Tune
             if (upper_macro == "AXES_SHAPER_CALIBRATION") {
                 has_klippain_shaketune_ = true;
             }
@@ -505,7 +506,6 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
                 has_auto_feeding_batch_ = true;
             }
 
-            // Check for common macro patterns and cache them
             if (nozzle_clean_macro_.empty()) {
                 // Shared with StandardMacros' CleanNozzle slot — see
                 // include/macro_patterns.h.
@@ -846,6 +846,13 @@ void PrinterDiscovery::register_detected_ams_systems() {
         // below, which needs several extruders or klipper-toolchanger.
         mmu_type_ = AmsType::INDX;
         detected_ams_systems_.push_back({mmu_type_, ams_type_to_string(mmu_type_)});
+    } else if (has_lane_status_) {
+        // A producer no backend here knows: the generic lane_status reader.
+        // After every native fallback, so a status-only producer that wraps a
+        // system HelixScreen reads natively leaves it to that backend
+        // (lane-status-spec RFC 0001 §4).
+        mmu_type_ = AmsType::LANE_STATUS;
+        detected_ams_systems_.push_back({mmu_type_, ams_type_to_string(mmu_type_)});
     } else if (!tool_names_.empty() && (has_tool_changer_ || tool_names_.size() > 1)) {
         // More than one hot end, and no filament system managing them:
         // parallel topology, one slot per tool. Registering it is what gives
@@ -1119,6 +1126,7 @@ void PrinterDiscovery::clear() {
     has_medusahc_ = false;
     medusahc_object_name_.clear();
     has_indx_ = false;
+    has_lane_status_ = false;
     has_save_variables_ = false;
     has_spoollink_ = false;
     has_pa_adjust_ = false;
@@ -1330,7 +1338,6 @@ void PrinterDiscovery::parse_configured_tool_numbers(const nlohmann::json& setti
 
 void PrinterDiscovery::natural_sort(std::vector<std::string>& names) {
     std::sort(names.begin(), names.end(), [](const std::string& a, const std::string& b) {
-        // Find where trailing digits start
         auto digit_start = [](const std::string& s) -> size_t {
             size_t i = s.size();
             while (i > 0 && std::isdigit(static_cast<unsigned char>(s[i - 1])))

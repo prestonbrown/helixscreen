@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: json values held by value
 
 namespace helix::plugin {
 

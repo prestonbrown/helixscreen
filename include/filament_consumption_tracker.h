@@ -81,8 +81,8 @@ class FilamentConsumptionTracker {
     IConsumptionSink* external_sink_raw_ = nullptr;
 
     /// True when at least one sink successfully snapshotted on print start.
-    /// Preserved for backwards-compatible `is_active()` semantics and used to
-    /// decide whether on_filament_used_changed forwards deltas.
+    /// Backs `is_active()` and decides whether on_filament_used_changed
+    /// forwards deltas.
     bool active_ = false;
 
     /// True between the PRINTING transition and a terminal state transition.

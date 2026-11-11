@@ -40,6 +40,10 @@ class CachedOverlay : public OverlayBase {
     const char* get_name() const override {
         return "CachedOverlay";
     }
+    // A closed overlay that keeps its tree is the one these rebuilds reach.
+    bool destroy_on_close() const override {
+        return false;
+    }
 };
 
 class StaleCacheFixture : public LVGLUITestFixture {

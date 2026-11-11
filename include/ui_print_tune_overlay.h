@@ -154,9 +154,8 @@ class PrintTuneOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "print_tune_panel";
     }
-    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
     bool destroy_on_close() const override {
-        return false;
+        return true;
     }
 
     void init_subjects() override;
@@ -175,8 +174,13 @@ class PrintTuneOverlay : public OverlayBase {
      */
     void on_deactivating(DeactivateReason reason) override;
 
+  protected:
+    /// Drops the observers create() set up; the next open observes again.
+    void on_ui_destroyed() override;
+
   private:
     void setup_panel();
+    void release_observers();
     /// Renders the speed/flow headlines and their live readouts, led by
     /// whichever units the speed/flow preference picks.
     void update_display();
@@ -200,6 +204,7 @@ class PrintTuneOverlay : public OverlayBase {
     lv_subject_t tune_speed_subject_{};
     lv_subject_t tune_flow_subject_{};
     lv_subject_t tune_z_offset_subject_{};
+    lv_subject_t tune_z_offset_microns_subject_{}; ///< What the z_offset_indicator draws
     /// Which z-step amount is selected, as an index. ONE int, not four
     /// booleans: the buttons are mutually exclusive by construction, so four
     /// parallel flags were four chances for the UI to disagree with itself,

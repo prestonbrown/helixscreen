@@ -7,7 +7,7 @@
 #include <optional>
 #include <string>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: inline reader of the json
 
 namespace helix {
 struct PlatformCapabilities;

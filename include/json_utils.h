@@ -14,7 +14,7 @@
 #include <string>
 #include <type_traits>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: the json helpers are inline and templated
 
 namespace helix::json_util {
 

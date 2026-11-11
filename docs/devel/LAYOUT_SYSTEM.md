@@ -1,52 +1,43 @@
 # Layout System
 
-> Alternative XML layouts for different screen aspect ratios and orientations.
+> Screen-shape classes, and how one XML file per panel adapts to each of them.
 
 > **For contributors:** If you want to create or fix layouts, start with the **[UI Contributor Guide](UI_CONTRIBUTOR_GUIDE.md)** instead. This document covers the LayoutManager C++ API and auto-detection internals.
 
 ## Overview
 
 HelixScreen's UI is built from XML files that define the layout and structure of each panel.
-The default XML files are designed for standard landscape displays (4:3 to 16:9, like 800x480
-or 1024x600). But users with ultrawide screens (1920x480), portrait-mounted displays, or very
-small screens need fundamentally different arrangements — not just scaling, but different
-structures.
-
-The **Layout System** lets you create alternative XML files for these different screen shapes.
-You only need to override the files that need to change — everything else automatically falls
-back to the standard version.
+The same files serve every screen: standard landscape displays (4:3 to 16:9, like 800x480 or
+1024x600), ultrawide screens (1920x480), portrait-mounted displays and very small screens.
+Where a shape needs a different arrangement, not just scaling, the panel branches in place on
+the layout subjects described below. There is one file per panel and nothing to keep in step
+by hand.
 
 **Key distinction:** Themes control *colors*. Layouts control *structure*. They're independent —
 any theme works with any layout.
 
-## Current Status
+## Adapting a Panel
 
-> **This is early days.** The layout infrastructure is complete and working, but most layouts
-> still need to be created. This is a great area for community contributions — you only need
-> to know XML, not C++.
-
-| Layout | Status | What Exists |
-|--------|--------|-------------|
-| `standard` | **Complete** | All panels — this is the default UI everyone uses today |
-| `ultrawide` | Not started | Directory doesn't exist yet |
-| `portrait` | **Started** | `print_tune_panel.xml` |
-| `micro` | **Started** | `controls_panel.xml` |
-| `micro_portrait` | Not started | Directory doesn't exist yet; the `portrait/` layer serves it |
-| `tiny` | Not started | Directory doesn't exist yet |
-| `tiny_portrait` | Not started | Directory doesn't exist yet |
-
-**A whole-file override is not the only way to adapt a panel, and increasingly not the
-preferred one.** Forking a panel into `ui_xml/portrait/` duplicates everything that did not
-need to change, and both copies then have to be maintained. Where the difference is a row
-that becomes a column, or a block that is dropped on a short screen, the panel stays a
-single file and branches in place on the `ui_is_portrait` subject:
+Every panel is a single file. Pick the lightest mechanism that expresses the difference:
 
 | Mechanism | Use when | Examples in the tree |
 |-----------|----------|----------------------|
-| `ui_xml/<variant>/<panel>.xml` | The panel is genuinely a different design in that orientation | `portrait/print_tune_panel.xml`, `micro/controls_panel.xml` |
-| `<if cond="ui_is_portrait eq 1">…<else/>…</if>` | An entire subtree differs, and building both would be wasteful | `ui_xml/motion_panel.xml#motion_panel`, `ui_xml/bed_mesh_panel.xml#bed_mesh_panel`, `temp_graph_overlay.xml` (3 sites) |
-| `<bind_style_if cond="ui_is_portrait"/>` | Only the styling differs — flex direction, padding, button shape | `ui_xml/app_layout.xml` and `ui_xml/navigation_bar.xml` (the app shell and nav bar switch axis and position), `ui_xml/advanced_panel.xml#advanced_panel` (the E-stop bar goes column instead of row) |
+| `<if cond="ui_is_portrait eq 1">…<else/>…</if>` | An entire subtree differs, and building both would be wasteful | `ui_xml/motion_panel.xml#motion_panel`, `ui_xml/bed_mesh_panel.xml#bed_mesh_panel`, `ui_xml/print_tune_panel.xml#print_tune_panel` (z-offset controls, Reset label), `temp_graph_overlay.xml` (3 sites) |
+| `<bind_style_if cond="ui_is_portrait"/>` | Only the styling differs — flex direction, padding, button shape | `ui_xml/app_layout.xml` and `ui_xml/navigation_bar.xml` (the app shell and nav bar switch axis and position), `ui_xml/advanced_panel.xml#advanced_panel` (the E-stop bar goes column instead of row), `ui_xml/print_tune_panel.xml#print_tune_panel` (speed over flow) |
 | `<bind_flag_if_eq subject="ui_is_portrait"/>` | Both variants are cheap to build and you want to show one | `ui_xml/components/bed_mesh_current_mesh_card.xml#mesh_max_coord_inline` |
+| A state-selected style | A local attribute has to change, which a bound style cannot outrank | `ui_xml/controls_panel.xml#controls_panel` at 480x272 (below) |
+
+**Overriding a local attribute.** An attribute written on the element (`style_pad_all="…"`),
+or one a widget sets on itself at creation (`ui_card` pads itself), is a local style, and a
+style bound by `bind_style_if` never outranks it. A style whose selector names a state does:
+LVGL resolves a property by state specificity before it looks at where the style came from.
+`ui_xml/controls_panel.xml` uses this for its dense 480x272 dashboard. A `<subject_expr
+name="controls_micro">` names the case once, each widget that differs carries
+`<bind_state_if cond="controls_micro eq 1" state="user_3"/>`, and a `<style name="…_micro"
+selector="user_3"/>` beside it holds the 480x272 values. Bind colours that a button also
+styles per state (pressed, disabled) by exclusive conditions instead, since a `user_3` style
+would outrank those too. Text that differs (`Z-Offset:` against `Z-Off:`) is two labels with
+opposite hide conditions; structure that differs (the Quick Actions rows) is an `<if>`.
 
 Orientation is also composable with the breakpoint rather than separate from it:
 `ui_xml/components/bed_mesh_current_mesh_card.xml` hides a block on
@@ -61,18 +52,16 @@ the test `is_ultrawide_aspect()` in `src/layout_manager.cpp` owns). It shares
 `--layout` override is known, and on every resize. A tier cannot stand in for it: 1920x440
 reads `ui_breakpoint` small and 1920x480 medium, the same tiers as ordinary screens.
 `ui_xml/panel_belt_tension.xml#panel_belt_tension` branches on it in place (chart left,
-sidebar right) instead of shipping a `ui_xml/ultrawide/` copy.
+sidebar right).
 
 C++ that needs the layout class asks `app_layout_type(width, height)` (`include/layout_manager.h`): `LayoutManager::type()` once it is initialized, so a `--layout` override is respected, and the physical `detect_layout_type()` before that. `app_layout_is_portrait()` is built on it. Code that sizes things from raw dimensions before `LayoutManager` exists (`src/ui/overlay_geometry.cpp#nav_width_suffix`) calls `is_ultrawide_aspect(width, height)` rather than restating the threshold.
 
-So "which panels adapt to portrait" is not answered by listing the override directory.
-Beyond the two files there, the app shell, the navigation bar, Motion, Bed Mesh, the
-temperature graph overlay, the Advanced panel's E-stop bar and the bed mesh cards all adapt
-from inside their shared file.
+The app shell, the navigation bar, Motion, Bed Mesh, Print Tune, the temperature graph
+overlay, the Advanced panel's E-stop bar and the bed mesh cards all adapt to portrait from
+inside their one file; Controls adapts to 480x272 the same way.
 
-The home panel's widget grid is a third case again: it adapts to ultrawide and portrait
-geometry in C++ from the measured content box, regardless of which override files exist —
-see [Home Widget Grid](#home-widget-grid).
+The home panel's widget grid is a different case: it adapts to ultrawide and portrait
+geometry in C++ from the measured content box — see [Home Widget Grid](#home-widget-grid).
 
 ## How It Works
 
@@ -92,35 +81,27 @@ You can also force a layout manually:
 - **CLI flag:** `--layout ultrawide`
 - **Config file:** Set `display.layout` to `"ultrawide"` in `settings.json`
 
-When a layout is active, HelixScreen searches an ordered chain of override directories
-(most specific first) for each file. Portrait sub-classes look in their own dir, then the
-shared `portrait/` dir, then the standard file; other layouts check their one override dir,
-then the standard file. The first match wins. This means you can override one panel at a
-time — you don't have to recreate everything from scratch. See `variant_chain()` under the
-Developer Reference below.
+The layout class reaches XML as the `ui_is_portrait` and `ui_is_ultrawide` subjects, and
+the screen size as `ui_breakpoint` (the cramped axis) and `ui_breakpoint_v` (the height).
+Every panel reads those from its one file. A change of layout class or tier at runtime
+rebuilds the views, so a branch decided at creation stays correct. The ordered layout chain
+(`variant_chain()`, under the Developer Reference below) still picks which per-layout table
+of `default_layout.json` the home grid uses.
 
 ## Directory Structure
 
 ```
 ui_xml/
   globals.xml              ← Shared by ALL layouts (design tokens, never override this)
-  app_layout.xml           ← Standard app chrome (navbar + content area)
-  home_panel.xml           ← Standard home panel
-  controls_panel.xml       ← Standard controls panel
-  settings_panel.xml       ← ...and ~200 more XML files (226 total)
-  ...
-
-  portrait/                ← Portrait overrides (print_tune_panel.xml)
-  micro/                   ← Micro landscape overrides (480x272: controls_panel.xml)
-  micro_portrait/          ← Doesn't exist yet — the portrait/ layer serves 272x480
-
-  ultrawide/               ← Doesn't exist yet — create it to override for ultrawide!
-  tiny/                    ← Tiny landscape overrides (doesn't exist yet)
-  tiny_portrait/           ← Tiny portrait overrides (doesn't exist yet)
+  app_layout.xml           ← App chrome (navbar + content area), both orientations
+  home_panel.xml           ← Home panel
+  controls_panel.xml       ← Controls panel, including its 480x272 arrangement
+  settings_panel.xml       ← ...and ~200 more XML files
+  components/              ← Reusable components
+  translations/            ← Translation tables
 ```
 
-**The rule is simple:** to override `controls_panel.xml` for ultrawide screens, create
-ui_xml/ultrawide/controls_panel.xml. That's it. HelixScreen will automatically pick it up.
+There are no per-layout directories: a panel adapts inside its own file.
 
 ---
 
@@ -135,79 +116,43 @@ know C++ — all layout work is pure XML.
 2. A working build (see the project README)
 3. Familiarity with the XML layout system (see `LVGL9_XML_GUIDE.md`)
 
-### Step-by-Step: Creating a New Layout Override
+### Step-by-Step: Adapting a Panel to a Screen Shape
 
-Let's say you want to create an ultrawide version of the controls panel.
+Let's say the controls panel needs a different arrangement on ultrawide screens.
 
-**1. Find the standard file to use as a starting point**
-
-```bash
-# Look at the standard version
-cat ui_xml/controls_panel.xml
-```
-
-**2. Create your override file**
+**1. Look at it at that size first**
 
 ```bash
-# Copy the standard file into the layout directory
-cp ui_xml/controls_panel.xml ui_xml/ultrawide/controls_panel.xml
-```
-
-**3. Edit the override to rearrange the layout**
-
-Open ui_xml/ultrawide/controls_panel.xml and restructure it for the target screen shape.
-The key rules are listed below in [Layout Override Rules](#layout-override-rules).
-
-**4. Test it**
-
-```bash
-# Build (only needed if you changed C++ — XML changes don't need a rebuild!)
-make -j
-
-# Run with ultrawide layout on a 1920x480 window
-./build/bin/helix-screen --test -vv --layout ultrawide -s 1920x480
-
-# Take a screenshot for comparison
 HELIX_SCREENSHOT_DISPLAY=0 ./scripts/screenshot.sh helix-screen ultrawide-controls controls --test --layout ultrawide -s 1920x480
-```
-
-**5. Compare with standard**
-
-```bash
-# Screenshot the standard layout too
-HELIX_SCREENSHOT_DISPLAY=0 ./scripts/screenshot.sh helix-screen standard-controls controls --test
 ```
 
 Screenshots are saved to `/tmp/ui-screenshot-<name>.png`.
 
-### Step-by-Step: Starting a Brand New Layout Family
+**2. Branch in place**
 
-To start a layout that doesn't exist yet (e.g., `portrait`):
+Edit `ui_xml/controls_panel.xml` itself, with the lightest mechanism from
+[Adapting a Panel](#adapting-a-panel) that expresses the difference: a bound style for
+spacing and direction, a flag for a block that comes and goes, `<if>` for a different
+subtree. The rules below still apply inside every branch.
+
+**3. Check every other size is unchanged**
 
 ```bash
-# Create the directory
-mkdir -p ui_xml/portrait
-
-# Start with the most impactful panel — usually home_panel
-cp ui_xml/home_panel.xml ui_xml/portrait/home_panel.xml
-
-# Edit it for portrait orientation
-# Then test:
-./build/bin/helix-screen --test -vv --layout portrait -s 480x800
+HELIX_SCREENSHOT_DISPLAY=0 ./scripts/screenshot.sh helix-screen standard-controls controls --test
 ```
 
-You can override as many or as few files as you want. Any panel you *don't* override will
-use the standard version automatically.
+Compare the standard shot, and the other shapes the panel serves, against the same shots
+from before your change.
 
-### Layout Override Rules
+### Rules for Layout Work
 
-These rules **must** be followed for a layout override to work correctly. The C++ code is
-shared between all layouts — only the XML structure changes.
+These rules **must** be followed whenever you restructure a panel, including each branch of
+an `<if>`. The C++ code is shared between all layouts — only the XML structure changes.
 
 **1. Keep all named widgets that C++ looks up**
 
-The C++ code for each panel uses `lv_obj_find_by_name()` to find specific widgets. If your
-layout is missing a named widget, the panel will break.
+The C++ code for each panel uses `lv_obj_find_by_name()` to find specific widgets. If a
+branch is missing a named widget, the panel will break at that size.
 
 For `home_panel.xml`, these widget names are required:
 
@@ -222,14 +167,13 @@ For `home_panel.xml`, these widget names are required:
 | `light_icon` | Light bulb icon (C++ sets color/brightness dynamically) |
 
 **How to find required names for other panels:** search the corresponding `.cpp` file for
-`lv_obj_find_by_name`. Any name referenced there must exist in your XML.
+`lv_obj_find_by_name`. Any name referenced there must exist in every branch.
 
 **2. Keep all subject bindings**
 
 Subject bindings (`bind_text`, `bind_value`, `bind_flag_if_eq`, `bind_style`, etc.) connect
-the XML to live data from the C++ code. Your layout must bind to the same subjects as the
-standard layout. You can rearrange *where* the bound widgets appear, but the bindings
-themselves must stay.
+the XML to live data from the C++ code. Every branch must bind to the same subjects. You
+can rearrange *where* the bound widgets appear, but the bindings themselves must stay.
 
 For example, the temperature display must still bind to `extruder_temp` and `extruder_target`:
 ```xml
@@ -239,8 +183,7 @@ For example, the temperature display must still bind to `extruder_temp` and `ext
 **3. Keep all event callbacks**
 
 Event callbacks (`<event_cb trigger="clicked" callback="..."/>`) connect buttons to C++ code.
-Every callback in the standard file must appear in your override, attached to the appropriate
-widget.
+Every callback must appear in every branch, attached to the appropriate widget.
 
 **4. Don't change existing values in `globals.xml`**
 
@@ -248,11 +191,12 @@ Design tokens (colors, spacing, typography) are defined in `globals.xml` and sha
 all layouts, so retuning an existing token changes every layout at once. *Adding* a new
 suffixed responsive token there is a different matter: it is correct, and it is the only
 place the declaration can live. Token discovery is top-level-only, so a `<px name="foo_small">`
-declared in `ui_xml/portrait/` is never registered and every `#foo` referencing it silently
-resolves to nothing. Declare in `globals.xml`, reference from the variant file. See
+declared in `ui_xml/components/` is never registered and every `#foo` referencing it silently
+resolves to nothing. Declare in `globals.xml` (or another top-level file), reference it from
+anywhere. See
 [UI Contributor Guide](UI_CONTRIBUTOR_GUIDE.md) §2 and `scripts/check_responsive_token_scope.py`.
 
-Your layout XML should use these tokens — not hardcoded values:
+Layout XML should use these tokens — not hardcoded values:
 
 ```xml
 <!-- Good: uses design tokens -->
@@ -286,7 +230,7 @@ Your layout XML should use these tokens — not hardcoded values:
 
 **Portrait (480x800, 600x1024):**
 - Lots of vertical space, narrow width
-- The navigation bar and app shell already move to the bottom automatically (`ui_is_portrait`) — no override needed
+- The navigation bar and app shell already move to the bottom automatically (`ui_is_portrait`)
 - Content stacks vertically naturally
 - Consider which elements can be stacked vs. side-by-side
 - Portrait is where narrow-axis breakpoint selection bites hardest: the tier comes from
@@ -307,9 +251,9 @@ Your layout XML should use these tokens — not hardcoded values:
 - Consider hiding optional elements (sensor indicators, etc.)
 - Larger icons, fewer text labels
 
-### Panels Worth Overriding
+### Panels Worth Adapting
 
-Not every panel needs a layout-specific version. Start with the ones that matter most:
+Not every panel needs a layout-specific arrangement. Start with the ones that matter most:
 
 | Priority | Panel | Why |
 |----------|-------|-----|
@@ -321,8 +265,7 @@ Not every panel needs a layout-specific version. Start with the ones that matter
 | Low | Simple panels | Panels with minimal content adapt naturally |
 
 `app_layout.xml` and `navigation_bar.xml` are not in this table: both already adapt their
-chrome and nav position to `ui_is_portrait` in place, so a new layout family only needs to
-override them if its chrome is a genuinely different design, not just a different axis.
+chrome and nav position to `ui_is_portrait` in place.
 
 ### XML Tips for Layout Work
 
@@ -353,15 +296,14 @@ override them if its chrome is a genuinely different design, not just a differen
 ./build/bin/helix-screen --test -vv --layout ultrawide -s 800x480
 ```
 
-Use `-vv` for debug logging — it shows which layout was detected and which XML paths are
-being resolved.
+Use `-vv` for debug logging — it shows which layout was detected.
 
 ---
 
 ## Home Widget Grid
 
-Everything above is about `ui_xml/` overrides. The home panel's dashboard is a *second*
-layout system that shares the same variant chain but does not live in XML at all: the grid
+Everything above is about `ui_xml/`. The home panel's dashboard is a *second* layout system
+that keys its tables by the layout chain and does not live in XML at all: the grid
 is computed in C++ (`include/grid_layout.h`, `src/ui/home/grid_layout.cpp`) and the shipped
 default placements live in `assets/config/default_layout.json`. If you are adding a home
 widget or wondering why yours vanished on a portrait screen, this is the section.
@@ -1096,23 +1038,21 @@ public:
     LayoutType type() const;             // Enum value
     const std::string& name() const;     // "standard", "ultrawide", etc.
     bool is_standard() const;
-    bool has_override(const std::string& filename) const;
     int width() const;
     int height() const;
 
-    // Returns the first matching "ui_xml/<variant>/filename.xml" along the
-    // variant chain, otherwise "ui_xml/filename.xml"
-    std::string resolve_xml_path(const std::string& filename) const;
+    // Layout names to search for a per-layout table, most specific first
+    std::vector<std::string> variant_chain() const;
 
 private:
     LayoutType detect(int width, int height) const;      // aspect-ratio → LayoutType
-    std::vector<std::string> variant_chain() const;      // ordered override search
 };
 ```
 
-`resolve_xml_path()` / `has_override()` walk `variant_chain()` — an ordered list of
-override directories, most specific first, with base `ui_xml/` as the final fallback.
-For portrait sub-classes the chain layers the shared `portrait/` dir before base:
+`variant_chain()` is an ordered list of layout names, most specific first, with the base
+table as the final fallback. The home grid's resolver walks it to pick a table in
+`default_layout.json`. For portrait sub-classes the chain layers the shared `portrait`
+entry before base:
 
 ```cpp
 // LayoutManager::variant_chain(), src/layout_manager.cpp
@@ -1122,26 +1062,19 @@ PORTRAIT       → {"portrait"}
 ULTRAWIDE      → {"ultrawide"}
 MICRO          → {"micro"}
 TINY           → {"tiny"}
-STANDARD       → {}   // base ui_xml/ only
+STANDARD       → {}   // base table only
 ```
 
 ### How XML Registration Works
 
-Components register on first use. When the engine cannot find a component name, the loader installed by `helix::register_xml_on_first_use()` (`src/xml_registration.cpp`) registers `ui_xml/<name>.xml`, or else `ui_xml/components/<name>.xml`. The eager `register_xml()` helper (used for `styles.xml`) and the loader both resolve paths through the LayoutManager, so layout overrides apply identically:
+Components register on first use. When the engine cannot find a component name, the loader installed by `helix::register_xml_on_first_use()` (`src/xml_registration.cpp`) registers `ui_xml/<name>.xml`, or else `ui_xml/components/<name>.xml`. The eager `register_xml()` helper registers `styles.xml` from the same tree:
 
 ```cpp
-static bool register_xml(const char* filename) {
-    auto& lm = helix::LayoutManager::instance();
-    std::string path = "A:" + lm.resolve_xml_path(filename);
-    return lv_xml_register_component_from_file(path.c_str()) == LV_RESULT_OK;
-}
-
-// Either path picks portrait/home_panel.xml when the portrait variant is active:
-register_xml("styles.xml");              // eager
+register_xml("styles.xml");                     // eager
 lv_xml_create(parent, "home_panel", nullptr);  // first use -> loader
 ```
 
-A component's layout variant and the px tokens its `<styles>` use are fixed when it registers. On a runtime resize that stays inside one tier (`Application`'s resize callback), `helix::unregister_idle_xml_components()` drops every first-use component no live widget is built from, so its next use registers it at the new geometry. A resize that moves a token, the layout type or the UI scale calls `helix::reregister_xml_components_for_rebuild()` instead, which drops the live ones too and registers `styles.xml` again, before the views are rebuilt (UI_CONTRIBUTOR_GUIDE.md, "Built widgets keep their tokens"). Either way, components with a C++-registered subject, C++-pushed constants or a style another scope borrowed keep their registration and the old geometry.
+The px tokens a component's `<styles>` use are fixed when it registers. On a runtime resize that stays inside one tier (`Application`'s resize callback), `helix::unregister_idle_xml_components()` drops every first-use component no live widget is built from, so its next use registers it at the new geometry. A resize that moves a token, the layout type or the UI scale calls `helix::reregister_xml_components_for_rebuild()` instead, which drops the live ones too and registers `styles.xml` again, before the views are rebuilt (UI_CONTRIBUTOR_GUIDE.md, "Built widgets keep their tokens"). Either way, components with a C++-registered subject, C++-pushed constants or a style another scope borrowed keep their registration and the old geometry.
 
 ### Config
 
@@ -1182,7 +1115,7 @@ else
 |----------|--------|-----------|
 | Naming | "Layouts" | Distinct from "themes" (colors) and "profiles" (print start) |
 | Detection | Auto with override | Users shouldn't need to configure, but can |
-| Fallback | Per-file to standard | New layouts start empty, override incrementally |
+| One file per panel | Branch in place on the layout subjects | Two copies of a panel drift unless someone keeps them in step by hand |
 | globals.xml | Never overridden; new responsive tokens still go there | Design tokens are universal across all layouts, and discovery only reads the top level of `ui_xml/` |
-| Runtime layout-variant switching | Not supported | Would require full widget tree rebuild; startup-only is fine |
+| Runtime layout switching | Rebuilds the views | A resize that changes the layout type, a token or the scale calls `NavigationManager::rebuild_for_layout_change()` |
 | Runtime breakpoint/token refresh | Supported on resize | `theme_manager_refresh_layout_constants()` re-registers tokens and moves the `ui_breakpoint` subject; driven by the resize callback in `src/application/application.cpp` (desktop SDL, Android fold/unfold). On-device rotation is fixed at startup, so nothing fires there |

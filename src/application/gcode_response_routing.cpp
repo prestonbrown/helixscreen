@@ -40,7 +40,6 @@ void GcodeResponseRouting::attach(IMoonrakerClient* client, IMoonrakerAPI* api) 
 
     m_action_prompt_modal = std::make_unique<ui::ActionPromptModal>();
 
-    // Set up gcode callback to send button commands via API
     if (api) {
         m_action_prompt_modal->set_gcode_callback([api](const std::string& gcode) {
             spdlog::info("[ActionPrompt] Sending gcode: {}", gcode);

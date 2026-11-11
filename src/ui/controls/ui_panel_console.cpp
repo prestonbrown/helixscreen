@@ -35,6 +35,8 @@
 #include <utility>
 #include <vector>
 
+#include "hv/json.hpp"
+
 using helix::ui::find_required;
 
 namespace {

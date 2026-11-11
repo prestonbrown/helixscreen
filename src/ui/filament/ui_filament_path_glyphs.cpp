@@ -385,6 +385,11 @@ int32_t toolhead_top_y(int32_t nozzle_y, int32_t extruder_scale) {
     return toolhead_glyph_bounds(0, nozzle_y, extruder_scale).top;
 }
 
+int32_t toolhead_standing_on(int32_t bottom_y, int32_t scale) {
+    const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
+    return helix::ui::toolhead_nozzle_standing_on(style, bottom_y, drawn_scale(style, scale));
+}
+
 void draw_tool_badge(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t scale,
                      const char* label) {
     helix::ui::draw_toolhead_badge(ctx.layer, helix::ui::tool_badge_look(),

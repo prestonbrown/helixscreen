@@ -131,6 +131,10 @@ inline constexpr AmsTypeTraits kAmsTypeTraits[] = {
      nullptr},
     {AmsType::OPENAMS, "OpenAMS", "OpenAMS", "openams", "openams", AmsBufferRows::None, nullptr},
     {AmsType::INDX, "INDX", "INDX", "indx", "indx", AmsBufferRows::None, nullptr},
+    // Not a product: the producer names itself in lane_status.producer.name, which
+    // replaces this name on screen once the first status arrives.
+    {AmsType::LANE_STATUS, "Lane Status", "Lane Status Surface", "lane_status", "lane_status",
+     AmsBufferRows::None, nullptr},
 };
 
 /// The row for @p type; the NONE row for a value with none.
@@ -1288,8 +1292,8 @@ struct SlotInfo {
     /**
      * @brief Drop every Spoolman handle from this slot
      *
-     * Unlink used to zero only spoolman_id, leaving spoolman_filament_id and
-     * spoolman_vendor_id behind. Those stale handles then fed
+     * Zeroing only spoolman_id would leave spoolman_filament_id and
+     * spoolman_vendor_id behind, and those stale handles would feed
      * SpoolmanSlotSaver's repoint comparison against a filament belonging to a
      * spool this lane is no longer linked to.
      *
@@ -1831,10 +1835,6 @@ struct AmsSystemInfo {
     }
 
     /**
-     * @brief Get the currently active slot info
-     * @return Pointer to active slot or nullptr if none selected
-     */
-    /**
      * @brief Whether @p global_index is a bay some unit actually reported
      *
      * False for an index no unit covers and for one inside an absent unit.
@@ -1888,6 +1888,10 @@ struct AmsSystemInfo {
         return nullptr;
     }
 
+    /**
+     * @brief Get the currently active slot info
+     * @return Pointer to active slot or nullptr if none selected
+     */
     [[nodiscard]] const SlotInfo* get_active_slot() const {
         if (current_slot < 0)
             return nullptr;
@@ -2071,9 +2075,9 @@ struct AmsSystemInfo {
 /**
  * @brief Decide whether enabling bypass must be preceded by an implicit unload.
  *
- * The AMS sidebar's bypass toggle used to unload whenever a slot was loaded,
- * then enable bypass once the unload finished. On backends whose users have a
- * console (AFC, Happy Hare) that ejects filament the user never asked to eject,
+ * Unloading whenever a slot is loaded, then enabling bypass once the unload
+ * finishes, is the chaining. On backends whose users have a console (AFC,
+ * Happy Hare) that ejects filament the user never asked to eject,
  * so those backends report @p allows_implicit_chaining false and the UI sends
  * only the bypass command, letting the firmware refuse it if it wants to
  * (prestonbrown/helixscreen#1229). Backends with no console fallback keep the
@@ -2203,9 +2207,9 @@ enum class EndlessSpoolEditability : int {
 /**
  * @brief Why editing is restricted.
  *
- * An enum, not prose. The old `description` field carried load-bearing state as
- * untranslated English ("Auto-refill enabled", "...read-only on multi-unit"),
- * which no UI could safely display in any language but ours. Display text comes
+ * An enum, not prose: load-bearing state carried as untranslated English
+ * ("Auto-refill enabled", "...read-only on multi-unit") is something no UI
+ * could safely display in any language but ours. Display text comes
  * from endless_spool_restriction_text(), which is where lv_tr() lives.
  */
 enum class EndlessSpoolRestriction : int {
@@ -2237,9 +2241,9 @@ enum class EndlessSpoolRestriction : int {
 /**
  * @brief What a backend can do about endless spool, on three independent axes.
  *
- * Availability, enablement and editability are genuinely orthogonal and the old
- * two-bool struct could not hold them: CFS is available-and-read-only whether
- * auto-refill is on or off, so `supported=true` rendered both states
+ * Availability, enablement and editability are genuinely orthogonal and two
+ * bools cannot hold them: CFS is available-and-read-only whether auto-refill
+ * is on or off, so a single `supported=true` would render both states
  * identically. Every field is either an enum or a proper noun - nothing here is
  * translatable prose, so nothing here can leak English into the UI.
  */
@@ -2260,12 +2264,12 @@ struct EndlessSpoolCapabilities {
     /// free-text field left on the struct.
     std::string provider;
 
-    /// The feature exists and is usable. Replaces the old `supported` bool.
+    /// The feature exists and is usable.
     [[nodiscard]] bool available() const {
         return availability == EndlessSpoolAvailability::Available;
     }
 
-    /// The UI may write. Replaces the old `editable` bool.
+    /// The UI may write.
     [[nodiscard]] bool editable() const {
         return available() && editability != EndlessSpoolEditability::ReadOnly;
     }

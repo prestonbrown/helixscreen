@@ -205,18 +205,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     bool arm_event_replay(const std::string& json_path);
 
-    /**
-     * @brief Get current print simulation phase
-     * @return Current phase of the print simulation state machine
-     */
     MockPrintPhase get_print_phase() const {
         return print_phase_.load();
     }
 
-    /**
-     * @brief Get current Klipper service state
-     * @return Current klippy_state (READY, STARTUP, SHUTDOWN, ERROR)
-     */
     KlippyState get_klippy_state() const {
         return klippy_state_.load();
     }
@@ -261,10 +253,6 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         idle_timeout_seconds_.store(seconds);
     }
 
-    /**
-     * @brief Get idle timeout duration in seconds
-     * @return Current timeout setting
-     */
     uint32_t get_idle_timeout_seconds() const {
         return idle_timeout_seconds_.load();
     }
@@ -334,11 +322,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @brief Simulate WebSocket connection (no real network I/O)
      *
      * Overrides base class to simulate successful connection without
-     * actual WebSocket establishment. Immediately invokes on_connected callback.
+     * actual WebSocket establishment. Blocks for connect_delay_ms() (shortened
+     * by --sim-speed), then
+     * invokes on_connected; with --disconnected it reports DISCONNECTED and
+     * invokes nothing.
      *
-     * @param url WebSocket URL (ignored in mock)
-     * @param on_connected Callback invoked immediately
-     * @param on_disconnected Callback stored but never invoked in mock
+     * @param url WebSocket URL (recorded as the real connect() records it)
+     * @param on_connected Callback invoked after the connect delay
+     * @param on_disconnected Unused in the mock
      * @return Always returns 0 (success)
      */
     int connect(const char* url, helix::SharedCallback<void()> on_connected,
@@ -387,12 +378,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /**
      * @brief Simulate JSON-RPC request with callback
      *
-     * Overrides base class to log and return success without network I/O.
+     * Forwards to the success/error overload with a no-op error callback.
      *
      * @param method RPC method name
-     * @param params JSON parameters object (ignored in mock)
-     * @param cb Callback function (not invoked in mock)
-     * @return Always returns 0 (success)
+     * @param params JSON parameters object, passed to the method handler
+     * @param cb Success callback, invoked by the method handler
+     * @return A mock request ID, or kInvalidRequestId while the simulated link is down
      */
     helix::RequestId send_jsonrpc(const std::string& method, const json& params,
                                   helix::SharedCallback<void(const json&)> cb) override;
@@ -400,14 +391,18 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /**
      * @brief Simulate JSON-RPC request with success/error callbacks
      *
-     * Overrides base class to log and return success without network I/O.
+     * Dispatches to the method handler registry, which answers the callbacks
+     * inline. While the simulated link is down (after disconnect()) the error
+     * callback gets CONNECTION_LOST; fail_next()/defer_next() intercept first;
+     * a method with no handler invokes neither callback.
      *
      * @param method RPC method name
-     * @param params JSON parameters object (ignored in mock)
-     * @param success_cb Success callback (not invoked in mock)
-     * @param error_cb Error callback (not invoked in mock)
-     * @param timeout_ms Timeout (ignored in mock)
-     * @param silent Silent mode (ignored in mock)
+     * @param params JSON parameters object, passed to the method handler
+     * @param success_cb Success callback, invoked by the method handler
+     * @param error_cb Error callback, invoked by the handler or on an injected failure
+     * @param timeout_ms Timeout (recorded for last_send_timeout_ms(), otherwise unused)
+     * @param silent Silent mode (recorded for last_send_silent() and folded into the
+     *        inferred intent)
      * @param intent Explicit error-reporting intent (include/rpc_error_policy.h).
      *        Omitted, it is inferred from @p silent and the presence of
      *        @p error_cb, exactly as MoonrakerRequestTracker::send() does.
@@ -423,8 +418,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /**
      * @brief Simulate G-code script command
      *
-     * Overrides base class to log and return success without network I/O.
-     * Now properly returns errors for out-of-range moves (like real Klipper).
+     * Overrides base class to run the script without network I/O. Returns
+     * errors for out-of-range moves, as real Klipper does.
      *
      * @param gcode G-code string
      * @return 0 on success, non-zero on error (call get_last_gcode_error() for message)
@@ -441,11 +436,6 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     [[nodiscard]] std::string get_last_gcode_error() const;
 
-    /**
-     * @brief Set printer type for mock data generation
-     *
-     * @param type Printer type to simulate
-     */
     void set_printer_type(PrinterType type) {
         printer_type_ = type;
     }
@@ -741,8 +731,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      *
      * Fixtures call it on the way in (so a previous case in this process cannot
      * leak a stale file into the next) and on the way out (so a shard does not
-     * strand its files in /tmp - each process now writes its own, where the old
-     * fixed path was simply overwritten).
+     * strand its files in /tmp, since each process writes its own path).
      */
     static void remove_shaper_csvs();
 
@@ -1051,14 +1040,6 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         return input_shaper_configured_;
     }
 
-    /**
-     * @brief Check if mock Spoolman is enabled
-     *
-     * Controlled by HELIX_MOCK_SPOOLMAN env var (default: true).
-     * Set to "0" or "off" to disable.
-     *
-     * @return true if Spoolman should be reported as available during discovery
-     */
     /// Test seam: extra top-level members server.info's result carries, the way
     /// a firmware fork's Moonraker adds its own (Z-Mod's `zmod.features`).
     void set_mock_server_info_extra(nlohmann::json extra) {
@@ -1075,6 +1056,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         mock_spoolman_enabled_ = enabled;
     }
 
+    /// Whether server.info reports Spoolman during discovery. Starts true;
+    /// HELIX_MOCK_SPOOLMAN=0 or =off clears it at construction.
     [[nodiscard]] bool is_mock_spoolman_enabled() const {
         return mock_spoolman_enabled_;
     }
@@ -1111,7 +1094,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /**
      * @brief Pause current print (internal implementation)
      *
-     * Called by both PAUSE G-code and printer.print.resume JSON-RPC.
+     * Called by both PAUSE G-code and printer.print.pause JSON-RPC.
      *
      * @return true if print was paused, false if not currently printing
      */
@@ -1186,21 +1169,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     }
 
     // ========== Bed Mesh Accessors (Mock-specific) ==========
-    // These were removed from MoonrakerClient and moved to MoonrakerAPI.
-    // The mock needs its own accessors for test validation.
+    // MoonrakerClient keeps no bed mesh (MoonrakerAPI does); the mock keeps
+    // its own, and these accessors expose it for test validation.
 
-    /**
-     * @brief Get the active bed mesh profile
-     * @return Reference to the currently active bed mesh profile
-     */
     [[nodiscard]] const BedMeshProfile& get_active_bed_mesh() const {
         return active_bed_mesh_;
     }
 
-    /**
-     * @brief Get list of available bed mesh profile names
-     * @return Vector of profile names
-     */
     [[nodiscard]] const std::vector<std::string>& get_bed_mesh_profiles() const {
         return bed_mesh_profiles_;
     }
@@ -1227,8 +1202,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      *
      * Mirrors what a printer with a configured [bed_mesh] section answers —
      * the print-start collector's entry-time query reads it to size the mesh
-     * point denominator. Unset by default so existing tests see the same
-     * objects.query responses as before.
+     * point denominator. Unset by default, and then objects.query reports no
+     * bed_mesh probe_count.
      */
     void set_config_bed_mesh_probe_count(int first, int second) {
         config_bed_mesh_probe_count_ = std::make_pair(first, second);
@@ -1493,6 +1468,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// the printer.objects.query / subscribe handlers read it).
     bool is_mock_openams() const;
     [[nodiscard]] nlohmann::json openams_status_json() const;
+    /// HELIX_MOCK_AMS=lane_status: a Lane Status Surface producer (lane-status-spec
+    /// RFC 0001), and the `lane_status` object it publishes (public: the
+    /// printer.objects.query / subscribe handlers read it).
+    bool is_mock_lane_status() const;
+    [[nodiscard]] nlohmann::json lane_status_json() const;
+    /// The --real-ams Happy Hare `mmu` frame: a v4 single unit with a buffer and a fan,
+    /// whose sync feedback and fan state follow MMU_SYNC_FEEDBACK and MMU_FAN.
+    [[nodiscard]] nlohmann::json happy_hare_mmu_status() const;
     /// HELIX_MOCK_OPENAMS_UNITS=shared: an AMS HT and an AMS 2 Pro on one lane.
     [[nodiscard]] static bool openams_shared_lane_units();
     /// HELIX_MOCK_OPENAMS_UNITS=two_lanes: that pair on lane `fps`, two AMS 2 Pro on `fps2`.
@@ -2052,6 +2035,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     [[nodiscard]] bool update_manager_busy() const {
         return update_manager_busy_;
     }
+    /// The `name` of the last machine.update.refresh; empty until one arrives.
+    [[nodiscard]] const std::string& last_update_refresh_name() const {
+        return last_update_refresh_name_;
+    }
+    void record_update_refresh(std::string name) {
+        last_update_refresh_name_ = std::move(name);
+    }
 
     /// Test helper: what server.helix.analysis answers for @p filename (its
     /// `result`); a null @p result forgets it, and such a file answers pending.
@@ -2198,7 +2188,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::vector<std::string> gcode_script_history_;
     mutable std::mutex gcode_history_mutex_;
 
-    // Mock bed mesh storage (Client no longer stores this; mock simulates it)
+    // Mock bed mesh storage (MoonrakerClient keeps none; the mock simulates it)
     BedMeshProfile active_bed_mesh_;
 
     /// configfile.settings.bed_mesh.probe_count to serve from objects.query
@@ -2223,6 +2213,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// ConnectionState is DISCONNECTED and must not gate sends by itself).
     bool sim_link_down_{false};
     bool update_manager_busy_{false};
+    std::string last_update_refresh_name_;
     bool openams_spoolman_{false};
     json openams_spoolman_status_ =
         json{{"schema_version", 1}, {"spoolman_online", true}, {"bays", json::object()}};
@@ -2305,7 +2296,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     // Idle timeout simulation.
     // Atomic because reset_idle_timeout() writes it from whichever thread drove
     // the activity while temperature_simulation_loop() reads it on the sim
-    // thread; the siblings below were already atomic and this one was missed.
+    // thread.
     std::atomic<std::chrono::steady_clock::time_point> last_activity_time_;
     std::atomic<bool> idle_timeout_triggered_{false};
     std::atomic<uint32_t> idle_timeout_seconds_{600}; // Default 10 minutes
@@ -2327,7 +2318,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::string display_message_;
     bool display_message_set_ = false;
 
-    // Print simulation state (legacy - kept for backward compatibility)
+    // print_stats state code, read by get_print_state_string(); print_phase_
+    // below is the simulation's phase machine
     std::atomic<int> print_state_{
         0}; // 0=standby, 1=printing, 2=paused, 3=complete, 4=cancelled, 5=error
     std::string print_filename_;              // Current print file (protected by print_mutex_)
@@ -2452,10 +2444,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// The durable copy - what printer.cfg holds, i.e. what the tool comes back
     /// with after a restart. SAVE_CONFIG commits the staged values into here.
     ///
-    /// Keeping this SEPARATE from the runtime map is the whole point: without
-    /// it an offset that was set and never saved survived a restart too, so the
-    /// mock could not tell a persisted save from a forgotten one and no test of
-    /// the persist path could fail.
+    /// Keeping this SEPARATE from the runtime map is the whole point: an
+    /// offset that was set and never saved must not survive a restart, or the
+    /// mock cannot tell a persisted save from a forgotten one and no test of
+    /// the persist path can fail.
     std::map<int, std::map<helix::Axis, double>> tool_offsets_saved_;
 
     /// Klipper's configfile.save_config_pending_items - {section: {option:
@@ -2515,9 +2507,9 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     //
     // connect() starts that thread, and discovery then REASSIGNS those
     // vectors on the calling thread — `discovery_.fans() = {...}` frees every old
-    // std::string buffer while the simulation loop is iterating them. ASan caught
-    // this as two heap-use-after-frees (memcpy and memcmp on freed string data)
-    // from FullStackTestFixture, whose constructor does exactly that sequence.
+    // std::string buffer while the simulation loop may be iterating them, a
+    // heap-use-after-free. FullStackTestFixture's constructor runs exactly that
+    // sequence.
     //
     // Lock discipline, verified against the call graph — do not nest these:
     //   LOCKED   discover_printer() (the whole synchronous real sequence),
@@ -2587,7 +2579,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     bool accelerometer_available_{true}; ///< Accelerometer available for input shaper tests
     bool input_shaper_configured_{true}; ///< Input shaper configured for config query tests
     /// Staged input shaper values served while configured (see
-    /// set_input_shaper_values); defaults mirror the mock's original payload.
+    /// set_input_shaper_values); defaults are mzv@36.7 / ei@47.6.
     std::string shaper_type_x_{"mzv"};
     double shaper_freq_x_{36.7};
     std::string shaper_type_y_{"ei"};
@@ -2606,7 +2598,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     double resonance_max_freq_{135.0};  ///< [resonance_tester] max_freq the mock reports/sweeps
     double resonance_hz_per_sec_{1.0};  ///< [resonance_tester] hz_per_sec the mock reports/sweeps
     bool resonance_probe_points_{true}; ///< [resonance_tester] reports probe_points
-    /// Simulated belt peaks, index 0 = path A ('1,1'), 1 = path B ('1,-1').
+    /// Simulated belt peaks, index 0 = path A ('1,-1'), 1 = path B ('1,1').
     float belt_peaks_hz_[2]{110.0f, 98.0f};
     /// Measurements taken per path; every one after the first walks that
     /// path's peak toward the other's, so repeated tuning converges.
@@ -2623,7 +2615,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     mutable std::mutex sweep_response_mutex_;
     helix::calibration::MockSweepResponse sweep_response_;
 
-    bool mmu_enabled_{true}; ///< MMU available (default true for existing tests)
+    bool mmu_enabled_{true};                           ///< MMU available (default true)
+    std::atomic<bool> hh_sync_feedback_enabled_{true}; ///< MMU_SYNC_FEEDBACK ENABLE=
+    std::atomic<bool> hh_fan_enabled_{true};           ///< MMU_FAN ENABLE=
+    std::atomic<int> hh_fan_mode_{2};                  ///< MMU_FAN FAN_FORCED=, 2 = auto
 
     // --- MedusaHC swap simulation -------------------------------------------
     // Driven from gcode_script() (the swap, unmount and feeder commands) and
@@ -2867,6 +2862,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     // backend). Slot identity is seeded into the lane_data namespace.
     /// Slot loaded onto the FPS lane, -1 when unloaded.
     std::atomic<int> openams_loaded_slot_{3};
+    /// The lane_status producer's current lane, as an index into its lanes; -1 for none.
+    std::atomic<int> lane_status_current_{0};
     /// The most units any shape publishes (fleet), and the size of the dryer simulation table.
     static constexpr int kOpenAmsMaxUnits = 12;
     [[nodiscard]] nlohmann::json openams_shared_status_json() const;
@@ -2949,7 +2946,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     GcodeResult gcode_pa_adjust(const std::string& script);
     GcodeResult gcode_cfs(const std::string& gcode);
     GcodeResult gcode_openams(const std::string& script);
+    /// CHANGE_TOOL LANE= and TOOL_UNLOAD on the lane_status producer, which
+    /// move its current_lane.
+    GcodeResult gcode_lane_status(const std::string& gcode);
+    /// The producer's lane_data records, one per lane, written as it would.
+    void seed_lane_status_records();
     GcodeResult gcode_openams_line(const std::string& gcode);
+    GcodeResult gcode_happy_hare(const std::string& gcode);
     GcodeResult gcode_u1_feeding(const std::string& gcode);
     /// SET_PURIFIER_MODE, SET_PURIFIER and the mock-only HELIX_MOCK_TOP_COVER
     /// PRESENT=0|1, which lifts the top off or puts it back. U1 only.
@@ -3062,8 +3065,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     // LVGL timers fire in a subsequent test's process_lvgl(). Each entry also
     // owns its heap payload: the timer callbacks self-delete at natural
     // completion, but a forced teardown that only lv_timer_delete()s the timer
-    // leaks the payload (the 80-byte ShaperSimState the 2026-08-18 nightly's
-    // leak report showed surviving the suite).
+    // leaks the payload.
     struct CalibrationTimer {
         lv_timer_t* timer = nullptr;
         helix::SharedCallback<void()> free_payload;

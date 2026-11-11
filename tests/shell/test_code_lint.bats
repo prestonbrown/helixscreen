@@ -2104,13 +2104,28 @@ EOF
     lacks "FMT_INCLUDE_OK" "$output"
 }
 
+@test "the json.hpp header lint catches the full library and stays quiet on json_fwd.h and opt-outs" {
+    local f="$BATS_TEST_TMPDIR/json.h"
+    cat > "$f" <<'EOF'
+#include "hv/json.hpp"
+#  include <hv/json.hpp>
+#include "json_fwd.h"
+// #include "hv/json.hpp" in prose
+#include "hv/json.hpp" // JSON_HPP_OK: test fixture
+EOF
+    run code_offenders "$(json_hpp_include_pattern)" JSON_HPP_OK "$f"
+    [ "${#lines[@]}" -eq 2 ]
+    lacks "json_fwd" "$output"
+    lacks "JSON_HPP_OK" "$output"
+}
+
 @test "the Z-offset save-rule lint fails closed on a tree with no save surfaces" {
     fixture_root
     mkdir -p ui_xml
     printf '<lv_obj name="unrelated"/>\n' | put ui_xml/panel.xml
     run lint_zoffset_save_rule
     [ "$status" -eq 1 ]
-    contains "fewer than 3" "$output"
+    contains "fewer than 2" "$output"
 }
 
 @test "the OverlayBase cleanup lint fails closed when it finds too few overrides" {
@@ -2241,6 +2256,25 @@ EOF
 }
 
 # --- The driver and its wiring into quality-checks.sh ---
+
+@test "the stripped-assets lint fires on a consumer of a stripped image and on losing the registered one" {
+    fixture_root
+    : | put mk/cross.mk
+    : | put assets/images/printer_400.png
+    echo 'const char* kImg = "A:assets/images/printer_400.png";' | put src/ui/printer_image.cpp
+    mkdir -p include ui_xml assets/config tests/unit
+    run lint_stripped_assets_unreferenced
+    [ "$status" -eq 0 ] || fail "$output"
+
+    echo '<img src="orcaslicer test cube.PNG"/>' | put ui_xml/cube.xml
+    echo 'auto p = "assets/images/printer.png";' | put tests/unit/test_thumb.cpp
+    echo '	rm -f $(STAGE)/assets/images/printer_400.png' | put mk/cross.mk
+    run lint_stripped_assets_unreferenced
+    [ "$status" -eq 1 ]
+    contains "ui_xml/cube.xml" "$output"
+    contains "tests/unit/test_thumb.cpp" "$output"
+    contains "mk/cross.mk deletes printer_400.png" "$output"
+}
 
 @test "every registered lint has a function and every lint function is registered" {
     local registered defined

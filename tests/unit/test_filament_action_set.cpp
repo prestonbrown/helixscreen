@@ -210,6 +210,32 @@ TEST_CASE("filament actions: a Manual direction is disabled with its reason",
     CHECK(actions.unload.reason == "cut it");
 }
 
+TEST_CASE("filament actions: a guided hand load is offered where a plain Manual load is not",
+          "[filament][actions][manual_load]") {
+    HeadState plain = manual_head(0);
+    HeadState guided = manual_head(0);
+    guided.ops.guided_hand_load = true;
+    // The user pushes the filament in, so no lane sensor has to see it first.
+    guided.source_present = false;
+
+    CHECK_FALSE(decide_filament_actions(view_of({plain})).load.enabled);
+    CHECK(decide_filament_actions(view_of({plain})).load.reason == "by hand (load)");
+    const auto actions = decide_filament_actions(view_of({guided}));
+    CHECK(actions.load.enabled);
+    CHECK(actions.load.reason.empty());
+    CHECK(decide_slot_actions(view_of({guided}), 0).load.enabled);
+    CHECK_FALSE(decide_slot_actions(view_of({plain}), 0).load.enabled);
+    CHECK(decide_head_picker_rows(view_of({guided}), HeadPickOp::Load)[0].enabled);
+    // Filament already at the nozzle has nothing to load, by hand or not.
+    guided.at_nozzle = true;
+    CHECK_FALSE(head_can_load(guided));
+    // A print gates the hand load like any other.
+    FilamentHeadView printing = view_of({manual_head(0)});
+    printing.heads[0].ops.guided_hand_load = true;
+    printing.print_blocks_op = true;
+    CHECK_FALSE(decide_slot_actions(printing, 0).load.enabled);
+}
+
 TEST_CASE("filament actions: multi-head unload opens the picker", "[filament][actions]") {
     CHECK(decide_filament_actions(view_of({loaded_head(0), ready_head(1)})).unload_opens_picker);
     CHECK_FALSE(decide_filament_actions(view_of({loaded_head(0)})).unload_opens_picker);

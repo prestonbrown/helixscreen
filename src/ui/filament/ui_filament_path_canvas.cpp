@@ -1240,7 +1240,7 @@ bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out
     if (g.width <= 0 || g.height <= 0)
         return false;
     refresh_theme_colors(data);
-    const int32_t nozzle_y = g.y_off + (int32_t)(g.height * kNozzleYRatio);
+    const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
     const LinearHubFrame f =
         compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
     const helix::ui::GlyphBounds b =
@@ -1261,7 +1261,7 @@ bool ui_filament_path_canvas_get_hub_box(lv_obj_t* obj, lv_area_t* area_out) {
     if (g.width <= 0 || g.height <= 0)
         return false;
     refresh_theme_colors(data);
-    const int32_t nozzle_y = g.y_off + (int32_t)(g.height * kNozzleYRatio);
+    const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
     const LinearHubFrame f =
         compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
     const int32_t w = hub_box_width(*data, g, f);
