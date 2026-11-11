@@ -3,7 +3,6 @@
 #pragma once
 
 #include "helix-xml/src/xml/lv_xml.h"
-#include "json_fwd.h"
 #include "lvgl/lvgl.h"
 #include "panel_widget.h"
 #include "panel_widget_registry.h"

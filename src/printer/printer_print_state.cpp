@@ -24,7 +24,6 @@
 #include "printer_state.h" // For enum definitions
 #include "sound_manager.h"
 #include "state/subject_macros.h"
-#include "unit_conversions.h"
 #include "unit_conversions_json.h"
 
 #include <spdlog/spdlog.h>

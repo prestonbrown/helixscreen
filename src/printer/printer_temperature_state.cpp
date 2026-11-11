@@ -17,7 +17,6 @@
 #include "klipper_extruder_naming.h"
 #include "lvgl.h"
 #include "state/subject_macros.h"
-#include "unit_conversions.h"
 #include "unit_conversions_json.h"
 
 #include <spdlog/fmt/fmt.h>

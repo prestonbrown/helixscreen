@@ -1,7 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "unit_conversions.h"
 #include "unit_conversions_json.h"
 
 #include "../catch_amalgamated.hpp"
@@ -41,41 +40,6 @@ TEST_CASE("from_decidegrees converts correctly", "[unit_conversions][temperature
     REQUIRE(from_decidegrees(250) == 25.0);
     REQUIRE(from_decidegrees(255) == 25.5);
     REQUIRE(from_decidegrees(-100) == -10.0);
-}
-
-TEST_CASE("json_to_decidegrees extracts correctly", "[unit_conversions][temperature]") {
-    SECTION("valid temperature") {
-        json obj = {{"temperature", 25.5}};
-        REQUIRE(json_to_decidegrees(obj, "temperature") == 255);
-    }
-
-    SECTION("missing key returns default") {
-        json obj = {{"other", 100}};
-        REQUIRE(json_to_decidegrees(obj, "temperature") == 0);
-        REQUIRE(json_to_decidegrees(obj, "temperature", -1) == -1);
-    }
-
-    SECTION("non-number value returns default") {
-        json obj = {{"temperature", "hot"}};
-        REQUIRE(json_to_decidegrees(obj, "temperature") == 0);
-    }
-
-    SECTION("null value returns default") {
-        json obj = {{"temperature", nullptr}};
-        REQUIRE(json_to_decidegrees(obj, "temperature") == 0);
-    }
-
-    SECTION("non-object JSON returns default") {
-        json arr = json::array({1, 2, 3});
-        json num = 42;
-        json null_json = nullptr;
-        json str = "hello";
-        REQUIRE(json_to_decidegrees(arr, "temp") == 0);
-        REQUIRE(json_to_decidegrees(num, "temp") == 0);
-        REQUIRE(json_to_decidegrees(null_json, "temp") == 0);
-        REQUIRE(json_to_decidegrees(str, "temp") == 0);
-        REQUIRE(json_to_decidegrees(arr, "temp", -999) == -999);
-    }
 }
 
 // ============================================================================
@@ -121,25 +85,6 @@ TEST_CASE("from_percent converts correctly", "[unit_conversions][percent]") {
     REQUIRE(from_percent(150) == 1.5);
 }
 
-TEST_CASE("json_to_percent extracts correctly", "[unit_conversions][percent]") {
-    SECTION("valid ratio") {
-        json obj = {{"progress", 0.75}};
-        REQUIRE(json_to_percent(obj, "progress") == 75);
-    }
-
-    SECTION("missing key returns default") {
-        json obj = {};
-        REQUIRE(json_to_percent(obj, "progress") == 0);
-        REQUIRE(json_to_percent(obj, "progress", 50) == 50);
-    }
-
-    SECTION("non-object JSON returns default") {
-        json arr = json::array({0.5, 0.75});
-        REQUIRE(json_to_percent(arr, "progress") == 0);
-        REQUIRE(json_to_percent(arr, "progress", 100) == 100);
-    }
-}
-
 // ============================================================================
 // Length Conversion Tests
 // ============================================================================
@@ -169,28 +114,36 @@ TEST_CASE("from_centimm converts correctly", "[unit_conversions][length]") {
     REQUIRE(from_centimm(-100) == -1.0);
 }
 
-TEST_CASE("json_to_centimm extracts correctly", "[unit_conversions][length]") {
-    SECTION("valid length") {
-        json obj = {{"retract_length", 1.25}};
-        REQUIRE(json_to_centimm(obj, "retract_length") == 125);
-    }
-
-    SECTION("missing key returns default") {
-        json empty = {};
-        REQUIRE(json_to_centimm(empty, "retract_length") == 0);
-        REQUIRE(json_to_centimm(empty, "retract_length", -1) == -1);
-    }
-
-    SECTION("non-object JSON returns default") {
-        json arr = json::array({1.0, 2.0});
-        REQUIRE(json_to_centimm(arr, "length") == 0);
-        REQUIRE(json_to_centimm(arr, "length", 999) == 999);
-    }
-}
-
 // ============================================================================
 // Speed Conversion Tests
 // ============================================================================
+
+TEST_CASE("json_to_* convert a numeric field and fall back to the default otherwise",
+          "[unit_conversions][json]") {
+    using Reader = int (*)(const json&, const char*, int);
+    struct Case {
+        const char* name;
+        Reader read;
+        double value;
+        int converted;
+    };
+    const Case cases[] = {
+        {"decidegrees", json_to_decidegrees, 25.5, 255},
+        {"percent", json_to_percent, 0.75, 75},
+        {"centimm", json_to_centimm, 1.25, 125},
+    };
+    for (const auto& c : cases) {
+        CAPTURE(c.name);
+        REQUIRE(c.read(json{{"v", c.value}}, "v", -1) == c.converted);
+        REQUIRE(c.read(json{{"other", 1}}, "v", -1) == -1);
+        REQUIRE(c.read(json{{"v", "hot"}}, "v", -1) == -1);
+        REQUIRE(c.read(json{{"v", nullptr}}, "v", -1) == -1);
+        for (const json& not_object : {json::array({1, 2}), json(42), json(nullptr), json("s")}) {
+            REQUIRE(c.read(not_object, "v", -1) == -1);
+        }
+    }
+    REQUIRE(json_to_decidegrees(json::object(), "v") == 0);
+}
 
 TEST_CASE("speed_factor_to_percent converts correctly", "[unit_conversions][speed]") {
     REQUIRE(speed_factor_to_percent(1.0) == 100);
