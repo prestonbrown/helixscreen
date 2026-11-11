@@ -407,7 +407,7 @@ static void place_value(lv_obj_t* obj, int microns, bool animate) {
     spdlog::trace("[ZOffsetIndicator] Set value: {} microns", microns);
 }
 
-int ui_z_offset_indicator_get_value(lv_obj_t* obj) {
+int helix::ui::z_offset_indicator_value(lv_obj_t* obj) {
     auto* data = obj ? static_cast<ZOffsetIndicatorData*>(lv_obj_get_user_data(obj)) : nullptr;
     return data ? data->target_pos / 10 : 0;
 }

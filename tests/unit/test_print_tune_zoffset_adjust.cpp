@@ -517,7 +517,7 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     lv_obj_t* root = show_overlay().get_root();
     lv_obj_t* before = lv_obj_find_by_name(root, "z_offset_indicator");
     REQUIRE(before != nullptr);
-    CHECK(ui_z_offset_indicator_get_value(before) == 20);
+    CHECK(helix::ui::z_offset_indicator_value(before) == 20);
 
     // The orientation <if> rebuilds the indicator in place, before any panel
     // rebuild runs; the new one has to show the offset straight away.
@@ -525,7 +525,7 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_t* after = lv_obj_find_by_name(root, "z_offset_indicator");
     REQUIRE(after != nullptr);
-    CHECK(ui_z_offset_indicator_get_value(after) == 20);
+    CHECK(helix::ui::z_offset_indicator_value(after) == 20);
 
     lv_subject_set_int(portrait, portrait_before);
 }
