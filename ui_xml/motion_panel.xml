@@ -348,6 +348,14 @@
              word. The leveling buttons are capability-gated, so the row
              carries three to five buttons depending on the printer; the jog
              modes are Jog-tab-only. -->
+        <!-- Home single axes; the pad's centre button homes all -->
+        <home_axis_bar name="motion_home_bar"
+                       width="100%" flex_grow="0" cb_all="on_motion_home_all" cb_x="on_motion_home_x"
+                       cb_y="on_motion_home_y" cb_z="on_motion_home_z" xy_gate="motion_home_bar_xy"
+                       all_homed="motion_all_homed" x_homed="motion_x_homed" y_homed="motion_y_homed"
+                       xy_homed="motion_all_homed" z_homed="motion_z_homed">
+          <bind_flag_if_not_eq subject="motion_tab" flag="hidden" ref_value="0"/>
+        </home_axis_bar>
         <lv_obj name="bottom_row"
                 width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
                 scrollable="false">
@@ -480,6 +488,14 @@
                 flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center"
                 style_pad_gap="#space_sm" style_max_width="160">
           <bind_flag_if cond="motion_tab eq 0 and settings_motion_layout ne 0" flag="hidden"/>
+          <!-- Home single axes; the pad's centre button homes all -->
+          <home_axis_bar name="motion_home_bar"
+                         width="100%" flex_grow="0" cb_all="on_motion_home_all" cb_x="on_motion_home_x"
+                         cb_y="on_motion_home_y" cb_z="on_motion_home_z" xy_gate="motion_home_bar_xy"
+                         all_homed="motion_all_homed" x_homed="motion_x_homed" y_homed="motion_y_homed"
+                         xy_homed="motion_all_homed" z_homed="motion_z_homed">
+            <bind_flag_if_not_eq subject="motion_tab" flag="hidden" ref_value="0"/>
+          </home_axis_bar>
           <!-- Z-Axis Button Group -->
           <lv_obj name="z_controls"
                   width="100%" flex_grow="1" style_pad_all="0" style_border_opa="0" scrollable="false"
