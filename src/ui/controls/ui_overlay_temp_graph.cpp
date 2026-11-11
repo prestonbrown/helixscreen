@@ -19,6 +19,7 @@
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "printer_temperature_state.h"
+#include "settings_manager.h"
 #include "sort_small.h"
 #include "temp_graph_tooltip.h"
 #include "temperature_controller.h"
@@ -475,20 +476,9 @@ void TempGraphOverlay::discover_series() {
 
     // 4. Custom sensors from TemperatureSensorManager
     auto& sensor_mgr = helix::sensors::TemperatureSensorManager::instance();
-    auto sensors = sensor_mgr.get_sensors_sorted();
-    for (const auto& sensor : sensors) {
-        // Skip sensors with chamber role (already handled above)
-        if (sensor.role == helix::sensors::TemperatureSensorRole::CHAMBER)
-            continue;
-        // Skip diagnostic sensors — not user-facing for the default graph
-        if (sensor.role == helix::sensors::TemperatureSensorRole::MCU ||
-            sensor.role == helix::sensors::TemperatureSensorRole::HOST ||
-            sensor.role == helix::sensors::TemperatureSensorRole::STEPPER_DRIVER)
-            continue;
-        // Skip disabled sensors
-        if (!sensor.enabled)
-            continue;
-
+    const auto sensors = sensor_mgr.get_sensors_sorted();
+    for (const auto& entry : helix::temp_graph_sensor_series(sensors)) {
+        const auto& sensor = *entry.sensor;
         SeriesInfo s;
         s.display_name = sensor.display_name;
         s.heater_name = sensor.klipper_name; // May not have history
@@ -496,6 +486,8 @@ void TempGraphOverlay::discover_series() {
         s.color = helix::kTempGraphSeriesColors[color_idx++ % helix::kTempGraphPaletteSize];
         s.has_target = helix::sensors::klipper_object_has_target(sensor.klipper_name);
         s.is_dynamic = true;
+        s.is_sensor = true;
+        s.group = entry.group;
         series_.push_back(std::move(s));
     }
 
@@ -503,10 +495,19 @@ void TempGraphOverlay::discover_series() {
 }
 
 void TempGraphOverlay::apply_default_visibility() {
-    // GraphOnly defaults to the core heaters (nozzle(s), bed, chamber if present).
-    // Heater-specific modes show only their primary sensor. Users can toggle
-    // additional sensors on via the chip row.
+    // GraphOnly defaults to the core heaters (nozzle(s), bed, chamber if present)
+    // and the stepper drivers. Heater-specific modes show only their primary
+    // sensor. MCU and host series follow the user's remembered choice in every
+    // mode. Users can toggle additional sensors on via the chip row.
+    auto& settings = helix::SettingsManager::instance();
+    const helix::TempGraphSensorPrefs prefs{settings.get_temp_graph_show_mcu(),
+                                            settings.get_temp_graph_show_host()};
     for (auto& s : series_) {
+        if (s.is_sensor) {
+            s.visible =
+                helix::temp_graph_sensor_default_visible(s.group, mode_ == Mode::GraphOnly, prefs);
+            continue;
+        }
         switch (mode_) {
         case Mode::GraphOnly:
             s.visible = (s.heater_name.find("extruder") == 0) || (s.heater_name == "heater_bed") ||
@@ -628,18 +629,28 @@ void TempGraphOverlay::toggle_series_visibility(size_t series_idx) {
     auto& s = series_[series_idx];
 
     s.visible = !s.visible;
-    if (controller_ && controller_->is_valid() && s.series_id != SeriesId::None) {
-        auto* graph = controller_->graph();
-        ui_temp_graph_show_series(graph, s.series_id, s.visible);
-        if (s.has_target) {
-            // Mirror chip state: target trace visibility tracks the actuals
-            // visibility. The buffer's 0-sentinel handles off-period gaps via
-            // the segmenter, so we don't gate on current target value — historical
-            // positive-target samples remain visible when the heater is currently off.
-            ui_temp_graph_show_target(graph, s.series_id, s.visible);
+    show_series(series_idx);
+
+    // MCU and host are remembered per printer, as a group: every MCU series
+    // follows the chip the user tapped, so the next open matches this one.
+    const bool remembered = s.is_sensor && (s.group == helix::TempGraphSensorGroup::Mcu ||
+                                            s.group == helix::TempGraphSensorGroup::Host);
+    if (remembered) {
+        auto& settings = helix::SettingsManager::instance();
+        if (s.group == helix::TempGraphSensorGroup::Mcu) {
+            settings.set_temp_graph_show_mcu(s.visible);
+        } else {
+            settings.set_temp_graph_show_host(s.visible);
+        }
+        for (size_t i = 0; i < series_.size(); ++i) {
+            auto& other = series_[i];
+            if (i != series_idx && other.is_sensor && other.group == s.group &&
+                other.visible != s.visible) {
+                other.visible = s.visible;
+                show_series(i);
+            }
         }
     }
-    update_chip_style(series_idx);
     publish_visibility_snapshot();
 
     // Persist the whole toggle set outside the overlay. on_deactivate() clears
@@ -656,6 +667,22 @@ void TempGraphOverlay::toggle_series_visibility(size_t series_idx) {
 
     spdlog::debug("[TempGraphOverlay] {} series '{}' (idx={})", s.visible ? "Showed" : "Hid",
                   s.display_name, series_idx);
+}
+
+void TempGraphOverlay::show_series(size_t series_idx) {
+    auto& s = series_[series_idx];
+    if (controller_ && controller_->is_valid() && s.series_id != SeriesId::None) {
+        auto* graph = controller_->graph();
+        ui_temp_graph_show_series(graph, s.series_id, s.visible);
+        if (s.has_target) {
+            // Mirror chip state: target trace visibility tracks the actuals
+            // visibility. The buffer's 0-sentinel handles off-period gaps via
+            // the segmenter, so we don't gate on current target value — historical
+            // positive-target samples remain visible when the heater is currently off.
+            ui_temp_graph_show_target(graph, s.series_id, s.visible);
+        }
+    }
+    update_chip_style(series_idx);
 }
 
 void TempGraphOverlay::update_chip_style(size_t series_idx) {

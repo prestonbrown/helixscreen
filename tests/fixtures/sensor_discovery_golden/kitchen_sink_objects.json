@@ -14,6 +14,7 @@
   "heater_generic chamber_heater",
   "temperature_fan exhaust",
   "tmc2240 stepper_x",
+  "tmc2209 stepper_z",
   "mcu",
   "mcu toolhead",
   "zmod_ifs_switch_sensor head",

@@ -45,6 +45,7 @@
       "temperature_sensor mcu_temp",
       "tmc2240 stepper_x",
       "tmc2240 stepper_y",
+      "tmc2209 stepper_z",
       "neopixel chamber_light",
       "neopixel status_led",
       "led caselight",
@@ -458,13 +459,16 @@
       "temperature",
       "humidity"
     ],
+    "tmc2209 stepper_z": [
+      "drv_status"
+    ],
     "tmc2240 stepper_x": [
       "temperature",
-      "humidity"
+      "drv_status"
     ],
     "tmc2240 stepper_y": [
       "temperature",
-      "humidity"
+      "drv_status"
     ],
     "toolhead": [
       "position",

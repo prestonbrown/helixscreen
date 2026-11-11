@@ -4092,6 +4092,8 @@ translations:
   Step: Passaggio
   Step 1 of 3: Passaggio 1 di 3
   Step {} of {}: Passo {} di {}
+  Stepper driver {} is overheating: 'Il driver del motore passo-passo {} si sta surriscaldando'
+  Stepper driver {} overheated and shut down: 'Il driver del motore passo-passo {} si è surriscaldato e si è spento'
   Still reading the printer's lane record. Try again in a moment.: 'Lettura del registro delle corsie della stampante in corso. Riprova tra un momento.'
   Still saving this spool…: 'Salvataggio di questa bobina in corso…'
   Still working... taking longer than usual: Ancora in corso... ci vuole più tempo
