@@ -40,6 +40,7 @@
 #include "ui_panel_screws_tilt.h"
 #include "ui_panel_spoolman.h"
 #include "ui_plugin_overview_overlay.h"
+#include "ui_print_tune_overlay.h"
 #include "ui_printer_events_overlay.h"
 #include "ui_printer_list_overlay.h"
 #include "ui_printer_manager_overlay.h"
@@ -275,6 +276,9 @@ const OverlayCase kOverlayCases[] = {
          helix::ui::get_printer_events_overlay().show_entries(helix::JournalSource::Screen,
                                                               {helix::JournalEntry{}});
      }},
+    {"Print Tune", as_base<&get_print_tune_overlay>,
+     [] { get_print_tune_overlay().show(lv_screen_active(), nullptr, get_printer_state()); },
+     [] { get_print_tune_overlay().update_z_offset_display(-50); }},
     {"AMS Zone Overview", as_base<&helix::ui::get_ams_zone_overview_overlay>,
      [] {
          helix::ui::get_ams_zone_overview_overlay().show(lv_screen_active(),
@@ -314,6 +318,20 @@ TEST_CASE_METHOD(DestroyOnCloseFixture, "Overlays rebuild on reopen and take lat
     }
     settle();
     CHECK(overlay.get_root() == nullptr);
+}
+
+TEST_CASE_METHOD(DestroyOnCloseFixture, "Print Tune stops observing the printer while closed",
+                 "[overlay_destroy_on_close][print_tune]") {
+    lv_subject_t* speed = get_printer_state().motion_state().get_speed_factor_subject();
+    const uint32_t closed = lv_ll_get_len(&speed->subs_ll);
+    for (int round = 0; round < 2; ++round) {
+        get_print_tune_overlay().show(lv_screen_active(), nullptr, get_printer_state());
+        settle();
+        REQUIRE(lv_ll_get_len(&speed->subs_ll) > closed);
+        NavigationManager::instance().go_back();
+        settle();
+        CHECK(lv_ll_get_len(&speed->subs_ll) == closed);
+    }
 }
 
 TEST_CASE_METHOD(DestroyOnCloseFixture, "History List repopulates when closed under its detail",

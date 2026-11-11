@@ -154,9 +154,8 @@ class PrintTuneOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "print_tune_panel";
     }
-    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
     bool destroy_on_close() const override {
-        return false;
+        return true;
     }
 
     void init_subjects() override;
@@ -175,8 +174,13 @@ class PrintTuneOverlay : public OverlayBase {
      */
     void on_deactivating(DeactivateReason reason) override;
 
+  protected:
+    /// Drops the observers create() set up; the next open observes again.
+    void on_ui_destroyed() override;
+
   private:
     void setup_panel();
+    void release_observers();
     /// Renders the speed/flow headlines and their live readouts, led by
     /// whichever units the speed/flow preference picks.
     void update_display();

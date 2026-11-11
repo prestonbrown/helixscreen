@@ -38,12 +38,7 @@ using namespace helix;
 
 PrintTuneOverlay::~PrintTuneOverlay() {
     // Clean up observers before subjects
-    speed_observer_.reset();
-    live_velocity_observer_.reset();
-    max_velocity_observer_.reset();
-    extruder_vel_observer_.reset();
-    units_observer_.reset();
-    pa_observer_.reset();
+    release_observers();
 
     // Clean up subjects
     if (subjects_initialized_) {
@@ -52,6 +47,21 @@ PrintTuneOverlay::~PrintTuneOverlay() {
     }
 
     spdlog::trace("[PrintTuneOverlay] Destroyed");
+}
+
+void PrintTuneOverlay::release_observers() {
+    speed_observer_.reset();
+    tools_version_observer_.reset();
+    active_tool_observer_.reset();
+    live_velocity_observer_.reset();
+    max_velocity_observer_.reset();
+    extruder_vel_observer_.reset();
+    units_observer_.reset();
+    pa_observer_.reset();
+}
+
+void PrintTuneOverlay::on_ui_destroyed() {
+    release_observers();
 }
 
 // ============================================================================
