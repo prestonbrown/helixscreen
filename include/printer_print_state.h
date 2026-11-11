@@ -1247,6 +1247,50 @@ class PrinterPrintState {
     /// the first real value supersedes an estimate even when it is lower.
     void apply_layer_current(int layer, LayerSource kind, const char* source);
 
+    /// Which layer fields this status frame's print_stats.info carried. Within
+    /// one frame the slicer's info outranks virtual_sdcard's layer fields.
+    struct InfoLayerFields {
+        bool current = false;
+        bool total = false;
+    };
+
+    /// print_stats.print_duration and total_duration of one frame, in seconds.
+    struct PrintDurations {
+        std::optional<double> print_s;
+        std::optional<double> total_s;
+    };
+
+    // The steps of update_from_status(), which calls them in the order its
+    // comments explain. Each reads only its own part of the status frame.
+    void apply_print_stats(const nlohmann::json& status, const nlohmann::json& stats,
+                           InfoLayerFields& from_info);
+    [[nodiscard]] static PrintDurations read_print_durations(const nlohmann::json& stats);
+    void apply_print_durations(const PrintDurations& durations);
+    /// Returns whether the frame carried print_stats.message at all.
+    bool apply_print_message(const nlohmann::json& stats);
+    /// Returns whether a printer-announced start should relearn its identity.
+    bool apply_print_job_state(const nlohmann::json& status, const nlohmann::json& stats,
+                               bool frame_has_exception, bool frame_has_message);
+    void apply_print_filename(const nlohmann::json& stats, bool identity_follows_job);
+    void apply_pause_cause(const nlohmann::json& stats, bool frame_has_exception);
+    [[nodiscard]] InfoLayerFields apply_info_layers(const nlohmann::json& stats);
+    void apply_print_counters(const nlohmann::json& stats, const PrintDurations& durations);
+    void apply_display_status(const nlohmann::json& status, bool whole_objects);
+    void apply_extruder_filament_used(const nlohmann::json& status);
+    void cache_gcode_z(const nlohmann::json& status);
+    void apply_virtual_sdcard(const nlohmann::json& status, InfoLayerFields from_info);
+    void estimate_layer_from_progress(int file_progress_pct);
+    void apply_plr_interrupted(const nlohmann::json& status);
+    void derive_layer_from_z();
+    void apply_layer_pause_object(const nlohmann::json& status);
+
+    /// A layer number a status field reported (print_stats.info or
+    /// virtual_sdcard): real data for this print, and proof the printer
+    /// reports layers at all.
+    void note_reported_layer(int layer, const char* source);
+    /// The total-layer twin of note_reported_layer().
+    void note_reported_layer_total(int total, const char* source);
+
     /// Hold the current display progress until the next print starts. Called on
     /// the transition into COMPLETE/CANCELLED/ERROR; completion pins 100 first.
     void freeze_progress_display(bool complete);
