@@ -259,9 +259,7 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     extruder_version_observer_ = observe<int>(
         printer_state_.temperature_state().get_extruder_version_subject(), this,
         [](FilamentPanel* self, int) {
-            // Rebuilt subjects can reuse an old address: always rebind.
-            self->nozzle_temp_src_ = nullptr;
-            self->nozzle_target_src_ = nullptr;
+            self->nozzle_observers_.invalidate();
             self->repoint_nozzle_observers();
         },
         printer_state_.temperature_state().get_subjects_lifetime());
@@ -947,46 +945,16 @@ std::string FilamentPanel::target_extruder_name() const {
 }
 
 void FilamentPanel::repoint_nozzle_observers() {
-    auto& temps = printer_state_.temperature_state();
-    const std::string name = target_extruder_name();
-
-    // The mounted tool reads the active-extruder mirror, which every printer
-    // publishes; another tool reads its own extruder's subjects.
-    lv_subject_t* temp_src = nullptr;
-    lv_subject_t* target_src = nullptr;
-    SubjectLifetime temp_lifetime = temps.get_subjects_lifetime();
-    SubjectLifetime target_lifetime = temps.get_subjects_lifetime();
-    if (name != temps.active_extruder_name()) {
-        temp_src = temps.get_extruder_temp_subject(name, temp_lifetime);
-        target_src = temps.get_extruder_target_subject(name, target_lifetime);
-    }
-    if (!temp_src || !target_src) {
-        temp_src = temps.get_active_extruder_temp_subject();
-        target_src = temps.get_active_extruder_target_subject();
-        temp_lifetime = temps.get_subjects_lifetime();
-        target_lifetime = temps.get_subjects_lifetime();
-    }
-    // Already watching these: a rebind would only replay the current values.
-    if (nozzle_temp_observer_ && nozzle_target_observer_ && temp_src == nozzle_temp_src_ &&
-        target_src == nozzle_target_src_) {
-        return;
-    }
-    nozzle_temp_src_ = temp_src;
-    nozzle_target_src_ = target_src;
-    nozzle_temp_observer_ = observe<int>(
-        temp_src, this,
+    nozzle_observers_.bind<FilamentPanel>(
+        printer_state_.temperature_state(), target_extruder_name(), this,
         [](FilamentPanel* self, int raw) {
             self->nozzle_current_ = deci_to_degrees(raw);
             self->defer_temps_update();
         },
-        temp_lifetime, helix::ui::Dispatch::Immediate);
-    nozzle_target_observer_ = observe<int>(
-        target_src, this,
         [](FilamentPanel* self, int raw) {
             self->nozzle_target_ = deci_to_degrees(raw);
             self->defer_temps_update();
-        },
-        target_lifetime, helix::ui::Dispatch::Immediate);
+        });
 }
 
 void FilamentPanel::sync_target_tool_ui() {
