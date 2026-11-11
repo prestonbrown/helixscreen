@@ -834,6 +834,9 @@ TEST_CASE("AFC get_slot_filament_segment ignores the latched loaded_to_hub field
     // Slot 0 is not the active slot (current_slot defaults to -1), so this
     // exercises the non-active-slot branch of get_slot_filament_segment().
     REQUIRE(helper.get_slot_filament_segment(0) == PathSegment::LANE);
+    // A lane an extruder holds is at that toolhead, the current lane or not.
+    helper.set_extruder_lane_loaded("extruder1", "lane1");
+    CHECK(helper.get_slot_filament_segment(0) == PathSegment::NOZZLE);
 }
 
 // ============================================================================

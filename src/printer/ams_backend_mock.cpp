@@ -717,6 +717,10 @@ PathSegment AmsBackendMock::get_slot_filament_segment(int slot_index) const {
     if (slot_index == slot_at_feeder_) {
         return PathSegment::PREP;
     }
+    // Loaded but not current: seated in its own extruder while another one is selected.
+    if (entry->info.status == SlotStatus::LOADED) {
+        return PathSegment::NOZZLE;
+    }
 
     if (entry->info.status != SlotStatus::AVAILABLE &&
         entry->info.status != SlotStatus::FROM_BUFFER) {

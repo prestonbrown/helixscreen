@@ -698,6 +698,12 @@ PathSegment AmsBackendAfc::get_slot_filament_segment(int slot_index) const {
         return PathSegment::NONE;
     }
 
+    // A lane an extruder holds is seated at that toolhead, though another extruder is current.
+    for (const auto& [ext_name, ext] : extruder_sensors_) {
+        if (!ext.lane_loaded.empty() && ext.lane_loaded == entry->backend_name)
+            return PathSegment::NOZZLE;
+    }
+
     const auto& sensors = lane_sensors_for(entry->backend_name);
 
     // Check sensors from furthest to nearest. PathSegment::HUB is deliberately

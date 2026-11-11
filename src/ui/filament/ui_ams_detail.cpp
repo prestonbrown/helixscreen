@@ -785,11 +785,21 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
         ui_filament_path_canvas_set_slot_overlap(canvas, layout.overlap);
     }
 
-    // Map active slot to local index for unit-scoped views
+    // Map active slot to local index for unit-scoped views. A unit the current lane is not in
+    // still owns its trunk when one of its lanes is through the hub, seated in its own tool.
     int active_slot = info.path_active_slot();
+    helix::PathSegment segment = backend->get_filament_segment();
     if (unit_index >= 0) {
         int local_active = active_slot - slot_offset;
         active_slot = (local_active >= 0 && local_active < slot_count) ? local_active : -1;
+        const helix::ui::UnitLane own =
+            active_slot < 0 && unit_index < static_cast<int>(info.units.size())
+                ? helix::ui::unit_furthest_lane(*backend, info.units[unit_index])
+                : helix::ui::UnitLane{};
+        if (own.segment > helix::PathSegment::HUB) {
+            active_slot = own.global - slot_offset;
+            segment = own.segment;
+        }
     }
     ui_filament_path_canvas_set_active_slot(canvas, active_slot);
 
@@ -808,7 +818,6 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     }
 
     // Set filament and error segments
-    helix::PathSegment segment = backend->get_filament_segment();
     ui_filament_path_canvas_set_filament_segment(canvas, static_cast<int>(segment));
 
     // Bowden progress fills the output tube from the hub: as far as a load has
@@ -970,6 +979,17 @@ BufferBoxState ams_detail_buffer_box(const AmsSystemInfo& info, int unit_index) 
         box.fault = -1; // no set point: nothing to judge the pressure against
     }
     return box;
+}
+
+UnitLane unit_furthest_lane(const AmsBackend& backend, const AmsUnit& unit) {
+    UnitLane lane;
+    for (int s = 0; s < unit.slot_count; ++s) {
+        const int global = unit.first_slot_global_index + s;
+        const PathSegment seg = backend.get_slot_filament_segment(global);
+        if (seg > lane.segment)
+            lane = {global, seg, backend.get_slot_info(global).color_rgb};
+    }
+    return lane;
 }
 
 bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,

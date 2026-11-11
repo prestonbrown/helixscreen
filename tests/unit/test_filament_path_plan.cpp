@@ -2062,4 +2062,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "FilamentPath: a unit view ends where the over
 
         ams.clear_external_spool_info();
     }
+    SECTION("a unit whose own tool holds one of its lanes gives that lane the trunk") {
+        helix::AmsBackendMock rig(16);
+        rig.set_torture_mode(true);
+        const helix::AmsSystemInfo rig_info = rig.get_system_info();
+        REQUIRE(rig_info.units.at(3).first_slot_global_index == 10); // EMU 1; lane1 is current
+        ams_detail_setup_path_canvas(w, nullptr, 3, &rig, rig_info);
+        CHECK((get_data(w)->active_slot == 1 && get_data(w)->filament_color == 0xDD00FF &&
+               get_data(w)->filament_segment == static_cast<int>(PathSegment::NOZZLE)));
+    }
 }

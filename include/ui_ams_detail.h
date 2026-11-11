@@ -179,6 +179,14 @@ struct BufferBoxState {
 /// the system-level reading (buffer_reading(info, -1)).
 BufferBoxState ams_detail_buffer_box(const AmsSystemInfo& info, int unit_index);
 
+/// A unit's lane whose filament has gone furthest along its path; global -1 when none has any.
+struct UnitLane {
+    int global = -1;
+    PathSegment segment = PathSegment::NONE;
+    uint32_t color = 0;
+};
+UnitLane unit_furthest_lane(const AmsBackend& backend, const AmsUnit& unit);
+
 /**
  * @brief Disable the slot widgets of bays in an absent unit, enable the rest
  *

@@ -644,20 +644,10 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
 
         // The unit's furthest-loaded lane colors its route when it is not the
         // active unit.
-        PathSegment lane_seg = PathSegment::NONE;
-        uint32_t lane_color = 0;
-        if (backend) {
-            for (int s = 0; s < unit.slot_count; ++s) {
-                const int global = unit.first_slot_global_index + s;
-                const PathSegment seg = backend->get_slot_filament_segment(global);
-                if (seg > lane_seg) {
-                    lane_seg = seg;
-                    lane_color = backend->get_slot_info(global).color_rgb;
-                }
-            }
-        }
-        ui_system_path_canvas_set_unit_lane(system_path_, i, static_cast<int>(lane_seg),
-                                            lane_color);
+        const helix::ui::UnitLane lane =
+            backend ? helix::ui::unit_furthest_lane(*backend, unit) : helix::ui::UnitLane{};
+        ui_system_path_canvas_set_unit_lane(system_path_, i, static_cast<int>(lane.segment),
+                                            lane.color);
 
         PathTopology topo = unit.topology;
         if (backend) {
