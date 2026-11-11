@@ -166,6 +166,7 @@ src/printer/ams_backend_cfs_calibration.cpp
 src/printer/ams_backend_happy_hare.cpp
 src/printer/ams_backend_happy_hare_device.cpp
 src/printer/ams_backend_indx.cpp
+src/printer/ams_backend_lane_status.cpp
 src/printer/ams_backend_multiace.cpp
 src/printer/ams_backend_openams.cpp
 src/printer/ams_bypass_policy.cpp
@@ -195,6 +196,7 @@ src/printer/cfs_status_parse.cpp
 src/printer/lane_resolver.cpp
 src/printer/lane_apply.cpp
 src/printer/lane_source_store.cpp
+src/printer/lane_status_parse.cpp
 src/printer/lane_translation.cpp
 src/printer/lane_binding.cpp
 src/printer/bed_dimensions.cpp

@@ -2,7 +2,7 @@ HelixScreen is a full-featured touch interface for Klipper 3D printers. Connect 
 
 Features:
 - 30+ panels: dashboard, temperature graphs, motion control, bed mesh 3D view, console, macros, and more
-- 10 filament systems: AFC, Happy Hare, ACE, AD5X IFS, Creality CFS, Snapmaker U1, QIDI Box, OpenAMS, Bondtech INDX (early support) and tool changers
+- 11 filament systems: AFC, Happy Hare, ACE, AD5X IFS, Creality CFS, Snapmaker U1, QIDI Box, OpenAMS, Bondtech INDX (early support), any Lane Status producer and tool changers
 - Exclude objects mid-print: tap the failing part on an overhead map
 - Over 100 printer models auto-detected with a first-run wizard
 - Calibration suite: input shaper, PID tuning, Z-offset, firmware retraction

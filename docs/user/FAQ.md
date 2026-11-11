@@ -13,7 +13,7 @@ HelixScreen is a touchscreen interface for Klipper 3D printers. It connects to y
 **Key features:**
 - 30+ panels, 20+ overlays, and a customizable multi-page widget dashboard
 - 3D G-code preview, bed mesh visualization, frequency response charts
-- 10 filament systems (AFC, Happy Hare, ACE, AD5X IFS, CFS, Snapmaker U1, QIDI Box, OpenAMS, Bondtech INDX in early support, and tool changers) with Spoolman integration
+- 11 filament systems (AFC, Happy Hare, ACE, AD5X IFS, CFS, Snapmaker U1, QIDI Box, OpenAMS, Bondtech INDX in early support, any Lane Status producer, and tool changers) with Spoolman integration
 - First-run wizard with auto-detection of over 100 printer models
 - Theme editor with 18 presets (dark and light), 9 languages
 - Sound system, timelapse integration, label printing, exclude objects
@@ -121,7 +121,7 @@ GrumpyScreen is an actively developed fork of GuppyScreen, built specifically fo
 **HelixScreen advantages:**
 - Low memory footprint (~15MB on embedded targets vs ~50MB for KlipperScreen on the same hardware)
 - Declarative XML layouts (change UI without recompiling)
-- Modern reactive architecture with 10 filament systems
+- Modern reactive architecture with 11 filament systems
 - 3D visualizations (G-code preview, bed mesh)
 - Auto-detection database of over 100 printers
 - 9 languages (English, German, Spanish, French, Italian, Japanese, Portuguese, Russian, Chinese)

@@ -2926,6 +2926,7 @@ translations:
   Open the slot editor when you load a new spool: 'Abrir o editor de slot ao carregar um novo carretel'
   OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "O OpenAMS guarda este carretel no Spoolman, que aqui aceita apenas material, cor, marca e peso"
   OpenAMS manages this spool's link: "O OpenAMS gerencia o vínculo deste carretel"
+  This filament system keeps its own spool records: "Este sistema de filamento mantém os próprios registros de carretéis"
   AFC has no Spoolman configured: "O AFC não tem o Spoolman configurado"
   Opened: Aberta
   Operation already in progress: Operação já em andamento

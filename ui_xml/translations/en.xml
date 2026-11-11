@@ -4137,6 +4137,7 @@
   <translation tag="This dryer cannot run while filament from the unit is loaded" en="This dryer cannot run while filament from the unit is loaded"/>
   <translation tag="This feature requires different hardware or configuration" en="This feature requires different hardware or configuration"/>
   <translation tag="This filament system does not report buffer or flow data." en="This filament system does not report buffer or flow data."/>
+  <translation tag="This filament system keeps its own spool records" en="This filament system keeps its own spool records"/>
   <translation tag="This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures." en="This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures."/>
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." en="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle."/>
   <translation tag="This file was sliced for {} but {} is loaded." en="This file was sliced for {} but {} is loaded."/>

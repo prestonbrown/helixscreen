@@ -6,6 +6,7 @@
 #include "ams_backend_afc.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_backend_indx.h"
+#include "ams_backend_lane_status.h"
 #include "ams_backend_openams.h"
 #include "ams_dryer.h"
 #include "ams_state.h"
@@ -835,11 +836,11 @@ static std::unique_ptr<AmsBackend> try_create_mock(IMoonrakerClient* mock_client
                      mode);
         return nullptr;
     }
-    // multiACE on a U1 and INDX: mock hardware the same way. MoonrakerClientMock
-    // seeds their objects and frames, and the production AmsBackendMultiAce /
-    // AmsBackendIndx run against them (multiACE pairs with
-    // HELIX_MOCK_PRINTER=snapmaker_u1).
-    if (mode == "multiace" || mode == "indx") {
+    // multiACE on a U1, INDX and a lane_status producer: mock hardware the same
+    // way. MoonrakerClientMock seeds their objects and frames, and the
+    // production AmsBackendMultiAce / AmsBackendIndx / AmsBackendLaneStatus run
+    // against them (multiACE pairs with HELIX_MOCK_PRINTER=snapmaker_u1).
+    if (mode == "multiace" || mode == "indx" || mode == "lane_status") {
         spdlog::info("[AMS Backend] HELIX_MOCK_AMS={} selects mock hardware, not a mock "
                      "backend - deferring to real discovery",
                      mode);
@@ -879,6 +880,8 @@ constexpr BackendClassOps kOpenAmsOps{construct_backend<AmsBackendOpenAms>, null
 // Sized and wired by set_discovery() before start().
 constexpr BackendClassOps kIndxOps{construct_backend<AmsBackendIndx>, nullptr,
                                    AmsBackendIndx::required_status_objects};
+constexpr BackendClassOps kLaneStatusOps{construct_backend<AmsBackendLaneStatus>, nullptr,
+                                         AmsBackendLaneStatus::required_status_objects};
 // The caller names the tools through set_discovered_tools() after creation.
 constexpr BackendClassOps kToolChangerOps{construct_backend<AmsBackendToolChanger>};
 
@@ -894,6 +897,7 @@ constexpr std::string_view kAceAliases[] = {"valgace", "ValgACE", "bunnyace", "B
                                             "duckace", "DuckACE", "ace",      "ACE Pro"};
 constexpr std::string_view kQidiAliases[] = {"qidi_box", "QIDI Box", "qidibox"};
 constexpr std::string_view kSnapmakerAliases[] = {"snapmaker", "Snapmaker", "snapswap", "SnapSwap"};
+constexpr std::string_view kLaneStatusAliases[] = {"lane_status", "Lane Status"};
 constexpr std::string_view kToolChangerAliases[] = {"toolchanger", "tool_changer", "Tool Changer"};
 
 constexpr AmsBackendRow make_row(AmsType type, const BackendClassOps& ops, bool needs_http_poll,
@@ -928,6 +932,7 @@ constexpr AmsBackendRow kBackendRows[] = {
     make_row(AmsType::QIDI_BOX, kQidiOps, false, false, true, kQidiAliases),
     // A U1 is both: it swaps heads and feeds each from a lane.
     make_row(AmsType::SNAPMAKER, kSnapmakerOps, false, true, true, kSnapmakerAliases),
+    make_row(AmsType::LANE_STATUS, kLaneStatusOps, false, false, true, kLaneStatusAliases),
     make_row(AmsType::TOOL_CHANGER, kToolChangerOps, false, true, false, kToolChangerAliases,
              "tool_changer"),
 };
