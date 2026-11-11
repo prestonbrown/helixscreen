@@ -71,7 +71,7 @@ std::string status_recovery_file(const PlrCapabilitySignals& caps,
     return caps.status_recovery_file;
 }
 
-/// A firmware whose saved filename is its record, with that name now empty.
+/// A firmware whose saved filename is its record, with that name empty.
 bool saved_file_cleared(const PlrCapabilitySignals& caps) {
     return caps.saved_file_gates_offer && caps.saved_recovery_file &&
            caps.saved_recovery_file->empty();

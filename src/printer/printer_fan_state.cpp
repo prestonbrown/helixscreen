@@ -141,7 +141,7 @@ void PrinterFanState::deinit_subjects() {
     }
     fan_speed_lifetimes_.clear();
 
-    // Now safe to deinit subjects (lv_subject_deinit frees attached observers)
+    // Safe to deinit subjects here (lv_subject_deinit frees attached observers)
     for (auto& [name, subject_ptr] : fan_speed_subjects_) {
         if (subject_ptr) {
             lv_subject_deinit(subject_ptr.get());
@@ -174,7 +174,6 @@ void PrinterFanState::update_klipper_rpm(const std::string& object_name,
 }
 
 void PrinterFanState::update_from_status(const nlohmann::json& status) {
-    // Update main part-cooling fan speed
     if (status.contains("fan")) {
         const auto& fan = status["fan"];
         spdlog::trace("[PrinterFanState] Received fan status update: {}",
@@ -192,7 +191,6 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
         update_klipper_rpm("fan", fan);
     }
 
-    // Check for other fan types in the status update
     // Moonraker sends fan objects as top-level keys: "heater_fan hotend_fan", "fan_generic xyz"
     for (const auto& [key, value] : status.items()) {
         const hw::ObjectKind kind = hw::classify_object(key).kind;
@@ -256,7 +254,6 @@ FanType PrinterFanState::classify_fan_type(const std::string& object_name,
     if (object_name == "fan") {
         return FanType::PART_COOLING;
     }
-    // Check if this fan is the wizard-configured part cooling fan
     if (!configured_part_fan.empty() && object_name == configured_part_fan) {
         return FanType::PART_COOLING;
     }
@@ -483,7 +480,6 @@ void PrinterFanState::init_fans(const std::vector<std::string>& fan_objects,
     new_subjects.reserve(fan_objects.size());
     new_lifetimes.reserve(fan_objects.size());
 
-    // Store configured fan roles for classification and naming
     roles_ = roles;
     role_display_names_.clear();
 
@@ -598,7 +594,7 @@ void PrinterFanState::init_fans(const std::vector<std::string>& fan_objects,
         }
     }
 
-    // Now safe to deinit orphaned subjects (observers already invalidated above)
+    // Safe to deinit orphaned subjects here (observers already invalidated above)
     for (auto& [name, subject_ptr] : fan_speed_subjects_) {
         if (subject_ptr) {
             spdlog::trace("[PrinterFanState] Deiniting orphaned speed subject for fan: {}", name);

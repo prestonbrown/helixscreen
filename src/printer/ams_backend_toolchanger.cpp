@@ -56,7 +56,6 @@ AmsBackendToolChanger::AmsBackendToolChanger(IMoonrakerAPI* api, IMoonrakerClien
     system_info_.type = AmsType::TOOL_CHANGER;
     system_info_.type_name = "Tool Changer";
 
-    // Tool changer capabilities
     system_info_.supports_bypass = false; // No bypass on tool changers
     system_info_.has_hardware_bypass_sensor = false;
 
@@ -127,8 +126,6 @@ void AmsBackendToolChanger::set_configured_tool_numbers(
     std::lock_guard<std::mutex> lock(mutex_);
     configured_tool_numbers_ = std::move(numbers);
 }
-
-// Destructor not needed -- base class handles subscription cleanup
 
 // ============================================================================
 // Lifecycle Management
@@ -908,7 +905,6 @@ void AmsBackendToolChanger::handle_status(const nlohmann::json& params) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        // Check for toolchanger object updates
         if (params.contains("toolchanger")) {
             const auto& tc_data = params["toolchanger"];
             if (tc_data.is_object()) {
@@ -1697,7 +1693,6 @@ void AmsBackendToolChanger::initialize_tools() {
     unit.has_toolhead_sensor = false;
     unit.has_slot_sensors = false;
 
-    // Initialize slots for each tool
     tool_mounted_.clear();
     tool_mounted_.resize(tool_count, false);
 
@@ -3024,7 +3019,6 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        // Update local state (for UI display)
         if (!system_info_.units.empty() &&
             slot_index < static_cast<int>(system_info_.units[0].slots.size())) {
             auto& slot = system_info_.units[0].slots[slot_index];
@@ -3044,8 +3038,8 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
                 // One pass for both directions, and it EVICTS: the tool being
                 // moved leaves its old lane unmapped, and whatever tool this
                 // lane previously answered to gives it up. Writing the two
-                // fields by hand left both stale halves in place, so a swap
-                // ended with two lanes claiming one tool number.
+                // fields by hand leaves both stale halves in place, so a swap
+                // ends with two lanes claiming one tool number.
                 helix::printer::assign_tool_slot(system_info_, info.mapped_tool, slot_index);
                 physical_tool_name = tool_names_[slot_index];
             }

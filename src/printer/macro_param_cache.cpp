@@ -207,7 +207,6 @@ void MacroParamCache::populate_from_configfile(
         std::string macro_name_lower = key.substr(PREFIX.size());
         to_lower_inplace(macro_name_lower);
 
-        // Extract gcode template for param parsing
         std::string gcode_template;
         if (it.value().is_object() && it.value().contains("gcode") &&
             it.value()["gcode"].is_string()) {

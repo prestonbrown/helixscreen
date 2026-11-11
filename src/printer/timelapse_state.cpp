@@ -152,7 +152,6 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
             int current = lv_subject_get_int(&timelapse_frame_count_);
             lv_subject_set_int(&timelapse_frame_count_, current + 1);
 
-            // On first frame, set capture info with print filename and timestamp
             if (current == 0) {
                 auto* fn_subject = get_printer_state().print_state().get_print_filename_subject();
                 const char* filename = fn_subject ? lv_subject_get_string(fn_subject) : "";
@@ -189,7 +188,6 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
         }
 
         if (status == "running") {
-            // Show start toast on first progress event
             if (last_notified_progress_ < 0) {
                 publish_notice({NoticeSeverity::INFO, lv_tr("Rendering timelapse..."), 3000});
             }

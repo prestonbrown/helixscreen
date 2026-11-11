@@ -87,7 +87,7 @@ void sync_external_spool(const SpoolInfo& spool, std::string log_context) {
                                 try_assign_active_spool_to_tool(spool);
 
                                 // An AMS slot assignment sets Moonraker's global active spool
-                                // too, so mirroring it onto the bypass unconditionally used to
+                                // too, so mirroring it onto the bypass unconditionally would
                                 // overwrite the bypass with whichever lane was assigned last.
                                 if (!AmsState::instance().active_spool_describes_bypass()) {
                                     spdlog::debug(
@@ -154,7 +154,6 @@ void sync_from_status(ISpoolmanAPI& spoolman, bool connected, int active_spool_i
         return;
     }
 
-    // Check if existing external spool already matches
     auto existing = AmsState::instance().get_external_spool_info();
     if (existing && existing->spoolman_id == active_spool_id) {
         spdlog::debug("[Application] External spool already matches active "

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_print_state.cpp
- * @brief Print state management extracted from PrinterState
+ * @brief Print state, one of PrinterState's domain sub-states
  *
  * Manages print subjects including progress, state, timing, layers, and
- * print start phases. Extracted from PrinterState as part of god class decomposition.
+ * print start phases.
  */
 
 #include "printer_print_state.h"
@@ -34,7 +34,6 @@ const char* PrinterPrintState::no_thumbnail_placeholder() {
 }
 
 PrinterPrintState::PrinterPrintState() {
-    // Initialize string buffers
     std::memset(print_filename_buf_, 0, sizeof(print_filename_buf_));
     std::memset(print_display_filename_buf_, 0, sizeof(print_display_filename_buf_));
     std::memset(print_thumbnail_path_buf_, 0, sizeof(print_thumbnail_path_buf_));
@@ -45,7 +44,6 @@ PrinterPrintState::PrinterPrintState() {
     std::memset(display_message_buf_, 0, sizeof(display_message_buf_));
     std::memset(print_message_buf_, 0, sizeof(print_message_buf_));
 
-    // Set default values
     std::strcpy(print_state_buf_, "standby");
 }
 
@@ -57,7 +55,6 @@ void PrinterPrintState::init_subjects(bool register_xml) {
 
     spdlog::trace("[PrinterPrintState] Initializing subjects (register_xml={})", register_xml);
 
-    // Print progress subjects
     INIT_SUBJECT_INT(print_progress, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(print_progress_display, 0, subjects_, register_xml);
     INIT_SUBJECT_STRING(print_progress_text, "0%", subjects_, register_xml);
@@ -97,7 +94,6 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(print_time_left, 0, subjects_, false);
     INIT_SUBJECT_INT(print_filament_used, 0, subjects_, register_xml);
 
-    // Print start progress subjects
     INIT_SUBJECT_INT(print_start_phase, static_cast<int>(PrintStartPhase::IDLE), subjects_,
                      register_xml);
     INIT_SUBJECT_INT(print_start_chamber_wait, 0, subjects_, register_xml);
@@ -114,7 +110,6 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     INIT_SUBJECT_STRING(print_start_message, "", subjects_, register_xml);
     INIT_SUBJECT_INT(print_start_progress, 0, subjects_, register_xml);
 
-    // Print workflow in-progress subject
     INIT_SUBJECT_INT(print_in_progress, 0, subjects_, register_xml);
 
     // Pre-print duration prediction subjects

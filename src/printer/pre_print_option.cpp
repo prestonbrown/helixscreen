@@ -101,7 +101,7 @@ std::optional<PrePrintOption> parse_pre_print_option(const nlohmann::json& j) {
     // in parse_pre_print_option_set, not at the printer_detector.cpp call site.
     // A null would have unwound out of printer detection entirely. The existing
     // design already degrades per-option (return nullopt, caller skips it), so
-    // the required-field checks below now do that job for nulls too: a null
+    // the required-field checks below do that job for nulls too: a null
     // `param_name` reads as empty and is rejected with the accurate "requires
     // non-empty 'param_name'" message instead of throwing.
     opt.capability = helix::json_util::safe_string(j, "capability");

@@ -42,7 +42,6 @@ PrinterDiscovery::~PrinterDiscovery() = default;
 void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
     clear();
 
-    // Validate input is an array
     if (!objects.is_array()) {
         return;
     }
@@ -140,13 +139,11 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
     };
 
     for (const auto& obj : objects) {
-        // Skip non-string elements
         if (!obj.is_string()) {
             continue;
         }
         std::string name = obj.template get<std::string>();
 
-        // Skip empty strings
         if (name.empty()) {
             continue;
         }
@@ -480,12 +477,10 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
             // macro_config_name().
             macro_config_names_.emplace(upper_macro, macro_name);
 
-            // Check for HelixScreen helper macros
             if (upper_macro.rfind("HELIX_", 0) == 0) {
                 helix_macros_.insert(upper_macro);
             }
 
-            // Check for Klippain Shake&Tune
             if (upper_macro == "AXES_SHAPER_CALIBRATION") {
                 has_klippain_shaketune_ = true;
             }
@@ -511,7 +506,6 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
                 has_auto_feeding_batch_ = true;
             }
 
-            // Check for common macro patterns and cache them
             if (nozzle_clean_macro_.empty()) {
                 // Shared with StandardMacros' CleanNozzle slot — see
                 // include/macro_patterns.h.
@@ -1344,7 +1338,6 @@ void PrinterDiscovery::parse_configured_tool_numbers(const nlohmann::json& setti
 
 void PrinterDiscovery::natural_sort(std::vector<std::string>& names) {
     std::sort(names.begin(), names.end(), [](const std::string& a, const std::string& b) {
-        // Find where trailing digits start
         auto digit_start = [](const std::string& s) -> size_t {
             size_t i = s.size();
             while (i > 0 && std::isdigit(static_cast<unsigned char>(s[i - 1])))

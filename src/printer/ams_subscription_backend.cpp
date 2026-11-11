@@ -1007,7 +1007,7 @@ AmsError AmsSubscriptionBackend::refuse_if_printing(bool paused_blocks) const {
     // (helix::api::reject_homing_during_active_print) refuses every app-emitted
     // G28 while PRINTING or PAUSED, but it cannot see a `_G28` buried inside a
     // firmware macro, which is what filament_ops_self_home() reports and why a
-    // self-homing backend is refused even while paused (bundle XWPBR2DX). Layer 1
+    // self-homing backend is refused even while paused. Layer 1
     // also deliberately stops short of PREPARING — it would refuse the app's own
     // pre-start block, sent through execute_gcode() and free to contain a G28 —
     // so PREPARING has to be caught here or nowhere.
@@ -1169,7 +1169,7 @@ AmsError AmsSubscriptionBackend::ensure_homed_then(
     bool bypass_busy_gate) {
     // The homed answer comes from the live homed_axes subject, not an RPC:
     // toolhead is in the standing objects.subscribe set, so querying it again
-    // was a redundant round trip. skip_homing short-circuits the check
+    // would be a redundant round trip. skip_homing short-circuits the check
     // entirely -- toolhead_homed() is never called -- for firmware macros that
     // home themselves (CFS Fork variant). delegates_homing_to_printer()
     // short-circuits the same way when the printer-side system homes (AFC
@@ -1361,10 +1361,9 @@ AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode) {
         IMoonrakerAPI::kAmsOperationTimeoutMs,
         // silent=true: the phase tracker + IFS_STATUS own operation completion,
         // so the RPC timeout is advisory for these long macros. A cold-start
-        // load can legitimately run past the 300s ceiling (bundle 77TDH9N6:
-        // heat-from-cold + load + double purge + clean), completing fine ~47s
-        // later — silent suppresses ONLY the false REQUEST_TIMEOUT toast and the
-        // tracker's generic fallback.
+        // load can legitimately run past the 300s ceiling (heat-from-cold +
+        // load + double purge + clean), completing fine ~47s later — silent suppresses ONLY the
+        // false REQUEST_TIMEOUT toast and the tracker's generic fallback.
         /*silent=*/true, /*on_queued=*/nullptr,
         // caller_surfaces_errors=false: the error_cb above only writes to the
         // log, which the user never sees. Declaring otherwise would silence
@@ -1379,7 +1378,7 @@ AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode,
                                                helix::SharedCallback<void()> on_complete) {
     // silent=true: completion is owned by the phase tracker + IFS_STATUS, not
     // the RPC return, so the advisory 300s timeout must not surface a false
-    // "timed out" toast for a legitimately-long macro (bundle 77TDH9N6),
+    // "timed out" toast for a legitimately-long macro,
     // along with the tracker's generic fallback.
     return AmsSubscriptionBackend::execute_gcode(gcode, std::move(on_complete), nullptr,
                                                  /*silent=*/true);

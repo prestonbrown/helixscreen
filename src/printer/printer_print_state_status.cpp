@@ -195,7 +195,6 @@ bool PrinterPrintState::apply_print_job_state(const nlohmann::json& status,
                 lv_subject_set_int(&print_outcome_, static_cast<int>(PrintOutcome::NONE));
             }
             unfreeze_progress_display();
-            // Reset slicer progress for the new print
             slicer_progress_ = 0.0;
             slicer_progress_active_ = false;
             // This frame's own message is already applied.
@@ -294,7 +293,6 @@ bool PrinterPrintState::apply_print_job_state(const nlohmann::json& status,
         }
     }
 
-    // Update combined subject for home panel progress card visibility
     update_print_show_progress();
     lv_subject_set_int(&print_state_report_seq_, lv_subject_get_int(&print_state_report_seq_) + 1);
     return identity_follows_job;

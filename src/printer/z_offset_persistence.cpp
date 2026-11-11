@@ -98,13 +98,13 @@ std::optional<bool> read_flag(const nlohmann::json* variables, const char* key) 
 // BED_MESH_CALIBRATE, _MESH_TEST, SAVE_ZMOD_DATA and boot - not at
 // END_PRINT/CANCEL_PRINT - so an adjustment sent while idle AFTER a print
 // stores the intended value minus the last print's delta (ghzserg/zmod#699).
-// ghzserg/z_ad5x@6a0adf3 zeroes it in _COMMON_END_PRINT, which both END_PRINT
-// and CANCEL_PRINT call, and no release carries that yet. Callers clear the
-// variable right before an idle adjustment: load-bearing below the fix, a
-// write of zero over zero above it. The command lives here because only ZMOD
-// has the variable.
+// ghzserg/z_ad5x zeroes it in _COMMON_END_PRINT, which both END_PRINT and
+// CANCEL_PRINT call, and no release carries that yet. Callers clear the
+// variable right before an idle adjustment: load-bearing on firmware without
+// that zeroing, a write of zero over zero on firmware with it. The command lives here because only
+// ZMOD has the variable.
 //
-// That same commit also zeroes the live gcode_move offset at print end in the
+// That zeroing also covers the live gcode_move offset at print end in the
 // alt-screen config, so post-print the live offset reads 0 while the stored
 // value stands. Reading the stored one is exactly what this provider is for.
 std::optional<int> read_zmod(const nlohmann::json& status) {
@@ -259,9 +259,8 @@ const std::vector<Provider>& providers() {
         // builtin requires rename_existing), so `gcode_macro
         // SET_GCODE_OFFSET` in objects/list is exactly "a renaming wrapper
         // exists" - stock Klipper never lists it. The renamed original the
-        // wrapper creates is a bare command, not an object; verified against
-        // debug bundle 5J49T5RU: 83 macro objects including
-        // SET_GCODE_OFFSET, none named _SET_GCODE_OFFSET. Must stay below
+        // wrapper creates is a bare command, not an object: a real printer's
+        // object list carried SET_GCODE_OFFSET and no _SET_GCODE_OFFSET. Must stay below
         // ZMOD, which also wraps the command.
         //
         // That signature proves a wrapper exists, NOT that it persists

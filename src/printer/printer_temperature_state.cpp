@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_temperature_state.cpp
- * @brief Temperature state management extracted from PrinterState
+ * @brief Temperature state, one of PrinterState's domain sub-states
  *
  * Manages extruder and bed temperature subjects with decidegree precision.
  * Supports multiple extruders via dynamic ExtruderInfo map. The "active extruder"
@@ -265,7 +265,7 @@ void PrinterTemperatureState::deinit_subjects() {
         info.power_lifetime.reset();
     }
 
-    // Now safe to deinit dynamic per-extruder subjects
+    // Safe to deinit dynamic per-extruder subjects here
     for (auto& [name, info] : extruders_) {
         if (info.temp_subject) {
             lv_subject_deinit(info.temp_subject.get());
@@ -279,7 +279,6 @@ void PrinterTemperatureState::deinit_subjects() {
     }
     extruders_.clear();
 
-    // Reset active extruder to default
     active_extruder_name_ = "extruder";
 
     subjects_.deinit_all();
@@ -520,7 +519,6 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
         lv_subject_set_int(subject, pct);
     };
 
-    // Update dynamic per-extruder subjects
     for (auto& [name, info] : extruders_) {
         if (!status.contains(name)) {
             // Moonraker status updates are DELTAS — an extruder holding steady

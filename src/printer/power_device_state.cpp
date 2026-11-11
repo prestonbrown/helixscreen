@@ -98,7 +98,6 @@ void PowerDeviceState::set_devices(const std::vector<PowerDevice>& devices) {
         devices_.emplace(dev.device, std::move(info));
     }
 
-    // Register with StaticSubjectRegistry on first init
     if (!subjects_initialized_) {
         subjects_initialized_ = true;
         StaticSubjectRegistry::instance().register_deinit(
@@ -109,7 +108,7 @@ void PowerDeviceState::set_devices(const std::vector<PowerDevice>& devices) {
         // where a prior test called deinit_subjects on the global singleton).
         auto& ps = get_printer_state();
         if (ps.are_subjects_initialized()) {
-            // print_lifecycle, not print_state_enum. The lock now covers the
+            // print_lifecycle, not print_state_enum. The lock covers the
             // preparing window, and the raw enum does not move on the
             // Idle -> Preparing edge - it holds standby, or the PREVIOUS job's
             // terminal state, for the whole of a host-side pre-start block. On
@@ -319,7 +318,7 @@ void PowerDeviceState::deinit_subjects() {
         info.lifetime.reset();
     }
 
-    // Now safe to deinit subjects
+    // Safe to deinit subjects here
     for (auto& [name, info] : devices_) {
         if (info.status_subject) {
             lv_subject_deinit(info.status_subject.get());

@@ -1861,7 +1861,7 @@ void AmsBackendCfs::apply_box_active_slot_locked(BoxFrame& f) {
 void AmsBackendCfs::converge_box_lanes_locked(BoxFrame& f) {
     const auto& observed_uids = f.observed_uids;
 
-    // Lane resolve convergence point. Firmware-sourced fields are now
+    // Lane resolve convergence point. Firmware-sourced fields are
     // written to system_info_.units; run the hardware-event check FIRST
     // (so it sees firmware truth, not the resolved view) and
     // apply_resolved_lane AFTER (so the final SlotInfo visible via
@@ -2112,8 +2112,8 @@ AmsError AmsBackendCfs::do_load_filament(int slot_index) {
 
     // The bypass sentinel is a target, not a bad slot. load_gcode() resolves
     // through CfsMaterialDb::slot_to_tnn(), which has no TNN for it, so this
-    // used to fall straight into invalid_slot — there was no way to load an
-    // external spool through the app, which also meant no way to reach a state
+    // would fall straight into invalid_slot, leaving no way to load an
+    // external spool through the app and no way to reach a state
     // where the bypass UNLOAD could be exercised. Fork excluded: its own
     // T<external> command owns the attended load (see enable_bypass()).
     const bool bypass =
@@ -2154,7 +2154,7 @@ AmsError AmsBackendCfs::do_load_filament(int slot_index) {
     }
 
     // Declaring bypass stood the box down with BOX_ENABLE_CFS_PRINT ENABLE=0,
-    // and a bay cannot feed until it is re-armed. plan_load() now routes a
+    // and a bay cannot feed until it is re-armed. plan_load() routes a
     // NAMED lane here even while bypass is declared — it refuses only when the
     // bypass spool still crosses the toolhead — so the stand-up has to happen
     // on the way in. Prepended to the same script rather than sent as its own
@@ -2199,8 +2199,8 @@ AmsError AmsBackendCfs::do_unload_filament(int slot_index) {
     if (err.result != AmsResult::SUCCESS)
         return err;
 
-    // The slot used to be discarded here, on the premise that CFS ignores it and
-    // runs one unload script. True for a bay, wrong for the bypass sentinel: the
+    // The slot is passed on although CFS ignores it for a bay and
+    // runs one unload script: the bypass sentinel needs it, because the
     // bay script's retract is keyed on a TNN and no-ops with the box stood down.
     // Fork is excluded because its BOX_UNLOAD selects the external branch itself
     // from loaded_slot — the same split disable_bypass() already makes.
@@ -3068,7 +3068,7 @@ std::string wrap_with_park_k2(const std::string& body, bool wipe_after) {
 ///
 /// Klipper macros have no try/finally: if the body raises, the restore lines are
 /// skipped. The best-effort unwind in `dispatch_action_script`'s on_error path
-/// covers that, and now runs BOX_RESTORE_FAN on K1 as well as K2.
+/// covers that, and runs BOX_RESTORE_FAN on K1 as well as K2.
 std::string wrap_with_envelope_k1(const std::string& body) {
     return "SAVE_GCODE_STATE NAME=helix_cfs_load\n"
            "BOX_SAVE_FAN\n"
@@ -3515,10 +3515,9 @@ AmsError AmsBackendCfs::dispatch_action_script(std::string gcode) {
             // the other. Worst case: cleanup is a no-op.
             if (api_) {
                 // BOX_RESTORE_FAN exists on BOTH K1 and K2, and both envelopes
-                // now run BOX_SAVE_FAN, so both need the unwind. This was gated
-                // to K2 only while we believed K1 lacked the command; symbol
-                // grep of box_wrapper.cpython-38-mipsel-linux-gnu.so in
-                // CR4CU220812S11_ota_img_V2.3.5.34 disproved that (#1278).
+                // run BOX_SAVE_FAN, so both need the unwind. A symbol grep of
+                // box_wrapper.cpython-38-mipsel-linux-gnu.so in
+                // CR4CU220812S11_ota_img_V2.3.5.34 shows K1 has the command (#1278).
                 // The Fork dialect is the real exception — it reimplements the
                 // box in Python and defines no fan macros at all.
                 //
@@ -3545,7 +3544,7 @@ AmsError AmsBackendCfs::dispatch_action_script(std::string gcode) {
     };
 
     // Homing, timeout, error plumbing and the Fork bypass all live in the base
-    // helper now. What stays here is CFS's own unwind: phase tracking, the K2
+    // helper. What stays here is CFS's own unwind: phase tracking, the K2
     // fan restore, and RESTORE_GCODE_STATE.
     // caller_surfaces_errors=false: on_error above only logs, unwinds phase
     // tracking and fires cleanup gcode — nothing the user ever sees. Claiming

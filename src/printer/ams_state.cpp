@@ -123,7 +123,6 @@ AmsState& AmsState::instance() {
 }
 
 LogoArt AmsState::get_logo(const std::string& type_name) {
-    // Normalize to lowercase for matching
     std::string lower_name = helix::text_io::to_lower(type_name);
 
     // Strip common suffixes like " (mock)", " (test)", etc.
@@ -426,7 +425,6 @@ void AmsState::clear_backends() {
     helix::ToolState::instance().clear_ams_topology();
     helix::ToolState::instance().clear_backend_active_tool();
 
-    // Clean up secondary slot subjects
     for (auto& subs : secondary_slot_subjects_) {
         subs.deinit();
     }
@@ -685,7 +683,6 @@ void AmsState::sync_from_backend() {
     last_operation_detail_ = info.operation_detail;
     recompute_action_detail();
 
-    // Update path visualization subjects
     int new_topology = static_cast<int>(backend->get_topology());
     lv_subject_set_int(&path_topology_, new_topology);
     int new_filament_seg = static_cast<int>(backend->get_filament_segment());
@@ -724,10 +721,8 @@ void AmsState::sync_from_backend() {
         bump_slots_version_from_sync();
     }
 
-    // Sync dryer state (for systems with integrated drying like ACE)
     sync_dryer_from_backend();
 
-    // Sync clog detection meter subjects
     sync_clog_meter_from_info(info);
 
     // Sync the filament buffer reading and its traces
@@ -772,10 +767,10 @@ void AmsState::sync_system_subjects(const AmsSystemInfo& info) {
     // One-shot runout grace. An unload ends with the filament deliberately
     // dragged off the toolhead sensor, and that empty reading is the operation
     // working, not a runout — but is_filament_operation_active() only covers
-    // the window while the action is still running. Measured on a K2 Plus:
-    // the script completed at 12:03:02 and the sensor cleared at 12:03:12, ten
-    // seconds after the guard had closed, so the idle runout modal fired on a
-    // deliberate unload.
+    // the window while the action is still running. On a K2 Plus
+    // the sensor clears about ten seconds after the script completes, after the
+    // guard has closed, so the idle runout modal would fire on a deliberate
+    // unload.
     //
     // Tracked across the whole operation rather than off an UNLOADING -> IDLE
     // edge, because apply_synthesized_action_locked() overwrites the action
@@ -921,7 +916,7 @@ void AmsState::sync_filament_runout(const AmsSystemInfo& info) {
     // BoxError.handle_event — for a runout that may have been days earlier.
     //
     // Requiring a false->true transition witnessed while the job was PRINTING or
-    // PAUSED fixes that without needing per-backend knowledge, and is correct for
+    // PAUSED avoids that without needing per-backend knowledge, and is correct for
     // AD5X IFS too: its detector only ever raises the flag while paused, which is
     // one of the two states that arm the edge here. The cost is the same one
     // AmsBackendAd5xIfs::evaluate_runout_locked() already accepts deliberately —
@@ -1035,11 +1030,11 @@ void AmsState::sync_tool_routing(AmsBackend* backend, const AmsSystemInfo& info)
     // Detect routing changes and bump tool_map_version_ so the gcode renderer
     // refreshes tool colors.
     //
-    // Watching tool_to_slot_map alone was not enough once the render started
-    // resolving colors through the APPLIED routing: on a backend that publishes
-    // a separate routing table (a tool changer's firmware map), the physical map
-    // never moves while the routing does, so the preview kept the previous
-    // print's colors. Both are watched now, and either moving repaints.
+    // The render resolves colors through the APPLIED routing, so both maps are
+    // watched: on a backend that publishes a separate routing table (a tool
+    // changer's firmware map), the physical map never moves while the routing
+    // does, and watching it alone leaves the preview on the previous print's
+    // colors. Either moving repaints.
     const std::vector<int> applied_routing = backend->get_tool_mapping();
     if (info.tool_to_slot_map != last_tool_map_ || applied_routing != last_applied_routing_) {
         last_tool_map_ = info.tool_to_slot_map;
@@ -1186,7 +1181,6 @@ void AmsState::sync_unit_environment(AmsBackend* backend, const AmsSystemInfo& i
     }
     lv_subject_set_int(&all_units_disconnected_, (any_present && all_disconnected) ? 1 : 0);
 
-    // Update per-unit environment subjects (CFS temperature/humidity)
     for (const auto& unit : info.units) {
         int idx = unit.unit_index;
         if (idx >= 0 && idx < kMaxUnits) {
@@ -1205,7 +1199,6 @@ void AmsState::sync_unit_environment(AmsBackend* backend, const AmsSystemInfo& i
         }
     }
 
-    // Clear environment subjects for units beyond what backend reports
     for (int i = static_cast<int>(info.units.size()); i < kMaxUnits; ++i) {
         lv_subject_set_int(&unit_temp_[i], 0);
         lv_subject_set_int(&unit_humidity_[i], 0);
@@ -1239,7 +1232,6 @@ void AmsState::sync_unit_environment(AmsBackend* backend, const AmsSystemInfo& i
             publish_unit_env_indicator(idx, indicators[k]);
     }
 
-    // Clear indicator for units beyond what backend reports
     for (int i = static_cast<int>(info.units.size()); i < kMaxUnits; ++i) {
         lv_subject_set_int(&env_ind_visible_[i], 0);
         lv_subject_set_int(&env_ind_humidity_visible_[i], 0);
@@ -1255,13 +1247,11 @@ AmsState::UnitEnvIndicator AmsState::compute_unit_env_indicator(AmsBackend* back
     const bool has_env = unit.environment.has_value();
     char buf[kEnvIndTextBufSize];
     if (has_env) {
-        // Format temperature text (e.g., "24°C")
         snprintf(buf, sizeof(buf),
                  "%d\xC2\xB0"
                  "C",
                  static_cast<int>(unit.environment->temperature_c));
         out.temp_text = buf;
-        // Format humidity text (e.g., "46%")
         snprintf(buf, sizeof(buf), "%d%%", static_cast<int>(unit.environment->humidity_pct));
         out.humidity_text = buf;
         if (unit.environment->has_humidity)
@@ -1347,7 +1337,6 @@ void AmsState::warn_if_slots_exceed_subjects(int total_slots) {
 }
 
 bool AmsState::clear_unused_slot_subjects(int total_slots) {
-    // Clear remaining slot subjects, only firing when values actually change
     bool any_slot_changed = false;
     for (int i = total_slots; i < kMaxSlots; ++i) {
         int default_color = static_cast<int>(kAmsDefaultSlotColor);
@@ -1378,7 +1367,6 @@ bool AmsState::clear_unused_slot_subjects(int total_slots) {
             lv_subject_set_int(&slot_error_severity_[i], default_severity);
             any_slot_changed = true;
         }
-        // Clear remaining filament for unused slots
         if (strcmp(lv_subject_get_string(&slot_remaining_[i]), "") != 0) {
             lv_subject_copy_string(&slot_remaining_[i], "");
         }
@@ -1629,8 +1617,8 @@ void AmsState::on_backend_event(int backend_index, const std::string& event,
     } else if (event == AmsBackend::kEventSlotChanged) {
         // Parse slot index from data. Fall back to a full sync for ANY case
         // where we can't parse a specific slot — empty data OR non-numeric.
-        // Dropping the event silently (the old behavior) left the UI stale
-        // whenever a backend forgot to pass slot_index.
+        // Dropping the event silently would leave the UI stale whenever a
+        // backend forgot to pass slot_index.
         if (data.empty()) {
             queue_sync(true, -1);
         } else {
@@ -2228,7 +2216,6 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
             filament_loaded = true;
             continue;
         }
-        // Also check bypass on each backend
         if (info.current_slot == -2 && b->is_bypass_active()) {
             loaded_backend = b.get();
             loaded_info = &info;
@@ -2265,7 +2252,6 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
         last_synced_spoolman_id_ = 0;
     }
 
-    // Check for bypass mode (slot_index == -2)
     if (slot_index == -2 && loaded_backend->is_bypass_active()) {
         const char* bypass_text = lv_tr("Bypass");
         if (strcmp(lv_subject_get_string(&current_slot_text_), bypass_text) != 0) {
@@ -2337,7 +2323,6 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
             api_->spoolman().set_active_spool(spool, []() {}, [](const MoonrakerError&) {});
         }
 
-        // Set color
         set_current_paint(slot_info.color_rgb, slot_info.multi_color_hexes,
                           filament_finish_name(slot_info.finish()));
         lv_subject_set_int(&current_fill_pct_, slot_info.display_fill_pct());
@@ -2345,9 +2330,9 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
         // Build the material label. The slot's own name/brand/material win, the
         // cached Spoolman identity fills the gaps (it is the only source of a
         // brand for AFC), and the algorithmic colour name is the last naming
-        // layer — which is the bug this replaced: AFC never populates
-        // color_name, so the old guard always fell through to "Light Pink PLA"
-        // while the real name sat unread in slot_info.spool_name.
+        // layer. AFC never populates color_name, so a guard on it alone falls
+        // through to "Light Pink PLA" while the real name sits unread in
+        // slot_info.spool_name.
         {
             auto identity = SpoolmanManager::find_identity(slot_info.spoolman_id);
             std::string label =
@@ -2378,7 +2363,6 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
             lv_subject_set_int(&current_has_weight_, 0);
         }
     } else {
-        // No filament loaded - show empty state
         set_current_loaded_defaults(/*write_header=*/!working_backend);
     }
 

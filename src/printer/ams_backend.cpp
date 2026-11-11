@@ -199,8 +199,8 @@ constexpr bool http_poll_ams_backends_supported() {
 
 namespace {
 
-/// The one self-backup rejection. Three backends used to phrase this three
-/// different ways for the same condition.
+/// The one self-backup rejection, so every backend phrases the condition the same
+/// way.
 AmsError endless_spool_self_backup_error(int slot_index) {
     return AmsError(AmsResult::INVALID_SLOT,
                     "Slot " + std::to_string(slot_index) +
@@ -441,7 +441,7 @@ std::optional<int> AmsBackend::head_source_slot(int head, const AmsSystemInfo& i
 AmsError AmsBackend::unload_active_filament() {
     // Single source of truth for "unload active slot". Reads current_slot ONCE
     // from the same get_system_info() snapshot the caller would use, then
-    // forwards. Backends' unload_filament overrides no longer re-resolve -1 →
+    // forwards. Backends' unload_filament overrides do not re-resolve -1 →
     // current_slot themselves, so the UI's "is anything loaded?" check and the
     // unload call can't diverge on different snapshots.
     //
@@ -638,8 +638,8 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
 
     // Find the moonraker mock to subscribe to. get_moonraker_client_mock() is
     // the registered client narrowed to the concrete mock type — non-null only
-    // when the client really is a MoonrakerClientMock, which is what the
-    // dynamic_cast here used to establish (the firmware builds -fno-rtti).
+    // when the client really is a MoonrakerClientMock, which is what a
+    // dynamic_cast would establish (the firmware builds -fno-rtti).
     // When the caller named a client explicitly, it only counts if it is that
     // same object. The AmsState init path calls AmsBackend::create(NONE, null,
     // null) before the factory hooks up specific backends, so the registered

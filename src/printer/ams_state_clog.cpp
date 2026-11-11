@@ -113,8 +113,7 @@ ClogReading detector_reading(const AmsSystemInfo& info, int source_override,
         r.warning = info.encoder_info.is_warning() ? 1 : 0;
 
         // Source, then how it is armed. The detection length is appended below
-        // once it is known to be real — it is configuration, not a scale end,
-        // which is where it used to be drawn.
+        // once it is known to be real — it is configuration, not a scale end.
         if (info.encoder_info.detection_mode == 2) {
             snprintf(r.mode_text, sizeof(r.mode_text), "%s", lv_tr("Clog Auto"));
         } else if (info.encoder_info.detection_mode == 1) {

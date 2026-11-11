@@ -266,7 +266,7 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
     topology_ = parsed.topology;
 
     // A T<n> group names the slots that can serve tool n. Exactly one of them
-    // serves it now and carries the tool. The others are its runout backups and
+    // serves it and carries the tool. The others are its runout backups and
     // carry none, so a Load on a backup dispatches that exact slot, not a tool
     // change that would load the serving slot instead.
     for (const auto& group : groups_) {

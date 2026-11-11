@@ -119,7 +119,6 @@ std::vector<MacroParam> helix::parse_macro_params(const std::string& gcode_templ
     for (; it != end; ++it) {
         const auto& match = *it;
 
-        // Extract name from whichever group matched
         std::string name;
         if (match[1].matched)
             name = match[1].str();
@@ -130,7 +129,6 @@ std::vector<MacroParam> helix::parse_macro_params(const std::string& gcode_templ
 
         name = helix::text_io::to_upper(name);
 
-        // Skip duplicates
         if (seen.count(name)) {
             continue;
         }

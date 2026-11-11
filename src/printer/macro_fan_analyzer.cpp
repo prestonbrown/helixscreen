@@ -66,7 +66,6 @@ void MacroFanAnalyzer::extract_set_pin_fans(const std::string& gcode,
             pos = digit_start;
             continue;
         }
-        // Extract digits
         size_t digit_end = digit_start;
         while (digit_end < gcode.size() &&
                std::isdigit(static_cast<unsigned char>(gcode[digit_end]))) {

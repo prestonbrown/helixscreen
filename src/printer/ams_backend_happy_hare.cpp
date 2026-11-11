@@ -931,7 +931,6 @@ void AmsBackendHappyHare::apply_mmu_telemetry_locked(const happy_hare::MmuTeleme
         const auto& encoder = *t.encoder;
         if (encoder.flow_rate) {
             system_info_.encoder_info.flow_rate = *encoder.flow_rate;
-            // Keep legacy field in sync
             system_info_.encoder_flow_rate = system_info_.encoder_info.flow_rate;
             spdlog::trace("[AMS HappyHare] Encoder flow rate: {}", system_info_.encoder_flow_rate);
         }
@@ -1094,7 +1093,6 @@ void AmsBackendHappyHare::apply_mmu_sensors_locked(const happy_hare::MmuStatusDe
                 }
             }
 
-            // Set the current gate's actual reading
             if (system_info_.current_slot >= 0) {
                 auto* gate = gate_sensor_mut(system_info_.current_slot);
                 if (gate) {
@@ -1533,7 +1531,6 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
     }
     if (unit_counts.empty() && !per_unit_gate_counts_.empty() &&
         static_cast<int>(per_unit_gate_counts_.size()) == num_units_) {
-        // Verify total matches
         int total = 0;
         for (int c : per_unit_gate_counts_)
             total += c;
@@ -2245,7 +2242,6 @@ int AmsBackendHappyHare::get_config_default_int(const std::string& key) const {
 void AmsBackendHappyHare::save_override(const std::string& key, float value) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        // Update in-memory override
         if (key == "gear_from_buffer_speed")
             user_overrides_.gear_from_buffer_speed = value;
         else if (key == "gear_from_spool_speed")
@@ -2355,7 +2351,6 @@ AmsError AmsBackendHappyHare::do_load_filament(int slot_index) {
             return gate_valid;
         }
 
-        // Check if slot has filament available
         const auto* entry = slots_.get(slot_index);
         if (entry && entry->info.status == SlotStatus::EMPTY) {
             return AmsErrorHelper::slot_not_available(lane_noun(), slot_index);
@@ -3110,7 +3105,7 @@ helix::printer::EndlessSpoolConfig AmsBackendHappyHare::get_endless_spool_config
         return {};
     }
     // One group id per gate, straight from mmu.endless_spool_groups. The lossy
-    // "pick the first other member" step that used to happen right here is now a
+    // "pick the first other member" step is not done here; it is a
     // rendering concern (endless_spool_backup_edges), so a 4-gate group survives
     // as one group instead of four arbitrary arrows.
     std::vector<int> group_ids;

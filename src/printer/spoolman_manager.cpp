@@ -321,7 +321,6 @@ void SpoolmanManager::fetch_linked_slot(int backend_index, int slot_index, int s
                 WeightUpdate{slot_index, backend_index, spoolman_id, spool});
 
             helix::ui::queue_update<WeightUpdate>(std::move(update_data), [](WeightUpdate* d) {
-                // Skip if shutdown is in progress
                 if (s_shutdown_flag.load(std::memory_order_acquire)) {
                     return;
                 }
@@ -508,14 +507,12 @@ void SpoolmanManager::refresh_spoolman_weights() {
     // Mock mode polls too. AmsBackendMock seeds spoolman_id = lane + 1 to mirror
     // MockSpoolmanServer::init_mock_spools() (ids 1-7), so those ids resolve
     // against the mock API and the identity cache fills exactly as it does on real
-    // hardware. The old guard here predated that alignment and skipped the poll on
-    // the premise that mock ids were fabricated; keeping it would have made every
-    // Spoolman-sourced label undemonstrable under --test.
+    // hardware. Skipping the poll on the premise that mock ids are fabricated would
+    // make every Spoolman-sourced label undemonstrable under --test.
     if (!api_) {
         return;
     }
 
-    // Skip if Spoolman is not configured/connected in Moonraker
     if (!get_printer_state().is_spoolman_available()) {
         spdlog::trace("[SpoolmanManager] Spoolman not available, skipping weight refresh");
         return;
@@ -775,9 +772,9 @@ void SpoolmanManager::start_spoolman_polling() {
     {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
 
-        // Record the wish unconditionally. Returning early here instead used to
+        // Record the wish unconditionally. Returning early here would
         // discard it outright: at boot every caller arrives before Spoolman is
-        // marked available, so the Home panel polled nothing for the whole session.
+        // marked available, so the Home panel would poll nothing for the whole session.
         ++poll_refcount_;
         spdlog::debug("[SpoolmanManager] Starting Spoolman polling (refcount: {})", poll_refcount_);
     }

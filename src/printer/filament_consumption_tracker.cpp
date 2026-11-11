@@ -80,13 +80,11 @@ void FilamentConsumptionTracker::start() {
     // deinit_all() in proper LIFO order. Because PrinterState registers
     // earlier (during SubjectInitializer::init_core_and_state() at app
     // startup), our entry deinits FIRST — which means lv_observer_remove()
-    // sees live PrinterState subjects, the same ordering invariant that
-    // Application::shutdown()'s manual call was trying to provide. Closes
-    // #927: the manual shutdown call ran AFTER StaticPanelRegistry::
-    // destroy_all(), and intervening overlay teardown was apparently freeing
-    // our observer struct out from under us — under self-registration that
-    // window goes away because no other deinit step runs between
-    // FilamentConsumptionTracker::stop() and our observers' creation.
+    // sees live PrinterState subjects (#927). Deinit running after
+    // StaticPanelRegistry::destroy_all() lets overlay teardown free our
+    // observer struct out from under us; self-registered, no other deinit step
+    // runs between FilamentConsumptionTracker::stop() and our observers'
+    // creation.
     StaticSubjectRegistry::instance().register_deinit(
         "FilamentConsumptionTracker", []() { FilamentConsumptionTracker::instance().stop(); });
 }
@@ -221,7 +219,6 @@ void FilamentConsumptionTracker::on_filament_used_changed(int filament_mm) {
             sink->apply_delta(f_mm);
             continue;
         }
-        // SinkKind::AmsSlot
         auto* ams = static_cast<AmsSlotSink*>(sink.get());
         AmsBackend* backend = AmsState::instance().get_backend(ams->backend_index());
         if (!backend) {
