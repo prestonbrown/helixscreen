@@ -338,6 +338,8 @@ TubePalette tube_palette(const FilamentPathData& data);
 /// Halo, walls, bores, then every band not on a box edge.
 void paint_tubes(lv_layer_t* layer, const PathPlan& plan, const TubePalette& pal,
                  bool simple = reduced_effects());
+/// The colour a band paints in: accent, error, its fill when loaded or a sync band, else idle.
+lv_color_t band_color(const SensorBand& band, const TubePalette& pal);
 /// The bands on a hub/selector edge; called after the boxes are drawn.
 void paint_box_bands(lv_layer_t* layer, const PathPlan& plan, const TubePalette& pal);
 

@@ -329,12 +329,13 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     ui_filament_path_canvas_set_buffer_fault_state(c.obj, 2);
     render(c);
     const PathPlan& synced = plan_of(c, &f);
-    bool sync_band = false;
+    const SensorBand* sync = nullptr;
     for (int b = 0; b < synced.band_count; ++b)
-        sync_band = sync_band || (synced.bands[b].state == BandState::Sync &&
-                                  synced.bands[b].at.y == (float)f.output_y &&
-                                  lv_color_eq(synced.bands[b].fill, c.data->theme.color_buffer[2]));
-    CHECK((!f.has_buffer && sync_band && center_y(c.data->hits.buffer) == f.output_y));
+        if (synced.bands[b].state == BandState::Sync && synced.bands[b].at.y == (float)f.output_y)
+            sync = &synced.bands[b];
+    REQUIRE(sync != nullptr);
+    CHECK((!f.has_buffer && center_y(c.data->hits.buffer) == f.output_y &&
+           lv_color_eq(band_color(*sync, tube_palette(*c.data)), c.data->theme.color_buffer[2])));
     // A new selection slides the exit toward that gate's outlet, before any repaint.
     ui_filament_path_canvas_set_active_slot(c.obj, 3);
     CHECK(c.data->anim.output_x_target == rail_outlet_x(*art, f.rail, 3));

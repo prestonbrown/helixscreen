@@ -612,6 +612,21 @@ void band_segment(const SensorBand& band, int32_t gauge, pg::PathPoint& p0, pg::
     p1 = {band.at.x + nx * h, band.at.y + ny * h};
 }
 
+lv_color_t band_color(const SensorBand& b, const TubePalette& pal) {
+    switch (b.state) {
+    case BandState::Active:
+        return pal.accent;
+    case BandState::Error:
+        return pal.error;
+    case BandState::Loaded:
+    case BandState::Sync:
+        return b.fill;
+    case BandState::Empty:
+        break;
+    }
+    return pal.idle_wall;
+}
+
 void draw_sensor_band(lv_layer_t* layer, const SensorBand& band, int32_t gauge, lv_color_t color) {
     pg::PathPoint p0, p1;
     band_segment(band, gauge, p0, p1);
@@ -1073,14 +1088,8 @@ void paint_bands(lv_layer_t* layer, const PathPlan& plan, const TubePalette& pal
                  bool on_box_edge) {
     for (int i = 0; i < plan.band_count; i++) {
         const SensorBand& b = plan.bands[i];
-        if (b.on_box_edge != on_box_edge)
-            continue;
-        const lv_color_t color = b.state == BandState::Active  ? pal.accent
-                                 : b.state == BandState::Error ? pal.error
-                                 : b.state == BandState::Loaded || b.state == BandState::Sync
-                                     ? b.fill
-                                     : pal.idle_wall;
-        draw_sensor_band(layer, b, pal.gauge, color);
+        if (b.on_box_edge == on_box_edge)
+            draw_sensor_band(layer, b, pal.gauge, band_color(b, pal));
     }
 }
 
