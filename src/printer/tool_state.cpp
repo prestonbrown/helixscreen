@@ -862,6 +862,10 @@ const ToolInfo* ToolState::active_tool() const {
 }
 
 std::string ToolState::nozzle_label() const {
+    return nozzle_label(active_tool_index_);
+}
+
+std::string ToolState::nozzle_label(int tool_index) const {
     // Gated on physical extruders, not tool count: the label sits beside a
     // nozzle temperature readout in the controls and filament panels, so it
     // answers "which nozzle is this". set_ams_topology() expands tools_ to one
@@ -871,7 +875,9 @@ std::string ToolState::nozzle_label() const {
     if (!names_mounted_nozzle()) {
         return lv_tr("Nozzle");
     }
-    const auto* tool = active_tool();
+    const ToolInfo* tool = tool_index >= 0 && tool_index < static_cast<int>(tools_.size())
+                               ? &tools_[static_cast<size_t>(tool_index)]
+                               : nullptr;
     if (tool) {
         // The number, not the gcode identity: the three other producers of a
         // nozzle label (PrinterTemperatureState, the temp graph, the print

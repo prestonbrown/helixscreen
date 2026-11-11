@@ -255,6 +255,8 @@ class ToolState {
     /// Returns "Nozzle" for single-tool, "Nozzle 1" for multi-tool (active tool),
     /// or the tool's configured Klipper name ("Nozzle Left") when it has one.
     [[nodiscard]] std::string nozzle_label() const;
+    /// nozzle_label() for @p tool_index's nozzle rather than the mounted one.
+    [[nodiscard]] std::string nozzle_label(int tool_index) const;
 
     /// Whether a nozzle readout must say which nozzle it means: several
     /// extruders, or several nozzles taking turns on one shared heater. False

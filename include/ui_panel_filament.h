@@ -21,6 +21,7 @@
 #include "operation_timeout_guard.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
+#include "target_tool_selection.h"
 #include "ui/temperature_observer_bundle.h"
 
 #include <array>
@@ -410,6 +411,16 @@ class FilamentPanel : public PanelBase {
     // Returns -1 when there is no AMS backend or no resolvable slot.
     int selected_op_slot() const;
 
+    /// The tool the panel aims at (TargetToolSelection over ToolState's tools).
+    [[nodiscard]] int target_tool() const;
+    /// The target tool's Klipper extruder ("extruder" when it names none).
+    [[nodiscard]] std::string target_extruder_name() const;
+    /// Point the nozzle current/target observers at the target tool's extruder.
+    void repoint_nozzle_observers();
+    /// Bring the selector, nozzle label, temperature card and op gating to the
+    /// target tool after it moved.
+    void sync_target_tool_ui();
+
     // Cooldown button visibility (1 when nozzle target > 0, 0 otherwise)
     lv_subject_t nozzle_heating_subject_{};
 
@@ -571,6 +582,12 @@ class FilamentPanel : public PanelBase {
     lv_obj_t* btn_manage_slots_ = nullptr;
     lv_obj_t* ams_manage_row_ = nullptr;
     ObserverGuard tools_version_observer_;
+    ObserverGuard extruder_version_observer_;
+    ObserverGuard nozzle_temp_observer_;
+    ObserverGuard nozzle_target_observer_;
+    lv_subject_t* nozzle_temp_src_ = nullptr;
+    lv_subject_t* nozzle_target_src_ = nullptr;
+    helix::ui::TargetToolSelection target_tool_;
 
     void populate_extruder_dropdown();
     void update_multi_filament_card_visibility();

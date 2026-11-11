@@ -384,89 +384,19 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Toolchanger (PARALLEL): dropdown selection changes tool to the selected index",
+                 "Toolchanger (PARALLEL): dropdown selection issues NO physical tool change",
                  "[filament][op_slot][panel]") {
     OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
     h.mock->topology_ = PathTopology::PARALLEL;
     helix::SafetySettingsManager::instance().set_tool_change_require_confirmation(false);
     h.select_tool(1); // != active T0
 
-    // RecordingBackend::change_tool() accepts synchronously, so on_success()
-    // (the "Switching to {}" toast) runs inside this call, on this thread. An
-    // accepted change has not happened yet: the toast must not claim it has.
-    helix::LogCapture log(64);
     TA::handle_extruder_changed(*h.panel);
 
-    REQUIRE(h.mock->change_tool_calls == 1);
-    CHECK(h.mock->last_change_tool == 1);
-    // NOTIFY_SUCCESS logs the text of the toast it raises.
-    // The toast names the tool the user tapped, never the 0-based G-code form.
-    CHECK(log.count_containing("Switching to Tool 2") >= 1);
-    CHECK(log.count_containing("Switching to T1") == 0);
-    CHECK(log.count_containing("Switched to") == 0);
-}
-
-// With "Confirm tool changes" on, the dropdown's selection waits on the dialog,
-// and a change that does not happen leaves the dropdown on the mounted tool.
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Toolchanger (PARALLEL): dropdown selection asks first and reverts on cancel",
-                 "[filament][op_slot][panel][confirm]") {
-    OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
-    h.mock->topology_ = PathTopology::PARALLEL;
-    helix::SafetySettingsManager::instance().set_tool_change_require_confirmation(true);
-    lv_obj_t* dd = TA::extruder_dropdown(*h.panel);
-    h.select_tool(2); // != active T0
-
-    TA::handle_extruder_changed(*h.panel);
-    CHECK(h.mock->change_tool_calls == 0);
-    REQUIRE(ModalStack::instance().top_dialog() != nullptr);
-    CHECK(lv_dropdown_get_selected(dd) == 2);
-
-    SECTION("confirming changes tool") {
-        helix::test::answer_top_modal("btn_primary");
-        CHECK(h.mock->change_tool_calls == 1);
-        CHECK(h.mock->last_change_tool == 2);
-    }
-    SECTION("cancelling puts the dropdown back on the mounted tool") {
-        helix::test::answer_top_modal("btn_secondary");
-        CHECK(h.mock->change_tool_calls == 0);
-        CHECK(lv_dropdown_get_selected(dd) == 0);
-    }
-    SECTION("a backdrop dismissal puts it back too") {
-        helix::test::dismiss_top_modal();
-        CHECK(h.mock->change_tool_calls == 0);
-        CHECK(lv_dropdown_get_selected(dd) == 0);
-    }
-    SECTION("a programmatic close puts it back too") {
-        Modal::hide(ModalStack::instance().top_dialog());
-        process_lvgl(500);
-        helix::ui::UpdateQueue::instance().drain();
-        REQUIRE(ModalStack::instance().stack_empty());
-        CHECK(h.mock->change_tool_calls == 0);
-        CHECK(lv_dropdown_get_selected(dd) == 0);
-    }
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Toolchanger (PARALLEL): a refused dropdown selection reverts without a dialog",
-                 "[filament][op_slot][panel][confirm]") {
-    OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
-    h.mock->topology_ = PathTopology::PARALLEL;
-    helix::SafetySettingsManager::instance().set_tool_change_require_confirmation(true);
-    lv_obj_t* dd = TA::extruder_dropdown(*h.panel);
-
-    SECTION("while printing") {
-        set_wire_state(state(), "printing");
-    }
-    SECTION("while the filament system is busy") {
-        h.mock->sys_.action = AmsAction::LOADING;
-    }
-    h.select_tool(1);
-    TA::handle_extruder_changed(*h.panel);
-
+    // Choosing aims the panel; Pick up is the deliberate change.
     CHECK(h.mock->change_tool_calls == 0);
     CHECK(ModalStack::instance().stack_empty());
-    CHECK(lv_dropdown_get_selected(dd) == 0);
+    CHECK(TA::target_tool(*h.panel) == 1);
 }
 
 namespace {
