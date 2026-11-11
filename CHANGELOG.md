@@ -22,6 +22,15 @@ is out.
 ### Added
 
 - **Macros can declare how long each pre-print phase will take** - a `PRINT_START` can call `_HELIX_PLAN SOAKING=600 BED_MESH=90` and the pre-print countdown uses those durations from the start, and the time label says when a phase runs over. New `_HELIX_PHASE_SOAKING` and `_HELIX_PHASE_HEATING_CHAMBER` signals come with it. Update the HelixScreen macros from Settings to get them.
+- **Guided cold pull** - Advanced has a Cold Pull walkthrough that heats the nozzle for your material, has you push filament through, cools it to the pull temperature and tells you when to pull, repeating until the filament comes out clean. When the printer reports a nozzle clog, its alert now offers Cold Pull alongside a plain OK.
+- **Happy Hare v4 sync feedback and fan controls** - on Happy Hare v4, Device settings > Accessories can turn sync feedback on and off, save the autotuned rotation distance, reset sync feedback and neutralize the filament tension, and from Happy Hare 4.1 set each unit's fan on, off or automatic.
+- **Your own unit on a sensor tile** - a temperature sensor tile on the home screen can show your own unit text, such as % or PSI, or none at all, set from the tile's configure card.
+- **Chinese and Japanese file names on every screen** - print file names in Chinese and Japanese show their characters in any interface language, not only when the interface is set to Chinese or Japanese.
+
+### Fixed
+
+- **Saving tool offsets on Reforge** - Save sends only `SAVE_CONFIG` on Reforge, which keeps the offsets its own calibration measured, instead of tool parameter commands Reforge rejects. Print Tune's Z control on Reforge adjusts the machine-wide offset, as Reforge's own babystep does.
+- **Toolhead pictures fit the filament path at every screen size** - the Stealthburner and other tall heads are no longer cut off at the bottom on 480x272 screens.
 
 ## [1.1.0-rc.2] - UNRELEASED
 
