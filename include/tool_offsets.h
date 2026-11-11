@@ -53,6 +53,13 @@ bool supports_axis(const PrinterDiscovery& hw, Axis axis);
 /// read_tool_offset_microns() can answer it.
 bool reads_axis(const PrinterDiscovery& hw, Axis axis);
 
+/// Whether ToolState follows THIS axis per tool and counts a change in it as
+/// unsaved work for the Save button. True wherever supports_axis() is, and
+/// also on a model HelixScreen cannot write whose own calibration stages its
+/// result for a SAVE_CONFIG: there the save is that SAVE_CONFIG alone. False
+/// for a read-only model that persists its own measurements.
+bool tracks_axis(const PrinterDiscovery& hw, Axis axis);
+
 /// Extra Klipper status objects this printer needs subscribed for
 /// read_tool_offset_microns() to ever return a value. Empty when the offsets
 /// ride on the `tool T*` objects the tool-changer subscription already requests.

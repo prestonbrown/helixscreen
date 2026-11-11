@@ -189,7 +189,9 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
     for (Axis axis : kAllAxes) {
         const bool supported = helix::tool_offsets::supports_axis(hardware, axis);
         lv_subject_set_int(get_per_tool_axis_supported_subject(axis), supported ? 1 : 0);
-        if (supported) {
+        const bool tracked = helix::tool_offsets::tracks_axis(hardware, axis);
+        tracked_axes_[axis_index(axis)] = tracked;
+        if (tracked) {
             axes += axis_letter(axis);
         }
     }
@@ -625,10 +627,10 @@ void ToolState::update_from_status(const nlohmann::json& status) {
     // loop above. That loop skips a tool whose `tool T<n>` object is not in
     // this frame, and on a firmware that keeps every tool's offset on ONE
     // object (see helix::tool_offsets) that would skip the offsets entirely.
-    if (per_tool_offsets_supported()) {
+    if (tracks_tool_offsets()) {
         for (int i = 0; i < static_cast<int>(tools_.size()); ++i) {
             for (Axis axis : kAllAxes) {
-                if (lv_subject_get_int(get_per_tool_axis_supported_subject(axis)) != 1) {
+                if (!tracked_axes_[axis_index(axis)]) {
                     continue;
                 }
                 auto microns = helix::tool_offsets::read_tool_offset_microns(
@@ -669,18 +671,13 @@ void ToolState::update_from_status(const nlohmann::json& status) {
     }
 }
 
-bool ToolState::per_tool_offsets_supported() const {
-    // lv_subject_get_int takes a non-const pointer but only reads.
-    auto get = [](const lv_subject_t& subject) {
-        return lv_subject_get_int(const_cast<lv_subject_t*>(&subject));
-    };
-    return get(per_tool_x_supported_) == 1 || get(per_tool_y_supported_) == 1 ||
-           get(per_tool_z_supported_) == 1;
+bool ToolState::tracks_tool_offsets() const {
+    return std::any_of(tracked_axes_.begin(), tracked_axes_.end(), [](bool t) { return t; });
 }
 
 void ToolState::query_tool_offsets(IMoonrakerClient* client,
                                    const helix::PrinterDiscovery& hardware) {
-    if (!client || tools_.empty() || !per_tool_offsets_supported()) {
+    if (!client || tools_.empty() || !tracks_tool_offsets()) {
         return;
     }
 

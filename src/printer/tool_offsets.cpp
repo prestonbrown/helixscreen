@@ -5,6 +5,7 @@
 #include "indx_contract.h"
 #include "printer_discovery.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 
@@ -320,11 +321,41 @@ std::string save_toolchanger(const PrinterDiscovery& hw, Axis axis, int tool_ind
            " PARAMETER=" + toolchanger_param(axis);
 }
 
+// --- Reforge (Klipper4FlashForge/firmware) on the Creator 5 ------------------
+//
+// ff_toolchange publishes klipper-toolchanger's `toolchanger` and `tool T<n>`
+// objects, gcode_x/y/z_offset included, so it reads exactly like the row
+// below. It does not register SET_TOOL_PARAMETER or SAVE_TOOL_PARAMETER
+// (docs/toolchange.md: "deliberately absent"). The published offsets are
+// derived, not stored: ff_toolchange._derive_offsets() computes X/Y as each
+// tool's measured nozzle position minus the base tool's, and Z as the
+// nozzle-to-station gap plus the tool's z_adjust. No command sets one of them
+// to a value, so HelixScreen writes none.
+//
+// What it does have is a calibration that stages its own result:
+// TOOL_CALIBRATE_TOOL_OFFSET (run per tool by CALIBRATE_TOOL_OFFSETS) puts the
+// measured nozzle_x/y/z into [ff_tool <n>] with configfile.set() and applies
+// it live (ff_tool.py set_nozzle). Persisting it is SAVE_CONFIG and nothing
+// else (docs/calibration.md: "CALIBRATE_TOOL_OFFSETS ... SAVE_CONFIG").
+// Hence no set or save gcode, and persist_needs_save_config: Save sends only
+// the SAVE_CONFIG.
+//
+// Keyed on the ff_toolchange object rather than on the machine, and ahead of
+// klipper-toolchanger because it matches that row too.
+constexpr const char* kReforgeChangerObject = "ff_toolchange";
+
+bool detect_reforge(const PrinterDiscovery& hw) {
+    const auto& objects = hw.printer_objects();
+    return hw.has_tool_changer() &&
+           std::find(objects.begin(), objects.end(), kReforgeChangerObject) != objects.end();
+}
+
 const std::vector<Provider>& providers() {
     // Row order is match priority, as in z_offset_persistence.cpp. MedusaHC
     // before klipper-toolchanger: it can run klipper-toolchanger too, so it
     // can match both rows, and the later one would write a store its
-    // controller never reads.
+    // controller never reads. Reforge before klipper-toolchanger for the same
+    // reason: the later row would send commands its firmware does not have.
     // INDX's subscription already carries save_variables, so its row asks for
     // nothing more.
     static const std::vector<Provider> table = {
@@ -333,6 +364,13 @@ const std::vector<Provider>& providers() {
         {"TOOL_OFFSET macro", &detect_tool_offset_macro, &supports_axis_all,
          &status_objects_tool_offset_macro, &read_tool_offset_macro, nullptr,
          &set_tool_offset_macro, &save_tool_offset_macro, false, &activate_tool_offset_macro, -1},
+        {"Reforge ff_toolchange", &detect_reforge, &supports_axis_toolchanger, &status_objects_none,
+         &read_toolchanger, nullptr, nullptr, nullptr, true, nullptr,
+         // T0 is the base tool X and Y are measured against. Whether a probe
+         // calibration here depends on the mounted tool is not established
+         // (Z carries each tool's own station gap), so this keeps the
+         // klipper-toolchanger answer.
+         0},
         {"klipper-toolchanger", &detect_toolchanger, &supports_axis_toolchanger,
          &status_objects_none, &read_toolchanger, nullptr, &set_toolchanger, &save_toolchanger,
          true, nullptr,
@@ -373,6 +411,12 @@ bool supports_axis(const PrinterDiscovery& hw, Axis axis) {
 bool reads_axis(const PrinterDiscovery& hw, Axis axis) {
     const Provider* p = match(hw);
     return p != nullptr && p->supports_axis(axis);
+}
+
+bool tracks_axis(const PrinterDiscovery& hw, Axis axis) {
+    const Provider* p = match(hw);
+    return p != nullptr && p->supports_axis(axis) &&
+           (p->set_gcode != nullptr || p->persist_needs_save_config);
 }
 
 std::vector<std::string> required_status_objects(const PrinterDiscovery& hw) {

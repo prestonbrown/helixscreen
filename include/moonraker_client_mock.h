@@ -2998,6 +2998,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     GcodeResult gcode_set_gcode_offset(const std::string& gcode);
     GcodeResult gcode_set_tool_parameter(const std::string& gcode);
     GcodeResult gcode_save_tool_parameter(const std::string& gcode);
+    GcodeResult reject_unregistered_tool_parameter_command(const char* command);
     GcodeResult gcode_shaper_calibrate(const std::string& gcode);
     GcodeResult gcode_test_resonances(const std::string& gcode);
     GcodeResult gcode_set_led(const std::string& gcode);

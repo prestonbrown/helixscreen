@@ -907,6 +907,14 @@ const std::vector<DispatchCase>& cases() {
          true,
          {"SAVE_TOOL_PARAMETER T=1"},
          R"G(SAVE_TOOL_PARAMETER T=1 => rc=0 err=[] ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
+        // Reforge (the creator5 persona) registers neither command.
+        {PT::FLASHFORGE_CREATOR5,
+         nullptr,
+         nullptr,
+         true,
+         {"SET_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset VALUE=0.2",
+          "SAVE_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset"},
+         R"G(SET_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset VALUE=0.2 => rc=1 err=[Unknown command:"SET_TOOL_PARAMETER"] ;; SAVE_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset => rc=1 err=[Unknown command:"SAVE_TOOL_PARAMETER"] ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
 
         // --- LEDs ------------------------------------------------------------
         {PT::VORON_24, nullptr, nullptr, true, {"SET_LED LED=chamber_light RED=1 GREEN=0.5 BLUE=0"}, R"G(SET_LED LED=chamber_light RED=1 GREEN=0.5 BLUE=0 => rc=0 err=[] {{"method":"notify_status_update","params":[{"led caselight":{"color_data":[[0.0,0.0,0.0,0.0]]},"neopixel chamber_light":{"color_data":[[1.0,0.5,0.0,0.0]]},"neopixel status_led":{"color_data":[[0.0,0.0,0.0,0.0]]}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
