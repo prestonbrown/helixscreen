@@ -801,8 +801,13 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
             }
             const int microns =
                 static_cast<int>(std::lround(ts.tool_offset_mm(tool, axis) * 1000.0));
-            const std::string gcode =
+            // A model HelixScreen cannot write has nothing to save by value; it
+            // may still need the live value staged for the SAVE_CONFIG below.
+            std::string gcode =
                 helix::tool_offsets::save_tool_offset_gcode(hw, axis, tool, microns);
+            if (gcode.empty()) {
+                gcode = helix::tool_offsets::stage_live_offset_gcode(hw, axis, tool);
+            }
             if (gcode.empty()) {
                 continue;
             }

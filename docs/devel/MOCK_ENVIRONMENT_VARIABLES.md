@@ -1497,7 +1497,8 @@ HELIX_MOCK_PRINTER=creator5 HELIX_MOCK_AMS=afc ./build/bin/helix-screen --test -
 Tool offsets save as on Reforge: the persona refuses `SET_TOOL_PARAMETER` and
 `SAVE_TOOL_PARAMETER` with Klipper's unknown-command error, and the
 `ff_toolchange` object selects the Reforge row of `helix::tool_offsets`, so the
-Tool Offsets panel's Save sends only `SAVE_CONFIG`
+Tool Offsets panel's Save sends `SAVE_CONFIG`, preceded by
+`TOOL_Z_ADJUST TOOL=<n> ADJUST=0 SAVE=1` for a tool whose Z moved
 ([FILAMENT_BACKEND_TOOLCHANGER.md](FILAMENT_BACKEND_TOOLCHANGER.md#reforge)). The
 persona still models Reforge without AFC.
 

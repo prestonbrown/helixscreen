@@ -365,20 +365,24 @@ TEST_CASE_METHOD(ToolchangerSaveFixture,
     CHECK(lv_subject_get_int(state.motion_state().get_pending_z_offset_delta_subject()) == 50);
 }
 
-TEST_CASE_METHOD(ReforgeSaveFixture,
-                 "Reforge: a calibration result is saved with SAVE_CONFIG and nothing else",
+TEST_CASE_METHOD(ReforgeSaveFixture, "Reforge: Save stages a live Z tune, then SAVE_CONFIG",
                  "[z_offset][mock][tool_offsets][reforge]") {
     auto& ts = ToolState::instance();
     // Nothing per tool to babystep: the tune panel keeps the global offset.
     CHECK(lv_subject_get_int(ts.get_per_tool_axis_supported_subject(Axis::Z)) == 0);
-
-    // Connect frame, then the frame CALIBRATE_TOOL_OFFSETS leaves behind.
     ts.update_from_status(
         {{"tool T1", {{"gcode_x_offset", 0.1}, {"gcode_y_offset", 0.2}, {"gcode_z_offset", 3.2}}}});
     REQUIRE_FALSE(ts.tool_offset_dirty(1, Axis::X));
-    ts.update_from_status({{"tool T1", {{"gcode_x_offset", 0.12}, {"gcode_z_offset", 3.25}}}});
-    REQUIRE(ts.tool_offset_dirty(1, Axis::X));
-    REQUIRE(ts.tool_offset_dirty(1, Axis::Z));
+
+    std::vector<std::string> expected;
+    SECTION("a calibration run has already staged what it moved") {
+        ts.update_from_status({{"tool T1", {{"gcode_x_offset", 0.12}}}});
+        expected = {"SAVE_CONFIG"};
+    }
+    SECTION("TOOL_Z_ADJUST without SAVE=1 moved Z live, staging nothing") {
+        ts.update_from_status({{"tool T1", {{"gcode_z_offset", 3.25}}}});
+        expected = {"TOOL_Z_ADJUST TOOL=1 ADJUST=0 SAVE=1", "SAVE_CONFIG"};
+    }
 
     mock_client.clear_gcode_script_history();
     bool saved = false;
@@ -390,11 +394,10 @@ TEST_CASE_METHOD(ReforgeSaveFixture,
         [&](const std::string& msg) { error = msg; }, &state);
 
     REQUIRE(wait_until([&] { return last_sent() == "SAVE_CONFIG"; }, 3000));
-    CHECK(mock_client.gcode_script_history() == std::vector<std::string>{"SAVE_CONFIG"});
+    CHECK(mock_client.gcode_script_history() == expected);
     get_printer_state().set_klippy_state_sync(KlippyState::STARTUP);
     get_printer_state().set_klippy_state_sync(KlippyState::READY);
     REQUIRE(wait_until([&] { return saved; }, 3000));
     CHECK(error.empty());
-    CHECK_FALSE(ts.tool_offset_dirty(1, Axis::X));
-    CHECK_FALSE(ts.tool_offset_dirty(1, Axis::Z));
+    CHECK(ts.dirty_tool_indices().empty());
 }

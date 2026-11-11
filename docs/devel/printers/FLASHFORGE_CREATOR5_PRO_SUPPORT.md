@@ -486,7 +486,8 @@ v1.1.0-beta.17, including a switch to `Asia/Tokyo` that moved the log clock by n
 **Tool offsets are measured, not set.** Reforge has no `SET_TOOL_PARAMETER` or
 `SAVE_TOOL_PARAMETER`: its `tool T<n>` offsets are derived from each head's measured nozzle
 position, and its `CALIBRATE_TOOL_OFFSETS` stages the measurement for `SAVE_CONFIG`. The
-Reforge row of `src/printer/tool_offsets.cpp#providers` therefore writes nothing per tool, and
-the Tool Offsets panel's Save is a bare `SAVE_CONFIG`
+Reforge row of `src/printer/tool_offsets.cpp#providers` writes nothing per tool by value. The
+Tool Offsets panel's Save stages a live `TOOL_Z_ADJUST` tune with
+`TOOL_Z_ADJUST TOOL=<n> ADJUST=0 SAVE=1` and then sends `SAVE_CONFIG`
 ([FILAMENT_BACKEND_TOOLCHANGER.md](../FILAMENT_BACKEND_TOOLCHANGER.md#reforge)). Not yet run on a Reforge printer
 ([#2030](https://github.com/prestonbrown/helixscreen/issues/2030)).
