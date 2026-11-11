@@ -1,15 +1,25 @@
 // Copyright (C) 2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_cold_pull_overlay.h"
+#include "ui_guided_device_flow.h"
+#include "ui_nav_manager.h"
+#include "ui_utils.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/modal_answer.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/recovery_modal_presenter_test_access.h"
+#include "../test_helpers/scoped_shared_resource.h"
 #include "../ui_test_utils.h"
 #include "action_prompt_manager.h"
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "cold_pull_runner.h"
+#include "core/update_queue.h"
 #include "display_wake_request.h"
+#include "error_classify.h"
 #include "gcode_response_routing.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -694,4 +704,79 @@ TEST_CASE_METHOD(RecoveryPreheatFixture, "A fault with no actions offers OK to c
     CHECK(mock_client_.gcode_script_history().empty());
     CHECK_FALSE(presenter().is_visible());
     CHECK(TA::handled_detail(presenter()) == fault.detail);
+}
+
+TEST_CASE_METHOD(RecoveryPreheatFixture,
+                 "The clog alert's Cold Pull opens the cold pull flow, which keeps its refusals",
+                 "[error-center][recovery-presenter][cold_pull]") {
+    auto& st = get_printer_state();
+    st.set_printer_connection_state(2, "Connected");
+    st.temperature_state().init_extruders({"extruder"});
+    helix_test::ScopedSharedResource<helix::ui::ColdPullRunner> runner(
+        std::make_shared<helix::ui::ColdPullRunner>(st));
+    runner.get().init_subjects();
+    struct FlowRegistration {
+        FlowRegistration() {
+            helix::ui::register_cold_pull_flow();
+        }
+        ~FlowRegistration() {
+            helix::ui::unregister_guided_device_flow(helix::kColdPullFlowId);
+            NavigationManager::instance().go_back();
+            helix::ui::UpdateQueue::instance().drain_until_empty();
+            helix::ui::destroy_static_panels();
+        }
+    } registration;
+
+    auto clog = helix::error_classify::classify(
+        R"(!! {"code":"key845","msg":"Nozzle clog","values":[]})", {});
+    REQUIRE(clog.has_value());
+    auto refusal = [] {
+        return static_cast<helix::ui::ColdPullRefusal>(
+            lv_subject_get_int(lv_xml_get_subject(nullptr, "cold_pull_refusal")));
+    };
+    // A value no section expects, so a tap that never reached Setup shows.
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "cold_pull_refusal"),
+                       static_cast<int>(helix::ui::ColdPullRefusal::Running));
+    auto tap_cold_pull = [&] {
+        presenter().present(*clog);
+        process_lvgl(20);
+        CHECK(helix::test::subtree_text(fault_button("btn_primary")).find("Cold Pull") !=
+              std::string::npos);
+        CHECK(helix::test::subtree_text(fault_button("btn_secondary")).find("OK") !=
+              std::string::npos);
+        press("btn_primary");
+        process_lvgl(20);
+        CHECK_FALSE(presenter().is_visible());
+    };
+
+    SECTION("idle: the flow opens at Setup ready to start, and the tap sends nothing") {
+        tap_cold_pull();
+        CHECK(helix::ui::get_cold_pull_overlay().is_visible());
+        CHECK(refusal() == helix::ui::ColdPullRefusal::Ok);
+        CHECK(mock_client_.gcode_script_history().empty());
+    }
+    SECTION("a paused print: Setup shows the refusal and Start heats nothing") {
+        helix::test::set_wire_state(st, helix::PrintJobState::PAUSED);
+        tap_cold_pull();
+        CHECK(refusal() == helix::ui::ColdPullRefusal::JobHoldsMachine);
+        CHECK(runner.get().start_from_setup() == helix::ui::ColdPullRefusal::JobHoldsMachine);
+        process_lvgl(20);
+        CHECK(mock_client_.gcode_script_history().empty());
+        helix::test::set_wire_state(st, helix::PrintJobState::STANDBY);
+    }
+    SECTION("OK closes the alert without opening the flow") {
+        presenter().present(*clog);
+        process_lvgl(20);
+        press("btn_secondary");
+        process_lvgl(20);
+        CHECK_FALSE(presenter().is_visible());
+        CHECK_FALSE(helix::ui::get_cold_pull_overlay().is_visible());
+        CHECK(refusal() == helix::ui::ColdPullRefusal::Running);
+    }
+    SECTION("no flow registered: the dialog closes and nothing opens or sends") {
+        helix::ui::unregister_guided_device_flow(helix::kColdPullFlowId);
+        tap_cold_pull();
+        CHECK(refusal() == helix::ui::ColdPullRefusal::Running);
+        CHECK(mock_client_.gcode_script_history().empty());
+    }
 }
