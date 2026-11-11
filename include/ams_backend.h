@@ -144,6 +144,9 @@ struct HeadFilamentOps {
     FilamentOpSupport unload = FilamentOpSupport::Automatic;
     std::string load_reason;   ///< Translated; empty when load is Automatic
     std::string unload_reason; ///< Translated; empty when unload is Automatic
+    /// A Manual load here is a hand push into the head's own extruder, so the screen
+    /// offers the guided manual load (heat, push, prime) in place of the reason.
+    bool guided_hand_load = false;
 };
 
 /**

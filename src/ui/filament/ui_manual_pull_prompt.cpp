@@ -3,6 +3,7 @@
 #include "ui_manual_pull_prompt.h"
 
 #include "ui_error_reporting.h"
+#include "ui_guided_load_modal.h"
 
 #include "ams_backend.h"
 #include "core/observer_factory.h"
@@ -113,6 +114,12 @@ bool notify_if_filament_op_unavailable(const AmsBackend* backend, int slot, bool
                                                             : StandardMacroSlot::UnloadFilament);
     if (macro.get_source() == MacroSource::CONFIGURED) {
         return false;
+    }
+    if (load && ops.guided_hand_load) {
+        spdlog::info("[ManualPull] Load on head {} is a hand push here: opening the manual load",
+                     *head);
+        GuidedLoadModal::show_manual(slot);
+        return true;
     }
     const std::string& reason = load ? ops.load_reason : ops.unload_reason;
     spdlog::info("[ManualPull] {} on head {} is not automatic here — telling the user, sending "

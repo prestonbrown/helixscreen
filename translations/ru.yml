@@ -1973,6 +1973,7 @@ translations:
   Heating the bed: Нагрев стола
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Нагрев стола и сопла, чтобы печать снова прилипла, а сопло отделилось от неё"
   Heating the nozzle: Нагрев сопла
+  Heating the nozzle. Have the filament ready to push in.: "Сопло нагревается. Приготовьте филамент, чтобы вставить его."
   Heating to %d°C... %.0f°C: Нагрев до %d°C... %.0f°C
   'Heating to %s: %d:%02d left': 'Нагрев до %s: осталось %d:%02d'
   Heating to {}°C before {}...: Нагрев до {}°C перед «{}»...
@@ -3853,6 +3854,7 @@ translations:
   Select slot failed: Ошибка выбора слота
   Select the heaters Klipper uses for your bed and hotend: Выберите нагреватели Klipper
     для стола и хотенда
+  Select this tool first, then load it by hand.: "Сначала выберите этот инструмент, затем загрузите его вручную."
   Select which devices the home screen power button controls: Выберите устройства
     для кнопки питания на главном экране
   Select which sensor triggers pause on filament runout: Выберите датчик, который
@@ -4584,6 +4586,7 @@ translations:
     {}.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Файл нарезан для {}, но загружен {}. Печать будет медленнее и горячее, чем требуется загруженной катушке.
   This firmware can only switch slots by loading them: 'Эта прошивка может переключать слоты только загрузкой'
+  This toolhead has no automatic feeder. Load the filament by hand.: "У этой печатающей головки нет автоматического фидера. Загрузите филамент вручную."
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Это установит вспомогательные макросы HelixScreen на принтер и добавит их в printer.cfg. Идёт печать, поэтому Klipper перезапустится после её завершения.'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: 'Это установит вспомогательные макросы HelixScreen на принтер, добавит их в printer.cfg и перезапустит Klipper.'

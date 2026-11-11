@@ -279,6 +279,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
         bool filament_detected{false};
         bool module_exist{false};
         bool disable_auto{false};
+        /// A frame has carried module_exist, so module_exist is the firmware's word.
+        bool module_reported{false};
         /// The head's filament_motion_sensor `enabled` flag. Arrives from the
         /// sensor status objects, not the feeder frame, so a feeder write
         /// carries the previous value forward instead of defaulting it.
@@ -286,6 +288,17 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     };
 
     [[nodiscard]] ChannelSnapshot channel_snapshot(int slot_index) const;
+
+    /// A head the firmware reports with no feeder, or its feeder out of automatic
+    /// mode, loads by hand: the guided manual load (#2000).
+    [[nodiscard]] HeadFilamentOps head_filament_ops(int head) const override;
+
+    /// Whether @p snap says no automatic feeder can feed its head: the firmware
+    /// reported no module, or the feeder out of automatic mode. False until a frame
+    /// says either.
+    [[nodiscard]] static bool feeder_absent(const ChannelSnapshot& snap) {
+        return (snap.module_reported && !snap.module_exist) || snap.disable_auto;
+    }
 
     /// Eligibility answered from the feeder's own channel fields: only a
     /// settled state on a fault-free, auto-mode channel with its motion

@@ -1879,6 +1879,7 @@ translations:
   Heating the bed: Heating the bed
   Heating the bed and nozzle so the print re-grips and the nozzle lets go of it: Heating the bed and nozzle so the print re-grips and the nozzle lets go of it
   Heating the nozzle: Heating the nozzle
+  Heating the nozzle. Have the filament ready to push in.: Heating the nozzle. Have the filament ready to push in.
   Heating to %d°C... %.0f°C: Heating to %d°C... %.0f°C
   'Heating to %s: %d:%02d left': 'Heating to %s: %d:%02d left'
   Heating to {}°C before {}...: Heating to {}°C before {}...
@@ -3729,6 +3730,7 @@ translations:
   Select slot failed: Select slot failed
   Select the heaters Klipper uses for your bed and hotend: Select the heaters Klipper
     uses for your bed and hotend
+  Select this tool first, then load it by hand.: Select this tool first, then load it by hand.
   Select which devices the home screen power button controls: Select which devices
     the home screen power button controls
   Select which sensor triggers pause on filament runout: Select which sensor triggers
@@ -4438,6 +4440,7 @@ translations:
     is loaded.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.
   This firmware can only switch slots by loading them: This firmware can only switch slots by loading them
+  This toolhead has no automatic feeder. Load the filament by hand.: This toolhead has no automatic feeder. Load the filament by hand.
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.

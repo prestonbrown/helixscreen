@@ -3,12 +3,15 @@
 
 #include "ui_guided_load_modal.h"
 
+#include "ui_error_reporting.h"
+
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
 #include "printer_state.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <memory>
@@ -16,16 +19,21 @@
 
 namespace helix::ui {
 
-GuidedLoadModal::GuidedLoadModal(filament_macros::GuidedLoad steps, bool waits_for_push)
-    : flow_(std::move(steps), waits_for_push) {}
+GuidedLoadModal::GuidedLoadModal(std::unique_ptr<GuidedLoadSession> session)
+    : session_(std::move(session)) {}
 
 GuidedLoadModal::~GuidedLoadModal() {
     runout_observer_.reset();
+    // A session still live here was closed by nobody's choice: it ends with its
+    // cleanup and the heater off.
+    session_.reset();
     deinit_subjects(); // before the members the subjects point into go
 }
 
 GuidedLoadModal::View GuidedLoadModal::view_for(GuidedLoadStage stage) {
     switch (stage) {
+    case GuidedLoadStage::Heating:
+        return View::Heating;
     case GuidedLoadStage::AwaitPush:
         return View::Push;
     case GuidedLoadStage::ConfirmOutput:
@@ -45,16 +53,39 @@ bool GuidedLoadModal::show_owned(filament_macros::GuidedLoad steps, bool waits_f
         spdlog::info("[Guided Load] Not opening: a print job holds the machine");
         return false;
     }
-    auto modal = std::make_unique<GuidedLoadModal>(std::move(steps), waits_for_push);
+    return open(
+        std::make_unique<GuidedLoadSession>(get_printer_state(), std::move(steps), waits_for_push));
+}
+
+bool GuidedLoadModal::show_manual(int slot) {
+    const ManualLoadRefusal refusal = manual_load_refusal_now(get_printer_state(), slot);
+    if (refusal != ManualLoadRefusal::None) {
+        const std::string why = manual_load_refusal_text(refusal);
+        spdlog::info("[Guided Load] Manual load refused: {}", why);
+        NOTIFY_INFO("{}", why);
+        return false;
+    }
+    return open(std::make_unique<GuidedLoadSession>(get_printer_state(), slot));
+}
+
+bool GuidedLoadModal::open(std::unique_ptr<GuidedLoadSession> session) {
+    auto modal = std::make_unique<GuidedLoadModal>(std::move(session));
     register_callbacks();
     modal->init_subjects();
     modal->publish();
     if (!modal->show(lv_screen_active())) {
+        modal->session_.reset();
         modal->deinit_subjects();
         return false;
     }
+    GuidedLoadModal* self = modal.get();
     lv_obj_t* backdrop = modal->backdrop();
     ModalStack::instance().assume_ownership(backdrop, std::move(modal));
+    // Wired after the stack owns it: a session that ends at once (a refused
+    // preheat) closes a dialog that is already on the stack.
+    self->session_->set_on_changed([self]() { self->publish(); });
+    self->session_->begin();
+    self->publish();
     return true;
 }
 
@@ -64,6 +95,9 @@ void GuidedLoadModal::init_subjects() {
     }
     lv_subject_init_int(&view_subject_, static_cast<int>(View::Push));
     subjects_.publish("guided_load_view", &view_subject_);
+    lv_subject_init_string(&heat_text_subject_, heat_text_buf_, nullptr, sizeof(heat_text_buf_),
+                           "");
+    subjects_.publish("guided_load_heat_text", &heat_text_subject_);
     subjects_initialized_ = true;
 }
 
@@ -119,7 +153,9 @@ void GuidedLoadModal::on_hide() {
 void GuidedLoadModal::on_dismissed() {
     // A close nobody chose through the buttons still leaves the nozzle hot and
     // the sensor off.
-    send(flow_.cancel(), /*report_outcome=*/false);
+    if (session_) {
+        session_->cancel();
+    }
 }
 
 void GuidedLoadModal::on_escape() {
@@ -129,72 +165,45 @@ void GuidedLoadModal::on_escape() {
 void GuidedLoadModal::on_runout_value(int value) {
     const bool edge = last_runout_ == 0 && value == 1;
     last_runout_ = value;
-    if (edge) {
+    if (edge && session_) {
         spdlog::info("[{}] Filament detected at the extruder; feeding", get_name());
-        send(flow_.filament_detected(), /*report_outcome=*/true);
+        session_->filament_detected();
     }
 }
 
 void GuidedLoadModal::handle_extrude() {
-    send(flow_.extrude(), /*report_outcome=*/true);
+    if (session_) {
+        session_->extrude();
+    }
 }
 
 void GuidedLoadModal::handle_done() {
-    send(flow_.done(), /*report_outcome=*/true);
+    if (session_) {
+        session_->done();
+    }
 }
 
 void GuidedLoadModal::handle_cancel() {
-    send(flow_.cancel(), /*report_outcome=*/false);
+    if (session_) {
+        session_->cancel();
+    }
     hide(ModalCloseReason::ButtonPress);
 }
 
-void GuidedLoadModal::send(const std::string& script, bool report_outcome) {
-    publish();
-    if (script.empty()) {
-        return;
-    }
-    IMoonrakerAPI* api = get_moonraker_api();
-    if (!api) {
-        spdlog::warn("[{}] No API; not sending: {}", get_name(), script);
-        if (report_outcome) {
-            on_command_finished(false);
-        }
-        return;
-    }
-    spdlog::info("[{}] Sending: {}", get_name(), script);
-    if (!report_outcome) {
-        // Cleanup outlives this dialog: nothing is left to tell about it.
-        api->execute_gcode(
-            script, []() {}, [](const MoonrakerError&) {}, IMoonrakerAPI::kExtrusionTimeoutMs,
-            /*silent=*/false, /*on_queued=*/nullptr, /*caller_surfaces_errors=*/false);
-        return;
-    }
-    // hide() invalidates lifetime_ before the stack frees this instance, so a
-    // completion deferred through its token never reaches a freed `this`.
-    auto tok = lifetime_.token();
-    api->execute_gcode(
-        script,
-        [tok, this]() {
-            tok.defer("GuidedLoadModal::sent", [this]() { on_command_finished(true); });
-        },
-        [tok, this](const MoonrakerError&) {
-            tok.defer("GuidedLoadModal::failed", [this]() { on_command_finished(false); });
-        },
-        IMoonrakerAPI::kExtrusionTimeoutMs, /*silent=*/false, /*on_queued=*/nullptr,
-        /*caller_surfaces_errors=*/false);
-}
-
-void GuidedLoadModal::on_command_finished(bool ok) {
-    const std::string follow_up = flow_.command_finished(ok);
-    send(follow_up, /*report_outcome=*/false);
-    if (flow_.ended()) {
-        hide(ModalCloseReason::ButtonPress);
-    }
-}
-
 void GuidedLoadModal::publish() {
+    if (!session_) {
+        return;
+    }
     if (subjects_initialized_) {
-        lv_subject_set_int(&view_subject_, static_cast<int>(view_for(flow_.stage())));
+        lv_subject_set_int(&view_subject_, static_cast<int>(view_for(session_->stage())));
+        const std::string text =
+            session_->heat_target_c() > 0
+                ? fmt::format("{} / {}°C", session_->heat_current_c(), session_->heat_target_c())
+                : std::string();
+        lv_subject_copy_string(&heat_text_subject_, text.c_str());
+    }
+    if (session_->ended() && is_visible()) {
+        hide(ModalCloseReason::ButtonPress);
     }
 }
 

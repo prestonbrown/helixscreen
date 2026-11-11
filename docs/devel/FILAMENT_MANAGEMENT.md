@@ -2166,8 +2166,38 @@ hot and the filament sensor switched off. A cancel on the waiting generation als
 the printer's load state (`SET_PRINT_MAIN_STATUS MAIN_STATUS=ready`). Commands only the
 waiting generation knows are never sent to the other: an unknown command aborts the whole
 script it sits in. `GuidedLoadFlow` (`include/guided_load_flow.h`) makes every decision
-without UI or I/O, so `[guided_load]` tests it directly; `helix-screen ctl demo guided-load`
-and `guided-load-confirm` open the two starting views on `guided_load_example()`.
+without UI or I/O, so `[guided_load]` tests it directly. `GuidedLoadSession`
+(`include/guided_load_session.h`) sends what it decides and ends it when a job takes the
+machine or the printer goes away; the modal is a view over the session.
+`helix-screen ctl demo guided-load` and `guided-load-confirm` open the two starting views on
+`guided_load_example()`; `ctl demo manual-load` opens the manual load below on the mock.
+
+### Manual load: heat, push, prime
+
+A Load the user does by hand runs the same modal with a Heating step in front
+(prestonbrown/helixscreen#2000): `GuidedLoadModal::show_manual(slot)` builds a
+`GuidedLoadSession` on `GuidedLoadFlow::after_preheat(hand_feed_steps())`. It opens in two places:
+
+| Where | Asked how |
+|---|---|
+| A head whose backend answers `HeadFilamentOps::load == Manual` with `guided_hand_load` | `notify_if_filament_op_unavailable()` opens it in place of the reason toast, so every Load surface gets it. `filament_action_set` enables that Load. Today only `AmsBackendSnapmaker` answers it, for a head the firmware reports with no feeder module or its feeder out of automatic mode (`feeder_absent()`); `AmsBackendMultiAce` keeps the generic answer |
+| The Filament panel's Load with no filament system and no load macro (`load_is_by_hand()`: the plan falls to the raw tier) and no job | `FilamentPanel::execute_load()`. During a job the raw tier stays: a paused reload runs at the print's heat |
+
+The steps: heat through `FilamentOpHeater` (the lane's or external spool's material, else the
+default load temperature; the user's "allow cold" skips it), then Push, then the feed
+(`M83` + `G1 E60 F300`), then the question with Extrude more (`G1 E20 F300`) or Done.
+`manual_load_refusal()` refuses, in order: a job holds the machine, the printer is not
+reachable, another filament op is heating, a cold pull is running, the slot's nozzle is not
+the active extruder (`G1 E` moves the active one). The refusal is a toast and nothing opens.
+
+The heater is `FilamentOpHeater`'s throughout. While the user pushes, the session holds the heat
+(`FilamentOpHeater::hold_heat()`), which keeps SIGTERM on the graceful path and makes
+`before_disconnect()` turn that heater off and end the session. Done reports
+`op_succeeded()`, so the post-op cooldown cools it after the configured delay. Every other
+ending reports `op_cancelled()`, which turns the heater off at once: Cancel, Escape, a dismissal
+or the app closing the dialog, and a failed extrusion. With the printer unreachable it schedules the
+cooldown instead. A job taking the machine ends the session with nothing sent and the heater
+left to the job. Tests: `[manual_load]` (`tests/unit/test_manual_load.cpp`).
 
 A second firmware with a wizard of the same shape is one more row in that file. One whose
 steps differ grows `GuidedLoad` and the flow, never the callers.

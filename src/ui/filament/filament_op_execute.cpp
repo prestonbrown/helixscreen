@@ -704,6 +704,15 @@ void dispatch_load(AmsBackend* backend, int slot, const FilamentOpSurface& surfa
 
 } // namespace
 
+bool load_is_by_hand(AmsBackend* backend, int slot, PrinterState& state) {
+    if (backend || job_holds_machine(state.print_state().get_print_lifecycle())) {
+        return false;
+    }
+    AmsSystemInfo sys;
+    const BackendCaps caps = read_backend_caps(backend, sys, slot);
+    return plan_live_load(sys, caps, slot).tier == FilamentTier::RawGcode;
+}
+
 void execute_filament_load(AmsBackend* backend, int slot, const FilamentOpSurface& surface) {
     // Where this head's load is the user's job, saying so is the whole op.
     if (helix::ui::notify_if_filament_op_unavailable(backend, slot, /*load=*/true)) {
