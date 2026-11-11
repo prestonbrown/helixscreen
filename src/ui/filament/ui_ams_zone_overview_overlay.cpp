@@ -257,6 +257,11 @@ void AmsZoneOverviewOverlay::on_deactivating(DeactivateReason) {
 
 void AmsZoneOverviewOverlay::on_ui_destroyed() {
     ui_alive_ = false;
+    // The next open's repeat must not bind rows to the slots reclaimed below, and
+    // its rebuild_rows() must move the count to rebuild them.
+    if (subjects_initialized_) {
+        lv_subject_set_int(&count_subject_, 0);
+    }
     label_pool_.reclaim();
     slots_pool_.reclaim();
     reading_pool_.reclaim();
