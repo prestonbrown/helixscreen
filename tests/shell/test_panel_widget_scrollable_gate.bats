@@ -216,6 +216,15 @@ run_gate() {
     [[ "$output" == *"❌"* ]]
 }
 
+@test "the real tree under a raised baseline passes at commit and fails at a push" {
+    run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --max-allowed "$((BASELINE + 1))"
+    [ "$status" -eq 0 ] || fail "under the baseline failed at commit: $output"
+    contains "ratchet the baseline down" "$output"
+    run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --max-allowed "$((BASELINE + 1))"
+    [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
+    contains "--max-allowed: $((BASELINE + 1)) -> $BASELINE" "$output"
+}
+
 @test "the real tree is exactly at the baseline, not under it" {
     # Under the baseline is a pass, but a silent one - this names the drift so
     # the number gets ratcheted down instead of rotting.

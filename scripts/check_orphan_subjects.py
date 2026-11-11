@@ -62,6 +62,7 @@ import json
 import pathlib
 import re
 import sys
+import ratchet  # noqa: E402
 
 SRC_DIRS = ("src", "include")
 # The subject macros' own doc comments register "my_count"/"name"/"temperature"
@@ -511,10 +512,12 @@ def main() -> int:
 
     gone = sorted(accepted - set(orphans))
     if gone:
-        print(f"✅ Orphan subjects: {count} of {len(registered)} registered, "
-              f"{len(gone)} fewer than {args.baseline} — re-run with --write-baseline "
-              f"to hold the gain ({', '.join(gone)}).")
-        return 0
+        return ratchet.under_baseline(
+            "Orphan subjects", f"{args.baseline} (re-run with --write-baseline)",
+            [f"{name}: no longer an orphan" for name in gone],
+            f"✅ Orphan subjects: {count} of {len(registered)} registered, "
+            f"{len(gone)} fewer than {args.baseline} — re-run with --write-baseline "
+            f"to hold the gain ({', '.join(gone)}).")
 
     print(f"✅ Orphan subjects: {count} of {len(registered)} registered, all accepted debt "
           f"in {args.baseline}")

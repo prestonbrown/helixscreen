@@ -60,3 +60,17 @@ CPP
     [ "$status" -eq 1 ]
     contains "static_unique 1 -> 2" "$output"
 }
+
+@test "a shrink passes at commit and fails at a push until the baseline follows" {
+    printf 'already_exists=1\nstatic_unique=3\n' > "$ROOT/baseline.txt"
+    cat > "$ROOT/src/ui/demo.cpp" <<'CPP'
+static std::unique_ptr<Demo> g_demo;
+void f() { spdlog::warn("overlay already exists"); }
+CPP
+    run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/baseline.txt"
+    [ "$status" -eq 0 ] || fail "a shrink failed at commit: $output"
+    contains "hold the gain" "$output"
+    run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/baseline.txt"
+    [ "$status" -eq 1 ] || fail "a shrink passed at a push: $output"
+    contains "static_unique: 3 -> 1" "$output"
+}

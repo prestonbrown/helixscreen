@@ -16,6 +16,16 @@ section_time() {
   fi
 }
 
+# Whether a count ratchet under its baseline fails this run (scripts/ratchet.py reads
+# HELIX_RATCHET_STRICT). Strict at the stages a push to main runs: a full sweep (pre-push,
+# make land-gate, CI) that is not a work-branch push. A commit (--staged-only) and a
+# work-branch push stay lenient, so a commit that removes violations needs no baseline
+# edit; the land gate holds the baseline to the count before the work reaches main.
+# $1 = STAGED_ONLY, $2 = HELIX_QC_SKIP_PUSH_ONLY.
+qc_ratchet_strictness() {
+  if [ "$1" != true ] && [ "${2:-0}" != 1 ]; then echo 1; else echo 0; fi
+}
+
 # The -j for a make a gate runs. A commit hook runs on every session's commit,
 # so an unbounded -j would be N unbounded builds at once: the number comes
 # from `helix-claim jobs` (the jobpool when one is live, else the cores capped

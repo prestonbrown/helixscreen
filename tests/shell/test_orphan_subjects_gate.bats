@@ -563,7 +563,7 @@ EOF
     contains "replacement_orphan" "$output"
 }
 
-@test "a baseline entry that stopped being an orphan asks to be dropped" {
+@test "a baseline entry that stopped being an orphan asks to be dropped, and fails at a push" {
     cat > "$ROOT/src/demo.cpp" <<'EOF'
 void init_subjects() {
     lv_xml_register_subject(nullptr, "was_debt_subject", &was_member_);
@@ -574,10 +574,13 @@ void Panel::attach() {
 }
 EOF
     printf 'was_debt_subject  # src/demo.cpp:2\n' > "$ROOT/base.txt"
-    run python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/base.txt"
+    run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/base.txt"
     [ "$status" -eq 0 ]
     contains "--write-baseline" "$output"
     contains "was_debt_subject" "$output"
+    run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/base.txt"
+    [ "$status" -eq 1 ] || fail "a stale baseline entry passed at a push: $output"
+    contains "was_debt_subject: no longer an orphan" "$output"
 }
 
 @test "--write-baseline records every orphan with its site" {
