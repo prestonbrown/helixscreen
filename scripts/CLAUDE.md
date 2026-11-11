@@ -105,6 +105,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 |--------|---------|
 | `quality-checks.sh` | Pre-commit and CI quality checks driver: one `qc/<gate>.sh` per gate, result cache |
 | `source_strip.py` | The one comment and literal blanker every pattern-matching gate imports |
+| `ratchet.py` | The shared under-baseline verdict for count ratchets: lenient at commit, fails at push (`HELIX_RATCHET_STRICT=1`) |
 | `bats_select.py` | Which `tests/shell/*.bats` files a run needs |
 | `run_suite_report.sh` | The shared `--success` Catch2 report the vacuous-test and order-dependence gates read |
 | `check_doc_refs.py` | Doc-reference gate: dead paths, links, `make` targets, docs/devel index, shipped counts |
