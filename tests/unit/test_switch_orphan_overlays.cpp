@@ -246,6 +246,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a rotation rebuilds the jog pad the motion 
     REQUIRE(root != nullptr);
     lv_obj_t* old_pad = lv_obj_find_by_name(root, "jog_pad");
     REQUIRE(old_pad != nullptr);
+    CHECK_FALSE(helix::ui::jog_pad_is_homed(old_pad));
 
     lv_subject_t* homed_axes = get_printer_state().motion_state().get_homed_axes_subject();
     lv_subject_copy_string(homed_axes, "xyz");
