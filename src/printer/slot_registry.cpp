@@ -216,7 +216,8 @@ void SlotRegistry::set_tool_mapping(int global_index, int tool_number, MappingSo
     if (!is_valid_index(global_index) || tool_number < 0)
         return;
 
-    // Bumped after validation, so a rejected write never counts as
+    // There are no early-outs past this point, so bumping here, after
+    // validation, counts exactly the accepted writes: a rejected write never counts as
     // confirmation. Counted per accepted firmware write rather than per
     // changed value: a firmware report that MATCHES what we optimistically
     // wrote is still proof the printer applied it, and is the common case for

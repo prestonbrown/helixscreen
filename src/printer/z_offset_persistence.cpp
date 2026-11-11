@@ -98,7 +98,7 @@ std::optional<bool> read_flag(const nlohmann::json* variables, const char* key) 
 // BED_MESH_CALIBRATE, _MESH_TEST, SAVE_ZMOD_DATA and boot - not at
 // END_PRINT/CANCEL_PRINT - so an adjustment sent while idle AFTER a print
 // stores the intended value minus the last print's delta (ghzserg/zmod#699).
-// ghzserg/z_ad5x zeroes it in _COMMON_END_PRINT, which both END_PRINT and
+// ghzserg/z_ad5x@6a0adf3 zeroes it in _COMMON_END_PRINT, which both END_PRINT and
 // CANCEL_PRINT call, and no release carries that yet. Callers clear the
 // variable right before an idle adjustment: load-bearing on firmware without
 // that zeroing, a write of zero over zero on firmware with it. The command lives here because only
