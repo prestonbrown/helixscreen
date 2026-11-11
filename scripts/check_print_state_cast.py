@@ -55,6 +55,7 @@ CAST_SPAN_LINES = 4
 # they are for, which is what makes every call site checkable.
 ALLOWLIST = {
     "src/printer/printer_print_state.cpp",  # get_print_job_state / get_print_lifecycle themselves
+    "src/printer/printer_print_state_status.cpp",  # update_from_status, which writes the subject
     "src/printer/print_lifecycle_state.cpp",
     "include/core/observer_factory.h",
 }

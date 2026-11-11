@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file test_height_layer_dwell.cpp
- * @brief When a layer derived from commanded Z may be shown.
+ * @brief When a layer derived from commanded Z may be shown, and which layer
+ *        each fabricated tier lands on.
  *
  * Run with: ./build/bin/helix-tests "[layer_tracking][zhop]"
  *
@@ -11,6 +12,7 @@
  */
 
 #include "height_layer_dwell.h"
+#include "layer_estimate.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -18,6 +20,8 @@ using helix::decide_height_layer;
 using helix::HeightLayerDecision;
 using helix::HeightLayerPending;
 using helix::kHeightLayerDwellSeconds;
+using helix::layer_from_progress;
+using helix::layer_from_z;
 
 TEST_CASE("Height layer dwell: the first derived layer shows at once", "[layer_tracking][zhop]") {
     const HeightLayerDecision d = decide_height_layer(true, 0, 38, {}, 100.0);
@@ -74,4 +78,18 @@ TEST_CASE("Height layer dwell: a layer reached through a hop waits from where Z 
 
     d = decide_height_layer(false, 38, 39, d.pending, 300.8 + kHeightLayerDwellSeconds);
     REQUIRE(d.show == 39);
+}
+
+TEST_CASE("Layer estimate: both fabricated tiers round, then clamp to 1..total",
+          "[layer_tracking][estimation]") {
+    CHECK(layer_from_progress(50, 320) == 160);
+    CHECK(layer_from_progress(99, 320) == 317); // 316.8 rounds up
+    CHECK(layer_from_progress(1, 20) == 1);     // 0.2 rounds to 0, held at 1
+    CHECK(layer_from_progress(120, 75) == 75);  // past the end stays on the last layer
+
+    // 0.2mm first layer, 0.2mm layers: Z 1.0 is the fifth layer.
+    CHECK(layer_from_z(1.0, 0.2, 0.2, 75) == 5);
+    CHECK(layer_from_z(1.09, 0.2, 0.2, 75) == 5); // float noise inside half a layer
+    CHECK(layer_from_z(0.0, 0.2, 0.2, 75) == 1);  // below the first layer
+    CHECK(layer_from_z(40.0, 0.2, 0.2, 75) == 75);
 }
