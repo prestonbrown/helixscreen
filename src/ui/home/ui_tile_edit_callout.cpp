@@ -5,7 +5,7 @@
 #include "ui_button.h"
 #include "ui_callback_helpers.h"
 
-#include "core/static_subject_registry.h"
+#include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
 
@@ -23,29 +23,16 @@ constexpr const char* kConfigureSubject = "tile_callout_configure";
 std::array<char, 96> s_title_buf{};
 lv_subject_t s_title_subject{};
 lv_subject_t s_configure_subject{};
-bool s_subjects_ready = false;
+helix::WidgetSubjects s_subjects{"TileEditCallout", StaticSubjectRegistry::Lifetime::Process};
 
 void ensure_subjects() {
-    if (s_subjects_ready) {
-        return;
-    }
-    lv_subject_init_string(&s_title_subject, s_title_buf.data(), nullptr, s_title_buf.size(), "");
-    lv_xml_register_subject(nullptr, kTitleSubject, &s_title_subject);
-    lv_subject_init_int(&s_configure_subject, 0);
-    lv_xml_register_subject(nullptr, kConfigureSubject, &s_configure_subject);
-    s_subjects_ready = true;
-    StaticSubjectRegistry::instance().register_deinit(
-        "TileEditCallout",
-        []() {
-            if (s_subjects_ready) {
-                lv_xml_unregister_subject(nullptr, kTitleSubject);
-                lv_xml_unregister_subject(nullptr, kConfigureSubject);
-                lv_subject_deinit(&s_title_subject);
-                lv_subject_deinit(&s_configure_subject);
-                s_subjects_ready = false;
-            }
-        },
-        StaticSubjectRegistry::Lifetime::Process);
+    s_subjects.ensure_init([] {
+        lv_subject_init_string(&s_title_subject, s_title_buf.data(), nullptr, s_title_buf.size(),
+                               "");
+        s_subjects.publish(kTitleSubject, &s_title_subject);
+        lv_subject_init_int(&s_configure_subject, 0);
+        s_subjects.publish(kConfigureSubject, &s_configure_subject);
+    });
 }
 
 /// Whether the press that produced @p e lifted over the object that handles it.

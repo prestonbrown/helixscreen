@@ -202,7 +202,7 @@ class PrintStatusWidget : public PanelWidget {
         s_formatter_refcount_ = 0;
         // The view subject is shared and outlives every instance; a case left
         // printing would build the next case's tree in the active view.
-        if (detailed_subjects_initialized_) {
+        if (static_subjects_initialized()) {
             lv_subject_set_int(&view_subject_, 0);
         }
     }
@@ -352,14 +352,14 @@ class PrintStatusWidget : public PanelWidget {
 
     // Size-dependent subject for XML bindings (1 = column/2x2 mode, 0 = row/wide)
     static inline lv_subject_t column_mode_subject_;
-    static inline bool column_mode_subject_initialized_ = false;
+    /// Whether init_static_subjects() has published the shared subjects below.
+    static bool static_subjects_initialized();
 
     // Physical width band (0=compact, 1=normal, 2=wide) derived from width_px in
     // on_size_changed — see panel_widget_size.h. Exposed to XML so library_body's
     // per-tier gap (panel_widget_print_status.xml bind_style entries) can react to
     // it; the raw pixel value isn't meaningful to XML the way a small band enum is.
     static inline lv_subject_t width_band_subject_;
-    static inline bool width_band_subject_initialized_ = false;
 
     // Per-element visibility subjects — 1 = hidden, 0 = visible. XML binds via
     // <bind_flag_if_eq ... ref_value="1"/>. apply_visibility_config() computes
@@ -373,7 +373,6 @@ class PrintStatusWidget : public PanelWidget {
     static inline lv_subject_t recent_hidden_subject_;
     static inline lv_subject_t queue_hidden_subject_;
     static inline lv_subject_t actions_hidden_subject_;
-    static inline bool visibility_subjects_initialized_ = false;
 
     // The library actions' measured fit (decide_library_actions_layout): 1 = every
     // label hidden; 1 = two rows of buttons instead of one column; and in two
@@ -418,7 +417,6 @@ class PrintStatusWidget : public PanelWidget {
     //   4 = active_detailed     (print_card_printing_detailed)
     // C++ sets this; XML binds with bind_flag_if_not_eq per sibling.
     static inline lv_subject_t view_subject_{};
-    static inline bool detailed_subjects_initialized_ = false;
 
     // Compact mode and state tracking
     bool is_active_ = false; // job_holds_machine() (drives view_subject_)

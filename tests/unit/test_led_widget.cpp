@@ -7,6 +7,7 @@
 #include "../test_helpers/scoped_home_layout.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "grid_layout.h"
 #include "led/led_controller.h"
@@ -364,6 +365,14 @@ TEST_CASE_METHOD(LedPickerFixture, "LedWidget: a picker tap picks the row the us
     process_lvgl(50);
 
     CHECK(w.light_key() == "neopixel sb_leds");
+
+    // Its subjects drop their names at deinit and come back on the next open.
+    REQUIRE(StaticSubjectRegistry::instance().deinit_one("LedPicker"));
+    CHECK(lv_xml_get_subject(nullptr, "led_picker_count") == nullptr);
+    CHECK(lv_xml_get_subject(nullptr, "led_picker_name_0") == nullptr);
+    w.on_edit_configure();
+    CHECK(lv_xml_get_subject(nullptr, "led_picker_count") != nullptr);
+    CHECK(lv_obj_find_by_name(test_screen(), "led_picker_row_1") != nullptr);
     w.detach_tile();
 }
 
