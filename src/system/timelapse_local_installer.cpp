@@ -82,4 +82,11 @@ ProcessRunner timelapse_install_runner(const std::atomic<bool>& cancel) {
     return cancellable_process_runner(cancel);
 }
 
+ProcessRunner timelapse_install_runner_to_end() {
+    if (get_runtime_config()->should_mock_moonraker()) {
+        return mock::timelapse_host_runner();
+    }
+    return run_process;
+}
+
 } // namespace helix

@@ -17,6 +17,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
+#include "system/update_checker.h"
 #include "timelapse_local_installer.h"
 
 #include <spdlog/spdlog.h>
@@ -107,8 +108,9 @@ void TimelapseMacroCard::refresh(IMoonrakerAPI* api, const PrinterDiscovery& dis
                  facts.helix_macros_loaded, repo.empty() ? "unknown" : repo,
                  static_cast<int>(setup));
 
-    if (!repo.empty()) {
-        repair_checkout(repo);
+    // Never while a job holds the machine; a later open repairs it.
+    if (!repo.empty() && !job_holds_now()) {
+        repair_checkout(repo, api);
     }
 
     switch (setup) {
@@ -148,22 +150,31 @@ void TimelapseMacroCard::refresh(IMoonrakerAPI* api, const PrinterDiscovery& dis
         });
 }
 
-void TimelapseMacroCard::repair_checkout(const std::string& repo) {
+void TimelapseMacroCard::repair_checkout(const std::string& repo, IMoonrakerAPI* api) {
     join_finished_repair();
     if (repair_running_.load()) {
         return;
     }
-    const ProcessRunner runner =
+    // The probes stop at a cancel; the checkout is refused once cancelled and
+    // otherwise runs to its end, so the tree is never left half switched.
+    const ProcessRunner probe =
         runner_override_ ? runner_override_ : timelapse_install_runner(repair_cancel_);
+    const ProcessRunner to_end = start_unless_cancelled(
+        repair_cancel_, runner_override_ ? runner_override_ : timelapse_install_runner_to_end());
     auto tok = lifetime_.token();
     repair_cancel_.store(false);
     repair_running_.store(true);
     const bool started = helix::contain_exceptions("[Timelapse Macros] checkout repair", [&]() {
-        repair_thread_ = helix::make_background_thread([this, tok, repo, runner]() {
-            attach_checkout_to_branch(timelapse_plugin_recipe(), repo, runner);
+        repair_thread_ = helix::make_background_thread([this, tok, repo, api, probe, to_end]() {
+            const bool switched =
+                attach_checkout_to_branch(timelapse_plugin_recipe(), repo, probe, to_end);
             repair_running_.store(false);
-            tok.defer("TimelapseMacroCard::checkout_repaired",
-                      [this]() { join_finished_repair(); });
+            tok.defer("TimelapseMacroCard::checkout_repaired", [this, api, switched]() {
+                join_finished_repair();
+                if (switched && api) {
+                    request_update_manager_refresh(api->get_client(), kTimelapseUpdateManagerName);
+                }
+            });
         });
     });
     if (!started) {

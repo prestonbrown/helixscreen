@@ -21,11 +21,13 @@
  *   checkout's path on the Klipper host is unknown), or a helix_macros.cfg that
  *   could not be written: the card shows the line to add to printer.cfg.
  *
- * Whenever the checkout is known on this host, refresh() also puts a checkout
- * left on a detached HEAD back on its branch (attach_checkout_to_branch), so
- * Moonraker's update manager tracks it again. That runs git on the card's own
- * worker, never on a remote screen, and only logs: the card shows nothing for it.
- * The card is process-wide, so the worker outlives the screen that started it.
+ * Whenever the checkout is known on this host and no job holds the machine,
+ * refresh() also puts a checkout left on a detached HEAD back on its branch
+ * (attach_checkout_to_branch), then asks Moonraker to refresh the timelapse
+ * update_manager entry so it tracks the checkout again. That runs git on the
+ * card's own worker, never on a remote screen, and only logs: the card shows
+ * nothing for it. The card is process-wide, so the worker outlives the screen
+ * that started it; a started `git checkout` always runs to its end.
  */
 
 #include "async_lifetime_guard.h"
@@ -85,8 +87,9 @@ class TimelapseMacroCard {
     friend struct TimelapseMacroCardTestAccess;
 
     void show(Card card);
-    /// Main thread: start the detached-HEAD repair of @p repo unless one is running.
-    void repair_checkout(const std::string& repo);
+    /// Main thread: start the detached-HEAD repair of @p repo unless one is running;
+    /// a switch is reported to Moonraker through @p api when it is set.
+    void repair_checkout(const std::string& repo, IMoonrakerAPI* api);
     /// Main thread: join a repair worker that has finished.
     void join_finished_repair();
 

@@ -1028,6 +1028,20 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
         return true;
     };
 
+    // machine.update.refresh - re-read one update_manager entry; only the name is kept
+    // https://moonraker.readthedocs.io/en/latest/web_api/#refresh-update-status
+    registry["machine.update.refresh"] =
+        [](MoonrakerClientMock* self, const json& params,
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+        self->record_update_refresh(helix::json_util::safe_string(params, "name"));
+        json response = {{"jsonrpc", "2.0"}, {"result", json::object()}};
+        if (success_cb) {
+            success_cb(response);
+        }
+        return true;
+    };
+
     // machine.update.status - update_manager state; only `busy` is modelled
     // https://moonraker.readthedocs.io/en/latest/web_api/#get-update-status
     registry["machine.update.status"] =
