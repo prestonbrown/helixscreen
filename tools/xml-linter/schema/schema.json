@@ -1806,10 +1806,10 @@
         "bind_target": {
           "type": "string"
         },
-        "bind_unit": {
+        "bind_mode": {
           "type": "string"
         },
-        "bind_mode": {
+        "bind_unit": {
           "type": "string"
         },
         "event_cb": {
