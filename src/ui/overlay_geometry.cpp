@@ -54,8 +54,8 @@ OverlayWidths compute_overlay_widths(int32_t hor_res, int32_t ver_res, int32_t n
                                      int32_t gap) {
     // Classified from raw dimensions rather than LayoutManager::type(): this
     // runs in Application phase 6 and the layout manager is not initialised
-    // until phase 8b. detect_layout_type() is the same function the variant
-    // chain uses, so the sizing and the choice of ui_xml/portrait/ cannot
+    // until phase 8b. detect_layout_type() is the same function that sets
+    // ui_is_portrait, so the sizing and the portrait layout cannot
     // disagree. A LayoutManager::set_override() forcing a portrait *layout*
     // onto landscape hardware is deliberately not honoured here — the physical
     // nav bar geometry is what the arithmetic is about.
@@ -76,8 +76,8 @@ OverlayWidths compute_overlay_widths(int32_t hor_res, int32_t ver_res, int32_t n
 OverlayHeights compute_overlay_heights(int32_t hor_res, int32_t ver_res, int32_t nav_height,
                                        int32_t gap) {
     // Same classification as compute_overlay_widths, and for the same reason:
-    // this can run before LayoutManager::init(), and the threshold that picks
-    // ui_xml/portrait/ must never disagree with the one that sizes overlays.
+    // this can run before LayoutManager::init(), and the threshold that sets
+    // ui_is_portrait must never disagree with the one that sizes overlays.
     //
     // Landscape reserves nothing vertically — its nav bar is a full-HEIGHT
     // strip at the leading edge, so overlays span the whole display and the

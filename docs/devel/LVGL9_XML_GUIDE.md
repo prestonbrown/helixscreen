@@ -2033,30 +2033,12 @@ lv_bar_set_value(bar, 0, LV_ANIM_OFF);
 
 #### 7. Component Names Are File Basenames, Not Paths
 
-A component is named by its file's basename, so `ui_xml/micro/controls_panel.xml` and
-`ui_xml/controls_panel.xml` both register as `controls_panel`. Registering the second
-replaces the first for every later `lv_xml_create()` in that process, silently.
-
-Six names exist in both the base tree and a variant directory: `controls_panel`,
-`header_bar`, `print_status_panel`, `print_tune_panel`, `theme_editor_overlay`,
-`theme_preview_overlay`.
-
-Tests feel this most, because registering everything under `ui_xml/` so nested
-components resolve is the obvious move and the wrong one:
-
-```cpp
-// ❌ WRONG - the micro variant replaces the base panel for the rest of the run
-for (const auto& f : all_xml_files) lv_xml_register_component_from_file(f.c_str());
-
-// ✅ CORRECT - base tree and components/ once, then the file under test
-//              immediately before building it
-register_base_and_components();
-lv_xml_register_component_from_file("A:ui_xml/micro/controls_panel.xml");
-lv_obj_t* panel = lv_xml_create(parent, "controls_panel", NULL);
-```
-
-A file whose `<view>` carries a name the base tree also uses cannot be built alongside
-the panel it shadows. Assert on its source text instead.
+A component is named by its file's basename, so `ui_xml/<name>.xml` and
+`ui_xml/components/<name>.xml` would both register as `<name>`. Registering the second replaces
+the first for every later `lv_xml_create()` in that process, silently. Keep basenames
+unique across `ui_xml/` and its subdirectories; the first-use loader looks at the top
+level before `components/`, so a duplicate under `components/` is simply never loaded in
+the app while a test that registers it by path builds the wrong one.
 
 #### 8. lv_obj_find_by_name() Searches Descendants Only
 

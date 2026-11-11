@@ -766,7 +766,7 @@ file-static pattern in `theme_lvgl_apply.cpp` instead — add an `lv_style_t`, c
    <px name="my_space_large" value="16"/>
    ```
 
-   The declaration MUST be at the top level of `ui_xml/` — discovery does not recurse into `ui_xml/components/`, `ui_xml/portrait/` or any other subdirectory, so a suffixed token declared there is never registered and every `#reference` to it silently resolves to nothing. Enforced by `scripts/check_responsive_token_scope.py` (prestonbrown/helixscreen#1211).
+   The declaration MUST be at the top level of `ui_xml/` — discovery does not recurse into `ui_xml/components/` or any other subdirectory, so a suffixed token declared there is never registered and every `#reference` to it silently resolves to nothing. Enforced by `scripts/check_responsive_token_scope.py` (prestonbrown/helixscreen#1211).
 
 2. Classify the axis. Heights, top/bottom padding and vertical maxima go in `VERTICAL_AXIS_TOKENS` (`src/ui/theme/theme_responsive.cpp`); widths and anything axis-neutral (all `space_*`) need no change. If in doubt, neutral.
 

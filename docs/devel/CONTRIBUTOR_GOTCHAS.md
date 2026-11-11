@@ -287,9 +287,9 @@ Reference: lesson **L008**.
 
 ### My `#token` resolves to nothing / the widget comes out 0px.
 
-**Cause:** The `_small`/`_medium`/`_large` declarations sit in a `ui_xml/` subdirectory — `ui_xml/components/`, `ui_xml/portrait/`, `ui_xml/micro/`. Token discovery is top-level-only: `theme_manager_find_xml_files()` skips directory entries, so only `ui_xml/*.xml` is ever scanned for `<px>` and `<string>` tokens. A suffixed token declared below the top level is never registered, and the `#reference` to it silently resolves to nothing. Neither side warns.
+**Cause:** The `_small`/`_medium`/`_large` declarations sit in a `ui_xml/` subdirectory such as `ui_xml/components/`. Token discovery is top-level-only: `theme_manager_find_xml_files()` skips directory entries, so only `ui_xml/*.xml` is ever scanned for `<px>` and `<string>` tokens. A suffixed token declared below the top level is never registered, and the `#reference` to it silently resolves to nothing. Neither side warns.
 
-**Fix:** Move the declarations to `ui_xml/globals.xml` (or another top-level token file) and keep the `#reference` where it was — referencing a global token from a variant file is exactly what variants are for. Recursing into subdirectories is not the fix: discovery is alphabetical last-wins, so a portrait-only `nav_width_small` would shadow the base token globally instead of only while the portrait variant is active.
+**Fix:** Move the declarations to `ui_xml/globals.xml` (or another top-level token file) and keep the `#reference` where it was. Recursing into subdirectories is not the fix: discovery is alphabetical last-wins, so a component's `nav_width_small` would shadow the top-level token globally.
 
 Gate: `scripts/check_responsive_token_scope.py` (prestonbrown/helixscreen#1211).
 

@@ -463,8 +463,8 @@ TEST_CASE_METHOD(HelixTestFixture, "default_layout: reset_all clears leaked ams_
 // A 480x800 portrait panel has a cramped axis of 480, the same MEDIUM
 // breakpoint as an 800x480 landscape one, so a table keyed by breakpoint alone
 // would hand it anchors authored for a landscape grid. Anchor tables are keyed
-// by layout variant in the same most-specific-first order
-// LayoutManager::variant_chain() uses for ui_xml/ overrides.
+// by layout variant in LayoutManager::variant_chain()'s most-specific-first
+// order.
 
 namespace {
 

@@ -505,9 +505,8 @@ TEST_CASE("the navbar is the one E-stop where the navbar shows, and screens that
     }
 
     // These sit beside the navbar and drew a second E-stop over their content.
-    for (const char* path :
-         {"ui_xml/home_panel.xml", "ui_xml/controls_panel.xml", "ui_xml/micro/controls_panel.xml",
-          "ui_xml/print_status_panel.xml", "ui_xml/motion_panel.xml"}) {
+    for (const char* path : {"ui_xml/home_panel.xml", "ui_xml/controls_panel.xml",
+                             "ui_xml/print_status_panel.xml", "ui_xml/motion_panel.xml"}) {
         INFO(path);
         const std::string xml = read_xml(path);
         CHECK(xml.find("estop_visible") == std::string::npos);
@@ -561,16 +560,11 @@ TEST_CASE("no root panel takes text input, so the keyboard never opens over a li
     // navbar is inert under an overlay or modal backdrop.
     for (const char* stem : {"home_panel", "print_select_panel", "controls_panel", "filament_panel",
                              "settings_panel", "advanced_panel"}) {
-        for (const char* dir : {"ui_xml/", "ui_xml/micro/", "ui_xml/portrait/"}) {
-            const std::string path = std::string(dir) + stem + ".xml";
-            if (!std::filesystem::exists(path)) {
-                continue;
-            }
-            INFO(path);
-            const std::string xml = read_xml(path);
-            CHECK(xml.find("<text_input") == std::string::npos);
-            CHECK(xml.find("<lv_textarea") == std::string::npos);
-        }
+        const std::string path = std::string("ui_xml/") + stem + ".xml";
+        INFO(path);
+        const std::string xml = read_xml(path);
+        CHECK(xml.find("<text_input") == std::string::npos);
+        CHECK(xml.find("<lv_textarea") == std::string::npos);
     }
 }
 

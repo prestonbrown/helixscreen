@@ -12,10 +12,10 @@
 #include "../test_helpers/plugin_host_test_support.h"
 #include "../test_helpers/plugin_test_support.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/data_root_resolver.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
-#include "layout_manager.h"
 #include "lua_bindings.h"
 #include "lvgl/src/misc/lv_text_private.h"
 #include "lvgl_log_handler.h"
@@ -260,8 +260,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a confirm dialog that cannot be shown holds n
         }
         ~HideModalDialog() {
             if (was_registered) {
-                std::string path =
-                    "A:" + helix::LayoutManager::instance().resolve_xml_path("modal_dialog.xml");
+                std::string path = "A:" + helix::asset_path("ui_xml/modal_dialog.xml");
                 lv_xml_register_component_from_file(path.c_str());
             }
             helix::register_xml_on_first_use();

@@ -323,7 +323,6 @@ Key points for UI contributors:
 |------|----------|
 | `ui_xml/` | All XML layouts (230+ files) |
 | `ui_xml/components/` | Reusable XML components |
-| `ui_xml/ultrawide/` | Ultrawide layout overrides |
 | `ui_xml/globals.xml` | Design tokens and global variables (shared, never override) |
 | `assets/config/themes/defaults/` | Shipped theme JSON files (color palettes). `config/themes/` is the user layer and holds nothing in the repo |
 

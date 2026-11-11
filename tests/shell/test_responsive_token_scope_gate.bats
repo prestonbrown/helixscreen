@@ -7,8 +7,8 @@
 # Token discovery calls theme_manager_find_xml_files() with recursive=false,
 # which skips subdirectories outright (src/ui/theme/theme_token_scan.cpp), so token
 # auto-discovery reads only the top-level ui_xml/*.xml. A responsive token
-# declared in ui_xml/components/, ui_xml/portrait/, ui_xml/micro/ — anywhere but
-# the top level — is never registered, and every `#token` referencing it
+# declared in ui_xml/components/ or anywhere else below the top level is never
+# registered, and every `#token` referencing it
 # silently resolves to nothing. No warning fires on either side (#1211).
 #
 # Recursing was the obvious fix and is the wrong one: discovery is last-wins by

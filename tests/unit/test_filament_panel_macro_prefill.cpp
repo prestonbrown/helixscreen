@@ -28,13 +28,13 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/data_root_resolver.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "filament_database.h"
 #include "filament_op_router.h"
 #include "filament_op_slot_resolver.h"
 #include "i_moonraker_api.h"
-#include "layout_manager.h"
 #include "lvgl.h"
 #include "macro_param_cache.h"
 #include "macro_param_modal.h"
@@ -592,8 +592,7 @@ struct FormFieldUnregistered {
     ~FormFieldUnregistered() {
         if (!was_registered_)
             return;
-        const std::string path =
-            "A:" + helix::LayoutManager::instance().resolve_xml_path("form_field.xml");
+        const std::string path = "A:" + helix::asset_path("ui_xml/form_field.xml");
         lv_xml_register_component_from_file(path.c_str());
     }
     FormFieldUnregistered(const FormFieldUnregistered&) = delete;
