@@ -5,6 +5,7 @@
 
 #include "dynamic_subject_map.h"
 #include "sensor_manager.h"
+#include "stepper_driver_overtemp.h"
 #include "temperature_sensor_types.h"
 
 #include <map>
@@ -17,7 +18,7 @@ namespace helix::sensors {
 /**
  * @brief Everything that reports a temperature and is not a real heater.
  *
- * Kinds: temperature_sensor, temperature_fan, tmc2240/tmc5160 drivers,
+ * Kinds: temperature_sensor, temperature_fan, the drivers that report a temperature,
  * heater_generic and the humidity chips (BME280, AHT20, ...). The extruders and
  * the bed are excluded by kind, so a sensor merely named like one (an
  * "extruder_board" thermistor) still appears.
@@ -27,7 +28,12 @@ namespace helix::sensors {
  * target subject per sensor (decidegrees, in DynamicSubjectMap), and the
  * name-driven roles. Roles are not persisted and not offered in Settings:
  * CHAMBER, MCU, HOST, STEPPER_DRIVER and AUXILIARY are assigned by name on every
- * discovery, and apply_chamber_sensor_override() moves CHAMBER.
+ * discovery, a `[temperature_sensor]` sensor_type of temperature_mcu or
+ * temperature_host turns AUXILIARY into MCU or HOST on the configfile pass, and
+ * apply_chamber_sensor_override() moves CHAMBER.
+ *
+ * It also watches every stepper driver's drv_status, sensor or not, and raises
+ * one notice each time a driver's overtemperature level rises.
  *
  * Status JSON format:
  * @code
@@ -106,10 +112,18 @@ class TemperatureSensorManager : public SensorManager {
 
     /// Mutex held, main thread: one subject pair per entry, none for vanished sensors.
     void sync_subjects_locked();
+    /// Main thread.
+    static void publish_driver_overtemp_notice(const DriverOvertempAlert& alert);
 
     std::map<std::string, TemperatureSensorState> readings_; ///< by klipper_name
     DynamicSubjectMap temp_subjects_;
     DynamicSubjectMap target_subjects_;
+
+    std::vector<std::string> driver_objects_; ///< every stepper driver object; mutex
+    /// Drivers above DriverOvertemp::None, by klipper_name; mutex.
+    std::map<std::string, DriverOvertemp> driver_levels_;
+    /// driver_levels_ as of the last notices raised; main thread only.
+    std::map<std::string, DriverOvertemp> driver_levels_notified_;
 };
 
 } // namespace helix::sensors

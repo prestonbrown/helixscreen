@@ -3895,6 +3895,8 @@ translations:
   Step: ステップ
   Step 1 of 3: ステップ 1/3
   Step {} of {}: ステップ {} / {}
+  Stepper driver {} is overheating: 'ステッピングモータードライバー {} が過熱しています'
+  Stepper driver {} overheated and shut down: 'ステッピングモータードライバー {} が過熱して停止しました'
   Still reading the printer's lane record. Try again in a moment.: 'プリンターのレーン記録をまだ読み込んでいます。少し待ってからもう一度お試しください。'
   Still saving this spool…: 'このスプールはまだ保存中です…'
   Still working... taking longer than usual: まだ処理中です... 通常より時間がかかっています

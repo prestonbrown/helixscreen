@@ -22,7 +22,9 @@ Two things share the word "sensor". The managers consume **Klipper** objects, co
 | `include/hardware_object_table.h`, `src/printer/hardware_object_table.cpp` | The one object table: `classify_object()`, `classify_section()`, `status_fields()`, the `is_*` kind predicates |
 | `include/sensor_manager.h`, `src/sensors/sensor_manager.cpp` | `SensorManager` base, `SensorEntry`, `RoleSpec`, `TypeSpec`, `SensorRowView`, the registry `sensor_managers()`, `rediscover_from_config()` |
 | `include/dynamic_subject_map.h`, `src/sensors/dynamic_subject_map.cpp` | `DynamicSubjectMap`: integer subjects created at runtime, one per key, each with its own death signal |
-| `include/temperature_sensor_manager.h`, `src/sensors/temperature_sensor_manager.cpp` | Temperature sensors, fans with a sensor, generic heaters, TMC drivers |
+| `include/temperature_sensor_manager.h`, `src/sensors/temperature_sensor_manager.cpp` | Temperature sensors, fans with a sensor, generic heaters, TMC drivers, driver overtemperature notices |
+| `include/stepper_driver_overtemp.h` | `classify_drv_status()` and `driver_overtemp_rises()`: a TMC driver's overtemperature level and when it warrants a notice |
+| `include/temp_graph_series_policy.h` | Which sensors the temperature graph offers and which start visible |
 | `include/humidity_sensor_manager.h`, `src/sensors/humidity_sensor_manager.cpp`, `include/humidity_sensor_types.h` | Humidity chips and the chip table |
 | `include/probe_sensor_manager.h`, `src/sensors/probe_sensor_manager.cpp` | Native Klipper probes, per-type subscriptions |
 | `include/accel_sensor_manager.h`, `src/sensors/accel_sensor_manager.cpp` | Accelerometers (config sections only) |
@@ -97,7 +99,9 @@ const std::vector<std::string>& status_fields(ObjectKind kind);
 
 | Kind | Fields subscribed |
 |------|-------------------|
-| `TemperatureSensor`, `DriverTemperature`, `HumidityChip` | `temperature`, `humidity` |
+| `TemperatureSensor`, `HumidityChip` | `temperature`, `humidity` |
+| `DriverTemperature` (TMC2240) | `temperature`, `drv_status` |
+| `StepperDriver` (every other TMC) | `drv_status` |
 | `TemperatureFan` | `temperature`, `target`, `speed` |
 | `Heater`, `GenericHeater` | `temperature`, `target`, `power` |
 | `FilamentSwitch`, `FilamentMotion`, `BackendFilamentSensor` | `filament_detected`, `enabled`, `detection_count` |
@@ -392,9 +396,9 @@ Filament fed through an AMS bypass reaches the toolhead through no lane, so the 
 
 ## Temperature Sensors
 
-`TemperatureSensorManager` owns four kinds: `TemperatureSensor`, `TemperatureFan`, `GenericHeater` and `DriverTemperature` (TMC2240/TMC5160), plus `HumidityChip`, because a humidity chip also reports a temperature. Extruders and `heater_bed` classify as `Heater`, which no sensor manager owns, so they stay in `PrinterState`. `heater_generic` objects arrive through the same object list, which is how filament dryer heaters (Happy Hare `MMU_heater`, QIDI Box `heater_boxN`) reach the temp graph without any filament-backend code.
+`TemperatureSensorManager` owns four kinds: `TemperatureSensor`, `TemperatureFan`, `GenericHeater` and `DriverTemperature` (the TMC2240, the one Klipper TMC driver that reports a die temperature), plus `HumidityChip`, because a humidity chip also reports a temperature. Extruders and `heater_bed` classify as `Heater`, which no sensor manager owns, so they stay in `PrinterState`. `heater_generic` objects arrive through the same object list, which is how filament dryer heaters (Happy Hare `MMU_heater`, QIDI Box `heater_boxN`) reach the temp graph without any filament-backend code.
 
-`on_discovered()` assigns a role from the name, only to an entry with no role yet (`src/sensors/temperature_sensor_manager.cpp#role_for_name`): CHAMBER (name contains `chamber`, sort priority 0), MCU (contains `mcu`, 10), HOST (`raspberry_pi`, `host_temp`, `host`, `rpi`, or contains `raspberry`, 20), STEPPER_DRIVER (TMC objects, 30), AUXILIARY (everything else, 100). The roles are never persisted and never offered in the Settings dropdown; a rediscovery reproduces them. `get_sensors_sorted()` orders by priority.
+`on_discovered()` assigns a role from the name, only to an entry with no role yet (`src/sensors/temperature_sensor_manager.cpp#role_for_name`): CHAMBER (name contains `chamber`, sort priority 0), MCU (contains `mcu`, 10), HOST (`raspberry_pi`, `host_temp`, `host`, `rpi`, or contains `raspberry`, 20), STEPPER_DRIVER (`DriverTemperature` objects, 30), AUXILIARY (everything else, 100). The manager sets `rediscover_on_config`, and on the configfile pass a `[temperature_sensor]` whose `sensor_type` is `temperature_mcu` or `temperature_host` turns AUXILIARY into MCU or HOST, so a toolboard sensor named `EBBCan` is still an MCU. It never overrides CHAMBER. The roles are never persisted and never offered in the Settings dropdown; a rediscovery reproduces them. `get_sensors_sorted()` orders by priority.
 
 Each sensor gets a temperature subject and a target subject in `DynamicSubjectMap`s (decidegrees; the target reads 0 for objects without one, and `klipper_object_has_target()` (`include/temperature_sensor_types.h#klipper_object_has_target`) answers which have one). `on_entries_changed()` creates and removes them to match the entry list, and `on_deinit_subjects()` clears them. Consumers fetch a subject and its token together:
 
@@ -405,6 +409,10 @@ lv_subject_t* subject = tsm.get_temp_subject(klipper_name, lifetime);
 ```
 
 The thermistor widget observes `temp_sensor_count` to rebind when the sensor set changes. In single mode it mirrors the selected sensor's temperature and target into per-instance subjects its `temp_display` binds to, and a tap on a sensor with a target opens the keypad and sends through `TemperatureController::set_target(klipper_name, ...)` (`src/ui/panel_widgets/thermistor_widget.cpp#open_target_keypad`). The keypad ceiling is `TemperatureController::keypad_max_for()`: the heater's configfile `max_temp` when the printer reported one, else 120°C.
+
+**Temperature graph.** The graph overlay offers a series for every enabled sensor except the CHAMBER ones, which it draws as its chamber series (`temp_graph_sensor_series()`). Stepper driver series start visible in the all-series view; MCU and host series are opt-in, and tapping either chip stores the choice per printer in `SettingsManager` (`temp_graph/show_mcu`, `temp_graph/show_host`), applied to every series of that group. Auxiliary sensors start hidden.
+
+**Driver overtemperature.** Every TMC driver publishes `drv_status`: the DRV_STATUS fields that are set, or null while the driver is not polled (motors off). `ot` means the driver shut its outputs off; `otpw` and the TMC220x `t120`/`t143`/`t150`/`t157` thresholds are warnings. The manager reads `drv_status` from every `DriverTemperature` and `StepperDriver` object, sensor entry or not, and raises one notice (a warning toast, or an error for `ot`) each time a driver's level rises. A driver that stays hot raises nothing more; one that clears, or reads null, raises again on its next rise. Drivers without a temperature get no graph series.
 
 Chamber sensors whose names lack `chamber` (Snapmaker `cavity`, Elegoo `enclosure`) are promoted by `PrinterState` once discovery resolves the chamber sensor: it calls `apply_chamber_sensor_override(chamber_sensor, chamber_heater)` (`src/sensors/temperature_sensor_manager.cpp#apply_chamber_sensor_override`), which demotes the incumbent CHAMBER sensor to an inferred role and promotes the named one. A `heater_generic` chamber heater is promoted alongside it, so it is graphed once as "Chamber" and not again as an auxiliary heater; a `temperature_fan` in the heater slot keeps its own role. A sensor name the printer does not report is ignored. A CHAMBER sensor is not a Settings row: `listed_in_settings()` hides it and the chamber assignment dropdowns own that choice. [CHAMBER_HEATER.md](CHAMBER_HEATER.md) owns the chamber heater/sensor assignment rules.
 

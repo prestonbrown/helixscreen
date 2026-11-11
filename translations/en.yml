@@ -4007,6 +4007,8 @@ translations:
   Step: Step
   Step 1 of 3: Step 1 of 3
   Step {} of {}: Step {} of {}
+  Stepper driver {} is overheating: Stepper driver {} is overheating
+  Stepper driver {} overheated and shut down: Stepper driver {} overheated and shut down
   Still reading the printer's lane record. Try again in a moment.: Still reading the printer's lane record. Try again in a moment.
   Still saving this spool…: Still saving this spool…
   Still working... taking longer than usual: Still working... taking longer than usual

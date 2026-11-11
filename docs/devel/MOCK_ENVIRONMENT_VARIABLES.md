@@ -1373,6 +1373,20 @@ Return an empty power devices list from mock Moonraker API.
 MOCK_EMPTY_POWER=1 ./build/bin/helix-screen --test
 ```
 
+### `HELIX_MOCK_TMC_OVERTEMP`
+
+Sets overtemperature flags on mock TMC drivers, for the stepper driver warning notice. The default Voron 2.4 persona has `tmc2240 stepper_x` and `stepper_y` (temperature and flags) and `tmc2209 stepper_z` (flags only), plus `temperature_sensor mcu_temp` and `raspberry_pi`, which its configfile declares as `temperature_mcu` and `temperature_host`.
+
+| | |
+|---|---|
+| **Values** | comma-separated stepper names: `stepper_z` sets the prewarning flag (`otpw`), `stepper_z:ot` the shutdown flag (`ot`) |
+| **Default** | unset: every driver reports a running driver with no flags |
+| **File** | `src/mock/moonraker_client_mock_objects.cpp#mock_tmc_drv_status` |
+
+```bash
+HELIX_MOCK_TMC_OVERTEMP=stepper_z ./build/bin/helix-screen --test -vv
+```
+
 ### `HELIX_MOCK_PRINTER`
 
 Select which printer the mock Moonraker client impersonates. Drives the mock's reported identity, kinematics defaults, bed dimensions, hardware objects, and the printer type detection resolves. Each named persona is asserted to auto-detect as its printer by `tests/unit/test_mock_persona_detection.cpp`.

@@ -414,7 +414,7 @@
     ],
     "tmc2240 stepper_x": [
       "temperature",
-      "humidity"
+      "drv_status"
     ],
     "toolhead": [
       "position",

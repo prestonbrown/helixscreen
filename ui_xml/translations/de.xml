@@ -3767,6 +3767,8 @@
   <translation tag="Step" de="Schritt"/>
   <translation tag="Step 1 of 3" de="Schritt 1 von 3"/>
   <translation tag="Step {} of {}" de="Schritt {} von {}"/>
+  <translation tag="Stepper driver {} is overheating" de="Schrittmotortreiber {} überhitzt"/>
+  <translation tag="Stepper driver {} overheated and shut down" de="Schrittmotortreiber {} hat sich wegen Überhitzung abgeschaltet"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." de="Die Spuraufzeichnung des Druckers wird noch gelesen. Versuche es gleich noch einmal."/>
   <translation tag="Still saving this spool…" de="Diese Spule wird noch gespeichert…"/>
   <translation tag="Still working... taking longer than usual" de="Arbeitet noch... dauert länger als gewöhnlich"/>

@@ -201,8 +201,6 @@ TEST_CASE("Subscription: temp sensors narrow to {temperature, humidity}",
           "[moonraker][subscription]") {
     DiscoveryFixture fx;
     fx.add("temperature_sensor enclosure");
-    fx.add("tmc2240 stepper_x");
-    fx.add("tmc5160 stepper_y");
 
     json subs = fx.build();
 
@@ -210,13 +208,9 @@ TEST_CASE("Subscription: temp sensors narrow to {temperature, humidity}",
     // sensors (Happy Hare filament dryer) stream %RH; temperature-only sensors
     // simply have Moonraker omit the absent field. Narrowing contract: no MORE
     // than these two fields stream back.
-    for (const auto& s :
-         {"temperature_sensor enclosure", "tmc2240 stepper_x", "tmc5160 stepper_y"}) {
-        CAPTURE(s);
-        REQUIRE(has_field(subs, s, "temperature"));
-        REQUIRE(has_field(subs, s, "humidity"));
-        REQUIRE(subs[s].size() == 2);
-    }
+    REQUIRE(has_field(subs, "temperature_sensor enclosure", "temperature"));
+    REQUIRE(has_field(subs, "temperature_sensor enclosure", "humidity"));
+    REQUIRE(subs["temperature_sensor enclosure"].size() == 2);
 }
 
 TEST_CASE("Subscription: humidity sensor chips are subscribed with humidity",

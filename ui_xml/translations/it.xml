@@ -3767,6 +3767,8 @@
   <translation tag="Step" it="Passaggio"/>
   <translation tag="Step 1 of 3" it="Passaggio 1 di 3"/>
   <translation tag="Step {} of {}" it="Passo {} di {}"/>
+  <translation tag="Stepper driver {} is overheating" it="Il driver del motore passo-passo {} si sta surriscaldando"/>
+  <translation tag="Stepper driver {} overheated and shut down" it="Il driver del motore passo-passo {} si è surriscaldato e si è spento"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." it="Lettura del registro delle corsie della stampante in corso. Riprova tra un momento."/>
   <translation tag="Still saving this spool…" it="Salvataggio di questa bobina in corso…"/>
   <translation tag="Still working... taking longer than usual" it="Ancora in corso... ci vuole più tempo del solito"/>

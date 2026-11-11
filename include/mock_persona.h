@@ -71,7 +71,7 @@ inline constexpr PersonaHardware kNoHardware = {};
 inline constexpr PersonaHardware kVoron24Hardware = {
     {"heater_bed", "extruder", "heater_generic chamber"},
     {"heater_bed", "extruder", "temperature_sensor chamber", "temperature_sensor raspberry_pi",
-     "temperature_sensor mcu_temp", "tmc2240 stepper_x", "tmc2240 stepper_y"},
+     "temperature_sensor mcu_temp", "tmc2240 stepper_x", "tmc2240 stepper_y", "tmc2209 stepper_z"},
     {"heater_fan hotend_fan", "fan", "fan_generic nevermore", "controller_fan controller_fan"},
     {"neopixel chamber_light", "neopixel status_led", "led caselight",
      "output_pin Enclosure_LEDs"}};

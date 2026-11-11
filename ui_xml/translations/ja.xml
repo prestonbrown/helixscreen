@@ -3767,6 +3767,8 @@
   <translation tag="Step" ja="ステップ"/>
   <translation tag="Step 1 of 3" ja="ステップ 1/3"/>
   <translation tag="Step {} of {}" ja="ステップ {} / {}"/>
+  <translation tag="Stepper driver {} is overheating" ja="ステッピングモータードライバー {} が過熱しています"/>
+  <translation tag="Stepper driver {} overheated and shut down" ja="ステッピングモータードライバー {} が過熱して停止しました"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." ja="プリンターのレーン記録をまだ読み込んでいます。少し待ってからもう一度お試しください。"/>
   <translation tag="Still saving this spool…" ja="このスプールはまだ保存中です…"/>
   <translation tag="Still working... taking longer than usual" ja="まだ処理中です... 通常より時間がかかっています"/>

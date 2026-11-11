@@ -4097,6 +4097,8 @@ translations:
   Step: Etapa
   Step 1 of 3: Etapa 1 de 3
   Step {} of {}: Etapa {} de {}
+  Stepper driver {} is overheating: 'O driver do motor de passo {} está superaquecendo'
+  Stepper driver {} overheated and shut down: 'O driver do motor de passo {} superaqueceu e desligou'
   Still reading the printer's lane record. Try again in a moment.: 'Ainda lendo o registro de lanes da impressora. Tente novamente em instantes.'
   Still saving this spool…: 'Ainda salvando este carretel…'
   Still working... taking longer than usual: Ainda processando... está demorando mais
