@@ -15,6 +15,8 @@ in [`SCREENSAVERS.md`](SCREENSAVERS.md). They are linked here, not copied.
 | File | Role |
 |------|------|
 | `scripts/perf-farm-check.sh` | Pre-release CPU gate across the physical farm: idle, mock print with animations on, mock print with animations off |
+| `scripts/perf-farm-scheduled.sh` | The same gate run unattended: a lock, a kept log per run, one JSON record per device per run in `~/.local/state/helix-perf-farm/results.jsonl`, and `--trend [device] [N]` |
+| `scripts/perf-farm/` | A systemd user timer for the scheduled run, not installed anywhere |
 | `config/perf_budgets.json` | Per-board budgets for that gate, with the calibration each budget came from |
 | `scripts/screensaver-perf/` | Screensaver and Pi 3B measurement harness (see `SCREENSAVERS.md`) |
 | `scripts/telemetry-pull.sh`, `scripts/telemetry-analyze.py` | Field memory and frame-time data from opted-in installs |
@@ -28,6 +30,21 @@ their mean render time and slow-frame count, peak RSS, and each overlay's open t
 `[PrintHealth]` line gives the same frame figures per minute. Render time runs from
 `LV_EVENT_RENDER_START` to `LV_EVENT_RENDER_READY`, so it tells more drawing (frames and
 flushed screens up) from slower drawing (render ms up). `src/application/ui_perf_report.cpp#ui_perf_to_json`.
+
+Flushed screens per second is the refreshed area: the pixels each flush hands the driver,
+summed and divided by the screen size. In partial and direct render modes those are the
+invalidated areas after LVGL joins overlapping ones, so two invalidations of the same
+region count once. In full render mode (the DRM backend when it rotates in software)
+LVGL redraws the whole screen for any change, so the figure equals frames per second.
+
+## Keeping perf farm results
+
+`scripts/perf-farm-scheduled.sh` runs `perf-farm-check.sh` from the host that reaches the
+farm and keeps each device's samples, status, budgets and reported version, so a cost
+that creeps up across builds shows up in `perf-farm-scheduled.sh --trend`. It takes the
+same environment as the check. The timer in `scripts/perf-farm/` is written but not
+installed: each run stops a printer's screen service for a few minutes, so which printers
+run unattended, and at what hour, waits on prestonbrown/helixscreen#1910.
 
 ## Units and method
 

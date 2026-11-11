@@ -13,6 +13,10 @@
 # such as -o ProxyJump=user@host from off the printers' network. A device whose budget row
 # names password_env uses sshpass with that variable; every other device uses keys.
 #
+# PERF_RESULTS names a file to append one JSON record per device to: its status, the raw
+# samples of each phase, its budgets and the version the device reported.
+# perf-farm-scheduled.sh keeps those records across runs.
+#
 #   0  every device inside budget
 #   1  a device over budget
 #   2  a device produced no usable sample - NOT a pass
@@ -117,6 +121,7 @@ refuse_unless_idle
 # Does this build carry the mock? CC1 ships without it and cannot do the print phase.
 HAS_MOCK=0
 strings -a "$BIN" 2>/dev/null | grep -q HELIX_MOCK_AUTO_PRINT && HAS_MOCK=1
+echo "VERSION $("$BIN" --version 2>/dev/null | head -n 1)"
 
 WORK=/tmp/.hsperf
 rm -rf "$WORK"; mkdir -p "$WORK/gc" "$WORK/cfg"
@@ -198,6 +203,24 @@ median() { printf '%s\n' "$@" | sort -n | awk '{a[NR]=$1} END{print a[int((NR+1)
 
 overall=0
 declare -a SUMMARY=()
+PERF_RESULTS="${PERF_RESULTS:-}"
+RUN_TS="${PERF_RUN_TS:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+
+samples_json() { # "3.6 3.5" -> [3.6,3.5]
+    jq -cn --arg v "$1" '$v | split(" ") | map(select(length > 0) | tonumber)'
+}
+
+# record <device index> <name> <status> [detail version idle print printoff]
+record() {
+    [[ -n "$PERF_RESULTS" ]] || return 0
+    jq -cn --arg ts "$RUN_TS" --arg device "$2" --arg status "$3" --arg detail "${4:-}" \
+        --arg version "${5:-}" --argjson idle "$(samples_json "${6:-}")" \
+        --argjson print "$(samples_json "${7:-}")" --argjson poff "$(samples_json "${8:-}")" \
+        --argjson budget "$(jq -c ".devices[$1] | {idle: .idle_budget_pct, print: .print_budget_pct,
+                                    print_anim_off: .print_anim_off_budget_pct}" "$BUDGETS")" \
+        '{ts: $ts, device: $device, status: $status, version: $version, detail: $detail,
+          idle: $idle, print: $print, print_anim_off: $poff, budget: $budget}' >>"$PERF_RESULTS"
+}
 
 score() { # name phase values budget
     local name="$1" phase="$2" vals="$3" budget="$4" med
@@ -233,7 +256,7 @@ for i in $(seq 0 $(($(jq -r '.devices | length' "$BUDGETS") - 1))); do
     printf '%s%-6s%s\n' "$BOLD" "$name" "$RESET"
     if ! "${device_ssh[@]}" "${SSH_OPTS[@]}" "$host" true 2>/dev/null; then
         printf '    %sUNREACHABLE%s (%s)\n' "$RED" "$RESET" "$host"
-        SUMMARY+=("$name UNREACHABLE"); overall=2; continue
+        SUMMARY+=("$name UNREACHABLE"); overall=2; record "$i" "$name" unreachable "$host"; continue
     fi
 
     out=$("${device_ssh[@]}" "${SSH_OPTS[@]}" "$host" \
@@ -241,10 +264,12 @@ for i in $(seq 0 $(($(jq -r '.devices | length' "$BUDGETS") - 1))); do
           <<<"$REMOTE" 2>/dev/null)
     res=$(grep '^RESULT ' <<<"$out" | head -n 1 | sed 's/^RESULT //')
     restored=$(grep '^RESTORED ' <<<"$out" | head -n 1 | sed 's/^RESTORED //')
+    version=$(grep '^VERSION ' <<<"$out" | head -n 1 | sed 's/^VERSION //')
 
     if [[ -n "$restored" && "$restored" != "ok" ]]; then
         printf '    %sSERVICE DID NOT RESTART%s - fix this device by hand before anything else\n' "$RED" "$RESET"
-        SUMMARY+=("$name SERVICE-DOWN"); overall=2; continue
+        SUMMARY+=("$name SERVICE-DOWN"); overall=2
+        record "$i" "$name" service_down "$res" "$version"; continue
     fi
 
     case "$res" in
@@ -259,15 +284,17 @@ for i in $(seq 0 $(($(jq -r '.devices | length' "$BUDGETS") - 1))); do
                 score "$name" print-off "$poff" "$b_poff";                r=$?; [[ $r -gt $worst ]] && worst=$r
             fi
             case $worst in
-                0) SUMMARY+=("$name ok") ;;
-                1) SUMMARY+=("$name OVER BUDGET"); [[ $overall -eq 0 ]] && overall=1 ;;
-                *) SUMMARY+=("$name INCOMPLETE"); overall=2 ;;
-            esac ;;
+                0) SUMMARY+=("$name ok"); status=ok ;;
+                1) SUMMARY+=("$name OVER BUDGET"); status=over; [[ $overall -eq 0 ]] && overall=1 ;;
+                *) SUMMARY+=("$name INCOMPLETE"); status=incomplete; overall=2 ;;
+            esac
+            record "$i" "$name" "$status" "$res" "$version" "$idle" "$pr" "$poff" ;;
         SKIPPED*|INCONCLUSIVE*|"")
             printf '    %s%s%s\n' "$YELLOW" "${res:-NO RESPONSE}" "$RESET"
-            SUMMARY+=("$name ${res:-NO-RESPONSE}"); overall=2 ;;
+            SUMMARY+=("$name ${res:-NO-RESPONSE}"); overall=2
+            status=$(tr '[:upper:]' '[:lower:]' <<<"${res%% *}"); record "$i" "$name" "${status:-no_response}" "$res" "$version" ;;
         *)  printf '    %sUNPARSED:%s %s\n' "$YELLOW" "$RESET" "$res"
-            SUMMARY+=("$name UNPARSED"); overall=2 ;;
+            SUMMARY+=("$name UNPARSED"); overall=2; record "$i" "$name" unparsed "$res" "$version" ;;
     esac
 done
 
