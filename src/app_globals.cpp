@@ -85,6 +85,7 @@ static lv_subject_t g_home_edit_page_deletable_subject;
 static lv_subject_t g_platform_extras_subject;
 static lv_subject_t g_host_power_supported_subject;
 static lv_subject_t g_camera_supported_subject;
+static lv_subject_t g_console_supported_subject;
 static lv_subject_t g_platform_tier_subject;
 static lv_subject_t g_wizard_active_subject;
 
@@ -268,6 +269,12 @@ void app_globals_init_subjects() {
     //   <bind_flag_if_eq subject="platform_camera_supported" flag="hidden" ref_value="0"/>
     lv_subject_init_int(&g_camera_supported_subject, HELIX_HAS_CAMERA ? 1 : 0);
     g_subjects.publish("platform_camera_supported", &g_camera_supported_subject);
+
+    // Whether this build has the G-code console (HELIX_HAS_CONSOLE, off in the K-Touch
+    // feature profile). XML gates via:
+    //   <bind_flag_if_eq subject="platform_console_supported" flag="hidden" ref_value="0"/>
+    lv_subject_init_int(&g_console_supported_subject, HELIX_HAS_CONSOLE ? 1 : 0);
+    g_subjects.publish("platform_console_supported", &g_console_supported_subject);
 
     // Hardware tier (helix::PlatformTier as an int: 0 EMBEDDED, 1 BASIC,
     // 2 STANDARD), the same classification that turns animations off. XML

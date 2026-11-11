@@ -11,7 +11,9 @@
 #include "ui_callback_helpers.h"
 #include "ui_panel_history_dashboard.h"
 #include "ui_settings_updates.h"
+#if HELIX_HAS_SNAKE_GAME
 #include "ui_snake_game.h"
+#endif
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
@@ -116,6 +118,7 @@ void AboutSettingsOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_about_printer_name_clicked",
          [](lv_event_t*) {
+#if HELIX_HAS_SNAKE_GAME
              static int tap_count = 0;
              static uint32_t last_tap_time = 0;
 
@@ -139,6 +142,7 @@ void AboutSettingsOverlay::register_callbacks() {
                  spdlog::info("[AboutSettings] Snake easter egg triggered!");
                  helix::SnakeGame::show();
              }
+#endif
          }},
         {"on_about_version_clicked",
          [](lv_event_t*) {

@@ -12,7 +12,8 @@
  * corexy/limited_corexy); Tool Offsets needs printer_has_tool_offset_cal;
  * Z-Offset Calibration needs a probe and steps aside where the tool offset
  * routine also sets the reference tool's Z, or where the firmware keeps a
- * Z offset per head.
+ * Z offset per head. The G-code Console row needs a build with the console
+ * (platform_console_supported, 0 in the K-Touch feature profile).
  */
 
 #include "ui_status_pill.h"
@@ -52,6 +53,7 @@ class AdvancedBeltRowFixture : public XMLTestFixture {
         ensure_subject("printer_has_probe", 1);
         ensure_subject("hide_manual_z_calibration", 0);
         ensure_subject("z_offset_reapplied_per_head", 0);
+        ensure_subject("platform_console_supported", 1);
         beta_ = subject("show_beta_features");
         beta_before_ = lv_subject_get_int(beta_);
         lv_subject_set_int(beta_, 0);
@@ -100,9 +102,9 @@ class AdvancedBeltRowFixture : public XMLTestFixture {
     /// untouched.
     static void ensure_subject(const char* name, int value) {
         if (!lv_xml_get_subject(nullptr, name)) {
-            static lv_subject_t subjects[7];
+            static lv_subject_t subjects[8];
             static size_t next = 0;
-            REQUIRE(next < 7);
+            REQUIRE(next < 8);
             lv_subject_init_int(&subjects[next], value);
             lv_xml_register_subject(nullptr, name, &subjects[next]);
             next++;
@@ -208,4 +210,22 @@ TEST_CASE_METHOD(AdvancedBeltRowFixture,
     CHECK(hidden_in_panel(z_offset));
 
     lv_subject_set_int(per_head, 0);
+}
+
+TEST_CASE_METHOD(AdvancedBeltRowFixture,
+                 "Advanced G-code Console row shows only in a build with the console",
+                 "[console][advanced][xml]") {
+    auto* supported = subject("platform_console_supported");
+    const int before = lv_subject_get_int(supported);
+    lv_obj_t* console = row("row_console");
+
+    lv_subject_set_int(supported, 1);
+    process_lvgl(10);
+    CHECK_FALSE(hidden_in_panel(console));
+
+    lv_subject_set_int(supported, 0);
+    process_lvgl(10);
+    CHECK(hidden_in_panel(console));
+
+    lv_subject_set_int(supported, before);
 }

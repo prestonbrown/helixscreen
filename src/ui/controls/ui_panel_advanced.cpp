@@ -11,7 +11,9 @@
 #include "ui_overlay_timelapse_install.h"
 #include "ui_overlay_timelapse_videos.h"
 #include "ui_panel_calibration_pid.h"
+#if HELIX_HAS_CONSOLE
 #include "ui_panel_console.h"
+#endif
 #include "ui_panel_macros.h"
 #include "ui_panel_spoolman.h"
 #include "ui_plugin_overview_overlay.h"
@@ -182,7 +184,9 @@ void AdvancedPanel::handle_macros_clicked() {
 }
 
 void AdvancedPanel::handle_console_clicked() {
+#if HELIX_HAS_CONSOLE
     get_global_console_panel().show(parent_screen_);
+#endif
 }
 
 void AdvancedPanel::handle_history_clicked() {
