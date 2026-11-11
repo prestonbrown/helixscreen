@@ -7,6 +7,7 @@
     {"id": "acme-abs", "brand": "Acme", "name": "ABS", "type": "ABS", "orca_id": "BUILTIN_ABS"},
     {"id": "acme-asa", "brand": "Acme", "name": "ASA", "type": "ASA", "orca_id": "BUILTIN_ASA"},
     {"id": "acme-tpu", "brand": "Acme", "name": "TPU", "type": "TPU", "orca_id": "OVERLAY_TAKEN"},
-    {"id": "acme-pc", "brand": "Acme", "name": "PC", "type": "PC"}
+    {"id": "acme-pc", "brand": "Acme", "name": "PC", "type": "PC"},
+    {"id": "acme-pla-matte", "brand": "Acme", "name": "PLA Matte", "type": "PLA", "orca_id": "GFA01"}
   ]
 }
