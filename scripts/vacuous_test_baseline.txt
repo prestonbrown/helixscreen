@@ -35,7 +35,6 @@ MoonrakerPerformanceSource satisfies IPerformanceSource interface  # 2 static_as
 # the call is observable, so an assertion would only restate that it returned.
 emergency_stop_and_restart with no API does nothing  # null API dereference would SIGSEGV
 a null api sends nothing and does not crash  # null API dereference would SIGSEGV
-fan_arc_resize_to_fit: null card is safe  # null card dereference would SIGSEGV
 fan_arc_resize_to_fit: missing children is safe  # null dial_arc dereference would SIGSEGV
 fan_arc_attach_auto_resize: null is safe  # null card dereference would SIGSEGV
 configure_touch_gestures: null indev is a no-op  # null indev dereference would SIGSEGV
