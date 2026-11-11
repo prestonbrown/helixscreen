@@ -56,18 +56,6 @@ bool survives_switch(const char* name) {
 } // namespace
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Per-widget AMS cleanups run at a printer switch and stay registered",
-                 "[ams][subjects][shutdown]") {
-    ui_ams_slot_register(); // registers ams_lane_spool too
-    ui_ams_lane_bar_register();
-
-    for (const char* name : {"AmsSlotWidgets", "AmsLaneSpoolWidgets", "AmsLaneBarWidgets"}) {
-        CAPTURE(name);
-        CHECK(survives_switch(name));
-    }
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture,
                  "Subjects registered with the XML components outlive a printer switch",
                  "[subjects][shutdown]") {
     // The fixture runs helix::register_xml_components(), which registers both.
@@ -79,12 +67,16 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_xml_get_subject(nullptr, "color_picker_selected_swatch") != nullptr);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "AMS sidebar gating subjects outlive a printer switch",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "AMS sidebar gating subjects and per-widget cleanups outlive a printer switch",
                  "[ams][sidebar][subjects][shutdown]") {
     // Created by the AMS panels' process-once registration, which a switch
     // never re-runs.
     helix::ui::AmsOperationSidebar::register_callbacks_static();
-    for (const char* name : {"AmsSidebarButtonGatingReset", "AmsSidebarButtonGating"}) {
+    ui_ams_slot_register(); // registers ams_lane_spool too
+    ui_ams_lane_bar_register();
+    for (const char* name : {"AmsSidebarButtonGatingReset", "AmsSidebarButtonGating",
+                             "AmsSlotWidgets", "AmsLaneSpoolWidgets", "AmsLaneBarWidgets"}) {
         CAPTURE(name);
         CHECK(survives_switch(name));
     }
