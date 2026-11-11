@@ -3,14 +3,13 @@
 
 #pragma once
 
-#include "ui_subscription_guard.h"
-
 #include "ams_backend.h"
 #include "async_lifetime_guard.h"
 #include "core/timer_guard.h"
 #include "filament_slot_override_store.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "subscription_guard.h"
 
 #include <spdlog/spdlog.h>
 

@@ -13,8 +13,6 @@
 
 #include "ams_state.h"
 
-#include "ui_color_picker.h"
-
 #include "ams_backend_registry.h"
 #include "ams_bypass_policy.h"
 #include "ams_dryer.h"
@@ -26,7 +24,9 @@
 #include "ams_step_model.h"
 #include "ams_tool_topology.h"
 #include "app_globals.h"
+#include "color_utils.h"
 #include "connection_state.h"
+#include "core/contract_breach.h"
 #include "core/data_root_resolver.h"
 #include "core/error_reporting.h"
 #include "core/text_io.h"
@@ -50,7 +50,6 @@
 #include "spoolman_manager.h"
 #include "spoolman_types.h"
 #include "tool_state.h"
-#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 

@@ -3,9 +3,6 @@
 
 #include "ams_backend_snapmaker.h"
 
-#include "ui_error_reporting.h"
-#include "ui_notification.h"
-
 #include "ams_device_action_value.h"
 #include "ams_device_sections.h"
 #include "ams_error.h"
@@ -13,6 +10,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "batch_feed_reconcile.h"
+#include "core/notification_api.h"
 #include "core/text_io.h"
 #include "display_numbering.h"
 #include "filament_database.h"

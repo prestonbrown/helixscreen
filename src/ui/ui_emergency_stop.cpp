@@ -813,6 +813,12 @@ const UiRequestRegistration s_expect_disconnect_registration{
     UiRequestKind::ExpectKlippyDisconnect, [](const UiRequest&) {
         EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::NORMAL);
     }};
+// A Moonraker restart takes klippy's connection down for as long as a firmware
+// restart does, with no toast: the caller already said why.
+const UiRequestRegistration s_expect_moonraker_restart_registration{
+    UiRequestKind::ExpectMoonrakerRestart, [](const UiRequest&) {
+        EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::LONG);
+    }};
 } // namespace
 
 void EmergencyStopOverlay::suppress_recovery_dialog(uint32_t duration_ms) {

@@ -15,17 +15,15 @@
 
 #include "system/update_checker.h"
 
-#include "ui_emergency_stop.h"
 #include "ui_event_safety.h"
 #include "ui_modal.h"
-#include "ui_notification.h"
-#include "ui_panel_settings.h"
 #include "ui_settings_updates.h"
 
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
 #include "core/log_redact.h"
+#include "core/notification_api.h"
 #include "core/text_io.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
@@ -40,6 +38,7 @@
 #include "klipper_config_includes.h"
 #include "lvgl.h"
 #include "moonraker_config_manager.h"
+#include "notice.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "replace_method_callback.h"
@@ -3334,8 +3333,7 @@ void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t g
                 }
                 // The app's websocket drops with it and reconnects on its own; that
                 // rediscovery syncs again, finds the stanza matching, and stops.
-                EmergencyStopOverlay::instance().suppress_recovery_dialog(
-                    recovery_suppression::LONG);
+                helix::publish_ui_request({helix::UiRequestKind::ExpectMoonrakerRestart});
                 api_ptr->restart_moonraker(
                     []() {
                         spdlog::info(
