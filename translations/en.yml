@@ -2862,6 +2862,7 @@ translations:
   Open the slot editor when you load a new spool: Open the slot editor when you load a new spool
   OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here
   OpenAMS manages this spool's link: OpenAMS manages this spool's link
+  This filament system keeps its own spool records: This filament system keeps its own spool records
   AFC has no Spoolman configured: AFC has no Spoolman configured
   Opened: Opened
   Operation already in progress: Operation already in progress

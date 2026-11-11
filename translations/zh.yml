@@ -2784,6 +2784,7 @@ translations:
   Open the slot editor when you load a new spool: '装入新料盘时打开槽位编辑器'
   OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS 在 Spoolman 中管理此料盘，此处只能更改材料、颜色、品牌和重量"
   OpenAMS manages this spool's link: "此料盘的关联由 OpenAMS 管理"
+  This filament system keeps its own spool records: "此耗材系统自行管理料盘记录"
   AFC has no Spoolman configured: "AFC 未设置 Spoolman"
   Opened: 已打开
   Operation already in progress: 操作正在进行中

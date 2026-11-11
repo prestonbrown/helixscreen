@@ -131,6 +131,10 @@ inline constexpr AmsTypeTraits kAmsTypeTraits[] = {
      nullptr},
     {AmsType::OPENAMS, "OpenAMS", "OpenAMS", "openams", "openams", AmsBufferRows::None, nullptr},
     {AmsType::INDX, "INDX", "INDX", "indx", "indx", AmsBufferRows::None, nullptr},
+    // Not a product: the producer names itself in lane_status.producer.name, which
+    // replaces this name on screen once the first status arrives.
+    {AmsType::LANE_STATUS, "Lane Status", "Lane Status Surface", "lane_status", "lane_status",
+     AmsBufferRows::None, nullptr},
 };
 
 /// The row for @p type; the NONE row for a value with none.

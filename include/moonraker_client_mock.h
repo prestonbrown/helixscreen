@@ -1493,6 +1493,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// the printer.objects.query / subscribe handlers read it).
     bool is_mock_openams() const;
     [[nodiscard]] nlohmann::json openams_status_json() const;
+    /// HELIX_MOCK_AMS=lane_status: a Lane Status Surface producer (lane-status-spec
+    /// RFC 0001), and the `lane_status` object it publishes (public: the
+    /// printer.objects.query / subscribe handlers read it).
+    bool is_mock_lane_status() const;
+    [[nodiscard]] nlohmann::json lane_status_json() const;
     /// The --real-ams Happy Hare `mmu` frame: a v4 single unit with a buffer and a fan,
     /// whose sync feedback and fan state follow MMU_SYNC_FEEDBACK and MMU_FAN.
     [[nodiscard]] nlohmann::json happy_hare_mmu_status() const;
@@ -2881,6 +2886,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     // backend). Slot identity is seeded into the lane_data namespace.
     /// Slot loaded onto the FPS lane, -1 when unloaded.
     std::atomic<int> openams_loaded_slot_{3};
+    /// The lane_status producer's current lane, as an index into its lanes; -1 for none.
+    std::atomic<int> lane_status_current_{0};
     /// The most units any shape publishes (fleet), and the size of the dryer simulation table.
     static constexpr int kOpenAmsMaxUnits = 12;
     [[nodiscard]] nlohmann::json openams_shared_status_json() const;
@@ -2963,6 +2970,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     GcodeResult gcode_pa_adjust(const std::string& script);
     GcodeResult gcode_cfs(const std::string& gcode);
     GcodeResult gcode_openams(const std::string& script);
+    /// CHANGE_TOOL LANE= and TOOL_UNLOAD on the lane_status producer, which
+    /// move its current_lane.
+    GcodeResult gcode_lane_status(const std::string& gcode);
+    /// The producer's lane_data records, one per lane, written as it would.
+    void seed_lane_status_records();
     GcodeResult gcode_openams_line(const std::string& gcode);
     GcodeResult gcode_happy_hare(const std::string& gcode);
     GcodeResult gcode_u1_feeding(const std::string& gcode);

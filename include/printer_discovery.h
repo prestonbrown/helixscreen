@@ -282,6 +282,13 @@ class PrinterDiscovery {
         return has_indx_;
     }
 
+    /// A Lane Status Surface producer publishes a `lane_status` object
+    /// (lane-status-spec RFC 0001). Claims the printer only when no backend of
+    /// its own does (register_detected_ams_systems()).
+    [[nodiscard]] bool has_lane_status() const {
+        return has_lane_status_;
+    }
+
     /// The `save_variables` object exists.
     [[nodiscard]] bool has_save_variables() const {
         return has_save_variables_;
@@ -516,8 +523,8 @@ class PrinterDiscovery {
     /// @brief Every filament-system presence flag and count, for the same
     /// purpose. A new flag or count joins here beside its member.
     [[nodiscard]] std::vector<int> filament_system_facts() const {
-        return {has_snapmaker_, has_afc_lite_,        has_zmod_afclite_,   has_zmod_afc(),
-                has_indx_,      has_openams_manager_, qidi_box_slot_count_};
+        return {has_snapmaker_, has_afc_lite_,        has_zmod_afclite_,    has_zmod_afc(),
+                has_indx_,      has_openams_manager_, qidi_box_slot_count_, has_lane_status_};
     }
 
     /// @brief All detected AMS/filament systems (may include multiple backends)
@@ -1192,6 +1199,7 @@ class PrinterDiscovery {
     bool has_medusahc_ = false;
     std::string medusahc_object_name_;
     bool has_indx_ = false;
+    bool has_lane_status_ = false;
     bool has_save_variables_ = false;
     bool has_spoollink_ = false;
     bool has_pa_adjust_ = false;

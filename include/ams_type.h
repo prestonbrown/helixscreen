@@ -29,7 +29,9 @@ enum class AmsType {
     QIDI_BOX =
         8, ///< QIDI Box filament changer (PLUS4, Q2, MAX4 — hub AMS, 4 slots chainable to 16)
     OPENAMS = 9, ///< klipper_openams through its own versioned oams_manager API
-    INDX = 10    ///< Bondtech INDX: docked passive nozzles, one extruder and heater
+    INDX = 10,   ///< Bondtech INDX: docked passive nozzles, one extruder and heater
+    LANE_STATUS =
+        11 ///< Any producer of the Lane Status Surface (lane-status-spec RFC 0001 `lane_status`)
 };
 
 } // namespace helix

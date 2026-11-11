@@ -591,7 +591,7 @@ additional configuration. **Verified against OrcaSlicer upstream/main
 | CFS (Creality K2) | HelixScreen (`FilamentSlotOverrideStore`) | `laneN` (1-based) | `lane_data` namespace |
 | OpenAMS (klipper_openams) | HelixScreen (`FilamentSlotOverrideStore`) | `laneN` (1-based) | `lane_data` namespace |
 | AFC / Box Turtle | AFC's own Klipper plugin | `T(n)` per mapping (virtual-tools firmware, #832); `laneN` (1-based) before | `lane_data` namespace (AFC is the originator) |
-| Happy Hare | Happy Hare's own Klipper plugin (components/mmu_server.py `push_lane_data`) | `laneN` (1-based) | `lane_data` namespace — Orca prefers it over the live `mmu` object |
+| Happy Hare | Happy Hare's own Klipper plugin (components/mmu_server.py `push_lane_data`) | `lane<gate>` (0-based: `lane0`) | `lane_data` namespace — Orca prefers it over the live `mmu` object |
 | Tool Changer | HelixScreen (`FilamentSlotOverrideStore`) | `T<n>` (0-based) | `lane_data` namespace |
 
 The key style is derived from the AMS type (`lane_key_style_for(get_type())`),
@@ -730,7 +730,7 @@ summary:
 
 - **Writers and their key style**: HelixScreen (`T<n>` on tool changers,
   `laneN` otherwise), AFC (`T(n)` per mapping since the virtual-tools firmware,
-  `laneN` before), Happy Hare (`laneN`), Mainsail #2510
+  `laneN` before), Happy Hare (`lane<gate>`, 0-based), Mainsail #2510
   (`T<n>` on Spoolman + tool changer).
 - **Readers**: OrcaSlicer is **key-opaque** (reads the inner `lane` field, never
   the outer key — MoonrakerPrinterAgent.cpp:780), requires the inner `lane`
@@ -2472,6 +2472,7 @@ Each backend has its own leaf doc covering the protocol, data sources, G-code co
 | QIDI Box | QIDI PLUS4 / Q2 / MAX4 RFID hub, chainable to 4 boxes | [FILAMENT_BACKEND_QIDI_BOX.md](FILAMENT_BACKEND_QIDI_BOX.md) |
 | Snapmaker U1 | SnapSwap 4-toolhead parallel toolchanger with per-channel RFID | [FILAMENT_BACKEND_SNAPMAKER_U1.md](FILAMENT_BACKEND_SNAPMAKER_U1.md) |
 | multiACE | Snapmaker U1 with 1-4 ACE Pro units upstream of its heads; the U1 backend plus ACE units, chosen in the factory from the discovered hardware | [FILAMENT_BACKEND_MULTIACE.md](FILAMENT_BACKEND_MULTIACE.md) |
+| Lane Status | Any producer of the Lane Status Surface (lane-status-spec RFC 0001) that no backend above reads: the `lane_status` object plus its `lane_data` records | [FILAMENT_BACKEND_LANE_STATUS.md](FILAMENT_BACKEND_LANE_STATUS.md) |
 
 ### AmsType Enum
 
@@ -2486,7 +2487,9 @@ enum class AmsType {
     CFS = 6,          // Creality Filament System (K2 series, RS-485)
     SNAPMAKER = 7,    // Snapmaker U1 SnapSwap toolchanger
     QIDI_BOX = 8,     // QIDI Box (PLUS4 / Q2 / MAX4, hub-style, 4 slots chainable to 16)
-    OPENAMS = 9       // klipper_openams through its versioned oams_manager API
+    OPENAMS = 9,      // klipper_openams through its versioned oams_manager API
+    INDX = 10,        // Bondtech INDX: docked passive nozzles, one extruder and heater
+    LANE_STATUS = 11  // Any Lane Status Surface producer (lane-status-spec RFC 0001)
 };
 ```
 

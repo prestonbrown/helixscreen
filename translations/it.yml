@@ -2925,6 +2925,7 @@ translations:
   Open the slot editor when you load a new spool: 'Apri l''editor dello slot quando carichi una nuova bobina'
   OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS conserva questa bobina in Spoolman, che qui accetta solo materiale, colore, marca e peso"
   OpenAMS manages this spool's link: "OpenAMS gestisce il collegamento di questa bobina"
+  This filament system keeps its own spool records: "Questo sistema di filamento gestisce da sé i dati delle bobine"
   AFC has no Spoolman configured: "AFC non ha Spoolman configurato"
   Opened: Aperta
   Operation already in progress: Operazione già in corso

@@ -472,7 +472,7 @@ void MoonrakerClientMock::populate_capabilities() {
     // mode and any persona that omits it: "mmu" detects Happy Hare (priority over every
     // other filament system) and would stand the wrong backend up.
     if (mmu_enabled_ && !is_mock_medusahc() && !is_mock_ifs_module() && !is_mock_openams() &&
-        !is_mock_indx() && inherits(kHappyHareMmu)) {
+        !is_mock_indx() && !is_mock_lane_status() && inherits(kHappyHareMmu)) {
         mock_objects.push_back("mmu");
     }
 
@@ -666,6 +666,12 @@ void MoonrakerClientMock::populate_capabilities() {
     if (is_mock_indx()) {
         read_indx_knobs();
         append_indx_objects(mock_objects);
+    }
+
+    // Lane Status Surface mock hardware (HELIX_MOCK_AMS=lane_status): the
+    // neutral object, which real discovery hands the generic backend.
+    if (is_mock_lane_status()) {
+        mock_objects.push_back("lane_status");
     }
 
     append_skip_wrapper_objects(mock_objects);

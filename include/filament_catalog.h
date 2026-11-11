@@ -73,7 +73,8 @@ class FilamentCatalog {
      *
      * "" when the product carries no `orca_id`, or carries one that another
      * product in the effective catalog (built-ins plus user overlay) also
-     * carries: a shared id does not name this product exactly. Keeps only a
+     * carries: a shared id does not name this product exactly. Also "" for an
+     * id is_usable_orca_filament_id() refuses (a Bambu GF code). Keeps only a
      * flat catalog id -> Orca id map resident, rebuilt after a user-overlay
      * write. Thread-safe.
      */
