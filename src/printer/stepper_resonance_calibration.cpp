@@ -20,7 +20,7 @@ struct Row {
 
 // --- Firmware wrapper: CALIBRATE_VFA ----------------------------------------
 //
-// Z-Mod's CALIBRATE_VFA T=<n> (c5pro_generic.cfg) mounts head n, zeroes the
+// Z-Mod's CALIBRATE_VFA T=<n> (c5pro_display_off.cfg) mounts head n, zeroes the
 // gcode offset, moves to the bed centre, runs the stock
 // STEPPER_RESONANCE_FACTORY_CALIBRATE, parks the head and ends in SAVE_CONFIG.
 // It homes as part of mounting, so nothing has to come first.

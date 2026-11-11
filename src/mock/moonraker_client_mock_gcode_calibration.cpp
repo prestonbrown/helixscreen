@@ -267,8 +267,30 @@ MoonrakerClientMock::gcode_set_gcode_offset(const std::string& gcode) {
 // Only the three gcode_*_offset parameters are modelled; the real command
 // takes any tool parameter, but nothing else is read back anywhere in the
 // app. One parameter per command, as in the firmware.
+namespace {
+
+/// Reforge's ff_toolchange, which the creator5 persona models, registers
+/// neither SET_TOOL_PARAMETER nor SAVE_TOOL_PARAMETER: Klipper answers both
+/// with its unknown-command error, returned here, or nullopt where the
+/// persona has the command.
+std::optional<std::string> unregistered_tool_parameter_error(MoonrakerClientMock::PrinterType type,
+                                                             const char* command) {
+    if (type != MoonrakerClientMock::PrinterType::FLASHFORGE_CREATOR5) {
+        return std::nullopt;
+    }
+    spdlog::warn("[MoonrakerClientMock] {}: not registered on this firmware", command);
+    return fmt::format("Unknown command:\"{}\"", command);
+}
+
+} // namespace
+
 MoonrakerClientMock::GcodeResult
 MoonrakerClientMock::gcode_set_tool_parameter(const std::string& gcode) {
+    if (auto error = unregistered_tool_parameter_error(printer_type_, "SET_TOOL_PARAMETER")) {
+        std::lock_guard<std::mutex> lock(gcode_error_mutex_);
+        last_gcode_error_ = std::move(*error);
+        return 1;
+    }
     auto t_pos = gcode.find("T=");
     auto p_pos = gcode.find("PARAMETER=");
     auto v_pos = gcode.find("VALUE=");
@@ -304,6 +326,11 @@ MoonrakerClientMock::gcode_set_tool_parameter(const std::string& gcode) {
 // nothing live - the change only lands when SAVE_CONFIG writes it out.
 MoonrakerClientMock::GcodeResult
 MoonrakerClientMock::gcode_save_tool_parameter(const std::string& gcode) {
+    if (auto error = unregistered_tool_parameter_error(printer_type_, "SAVE_TOOL_PARAMETER")) {
+        std::lock_guard<std::mutex> lock(gcode_error_mutex_);
+        last_gcode_error_ = std::move(*error);
+        return 1;
+    }
     auto t_pos = gcode.find("T=");
     auto p_pos = gcode.find("PARAMETER=");
     if (t_pos != std::string::npos && p_pos != std::string::npos) {

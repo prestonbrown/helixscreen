@@ -188,7 +188,7 @@ For tool-changer printers that can measure their own tool positions: one tap cal
 
 This screen only appears on a tool changer whose firmware exposes the calibration macro. If your printer doesn't have it, use the regular [Z-Offset Calibration](#z-offset-calibration) flow instead — it still works per-tool.
 
-On a Snapmaker U1, toolhead offsets are calibrated from the filament system settings instead: see [Toolhead Offset Calibration](filament.md#toolhead-offset-calibration).
+On a Snapmaker U1, the same **Tool Offsets** entry runs the printer's own guided calibration instead of the screen below: see [Toolhead Offset Calibration](filament.md#toolhead-offset-calibration).
 
 Every tool your printer reports gets its own row, however many there are:
 
@@ -221,6 +221,12 @@ A tool that has never been calibrated shows `--` on each axis instead of a numbe
 5. If the run fails partway through, the status line explains why and the run stops there — clean the affected tool's nozzle and try again
 
 Tapping **Stop** during a run performs an emergency stop, since the calibration macro can't be paused partway through, only canceled outright.
+
+### FlashForge Creator 5 and 5 Pro (Reforge)
+
+On Reforge, the Tool Offsets screen above runs Reforge's own `CALIBRATE_TOOL_OFFSETS`. The confirmation shows Reforge's instruction to remove the build plate first. It measures the station, then every head in turn at 200 °C. When it finishes, **Save offsets** writes the measured results to your Klipper config with `SAVE_CONFIG`, which briefly restarts Klipper.
+
+Reforge derives each head's offsets from its measurements, so HelixScreen doesn't adjust them one tool at a time. While printing, the Z-offset buttons move the machine-wide offset, the same as on a single-head printer. This has not been tested on a printer yet.
 
 ### FlashForge Creator 5 Pro (Z-Mod)
 

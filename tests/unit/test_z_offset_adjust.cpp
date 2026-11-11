@@ -297,24 +297,39 @@ TEST_CASE_METHOD(ZOffsetFixture,
 
 namespace {
 
-/// A klipper-toolchanger printer: SAVE_TOOL_PARAMETER only stages, and the
-/// machine-wide SAVE_CONFIG commits.
-class ToolchangerSaveFixture : public ZOffsetFixture {
+/// A two-tool changer whose ToolState is built from @p extra objects on top of
+/// klipper-toolchanger's.
+class ChangerSaveFixture : public ZOffsetFixture {
   public:
-    ToolchangerSaveFixture() {
+    explicit ChangerSaveFixture(std::vector<std::string> extra = {}) {
+        auto objects = nlohmann::json::array({"gcode_move", "toolhead", "extruder", "extruder1",
+                                              "toolchanger", "tool T0", "tool T1"});
+        for (auto& o : extra) {
+            objects.push_back(o);
+        }
         PrinterDiscovery hw;
-        hw.parse_objects(nlohmann::json::array({"gcode_move", "toolhead", "extruder", "extruder1",
-                                                "toolchanger", "tool T0", "tool T1"}));
+        hw.parse_objects(objects);
         state.set_hardware(hw);
         auto& ts = ToolState::instance();
         ts.deinit_subjects();
         ts.init_subjects(true);
         ts.init_tools(state.get_discovery());
     }
-    ~ToolchangerSaveFixture() override {
+    ~ChangerSaveFixture() override {
         ToolState::instance().deinit_subjects();
         helix::ui::UpdateQueue::instance().drain();
     }
+};
+
+/// klipper-toolchanger: SAVE_TOOL_PARAMETER only stages, and the machine-wide
+/// SAVE_CONFIG commits.
+class ToolchangerSaveFixture : public ChangerSaveFixture {};
+
+/// A Creator 5 on Reforge: ff_toolchange publishes the same objects, and its
+/// calibration stages its own result.
+class ReforgeSaveFixture : public ChangerSaveFixture {
+  public:
+    ReforgeSaveFixture() : ChangerSaveFixture({"ff_toolchange"}) {}
 };
 
 } // namespace
@@ -348,4 +363,38 @@ TEST_CASE_METHOD(ToolchangerSaveFixture,
     CHECK_FALSE(saved);
     CHECK_FALSE(ts.tool_offset_dirty(1, Axis::Z));
     CHECK(lv_subject_get_int(state.motion_state().get_pending_z_offset_delta_subject()) == 50);
+}
+
+TEST_CASE_METHOD(ReforgeSaveFixture,
+                 "Reforge: a calibration result is saved with SAVE_CONFIG and nothing else",
+                 "[z_offset][mock][tool_offsets][reforge]") {
+    auto& ts = ToolState::instance();
+    // Nothing per tool to babystep: the tune panel keeps the global offset.
+    CHECK(lv_subject_get_int(ts.get_per_tool_axis_supported_subject(Axis::Z)) == 0);
+
+    // Connect frame, then the frame CALIBRATE_TOOL_OFFSETS leaves behind.
+    ts.update_from_status(
+        {{"tool T1", {{"gcode_x_offset", 0.1}, {"gcode_y_offset", 0.2}, {"gcode_z_offset", 3.2}}}});
+    REQUIRE_FALSE(ts.tool_offset_dirty(1, Axis::X));
+    ts.update_from_status({{"tool T1", {{"gcode_x_offset", 0.12}, {"gcode_z_offset", 3.25}}}});
+    REQUIRE(ts.tool_offset_dirty(1, Axis::X));
+    REQUIRE(ts.tool_offset_dirty(1, Axis::Z));
+
+    mock_client.clear_gcode_script_history();
+    bool saved = false;
+    std::string error;
+    helix::ui::SaveConfigWatch save_watch;
+    helix::zoffset::save_dirty_offsets(
+        api.get(), save_watch, ZOffsetCalibrationStrategy::PROBE_CALIBRATE, state.get_discovery(),
+        /*global_dirty=*/false, [&]() { saved = true; },
+        [&](const std::string& msg) { error = msg; }, &state);
+
+    REQUIRE(wait_until([&] { return last_sent() == "SAVE_CONFIG"; }, 3000));
+    CHECK(mock_client.gcode_script_history() == std::vector<std::string>{"SAVE_CONFIG"});
+    get_printer_state().set_klippy_state_sync(KlippyState::STARTUP);
+    get_printer_state().set_klippy_state_sync(KlippyState::READY);
+    REQUIRE(wait_until([&] { return saved; }, 3000));
+    CHECK(error.empty());
+    CHECK_FALSE(ts.tool_offset_dirty(1, Axis::X));
+    CHECK_FALSE(ts.tool_offset_dirty(1, Axis::Z));
 }

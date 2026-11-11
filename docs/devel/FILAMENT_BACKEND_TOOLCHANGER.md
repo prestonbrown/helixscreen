@@ -164,8 +164,11 @@ is what supplies everything below.
 (`src/printer/toolchanger_addon.cpp#zmod_c5_detect`, exported as `zmod_c5_present`). Both
 halves are required: the AD5X Z-Mod also publishes `zmod_color` but has no carriage grab
 buttons, so it cannot match, and `zmod_color` alone would not say which machine this is.
-Reforge, the other C5 Pro firmware, needs none of this: it matches no provider row and
-takes the plain klipper-toolchanger path described above.
+Reforge, the other C5 Pro firmware, needs none of this and matches no row there: its
+`ff_toolchange` extra publishes klipper-toolchanger's `toolchanger` and `tool T<n>` objects.
+Where Reforge also runs AFC, the AFC backend takes the heads instead, as an MMU wins over the
+tool changer ([Detection](#detection) above). Its tool offsets have their own row in `helix::tool_offsets`;
+see [Reforge](#reforge) under automatic tool offset calibration.
 
 Z-Mod 1.7.4 additionally publishes an **AFC shim** (`zmod_afclite` registering `AFC`,
 `AFC_lane E0..E3`, `AFC_unit C5`) so Fluidd and Mainsail draw their AFC panel for the C5's
@@ -388,7 +391,7 @@ macro measures against, how it heats, or where the sensor is — all of that is 
 | Screen | `include/ui_panel_calibration_tool_offset.h` — Controls ▸ Tool Offsets, and the Advanced row |
 | Results | never parsed off the console: the macro's `SET_TOOL_PARAMETER` writes land on the `tool T<n>` objects and reach `ToolState` through `helix::tool_offsets`, exactly as a manual adjustment would |
 | Progress | the rpc's completion only: `printer.gcode.script` answers when the macro finishes. The rows fill in as the macro writes, since `ToolState` publishes every offset change, but no row says which tool is under the probe: `toolchanger.tool_number` says which tool is mounted, and the tool the macro measures the others against is mounted without being probed, so mounted and probed differ. Per-tool progress needs the macro to report it |
-| Save | the macro persists nothing; `SAVE_TOOL_PARAMETER` only stages. The panel's Save is the shared `save_dirty_offsets()` path (`src/ui/calibration/z_offset_utils.cpp`): re-send SET+SAVE for every dirty axis, then one `SAVE_CONFIG` through `SaveConfigWatch` |
+| Save | the macro persists nothing; `SAVE_TOOL_PARAMETER` only stages. The panel's Save is the shared `save_dirty_offsets()` path (`src/ui/calibration/z_offset_utils.cpp`): re-send SET+SAVE for every dirty axis the model can write, then one `SAVE_CONFIG` through `SaveConfigWatch`. A tool is dirty when `ToolState` follows the axis (`ToolState::follows_axis()`: one the UI may edit, or one `tool_offsets::firmware_stages_axis()` says the printer's calibration staged) and its value moved since connect or the last save |
 | Stop | the macro blocks Klipper's gcode queue, so Stop is M112 + `FIRMWARE_RESTART` with the disconnect suppressed as expected; the restart discards the offsets measured so far |
 | Timeout | the rpc ceiling is the panel's own `kCalibrationTimeoutMs` (15 min; ~30 s to measure plus heating from cold, per tool, sequentially). Moonraker never times out `printer.gcode.script`, so an expiry while `idle_timeout` still reads Printing is a macro that is still running: the run completes on the busy→idle edge, with one more ceiling as the backstop - `PrintPreparationManager`'s rule for a pre-start macro that outlives its ceiling |
 | Mock | `HELIX_MOCK_AMS=toolchanger` advertises the macro and simulates the run (see `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md`) |
@@ -405,6 +408,7 @@ macro measures against, how it heats, or where the sensor is — all of that is 
 | Snapmaker nozzle offset (builds with `HELIX_HAS_SNAPMAKER` only) | `snapmaker::nozzle_offset::supported` | `GuidedFlow` | the U1's guided flow |
 | INDX seat by hand | `indx::supports_seat_by_hand` | `GuidedFlow` | the seat-by-hand flow |
 | klipper-toolchanger | `has_tool_changer()` + `CALIBRATE_TOOL_OFFSETS` | `Panel` | the panel above |
+| Changer firmware offset wizard | a tool changer in any dialect, or an `AFC_Toolchanger` unit, + `C5_CALIBRATE_OFFSETS` | `PrinterPrompt` | the macro alone (OpenCreator's wizard) |
 | Changer firmware prompt | a tool changer in any dialect (`has_tool_changer()` or `toolchanger_addon::present()`) + `CALIBRATE_EXTRUDERS` | `PrinterPrompt` | the macro alone |
 
 `supported(hw)` is `kind != None`; `printer_has_tool_offset_cal` and the Advanced row's
@@ -421,6 +425,32 @@ an action:prompt asking the user to remove the build plate; the prompt's OK runs
 panel cannot follow it: its completion and result rows would claim a finish that has not
 happened. HelixScreen sends the macro, `ActionPromptManager` renders the printer's prompt,
 and the firmware keeps its own measurements; no progress or rows are shown.
+
+### Reforge
+
+Reforge (`Klipper4FlashForge/firmware`) on the Creator 5 defines `CALIBRATE_TOOL_OFFSETS`
+over its own `TOOL_LOCATE_SENSOR` and `TOOL_CALIBRATE_TOOL_OFFSET` (`ff-tool-offset.cfg`), so
+the klipper-toolchanger row above runs the panel. What differs is the offset model, which is
+the "Reforge ff_toolchange" row in `src/printer/tool_offsets.cpp#providers`, detected on the
+`ff_toolchange` object and placed ahead of klipper-toolchanger:
+
+- **No writes.** `SET_TOOL_PARAMETER` and `SAVE_TOOL_PARAMETER` are not registered
+  ([Reforge toolchange.md](https://github.com/Klipper4FlashForge/firmware/blob/eda86c1fa19fd47c9efa77c8ee1d9638dc124450/docs/toolchange.md)). The `gcode_x/y/z_offset` on `tool T<n>` are derived by
+  `ff_toolchange._derive_offsets()`: X and Y are each tool's measured nozzle position minus
+  the base tool's, Z is the nozzle-to-station gap plus the tool's `z_adjust`. No command sets
+  one to a value, so `supports_axis()` is false on every axis, the tune panel and the Z-offset
+  widget keep the machine-wide babystep, and nothing is written per tool.
+- **Save is `SAVE_CONFIG` alone.** `TOOL_CALIBRATE_TOOL_OFFSET` stages the measured
+  `nozzle_x/y/z` into `[ff_tool <n>]` with `configfile.set()` and applies them live
+  ([ff_tool.py](https://github.com/Klipper4FlashForge/firmware/blob/eda86c1fa19fd47c9efa77c8ee1d9638dc124450/pkgs/klipper/payload/klipper/klippy/extras/ff_tool.py) `set_nozzle`); Reforge's [calibration.md](https://github.com/Klipper4FlashForge/firmware/blob/eda86c1fa19fd47c9efa77c8ee1d9638dc124450/docs/calibration.md) persists a run with
+  `SAVE_CONFIG`. `firmware_stages_axis()` is true, so `ToolState` follows the derived offsets, the
+  rows fill in, and the moved values make the tools dirty; `save_dirty_offsets()` then finds
+  no SET+SAVE to send and commits with one `SAVE_CONFIG`.
+
+Reforge's own per-tool Z correction, `TOOL_Z_ADJUST TOOL=<n> ADJUST=|VALUE= [SAVE=1]`, edits
+`z_adjust` rather than the published offset and is not wired to any HelixScreen control.
+The `creator5` mock persona refuses both tool-parameter commands with Klipper's
+unknown-command error.
 
 Tests: `[tool_offset_cal]` in `tests/unit/test_tool_offset_calibration.cpp`, including one
 case that walks every row in precedence order. Adding a firmware is one row in that table.

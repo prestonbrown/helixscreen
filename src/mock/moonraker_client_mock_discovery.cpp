@@ -308,7 +308,8 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back("heater_generic chamber_heater");
         mock_objects.push_back("gcode_button frontDoor");
         mock_objects.push_back("gcode_button topDoor");
-        // c5pro_generic.cfg's calibration macros.
+        // Z-Mod's calibration macros (c5pro_display_off.cfg) and chamber air
+        // macros (c5pro_generic.cfg).
         mock_objects.push_back("gcode_macro CALIBRATE_EXTRUDERS");
         mock_objects.push_back("gcode_macro CALIBRATE_VFA");
         mock_objects.push_back("gcode_macro AIR_CIRCULATION_INTERNAL");

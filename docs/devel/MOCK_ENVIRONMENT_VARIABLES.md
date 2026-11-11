@@ -1041,8 +1041,8 @@ other macro description.
 the failure path. `tests/unit/test_mock_tool_offset_calibration.cpp` pins it.
 
 **Snapmaker U1 toolhead offset calibration:** the `snapmaker_u1` persona lists the
-`_EXTRUDER_OFFSET_ACTION_*` hook macros, so AMS Management shows **Calibration > Calibrate
-Toolhead Offsets**. Each `EXTRUDER_OFFSET_ACTION_*` command answers about a second later, every
+`_EXTRUDER_OFFSET_ACTION_*` hook macros, so the **Tool Offsets** entry (Advanced, and the
+Controls panel) starts the U1's guided calibration. Each `EXTRUDER_OFFSET_ACTION_*` command answers about a second later, every
 step but PRESTART is refused with the firmware's coded fault until PRESTART has run, and a
 head's PROBE_CALIBRATE moves its `extruder_offset`, which `printer.objects.query` reports.
 `HELIX_MOCK_NOZZLE_CAL_PLATE_REFUSE=<n>` makes the first `n` plate checks report the PEI sheet
@@ -1493,6 +1493,13 @@ HELIX_MOCK_PRINTER=creator5 ./build/bin/helix-screen --test -vv
 # Force a different topology on the same persona
 HELIX_MOCK_PRINTER=creator5 HELIX_MOCK_AMS=afc ./build/bin/helix-screen --test -vv
 ```
+
+Tool offsets save as on Reforge: the persona refuses `SET_TOOL_PARAMETER` and
+`SAVE_TOOL_PARAMETER` with Klipper's unknown-command error, and the
+`ff_toolchange` object selects the Reforge row of `helix::tool_offsets`, so the
+Tool Offsets panel's Save sends only `SAVE_CONFIG`
+([FILAMENT_BACKEND_TOOLCHANGER.md](FILAMENT_BACKEND_TOOLCHANGER.md#reforge)). The
+persona still models Reforge without AFC.
 
 The default is the persona's `default_mock_ams` in
 `include/mock_persona.h#descriptor`, applied by
