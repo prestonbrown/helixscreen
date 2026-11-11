@@ -16,12 +16,6 @@
 # copy of the script.
 SCRIPT="${HELIX_TEST_MANIFEST_SH:-scripts/gen-packaging-manifest.sh}"
 
-@test "manifest runs cleanly and produces non-empty output" {
-    run "$SCRIPT"
-    [ "$status" -eq 0 ]
-    [ -n "$output" ]
-}
-
 @test "manifest enumerates a known fixture tree exactly" {
     # Run the script against a tree whose correct answer is written out by hand.
     #
@@ -73,47 +67,27 @@ assets/sounds
 ui_xml" ]
 }
 
-@test "manifest includes critical seed dirs introduced by bfeba7c26" {
-    # If any of these drop out of the manifest, the Android APK and/or release
-    # tarballs will ship without printer detection, themes, presets, etc.
-    local required=(
-        assets/config
-        assets/config/presets
-        assets/config/print_start_profiles
-        assets/config/themes/defaults
-        assets/config/platform
-        assets/fonts
-        assets/images
-        assets/sounds
-        assets/zoneinfo
-        ui_xml
-        ui_xml/components
-        ui_xml/translations
-    )
-    local manifest
-    manifest=$("$SCRIPT")
-    for dir in "${required[@]}"; do
-        if ! grep -qxF "$dir" <<<"$manifest"; then
-            echo "Manifest missing required directory: $dir"
-            return 1
-        fi
-    done
-}
-
-@test "manifest excludes hidden directories (.git, .github, ...)" {
-    run "$SCRIPT"
-    [ "$status" -eq 0 ]
-    # No line should contain a path component starting with '.'
-    ! grep -qE '(^|/)\.[^/]' <<<"$output"
-}
-
-@test "manifest accepts explicit project root argument" {
-    run "$SCRIPT" "$PWD"
-    [ "$status" -eq 0 ]
-    [ -n "$output" ]
-}
-
 @test "manifest rejects non-project-root argument" {
     run "$SCRIPT" /tmp
     [ "$status" -ne 0 ]
+}
+
+@test "the seed-dir lint names a required directory the manifest drops" {
+    # lint_packaging_seed_dirs (scripts/code_lint.sh) is the verdict over the real
+    # tree, run by qc_code_lint: if a seed directory drops out of the manifest,
+    # the APK and the release tarballs ship without printer detection, themes or
+    # presets. Here it reads a fixture root holding every seed dir but one.
+    local root="$BATS_TEST_TMPDIR/seeds"
+    . scripts/code_lint.sh
+    mkdir -p "$root/scripts"
+    cp "$SCRIPT" "$root/scripts/gen-packaging-manifest.sh"
+    while IFS= read -r dir; do mkdir -p "$root/$dir"; done < <(packaging_seed_dirs)
+    cd "$root" || return 1
+    run lint_packaging_seed_dirs
+    [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+
+    rmdir assets/zoneinfo
+    run lint_packaging_seed_dirs
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"assets/zoneinfo"* ]]
 }

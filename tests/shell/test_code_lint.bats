@@ -2257,6 +2257,25 @@ EOF
 
 # --- The driver and its wiring into quality-checks.sh ---
 
+@test "the stripped-assets lint fires on a consumer of a stripped image and on losing the registered one" {
+    fixture_root
+    : | put mk/cross.mk
+    : | put assets/images/printer_400.png
+    echo 'const char* kImg = "A:assets/images/printer_400.png";' | put src/ui/printer_image.cpp
+    mkdir -p include ui_xml assets/config tests/unit
+    run lint_stripped_assets_unreferenced
+    [ "$status" -eq 0 ] || fail "$output"
+
+    echo '<img src="orcaslicer test cube.PNG"/>' | put ui_xml/cube.xml
+    echo 'auto p = "assets/images/printer.png";' | put tests/unit/test_thumb.cpp
+    echo '	rm -f $(STAGE)/assets/images/printer_400.png' | put mk/cross.mk
+    run lint_stripped_assets_unreferenced
+    [ "$status" -eq 1 ]
+    contains "ui_xml/cube.xml" "$output"
+    contains "tests/unit/test_thumb.cpp" "$output"
+    contains "mk/cross.mk deletes printer_400.png" "$output"
+}
+
 @test "every registered lint has a function and every lint function is registered" {
     local registered defined
     registered=$(code_lint_registry | awk '{print $2}' | sort)

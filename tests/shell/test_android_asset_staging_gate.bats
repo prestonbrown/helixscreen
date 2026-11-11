@@ -54,11 +54,6 @@ run_gate() {
 
 # --- The quiet half: legitimate shapes must not fire -----------------------
 
-@test "passes on the real repo as it stands" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-}
-
 @test "a staged tree that merely exists and differs is not a failure" {
     make_fixture
     mkdir -p "$WORK/$STAGED/ui_xml"

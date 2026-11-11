@@ -6,8 +6,27 @@
 
 load helpers
 
-@test "filament-op code carries no backend-type branch" {
-    run python3 scripts/check_filament_ops_neutral.py
+# The verdict over the real tree is qc_filament_ops_neutral's; these cases pin
+# the script on a fixture root.
+scope_file() { # <path under the root> <body>
+    mkdir -p "$BATS_TEST_TMPDIR/root/$(dirname "$1")"
+    printf '%s\n' "$2" > "$BATS_TEST_TMPDIR/root/$1"
+}
+
+@test "a get_type() call or an AmsType name in filament-op code fails, named by line" {
+    scope_file src/ui/filament/ui_ams_sidebar.cpp $'void f() {\n    if (backend->get_type () == x) {}\n}'
+    scope_file include/ui_panel_filament.h 'constexpr auto kType = AmsType::AFC;'
+    run python3 scripts/check_filament_ops_neutral.py --root "$BATS_TEST_TMPDIR/root"
+    [ "$status" -eq 1 ]
+    contains "src/ui/filament/ui_ams_sidebar.cpp:2:" "$output"
+    contains "include/ui_panel_filament.h:1:" "$output"
+    contains "2 backend-type reference(s)" "$output"
+}
+
+@test "comments, capability questions and files outside the scope pass" {
+    scope_file src/ui/filament/ui_ams_sidebar.cpp $'// never call get_type() here\n/* nor AmsType::AFC */\nbool ok = backend->head_filament_ops();'
+    scope_file src/ui/ui_panel_ams.cpp 'if (backend->get_type() == AmsType::AFC) {}'
+    run python3 scripts/check_filament_ops_neutral.py --root "$BATS_TEST_TMPDIR/root"
     [ "$status" -eq 0 ] || fail "$output"
 }
 

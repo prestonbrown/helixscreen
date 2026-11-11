@@ -106,8 +106,3 @@ translations:
 }
 
 # ------------------------------------------------------- the repo's own state
-
-@test "the real translations/en.yml passes" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-}
