@@ -322,7 +322,7 @@ class PrintHistoryManager {
      */
     void ensure_loaded(helix::HistoryScope scope);
 
-    /// From now on, each connection fetches history only after on_discovery_complete():
+    /// After this call, each connection fetches history only after on_discovery_complete():
     /// a history reply then never competes with discovery, and a reconnect does not ask
     /// for it before anything else. A fetch asked for earlier waits and runs then.
     void hold_until_discovery();

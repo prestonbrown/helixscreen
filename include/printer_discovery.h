@@ -6,11 +6,11 @@
  * @file printer_discovery.h
  * @brief Single source of truth for all discovered printer hardware
  *
- * This class consolidates:
- * - Hardware lists (heaters, fans, sensors, leds, steppers) from MoonrakerClient
- * - Capability flags (has_qgl, has_probe, etc.) from PrinterCapabilities
- * - Macros from PrinterCapabilities
- * - AMS/MMU detection from PrinterCapabilities
+ * Holds:
+ * - Hardware lists (heaters, fans, sensors, leds, steppers)
+ * - Capability flags (has_qgl, has_probe, etc.)
+ * - Macros
+ * - AMS/MMU detection
  */
 
 #include "ams_type.h"
@@ -112,7 +112,7 @@ class PrinterDiscovery {
      * @brief Derive the build volume from the configfile [stepper_*] sections
      *
      * The X/Y travel limits and the Z height are the most discriminating
-     * evidence PrinterDetector has: 63 of the 94 database entries carry a
+     * evidence PrinterDetector has: most database entries carry a
      * build_volume_range heuristic. configfile.settings reports the resolved
      * value for every stepper key, so this is available as soon as the
      * configfile query returns — long before the safety-limits fetch that is
@@ -263,8 +263,6 @@ class PrinterDiscovery {
         return has_afc_object_ && has_zmod_color_ && !has_zmod_afclite_;
     }
 
-    /// Full Klipper object name of the pin_watch section (e.g. "pin_watch io"),
-    /// for subscribing to it. Empty when there is none.
     /// The [medusahc] object exists. A plain fact about the object list; what
     /// it means is helix::toolchanger_addon's business.
     [[nodiscard]] bool has_medusahc() const {
@@ -306,6 +304,8 @@ class PrinterDiscovery {
         return has_pa_adjust_;
     }
 
+    /// Full Klipper object name of the pin_watch section (e.g. "pin_watch io"),
+    /// for subscribing to it. Empty when there is none.
     [[nodiscard]] const std::string& pin_watch_object_name() const {
         return pin_watch_object_name_;
     }
@@ -486,7 +486,7 @@ class PrinterDiscovery {
         return mmu_type_;
     }
 
-    /// @brief Alias for mmu_type() - compatibility with PrinterCapabilities API
+    /// @brief Alias for mmu_type()
     [[nodiscard]] AmsType get_mmu_type() const {
         return mmu_type_;
     }
@@ -536,7 +536,7 @@ class PrinterDiscovery {
         return afc_lane_names_;
     }
 
-    /// @brief Alias for afc_lane_names() - compatibility with PrinterCapabilities API
+    /// @brief Alias for afc_lane_names()
     [[nodiscard]] const std::vector<std::string>& get_afc_lane_names() const {
         return afc_lane_names_;
     }
@@ -545,7 +545,7 @@ class PrinterDiscovery {
         return afc_hub_names_;
     }
 
-    /// @brief Alias for afc_hub_names() - compatibility with PrinterCapabilities API
+    /// @brief Alias for afc_hub_names()
     [[nodiscard]] const std::vector<std::string>& get_afc_hub_names() const {
         return afc_hub_names_;
     }
@@ -599,7 +599,7 @@ class PrinterDiscovery {
         return tool_numbers_.size() == tool_names_.size() ? tool_numbers_ : std::vector<int>{};
     }
 
-    /// @brief Alias for tool_names() - compatibility with PrinterCapabilities API
+    /// @brief Alias for tool_names()
     [[nodiscard]] const std::vector<std::string>& get_tool_names() const {
         return tool_names_;
     }
@@ -608,7 +608,7 @@ class PrinterDiscovery {
         return filament_sensor_names_;
     }
 
-    /// @brief Alias for filament_sensor_names() - compatibility with PrinterCapabilities API
+    /// @brief Alias for filament_sensor_names()
     [[nodiscard]] const std::vector<std::string>& get_filament_sensor_names() const {
         return filament_sensor_names_;
     }
@@ -647,7 +647,7 @@ class PrinterDiscovery {
         return macros_;
     }
 
-    /// @brief Alias for macros() - compatibility with PrinterCapabilities API
+    /// @brief Alias for macros()
     [[nodiscard]] const std::unordered_set<std::string>& get_macros() const {
         return macros_;
     }
@@ -883,7 +883,7 @@ class PrinterDiscovery {
         return nozzle_clean_macro_;
     }
 
-    /// @brief Alias for nozzle_clean_macro() - compatibility with PrinterCapabilities API
+    /// @brief Alias for nozzle_clean_macro()
     [[nodiscard]] std::string get_nozzle_clean_macro() const {
         return nozzle_clean_macro_;
     }
@@ -892,7 +892,7 @@ class PrinterDiscovery {
         return purge_line_macro_;
     }
 
-    /// @brief Alias for purge_line_macro() - compatibility with PrinterCapabilities API
+    /// @brief Alias for purge_line_macro()
     [[nodiscard]] std::string get_purge_line_macro() const {
         return purge_line_macro_;
     }
@@ -901,7 +901,7 @@ class PrinterDiscovery {
         return heat_soak_macro_;
     }
 
-    /// @brief Alias for heat_soak_macro() - compatibility with PrinterCapabilities API
+    /// @brief Alias for heat_soak_macro()
     [[nodiscard]] std::string get_heat_soak_macro() const {
         return heat_soak_macro_;
     }
@@ -1111,7 +1111,7 @@ class PrinterDiscovery {
     // "HOME" hits STATUS_LED_HOMING, dropping LED macros that are perfectly valid.
     static bool contains_word(const std::string& name, const std::string& needle);
 
-    // Helper: check if name matches any pattern
+    // Helper: true when name equals one of patterns exactly
     static bool matches_any(const std::string& name, const std::vector<std::string>& patterns) {
         for (const auto& pattern : patterns) {
             if (name == pattern) {
@@ -1269,7 +1269,7 @@ class PrinterDiscovery {
 
 } // namespace helix
 
-// Forward declarations for init_subsystems_from_hardware (global scope)
+// Forward declarations for init_subsystems_from_hardware
 namespace helix {
 class IMoonrakerAPI;
 class IMoonrakerClient;

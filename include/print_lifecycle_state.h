@@ -11,8 +11,7 @@ enum class PrintOutcome;
 /**
  * @brief Print state machine states
  *
- * Extracted from PrintStatusPanel for testability. Maps the raw Moonraker
- * job state + outcome into higher-level UI states.
+ * Maps the raw Moonraker job state + outcome into higher-level UI states.
  */
 enum class PrintState {
     Idle,      ///< No active print
@@ -55,10 +54,10 @@ const char* print_state_name(PrintState state);
  *
  * True for `Preparing`, `Printing` and `Paused`: the states in which a print job
  * is entitled to move the toolhead, and therefore the states in which nothing
- * else may. This is the question the ~60 open-coded `PRINTING || PAUSED`
- * comparisons are all trying to ask, and the reason they get it wrong is that
- * `PrintJobState` cannot express `Preparing` - a job the app has committed to
- * but the printer has not reported yet.
+ * else may. An open-coded `PRINTING || PAUSED` comparison is trying to ask this
+ * question and gets it wrong, because `PrintJobState` cannot express
+ * `Preparing` - a job the app has committed to but the printer has not
+ * reported yet.
  *
  * Ask this instead of comparing the raw job state whenever the decision is
  * "would acting now fight the printer for the toolhead": motion and extrusion
@@ -112,7 +111,7 @@ constexpr bool print_job_running(PrintState state) {
  *   PAUSED, backend homes itself        -> refuse. AD5X IFS only: its
  *                                         `_IFS_REMOVE_CURRENT_PRUTOK` runs a
  *                                         buried `_G28` that probes a loadcell-Z
- *                                         nozzle into the part (bundle XWPBR2DX).
+ *                                         nozzle into the part.
  *   PAUSED, backend does NOT self-home  -> ALLOW. Pause-then-swap is the runout
  *                                         and colour-change recovery workflow on
  *                                         AFC / Happy Hare / CFS / ACE / QIDI /
@@ -227,7 +226,7 @@ struct StateChangeResult {
 /**
  * @brief Pure-logic state machine for print lifecycle
  *
- * Owns all the mutable state that PrintStatusPanel previously held inline.
+ * Owns the mutable print-lifecycle state behind PrintStatusPanel.
  * Has NO LVGL or widget dependencies — testable in isolation.
  *
  * Usage:
@@ -247,16 +246,16 @@ class PrintLifecycleState {
      *
      * @param start_phase The LIVE pre-print phase, so this derives the same
      *        answer as `PrinterPrintState::publish_lifecycle_state()` does for
-     *        the `print_lifecycle` subject. It used to hard-code 0 on the
-     *        reasoning that `on_start_phase_changed()` owned that axis, which is
-     *        false: a job-state change arriving while a phase is live must still
-     *        let the phase outrank it, exactly as `derive_print_state()` says.
-     *        Hard-coding 0 made this object disagree with the published subject
-     *        for the whole of a pre-print window - `Printing` instead of
-     *        `Preparing` on a firmware-side `PRINT_START`, and `Complete`
-     *        instead of `Preparing` when a host-side block runs after a finished
-     *        job. Defaulted to 0 so the phase-less unit tests, which exercise
-     *        this axis deliberately, keep reading as written.
+     *        the `print_lifecycle` subject. `on_start_phase_changed()` does not
+     *        own that axis alone: a job-state change arriving while a phase is
+     *        live must still let the phase outrank it, exactly as
+     *        `derive_print_state()` says. Passing 0 there makes this object
+     *        disagree with the published subject for the whole of a pre-print
+     *        window - `Printing` instead of `Preparing` on a firmware-side
+     *        `PRINT_START`, and `Complete` instead of `Preparing` when a
+     *        host-side block runs after a finished job. Defaulted to 0 so the
+     *        phase-less unit tests, which exercise this axis deliberately, keep
+     *        reading as written.
      */
     StateChangeResult on_job_state_changed(helix::PrintJobState job_state,
                                            helix::PrintOutcome outcome, int start_phase = 0);

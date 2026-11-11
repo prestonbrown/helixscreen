@@ -11,8 +11,8 @@
 #include <optional>
 #include <string>
 
-// Forward declare ConnectionState and KlippyState (defined in moonraker_client.h and
-// printer_state.h)
+// Forward declare ConnectionState and KlippyState (defined in connection_state.h and
+// klippy_state.h)
 namespace helix {
 enum class ConnectionState;
 }
@@ -35,8 +35,6 @@ enum class MoonrakerLocality { Unknown = 0, Local = 1, Remote = 2 };
  * and Klipper firmware state. Also maintains a derived nav_buttons_enabled
  * subject that combines connection and klippy state for UI gating.
  *
- * Extracted from PrinterState as part of god class decomposition.
- *
  * Subjects (9 total):
  * - printer_connection_state_ (int) - ConnectionState enum values
  * - printer_connection_message_ (string, 128-byte buffer) - status message
@@ -46,6 +44,7 @@ enum class MoonrakerLocality { Unknown = 0, Local = 1, Remote = 2 };
  * - moonraker_connection_state_ (int, derived) - 1 when Moonraker WebSocket connected
  * - moonraker_is_remote_ (int) - 1 when the connected Moonraker is NOT this host
  * - moonraker_locality_ (int) - MoonrakerLocality for the current connection
+ * - klippy_state_message_seq_ (int) - bumped on every state message change
  *
  * Additional state:
  * - was_ever_connected_ (bool) - tracks if ever successfully connected this session
@@ -57,7 +56,6 @@ class PrinterNetworkState {
     PrinterNetworkState();
     ~PrinterNetworkState() = default;
 
-    // Non-copyable
     PrinterNetworkState(const PrinterNetworkState&) = delete;
     PrinterNetworkState& operator=(const PrinterNetworkState&) = delete;
 

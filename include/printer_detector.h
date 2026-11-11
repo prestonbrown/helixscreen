@@ -409,8 +409,7 @@ class PrinterDetector {
      *
      * Looks up the `pre_print_options` field from the printer database JSON for
      * the specified printer and returns the parsed `PrePrintOptionSet`. This is
-     * the printer-agnostic abstraction used by the print-detail panel (Phase 2
-     * of the pre-print-options-framework refactor).
+     * the printer-agnostic abstraction used by the print-detail panel.
      *
      * @param printer_name Printer name (e.g., "FlashForge Adventurer 5M Pro")
      * @return Option set, or empty set if not found
@@ -699,10 +698,10 @@ class PrinterDetector {
      * The saved type is a display name, not a stable id, so renaming an entry
      * orphans every config written under the old name: detection returns the
      * new name, the stored one never matches again, and the user is told their
-     * correctly-identified printer is set up wrong. Four entries have been
-     * renamed in place so far (voron_0_1, flashforge_ad5m_pro, and both
-     * zerog_nebula_*), and the database is user-updatable, so this is not a
-     * closed set that a one-off migration could cover.
+     * correctly-identified printer is set up wrong. Entries get renamed in
+     * place (voron_0_1, flashforge_ad5m_pro and both zerog_nebula_* among
+     * them), and the database is user-updatable, so the renames are an open
+     * set that no one-off conversion of stored configs could cover.
      *
      * Entries list their former names in "aliases". A name that is a current
      * entry name is returned untouched; a name that matches some entry's alias

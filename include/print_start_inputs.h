@@ -105,10 +105,6 @@ void fill_file_context(PrintStartContext& ctx, const FileStartFacts& facts);
 /// The empty-slot pre-flight for @p facts, computed with the same inputs.
 [[nodiscard]] PreflightResult preflight_for(const FileStartFacts& facts, bool material_needed);
 
-/// Gathers FileStartFacts for one file: metadata, then the tools/palette/grams
-/// footer read, then a whole-file tools scan when the footer cannot answer.
-/// The file view runs its own scan through the same steps, handing in its
-/// shared download so the viewer preview and the scan use one transfer.
 /// How much of a file FileStartFactsLoader::load() may read past Moonraker's
 /// metadata and the tools cache.
 enum class FileRead {
@@ -117,6 +113,10 @@ enum class FileRead {
     Whole,        ///< the footer, then a download and scan when it does not answer
 };
 
+/// Gathers FileStartFacts for one file: metadata, then the tools/palette/grams
+/// footer read, then a whole-file tools scan when the footer cannot answer.
+/// The file view runs its own scan through the same steps, handing in its
+/// shared download so the viewer preview and the scan use one transfer.
 class FileStartFactsLoader {
   public:
     /// Downloads the file and answers ok plus a local path the scan may read.

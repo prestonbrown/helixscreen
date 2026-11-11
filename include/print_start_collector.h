@@ -121,7 +121,6 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
 
     ~PrintStartCollector();
 
-    // Non-copyable
     PrintStartCollector(const PrintStartCollector&) = delete;
     PrintStartCollector& operator=(const PrintStartCollector&) = delete;
 
@@ -288,7 +287,7 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      * @brief Whether current_layer has increased since collection began.
      *
      * A stale positive carried over from the previous print is static, so it
-     * can never satisfy this — which is what the layer-zero latch was guarding
+     * can never satisfy this, the same stale value the layer-zero latch guards
      * against.
      */
     [[nodiscard]] bool has_seen_layer_advance() const {
@@ -418,9 +417,6 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
   private:
     PrintStartCollector(helix::IMoonrakerClient& client, helix::PrinterState& state);
 
-    /**
-     * @brief Handle incoming G-code response
-     */
     void on_gcode_response(const nlohmann::json& msg);
 
     /// Register on_gcode_response() with the client once; detach() removes it.
@@ -447,9 +443,6 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      */
     bool is_own_pre_start_echo_locked(const std::string& line) const;
 
-    /**
-     * @brief Check line against phase patterns
-     */
     void check_phase_patterns(const std::string& line);
 
     /**
@@ -1116,7 +1109,7 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     // calibration from isolated PROBE commands (e.g. nozzle wipe on AD5M
     // Klipper mod). Counting points rather than lines matters because Klipper
     // emits two lines per touch on firmware that reports z_compensation
-    // separately, which halved the effective threshold.
+    // separately, which would halve the effective threshold.
     helix::ProbePointCounter pre_mesh_points_;
     helix::sim::SimulatedClock::time_point pre_mesh_last_probe_time_;
 
