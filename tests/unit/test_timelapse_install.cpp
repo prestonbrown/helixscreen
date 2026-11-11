@@ -446,24 +446,8 @@ TEST_CASE_METHOD(LocalInstallFixture, "no HOME to clone under takes the SSH rout
 // The timelapse macro card both screens share
 // ============================================================================
 
-namespace helix::ui {
-struct TimelapseMacroCardTestAccess {
-    static void set_runner(TimelapseMacroCard& card, ProcessRunner runner) {
-        card.runner_override_ = std::move(runner);
-    }
-    static bool repair_running(const TimelapseMacroCard& card) {
-        return card.repair_running_.load();
-    }
-    /// What the card's destructor does to a running repair.
-    static void cancel_repair(TimelapseMacroCard& card) {
-        card.repair_cancel_.store(true);
-    }
-};
-} // namespace helix::ui
-
 namespace {
 using MacroCard = helix::ui::TimelapseMacroCard::Card;
-using CardAccess = helix::ui::TimelapseMacroCardTestAccess;
 
 /// The git a checkout repair runs, as one string per command; answers
 /// `git -C <repo> symbolic-ref -q HEAD` with `head_exit` and every other command
@@ -527,13 +511,13 @@ struct MacroCardFixture : public LocalInstallFixture {
         std::filesystem::create_directories(repo_ + "/klipper_macro");
         std::ofstream(repo_ + "/klipper_macro/timelapse.cfg")
             << "[gcode_macro TIMELAPSE_TAKE_FRAME]\n";
-        CardAccess::set_runner(helix::ui::timelapse_macro_card(), git_.runner());
+        helix::ui::timelapse_macro_card().set_process_runner(git_.runner());
     }
     ~MacroCardFixture() override {
         git_.held.store(false);
-        settle_until([] { return !CardAccess::repair_running(helix::ui::timelapse_macro_card()); });
+        settle_until([] { return !helix::ui::timelapse_macro_card().repair_running(); });
         helix::ui::UpdateQueue::instance().drain();
-        CardAccess::set_runner(helix::ui::timelapse_macro_card(), {});
+        helix::ui::timelapse_macro_card().set_process_runner({});
         helix::ui::timelapse_macro_card().clear();
         get_printer_state().set_hardware(helix::PrinterDiscovery{});
         get_printer_state().clear_moonraker_locality();
@@ -650,8 +634,7 @@ TEST_CASE_METHOD(MacroCardFixture,
     auto& card_ui = helix::ui::timelapse_macro_card();
     const std::string git = "git -C " + repo_ + " ";
     const auto repaired = [this] {
-        return !CardAccess::repair_running(helix::ui::timelapse_macro_card()) &&
-               !git_.recorded().empty();
+        return !helix::ui::timelapse_macro_card().repair_running() && !git_.recorded().empty();
     };
 
     SECTION("detached and clean, with the macros already loaded: switched to main") {
@@ -690,7 +673,7 @@ TEST_CASE_METHOD(MacroCardFixture,
         const auto klipper = klipper_with(true, true);
         card_ui.refresh(&api_, klipper, true);
         helix::ui::UpdateQueue::instance().drain();
-        CHECK_FALSE(CardAccess::repair_running(card_ui));
+        CHECK_FALSE(card_ui.repair_running());
         CHECK(git_.recorded().empty());
 
         set_job_holds(false);
@@ -703,7 +686,7 @@ TEST_CASE_METHOD(MacroCardFixture,
         git_.held.store(true);
         const auto klipper = klipper_with(true, true);
         card_ui.refresh(&api_, klipper, true);
-        CardAccess::cancel_repair(card_ui);
+        card_ui.cancel_repair();
         git_.held.store(false);
         REQUIRE(settle_until(repaired));
         helix::ui::UpdateQueue::instance().drain();
@@ -715,7 +698,7 @@ TEST_CASE_METHOD(MacroCardFixture,
         const auto klipper = klipper_with(true, true);
         card_ui.refresh(&api_, klipper, false);
         helix::ui::UpdateQueue::instance().drain();
-        CHECK_FALSE(CardAccess::repair_running(card_ui));
+        CHECK_FALSE(card_ui.repair_running());
         CHECK(git_.recorded().empty());
     }
 }
@@ -731,12 +714,11 @@ TEST_CASE_METHOD(MacroCardFixture,
         TimelapseSettingsOverlay overlay(&api_);
         overlay.init_subjects();
         overlay.on_activate();
-        REQUIRE(CardAccess::repair_running(helix::ui::timelapse_macro_card()));
+        REQUIRE(helix::ui::timelapse_macro_card().repair_running());
         overlay.on_deactivate(DeactivateReason::NavigateAway);
     }
     git_.held.store(false);
-    REQUIRE(settle_until(
-        [] { return !CardAccess::repair_running(helix::ui::timelapse_macro_card()); }));
+    REQUIRE(settle_until([] { return !helix::ui::timelapse_macro_card().repair_running(); }));
     helix::ui::UpdateQueue::instance().drain();
     CHECK(git_.recorded().back() == "git -C " + repo_ + " checkout -q main");
 }

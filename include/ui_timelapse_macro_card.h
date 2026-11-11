@@ -83,9 +83,21 @@ class TimelapseMacroCard {
 
     [[nodiscard]] Card card() const;
 
-  private:
-    friend struct TimelapseMacroCardTestAccess;
+    /// Replace the git commands the checkout repair runs
+    void set_process_runner(ProcessRunner runner) {
+        runner_override_ = std::move(runner);
+    }
+    /// A checkout repair's worker is running
+    [[nodiscard]] bool repair_running() const {
+        return repair_running_.load();
+    }
+    /// Stop a running repair at its next probe; a checkout already started runs
+    /// to its end, so the tree is never left half switched
+    void cancel_repair() {
+        repair_cancel_.store(true);
+    }
 
+  private:
     void show(Card card);
     /// Main thread: start the detached-HEAD repair of @p repo unless one is running;
     /// a switch is reported to Moonraker through @p api when it is set.

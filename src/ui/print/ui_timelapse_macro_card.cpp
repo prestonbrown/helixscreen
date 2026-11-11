@@ -36,7 +36,7 @@ TimelapseMacroCard& timelapse_macro_card() {
 }
 
 TimelapseMacroCard::~TimelapseMacroCard() {
-    repair_cancel_.store(true);
+    cancel_repair();
     if (repair_thread_.joinable()) {
         repair_thread_.join();
     }
