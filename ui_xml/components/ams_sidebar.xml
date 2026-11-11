@@ -59,8 +59,14 @@
         flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center" style_pad_column="#space_sm">
     <bind_style_if_eq name="gap_landscape" subject="ui_is_portrait" ref_value="0"/>
     <bind_style_if_eq name="gap_portrait" subject="ui_is_portrait" ref_value="1"/>
-    <!-- What is loaded: the strip names the position and the filament -->
-    <ams_loaded_card name="current_loaded_card"/>
+    <!-- What is loaded: the strip names the position and the filament. A tap
+         opens the loaded lane's spool (or the spool picker when it links none);
+         with nothing loaded the card takes no taps. -->
+    <ams_loaded_card name="current_loaded_card">
+      <bind_flag_if_eq subject="ams_filament_loaded" flag="clickable" ref_value="1"/>
+      <style name="styles.press_wash" selector="pressed"/>
+      <event_cb trigger="clicked" callback="ams_sidebar_loaded_card_clicked"/>
+    </ams_loaded_card>
     <!-- Status Section -->
     <lv_obj name="status_section"
             width="100%" height="content" style_flex_main_place="center" style_flex_cross_place="center"

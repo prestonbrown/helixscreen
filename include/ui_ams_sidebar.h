@@ -436,6 +436,9 @@ class AmsOperationSidebar {
     void handle_bypass_toggle();
     void handle_reset();
     void handle_check_gates();
+    /// The loaded card's tap: the loaded lane's spool in the editor, or the
+    /// spool picker when Spoolman is up and the lane links no spool (#2094).
+    void handle_loaded_card_tap();
 
     // Action display (sidebar-relevant parts only)
     void update_action_display(AmsAction action);
