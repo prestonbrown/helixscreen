@@ -68,6 +68,14 @@
             <event_cb trigger="value_changed" callback="on_extruder_dropdown_changed"/>
           </lv_dropdown>
         </lv_obj>
+        <!-- Pick up / Park the tool the selector aims at (hidden when neither applies) -->
+        <ui_button name="btn_target_tool_action"
+                   width="content" height="#button_height" variant="secondary"
+                   bind_text="filament_target_tool_action_text" moves_machine="true" style_pad_left="#space_md"
+                   style_pad_right="#space_md">
+          <bind_flag_if_eq subject="filament_target_tool_action" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_filament_target_tool_action"/>
+        </ui_button>
       </lv_obj>
 
       <!-- No endless-spool status row here, deliberately. The graph card is

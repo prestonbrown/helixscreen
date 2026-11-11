@@ -185,6 +185,8 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
         // Extruder selector dropdown
         {"on_extruder_dropdown_changed",
          [](lv_event_t*) { get_global_filament_panel().handle_extruder_changed(); }},
+        {"on_filament_target_tool_action",
+         [](lv_event_t*) { get_global_filament_panel().handle_target_tool_action(); }},
         // External spool edit
         {"on_external_spool_edit",
          [](lv_event_t*) { get_global_filament_panel().show_external_spool_edit_modal(); }},
@@ -368,6 +370,11 @@ void FilamentPanel::init_subjects() {
         // Tool selector caption (backend noun: "Tool" / "Toolhead")
         UI_MANAGED_SUBJECT_STRING(tool_noun_subject_, tool_noun_buf_, lv_tr("Tool"),
                                   "filament_tool_noun", subjects_);
+        // The Pick up / Park button: a TargetToolAction, and its caption.
+        UI_MANAGED_SUBJECT_INT(target_tool_action_subject_, 0, "filament_target_tool_action",
+                               subjects_);
+        UI_MANAGED_SUBJECT_STRING(target_tool_action_text_subject_, target_tool_action_text_buf_,
+                                  "", "filament_target_tool_action_text", subjects_);
 
         // Left card temperature subjects (current and target for nozzle/bed)
         UI_MANAGED_SUBJECT_STRING(nozzle_current_subject_, nozzle_current_buf_, nozzle_current_buf_,
@@ -992,7 +999,71 @@ void FilamentPanel::sync_target_tool_ui() {
         sync_tool_dropdown_text();
     }
     repoint_nozzle_observers();
+    update_target_tool_action();
     update_filament_op_buttons();
+}
+
+bool FilamentPanel::target_needs_pickup() const {
+    const auto& ts = helix::ToolState::instance();
+    return ts.has_multiple_toolheads() && target_tool() != ts.active_tool_index();
+}
+
+void FilamentPanel::update_target_tool_action() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    const auto& ts = helix::ToolState::instance();
+    AmsBackend* backend = AmsState::instance().get_backend();
+    const auto action = helix::ui::decide_target_tool_action(
+        target_tool(), ts.active_tool_index(), ts.has_multiple_toolheads(),
+        backend && backend->supports_tool_park());
+    // One lv_tr() per literal: the extractor cannot see keys chosen inside a
+    // ternary.
+    const char* text = "";
+    if (action == helix::ui::TargetToolAction::PickUp) {
+        text = lv_tr("Pick up");
+    } else if (action == helix::ui::TargetToolAction::Park) {
+        text = lv_tr("Park");
+    }
+    lv_subject_copy_string(&target_tool_action_text_subject_, text);
+    lv_subject_set_int(&target_tool_action_subject_, static_cast<int>(action));
+}
+
+void FilamentPanel::handle_target_tool_action() {
+    const auto action =
+        static_cast<helix::ui::TargetToolAction>(lv_subject_get_int(&target_tool_action_subject_));
+    if (action == helix::ui::TargetToolAction::Park) {
+        helix::ui::request_tool_park(printer_state_);
+    } else if (action == helix::ui::TargetToolAction::PickUp) {
+        with_target_mounted(nullptr);
+    }
+}
+
+void FilamentPanel::with_target_mounted(std::function<void()> then) {
+    if (!target_needs_pickup()) {
+        if (then) {
+            then();
+        }
+        return;
+    }
+    const int target = target_tool();
+    spdlog::info("[{}] Picking up T{} before the next step", get_name(), target);
+    helix::ui::ToolChangeHooks hooks;
+    // Accepted is not mounted: a hot-end changer confirms the swap from its
+    // dock sensors later, and a move sent before then reaches the old nozzle.
+    hooks.on_success = object_lifetime_.bg_cb(
+        "FilamentPanel::pickup_accepted", [this, target, then = std::move(then)]() {
+            if (!then) {
+                return;
+            }
+            tool_arrival_.start(target, helix::ui::kToolArrivalTimeoutMs, then, [target]() {
+                NOTIFY_WARNING(lv_tr("{} did not arrive; nothing was sent"),
+                               helix::ui::tool_label(target));
+            });
+        });
+    hooks.owner_token = object_lifetime_.token();
+    hooks.resolve_api = [this]() { return api_; };
+    helix::ui::offer_tool_change(printer_state_, target, std::move(hooks));
 }
 
 void FilamentPanel::update_nozzle_label() {
@@ -1630,6 +1701,12 @@ void FilamentPanel::handle_load_button() {
         return;
     }
 
+    // With no filament system the load macro feeds the mounted extruder.
+    if (!AmsState::instance().get_backend() && target_needs_pickup()) {
+        with_target_mounted([this]() { handle_load_button(); });
+        return;
+    }
+
     // A backend load homes inside its own ensure_homed_then(). On the macro tier
     // we send the G28 only for a macro profile that needs one, right before the
     // macro and after any preheat; an unrecognized macro runs as it is.
@@ -1668,6 +1745,12 @@ void FilamentPanel::handle_unload_button(std::optional<int> chosen_lane) {
     }
 
     if (cancel_pending_preheat()) {
+        return;
+    }
+
+    // With no filament system the unload macro empties the mounted extruder.
+    if (!AmsState::instance().get_backend() && target_needs_pickup()) {
+        with_target_mounted([this, chosen_lane]() { handle_unload_button(chosen_lane); });
         return;
     }
 
@@ -1719,6 +1802,12 @@ void FilamentPanel::handle_extrude_button() {
         return;
     }
 
+    // The move goes to the mounted nozzle: bring the target there first.
+    if (target_needs_pickup()) {
+        with_target_mounted([this]() { handle_extrude_button(); });
+        return;
+    }
+
     run_after_preheat(helix::ui::FilamentHeatOp::Extrude, &FilamentPanel::execute_extrude);
 }
 
@@ -1766,6 +1855,12 @@ void FilamentPanel::handle_purge_button() {
     }
 
     if (cancel_pending_preheat()) {
+        return;
+    }
+
+    // The move goes to the mounted nozzle: bring the target there first.
+    if (target_needs_pickup()) {
+        with_target_mounted([this]() { handle_purge_button(); });
         return;
     }
 
@@ -1870,6 +1965,12 @@ void FilamentPanel::handle_retract_button() {
     }
 
     if (cancel_pending_preheat()) {
+        return;
+    }
+
+    // The move goes to the mounted nozzle: bring the target there first.
+    if (target_needs_pickup()) {
+        with_target_mounted([this]() { handle_retract_button(); });
         return;
     }
 
@@ -2586,6 +2687,11 @@ FilamentPanel::macro_temp_prefill(helix::ui::FilamentMacroOp op) const {
 }
 
 bool FilamentPanel::cancel_pending_preheat() {
+    // A tap while a pickup is on its way withdraws the step waiting on it.
+    if (tool_arrival_.armed()) {
+        tool_arrival_.cancel();
+        return true;
+    }
     auto* heater = helix::ui::get_filament_op_heater();
     return heater && heater->cancel_owned(this);
 }
