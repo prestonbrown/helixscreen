@@ -621,7 +621,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
 
             // mmu (Happy Hare MMU status — --real-ams)
             if (objects.contains("mmu")) {
-                status_obj["mmu"] = get_mock_mmu_status();
+                status_obj["mmu"] = self->happy_hare_mmu_status();
             }
 
             // MedusaHC (HELIX_MOCK_AMS=medusahc[-ktc|-tn]). Emitted only for
@@ -959,7 +959,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
 
             // mmu (Happy Hare MMU status — --real-ams)
             if (objects.contains("mmu")) {
-                status_obj["mmu"] = get_mock_mmu_status();
+                status_obj["mmu"] = self->happy_hare_mmu_status();
             }
 
             // OpenAMS (HELIX_MOCK_AMS=openams): the subscribe snapshot.
