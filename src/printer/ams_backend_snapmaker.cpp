@@ -981,8 +981,8 @@ AmsError AmsBackendSnapmaker::cancel() {
 // Resume Preparation
 // ============================================================================
 
-// NOTE: This method has no caller in tree. The auto-recover-on-pause
-// path that would consume it is off because field testing showed the
+// NOTE: This method has no caller in tree. No auto-recover-on-pause path
+// consumes it: field testing showed the
 // motion=false + port=true signal can't distinguish "stale encoder, filament
 // at gear" from "filament preloaded 4-inches short of gear" (firmware assist
 // motor stops at preload_finish). Kept as detection infrastructure for the

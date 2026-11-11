@@ -931,6 +931,8 @@ void AmsBackendHappyHare::apply_mmu_telemetry_locked(const happy_hare::MmuTeleme
         const auto& encoder = *t.encoder;
         if (encoder.flow_rate) {
             system_info_.encoder_info.flow_rate = *encoder.flow_rate;
+            // encoder_flow_rate mirrors encoder_info.flow_rate for readers of the top-level
+            // field, such as the buffer status modal.
             system_info_.encoder_flow_rate = system_info_.encoder_info.flow_rate;
             spdlog::trace("[AMS HappyHare] Encoder flow rate: {}", system_info_.encoder_flow_rate);
         }
