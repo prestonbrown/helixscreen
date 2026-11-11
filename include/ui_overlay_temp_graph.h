@@ -250,6 +250,11 @@ class TempGraphOverlay : public OverlayBase {
     // queue never drains (lv_subject_add_observer notifies on attach, and
     // observe<int> defers the handler through queue_update).
     ObserverGuard extruder_version_observer_;
+    // Drops the nozzle pick on a tool change; armed with the version watch.
+    ObserverGuard active_tool_observer_;
+    static constexpr int kNoPickTool = -2;
+    /// The mounted tool when the pick was last confirmed current.
+    int pick_tool_ = kNoPickTool;
 
     // Subject management
     SubjectManager subjects_;
