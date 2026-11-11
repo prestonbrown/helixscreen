@@ -21,6 +21,7 @@
 #include "operation_timeout_guard.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
+#include "target_nozzle_observers.h"
 #include "target_tool_selection.h"
 #include "ui/temperature_observer_bundle.h"
 
@@ -596,10 +597,7 @@ class FilamentPanel : public PanelBase {
     lv_obj_t* ams_manage_row_ = nullptr;
     ObserverGuard tools_version_observer_;
     ObserverGuard extruder_version_observer_;
-    ObserverGuard nozzle_temp_observer_;
-    ObserverGuard nozzle_target_observer_;
-    lv_subject_t* nozzle_temp_src_ = nullptr;
-    lv_subject_t* nozzle_target_src_ = nullptr;
+    helix::ui::TargetNozzleObservers nozzle_observers_;
     helix::ui::TargetToolSelection target_tool_;
 
     void populate_extruder_dropdown();

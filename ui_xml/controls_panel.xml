@@ -202,9 +202,16 @@
               <text_small bind_text="controls_nozzle_label">
                 <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
               </text_small>
+              <!-- Which nozzle the row shows and edits, where several heads dock -->
+              <lv_dropdown name="nozzle_tool_dropdown"
+                           width="content" height="content" style_min_width="56" style_radius="#border_radius_sm"
+                           style_pad_all="#space_xs">
+                <bind_flag_if_eq subject="controls_nozzle_multi_head" flag="hidden" ref_value="0"/>
+                <event_cb trigger="value_changed" callback="on_controls_nozzle_tool_changed"/>
+              </lv_dropdown>
               <temp_display name="nozzle_temp_display"
-                            size="md" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"
-                            clickable="false" event_bubble="true"/>
+                            size="md" show_target="true" bind_current="controls_nozzle_cur_deci"
+                            bind_target="controls_nozzle_tgt_deci" clickable="false" event_bubble="true"/>
             </lv_obj>
             <!-- Right side: temp display + edit icon -->
             <lv_obj name="nozzle_temp_edit_container"

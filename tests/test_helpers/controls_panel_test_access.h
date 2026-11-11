@@ -26,6 +26,14 @@ struct ControlsPanelTestAccess {
     static void confirm_custom_nozzle(ControlsPanel& p, float celsius) {
         p.handle_custom_nozzle_confirmed(celsius);
     }
+    /// Subjects and observers without the XML tree: the nozzle row's logic.
+    static void init_and_observe(ControlsPanel& p) {
+        p.init_subjects();
+        p.register_observers();
+    }
+    static int nozzle_tool(const ControlsPanel& p) {
+        return p.nozzle_tool();
+    }
     static int cached_extruder_target(const ControlsPanel& p) {
         return p.cached_extruder_target_;
     }
