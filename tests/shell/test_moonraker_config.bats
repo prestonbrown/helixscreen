@@ -806,6 +806,77 @@ create_moonraker_conf_including_mod_stanza() {
     [ ! -e "$restarted" ]
 }
 
+# A Z-Mod AD5X layout (see test_moonraker_paths.bats): the mod's conf in its
+# git tree, linked into the config dir, including mod_data/user.moonraker.conf.
+# Sets ZMOD_TREE, ZMOD_LINK and ZMOD_USER_CONF.
+create_zmod_layout() {
+    local root="$BATS_TEST_TMPDIR/zmod" conf_dir
+    ZMOD_TREE="$root/usr/data/zmod/zmod"
+    conf_dir="$root/root/printer_data/config"
+    ZMOD_LINK="$conf_dir/moonraker.conf"
+    ZMOD_USER_CONF="$conf_dir/mod_data/user.moonraker.conf"
+    mkdir -p "$ZMOD_TREE" "$conf_dir/mod_data"
+    printf '[server]\nport: 7125\n\n[include mod_data/user.moonraker.conf]\n' > "$ZMOD_TREE/moonraker.conf"
+    printf '[authorization]\n' > "$ZMOD_USER_CONF"
+    ln -s "$ZMOD_TREE/moonraker.conf" "$ZMOD_LINK"
+    HOST_MOD_ROOT=""
+    HOST_ZMOD_ROOT="$ZMOD_TREE"
+    HOST_MOONRAKER_USER_CONF=""
+    KLIPPER_HOME="$root/root"
+    export KLIPPER_HOME
+    MOONRAKER_CONF_PATHS="/nonexistent/moonraker.conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    restart_moonraker() { :; }
+}
+
+# The stanza an earlier installer appended to the mod's own conf.
+append_stanza_to_zmod_conf() {
+    printf '\n[update_manager helixscreen]\ntype: web\nchannel: stable\nrepo: prestonbrown/helixscreen\npath: %s\n' \
+        "$INSTALL_DIR" >> "$ZMOD_TREE/moonraker.conf"
+}
+
+@test "configure_moonraker_updates: Z-Mod AD5X writes the stanza to the user conf only" {
+    create_zmod_layout
+    local before
+    before=$(cat "$ZMOD_TREE/moonraker.conf")
+
+    configure_moonraker_updates "ad5x"
+
+    [ "$(cat "$ZMOD_TREE/moonraker.conf")" = "$before" ]
+    [ ! -e "$ZMOD_TREE/moonraker.conf.bak.helixscreen" ]
+    [ "$(grep -c '^\[update_manager helixscreen\]' "$ZMOD_USER_CONF")" -eq 1 ]
+}
+
+@test "configure_moonraker_updates: Z-Mod upgrade keeps the mod's conf and prints the fix" {
+    create_zmod_layout
+    append_stanza_to_zmod_conf
+    local before
+    before=$(cat "$ZMOD_TREE/moonraker.conf")
+
+    configure_moonraker_updates "ad5x" 2>"$BATS_TEST_TMPDIR/out.log"
+
+    [ "$(cat "$ZMOD_TREE/moonraker.conf")" = "$before" ]
+    # The updater still works once the mod's file is restored.
+    [ "$(grep -c '^\[update_manager helixscreen\]' "$ZMOD_USER_CONF")" -eq 1 ]
+    grep -q 'which the firmware mod owns - leaving it in place' "$BATS_TEST_TMPDIR/out.log"
+    grep -q 'will not update the mod until that file is restored' "$BATS_TEST_TMPDIR/out.log"
+    grep -qF "HelixScreen's updater entry is now in $ZMOD_USER_CONF" "$BATS_TEST_TMPDIR/out.log"
+    grep -qF "git -C $(host_canonical_path "$ZMOD_TREE") checkout -- moonraker.conf" "$BATS_TEST_TMPDIR/out.log"
+    grep -q 'then restart Moonraker' "$BATS_TEST_TMPDIR/out.log"
+}
+
+@test "configure_moonraker_updates: Z-Mod upgrade re-run adds no second stanza" {
+    create_zmod_layout
+    append_stanza_to_zmod_conf
+
+    configure_moonraker_updates "ad5x" 2>/dev/null
+    configure_moonraker_updates "ad5x" 2>"$BATS_TEST_TMPDIR/out.log"
+
+    [ "$(grep -c '^\[update_manager helixscreen\]' "$ZMOD_USER_CONF")" -eq 1 ]
+    # The mod's file is still dirty, so the fix is still printed.
+    grep -qF "git -C $(host_canonical_path "$ZMOD_TREE") checkout -- moonraker.conf" "$BATS_TEST_TMPDIR/out.log"
+}
+
 @test "remove_update_manager_section removes an included stanza and leaves the mod's" {
     local conf conf_dir before
     conf=$(setup_moonraker_home)

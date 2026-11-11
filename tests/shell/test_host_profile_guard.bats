@@ -594,3 +594,92 @@ RESOLVER
     run host_path_is_mod_owned "$sandbox/opt/config/mod/.bin/helixscreen"
     [ "$status" -eq 0 ]
 }
+
+# ===========================================================================
+# Z-Mod's AD5X layout: the git tree at /usr/data/zmod/zmod
+# ===========================================================================
+#
+# Z-Mod moved its tree out of /usr/data/config/mod (its own fix_config.sh
+# migrates old installs) to /usr/data/zmod/zmod, the path of Moonraker's
+# [update_manager Z-Mod], and links its moonraker.conf into the config dir
+# from there. That tree carries .shell/zmod.sh and neither Forge-X descriptor.
+
+zmod_sandbox() {
+    mkdir -p "$SANDBOX/usr/data/zmod/zmod/.shell"
+    touch "$SANDBOX/usr/data/zmod/zmod/.shell/zmod.sh"
+    export HELIX_ZMOD_TREE_CANDIDATES="$SANDBOX/usr/data/zmod/zmod"
+    export HELIX_MOD_TREE_CANDIDATES="$SANDBOX/no/forge-x/tree"
+    export HELIX_MOD_CHROOT_CANDIDATES="$SANDBOX/no/chroot/here"
+}
+
+@test "host_profile_probe: finds Z-Mod's AD5X tree by its zmod.sh, apart from the Forge-X answers" {
+    zmod_sandbox
+    host_profile_probe
+
+    [ "$HOST_ZMOD_ROOT" = "$SANDBOX/usr/data/zmod/zmod" ] \
+        || fail "HOST_ZMOD_ROOT='$HOST_ZMOD_ROOT'"
+    # HOST_MOD_ROOT is the Forge-X tree: detect_mod_flavor answers forge_x for
+    # it and the payload contract keys on it, so Z-Mod must never set it.
+    [ -z "$HOST_MOD_ROOT" ] || fail "HOST_MOD_ROOT='$HOST_MOD_ROOT' on a Z-Mod tree"
+    [ "$HOST_SERVICE_MECHANISM" = "systemd" ] \
+        || fail "HOST_SERVICE_MECHANISM='$HOST_SERVICE_MECHANISM'"
+    [ -z "$HOST_MOONRAKER_USER_CONF" ] \
+        || fail "HOST_MOONRAKER_USER_CONF='$HOST_MOONRAKER_USER_CONF'"
+    run detect_mod_flavor
+    [ "$output" != "forge_x" ] || fail "a Z-Mod tree read as Forge-X"
+}
+
+@test "host_profile_probe: a Forge-X .shell is not read as Z-Mod's tree" {
+    export HELIX_ZMOD_TREE_CANDIDATES="$SANDBOX/usr/data/config/mod"
+    export HELIX_MOD_CHROOT_CANDIDATES="$SANDBOX/no/chroot/here"
+    host_profile_probe
+
+    [ -z "$HOST_ZMOD_ROOT" ] || fail "HOST_ZMOD_ROOT='$HOST_ZMOD_ROOT' for a platform.sh tree"
+}
+
+@test "host_path_is_mod_owned: the probed Z-Mod tree is owned, through a symlink too" {
+    zmod_sandbox
+    host_profile_probe
+    : > "$SANDBOX/usr/data/zmod/zmod/moonraker.conf"
+    mkdir -p "$SANDBOX/usr/data/config"
+    ln -s "$SANDBOX/usr/data/zmod/zmod/moonraker.conf" "$SANDBOX/usr/data/config/moonraker.conf"
+
+    run host_path_is_mod_owned "$SANDBOX/usr/data/zmod/zmod/moonraker.conf"
+    [ "$status" -eq 0 ] || fail "the Z-Mod tree's own conf is not owned"
+    run host_path_is_mod_owned "$SANDBOX/usr/data/config/moonraker.conf"
+    [ "$status" -eq 0 ] || fail "a conf linked into the Z-Mod tree is not owned"
+    run host_path_is_mod_owned "$SANDBOX/usr/data/config/mod_data/user.moonraker.conf"
+    [ "$status" -ne 0 ] || fail "the user conf beside the link reported owned"
+}
+
+@test "canonical /usr/data/zmod is owned with no probe, and refused as an install root" {
+    HOST_MOD_ROOT=""
+    HOST_ZMOD_ROOT=""
+    HOST_MOD_CHROOT=""
+    case " $HOST_CANONICAL_MOD_ROOTS " in
+        *" /usr/data/zmod "*) ;;
+        *) fail "HOST_CANONICAL_MOD_ROOTS lost its /usr/data/zmod entry: $HOST_CANONICAL_MOD_ROOTS" ;;
+    esac
+
+    run host_path_is_mod_owned "/usr/data/zmod/zmod/moonraker.conf"
+    [ "$status" -eq 0 ] || fail "/usr/data/zmod/zmod not owned without a probe: $output"
+    run host_path_is_mod_owned "/usr/data/zmod/moonraker"
+    [ "$status" -eq 0 ] || fail "Z-Mod's Moonraker checkout not owned: $output"
+    run host_path_is_mod_owned "/usr/data/zmodx/helixscreen"
+    [ "$status" -ne 0 ] || fail "a sibling that only shares the prefix reported owned"
+
+    run host_refuse_mod_owned "install into" "/usr/data/zmod/helixscreen"
+    [ "$status" -eq 1 ] || fail "install into /usr/data/zmod was not refused"
+    [[ "$output" == *"refusing install into on mod-owned path: /usr/data/zmod/helixscreen"* ]] \
+        || fail "refusal message missing: $output"
+}
+
+@test "Z-Mod's tree location is in BOTH lists: probe default and canonical root" {
+    local profile="$WORKTREE_ROOT/scripts/lib/installer/host_profile.sh"
+    grep -q 'HELIX_ZMOD_TREE_CANDIDATES:-/usr/data/zmod/zmod}' "$profile" \
+        || fail "Z-Mod's tree is missing from the probe's default candidate list"
+    case " $HOST_CANONICAL_MOD_ROOTS " in
+        *" /usr/data/zmod "*) ;;
+        *) fail "HOST_CANONICAL_MOD_ROOTS lost its /usr/data/zmod entry" ;;
+    esac
+}
