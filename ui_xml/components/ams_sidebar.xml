@@ -59,6 +59,11 @@
         flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center" style_pad_column="#space_sm">
     <bind_style_if_eq name="gap_landscape" subject="ui_is_portrait" ref_value="0"/>
     <bind_style_if_eq name="gap_portrait" subject="ui_is_portrait" ref_value="1"/>
+    <!-- Which head is on the carriage, where several dock -->
+    <text_body name="mounted_line"
+               width="100%" bind_text="ams_sidebar_mounted_text" style_text_align="center" long_mode="dots">
+      <bind_flag_if_eq subject="ams_sidebar_mounted_shown" flag="hidden" ref_value="0"/>
+    </text_body>
     <!-- What is loaded: the strip names the position and the filament. A tap
          opens the loaded lane's spool (or the spool picker when it links none);
          with nothing loaded the card takes no taps. -->
@@ -250,18 +255,6 @@
         <bind_state_if_eq subject="ams_sidebar_check_gates_disabled" state="disabled" ref_value="1"/>
         <bind_flag_if_eq subject="ams_sidebar_check_gates_shown" flag="hidden" ref_value="0"/>
         <event_cb trigger="clicked" callback="ams_sidebar_check_gates_clicked"/>
-      </ui_button>
-      <!-- Settings Button (full width): opens the device operations, shown
-           whenever Settings > Printing offers them too -->
-      <ui_button name="btn_settings"
-                 icon="settings" text="Settings" stacked_subject="ams_actions_stacked" stacked_if_eq="1"
-                 long_mode="dots" icon_hidden_subject="ams_actions_text_only" icon_hidden_if_eq="1">
-        <bind_flag_if_eq subject="ams_has_device_ops" flag="hidden" ref_value="0"/>
-        <style name="styles.action_cell"/>
-        <bind_style_if name="styles.action_cell_text" cond="ams_actions_text_only eq 1"/>
-        <bind_style_if name="styles.action_cell_stacked" cond="ams_actions_stacked eq 1"/>
-        <bind_style_if name="styles.action_cell_quarter" cond="ui_is_portrait eq 1 and ui_breakpoint lt 3"/>
-        <event_cb trigger="clicked" callback="ams_sidebar_settings_clicked"/>
       </ui_button>
     </lv_obj>
     <!-- Why a filament action is unavailable (a manual unload, no assigned slot) -->
