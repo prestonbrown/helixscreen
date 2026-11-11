@@ -12,8 +12,7 @@
  * corexy/limited_corexy); Tool Offsets needs printer_has_tool_offset_cal;
  * Z-Offset Calibration needs a probe and steps aside where the tool offset
  * routine also sets the reference tool's Z, or where the firmware keeps a
- * Z offset per head. The G-code Console row needs a build with the console
- * (platform_console_supported, 0 in the K-Touch feature profile).
+ * Z offset per head. G-code Console needs platform_console_supported.
  */
 
 #include "ui_status_pill.h"
@@ -212,20 +211,14 @@ TEST_CASE_METHOD(AdvancedBeltRowFixture,
     lv_subject_set_int(per_head, 0);
 }
 
-TEST_CASE_METHOD(AdvancedBeltRowFixture,
-                 "Advanced G-code Console row shows only in a build with the console",
+TEST_CASE_METHOD(AdvancedBeltRowFixture, "Advanced G-code Console row needs a console build",
                  "[console][advanced][xml]") {
     auto* supported = subject("platform_console_supported");
     const int before = lv_subject_get_int(supported);
-    lv_obj_t* console = row("row_console");
-
-    lv_subject_set_int(supported, 1);
-    process_lvgl(10);
-    CHECK_FALSE(hidden_in_panel(console));
-
-    lv_subject_set_int(supported, 0);
-    process_lvgl(10);
-    CHECK(hidden_in_panel(console));
-
+    for (int has_console : {1, 0}) {
+        lv_subject_set_int(supported, has_console);
+        process_lvgl(10);
+        CHECK(hidden_in_panel(row("row_console")) == (has_console == 0));
+    }
     lv_subject_set_int(supported, before);
 }
