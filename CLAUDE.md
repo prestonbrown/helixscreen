@@ -11,7 +11,7 @@
 **Building, testing, landing, worktrees, build hosts or peer sessions: load the `helix-ops` skill** (`.claude/skills/helix-ops/SKILL.md`). Always on, wherever you are:
 
 - **Before compiling, check for a build already running**: `pgrep -x -d' ' 'make|clang++|cc1plus'` (never `pgrep -f`), `free -h` (Mem `available`), `jobpool status`; ask whoever is building (`ListAgents` + `SendMessage`). Plain `make`, never `-jN`.
-- **Two `make`s in one tree delete each other's test binary.** Every shard then reports `No such file or directory`; nothing is wrong with your code. Serialize, or use a worktree.
+- **Two `make`s in one tree delete each other's test binary.** Shards then report `No such file or directory`; serialize, or use a worktree.
 - **Never `pkill helix-screen`** (nor `-x`, nor `-f`): it kills every session's instance. Resolve your PID from your own socket.
 - **The main working tree is live.** Commit with `git commit -- <paths>` (new file: `git add -N` first), never `git add` then commit; never let git autostash.
 
@@ -65,7 +65,12 @@ scripts/setup-worktree.sh feature/my-branch  # MAJOR work: .worktrees/, never En
 
 ## Sharing This Tree With Other Sessions
 
-Message the overlapping session before touching its work, claim shared resources with `scripts/helix-claim`, settle it between sessions and bring Preston outcomes, whoever moves main pushes it, one session per printer: the `helix-ops` skill and `docs/devel/SHARED_TREE.md`.
+Message an overlapping session first, settle it between sessions, bring Preston outcomes: the `helix-ops` skill and `docs/devel/SHARED_TREE.md`. Always on:
+
+- **Never merge, rebase or delete on an unanswered message.**
+- **Hold `worktree:<name>` (`scripts/helix-claim`) from your first edit until the commit lands.**
+- **`MM` does not mean a peer is mid-commit**; completing or aborting a peer's merge is theirs to run.
+- **One session per physical printer**: ask who holds a device before pointing anything at it; never kill a deploy mid-phase.
 
 ---
 

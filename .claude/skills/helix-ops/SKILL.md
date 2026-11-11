@@ -1,6 +1,6 @@
 ---
 name: helix-ops
-description: Use when building, compiling, running tests or test tags, running land-gate, landing or merging to main, pushing, creating or tearing down a worktree, using the test host or another build host (zeus, thelio, remote-test, test-host-run), sizing parallel or docker jobs, or working beside peer Claude sessions in the shared HelixScreen tree (claims, the main working tree, who lands).
+description: Use when building, compiling, running tests or test tags, running land-gate, landing or merging to main, pushing, creating or tearing down a worktree, using the test host or another build host (zeus, thelio, remote-test, test-host-run), sizing parallel or docker jobs, pointing anything at a physical printer or device, deploying to one, or working beside peer Claude sessions in the shared HelixScreen tree (claims, the main working tree, who lands).
 ---
 
 # HelixScreen operations: builds, hosts, peers, landing
@@ -22,6 +22,8 @@ abandoned spinners, and why a silent build is not a dead one: `docs/devel/SHARED
 
 ## Build parallelism
 
+- **Two `make`s in one tree delete each other's test binary.** Every shard then reports
+  `No such file or directory`; nothing is wrong with your code. Serialize, or use a worktree.
 - Plain `make` picks its own `-j`. Where jobpool is installed (thelio, zeus) `make` is its shim
   and every build on the box shares one pool. `docs/devel/BUILD_SYSTEM.md` § "Parallel Compilation".
 - **`scripts/helix-claim jobs` is make's `-j` only.** With a jobpool live it prints the whole pool,
