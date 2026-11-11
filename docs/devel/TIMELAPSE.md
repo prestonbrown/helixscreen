@@ -184,7 +184,7 @@ The timelapse settings overlay (Phase 1) was extended with video management capa
 
 **Features:**
 - **Responsive thumbnail grid** — cards auto-size to fit 2 rows on screen using `calculate_card_dimensions()` (same pattern as print file selection)
-- **Companion thumbnails** — extracted from video first frame via ffmpeg, stored as `.thumb.jpg` alongside videos
+- **Companion thumbnails** — the preview moonraker-timelapse renders as `<name>.jpg` beside each video (`<name>.thumb.jpg` is also accepted), fetched from the `timelapse` root
 - **Thumbnail caching** — uses the shared `ThumbnailCache` with `tl_` prefixed cache keys
 - **Render controls** — frame count with capture info (filename + date), progress bar with inline status text, Render Now button
 - **Video playback** — detects available player (mpv preferred, ffplay fallback), launches fullscreen with auto-exit
@@ -209,7 +209,7 @@ The timelapse settings overlay (Phase 1) was extended with video management capa
 | Function | Purpose |
 |----------|---------|
 | `cache_key(filename)` | Generates `tl_` prefixed hash key for thumbnail cache |
-| `companion_filename(video)` | Converts `video.mp4` → `video.thumb.jpg` |
+| `find_companion_thumbnail(video, listing)` | The preview beside a video: moonraker-timelapse's `video.jpg`, else `video.thumb.jpg` |
 | `ffmpeg_extract_args(input, output)` | Builds ffmpeg command to extract first frame as JPEG |
 | `is_video_file(filename)` | Checks for `.mp4`, `.mkv`, `.avi` extensions |
 | `build_player_args(player, path)` | Builds player-specific argument list |
