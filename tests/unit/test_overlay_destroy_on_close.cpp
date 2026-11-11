@@ -37,6 +37,7 @@
 #include "ui_panel_screws_tilt.h"
 #include "ui_panel_spoolman.h"
 #include "ui_plugin_overview_overlay.h"
+#include "ui_printer_events_overlay.h"
 #include "ui_printer_list_overlay.h"
 #include "ui_printer_manager_overlay.h"
 #include "ui_probe_overlay.h"
@@ -264,6 +265,11 @@ const OverlayCase kOverlayCases[] = {
      [] { helix::ui::get_ams_device_section_detail_overlay().refresh(); }},
     {"Screws Tilt", as_base<&get_global_screws_tilt_panel>},
     {"Maintenance", as_base<&helix::get_maintenance_overlay>},
+    {"Printer Events", as_base<&helix::ui::get_printer_events_overlay>, nullptr,
+     [] {
+         helix::ui::get_printer_events_overlay().show_entries(helix::JournalSource::Screen,
+                                                              {helix::JournalEntry{}});
+     }},
     {"Belt Tension", as_base<&get_global_belt_tension_panel>, nullptr,
      [] {
          auto* active = get_printer_state().print_state().get_print_active_subject();
