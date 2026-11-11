@@ -22,15 +22,29 @@ runs:
       run: |
         set -euo pipefail
         # Both layouts: 22.04 uses sources.list, deb822 lands in .sources.
+        # Runner images can also route sources through
+        # `mirror+file:/etc/apt/apt-mirrors.txt`, whose first entry is the
+        # azure mirror: replace that URI too, and drop azure from the list.
         for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources \
                  /etc/apt/sources.list.d/*.list; do
           [ -f "$f" ] || continue
-          sudo sed -i 's|https\?://azure.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' "$f"
+          sudo sed -i \
+            -e 's|https\?://azure.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' \
+            -e 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' "$f"
         done
+        if [ -f /etc/apt/apt-mirrors.txt ]; then
+          sudo sed -i 's|https\?://azure.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' \
+            /etc/apt/apt-mirrors.txt
+        fi
+        if grep -rqs 'azure.archive.ubuntu.com' /etc/apt/sources.list /etc/apt/sources.list.d/ \
+             /etc/apt/apt-mirrors.txt; then
+          echo "::warning::an apt source still names azure.archive.ubuntu.com"
+        fi
         sudo tee /etc/apt/apt.conf.d/99-helix-retries >/dev/null <<'CONF'
         Acquire::Retries "3";
         Acquire::http::Timeout "15";
         Acquire::https::Timeout "15";
         CONF
         echo "apt mirrors after rewrite:"
-        grep -rhoE 'https?://[a-z0-9.]+/ubuntu' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | sort -u || true
+        grep -rhoE '(https?://[a-z0-9.]+/ubuntu|mirror\+file:[^ ]+)' /etc/apt/sources.list \
+          /etc/apt/sources.list.d/ /etc/apt/apt-mirrors.txt 2>/dev/null | sort -u || true
