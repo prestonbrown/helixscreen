@@ -511,6 +511,7 @@
   <translation tag="Buffer" zh="缓冲区"/>
   <translation tag="Buffer Status" zh="缓冲区状态"/>
   <translation tag="Buffer tube problem" zh="缓冲管故障"/>
+  <translation tag="Buffer-driven gear speed control" zh="由缓冲区控制齿轮速度"/>
   <translation tag="Build Volume" zh="打印尺寸"/>
   <translation tag="Build Volume: " zh="构建尺寸: "/>
   <translation tag="Building preview: %d%%" zh="正在生成预览：%d%%"/>
@@ -1484,6 +1485,8 @@
   <translation tag="Fair match" zh="匹配中等"/>
   <translation tag="Fan" zh="风扇"/>
   <translation tag="Fan Calibration" zh="风扇校准"/>
+  <translation tag="Fan Control" zh="风扇控制"/>
+  <translation tag="Fan Mode" zh="风扇模式"/>
   <translation tag="Fan Speeds" zh="风扇速度"/>
   <translation tag="Fan Tach" zh="风扇转速"/>
   <translation tag="Fan Transfer" zh="风扇传热"/>
@@ -1633,6 +1636,7 @@
   <translation tag="Follow your manual to swap the nozzle or hotend." zh="按手册更换喷嘴或热端。"/>
   <translation tag="For a first Z home: claim the tool you put on the head" zh="首次Z轴归零时：登记您装在打印头上的工具"/>
   <translation tag="For materials that need a warm enclosure, like ABS or ASA" zh="适用于需要温暖机箱的材料，如 ABS 或 ASA"/>
+  <translation tag="Force the MMU fans off or on, or follow Fan Control" zh="强制关闭或开启 MMU 风扇，或跟随风扇控制"/>
   <translation tag="Force/weight sensors" zh="力/重量传感器"/>
   <translation tag="Forget" zh="忘记"/>
   <translation tag="Forget Network?" zh="忘记网络？"/>
@@ -2007,6 +2011,7 @@
   <translation tag="Keep its own data on this screen (up to 256 KB)." zh="在此屏幕上保存自己的数据（最多256 KB）。"/>
   <translation tag="Keep pushing filament while it cools" zh="冷却时继续推送耗材"/>
   <translation tag="Keep the bypass spool visible when bypass is off" zh="旁路关闭时保持料盘可见"/>
+  <translation tag="Keep the rotation distance sync feedback tunes" zh="保存同步反馈调校的旋转距离"/>
   <translation tag="Keep waiting" zh="继续等待"/>
   <translation tag="Kept {}: a print started." zh="已保留 {}：打印已开始。"/>
   <translation tag="Kick away" zh="拨除废料"/>
@@ -2421,6 +2426,7 @@
   <translation tag="Network name cannot be empty" zh="网络名称不能为空"/>
   <translation tag="Network, display, sound, printer setup, and more. You can replay this tour anytime from Help &amp; About." zh="网络、显示、声音、打印机设置等。您可以随时从“帮助与关于”中重播此漫游。"/>
   <translation tag="Neutral" zh="中性"/>
+  <translation tag="Neutralize Tension" zh="消除张力"/>
   <translation tag="Never" zh="从不"/>
   <translation tag="Never sleeps" zh="从不休眠"/>
   <translation tag="New Spool" zh="新料盘"/>
@@ -3242,6 +3248,7 @@
   <translation tag="Reset Motor Timer" zh="重置电机计时器"/>
   <translation tag="Reset Servo Counter" zh="重置舵机计数器"/>
   <translation tag="Reset Speed &amp; Flow to 100%" zh="重置速度和流量为 100%"/>
+  <translation tag="Reset Sync Feedback" zh="重置同步反馈"/>
   <translation tag="Reset Tags" zh="重置标记"/>
   <translation tag="Reset all settings and restart wizard" zh="重置所有设置并重新启动向导"/>
   <translation tag="Reset failed" zh="重置失败"/>
@@ -3350,6 +3357,7 @@
   <translation tag="Run stopped" zh="运行已停止"/>
   <translation tag="Run test sequence on all lanes" zh="在所有耗材通道运行测试流程"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." zh="在本打印机的终端中运行 HelixScreen 安装程序并加上 --update。扫码获取适用于你的平台的命令。"/>
+  <translation tag="Run the MMU fans by temperature" zh="按温度运行 MMU 风扇"/>
   <translation tag="Run the chamber dryer too" zh="同时运行腔体烘干器"/>
   <translation tag="Run {}?" zh="运行 {}？"/>
   <translation tag="Running loose" zh="偏松"/>
@@ -3383,6 +3391,7 @@
   <translation tag="Save" zh="保存"/>
   <translation tag="Save &amp; Restart" zh="保存并重启"/>
   <translation tag="Save As New" zh="另存为新配置"/>
+  <translation tag="Save Autotuned Rotation" zh="保存自动调校的旋转"/>
   <translation tag="Save Hardware" zh="保存硬件"/>
   <translation tag="Save Offsets" zh="保存偏移"/>
   <translation tag="Save Printer Configuration" zh="保存打印机配置"/>
@@ -3811,7 +3820,9 @@
   <translation tag="Switching to MPC requires a config change and Klipper restart." zh="切换到 MPC 需要修改配置并重启 Klipper。"/>
   <translation tag="Switching to {}" zh="正在切换到 {}"/>
   <translation tag="Sync" zh="同步"/>
+  <translation tag="Sync Feedback" zh="同步反馈"/>
   <translation tag="Sync during printing" zh="打印期间同步"/>
+  <translation tag="Sync feedback is off" zh="同步反馈已关闭"/>
   <translation tag="Sync with Spoolman" zh="与 Spoolman 同步"/>
   <translation tag="Syncing Motors..." zh="正在同步电机..."/>
   <translation tag="Syncing motors..." zh="正在同步电机..."/>

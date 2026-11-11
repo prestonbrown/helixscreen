@@ -547,6 +547,7 @@ translations:
   Buffer: Buffer
   Buffer Status: Stato buffer
   Buffer tube problem: Problema al tubo del buffer
+  Buffer-driven gear speed control: "Velocità ingranaggio regolata dal buffer"
   Build Volume: 'Volume di stampa'
   'Build Volume: ': 'Volume di stampa: '
   'Building preview: %d%%': 'Creazione anteprima: %d%%'
@@ -1629,6 +1630,8 @@ translations:
   Fair match: "Corrispondenza discreta"
   Fan: Ventola
   Fan Calibration: Calibrazione ventola
+  Fan Control: "Controllo ventola"
+  Fan Mode: "Modalità ventola"
   Fan Speeds: 'Velocità delle ventole'
   Fan Tach: 'Tachimetro ventola'
   Fan Transfer: Trasferimento ventola
@@ -1784,6 +1787,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: "Segui il manuale per sostituire ugello o hotend."
   'For a first Z home: claim the tool you put on the head': 'Per il primo homing Z: registra lo strumento messo sulla testina'
   For materials that need a warm enclosure, like ABS or ASA: 'Per materiali che richiedono un''enclosure calda, come ABS o ASA'
+  Force the MMU fans off or on, or follow Fan Control: "Forza le ventole MMU spente o accese, o segui il controllo ventola"
   Force/weight sensors: 'Sensori di forza/peso'
   Forget: Dimentica
   Forget Network?: Dimenticare la rete?
@@ -2198,6 +2202,7 @@ translations:
   Keep pushing filament while it cools: "Continuare a spingere il filamento mentre si raffredda"
   Keep the bypass spool visible when bypass is off: Mantieni visibile la bobina di bypass quando il bypass è disabilitato
   Keep Tuning: Continua
+  Keep the rotation distance sync feedback tunes: "Salva la distanza di rotazione regolata dal feedback di sincronizzazione"
   Keep waiting: 'Continua ad attendere'
   'Kept {}: a print started.': '{} mantenuto: è iniziata una stampa.'
   Kick away: 'Espelli'
@@ -2637,6 +2642,7 @@ translations:
   Network name cannot be empty: Il nome della rete non può essere vuoto
   'Network, display, sound, printer setup, and more. You can replay this tour anytime from Help & About.': 'Rete, schermo, suono, configurazione stampante e altro. Puoi rivedere questo tour in qualsiasi momento da Aiuto e informazioni.'
   Neutral: Neutro
+  Neutralize Tension: "Neutralizza tensione"
   Never: Mai
   Never sleeps: Non va mai in sospensione
   New Spool: Nuova bobina
@@ -3515,6 +3521,7 @@ translations:
   Reset failed: Reset fallito
   Reset motor run-time counter: 'Ripristina il contatore delle ore di funzionamento del motore'
   Reset tags: Ripristina contrassegni
+  Reset Sync Feedback: "Ripristina feedback di sincronizzazione"
   Reset Tags: Ripristina contrassegni
   Reset to Default: Ripristina predefinito
   Reset to defaults: Ripristina predefiniti
@@ -3625,6 +3632,7 @@ translations:
   Run stopped: 'Esecuzione fermata'
   Run test sequence on all lanes: 'Esegui la sequenza di test su tutte le corsie'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: Esegui l'installer di HelixScreen con --update da un terminale su questa stampante. Scansiona per il comando della tua piattaforma.
+  Run the MMU fans by temperature: "Aziona le ventole MMU in base alla temperatura"
   Run the chamber dryer too: Usa anche l'essiccatore della camera
 
   Run {}?: Eseguire {}?
@@ -3665,6 +3673,7 @@ translations:
   Save: Salva
   Save & Restart: Salva e riavvia
   Save As New: Salva come nuovo
+  Save Autotuned Rotation: "Salva rotazione autoregolata"
   Save Hardware: Salva hardware
   Save Printer Configuration: Salva configurazione stampante
   Save Theme As: Salva tema come
@@ -4144,7 +4153,9 @@ translations:
     richiede una modifica alla configurazione e il riavvio di Klipper.
   Sync: 'Sinc.'
   Switching to {}: Passaggio a {}
+  Sync Feedback: "Feedback di sincronizzazione"
   Sync during printing: Sincronizza durante la stampa
+  Sync feedback is off: "Il feedback di sincronizzazione è disattivato"
   Sync with Spoolman: Sincronizza con Spoolman
   Syncing Motors...: Sincronizzazione motori...
   Syncing motors...: Sincronizzazione motori...

@@ -596,6 +596,7 @@ translations:
   Buffer: Буфер
   Buffer Status: Статус буфера
   Buffer tube problem: Проблема с буферной трубкой
+  Buffer-driven gear speed control: "Скорость шестерни по буферу"
   Build Volume: 'Область печати'
   'Build Volume: ': 'Область печати: '
   'Building preview: %d%%': 'Создание предпросмотра: %d%%'
@@ -1675,6 +1676,8 @@ translations:
   Fair match: "Среднее совпадение"
   Fan: Вентилятор
   Fan Calibration: Калибровка вентилятора
+  Fan Control: "Управление вентилятором"
+  Fan Mode: "Режим вентилятора"
   Fan Speeds: 'Скорости вентиляторов'
   Fan Tach: 'Тахометр вентилятора'
   Fan Transfer: Теплообмен с вентилятором
@@ -1829,6 +1832,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: "Замените сопло или хотенд по руководству."
   'For a first Z home: claim the tool you put on the head': 'Для первой парковки Z: закрепить инструмент, установленный на головку'
   For materials that need a warm enclosure, like ABS or ASA: 'Для материалов, которым нужен тёплый закрытый корпус, например ABS или ASA'
+  Force the MMU fans off or on, or follow Fan Control: "Принудительно выключить или включить вентиляторы MMU, или следовать управлению вентилятором"
   Force/weight sensors: 'Датчики силы/веса'
   Forget: Забыть
   Forget Network?: Забыть сеть?
@@ -2245,6 +2249,7 @@ translations:
   Keep pushing filament while it cools: "Продолжайте подавать филамент, пока он остывает"
   Keep the bypass spool visible when bypass is off: Показывать катушку байпаса, даже когда байпас выключен
   Keep Tuning: Продолжить
+  Keep the rotation distance sync feedback tunes: "Сохранять дистанцию вращения, подобранную обратной связью синхронизации"
   Keep waiting: 'Продолжить ожидание'
   'Kept {}: a print started.': '{} оставлен: началась печать.'
   Kick away: 'Сброс остатка'
@@ -2681,6 +2686,7 @@ translations:
   Network name cannot be empty: Имя сети не может быть пустым
   'Network, display, sound, printer setup, and more. You can replay this tour anytime from Help & About.': 'Сеть, дисплей, звук, настройка принтера и многое другое. Этот тур можно повторить в любой момент из раздела «Справка и о программе».'
   Neutral: Нейтральный
+  Neutralize Tension: "Снять натяжение"
   Never: Никогда
   Never sleeps: Никогда не спит
   New Spool: Новая катушка
@@ -3567,6 +3573,7 @@ translations:
   Reset failed: Ошибка сброса
   Reset motor run-time counter: 'Сбросить счётчик наработки мотора'
   Reset tags: Сбросить отметки
+  Reset Sync Feedback: "Сбросить обратную связь синхронизации"
   Reset Tags: Сбросить отметки
   Reset to Default: Сбросить до умолчания
   Reset to defaults: Сбросить по умолчанию
@@ -3677,6 +3684,7 @@ translations:
   Run stopped: 'Запуск остановлен'
   Run test sequence on all lanes: 'Запустить тестовую последовательность на всех каналах'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: Запустите установщик HelixScreen с ключом --update в терминале на этом принтере. Отсканируйте код, чтобы получить команду для вашей платформы.
+  Run the MMU fans by temperature: "Включать вентиляторы MMU по температуре"
   Run the chamber dryer too: Включить и сушилку камеры
 
   Run {}?: Запустить {}?
@@ -3717,6 +3725,7 @@ translations:
   Save: Сохранить
   Save & Restart: Сохранить и перезапустить
   Save As New: Сохранить как новый
+  Save Autotuned Rotation: "Сохранять автоподбор вращения"
   Save Hardware: Сохранить оборудование
   Save Printer Configuration: Сохранить конфигурацию принтера
   Save Theme As: Сохранить тему как
@@ -4197,7 +4206,9 @@ translations:
     изменения конфига и перезапуска Klipper.
   Sync: 'Синхр.'
   Switching to {}: Переключение на {}
+  Sync Feedback: "Обратная связь синхронизации"
   Sync during printing: Синхронизация во время печати
+  Sync feedback is off: "Обратная связь синхронизации выключена"
   Sync with Spoolman: Синхронизация со Spoolman
   Syncing Motors...: Синхронизация моторов...
   Syncing motors...: Синхронизация моторов...

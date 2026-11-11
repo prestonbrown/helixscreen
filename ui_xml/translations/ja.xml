@@ -511,6 +511,7 @@
   <translation tag="Buffer" ja="バッファー"/>
   <translation tag="Buffer Status" ja="バッファーステータス"/>
   <translation tag="Buffer tube problem" ja="バッファーチューブの問題"/>
+  <translation tag="Buffer-driven gear speed control" ja="バッファーによるギア速度制御"/>
   <translation tag="Build Volume" ja="造形ボリューム"/>
   <translation tag="Build Volume: " ja="造形サイズ: "/>
   <translation tag="Building preview: %d%%" ja="プレビューを作成中: %d%%"/>
@@ -1484,6 +1485,8 @@
   <translation tag="Fair match" ja="まずまずの一致"/>
   <translation tag="Fan" ja="ファン"/>
   <translation tag="Fan Calibration" ja="ファンキャリブレーション"/>
+  <translation tag="Fan Control" ja="ファン制御"/>
+  <translation tag="Fan Mode" ja="ファンモード"/>
   <translation tag="Fan Speeds" ja="ファン速度"/>
   <translation tag="Fan Tach" ja="ファン回転計"/>
   <translation tag="Fan Transfer" ja="ファン熱伝達"/>
@@ -1633,6 +1636,7 @@
   <translation tag="Follow your manual to swap the nozzle or hotend." ja="マニュアルに従ってノズルまたはホットエンドを交換します。"/>
   <translation tag="For a first Z home: claim the tool you put on the head" ja="初回のZホーミング用：ヘッドに取り付けたツールを登録"/>
   <translation tag="For materials that need a warm enclosure, like ABS or ASA" ja="ABSやASAなど、暖かいエンクロージャーが必要な材料向け"/>
+  <translation tag="Force the MMU fans off or on, or follow Fan Control" ja="MMU ファンを強制オフ／オンにするか、ファン制御に従う"/>
   <translation tag="Force/weight sensors" ja="力/重量センサー"/>
   <translation tag="Forget" ja="登録解除"/>
   <translation tag="Forget Network?" ja="ネットワークを登録解除しますか？"/>
@@ -2007,6 +2011,7 @@
   <translation tag="Keep its own data on this screen (up to 256 KB)." ja="この画面に独自のデータを保存します（最大256 KB）。"/>
   <translation tag="Keep pushing filament while it cools" ja="冷却中もフィラメントを押し続けてください"/>
   <translation tag="Keep the bypass spool visible when bypass is off" ja="バイパスオフ時もバイパススプールの表示を維持"/>
+  <translation tag="Keep the rotation distance sync feedback tunes" ja="同期フィードバックが調整した回転距離を保存"/>
   <translation tag="Keep waiting" ja="待ち続ける"/>
   <translation tag="Kept {}: a print started." ja="{} を保持しました: 印刷が開始されました。"/>
   <translation tag="Kick away" ja="かき出し"/>
@@ -2421,6 +2426,7 @@
   <translation tag="Network name cannot be empty" ja="ネットワーク名は空にできません"/>
   <translation tag="Network, display, sound, printer setup, and more. You can replay this tour anytime from Help &amp; About." ja="ネットワーク、ディスプレイ、サウンド、プリンター設定など。このツアーは「ヘルプと情報」からいつでも再生できます。"/>
   <translation tag="Neutral" ja="ニュートラル"/>
+  <translation tag="Neutralize Tension" ja="張力を中和"/>
   <translation tag="Never" ja="なし"/>
   <translation tag="Never sleeps" ja="スリープしない"/>
   <translation tag="New Spool" ja="新規スプール"/>
@@ -3242,6 +3248,7 @@
   <translation tag="Reset Motor Timer" ja="モータータイマーをリセット"/>
   <translation tag="Reset Servo Counter" ja="サーボカウンターをリセット"/>
   <translation tag="Reset Speed &amp; Flow to 100%" ja="速度とフローを100%にリセット"/>
+  <translation tag="Reset Sync Feedback" ja="同期フィードバックをリセット"/>
   <translation tag="Reset Tags" ja="タグをリセット"/>
   <translation tag="Reset all settings and restart wizard" ja="すべての設定をリセットしてウィザードを再開"/>
   <translation tag="Reset failed" ja="リセットに失敗しました"/>
@@ -3350,6 +3357,7 @@
   <translation tag="Run stopped" ja="実行を停止しました"/>
   <translation tag="Run test sequence on all lanes" ja="全レーンでテストシーケンスを実行"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." ja="このプリンターのターミナルで HelixScreen インストーラーを --update 付きで実行してください。プラットフォーム別のコマンドはスキャンして確認できます。"/>
+  <translation tag="Run the MMU fans by temperature" ja="温度に応じて MMU ファンを動かす"/>
   <translation tag="Run the chamber dryer too" ja="チャンバーのドライヤーも使う"/>
   <translation tag="Run {}?" ja="{} を実行しますか？"/>
   <translation tag="Running loose" ja="緩み気味"/>
@@ -3383,6 +3391,7 @@
   <translation tag="Save" ja="保存"/>
   <translation tag="Save &amp; Restart" ja="保存して再起動"/>
   <translation tag="Save As New" ja="新規として保存"/>
+  <translation tag="Save Autotuned Rotation" ja="自動調整した回転を保存"/>
   <translation tag="Save Hardware" ja="ハードウェアを保存"/>
   <translation tag="Save Offsets" ja="オフセットを保存"/>
   <translation tag="Save Printer Configuration" ja="プリンター設定を保存"/>
@@ -3811,7 +3820,9 @@
   <translation tag="Switching to MPC requires a config change and Klipper restart." ja="MPCへの切り替えには設定変更とKlipperの再起動が必要です。"/>
   <translation tag="Switching to {}" ja="{}に切り替えています"/>
   <translation tag="Sync" ja="同期"/>
+  <translation tag="Sync Feedback" ja="同期フィードバック"/>
   <translation tag="Sync during printing" ja="印刷中に同期"/>
+  <translation tag="Sync feedback is off" ja="同期フィードバックはオフです"/>
   <translation tag="Sync with Spoolman" ja="Spoolman と同期"/>
   <translation tag="Syncing Motors..." ja="モーターを同期中..."/>
   <translation tag="Syncing motors..." ja="モーターを同期中..."/>
