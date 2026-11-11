@@ -15,14 +15,6 @@
  * This is a read-only step that shows all configuration choices made
  * during the wizard. Uses 12 reactive subjects for data binding.
  *
- * ## Class-Based Architecture (Phase 6)
- *
- * This step has been migrated from function-based to class-based design:
- * - Instance members instead of static globals
- * - RAII cleanup for subjects and buffers
- * - Static trampolines for any LVGL callbacks
- * - Global singleton getter for backwards compatibility
- *
  * ## Subject Bindings (14 total):
  *
  * - summary_printer_name (string) - Configured printer name

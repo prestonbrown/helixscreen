@@ -29,14 +29,6 @@
  * - Auto-discovery trigger on success
  * - Configuration persistence
  *
- * ## Class-Based Architecture (Phase 6)
- *
- * This step has been migrated from function-based to class-based design:
- * - Instance members instead of static globals
- * - Async WebSocket callbacks with captured instance reference
- * - Static trampolines for LVGL event callbacks
- * - Global singleton getter for backwards compatibility
- *
  * ## Subject Bindings (6 total):
  *
  * - connection_ip (string) - IP address or hostname

@@ -35,14 +35,6 @@ struct WiFiNetwork;
  * - Connection status feedback
  * - Ethernet status display
  *
- * ## Class-Based Architecture (Phase 6)
- *
- * This step has been migrated from function-based to class-based design:
- * - Instance members instead of static globals
- * - Shared pointer WiFiManager for async callback safety
- * - Static trampolines for LVGL event callbacks
- * - Global singleton getter for backwards compatibility
- *
  * ## Subject Bindings (7 total):
  *
  * - wifi_enabled (int) - 0=off, 1=on
