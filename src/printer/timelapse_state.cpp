@@ -19,6 +19,8 @@
 
 #include <cstring>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 TimelapseState& TimelapseState::instance() {

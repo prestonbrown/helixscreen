@@ -17,6 +17,8 @@
 #include <memory>
 #include <optional>
 
+#include "hv/json.hpp" // JSON_HPP_OK: config_ held by value
+
 namespace helix {
 
 class PrinterState;

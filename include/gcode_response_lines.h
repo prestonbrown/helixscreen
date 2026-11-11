@@ -7,7 +7,7 @@
 #include <string>
 #include <string_view>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: inline parser reads the json
 
 namespace helix {
 

@@ -29,6 +29,8 @@
 #include <cstring>
 #include <tuple>
 
+#include "hv/json.hpp"
+
 namespace helix::ui {
 
 // Static member initialization

@@ -8,12 +8,11 @@
 // reading here is pure; AmsState::run_legacy_spool_import() writes.
 
 #include "ams_types.h"
+#include "json_fwd.h"
 
 #include <map>
 #include <optional>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix::ams::legacy {
 

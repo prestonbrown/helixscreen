@@ -5,8 +5,6 @@
 
 #include <cmath>
 
-#include "hv/json.hpp"
-
 namespace helix::units {
 
 // ============================================================================
@@ -35,24 +33,6 @@ inline double from_decidegrees(int decidegrees) {
     return static_cast<double>(decidegrees) / 10.0;
 }
 
-/**
- * @brief Extract temperature from JSON and convert to decidegrees
- * @param obj JSON object containing the temperature field
- * @param key Key name for the temperature value
- * @param default_value Value to return if key is missing or not a number
- * @return Temperature in decidegrees
- *
- * @note Returns default_value if obj is not a JSON object (e.g., array, primitive, null)
- */
-inline int json_to_decidegrees(const nlohmann::json& obj, const char* key, int default_value = 0) {
-    if (!obj.is_object())
-        return default_value;
-    if (obj.contains(key) && obj[key].is_number()) {
-        return to_decidegrees(obj[key].get<double>());
-    }
-    return default_value;
-}
-
 // ============================================================================
 // Percent Conversions (0.0-1.0 ratio → 0-100 integer)
 // ============================================================================
@@ -79,24 +59,6 @@ inline double from_percent(int percent) {
     return static_cast<double>(percent) / 100.0;
 }
 
-/**
- * @brief Extract ratio from JSON and convert to percent
- * @param obj JSON object containing the ratio field
- * @param key Key name for the ratio value
- * @param default_value Value to return if key is missing or not a number
- * @return Percent as integer
- *
- * @note Returns default_value if obj is not a JSON object (e.g., array, primitive, null)
- */
-inline int json_to_percent(const nlohmann::json& obj, const char* key, int default_value = 0) {
-    if (!obj.is_object())
-        return default_value;
-    if (obj.contains(key) && obj[key].is_number()) {
-        return to_percent(obj[key].get<double>());
-    }
-    return default_value;
-}
-
 // ============================================================================
 // Length Conversions (centimillimeters = mm × 100)
 // ============================================================================
@@ -121,24 +83,6 @@ inline int to_centimm(double mm) {
  */
 inline double from_centimm(int centimm) {
     return static_cast<double>(centimm) / 100.0;
-}
-
-/**
- * @brief Extract length from JSON and convert to centimillimeters
- * @param obj JSON object containing the length field
- * @param key Key name for the length value (in mm)
- * @param default_value Value to return if key is missing or not a number
- * @return Length in centimillimeters
- *
- * @note Returns default_value if obj is not a JSON object (e.g., array, primitive, null)
- */
-inline int json_to_centimm(const nlohmann::json& obj, const char* key, int default_value = 0) {
-    if (!obj.is_object())
-        return default_value;
-    if (obj.contains(key) && obj[key].is_number()) {
-        return to_centimm(obj[key].get<double>());
-    }
-    return default_value;
 }
 
 // ============================================================================

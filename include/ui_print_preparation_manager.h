@@ -37,6 +37,8 @@
 #include <string>
 #include <vector>
 
+#include "hv/json.hpp" // JSON_HPP_OK: server_edits held in a std::optional
+
 class PrintPreparationManagerTestAccess;
 
 namespace helix::ui {

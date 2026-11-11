@@ -8,6 +8,7 @@
 #include "i_moonraker_client.h"
 #include "lua_bindings.h"
 #include "lua_runtime.h"
+#include "moonraker_status_notification.h"
 #include "plugin_backend.h"
 
 #include <filesystem>

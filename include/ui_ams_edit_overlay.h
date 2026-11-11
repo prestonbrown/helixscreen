@@ -26,7 +26,7 @@
 #include <string>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: chained_spool_patch held by value
 
 namespace helix {
 class IMoonrakerAPI;

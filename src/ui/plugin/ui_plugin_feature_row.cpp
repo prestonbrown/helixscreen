@@ -16,6 +16,8 @@
 
 #include <cstring>
 
+#include "hv/json.hpp"
+
 namespace helix::ui {
 
 namespace {

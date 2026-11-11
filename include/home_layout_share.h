@@ -6,7 +6,7 @@
 #include <optional>
 #include <string>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: pages_payload held by value
 
 /// The home layout a printer's own HelixScreen publishes to Moonraker's
 /// database, and the validation a remote client applies before seeding from it.

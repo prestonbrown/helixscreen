@@ -50,6 +50,8 @@
 #include <unistd.h>
 #include <utility>
 
+#include "hv/json.hpp"
+
 // Forward declaration for global print status panel (declared in ui_panel_print_status.h)
 PrintStatusPanel& get_global_print_status_panel();
 

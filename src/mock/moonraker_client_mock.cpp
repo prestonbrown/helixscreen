@@ -20,6 +20,7 @@
 #include "mock_persona.h"
 #include "mock_planted_gcodes.h"
 #include "moonraker_client_mock_internal.h"
+#include "moonraker_status_notification.h"
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "shaper_response.h"

@@ -17,7 +17,31 @@
 
 #include <spdlog/spdlog.h>
 
+#include "hv/json.hpp"
+
 namespace helix {
+
+PrinterPluginStatusState::PrinterPluginStatusState()
+    : stored_opt_ins_(std::make_unique<nlohmann::json>(nlohmann::json::object())) {}
+
+PrinterPluginStatusState::~PrinterPluginStatusState() = default;
+
+void PrinterPluginStatusState::clear_data() {
+    set_link_dir("");
+    version_.clear();
+    disabled_ = false;
+    features_.clear();
+    *stored_opt_ins_ = nlohmann::json::object();
+}
+
+void PrinterPluginStatusState::set_stored_opt_ins(nlohmann::json record) {
+    *stored_opt_ins_ = std::move(record);
+    publish_features();
+}
+
+const nlohmann::json& PrinterPluginStatusState::stored_opt_ins() const {
+    return *stored_opt_ins_;
+}
 
 void PrinterPluginStatusState::init_subjects(bool register_xml) {
     if (subjects_initialized_) {
@@ -108,7 +132,7 @@ void PrinterPluginStatusState::publish_features() {
         // stored opt-in the app's fallback acts on.
         const bool on = it != features_.end() && (it->second.available || !f.has_fallback)
                             ? it->second.enabled
-                            : plugin_feature_opted_in(stored_opt_ins_, f.name, f.acts);
+                            : plugin_feature_opted_in(*stored_opt_ins_, f.name, f.acts);
         lv_subject_set_int(&switch_on_[i], on ? 1 : 0);
     }
 

@@ -17,6 +17,7 @@
 #include "queued_job_options.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::queue::QueuedJobOptions;
 using helix::queue::QueuedJobOptionsMap;

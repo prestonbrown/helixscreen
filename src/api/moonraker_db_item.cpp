@@ -6,6 +6,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 void post_item_if_changed(IMoonrakerAPI& api, const std::string& namespace_name,

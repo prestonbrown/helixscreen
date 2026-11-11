@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "unit_conversions.h"
+#include "unit_conversions_json.h"
 
 #include "../catch_amalgamated.hpp"
 

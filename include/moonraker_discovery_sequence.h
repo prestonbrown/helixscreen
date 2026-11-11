@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: json members held by value
 
 namespace helix {
 

@@ -4,6 +4,7 @@
 #include "filament_accounting.h"
 #include "fit_check.h"
 #include "helix_plugin_features.h"
+#include "json_fwd.h"
 #include "plr_backend.h"
 #include "print_photos.h"
 #include "signal_macro_names.h"
@@ -14,9 +15,8 @@
 #include <array>
 #include <functional>
 #include <lvgl.h>
+#include <memory>
 #include <optional>
-
-#include "hv/json.hpp"
 
 namespace helix {
 
@@ -94,8 +94,8 @@ enum class HelixMacrosStatus {
  */
 class PrinterPluginStatusState {
   public:
-    PrinterPluginStatusState() = default;
-    ~PrinterPluginStatusState() = default;
+    PrinterPluginStatusState();
+    ~PrinterPluginStatusState();
 
     PrinterPluginStatusState(const PrinterPluginStatusState&) = delete;
     PrinterPluginStatusState& operator=(const PrinterPluginStatusState&) = delete;
@@ -172,13 +172,7 @@ class PrinterPluginStatusState {
     /// Forget what the plugin's status reported, touching no subject. For
     /// PrinterStateTestAccess::clear_data, so one test's probe does not decide
     /// the next one's plugin features on the shared singleton.
-    void clear_data() {
-        set_link_dir("");
-        version_.clear();
-        disabled_ = false;
-        features_.clear();
-        stored_opt_ins_ = nlohmann::json::object();
-    }
+    void clear_data();
 
     /// Whether plugin feature @p name, at contract @p min_version or newer, is
     /// usable now. Gate plugin-backed behaviour on this, never on version().
@@ -285,13 +279,8 @@ class PrinterPluginStatusState {
 
     /// The helix-screen/plugin_features record as last read: the opt-ins a
     /// fallback switch shows while no plugin reports the feature. Main thread.
-    void set_stored_opt_ins(nlohmann::json record) {
-        stored_opt_ins_ = std::move(record);
-        publish_features();
-    }
-    const nlohmann::json& stored_opt_ins() const {
-        return stored_opt_ins_;
-    }
+    void set_stored_opt_ins(nlohmann::json record);
+    const nlohmann::json& stored_opt_ins() const;
 
     /// PluginSwitchMode of kPluginSwitchFeatures[@p index], as an int.
     lv_subject_t* get_switch_mode_subject(size_t index) {
@@ -355,7 +344,9 @@ class PrinterPluginStatusState {
     lv_subject_t plr_saving_enabled_{};
     lv_subject_t plr_mesh_include_{};
     std::function<bool()> is_local_;
-    nlohmann::json stored_opt_ins_ = nlohmann::json::object();
+    /// Never null. Held by pointer so printer_state.h, which holds this class by
+    /// value, compiles against json_fwd.h instead of the whole json library.
+    std::unique_ptr<nlohmann::json> stored_opt_ins_;
     std::array<lv_subject_t, kPluginSwitchFeatures.size()> switch_mode_{};
     std::array<lv_subject_t, kPluginSwitchFeatures.size()> switch_on_{};
     /// Republish the feature subjects from the plugin state and features map.

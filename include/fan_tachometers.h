@@ -12,11 +12,11 @@
 // A slot with no evidence for which fan it measures stays unmapped: no RPM beats an
 // RPM shown on the wrong fan.
 
+#include "json_fwd.h"
+
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix::fan_tach {
 

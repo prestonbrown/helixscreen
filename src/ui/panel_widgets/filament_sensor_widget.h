@@ -11,7 +11,7 @@
 #include "filament_widget_tap_policy.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: config_ held by value
 
 namespace helix {
 
