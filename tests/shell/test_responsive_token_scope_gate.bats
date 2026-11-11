@@ -188,9 +188,3 @@ run_gate() {
 }
 
 # ------------------------------------------------------------- the real tree
-
-@test "the whole-tree run says what it checked" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"✅"* || "$output" == *"✓"* ]]
-}

@@ -81,11 +81,18 @@ def main() -> int:
     args = parser.parse_args()
     root = Path(args.root)
 
+    missing = [rel for rel in SCOPE if not (root / rel).is_file()]
+    if missing:
+        # A renamed or deleted file would otherwise pass with nothing checked.
+        print("Filament-op scope names files that do not exist; update SCOPE in "
+              "scripts/check_filament_ops_neutral.py:")
+        for rel in missing:
+            print(f"  {rel}")
+        return 1
+
     hits = []
     for rel in SCOPE:
         path = root / rel
-        if not path.is_file():
-            continue
         for number, code in code_lines(path.read_text(encoding="utf-8", errors="replace")):
             if SHAPE.search(code):
                 hits.append(f"{rel}:{number}: {code.strip()}")

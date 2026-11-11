@@ -63,11 +63,19 @@ src init_list_ternary
 src address_keys
 src registry_key_names
 src remove_event_sweep
+src env_file_vars_live
+src teardown_call_order
+src translation_duplicate_keys
+src packaging_seed_dirs
+src stripped_assets_unreferenced
+src ui_xml_formatted
 tests test_access_defined_once
 tests test_mode_restored
 tests test_displays_deleted
 tests ams_state_published
 tests app_skip_require_app
+tests fork_assertions
+tests bats_real_tree_make
 ui chamber_target_binding
 ui zoffset_save_rule
 ui plugin_separator
@@ -1515,6 +1523,229 @@ lint_filaments_android_mirror() {
     diff assets/filaments.json "$mirror" >/dev/null && return 0
     echo "$mirror differs from assets/filaments.json; it is a stale build output (docs/devel/ANDROID_ASSETS.md): rm -rf android/app/src/main/assets and rebuild"
     return 1
+}
+
+# Every file under ui_xml/ parses and is already formatted. qc_phase2 only warns
+# on formatting and repairs it at commit; this is the hard verdict, in the
+# push-only group so it never races the commit hook's repair. Needs lxml in
+# .venv, as the formatter does; without it there is no formatter to ask.
+lint_ui_xml_formatted() {
+    local py=.venv/bin/python out
+    [ -x "$py" ] && "$py" -c 'import lxml' 2>/dev/null || return 0
+    # shellcheck disable=SC2046  # one path per word; ui_xml names have no spaces
+    out=$("$py" scripts/format-xml.py --check $(find ui_xml -name '*.xml' | LC_ALL=C sort) 2>&1) && return 0
+    printf '%s\n' "$out"
+    echo "Fix with: .venv/bin/python scripts/format-xml.py <files>"
+    return 1
+}
+
+# ====================================================================
+# Tree-wide verdicts on shipped data and ordered teardown
+# ====================================================================
+
+# config/helixscreen.env ships to every device and is the file users edit. An
+# uncommented VAR=value line reads as authoritative, so a variable nothing reads
+# is worse than an absent one: the user edits it and nothing happens. A variable
+# is read when the app calls getenv("NAME") or the launcher expands it.
+# Documentation-only entries stay commented out, pointing at what controls the
+# setting. The Moonraker target is settings.json's and --moonraker's, never this
+# file's.
+env_file_active_vars() {
+    grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$1" | sed 's/=.*//' | sort -u
+}
+
+lint_env_file_vars_live() {
+    local env=config/helixscreen.env launcher=scripts/helix-launcher.sh v dead="" rc=0
+    for v in "$env" "$launcher"; do
+        [ -f "$v" ] || { echo "code_lint: $v is gone: update this lint's file list"; rc=1; }
+    done
+    [ "$rc" -eq 0 ] || return 1
+    for v in $(env_file_active_vars "$env"); do
+        grep -rqF "getenv(\"$v\")" src include 2>/dev/null && continue
+        grep -qE "\\\$\{?$v\b" "$launcher" && continue
+        dead="$dead $v"
+    done
+    if [ -n "$dead" ]; then
+        echo "$env: uncommented but read by nothing:$dead"
+        echo "Comment the line out with a pointer to what controls it, or wire it up."
+        rc=1
+    fi
+    if grep -nE '^MOONRAKER_(HOST|PORT)=' "$env"; then
+        echo "$env: the Moonraker target belongs to settings.json and --moonraker"
+        rc=1
+    fi
+    return $rc
+}
+
+# PrinterSession::teardown_printer_scope() is the one ordered teardown behind a
+# printer switch and process exit, and Application::shutdown() finishes the exit
+# after it. The order is the contract: observers detach before subjects deinit,
+# the client outlives everything that unregisters from it, panels die before the
+# subjects they observe, the display dies before the theme subjects its XML
+# scopes observe. No unit test can run it (it ends in a rebuild of global state),
+# so the call sequences are compared to golden lists; a deliberate reorder edits
+# the list in the same commit.
+teardown_function_body() { # <file> <Class::fn>, comments stripped
+    awk -v fn="$2" '
+        index($0, "void " fn "(") == 1 { inside = 1 }
+        inside { print }
+        inside && /^\}/ { exit }
+    ' "$1" | sed -e 's@//.*$@@'
+}
+
+teardown_call_order() { # <file> <Class::fn> <golden>: the golden-listed calls in source order
+    local body keys='' k
+    body=$(teardown_function_body "$1" "$2")
+    [ -n "$body" ] || { echo "could not locate $2() in $1"; return 1; }
+    while IFS= read -r k; do
+        k=$(printf '%s' "$k" | sed -e 's/[][\.*^$()+?{}|\/]/\\&/g')
+        keys="${keys:+$keys|}$k"
+    done < "$3"
+    printf '%s\n' "$body" | grep -oE "$keys"
+}
+
+lint_teardown_call_order() {
+    local rc=0 file fn golden order
+    while read -r file fn golden; do
+        order=$(teardown_call_order "$file" "$fn" "$golden") || { echo "$order"; rc=1; continue; }
+        if ! diff <(printf '%s\n' "$order") "$golden" >/dev/null; then
+            echo "$fn() in $file no longer runs its calls in the order $golden pins:"
+            diff <(printf '%s\n' "$order") "$golden" | sed 's/^/  /'
+            rc=1
+        fi
+    done <<'EOF'
+src/application/printer_session.cpp PrinterSession::teardown_printer_scope tests/shell/fixtures/teardown_printer_scope_order.txt
+src/application/application.cpp Application::shutdown tests/shell/fixtures/shutdown_exit_tail_order.txt
+EOF
+    return $rc
+}
+
+# A locale file that defines a key twice keeps the LAST value, so an empty
+# placeholder after a translated entry deletes the translation on the next write.
+# load_yaml_file() refuses such a file; this asks it about every locale.
+lint_translation_duplicate_keys() {
+    local py=.venv/bin/python
+    [ -x "$py" ] || py=python3
+    "$py" - <<'PY'
+import pathlib, sys
+sys.path.insert(0, 'scripts')
+from translations.yaml_manager import DuplicateTranslationKey, load_yaml_file
+files = sorted(pathlib.Path('translations').glob('*.yml'))
+if not files:
+    print('code_lint: no translations/*.yml to read')
+    sys.exit(1)
+bad = []
+for f in files:
+    try:
+        load_yaml_file(f)
+    except DuplicateTranslationKey as e:
+        bad.append(str(e))
+print('\n'.join(bad))
+sys.exit(1 if bad else 0)
+PY
+}
+
+# The directories every package ships its read-only seed data from. If one drops
+# out of scripts/gen-packaging-manifest.sh's answer, the APK and the release
+# tarballs ship without printer detection, themes or presets.
+packaging_seed_dirs() {
+    printf '%s\n' assets/config assets/config/presets assets/config/print_start_profiles \
+        assets/config/themes/defaults assets/config/platform assets/fonts assets/images \
+        assets/sounds assets/zoneinfo ui_xml ui_xml/components ui_xml/translations
+}
+
+lint_packaging_seed_dirs() {
+    local manifest dir missing=""
+    manifest=$(scripts/gen-packaging-manifest.sh) || { echo "gen-packaging-manifest.sh failed"; return 1; }
+    while IFS= read -r dir; do
+        grep -qxF "$dir" <<<"$manifest" || missing="$missing $dir"
+    done < <(packaging_seed_dirs)
+    none_found "${missing:+the packaging manifest is missing:$missing}"
+}
+
+# release-clean-assets (mk/cross.mk) deletes the orcaslicer test cube outright,
+# which is safe only while nothing references it; assets/images/printer.png is
+# gone from the tree, so a reference to it is a broken path. printer_400.png is
+# the image the app registers and unit tests use as a thumbnail token, so it
+# must stay and must never join the strip list.
+lint_stripped_assets_unreferenced() {
+    local hits rc=0
+    hits=$(grep -rIl --fixed-strings "orcaslicer test cube.PNG" src/ include/ ui_xml/ assets/config/ 2>/dev/null)
+    [ -z "$hits" ] || { echo "the orcaslicer cube is stripped from releases but referenced by: $hits"; rc=1; }
+    [ ! -f assets/images/printer.png ] || { echo "assets/images/printer.png is back"; rc=1; }
+    hits=$(grep -rIl --fixed-strings "assets/images/printer.png" src/ include/ ui_xml/ assets/config/ tests/unit/ 2>/dev/null)
+    [ -z "$hits" ] || { echo "assets/images/printer.png does not exist but is referenced by: $hits"; rc=1; }
+    grep -rIqF "printer_400.png" src/ || { echo "printer_400.png is no longer registered; revisit the strip list"; rc=1; }
+    [ -f assets/images/printer_400.png ] || { echo "assets/images/printer_400.png is missing"; rc=1; }
+    if grep -qE "(rm -f|-delete).*printer_400" mk/cross.mk; then
+        echo "mk/cross.mk deletes printer_400.png, which the app registers"
+        rc=1
+    fi
+    return $rc
+}
+
+# ====================================================================
+# tests/ lints over the shell suite and forked children
+# ====================================================================
+
+# A Catch2 assertion between fork() and the child's branch runs in BOTH
+# processes, and one inside the child block runs in the child. The XML reporter
+# flushes after every element and the child shares the report's file
+# description, so under --success the child's copy lands mid-element and the
+# report stops parsing. Check the fork result after the child block.
+# Prints file:line of each macro a forked child would evaluate. Braces are
+# counted per line, which the test style here satisfies.
+fork_assertion_offenders() {
+    awk '
+        function macro(line) {
+            return line ~ /(^|[^A-Za-z_])(REQUIRE|CHECK|INFO|CAPTURE|FAIL|SUCCEED|WARN|UNSCOPED_INFO|SECTION)[A-Z_]*[[:space:]]*\(/
+        }
+        FNR == 1 { armed = 0; depth = 0 }
+        depth > 0 {
+            if (macro($0)) print FILENAME ":" FNR ": " $0
+            depth += gsub(/\{/, "{") - gsub(/\}/, "}")
+            next
+        }
+        /=[[:space:]]*fork[[:space:]]*\([[:space:]]*\)[[:space:]]*;/ { armed = 1; next }
+        armed && /^[[:space:]]*if[[:space:]]*\(/ {
+            armed = 0
+            if ($0 ~ /==[[:space:]]*0[[:space:]]*\)/) depth = gsub(/\{/, "{") - gsub(/\}/, "}")
+            next
+        }
+        armed && macro($0) { print FILENAME ":" FNR ": " $0 }
+    ' "$@"
+}
+
+lint_fork_assertions() {
+    local files
+    files=$(grep -rlE '=[[:space:]]*fork[[:space:]]*\(' tests/ --include='*.cpp' 2>/dev/null)
+    [ -n "$files" ] || { echo "code_lint: found no fork() in tests/; this lint is looking in the wrong place"; return 1; }
+    # shellcheck disable=SC2086  # one path per word
+    none_found "$(fork_assertion_offenders $files)"
+}
+
+# A bats test that runs make in the tree under test races the developer's own
+# build there and can delete the binary it is using; scratch_tree (helpers.bash)
+# gives it a build/ of its own. Prints file:line:text for each make run in a
+# directory named by a repo-root variable or the path up from the test file.
+# REAL_TREE_MAKE_OK: <reason> marks a reviewed function, up to its closing brace.
+real_tree_make_offenders() {
+    # Doubled backslashes: awk -v runs escape processing over the value.
+    local tree='"?\\$\\{?((REPO|REPO_ROOT|ROOT|WORKTREE_ROOT|HELIX_TEST_REPO_ROOT)\\}?"?|BATS_TEST_DIRNAME\\}?/\\.\\./\\.\\.)'
+    awk -v tree="$tree" '
+        /REAL_TREE_MAKE_OK:/ { reviewed = 1 }
+        /^}/ { reviewed = 0; next }
+        /^[[:space:]]*#/ || reviewed { next }
+        /(^|[^A-Za-z_-])g?make[[:space:]]/ {
+            if ($0 ~ "cd " tree "[^|]*(&&|;).*(^|[^A-Za-z_-])g?make[[:space:]]" ||
+                $0 ~ "(^|[^A-Za-z_-])g?make[[:space:]].*(-[A-Za-z]*C|--di[a-z]*=?)[[:space:]]*" tree)
+                printf "%s:%d:%s\n", FILENAME, FNR, $0
+        }
+    ' "$@"
+}
+
+lint_bats_real_tree_make() {
+    none_found "$(real_tree_make_offenders tests/shell/*.bats tests/shell/helpers.bash)"
 }
 
 # ====================================================================

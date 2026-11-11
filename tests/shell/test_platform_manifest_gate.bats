@@ -564,35 +564,11 @@ print(' '.join(pm.splash_3d_classes_for(m, 'mips')), pm.printer_image_sizes_for(
 # --------------------------------------------------------------------------
 # Assets that reach no screen
 # --------------------------------------------------------------------------
-
-# release-clean-assets deletes this outright. That is only safe while nothing
-# registers it, so this is the tripwire: if someone starts using it, the test
-# fails and points at the strip rather than letting a release ship a reference
-# to a file it removed.
-@test "the stripped test fixture has no consumer" {
-    run grep -rIl --fixed-strings "orcaslicer test cube.PNG" src/ include/ ui_xml/ assets/config/
-    [ -z "$output" ] || fail "the orcaslicer cube is stripped from releases but referenced by: $output"
-}
-
-@test "printer.png is gone and nothing reaches for it" {
-    # A 2 MB 1024x1536 source nothing displayed: the app registers
-    # printer_400.png and printer art renders at 300px. Deleted rather than
-    # stripped, so a reference to it would now be a broken path, not a big one.
-    [ ! -f assets/images/printer.png ] || fail "assets/images/printer.png is back"
-    run grep -rIl --fixed-strings "assets/images/printer.png" src/ include/ ui_xml/ assets/config/ tests/unit/
-    [ -z "$output" ] || fail "assets/images/printer.png no longer exists but is referenced by: $output"
-}
-
-@test "the image the app actually registers survives" {
-    # printer_400.png is the registered one, and three unit tests now use its
-    # path as their distinguishable thumbnail token. Stripping it would be the
-    # mistake the cases above exist to prevent, in the other direction.
-    run grep -rIl --fixed-strings "printer_400.png" src/
-    [ -n "$output" ] || fail "printer_400.png is no longer registered; revisit the strip list"
-    [ -f assets/images/printer_400.png ] || fail "printer_400.png is missing from the tree"
-    run grep -cE "(rm -f|-delete).*printer_400" mk/cross.mk
-    [ "$output" = "0" ] || fail "mk/cross.mk deletes printer_400.png, which the app registers"
-}
+#
+# Whether the tree still references an image the release strips, or loses the
+# one the app registers, is lint_stripped_assets_unreferenced in
+# scripts/code_lint.sh, run by qc_code_lint; its fixture test is in
+# test_code_lint.bats.
 
 # --------------------------------------------------------------------------
 # Generator and gate wiring
