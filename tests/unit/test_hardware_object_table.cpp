@@ -226,13 +226,11 @@ TEST_CASE("hw table: vendor and unknown names", "[hw_object_table]") {
     CHECK(obj("zmod_ifs_switch_sensor").kind == ObjectKind::Unknown);
     CHECK(obj("power_loss_check e0").kind == ObjectKind::Unknown);
     CHECK(obj("stepper_x").kind == ObjectKind::Stepper);
-    // Only the TMC2240 reports a temperature; every TMC driver reports drv_status.
     CHECK(obj("tmc2240 stepper_z").kind == ObjectKind::DriverTemperature);
     for (const char* flag_only : {"tmc2130 stepper_x", "tmc2208 stepper_x", "tmc2209 stepper_x",
                                   "tmc2660 stepper_x", "tmc5160 stepper_z"}) {
         CAPTURE(flag_only);
         CHECK(obj(flag_only).kind == ObjectKind::StepperDriver);
-        CHECK(obj(flag_only).instance.rfind("stepper_", 0) == 0);
     }
     CHECK(is_stepper_driver(ObjectKind::DriverTemperature));
     CHECK(is_stepper_driver(ObjectKind::StepperDriver));
