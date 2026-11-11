@@ -437,18 +437,28 @@ the "Reforge ff_toolchange" row in `src/printer/tool_offsets.cpp#providers`, det
 - **No writes.** `SET_TOOL_PARAMETER` and `SAVE_TOOL_PARAMETER` are not registered
   ([Reforge toolchange.md](https://github.com/Klipper4FlashForge/firmware/blob/eda86c1fa19fd47c9efa77c8ee1d9638dc124450/docs/toolchange.md)). The `gcode_x/y/z_offset` on `tool T<n>` are derived by
   `ff_toolchange._derive_offsets()`: X and Y are each tool's measured nozzle position minus
-  the base tool's, Z is the nozzle-to-station gap plus the tool's `z_adjust`. No command sets
-  one to a value, so `supports_axis()` is false on every axis, the tune panel and the Z-offset
-  widget keep the machine-wide babystep, and nothing is written per tool.
-- **Save is `SAVE_CONFIG` alone.** `TOOL_CALIBRATE_TOOL_OFFSET` stages the measured
+  the base tool's, Z is the nozzle-to-station gap plus the tool's `z_adjust`. X and Y have
+  no setter, and Z's only one, `TOOL_Z_ADJUST`, edits `z_adjust` rather than the published
+  offset, so `supports_axis()` is false on every axis, the tune panel and the Z-offset widget
+  keep the machine-wide babystep, and nothing is written per tool by value.
+- **Save stages live Z, then `SAVE_CONFIG`.** `TOOL_CALIBRATE_TOOL_OFFSET` stages the measured
   `nozzle_x/y/z` into `[ff_tool <n>]` with `configfile.set()` and applies them live
   ([ff_tool.py](https://github.com/Klipper4FlashForge/firmware/blob/eda86c1fa19fd47c9efa77c8ee1d9638dc124450/pkgs/klipper/payload/klipper/klippy/extras/ff_tool.py) `set_nozzle`); Reforge's [calibration.md](https://github.com/Klipper4FlashForge/firmware/blob/eda86c1fa19fd47c9efa77c8ee1d9638dc124450/docs/calibration.md) persists a run with
   `SAVE_CONFIG`. `firmware_stages_axis()` is true, so `ToolState` follows the derived offsets, the
-  rows fill in, and the moved values make the tools dirty; `save_dirty_offsets()` then finds
-  no SET+SAVE to send and commits with one `SAVE_CONFIG`.
+  rows fill in, and the moved values make the tools dirty. A run stages what it moved
+  (`set_nozzle`, and `set_station` for `TOOL_LOCATE_SENSOR`), but Reforge's per-tool Z
+  correction `TOOL_Z_ADJUST TOOL=<n> ADJUST=|VALUE=` moves Z live and stages `z_adjust` only
+  with `SAVE=1` ([ff_toolchange.py](https://github.com/Klipper4FlashForge/firmware/blob/eda86c1fa19fd47c9efa77c8ee1d9638dc124450/pkgs/klipper/payload/klipper/klippy/extras/ff_toolchange.py) `cmd_TOOL_Z_ADJUST`,
+  `set_z_adjust` in ff_tool.py). So for every dirty Z, `save_dirty_offsets()` sends
+  `tool_offsets::stage_live_offset_gcode()`, `TOOL_Z_ADJUST TOOL=<n> ADJUST=0 SAVE=1`, which
+  stages the live `z_adjust` unchanged, and then one `SAVE_CONFIG`. X and Y need nothing
+  before it.
 
-Reforge's own per-tool Z correction, `TOOL_Z_ADJUST TOOL=<n> ADJUST=|VALUE= [SAVE=1]`, edits
-`z_adjust` rather than the published offset and is not wired to any HelixScreen control.
+No HelixScreen control sends `TOOL_Z_ADJUST` to change a value; a tune made from the console
+or Mainsail is what Save persists this way. Reforge's Klipper fork (`creator5` at `b722a4c8`)
+marks the config pending on every `configfile.set()`, and its `SAVE_CONFIG` returns without a
+restart only when the autosave block is empty, which `SaveConfigWatch` takes as success on the
+ack.
 The `creator5` mock persona refuses both tool-parameter commands with Klipper's
 unknown-command error.
 

@@ -724,7 +724,10 @@ TEST_CASE("tool offsets: Reforge is followed and saved by SAVE_CONFIG, never wri
         CHECK(to_::set_tool_offset_gcode(hw, axis, 1, -50).empty());
         CHECK(to_::save_tool_offset_gcode(hw, axis, 1, -50).empty());
         CHECK(to_::activate_mounted_offset_gcode(hw, 1, 1).empty());
+        CHECK(to_::stage_live_offset_gcode(hw, axis, 1) ==
+              (axis == Axis::Z ? "TOOL_Z_ADJUST TOOL=1 ADJUST=0 SAVE=1" : ""));
     }
+    CHECK(to_::stage_live_offset_gcode(hw, Axis::Z, -1).empty());
 
     // The derived offsets ride on `tool T<n>`, in klipper-toolchanger's names.
     auto reader = to_::resolve_reader(hw);
@@ -764,5 +767,8 @@ TEST_CASE("tool offsets: writable models keep all three axes and stage none", "[
         CHECK_FALSE(to_::firmware_stages_axis(indx_printer(), axis));
         CHECK_FALSE(to_::supports_axis(plain_printer(), axis));
         CHECK_FALSE(to_::firmware_stages_axis(plain_printer(), axis));
+        CHECK(to_::stage_live_offset_gcode(toolchanger_printer(), axis, 1).empty());
+        CHECK(to_::stage_live_offset_gcode(tool_offset_macro_printer(), axis, 1).empty());
+        CHECK(to_::stage_live_offset_gcode(indx_printer(), axis, 1).empty());
     }
 }

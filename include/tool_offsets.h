@@ -138,6 +138,13 @@ std::string set_tool_offset_gcode(const PrinterDiscovery& hw, Axis axis, int too
 std::string save_tool_offset_gcode(const PrinterDiscovery& hw, Axis axis, int tool_index,
                                    int microns);
 
+/// Gcode that stages tool @p tool_index's LIVE @p axis offset for the
+/// SAVE_CONFIG a save ends in, on a model HelixScreen cannot write
+/// (firmware_stages_axis()). The model's own command re-stages what the tool
+/// already holds, so no value is passed. Empty where everything that moves the
+/// axis stages it already, on every other model, and for a negative index.
+std::string stage_live_offset_gcode(const PrinterDiscovery& hw, Axis axis, int tool_index);
+
 /// Gcode that applies tool @p tool_index's stored offset to the head now, sent
 /// after a set or save of that tool's offset. Empty unless @p tool_index is the
 /// tool on the carriage (@p mounted_tool, -1 for none) and the model needs it:
