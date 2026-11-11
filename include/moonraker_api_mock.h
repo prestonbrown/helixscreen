@@ -60,9 +60,9 @@ class MockScrewsTiltState {
      *
      * Returns the "// screw_name : x=… : adjust CW TT:MM" text Klipper would
      * emit, so callers must run it through helix::parse_screws_tilt_line() —
-     * the same parser the live collector uses. Returning pre-built structs is
-     * what let the mock drift to the opposite sign convention from Klipper
-     * and hid the level-verdict bug (prestonbrown/helixscreen#1225).
+     * the same parser the live collector uses. Pre-built structs would let the
+     * mock drift to a sign convention other than Klipper's unnoticed
+     * (prestonbrown/helixscreen#1225).
      *
      * @return One console line per screw, base screw first
      */
@@ -144,12 +144,6 @@ class MoonrakerTimelapseAPIMock : public MoonrakerTimelapseAPI {
 };
 
 /**
- * @brief Mock REST API for testing without real Moonraker REST endpoints
- *
- * Overrides all MoonrakerRestAPI methods to return mock data.
- * WLED state is tracked internally for toggle/brightness/preset testing.
- */
-/**
  * @brief Mock Advanced API for testing calibration and macro operations
  *
  * Overrides bed mesh calibration and screws tilt methods with mock implementations
@@ -199,6 +193,12 @@ class MoonrakerAdvancedAPIMock : public MoonrakerAdvancedAPI {
     MockScrewsTiltState mock_bed_state_;
 };
 
+/**
+ * @brief Mock REST API for testing without real Moonraker REST endpoints
+ *
+ * Overrides the MoonrakerRestAPI methods to return mock data.
+ * WLED state is tracked internally for toggle/brightness/preset testing.
+ */
 class MoonrakerRestAPIMock : public MoonrakerRestAPI {
   public:
     using SuccessCallback = MoonrakerRestAPI::SuccessCallback;
@@ -695,7 +695,7 @@ class MoonrakerJobAPIMock : public MoonrakerJobAPI {
  *   MoonrakerClientMock mock_client;
  *   helix::PrinterState state;
  *   MoonrakerAPIMock mock_api(mock_client, state);
- *   // mock_api.transfers().download_file() now reads from assets/test_gcodes/
+ *   // mock_api.transfers().download_file() reads from assets/test_gcodes/
  */
 class MoonrakerAPIMock : public MoonrakerAPI {
   public:
@@ -710,7 +710,10 @@ class MoonrakerAPIMock : public MoonrakerAPI {
     ~MoonrakerAPIMock() override = default;
 
     // ========================================================================
-    // Overridden Connection/Subscription Proxies (no-ops for mock)
+    // Overridden Connection/Subscription Proxies: subscriptions forward to
+    // MoonrakerAPI (the mock client dispatches notifications itself),
+    // suppress_disconnect_modal() only records, get_gcode_store() answers
+    // canned entries
     // ========================================================================
 
     helix::SubscriptionId

@@ -50,7 +50,7 @@ void report_validation_error(const helix::SharedCallback<void(const MoonrakerErr
  *
  * Klipper strips and splits G-code lines with Python's Unicode-aware whitespace rules, so
  * any of these inside a parameter value truncates it the way an ASCII space does. U+180E
- * (no longer whitespace in Unicode, still in older tables) is included as well.
+ * (whitespace only in Unicode tables before 6.3) is included as well.
  */
 inline bool is_unicode_space(uint32_t cp) {
     return cp == 0x85 || cp == 0xA0 || cp == 0x1680 || cp == 0x180E ||
@@ -170,8 +170,8 @@ inline bool is_safe_object_name(const std::string& str) {
  * Material names carry punctuation that `is_safe_identifier()` rejects. `PLA+`, `PA6-CF`,
  * `PETG-CF`, `PC-ABS`, `Silk PLA` all ship in our own filament database
  * (`include/filament_database.h`), so gating SET_MATERIAL / MMU_GATE_MAP on the identifier
- * charset made the app offer materials its own persistence layer refused to send: the save
- * dropped the material, logged a warning nobody reads, and reported success.
+ * charset would make the app offer materials its own persistence layer refuses to send: the
+ * save would drop the material, log a warning nobody reads, and report success.
  *
  * Allows: alphanumeric, `+ - _ . ( ) /` and space. Rejects everything else, which keeps the
  * injection vectors closed: `\n\r` (Moonraker runs a `printer.gcode.script` body line by
@@ -224,11 +224,11 @@ inline bool is_safe_material_param(const std::string& str) {
  * command" — the value never reaches the firmware. Quoting it makes shlex yield the one token
  * `MATERIAL=Silk PLA`, with the quotes stripped before the firmware sees it.
  *
- * Only values containing whitespace are quoted, so every value that works today goes out on
+ * Only values containing whitespace are quoted, so a value without whitespace goes out on
  * the wire byte-for-byte unchanged.
  *
  * @pre The value has passed a validator that rejects `"` and `\`. Without that this would be
- *      an injection point rather than a fix.
+ *      an injection point.
  */
 inline std::string gcode_param_value(const std::string& value) {
     if (value.find_first_of(" \t") == std::string::npos) {
@@ -243,9 +243,9 @@ inline std::string gcode_param_value(const std::string& value) {
  * Moonraker power-device names are arbitrary config section names — `[power -Power-]`,
  * `[power Printer PSU]`, `[power shelly.plug.1]` are all legal — and they routinely contain
  * `-`, `.`, `(`, `)` and other punctuation. Gating `set_device_power()` on
- * `is_safe_identifier()` (alphanumeric, `_`, space only) rejected those names before the
- * request was ever built, so power control silently did nothing for anyone whose device name
- * carried a hyphen (prestonbrown/helixscreen#1241).
+ * `is_safe_identifier()` (alphanumeric, `_`, space only) would reject those names before the
+ * request is built, so power control would silently do nothing for any device name with a
+ * hyphen (prestonbrown/helixscreen#1241).
  *
  * The caller percent-encodes every non-`[A-Za-z0-9_.-]` byte into the query string and the
  * value never reaches G-code, so no character class needs to be filtered for injection here.
@@ -276,6 +276,7 @@ inline bool is_safe_url_param(const std::string& str) {
  * - Null bytes (path truncation attack)
  * - Windows-style absolute paths (C:, D:, etc)
  * - Suspicious characters (<>|*?)
+ * - Control characters, and the empty path
  *
  * @param path File path to validate
  * @return true if safe relative path, false otherwise
@@ -342,7 +343,7 @@ inline bool is_safe_temperature(double temp, const SafetyLimits& limits) {
  *
  * Prefer this over the two-argument form wherever the heater is known: the
  * global bound is a 400°C sanity net that no real hotend reaches, so validating
- * against it accepted targets the printer was always going to reject
+ * against it accepts targets the printer will reject
  * (prestonbrown/helixscreen#1355).
  *
  * @param temp   Target in Celsius
@@ -415,13 +416,13 @@ inline bool is_safe_position(double position, const SafetyLimits& limits) {
  *
  * Consolidates the common pattern of:
  * 1. Check is_safe_path()
- * 2. NOTIFY_ERROR if !silent
+ * 2. Log at error level if !silent
  * 3. Construct MoonrakerError and call on_error if provided
  *
  * @param path Path to validate
  * @param method Method name for error context
  * @param on_error Error callback (may be nullptr)
- * @param silent If true, skip NOTIFY_ERROR (default: false)
+ * @param silent If true, skip error logging (default: false)
  * @return true if path is INVALID (caller should return), false if valid
  */
 inline bool reject_invalid_path(const std::string& path, const char* method,

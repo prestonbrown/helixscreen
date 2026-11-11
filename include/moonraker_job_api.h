@@ -5,7 +5,7 @@
  * @file moonraker_job_api.h
  * @brief Job control operations via Moonraker
  *
- * Extracted from MoonrakerAPI to encapsulate all print job control functionality
+ * A MoonrakerAPI sub-API that encapsulates all print job control functionality
  * in a dedicated class. Uses MoonrakerClient for JSON-RPC transport.
  */
 

@@ -122,10 +122,10 @@ struct SafetyLimits {
     /// discovery name carries it through untouched - `heater_generic CHAMBER`
     /// is a real shape, pinned by tests/unit/test_chamber_temperature.cpp. So
     /// the two sides of the map cannot be allowed to disagree about casing:
-    /// lower-casing only the lookup made a ceiling stored under an upper-cased
-    /// header unreachable, and an unreachable ceiling falls back to the global
-    /// sanity net - which is #1355 again, on the one heater (a chamber) most
-    /// likely to sit far below it.
+    /// lower-casing only the lookup would make a ceiling stored under an
+    /// upper-cased header unreachable, and an unreachable ceiling falls back to
+    /// the global sanity net (#1355), on the one heater (a chamber) most likely
+    /// to sit far below it.
     static std::string normalize_heater_key(std::string heater) {
         heater = helix::text_io::to_lower(heater);
         return heater;
@@ -456,9 +456,6 @@ struct PowerDevice {
 // Print Control Types
 // ============================================================================
 
-/**
- * @brief Result from start_modified_print() API call
- */
 namespace helix {
 /// What the HelixPrint plugin's status says about itself (server.helix.status).
 struct HelixPluginInfo {
@@ -470,6 +467,9 @@ struct HelixPluginInfo {
 };
 } // namespace helix
 
+/**
+ * @brief Result from start_modified_print() API call
+ */
 struct ModifiedPrintResult {
     std::string original_filename; ///< Original file path
     std::string print_filename;    ///< Symlink path used for printing
