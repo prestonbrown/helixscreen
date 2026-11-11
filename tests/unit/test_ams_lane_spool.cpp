@@ -78,6 +78,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     CHECK(lv_obj_get_style_opa(part(spool, "spool_graphic"), LV_PART_MAIN) ==
           ams_draw::kEmptyReelOpa);
     CHECK_FALSE(lv_obj_has_flag(part(spool, "empty_placeholder"), LV_OBJ_FLAG_HIDDEN));
+    helix::ui::ams_lane_spool_set_fill_level(spool, 0.8f); // a bare reel carries no filament
+    CHECK(ui_spool_canvas_get_fill_level(part(spool, "spool_graphic")) == 0.0f);
     lv_obj_delete(spool);
 }
 

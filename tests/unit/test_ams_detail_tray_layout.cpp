@@ -73,7 +73,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
             mock->set_afc_mode(true);
         mock->set_environment_mode(env_mode);
         // These cases cover the generic box, which a unit with its own drawing does not use.
-        mock->rename_unit(0, "Generic Unit");
+        mock->rename_unit(0, unit_name_);
         if (ace)
             mock->set_ace_identity();
         REQUIRE(mock->start().success());
@@ -197,6 +197,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
     }
 
     bool flat_ = false;
+    const char* unit_name_ = "Generic Unit";
     std::unique_ptr<AmsPanel> panel_;
     lv_obj_t* panel_obj_ = nullptr;
     /// Where build() puts the panel; the screen when null.
@@ -635,6 +636,32 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a brand stacks directly over it
         CHECK(gap <= lv_obj_get_style_pad_row(slot(i), LV_PART_MAIN));
     }
     REQUIRE(named > 0);
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "EMU: a lid per box, spools lifted off its base, numbers right of each lane",
+                 "[ams][tray][ui_integration][unit-art]") {
+    unit_name_ = "EMU EMU_1";
+    build("passive", 2); // a reading for the whole unit, which would put one lid over the row
+    CHECK(lid_ == tray::LidMode::PerLane);
+    lv_obj_t* badges = lv_obj_find_by_name(panel_obj_, "badge_layer");
+    REQUIRE(badges != nullptr);
+    for (int i = 0; i < 2; ++i) {
+        CAPTURE(i);
+        lv_area_t sa, ba;
+        lv_obj_get_coords(lv_obj_find_by_name(slot(i), "lane_spool"), &sa);
+        lv_obj_get_coords(lv_obj_get_child(badges, i), &ba);
+        const float flange_bottom =
+            (sa.y1 + sa.y2) / 2.0f + tray::kSpoolFlangeRadius * lv_area_get_width(&sa) - origin_.y;
+        CHECK(box_.fb - flange_bottom > tray::kSpoolFloorGap + 3);
+        CHECK(ba.x1 + ba.x2 > sa.x1 + sa.x2);
+    }
+    lv_area_t g;
+    lv_obj_get_coords(slot_grid_, &g);
+    lv_obj_t* canvas = lv_obj_find_by_name(panel_obj_, "path_canvas");
+    REQUIRE(canvas != nullptr);
+    CHECK(std::abs(helix::ui::fpath::get_data(canvas)->lane_entry_offset -
+                   (origin_.y + (int32_t)std::lround(box_.fb) - g.y1)) <= 1);
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a named slot's badge sits on the box front",
