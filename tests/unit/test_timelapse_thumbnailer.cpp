@@ -33,6 +33,11 @@ TEST_CASE("Thumbnailer: companion thumbnail lookup", "[timelapse][thumbnailer]")
         REQUIRE(find_companion_thumbnail("benchy.mp4", listing).empty());
     }
 
+    SECTION("a dotted stem keeps every dot but the extension's") {
+        const std::set<std::string> listing = {"a.b.mp4", "a.jpg", "a.b.jpg"};
+        REQUIRE(find_companion_thumbnail("a.b.mp4", listing) == "a.b.jpg");
+    }
+
     SECTION("a name without an extension") {
         const std::set<std::string> listing = {"clip", "clip.jpg"};
         REQUIRE(find_companion_thumbnail("clip", listing) == "clip.jpg");
