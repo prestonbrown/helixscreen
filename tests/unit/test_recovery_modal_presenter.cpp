@@ -588,21 +588,6 @@ TEST_CASE_METHOD(RecoveryPreheatFixture,
     get_printer_state().update_from_status({{"toolhead", {{"homed_axes", ""}}}});
 }
 
-TEST_CASE_METHOD(RecoveryPreheatFixture, "A dismiss-only fault button closes and sends nothing",
-                 "[error-center][recovery-presenter][1838]") {
-    helix::ErrorEvent fault = make_afc_jam();
-    fault.recovery_actions = {{"OK", "", "t::dismiss", ""}};
-    presenter().present(fault);
-    process_lvgl(20);
-    CHECK_FALSE(shown(fault_button("btn_secondary")));
-
-    press("btn_primary");
-    process_lvgl(20);
-    CHECK(mock_client_.gcode_script_history().empty());
-    CHECK_FALSE(presenter().is_visible());
-    CHECK(TA::handled_detail(presenter()) == fault.detail);
-}
-
 TEST_CASE_METHOD(RecoveryPreheatFixture, "ESC closes the fault without running an action",
                  "[error-center][recovery-presenter][1838]") {
     // The secondary slot holds an action that would send at once if ESC ran it.
@@ -737,46 +722,41 @@ TEST_CASE_METHOD(RecoveryPreheatFixture,
     // A value no section expects, so a tap that never reached Setup shows.
     lv_subject_set_int(lv_xml_get_subject(nullptr, "cold_pull_refusal"),
                        static_cast<int>(helix::ui::ColdPullRefusal::Running));
-    auto tap_cold_pull = [&] {
+    auto tap = [&](const char* button) {
         presenter().present(*clog);
         process_lvgl(20);
-        CHECK(helix::test::subtree_text(fault_button("btn_primary")).find("Cold Pull") !=
-              std::string::npos);
-        CHECK(helix::test::subtree_text(fault_button("btn_secondary")).find("OK") !=
-              std::string::npos);
-        press("btn_primary");
+        using Catch::Matchers::StartsWith;
+        CHECK_THAT(helix::test::subtree_text(fault_button("btn_primary")), StartsWith("Cold Pull"));
+        CHECK_THAT(helix::test::subtree_text(fault_button("btn_secondary")), StartsWith("OK"));
+        press(button);
         process_lvgl(20);
         CHECK_FALSE(presenter().is_visible());
     };
 
     SECTION("idle: the flow opens at Setup ready to start, and the tap sends nothing") {
-        tap_cold_pull();
+        tap("btn_primary");
         CHECK(helix::ui::get_cold_pull_overlay().is_visible());
         CHECK(refusal() == helix::ui::ColdPullRefusal::Ok);
         CHECK(mock_client_.gcode_script_history().empty());
     }
     SECTION("a paused print: Setup shows the refusal and Start heats nothing") {
         helix::test::set_wire_state(st, helix::PrintJobState::PAUSED);
-        tap_cold_pull();
+        tap("btn_primary");
         CHECK(refusal() == helix::ui::ColdPullRefusal::JobHoldsMachine);
         CHECK(runner.get().start_from_setup() == helix::ui::ColdPullRefusal::JobHoldsMachine);
         process_lvgl(20);
         CHECK(mock_client_.gcode_script_history().empty());
         helix::test::set_wire_state(st, helix::PrintJobState::STANDBY);
     }
-    SECTION("OK closes the alert without opening the flow") {
-        presenter().present(*clog);
-        process_lvgl(20);
-        press("btn_secondary");
-        process_lvgl(20);
-        CHECK_FALSE(presenter().is_visible());
+    SECTION("OK, or a flow nobody registered: the alert closes, answered, opening nothing") {
+        const bool ok = GENERATE(true, false);
+        if (!ok) {
+            helix::ui::unregister_guided_device_flow(helix::kColdPullFlowId);
+        }
+        tap(ok ? "btn_secondary" : "btn_primary");
         CHECK_FALSE(helix::ui::get_cold_pull_overlay().is_visible());
         CHECK(refusal() == helix::ui::ColdPullRefusal::Running);
-    }
-    SECTION("no flow registered: the dialog closes and nothing opens or sends") {
-        helix::ui::unregister_guided_device_flow(helix::kColdPullFlowId);
-        tap_cold_pull();
-        CHECK(refusal() == helix::ui::ColdPullRefusal::Running);
         CHECK(mock_client_.gcode_script_history().empty());
+        CHECK(TA::handled_detail(presenter()) == clog->detail);
     }
 }
