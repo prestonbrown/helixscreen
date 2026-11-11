@@ -42,9 +42,6 @@ class PrintSelectPathNavigator {
         return current_path_;
     }
 
-    /**
-     * @brief Reset to root directory.
-     */
     void reset() {
         current_path_.clear();
     }

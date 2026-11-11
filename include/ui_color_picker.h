@@ -20,7 +20,7 @@ namespace helix::ui {
  * @brief Color picker modal for filament and theme color selection
  *
  * Displays preset swatches and HSV picker for custom colors.
- * Extends ModalBase for RAII lifecycle and backdrop handling.
+ * Extends Modal for RAII lifecycle and backdrop handling.
  *
  * ## Usage:
  * @code
@@ -56,9 +56,8 @@ class ColorPicker : public Modal {
     ColorPicker();
     ~ColorPicker() override;
 
-    // Non-copyable, non-movable (Modal's move operations are deleted, and a
-    // moved ColorPicker would have left its subjects behind anyway - nothing
-    // ever moved one by value)
+    // Non-copyable, non-movable: Modal's move operations are deleted, and a
+    // moved ColorPicker would leave its subjects behind.
     ColorPicker(const ColorPicker&) = delete;
     ColorPicker& operator=(const ColorPicker&) = delete;
     ColorPicker(ColorPicker&&) = delete;

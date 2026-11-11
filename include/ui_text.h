@@ -64,7 +64,7 @@ void ui_text_set_stroke(lv_obj_t* label, int32_t width, lv_color_t color, lv_opa
 /**
  * Apply a text transform to a label
  *
- * Currently supports "uppercase" which converts text to uppercase at render time.
+ * Supports "uppercase", which converts text to uppercase at render time.
  * Works with bind_text subject bindings and translations.
  *
  * @param label     Label widget

@@ -45,7 +45,6 @@ namespace helix::settings {
  */
 class FanSettingsOverlay : public OverlayBase {
   public:
-    /// Register event callbacks with lv_xml system
     void register_callbacks() override;
 
     /// Default create() plus the lookups for the dynamic row containers
@@ -64,7 +63,6 @@ class FanSettingsOverlay : public OverlayBase {
     /// Called when overlay becomes visible — repopulates fan lists
     void on_activate() override;
 
-    /// Called when overlay is being hidden
     void on_deactivating(DeactivateReason reason) override;
 
     /// Handle fan rename via keyboard modal (callable from any overlay)

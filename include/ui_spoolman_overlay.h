@@ -33,7 +33,6 @@
 #include <utility>
 #include <vector>
 
-// Forward declarations
 namespace helix {
 class IMoonrakerAPI;
 }
@@ -161,8 +160,8 @@ class SpoolmanOverlay : public OverlayBase {
      * @brief Load settings from Moonraker database
      *
      * Queries helix-screen namespace for:
-     * - ams_spoolman_sync_enabled
-     * - ams_weight_refresh_interval
+     * - spoolman_sync_enabled (falling back to ams_spoolman_sync_enabled)
+     * - spoolman_weight_refresh_interval (falling back to ams_weight_refresh_interval)
      */
     void load_from_database();
 
@@ -259,14 +258,14 @@ class SpoolmanOverlay : public OverlayBase {
 
     /// Config-root-relative path of the file holding [spoolman].
     ///
-    /// Intentionally empty until resolve_spoolman_target() runs. Defaulting this to
-    /// "helixscreen.conf" is exactly the silent assumption that made Remove no-op
-    /// against a natively-configured Moonraker while reporting success.
+    /// Intentionally empty until resolve_spoolman_target() runs. A "helixscreen.conf"
+    /// default would make Remove a silent no-op against a natively-configured
+    /// Moonraker while reporting success.
     std::string spoolman_config_path_;
 
     /// Absolute path of the file manager's writable "config" root, from
-    /// server.files.roots. Empty when Moonraker did not report one, which is the
-    /// pre-existing behaviour: an absolute config path is then out of reach.
+    /// server.files.roots. Empty when Moonraker did not report one; an absolute
+    /// config path is then out of reach.
     std::string config_root_abs_;
 
     /// The local-write fallback in force for the current setup attempt.
@@ -349,8 +348,8 @@ class SpoolmanOverlay : public OverlayBase {
      * helixscreen.conf pulled in by an earlier run's [include]), proves that file is
      * reachable through the file API, and screens for a stale duplicate.
      *
-     * Every caller must go through this. Assuming helixscreen.conf without asking is
-     * what made Remove silently no-op on a natively-configured printer.
+     * Every caller must go through this. Assuming helixscreen.conf without asking
+     * makes Remove silently no-op on a natively-configured printer.
      *
      * @param on_done Invoked on the MAIN thread with the resolution.
      */
@@ -365,8 +364,7 @@ class SpoolmanOverlay : public OverlayBase {
      *
      * @param config_root_abs Absolute path of the writable "config" root, or ""
      *                        when Moonraker did not report one — in which case
-     *                        an absolute config path is treated as unreachable,
-     *                        exactly as before.
+     *                        an absolute config path is treated as unreachable.
      */
     void resolve_spoolman_target_with_root(const std::string& config_root_abs,
                                            SpoolmanTargetCallback on_done);

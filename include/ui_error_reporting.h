@@ -30,7 +30,7 @@
 // Translated errors from callbacks on any thread
 // ============================================================================
 
-// The splash binary links no UpdateQueue, so it gets the macros above only.
+// The splash binary links no UpdateQueue, so it gets only core/error_reporting.h's macros.
 #ifndef HELIX_SPLASH_ONLY
 namespace helix::ui {
 

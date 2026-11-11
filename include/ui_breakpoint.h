@@ -19,8 +19,7 @@
 /// Breakpoint tiers — used everywhere instead of magic integers.
 /// Selected from the NARROW axis — min(width, height), what responsive_dimension()
 /// returns — not from the height. On landscape the narrow axis is usually the
-/// height, which is why this was long described as height-based; on portrait it is
-/// the width, so a 320x1480 panel classifies from 320.
+/// height; on portrait it is the width, so a 320x1480 panel classifies from 320.
 /// Underlying integer values are stored in the ui_breakpoint LVGL subject
 /// and referenced from XML via bind_flag_if_eq ref_value — do not renumber.
 enum class UiBreakpoint : int32_t {
@@ -70,9 +69,9 @@ constexpr inline UiBreakpoint breakpoint_for(int32_t resolution) {
 }
 
 /// Select one value per breakpoint tier. Pass all seven values cramped→roomy
-/// (micro…xxlarge); returns the one matching `bp`. Replaces the hand-rolled
-/// `if (res <= UI_BREAKPOINT_X) v = a; else if …` chains scattered across the UI
-/// so the tier boundaries live in exactly one place (breakpoint_for). Works for
+/// (micro…xxlarge); returns the one matching `bp`. Use it instead of hand-rolled
+/// `if (res <= UI_BREAKPOINT_X) v = a; else if …` chains, so the tier boundaries
+/// live in exactly one place (breakpoint_for). Works for
 /// ints, strings (literals decay to const char*), or any copyable T.
 template <typename T>
 constexpr T responsive_pick(UiBreakpoint bp, T micro, T tiny, T small, T medium, T large, T xlarge,

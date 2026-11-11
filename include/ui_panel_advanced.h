@@ -65,13 +65,11 @@ class AdvancedPanel : public PanelBase {
     //
 
     /**
-     * @brief Initialize capability-related subjects for XML binding
+     * @brief Register the panel's XML event callbacks and its
+     *        advanced_show_notification_history subject
      *
-     * Creates subjects for:
-     * - printer_has_accelerometer
-     * - printer_has_spoolman
-     *
-     * Note: printer_has_probe is already created by SettingsPanel.
+     * The printer_has_* capability subjects the rows bind come from
+     * PrinterCapabilitiesState.
      */
     void init_subjects() override;
 
@@ -95,9 +93,9 @@ class AdvancedPanel : public PanelBase {
     //
 
     /**
-     * @brief Refresh capability flags when panel becomes visible
+     * @brief Refresh the notification history row when the panel becomes visible
      *
-     * Updates subjects based on current PrinterCapabilities.
+     * The row shows only while no notifications widget is placed on the home screen.
      */
     void on_activate() override;
 
@@ -256,14 +254,14 @@ class AdvancedPanel : public PanelBase {
 /**
  * @brief Global instance accessor
  *
- * Returns reference to singleton AdvancedPanel used by main.cpp.
+ * Returns reference to the singleton AdvancedPanel (PanelFactory sets it up).
  */
 AdvancedPanel& get_global_advanced_panel();
 
 /**
  * @brief Initialize the global AdvancedPanel instance
  *
- * Must be called by main.cpp before accessing get_global_advanced_panel().
+ * Called from SubjectInitializer before any get_global_advanced_panel() use.
  *
  * @param printer_state Reference to helix::PrinterState
  * @param api Pointer to IMoonrakerAPI

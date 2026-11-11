@@ -58,7 +58,6 @@ class DebugBundleModal : public Modal {
     char share_code_buf_[32] = {};
     char error_buf_[256] = {};
 
-    // Subject management
     void init_subjects();
     void deinit_subjects();
 
@@ -66,13 +65,11 @@ class DebugBundleModal : public Modal {
     static void register_callbacks();
     static bool callbacks_registered_;
 
-    // Static event callbacks
     static void on_upload_cb(lv_event_t* e);
     static void on_cancel_cb(lv_event_t* e);
     static void on_done_cb(lv_event_t* e);
     static void on_close_cb(lv_event_t* e);
 
-    // Instance handlers
     void handle_upload();
     void handle_cancel();
     void handle_done();

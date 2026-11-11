@@ -24,7 +24,7 @@
  * 3. Call ui_ams_current_tool_setup(widget) to initialize color binding
  *
  * @code{.cpp}
- * // In main.cpp init:
+ * // At startup (xml_registration.cpp):
  * ui_ams_current_tool_init();
  *
  * // When creating the widget:

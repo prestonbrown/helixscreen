@@ -33,10 +33,6 @@ class PrinterImageOverlay : public OverlayBase {
   public:
     ~PrinterImageOverlay() override;
 
-    //
-    // === OverlayBase Interface ===
-    //
-
     void init_subjects() override;
     void register_callbacks() override;
 
@@ -71,10 +67,6 @@ class PrinterImageOverlay : public OverlayBase {
     }
 
   private:
-    //
-    // === Internal Methods ===
-    //
-
     void populate_shipped_images();
     void populate_custom_images();
     void scan_usb_drives();
@@ -92,10 +84,6 @@ class PrinterImageOverlay : public OverlayBase {
     void handle_reset_tags();
     /// Delete the user's tags for `key`, after the reset is confirmed.
     void reset_tags(const std::string& key);
-
-    //
-    // === Members ===
-    //
 
     UsbManager* usb_manager_ = nullptr;
     /// Walks the stick for images off the UI thread.

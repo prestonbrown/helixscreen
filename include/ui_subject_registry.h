@@ -24,35 +24,6 @@
  *     UI_SUBJECT_INIT_AND_REGISTER_INT(count_subject, 0, "my_count");
  * }
  * ```
- *
- * ## Before (15 lines):
- * ```cpp
- * void ui_panel_motion_init_subjects() {
- *     snprintf(pos_x_buf, sizeof(pos_x_buf), "X:    --  mm");
- *     snprintf(pos_y_buf, sizeof(pos_y_buf), "Y:    --  mm");
- *     snprintf(pos_z_buf, sizeof(pos_z_buf), "Z:    --  mm");
- *
- *     lv_subject_init_string(&pos_x_subject, pos_x_buf, nullptr, sizeof(pos_x_buf), pos_x_buf);
- *     lv_subject_init_string(&pos_y_subject, pos_y_buf, nullptr, sizeof(pos_y_buf), pos_y_buf);
- *     lv_subject_init_string(&pos_z_subject, pos_z_buf, nullptr, sizeof(pos_z_buf), pos_z_buf);
- *
- *     lv_xml_register_subject(NULL, "motion_pos_x", &pos_x_subject);
- *     lv_xml_register_subject(NULL, "motion_pos_y", &pos_y_subject);
- *     lv_xml_register_subject(NULL, "motion_pos_z", &pos_z_subject);
- *
- *     spdlog::info("[Motion] Subjects initialized: X/Y/Z position displays");
- * }
- * ```
- *
- * ## After (6 lines):
- * ```cpp
- * void ui_panel_motion_init_subjects() {
- *     UI_SUBJECT_INIT_AND_REGISTER_STRING(pos_x_subject, pos_x_buf, "X:    --  mm",
- * "motion_pos_x"); UI_SUBJECT_INIT_AND_REGISTER_STRING(pos_y_subject, pos_y_buf, "Y:    --  mm",
- * "motion_pos_y"); UI_SUBJECT_INIT_AND_REGISTER_STRING(pos_z_subject, pos_z_buf, "Z:    --  mm",
- * "motion_pos_z"); spdlog::info("[Motion] Subjects initialized: X/Y/Z position displays");
- * }
- * ```
  */
 
 #pragma once

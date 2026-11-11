@@ -15,14 +15,16 @@
  * @file ui_wizard_fan_select.h
  * @brief Wizard fan selection step - configures hotend, part, chamber, and exhaust fans
  *
- * Uses hardware discovery from MoonrakerClient to populate dropdowns.
+ * Uses hardware discovery from IMoonrakerAPI::hardware() to populate dropdowns.
  *
- * ## Subject Bindings (4 total):
+ * ## Subject Bindings (6 total):
  *
  * - hotend_fan_selected (int) - Selected hotend fan index
  * - part_fan_selected (int) - Selected part cooling fan index
  * - chamber_fan_selected (int) - Selected chamber fan index (optional)
  * - exhaust_fan_selected (int) - Selected exhaust fan index (optional)
+ * - fan_select_duplicate (int) - 1 while two roles name the same fan
+ * - fan_select_optional_visible (int) - 1 when the chamber/exhaust row shows (more than 2 fans)
  */
 
 /**
@@ -81,7 +83,7 @@ class WizardFanSelectStep : public helix::wizard::Step {
     /**
      * @brief Check if step is validated
      *
-     * @return true (always validated for baseline)
+     * @return false while two roles name the same fan ("None" excepted)
      */
     bool is_validated() const override;
 

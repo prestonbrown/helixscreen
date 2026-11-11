@@ -35,9 +35,7 @@ class IMoonrakerAPI;
  *
  * ## Usage:
  * ```cpp
- * ScrewsTiltPanel& panel = get_global_screws_tilt_panel();
- * panel.setup(lv_obj, parent_screen, moonraker_client, moonraker_api);
- * helix::nav::push_overlay(lv_obj);
+ * helix::ui::open_screws_tilt_panel(parent_screen); // set_client() + show()
  * ```
  */
 class ScrewsTiltPanel : public OverlayBase {
@@ -80,10 +78,6 @@ class ScrewsTiltPanel : public OverlayBase {
      */
     lv_obj_t* create(lv_obj_t* parent) override;
 
-    /**
-     * @brief Get human-readable overlay name
-     * @return "Screws Tilt Adjust"
-     */
     const char* xml_component() const override {
         return "screws_tilt_panel";
     }
@@ -98,14 +92,16 @@ class ScrewsTiltPanel : public OverlayBase {
     /**
      * @brief Called when overlay becomes visible
      *
-     * Resets probe count and state to IDLE.
+     * Resets probe count and state to IDLE, except on a wake from the
+     * screensaver, which keeps the session and redraws its results.
      */
     void on_activate() override;
 
     /**
      * @brief Called when overlay is being hidden
      *
-     * Aborts probing if in progress, clears results.
+     * Aborts a running probe unless the overlay is only suspended (screensaver),
+     * and clears the drawn results; screw_results_ stays for the wake.
      */
     void on_deactivating(DeactivateReason reason) override;
 
@@ -267,8 +263,8 @@ class ScrewsTiltPanel : public OverlayBase {
 // Defined out of line: the ESP32 build, which excludes this panel, supplies its own.
 ScrewsTiltPanel& get_global_screws_tilt_panel();
 
-/// Open the Screws Tilt panel over @p parent_screen, wired to the active API.
 namespace helix::ui {
+/// Open the Screws Tilt panel over @p parent_screen, wired to the active API.
 void open_screws_tilt_panel(lv_obj_t* parent_screen);
 } // namespace helix::ui
 
@@ -276,7 +272,8 @@ void open_screws_tilt_panel(lv_obj_t* parent_screen);
  * @brief Register XML event callbacks for screws tilt panel
  *
  * Call this once at startup before creating any screws_tilt_panel XML.
- * Registers callbacks for all button events (start, cancel, done, reprobe, retry).
+ * Registers callbacks for all button events (start, cancel, done, reprobe, retry,
+ * share), then initializes the panel's subjects.
  */
 void ui_panel_screws_tilt_register_callbacks();
 

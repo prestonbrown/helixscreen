@@ -46,7 +46,7 @@ constexpr bool nav_root_is_destination(PanelId id) {
 
 } // namespace helix
 
-// Legacy aliases for backward compatibility
+/// PanelId::Count as an int.
 constexpr int kUiPanelCount = static_cast<int>(helix::PanelId::Count);
 
 /// The navigation calls most callers need, without the NavigationManager class.

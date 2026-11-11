@@ -9,7 +9,6 @@
 
 #include <optional>
 
-// Forward declarations
 struct _lv_obj_t;
 typedef struct _lv_obj_t lv_obj_t;
 
@@ -25,19 +24,15 @@ namespace helix::ui {
  *   2 = flowguard (symmetrical, -100..+100 tangle..clog)
  *   3 = buffer fault countdown (0-100 fault proximity)
  *
- * The home widget draws the same subjects as a horizontal scale instead — see
- * UiClogBar (ui_clog_bar.h). This class had a second "fill mode" presentation
- * built for that widget, with a danger-zone arc, a peak-hold marker and
- * endpoint labels; the bar replaced it (#1017) and it went with it. The
- * readouts it drew are not lost — clog_bar_body.xml binds the labels directly,
- * and clog_bar_geometry() places the danger band and peak tick.
+ * The home widget draws the same subjects as a horizontal scale: see UiClogBar
+ * (ui_clog_bar.h), whose labels clog_bar_body.xml binds directly and whose
+ * danger band and peak tick clog_bar_geometry() places (#1017).
  */
 class UiClogMeter {
   public:
     explicit UiClogMeter(lv_obj_t* parent);
     ~UiClogMeter();
 
-    // Non-copyable, non-movable
     UiClogMeter(const UiClogMeter&) = delete;
     UiClogMeter& operator=(const UiClogMeter&) = delete;
 
