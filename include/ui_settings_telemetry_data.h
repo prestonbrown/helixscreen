@@ -17,7 +17,7 @@
  * @threading Main thread only
  *
  * @see TelemetryManager for event queue management
- * @see SettingsPanel for entry point (on_telemetry_view_data)
+ * @see SystemSettingsOverlay for the entry point (on_telemetry_view_data)
  */
 
 #pragma once
@@ -85,10 +85,6 @@ class TelemetryDataOverlay : public OverlayBase {
     void handle_clear_queue();
 
   private:
-    //
-    // === Internal Methods ===
-    //
-
     /**
      * @brief Populate event list from TelemetryManager queue snapshot
      */
@@ -98,10 +94,6 @@ class TelemetryDataOverlay : public OverlayBase {
      * @brief Update status card text based on current state
      */
     void update_status();
-
-    //
-    // === Subjects ===
-    //
 
     /// RAII manager for automatic subject cleanup
     SubjectManager subjects_;
@@ -115,10 +107,6 @@ class TelemetryDataOverlay : public OverlayBase {
     char detail_buf_[128];
 };
 
-/**
- * @brief Global instance accessor
- * @return Reference to singleton TelemetryDataOverlay
- */
 inline TelemetryDataOverlay& get_telemetry_data_overlay() {
     return lazy_global<TelemetryDataOverlay>("TelemetryDataOverlay");
 }

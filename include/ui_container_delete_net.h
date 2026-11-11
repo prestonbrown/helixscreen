@@ -107,7 +107,7 @@ class ContainerDeleteNet {
         if (self == nullptr) {
             return;
         }
-        // Guarded: a deferred subtree deletion can land after retarget()
+        // Guarded: a deferred subtree deletion can land after retarget_container_net()
         // has already re-pointed the net at a replacement tree, and that
         // late fire must not wipe the pool built under the new one.
         if (self->netted_ != lv_event_get_target(e)) {

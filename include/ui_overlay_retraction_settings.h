@@ -21,9 +21,9 @@ class IMoonrakerAPI;
  *
  * ## Features
  * - Enable/disable firmware retraction
- * - Retract length (0-6mm, 0.1mm steps)
+ * - Retract length (0-6mm, 0.01mm steps)
  * - Retract speed (10-80 mm/s)
- * - Unretract extra length (0-1mm, 0.1mm steps)
+ * - Unretract extra length (0-1mm, 0.01mm steps)
  * - Unretract speed (10-60 mm/s)
  *
  * ## Klipper G-codes
@@ -146,10 +146,6 @@ class RetractionSettingsOverlay : public OverlayBase {
     char retract_speed_buf_[16];
     char unretract_extra_buf_[16];
     char unretract_speed_buf_[16];
-
-    //
-    // === Injected Dependencies ===
-    //
 
     helix::IMoonrakerAPI* api_ = nullptr;
 

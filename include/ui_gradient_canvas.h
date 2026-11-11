@@ -12,15 +12,16 @@ extern "C" {
 /**
  * @brief Register the ui_gradient_canvas widget with the LVGL XML system
  *
- * Creates a canvas widget that draws a procedural diagonal gradient
- * from start_color (lower-left) to end_color (upper-right). This replaces
- * static PNG gradients to avoid scaling artifacts and banding issues.
+ * Creates an image widget that draws a procedural diagonal gradient from
+ * start_color (top-right) to end_color (bottom-left). Drawing it, rather than
+ * scaling a PNG, avoids scaling artifacts and banding. The buffer is rebuilt at
+ * the widget's size (capped at kMaxGradientDim) whenever that size changes.
  *
  * XML attributes:
- *   - width, height: Canvas dimensions (required for buffer allocation)
- *   - dither: "true" to enable ordered dithering for 16-bit displays
- *   - start_color: Hex color for lower-left corner (default: "505050")
- *   - end_color: Hex color for upper-right corner (default: "000000")
+ *   - width, height: Widget size; the gradient buffer follows it
+ *   - dither: "true" (the default) for ordered dithering on 16-bit displays
+ *   - start_color: Hex color for the top-right corner (default: the theme's)
+ *   - end_color: Hex color for the bottom-left corner (default: the theme's)
  *
  * Color format: Standard LVGL hex colors - "RRGGBB" or "#RRGGBB" (e.g., "FF00FF" for magenta)
  *

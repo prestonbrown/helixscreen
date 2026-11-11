@@ -37,13 +37,8 @@ enum class PrinterIconState {
  */
 class PrinterStatusIcon {
   public:
-    /**
-     * @brief Get singleton instance
-     * @return Reference to the PrinterStatusIcon singleton
-     */
     static PrinterStatusIcon& instance();
 
-    // Non-copyable, non-movable (singleton)
     PrinterStatusIcon(const PrinterStatusIcon&) = delete;
     PrinterStatusIcon& operator=(const PrinterStatusIcon&) = delete;
     PrinterStatusIcon(PrinterStatusIcon&&) = delete;
@@ -76,7 +71,7 @@ class PrinterStatusIcon {
     /**
      * @brief Pure mapping from connection + klippy state to the displayed icon.
      *
-     * Extracted so the state logic is unit-testable without LVGL subjects or the
+     * Pure, so the state logic is unit-testable without LVGL subjects or the
      * singleton. When @p expected_restart is true, a transient Klipper SHUTDOWN
      * (from a SAVE_CONFIG bounce or user-initiated restart) is shown as WARNING
      * rather than ERROR — no red flash mid-calibration.

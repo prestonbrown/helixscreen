@@ -33,18 +33,8 @@ class NotificationHistory {
   public:
     static constexpr size_t MAX_ENTRIES = 100; ///< Circular buffer size
 
-    /**
-     * @brief Get singleton instance
-     *
-     * @return Reference to the singleton instance
-     */
     static NotificationHistory& instance();
 
-    /**
-     * @brief Add notification to history
-     *
-     * @param entry Notification entry to add
-     */
     void add(const NotificationHistoryEntry& entry);
 
     /**
@@ -76,21 +66,10 @@ class NotificationHistory {
      */
     ToastSeverity get_highest_unread_severity() const;
 
-    /**
-     * @brief Mark all notifications as read
-     */
     void mark_all_read();
-
-    /**
-     * @brief Clear all history
-     */
     void clear();
 
-    /**
-     * @brief Get total notification count
-     *
-     * @return Number of entries in history
-     */
+    /// Number of entries in history.
     size_t count() const;
 
     /**

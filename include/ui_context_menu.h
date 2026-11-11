@@ -22,7 +22,7 @@ namespace helix::ui {
  * - Full-screen semi-transparent backdrop (click to dismiss)
  * - Card positioned near the triggering widget (smart left/right/vertical placement)
  * - Action callback dispatch via integer action IDs
- * - lv_obj_delete_async() for safe dismissal during event processing
+ * - safe_delete_deferred() for safe dismissal during event processing
  *
  * Subclasses define their own XML component, subjects, and specific actions.
  *
@@ -49,7 +49,7 @@ class ContextMenu {
     /**
      * @brief Where the card is placed, and what it is placed relative to
      *
-     * `ClickPoint` is the original behaviour: the card hangs off the captured
+     * `ClickPoint`: the card hangs off the captured
      * pointer position and mirrors about it horizontally when it would overflow.
      * It never flips vertically, which suits a menu raised by tapping a row.
      *
@@ -111,8 +111,7 @@ class ContextMenu {
      * @brief The menu currently on screen, or nullptr
      *
      * One menu is raised at a time, so the shared XML callbacks (`backdrop_cb`,
-     * `close_cb`) resolve their target through this rather than each menu keeping
-     * its own `s_active_` static. Maintained by show/hide and by the card's
+     * `close_cb`) resolve their target through this. Maintained by show/hide and by the card's
      * LV_EVENT_DELETE hook, so it cannot outlive the widget it points at.
      */
     [[nodiscard]] static ContextMenu* active();
@@ -135,7 +134,7 @@ class ContextMenu {
      * pointer, but a menu's own XML callbacks act on their own type. One helper
      * rather than a `dynamic_cast` open-coded at each of the ~40 callback sites.
      *
-     * **Exact-type match, unlike the `dynamic_cast` this replaces.** A menu whose
+     * **Exact-type match, unlike `dynamic_cast`.** A menu whose
      * kind tag is a *derived* type's does not answer to its base's `active_as<>`.
      * Every subclass today is a direct leaf of ContextMenu, so the two agree; if
      * an intermediate class is ever introduced, code must ask for the leaf type
@@ -310,8 +309,8 @@ class ContextMenu {
      *
      * A *configure* menu whose controls already apply live has nothing to cancel,
      * so it overrides this to commit and hide instead. Getting that wrong is not
-     * cosmetic: the two multi-select pickers used to disagree, and tapping outside
-     * one of them silently discarded the user's changes.
+     * cosmetic: a configure menu that cancels here silently discards the user's
+     * changes on a tap outside it.
      */
     virtual void on_backdrop_clicked();
 
@@ -361,7 +360,7 @@ class ContextMenu {
     static inline ContextMenu* s_active_ =
         nullptr; // ACTIVE_INSTANCE_OK: registry behind active_as<T>()
 
-    /** @brief Shared body behind show_near_widget() and show_below_widget() */
+    /** @brief Shared body behind the show_*_widget() calls */
     bool show_impl(lv_obj_t* parent, int item_index, lv_obj_t* anchor, AnchorMode mode,
                    AnchorAlign align);
 
@@ -468,9 +467,7 @@ class ContextMenu {
      * @brief Geometry of position_card(), factored out so it can be tested
      *
      * Pure arithmetic in backdrop-local coordinates — no LVGL state — so the
-     * placement rules can be exercised without building a screen. All four
-     * previous implementations of this got their edge cases subtly different;
-     * one function with one set of tests is the point of the exercise.
+     * placement rules can be exercised without building a screen.
      *
      * @param card    Card size
      * @param anchor  Anchor rect (BelowAnchor) or a zero-size rect at the click

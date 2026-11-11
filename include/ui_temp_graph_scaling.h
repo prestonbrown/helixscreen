@@ -62,10 +62,10 @@ inline float calculate_temp_graph_y_max(float current_max, float max_temp, float
 }
 
 /**
- * @brief Legacy wrapper for TemperatureService mini graph
+ * @brief Two-temperature form of calculate_temp_graph_y_max()
  *
- * Converts the old (current_max, nozzle, bed) signature to the unified function.
- * Uses slightly different defaults: kYMin=150, kYMax=300, expand=0.80, shrink=0.60.
+ * Scales to the higher of @p nozzle_temp and @p bed_temp, with the default
+ * TempGraphScaleParams (floor 150, ceiling 300, expand 0.80, shrink 0.60).
  */
 inline float calculate_mini_graph_y_max(float current_max, float nozzle_temp, float bed_temp,
                                         float buffer_max = 0.0f) {

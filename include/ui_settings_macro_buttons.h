@@ -6,13 +6,14 @@
  * @brief Macro Buttons overlay - configures quick action buttons and standard macro slots
  *
  * This overlay allows users to configure:
- * - Quick Buttons: Assign any standard macro slot to the two quick action buttons
+ * - Quick Buttons: Assign a standard macro slot, or the light toggle, to each of
+ *   the four quick action buttons
  * - Standard Macros: Override auto-detected macros for each operation slot
  *
  * Standard Macro Slots:
  * - LoadFilament, UnloadFilament, Purge
  * - Pause, Resume, Cancel
- * - BedMesh, BedLevel, CleanNozzle, HeatSoak
+ * - BedMesh, BedLevel, CleanNozzle, HeatSoak, ParkToolhead
  *
  * @pattern Overlay (lazy init)
  * @threading Main thread only
@@ -37,12 +38,13 @@ namespace helix::settings {
  * @brief Overlay for configuring quick action buttons and standard macro slots
  *
  * This overlay provides dropdowns for:
- * - Quick Button 1 & 2: Select which StandardMacroSlot to trigger
- * - Standard Slots (10 total): Select which printer macro to use for each operation
+ * - Quick Buttons 1-4: Select which StandardMacroSlot (or the light) to trigger
+ * - Standard Slots (11 rows): Select which printer macro to use for each operation
  *
  * ## State Management:
  *
- * Quick buttons are stored in Config at /standard_macros/quick_button_1 and _2.
+ * Quick buttons are stored in Config at /standard_macros/quick_button_1 to _4
+ * (kQuickButtonKeys).
  * Standard macros are managed by the StandardMacros singleton.
  *
  * ## Usage:
@@ -100,10 +102,6 @@ class MacroButtonsOverlay : public OverlayBase {
     void handle_standard_macro_changed(StandardMacroSlot slot, lv_obj_t* dropdown);
 
   private:
-    //
-    // === Internal Methods ===
-    //
-
     /**
      * @brief Populate all dropdown options from current printer state
      */
@@ -115,10 +113,6 @@ class MacroButtonsOverlay : public OverlayBase {
      * @return Macro name or empty string (for auto-detection)
      */
     static std::string get_selected_macro_from_dropdown(lv_obj_t* dropdown);
-
-    //
-    // === State ===
-    //
 
     std::vector<std::string> printer_macros_; ///< Cached sorted list of printer macros
 };

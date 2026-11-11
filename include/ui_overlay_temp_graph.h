@@ -25,8 +25,8 @@ class TemperatureService;
 /**
  * @brief Unified temperature graph overlay
  *
- * Replaces the 3 separate nozzle/bed/chamber overlays with a single overlay
- * that graphs ALL temperature sensors with toggle chips and optional controls.
+ * One overlay that graphs ALL temperature sensors, with toggle chips and
+ * optional nozzle/bed/chamber controls.
  *
  * Graph lifecycle (creation, observers, history backfill, auto-range) is
  * delegated to TempGraphController. The overlay owns UI-specific concerns:
@@ -190,10 +190,10 @@ class TempGraphOverlay : public OverlayBase {
     std::vector<SeriesInfo> series_;
 
     // Thermal tint for the largest heater glyphs in the product (size="xl", one
-    // per control strip). Bound in on_activate(), unbound in on_deactivate() —
-    // cached_overlay_ persists across pushes, but the printer_state_ pointer and
+    // per control strip). Bound in on_activate(), unbound in on_deactivating():
+    // the widget tree survives a stacked push, but the printer_state_ pointer and
     // subject lifetimes are only valid while active, same pattern as
-    // PrintStatusWidget's binders (ui_panel_print_status.cpp).
+    // PrintStatusWidget's binders (print_status_widget.h).
     helix::ui::HeaterIconBinder nozzle_icon_binder_;
     helix::ui::HeaterIconBinder bed_icon_binder_;
     helix::ui::HeaterIconBinder chamber_icon_binder_;
@@ -255,7 +255,6 @@ class TempGraphOverlay : public OverlayBase {
     // observe<int> defers the handler through queue_update).
     ObserverGuard extruder_version_observer_;
 
-    // Subject management
     SubjectManager subjects_;
 
     // Color palette — uses shared kTempGraphSeriesColors from temp_graph_controller.h

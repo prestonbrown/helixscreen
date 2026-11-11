@@ -116,9 +116,6 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
      */
     bool is_validated() const override;
 
-    /**
-     * @brief Get step name for logging
-     */
     const char* get_name() const {
         return "Wizard Printer";
     }
@@ -142,7 +139,6 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
   private:
     friend class WizardPrinterIdentifyStepTestAccess;
 
-    // Screen instance
     lv_obj_t* screen_root_ = nullptr;
 
     // Printer preview image widget
@@ -244,10 +240,6 @@ struct PrinterDetectionHint {
     bool ambiguous = false;               // The detector could not separate its candidates
     std::vector<int> candidate_indices{}; // Those candidates' list indices, winner first
 };
-
-// ============================================================================
-// Global Instance Access
-// ============================================================================
 
 /**
  * @brief Get the global WizardPrinterIdentifyStep instance
