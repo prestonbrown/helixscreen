@@ -9,6 +9,7 @@
  * Run with: ./build/bin/helix-tests "[timelapse][local_install]"
  */
 
+#include "../test_helpers/scoped_env.h"
 #include "../test_helpers/unique_temp_dir.h"
 #include "helix_plugin_installer.h"
 #include "timelapse_host_mock.h"
@@ -202,19 +203,12 @@ TEST_CASE("the timelapse macros are included only when Klipper lacks them",
 TEST_CASE("the macro file is known only on Moonraker's host with the checkout there",
           "[timelapse][local_install]") {
     TempHome home;
-    const char* old_home = std::getenv("HOME");
-    const std::string saved = old_home ? old_home : "";
-    setenv("HOME", home.path.c_str(), 1);
+    helix::ScopedEnv home_env("HOME", home.path.c_str());
     CHECK(timelapse_macro_repo_on_host(true).empty());
     std::filesystem::create_directories(home.repo() + "/klipper_macro");
     std::ofstream(home.repo() + "/klipper_macro/timelapse.cfg") << "\n";
     CHECK(timelapse_macro_repo_on_host(true) == home.repo());
     CHECK(timelapse_macro_repo_on_host(false).empty());
-    if (old_home) {
-        setenv("HOME", saved.c_str(), 1);
-    } else {
-        unsetenv("HOME");
-    }
 }
 
 TEST_CASE("a fresh local install clones, links, and finds ffmpeg", "[timelapse][local_install]") {
