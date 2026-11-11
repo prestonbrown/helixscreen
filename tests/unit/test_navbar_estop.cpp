@@ -153,13 +153,15 @@ TEST_CASE_METHOD(NavbarFixture, "navbar E-stop survives a panel switch",
     auto& nav = NavigationManager::instance();
     lv_obj_t* panels[kUiPanelCount] = {nullptr};
     panels[static_cast<int>(PanelId::Home)] = lv_obj_create(test_screen());
-    panels[static_cast<int>(PanelId::Controls)] = lv_obj_create(test_screen());
+    panels[static_cast<int>(PanelId::Settings)] = lv_obj_create(test_screen());
     nav.set_panels(panels);
     set_visible(1);
     REQUIRE_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
 
-    NavigationManagerTestAccess::switch_to_panel(nav, PanelId::Controls);
+    // A tap on a nav button switches the panel.
+    lv_obj_send_event(lv_obj_find_by_name(navbar_, "nav_btn_settings"), LV_EVENT_CLICKED, nullptr);
     helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(nav.get_active() == PanelId::Settings);
     CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
 
     // Closing an overlay sweeps stray screen children the same way.
@@ -173,8 +175,9 @@ TEST_CASE_METHOD(NavbarFixture, "navbar E-stop survives a panel switch",
     CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
     nav.unregister_overlay_instance(overlay);
 
-    NavigationManagerTestAccess::switch_to_panel(nav, PanelId::Home);
+    lv_obj_send_event(lv_obj_find_by_name(navbar_, "nav_btn_home"), LV_EVENT_CLICKED, nullptr);
     helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(nav.get_active() == PanelId::Home);
     CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
 }
 
