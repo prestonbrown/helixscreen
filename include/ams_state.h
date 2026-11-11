@@ -83,14 +83,12 @@ class PrinterDiscovery;
  * Positional does NOT mean an empty wire. FilamentMapper::identity_filtered_remap()
  * drops identity entries, but the U1 pre-print builder still emits the full used-
  * extruder map, so a positional seed goes out as an explicit identity
- * (SET_PRINT_EXTRUDER_MAP 0->0, 2->2). Measured, not inferred - an earlier
- * revision of this block claimed nothing is sent.
+ * (SET_PRINT_EXTRUDER_MAP 0->0, 2->2). Measured, not inferred.
  *
  * Positional is also only correct because use_current_assignments() pairs each
- * tool with its own default head. It used to pair by position in the used-tool
- * list, which silently remapped any file using a SPARSE tool set - T0+T2 sent T2
- * to lane 1, a lane the user never chose. Fixed, with a test; that bug is why
- * this flip could not have shipped as it stood.
+ * tool with its own default head. Pairing by position in the used-tool list
+ * would silently remap any file using a SPARSE tool set - T0+T2 would send T2
+ * to lane 1, a lane the user never chose; a test pins that.
  *
  * HARDWARE VERIFICATION - Snapmaker U1, 2026-08-27, calicat_PLA_37m55s.gcode
  * (T0 red 7.94g body / T2 black 2.63g tail; lanes loaded slot 0 BLACK, slot 1
@@ -296,10 +294,6 @@ class AmsState {
     static constexpr int kDryerDurationStepMin = 30;       ///< Duration adjustment step
     /// @}
 
-    /**
-     * @brief Get the singleton instance
-     * @return Reference to the global AmsState instance
-     */
     static AmsState& instance();
 
     /**
@@ -473,10 +467,6 @@ class AmsState {
      */
     [[nodiscard]] AmsBackend* get_backend(int index) const;
 
-    /**
-     * @brief Get the number of registered backends
-     * @return Number of backends
-     */
     [[nodiscard]] int backend_count() const;
 
     /**
@@ -756,7 +746,7 @@ class AmsState {
      *
      * Stored and applied to any mock backends when they are added.
      * In production, real backends don't use this (gcode responses come
-     * through the WebSocket). Used to let mock backends simulate
+     * through the WebSocket). It lets mock backends simulate
      * action:prompt dialogs.
      *
      * @param callback Function that processes "// action:..." lines
@@ -810,10 +800,6 @@ class AmsState {
         return &active_backend_;
     }
 
-    /**
-     * @brief Get the active backend index
-     * @return Currently selected backend index
-     */
     [[nodiscard]] int active_backend_index() const;
 
     /**
@@ -824,7 +810,7 @@ class AmsState {
 
     /**
      * @brief Get AMS type subject
-     * @return Subject holding AmsType enum as int (0=none, 1=happy_hare, 2=afc)
+     * @return Subject holding the AmsType enum (ams_type.h) as int
      */
     lv_subject_t* get_ams_type_subject() {
         return &ams_type_;
@@ -914,8 +900,7 @@ class AmsState {
      * nothing truthful to say - bind visibility to it with
      * `<bind_flag_if_eq subject="ams_endless_state" flag="hidden" ref_value="0"/>`.
      *
-     * Replaced the AD5X-only `ams_ifs_plugin` / `ams_ifs_backup_enabled` pair:
-     * every backend answers the same three-axis capability question now, so a
+     * Every backend answers the same three-axis capability question, so a
      * per-firmware subject could only ever describe one printer's answer.
      */
     lv_subject_t* get_endless_state_subject() {
@@ -1330,7 +1315,8 @@ class AmsState {
 
     /**
      * @brief Get clog meter mode subject
-     * @return Subject holding mode (0=none, 1=encoder, 2=flowguard, 3=buffer fault)
+     * @return Subject holding mode (0=none, 1=encoder, 2=flowguard, 3=buffer fault,
+     *         4=motion sensor)
      */
     lv_subject_t* get_clog_meter_mode_subject() {
         return &clog_meter_mode_;
@@ -1742,8 +1728,8 @@ class AmsState {
      * Holds the last-synced material string ("PLA", "PETG", …, or "" when the
      * lane has no material). Written by the status-sync path; a delta bumps
      * slots_version so the panel's refresh_slots() re-reads the material label
-     * even when the color/status did not change (#1065 — native ZMOD AD5X where
-     * a type change keeps the same color and previously left the label stale).
+     * even when the color/status did not change (#1065: on native ZMOD AD5X a
+     * type change keeps the same color, which alone would leave the label stale).
      *
      * @param slot_index Slot index (0 to kMaxSlots-1)
      * @return Subject pointer or nullptr if out of range
@@ -2094,8 +2080,8 @@ class AmsState {
      * Single authority for spool assignment changes on backend slots. Order:
      * 1. S1: Spoolman server active spool — set when linking (id > 0), clear
      *    (post 0) when unlinking a previously-linked slot. Ungated on
-     *    manages_active_spool() by design: matches the previous overlay
-     *    semantics (see spec § follow-ups for the SET-arm gating question).
+     *    manages_active_spool() by design; whether the SET arm should be
+     *    gated is an open question.
      * 2. S6: invalidate the old spool's identity cache when the link changed.
      * 3. S3: backend->commit_user_edit() (firmware SET_SPOOL_ID gcode rides inside
      *    its apply_user_edit()).
@@ -2881,7 +2867,7 @@ class AmsState {
     char buffer_target_text_buf_[48]{};
 
     lv_subject_t
-        clog_meter_mode_{}; // ClogMeterMode: 0=none, 1=encoder, 2=flowguard, 3=buffer fault
+        clog_meter_mode_{}; // ClogMeterMode: 0=none, 1=encoder, 2=flowguard, 3=buffer, 4=motion
     lv_subject_t clog_meter_value_{};   // 0-100 (encoder/afc) or -100..+100 (flowguard)
     lv_subject_t clog_meter_warning_{}; // 0=ok, 1=warning
     lv_subject_t clog_meter_status_{};  // ClogMeterStatus: 0=ok, 1=warning, 2=fault

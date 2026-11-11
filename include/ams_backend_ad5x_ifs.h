@@ -325,7 +325,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
         // has been cleared - a Klipper error, an `M84`, a cold resume. Issued while
         // a job owns the toolhead, that motion reaches the part, tripping ZMOD's
         // ZCONTROL_AUTO force trip and shutting Klipper down - recoverable only by
-        // a firmware restart (bundle XWPBR2DX). Layer 1
+        // a firmware restart. Layer 1
         // (reject_homing_during_active_print) cannot help: the `_G28` is buried in
         // the firmware macro and never crosses our gcode API.
         //
@@ -417,8 +417,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // otherwise heats to the seated lane's configured temp before backing it
     // out (zmod_ifs.py cmd_IFS_REMOVE_CURRENT_PRUTOK). A helix-side
     // unload-before-load is therefore redundant — and the sidebar's swap path
-    // routed it to eject_lane(-1) when the head read empty, silently dropping
-    // the load (Vger1700, bundle Z5V4K3NL). Load straight through the macro,
+    // would route it to eject_lane(-1) when the head reads empty, silently
+    // dropping the load. Load straight through the macro,
     // exactly like the stock screen (zmod_color.py).
     [[nodiscard]] bool needs_unload_before_load(const AmsSystemInfo& info,
                                                 int target_slot) const override {
@@ -538,11 +538,10 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // === Endless spool ===
     //
     // The cross-backend view of what get_plugin() / plugin_backup_enabled()
-    // already know, and the ONLY path this state takes to the UI. The
-    // AD5X-specific `ams_ifs_plugin` / `ams_ifs_backup_enabled` subjects are
-    // gone: AmsState now publishes `ams_endless_state` / `ams_endless_text` from
-    // these capabilities for every backend, so a per-firmware subject could only
-    // ever have described one printer's answer.
+    // already know, and the ONLY path this state takes to the UI. There are no
+    // AD5X-specific subjects: AmsState publishes `ams_endless_state` /
+    // `ams_endless_text` from these capabilities for every backend, and a
+    // per-firmware subject could only ever describe one printer's answer.
 
     /**
      * @brief IFS auto-switchover as a shared capability.
@@ -791,13 +790,13 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     /// BOTH the switch AND ifs_motion_sensor, and the motion sensor is
     /// device-confirmed to read filament_detected=false on a lane that is loaded
     /// but idle (class-header NOTE). Claiming "empty" off that false negative
-    /// sends seated, un-cut filament to a cold eject, which grinds it (raza616
-    /// #981, bundle 5HR3HHS6). The opposite error - claiming loaded when empty -
+    /// sends seated, un-cut filament to a cold eject, which grinds it
+    /// (#981). The opposite error - claiming loaded when empty -
     /// only wastes a firmware no-op, so the predicate is deliberately biased
     /// toward "loaded."
     ///
     /// On motion-only firmware head_switch_seen_ stays false and this falls back
-    /// to !head_filament_ - exactly the historical behaviour, no silent change.
+    /// to !head_filament_, the motion-only reading.
     ///
     /// PROXY, not the firmware's own gate. cmd_IFS_REMOVE_CURRENT_PRUTOK
     /// early-returns on get_extruder_sensor() (zmod_ifs.py:1149), which reads an
@@ -942,8 +941,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     //   // action:prompt_button 1: SILK|RUN_ZCOLOR SLOT=1 HEX=F330F9 TYPE=SILK|primary|F330F9
     // zmod re-renders it after every edit, so the row lands ~100ms after the
     // user's tap — well ahead of the debounced GET_ZCOLOR, which can race the
-    // firmware write and return the pre-edit value (#1065, bundle 482NB943:
-    // a type change stayed stale on screen for 40s). Returns true if a row was
+    // firmware write and return the pre-edit value (#1065:
+    // a type change can stay stale on screen for 40s). Returns true if a row was
     // recognised and applied. Caller must NOT hold mutex_.
     bool apply_color_menu_slot_row(const std::string& line);
     void register_klippy_ready_listener();
@@ -960,8 +959,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // the periodic poll.
     bool note_json_content(const std::string& content);
     // Lightweight HTTP poll that downloads Adventurer5M.json and only fires
-    // schedule_zcolor_query() when content actually changed. Replaces the old
-    // unconditional 15s GET_ZCOLOR backstop — the JSON download is invisible
+    // schedule_zcolor_query() when content actually changed, in place of an
+    // unconditional timed GET_ZCOLOR: the JSON download is invisible
     // to the gcode console, so polling here costs nothing user-visible while
     // still catching native-dialog edits zmod makes outside our gcode path.
     void poll_adventurer_json();
@@ -1135,9 +1134,9 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     //   Unload: HEATING → (temp ≥ target) CUTTING → (head drop) UNLOADING → IDLE
     //   Load:   HEATING → (temp ≥ target) LOADING → (head rise)  PURGING   → IDLE
     //
-    // active gates the new behavior: when INACTIVE (legacy/external/firmware-
-    // initiated action changes), detect_load_unload_completion preserves the
-    // historical snap-to-IDLE on a head transition.
+    // active gates the tracking: when INACTIVE (external or firmware-initiated
+    // action changes), detect_load_unload_completion snaps to IDLE on a head
+    // transition.
     struct IfsPhaseTracker {
         bool active = false;              // true between begin and finalize
         bool is_unload = false;           // unload vs load direction
@@ -1148,8 +1147,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
         // Set when load_filament() dispatches while another lane is currently
         // seated (seated_chan_ != target). INSERT_PRUTOK_IFS then runs an
         // IMPLICIT UNLOAD of the seated lane before the actual load, which
-        // easily runs past the 90s LOADING budget (bundle NJB2U558: ch4 seated
-        // → load ch2 took ~2min total, timed out at 90s mid-swap). The flag
+        // easily runs past the 90s LOADING budget (loading ch2 with ch4
+        // seated takes ~2min in total). The flag
         // extends LOADING to kSwapLoadingTimeoutSeconds in check_action_timeout.
         // Cleared by end_phase_tracking_locked on op completion.
         bool swap_expected = false;
@@ -1319,8 +1318,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // field the firmware's _IFS_REMOVE_CURRENT_PRUTOK unload macro resolves the
     // seated channel from, and it stays put while idle — unlike IFS_STATUS "Chan",
     // which tracks the last lane the switching mechanism touched, including a
-    // zmod COLOR-menu slot SELECTION that moves no filament (#1065 Bug 3, bundle
-    // ZT8Y9WPM: editing lane 3 made Chan=3 while FFMInfo.channel stayed 2). When
+    // zmod COLOR-menu slot SELECTION that moves no filament (#1065: editing
+    // lane 3 makes Chan=3 while FFMInfo.channel stays 2). When
     // >0 it is the seated authority, overriding a divergent Chan in
     // apply_zcolor_result. 0 (nothing seated, or forgotten across a reboot) falls
     // back to the persisted-lane floor / Chan.
@@ -1335,8 +1334,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // Last lane (0-based slot index) we saw loaded to the toolhead, persisted to
     // the Moonraker "lane_data" DB (sibling "seated" key) so it survives a power
     // cycle. The firmware forgets the seated channel across a reboot — IFS_STATUS
-    // "Chan" comes back 0 even with a lane physically at the head (bundle
-    // CGR6C7PA, #1065). On cold boot, when head_filament_ is true but Chan==0 and
+    // "Chan" comes back 0 even with a lane physically at the head
+    // (#1065). On cold boot, when head_filament_ is true but Chan==0 and
     // this lane's port still reads present, it is restored as the seated channel
     // so the Unload/Eject menu labels correctly. nullopt = nothing remembered.
     std::optional<int> persisted_seated_slot_;
@@ -1358,7 +1357,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // false). While false, a Chan==0 reported with the head still loaded is the
     // post-reboot "firmware forgot which lane" case and the remembered lane is
     // restored. Once true, a Chan==0 is a genuine "nothing seated" and clears the
-    // loaded slot as before (#1065).
+    // loaded slot (#1065).
     bool seated_resolved_since_boot_ = false;
     // Latches true the first time IFS_STATUS "Ports" is observed. Once the
     // RS-485 silk-sensor presence truth is available, (1) the legacy
@@ -1366,7 +1365,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // inference resurrects an emptied channel from its persisted colour when
     // GET_ZCOLOR SILENT gets (even falsely) demoted; and (2) we keep firing
     // IFS_STATUS even after a SILENT demotion so Ports presence stays live
-    // (query_zcolor_silent / schedule_zcolor_query) (#981, bundle EE5L8LY2).
+    // (query_zcolor_silent / schedule_zcolor_query) (#981).
     // Atomic: written under mutex_ in apply_zcolor_result, read unlocked in the
     // schedule/query gates.
     std::atomic<bool> ifs_status_ports_seen_{false};
@@ -1385,7 +1384,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // holds the switch's last reading. The gate authority is
     // (head_switch_seen_ && !head_switch_present_). When no switch is published
     // (motion-only firmware), head_switch_seen_ stays false and the gate never
-    // fires — the seated lane is preserved (fall back to prior behaviour).
+    // fires, so the seated lane is preserved.
     bool head_switch_seen_ = false;
     bool head_switch_present_ = false;
 
@@ -1488,7 +1487,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // Main-thread-only: counts CHANGE_ZCOLOR trigger lines seen in the gcode
     // stream since the last coalesced re-read fired. zmod re-emits CHANGE_ZCOLOR
     // on every edit, so a single user action produces a burst of trigger lines
-    // (24 in a 3s window in bundle UQG4RNUA). Rather than log one line each, the
+    // (24 within 3s in one field log). Rather than log one line each, the
     // counts are folded into a single consolidated line when reread_apply runs.
     // Both the increments (on_gcode_response_line) and the read/reset
     // (reread_apply) run on the main thread via the UpdateQueue, so no atomic is
@@ -1516,9 +1515,9 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // Coalesce-gate for schedule_zcolor_query(): true while a debounce worker is
     // in flight. zmod re-emits the "Select print materials" prompt on every
     // CHANGE_ZCOLOR, so a single color edit produces a burst of trigger lines —
-    // without this gate each one submitted its own fast()-pool worker (20+ in a
-    // 40ms window seen in bundle ACJRZBXJ), every one holding a pool slot through
-    // its 500ms sleep while only a single query ever fired. zcolor_query_pending_
+    // without this gate each one would submit its own fast()-pool worker (20+ in
+    // a 40ms window), every one holding a pool slot through its 500ms sleep
+    // while only a single query ever fires. zcolor_query_pending_
     // carries the "refresh wanted" signal, so later callers just set it and
     // return. Mirrors reread_pending_ on schedule_json_reread().
     std::atomic<bool> zcolor_schedule_armed_{false};
@@ -1526,8 +1525,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // Latches true the first time GET_ZCOLOR SILENT=1 returns genuine silent
     // content (a summary or slot line — NOT just the IFS_STATUS JSON). Once
     // confirmed, a later prompt dialog is the user's own interactive zmod colour
-    // menu colliding with our in-flight query, NOT our query degrading, so we no
-    // longer demote zcolor_silent_supported_ on it (#981 false-latch, EE5L8LY2).
+    // menu colliding with our in-flight query, NOT our query degrading, so it does
+    // not demote zcolor_silent_supported_ (#981).
     std::atomic<bool> zcolor_silent_confirmed_{false};
     std::mutex zcolor_buffer_mutex_;
     std::vector<std::string> zcolor_response_buffer_;
@@ -1579,9 +1578,9 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     static constexpr int kPurgingTimeoutSeconds = 240;
     // INSERT_PRUTOK_IFS with another lane currently seated runs an implicit
     // UNLOAD first (heat → cut → retract, ~50-90s) before the actual load
-    // begins. The 90s LOADING budget fires mid-swap on bundle NJB2U558
-    // (load ch2 while ch4 seated → "Loading error, feeding filament to nozzle
-    // (timed out)" popup even though the op completed). 180s covers the full
+    // begins. The 90s LOADING budget would fire mid-swap
+    // (loading ch2 while ch4 is seated raises a "Loading error, feeding filament
+    // to nozzle (timed out)" popup even though the op completes). 180s covers the full
     // swap with margin; the head-drop reset in on_head_transition_locked is
     // the primary defence, this is the belt-and-suspenders backstop for
     // firmware variants where the head sensor doesn't transition reliably.
@@ -1605,7 +1604,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
 
     // Rate-limit gate for the JSON-content poll. handle_status kicks
     // poll_adventurer_json() if at least kJsonPollInterval has elapsed since
-    // the last kick — replaces the old 15s unconditional GET_ZCOLOR backstop.
+    // the last kick.
     // Default-constructed time_point is the epoch, so the first status update
     // after backend start fires a poll immediately.
     std::chrono::steady_clock::time_point last_json_poll_kick_{};

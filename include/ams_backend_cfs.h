@@ -121,7 +121,7 @@ enum class CfsMacroVariant {
 ///
 /// Detected from the PAYLOAD, never from PrinterDetector: the affected printers
 /// report as stock K2 Plus hardware by every model signal, so the firmware swap
-/// is invisible to model detection. Bundle QJKZEMTS.
+/// is invisible to model detection.
 enum class CfsSchema {
     Stock,
     Flat,
@@ -300,9 +300,8 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
      * swap plan (`runout.chain`), and that one edge is the relation (#1464).
      *
      * `enabled` comes from `box.auto_refill` (stock) / `box.runout_swap_enabled`
-     * (flat fork) via AmsSystemInfo::endless_spool_enabled, so on and off are now
-     * distinguishable; the old struct hardcoded `supported = true` and buried the
-     * real state in an untranslated `description` string. When auto-refill is on
+     * (flat fork) via AmsSystemInfo::endless_spool_enabled, so on and off are
+     * distinguishable. When auto-refill is on
      * AND the frame carried `same_material` AND no group pairs two lanes,
      * `enabled` degrades to OnWithoutBackup (#1391): a runout would stop the
      * print despite the setting, and advertising plain On is a promise the box

@@ -98,11 +98,9 @@ class AmsSubscriptionBackend : public AmsBackend {
     // --- Filament operations (final -- derived backends implement do_*) ---
     //
     // Non-virtual interface. The public entry point runs the print-active gate,
-    // then dispatches to the backend's do_* hook. Invoking the gate used to be
-    // opt-in, hand-written at ~24 call sites: 329e731e9 added it to seven
-    // backends and missed the eighth, which shipped with no gate at all
-    // (180a71c7d). A backend cannot forget it here, because it never writes the
-    // entry point.
+    // then dispatches to the backend's do_* hook. A backend cannot forget the
+    // gate, because it never writes the entry point; a gate hand-written at each
+    // call site is easy to miss on one backend.
     //
     // The gate is a CLAIM, not a test: run_filament_op() test-and-sets an
     // in-flight flag in the same critical section as the busy read and holds it
@@ -775,10 +773,9 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// backend that publishes an optimistic action does it inside the do_* hook,
     /// in a LATER critical section (AFC/ToolChanger begin_dispatch_locked, ACE,
     /// CFS, AD5X), and Happy Hare, Snapmaker and QIDI never set it at all and
-    /// wait for firmware to echo. So "check busy, then act" was two steps with a
-    /// window between them long before the NVI refactor moved the check out of
-    /// the hook's lock — holding mutex_ across the check never closed it,
-    /// because the write that closes it happens after the lock is dropped.
+    /// wait for firmware to echo. So "check busy, then act" is two steps with a
+    /// window between them, and holding mutex_ across the check does not close
+    /// it, because the write that closes it happens after the lock is dropped.
     /// The claim closes the check→dispatch half of that window outright, for
     /// every backend, without extending mutex_ across the gcode send.
     bool filament_op_in_flight_ = false;
