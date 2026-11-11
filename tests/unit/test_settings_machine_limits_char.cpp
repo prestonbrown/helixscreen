@@ -139,6 +139,17 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Machine Limits: the Z rows show the printer
     CHECK(row_value("row_max_z_velocity").rfind("40", 0) == 0);
     CHECK(row_value("row_max_z_accel").rfind("1000", 0) == 0);
 
+    // Closing drops the tree; the rebuilt one asks the printer again on open.
+    NavigationManager::instance().go_back();
+    for (int i = 0; i < 5; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(100);
+    }
+    const int queries = client.call_count("printer.objects.query");
+    REQUIRE(overlay.show(lv_screen_active()));
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(client.call_count("printer.objects.query") > queries);
+
     overlay.set_api(nullptr);
     StaticPanelRegistry::instance().destroy_all();
     helix::ui::UpdateQueue::instance().drain();
