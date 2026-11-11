@@ -2027,7 +2027,9 @@
   <translation tag="Klipper has entered shutdown state." zh="Klipper 已进入关闭状态。"/>
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." zh="Klipper 已进入关机状态。这可能是由于紧急停止、热失控或配置错误引起的。"/>
   <translation tag="Klipper has no [virtual_sdcard] section." zh="Klipper 没有 [virtual_sdcard] 部分。"/>
+  <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" zh="Klipper 尚未加载延时摄影宏，因此不会拍摄任何帧。请将这一行添加到 printer.cfg 并重启 Klipper："/>
   <translation tag="Klipper is halted — restart firmware to continue" zh="Klipper 已停止 — 请重启固件以继续"/>
+  <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." zh="Klipper 正在重启。延时摄影帧将从下一次打印开始拍摄。"/>
   <translation tag="Klipper ready" zh="Klipper就绪"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." zh="Klipper 将 &apos;default&apos; 保留用于新的校准。请选择其他名称。"/>
   <translation tag="Klipper restarting - macros activating" zh="正在重启 Klipper - 正在启用宏"/>
@@ -4207,6 +4209,7 @@
   <translation tag="Timelapse Available" zh="延时摄影可用"/>
   <translation tag="Timelapse Settings" zh="延时摄影设置"/>
   <translation tag="Timelapse Videos" zh="延时摄影视频"/>
+  <translation tag="Timelapse frames start after Klipper restarts." zh="Klipper 重启后开始拍摄延时摄影帧。"/>
   <translation tag="Timelapse or logs folder overlaps a protected one." zh="延时摄影或日志文件夹与受保护的文件夹重叠。"/>
   <translation tag="Timelapse plugin installed successfully!" zh="延时摄影插件安装成功！"/>
   <translation tag="Timelapse plugin installed!" zh="延时摄影插件已安装！"/>

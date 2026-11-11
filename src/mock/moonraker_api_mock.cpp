@@ -8,6 +8,7 @@
 #include "core/update_queue.h"
 #include "env_knobs.h"
 #include "gcode_parser.h"
+#include "macro_manager.h"
 #include "mock_planted_gcodes.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
@@ -543,6 +544,12 @@ void MoonrakerFileTransferAPIMock::download_file(const std::string& root, const 
             return;
         }
     }
+    if (root == "config" && config_files_.empty() && path == helix::kHelixMacrosFilename &&
+        helix::mock::timelapse_helix_macros_loaded()) {
+        if (on_success)
+            on_success(helix::mock::timelapse_mock_helix_macros_file());
+        return;
+    }
     if (root == "config" && !config_files_.empty()) {
         auto it = config_files_.find(path);
         if (it != config_files_.end()) {
@@ -999,6 +1006,9 @@ void MoonrakerFileTransferAPIMock::upload_file_with_name(const std::string& root
     // filename; a subdirectory prefixes it.
     if (root == "config" && !config_files_.empty()) {
         config_files_[path.empty() ? filename : path + "/" + filename] = content;
+    } else if (root == "config" && path.empty() && filename == helix::kHelixMacrosFilename &&
+               helix::mock::timelapse_helix_macros_loaded()) {
+        helix::mock::timelapse_mock_helix_macros_file() = content;
     }
 
     // Mock always succeeds
@@ -1806,8 +1816,16 @@ MoonrakerTimelapseAPIMock::MoonrakerTimelapseAPIMock(MoonrakerClient& client,
 void MoonrakerTimelapseAPIMock::get_timelapse_settings(TimelapseSettingsCallback on_success,
                                                        ErrorCallback on_error) {
     if (helix::mock::timelapse_plugin_present()) {
+        // The body real Moonraker sends: the plugin's dict wrapped in "result",
+        // with floats where the app reads integers.
+        static constexpr const char* kSettingsBody =
+            R"({"result":{"enabled":false,"mode":"layermacro","output_framerate":30,)"
+            R"("autorender":true,"park_retract_distance":1.0,"park_extrude_speed":15,)"
+            R"("hyperlapse_cycle":30,"blockedsettings":[]}})";
+        TimelapseSettings settings;
+        helix::parse_timelapse_settings(kSettingsBody, settings);
         if (on_success) {
-            on_success(TimelapseSettings{});
+            on_success(settings);
         }
         return;
     }

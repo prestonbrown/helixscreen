@@ -16,6 +16,14 @@ is out.
 
 - **Macros can declare how long each pre-print phase will take** - a `PRINT_START` can call `_HELIX_PLAN SOAKING=600 BED_MESH=90` and the pre-print countdown uses those durations from the start, and the time label says when a phase runs over. New `_HELIX_PHASE_SOAKING` and `_HELIX_PHASE_HEATING_CHAMBER` signals come with it. Update the HelixScreen macros from Settings to get them.
 
+## [1.1.0-rc.2] - UNRELEASED
+
+### Fixed
+
+- **Timelapse settings show the real values** - the Timelapse Settings screen reads the plugin's settings as Moonraker sends them, so Enable Timelapse, Auto-render and the other options show what is actually set instead of the defaults.
+- **Timelapse frames are captured after setup** - when Klipper has not loaded the timelapse macros, HelixScreen adds them to its own helix_macros.cfg and offers Restart Klipper, on the setup screen and on Timelapse Settings. When it can't, it shows the line to add to printer.cfg. Before this, a new install never captured a frame until printer.cfg was edited by hand.
+- **Timelapse updates after a reinstall** - setting up timelapse over an older moonraker-timelapse checkout puts it back on its main branch when that is safe, so Moonraker can update it again.
+
 ## [1.1.0-rc.1] - 2026-11-10
 
 This is the first 1.1 release candidate. Unless testing turns up a problem, it is what ships as 1.1.0. Since beta.18 it fixes printer identification on Creality and FlashForge printers, keeps your files across web updates on Z-Mod, and shows fan speeds in RPM wherever a fan reports them.

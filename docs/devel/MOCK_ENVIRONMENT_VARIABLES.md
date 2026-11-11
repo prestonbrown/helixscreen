@@ -412,13 +412,15 @@ Takes the moonraker-timelapse plugin away from the mock, so Advanced shows **Set
 
 | Property | Value |
 |----------|-------|
-| **Values** | `absent` (no plugin, ffmpeg installed), `no-ffmpeg` (no ffmpeg, so the last screen shows the command that installs it) |
+| **Values** | Comma-separated words. `absent` (no plugin, ffmpeg installed), `no-ffmpeg` (no ffmpeg, so the last screen shows the command that installs it), `helix-macros` (Klipper has HelixScreen's helper macros loaded and no `TIMELAPSE_TAKE_FRAME`, so the wizard's last screen and Timelapse Settings add the timelapse include to the mock's `helix_macros.cfg` and offer Restart Klipper; combines with either of the others) |
 | **Default** | unset (plugin present) |
 | **File** | `src/mock/timelapse_host_mock.cpp` |
 
 ```bash
 HELIX_MOCK_TIMELAPSE=no-ffmpeg ./build/bin/helix-screen --test -vv             # local install, ffmpeg left to the user
 HELIX_MOCK_TIMELAPSE=absent HELIX_MOCK_REMOTE_PRINTER=1 ./build/bin/helix-screen --test -vv   # SSH instructions
+HELIX_MOCK_TIMELAPSE=absent,helix-macros ./build/bin/helix-screen --test -vv  # wizard ends on the Restart Klipper card
+HELIX_MOCK_TIMELAPSE=helix-macros ./build/bin/helix-screen --test -vv         # Timelapse Settings shows the Restart Klipper card
 ```
 
 ### `HELIX_MOCK_WEBCAMS`

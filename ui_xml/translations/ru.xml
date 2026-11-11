@@ -2075,7 +2075,9 @@
   <translation tag="Klipper has entered shutdown state." ru="Klipper перешёл в состояние остановки."/>
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." ru="Klipper перешёл в состояние остановки. Это может быть вызвано аварийной остановкой, тепловым разгоном или ошибкой конфигурации."/>
   <translation tag="Klipper has no [virtual_sdcard] section." ru="В Klipper нет раздела [virtual_sdcard]."/>
+  <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" ru="Klipper не загрузил макросы таймлапса, поэтому кадры не снимаются. Добавьте эту строку в printer.cfg и перезапустите Klipper:"/>
   <translation tag="Klipper is halted — restart firmware to continue" ru="Klipper остановлен — перезапустите прошивку, чтобы продолжить"/>
+  <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." ru="Klipper перезапускается. Кадры таймлапса будут сниматься со следующей печати."/>
   <translation tag="Klipper ready" ru="Klipper готов"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." ru="Klipper резервирует &apos;default&apos; для новых калибровок. Выберите другое имя."/>
   <translation tag="Klipper restarting - macros activating" ru="Перезапуск Klipper - активация макросов"/>
@@ -4270,6 +4272,7 @@
   <translation tag="Timelapse Available" ru="Таймлапс доступен"/>
   <translation tag="Timelapse Settings" ru="Настройки таймлапса"/>
   <translation tag="Timelapse Videos" ru="Видео таймлапс"/>
+  <translation tag="Timelapse frames start after Klipper restarts." ru="Кадры таймлапса начнут сниматься после перезапуска Klipper."/>
   <translation tag="Timelapse or logs folder overlaps a protected one." ru="Папка таймлапсов или журналов пересекается с защищённой."/>
   <translation tag="Timelapse plugin installed successfully!" ru="Плагин таймлапса успешно установлен!"/>
   <translation tag="Timelapse plugin installed!" ru="Плагин таймлапса установлен!"/>

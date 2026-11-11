@@ -32,7 +32,8 @@ class IMoonrakerAPI;
  *    through SSH instructions otherwise
  * 4. Configure moonraker.conf with [timelapse] section
  * 5. Restart Moonraker service
- * 6. Verify plugin is loaded
+ * 6. Verify plugin is loaded, then get its Klipper macros loaded through the
+ *    shared timelapse macro card (ui_timelapse_macro_card.h)
  */
 class TimelapseInstallOverlay : public OverlayBase {
   public:

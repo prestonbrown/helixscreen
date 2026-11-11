@@ -208,15 +208,55 @@ class MacroManager {
     /**
      * @brief Update Helix macros to latest version
      *
-     * Overwrites helix_macros.cfg with the current version. When
+     * Overwrites helix_macros.cfg with the current version, keeping the
+     * timelapse include when the installed file has one. When
      * stages_skips(), also writes helix_skips.cfg and adds its include if
      * missing; otherwise printer.cfg is not touched.
      * Does NOT restart Klipper — same rule as install_files().
      *
      * @param on_success Called when the new file is uploaded
-     * @param on_error Called if upload fails
+     * @param on_error Called if the installed file cannot be read (a missing
+     *                 one is fine) or the upload fails
      */
     void update_files(SuccessCallback on_success, ErrorCallback on_error);
+
+    /**
+     * @brief Make helix_macros.cfg load moonraker-timelapse's timelapse.cfg
+     *
+     * Adds timelapse_include_line(@p repo_dir) to the helix_macros.cfg on the
+     * printer, which update_files() then keeps and uninstall() removes with the
+     * file. The caller decides it is needed: Klipper has the helper macros
+     * loaded, no TIMELAPSE_TAKE_FRAME, and @p repo_dir is the checkout's
+     * absolute path on the Klipper host. Writes nothing when a timelapse include
+     * is there already. Does NOT restart Klipper; the macros load at the next
+     * restart.
+     *
+     * @param on_success Called when helix_macros.cfg carries the include
+     * @param on_error Called when helix_macros.cfg could not be read or written
+     */
+    void include_timelapse_macros(const std::string& repo_dir, SuccessCallback on_success,
+                                  ErrorCallback on_error);
+
+    /**
+     * @brief The include line for the macro file in the checkout at @p repo_dir
+     *
+     * The real file by absolute path, globbed so it matches nothing once the
+     * checkout is gone: Klipper refuses to start on a plain include whose file
+     * is missing and skips a glob that matches nothing. Never the config-root
+     * timelapse.cfg, a symlink into the checkout that a glob still matches
+     * after the checkout is deleted, and that Klipper then cannot open.
+     */
+    [[nodiscard]] static std::string timelapse_include_line(const std::string& repo_dir);
+
+    /// The live timelapse include line in helix_macros.cfg @p content, or empty.
+    [[nodiscard]] static std::string find_timelapse_include(const std::string& content);
+
+    /// Whether helix_macros.cfg @p content has a timelapse include as a live line.
+    [[nodiscard]] static bool has_timelapse_include(const std::string& content);
+
+    /// @p content with @p line appended, unless it has a timelapse include already.
+    [[nodiscard]] static std::string with_timelapse_include(const std::string& content,
+                                                            const std::string& line);
 
     /**
      * @brief Request a Klipper restart to load staged macro files
@@ -323,6 +363,11 @@ class MacroManager {
     /// Upload one file to the printer's config root.
     void upload_macro_file(const std::string& filename, const std::string& content,
                            SuccessCallback on_success, ErrorCallback on_error);
+
+    /// update_files() once it knows whether to keep the timelapse include.
+    /// @p timelapse_include is the installed file's include line to keep, or empty.
+    void stage_update(const std::string& timelapse_include, SuccessCallback on_success,
+                      ErrorCallback on_error);
 
     /// Upload helix_skips.cfg when stages_skips(); succeed at once otherwise.
     void upload_skips_file(SuccessCallback on_success, ErrorCallback on_error);

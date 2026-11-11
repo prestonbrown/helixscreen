@@ -37,6 +37,78 @@ LocalPluginResult failed(LocalPluginStage stage, const CommandResult& r) {
     return result;
 }
 
+/// Moves an existing checkout on a detached HEAD back onto recipe.repo_branch, so
+/// Moonraker's update manager can validate it. Local git only, and only when the
+/// tree is clean and the branch exists and contains HEAD; any other case is
+/// logged and left alone.
+void attach_checkout_to_branch(const LocalPluginRecipe& recipe, const std::string& repo_dir,
+                               const ProcessRunner& run) {
+    if (recipe.repo_branch.empty()) {
+        return;
+    }
+    auto git = [&](std::vector<std::string> args) {
+        std::vector<std::string> argv = {"git", "-C", repo_dir};
+        argv.insert(argv.end(), args.begin(), args.end());
+        return run(argv, kProbeTimeoutSeconds);
+    };
+
+    // symbolic-ref exits 0 on a branch, 1 on a detached HEAD, 128 outside a repository.
+    const CommandResult head = git({"symbolic-ref", "-q", "HEAD"});
+    if (head.succeeded()) {
+        return;
+    }
+    if (!head.started || head.timed_out || head.exit_code != 1) {
+        spdlog::info("[PluginInstaller] {} is not a git checkout git can read ({}); leaving it "
+                     "as it is",
+                     repo_dir, failure_detail(head));
+        return;
+    }
+
+    const CommandResult status = git({"status", "--porcelain"});
+    if (!status.succeeded()) {
+        spdlog::info("[PluginInstaller] Could not read the state of {} ({}); leaving it on a "
+                     "detached HEAD",
+                     repo_dir, failure_detail(status));
+        return;
+    }
+    if (!last_output_line(status.output).empty()) {
+        spdlog::info("[PluginInstaller] {} is on a detached HEAD with local changes; leaving it "
+                     "so they are kept. Moonraker will not update it until it is on {}",
+                     repo_dir, recipe.repo_branch);
+        return;
+    }
+
+    if (!git({"rev-parse", "-q", "--verify", "refs/heads/" + recipe.repo_branch}).succeeded()) {
+        spdlog::info("[PluginInstaller] {} is on a detached HEAD and has no local {} branch; "
+                     "leaving it as it is",
+                     repo_dir, recipe.repo_branch);
+        return;
+    }
+
+    // Only forward: a stale local branch would downgrade the plugin, and commits
+    // on no branch would be left behind.
+    const CommandResult ahead =
+        git({"merge-base", "--is-ancestor", "HEAD", "refs/heads/" + recipe.repo_branch});
+    if (!ahead.succeeded()) {
+        spdlog::info("[PluginInstaller] {} is on a detached HEAD that its {} branch does not "
+                     "contain ({}); leaving it as it is",
+                     repo_dir, recipe.repo_branch,
+                     ahead.exit_code == 1 ? std::string("switching would go back")
+                                          : failure_detail(ahead));
+        return;
+    }
+
+    const CommandResult switched = git({"checkout", "-q", recipe.repo_branch});
+    log_command_output("git checkout", switched.output, switched.succeeded());
+    if (!switched.succeeded()) {
+        spdlog::warn("[PluginInstaller] Could not switch {} to {} ({}); leaving it detached",
+                     repo_dir, recipe.repo_branch, failure_detail(switched));
+        return;
+    }
+    spdlog::info("[PluginInstaller] Switched {} from a detached HEAD to {}", repo_dir,
+                 recipe.repo_branch);
+}
+
 bool has_program(const ProcessRunner& run, const std::string& program) {
     return run({"/bin/sh", "-c", "command -v \"$1\"", "sh", program}, kProbeTimeoutSeconds)
         .succeeded();
@@ -96,6 +168,7 @@ LocalPluginResult install_plugin_locally(const LocalPluginRecipe& recipe,
     } else if (!recipe.repo_url.empty()) {
         spdlog::info("[PluginInstaller] Using the existing {} checkout at {}", recipe.name,
                      plan.repo_dir);
+        attach_checkout_to_branch(recipe, plan.repo_dir, run);
     }
 
     stage(LocalPluginStage::Install);

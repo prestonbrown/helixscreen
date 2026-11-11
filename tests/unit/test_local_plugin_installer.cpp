@@ -9,6 +9,7 @@
  * Run with: ./build/bin/helix-tests "[timelapse][local_install]"
  */
 
+#include "../test_helpers/scoped_env.h"
 #include "../test_helpers/unique_temp_dir.h"
 #include "helix_plugin_installer.h"
 #include "timelapse_host_mock.h"
@@ -117,6 +118,16 @@ std::string link_cmd(const LocalPluginPlan& plan) {
     return "sh " + kInstallScript + " --link-timelapse " + plan.repo_dir;
 }
 
+std::string git_in(const LocalPluginPlan& plan, const std::string& args) {
+    return "git -C " + plan.repo_dir + " " + args;
+}
+
+/// A checkout already in home, so the install reuses it.
+void make_existing_checkout(const TempHome& home) {
+    std::filesystem::create_directories(home.repo() + "/component");
+    std::ofstream(home.repo() + "/component/timelapse.py") << "# plugin\n";
+}
+
 } // namespace
 
 // ============================================================================
@@ -158,6 +169,48 @@ TEST_CASE("timelapse setup takes the local route only for a local Moonraker it c
 // Command sequence
 // ============================================================================
 
+TEST_CASE("the timelapse macros are included only when Klipper lacks them",
+          "[timelapse][local_install]") {
+    TimelapseMacroFacts f;
+    f.objects_reported = true;
+    f.helix_macros_loaded = true;
+    f.macro_file_known = true;
+    CHECK(decide_timelapse_macro_setup(f) == TimelapseMacroSetup::IncludeFromHelixMacros);
+
+    SECTION("Klipper's objects not in yet: nothing is said") {
+        f.objects_reported = false;
+        CHECK(decide_timelapse_macro_setup(f) == TimelapseMacroSetup::NotYetKnown);
+        f.helix_macros_loaded = false;
+        CHECK(decide_timelapse_macro_setup(f) == TimelapseMacroSetup::NotYetKnown);
+    }
+    SECTION("the frame macro is loaded") {
+        f.has_frame_macro = true;
+        CHECK(decide_timelapse_macro_setup(f) == TimelapseMacroSetup::Loaded);
+        f.helix_macros_loaded = false;
+        CHECK(decide_timelapse_macro_setup(f) == TimelapseMacroSetup::Loaded);
+    }
+    SECTION("no helper macros") {
+        f.helix_macros_loaded = false;
+        CHECK(decide_timelapse_macro_setup(f) == TimelapseMacroSetup::ShowIncludeLine);
+    }
+    SECTION("the checkout's path on the Klipper host is unknown") {
+        f.macro_file_known = false;
+        CHECK(decide_timelapse_macro_setup(f) == TimelapseMacroSetup::ShowIncludeLine);
+    }
+    CHECK(std::string(kTimelapseIncludeLine) == "[include timelapse.cfg]");
+}
+
+TEST_CASE("the macro file is known only on Moonraker's host with the checkout there",
+          "[timelapse][local_install]") {
+    TempHome home;
+    helix::ScopedEnv home_env("HOME", home.path.c_str());
+    CHECK(timelapse_macro_repo_on_host(true).empty());
+    std::filesystem::create_directories(home.repo() + "/klipper_macro");
+    std::ofstream(home.repo() + "/klipper_macro/timelapse.cfg") << "\n";
+    CHECK(timelapse_macro_repo_on_host(true) == home.repo());
+    CHECK(timelapse_macro_repo_on_host(false).empty());
+}
+
 TEST_CASE("a fresh local install clones, links, and finds ffmpeg", "[timelapse][local_install]") {
     TempHome home;
     FakeRunner fake;
@@ -196,8 +249,78 @@ TEST_CASE("a local install reuses a checkout already there", "[timelapse][local_
     const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
 
     CHECK(result.outcome == LocalPluginOutcome::Installed);
-    CHECK(fake.calls == std::vector<std::string>{link_cmd(plan), kFindFfmpeg});
+    // On a branch already: nothing in the checkout is touched.
+    CHECK(fake.calls == std::vector<std::string>{git_in(plan, "symbolic-ref -q HEAD"),
+                                                 link_cmd(plan), kFindFfmpeg});
     CHECK(std::filesystem::exists(home.repo() + "/local-edit"));
+}
+
+TEST_CASE("a reused checkout on a detached HEAD is put back on main for the update manager",
+          "[timelapse][local_install]") {
+    TempHome home;
+    make_existing_checkout(home);
+    FakeRunner fake;
+    const auto plan = home.plan();
+    REQUIRE(plan.repo_present);
+    fake.answers[git_in(plan, "symbolic-ref -q HEAD")] = exited(1);
+
+    SECTION("a clean tree with a local main switches to it") {
+        const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
+        CHECK(result.outcome == LocalPluginOutcome::Installed);
+        CHECK(fake.calls == std::vector<std::string>{
+                                git_in(plan, "symbolic-ref -q HEAD"),
+                                git_in(plan, "status --porcelain"),
+                                git_in(plan, "rev-parse -q --verify refs/heads/main"),
+                                git_in(plan, "merge-base --is-ancestor HEAD refs/heads/main"),
+                                git_in(plan, "checkout -q main"), link_cmd(plan), kFindFfmpeg});
+    }
+    SECTION("local changes keep it detached") {
+        fake.answers[git_in(plan, "status --porcelain")] = exited(0, " M component/timelapse.py\n");
+        const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
+        CHECK(result.outcome == LocalPluginOutcome::Installed);
+        CHECK(fake.calls == std::vector<std::string>{git_in(plan, "symbolic-ref -q HEAD"),
+                                                     git_in(plan, "status --porcelain"),
+                                                     link_cmd(plan), kFindFfmpeg});
+    }
+    SECTION("no local main keeps it detached") {
+        fake.answers[git_in(plan, "rev-parse -q --verify refs/heads/main")] = exited(1);
+        const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
+        CHECK(result.outcome == LocalPluginOutcome::Installed);
+        CHECK(fake.calls ==
+              std::vector<std::string>{git_in(plan, "symbolic-ref -q HEAD"),
+                                       git_in(plan, "status --porcelain"),
+                                       git_in(plan, "rev-parse -q --verify refs/heads/main"),
+                                       link_cmd(plan), kFindFfmpeg});
+    }
+    SECTION("a main that does not contain HEAD keeps it detached: no downgrade") {
+        fake.answers[git_in(plan, "merge-base --is-ancestor HEAD refs/heads/main")] = exited(1);
+        const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
+        CHECK(result.outcome == LocalPluginOutcome::Installed);
+        CHECK(std::find(fake.calls.begin(), fake.calls.end(), git_in(plan, "checkout -q main")) ==
+              fake.calls.end());
+        CHECK(fake.calls.back() == kFindFfmpeg);
+    }
+    SECTION("a failed switch still installs the plugin") {
+        fake.answers[git_in(plan, "checkout -q main")] = exited(1, "error: cannot switch\n");
+        const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
+        CHECK(result.outcome == LocalPluginOutcome::Installed);
+        CHECK(fake.calls.back() == kFindFfmpeg);
+    }
+}
+
+TEST_CASE("a reused directory that is not a git repository is left alone",
+          "[timelapse][local_install]") {
+    TempHome home;
+    make_existing_checkout(home);
+    FakeRunner fake;
+    const auto plan = home.plan();
+    fake.answers[git_in(plan, "symbolic-ref -q HEAD")] =
+        exited(128, "fatal: not a git repository\n");
+    const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
+
+    CHECK(result.outcome == LocalPluginOutcome::Installed);
+    CHECK(fake.calls == std::vector<std::string>{git_in(plan, "symbolic-ref -q HEAD"),
+                                                 link_cmd(plan), kFindFfmpeg});
 }
 
 TEST_CASE("a failed clone stops the install and names git's last line",
@@ -340,6 +463,12 @@ TEST_CASE("HELIX_MOCK_TIMELAPSE values", "[timelapse][local_install]") {
     CHECK(mock::parse_timelapse_host("no-ffmpeg") == TimelapseHost::NoFfmpeg);
     CHECK(mock::parse_timelapse_host("no-sudo") == TimelapseHost::Present);
     CHECK(mock::parse_timelapse_host("bogus") == TimelapseHost::Present);
+    CHECK(mock::parse_timelapse_host("helix-macros, no-ffmpeg") == TimelapseHost::NoFfmpeg);
+    CHECK(mock::parse_timelapse_host("helix-macros") == TimelapseHost::Present);
+    CHECK(mock::parse_timelapse_helix_macros("absent,helix-macros"));
+    CHECK(mock::parse_timelapse_helix_macros("helix-macros"));
+    CHECK_FALSE(mock::parse_timelapse_helix_macros("absent"));
+    CHECK_FALSE(mock::parse_timelapse_helix_macros(nullptr));
 }
 
 // ============================================================================

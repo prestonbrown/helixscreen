@@ -457,6 +457,14 @@ void MoonrakerClientMock::populate_capabilities() {
     if (helix::mock::timelapse_plugin_present()) {
         mock_objects.push_back("timelapse");
     }
+    // HELIX_MOCK_TIMELAPSE=helix-macros: helper macros loaded, no TIMELAPSE_TAKE_FRAME.
+    if (helix::mock::timelapse_helix_macros_loaded()) {
+        for (const char* m : {"HELIX_READY", "HELIX_ENDED", "HELIX_RESET", "HELIX_START_PRINT",
+                              "HELIX_CLEAN_NOZZLE", "HELIX_BED_MESH_IF_NEEDED",
+                              "HELIX_UNLOAD_FILAMENT", "_HELIX_STATE"}) {
+            mock_objects.push_back(std::string("gcode_macro ") + m);
+        }
+    }
 
     // MMU/AMS system - Happy Hare uses "mmu" object name.
     // Suppressed in the MedusaHC modes, the standalone IFS module mode, the OpenAMS

@@ -16,6 +16,33 @@
 
 using namespace helix;
 
+bool helix::parse_timelapse_settings(const std::string& body, TimelapseSettings& out) {
+    const json j = json::parse(body, nullptr, false);
+    if (!j.is_object()) {
+        return false;
+    }
+    const json* result = json_util::find_member(j, "result");
+    const json& d = (result && result->is_object()) ? *result : j;
+
+    // json_util::safe_* rather than .value(): the plugin writes null for options
+    // it has not been configured with, and floats such as 1.0 for integer ones.
+    TimelapseSettings s;
+    s.enabled = json_util::safe_bool(d, "enabled", s.enabled);
+    s.mode = json_util::safe_string(d, "mode", s.mode);
+    s.output_framerate = json_util::safe_int(d, "output_framerate", s.output_framerate);
+    s.autorender = json_util::safe_bool(d, "autorender", s.autorender);
+    s.park_retract_distance =
+        json_util::safe_int(d, "park_retract_distance", s.park_retract_distance);
+    s.park_extrude_speed = json_util::safe_double(d, "park_extrude_speed", s.park_extrude_speed);
+    s.hyperlapse_cycle = json_util::safe_int(d, "hyperlapse_cycle", s.hyperlapse_cycle);
+    out = s;
+    return true;
+}
+
+// ============================================================================
+// Constructor
+// ============================================================================
+
 MoonrakerTimelapseAPI::MoonrakerTimelapseAPI(IMoonrakerClient& client,
                                              const std::string& http_base_url)
     : client_(client), http_base_url_(http_base_url) {}
@@ -65,34 +92,12 @@ void MoonrakerTimelapseAPI::get_timelapse_settings(TimelapseSettingsCallback on_
             return;
         }
 
-        // Parse JSON response
-        // Note: Moonraker-Timelapse returns settings directly as a flat object,
-        // not wrapped in "result.settings" like standard Moonraker responses.
-        // Only the parse belongs in the try: with on_success() inside it, a throw
-        // from the caller's own settings-UI handler would be reported back
-        // through on_error as a Moonraker parse failure, after on_success had
-        // already run.
         TimelapseSettings settings;
-        try {
-            json j = json::parse(resp->body);
-
-            // Moonraker-Timelapse returns the config dict directly.
-            // json_util::safe_* rather than .value(): nlohmann's .value() throws
-            // type_error.302 on a JSON null, and the plugin writes null for
-            // options it has not been configured with.
-            settings.enabled = helix::json_util::safe_bool(j, "enabled", false);
-            settings.mode = helix::json_util::safe_string(j, "mode", "layermacro");
-            settings.output_framerate = helix::json_util::safe_int(j, "output_framerate", 30);
-            settings.autorender = helix::json_util::safe_bool(j, "autorender", true);
-            settings.park_retract_distance =
-                helix::json_util::safe_int(j, "park_retract_distance", 1);
-            settings.park_extrude_speed =
-                helix::json_util::safe_double(j, "park_extrude_speed", 15.0);
-            settings.hyperlapse_cycle = helix::json_util::safe_int(j, "hyperlapse_cycle", 30);
-        } catch (const std::exception& e) {
-            spdlog::error("[Timelapse API] Failed to parse timelapse settings: {}", e.what());
+        if (!helix::parse_timelapse_settings(resp->body, settings)) {
+            spdlog::error("[Timelapse API] Timelapse settings response is not a JSON object");
             if (on_error) {
-                MoonrakerError err = MoonrakerError::unknown(e.what(), "get_timelapse_settings");
+                MoonrakerError err = MoonrakerError::unknown(
+                    "Timelapse settings response is not a JSON object", "get_timelapse_settings");
                 on_error(err);
             }
             return;

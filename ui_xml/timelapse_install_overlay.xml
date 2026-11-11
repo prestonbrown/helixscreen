@@ -63,6 +63,9 @@
         </lv_obj>
       </lv_obj>
 
+      <!-- moonraker-timelapse's Klipper macros: the include line or the restart that loads them -->
+      <timelapse_macro_card name="timelapse_macro_card"/>
+
     </lv_obj>
 
     <!-- The wizard's next action, outside the scroll area so it is always on screen -->

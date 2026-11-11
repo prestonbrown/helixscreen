@@ -8,6 +8,7 @@
 #include "ui_emergency_stop.h"
 #include "ui_nav.h"
 #include "ui_step_progress.h"
+#include "ui_timelapse_macro_card.h"
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
@@ -71,6 +72,7 @@ TimelapseInstallOverlay::~TimelapseInstallOverlay() {
 }
 
 void TimelapseInstallOverlay::init_subjects() {
+    helix::ui::timelapse_macro_card().init_subjects();
     init_subjects_guarded([this]() {
         UI_MANAGED_SUBJECT_STRING(status_subject_, status_buf_, "", "timelapse_install_status",
                                   subjects_);
@@ -89,6 +91,7 @@ void TimelapseInstallOverlay::init_subjects() {
 void TimelapseInstallOverlay::register_callbacks() {
     register_xml_callbacks({{"on_timelapse_install_action",
                              [](lv_event_t*) { get_global_timelapse_install().press_action(); }}});
+    helix::ui::timelapse_macro_card().register_callbacks();
 }
 
 void TimelapseInstallOverlay::press_action() {
@@ -160,6 +163,7 @@ void TimelapseInstallOverlay::start_wizard() {
     ffmpeg_missing_ = false;
 
     show_card(Card::None);
+    helix::ui::timelapse_macro_card().clear();
     hide_action_button();
 
     step_check_webcam();
@@ -205,7 +209,8 @@ void TimelapseInstallOverlay::show_card(Card card) {
 
 void TimelapseInstallOverlay::reveal_card() {
     if (!overlay_root_ || !subjects_initialized_ ||
-        lv_subject_get_int(&card_subject_) == static_cast<int>(Card::None)) {
+        (lv_subject_get_int(&card_subject_) == static_cast<int>(Card::None) &&
+         helix::ui::timelapse_macro_card().card() == helix::ui::TimelapseMacroCard::Card::None)) {
         return;
     }
     // The step list fills the first screen, so the card with commands to run, the
@@ -815,29 +820,36 @@ void TimelapseInstallOverlay::step_verify() {
         return;
 
     api_->timelapse().get_timelapse_settings(
-        lifetime_.bg_cb("TimelapseInstallOverlay::verified",
-                        [this, gen](const TimelapseSettings& /*settings*/) {
-                            if (!is_current(gen, Step::VERIFY))
-                                return;
-                            spdlog::info("[{}] Timelapse plugin verified!", get_name());
-                            if (ffmpeg_missing_) {
-                                set_status(lv_tr("The timelapse plugin is installed. Making "
-                                                 "videos also needs ffmpeg, which is not "
-                                                 "installed on this printer."));
-                                show_card(Card::Ffmpeg);
-                            } else {
-                                set_status(lv_tr("Timelapse plugin installed successfully!"));
-                            }
-                            if (step_progress_) {
-                                ui_step_progress_set_completed(step_progress_,
-                                                               static_cast<int>(Step::VERIFY));
-                            }
-                            // Update capability state so UI reflects timelapse availability
-                            get_printer_state().set_timelapse_available(true);
-                            show_action_button(lv_tr("Done"), []() { helix::nav::go_back(); });
-                            ToastManager::instance().show(
-                                ToastSeverity::SUCCESS, lv_tr("Timelapse plugin installed!"), 3000);
-                        }),
+        lifetime_.bg_cb(
+            "TimelapseInstallOverlay::verified",
+            [this, gen](const TimelapseSettings& /*settings*/) {
+                if (!is_current(gen, Step::VERIFY))
+                    return;
+                spdlog::info("[{}] Timelapse plugin verified!", get_name());
+                if (ffmpeg_missing_) {
+                    set_status(lv_tr("The timelapse plugin is installed. Making "
+                                     "videos also needs ffmpeg, which is not "
+                                     "installed on this printer."));
+                    show_card(Card::Ffmpeg);
+                } else {
+                    set_status(lv_tr("Timelapse plugin installed successfully!"));
+                }
+                if (step_progress_) {
+                    ui_step_progress_set_completed(step_progress_, static_cast<int>(Step::VERIFY));
+                }
+                // Update capability state so UI reflects timelapse availability
+                get_printer_state().set_timelapse_available(true);
+                show_action_button(lv_tr("Done"), []() { helix::nav::go_back(); });
+                ToastManager::instance().show(ToastSeverity::SUCCESS,
+                                              lv_tr("Timelapse plugin installed!"), 3000);
+                helix::ui::timelapse_macro_card().refresh(
+                    api_, get_printer_state().get_discovery(),
+                    get_printer_state().moonraker_locality() == helix::MoonrakerLocality::Local,
+                    [this, gen]() {
+                        if (is_current(gen, Step::VERIFY))
+                            reveal_card();
+                    });
+            }),
         lifetime_.bg_cb("TimelapseInstallOverlay::verify_err", [this, gen](const MoonrakerError&) {
             if (!is_current(gen, Step::VERIFY))
                 return;

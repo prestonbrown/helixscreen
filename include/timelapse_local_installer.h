@@ -58,6 +58,46 @@ struct TimelapseSetupFacts {
  */
 TimelapseSetupPath decide_timelapse_setup_path(const TimelapseSetupFacts& facts);
 
+/// moonraker-timelapse's macro file inside its checkout.
+inline constexpr const char* kTimelapseMacroFile = "klipper_macro/timelapse.cfg";
+
+/// The macro Klipper defines once it loads moonraker-timelapse's timelapse.cfg.
+inline constexpr const char* kTimelapseFrameMacro = "TIMELAPSE_TAKE_FRAME";
+
+/// The line a user adds to printer.cfg when HelixScreen cannot include the macros itself.
+inline constexpr const char* kTimelapseIncludeLine = "[include timelapse.cfg]";
+
+/// How moonraker-timelapse's macros get loaded into Klipper.
+enum class TimelapseMacroSetup {
+    NotYetKnown,            ///< Klipper's objects have not arrived: say nothing yet
+    Loaded,                 ///< Klipper has TIMELAPSE_TAKE_FRAME: nothing to do
+    IncludeFromHelixMacros, ///< helix_macros.cfg includes the checkout's macro file
+    ShowIncludeLine,        ///< HelixScreen cannot include it: the user adds the line
+};
+
+struct TimelapseMacroFacts {
+    bool objects_reported = false;    ///< Klipper's objects list arrived on this connection
+    bool has_frame_macro = false;     ///< it has gcode_macro TIMELAPSE_TAKE_FRAME
+    bool helix_macros_loaded = false; ///< it has HelixScreen's helper macros
+    /// The checkout's macro file is known by absolute path on the Klipper host:
+    /// Moonraker runs on this host and the file is there.
+    bool macro_file_known = false;
+};
+
+/**
+ * @brief Pick how the macros get loaded
+ *
+ * Decided from what Klipper has loaded, never from printer.cfg's text, so a
+ * printer that already includes timelapse.cfg (directly or through another
+ * file) never gets a second include.
+ */
+TimelapseMacroSetup decide_timelapse_macro_setup(const TimelapseMacroFacts& facts);
+
+/// The moonraker-timelapse checkout whose macro file helix_macros.cfg may
+/// include: its absolute path when Moonraker runs on this host (@p moonraker_local)
+/// and klipper_macro/timelapse.cfg is in it, empty otherwise.
+std::string timelapse_macro_repo_on_host(bool moonraker_local);
+
 /// moonraker-timelapse's recipe for the local plugin installer: clone it to
 /// ~/moonraker-timelapse, `install.sh --link-timelapse` links its component and
 /// macro file, and it needs ffmpeg to render videos.
