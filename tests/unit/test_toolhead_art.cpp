@@ -5,10 +5,16 @@
 #include "../lvgl_test_fixture.h"
 #include "baked_art.h"
 #include "toolhead_art.h"
+#include "toolhead_style.h"
 
+#include <fstream>
+#include <iterator>
+#include <set>
+#include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using namespace helix::ui;
@@ -84,11 +90,6 @@ TEST_CASE("toolhead art: resampling keeps colour and ignores transparent neighbo
 TEST_CASE("toolhead art: a style without art keeps its renderer", "[toolhead-art]") {
     CHECK(toolhead_art_for(ToolheadStyle::DEFAULT) == nullptr);
     CHECK(toolhead_art_for(ToolheadStyle::AUTO) == nullptr);
-    for (ToolheadStyle s : {ToolheadStyle::STEALTHBURNER, ToolheadStyle::BAMBU,
-                            ToolheadStyle::ENDER3, ToolheadStyle::DRAGONBURNER}) {
-        REQUIRE(toolhead_art_for(s) != nullptr);
-        CHECK(toolhead_art_for(s)->style == s);
-    }
 }
 
 TEST_CASE("toolhead art: the frame puts the nozzle tip on the filament column", "[toolhead-art]") {
@@ -150,4 +151,73 @@ TEST_CASE_METHOD(LVGLTestFixture, "toolhead art: drawn pixels fill the bounds, t
     CHECK(g.top >= y1 - 2);
     CHECK(g.bottom <= y2 + 2);
     CHECK(green > 4);
+}
+
+namespace {
+
+// clang-format off
+// Printers whose real toolhead has no art yet: the remaining scope of #1873. Shrink-only: an
+// entry that gains a toolhead_style fails the walk until it is removed here.
+const std::set<std::string> kNoArtYet = {
+    "creality_cr10", "elegoo_neptune_4", "elegoo_neptune_4_pro", "elegoo_neptune_4_plus",
+    "elegoo_neptune_4_max", "kingroon_klp1", "prusa_mk4", "prusawire", "qidi_x_max_3",
+    "qidi_x_plus_3", "qidi_x_smart_3", "qidi_plus_5", "flsun_v400", "flsun_sr", "flsun_delta",
+    "flsun_s1", "flsun_t1_pro", "doron_velta", "venture_delta", "ratrig_vcore3", "ratrig_vminion",
+    "ratrig_vcore4", "ratrig_vcore_idex", "ratrig_vcore_pro", "rh3d_e3ng", "sovol_zero",
+    "sovol_sv06", "sovol_sv06_ace", "sovol_sv06_plus", "sovol_sv06_plus_ace", "sovol_sv07",
+    "anycubic_chiron", "anycubic_kobra_2", "anycubic_kobra_2_max", "anycubic_kobra_2_pro",
+    "anycubic_kobra_3", "anycubic_kobra_3_v2", "anycubic_kobra_3_max", "anycubic_kobra_x",
+    "anycubic_i3_mega", "anycubic_kobra", "anycubic_vyper", "anycubic_kobra_s1",
+    "anycubic_kobra_s1_max", "anet_et5_pro", "artillery_sidewinder_x2", "artillery_genius_pro",
+    "geralkom_x400_ht", "geralkom_x500_ht", "infimech_tx", "lemontron", "zerog_mercury_one",
+    "zerog_mercury_one_plus", "zerog_mercury_one_hydra", "zerog_mercury_one_plus_hydra",
+    "zerog_nebula_255", "zerog_nebula_370", "vzbot", "duender_medusahc", "ducr10_medusahc",
+    "ducr10", "duender"};
+
+// Aftermarket heads no stock printer ships with: drawn for the manual pick only.
+const std::set<std::string> kAftermarketHeads = {
+    "dragonburner", "a4t", "jabberwocky", "bambu", "xol"};
+// clang-format on
+
+} // namespace
+
+TEST_CASE("toolhead art: every database style names drawn art, every stock head is named",
+          "[toolhead-art]") {
+    std::ifstream in("assets/config/printer_database.json");
+    REQUIRE(in.good());
+    const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    const nlohmann::json db = nlohmann::json::parse(text, nullptr, false);
+    REQUIRE(db.is_object());
+    REQUIRE(db.contains("printers"));
+
+    std::set<std::string> ids, named;
+    for (const auto& printer : db["printers"]) {
+        const std::string id = printer["id"].get<std::string>();
+        const auto it = printer.find("toolhead_style");
+        const std::string name =
+            it != printer.end() && it->is_string() ? it->get<std::string>() : std::string();
+        const bool feature = printer.contains("show_in_list") && printer["show_in_list"] == false;
+        INFO(id << " toolhead_style=\"" << name << "\"");
+        ids.insert(id);
+        if (feature || kNoArtYet.count(id)) {
+            CHECK(name.empty());
+            continue;
+        }
+        const ToolheadStyle style = toolhead_style_from_name(name);
+        REQUIRE(style != ToolheadStyle::AUTO);
+        CHECK((style == ToolheadStyle::DEFAULT || toolhead_art_for(style) != nullptr));
+        named.insert(name);
+    }
+    for (const std::string& id : kNoArtYet) {
+        INFO("kNoArtYet names " << id << ", which the database does not have");
+        CHECK(ids.count(id) == 1);
+    }
+
+    for (int i = 0; i < kToolheadArtCount; ++i) {
+        const ToolheadArt& art = kToolheadArt[i];
+        INFO("art " << art.id);
+        CHECK(toolhead_art_for(art.style) == &art);
+        CHECK(toolhead_style_from_name(art.id) == art.style);
+        CHECK(named.count(art.id) + kAftermarketHeads.count(art.id) == 1);
+    }
 }
