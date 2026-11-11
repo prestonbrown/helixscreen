@@ -355,10 +355,10 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
      * @p backup_slot is -1).
      *
      * Refuses when endless spool is switched OFF instead of silently switching
-     * it on. `cmd_MMU_ENDLESS_SPOOL` ignores `GROUPS` while disabled, so the old
-     * unconditional `ENABLE=1` was the only thing making the write land - and it
-     * turned the feature on as a side effect of editing one backup, persisting
-     * that through `mmu_state_enable_endless_spool`. Enabling is a separate
+     * it on. `cmd_MMU_ENDLESS_SPOOL` ignores `GROUPS` while disabled, so only an
+     * unconditional `ENABLE=1` would make the write land - and it would turn the
+     * feature on as a side effect of editing one backup, persisting that through
+     * `mmu_state_enable_endless_spool`. Enabling is a separate
      * decision the user has to make.
      *
      * @note Takes `mutex_` to build the CSV, releases it before the G-code send.

@@ -45,9 +45,8 @@ namespace helix {
 /**
  * @brief Manages print-related subjects for printer state
  *
- * Tracks print progress, state, timing, layers, and print start phases.
- * Provides 18 subjects for reactive UI updates during printing.
- * Extracted from PrinterState as part of god class decomposition.
+ * Tracks print progress, state, timing, layers, and print start phases,
+ * and publishes them as subjects for reactive UI updates during printing.
  *
  * @note This class manages only the subjects and their values. The enums
  *       (PrintJobState, PrintOutcome, PrintStartPhase) remain in printer_state.h
@@ -62,7 +61,6 @@ class PrinterPrintState {
     /// when StaticPanelRegistry::destroy_all() runs before lv_deinit().
     ~PrinterPrintState();
 
-    // Non-copyable
     PrinterPrintState(const PrinterPrintState&) = delete;
     PrinterPrintState& operator=(const PrinterPrintState&) = delete;
 
@@ -100,7 +98,7 @@ class PrinterPrintState {
     void reset_for_new_print();
 
     // ========================================================================
-    // Subject accessors (18 subjects)
+    // Subject accessors
     // ========================================================================
 
     /// Print progress as 0-100 percent, straight from Moonraker.
@@ -338,9 +336,8 @@ class PrinterPrintState {
      * with no thumbnail of its own. `""` reaches lv_image_set_src with a first
      * byte of 0x00, which lv_image_src_get_type() classifies as
      * LV_IMAGE_SRC_VARIABLE (lv_draw_image.c:211), so LVGL then dereferences the
-     * one-byte literal as an lv_image_dsc_t. Every consumer used to carry its
-     * own guard against that; publishing an explicit placeholder removes the
-     * input instead of the guards' need to disagree about it.
+     * one-byte literal as an lv_image_dsc_t. Publishing an explicit placeholder
+     * removes that input, so no consumer needs its own guard against it.
      *
      * Re-exported as ActivePrintMediaManager::no_thumbnail_placeholder(), which
      * is the name the sole writer of this subject publishes it under.
@@ -425,7 +422,6 @@ class PrinterPrintState {
     /// Klipper toolchanger setups max out well below this.
     static constexpr int kMaxExtruderScan = 16;
 
-    /// Current PrintStartPhase enum value
     /**
      * @brief Begin preparing a job, on the main thread
      *
@@ -559,7 +555,7 @@ class PrinterPrintState {
      *
      * Published from the same place that computes the transition, so a consumer
      * can ask "what just happened?" without keeping a private previous-state
-     * variable. Eight of those existed, and they disagreed at the edges.
+     * variable; private copies disagree at the edges.
      *
      * Only rewritten when the state actually changes - otherwise it collapses
      * to equal the current state and every consumer sees a self-transition.
@@ -576,12 +572,10 @@ class PrinterPrintState {
     /**
      * @brief The canonical name of the print currently being shown
      *
-     * ONE answer to "which print is this", for every consumer. Both the media
-     * manager and the print-status panel used to derive this themselves, from
-     * their own override members, and compare their answers against each
-     * other's - so any divergence dropped the thumbnail silently, with no retry
-     * (prestonbrown/helixscreen#1339). Four near-identical copies of the rule
-     * accumulated in six days before it was moved here.
+     * ONE answer to "which print is this", for every consumer. The media
+     * manager and the print-status panel compare their answers, so a consumer
+     * deriving its own from its own override members drops the thumbnail
+     * silently on any divergence, with no retry (prestonbrown/helixscreen#1339).
      *
      * Differs from the raw `print_filename` subject when the printer is running
      * a copy this app rewrote before printing: print_stats reports the rewrite,
@@ -623,10 +617,8 @@ class PrinterPrintState {
      *
      * The identity can change WITHOUT the raw filename changing - an override
      * installed at commit, or released when a job is abandoned - so consumers
-     * cannot rely on the print_filename subject to tell them to reconcile. They
-     * used to be told by the setter reaching into them directly; this is the
-     * same signal, without the coupling. An int, so it needs no buffer and no
-     * XML binding.
+     * cannot rely on the print_filename subject to tell them to reconcile. An
+     * int, so it needs no buffer and no XML binding.
      */
     lv_subject_t* get_print_identity_epoch_subject() {
         return &print_identity_epoch_;
@@ -695,6 +687,7 @@ class PrinterPrintState {
         return spool_latch_tokens_;
     }
 
+    /// Current PrintStartPhase enum value
     lv_subject_t* get_print_start_phase_subject() {
         return &print_start_phase_;
     }
@@ -908,7 +901,6 @@ class PrinterPrintState {
 
     /**
      * @brief Set print outcome for UI badge display
-     * @param outcome The print outcome value to set
      */
     void set_print_outcome(PrintOutcome outcome);
 
@@ -945,7 +937,6 @@ class PrinterPrintState {
 
     /**
      * @brief Set total layer count from file metadata
-     * @param total Total number of layers
      */
     void set_print_layer_total(int total);
 
@@ -1145,11 +1136,9 @@ class PrinterPrintState {
      *     PrintJobState  STANDBY=0 PRINTING=1 PAUSED=2 COMPLETE=3 ...
      *     PrintState     Idle=0    Preparing=1 Printing=2 Paused=3 ...
      *
-     * so a COMPLETE job reads back as Paused and a PRINTING one as Preparing.
-     * That mistake was made twice while migrating guards onto the lifecycle
-     * (ams_backend_ad5x_ifs, power_device_state) and was invisible both times
-     * until a test caught it. This accessor removes the cast, and with it the
-     * opportunity.
+     * so a COMPLETE job reads back as Paused and a PRINTING one as Preparing,
+     * and nothing but a test shows it. This accessor removes the cast, and with
+     * it the opportunity.
      */
     [[nodiscard]] PrintState get_print_lifecycle() const;
 
@@ -1352,7 +1341,7 @@ class PrinterPrintState {
     lv_subject_t print_has_thumbnail_{};    // Integer: 1 unless the path is the placeholder
 
 #if defined(HELIX_PLATFORM_ESP32)
-    // ESP32 thumbnail route (Task 11 R2): no disk cache on this platform, so
+    // ESP32 thumbnail route: no disk cache on this platform, so
     // the image lives in PSRAM behind a shared_ptr instead of at a path. The
     // counter subject is what UI code observes; the pointer is what it reads.
     lv_subject_t print_psram_thumb_gen_{}; // Integer: bumped on every install
@@ -1498,11 +1487,11 @@ class PrinterPrintState {
     // never cleared by reset_for_new_print(). The pre-print → printing hand-off
     // (PrintStartCollector via MoonrakerManager::should_complete_preprint) uses
     // this to choose between the real-first-layer gate and the print_duration
-    // fallback. Using the per-print flag there caused premature completion on the
-    // Snapmaker U1: reset_for_new_print() clears has_real_layer_data_ AFTER the
-    // collector starts, and the U1 doesn't continuously re-emit current_layer
-    // during pre-print, so the flag stayed false through the purge and the
-    // print_duration fallback fired mid-pre-print. total_layer is present from
+    // fallback. The per-print flag completes too early there on the Snapmaker
+    // U1: reset_for_new_print() clears has_real_layer_data_ AFTER the collector
+    // starts, and the U1 does not continuously re-emit current_layer during
+    // pre-print, so that flag stays false through the purge and the
+    // print_duration fallback fires mid-pre-print. total_layer is present from
     // print start on the U1, so this sticky flag latches immediately and stays
     // true. Atomic: written from the status-update thread, read from main thread.
     std::atomic<bool> printer_reports_layers_{false};

@@ -418,12 +418,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// True when AFC names a still-existing lane as active (AFC.current_lane /
     /// current_load). The BoxTurtle hub sensor is shared across every lane on
     /// the unit, so an unattributed trigger cannot say whose filament caused it
-    /// — and can_recover_lane_position() now offers nothing at all in that case,
+    /// — and can_recover_lane_position() offers nothing at all in that case,
     /// so this is implied by it rather than merely ranking it.
     [[nodiscard]] bool lane_recovery_is_attributed() const override;
 
-    /// Delete this slot's user override ("Clear Spool"). AFC previously
-    /// inherited the no-op default, so the button did nothing here.
+    /// Delete this slot's user override ("Clear Spool"). Without this override
+    /// AFC inherits the base's no-op and the button does nothing.
     void clear_slot_override(int slot_index) override;
 
     AmsError eject_lane(int slot_index) override;
@@ -614,8 +614,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
      * Ranges, self-backup and editability are already settled by
      * AmsBackend::set_endless_spool_backup(). This resolves the two lane names,
      * screens them for G-code injection, sends, and only then mirrors the edge
-     * into the SlotRegistry - the old order updated the registry first, so a
-     * rejected write left the registry claiming a backup the printer never got.
+     * into the SlotRegistry: mirroring first would leave a rejected write's
+     * registry claiming a backup the printer never got.
      *
      * @note Takes `mutex_` twice (name lookup, then the post-send mirror) and
      *       holds it across neither the injection check nor the G-code send.
@@ -663,7 +663,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     // boot and full-POSTs each lane record, so our data would not survive and
     // AFC's records would be ingested as if the user had authored them.
     //
-    // This is also what restores retention across an eject now that
+    // This is also what restores retention across an eject, since
     // apply_lane_status honours AFC's clears: firmware truth clears, and the
     // override re-supplies the identity the user attached.
     static constexpr const char* kOverrideNamespace = "helix-screen-afc-overrides";

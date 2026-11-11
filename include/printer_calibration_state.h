@@ -192,8 +192,8 @@ class PrinterCalibrationState {
      *
      * Called by PrinterState on any Klippy state transition. Klipper reports these
      * as DELTA-only fields, so a value cached before a restart otherwise persists
-     * until the field next changes — which made a freshly-restarted idle printer
-     * look busy and wedged discretionary G-code (#1129).
+     * until the field next changes, so a freshly-restarted idle printer would
+     * look busy and wedge discretionary G-code (#1129).
      */
     void reset_klippy_volatile() {
         volatile_.reset_all();
@@ -236,8 +236,9 @@ class PrinterCalibrationState {
     IdleTimeoutBusy idle_timeout_busy_;
 
     // Latches the once-per-blocking-episode "your change will queue" toast. Claimed
-    // by the busy guard (main thread), re-armed on the blocking op's falling edge in
-    // update_from_status (websocket thread) — hence atomic.
+    // by the busy guard, re-armed on the blocking op's falling edge in
+    // PrinterState::update_from_status; atomic for a background execute_gcode
+    // caller (see claim_busy_queue_toast()).
     std::atomic<bool> busy_queue_toast_shown_{false};
 };
 

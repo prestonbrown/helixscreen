@@ -23,13 +23,13 @@ class IMoonrakerAPI;
 
 namespace helix {
 
-// Test-only friend (defined in tests/unit/test_runout_empty_lane_scope.cpp) used
-// to set per-sensor roles directly, the way a settings.json restore does, without
+// Test-only friend (defined in tests/unit/test_runout_empty_lane_scope.cpp) that
+// sets per-sensor roles directly, the way a settings.json restore does, without
 // going through set_role().
 class RunoutScopeTestAccess;
 class BypassArmingTestAccess;
 // Test-only friend (defined in tests/test_helpers/post_unload_grace_test_access.h)
-// used to put the singleton on a known sensor baseline with the startup grace
+// that puts the singleton on a known sensor baseline with the startup grace
 // already expired.
 class PostUnloadGraceTestAccess;
 

@@ -88,8 +88,8 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
     MoonrakerClient(const MoonrakerClient&) = delete;
     MoonrakerClient& operator=(const MoonrakerClient&) = delete;
 
-    // GcodeStoreEntry is defined in moonraker_types.h
-    // Kept as a type alias for backward compatibility
+    // GcodeStoreEntry is defined in moonraker_types.h; the alias lets callers
+    // name it as MoonrakerClient::GcodeStoreEntry
     using GcodeStoreEntry = ::GcodeStoreEntry;
 
     // ========== Connection Lifecycle ==========
@@ -155,7 +155,7 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      *
      * Disabling calls setReconnect(nullptr), stopping libhv's background
      * retry loop. Re-enabling re-installs the same reconn_setting_t that
-     * connect() builds (shared via install_reconnect_settings()) so behavior
+     * connect() builds (shared via apply_reconnect_settings()) so behavior
      * matches a fresh connect() call. Transient by design: the next
      * connect() unconditionally re-installs reconnect settings regardless of
      * this flag. Used by connection-test flows (setup wizard, change-host
@@ -418,9 +418,6 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
         discovery_.reset_identified();
     }
 
-    /**
-     * @brief Get current connection state
-     */
     ConnectionState get_connection_state() const override {
         return connection_state_;
     }
@@ -719,8 +716,8 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
     // The inherited libhv std::function callbacks (onopen/onmessage/onclose) are
     // installed exactly ONCE via install_ws_callbacks() and never reassigned per
     // connect(). Reassigning them while the libhv event-loop thread is mid-invoke
-    // frees the std::function's heap storage under the running lambda → UAF (bundle
-    // UK9QCFY3). The trampolines forward to these real bodies, which read per-connect
+    // frees the std::function's heap storage under the running lambda → UAF.
+    // The trampolines forward to these real bodies, which read per-connect
     // state from last_url_/last_on_connected_/last_on_disconnected_ instead of captures.
     void on_ws_open();
     void on_ws_message(const std::string& msg);
@@ -771,8 +768,8 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      * phase — Moonraker silently drops the malformed bytes and the request
      * stalls indefinitely (#909).
      *
-     * Virtual so MoonrakerClientMock can return true unconditionally without
-     * having to drive connection_state_ through tests.
+     * Virtual as a subclass seam. MoonrakerClientMock does not override it: it
+     * overrides the send_jsonrpc() overloads that consult it.
      *
      * @param method RPC method name (used for diagnostic logging only)
      * @return true if it is safe to issue a send right now

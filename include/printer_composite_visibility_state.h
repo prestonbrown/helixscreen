@@ -23,19 +23,15 @@ enum class TimelapseOwner { None = 0, Plugin = 1, Firmware = 2 };
  * @brief Manages the aggregate `has_any_preprint_options` visibility subject
  *
  * `has_any_preprint_options` is set to 1 when at least one PRINT OPTIONS row
- * would be visible — i.e. plugin-gated hardware ops (bed_mesh / QGL / z-tilt /
- * nozzle_clean / purge_line, each AND-gated by `helix_plugin_installed`),
- * timelapse (no plugin gate), or any option declared by the new
- * `PrePrintOption` framework. Used by `print_file_detail.xml` to hide the
+ * would be visible — i.e. a row the PRINT_START analysis adds (AND-gated by
+ * `helix_plugin_installed`), timelapse (no plugin gate), or any option declared
+ * by the `PrePrintOption` framework. Used by `print_file_detail.xml` to hide the
  * entire PRINT OPTIONS card when no row would be visible.
  *
- * The legacy individual `can_show_*` subjects (one per hardware op) were
- * retired alongside the imperative-visibility cleanup: nothing in XML or
- * production C++ ever read them, and `PrePrintOptionsRenderer`'s
- * `VisibilitySubjectLookup` callback (which was the speculative future
- * consumer) is still wired with a `nullptr`-returning lambda. If a future
- * plugin-gated option needs gating, it should declare its own subject rather
- * than resurrecting these.
+ * There are no per-op `can_show_*` subjects: nothing in XML or production C++
+ * needs one, and `PrePrintOptionsRenderer`'s `VisibilitySubjectLookup` callback
+ * is wired with a `nullptr`-returning lambda. A plugin-gated option that needs
+ * gating declares its own subject.
  *
  * @note Update triggers:
  *   - Hardware discovery (set_hardware_internal)
@@ -47,7 +43,6 @@ class PrinterCompositeVisibilityState {
     PrinterCompositeVisibilityState() = default;
     ~PrinterCompositeVisibilityState() = default;
 
-    // Non-copyable
     PrinterCompositeVisibilityState(const PrinterCompositeVisibilityState&) = delete;
     PrinterCompositeVisibilityState& operator=(const PrinterCompositeVisibilityState&) = delete;
 
@@ -72,8 +67,8 @@ class PrinterCompositeVisibilityState {
      * Leveling hardware alone never counts: its row exists only when the
      * database declares it or PRINT_START offers a skip parameter for it.
      *
-     * Only writes the subject when the computed value differs from the current
-     * one (avoids spurious observer notifications).
+     * Writes the subject on every call; the debug log line fires only when an
+     * input flips.
      *
      * @param plugin_installed True if HelixPrint plugin is installed
      * @param capabilities Reference to capabilities state for has_* queries

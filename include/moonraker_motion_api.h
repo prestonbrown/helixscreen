@@ -5,7 +5,7 @@
  * @file moonraker_motion_api.h
  * @brief Motion control operations via Moonraker
  *
- * Extracted from MoonrakerAPI to encapsulate all motion control functionality
+ * A MoonrakerAPI sub-API that encapsulates all motion control functionality
  * (homing, relative moves, absolute positioning) in a dedicated class.
  * Uses MoonrakerClient for JSON-RPC transport.
  */

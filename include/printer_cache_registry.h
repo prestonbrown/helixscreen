@@ -68,7 +68,7 @@ namespace helix {
  * registry lives on — e.g. a test fixture's instance) must call `unregister()` from its
  * teardown so the registry never holds a callback over freed memory.
  *
- * Main-thread only. `PrinterSession::switch_printer()` and the add-printer wizard paths call
+ * Main-thread only. PrinterSwitchFlow's switch and add-printer wizard paths call
  * `invalidate_all()` after `Config::set_active_printer()` and before
  * `tear_down_printer_state()`, i.e. while `df()` already points at the NEW printer.
  */

@@ -107,7 +107,7 @@ class AmsBackendMultiAce : public AmsBackendSnapmaker, public helix::IDryer {
 
     /// A bay edit lands on the bay's own SlotInfo and the shared override
     /// store, keyed by the global slot index; nothing is written to the engine,
-    /// whose own spool table never sees the edit (phase 4). A head keeps the
+    /// whose own spool table never sees the edit. A head keeps the
     /// base's path, which also writes the head's firmware record.
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     /// A head's clear is Snapmaker's; a bay has no head firmware record to

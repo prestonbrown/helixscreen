@@ -5,7 +5,7 @@
  * @file moonraker_history_api.h
  * @brief Print history operations via Moonraker
  *
- * Extracted from MoonrakerAPI to encapsulate all print history functionality
+ * A MoonrakerAPI sub-API that encapsulates all print history functionality
  * in a dedicated class. Uses MoonrakerClient for JSON-RPC transport.
  */
 

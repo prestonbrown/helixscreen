@@ -1041,7 +1041,7 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// klipper-toolchanger reports no material, colour, brand or weight at all.
     /// The store is the SOLE source of filament identity here, not a layer over
     /// a firmware reading, and initialize_tools() resets colour to default grey
-    /// on every rediscovery - which is exactly what used to wipe the user's edit.
+    /// on every rediscovery - which would wipe the user's edit without the store.
 
     /// The store is the sole source of filament identity here, so a clear
     /// blanks every identity field: nothing will restate them.

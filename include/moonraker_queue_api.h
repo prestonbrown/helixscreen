@@ -5,7 +5,7 @@
  * @file moonraker_queue_api.h
  * @brief Job queue operations via Moonraker
  *
- * Extracted from MoonrakerAPI to encapsulate all job queue functionality
+ * A MoonrakerAPI sub-API that encapsulates all job queue functionality
  * in a dedicated class. Uses MoonrakerClient for JSON-RPC transport.
  */
 

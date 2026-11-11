@@ -216,7 +216,7 @@ class PrinterTemperatureState {
         lifetime = chamber_effective_target_lifetime_;
         return &chamber_effective_target_;
     }
-    /// Chamber control mode (ChamberMode int): Off/Heating/Maintaining. Computed
+    /// Chamber control mode (ChamberMode int): Off/Heating/Maintaining/Resting. Computed
     /// WITH the cooling-fan resting target so M141 S0 (which parks the fan at its
     /// resting target, e.g. 35°C) reads as Off, not Maintaining.
     lv_subject_t* get_chamber_mode_subject() {
@@ -247,9 +247,6 @@ class PrinterTemperatureState {
         lifetime = chamber_heater_inhibited_lifetime_;
         return &chamber_heater_inhibited_;
     }
-    /// Device unreachable on its own link (0/1). 1 only on an engaged
-    /// "not connected" report — a backend with no link state leaves it 0
-    /// (unknown is not offline).
     lv_subject_t* get_chamber_heater_externally_controlled_subject() {
         return &chamber_heater_externally_controlled_;
     }
@@ -257,6 +254,9 @@ class PrinterTemperatureState {
         lifetime = chamber_heater_externally_controlled_lifetime_;
         return &chamber_heater_externally_controlled_;
     }
+    /// Device unreachable on its own link (0/1). 1 only on an engaged
+    /// "not connected" report — a backend with no link state leaves it 0
+    /// (unknown is not offline).
     lv_subject_t* get_chamber_heater_offline_subject() {
         return &chamber_heater_offline_;
     }

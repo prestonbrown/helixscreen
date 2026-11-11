@@ -5,8 +5,8 @@
  * @file moonraker_advanced_api.h
  * @brief Advanced panel operations via Moonraker
  *
- * Extracted from MoonrakerAPI to encapsulate bed mesh, input shaper, PID calibration,
- * machine limits, and macro execution in a dedicated class. Uses MoonrakerClient for
+ * Encapsulates bed mesh, input shaper, PID calibration, machine limits, and macro
+ * execution in a class separate from MoonrakerAPI. Uses MoonrakerClient for
  * JSON-RPC transport and MoonrakerAPI for G-code execution.
  */
 
@@ -100,8 +100,7 @@ class MoonrakerAdvancedAPI : public helix::IAdvancedAPI {
 
     /// Result struct for MPC calibration.
     /// Lives on IAdvancedAPI (start_mpc_calibrate is declared there); aliased
-    /// here so existing qualified references (MoonrakerAdvancedAPI::MPCResult)
-    /// keep resolving.
+    /// here so qualified references (MoonrakerAdvancedAPI::MPCResult) resolve.
     using MPCResult = IAdvancedAPI::MPCResult;
 
     /// Callback for MPC calibration result
