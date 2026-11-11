@@ -142,6 +142,7 @@ void open_timelapse_install() {}
 
 // src/ui/print/ui_overlay_timelapse_settings.cpp
 TimelapseSettingsOverlay::TimelapseSettingsOverlay(helix::IMoonrakerAPI* api) : api_(api) {}
+void TimelapseSettingsOverlay::init_subjects() {}
 void TimelapseSettingsOverlay::register_callbacks() {}
 lv_obj_t* TimelapseSettingsOverlay::create(lv_obj_t*) {
     return nullptr;
