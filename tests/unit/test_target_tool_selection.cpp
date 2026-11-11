@@ -100,6 +100,16 @@ TEST_CASE_METHOD(LVGLTestFixture, "ToolArrivalWait runs the step only once the t
         process_lvgl(50);
         CHECK(arrived == 0);
     }
+    SECTION("another tool settling on the carriage drops the step") {
+        ToolArrivalWait wait;
+        wait.start(2, 1000, on_arrived, on_timeout);
+        mount(1);
+        process_lvgl(50);
+        CHECK(timed_out == 1);
+        mount(2);
+        process_lvgl(50);
+        CHECK(arrived == 0);
+    }
     SECTION("cancel") {
         ToolArrivalWait wait;
         wait.start(2, 1000, on_arrived, on_timeout);

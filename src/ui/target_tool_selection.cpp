@@ -45,17 +45,25 @@ void ToolArrivalWait::start(int tool, uint32_t timeout_ms, std::function<void()>
     tool_ = tool;
     on_arrived_ = std::move(on_arrived);
     on_timeout_ = std::move(on_timeout);
-    if (ToolState::instance().active_tool_index() == tool) {
+    start_active_ = ToolState::instance().active_tool_index();
+    if (start_active_ == tool) {
         finish(true);
         return;
     }
-    // The observer fires once on attach with the current value, which is not
-    // the tool (checked above), so only a real change can finish the wait.
     observer_ = observe<int>(
         ToolState::instance().get_active_tool_subject(), this,
         [](ToolArrivalWait* self, int active) {
-            if (self->armed() && active == self->tool_) {
+            if (!self->armed()) {
+                return;
+            }
+            if (active == self->tool_) {
                 self->finish(true);
+            } else if (active >= 0 && active != self->start_active_) {
+                // Another tool settled on the carriage: the change was
+                // overridden, and the step was meant for this one. The tool
+                // mounted at start is the attach replay, or a change not yet
+                // under way.
+                self->finish(false);
             }
         },
         ToolState::instance().get_subjects_lifetime());

@@ -51,7 +51,8 @@ class ToolArrivalWait {
     ToolArrivalWait& operator=(const ToolArrivalWait&) = delete;
 
     /// @p on_arrived runs as soon as the active tool reads @p tool (at once
-    /// when it already does); @p on_timeout runs after @p timeout_ms otherwise.
+    /// when it already does); @p on_timeout runs after @p timeout_ms, or as
+    /// soon as a different tool settles on the carriage.
     /// Never both, and neither after cancel() or destruction.
     void start(int tool, uint32_t timeout_ms, std::function<void()> on_arrived,
                std::function<void()> on_timeout);
@@ -65,6 +66,7 @@ class ToolArrivalWait {
     static void on_timer(lv_timer_t* timer);
 
     int tool_ = -1;
+    int start_active_ = -1; ///< mounted when the wait began
     std::function<void()> on_arrived_;
     std::function<void()> on_timeout_;
     ObserverGuard observer_;

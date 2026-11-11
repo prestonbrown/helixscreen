@@ -349,7 +349,7 @@ void ControlsPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // Cache dynamic container for secondary fans
     // required-names: controls_panel
     secondary_fans_list_ = helix::ui::find_required(panel_, "secondary_fans_list", get_name());
-    // Optional: the micro layout has no room for a chooser.
+    // Optional: a layout may leave the chooser out.
     nozzle_tool_dropdown_ = lv_obj_find_by_name(panel_, "nozzle_tool_dropdown");
 
     // Bind heating icon animators for nozzle/bed/chamber status visualization.
@@ -709,7 +709,8 @@ void ControlsPanel::sync_nozzle_tool() {
         lv_dropdown_set_selected(nozzle_tool_dropdown_, static_cast<uint32_t>(nozzle_tool()));
     }
     nozzle_observers_.bind<ControlsPanel>(
-        printer_state_.temperature_state(), nozzle_extruder_name(), this,
+        printer_state_.temperature_state(), nozzle_extruder_name(),
+        nozzle_tool() == helix::ToolState::instance().active_tool_index(), this,
         [](ControlsPanel* self, int value) {
             self->cached_extruder_temp_ = value;
             if (self->subjects_initialized_) {
@@ -1020,7 +1021,9 @@ void ControlsPanel::handle_custom_nozzle_confirmed(float value) {
     // The mounted tool goes by HeaterType so the controller's nozzle guards
     // apply; a docked tool chosen on the row is named by its extruder.
     const std::string extruder = nozzle_extruder_name();
-    const bool mounted = extruder == printer_state_.temperature_state().active_extruder_name();
+    // Mounted by tool index: after a park Klipper still names the last tool's
+    // extruder active.
+    const bool mounted = nozzle_tool() == helix::ToolState::instance().active_tool_index();
     if (auto* c = controller()) {
         const helix::SendOptions opts{
             .toast = true,

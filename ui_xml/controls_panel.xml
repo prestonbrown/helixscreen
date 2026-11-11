@@ -199,8 +199,9 @@
               <bind_style_if_ge name="temp_row_gap_standard" subject="ui_breakpoint" ref_value="2"/>
               <icon name="nozzle_icon_glyph"
                     src="heater" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
+              <!-- The tool chooser names the nozzle where several heads dock -->
               <text_small bind_text="controls_nozzle_label">
-                <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+                <bind_flag_if cond="ui_breakpoint eq 1 or controls_nozzle_multi_head eq 1" flag="hidden"/>
               </text_small>
               <!-- Which nozzle the row shows and edits, where several heads dock -->
               <lv_dropdown name="nozzle_tool_dropdown"

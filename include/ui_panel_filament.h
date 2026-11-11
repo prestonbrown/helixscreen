@@ -427,8 +427,16 @@ class FilamentPanel : public PanelBase {
     void sync_target_tool_ui();
     /// The Pick up / Park button beside the tool selector.
     void handle_target_tool_action();
+    /// Drops a pickup's waiting step when the panel leaves the screen.
+    void on_deactivating(DeactivateReason reason) override;
+    /// Whether the target is the tool on the carriage (by tool index).
+    [[nodiscard]] bool target_is_mounted() const;
     /// Whether the target is a different head from the one on the carriage.
     [[nodiscard]] bool target_needs_pickup() const;
+    /// Withdraw a step waiting on a pickup, with a toast, when one is armed.
+    void drop_pending_pickup(const char* why);
+    /// The preset's nozzle (target tool), bed and chamber targets.
+    void send_preset_targets();
     /// Pick the target up, then run @p then once ToolState reports it mounted.
     /// A declined, failed or timed-out change runs nothing.
     void with_target_mounted(std::function<void()> then);
@@ -597,6 +605,7 @@ class FilamentPanel : public PanelBase {
     lv_obj_t* ams_manage_row_ = nullptr;
     ObserverGuard tools_version_observer_;
     ObserverGuard extruder_version_observer_;
+    ObserverGuard klippy_observer_;
     helix::ui::TargetNozzleObservers nozzle_observers_;
     helix::ui::TargetToolSelection target_tool_;
 
@@ -604,8 +613,6 @@ class FilamentPanel : public PanelBase {
     void update_multi_filament_card_visibility();
     void apply_left_column_sizing(bool external_spool_mode);
     void handle_extruder_changed();
-    /// Point the extruder dropdown back at the mounted tool.
-    void revert_extruder_dropdown();
 
     // External spool display (no-AMS mode)
     lv_obj_t* external_spool_row_ = nullptr;
