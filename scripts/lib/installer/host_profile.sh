@@ -39,6 +39,11 @@ _HELIX_HOST_PROFILE_SOURCED=1
 HELIX_MOD_PAYLOAD=""
 
 HOST_MOD_ROOT=""
+# Z-Mod's AD5X git tree, apart from HOST_MOD_ROOT on purpose: HOST_MOD_ROOT is
+# the Forge-X tree that detect_mod_flavor, the payload contract and the forgex
+# flows key on, and none of those apply to Z-Mod. This answer only widens what
+# host_path_is_mod_owned refuses.
+HOST_ZMOD_ROOT=""
 HOST_MOD_CHROOT=""
 HOST_CHROOT_STATE="none"
 HOST_SERVICE_MECHANISM="systemd"
@@ -66,6 +71,7 @@ host_profile_probe() {
     # The probe owns these answers: reset before probing so a second call (or
     # a caller that pre-set them) can never leave a stale answer behind.
     HOST_MOD_ROOT=""
+    HOST_ZMOD_ROOT=""
     HOST_MOD_CHROOT=""
     HOST_CHROOT_STATE="none"
     HOST_SERVICE_MECHANISM="systemd"
@@ -86,6 +92,16 @@ host_profile_probe() {
         # probe blind to every upstream AD5M install.
         if [ -f "$cand/.shell/common.sh" ] || [ -f "$cand/.shell/platform.sh" ]; then
             HOST_MOD_ROOT="$cand"; break
+        fi
+    done
+    # Z-Mod on the AD5X keeps its git tree (Moonraker's [update_manager Z-Mod]
+    # path) at /usr/data/zmod/zmod, bind-mounted at the same path inside its
+    # chroot, and links its moonraker.conf into the config dir from there.
+    # .shell/zmod.sh is Z-Mod's own entry script; Forge-X ships no such file.
+    # shellcheck disable=SC2086  # word splitting is the point: a candidate path list
+    for cand in ${HELIX_ZMOD_TREE_CANDIDATES:-/usr/data/zmod/zmod}; do
+        if [ -f "$cand/.shell/zmod.sh" ]; then
+            HOST_ZMOD_ROOT="$cand"; break
         fi
     done
     # The chroot is the mod's Buildroot rootfs, one derivation off each
@@ -205,7 +221,7 @@ host_path_under() {
 # unlike the probe's candidate lists this one is deliberately not overridable.
 # Space-separated because host_path_is_mod_owned iterates it with word
 # splitting; no entry may contain a space or a glob character.
-HOST_CANONICAL_MOD_ROOTS="/usr/data/.mod /data/.mod /usr/data/config/mod /opt/config/mod"
+HOST_CANONICAL_MOD_ROOTS="/usr/data/.mod /data/.mod /usr/data/config/mod /opt/config/mod /usr/data/zmod"
 
 # True when path (symlinks resolved) is managed by the mod: the probed tree,
 # the probed chroot, or one of the canonical mod roots. Never mv, rm, or chmod
@@ -220,6 +236,9 @@ host_path_is_mod_owned() {
         return 0
     fi
     if [ -n "$HOST_MOD_CHROOT" ] && host_path_under "$p" "$HOST_MOD_CHROOT"; then
+        return 0
+    fi
+    if [ -n "$HOST_ZMOD_ROOT" ] && host_path_under "$p" "$HOST_ZMOD_ROOT"; then
         return 0
     fi
     # The canonical roots take the same symlink-aware comparison as the probed
