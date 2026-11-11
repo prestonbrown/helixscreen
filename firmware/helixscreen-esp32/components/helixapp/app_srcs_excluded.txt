@@ -407,7 +407,6 @@ src/system/android_lan_route.cpp  # Android only
 src/utils/lan_host.cpp  # only the Android LAN routing uses it
 src/plugin/lua_bind_sound.cpp  # not in the v1 Core+AMS cut
 src/ui/components/ui_icon_image.cpp  # not in the v1 Core+AMS cut
-src/ui/components/ui_text_entry_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/print/ui_timelapse_macro_card.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
 src/plugin/plugin_table.cpp  # not in the v1 Core+AMS cut
 src/plugin/lua_bind_table.cpp  # not in the v1 Core+AMS cut

@@ -320,6 +320,8 @@ static void on_delete(lv_event_t* e) {
             lv_obj_remove_from_subject(data->current_label, nullptr);
         if (data->target_label)
             lv_obj_remove_from_subject(data->target_label, nullptr);
+        if (data->unit_label)
+            lv_obj_remove_from_subject(data->unit_label, nullptr);
         // Container itself may hold the bp_observer; drop it now too.
         lv_obj_remove_from_subject(obj, nullptr);
 
@@ -667,6 +669,16 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
                               data->current_mode);
             } else if (!subject) {
                 spdlog::warn("[temp_display] Subject '{}' not found for bind_mode", value);
+            }
+        } else if (strcmp(name, "bind_unit") == 0) {
+            // The unit after the reading follows a string subject, so a tile can
+            // relabel it (an empty string draws no unit). Text only: the reading
+            // is still the subject's decidegrees.
+            lv_subject_t* subject = lv_xml_get_subject(nullptr, value);
+            if (subject && data && data->unit_label) {
+                lv_label_bind_text(data->unit_label, subject, nullptr);
+            } else if (!subject) {
+                spdlog::warn("[temp_display] Subject '{}' not found for bind_unit", value);
             }
         } else if (strcmp(name, "event_cb") == 0) {
             // Store callback name and make widget clickable

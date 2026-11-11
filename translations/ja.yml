@@ -2185,6 +2185,7 @@ translations:
   Layout: レイアウト
   Layout changes are off in safe mode. Restart to edit.: 'セーフモードではレイアウトを変更できません。編集するには再起動してください。'
   Learn More: 詳細を見る
+  Leave empty for no unit: '空にすると単位を表示しません'
   Leave it: 'そのままにする'
   Leave this off for a clogged nozzle.: "ノズルが詰まっている場合はオフのままにしてください。"
   LedSelect: LEDを選択
@@ -4549,6 +4550,7 @@ translations:
   Uninstallation timed out. The script may be stuck.: アンインストールがタイムアウトしました。スクリプトが停止している可能性があります。
   Unit: ユニット
   'Unit ': 'ユニット '
+  Unit text: '単位の表示'
   'Units: %d   Boxes: %d   Dryers: %d': 'ユニット: %d   ボックス: %d   ドライヤー: %d'
   Unknown: 不明
   Unknown Error: '不明なエラー'

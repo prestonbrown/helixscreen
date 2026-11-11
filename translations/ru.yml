@@ -2347,6 +2347,7 @@ translations:
   Layout: Раскладка
   Layout changes are off in safe mode. Restart to edit.: 'Изменение раскладки отключено в безопасном режиме. Перезапустите, чтобы редактировать.'
   Learn More: Подробнее
+  Leave empty for no unit: 'Оставьте пустым, чтобы скрыть единицу'
   Leave it: 'Оставить'
   Leave this off for a clogged nozzle.: "Если сопло забито, оставьте это выключенным."
   LedSelect: Выбрать LED
@@ -4835,6 +4836,7 @@ translations:
     мог зависнуть.
   Unit: Узел
   'Unit ': 'Узел '
+  Unit text: 'Обозначение единицы'
   'Units: %d   Boxes: %d   Dryers: %d': 'Узлы: %d   Коробки: %d   Сушилки: %d'
   Unknown: Неизвестно
   Unknown Error: 'Неизвестная ошибка'

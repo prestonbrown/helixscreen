@@ -2096,6 +2096,7 @@
   <translation tag="Layout changes are off in safe mode. Restart to edit." ja="セーフモードではレイアウトを変更できません。編集するには再起動してください。"/>
   <translation tag="Learn More" ja="詳細を見る"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." ja="基本：セットアップウィザード、画面の移動、タッチ操作。"/>
+  <translation tag="Leave empty for no unit" ja="空にすると単位を表示しません"/>
   <translation tag="Leave it" ja="そのままにする"/>
   <translation tag="Leave this off for a clogged nozzle." ja="ノズルが詰まっている場合はオフのままにしてください。"/>
   <translation tag="LedSelect" ja="LEDを選択"/>
@@ -4359,6 +4360,7 @@
   <translation tag="Uninstallation timed out. The script may be stuck." ja="アンインストールがタイムアウトしました。スクリプトが停止している可能性があります。"/>
   <translation tag="Unit" ja="ユニット"/>
   <translation tag="Unit " ja="ユニット "/>
+  <translation tag="Unit text" ja="単位の表示"/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d" ja="ユニット: %d   ボックス: %d   ドライヤー: %d"/>
   <translation tag="Unknown" ja="不明"/>
   <translation tag="Unknown Error" ja="不明なエラー"/>

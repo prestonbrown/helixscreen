@@ -2144,6 +2144,7 @@
   <translation tag="Layout changes are off in safe mode. Restart to edit." ru="Изменение раскладки отключено в безопасном режиме. Перезапустите, чтобы редактировать."/>
   <translation tag="Learn More" ru="Подробнее"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." ru="Основы: мастер настройки, переход между экранами и жесты касания."/>
+  <translation tag="Leave empty for no unit" ru="Оставьте пустым, чтобы скрыть единицу"/>
   <translation tag="Leave it" ru="Оставить"/>
   <translation tag="Leave this off for a clogged nozzle." ru="Если сопло забито, оставьте это выключенным."/>
   <translation tag="LedSelect" ru="Выбрать LED"/>
@@ -4422,6 +4423,7 @@
   <translation tag="Uninstallation timed out. The script may be stuck." ru="Время удаления истекло. Скрипт мог зависнуть."/>
   <translation tag="Unit" ru="Узел"/>
   <translation tag="Unit " ru="Узел "/>
+  <translation tag="Unit text" ru="Обозначение единицы"/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d" ru="Узлы: %d   Коробки: %d   Сушилки: %d"/>
   <translation tag="Unknown" ru="Неизвестно"/>
   <translation tag="Unknown Error" ru="Неизвестная ошибка"/>

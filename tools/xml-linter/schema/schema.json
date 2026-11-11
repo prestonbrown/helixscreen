@@ -1806,6 +1806,9 @@
         "bind_target": {
           "type": "string"
         },
+        "bind_unit": {
+          "type": "string"
+        },
         "bind_mode": {
           "type": "string"
         },

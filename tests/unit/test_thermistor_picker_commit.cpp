@@ -19,14 +19,18 @@
 
 #include "ui_carousel.h"
 #include "ui_context_menu.h"
+#include "ui_modal.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/one_line_label.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "../test_helpers/scoped_home_layout.h"
 #include "../test_helpers/thermistor_test_access.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "panel_widget_config.h"
+#include "panel_widget_manager.h"
 #include "src/ui/panel_widgets/thermistor_widget.h"
 #include "temperature_sensor_manager.h"
 
@@ -272,8 +276,9 @@ TEST_CASE_METHOD(ThermistorPickerFixture, "thermistor carousel pages bind name a
     REQUIRE(register_component("components/thermistor_carousel_page"));
     REQUIRE(register_component("components/panel_widget_thermistor_carousel"));
     ThermistorWidget widget("thermistor");
-    widget.set_config(
-        {{"sensors", std::vector<std::string>{kSensorA, kSensorB}}, {"display_mode", "carousel"}});
+    widget.set_config({{"sensors", std::vector<std::string>{kSensorA, kSensorB}},
+                       {"display_mode", "carousel"},
+                       {"unit_override", "kPa"}});
     auto* tile = static_cast<lv_obj_t*>(
         lv_xml_create(test_screen(), "panel_widget_thermistor_carousel", nullptr));
     REQUIRE(tile != nullptr);
@@ -303,7 +308,8 @@ TEST_CASE_METHOD(ThermistorPickerFixture, "thermistor carousel pages bind name a
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_t* temp0 = ThermistorTestAccess::carousel_temp_label(widget, 0);
     REQUIRE(temp0 != nullptr);
-    CHECK(std::string(lv_label_get_text(temp0)).find("42.7") != std::string::npos);
+    // The page's unit is the widget's override, and the value is not converted.
+    CHECK(std::string(lv_label_get_text(temp0)) == "42.7kPa");
     widget.detach();
 }
 
@@ -346,4 +352,155 @@ TEST_CASE_METHOD(ThermistorPickerFixture,
     ThermistorTestAccess::bind_carousel(widget);
     CHECK(ThermistorTestAccess::carousel_page_count(widget) == 2);
     widget.detach();
+}
+
+namespace {
+
+/// The unit label of a tile's temp_display: its last child.
+std::string unit_label_text(PanelWidgetHarnessBase& tile) {
+    lv_obj_t* display = tile.child("thermistor_temp");
+    REQUIRE(display != nullptr);
+    const auto count = static_cast<int32_t>(lv_obj_get_child_count(display));
+    REQUIRE(count > 0);
+    return lv_label_get_text(lv_obj_get_child(display, count - 1));
+}
+
+std::string text_of(PanelWidgetHarnessBase& tile, const char* name) {
+    lv_obj_t* label = tile.child(name);
+    REQUIRE(label != nullptr);
+    return lv_label_get_text(label);
+}
+
+} // namespace
+
+// #939: a tile's unit_override replaces the unit text after its reading, an
+// empty one draws none, and a tile without one keeps the default. The reading
+// itself is never converted, and each tile keeps its own.
+TEST_CASE_METHOD(ThermistorPickerFixture, "thermistor unit override relabels its own tile only",
+                 "[thermistor][unit_override]") {
+    REQUIRE(register_component("components/panel_widget_thermistor"));
+    lv_subject_set_int(
+        helix::sensors::TemperatureSensorManager::instance().get_temp_subject(kSensorA), 427);
+    PanelWidgetHarness<ThermistorWidget> custom(
+        test_screen(),
+        HarnessConfig{{{"sensors", json::array({kSensorA})}, {"unit_override", "%"}}, true},
+        "thermistor:1");
+    PanelWidgetHarness<ThermistorWidget> plain(
+        test_screen(), HarnessConfig{{{"sensors", json::array({kSensorA})}}, true}, "thermistor:2");
+    PanelWidgetHarness<ThermistorWidget> hidden(
+        test_screen(),
+        HarnessConfig{{{"sensors", json::array({kSensorA})}, {"unit_override", ""}}, true},
+        "thermistor:3");
+    custom.create_tile(test_screen());
+    plain.create_tile(test_screen());
+    hidden.create_tile(test_screen());
+
+    CHECK(unit_label_text(custom) == "%");
+    CHECK(unit_label_text(plain) == "\xC2\xB0"
+                                    "C");
+    CHECK(unit_label_text(hidden).empty());
+    CHECK(text_of(custom, "thermistor_unavailable") == "--%");
+    CHECK(text_of(plain, "thermistor_unavailable") == "--\xC2\xB0"
+                                                      "C");
+    for (auto* tile : {&custom, &plain, &hidden}) {
+        lv_obj_t* reading = lv_obj_get_child(tile->child("thermistor_temp"), 0);
+        CHECK(std::string(lv_label_get_text(reading)) == "42.7");
+    }
+
+    // Set at runtime, and dropped again back to the default.
+    custom.widget().set_unit_override(std::string("PSI"));
+    CHECK(unit_label_text(custom) == "PSI");
+    CHECK(unit_label_text(plain) == "\xC2\xB0"
+                                    "C");
+    custom.widget().set_unit_override(std::nullopt);
+    CHECK(unit_label_text(custom) == "\xC2\xB0"
+                                     "C");
+}
+
+// The override lives in the instance's stored config, so it survives the
+// layout being reloaded from disk, and only the tile it was set on has it.
+TEST_CASE_METHOD(ThermistorPickerFixture, "thermistor unit override persists per instance",
+                 "[thermistor][unit_override]") {
+    using helix::test::ScopedHomeLayout;
+    const auto placed = [](const char* id, int col) {
+        return json{{"id", id}, {"enabled", true}, {"col", col}, {"row", 0}};
+    };
+    ScopedHomeLayout layout(json::array({placed("thermistor:1", 0), placed("thermistor:2", 2)}));
+    auto& mgr = PanelWidgetManager::instance();
+    const auto reload_stored = [&](const char* id) {
+        mgr.clear_panel_config("home");
+        mgr.get_widget_config("home").mark_dirty();
+        return mgr.get_widget_config("home").get_widget_config(id);
+    };
+
+    {
+        ThermistorWidget first("thermistor:1");
+        first.set_panel_id("home");
+        first.set_config({{"sensors", json::array({kSensorA})}});
+        first.set_unit_override(std::string("kPa"));
+        ThermistorWidget second("thermistor:2");
+        second.set_panel_id("home");
+        second.set_config({{"sensors", json::array({kSensorB})}});
+        second.select_icon("heater"); // a save of the other tile keeps it off that one
+    }
+
+    const json stored = reload_stored("thermistor:1");
+    CHECK(stored.value("unit_override", std::string("<none>")) == "kPa");
+    CHECK_FALSE(reload_stored("thermistor:2").contains("unit_override"));
+
+    ThermistorWidget restarted("thermistor:1");
+    restarted.set_panel_id("home");
+    restarted.set_config(stored);
+    REQUIRE(restarted.unit_override().has_value());
+    CHECK(*restarted.unit_override() == "kPa");
+
+    restarted.set_unit_override(std::nullopt);
+    CHECK_FALSE(reload_stored("thermistor:1").contains("unit_override"));
+}
+
+// The configure card shows the unit; its row opens a text dialog whose answer
+// becomes the override, and Default drops it.
+TEST_CASE_METHOD(ThermistorPickerFixture, "thermistor configure card edits the unit",
+                 "[thermistor][unit_override]") {
+    REQUIRE(register_component("text_entry_modal"));
+    lv_xml_register_event_cb(nullptr, "thermistor_unit_row_cb", ThermistorWidget::unit_row_cb);
+    lv_xml_register_event_cb(nullptr, "thermistor_unit_reset_cb", ThermistorWidget::unit_reset_cb);
+    ThermistorWidget widget("thermistor");
+    widget.set_config({{"sensors", std::vector<std::string>{kSensorA}}});
+    widget.attach(lv_obj_create(test_screen()), test_screen());
+
+    widget.on_edit_configure();
+    OpenPicker picker = find_open_picker(test_screen());
+    REQUIRE(picker.card != nullptr);
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(picker.card, "unit_value"))) ==
+          "\xC2\xB0"
+          "C");
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(picker.card, "unit_reset")));
+
+    lv_obj_send_event(lv_obj_find_by_name(picker.card, "unit_row"), LV_EVENT_CLICKED, nullptr);
+    process_lvgl(50);
+    CHECK(find_open_picker(test_screen()).card == nullptr);
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    lv_obj_t* input = lv_obj_find_by_name(dialog, "text_entry_input");
+    REQUIRE(input != nullptr);
+    lv_textarea_set_text(input, "PSI");
+    lv_obj_send_event(lv_obj_find_by_name(dialog, "btn_primary"), LV_EVENT_CLICKED, nullptr);
+    process_lvgl(50);
+    REQUIRE(widget.unit_override().has_value());
+    CHECK(*widget.unit_override() == "PSI");
+
+    widget.on_edit_configure();
+    picker = find_open_picker(test_screen());
+    REQUIRE(picker.card != nullptr);
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(picker.card, "unit_value"))) == "PSI");
+    lv_obj_t* reset = lv_obj_find_by_name(picker.card, "unit_reset");
+    REQUIRE_FALSE(lv_obj_is_hidden(reset));
+    lv_obj_send_event(reset, LV_EVENT_CLICKED, nullptr);
+    CHECK_FALSE(widget.unit_override().has_value());
+    CHECK(lv_obj_is_hidden(reset));
+    lv_obj_send_event(picker.backdrop, LV_EVENT_CLICKED, nullptr);
+    process_lvgl(50);
+    widget.detach();
+    ModalStack::instance().clear();
 }

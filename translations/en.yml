@@ -2246,6 +2246,7 @@ translations:
   Layout: Layout
   Layout changes are off in safe mode. Restart to edit.: Layout changes are off in safe mode. Restart to edit.
   Learn More: Learn More
+  Leave empty for no unit: Leave empty for no unit
   Leave it: Leave it
   Leave this off for a clogged nozzle.: Leave this off for a clogged nozzle.
   LedSelect: LedSelect
@@ -4691,6 +4692,7 @@ translations:
     script may be stuck.
   Unit: Unit
   'Unit ': 'Unit '
+  Unit text: Unit text
   'Units: %d   Boxes: %d   Dryers: %d': 'Units: %d   Boxes: %d   Dryers: %d'
   Unknown: Unknown
   Unknown Error: Unknown Error
