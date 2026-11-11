@@ -129,8 +129,18 @@ namespace {
 /// What is in the lane and where it stands, or empty when nothing can be said.
 std::string contents_suffix(const SlotInfo& info, std::optional<bool> present, bool at_toolhead) {
     if (!info.material.empty()) {
-        const char* where = at_toolhead ? lv_tr("loaded") : lv_tr("ready to load");
-        return " (" + info.material + " - " + where + ")"; // material: no i18n
+        // Readiness is the sensor's to claim: with no reading, name the
+        // material alone.
+        const char* where = nullptr;
+        if (at_toolhead) {
+            where = lv_tr("loaded");
+        } else if (present) {
+            where = *present ? lv_tr("ready to load") : lv_tr("empty");
+        }
+        if (!where) {
+            return " (" + info.material + ")"; // material: no i18n
+        }
+        return " (" + info.material + " - " + where + ")";
     }
     if (present && !*present) {
         return std::string(" (") + lv_tr("Empty") + ")";

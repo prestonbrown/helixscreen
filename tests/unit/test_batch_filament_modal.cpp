@@ -65,6 +65,34 @@ TEST_CASE("BatchFilamentModal row label names the lane contents", "[ams][batch]"
     }
 }
 
+TEST_CASE("BatchFilamentModal row status claims only what the sensor knows", "[ams][batch]") {
+    using helix::SlotInfo;
+    using helix::ui::LaneNoun;
+    SlotInfo pla;
+    pla.material = "PLA";
+
+    SECTION("at the toolhead reads loaded whatever the sensor says") {
+        REQUIRE(BatchFilamentModal::row_label(LaneNoun::Slot, 0, pla, std::nullopt, true) ==
+                std::string("Slot 1 (PLA - ") + lv_tr("loaded") + ")");
+    }
+    SECTION("sensor sees filament: ready to load") {
+        REQUIRE(BatchFilamentModal::row_label(LaneNoun::Slot, 0, pla, true, false) ==
+                std::string("Slot 1 (PLA - ") + lv_tr("ready to load") + ")");
+    }
+    SECTION("sensor sees none: the material and empty") {
+        REQUIRE(BatchFilamentModal::row_label(LaneNoun::Slot, 0, pla, false, false) ==
+                std::string("Slot 1 (PLA - ") + lv_tr("empty") + ")");
+    }
+    SECTION("no sensor: the material alone, no readiness claim") {
+        REQUIRE(BatchFilamentModal::row_label(LaneNoun::Slot, 0, pla, std::nullopt, false) ==
+                "Slot 1 (PLA)");
+    }
+    SECTION("no material and an empty sensor: Empty") {
+        REQUIRE(BatchFilamentModal::row_label(LaneNoun::Slot, 0, SlotInfo{}, false, false) ==
+                std::string("Slot 1 (") + lv_tr("Empty") + ")");
+    }
+}
+
 TEST_CASE("BatchFilamentModal sifts eligible slots and names the first refusal", "[ams][batch]") {
     using E = helix::AmsBackend::FilamentOpEligibility;
     const std::vector<E> per_slot = {E::Eligible, E::Empty, E::Eligible, E::Busy};
