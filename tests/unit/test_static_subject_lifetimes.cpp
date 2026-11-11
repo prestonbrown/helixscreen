@@ -18,6 +18,7 @@
 #include "ui_ams_slot.h"
 #include "ui_color_picker.h"
 #include "ui_guided_device_flow.h"
+#include "ui_tile_edit_callout.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "buffer_status_modal.h"
@@ -28,6 +29,8 @@
 #include "print_completion.h"
 #include "src/ui/panel_widgets/dryer_model.h"
 #include "src/ui/panel_widgets/filament_sensor_widget.h"
+#include "src/ui/panel_widgets/print_status_widget.h"
+#include "tile_color.h"
 
 #include <algorithm>
 #include <functional>
@@ -130,10 +133,22 @@ TEST_CASE_METHOD(LVGLUITestFixture,
          [] { ObserverGuard completion = init_print_completion_observer(); }, false},
         {"LockManager", "lock_pin_set", [] { helix::LockManager::instance().init_subjects(); },
          false},
+        {"PrintStatusWidgetSubjects", "print_status_view",
+         [] { PrintStatusWidget::init_static_subjects(); }, false},
+        {"TileColorSubjects", "tile_color_selected", [] { helix::tile_color::register_subjects(); },
+         true},
+        {"TileEditCallout", "tile_callout_title",
+         [] { helix::ui::TileEditCallout::register_callbacks(); }, true},
     };
     for (const Source& source : sources) {
         CAPTURE(source.registry_name);
+        // From down, the init adds one entry: a second would tear these subjects down again.
+        if (registered(source.registry_name)) {
+            REQUIRE(StaticSubjectRegistry::instance().deinit_one(source.registry_name));
+        }
+        const size_t entries = StaticSubjectRegistry::instance().count();
         source.init();
+        CHECK(StaticSubjectRegistry::instance().count() == entries + 1);
         if (source.on_demand) {
             CHECK(survives_switch(source.registry_name));
         }
