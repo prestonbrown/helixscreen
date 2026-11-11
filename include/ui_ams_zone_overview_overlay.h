@@ -49,9 +49,8 @@ class AmsZoneOverviewOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "ams_zone_overview_overlay";
     }
-    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
     bool destroy_on_close() const override {
-        return false;
+        return true;
     }
 
     /// Show the list for @p zones. The caller decides the set: one unit's zones from the

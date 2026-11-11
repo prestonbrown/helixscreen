@@ -45,7 +45,7 @@
  *
  * Override init_subjects() for owned subjects, register_callbacks() for XML
  * callbacks, before_show() for per-open work that needs the root, and
- * destroy_on_close() to free the widget tree whenever the overlay is popped.
+ * on_ui_destroyed() to drop cached widgets when the tree is freed on close.
  *
  * @see NetworkSettingsOverlay for reference implementation
  */
@@ -125,10 +125,11 @@ class OverlayBase : public ViewLifecycleBase {
      * @brief Free the widget tree every time show()'s overlay is popped
      *
      * The object (subjects, state) survives and the next show() re-creates the
-     * tree (#1329, #1246). Default: built once, retained for the session.
+     * tree (#1329, #1246). An overlay whose widgets must outlive the pop that
+     * takes it off the stack returns false and keeps its tree for the session.
      */
     virtual bool destroy_on_close() const {
-        return false;
+        return true;
     }
 
     /**

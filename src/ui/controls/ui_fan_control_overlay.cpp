@@ -304,6 +304,12 @@ void FanControlOverlay::release_fan_widgets() {
     auto_fan_cards_.clear();
 }
 
+void FanControlOverlay::on_ui_destroyed() {
+    // The tree is detached but not yet freed, so the dials can still unhook.
+    release_fan_widgets();
+    fans_container_ = nullptr;
+}
+
 void FanControlOverlay::on_root_deleted(lv_event_t* e) {
     // Resolved through the global, not user_data: a printer switch destroys the
     // overlay before freeing its tree, and the re-created overlay can be opened

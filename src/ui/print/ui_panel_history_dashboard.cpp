@@ -166,36 +166,9 @@ lv_obj_t* HistoryDashboardPanel::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Find widget references - Filter buttons
-    filter_day_ = find_required(overlay_root_, "filter_day", get_name());
-    filter_week_ = find_required(overlay_root_, "filter_week", get_name());
-    filter_month_ = find_required(overlay_root_, "filter_month", get_name());
-    filter_year_ = find_required(overlay_root_, "filter_year", get_name());
-    filter_all_ = find_required(overlay_root_, "filter_all", get_name());
-
-    // Stat labels (2x2 grid)
-    stat_total_prints_ = find_required(overlay_root_, "stat_total_prints", get_name());
-    stat_print_time_ = find_required(overlay_root_, "stat_print_time", get_name());
-    stat_filament_ = find_required(overlay_root_, "stat_filament", get_name());
-    stat_success_rate_ = find_required(overlay_root_, "stat_success_rate", get_name());
-
-    // Containers
-    stats_grid_ = find_required(overlay_root_, "stats_grid", get_name());
-    empty_state_ = find_required(overlay_root_, "empty_state", get_name());
-
-    // Chart containers
     trend_chart_container_ = find_required(overlay_root_, "trend_chart_container", get_name());
-    trend_period_label_ = find_required(overlay_root_, "trend_period", get_name());
     filament_chart_container_ =
         find_required(overlay_root_, "filament_chart_container", get_name());
-
-    spdlog::debug("[{}] Widget refs - filters: {}/{}/{}/{}/{}, stats: {}/{}/{}/{}", get_name(),
-                  filter_day_ != nullptr, filter_week_ != nullptr, filter_month_ != nullptr,
-                  filter_year_ != nullptr, filter_all_ != nullptr, stat_total_prints_ != nullptr,
-                  stat_print_time_ != nullptr, stat_filament_ != nullptr,
-                  stat_success_rate_ != nullptr);
-    spdlog::debug("[{}] Chart containers: trend={}, filament={}", get_name(),
-                  trend_chart_container_ != nullptr, filament_chart_container_ != nullptr);
 
     create_trend_chart();
     create_filament_chart();
@@ -220,6 +193,12 @@ lv_obj_t* HistoryDashboardPanel::create(lv_obj_t* parent) {
 // ============================================================================
 // Lifecycle Hooks
 // ============================================================================
+
+void HistoryDashboardPanel::on_ui_destroyed() {
+    trend_series_ = nullptr;
+    filament_bar_rows_.clear();
+    connection_observer_.reset();
+}
 
 void HistoryDashboardPanel::on_activate() {
     // Call base class first

@@ -16,7 +16,6 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/mock_printer.h"
-#include "../test_helpers/widget_in_tree.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "chamber_air_settings.h"
@@ -368,17 +367,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_delete(root);
     CHECK(observers(available) == available_before);
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "fan overlay: closing keeps the tree for the next open",
-                 "[fan_overlay][chamber_air]") {
-    FreshOverlays fresh;
-    lv_obj_t* root = open_on_u1(test_screen(), {}, {"fan"});
-    NavigationManager::instance().go_back();
-    process_lvgl(600);
-    helix::ui::UpdateQueue::instance().drain();
-    REQUIRE(helix::test::widget_in_tree(root));
-    CHECK(helix::open_fan_control_overlay(test_screen()) == root);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,

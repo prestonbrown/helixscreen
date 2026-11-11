@@ -81,9 +81,8 @@ class HistoryDashboardPanel : public OverlayBase {
     const char* xml_component() const override {
         return "history_dashboard_panel";
     }
-    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
     bool destroy_on_close() const override {
-        return false;
+        return true;
     }
 
     lv_obj_t* create(lv_obj_t* parent) override;
@@ -141,32 +140,17 @@ class HistoryDashboardPanel : public OverlayBase {
     // === Widget References ===
     //
 
-    // Filter buttons
-    lv_obj_t* filter_day_ = nullptr;
-    lv_obj_t* filter_week_ = nullptr;
-    lv_obj_t* filter_month_ = nullptr;
-    lv_obj_t* filter_year_ = nullptr;
-    lv_obj_t* filter_all_ = nullptr;
-
-    // Stat labels (2x2 grid)
-    lv_obj_t* stat_total_prints_ = nullptr;
-    lv_obj_t* stat_print_time_ = nullptr;
-    lv_obj_t* stat_filament_ = nullptr;
-    lv_obj_t* stat_success_rate_ = nullptr;
-
-    // Containers
-    lv_obj_t* stats_grid_ = nullptr;
-    lv_obj_t* empty_state_ = nullptr;
-
-    // Charts
-    lv_obj_t* trend_chart_container_ = nullptr;
-    lv_obj_t* trend_chart_ = nullptr;
+    // Null once the tree is freed on close; every reader checks them.
+    helix::ui::WidgetRef trend_chart_container_;
+    helix::ui::WidgetRef trend_chart_;
     lv_chart_series_t* trend_series_ = nullptr;
-    lv_obj_t* trend_period_label_ = nullptr;
 
-    lv_obj_t* filament_chart_container_ = nullptr;
+    helix::ui::WidgetRef filament_chart_container_;
     // Filament bar rows stored for cleanup/refresh
     std::vector<helix::ui::WeakWidget> filament_bar_rows_;
+
+    /// Drops the chart series, bar rows and connection observer with the tree.
+    void on_ui_destroyed() override;
 
     //
     // === Dependencies ===
