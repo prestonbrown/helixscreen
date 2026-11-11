@@ -339,16 +339,14 @@ TEST_CASE_METHOD(DestroyOnCloseFixture,
                  "AMS Zone Overview reopened on the same zones fills its rows",
                  "[overlay_destroy_on_close][ams_zone]") {
     auto& o = helix::ui::get_ams_zone_overview_overlay();
-    helix::printer::EnvironmentZone zone;
-    zone.label = "Box";
+    const helix::printer::EnvironmentZone zone;
     expect_rebuilt_on_reopen([&] { o.show(lv_screen_active(), {zone}); },
                              [&] { return o.get_root(); });
     o.show(lv_screen_active(), {zone});
     settle();
     lv_obj_t* label = lv_obj_find_by_name(o.get_root(), "zone_label");
     lv_subject_t* text = lv_xml_get_subject(nullptr, "zone_ov_label_0");
-    REQUIRE(label != nullptr);
-    REQUIRE(text != nullptr);
+    REQUIRE((label != nullptr && text != nullptr));
     CHECK(std::string(lv_label_get_text(label)) == lv_subject_get_string(text));
 }
 
