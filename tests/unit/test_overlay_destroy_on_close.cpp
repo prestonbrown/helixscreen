@@ -15,6 +15,7 @@
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_ams_device_section_detail_overlay.h"
 #include "ui_ams_environment_overlay.h"
+#include "ui_ams_zone_overview_overlay.h"
 #include "ui_cfs_chute_calibration_overlay.h"
 #include "ui_maintenance_overlay.h"
 #include "ui_nav_manager.h"
@@ -269,6 +270,11 @@ const OverlayCase kOverlayCases[] = {
      [] {
          helix::ui::get_printer_events_overlay().show_entries(helix::JournalSource::Screen,
                                                               {helix::JournalEntry{}});
+     }},
+    {"AMS Zone Overview", as_base<&helix::ui::get_ams_zone_overview_overlay>,
+     [] {
+         helix::ui::get_ams_zone_overview_overlay().show(lv_screen_active(),
+                                                         {helix::printer::EnvironmentZone{}});
      }},
     {"Belt Tension", as_base<&get_global_belt_tension_panel>, nullptr,
      [] {
