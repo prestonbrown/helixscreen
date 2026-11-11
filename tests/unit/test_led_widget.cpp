@@ -177,6 +177,40 @@ TEST_CASE_METHOD(LedWidgetFixture, "LedWidget: a fresh button names and toggles 
     w.detach_tile();
 }
 
+TEST_CASE_METHOD(LedWidgetFixture, "LedWidget: a tile deleted under it ignores later light changes",
+                 "[led][light_button][lifetime]") {
+    // A layout <if> deletes its branch, cells and all, before the panel that
+    // attached this widget is rebuilt; the widget must let go of the icon then,
+    // not on its next detach.
+    LedWidget w("led", ps, api.get());
+    w.set_config(nlohmann::json::object());
+    lv_obj_t* branch = lv_obj_create(test_screen());
+    lv_obj_t* cell = lv_obj_create(branch);
+    lv_obj_t* icon = lv_label_create(cell);
+    lv_obj_set_name(icon, "light_icon");
+    w.attach_tile(cell, test_screen());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    lv_obj_delete(branch);
+    // A label made now usually lands in the icon's freed memory, so a stale
+    // write through the widget's old pointer shows up on it.
+    lv_obj_t* bystander = lv_label_create(test_screen());
+    lv_label_set_text(bystander, "bystander");
+    lv_obj_set_style_text_color(bystander, lv_color_hex(0x123456), LV_PART_MAIN);
+
+    auto& ctrl = LedController::instance();
+    for (lv_subject_t* version :
+         {ctrl.get_led_state_version_subject(), ctrl.get_led_config_version_subject()}) {
+        lv_subject_set_int(version, lv_subject_get_int(version) + 1);
+    }
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(std::string(lv_label_get_text(bystander)) == "bystander");
+    CHECK(lv_color_to_u32(lv_obj_get_style_text_color(bystander, LV_PART_MAIN)) ==
+          lv_color_to_u32(lv_color_hex(0x123456)));
+    CHECK(name_of("led") == "Chamber Light");
+    w.detach_tile();
+}
+
 TEST_CASE_METHOD(LedWidgetFixture, "LedWidget: the name follows the chosen device",
                  "[led][light_button]") {
     LedWidget w("led", ps, api.get());
