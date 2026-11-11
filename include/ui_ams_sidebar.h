@@ -386,10 +386,9 @@ class AmsOperationSidebar {
     // ---- Action button gating (filament_op_slot_resolver.h) -----------------
     // Recompute every gated sidebar button and publish the results on
     // ams_sidebar_unload_disabled, ams_sidebar_load_disabled,
-    // ams_sidebar_reset_disabled and ams_sidebar_check_gates_disabled. Unload
-    // and Load come from the same compute_op_button_gating() rule the filament
-    // panel and the AMS context menu use; Reset and Check slots come from
-    // compute_machine_op_gating().
+    // ams_sidebar_reset_disabled and ams_sidebar_check_gates_disabled. Load
+    // and Unload come from decide_filament_actions() (filament_action_set.h); Reset and Check slots
+    // come from compute_machine_op_gating().
     void refresh_button_gating();
 
     // What the Load and Unload cells offer, decided by decide_filament_actions()

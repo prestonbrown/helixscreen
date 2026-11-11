@@ -53,7 +53,8 @@ void PrintControlButtons::init_subjects() {
         {"on_print_control_stop", [](lv_event_t*) { instance().handle_stop_button(); }},
     });
 
-    // print_state_enum is a static global subject — no SubjectLifetime needed.
+    // print_state_enum belongs to PrinterState, so the observer carries
+    // PrinterState's subjects lifetime token across a deinit_subjects() cycle.
     // RAW_PRINT_STATE_OK: TWO observers on purpose. This one clears the
     // optimistic pending action when the PRINTER's own state moves; the
     // lifecycle observer below recomputes the buttons. Collapsing them would
