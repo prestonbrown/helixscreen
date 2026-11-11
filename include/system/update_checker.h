@@ -63,6 +63,13 @@ ChannelVersionRelation compare_channel_version(const std::string& installed,
 namespace helix {
 class IMoonrakerClient;
 class IMoonrakerAPI;
+
+/// Ask Moonraker's update manager to re-read one of its entries
+/// (machine.update.refresh), so a client like Mainsail sees the repository as
+/// it is now rather than as of Moonraker's last scheduled refresh. @p name is the
+/// update_manager section's name. Best effort: a missing section, or a print in
+/// progress, is only logged.
+void request_update_manager_refresh(IMoonrakerClient& client, const std::string& name);
 } // namespace helix
 
 /**
