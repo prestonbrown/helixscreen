@@ -620,9 +620,34 @@ Located in the `appearance` section:
 
 ### `toolhead_style`
 **Type:** integer
-**Default:** `0`
-**Values:** `0` (Default), `1` (Creality K1), `2` (Creality K2)
-**Description:** Which toolhead illustration is drawn on the temperature panel. Normally auto-detected from your printer type, so you rarely need to set it by hand. Override only if the wrong toolhead graphic is shown.
+**Default:** `0` (Auto)
+**Values:** `0` to `19`, listed below
+**Description:** Which toolhead picture HelixScreen draws. On Auto it uses the toolhead the printer database gives your printer, then what your filament system reports, and otherwise the Default picture, so you rarely need to set it by hand. Set it only if the wrong toolhead is shown or you have fitted a different one. Set per printer; adjustable in Settings > Appearance > Toolhead Style, which lists the same styles in the same order.
+
+| Value | Menu name | Printer database name |
+|-------|-----------|-----------------------|
+| `0` | Auto | (none: Auto is the absence of one) |
+| `1` | Default | `default` |
+| `2` | A4T | `a4t` |
+| `3` | AntHead | `anthead` |
+| `4` | JabberWocky | `jabberwocky` |
+| `5` | Stealthburner | `stealthburner` |
+| `6` | Creality K1 | `creality_k1` |
+| `7` | Creality K2 | `creality_k2` |
+| `8` | Dragonburner | `dragonburner` |
+| `9` | Mini Stealthburner | `mini_stealthburner` |
+| `10` | Bambu Lab | `bambu` |
+| `11` | Ender 3 | `ender3` |
+| `12` | XOL | `xol` |
+| `13` | Snapmaker U1 | `snapmaker_u1` |
+| `14` | FlashForge AD5 | `flashforge_ad5` |
+| `15` | FlashForge Creator 5 | `flashforge_creator5` |
+| `16` | Elegoo Centauri | `elegoo_centauri` |
+| `17` | Artillery M1 | `artillery_m1` |
+| `18` | Qidi | `qidi` |
+| `19` | Sovol SV08 | `sovol_sv08` |
+
+A value outside `0` to `19` is clamped to the nearer end of that range when the settings load. The list comes from the `ToolheadStyle` enum in [`include/toolhead_style.h`](../../include/toolhead_style.h), which also maps the printer database names (the `toolhead_style` field of a printer's entry in `printer_database.json`) to styles.
 
 ### `tool_number_style`
 **Type:** integer
