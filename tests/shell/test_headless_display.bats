@@ -17,29 +17,120 @@
 # tests. These tests lock the crash fix, the automatic software-renderer
 # fallback, and the end-to-end headless ctl loop.
 
+# The runtime cases share two boots made once in setup_file: one with the
+# default audio environment, which also carries the ctl session, and one with
+# SDL_AUDIODRIVER set explicitly. Each boot records what happened under
+# $BATS_FILE_TMPDIR/<name>.*, and the cases below assert on those records.
+
+setup_file() {
+    load helpers
+    BIN="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)/build/bin/helix-screen"
+    # The Shell Tests CI job never builds the app; each runtime case skips there
+    # through require_app, and the static cases still run.
+    [ -x "$BIN" ] || return 0
+
+    # bats runs files in parallel, and installer tests drive app start/stop, so
+    # only one file may own a live instance at a time.
+    helix_app_lock_acquire || return 1
+    # bats runs setup_file under errexit; calling from an || list keeps one
+    # failing ctl call from skipping the shutdown and the lock release below.
+    boot_headless main ctl env -u SDL_AUDIODRIVER SDL_VIDEODRIVER=dummy || true
+    boot_headless alsa none env SDL_AUDIODRIVER=alsa SDL_VIDEODRIVER=dummy || true
+    helix_app_lock_release
+}
+
+# Stops any instance boot_headless left running, so a broken run never leaks
+# an app that holds the app lock's resources past this file.
+teardown_file() {
+    local f pid
+    for f in "$BATS_FILE_TMPDIR"/*.pid; do
+        [ -r "$f" ] || continue
+        pid="$(cat "$f")"
+        kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null
+    done
+    return 0
+}
+
+# boot_headless <name> <ctl|none> <env command...>
+# Starts the app under the given environment, waits for it to answer ctl ping,
+# optionally navigates and screenshots, checks it is still alive, then stops it
+# with SIGTERM. Records <name>.log, .ready (1 or a reason), .alive, .rc and, for
+# ctl, .nav, .shot and .png. Never fails: the cases judge the records.
+boot_headless() {
+    local name="$1" drive="$2"
+    shift 2
+    local dir="$BATS_FILE_TMPDIR" sock
+    sock="/tmp/hs-bats-$$-$name.sock"
+    local log="$dir/$name.log"
+    rm -f "$sock"
+    # Private config dir per boot: the single-instance lock lives there, and
+    # test_helixctl_json.bats runs its own instance in parallel with this file.
+    mkdir -p "$dir/$name-config"
+
+    # Launched directly, NOT through setsid: setsid forks, so $! would be the
+    # wrapper rather than the app. fd 3 is bats' output channel: an app that
+    # inherited it would keep bats waiting after the file ends.
+    HELIX_CONFIG_DIR="$dir/$name-config" "$@" "$BIN" --test -vv \
+        --remote-socket "$sock" > "$log" 2>&1 3>&- &
+    local pid=$!
+    echo "$pid" > "$dir/$name.pid"
+
+    # Wait for the app to ANSWER, not for the socket file to exist. The
+    # liveness check separates a process that died from one still starting.
+    local i ready=""
+    for i in $(seq 1 600); do
+        if ! kill -0 "$pid" 2>/dev/null; then
+            local rc=0
+            wait "$pid" 2>/dev/null || rc=$?
+            ready="EXITED during startup with status $rc"
+            echo "$rc" > "$dir/$name.rc"
+            break
+        fi
+        if [ -S "$sock" ] && "$BIN" ctl --socket "$sock" ping >/dev/null 2>&1; then
+            ready=1
+            break
+        fi
+        sleep 0.2
+    done
+    echo "${ready:-ALIVE but never answered ctl ping in 120s}" > "$dir/$name.ready"
+
+    if [ "$ready" = 1 ]; then
+        if [ "$drive" = ctl ]; then
+            local st=0
+            "$BIN" ctl --socket "$sock" navigate filament > "$dir/$name.nav" 2>&1 || st=$?
+            echo "status=$st" >> "$dir/$name.nav"
+            st=0
+            "$BIN" ctl --socket "$sock" screenshot "$dir/$name.png" \
+                > "$dir/$name.shot" 2>&1 || st=$?
+            echo "status=$st" >> "$dir/$name.shot"
+        fi
+        kill -0 "$pid" 2>/dev/null && echo 1 > "$dir/$name.alive"
+    fi
+
+    if kill -0 "$pid" 2>/dev/null; then
+        kill -TERM "$pid" 2>/dev/null
+        for i in $(seq 1 50); do
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 0.2
+        done
+        kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null
+        local rc=0
+        wait "$pid" 2>/dev/null || rc=$?
+        echo "$rc" > "$dir/$name.rc"
+    fi
+    rm -f "$sock"
+    return 0
+}
+
 setup() {
     load helpers
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
     BIN="$REPO_ROOT/build/bin/helix-screen"
-    # Private config dir, mirroring tests/ui/helix/app.py. bats runs FILES in
-    # parallel (--jobs), and the single-instance lock lives in the config dir —
-    # so sharing the default one makes this file and test_helixctl_json.bats
-    # race for it, and the loser dies with "Another instance is already running".
-    export HELIX_CONFIG_DIR="$BATS_TEST_TMPDIR/config"
-    mkdir -p "$HELIX_CONFIG_DIR"
     WINDOW_PATCH="$REPO_ROOT/patches/lvgl_sdl_window.patch"
     SW_PATCH="$REPO_ROOT/patches/lvgl_sdl_sw_android_debug.patch"
     WINDOW_SRC="$REPO_ROOT/lib/lvgl/src/drivers/sdl/lv_sdl_window.c"
     SW_SRC="$REPO_ROOT/lib/lvgl/src/drivers/sdl/lv_sdl_sw.c"
 }
-
-# Only the ctl test takes the app lock, and it gives it back on the path where
-# it succeeds. Releasing here covers the paths where it returns early, which a
-# directory lock does not survive on its own.
-teardown() {
-    helix_app_lock_release
-}
-
 
 # The patched LVGL sources only exist once the submodule is checked out and
 # mk/patches.mk has run. Jobs that validate shell scripts without building
@@ -52,35 +143,32 @@ require_lvgl_src() {
     done
 }
 
-# Unique per-test socket. Unix socket paths cap at ~108 bytes, and
-# BATS_TEST_TMPDIR is often too long, so anchor in /tmp directly.
-headless_socket() {
-    echo "/tmp/hs-bats-$$-${BATS_TEST_NUMBER}.sock"
+# Fails with the boot's log unless boot <name> answered ctl ping.
+require_booted() {
+    local dir="$BATS_FILE_TMPDIR"
+    if [ "$(cat "$dir/$1.ready" 2>/dev/null)" != 1 ]; then
+        echo "boot $1: $(cat "$dir/$1.ready" 2>/dev/null || echo 'never ran')" >&2
+        cat "$dir/$1.log" >&2 2>/dev/null || true
+        return 1
+    fi
 }
 
 @test "headless boot under SDL_VIDEODRIVER=dummy does not segfault" {
     require_app "$BIN"
-    local log="$BATS_TEST_TMPDIR/headless.log"
-
-    # 139 = 128 + SIGSEGV(11). The pre-fix binary died here every time.
-    run env SDL_VIDEODRIVER=dummy timeout -s KILL 15 "$BIN" --test -vv \
-        --remote-socket "$(headless_socket)"
-    printf '%s\n' "$output" > "$log"
-
-    [ "$status" -ne 139 ]
-    # 137 = SIGKILL from timeout, i.e. it was still running happily. Any other
-    # non-zero status means it exited early on its own.
-    [ "$status" -eq 137 ] || [ "$status" -eq 0 ]
+    require_booted main
+    local rc
+    rc="$(cat "$BATS_FILE_TMPDIR/main.rc")"
+    # It must still be alive after being driven, then stop cleanly on SIGTERM:
+    # 139 = 128 + SIGSEGV(11), the crash a display-creation failure path causes.
+    [ "$(cat "$BATS_FILE_TMPDIR/main.alive" 2>/dev/null)" = 1 ]
+    [ "$rc" -ne 139 ]
+    [ "$rc" -eq 0 ] || [ "$rc" -eq 143 ]
 }
 
 @test "headless boot creates an SDL display via the software renderer" {
     require_app "$BIN"
-    local log="$BATS_TEST_TMPDIR/sw.log"
-
-    run env SDL_VIDEODRIVER=dummy timeout -s KILL 15 "$BIN" --test -vv \
-        --remote-socket "$(headless_socket)"
-    printf '%s\n' "$output" > "$log"
-
+    require_booted main
+    local log="$BATS_FILE_TMPDIR/main.log"
     grep -q "SDL display created" "$log"
     # The accelerated attempt is expected to fail first; what matters is that we
     # retried and said so, rather than crashing or giving up.
@@ -94,15 +182,11 @@ headless_socket() {
     # main()'s silence_audio_if_headless() forces SDL_AUDIODRIVER=dummy so a
     # headless run stays headless. The visible signal is the driver name in
     # the [SDLSound] init log; without the override it would be 'pulseaudio'
-    # or 'pipewire' on a dev box.
+    # or 'pipewire' on a dev box. The main boot unsets SDL_AUDIODRIVER so the
+    # dev box's own setting cannot pollute it.
     require_app "$BIN"
-    local log="$BATS_TEST_TMPDIR/audio.log"
-
-    # -u SDL_AUDIODRIVER: make sure the test isn't polluted by the dev box's
-    # own audio driver setting. HELIX_CONFIG_DIR isolates the instance lock.
-    run env -u SDL_AUDIODRIVER SDL_VIDEODRIVER=dummy timeout -s KILL 15 "$BIN" \
-        --test -vv --remote-socket "$(headless_socket)"
-    printf '%s\n' "$output" > "$log"
+    require_booted main
+    local log="$BATS_FILE_TMPDIR/main.log"
 
     # If SDL audio initialized at all, it must be on the dummy driver.
     # (On a CI runner with no SDL audio at all, SDLSoundBackend::initialize()
@@ -121,11 +205,8 @@ headless_socket() {
     # box has pulseaudio/pipewire, but 'alsa' is part of SDL's stock list
     # and selecting it via env still gets passed through to SDL_Init.
     require_app "$BIN"
-    local log="$BATS_TEST_TMPDIR/audio-explicit.log"
-
-    run env SDL_AUDIODRIVER=alsa SDL_VIDEODRIVER=dummy timeout -s KILL 15 "$BIN" \
-        --test -vv --remote-socket "$(headless_socket)"
-    printf '%s\n' "$output" > "$log"
+    require_booted alsa
+    local log="$BATS_FILE_TMPDIR/alsa.log"
 
     # Driver name should be 'alsa' if SDL audio came up at all — never
     # silently overridden to 'dummy'.
@@ -136,74 +217,14 @@ headless_socket() {
 
 @test "headless instance can be driven via ctl and capture a screenshot" {
     require_app "$BIN"
-    local sock shot log
-    sock="$(headless_socket)"
-    shot="$BATS_TEST_TMPDIR/shot.png"
-    log="$BATS_TEST_TMPDIR/ctl.log"
-    rm -f "$sock" "$shot"
-
-    # bats runs files in parallel, and installer tests drive app start/stop, so
-    # only one file may own a live instance at a time. Hold the shared app lock
-    # for as long as this test drives its own.
-    helix_app_lock_acquire
-
-    # Launched directly, NOT through setsid: setsid forks, so $! would be the
-    # wrapper rather than the app - the liveness check below would read the
-    # wrapper's immediate exit as the app dying, and the kill at the end would
-    # miss the app and leak it.
-    env SDL_VIDEODRIVER=dummy "$BIN" --test -vv --remote-socket "$sock" \
-        > "$log" 2>&1 &
-    local pid=$!
-
-    # Wait for the app to ANSWER, not for the socket file to exist: the socket
-    # appears when the server binds it, which is earlier than it can serve. The
-    # liveness check separates the two failure modes that look identical in a
-    # log that simply stops - a process that died and one that is still starting.
-    local i ready=0
-    for i in $(seq 1 120); do
-        if ! kill -0 "$pid" 2>/dev/null; then
-            local rc=0
-            wait "$pid" 2>/dev/null || rc=$?
-            echo "app EXITED ${i}s into startup with status $rc" >&2
-            case "$rc" in
-                134) echo "  -> 128+6 SIGABRT: assertion or uncaught throw" >&2 ;;
-                137) echo "  -> 128+9 SIGKILL: OOM killer or an external kill -9" >&2 ;;
-                139) echo "  -> 128+11 SIGSEGV" >&2 ;;
-                143) echo "  -> 128+15 SIGTERM: something asked it to stop" >&2 ;;
-            esac
-            cat "$log" >&2 || true
-            return 1
-        fi
-        if [ -S "$sock" ] && "$BIN" ctl --socket "$sock" ping >/dev/null 2>&1; then
-            ready=1
-            break
-        fi
-        sleep 1
-    done
-
-    if [ "$ready" -ne 1 ]; then
-        echo "app ALIVE but never answered ctl ping in 120s; log follows:" >&2
-        cat "$log" >&2 || true
-        kill -9 "$pid" 2>/dev/null || true
-        return 1
-    fi
-
-    run "$BIN" ctl --socket "$sock" navigate filament
-    local nav_status=$status nav_out="$output"
-
-    run "$BIN" ctl --socket "$sock" screenshot "$shot"
-    local shot_status=$status shot_out="$output"
-
-    kill -TERM "$pid" 2>/dev/null || true
-    wait "$pid" 2>/dev/null || true
-    rm -f "$sock"
-    helix_app_lock_release
-
-    if [ "$nav_status" -ne 0 ] || [ "$shot_status" -ne 0 ] || [ ! -s "$shot" ]; then
-        echo "navigate=$nav_status ($nav_out)" >&2
-        echo "screenshot=$shot_status ($shot_out)" >&2
-        echo "png bytes=$(wc -c < "$shot" 2>/dev/null || echo 0)" >&2
-        cat "$log" >&2 || true
+    require_booted main
+    local dir="$BATS_FILE_TMPDIR"
+    if ! grep -qx 'status=0' "$dir/main.nav" || ! grep -qx 'status=0' "$dir/main.shot" ||
+        [ ! -s "$dir/main.png" ]; then
+        echo "navigate: $(cat "$dir/main.nav" 2>/dev/null)" >&2
+        echo "screenshot: $(cat "$dir/main.shot" 2>/dev/null)" >&2
+        echo "png bytes=$(wc -c < "$dir/main.png" 2>/dev/null || echo 0)" >&2
+        cat "$dir/main.log" >&2 || true
         return 1
     fi
 }

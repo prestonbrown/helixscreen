@@ -28,6 +28,12 @@ setup_file() {
     local art="$BATS_FILE_TMPDIR/e2e"
     mkdir -p "$art/stubs" "$art/seed"
     bash "$WORKTREE_ROOT/scripts/bundle-installer.sh" -o "$art/install.sh" >/dev/null
+    # The stub systemctl brings a unit up at once, so the installer's one-second
+    # waits for a service to start measure nothing here and were most of this
+    # file's run time. BusyBox ash runs sleep in-process, out of reach of a
+    # bound stub, so this copy of the bundle shadows it with a function that
+    # still waits on the real clock, briefly.
+    sed -i '1a sleep() { command sleep 0.02; }' "$art/install.sh"
 
     _make_release "$art" 1 v1.0.0
     _make_release "$art" 2 v1.0.1
@@ -236,11 +242,13 @@ snap_resolve() {
     echo "$root$path"
 }
 
-@test "install.sh e2e: a fresh install lays down the payload, the unit and the updater entry" {
+@test "install.sh e2e: a no-terminal fresh install lays down the payload, the unit and the updater entry, and prints the golden transcript" {
     run_scenario install
     local s
     s=$(snap 1-install)
 
+    lacks "Continue?" "$output"
+    matches_golden fresh 1
     contains "HelixScreen v1.0.0 is running" "$output"
     lacks "=====" "$output"
     [ "$(grep -c '^HelixScreen installer v1.0.0' <<< "$output")" -eq 1 ] \
@@ -420,12 +428,13 @@ snap_resolve() {
         || fail "the scenario sees more than a loopback: $(printf '%s\n' "$output" | grep NET_IFACES)"
 }
 
-@test "install.sh e2e: --dry-run checks the release, prints the plan and changes nothing" {
+@test "install.sh e2e: --dry-run checks the release, prints the golden plan and changes nothing" {
     need_cdn_stub
     run_scenario dry-run
     local s
     s=$(snap 1-dry-run)
 
+    matches_golden dry-run 1
     contains "Dry run, nothing changed." "$output"
     contains "SHA256 available" "$output"
     # It asked the stub CDN, so the release check really ran.
@@ -478,23 +487,11 @@ $output"
     grep -qx "systemctl start helixscreen" "$s/var/log/e2e-systemctl.log"
 }
 
-@test "install.sh e2e: a no-terminal install prints the golden transcript" {
-    run_scenario install
-    lacks "Continue?" "$output"
-    matches_golden fresh 1
-}
-
 @test "install.sh e2e: a no-terminal update prints the golden transcript" {
     run_scenario install update
     lacks "Continue?" "$(step_output 2 "$output")"
     contains "  Update     v1.0.0 → v1.0.1 (stable)" "$(step_output 2 "$output")"
     matches_golden update 2
-}
-
-@test "install.sh e2e: --dry-run prints the golden transcript" {
-    need_cdn_stub
-    run_scenario dry-run
-    matches_golden dry-run 1
 }
 
 @test "install.sh e2e: a failed step reports the command, the state and the log" {

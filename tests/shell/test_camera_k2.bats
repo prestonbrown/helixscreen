@@ -14,6 +14,7 @@ WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 
 setup() {
     load helpers
+    skip_line_tracking
 
     export INSTALL_DIR="$BATS_TEST_TMPDIR/opt/helixscreen"
     mkdir -p "$INSTALL_DIR/config" "$INSTALL_DIR/bin"
@@ -121,11 +122,11 @@ srv.serve_forever()
 PYEOF
     FAKE_MR_PID=$!
     export FAKE_MR_PID
-    # Wait for the port file.
+    # Wait up to 2s for the port file.
     local i
-    for i in 1 2 3 4 5 6 7 8 9 10; do
+    for i in $(seq 1 40); do
         [ -s "$BATS_TEST_TMPDIR/mr_port" ] && break
-        sleep 0.2
+        sleep 0.05
     done
     export MOONRAKER_URL="http://127.0.0.1:$(cat "$BATS_TEST_TMPDIR/mr_port")"
 }
@@ -1122,7 +1123,7 @@ _run_k2_wrapper() {
     printf '#!/bin/sh\necho kill >> "%s/killall.log"\nexit 1\n' "$d" > "$d/killall"
     chmod +x "$d/ustreamer" "$d/killall"
     sed -e "s|^USTREAMER_BIN=.*|USTREAMER_BIN=\"$d/ustreamer\"|" \
-        -e 's|^RECLAIM_INTERVAL=.*|RECLAIM_INTERVAL="1"|' \
+        -e 's|^RECLAIM_INTERVAL=.*|RECLAIM_INTERVAL="0.25"|' \
         "$WORKTREE_ROOT/config/helixscreen-ustreamer-k2.sh" > "$d/init.sh"
     sh -c '
         procd_open_instance() { :; }; procd_close_instance() { :; }
@@ -1135,13 +1136,14 @@ _run_k2_wrapper() {
 }
 
 @test "k2 ustreamer wrapper: keeps reclaiming the camera while ustreamer runs" {
-    run _run_k2_wrapper 3 0
+    run _run_k2_wrapper 0.9 0
     [ "$status" -eq 0 ]
-    # One kill before launch plus at least two in-loop kills over 3s at 1s interval.
+    # One kill before launch plus at least two in-loop kills over 0.9s at a 0.25s
+    # interval.
     [ "$(wc -l < "$BATS_TEST_TMPDIR/wrap/killall.log")" -ge 3 ]
 }
 
 @test "k2 ustreamer wrapper: exits with ustreamer's status so procd respawns" {
-    run _run_k2_wrapper 1 7
+    run _run_k2_wrapper 0.1 7
     [ "$status" -eq 7 ]
 }
