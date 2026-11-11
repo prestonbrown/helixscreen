@@ -45,9 +45,10 @@ class BatchFilamentModal : public Modal {
     static std::vector<int> selected_slots(const std::vector<std::string>& keys);
 
     // Pure: row text. The lane name, plus what is in the lane and where it
-    // stands: a lane carrying material says loaded (at the toolhead) or ready
-    // to load, a lane known empty says Empty with no loaded/ready suffix, and
-    // an unanswerable presence leaves the lane name bare. The tick state stops
+    // stands: a lane carrying material says loaded (at the toolhead), ready to
+    // load or empty by its sensor, or the material alone with no sensor; a
+    // lane with no material known empty says Empty, and an unanswerable
+    // presence leaves the lane name bare. The tick state stops
     // describing the machine the moment the user changes it, so the contents
     // are named in the row.
     static std::string row_label(LaneNoun noun, int slot, const SlotInfo& info,
