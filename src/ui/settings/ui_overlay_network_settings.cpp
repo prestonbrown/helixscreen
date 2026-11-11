@@ -390,6 +390,10 @@ void NetworkSettingsOverlay::on_activate() {
 
     // Start scanning if WiFi enabled
     if (wifi_manager_ && wifi_manager_->is_enabled()) {
+        // A rebuilt tree shows the last scan's rows until this one lands.
+        if (!waking && !cached_networks_.empty()) {
+            populate_network_list(cached_networks_);
+        }
         lv_subject_set_int(&wifi_scanning_, 1);
 
         auto token = lifetime_.token();
@@ -422,6 +426,12 @@ void NetworkSettingsOverlay::on_deactivating(DeactivateReason) {
 // ============================================================================
 // Cleanup
 // ============================================================================
+
+void NetworkSettingsOverlay::on_ui_destroyed() {
+    detach_country_dropdown();
+    networks_list_ = nullptr;
+    pending_wlan_toggle_switch_ = nullptr;
+}
 
 void NetworkSettingsOverlay::cleanup() {
     spdlog::debug("[NetworkSettingsOverlay] Cleaning up");

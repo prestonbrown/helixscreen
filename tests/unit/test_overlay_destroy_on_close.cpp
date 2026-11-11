@@ -21,6 +21,7 @@
 #include "ui_maintenance_overlay.h"
 #include "ui_nav_manager.h"
 #include "ui_overlay_console_settings.h"
+#include "ui_overlay_network_settings.h"
 #include "ui_overlay_printer_image.h"
 #include "ui_overlay_printer_image_tagger.h"
 #include "ui_overlay_printer_type.h"
@@ -287,6 +288,7 @@ const OverlayCase kOverlayCases[] = {
     {"History Dashboard", as_base<&get_global_history_dashboard_panel>, nullptr,
      [] { get_global_history_dashboard_panel().set_time_filter(HistoryTimeFilter::DAY); }},
     {"Sensors", as_base<&get_sensor_settings_overlay>},
+    {"Network", as_base<&get_network_settings_overlay>},
     {"Belt Tension", as_base<&get_global_belt_tension_panel>, nullptr,
      [] {
          auto* active = get_printer_state().print_state().get_print_active_subject();
