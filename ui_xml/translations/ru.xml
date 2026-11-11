@@ -2188,6 +2188,7 @@
   <translation tag="Load and unload" ru="Загрузка и выгрузка"/>
   <translation tag="Load and unload filament at the tool by hand" ru="Загружайте и выгружайте филамент вручную на инструменте"/>
   <translation tag="Load canceled: nozzle target dropped" ru="Загрузка отменена: цель сопла снижена"/>
+  <translation tag="Load canceled: the active tool changed" ru="Загрузка отменена: активный инструмент сменился"/>
   <translation tag="Load complete" ru="Загрузка завершена"/>
   <translation tag="Load failed" ru="Ошибка загрузки"/>
   <translation tag="Load filament" ru="Загрузка филамента"/>

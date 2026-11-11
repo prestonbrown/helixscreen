@@ -2140,6 +2140,7 @@
   <translation tag="Load and unload" de="Laden und Entladen"/>
   <translation tag="Load and unload filament at the tool by hand" de="Filament am Werkzeug von Hand laden und entladen"/>
   <translation tag="Load canceled: nozzle target dropped" de="Laden abgebrochen: Düsen-Zieltemperatur gesunken"/>
+  <translation tag="Load canceled: the active tool changed" de="Laden abgebrochen: Das aktive Werkzeug hat gewechselt"/>
   <translation tag="Load complete" de="Laden abgeschlossen"/>
   <translation tag="Load failed" de="Laden fehlgeschlagen"/>
   <translation tag="Load filament" de="Filament laden"/>

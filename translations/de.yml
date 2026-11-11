@@ -2354,6 +2354,7 @@ translations:
   Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one: Neue Spule in diesen Slot einlegen oder das automatische Nachfüllen aktivieren, um auf eine passende zu wechseln
   Load and unload filament at the tool by hand: 'Filament am Werkzeug von Hand laden und entladen'
   'Load canceled: nozzle target dropped': 'Laden abgebrochen: Düsen-Zieltemperatur gesunken'
+  'Load canceled: the active tool changed': 'Laden abgebrochen: Das aktive Werkzeug hat gewechselt'
   Load complete: 'Laden abgeschlossen'
   Load failed: Laden fehlgeschlagen
   Load filament: 'Filament laden'

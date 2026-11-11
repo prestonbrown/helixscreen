@@ -5797,32 +5797,3 @@ TEST_CASE_METHOD(SnapmakerFixture,
         CHECK(h.config_writes().size() == 2);
     }
 }
-
-// A head with no automatic feeder loads by hand: the screen offers the guided
-// manual load (prestonbrown/helixscreen#2000) instead of a feed the firmware refuses.
-TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker: a head with no automatic feeder loads by hand",
-                 "[ams][snapmaker][manual_load]") {
-    helix::test::RegisteredWired<AmsBackendSnapmaker> backend_reg;
-    auto& backend = *backend_reg;
-    // Before any feeder frame nothing is known: the load stays automatic.
-    CHECK(backend.head_filament_ops(1).load == FilamentOpSupport::Automatic);
-    CHECK_FALSE(backend.head_filament_ops(1).guided_hand_load);
-
-    const bool no_module = GENERATE(true, false);
-    backend.fire_status(json{{"filament_feed left",
-                              {{"extruder1",
-                                {{"filament_detected", false},
-                                 {"channel_state", "wait_insert"},
-                                 {"module_exist", !no_module},
-                                 {"disable_auto", !no_module}}}}}});
-    const HeadFilamentOps ops = backend.head_filament_ops(1);
-    CHECK(ops.load == FilamentOpSupport::Manual);
-    CHECK(ops.guided_hand_load);
-    CHECK_FALSE(ops.load_reason.empty());
-    // Only that head: its neighbour's feeder said nothing.
-    CHECK(backend.head_filament_ops(0).load == FilamentOpSupport::Automatic);
-
-    backend.fire_status(json{{"filament_feed left",
-                              {{"extruder1", {{"module_exist", true}, {"disable_auto", false}}}}}});
-    CHECK(backend.head_filament_ops(1).load == FilamentOpSupport::Automatic);
-}

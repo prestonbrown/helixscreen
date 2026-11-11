@@ -2344,6 +2344,7 @@ translations:
   Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one: Cargue una bobina nueva en esta ranura, o active el rellenado automático para cambiar a una equivalente
   Load and unload filament at the tool by hand: 'Carga y descarga el filamento a mano en la herramienta'
   'Load canceled: nozzle target dropped': 'Carga cancelada: el objetivo de la boquilla bajó'
+  'Load canceled: the active tool changed': 'Carga cancelada: cambió la herramienta activa'
   Load complete: 'Carga completa'
   Load failed: Error al cargar
   Load filament: 'Cargar filamento'

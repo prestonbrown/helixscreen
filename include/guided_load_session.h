@@ -36,6 +36,7 @@
 #include <string>
 
 namespace helix {
+class AmsBackend;
 class PrinterState;
 } // namespace helix
 
@@ -48,13 +49,22 @@ enum class ManualLoadRefusal : int {
     NotReady,        ///< Not connected, or Klippy not ready
     PreheatPending,  ///< Another filament op is heating the nozzle
     ColdPullRunning, ///< The cold pull owns the heater
+    ToolUnknown,     ///< The slot names no tool the printer has an extruder for
     ToolNotActive,   ///< The slot's nozzle is not the active extruder, which is what G1 E moves
 };
 
 /// Pure: the refusal for these inputs, checked in the order of the enum.
+/// @param slot_extruder manual_load_extruder() for the slot; empty when unknown.
 [[nodiscard]] ManualLoadRefusal manual_load_refusal(PrintState lifecycle, bool printer_reachable,
                                                     bool preheat_pending, bool cold_pull_running,
-                                                    bool tool_active);
+                                                    const std::string& slot_extruder,
+                                                    const std::string& active_extruder);
+
+/// The Klipper extruder a manual load on @p slot pushes: the active one for a
+/// negative slot or no backend, else the slot's mapped tool's. Empty when the slot
+/// names no tool, or a tool with no extruder the printer reports: a load there must
+/// refuse, not fall back to the active nozzle.
+[[nodiscard]] std::string manual_load_extruder(AmsBackend* backend, int slot, PrinterState& state);
 
 /// manual_load_refusal() for @p slot (negative: the active nozzle) against the live printer.
 [[nodiscard]] ManualLoadRefusal manual_load_refusal_now(PrinterState& state, int slot);
@@ -111,8 +121,11 @@ class GuidedLoadSession {
     void on_heat_progress(const PreheatProgress& progress);
     void on_heated(FilamentOpTicket ticket);
     /// The session cannot go on (a job took the machine, the printer went away):
-    /// end it sending nothing more.
-    void lose(const char* why);
+    /// end it sending nothing more. @p toast, when set, tells the user why.
+    void lose(const char* why, const char* toast = nullptr);
+    /// A manual load pushes the extruder it heated; any other active one is a
+    /// different nozzle. Always true for the printer's own wizard.
+    [[nodiscard]] bool on_heated_extruder() const;
     void on_printer_changed();
     void send(const std::string& script, bool report_outcome);
     void on_command_finished(bool ok);
@@ -124,6 +137,8 @@ class GuidedLoadSession {
     GuidedLoadFlow flow_;
     bool manual_ = false;
     int slot_ = -1;
+    /// manual_load_extruder() at construction; empty for the wizard or an unknown tool.
+    std::string extruder_;
     bool begun_ = false;
     bool finished_ = false;
     bool heat_requested_ = false;
@@ -134,6 +149,7 @@ class GuidedLoadSession {
     ObserverGuard lifecycle_observer_;
     ObserverGuard connection_observer_;
     ObserverGuard klippy_observer_;
+    ObserverGuard active_extruder_observer_;
     AsyncLifetimeGuard lifetime_;
 };
 

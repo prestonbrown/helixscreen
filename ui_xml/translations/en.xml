@@ -2140,6 +2140,7 @@
   <translation tag="Load and unload" en="Load and unload"/>
   <translation tag="Load and unload filament at the tool by hand" en="Load and unload filament at the tool by hand"/>
   <translation tag="Load canceled: nozzle target dropped" en="Load canceled: nozzle target dropped"/>
+  <translation tag="Load canceled: the active tool changed" en="Load canceled: the active tool changed"/>
   <translation tag="Load complete" en="Load complete"/>
   <translation tag="Load failed" en="Load failed"/>
   <translation tag="Load filament" en="Load filament"/>

@@ -2359,6 +2359,7 @@ translations:
   Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one: Chargez une nouvelle bobine dans ce slot, ou activez le réapprovisionnement automatique pour basculer sur une bobine équivalente
   Load and unload filament at the tool by hand: 'Chargez et déchargez le filament à la main sur l''outil'
   'Load canceled: nozzle target dropped': 'Chargement annulé : la cible de la buse a baissé'
+  'Load canceled: the active tool changed': 'Chargement annulé : l''outil actif a changé'
   Load complete: 'Chargement terminé'
   Load failed: Échec du chargement
   Load filament: 'Charger le filament'
