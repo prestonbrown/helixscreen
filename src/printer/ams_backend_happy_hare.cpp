@@ -120,6 +120,8 @@ nlohmann::json AmsBackendHappyHare::required_status_objects(const helix::Printer
                                             "sync_feedback_bias_modelled",
                                             "sync_feedback_bias_raw",
                                             "sync_feedback_flow_rate",
+                                            "sync_feedback_enabled",
+                                            "fans",
                                             "sync_drive",
                                             "spoolman_support",
                                             "pending_spool_id",
@@ -893,6 +895,15 @@ void AmsBackendHappyHare::apply_mmu_telemetry_locked(const happy_hare::MmuTeleme
     }
     if (t.sync_feedback_bias_raw_null) {
         system_info_.sync_feedback_bias_raw = kBiasUnavailable;
+    }
+    // Null while the selected unit has no buffer: its controls go with it.
+    if (t.sync_feedback_enabled) {
+        sync_feedback_enabled_ = *t.sync_feedback_enabled;
+    } else if (t.sync_feedback_enabled_null) {
+        sync_feedback_enabled_.reset();
+    }
+    if (t.fans) {
+        fan_units_ = *t.fans;
     }
 
     if (t.sync_drive) {
@@ -1974,6 +1985,12 @@ void AmsBackendHappyHare::apply_config_defaults(const nlohmann::json& settings,
         parse_int("clog_detection", config_defaults_.clog_detection);
         config_defaults_.detection_length = happy_hare::read_config_number(
             happy_hare::find_config_param(settings, layout, "detection_length"));
+        if (const auto v = happy_hare::read_config_number(
+                happy_hare::find_config_param(settings, layout, "autotune_rotation_distance"))) {
+            config_defaults_.autotune_rotation_distance = *v != 0.0f;
+        }
+        // A Klipper restart dropped any AUTOTUNE= sent before it.
+        sync_feedback_autotune_sent_.reset();
 
         config_defaults_.loaded = true;
 

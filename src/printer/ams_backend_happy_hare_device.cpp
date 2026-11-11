@@ -35,7 +35,172 @@ std::optional<happy_hare::UnitFeature> feature_for_action(std::string_view id) {
     return std::nullopt;
 }
 
+// MMU_FAN FAN_FORCED values (Happy Hare extras/mmu/unit/mmu_fan_manager.py), in
+// the order the Fan Mode dropdown lists them.
+constexpr const char* kFanModes[] = {"Off", "On", "Auto"};
+constexpr std::string_view kFanControlPrefix = "mmu_fan_control:";
+constexpr std::string_view kFanModePrefix = "mmu_fan_mode:";
+
+/// The dropdown value for @p fan: the mode every fan of the unit shares, or empty
+/// (shown as unknown) when per-gate fans disagree.
+std::string common_fan_mode(const happy_hare::MmuFanUnit& fan) {
+    std::optional<int> common;
+    for (const auto& mode : fan.modes) {
+        if (!mode) {
+            continue;
+        }
+        if (common && *common != *mode) {
+            return {};
+        }
+        common = mode;
+    }
+    if (!common || *common < 0 || *common >= static_cast<int>(std::size(kFanModes))) {
+        return {};
+    }
+    return kFanModes[*common];
+}
+
 } // namespace
+
+void AmsBackendHappyHare::append_v4_controls_locked(
+    std::vector<helix::printer::DeviceAction>& actions) const {
+    using helix::printer::DeviceAction;
+    if (!is_v4_locked()) {
+        return;
+    }
+
+    // MMU_SYNC_FEEDBACK (extras/mmu/commands/mmu_sync_feedback.py) acts on the selected
+    // unit, which is the one printer.mmu's sync_feedback_* fields describe.
+    if (sync_feedback_enabled_) {
+        const bool on = *sync_feedback_enabled_;
+        actions.push_back(DeviceAction::toggle("sync_feedback", TR_NOOP("Sync Feedback"),
+                                               "accessories", on, {},
+                                               TR_NOOP("Buffer-driven gear speed control")));
+        const bool autotune = sync_feedback_autotune_sent_.value_or(
+            config_defaults_.autotune_rotation_distance.value_or(false));
+        actions.push_back(DeviceAction::toggle(
+            "sync_feedback_autotune", TR_NOOP("Save Autotuned Rotation"), "accessories", autotune,
+            {}, TR_NOOP("Keep the rotation distance sync feedback tunes")));
+
+        auto reset = DeviceAction::button("sync_feedback_reset", TR_NOOP("Reset Sync Feedback"),
+                                          "accessories");
+        // Happy Hare resets the controller only while sync feedback is on.
+        if (!on) {
+            reset.enabled = false;
+            reset.disable_reason = TR_NOOP("Sync feedback is off");
+        }
+        actions.push_back(std::move(reset));
+
+        // Moves the gear motor until the buffer reads neutral; Happy Hare refuses it
+        // with no filament loaded and has no print check of its own.
+        auto tension = DeviceAction::button("sync_feedback_adjust_tension",
+                                            TR_NOOP("Neutralize Tension"), "accessories");
+        tension.moves_machine = true;
+        if (!system_info_.filament_loaded) {
+            tension.enabled = false;
+            tension.disable_reason = TR_NOOP("Load filament first");
+        }
+        actions.push_back(std::move(tension));
+    }
+
+    // MMU_FAN (extras/mmu/commands/mmu_fan.py), one pair of rows per unit with fans.
+    const bool name_units = fan_units_.size() > 1 || machine_layout_.num_units > 1;
+    for (const auto& fan : fan_units_) {
+        auto control = DeviceAction::toggle(std::string(kFanControlPrefix) + fan.unit,
+                                            TR_NOOP("Fan Control"), "accessories", fan.enabled, {},
+                                            TR_NOOP("Run the MMU fans by temperature"));
+        auto mode = DeviceAction::dropdown(
+            std::string(kFanModePrefix) + fan.unit, TR_NOOP("Fan Mode"), "accessories",
+            std::vector<std::string>(std::begin(kFanModes), std::end(kFanModes)),
+            common_fan_mode(fan), {},
+            TR_NOOP("Force the MMU fans off or on, or follow Fan Control"));
+        if (name_units) {
+            // The unit's name says which unit's fans a row drives; a proper noun needs
+            // no translation.
+            std::string unit_name = fan.unit;
+            for (const auto& unit : machine_units_) {
+                if (unit.first_gate == fan.first_gate && !unit.display_name.empty()) {
+                    unit_name = unit.display_name;
+                }
+            }
+            control.description = unit_name;
+            mode.description = unit_name;
+        }
+        actions.push_back(std::move(control));
+        actions.push_back(std::move(mode));
+    }
+}
+
+std::optional<AmsError> AmsBackendHappyHare::execute_v4_control(const std::string& action_id,
+                                                                const std::any& value) {
+    using printer::device_action_value;
+    const std::string_view id = action_id;
+
+    if (id == "sync_feedback" || id == "sync_feedback_autotune" || id == "sync_feedback_reset" ||
+        id == "sync_feedback_adjust_tension") {
+        std::string args;
+        if (id == "sync_feedback_reset") {
+            args = "RESET=1";
+        } else if (id == "sync_feedback_adjust_tension") {
+            args = "ADJUST_TENSION=1";
+        } else {
+            auto [on, err] = device_action_value<bool>(value, "sync feedback state");
+            if (!err) {
+                return err;
+            }
+            args = fmt::format("{}={}", id == "sync_feedback" ? "ENABLE" : "AUTOTUNE", on ? 1 : 0);
+        }
+        std::string cmd;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            // Without UNIT= a multi-unit v4 infers the unit from the selected gate and
+            // refuses when none is; the status describes the selected unit either way.
+            cmd = "MMU_SYNC_FEEDBACK " + args + unit_suffix_locked(active_unit_locked());
+        }
+        AmsError result = execute_gcode(cmd);
+        if (result.success() && id == "sync_feedback_autotune") {
+            std::lock_guard<std::mutex> lock(mutex_);
+            sync_feedback_autotune_sent_ = args.back() == '1';
+        }
+        return result;
+    }
+
+    const bool is_control = id.substr(0, kFanControlPrefix.size()) == kFanControlPrefix;
+    const bool is_mode = id.substr(0, kFanModePrefix.size()) == kFanModePrefix;
+    if (!is_control && !is_mode) {
+        return std::nullopt;
+    }
+    const std::string unit(
+        id.substr(is_control ? kFanControlPrefix.size() : kFanModePrefix.size()));
+    std::string args;
+    if (is_control) {
+        auto [on, err] = device_action_value<bool>(value, "fan control state");
+        if (!err) {
+            return err;
+        }
+        args = fmt::format("ENABLE={}", on ? 1 : 0);
+    } else {
+        auto [mode, err] = device_action_value<std::string>(value, "fan mode");
+        if (!err) {
+            return err;
+        }
+        const auto it = std::find(std::begin(kFanModes), std::end(kFanModes), mode);
+        if (it == std::end(kFanModes)) {
+            return AmsErrorHelper::not_supported("Fan mode " + mode);
+        }
+        args = fmt::format("FAN_FORCED={}", it - std::begin(kFanModes));
+    }
+    std::string cmd = "MMU_FAN " + args;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        // MMU_FAN is per-unit: UNIT= (a name or number) is required once more than
+        // one unit is fitted.
+        if (machine_layout_.num_units > 1) {
+            cmd += " UNIT=" + unit;
+        }
+    }
+    return execute_gcode(cmd);
+}
 
 // ============================================================================
 // Device Management
@@ -210,12 +375,17 @@ std::vector<helix::printer::DeviceAction> AmsBackendHappyHare::get_device_action
         }
     }
 
+    append_v4_controls_locked(actions);
     return actions;
 }
 
 AmsError AmsBackendHappyHare::do_execute_device_action(const std::string& action_id,
                                                        const std::any& value) {
     spdlog::info("[AMS HappyHare] Executing device action: {}", action_id);
+
+    if (auto v4 = execute_v4_control(action_id, value)) {
+        return *v4;
+    }
 
     const auto get_action_range = [](const std::string& id) {
         return helix::printer::hh_default_action_range(id);
