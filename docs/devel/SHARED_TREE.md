@@ -1,7 +1,7 @@
 # Sharing the Tree With Other Sessions
 
 Several agent sessions (Claude, opencode, a human) usually work in this repo at once, often in
-the main working tree. Root `CLAUDE.md` § "Sharing This Tree" holds the rules. This doc is the
+the main working tree. The `helix-ops` skill (`.claude/skills/helix-ops/SKILL.md`) holds the rules. This doc is the
 manual behind them: `scripts/helix-claim`, the git hooks that use it, and how to read a tree
 someone else may be in the middle of.
 
