@@ -33,6 +33,7 @@
 #include "ui_panel_calibration_pid.h"
 #include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
+#include "ui_panel_history_dashboard.h"
 #include "ui_panel_history_list.h"
 #include "ui_panel_motion.h"
 #include "ui_panel_screws_tilt.h"
@@ -277,6 +278,8 @@ const OverlayCase kOverlayCases[] = {
          helix::ui::get_ams_zone_overview_overlay().show(lv_screen_active(),
                                                          {helix::printer::EnvironmentZone{}});
      }},
+    {"History Dashboard", as_base<&get_global_history_dashboard_panel>, nullptr,
+     [] { get_global_history_dashboard_panel().set_time_filter(HistoryTimeFilter::DAY); }},
     {"Sensors", as_base<&get_sensor_settings_overlay>},
     {"Belt Tension", as_base<&get_global_belt_tension_panel>, nullptr,
      [] {
