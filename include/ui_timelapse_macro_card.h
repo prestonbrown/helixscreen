@@ -20,12 +20,25 @@
  * - ShowIncludeLine (no helper macros, or Moonraker not on this host so the
  *   checkout's path on the Klipper host is unknown), or a helix_macros.cfg that
  *   could not be written: the card shows the line to add to printer.cfg.
+ *
+ * Whenever the checkout is known on this host and no job holds the machine,
+ * refresh() also puts a checkout left on a detached HEAD back on its branch
+ * (attach_checkout_to_branch), then asks Moonraker to refresh the timelapse
+ * update_manager entry so it tracks the checkout again. That runs git on the
+ * card's own worker, never on a remote screen, and only logs: the card shows
+ * nothing for it. The card is process-wide, so the worker outlives the screen
+ * that started it; a started `git checkout` always runs to its end.
  */
 
+#include "async_lifetime_guard.h"
 #include "subject_managed_panel.h"
+#include "system/process_runner.h"
 
+#include <atomic>
 #include <functional>
 #include <memory>
+#include <string>
+#include <thread>
 
 namespace helix {
 class IMoonrakerAPI;
@@ -70,8 +83,27 @@ class TimelapseMacroCard {
 
     [[nodiscard]] Card card() const;
 
+    /// Replace the git commands the checkout repair runs
+    void set_process_runner(ProcessRunner runner) {
+        runner_override_ = std::move(runner);
+    }
+    /// A checkout repair's worker is running
+    [[nodiscard]] bool repair_running() const {
+        return repair_running_.load();
+    }
+    /// Stop a running repair at its next probe; a checkout already started runs
+    /// to its end, so the tree is never left half switched
+    void cancel_repair() {
+        repair_cancel_.store(true);
+    }
+
   private:
     void show(Card card);
+    /// Main thread: start the detached-HEAD repair of @p repo unless one is running;
+    /// a switch is reported to Moonraker through @p api when it is set.
+    void repair_checkout(const std::string& repo, IMoonrakerAPI* api);
+    /// Main thread: join a repair worker that has finished.
+    void join_finished_repair();
 
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
@@ -84,6 +116,13 @@ class TimelapseMacroCard {
     std::function<void()> on_shown_;
     /// Bumped by refresh() and clear(); a reply carrying an older one is dropped.
     unsigned generation_ = 0;
+
+    std::thread repair_thread_;
+    std::atomic<bool> repair_running_{false};
+    /// Ends the repair's running git command, so the destructor's join is short.
+    std::atomic<bool> repair_cancel_{false};
+    ProcessRunner runner_override_;
+    helix::AsyncLifetimeGuard lifetime_;
 };
 
 /// The process-wide card both timelapse screens bind to.

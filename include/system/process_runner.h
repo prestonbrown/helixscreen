@@ -35,6 +35,11 @@ CommandResult run_process(const std::vector<std::string>& argv, int timeout_seco
 /// @p cancel turns true. @p cancel must outlive every call through the runner.
 ProcessRunner cancellable_process_runner(const std::atomic<bool>& cancel);
 
+/// @p run for a command that must not be stopped part way: once @p cancel is
+/// true it refuses to start one (started stays false), and a command it has
+/// started runs to its own timeout. @p cancel must outlive every call.
+ProcessRunner start_unless_cancelled(const std::atomic<bool>& cancel, ProcessRunner run);
+
 /// The last line of @p output with any text in it, color escapes removed.
 std::string last_output_line(const std::string& output);
 

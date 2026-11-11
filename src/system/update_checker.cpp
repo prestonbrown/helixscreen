@@ -3504,6 +3504,20 @@ void handle_update_response(const json& msg) {
 }
 } // namespace
 
+void helix::request_update_manager_refresh(helix::IMoonrakerClient& client,
+                                           const std::string& name) {
+    client.send_jsonrpc(
+        "machine.update.refresh", json{{"name", name}},
+        [name](const json&) {
+            spdlog::info("[UpdateChecker] Moonraker refreshed its update status for {}", name);
+        },
+        [name](const MoonrakerError& err) {
+            spdlog::debug("[UpdateChecker] Moonraker update refresh of {} declined: {}", name,
+                          err.message);
+        },
+        0, /*silent=*/true);
+}
+
 void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
     {
         namespace fs = std::filesystem;
@@ -3515,19 +3529,8 @@ void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
             // Moonraker re-reads release_info.json only on a refresh, and its
             // own schedule can be a week apart, so Mainsail keeps showing the
             // version we just replaced. "helixscreen" is the update_manager
-            // section the installer writes; a missing or renamed section, or a
-            // print in progress, just gets an error back.
-            client.send_jsonrpc(
-                "machine.update.refresh", json{{"name", "helixscreen"}},
-                [](const json&) {
-                    spdlog::info("[UpdateChecker] Moonraker refreshed its HelixScreen "
-                                 "version after the update");
-                },
-                [](const MoonrakerError& err) {
-                    spdlog::debug("[UpdateChecker] Moonraker update refresh declined: {}",
-                                  err.message);
-                },
-                0, /*silent=*/true);
+            // section the installer writes.
+            helix::request_update_manager_refresh(client, "helixscreen");
         }
         // Legacy: best-effort under PrivateTmp (sees private /tmp,
         // not real /tmp — stale real sentinels cleaned on reboot)

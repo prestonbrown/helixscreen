@@ -37,14 +37,16 @@ LocalPluginResult failed(LocalPluginStage stage, const CommandResult& r) {
     return result;
 }
 
-/// Moves an existing checkout on a detached HEAD back onto recipe.repo_branch, so
-/// Moonraker's update manager can validate it. Local git only, and only when the
-/// tree is clean and the branch exists and contains HEAD; any other case is
-/// logged and left alone.
-void attach_checkout_to_branch(const LocalPluginRecipe& recipe, const std::string& repo_dir,
-                               const ProcessRunner& run) {
+bool has_program(const ProcessRunner& run, const std::string& program) {
+    return run({"/bin/sh", "-c", "command -v \"$1\"", "sh", program}, kProbeTimeoutSeconds)
+        .succeeded();
+}
+} // namespace
+
+bool attach_checkout_to_branch(const LocalPluginRecipe& recipe, const std::string& repo_dir,
+                               const ProcessRunner& run, const ProcessRunner& switch_run) {
     if (recipe.repo_branch.empty()) {
-        return;
+        return false;
     }
     auto git = [&](std::vector<std::string> args) {
         std::vector<std::string> argv = {"git", "-C", repo_dir};
@@ -55,13 +57,13 @@ void attach_checkout_to_branch(const LocalPluginRecipe& recipe, const std::strin
     // symbolic-ref exits 0 on a branch, 1 on a detached HEAD, 128 outside a repository.
     const CommandResult head = git({"symbolic-ref", "-q", "HEAD"});
     if (head.succeeded()) {
-        return;
+        return false;
     }
     if (!head.started || head.timed_out || head.exit_code != 1) {
         spdlog::info("[PluginInstaller] {} is not a git checkout git can read ({}); leaving it "
                      "as it is",
                      repo_dir, failure_detail(head));
-        return;
+        return false;
     }
 
     const CommandResult status = git({"status", "--porcelain"});
@@ -69,20 +71,20 @@ void attach_checkout_to_branch(const LocalPluginRecipe& recipe, const std::strin
         spdlog::info("[PluginInstaller] Could not read the state of {} ({}); leaving it on a "
                      "detached HEAD",
                      repo_dir, failure_detail(status));
-        return;
+        return false;
     }
     if (!last_output_line(status.output).empty()) {
         spdlog::info("[PluginInstaller] {} is on a detached HEAD with local changes; leaving it "
                      "so they are kept. Moonraker will not update it until it is on {}",
                      repo_dir, recipe.repo_branch);
-        return;
+        return false;
     }
 
     if (!git({"rev-parse", "-q", "--verify", "refs/heads/" + recipe.repo_branch}).succeeded()) {
         spdlog::info("[PluginInstaller] {} is on a detached HEAD and has no local {} branch; "
                      "leaving it as it is",
                      repo_dir, recipe.repo_branch);
-        return;
+        return false;
     }
 
     // Only forward: a stale local branch would downgrade the plugin, and commits
@@ -95,25 +97,21 @@ void attach_checkout_to_branch(const LocalPluginRecipe& recipe, const std::strin
                      repo_dir, recipe.repo_branch,
                      ahead.exit_code == 1 ? std::string("switching would go back")
                                           : failure_detail(ahead));
-        return;
+        return false;
     }
 
-    const CommandResult switched = git({"checkout", "-q", recipe.repo_branch});
+    const CommandResult switched = (switch_run ? switch_run : run)(
+        {"git", "-C", repo_dir, "checkout", "-q", recipe.repo_branch}, kProbeTimeoutSeconds);
     log_command_output("git checkout", switched.output, switched.succeeded());
     if (!switched.succeeded()) {
         spdlog::warn("[PluginInstaller] Could not switch {} to {} ({}); leaving it detached",
                      repo_dir, recipe.repo_branch, failure_detail(switched));
-        return;
+        return false;
     }
     spdlog::info("[PluginInstaller] Switched {} from a detached HEAD to {}", repo_dir,
                  recipe.repo_branch);
+    return true;
 }
-
-bool has_program(const ProcessRunner& run, const std::string& program) {
-    return run({"/bin/sh", "-c", "command -v \"$1\"", "sh", program}, kProbeTimeoutSeconds)
-        .succeeded();
-}
-} // namespace
 
 LocalPluginPlan make_local_plugin_plan(const LocalPluginRecipe& recipe, const std::string& home,
                                        const std::string& install_script) {
