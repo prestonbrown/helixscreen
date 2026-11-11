@@ -2265,6 +2265,7 @@
   <translation tag="Mount tool" ja="ツールを装着"/>
   <translation tag="Mount which tool?" ja="どのツールを装着しますか？"/>
   <translation tag="Mount..." ja="装着..."/>
+  <translation tag="Mounted: {}" ja="装着中: {}"/>
   <translation tag="Move" ja="移動"/>
   <translation tag="Move here" ja="ここへ移動"/>
   <translation tag="Move out of range" ja="移動範囲外です"/>
@@ -2436,6 +2437,7 @@
   <translation tag="No timelapse videos found" ja="タイムラプス動画が見つかりません"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" ja="装着中のツールが不明です。共有プローブでは {} で校正してください。このまま続行しますか？"/>
   <translation tag="No tool is mounted" ja="ツールが装着されていません"/>
+  <translation tag="No tool mounted" ja="ツール未装着"/>
   <translation tag="No tool on the head" ja="ツールヘッドにツールがありません"/>
   <translation tag="No tools to calibrate" ja="キャリブレートするツールがありません"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" ja="回していません: 差は{:.1f} Hz動きました"/>
@@ -2678,6 +2680,7 @@
   <translation tag="Pick Color" ja="色を選択"/>
   <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." ja="HelixScreen の動作を選択します。すべて後で「設定」から変更できます。"/>
   <translation tag="Pick the best band" ja="最適な区間を選択"/>
+  <translation tag="Pick up" ja="装着"/>
   <translation tag="Pick up and park each tool in turn" ja="各ツールを順に取り付けて戻す"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" ja="ツールを取り付けて加熱し、フィラメントを引き抜いてください"/>
   <translation tag="Pick up tool" ja="ツールを取得"/>
@@ -4589,6 +4592,7 @@
   <translation tag="{} critical" ja="重大 {} 件"/>
   <translation tag="{} critical hardware issues" ja="{} 個の重要なハードウェアの問題"/>
   <translation tag="{} detected" ja="{}を検出"/>
+  <translation tag="{} did not arrive; nothing was sent" ja="{} が到着しませんでした。何も送信していません"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." ja="{}がロードされませんでした。再開する前に、ホットエンドが正しく取り付けられているか確認し、テスト押し出しを行ってください。"/>
   <translation tag="{} disabled" ja="{} を無効にしました"/>
   <translation tag="{} disconnected" ja="{}が外れました"/>

@@ -2475,6 +2475,7 @@ translations:
   Mount tool: 'Monta strumento'
   Mount which tool?: 'Quale strumento montare?'
   Mount...: 'Monta...'
+  'Mounted: {}': 'Montato: {}'
   Move: Sposta
   Move here: Sposta qui
   Move out of range: 'Movimento fuori intervallo'
@@ -2657,6 +2658,7 @@ translations:
   No timelapse videos found: Nessun video timelapse trovato
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Non si sa quale utensile sia montato. Con una sonda condivisa, calibra con {}. Continuare comunque?'
   No tool is mounted: 'Nessun utensile montato'
+  No tool mounted: 'Nessuno strumento montato'
   No tool on the head: "Nessuno strumento sulla testina"
   No tools to calibrate: Nessuno strumento da calibrare
   'No turn: the gap moved {:.1f} Hz': "Nessuna rotazione: la differenza si è spostata di {:.1f} Hz"
@@ -2916,6 +2918,7 @@ translations:
   Pick Color: Scegli colore
   Pick how HelixScreen behaves. You can change any of these later in Settings.: 'Scegli come si comporta HelixScreen. Puoi cambiare tutto più tardi in Impostazioni.'
   Pick the best band: Scegli la fascia migliore
+  Pick up: 'Monta'
   Pick up and park each tool in turn: Prendi e riponi ogni strumento a turno
   Pick up the tool, heat it, and pull the filament out: "Preleva lo strumento, riscaldalo ed estrai il filamento"
   Pick up tool: Preleva utensile
@@ -5029,6 +5032,7 @@ translations:
   '{} critical': '{} critici'
   '{} critical hardware issues': '{} problemi hardware critici'
   '{} detected': '{} rilevata'
+  '{} did not arrive; nothing was sent': '{} non è arrivato; non è stato inviato nulla'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{} non si è caricato. Verifica che il suo hotend sia ben inserito ed esegui un''estrusione di prova prima di riprendere.'
   '{} disabled': '{} disabilitato'
   '{} disconnected': '{} scollegata'

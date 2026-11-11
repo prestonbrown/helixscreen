@@ -2419,6 +2419,7 @@ translations:
   Mount tool: Mount tool
   Mount which tool?: Mount which tool?
   Mount...: Mount...
+  'Mounted: {}': 'Mounted: {}'
   Move: Move
   Move here: Move here
   Move out of range: Move out of range
@@ -2596,6 +2597,7 @@ translations:
   No timelapse videos found: No timelapse videos found
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?'
   No tool is mounted: No tool is mounted
+  No tool mounted: No tool mounted
   No tool on the head: No tool on the head
   No tools to calibrate: No tools to calibrate
   'No turn: the gap moved {:.1f} Hz': 'No turn: the gap moved {:.1f} Hz'
@@ -2852,6 +2854,7 @@ translations:
   Pick Color: Pick Color
   Pick how HelixScreen behaves. You can change any of these later in Settings.: Pick how HelixScreen behaves. You can change any of these later in Settings.
   Pick the best band: Pick the best band
+  Pick up: Pick up
   Pick up and park each tool in turn: Pick up and park each tool in turn
   Pick up the tool, heat it, and pull the filament out: Pick up the tool, heat it, and pull the filament out
   Pick up tool: Pick up tool
@@ -4925,6 +4928,7 @@ translations:
   '{} critical': '{} critical'
   '{} critical hardware issues': '{} critical hardware issues'
   '{} detected': '{} detected'
+  '{} did not arrive; nothing was sent': '{} did not arrive; nothing was sent'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": "{} didn't load. Check that its hotend is seated and do a test extrude before resuming."
   '{} disabled': '{} disabled'
   '{} disconnected': '{} disconnected'

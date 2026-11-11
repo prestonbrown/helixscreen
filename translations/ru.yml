@@ -2515,6 +2515,7 @@ translations:
   Mount tool: 'Установить инструмент'
   Mount which tool?: 'Какой инструмент установить?'
   Mount...: 'Установить...'
+  'Mounted: {}': 'Установлен: {}'
   Move: Двигать
   Move here: Переместить сюда
   Move out of range: 'Движение за пределами диапазона'
@@ -2696,6 +2697,7 @@ translations:
   No timelapse videos found: Таймлапс-видео не найдены
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Неизвестно, какой инструмент установлен. С общим датчиком калибруйте с {}. Всё равно продолжить?'
   No tool is mounted: 'Инструмент не установлен'
+  No tool mounted: 'Инструмент не установлен'
   No tool on the head: "На печатающей головке нет инструмента"
   No tools to calibrate: Нет инструментов для калибровки
   'No turn: the gap moved {:.1f} Hz': "Без поворота: разница сдвинулась на {:.1f} Гц"
@@ -2953,6 +2955,7 @@ translations:
   Pick Color: Выбрать цвет
   Pick how HelixScreen behaves. You can change any of these later in Settings.: 'Выберите, как будет вести себя HelixScreen. Всё это можно изменить позже в Настройках.'
   Pick the best band: Выберите лучшую полосу
+  Pick up: 'Установить'
   Pick up and park each tool in turn: Взять и поставить на место каждый инструмент по очереди
   Pick up the tool, heat it, and pull the filament out: "Возьмите инструмент, нагрейте его и вытяните филамент"
   Pick up tool: Забрать инструмент
@@ -5077,6 +5080,7 @@ translations:
     many: '{} критических проблем с оборудованием'
     other: '{} критические проблемы с оборудованием'
   '{} detected': '{}: обнаружено'
+  '{} did not arrive; nothing was sent': '{} не прибыл; ничего не отправлено'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}: филамент не загрузился. Перед продолжением проверьте, что хотэнд установлен правильно, и выполните пробную экструзию.'
   '{} disabled': '{} выключено'
   '{} disconnected': '{}: отключено'
