@@ -185,13 +185,13 @@ TEST_CASE_METHOD(MoveTabFixture, "motion tab switching toggles the tab container
     auto& ps = get_printer_state();
     // Jog is the panel's landing tab: the jog row is up, the Move tab is not.
     CHECK_FALSE(lv_obj_has_flag(panel_widget("jog_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(panel_widget("jog_modes"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(panel_widget("jog_modes_row"), LV_OBJ_FLAG_HIDDEN));
     CHECK(lv_obj_has_flag(panel_widget("move_tab"), LV_OBJ_FLAG_HIDDEN));
 
     get_global_motion_panel().set_motion_tab(1);
     drain();
     CHECK(lv_obj_has_flag(panel_widget("jog_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(panel_widget("jog_modes"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(panel_widget("jog_modes_row"), LV_OBJ_FLAG_HIDDEN));
     CHECK_FALSE(lv_obj_has_flag(panel_widget("move_tab"), LV_OBJ_FLAG_HIDDEN));
     // The Z column stays on every tab.
     CHECK_FALSE(lv_obj_has_flag(panel_widget("z_controls"), LV_OBJ_FLAG_HIDDEN));
