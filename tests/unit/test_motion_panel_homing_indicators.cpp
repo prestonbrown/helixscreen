@@ -24,8 +24,12 @@
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
+#include "moonraker_api.h"
+#include "moonraker_client_mock.h"
+#include "printer_state.h"
 #include "theme_manager.h"
 
+#include <algorithm>
 #include <array>
 #include <lvgl.h>
 
@@ -82,4 +86,50 @@ TEST_CASE_METHOD(LVGLUITestFixture, "unhomed axes mute their coordinate readouts
 
     StaticPanelRegistry::instance().destroy_all();
     helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "the motion panel homes single axes",
+                 "[motion][homed][xml][target_tool]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    state.set_klippy_state_sync(helix::KlippyState::READY);
+    MoonrakerAPI api(client, state);
+    IMoonrakerAPI* previous = get_moonraker_api();
+    set_moonraker_api(&api);
+
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels)
+        p = lv_obj_create(lv_screen_active());
+    NavigationManager::instance().set_panels(panels.data());
+    REQUIRE(get_global_motion_panel().show(lv_screen_active()));
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* root = get_global_motion_panel().get_root();
+    REQUIRE(root != nullptr);
+    lv_subject_t* individual = lv_xml_get_subject(nullptr, "printer_has_individual_xyz_homing");
+    REQUIRE(individual != nullptr);
+    lv_subject_set_int(individual, 1);
+
+    for (const char* name : {"btn_home_all", "btn_home_x", "btn_home_y", "btn_home_z"}) {
+        CAPTURE(name);
+        lv_obj_t* btn = lv_obj_find_by_name(root, name);
+        REQUIRE(btn != nullptr);
+        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    }
+    lv_obj_t* xy = lv_obj_find_by_name(root, "btn_home_xy");
+    REQUIRE(xy != nullptr);
+    CHECK(lv_obj_has_flag(xy, LV_OBJ_FLAG_HIDDEN));
+
+    client.clear_gcode_script_history();
+    lv_obj_send_event(lv_obj_find_by_name(root, "btn_home_x"), LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    const auto& h = client.gcode_script_history();
+    CHECK(std::find(h.begin(), h.end(), "G28 X") != h.end());
+
+    lv_subject_set_int(individual, 0);
+    CHECK(lv_obj_has_flag(lv_obj_find_by_name(root, "btn_home_x"), LV_OBJ_FLAG_HIDDEN));
+
+    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::UpdateQueue::instance().drain();
+    set_moonraker_api(previous);
 }
