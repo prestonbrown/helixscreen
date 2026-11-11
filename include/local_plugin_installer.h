@@ -100,6 +100,18 @@ struct LocalPluginResult {
 };
 
 /**
+ * @brief Put a checkout on a detached HEAD back on @p recipe's repo_branch
+ *
+ * Moonraker's update manager refuses to track a detached checkout. Local git
+ * only, through @p run: the switch happens only when the tree is clean and the
+ * branch exists and contains HEAD, so it never goes back or strands commits.
+ * A checkout already on a branch costs one git call; every other case is
+ * logged and left as it is. Blocks on git, so it belongs on a worker thread.
+ */
+void attach_checkout_to_branch(const LocalPluginRecipe& recipe, const std::string& repo_dir,
+                               const ProcessRunner& run);
+
+/**
  * @brief Run a local install of @p recipe through @p run
  *
  * Blocks for as long as the commands take (a clone on a slow link can take

@@ -37,10 +37,12 @@ LocalPluginResult failed(LocalPluginStage stage, const CommandResult& r) {
     return result;
 }
 
-/// Moves an existing checkout on a detached HEAD back onto recipe.repo_branch, so
-/// Moonraker's update manager can validate it. Local git only, and only when the
-/// tree is clean and the branch exists and contains HEAD; any other case is
-/// logged and left alone.
+bool has_program(const ProcessRunner& run, const std::string& program) {
+    return run({"/bin/sh", "-c", "command -v \"$1\"", "sh", program}, kProbeTimeoutSeconds)
+        .succeeded();
+}
+} // namespace
+
 void attach_checkout_to_branch(const LocalPluginRecipe& recipe, const std::string& repo_dir,
                                const ProcessRunner& run) {
     if (recipe.repo_branch.empty()) {
@@ -108,12 +110,6 @@ void attach_checkout_to_branch(const LocalPluginRecipe& recipe, const std::strin
     spdlog::info("[PluginInstaller] Switched {} from a detached HEAD to {}", repo_dir,
                  recipe.repo_branch);
 }
-
-bool has_program(const ProcessRunner& run, const std::string& program) {
-    return run({"/bin/sh", "-c", "command -v \"$1\"", "sh", program}, kProbeTimeoutSeconds)
-        .succeeded();
-}
-} // namespace
 
 LocalPluginPlan make_local_plugin_plan(const LocalPluginRecipe& recipe, const std::string& home,
                                        const std::string& install_script) {

@@ -8,7 +8,10 @@
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
+#include "exception_policy.h"
+#include "helix_thread.h"
 #include "i_moonraker_api.h"
+#include "local_plugin_installer.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_manager.h"
 #include "printer_discovery.h"
@@ -32,6 +35,10 @@ TimelapseMacroCard& timelapse_macro_card() {
 }
 
 TimelapseMacroCard::~TimelapseMacroCard() {
+    repair_cancel_.store(true);
+    if (repair_thread_.joinable()) {
+        repair_thread_.join();
+    }
     // The MacroManager's own guard drops its pending replies.
     macro_manager_.reset();
     subjects_.deinit_all();
@@ -100,6 +107,10 @@ void TimelapseMacroCard::refresh(IMoonrakerAPI* api, const PrinterDiscovery& dis
                  facts.helix_macros_loaded, repo.empty() ? "unknown" : repo,
                  static_cast<int>(setup));
 
+    if (!repo.empty()) {
+        repair_checkout(repo);
+    }
+
     switch (setup) {
     case TimelapseMacroSetup::NotYetKnown:
     case TimelapseMacroSetup::Loaded:
@@ -135,6 +146,36 @@ void TimelapseMacroCard::refresh(IMoonrakerAPI* api, const PrinterDiscovery& dis
                          kHelixMacrosFilename, err.message);
             show(Card::IncludeLine);
         });
+}
+
+void TimelapseMacroCard::repair_checkout(const std::string& repo) {
+    join_finished_repair();
+    if (repair_running_.load()) {
+        return;
+    }
+    const ProcessRunner runner =
+        runner_override_ ? runner_override_ : timelapse_install_runner(repair_cancel_);
+    auto tok = lifetime_.token();
+    repair_cancel_.store(false);
+    repair_running_.store(true);
+    const bool started = helix::contain_exceptions("[Timelapse Macros] checkout repair", [&]() {
+        repair_thread_ = helix::make_background_thread([this, tok, repo, runner]() {
+            attach_checkout_to_branch(timelapse_plugin_recipe(), repo, runner);
+            repair_running_.store(false);
+            tok.defer("TimelapseMacroCard::checkout_repaired",
+                      [this]() { join_finished_repair(); });
+        });
+    });
+    if (!started) {
+        repair_running_.store(false);
+        spdlog::warn("[Timelapse Macros] Could not start the check of {}'s branch", repo);
+    }
+}
+
+void TimelapseMacroCard::join_finished_repair() {
+    if (repair_thread_.joinable() && !repair_running_.load()) {
+        repair_thread_.join();
+    }
 }
 
 void TimelapseMacroCard::restart_klipper() {
