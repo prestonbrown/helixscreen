@@ -438,36 +438,6 @@ TEST_CASE("tool offsets: a negative tool index emits nothing", "[tool_offsets]")
 // Axes: which of X / Y / Z each firmware keeps
 // ============================================================================
 
-TEST_CASE("tool offsets: klipper-toolchanger keeps all three axes", "[tool_offsets]") {
-    // gcode_x/y/z_offset are three fields on the same object, written by the
-    // same command, so a caller may loop kAllAxes without special cases.
-    PrinterDiscovery hw = toolchanger_printer();
-
-    for (Axis axis : helix::kAllAxes) {
-        CAPTURE(helix::axis_letter(axis));
-        CHECK(to_::supports_axis(hw, axis));
-    }
-}
-
-TEST_CASE("tool offsets: the TOOL_OFFSET macro keeps all three axes", "[tool_offsets]") {
-    // The controller applies t<n>_off_x/y/z together on every swap.
-    PrinterDiscovery hw = tool_offset_macro_printer();
-
-    for (Axis axis : helix::kAllAxes) {
-        CAPTURE(helix::axis_letter(axis));
-        CHECK(to_::supports_axis(hw, axis));
-    }
-}
-
-TEST_CASE("tool offsets: a printer without the capability supports no axis", "[tool_offsets]") {
-    PrinterDiscovery hw = plain_printer();
-
-    for (Axis axis : helix::kAllAxes) {
-        CAPTURE(helix::axis_letter(axis));
-        CHECK_FALSE(to_::supports_axis(hw, axis));
-    }
-}
-
 TEST_CASE("tool offsets: klipper-toolchanger writes X and Y through their own parameter",
           "[tool_offsets]") {
     // One parameter per command: SET_TOOL_PARAMETER takes a single PARAMETER=,
@@ -780,14 +750,19 @@ TEST_CASE("tool offsets: only a tool changer running ff_toolchange is Reforge",
     CHECK_FALSE(to_::tracks_axis(bare, Axis::Z));
 }
 
-TEST_CASE("tool offsets: the other models track exactly what they may write",
-          "[tool_offsets][reforge]") {
-    // INDX is read-only and persists its own measurements: nothing to save.
+TEST_CASE("tool offsets: the writable models keep and follow all three axes", "[tool_offsets]") {
+    // klipper-toolchanger's gcode_x/y/z_offset are three fields written by one
+    // command, and MedusaHC's controller applies t<n>_off_x/y/z together, so a
+    // caller may loop kAllAxes. INDX is read-only and persists its own
+    // measurements: nothing to follow for Save.
     for (Axis axis : helix::kAllAxes) {
         CAPTURE(helix::axis_letter(axis));
+        CHECK(to_::supports_axis(toolchanger_printer(), axis));
         CHECK(to_::tracks_axis(toolchanger_printer(), axis));
+        CHECK(to_::supports_axis(tool_offset_macro_printer(), axis));
         CHECK(to_::tracks_axis(tool_offset_macro_printer(), axis));
         CHECK_FALSE(to_::tracks_axis(indx_printer(), axis));
+        CHECK_FALSE(to_::supports_axis(plain_printer(), axis));
         CHECK_FALSE(to_::tracks_axis(plain_printer(), axis));
     }
 }

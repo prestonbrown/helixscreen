@@ -297,24 +297,39 @@ TEST_CASE_METHOD(ZOffsetFixture,
 
 namespace {
 
-/// A klipper-toolchanger printer: SAVE_TOOL_PARAMETER only stages, and the
-/// machine-wide SAVE_CONFIG commits.
-class ToolchangerSaveFixture : public ZOffsetFixture {
+/// A two-tool changer whose ToolState is built from @p extra objects on top of
+/// klipper-toolchanger's.
+class ChangerSaveFixture : public ZOffsetFixture {
   public:
-    ToolchangerSaveFixture() {
+    explicit ChangerSaveFixture(std::vector<std::string> extra = {}) {
+        auto objects = nlohmann::json::array({"gcode_move", "toolhead", "extruder", "extruder1",
+                                              "toolchanger", "tool T0", "tool T1"});
+        for (auto& o : extra) {
+            objects.push_back(o);
+        }
         PrinterDiscovery hw;
-        hw.parse_objects(nlohmann::json::array({"gcode_move", "toolhead", "extruder", "extruder1",
-                                                "toolchanger", "tool T0", "tool T1"}));
+        hw.parse_objects(objects);
         state.set_hardware(hw);
         auto& ts = ToolState::instance();
         ts.deinit_subjects();
         ts.init_subjects(true);
         ts.init_tools(state.get_discovery());
     }
-    ~ToolchangerSaveFixture() override {
+    ~ChangerSaveFixture() override {
         ToolState::instance().deinit_subjects();
         helix::ui::UpdateQueue::instance().drain();
     }
+};
+
+/// klipper-toolchanger: SAVE_TOOL_PARAMETER only stages, and the machine-wide
+/// SAVE_CONFIG commits.
+class ToolchangerSaveFixture : public ChangerSaveFixture {};
+
+/// A Creator 5 on Reforge: ff_toolchange publishes the same objects, and its
+/// calibration stages its own result.
+class ReforgeSaveFixture : public ChangerSaveFixture {
+  public:
+    ReforgeSaveFixture() : ChangerSaveFixture({"ff_toolchange"}) {}
 };
 
 } // namespace
@@ -349,31 +364,6 @@ TEST_CASE_METHOD(ToolchangerSaveFixture,
     CHECK_FALSE(ts.tool_offset_dirty(1, Axis::Z));
     CHECK(lv_subject_get_int(state.motion_state().get_pending_z_offset_delta_subject()) == 50);
 }
-
-namespace {
-
-/// A Creator 5 on Reforge: klipper-toolchanger's objects published by
-/// ff_toolchange, whose calibration stages its own result.
-class ReforgeSaveFixture : public ZOffsetFixture {
-  public:
-    ReforgeSaveFixture() {
-        PrinterDiscovery hw;
-        hw.parse_objects(
-            nlohmann::json::array({"gcode_move", "toolhead", "extruder", "extruder1", "toolchanger",
-                                   "tool T0", "tool T1", "ff_toolchange"}));
-        state.set_hardware(hw);
-        auto& ts = ToolState::instance();
-        ts.deinit_subjects();
-        ts.init_subjects(true);
-        ts.init_tools(state.get_discovery());
-    }
-    ~ReforgeSaveFixture() override {
-        ToolState::instance().deinit_subjects();
-        helix::ui::UpdateQueue::instance().drain();
-    }
-};
-
-} // namespace
 
 TEST_CASE_METHOD(ReforgeSaveFixture,
                  "Reforge: a calibration result is saved with SAVE_CONFIG and nothing else",
