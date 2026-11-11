@@ -62,7 +62,7 @@ UsbScan scan_usb_drives(UsbBackend& backend, const std::vector<UsbDrive>& drives
  * ## Usage:
  * @code
  * PrintSelectUsbSource usb_source;
- * usb_source.setup(panel, printer_btn, usb_btn);
+ * usb_source.setup(panel);
  * usb_source.set_usb_manager(manager);
  * usb_source.set_on_files_ready([](auto& files) { ... });
  * usb_source.set_on_source_changed([](FileSource source) { ... });
@@ -103,13 +103,13 @@ class PrintSelectUsbSource {
     // === Setup ===
 
     /**
-     * @brief Initialize with source selector buttons
+     * @brief Initialize with the source selector
      *
-     * Finds buttons by name and sets up initial state.
-     * Both source buttons are hidden by default until a USB drive is inserted.
+     * Finds the source_selector container by name and selects the Printer
+     * source. The selector stays hidden until a USB drive is inserted.
      *
-     * @param panel Root panel widget (for button lookup)
-     * @return true if buttons found successfully
+     * @param panel Root panel widget (for the selector lookup)
+     * @return true if the source_selector container was found
      */
     bool setup(lv_obj_t* panel);
 

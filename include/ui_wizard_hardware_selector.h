@@ -4,17 +4,9 @@
  * @file ui_wizard_hardware_selector.h
  * @brief Shared utilities for wizard hardware selector screens
  *
- * Eliminates ~700 lines of duplicate code across 4 wizard screens by providing
- * common dropdown population and config persistence logic.
- *
- * **Pattern Before (246 lines per file):**
- * - ui_wizard_hotend_select.cpp
- * - ui_wizard_bed_select.cpp
- * - ui_wizard_fan_select.cpp
- * - ui_wizard_led_select.cpp
- *
- * **Pattern After (~50 lines per file):**
- * Just call these helpers instead of duplicating discovery/populate logic.
+ * Common dropdown population and config persistence logic for the wizard's
+ * hardware selector screens (heater and LED select). A screen calls these
+ * helpers instead of duplicating discovery/populate logic.
  */
 
 #pragma once
@@ -27,7 +19,6 @@
 #include <string>
 #include <vector>
 
-// Forward declarations
 namespace helix {
 class IMoonrakerAPI;
 }
@@ -36,8 +27,8 @@ class PrinterHardware;
 /**
  * @brief Discover, populate, and restore a hardware selector dropdown
  *
- * This consolidates the pattern used in all 4 wizard selector screens:
- * 1. Discover hardware from MoonrakerClient
+ * The steps every caller needs:
+ * 1. Discover hardware from IMoonrakerAPI (via moonraker_getter)
  * 2. Filter by object type and optional prefix
  * 3. Build dropdown options (with optional "None")
  * 4. Populate dropdown widget
@@ -47,7 +38,7 @@ class PrinterHardware;
  * @param dropdown_name Widget name to find (e.g., "hotend_heater_dropdown")
  * @param subject Subject to bind selection to
  * @param items_out Output vector for discovered items (needed for save later)
- * @param moonraker_getter Function to get hardware list from client
+ * @param moonraker_getter Function to get the hardware list from the API
  * @param prefix_filter Optional prefix filter (e.g., "extruder", "heater_bed")
  * @param allow_none Add "None" option at end
  * @param config_key Config persistence key (e.g., "wizard.hotend.heater")

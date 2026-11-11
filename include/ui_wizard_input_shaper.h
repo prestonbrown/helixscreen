@@ -298,7 +298,7 @@ class WizardInputShaperStep : public helix::wizard::Step {
      *
      * Public because the file-static LVGL trampolines in ui_wizard_input_shaper.cpp
      * store and dismiss it directly — it's a plain UI handle with no invariant, so
-     * getter/setter ceremony bought nothing. Cleared on cleanup() so a lingering
+     * a getter/setter would add nothing. Cleared on cleanup() so a lingering
      * modal never outlives the step.
      */
     helix::ui::WidgetRef low_ram_warn_dialog_;

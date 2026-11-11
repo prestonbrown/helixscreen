@@ -24,15 +24,17 @@
  *
  * ## Class-Based Architecture
  *
- * - Instance members instead of static globals
+ * - Instance members, no static globals
  * - Global singleton getter for wizard framework compatibility
  * - Static trampolines for LVGL event callbacks
  *
  * ## Subject Bindings (3 total):
  *
- * - instruction_text (string) - Current instruction for the user
- * - current_step (int) - 0-3 (0-2 = calibration points, 3 = verify)
- * - calibration_valid (int) - 0=not valid, 1=valid
+ * - touch_cal_current_step (int) - 0-3 (0-2 = calibration points, 3 = verify)
+ * - touch_cal_valid (int) - 0=not valid, 1=valid
+ * - touch_cal_wizard_state (int) - TouchCalibrationPanel::State
+ *
+ * The instruction text goes to wizard_subtitle, not a subject of its own.
  *
  * Initialization Order (CRITICAL):
  *   1. Register XML components (wizard_touch_calibration.xml)
@@ -86,9 +88,10 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
      * @brief Register event callbacks with lv_xml system
      *
      * Registers callbacks:
-     * - on_touch_cal_accept_clicked
-     * - on_touch_cal_retry_clicked
+     * - on_wizard_touch_cal_retry_clicked
      * - on_touch_cal_screen_touched
+     * - on_touch_cal_screen_released
+     * - on_touch_cal_test_area_touched
      */
     void register_callbacks() override;
 
@@ -180,8 +183,8 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     // Auto-accept handler fired when the panel enters VERIFY (issue #1029).
     // Wired via set_verify_entry_callback so it runs on every commit path
     // (release event / 600ms stall timer / legacy sample-on-press), not just
-    // the press edge — clean capacitive panels (Goodix/Q2) commit POINT_3 on
-    // release, so the old press-handler check never fired and the wizard hung
+    // the press edge: clean capacitive panels (Goodix/Q2) commit POINT_3 on
+    // release, so a press-edge check alone never fires and the wizard hangs
     // on "Computing calibration...".
     void on_verify_entered();
 
