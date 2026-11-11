@@ -2091,6 +2091,7 @@
   <translation tag="Layout changes are off in safe mode. Restart to edit." en="Layout changes are off in safe mode. Restart to edit."/>
   <translation tag="Learn More" en="Learn More"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." en="Learn the basics: the setup wizard, moving around the screens, and touch gestures."/>
+  <translation tag="Leave empty for no unit" en="Leave empty for no unit"/>
   <translation tag="Leave it" en="Leave it"/>
   <translation tag="Leave this off for a clogged nozzle." en="Leave this off for a clogged nozzle."/>
   <translation tag="LedSelect" en="LedSelect"/>
@@ -4348,6 +4349,7 @@
   <translation tag="Uninstallation timed out. The script may be stuck." en="Uninstallation timed out. The script may be stuck."/>
   <translation tag="Unit" en="Unit"/>
   <translation tag="Unit " en="Unit "/>
+  <translation tag="Unit text" en="Unit text"/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d" en="Units: %d   Boxes: %d   Dryers: %d"/>
   <translation tag="Unknown" en="Unknown"/>
   <translation tag="Unknown Error" en="Unknown Error"/>

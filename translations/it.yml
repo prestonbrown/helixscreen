@@ -2297,6 +2297,7 @@ translations:
   Layout: Layout
   Layout changes are off in safe mode. Restart to edit.: 'Le modifiche al layout sono disattivate in modalità provvisoria. Riavvia per modificare.'
   Learn More: Scopri di più
+  Leave empty for no unit: 'Lasciare vuoto per nessuna unità'
   Leave it: 'Lascia stare'
   Leave this off for a clogged nozzle.: "Lascia disattivato se l'ugello è ostruito."
   LedSelect: Seleziona LED
@@ -4780,6 +4781,7 @@ translations:
     script potrebbe essere bloccato.
   Unit: Unità
   'Unit ': 'Unità '
+  Unit text: 'Testo dell''unità'
   'Units: %d   Boxes: %d   Dryers: %d': 'Unità: %d   Scatole: %d   Essiccatori: %d'
   Unknown: Sconosciuto
   Unknown Error: 'Errore sconosciuto'

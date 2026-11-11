@@ -2091,6 +2091,7 @@
   <translation tag="Layout changes are off in safe mode. Restart to edit." es="Los cambios de diseño están desactivados en modo seguro. Reinicie para editar."/>
   <translation tag="Learn More" es="Más información"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." es="Lo básico: el asistente de configuración, cómo moverse entre pantallas y los gestos táctiles."/>
+  <translation tag="Leave empty for no unit" es="Dejar vacío para no mostrar unidad"/>
   <translation tag="Leave it" es="Dejarla"/>
   <translation tag="Leave this off for a clogged nozzle." es="Déjalo desactivado si la boquilla está obstruida."/>
   <translation tag="LedSelect" es="Seleccionar LED"/>
@@ -4348,6 +4349,7 @@
   <translation tag="Uninstallation timed out. The script may be stuck." es="La desinstalación agotó el tiempo de espera. El script puede estar bloqueado."/>
   <translation tag="Unit" es="Unidad"/>
   <translation tag="Unit " es="Unidad "/>
+  <translation tag="Unit text" es="Texto de la unidad"/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d" es="Unidades: %d   Cajas: %d   Secadores: %d"/>
   <translation tag="Unknown" es="Desconocido"/>
   <translation tag="Unknown Error" es="Error desconocido"/>

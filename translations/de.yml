@@ -2306,6 +2306,7 @@ translations:
   Layout: Layout
   Layout changes are off in safe mode. Restart to edit.: 'Layout-Änderungen sind im abgesicherten Modus deaktiviert. Starten Sie neu, um zu bearbeiten.'
   Learn More: Mehr erfahren
+  Leave empty for no unit: 'Leer lassen für keine Einheit'
   Leave it: 'So lassen'
   Leave this off for a clogged nozzle.: "Bei verstopfter Düse ausgeschaltet lassen."
   LedSelect: LED auswählen
@@ -4788,6 +4789,7 @@ translations:
     Das Skript hängt möglicherweise.
   Unit: Einheit
   'Unit ': 'Einheit '
+  Unit text: 'Einheitentext'
   'Units: %d   Boxes: %d   Dryers: %d': 'Einheiten: %d   Boxen: %d   Trockner: %d'
   Unknown: Unbekannt
   Unknown Error: 'Unbekannter Fehler'

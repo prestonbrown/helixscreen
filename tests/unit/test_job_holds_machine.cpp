@@ -653,6 +653,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/theme_editor_overlay.xml",
     "ui_xml/theme_preview_overlay.xml",
     "ui_xml/theme_save_as_modal.xml",
+    "ui_xml/thermistor_configure_picker.xml",
     "ui_xml/tile_edit_callout.xml",
     "ui_xml/timelapse_install_overlay.xml",
     "ui_xml/timelapse_settings_overlay.xml",

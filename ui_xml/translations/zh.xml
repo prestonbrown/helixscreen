@@ -2091,6 +2091,7 @@
   <translation tag="Layout changes are off in safe mode. Restart to edit." zh="安全模式下无法更改布局。请重启后再编辑。"/>
   <translation tag="Learn More" zh="了解更多"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." zh="了解基本操作：设置向导、在界面间切换以及触摸手势。"/>
+  <translation tag="Leave empty for no unit" zh="留空则不显示单位"/>
   <translation tag="Leave it" zh="保持不变"/>
   <translation tag="Leave this off for a clogged nozzle." zh="喷嘴堵塞时请保持关闭。"/>
   <translation tag="LedSelect" zh="选择 LED"/>
@@ -4348,6 +4349,7 @@
   <translation tag="Uninstallation timed out. The script may be stuck." zh="卸载超时。脚本可能已卡住。"/>
   <translation tag="Unit" zh="单元"/>
   <translation tag="Unit " zh="单元 "/>
+  <translation tag="Unit text" zh="单位文字"/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d" zh="单元: %d   料盒: %d   干燥器: %d"/>
   <translation tag="Unknown" zh="未知"/>
   <translation tag="Unknown Error" zh="未知错误"/>

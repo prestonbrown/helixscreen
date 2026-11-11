@@ -2174,6 +2174,7 @@ translations:
   Layout: 布局
   Layout changes are off in safe mode. Restart to edit.: '安全模式下无法更改布局。请重启后再编辑。'
   Learn More: 了解更多
+  Leave empty for no unit: '留空则不显示单位'
   Leave it: '保持不变'
   Leave this off for a clogged nozzle.: "喷嘴堵塞时请保持关闭。"
   LedSelect: 选择 LED
@@ -4529,6 +4530,7 @@ translations:
   Uninstallation timed out. The script may be stuck.: 卸载超时。脚本可能已卡住。
   Unit: 单元
   'Unit ': '单元 '
+  Unit text: '单位文字'
   'Units: %d   Boxes: %d   Dryers: %d': '单元: %d   料盒: %d   干燥器: %d'
   Unknown: 未知
   Unknown Error: '未知错误'
