@@ -304,6 +304,18 @@ ProcessRunner cancellable_process_runner(const std::atomic<bool>& cancel) {
     };
 }
 
+ProcessRunner start_unless_cancelled(const std::atomic<bool>& cancel, ProcessRunner run) {
+    return
+        [&cancel, run = std::move(run)](const std::vector<std::string>& argv, int timeout_seconds) {
+            if (cancel.load()) {
+                CommandResult refused;
+                refused.error = "cancelled before it started";
+                return refused;
+            }
+            return run(argv, timeout_seconds);
+        };
+}
+
 std::string last_output_line(const std::string& output) {
     const auto lines = script_output_lines(output);
     return lines.empty() ? std::string() : lines.back();

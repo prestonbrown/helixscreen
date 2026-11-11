@@ -454,6 +454,10 @@ struct TimelapseMacroCardTestAccess {
     static bool repair_running(const TimelapseMacroCard& card) {
         return card.repair_running_.load();
     }
+    /// What the card's destructor does to a running repair.
+    static void cancel_repair(TimelapseMacroCard& card) {
+        card.repair_cancel_.store(true);
+    }
 };
 } // namespace helix::ui
 
@@ -663,6 +667,9 @@ TEST_CASE_METHOD(MacroCardFixture,
                                      git + "checkout -q main",
                                  });
         CHECK(card() == MacroCard::None);
+        // Moonraker re-reads the entry, so clients stop reporting it detached.
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(client_.last_update_refresh_name() == "timelapse");
     }
     SECTION("already on a branch: one look, nothing changed") {
         git_.head_exit = 0;
@@ -670,10 +677,38 @@ TEST_CASE_METHOD(MacroCardFixture,
         card_ui.refresh(&api_, klipper, true);
         REQUIRE(settle_until(repaired));
         CHECK(git_.recorded() == std::vector<std::string>{git + "symbolic-ref -q HEAD"});
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(client_.last_update_refresh_name().empty());
 
         card_ui.refresh(&api_, klipper, true);
         REQUIRE(settle_until([this] { return git_.recorded().size() == 2; }));
         CHECK(git_.recorded().back() == git + "symbolic-ref -q HEAD");
+    }
+    SECTION("a job holds the machine: no git until a later open") {
+        git_.head_exit = 1;
+        set_job_holds(true);
+        const auto klipper = klipper_with(true, true);
+        card_ui.refresh(&api_, klipper, true);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK_FALSE(CardAccess::repair_running(card_ui));
+        CHECK(git_.recorded().empty());
+
+        set_job_holds(false);
+        card_ui.refresh(&api_, klipper, true);
+        REQUIRE(settle_until(repaired));
+        CHECK(git_.recorded().back() == git + "checkout -q main");
+    }
+    SECTION("cancelled during the probes: the checkout never starts") {
+        git_.head_exit = 1;
+        git_.held.store(true);
+        const auto klipper = klipper_with(true, true);
+        card_ui.refresh(&api_, klipper, true);
+        CardAccess::cancel_repair(card_ui);
+        git_.held.store(false);
+        REQUIRE(settle_until(repaired));
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(git_.recorded().back() == git + "merge-base --is-ancestor HEAD refs/heads/main");
+        CHECK(client_.last_update_refresh_name().empty());
     }
     SECTION("Moonraker on another host: no git at all") {
         git_.head_exit = 1;

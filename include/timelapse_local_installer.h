@@ -30,6 +30,8 @@ namespace helix {
 inline constexpr const char* kTimelapseRepoUrl =
     "https://github.com/mainsail-crew/moonraker-timelapse.git";
 inline constexpr const char* kTimelapseRepoDirName = "moonraker-timelapse";
+/// The name of the [update_manager timelapse] section that tracks the checkout.
+inline constexpr const char* kTimelapseUpdateManagerName = "timelapse";
 
 /// What the wizard tells a user to run when ffmpeg is missing.
 inline constexpr const char* kFfmpegInstallCommand = "sudo apt-get install -y ffmpeg";
@@ -111,5 +113,9 @@ std::string timelapse_install_home();
 /// The runner a local install uses: real processes that @p cancel stops, or the
 /// simulated host under --test.
 ProcessRunner timelapse_install_runner(const std::atomic<bool>& cancel);
+
+/// The same runner without a cancel: each command runs to its own timeout. For
+/// the one command that must not be stopped part way (start_unless_cancelled).
+ProcessRunner timelapse_install_runner_to_end();
 
 } // namespace helix
