@@ -227,6 +227,11 @@ RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g) {
     return {g.center_x - w / 2, bottom - h, w, h};
 }
 
+int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g) {
+    return toolhead_standing_on(g.y_off + (int32_t)(g.height * kToolheadGlyphBottomRatio),
+                                data.theme.extruder_scale);
+}
+
 // Layout mirrors the ratios at the top of ui_filament_path_internal.h; LINEAR
 // butts the selector against the prep sensors and slides the output exit under
 // the active slot.
@@ -253,7 +258,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
         const int32_t stub = LV_MAX(10, (int32_t)(g.height * 0.03f));
         f.hub_y = f.toolhead_y - stub - f.hub_h / 2;
     }
-    f.nozzle_y = g.y_off + (int32_t)(g.height * kNozzleYRatio);
+    f.nozzle_y = linear_hub_nozzle_y(data, g);
     const helix::ui::ToolheadInlet inlet = path_toolhead_inlet(f.nozzle_y, theme.extruder_scale);
     f.inlet_y = inlet.y;
     f.head_x = g.center_x + inlet.dx;
@@ -440,11 +445,6 @@ namespace {
 // The Y @p fraction of the way from @p top to @p bottom.
 int32_t row_between(int32_t top, int32_t bottom, float fraction) {
     return top + (int32_t)((bottom - top) * fraction);
-}
-
-// The toolhead center whose glyph's bottom lands on @p bottom_y.
-int32_t toolhead_standing_on(int32_t bottom_y, int32_t scale) {
-    return bottom_y - toolhead_glyph_bounds(0, 0, scale).bottom;
 }
 
 } // namespace

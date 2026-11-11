@@ -92,6 +92,10 @@ GlyphBounds toolhead_bounds(ToolheadStyle style, int32_t cx, int32_t nozzle_y, i
             cx + tenths_up(scale, e.right), nozzle_y + tenths_up(scale, e.bottom)};
 }
 
+int32_t toolhead_nozzle_standing_on(ToolheadStyle style, int32_t bottom_y, int32_t scale) {
+    return bottom_y - toolhead_bounds(style, 0, 0, scale).bottom;
+}
+
 ToolheadInlet toolhead_inlet(ToolheadStyle style, int32_t nozzle_y, int32_t scale) {
     if (const ToolheadArt* art = toolhead_art_for(style)) {
         const ToolheadArtPoint entry = toolhead_art_entry(*art, 0, nozzle_y, scale);

@@ -160,6 +160,10 @@ inline int32_t built_in_bus_y(const LinearHubFrame& f) {
 /// slot span for a LINEAR selector. Its center is (center_x, hub_y).
 int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g, const LinearHubFrame& f);
 
+/// The LINEAR/HUB nozzle row: the configured toolhead's glyph stands on
+/// kToolheadGlyphBottomRatio of the canvas height.
+int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g);
+
 /// @p glyph_top is the toolhead glyph's topmost drawn Y (toolhead_top_y()):
 /// a HUB with the bypass hidden stacks its hub and buffer above it.
 LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const BaseGeometry& g,
