@@ -155,7 +155,11 @@ std::string filament_purge_fallback_gcode(const AmsBackend* backend) {
             return wrapped;
         }
     }
-    return fmt::format("M83\nG1 E{} F{}", kPurgeFallbackMm, kPurgeFallbackSpeedMmMin);
+    return extrude_gcode(kPurgeFallbackMm, kPurgeFallbackSpeedMmMin);
+}
+
+std::string extrude_gcode(int mm, int speed_mm_min) {
+    return fmt::format("M83\nG1 E{} F{}", mm, speed_mm_min);
 }
 
 } // namespace helix::ui

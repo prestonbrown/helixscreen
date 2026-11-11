@@ -173,6 +173,7 @@
   <translation tag="A new Print Status screen" zh="全新的打印状态屏幕"/>
   <translation tag="A newer version of the helper macros is available" zh="有更新版本的帮助宏可用"/>
   <translation tag="A picture of your printer" zh="打印机的图片"/>
+  <translation tag="A print holds the printer." zh="打印任务正在占用打印机。"/>
   <translation tag="A print is already running." zh="已有打印正在进行。"/>
   <translation tag="A print is in progress - restart still pending" zh="打印进行中 - 重启待执行"/>
   <translation tag="A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes." zh="此通道正在打印中。HelixScreen 已清除本地副本；打印结束后请再次清空。"/>
@@ -1688,6 +1689,7 @@
   <translation tag="Heating the bed" zh="正在加热热床"/>
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" zh="正在加热热床和喷嘴，使打印件重新附着，喷嘴脱离打印件"/>
   <translation tag="Heating the nozzle" zh="正在加热喷嘴"/>
+  <translation tag="Heating the nozzle. Have the filament ready to push in." zh="正在加热喷嘴。请准备好要推入的耗材。"/>
   <translation tag="Heating to %d°C... %.0f°C" zh="加热至 %d°C... %.0f°C"/>
   <translation tag="Heating to {}°C before {}..." zh="正在加热至{}°C，然后{}..."/>
   <translation tag="Heating to {}°C for {}..." zh="正在加热至{}°C，持续{}..."/>
@@ -3381,6 +3383,7 @@
   <translation tag="Select sensor" zh="选择传感器"/>
   <translation tag="Select slot failed" zh="选择槽位失败"/>
   <translation tag="Select the heaters Klipper uses for your bed and hotend" zh="选择 Klipper 用于热床和热端的加热器"/>
+  <translation tag="Select this tool first, then load it by hand." zh="请先选择此工具，然后手动装入。"/>
   <translation tag="Select which devices the home screen power button controls" zh="选择主页电源按钮控制的设备"/>
   <translation tag="Select which sensor triggers pause on filament runout" zh="选择耗材用尽时触发暂停的传感器"/>
   <translation tag="Select your preferred language" zh="选择您的首选语言"/>
@@ -3877,6 +3880,7 @@
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." zh="打印机会先归位,然后让热床尽量远离喷嘴。有些料盘耐热性不足,可能会变形。在你确认料盘已从热床上取下之前,此屏幕不会移动任何部件;Mainsail、宏以及切片软件发送的打印不会被阻止。"/>
   <translation tag="The printer homes, then probes each screw position." zh="打印机先归位，然后探测每个螺丝位置。"/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." zh="打印机尚未归位。继续将对所有轴执行归位操作，移动工具头。请确保热床上没有障碍物。"/>
+  <translation tag="The printer is not ready." zh="打印机未就绪。"/>
   <translation tag="The printer is shut down." zh="打印机已关机。"/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." zh="打印机正在等待腔体达到某个温度，只有紧急停止并重启固件才能结束此等待。打印将立即停止且无法恢复。"/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" zh="打印机未检测到已加载的耗材。请选择下一步操作。"/>
@@ -4003,6 +4007,7 @@
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." zh="此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。"/>
   <translation tag="This system does not support bypass mode" zh="此系统不支持旁通模式"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." zh="此工具探测每个热床螺丝并告诉您需要调整多少。"/>
+  <translation tag="This toolhead has no automatic feeder. Load the filament by hand." zh="此工具头没有自动送料器。请手动装入耗材。"/>
   <translation tag="This update asks for new permissions:" zh="此更新请求新的权限："/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." zh="此等待只有达到其温度才会结束：取消需要紧急停止并重启固件。"/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." zh="这将把 Z-offset 应用到限位开关并重启 Klipper 以保存配置。打印机将短暂断开连接。"/>

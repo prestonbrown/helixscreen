@@ -411,6 +411,7 @@ src/ui/filament_op_router.cpp
 src/ui/filament_path_geometry.cpp
 src/ui/filament_tube_stroker.cpp
 src/ui/guided_load_flow.cpp
+src/ui/guided_load_session.cpp
 src/ui/grid_layout.cpp
 src/ui/helix_sparkline.cpp
 src/ui/job_queue_state.cpp

@@ -137,6 +137,18 @@ struct OpNozzle {
 [[nodiscard]] bool read_unload_target_loaded(AmsBackend* backend, const AmsSystemInfo& info,
                                              int target_slot);
 
+/**
+ * @brief Whether a Load here is the user's hand push, with nothing else to run it.
+ *
+ * True with no filament system, no load macro (plan_live_load() falls to the raw
+ * tier) and no job holding the machine: a single-spool printer whose Load would
+ * otherwise extrude blind. Such a Load is the guided manual load (#2000). During
+ * a job the raw tier stays, because a paused print's reload runs at its own heat.
+ *
+ * @warning Main thread only.
+ */
+[[nodiscard]] bool load_is_by_hand(AmsBackend* backend, int slot, PrinterState& state);
+
 // ============================================================================
 // Preheat
 // ============================================================================

@@ -233,3 +233,53 @@ TEST_CASE("GuidedLoadFlow: older firmware is never sent the waiting-only command
         CHECK(flow.command_finished(false) == steps().cleanup);
     }
 }
+
+TEST_CASE("GuidedLoadFlow: steps with no flush, release or cleanup send nothing at the end",
+          "[guided_load][manual_load]") {
+    GuidedLoad bare;
+    bare.feed = "M83\nG1 E60 F300";
+    bare.retry = "M83\nG1 E20 F300";
+    GuidedLoadFlow flow(bare, /*waits_for_push=*/true);
+    (void)flow.extrude();
+    (void)flow.command_finished(true);
+    CHECK(flow.done().empty());
+    CHECK(flow.stage() == GuidedLoadStage::Finished);
+
+    GuidedLoadFlow cancelled(bare, true);
+    CHECK(cancelled.cancel().empty());
+    CHECK(cancelled.stage() == GuidedLoadStage::Cancelled);
+}
+
+// ============================================================================
+// A manual load: the screen heats first (prestonbrown/helixscreen#2000)
+// ============================================================================
+
+TEST_CASE("GuidedLoadFlow: a manual load sends nothing until the nozzle is hot",
+          "[guided_load][manual_load]") {
+    GuidedLoadFlow flow = GuidedLoadFlow::after_preheat(helix::hand_feed_steps());
+    CHECK(flow.stage() == GuidedLoadStage::Heating);
+    CHECK(flow.extrude().empty());
+    CHECK(flow.filament_detected().empty());
+    CHECK(flow.done().empty());
+    CHECK(flow.command_finished(true).empty());
+    CHECK(flow.stage() == GuidedLoadStage::Heating);
+
+    SECTION("heated, then the hand push, the feed, more, and Done") {
+        flow.heated();
+        CHECK(flow.stage() == GuidedLoadStage::AwaitPush);
+        CHECK(flow.extrude() == "M83\nG1 E60 F300");
+        CHECK(flow.command_finished(true).empty());
+        CHECK(flow.stage() == GuidedLoadStage::ConfirmOutput);
+        CHECK(flow.extrude() == "M83\nG1 E20 F300");
+        CHECK(flow.command_finished(true).empty());
+        // Nothing to flush or clean up: Done ends it at once.
+        CHECK(flow.done().empty());
+        CHECK(flow.stage() == GuidedLoadStage::Finished);
+    }
+    SECTION("a cancel while heating ends it with nothing to send") {
+        CHECK(flow.cancel().empty());
+        CHECK(flow.stage() == GuidedLoadStage::Cancelled);
+        flow.heated();
+        CHECK(flow.stage() == GuidedLoadStage::Cancelled);
+    }
+}

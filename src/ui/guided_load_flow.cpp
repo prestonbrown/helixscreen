@@ -3,13 +3,46 @@
 
 #include "guided_load_flow.h"
 
+#include "filament_op_router.h"
+
 #include <utility>
 
 namespace helix {
 
+namespace {
+
+/// @p a then @p b on separate lines, skipping an empty part.
+std::string join_script(const std::string& a, const std::string& b) {
+    if (a.empty() || b.empty()) {
+        return a.empty() ? b : a;
+    }
+    return a + "\n" + b;
+}
+
+} // namespace
+
+filament_macros::GuidedLoad hand_feed_steps() {
+    filament_macros::GuidedLoad steps;
+    steps.feed = ui::extrude_gcode(kFeedMm, kFeedSpeedMmMin);
+    steps.retry = ui::extrude_gcode(kPurgeMoreMm, kPurgeSpeedMmMin);
+    return steps;
+}
+
 GuidedLoadFlow::GuidedLoadFlow(filament_macros::GuidedLoad steps, bool waits_for_push)
     : steps_(std::move(steps)), waits_for_push_(waits_for_push),
       stage_(waits_for_push ? GuidedLoadStage::AwaitPush : GuidedLoadStage::ConfirmOutput) {}
+
+GuidedLoadFlow GuidedLoadFlow::after_preheat(filament_macros::GuidedLoad steps) {
+    GuidedLoadFlow flow(std::move(steps), /*waits_for_push=*/true);
+    flow.stage_ = GuidedLoadStage::Heating;
+    return flow;
+}
+
+void GuidedLoadFlow::heated() {
+    if (stage_ == GuidedLoadStage::Heating) {
+        stage_ = GuidedLoadStage::AwaitPush;
+    }
+}
 
 std::string GuidedLoadFlow::feed() {
     stage_ = GuidedLoadStage::Feeding;
@@ -19,7 +52,7 @@ std::string GuidedLoadFlow::feed() {
 std::string GuidedLoadFlow::cleanup_script() const {
     // A printer that waited is still in its load state until released.
     if (waits_for_push_) {
-        return steps_.release + "\n" + steps_.cleanup;
+        return join_script(steps_.release, steps_.cleanup);
     }
     return steps_.cleanup;
 }
@@ -47,12 +80,12 @@ std::string GuidedLoadFlow::done() {
     if (stage_ != GuidedLoadStage::ConfirmOutput) {
         return {};
     }
-    stage_ = GuidedLoadStage::Finishing;
     // The flush ends the printer's load state itself, so no release follows it.
-    if (waits_for_push_) {
-        return steps_.flush + "\n" + steps_.cleanup;
-    }
-    return steps_.cleanup;
+    std::string script =
+        waits_for_push_ ? join_script(steps_.flush, steps_.cleanup) : steps_.cleanup;
+    // Nothing to send means nothing to wait for.
+    stage_ = script.empty() ? GuidedLoadStage::Finished : GuidedLoadStage::Finishing;
+    return script;
 }
 
 std::string GuidedLoadFlow::cancel() {

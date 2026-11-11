@@ -78,8 +78,10 @@ void disarm_manual_pull_prompt();
  * Asks AmsBackend::head_filament_ops() for the head @p slot feeds (the active
  * head for a negative slot). Where that direction is not automatic, raises one
  * info toast with the backend's reason and returns true; the caller then sends
- * nothing and heats nothing. A repeat tap folds into the toast already showing
- * instead of stacking another. Returns false, silently, for a null backend or
+ * nothing and heats nothing. A load the backend marks HeadFilamentOps::guided_hand_load
+ * opens the manual load (GuidedLoadModal::show_manual()) instead of the toast, and
+ * also returns true: that flow heats and extrudes, not the caller. A repeat tap folds into the
+ * toast already showing instead of stacking another. Returns false, silently, for a null backend or
  * an automatic op.
  *
  * @param slot The slot the op names, or negative for "whatever is active".
