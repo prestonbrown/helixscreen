@@ -32,6 +32,7 @@ teardown() {
 
 # Create one empty file per listed name, plus assets no partner fetches.
 listing() {
+    mkdir -p "$REL"
     while IFS= read -r name; do
         [ -n "$name" ] && : > "$REL/$name"
     done <<< "$1"
@@ -62,16 +63,16 @@ listing() {
 
 @test "a dry run of a subset requires only what it built, plus install.sh" {
     listing "install.sh"
-    run python3 "$SCRIPT" check "$REL" --tag v0.0.0-dryrun.1 --platforms "pi x86"
+    run python3 "$SCRIPT" check "$REL" --tag v1.2.0-beta.1 --platforms "pi x86"
     [ "$status" -eq 0 ]
 
     rm "$REL/install.sh"
-    run python3 "$SCRIPT" check "$REL" --tag v0.0.0-dryrun.1 --platforms "pi x86"
+    run python3 "$SCRIPT" check "$REL" --tag v1.2.0-beta.1 --platforms "pi x86"
     [ "$status" -eq 1 ]
     contains "missing install.sh" "$output"
 
     listing "install.sh"
-    run python3 "$SCRIPT" check "$REL" --tag v0.0.0-dryrun.1 --platforms "mips"
+    run python3 "$SCRIPT" check "$REL" --tag v1.2.0-beta.1 --platforms "mips"
     [ "$status" -eq 1 ]
     [[ "$output" == *"missing helixscreen-ad5x.zip"* ]]
 }
@@ -106,12 +107,42 @@ print("\n".join(bad)); sys.exit(1 if bad or not plats else 0)'
     [ "$status" -eq 0 ]
 }
 
-@test "release.yml runs the check on release-files before the GitHub release is created" {
-    run python3 -c '
-import sys
-wf = open(".github/workflows/release.yml").read()
-check = wf.find("scripts/distribution_partners.py check release-files --tag \"$RELEASE_TAG\" --platforms \"$BUILT_PLATFORMS\"")
-publish = wf.find("uses: softprops/action-gh-release")
-sys.exit(0 if 0 <= check < publish and "BUILT_PLATFORMS: ${{ needs.plan.outputs.platforms }}" in wf else 1)'
-    [ "$status" -eq 0 ]
+# Runs the workflow step's own script, as the release job would, in a scratch tree whose
+# archives are named from VERSION.txt (mk/cross.mk), never from the run's tag.
+run_partner_step() {
+    local mode=$1 tag=$2
+    local tree="$TEST_DIR/job"
+    mkdir -p "$tree"
+    ln -s "$PWD/scripts" "$tree/scripts"
+    echo "1.2.0-beta.1" > "$tree/VERSION.txt"
+    mv "$REL" "$tree/release-files"
+    python3 -c '
+import sys, yaml
+wf = yaml.safe_load(open(".github/workflows/release.yml"))
+steps = wf["jobs"]["release"]["steps"]
+names = [s.get("name", "") for s in steps]
+i = names.index("Verify distribution partner assets are present")
+publish = next(n for n, s in enumerate(steps) if "softprops/action-gh-release" in s.get("uses", ""))
+assert i < publish, "the check runs after the GitHub release is created"
+assert steps[i]["env"]["BUILT_PLATFORMS"] == "${{ needs.plan.outputs.platforms }}"
+print(steps[i]["run"])' > "$TEST_DIR/step.sh" || return 1
+    (cd "$tree" && RELEASE_MODE=$mode RELEASE_TAG=$tag BUILT_PLATFORMS="ad5m mips cc1 snapmaker-u1" \
+        bash "$TEST_DIR/step.sh")
+}
+
+@test "the release step checks a dry run under VERSION.txt and a tag push under its tag" {
+    listing "$(sed 's/v1.2.3/v1.2.0-beta.1/' <<< "$FULL_LISTING")"
+    run run_partner_step dryrun v0.0.0-dryrun.7
+    [ "$status" -eq 0 ] || fail "dry run: $output"
+
+    listing "$(sed 's/v1.2.3/v1.2.0-beta.1/' <<< "$FULL_LISTING")"
+    rm -rf "$TEST_DIR/job"
+    run run_partner_step publish v1.2.0-beta.1
+    [ "$status" -eq 0 ] || fail "tag push: $output"
+
+    listing "$(sed 's/v1.2.3/v1.2.0-beta.1/' <<< "$FULL_LISTING")"
+    rm -rf "$TEST_DIR/job"
+    run run_partner_step publish v1.2.0-beta.2
+    [ "$status" -eq 1 ] || fail "a tag VERSION.txt disagrees with passed: $output"
+    contains "missing helixscreen-snapmaker-u1-v1.2.0-beta.2.tar.gz" "$output"
 }
