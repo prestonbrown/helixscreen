@@ -842,7 +842,8 @@ state, constructed with representative sample data and the real lifecycle:
 dialog, with AFC's position diagram or all four of Happy Hare's recovery buttons),
 `spaghetti-detection`, `bed-check` (the modal a printer bed check raises when it stops a
 print), `guided-load` and `guided-load-confirm` (the steps a stock load wizard leaves to
-the screen, opened on the hand-push step or on the extrusion question).
+the screen, opened on the hand-push step or on the extrusion question), `manual-load` (the
+manual load on the active nozzle, heating on the mock's heater, then the hand push).
 `spaghetti-detection` fetches its camera still from the mock's unreachable webcam, so set
 `HELIX_DEMO_SNAPSHOT_URL` to a JPEG URL to see the preview.
 

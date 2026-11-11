@@ -42,8 +42,6 @@ namespace {
 
 constexpr uint32_t kTickMs = 1000;
 constexpr const char* kLogTag = "[ColdPull]";
-/// Connection state value for an established printer link (PrinterNetworkState).
-constexpr int kPrinterConnected = 2;
 
 /// The part fan this head's tip cools under: its tool's own, else the printer's.
 /// Empty when the screen may not command it.
@@ -173,10 +171,7 @@ void ColdPullRunner::init_subjects() {
 }
 
 bool ColdPullRunner::printer_ready() const {
-    auto& net = state_.network_state();
-    return lv_subject_get_int(net.get_printer_connection_state_subject()) == kPrinterConnected &&
-           lv_subject_get_int(net.get_klippy_state_subject()) ==
-               static_cast<int>(KlippyState::READY);
+    return printer_reachable(state_);
 }
 
 ColdPullRefusal ColdPullRunner::can_start() const {

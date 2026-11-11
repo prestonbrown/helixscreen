@@ -864,6 +864,17 @@ AmsBackendSnapmaker::ChannelSnapshot AmsBackendSnapmaker::channel_snapshot(int s
     return channel_snapshots_[slot_index];
 }
 
+HeadFilamentOps AmsBackendSnapmaker::head_filament_ops(int head) const {
+    HeadFilamentOps ops = AmsBackend::head_filament_ops(head);
+    if (head < 0 || head >= kNumTools || !feeder_absent(channel_snapshot(head))) {
+        return ops;
+    }
+    ops.load = FilamentOpSupport::Manual;
+    ops.load_reason = lv_tr("This toolhead has no automatic feeder. Load the filament by hand.");
+    ops.guided_hand_load = true;
+    return ops;
+}
+
 AmsBackend::FilamentOpEligibility AmsBackendSnapmaker::slot_op_eligibility(int slot_index,
                                                                            bool load) const {
     using E = FilamentOpEligibility;
@@ -1953,6 +1964,7 @@ void AmsBackendSnapmaker::apply_feed_channel_locked(const snapmaker::FeedChannel
     }
     if (channel.module_exist) {
         snap.module_exist = *channel.module_exist;
+        snap.module_reported = true;
     }
     if (channel.disable_auto) {
         snap.disable_auto = *channel.disable_auto;

@@ -77,6 +77,11 @@ class AmsBackendMultiAce : public AmsBackendSnapmaker, public helix::IDryer {
     /// feed is its own source.
     [[nodiscard]] std::optional<int> head_source_slot(int head,
                                                       const AmsSystemInfo& info) const override;
+    /// An ACE feeds a head the U1 frame reports with no feeder module, so no head
+    /// here is a hand load.
+    [[nodiscard]] HeadFilamentOps head_filament_ops(int head) const override {
+        return AmsBackend::head_filament_ops(head);
+    }
 
     /// Also drops a bay load waiting behind its head's unload: the restart
     /// ended that unload, so the load's second step must not follow it.

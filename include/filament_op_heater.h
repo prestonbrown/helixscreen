@@ -242,6 +242,25 @@ class FilamentOpHeater {
     /// what happened, and the ticket is forgotten.
     void op_failed(FilamentOpTicket ticket);
 
+    /// The op @p ticket names stopped before it was done (the user backed out, an
+    /// extrusion failed, the printer went away) with the nozzle hot for it. A heater
+    /// this heater heated goes off now, unless a job holds the machine. With the
+    /// printer unreachable the send cannot land, so the post-op cooldown is
+    /// scheduled in its place. The ticket is forgotten.
+    void op_cancelled(FilamentOpTicket ticket);
+
+    /// The op @p ticket names waits on the user with the nozzle hot (a manual
+    /// load's hand push), for as long as the user takes. Until op_succeeded(),
+    /// op_failed() or op_cancelled() names the ticket, SIGTERM takes the graceful
+    /// path and before_disconnect() turns that heater off when this heater heated
+    /// it, then reports @p on_lost: the op is over, and must send nothing more.
+    void hold_heat(FilamentOpTicket ticket, helix::SharedCallback<void()> on_lost);
+
+    /// Whether an op holds the nozzle hot through hold_heat().
+    [[nodiscard]] bool holding() const {
+        return !holds_.empty();
+    }
+
     /// A backend op for @p ticket is about to be dispatched and completes on the
     /// AMS action feed: op_succeeded() when the action moves to busy after this
     /// call and then returns to IDLE, op_failed() on ERROR, forgotten after
@@ -251,7 +270,8 @@ class FilamentOpHeater {
     void watch_backend_completion(FilamentOpTicket ticket);
 
     /// End a waiting preheat while the printer can still hear it: a heater this
-    /// wait turned on goes back off, and the op it was for does not run.
+    /// wait turned on goes back off, and the op it was for does not run. Heat an
+    /// op holds (hold_heat()) goes off too, and that op is told it was lost.
     void before_disconnect();
 
   private:
@@ -288,6 +308,13 @@ class FilamentOpHeater {
     struct Owed {
         std::string heater;
         TimePoint at{};
+    };
+
+    /// An op keeping the nozzle hot while the user acts (hold_heat()).
+    struct Hold {
+        FilamentOpTicket ticket = 0;
+        std::string heater; ///< Set when this heater heated it, so its to turn off
+        helix::SharedCallback<void()> on_lost;
     };
 
     struct Watch {
@@ -343,12 +370,16 @@ class FilamentOpHeater {
     CleanupHold heater_hold_;
     std::vector<Owed> owed_;
     std::vector<Watch> watches_;
+    std::vector<Hold> holds_;
     ObserverGuard temp_observer_;
     ObserverGuard target_observer_;
     ObserverGuard lifecycle_observer_;
     ObserverGuard action_observer_;
     lv_timer_t* deadline_timer_ = nullptr;
 };
+
+/// Connected, with Klippy ready: a command sent now reaches the printer. Main thread.
+[[nodiscard]] bool printer_reachable(PrinterState& state);
 
 /// The app's FilamentOpHeater (a shared resource SubjectInitializer registers),
 /// or nullptr before it exists.

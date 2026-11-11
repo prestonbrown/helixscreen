@@ -424,6 +424,7 @@ src/ui/filament/filament_motion.cpp
 src/ui/filament/filament_path_geometry.cpp
 src/ui/filament/filament_tube_stroker.cpp
 src/ui/filament/guided_load_flow.cpp
+src/ui/filament/guided_load_session.cpp
 src/ui/filament/cold_pull_flow.cpp
 src/ui/filament/cold_pull_runner.cpp
 src/ui/filament/ui_cold_pull_overlay.cpp

@@ -3,6 +3,8 @@
 
 #include "guided_load_flow.h"
 
+#include "filament_op_router.h"
+
 #include <utility>
 
 namespace helix {
@@ -19,9 +21,28 @@ std::string join_script(const std::string& a, const std::string& b) {
 
 } // namespace
 
+filament_macros::GuidedLoad hand_feed_steps() {
+    filament_macros::GuidedLoad steps;
+    steps.feed = ui::extrude_gcode(kFeedMm, kFeedSpeedMmMin);
+    steps.retry = ui::extrude_gcode(kPurgeMoreMm, kPurgeSpeedMmMin);
+    return steps;
+}
+
 GuidedLoadFlow::GuidedLoadFlow(filament_macros::GuidedLoad steps, bool waits_for_push)
     : steps_(std::move(steps)), waits_for_push_(waits_for_push),
       stage_(waits_for_push ? GuidedLoadStage::AwaitPush : GuidedLoadStage::ConfirmOutput) {}
+
+GuidedLoadFlow GuidedLoadFlow::after_preheat(filament_macros::GuidedLoad steps) {
+    GuidedLoadFlow flow(std::move(steps), /*waits_for_push=*/true);
+    flow.stage_ = GuidedLoadStage::Heating;
+    return flow;
+}
+
+void GuidedLoadFlow::heated() {
+    if (stage_ == GuidedLoadStage::Heating) {
+        stage_ = GuidedLoadStage::AwaitPush;
+    }
+}
 
 std::string GuidedLoadFlow::feed() {
     stage_ = GuidedLoadStage::Feeding;
