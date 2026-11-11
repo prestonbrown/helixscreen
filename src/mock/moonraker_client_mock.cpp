@@ -2501,15 +2501,10 @@ void MoonrakerClientMock::dispatch_initial_state() {
                 {"temperature", 35.0},
                 {"target", is_chamber_fan ? mock_internal::kMockK2ChamberFanRestingC : 40.0},
                 {"speed", 0.0}};
-        } else if (s.rfind("tmc2240 ", 0) == 0) {
-            // The TMC driver with a built-in temperature
-            double temp = 55.0 + (std::hash<std::string>{}(s) % 20);
-            initial_status[s] = {{"temperature", temp},
-                                 {"drv_status", mock_internal::mock_tmc_drv_status(s)}};
         } else if (s.rfind("tmc", 0) == 0) {
-            // Every other TMC driver reports only its flags
-            initial_status[s] = {{"temperature", nullptr},
-                                 {"drv_status", mock_internal::mock_tmc_drv_status(s)}};
+            initial_status[s] = {{"drv_status", helix::mock::mock_tmc_drv_status(s)}};
+            if (s.rfind("tmc2240 ", 0) == 0)
+                initial_status[s]["temperature"] = 55.0 + (std::hash<std::string>{}(s) % 20);
         }
     }
 

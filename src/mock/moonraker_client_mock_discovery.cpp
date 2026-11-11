@@ -719,7 +719,7 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_config.merge_patch(indx_config_sections());
     }
     mock_config.merge_patch(medusa_config_sections());
-    mock_config.merge_patch(mock_internal::mock_temperature_sensor_config(discovery_.sensors()));
+    mock_config.merge_patch(helix::mock::mock_temperature_sensor_config(discovery_.sensors()));
 
     std::unordered_set<std::string> macros_snapshot;
     discovery_.modify_hardware([&](PrinterDiscovery& hw) {

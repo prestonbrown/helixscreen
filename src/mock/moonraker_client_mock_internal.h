@@ -235,23 +235,6 @@ json get_mock_gcode_macro_config();
 json get_mock_accel_config();
 
 /**
- * @brief The drv_status a mock TMC driver object reports.
- *
- * `HELIX_MOCK_TMC_OVERTEMP` names the steppers whose driver is hot, comma
- * separated: `stepper_z` sets the prewarning flag, `stepper_z:ot` the shutdown
- * flag. Every other driver reports a running driver with no flags.
- */
-json mock_tmc_drv_status(const std::string& driver_object);
-
-/**
- * @brief configfile.config sections for the persona's temperature_sensor objects.
- *
- * An MCU-named sensor reports sensor_type temperature_mcu and a host-named one
- * temperature_host, the way real configs declare them.
- */
-json mock_temperature_sensor_config(const std::vector<std::string>& sensor_objects);
-
-/**
  * @brief The probe profile the mock reports for a persona
  *
  * HELIX_MOCK_PROBE_TYPE when set. Otherwise "cartographer" for a persona that
@@ -324,3 +307,24 @@ std::vector<std::string> mock_padded_macro_names();
 nlohmann::json mock_probe_status(helix::mock::PrinterType type);
 
 } // namespace helix::sim
+
+namespace helix::mock {
+
+/**
+ * @brief The drv_status a mock TMC driver object reports.
+ *
+ * `HELIX_MOCK_TMC_OVERTEMP` names the steppers whose driver is hot, comma
+ * separated: `stepper_z` sets the prewarning flag, `stepper_z:ot` the shutdown
+ * flag. Every other driver reports a running driver with no flags.
+ */
+nlohmann::json mock_tmc_drv_status(const std::string& driver_object);
+
+/**
+ * @brief configfile.config sections for the persona's temperature_sensor objects.
+ *
+ * An MCU-named sensor reports sensor_type temperature_mcu and a host-named one
+ * temperature_host, the way real configs declare them.
+ */
+nlohmann::json mock_temperature_sensor_config(const std::vector<std::string>& sensor_objects);
+
+} // namespace helix::mock

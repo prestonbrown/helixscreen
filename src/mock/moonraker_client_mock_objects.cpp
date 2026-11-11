@@ -211,48 +211,6 @@ json get_mock_accel_config() {
     return {{"adxl345", json::object()}, {"resonance_tester", json::object()}};
 }
 
-json mock_tmc_drv_status(const std::string& driver_object) {
-    const size_t space = driver_object.find(' ');
-    const std::string stepper =
-        space == std::string::npos ? driver_object : driver_object.substr(space + 1);
-    json status = {{"cs_actual", 16}};
-    const char* env = std::getenv("HELIX_MOCK_TMC_OVERTEMP");
-    if (env == nullptr) {
-        return status;
-    }
-    const std::string list = env;
-    size_t start = 0;
-    while (start <= list.size()) {
-        const size_t comma = std::min(list.find(',', start), list.size());
-        const std::string item = list.substr(start, comma - start);
-        if (item == stepper) {
-            status["otpw"] = 1;
-        } else if (item == stepper + ":ot") {
-            status["otpw"] = 1;
-            status["ot"] = 1;
-        }
-        start = comma + 1;
-    }
-    return status;
-}
-
-json mock_temperature_sensor_config(const std::vector<std::string>& sensor_objects) {
-    json sections = json::object();
-    constexpr std::string_view kPrefix = "temperature_sensor ";
-    for (const auto& name : sensor_objects) {
-        if (name.rfind(kPrefix, 0) != 0) {
-            continue;
-        }
-        const std::string instance = name.substr(kPrefix.size());
-        if (instance.find("mcu") != std::string::npos) {
-            sections[name] = {{"sensor_type", "temperature_mcu"}};
-        } else if (instance.find("raspberry") != std::string::npos || instance == "host_temp") {
-            sections[name] = {{"sensor_type", "temperature_host"}};
-        }
-    }
-    return sections;
-}
-
 std::string mock_probe_type(helix::mock::PrinterType type) {
     const char* probe_env = std::getenv("HELIX_MOCK_PROBE_TYPE");
     if (probe_env && probe_env[0]) {
@@ -592,7 +550,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["configfile"]["config"].merge_patch(
                     input_button_configfile_sections(self));
                 status_obj["configfile"]["config"].merge_patch(
-                    mock_temperature_sensor_config(self->hardware().sensors()));
+                    helix::mock::mock_temperature_sensor_config(self->hardware().sensors()));
                 status_obj["configfile"]["config"].merge_patch(pa_adjust_configfile_sections(self));
                 status_obj["configfile"]["settings"].merge_patch(
                     pa_adjust_configfile_sections(self));
@@ -1312,7 +1270,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["configfile"]["config"].merge_patch(
                     input_button_configfile_sections(self));
                 status_obj["configfile"]["config"].merge_patch(
-                    mock_temperature_sensor_config(self->hardware().sensors()));
+                    helix::mock::mock_temperature_sensor_config(self->hardware().sensors()));
                 status_obj["configfile"]["config"].merge_patch(pa_adjust_configfile_sections(self));
                 status_obj["configfile"]["settings"].merge_patch(
                     pa_adjust_configfile_sections(self));
@@ -1395,3 +1353,49 @@ json mock_probe_status(helix::mock::PrinterType type) {
 }
 
 } // namespace helix::sim
+
+namespace helix::mock {
+
+nlohmann::json mock_tmc_drv_status(const std::string& driver_object) {
+    const size_t space = driver_object.find(' ');
+    const std::string stepper =
+        space == std::string::npos ? driver_object : driver_object.substr(space + 1);
+    nlohmann::json status = {{"cs_actual", 16}};
+    const char* env = std::getenv("HELIX_MOCK_TMC_OVERTEMP");
+    if (env == nullptr) {
+        return status;
+    }
+    const std::string list = env;
+    size_t start = 0;
+    while (start <= list.size()) {
+        const size_t comma = std::min(list.find(',', start), list.size());
+        const std::string item = list.substr(start, comma - start);
+        if (item == stepper) {
+            status["otpw"] = 1;
+        } else if (item == stepper + ":ot") {
+            status["otpw"] = 1;
+            status["ot"] = 1;
+        }
+        start = comma + 1;
+    }
+    return status;
+}
+
+nlohmann::json mock_temperature_sensor_config(const std::vector<std::string>& sensor_objects) {
+    nlohmann::json sections = json::object();
+    constexpr std::string_view kPrefix = "temperature_sensor ";
+    for (const auto& name : sensor_objects) {
+        if (name.rfind(kPrefix, 0) != 0) {
+            continue;
+        }
+        const std::string instance = name.substr(kPrefix.size());
+        if (instance.find("mcu") != std::string::npos) {
+            sections[name] = {{"sensor_type", "temperature_mcu"}};
+        } else if (instance.find("raspberry") != std::string::npos || instance == "host_temp") {
+            sections[name] = {{"sensor_type", "temperature_host"}};
+        }
+    }
+    return sections;
+}
+
+} // namespace helix::mock

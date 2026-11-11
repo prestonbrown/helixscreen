@@ -912,9 +912,9 @@ void MoonrakerClientMock::temperature_simulation_loop() {
                 double base = 55.0 + (std::hash<std::string>{}(s) % 20);
                 double temp = base + 3.0 * std::sin(2.0 * M_PI * sim_time / 120.0);
                 status_obj[s] = {{"temperature", temp},
-                                 {"drv_status", mock_internal::mock_tmc_drv_status(s)}};
+                                 {"drv_status", helix::mock::mock_tmc_drv_status(s)}};
             } else if (s.rfind("tmc", 0) == 0) {
-                status_obj[s] = {{"drv_status", mock_internal::mock_tmc_drv_status(s)}};
+                status_obj[s] = {{"drv_status", helix::mock::mock_tmc_drv_status(s)}};
             }
         }
 
