@@ -9,8 +9,7 @@ using helix::format_print_health;
 using helix::PrintHealthLog;
 using helix::PrintHealthSample;
 
-TEST_CASE("format_print_health reports rates over the interval, and zeros with none",
-          "[print_health]") {
+TEST_CASE("format_print_health reports rates, and zeros over no interval", "[print_health]") {
     PrintHealthSample earlier;
     earlier.process_cpu_ns = 1'000'000'000;
     earlier.main_thread_cpu_ns = 500'000'000;
