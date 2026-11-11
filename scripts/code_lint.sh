@@ -1733,6 +1733,7 @@ real_tree_make_offenders() {
     # Doubled backslashes: awk -v runs escape processing over the value.
     local tree='"?\\$\\{?((REPO|REPO_ROOT|ROOT|WORKTREE_ROOT|HELIX_TEST_REPO_ROOT)\\}?"?|BATS_TEST_DIRNAME\\}?/\\.\\./\\.\\.)'
     awk -v tree="$tree" '
+        FNR == 1 || /^@test/ { reviewed = 0 }
         /REAL_TREE_MAKE_OK:/ { reviewed = 1 }
         /^}/ { reviewed = 0; next }
         /^[[:space:]]*#/ || reviewed { next }
