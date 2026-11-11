@@ -14,6 +14,9 @@
 ///        ±10mm, and values past that pin to the end of the largest scale.
 void ui_z_offset_indicator_set_value(lv_obj_t* obj, int microns);
 
+/// @brief The value the indicator shows, or moves toward while animating, in microns
+int ui_z_offset_indicator_get_value(lv_obj_t* obj);
+
 /// @brief Flash a direction arrow (fades out over 400ms)
 /// @param obj The z_offset_indicator widget
 /// @param direction +1 for farther/up arrow, -1 for closer/down arrow

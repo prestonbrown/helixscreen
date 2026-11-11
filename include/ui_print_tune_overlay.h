@@ -200,6 +200,7 @@ class PrintTuneOverlay : public OverlayBase {
     lv_subject_t tune_speed_subject_{};
     lv_subject_t tune_flow_subject_{};
     lv_subject_t tune_z_offset_subject_{};
+    lv_subject_t tune_z_offset_microns_subject_{}; ///< What the z_offset_indicator draws
     /// Which z-step amount is selected, as an index. ONE int, not four
     /// booleans: the buttons are mutually exclusive by construction, so four
     /// parallel flags were four chances for the UI to disagree with itself,

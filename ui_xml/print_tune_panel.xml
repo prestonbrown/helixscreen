@@ -156,7 +156,9 @@
                  beside a fixed-width indicator would be ~14px each at 272x480. -->
             <lv_obj width="100%"
                     height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
-              <z_offset_indicator name="z_offset_indicator" width="#z_tune_indicator_w" height="#z_tune_indicator_h"/>
+              <z_offset_indicator name="z_offset_indicator"
+                                  width="#z_tune_indicator_w" height="#z_tune_indicator_h"
+                                  bind_microns="tune_z_offset_microns"/>
               <!-- Direction buttons fill the width the indicator leaves. They
                    match the step buttons' height: in portrait the pair sets this
                    row's height, and they stay wide, so the touch target holds. -->
@@ -226,7 +228,9 @@
                  column beside it. -->
             <lv_obj width="100%"
                     height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
-              <z_offset_indicator name="z_offset_indicator" width="#z_tune_indicator_w" height="#z_tune_indicator_h"/>
+              <z_offset_indicator name="z_offset_indicator"
+                                  width="#z_tune_indicator_w" height="#z_tune_indicator_h"
+                                  bind_microns="tune_z_offset_microns"/>
               <lv_obj height="content"
                       flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
                 <!-- Amount selectors (left) + direction buttons (right) -->

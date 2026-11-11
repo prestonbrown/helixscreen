@@ -1953,7 +1953,11 @@
       "inherits": "lv_obj"
     },
     "z_offset_indicator": {
-      "attributes": {},
+      "attributes": {
+        "bind_microns": {
+          "type": "string"
+        }
+      },
       "inherits": "lv_obj"
     },
     "belt_gap_gauge": {
