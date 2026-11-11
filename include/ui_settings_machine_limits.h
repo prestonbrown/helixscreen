@@ -28,7 +28,6 @@
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
-// Forward declarations
 namespace helix {
 class IMoonrakerAPI;
 }
@@ -103,7 +102,8 @@ class MachineLimitsOverlay : public OverlayBase {
      * - on_accel_to_decel_changed
      * - on_square_corner_velocity_changed
      * - on_limits_reset
-     * - on_limits_apply
+     * - on_extrude_speed_changed
+     * - on_limit_field_clicked
      */
     void register_callbacks() override;
 
@@ -119,10 +119,6 @@ class MachineLimitsOverlay : public OverlayBase {
         return true;
     }
 
-    /**
-     * @brief Get human-readable overlay name
-     * @return "Machine Limits"
-     */
     const char* get_name() const override {
         return "Machine Limits";
     }
@@ -240,7 +236,8 @@ class MachineLimitsOverlay : public OverlayBase {
     /**
      * @brief Apply current limits to printer immediately
      *
-     * Called on slider release to send SET_VELOCITY_LIMIT command.
+     * Sends SET_VELOCITY_LIMIT. Runs from the debounce timer, on reset, and
+     * when on_deactivating() flushes a pending debounced apply.
      * Does not show success toast (only errors).
      */
     void apply_limits();

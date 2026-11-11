@@ -38,13 +38,10 @@
  * - Temperature message filtering (periodic T:/B: reports)
  * - Auto-scroll to newest messages (pauses when user scrolls up)
  * - Empty state when no history available
- *
  * ## Moonraker API
  * - server.gcode_store - Fetch command history
  * - notify_gcode_response - Real-time response subscription
  * - printer.gcode.script - Send G-code commands
- *
- * @see docs/FEATURE_STATUS.md for implementation progress
  */
 class ConsolePanel : public OverlayBase {
   public:
@@ -169,7 +166,7 @@ class ConsolePanel : public OverlayBase {
     /// Subscribe to real-time G-code responses (called from on_activate)
     void subscribe_to_gcode_responses();
 
-    /// Unsubscribe from real-time G-code responses (called from on_deactivate)
+    /// Unsubscribe from real-time G-code responses (called from on_deactivating)
     void unsubscribe_from_gcode_responses();
 
     /// Rebuild the firmware-noise filter engine for the current printer.

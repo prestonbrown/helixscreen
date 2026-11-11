@@ -18,10 +18,10 @@ namespace helix::ui {
  * @brief Modal for adding or editing a user filament "product".
  *
  * Writes the authored (sparse) product to config/user_filaments.json via
- * FilamentCatalog::save_user_products — the first production caller of that
- * write path. Add mode starts from an empty form; edit mode pre-fills from the
- * resolved catalog entry and, on save, writes an overlay entry that overrides
- * that id (whether the source was a built-in or a prior user entry).
+ * FilamentCatalog::save_user_products. Add mode starts from an empty form;
+ * edit mode pre-fills from the resolved catalog entry and, on save, writes an
+ * overlay entry that overrides that id (whether the source was a built-in or a
+ * prior user entry).
  *
  * Main-thread only: everything runs from UI event handlers, so there is no
  * AsyncLifetimeGuard / background-thread work here.

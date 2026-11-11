@@ -21,18 +21,17 @@ namespace helix::ui {
  * @brief Whether the bypass node belongs on the filament path at all.
  *
  * AFC publishes a virtual bypass sensor whether or not the user has a bypass
- * wired, so `supports_bypass` is effectively always true there and the node was
- * drawn permanently — then painted from the external-spool slot, which put the
- * currently-loaded lane's material and colour on it. The green "ASA / Bypass" in
- * #1229 was lane1's spool on a machine with no bypass at all.
+ * wired, so `supports_bypass` is effectively always true there. Drawn anyway,
+ * the node is painted from the external-spool slot, which carries the
+ * currently-loaded lane's material and colour, on a machine that may have no
+ * bypass at all (#1229).
  *
  * On AFC the node is therefore hidden while bypass is disengaged, unless the
  * user opts back in via the AMS setting. Other backends are unaffected: their
  * bypass is a real physical position, so it stays visible whenever supported.
  *
- * Pure by design. The render sites are LVGL-bound and previously carried this
- * condition inline in four places, where it could neither be tested nor kept
- * consistent — three of the four had already drifted apart.
+ * Pure, so the LVGL-bound render sites share one tested rule instead of each
+ * carrying the condition inline.
  *
  * @param supports_bypass Backend reports a bypass position at all
  * @param bypass_active Bypass is currently engaged (firmware state, not a proxy)
@@ -83,10 +82,9 @@ struct BypassSpoolWidgets {
     /// Paired with cached_color_rgb because black IS 0: without a separate
     /// "has it ever been painted" bit, a black spool reads as unchanged from
     /// the default and the canvas keeps its own creation-time 0xE0E0E0, so the
-    /// bypass swatch renders white forever (K2 Plus, spool 86 "Black ASA").
-    /// The same black-is-not-unset trap is already handled in
-    /// AmsState::notify_external_spool_changed() and
-    /// filament_slot_override_store's identity check; this widget was missed.
+    /// bypass swatch renders white forever. The same black-is-not-unset rule
+    /// applies in AmsState::notify_external_spool_changed() and
+    /// filament_slot_override_store's identity check.
     bool color_painted = false;
     uint32_t cached_color_rgb = 0;
     bool cached_has_spool = false;

@@ -14,8 +14,6 @@
  * - Content area padding (responsive vertical, fixed horizontal)
  * - Resize callback registration
  * - Standard back button event handlers
- *
- * These helpers eliminate 50-100 lines of repetitive code per panel.
  */
 
 // ============================================================================
@@ -92,6 +90,7 @@ void ui_panel_setup_resize_callback(ui_panel_resize_context_t* context);
 // OVERLAY PANEL SETUP (For panels using overlay_panel.xml wrapper)
 // ============================================================================
 
+namespace helix::ui {
 /**
  * @brief Create an XML component that is hidden for its whole construction
  *
@@ -105,7 +104,6 @@ void ui_panel_setup_resize_callback(ui_panel_resize_context_t* context);
  *
  * @return The component root, hidden and parented to @p parent, or nullptr
  */
-namespace helix::ui {
 lv_obj_t* create_xml_hidden(lv_obj_t* parent, const char* component, const char** attrs = nullptr);
 
 /**

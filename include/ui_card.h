@@ -13,8 +13,8 @@ extern "C" {
  * Register the ui_card component with the LVGL XML system
  * Must be called before any XML files using <ui_card> are registered
  *
- * Card colors are fetched dynamically via theme_manager_get_color("card_bg")
- * which automatically uses light/dark variants based on current theme mode.
+ * The card takes ThemeManager's shared StyleRole::Card style (CardPressed while
+ * pressed), so it follows theme and dark-mode changes.
  */
 void ui_card_register(void);
 

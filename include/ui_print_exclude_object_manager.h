@@ -46,7 +46,7 @@ namespace helix::ui {
 /**
  * @brief Manages the exclude object feature for PrintStatusPanel
  *
- * Extracted from PrintStatusPanel to reduce complexity. Handles:
+ * Handles:
  * - Long-press callback registration on gcode viewer
  * - Confirmation modal flow
  * - Undo timer and toast notification
@@ -101,7 +101,8 @@ class PrintExcludeObjectManager {
     /**
      * @brief Handle long-press on object in G-code viewer
      *
-     * Called by PrintStatusPanel when the gcode viewer detects a long-press.
+     * Called from on_object_long_pressed(), the long-press callback init()
+     * registers on the gcode viewer, and from request_exclude().
      * Shows confirmation dialog if the object is not already excluded.
      *
      * @param object_name Name of the object that was long-pressed

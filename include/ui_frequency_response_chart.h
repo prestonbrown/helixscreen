@@ -46,7 +46,7 @@
  * drawing a partial curve passes the full grid with NaN where it has no value.
  *
  * @see platform_capabilities.h for tier definitions
- * @see docs/INPUT_SHAPING_IMPLEMENTATION.md for design rationale
+ * @see docs/devel/INPUT_SHAPER.md for design rationale
  */
 
 #include "lvgl/lvgl.h"
@@ -67,8 +67,8 @@ struct ui_frequency_response_chart_t;
  * @brief Create a new frequency response chart widget
  *
  * Creates a chart configured for displaying frequency domain data from input
- * shaper calibration. Initially in EMBEDDED mode until configured with
- * configure_for_platform().
+ * shaper calibration. Until configure_for_platform() it is EMBEDDED in table
+ * mode (no lv_chart, every point kept).
  *
  * @param parent Parent LVGL object (must not be NULL)
  * @return Pointer to chart structure, or NULL on error
@@ -267,8 +267,8 @@ inline constexpr FrChartSeriesStyle kFrMeasuredCurveStyle{3, true, true};
 /**
  * @brief What a tier may draw (pure)
  *
- * EMBEDDED never reaches here (no chart); BASIC drops glow; STANDARD with
- * animations keeps everything.
+ * Glow needs STANDARD with animations; every other tier drops it. Fill is
+ * kept on every tier.
  */
 // NAMESPACE_OK: joins this header's global ui_frequency_response_chart_* API
 [[nodiscard]] FrChartSeriesStyle fr_chart_effective_style(const FrChartSeriesStyle& requested,
@@ -571,7 +571,7 @@ void ui_frequency_response_chart_configure_for_platform(ui_frequency_response_ch
  * platform tier. Data beyond this limit will be downsampled.
  *
  * @param chart Chart instance
- * @return Max points (200 for STANDARD, 50 for BASIC/EMBEDDED)
+ * @return Max points (200 for STANDARD, 50 for BASIC/EMBEDDED, 0 before configuring)
  */
 size_t ui_frequency_response_chart_get_max_points(ui_frequency_response_chart_t* chart);
 
@@ -579,7 +579,8 @@ size_t ui_frequency_response_chart_get_max_points(ui_frequency_response_chart_t*
  * @brief Check if chart mode is enabled
  *
  * Returns whether the chart is rendering as a graphical chart (true) or
- * as a data table (false). Table mode is used on EMBEDDED tier hardware.
+ * as a data table (false). Table mode lasts only until configure_for_platform(),
+ * which selects chart mode on every tier.
  *
  * @param chart Chart instance
  * @return true if chart mode, false if table mode or NULL chart

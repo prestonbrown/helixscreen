@@ -28,9 +28,8 @@ namespace helix::ui {
  *
  * Visibility per row may be bound to a caller-supplied subject via the
  * `VisibilitySubjectLookup` callback — returning a non-null subject hides the
- * row when it reads 0. The current detail-view caller passes a lookup that
- * always returns nullptr (declared options are always visible) but the hook
- * remains available for future plugin-/macro-gated options.
+ * row when it reads 0. The detail view passes a lookup that always returns
+ * nullptr, so its declared options are always visible.
  *
  * The renderer does NOT decide visibility itself — the caller passes the
  * lookup function.
@@ -75,8 +74,7 @@ class PrePrintOptionsRenderer {
      * Returning nullptr leaves the row visible unconditionally — used for
      * options whose visibility is purely driven by the option set being
      * present in the database (e.g. timelapse or framework-only options).
-     * Future plugin-/macro-gated options can plug a per-option visibility
-     * subject in here.
+     * A plugin- or macro-gated option can return its visibility subject here.
      */
     using VisibilitySubjectLookup = std::function<lv_subject_t*(const std::string& id)>;
 
