@@ -413,10 +413,10 @@ bool reads_axis(const PrinterDiscovery& hw, Axis axis) {
     return p != nullptr && p->supports_axis(axis);
 }
 
-bool tracks_axis(const PrinterDiscovery& hw, Axis axis) {
+bool firmware_stages_axis(const PrinterDiscovery& hw, Axis axis) {
     const Provider* p = match(hw);
-    return p != nullptr && p->supports_axis(axis) &&
-           (p->set_gcode != nullptr || p->persist_needs_save_config);
+    return p != nullptr && p->set_gcode == nullptr && p->persist_needs_save_config &&
+           p->supports_axis(axis);
 }
 
 std::vector<std::string> required_status_objects(const PrinterDiscovery& hw) {

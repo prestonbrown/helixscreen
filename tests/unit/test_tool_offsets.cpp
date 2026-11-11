@@ -708,7 +708,7 @@ TEST_CASE("tool offsets: Reforge is followed and saved by SAVE_CONFIG, never wri
     // Reforge registers neither SET_TOOL_PARAMETER nor SAVE_TOOL_PARAMETER,
     // and its offsets are derived from measured nozzle positions, so no axis
     // is editable here. Its calibration stages its own result, which makes
-    // the save a bare SAVE_CONFIG: the axes are tracked for Save.
+    // the save a bare SAVE_CONFIG: the axes are followed for Save.
     PrinterDiscovery hw = reforge_printer();
 
     CHECK(to_::provider_name(hw) == "Reforge ff_toolchange");
@@ -720,7 +720,7 @@ TEST_CASE("tool offsets: Reforge is followed and saved by SAVE_CONFIG, never wri
         CAPTURE(helix::axis_letter(axis));
         CHECK_FALSE(to_::supports_axis(hw, axis));
         CHECK(to_::reads_axis(hw, axis));
-        CHECK(to_::tracks_axis(hw, axis));
+        CHECK(to_::firmware_stages_axis(hw, axis));
         CHECK(to_::set_tool_offset_gcode(hw, axis, 1, -50).empty());
         CHECK(to_::save_tool_offset_gcode(hw, axis, 1, -50).empty());
         CHECK(to_::activate_mounted_offset_gcode(hw, 1, 1).empty());
@@ -747,22 +747,23 @@ TEST_CASE("tool offsets: only a tool changer running ff_toolchange is Reforge",
     PrinterDiscovery bare;
     bare.parse_objects(json::array({"gcode_move", "toolhead", "extruder", "ff_toolchange"}));
     CHECK(to_::provider_name(bare).empty());
-    CHECK_FALSE(to_::tracks_axis(bare, Axis::Z));
+    CHECK_FALSE(to_::firmware_stages_axis(bare, Axis::Z));
 }
 
-TEST_CASE("tool offsets: the writable models keep and follow all three axes", "[tool_offsets]") {
+TEST_CASE("tool offsets: the writable models keep all three axes and stage none",
+          "[tool_offsets]") {
     // klipper-toolchanger's gcode_x/y/z_offset are three fields written by one
     // command, and MedusaHC's controller applies t<n>_off_x/y/z together, so a
-    // caller may loop kAllAxes. INDX is read-only and persists its own
-    // measurements: nothing to follow for Save.
+    // caller may loop kAllAxes. Neither leaves a write to the firmware. INDX is
+    // read-only and persists its own measurements: nothing staged for Save.
     for (Axis axis : helix::kAllAxes) {
         CAPTURE(helix::axis_letter(axis));
         CHECK(to_::supports_axis(toolchanger_printer(), axis));
-        CHECK(to_::tracks_axis(toolchanger_printer(), axis));
+        CHECK_FALSE(to_::firmware_stages_axis(toolchanger_printer(), axis));
         CHECK(to_::supports_axis(tool_offset_macro_printer(), axis));
-        CHECK(to_::tracks_axis(tool_offset_macro_printer(), axis));
-        CHECK_FALSE(to_::tracks_axis(indx_printer(), axis));
+        CHECK_FALSE(to_::firmware_stages_axis(tool_offset_macro_printer(), axis));
+        CHECK_FALSE(to_::firmware_stages_axis(indx_printer(), axis));
         CHECK_FALSE(to_::supports_axis(plain_printer(), axis));
-        CHECK_FALSE(to_::tracks_axis(plain_printer(), axis));
+        CHECK_FALSE(to_::firmware_stages_axis(plain_printer(), axis));
     }
 }

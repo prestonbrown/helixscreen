@@ -391,7 +391,7 @@ macro measures against, how it heats, or where the sensor is — all of that is 
 | Screen | `include/ui_panel_calibration_tool_offset.h` — Controls ▸ Tool Offsets, and the Advanced row |
 | Results | never parsed off the console: the macro's `SET_TOOL_PARAMETER` writes land on the `tool T<n>` objects and reach `ToolState` through `helix::tool_offsets`, exactly as a manual adjustment would |
 | Progress | the rpc's completion only: `printer.gcode.script` answers when the macro finishes. The rows fill in as the macro writes, since `ToolState` publishes every offset change, but no row says which tool is under the probe: `toolchanger.tool_number` says which tool is mounted, and the tool the macro measures the others against is mounted without being probed, so mounted and probed differ. Per-tool progress needs the macro to report it |
-| Save | the macro persists nothing; `SAVE_TOOL_PARAMETER` only stages. The panel's Save is the shared `save_dirty_offsets()` path (`src/ui/calibration/z_offset_utils.cpp`): re-send SET+SAVE for every dirty axis the model can write, then one `SAVE_CONFIG` through `SaveConfigWatch`. A tool is dirty when `ToolState` follows the axis (`tool_offsets::tracks_axis()`) and its value moved since connect or the last save |
+| Save | the macro persists nothing; `SAVE_TOOL_PARAMETER` only stages. The panel's Save is the shared `save_dirty_offsets()` path (`src/ui/calibration/z_offset_utils.cpp`): re-send SET+SAVE for every dirty axis the model can write, then one `SAVE_CONFIG` through `SaveConfigWatch`. A tool is dirty when `ToolState` follows the axis (`ToolState::follows_axis()`: one the UI may edit, or one `tool_offsets::firmware_stages_axis()` says the printer's calibration staged) and its value moved since connect or the last save |
 | Stop | the macro blocks Klipper's gcode queue, so Stop is M112 + `FIRMWARE_RESTART` with the disconnect suppressed as expected; the restart discards the offsets measured so far |
 | Timeout | the rpc ceiling is the panel's own `kCalibrationTimeoutMs` (15 min; ~30 s to measure plus heating from cold, per tool, sequentially). Moonraker never times out `printer.gcode.script`, so an expiry while `idle_timeout` still reads Printing is a macro that is still running: the run completes on the busy→idle edge, with one more ceiling as the backstop - `PrintPreparationManager`'s rule for a pre-start macro that outlives its ceiling |
 | Mock | `HELIX_MOCK_AMS=toolchanger` advertises the macro and simulates the run (see `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md`) |
@@ -443,7 +443,7 @@ the "Reforge ff_toolchange" row in `src/printer/tool_offsets.cpp#providers`, det
 - **Save is `SAVE_CONFIG` alone.** `TOOL_CALIBRATE_TOOL_OFFSET` stages the measured
   `nozzle_x/y/z` into `[ff_tool <n>]` with `configfile.set()` and applies them live
   ([ff_tool.py](https://github.com/Klipper4FlashForge/firmware/blob/eda86c1fa19fd47c9efa77c8ee1d9638dc124450/pkgs/klipper/payload/klipper/klippy/extras/ff_tool.py) `set_nozzle`); Reforge's [calibration.md](https://github.com/Klipper4FlashForge/firmware/blob/eda86c1fa19fd47c9efa77c8ee1d9638dc124450/docs/calibration.md) persists a run with
-  `SAVE_CONFIG`. `tracks_axis()` is true, so `ToolState` follows the derived offsets, the
+  `SAVE_CONFIG`. `firmware_stages_axis()` is true, so `ToolState` follows the derived offsets, the
   rows fill in, and the moved values make the tools dirty; `save_dirty_offsets()` then finds
   no SET+SAVE to send and commits with one `SAVE_CONFIG`.
 
