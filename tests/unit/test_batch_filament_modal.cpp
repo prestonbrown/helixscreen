@@ -93,6 +93,14 @@ TEST_CASE("BatchFilamentModal row status claims only what the sensor knows", "[a
     }
 }
 
+TEST_CASE("BatchFilamentModal offers All only when every row fits the cap", "[ams][batch]") {
+    CHECK(BatchFilamentModal::show_select_all(6, 0, false));
+    CHECK(BatchFilamentModal::show_select_all(6, 6, false));
+    CHECK_FALSE(BatchFilamentModal::show_select_all(6, 4, false));
+    CHECK_FALSE(BatchFilamentModal::show_select_all(1, 0, false));
+    CHECK_FALSE(BatchFilamentModal::show_select_all(6, 0, true));
+}
+
 TEST_CASE("BatchFilamentModal sifts eligible slots and names the first refusal", "[ams][batch]") {
     using E = helix::AmsBackend::FilamentOpEligibility;
     const std::vector<E> per_slot = {E::Eligible, E::Empty, E::Eligible, E::Busy};

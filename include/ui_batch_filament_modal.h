@@ -41,6 +41,11 @@ class BatchFilamentModal : public Modal {
         return "batch_filament_modal";
     }
 
+    /// Pure: whether the picker heads its rows with an All row. Only where a
+    /// pick is a set (not single_select()), there are two or more enabled
+    /// rows, and the backend's per-run cap (0 = none) takes all of them.
+    static bool show_select_all(size_t enabled_rows, size_t cap, bool single_select);
+
     // Pure: multiselect keys are head indices as decimal strings.
     static std::vector<int> selected_slots(const std::vector<std::string>& keys);
 
