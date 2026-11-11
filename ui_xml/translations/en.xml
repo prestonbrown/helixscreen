@@ -2374,6 +2374,7 @@
   <translation tag="Mount tool" en="Mount tool"/>
   <translation tag="Mount which tool?" en="Mount which tool?"/>
   <translation tag="Mount..." en="Mount..."/>
+  <translation tag="Mounted: {}" en="Mounted: {}"/>
   <translation tag="Move" en="Move"/>
   <translation tag="Move here" en="Move here"/>
   <translation tag="Move out of range" en="Move out of range"/>
@@ -2549,6 +2550,7 @@
   <translation tag="No timelapse videos found" en="No timelapse videos found"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" en="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?"/>
   <translation tag="No tool is mounted" en="No tool is mounted"/>
+  <translation tag="No tool mounted" en="No tool mounted"/>
   <translation tag="No tool on the head" en="No tool on the head"/>
   <translation tag="No tools to calibrate" en="No tools to calibrate"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" en="No turn: the gap moved {:.1f} Hz"/>
@@ -2797,6 +2799,7 @@
   <translation tag="Pick Color" en="Pick Color"/>
   <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." en="Pick how HelixScreen behaves. You can change any of these later in Settings."/>
   <translation tag="Pick the best band" en="Pick the best band"/>
+  <translation tag="Pick up" en="Pick up"/>
   <translation tag="Pick up and park each tool in turn" en="Pick up and park each tool in turn"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" en="Pick up the tool, heat it, and pull the filament out"/>
   <translation tag="Pick up tool" en="Pick up tool"/>
@@ -4818,6 +4821,7 @@
   <translation tag="{} d" en="{} d"/>
   <translation tag="{} days" en="{} days"/>
   <translation tag="{} detected" en="{} detected"/>
+  <translation tag="{} did not arrive; nothing was sent" en="{} did not arrive; nothing was sent"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." en="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming."/>
   <translation tag="{} disabled" en="{} disabled"/>
   <translation tag="{} disconnected" en="{} disconnected"/>

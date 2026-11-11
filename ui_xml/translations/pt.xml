@@ -2374,6 +2374,7 @@
   <translation tag="Mount tool" pt="Montar ferramenta"/>
   <translation tag="Mount which tool?" pt="Montar qual ferramenta?"/>
   <translation tag="Mount..." pt="Montar..."/>
+  <translation tag="Mounted: {}" pt="Montada: {}"/>
   <translation tag="Move" pt="Mover"/>
   <translation tag="Move here" pt="Mover aqui"/>
   <translation tag="Move out of range" pt="Movimento fora do alcance"/>
@@ -2549,6 +2550,7 @@
   <translation tag="No timelapse videos found" pt="Nenhum vídeo timelapse encontrado"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" pt="Não se sabe qual ferramenta está montada. Com uma sonda compartilhada, calibre com {}. Continuar mesmo assim?"/>
   <translation tag="No tool is mounted" pt="Nenhuma ferramenta montada"/>
+  <translation tag="No tool mounted" pt="Nenhuma ferramenta montada"/>
   <translation tag="No tool on the head" pt="Nenhuma ferramenta no cabeçote"/>
   <translation tag="No tools to calibrate" pt="Nenhuma ferramenta para calibrar"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" pt="Sem volta: a diferença moveu {:.1f} Hz"/>
@@ -2797,6 +2799,7 @@
   <translation tag="Pick Color" pt="Escolher Cor"/>
   <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." pt="Escolha como o HelixScreen se comporta. Você pode mudar tudo depois em Configurações."/>
   <translation tag="Pick the best band" pt="Escolha a melhor faixa"/>
+  <translation tag="Pick up" pt="Montar"/>
   <translation tag="Pick up and park each tool in turn" pt="Pegar e estacionar cada ferramenta por vez"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" pt="Pegue a ferramenta, aqueça-a e puxe o filamento para fora"/>
   <translation tag="Pick up tool" pt="Pegar ferramenta"/>
@@ -4818,6 +4821,7 @@
   <translation tag="{} d" pt="{} d"/>
   <translation tag="{} days" pt="{} dias"/>
   <translation tag="{} detected" pt="{} detetada"/>
+  <translation tag="{} did not arrive; nothing was sent" pt="{} não chegou; nada foi enviado"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." pt="{} não carregou. Verifique se o hotend está bem encaixado e faça uma extrusão de teste antes de retomar."/>
   <translation tag="{} disabled" pt="{} desabilitado"/>
   <translation tag="{} disconnected" pt="{} desligada"/>

@@ -2374,6 +2374,7 @@
   <translation tag="Mount tool" fr="Monter l&apos;outil"/>
   <translation tag="Mount which tool?" fr="Monter quel outil ?"/>
   <translation tag="Mount..." fr="Monter..."/>
+  <translation tag="Mounted: {}" fr="Monté : {}"/>
   <translation tag="Move" fr="Déplacer"/>
   <translation tag="Move here" fr="Déplacer ici"/>
   <translation tag="Move out of range" fr="Déplacement hors limites"/>
@@ -2549,6 +2550,7 @@
   <translation tag="No timelapse videos found" fr="Aucune vidéo timelapse trouvée"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" fr="Aucun outil n&apos;est connu comme monté. Avec une sonde partagée, calibrez avec {}. Continuer quand même ?"/>
   <translation tag="No tool is mounted" fr="Aucun outil n&apos;est monté"/>
+  <translation tag="No tool mounted" fr="Aucun outil monté"/>
   <translation tag="No tool on the head" fr="Aucun outil sur la tête d&apos;outil"/>
   <translation tag="No tools to calibrate" fr="Aucun outil à calibrer"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" fr="Sans rotation : l&apos;écart a bougé de {:.1f} Hz"/>
@@ -2797,6 +2799,7 @@
   <translation tag="Pick Color" fr="Choisir la couleur"/>
   <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." fr="Choisissez le comportement de HelixScreen. Vous pourrez tout modifier plus tard dans Paramètres."/>
   <translation tag="Pick the best band" fr="Choisir la meilleure bande"/>
+  <translation tag="Pick up" fr="Monter"/>
   <translation tag="Pick up and park each tool in turn" fr="Prendre et ranger chaque outil tour à tour"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" fr="Prenez l&apos;outil, chauffez-le et retirez le filament"/>
   <translation tag="Pick up tool" fr="Prendre l&apos;outil"/>
@@ -4818,6 +4821,7 @@
   <translation tag="{} d" fr="{} j"/>
   <translation tag="{} days" fr="{} jours"/>
   <translation tag="{} detected" fr="{} détecté"/>
+  <translation tag="{} did not arrive; nothing was sent" fr="{} n&apos;est pas arrivé ; rien n&apos;a été envoyé"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." fr="{} ne s&apos;est pas chargé. Vérifiez que sa hotend est bien en place et faites une extrusion de test avant de reprendre."/>
   <translation tag="{} disabled" fr="{} désactivé"/>
   <translation tag="{} disconnected" fr="{} débranché"/>

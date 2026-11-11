@@ -2454,6 +2454,7 @@ translations:
   Mount tool: '装上工具'
   Mount which tool?: '装上哪个工具？'
   Mount...: '装上...'
+  'Mounted: {}': '已装上: {}'
   Move: 移动
   Move here: 移动到此处
   Move out of range: '移动超出范围'
@@ -2631,6 +2632,7 @@ translations:
   No timelapse videos found: 未找到延时视频
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: '不知道当前安装的是哪个工具。共用一个探针时，请用 {} 校准。仍然继续？'
   No tool is mounted: '未安装工具'
+  No tool mounted: '未装上工具'
   No tool on the head: "工具头上没有工具"
   No tools to calibrate: 没有可校准的工具
   'No turn: the gap moved {:.1f} Hz': "未转动:差距移动了 {:.1f} Hz"
@@ -2893,6 +2895,7 @@ translations:
   Pick Color: 选择颜色
   Pick how HelixScreen behaves. You can change any of these later in Settings.: '选择 HelixScreen 的行为方式。以后可在“设置”中更改。'
   Pick the best band: 选择最佳区段
+  Pick up: '装上'
   Pick up and park each tool in turn: 依次装上并停放每个工具
   Pick up the tool, heat it, and pull the filament out: "装上工具，加热后抽出耗材"
   Pick up tool: 取出工具
@@ -4998,6 +5001,7 @@ translations:
   '{} d': "{} 天"
   '{} days': "{} 天"
   '{} detected': '检测到{}'
+  '{} did not arrive; nothing was sent': '{} 未到位；未发送任何指令'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}未装载。恢复前请检查热端是否安装到位，并进行一次测试挤出。'
   '{} disabled': '已停用{}'
   '{} disconnected': '{}已断开'
