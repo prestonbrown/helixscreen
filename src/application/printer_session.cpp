@@ -140,8 +140,8 @@ void PrinterSession::cancel_add_printer_wizard() {
 bool PrinterSession::init_core_subjects() {
     m_subjects = std::make_unique<SubjectInitializer>();
 
-    // Phase 1-3: Core subjects, PrinterState, AmsState
-    // These must exist before MoonrakerManager::init() can create the API
+    // Core subjects, PrinterState and AmsState must exist before MoonrakerManager::init()
+    // can create the API.
     m_subjects->init_core_and_state();
 
     // Register the AMS tool text formatters (toolchange progress, the nozzle
@@ -166,11 +166,10 @@ bool PrinterSession::init_core_subjects() {
 }
 
 bool PrinterSession::init_panel_subjects() {
-    // Phase 4: Panel subjects with API injection
-    // API is now available from MoonrakerManager
+    // Panel subjects take the API from MoonrakerManager.
     m_subjects->init_panels(m_moonraker->api(), *get_runtime_config());
 
-    // Phase 5-7: Observers and utility subjects
+    // Observers and utility subjects.
     m_subjects->init_post(m_moonraker->api(), *get_runtime_config());
 
     // E-stop, abort, keyboard, notifications and toasts, and the trackers: after the panel
@@ -555,70 +554,61 @@ bool PrinterSession::rebuild() {
     // reassigned (guard = observe_*()), reset() sees they predate the
     // invalidation and releases instead of calling lv_observer_remove().
 
-    // 1. Reinitialize update queue BEFORE moonraker so background thread callbacks
-    //    (hardware discovery, WebSocket messages) have a functioning queue.
+    // Reinitialize update queue BEFORE moonraker so background thread callbacks
+    // (hardware discovery, WebSocket messages) have a functioning queue.
     helix::ui::update_queue_init();
 
-    // 2. Initialize core subjects (PrinterState, AmsState, etc.)
     if (!init_core_subjects()) {
         spdlog::error("[Application] Failed to reinitialize core subjects");
         show_init_error();
         return false;
     }
 
-    // 2b. Seed the active printer's display name from config
     get_printer_state().set_active_printer_name(m_config->get_active_printer_name());
 
-    // 3. Initialize Moonraker (creates client + API + history managers)
     if (!init_moonraker()) {
         spdlog::error("[Application] Failed to reinitialize Moonraker");
         show_init_error();
         return false;
     }
 
-    // 4. Initialize panel subjects with API injection + post-init
     if (!init_panel_subjects()) {
         spdlog::error("[Application] Failed to reinitialize panel subjects");
         show_init_error();
         return false;
     }
 
-    // 5. Recreate UI (app_layout from XML, wire navigation)
     if (!init_ui()) {
         spdlog::error("[Application] Failed to reinitialize UI");
         show_init_error();
         return false;
     }
 
-    // 6. Run wizard if needed for new printer
     if (m_host.run_wizard()) {
         m_host.wizard_active = true;
         set_wizard_active(true);
     }
 
-    // 7. Apply startup CLI actions (if any). Finalize the home panel here so
-    //    its carousel + widget grid get built — HomePanel::setup() is
-    //    deliberately minimal; finalize_setup() is what creates the visible
-    //    content. Mirrors run()'s startup path; without it the home panel
-    //    renders blank after a printer switch.
+    // Apply startup CLI actions (if any). Finalize the home panel here so
+    // its carousel + widget grid get built: HomePanel::setup() is
+    // deliberately minimal; finalize_setup() is what creates the visible
+    // content. Mirrors run()'s startup path; without it the home panel
+    // renders blank after a printer switch.
     if (!m_host.wizard_active) {
         m_host.startup_actions();
         get_global_home_panel().finalize_setup();
     }
 
-    // 8. Reload plugins against the new printer's state
 #if HELIX_HAS_PLUGINS
     init_plugins();
 #endif
 
-    // 9. Connect to new printer's Moonraker
     // connect_moonraker() also succeeds when the printer has nothing to connect to.
     const bool connecting = connect_wanted() && connect_moonraker();
     if (!connecting) {
         spdlog::warn("[Application] Running without printer connection after switch");
     }
 
-    // 10. Force full screen refresh
     lv_obj_update_layout(m_screen);
     helix::ui::invalidate_all_recursive(m_screen);
     lv_refr_now(nullptr);
@@ -765,7 +755,7 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
         helix::spoolman_sync::detach(*m_moonraker->client());
     }
 
-    // Unsubscribe power device and sensor state
+    // Unsubscribe bed mesh, power device and sensor state
     helix::BedMeshState::instance().detach();
     if (m_moonraker && m_moonraker->api()) {
         helix::PowerDeviceState::instance().unsubscribe(*m_moonraker->api());

@@ -431,7 +431,7 @@ void HardwareSetupPrompter::maybe_warn_type_mismatch(const helix::PrinterDiscove
     // The gates below all decline silently in normal operation. A debug bundle
     // is the only view we get of a reporter's run, so each one says why it
     // declined: without that there is no way to tell a 68%-confidence near-miss
-    // apart from detection returning nothing at all (bundle TZT85MQ3).
+    // apart from detection returning nothing at all.
     if (guards.type_mismatch_shown) {
         spdlog::debug("[HardwareSetup] Type mismatch check skipped: already prompted this session");
         return;
@@ -441,7 +441,7 @@ void HardwareSetupPrompter::maybe_warn_type_mismatch(const helix::PrinterDiscove
         // mismatch against the saved type says nothing about real hardware.
         // Gate on the runtime-config predicate, not on HELIX_MOCK_PRINTER:
         // plain --test runs the mock client without that env var ever being
-        // set, so the old getenv check let every --test launch open the
+        // set, so an env check would let every --test launch open the
         // prompt against whatever type settings-test.json happened to carry.
         spdlog::debug("[HardwareSetup] Type mismatch check skipped: mock printer");
         return;

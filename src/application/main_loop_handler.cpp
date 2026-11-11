@@ -68,7 +68,6 @@ MainLoopHandler::BenchmarkReport MainLoopHandler::benchmark_get_report() {
         report.fps = m_benchmark_frame_count / report.elapsed_sec;
     }
 
-    // Reset counters for next interval
     m_benchmark_frame_count = 0;
     m_benchmark_last_report = m_current_tick;
 

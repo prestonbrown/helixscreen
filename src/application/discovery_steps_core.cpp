@@ -200,8 +200,6 @@ void safety_limits_step(DiscoveryContext& ctx) {
         });
 }
 
-// Detect helix_print plugin during discovery (not UI-initiated) so plugin status is known
-// early for UI gating.
 // The plugin's self-report, applied to PrinterState. An empty info is an absent plugin.
 void apply_helix_plugin_info(const helix::HelixPluginInfo& info) {
     get_printer_state().set_helix_plugin_link_dir(info.symlink_dir);
@@ -212,6 +210,8 @@ void apply_helix_plugin_info(const helix::HelixPluginInfo& info) {
     get_printer_state().set_helix_plugin_installed(info.available);
 }
 
+// Detects the helix_print plugin during discovery (not UI-initiated) so plugin status is
+// known early for UI gating.
 void helix_plugin_check_step(DiscoveryContext& ctx) {
     ctx.api.job().check_helix_plugin(
         apply_helix_plugin_info,
