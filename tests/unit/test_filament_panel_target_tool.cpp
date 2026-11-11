@@ -18,6 +18,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
+#include "filament_database.h"
 #include "material_settings_manager.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -237,6 +238,20 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         settle(h);
         CHECK(h.sent("G1 E"));
     }
+    SECTION("leaving the panel drops the move") {
+        h.panel->on_deactivate(DeactivateReason::NavigateAway);
+        h.mount(2);
+        settle(h);
+        CHECK_FALSE(h.sent("G1 E"));
+    }
+    SECTION("Klipper leaving ready drops the move") {
+        h.state.set_klippy_state_sync(helix::KlippyState::SHUTDOWN);
+        settle(h);
+        h.state.set_klippy_state_sync(helix::KlippyState::READY);
+        h.mount(2);
+        settle(h);
+        CHECK_FALSE(h.sent("G1 E"));
+    }
     SECTION("no arrival: the move is dropped") {
         h.fx.process_lvgl(helix::ui::kToolArrivalTimeoutMs + 500);
         settle(h);
@@ -345,4 +360,35 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: Pick up is refused while pr
     settle(h);
     CHECK_FALSE(h.sent_line("T2"));
     CHECK(ModalStack::instance().stack_empty());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Filament panel: with the carriage empty a preset skips the mounted-tool macro",
+                 "[filament][target_tool]") {
+    TargetToolHarness h(*this);
+    filament::MaterialOverride heat;
+    heat.preheat_macro = std::string("HEAT_PLA");
+    heat.macro_handles_heating = true;
+    helix::MaterialSettingsManager::instance().set_override("PLA", heat);
+    // A tool changer: T1 mounted, then parked, leaving the carriage empty and
+    // the panel still aimed at T1.
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json{"toolchanger", "tool T0", "tool T1", "tool T2", "extruder",
+                                    "extruder1", "extruder2", "heater_bed",
+                                    "gcode_macro HEAT_PLA"});
+    h.state.set_hardware(hw);
+    ToolState::instance().init_tools(hw);
+    ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 1}}}});
+    settle(h);
+    ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", -1}}}});
+    settle(h);
+    REQUIRE(ToolState::instance().active_tool_index() == -1);
+    REQUIRE(TA::target_tool(*h.panel) == 1);
+    h.client.clear_gcode_script_history();
+
+    TA::handle_preset_button(*h.panel, 0);
+    settle(h);
+    CHECK_FALSE(h.sent("HEAT_PLA"));
+    CHECK(h.sent("SET_HEATER_TEMPERATURE HEATER=extruder"));
+    helix::MaterialSettingsManager::instance().clear_override("PLA");
 }

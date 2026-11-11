@@ -255,6 +255,15 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
             }
         },
         helix::ToolState::instance().get_subjects_lifetime());
+    // A pickup's waiting step never outlives Klipper leaving READY.
+    klippy_observer_ = observe<int>(
+        printer_state_.network_state().get_klippy_state_subject(), this,
+        [](FilamentPanel* self, int state) {
+            if (state != static_cast<int>(helix::KlippyState::READY)) {
+                self->drop_pending_pickup("Klipper not ready");
+            }
+        },
+        printer_state_.get_subjects_lifetime());
     // Rediscovery rebuilds the per-extruder subjects the card observes.
     extruder_version_observer_ = observe<int>(
         printer_state_.temperature_state().get_extruder_version_subject(), this,
@@ -538,6 +547,9 @@ void FilamentPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
             // including ops this panel did not start. Re-gate before the guard
             // bookkeeping below, which only cares about the terminal edges.
             self->update_filament_op_buttons();
+            if (failed) {
+                self->drop_pending_pickup("filament system error");
+            }
             if ((!idle && !failed) || !self->operation_guard_.is_active()) {
                 return;
             }
@@ -946,7 +958,7 @@ std::string FilamentPanel::target_extruder_name() const {
 
 void FilamentPanel::repoint_nozzle_observers() {
     nozzle_observers_.bind<FilamentPanel>(
-        printer_state_.temperature_state(), target_extruder_name(), this,
+        printer_state_.temperature_state(), target_extruder_name(), target_is_mounted(), this,
         [](FilamentPanel* self, int raw) {
             self->nozzle_current_ = deci_to_degrees(raw);
             self->defer_temps_update();
@@ -971,9 +983,30 @@ void FilamentPanel::sync_target_tool_ui() {
     update_filament_op_buttons();
 }
 
+bool FilamentPanel::target_is_mounted() const {
+    return target_tool() == helix::ToolState::instance().active_tool_index();
+}
+
 bool FilamentPanel::target_needs_pickup() const {
-    const auto& ts = helix::ToolState::instance();
-    return ts.has_multiple_toolheads() && target_tool() != ts.active_tool_index();
+    return helix::ToolState::instance().has_multiple_toolheads() && !target_is_mounted();
+}
+
+void FilamentPanel::drop_pending_pickup(const char* why) {
+    if (!tool_arrival_.armed()) {
+        return;
+    }
+    spdlog::info("[{}] Pending pick-up step dropped: {}", get_name(), why);
+    tool_arrival_.cancel();
+    NOTIFY_WARNING(lv_tr("Pick-up step cancelled; nothing was sent"));
+}
+
+void FilamentPanel::on_deactivating(DeactivateReason reason) {
+    // A step waiting on a pickup must not run on a screen the user has left.
+    // Suspended keeps the panel on the stack (a keypad over it), so it stays.
+    if (reason != DeactivateReason::Suspended) {
+        drop_pending_pickup("panel left");
+    }
+    PanelBase::on_deactivating(reason);
 }
 
 void FilamentPanel::update_target_tool_action() {
@@ -1130,13 +1163,8 @@ void FilamentPanel::handle_preset_button(int material_id) {
     // temperature floor. A configured heating macro owns all heater commands,
     // but it heats the mounted tool: aimed at another, the panel sends the
     // targets itself.
-    if (selected_material_ == material_id &&
-        target_extruder_name() != printer_state_.temperature_state().active_extruder_name()) {
-        send_nozzle_target();
-        if (auto* c = get_temperature_controller()) {
-            c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
-                          {.toast = true});
-        }
+    if (selected_material_ == material_id && !target_is_mounted()) {
+        send_preset_targets();
     } else if (selected_material_ == material_id) {
         const auto& hw = printer_state_.get_discovery();
         execute_material_preheat(
@@ -1145,26 +1173,26 @@ void FilamentPanel::handle_preset_button(int material_id) {
                 helix::MaterialSettingsManager::instance().find_override_for_material(
                     helix::presets::name(material_id)),
                 hw),
-            [this]() {
-                send_nozzle_target();
-                if (auto* c = get_temperature_controller()) {
-                    c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
-                                  {.toast = true, .on_success = [target = bed_target_]() {
-                                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), target);
-                                   }});
+            [this]() { send_preset_targets(); }, "[FilamentPanel]", hw);
+    }
+}
 
-                    // Set chamber temperature if preset specifies one
-                    if (chamber_target_ > 0) {
-                        int target = deci_to_degrees(chamber_target_);
-                        c->set_target(helix::HeaterType::Chamber, static_cast<double>(target),
-                                      {.toast = true, .on_success = [target]() {
-                                           NOTIFY_SUCCESS(lv_tr("Chamber target set to {}°C"),
-                                                          target);
-                                       }});
-                    }
-                }
-            },
-            "[FilamentPanel]", hw);
+void FilamentPanel::send_preset_targets() {
+    send_nozzle_target();
+    if (auto* c = get_temperature_controller()) {
+        c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
+                      {.toast = true, .on_success = [target = bed_target_]() {
+                           NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), target);
+                       }});
+
+        // Set chamber temperature if preset specifies one
+        if (chamber_target_ > 0) {
+            int target = deci_to_degrees(chamber_target_);
+            c->set_target(helix::HeaterType::Chamber, static_cast<double>(target),
+                          {.toast = true, .on_success = [target]() {
+                               NOTIFY_SUCCESS(lv_tr("Chamber target set to {}°C"), target);
+                           }});
+        }
     }
 }
 
@@ -1334,6 +1362,7 @@ void FilamentPanel::send_nozzle_target() {
     // The mounted tool goes by HeaterType so the controller's nozzle guards
     // apply as everywhere else; any other target is named by its extruder.
     const std::string extruder = target_extruder_name();
+    const bool mounted = target_is_mounted();
     const helix::SendOptions opts{
         .toast = true,
         .on_success =
@@ -1345,7 +1374,7 @@ void FilamentPanel::send_nozzle_target() {
                 object_lifetime_.defer("FilamentPanel::nozzle_target_refused",
                                        [this]() { show_printer_nozzle_target(); });
             }};
-    if (extruder == printer_state_.temperature_state().active_extruder_name()) {
+    if (mounted) {
         c->set_target(helix::HeaterType::Nozzle, static_cast<double>(nozzle_target_), opts);
     } else {
         c->set_target(extruder, static_cast<double>(nozzle_target_), opts);
@@ -2360,20 +2389,6 @@ void FilamentPanel::handle_extruder_changed() {
     spdlog::info("[{}] Panel aimed at T{}", get_name(), selected);
     target_tool_.pick(selected);
     sync_target_tool_ui();
-}
-
-void FilamentPanel::revert_extruder_dropdown() {
-    // A confirmation dialog can outlive the widgets it was opened over (a hot
-    // reload rebuilding the panel), and its close is what calls this.
-    if (!extruder_dropdown_ || !lv_is_initialized()) {
-        return;
-    }
-    const int active = helix::ToolState::instance().active_tool_index();
-    if (active >= 0) {
-        lv_dropdown_set_selected(extruder_dropdown_, static_cast<uint32_t>(active));
-    }
-    sync_tool_dropdown_text();
-    update_filament_op_buttons();
 }
 
 void FilamentPanel::handle_spool_preset_button() {

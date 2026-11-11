@@ -15,17 +15,19 @@ namespace helix::ui {
 /// thread only.
 class TargetNozzleObservers {
   public:
-    /// Watch @p extruder's nozzle. A no-op when already watching the same
-    /// subjects, so a caller may call it on every change without replaying
-    /// the current values.
+    /// Watch @p extruder's nozzle; @p mounted says the tool is the one on the
+    /// carriage (by tool index, not extruder name: after a park Klipper still
+    /// names the last tool's extruder active). A no-op when already watching
+    /// the same subjects, so a caller may call it on every change without
+    /// replaying the current values.
     template <typename Owner>
-    void bind(PrinterTemperatureState& temps, const std::string& extruder, Owner* owner,
-              void (*on_temp)(Owner*, int), void (*on_target)(Owner*, int)) {
+    void bind(PrinterTemperatureState& temps, const std::string& extruder, bool mounted,
+              Owner* owner, void (*on_temp)(Owner*, int), void (*on_target)(Owner*, int)) {
         lv_subject_t* temp_src = nullptr;
         lv_subject_t* target_src = nullptr;
         SubjectLifetime temp_lifetime = temps.get_subjects_lifetime();
         SubjectLifetime target_lifetime = temps.get_subjects_lifetime();
-        if (extruder != temps.active_extruder_name()) {
+        if (!mounted) {
             temp_src = temps.get_extruder_temp_subject(extruder, temp_lifetime);
             target_src = temps.get_extruder_target_subject(extruder, target_lifetime);
         }
