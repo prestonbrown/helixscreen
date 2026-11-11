@@ -62,6 +62,7 @@
 #include "ui_settings_safety.h"
 #include "ui_settings_screen_sharing.h"
 #include "ui_settings_security.h"
+#include "ui_settings_sensors.h"
 #include "ui_settings_sound.h"
 #include "ui_settings_storage.h"
 #include "ui_settings_system.h"
@@ -276,6 +277,7 @@ const OverlayCase kOverlayCases[] = {
          helix::ui::get_ams_zone_overview_overlay().show(lv_screen_active(),
                                                          {helix::printer::EnvironmentZone{}});
      }},
+    {"Sensors", as_base<&get_sensor_settings_overlay>},
     {"Belt Tension", as_base<&get_global_belt_tension_panel>, nullptr,
      [] {
          auto* active = get_printer_state().print_state().get_print_active_subject();
