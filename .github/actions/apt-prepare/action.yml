@@ -11,26 +11,40 @@ description: |
   `Error: kill EPERM` rather than retrying. Raising timeout_minutes only moves
   the failure later -- observed hitting the ceiling at both 10 and 20 minutes.
 
-  So prevent the hang instead of bounding it: drop the azure mirror, and cap
-  apt's own connection attempts so a bad mirror surfaces in seconds.
+  So prevent the hang instead of bounding it: send apt to a list of independent
+  mirrors in place of azure, and cap apt's own connection attempts so a bad
+  mirror surfaces in seconds. apt's mirror method moves on to the next entry
+  when one fails, a DNS failure included, so one mirror going dark no longer
+  stops the install. The runner's own `mirror+file:` list (22.04 images) is
+  replaced too, since it names the azure mirror.
 
 runs:
   using: composite
   steps:
-    - name: Point apt away from the azure mirror
+    - name: Point apt at a list of mirrors, away from azure
       shell: bash
       run: |
         set -euo pipefail
-        # Both layouts: 22.04 uses sources.list, deb822 lands in .sources.
+        list=/etc/apt/helix-mirrors.txt
+        printf '%s\n' \
+          http://archive.ubuntu.com/ubuntu \
+          http://us.archive.ubuntu.com/ubuntu \
+          http://mirrors.edge.kernel.org/ubuntu | sudo tee "$list" >/dev/null
+        # Both layouts: 22.04 uses sources.list, deb822 lands in .sources. Any
+        # archive URL or runner mirror list becomes ours; security.ubuntu.com
+        # and ports.ubuntu.com stay as they are.
         for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources \
                  /etc/apt/sources.list.d/*.list; do
           [ -f "$f" ] || continue
-          sudo sed -i 's|https\?://azure.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' "$f"
+          sudo sed -i -E \
+            -e "s#mirror\+file:[^ ]+#mirror+file:$list#g" \
+            -e "s#https?://(azure\.)?archive\.ubuntu\.com/ubuntu/?#mirror+file:$list#g" "$f"
         done
         sudo tee /etc/apt/apt.conf.d/99-helix-retries >/dev/null <<'CONF'
         Acquire::Retries "3";
         Acquire::http::Timeout "15";
         Acquire::https::Timeout "15";
         CONF
-        echo "apt mirrors after rewrite:"
-        grep -rhoE 'https?://[a-z0-9.]+/ubuntu' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | sort -u || true
+        echo "apt sources after rewrite:"
+        grep -rhoE '(mirror\+file:[^ ]+|https?://[a-z0-9.]+/ubuntu)' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | sort -u || true
+        echo "mirrors, tried in order:"; cat "$list"
