@@ -14,6 +14,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_panel_test_access.h"
+#include "../test_helpers/modal_answer.h"
 #include "../test_helpers/scoped_shared_resource.h"
 #include "ams_state.h"
 #include "app_globals.h"
@@ -22,6 +23,8 @@
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "safety_settings_manager.h"
+#include "target_tool_selection.h"
 #include "temperature_controller.h"
 #include "tool_state.h"
 
@@ -102,6 +105,17 @@ struct TargetToolHarness {
         helix::ui::UpdateQueue::instance().drain();
     }
 
+    [[nodiscard]] bool sent_line(const std::string& line) const {
+        const auto& h = client.gcode_script_history();
+        return std::find(h.begin(), h.end(), line) != h.end();
+    }
+
+    [[nodiscard]] int action() const {
+        lv_subject_t* subject = lv_xml_get_subject(nullptr, "filament_target_tool_action");
+        REQUIRE(subject != nullptr);
+        return lv_subject_get_int(subject);
+    }
+
     [[nodiscard]] bool sent(const std::string& needle) const {
         const auto& h = client.gcode_script_history();
         return std::any_of(h.begin(), h.end(), [&](const std::string& l) {
@@ -178,4 +192,157 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::ui::UpdateQueue::instance().drain();
     h.fx.process_lvgl(20);
     CHECK(TA::target_tool(*h.panel) < 2);
+}
+
+namespace {
+
+/// Leaves "Confirm tool changes" as the test found it.
+struct ConfirmSetting {
+    bool saved = helix::SafetySettingsManager::instance().get_tool_change_require_confirmation();
+    explicit ConfirmSetting(bool on) {
+        helix::SafetySettingsManager::instance().set_tool_change_require_confirmation(on);
+    }
+    ~ConfirmSetting() {
+        helix::SafetySettingsManager::instance().set_tool_change_require_confirmation(saved);
+    }
+};
+
+void settle(TargetToolHarness& h, uint32_t ms = 50) {
+    helix::ui::UpdateQueue::instance().drain();
+    h.fx.process_lvgl(ms);
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Filament panel: extrude picks the target up and waits until it is mounted",
+                 "[filament][target_tool]") {
+    TargetToolHarness h(*this);
+    ConfirmSetting confirm(false);
+    // Hot enough that extrusion needs no preheat.
+    h.state.update_from_status(
+        {{"extruder1", {{"temperature", 220.0}}}, {"extruder2", {{"temperature", 220.0}}}});
+    settle(h);
+    h.choose(2);
+    h.client.clear_gcode_script_history();
+
+    TA::handle_extrude_button(*h.panel);
+    settle(h);
+    CHECK(h.sent_line("T2"));
+    CHECK_FALSE(h.sent("G1 E"));
+
+    SECTION("the move follows the tool's arrival") {
+        h.mount(2);
+        settle(h);
+        CHECK(h.sent("G1 E"));
+    }
+    SECTION("no arrival: the move is dropped") {
+        h.fx.process_lvgl(helix::ui::kToolArrivalTimeoutMs + 500);
+        settle(h);
+        CHECK_FALSE(h.sent("G1 E"));
+        h.mount(2);
+        settle(h);
+        CHECK_FALSE(h.sent("G1 E"));
+    }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: a declined pickup sends no extrusion",
+                 "[filament][target_tool]") {
+    TargetToolHarness h(*this);
+    ConfirmSetting confirm(true);
+    h.state.update_from_status({{"extruder2", {{"temperature", 220.0}}}});
+    settle(h);
+    h.choose(2);
+    h.client.clear_gcode_script_history();
+
+    TA::handle_extrude_button(*h.panel);
+    settle(h);
+    REQUIRE(Modal::get_top() != nullptr);
+    Modal::hide(Modal::get_top());
+    h.fx.process_lvgl(500);
+    settle(h);
+    CHECK_FALSE(h.sent_line("T2"));
+    CHECK_FALSE(h.sent("G1 E"));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: extruding the mounted tool changes no tool",
+                 "[filament][target_tool]") {
+    TargetToolHarness h(*this);
+    ConfirmSetting confirm(false);
+    h.state.update_from_status({{"extruder1", {{"temperature", 220.0}}}});
+    settle(h);
+    h.client.clear_gcode_script_history();
+    TA::handle_extrude_button(*h.panel);
+    settle(h);
+    CHECK(h.sent("G1 E"));
+    CHECK_FALSE(h.sent_line("T1"));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Filament panel: with no filament system, Load picks the target up first",
+                 "[filament][target_tool]") {
+    TargetToolHarness h(*this);
+    ConfirmSetting confirm(false);
+    h.choose(2);
+    h.client.clear_gcode_script_history();
+    TA::handle_load_button(*h.panel);
+    settle(h);
+    REQUIRE_FALSE(h.client.gcode_script_history().empty());
+    CHECK(h.client.gcode_script_history().front() == "T2");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: the Pick up button follows the target",
+                 "[filament][target_tool]") {
+    TargetToolHarness h(*this);
+    ConfirmSetting confirm(false);
+    // Mounted tool targeted; a plain multi-extruder cannot park.
+    CHECK(h.action() == static_cast<int>(helix::ui::TargetToolAction::None));
+    h.choose(2);
+    CHECK(h.action() == static_cast<int>(helix::ui::TargetToolAction::PickUp));
+
+    h.client.clear_gcode_script_history();
+    TA::handle_target_tool_action(*h.panel);
+    settle(h);
+    CHECK(h.sent_line("T2"));
+}
+
+// With "Confirm tool changes" on, Pick up waits on the dialog; a change that
+// does not happen leaves the panel aimed where it was.
+TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: Pick up asks first",
+                 "[filament][target_tool][confirm]") {
+    TargetToolHarness h(*this);
+    ConfirmSetting confirm(true);
+    h.choose(2);
+    h.client.clear_gcode_script_history();
+    TA::handle_target_tool_action(*h.panel);
+    settle(h);
+    CHECK_FALSE(h.sent_line("T2"));
+    REQUIRE(ModalStack::instance().top_dialog() != nullptr);
+
+    SECTION("confirming changes tool") {
+        helix::test::answer_top_modal("btn_primary");
+        settle(h);
+        CHECK(h.sent_line("T2"));
+    }
+    SECTION("cancelling changes nothing and keeps the aim") {
+        helix::test::answer_top_modal("btn_secondary");
+        settle(h);
+        CHECK_FALSE(h.sent_line("T2"));
+        CHECK(TA::target_tool(*h.panel) == 2);
+    }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: Pick up is refused while printing",
+                 "[filament][target_tool][confirm]") {
+    TargetToolHarness h(*this);
+    ConfirmSetting confirm(true);
+    h.choose(2);
+    h.state.update_from_status({{"print_stats", {{"state", "printing"}}}});
+    settle(h);
+    h.client.clear_gcode_script_history();
+    TA::handle_target_tool_action(*h.panel);
+    settle(h);
+    CHECK_FALSE(h.sent_line("T2"));
+    CHECK(ModalStack::instance().stack_empty());
 }

@@ -387,6 +387,10 @@ class FilamentPanel : public PanelBase {
     // The closed dropdown's own text is owned by sync_tool_dropdown_text().
     lv_subject_t tool_noun_subject_{};
     char tool_noun_buf_[32] = {};
+    lv_subject_t target_tool_action_subject_{};
+    lv_subject_t target_tool_action_text_subject_{};
+    char target_tool_action_text_buf_[32] = {};
+    helix::ui::ToolArrivalWait tool_arrival_;
     void update_tool_noun();
     void sync_tool_dropdown_text();
 
@@ -426,6 +430,15 @@ class FilamentPanel : public PanelBase {
     /// Bring the selector, nozzle label, temperature card and op gating to the
     /// target tool after it moved.
     void sync_target_tool_ui();
+    /// The Pick up / Park button beside the tool selector.
+    void handle_target_tool_action();
+    /// Whether the target is a different head from the one on the carriage.
+    [[nodiscard]] bool target_needs_pickup() const;
+    /// Pick the target up, then run @p then once ToolState reports it mounted.
+    /// A declined, failed or timed-out change runs nothing.
+    void with_target_mounted(std::function<void()> then);
+    /// Publish what the Pick up / Park button offers for the current target.
+    void update_target_tool_action();
 
     // Cooldown button visibility (1 when nozzle target > 0, 0 otherwise)
     lv_subject_t nozzle_heating_subject_{};
