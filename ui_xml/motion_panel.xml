@@ -478,13 +478,23 @@
             <!-- Fine/Coarse/Turbo jog mode toggle -->
             <!-- Landscape keeps full-width mode buttons at button height: a taller
                  near-square key would take its height from the pad above. -->
-            <motion_jog_modes name="jog_modes"
-                              button_height="#motion_mode_row_h" max_width="100%" icon_position="left"
-                              fine_callback="on_jog_mode_fine" coarse_callback="on_jog_mode_coarse"
-                              turbo_callback="on_jog_mode_turbo">
+            <!-- Jog modes, then the single-axis home bar (the pad's centre
+                 button homes all) sharing the row. -->
+            <lv_obj name="jog_modes_row"
+                    width="100%" height="content" style_pad_all="0" style_border_opa="0" style_bg_opa="0"
+                    scrollable="false" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
               <bind_flag_if_not_eq subject="motion_tab" flag="hidden" ref_value="0"/>
               <bind_flag_if_not_eq subject="settings_motion_layout" flag="hidden" ref_value="0"/>
-            </motion_jog_modes>
+              <motion_jog_modes name="jog_modes"
+                                width="0" flex_grow="3" button_height="#motion_mode_row_h" max_width="100%"
+                                icon_position="left" fine_callback="on_jog_mode_fine"
+                                coarse_callback="on_jog_mode_coarse" turbo_callback="on_jog_mode_turbo"/>
+              <home_axis_bar name="motion_home_bar"
+                             width="0" height="#motion_mode_row_h" flex_grow="2" cb_all="on_motion_home_all"
+                             cb_x="on_motion_home_x" cb_y="on_motion_home_y" cb_z="on_motion_home_z"
+                             xy_gate="motion_home_bar_xy" all_homed="motion_all_homed" x_homed="motion_x_homed"
+                             y_homed="motion_y_homed" xy_homed="motion_all_homed" z_homed="motion_z_homed"/>
+            </lv_obj>
           </lv_obj>
         </lv_obj>
         <!-- Right Column: Z-Axis Controls + Leveling (extends full height) -->
@@ -493,14 +503,6 @@
                 flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center"
                 style_pad_gap="#space_sm" style_max_width="160">
           <bind_flag_if cond="motion_tab eq 0 and settings_motion_layout ne 0" flag="hidden"/>
-          <!-- Home single axes; the pad's centre button homes all -->
-          <home_axis_bar name="motion_home_bar"
-                         width="100%" flex_grow="0" cb_all="on_motion_home_all" cb_x="on_motion_home_x"
-                         cb_y="on_motion_home_y" cb_z="on_motion_home_z" xy_gate="motion_home_bar_xy"
-                         all_homed="motion_all_homed" x_homed="motion_x_homed" y_homed="motion_y_homed"
-                         xy_homed="motion_all_homed" z_homed="motion_z_homed">
-            <bind_flag_if_not_eq subject="motion_tab" flag="hidden" ref_value="0"/>
-          </home_axis_bar>
           <!-- Z-Axis Button Group -->
           <lv_obj name="z_controls"
                   width="100%" flex_grow="1" style_pad_all="0" style_border_opa="0" scrollable="false"
