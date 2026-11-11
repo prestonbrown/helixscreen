@@ -60,7 +60,7 @@ class RecordingBackend : public AmsBackendMock, public ICfsCalibration {
     }
     AmsError save_chute_position(std::function<void()>,
                                  std::function<void(const std::string&)>) override {
-        return AmsErrorHelper::success();
+        return save_result;
     }
     AmsError exit_chute_calibration() override {
         ++exits;
@@ -80,6 +80,7 @@ class RecordingBackend : public AmsBackendMock, public ICfsCalibration {
     std::vector<float> x_jogs;
     std::vector<float> y_jogs;
     std::optional<ChuteWiperLine> wiper;
+    AmsError save_result = AmsErrorHelper::success();
 };
 
 constexpr int kIdle = 0;
@@ -128,11 +129,14 @@ class ChuteOverlayFixture : public LVGLUITestFixture {
         }
     }
 
+    static void tap(const char* name) {
+        lv_obj_t* btn = lv_obj_find_by_name(get_cfs_chute_calibration_overlay().get_root(), name);
+        REQUIRE(btn);
+        lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+    }
+
     void tap_start() {
-        lv_obj_t* start =
-            lv_obj_find_by_name(get_cfs_chute_calibration_overlay().get_root(), "btn_chute_start");
-        REQUIRE(start);
-        lv_obj_send_event(start, LV_EVENT_CLICKED, nullptr);
+        tap("btn_chute_start");
     }
 
     void reach_adjusting() {
@@ -290,6 +294,14 @@ TEST_CASE_METHOD(ChuteOverlayFixture, "A print starting mid-adjust ends the chut
     CHECK(backend->exits == 0);
 }
 
+TEST_CASE_METHOD(ChuteOverlayFixture, "A refused chute save ends the session",
+                 "[ams][cfs][chute_overlay]") {
+    reach_adjusting();
+    backend->save_result = AmsErrorHelper::print_active();
+    tap("btn_chute_save");
+    CHECK(state() == kIdle);
+}
+
 TEST_CASE_METHOD(ChuteOverlayFixture, "Chute readouts follow the live toolhead on both axes",
                  "[ams][cfs][chute_overlay]") {
     report_toolhead(184.5, 304.25);
@@ -330,6 +342,26 @@ TEST_CASE_METHOD(ChuteOverlayFixture,
         tap_pad(0.0, kInnerRing);
         REQUIRE(backend->y_jogs.size() == 2);
         CHECK(backend->y_jogs[1] == Catch::Approx(-fine.inner));
+    }
+
+    SECTION("the pad is cardinal-only: a press off the diagonal moves the nearer axis") {
+        reach_settled_park();
+        tap_pad(0.55, -0.45);
+        CHECK(backend->x_jogs.size() == 1);
+        CHECK(backend->y_jogs.empty());
+    }
+
+    SECTION("the Coarse and Fine buttons switch the pad's step") {
+        reach_settled_park();
+        const auto coarse = get_jog_mode_distances(JogMode::Coarse);
+        REQUIRE(coarse.inner != Catch::Approx(fine.inner));
+        tap("jog_mode_coarse");
+        tap_pad(0.0, -kInnerRing);
+        tap("jog_mode_fine");
+        tap_pad(0.0, -kInnerRing);
+        REQUIRE(backend->y_jogs.size() == 2);
+        CHECK(backend->y_jogs[0] == Catch::Approx(coarse.inner));
+        CHECK(backend->y_jogs[1] == Catch::Approx(fine.inner));
     }
 
     SECTION("past park a coarse X tap is refused and a fine one goes out") {
