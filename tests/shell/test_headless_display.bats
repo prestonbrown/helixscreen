@@ -82,6 +82,7 @@ boot_headless() {
         if ! kill -0 "$pid" 2>/dev/null; then
             local rc=0
             wait "$pid" 2>/dev/null || rc=$?
+            rm -f "$dir/$name.pid"
             ready="EXITED during startup with status $rc"
             echo "$rc" > "$dir/$name.rc"
             break
@@ -116,9 +117,12 @@ boot_headless() {
         kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null
         local rc=0
         wait "$pid" 2>/dev/null || rc=$?
+        rm -f "$dir/$name.pid"
         echo "$rc" > "$dir/$name.rc"
     fi
-    rm -f "$sock"
+    # Every exit from here has stopped or lost the app, so teardown_file finds a
+    # .pid only for a boot cut short, never a reaped PID the kernel may reuse.
+    rm -f "$dir/$name.pid" "$sock"
     return 0
 }
 
