@@ -518,6 +518,7 @@ translations:
   Buffer: バッファー
   Buffer Status: バッファーステータス
   Buffer tube problem: バッファーチューブの問題
+  Buffer-driven gear speed control: "バッファーによるギア速度制御"
   Build Volume: '造形ボリューム'
   'Build Volume: ': '造形サイズ: '
   'Building preview: %d%%': 'プレビューを作成中: %d%%'
@@ -1547,6 +1548,8 @@ translations:
   Fair match: "まずまずの一致"
   Fan: ファン
   Fan Calibration: ファンキャリブレーション
+  Fan Control: "ファン制御"
+  Fan Mode: "ファンモード"
   Fan Speeds: 'ファン速度'
   Fan Tach: 'ファン回転計'
   Fan Transfer: ファン熱伝達
@@ -1699,6 +1702,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: "マニュアルに従ってノズルまたはホットエンドを交換します。"
   'For a first Z home: claim the tool you put on the head': 初回のZホーミング用：ヘッドに取り付けたツールを登録
   For materials that need a warm enclosure, like ABS or ASA: 'ABSやASAなど、暖かいエンクロージャーが必要な材料向け'
+  Force the MMU fans off or on, or follow Fan Control: "MMU ファンを強制オフ／オンにするか、ファン制御に従う"
   Force/weight sensors: '力/重量センサー'
   Forget: 登録解除
   Forget Network?: ネットワークを登録解除しますか？
@@ -2090,6 +2094,7 @@ translations:
   Keep pushing filament while it cools: "冷却中もフィラメントを押し続けてください"
   Keep the bypass spool visible when bypass is off: バイパスオフ時もバイパススプールの表示を維持
   Keep Tuning: "調整を続ける"
+  Keep the rotation distance sync feedback tunes: "同期フィードバックが調整した回転距離を保存"
   Keep waiting: '待ち続ける'
   'Kept {}: a print started.': '{} を保持しました: 印刷が開始されました。'
   Kick away: 'かき出し'
@@ -2509,6 +2514,7 @@ translations:
   Network name cannot be empty: ネットワーク名は空にできません
   'Network, display, sound, printer setup, and more. You can replay this tour anytime from Help & About.': ネットワーク、ディスプレイ、サウンド、プリンター設定など。このツアーは「ヘルプと情報」からいつでも再生できます。
   Neutral: ニュートラル
+  Neutralize Tension: "張力を中和"
   Never: なし
   Never sleeps: スリープしない
   New Spool: 新規スプール
@@ -3357,6 +3363,7 @@ translations:
   Reset failed: リセットに失敗しました
   Reset motor run-time counter: 'モーターの稼働時間カウンターをリセット'
   Reset tags: タグをリセット
+  Reset Sync Feedback: "同期フィードバックをリセット"
   Reset Tags: タグをリセット
   Reset to Default: デフォルトにリセット
   Reset to defaults: デフォルトに戻す
@@ -3461,6 +3468,7 @@ translations:
   Run stopped: '実行を停止しました'
   Run test sequence on all lanes: '全レーンでテストシーケンスを実行'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: このプリンターのターミナルで HelixScreen インストーラーを --update 付きで実行してください。プラットフォーム別のコマンドはスキャンして確認できます。
+  Run the MMU fans by temperature: "温度に応じて MMU ファンを動かす"
   Run the chamber dryer too: チャンバーのドライヤーも使う
 
   Run {}?: '{} を実行しますか？'
@@ -3499,6 +3507,7 @@ translations:
   Save: 保存
   Save & Restart: 保存して再起動
   Save As New: 新規として保存
+  Save Autotuned Rotation: "自動調整した回転を保存"
   Save Hardware: ハードウェアを保存
   Save Printer Configuration: プリンター設定を保存
   Save Theme As: テーマを名前を付けて保存
@@ -3940,7 +3949,9 @@ translations:
   Switching to MPC requires a config change and Klipper restart.: MPCへの切り替えには設定変更とKlipperの再起動が必要です。
   Sync: '同期'
   Switching to {}: '{}に切り替えています'
+  Sync Feedback: "同期フィードバック"
   Sync during printing: 印刷中に同期
+  Sync feedback is off: "同期フィードバックはオフです"
   Sync with Spoolman: Spoolman と同期
   Syncing Motors...: モーターを同期中...
   Syncing motors...: モーターを同期中...

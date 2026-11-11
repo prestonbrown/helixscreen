@@ -164,6 +164,7 @@ src/printer/afc_status_parse.cpp
 src/printer/ams_backend_cfs.cpp
 src/printer/ams_backend_cfs_calibration.cpp
 src/printer/ams_backend_happy_hare.cpp
+src/printer/ams_backend_happy_hare_device.cpp
 src/printer/ams_backend_indx.cpp
 src/printer/ams_backend_multiace.cpp
 src/printer/ams_backend_openams.cpp

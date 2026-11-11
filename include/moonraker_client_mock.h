@@ -1493,6 +1493,9 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// the printer.objects.query / subscribe handlers read it).
     bool is_mock_openams() const;
     [[nodiscard]] nlohmann::json openams_status_json() const;
+    /// The --real-ams Happy Hare `mmu` frame: a v4 single unit with a buffer and a fan,
+    /// whose sync feedback and fan state follow MMU_SYNC_FEEDBACK and MMU_FAN.
+    [[nodiscard]] nlohmann::json happy_hare_mmu_status() const;
     /// HELIX_MOCK_OPENAMS_UNITS=shared: an AMS HT and an AMS 2 Pro on one lane.
     [[nodiscard]] static bool openams_shared_lane_units();
     /// HELIX_MOCK_OPENAMS_UNITS=two_lanes: that pair on lane `fps`, two AMS 2 Pro on `fps2`.
@@ -2632,6 +2635,9 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     helix::calibration::MockSweepResponse sweep_response_;
 
     bool mmu_enabled_{true}; ///< MMU available (default true for existing tests)
+    std::atomic<bool> hh_sync_feedback_enabled_{true}; ///< MMU_SYNC_FEEDBACK ENABLE=
+    std::atomic<bool> hh_fan_enabled_{true};           ///< MMU_FAN ENABLE=
+    std::atomic<int> hh_fan_mode_{2};                  ///< MMU_FAN FAN_FORCED=, 2 = auto
 
     // --- MedusaHC swap simulation -------------------------------------------
     // Driven from gcode_script() (the swap, unmount and feeder commands) and
@@ -2958,6 +2964,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     GcodeResult gcode_cfs(const std::string& gcode);
     GcodeResult gcode_openams(const std::string& script);
     GcodeResult gcode_openams_line(const std::string& gcode);
+    GcodeResult gcode_happy_hare(const std::string& gcode);
     GcodeResult gcode_u1_feeding(const std::string& gcode);
     /// SET_PURIFIER_MODE, SET_PURIFIER and the mock-only HELIX_MOCK_TOP_COVER
     /// PRESENT=0|1, which lifts the top off or puts it back. U1 only.

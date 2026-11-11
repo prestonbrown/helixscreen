@@ -553,6 +553,7 @@
   <translation tag="Buffer" ru="Буфер"/>
   <translation tag="Buffer Status" ru="Статус буфера"/>
   <translation tag="Buffer tube problem" ru="Проблема с буферной трубкой"/>
+  <translation tag="Buffer-driven gear speed control" ru="Скорость шестерни по буферу"/>
   <translation tag="Build Volume" ru="Область печати"/>
   <translation tag="Build Volume: " ru="Область печати: "/>
   <translation tag="Building preview: %d%%" ru="Создание предпросмотра: %d%%"/>
@@ -1529,6 +1530,8 @@
   <translation tag="Fair match" ru="Среднее совпадение"/>
   <translation tag="Fan" ru="Вентилятор"/>
   <translation tag="Fan Calibration" ru="Калибровка вентилятора"/>
+  <translation tag="Fan Control" ru="Управление вентилятором"/>
+  <translation tag="Fan Mode" ru="Режим вентилятора"/>
   <translation tag="Fan Speeds" ru="Скорости вентиляторов"/>
   <translation tag="Fan Tach" ru="Тахометр вентилятора"/>
   <translation tag="Fan Transfer" ru="Теплообмен с вентилятором"/>
@@ -1678,6 +1681,7 @@
   <translation tag="Follow your manual to swap the nozzle or hotend." ru="Замените сопло или хотенд по руководству."/>
   <translation tag="For a first Z home: claim the tool you put on the head" ru="Для первой парковки Z: закрепить инструмент, установленный на головку"/>
   <translation tag="For materials that need a warm enclosure, like ABS or ASA" ru="Для материалов, которым нужен тёплый закрытый корпус, например ABS или ASA"/>
+  <translation tag="Force the MMU fans off or on, or follow Fan Control" ru="Принудительно выключить или включить вентиляторы MMU, или следовать управлению вентилятором"/>
   <translation tag="Force/weight sensors" ru="Датчики силы/веса"/>
   <translation tag="Forget" ru="Забыть"/>
   <translation tag="Forget Network?" ru="Забыть сеть?"/>
@@ -2055,6 +2059,7 @@
   <translation tag="Keep its own data on this screen (up to 256 KB)." ru="Хранит собственные данные на этом экране (до 256 КБ)."/>
   <translation tag="Keep pushing filament while it cools" ru="Продолжайте подавать филамент, пока он остывает"/>
   <translation tag="Keep the bypass spool visible when bypass is off" ru="Показывать катушку байпаса, даже когда байпас выключен"/>
+  <translation tag="Keep the rotation distance sync feedback tunes" ru="Сохранять дистанцию вращения, подобранную обратной связью синхронизации"/>
   <translation tag="Keep waiting" ru="Продолжить ожидание"/>
   <translation tag="Kept {}: a print started." ru="{} оставлен: началась печать."/>
   <translation tag="Kick away" ru="Сброс остатка"/>
@@ -2469,6 +2474,7 @@
   <translation tag="Network name cannot be empty" ru="Имя сети не может быть пустым"/>
   <translation tag="Network, display, sound, printer setup, and more. You can replay this tour anytime from Help &amp; About." ru="Сеть, дисплей, звук, настройка принтера и многое другое. Этот тур можно повторить в любой момент из раздела «Справка и о программе»."/>
   <translation tag="Neutral" ru="Нейтральный"/>
+  <translation tag="Neutralize Tension" ru="Снять натяжение"/>
   <translation tag="Never" ru="Никогда"/>
   <translation tag="Never sleeps" ru="Никогда не спит"/>
   <translation tag="New Spool" ru="Новая катушка"/>
@@ -3299,6 +3305,7 @@
   <translation tag="Reset Motor Timer" ru="Сбросить таймер мотора"/>
   <translation tag="Reset Servo Counter" ru="Сбросить счётчик сервопривода"/>
   <translation tag="Reset Speed &amp; Flow to 100%" ru="Сбросить скорость и поток на 100%"/>
+  <translation tag="Reset Sync Feedback" ru="Сбросить обратную связь синхронизации"/>
   <translation tag="Reset Tags" ru="Сбросить отметки"/>
   <translation tag="Reset all settings and restart wizard" ru="Сбросить все настройки и перезапустить мастер"/>
   <translation tag="Reset failed" ru="Ошибка сброса"/>
@@ -3407,6 +3414,7 @@
   <translation tag="Run stopped" ru="Запуск остановлен"/>
   <translation tag="Run test sequence on all lanes" ru="Запустить тестовую последовательность на всех каналах"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." ru="Запустите установщик HelixScreen с ключом --update в терминале на этом принтере. Отсканируйте код, чтобы получить команду для вашей платформы."/>
+  <translation tag="Run the MMU fans by temperature" ru="Включать вентиляторы MMU по температуре"/>
   <translation tag="Run the chamber dryer too" ru="Включить и сушилку камеры"/>
   <translation tag="Run {}?" ru="Запустить {}?"/>
   <translation tag="Running loose" ru="Ослаблен"/>
@@ -3440,6 +3448,7 @@
   <translation tag="Save" ru="Сохранить"/>
   <translation tag="Save &amp; Restart" ru="Сохранить и перезапустить"/>
   <translation tag="Save As New" ru="Сохранить как новый"/>
+  <translation tag="Save Autotuned Rotation" ru="Сохранять автоподбор вращения"/>
   <translation tag="Save Hardware" ru="Сохранить оборудование"/>
   <translation tag="Save Offsets" ru="Сохранить смещения"/>
   <translation tag="Save Printer Configuration" ru="Сохранить конфигурацию принтера"/>
@@ -3874,7 +3883,9 @@
   <translation tag="Switching to MPC requires a config change and Klipper restart." ru="Переход на MPC требует изменения конфига и перезапуска Klipper."/>
   <translation tag="Switching to {}" ru="Переключение на {}"/>
   <translation tag="Sync" ru="Синхр."/>
+  <translation tag="Sync Feedback" ru="Обратная связь синхронизации"/>
   <translation tag="Sync during printing" ru="Синхронизация во время печати"/>
+  <translation tag="Sync feedback is off" ru="Обратная связь синхронизации выключена"/>
   <translation tag="Sync with Spoolman" ru="Синхронизация со Spoolman"/>
   <translation tag="Syncing Motors..." ru="Синхронизация моторов..."/>
   <translation tag="Syncing motors..." ru="Синхронизация моторов..."/>

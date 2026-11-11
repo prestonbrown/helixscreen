@@ -511,6 +511,7 @@
   <translation tag="Buffer" pt="Buffer"/>
   <translation tag="Buffer Status" pt="Estado do Buffer"/>
   <translation tag="Buffer tube problem" pt="Problema no tubo do buffer"/>
+  <translation tag="Buffer-driven gear speed control" pt="Velocidade da engrenagem controlada pelo buffer"/>
   <translation tag="Build Volume" pt="Volume de impressão"/>
   <translation tag="Build Volume: " pt="Volume de Impressão: "/>
   <translation tag="Building preview: %d%%" pt="Gerando visualização: %d%%"/>
@@ -1484,6 +1485,8 @@
   <translation tag="Fair match" pt="Correspondência razoável"/>
   <translation tag="Fan" pt="Ventoinha"/>
   <translation tag="Fan Calibration" pt="Calibração da Ventoinha"/>
+  <translation tag="Fan Control" pt="Controle da ventoinha"/>
+  <translation tag="Fan Mode" pt="Modo da ventoinha"/>
   <translation tag="Fan Speeds" pt="Velocidades das ventoinhas"/>
   <translation tag="Fan Tach" pt="Tacômetro do ventilador"/>
   <translation tag="Fan Transfer" pt="Transferência da Ventoinha"/>
@@ -1633,6 +1636,7 @@
   <translation tag="Follow your manual to swap the nozzle or hotend." pt="Siga o manual para trocar o bico ou hotend."/>
   <translation tag="For a first Z home: claim the tool you put on the head" pt="Para a primeira referência de Z: registrar a ferramenta colocada no cabeçote"/>
   <translation tag="For materials that need a warm enclosure, like ABS or ASA" pt="Para materiais que precisam de um gabinete quente, como ABS ou ASA"/>
+  <translation tag="Force the MMU fans off or on, or follow Fan Control" pt="Forçar as ventoinhas do MMU desligadas ou ligadas, ou seguir o controle da ventoinha"/>
   <translation tag="Force/weight sensors" pt="Sensores de força/peso"/>
   <translation tag="Forget" pt="Esquecer"/>
   <translation tag="Forget Network?" pt="Esquecer Rede?"/>
@@ -2007,6 +2011,7 @@
   <translation tag="Keep its own data on this screen (up to 256 KB)." pt="Guarda seus próprios dados nesta tela (até 256 KB)."/>
   <translation tag="Keep pushing filament while it cools" pt="Continue empurrando o filamento enquanto esfria"/>
   <translation tag="Keep the bypass spool visible when bypass is off" pt="Manter o carretel de bypass visível quando o bypass estiver desligado"/>
+  <translation tag="Keep the rotation distance sync feedback tunes" pt="Salvar a distância de rotação ajustada pelo feedback de sincronização"/>
   <translation tag="Keep waiting" pt="Continuar aguardando"/>
   <translation tag="Kept {}: a print started." pt="{} mantido: uma impressão começou."/>
   <translation tag="Kick away" pt="Expulsar"/>
@@ -2421,6 +2426,7 @@
   <translation tag="Network name cannot be empty" pt="O nome da rede não pode estar vazio"/>
   <translation tag="Network, display, sound, printer setup, and more. You can replay this tour anytime from Help &amp; About." pt="Rede, tela, som, configuração da impressora e muito mais. Você pode repetir este tour a qualquer momento em Ajuda e sobre."/>
   <translation tag="Neutral" pt="Neutro"/>
+  <translation tag="Neutralize Tension" pt="Neutralizar tensão"/>
   <translation tag="Never" pt="Nunca"/>
   <translation tag="Never sleeps" pt="Nunca dorme"/>
   <translation tag="New Spool" pt="Novo carretel"/>
@@ -3242,6 +3248,7 @@
   <translation tag="Reset Motor Timer" pt="Resetar o temporizador do motor"/>
   <translation tag="Reset Servo Counter" pt="Resetar o contador do servo"/>
   <translation tag="Reset Speed &amp; Flow to 100%" pt="Resetar Velocidade &amp; Fluxo para 100%"/>
+  <translation tag="Reset Sync Feedback" pt="Resetar feedback de sincronização"/>
   <translation tag="Reset Tags" pt="Resetar marcações"/>
   <translation tag="Reset all settings and restart wizard" pt="Resetar todas as configurações e reiniciar assistente"/>
   <translation tag="Reset failed" pt="Falha ao redefinir"/>
@@ -3350,6 +3357,7 @@
   <translation tag="Run stopped" pt="Execução interrompida"/>
   <translation tag="Run test sequence on all lanes" pt="Executar a sequência de teste em todas as lanes"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." pt="Execute o instalador do HelixScreen com --update em um terminal nesta impressora. Escaneie para ver o comando da sua plataforma."/>
+  <translation tag="Run the MMU fans by temperature" pt="Acionar as ventoinhas do MMU pela temperatura"/>
   <translation tag="Run the chamber dryer too" pt="Usar também o secador da câmara"/>
   <translation tag="Run {}?" pt="Executar {}?"/>
   <translation tag="Running loose" pt="Solto"/>
@@ -3383,6 +3391,7 @@
   <translation tag="Save" pt="Salvar"/>
   <translation tag="Save &amp; Restart" pt="Salvar &amp; Reiniciar"/>
   <translation tag="Save As New" pt="Salvar Como Novo"/>
+  <translation tag="Save Autotuned Rotation" pt="Salvar rotação autoajustada"/>
   <translation tag="Save Hardware" pt="Salvar Hardware"/>
   <translation tag="Save Offsets" pt="Salvar offsets"/>
   <translation tag="Save Printer Configuration" pt="Salvar Configuração da Impressora"/>
@@ -3811,7 +3820,9 @@
   <translation tag="Switching to MPC requires a config change and Klipper restart." pt="Mudar para MPC requer alteração de configuração e reinicialização do Klipper."/>
   <translation tag="Switching to {}" pt="Mudando para {}"/>
   <translation tag="Sync" pt="Sinc."/>
+  <translation tag="Sync Feedback" pt="Feedback de sincronização"/>
   <translation tag="Sync during printing" pt="Sincronizar durante a impressão"/>
+  <translation tag="Sync feedback is off" pt="O feedback de sincronização está desligado"/>
   <translation tag="Sync with Spoolman" pt="Sincronizar com Spoolman"/>
   <translation tag="Syncing Motors..." pt="Sincronizando motores..."/>
   <translation tag="Syncing motors..." pt="Sincronizando motores..."/>

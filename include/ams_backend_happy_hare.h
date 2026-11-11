@@ -486,6 +486,13 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     /// selected one. Caller holds mutex_.
     [[nodiscard]] int active_unit_locked() const;
 
+    /// v4's MMU_SYNC_FEEDBACK and MMU_FAN controls, as far as the status says the
+    /// selected unit has a buffer and which units have managed fans; nothing on v3.
+    /// Caller holds mutex_.
+    void append_v4_controls_locked(std::vector<helix::printer::DeviceAction>& actions) const;
+    /// Send the v4 control @p action_id; nullopt when it is not one of them.
+    std::optional<AmsError> execute_v4_control(const std::string& action_id, const std::any& value);
+
     // Build context-aware recovery actions from live MMU state. Caller holds mutex_
     // (the base declares that contract; mutex_ is non-recursive, so this must not
     // lock).
@@ -777,6 +784,8 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
         int clog_detection = 0;
         /// Manual-mode clog detection length, when the config names one
         std::optional<float> detection_length;
+        /// v4 [mmu_unit_parameters] autotune_rotation_distance, when the config names it
+        std::optional<bool> autotune_rotation_distance;
         bool loaded = false;
     };
     ConfigDefaults config_defaults_;
@@ -809,6 +818,14 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     /// operation comes from here rather than the deprecated espooler_active.
     std::vector<std::string> espooler_per_gate_;
     int flowguard_encoder_mode_ = -1; ///< -1 = not yet received from Moonraker
+    /// v4 `sync_feedback_enabled`; nullopt while the selected unit has no buffer, and
+    /// always on v3, which has no MMU_SYNC_FEEDBACK ENABLE=.
+    std::optional<bool> sync_feedback_enabled_;
+    /// The AUTOTUNE= last sent: Happy Hare does not report it. Cleared when the
+    /// configfile is read again, since a Klipper restart drops it.
+    std::optional<bool> sync_feedback_autotune_sent_;
+    /// v4.1 `fans`: the units whose fans MMU_FAN manages.
+    std::vector<happy_hare::MmuFanUnit> fan_units_;
 
     static constexpr const char* kHhTuningNamespace = "helix-screen";
     static constexpr const char* kHhTuningKey = "hh_tuning";

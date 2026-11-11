@@ -552,6 +552,7 @@ translations:
   Buffer: Puffer
   Buffer Status: Pufferstatus
   Buffer tube problem: Problem mit dem Pufferschlauch
+  Buffer-driven gear speed control: "Zahnradgeschwindigkeit über den Puffer regeln"
   Build Volume: 'Bauraum'
   'Build Volume: ': 'Bauraum: '
   'Building preview: %d%%': 'Vorschau wird erstellt: %d%%'
@@ -1641,6 +1642,8 @@ translations:
   'Failed to upload the rewritten G-code: {}': 'Umgeschriebener G-code konnte nicht hochgeladen werden: {}'
   Fan: Lüfter
   Fan Calibration: Lüfter-Kalibrierung
+  Fan Control: "Lüftersteuerung"
+  Fan Mode: "Lüftermodus"
   Fan Speeds: 'Lüftergeschwindigkeiten'
   Fan Tach: 'Lüfterdrehzahl'
   Fan Transfer: Lüfterwärmeübertragung
@@ -1795,6 +1798,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: "Düse oder Hotend laut Handbuch wechseln."
   'For a first Z home: claim the tool you put on the head': 'Für die erste Z-Referenzfahrt: das Werkzeug übernehmen, das Sie an den Kopf gesetzt haben'
   For materials that need a warm enclosure, like ABS or ASA: 'Für Materialien, die ein warmes Gehäuse brauchen, wie ABS oder ASA'
+  Force the MMU fans off or on, or follow Fan Control: "MMU-Lüfter erzwungen aus oder an, oder der Lüftersteuerung folgen"
   Force/weight sensors: 'Kraft-/Gewichtssensoren'
   Forget: Vergessen
   Forget Network?: Netzwerk vergessen?
@@ -2208,6 +2212,7 @@ translations:
   Keep pushing filament while it cools: "Beim Abkühlen weiter Filament nachschieben"
   Keep the bypass spool visible when bypass is off: Bypass-Spule sichtbar halten, wenn Bypass deaktiviert ist
   Keep Tuning: "Weiter einstellen"
+  Keep the rotation distance sync feedback tunes: "Die von der Synchronisationsrückmeldung ermittelte Rotationsdistanz speichern"
   Keep waiting: 'Weiter warten'
   'Kept {}: a print started.': '{} behalten: Ein Druck hat begonnen.'
   Kick away: 'Wegschieben'
@@ -2646,6 +2651,7 @@ translations:
   Network name cannot be empty: Netzwerkname darf nicht leer sein
   'Network, display, sound, printer setup, and more. You can replay this tour anytime from Help & About.': 'Netzwerk, Display, Sound, Druckereinrichtung und mehr. Sie können diesen Rundgang jederzeit unter Hilfe & Über erneut abspielen.'
   Neutral: Neutral
+  Neutralize Tension: "Spannung ausgleichen"
   Never: Nie
   Never sleeps: Schläft nie
   New Spool: Neue Spule
@@ -3524,6 +3530,7 @@ translations:
   Reset failed: Zurücksetzen fehlgeschlagen
   Reset motor run-time counter: 'Den Betriebsstundenzähler des Motors zurücksetzen'
   Reset tags: Markierungen zurücksetzen
+  Reset Sync Feedback: "Synchronisationsrückmeldung zurücksetzen"
   Reset Tags: Markierungen zurücksetzen
   Reset to Default: Auf Standard zurücksetzen
   Reset to defaults: Auf Standardwerte zurücksetzen
@@ -3634,6 +3641,7 @@ translations:
   Run stopped: 'Durchlauf gestoppt'
   Run test sequence on all lanes: 'Testsequenz auf allen Spuren ausführen'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: HelixScreen-Installer mit --update in einem Terminal auf diesem Drucker ausführen. Für den passenden Befehl den Code scannen.
+  Run the MMU fans by temperature: "MMU-Lüfter nach Temperatur betreiben"
   Run the chamber dryer too: Kammertrockner ebenfalls betreiben
 
   Run {}?: '{} ausführen?'
@@ -3674,6 +3682,7 @@ translations:
   Save: Speichern
   Save & Restart: Speichern & Neu starten
   Save As New: Als neu speichern
+  Save Autotuned Rotation: "Automatisch ermittelte Rotation speichern"
   Save Hardware: Hardware speichern
   Save Printer Configuration: Druckerkonfiguration speichern
   Save Theme As: Thema speichern als
@@ -4150,7 +4159,9 @@ translations:
     eine Konfigurationsänderung und Klipper-Neustart.
   Sync: 'Sync'
   Switching to {}: Wechsel zu {}
+  Sync Feedback: "Synchronisationsrückmeldung"
   Sync during printing: Beim Drucken synchronisieren
+  Sync feedback is off: "Synchronisationsrückmeldung ist aus"
   Sync with Spoolman: Mit Spoolman synchronisieren
   Syncing Motors...: Motoren werden synchronisiert...
   Syncing motors...: Motoren werden synchronisiert...

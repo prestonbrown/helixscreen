@@ -517,6 +517,7 @@ translations:
   Buffer: 缓冲区
   Buffer Status: 缓冲区状态
   Buffer tube problem: 缓冲管故障
+  Buffer-driven gear speed control: "由缓冲区控制齿轮速度"
   Build Volume: '打印尺寸'
   'Build Volume: ': '构建尺寸: '
   'Building preview: %d%%': '正在生成预览：%d%%'
@@ -1543,6 +1544,8 @@ translations:
   Fair match: "匹配中等"
   Fan: 风扇
   Fan Calibration: 风扇校准
+  Fan Control: "风扇控制"
+  Fan Mode: "风扇模式"
   Fan Speeds: '风扇速度'
   Fan Tach: '风扇转速'
   Fan Transfer: 风扇传热
@@ -1695,6 +1698,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: "按手册更换喷嘴或热端。"
   'For a first Z home: claim the tool you put on the head': 首次Z轴归零时：登记您装在打印头上的工具
   For materials that need a warm enclosure, like ABS or ASA: '适用于需要温暖机箱的材料，如 ABS 或 ASA'
+  Force the MMU fans off or on, or follow Fan Control: "强制关闭或开启 MMU 风扇，或跟随风扇控制"
   Force/weight sensors: '力/重量传感器'
   Forget: 忘记
   Forget Network?: 忘记网络？
@@ -2085,6 +2089,7 @@ translations:
   Keep pushing filament while it cools: "冷却时继续推送耗材"
   Keep the bypass spool visible when bypass is off: 旁路关闭时保持料盘可见
   Keep Tuning: "继续调整"
+  Keep the rotation distance sync feedback tunes: "保存同步反馈调校的旋转距离"
   Keep waiting: '继续等待'
   'Kept {}: a print started.': '已保留 {}：打印已开始。'
   Kick away: '拨除废料'
@@ -2503,6 +2508,7 @@ translations:
   Network name cannot be empty: 网络名称不能为空
   'Network, display, sound, printer setup, and more. You can replay this tour anytime from Help & About.': 网络、显示、声音、打印机设置等。您可以随时从“帮助与关于”中重播此漫游。
   Neutral: 中性
+  Neutralize Tension: "消除张力"
   Never: 从不
   Never sleeps: 从不休眠
   New Spool: 新料盘
@@ -3348,6 +3354,7 @@ translations:
   Reset failed: 重置失败
   Reset motor run-time counter: '重置电机运行时间计数器'
   Reset tags: 重置标记
+  Reset Sync Feedback: "重置同步反馈"
   Reset Tags: 重置标记
   Reset to Default: 重置为默认
   Reset to defaults: 重置为默认值
@@ -3452,6 +3459,7 @@ translations:
   Run stopped: '运行已停止'
   Run test sequence on all lanes: '在所有耗材通道运行测试流程'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: 在本打印机的终端中运行 HelixScreen 安装程序并加上 --update。扫码获取适用于你的平台的命令。
+  Run the MMU fans by temperature: "按温度运行 MMU 风扇"
   Run the chamber dryer too: 同时运行腔体烘干器
 
   Run {}?: 运行 {}？
@@ -3490,6 +3498,7 @@ translations:
   Save: 保存
   Save & Restart: 保存并重启
   Save As New: 另存为新配置
+  Save Autotuned Rotation: "保存自动调校的旋转"
   Save Hardware: 保存硬件
   Save Printer Configuration: 保存打印机配置
   Save Theme As: 主题另存为
@@ -3932,7 +3941,9 @@ translations:
     Klipper。
   Sync: '同步'
   Switching to {}: 正在切换到 {}
+  Sync Feedback: "同步反馈"
   Sync during printing: 打印期间同步
+  Sync feedback is off: "同步反馈已关闭"
   Sync with Spoolman: 与 Spoolman 同步
   Syncing Motors...: 正在同步电机...
   Syncing motors...: 正在同步电机...

@@ -1457,6 +1457,9 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
     if (is_mock_openams() && (r = gcode_openams(g))) {
         return *r;
     }
+    if (mmu_enabled_ && (r = gcode_happy_hare(g))) {
+        return *r;
+    }
     if ((r = gcode_u1_feeding(g))) {
         return *r;
     }

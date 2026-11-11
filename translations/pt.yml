@@ -545,6 +545,7 @@ translations:
   Buffer: Buffer
   Buffer Status: Estado do Buffer
   Buffer tube problem: Problema no tubo do buffer
+  Buffer-driven gear speed control: "Velocidade da engrenagem controlada pelo buffer"
   Build Volume: 'Volume de impressão'
   'Build Volume: ': 'Volume de Impressão: '
   'Building preview: %d%%': 'Gerando visualização: %d%%'
@@ -1629,6 +1630,8 @@ translations:
   Fair match: "Correspondência razoável"
   Fan: Ventoinha
   Fan Calibration: Calibração da Ventoinha
+  Fan Control: "Controle da ventoinha"
+  Fan Mode: "Modo da ventoinha"
   Fan Speeds: 'Velocidades das ventoinhas'
   Fan Tach: 'Tacômetro do ventilador'
   Fan Transfer: Transferência da Ventoinha
@@ -1786,6 +1789,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: "Siga o manual para trocar o bico ou hotend."
   'For a first Z home: claim the tool you put on the head': 'Para a primeira referência de Z: registrar a ferramenta colocada no cabeçote'
   For materials that need a warm enclosure, like ABS or ASA: 'Para materiais que precisam de um gabinete quente, como ABS ou ASA'
+  Force the MMU fans off or on, or follow Fan Control: "Forçar as ventoinhas do MMU desligadas ou ligadas, ou seguir o controle da ventoinha"
   Force/weight sensors: 'Sensores de força/peso'
   Forget: Esquecer
   Forget Network?: Esquecer Rede?
@@ -2202,6 +2206,7 @@ translations:
   Keep pushing filament while it cools: "Continue empurrando o filamento enquanto esfria"
   Keep the bypass spool visible when bypass is off: Manter o carretel de bypass visível quando o bypass estiver desligado
   Keep Tuning: Continuar
+  Keep the rotation distance sync feedback tunes: "Salvar a distância de rotação ajustada pelo feedback de sincronização"
   Keep waiting: 'Continuar aguardando'
   'Kept {}: a print started.': '{} mantido: uma impressão começou.'
   Kick away: 'Expulsar'
@@ -2639,6 +2644,7 @@ translations:
   Network name cannot be empty: O nome da rede não pode estar vazio
   'Network, display, sound, printer setup, and more. You can replay this tour anytime from Help & About.': 'Rede, tela, som, configuração da impressora e muito mais. Você pode repetir este tour a qualquer momento em Ajuda e sobre.'
   Neutral: Neutro
+  Neutralize Tension: "Neutralizar tensão"
   Never: Nunca
   Never sleeps: Nunca dorme
   New Spool: Novo carretel
@@ -3519,6 +3525,7 @@ translations:
   Reset failed: Falha ao redefinir
   Reset motor run-time counter: 'Resetar o contador de horas de funcionamento do motor'
   Reset tags: Resetar marcações
+  Reset Sync Feedback: "Resetar feedback de sincronização"
   Reset Tags: Resetar marcações
   Reset to Default: Restaurar Padrão
   Reset to defaults: Restaurar padrões
@@ -3629,6 +3636,7 @@ translations:
   Run stopped: 'Execução interrompida'
   Run test sequence on all lanes: 'Executar a sequência de teste em todas as lanes'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: Execute o instalador do HelixScreen com --update em um terminal nesta impressora. Escaneie para ver o comando da sua plataforma.
+  Run the MMU fans by temperature: "Acionar as ventoinhas do MMU pela temperatura"
   Run the chamber dryer too: Usar também o secador da câmara
 
   Run {}?: Executar {}?
@@ -3669,6 +3677,7 @@ translations:
   Save: Salvar
   Save & Restart: Salvar & Reiniciar
   Save As New: Salvar Como Novo
+  Save Autotuned Rotation: "Salvar rotação autoajustada"
   Save Hardware: Salvar Hardware
   Save Printer Configuration: Salvar Configuração da Impressora
   Save Theme As: Salvar Tema Como
@@ -4149,7 +4158,9 @@ translations:
     alteração de configuração e reinicialização do Klipper.
   Sync: 'Sinc.'
   Switching to {}: Mudando para {}
+  Sync Feedback: "Feedback de sincronização"
   Sync during printing: Sincronizar durante a impressão
+  Sync feedback is off: "O feedback de sincronização está desligado"
   Sync with Spoolman: Sincronizar com Spoolman
   Syncing Motors...: Sincronizando motores...
   Syncing motors...: Sincronizando motores...

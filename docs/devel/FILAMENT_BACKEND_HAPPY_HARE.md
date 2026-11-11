@@ -51,6 +51,8 @@ encoder (`clog_detection` 1 or 2) and FlowGuard (`flowguard.enabled`) feed the
 | `MMU_GATE_MAP GATE={n} [COLOR=..] [MATERIAL=..] [VENDOR=..] [NAME=..] [TEMP=..] [SPOOLID=..]` | Write a slot edit to the gate map (`mmu_vars.cfg`). Omitted params keep their current value, so a field is only cleared by naming it with an explicit empty value. `VENDOR` is v4-only; `TEMP` is sent only when the edit moves it, never 0. In Spoolman pull mode an edit is refused - see [Lane identity and edits](#lane-identity-and-edits) |
 | `MMU_GATE_MAP GATE={n} MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 QUIET=1` | **Clear Spool**: wipe every field the gate map holds for one gate - see [Clear Spool](#clear-spool) |
 | `MMU_SELECT_BYPASS` | Select bypass position |
+| `MMU_SYNC_FEEDBACK ENABLE=0\|1` / `AUTOTUNE=0\|1` / `RESET=1` / `ADJUST_TENSION=1` [`UNIT=n`] | v4 Accessories **Sync Feedback**, **Save Autotuned Rotation**, **Reset Sync Feedback**, **Neutralize Tension** - see [Sync feedback and fan controls](#sync-feedback-and-fan-controls) |
+| `MMU_FAN ENABLE=0\|1` / `FAN_FORCED=0\|1\|2` [`UNIT=<name>`] | v4.1 Accessories **Fan Control** and **Fan Mode** (Off / On / Auto), one pair per unit in `printer.mmu.fans` |
 
 ### Path Topology
 
@@ -248,6 +250,30 @@ pre-fills its length from `clog_detection_length_setting()`: the configured
 `flowguard_encoder_max_motion` from 3.42 on, else the live encoder length. Save sends the
 length only when the user moved it. `MMU_FLOWGUARD ENABLE=` switches buffer FlowGuard as a whole; no HelixScreen control
 sends it. Golden payloads: `tests/fixtures/happy_hare_v4_*.json`.
+
+### Sync feedback and fan controls
+
+v4 only; v3's `MMU_SYNC_FEEDBACK` takes `SYNC_FEEDBACK_ENABLED=` instead, and v3 has no
+`MMU_FAN`. The rows are added to Accessories by
+`src/printer/ams_backend_happy_hare_device.cpp#append_v4_controls_locked` only when the status
+says the hardware is there, so a printer without it lists nothing and the base refuses the ids.
+
+- **Sync feedback** shows while `printer.mmu.sync_feedback_enabled` is a bool. v4 publishes it for
+  the selected unit (`mmu_controller.mmu_unit()`), null when that unit has no buffer.
+  `MMU_SYNC_FEEDBACK` infers its unit from the selected gate and refuses on a multi-unit machine
+  when none is selected, so the command names the selected unit (`unit_suffix_locked`). Reset is
+  disabled while sync feedback is off, since Happy Hare ignores `RESET` then. Neutralize Tension
+  moves the gear motor, needs filament loaded, and is `moves_machine` (refused during a print).
+  `AUTOTUNE` is not in the status: the row shows the last value sent, else
+  `[mmu_unit_parameters] autotune_rotation_distance`, and forgets the sent value when the
+  configfile is read again after a Klipper restart. `RELEASE=1` (4.1+) has no control.
+- **Fans** come from `printer.mmu.fans` (4.1+, extras/mmu/unit/mmu_fan_manager.py `get_status`):
+  one `{unit, first_gate, per_gate, enabled, modes}` per unit with managed fans. Fan Control sends
+  `ENABLE=`; Fan Mode sends `FAN_FORCED=` for every fan of the unit, and shows unknown when
+  per-gate fans disagree. `MMU_FAN` is per-unit and needs `UNIT=` once more than one unit is
+  fitted; the unit's name from the `fans` entry is passed, and on a multi-unit machine each row's
+  description is the unit's `display_name`. Per-gate `GATE=`, `SOURCE=` and `ON_TEMP`/`OFF_TEMP`
+  have no control.
 
 ### Reset vs Recover
 

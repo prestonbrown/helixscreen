@@ -511,6 +511,7 @@
   <translation tag="Buffer" en="Buffer"/>
   <translation tag="Buffer Status" en="Buffer Status"/>
   <translation tag="Buffer tube problem" en="Buffer tube problem"/>
+  <translation tag="Buffer-driven gear speed control" en="Buffer-driven gear speed control"/>
   <translation tag="Build Volume" en="Build Volume"/>
   <translation tag="Build Volume: " en="Build Volume: "/>
   <translation tag="Building preview: %d%%" en="Building preview: %d%%"/>
@@ -1484,6 +1485,8 @@
   <translation tag="Fair match" en="Fair match"/>
   <translation tag="Fan" en="Fan"/>
   <translation tag="Fan Calibration" en="Fan Calibration"/>
+  <translation tag="Fan Control" en="Fan Control"/>
+  <translation tag="Fan Mode" en="Fan Mode"/>
   <translation tag="Fan Speeds" en="Fan Speeds"/>
   <translation tag="Fan Tach" en="Fan Tach"/>
   <translation tag="Fan Transfer" en="Fan Transfer"/>
@@ -1633,6 +1636,7 @@
   <translation tag="Follow your manual to swap the nozzle or hotend." en="Follow your manual to swap the nozzle or hotend."/>
   <translation tag="For a first Z home: claim the tool you put on the head" en="For a first Z home: claim the tool you put on the head"/>
   <translation tag="For materials that need a warm enclosure, like ABS or ASA" en="For materials that need a warm enclosure, like ABS or ASA"/>
+  <translation tag="Force the MMU fans off or on, or follow Fan Control" en="Force the MMU fans off or on, or follow Fan Control"/>
   <translation tag="Force/weight sensors" en="Force/weight sensors"/>
   <translation tag="Forget" en="Forget"/>
   <translation tag="Forget Network?" en="Forget Network?"/>
@@ -2007,6 +2011,7 @@
   <translation tag="Keep its own data on this screen (up to 256 KB)." en="Keep its own data on this screen (up to 256 KB)."/>
   <translation tag="Keep pushing filament while it cools" en="Keep pushing filament while it cools"/>
   <translation tag="Keep the bypass spool visible when bypass is off" en="Keep the bypass spool visible when bypass is off"/>
+  <translation tag="Keep the rotation distance sync feedback tunes" en="Keep the rotation distance sync feedback tunes"/>
   <translation tag="Keep waiting" en="Keep waiting"/>
   <translation tag="Kept {}: a print started." en="Kept {}: a print started."/>
   <translation tag="Kick away" en="Kick away"/>
@@ -2421,6 +2426,7 @@
   <translation tag="Network name cannot be empty" en="Network name cannot be empty"/>
   <translation tag="Network, display, sound, printer setup, and more. You can replay this tour anytime from Help &amp; About." en="Network, display, sound, printer setup, and more. You can replay this tour anytime from Help &amp; About."/>
   <translation tag="Neutral" en="Neutral"/>
+  <translation tag="Neutralize Tension" en="Neutralize Tension"/>
   <translation tag="Never" en="Never"/>
   <translation tag="Never sleeps" en="Never sleeps"/>
   <translation tag="New Spool" en="New Spool"/>
@@ -3242,6 +3248,7 @@
   <translation tag="Reset Motor Timer" en="Reset Motor Timer"/>
   <translation tag="Reset Servo Counter" en="Reset Servo Counter"/>
   <translation tag="Reset Speed &amp; Flow to 100%" en="Reset Speed &amp; Flow to 100%"/>
+  <translation tag="Reset Sync Feedback" en="Reset Sync Feedback"/>
   <translation tag="Reset Tags" en="Reset Tags"/>
   <translation tag="Reset all settings and restart wizard" en="Reset all settings and restart wizard"/>
   <translation tag="Reset failed" en="Reset failed"/>
@@ -3350,6 +3357,7 @@
   <translation tag="Run stopped" en="Run stopped"/>
   <translation tag="Run test sequence on all lanes" en="Run test sequence on all lanes"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." en="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform."/>
+  <translation tag="Run the MMU fans by temperature" en="Run the MMU fans by temperature"/>
   <translation tag="Run the chamber dryer too" en="Run the chamber dryer too"/>
   <translation tag="Run {}?" en="Run {}?"/>
   <translation tag="Running loose" en="Running loose"/>
@@ -3383,6 +3391,7 @@
   <translation tag="Save" en="Save"/>
   <translation tag="Save &amp; Restart" en="Save &amp; Restart"/>
   <translation tag="Save As New" en="Save As New"/>
+  <translation tag="Save Autotuned Rotation" en="Save Autotuned Rotation"/>
   <translation tag="Save Hardware" en="Save Hardware"/>
   <translation tag="Save Offsets" en="Save Offsets"/>
   <translation tag="Save Printer Configuration" en="Save Printer Configuration"/>
@@ -3811,7 +3820,9 @@
   <translation tag="Switching to MPC requires a config change and Klipper restart." en="Switching to MPC requires a config change and Klipper restart."/>
   <translation tag="Switching to {}" en="Switching to {}"/>
   <translation tag="Sync" en="Sync"/>
+  <translation tag="Sync Feedback" en="Sync Feedback"/>
   <translation tag="Sync during printing" en="Sync during printing"/>
+  <translation tag="Sync feedback is off" en="Sync feedback is off"/>
   <translation tag="Sync with Spoolman" en="Sync with Spoolman"/>
   <translation tag="Syncing Motors..." en="Syncing Motors..."/>
   <translation tag="Syncing motors..." en="Syncing motors..."/>

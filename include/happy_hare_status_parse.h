@@ -97,6 +97,15 @@ struct TanglePreventionDelta {
     std::optional<float> release;
 };
 
+/// One `fans` entry (v4.1+): a unit whose fans Happy Hare manages.
+struct MmuFanUnit {
+    std::string unit;     ///< The unit's name, which MMU_FAN's UNIT= accepts
+    int first_gate = -1;  ///< The unit's first gate, -1 when not published
+    bool enabled = false; ///< Automatic (temperature-driven) fan management
+    /// FAN_FORCED per fan: 0 off, 1 on, 2 auto; nullopt for a gate without a fan.
+    std::vector<std::optional<int>> modes;
+};
+
 /// The v4 extended status: eSpooler, sync feedback, clog detection, counters.
 struct MmuTelemetryDelta {
     std::optional<std::string> espooler_active; ///< v3; v4 keeps it as a deprecated alias
@@ -106,6 +115,10 @@ struct MmuTelemetryDelta {
     std::optional<std::string> sync_feedback_state;
     std::optional<float> sync_feedback_bias; ///< sync_feedback_bias_modelled
     std::optional<float> sync_feedback_bias_raw;
+    /// v4 `sync_feedback_enabled`: whether MMU_SYNC_FEEDBACK control is on.
+    std::optional<bool> sync_feedback_enabled;
+    /// v4.1 `fans`: one entry per unit with managed fans.
+    std::optional<std::vector<MmuFanUnit>> fans;
     std::optional<bool> sync_drive;
     std::optional<int> clog_detection_enabled;
     std::optional<EncoderDelta> encoder;
@@ -125,6 +138,7 @@ struct MmuTelemetryDelta {
     /// has no buffer (sync feedback, flowguard) or no encoder; v3 never does.
     bool sync_feedback_bias_null = false;
     bool sync_feedback_bias_raw_null = false;
+    bool sync_feedback_enabled_null = false;
     bool flowguard_null = false;
     bool encoder_null = false;
     /// `tangle_prevention` was in the frame (null or not): only v4 publishes it.

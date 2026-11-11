@@ -511,6 +511,7 @@
   <translation tag="Buffer" fr="Tampon"/>
   <translation tag="Buffer Status" fr="État du tampon"/>
   <translation tag="Buffer tube problem" fr="Problème de tube tampon"/>
+  <translation tag="Buffer-driven gear speed control" fr="Vitesse d&apos;engrenage pilotée par le tampon"/>
   <translation tag="Build Volume" fr="Volume d&apos;impression"/>
   <translation tag="Build Volume: " fr="Volume d&apos;impression : "/>
   <translation tag="Building preview: %d%%" fr="Génération de l&apos;aperçu : %d%%"/>
@@ -1484,6 +1485,8 @@
   <translation tag="Fair match" fr="Correspondance moyenne"/>
   <translation tag="Fan" fr="Ventilateur"/>
   <translation tag="Fan Calibration" fr="Calibration du ventilateur"/>
+  <translation tag="Fan Control" fr="Contrôle du ventilateur"/>
+  <translation tag="Fan Mode" fr="Mode du ventilateur"/>
   <translation tag="Fan Speeds" fr="Vitesses des ventilateurs"/>
   <translation tag="Fan Tach" fr="Tachymètre ventilateur"/>
   <translation tag="Fan Transfer" fr="Transfert ventilateur"/>
@@ -1633,6 +1636,7 @@
   <translation tag="Follow your manual to swap the nozzle or hotend." fr="Suivez le manuel pour changer la buse ou le hotend."/>
   <translation tag="For a first Z home: claim the tool you put on the head" fr="Pour une première prise d&apos;origine Z : déclarer l&apos;outil posé sur la tête"/>
   <translation tag="For materials that need a warm enclosure, like ABS or ASA" fr="Pour les matériaux qui demandent une enceinte chaude, comme l&apos;ABS ou l&apos;ASA"/>
+  <translation tag="Force the MMU fans off or on, or follow Fan Control" fr="Forcer les ventilateurs du MMU à l&apos;arrêt ou en marche, ou suivre le contrôle du ventilateur"/>
   <translation tag="Force/weight sensors" fr="Capteurs de force/poids"/>
   <translation tag="Forget" fr="Oublier"/>
   <translation tag="Forget Network?" fr="Oublier le réseau ?"/>
@@ -2007,6 +2011,7 @@
   <translation tag="Keep its own data on this screen (up to 256 KB)." fr="Conserve ses propres données sur cet écran (jusqu&apos;à 256 Ko)."/>
   <translation tag="Keep pushing filament while it cools" fr="Continuez à pousser le filament pendant qu&apos;il refroidit"/>
   <translation tag="Keep the bypass spool visible when bypass is off" fr="Garder la bobine de bypass visible lorsque le bypass est désactivé"/>
+  <translation tag="Keep the rotation distance sync feedback tunes" fr="Conserver la distance de rotation réglée par le retour de synchronisation"/>
   <translation tag="Keep waiting" fr="Continuer d&apos;attendre"/>
   <translation tag="Kept {}: a print started." fr="{} conservé : une impression a commencé."/>
   <translation tag="Kick away" fr="Éjecter"/>
@@ -2421,6 +2426,7 @@
   <translation tag="Network name cannot be empty" fr="Le nom du réseau ne peut pas être vide"/>
   <translation tag="Network, display, sound, printer setup, and more. You can replay this tour anytime from Help &amp; About." fr="Réseau, affichage, son, configuration de l&apos;imprimante, et plus. Vous pouvez rejouer cette visite à tout moment depuis Aide et à propos."/>
   <translation tag="Neutral" fr="Neutre"/>
+  <translation tag="Neutralize Tension" fr="Neutraliser la tension"/>
   <translation tag="Never" fr="Jamais"/>
   <translation tag="Never sleeps" fr="Ne dort jamais"/>
   <translation tag="New Spool" fr="Nouvelle bobine"/>
@@ -3242,6 +3248,7 @@
   <translation tag="Reset Motor Timer" fr="Réinitialiser le compteur horaire du moteur"/>
   <translation tag="Reset Servo Counter" fr="Réinitialiser le compteur du servo"/>
   <translation tag="Reset Speed &amp; Flow to 100%" fr="Réinitialiser vitesse &amp; débit à 100%"/>
+  <translation tag="Reset Sync Feedback" fr="Réinitialiser le retour de synchronisation"/>
   <translation tag="Reset Tags" fr="Réinitialiser les repères"/>
   <translation tag="Reset all settings and restart wizard" fr="Réinitialiser tous les paramètres et redémarrer l&apos;assistant"/>
   <translation tag="Reset failed" fr="Échec de la réinitialisation"/>
@@ -3350,6 +3357,7 @@
   <translation tag="Run stopped" fr="Exécution arrêtée"/>
   <translation tag="Run test sequence on all lanes" fr="Exécuter la séquence de test sur toutes les voies"/>
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." fr="Lancez l&apos;installateur HelixScreen avec --update depuis un terminal sur cette imprimante. Scannez pour obtenir la commande adaptée à votre plateforme."/>
+  <translation tag="Run the MMU fans by temperature" fr="Faire tourner les ventilateurs du MMU selon la température"/>
   <translation tag="Run the chamber dryer too" fr="Faire aussi tourner le séchoir de l&apos;enceinte"/>
   <translation tag="Run {}?" fr="Exécuter {} ?"/>
   <translation tag="Running loose" fr="Détendu"/>
@@ -3383,6 +3391,7 @@
   <translation tag="Save" fr="Enregistrer"/>
   <translation tag="Save &amp; Restart" fr="Enregistrer &amp; Redémarrer"/>
   <translation tag="Save As New" fr="Enregistrer comme nouveau"/>
+  <translation tag="Save Autotuned Rotation" fr="Enregistrer la rotation auto-réglée"/>
   <translation tag="Save Hardware" fr="Enregistrer le matériel"/>
   <translation tag="Save Offsets" fr="Enregistrer les offsets"/>
   <translation tag="Save Printer Configuration" fr="Enregistrer la configuration de l&apos;imprimante"/>
@@ -3811,7 +3820,9 @@
   <translation tag="Switching to MPC requires a config change and Klipper restart." fr="Le passage à MPC nécessite une modification de la config et un redémarrage de Klipper."/>
   <translation tag="Switching to {}" fr="Passage à {}"/>
   <translation tag="Sync" fr="Sync"/>
+  <translation tag="Sync Feedback" fr="Retour de synchronisation"/>
   <translation tag="Sync during printing" fr="Synchroniser pendant l&apos;impression"/>
+  <translation tag="Sync feedback is off" fr="Le retour de synchronisation est désactivé"/>
   <translation tag="Sync with Spoolman" fr="Synchroniser avec Spoolman"/>
   <translation tag="Syncing Motors..." fr="Synchronisation des moteurs..."/>
   <translation tag="Syncing motors..." fr="Synchronisation des moteurs..."/>

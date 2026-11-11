@@ -551,6 +551,7 @@ translations:
   Buffer: Tampon
   Buffer Status: État du tampon
   Buffer tube problem: Problème de tube tampon
+  Buffer-driven gear speed control: "Vitesse d'engrenage pilotée par le tampon"
   Build Volume: 'Volume d''impression'
   'Build Volume: ': 'Volume d''impression : '
   'Building preview: %d%%': 'Génération de l''aperçu : %d%%'
@@ -1645,6 +1646,8 @@ translations:
   Fair match: "Correspondance moyenne"
   Fan: Ventilateur
   Fan Calibration: Calibration du ventilateur
+  Fan Control: "Contrôle du ventilateur"
+  Fan Mode: "Mode du ventilateur"
   Fan Speeds: 'Vitesses des ventilateurs'
   Fan Tach: 'Tachymètre ventilateur'
   Fan Transfer: Transfert ventilateur
@@ -1800,6 +1803,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: "Suivez le manuel pour changer la buse ou le hotend."
   'For a first Z home: claim the tool you put on the head': "Pour une première prise d'origine Z : déclarer l'outil posé sur la tête"
   For materials that need a warm enclosure, like ABS or ASA: 'Pour les matériaux qui demandent une enceinte chaude, comme l''ABS ou l''ASA'
+  Force the MMU fans off or on, or follow Fan Control: "Forcer les ventilateurs du MMU à l'arrêt ou en marche, ou suivre le contrôle du ventilateur"
   Force/weight sensors: 'Capteurs de force/poids'
   Forget: Oublier
   Forget Network?: Oublier le réseau ?
@@ -2214,6 +2218,7 @@ translations:
   Keep pushing filament while it cools: "Continuez à pousser le filament pendant qu'il refroidit"
   Keep the bypass spool visible when bypass is off: Garder la bobine de bypass visible lorsque le bypass est désactivé
   Keep Tuning: Continuer
+  Keep the rotation distance sync feedback tunes: "Conserver la distance de rotation réglée par le retour de synchronisation"
   Keep waiting: 'Continuer d''attendre'
   'Kept {}: a print started.': '{} conservé : une impression a commencé.'
   Kick away: 'Éjecter'
@@ -2652,6 +2657,7 @@ translations:
   Network name cannot be empty: Le nom du réseau ne peut pas être vide
   'Network, display, sound, printer setup, and more. You can replay this tour anytime from Help & About.': 'Réseau, affichage, son, configuration de l''imprimante, et plus. Vous pouvez rejouer cette visite à tout moment depuis Aide et à propos.'
   Neutral: Neutre
+  Neutralize Tension: "Neutraliser la tension"
   Never: Jamais
   Never sleeps: Ne dort jamais
   New Spool: Nouvelle bobine
@@ -3536,6 +3542,7 @@ translations:
   Reset failed: Échec de la réinitialisation
   Reset motor run-time counter: 'Réinitialiser le compteur d''heures de fonctionnement du moteur'
   Reset tags: Réinitialiser les repères
+  Reset Sync Feedback: "Réinitialiser le retour de synchronisation"
   Reset Tags: Réinitialiser les repères
   Reset to Default: Réinitialiser par défaut
   Reset to defaults: Réinitialiser par défaut
@@ -3646,6 +3653,7 @@ translations:
   Run stopped: 'Exécution arrêtée'
   Run test sequence on all lanes: 'Exécuter la séquence de test sur toutes les voies'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: Lancez l'installateur HelixScreen avec --update depuis un terminal sur cette imprimante. Scannez pour obtenir la commande adaptée à votre plateforme.
+  Run the MMU fans by temperature: "Faire tourner les ventilateurs du MMU selon la température"
   Run the chamber dryer too: Faire aussi tourner le séchoir de l'enceinte
 
   Run {}?: Exécuter {} ?
@@ -3685,6 +3693,7 @@ translations:
   Save: Enregistrer
   Save & Restart: Enregistrer & Redémarrer
   Save As New: Enregistrer comme nouveau
+  Save Autotuned Rotation: "Enregistrer la rotation auto-réglée"
   Save Hardware: Enregistrer le matériel
   Save Printer Configuration: Enregistrer la configuration de l'imprimante
   Save Theme As: Enregistrer le thème sous
@@ -4168,7 +4177,9 @@ translations:
     nécessite une modification de la config et un redémarrage de Klipper.
   Sync: 'Sync'
   Switching to {}: Passage à {}
+  Sync Feedback: "Retour de synchronisation"
   Sync during printing: 'Synchroniser pendant l''impression'
+  Sync feedback is off: "Le retour de synchronisation est désactivé"
   Sync with Spoolman: Synchroniser avec Spoolman
   Syncing Motors...: Synchronisation des moteurs...
   Syncing motors...: Synchronisation des moteurs...
