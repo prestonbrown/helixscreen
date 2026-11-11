@@ -19,11 +19,13 @@
 #include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "subject_debug_registry.h"
 #include "temperature_controller.h"
 #include "temperature_sensor_manager.h"
 #include "temperature_service.h"
+#include "tool_state.h"
 
 #include <algorithm>
 #include <cmath>
@@ -31,6 +33,7 @@
 #include <optional>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 // =============================================================================
 // Y-axis auto-scaling helper
@@ -325,10 +328,9 @@ TEST_CASE_METHOD(
     TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
 }
 
-TEST_CASE_METHOD(
-    TempGraphOverlayPickFixture,
-    "TempGraphOverlay: the card mirrors the pick and open() restarts on the active tool",
-    "[temp_graph_overlay][active-extruder]") {
+TEST_CASE_METHOD(TempGraphOverlayPickFixture,
+                 "TempGraphOverlay: the card mirrors the pick, which survives a reopen",
+                 "[temp_graph_overlay][active-extruder]") {
     TempGraphOverlay overlay;
     overlay.init_subjects();
     seed_two_tools();
@@ -359,13 +361,14 @@ TEST_CASE_METHOD(
     overlay.on_deactivate(DeactivateReason::NavigateAway);
     REQUIRE(TempGraphOverlayTestAccess::picked(overlay) == "extruder1");
 
-    // Reopening is the fresh view: open() drops the pick so the card starts on
-    // the machine's active tool. A null parent on a never-created overlay
-    // skips both lazy creation and the NavigationManager push, so this call
-    // exercises exactly the pick-clear.
+    // Reopening keeps it too: a docked tool picked last visit is still the
+    // one the card shows. A null parent on a never-created overlay skips
+    // both lazy creation and the NavigationManager push.
     overlay.open(TempGraphOverlay::Mode::Nozzle, nullptr);
-    REQUIRE(TempGraphOverlayTestAccess::picked(overlay).empty());
+    REQUIRE(TempGraphOverlayTestAccess::picked(overlay) == "extruder1");
 
+    // With no pick the card is on the machine's active tool.
+    TempGraphOverlayTestAccess::set_picked(overlay, "");
     TempGraphOverlayTestAccess::repoint(overlay);
     REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 600);
     REQUIRE(std::string(TempGraphOverlayTestAccess::badge(overlay)) == "1");
@@ -424,10 +427,9 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture,
             static_cast<int>(HeaterStatusState::Heating));
     REQUIRE(std::string(TempGraphOverlayTestAccess::status_text(overlay)) == "100%");
 
-    // open() drops the pick: the status follows the machine's active tool,
-    // which is at temp with no duty to report.
-    overlay.open(TempGraphOverlay::Mode::Nozzle, nullptr);
-    REQUIRE(TempGraphOverlayTestAccess::picked(overlay).empty());
+    // With no pick the status follows the machine's active tool, which is at
+    // temp with no duty to report.
+    TempGraphOverlayTestAccess::set_picked(overlay, "");
     TempGraphOverlayTestAccess::repoint(overlay);
     REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 550);
     REQUIRE(TempGraphOverlayTestAccess::status_state(overlay) ==
@@ -609,4 +611,39 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture,
 
     TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
     tsm.discover({});
+}
+
+TEST_CASE_METHOD(TempGraphOverlayPickFixture, "TempGraphOverlay: a pick lasts until a tool change",
+                 "[temp_graph_overlay][active-extruder][target_tool]") {
+    helix::ToolState::instance().init_subjects(true);
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json{"extruder", "extruder1"});
+    helix::ToolState::instance().init_tools(hw);
+    helix::ToolState::instance().update_from_status({{"toolhead", {{"extruder", "extruder"}}}});
+
+    TempGraphOverlay overlay;
+    overlay.init_subjects();
+    seed_two_tools();
+    TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
+    TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
+    TempGraphOverlayTestAccess::arm_version_watch(overlay);
+    TempGraphOverlayTestAccess::repoint(overlay);
+    helix::ui::UpdateQueue::instance().drain();
+
+    TempGraphOverlayTestAccess::select(overlay, "extruder1");
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(TempGraphOverlayTestAccess::picked(overlay) == "extruder1");
+
+    SECTION("reopening keeps it") {
+        overlay.open(TempGraphOverlay::Mode::Nozzle, nullptr);
+        TempGraphOverlayTestAccess::arm_version_watch(overlay);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(TempGraphOverlayTestAccess::picked(overlay) == "extruder1");
+    }
+    SECTION("a tool change drops it") {
+        helix::ToolState::instance().update_from_status(
+            {{"toolhead", {{"extruder", "extruder1"}}}});
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(TempGraphOverlayTestAccess::picked(overlay).empty());
+    }
 }
