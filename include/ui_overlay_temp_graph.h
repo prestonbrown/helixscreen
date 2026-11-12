@@ -259,6 +259,9 @@ class TempGraphOverlay : public OverlayBase {
     lv_subject_t multi_extruder_subject_{};
     /// Per chamber preset (Off, 1-3): 1 while the configured ceiling allows it.
     lv_subject_t chamber_preset_visible_subjects_[4]{};
+    /// Per chamber preset 1-3: its temperature as the user reads it ("40°C").
+    lv_subject_t chamber_preset_text_subjects_[3]{};
+    char chamber_preset_text_bufs_[3][16]{};
     /// Last power reading (whole percent, -1 unknown) from the displayed
     /// extruder's power subject.
     int nozzle_card_power_ = -1;

@@ -13,6 +13,7 @@
 #include "ui_temperature_utils.h"
 
 #include "chamber_heater_backend.h"
+#include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "klipper_extruder_naming.h"
 #include "lvgl.h"
@@ -919,8 +920,9 @@ void PrinterTemperatureState::publish_chamber_dryer() {
     // line beside a Stop button, and its longest readout ("59/60°C  12:00 left")
     // ellipsizes at 480x320 with the spaced pair format_temperature_pair() draws.
     std::string text = chamber_dryer_target_c_ > 0
-                           ? fmt::format("{}/{}°C", current_c, chamber_dryer_target_c_)
-                           : fmt::format("{}°C", current_c);
+                           ? fmt::format("{}/{}", units::to_display_temp_whole(current_c),
+                                         units::format_display_temp(chamber_dryer_target_c_))
+                           : units::format_display_temp(current_c);
     const int minutes = (chamber_dryer_remaining_s_ + 59) / 60;
     if (minutes > 0) {
         text += fmt::format("  {}:{:02d} {}", minutes / 60, minutes % 60, lv_tr("left"));

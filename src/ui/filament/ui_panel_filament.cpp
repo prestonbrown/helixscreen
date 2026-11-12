@@ -27,6 +27,7 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
@@ -96,6 +97,7 @@ using helix::ui::observe;
 using helix::ui::temperature::classify_heat_state;
 using helix::ui::temperature::deci_to_degrees;
 using helix::ui::temperature::format_target_or_off;
+using helix::ui::temperature::format_temperature;
 using helix::ui::temperature::format_temperature_pair;
 
 // The shared MacroParamModal and the tier-3 gcode fallbacks now live in
@@ -124,14 +126,15 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     format_temperature_pair(nozzle_current_, nozzle_target_, temp_display_buf_,
                             sizeof(temp_display_buf_));
     std::snprintf(status_buf_, sizeof(status_buf_), "%s", lv_tr("Select material to begin"));
-    std::snprintf(warning_temps_buf_, sizeof(warning_temps_buf_),
-                  lv_tr("Current: %d°C | Target: %d°C"), nozzle_current_, nozzle_target_);
+    std::snprintf(warning_temps_buf_, sizeof(warning_temps_buf_), lv_tr("Current: %s | Target: %s"),
+                  helix::units::format_display_temp(nozzle_current_).c_str(),
+                  helix::units::format_display_temp(nozzle_target_).c_str());
     update_safety_warning_text();
     format_target_or_off(0, material_nozzle_buf_, sizeof(material_nozzle_buf_));
     format_target_or_off(0, material_bed_buf_, sizeof(material_bed_buf_));
-    std::snprintf(nozzle_current_buf_, sizeof(nozzle_current_buf_), "%d°C", nozzle_current_);
+    format_temperature(nozzle_current_, nozzle_current_buf_, sizeof(nozzle_current_buf_));
     format_target_or_off(0, nozzle_target_buf_, sizeof(nozzle_target_buf_));
-    std::snprintf(bed_current_buf_, sizeof(bed_current_buf_), "%d°C", bed_current_);
+    format_temperature(bed_current_, bed_current_buf_, sizeof(bed_current_buf_));
     format_target_or_off(0, bed_target_buf_, sizeof(bed_target_buf_));
 
     // Register XML event callbacks
@@ -799,16 +802,17 @@ void FilamentPanel::update_status() {
         // see ramp progress (#8: previously only target was visible, leaving
         // the user staring at a static "Heating to 230°C..." for several
         // minutes with no sign of life from the firmware).
-        std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Heating: %d / %d°C"),
-                      nozzle_current_, nozzle_target_);
+        std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Heating: %d / %s"),
+                      helix::units::to_display_temp_whole(nozzle_current_),
+                      helix::units::format_display_temp(nozzle_target_).c_str());
         lv_subject_copy_string(&status_subject_, status_buf_);
         last_status_branch_ = StatusBranch::NozzleHeating;
         update_status_icon("flash", "warning");
         return; // Already updated, exit early
     } else if (chamber_target_ > 0 && chamber_current_ < deci_to_degrees(chamber_target_) - 5) {
         // Chamber is heating (show only if nozzle is cold)
-        std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Chamber heating to %d°C..."),
-                      deci_to_degrees(chamber_target_));
+        std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Chamber heating to %s..."),
+                      helix::units::format_display_temp(deci_to_degrees(chamber_target_)).c_str());
         lv_subject_copy_string(&status_subject_, status_buf_);
         last_status_branch_ = StatusBranch::ChamberHeating;
         update_status_icon("fire", "warning");
@@ -816,8 +820,8 @@ void FilamentPanel::update_status() {
     } else if (chamber_target_ > 0 && chamber_current_ >= deci_to_degrees(chamber_target_) - 5 &&
                chamber_current_ <= deci_to_degrees(chamber_target_) + 2) {
         // Chamber at target (show only if nozzle is cold)
-        std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Chamber at %d°C"),
-                      deci_to_degrees(chamber_target_));
+        std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Chamber at %s"),
+                      helix::units::format_display_temp(deci_to_degrees(chamber_target_)).c_str());
         lv_subject_copy_string(&status_subject_, status_buf_);
         last_status_branch_ = StatusBranch::ChamberAtTarget;
         update_status_icon("check", "success");
@@ -837,14 +841,16 @@ void FilamentPanel::update_status() {
 }
 
 void FilamentPanel::update_warning_text() {
-    std::snprintf(warning_temps_buf_, sizeof(warning_temps_buf_),
-                  lv_tr("Current: %d°C | Target: %d°C"), nozzle_current_, nozzle_target_);
+    std::snprintf(warning_temps_buf_, sizeof(warning_temps_buf_), lv_tr("Current: %s | Target: %s"),
+                  helix::units::format_display_temp(nozzle_current_).c_str(),
+                  helix::units::format_display_temp(nozzle_target_).c_str());
     lv_subject_copy_string(&warning_temps_subject_, warning_temps_buf_);
 }
 
 void FilamentPanel::update_safety_warning_text() {
     std::snprintf(safety_warning_text_buf_, sizeof(safety_warning_text_buf_),
-                  lv_tr("Heat to at least %d°C for filament operations"), min_extrude_temp_);
+                  lv_tr("Heat to at least %s for filament operations"),
+                  helix::units::format_display_temp(min_extrude_temp_).c_str());
     if (subjects_initialized_) {
         lv_subject_copy_string(&safety_warning_text_subject_, safety_warning_text_buf_);
     }
@@ -1035,7 +1041,8 @@ void FilamentPanel::handle_preset_button(int material_id) {
                 if (auto* c = get_temperature_controller()) {
                     c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
                                   {.toast = true, .on_success = [target = bed_target_]() {
-                                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), target);
+                                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}"),
+                                                      helix::units::format_display_temp(target));
                                    }});
 
                     // Set chamber temperature if preset specifies one
@@ -1043,8 +1050,9 @@ void FilamentPanel::handle_preset_button(int material_id) {
                         int target = deci_to_degrees(chamber_target_);
                         c->set_target(helix::HeaterType::Chamber, static_cast<double>(target),
                                       {.toast = true, .on_success = [target]() {
-                                           NOTIFY_SUCCESS(lv_tr("Chamber target set to {}°C"),
-                                                          target);
+                                           NOTIFY_SUCCESS(
+                                               lv_tr("Chamber target set to {}"),
+                                               helix::units::format_display_temp(target));
                                        }});
                     }
                 }
@@ -1140,11 +1148,12 @@ void FilamentPanel::handle_nozzle_temp_tap() {
         .min_value = 0.0f,
         .max_value = keypad_max_for(helix::HeaterType::Nozzle, nozzle_max_temp_),
         .title_label = title.c_str(),
-        .unit_label = "°C",
+        .unit_label = "",
         .allow_decimal = false,
         .allow_negative = false,
         .callback = custom_nozzle_keypad_cb,
-        .user_data = this};
+        .user_data = this,
+        .temperature = true};
 
     ui_keypad_show(&config);
 }
@@ -1158,11 +1167,12 @@ void FilamentPanel::handle_bed_temp_tap() {
                                  .min_value = 0.0f,
                                  .max_value = keypad_max_for(helix::HeaterType::Bed, bed_max_temp_),
                                  .title_label = title.c_str(),
-                                 .unit_label = "°C",
+                                 .unit_label = "",
                                  .allow_decimal = false,
                                  .allow_negative = false,
                                  .callback = custom_bed_keypad_cb,
-                                 .user_data = this};
+                                 .user_data = this,
+                                 .temperature = true};
 
     ui_keypad_show(&config);
 }
@@ -1178,7 +1188,7 @@ void FilamentPanel::handle_chamber_temp_tap() {
         .min_value = 0.0f,
         .max_value = keypad_max_for(helix::HeaterType::Chamber, chamber_max_temp_),
         .title_label = title.c_str(),
-        .unit_label = "°C",
+        .unit_label = "",
         .allow_decimal = false,
         .allow_negative = false,
         .callback =
@@ -1188,7 +1198,8 @@ void FilamentPanel::handle_chamber_temp_tap() {
                     self->handle_custom_chamber_confirmed(value);
                 }
             },
-        .user_data = this};
+        .user_data = this,
+        .temperature = true};
 
     ui_keypad_show(&config);
 }
@@ -1204,7 +1215,8 @@ void FilamentPanel::handle_custom_chamber_confirmed(float value) {
     if (auto* c = get_temperature_controller()) {
         c->set_target(helix::HeaterType::Chamber, static_cast<double>(target),
                       {.toast = true, .on_success = [target]() {
-                           NOTIFY_SUCCESS(lv_tr("Chamber target set to {}°C"), target);
+                           NOTIFY_SUCCESS(lv_tr("Chamber target set to {}"),
+                                          helix::units::format_display_temp(target));
                        }});
     }
 }
@@ -1220,7 +1232,8 @@ void FilamentPanel::send_nozzle_target() {
                   {.toast = true,
                    .on_success =
                        [target = nozzle_target_]() {
-                           NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}°C"), target);
+                           NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}"),
+                                          helix::units::format_display_temp(target));
                        },
                    .on_error =
                        [this](const MoonrakerError&) {
@@ -1269,7 +1282,8 @@ void FilamentPanel::handle_custom_bed_confirmed(float value) {
     if (auto* c = get_temperature_controller()) {
         c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
                       {.toast = true, .on_success = [target = bed_target_]() {
-                           NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), target);
+                           NOTIFY_SUCCESS(lv_tr("Bed target set to {}"),
+                                          helix::units::format_display_temp(target));
                        }});
     }
 }
@@ -1284,7 +1298,7 @@ void FilamentPanel::update_material_temp_display() {
 
 void FilamentPanel::update_chamber_temp_display() {
     // chamber_current_ is already in degrees (observer converts), chamber_target_ is decidegrees
-    std::snprintf(chamber_current_buf_, sizeof(chamber_current_buf_), "%d°C", chamber_current_);
+    format_temperature(chamber_current_, chamber_current_buf_, sizeof(chamber_current_buf_));
     format_target_or_off(deci_to_degrees(chamber_target_), chamber_target_buf_,
                          sizeof(chamber_target_buf_));
     lv_subject_copy_string(&chamber_current_subject_, chamber_current_buf_);
@@ -1298,8 +1312,8 @@ void FilamentPanel::update_chamber_temp_display() {
 
 void FilamentPanel::update_left_card_temps() {
     // Update current temps
-    std::snprintf(nozzle_current_buf_, sizeof(nozzle_current_buf_), "%d°C", nozzle_current_);
-    std::snprintf(bed_current_buf_, sizeof(bed_current_buf_), "%d°C", bed_current_);
+    format_temperature(nozzle_current_, nozzle_current_buf_, sizeof(nozzle_current_buf_));
+    format_temperature(bed_current_, bed_current_buf_, sizeof(bed_current_buf_));
     lv_subject_copy_string(&nozzle_current_subject_, nozzle_current_buf_);
     lv_subject_copy_string(&bed_current_subject_, bed_current_buf_);
 
@@ -2293,7 +2307,8 @@ void FilamentPanel::handle_spool_preset_button() {
             if (auto* c = get_temperature_controller()) {
                 c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
                               {.toast = true, .on_success = [t = bed_target_]() {
-                                   NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), t);
+                                   NOTIFY_SUCCESS(lv_tr("Bed target set to {}"),
+                                                  helix::units::format_display_temp(t));
                                }});
             }
             spdlog::info("[{}] Spool preset applied: {} (nozzle={}°C, bed={}°C)", get_name(),
@@ -2326,8 +2341,9 @@ void FilamentPanel::update_spool_preset() {
 
     // Novel material — show spool preset button.
     lv_subject_copy_string(&spool_preset_name_subject_, active.material_name.c_str());
-    auto text = fmt::format("{} / {}°C", active.material_info.nozzle_recommended(),
-                            active.material_info.bed_temp);
+    auto text = fmt::format(
+        "{} / {}", helix::units::to_display_temp_whole(active.material_info.nozzle_recommended()),
+        helix::units::format_display_temp(active.material_info.bed_temp));
     lv_subject_copy_string(&spool_preset_temps_subject_, text.c_str());
     lv_subject_set_int(&spool_preset_shown_subject_, 1);
 

@@ -17,6 +17,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/xml/indexed_subject_pool.h"
@@ -87,7 +88,7 @@ static const char* const kThermistorIcons[] = {
 static constexpr size_t kThermistorIconCount = std::size(kThermistorIcons);
 static constexpr const char* kDefaultIcon = "thermometer";
 
-/// The unit a reading carries with no override. Sensors report Celsius.
+/// The widest unit a reading carries with no override, for sizing the tile.
 constexpr const char* kDefaultUnit = "\u00B0C";
 constexpr const char* kUnitOverrideKey = "unit_override";
 /// Longest unit text the dialog accepts, in characters.
@@ -174,8 +175,7 @@ std::string sensor_temp_text(const std::string& klipper_name) {
                                                    sizeof(buf));
         return buf;
     }
-    return "--\xC2\xB0"
-           "C";
+    return std::string("--") + helix::units::display_temp_symbol();
 }
 
 /// Fill a picker's row subjects from the sensor list, then publish the row
@@ -247,7 +247,7 @@ ThermistorWidget::ThermistorWidget(const std::string& instance_id)
     sizing_.publish_instance_subject(subjects_, &named_subject_, "named_subject",
                                      "thermistor_named");
     lv_subject_init_string(&unit_subject_, unit_buffer_, nullptr, sizeof(unit_buffer_),
-                           kDefaultUnit);
+                           helix::units::display_temp_symbol());
     sizing_.publish_instance_subject(subjects_, &unit_subject_, "unit_subject", "thermistor_unit");
 }
 
@@ -566,11 +566,12 @@ void ThermistorWidget::open_target_keypad() {
         .min_value = 0.0f,
         .max_value = max_value,
         .title_label = display_name_.c_str(),
-        .unit_label = "\u00B0C",
+        .unit_label = "",
         .allow_decimal = false,
         .allow_negative = false,
         .callback = target_keypad_cb,
         .user_data = nullptr,
+        .temperature = true,
     };
     ui_keypad_show(&config);
 }
@@ -606,7 +607,7 @@ void ThermistorWidget::select_icon(const std::string& name) {
 }
 
 std::string ThermistorWidget::unit_text(const std::optional<std::string>& unit_override) {
-    return unit_override ? *unit_override : std::string(kDefaultUnit);
+    return unit_override ? *unit_override : std::string(helix::units::display_temp_symbol());
 }
 
 void ThermistorWidget::set_unit_override(std::optional<std::string> unit) {

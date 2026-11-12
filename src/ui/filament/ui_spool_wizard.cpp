@@ -19,6 +19,7 @@
 #include "app_globals.h"
 #include "color_utils.h"
 #include "core/static_panel_registry.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
@@ -258,8 +259,10 @@ void SpoolWizardOverlay::register_callbacks() {
         {"on_wizard_nozzle_temp_changed",
          [](lv_event_t* e) {
              lv_obj_t* ta = static_cast<lv_obj_t*>(lv_event_get_target(e));
+             // The field holds the display unit; the filament stores Celsius.
              const char* text = lv_textarea_get_text(ta);
-             int val = text ? std::atoi(text) : 0;
+             int val =
+                 (text && text[0]) ? helix::units::display_temp_to_celsius(std::atoi(text)) : 0;
              auto& wiz = get_global_spool_wizard();
 
              // Determine if this is min or max based on widget name
@@ -277,7 +280,8 @@ void SpoolWizardOverlay::register_callbacks() {
          [](lv_event_t* e) {
              lv_obj_t* ta = static_cast<lv_obj_t*>(lv_event_get_target(e));
              const char* text = lv_textarea_get_text(ta);
-             int val = text ? std::atoi(text) : 0;
+             int val =
+                 (text && text[0]) ? helix::units::display_temp_to_celsius(std::atoi(text)) : 0;
              auto& wiz = get_global_spool_wizard();
 
              const char* name = lv_obj_get_name(ta);
@@ -1340,19 +1344,23 @@ void SpoolWizardOverlay::set_new_filament_material(const std::string& material) 
 
             char buf[16];
             if (nozzle_min) {
-                std::snprintf(buf, sizeof(buf), "%d", new_filament_nozzle_min_);
+                std::snprintf(buf, sizeof(buf), "%d",
+                              helix::units::to_display_temp_whole(new_filament_nozzle_min_));
                 lv_textarea_set_text(nozzle_min, buf);
             }
             if (nozzle_max) {
-                std::snprintf(buf, sizeof(buf), "%d", new_filament_nozzle_max_);
+                std::snprintf(buf, sizeof(buf), "%d",
+                              helix::units::to_display_temp_whole(new_filament_nozzle_max_));
                 lv_textarea_set_text(nozzle_max, buf);
             }
             if (bed_min) {
-                std::snprintf(buf, sizeof(buf), "%d", new_filament_bed_min_);
+                std::snprintf(buf, sizeof(buf), "%d",
+                              helix::units::to_display_temp_whole(new_filament_bed_min_));
                 lv_textarea_set_text(bed_min, buf);
             }
             if (bed_max) {
-                std::snprintf(buf, sizeof(buf), "%d", new_filament_bed_max_);
+                std::snprintf(buf, sizeof(buf), "%d",
+                              helix::units::to_display_temp_whole(new_filament_bed_max_));
                 lv_textarea_set_text(bed_max, buf);
             }
         }

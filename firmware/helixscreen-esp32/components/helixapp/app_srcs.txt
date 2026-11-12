@@ -346,6 +346,7 @@ src/system/config_backup.cpp
 src/system/default_layout_resolver.cpp
 src/system/diagnostics.cpp
 src/system/display_settings_manager.cpp
+src/system/region_defaults.cpp
 src/system/filament_favorites.cpp
 src/system/helix_plugin_installer.cpp
 src/system/local_plugin_installer.cpp
@@ -440,6 +441,7 @@ src/ui/home/layout_port.cpp
 src/ui/home/light_button_config.cpp
 src/ui/home/home_macro_run.cpp
 src/core/i18n_plural.cpp
+src/core/temperature_units.cpp
 src/ui/locale_formats.cpp
 src/ui/printers/printer_discovery_list.cpp
 src/ui/modals/buffer_status_modal.cpp

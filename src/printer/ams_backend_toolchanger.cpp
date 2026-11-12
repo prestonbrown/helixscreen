@@ -12,6 +12,7 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "color_utils.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "display_numbering.h"
 #include "filament_op_slot_resolver.h"
@@ -829,10 +830,10 @@ std::string AmsBackendToolChanger::controller_failure_text_locked() const {
                                              tool, controller_failure_);
         // The controller paused the print; its RESUME re-picks this tool.
         if (recovery_target_locked() == target && print_holds_printer()) {
-            text +=
-                ". " + fmt::format(fmt::runtime(lv_tr(
-                                       "Seat the hot ends, heat {} above {}°C, then tap Resume.")),
-                                   tool, resume_rule_.min_nozzle_c);
+            text += ". " +
+                    fmt::format(fmt::runtime(
+                                    lv_tr("Seat the hot ends, heat {} above {}, then tap Resume.")),
+                                tool, units::format_display_temp(resume_rule_.min_nozzle_c));
         }
         return text;
     }
@@ -885,8 +886,8 @@ void AmsBackendToolChanger::prepare_for_resume(int /*slot_index*/, ResumeReadyCa
                     AmsError(AmsResult::WRONG_STATE,
                              fmt::format("{} at {:.0f}C, at or below {}C", it->first,
                                          it->second.temperature, min_c),
-                             fmt::format(fmt::runtime(lv_tr("Heat {} above {}°C before resuming")),
-                                         tool, min_c)));
+                             fmt::format(fmt::runtime(lv_tr("Heat {} above {} before resuming")),
+                                         tool, units::format_display_temp(min_c))));
             }
             return;
         }

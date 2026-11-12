@@ -8,6 +8,7 @@
 #include "ams_state.h"
 #include "chamber_heater_backend.h"
 #include "core/observer_factory.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
@@ -250,7 +251,8 @@ void TemperatureController::set_target(const std::string& klipper_name, double c
             spdlog::info("[TemperatureController] Swap-preheat: holding {} at {}C to purge "
                          "previous filament (requested lower)",
                          klipper_name, shown);
-            NOTIFY_INFO(lv_tr("Holding nozzle at {}°C to purge previous filament."), shown);
+            NOTIFY_INFO(lv_tr("Holding nozzle at {} to purge previous filament."),
+                        helix::units::format_display_temp(shown));
             // The holding toast above is now the sole nozzle message. Drop the
             // caller's success callback so it doesn't also fire a "target set to
             // {requested}°C" toast that contradicts the temp we actually held.

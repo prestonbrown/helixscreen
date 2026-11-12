@@ -7,6 +7,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/temperature_units.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
 #include "printer_state.h"
@@ -198,7 +199,9 @@ void GuidedLoadModal::publish() {
         lv_subject_set_int(&view_subject_, static_cast<int>(view_for(session_->stage())));
         const std::string text =
             session_->heat_target_c() > 0
-                ? fmt::format("{} / {}°C", session_->heat_current_c(), session_->heat_target_c())
+                ? fmt::format("{} / {}",
+                              helix::units::to_display_temp_whole(session_->heat_current_c()),
+                              helix::units::format_display_temp(session_->heat_target_c()))
                 : std::string();
         lv_subject_copy_string(&heat_text_subject_, text.c_str());
     }

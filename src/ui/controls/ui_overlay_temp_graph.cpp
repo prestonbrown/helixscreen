@@ -14,6 +14,7 @@
 
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
+#include "core/temperature_units.h"
 #include "heater_type.h"
 #include "lvgl.h"
 #include "panel_widget_manager.h"
@@ -169,6 +170,14 @@ void TempGraphOverlay::init_subjects() {
         for (int i = 0; i < kMaxPresets; ++i) {
             UI_MANAGED_SUBJECT_INT(chamber_preset_visible_subjects_[i], 1, kChamberPresetVisible[i],
                                    subjects_);
+        }
+        static const char* const kChamberPresetText[3] = {"temp_graph_chamber_preset_1_text",
+                                                          "temp_graph_chamber_preset_2_text",
+                                                          "temp_graph_chamber_preset_3_text"};
+        for (int i = 0; i < 3; ++i) {
+            UI_MANAGED_SUBJECT_STRING(chamber_preset_text_subjects_[i],
+                                      chamber_preset_text_bufs_[i], "", kChamberPresetText[i],
+                                      subjects_);
         }
     }
 }
@@ -776,6 +785,10 @@ void TempGraphOverlay::configure_control_strip() {
             // No controller → default to showing all presets.
             const bool show = !c || c->preset_visible(heater_type, preset_values[i]);
             lv_subject_set_int(&chamber_preset_visible_subjects_[i], show ? 1 : 0);
+            if (i >= 1 && i <= 3) {
+                lv_subject_copy_string(&chamber_preset_text_subjects_[i - 1],
+                                       helix::units::format_display_temp(preset_values[i]).c_str());
+            }
         }
     }
 
@@ -916,11 +929,12 @@ void TempGraphOverlay::on_temp_graph_custom_clicked(lv_event_t* e) {
         .min_value = heater.config.keypad_range.min,
         .max_value = max_value,
         .title_label = title.c_str(),
-        .unit_label = "°C",
+        .unit_label = "",
         .allow_decimal = false,
         .allow_negative = false,
         .callback = keypad_value_cb,
         .user_data = &overlay.keypad_ctx_,
+        .temperature = true,
     };
 
     ui_keypad_show(&keypad_config);

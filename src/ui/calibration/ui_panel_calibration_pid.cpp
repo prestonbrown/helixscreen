@@ -17,6 +17,7 @@
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
+#include "core/temperature_units.h"
 #include "core/timer_guard.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
@@ -115,11 +116,10 @@ void PIDCalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(s_pid_cal_state, 0, "pid_cal_state", subjects_);
 
     // Initialize string subjects with initial values
-    UI_MANAGED_SUBJECT_STRING(subj_temp_display_, buf_temp_display_, "200°C", "pid_temp_display",
+    UI_MANAGED_SUBJECT_STRING(subj_temp_display_, buf_temp_display_, "", "pid_temp_display",
                               subjects_);
 
-    UI_MANAGED_SUBJECT_STRING(subj_temp_hint_, buf_temp_hint_, "Recommended: 200°C for extruder",
-                              "pid_temp_hint", subjects_);
+    UI_MANAGED_SUBJECT_STRING(subj_temp_hint_, buf_temp_hint_, "", "pid_temp_hint", subjects_);
 
     UI_MANAGED_SUBJECT_STRING(subj_calibrating_heater_, buf_calibrating_heater_,
                               "Extruder PID Tuning", "pid_calibrating_heater", subjects_);
@@ -622,9 +622,8 @@ bool PIDCalibrationPanel::adding_cooling_fan() {
 }
 
 void PIDCalibrationPanel::update_temp_display() {
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%d°C", target_temp_);
-    lv_subject_copy_string(&subj_temp_display_, buf);
+    lv_subject_copy_string(&subj_temp_display_,
+                           helix::units::format_display_temp(target_temp_).c_str());
 }
 
 void PIDCalibrationPanel::update_temp_hint() {
@@ -638,10 +637,8 @@ void PIDCalibrationPanel::update_temp_hint() {
                                                                  range, sizeof(range));
                 snprintf(hint, sizeof(hint), "%s: %s range", selected_material_.c_str(), range);
             } else {
-                snprintf(hint, sizeof(hint),
-                         "%s: bed temp %d\xC2\xB0"
-                         "C",
-                         selected_material_.c_str(), mat->bed_temp);
+                snprintf(hint, sizeof(hint), "%s: bed temp %s", selected_material_.c_str(),
+                         helix::units::format_display_temp(mat->bed_temp).c_str());
             }
             lv_subject_copy_string(&subj_temp_hint_, hint);
             return;
@@ -1116,8 +1113,9 @@ void PIDCalibrationPanel::on_calibration_result(bool success, float kp, float ki
         // bare snprintf here left the entire line English in all nine locales.
         const char* heater_label =
             (selected_heater_ == Heater::EXTRUDER) ? lv_tr("extruder") : lv_tr("heated bed");
-        const std::string summary = fmt::format(
-            lv_tr("Temperature control optimized for {} at {}°C."), heater_label, target_temp_);
+        const std::string summary =
+            fmt::format(lv_tr("Temperature control optimized for {} at {}."), heater_label,
+                        helix::units::format_display_temp(target_temp_));
         lv_subject_copy_string(&subj_result_summary_, summary.c_str());
 
         // Save config (will transition to COMPLETE when done)
@@ -1170,8 +1168,9 @@ void PIDCalibrationPanel::inject_demo_results() {
     // Set descriptive labels
     lv_subject_copy_string(&subj_calibrating_heater_, lv_tr("Extruder PID Tuning"));
     lv_subject_copy_string(&subj_result_summary_,
-                           "Temperature control optimized for extruder at 200\xC2\xB0"
-                           "C.");
+                           fmt::format(lv_tr("Temperature control optimized for {} at {}."),
+                                       lv_tr("extruder"), helix::units::format_display_temp(200))
+                               .c_str());
 
     // Go directly to COMPLETE (skip SAVING)
     set_state(State::COMPLETE);
@@ -1339,11 +1338,9 @@ void PIDCalibrationPanel::update_progress_display() {
     char buf[64];
     auto phase = progress_tracker_.phase();
     if (phase == PidProgressTracker::Phase::HEATING) {
-        snprintf(buf, sizeof(buf),
-                 lv_tr("Heating to %d\xC2\xB0"
-                       "C... %.0f\xC2\xB0"
-                       "C"),
-                 target_temp_, progress_tracker_.last_temp());
+        snprintf(buf, sizeof(buf), lv_tr("Heating to %s... %s"),
+                 helix::units::format_display_temp(target_temp_).c_str(),
+                 helix::units::format_display_temp(progress_tracker_.last_temp()).c_str());
     } else if (phase == PidProgressTracker::Phase::OSCILLATING) {
         if (has_sample_progress_) {
             snprintf(buf, sizeof(buf), lv_tr("Sample %d/%d"), progress_tracker_.sample_number(),
@@ -1656,8 +1653,9 @@ void PIDCalibrationPanel::on_mpc_result(const MoonrakerAdvancedAPI::MPCResult& r
 
     const char* heater_label =
         (selected_heater_ == Heater::EXTRUDER) ? lv_tr("extruder") : lv_tr("heated bed");
-    const std::string summary = fmt::format(lv_tr("MPC thermal model calibrated for {} at {}°C."),
-                                            heater_label, target_temp_);
+    const std::string summary =
+        fmt::format(lv_tr("MPC thermal model calibrated for {} at {}."), heater_label,
+                    helix::units::format_display_temp(target_temp_));
     lv_subject_copy_string(&subj_result_summary_, summary.c_str());
 
     spdlog::info("[PIDCal] MPC result: heat_cap={:.4f} sensor_resp={:.6f} ambient={:.6f} fan='{}'",

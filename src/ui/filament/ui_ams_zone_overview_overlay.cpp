@@ -17,6 +17,7 @@
 #include "ams_state.h"
 #include "core/data_root_resolver.h"
 #include "core/static_panel_registry.h"
+#include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
@@ -193,15 +194,11 @@ void AmsZoneOverviewOverlay::rebuild_rows() {
 
         char reading[32] = {};
         if (z.env.has_humidity) {
-            snprintf(reading, sizeof(reading),
-                     "%.0f%%  %.0f\xC2\xB0"
-                     "C",
-                     z.env.humidity_pct, z.env.temperature_c);
+            snprintf(reading, sizeof(reading), "%.0f%%  %s", z.env.humidity_pct,
+                     helix::units::format_display_temp(z.env.temperature_c).c_str());
         } else {
-            snprintf(reading, sizeof(reading),
-                     "%.0f\xC2\xB0"
-                     "C",
-                     z.env.temperature_c);
+            snprintf(reading, sizeof(reading), "%s",
+                     helix::units::format_display_temp(z.env.temperature_c).c_str());
         }
         reading_pool_.set_string(i, reading);
 

@@ -22,6 +22,7 @@
 #include "ui_utils.h"
 
 #include "core/static_panel_registry.h"
+#include "core/temperature_units.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "keypad_input.h"
 #include "lvgl/lvgl.h"
@@ -78,6 +79,9 @@ static constexpr int kKeypadFractionDigits = 2;
 
 // Current config and input state
 static ui_keypad_config_t current_config;
+// A temperature config's Celsius range, which a typed value converts back into.
+static float temperature_min_c = 0.0f;
+static float temperature_max_c = 0.0f;
 // Set by a confirm: the close that follows is not a cancel, and carries this value.
 static bool confirmed = false;
 static float confirmed_value = 0.0f;
@@ -230,8 +234,12 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
         return false;
     }
 
-    // Store config
-    current_config = *config;
+    // Store config, in the unit the user reads for a temperature
+    const helix::units::TempUnit unit = helix::units::display_temp_unit();
+    current_config = helix::ui::keypad_config_in_unit(*config, unit);
+    temperature_min_c = config->min_value;
+    temperature_max_c = config->max_value;
+    config = &current_config;
 
     // Start with empty display (user enters fresh value)
     input.clear();
@@ -325,6 +333,29 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
     return true;
 }
 
+ui_keypad_config_t helix::ui::keypad_config_in_unit(const ui_keypad_config_t& config,
+                                                    units::TempUnit unit) {
+    ui_keypad_config_t shown = config;
+    if (!config.temperature) {
+        return shown;
+    }
+    // Whole degrees inside the Celsius range, so every accepted value converts back
+    // to a target the range allows.
+    shown.min_value = static_cast<float>(std::ceil(units::celsius_to_unit(config.min_value, unit)));
+    shown.max_value =
+        static_cast<float>(std::floor(units::celsius_to_unit(config.max_value, unit)));
+    shown.initial_value =
+        static_cast<float>(units::celsius_to_unit_whole(config.initial_value, unit));
+    shown.unit_label = units::temp_unit_symbol(unit);
+    return shown;
+}
+
+float helix::ui::keypad_value_to_celsius(float typed, float min_c, float max_c,
+                                         units::TempUnit unit) {
+    const int celsius = units::unit_to_celsius_whole(typed, unit);
+    return std::clamp(static_cast<float>(celsius), min_c, max_c);
+}
+
 void helix::ui::show_keypad_for_slider(lv_obj_t* slider, const SliderFieldSpec& spec,
                                        ui_keypad_callback_t callback, void* user_data,
                                        const char* log_name) {
@@ -384,6 +415,10 @@ static void handle_confirm() {
         NOTIFY_ERROR(lv_tr("Value must be between {} and {}"), current_config.min_value,
                      current_config.max_value);
         return; // Don't close keypad, let user correct the value
+    }
+    if (current_config.temperature) {
+        value = helix::ui::keypad_value_to_celsius(value, temperature_min_c, temperature_max_c,
+                                                   helix::units::display_temp_unit());
     }
     if (current_config.validate) {
         const std::string why = current_config.validate(value);

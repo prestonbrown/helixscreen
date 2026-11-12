@@ -1,7 +1,6 @@
 locale: fr
 translations:
   '%d-%d': '%d-%d'
-  '%d-%d°C': '%d-%d°C'
   ' (timed out)': ' (délai dépassé)'
   ' frames': ' images'
   ' left': ' restant'
@@ -111,7 +110,6 @@ translations:
   12-hour: 12 heures
   120 seconds: 120 secondes
   15 seconds: 15 secondes
-  170-300 °C: '170-300 °C'
   180°: 180°
   180° Upside Down: 180° à l'envers
   2 min: '2 min'
@@ -391,7 +389,7 @@ translations:
   Assisting: Assistance
   At least {} lines in helixscreen.env were ignored: 'Au moins {} lignes de helixscreen.env ont été ignorées'
   At target: Sur la cible
-  At {}°C, about {} minutes.: 'À {}°C, environ {} minutes.'
+  At {}, about {} minutes.: À {}, environ {} minutes.
   Authentication failed: Échec de l'authentification
   Auto: Auto
   Auto Bed Mesh: Maillage auto du plateau
@@ -452,7 +450,6 @@ translations:
   Beacon auto-calibrate sent: Beacon auto-calibrage envoyé
   Beacon calibrate sent: Beacon calibrage envoyé
   Bed: Plateau
-  Bed (°C): Plateau (°C)
   Bed Clear Check: 'Vérification du plateau libre'
   Bed Drying: 'Séchage sur plateau'
   Bed Heater: Chauffage du plateau
@@ -475,17 +472,17 @@ translations:
   'Bed cooling, spools still on the bed:': 'Le plateau refroidit, les bobines sont toujours dessus :'
 
   Bed is Level!: Le plateau est niveau !
-  Bed is at {:.0f}°C, the print needs {:.0f}°C.: Le plateau est à {:.0f}°C, l'impression a besoin de {:.0f}°C.
+  Bed is at {}, the print needs {}.: Le plateau est à {}, l'impression a besoin de {}.
   Bed mesh: Maillage du plateau
   'Bed mesh calibration failed: {}': 'Échec du calibrage du maillage du plateau : {}'
   Bed mesh operation timed out: Maillage du plateau — délai dépassé
   Bed mesh...: Maillage du plateau...
   Bed size unknown: 'Taille du plateau inconnue'
-  Bed target set to {}°C: Cible plateau réglée à {}°C
-  Bed temp must be 0-%d°C: La température du plateau doit être entre 0 et %d°C
+  Bed target set to {}: Cible plateau réglée à {}
+  Bed temp must be %s: La température du plateau doit être entre 0 et %s
   Bed warming timed out: Préchauffage du plateau — délai dépassé
-  Bed {:.0f} / {:.0f}°C: Plateau {:.0f} / {:.0f}°C
-  Bed {:.0f}°C: Plateau {:.0f}°C
+  Bed {}: Plateau {}
+  Bed {} / {}: Plateau {} / {}
   Before starting: 'Avant de commencer'
   Below target: Sous la cible
   Belt Tension: Tension de courroie
@@ -718,11 +715,11 @@ translations:
     scan envoyé — utilisez le panneau Z-Offset pour ajuster
   Cartographer touch calibrate sent: Cartographer calibrage tactile envoyé
   Category: Catégorie
+  Celsius (°C): Celsius (°C)
   Center: 'Centre'
   Center QR code in frame: Centrez le QR code dans le cadre
   'Chamb:': 'Chambre :'
   Chamber: Enceinte
-  Chamber (°C): Enceinte (°C)
   Chamber Cooling Fan: Ventilateur de refroidissement de chambre
   Chamber Dryer: 'Séchoir de caisson'
   Chamber Fan: Ventilateur de chambre
@@ -733,13 +730,13 @@ translations:
   Chamber air: 'Air de la chambre'
   Chamber and dryer humidity monitoring: Surveillance de l'humidité de la chambre
     et du sécheur
-  Chamber at %d°C: Chambre à %d°C
+  Chamber at %s: Chambre à %s
   Chamber heater didn't start: 'Le chauffage de la chambre n''a pas démarré'
   Chamber heater didn't start. {}: 'Le chauffage de la chambre n''a pas démarré. {}'
-  Chamber heating to %d°C...: Chauffe de la chambre à %d°C...
+  Chamber heating to %s...: Chauffe de la chambre à %s...
   Chamber light fitted: 'Éclairage de chambre installé'
-  Chamber target set to {}°C: Cible de chambre définie à {}°C
-  Chamber temp must be 0-%d°C: La température de l'enceinte doit être entre 0 et %d°C
+  Chamber target set to {}: Cible de chambre définie à {}
+  Chamber temp must be %s: La température de l'enceinte doit être entre 0 et %s
   Chamber too hot: 'Chambre trop chaude'
   Change: Modifier
   Change Address: Changer l'adresse
@@ -824,6 +821,7 @@ translations:
   Choose sound style: Choisir le style de son
   ? Choose the model that matches your printer. This sets the print macros, fan roles and calibration behavior HelixScreen uses.
   : Choisissez le modèle correspondant à votre imprimante. Cela définit les macros d'impression, les rôles des ventilateurs et le comportement de calibration qu'utilise HelixScreen.
+  Choose the order of day, month and year: Choisir l'ordre du jour, du mois et de l'année
   Choose what to power off or restart.: Choisissez ce qu'il faut éteindre ou redémarrer.
   'Chute position: X {:.1f}, Y {:.1f}': 'Position de la goulotte de purge : X {:.1f}, Y {:.1f}'
 
@@ -1141,7 +1139,7 @@ translations:
   Current Z Position: Position Z actuelle
   'Current name:': 'Nom actuel :'
   'Current:': 'Actuel :'
-  'Current: %d°C | Target: %d°C': 'Actuel : %d°C | Cible : %d°C'
+  'Current: %s | Target: %s': 'Actuel : %s | Cible : %s'
   Currently Loaded: Actuellement chargé
   Currently printing: Impression en cours
   'Currently:': 'Actuellement :'
@@ -1181,14 +1179,16 @@ translations:
   Dark Mode: Mode sombre
   Date (newest): Date (plus récent)
   Date (oldest): Date (plus ancien)
+  Date Format: Format de date
   Day: Jour
+  Day Month Year: Jour Mois Année
   Debug: Débogage
   Deep Black: Noir profond
   Default: 'Par défaut'
   Default Parameters: 'Paramètres par défaut'
   Default border thickness: Épaisseur de bordure par défaut
-  'Default: %s nozzle, %d°C bed': 'Par défaut : buse %s, plateau %d°C'
-  'Default: %s nozzle, %d°C bed, %d°C chamber': 'Par défaut : buse %s, plateau %d°C, enceinte %d°C'
+  'Default: %s nozzle, %s bed': 'Par défaut : buse %s, plateau %s'
+  'Default: %s nozzle, %s bed, %s chamber': 'Par défaut : buse %s, plateau %s, enceinte %s'
   Defaults restored: Valeurs par défaut restaurées
   Define macros in your printer.cfg: Définissez les macros dans votre printer.cfg
   Delete: Supprimer
@@ -1521,6 +1521,7 @@ translations:
   FILAMENTS: FILAMENTS
   FILTERS: FILTRES
   Factory Reset: Réinitialisation d'usine
+  Fahrenheit (°F): Fahrenheit (°F)
   Failed: Échoué
   Failed to apply limits: Échec de l'application des limites
   Failed to apply settings: Échec de l'application des paramètres
@@ -1901,13 +1902,12 @@ translations:
   Heat soak: Stabilisation thermique
   ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
   : 'Le heat soak laisse le caisson chauffer avant une impression. Il apparaît car l''imprimante a une macro de heat soak ou il a été activé dans les réglages ; HelixScreen propose la macro dans les options avant impression.'
-  Heat the bed to {}°C: Chauffer le plateau à {}°C
+  Heat the bed to {}: Chauffer le plateau à {}
   Heat the chamber too: "Chauffer aussi l'enceinte"
-  Heat the extruder to at least {}°C before loading filament: Chauffez l'extrudeur à au moins {}°C avant de charger le filament
+  Heat the extruder to at least {} before loading filament: Chauffez l'extrudeur à au moins {} avant de charger le filament
   Heat the hotend.: "Chauffez le hotend."
-  Heat to at least %d°C for filament operations: Chauffez à au moins %d°C pour les
-    opérations sur le filament
-  Heat {} above {}°C before resuming: 'Chauffez {} au-dessus de {}°C avant de reprendre'
+  Heat to at least %s for filament operations: Chauffez à au moins %s pour les opérations sur le filament
+  Heat {} above {} before resuming: Chauffez {} au-dessus de {} avant de reprendre
   Heatbed Temperature: Température du plateau chauffant
   Heated Bed: Plateau chauffant
   Heated Bed MPC Calibration: Calibration MPC du plateau chauffant
@@ -1923,7 +1923,7 @@ translations:
   HeaterSelect: Sélection du chauffage
   Heaters off: Chauffages éteints
   Heating: Chauffage
-  Heating (%d°C below minimum): Chauffe (%d°C sous le minimum)
+  Heating (%s below minimum): Chauffe (%s sous le minimum)
   Heating Bed...: Chauffe du plateau...
   Heating Chamber...: Chauffe de la chambre...
   Heating Nozzle...: Chauffe de la buse...
@@ -1941,16 +1941,16 @@ translations:
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Chauffe du plateau et de la buse pour que l'impression adhère de nouveau et que la buse s'en détache"
   Heating the nozzle: Chauffage de la buse
   Heating the nozzle. Have the filament ready to push in.: "Chauffe de la buse. Préparez le filament pour l'insérer."
-  Heating to %d°C... %.0f°C: Chauffe à %d°C... %.0f°C
+  Heating to %s... %s: Chauffe à %s... %s
   'Heating to %s: %d:%02d left': 'Chauffage à %s : %d:%02d restant'
-  Heating to {}°C before {}...: Chauffe à {}°C avant {}...
-  Heating to {}°C for {}...: Chauffe à {}°C pendant {}...
-  Heating to {}°C...: Chauffe à {}°C...
+  Heating to {} before {}...: Chauffe à {} avant {}...
+  Heating to {} for {}...: Chauffe à {} pendant {}...
+  Heating to {}...: Chauffe à {}...
   Heating {}...: Chauffe de {}...
   Heating...: Chauffage...
-  'Heating: %d / %d°C': 'Chauffage : %d / %d°C'
-  Heats the bed to {:g}°C, above this printer's {:g}°C limit.: 'Chauffe le plateau à {:g}°C, au-delà de la limite de {:g}°C de cette imprimante.'
-  Heats the nozzle to {:g}°C, above this printer's {:g}°C limit.: 'Chauffe la buse à {:g}°C, au-delà de la limite de {:g}°C de cette imprimante.'
+  'Heating: %d / %s': 'Chauffage : %d / %s'
+  Heats the bed to {}, above this printer's {} limit.: Chauffe le plateau à {}, au-delà de la limite de {} de cette imprimante.
+  Heats the nozzle to {}, above this printer's {} limit.: Chauffe la buse à {}, au-delà de la limite de {} de cette imprimante.
   Heightmap and flatness of the active bed mesh: 'Carte des hauteurs et planéité du maillage du plateau actif'
   HelixPrint Plugin: 'Plugin HelixPrint'
   HelixPrint plugin updated.: 'Plugin HelixPrint mis à jour.'
@@ -1986,8 +1986,7 @@ translations:
   Hold anywhere to cancel: Maintenez n'importe où pour annuler
   Hold slicer prints that do not fit: 'Retenir les impressions du trancheur qui ne conviennent pas'
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: Maintenez {} bien en place sur la tête. Le verrou se ferme dessus et il devient l'outil monté.
-  Holding nozzle at {}°C to purge previous filament.: Maintien de la buse à {}°C pour
-    purger le filament précédent.
+  Holding nozzle at {} to purge previous filament.: Maintien de la buse à {} pour purger le filament précédent.
   Home: Origine
   Home & Continue: Référencer et continuer
   Home All: "Tout référencer"
@@ -2441,7 +2440,7 @@ translations:
   MMU command failed: Échec de la commande MMU
   MOTION & LEVELING: 'MOUVEMENT & NIVELLEMENT'
   MPC: MPC
-  MPC thermal model calibrated for {} at {}°C.: 'Modèle thermique MPC calibré pour {} à {}°C.'
+  MPC thermal model calibrated for {} at {}.: Modèle thermique MPC calibré pour {} à {}.
   Machine Limits: Limites de la machine
   Macro: Macro
   Macro Browser: Navigateur de macros
@@ -2565,6 +2564,7 @@ translations:
   Modified: Modifié
   Monitoring: Surveillance
   Month: Mois
+  Month Day Year: Mois Jour Année
   Moonraker: Moonraker
   Moonraker at {} rejected the API key.: 'Moonraker à {} a refusé la clé API.'
   Moonraker at {} requires an API key.: 'Moonraker à {} exige une clé API.'
@@ -2863,8 +2863,8 @@ translations:
   Nozzle: Buse
   Nozzle / Bed: Buse / Plateau
   Nozzle Clean: Nettoyage buse
-  Nozzle Max (°C): Buse max (°C)
-  Nozzle Min (°C): Buse min (°C)
+  Nozzle Max: Buse max
+  Nozzle Min: Buse min
   Nozzle Moves: La buse bouge
   Nozzle Temp: Temp. de la buse
   Nozzle Temperature: Température de la buse
@@ -2873,15 +2873,15 @@ translations:
   Nozzle clean complete: Nettoyage de la buse terminé
   Nozzle clog detected: Buse bouchée détectée
   Nozzle diameter: "Diamètre de buse"
-  Nozzle did not reach {}°C — {} canceled: La buse n'a pas atteint {}°C — {} annulé
+  Nozzle did not reach {} — {} canceled: La buse n'a pas atteint {} — {} annulé
   Nozzle flow: "Débit de buse"
   Nozzle interval: 'Intervalle de la buse'
   Nozzle min cannot exceed max: Le minimum de la buse ne peut pas dépasser le maximum
   'Nozzle not changed: the printer did not confirm it': "Buse non modifiée : l'imprimante ne l'a pas confirmé"
   'Nozzle not changed: {}': "Buse non modifiée : {}"
   Nozzle size and flow type per head: "Taille et type de débit de buse par tête d'outil"
-  Nozzle target set to {}°C: Cible buse réglée à {}°C
-  Nozzle temp must be 100-%d°C: La température de la buse doit être entre 100 et %d°C
+  Nozzle target set to {}: Cible buse réglée à {}
+  Nozzle temp must be %s: La température de la buse doit être entre 100 et %s
   Nozzle, bed, and chamber in one widget: Buse, plateau et enceinte réunis
   'Nozzle:': 'Buse :'
   'Nozzles still heating: {}': 'Buses encore en chauffe : {}'
@@ -3791,7 +3791,7 @@ translations:
   Seat: Installer
   Seat a tool by hand: Installer un outil à la main
   Seat a tool by hand for the first Z home: Installer un outil à la main pour la première prise d'origine Z
-  Seat the hot ends, heat {} above {}°C, then tap Resume.: 'Remettez les hotends en place, chauffez {} au-dessus de {}°C, puis appuyez sur Reprendre.'
+  Seat the hot ends, heat {} above {}, then tap Resume.: Remettez les hotends en place, chauffez {} au-dessus de {}, puis appuyez sur Reprendre.
   Seat which tool by hand?: Quel outil installer à la main ?
   Seating {}...: Installation de {}...
   Secondary: Secondaire
@@ -3882,7 +3882,7 @@ translations:
   Set local timezone for time display: Définir le fuseau horaire local pour l'affichage
   Set logging verbosity for troubleshooting: Définir le niveau de détail des logs
     pour le dépannage
-  Set temperature between {}°C and {}°C: 'Définissez une température entre {}°C et {}°C'
+  Set temperature between {} and {}: Définissez une température entre {} et {}
   Set the X and Y belts with the motorized tensioners: "Régler les courroies X et Y avec les tendeurs motorisés"
   Set the clock, theme and units. You can change any of these later in Settings.: "Réglez l'horloge, le thème et les unités. Vous pourrez tout modifier plus tard dans les Paramètres."
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
@@ -3918,6 +3918,7 @@ translations:
   Show Touch Points: Afficher les points de contact
   Show a confirmation dialog when tapping a macro: Afficher une boîte de dialogue
     de confirmation lors de l'appui sur une macro
+  Show and enter temperatures in Celsius or Fahrenheit: Afficher et saisir les températures en Celsius ou en Fahrenheit
   Show instead of dimming: Afficher au lieu d'atténuer
   Show light controls for a light connected to this printer: 'Afficher les commandes d''éclairage d''une lumière connectée à cette imprimante'
   Show print speed and flow as mm/s and mm³/s instead of percent: "Afficher la vitesse et le débit en mm/s et mm³/s plutôt qu'en pourcentage"
@@ -4250,14 +4251,14 @@ translations:
   Telemetry queue cleared: File de télémétrie vidée
   Temp: Temp.
   Temp Compensation: Compensation de temp.
-  Temp °C: Temp °C
   Temperature: Température
   Temperature Graph: 'Graphique de température'
   Temperature Graph Config: Config. graphique de température
   # Source: calibration_pid_panel.xml:333
   Temperature Sensors: 'Capteurs de température'
+  Temperature Unit: Unité de température
   Temperature and humidity sensor not responding: Le capteur de température et d'humidité ne répond pas
-  Temperature control optimized for {} at {}°C.: 'Régulation de température optimisée pour {} à {}°C.'
+  Temperature control optimized for {} at {}.: Régulation de température optimisée pour {} à {}.
   Temperatures: Températures
   Temperatures plotted over time: Températures tracées dans le temps
   Temperatures saved: Températures enregistrées
@@ -4282,7 +4283,7 @@ translations:
   Test Tracker: Test Tracker
   Test Both: Les deux
   Test label printed: Étiquette de test imprimée
-  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C.': 'Tour de test de {:.0f} mm de large et {:.0f} mm de haut, environ {} min plus la chauffe : {} bandes de {:.0f} mm à {}°C.'
+  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'Tour de test de {:.0f} mm de large et {:.0f} mm de haut, environ {} min plus la chauffe : {} bandes de {:.0f} mm à {}.'
   'Testing rotation: %d° (%d/%d) - %ds remaining': 'Test de rotation : %d°
     (%d/%d) - %ds restantes'
   Testing, servo, and motor operations: 'Opérations de test, servo et moteur'
@@ -4382,13 +4383,13 @@ translations:
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : La bobine chargée est {}, mais ce fichier a été tranché pour {}. Un filament chargé fonctionne à un débit plus faible et nécessite une buse durcie.
   The message your printer's macros show (M117): 'Le message affiché par les macros de votre imprimante (M117)'
-  ? The mounted nozzle heats to 200°C and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
-  : La buse montée chauffe à 200°C puis refroidit pendant l'ajustement du modèle de sécurité du chauffage. Laissez le ventilateur de pièce éteint et éloignez tout matériau inflammable de la tête. Cela prend plusieurs minutes.
+  ? The mounted nozzle heats to {} and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
+  : La buse montée chauffe à {} puis refroidit pendant l'ajustement du modèle de sécurité du chauffage. Laissez le ventilateur de pièce éteint et éloignez tout matériau inflammable de la tête. Cela prend plusieurs minutes.
   The new IPv4 settings could not be marked as kept, so the next start undoes them.: 'Les nouveaux paramètres IPv4 n''ont pas pu être marqués comme conservés ; le prochain démarrage les annulera.'
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: 'La buse fait quelques mouvements de test dans un coin, à l''écart de la zone d''impression, et répète jusqu''à convergence.'
   "The nozzle hasn't moved since the power went out. Check that it sits just above the top of the print, then resume.": "La buse n'a pas bougé depuis la coupure de courant. Vérifiez qu'elle se trouve juste au-dessus du haut de l'impression, puis reprenez."
-  ? The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
-  : La buse chauffe à 200°C pendant que le ventilateur de pièce parcourt ses vitesses. Pour un ajustement précis, montez le conduit comme pour imprimer. Cela prend plusieurs minutes.
+  ? The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
+  : La buse chauffe à {} pendant que le ventilateur de pièce parcourt ses vitesses. Pour un ajustement précis, montez le conduit comme pour imprimer. Cela prend plusieurs minutes.
   The nozzle is clear of the print: La buse ne touche pas l'impression
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : La buse est chaude. Brossez-la avec la brosse métallique fournie, gardez la position d'ancrage propre, puis appuyez sur Suivant.
@@ -4416,7 +4417,7 @@ translations:
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : L'impression est en pause. Changer d'outil maintenant déplace la tête d'impression et remplace le filament au niveau de la buse. Reprenez l'impression une fois le changement terminé.
   The print is still stuck to the bed: L'impression est toujours collée au plateau
-  The print is waiting for the chamber to reach {}°C, but the heater is not heating.: 'L''impression attend que la chambre atteigne {}°C, mais le chauffage ne chauffe pas.'
+  The print is waiting for the chamber to reach {}, but the heater is not heating.: L'impression attend que la chambre atteigne {}, mais le chauffage ne chauffe pas.
   The print is waiting for the chamber, but the heater is not heating.: 'L''impression attend la chambre, mais le chauffage ne chauffe pas.'
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: 'La taille imprimable en millimètres (X × Y × Z), d''après les limites des axes dans la configuration Klipper de l''imprimante.'
   The printer applied this value and keeps it for this tool.: 'L''imprimante a appliqué cette valeur et la conserve pour cet outil.'
@@ -4974,8 +4975,8 @@ translations:
   Waiting for bed temperature...: Attente de la température du plateau...
   Waiting for bed to reach temperature for accurate calibration.: En attente que le
     plateau atteigne la température pour une calibration précise.
-  Waiting for chamber {} / {}°C: 'Attente de la chambre {} / {}°C'
-  Waiting for chamber {}°C: 'Attente de la chambre {}°C'
+  Waiting for chamber {}: Attente de la chambre {}
+  Waiting for chamber {} / {}: Attente de la chambre {} / {}
   Waiting for the chamber to heat: Attente du chauffage de la chambre
   Waiting for the filament system to report its state: En attente de l'état du système de filament
   Waiting for the printer: Attente de l'imprimante
@@ -5085,6 +5086,7 @@ translations:
   ? "YOU WIN!\nScore: {}\nTap to play again"
   : "GAGNÉ !\nScore : {}\nTouchez pour rejouer"
   Year: Année
+  Year Month Day: Année Mois Jour
   'Yes': Oui
   You can skip this and calibrate later in Settings.: Vous pouvez ignorer cette étape
     et calibrer plus tard dans les paramètres.

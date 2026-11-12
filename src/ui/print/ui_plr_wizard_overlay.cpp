@@ -16,6 +16,7 @@
 #include "connection_state.h"
 #include "core/gcode_filename.h"
 #include "core/observer_factory.h"
+#include "core/temperature_units.h"
 #include "exception_policy.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
@@ -689,8 +690,9 @@ void PlrWizardOverlay::publish_plan() {
     const std::string outage = outage_text(status_.snapshot ? status_.snapshot->age_s : -1.0);
     lv_subject_copy_string(&s_plr_outage, outage.c_str());
     const std::string bed = reply.bed_target > 0.0f
-                                ? tr_format(lv_tr("Bed is at {:.0f}°C, the print needs {:.0f}°C."),
-                                            reply.bed_current, reply.bed_target)
+                                ? tr_format(lv_tr("Bed is at {}, the print needs {}."),
+                                            helix::units::format_display_temp(reply.bed_current),
+                                            helix::units::format_display_temp(reply.bed_target))
                                 : std::string();
     lv_subject_copy_string(&s_plr_bed, bed.c_str());
     lv_subject_set_int(&s_plr_warn_layer_start,
@@ -716,9 +718,10 @@ void PlrWizardOverlay::update_bed_live() {
         units::from_decidegrees(lv_subject_get_int(temps.get_bed_temp_subject()));
     const double target =
         units::from_decidegrees(lv_subject_get_int(temps.get_bed_target_subject()));
-    const std::string text = target > 0.0
-                                 ? tr_format(lv_tr("Bed {:.0f} / {:.0f}°C"), current, target)
-                                 : tr_format(lv_tr("Bed {:.0f}°C"), current);
+    const std::string text =
+        target > 0.0 ? tr_format(lv_tr("Bed {} / {}"), helix::units::to_display_temp_whole(current),
+                                 helix::units::format_display_temp(target))
+                     : tr_format(lv_tr("Bed {}"), helix::units::format_display_temp(current));
     lv_subject_copy_string(&s_plr_bed_live, text.c_str());
 }
 

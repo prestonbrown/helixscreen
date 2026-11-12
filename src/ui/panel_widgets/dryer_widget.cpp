@@ -15,6 +15,7 @@
 #include "ui_tile_rung.h"
 
 #include "core/observer_factory.h"
+#include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
@@ -189,9 +190,9 @@ std::string temp_text(const helix::DryerSource& s, bool current_only) {
         return helix::ui::temperature::format_temperature_pair(s.current_c, s.target_c, buf,
                                                                sizeof(buf));
     if (s.current_c >= 0)
-        return fmt::format("{}°C", s.current_c);
+        return helix::units::format_display_temp(s.current_c);
     if (s.target_c > 0)
-        return fmt::format("{}°C", s.target_c);
+        return helix::units::format_display_temp(s.target_c);
     return "";
 }
 

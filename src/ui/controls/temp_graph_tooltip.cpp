@@ -5,6 +5,7 @@
 
 #include "ui_format_utils.h"
 
+#include "core/temperature_units.h"
 #include "temp_graph_internal.h"
 #include "theme_manager.h"
 
@@ -259,7 +260,8 @@ void temp_graph_tooltip_draw_cb(lv_event_t* e) {
     static char l2_target[16];
     strncpy(l1_name, meta->name, sizeof(l1_name) - 1);
     l1_name[sizeof(l1_name) - 1] = '\0';
-    snprintf(l1_temp, sizeof(l1_temp), "%.1f°", pin->deci_temp / 10.0f);
+    snprintf(l1_temp, sizeof(l1_temp), "%.1f°",
+             helix::units::to_display_temp(pin->deci_temp / 10.0));
 
     time_t sec = static_cast<time_t>(pin->timestamp_ms / 1000);
     struct tm tm_buf {};
@@ -270,7 +272,8 @@ void temp_graph_tooltip_draw_cb(lv_event_t* e) {
 
     const bool has_target = pin->deci_target != 0;
     if (has_target) {
-        snprintf(l2_target, sizeof(l2_target), "%.0f°", pin->deci_target / 10.0f);
+        snprintf(l2_target, sizeof(l2_target), "%.0f°",
+                 helix::units::to_display_temp(pin->deci_target / 10.0));
     }
 
     // ---- measure ----

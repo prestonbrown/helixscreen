@@ -50,10 +50,21 @@ class WizardAppearanceStep : public Step {
     /// Save the theme at @p index and redraw every screen in it.
     static void apply_theme_by_index(int index);
 
+    /// Save the region defaults for the current language and timezone into each
+    /// unit row that still follows the region: one nobody had saved when the page
+    /// opened and nobody has picked on it since.
+    void apply_region_defaults();
+
+    /// A pick on a row: it stops following the region.
+    void on_temp_unit_picked(int index);
+    void on_date_format_picked(int index);
+
   private:
     lv_obj_t* root_ = nullptr;
     SubjectManager subjects_;
     lv_subject_t tz_attention_{};
+    bool temp_unit_follows_region_ = false;
+    bool date_format_follows_region_ = false;
 };
 
 WizardAppearanceStep* get_wizard_appearance_step();

@@ -14,6 +14,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
@@ -296,9 +297,12 @@ PaTuningOverlay::ChosenHead PaTuningOverlay::chosen_head() const {
 void PaTuningOverlay::refresh_presets() {
     for (int i = 0; i < kPresetSlots; ++i) {
         const auto temps = helix::presets::slot_temps(i);
-        lv_subject_copy_string(&preset_temp_[i],
-                               temps ? fmt::format("{}° / {}°", temps->nozzle, temps->bed).c_str()
-                                     : "");
+        lv_subject_copy_string(
+            &preset_temp_[i],
+            temps ? fmt::format("{}° / {}°", helix::units::to_display_temp_whole(temps->nozzle),
+                                helix::units::to_display_temp_whole(temps->bed))
+                        .c_str()
+                  : "");
         lv_subject_set_int(&preset_selected_[i], i == selected_preset_ ? 1 : 0);
     }
 }
@@ -404,9 +408,9 @@ void PaTuningOverlay::refresh_setup() {
     const int minutes = std::max(1, helix::pa::estimate_print_seconds(params) / 60);
     const std::string summary = fmt::format(
         fmt::runtime(lv_tr("Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus "
-                           "heating: {} bands of {:.0f} mm at {}°C.")),
+                           "heating: {} bands of {:.0f} mm at {}.")),
         params.geometry.size_mm, helix::pa::layer_z(params.geometry, layers), minutes, ramp_.bands,
-        params.geometry.band_mm, nozzle_temp_);
+        params.geometry.band_mm, helix::units::format_display_temp(nozzle_temp_));
     const auto macros = params.macros;
     const std::string starts =
         macros.start.empty()

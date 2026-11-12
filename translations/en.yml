@@ -1,7 +1,6 @@
 locale: en
 translations:
   '%d-%d': '%d-%d'
-  '%d-%d°C': '%d-%d°C'
   ' (timed out)': ' (timed out)'
   ' frames': ' frames'
   ' left': ' left'
@@ -107,7 +106,6 @@ translations:
   12-hour: 12-hour
   120 seconds: 120 seconds
   15 seconds: 15 seconds
-  170-300 °C: 170-300 °C
   180°: 180°
   180° Upside Down: 180° Upside Down
   2 min: 2 min
@@ -378,7 +376,7 @@ translations:
   Assisting: Assisting
   At least {} lines in helixscreen.env were ignored: At least {} lines in helixscreen.env were ignored
   At target: At target
-  At {}°C, about {} minutes.: 'At {}°C, about {} minutes.'
+  At {}, about {} minutes.: At {}, about {} minutes.
   Authentication failed: Authentication failed
   Auto: Auto
   Auto Bed Mesh: Auto Bed Mesh
@@ -437,7 +435,6 @@ translations:
   Beacon auto-calibrate sent: Beacon auto-calibrate sent
   Beacon calibrate sent: Beacon calibrate sent
   Bed: Bed
-  Bed (°C): Bed (°C)
   Bed Clear Check: Bed Clear Check
   Bed Drying: Bed Drying
   Bed Heater: Bed Heater
@@ -459,17 +456,17 @@ translations:
   Bed clear · Start next: Bed clear · Start next
   'Bed cooling, spools still on the bed:': 'Bed cooling, spools still on the bed:'
   Bed is Level!: Bed is Level!
-  Bed is at {:.0f}°C, the print needs {:.0f}°C.: Bed is at {:.0f}°C, the print needs {:.0f}°C.
+  Bed is at {}, the print needs {}.: Bed is at {}, the print needs {}.
   Bed mesh: Bed mesh
   'Bed mesh calibration failed: {}': 'Bed mesh calibration failed: {}'
   Bed mesh operation timed out: Bed mesh operation timed out
   'Bed mesh...': 'Bed mesh...'
   Bed size unknown: Bed size unknown
-  Bed target set to {}°C: Bed target set to {}°C
-  Bed temp must be 0-%d°C: Bed temp must be 0-%d°C
+  Bed target set to {}: Bed target set to {}
+  Bed temp must be %s: Bed temp must be %s
   Bed warming timed out: Bed warming timed out
-  Bed {:.0f} / {:.0f}°C: Bed {:.0f} / {:.0f}°C
-  Bed {:.0f}°C: Bed {:.0f}°C
+  Bed {}: Bed {}
+  Bed {} / {}: Bed {} / {}
   Before starting: Before starting
   Below target: Below target
   Belt Tension: Belt Tension
@@ -695,11 +692,11 @@ translations:
     calibrate sent — use Z-Offset panel to adjust
   Cartographer touch calibrate sent: Cartographer touch calibrate sent
   Category: Category
+  Celsius (°C): Celsius (°C)
   Center: Center
   Center QR code in frame: Center QR code in frame
   'Chamb:': 'Chamb:'
   Chamber: Chamber
-  Chamber (°C): Chamber (°C)
   Chamber Cooling Fan: Chamber Cooling Fan
   Chamber Dryer: Chamber Dryer
   Chamber Fan: Chamber Fan
@@ -709,13 +706,13 @@ translations:
   Chamber Temperature: Chamber Temperature
   Chamber air: Chamber air
   Chamber and dryer humidity monitoring: Chamber and dryer humidity monitoring
-  Chamber at %d°C: Chamber at %d°C
+  Chamber at %s: Chamber at %s
   Chamber heater didn't start: Chamber heater didn't start
   Chamber heater didn't start. {}: Chamber heater didn't start. {}
-  Chamber heating to %d°C...: Chamber heating to %d°C...
+  Chamber heating to %s...: Chamber heating to %s...
   Chamber light fitted: 'Chamber light fitted'
-  Chamber target set to {}°C: Chamber target set to {}°C
-  Chamber temp must be 0-%d°C: Chamber temp must be 0-%d°C
+  Chamber target set to {}: Chamber target set to {}
+  Chamber temp must be %s: Chamber temp must be %s
   Chamber too hot: Chamber too hot
   Change: Change
   Change Address: Change Address
@@ -800,6 +797,7 @@ translations:
   Choose sound style: Choose sound style
   ? Choose the model that matches your printer. This sets the print macros, fan roles and calibration behavior HelixScreen uses.
   : Choose the model that matches your printer. This sets the print macros, fan roles and calibration behavior HelixScreen uses.
+  Choose the order of day, month and year: Choose the order of day, month and year
   Choose what to power off or restart.: Choose what to power off or restart.
   'Chute position: X {:.1f}, Y {:.1f}': 'Chute position: X {:.1f}, Y {:.1f}'
   Clean Brush: Clean Brush
@@ -1105,7 +1103,7 @@ translations:
   Current Z Position: Current Z Position
   'Current name:': 'Current name:'
   'Current:': 'Current:'
-  'Current: %d°C | Target: %d°C': 'Current: %d°C | Target: %d°C'
+  'Current: %s | Target: %s': 'Current: %s | Target: %s'
   Currently Loaded: Currently Loaded
   Currently printing: Currently printing
   'Currently:': 'Currently:'
@@ -1145,14 +1143,16 @@ translations:
   Dark Mode: Dark Mode
   Date (newest): Date (newest)
   Date (oldest): Date (oldest)
+  Date Format: Date Format
   Day: Day
+  Day Month Year: Day Month Year
   Debug: Debug
   Deep Black: Deep Black
   Default: Default
   Default Parameters: Default Parameters
   Default border thickness: Default border thickness
-  'Default: %s nozzle, %d°C bed': 'Default: %s nozzle, %d°C bed'
-  'Default: %s nozzle, %d°C bed, %d°C chamber': 'Default: %s nozzle, %d°C bed, %d°C chamber'
+  'Default: %s nozzle, %s bed': 'Default: %s nozzle, %s bed'
+  'Default: %s nozzle, %s bed, %s chamber': 'Default: %s nozzle, %s bed, %s chamber'
   Defaults restored: Defaults restored
   Define macros in your printer.cfg: Define macros in your printer.cfg
   Delete: Delete
@@ -1471,6 +1471,7 @@ translations:
   FILAMENTS: FILAMENTS
   FILTERS: FILTERS
   Factory Reset: Factory Reset
+  Fahrenheit (°F): Fahrenheit (°F)
   Failed: Failed
   Failed to apply limits: Failed to apply limits
   Failed to apply settings: Failed to apply settings
@@ -1841,12 +1842,12 @@ translations:
   Heat soak: Heat soak
   ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
   : Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
-  Heat the bed to {}°C: Heat the bed to {}°C
+  Heat the bed to {}: Heat the bed to {}
   Heat the chamber too: Heat the chamber too
-  Heat the extruder to at least {}°C before loading filament: Heat the extruder to at least {}°C before loading filament
+  Heat the extruder to at least {} before loading filament: Heat the extruder to at least {} before loading filament
   Heat the hotend.: Heat the hotend.
-  Heat to at least %d°C for filament operations: Heat to at least %d°C for filament operations
-  Heat {} above {}°C before resuming: Heat {} above {}°C before resuming
+  Heat to at least %s for filament operations: Heat to at least %s for filament operations
+  Heat {} above {} before resuming: Heat {} above {} before resuming
   Heatbed Temperature: Heatbed Temperature
   Heated Bed: Heated Bed
   Heated Bed MPC Calibration: Heated Bed MPC Calibration
@@ -1862,7 +1863,7 @@ translations:
   HeaterSelect: HeaterSelect
   Heaters off: Heaters off
   Heating: Heating
-  Heating (%d°C below minimum): Heating (%d°C below minimum)
+  Heating (%s below minimum): Heating (%s below minimum)
   Heating Bed...: Heating Bed...
   'Heating Chamber...': 'Heating Chamber...'
   Heating Nozzle...: Heating Nozzle...
@@ -1880,16 +1881,16 @@ translations:
   Heating the bed and nozzle so the print re-grips and the nozzle lets go of it: Heating the bed and nozzle so the print re-grips and the nozzle lets go of it
   Heating the nozzle: Heating the nozzle
   Heating the nozzle. Have the filament ready to push in.: Heating the nozzle. Have the filament ready to push in.
-  Heating to %d°C... %.0f°C: Heating to %d°C... %.0f°C
+  Heating to %s... %s: Heating to %s... %s
   'Heating to %s: %d:%02d left': 'Heating to %s: %d:%02d left'
-  Heating to {}°C before {}...: Heating to {}°C before {}...
-  Heating to {}°C for {}...: Heating to {}°C for {}...
-  Heating to {}°C...: Heating to {}°C...
+  Heating to {} before {}...: Heating to {} before {}...
+  Heating to {} for {}...: Heating to {} for {}...
+  Heating to {}...: Heating to {}...
   Heating {}...: Heating {}...
   Heating...: Heating...
-  'Heating: %d / %d°C': 'Heating: %d / %d°C'
-  Heats the bed to {:g}°C, above this printer's {:g}°C limit.: Heats the bed to {:g}°C, above this printer's {:g}°C limit.
-  Heats the nozzle to {:g}°C, above this printer's {:g}°C limit.: Heats the nozzle to {:g}°C, above this printer's {:g}°C limit.
+  'Heating: %d / %s': 'Heating: %d / %s'
+  Heats the bed to {}, above this printer's {} limit.: Heats the bed to {}, above this printer's {} limit.
+  Heats the nozzle to {}, above this printer's {} limit.: Heats the nozzle to {}, above this printer's {} limit.
   Heightmap and flatness of the active bed mesh: Heightmap and flatness of the active bed mesh
   HelixPrint Plugin: HelixPrint Plugin
   HelixPrint plugin updated.: 'HelixPrint plugin updated.'
@@ -1924,7 +1925,7 @@ translations:
   Hold anywhere to cancel: Hold anywhere to cancel
   Hold slicer prints that do not fit: Hold slicer prints that do not fit
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.
-  Holding nozzle at {}°C to purge previous filament.: Holding nozzle at {}°C to purge previous filament.
+  Holding nozzle at {} to purge previous filament.: Holding nozzle at {} to purge previous filament.
   Home: Home
   Home & Continue: Home & Continue
   Home All: Home All
@@ -2369,7 +2370,7 @@ translations:
   MMU command failed: MMU command failed
   MOTION & LEVELING: MOTION & LEVELING
   MPC: MPC
-  MPC thermal model calibrated for {} at {}°C.: MPC thermal model calibrated for {} at {}°C.
+  MPC thermal model calibrated for {} at {}.: MPC thermal model calibrated for {} at {}.
   Machine Limits: Machine Limits
   Macro: Macro
   Macro Browser: Macro Browser
@@ -2493,6 +2494,7 @@ translations:
   Monitor for print abnormalities (camera-based): 'Monitor for print abnormalities (camera-based)'
   Monitoring: Monitoring
   Month: Month
+  Month Day Year: Month Day Year
   Moonraker: Moonraker
   Moonraker at {} rejected the API key.: Moonraker at {} rejected the API key.
   Moonraker at {} requires an API key.: Moonraker at {} requires an API key.
@@ -2786,8 +2788,8 @@ translations:
   Nozzle: Nozzle
   Nozzle / Bed: Nozzle / Bed
   Nozzle Clean: Nozzle Clean
-  Nozzle Max (°C): Nozzle Max (°C)
-  Nozzle Min (°C): Nozzle Min (°C)
+  Nozzle Max: Nozzle Max
+  Nozzle Min: Nozzle Min
   Nozzle Moves: Nozzle Moves
   Nozzle Temp: Nozzle Temp
   Nozzle Temperature: Nozzle Temperature
@@ -2796,15 +2798,15 @@ translations:
   'Nozzle clean complete': 'Nozzle clean complete'
   Nozzle clog detected: Nozzle clog detected
   Nozzle diameter: Nozzle diameter
-  Nozzle did not reach {}°C — {} canceled: Nozzle did not reach {}°C — {} canceled
+  Nozzle did not reach {} — {} canceled: Nozzle did not reach {} — {} canceled
   Nozzle flow: Nozzle flow
   Nozzle interval: Nozzle interval
   Nozzle min cannot exceed max: Nozzle min cannot exceed max
   'Nozzle not changed: the printer did not confirm it': 'Nozzle not changed: the printer did not confirm it'
   'Nozzle not changed: {}': 'Nozzle not changed: {}'
   Nozzle size and flow type per head: Nozzle size and flow type per head
-  Nozzle target set to {}°C: Nozzle target set to {}°C
-  Nozzle temp must be 100-%d°C: Nozzle temp must be 100-%d°C
+  Nozzle target set to {}: Nozzle target set to {}
+  Nozzle temp must be %s: Nozzle temp must be %s
   Nozzle, bed, and chamber in one widget: Nozzle, bed, and chamber in one widget
   'Nozzle:': 'Nozzle:'
   'Nozzles still heating: {}': 'Nozzles still heating: {}'
@@ -3696,7 +3698,7 @@ translations:
   Seat: Seat
   Seat a tool by hand: Seat a tool by hand
   Seat a tool by hand for the first Z home: Seat a tool by hand for the first Z home
-  Seat the hot ends, heat {} above {}°C, then tap Resume.: Seat the hot ends, heat {} above {}°C, then tap Resume.
+  Seat the hot ends, heat {} above {}, then tap Resume.: Seat the hot ends, heat {} above {}, then tap Resume.
   Seat which tool by hand?: Seat which tool by hand?
   Seating {}...: Seating {}...
   Secondary: Secondary
@@ -3785,7 +3787,7 @@ translations:
   Set duration between 1 and {} minutes: Set duration between 1 and {} minutes
   Set local timezone for time display: Set local timezone for time display
   Set logging verbosity for troubleshooting: Set logging verbosity for troubleshooting
-  Set temperature between {}°C and {}°C: Set temperature between {}°C and {}°C
+  Set temperature between {} and {}: Set temperature between {} and {}
   Set the X and Y belts with the motorized tensioners: Set the X and Y belts with the motorized tensioners
   Set the clock, theme and units. You can change any of these later in Settings.: Set the clock, theme and units. You can change any of these later in Settings.
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
@@ -3818,6 +3820,7 @@ translations:
   Show Touch Points: Show Touch Points
   Show a confirmation dialog when tapping a macro: Show a confirmation dialog when
     tapping a macro
+  Show and enter temperatures in Celsius or Fahrenheit: Show and enter temperatures in Celsius or Fahrenheit
   Show instead of dimming: Show instead of dimming
   Show light controls for a light connected to this printer: 'Show light controls for a light connected to this printer'
   Show print speed and flow as mm/s and mm³/s instead of percent: Show print speed and flow as mm/s and mm³/s instead of percent
@@ -4139,14 +4142,14 @@ translations:
   Telemetry queue cleared: Telemetry queue cleared
   Temp: Temp
   Temp Compensation: Temp Compensation
-  Temp °C: Temp °C
   Temperature: Temperature
   Temperature Graph: Temperature Graph
   Temperature Graph Config: Temperature Graph Config
   # Source: calibration_pid_panel.xml:333
   Temperature Sensors: Temperature Sensors
+  Temperature Unit: Temperature Unit
   Temperature and humidity sensor not responding: Temperature and humidity sensor not responding
-  Temperature control optimized for {} at {}°C.: Temperature control optimized for {} at {}°C.
+  Temperature control optimized for {} at {}.: Temperature control optimized for {} at {}.
   Temperatures: Temperatures
   Temperatures plotted over time: Temperatures plotted over time
   Temperatures saved: Temperatures saved
@@ -4171,7 +4174,7 @@ translations:
   Test Tracker: Test Tracker
   Test Both: Test Both
   Test label printed: Test label printed
-  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C.': 'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C.'
+  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.'
   'Testing rotation: %d° (%d/%d) - %ds remaining': 'Testing rotation: %d°
     (%d/%d) - %ds remaining'
   Testing, servo, and motor operations: Testing, servo, and motor operations
@@ -4268,13 +4271,13 @@ translations:
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   The message your printer's macros show (M117): The message your printer's macros show (M117)
-  ? The mounted nozzle heats to 200°C and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
-  : The mounted nozzle heats to 200°C and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
+  ? The mounted nozzle heats to {} and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
+  : The mounted nozzle heats to {} and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
   The new IPv4 settings could not be marked as kept, so the next start undoes them.: The new IPv4 settings could not be marked as kept, so the next start undoes them.
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.
   The nozzle hasn't moved since the power went out. Check that it sits just above the top of the print, then resume.: The nozzle hasn't moved since the power went out. Check that it sits just above the top of the print, then resume.
-  ? The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
-  : The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
+  ? The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
+  : The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
   The nozzle is clear of the print: The nozzle is clear of the print
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
@@ -4301,7 +4304,7 @@ translations:
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   The print is still stuck to the bed: The print is still stuck to the bed
-  The print is waiting for the chamber to reach {}°C, but the heater is not heating.: The print is waiting for the chamber to reach {}°C, but the heater is not heating.
+  The print is waiting for the chamber to reach {}, but the heater is not heating.: The print is waiting for the chamber to reach {}, but the heater is not heating.
   The print is waiting for the chamber, but the heater is not heating.: The print is waiting for the chamber, but the heater is not heating.
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.
   The printer applied this value and keeps it for this tool.: 'The printer applied this value and keeps it for this tool.'
@@ -4846,8 +4849,8 @@ translations:
   Waiting for bed temperature...: Waiting for bed temperature...
   Waiting for bed to reach temperature for accurate calibration.: Waiting for bed
     to reach temperature for accurate calibration.
-  Waiting for chamber {} / {}°C: Waiting for chamber {} / {}°C
-  Waiting for chamber {}°C: Waiting for chamber {}°C
+  Waiting for chamber {}: Waiting for chamber {}
+  Waiting for chamber {} / {}: Waiting for chamber {} / {}
   Waiting for the chamber to heat: Waiting for the chamber to heat
   Waiting for the filament system to report its state: Waiting for the filament system to report its state
   Waiting for the printer: Waiting for the printer
@@ -4955,6 +4958,7 @@ translations:
   ? "YOU WIN!\nScore: {}\nTap to play again"
   : "YOU WIN!\nScore: {}\nTap to play again"
   Year: Year
+  Year Month Day: Year Month Day
   'Yes': 'Yes'
   You can skip this and calibrate later in Settings.: You can skip this and calibrate
     later in Settings.

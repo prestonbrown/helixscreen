@@ -1,7 +1,6 @@
 locale: ja
 translations:
   '%d-%d': '%d〜%d'
-  '%d-%d°C': '%d〜%d°C'
   ' (timed out)': （タイムアウト）
   ' frames': ' フレーム'
   ' left': ' 残り'
@@ -108,7 +107,6 @@ translations:
   12-hour: 12時間制
   120 seconds: 120秒
   15 seconds: 15秒
-  170-300 °C: '170-300 °C'
   180°: 180°
   180° Upside Down: 180° 上下反転
   2 min: '2分'
@@ -365,7 +363,7 @@ translations:
   Assisting: アシスト中
   At least {} lines in helixscreen.env were ignored: 'helixscreen.env の少なくとも{}行が無視されました'
   At target: 目標どおり
-  At {}°C, about {} minutes.: '{}°C で約{}分です。'
+  At {}, about {} minutes.: '{} で約{}分です。'
   Authentication failed: 認証に失敗しました
   Auto: 自動
   Auto Bed Mesh: 自動ベッドメッシュ
@@ -423,7 +421,6 @@ translations:
   Beacon auto-calibrate sent: Beacon自動キャリブレーション送信済み
   Beacon calibrate sent: Beaconキャリブレーション送信済み
   Bed: ベッド
-  Bed (°C): ベッド (°C)
   Bed Clear Check: 'ベッド上の異物チェック'
   Bed Drying: 'ベッド乾燥'
   Bed Heater: ベッドヒーター
@@ -446,17 +443,17 @@ translations:
   'Bed cooling, spools still on the bed:': 'ベッド冷却中、スプールはまだベッドの上です:'
 
   Bed is Level!: ベッドが水平です！
-  Bed is at {:.0f}°C, the print needs {:.0f}°C.: ベッドは{:.0f}°C、印刷には{:.0f}°Cが必要です。
+  Bed is at {}, the print needs {}.: ベッドは{}、印刷には{}が必要です。
   Bed mesh: ベッドメッシュ
   'Bed mesh calibration failed: {}': 'ベッドメッシュのキャリブレーションに失敗しました: {}'
   Bed mesh operation timed out: ベッドメッシュ操作がタイムアウトしました
   Bed mesh...: ベッドメッシュ...
   Bed size unknown: 'ベッドサイズが不明です'
-  Bed target set to {}°C: ベッド目標温度を {}°C に設定しました
-  Bed temp must be 0-%d°C: ベッド温度は 0〜%d°C にしてください
+  Bed target set to {}: ベッド目標温度を {} に設定しました
+  Bed temp must be %s: ベッド温度は 0〜%s にしてください
   Bed warming timed out: ベッド加熱がタイムアウトしました
-  Bed {:.0f} / {:.0f}°C: ベッド {:.0f} / {:.0f}°C
-  Bed {:.0f}°C: ベッド {:.0f}°C
+  Bed {}: ベッド {}
+  Bed {} / {}: ベッド {} / {}
   Before starting: '開始前に'
   Below target: 目標より低い
   Belt Tension: ベルトテンション
@@ -668,11 +665,11 @@ translations:
     — Z-Offsetパネルで調整してください
   Cartographer touch calibrate sent: Cartographerタッチキャリブレーション送信済み
   Category: カテゴリー
+  Celsius (°C): °C
   Center: '中央'
   Center QR code in frame: QR コードをフレームの中央に合わせてください
   'Chamb:': 'チャンバ:'
   Chamber: チャンバー
-  Chamber (°C): チャンバー (°C)
   Chamber Cooling Fan: チャンバー冷却ファン
   Chamber Dryer: 'チャンバー乾燥機'
   Chamber Fan: チャンバーファン
@@ -682,13 +679,13 @@ translations:
   Chamber Temperature: チャンバー温度
   Chamber air: 'チャンバー空気'
   Chamber and dryer humidity monitoring: チャンバーとドライヤーの湿度監視
-  Chamber at %d°C: チャンバー温度：%d°C
+  Chamber at %s: チャンバー温度：%s
   Chamber heater didn't start: 'チャンバーヒーターが起動しませんでした'
   Chamber heater didn't start. {}: 'チャンバーヒーターが起動しませんでした。{}'
-  Chamber heating to %d°C...: チャンバーを%d°Cに加熱中...
+  Chamber heating to %s...: チャンバーを%sに加熱中...
   Chamber light fitted: 'チャンバーライト搭載'
-  Chamber target set to {}°C: チャンバー目標温度を{}°C に設定
-  Chamber temp must be 0-%d°C: チャンバー温度は 0〜%d°C にしてください
+  Chamber target set to {}: チャンバー目標温度を{} に設定
+  Chamber temp must be %s: チャンバー温度は 0〜%s にしてください
   Chamber too hot: 'チャンバーが高温です'
   Change: 変更
   Change Address: アドレスを変更
@@ -765,6 +762,7 @@ translations:
   Choose sound style: サウンドスタイルを選択
   ? Choose the model that matches your printer. This sets the print macros, fan roles and calibration behavior HelixScreen uses.
   : お使いのプリンターに一致するモデルを選択してください。これにより、HelixScreenが使用する印刷マクロ、ファンの役割、キャリブレーション動作が設定されます。
+  Choose the order of day, month and year: 日・月・年の並び順を選択
   Choose what to power off or restart.: 電源オフまたは再起動する対象を選択してください。
   'Chute position: X {:.1f}, Y {:.1f}': 'パージシュート位置: X {:.1f}, Y {:.1f}'
 
@@ -1068,7 +1066,7 @@ translations:
   Current Z Position: 現在のZ位置
   'Current name:': '現在の名前:'
   'Current:': '現在:'
-  'Current: %d°C | Target: %d°C': '現在: %d°C | 目標: %d°C'
+  'Current: %s | Target: %s': '現在: %s | 目標: %s'
   Currently Loaded: 現在ロード中
   Currently printing: 印刷中
   'Currently:': '現在:'
@@ -1108,14 +1106,16 @@ translations:
   Dark Mode: ダークモード
   Date (newest): 日付（新しい順）
   Date (oldest): 日付（古い順）
+  Date Format: 日付形式
   Day: 日
+  Day Month Year: 日 月 年
   Debug: デバッグ
   Deep Black: ディープブラック
   Default: 'デフォルト'
   Default Parameters: 'デフォルトのパラメータ'
   Default border thickness: デフォルトの境界線の太さ
-  'Default: %s nozzle, %d°C bed': 'デフォルト: ノズル %s、ベッド %d°C'
-  'Default: %s nozzle, %d°C bed, %d°C chamber': 'デフォルト: ノズル %s、ベッド %d°C、チャンバー %d°C'
+  'Default: %s nozzle, %s bed': 'デフォルト: ノズル %s、ベッド %s'
+  'Default: %s nozzle, %s bed, %s chamber': 'デフォルト: ノズル %s、ベッド %s、チャンバー %s'
   Defaults restored: デフォルトを復元しました
   Define macros in your printer.cfg: printer.cfg でマクロを定義してください
   Delete: 削除
@@ -1433,6 +1433,7 @@ translations:
   FILAMENTS: フィラメント
   FILTERS: フィルター
   Factory Reset: 工場出荷時リセット
+  Fahrenheit (°F): °F
   Failed: 失敗
   Failed to apply limits: 制限の適用に失敗しました
   Failed to apply settings: 設定の適用に失敗しました
@@ -1797,12 +1798,12 @@ translations:
   Heat soak: ヒートソーク
   ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
   : 'ヒートソークは印刷前に筐体内を温めます。プリンターにヒートソークマクロがあるか、設定で有効にされたため表示されています。HelixScreenは印刷前オプションでこのマクロを提供します。'
-  Heat the bed to {}°C: ベッドを {}°C に加熱
+  Heat the bed to {}: ベッドを {} に加熱
   Heat the chamber too: チャンバーも加熱
-  Heat the extruder to at least {}°C before loading filament: フィラメントを装填する前に、エクストルーダーを最低 {}°C まで加熱してください
+  Heat the extruder to at least {} before loading filament: フィラメントを装填する前に、エクストルーダーを最低 {} まで加熱してください
   Heat the hotend.: "ホットエンドを加熱します。"
-  Heat to at least %d°C for filament operations: フィラメント操作には少なくとも %d°C まで加熱してください
-  Heat {} above {}°C before resuming: '再開前に{}を{}°C以上に加熱してください'
+  Heat to at least %s for filament operations: フィラメント操作には少なくとも %s まで加熱してください
+  Heat {} above {} before resuming: 再開前に{}を{}以上に加熱してください
   Heatbed Temperature: ヒートベッド温度
   Heated Bed: 加熱ベッド
   Heated Bed MPC Calibration: ヒートベッド MPCキャリブレーション
@@ -1818,7 +1819,7 @@ translations:
   HeaterSelect: ヒーターを選択
   Heaters off: ヒーターをオフにしました
   Heating: 加熱中
-  Heating (%d°C below minimum): '"加熱中（最低温度より%d°C低い）"'
+  Heating (%s below minimum): '"加熱中（最低温度より%s低い）"'
   Heating Bed...: ベッド加熱中...
   Heating Chamber...: チャンバー加熱中...
   Heating Nozzle...: ノズル加熱中...
@@ -1836,16 +1837,16 @@ translations:
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "ベッドとノズルを加熱し、印刷物を再び密着させてノズルを印刷物から離しています"
   Heating the nozzle: ノズルを加熱中
   Heating the nozzle. Have the filament ready to push in.: "ノズルを加熱中です。フィラメントを押し込む準備をしてください。"
-  Heating to %d°C... %.0f°C: '%d°Cに加熱中... %.0f°C'
+  Heating to %s... %s: '%sに加熱中... %s'
   'Heating to %s: %d:%02d left': '%sに加熱中: 残り %d:%02d'
-  Heating to {}°C before {}...: '{}°Cに加熱中（{}の前）...'
-  Heating to {}°C for {}...: '{}°Cに加熱中（{}）...'
-  Heating to {}°C...: '{}°Cに加熱中...'
+  Heating to {} before {}...: '{}に加熱中（{}の前）...'
+  Heating to {} for {}...: '{}に加熱中（{}）...'
+  Heating to {}...: '{}に加熱中...'
   Heating {}...: '{}を加熱中...'
   Heating...: 加熱中...
-  'Heating: %d / %d°C': '加熱中: %d / %d°C'
-  Heats the bed to {:g}°C, above this printer's {:g}°C limit.: 'ベッドを{:g}°Cに加熱します。このプリンターの上限は{:g}°Cです。'
-  Heats the nozzle to {:g}°C, above this printer's {:g}°C limit.: 'ノズルを{:g}°Cに加熱します。このプリンターの上限は{:g}°Cです。'
+  'Heating: %d / %s': '加熱中: %d / %s'
+  Heats the bed to {}, above this printer's {} limit.: ベッドを{}に加熱します。このプリンターの上限は{}です。
+  Heats the nozzle to {}, above this printer's {} limit.: ノズルを{}に加熱します。このプリンターの上限は{}です。
   Heightmap and flatness of the active bed mesh: '有効なベッドメッシュの高さマップと平面度'
   HelixPrint Plugin: 'HelixPrintプラグイン'
   HelixPrint plugin updated.: 'HelixPrintプラグインを更新しました。'
@@ -1879,7 +1880,7 @@ translations:
   Hold anywhere to cancel: どこかを長押ししてキャンセル
   Hold slicer prints that do not fit: '合わないスライサーの印刷を保留'
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: '{}をヘッドにしっかり押し当ててください。ラッチがロックし、装着中のツールになります。'
-  Holding nozzle at {}°C to purge previous filament.: 前のフィラメントをパージするためノズルを {}°C に保持しています。
+  Holding nozzle at {} to purge previous filament.: 前のフィラメントをパージするためノズルを {} に保持しています。
   Home: ホーム
   Home & Continue: ホーミングして続行
   Home All: "全軸ホーミング"
@@ -2306,7 +2307,7 @@ translations:
   MMU command failed: MMU コマンドに失敗しました
   MOTION & LEVELING: '動作とレベリング'
   MPC: MPC
-  MPC thermal model calibrated for {} at {}°C.: '{} のMPC熱モデルを {}°C で校正しました。'
+  MPC thermal model calibrated for {} at {}.: '{} のMPC熱モデルを {} で校正しました。'
   Machine Limits: 機械制限
   Macro: マクロ
   Macro Browser: マクロブラウザ
@@ -2426,6 +2427,7 @@ translations:
   Modified: 変更日時
   Monitoring: モニタリング
   Month: 月
+  Month Day Year: 月 日 年
   Moonraker: Moonraker
   Moonraker at {} rejected the API key.: '{} のMoonrakerがAPIキーを拒否しました。'
   Moonraker at {} requires an API key.: '{} のMoonrakerはAPIキーを要求しています。'
@@ -2714,8 +2716,8 @@ translations:
   Nozzle: ノズル
   Nozzle / Bed: ノズル / ベッド
   Nozzle Clean: ノズル清掃
-  Nozzle Max (°C): ノズル最高温度 (°C)
-  Nozzle Min (°C): ノズル最低温度 (°C)
+  Nozzle Max: ノズル最高温度
+  Nozzle Min: ノズル最低温度
   Nozzle Moves: ノズル移動
   Nozzle Temp: ノズル温度
   Nozzle Temperature: ノズル温度
@@ -2724,15 +2726,15 @@ translations:
   Nozzle clean complete: ノズル清掃完了
   Nozzle clog detected: ノズルの詰まりを検出しました
   Nozzle diameter: "ノズル径"
-  Nozzle did not reach {}°C — {} canceled: ノズルが{}°Cに達しませんでした — {}を中止しました
+  Nozzle did not reach {} — {} canceled: ノズルが{}に達しませんでした — {}を中止しました
   Nozzle flow: "ノズルフロー"
   Nozzle interval: 'ノズルの間隔'
   Nozzle min cannot exceed max: ノズル温度の最小値は最大値を超えられません
   'Nozzle not changed: the printer did not confirm it': "ノズルは変更されていません: プリンターが確認しませんでした"
   'Nozzle not changed: {}': "ノズルは変更されていません: {}"
   Nozzle size and flow type per head: "ツールヘッドごとのノズルサイズとフロータイプ"
-  Nozzle target set to {}°C: ノズル目標温度を {}°C に設定しました
-  Nozzle temp must be 100-%d°C: ノズル温度は 100〜%d°C にしてください
+  Nozzle target set to {}: ノズル目標温度を {} に設定しました
+  Nozzle temp must be %s: ノズル温度は 100〜%s にしてください
   Nozzle, bed, and chamber in one widget: ノズル、ベッド、チャンバーをまとめて表示
   'Nozzle:': 'ノズル:'
   'Nozzles still heating: {}': '加熱中のノズル: {}'
@@ -3596,7 +3598,7 @@ translations:
   Seat: 装着
   Seat a tool by hand: ツールを手で装着
   Seat a tool by hand for the first Z home: 初回のZホーミングのためにツールを手で装着
-  Seat the hot ends, heat {} above {}°C, then tap Resume.: 'ホットエンドを正しく取り付け、{}を{}°C以上に加熱してから再開をタップしてください。'
+  Seat the hot ends, heat {} above {}, then tap Resume.: ホットエンドを正しく取り付け、{}を{}以上に加熱してから再開をタップしてください。
   Seat which tool by hand?: どのツールを手で装着しますか？
   Seating {}...: '{}を装着中...'
   Secondary: セカンダリ
@@ -3679,7 +3681,7 @@ translations:
   Set duration between 1 and {} minutes: '時間は 1〜{} 分にしてください'
   Set local timezone for time display: 時刻表示用のローカルタイムゾーンを設定
   Set logging verbosity for troubleshooting: トラブルシューティング用のログの詳細レベルを設定
-  Set temperature between {}°C and {}°C: '温度は {}〜{}°C にしてください'
+  Set temperature between {} and {}: 温度は {}〜{} にしてください
   Set the X and Y belts with the motorized tensioners: "電動テンショナーでXとYのベルトを調整します"
   Set the clock, theme and units. You can change any of these later in Settings.: "時計、テーマ、単位を設定します。あとから設定でいつでも変更できます。"
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
@@ -3710,6 +3712,7 @@ translations:
   Show Sections: セクションを表示
   Show Touch Points: タッチポイントを表示
   Show a confirmation dialog when tapping a macro: マクロをタップした際に確認ダイアログを表示
+  Show and enter temperatures in Celsius or Fahrenheit: 温度を°Cまたは°Fで表示・入力します
   Show instead of dimming: 暗くする代わりに表示
   Show light controls for a light connected to this printer: 'このプリンターに接続したライトの操作を表示'
   Show print speed and flow as mm/s and mm³/s instead of percent: "印刷速度とフローをパーセントではなく mm/s と mm³/s で表示"
@@ -4021,14 +4024,14 @@ translations:
   Telemetry queue cleared: テレメトリキューをクリアしました
   Temp: 温度
   Temp Compensation: 温度補正
-  Temp °C: 温度 °C
   Temperature: 温度
   Temperature Graph: '温度グラフ'
   Temperature Graph Config: 温度グラフ設定
   # Source: calibration_pid_panel.xml:333
   Temperature Sensors: '温度センサー'
+  Temperature Unit: 温度単位
   Temperature and humidity sensor not responding: 温湿度センサーが応答しません
-  Temperature control optimized for {} at {}°C.: '{} の温度制御を {}°C で最適化しました。'
+  Temperature control optimized for {} at {}.: '{} の温度制御を {} で最適化しました。'
   Temperatures: 温度
   Temperatures plotted over time: 温度の時間変化をグラフ表示
   Temperatures saved: 温度を保存しました
@@ -4052,7 +4055,7 @@ translations:
   Test Tracker: テストトラッカー
   Test Both: 両方テスト
   Test label printed: テストラベル印刷完了
-  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C.': 'テストタワー 幅{:.0f} mm・高さ{:.0f} mm、約{}分+加熱: {}区間(各{:.0f} mm)、{}°C。'
+  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'テストタワー 幅{:.0f} mm・高さ{:.0f} mm、約{}分+加熱: {}区間(各{:.0f} mm)、{}。'
   'Testing rotation: %d° (%d/%d) - %ds remaining': '回転テスト: %d° (%d/%d)
     - %ds残り'
   Testing, servo, and motor operations: 'テスト・サーボ・モーター操作'
@@ -4148,13 +4151,13 @@ translations:
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : 装填中のスプールは {} ですが、このファイルは {} 用にスライスされています。充填材入りフィラメントはフローレートが低くなり、硬化ノズルが必要です。
   The message your printer's macros show (M117): 'プリンターのマクロが表示するメッセージ (M117)'
-  ? The mounted nozzle heats to 200°C and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
-  : ヒーターの安全モデルを測定する間、装着中のノズルが200°Cまで加熱され再び冷却されます。パーツファンはオフにし、引火しやすい物をヘッドから遠ざけてください。数分かかります。
+  ? The mounted nozzle heats to {} and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
+  : ヒーターの安全モデルを測定する間、装着中のノズルが{}まで加熱され再び冷却されます。パーツファンはオフにし、引火しやすい物をヘッドから遠ざけてください。数分かかります。
   The new IPv4 settings could not be marked as kept, so the next start undoes them.: '新しいIPv4設定を保持済みとして記録できなかったため、次回の起動時に元に戻されます。'
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: 'ノズルは印刷領域から離れた隅で短いテスト移動を数回行い、結果が一致するまで繰り返します。'
   "The nozzle hasn't moved since the power went out. Check that it sits just above the top of the print, then resume.": "停電以降、ノズルは動いていません。印刷物の上面のすぐ上にあることを確認してから、再開してください。"
-  ? The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
-  : パーツファンが各速度を順に試す間、ノズルは200°Cまで加熱されます。正確に測定するには、印刷時と同じようにダクトを取り付けてください。数分かかります。
+  ? The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
+  : パーツファンが各速度を順に試す間、ノズルは{}まで加熱されます。正確に測定するには、印刷時と同じようにダクトを取り付けてください。数分かかります。
   The nozzle is clear of the print: ノズルは印刷物から離れている
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : ノズルは高温です。付属のワイヤーブラシで清掃し、ドッキング位置もきれいに保ってから「次へ」をタップしてください。
@@ -4182,7 +4185,7 @@ translations:
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : 印刷は一時停止中です。ここでツールを交換すると、ツールヘッドが移動してノズルのフィラメントが入れ替わります。交換が完了したら印刷を再開してください。
   The print is still stuck to the bed: 印刷物はまだベッドに付いている
-  The print is waiting for the chamber to reach {}°C, but the heater is not heating.: '印刷はチャンバーが{}°Cに達するのを待っていますが、ヒーターが加熱していません。'
+  The print is waiting for the chamber to reach {}, but the heater is not heating.: 印刷はチャンバーが{}に達するのを待っていますが、ヒーターが加熱していません。
   The print is waiting for the chamber, but the heater is not heating.: '印刷はチャンバーを待っていますが、ヒーターが加熱していません。'
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: '印刷可能なサイズ（mm、X × Y × Z）。プリンターのKlipper設定の軸リミットから取得します。'
   The printer applied this value and keeps it for this tool.: 'プリンターはこの値を適用し、このツールに保存しました。'
@@ -4696,8 +4699,8 @@ translations:
   Waiting for another box to finish.: 別のボックスの完了を待っています。
   Waiting for bed temperature...: ベッド温度を待機中...
   Waiting for bed to reach temperature for accurate calibration.: 正確なキャリブレーションのためにベッド温度到達を待機中。
-  Waiting for chamber {} / {}°C: 'チャンバー待機中 {} / {}°C'
-  Waiting for chamber {}°C: 'チャンバー待機中 {}°C'
+  Waiting for chamber {}: チャンバー待機中 {}
+  Waiting for chamber {} / {}: チャンバー待機中 {} / {}
   Waiting for the chamber to heat: チャンバーの加熱を待っています
   Waiting for the filament system to report its state: フィラメントシステムの状態報告を待機中
   Waiting for the printer: プリンターを待っています
@@ -4802,6 +4805,7 @@ translations:
   ? "YOU WIN!\nScore: {}\nTap to play again"
   : "クリア！\nスコア: {}\nタップでもう一度"
   Year: 年
+  Year Month Day: 年 月 日
   'Yes': はい
   You can skip this and calibrate later in Settings.: スキップして後で設定でキャリブレーションできます。
   You have unsaved changes. Discard them?: 保存されていない変更があります。破棄しますか？

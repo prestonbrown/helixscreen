@@ -1,7 +1,6 @@
 locale: de
 translations:
   '%d-%d': '%d-%d'
-  '%d-%d°C': '%d-%d°C'
   ' (timed out)': ' (Zeitüberschreitung)'
   ' frames': ' Bilder'
   ' left': ' übrig'
@@ -110,7 +109,6 @@ translations:
   12-hour: 12-Stunden
   120 seconds: 120 Sekunden
   15 seconds: 15 Sekunden
-  170-300 °C: '170-300 °C'
   180°: 180°
   180° Upside Down: 180° kopfüber
   2 min: '2 Min'
@@ -391,7 +389,7 @@ translations:
   Assisting: Unterstützend
   At least {} lines in helixscreen.env were ignored: 'Mindestens {} Zeilen in helixscreen.env wurden ignoriert'
   At target: Am Ziel
-  At {}°C, about {} minutes.: 'Bei {}°C etwa {} Minuten.'
+  At {}, about {} minutes.: Bei {} etwa {} Minuten.
   Authentication failed: Authentifizierung fehlgeschlagen
   Auto: Automatisch
   Auto Bed Mesh: Automatisches Bettnetz
@@ -453,7 +451,6 @@ translations:
   Beacon auto-calibrate sent: Beacon Auto-Kalibrierung gesendet
   Beacon calibrate sent: Beacon Kalibrierung gesendet
   Bed: Heizbett
-  Bed (°C): Bett (°C)
   Bed Clear Check: 'Bett-frei-Prüfung'
   Bed Drying: 'Bett-Trocknung'
   Bed Heater: Bettheizung
@@ -476,17 +473,17 @@ translations:
   'Bed cooling, spools still on the bed:': 'Heizbett kühlt ab, Spulen liegen noch darauf:'
 
   Bed is Level!: Bett ist nivelliert!
-  Bed is at {:.0f}°C, the print needs {:.0f}°C.: Heizbett hat {:.0f}°C, der Druck braucht {:.0f}°C.
+  Bed is at {}, the print needs {}.: Heizbett hat {}, der Druck braucht {}.
   Bed mesh: Bettnetz
   'Bed mesh calibration failed: {}': 'Bettnetz-Kalibrierung fehlgeschlagen: {}'
   Bed mesh operation timed out: Bettnetz-Vorgang Zeitüberschreitung
   Bed mesh...: Bettnetz...
   Bed size unknown: 'Bettgröße unbekannt'
-  Bed target set to {}°C: Bett-Zieltemperatur auf {}°C gesetzt
-  Bed temp must be 0-%d°C: Betttemperatur muss 0-%d°C betragen
+  Bed target set to {}: Bett-Zieltemperatur auf {} gesetzt
+  Bed temp must be %s: Betttemperatur muss 0-%s betragen
   Bed warming timed out: Bettaufheizung Zeitüberschreitung
-  Bed {:.0f} / {:.0f}°C: Heizbett {:.0f} / {:.0f}°C
-  Bed {:.0f}°C: Heizbett {:.0f}°C
+  Bed {}: Heizbett {}
+  Bed {} / {}: Heizbett {} / {}
   Before starting: 'Vor dem Start'
   Below target: Unter dem Ziel
   Belt Tension: Riemenspannung
@@ -718,11 +715,11 @@ translations:
     gesendet — Z-Offset-Panel zum Anpassen verwenden
   Cartographer touch calibrate sent: Cartographer Touch-Kalibrierung gesendet
   Category: Kategorie
+  Celsius (°C): Celsius (°C)
   Center: 'Mitte'
   Center QR code in frame: QR-Code im Rahmen zentrieren
   'Chamb:': 'Kamm.:'
   Chamber: Kammer
-  Chamber (°C): Kammer (°C)
   Chamber Cooling Fan: Kammer-Kühllüfter
   Chamber Dryer: 'Kammertrockner'
   Chamber Fan: Kammerlüfter
@@ -732,13 +729,13 @@ translations:
   Chamber Temperature: Kammertemperatur
   Chamber air: 'Kammerluft'
   Chamber and dryer humidity monitoring: Kammer- und Trockner-Feuchtigkeitsüberwachung
-  Chamber at %d°C: Kammer bei %d°C
+  Chamber at %s: Kammer bei %s
   Chamber heater didn't start: 'Kammerheizung ist nicht gestartet'
   Chamber heater didn't start. {}: 'Kammerheizung ist nicht gestartet. {}'
-  Chamber heating to %d°C...: Kammer heizt auf %d°C auf...
+  Chamber heating to %s...: Kammer heizt auf %s auf...
   Chamber light fitted: 'Kammerlicht eingebaut'
-  Chamber target set to {}°C: Kammer-Ziel auf {}°C gesetzt
-  Chamber temp must be 0-%d°C: Kammertemperatur muss 0-%d°C betragen
+  Chamber target set to {}: Kammer-Ziel auf {} gesetzt
+  Chamber temp must be %s: Kammertemperatur muss 0-%s betragen
   Chamber too hot: 'Kammer zu heiß'
   Change: Ändern
   Change Address: Adresse ändern
@@ -823,6 +820,7 @@ translations:
   Choose sound style: Klangstil auswählen
   ? Choose the model that matches your printer. This sets the print macros, fan roles and calibration behavior HelixScreen uses.
   : Wählen Sie das Modell, das zu Ihrem Drucker passt. Dies legt fest, welche Druckmakros, Lüfterrollen und welches Kalibrierungsverhalten HelixScreen verwendet.
+  Choose the order of day, month and year: Reihenfolge von Tag, Monat und Jahr wählen
   Choose what to power off or restart.: Wählen Sie, was ausgeschaltet oder neu gestartet
     werden soll.
   'Chute position: X {:.1f}, Y {:.1f}': 'Position der Entlüftungsrinne: X {:.1f}, Y {:.1f}'
@@ -1140,7 +1138,7 @@ translations:
   Current Z Position: Aktuelle Z-Position
   'Current name:': 'Aktueller Name:'
   'Current:': 'Aktuell:'
-  'Current: %d°C | Target: %d°C': 'Aktuell: %d°C | Ziel: %d°C'
+  'Current: %s | Target: %s': 'Aktuell: %s | Ziel: %s'
   Currently Loaded: Aktuell geladen
   Currently printing: Aktueller Druck
   'Currently:': 'Aktuell:'
@@ -1180,14 +1178,16 @@ translations:
   Dark Mode: Dunkelmodus
   Date (newest): Datum (neueste)
   Date (oldest): Datum (älteste)
+  Date Format: Datumsformat
   Day: Tag
+  Day Month Year: Tag Monat Jahr
   Debug: Debug
   Deep Black: Tiefschwarz
   Default: 'Standard'
   Default Parameters: 'Standardparameter'
   Default border thickness: Standard-Rahmendicke
-  'Default: %s nozzle, %d°C bed': 'Standard: %s Düse, %d°C Bett'
-  'Default: %s nozzle, %d°C bed, %d°C chamber': 'Standard: %s Düse, %d°C Bett, %d°C Kammer'
+  'Default: %s nozzle, %s bed': 'Standard: %s Düse, %s Bett'
+  'Default: %s nozzle, %s bed, %s chamber': 'Standard: %s Düse, %s Bett, %s Kammer'
   Defaults restored: Standardeinstellungen wiederhergestellt
   Define macros in your printer.cfg: Makros in Ihrer printer.cfg definieren
   Delete: Löschen
@@ -1517,6 +1517,7 @@ translations:
   FILAMENTS: FILAMENTE
   FILTERS: FILTER
   Factory Reset: Werkseinstellungen
+  Fahrenheit (°F): Fahrenheit (°F)
   Failed: Fehlgeschlagen
   Failed to apply limits: Limits konnten nicht angewendet werden
   Failed to apply settings: Einstellungen konnten nicht angewendet werden
@@ -1897,13 +1898,12 @@ translations:
   Heat soak: Aufwärmen
   ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
   : 'Heat Soak lässt den Bauraum vor einem Druck aufwärmen. Er wird angezeigt, weil der Drucker ein Heat-Soak-Makro hat oder er in den Einstellungen eingeschaltet wurde; HelixScreen bietet das Makro in den Vordruck-Optionen an.'
-  Heat the bed to {}°C: Bett auf {}°C heizen
+  Heat the bed to {}: Bett auf {} heizen
   Heat the chamber too: Kammer ebenfalls heizen
-  Heat the extruder to at least {}°C before loading filament: Erhitzen Sie den Extruder vor dem Laden von Filament auf mindestens {}°C
+  Heat the extruder to at least {} before loading filament: Erhitzen Sie den Extruder vor dem Laden von Filament auf mindestens {}
   Heat the hotend.: "Hotend aufheizen."
-  Heat to at least %d°C for filament operations: Für Filamentvorgänge auf mindestens
-    %d°C aufheizen
-  Heat {} above {}°C before resuming: '{} vor dem Fortsetzen über {}°C aufheizen'
+  Heat to at least %s for filament operations: Für Filamentvorgänge auf mindestens %s aufheizen
+  Heat {} above {} before resuming: '{} vor dem Fortsetzen über {} aufheizen'
   Heatbed Temperature: Heizbett-Temperatur
   Heated Bed: Heizbett
   Heated Bed MPC Calibration: Heizbett MPC-Kalibrierung
@@ -1919,7 +1919,7 @@ translations:
   HeaterSelect: Heizung auswählen
   Heaters off: Heizungen aus
   Heating: Aufheizen
-  Heating (%d°C below minimum): Aufheizen (%d°C unter Minimum)
+  Heating (%s below minimum): Aufheizen (%s unter Minimum)
   Heating Bed...: Bett aufheizen...
   Heating Chamber...: Kammer aufheizen...
   Heating Nozzle...: Düse aufheizen...
@@ -1937,16 +1937,16 @@ translations:
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Bett und Düse heizen auf, damit der Druck wieder haftet und die Düse sich von ihm löst"
   Heating the nozzle: Düse wird aufgeheizt
   Heating the nozzle. Have the filament ready to push in.: "Die Düse heizt auf. Halte das Filament zum Einschieben bereit."
-  Heating to %d°C... %.0f°C: Aufheizen auf %d°C... %.0f°C
+  Heating to %s... %s: Aufheizen auf %s... %s
   'Heating to %s: %d:%02d left': 'Aufheizen auf %s: %d:%02d übrig'
-  Heating to {}°C before {}...: Aufheizen auf {}°C vor {}...
-  Heating to {}°C for {}...: Aufheizen auf {}°C für {}...
-  Heating to {}°C...: Aufheizen auf {}°C...
+  Heating to {} before {}...: Aufheizen auf {} vor {}...
+  Heating to {} for {}...: Aufheizen auf {} für {}...
+  Heating to {}...: Aufheizen auf {}...
   Heating {}...: '{} heizt auf...'
   Heating...: Heizt...
-  'Heating: %d / %d°C': 'Aufheizen: %d / %d°C'
-  Heats the bed to {:g}°C, above this printer's {:g}°C limit.: 'Heizt das Bett auf {:g}°C, über dem Limit dieses Druckers von {:g}°C.'
-  Heats the nozzle to {:g}°C, above this printer's {:g}°C limit.: 'Heizt die Düse auf {:g}°C, über dem Limit dieses Druckers von {:g}°C.'
+  'Heating: %d / %s': 'Aufheizen: %d / %s'
+  Heats the bed to {}, above this printer's {} limit.: Heizt das Bett auf {}, über dem Limit dieses Druckers von {}.
+  Heats the nozzle to {}, above this printer's {} limit.: Heizt die Düse auf {}, über dem Limit dieses Druckers von {}.
   Heightmap and flatness of the active bed mesh: 'Höhenkarte und Ebenheit des aktiven Bettnetzes'
   HelixPrint Plugin: 'HelixPrint-Plugin'
   HelixPrint plugin updated.: 'HelixPrint-Plugin aktualisiert.'
@@ -1981,8 +1981,7 @@ translations:
   Hold anywhere to cancel: Zum Abbrechen an beliebiger Stelle gedrückt halten
   Hold slicer prints that do not fit: 'Slicer-Drucke zurückhalten, die nicht passen'
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: Halten Sie {} vollständig an den Werkzeugkopf. Die Verriegelung rastet ein und es wird zum montierten Werkzeug.
-  Holding nozzle at {}°C to purge previous filament.: Düse wird bei {}°C gehalten, um
-    vorheriges Filament auszuspülen.
+  Holding nozzle at {} to purge previous filament.: Düse wird bei {} gehalten, um vorheriges Filament auszuspülen.
   Home: Home
   Home & Continue: Referenzieren & Fortfahren
   Home All: "Alle referenzieren"
@@ -2435,7 +2434,7 @@ translations:
   MMU command failed: MMU-Befehl fehlgeschlagen
   MOTION & LEVELING: 'BEWEGUNG & NIVELLIERUNG'
   MPC: MPC
-  MPC thermal model calibrated for {} at {}°C.: 'MPC-Wärmemodell für {} bei {}°C kalibriert.'
+  MPC thermal model calibrated for {} at {}.: MPC-Wärmemodell für {} bei {} kalibriert.
   Machine Limits: Maschinenlimits
   Macro: Makro
   Macro Browser: Makro-Browser
@@ -2559,6 +2558,7 @@ translations:
   Modified: Geändert
   Monitoring: Überwachung
   Month: Monat
+  Month Day Year: Monat Tag Jahr
   Moonraker: Moonraker
   Moonraker at {} rejected the API key.: 'Moonraker unter {} hat den API-Schlüssel abgelehnt.'
   Moonraker at {} requires an API key.: 'Moonraker unter {} verlangt einen API-Schlüssel.'
@@ -2856,8 +2856,8 @@ translations:
   Nozzle: Düse
   Nozzle / Bed: Düse / Bett
   Nozzle Clean: Düsenreinigung
-  Nozzle Max (°C): Düse Max (°C)
-  Nozzle Min (°C): Düse Min (°C)
+  Nozzle Max: Düse Max
+  Nozzle Min: Düse Min
   Nozzle Moves: Düse bewegt sich
   Nozzle Temp: Düsentemperatur
   Nozzle Temperature: Düsentemperatur
@@ -2866,15 +2866,15 @@ translations:
   Nozzle clean complete: Düsenreinigung abgeschlossen
   Nozzle clog detected: Verstopfte Düse erkannt
   Nozzle diameter: "Düsendurchmesser"
-  Nozzle did not reach {}°C — {} canceled: Düse erreichte {}°C nicht — {} abgebrochen
+  Nozzle did not reach {} — {} canceled: Düse erreichte {} nicht — {} abgebrochen
   Nozzle flow: "Düsendurchfluss"
   Nozzle interval: 'Intervall Düse'
   Nozzle min cannot exceed max: Düse min darf max nicht überschreiten
   'Nozzle not changed: the printer did not confirm it': "Düse nicht geändert: der Drucker hat es nicht bestätigt"
   'Nozzle not changed: {}': "Düse nicht geändert: {}"
   Nozzle size and flow type per head: "Düsengröße und Durchflusstyp je Werkzeugkopf"
-  Nozzle target set to {}°C: Düsen-Zieltemperatur auf {}°C gesetzt
-  Nozzle temp must be 100-%d°C: Düsentemperatur muss 100-%d°C betragen
+  Nozzle target set to {}: Düsen-Zieltemperatur auf {} gesetzt
+  Nozzle temp must be %s: Düsentemperatur muss 100-%s betragen
   Nozzle, bed, and chamber in one widget: Düse, Bett und Kammer in einem Widget
   'Nozzle:': 'Düse:'
   'Nozzles still heating: {}': 'Düsen heizen noch: {}'
@@ -3779,7 +3779,7 @@ translations:
   Seat: Einsetzen
   Seat a tool by hand: Werkzeug von Hand einsetzen
   Seat a tool by hand for the first Z home: Für die erste Z-Referenzfahrt ein Werkzeug von Hand einsetzen
-  Seat the hot ends, heat {} above {}°C, then tap Resume.: 'Setzen Sie die Hotends ein, heizen Sie {} über {}°C auf und tippen Sie dann auf Fortsetzen.'
+  Seat the hot ends, heat {} above {}, then tap Resume.: Setzen Sie die Hotends ein, heizen Sie {} über {} auf und tippen Sie dann auf Fortsetzen.
   Seat which tool by hand?: Welches Werkzeug von Hand einsetzen?
   Seating {}...: '{} wird eingesetzt...'
   Secondary: Sekundär
@@ -3871,7 +3871,7 @@ translations:
   Set local timezone for time display: Lokale Zeitzone für Zeitanzeige festlegen
   Set logging verbosity for troubleshooting: Protokollierungsdetailgrad für Fehlerbehebung
     festlegen
-  Set temperature between {}°C and {}°C: 'Stellen Sie eine Temperatur zwischen {}°C und {}°C ein'
+  Set temperature between {} and {}: Stellen Sie eine Temperatur zwischen {} und {} ein
   Set the X and Y belts with the motorized tensioners: "X- und Y-Riemen mit den motorisierten Spannern einstellen"
   Set the clock, theme and units. You can change any of these later in Settings.: "Uhr, Design und Einheiten festlegen. Du kannst alles später in den Einstellungen ändern."
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
@@ -3905,6 +3905,7 @@ translations:
   Show Touch Points: Berührungspunkte anzeigen
   Show a confirmation dialog when tapping a macro: Bestätigungsdialog beim Antippen
     eines Makros anzeigen
+  Show and enter temperatures in Celsius or Fahrenheit: Temperaturen in Celsius oder Fahrenheit anzeigen und eingeben
   Show instead of dimming: Anzeigen statt Abdunkeln
   Show light controls for a light connected to this printer: 'Lichtsteuerung für ein an diesen Drucker angeschlossenes Licht anzeigen'
   Show print speed and flow as mm/s and mm³/s instead of percent: "Druckgeschwindigkeit und Fluss in mm/s und mm³/s statt in Prozent anzeigen"
@@ -4232,14 +4233,14 @@ translations:
   Telemetry queue cleared: Telemetrie-Warteschlange geleert
   Temp: Temp.
   Temp Compensation: Temp.-Kompensation
-  Temp °C: Temp °C
   Temperature: Temperatur
   Temperature Graph: 'Temperaturdiagramm'
   Temperature Graph Config: Temperaturdiagramm-Konfiguration
   # Source: calibration_pid_panel.xml:333
   Temperature Sensors: 'Temperatursensoren'
+  Temperature Unit: Temperatureinheit
   Temperature and humidity sensor not responding: Temperatur- und Feuchtigkeitssensor antwortet nicht
-  Temperature control optimized for {} at {}°C.: 'Temperaturregelung für {} bei {}°C optimiert.'
+  Temperature control optimized for {} at {}.: Temperaturregelung für {} bei {} optimiert.
   Temperatures: Temperaturen
   Temperatures plotted over time: Temperaturverlauf über die Zeit
   Temperatures saved: Temperaturen gespeichert
@@ -4264,7 +4265,7 @@ translations:
   Test Tracker: Test-Tracker
   Test Both: Beide
   Test label printed: Testetikett gedruckt
-  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C.': 'Testturm {:.0f} mm breit und {:.0f} mm hoch, etwa {} min plus Aufheizen: {} Bereiche zu {:.0f} mm bei {}°C.'
+  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'Testturm {:.0f} mm breit und {:.0f} mm hoch, etwa {} min plus Aufheizen: {} Bereiche zu {:.0f} mm bei {}.'
   'Testing rotation: %d° (%d/%d) - %ds remaining': 'Drehung testen: %d°
     (%d/%d) - %ds verbleibend'
   Testing, servo, and motor operations: 'Test-, Servo- und Motorfunktionen'
@@ -4363,13 +4364,13 @@ translations:
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : Die geladene Spule ist {}, aber diese Datei wurde für {} gesliced. Gefülltes Filament läuft mit einer niedrigeren Flussrate und erfordert eine gehärtete Düse.
   The message your printer's macros show (M117): 'Die Meldung, die die Makros deines Druckers anzeigen (M117)'
-  ? The mounted nozzle heats to 200°C and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
-  : Die montierte Düse heizt auf 200°C und kühlt wieder ab, während das Sicherheitsmodell der Heizung ermittelt wird. Lassen Sie den Bauteillüfter aus und halten Sie brennbares Material vom Kopf fern. Das dauert mehrere Minuten.
+  ? The mounted nozzle heats to {} and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
+  : Die montierte Düse heizt auf {} und kühlt wieder ab, während das Sicherheitsmodell der Heizung ermittelt wird. Lassen Sie den Bauteillüfter aus und halten Sie brennbares Material vom Kopf fern. Das dauert mehrere Minuten.
   The new IPv4 settings could not be marked as kept, so the next start undoes them.: 'Die neuen IPv4-Einstellungen konnten nicht als behalten markiert werden, daher macht der nächste Start sie rückgängig.'
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: 'Die Düse macht ein paar kurze Testbewegungen in einer Ecke, abseits des Druckbereichs, und wiederholt sie, bis die Werte übereinstimmen.'
   "The nozzle hasn't moved since the power went out. Check that it sits just above the top of the print, then resume.": "Die Düse hat sich seit dem Stromausfall nicht bewegt. Prüfen Sie, ob sie knapp über der Oberseite des Drucks steht, und setzen Sie dann fort."
-  ? The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
-  : Die Düse heizt auf 200°C, während der Bauteillüfter seine Drehzahlen durchläuft. Für ein genaues Ergebnis montieren Sie den Luftkanal so, wie Sie damit drucken. Das dauert mehrere Minuten.
+  ? The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
+  : Die Düse heizt auf {}, während der Bauteillüfter seine Drehzahlen durchläuft. Für ein genaues Ergebnis montieren Sie den Luftkanal so, wie Sie damit drucken. Das dauert mehrere Minuten.
   The nozzle is clear of the print: Die Düse berührt den Druck nicht
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : Die Düse ist heiß. Bürste sie mit der mitgelieferten Drahtbürste sauber, halte die Parkposition sauber und tippe dann auf Weiter.
@@ -4399,7 +4400,7 @@ translations:
     tauscht das Filament an der Düse. Setzen Sie den Druck fort, sobald der Wechsel
     abgeschlossen ist.
   The print is still stuck to the bed: Der Druck haftet noch am Heizbett
-  The print is waiting for the chamber to reach {}°C, but the heater is not heating.: 'Der Druck wartet darauf, dass die Kammer {}°C erreicht, aber die Heizung heizt nicht.'
+  The print is waiting for the chamber to reach {}, but the heater is not heating.: Der Druck wartet darauf, dass die Kammer {} erreicht, aber die Heizung heizt nicht.
   The print is waiting for the chamber, but the heater is not heating.: 'Der Druck wartet auf die Kammer, aber die Heizung heizt nicht.'
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: 'Die druckbare Größe in Millimetern (X × Y × Z), aus den Achsgrenzen der Klipper-Konfiguration des Druckers.'
   The printer applied this value and keeps it for this tool.: 'Der Drucker hat diesen Wert übernommen und behält ihn für dieses Werkzeug.'
@@ -4949,8 +4950,8 @@ translations:
   Waiting for bed temperature...: Warten auf Betttemperatur...
   Waiting for bed to reach temperature for accurate calibration.: Warte auf Bett-Temperatur
     für genaue Kalibrierung.
-  Waiting for chamber {} / {}°C: 'Warte auf Kammer {} / {}°C'
-  Waiting for chamber {}°C: 'Warte auf Kammer {}°C'
+  Waiting for chamber {}: Warte auf Kammer {}
+  Waiting for chamber {} / {}: Warte auf Kammer {} / {}
   Waiting for the chamber to heat: Warten auf das Aufheizen der Kammer
   Waiting for the filament system to report its state: Warte auf Statusmeldung des Filamentsystems
   Waiting for the printer: Warten auf den Drucker
@@ -5059,6 +5060,7 @@ translations:
   ? "YOU WIN!\nScore: {}\nTap to play again"
   : "GEWONNEN!\nPunkte: {}\nZum erneuten Spielen tippen"
   Year: Jahr
+  Year Month Day: Jahr Monat Tag
   'Yes': Ja
   You can skip this and calibrate later in Settings.: Sie können dies überspringen
     und später in den Einstellungen kalibrieren.

@@ -9,6 +9,7 @@
 // config.cpp and config_storage_file.cpp parse this header in the splash
 // build, whose include path reaches lib/lvgl but not lib/ — the lvgl/lvgl.h
 // spelling does not resolve there.
+#include "core/temperature_units.h"
 #include "lvgl.h" // lv_tr()
 
 #include <spdlog/fmt/fmt.h>
@@ -434,9 +435,9 @@ class AmsErrorHelper {
                         "Extruder at " + std::to_string(current_temp) + "°C, need " +
                             std::to_string(required_temp) + "°C",
                         lv_tr("Extruder too cold"),
-                        fmt::format(lv_tr("Heat the extruder to at least {}°C before loading "
+                        fmt::format(lv_tr("Heat the extruder to at least {} before loading "
                                           "filament"),
-                                    required_temp));
+                                    helix::units::format_display_temp(required_temp)));
     }
 
     /**

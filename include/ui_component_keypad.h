@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "core/temperature_units.h"
 #include "keypad_input.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
@@ -60,6 +61,11 @@ struct ui_keypad_config_t {
     std::string initial_text;
     /// Ipv4 mode: called with the typed text once the keypad has closed.
     std::function<void(const std::string&)> on_confirm_text;
+    /// The value is a temperature: give initial, min and max in Celsius. The keypad
+    /// shows and accepts the user's display unit, and `callback`, `validate` and
+    /// `on_confirm` receive the whole Celsius target the typed value commands.
+    /// `unit_label` is replaced by the display unit's symbol.
+    bool temperature = false;
 };
 
 namespace helix::ui {
@@ -73,6 +79,15 @@ struct SliderFieldSpec {
     int divisor;       ///< Slider positions per real unit (see SliderScale)
     bool allow_decimal;
 };
+
+/// A temperature config (`temperature` set, values in Celsius) as the keypad shows it in
+/// @p unit: whole display-unit values, the range narrowed to whole degrees inside the
+/// Celsius one, and the unit's symbol. Any other config is returned unchanged.
+ui_keypad_config_t keypad_config_in_unit(const ui_keypad_config_t& config, units::TempUnit unit);
+
+/// A value typed in @p unit as the whole Celsius target it commands, kept inside
+/// [@p min_c, @p max_c].
+float keypad_value_to_celsius(float typed, float min_c, float max_c, units::TempUnit unit);
 
 /// Open the keypad on @p slider's current value and range.
 /// @param log_name Prefix for the debug line

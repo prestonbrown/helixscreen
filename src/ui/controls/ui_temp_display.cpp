@@ -8,6 +8,7 @@
 #include "ui_temperature_utils.h"
 #include "ui_tile_rung.h"
 
+#include "core/temperature_units.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"
@@ -25,6 +26,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <memory>
 
 using helix::ui::temperature::deci_to_degrees;
@@ -102,6 +104,9 @@ struct TempDisplayData {
 
     // Optional click callback name (for XML event_cb prop)
     char event_cb_name[64] = {0};
+
+    // The temperature unit symbol the numbers were last formatted in.
+    char unit_shown[8] = {0};
 };
 
 // Static registry for safe cleanup
@@ -155,6 +160,22 @@ static void size_target_observer_cb(lv_observer_t* observer, lv_subject_t* subje
         return;
     data->size_allows_target = lv_subject_get_int(subject);
     apply_target_visibility(data);
+}
+
+static void update_display(TempDisplayData* data);
+
+/** Observer callback on settings_temp_unit_symbol: reformats the numbers in the
+    unit just picked. The unit label follows the same subject through its own binding. */
+static void unit_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    lv_obj_t* container = static_cast<lv_obj_t*>(lv_observer_get_target(observer));
+    auto* data = get_data(container);
+    const char* unit = lv_subject_get_string(subject);
+    if (!data || !unit || strcmp(unit, data->unit_shown) == 0)
+        return;
+    const bool first = data->unit_shown[0] == '\0';
+    snprintf(data->unit_shown, sizeof(data->unit_shown), "%s", unit);
+    if (!first)
+        update_display(data);
 }
 
 /** Observer callback on the ui_breakpoint subject — toggles target+separator
@@ -233,7 +254,8 @@ static void format_target_text(TempDisplayData* data) {
     if (data->target_temp == 0) {
         snprintf(data->target_text_buf, sizeof(data->target_text_buf), "—");
     } else {
-        snprintf(data->target_text_buf, sizeof(data->target_text_buf), "%d", data->target_temp);
+        snprintf(data->target_text_buf, sizeof(data->target_text_buf), "%d",
+                 helix::units::to_display_temp_whole(data->target_temp));
     }
     lv_subject_copy_string(&data->target_text_subject, data->target_text_buf);
 }
@@ -525,7 +547,7 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
     }
 
     data_ptr->unit_label = lv_label_create(container);
-    lv_label_set_text(data_ptr->unit_label, "°C");
+    lv_label_set_text(data_ptr->unit_label, helix::units::display_temp_symbol());
     helix::ui::apply_font_style(data_ptr->unit_label, font);
     lv_obj_set_style_text_color(data_ptr->unit_label, muted_color, LV_PART_MAIN);
 
@@ -546,6 +568,12 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
     // is the container so on_delete's lv_obj_remove_from_subject(container, ...)
     // removes it before TempDisplayData is freed.
     auto* registered = s_registry.get(container);
+    // The unit label and the numbers follow the temperature unit setting. A
+    // bind_unit attribute replaces the label's binding with its own subject.
+    if (lv_subject_t* unit_subj = lv_xml_get_subject(nullptr, "settings_temp_unit_symbol")) {
+        lv_label_bind_text(registered->unit_label, unit_subj, nullptr);
+        lv_subject_add_observer_obj(unit_subj, unit_observer_cb, container, nullptr);
+    }
     if (registered->hide_target_below_bp >= 0) {
         if (lv_subject_t* bp_subj = theme_manager_get_breakpoint_subject()) {
             lv_subject_add_observer_obj(bp_subj, bp_observer_cb, container, nullptr);
@@ -676,6 +704,7 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
             // is still the subject's decidegrees.
             lv_subject_t* subject = lv_xml_get_subject(nullptr, value);
             if (subject && data && data->unit_label) {
+                lv_obj_remove_from_subject(data->unit_label, nullptr);
                 lv_label_bind_text(data->unit_label, subject, nullptr);
             } else if (!subject) {
                 spdlog::warn("[temp_display] Subject '{}' not found for bind_unit", value);
@@ -731,7 +760,7 @@ void ui_temp_display_set_current(lv_obj_t* obj, int current) {
     // Update current temp via subject for efficiency
     // Note: this API takes whole degrees, so format as "XX.0"
     snprintf(data->current_text_buf, sizeof(data->current_text_buf), "%.1f",
-             static_cast<float>(current));
+             helix::units::to_display_temp(current));
     lv_subject_copy_string(&data->current_text_subject, data->current_text_buf);
 }
 

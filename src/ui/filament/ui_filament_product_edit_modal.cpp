@@ -5,6 +5,8 @@
 
 #include "ui_toast_manager.h"
 
+#include "core/temperature_units.h"
+#include "core/text_io.h"
 #include "filament_catalog.h"
 #include "filament_database.h"
 #include "json_utils.h"
@@ -61,6 +63,21 @@ std::string get_input_text(lv_obj_t* dialog, const char* name) {
 // shows as an empty (omittable) field rather than a literal "0".
 std::string int_to_field(int v) {
     return v > 0 ? std::to_string(v) : std::string{};
+}
+
+// A Celsius temperature as its field shows it, in the display unit.
+std::string temp_to_field(int celsius) {
+    return celsius > 0 ? std::to_string(helix::units::to_display_temp_whole(celsius))
+                       : std::string{};
+}
+
+// A temperature field's text as the Celsius value the form stores; blank stays blank.
+std::string field_to_temp(const std::string& text) {
+    const std::string_view trimmed = helix::text_io::trim(text);
+    if (trimmed.empty())
+        return {};
+    return std::to_string(
+        helix::units::display_temp_to_celsius(std::atoi(std::string(trimmed).c_str())));
 }
 
 std::string density_to_field(float v) {
@@ -185,10 +202,10 @@ void FilamentProductEditModal::populate_fields() {
     set_input_text(dialog_, "field_id", ef->id);
     set_input_text(dialog_, "field_brand", ef->brand);
     set_input_text(dialog_, "field_name", ef->name);
-    set_input_text(dialog_, "field_nozzle_min", int_to_field(ef->nozzle_min));
-    set_input_text(dialog_, "field_nozzle_max", int_to_field(ef->nozzle_max));
-    set_input_text(dialog_, "field_nozzle", int_to_field(ef->nozzle_recommended));
-    set_input_text(dialog_, "field_bed", int_to_field(ef->bed_temp));
+    set_input_text(dialog_, "field_nozzle_min", temp_to_field(ef->nozzle_min));
+    set_input_text(dialog_, "field_nozzle_max", temp_to_field(ef->nozzle_max));
+    set_input_text(dialog_, "field_nozzle", temp_to_field(ef->nozzle_recommended));
+    set_input_text(dialog_, "field_bed", temp_to_field(ef->bed_temp));
     set_input_text(dialog_, "field_density", density_to_field(ef->density_g_cm3));
     populate_type_dropdown(ef->type);
 }
@@ -221,10 +238,10 @@ FilamentFormValues FilamentProductEditModal::read_form() const {
         v.type = buf;
     }
 
-    v.nozzle_min = get_input_text(dialog_, "field_nozzle_min");
-    v.nozzle_max = get_input_text(dialog_, "field_nozzle_max");
-    v.nozzle = get_input_text(dialog_, "field_nozzle");
-    v.bed = get_input_text(dialog_, "field_bed");
+    v.nozzle_min = field_to_temp(get_input_text(dialog_, "field_nozzle_min"));
+    v.nozzle_max = field_to_temp(get_input_text(dialog_, "field_nozzle_max"));
+    v.nozzle = field_to_temp(get_input_text(dialog_, "field_nozzle"));
+    v.bed = field_to_temp(get_input_text(dialog_, "field_bed"));
     v.density = get_input_text(dialog_, "field_density");
     return v;
 }

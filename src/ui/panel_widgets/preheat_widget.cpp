@@ -12,6 +12,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/temperature_units.h"
 #include "filament_database.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
@@ -270,11 +271,13 @@ void PreheatWidget::set_temperatures(int nozzle, int bed) {
         return;
     c->set_target(helix::HeaterType::Nozzle, static_cast<double>(nozzle),
                   {.toast = true, .on_success = [nozzle]() {
-                       NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}°C"), nozzle);
+                       NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}"),
+                                      helix::units::format_display_temp(nozzle));
                    }});
     c->set_target(helix::HeaterType::Bed, static_cast<double>(bed),
                   {.toast = true, .on_success = [bed]() {
-                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), bed);
+                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}"),
+                                      helix::units::format_display_temp(bed));
                    }});
 }
 
@@ -410,7 +413,8 @@ void PreheatWidget::set_temperatures_multi(int nozzle, int bed) {
 
     c->set_target(helix::HeaterType::Bed, static_cast<double>(bed),
                   {.toast = true, .on_success = [bed]() {
-                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), bed);
+                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}"),
+                                      helix::units::format_display_temp(bed));
                    }});
 
     if (*refused) {

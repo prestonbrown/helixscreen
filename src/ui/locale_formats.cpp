@@ -5,6 +5,7 @@
 
 #include "ui_format_utils.h"
 
+#include "display_settings_manager.h"
 #include "format_utils.h"
 #include "lvgl.h"
 
@@ -132,10 +133,10 @@ static const std::unordered_map<std::string, std::array<const char*, 7>> k_day_f
 // ---------------------------------------------------------------------------
 
 enum class DatePatternGroup {
-    EN,         // "{day}, {mon} {dd}"
-    DE,         // "{day}, {dd}. {mon}"
-    ROMANCE_RU, // "{day}, {dd} {mon}"  (fr, es, pt, it, ru)
-    CJK,        // "{mm}/{dd} ({day})"  (zh, ja)
+    EN,         // "{day}, {mon} {dd}"  (month first)
+    DE,         // "{day}, {dd}. {mon}" (day first, German)
+    ROMANCE_RU, // "{day}, {dd} {mon}"  (day first)
+    CJK,        // "{mm}/{dd} ({day})"  (year first)
 };
 
 enum class ModifiedDatePatternGroup {
@@ -145,26 +146,37 @@ enum class ModifiedDatePatternGroup {
     CJK,        // "{mm}/{dd}"
 };
 
+// The user's date order picks the arrangement; the language only supplies the
+// names and the punctuation German writes ("28. Feb.").
 static DatePatternGroup get_date_pattern(const std::string& lang) {
-    if (lang == "de")
-        return DatePatternGroup::DE;
-    if (lang == "zh" || lang == "ja")
+    // Unsaved, the order is the language this module formats in.
+    auto& display = DisplaySettingsManager::instance();
+    const DateFormat order = display.has_saved_date_format()
+                                 ? display.get_date_format()
+                                 : default_date_format_for_language(lang);
+    switch (order) {
+    case DateFormat::MDY:
+        return DatePatternGroup::EN;
+    case DateFormat::YMD:
         return DatePatternGroup::CJK;
-    if (lang == "fr" || lang == "es" || lang == "pt" || lang == "it" || lang == "ru")
-        return DatePatternGroup::ROMANCE_RU;
-    // en and unknown languages
-    return DatePatternGroup::EN;
+    case DateFormat::DMY:
+        break;
+    }
+    return lang == "de" ? DatePatternGroup::DE : DatePatternGroup::ROMANCE_RU;
 }
 
 static ModifiedDatePatternGroup get_modified_date_pattern(const std::string& lang) {
-    if (lang == "de")
+    switch (get_date_pattern(lang)) {
+    case DatePatternGroup::EN:
+        return ModifiedDatePatternGroup::EN;
+    case DatePatternGroup::DE:
         return ModifiedDatePatternGroup::DE;
-    if (lang == "zh" || lang == "ja")
-        return ModifiedDatePatternGroup::CJK;
-    if (lang == "fr" || lang == "es" || lang == "pt" || lang == "it" || lang == "ru")
+    case DatePatternGroup::ROMANCE_RU:
         return ModifiedDatePatternGroup::ROMANCE_RU;
-    // en and unknown languages
-    return ModifiedDatePatternGroup::EN;
+    case DatePatternGroup::CJK:
+        break;
+    }
+    return ModifiedDatePatternGroup::CJK;
 }
 
 // ---------------------------------------------------------------------------
@@ -339,8 +351,13 @@ std::string format_localized_long_date(const struct tm* tm_info) {
         }
         break;
     case DatePatternGroup::CJK:
-        // "2019年10月21日"
-        snprintf(buf, sizeof(buf), u8"%d年%d月%d日", yyyy, mm, dd);
+        if (s_current_lang == "zh" || s_current_lang == "ja") {
+            // "2019年10月21日"
+            snprintf(buf, sizeof(buf), u8"%d年%d月%d日", yyyy, mm, dd);
+        } else {
+            // "2019 October 21"
+            snprintf(buf, sizeof(buf), "%d %s %d", yyyy, get_month_full_name(tm_info).c_str(), dd);
+        }
         break;
     }
 
@@ -462,9 +479,9 @@ std::string format_localized_short_date(const struct tm* tm_info) {
             snprintf(buf, sizeof(buf), "%02d %s", dd, mon.c_str());
         break;
     case ModifiedDatePatternGroup::CJK:
-        // "3/9" or "3/9/25"
+        // "3/9" or "2025/3/9"
         if (show_year)
-            snprintf(buf, sizeof(buf), "%d/%d/%02d", mm, dd, yy % 100);
+            snprintf(buf, sizeof(buf), "%d/%d/%d", yy, mm, dd);
         else
             snprintf(buf, sizeof(buf), "%d/%d", mm, dd);
         break;

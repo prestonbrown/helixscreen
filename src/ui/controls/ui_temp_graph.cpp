@@ -6,6 +6,7 @@
 #include "ui_format_utils.h"
 #include "ui_swatch.h"
 
+#include "core/temperature_units.h"
 #include "flat_map.h"
 #include "lv_draw_buf_guard.h"
 #include "system/crash_handler.h"
@@ -204,11 +205,12 @@ static int32_t measure_y_axis_width(const ui_temp_graph_t* graph) {
     if (!graph->axis_font || graph->y_axis_increment <= 0)
         return graph->y_axis_width_floor;
 
+    const helix::units::TempUnit unit = helix::units::display_temp_unit();
     const float endpoints[2] = {graph->min_temp, graph->max_temp};
     int32_t widest = 0;
     for (float temp : endpoints) {
         char buf[16];
-        std::snprintf(buf, sizeof(buf), "%d°", static_cast<int>(temp));
+        std::snprintf(buf, sizeof(buf), "%d°", helix::units::celsius_to_unit_whole(temp, unit));
         lv_point_t size;
         lv_text_get_size(&size, buf, graph->axis_font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
         if (size.x > widest)
@@ -1579,7 +1581,12 @@ static void draw_y_axis_labels_cb(lv_event_t* e) {
     static int temp_str_idx = 0;
     temp_str_idx = 0; // Reset each draw cycle
 
-    for (float temp = graph->min_temp; temp <= graph->max_temp; temp += graph->y_axis_increment) {
+    // The axis is drawn in Celsius; the ticks sit on round values of the unit shown.
+    const auto ticks =
+        helix::units::temp_axis_ticks(graph->min_temp, graph->max_temp, graph->y_axis_increment,
+                                      helix::units::display_temp_unit());
+    for (const helix::units::TempAxisTick& tick : ticks) {
+        const float temp = static_cast<float>(tick.celsius);
         // Calculate Y position: (max_temp - temp) / range * height
         // Top = max_temp, Bottom = min_temp
         float temp_fraction = (graph->max_temp - temp) / temp_range;
@@ -1596,7 +1603,7 @@ static void draw_y_axis_labels_cb(lv_event_t* e) {
 
         // Format temperature string into persistent buffer
         char* temp_str = temp_str_buf[temp_str_idx++ % 8];
-        snprintf(temp_str, 8, "%d°", static_cast<int>(temp));
+        snprintf(temp_str, 8, "%d°", tick.label);
 
         // Draw label in left padding area (to the left of chart content)
         lv_area_t label_area;

@@ -7,6 +7,7 @@
 #include "ams_device_sections.h"
 #include "ams_error.h"
 #include "color_utils.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
@@ -1745,8 +1746,9 @@ AmsError AmsBackendQidi::start_drying(float temp_c, int duration_min, int fan_pc
         return AmsError(AmsResult::COMMAND_FAILED,
                         "Temperature out of range: " + std::to_string(temp_c),
                         lv_tr("Invalid temperature"),
-                        fmt::format(lv_tr("Set temperature between {}°C and {}°C"),
-                                    static_cast<int>(min_temp), static_cast<int>(max_temp)));
+                        fmt::format(lv_tr("Set temperature between {} and {}"),
+                                    units::format_display_temp(static_cast<int>(min_temp)),
+                                    units::format_display_temp(static_cast<int>(max_temp))));
     }
     if (duration_min <= 0 || duration_min > max_duration) {
         return AmsError(AmsResult::COMMAND_FAILED,

@@ -11,6 +11,7 @@
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
+#include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "filament_action_set.h"
 #include "indx_contract.h"
@@ -252,25 +253,31 @@ void register_indx_device_flows() {
                                 {nullptr, [](const std::string&) { seat_by_hand(); }});
     register_guided_device_flow("indx_cycle_all",
                                 {attach_status, [](const std::string&) { confirm_cycle_all(); }});
-    register_guided_device_flow("indx_heater_calibration",
-                                {attach_status, [](const std::string&) {
-                                     confirm_calibration(
-                                         "calibrate_heater", lv_tr("Calibrate heater"),
-                                         lv_tr("The mounted nozzle heats to 200°C and cools "
-                                               "again while the heater's safety model is "
-                                               "fitted. Keep the part fan off and flammable "
-                                               "material away from the head. This takes "
-                                               "several minutes."));
-                                 }});
-    register_guided_device_flow("indx_fan_calibration",
-                                {attach_status, [](const std::string&) {
-                                     confirm_calibration(
-                                         "calibrate_fan", lv_tr("Calibrate part fan"),
-                                         lv_tr("The nozzle heats to 200°C while the part fan "
-                                               "steps through its speeds. For an accurate fit, "
-                                               "fit the duct as you print with it. This takes "
-                                               "several minutes."));
-                                 }});
+    register_guided_device_flow(
+        "indx_heater_calibration",
+        {attach_status, [](const std::string&) {
+             confirm_calibration(
+                 "calibrate_heater", lv_tr("Calibrate heater"),
+                 fmt::format(fmt::runtime(lv_tr("The mounted nozzle heats to {} and cools "
+                                                "again while the heater's safety model is "
+                                                "fitted. Keep the part fan off and flammable "
+                                                "material away from the head. This takes "
+                                                "several minutes.")),
+                             units::format_display_temp(200))
+                     .c_str());
+         }});
+    register_guided_device_flow(
+        "indx_fan_calibration",
+        {attach_status, [](const std::string&) {
+             confirm_calibration(
+                 "calibrate_fan", lv_tr("Calibrate part fan"),
+                 fmt::format(fmt::runtime(lv_tr("The nozzle heats to {} while the part fan "
+                                                "steps through its speeds. For an accurate fit, "
+                                                "fit the duct as you print with it. This takes "
+                                                "several minutes.")),
+                             units::format_display_temp(200))
+                     .c_str());
+         }});
 }
 
 } // namespace helix::ui

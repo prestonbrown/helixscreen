@@ -26,7 +26,6 @@
   <translation tag="%d tools" es="%d herramientas"/>
   <translation tag="%d units" es="%d unidades"/>
   <translation tag="%d-%d" es="%d-%d"/>
-  <translation tag="%d-%d°C" es="%d-%d°C"/>
   <translation tag="%d:%02d left" es="quedan %d:%02d"/>
   <translation tag="%dd %dh" es="%d d %d h"/>
   <translation tag="%dh" es="%d h"/>
@@ -107,7 +106,6 @@
   <translation tag="12-hour" es="12 horas"/>
   <translation tag="120 seconds" es="120 segundos"/>
   <translation tag="15 seconds" es="15 segundos"/>
-  <translation tag="170-300 °C" es="170-300 °C"/>
   <translation tag="180°" es="180°"/>
   <translation tag="180° Upside Down" es="180° invertido"/>
   <translation tag="2 min" es="2 min"/>
@@ -358,7 +356,7 @@
   <translation tag="Assisting" es="Asistiendo"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" es="Al menos {} líneas de helixscreen.env fueron ignoradas"/>
   <translation tag="At target" es="En el objetivo"/>
-  <translation tag="At {}°C, about {} minutes." es="A {}°C, unos {} minutos."/>
+  <translation tag="At {}, about {} minutes." es="A {}, unos {} minutos."/>
   <translation tag="Authentication failed" es="Error de autenticación"/>
   <translation tag="Auto" es="Automático"/>
   <translation tag="Auto Bed Mesh" es="Malla de Cama Automática"/>
@@ -417,7 +415,6 @@
   <translation tag="Beacon auto-calibrate sent" es="Beacon auto-calibración enviada"/>
   <translation tag="Beacon calibrate sent" es="Beacon calibración enviada"/>
   <translation tag="Bed" es="Cama"/>
-  <translation tag="Bed (°C)" es="Cama (°C)"/>
   <translation tag="Bed Clear Check" es="Comprobación de cama libre"/>
   <translation tag="Bed Drying" es="Secado en cama"/>
   <translation tag="Bed Heater" es="Calentador de Cama"/>
@@ -439,17 +436,17 @@
   <translation tag="Bed clear · Start next" es="Cama libre · Iniciar siguiente"/>
   <translation tag="Bed cooling, spools still on the bed:" es="La cama se enfría, las bobinas siguen encima:"/>
   <translation tag="Bed is Level!" es="¡La Cama está Nivelada!"/>
-  <translation tag="Bed is at {:.0f}°C, the print needs {:.0f}°C." es="La cama está a {:.0f}°C, la impresión necesita {:.0f}°C."/>
+  <translation tag="Bed is at {}, the print needs {}." es="La cama está a {}, la impresión necesita {}."/>
   <translation tag="Bed mesh" es="Malla de cama"/>
   <translation tag="Bed mesh calibration failed: {}" es="Falló la calibración de la malla de cama: {}"/>
   <translation tag="Bed mesh operation timed out" es="Malla de cama — tiempo de espera agotado"/>
   <translation tag="Bed mesh..." es="Malla de cama..."/>
   <translation tag="Bed size unknown" es="Tamaño de cama desconocido"/>
-  <translation tag="Bed target set to {}°C" es="Cama configurada a {}°C"/>
-  <translation tag="Bed temp must be 0-%d°C" es="La temperatura de la cama debe ser 0-%d°C"/>
+  <translation tag="Bed target set to {}" es="Cama configurada a {}"/>
+  <translation tag="Bed temp must be %s" es="La temperatura de la cama debe ser 0-%s"/>
   <translation tag="Bed warming timed out" es="Calentamiento de cama — tiempo de espera agotado"/>
-  <translation tag="Bed {:.0f} / {:.0f}°C" es="Cama {:.0f} / {:.0f}°C"/>
-  <translation tag="Bed {:.0f}°C" es="Cama {:.0f}°C"/>
+  <translation tag="Bed {}" es="Cama {}"/>
+  <translation tag="Bed {} / {}" es="Cama {} / {}"/>
   <translation tag="Before starting" es="Antes de empezar"/>
   <translation tag="Below target" es="Por debajo del objetivo"/>
   <translation tag="Belt Tension" es="Tensión de correa"/>
@@ -656,11 +653,11 @@
   <translation tag="Cartographer scan calibrate sent — use Z-Offset panel to adjust" es="Cartographer calibración de escaneo enviada — use el panel de Z-Offset para ajustar"/>
   <translation tag="Cartographer touch calibrate sent" es="Cartographer calibración táctil enviada"/>
   <translation tag="Category" es="Categoría"/>
+  <translation tag="Celsius (°C)" es="Celsius (°C)"/>
   <translation tag="Center" es="Centro"/>
   <translation tag="Center QR code in frame" es="Centre el código QR en el marco"/>
   <translation tag="Chamb:" es="Cámara:"/>
   <translation tag="Chamber" es="Cámara"/>
-  <translation tag="Chamber (°C)" es="Cámara (°C)"/>
   <translation tag="Chamber Cooling Fan" es="Ventilador de enfriamiento de cámara"/>
   <translation tag="Chamber Dryer" es="Secador de cámara"/>
   <translation tag="Chamber Fan" es="Ventilador de Cámara"/>
@@ -670,13 +667,13 @@
   <translation tag="Chamber Temperature" es="Temperatura de la cámara"/>
   <translation tag="Chamber air" es="Aire de la cámara"/>
   <translation tag="Chamber and dryer humidity monitoring" es="Monitoreo de humedad de cámara y secador"/>
-  <translation tag="Chamber at %d°C" es="Cámara a %d°C"/>
+  <translation tag="Chamber at %s" es="Cámara a %s"/>
   <translation tag="Chamber heater didn&apos;t start" es="El calentador de la cámara no arrancó"/>
   <translation tag="Chamber heater didn&apos;t start. {}" es="El calentador de la cámara no arrancó. {}"/>
-  <translation tag="Chamber heating to %d°C..." es="Calentando cámara a %d°C..."/>
+  <translation tag="Chamber heating to %s..." es="Calentando cámara a %s..."/>
   <translation tag="Chamber light fitted" es="Luz de cámara instalada"/>
-  <translation tag="Chamber target set to {}°C" es="Objetivo de cámara establecido en {}°C"/>
-  <translation tag="Chamber temp must be 0-%d°C" es="La temperatura de la cámara debe ser 0-%d°C"/>
+  <translation tag="Chamber target set to {}" es="Objetivo de cámara establecido en {}"/>
+  <translation tag="Chamber temp must be %s" es="La temperatura de la cámara debe ser 0-%s"/>
   <translation tag="Chamber too hot" es="Cámara demasiado caliente"/>
   <translation tag="Change" es="Cambiar"/>
   <translation tag="Change Address" es="Cambiar dirección"/>
@@ -751,6 +748,7 @@
   <translation tag="Choose rendering mode for bed mesh visualization" es="Elija el modo de renderizado para la visualización de malla de cama"/>
   <translation tag="Choose sound style" es="Elegir estilo de sonido"/>
   <translation tag="Choose the model that matches your printer. This sets the print macros, fan roles and calibration behavior HelixScreen uses." es="Elija el modelo que coincida con su impresora. Esto establece las macros de impresión, los roles de los ventiladores y el comportamiento de calibración que usa HelixScreen."/>
+  <translation tag="Choose the order of day, month and year" es="Elija el orden de día, mes y año"/>
   <translation tag="Choose what to power off or restart." es="Elija qué apagar o reiniciar."/>
   <translation tag="Choose which lane is in the toolhead to unload it" es="Elige qué carril está en el cabezal para descargarlo"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" es="Posición del conducto de purga: X {:.1f}, Y {:.1f}"/>
@@ -1016,7 +1014,7 @@
   <translation tag="Current Z Position" es="Posición Z Actual"/>
   <translation tag="Current name:" es="Nombre actual:"/>
   <translation tag="Current:" es="Actual:"/>
-  <translation tag="Current: %d°C | Target: %d°C" es="Actual: %d°C | Objetivo: %d°C"/>
+  <translation tag="Current: %s | Target: %s" es="Actual: %s | Objetivo: %s"/>
   <translation tag="Currently Loaded" es="Actualmente cargado"/>
   <translation tag="Currently printing" es="Imprimiendo actualmente"/>
   <translation tag="Currently:" es="Actual:"/>
@@ -1057,14 +1055,16 @@
   <translation tag="Dark Mode" es="Modo Oscuro"/>
   <translation tag="Date (newest)" es="Fecha (más reciente)"/>
   <translation tag="Date (oldest)" es="Fecha (más antiguo)"/>
+  <translation tag="Date Format" es="Formato de fecha"/>
   <translation tag="Day" es="Día"/>
+  <translation tag="Day Month Year" es="Día Mes Año"/>
   <translation tag="Debug" es="Depuración"/>
   <translation tag="Deep Black" es="Negro profundo"/>
   <translation tag="Default" es="Predeterminado"/>
   <translation tag="Default Parameters" es="Parámetros predeterminados"/>
   <translation tag="Default border thickness" es="Grosor de borde predeterminado"/>
-  <translation tag="Default: %s nozzle, %d°C bed" es="Predeterminado: boquilla %s, cama %d°C"/>
-  <translation tag="Default: %s nozzle, %d°C bed, %d°C chamber" es="Predeterminado: boquilla %s, cama %d°C, cámara %d°C"/>
+  <translation tag="Default: %s nozzle, %s bed" es="Predeterminado: boquilla %s, cama %s"/>
+  <translation tag="Default: %s nozzle, %s bed, %s chamber" es="Predeterminado: boquilla %s, cama %s, cámara %s"/>
   <translation tag="Defaults restored" es="Valores predeterminados restaurados"/>
   <translation tag="Define macros in your printer.cfg" es="Defina macros en su printer.cfg"/>
   <translation tag="Delete" es="Eliminar"/>
@@ -1373,6 +1373,7 @@
   <translation tag="FILAMENTS" es="FILAMENTOS"/>
   <translation tag="FILTERS" es="FILTROS"/>
   <translation tag="Factory Reset" es="Restaurar de Fábrica"/>
+  <translation tag="Fahrenheit (°F)" es="Fahrenheit (°F)"/>
   <translation tag="Failed" es="Fallido"/>
   <translation tag="Failed to apply limits" es="Error al aplicar límites"/>
   <translation tag="Failed to apply settings" es="Error al aplicar ajustes"/>
@@ -1726,12 +1727,12 @@
   <translation tag="Heat nozzle" es="Calentar boquilla"/>
   <translation tag="Heat soak" es="Estabilización Térmica"/>
   <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options." es="El heat soak deja que el recinto se caliente antes de imprimir. Aparece porque la impresora tiene una macro de heat soak o se activó en los ajustes; HelixScreen ofrece la macro en las opciones previas a la impresión."/>
-  <translation tag="Heat the bed to {}°C" es="Calentar la cama a {}°C"/>
+  <translation tag="Heat the bed to {}" es="Calentar la cama a {}"/>
   <translation tag="Heat the chamber too" es="Calentar también la cámara"/>
-  <translation tag="Heat the extruder to at least {}°C before loading filament" es="Caliente el extrusor a al menos {}°C antes de cargar filamento"/>
+  <translation tag="Heat the extruder to at least {} before loading filament" es="Caliente el extrusor a al menos {} antes de cargar filamento"/>
   <translation tag="Heat the hotend." es="Calienta el hotend."/>
-  <translation tag="Heat to at least %d°C for filament operations" es="Calienta a al menos %d°C para operaciones de filamento"/>
-  <translation tag="Heat {} above {}°C before resuming" es="Caliente {} por encima de {}°C antes de reanudar"/>
+  <translation tag="Heat to at least %s for filament operations" es="Calienta a al menos %s para operaciones de filamento"/>
+  <translation tag="Heat {} above {} before resuming" es="Caliente {} por encima de {} antes de reanudar"/>
   <translation tag="Heatbed Temperature" es="Temperatura de Cama Caliente"/>
   <translation tag="Heated Bed" es="Cama Caliente"/>
   <translation tag="Heated Bed MPC Calibration" es="Calibración MPC de la cama caliente"/>
@@ -1747,7 +1748,7 @@
   <translation tag="HeaterSelect" es="Seleccionar calentador"/>
   <translation tag="Heaters off" es="Calentadores apagados"/>
   <translation tag="Heating" es="Calentando"/>
-  <translation tag="Heating (%d°C below minimum)" es="Calentando (%d°C por debajo del mínimo)"/>
+  <translation tag="Heating (%s below minimum)" es="Calentando (%s por debajo del mínimo)"/>
   <translation tag="Heating Bed..." es="Calentando cama..."/>
   <translation tag="Heating Chamber..." es="Calentando cámara..."/>
   <translation tag="Heating Nozzle..." es="Calentando boquilla..."/>
@@ -1765,16 +1766,16 @@
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" es="Calentando la cama y la boquilla para que la impresión vuelva a adherirse y la boquilla se suelte de ella"/>
   <translation tag="Heating the nozzle" es="Calentando la boquilla"/>
   <translation tag="Heating the nozzle. Have the filament ready to push in." es="Calentando la boquilla. Ten el filamento listo para introducirlo."/>
-  <translation tag="Heating to %d°C... %.0f°C" es="Calentando a %d°C... %.0f°C"/>
+  <translation tag="Heating to %s... %s" es="Calentando a %s... %s"/>
   <translation tag="Heating to %s: %d:%02d left" es="Calentando a %s: %d:%02d restante"/>
-  <translation tag="Heating to {}°C before {}..." es="Calentando a {}°C antes de {}..."/>
-  <translation tag="Heating to {}°C for {}..." es="Calentando a {}°C durante {}..."/>
-  <translation tag="Heating to {}°C..." es="Calentando a {}°C..."/>
+  <translation tag="Heating to {} before {}..." es="Calentando a {} antes de {}..."/>
+  <translation tag="Heating to {} for {}..." es="Calentando a {} durante {}..."/>
+  <translation tag="Heating to {}..." es="Calentando a {}..."/>
   <translation tag="Heating {}..." es="Calentando {}..."/>
   <translation tag="Heating..." es="Calentando..."/>
-  <translation tag="Heating: %d / %d°C" es="Calentando: %d / %d°C"/>
-  <translation tag="Heats the bed to {:g}°C, above this printer&apos;s {:g}°C limit." es="Calienta la cama a {:g}°C, por encima del límite de {:g}°C de esta impresora."/>
-  <translation tag="Heats the nozzle to {:g}°C, above this printer&apos;s {:g}°C limit." es="Calienta la boquilla a {:g}°C, por encima del límite de {:g}°C de esta impresora."/>
+  <translation tag="Heating: %d / %s" es="Calentando: %d / %s"/>
+  <translation tag="Heats the bed to {}, above this printer&apos;s {} limit." es="Calienta la cama a {}, por encima del límite de {} de esta impresora."/>
+  <translation tag="Heats the nozzle to {}, above this printer&apos;s {} limit." es="Calienta la boquilla a {}, por encima del límite de {} de esta impresora."/>
   <translation tag="Heightmap and flatness of the active bed mesh" es="Mapa de alturas y planitud de la malla de cama activa"/>
   <translation tag="HelixPrint Plugin" es="Plugin HelixPrint"/>
   <translation tag="HelixPrint plugin updated." es="Plugin HelixPrint actualizado."/>
@@ -1806,7 +1807,7 @@
   <translation tag="Hold anywhere to cancel" es="Mantén pulsado en cualquier lugar para cancelar"/>
   <translation tag="Hold slicer prints that do not fit" es="Retener impresiones del laminador que no caben"/>
   <translation tag="Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool." es="Sujete {} completamente en el cabezal. El cierre se bloquea y pasa a ser la herramienta montada."/>
-  <translation tag="Holding nozzle at {}°C to purge previous filament." es="Manteniendo la boquilla a {}°C para purgar el filamento anterior."/>
+  <translation tag="Holding nozzle at {} to purge previous filament." es="Manteniendo la boquilla a {} para purgar el filamento anterior."/>
   <translation tag="Home" es="Inicio"/>
   <translation tag="Home &amp; Continue" es="Referenciar y continuar"/>
   <translation tag="Home All" es="Posicionar todo"/>
@@ -2222,7 +2223,7 @@
   <translation tag="MMU command failed" es="Error en comando MMU"/>
   <translation tag="MOTION &amp; LEVELING" es="MOVIMIENTO Y NIVELACIÓN"/>
   <translation tag="MPC" es="MPC"/>
-  <translation tag="MPC thermal model calibrated for {} at {}°C." es="Modelo térmico MPC calibrado para {} a {}°C."/>
+  <translation tag="MPC thermal model calibrated for {} at {}." es="Modelo térmico MPC calibrado para {} a {}."/>
   <translation tag="Machine Limits" es="Límites de la Máquina"/>
   <translation tag="Macro" es="Macro"/>
   <translation tag="Macro Browser" es="Explorador de Macros"/>
@@ -2341,6 +2342,7 @@
   <translation tag="Monitor for print abnormalities (camera-based)" es="Monitorear anomalías de impresión (basado en cámara)"/>
   <translation tag="Monitoring" es="Monitorizando"/>
   <translation tag="Month" es="Mes"/>
+  <translation tag="Month Day Year" es="Mes Día Año"/>
   <translation tag="Moonraker" es="Moonraker"/>
   <translation tag="Moonraker answered at {}." es="Moonraker respondió en {}."/>
   <translation tag="Moonraker at {} rejected the API key." es="Moonraker en {} rechazó la clave API."/>
@@ -2619,8 +2621,8 @@
   <translation tag="Nozzle" es="Boquilla"/>
   <translation tag="Nozzle / Bed" es="Boquilla / Cama"/>
   <translation tag="Nozzle Clean" es="Limpieza de Boquilla"/>
-  <translation tag="Nozzle Max (°C)" es="Boquilla máx. (°C)"/>
-  <translation tag="Nozzle Min (°C)" es="Boquilla mín. (°C)"/>
+  <translation tag="Nozzle Max" es="Boquilla máx."/>
+  <translation tag="Nozzle Min" es="Boquilla mín."/>
   <translation tag="Nozzle Moves" es="Boquilla se mueve"/>
   <translation tag="Nozzle Temp" es="Temp. Boquilla"/>
   <translation tag="Nozzle Temperature" es="Temperatura de Boquilla"/>
@@ -2629,15 +2631,15 @@
   <translation tag="Nozzle clean complete" es="Limpieza de boquilla completa"/>
   <translation tag="Nozzle clog detected" es="Se detectó una obstrucción en la boquilla"/>
   <translation tag="Nozzle diameter" es="Diámetro de boquilla"/>
-  <translation tag="Nozzle did not reach {}°C — {} canceled" es="La boquilla no alcanzó {}°C — se canceló {}"/>
+  <translation tag="Nozzle did not reach {} — {} canceled" es="La boquilla no alcanzó {} — se canceló {}"/>
   <translation tag="Nozzle flow" es="Flujo de boquilla"/>
   <translation tag="Nozzle interval" es="Intervalo de la boquilla"/>
   <translation tag="Nozzle min cannot exceed max" es="El mínimo de la boquilla no puede superar el máximo"/>
   <translation tag="Nozzle not changed: the printer did not confirm it" es="Boquilla no cambiada: la impresora no lo confirmó"/>
   <translation tag="Nozzle not changed: {}" es="Boquilla no cambiada: {}"/>
   <translation tag="Nozzle size and flow type per head" es="Tamaño y tipo de flujo de boquilla por cabezal"/>
-  <translation tag="Nozzle target set to {}°C" es="Boquilla configurada a {}°C"/>
-  <translation tag="Nozzle temp must be 100-%d°C" es="La temperatura de la boquilla debe ser 100-%d°C"/>
+  <translation tag="Nozzle target set to {}" es="Boquilla configurada a {}"/>
+  <translation tag="Nozzle temp must be %s" es="La temperatura de la boquilla debe ser 100-%s"/>
   <translation tag="Nozzle, bed, and chamber in one widget" es="Boquilla, cama y cámara en un widget"/>
   <translation tag="Nozzle:" es="Boquilla:"/>
   <translation tag="Nozzles still heating: {}" es="Boquillas aún calentándose: {}"/>
@@ -3476,7 +3478,7 @@
   <translation tag="Seat" es="Asentar"/>
   <translation tag="Seat a tool by hand" es="Asentar una herramienta a mano"/>
   <translation tag="Seat a tool by hand for the first Z home" es="Asentar una herramienta a mano para el primer origen de Z"/>
-  <translation tag="Seat the hot ends, heat {} above {}°C, then tap Resume." es="Coloque los hotends, caliente {} por encima de {}°C y luego toque Reanudar."/>
+  <translation tag="Seat the hot ends, heat {} above {}, then tap Resume." es="Coloque los hotends, caliente {} por encima de {} y luego toque Reanudar."/>
   <translation tag="Seat which tool by hand?" es="¿Qué herramienta asentar a mano?"/>
   <translation tag="Seating {}..." es="Asentando {}..."/>
   <translation tag="Secondary" es="Secundario"/>
@@ -3558,7 +3560,7 @@
   <translation tag="Set duration between 1 and {} minutes" es="Establezca una duración entre 1 y {} minutos"/>
   <translation tag="Set local timezone for time display" es="Establecer zona horaria local para la hora"/>
   <translation tag="Set logging verbosity for troubleshooting" es="Establecer el nivel de detalle del registro para solución de problemas"/>
-  <translation tag="Set temperature between {}°C and {}°C" es="Establezca una temperatura entre {}°C y {}°C"/>
+  <translation tag="Set temperature between {} and {}" es="Establezca una temperatura entre {} y {}"/>
   <translation tag="Set the X and Y belts with the motorized tensioners" es="Ajustar las correas X e Y con los tensores motorizados"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." es="Configura el reloj, el tema y las unidades. Puedes cambiarlos más tarde en Ajustes."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" es="Ajuste a mano el tipo y el color del filamento para esta ranura. Si la etiqueta debería poder leerse, vuelva a colocar la bobina con la etiqueta hacia el lector cuando la caja esté inactiva"/>
@@ -3588,6 +3590,7 @@
   <translation tag="Show Sections" es="Mostrar Secciones"/>
   <translation tag="Show Touch Points" es="Mostrar puntos de toque"/>
   <translation tag="Show a confirmation dialog when tapping a macro" es="Mostrar un diálogo de confirmación al tocar una macro"/>
+  <translation tag="Show and enter temperatures in Celsius or Fahrenheit" es="Mostrar e introducir temperaturas en Celsius o Fahrenheit"/>
   <translation tag="Show instead of dimming" es="Mostrar en lugar de atenuar"/>
   <translation tag="Show light controls for a light connected to this printer" es="Mostrar los controles de luz de una luz conectada a esta impresora"/>
   <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" es="Mostrar velocidad y flujo en mm/s y mm³/s en lugar de porcentaje"/>
@@ -3891,13 +3894,13 @@
   <translation tag="Telemetry queue cleared" es="Cola de telemetría limpiada"/>
   <translation tag="Temp" es="Temp"/>
   <translation tag="Temp Compensation" es="Compensación de Temp"/>
-  <translation tag="Temp °C" es="Temp °C"/>
   <translation tag="Temperature" es="Temperatura"/>
   <translation tag="Temperature Graph" es="Gráfico de temperatura"/>
   <translation tag="Temperature Graph Config" es="Configuración del Gráfico de Temperatura"/>
   <translation tag="Temperature Sensors" es="Sensores de temperatura"/>
+  <translation tag="Temperature Unit" es="Unidad de temperatura"/>
   <translation tag="Temperature and humidity sensor not responding" es="El sensor de temperatura y humedad no responde"/>
-  <translation tag="Temperature control optimized for {} at {}°C." es="Control de temperatura optimizado para {} a {}°C."/>
+  <translation tag="Temperature control optimized for {} at {}." es="Control de temperatura optimizado para {} a {}."/>
   <translation tag="Temperatures" es="Temperaturas"/>
   <translation tag="Temperatures plotted over time" es="Temperaturas a lo largo del tiempo"/>
   <translation tag="Temperatures saved" es="Temperaturas guardadas"/>
@@ -3921,7 +3924,7 @@
   <translation tag="Test Screensaver" es="Probar Salvapantallas"/>
   <translation tag="Test Tracker" es="Rastreador de Pruebas"/>
   <translation tag="Test label printed" es="Etiqueta de prueba impresa"/>
-  <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C." es="Torre de prueba de {:.0f} mm de ancho y {:.0f} mm de alto, unos {} min más el calentamiento: {} franjas de {:.0f} mm a {}°C."/>
+  <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}." es="Torre de prueba de {:.0f} mm de ancho y {:.0f} mm de alto, unos {} min más el calentamiento: {} franjas de {:.0f} mm a {}."/>
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" es="Probando rotación: %d° (%d/%d) - %ds restantes"/>
   <translation tag="Testing, servo, and motor operations" es="Operaciones de prueba, servo y motor"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." es="¡Gracias! Los datos de uso anónimos ayudan a mejorar HelixScreen."/>
@@ -4003,11 +4006,11 @@
   <translation tag="The loaded slot is not known yet" es="La ranura cargada aún no se conoce"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." es="La bobina cargada es {}, pero este archivo se laminó para {}. El filamento con relleno funciona con un caudal menor y necesita una boquilla endurecida."/>
   <translation tag="The message your printer&apos;s macros show (M117)" es="El mensaje que muestran las macros de tu impresora (M117)"/>
-  <translation tag="The mounted nozzle heats to 200°C and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes." es="La boquilla montada se calienta a 200°C y vuelve a enfriarse mientras se ajusta el modelo de seguridad del calentador. Mantenga apagado el ventilador de pieza y el material inflamable lejos del cabezal. Esto tarda varios minutos."/>
+  <translation tag="The mounted nozzle heats to {} and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes." es="La boquilla montada se calienta a {} y vuelve a enfriarse mientras se ajusta el modelo de seguridad del calentador. Mantenga apagado el ventilador de pieza y el material inflamable lejos del cabezal. Esto tarda varios minutos."/>
   <translation tag="The new IPv4 settings could not be marked as kept, so the next start undoes them." es="No se pudo marcar la nueva configuración IPv4 como mantenida, así que el próximo inicio la deshará."/>
   <translation tag="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself." es="La boquilla hace unos movimientos de prueba cortos en una esquina, lejos de la zona de impresión, y repite hasta que los valores coinciden."/>
   <translation tag="The nozzle hasn&apos;t moved since the power went out. Check that it sits just above the top of the print, then resume." es="La boquilla no se ha movido desde el corte de energía. Compruebe que quede justo por encima de la parte superior de la impresión y luego reanude."/>
-  <translation tag="The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes." es="La boquilla se calienta a 200°C mientras el ventilador de pieza recorre sus velocidades. Para un ajuste preciso, monte el conducto como imprime con él. Esto tarda varios minutos."/>
+  <translation tag="The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes." es="La boquilla se calienta a {} mientras el ventilador de pieza recorre sus velocidades. Para un ajuste preciso, monte el conducto como imprime con él. Esto tarda varios minutos."/>
   <translation tag="The nozzle is clear of the print" es="La boquilla no toca la impresión"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." es="La boquilla está caliente. Límpiala con el cepillo de alambre incluido, mantén limpia la posición de anclaje y pulsa Siguiente."/>
   <translation tag="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at." es="La boquilla está separada de la impresión y X e Y están posicionados. Al reanudar, baja de nuevo a la altura en que se detuvo."/>
@@ -4033,7 +4036,7 @@
   <translation tag="The print is on its last layer." es="La impresión está en su última capa."/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." es="La impresión está pausada. Cambiar de herramienta ahora mueve el cabezal y cambia el filamento en la boquilla. Reanude la impresión una vez que el cambio termine."/>
   <translation tag="The print is still stuck to the bed" es="La impresión sigue pegada a la cama"/>
-  <translation tag="The print is waiting for the chamber to reach {}°C, but the heater is not heating." es="La impresión espera a que la cámara alcance {}°C, pero el calentador no calienta."/>
+  <translation tag="The print is waiting for the chamber to reach {}, but the heater is not heating." es="La impresión espera a que la cámara alcance {}, pero el calentador no calienta."/>
   <translation tag="The print is waiting for the chamber, but the heater is not heating." es="La impresión espera a la cámara, pero el calentador no calienta."/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." es="El tamaño imprimible en milímetros (X × Y × Z), según los límites de los ejes en la configuración de Klipper de la impresora."/>
   <translation tag="The printer applied this value and keeps it for this tool." es="La impresora aplicó este valor y lo conserva para esta herramienta."/>
@@ -4514,8 +4517,8 @@
   <translation tag="Waiting for another box to finish." es="Esperando a que otra caja termine."/>
   <translation tag="Waiting for bed temperature..." es="Esperando la temperatura de la cama..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." es="Esperando que la cama alcance la temperatura para una calibración precisa."/>
-  <translation tag="Waiting for chamber {} / {}°C" es="Esperando la cámara {} / {}°C"/>
-  <translation tag="Waiting for chamber {}°C" es="Esperando la cámara {}°C"/>
+  <translation tag="Waiting for chamber {}" es="Esperando la cámara {}"/>
+  <translation tag="Waiting for chamber {} / {}" es="Esperando la cámara {} / {}"/>
   <translation tag="Waiting for the chamber to heat" es="Esperando a que la cámara se caliente"/>
   <translation tag="Waiting for the filament system to report its state" es="Esperando que el sistema de filamento informe su estado"/>
   <translation tag="Waiting for the printer" es="Esperando a la impresora"/>
@@ -4619,6 +4622,7 @@
   <translation tag="Y:" es="Y:"/>
   <translation tag="YOU WIN!&#10;Score: {}&#10;Tap to play again" es="¡GANASTE!&#10;Puntuación: {}&#10;Toca para jugar de nuevo"/>
   <translation tag="Year" es="Año"/>
+  <translation tag="Year Month Day" es="Año Mes Día"/>
   <translation tag="Yes" es="Sí"/>
   <translation tag="You can skip this and calibrate later in Settings." es="Puede omitir esto y calibrar más tarde en Ajustes."/>
   <translation tag="You have unsaved changes. Discard them?" es="Tiene cambios sin guardar. ¿Descartarlos?"/>

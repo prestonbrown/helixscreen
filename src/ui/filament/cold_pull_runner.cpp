@@ -10,6 +10,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/temperature_units.h"
 #include "core/timer_guard.h"
 #include "fan_gcode.h"
 #include "filament_op_heater.h"
@@ -674,8 +675,10 @@ void ColdPullRunner::publish_setup() {
         return;
     }
     lv_subject_set_int(&material_subject_, static_cast<int>(material_));
-    lv_subject_copy_string(&soak_text_, fmt::format("{}°C", setup_temps_.soak_c).c_str());
-    lv_subject_copy_string(&pull_text_, fmt::format("{}°C", setup_temps_.pull_c).c_str());
+    lv_subject_copy_string(&soak_text_,
+                           helix::units::format_display_temp(setup_temps_.soak_c).c_str());
+    lv_subject_copy_string(&pull_text_,
+                           helix::units::format_display_temp(setup_temps_.pull_c).c_str());
     const bool fan = !commandable_part_fan(state_).empty();
     lv_subject_set_int(&has_fan_, fan ? 1 : 0);
 }
@@ -700,16 +703,21 @@ void ColdPullRunner::publish() {
     lv_subject_set_int(&lane_needs_reseat_, f.lane_needs_reseat() ? 1 : 0);
     lv_subject_set_int(&has_fan_, f.params().part_fan.empty() ? 0 : 1);
     lv_subject_set_int(&can_home_park_, f.params().has_park_macro && !f.params().homed ? 1 : 0);
-    lv_subject_copy_string(&soak_text_, fmt::format("{}°C", f.params().temps.soak_c).c_str());
-    lv_subject_copy_string(&pull_text_, fmt::format("{}°C", f.params().temps.pull_c).c_str());
+    lv_subject_copy_string(&soak_text_,
+                           helix::units::format_display_temp(f.params().temps.soak_c).c_str());
+    lv_subject_copy_string(&pull_text_,
+                           helix::units::format_display_temp(f.params().temps.pull_c).c_str());
 
     const int goal = f.goal_c();
     int pct = 0;
     if (goal > 0) {
         pct = cold_pull_ring_percent(stage, ring_from_c_, current, goal);
-        lv_subject_copy_string(&temp_text_, fmt::format("{} / {}°C", current, goal).c_str());
+        lv_subject_copy_string(&temp_text_,
+                               fmt::format("{} / {}", helix::units::to_display_temp_whole(current),
+                                           helix::units::format_display_temp(goal))
+                                   .c_str());
     } else {
-        lv_subject_copy_string(&temp_text_, fmt::format("{}°C", current).c_str());
+        lv_subject_copy_string(&temp_text_, helix::units::format_display_temp(current).c_str());
     }
     lv_subject_set_int(&progress_, pct);
     lv_subject_copy_string(&pass_text_,

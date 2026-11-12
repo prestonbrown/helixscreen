@@ -12,6 +12,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/temperature_units.h"
 #include "core/timer_guard.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
@@ -390,9 +391,10 @@ void FilamentOpHeater::start_heating(Pending p, int send_c, const std::string& m
     }
     if (announce) {
         if (material_name.empty()) {
-            NOTIFY_INFO(lv_tr("Heating to {}°C..."), wait_c);
+            NOTIFY_INFO(lv_tr("Heating to {}..."), helix::units::format_display_temp(wait_c));
         } else {
-            NOTIFY_INFO(lv_tr("Heating to {}°C for {}..."), wait_c, material_name);
+            NOTIFY_INFO(lv_tr("Heating to {} for {}..."), helix::units::format_display_temp(wait_c),
+                        material_name);
         }
     }
 
