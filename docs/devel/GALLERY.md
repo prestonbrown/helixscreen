@@ -1,6 +1,6 @@
 # Screenshot Gallery
 
-Screenshots of HelixScreen's main panels and features. Auto-generated with `./scripts/screenshot.sh`.
+Screenshots of HelixScreen's main panels and features. Regenerated with `make doc-screenshots` from `docs/images/doc-screenshots.yml`.
 
 ---
 

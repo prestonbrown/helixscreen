@@ -1904,7 +1904,7 @@ These get their own deep section above — see **[Cross-Compilation](#cross-comp
 | `make demo` | Build LVGL demo widgets (LVGL API testing) |
 | `make symbols` | Extract `.sym` + `.debug` (crash-backtrace resolution) |
 | `make strip` | Strip the binary for release |
-| `make screenshots` | Generate documentation screenshots |
+| `make doc-screenshots [ONLY=<glob>]` | Regenerate every doc image from `docs/images/doc-screenshots.yml`, headless (`make screenshots` is an alias) |
 | `make print-cxxflags` / `print-ldflags` | Dump resolved flags (build debugging) |
 
 ## Dependency Checking
