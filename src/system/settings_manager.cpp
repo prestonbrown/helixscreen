@@ -162,11 +162,13 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // 4=A lower. Per-printer: belt routing is the machine's.
     {"settings_belt_layout", "belt_tension/layout", Scope::PerPrinter, false, 0, 0,
      helix::calibration::kBeltLayoutCount - 1, "belt_layout"},
-    // Temperature graph: MCU and host series are opt-in (#2080).
+    // Temperature graph: stepper driver, MCU and host series are opt-in (#2080).
     {"temp_graph_show_mcu", "temp_graph/show_mcu", Scope::PerPrinter, true, 0, 0, 1,
      "temp_graph_show_mcu"},
     {"temp_graph_show_host", "temp_graph/show_host", Scope::PerPrinter, true, 0, 0, 1,
      "temp_graph_show_host"},
+    {"temp_graph_show_drivers", "temp_graph/show_drivers", Scope::PerPrinter, true, 0, 0, 1,
+     "temp_graph_show_drivers"},
 };
 
 namespace {

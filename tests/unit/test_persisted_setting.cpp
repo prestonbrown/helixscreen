@@ -324,6 +324,9 @@ const std::vector<Row>& rows() {
         {"temp_graph_show_host", Mgr::Settings, true, "temp_graph/show_host", true, 0, 0, 1,
          "temp_graph_show_host", true, SETB(sm().set_temp_graph_show_host), GET(sm().get_temp_graph_show_host),
          NOSUBJ},
+        {"temp_graph_show_drivers", Mgr::Settings, true, "temp_graph/show_drivers", true, 0, 0, 1,
+         "temp_graph_show_drivers", true, SETB(sm().set_temp_graph_show_drivers),
+         GET(sm().get_temp_graph_show_drivers), NOSUBJ},
     };
     return r;
 }

@@ -925,6 +925,16 @@ class SettingsManager {
         settings_.set(Key::TempGraphShowHost, show);
     }
 
+    /** @brief Whether the temperature graph shows stepper driver temperatures (default false) */
+    bool get_temp_graph_show_drivers() const {
+        return settings_.get_bool(Key::TempGraphShowDrivers);
+    }
+
+    /** @brief Set whether the temperature graph shows stepper driver temperatures (persisted) */
+    void set_temp_graph_show_drivers(bool show) {
+        settings_.set(Key::TempGraphShowDrivers, show);
+    }
+
     // =========================================================================
     // BARCODE SCANNER (owned by SettingsManager — manual device selection)
     // =========================================================================
@@ -1004,6 +1014,7 @@ class SettingsManager {
         BeltLayout,
         TempGraphShowMcu,
         TempGraphShowHost,
+        TempGraphShowDrivers,
         COUNT
     };
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
