@@ -162,6 +162,9 @@ const TourStep& step_titled(const std::vector<TourStep>& steps, const std::strin
     REQUIRE(it != steps.end());
     return *it;
 }
+// The returned reference points into the vector, so a temporary one dies before
+// the caller can read it.
+const TourStep& step_titled(std::vector<TourStep>&& steps, const std::string& title) = delete;
 } // namespace
 
 TEST_CASE("Tour steps: the filament system step exists only with a filament system", "[tour]") {
@@ -173,9 +176,10 @@ TEST_CASE("Tour steps: the filament system step exists only with a filament syst
 }
 
 TEST_CASE("Tour steps: the at-a-glance step targets AMS when present, nozzle otherwise", "[tour]") {
-    CHECK(step_titled(build_tour_steps(true), "Your printer at a glance").target_name == "ams");
-    CHECK(step_titled(build_tour_steps(false), "Your printer at a glance").target_name ==
-          "nozzle_temps");
+    const auto with_ams = build_tour_steps(true);
+    const auto without = build_tour_steps(false);
+    CHECK(step_titled(with_ams, "Your printer at a glance").target_name == "ams");
+    CHECK(step_titled(without, "Your printer at a glance").target_name == "nozzle_temps");
 }
 
 TEST_CASE("Tour steps: the full tour opens with welcome and ends on the navbar", "[tour]") {

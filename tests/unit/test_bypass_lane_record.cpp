@@ -16,9 +16,11 @@
 #include "ams_backend_cfs.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_state.h"
+#include "app_globals.h"
 #include "core/update_queue.h"
 #include "filament_slot_override_store.h"
 #include "lane_source_store.h"
+#include "printer_state.h"
 #include "test_helpers/registered_backend.h"
 
 #include <filesystem>
@@ -112,10 +114,20 @@ SlotInfo petg_spool() {
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "the bypass spool is the bypass record Moonraker holds, as it changes",
-                 "[bypass][lane][refresh]") {
+                 "[bypass][lane][refresh][ready][2097]") {
+    auto& ams = AmsState::instance();
+    ams.deinit_subjects();
+    get_printer_state().init_subjects(false);
+    ams.init_subjects(false);
     MockPrinter printer;
     printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "PETG", "#1E5AA8"));
+    // Lane editing (the spool editor's Save) waits for the record's first read.
+    printer.client.fail_next("server.database.get_item");
     OwnBypassStore store(printer);
+    CHECK(lv_subject_get_int(ams.get_ams_lane_records_ready_subject()) == 0);
+    ams.refresh_bypass_record();
+    settle();
+    CHECK(lv_subject_get_int(ams.get_ams_lane_records_ready_subject()) == 1);
     const auto spool = AmsState::instance().get_external_spool_info();
     REQUIRE(spool.has_value());
     CHECK(spool->material == "PETG");
@@ -136,6 +148,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     AmsState::instance().refresh_bypass_record();
     settle();
     CHECK_FALSE(AmsState::instance().get_external_spool_info().has_value());
+    ams.deinit_subjects();
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a bypass read still out when the backends clear is not filed",

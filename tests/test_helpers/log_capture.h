@@ -13,9 +13,6 @@
 ///                        records, so the console keeps printing.
 ///   ExclusiveLogCapture  swaps a private ring-buffer logger into the default
 ///                        slot. Nothing else logs anywhere while it is alive.
-///                        Required when other threads log concurrently: pushing
-///                        onto the shared logger's sink vector races their
-///                        sink_it_ iteration.
 ///   TextLogCapture       swaps in a logger that writes message text only
 ///                        ("%v" -- no timestamp, level or logger name) into one
 ///                        unbounded string, for assertions on exact text and
@@ -30,6 +27,7 @@
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <sstream>
@@ -37,6 +35,59 @@
 #include <vector>
 
 namespace helix {
+
+/// The one sink on the test run's baseline default logger. A sink added to the
+/// default logger joins this, never logger->sinks(): that vector has no lock,
+/// and the process-lifetime worker pools iterate it whenever they log.
+inline const std::shared_ptr<spdlog::sinks::dist_sink_mt>& log_capture_hub() {
+    static const auto hub = std::make_shared<spdlog::sinks::dist_sink_mt>();
+    return hub;
+}
+
+/// Adds @p sink to what @p logger writes to: into the capture hub when the
+/// logger carries it, else onto the logger itself (a test-local logger no
+/// other thread can reach). The hub reopens to trace, since
+/// logging::set_runtime_level() sets every sink on the default logger.
+inline void attach_log_sink(spdlog::logger& logger, const spdlog::sink_ptr& sink) {
+    const auto& hub = log_capture_hub();
+    auto& sinks = logger.sinks();
+    if (std::find(sinks.begin(), sinks.end(), hub) != sinks.end()) {
+        hub->set_level(spdlog::level::trace);
+        hub->add_sink(sink);
+    } else {
+        sinks.push_back(sink);
+    }
+}
+
+/// Undoes attach_log_sink(logger, sink).
+inline void detach_log_sink(spdlog::logger& logger, const spdlog::sink_ptr& sink) {
+    const auto& hub = log_capture_hub();
+    auto& sinks = logger.sinks();
+    if (std::find(sinks.begin(), sinks.end(), hub) != sinks.end()) {
+        hub->remove_sink(sink);
+    } else {
+        sinks.erase(std::remove(sinks.begin(), sinks.end(), sink), sinks.end());
+    }
+}
+
+/// Attaches one caller-owned sink to the default logger for its scope, leaving
+/// the logger's level alone.
+class ScopedLogSink {
+  public:
+    explicit ScopedLogSink(spdlog::sink_ptr sink)
+        : logger_(spdlog::default_logger()), sink_(std::move(sink)) {
+        attach_log_sink(*logger_, sink_);
+    }
+    ~ScopedLogSink() {
+        detach_log_sink(*logger_, sink_);
+    }
+    ScopedLogSink(const ScopedLogSink&) = delete;
+    ScopedLogSink& operator=(const ScopedLogSink&) = delete;
+
+  private:
+    std::shared_ptr<spdlog::logger> logger_;
+    spdlog::sink_ptr sink_;
+};
 
 namespace detail {
 
@@ -111,14 +162,6 @@ class LogRing {
 
 } // namespace detail
 
-/// The one sink the run's default logger writes through. Sinks are attached to it under
-/// its own lock, so a capture can come and go while worker threads log; adding to a
-/// logger's sink vector directly races them.
-inline const std::shared_ptr<spdlog::sinks::dist_sink_mt>& log_hub() {
-    static const auto hub = std::make_shared<spdlog::sinks::dist_sink_mt>();
-    return hub;
-}
-
 /// Adds a ring-buffer sink to the default logger and raises the logger to
 /// trace, restoring its level and removing the sink on scope exit. The logger's
 /// other sinks keep receiving records.
@@ -127,39 +170,23 @@ class LogCapture : public detail::LogRing {
     explicit LogCapture(size_t capacity = 256) : LogRing(capacity) {
         logger_ = spdlog::default_logger();
         prev_level_ = logger_->level();
-        via_hub_ = logger_->sinks().size() == 1 && logger_->sinks().front() == log_hub();
-        if (via_hub_)
-            log_hub()->add_sink(sink_);
-        else
-            logger_->sinks().push_back(sink_);
+        attach_log_sink(*logger_, sink_);
         logger_->set_level(spdlog::level::trace);
     }
 
     ~LogCapture() {
-        if (via_hub_) {
-            log_hub()->remove_sink(sink_);
-        } else {
-            auto& sinks = logger_->sinks();
-            for (auto it = sinks.begin(); it != sinks.end(); ++it) {
-                if (*it == sink_) {
-                    sinks.erase(it);
-                    break;
-                }
-            }
-        }
+        detach_log_sink(*logger_, sink_);
         logger_->set_level(prev_level_);
     }
 
   private:
     std::shared_ptr<spdlog::logger> logger_;
     spdlog::level::level_enum prev_level_;
-    bool via_hub_ = false;
 };
 
 /// Swaps a private ring-buffer logger into the default slot, restoring the
 /// previous default logger on scope exit. No other sink sees anything while it
-/// is alive, which is what makes it safe alongside threads that log: the shared
-/// logger's sink vector is never mutated.
+/// is alive.
 class ExclusiveLogCapture : public detail::LogRing {
   public:
     explicit ExclusiveLogCapture(size_t capacity = 256) : LogRing(capacity) {

@@ -12,6 +12,9 @@
  * exactly which bytes arrive in which write (prestonbrown/helixscreen#1822).
  */
 
+#include "hv/hconfig.h" // The loopback server speaks TLS through OpenSSL directly.
+#ifdef WITH_OPENSSL
+
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/test_cert.h"
@@ -493,3 +496,4 @@ TEST_CASE_METHOD(IppJobFixture, "IPPS is remembered for one printer target",
     REQUIRE(plain_requests.size() == 1);
     CHECK(plain_requests[0].body.find(printer_uri("ipp", plain.port())) != std::string::npos);
 }
+#endif // WITH_OPENSSL

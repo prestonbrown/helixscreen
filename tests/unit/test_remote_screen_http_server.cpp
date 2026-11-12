@@ -7,6 +7,7 @@
  */
 
 #include "../test_helpers/raw_http_client.h"
+#include "../test_helpers/sanitizer_build.h"
 #include "remote_screen_control.h"
 #include "remote_screen_http_server.h"
 #include "remote_screen_server_sink.h"
@@ -443,7 +444,8 @@ TEST_CASE("stream: stop() ends an open stream within 1s", "[remote_screen][http]
     std::this_thread::sleep_for(300ms);
     const auto start = std::chrono::steady_clock::now();
     fx.server->stop();
-    CHECK(std::chrono::steady_clock::now() - start < 1s);
+    // stop() waits only on work already in flight, which a sanitizer slows.
+    CHECK(std::chrono::steady_clock::now() - start < 1s * helix::test::kSanitizerSlowdown);
     client.join();
     CHECK(closed.load());
 }

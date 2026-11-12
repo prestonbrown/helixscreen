@@ -196,9 +196,11 @@ class IsolationListener : public Catch::EventListenerBase {
         // registry::s_instance). Installed exactly once here, single-threaded.
         // Capture-style tests still swap in their own logger and restore this
         // one — those swaps stay, but this baseline removes the per-test one.
-        // It writes through the log hub, which holds no sink until a LogCapture
-        // attaches one under the hub's own lock.
-        auto null_logger = std::make_shared<spdlog::logger>("null", helix::log_hub());
+        //
+        // Its one sink is the capture hub, which drops records until a capture
+        // joins it. A capture that pushed onto this logger's sinks() instead
+        // would race every worker thread iterating that unguarded vector.
+        auto null_logger = std::make_shared<spdlog::logger>("null", helix::log_capture_hub());
         spdlog::set_default_logger(std::move(null_logger));
 
         // The first LVGL call made off the LVGL thread aborts the run;

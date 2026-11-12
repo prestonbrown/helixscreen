@@ -14,6 +14,7 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
+#include "../test_helpers/log_capture.h"
 #include "ams_types.h"
 #include "core/update_queue.h"
 #include "filament_sensor_manager.h"
@@ -219,8 +220,7 @@ TEST_CASE_METHOD(BypassArmingFixture, "A sensor's first reading of empty is not 
 
     auto sink = std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(8);
     sink->set_level(spdlog::level::warn);
-    auto& sinks = spdlog::default_logger()->sinks();
-    sinks.push_back(sink);
+    auto attached = std::make_unique<helix::ScopedLogSink>(sink);
 
     mgr.update_from_status(json{{key, {{"filament_detected", false}, {"enabled", true}}}});
     const bool first_reading_silent = sink->last_formatted().empty();
@@ -229,7 +229,7 @@ TEST_CASE_METHOD(BypassArmingFixture, "A sensor's first reading of empty is not 
     mgr.update_from_status(json{{key, {{"filament_detected", false}, {"enabled", true}}}});
     const auto logged = sink->last_formatted();
 
-    sinks.pop_back();
+    attached.reset();
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK(first_reading_silent);
