@@ -1994,6 +1994,10 @@ above; several (a backend whose `max_heads_per_filament_op()` is above one, the 
 U1 today) run through `load_filament_batch()` / `unload_filament_batch()`, which route
 through the same `run_filament_op()` executor as a single-slot op. The per-backend script
 shapes live in each backend's doc ([Snapmaker U1](FILAMENT_BACKEND_SNAPMAKER_U1.md)).
+Where every enabled row fits one run (`show_select_all()`), the list is headed by an All
+row (`UiMultiselect::set_select_all_label()`), checked while every enabled row is. A row
+names what the sensor knows and no more: `loaded` at the toolhead, `ready to load` or
+`empty` by the presence sensor, the material alone where there is no sensor.
 
 ### Backend-neutral filament operations
 
