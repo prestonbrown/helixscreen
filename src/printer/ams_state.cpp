@@ -343,6 +343,7 @@ int AmsState::add_backend(std::unique_ptr<AmsBackend> backend) {
     }
 
     lv_subject_set_int(&backend_count_, registry_.count());
+    sync_lane_records_ready();
     return index;
 }
 
@@ -442,6 +443,7 @@ void AmsState::reset_backend_subjects() {
     // System, action and current-tool state: the sync path with an empty system.
     sync_system_subjects(AmsSystemInfo{});
     sync_shared_heater(nullptr, AmsSystemInfo{});
+    sync_lane_records_ready();
     // The action edge above belongs to no operation on the next printer.
     runout_grace_.reset();
     lv_subject_copy_string(&ams_system_name_, "");
@@ -839,7 +841,13 @@ std::string AmsState::nozzle_heat_blocked_reason() const {
 }
 
 void AmsState::sync_lane_records_ready() {
-    lv_subject_set_int(&ams_lane_records_ready_, lane_records_ready() ? 1 : 0);
+    if (!initialized_) {
+        return;
+    }
+    const int ready = lane_records_ready() ? 1 : 0;
+    if (lv_subject_get_int(&ams_lane_records_ready_) != ready) {
+        lv_subject_set_int(&ams_lane_records_ready_, ready);
+    }
 }
 
 bool AmsState::lane_records_ready() const {
@@ -851,7 +859,8 @@ bool AmsState::lane_records_ready() const {
             return false;
         }
     }
-    return true;
+    // With no backend holding it, the bypass record is ours to read first.
+    return bypass_record_holder() != nullptr || bypass_store_ == nullptr || bypass_store_read_;
 }
 
 void AmsState::sync_shared_heater(AmsBackend* backend, const AmsSystemInfo& info) {
