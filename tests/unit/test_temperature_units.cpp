@@ -6,6 +6,7 @@
 
 #include "ui_component_keypad.h"
 #include "ui_dryer_presentation.h"
+#include "ui_temp_display.h"
 #include "ui_temperature_utils.h"
 #include "ui_wizard_appearance.h"
 
@@ -18,6 +19,7 @@
 #include "display_settings_manager.h"
 #include "fit_check.h"
 #include "locale_formats.h"
+#include "preset_materials.h"
 #include "region_defaults.h"
 #include "settings_manager.h"
 #include "system_settings_manager.h"
@@ -327,4 +329,35 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     display.set_timezone("");
     erase_display_key("temp_unit");
     erase_display_key("date_format");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "temperature units: a shown reading and the presets switch unit live",
+                 "[temp_units][temp_display]") {
+    auto& display = helix::DisplaySettingsManager::instance();
+    helix::presets::init_subjects();
+    const char* attrs[] = {"show_target", "true", "size", "md", nullptr};
+    auto* td = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "temp_display", attrs));
+    REQUIRE(td != nullptr);
+    ui_temp_display_set(td, 25, 210);
+    // Children in creation order: current, separator, target, unit.
+    auto text = [td](int child) {
+        return std::string(lv_label_get_text(lv_obj_get_child(td, child)));
+    };
+    REQUIRE(text(2) == "210");
+    REQUIRE(text(3) == "°C");
+
+    display.set_temp_unit(kF);
+    CHECK(text(2) == "410");
+    CHECK(text(3) == "°F");
+    CHECK(text(0) == "77.0");
+    lv_subject_t* preset = lv_xml_get_subject(nullptr, "preset_material_0_temps");
+    REQUIRE(preset != nullptr);
+    REQUIRE(helix::presets::slot_temps(0).has_value());
+    CHECK(std::string(lv_subject_get_string(preset)) ==
+          units::format_display_temp(helix::presets::slot_temps(0)->nozzle) + " / " +
+              units::format_display_temp(helix::presets::slot_temps(0)->bed));
+    display.set_temp_unit(kC);
+    CHECK(text(2) == "210");
+    erase_display_key("temp_unit");
 }

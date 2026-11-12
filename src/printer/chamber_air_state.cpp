@@ -50,7 +50,7 @@ void ChamberAirState::init_subjects(bool register_xml) {
                      register_xml);
     INIT_SUBJECT_STRING(chamber_air_target_text, "", subjects_, register_xml);
     // Immediate: the handler only copies a string, and the slider drags it live.
-    target_text_observer_ = observe<int>(
+    target_text_observer_ = ui::observe<int>(
         &chamber_air_target_c_, this,
         [](ChamberAirState* self, int celsius) {
             lv_subject_copy_string(&self->chamber_air_target_text_,

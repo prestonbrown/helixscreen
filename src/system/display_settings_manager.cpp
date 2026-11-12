@@ -14,6 +14,7 @@
 #include "notice.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
+#include "preset_materials.h"
 #include "screensaver_canvas.h"
 #include "screensaver_registry.h"
 #include "screensaver_setting.h"
@@ -857,6 +858,8 @@ void DisplaySettingsManager::set_temp_unit(units::TempUnit unit) {
     if (subjects_initialized_) {
         lv_subject_copy_string(&temp_unit_symbol_subject_, units::display_temp_symbol());
     }
+    // The preset labels are formatted once into shared subjects; redo them now.
+    presets::refresh_subjects();
     spdlog::info("[DisplaySettingsManager] Temperature unit set to {}",
                  units::temp_unit_symbol(get_temp_unit()));
 }
