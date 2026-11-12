@@ -21,10 +21,6 @@
 /// The two ring captures format with spdlog's default pattern, so their lines
 /// carry a timestamp and a level; a text capture's do not. A test cannot be
 /// moved between the two without rereading what it matches on.
-///
-/// A sink added to the default logger goes through attach_log_sink(), never
-/// onto logger->sinks(): that vector has no lock, and the process-lifetime
-/// worker pools iterate it whenever they log.
 
 #include <spdlog/sinks/dist_sink.h>
 #include <spdlog/sinks/ostream_sink.h>
@@ -40,9 +36,9 @@
 
 namespace helix {
 
-/// The one sink on the test run's baseline default logger. Its sink list is
-/// guarded by its own mutex, so a capture can join and leave it while worker
-/// threads log through it.
+/// The one sink on the test run's baseline default logger. A sink added to the
+/// default logger joins this, never logger->sinks(): that vector has no lock,
+/// and the process-lifetime worker pools iterate it whenever they log.
 inline const std::shared_ptr<spdlog::sinks::dist_sink_mt>& log_capture_hub() {
     static const auto hub = std::make_shared<spdlog::sinks::dist_sink_mt>();
     return hub;
@@ -50,12 +46,8 @@ inline const std::shared_ptr<spdlog::sinks::dist_sink_mt>& log_capture_hub() {
 
 /// Adds @p sink to what @p logger writes to: into the capture hub when the
 /// logger carries it, else onto the logger itself (a test-local logger no
-/// other thread can reach).
-///
-/// The hub is reopened to trace on every attach. logging::set_runtime_level()
-/// sets the level of every sink on the default logger, so a test that calls it
-/// leaves the hub filtering whatever level it chose; each sink behind the hub
-/// keeps its own level.
+/// other thread can reach). The hub reopens to trace, since
+/// logging::set_runtime_level() sets every sink on the default logger.
 inline void attach_log_sink(spdlog::logger& logger, const spdlog::sink_ptr& sink) {
     const auto& hub = log_capture_hub();
     auto& sinks = logger.sinks();
