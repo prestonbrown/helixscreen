@@ -245,6 +245,8 @@ TEST_CASE_METHOD(
     REQUIRE(baseline.size() == 1);
     REQUIRE(baseline.front() == helix::log_capture_hub());
 
+    // What logging::set_runtime_level(warn) leaves behind on the hub.
+    helix::log_capture_hub()->set_level(spdlog::level::warn);
     {
         helix::LogCapture capture(8);
         spdlog::info("log-capture-probe");
