@@ -1575,8 +1575,16 @@ jobs:
             echo "::error::${CHANNEL} manifest serves '${served:-<none>}', expected '${RELEASE_VERSION}' -- release would be invisible to in-app updaters"
             exit 1
           fi
-          if ! curl -fsS "${R2_PUBLIC_URL}/${R2_PREFIX}${CHANNEL}/manifest.json.minisig" \
-              | cmp -s - "release-files/manifest-${CHANNEL}.json.minisig"; then
+          sig_served=false
+          for attempt in 1 2 3 4; do
+            if curl -fsS "${R2_PUBLIC_URL}/${R2_PREFIX}${CHANNEL}/manifest.json.minisig" \
+                | cmp -s - "release-files/manifest-${CHANNEL}.json.minisig"; then
+              sig_served=true; break
+            fi
+            echo "  attempt ${attempt}: ${CHANNEL}/manifest.json.minisig not served as signed; retrying in 5s..."
+            sleep 5
+          done
+          if [ "$sig_served" != true ]; then
             echo "::error::${CHANNEL}/manifest.json.minisig is not served as signed -- the easy installer would refuse this release"
             exit 1
           fi
