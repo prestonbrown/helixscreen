@@ -153,8 +153,13 @@ class FakeSession:
     def ctl(self, *args):
         self.calls.append(args)
         if args[0] == "geom":
+            if args[1] not in self.boxes:
+                raise RuntimeError(f"ctl geom {args[1]}: Error: Widget not found: {args[1]}")
             b = self.boxes[args[1]]
-            return {"x": b.x, "y": b.y, "w": b.w, "h": b.h}
+            hidden = args[1] in getattr(self, "hidden", ())
+            # The shape `helix-screen ctl geom` prints.
+            return {"widgets": [{"name": args[1], "x": b.x, "y": b.y, "w": b.w, "h": b.h,
+                                 "hidden": hidden}]}
         if args[0] == "screenshot":
             from PIL import Image
 
@@ -222,3 +227,96 @@ def test_run_counts_and_skips_manual(tmp_path, capsys):
     # must not leak into the next capture.
     assert len(sessions) == 2
     assert (tmp_path / "docs/images/a.png").exists()
+
+
+@pytest.mark.parametrize(
+    "boxes, hidden, reason",
+    [
+        ({"card": Box(100, 100, 200, 100)}, (), "btn"),  # marker widget missing
+        ({"card": Box(100, 100, 200, 100), "btn": Box(150, 120, 20, 20)}, ("btn",), "hidden"),
+        ({"card": Box(100, 100, 200, 100), "btn": Box(150, 120, 0, 20)}, (), "zero size"),
+        ({"card": Box(100, 100, 200, 100), "btn": Box(600, 400, 20, 20)}, (), "outside"),
+        ({"card": Box(100, 100, 200, 100), "btn": Box(150, 120, 20, 20)}, ("card",), "hidden"),
+    ],
+)
+def test_capture_fails_loudly_on_a_bad_widget(tmp_path, boxes, hidden, reason):
+    entry = Entry(path="docs/images/user/x.png", kind="app", steps=("navigate filament",),
+                  crop="card", markers=(Marker(1, "btn", "center"),))
+    session = FakeSession(boxes)
+    session.hidden = hidden
+    with pytest.raises(CaptureError) as err:
+        capture(entry, session, tmp_path)
+    assert "docs/images/user/x.png" in str(err.value) and reason in str(err.value)
+    assert not (tmp_path / entry.path).exists()
+
+
+def test_geometry_is_read_while_frozen(tmp_path):
+    entry = Entry(path="docs/images/user/x.png", kind="app", steps=("navigate filament",),
+                  crop="card", markers=(Marker(1, "btn", "center"),))
+    session = FakeSession({"card": Box(100, 100, 200, 100), "btn": Box(150, 120, 20, 20)})
+    capture(entry, session, tmp_path)
+    names = [c[0] for c in session.calls]
+    last_geom = max(i for i, n in enumerate(names) if n == "geom")
+    assert names.index("freeze") < last_geom < names.index("unfreeze")
+
+
+def test_run_survives_a_failed_boot_and_cleans_up(tmp_path, capsys):
+    entries = [
+        Entry(path="docs/images/a.png", kind="app", steps=("navigate home",)),
+        Entry(path="docs/images/b.png", kind="app", steps=("navigate home",)),
+    ]
+    exits = []
+
+    class Factory(FakeSession):
+        boots = 0
+
+        def __init__(self, env, size):
+            super().__init__({})
+
+        def __enter__(self):
+            Factory.boots += 1
+            if Factory.boots == 1:
+                raise RuntimeError("the app did not answer")
+            return self
+
+        def __exit__(self, *exc):
+            exits.append(True)
+
+    rc = run(entries, Factory, tmp_path)
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "captured 1, failed 1" in out
+    assert (tmp_path / "docs/images/b.png").exists()
+
+
+def test_cli_only_filter_and_counts(tmp_path, monkeypatch, capsys):
+    manifest = write(tmp_path, """
+        images:
+          - {path: docs/images/user/home.png, kind: app, recipe: home}
+          - {path: docs/images/user/filament.png, kind: app, recipe: filament}
+          - {path: docs/images/user/m.png, kind: manual, source: s, recapture: r}
+        """)
+    monkeypatch.setattr(doc_screenshots, "MANIFEST", manifest)
+    rc = doc_screenshots.main(["--only", "docs/images/user/home*", "--list"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "docs/images/user/home.png" in out and "filament" not in out
+
+
+def test_session_env_is_pinned():
+    env = doc_screenshots.session_env({"HELIX_MOCK_AMS": "medusahc"},
+                                      {"HELIX_THEME": "nord", "HELIX_MOCK_AMS": "afc",
+                                       "HELIX_MOCK_PRINTER": "k1", "PATH": "/bin"})
+    assert env["HELIX_MOCK_AMS"] == "medusahc"
+    assert "HELIX_THEME" not in env and "HELIX_MOCK_PRINTER" not in env
+    assert env["PATH"] == "/bin"
+    assert env["HELIX_HEADLESS"] == "1" and env["SDL_VIDEODRIVER"] == "dummy"
+
+
+def test_lint_and_loader_agree_on_the_manifest():
+    import check_doc_images
+
+    text = (REPO_ROOT / "docs/images/doc-screenshots.yml").read_text()
+    by_regex = check_doc_images.MANIFEST_PATH_RE.findall(text)
+    by_yaml = [e.path for e in load_manifest(REPO_ROOT / "docs/images/doc-screenshots.yml")]
+    assert by_regex == by_yaml

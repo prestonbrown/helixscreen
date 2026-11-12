@@ -21,7 +21,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-import yaml
+try:
+    import yaml
+except ImportError:  # the system python3 without the project venv
+    raise SystemExit("doc_screenshots.py needs PyYAML and Pillow: run it with .venv/bin/python3 "
+                     "(make venv-setup), or pip install -r requirements.txt")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RECIPES_SCRIPT = REPO_ROOT / "scripts" / "screenshot-recipes.sh"
@@ -189,6 +193,9 @@ def marker_points(entry_path: str, anchors: dict, crop: Optional[Box], markers) 
             raise CaptureError(entry_path, f"marker {m.n}: widget '{m.widget}' is not on screen")
         x, y = _anchor_point(box, m.at)
         if crop is not None:
+            if not (crop.x <= x <= crop.x + crop.w and crop.y <= y <= crop.y + crop.h):
+                raise CaptureError(entry_path,
+                                   f"marker {m.n}: widget '{m.widget}' is outside the crop")
             x, y = x - crop.x, y - crop.y
         points.append((m.n, x, y))
     return points
@@ -213,8 +220,24 @@ def draw_markers(img, points, radius: int = 14):
     return img
 
 
-def _box(geom: dict) -> Box:
-    return Box(int(geom["x"]), int(geom["y"]), int(geom["w"]), int(geom["h"]))
+def widget_box(entry_path: str, session, widget: str, what: str) -> Box:
+    """The on-screen box of @p widget from `ctl geom`, which answers
+    {"widgets": [{x, y, w, h, hidden, ...}]}. A widget that is absent, hidden or
+    has no area fails the entry: a capture must never crop or mark nothing."""
+    try:
+        reply = session.ctl("geom", widget)
+    except RuntimeError as err:
+        raise CaptureError(entry_path, f"{what} widget '{widget}' is not on screen ({err})") from err
+    widgets = reply.get("widgets") or []
+    if not widgets:
+        raise CaptureError(entry_path, f"{what} widget '{widget}' is not on screen")
+    g = widgets[0]
+    if g.get("hidden"):
+        raise CaptureError(entry_path, f"{what} widget '{widget}' is hidden")
+    box = Box(int(g["x"]), int(g["y"]), int(g["w"]), int(g["h"]))
+    if box.w <= 0 or box.h <= 0:
+        raise CaptureError(entry_path, f"{what} widget '{widget}' has zero size")
+    return box
 
 
 def entry_steps(entry: Entry) -> list:
@@ -236,40 +259,54 @@ def capture(entry: Entry, session, out_root: Path) -> Path:
     # Overlays and demo screens land asynchronously; let them, as screenshot.sh does.
     session.ctl("wait_idle")
     time.sleep(SETTLE_SECONDS)
-    with tempfile.TemporaryDirectory() as tmp:
-        raw = Path(tmp) / "shot.png"
-        # Stop animations and the mock's simulation so the shot is the same every run.
-        session.ctl("freeze")
-        try:
+    # Stop animations and the mock's simulation, so the shot and the geometry
+    # describe the same frame and come out the same every run.
+    session.ctl("freeze")
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = Path(tmp) / "shot.png"
             session.ctl("screenshot", str(raw), "--stable")
-        finally:
-            session.ctl("unfreeze")
-        from PIL import Image
+            from PIL import Image
 
-        img = Image.open(raw).convert("RGB")
-        img.load()
-    crop = None
-    if entry.crop:
-        try:
-            c = _box(session.ctl("geom", entry.crop))
-        except Exception as err:  # the ctl error names the widget
-            raise CaptureError(entry.path, f"crop widget '{entry.crop}': {err}") from err
-        x0, y0 = max(c.x - entry.margin, 0), max(c.y - entry.margin, 0)
-        x1 = min(c.x + c.w + entry.margin, img.width)
-        y1 = min(c.y + c.h + entry.margin, img.height)
-        crop = Box(x0, y0, x1 - x0, y1 - y0)
-        img = img.crop((x0, y0, x1, y1))
-    anchors = {}
-    for m in entry.markers:
-        try:
-            anchors[m.widget] = _box(session.ctl("geom", m.widget))
-        except Exception:
-            pass  # marker_points names the missing widget
-    draw_markers(img, marker_points(entry.path, anchors, crop, entry.markers))
+            img = Image.open(raw).convert("RGB")
+            img.load()
+        crop = None
+        if entry.crop:
+            c = widget_box(entry.path, session, entry.crop, "crop")
+            x0, y0 = max(c.x - entry.margin, 0), max(c.y - entry.margin, 0)
+            x1 = min(c.x + c.w + entry.margin, img.width)
+            y1 = min(c.y + c.h + entry.margin, img.height)
+            crop = Box(x0, y0, x1 - x0, y1 - y0)
+        anchors = {}
+        for m in entry.markers:
+            try:
+                anchors[m.widget] = widget_box(entry.path, session, m.widget, f"marker {m.n}")
+            except CaptureError as err:
+                if "is not on screen" not in str(err):
+                    raise
+        points = marker_points(entry.path, anchors, crop, entry.markers)
+    finally:
+        session.ctl("unfreeze")
+    if crop is not None:
+        img = img.crop((crop.x, crop.y, crop.x + crop.w, crop.y + crop.h))
+    for n, x, y in points:
+        if not (0 <= x < img.width and 0 <= y < img.height):
+            raise CaptureError(entry.path, f"marker {n} falls outside the image")
+    draw_markers(img, points)
     out = Path(out_root) / entry.path
     out.parent.mkdir(parents=True, exist_ok=True)
     img.save(out)
     return out
+
+
+def session_env(entry_env: dict, base_env: dict) -> dict:
+    """The app's environment: the caller's, minus every HELIX_* setting the entry
+    does not ask for (a theme or mock persona in the developer's shell must not
+    leak into a doc image), plus the headless switches and the entry's own."""
+    env = {k: v for k, v in base_env.items() if not k.startswith("HELIX_")}
+    env.update({"HELIX_HEADLESS": "1", "SDL_VIDEODRIVER": "dummy", "HELIX_HOT_RELOAD": "0"})
+    env.update(entry_env)
+    return env
 
 
 class AppSession:
@@ -278,30 +315,35 @@ class AppSession:
     def __init__(self, env: dict, size: tuple, binary: Path = REPO_ROOT / "build/bin/helix-screen"):
         self.binary = Path(binary)
         if not self.binary.exists():
-            raise SystemExit(f"{self.binary} is missing: build the app first (make)")
+            raise SystemExit(f"{self.binary} is missing: build the app first (make / gmake)")
         self.env = env
         self.size = size
         self.tmp = Path(tempfile.mkdtemp(prefix="doc-shots-"))
         self.sock = self.tmp / "helix.sock"
 
     def __enter__(self):
-        env = dict(os.environ)
-        env.update(self.env)
-        env.update({"HELIX_HEADLESS": "1", "SDL_VIDEODRIVER": "dummy", "HELIX_HOT_RELOAD": "0",
-                    "HELIX_CONFIG_DIR": str(self.tmp / "config")})
-        (self.tmp / "config").mkdir()
+        env = session_env(self.env, dict(os.environ))
+        config = self.tmp / "config"
+        config.mkdir()
+        # The tracked template, as screenshot.sh seeds it: the same document on
+        # every machine, wizard_completed false so the first-run tour stays away.
+        import shutil
+
+        shutil.copy(REPO_ROOT / "config" / "settings.json.template", config / "settings.json")
+        env["HELIX_CONFIG_DIR"] = str(config)
         w, h = self.size
         self.log = open(self.tmp / "app.log", "w")
         self.proc = subprocess.Popen(
-            [str(self.binary), "--test", "--skip-wizard", "-s", f"{w}x{h}", "--remote-socket",
-             str(self.sock)], env=env, stdout=self.log, stderr=subprocess.STDOUT)
+            [str(self.binary), "--test", "--remote", "--remote-socket", str(self.sock),
+             "--skip-splash", "--skip-wizard", "--dark", "-s", f"{w}x{h}"],
+            env=env, stdout=self.log, stderr=subprocess.STDOUT)
         for _ in range(120):
             if self.sock.exists() and self._try("ping"):
                 time.sleep(2)
                 return self
             time.sleep(0.5)
         self.__exit__(None, None, None)
-        raise SystemExit(f"the app did not answer on {self.sock}; log: {self.tmp / 'app.log'}")
+        raise RuntimeError(f"the app did not answer on {self.sock}")
 
     def _try(self, *args) -> bool:
         r = subprocess.run([str(self.binary), "ctl", "-s", str(self.sock), *args],
@@ -323,12 +365,20 @@ class AppSession:
             return {}
 
     def __exit__(self, *exc):
-        self.proc.terminate()
-        try:
-            self.proc.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            self.proc.kill()
-        self.log.close()
+        import shutil
+
+        if getattr(self, "proc", None) is not None:
+            self.proc.terminate()
+            try:
+                self.proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+                self.proc.wait()
+            self.proc = None
+        if getattr(self, "log", None) is not None:
+            self.log.close()
+            self.log = None
+        shutil.rmtree(self.tmp, ignore_errors=True)
 
 
 def main(argv=None) -> int:
@@ -339,7 +389,7 @@ def main(argv=None) -> int:
     ap.add_argument("--only", help="glob over entry paths")
     ap.add_argument("--list", action="store_true")
     args = ap.parse_args(argv)
-    entries = load_manifest()
+    entries = load_manifest(MANIFEST)
     if args.only:
         entries = [e for e in entries if fnmatch.fnmatch(e.path, args.only)]
     if args.list:
@@ -357,14 +407,15 @@ def run(entries, session_factory, out_root: Path) -> int:
         if e.kind == "manual":
             skipped += 1
             continue
-        session = session_factory(e.env, e.size).__enter__()
+        session = session_factory(e.env, e.size)
         try:
+            session.__enter__()
             capture(e, session, out_root)
             captured += 1
-            print(f"ok      {e.path}")
-        except (CaptureError, RuntimeError) as err:
+            print(f"ok      {e.path}", flush=True)
+        except (CaptureError, RuntimeError, OSError, ValueError) as err:
             failed += 1
-            print(f"FAILED  {e.path}: {err}")
+            print(f"FAILED  {e.path}: {err}", flush=True)
         finally:
             session.__exit__(None, None, None)
     print(f"captured {captured}, failed {failed}, skipped {skipped} (manual)")

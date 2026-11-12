@@ -30,4 +30,4 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_TRIGGER_qc_doc_images='\.md$|^docs/images/|^scripts/check_doc_images\.py$'
+QC_TRIGGER_qc_doc_images='\.md$|^docs/images/|^scripts/check_doc_images\.py$|^scripts/qc/doc_images\.sh$'

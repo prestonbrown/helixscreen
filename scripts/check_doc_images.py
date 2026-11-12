@@ -40,11 +40,22 @@ def _user_facing(rel: str) -> bool:
 
 
 def _markdown_files(root: Path):
-    for path in root.rglob("*.md"):
-        rel = path.relative_to(root).as_posix()
+    """Tracked markdown in a git tree (fast, and untracked notes do not count);
+    every markdown file outside SKIP_DIRS otherwise."""
+    import subprocess
+
+    listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--", "*.md"],
+                            capture_output=True, text=True)
+    if listed.returncode == 0:
+        rels = [r for r in listed.stdout.split("\0") if r]
+    else:
+        rels = [p.relative_to(root).as_posix() for p in root.rglob("*.md")]
+    for rel in rels:
         if any(rel == d or rel.startswith(d + "/") for d in SKIP_DIRS):
             continue
-        yield rel, path
+        path = root / rel
+        if path.is_file():
+            yield rel, path
 
 
 def _references(root: Path) -> dict:

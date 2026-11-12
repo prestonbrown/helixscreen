@@ -77,3 +77,21 @@ def test_ignores_external_and_non_image_links(tmp_path):
         },
     )
     assert find_problems(root) == []
+
+
+def test_in_a_git_tree_only_tracked_pages_count(tmp_path):
+    import subprocess
+
+    root = tree(
+        tmp_path,
+        {
+            "docs/user/page.md": "no pictures\n",
+            "docs/images/user/a.png": "",
+            "docs/images/doc-screenshots.yml": MANIFEST_HEAD + entry("docs/images/user/a.png"),
+            "notes/scratch.md": "![a](../docs/images/user/a.png)\n",
+        },
+    )
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(["git", "-C", str(root), "add", "docs"], check=True)
+    # notes/scratch.md is untracked, so a.png's only reference does not count.
+    assert find_problems(root) == ["unreferenced: docs/images/user/a.png"]
