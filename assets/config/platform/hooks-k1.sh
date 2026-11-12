@@ -38,10 +38,16 @@ platform_stop_competing_uis() {
     _ensure_ssh_running
 }
 
-# Where each launch and stop records whether SSH is up. /usr/data survives
-# reboots and updates; /tmp and /var/log do not. A printer that loses SSH
-# keeps the moment it went missing here.
-K1_SSH_LOG="/usr/data/helixscreen-state/logs/ssh.log"
+# Where each launch and stop records whether SSH is up. Moonraker's logs
+# folder, so a user with no shell can download it from Mainsail or Fluidd and
+# the debug bundle fetches it (src/system/platform_table.cpp); the state dir
+# when a K1 has no printer_data. Both are on /usr/data, which survives
+# reboots and updates, unlike /tmp and /var/log.
+if [ -d /usr/data/printer_data/logs ]; then
+    K1_SSH_LOG="/usr/data/printer_data/logs/helixscreen-ssh.log"
+else
+    K1_SSH_LOG="/usr/data/helixscreen-state/logs/helixscreen-ssh.log"
+fi
 K1_SSH_LOG_MAX_BYTES=65536
 
 # dropbear's pids and whether anything listens on port 22, as one line.
