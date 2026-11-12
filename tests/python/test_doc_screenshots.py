@@ -106,3 +106,75 @@ def test_rejects_duplicate_path(tmp_path):
 def test_the_repo_manifest_loads():
     entries = load_manifest(REPO_ROOT / "docs" / "images" / "doc-screenshots.yml")
     assert len(entries) > 100
+
+
+# --- capture: marker placement and the ctl calls ------------------------------
+
+from doc_screenshots import (  # noqa: E402
+    Box,
+    CaptureError,
+    Entry,
+    Marker,
+    capture,
+    marker_points,
+)
+
+
+def test_marker_points_relative_to_crop():
+    anchors = {"btn": Box(100, 50, 40, 20)}
+    crop = Box(80, 40, 200, 100)
+    pts = marker_points("e.png", anchors, crop, (Marker(1, "btn", "top_right"),))
+    # top-right corner of the widget (140, 50) in crop space is (60, 10).
+    assert pts == [(1, 60, 10)]
+
+
+def test_marker_points_full_screen_and_center():
+    anchors = {"a": Box(100, 50, 40, 20)}
+    pts = marker_points("e.png", anchors, None, (Marker(2, "a", "center"),))
+    assert pts == [(2, 120, 60)]
+
+
+def test_missing_anchor_fails_entry():
+    with pytest.raises(CaptureError) as err:
+        marker_points("docs/images/x.png", {}, None, (Marker(1, "gone", "center"),))
+    assert "docs/images/x.png" in str(err.value) and "gone" in str(err.value)
+
+
+class FakeSession:
+    """Records ctl calls; answers geom with fixed boxes and writes a blank PNG."""
+
+    def __init__(self, boxes):
+        self.calls = []
+        self.boxes = boxes
+
+    def ctl(self, *args):
+        self.calls.append(args)
+        if args[0] == "geom":
+            b = self.boxes[args[1]]
+            return {"x": b.x, "y": b.y, "w": b.w, "h": b.h}
+        if args[0] == "screenshot":
+            from PIL import Image
+
+            Image.new("RGB", (800, 480)).save(args[1])
+        return {}
+
+
+def test_capture_runs_recipe_steps_uses_stable_and_crops(tmp_path):
+    entry = Entry(
+        path="docs/images/user/x.png",
+        kind="app",
+        steps=("navigate filament",),
+        crop="card",
+        margin=10,
+        markers=(Marker(1, "btn", "center"),),
+    )
+    session = FakeSession({"card": Box(100, 100, 200, 100), "btn": Box(150, 120, 20, 20)})
+    out = capture(entry, session, tmp_path)
+    assert ("navigate", "filament") in session.calls
+    shot = [c for c in session.calls if c[0] == "screenshot"][0]
+    assert "--stable" in shot
+    from PIL import Image
+
+    img = Image.open(out)
+    # crop box grown by the margin on every side
+    assert img.size == (220, 120)
