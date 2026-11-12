@@ -417,6 +417,7 @@ TEST_CASE("CFS bypass: stock dialect declaration + sensor derivation", "[ams][cf
     SECTION("first full box frame flips supports_bypass") {
         auto info = backend.get_system_info();
         REQUIRE(info.supports_bypass);
+        CHECK_FALSE(backend.can_cancel_operation()); // its Cancel queues behind the load script
     }
 
     SECTION("enable stands the CFS down and declares; sensor feed confirms; "
