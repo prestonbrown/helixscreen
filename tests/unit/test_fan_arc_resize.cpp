@@ -44,13 +44,14 @@ static void make_fan_card(lv_obj_t* parent, int card_w, int card_h, int containe
 
 TEST_CASE_METHOD(LVGLTestFixture, "fan_arc_resize_to_fit: null card is safe",
                  "[fan][arc][resize]") {
-    helix::ui::fan_arc_resize_to_fit(nullptr);
+    CHECK_NOTHROW(helix::ui::fan_arc_resize_to_fit(nullptr));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "fan_arc_resize_to_fit: missing children is safe",
                  "[fan][arc][resize]") {
     lv_obj_t* card = lv_obj_create(test_screen());
     helix::ui::fan_arc_resize_to_fit(card);
+    CHECK(lv_obj_get_child_count(card) == 0); // nothing to size, and nothing added
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "fan_arc_resize_to_fit: arc is square and tracks match",

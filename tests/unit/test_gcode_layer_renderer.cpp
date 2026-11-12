@@ -1832,9 +1832,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
 namespace {
 
-/// File source whose range reads cost a fixed wall-clock slice. The batch
-/// budget has to hold whatever a layer load costs, and real parse time varies
-/// too much between machines to assert against.
 /// Simulated time a SlowReadSource has spent reading; the batch box reads it.
 std::atomic<int64_t> g_read_clock_ms{0};
 
@@ -1878,9 +1875,10 @@ std::string make_many_layer_gcode(int layers) {
 
 TEST_CASE_METHOD(LVGLTestFixture, "solid-cache batches are time-boxed against slow layer loads",
                  "[layer_renderer][streaming][budget]") {
-    // 60 layers at 5 ms per read against the 8 ms box: an unboxed batch pinned
-    // at 60 layers reads all 60; a time-boxed one stops once a load has spent
-    // the budget.
+    // 60 layers at 5 ms of simulated time per read against the 8 ms box: unboxed, the
+    // batch reads all 60; boxed, it stops after layer 1. The prefetch worker reads the
+    // same source, so radius 0 confines it to the layer the batch just loaded (a cache
+    // hit); its one read, of layer 59, lands before the batch takes its deadline.
     TempPickGCodeFile file(make_many_layer_gcode(60));
 
     GCodeStreamingController controller;
@@ -1888,6 +1886,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "solid-cache batches are time-boxed against sl
     SlowReadSource* reads = source.get();
     REQUIRE(controller.open_source(std::move(source)));
 
+    controller.prefetch_around(59, 0);
+    controller.wait_for_prefetch_idle();
     GCodeLayerRenderer renderer;
     renderer.set_streaming_controller(&controller);
     renderer.set_ghost_mode(false);
