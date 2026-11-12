@@ -527,11 +527,9 @@ struct TileCell {
     int col, row, colspan, rowspan;
 };
 
-/// The home page a tile is placed on and the panel's main page, for
-/// cell_fills_extra_page().
+/// A tile's home page and the panel's main page, for cell_fills_extra_page().
 struct TilePage {
-    int index;
-    int main_index;
+    int index, main_index;
 };
 
 TilePage tile_page(PanelWidgetConfig& config, int page_index) {
@@ -547,11 +545,10 @@ void announce_tile_size(lv_obj_t* tile, const std::string& widget_id, PanelWidge
     const int width =
         static_cast<int>(grid_track_extent(metrics.cell_w, metrics.gutter, cell.colspan));
     if (instance) {
+        const TrackRect rect{cell.col, cell.row, cell.colspan, cell.rowspan};
         instance->set_page_placement(
             page.index,
-            cell_fills_extra_page(page.index, page.main_index,
-                                  TrackRect{cell.col, cell.row, cell.colspan, cell.rowspan},
-                                  metrics.cols, metrics.rows));
+            cell_fills_extra_page(page.index, page.main_index, rect, metrics.cols, metrics.rows));
         instance->notify_size_changed(
             cell.colspan, cell.rowspan, width,
             static_cast<int>(grid_track_extent(metrics.cell_h, metrics.gutter, cell.rowspan)));
