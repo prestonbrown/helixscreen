@@ -380,9 +380,11 @@ namespace {
 ///
 /// All of them, not just the first: a state-swapped tile keeps one icon per
 /// state and only one is visible, so a set where a single icon was missed
-/// resizes until the state changes and then stops.
+/// resizes until the state changes and then stops. The full-page face
+/// (full_page_frame's body) is not on the tile's rung ladder, so it is skipped.
 void collect_icon_fonts(lv_obj_t* root, std::vector<const lv_font_t*>& out) {
-    if (!root) {
+    const char* name = root ? lv_obj_get_name(root) : nullptr;
+    if (!root || (name && lv_streq(name, "full_page_body"))) {
         return;
     }
     const uint32_t n = lv_obj_get_child_count(root);
