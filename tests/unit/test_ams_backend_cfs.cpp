@@ -404,8 +404,7 @@ TEST_CASE("CFS bypass: fork dialect commands the attended load", "[ams][cfs][byp
 
 TEST_CASE("CFS bypass: stock dialect declaration + sensor derivation", "[ams][cfs][bypass]") {
     helix::test::StartedBackend<CfsRemapHelper> backend;
-    // Stock dialect is the default schema; a full box frame is what flips
-    // supports_bypass on.
+    // Stock is the default schema; a full box frame is what flips supports_bypass on.
     backend.fire_status(make_cfs_notification(json::parse(
         R"({"state": "connect", "filament": 0, "enable": 1,
             "filament_useup": 0,
