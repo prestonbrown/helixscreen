@@ -178,6 +178,8 @@ class ControlsPanel : public PanelBase {
     lv_obj_t* nozzle_tool_dropdown_ = nullptr;
     /// The nozzle row's tool, clamped to the current tool list.
     [[nodiscard]] int nozzle_tool() const;
+    /// Whether the row's tool is the one on the carriage (always, with one head).
+    [[nodiscard]] bool nozzle_tool_mounted() const;
     /// That tool's Klipper extruder ("extruder" when it names none).
     [[nodiscard]] std::string nozzle_extruder_name() const;
     /// Bring the row's label, chooser and temperature source to nozzle_tool().

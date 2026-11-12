@@ -666,6 +666,12 @@ void ControlsPanel::register_observers() {
 // DISPLAY UPDATE HELPERS
 // ============================================================================
 
+bool ControlsPanel::nozzle_tool_mounted() const {
+    // One head is always the mounted one, whatever ToolState lists.
+    const auto& ts = helix::ToolState::instance();
+    return !ts.has_multiple_toolheads() || nozzle_tool() == ts.active_tool_index();
+}
+
 int ControlsPanel::nozzle_tool() const {
     return nozzle_tool_.current(helix::ToolState::instance().tool_count());
 }
@@ -711,8 +717,7 @@ void ControlsPanel::sync_nozzle_tool() {
         lv_dropdown_set_selected(nozzle_tool_dropdown_, static_cast<uint32_t>(nozzle_tool()));
     }
     nozzle_observers_.bind<ControlsPanel>(
-        printer_state_.temperature_state(), nozzle_extruder_name(),
-        nozzle_tool() == helix::ToolState::instance().active_tool_index(), this,
+        printer_state_.temperature_state(), nozzle_extruder_name(), nozzle_tool_mounted(), this,
         [](ControlsPanel* self, int value) {
             self->cached_extruder_temp_ = value;
             if (self->subjects_initialized_) {
@@ -1022,7 +1027,7 @@ void ControlsPanel::handle_custom_nozzle_confirmed(float value) {
     const std::string extruder = nozzle_extruder_name();
     // Mounted by tool index: after a park Klipper still names the last tool's
     // extruder active.
-    const bool mounted = nozzle_tool() == helix::ToolState::instance().active_tool_index();
+    const bool mounted = nozzle_tool_mounted();
     if (auto* c = controller()) {
         const helix::SendOptions opts{
             .toast = true,

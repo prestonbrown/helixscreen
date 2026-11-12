@@ -245,8 +245,6 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
             // A tool change anywhere moves the panel's aim to the mounted tool.
             self->target_tool_.on_active_tool_changed(tool_idx);
             self->sync_target_tool_ui();
-            // The mini graph stays on the mounted tool: its TemperatureService
-            // also feeds the other screens' nozzle mirror.
             if (self->temp_control_panel_) {
                 const auto* tool = helix::ToolState::instance().active_tool();
                 if (tool && tool->extruder_name) {
@@ -979,12 +977,20 @@ void FilamentPanel::sync_target_tool_ui() {
         sync_tool_dropdown_text();
     }
     repoint_nozzle_observers();
+    // The mini graph charts the tool the card shows; the mounted tool keeps
+    // the service's own active-extruder binding.
+    if (temp_control_panel_) {
+        temp_control_panel_->set_mini_graph_extruder(target_is_mounted() ? std::string()
+                                                                         : target_extruder_name());
+    }
     update_target_tool_action();
     update_filament_op_buttons();
 }
 
 bool FilamentPanel::target_is_mounted() const {
-    return target_tool() == helix::ToolState::instance().active_tool_index();
+    // One head is always the mounted one, whatever ToolState lists.
+    const auto& ts = helix::ToolState::instance();
+    return !ts.has_multiple_toolheads() || target_tool() == ts.active_tool_index();
 }
 
 bool FilamentPanel::target_needs_pickup() const {
