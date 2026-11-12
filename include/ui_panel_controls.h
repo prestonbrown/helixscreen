@@ -175,7 +175,7 @@ class ControlsPanel : public PanelBase {
     lv_subject_t nozzle_cur_deci_subject_{};
     lv_subject_t nozzle_tgt_deci_subject_{};
     lv_subject_t nozzle_multi_head_subject_{};
-    lv_obj_t* nozzle_tool_dropdown_ = nullptr;
+    helix::ui::WidgetRef nozzle_tool_dropdown_;
     /// The nozzle row's tool, clamped to the current tool list.
     [[nodiscard]] int nozzle_tool() const;
     /// Whether the row's tool is the one on the carriage (always, with one head).
