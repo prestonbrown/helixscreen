@@ -211,7 +211,8 @@ TEST_CASE("Tour steps: the filament system step directly follows the Filament pa
 }
 
 TEST_CASE("Tour steps: Print Status is shown as a picture", "[tour]") {
-    const auto& s = step_titled(build_tour_steps(false), "A new Print Status screen");
+    const auto steps = build_tour_steps(false);
+    const auto& s = step_titled(steps, "A new Print Status screen");
     CHECK(s.target_name.empty());
     CHECK(s.shows_print_status_preview);
 }
