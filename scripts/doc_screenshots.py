@@ -234,7 +234,12 @@ def capture(entry: Entry, session, out_root: Path) -> Path:
         session.ctl(*shlex.split(step))
     with tempfile.TemporaryDirectory() as tmp:
         raw = Path(tmp) / "shot.png"
-        session.ctl("screenshot", str(raw), "--stable")
+        # Stop animations and the mock's simulation so the shot is the same every run.
+        session.ctl("freeze")
+        try:
+            session.ctl("screenshot", str(raw), "--stable")
+        finally:
+            session.ctl("unfreeze")
         from PIL import Image
 
         img = Image.open(raw).convert("RGB")
