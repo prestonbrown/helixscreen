@@ -1377,11 +1377,14 @@ help-all: help-build help-test help-cross help-remote
 	@echo "  material-icons-add     - Download and add icons (ICONS=...)"
 	@echo "  material-icons-convert - Convert SVGs to C arrays (SVGS=...)"
 
-# Documentation screenshot generation
-screenshots: $(BIN)
-	$(Q)$(ECHO) "$(CYAN)Generating documentation screenshots...$(RESET)"
-	$(Q)./scripts/generate-screenshots.sh
-	$(Q)$(ECHO) "$(GREEN)✓ Documentation screenshots generated in docs/images/$(RESET)"
+# Documentation screenshots: every app entry in docs/images/doc-screenshots.yml,
+# headless (scripts/doc_screenshots.py). ONLY='<glob>' narrows it to some paths.
+DOC_SCREENSHOTS_PY := $(if $(wildcard .venv/bin/python3),.venv/bin/python3,python3)
+.PHONY: doc-screenshots screenshots
+doc-screenshots: $(BIN)
+	$(Q)$(ECHO) "$(CYAN)Regenerating doc screenshots$(if $(ONLY), matching $(ONLY))...$(RESET)"
+	$(Q)$(DOC_SCREENSHOTS_PY) scripts/doc_screenshots.py $(if $(ONLY),--only '$(ONLY)')
+screenshots: doc-screenshots
 
 # =============================================================================
 # Symbol extraction and stripping (for crash backtrace resolution)

@@ -1,0 +1,482 @@
+# Every image the docs show: how to regenerate it, or where it came from.
+# Schema and the capture: scripts/doc_screenshots.py. Regenerate: make doc-screenshots.
+images:
+  - path: assets/images/helix-icon-256.png
+    kind: manual
+    source: the app icon, assets/images/helix-icon-256.png
+    recapture: not a capture; it changes only when the icon does
+  - path: docs/images/mm-1x1-crop.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/mm-1x1-micro.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/mm-2x1-medium.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/mm-2x1-micro.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/mm-2x2-medium.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/mm-4x2-medium.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/mm-overlay-medium.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/mm-reset-confirm.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-ams-panel.png
+    kind: app
+    recipe: ams
+  - path: docs/images/screenshot-bed-mesh-panel.png
+    kind: app
+    recipe: bed-mesh
+  - path: docs/images/screenshot-chips-instant.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-controls-panel.png
+    kind: app
+    recipe: controls
+  - path: docs/images/screenshot-home-panel.png
+    kind: app
+    recipe: home
+  - path: docs/images/screenshot-model-row.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-motion-panel.png
+    kind: app
+    recipe: motion
+  - path: docs/images/screenshot-nav-stack-modal.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-nav-stack-overlay.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-nav-stack-panel.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-objects-icon.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-objects-side-list.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-pid-panel.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-preparing-card.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-press-wash-row.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-print-select-card.png
+    kind: app
+    recipe: print-select
+  - path: docs/images/screenshot-settings-panel.png
+    kind: app
+    recipe: settings
+  - path: docs/images/screenshot-shaper-analysis.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-shaper-delta.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-shaper-results.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-shaper-sweep.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-temp-graph-overlay.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-theme-dark.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-theme-light.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-type-picker.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-unaccounted-dialog.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/screenshot-wizard-wifi.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/advanced-console.png
+    kind: app
+    recipe: console
+  - path: docs/images/user/advanced-history.png
+    kind: app
+    recipe: history-dashboard
+  - path: docs/images/user/advanced-macros.png
+    kind: app
+    recipe: macros
+  - path: docs/images/user/advanced-screws.png
+    kind: app
+    recipe: screws
+  - path: docs/images/user/advanced-shaper.png
+    kind: app
+    recipe: input-shaper
+  - path: docs/images/user/advanced-spoolman.png
+    kind: app
+    recipe: spoolman
+  - path: docs/images/user/advanced-tool-offsets-complete.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/advanced-tool-offsets-confirm.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/advanced-tool-offsets-many-tools.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/advanced-tool-offsets-row.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/advanced-tool-offsets-running.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/advanced-tool-offsets.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/advanced-zoffset.png
+    kind: app
+    recipe: zoffset
+  - path: docs/images/user/advanced.png
+    kind: app
+    recipe: advanced
+  - path: docs/images/user/ams-portrait.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/ams.png
+    kind: app
+    recipe: ams
+  - path: docs/images/user/camera.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/color-mismatch.png
+    kind: app
+    recipe: color-mismatch
+  - path: docs/images/user/controls-bed-mesh.png
+    kind: app
+    recipe: bed-mesh
+  - path: docs/images/user/controls-extrusion.png
+    kind: app
+    recipe: extrusion
+  - path: docs/images/user/controls-fan.png
+    kind: app
+    recipe: fan
+  - path: docs/images/user/controls-motion.png
+    kind: app
+    recipe: motion
+  - path: docs/images/user/controls-pid.png
+    kind: app
+    recipe: pid
+  - path: docs/images/user/controls-temperature.png
+    kind: app
+    recipe: nozzle-temp
+  - path: docs/images/user/controls-tool-offsets.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/filament-preset-picker.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-carousel-modes.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-edit-mode.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-fan-carousel.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-filament-buffer.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-flowguard-bar.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-image-picker.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-job-queue-tile.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-job-queue.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-led-control.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-macro-picker.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-printer-manager.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-widget-bed-mesh.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-widget-catalog-category.png
+    kind: app
+    recipe: widget-catalog-category
+  - path: docs/images/user/home-widget-catalog.png
+    kind: app
+    recipe: widget-catalog
+  - path: docs/images/user/home-widget-dryer.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-widget-exclude-map.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-widget-host-health.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-widget-speed-flow.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-widget-toolhead.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-widget-trash.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home-widget-z-offset.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/home.png
+    kind: app
+    recipe: home
+  - path: docs/images/user/preflight-check.png
+    kind: app
+    recipe: preflight-check
+  - path: docs/images/user/print-detail.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/print-history-detail.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/print-select-list.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/print-select.png
+    kind: app
+    recipe: print-select
+  - path: docs/images/user/print-status.png
+    kind: app
+    recipe: print-status
+  - path: docs/images/user/print-tune.png
+    kind: app
+    recipe: print-tune
+  - path: docs/images/user/runout-modal.png
+    kind: app
+    recipe: runout-modal
+  - path: docs/images/user/screen-lock.png
+    kind: app
+    recipe: lock-screen
+  - path: docs/images/user/screen-sharing-badge.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/screen-sharing-browser.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/screen-sharing-pair.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/screen-sharing-settings.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/settings-about.png
+    kind: app
+    recipe: about
+  - path: docs/images/user/settings-appearance-2.png
+    kind: app
+    recipe: appearance-2
+  - path: docs/images/user/settings-appearance.png
+    kind: app
+    recipe: appearance
+  - path: docs/images/user/settings-barcode-scanner.png
+    kind: app
+    recipe: barcode-scanner
+  - path: docs/images/user/settings-connection.png
+    kind: app
+    recipe: connection
+  - path: docs/images/user/settings-devices-2.png
+    kind: app
+    recipe: devices-2
+  - path: docs/images/user/settings-devices.png
+    kind: app
+    recipe: devices
+  - path: docs/images/user/settings-display-2.png
+    kind: app
+    recipe: display-2
+  - path: docs/images/user/settings-display.png
+    kind: app
+    recipe: display
+  - path: docs/images/user/settings-fans.png
+    kind: app
+    recipe: fan-settings
+  - path: docs/images/user/settings-hardware-health.png
+    kind: app
+    recipe: hardware-health
+  - path: docs/images/user/settings-help-about.png
+    kind: app
+    recipe: help-about
+  - path: docs/images/user/settings-label-printer.png
+    kind: app
+    recipe: label-printer
+  - path: docs/images/user/settings-language-time.png
+    kind: app
+    recipe: language-time
+  - path: docs/images/user/settings-network.png
+    kind: app
+    recipe: network
+  - path: docs/images/user/settings-printers.png
+    kind: app
+    recipe: printers
+  - path: docs/images/user/settings-printing-2.png
+    kind: app
+    recipe: printing-2
+  - path: docs/images/user/settings-printing-3.png
+    kind: app
+    recipe: printing-3
+  - path: docs/images/user/settings-printing.png
+    kind: app
+    recipe: printing
+  - path: docs/images/user/settings-root-helixscreen.png
+    kind: app
+    recipe: settings-helixscreen
+  - path: docs/images/user/settings-root-printer.png
+    kind: app
+    recipe: settings-printer
+  - path: docs/images/user/settings-safety.png
+    kind: app
+    recipe: safety
+  - path: docs/images/user/settings-security.png
+    kind: app
+    recipe: security
+  - path: docs/images/user/settings-sensors.png
+    kind: app
+    recipe: sensors
+  - path: docs/images/user/settings-sound-2.png
+    kind: app
+    recipe: sound-2
+  - path: docs/images/user/settings-sound.png
+    kind: app
+    recipe: sound
+  - path: docs/images/user/settings-system-2.png
+    kind: app
+    recipe: system-2
+  - path: docs/images/user/settings-system.png
+    kind: app
+    recipe: system
+  - path: docs/images/user/settings-theme.png
+    kind: app
+    recipe: theme
+  - path: docs/images/user/settings-touch-input-2.png
+    kind: app
+    recipe: touch-input-2
+  - path: docs/images/user/settings-touch-input.png
+    kind: app
+    recipe: touch-input
+  - path: docs/images/user/settings-updates.png
+    kind: app
+    recipe: updates
+  - path: docs/images/user/settings.png
+    kind: app
+    recipe: settings
+  - path: docs/images/user/touch-cal-begin.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/touch-cal-overlay.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/touch-cal-point2.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/touch-cal-verify.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/wizard-connection.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/wizard-wifi.png
+    kind: manual
+    source: captured by hand before the manifest existed
+    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here

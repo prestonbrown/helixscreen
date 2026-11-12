@@ -1161,7 +1161,7 @@ apply — set them on the launch, then navigate to the panel with the client.
 
 The exact navigation recipe for each documentation screen lives in
 `scripts/screenshot-recipes.sh` (the single source of truth), used by both
-`scripts/screenshot.sh` (single shot) and `scripts/screenshot-all.sh` (batch).
+`scripts/screenshot.sh` (single shot) and `make doc-screenshots` (every doc image, from `docs/images/doc-screenshots.yml`).
 
 ## Screenshots
 
