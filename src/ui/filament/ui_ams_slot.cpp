@@ -19,6 +19,7 @@
 #include "core/observer_factory.h"
 #include "core/observer_guard.h"
 #include "core/static_subject_registry.h"
+#include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "filament_display_name.h"
@@ -285,10 +286,8 @@ static void apply_lane_humidity(AmsSlotData* data, AmsBackend* backend) {
     const bool has_temp = env && env->has_temperature();
     char temp[16] = "";
     if (has_temp)
-        snprintf(temp, sizeof(temp),
-                 "%d\xC2\xB0"
-                 "C",
-                 (int)std::lround(env->temperature_c));
+        snprintf(temp, sizeof(temp), "%s",
+                 helix::units::format_display_temp(env->temperature_c).c_str());
     // DECLARATIVE_OK: per-slot reading with no per-slot temperature subject
     lv_label_set_text(data->lane_temp_text, temp);
     if (has_temp)

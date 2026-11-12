@@ -47,6 +47,12 @@
                             label="Speed &amp; Flow in mm/s" icon="speed"
                             description="Show print speed and flow as mm/s and mm³/s instead of percent"
                             subject="settings_speed_flow_physical_units" callback="on_speed_flow_units_changed"/>
+        <!-- Temperature unit -->
+        <setting_dropdown_row name="row_temp_unit"
+                              label="Temperature Unit" icon="thermometer"
+                              description="Show and enter temperatures in Celsius or Fahrenheit"
+                              options="Celsius (°C)&#10;Fahrenheit (°F)" options_tag="Celsius (°C)&#10;Fahrenheit (°F)"
+                              bind_selected="settings_temp_unit" callback="on_temp_unit_changed"/>
       </setting_group>
       <!-- ================================================================== -->
       <!-- PRINTER VISUALS -->

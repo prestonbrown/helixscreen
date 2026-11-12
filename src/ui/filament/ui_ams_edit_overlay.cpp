@@ -43,6 +43,7 @@
 #include "ui_overlay_qr_scanner.h"
 #include "ui_toast_manager.h"
 
+#include "core/temperature_units.h"
 #include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "spoolman_slot_saver.h"
@@ -1298,11 +1299,11 @@ void AmsEditOverlay::update_temp_display() {
 
     // One read-only line under the summary: "Nozzle 230–250 °C · Bed 80 °C".
     if (nozzle_min > 0 || nozzle_max > 0 || bed_temp > 0) {
-        snprintf(temp_buf_, sizeof(temp_buf_),
-                 "%s %d\xE2\x80\x93%d\xC2\xB0"
-                 "C \xC2\xB7 %s %d\xC2\xB0"
-                 "C",
-                 lv_tr("Nozzle"), nozzle_min, nozzle_max, lv_tr("Bed"), bed_temp);
+        const char* unit = helix::units::display_temp_symbol();
+        snprintf(temp_buf_, sizeof(temp_buf_), "%s %d\xE2\x80\x93%d%s \xC2\xB7 %s %d%s",
+                 lv_tr("Nozzle"), helix::units::to_display_temp_whole(nozzle_min),
+                 helix::units::to_display_temp_whole(nozzle_max), unit, lv_tr("Bed"),
+                 helix::units::to_display_temp_whole(bed_temp), unit);
     } else {
         temp_buf_[0] = '\0';
     }

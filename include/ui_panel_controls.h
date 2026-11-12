@@ -514,7 +514,7 @@ void ControlsPanel::show_temperature_keypad(const char* title, int cached_target
         .min_value = 0.0f,
         .max_value = static_cast<float>(max_temp),
         .title_label = lv_tr(title),
-        .unit_label = "°C",
+        .unit_label = "",
         .allow_decimal = false,
         .allow_negative = false,
         .callback =
@@ -524,7 +524,8 @@ void ControlsPanel::show_temperature_keypad(const char* title, int cached_target
                     (self->*Handler)(value);
                 }
             },
-        .user_data = this};
+        .user_data = this,
+        .temperature = true};
 
     ui_keypad_show(&config);
 }

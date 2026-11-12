@@ -8,6 +8,8 @@
   <api>
     <prop name="label" type="string" default=""/>
     <prop name="subject" type="string" default=""/>
+    <!-- What the value label shows: the slider's subject, or a text one formatted in C++ -->
+    <prop name="text_subject" type="string" default=""/>
     <prop name="fmt" type="string" default="%d"/>
     <prop name="min" type="string" default="0"/>
     <prop name="max" type="string" default="100"/>
@@ -19,7 +21,7 @@
             height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row"
             style_flex_main_place="space_between" style_flex_cross_place="center" scrollable="false">
       <text_body name="label" text="$label"/>
-      <text_muted name="value_label" bind_text="$subject" bind_text-fmt="$fmt"/>
+      <text_muted name="value_label" bind_text="$text_subject" bind_text-fmt="$fmt"/>
     </lv_obj>
     <lv_slider name="slider" width="100%" min_value="$min" max_value="$max" bind_value="$subject">
       <event_cb trigger="released" callback="on_chamber_air_targets_commit"/>

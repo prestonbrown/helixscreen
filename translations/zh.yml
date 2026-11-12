@@ -1,7 +1,6 @@
 locale: zh
 translations:
   '%d-%d': '%d-%d'
-  '%d-%d°C': '%d-%d°C'
   ' (timed out)': （超时）
   ' frames': ' 帧'
   ' left': ' 剩余'
@@ -107,7 +106,6 @@ translations:
   12-hour: 12小时制
   120 seconds: 120 秒
   15 seconds: 15 秒
-  170-300 °C: '170-300 °C'
   180°: 180°
   180° Upside Down: 180° 上下颠倒
   2 min: '2分钟'
@@ -364,7 +362,7 @@ translations:
   Assisting: 辅助中
   At least {} lines in helixscreen.env were ignored: 'helixscreen.env 中至少有 {} 行被忽略'
   At target: 在目标值
-  At {}°C, about {} minutes.: '在 {}°C 下约需 {} 分钟。'
+  At {}, about {} minutes.: 在 {} 下约需 {} 分钟。
   Authentication failed: 认证失败
   Auto: 自动
   Auto Bed Mesh: 自动热床网格
@@ -422,7 +420,6 @@ translations:
   Beacon auto-calibrate sent: Beacon自动校准已发送
   Beacon calibrate sent: Beacon校准已发送
   Bed: 热床
-  Bed (°C): 热床 (°C)
   Bed Clear Check: '热床清空检查'
   Bed Drying: '热床烘干'
   Bed Heater: 热床加热器
@@ -445,17 +442,17 @@ translations:
   'Bed cooling, spools still on the bed:': '热床正在冷却,料盘仍在上面:'
 
   Bed is Level!: 热床已水平！
-  Bed is at {:.0f}°C, the print needs {:.0f}°C.: 热床为 {:.0f}°C，打印需要 {:.0f}°C。
+  Bed is at {}, the print needs {}.: 热床为 {}，打印需要 {}。
   Bed mesh: 热床网格
   'Bed mesh calibration failed: {}': '热床网格校准失败：{}'
   Bed mesh operation timed out: 热床网格操作超时
   Bed mesh...: 热床网格...
   Bed size unknown: '热床尺寸未知'
-  Bed target set to {}°C: 热床目标已设为 {}°C
-  Bed temp must be 0-%d°C: 热床温度必须为 0-%d°C
+  Bed target set to {}: 热床目标已设为 {}
+  Bed temp must be %s: 热床温度必须为 0-%s
   Bed warming timed out: 热床加热超时
-  Bed {:.0f} / {:.0f}°C: 热床 {:.0f} / {:.0f}°C
-  Bed {:.0f}°C: 热床 {:.0f}°C
+  Bed {}: 热床 {}
+  Bed {} / {}: 热床 {} / {}
   Before starting: '开始之前'
   Below target: 低于目标
   Belt Tension: 皮带张力
@@ -667,11 +664,11 @@ translations:
     — 使用Z偏移面板进行调整
   Cartographer touch calibrate sent: Cartographer触摸校准已发送
   Category: 类别
+  Celsius (°C): °C
   Center: '中心'
   Center QR code in frame: 将 QR 码对准画面中央
   'Chamb:': '腔:'
   Chamber: 腔体
-  Chamber (°C): 腔体 (°C)
   Chamber Cooling Fan: 腔体冷却风扇
   Chamber Dryer: '腔体烘干'
   Chamber Fan: 腔体风扇
@@ -681,13 +678,13 @@ translations:
   Chamber Temperature: 腔体温度
   Chamber air: '腔体空气'
   Chamber and dryer humidity monitoring: 腔体和干燥器湿度监控
-  Chamber at %d°C: 腔体温度：%d°C
+  Chamber at %s: 腔体温度：%s
   Chamber heater didn't start: '腔体加热器未启动'
   Chamber heater didn't start. {}: '腔体加热器未启动。{}'
-  Chamber heating to %d°C...: 腔体加热至 %d°C...
+  Chamber heating to %s...: 腔体加热至 %s...
   Chamber light fitted: '已安装腔体灯'
-  Chamber target set to {}°C: 腔体目标温度设置为 {}°C
-  Chamber temp must be 0-%d°C: 腔体温度必须为 0-%d°C
+  Chamber target set to {}: 腔体目标温度设置为 {}
+  Chamber temp must be %s: 腔体温度必须为 0-%s
   Chamber too hot: '腔体温度过高'
   Change: 更改
   Change Address: 更改地址
@@ -764,6 +761,7 @@ translations:
   Choose sound style: 选择声音风格
   ? Choose the model that matches your printer. This sets the print macros, fan roles and calibration behavior HelixScreen uses.
   : 选择与您的打印机相符的型号。这将决定 HelixScreen 使用的打印宏、风扇角色和校准行为。
+  Choose the order of day, month and year: 选择日、月、年的顺序
   Choose what to power off or restart.: 选择要关闭或重启的对象。
   'Chute position: X {:.1f}, Y {:.1f}': '排料口位置: X {:.1f}, Y {:.1f}'
 
@@ -1066,7 +1064,7 @@ translations:
   Current Z Position: 当前 Z 位置
   'Current name:': 当前名称：
   'Current:': 当前：
-  'Current: %d°C | Target: %d°C': '当前: %d°C | 目标: %d°C'
+  'Current: %s | Target: %s': '当前: %s | 目标: %s'
   Currently Loaded: 当前已装载
   Currently printing: 正在打印
   'Currently:': '当前：'
@@ -1106,14 +1104,16 @@ translations:
   Dark Mode: 深色模式
   Date (newest): 日期（最新）
   Date (oldest): 日期（最早）
+  Date Format: 日期格式
   Day: 日
+  Day Month Year: 日 月 年
   Debug: 调试
   Deep Black: 深黑色
   Default: '默认'
   Default Parameters: '默认参数'
   Default border thickness: 默认边框厚度
-  'Default: %s nozzle, %d°C bed': '默认: 喷嘴 %s,热床 %d°C'
-  'Default: %s nozzle, %d°C bed, %d°C chamber': '默认: 喷嘴 %s,热床 %d°C,腔体 %d°C'
+  'Default: %s nozzle, %s bed': '默认: 喷嘴 %s,热床 %s'
+  'Default: %s nozzle, %s bed, %s chamber': '默认: 喷嘴 %s,热床 %s,腔体 %s'
   Defaults restored: 已恢复默认设置
   Define macros in your printer.cfg: 在 printer.cfg 中定义宏
   Delete: 删除
@@ -1429,6 +1429,7 @@ translations:
   FILAMENTS: 耗材
   FILTERS: 筛选
   Factory Reset: 恢复出厂设置
+  Fahrenheit (°F): °F
   Failed: 失败
   Failed to apply limits: 应用限制失败
   Failed to apply settings: 应用设置失败
@@ -1793,12 +1794,12 @@ translations:
   Heat soak: 预热浸泡
   ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
   : '热浸让腔体在打印前升温。显示此项是因为打印机有热浸宏，或已在设置中开启；HelixScreen 会在打印前选项中提供该宏。'
-  Heat the bed to {}°C: 将热床加热到 {}°C
+  Heat the bed to {}: 将热床加热到 {}
   Heat the chamber too: 同时加热腔体
-  Heat the extruder to at least {}°C before loading filament: 装载耗材前请将挤出机加热至至少 {}°C
+  Heat the extruder to at least {} before loading filament: 装载耗材前请将挤出机加热至至少 {}
   Heat the hotend.: "加热热端。"
-  Heat to at least %d°C for filament operations: 请加热至至少 %d°C 以进行耗材操作
-  Heat {} above {}°C before resuming: '恢复前请将{}加热到{}°C以上'
+  Heat to at least %s for filament operations: 请加热至至少 %s 以进行耗材操作
+  Heat {} above {} before resuming: 恢复前请将{}加热到{}以上
   Heatbed Temperature: 热床温度
   Heated Bed: 加热床
   Heated Bed MPC Calibration: 热床 MPC 校准
@@ -1814,7 +1815,7 @@ translations:
   HeaterSelect: 选择加热器
   Heaters off: 加热器已关闭
   Heating: 加热中
-  Heating (%d°C below minimum): 加热中（低于最低温度 %d°C）
+  Heating (%s below minimum): 加热中（低于最低温度 %s）
   Heating Bed...: 正在加热热床...
   Heating Chamber...: 正在加热腔体...
   Heating Nozzle...: 正在加热喷嘴...
@@ -1832,16 +1833,16 @@ translations:
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "正在加热热床和喷嘴，使打印件重新附着，喷嘴脱离打印件"
   Heating the nozzle: 正在加热喷嘴
   Heating the nozzle. Have the filament ready to push in.: "正在加热喷嘴。请准备好要推入的耗材。"
-  Heating to %d°C... %.0f°C: 加热至 %d°C... %.0f°C
+  Heating to %s... %s: 加热至 %s... %s
   'Heating to %s: %d:%02d left': '正在加热至 %s：剩余 %d:%02d'
-  Heating to {}°C before {}...: 正在加热至{}°C，然后{}...
-  Heating to {}°C for {}...: 正在加热至{}°C，持续{}...
-  Heating to {}°C...: 正在加热至{}°C...
+  Heating to {} before {}...: 正在加热至{}，然后{}...
+  Heating to {} for {}...: 正在加热至{}，持续{}...
+  Heating to {}...: 正在加热至{}...
   Heating {}...: 正在加热{}...
   Heating...: 正在加热...
-  'Heating: %d / %d°C': 加热中：%d / %d°C
-  Heats the bed to {:g}°C, above this printer's {:g}°C limit.: '将热床加热到 {:g}°C，超过此打印机 {:g}°C 的上限。'
-  Heats the nozzle to {:g}°C, above this printer's {:g}°C limit.: '将喷嘴加热到 {:g}°C，超过此打印机 {:g}°C 的上限。'
+  'Heating: %d / %s': 加热中：%d / %s
+  Heats the bed to {}, above this printer's {} limit.: 将热床加热到 {}，超过此打印机 {} 的上限。
+  Heats the nozzle to {}, above this printer's {} limit.: 将喷嘴加热到 {}，超过此打印机 {} 的上限。
   Heightmap and flatness of the active bed mesh: '当前热床网格的高度图和平整度'
   HelixPrint Plugin: 'HelixPrint 插件'
   HelixPrint plugin updated.: 'HelixPrint 插件已更新。'
@@ -1875,7 +1876,7 @@ translations:
   Hold anywhere to cancel: 长按任意位置取消
   Hold slicer prints that do not fit: '暂缓不适合的切片软件打印'
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: 将{}完全按在打印头上。锁定装置会锁住它，它将成为已安装的工具。
-  Holding nozzle at {}°C to purge previous filament.: 将喷嘴保持在 {}°C 以清洗之前的耗材。
+  Holding nozzle at {} to purge previous filament.: 将喷嘴保持在 {} 以清洗之前的耗材。
   Home: 归位
   Home & Continue: 归位并继续
   Home All: "全部归位"
@@ -2300,7 +2301,7 @@ translations:
   MMU command failed: MMU 命令失败
   MOTION & LEVELING: '运动与调平'
   MPC: MPC
-  MPC thermal model calibrated for {} at {}°C.: '已针对 {} 在 {}°C 下校准 MPC 热模型。'
+  MPC thermal model calibrated for {} at {}.: 已针对 {} 在 {} 下校准 MPC 热模型。
   Machine Limits: 机器限制
   Macro: 宏
   Macro Browser: 宏浏览器
@@ -2420,6 +2421,7 @@ translations:
   Modified: 已修改
   Monitoring: 监控中
   Month: 月
+  Month Day Year: 月 日 年
   Moonraker: Moonraker
   Moonraker at {} rejected the API key.: '{} 上的 Moonraker 拒绝了 API 密钥。'
   Moonraker at {} requires an API key.: '{} 上的 Moonraker 需要 API 密钥。'
@@ -2707,8 +2709,8 @@ translations:
   Nozzle: 喷嘴
   Nozzle / Bed: 喷嘴 / 热床
   Nozzle Clean: 喷嘴清洁
-  Nozzle Max (°C): 喷嘴最高温度 (°C)
-  Nozzle Min (°C): 喷嘴最低温度 (°C)
+  Nozzle Max: 喷嘴最高温度
+  Nozzle Min: 喷嘴最低温度
   Nozzle Moves: 喷嘴移动
   Nozzle Temp: 喷嘴温度
   Nozzle Temperature: 喷嘴温度
@@ -2717,15 +2719,15 @@ translations:
   Nozzle clean complete: 喷嘴清洁完成
   Nozzle clog detected: 检测到喷嘴堵塞
   Nozzle diameter: "喷嘴直径"
-  Nozzle did not reach {}°C — {} canceled: 喷嘴未达到 {}°C — {} 已取消
+  Nozzle did not reach {} — {} canceled: 喷嘴未达到 {} — {} 已取消
   Nozzle flow: "喷嘴流量"
   Nozzle interval: '喷嘴间隔'
   Nozzle min cannot exceed max: 喷嘴最低温度不能超过最高温度
   'Nozzle not changed: the printer did not confirm it': "喷嘴未更改：打印机未确认"
   'Nozzle not changed: {}': "喷嘴未更改：{}"
   Nozzle size and flow type per head: "每个工具头的喷嘴尺寸和流量类型"
-  Nozzle target set to {}°C: 喷嘴目标已设为 {}°C
-  Nozzle temp must be 100-%d°C: 喷嘴温度必须为 100-%d°C
+  Nozzle target set to {}: 喷嘴目标已设为 {}
+  Nozzle temp must be %s: 喷嘴温度必须为 100-%s
   Nozzle, bed, and chamber in one widget: 喷嘴、热床和腔体合为一个小组件
   'Nozzle:': 喷嘴：
   'Nozzles still heating: {}': '仍在加热的喷嘴: {}'
@@ -3587,7 +3589,7 @@ translations:
   Seat: 装上
   Seat a tool by hand: 手动安装工具
   Seat a tool by hand for the first Z home: 首次Z轴归零前手动安装工具
-  Seat the hot ends, heat {} above {}°C, then tap Resume.: '请装好热端，将{}加热到{}°C以上，然后点击恢复。'
+  Seat the hot ends, heat {} above {}, then tap Resume.: 请装好热端，将{}加热到{}以上，然后点击恢复。
   Seat which tool by hand?: 手动安装哪个工具？
   Seating {}...: 正在安装{}...
   Secondary: 次要
@@ -3670,7 +3672,7 @@ translations:
   Set duration between 1 and {} minutes: '请设置 1 到 {} 分钟之间的时长'
   Set local timezone for time display: 设置本地时区以显示时间
   Set logging verbosity for troubleshooting: 设置日志详细级别以便故障排除
-  Set temperature between {}°C and {}°C: '请设置 {}°C 到 {}°C 之间的温度'
+  Set temperature between {} and {}: 请设置 {} 到 {} 之间的温度
   Set the X and Y belts with the motorized tensioners: "用电动张紧器调整X和Y皮带"
   Set the clock, theme and units. You can change any of these later in Settings.: "设置时钟、主题和单位。之后可以随时在设置中更改。"
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
@@ -3701,6 +3703,7 @@ translations:
   Show Sections: 显示区段
   Show Touch Points: 显示触摸点
   Show a confirmation dialog when tapping a macro: 点击宏时显示确认对话框
+  Show and enter temperatures in Celsius or Fahrenheit: 以 °C 或 °F 显示和输入温度
   Show instead of dimming: 显示而非变暗
   Show light controls for a light connected to this printer: '显示连接到此打印机的灯的控制'
   Show print speed and flow as mm/s and mm³/s instead of percent: "以 mm/s 和 mm³/s 而非 % 显示打印速度和流量"
@@ -4013,14 +4016,14 @@ translations:
   Telemetry queue cleared: 遥测队列已清除
   Temp: 温度
   Temp Compensation: 温度补偿
-  Temp °C: 温度 °C
   Temperature: 温度
   Temperature Graph: '温度曲线'
   Temperature Graph Config: 温度图表配置
   # Source: calibration_pid_panel.xml:333
   Temperature Sensors: '温度传感器'
+  Temperature Unit: 温度单位
   Temperature and humidity sensor not responding: 温湿度传感器无响应
-  Temperature control optimized for {} at {}°C.: '已针对 {} 在 {}°C 下优化温度控制。'
+  Temperature control optimized for {} at {}.: 已针对 {} 在 {} 下优化温度控制。
   Temperatures: 温度
   Temperatures plotted over time: 温度随时间的变化曲线
   Temperatures saved: 温度已保存
@@ -4044,7 +4047,7 @@ translations:
   Test Tracker: 测试追踪器
   Test Both: 测试两者
   Test label printed: 测试标签已打印
-  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C.': '测试塔宽{:.0f} mm、高{:.0f} mm,约{}分钟加加热时间: 共{}段,每段{:.0f} mm,温度{}°C。'
+  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': '测试塔宽{:.0f} mm、高{:.0f} mm,约{}分钟加加热时间: 共{}段,每段{:.0f} mm,温度{}。'
   'Testing rotation: %d° (%d/%d) - %ds remaining': '测试旋转: %d° (%d/%d)
     - 剩余%ds'
   Testing, servo, and motor operations: '测试、舵机与电机操作'
@@ -4139,13 +4142,13 @@ translations:
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : 当前装载的料盘是 {}，但此文件为 {} 切片。填充耗材需要以更低的流量运行，且需要硬化喷嘴。
   The message your printer's macros show (M117): '打印机宏显示的消息 (M117)'
-  ? The mounted nozzle heats to 200°C and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
-  : 测定加热器安全模型时，已安装的喷嘴会加热到200°C再冷却。请保持模型风扇关闭，并让易起火的物品远离打印头。这需要几分钟。
+  ? The mounted nozzle heats to {} and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
+  : 测定加热器安全模型时，已安装的喷嘴会加热到{}再冷却。请保持模型风扇关闭，并让易起火的物品远离打印头。这需要几分钟。
   The new IPv4 settings could not be marked as kept, so the next start undoes them.: '无法将新的 IPv4 设置标记为已保留，因此下次启动时会撤销它们。'
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: '喷嘴在远离打印区域的角落进行几次短促的测试挤出，并重复直到读数一致。'
   "The nozzle hasn't moved since the power went out. Check that it sits just above the top of the print, then resume.": "断电后喷嘴没有移动过。确认它刚好位于打印件顶部上方，然后恢复。"
-  ? The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
-  : 模型风扇依次切换各档转速时，喷嘴会加热到200°C。为了测定准确，请按打印时的方式装好风道。这需要几分钟。
+  ? The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
+  : 模型风扇依次切换各档转速时，喷嘴会加热到{}。为了测定准确，请按打印时的方式装好风道。这需要几分钟。
   The nozzle is clear of the print: 喷嘴未接触打印件
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : 喷嘴很烫。请用随机附带的金属刷清洁，并保持停靠位置干净，然后点击下一步。
@@ -4173,7 +4176,7 @@ translations:
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : 打印已暂停。现在切换工具会移动工具头并更换喷嘴处的耗材。切换完成后请恢复打印。
   The print is still stuck to the bed: 打印件仍附着在热床上
-  The print is waiting for the chamber to reach {}°C, but the heater is not heating.: '打印正在等待腔体达到 {}°C，但加热器没有加热。'
+  The print is waiting for the chamber to reach {}, but the heater is not heating.: 打印正在等待腔体达到 {}，但加热器没有加热。
   The print is waiting for the chamber, but the heater is not heating.: '打印正在等待腔体，但加热器没有加热。'
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: '可打印尺寸（毫米，X × Y × Z），取自打印机 Klipper 配置中的轴限位。'
   The printer applied this value and keeps it for this tool.: '打印机已应用此值，并为该工具保存。'
@@ -4687,8 +4690,8 @@ translations:
   Waiting for another box to finish.: 正在等待另一个料盒完成。
   Waiting for bed temperature...: 正在等待热床温度...
   Waiting for bed to reach temperature for accurate calibration.: 等待热床达到温度以进行精确校准。
-  Waiting for chamber {} / {}°C: '等待腔体 {} / {}°C'
-  Waiting for chamber {}°C: '等待腔体 {}°C'
+  Waiting for chamber {}: 等待腔体 {}
+  Waiting for chamber {} / {}: 等待腔体 {} / {}
   Waiting for the chamber to heat: 正在等待腔室加热
   Waiting for the filament system to report its state: 正在等待耗材系统报告状态
   Waiting for the printer: 正在等待打印机
@@ -4793,6 +4796,7 @@ translations:
   ? "YOU WIN!\nScore: {}\nTap to play again"
   : "你赢了！\n得分：{}\n点按再玩一次"
   Year: 年
+  Year Month Day: 年 月 日
   'Yes': 是
   You can skip this and calibrate later in Settings.: 您可以跳过此步骤，稍后在设置中进行校准。
   You have unsaved changes. Discard them?: 您有未保存的更改。是否丢弃？

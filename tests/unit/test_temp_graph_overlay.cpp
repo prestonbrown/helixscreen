@@ -134,7 +134,10 @@ TEST_CASE_METHOD(
                                                 "temp_graph_chamber_preset_0_visible",
                                                 "temp_graph_chamber_preset_1_visible",
                                                 "temp_graph_chamber_preset_2_visible",
-                                                "temp_graph_chamber_preset_3_visible"};
+                                                "temp_graph_chamber_preset_3_visible",
+                                                "temp_graph_chamber_preset_1_text",
+                                                "temp_graph_chamber_preset_2_text",
+                                                "temp_graph_chamber_preset_3_text"};
     auto present = [&published]() {
         auto all = SubjectDebugRegistry::instance().list_all();
         size_t n = 0;

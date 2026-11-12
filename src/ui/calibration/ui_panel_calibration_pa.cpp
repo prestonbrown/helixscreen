@@ -14,6 +14,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/temperature_units.h"
 #include "core/timer_guard.h"
 #include "filament_database.h"
 #include "filament_op_slot_resolver.h"
@@ -113,10 +114,9 @@ void PACalibrationPanel::init_subjects() {
                                       fmt::format("pa_cal_phase_meta_{}", i).c_str(), subjects_);
         }
 
-        UI_MANAGED_SUBJECT_STRING(temp_display_, temp_display_buf_, "245°", "pa_cal_temp_display",
+        UI_MANAGED_SUBJECT_STRING(temp_display_, temp_display_buf_, "", "pa_cal_temp_display",
                                   subjects_);
-        UI_MANAGED_SUBJECT_STRING(temp_note_, temp_note_buf_, "170-300 °C", "pa_cal_temp_note",
-                                  subjects_);
+        UI_MANAGED_SUBJECT_STRING(temp_note_, temp_note_buf_, "", "pa_cal_temp_note", subjects_);
         UI_MANAGED_SUBJECT_STRING(phase_label_, phase_label_buf_, "", "pa_cal_phase_label",
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(big_, big_buf_, "", "pa_cal_big", subjects_);
@@ -399,15 +399,21 @@ void PACalibrationPanel::refresh_presets() {
         // "220°C / 60°C"; the bed is not part of this decision and would read
         // as noise beside a nozzle target.
         const int temp = name.empty() ? 0 : material_nozzle_temp(name);
-        lv_subject_copy_string(&preset_temp_[i], temp ? fmt::format("{}°", temp).c_str() : "");
+        lv_subject_copy_string(
+            &preset_temp_[i],
+            temp ? fmt::format("{}°", helix::units::to_display_temp_whole(temp)).c_str() : "");
         lv_subject_set_int(&preset_selected_[i], i == selected_preset_ ? 1 : 0);
     }
 }
 
 void PACalibrationPanel::update_temp_display() {
-    lv_subject_copy_string(&temp_display_, fmt::format("{}°", target_temp_).c_str());
+    lv_subject_copy_string(
+        &temp_display_,
+        fmt::format("{}°", helix::units::to_display_temp_whole(target_temp_)).c_str());
+    char range[32];
+    helix::ui::temperature::format_temperature_range(kTempMin, kTempMax, range, sizeof(range));
     lv_subject_copy_string(&temp_note_, state_ == IDLE || state_ == COMPLETE || state_ == ERROR
-                                            ? lv_tr("170-300 °C")
+                                            ? range
                                             : lv_tr("locked"));
 }
 
@@ -469,8 +475,9 @@ void PACalibrationPanel::publish_last_result() {
     // nearly useless a week later - which is exactly the mistake a sticky note
     // makes.
     std::string ctx = result_material_.empty()
-                          ? fmt::format("at {}°", result_temp_)
-                          : fmt::format("{} at {}°", result_material_, result_temp_);
+                          ? fmt::format("at {}°", helix::units::to_display_temp_whole(result_temp_))
+                          : fmt::format("{} at {}°", result_material_,
+                                        helix::units::to_display_temp_whole(result_temp_));
     if (lv_subject_get_int(&multi_tool_) == 1) {
         ctx = fmt::format("T{}, {}", result_tool_, ctx);
     }
@@ -496,9 +503,9 @@ void PACalibrationPanel::confirm_and_start() {
               "build plate on with nothing in the way of the head."),
         lv_tr("The nozzle extrudes a few short test moves in a corner, away from the "
               "print area, and repeats until it agrees with itself."),
-        fmt::format(fmt::runtime(helix::ui::tr_plural(nullptr, "At {}°C, about {} minutes.",
+        fmt::format(fmt::runtime(helix::ui::tr_plural(nullptr, "At {}, about {} minutes.",
                                                       static_cast<uint64_t>(estimate_minutes()))),
-                    target_temp_, estimate_minutes()));
+                    helix::units::format_display_temp(target_temp_), estimate_minutes()));
 
     modal_confirm(lv_tr("Before starting"), msg.c_str(), ModalSeverity::Warning, lv_tr("Start"),
                   []() { get_global_pa_cal_panel().begin_run(); });
@@ -825,13 +832,17 @@ void PACalibrationPanel::on_nozzle_temp(int temp_deci) {
     }
     const float temp = helix::ui::temperature::deci_to_degrees_f(temp_deci);
 
-    lv_subject_copy_string(&big_, fmt::format("{:.0f}°", temp).c_str());
+    lv_subject_copy_string(&big_,
+                           fmt::format("{}°", helix::units::to_display_temp_whole(temp)).c_str());
     // Spelled out, not "-> 245" and not an arrow glyph: U+2192 is not in the
     // baked Noto subset and drew as a tofu box.
-    lv_subject_copy_string(&big_sub_,
-                           fmt::format(fmt::runtime(lv_tr("target {}°")), target_temp_).c_str());
+    lv_subject_copy_string(&big_sub_, fmt::format(fmt::runtime(lv_tr("target {}°")),
+                                                  helix::units::to_display_temp_whole(target_temp_))
+                                          .c_str());
     lv_subject_copy_string(&phase_meta_[kPhaseHeat],
-                           fmt::format("{:.0f}° / {}°", temp, target_temp_).c_str());
+                           fmt::format("{}° / {}°", helix::units::to_display_temp_whole(temp),
+                                       helix::units::to_display_temp_whole(target_temp_))
+                               .c_str());
     update_progress_display();
 
     if (temp >= static_cast<float>(target_temp_) - kAtTargetToleranceC) {

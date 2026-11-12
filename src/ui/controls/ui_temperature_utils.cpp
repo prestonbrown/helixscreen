@@ -5,6 +5,7 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/temperature_units.h"
 #include "lvgl.h"
 #include "moonraker_types.h"
 #include "printer_state.h"
@@ -72,8 +73,8 @@ const char* get_extrusion_safety_status(int current_temp, int min_extrusion_temp
 
     // Calculate how far below minimum we are
     static char status_buf[64];
-    int deficit = min_extrusion_temp - current_temp;
-    snprintf(status_buf, sizeof(status_buf), lv_tr("Heating (%d°C below minimum)"), deficit);
+    const std::string deficit = units::format_display_temp_delta(min_extrusion_temp - current_temp);
+    snprintf(status_buf, sizeof(status_buf), lv_tr("Heating (%s below minimum)"), deficit.c_str());
     return status_buf;
 }
 
@@ -81,53 +82,65 @@ const char* get_extrusion_safety_status(int current_temp, int min_extrusion_temp
 // Formatting Functions
 // ============================================================================
 
+namespace {
+int in_display_unit(int celsius) {
+    return units::to_display_temp_whole(celsius);
+}
+} // namespace
+
 char* format_temperature(int temp, char* buffer, size_t buffer_size) {
-    snprintf(buffer, buffer_size, "%d°C", temp);
+    snprintf(buffer, buffer_size, "%d%s", in_display_unit(temp), units::display_temp_symbol());
     return buffer;
 }
 
 char* format_temperature_pair(int current, int target, char* buffer, size_t buffer_size,
                               bool with_unit) {
+    const char* unit = with_unit ? units::display_temp_symbol() : "";
     if (target <= 0) {
-        snprintf(buffer, buffer_size, with_unit ? "%d / —°C" : "%d / —", current);
+        snprintf(buffer, buffer_size, "%d / —%s", in_display_unit(current), unit);
     } else {
-        snprintf(buffer, buffer_size, with_unit ? "%d / %d°C" : "%d / %d", current, target);
+        snprintf(buffer, buffer_size, "%d / %d%s", in_display_unit(current),
+                 in_display_unit(target), unit);
     }
     return buffer;
 }
 
 // Format a temperature number with one decimal place, dropping the decimal when
 // the integer portion is 3 digits or more (>= 100) to keep wide values compact.
+// The rule applies to the number as shown, so 40°C reads "104" in °F.
 char* format_temp_number(float temp, char* buffer, size_t buffer_size) {
-    snprintf(buffer, buffer_size, temp >= 100.0f ? "%.0f" : "%.1f", temp);
+    const double value = units::to_display_temp(temp);
+    snprintf(buffer, buffer_size, value >= 100.0 ? "%.0f" : "%.1f", value);
     return buffer;
 }
 
 char* format_temperature_f(float temp, char* buffer, size_t buffer_size) {
     format_temp_number(temp, buffer, buffer_size);
     size_t len = strlen(buffer);
-    snprintf(buffer + len, buffer_size - len, "°C");
+    snprintf(buffer + len, buffer_size - len, "%s", units::display_temp_symbol());
     return buffer;
 }
 
 char* format_temperature_pair_f(float current, float target, char* buffer, size_t buffer_size) {
     char current_buf[16];
     format_temp_number(current, current_buf, sizeof(current_buf));
+    const char* unit = units::display_temp_symbol();
     if (target <= 0.0f) {
-        snprintf(buffer, buffer_size, "%s / —°C", current_buf);
+        snprintf(buffer, buffer_size, "%s / —%s", current_buf, unit);
     } else {
         char target_buf[16];
         format_temp_number(target, target_buf, sizeof(target_buf));
-        snprintf(buffer, buffer_size, "%s / %s°C", current_buf, target_buf);
+        snprintf(buffer, buffer_size, "%s / %s%s", current_buf, target_buf, unit);
     }
     return buffer;
 }
 
 char* format_target_or_off(int target, char* buffer, size_t buffer_size) {
     if (target <= 0) {
-        snprintf(buffer, buffer_size, "—°C");
+        snprintf(buffer, buffer_size, "—%s", units::display_temp_symbol());
     } else {
-        snprintf(buffer, buffer_size, "%d°C", target);
+        snprintf(buffer, buffer_size, "%d%s", in_display_unit(target),
+                 units::display_temp_symbol());
     }
     return buffer;
 }
@@ -140,12 +153,15 @@ char* format_temperature_range(int min_temp, int max_temp, char* buffer, size_t 
     if (max_temp <= 0) {
         max_temp = min_temp; // only the minimum is set
     }
+    const char* unit = with_unit ? units::display_temp_symbol() : "";
     if (min_temp == max_temp || min_temp <= 0) {
-        snprintf(buffer, buffer_size, with_unit ? "%d°C" : "%d", max_temp);
+        snprintf(buffer, buffer_size, "%d%s", in_display_unit(max_temp), unit);
     } else {
         // Translated for the separator: Japanese writes a range with "〜".
-        snprintf(buffer, buffer_size, with_unit ? lv_tr("%d-%d°C") : lv_tr("%d-%d"), min_temp,
-                 max_temp);
+        snprintf(buffer, buffer_size, lv_tr("%d-%d"), in_display_unit(min_temp),
+                 in_display_unit(max_temp));
+        size_t len = strlen(buffer);
+        snprintf(buffer + len, buffer_size - len, "%s", unit);
     }
     return buffer;
 }
@@ -241,9 +257,10 @@ HeaterDisplayResult heater_display(int current_deci, int target_deci) {
     // "25 / 0°C", where the pair formatter takes a whole-degree 0 as off.
     char buf[32];
     if (target_deci > 0) {
-        std::snprintf(buf, sizeof(buf), "%d / %d°C", current_deg, target_deg);
+        std::snprintf(buf, sizeof(buf), "%d / %d%s", in_display_unit(current_deg),
+                      in_display_unit(target_deg), units::display_temp_symbol());
     } else {
-        std::snprintf(buf, sizeof(buf), "%d°C", current_deg);
+        format_temperature(current_deg, buf, sizeof(buf));
     }
     result.temp = buf;
 

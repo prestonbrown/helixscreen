@@ -13,6 +13,7 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/temperature_units.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
 #include "material_settings_manager.h"
@@ -35,6 +36,14 @@ namespace helix::settings {
 constexpr int kNozzleInputAbsMaxC = 500;
 constexpr int kBedInputAbsMaxC = 200;
 constexpr int kChamberInputAbsMaxC = 120;
+
+// "0-200°C" / "32-392°F". Not format_temperature_range(), which reads a 0 end as unset.
+static std::string temp_input_range(int min_c, int max_c) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), lv_tr("%d-%d"), helix::units::to_display_temp_whole(min_c),
+             helix::units::to_display_temp_whole(max_c));
+    return std::string(buf) + helix::units::display_temp_symbol();
+}
 
 // ============================================================================
 // INITIALIZATION
@@ -146,7 +155,8 @@ void MaterialTempsOverlay::populate_material_list() {
         helix::ui::temperature::format_temperature_range(nozzle_min, nozzle_max, nozzle_buf,
                                                          sizeof(nozzle_buf), false);
         char temp_buf[48];
-        snprintf(temp_buf, sizeof(temp_buf), "%s / %d°C", nozzle_buf, bed_temp);
+        snprintf(temp_buf, sizeof(temp_buf), "%s / %s", nozzle_buf,
+                 helix::units::format_display_temp(bed_temp).c_str());
 
         const char* attrs[] = {
             "temps_text", temp_buf, "hide_override", has_override ? "false" : "true", nullptr,
@@ -201,11 +211,13 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
                                                      nozzle_range, sizeof(nozzle_range));
     if (has_chamber) {
         snprintf(edit_defaults_buf_, sizeof(edit_defaults_buf_),
-                 lv_tr("Default: %s nozzle, %d°C bed, %d°C chamber"), nozzle_range, default_bed,
-                 default_chamber);
+                 lv_tr("Default: %s nozzle, %s bed, %s chamber"), nozzle_range,
+                 helix::units::format_display_temp(default_bed).c_str(),
+                 helix::units::format_display_temp(default_chamber).c_str());
     } else {
         snprintf(edit_defaults_buf_, sizeof(edit_defaults_buf_),
-                 lv_tr("Default: %s nozzle, %d°C bed"), nozzle_range, default_bed);
+                 lv_tr("Default: %s nozzle, %s bed"), nozzle_range,
+                 helix::units::format_display_temp(default_bed).c_str());
     }
     lv_subject_copy_string(&edit_defaults_subject_, edit_defaults_buf_);
 
@@ -224,19 +236,19 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
 
         char buf[8];
         if (nozzle_min_input) {
-            snprintf(buf, sizeof(buf), "%d", cur_nozzle_min);
+            snprintf(buf, sizeof(buf), "%d", helix::units::to_display_temp_whole(cur_nozzle_min));
             lv_textarea_set_text(nozzle_min_input, buf);
         }
         if (nozzle_max_input) {
-            snprintf(buf, sizeof(buf), "%d", cur_nozzle_max);
+            snprintf(buf, sizeof(buf), "%d", helix::units::to_display_temp_whole(cur_nozzle_max));
             lv_textarea_set_text(nozzle_max_input, buf);
         }
         if (bed_temp_input) {
-            snprintf(buf, sizeof(buf), "%d", cur_bed);
+            snprintf(buf, sizeof(buf), "%d", helix::units::to_display_temp_whole(cur_bed));
             lv_textarea_set_text(bed_temp_input, buf);
         }
         if (chamber_temp_input) {
-            snprintf(buf, sizeof(buf), "%d", cur_chamber);
+            snprintf(buf, sizeof(buf), "%d", helix::units::to_display_temp_whole(cur_chamber));
             lv_textarea_set_text(chamber_temp_input, buf);
         }
     }
@@ -319,10 +331,11 @@ void MaterialTempsOverlay::handle_save() {
         return;
     }
 
-    int nozzle_min = atoi(min_text);
-    int nozzle_max = atoi(max_text);
-    int bed_temp = atoi(bed_text);
-    int chamber_temp = atoi(chamber_text);
+    // The fields hold the display unit; the material stores Celsius.
+    int nozzle_min = helix::units::display_temp_to_celsius(atoi(min_text));
+    int nozzle_max = helix::units::display_temp_to_celsius(atoi(max_text));
+    int bed_temp = helix::units::display_temp_to_celsius(atoi(bed_text));
+    int chamber_temp = helix::units::display_temp_to_celsius(atoi(chamber_text));
 
     // The edit view enforces only the fields' own bounds. The printer's live
     // ceiling is applied where a target is sent (TemperatureController), so a
@@ -331,19 +344,22 @@ void MaterialTempsOverlay::handle_save() {
     if (nozzle_min < 100 || nozzle_max < 100 || nozzle_min > kNozzleInputAbsMaxC ||
         nozzle_max > kNozzleInputAbsMaxC) {
         char msg[kToastBufBytes];
-        snprintf(msg, sizeof(msg), lv_tr("Nozzle temp must be 100-%d°C"), kNozzleInputAbsMaxC);
+        snprintf(msg, sizeof(msg), lv_tr("Nozzle temp must be %s"),
+                 temp_input_range(100, kNozzleInputAbsMaxC).c_str());
         ToastManager::instance().show(ToastSeverity::WARNING, msg, 3000);
         return;
     }
     if (bed_temp < 0 || bed_temp > kBedInputAbsMaxC) {
         char msg[kToastBufBytes];
-        snprintf(msg, sizeof(msg), lv_tr("Bed temp must be 0-%d°C"), kBedInputAbsMaxC);
+        snprintf(msg, sizeof(msg), lv_tr("Bed temp must be %s"),
+                 temp_input_range(0, kBedInputAbsMaxC).c_str());
         ToastManager::instance().show(ToastSeverity::WARNING, msg, 3000);
         return;
     }
     if (chamber_temp < 0 || chamber_temp > kChamberInputAbsMaxC) {
         char msg[kToastBufBytes];
-        snprintf(msg, sizeof(msg), lv_tr("Chamber temp must be 0-%d°C"), kChamberInputAbsMaxC);
+        snprintf(msg, sizeof(msg), lv_tr("Chamber temp must be %s"),
+                 temp_input_range(0, kChamberInputAbsMaxC).c_str());
         ToastManager::instance().show(ToastSeverity::WARNING, msg, 3000);
         return;
     }

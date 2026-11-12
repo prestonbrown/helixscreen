@@ -28,6 +28,10 @@
  * - `format_temperature()` - Single temp: "210°C"
  * - `format_temperature_pair()` - Current/target: "210 / 245°C"
  *
+ * Every formatter takes Celsius and prints in the user's display unit
+ * (core/temperature_units.h): "210°C" reads "410°F" with Fahrenheit on. The
+ * examples below show Celsius.
+ *
  * Every current/target pair on screen reads "210 / 245°C" (spaced slash) and
  * every unset value reads "—°C" (no space, like "245°C"). Build them with these
  * functions rather than a format string of your own.
@@ -254,6 +258,7 @@ char* format_target_or_off(int target, char* buffer, size_t buffer_size);
  *
  * Formats the bare number (no unit suffix) with one decimal place, dropping the
  * decimal when the integer portion is 3 digits or more (>= 100): "60.5", "211".
+ * The rule applies to the value in the display unit.
  * This is the shared rule behind format_temperature_f / format_temperature_pair_f;
  * widgets that render their own unit/label structure (e.g. a separate "°C" label)
  * call this directly so the decimal-drop behaviour stays consistent everywhere.

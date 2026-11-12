@@ -27,6 +27,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/temperature_units.h"
 #include "core/update_queue.h"
 #include "format_utils.h"
 #include "hardware_role_registry.h"
@@ -131,7 +132,7 @@ void ControlsPanel::init_subjects() {
                               "controls_nozzle_label", subjects_);
 
     // Nozzle temperature display
-    UI_MANAGED_SUBJECT_STRING(nozzle_temp_subject_, nozzle_temp_buf_, "—°C", "controls_nozzle_temp",
+    UI_MANAGED_SUBJECT_STRING(nozzle_temp_subject_, nozzle_temp_buf_, "—", "controls_nozzle_temp",
                               subjects_);
     UI_MANAGED_SUBJECT_INT(nozzle_pct_subject_, 0, "controls_nozzle_pct", subjects_);
     UI_MANAGED_SUBJECT_STRING(nozzle_status_subject_, nozzle_status_buf_, "",
@@ -140,7 +141,7 @@ void ControlsPanel::init_subjects() {
                            subjects_);
 
     // Bed temperature display
-    UI_MANAGED_SUBJECT_STRING(bed_temp_subject_, bed_temp_buf_, "—°C", "controls_bed_temp",
+    UI_MANAGED_SUBJECT_STRING(bed_temp_subject_, bed_temp_buf_, "—", "controls_bed_temp",
                               subjects_);
     UI_MANAGED_SUBJECT_INT(bed_pct_subject_, 0, "controls_bed_pct", subjects_);
     UI_MANAGED_SUBJECT_STRING(bed_status_subject_, bed_status_buf_, "", "controls_bed_status",
@@ -943,7 +944,8 @@ void ControlsPanel::handle_custom_nozzle_confirmed(float value) {
             {.toast = true,
              .on_success =
                  [target = static_cast<int>(value)]() {
-                     NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}°C"), target);
+                     NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}"),
+                                    helix::units::format_display_temp(target));
                  },
              // A refused or failed send leaves the printer's own target, which
              // the next keypad opens on.
@@ -968,7 +970,8 @@ void ControlsPanel::handle_custom_bed_confirmed(float value) {
     if (auto* c = controller()) {
         c->set_target(helix::HeaterType::Bed, value,
                       {.toast = true, .on_success = [target = static_cast<int>(value)]() {
-                           NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), target);
+                           NOTIFY_SUCCESS(lv_tr("Bed target set to {}"),
+                                          helix::units::format_display_temp(target));
                        }});
     }
 }
@@ -982,7 +985,8 @@ void ControlsPanel::handle_custom_chamber_confirmed(float value) {
     if (auto* c = controller()) {
         c->set_target(helix::HeaterType::Chamber, value,
                       {.toast = true, .on_success = [target = static_cast<int>(value)]() {
-                           NOTIFY_SUCCESS(lv_tr("Chamber target set to {}°C"), target);
+                           NOTIFY_SUCCESS(lv_tr("Chamber target set to {}"),
+                                          helix::units::format_display_temp(target));
                        }});
     }
 }

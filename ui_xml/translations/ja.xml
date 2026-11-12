@@ -26,7 +26,6 @@
   <translation tag="%d tools" ja="%d ツール"/>
   <translation tag="%d units" ja="%dユニット"/>
   <translation tag="%d-%d" ja="%d〜%d"/>
-  <translation tag="%d-%d°C" ja="%d〜%d°C"/>
   <translation tag="%d:%02d left" ja="残り %d:%02d"/>
   <translation tag="%dd %dh" ja="%d日%d時間"/>
   <translation tag="%dh" ja="%d時間"/>
@@ -107,7 +106,6 @@
   <translation tag="12-hour" ja="12時間制"/>
   <translation tag="120 seconds" ja="120秒"/>
   <translation tag="15 seconds" ja="15秒"/>
-  <translation tag="170-300 °C" ja="170-300 °C"/>
   <translation tag="180°" ja="180°"/>
   <translation tag="180° Upside Down" ja="180° 上下反転"/>
   <translation tag="2 min" ja="2分"/>
@@ -358,7 +356,7 @@
   <translation tag="Assisting" ja="アシスト中"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" ja="helixscreen.env の少なくとも{}行が無視されました"/>
   <translation tag="At target" ja="目標どおり"/>
-  <translation tag="At {}°C, about {} minutes." ja="{}°C で約{}分です。"/>
+  <translation tag="At {}, about {} minutes." ja="{} で約{}分です。"/>
   <translation tag="Authentication failed" ja="認証に失敗しました"/>
   <translation tag="Auto" ja="自動"/>
   <translation tag="Auto Bed Mesh" ja="自動ベッドメッシュ"/>
@@ -417,7 +415,6 @@
   <translation tag="Beacon auto-calibrate sent" ja="Beacon自動キャリブレーション送信済み"/>
   <translation tag="Beacon calibrate sent" ja="Beaconキャリブレーション送信済み"/>
   <translation tag="Bed" ja="ベッド"/>
-  <translation tag="Bed (°C)" ja="ベッド (°C)"/>
   <translation tag="Bed Clear Check" ja="ベッド上の異物チェック"/>
   <translation tag="Bed Drying" ja="ベッド乾燥"/>
   <translation tag="Bed Heater" ja="ベッドヒーター"/>
@@ -439,17 +436,17 @@
   <translation tag="Bed clear · Start next" ja="ベッド空き · 次を開始"/>
   <translation tag="Bed cooling, spools still on the bed:" ja="ベッド冷却中、スプールはまだベッドの上です:"/>
   <translation tag="Bed is Level!" ja="ベッドが水平です！"/>
-  <translation tag="Bed is at {:.0f}°C, the print needs {:.0f}°C." ja="ベッドは{:.0f}°C、印刷には{:.0f}°Cが必要です。"/>
+  <translation tag="Bed is at {}, the print needs {}." ja="ベッドは{}、印刷には{}が必要です。"/>
   <translation tag="Bed mesh" ja="ベッドメッシュ"/>
   <translation tag="Bed mesh calibration failed: {}" ja="ベッドメッシュのキャリブレーションに失敗しました: {}"/>
   <translation tag="Bed mesh operation timed out" ja="ベッドメッシュ操作がタイムアウトしました"/>
   <translation tag="Bed mesh..." ja="ベッドメッシュ..."/>
   <translation tag="Bed size unknown" ja="ベッドサイズが不明です"/>
-  <translation tag="Bed target set to {}°C" ja="ベッド目標温度を {}°C に設定しました"/>
-  <translation tag="Bed temp must be 0-%d°C" ja="ベッド温度は 0〜%d°C にしてください"/>
+  <translation tag="Bed target set to {}" ja="ベッド目標温度を {} に設定しました"/>
+  <translation tag="Bed temp must be %s" ja="ベッド温度は 0〜%s にしてください"/>
   <translation tag="Bed warming timed out" ja="ベッド加熱がタイムアウトしました"/>
-  <translation tag="Bed {:.0f} / {:.0f}°C" ja="ベッド {:.0f} / {:.0f}°C"/>
-  <translation tag="Bed {:.0f}°C" ja="ベッド {:.0f}°C"/>
+  <translation tag="Bed {}" ja="ベッド {}"/>
+  <translation tag="Bed {} / {}" ja="ベッド {} / {}"/>
   <translation tag="Before starting" ja="開始前に"/>
   <translation tag="Below target" ja="目標より低い"/>
   <translation tag="Belt Tension" ja="ベルトテンション"/>
@@ -656,11 +653,11 @@
   <translation tag="Cartographer scan calibrate sent — use Z-Offset panel to adjust" ja="Cartographerスキャンキャリブレーション送信済み — Z-Offsetパネルで調整してください"/>
   <translation tag="Cartographer touch calibrate sent" ja="Cartographerタッチキャリブレーション送信済み"/>
   <translation tag="Category" ja="カテゴリー"/>
+  <translation tag="Celsius (°C)" ja="°C"/>
   <translation tag="Center" ja="中央"/>
   <translation tag="Center QR code in frame" ja="QR コードをフレームの中央に合わせてください"/>
   <translation tag="Chamb:" ja="チャンバ:"/>
   <translation tag="Chamber" ja="チャンバー"/>
-  <translation tag="Chamber (°C)" ja="チャンバー (°C)"/>
   <translation tag="Chamber Cooling Fan" ja="チャンバー冷却ファン"/>
   <translation tag="Chamber Dryer" ja="チャンバー乾燥機"/>
   <translation tag="Chamber Fan" ja="チャンバーファン"/>
@@ -670,13 +667,13 @@
   <translation tag="Chamber Temperature" ja="チャンバー温度"/>
   <translation tag="Chamber air" ja="チャンバー空気"/>
   <translation tag="Chamber and dryer humidity monitoring" ja="チャンバーとドライヤーの湿度監視"/>
-  <translation tag="Chamber at %d°C" ja="チャンバー温度：%d°C"/>
+  <translation tag="Chamber at %s" ja="チャンバー温度：%s"/>
   <translation tag="Chamber heater didn&apos;t start" ja="チャンバーヒーターが起動しませんでした"/>
   <translation tag="Chamber heater didn&apos;t start. {}" ja="チャンバーヒーターが起動しませんでした。{}"/>
-  <translation tag="Chamber heating to %d°C..." ja="チャンバーを%d°Cに加熱中..."/>
+  <translation tag="Chamber heating to %s..." ja="チャンバーを%sに加熱中..."/>
   <translation tag="Chamber light fitted" ja="チャンバーライト搭載"/>
-  <translation tag="Chamber target set to {}°C" ja="チャンバー目標温度を{}°C に設定"/>
-  <translation tag="Chamber temp must be 0-%d°C" ja="チャンバー温度は 0〜%d°C にしてください"/>
+  <translation tag="Chamber target set to {}" ja="チャンバー目標温度を{} に設定"/>
+  <translation tag="Chamber temp must be %s" ja="チャンバー温度は 0〜%s にしてください"/>
   <translation tag="Chamber too hot" ja="チャンバーが高温です"/>
   <translation tag="Change" ja="変更"/>
   <translation tag="Change Address" ja="アドレスを変更"/>
@@ -751,6 +748,7 @@
   <translation tag="Choose rendering mode for bed mesh visualization" ja="ベッドメッシュの視覚化レンダリングモードを選択"/>
   <translation tag="Choose sound style" ja="サウンドスタイルを選択"/>
   <translation tag="Choose the model that matches your printer. This sets the print macros, fan roles and calibration behavior HelixScreen uses." ja="お使いのプリンターに一致するモデルを選択してください。これにより、HelixScreenが使用する印刷マクロ、ファンの役割、キャリブレーション動作が設定されます。"/>
+  <translation tag="Choose the order of day, month and year" ja="日・月・年の並び順を選択"/>
   <translation tag="Choose what to power off or restart." ja="電源オフまたは再起動する対象を選択してください。"/>
   <translation tag="Choose which lane is in the toolhead to unload it" ja="取り出すには、ツールヘッドに入っているレーンを選んでください"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" ja="パージシュート位置: X {:.1f}, Y {:.1f}"/>
@@ -1016,7 +1014,7 @@
   <translation tag="Current Z Position" ja="現在のZ位置"/>
   <translation tag="Current name:" ja="現在の名前:"/>
   <translation tag="Current:" ja="現在:"/>
-  <translation tag="Current: %d°C | Target: %d°C" ja="現在: %d°C | 目標: %d°C"/>
+  <translation tag="Current: %s | Target: %s" ja="現在: %s | 目標: %s"/>
   <translation tag="Currently Loaded" ja="現在ロード中"/>
   <translation tag="Currently printing" ja="印刷中"/>
   <translation tag="Currently:" ja="現在:"/>
@@ -1057,14 +1055,16 @@
   <translation tag="Dark Mode" ja="ダークモード"/>
   <translation tag="Date (newest)" ja="日付（新しい順）"/>
   <translation tag="Date (oldest)" ja="日付（古い順）"/>
+  <translation tag="Date Format" ja="日付形式"/>
   <translation tag="Day" ja="日"/>
+  <translation tag="Day Month Year" ja="日 月 年"/>
   <translation tag="Debug" ja="デバッグ"/>
   <translation tag="Deep Black" ja="ディープブラック"/>
   <translation tag="Default" ja="デフォルト"/>
   <translation tag="Default Parameters" ja="デフォルトのパラメータ"/>
   <translation tag="Default border thickness" ja="デフォルトの境界線の太さ"/>
-  <translation tag="Default: %s nozzle, %d°C bed" ja="デフォルト: ノズル %s、ベッド %d°C"/>
-  <translation tag="Default: %s nozzle, %d°C bed, %d°C chamber" ja="デフォルト: ノズル %s、ベッド %d°C、チャンバー %d°C"/>
+  <translation tag="Default: %s nozzle, %s bed" ja="デフォルト: ノズル %s、ベッド %s"/>
+  <translation tag="Default: %s nozzle, %s bed, %s chamber" ja="デフォルト: ノズル %s、ベッド %s、チャンバー %s"/>
   <translation tag="Defaults restored" ja="デフォルトを復元しました"/>
   <translation tag="Define macros in your printer.cfg" ja="printer.cfg でマクロを定義してください"/>
   <translation tag="Delete" ja="削除"/>
@@ -1373,6 +1373,7 @@
   <translation tag="FILAMENTS" ja="フィラメント"/>
   <translation tag="FILTERS" ja="フィルター"/>
   <translation tag="Factory Reset" ja="工場出荷時リセット"/>
+  <translation tag="Fahrenheit (°F)" ja="°F"/>
   <translation tag="Failed" ja="失敗"/>
   <translation tag="Failed to apply limits" ja="制限の適用に失敗しました"/>
   <translation tag="Failed to apply settings" ja="設定の適用に失敗しました"/>
@@ -1726,12 +1727,12 @@
   <translation tag="Heat nozzle" ja="ノズルを加熱"/>
   <translation tag="Heat soak" ja="ヒートソーク"/>
   <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options." ja="ヒートソークは印刷前に筐体内を温めます。プリンターにヒートソークマクロがあるか、設定で有効にされたため表示されています。HelixScreenは印刷前オプションでこのマクロを提供します。"/>
-  <translation tag="Heat the bed to {}°C" ja="ベッドを {}°C に加熱"/>
+  <translation tag="Heat the bed to {}" ja="ベッドを {} に加熱"/>
   <translation tag="Heat the chamber too" ja="チャンバーも加熱"/>
-  <translation tag="Heat the extruder to at least {}°C before loading filament" ja="フィラメントを装填する前に、エクストルーダーを最低 {}°C まで加熱してください"/>
+  <translation tag="Heat the extruder to at least {} before loading filament" ja="フィラメントを装填する前に、エクストルーダーを最低 {} まで加熱してください"/>
   <translation tag="Heat the hotend." ja="ホットエンドを加熱します。"/>
-  <translation tag="Heat to at least %d°C for filament operations" ja="フィラメント操作には少なくとも %d°C まで加熱してください"/>
-  <translation tag="Heat {} above {}°C before resuming" ja="再開前に{}を{}°C以上に加熱してください"/>
+  <translation tag="Heat to at least %s for filament operations" ja="フィラメント操作には少なくとも %s まで加熱してください"/>
+  <translation tag="Heat {} above {} before resuming" ja="再開前に{}を{}以上に加熱してください"/>
   <translation tag="Heatbed Temperature" ja="ヒートベッド温度"/>
   <translation tag="Heated Bed" ja="加熱ベッド"/>
   <translation tag="Heated Bed MPC Calibration" ja="ヒートベッド MPCキャリブレーション"/>
@@ -1747,7 +1748,7 @@
   <translation tag="HeaterSelect" ja="ヒーターを選択"/>
   <translation tag="Heaters off" ja="ヒーターをオフにしました"/>
   <translation tag="Heating" ja="加熱中"/>
-  <translation tag="Heating (%d°C below minimum)" ja="&quot;加熱中（最低温度より%d°C低い）&quot;"/>
+  <translation tag="Heating (%s below minimum)" ja="&quot;加熱中（最低温度より%s低い）&quot;"/>
   <translation tag="Heating Bed..." ja="ベッド加熱中..."/>
   <translation tag="Heating Chamber..." ja="チャンバー加熱中..."/>
   <translation tag="Heating Nozzle..." ja="ノズル加熱中..."/>
@@ -1765,16 +1766,16 @@
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" ja="ベッドとノズルを加熱し、印刷物を再び密着させてノズルを印刷物から離しています"/>
   <translation tag="Heating the nozzle" ja="ノズルを加熱中"/>
   <translation tag="Heating the nozzle. Have the filament ready to push in." ja="ノズルを加熱中です。フィラメントを押し込む準備をしてください。"/>
-  <translation tag="Heating to %d°C... %.0f°C" ja="%d°Cに加熱中... %.0f°C"/>
+  <translation tag="Heating to %s... %s" ja="%sに加熱中... %s"/>
   <translation tag="Heating to %s: %d:%02d left" ja="%sに加熱中: 残り %d:%02d"/>
-  <translation tag="Heating to {}°C before {}..." ja="{}°Cに加熱中（{}の前）..."/>
-  <translation tag="Heating to {}°C for {}..." ja="{}°Cに加熱中（{}）..."/>
-  <translation tag="Heating to {}°C..." ja="{}°Cに加熱中..."/>
+  <translation tag="Heating to {} before {}..." ja="{}に加熱中（{}の前）..."/>
+  <translation tag="Heating to {} for {}..." ja="{}に加熱中（{}）..."/>
+  <translation tag="Heating to {}..." ja="{}に加熱中..."/>
   <translation tag="Heating {}..." ja="{}を加熱中..."/>
   <translation tag="Heating..." ja="加熱中..."/>
-  <translation tag="Heating: %d / %d°C" ja="加熱中: %d / %d°C"/>
-  <translation tag="Heats the bed to {:g}°C, above this printer&apos;s {:g}°C limit." ja="ベッドを{:g}°Cに加熱します。このプリンターの上限は{:g}°Cです。"/>
-  <translation tag="Heats the nozzle to {:g}°C, above this printer&apos;s {:g}°C limit." ja="ノズルを{:g}°Cに加熱します。このプリンターの上限は{:g}°Cです。"/>
+  <translation tag="Heating: %d / %s" ja="加熱中: %d / %s"/>
+  <translation tag="Heats the bed to {}, above this printer&apos;s {} limit." ja="ベッドを{}に加熱します。このプリンターの上限は{}です。"/>
+  <translation tag="Heats the nozzle to {}, above this printer&apos;s {} limit." ja="ノズルを{}に加熱します。このプリンターの上限は{}です。"/>
   <translation tag="Heightmap and flatness of the active bed mesh" ja="有効なベッドメッシュの高さマップと平面度"/>
   <translation tag="HelixPrint Plugin" ja="HelixPrintプラグイン"/>
   <translation tag="HelixPrint plugin updated." ja="HelixPrintプラグインを更新しました。"/>
@@ -1806,7 +1807,7 @@
   <translation tag="Hold anywhere to cancel" ja="どこかを長押ししてキャンセル"/>
   <translation tag="Hold slicer prints that do not fit" ja="合わないスライサーの印刷を保留"/>
   <translation tag="Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool." ja="{}をヘッドにしっかり押し当ててください。ラッチがロックし、装着中のツールになります。"/>
-  <translation tag="Holding nozzle at {}°C to purge previous filament." ja="前のフィラメントをパージするためノズルを {}°C に保持しています。"/>
+  <translation tag="Holding nozzle at {} to purge previous filament." ja="前のフィラメントをパージするためノズルを {} に保持しています。"/>
   <translation tag="Home" ja="ホーム"/>
   <translation tag="Home &amp; Continue" ja="ホーミングして続行"/>
   <translation tag="Home All" ja="全軸ホーミング"/>
@@ -2222,7 +2223,7 @@
   <translation tag="MMU command failed" ja="MMU コマンドに失敗しました"/>
   <translation tag="MOTION &amp; LEVELING" ja="動作とレベリング"/>
   <translation tag="MPC" ja="MPC"/>
-  <translation tag="MPC thermal model calibrated for {} at {}°C." ja="{} のMPC熱モデルを {}°C で校正しました。"/>
+  <translation tag="MPC thermal model calibrated for {} at {}." ja="{} のMPC熱モデルを {} で校正しました。"/>
   <translation tag="Machine Limits" ja="機械制限"/>
   <translation tag="Macro" ja="マクロ"/>
   <translation tag="Macro Browser" ja="マクロブラウザ"/>
@@ -2341,6 +2342,7 @@
   <translation tag="Monitor for print abnormalities (camera-based)" ja="印刷異常を監視 (カメラベース)"/>
   <translation tag="Monitoring" ja="モニタリング"/>
   <translation tag="Month" ja="月"/>
+  <translation tag="Month Day Year" ja="月 日 年"/>
   <translation tag="Moonraker" ja="Moonraker"/>
   <translation tag="Moonraker answered at {}." ja="{} でMoonrakerが応答しました。"/>
   <translation tag="Moonraker at {} rejected the API key." ja="{} のMoonrakerがAPIキーを拒否しました。"/>
@@ -2619,8 +2621,8 @@
   <translation tag="Nozzle" ja="ノズル"/>
   <translation tag="Nozzle / Bed" ja="ノズル / ベッド"/>
   <translation tag="Nozzle Clean" ja="ノズル清掃"/>
-  <translation tag="Nozzle Max (°C)" ja="ノズル最高温度 (°C)"/>
-  <translation tag="Nozzle Min (°C)" ja="ノズル最低温度 (°C)"/>
+  <translation tag="Nozzle Max" ja="ノズル最高温度"/>
+  <translation tag="Nozzle Min" ja="ノズル最低温度"/>
   <translation tag="Nozzle Moves" ja="ノズル移動"/>
   <translation tag="Nozzle Temp" ja="ノズル温度"/>
   <translation tag="Nozzle Temperature" ja="ノズル温度"/>
@@ -2629,15 +2631,15 @@
   <translation tag="Nozzle clean complete" ja="ノズル清掃完了"/>
   <translation tag="Nozzle clog detected" ja="ノズルの詰まりを検出しました"/>
   <translation tag="Nozzle diameter" ja="ノズル径"/>
-  <translation tag="Nozzle did not reach {}°C — {} canceled" ja="ノズルが{}°Cに達しませんでした — {}を中止しました"/>
+  <translation tag="Nozzle did not reach {} — {} canceled" ja="ノズルが{}に達しませんでした — {}を中止しました"/>
   <translation tag="Nozzle flow" ja="ノズルフロー"/>
   <translation tag="Nozzle interval" ja="ノズルの間隔"/>
   <translation tag="Nozzle min cannot exceed max" ja="ノズル温度の最小値は最大値を超えられません"/>
   <translation tag="Nozzle not changed: the printer did not confirm it" ja="ノズルは変更されていません: プリンターが確認しませんでした"/>
   <translation tag="Nozzle not changed: {}" ja="ノズルは変更されていません: {}"/>
   <translation tag="Nozzle size and flow type per head" ja="ツールヘッドごとのノズルサイズとフロータイプ"/>
-  <translation tag="Nozzle target set to {}°C" ja="ノズル目標温度を {}°C に設定しました"/>
-  <translation tag="Nozzle temp must be 100-%d°C" ja="ノズル温度は 100〜%d°C にしてください"/>
+  <translation tag="Nozzle target set to {}" ja="ノズル目標温度を {} に設定しました"/>
+  <translation tag="Nozzle temp must be %s" ja="ノズル温度は 100〜%s にしてください"/>
   <translation tag="Nozzle, bed, and chamber in one widget" ja="ノズル、ベッド、チャンバーをまとめて表示"/>
   <translation tag="Nozzle:" ja="ノズル:"/>
   <translation tag="Nozzles still heating: {}" ja="加熱中のノズル: {}"/>
@@ -3476,7 +3478,7 @@
   <translation tag="Seat" ja="装着"/>
   <translation tag="Seat a tool by hand" ja="ツールを手で装着"/>
   <translation tag="Seat a tool by hand for the first Z home" ja="初回のZホーミングのためにツールを手で装着"/>
-  <translation tag="Seat the hot ends, heat {} above {}°C, then tap Resume." ja="ホットエンドを正しく取り付け、{}を{}°C以上に加熱してから再開をタップしてください。"/>
+  <translation tag="Seat the hot ends, heat {} above {}, then tap Resume." ja="ホットエンドを正しく取り付け、{}を{}以上に加熱してから再開をタップしてください。"/>
   <translation tag="Seat which tool by hand?" ja="どのツールを手で装着しますか？"/>
   <translation tag="Seating {}..." ja="{}を装着中..."/>
   <translation tag="Secondary" ja="セカンダリ"/>
@@ -3558,7 +3560,7 @@
   <translation tag="Set duration between 1 and {} minutes" ja="時間は 1〜{} 分にしてください"/>
   <translation tag="Set local timezone for time display" ja="時刻表示用のローカルタイムゾーンを設定"/>
   <translation tag="Set logging verbosity for troubleshooting" ja="トラブルシューティング用のログの詳細レベルを設定"/>
-  <translation tag="Set temperature between {}°C and {}°C" ja="温度は {}〜{}°C にしてください"/>
+  <translation tag="Set temperature between {} and {}" ja="温度は {}〜{} にしてください"/>
   <translation tag="Set the X and Y belts with the motorized tensioners" ja="電動テンショナーでXとYのベルトを調整します"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." ja="時計、テーマ、単位を設定します。あとから設定でいつでも変更できます。"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" ja="このスロットのフィラメントの種類と色を手動で設定してください。タグが読み取れるはずの場合は、ボックスが停止しているときにラベルをリーダー側に向けてスプールを入れ直してください"/>
@@ -3588,6 +3590,7 @@
   <translation tag="Show Sections" ja="セクションを表示"/>
   <translation tag="Show Touch Points" ja="タッチポイントを表示"/>
   <translation tag="Show a confirmation dialog when tapping a macro" ja="マクロをタップした際に確認ダイアログを表示"/>
+  <translation tag="Show and enter temperatures in Celsius or Fahrenheit" ja="温度を°Cまたは°Fで表示・入力します"/>
   <translation tag="Show instead of dimming" ja="暗くする代わりに表示"/>
   <translation tag="Show light controls for a light connected to this printer" ja="このプリンターに接続したライトの操作を表示"/>
   <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" ja="印刷速度とフローをパーセントではなく mm/s と mm³/s で表示"/>
@@ -3891,13 +3894,13 @@
   <translation tag="Telemetry queue cleared" ja="テレメトリキューをクリアしました"/>
   <translation tag="Temp" ja="温度"/>
   <translation tag="Temp Compensation" ja="温度補正"/>
-  <translation tag="Temp °C" ja="温度 °C"/>
   <translation tag="Temperature" ja="温度"/>
   <translation tag="Temperature Graph" ja="温度グラフ"/>
   <translation tag="Temperature Graph Config" ja="温度グラフ設定"/>
   <translation tag="Temperature Sensors" ja="温度センサー"/>
+  <translation tag="Temperature Unit" ja="温度単位"/>
   <translation tag="Temperature and humidity sensor not responding" ja="温湿度センサーが応答しません"/>
-  <translation tag="Temperature control optimized for {} at {}°C." ja="{} の温度制御を {}°C で最適化しました。"/>
+  <translation tag="Temperature control optimized for {} at {}." ja="{} の温度制御を {} で最適化しました。"/>
   <translation tag="Temperatures" ja="温度"/>
   <translation tag="Temperatures plotted over time" ja="温度の時間変化をグラフ表示"/>
   <translation tag="Temperatures saved" ja="温度を保存しました"/>
@@ -3921,7 +3924,7 @@
   <translation tag="Test Screensaver" ja="スクリーンセーバーをテスト"/>
   <translation tag="Test Tracker" ja="テストトラッカー"/>
   <translation tag="Test label printed" ja="テストラベル印刷完了"/>
-  <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C." ja="テストタワー 幅{:.0f} mm・高さ{:.0f} mm、約{}分+加熱: {}区間(各{:.0f} mm)、{}°C。"/>
+  <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}." ja="テストタワー 幅{:.0f} mm・高さ{:.0f} mm、約{}分+加熱: {}区間(各{:.0f} mm)、{}。"/>
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" ja="回転テスト: %d° (%d/%d) - %ds残り"/>
   <translation tag="Testing, servo, and motor operations" ja="テスト・サーボ・モーター操作"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." ja="ご協力ありがとうございます！匿名の使用データが HelixScreen の改善に役立ちます。"/>
@@ -4003,11 +4006,11 @@
   <translation tag="The loaded slot is not known yet" ja="装填済みのスロットはまだ不明です"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." ja="装填中のスプールは {} ですが、このファイルは {} 用にスライスされています。充填材入りフィラメントはフローレートが低くなり、硬化ノズルが必要です。"/>
   <translation tag="The message your printer&apos;s macros show (M117)" ja="プリンターのマクロが表示するメッセージ (M117)"/>
-  <translation tag="The mounted nozzle heats to 200°C and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes." ja="ヒーターの安全モデルを測定する間、装着中のノズルが200°Cまで加熱され再び冷却されます。パーツファンはオフにし、引火しやすい物をヘッドから遠ざけてください。数分かかります。"/>
+  <translation tag="The mounted nozzle heats to {} and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes." ja="ヒーターの安全モデルを測定する間、装着中のノズルが{}まで加熱され再び冷却されます。パーツファンはオフにし、引火しやすい物をヘッドから遠ざけてください。数分かかります。"/>
   <translation tag="The new IPv4 settings could not be marked as kept, so the next start undoes them." ja="新しいIPv4設定を保持済みとして記録できなかったため、次回の起動時に元に戻されます。"/>
   <translation tag="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself." ja="ノズルは印刷領域から離れた隅で短いテスト移動を数回行い、結果が一致するまで繰り返します。"/>
   <translation tag="The nozzle hasn&apos;t moved since the power went out. Check that it sits just above the top of the print, then resume." ja="停電以降、ノズルは動いていません。印刷物の上面のすぐ上にあることを確認してから、再開してください。"/>
-  <translation tag="The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes." ja="パーツファンが各速度を順に試す間、ノズルは200°Cまで加熱されます。正確に測定するには、印刷時と同じようにダクトを取り付けてください。数分かかります。"/>
+  <translation tag="The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes." ja="パーツファンが各速度を順に試す間、ノズルは{}まで加熱されます。正確に測定するには、印刷時と同じようにダクトを取り付けてください。数分かかります。"/>
   <translation tag="The nozzle is clear of the print" ja="ノズルは印刷物から離れている"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." ja="ノズルは高温です。付属のワイヤーブラシで清掃し、ドッキング位置もきれいに保ってから「次へ」をタップしてください。"/>
   <translation tag="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at." ja="ノズルは印刷物から持ち上げられ、XとYはホーミング済みです。再開すると、停止した高さまで再び下がります。"/>
@@ -4033,7 +4036,7 @@
   <translation tag="The print is on its last layer." ja="最後のレイヤーを印刷中です。"/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." ja="印刷は一時停止中です。ここでツールを交換すると、ツールヘッドが移動してノズルのフィラメントが入れ替わります。交換が完了したら印刷を再開してください。"/>
   <translation tag="The print is still stuck to the bed" ja="印刷物はまだベッドに付いている"/>
-  <translation tag="The print is waiting for the chamber to reach {}°C, but the heater is not heating." ja="印刷はチャンバーが{}°Cに達するのを待っていますが、ヒーターが加熱していません。"/>
+  <translation tag="The print is waiting for the chamber to reach {}, but the heater is not heating." ja="印刷はチャンバーが{}に達するのを待っていますが、ヒーターが加熱していません。"/>
   <translation tag="The print is waiting for the chamber, but the heater is not heating." ja="印刷はチャンバーを待っていますが、ヒーターが加熱していません。"/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." ja="印刷可能なサイズ（mm、X × Y × Z）。プリンターのKlipper設定の軸リミットから取得します。"/>
   <translation tag="The printer applied this value and keeps it for this tool." ja="プリンターはこの値を適用し、このツールに保存しました。"/>
@@ -4514,8 +4517,8 @@
   <translation tag="Waiting for another box to finish." ja="別のボックスの完了を待っています。"/>
   <translation tag="Waiting for bed temperature..." ja="ベッド温度を待機中..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." ja="正確なキャリブレーションのためにベッド温度到達を待機中。"/>
-  <translation tag="Waiting for chamber {} / {}°C" ja="チャンバー待機中 {} / {}°C"/>
-  <translation tag="Waiting for chamber {}°C" ja="チャンバー待機中 {}°C"/>
+  <translation tag="Waiting for chamber {}" ja="チャンバー待機中 {}"/>
+  <translation tag="Waiting for chamber {} / {}" ja="チャンバー待機中 {} / {}"/>
   <translation tag="Waiting for the chamber to heat" ja="チャンバーの加熱を待っています"/>
   <translation tag="Waiting for the filament system to report its state" ja="フィラメントシステムの状態報告を待機中"/>
   <translation tag="Waiting for the printer" ja="プリンターを待っています"/>
@@ -4619,6 +4622,7 @@
   <translation tag="Y:" ja="Y:"/>
   <translation tag="YOU WIN!&#10;Score: {}&#10;Tap to play again" ja="クリア！&#10;スコア: {}&#10;タップでもう一度"/>
   <translation tag="Year" ja="年"/>
+  <translation tag="Year Month Day" ja="年 月 日"/>
   <translation tag="Yes" ja="はい"/>
   <translation tag="You can skip this and calibrate later in Settings." ja="スキップして後で設定でキャリブレーションできます。"/>
   <translation tag="You have unsaved changes. Discard them?" ja="保存されていない変更があります。破棄しますか？"/>

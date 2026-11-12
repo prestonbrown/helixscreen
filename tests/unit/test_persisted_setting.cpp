@@ -204,6 +204,13 @@ const std::vector<Row>& rows() {
          "/display/screensaver_print_progress", true, 1, 0, 1, "screensaver_print_progress", true,
          SETB(dm().set_screensaver_print_progress), GET(dm().get_screensaver_print_progress),
          SUBJ(dm().subject_screensaver_print_progress)},
+        {"settings_temp_unit", Mgr::Display, false, "/display/temp_unit", false, 0, 0, 1,
+         "temp_unit", false, [](int v) { dm().set_temp_unit(static_cast<helix::units::TempUnit>(v)); },
+         GET(dm().get_temp_unit), SUBJ(dm().subject_temp_unit)},
+        {"settings_date_format", Mgr::Display, false, "/display/date_format", false, 1, 0, 2,
+         "date_format", false,
+         [](int v) { dm().set_date_format(static_cast<helix::DateFormat>(v)); },
+         GET(dm().get_date_format), SUBJ(dm().subject_date_format)},
 
         // SystemSettingsManager
         {"update_channel", Mgr::System, false, "/update/channel", false, 0, 0, 2, "update_channel",

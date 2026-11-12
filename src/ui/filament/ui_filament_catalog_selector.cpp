@@ -5,6 +5,7 @@
 #include "ui_row_text.h"
 #include "ui_utils.h"
 
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "filament_favorites.h"
 #include "filament_variants.h"
@@ -612,8 +613,9 @@ void FilamentCatalogSelector::rebuild_product_list() {
         const std::string chip_text = favorites_view ? p->brand : p->type;
         const bool chip_shown = !chip_text.empty() && (favorites_view || chip_text != family);
         char temps[32];
-        snprintf(temps, sizeof(temps), "%d\xC2\xB0 / %d\xC2\xB0", p->nozzle_recommended,
-                 p->bed_temp);
+        snprintf(temps, sizeof(temps), "%d\xC2\xB0 / %d\xC2\xB0",
+                 helix::units::to_display_temp_whole(p->nozzle_recommended),
+                 helix::units::to_display_temp_whole(p->bed_temp));
         // The edit pencil shows only where the host opts in (standalone
         // picker), not the AMS slot-assignment selector; the star shows in
         // every host, since this is where favorites get built.

@@ -20,6 +20,7 @@
 #include "core/gcode_filename.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
@@ -1104,14 +1105,16 @@ void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
 
     char temp_buf[32];
     if (job.nozzle_temp > 0) {
-        snprintf(temp_buf, sizeof(temp_buf), "%.0f°C", job.nozzle_temp);
+        snprintf(temp_buf, sizeof(temp_buf), "%s",
+                 helix::units::format_display_temp(job.nozzle_temp).c_str());
     } else {
         snprintf(temp_buf, sizeof(temp_buf), "-");
     }
     lv_subject_copy_string(&detail_nozzle_temp_, temp_buf);
 
     if (job.bed_temp > 0) {
-        snprintf(temp_buf, sizeof(temp_buf), "%.0f°C", job.bed_temp);
+        snprintf(temp_buf, sizeof(temp_buf), "%s",
+                 helix::units::format_display_temp(job.bed_temp).c_str());
     } else {
         snprintf(temp_buf, sizeof(temp_buf), "-");
     }

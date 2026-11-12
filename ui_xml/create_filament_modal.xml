@@ -80,6 +80,7 @@
             <text_input name="nozzle_temp_max" flex_grow="1" placeholder_text="220" keyboard_hint="numeric">
               <event_cb trigger="value_changed" callback="on_wizard_nozzle_temp_changed"/>
             </text_input>
+            <text_small bind_text="settings_temp_unit_symbol" style_text_color="#text_muted"/>
           </lv_obj>
         </lv_obj>
         <!-- Bed temp range -->
@@ -96,6 +97,7 @@
             <text_input name="bed_temp_max" flex_grow="1" placeholder_text="70" keyboard_hint="numeric">
               <event_cb trigger="value_changed" callback="on_wizard_bed_temp_changed"/>
             </text_input>
+            <text_small bind_text="settings_temp_unit_symbol" style_text_color="#text_muted"/>
           </lv_obj>
         </lv_obj>
       </lv_obj>

@@ -8,6 +8,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/temperature_units.h"
 #include "core/timer_guard.h"
 #include "dryer_summary.h"
 #include "filament_sensor_manager.h"
@@ -218,7 +219,8 @@ void BedDryingController::describe_chamber(const Material& material) {
     }
     lv_subject_set_int(&bed_drying_chamber_assist_, static_cast<int>(chamber_assist_available()));
     const std::string text =
-        fmt::format("{} ({}°C)", lv_tr("Heat the chamber too"), chamber_temp_for(material));
+        fmt::format("{} ({})", lv_tr("Heat the chamber too"),
+                    helix::units::format_display_temp(chamber_temp_for(material)));
     lv_subject_copy_string(&bed_drying_chamber_text_, text.c_str());
 }
 
@@ -579,14 +581,16 @@ void BedDryingController::publish() {
         remaining_min = static_cast<int>((left + 59) / 60);
         progress_pct = progress_pct_from(
             remaining_min, static_cast<int>((record_.end_s - record_.start_s + 59) / 60));
-        text = fmt::format("{} {}°C  {}:{:02d} {}", lv_tr("Drying on the bed"), record_.bed_c,
-                           left / 3600, (left % 3600) / 60, lv_tr("left"));
+        text = fmt::format("{} {}  {}:{:02d} {}", lv_tr("Drying on the bed"),
+                           helix::units::format_display_temp(record_.bed_c), left / 3600,
+                           (left % 3600) / 60, lv_tr("left"));
         break;
     }
     case State::Cooling: {
         lv_subject_t* temp = state_.temperature_state().get_bed_temp_subject();
         const int bed_c = temp ? lv_subject_get_int(temp) / 10 : 0;
-        text = fmt::format("{} {}°C", lv_tr("Bed cooling, spools still on the bed:"), bed_c);
+        text = fmt::format("{} {}", lv_tr("Bed cooling, spools still on the bed:"),
+                           helix::units::format_display_temp(bed_c));
         break;
     }
     case State::ReadyToRemove:

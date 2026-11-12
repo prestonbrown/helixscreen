@@ -4,6 +4,7 @@
 #include "preset_materials.h"
 
 #include "core/static_subject_registry.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "filament_database.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -112,7 +113,8 @@ std::string temp_label(int slot) {
         return "---";
     }
     char buf[kTempBufSize];
-    std::snprintf(buf, sizeof(buf), "%d°C / %d°C", temps->nozzle, temps->bed);
+    std::snprintf(buf, sizeof(buf), "%s / %s", units::format_display_temp(temps->nozzle).c_str(),
+                  units::format_display_temp(temps->bed).c_str());
     return buf;
 }
 

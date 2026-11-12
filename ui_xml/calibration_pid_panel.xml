@@ -218,7 +218,7 @@
                   <event_cb trigger="clicked" callback="on_pid_temp_down"/>
                 </ui_button>
                 <lv_label name="temp_display"
-                          flex_grow="1" text="200°C" style_text_font="#font_heading" style_text_align="center"
+                          flex_grow="1" text="" style_text_font="#font_heading" style_text_align="center"
                           bind_text="pid_temp_display"/>
                 <ui_button name="btn_temp_up" width="#button_height" height="#button_height" text="+">
                   <event_cb trigger="clicked" callback="on_pid_temp_up"/>

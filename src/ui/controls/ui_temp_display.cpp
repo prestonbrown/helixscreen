@@ -8,6 +8,7 @@
 #include "ui_temperature_utils.h"
 #include "ui_tile_rung.h"
 
+#include "core/temperature_units.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"
@@ -233,7 +234,8 @@ static void format_target_text(TempDisplayData* data) {
     if (data->target_temp == 0) {
         snprintf(data->target_text_buf, sizeof(data->target_text_buf), "—");
     } else {
-        snprintf(data->target_text_buf, sizeof(data->target_text_buf), "%d", data->target_temp);
+        snprintf(data->target_text_buf, sizeof(data->target_text_buf), "%d",
+                 helix::units::to_display_temp_whole(data->target_temp));
     }
     lv_subject_copy_string(&data->target_text_subject, data->target_text_buf);
 }
@@ -525,7 +527,7 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
     }
 
     data_ptr->unit_label = lv_label_create(container);
-    lv_label_set_text(data_ptr->unit_label, "°C");
+    lv_label_set_text(data_ptr->unit_label, helix::units::display_temp_symbol());
     helix::ui::apply_font_style(data_ptr->unit_label, font);
     lv_obj_set_style_text_color(data_ptr->unit_label, muted_color, LV_PART_MAIN);
 
@@ -731,7 +733,7 @@ void ui_temp_display_set_current(lv_obj_t* obj, int current) {
     // Update current temp via subject for efficiency
     // Note: this API takes whole degrees, so format as "XX.0"
     snprintf(data->current_text_buf, sizeof(data->current_text_buf), "%.1f",
-             static_cast<float>(current));
+             helix::units::to_display_temp(current));
     lv_subject_copy_string(&data->current_text_subject, data->current_text_buf);
 }
 

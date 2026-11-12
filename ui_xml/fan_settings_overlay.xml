@@ -24,14 +24,14 @@
                 style_pad_top="#space_sm" style_pad_bottom="#space_md" scrollable="false" flex_flow="column"
                 style_pad_gap="0">
           <chamber_air_target_row name="row_chamber_air_target_c"
-                                  label="Exhaust: keep chamber at or below" subject="chamber_air_target_c" fmt="%d°C"
-                                  min="20" max="80"/>
+                                  label="Exhaust: keep chamber at or below" subject="chamber_air_target_c"
+                                  text_subject="chamber_air_target_text" fmt="%s" min="20" max="80"/>
           <chamber_air_target_row name="row_chamber_air_exhaust_pct"
-                                  label="Exhaust fan speed" subject="chamber_air_exhaust_target_pct" fmt="%d%%" min="10"
-                                  max="100"/>
+                                  label="Exhaust fan speed" subject="chamber_air_exhaust_target_pct"
+                                  text_subject="chamber_air_exhaust_target_pct" fmt="%d%%" min="10" max="100"/>
           <chamber_air_target_row name="row_chamber_air_recirculate_pct"
                                   label="Recirculation fan speed" subject="chamber_air_recirculate_target_pct"
-                                  fmt="%d%%" min="10" max="100"/>
+                                  text_subject="chamber_air_recirculate_target_pct" fmt="%d%%" min="10" max="100"/>
         </lv_obj>
       </setting_group>
 

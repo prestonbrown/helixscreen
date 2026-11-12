@@ -29,6 +29,7 @@
 #include "core/contract_breach.h"
 #include "core/data_root_resolver.h"
 #include "core/error_reporting.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
@@ -1256,11 +1257,8 @@ AmsState::UnitEnvIndicator AmsState::compute_unit_env_indicator(AmsBackend* back
     const bool has_env = unit.environment.has_value();
     char buf[kEnvIndTextBufSize];
     if (has_env) {
-        snprintf(buf, sizeof(buf),
-                 "%d\xC2\xB0"
-                 "C",
-                 static_cast<int>(unit.environment->temperature_c));
-        out.temp_text = buf;
+        out.temp_text =
+            units::format_display_temp(static_cast<int>(unit.environment->temperature_c));
         snprintf(buf, sizeof(buf), "%d%%", static_cast<int>(unit.environment->humidity_pct));
         out.humidity_text = buf;
         if (unit.environment->has_humidity)

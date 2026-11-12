@@ -1,7 +1,6 @@
 locale: ru
 translations:
   '%d-%d': '%d-%d'
-  '%d-%d°C': '%d-%d°C'
   ' (timed out)': ' (время ожидания истекло)'
   ' frames': ' кадров'
   ' left': ' осталось'
@@ -157,7 +156,6 @@ translations:
   12-hour: 12-часовой
   120 seconds: 120 секунд
   15 seconds: 15 секунд
-  170-300 °C: '170-300 °C'
   180°: 180°
   180° Upside Down: 180° вверх ногами
   2 min: '2 мин'
@@ -429,11 +427,11 @@ translations:
   Assisting: Помощь
   At least {} lines in helixscreen.env were ignored: 'В helixscreen.env проигнорировано не менее {} строк'
   At target: Цель достигнута
-  'At {}°C, about {} minutes.':
-    one: 'При {}°C около {} минуты.'
-    few: 'При {}°C около {} минут.'
-    many: 'При {}°C около {} минут.'
-    other: 'При {}°C около {} минуты.'
+  At {}, about {} minutes.:
+    one: При {} около {} минуты.
+    few: При {} около {} минут.
+    many: При {} около {} минут.
+    other: При {} около {} минуты.
   Authentication failed: Ошибка аутентификации
   Auto: Авто
   Auto Bed Mesh: Авто сетка стола
@@ -498,7 +496,6 @@ translations:
   Beacon auto-calibrate sent: Beacon автокалибровка отправлена
   Beacon calibrate sent: Beacon калибровка отправлена
   Bed: Стол
-  Bed (°C): Стол (°C)
   Bed Clear Check: 'Проверка чистоты стола'
   Bed Drying: 'Сушка на столе'
   Bed Heater: Нагреватель стола
@@ -521,17 +518,17 @@ translations:
   'Bed cooling, spools still on the bed:': 'Стол остывает, катушки всё ещё на нём:'
 
   Bed is Level!: Стол выровнен!
-  Bed is at {:.0f}°C, the print needs {:.0f}°C.: Стол нагрет до {:.0f}°C, печати нужно {:.0f}°C.
+  Bed is at {}, the print needs {}.: Стол нагрет до {}, печати нужно {}.
   Bed mesh: Сетка стола
   'Bed mesh calibration failed: {}': 'Ошибка калибровки сетки стола: {}'
   Bed mesh operation timed out: Сетка стола — время ожидания истекло
   Bed mesh...: Сетка стола...
   Bed size unknown: 'Размер стола неизвестен'
-  Bed target set to {}°C: Целевая температура стола {}°C
-  Bed temp must be 0-%d°C: Температура стола должна быть 0-%d°C
+  Bed target set to {}: Целевая температура стола {}
+  Bed temp must be %s: Температура стола должна быть 0-%s
   Bed warming timed out: Нагрев стола — время ожидания истекло
-  Bed {:.0f} / {:.0f}°C: Стол {:.0f} / {:.0f}°C
-  Bed {:.0f}°C: Стол {:.0f}°C
+  Bed {}: Стол {}
+  Bed {} / {}: Стол {} / {}
   Before starting: 'Перед началом'
   Below target: Ниже цели
   Belt Tension: Натяжение ремня
@@ -760,11 +757,11 @@ translations:
     калибровка отправлена — используйте панель Z-Offset для настройки
   Cartographer touch calibrate sent: Cartographer тактильная калибровка отправлена
   Category: Категория
+  Celsius (°C): Цельсий (°C)
   Center: 'Центр'
   Center QR code in frame: Расположите QR-код в центре кадра
   'Chamb:': 'Камера:'
   Chamber: Камера
-  Chamber (°C): Камера (°C)
   Chamber Cooling Fan: Вентилятор охлаждения камеры
   Chamber Dryer: 'Сушилка камеры'
   Chamber Fan: Вентилятор камеры
@@ -774,13 +771,13 @@ translations:
   Chamber Temperature: Температура камеры
   Chamber air: 'Воздух камеры'
   Chamber and dryer humidity monitoring: Мониторинг влажности камеры и сушилки
-  Chamber at %d°C: Камера при %d°C
+  Chamber at %s: Камера при %s
   Chamber heater didn't start: 'Нагреватель камеры не запустился'
   Chamber heater didn't start. {}: 'Нагреватель камеры не запустился. {}'
-  Chamber heating to %d°C...: Нагрев камеры до %d°C...
+  Chamber heating to %s...: Нагрев камеры до %s...
   Chamber light fitted: 'Подсветка камеры установлена'
-  Chamber target set to {}°C: Целевая температура камеры установлена на {}°C
-  Chamber temp must be 0-%d°C: Температура камеры должна быть 0-%d°C
+  Chamber target set to {}: Целевая температура камеры установлена на {}
+  Chamber temp must be %s: Температура камеры должна быть 0-%s
   Chamber too hot: 'Камера перегрета'
   Change: Изменить
   Change Address: Изменить адрес
@@ -866,6 +863,7 @@ translations:
   Choose sound style: Выберите стиль звука
   ? Choose the model that matches your printer. This sets the print macros, fan roles and calibration behavior HelixScreen uses.
   : Выберите модель, соответствующую вашему принтеру. Это задаёт используемые HelixScreen макросы печати, роли вентиляторов и поведение калибровки.
+  Choose the order of day, month and year: Выберите порядок дня, месяца и года
   Choose what to power off or restart.: Выберите, что выключить или перезагрузить.
   'Chute position: X {:.1f}, Y {:.1f}': 'Позиция жёлоба продувки: X {:.1f}, Y {:.1f}'
 
@@ -1183,7 +1181,7 @@ translations:
   Current Z Position: Текущая позиция Z
   'Current name:': 'Текущее имя:'
   'Current:': 'Текущий:'
-  'Current: %d°C | Target: %d°C': 'Текущая: %d°C | Целевая: %d°C'
+  'Current: %s | Target: %s': 'Текущая: %s | Целевая: %s'
   Currently Loaded: Загружено
   Currently printing: Сейчас печатается
   'Currently:': 'Сейчас:'
@@ -1223,14 +1221,16 @@ translations:
   Dark Mode: Тёмный режим
   Date (newest): Дата (новые)
   Date (oldest): Дата (старые)
+  Date Format: Формат даты
   Day: День
+  Day Month Year: День Месяц Год
   Debug: Отладка
   Deep Black: Глубокий чёрный
   Default: 'По умолчанию'
   Default Parameters: 'Параметры по умолчанию'
   Default border thickness: Толщина границы по умолчанию
-  'Default: %s nozzle, %d°C bed': 'По умолчанию: сопло %s, стол %d°C'
-  'Default: %s nozzle, %d°C bed, %d°C chamber': 'По умолчанию: сопло %s, стол %d°C, камера %d°C'
+  'Default: %s nozzle, %s bed': 'По умолчанию: сопло %s, стол %s'
+  'Default: %s nozzle, %s bed, %s chamber': 'По умолчанию: сопло %s, стол %s, камера %s'
   Defaults restored: Настройки по умолчанию восстановлены
   Define macros in your printer.cfg: Определите макросы в вашем printer.cfg
   Delete: Удалить
@@ -1557,6 +1557,7 @@ translations:
   FILAMENTS: ФИЛАМЕНТЫ
   FILTERS: ФИЛЬТРЫ
   Factory Reset: Сброс к заводским настройкам
+  Fahrenheit (°F): Фаренгейт (°F)
   Failed: Ошибка
   Failed to apply limits: Не удалось применить ограничения
   Failed to apply settings: Не удалось применить настройки
@@ -1935,12 +1936,12 @@ translations:
   Heat soak: Прогрев
   ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
   : 'Прогрев камеры даёт корпусу нагреться перед печатью. Он показан, потому что у принтера есть макрос прогрева или он включён в настройках; HelixScreen предлагает этот макрос в параметрах перед печатью.'
-  Heat the bed to {}°C: Нагреть стол до {}°C
+  Heat the bed to {}: Нагреть стол до {}
   Heat the chamber too: Нагреть и камеру
-  Heat the extruder to at least {}°C before loading filament: Перед загрузкой филамента нагрейте экструдер минимум до {}°C
+  Heat the extruder to at least {} before loading filament: Перед загрузкой филамента нагрейте экструдер минимум до {}
   Heat the hotend.: "Нагрейте хотенд."
-  Heat to at least %d°C for filament operations: Нагрейте минимум до %d°C для операций с филаментом
-  Heat {} above {}°C before resuming: 'Перед возобновлением нагрейте {} выше {}°C'
+  Heat to at least %s for filament operations: Нагрейте минимум до %s для операций с филаментом
+  Heat {} above {} before resuming: Перед возобновлением нагрейте {} выше {}
   Heatbed Temperature: Температура стола
   Heated Bed: Подогреваемый стол
   Heated Bed MPC Calibration: Калибровка MPC стола
@@ -1956,7 +1957,7 @@ translations:
   HeaterSelect: Выбрать нагреватель
   Heaters off: Нагреватели выключены
   Heating: Нагрев
-  Heating (%d°C below minimum): Нагрев (%d°C ниже минимума)
+  Heating (%s below minimum): Нагрев (%s ниже минимума)
   Heating Bed...: Нагрев стола...
   Heating Chamber...: Нагрев камеры...
   Heating Nozzle...: Нагрев сопла...
@@ -1974,16 +1975,16 @@ translations:
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Нагрев стола и сопла, чтобы печать снова прилипла, а сопло отделилось от неё"
   Heating the nozzle: Нагрев сопла
   Heating the nozzle. Have the filament ready to push in.: "Сопло нагревается. Приготовьте филамент, чтобы вставить его."
-  Heating to %d°C... %.0f°C: Нагрев до %d°C... %.0f°C
+  Heating to %s... %s: Нагрев до %s... %s
   'Heating to %s: %d:%02d left': 'Нагрев до %s: осталось %d:%02d'
-  Heating to {}°C before {}...: Нагрев до {}°C перед «{}»...
-  Heating to {}°C for {}...: Нагрев до {}°C в течение {}...
-  Heating to {}°C...: Нагрев до {}°C...
+  Heating to {} before {}...: Нагрев до {} перед «{}»...
+  Heating to {} for {}...: Нагрев до {} в течение {}...
+  Heating to {}...: Нагрев до {}...
   Heating {}...: 'Нагрев: {}...'
   Heating...: Нагрев...
-  'Heating: %d / %d°C': 'Нагрев: %d / %d°C'
-  Heats the bed to {:g}°C, above this printer's {:g}°C limit.: 'Нагревает стол до {:g}°C, выше предела этого принтера {:g}°C.'
-  Heats the nozzle to {:g}°C, above this printer's {:g}°C limit.: 'Нагревает сопло до {:g}°C, выше предела этого принтера {:g}°C.'
+  'Heating: %d / %s': 'Нагрев: %d / %s'
+  Heats the bed to {}, above this printer's {} limit.: Нагревает стол до {}, выше предела этого принтера {}.
+  Heats the nozzle to {}, above this printer's {} limit.: Нагревает сопло до {}, выше предела этого принтера {}.
   Heightmap and flatness of the active bed mesh: 'Карта высот и ровность активной сетки стола'
   HelixPrint Plugin: 'Плагин HelixPrint'
   HelixPrint plugin updated.: 'Плагин HelixPrint обновлён.'
@@ -2018,7 +2019,7 @@ translations:
   Hold anywhere to cancel: Удерживайте в любом месте для отмены
   Hold slicer prints that do not fit: 'Задерживать печать из слайсера, если файл не подходит'
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: Удерживайте {} плотно на головке. Защелка зафиксирует его, и он станет установленным инструментом.
-  Holding nozzle at {}°C to purge previous filament.: Удержание сопла при {}°C для очистки от предыдущего филамента.
+  Holding nozzle at {} to purge previous filament.: Удержание сопла при {} для очистки от предыдущего филамента.
   Home: Главная
   Home & Continue: Запарковать и продолжить
   Home All: "Парковка всех осей"
@@ -2472,7 +2473,7 @@ translations:
   MMU command failed: Ошибка команды MMU
   MOTION & LEVELING: 'ДВИЖЕНИЕ И КАЛИБРОВКА'
   MPC: MPC
-  MPC thermal model calibrated for {} at {}°C.: 'Тепловая модель MPC откалибрована для {} при {}°C.'
+  MPC thermal model calibrated for {} at {}.: Тепловая модель MPC откалибрована для {} при {}.
   Machine Limits: Ограничения принтера
   Macro: Макрос
   Macro Browser: Обзор макросов
@@ -2595,6 +2596,7 @@ translations:
   Modified: Изменён
   Monitoring: Мониторинг
   Month: Месяц
+  Month Day Year: Месяц День Год
   Moonraker: Moonraker
   Moonraker at {} rejected the API key.: 'Moonraker по адресу {} отклонил API-ключ.'
   Moonraker at {} requires an API key.: 'Moonraker по адресу {} требует API-ключ.'
@@ -2891,8 +2893,8 @@ translations:
   Nozzle: Сопло
   Nozzle / Bed: Сопло / Стол
   Nozzle Clean: Очистка сопла
-  Nozzle Max (°C): Макс. сопло (°C)
-  Nozzle Min (°C): Мин. сопло (°C)
+  Nozzle Max: Макс. сопло
+  Nozzle Min: Мин. сопло
   Nozzle Moves: Сопло движется
   Nozzle Temp: Темп. сопла
   Nozzle Temperature: Температура сопла
@@ -2901,15 +2903,15 @@ translations:
   Nozzle clean complete: Очистка сопла завершена
   Nozzle clog detected: Обнаружено засорение сопла
   Nozzle diameter: "Диаметр сопла"
-  Nozzle did not reach {}°C — {} canceled: Сопло не нагрелось до {}°C — «{}» отменено
+  Nozzle did not reach {} — {} canceled: Сопло не нагрелось до {} — «{}» отменено
   Nozzle flow: "Поток сопла"
   Nozzle interval: 'Интервал сопла'
   Nozzle min cannot exceed max: Минимум сопла не может превышать максимум
   'Nozzle not changed: the printer did not confirm it': "Сопло не изменено: принтер не подтвердил"
   'Nozzle not changed: {}': "Сопло не изменено: {}"
   Nozzle size and flow type per head: "Размер сопла и тип потока для каждой печатающей головки"
-  Nozzle target set to {}°C: Целевая температура сопла {}°C
-  Nozzle temp must be 100-%d°C: Температура сопла должна быть 100-%d°C
+  Nozzle target set to {}: Целевая температура сопла {}
+  Nozzle temp must be %s: Температура сопла должна быть 100-%s
   Nozzle, bed, and chamber in one widget: Сопло, стол и камера в одном виджете
   'Nozzle:': 'Сопло:'
   'Nozzles still heating: {}': 'Сопла всё ещё нагреваются: {}'
@@ -3820,7 +3822,7 @@ translations:
   Seat: Установить
   Seat a tool by hand: Установить инструмент вручную
   Seat a tool by hand for the first Z home: Установить инструмент вручную для первой парковки Z
-  Seat the hot ends, heat {} above {}°C, then tap Resume.: 'Установите хотэнды на место, нагрейте {} выше {}°C и нажмите «Продолжить».'
+  Seat the hot ends, heat {} above {}, then tap Resume.: Установите хотэнды на место, нагрейте {} выше {} и нажмите «Продолжить».
   Seat which tool by hand?: Какой инструмент установить вручную?
   Seating {}...: Установка {}...
   Secondary: Вторичный
@@ -3910,7 +3912,7 @@ translations:
   Set local timezone for time display: Установить часовой пояс для отображения времени
   Set logging verbosity for troubleshooting: Установить уровень детализации журнала
     для устранения неполадок
-  Set temperature between {}°C and {}°C: 'Установите температуру от {}°C до {}°C'
+  Set temperature between {} and {}: Установите температуру от {} до {}
   Set the X and Y belts with the motorized tensioners: "Натянуть ремни X и Y моторизованными натяжителями"
   Set the clock, theme and units. You can change any of these later in Settings.: "Настройте часы, тему и единицы. Всё это можно изменить позже в Настройках."
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
@@ -3945,6 +3947,7 @@ translations:
   Show Touch Points: Показывать точки касания
   Show a confirmation dialog when tapping a macro: Показывать диалог подтверждения
     при нажатии на макрос
+  Show and enter temperatures in Celsius or Fahrenheit: Показывать и вводить температуру в градусах Цельсия или Фаренгейта
   Show instead of dimming: Показывать вместо затемнения
   Show light controls for a light connected to this printer: 'Показывать управление подсветкой, подключённой к этому принтеру'
   Show print speed and flow as mm/s and mm³/s instead of percent: "Показывать скорость и поток в мм/с и мм³/с вместо процентов"
@@ -4279,14 +4282,14 @@ translations:
   Telemetry queue cleared: Очередь телеметрии очищена
   Temp: Темп.
   Temp Compensation: Термокомпенсация
-  Temp °C: Темп. °C
   Temperature: Температура
   Temperature Graph: 'График температуры'
   Temperature Graph Config: Настройка графика температуры
   # Source: calibration_pid_panel.xml:333
   Temperature Sensors: 'Датчики температуры'
+  Temperature Unit: Единица температуры
   Temperature and humidity sensor not responding: Датчик температуры и влажности не отвечает
-  Temperature control optimized for {} at {}°C.: 'Управление температурой оптимизировано для {} при {}°C.'
+  Temperature control optimized for {} at {}.: Управление температурой оптимизировано для {} при {}.
   Temperatures: Температуры
   Temperatures plotted over time: Температуры во времени
   Temperatures saved: Температуры сохранены
@@ -4311,7 +4314,7 @@ translations:
   Test Tracker: Трекер тестов
   Test Both: Тест обоих
   Test label printed: Тестовая этикетка напечатана
-  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C.': 'Тестовая башня шириной {:.0f} мм и высотой {:.0f} мм, около {} мин плюс нагрев: {} полос по {:.0f} мм при {}°C.'
+  'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'Тестовая башня шириной {:.0f} мм и высотой {:.0f} мм, около {} мин плюс нагрев: {} полос по {:.0f} мм при {}.'
   'Testing rotation: %d° (%d/%d) - %ds remaining': 'Тест поворота: %d°
     (%d/%d) - осталось %ds'
   Testing, servo, and motor operations: 'Тестирование, сервопривод и работа моторов'
@@ -4410,13 +4413,13 @@ translations:
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : Загружена катушка {}, но файл нарезан для {}. Филамент с наполнителем печатается с меньшим потоком и требует закалённого сопла.
   The message your printer's macros show (M117): 'Сообщение, которое показывают макросы принтера (M117)'
-  ? The mounted nozzle heats to 200°C and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
-  : Установленное сопло нагреется до 200°C и снова остынет, пока определяется модель безопасности нагревателя. Держите обдув выключенным, а горючие материалы подальше от головки. Это займёт несколько минут.
+  ? The mounted nozzle heats to {} and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
+  : Установленное сопло нагреется до {} и снова остынет, пока определяется модель безопасности нагревателя. Держите обдув выключенным, а горючие материалы подальше от головки. Это займёт несколько минут.
   The new IPv4 settings could not be marked as kept, so the next start undoes them.: 'Не удалось отметить новые настройки IPv4 как сохранённые, поэтому при следующем запуске они будут отменены.'
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: 'Сопло делает несколько коротких тестовых перемещений в углу, в стороне от зоны печати, и повторяет их до сходимости.'
   "The nozzle hasn't moved since the power went out. Check that it sits just above the top of the print, then resume.": "Сопло не двигалось с момента отключения питания. Убедитесь, что оно чуть выше верха печати, затем продолжите."
-  ? The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
-  : Сопло нагреется до 200°C, пока обдув перебирает скорости. Для точного результата установите воздуховод так же, как при печати. Это займёт несколько минут.
+  ? The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
+  : Сопло нагреется до {}, пока обдув перебирает скорости. Для точного результата установите воздуховод так же, как при печати. Это займёт несколько минут.
   The nozzle is clear of the print: Сопло не касается печати
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : Сопло горячее. Очистите его металлической щёткой из комплекта, держите место парковки чистым и нажмите «Далее».
@@ -4444,7 +4447,7 @@ translations:
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : Печать на паузе. Смена инструмента сейчас переместит печатающую головку и заменит филамент в сопле. Возобновите печать после завершения смены.
   The print is still stuck to the bed: Модель всё ещё держится на столе
-  The print is waiting for the chamber to reach {}°C, but the heater is not heating.: 'Печать ждёт, пока камера нагреется до {}°C, но нагреватель не греет.'
+  The print is waiting for the chamber to reach {}, but the heater is not heating.: Печать ждёт, пока камера нагреется до {}, но нагреватель не греет.
   The print is waiting for the chamber, but the heater is not heating.: 'Печать ждёт камеру, но нагреватель не греет.'
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: 'Размер области печати в миллиметрах (X × Y × Z) по пределам осей в конфигурации Klipper принтера.'
   The printer applied this value and keeps it for this tool.: 'Принтер применил это значение и сохранил его для этого инструмента.'
@@ -4984,8 +4987,8 @@ translations:
   Waiting for bed temperature...: Ожидание температуры стола...
   Waiting for bed to reach temperature for accurate calibration.: Ожидание нагрева
     стола для точной калибровки.
-  Waiting for chamber {} / {}°C: 'Ожидание камеры {} / {}°C'
-  Waiting for chamber {}°C: 'Ожидание камеры {}°C'
+  Waiting for chamber {}: Ожидание камеры {}
+  Waiting for chamber {} / {}: Ожидание камеры {} / {}
   Waiting for the chamber to heat: Ожидание нагрева камеры
   Waiting for the filament system to report its state: Ожидание состояния системы филамента
   Waiting for the printer: Ожидание принтера
@@ -5093,6 +5096,7 @@ translations:
   ? "YOU WIN!\nScore: {}\nTap to play again"
   : "ПОБЕДА!\nСчёт: {}\nНажмите, чтобы сыграть снова"
   Year: Год
+  Year Month Day: Год Месяц День
   'Yes': Да
   You can skip this and calibrate later in Settings.: Вы можете пропустить это и откалибровать
     позже в настройках.

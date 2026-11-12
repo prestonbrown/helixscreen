@@ -687,7 +687,7 @@
               <bind_flag_if_eq subject="temp_graph_chamber_preset_0_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
-            <ui_button name="chamber_preset_1" width="48%" height="100%" text="40°C">
+            <ui_button name="chamber_preset_1" width="48%" height="100%" bind_text="temp_graph_chamber_preset_1_text">
               <bind_flag_if_eq subject="temp_graph_chamber_preset_1_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
@@ -696,11 +696,11 @@
                   width="100%" height="#chamber_preset_h" style_pad_all="0" scrollable="false" flex_flow="row"
                   style_flex_main_place="space_between" style_pad_gap="#space_xs">
             <bind_flag_if_eq subject="printer_has_chamber_heater" flag="hidden" ref_value="0"/>
-            <ui_button name="chamber_preset_2" width="48%" height="100%" text="50°C">
+            <ui_button name="chamber_preset_2" width="48%" height="100%" bind_text="temp_graph_chamber_preset_2_text">
               <bind_flag_if_eq subject="temp_graph_chamber_preset_2_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
-            <ui_button name="chamber_preset_3" width="48%" height="100%" text="60°C">
+            <ui_button name="chamber_preset_3" width="48%" height="100%" bind_text="temp_graph_chamber_preset_3_text">
               <bind_flag_if_eq subject="temp_graph_chamber_preset_3_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
@@ -814,15 +814,18 @@
               <bind_flag_if_eq subject="temp_graph_chamber_preset_0_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
-            <ui_button name="chamber_preset_1" height="#button_height" flex_grow="1" text="40°C">
+            <ui_button name="chamber_preset_1"
+                       height="#button_height" flex_grow="1" bind_text="temp_graph_chamber_preset_1_text">
               <bind_flag_if_eq subject="temp_graph_chamber_preset_1_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
-            <ui_button name="chamber_preset_2" height="#button_height" flex_grow="1" text="50°C">
+            <ui_button name="chamber_preset_2"
+                       height="#button_height" flex_grow="1" bind_text="temp_graph_chamber_preset_2_text">
               <bind_flag_if_eq subject="temp_graph_chamber_preset_2_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>
-            <ui_button name="chamber_preset_3" height="#button_height" flex_grow="1" text="60°C">
+            <ui_button name="chamber_preset_3"
+                       height="#button_height" flex_grow="1" bind_text="temp_graph_chamber_preset_3_text">
               <bind_flag_if_eq subject="temp_graph_chamber_preset_3_visible" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
             </ui_button>

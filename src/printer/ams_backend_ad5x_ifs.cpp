@@ -12,6 +12,7 @@
 #include "config.h"
 #include "core/http_executor.h"
 #include "core/static_subject_registry.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "hardware_object_table.h"
@@ -5620,7 +5621,6 @@ bool AmsBackendAd5xIfs::apply_phase_action_locked() {
     // Build the per-phase operation_detail. Dynamic (contains live temps), so it
     // is NOT run through lv_tr() — matches recompute_action_detail's priority-1
     // backend-supplied-string behavior in ams_state.cpp.
-    char buf[64];
     switch (synth) {
     case AmsAction::HEATING:
         // Both the target and the current temp are independently optional: the
@@ -5628,18 +5628,19 @@ bool AmsBackendAd5xIfs::apply_phase_action_locked() {
         // the current temp is 0 until the first extruder frame. Name only what
         // is actually known rather than printing a placeholder number.
         if (tgt > 0 && last_extruder_temp_deci_ > 0) {
-            std::snprintf(buf, sizeof(buf), "Heating nozzle to %d°C (%d°C)",
-                          helix::ui::temperature::deci_to_degrees(tgt),
-                          helix::ui::temperature::deci_to_degrees(last_extruder_temp_deci_));
-            detail = buf;
+            detail = fmt::format(
+                "Heating nozzle to {} ({})",
+                units::format_display_temp(helix::ui::temperature::deci_to_degrees(tgt)),
+                units::format_display_temp(
+                    helix::ui::temperature::deci_to_degrees(last_extruder_temp_deci_)));
         } else if (tgt > 0) {
-            std::snprintf(buf, sizeof(buf), "Heating nozzle to %d°C",
-                          helix::ui::temperature::deci_to_degrees(tgt));
-            detail = buf;
+            detail = "Heating nozzle to " +
+                     units::format_display_temp(helix::ui::temperature::deci_to_degrees(tgt));
         } else if (last_extruder_temp_deci_ > 0) {
-            std::snprintf(buf, sizeof(buf), "Heating nozzle (%d°C)",
-                          helix::ui::temperature::deci_to_degrees(last_extruder_temp_deci_));
-            detail = buf;
+            detail = "Heating nozzle (" +
+                     units::format_display_temp(
+                         helix::ui::temperature::deci_to_degrees(last_extruder_temp_deci_)) +
+                     ")";
         } else {
             detail = "Heating nozzle";
         }

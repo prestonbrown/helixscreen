@@ -7,6 +7,7 @@
 #include "cjk_font_manager.h"
 #include "config.h"
 #include "core/static_subject_registry.h"
+#include "display_settings_manager.h"
 #include "locale_formats.h"
 #include "logging_init.h"
 #include "lvgl.h"
@@ -234,6 +235,8 @@ void SystemSettingsManager::set_language(const std::string& lang) {
     Config* config = Config::get_instance();
     config->set_language(lang);
     config->save();
+    // An unsaved date order follows the language just saved.
+    DisplaySettingsManager::instance().on_language_changed();
     crash_handler::breadcrumb::note("lang", "set_end", static_cast<long>(index));
 }
 

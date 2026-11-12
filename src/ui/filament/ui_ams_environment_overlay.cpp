@@ -29,6 +29,7 @@
 #include "core/data_root_resolver.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "filament_database.h"
@@ -282,7 +283,7 @@ void AmsEnvironmentOverlay::reset_dryer_inputs() {
     // What shows when no loaded material picks a preset.
     if (temp_input_) {
         char buf[8];
-        snprintf(buf, sizeof(buf), "%d", kDefaultDryerTempC);
+        snprintf(buf, sizeof(buf), "%d", helix::units::to_display_temp_whole(kDefaultDryerTempC));
         lv_textarea_set_text(temp_input_, buf);
     }
     if (duration_input_) {
@@ -354,6 +355,10 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
     // it opened on rather than a default.
     const char* shown = lv_textarea_get_text(input);
     float initial = (shown && shown[0]) ? static_cast<float>(atoi(shown)) : 0.0f;
+    if (field == DryerField::Temperature) {
+        // The field holds the display unit; the keypad takes Celsius.
+        initial = static_cast<float>(helix::units::display_temp_to_celsius(initial));
+    }
     if (field == DryerField::Duration) {
         // To the two places the field shows, so the keypad opens on the same number.
         initial = std::round(static_cast<float>(parse_duration_hours(shown).value_or(0)) * 100.0f /
@@ -379,8 +384,7 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
         min_value = dryer.min_temp_c;
         max_value = dryer.max_temp_c;
         title = lv_tr("Temperature");
-        unit = "\xC2\xB0"
-               "C";
+        unit = "";
         break;
     case DryerField::Duration:
         break;
@@ -401,7 +405,8 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
                                  .allow_decimal = allow_decimal,
                                  .allow_negative = false,
                                  .callback = on_dryer_keypad_confirmed,
-                                 .user_data = this};
+                                 .user_data = this,
+                                 .temperature = field == DryerField::Temperature};
 
     ui_keypad_show(&config);
 }
@@ -415,6 +420,8 @@ void AmsEnvironmentOverlay::apply_dryer_keypad_value(DryerField field, float val
     if (field == DryerField::Duration) {
         snprintf(buf, sizeof(buf), "%s",
                  format_duration_hours(static_cast<int>(std::lround(value * 60.0f))).c_str());
+    } else if (field == DryerField::Temperature) {
+        snprintf(buf, sizeof(buf), "%d", helix::units::to_display_temp_whole(value));
     } else if (field != DryerField::HumidityTarget || value > 0.0f) {
         snprintf(buf, sizeof(buf), "%d", static_cast<int>(value));
     }
@@ -805,18 +812,14 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
 
     // Update temperature display (current temp always in temp_text, target in target_temp_text)
     float display_temp = (dryer.active && dryer.current_temp_c > 0) ? dryer.current_temp_c : temp_c;
-    snprintf(temp_text_buf_, sizeof(temp_text_buf_),
-             "%.0f\xC2\xB0"
-             "C",
-             display_temp);
+    snprintf(temp_text_buf_, sizeof(temp_text_buf_), "%s",
+             helix::units::format_display_temp(display_temp).c_str());
     lv_subject_copy_string(&temp_text_subject_, temp_text_buf_);
 
     // Target temp (shown via XML visibility binding when drying_active=1)
     if (dryer.active && dryer.target_temp_c > 0) {
-        snprintf(target_temp_text_buf_, sizeof(target_temp_text_buf_),
-                 "%.0f\xC2\xB0"
-                 "C",
-                 dryer.target_temp_c);
+        snprintf(target_temp_text_buf_, sizeof(target_temp_text_buf_), "%s",
+                 helix::units::format_display_temp(dryer.target_temp_c).c_str());
     } else {
         target_temp_text_buf_[0] = '\0';
     }
@@ -883,14 +886,11 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
         helix::ui::temperature::format_temperature_range(static_cast<int>(dryer.min_temp_c),
                                                          static_cast<int>(dryer.max_temp_c), range,
                                                          sizeof(range), false);
-        snprintf(temp_range_buf_, sizeof(temp_range_buf_), "%s (%s)",
-                 lv_tr("Temp \xC2\xB0"
-                       "C"),
-                 range);
+        snprintf(temp_range_buf_, sizeof(temp_range_buf_), "%s %s (%s)", lv_tr("Temp"),
+                 helix::units::display_temp_symbol(), range);
     } else {
-        snprintf(temp_range_buf_, sizeof(temp_range_buf_), "%s",
-                 lv_tr("Temp \xC2\xB0"
-                       "C"));
+        snprintf(temp_range_buf_, sizeof(temp_range_buf_), "%s %s", lv_tr("Temp"),
+                 helix::units::display_temp_symbol());
     }
     lv_subject_copy_string(&temp_range_subject_, temp_range_buf_);
 
@@ -1035,8 +1035,8 @@ void AmsEnvironmentOverlay::populate_presets() {
             options += '\n';
         }
         char buf[64];
-        snprintf(buf, sizeof(buf), "%s %g°C/%sh", preset.name.c_str(),
-                 dryer.clamp_temp(preset.temp_c),
+        snprintf(buf, sizeof(buf), "%s %s/%sh", preset.name.c_str(),
+                 helix::units::format_display_temp(dryer.clamp_temp(preset.temp_c)).c_str(),
                  format_duration_hours(preset.duration_min).c_str());
         options += buf;
     }
@@ -1062,7 +1062,8 @@ void AmsEnvironmentOverlay::apply_preset(int index) {
 
     if (temp_input_) {
         char buf[8];
-        snprintf(buf, sizeof(buf), "%d", static_cast<int>(applied_temp));
+        snprintf(buf, sizeof(buf), "%d",
+                 helix::units::to_display_temp_whole(static_cast<int>(applied_temp)));
         lv_textarea_set_text(temp_input_, buf);
     }
     if (duration_input_) {
@@ -1196,7 +1197,7 @@ void AmsEnvironmentOverlay::handle_start_stop() {
             if (temp_input_) {
                 const char* text = lv_textarea_get_text(temp_input_);
                 if (text && text[0])
-                    temp_c = static_cast<float>(atoi(text));
+                    temp_c = static_cast<float>(helix::units::display_temp_to_celsius(atoi(text)));
             }
             if (duration_input_) {
                 duration_min = parse_duration_hours(lv_textarea_get_text(duration_input_))

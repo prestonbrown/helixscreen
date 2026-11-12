@@ -29,6 +29,7 @@
 #include <iterator>
 
 #ifdef __ANDROID__
+#include "core/temperature_units.h"
 #include "system/android_jni.h"
 
 #include <SDL_system.h>
@@ -236,6 +237,10 @@ static constexpr settings::PersistedSetting kDisplaySettings[] = {
      "glass_effects"},
     {"settings_screensaver_print_progress", "/display/screensaver_print_progress", Scope::Global,
      true, 1, 0, 1, "screensaver_print_progress"},
+    // 0=°C, 1=°F
+    {"settings_temp_unit", "/display/temp_unit", Scope::Global, false, 0, 0, 1, "temp_unit"},
+    // 0=DMY, 1=MDY, 2=YMD; while unsaved the subject holds the language's order
+    {"settings_date_format", "/display/date_format", Scope::Global, false, 1, 0, 2, "date_format"},
 };
 
 DisplaySettingsManager& DisplaySettingsManager::instance() {
@@ -294,6 +299,12 @@ void DisplaySettingsManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(display_sleep_subject_, sleep_sec, "settings_display_sleep", subjects_);
 
     settings_.init(subjects_);
+    units::set_display_temp_unit(get_temp_unit());
+    UI_MANAGED_SUBJECT_STRING(temp_unit_symbol_subject_, temp_unit_symbol_buf_,
+                              units::display_temp_symbol(), "settings_temp_unit_symbol", subjects_);
+    if (!has_saved_date_format()) {
+        lv_subject_set_int(settings_.subject(Key::DateFormat), static_cast<int>(get_date_format()));
+    }
 
     // Has backlight control subject (for UI visibility) - check DisplayManager
     bool has_backlight = false;
@@ -838,6 +849,40 @@ void DisplaySettingsManager::set_ui_scale_percent(int percent) {
         "[DisplaySettingsManager] set_ui_scale_percent({}) -> {} (applies on next start)", percent,
         stored == helix::DisplayMetrics::kScaleSettingAutomatic ? std::string("automatic")
                                                                 : std::to_string(stored) + "%");
+}
+
+void DisplaySettingsManager::set_temp_unit(units::TempUnit unit) {
+    settings_.set(Key::TempUnit, static_cast<int>(unit));
+    units::set_display_temp_unit(get_temp_unit());
+    if (subjects_initialized_) {
+        lv_subject_copy_string(&temp_unit_symbol_subject_, units::display_temp_symbol());
+    }
+    spdlog::info("[DisplaySettingsManager] Temperature unit set to {}",
+                 units::temp_unit_symbol(get_temp_unit()));
+}
+
+bool DisplaySettingsManager::has_saved_date_format() const {
+    Config* config = Config::get_instance();
+    return config &&
+           config->exists(kDisplaySettings[static_cast<size_t>(Key::DateFormat)].json_path);
+}
+
+DateFormat DisplaySettingsManager::get_date_format() const {
+    if (!has_saved_date_format()) {
+        Config* config = Config::get_instance();
+        return default_date_format_for_language(config ? config->get_language() : "");
+    }
+    return static_cast<DateFormat>(std::clamp(settings_.get(Key::DateFormat), 0, 2));
+}
+
+void DisplaySettingsManager::set_date_format(DateFormat format) {
+    settings_.set(Key::DateFormat, static_cast<int>(format));
+}
+
+void DisplaySettingsManager::on_language_changed() {
+    if (subjects_initialized_ && !has_saved_date_format()) {
+        lv_subject_set_int(settings_.subject(Key::DateFormat), static_cast<int>(get_date_format()));
+    }
 }
 
 void DisplaySettingsManager::set_gcode_render_mode(int mode) {

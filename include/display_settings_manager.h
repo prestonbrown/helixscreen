@@ -6,6 +6,7 @@
 #include "core/observer_guard.h" // SubjectLifetime
 #include "lvgl/lvgl.h"
 #include "persisted_setting.h"
+#include "region_defaults.h"
 #include "subject_managed_panel.h"
 
 #include <algorithm>
@@ -34,6 +35,8 @@ enum class TimeFormat { HOUR_12 = 0, HOUR_24 = 1 };
  * - bed_mesh_render_mode (Auto/3D/2D)
  * - gcode_render_mode (Auto/3D/2D/Thumbnail Only)
  * - time_format (12H/24H)
+ * - temp_unit (°C/°F; display and entry only, state stays Celsius)
+ * - date_format (day/month/year order; unset follows the language)
  * - printer_image (config-only, no subject)
  * - bed_mesh_show_zero_plane (config-only, no subject)
  *
@@ -300,6 +303,23 @@ class DisplaySettingsManager {
     void set_time_format(TimeFormat format) {
         settings_.set(Key::TimeFormat, static_cast<int>(format));
     }
+
+    /// The unit temperatures are shown and typed in.
+    units::TempUnit get_temp_unit() const {
+        return static_cast<units::TempUnit>(std::clamp(settings_.get(Key::TempUnit), 0, 1));
+    }
+    /// Persist the unit and make it the one every temperature readout uses.
+    void set_temp_unit(units::TempUnit unit);
+
+    /// The date order: the saved choice, or the active language's while none is saved.
+    DateFormat get_date_format() const;
+    void set_date_format(DateFormat format);
+
+    /// Whether the user (or the setup wizard) has saved a date order.
+    bool has_saved_date_format() const;
+
+    /// Re-read the language's date order into the subject while none is saved.
+    void on_language_changed();
 
     /// Whether the dropdown offers "System": the host's own zone. The ESP32 has
     /// none, so an unpicked zone there is UTC.
@@ -608,6 +628,16 @@ class DisplaySettingsManager {
         return settings_.subject(Key::TimeFormat);
     }
 
+    /** @brief Temperature unit subject (integer: a units::TempUnit) */
+    lv_subject_t* subject_temp_unit() {
+        return settings_.subject(Key::TempUnit);
+    }
+
+    /** @brief Date format subject (integer: a DateFormat) */
+    lv_subject_t* subject_date_format() {
+        return settings_.subject(Key::DateFormat);
+    }
+
     /** @brief Timezone subject (integer: index into curated list) */
     lv_subject_t* subject_timezone() {
         return &timezone_subject_;
@@ -647,6 +677,8 @@ class DisplaySettingsManager {
         TimeFormat,
         GlassEffects,
         ScreensaverPrintProgress,
+        TempUnit,
+        DateFormat,
         COUNT
     };
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
@@ -667,6 +699,9 @@ class DisplaySettingsManager {
     lv_subject_t glass_available_subject_{};
 
     lv_subject_t screensaver_type_subject_{};
+    /// "°C" or "°F", for XML labels that name the unit.
+    lv_subject_t temp_unit_symbol_subject_{};
+    char temp_unit_symbol_buf_[8] = {};
     lv_subject_t has_screensaver_subject_{};
 
     bool subjects_initialized_ = false;

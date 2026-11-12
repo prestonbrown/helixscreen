@@ -18,6 +18,7 @@
 #include "ui_filament_mapping_card.h"
 
 #include "color_utils.h"
+#include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_variants.h"
@@ -393,14 +394,18 @@ CheckResult gate_material_compatibility(const PrintStartContext& ctx) {
                               m.expected_material, m.loaded_material);
 
         if (m.expected_nozzle_min > 0 && m.loaded_nozzle_min > 0) {
+            using units::to_display_temp_whole;
+            const char* unit = units::display_temp_symbol();
             message += "\n\n";
-            message +=
-                fmt::format("  {} {}: {}\u2013{}°C {}, {}°C {}\n"
-                            "  {} {}: {}\u2013{}°C {}, {}°C {}",
-                            LV_SYMBOL_BULLET, m.expected_material, m.expected_nozzle_min,
-                            m.expected_nozzle_max, lv_tr("nozzle"), m.expected_bed_temp,
-                            lv_tr("bed"), LV_SYMBOL_BULLET, m.loaded_material, m.loaded_nozzle_min,
-                            m.loaded_nozzle_max, lv_tr("nozzle"), m.loaded_bed_temp, lv_tr("bed"));
+            message += fmt::format(
+                "  {} {}: {}\u2013{}{} {}, {}{} {}\n"
+                "  {} {}: {}\u2013{}{} {}, {}{} {}",
+                LV_SYMBOL_BULLET, m.expected_material, to_display_temp_whole(m.expected_nozzle_min),
+                to_display_temp_whole(m.expected_nozzle_max), unit, lv_tr("nozzle"),
+                to_display_temp_whole(m.expected_bed_temp), unit, lv_tr("bed"), LV_SYMBOL_BULLET,
+                m.loaded_material, to_display_temp_whole(m.loaded_nozzle_min),
+                to_display_temp_whole(m.loaded_nozzle_max), unit, lv_tr("nozzle"),
+                to_display_temp_whole(m.loaded_bed_temp), unit, lv_tr("bed"));
         }
     } else {
         // Multi-tool format: list each mismatched tool
@@ -409,13 +414,15 @@ CheckResult gate_material_compatibility(const PrintStartContext& ctx) {
         for (const auto& m : mismatches) {
             std::string expected_temps;
             if (m.expected_nozzle_min > 0) {
-                expected_temps =
-                    fmt::format(" ({}\u2013{}°C)", m.expected_nozzle_min, m.expected_nozzle_max);
+                expected_temps = fmt::format(" ({}\u2013{})",
+                                             units::to_display_temp_whole(m.expected_nozzle_min),
+                                             units::format_display_temp(m.expected_nozzle_max));
             }
             std::string loaded_temps;
             if (m.loaded_nozzle_min > 0) {
                 loaded_temps =
-                    fmt::format(" ({}\u2013{}°C)", m.loaded_nozzle_min, m.loaded_nozzle_max);
+                    fmt::format(" ({}\u2013{})", units::to_display_temp_whole(m.loaded_nozzle_min),
+                                units::format_display_temp(m.loaded_nozzle_max));
             }
             // "needs X (range): You have Y (range)" — a colon reads as a
             // comparison where "X -> Y" would read as a transformation. Two

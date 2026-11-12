@@ -7,6 +7,7 @@
 #include "chamber_stall_prompt.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
@@ -436,8 +437,8 @@ void ChamberStallPrompt::refresh_content() {
 
     std::string message =
         wait_c > 0 ? fmt::format(fmt::runtime(lv_tr("The print is waiting for the chamber to "
-                                                    "reach {}°C, but the heater is not heating.")),
-                                 static_cast<int>(std::lround(wait_c)))
+                                                    "reach {}, but the heater is not heating.")),
+                                 units::format_display_temp(wait_c))
                    : std::string(lv_tr("The print is waiting for the chamber, but the heater is "
                                        "not heating."));
     const char* reason = lv_subject_get_string(temps.get_chamber_heater_rejection_text_subject());

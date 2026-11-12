@@ -26,7 +26,6 @@
   <translation tag="%d tools" zh="%d 个工具"/>
   <translation tag="%d units" zh="%d 个单元"/>
   <translation tag="%d-%d" zh="%d-%d"/>
-  <translation tag="%d-%d°C" zh="%d-%d°C"/>
   <translation tag="%d:%02d left" zh="剩余 %d:%02d"/>
   <translation tag="%dd %dh" zh="%d天%d小时"/>
   <translation tag="%dh" zh="%d小时"/>
@@ -107,7 +106,6 @@
   <translation tag="12-hour" zh="12小时制"/>
   <translation tag="120 seconds" zh="120 秒"/>
   <translation tag="15 seconds" zh="15 秒"/>
-  <translation tag="170-300 °C" zh="170-300 °C"/>
   <translation tag="180°" zh="180°"/>
   <translation tag="180° Upside Down" zh="180° 上下颠倒"/>
   <translation tag="2 min" zh="2分钟"/>
@@ -358,7 +356,7 @@
   <translation tag="Assisting" zh="辅助中"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" zh="helixscreen.env 中至少有 {} 行被忽略"/>
   <translation tag="At target" zh="在目标值"/>
-  <translation tag="At {}°C, about {} minutes." zh="在 {}°C 下约需 {} 分钟。"/>
+  <translation tag="At {}, about {} minutes." zh="在 {} 下约需 {} 分钟。"/>
   <translation tag="Authentication failed" zh="认证失败"/>
   <translation tag="Auto" zh="自动"/>
   <translation tag="Auto Bed Mesh" zh="自动热床网格"/>
@@ -417,7 +415,6 @@
   <translation tag="Beacon auto-calibrate sent" zh="Beacon自动校准已发送"/>
   <translation tag="Beacon calibrate sent" zh="Beacon校准已发送"/>
   <translation tag="Bed" zh="热床"/>
-  <translation tag="Bed (°C)" zh="热床 (°C)"/>
   <translation tag="Bed Clear Check" zh="热床清空检查"/>
   <translation tag="Bed Drying" zh="热床烘干"/>
   <translation tag="Bed Heater" zh="热床加热器"/>
@@ -439,17 +436,17 @@
   <translation tag="Bed clear · Start next" zh="热床已清空 · 开始下一个"/>
   <translation tag="Bed cooling, spools still on the bed:" zh="热床正在冷却,料盘仍在上面:"/>
   <translation tag="Bed is Level!" zh="热床已水平！"/>
-  <translation tag="Bed is at {:.0f}°C, the print needs {:.0f}°C." zh="热床为 {:.0f}°C，打印需要 {:.0f}°C。"/>
+  <translation tag="Bed is at {}, the print needs {}." zh="热床为 {}，打印需要 {}。"/>
   <translation tag="Bed mesh" zh="热床网格"/>
   <translation tag="Bed mesh calibration failed: {}" zh="热床网格校准失败：{}"/>
   <translation tag="Bed mesh operation timed out" zh="热床网格操作超时"/>
   <translation tag="Bed mesh..." zh="热床网格..."/>
   <translation tag="Bed size unknown" zh="热床尺寸未知"/>
-  <translation tag="Bed target set to {}°C" zh="热床目标已设为 {}°C"/>
-  <translation tag="Bed temp must be 0-%d°C" zh="热床温度必须为 0-%d°C"/>
+  <translation tag="Bed target set to {}" zh="热床目标已设为 {}"/>
+  <translation tag="Bed temp must be %s" zh="热床温度必须为 0-%s"/>
   <translation tag="Bed warming timed out" zh="热床加热超时"/>
-  <translation tag="Bed {:.0f} / {:.0f}°C" zh="热床 {:.0f} / {:.0f}°C"/>
-  <translation tag="Bed {:.0f}°C" zh="热床 {:.0f}°C"/>
+  <translation tag="Bed {}" zh="热床 {}"/>
+  <translation tag="Bed {} / {}" zh="热床 {} / {}"/>
   <translation tag="Before starting" zh="开始之前"/>
   <translation tag="Below target" zh="低于目标"/>
   <translation tag="Belt Tension" zh="皮带张力"/>
@@ -656,11 +653,11 @@
   <translation tag="Cartographer scan calibrate sent — use Z-Offset panel to adjust" zh="Cartographer扫描校准已发送 — 使用Z偏移面板进行调整"/>
   <translation tag="Cartographer touch calibrate sent" zh="Cartographer触摸校准已发送"/>
   <translation tag="Category" zh="类别"/>
+  <translation tag="Celsius (°C)" zh="°C"/>
   <translation tag="Center" zh="中心"/>
   <translation tag="Center QR code in frame" zh="将 QR 码对准画面中央"/>
   <translation tag="Chamb:" zh="腔:"/>
   <translation tag="Chamber" zh="腔体"/>
-  <translation tag="Chamber (°C)" zh="腔体 (°C)"/>
   <translation tag="Chamber Cooling Fan" zh="腔体冷却风扇"/>
   <translation tag="Chamber Dryer" zh="腔体烘干"/>
   <translation tag="Chamber Fan" zh="腔体风扇"/>
@@ -670,13 +667,13 @@
   <translation tag="Chamber Temperature" zh="腔体温度"/>
   <translation tag="Chamber air" zh="腔体空气"/>
   <translation tag="Chamber and dryer humidity monitoring" zh="腔体和干燥器湿度监控"/>
-  <translation tag="Chamber at %d°C" zh="腔体温度：%d°C"/>
+  <translation tag="Chamber at %s" zh="腔体温度：%s"/>
   <translation tag="Chamber heater didn&apos;t start" zh="腔体加热器未启动"/>
   <translation tag="Chamber heater didn&apos;t start. {}" zh="腔体加热器未启动。{}"/>
-  <translation tag="Chamber heating to %d°C..." zh="腔体加热至 %d°C..."/>
+  <translation tag="Chamber heating to %s..." zh="腔体加热至 %s..."/>
   <translation tag="Chamber light fitted" zh="已安装腔体灯"/>
-  <translation tag="Chamber target set to {}°C" zh="腔体目标温度设置为 {}°C"/>
-  <translation tag="Chamber temp must be 0-%d°C" zh="腔体温度必须为 0-%d°C"/>
+  <translation tag="Chamber target set to {}" zh="腔体目标温度设置为 {}"/>
+  <translation tag="Chamber temp must be %s" zh="腔体温度必须为 0-%s"/>
   <translation tag="Chamber too hot" zh="腔体温度过高"/>
   <translation tag="Change" zh="更改"/>
   <translation tag="Change Address" zh="更改地址"/>
@@ -751,6 +748,7 @@
   <translation tag="Choose rendering mode for bed mesh visualization" zh="选择热床网格可视化的渲染模式"/>
   <translation tag="Choose sound style" zh="选择声音风格"/>
   <translation tag="Choose the model that matches your printer. This sets the print macros, fan roles and calibration behavior HelixScreen uses." zh="选择与您的打印机相符的型号。这将决定 HelixScreen 使用的打印宏、风扇角色和校准行为。"/>
+  <translation tag="Choose the order of day, month and year" zh="选择日、月、年的顺序"/>
   <translation tag="Choose what to power off or restart." zh="选择要关闭或重启的对象。"/>
   <translation tag="Choose which lane is in the toolhead to unload it" zh="请选择打印头里的料道以卸载"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" zh="排料口位置: X {:.1f}, Y {:.1f}"/>
@@ -1016,7 +1014,7 @@
   <translation tag="Current Z Position" zh="当前 Z 位置"/>
   <translation tag="Current name:" zh="当前名称："/>
   <translation tag="Current:" zh="当前："/>
-  <translation tag="Current: %d°C | Target: %d°C" zh="当前: %d°C | 目标: %d°C"/>
+  <translation tag="Current: %s | Target: %s" zh="当前: %s | 目标: %s"/>
   <translation tag="Currently Loaded" zh="当前已装载"/>
   <translation tag="Currently printing" zh="正在打印"/>
   <translation tag="Currently:" zh="当前："/>
@@ -1057,14 +1055,16 @@
   <translation tag="Dark Mode" zh="深色模式"/>
   <translation tag="Date (newest)" zh="日期（最新）"/>
   <translation tag="Date (oldest)" zh="日期（最早）"/>
+  <translation tag="Date Format" zh="日期格式"/>
   <translation tag="Day" zh="日"/>
+  <translation tag="Day Month Year" zh="日 月 年"/>
   <translation tag="Debug" zh="调试"/>
   <translation tag="Deep Black" zh="深黑色"/>
   <translation tag="Default" zh="默认"/>
   <translation tag="Default Parameters" zh="默认参数"/>
   <translation tag="Default border thickness" zh="默认边框厚度"/>
-  <translation tag="Default: %s nozzle, %d°C bed" zh="默认: 喷嘴 %s,热床 %d°C"/>
-  <translation tag="Default: %s nozzle, %d°C bed, %d°C chamber" zh="默认: 喷嘴 %s,热床 %d°C,腔体 %d°C"/>
+  <translation tag="Default: %s nozzle, %s bed" zh="默认: 喷嘴 %s,热床 %s"/>
+  <translation tag="Default: %s nozzle, %s bed, %s chamber" zh="默认: 喷嘴 %s,热床 %s,腔体 %s"/>
   <translation tag="Defaults restored" zh="已恢复默认设置"/>
   <translation tag="Define macros in your printer.cfg" zh="在 printer.cfg 中定义宏"/>
   <translation tag="Delete" zh="删除"/>
@@ -1373,6 +1373,7 @@
   <translation tag="FILAMENTS" zh="耗材"/>
   <translation tag="FILTERS" zh="筛选"/>
   <translation tag="Factory Reset" zh="恢复出厂设置"/>
+  <translation tag="Fahrenheit (°F)" zh="°F"/>
   <translation tag="Failed" zh="失败"/>
   <translation tag="Failed to apply limits" zh="应用限制失败"/>
   <translation tag="Failed to apply settings" zh="应用设置失败"/>
@@ -1726,12 +1727,12 @@
   <translation tag="Heat nozzle" zh="加热喷嘴"/>
   <translation tag="Heat soak" zh="预热浸泡"/>
   <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options." zh="热浸让腔体在打印前升温。显示此项是因为打印机有热浸宏，或已在设置中开启；HelixScreen 会在打印前选项中提供该宏。"/>
-  <translation tag="Heat the bed to {}°C" zh="将热床加热到 {}°C"/>
+  <translation tag="Heat the bed to {}" zh="将热床加热到 {}"/>
   <translation tag="Heat the chamber too" zh="同时加热腔体"/>
-  <translation tag="Heat the extruder to at least {}°C before loading filament" zh="装载耗材前请将挤出机加热至至少 {}°C"/>
+  <translation tag="Heat the extruder to at least {} before loading filament" zh="装载耗材前请将挤出机加热至至少 {}"/>
   <translation tag="Heat the hotend." zh="加热热端。"/>
-  <translation tag="Heat to at least %d°C for filament operations" zh="请加热至至少 %d°C 以进行耗材操作"/>
-  <translation tag="Heat {} above {}°C before resuming" zh="恢复前请将{}加热到{}°C以上"/>
+  <translation tag="Heat to at least %s for filament operations" zh="请加热至至少 %s 以进行耗材操作"/>
+  <translation tag="Heat {} above {} before resuming" zh="恢复前请将{}加热到{}以上"/>
   <translation tag="Heatbed Temperature" zh="热床温度"/>
   <translation tag="Heated Bed" zh="加热床"/>
   <translation tag="Heated Bed MPC Calibration" zh="热床 MPC 校准"/>
@@ -1747,7 +1748,7 @@
   <translation tag="HeaterSelect" zh="选择加热器"/>
   <translation tag="Heaters off" zh="加热器已关闭"/>
   <translation tag="Heating" zh="加热中"/>
-  <translation tag="Heating (%d°C below minimum)" zh="加热中（低于最低温度 %d°C）"/>
+  <translation tag="Heating (%s below minimum)" zh="加热中（低于最低温度 %s）"/>
   <translation tag="Heating Bed..." zh="正在加热热床..."/>
   <translation tag="Heating Chamber..." zh="正在加热腔体..."/>
   <translation tag="Heating Nozzle..." zh="正在加热喷嘴..."/>
@@ -1765,16 +1766,16 @@
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" zh="正在加热热床和喷嘴，使打印件重新附着，喷嘴脱离打印件"/>
   <translation tag="Heating the nozzle" zh="正在加热喷嘴"/>
   <translation tag="Heating the nozzle. Have the filament ready to push in." zh="正在加热喷嘴。请准备好要推入的耗材。"/>
-  <translation tag="Heating to %d°C... %.0f°C" zh="加热至 %d°C... %.0f°C"/>
+  <translation tag="Heating to %s... %s" zh="加热至 %s... %s"/>
   <translation tag="Heating to %s: %d:%02d left" zh="正在加热至 %s：剩余 %d:%02d"/>
-  <translation tag="Heating to {}°C before {}..." zh="正在加热至{}°C，然后{}..."/>
-  <translation tag="Heating to {}°C for {}..." zh="正在加热至{}°C，持续{}..."/>
-  <translation tag="Heating to {}°C..." zh="正在加热至{}°C..."/>
+  <translation tag="Heating to {} before {}..." zh="正在加热至{}，然后{}..."/>
+  <translation tag="Heating to {} for {}..." zh="正在加热至{}，持续{}..."/>
+  <translation tag="Heating to {}..." zh="正在加热至{}..."/>
   <translation tag="Heating {}..." zh="正在加热{}..."/>
   <translation tag="Heating..." zh="正在加热..."/>
-  <translation tag="Heating: %d / %d°C" zh="加热中：%d / %d°C"/>
-  <translation tag="Heats the bed to {:g}°C, above this printer&apos;s {:g}°C limit." zh="将热床加热到 {:g}°C，超过此打印机 {:g}°C 的上限。"/>
-  <translation tag="Heats the nozzle to {:g}°C, above this printer&apos;s {:g}°C limit." zh="将喷嘴加热到 {:g}°C，超过此打印机 {:g}°C 的上限。"/>
+  <translation tag="Heating: %d / %s" zh="加热中：%d / %s"/>
+  <translation tag="Heats the bed to {}, above this printer&apos;s {} limit." zh="将热床加热到 {}，超过此打印机 {} 的上限。"/>
+  <translation tag="Heats the nozzle to {}, above this printer&apos;s {} limit." zh="将喷嘴加热到 {}，超过此打印机 {} 的上限。"/>
   <translation tag="Heightmap and flatness of the active bed mesh" zh="当前热床网格的高度图和平整度"/>
   <translation tag="HelixPrint Plugin" zh="HelixPrint 插件"/>
   <translation tag="HelixPrint plugin updated." zh="HelixPrint 插件已更新。"/>
@@ -1806,7 +1807,7 @@
   <translation tag="Hold anywhere to cancel" zh="长按任意位置取消"/>
   <translation tag="Hold slicer prints that do not fit" zh="暂缓不适合的切片软件打印"/>
   <translation tag="Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool." zh="将{}完全按在打印头上。锁定装置会锁住它，它将成为已安装的工具。"/>
-  <translation tag="Holding nozzle at {}°C to purge previous filament." zh="将喷嘴保持在 {}°C 以清洗之前的耗材。"/>
+  <translation tag="Holding nozzle at {} to purge previous filament." zh="将喷嘴保持在 {} 以清洗之前的耗材。"/>
   <translation tag="Home" zh="归位"/>
   <translation tag="Home &amp; Continue" zh="归位并继续"/>
   <translation tag="Home All" zh="全部归位"/>
@@ -2222,7 +2223,7 @@
   <translation tag="MMU command failed" zh="MMU 命令失败"/>
   <translation tag="MOTION &amp; LEVELING" zh="运动与调平"/>
   <translation tag="MPC" zh="MPC"/>
-  <translation tag="MPC thermal model calibrated for {} at {}°C." zh="已针对 {} 在 {}°C 下校准 MPC 热模型。"/>
+  <translation tag="MPC thermal model calibrated for {} at {}." zh="已针对 {} 在 {} 下校准 MPC 热模型。"/>
   <translation tag="Machine Limits" zh="机器限制"/>
   <translation tag="Macro" zh="宏"/>
   <translation tag="Macro Browser" zh="宏浏览器"/>
@@ -2341,6 +2342,7 @@
   <translation tag="Monitor for print abnormalities (camera-based)" zh="监测打印异常（基于摄像头）"/>
   <translation tag="Monitoring" zh="监控中"/>
   <translation tag="Month" zh="月"/>
+  <translation tag="Month Day Year" zh="月 日 年"/>
   <translation tag="Moonraker" zh="Moonraker"/>
   <translation tag="Moonraker answered at {}." zh="Moonraker 在 {} 响应。"/>
   <translation tag="Moonraker at {} rejected the API key." zh="{} 上的 Moonraker 拒绝了 API 密钥。"/>
@@ -2619,8 +2621,8 @@
   <translation tag="Nozzle" zh="喷嘴"/>
   <translation tag="Nozzle / Bed" zh="喷嘴 / 热床"/>
   <translation tag="Nozzle Clean" zh="喷嘴清洁"/>
-  <translation tag="Nozzle Max (°C)" zh="喷嘴最高温度 (°C)"/>
-  <translation tag="Nozzle Min (°C)" zh="喷嘴最低温度 (°C)"/>
+  <translation tag="Nozzle Max" zh="喷嘴最高温度"/>
+  <translation tag="Nozzle Min" zh="喷嘴最低温度"/>
   <translation tag="Nozzle Moves" zh="喷嘴移动"/>
   <translation tag="Nozzle Temp" zh="喷嘴温度"/>
   <translation tag="Nozzle Temperature" zh="喷嘴温度"/>
@@ -2629,15 +2631,15 @@
   <translation tag="Nozzle clean complete" zh="喷嘴清洁完成"/>
   <translation tag="Nozzle clog detected" zh="检测到喷嘴堵塞"/>
   <translation tag="Nozzle diameter" zh="喷嘴直径"/>
-  <translation tag="Nozzle did not reach {}°C — {} canceled" zh="喷嘴未达到 {}°C — {} 已取消"/>
+  <translation tag="Nozzle did not reach {} — {} canceled" zh="喷嘴未达到 {} — {} 已取消"/>
   <translation tag="Nozzle flow" zh="喷嘴流量"/>
   <translation tag="Nozzle interval" zh="喷嘴间隔"/>
   <translation tag="Nozzle min cannot exceed max" zh="喷嘴最低温度不能超过最高温度"/>
   <translation tag="Nozzle not changed: the printer did not confirm it" zh="喷嘴未更改：打印机未确认"/>
   <translation tag="Nozzle not changed: {}" zh="喷嘴未更改：{}"/>
   <translation tag="Nozzle size and flow type per head" zh="每个工具头的喷嘴尺寸和流量类型"/>
-  <translation tag="Nozzle target set to {}°C" zh="喷嘴目标已设为 {}°C"/>
-  <translation tag="Nozzle temp must be 100-%d°C" zh="喷嘴温度必须为 100-%d°C"/>
+  <translation tag="Nozzle target set to {}" zh="喷嘴目标已设为 {}"/>
+  <translation tag="Nozzle temp must be %s" zh="喷嘴温度必须为 100-%s"/>
   <translation tag="Nozzle, bed, and chamber in one widget" zh="喷嘴、热床和腔体合为一个小组件"/>
   <translation tag="Nozzle:" zh="喷嘴："/>
   <translation tag="Nozzles still heating: {}" zh="仍在加热的喷嘴: {}"/>
@@ -3476,7 +3478,7 @@
   <translation tag="Seat" zh="装上"/>
   <translation tag="Seat a tool by hand" zh="手动安装工具"/>
   <translation tag="Seat a tool by hand for the first Z home" zh="首次Z轴归零前手动安装工具"/>
-  <translation tag="Seat the hot ends, heat {} above {}°C, then tap Resume." zh="请装好热端，将{}加热到{}°C以上，然后点击恢复。"/>
+  <translation tag="Seat the hot ends, heat {} above {}, then tap Resume." zh="请装好热端，将{}加热到{}以上，然后点击恢复。"/>
   <translation tag="Seat which tool by hand?" zh="手动安装哪个工具？"/>
   <translation tag="Seating {}..." zh="正在安装{}..."/>
   <translation tag="Secondary" zh="次要"/>
@@ -3558,7 +3560,7 @@
   <translation tag="Set duration between 1 and {} minutes" zh="请设置 1 到 {} 分钟之间的时长"/>
   <translation tag="Set local timezone for time display" zh="设置本地时区以显示时间"/>
   <translation tag="Set logging verbosity for troubleshooting" zh="设置日志详细级别以便故障排除"/>
-  <translation tag="Set temperature between {}°C and {}°C" zh="请设置 {}°C 到 {}°C 之间的温度"/>
+  <translation tag="Set temperature between {} and {}" zh="请设置 {} 到 {} 之间的温度"/>
   <translation tag="Set the X and Y belts with the motorized tensioners" zh="用电动张紧器调整X和Y皮带"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." zh="设置时钟、主题和单位。之后可以随时在设置中更改。"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" zh="请手动设置该槽位的耗材类型和颜色。若标签本应可读，请在料盒空闲时将料盘取出并使标签朝向读取器重新装入"/>
@@ -3588,6 +3590,7 @@
   <translation tag="Show Sections" zh="显示区段"/>
   <translation tag="Show Touch Points" zh="显示触摸点"/>
   <translation tag="Show a confirmation dialog when tapping a macro" zh="点击宏时显示确认对话框"/>
+  <translation tag="Show and enter temperatures in Celsius or Fahrenheit" zh="以 °C 或 °F 显示和输入温度"/>
   <translation tag="Show instead of dimming" zh="显示而非变暗"/>
   <translation tag="Show light controls for a light connected to this printer" zh="显示连接到此打印机的灯的控制"/>
   <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" zh="以 mm/s 和 mm³/s 而非 % 显示打印速度和流量"/>
@@ -3891,13 +3894,13 @@
   <translation tag="Telemetry queue cleared" zh="遥测队列已清除"/>
   <translation tag="Temp" zh="温度"/>
   <translation tag="Temp Compensation" zh="温度补偿"/>
-  <translation tag="Temp °C" zh="温度 °C"/>
   <translation tag="Temperature" zh="温度"/>
   <translation tag="Temperature Graph" zh="温度曲线"/>
   <translation tag="Temperature Graph Config" zh="温度图表配置"/>
   <translation tag="Temperature Sensors" zh="温度传感器"/>
+  <translation tag="Temperature Unit" zh="温度单位"/>
   <translation tag="Temperature and humidity sensor not responding" zh="温湿度传感器无响应"/>
-  <translation tag="Temperature control optimized for {} at {}°C." zh="已针对 {} 在 {}°C 下优化温度控制。"/>
+  <translation tag="Temperature control optimized for {} at {}." zh="已针对 {} 在 {} 下优化温度控制。"/>
   <translation tag="Temperatures" zh="温度"/>
   <translation tag="Temperatures plotted over time" zh="温度随时间的变化曲线"/>
   <translation tag="Temperatures saved" zh="温度已保存"/>
@@ -3921,7 +3924,7 @@
   <translation tag="Test Screensaver" zh="测试屏保"/>
   <translation tag="Test Tracker" zh="测试追踪器"/>
   <translation tag="Test label printed" zh="测试标签已打印"/>
-  <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C." zh="测试塔宽{:.0f} mm、高{:.0f} mm,约{}分钟加加热时间: 共{}段,每段{:.0f} mm,温度{}°C。"/>
+  <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}." zh="测试塔宽{:.0f} mm、高{:.0f} mm,约{}分钟加加热时间: 共{}段,每段{:.0f} mm,温度{}。"/>
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" zh="测试旋转: %d° (%d/%d) - 剩余%ds"/>
   <translation tag="Testing, servo, and motor operations" zh="测试、舵机与电机操作"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." zh="感谢！匿名使用数据有助于改进 HelixScreen。"/>
@@ -4003,11 +4006,11 @@
   <translation tag="The loaded slot is not known yet" zh="已加载的槽位尚未报告"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." zh="当前装载的料盘是 {}，但此文件为 {} 切片。填充耗材需要以更低的流量运行，且需要硬化喷嘴。"/>
   <translation tag="The message your printer&apos;s macros show (M117)" zh="打印机宏显示的消息 (M117)"/>
-  <translation tag="The mounted nozzle heats to 200°C and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes." zh="测定加热器安全模型时，已安装的喷嘴会加热到200°C再冷却。请保持模型风扇关闭，并让易起火的物品远离打印头。这需要几分钟。"/>
+  <translation tag="The mounted nozzle heats to {} and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes." zh="测定加热器安全模型时，已安装的喷嘴会加热到{}再冷却。请保持模型风扇关闭，并让易起火的物品远离打印头。这需要几分钟。"/>
   <translation tag="The new IPv4 settings could not be marked as kept, so the next start undoes them." zh="无法将新的 IPv4 设置标记为已保留，因此下次启动时会撤销它们。"/>
   <translation tag="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself." zh="喷嘴在远离打印区域的角落进行几次短促的测试挤出，并重复直到读数一致。"/>
   <translation tag="The nozzle hasn&apos;t moved since the power went out. Check that it sits just above the top of the print, then resume." zh="断电后喷嘴没有移动过。确认它刚好位于打印件顶部上方，然后恢复。"/>
-  <translation tag="The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes." zh="模型风扇依次切换各档转速时，喷嘴会加热到200°C。为了测定准确，请按打印时的方式装好风道。这需要几分钟。"/>
+  <translation tag="The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes." zh="模型风扇依次切换各档转速时，喷嘴会加热到{}。为了测定准确，请按打印时的方式装好风道。这需要几分钟。"/>
   <translation tag="The nozzle is clear of the print" zh="喷嘴未接触打印件"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." zh="喷嘴很烫。请用随机附带的金属刷清洁，并保持停靠位置干净，然后点击下一步。"/>
   <translation tag="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at." zh="喷嘴已抬离打印件，X 和 Y 已归零。恢复时会降回停止时的高度。"/>
@@ -4033,7 +4036,7 @@
   <translation tag="The print is on its last layer." zh="正在打印最后一层。"/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." zh="打印已暂停。现在切换工具会移动工具头并更换喷嘴处的耗材。切换完成后请恢复打印。"/>
   <translation tag="The print is still stuck to the bed" zh="打印件仍附着在热床上"/>
-  <translation tag="The print is waiting for the chamber to reach {}°C, but the heater is not heating." zh="打印正在等待腔体达到 {}°C，但加热器没有加热。"/>
+  <translation tag="The print is waiting for the chamber to reach {}, but the heater is not heating." zh="打印正在等待腔体达到 {}，但加热器没有加热。"/>
   <translation tag="The print is waiting for the chamber, but the heater is not heating." zh="打印正在等待腔体，但加热器没有加热。"/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." zh="可打印尺寸（毫米，X × Y × Z），取自打印机 Klipper 配置中的轴限位。"/>
   <translation tag="The printer applied this value and keeps it for this tool." zh="打印机已应用此值，并为该工具保存。"/>
@@ -4514,8 +4517,8 @@
   <translation tag="Waiting for another box to finish." zh="正在等待另一个料盒完成。"/>
   <translation tag="Waiting for bed temperature..." zh="正在等待热床温度..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." zh="等待热床达到温度以进行精确校准。"/>
-  <translation tag="Waiting for chamber {} / {}°C" zh="等待腔体 {} / {}°C"/>
-  <translation tag="Waiting for chamber {}°C" zh="等待腔体 {}°C"/>
+  <translation tag="Waiting for chamber {}" zh="等待腔体 {}"/>
+  <translation tag="Waiting for chamber {} / {}" zh="等待腔体 {} / {}"/>
   <translation tag="Waiting for the chamber to heat" zh="正在等待腔室加热"/>
   <translation tag="Waiting for the filament system to report its state" zh="正在等待耗材系统报告状态"/>
   <translation tag="Waiting for the printer" zh="正在等待打印机"/>
@@ -4619,6 +4622,7 @@
   <translation tag="Y:" zh="Y："/>
   <translation tag="YOU WIN!&#10;Score: {}&#10;Tap to play again" zh="你赢了！&#10;得分：{}&#10;点按再玩一次"/>
   <translation tag="Year" zh="年"/>
+  <translation tag="Year Month Day" zh="年 月 日"/>
   <translation tag="Yes" zh="是"/>
   <translation tag="You can skip this and calibrate later in Settings." zh="您可以跳过此步骤，稍后在设置中进行校准。"/>
   <translation tag="You have unsaved changes. Discard them?" zh="您有未保存的更改。是否丢弃？"/>

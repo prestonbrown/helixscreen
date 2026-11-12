@@ -12,6 +12,7 @@
 #include "../test_helpers/print_select_panel_test_access.h"
 #include "ams_state.h"
 #include "config.h"
+#include "core/temperature_units.h"
 #include "core/update_queue.h"
 #include "format_utils.h"
 #include "hardware_validator.h"
@@ -123,8 +124,8 @@ TEST_CASE_METHOD(RussianFixture, "FilamentPanel re-formats its status and safety
     int min_temp = 0;
     REQUIRE(std::sscanf(safety_en.c_str(), "Heat to at least %d", &min_temp) == 1);
     char want[256];
-    std::snprintf(want, sizeof(want), lv_tr("Heat to at least %d°C for filament operations"),
-                  min_temp);
+    std::snprintf(want, sizeof(want), lv_tr("Heat to at least %s for filament operations"),
+                  helix::units::format_display_temp(min_temp).c_str());
     REQUIRE(std::string(want) != safety_en);
     CHECK(subject_text(safety) == want); // whole, not cut off mid-character
 

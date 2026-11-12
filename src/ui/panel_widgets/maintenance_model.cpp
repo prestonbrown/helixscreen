@@ -3,6 +3,7 @@
 
 #include "src/ui/panel_widgets/maintenance_model.h"
 
+#include "ui_format_utils.h"
 #include "ui_maintenance_overlay.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
@@ -266,11 +267,8 @@ std::string task_last_text(const Meter& m) {
     std::string text =
         fmt::format(lv_tr("Last done at {} h"), static_cast<int>(std::lround(*m.reset_at_h)));
     if (m.reset_at_s) {
-        const std::time_t stamp = static_cast<std::time_t>(*m.reset_at_s);
-        std::tm local{};
-        char date[16]{};
-        if (localtime_r(&stamp, &local) && std::strftime(date, sizeof(date), "%Y-%m-%d", &local))
-            text += fmt::format(" ({})", date);
+        text += fmt::format(" ({})",
+                            helix::ui::format_short_date(static_cast<std::time_t>(*m.reset_at_s)));
     }
     return text;
 }

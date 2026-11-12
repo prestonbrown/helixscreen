@@ -4,6 +4,7 @@
 #include "ace_slot_parse.h"
 
 #include "ams_status_json.h"
+#include "core/temperature_units.h"
 #include "json_utils.h"
 #include "lane_translation.h"
 #include "lvgl.h"
@@ -215,8 +216,9 @@ std::optional<AmsError> check_dryer_request(const DryerInfo& dryer, float temp_c
         return AmsError(
             AmsResult::COMMAND_FAILED, "Temperature out of range: " + std::to_string(temp_c),
             lv_tr("Invalid temperature"),
-            fmt::format(lv_tr("Set temperature between {}°C and {}°C"),
-                        static_cast<int>(dryer.min_temp_c), static_cast<int>(dryer.max_temp_c)));
+            fmt::format(lv_tr("Set temperature between {} and {}"),
+                        units::format_display_temp(static_cast<int>(dryer.min_temp_c)),
+                        units::format_display_temp(static_cast<int>(dryer.max_temp_c))));
     }
     if (duration_min <= 0 || duration_min > dryer.max_duration_min) {
         return AmsError(

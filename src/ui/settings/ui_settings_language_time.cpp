@@ -37,6 +37,11 @@ void LanguageTimeSettingsOverlay::register_callbacks() {
              DisplaySettingsManager::instance().set_time_format(
                  static_cast<TimeFormat>(event_selected(e)));
          }},
+        {"on_date_format_changed",
+         [](lv_event_t* e) {
+             DisplaySettingsManager::instance().set_date_format(
+                 static_cast<DateFormat>(event_selected(e)));
+         }},
     });
 }
 
@@ -48,7 +53,7 @@ void LanguageTimeSettingsOverlay::on_activate() {
 }
 
 // The option lists are built at runtime, so both dropdowns are populated and
-// selected here. Time format binds to its subject in XML.
+// selected here. Time and date format bind to their subjects in XML.
 void LanguageTimeSettingsOverlay::init_language_dropdown() {
     lv_obj_t* row = helix::ui::find_required(overlay_root_, "row_language", get_name());
     if (lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name())) {

@@ -15,6 +15,7 @@
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "core/temperature_units.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "error_event.h"
@@ -387,7 +388,8 @@ void RecoveryModalPresenter::begin_preheat(const std::string& gcode, const std::
 
     // The modal closed on the tap, so this is the only acknowledgement the user
     // gets that their choice was accepted rather than ignored.
-    NOTIFY_INFO(lv_tr("Heating to {}°C before {}..."), target, label);
+    NOTIFY_INFO(lv_tr("Heating to {} before {}..."), helix::units::format_display_temp(target),
+                label);
     spdlog::info("[RecoveryModal] Nozzle at {}C is below min_extrude; preheating to {}C "
                  "before {} ({})",
                  nozzle_current_c(), target, tag, gcode);
@@ -420,7 +422,8 @@ void RecoveryModalPresenter::poll_preheat() {
 
     spdlog::error("[RecoveryModal] Preheat to {}C timed out at {}C after {}s; abandoning {}",
                   target, current, preheat_budget_ms_ / 1000, tag);
-    NOTIFY_ERROR(lv_tr("Nozzle did not reach {}°C — {} canceled"), target, label);
+    NOTIFY_ERROR(lv_tr("Nozzle did not reach {} — {} canceled"),
+                 helix::units::format_display_temp(target), label);
 }
 
 void RecoveryModalPresenter::cancel_preheat_timer() {

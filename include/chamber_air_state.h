@@ -20,6 +20,7 @@
 //                                which the settings sliders bind two-way
 
 #include "chamber_air_modes.h"
+#include "core/observer_guard.h"
 #include "subject_managed_panel.h"
 
 #include <functional>
@@ -105,6 +106,10 @@ class ChamberAirState {
     lv_subject_t chamber_air_target_c_{};
     lv_subject_t chamber_air_exhaust_target_pct_{};
     lv_subject_t chamber_air_recirculate_target_pct_{};
+    /// chamber_air_target_c as the user reads it ("50°C", "122°F").
+    lv_subject_t chamber_air_target_text_{};
+    char chamber_air_target_text_buf_[16] = {};
+    ObserverGuard target_text_observer_;
 };
 
 } // namespace helix

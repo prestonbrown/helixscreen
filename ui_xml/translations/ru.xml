@@ -50,7 +50,6 @@
   <translation tag="%d tools_one" ru="%d инструмент"/>
   <translation tag="%d units" ru="%d ед."/>
   <translation tag="%d-%d" ru="%d-%d"/>
-  <translation tag="%d-%d°C" ru="%d-%d°C"/>
   <translation tag="%d:%02d left" ru="осталось %d:%02d"/>
   <translation tag="%dd %dh" ru="%d д %d ч"/>
   <translation tag="%dh" ru="%d ч"/>
@@ -143,7 +142,6 @@
   <translation tag="12-hour" ru="12-часовой"/>
   <translation tag="120 seconds" ru="120 секунд"/>
   <translation tag="15 seconds" ru="15 секунд"/>
-  <translation tag="170-300 °C" ru="170-300 °C"/>
   <translation tag="180°" ru="180°"/>
   <translation tag="180° Upside Down" ru="180° вверх ногами"/>
   <translation tag="2 min" ru="2 мин"/>
@@ -394,10 +392,10 @@
   <translation tag="Assisting" ru="Помощь"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" ru="В helixscreen.env проигнорировано не менее {} строк"/>
   <translation tag="At target" ru="Цель достигнута"/>
-  <translation tag="At {}°C, about {} minutes." ru="При {}°C около {} минуты."/>
-  <translation tag="At {}°C, about {} minutes._few" ru="При {}°C около {} минут."/>
-  <translation tag="At {}°C, about {} minutes._many" ru="При {}°C около {} минут."/>
-  <translation tag="At {}°C, about {} minutes._one" ru="При {}°C около {} минуты."/>
+  <translation tag="At {}, about {} minutes." ru="При {} около {} минуты."/>
+  <translation tag="At {}, about {} minutes._few" ru="При {} около {} минут."/>
+  <translation tag="At {}, about {} minutes._many" ru="При {} около {} минут."/>
+  <translation tag="At {}, about {} minutes._one" ru="При {} около {} минуты."/>
   <translation tag="Authentication failed" ru="Ошибка аутентификации"/>
   <translation tag="Auto" ru="Авто"/>
   <translation tag="Auto Bed Mesh" ru="Авто сетка стола"/>
@@ -459,7 +457,6 @@
   <translation tag="Beacon auto-calibrate sent" ru="Beacon автокалибровка отправлена"/>
   <translation tag="Beacon calibrate sent" ru="Beacon калибровка отправлена"/>
   <translation tag="Bed" ru="Стол"/>
-  <translation tag="Bed (°C)" ru="Стол (°C)"/>
   <translation tag="Bed Clear Check" ru="Проверка чистоты стола"/>
   <translation tag="Bed Drying" ru="Сушка на столе"/>
   <translation tag="Bed Heater" ru="Нагреватель стола"/>
@@ -481,17 +478,17 @@
   <translation tag="Bed clear · Start next" ru="Стол свободен · Запустить следующую"/>
   <translation tag="Bed cooling, spools still on the bed:" ru="Стол остывает, катушки всё ещё на нём:"/>
   <translation tag="Bed is Level!" ru="Стол выровнен!"/>
-  <translation tag="Bed is at {:.0f}°C, the print needs {:.0f}°C." ru="Стол нагрет до {:.0f}°C, печати нужно {:.0f}°C."/>
+  <translation tag="Bed is at {}, the print needs {}." ru="Стол нагрет до {}, печати нужно {}."/>
   <translation tag="Bed mesh" ru="Сетка стола"/>
   <translation tag="Bed mesh calibration failed: {}" ru="Ошибка калибровки сетки стола: {}"/>
   <translation tag="Bed mesh operation timed out" ru="Сетка стола — время ожидания истекло"/>
   <translation tag="Bed mesh..." ru="Сетка стола..."/>
   <translation tag="Bed size unknown" ru="Размер стола неизвестен"/>
-  <translation tag="Bed target set to {}°C" ru="Целевая температура стола {}°C"/>
-  <translation tag="Bed temp must be 0-%d°C" ru="Температура стола должна быть 0-%d°C"/>
+  <translation tag="Bed target set to {}" ru="Целевая температура стола {}"/>
+  <translation tag="Bed temp must be %s" ru="Температура стола должна быть 0-%s"/>
   <translation tag="Bed warming timed out" ru="Нагрев стола — время ожидания истекло"/>
-  <translation tag="Bed {:.0f} / {:.0f}°C" ru="Стол {:.0f} / {:.0f}°C"/>
-  <translation tag="Bed {:.0f}°C" ru="Стол {:.0f}°C"/>
+  <translation tag="Bed {}" ru="Стол {}"/>
+  <translation tag="Bed {} / {}" ru="Стол {} / {}"/>
   <translation tag="Before starting" ru="Перед началом"/>
   <translation tag="Below target" ru="Ниже цели"/>
   <translation tag="Belt Tension" ru="Натяжение ремня"/>
@@ -698,11 +695,11 @@
   <translation tag="Cartographer scan calibrate sent — use Z-Offset panel to adjust" ru="Cartographer сканирующая калибровка отправлена — используйте панель Z-Offset для настройки"/>
   <translation tag="Cartographer touch calibrate sent" ru="Cartographer тактильная калибровка отправлена"/>
   <translation tag="Category" ru="Категория"/>
+  <translation tag="Celsius (°C)" ru="Цельсий (°C)"/>
   <translation tag="Center" ru="Центр"/>
   <translation tag="Center QR code in frame" ru="Расположите QR-код в центре кадра"/>
   <translation tag="Chamb:" ru="Камера:"/>
   <translation tag="Chamber" ru="Камера"/>
-  <translation tag="Chamber (°C)" ru="Камера (°C)"/>
   <translation tag="Chamber Cooling Fan" ru="Вентилятор охлаждения камеры"/>
   <translation tag="Chamber Dryer" ru="Сушилка камеры"/>
   <translation tag="Chamber Fan" ru="Вентилятор камеры"/>
@@ -712,13 +709,13 @@
   <translation tag="Chamber Temperature" ru="Температура камеры"/>
   <translation tag="Chamber air" ru="Воздух камеры"/>
   <translation tag="Chamber and dryer humidity monitoring" ru="Мониторинг влажности камеры и сушилки"/>
-  <translation tag="Chamber at %d°C" ru="Камера при %d°C"/>
+  <translation tag="Chamber at %s" ru="Камера при %s"/>
   <translation tag="Chamber heater didn&apos;t start" ru="Нагреватель камеры не запустился"/>
   <translation tag="Chamber heater didn&apos;t start. {}" ru="Нагреватель камеры не запустился. {}"/>
-  <translation tag="Chamber heating to %d°C..." ru="Нагрев камеры до %d°C..."/>
+  <translation tag="Chamber heating to %s..." ru="Нагрев камеры до %s..."/>
   <translation tag="Chamber light fitted" ru="Подсветка камеры установлена"/>
-  <translation tag="Chamber target set to {}°C" ru="Целевая температура камеры установлена на {}°C"/>
-  <translation tag="Chamber temp must be 0-%d°C" ru="Температура камеры должна быть 0-%d°C"/>
+  <translation tag="Chamber target set to {}" ru="Целевая температура камеры установлена на {}"/>
+  <translation tag="Chamber temp must be %s" ru="Температура камеры должна быть 0-%s"/>
   <translation tag="Chamber too hot" ru="Камера перегрета"/>
   <translation tag="Change" ru="Изменить"/>
   <translation tag="Change Address" ru="Изменить адрес"/>
@@ -793,6 +790,7 @@
   <translation tag="Choose rendering mode for bed mesh visualization" ru="Выберите режим рендеринга для визуализации сетки стола"/>
   <translation tag="Choose sound style" ru="Выберите стиль звука"/>
   <translation tag="Choose the model that matches your printer. This sets the print macros, fan roles and calibration behavior HelixScreen uses." ru="Выберите модель, соответствующую вашему принтеру. Это задаёт используемые HelixScreen макросы печати, роли вентиляторов и поведение калибровки."/>
+  <translation tag="Choose the order of day, month and year" ru="Выберите порядок дня, месяца и года"/>
   <translation tag="Choose what to power off or restart." ru="Выберите, что выключить или перезагрузить."/>
   <translation tag="Choose which lane is in the toolhead to unload it" ru="Выберите, какая дорожка в печатающей головке, чтобы выгрузить её"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" ru="Позиция жёлоба продувки: X {:.1f}, Y {:.1f}"/>
@@ -1061,7 +1059,7 @@
   <translation tag="Current Z Position" ru="Текущая позиция Z"/>
   <translation tag="Current name:" ru="Текущее имя:"/>
   <translation tag="Current:" ru="Текущий:"/>
-  <translation tag="Current: %d°C | Target: %d°C" ru="Текущая: %d°C | Целевая: %d°C"/>
+  <translation tag="Current: %s | Target: %s" ru="Текущая: %s | Целевая: %s"/>
   <translation tag="Currently Loaded" ru="Загружено"/>
   <translation tag="Currently printing" ru="Сейчас печатается"/>
   <translation tag="Currently:" ru="Сейчас:"/>
@@ -1102,14 +1100,16 @@
   <translation tag="Dark Mode" ru="Тёмный режим"/>
   <translation tag="Date (newest)" ru="Дата (новые)"/>
   <translation tag="Date (oldest)" ru="Дата (старые)"/>
+  <translation tag="Date Format" ru="Формат даты"/>
   <translation tag="Day" ru="День"/>
+  <translation tag="Day Month Year" ru="День Месяц Год"/>
   <translation tag="Debug" ru="Отладка"/>
   <translation tag="Deep Black" ru="Глубокий чёрный"/>
   <translation tag="Default" ru="По умолчанию"/>
   <translation tag="Default Parameters" ru="Параметры по умолчанию"/>
   <translation tag="Default border thickness" ru="Толщина границы по умолчанию"/>
-  <translation tag="Default: %s nozzle, %d°C bed" ru="По умолчанию: сопло %s, стол %d°C"/>
-  <translation tag="Default: %s nozzle, %d°C bed, %d°C chamber" ru="По умолчанию: сопло %s, стол %d°C, камера %d°C"/>
+  <translation tag="Default: %s nozzle, %s bed" ru="По умолчанию: сопло %s, стол %s"/>
+  <translation tag="Default: %s nozzle, %s bed, %s chamber" ru="По умолчанию: сопло %s, стол %s, камера %s"/>
   <translation tag="Defaults restored" ru="Настройки по умолчанию восстановлены"/>
   <translation tag="Define macros in your printer.cfg" ru="Определите макросы в вашем printer.cfg"/>
   <translation tag="Delete" ru="Удалить"/>
@@ -1418,6 +1418,7 @@
   <translation tag="FILAMENTS" ru="ФИЛАМЕНТЫ"/>
   <translation tag="FILTERS" ru="ФИЛЬТРЫ"/>
   <translation tag="Factory Reset" ru="Сброс к заводским настройкам"/>
+  <translation tag="Fahrenheit (°F)" ru="Фаренгейт (°F)"/>
   <translation tag="Failed" ru="Ошибка"/>
   <translation tag="Failed to apply limits" ru="Не удалось применить ограничения"/>
   <translation tag="Failed to apply settings" ru="Не удалось применить настройки"/>
@@ -1774,12 +1775,12 @@
   <translation tag="Heat nozzle" ru="Нагреть сопло"/>
   <translation tag="Heat soak" ru="Прогрев"/>
   <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options." ru="Прогрев камеры даёт корпусу нагреться перед печатью. Он показан, потому что у принтера есть макрос прогрева или он включён в настройках; HelixScreen предлагает этот макрос в параметрах перед печатью."/>
-  <translation tag="Heat the bed to {}°C" ru="Нагреть стол до {}°C"/>
+  <translation tag="Heat the bed to {}" ru="Нагреть стол до {}"/>
   <translation tag="Heat the chamber too" ru="Нагреть и камеру"/>
-  <translation tag="Heat the extruder to at least {}°C before loading filament" ru="Перед загрузкой филамента нагрейте экструдер минимум до {}°C"/>
+  <translation tag="Heat the extruder to at least {} before loading filament" ru="Перед загрузкой филамента нагрейте экструдер минимум до {}"/>
   <translation tag="Heat the hotend." ru="Нагрейте хотенд."/>
-  <translation tag="Heat to at least %d°C for filament operations" ru="Нагрейте минимум до %d°C для операций с филаментом"/>
-  <translation tag="Heat {} above {}°C before resuming" ru="Перед возобновлением нагрейте {} выше {}°C"/>
+  <translation tag="Heat to at least %s for filament operations" ru="Нагрейте минимум до %s для операций с филаментом"/>
+  <translation tag="Heat {} above {} before resuming" ru="Перед возобновлением нагрейте {} выше {}"/>
   <translation tag="Heatbed Temperature" ru="Температура стола"/>
   <translation tag="Heated Bed" ru="Подогреваемый стол"/>
   <translation tag="Heated Bed MPC Calibration" ru="Калибровка MPC стола"/>
@@ -1795,7 +1796,7 @@
   <translation tag="HeaterSelect" ru="Выбрать нагреватель"/>
   <translation tag="Heaters off" ru="Нагреватели выключены"/>
   <translation tag="Heating" ru="Нагрев"/>
-  <translation tag="Heating (%d°C below minimum)" ru="Нагрев (%d°C ниже минимума)"/>
+  <translation tag="Heating (%s below minimum)" ru="Нагрев (%s ниже минимума)"/>
   <translation tag="Heating Bed..." ru="Нагрев стола..."/>
   <translation tag="Heating Chamber..." ru="Нагрев камеры..."/>
   <translation tag="Heating Nozzle..." ru="Нагрев сопла..."/>
@@ -1813,16 +1814,16 @@
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" ru="Нагрев стола и сопла, чтобы печать снова прилипла, а сопло отделилось от неё"/>
   <translation tag="Heating the nozzle" ru="Нагрев сопла"/>
   <translation tag="Heating the nozzle. Have the filament ready to push in." ru="Сопло нагревается. Приготовьте филамент, чтобы вставить его."/>
-  <translation tag="Heating to %d°C... %.0f°C" ru="Нагрев до %d°C... %.0f°C"/>
+  <translation tag="Heating to %s... %s" ru="Нагрев до %s... %s"/>
   <translation tag="Heating to %s: %d:%02d left" ru="Нагрев до %s: осталось %d:%02d"/>
-  <translation tag="Heating to {}°C before {}..." ru="Нагрев до {}°C перед «{}»..."/>
-  <translation tag="Heating to {}°C for {}..." ru="Нагрев до {}°C в течение {}..."/>
-  <translation tag="Heating to {}°C..." ru="Нагрев до {}°C..."/>
+  <translation tag="Heating to {} before {}..." ru="Нагрев до {} перед «{}»..."/>
+  <translation tag="Heating to {} for {}..." ru="Нагрев до {} в течение {}..."/>
+  <translation tag="Heating to {}..." ru="Нагрев до {}..."/>
   <translation tag="Heating {}..." ru="Нагрев: {}..."/>
   <translation tag="Heating..." ru="Нагрев..."/>
-  <translation tag="Heating: %d / %d°C" ru="Нагрев: %d / %d°C"/>
-  <translation tag="Heats the bed to {:g}°C, above this printer&apos;s {:g}°C limit." ru="Нагревает стол до {:g}°C, выше предела этого принтера {:g}°C."/>
-  <translation tag="Heats the nozzle to {:g}°C, above this printer&apos;s {:g}°C limit." ru="Нагревает сопло до {:g}°C, выше предела этого принтера {:g}°C."/>
+  <translation tag="Heating: %d / %s" ru="Нагрев: %d / %s"/>
+  <translation tag="Heats the bed to {}, above this printer&apos;s {} limit." ru="Нагревает стол до {}, выше предела этого принтера {}."/>
+  <translation tag="Heats the nozzle to {}, above this printer&apos;s {} limit." ru="Нагревает сопло до {}, выше предела этого принтера {}."/>
   <translation tag="Heightmap and flatness of the active bed mesh" ru="Карта высот и ровность активной сетки стола"/>
   <translation tag="HelixPrint Plugin" ru="Плагин HelixPrint"/>
   <translation tag="HelixPrint plugin updated." ru="Плагин HelixPrint обновлён."/>
@@ -1854,7 +1855,7 @@
   <translation tag="Hold anywhere to cancel" ru="Удерживайте в любом месте для отмены"/>
   <translation tag="Hold slicer prints that do not fit" ru="Задерживать печать из слайсера, если файл не подходит"/>
   <translation tag="Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool." ru="Удерживайте {} плотно на головке. Защелка зафиксирует его, и он станет установленным инструментом."/>
-  <translation tag="Holding nozzle at {}°C to purge previous filament." ru="Удержание сопла при {}°C для очистки от предыдущего филамента."/>
+  <translation tag="Holding nozzle at {} to purge previous filament." ru="Удержание сопла при {} для очистки от предыдущего филамента."/>
   <translation tag="Home" ru="Главная"/>
   <translation tag="Home &amp; Continue" ru="Запарковать и продолжить"/>
   <translation tag="Home All" ru="Парковка всех осей"/>
@@ -2270,7 +2271,7 @@
   <translation tag="MMU command failed" ru="Ошибка команды MMU"/>
   <translation tag="MOTION &amp; LEVELING" ru="ДВИЖЕНИЕ И КАЛИБРОВКА"/>
   <translation tag="MPC" ru="MPC"/>
-  <translation tag="MPC thermal model calibrated for {} at {}°C." ru="Тепловая модель MPC откалибрована для {} при {}°C."/>
+  <translation tag="MPC thermal model calibrated for {} at {}." ru="Тепловая модель MPC откалибрована для {} при {}."/>
   <translation tag="Machine Limits" ru="Ограничения принтера"/>
   <translation tag="Macro" ru="Макрос"/>
   <translation tag="Macro Browser" ru="Обзор макросов"/>
@@ -2389,6 +2390,7 @@
   <translation tag="Monitor for print abnormalities (camera-based)" ru="Отслеживание дефектов печати (на основе камеры)"/>
   <translation tag="Monitoring" ru="Мониторинг"/>
   <translation tag="Month" ru="Месяц"/>
+  <translation tag="Month Day Year" ru="Месяц День Год"/>
   <translation tag="Moonraker" ru="Moonraker"/>
   <translation tag="Moonraker answered at {}." ru="Moonraker ответил по адресу {}."/>
   <translation tag="Moonraker at {} rejected the API key." ru="Moonraker по адресу {} отклонил API-ключ."/>
@@ -2667,8 +2669,8 @@
   <translation tag="Nozzle" ru="Сопло"/>
   <translation tag="Nozzle / Bed" ru="Сопло / Стол"/>
   <translation tag="Nozzle Clean" ru="Очистка сопла"/>
-  <translation tag="Nozzle Max (°C)" ru="Макс. сопло (°C)"/>
-  <translation tag="Nozzle Min (°C)" ru="Мин. сопло (°C)"/>
+  <translation tag="Nozzle Max" ru="Макс. сопло"/>
+  <translation tag="Nozzle Min" ru="Мин. сопло"/>
   <translation tag="Nozzle Moves" ru="Сопло движется"/>
   <translation tag="Nozzle Temp" ru="Темп. сопла"/>
   <translation tag="Nozzle Temperature" ru="Температура сопла"/>
@@ -2677,15 +2679,15 @@
   <translation tag="Nozzle clean complete" ru="Очистка сопла завершена"/>
   <translation tag="Nozzle clog detected" ru="Обнаружено засорение сопла"/>
   <translation tag="Nozzle diameter" ru="Диаметр сопла"/>
-  <translation tag="Nozzle did not reach {}°C — {} canceled" ru="Сопло не нагрелось до {}°C — «{}» отменено"/>
+  <translation tag="Nozzle did not reach {} — {} canceled" ru="Сопло не нагрелось до {} — «{}» отменено"/>
   <translation tag="Nozzle flow" ru="Поток сопла"/>
   <translation tag="Nozzle interval" ru="Интервал сопла"/>
   <translation tag="Nozzle min cannot exceed max" ru="Минимум сопла не может превышать максимум"/>
   <translation tag="Nozzle not changed: the printer did not confirm it" ru="Сопло не изменено: принтер не подтвердил"/>
   <translation tag="Nozzle not changed: {}" ru="Сопло не изменено: {}"/>
   <translation tag="Nozzle size and flow type per head" ru="Размер сопла и тип потока для каждой печатающей головки"/>
-  <translation tag="Nozzle target set to {}°C" ru="Целевая температура сопла {}°C"/>
-  <translation tag="Nozzle temp must be 100-%d°C" ru="Температура сопла должна быть 100-%d°C"/>
+  <translation tag="Nozzle target set to {}" ru="Целевая температура сопла {}"/>
+  <translation tag="Nozzle temp must be %s" ru="Температура сопла должна быть 100-%s"/>
   <translation tag="Nozzle, bed, and chamber in one widget" ru="Сопло, стол и камера в одном виджете"/>
   <translation tag="Nozzle:" ru="Сопло:"/>
   <translation tag="Nozzles still heating: {}" ru="Сопла всё ещё нагреваются: {}"/>
@@ -3533,7 +3535,7 @@
   <translation tag="Seat" ru="Установить"/>
   <translation tag="Seat a tool by hand" ru="Установить инструмент вручную"/>
   <translation tag="Seat a tool by hand for the first Z home" ru="Установить инструмент вручную для первой парковки Z"/>
-  <translation tag="Seat the hot ends, heat {} above {}°C, then tap Resume." ru="Установите хотэнды на место, нагрейте {} выше {}°C и нажмите «Продолжить»."/>
+  <translation tag="Seat the hot ends, heat {} above {}, then tap Resume." ru="Установите хотэнды на место, нагрейте {} выше {} и нажмите «Продолжить»."/>
   <translation tag="Seat which tool by hand?" ru="Какой инструмент установить вручную?"/>
   <translation tag="Seating {}..." ru="Установка {}..."/>
   <translation tag="Secondary" ru="Вторичный"/>
@@ -3615,7 +3617,7 @@
   <translation tag="Set duration between 1 and {} minutes" ru="Установите длительность от 1 до {} минут"/>
   <translation tag="Set local timezone for time display" ru="Установить часовой пояс для отображения времени"/>
   <translation tag="Set logging verbosity for troubleshooting" ru="Установить уровень детализации журнала для устранения неполадок"/>
-  <translation tag="Set temperature between {}°C and {}°C" ru="Установите температуру от {}°C до {}°C"/>
+  <translation tag="Set temperature between {} and {}" ru="Установите температуру от {} до {}"/>
   <translation tag="Set the X and Y belts with the motorized tensioners" ru="Натянуть ремни X и Y моторизованными натяжителями"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." ru="Настройте часы, тему и единицы. Всё это можно изменить позже в Настройках."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" ru="Задайте тип и цвет филамента для этого слота вручную. Если метка должна читаться, переустановите катушку этикеткой к считывателю, когда блок простаивает"/>
@@ -3645,6 +3647,7 @@
   <translation tag="Show Sections" ru="Показать разделы"/>
   <translation tag="Show Touch Points" ru="Показывать точки касания"/>
   <translation tag="Show a confirmation dialog when tapping a macro" ru="Показывать диалог подтверждения при нажатии на макрос"/>
+  <translation tag="Show and enter temperatures in Celsius or Fahrenheit" ru="Показывать и вводить температуру в градусах Цельсия или Фаренгейта"/>
   <translation tag="Show instead of dimming" ru="Показывать вместо затемнения"/>
   <translation tag="Show light controls for a light connected to this printer" ru="Показывать управление подсветкой, подключённой к этому принтеру"/>
   <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" ru="Показывать скорость и поток в мм/с и мм³/с вместо процентов"/>
@@ -3954,13 +3957,13 @@
   <translation tag="Telemetry queue cleared" ru="Очередь телеметрии очищена"/>
   <translation tag="Temp" ru="Темп."/>
   <translation tag="Temp Compensation" ru="Термокомпенсация"/>
-  <translation tag="Temp °C" ru="Темп. °C"/>
   <translation tag="Temperature" ru="Температура"/>
   <translation tag="Temperature Graph" ru="График температуры"/>
   <translation tag="Temperature Graph Config" ru="Настройка графика температуры"/>
   <translation tag="Temperature Sensors" ru="Датчики температуры"/>
+  <translation tag="Temperature Unit" ru="Единица температуры"/>
   <translation tag="Temperature and humidity sensor not responding" ru="Датчик температуры и влажности не отвечает"/>
-  <translation tag="Temperature control optimized for {} at {}°C." ru="Управление температурой оптимизировано для {} при {}°C."/>
+  <translation tag="Temperature control optimized for {} at {}." ru="Управление температурой оптимизировано для {} при {}."/>
   <translation tag="Temperatures" ru="Температуры"/>
   <translation tag="Temperatures plotted over time" ru="Температуры во времени"/>
   <translation tag="Temperatures saved" ru="Температуры сохранены"/>
@@ -3984,7 +3987,7 @@
   <translation tag="Test Screensaver" ru="Проверить заставку"/>
   <translation tag="Test Tracker" ru="Трекер тестов"/>
   <translation tag="Test label printed" ru="Тестовая этикетка напечатана"/>
-  <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}°C." ru="Тестовая башня шириной {:.0f} мм и высотой {:.0f} мм, около {} мин плюс нагрев: {} полос по {:.0f} мм при {}°C."/>
+  <translation tag="Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}." ru="Тестовая башня шириной {:.0f} мм и высотой {:.0f} мм, около {} мин плюс нагрев: {} полос по {:.0f} мм при {}."/>
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" ru="Тест поворота: %d° (%d/%d) - осталось %ds"/>
   <translation tag="Testing, servo, and motor operations" ru="Тестирование, сервопривод и работа моторов"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." ru="Спасибо! Анонимные данные использования помогают улучшить HelixScreen."/>
@@ -4066,11 +4069,11 @@
   <translation tag="The loaded slot is not known yet" ru="Загруженный слот пока неизвестен"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." ru="Загружена катушка {}, но файл нарезан для {}. Филамент с наполнителем печатается с меньшим потоком и требует закалённого сопла."/>
   <translation tag="The message your printer&apos;s macros show (M117)" ru="Сообщение, которое показывают макросы принтера (M117)"/>
-  <translation tag="The mounted nozzle heats to 200°C and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes." ru="Установленное сопло нагреется до 200°C и снова остынет, пока определяется модель безопасности нагревателя. Держите обдув выключенным, а горючие материалы подальше от головки. Это займёт несколько минут."/>
+  <translation tag="The mounted nozzle heats to {} and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes." ru="Установленное сопло нагреется до {} и снова остынет, пока определяется модель безопасности нагревателя. Держите обдув выключенным, а горючие материалы подальше от головки. Это займёт несколько минут."/>
   <translation tag="The new IPv4 settings could not be marked as kept, so the next start undoes them." ru="Не удалось отметить новые настройки IPv4 как сохранённые, поэтому при следующем запуске они будут отменены."/>
   <translation tag="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself." ru="Сопло делает несколько коротких тестовых перемещений в углу, в стороне от зоны печати, и повторяет их до сходимости."/>
   <translation tag="The nozzle hasn&apos;t moved since the power went out. Check that it sits just above the top of the print, then resume." ru="Сопло не двигалось с момента отключения питания. Убедитесь, что оно чуть выше верха печати, затем продолжите."/>
-  <translation tag="The nozzle heats to 200°C while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes." ru="Сопло нагреется до 200°C, пока обдув перебирает скорости. Для точного результата установите воздуховод так же, как при печати. Это займёт несколько минут."/>
+  <translation tag="The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes." ru="Сопло нагреется до {}, пока обдув перебирает скорости. Для точного результата установите воздуховод так же, как при печати. Это займёт несколько минут."/>
   <translation tag="The nozzle is clear of the print" ru="Сопло не касается печати"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." ru="Сопло горячее. Очистите его металлической щёткой из комплекта, держите место парковки чистым и нажмите «Далее»."/>
   <translation tag="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at." ru="Сопло поднято над печатью, X и Y запаркованы. При продолжении оно опустится на высоту, где остановилось."/>
@@ -4096,7 +4099,7 @@
   <translation tag="The print is on its last layer." ru="Печатается последний слой."/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." ru="Печать на паузе. Смена инструмента сейчас переместит печатающую головку и заменит филамент в сопле. Возобновите печать после завершения смены."/>
   <translation tag="The print is still stuck to the bed" ru="Модель всё ещё держится на столе"/>
-  <translation tag="The print is waiting for the chamber to reach {}°C, but the heater is not heating." ru="Печать ждёт, пока камера нагреется до {}°C, но нагреватель не греет."/>
+  <translation tag="The print is waiting for the chamber to reach {}, but the heater is not heating." ru="Печать ждёт, пока камера нагреется до {}, но нагреватель не греет."/>
   <translation tag="The print is waiting for the chamber, but the heater is not heating." ru="Печать ждёт камеру, но нагреватель не греет."/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." ru="Размер области печати в миллиметрах (X × Y × Z) по пределам осей в конфигурации Klipper принтера."/>
   <translation tag="The printer applied this value and keeps it for this tool." ru="Принтер применил это значение и сохранил его для этого инструмента."/>
@@ -4577,8 +4580,8 @@
   <translation tag="Waiting for another box to finish." ru="Ожидание завершения другой коробки."/>
   <translation tag="Waiting for bed temperature..." ru="Ожидание температуры стола..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." ru="Ожидание нагрева стола для точной калибровки."/>
-  <translation tag="Waiting for chamber {} / {}°C" ru="Ожидание камеры {} / {}°C"/>
-  <translation tag="Waiting for chamber {}°C" ru="Ожидание камеры {}°C"/>
+  <translation tag="Waiting for chamber {}" ru="Ожидание камеры {}"/>
+  <translation tag="Waiting for chamber {} / {}" ru="Ожидание камеры {} / {}"/>
   <translation tag="Waiting for the chamber to heat" ru="Ожидание нагрева камеры"/>
   <translation tag="Waiting for the filament system to report its state" ru="Ожидание состояния системы филамента"/>
   <translation tag="Waiting for the printer" ru="Ожидание принтера"/>
@@ -4682,6 +4685,7 @@
   <translation tag="Y:" ru="Y:"/>
   <translation tag="YOU WIN!&#10;Score: {}&#10;Tap to play again" ru="ПОБЕДА!&#10;Счёт: {}&#10;Нажмите, чтобы сыграть снова"/>
   <translation tag="Year" ru="Год"/>
+  <translation tag="Year Month Day" ru="Год Месяц День"/>
   <translation tag="Yes" ru="Да"/>
   <translation tag="You can skip this and calibrate later in Settings." ru="Вы можете пропустить это и откалибровать позже в настройках."/>
   <translation tag="You have unsaved changes. Discard them?" ru="У вас есть несохранённые изменения. Отменить их?"/>

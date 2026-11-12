@@ -17,6 +17,7 @@
 #include "ui_utils.h"
 
 #include "border_radius_sizes.h"
+#include "core/temperature_units.h"
 #include "display_settings_manager.h"
 #include "lvgl.h"
 #include "settings_manager.h"
@@ -91,6 +92,11 @@ void AppearanceSettingsOverlay::register_callbacks() {
         {"on_speed_flow_units_changed",
          [](lv_event_t* e) {
              DisplaySettingsManager::instance().set_speed_flow_physical_units(event_checked(e));
+         }},
+        {"on_temp_unit_changed",
+         [](lv_event_t* e) {
+             DisplaySettingsManager::instance().set_temp_unit(
+                 static_cast<units::TempUnit>(event_selected(e)));
          }},
         {"on_bed_mesh_mode_changed",
          [](lv_event_t* e) {

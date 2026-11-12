@@ -3,6 +3,8 @@
 #include "chamber_air_state.h"
 
 #include "chamber_air_settings.h"
+#include "core/observer_factory.h"
+#include "core/temperature_units.h"
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
 
@@ -46,6 +48,15 @@ void ChamberAirState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(chamber_air_exhaust_target_pct, d.exhaust_pct, subjects_, register_xml);
     INIT_SUBJECT_INT(chamber_air_recirculate_target_pct, d.recirculate_pct, subjects_,
                      register_xml);
+    INIT_SUBJECT_STRING(chamber_air_target_text, "", subjects_, register_xml);
+    // Immediate: the handler only copies a string, and the slider drags it live.
+    target_text_observer_ = observe<int>(
+        &chamber_air_target_c_, this,
+        [](ChamberAirState* self, int celsius) {
+            lv_subject_copy_string(&self->chamber_air_target_text_,
+                                   units::format_display_temp(celsius).c_str());
+        },
+        subjects_.get_subjects_lifetime(), ui::Dispatch::Immediate);
     subjects_initialized_ = true;
 }
 
@@ -53,6 +64,7 @@ void ChamberAirState::deinit_subjects() {
     if (!subjects_initialized_) {
         return;
     }
+    target_text_observer_.reset();
     subjects_.deinit_all();
     subjects_initialized_ = false;
 }
