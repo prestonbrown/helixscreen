@@ -1,6 +1,10 @@
 # Every image the docs show: how to regenerate it, or where it came from.
 # Schema and the capture: scripts/doc_screenshots.py. Regenerate: make doc-screenshots.
 images:
+  - path: assets/images/helix-icon-256.png
+    kind: manual
+    source: the app icon, assets/images/helix-icon-256.png
+    recapture: not a capture; it changes only when the icon does
   - path: docs/images/mm-1x1-crop.png
     kind: manual
     source: captured by hand before the manifest existed
@@ -202,10 +206,6 @@ images:
   - path: docs/images/user/controls-extrusion.png
     kind: app
     recipe: extrusion
-  - path: docs/images/user/controls-fan-detail.png
-    kind: manual
-    source: captured by hand before the manifest existed
-    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
   - path: docs/images/user/controls-fan.png
     kind: app
     recipe: fan
@@ -222,16 +222,10 @@ images:
     kind: manual
     source: captured by hand before the manifest existed
     recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
-  - path: docs/images/user/controls.png
-    kind: app
-    recipe: controls
   - path: docs/images/user/filament-preset-picker.png
     kind: manual
     source: captured by hand before the manifest existed
     recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
-  - path: docs/images/user/filament.png
-    kind: app
-    recipe: filament
   - path: docs/images/user/home-carousel-modes.png
     kind: manual
     source: captured by hand before the manifest existed
@@ -479,14 +473,6 @@ images:
     source: captured by hand before the manifest existed
     recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
   - path: docs/images/user/wizard-connection.png
-    kind: manual
-    source: captured by hand before the manifest existed
-    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
-  - path: docs/images/user/wizard-hardware.png
-    kind: manual
-    source: captured by hand before the manifest existed
-    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
-  - path: docs/images/user/wizard-language.png
     kind: manual
     source: captured by hand before the manifest existed
     recapture: turn into an app entry in its docs-sweep wave, or describe the capture here

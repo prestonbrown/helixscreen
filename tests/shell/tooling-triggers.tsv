@@ -219,3 +219,4 @@ tests/shell/test_xml_create_then_hide_gate.bats	scripts/check_source_rules.py sc
 tests/shell/test_xml_schema_staleness_gate.bats	Makefile assets/config/themes/defaults/ include/printer_state.h lib/helix-xml mk/tools.mk scripts/qc/_lib.sh scripts/qc/xml_linter.sh src/ui/components/ui_switch.cpp tools/xml-linter/schema/extract_schema.py tools/xml-linter/schema/schema.json ui_xml/globals.xml
 tests/shell/test_xml_validator_tools_gate.bats	scripts/qc/xml_const.sh scripts/qc/xml_tools.sh scripts/quality-checks.sh tests/unit/test_ui_theme_constants.cpp
 tests/shell/test_zoneinfo_bundle_gate.bats	assets/zoneinfo/ scripts/regen_zoneinfo.sh src/system/display_settings_manager.cpp
+tests/shell/test_doc_images_gate.bats	scripts/check_doc_images.py scripts/qc/doc_images.sh scripts/quality-checks.sh
