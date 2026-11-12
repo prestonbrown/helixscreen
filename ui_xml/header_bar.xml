@@ -160,7 +160,7 @@
       <bind_style_if_eq name="header_title_inset_micro" subject="ui_breakpoint" ref_value="0"/>
       <bind_style_if_ge name="header_title_inset" subject="ui_breakpoint" ref_value="1"/>
       <event_cb trigger="clicked" callback="$back_button_callback"/>
-      <icon src="back" size="lg" variant="text" clickable="false" event_bubble="true"/>
+      <icon name="back_icon" src="back" size="lg" variant="text" clickable="false" event_bubble="true"/>
       <!-- bind_text is deliberately FIRST. An unsupplied title_subject resolves to the
            empty name, which is a registered no-op INT subject, and binding to that
            stamps "0" over the title. Applying text/translation_tag afterwards puts the

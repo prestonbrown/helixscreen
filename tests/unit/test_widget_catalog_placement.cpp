@@ -63,7 +63,7 @@ namespace {
 // assert. ("lock" took this role after "shutdown" grew the
 // platform_host_power_supported gate.)
 constexpr const char* kPlacedId = "lock";            // enabled, has a cell
-constexpr const char* kLimboId = "motion";           // enabled, no cell
+constexpr const char* kLimboId = "macros";           // enabled, no cell
 constexpr const char* kDisabledId = "gcode_console"; // not enabled
 constexpr const char* kMultiId = "favorite_macro";   // multi_instance base
 

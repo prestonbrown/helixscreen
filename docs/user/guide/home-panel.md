@@ -98,6 +98,15 @@ The dashboard supports up to **8 pages**. At the limit there is no Add page tile
 
 While in Edit Mode, any page other than the main page shows a **red trash button** in its top-right corner (it appears only when you have more than one page). Tap it, confirm, and the page is removed along with every widget on it. The main page has no delete button.
 
+### Full-Page Widgets
+
+**Motion**, **Nozzle Temperature**, **Bed Temperature** and **Chamber Temperature** can fill a whole page. Put one of them on any page other than the main page and resize it to cover the entire page: it then shows the same controls its tile would open (jogging and homing for Motion, the temperature graph and presets for a heater) right on the page, so you reach them by swiping.
+
+- These widgets can be added more than once, so you can keep the small tile on your main page and a full page elsewhere. Tapping the small tile then takes you to its full page instead of opening the controls over the dashboard. The Toolhead widget's tap goes to the Motion page the same way.
+- A thin bar at the bottom of a full page is always free to swipe on, so you can leave the page even when its controls cover everything else.
+- Shrink the widget, or move it to the main page, and it goes back to being a normal tile.
+- The controls are built when you swipe to the page and released when you leave it, so a full page costs memory only while it is on screen.
+
 ---
 
 ## Edit Mode

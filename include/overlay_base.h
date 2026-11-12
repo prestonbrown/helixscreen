@@ -153,6 +153,30 @@ class OverlayBase : public ViewLifecycleBase {
     bool show(lv_obj_t* parent_screen);
 
     /**
+     * @brief Build this overlay's tree inside @p container, off the navigation stack
+     *
+     * The full-page form of a home widget (prestonbrown/helixscreen#1931) hosts the
+     * overlay it would otherwise open: the same create(), callbacks and subjects,
+     * parented to the page instead of the screen. The root fills the container, the
+     * header's back affordance is disarmed (there is nothing to go back to), and the
+     * overlay is activated. Nothing is pushed or registered with NavigationManager.
+     *
+     * @return false, building nothing, while the overlay's tree already exists (it is
+     *         open on the stack, or embedded elsewhere)
+     */
+    bool embed(lv_obj_t* container);
+
+    /**
+     * @brief Deactivate and free a tree embed() built; no-op when none is embedded
+     */
+    void release_embed();
+
+    /// Whether the current tree was built by embed().
+    bool is_embedded() const {
+        return embedded_ && overlay_root_;
+    }
+
+    /**
      * @brief Close this overlay through NavigationManager::close_overlay()
      *
      * Pops it when on top, drops it silently when buried, no-op when it is
@@ -456,6 +480,11 @@ class OverlayBase : public ViewLifecycleBase {
     /// a root freed with its screen still reads non-null in overlay_root_.
     lv_obj_t* shown_root_ = nullptr;
     helix::ui::WidgetRef shown_root_ref_;
+
+    /// The tree was built by embed(); show() releases it before building its own.
+    bool embedded_ = false;
+    /// parent_screen_ as it was before embed() pointed it at the host container.
+    helix::ui::WidgetRef screen_before_embed_;
 
     /// Expires only with this object: destroy_overlay_ui() hands it to
     /// teardown_overlay_ui() as the owner that must outlive its drain.

@@ -527,15 +527,31 @@ struct TileCell {
     int col, row, colspan, rowspan;
 };
 
+/// The home page a tile is placed on and the panel's main page, for
+/// cell_fills_extra_page().
+struct TilePage {
+    int index;
+    int main_index;
+};
+
+TilePage tile_page(PanelWidgetConfig& config, int page_index) {
+    return {page_index, static_cast<int>(config.main_page_index())};
+}
+
 // Tell a tile the cell it holds: its attached instance (if any) through
 // notify_size_changed(), which records the grant first so a widget that
 // rebuilds its contents later lays them out against the same cell, and the AMS
 // mini status (a pure XML widget) its width.
 void announce_tile_size(lv_obj_t* tile, const std::string& widget_id, PanelWidget* instance,
-                        const TileCell& cell, const CellMetrics& metrics) {
+                        const TileCell& cell, const CellMetrics& metrics, const TilePage& page) {
     const int width =
         static_cast<int>(grid_track_extent(metrics.cell_w, metrics.gutter, cell.colspan));
     if (instance) {
+        instance->set_page_placement(
+            page.index,
+            cell_fills_extra_page(page.index, page.main_index,
+                                  TrackRect{cell.col, cell.row, cell.colspan, cell.rowspan},
+                                  metrics.cols, metrics.rows));
         instance->notify_size_changed(
             cell.colspan, cell.rowspan, width,
             static_cast<int>(grid_track_extent(metrics.cell_h, metrics.gutter, cell.rowspan)));
@@ -552,7 +568,7 @@ void announce_tile_size(lv_obj_t* tile, const std::string& widget_id, PanelWidge
 // the gated treatment or the attached PanelWidget (moved into @p result), and
 // the size notification. Returns the tile root, or nullptr if creation failed.
 lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cell,
-                      const CellMetrics& metrics,
+                      const CellMetrics& metrics, const TilePage& page,
                       std::vector<std::unique_ptr<PanelWidget>>& result) {
     const auto t_create = std::chrono::steady_clock::now();
 
@@ -639,7 +655,7 @@ lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cel
         attached = slot.instance.get();
         result.push_back(std::move(slot.instance));
     }
-    announce_tile_size(widget, slot.widget_id, attached, cell, metrics);
+    announce_tile_size(widget, slot.widget_id, attached, cell, metrics, page);
     log_if_slow_build(slot.widget_id.c_str(), t_create, t_attach);
     return widget;
 }
@@ -1523,7 +1539,8 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
         {
 #endif
             create_tile(container, enabled_widgets[p.slot_index],
-                        TileCell{p.col, p.row, p.colspan, p.rowspan}, metrics, result);
+                        TileCell{p.col, p.row, p.colspan, p.rowspan}, metrics,
+                        tile_page(widget_config, page_index), result);
 #if defined(__cpp_exceptions)
         } catch (const std::exception& e) {
             spdlog::error("[PanelWidgetManager] Widget '{}' creation failed: {}",
@@ -1674,7 +1691,9 @@ PanelWidgetManager::swap_gated_tiles(const std::string& panel_id, lv_obj_t* cont
 #else
         {
 #endif
-            if (lv_obj_t* tile = create_tile(container, *slot, t.cell, metrics, attached)) {
+            if (lv_obj_t* tile =
+                    create_tile(container, *slot, t.cell, metrics,
+                                tile_page(get_widget_config(panel_id), page_index), attached)) {
                 lv_obj_move_to_index(tile, static_cast<int32_t>(t.index));
             }
 #if defined(__cpp_exceptions)
@@ -1868,13 +1887,14 @@ bool PanelWidgetManager::relayout_tiles_impl(const std::string& panel_id, lv_obj
     if (resized) {
         announce_tile_size(resized->tile, resized_id,
                            instance != widgets.end() ? instance->get() : nullptr, resized->cell,
-                           metrics);
+                           metrics, tile_page(get_widget_config(panel_id), page_index));
     }
     if (reseat_all) {
         for (const auto& seat : seats) {
             if (seat.span_changed) {
                 announce_tile_size(seat.tile, seat.entry->id, instance_for(seat.entry->id),
-                                   seat.cell, metrics);
+                                   seat.cell, metrics,
+                                   tile_page(get_widget_config(panel_id), page_index));
             }
         }
     }

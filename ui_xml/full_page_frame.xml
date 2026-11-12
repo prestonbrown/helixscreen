@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!--
+    The full-page face of a home widget (prestonbrown/helixscreen#1931). The
+    widget's FullPageHost builds its overlay's tree inside full_page_body while
+    the page is on screen; until then, and whenever the overlay is open on the
+    stack instead, the placeholder shows the widget's icon and name.
+
+    The swipe strip takes no press of its own, so a drag that starts on it
+    reaches the home carousel: on a small screen the controls above can cover
+    every other pixel of the page.
+  -->
+  <consts>
+    <px name="full_page_strip_h_micro" value="24"/>
+    <px name="full_page_strip_h_tiny" value="24"/>
+    <px name="full_page_strip_h_small" value="28"/>
+    <px name="full_page_strip_h_medium" value="32"/>
+    <px name="full_page_strip_h_large" value="36"/>
+    <px name="full_page_strip_h_xlarge" value="40"/>
+    <px name="full_page_strip_h_xxlarge" value="48"/>
+    <px name="full_page_handle_w" value="48"/>
+    <px name="full_page_handle_h" value="4"/>
+  </consts>
+  <api>
+    <prop name="icon" type="string" default="cursor_move"/>
+    <prop name="label" type="string" default=""/>
+    <prop name="label_tag" type="string" default=""/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" height="100%" style_pad_all="0" style_pad_gap="0" scrollable="false" clickable="false"
+        event_bubble="true" flex_flow="column">
+    <lv_obj name="full_page_body"
+            width="100%" flex_grow="1" style_pad_all="0" scrollable="false" clickable="false" event_bubble="true">
+      <lv_obj name="full_page_placeholder"
+              width="content" height="content" align="center" style_pad_all="0" style_pad_gap="#space_sm"
+              flex_flow="column" style_flex_cross_place="center" scrollable="false" clickable="false"
+              event_bubble="true">
+        <icon src="$icon" size="xl" variant="secondary" clickable="false" event_bubble="true"/>
+        <text_body text="$label" translation_tag="$label_tag" clickable="false" event_bubble="true"/>
+      </lv_obj>
+    </lv_obj>
+    <lv_obj name="full_page_swipe_strip"
+            width="100%" height="#full_page_strip_h" style_pad_all="0" scrollable="false" clickable="false"
+            event_bubble="true">
+      <lv_obj name="full_page_swipe_handle"
+              width="#full_page_handle_w" height="#full_page_handle_h" align="center" style_radius="#full_page_handle_h"
+              style_bg_color="#text_muted" style_bg_opa="160" style_border_width="0" scrollable="false"
+              clickable="false" event_bubble="true"/>
+    </lv_obj>
+  </view>
+</component>

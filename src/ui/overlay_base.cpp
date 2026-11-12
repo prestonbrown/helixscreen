@@ -112,6 +112,9 @@ lv_obj_t* OverlayBase::create(lv_obj_t* parent) {
 
 bool OverlayBase::show(lv_obj_t* parent_screen) {
     const auto requested_at = std::chrono::steady_clock::now();
+    // One tree at a time: a page hosting this overlay gives it up, and builds it
+    // again the next time that page is shown.
+    release_embed();
     if (parent_screen) {
         parent_screen_ = parent_screen;
     }
@@ -164,6 +167,66 @@ bool OverlayBase::show(lv_obj_t* parent_screen) {
     helix::nav::overlay_open_requested(overlay_root_, get_name(), builds_tree, requested_at);
     helix::nav::push_overlay(overlay_root_);
     return true;
+}
+
+bool OverlayBase::embed(lv_obj_t* container) {
+    if (!container) {
+        return false;
+    }
+    if (overlay_root_) {
+        spdlog::debug("[{}] embed refused: its tree is built ({})", get_name(),
+                      embedded_ ? "embedded" : "on the stack");
+        return false;
+    }
+    if (!subjects_initialized_) {
+        init_subjects();
+        subjects_initialized_ = true;
+    }
+    screen_before_embed_ = parent_screen_;
+    register_callbacks(); // XML callback slots are last-write-wins
+    lv_obj_t* root = create(container);
+    // create() points parent_screen_ at its parent. Anything the overlay opens from
+    // here (keypads, modals) belongs on the screen, not clipped inside the page.
+    parent_screen_ = screen_before_embed_ ? screen_before_embed_.get() : lv_screen_active();
+    if (!root) {
+        spdlog::error("[{}] embed: create() failed", get_name());
+        return false;
+    }
+    overlay_root_ = root;
+    embedded_ = true;
+    open_overlays().add(this);
+
+    // The root is authored as a screen-anchored overlay; in a page it fills its host.
+    lv_obj_set_align(root, LV_ALIGN_TOP_LEFT); // DECLARATIVE_OK: overlay root reused in a page host
+    lv_obj_set_pos(root, 0, 0);                // DECLARATIVE_OK: overlay root reused in a page host
+    lv_obj_set_size(root, LV_PCT(100),
+                    LV_PCT(100));   // DECLARATIVE_OK: overlay root reused in a page host
+    lv_obj_set_hidden(root, false); // DECLARATIVE_OK: create() builds every overlay hidden
+    if (lv_obj_t* back = lv_obj_find_by_name(root, "back_button")) {
+        lv_obj_set_clickable(back, false); // DECLARATIVE_OK: a page has no back
+        if (lv_obj_t* icon = lv_obj_find_by_name(back, "back_icon")) {
+            lv_obj_set_hidden(icon, true); // DECLARATIVE_OK: a page has no back
+        }
+    }
+    spdlog::debug("[{}] embedded in a page host", get_name());
+    on_activate();
+    return true;
+}
+
+void OverlayBase::release_embed() {
+    if (!embedded_) {
+        return;
+    }
+    embedded_ = false;
+    on_deactivate(DeactivateReason::NavigateAway);
+    if (overlay_root_) {
+        destroy_overlay_ui();
+    } else {
+        // The host deleted the tree with its page: drop what pointed into it.
+        open_overlays().remove(this);
+        on_ui_destroyed();
+    }
+    spdlog::debug("[{}] released its page host", get_name());
 }
 
 void OverlayBase::report_foreign_close_callback() const {

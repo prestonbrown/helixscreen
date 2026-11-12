@@ -567,6 +567,40 @@ opens from the face or from the mounted segment. A printer with more heads than 
 pools hold (`ToolSwitcherWidget::kPoolSize`) is decided as unrailable and gets the face and
 the picker.
 
+### Full-page widgets
+
+A widget whose tap opens an overlay can show that overlay's own controls in place when
+it fills a page (prestonbrown/helixscreen#1931). It is a size, not a page type: nothing
+new is saved, and a full page is just an entry spanning the whole grid of a page other
+than the main page. Motion and the three heater tiles opt in.
+
+- **The rule** is `helix::cell_fills_extra_page()` (`include/grid_layout.h`). The manager
+  evaluates it for every tile in `announce_tile_size()` and hands the answer to the widget
+  through `PanelWidget::set_page_placement()` right before `notify_size_changed()`, so an
+  `on_size_changed()` reads `fills_extra_page()` and `page_index()` for the placement it
+  belongs to, on a populate, a gated swap and an in-place resize alike.
+- **The host** is `helix::FullPageHost` (`src/ui/panel_widgets/full_page_host.h`), built in
+  the widget's constructor. It publishes `<instance>_full_page` (prop `full_page_subject`),
+  which the tile's XML uses to hide its compact face and show `full_page_frame`
+  (`ui_xml/full_page_frame.xml`): a `full_page_body` and a non-clickable swipe strip, so a
+  drag that starts there always reaches the carousel. The widget forwards `attach`,
+  `detach`, `on_activate`, `on_deactivate` and its placement.
+- **One set of controls.** While the page is shown the host builds the overlay's own tree in
+  `full_page_body` with `OverlayBase::embed()`: the same `create()`, callbacks and subjects,
+  off the navigation stack, with the header's back affordance disarmed. `release_embed()`
+  frees it when the page goes off screen or the home panel is covered.
+  `OverlayBase::show()` releases an embedded tree first, so an open from elsewhere (the
+  Controls panel) always gets its tree on the stack. An overlay with a mode embeds through
+  its own entry point (`TempGraphOverlay::embed_in()`), never `before_show()`, which
+  registers with NavigationManager.
+- **Jumps.** Each host names the function it serves (`"motion"`, `"temp:<widget id>"`).
+  A tile that would open that overlay asks `jump_to_full_page()` first, which moves the
+  carousel through `HomePanel::show_page()`; it opens the overlay only when there is no
+  full page. The widget ids are `multi_instance` so a compact tile and a full page can
+  coexist. A build that predates this keeps `motion:1` in the page's `retained` list.
+- **Edit mode.** A tree embedded while the session holds the page is disarmed with
+  `disable_widget_clicks_recursive()`, so the session's restore re-arms it with the rest.
+
 ### Engine contracts this pattern relies on
 
 - A `<style>` carrying `flex_flow` must ALSO carry `layout="flex"` — the
