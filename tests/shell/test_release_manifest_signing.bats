@@ -63,6 +63,10 @@ if sig < 0: bad.append("no upload of the channel's manifest.json.minisig")
 if man < 0: bad.append("no upload of the channel's manifest.json")
 if sig >= 0 and man >= 0 and sig > man: bad.append("the signature uploads after the manifest")
 if served < 0: bad.append("the served signature is not compared with the one signed")
+# A transient miss on one channel must not cost the later channels their upload.
+loop = run.rfind("for attempt in 1 2 3 4; do", 0, served)
+if served >= 0 and (loop < 0 or "sig_served=true; break" not in run[served:served + 200]):
+    bad.append("the served-signature check is not retried")
 print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
     [ "$status" -eq 0 ] || fail "$output"
@@ -135,8 +139,9 @@ keypair() {
         HELIX_RELEASE_MINISIGN_PASSWORD=pw \
         "$SIGN" --mode publish --pubkey "$BATS_TEST_TMPDIR/rel.pub" "$M"
     [ "$status" -eq 0 ] || fail "$output"
-    run minisign -V -H -q -p "$BATS_TEST_TMPDIR/rel.pub" -m "$M" -x "$M.minisig"
+    run minisign -V -H -p "$BATS_TEST_TMPDIR/rel.pub" -m "$M" -x "$M.minisig"
     [ "$status" -eq 0 ] || fail "$output"
+    [[ "$output" == *"Trusted comment: file:manifest.json channel:beta"* ]] || fail "$output"
 }
 
 @test "a release whose secret is not the public key's pair fails and leaves no signature" {

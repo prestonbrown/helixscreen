@@ -74,10 +74,14 @@ fi
 
 for m in "$@"; do
     rm -f "$m.minisig"
+    # The signed comment names the file as published (<channel>/manifest.json), not the
+    # local manifest-<channel>.json it is signed from.
+    channel=$(basename "$m" .json)
+    trusted="file:manifest.json channel:${channel#manifest-}"
     if [[ -n "$password" ]]; then
-        printf '%s\n' "$password" | minisign -S -s "$seckey" -m "$m" -x "$m.minisig" >/dev/null
+        printf '%s\n' "$password" | minisign -S -s "$seckey" -m "$m" -x "$m.minisig" -t "$trusted" >/dev/null
     else
-        minisign -S -s "$seckey" -m "$m" -x "$m.minisig" </dev/null >/dev/null
+        minisign -S -s "$seckey" -m "$m" -x "$m.minisig" -t "$trusted" </dev/null >/dev/null
     fi
     # -H refuses a legacy (not prehashed) signature, as the installer does.
     if ! minisign -V -H -q -p "$verify_with" -m "$m" -x "$m.minisig"; then
