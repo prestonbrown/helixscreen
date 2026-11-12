@@ -38,9 +38,47 @@ platform_stop_competing_uis() {
     _ensure_ssh_running
 }
 
+# Where each launch and stop records whether SSH is up. /usr/data survives
+# reboots and updates; /tmp and /var/log do not. A printer that loses SSH
+# keeps the moment it went missing here.
+K1_SSH_LOG="/usr/data/helixscreen-state/logs/ssh.log"
+K1_SSH_LOG_MAX_BYTES=65536
+
+# dropbear's pids and whether anything listens on port 22, as one line.
+# scripts/lib/installer/competing_uis.sh#log_k1_ssh_state is the installer's
+# copy; this file ships without the installer modules beside it.
+_k1_ssh_state() {
+    _kss_pids=$(pidof dropbear 2>/dev/null || true)
+    _kss_listen=unknown
+    if command -v netstat >/dev/null 2>&1; then
+        if netstat -tln 2>/dev/null | grep -q ':22 '; then
+            _kss_listen=yes
+        else
+            _kss_listen=no
+        fi
+    fi
+    printf 'dropbear=%s port22=%s' "${_kss_pids:-none}" "$_kss_listen"
+}
+
+# Append one timestamped line to K1_SSH_LOG, keeping the newer half once it
+# outgrows K1_SSH_LOG_MAX_BYTES. Never fails the caller.
+_k1_ssh_log() {
+    mkdir -p "$(dirname "$K1_SSH_LOG")" 2>/dev/null || return 0
+    if [ -f "$K1_SSH_LOG" ]; then
+        _ksl_size=$(wc -c < "$K1_SSH_LOG" 2>/dev/null || echo 0)
+        if [ "$_ksl_size" -gt "$K1_SSH_LOG_MAX_BYTES" ]; then
+            tail -c $((K1_SSH_LOG_MAX_BYTES / 2)) "$K1_SSH_LOG" > "$K1_SSH_LOG.tmp" 2>/dev/null &&
+                mv -f "$K1_SSH_LOG.tmp" "$K1_SSH_LOG" 2>/dev/null
+        fi
+    fi
+    printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >> "$K1_SSH_LOG" 2>/dev/null || true
+    return 0
+}
+
 # Ensure SSH (dropbear) is running. On stock K1, dropbear is started by
 # S99start_app which we disable. Start it independently if needed.
 _ensure_ssh_running() {
+    _k1_ssh_log "launch: $(_k1_ssh_state)"
     # Already running — nothing to do
     if pidof dropbear >/dev/null 2>&1; then
         return 0
@@ -52,6 +90,7 @@ _ensure_ssh_running() {
         chmod +x "$script" 2>/dev/null || true
         "$script" start 2>/dev/null || true
         if pidof dropbear >/dev/null 2>&1; then
+            _k1_ssh_log "launch: started via $script: $(_k1_ssh_state)"
             return 0
         fi
     done
@@ -81,6 +120,9 @@ esac
 INITEOF
             chmod +x /etc/init.d/S50dropbear
         fi
+        _k1_ssh_log "launch: started $dropbear_bin directly: $(_k1_ssh_state)"
+    else
+        _k1_ssh_log "launch: no dropbear binary found, SSH stays down"
     fi
 }
 
@@ -125,5 +167,5 @@ platform_pre_start() {
 }
 
 platform_post_stop() {
-    :
+    _k1_ssh_log "stop: $(_k1_ssh_state)"
 }
