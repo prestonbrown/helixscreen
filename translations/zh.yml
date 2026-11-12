@@ -449,7 +449,7 @@ translations:
   Bed mesh...: 热床网格...
   Bed size unknown: '热床尺寸未知'
   Bed target set to {}: 热床目标已设为 {}
-  Bed temp must be %s: 热床温度必须为 0-%s
+  Bed temp must be %d-%s: 热床温度必须为 %d-%s
   Bed warming timed out: 热床加热超时
   Bed {}: 热床 {}
   Bed {} / {}: 热床 {} / {}
@@ -684,7 +684,7 @@ translations:
   Chamber heating to %s...: 腔体加热至 %s...
   Chamber light fitted: '已安装腔体灯'
   Chamber target set to {}: 腔体目标温度设置为 {}
-  Chamber temp must be %s: 腔体温度必须为 0-%s
+  Chamber temp must be %d-%s: 腔体温度必须为 %d-%s
   Chamber too hot: '腔体温度过高'
   Change: 更改
   Change Address: 更改地址
@@ -2727,7 +2727,7 @@ translations:
   'Nozzle not changed: {}': "喷嘴未更改：{}"
   Nozzle size and flow type per head: "每个工具头的喷嘴尺寸和流量类型"
   Nozzle target set to {}: 喷嘴目标已设为 {}
-  Nozzle temp must be %s: 喷嘴温度必须为 100-%s
+  Nozzle temp must be %d-%s: 喷嘴温度必须为 %d-%s
   Nozzle, bed, and chamber in one widget: 喷嘴、热床和腔体合为一个小组件
   'Nozzle:': 喷嘴：
   'Nozzles still heating: {}': '仍在加热的喷嘴: {}'

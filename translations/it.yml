@@ -475,7 +475,7 @@ translations:
   Bed mesh...: Mesh piano...
   Bed size unknown: 'Dimensione del piatto sconosciuta'
   Bed target set to {}: Obiettivo piano impostato a {}
-  Bed temp must be %s: La temperatura del piano deve essere 0-%s
+  Bed temp must be %d-%s: La temperatura del piano deve essere %d-%s
   Bed warming timed out: Riscaldamento piano — tempo scaduto
   Bed {}: Piano {}
   Bed {} / {}: Piano {} / {}
@@ -726,7 +726,7 @@ translations:
   Chamber heating to %s...: Riscaldamento camera a %s...
   Chamber light fitted: 'Luce della camera installata'
   Chamber target set to {}: Target camera impostato a {}
-  Chamber temp must be %s: La temperatura della camera deve essere 0-%s
+  Chamber temp must be %d-%s: La temperatura della camera deve essere %d-%s
   Chamber too hot: 'Camera troppo calda'
   Change: Cambia
   Change Address: Cambia indirizzo
@@ -2866,7 +2866,7 @@ translations:
   'Nozzle not changed: {}': "Ugello non cambiato: {}"
   Nozzle size and flow type per head: "Dimensione e tipo di flusso dell'ugello per testina"
   Nozzle target set to {}: Obiettivo ugello impostato a {}
-  Nozzle temp must be %s: La temperatura dell’ugello deve essere 100-%s
+  Nozzle temp must be %d-%s: La temperatura dell’ugello deve essere %d-%s
   Nozzle, bed, and chamber in one widget: Ugello, piano e camera in un widget
   'Nozzle:': 'Ugello:'
   'Nozzles still heating: {}': 'Ugelli ancora in riscaldamento: {}'

@@ -525,7 +525,7 @@ translations:
   Bed mesh...: Сетка стола...
   Bed size unknown: 'Размер стола неизвестен'
   Bed target set to {}: Целевая температура стола {}
-  Bed temp must be %s: Температура стола должна быть 0-%s
+  Bed temp must be %d-%s: Температура стола должна быть %d-%s
   Bed warming timed out: Нагрев стола — время ожидания истекло
   Bed {}: Стол {}
   Bed {} / {}: Стол {} / {}
@@ -777,7 +777,7 @@ translations:
   Chamber heating to %s...: Нагрев камеры до %s...
   Chamber light fitted: 'Подсветка камеры установлена'
   Chamber target set to {}: Целевая температура камеры установлена на {}
-  Chamber temp must be %s: Температура камеры должна быть 0-%s
+  Chamber temp must be %d-%s: Температура камеры должна быть %d-%s
   Chamber too hot: 'Камера перегрета'
   Change: Изменить
   Change Address: Изменить адрес
@@ -2911,7 +2911,7 @@ translations:
   'Nozzle not changed: {}': "Сопло не изменено: {}"
   Nozzle size and flow type per head: "Размер сопла и тип потока для каждой печатающей головки"
   Nozzle target set to {}: Целевая температура сопла {}
-  Nozzle temp must be %s: Температура сопла должна быть 100-%s
+  Nozzle temp must be %d-%s: Температура сопла должна быть %d-%s
   Nozzle, bed, and chamber in one widget: Сопло, стол и камера в одном виджете
   'Nozzle:': 'Сопло:'
   'Nozzles still heating: {}': 'Сопла всё ещё нагреваются: {}'

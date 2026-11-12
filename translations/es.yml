@@ -474,7 +474,7 @@ translations:
   Bed mesh...: Malla de cama...
   Bed size unknown: 'Tamaño de cama desconocido'
   Bed target set to {}: Cama configurada a {}
-  Bed temp must be %s: La temperatura de la cama debe ser 0-%s
+  Bed temp must be %d-%s: La temperatura de la cama debe ser %d-%s
   Bed warming timed out: Calentamiento de cama — tiempo de espera agotado
   Bed {}: Cama {}
   Bed {} / {}: Cama {} / {}
@@ -729,7 +729,7 @@ translations:
   Chamber heating to %s...: Calentando cámara a %s...
   Chamber light fitted: 'Luz de cámara instalada'
   Chamber target set to {}: Objetivo de cámara establecido en {}
-  Chamber temp must be %s: La temperatura de la cámara debe ser 0-%s
+  Chamber temp must be %d-%s: La temperatura de la cámara debe ser %d-%s
   Chamber too hot: 'Cámara demasiado caliente'
   Change: Cambiar
   Change Address: Cambiar dirección
@@ -2866,7 +2866,7 @@ translations:
   'Nozzle not changed: {}': "Boquilla no cambiada: {}"
   Nozzle size and flow type per head: "Tamaño y tipo de flujo de boquilla por cabezal"
   Nozzle target set to {}: Boquilla configurada a {}
-  Nozzle temp must be %s: La temperatura de la boquilla debe ser 100-%s
+  Nozzle temp must be %d-%s: La temperatura de la boquilla debe ser %d-%s
   Nozzle, bed, and chamber in one widget: Boquilla, cama y cámara en un widget
   'Nozzle:': 'Boquilla:'
   'Nozzles still heating: {}': 'Boquillas aún calentándose: {}'

@@ -443,7 +443,7 @@
   <translation tag="Bed mesh..." ja="ベッドメッシュ..."/>
   <translation tag="Bed size unknown" ja="ベッドサイズが不明です"/>
   <translation tag="Bed target set to {}" ja="ベッド目標温度を {} に設定しました"/>
-  <translation tag="Bed temp must be %s" ja="ベッド温度は 0〜%s にしてください"/>
+  <translation tag="Bed temp must be %d-%s" ja="ベッド温度は %d〜%s にしてください"/>
   <translation tag="Bed warming timed out" ja="ベッド加熱がタイムアウトしました"/>
   <translation tag="Bed {}" ja="ベッド {}"/>
   <translation tag="Bed {} / {}" ja="ベッド {} / {}"/>
@@ -673,7 +673,7 @@
   <translation tag="Chamber heating to %s..." ja="チャンバーを%sに加熱中..."/>
   <translation tag="Chamber light fitted" ja="チャンバーライト搭載"/>
   <translation tag="Chamber target set to {}" ja="チャンバー目標温度を{} に設定"/>
-  <translation tag="Chamber temp must be %s" ja="チャンバー温度は 0〜%s にしてください"/>
+  <translation tag="Chamber temp must be %d-%s" ja="チャンバー温度は %d〜%s にしてください"/>
   <translation tag="Chamber too hot" ja="チャンバーが高温です"/>
   <translation tag="Change" ja="変更"/>
   <translation tag="Change Address" ja="アドレスを変更"/>
@@ -2639,7 +2639,7 @@
   <translation tag="Nozzle not changed: {}" ja="ノズルは変更されていません: {}"/>
   <translation tag="Nozzle size and flow type per head" ja="ツールヘッドごとのノズルサイズとフロータイプ"/>
   <translation tag="Nozzle target set to {}" ja="ノズル目標温度を {} に設定しました"/>
-  <translation tag="Nozzle temp must be %s" ja="ノズル温度は 100〜%s にしてください"/>
+  <translation tag="Nozzle temp must be %d-%s" ja="ノズル温度は %d〜%s にしてください"/>
   <translation tag="Nozzle, bed, and chamber in one widget" ja="ノズル、ベッド、チャンバーをまとめて表示"/>
   <translation tag="Nozzle:" ja="ノズル:"/>
   <translation tag="Nozzles still heating: {}" ja="加熱中のノズル: {}"/>

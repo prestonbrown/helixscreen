@@ -443,7 +443,7 @@
   <translation tag="Bed mesh..." en="Bed mesh..."/>
   <translation tag="Bed size unknown" en="Bed size unknown"/>
   <translation tag="Bed target set to {}" en="Bed target set to {}"/>
-  <translation tag="Bed temp must be %s" en="Bed temp must be %s"/>
+  <translation tag="Bed temp must be %d-%s" en="Bed temp must be %d-%s"/>
   <translation tag="Bed warming timed out" en="Bed warming timed out"/>
   <translation tag="Bed {}" en="Bed {}"/>
   <translation tag="Bed {} / {}" en="Bed {} / {}"/>
@@ -673,7 +673,7 @@
   <translation tag="Chamber heating to %s..." en="Chamber heating to %s..."/>
   <translation tag="Chamber light fitted" en="Chamber light fitted"/>
   <translation tag="Chamber target set to {}" en="Chamber target set to {}"/>
-  <translation tag="Chamber temp must be %s" en="Chamber temp must be %s"/>
+  <translation tag="Chamber temp must be %d-%s" en="Chamber temp must be %d-%s"/>
   <translation tag="Chamber too hot" en="Chamber too hot"/>
   <translation tag="Change" en="Change"/>
   <translation tag="Change Address" en="Change Address"/>
@@ -2639,7 +2639,7 @@
   <translation tag="Nozzle not changed: {}" en="Nozzle not changed: {}"/>
   <translation tag="Nozzle size and flow type per head" en="Nozzle size and flow type per head"/>
   <translation tag="Nozzle target set to {}" en="Nozzle target set to {}"/>
-  <translation tag="Nozzle temp must be %s" en="Nozzle temp must be %s"/>
+  <translation tag="Nozzle temp must be %d-%s" en="Nozzle temp must be %d-%s"/>
   <translation tag="Nozzle, bed, and chamber in one widget" en="Nozzle, bed, and chamber in one widget"/>
   <translation tag="Nozzle:" en="Nozzle:"/>
   <translation tag="Nozzles still heating: {}" en="Nozzles still heating: {}"/>

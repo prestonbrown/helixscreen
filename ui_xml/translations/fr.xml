@@ -443,7 +443,7 @@
   <translation tag="Bed mesh..." fr="Maillage du plateau..."/>
   <translation tag="Bed size unknown" fr="Taille du plateau inconnue"/>
   <translation tag="Bed target set to {}" fr="Cible plateau réglée à {}"/>
-  <translation tag="Bed temp must be %s" fr="La température du plateau doit être entre 0 et %s"/>
+  <translation tag="Bed temp must be %d-%s" fr="La température du plateau doit être entre %d et %s"/>
   <translation tag="Bed warming timed out" fr="Préchauffage du plateau — délai dépassé"/>
   <translation tag="Bed {}" fr="Plateau {}"/>
   <translation tag="Bed {} / {}" fr="Plateau {} / {}"/>
@@ -673,7 +673,7 @@
   <translation tag="Chamber heating to %s..." fr="Chauffe de la chambre à %s..."/>
   <translation tag="Chamber light fitted" fr="Éclairage de chambre installé"/>
   <translation tag="Chamber target set to {}" fr="Cible de chambre définie à {}"/>
-  <translation tag="Chamber temp must be %s" fr="La température de l&apos;enceinte doit être entre 0 et %s"/>
+  <translation tag="Chamber temp must be %d-%s" fr="La température de l&apos;enceinte doit être entre %d et %s"/>
   <translation tag="Chamber too hot" fr="Chambre trop chaude"/>
   <translation tag="Change" fr="Modifier"/>
   <translation tag="Change Address" fr="Changer l&apos;adresse"/>
@@ -2639,7 +2639,7 @@
   <translation tag="Nozzle not changed: {}" fr="Buse non modifiée : {}"/>
   <translation tag="Nozzle size and flow type per head" fr="Taille et type de débit de buse par tête d&apos;outil"/>
   <translation tag="Nozzle target set to {}" fr="Cible buse réglée à {}"/>
-  <translation tag="Nozzle temp must be %s" fr="La température de la buse doit être entre 100 et %s"/>
+  <translation tag="Nozzle temp must be %d-%s" fr="La température de la buse doit être entre %d et %s"/>
   <translation tag="Nozzle, bed, and chamber in one widget" fr="Buse, plateau et enceinte réunis"/>
   <translation tag="Nozzle:" fr="Buse :"/>
   <translation tag="Nozzles still heating: {}" fr="Buses encore en chauffe : {}"/>

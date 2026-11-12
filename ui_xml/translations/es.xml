@@ -443,7 +443,7 @@
   <translation tag="Bed mesh..." es="Malla de cama..."/>
   <translation tag="Bed size unknown" es="Tamaño de cama desconocido"/>
   <translation tag="Bed target set to {}" es="Cama configurada a {}"/>
-  <translation tag="Bed temp must be %s" es="La temperatura de la cama debe ser 0-%s"/>
+  <translation tag="Bed temp must be %d-%s" es="La temperatura de la cama debe ser %d-%s"/>
   <translation tag="Bed warming timed out" es="Calentamiento de cama — tiempo de espera agotado"/>
   <translation tag="Bed {}" es="Cama {}"/>
   <translation tag="Bed {} / {}" es="Cama {} / {}"/>
@@ -673,7 +673,7 @@
   <translation tag="Chamber heating to %s..." es="Calentando cámara a %s..."/>
   <translation tag="Chamber light fitted" es="Luz de cámara instalada"/>
   <translation tag="Chamber target set to {}" es="Objetivo de cámara establecido en {}"/>
-  <translation tag="Chamber temp must be %s" es="La temperatura de la cámara debe ser 0-%s"/>
+  <translation tag="Chamber temp must be %d-%s" es="La temperatura de la cámara debe ser %d-%s"/>
   <translation tag="Chamber too hot" es="Cámara demasiado caliente"/>
   <translation tag="Change" es="Cambiar"/>
   <translation tag="Change Address" es="Cambiar dirección"/>
@@ -2639,7 +2639,7 @@
   <translation tag="Nozzle not changed: {}" es="Boquilla no cambiada: {}"/>
   <translation tag="Nozzle size and flow type per head" es="Tamaño y tipo de flujo de boquilla por cabezal"/>
   <translation tag="Nozzle target set to {}" es="Boquilla configurada a {}"/>
-  <translation tag="Nozzle temp must be %s" es="La temperatura de la boquilla debe ser 100-%s"/>
+  <translation tag="Nozzle temp must be %d-%s" es="La temperatura de la boquilla debe ser %d-%s"/>
   <translation tag="Nozzle, bed, and chamber in one widget" es="Boquilla, cama y cámara en un widget"/>
   <translation tag="Nozzle:" es="Boquilla:"/>
   <translation tag="Nozzles still heating: {}" es="Boquillas aún calentándose: {}"/>

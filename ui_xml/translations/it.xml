@@ -443,7 +443,7 @@
   <translation tag="Bed mesh..." it="Mesh piano..."/>
   <translation tag="Bed size unknown" it="Dimensione del piatto sconosciuta"/>
   <translation tag="Bed target set to {}" it="Obiettivo piano impostato a {}"/>
-  <translation tag="Bed temp must be %s" it="La temperatura del piano deve essere 0-%s"/>
+  <translation tag="Bed temp must be %d-%s" it="La temperatura del piano deve essere %d-%s"/>
   <translation tag="Bed warming timed out" it="Riscaldamento piano — tempo scaduto"/>
   <translation tag="Bed {}" it="Piano {}"/>
   <translation tag="Bed {} / {}" it="Piano {} / {}"/>
@@ -673,7 +673,7 @@
   <translation tag="Chamber heating to %s..." it="Riscaldamento camera a %s..."/>
   <translation tag="Chamber light fitted" it="Luce della camera installata"/>
   <translation tag="Chamber target set to {}" it="Target camera impostato a {}"/>
-  <translation tag="Chamber temp must be %s" it="La temperatura della camera deve essere 0-%s"/>
+  <translation tag="Chamber temp must be %d-%s" it="La temperatura della camera deve essere %d-%s"/>
   <translation tag="Chamber too hot" it="Camera troppo calda"/>
   <translation tag="Change" it="Cambia"/>
   <translation tag="Change Address" it="Cambia indirizzo"/>
@@ -2639,7 +2639,7 @@
   <translation tag="Nozzle not changed: {}" it="Ugello non cambiato: {}"/>
   <translation tag="Nozzle size and flow type per head" it="Dimensione e tipo di flusso dell&apos;ugello per testina"/>
   <translation tag="Nozzle target set to {}" it="Obiettivo ugello impostato a {}"/>
-  <translation tag="Nozzle temp must be %s" it="La temperatura dell’ugello deve essere 100-%s"/>
+  <translation tag="Nozzle temp must be %d-%s" it="La temperatura dell’ugello deve essere %d-%s"/>
   <translation tag="Nozzle, bed, and chamber in one widget" it="Ugello, piano e camera in un widget"/>
   <translation tag="Nozzle:" it="Ugello:"/>
   <translation tag="Nozzles still heating: {}" it="Ugelli ancora in riscaldamento: {}"/>

@@ -463,7 +463,7 @@ translations:
   'Bed mesh...': 'Bed mesh...'
   Bed size unknown: Bed size unknown
   Bed target set to {}: Bed target set to {}
-  Bed temp must be %s: Bed temp must be %s
+  Bed temp must be %d-%s: Bed temp must be %d-%s
   Bed warming timed out: Bed warming timed out
   Bed {}: Bed {}
   Bed {} / {}: Bed {} / {}
@@ -712,7 +712,7 @@ translations:
   Chamber heating to %s...: Chamber heating to %s...
   Chamber light fitted: 'Chamber light fitted'
   Chamber target set to {}: Chamber target set to {}
-  Chamber temp must be %s: Chamber temp must be %s
+  Chamber temp must be %d-%s: Chamber temp must be %d-%s
   Chamber too hot: Chamber too hot
   Change: Change
   Change Address: Change Address
@@ -2806,7 +2806,7 @@ translations:
   'Nozzle not changed: {}': 'Nozzle not changed: {}'
   Nozzle size and flow type per head: Nozzle size and flow type per head
   Nozzle target set to {}: Nozzle target set to {}
-  Nozzle temp must be %s: Nozzle temp must be %s
+  Nozzle temp must be %d-%s: Nozzle temp must be %d-%s
   Nozzle, bed, and chamber in one widget: Nozzle, bed, and chamber in one widget
   'Nozzle:': 'Nozzle:'
   'Nozzles still heating: {}': 'Nozzles still heating: {}'

@@ -485,7 +485,7 @@
   <translation tag="Bed mesh..." ru="Сетка стола..."/>
   <translation tag="Bed size unknown" ru="Размер стола неизвестен"/>
   <translation tag="Bed target set to {}" ru="Целевая температура стола {}"/>
-  <translation tag="Bed temp must be %s" ru="Температура стола должна быть 0-%s"/>
+  <translation tag="Bed temp must be %d-%s" ru="Температура стола должна быть %d-%s"/>
   <translation tag="Bed warming timed out" ru="Нагрев стола — время ожидания истекло"/>
   <translation tag="Bed {}" ru="Стол {}"/>
   <translation tag="Bed {} / {}" ru="Стол {} / {}"/>
@@ -715,7 +715,7 @@
   <translation tag="Chamber heating to %s..." ru="Нагрев камеры до %s..."/>
   <translation tag="Chamber light fitted" ru="Подсветка камеры установлена"/>
   <translation tag="Chamber target set to {}" ru="Целевая температура камеры установлена на {}"/>
-  <translation tag="Chamber temp must be %s" ru="Температура камеры должна быть 0-%s"/>
+  <translation tag="Chamber temp must be %d-%s" ru="Температура камеры должна быть %d-%s"/>
   <translation tag="Chamber too hot" ru="Камера перегрета"/>
   <translation tag="Change" ru="Изменить"/>
   <translation tag="Change Address" ru="Изменить адрес"/>
@@ -2687,7 +2687,7 @@
   <translation tag="Nozzle not changed: {}" ru="Сопло не изменено: {}"/>
   <translation tag="Nozzle size and flow type per head" ru="Размер сопла и тип потока для каждой печатающей головки"/>
   <translation tag="Nozzle target set to {}" ru="Целевая температура сопла {}"/>
-  <translation tag="Nozzle temp must be %s" ru="Температура сопла должна быть 100-%s"/>
+  <translation tag="Nozzle temp must be %d-%s" ru="Температура сопла должна быть %d-%s"/>
   <translation tag="Nozzle, bed, and chamber in one widget" ru="Сопло, стол и камера в одном виджете"/>
   <translation tag="Nozzle:" ru="Сопло:"/>
   <translation tag="Nozzles still heating: {}" ru="Сопла всё ещё нагреваются: {}"/>

@@ -662,7 +662,7 @@ TEST_CASE("fr nozzle range key carries its intended value in the loaded catalog"
     std::ifstream catalog("ui_xml/translations/fr.xml");
     REQUIRE(catalog.is_open());
 
-    const std::string needle = "<translation tag=\"Nozzle temp must be 100-%d°C\" fr=\"";
+    const std::string needle = "<translation tag=\"Nozzle temp must be %d-%s\" fr=\"";
     bool found = false;
     std::string line;
     while (std::getline(catalog, line)) {
@@ -674,7 +674,7 @@ TEST_CASE("fr nozzle range key carries its intended value in the loaded catalog"
         const auto value_end = line.find("\"/>", pos + needle.size());
         REQUIRE(value_end != std::string::npos);
         CHECK(line.substr(pos + needle.size(), value_end - pos - needle.size()) ==
-              "La température de la buse doit être entre 100 et %d°C");
+              "La température de la buse doit être entre %d et %s");
     }
     REQUIRE(found);
 }
