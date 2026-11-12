@@ -94,9 +94,6 @@ struct FilamentPanelTestAccess {
     static int target_tool(const FilamentPanel& p) {
         return p.target_tool();
     }
-    static int nozzle_target(const FilamentPanel& p) {
-        return p.nozzle_target_;
-    }
     static void populate_extruder_dropdown(FilamentPanel& p) {
         p.populate_extruder_dropdown();
     }

@@ -23,6 +23,7 @@
 #include "toolchanger_addon.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -187,21 +188,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The Load picker offers All where every head
     (*tc).feed_status("ready", 0);
     ui::UpdateQueue::instance().drain();
 
-    SECTION("Load: All is offered") {
-        REQUIRE(ui::BatchFilamentModal::show_owned(ui::HeadPickOp::Load,
-                                                   [](const std::vector<ui::HeadPickRow>&) {}));
+    // Mount picks one head, so it never offers All.
+    for (auto [op, offers_all] :
+         {std::pair{ui::HeadPickOp::Load, true}, std::pair{ui::HeadPickOp::Mount, false}}) {
+        REQUIRE(ui::BatchFilamentModal::show_owned(op, [](const std::vector<ui::HeadPickRow>&) {}));
         lv_obj_t* dialog = Modal::get_top();
         REQUIRE(dialog != nullptr);
-        CHECK(lv_obj_find_by_name(dialog, "item_all") != nullptr);
+        CHECK((lv_obj_find_by_name(dialog, "item_all") != nullptr) == offers_all);
         Modal::hide(dialog);
+        process_lvgl(200);
     }
-    SECTION("Mount picks one head: no All") {
-        REQUIRE(ui::BatchFilamentModal::show_owned(ui::HeadPickOp::Mount,
-                                                   [](const std::vector<ui::HeadPickRow>&) {}));
-        lv_obj_t* dialog = Modal::get_top();
-        REQUIRE(dialog != nullptr);
-        CHECK(lv_obj_find_by_name(dialog, "item_all") == nullptr);
-        Modal::hide(dialog);
-    }
-    process_lvgl(200);
 }

@@ -108,11 +108,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Controls nozzle row shows and edits the cho
     h.state.update_from_status(
         {{"extruder1", {{"target", 180.0}}}, {"extruder2", {{"target", 230.0}}}});
     helix::ui::UpdateQueue::instance().drain();
-    CHECK(TA::cached_extruder_target(*h.panel) == 1800);
+    CHECK(subject_int("controls_nozzle_tgt_deci") == 1800);
 
     h.panel->select_nozzle_tool(2);
     helix::ui::UpdateQueue::instance().drain();
-    CHECK(TA::cached_extruder_target(*h.panel) == 2300);
     CHECK(subject_int("controls_nozzle_tgt_deci") == 2300);
 
     TA::confirm_custom_nozzle(*h.panel, 220.0f);
@@ -121,8 +120,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Controls nozzle row shows and edits the cho
     CHECK_FALSE(h.sent("HEATER=extruder1 "));
 
     SECTION("a tool change moves the row to the mounted tool") {
-        h.mount(0);
-        CHECK(TA::nozzle_tool(*h.panel) == 0);
+        h.mount(0); // T0 has no target set
+        CHECK(subject_int("controls_nozzle_tgt_deci") == 0);
     }
 }
 

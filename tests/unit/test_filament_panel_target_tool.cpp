@@ -117,6 +117,13 @@ struct TargetToolHarness {
         return lv_subject_get_int(subject);
     }
 
+    /// The temperature card's nozzle target, as it reads.
+    [[nodiscard]] std::string shown_target() const {
+        lv_subject_t* subject = lv_xml_get_subject(nullptr, "filament_nozzle_target");
+        REQUIRE(subject != nullptr);
+        return lv_subject_get_string(subject);
+    }
+
     [[nodiscard]] bool sent(const std::string& needle) const {
         const auto& h = client.gcode_script_history();
         return std::any_of(h.begin(), h.end(), [&](const std::string& l) {
@@ -145,10 +152,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: the temperature card shows 
     h.state.update_from_status(
         {{"extruder1", {{"target", 180.0}}}, {"extruder2", {{"target", 230.0}}}});
     helix::ui::UpdateQueue::instance().drain();
-    CHECK(TA::nozzle_target(*h.panel) == 180);
+    CHECK(h.shown_target() == "180°C");
     h.choose(2);
     h.fx.process_lvgl(20);
-    CHECK(TA::nozzle_target(*h.panel) == 230);
+    CHECK(h.shown_target() == "230°C");
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: the keypad heats the chosen tool",

@@ -41,22 +41,25 @@ bool same_color(const lv_color_t& a, const lv_color_t& b) {
     return a.red == b.red && a.green == b.green && a.blue == b.blue;
 }
 
-} // namespace
-
-TEST_CASE_METHOD(LVGLUITestFixture, "unhomed axes mute their coordinate readouts",
-                 "[motion][homed][xml]") {
+/// The global MotionPanel shown over a full panel set, as the controls screen
+/// opens it; returns its root.
+lv_obj_t* show_motion_panel() {
     std::array<lv_obj_t*, kUiPanelCount> panels{};
     for (auto& p : panels)
         p = lv_obj_create(lv_screen_active());
     NavigationManager::instance().set_panels(panels.data());
-
-    lv_obj_t* cached = nullptr;
     REQUIRE(get_global_motion_panel().show(lv_screen_active()));
-    cached = get_global_motion_panel().get_root();
     helix::ui::UpdateQueue::instance().drain();
-
     lv_obj_t* root = get_global_motion_panel().get_root();
     REQUIRE(root != nullptr);
+    return root;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "unhomed axes mute their coordinate readouts",
+                 "[motion][homed][xml]") {
+    lv_obj_t* root = show_motion_panel();
 
     // The landscape branch renders header_pos_* (the portrait strip's
     // row_pos_* labels carry the same binding pair).
@@ -98,14 +101,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the motion panel homes single axes",
     IMoonrakerAPI* previous = get_moonraker_api();
     set_moonraker_api(&api);
 
-    std::array<lv_obj_t*, kUiPanelCount> panels{};
-    for (auto& p : panels)
-        p = lv_obj_create(lv_screen_active());
-    NavigationManager::instance().set_panels(panels.data());
-    REQUIRE(get_global_motion_panel().show(lv_screen_active()));
-    helix::ui::UpdateQueue::instance().drain();
-    lv_obj_t* root = get_global_motion_panel().get_root();
-    REQUIRE(root != nullptr);
+    lv_obj_t* root = show_motion_panel();
     lv_subject_t* individual = lv_xml_get_subject(nullptr, "printer_has_individual_xyz_homing");
     REQUIRE(individual != nullptr);
     lv_subject_set_int(individual, 1);
@@ -135,14 +131,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the motion panel homes single axes",
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "the Z column draws what the Z keys move", "[motion][xml]") {
-    std::array<lv_obj_t*, kUiPanelCount> panels{};
-    for (auto& p : panels)
-        p = lv_obj_create(lv_screen_active());
-    NavigationManager::instance().set_panels(panels.data());
-    REQUIRE(get_global_motion_panel().show(lv_screen_active()));
-    helix::ui::UpdateQueue::instance().drain();
-    lv_obj_t* root = get_global_motion_panel().get_root();
-    REQUIRE(root != nullptr);
+    lv_obj_t* root = show_motion_panel();
     lv_obj_t* head = lv_obj_find_by_name(root, "z_axis_icon_head");
     lv_obj_t* bed = lv_obj_find_by_name(root, "z_axis_icon_bed");
     REQUIRE(head != nullptr);
