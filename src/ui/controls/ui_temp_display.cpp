@@ -107,6 +107,10 @@ struct TempDisplayData {
 
     // The temperature unit symbol the numbers were last formatted in.
     char unit_shown[8] = {0};
+
+    // bind_raw: the reading carries a unit of the caller's own, so it shows as
+    // reported rather than in the user's temperature unit.
+    bool raw = false;
 };
 
 // Static registry for safe cleanup
@@ -176,6 +180,16 @@ static void unit_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     snprintf(data->unit_shown, sizeof(data->unit_shown), "%s", unit);
     if (!first)
         update_display(data);
+}
+
+/** Observer callback on a bind_raw subject: nonzero shows the reading unconverted. */
+static void raw_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    lv_obj_t* container = static_cast<lv_obj_t*>(lv_observer_get_target(observer));
+    auto* data = get_data(container);
+    if (!data)
+        return;
+    data->raw = lv_subject_get_int(subject) != 0;
+    update_display(data);
 }
 
 /** Observer callback on the ui_breakpoint subject — toggles target+separator
@@ -255,7 +269,8 @@ static void format_target_text(TempDisplayData* data) {
         snprintf(data->target_text_buf, sizeof(data->target_text_buf), "—");
     } else {
         snprintf(data->target_text_buf, sizeof(data->target_text_buf), "%d",
-                 helix::units::to_display_temp_whole(data->target_temp));
+                 data->raw ? data->target_temp
+                           : helix::units::to_display_temp_whole(data->target_temp));
     }
     lv_subject_copy_string(&data->target_text_subject, data->target_text_buf);
 }
@@ -296,7 +311,14 @@ static void update_display(TempDisplayData* data) {
         return;
 
     // Update current temp via subject
-    format_deci_temp(data->current_text_buf, sizeof(data->current_text_buf), data->current_deci);
+    if (data->raw) {
+        helix::ui::temperature::format_number_compact(deci_to_degrees_f(data->current_deci),
+                                                      data->current_text_buf,
+                                                      sizeof(data->current_text_buf));
+    } else {
+        format_deci_temp(data->current_text_buf, sizeof(data->current_text_buf),
+                         data->current_deci);
+    }
     lv_subject_copy_string(&data->current_text_subject, data->current_text_buf);
 
     // Update target temp via subject (shows "--" when heater off)
@@ -678,6 +700,14 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
                               data->target_temp);
             } else if (!subject) {
                 spdlog::warn("[temp_display] Subject '{}' not found for bind_target", value);
+            }
+        } else if (strcmp(name, "bind_raw") == 0) {
+            // Observed on the container, so on_delete's remove_from_subject drops it.
+            lv_subject_t* subject = lv_xml_get_subject(nullptr, value);
+            if (subject && data) {
+                lv_subject_add_observer_obj(subject, raw_observer_cb, container, nullptr);
+            } else if (!subject) {
+                spdlog::warn("[temp_display] Subject '{}' not found for bind_raw", value);
             }
         } else if (strcmp(name, "bind_mode") == 0) {
             // Bind chamber mode to a subject (NULL = global scope). In Maintaining

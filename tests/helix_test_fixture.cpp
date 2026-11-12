@@ -37,6 +37,7 @@
 #include "panel_widget_manager.h"
 #include "pending_startup_warnings.h"
 #include "post_op_cooldown_manager.h"
+#include "region_defaults.h"
 #include "rpc_error_correlation.h"
 #include "runtime_config.h"
 #include "safety_settings_manager.h"
@@ -408,6 +409,7 @@ void HelixTestFixture::reset_all() {
     // Every formatter reads the display unit; a test that shows °F must not
     // leave the rest of the binary reading it.
     helix::units::set_display_temp_unit(helix::units::TempUnit::Celsius);
+    helix::set_saved_date_format(std::nullopt);
 
     // A same-spool notice asked in one test would otherwise hold its lane's
     // quiet window open into the next, and that test's insert would ask nothing.

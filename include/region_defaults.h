@@ -4,6 +4,7 @@
 #include "core/temperature_units.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace helix {
@@ -15,6 +16,12 @@ enum class DateFormat : uint8_t { DMY = 0, MDY = 1, YMD = 2 };
 /// offered languages but English day first. English and any unknown language read
 /// month first.
 DateFormat default_date_format_for_language(const std::string& language);
+
+/// The date order the user saved, or nullopt while none is saved (dates then follow
+/// the language). Kept apart from Config and the settings subject because dates are
+/// formatted on the WebSocket thread too; DisplaySettingsManager keeps it current.
+std::optional<DateFormat> saved_date_format();
+void set_saved_date_format(std::optional<DateFormat> format);
 
 /// What a region reads by default.
 struct RegionDefaults {

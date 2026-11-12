@@ -85,8 +85,12 @@ struct SliderFieldSpec {
 /// Celsius one, and the unit's symbol. Any other config is returned unchanged.
 ui_keypad_config_t keypad_config_in_unit(const ui_keypad_config_t& config, units::TempUnit unit);
 
+/// Whether a temperature keypad takes @p typed as "off": a typed 0 where the Celsius
+/// range starts at 0. In °F that range opens at 32, and 0 still turns a heater off.
+bool keypad_typed_off(float typed, float min_c);
+
 /// A value typed in @p unit as the whole Celsius target it commands, kept inside
-/// [@p min_c, @p max_c].
+/// [@p min_c, @p max_c]; "off" (keypad_typed_off()) is 0.
 float keypad_value_to_celsius(float typed, float min_c, float max_c, units::TempUnit unit);
 
 /// Open the keypad on @p slider's current value and range.

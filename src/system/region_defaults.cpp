@@ -3,6 +3,7 @@
 #include "region_defaults.h"
 
 #include <array>
+#include <atomic>
 
 namespace helix {
 
@@ -14,6 +15,24 @@ constexpr std::array<const char*, 9> kUsZones = {
     "Pacific/Honolulu", "America/Detroit",     "America/Boise",
 };
 } // namespace
+
+namespace {
+constexpr int8_t kNoSavedDate = -1;
+std::atomic<int8_t> g_saved_date_format{kNoSavedDate};
+} // namespace
+
+std::optional<DateFormat> saved_date_format() {
+    const int8_t v = g_saved_date_format.load(std::memory_order_relaxed);
+    if (v == kNoSavedDate) {
+        return std::nullopt;
+    }
+    return static_cast<DateFormat>(v);
+}
+
+void set_saved_date_format(std::optional<DateFormat> format) {
+    g_saved_date_format.store(format ? static_cast<int8_t>(*format) : kNoSavedDate,
+                              std::memory_order_relaxed);
+}
 
 DateFormat default_date_format_for_language(const std::string& language) {
     if (language == "zh" || language == "ja") {

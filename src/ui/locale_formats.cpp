@@ -5,9 +5,9 @@
 
 #include "ui_format_utils.h"
 
-#include "display_settings_manager.h"
 #include "format_utils.h"
 #include "lvgl.h"
+#include "region_defaults.h"
 
 #include <spdlog/spdlog.h>
 
@@ -149,11 +149,10 @@ enum class ModifiedDatePatternGroup {
 // The user's date order picks the arrangement; the language only supplies the
 // names and the punctuation German writes ("28. Feb.").
 static DatePatternGroup get_date_pattern(const std::string& lang) {
-    // Unsaved, the order is the language this module formats in.
-    auto& display = DisplaySettingsManager::instance();
-    const DateFormat order = display.has_saved_date_format()
-                                 ? display.get_date_format()
-                                 : default_date_format_for_language(lang);
+    // Dates are formatted off the main thread too, so this reads only the atomic
+    // saved order; unsaved, the order is the language this module formats in.
+    const std::optional<DateFormat> saved = saved_date_format();
+    const DateFormat order = saved ? *saved : default_date_format_for_language(lang);
     switch (order) {
     case DateFormat::MDY:
         return DatePatternGroup::EN;

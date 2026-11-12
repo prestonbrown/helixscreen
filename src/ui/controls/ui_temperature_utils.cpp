@@ -108,10 +108,13 @@ char* format_temperature_pair(int current, int target, char* buffer, size_t buff
 // Format a temperature number with one decimal place, dropping the decimal when
 // the integer portion is 3 digits or more (>= 100) to keep wide values compact.
 // The rule applies to the number as shown, so 40°C reads "104" in °F.
-char* format_temp_number(float temp, char* buffer, size_t buffer_size) {
-    const double value = units::to_display_temp(temp);
+char* format_number_compact(double value, char* buffer, size_t buffer_size) {
     snprintf(buffer, buffer_size, value >= 100.0 ? "%.0f" : "%.1f", value);
     return buffer;
+}
+
+char* format_temp_number(float temp, char* buffer, size_t buffer_size) {
+    return format_number_compact(units::to_display_temp(temp), buffer, buffer_size);
 }
 
 char* format_temperature_f(float temp, char* buffer, size_t buffer_size) {

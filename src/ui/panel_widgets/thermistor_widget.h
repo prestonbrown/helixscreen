@@ -202,6 +202,8 @@ class ThermistorWidget : public TiledPanelWidget {
     /// The unit text drawn after the reading (unit_text()).
     lv_subject_t unit_subject_{};
     char unit_buffer_[40] = {};
+    /// 1 while a unit override is set: the reading then shows as reported, unconverted.
+    lv_subject_t raw_subject_{};
 
     // Carousel mode: each page binds the reading and name subjects of its slot
     // in these pools (thermistor_carousel_page). Declared before the observers

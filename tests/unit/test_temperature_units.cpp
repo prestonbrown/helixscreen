@@ -26,6 +26,7 @@
 
 #include <ctime>
 #include <string>
+#include <thread>
 
 #include "../catch_amalgamated.hpp"
 
@@ -70,6 +71,9 @@ void erase_display_key(const char* key) {
     auto* config = helix::Config::get_instance();
     if (config->exists("/display")) {
         config->get_json("/display").erase(key);
+    }
+    if (std::string(key) == "date_format") {
+        helix::set_saved_date_format(std::nullopt);
     }
 }
 
@@ -360,4 +364,58 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     display.set_temp_unit(kC);
     CHECK(text(2) == "210");
     erase_display_key("temp_unit");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "temperature units: a date formats off the main thread from the saved order alone",
+                 "[temp_units][date_format]") {
+    helix::ui::locale_set_language("en");
+    const std::tm day = date(2024, 3, 9);
+    // Config alone does not change the order: formatting never reads it.
+    helix::Config::get_instance()->set<int>("/display/date_format", 2);
+    CHECK(helix::ui::format_localized_short_date(&day) == "Mar 09 '24");
+
+    helix::set_saved_date_format(DateFormat::YMD);
+    std::string from_thread;
+    std::thread([&] { from_thread = helix::ui::format_localized_short_date(&day); }).join();
+    CHECK(from_thread == "2024/3/9");
+
+    helix::set_saved_date_format(std::nullopt);
+    erase_display_key("date_format");
+}
+
+TEST_CASE("temperature units: 0 still turns a heater off on a °F keypad", "[temp_units]") {
+    CHECK(helix::ui::keypad_typed_off(0, 0));
+    CHECK_FALSE(helix::ui::keypad_typed_off(0, 35)); // a dryer's range has no off
+    CHECK_FALSE(helix::ui::keypad_typed_off(32, 0));
+    CHECK(helix::ui::keypad_value_to_celsius(0, 0, 287, kF) == 0.0f);
+    CHECK(helix::ui::keypad_value_to_celsius(0, 35, 70, kF) == 35.0f);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "temperature units: a reading with a unit of its own is never converted",
+                 "[temp_units][temp_display]") {
+    FahrenheitScope f;
+    // Registered once for the process: the XML scope keeps the name.
+    static lv_subject_t raw;
+    if (!lv_xml_get_subject(nullptr, "test_temp_units_raw")) {
+        lv_subject_init_int(&raw, 0);
+        lv_xml_register_subject(nullptr, "test_temp_units_raw", &raw);
+    }
+    lv_subject_set_int(&raw, 0);
+    const char* attrs[] = {"show_target", "true", "bind_raw", "test_temp_units_raw", nullptr};
+    auto* td = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "temp_display", attrs));
+    REQUIRE(td != nullptr);
+    ui_temp_display_set(td, 40, 50);
+    auto text = [td](int child) {
+        return std::string(lv_label_get_text(lv_obj_get_child(td, child)));
+    };
+    REQUIRE(text(0) == "104");
+    lv_subject_set_int(&raw, 1);
+    CHECK(text(0) == "40.0");
+    CHECK(text(2) == "50");
+
+    char buf[16];
+    CHECK(std::string(temperature::format_number_compact(40.0, buf, sizeof(buf))) == "40.0");
+    lv_obj_delete(td);
 }

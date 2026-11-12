@@ -54,10 +54,11 @@
  * |                |         |         | so stacked displays line up at the separator     |
  * | bind_current   | subject | -       | Subject name for current temp (decidegrees×10) |
  * | bind_target    | subject | -       | Subject name for target temp (decidegrees×10)  |
- * | bind_unit      | subject | -       | String subject for the unit text ("°C" unbound; empty =
- * none) | | bind_mode      | subject | -       | Subject name for ChamberMode int (cooling-ceiling
- * color in Maintaining) | | event_cb       | string  | ""      | Click callback name (makes widget
- * clickable)     |
+ * | bind_unit      | subject | -       | String subject for the unit text (the user's
+ * temperature unit unbound; empty = none) | | bind_raw | subject | - | Int subject: nonzero shows
+ * the reading unconverted, for a bind_unit of the caller's own | | bind_mode      | subject | - |
+ * Subject name for ChamberMode int (cooling-ceiling color in Maintaining) | | event_cb       |
+ * string  | ""      | Click callback name (makes widget clickable)     |
  *
  * @note When show_target="true" and target=0, displays "--" instead of "0"
  *
