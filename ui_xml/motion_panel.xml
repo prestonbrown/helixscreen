@@ -350,8 +350,8 @@
              modes are Jog-tab-only. -->
         <!-- Home single axes; the pad's centre button homes all -->
         <home_axis_bar name="motion_home_bar"
-                       width="100%" flex_grow="0" cb_all="on_motion_home_all" cb_x="on_motion_home_x"
-                       cb_y="on_motion_home_y" cb_z="on_motion_home_z" xy_gate="motion_home_bar_xy"
+                       width="100%" flex_grow="0" all_callback="on_motion_home_all" x_callback="on_motion_home_x"
+                       y_callback="on_motion_home_y" z_callback="on_motion_home_z" xy_gate="motion_home_bar_xy"
                        all_homed="motion_all_homed" x_homed="motion_x_homed" y_homed="motion_y_homed"
                        xy_homed="motion_all_homed" z_homed="motion_z_homed">
           <bind_flag_if_not_eq subject="motion_tab" flag="hidden" ref_value="0"/>
@@ -487,8 +487,8 @@
                                 width="0" flex_grow="3" button_height="#motion_mode_row_h" max_width="100%"
                                 icon_position="left"/>
               <home_axis_bar name="motion_home_bar"
-                             width="0" height="#motion_mode_row_h" flex_grow="2" cb_all="on_motion_home_all"
-                             cb_x="on_motion_home_x" cb_y="on_motion_home_y" cb_z="on_motion_home_z"
+                             width="0" height="#motion_mode_row_h" flex_grow="2" all_callback="on_motion_home_all"
+                             x_callback="on_motion_home_x" y_callback="on_motion_home_y" z_callback="on_motion_home_z"
                              xy_gate="motion_home_bar_xy" all_homed="motion_all_homed" x_homed="motion_x_homed"
                              y_homed="motion_y_homed" xy_homed="motion_all_homed" z_homed="motion_z_homed"/>
             </lv_obj>

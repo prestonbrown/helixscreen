@@ -353,9 +353,9 @@
                 height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
                 style_pad_gap="#space_xs">
           <text_small text="Home"/>
-          <home_axis_bar cb_all="on_controls_home_all"
-                         cb_x="on_controls_home_x" cb_y="on_controls_home_y" cb_xy="on_controls_home_xy"
-                         cb_z="on_controls_home_z"/>
+          <home_axis_bar all_callback="on_controls_home_all"
+                         x_callback="on_controls_home_x" y_callback="on_controls_home_y"
+                         xy_callback="on_controls_home_xy" z_callback="on_controls_home_z"/>
         </lv_obj>
         <!-- Macro buttons grid with QGL/Z-Tilt -->
         <lv_obj width="100%"
