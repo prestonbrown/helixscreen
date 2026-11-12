@@ -26,7 +26,7 @@ setup() {
         -e "s|/usr/bin/dropbear|$MOCK_ROOT/usr/bin/dropbear|g" \
         -e "s| /sbin/dropbear| $MOCK_ROOT/sbin/dropbear|g" \
         "$WORKTREE_ROOT/assets/config/platform/hooks-k1.sh" > "$HOOK"
-    SSH_LOG="$MOCK_ROOT/usr/data/helixscreen-state/logs/ssh.log"
+    SSH_LOG="$MOCK_ROOT/usr/data/helixscreen-state/logs/helixscreen-ssh.log"
 }
 
 # An init script whose start brings dropbear up.
@@ -72,6 +72,14 @@ run_hook() { # function
     [ "$status" -eq 0 ]
     run cat "$SSH_LOG"
     [[ "${lines[0]}" == *"stop: dropbear=4242 port22=yes" ]] || fail "$output"
+}
+
+@test "k1 ssh log: goes to Moonraker's logs folder when printer_data has one" {
+    mkdir -p "$MOCK_ROOT/usr/data/printer_data/logs"
+    run_hook platform_post_stop
+    [ ! -e "$SSH_LOG" ]
+    run cat "$MOCK_ROOT/usr/data/printer_data/logs/helixscreen-ssh.log"
+    [[ "${lines[0]}" == *"stop: dropbear=none port22=no" ]] || fail "$output"
 }
 
 @test "k1 ssh log: an oversized log keeps its newest half and the new line" {
