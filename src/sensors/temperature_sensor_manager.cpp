@@ -214,17 +214,17 @@ void TemperatureSensorManager::on_discovered(const PrinterDiscovery& hw) {
                       enum_id(kTemperatureSensorRoles, static_cast<TemperatureSensorRole>(e.role)));
     }
 
+    // A discovery may be a different printer whose drivers share these names
+    // ("tmc2209 stepper_x"), so no level carries over: the next frame re-reads
+    // each driver and a hot one notifies again.
     driver_objects_.clear();
     for (const auto& [name, kind] : hw.object_kinds()) {
         if (hw::is_stepper_driver(kind)) {
             driver_objects_.push_back(name);
         }
     }
-    for (auto it = driver_levels_.begin(); it != driver_levels_.end();) {
-        const bool listed = std::find(driver_objects_.begin(), driver_objects_.end(), it->first) !=
-                            driver_objects_.end();
-        it = listed ? std::next(it) : driver_levels_.erase(it);
-    }
+    driver_levels_.clear();
+    driver_levels_notified_.clear();
 }
 
 void TemperatureSensorManager::on_entries_changed() {

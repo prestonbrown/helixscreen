@@ -6,6 +6,8 @@
 #include "temperature_sensor_types.h"
 
 #include <cstdint>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace helix {
@@ -75,6 +77,30 @@ struct TempGraphSensorPrefs {
         return false;
     }
     return false;
+}
+
+/**
+ * @brief Re-apply the chip toggles a view recorded this session.
+ *
+ * A remembered group (drivers, MCU, host) keeps the per-printer setting its
+ * defaults came from: a toggle recorded in one view must not override a later
+ * choice made in another. @p Series needs `klipper_name`, `is_sensor`, `group`
+ * and `visible`.
+ */
+template <typename Series>
+void temp_graph_restore_session_toggles(std::vector<Series>& series,
+                                        const std::vector<std::pair<std::string, bool>>& toggles) {
+    for (auto& s : series) {
+        if (s.is_sensor && s.group != TempGraphSensorGroup::Auxiliary) {
+            continue;
+        }
+        for (const auto& [name, visible] : toggles) {
+            if (name == s.klipper_name) {
+                s.visible = visible;
+                break;
+            }
+        }
+    }
 }
 
 } // namespace helix
