@@ -13,6 +13,7 @@
 #include "ui_panel_controls.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/log_capture.h"
 #include "core/update_queue.h"
 #include "lvgl_log_handler.h"
 
@@ -36,17 +37,11 @@ class CheckFailureCapture {
         logger_ = spdlog::default_logger();
         prev_level_ = logger_->level();
         sink_->set_level(spdlog::level::trace);
-        logger_->sinks().push_back(sink_);
+        helix::attach_log_sink(*logger_, sink_);
         logger_->set_level(spdlog::level::trace);
     }
     ~CheckFailureCapture() {
-        auto& sinks = logger_->sinks();
-        for (auto it = sinks.begin(); it != sinks.end(); ++it) {
-            if (*it == sink_) {
-                sinks.erase(it);
-                break;
-            }
-        }
+        helix::detach_log_sink(*logger_, sink_);
         logger_->set_level(prev_level_);
     }
     CheckFailureCapture(const CheckFailureCapture&) = delete;

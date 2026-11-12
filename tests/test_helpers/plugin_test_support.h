@@ -10,6 +10,7 @@
 #include "lua_runtime.h"
 #include "moonraker_status_notification.h"
 #include "plugin_backend.h"
+#include "sanitizer_build.h"
 
 #include <filesystem>
 #include <fstream>
@@ -21,6 +22,8 @@
 #include <vector>
 
 namespace helix::plugin::test {
+
+using helix::test::kSanitizerSlowdown;
 
 /// A printer.objects.query reply as the backend hands it over: the whole JSON-RPC message.
 inline json query_reply(const json& status) {

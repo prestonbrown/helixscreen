@@ -24,6 +24,7 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/log_capture.h"
 #include "lvgl/lvgl.h"
 #include "lvgl_log_handler.h"
 #include "subject_debug_registry.h"
@@ -52,21 +53,14 @@ class LevelCapture {
         prev_level_ = logger_->level();
         ring_->set_level(spdlog::level::debug);
         all_->set_level(spdlog::level::trace);
-        logger_->sinks().push_back(ring_);
-        logger_->sinks().push_back(all_);
+        helix::attach_log_sink(*logger_, ring_);
+        helix::attach_log_sink(*logger_, all_);
         logger_->set_level(spdlog::level::trace);
     }
 
     ~LevelCapture() {
-        auto& sinks = logger_->sinks();
-        for (auto* wanted : {&ring_, &all_}) {
-            for (auto it = sinks.begin(); it != sinks.end(); ++it) {
-                if (*it == *wanted) {
-                    sinks.erase(it);
-                    break;
-                }
-            }
-        }
+        helix::detach_log_sink(*logger_, ring_);
+        helix::detach_log_sink(*logger_, all_);
         logger_->set_level(prev_level_);
     }
 

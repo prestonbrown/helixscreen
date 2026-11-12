@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/unique_temp_dir.h"
 #include "app_constants.h"
 #include "config_backup.h"
@@ -192,8 +193,7 @@ TEST_CASE("write_rolling_backup warns only when an existing source could not be 
     TmpDir dir("rolling_warn");
     auto sink = std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(8);
     sink->set_level(spdlog::level::warn);
-    auto& sinks = spdlog::default_logger()->sinks();
-    sinks.push_back(sink);
+    auto attached = std::make_unique<helix::ScopedLogSink>(sink);
 
     // helixscreen.env is optional, so a config without one has nothing to protect.
     write_rolling_backup(dir.file("absent.env"), dir.file("a"), dir.file("b"));
@@ -206,7 +206,7 @@ TEST_CASE("write_rolling_backup warns only when an existing source could not be 
     write_rolling_backup(src, dir.file("blocker/a"), dir.file("blocker/b"));
     const auto logged = sink->last_formatted();
 
-    sinks.pop_back();
+    attached.reset();
     CHECK(absent_source_silent);
     REQUIRE(logged.size() == 1);
     CHECK(logged[0].find("failed at both") != std::string::npos);

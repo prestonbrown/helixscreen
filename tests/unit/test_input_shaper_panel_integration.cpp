@@ -25,6 +25,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/input_shaper_panel_test_access.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -418,11 +419,10 @@ TEST_CASE_METHOD(InputShaperDeltaFixture,
       public:
         GcodeLogCapture() : sink_(std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(256)) {
             sink_->set_level(spdlog::level::trace);
-            spdlog::default_logger()->sinks().push_back(sink_);
+            helix::attach_log_sink(*spdlog::default_logger(), sink_);
         }
         ~GcodeLogCapture() {
-            auto& sinks = spdlog::default_logger()->sinks();
-            sinks.erase(std::remove(sinks.begin(), sinks.end(), sink_), sinks.end());
+            helix::detach_log_sink(*spdlog::default_logger(), sink_);
         }
         [[nodiscard]] int count(const std::string& needle) const {
             int n = 0;
