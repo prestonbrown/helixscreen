@@ -215,5 +215,7 @@ def test_run_counts_and_skips_manual(tmp_path, capsys):
     assert rc == 1
     assert "captured 1, failed 1, skipped 1 (manual)" in out
     assert "docs/images/b.png" in out and "gone" in out
-    assert len(sessions) == 1  # one session for entries sharing env and size
+    # A fresh app per capture: a recipe that leaves a mode open (Home edit mode)
+    # must not leak into the next capture.
+    assert len(sessions) == 2
     assert (tmp_path / "docs/images/a.png").exists()
