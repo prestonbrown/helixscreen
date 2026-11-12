@@ -103,11 +103,7 @@ TEST_CASE("a tap on a home tile reaches the widget that owns it", "[action_tile]
     // The tap is the XML event_cb on the tile's button; the callback finds its
     // widget through the tile root, not a C++-attached user_data. A callback that
     // cannot find its widget is a silent no-op, so each tap must open something.
-    //
-    // The network tile's attach() creates get_wifi_manager(), the process-lifetime
-    // WiFi singleton, whose backend is chosen once for the whole process. With
-    // test_mode off that is the real platform backend, and every later test that
-    // reads the singleton finds no mock behind it.
+    // The network tile creates the process-lifetime WiFi manager: on its mock backend.
     ScopedRuntimeConfig scoped_config;
     get_runtime_config()->test_mode = true;
     get_runtime_config()->use_real_wifi = false;

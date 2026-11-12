@@ -24,40 +24,23 @@ using helix::gcode::gl_renderer_is_denylisted;
 using helix::gcode::kGlErrInvalidOperation;
 using helix::gcode::kGlErrOutOfMemory;
 
-TEST_CASE("gl_draw_error_is_fatal triggers fallback on out-of-memory", "[gcode][gl_fallback]") {
-    // GL_OUT_OF_MEMORY is the primary CB1/Mali fault signature — must fall back.
-    REQUIRE(gl_draw_error_is_fatal(kGlErrOutOfMemory));
-    REQUIRE(gl_draw_error_is_fatal(0x0505)); // literal value guards against renumbering
-}
-
-TEST_CASE("gl_draw_error_is_fatal triggers fallback on invalid-operation", "[gcode][gl_fallback]") {
-    // GL_INVALID_OPERATION means the command stream is in a driver-rejected
-    // state; continuing to draw is unsafe.
-    REQUIRE(gl_draw_error_is_fatal(kGlErrInvalidOperation));
-    REQUIRE(gl_draw_error_is_fatal(0x0502));
-}
-
-TEST_CASE("gl_draw_error_is_fatal does NOT fall back on GL_NO_ERROR", "[gcode][gl_fallback]") {
-    // The common case — a healthy frame — must keep rendering in 3D. If this
-    // returned true the viewer would thrash to 2D on every frame.
-    REQUIRE_FALSE(gl_draw_error_is_fatal(0x0000)); // GL_NO_ERROR
-}
-
-TEST_CASE("gl_draw_error_is_fatal ignores non-fatal recoverable errors", "[gcode][gl_fallback]") {
-    // These errors indicate a programming mistake in the call, but the driver
-    // stays in a defined state and the next frame can recover — they must NOT
-    // permanently disable GPU rendering.
-    REQUIRE_FALSE(gl_draw_error_is_fatal(0x0500)); // GL_INVALID_ENUM
-    REQUIRE_FALSE(gl_draw_error_is_fatal(0x0501)); // GL_INVALID_VALUE
-    REQUIRE_FALSE(gl_draw_error_is_fatal(0x0506)); // GL_INVALID_FRAMEBUFFER_OPERATION
-}
-
-TEST_CASE("gl_draw_error_is_fatal constants match OpenGL ES values", "[gcode][gl_fallback]") {
-    // The predicate is header-only (no GL dependency) so it is testable on
-    // builds without ENABLE_GLES_3D. Pin the constants to the real GL ES
-    // numbers so a typo can never silently disable the guard.
+TEST_CASE("gl_draw_error_is_fatal falls back only on errors that leave the driver unsafe",
+          "[gcode][gl_fallback]") {
+    // GL_OUT_OF_MEMORY is the primary CB1/Mali fault signature, and
+    // GL_INVALID_OPERATION means a driver-rejected command stream: drawing on is
+    // unsafe. The literal GL ES values guard the header-only constants.
     REQUIRE(kGlErrOutOfMemory == 0x0505u);
     REQUIRE(kGlErrInvalidOperation == 0x0502u);
+    REQUIRE(gl_draw_error_is_fatal(0x0505));
+    REQUIRE(gl_draw_error_is_fatal(0x0502));
+
+    // A healthy frame (GL_NO_ERROR) keeps 3D, or the viewer thrashes to 2D every
+    // frame; INVALID_ENUM, INVALID_VALUE and INVALID_FRAMEBUFFER_OPERATION leave the
+    // driver defined and the next frame recovers.
+    for (unsigned int err : {0x0000u, 0x0500u, 0x0501u, 0x0506u}) {
+        CAPTURE(err);
+        REQUIRE_FALSE(gl_draw_error_is_fatal(err));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -74,21 +57,15 @@ TEST_CASE("gl_renderer_is_denylisted matches known-bad Panfrost GPUs", "[gcode][
     // The exact GL_RENDERER strings from the crash reports.
     REQUIRE(gl_renderer_is_denylisted("Mali-G52 (Panfrost)"));
     REQUIRE(gl_renderer_is_denylisted("Mali-G31 (Panfrost)"));
-}
-
-TEST_CASE("gl_renderer_is_denylisted is case-insensitive", "[gcode][gl_fallback]") {
     // Driver casing varies across Mesa versions — the match must not depend on it.
     REQUIRE(gl_renderer_is_denylisted("PANFROST"));
     REQUIRE(gl_renderer_is_denylisted("panfrost"));
 }
 
-TEST_CASE("gl_renderer_is_denylisted rejects null and empty", "[gcode][gl_fallback]") {
+TEST_CASE("gl_renderer_is_denylisted allows known-good GPUs", "[gcode][gl_fallback]") {
     // glGetString(GL_RENDERER) can return nullptr on a broken context.
     REQUIRE_FALSE(gl_renderer_is_denylisted(nullptr));
     REQUIRE_FALSE(gl_renderer_is_denylisted(""));
-}
-
-TEST_CASE("gl_renderer_is_denylisted allows known-good GPUs", "[gcode][gl_fallback]") {
     // Software rasterizer and desktop GPUs render the 3D preview fine.
     REQUIRE_FALSE(gl_renderer_is_denylisted("llvmpipe (LLVM 15.0.0, 128 bits)"));
     REQUIRE_FALSE(gl_renderer_is_denylisted("Mesa Intel(R) UHD Graphics (ADL GT2)"));
@@ -222,30 +199,21 @@ TEST_CASE("gpu_triangle_budget leaves every other driver uncapped", "[gcode][gl_
 #include "gcode_gles_renderer.h"
 #include "gcode_parser.h"
 
-#if LV_USE_SDL
 #include <SDL.h>
-#endif
 
 TEST_CASE("GLES init failure surfaces through render_failed", "[gcode][gl_fallback][1555]") {
-#if LV_USE_SDL
     const Uint32 video_before = SDL_WasInit(SDL_INIT_VIDEO);
-#endif
-    {
-        helix::gcode::GCodeGLESRenderer renderer;
-        const helix::gcode::ParsedGCodeFile empty_gcode;
-        const helix::gcode::GCodeCamera camera;
+    helix::gcode::GCodeGLESRenderer renderer;
+    const helix::gcode::ParsedGCodeFile empty_gcode;
+    const helix::gcode::GCodeCamera camera;
 
-        // render() attempts GL init first and returns before touching the layer
-        // or geometry when init fails, so null layer/coords are safe here.
-        renderer.render(nullptr, empty_gcode, camera, nullptr);
+    // render() attempts GL init first and returns before touching the layer
+    // or geometry when init fails, so null layer/coords are safe here.
+    renderer.render(nullptr, empty_gcode, camera, nullptr);
 
-        REQUIRE(renderer.render_failed());
-    }
-#if LV_USE_SDL
-    // The window init_gl() tried to make brought SDL video up. Left up, it hands
-    // every later test in the process an OS clipboard and a live video driver.
+    REQUIRE(renderer.render_failed());
+    // A failed init leaves SDL video as it found it, or later tests get an OS clipboard.
     CHECK(SDL_WasInit(SDL_INIT_VIDEO) == video_before);
-#endif
 }
 
 #endif // ENABLE_GLES_3D

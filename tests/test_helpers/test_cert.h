@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-// Builds certificates with OpenSSL directly. A build whose libhv has no OpenSSL
-// (the macOS dev build) has no headers for it, so this is empty there.
-#include "hv/hconfig.h"
-
+#include "hv/hconfig.h" // WITH_OPENSSL is unset where libhv has none (the macOS dev build)
 #ifdef WITH_OPENSSL
-
 #include <cstdio>
 #include <filesystem>
 #include <openssl/pem.h>
@@ -72,5 +68,4 @@ struct TestCert {
 };
 
 } // namespace helix::test
-
 #endif // WITH_OPENSSL

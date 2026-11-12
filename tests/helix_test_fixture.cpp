@@ -409,8 +409,7 @@ void HelixTestFixture::reset_all() {
     // quiet window open into the next, and that test's insert would ask nothing.
     helix::ui::reset_insert_offers_for_test();
 
-    // The overlay-open trace keeps one record per overlay name, up to a cap a whole
-    // suite run passes, after which a test's own overlay is never recorded.
+    // A whole suite opens more overlay names than the open trace has records for.
     helix::nav::reset_overlay_open_trace_for_test();
 
     // Global RuntimeConfig's --real-*/--no-ams/--disconnected opt-out flags back
