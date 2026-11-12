@@ -53,6 +53,10 @@
 #include <array>
 #include <optional>
 
+// The configured head is drawn by ui_toolhead_view; the path code names it unqualified.
+using helix::ui::draw_toolhead;
+using helix::ui::toolhead_glyph_bounds;
+
 namespace helix::ui::fpath {
 
 namespace pg = helix::ui::pathgeo;

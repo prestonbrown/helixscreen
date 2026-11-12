@@ -35,8 +35,6 @@ struct ToolheadFit {
 [[nodiscard]] ToolheadFit fit_toolhead(ToolheadStyle style, const lv_area_t& box,
                                        int32_t max_scale = 1000);
 
-} // namespace helix::ui
-
 /// Toolhead glyph in the user's configured style. Applies the A4T style's 6/5
 /// scale boost internally: pass the base scale. @p filament is the colour at
 /// the nozzle, or nullopt when nothing is loaded there.
@@ -45,7 +43,7 @@ void draw_toolhead(lv_layer_t* layer, int32_t cx, int32_t cy, std::optional<lv_c
 
 /// Drawn bounds of draw_toolhead()'s glyph at (@p cx, @p cy) for the
 /// configured style, at the same base scale.
-helix::ui::GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t cy, int32_t scale);
+GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t cy, int32_t scale);
 
 /// The configured head fitted to @p box (fit_toolhead() for the configured style).
 void draw_toolhead_fitted(lv_layer_t* layer, const lv_area_t& box,
@@ -55,3 +53,5 @@ void draw_toolhead_fitted(lv_layer_t* layer, const lv_area_t& box,
 /// Registers the `<toolhead_view>` XML widget: the configured head, fitted to
 /// the widget's content box, redrawn when the Toolhead Style setting changes.
 void ui_toolhead_view_register();
+
+} // namespace helix::ui

@@ -233,7 +233,7 @@ static void indicator_draw_cb(lv_event_t* e) {
     const int32_t nozzle_cx = fit.cx;
     const int32_t nozzle_y = fit.nozzle_y;
     const int32_t nozzle_scale = fit.scale;
-    draw_toolhead(layer, nozzle_cx, nozzle_y, data->color_text, nozzle_scale);
+    helix::ui::draw_toolhead(layer, nozzle_cx, nozzle_y, data->color_text, nozzle_scale);
 
     // --- Direction arrow flash (shaft + V-head, drawn from base to tip) ---
     if (data->arrow_opacity > 0 && data->arrow_progress > 0) {
