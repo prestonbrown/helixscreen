@@ -248,6 +248,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     AmsError reset() override;
     AmsError recover() override;
     AmsError cancel() override;
+    /// Every CFS operation is one Klipper script holding the gcode queue to its end, so
+    /// cancel()'s CANCEL_PRINT can only run after it: no Abort is offered.
+    [[nodiscard]] bool can_cancel_operation() const override {
+        return false;
+    }
     /// Also ends the phase tracking, so a later sensor or heater edge cannot
     /// synthesize a sub-phase of an operation the restart already ended.
     void on_klipper_restarted() override;
