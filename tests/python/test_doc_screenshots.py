@@ -178,3 +178,39 @@ def test_capture_runs_recipe_steps_uses_stable_and_crops(tmp_path):
     img = Image.open(out)
     # crop box grown by the margin on every side
     assert img.size == (220, 120)
+
+
+from doc_screenshots import run  # noqa: E402
+
+
+def test_run_counts_and_skips_manual(tmp_path, capsys):
+    entries = [
+        Entry(path="docs/images/a.png", kind="app", steps=("navigate home",)),
+        Entry(path="docs/images/m.png", kind="manual", source="s", recapture="r"),
+        Entry(path="docs/images/b.png", kind="app", steps=("navigate home",), crop="gone"),
+    ]
+    sessions = []
+
+    class Factory(FakeSession):
+        def __init__(self, env, size):
+            super().__init__({})
+            sessions.append(self)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            pass
+
+        def ctl(self, *args):
+            if args[0] == "geom":
+                raise RuntimeError(f"Widget not found: {args[1]}")
+            return super().ctl(*args)
+
+    rc = run(entries, Factory, tmp_path)
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "captured 1, failed 1, skipped 1 (manual)" in out
+    assert "docs/images/b.png" in out and "gone" in out
+    assert len(sessions) == 1  # one session for entries sharing env and size
+    assert (tmp_path / "docs/images/a.png").exists()

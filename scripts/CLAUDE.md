@@ -172,18 +172,16 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `verify_mdi_codepoints.py` | Verify each icon's claimed name (from `mdi_icon_codepoints.py --table`) against MDI's own metadata cache |
 
 ### Screenshots & Testing
-Screenshots drive a freshly booted instance with `helix-screen ctl` (`docs/devel/HELIXCTL.md`);
+Doc screenshots regenerate with `make doc-screenshots [ONLY=<glob>]`. Screenshots drive a freshly booted instance with `helix-screen ctl` (`docs/devel/HELIXCTL.md`);
 each screen maps to a navigation recipe in `screenshot-recipes.sh`, the single source of truth.
 
 | Script | Purpose |
 |--------|---------|
 | `screenshot.sh` | Boot an instance, drive it to a screen token, capture |
-| `screenshot-recipes.sh` | Token → helix-screen ctl navigation-recipe table (sourced by screenshot.sh, screenshot-all.sh and doc_screenshots.py) |
+| `screenshot-recipes.sh` | Token → helix-screen ctl navigation-recipe table (sourced by screenshot.sh and doc_screenshots.py) |
 | `doc_screenshots.py` | The doc-image manifest (`docs/images/doc-screenshots.yml`): `app` entries a headless `--test` instance regenerates, `manual` entries naming their source. Tests: `tests/python/test_doc_screenshots.py` |
-| `screenshot-all.sh` | Capture all documentation screenshots |
 | `ad5m-screenshot.sh` | Remote screenshot capture from AD5M printer |
 | `esp32_serial_snapshot.py` | Screenshot an ESP32 panel over its serial console |
-| `generate-screenshots.sh` | Generate screenshots for documentation/marketing |
 | `generate-test-data.py` | Generate mock test data for test suites |
 | `test_clean_shutdown.sh` | Verify clean shutdown behavior |
 | `afc-test.sh` | AFC live smoke test against a real printer |

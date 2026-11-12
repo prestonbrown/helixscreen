@@ -17,7 +17,7 @@
 # constructs representative sample data and shows the overlay with real lifecycle.
 #
 # This table is the single source of truth, sourced by both screenshot.sh (single
-# shot) and screenshot-all.sh (long-lived batch). Discover a new recipe by driving
+# shot) and doc_screenshots.py (the doc-image manifest's batch). Discover a new recipe by driving
 # the app: launch `helix-screen --test --skip-wizard --remote`, then
 # `helix-screen ctl navigate <panel>`, `helix-screen ctl ls`, find the trigger widget.
 
@@ -26,7 +26,7 @@
 # ships bash 3.2, which supports neither `declare -A` nor `declare -g` — and
 # fails *silently* on them (the shell reports an error but still exits 0), so
 # every macOS caller read this table as empty. That took out screenshot.sh,
-# screenshot-all.sh and tests/ui/test_screens.py, the last of which surfaced
+# the doc screenshot batch and tests/ui/test_screens.py, the last of which surfaced
 # it only as a KeyError a hundred lines away from the cause.
 #
 # Comment lines and blank lines are ignored by both accessors below.
