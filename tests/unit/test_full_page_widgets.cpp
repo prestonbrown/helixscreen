@@ -137,8 +137,9 @@ TEST_CASE_METHOD(FullPageFixture, "embed builds the overlay's tree in a page, of
     CHECK(lv_obj_get_parent(root) == page_);
     CHECK_FALSE(hidden(root));
     CHECK_FALSE(NavigationManager::instance().has_open_overlays());
-    // A page has nothing to go back to.
+    // A page has nothing to go back to; Motion keeps its header for the tabs.
     CHECK_FALSE(lv_obj_is_clickable(named(root, "back_button")));
+    CHECK_FALSE(hidden(named(root, "overlay_header")));
     // A second embed while the tree exists builds nothing.
     CHECK_FALSE(motion.embed(page_));
 
@@ -210,6 +211,8 @@ TEST_CASE_METHOD(FullPageFixture, "a heater tile covering an extra page hosts it
     TempGraphOverlay& graph = get_global_temp_graph_overlay();
     REQUIRE(graph.is_embedded());
     CHECK(lv_obj_get_parent(graph.get_root()) == named(tile->root(), "full_page_body"));
+    // Its title-only header gives the page that height.
+    CHECK(hidden(named(graph.get_root(), "overlay_header")));
     lv_subject_t* mode = lv_xml_get_subject(nullptr, "temp_graph_mode");
     REQUIRE(mode != nullptr);
     CHECK(lv_subject_get_int(mode) == static_cast<int>(TempGraphOverlay::Mode::Bed));

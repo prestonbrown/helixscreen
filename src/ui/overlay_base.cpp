@@ -202,6 +202,11 @@ bool OverlayBase::embed(lv_obj_t* container) {
     lv_obj_set_size(root, LV_PCT(100),
                     LV_PCT(100));   // DECLARATIVE_OK: overlay root reused in a page host
     lv_obj_set_hidden(root, false); // DECLARATIVE_OK: create() builds every overlay hidden
+    if (!embed_keeps_header()) {
+        if (lv_obj_t* header = lv_obj_find_by_name(root, "overlay_header")) {
+            lv_obj_set_hidden(header, true); // DECLARATIVE_OK: a page drops a title-only header
+        }
+    }
     if (lv_obj_t* back = lv_obj_find_by_name(root, "back_button")) {
         lv_obj_set_clickable(back, false); // DECLARATIVE_OK: a page has no back
         if (lv_obj_t* icon = lv_obj_find_by_name(back, "back_icon")) {

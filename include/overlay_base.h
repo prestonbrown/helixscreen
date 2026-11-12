@@ -171,6 +171,13 @@ class OverlayBase : public ViewLifecycleBase {
      */
     void release_embed();
 
+    /// Whether embed() keeps the header bar. An overlay whose header carries
+    /// only its title returns false: on a home page the title repeats the tile,
+    /// and the page needs the height for the controls under it.
+    virtual bool embed_keeps_header() const {
+        return true;
+    }
+
     /// Whether the current tree was built by embed().
     bool is_embedded() const {
         return embedded_ && overlay_root_;

@@ -82,6 +82,11 @@ class TempGraphOverlay : public OverlayBase {
      */
     bool embed_in(Mode mode, lv_obj_t* container);
 
+    /// The header carries only the title, which a home page repeats.
+    bool embed_keeps_header() const override {
+        return false;
+    }
+
   protected:
     void before_show() override;
 
