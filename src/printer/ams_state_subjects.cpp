@@ -614,6 +614,7 @@ void AmsState::init_subjects(bool register_xml) {
     }
 
     initialized_ = true;
+    sync_lane_records_ready();
 
     // Self-register cleanup — ensures deinit runs before lv_deinit()
     StaticSubjectRegistry::instance().register_deinit(
