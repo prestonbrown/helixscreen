@@ -344,31 +344,22 @@ def main(argv=None) -> int:
 
 
 def run(entries, session_factory, out_root: Path) -> int:
-    """Capture every app entry; one session per (env, size) run. Prints counts."""
+    """Capture every app entry, each in a fresh app so no recipe's state (an open
+    mode, a scrolled list) reaches the next. Prints counts."""
     captured = failed = skipped = 0
-    session = None
-    key = None
-    try:
-        for e in entries:
-            if e.kind == "manual":
-                skipped += 1
-                continue
-            k = (tuple(sorted(e.env.items())), e.size)
-            if k != key:
-                if session is not None:
-                    session.__exit__(None, None, None)
-                session = session_factory(e.env, e.size).__enter__()
-                key = k
-            try:
-                session.ctl("navigate", "home")
-                capture(e, session, out_root)
-                captured += 1
-                print(f"ok      {e.path}")
-            except (CaptureError, RuntimeError) as err:
-                failed += 1
-                print(f"FAILED  {e.path}: {err}")
-    finally:
-        if session is not None:
+    for e in entries:
+        if e.kind == "manual":
+            skipped += 1
+            continue
+        session = session_factory(e.env, e.size).__enter__()
+        try:
+            capture(e, session, out_root)
+            captured += 1
+            print(f"ok      {e.path}")
+        except (CaptureError, RuntimeError) as err:
+            failed += 1
+            print(f"FAILED  {e.path}: {err}")
+        finally:
             session.__exit__(None, None, None)
     print(f"captured {captured}, failed {failed}, skipped {skipped} (manual)")
     return 1 if failed else 0
