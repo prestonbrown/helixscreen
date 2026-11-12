@@ -9,6 +9,7 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_notification_history.h"
+#include "ui_overlay_open_trace.h"
 #include "ui_test_utils.h"
 #include "ui_toast_manager.h"
 
@@ -407,6 +408,10 @@ void HelixTestFixture::reset_all() {
     // A same-spool notice asked in one test would otherwise hold its lane's
     // quiet window open into the next, and that test's insert would ask nothing.
     helix::ui::reset_insert_offers_for_test();
+
+    // The overlay-open trace keeps one record per overlay name, up to a cap a whole
+    // suite run passes, after which a test's own overlay is never recorded.
+    helix::nav::reset_overlay_open_trace_for_test();
 
     // Global RuntimeConfig's --real-*/--no-ams/--disconnected opt-out flags back
     // to their off-by-default state. Every test that exercises RuntimeConfig
