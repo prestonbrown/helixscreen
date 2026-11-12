@@ -480,7 +480,7 @@ translations:
   Bed mesh...: Bettnetz...
   Bed size unknown: 'Bettgröße unbekannt'
   Bed target set to {}: Bett-Zieltemperatur auf {} gesetzt
-  Bed temp must be %s: Betttemperatur muss 0-%s betragen
+  Bed temp must be %d-%s: Betttemperatur muss %d-%s betragen
   Bed warming timed out: Bettaufheizung Zeitüberschreitung
   Bed {}: Heizbett {}
   Bed {} / {}: Heizbett {} / {}
@@ -735,7 +735,7 @@ translations:
   Chamber heating to %s...: Kammer heizt auf %s auf...
   Chamber light fitted: 'Kammerlicht eingebaut'
   Chamber target set to {}: Kammer-Ziel auf {} gesetzt
-  Chamber temp must be %s: Kammertemperatur muss 0-%s betragen
+  Chamber temp must be %d-%s: Kammertemperatur muss %d-%s betragen
   Chamber too hot: 'Kammer zu heiß'
   Change: Ändern
   Change Address: Adresse ändern
@@ -2874,7 +2874,7 @@ translations:
   'Nozzle not changed: {}': "Düse nicht geändert: {}"
   Nozzle size and flow type per head: "Düsengröße und Durchflusstyp je Werkzeugkopf"
   Nozzle target set to {}: Düsen-Zieltemperatur auf {} gesetzt
-  Nozzle temp must be %s: Düsentemperatur muss 100-%s betragen
+  Nozzle temp must be %d-%s: Düsentemperatur muss %d-%s betragen
   Nozzle, bed, and chamber in one widget: Düse, Bett und Kammer in einem Widget
   'Nozzle:': 'Düse:'
   'Nozzles still heating: {}': 'Düsen heizen noch: {}'

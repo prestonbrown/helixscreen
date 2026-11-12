@@ -443,7 +443,7 @@
   <translation tag="Bed mesh..." de="Bettnetz..."/>
   <translation tag="Bed size unknown" de="Bettgröße unbekannt"/>
   <translation tag="Bed target set to {}" de="Bett-Zieltemperatur auf {} gesetzt"/>
-  <translation tag="Bed temp must be %s" de="Betttemperatur muss 0-%s betragen"/>
+  <translation tag="Bed temp must be %d-%s" de="Betttemperatur muss %d-%s betragen"/>
   <translation tag="Bed warming timed out" de="Bettaufheizung Zeitüberschreitung"/>
   <translation tag="Bed {}" de="Heizbett {}"/>
   <translation tag="Bed {} / {}" de="Heizbett {} / {}"/>
@@ -673,7 +673,7 @@
   <translation tag="Chamber heating to %s..." de="Kammer heizt auf %s auf..."/>
   <translation tag="Chamber light fitted" de="Kammerlicht eingebaut"/>
   <translation tag="Chamber target set to {}" de="Kammer-Ziel auf {} gesetzt"/>
-  <translation tag="Chamber temp must be %s" de="Kammertemperatur muss 0-%s betragen"/>
+  <translation tag="Chamber temp must be %d-%s" de="Kammertemperatur muss %d-%s betragen"/>
   <translation tag="Chamber too hot" de="Kammer zu heiß"/>
   <translation tag="Change" de="Ändern"/>
   <translation tag="Change Address" de="Adresse ändern"/>
@@ -2639,7 +2639,7 @@
   <translation tag="Nozzle not changed: {}" de="Düse nicht geändert: {}"/>
   <translation tag="Nozzle size and flow type per head" de="Düsengröße und Durchflusstyp je Werkzeugkopf"/>
   <translation tag="Nozzle target set to {}" de="Düsen-Zieltemperatur auf {} gesetzt"/>
-  <translation tag="Nozzle temp must be %s" de="Düsentemperatur muss 100-%s betragen"/>
+  <translation tag="Nozzle temp must be %d-%s" de="Düsentemperatur muss %d-%s betragen"/>
   <translation tag="Nozzle, bed, and chamber in one widget" de="Düse, Bett und Kammer in einem Widget"/>
   <translation tag="Nozzle:" de="Düse:"/>
   <translation tag="Nozzles still heating: {}" de="Düsen heizen noch: {}"/>

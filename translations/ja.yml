@@ -450,7 +450,7 @@ translations:
   Bed mesh...: ベッドメッシュ...
   Bed size unknown: 'ベッドサイズが不明です'
   Bed target set to {}: ベッド目標温度を {} に設定しました
-  Bed temp must be %s: ベッド温度は 0〜%s にしてください
+  Bed temp must be %d-%s: ベッド温度は %d〜%s にしてください
   Bed warming timed out: ベッド加熱がタイムアウトしました
   Bed {}: ベッド {}
   Bed {} / {}: ベッド {} / {}
@@ -685,7 +685,7 @@ translations:
   Chamber heating to %s...: チャンバーを%sに加熱中...
   Chamber light fitted: 'チャンバーライト搭載'
   Chamber target set to {}: チャンバー目標温度を{} に設定
-  Chamber temp must be %s: チャンバー温度は 0〜%s にしてください
+  Chamber temp must be %d-%s: チャンバー温度は %d〜%s にしてください
   Chamber too hot: 'チャンバーが高温です'
   Change: 変更
   Change Address: アドレスを変更
@@ -2734,7 +2734,7 @@ translations:
   'Nozzle not changed: {}': "ノズルは変更されていません: {}"
   Nozzle size and flow type per head: "ツールヘッドごとのノズルサイズとフロータイプ"
   Nozzle target set to {}: ノズル目標温度を {} に設定しました
-  Nozzle temp must be %s: ノズル温度は 100〜%s にしてください
+  Nozzle temp must be %d-%s: ノズル温度は %d〜%s にしてください
   Nozzle, bed, and chamber in one widget: ノズル、ベッド、チャンバーをまとめて表示
   'Nozzle:': 'ノズル:'
   'Nozzles still heating: {}': '加熱中のノズル: {}'

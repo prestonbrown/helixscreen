@@ -443,7 +443,7 @@
   <translation tag="Bed mesh..." pt="Malha da mesa..."/>
   <translation tag="Bed size unknown" pt="Tamanho da mesa desconhecido"/>
   <translation tag="Bed target set to {}" pt="Mesa configurada para {}"/>
-  <translation tag="Bed temp must be %s" pt="A temperatura da mesa deve ser 0-%s"/>
+  <translation tag="Bed temp must be %d-%s" pt="A temperatura da mesa deve ser %d-%s"/>
   <translation tag="Bed warming timed out" pt="Aquecimento da mesa — tempo esgotado"/>
   <translation tag="Bed {}" pt="Mesa {}"/>
   <translation tag="Bed {} / {}" pt="Mesa {} / {}"/>
@@ -673,7 +673,7 @@
   <translation tag="Chamber heating to %s..." pt="Aquecendo câmara a %s..."/>
   <translation tag="Chamber light fitted" pt="Luz da câmara instalada"/>
   <translation tag="Chamber target set to {}" pt="Alvo da câmara definido para {}"/>
-  <translation tag="Chamber temp must be %s" pt="A temperatura da câmara deve ser 0-%s"/>
+  <translation tag="Chamber temp must be %d-%s" pt="A temperatura da câmara deve ser %d-%s"/>
   <translation tag="Chamber too hot" pt="Câmara demasiado quente"/>
   <translation tag="Change" pt="Alterar"/>
   <translation tag="Change Address" pt="Alterar Endereço"/>
@@ -2639,7 +2639,7 @@
   <translation tag="Nozzle not changed: {}" pt="Bico não alterado: {}"/>
   <translation tag="Nozzle size and flow type per head" pt="Tamanho e tipo de fluxo do bico por cabeçote"/>
   <translation tag="Nozzle target set to {}" pt="Bico configurado para {}"/>
-  <translation tag="Nozzle temp must be %s" pt="A temperatura do bico deve ser 100-%s"/>
+  <translation tag="Nozzle temp must be %d-%s" pt="A temperatura do bico deve ser %d-%s"/>
   <translation tag="Nozzle, bed, and chamber in one widget" pt="Bico, mesa e câmara em um widget"/>
   <translation tag="Nozzle:" pt="Bico:"/>
   <translation tag="Nozzles still heating: {}" pt="Bicos ainda aquecendo: {}"/>

@@ -20,6 +20,7 @@
 #include "printer_state.h"
 #include "sort_small.h"
 #include "temperature_controller.h"
+#include "translation_loader.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
@@ -37,12 +38,11 @@ constexpr int kNozzleInputAbsMaxC = 500;
 constexpr int kBedInputAbsMaxC = 200;
 constexpr int kChamberInputAbsMaxC = 120;
 
-// "0-200°C" / "32-392°F". Not format_temperature_range(), which reads a 0 end as unset.
-static std::string temp_input_range(int min_c, int max_c) {
-    char buf[32];
-    snprintf(buf, sizeof(buf), lv_tr("%d-%d"), helix::units::to_display_temp_whole(min_c),
-             helix::units::to_display_temp_whole(max_c));
-    return std::string(buf) + helix::units::display_temp_symbol();
+// A field's bounds as its error states them: the lower one bare, the upper one
+// with its unit ("100-500°C" / "212-932°F"), each in the display unit.
+static void temp_input_range_msg(char* msg, size_t size, const char* fmt, int min_c, int max_c) {
+    snprintf(msg, size, lv_tr(fmt), helix::units::to_display_temp_whole(min_c),
+             helix::units::format_display_temp(max_c).c_str());
 }
 
 // ============================================================================
@@ -344,22 +344,22 @@ void MaterialTempsOverlay::handle_save() {
     if (nozzle_min < 100 || nozzle_max < 100 || nozzle_min > kNozzleInputAbsMaxC ||
         nozzle_max > kNozzleInputAbsMaxC) {
         char msg[kToastBufBytes];
-        snprintf(msg, sizeof(msg), lv_tr("Nozzle temp must be %s"),
-                 temp_input_range(100, kNozzleInputAbsMaxC).c_str());
+        temp_input_range_msg(msg, sizeof(msg), TR_NOOP("Nozzle temp must be %d-%s"), 100,
+                             kNozzleInputAbsMaxC);
         ToastManager::instance().show(ToastSeverity::WARNING, msg, 3000);
         return;
     }
     if (bed_temp < 0 || bed_temp > kBedInputAbsMaxC) {
         char msg[kToastBufBytes];
-        snprintf(msg, sizeof(msg), lv_tr("Bed temp must be %s"),
-                 temp_input_range(0, kBedInputAbsMaxC).c_str());
+        temp_input_range_msg(msg, sizeof(msg), TR_NOOP("Bed temp must be %d-%s"), 0,
+                             kBedInputAbsMaxC);
         ToastManager::instance().show(ToastSeverity::WARNING, msg, 3000);
         return;
     }
     if (chamber_temp < 0 || chamber_temp > kChamberInputAbsMaxC) {
         char msg[kToastBufBytes];
-        snprintf(msg, sizeof(msg), lv_tr("Chamber temp must be %s"),
-                 temp_input_range(0, kChamberInputAbsMaxC).c_str());
+        temp_input_range_msg(msg, sizeof(msg), TR_NOOP("Chamber temp must be %d-%s"), 0,
+                             kChamberInputAbsMaxC);
         ToastManager::instance().show(ToastSeverity::WARNING, msg, 3000);
         return;
     }

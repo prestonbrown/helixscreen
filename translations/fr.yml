@@ -479,7 +479,7 @@ translations:
   Bed mesh...: Maillage du plateau...
   Bed size unknown: 'Taille du plateau inconnue'
   Bed target set to {}: Cible plateau réglée à {}
-  Bed temp must be %s: La température du plateau doit être entre 0 et %s
+  Bed temp must be %d-%s: La température du plateau doit être entre %d et %s
   Bed warming timed out: Préchauffage du plateau — délai dépassé
   Bed {}: Plateau {}
   Bed {} / {}: Plateau {} / {}
@@ -736,7 +736,7 @@ translations:
   Chamber heating to %s...: Chauffe de la chambre à %s...
   Chamber light fitted: 'Éclairage de chambre installé'
   Chamber target set to {}: Cible de chambre définie à {}
-  Chamber temp must be %s: La température de l'enceinte doit être entre 0 et %s
+  Chamber temp must be %d-%s: La température de l'enceinte doit être entre %d et %s
   Chamber too hot: 'Chambre trop chaude'
   Change: Modifier
   Change Address: Changer l'adresse
@@ -2881,7 +2881,7 @@ translations:
   'Nozzle not changed: {}': "Buse non modifiée : {}"
   Nozzle size and flow type per head: "Taille et type de débit de buse par tête d'outil"
   Nozzle target set to {}: Cible buse réglée à {}
-  Nozzle temp must be %s: La température de la buse doit être entre 100 et %s
+  Nozzle temp must be %d-%s: La température de la buse doit être entre %d et %s
   Nozzle, bed, and chamber in one widget: Buse, plateau et enceinte réunis
   'Nozzle:': 'Buse :'
   'Nozzles still heating: {}': 'Buses encore en chauffe : {}'

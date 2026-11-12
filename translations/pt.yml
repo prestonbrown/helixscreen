@@ -474,7 +474,7 @@ translations:
   Bed mesh...: Malha da mesa...
   Bed size unknown: 'Tamanho da mesa desconhecido'
   Bed target set to {}: Mesa configurada para {}
-  Bed temp must be %s: A temperatura da mesa deve ser 0-%s
+  Bed temp must be %d-%s: A temperatura da mesa deve ser %d-%s
   Bed warming timed out: Aquecimento da mesa — tempo esgotado
   Bed {}: Mesa {}
   Bed {} / {}: Mesa {} / {}
@@ -728,7 +728,7 @@ translations:
   Chamber heating to %s...: Aquecendo câmara a %s...
   Chamber light fitted: 'Luz da câmara instalada'
   Chamber target set to {}: Alvo da câmara definido para {}
-  Chamber temp must be %s: A temperatura da câmara deve ser 0-%s
+  Chamber temp must be %d-%s: A temperatura da câmara deve ser %d-%s
   Chamber too hot: 'Câmara demasiado quente'
   Change: Alterar
   Change Address: Alterar Endereço
@@ -2868,7 +2868,7 @@ translations:
   'Nozzle not changed: {}': "Bico não alterado: {}"
   Nozzle size and flow type per head: "Tamanho e tipo de fluxo do bico por cabeçote"
   Nozzle target set to {}: Bico configurado para {}
-  Nozzle temp must be %s: A temperatura do bico deve ser 100-%s
+  Nozzle temp must be %d-%s: A temperatura do bico deve ser %d-%s
   Nozzle, bed, and chamber in one widget: Bico, mesa e câmara em um widget
   'Nozzle:': 'Bico:'
   'Nozzles still heating: {}': 'Bicos ainda aquecendo: {}'
