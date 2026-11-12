@@ -103,17 +103,13 @@ TEST_CASE("a tap on a home tile reaches the widget that owns it", "[action_tile]
     // The tap is the XML event_cb on the tile's button; the callback finds its
     // widget through the tile root, not a C++-attached user_data. A callback that
     // cannot find its widget is a silent no-op, so each tap must open something.
-    // The network tile creates the process-lifetime WiFi manager: on its mock backend.
+    // The network tile reaches get_wifi_manager(), whose backend is chosen once for the
+    // process. Off test mode that is the host's real backend, whose init worker is never
+    // joined because the singleton is never destroyed: pin the mock before the fixture.
     ScopedRuntimeConfig scoped_config;
     get_runtime_config()->test_mode = true;
     get_runtime_config()->use_real_wifi = false;
     LVGLUITestFixture fixture;
-    // The network tile reaches get_wifi_manager(), whose backend is chosen once
-    // for the process. Off test mode that is the host's real backend, and its
-    // init worker is never joined because the singleton is never destroyed.
-    ScopedRuntimeConfig scoped_config;
-    get_runtime_config()->test_mode = true;
-    get_runtime_config()->use_real_wifi = false;
     init_widget_registrations();
     helix::ui::destroy_static_panels();
     std::array<lv_obj_t*, kUiPanelCount> panels{};
