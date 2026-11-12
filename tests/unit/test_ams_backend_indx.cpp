@@ -1094,16 +1094,17 @@ TEST_CASE_METHOD(IndxFixture, "INDX lane truth: a tool with no spool_id variable
 
     SlotInfo linked = b.get_slot_info(1);
     linked.spoolman_id = 42;
+    const auto variable_writes = [&b] {
+        return std::count_if(b.sent().begin(), b.sent().end(), [](const std::string& g) {
+            return g.find("SET_GCODE_VARIABLE") != std::string::npos;
+        });
+    };
     test::edit_slot_as_user(b, 1, linked);
-    for (const auto& g : b.sent()) {
-        CHECK(g.find("SET_GCODE_VARIABLE") == std::string::npos);
-    }
+    CHECK(variable_writes() == 0);
 
     // An edit that keeps the link sends nothing either.
     SlotInfo petg = b.get_slot_info(0);
     petg.material = "PETG";
     test::edit_slot_as_user(b, 0, petg);
-    for (const auto& g : b.sent()) {
-        CHECK(g.find("SET_GCODE_VARIABLE") == std::string::npos);
-    }
+    CHECK(variable_writes() == 0);
 }
