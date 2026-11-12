@@ -25,6 +25,7 @@
 /// carry a timestamp and a level; a text capture's do not. A test cannot be
 /// moved between the two without rereading what it matches on.
 
+#include <spdlog/sinks/dist_sink.h>
 #include <spdlog/sinks/ostream_sink.h>
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <spdlog/spdlog.h>
@@ -110,6 +111,14 @@ class LogRing {
 
 } // namespace detail
 
+/// The one sink the run's default logger writes through. Sinks are attached to it under
+/// its own lock, so a capture can come and go while worker threads log; adding to a
+/// logger's sink vector directly races them.
+inline const std::shared_ptr<spdlog::sinks::dist_sink_mt>& log_hub() {
+    static const auto hub = std::make_shared<spdlog::sinks::dist_sink_mt>();
+    return hub;
+}
+
 /// Adds a ring-buffer sink to the default logger and raises the logger to
 /// trace, restoring its level and removing the sink on scope exit. The logger's
 /// other sinks keep receiving records.
@@ -118,16 +127,24 @@ class LogCapture : public detail::LogRing {
     explicit LogCapture(size_t capacity = 256) : LogRing(capacity) {
         logger_ = spdlog::default_logger();
         prev_level_ = logger_->level();
-        logger_->sinks().push_back(sink_);
+        via_hub_ = logger_->sinks().size() == 1 && logger_->sinks().front() == log_hub();
+        if (via_hub_)
+            log_hub()->add_sink(sink_);
+        else
+            logger_->sinks().push_back(sink_);
         logger_->set_level(spdlog::level::trace);
     }
 
     ~LogCapture() {
-        auto& sinks = logger_->sinks();
-        for (auto it = sinks.begin(); it != sinks.end(); ++it) {
-            if (*it == sink_) {
-                sinks.erase(it);
-                break;
+        if (via_hub_) {
+            log_hub()->remove_sink(sink_);
+        } else {
+            auto& sinks = logger_->sinks();
+            for (auto it = sinks.begin(); it != sinks.end(); ++it) {
+                if (*it == sink_) {
+                    sinks.erase(it);
+                    break;
+                }
             }
         }
         logger_->set_level(prev_level_);
@@ -136,6 +153,7 @@ class LogCapture : public detail::LogRing {
   private:
     std::shared_ptr<spdlog::logger> logger_;
     spdlog::level::level_enum prev_level_;
+    bool via_hub_ = false;
 };
 
 /// Swaps a private ring-buffer logger into the default slot, restoring the

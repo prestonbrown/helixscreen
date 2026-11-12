@@ -20,6 +20,7 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/live_thread_count.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/thumbnail_processor_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
@@ -30,7 +31,6 @@
 #include "system/lvgl_thread_check.h"
 #include "thumbnail_processor.h"
 
-#include <spdlog/sinks/null_sink.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -196,8 +196,9 @@ class IsolationListener : public Catch::EventListenerBase {
         // registry::s_instance). Installed exactly once here, single-threaded.
         // Capture-style tests still swap in their own logger and restore this
         // one — those swaps stay, but this baseline removes the per-test one.
-        auto null_sink = std::make_shared<spdlog::sinks::null_sink_mt>();
-        auto null_logger = std::make_shared<spdlog::logger>("null", null_sink);
+        // It writes through the log hub, which holds no sink until a LogCapture
+        // attaches one under the hub's own lock.
+        auto null_logger = std::make_shared<spdlog::logger>("null", helix::log_hub());
         spdlog::set_default_logger(std::move(null_logger));
 
         // The first LVGL call made off the LVGL thread aborts the run;
