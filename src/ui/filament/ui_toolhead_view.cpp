@@ -12,6 +12,8 @@
 
 #include <algorithm>
 
+namespace helix::ui {
+
 namespace {
 
 helix::ToolheadStyle configured_style() {
@@ -19,8 +21,6 @@ helix::ToolheadStyle configured_style() {
 }
 
 } // namespace
-
-namespace helix::ui {
 
 int32_t toolhead_drawn_scale(ToolheadStyle style, int32_t scale) {
     return style == ToolheadStyle::A4T ? scale * 6 / 5 : scale;
@@ -53,15 +53,13 @@ ToolheadFit fit_toolhead(ToolheadStyle style, const lv_area_t& box, int32_t max_
     return {box.x1 + (box_w - gw) / 2 - g.left, box.y1 + (box_h - gh) / 2 - g.top, lo};
 }
 
-} // namespace helix::ui
-
 void draw_toolhead(lv_layer_t* layer, int32_t cx, int32_t cy, std::optional<lv_color_t> filament,
                    int32_t scale, lv_opa_t opa) {
     draw_nozzle_for_style(layer, cx, cy, filament,
                           helix::ui::toolhead_drawn_scale(configured_style(), scale), opa);
 }
 
-helix::ui::GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t cy, int32_t scale) {
+GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t cy, int32_t scale) {
     const auto style = configured_style();
     return helix::ui::toolhead_bounds(style, cx, cy, helix::ui::toolhead_drawn_scale(style, scale));
 }
@@ -114,3 +112,5 @@ void ui_toolhead_view_register() {
     lv_xml_register_widget("toolhead_view", toolhead_view_xml_create, lv_xml_obj_apply);
     spdlog::trace("[ToolheadView] Registered <toolhead_view> widget");
 }
+
+} // namespace helix::ui
