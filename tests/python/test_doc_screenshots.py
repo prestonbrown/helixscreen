@@ -10,7 +10,10 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
+import doc_screenshots  # noqa: E402
 from doc_screenshots import ManifestError, load_manifest, recipe_tokens  # noqa: E402
+
+doc_screenshots.SETTLE_SECONDS = 0
 
 
 def write(tmp_path: Path, body: str) -> Path:
