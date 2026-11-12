@@ -18,8 +18,10 @@
 #include "ams_backend_cfs.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_state.h"
+#include "app_globals.h"
 #include "filament_slot_override_store.h"
 #include "lane_source_store.h"
+#include "printer_state.h"
 #include "test_helpers/registered_backend.h"
 
 #include <filesystem>
@@ -199,6 +201,36 @@ TEST_CASE_METHOD(LVGLTestFixture, "clearing the bypass spool deletes its record"
     settle();
     CHECK(printer.client.mock_db_get("lane_data", "lane1").is_null());
     CHECK_FALSE(AmsState::instance().get_external_spool_info().has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "with no backend, lane editing opens once the bypass record is read",
+                 "[bypass][lane][refresh][ready][2097]") {
+    auto& ams = AmsState::instance();
+    ams.clear_backends();
+    ams.deinit_subjects();
+    get_printer_state().init_subjects(false);
+    ams.init_subjects(false);
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "PLA", "#FFFFFF"));
+
+    // The first read fails: the record is unread, so the spool editor's Save waits.
+    printer.client.fail_next("server.database.get_item");
+    ams.set_moonraker_api(&printer.api);
+    ams.refresh_bypass_record();
+    settle();
+    REQUIRE(ams.backend_count() == 0);
+    CHECK(lv_subject_get_int(ams.get_ams_lane_records_ready_subject()) == 0);
+
+    // The retry lands, and editing opens with no backend sync to prompt it.
+    ams.refresh_bypass_record();
+    settle();
+    REQUIRE(ams.get_external_spool_info().has_value());
+    CHECK(lv_subject_get_int(ams.get_ams_lane_records_ready_subject()) == 1);
+
+    ams.set_moonraker_api(nullptr);
+    settle();
+    ams.deinit_subjects();
 }
 
 // --- A backend holds it: one past its lanes, read by its own poll ----------
