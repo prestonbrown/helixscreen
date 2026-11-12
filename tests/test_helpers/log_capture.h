@@ -13,9 +13,6 @@
 ///                        records, so the console keeps printing.
 ///   ExclusiveLogCapture  swaps a private ring-buffer logger into the default
 ///                        slot. Nothing else logs anywhere while it is alive.
-///                        Required when other threads log concurrently: pushing
-///                        onto the shared logger's sink vector races their
-///                        sink_it_ iteration.
 ///   TextLogCapture       swaps in a logger that writes message text only
 ///                        ("%v" -- no timestamp, level or logger name) into one
 ///                        unbounded string, for assertions on exact text and
@@ -24,11 +21,17 @@
 /// The two ring captures format with spdlog's default pattern, so their lines
 /// carry a timestamp and a level; a text capture's do not. A test cannot be
 /// moved between the two without rereading what it matches on.
+///
+/// A sink added to the default logger goes through attach_log_sink(), never
+/// onto logger->sinks(): that vector has no lock, and the process-lifetime
+/// worker pools iterate it whenever they log.
 
+#include <spdlog/sinks/dist_sink.h>
 #include <spdlog/sinks/ostream_sink.h>
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <sstream>
@@ -36,6 +39,57 @@
 #include <vector>
 
 namespace helix {
+
+/// The one sink on the test run's baseline default logger. Its sink list is
+/// guarded by its own mutex, so a capture can join and leave it while worker
+/// threads log through it.
+inline const std::shared_ptr<spdlog::sinks::dist_sink_mt>& log_capture_hub() {
+    static const auto hub = std::make_shared<spdlog::sinks::dist_sink_mt>();
+    return hub;
+}
+
+/// Adds @p sink to what @p logger writes to: into the capture hub when the
+/// logger carries it, else onto the logger itself (a test-local logger no
+/// other thread can reach).
+inline void attach_log_sink(spdlog::logger& logger, const spdlog::sink_ptr& sink) {
+    const auto& hub = log_capture_hub();
+    auto& sinks = logger.sinks();
+    if (std::find(sinks.begin(), sinks.end(), hub) != sinks.end()) {
+        hub->add_sink(sink);
+    } else {
+        sinks.push_back(sink);
+    }
+}
+
+/// Undoes attach_log_sink(logger, sink).
+inline void detach_log_sink(spdlog::logger& logger, const spdlog::sink_ptr& sink) {
+    const auto& hub = log_capture_hub();
+    auto& sinks = logger.sinks();
+    if (std::find(sinks.begin(), sinks.end(), hub) != sinks.end()) {
+        hub->remove_sink(sink);
+    } else {
+        sinks.erase(std::remove(sinks.begin(), sinks.end(), sink), sinks.end());
+    }
+}
+
+/// Attaches one caller-owned sink to the default logger for its scope, leaving
+/// the logger's level alone.
+class ScopedLogSink {
+  public:
+    explicit ScopedLogSink(spdlog::sink_ptr sink)
+        : logger_(spdlog::default_logger()), sink_(std::move(sink)) {
+        attach_log_sink(*logger_, sink_);
+    }
+    ~ScopedLogSink() {
+        detach_log_sink(*logger_, sink_);
+    }
+    ScopedLogSink(const ScopedLogSink&) = delete;
+    ScopedLogSink& operator=(const ScopedLogSink&) = delete;
+
+  private:
+    std::shared_ptr<spdlog::logger> logger_;
+    spdlog::sink_ptr sink_;
+};
 
 namespace detail {
 
@@ -118,18 +172,12 @@ class LogCapture : public detail::LogRing {
     explicit LogCapture(size_t capacity = 256) : LogRing(capacity) {
         logger_ = spdlog::default_logger();
         prev_level_ = logger_->level();
-        logger_->sinks().push_back(sink_);
+        attach_log_sink(*logger_, sink_);
         logger_->set_level(spdlog::level::trace);
     }
 
     ~LogCapture() {
-        auto& sinks = logger_->sinks();
-        for (auto it = sinks.begin(); it != sinks.end(); ++it) {
-            if (*it == sink_) {
-                sinks.erase(it);
-                break;
-            }
-        }
+        detach_log_sink(*logger_, sink_);
         logger_->set_level(prev_level_);
     }
 
@@ -140,8 +188,7 @@ class LogCapture : public detail::LogRing {
 
 /// Swaps a private ring-buffer logger into the default slot, restoring the
 /// previous default logger on scope exit. No other sink sees anything while it
-/// is alive, which is what makes it safe alongside threads that log: the shared
-/// logger's sink vector is never mutated.
+/// is alive.
 class ExclusiveLogCapture : public detail::LogRing {
   public:
     explicit ExclusiveLogCapture(size_t capacity = 256) : LogRing(capacity) {

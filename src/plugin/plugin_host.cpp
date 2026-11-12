@@ -448,6 +448,8 @@ bool PluginHost::load(PluginInfo& info) {
     l.memory_bytes = static_cast<size_t>(m.memory_mb) << 20;
     LuaRuntime::Limits limits;
     limits.memory_bytes = l.memory_bytes;
+    limits.time_budget = deps_.entry_time_budget;
+    limits.wall_ceiling = deps_.entry_wall_ceiling;
     LifetimeToken token = guard_.token();
     l.rt = std::make_unique<LuaRuntime>(
         id, root.string(), limits, [this, token, id, gen = l.gen](const std::string& reason) {

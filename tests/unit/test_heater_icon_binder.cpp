@@ -5,6 +5,7 @@
 #include "ui_temperature_utils.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/log_capture.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "heater_type.h"
@@ -75,14 +76,13 @@ TEST_CASE("HeaterIconBinder: a missing required glyph is logged as an error", "[
 
     auto sink = std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(8);
     sink->set_level(spdlog::level::err);
-    auto& sinks = spdlog::default_logger()->sinks();
-    sinks.push_back(sink);
+    auto attached = std::make_unique<helix::ScopedLogSink>(sink);
     HeaterIconBinder binder;
     CHECK_FALSE(binder.bind(root, state, HeaterType::Bed));
     const bool optional_silent = sink->last_formatted().empty();
     CHECK_FALSE(binder.bind_required(root, state, HeaterType::Bed));
     const auto logged = sink->last_formatted();
-    sinks.pop_back();
+    attached.reset();
 
     CHECK(optional_silent);
     REQUIRE(logged.size() == 1);
