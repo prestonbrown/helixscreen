@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "hv/hconfig.h" // WITH_OPENSSL is unset where libhv has none (the macOS dev build)
+#ifdef WITH_OPENSSL
 #include <cstdio>
 #include <filesystem>
 #include <openssl/pem.h>
@@ -66,3 +68,4 @@ struct TestCert {
 };
 
 } // namespace helix::test
+#endif // WITH_OPENSSL
