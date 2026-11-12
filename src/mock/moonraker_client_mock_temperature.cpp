@@ -907,11 +907,14 @@ void MoonrakerClientMock::temperature_simulation_loop() {
                 }
                 double speed = target > 0 ? 0.5 : 0.0;
                 status_obj[s] = {{"temperature", temp}, {"target", target}, {"speed", speed}};
-            } else if (s.rfind("tmc2240 ", 0) == 0 || s.rfind("tmc5160 ", 0) == 0) {
-                // TMC stepper drivers: drift around a base temp per-driver
+            } else if (s.rfind("tmc2240 ", 0) == 0) {
+                // TMC2240 drivers: drift around a base temp per-driver
                 double base = 55.0 + (std::hash<std::string>{}(s) % 20);
                 double temp = base + 3.0 * std::sin(2.0 * M_PI * sim_time / 120.0);
-                status_obj[s] = {{"temperature", temp}};
+                status_obj[s] = {{"temperature", temp},
+                                 {"drv_status", helix::mock::mock_tmc_drv_status(s)}};
+            } else if (s.rfind("tmc", 0) == 0) {
+                status_obj[s] = {{"drv_status", helix::mock::mock_tmc_drv_status(s)}};
             }
         }
 

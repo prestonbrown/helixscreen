@@ -47,9 +47,10 @@ PY
 }
 
 # An allowlist: a step that is not gated on publish may not use a secret,
-# publish through an action, or make a mutating call, except the Android
-# signing steps (the build needs the key) and R2 steps that write only under a
-# dry-run-asserted R2_PREFIX. Prints one line per offender.
+# publish through an action, or make a mutating call, except the signing steps
+# (the Android build needs its keystore; the manifest signing step reads its key
+# only in a release) and R2 steps that write only under a dry-run-asserted
+# R2_PREFIX. Prints one line per offender.
 lint_publish_guards() {
     python3 - "$1" <<'PY'
 import re, sys, yaml
@@ -63,7 +64,8 @@ MUTATING = [r"\bs3api\b", r"\bwrangler\b", r"\brclone\b", r"\bgh\s+release\b",
             r"\bcurl\b.*\s(-X|--request)\s*['\"]?(POST|PUT|DELETE|PATCH)\b"]
 SIGNING = {("build-android", "Materialize upload keystore"),
            ("build-android", "Build Android APKs (release)"),
-           ("build-android", "Build Android AAB (release)")}
+           ("build-android", "Build Android AAB (release)"),
+           ("upload-r2", "Generate and sign channel manifests")}
 STEP_GATE = "env.RELEASE_MODE == 'publish'"
 JOB_GATE = "needs.plan.outputs.mode == 'publish'"
 PREFIX_ASSERT = '[[ "$R2_PREFIX" == dry-run/?*/ ]]'
@@ -164,6 +166,8 @@ make_fixture() {
         --dir "$REL" --base-url "${BASE}releases/v$VERSION" \
         --zip-exclude "" --output "$R2/beta/manifest.json" >/dev/null
     cp "$R2/beta/manifest.json" "$R2/dev/manifest.json"
+    echo sig > "$R2/beta/manifest.json.minisig"
+    echo sig > "$R2/dev/manifest.json.minisig"
 }
 
 verify() {
@@ -204,6 +208,15 @@ verify() {
     verify
     [ "$status" -eq 1 ]
     [[ "$output" == *"sha256 for ${BASE}releases/v$VERSION/helixscreen-pi.zip"* ]] || fail "$output"
+}
+
+@test "verifier fails when a channel's manifest signature never reached R2" {
+    command -v jq >/dev/null || skip "jq not installed"
+    make_fixture
+    rm "$R2/dev/manifest.json.minisig"
+    verify
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"dev/manifest.json.minisig missing from R2"* ]] || fail "$output"
 }
 
 @test "verifier fails when a platform's zip never reached R2" {

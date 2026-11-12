@@ -319,6 +319,14 @@ const std::vector<Row>& rows() {
         {"settings_belt_layout", Mgr::Settings, true, "belt_tension/layout", false, 0, 0, 4,
          "belt_layout", true, SETI(sm().set_belt_layout), GET(sm().get_belt_layout),
          SUBJ(sm().subject_belt_layout)},
+        {"temp_graph_show_mcu", Mgr::Settings, true, "temp_graph/show_mcu", true, 0, 0, 1,
+         "temp_graph_show_mcu", true, SETB(sm().set_temp_graph_show_mcu), GET(sm().get_temp_graph_show_mcu), NOSUBJ},
+        {"temp_graph_show_host", Mgr::Settings, true, "temp_graph/show_host", true, 0, 0, 1,
+         "temp_graph_show_host", true, SETB(sm().set_temp_graph_show_host), GET(sm().get_temp_graph_show_host),
+         NOSUBJ},
+        {"temp_graph_show_drivers", Mgr::Settings, true, "temp_graph/show_drivers", true, 0, 0, 1,
+         "temp_graph_show_drivers", true, SETB(sm().set_temp_graph_show_drivers),
+         GET(sm().get_temp_graph_show_drivers), NOSUBJ},
     };
     return r;
 }

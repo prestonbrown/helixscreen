@@ -11,6 +11,7 @@
 #include "heater_type.h"
 #include "overlay_base.h"
 #include "temp_graph_controller.h"
+#include "temp_graph_series_policy.h"
 
 #include <memory>
 #include <optional>
@@ -97,7 +98,9 @@ class TempGraphOverlay : public OverlayBase {
         bool visible = true;                 ///< Current visibility state
         bool has_target = false;             ///< Whether this heater has a controllable target
         bool is_dynamic = false;             ///< Dynamic sensor (needs SubjectLifetime)
-        lv_obj_t* chip = nullptr;            ///< Toggle chip widget
+        bool is_sensor = false; ///< From TemperatureSensorManager: @ref group sets its default
+        helix::TempGraphSensorGroup group = helix::TempGraphSensorGroup::Auxiliary;
+        lv_obj_t* chip = nullptr; ///< Toggle chip widget
     };
 
     // Series management
@@ -111,6 +114,8 @@ class TempGraphOverlay : public OverlayBase {
 
     // Chip interaction
     void toggle_series_visibility(size_t series_idx);
+    /// Show or hide one series' lines and dim its chip to match.
+    void show_series(size_t series_idx);
     void update_chip_style(size_t series_idx);
     static void on_chip_clicked(lv_event_t* e);
 

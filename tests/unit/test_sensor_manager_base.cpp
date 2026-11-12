@@ -511,7 +511,8 @@ TEST_CASE("Only managers that read config sections rediscover on the configfile 
     for (auto* m : sensor_managers()) {
         const std::string name = m->name();
         const bool reads_sections = name == "AccelSensorManager" || name == "ProbeSensorManager" ||
-                                    name == "InputSensorManager";
+                                    name == "InputSensorManager" ||
+                                    name == "TemperatureSensorManager";
         INFO(name);
         CHECK(m->rediscovers_on_config() == reads_sections);
     }

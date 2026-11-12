@@ -22,6 +22,9 @@
 #include "../ui_test_utils.h"
 #include "core/update_queue.h"
 #include "device_display_name.h"
+#include "notice.h"
+#include "printer_discovery.h"
+#include "temp_graph_series_policy.h"
 #include "temperature_sensor_manager.h"
 #include "temperature_sensor_types.h"
 
@@ -682,7 +685,7 @@ TEST_CASE_METHOD(TemperatureSensorTestFixture,
 TEST_CASE_METHOD(TemperatureSensorTestFixture,
                  "TemperatureSensorManager - roles are by name, never offered, never exclusive",
                  "[temperature][roles]") {
-    mgr().discover(helix::test::discovery_of({"tmc2240 stepper_x", "tmc5160 stepper_y",
+    mgr().discover(helix::test::discovery_of({"tmc2240 stepper_x", "tmc2209 stepper_y",
                                               "temperature_sensor chamber",
                                               "temperature_sensor chamber_temp"}));
 
@@ -693,7 +696,8 @@ TEST_CASE_METHOD(TemperatureSensorTestFixture,
         by_name[c.klipper_name] = c;
     CHECK(by_name["tmc2240 stepper_x"].role == TemperatureSensorRole::STEPPER_DRIVER);
     CHECK(by_name["tmc2240 stepper_x"].priority == 30);
-    CHECK(by_name["tmc5160 stepper_y"].role == TemperatureSensorRole::STEPPER_DRIVER);
+    // A driver without a temperature is no temperature sensor.
+    CHECK(by_name.count("tmc2209 stepper_y") == 0);
     CHECK(by_name["temperature_sensor chamber"].role == TemperatureSensorRole::CHAMBER);
     CHECK(by_name["temperature_sensor chamber_temp"].role == TemperatureSensorRole::CHAMBER);
 
@@ -756,4 +760,138 @@ TEST_CASE_METHOD(TemperatureSensorTestFixture,
     // Subjects come back on the next init for the sensors that remain.
     mgr().init_subjects();
     CHECK(mgr().get_temp_subject("heater_generic dryer") != nullptr);
+}
+
+// ============================================================================
+// MCU and host by sensor_type, stepper driver overtemperature
+// ============================================================================
+
+TEST_CASE_METHOD(TemperatureSensorTestFixture,
+                 "TemperatureSensorManager - a sensor_type names the MCU and host sensors",
+                 "[temperature][roles]") {
+    PrinterDiscovery hw = helix::test::discovery_of(
+        {"temperature_sensor EBBCan", "temperature_sensor cpu", "temperature_sensor hotbox",
+         "temperature_sensor chamber_probe"});
+    hw.parse_config_keys(
+        {{"temperature_sensor EBBCan", {{"sensor_type", "temperature_mcu"}}},
+         {"temperature_sensor cpu", {{"sensor_type", "Temperature_Host"}}},
+         {"temperature_sensor hotbox", {{"sensor_type", "Generic 3950"}}},
+         // A sensor_type never takes a name-derived CHAMBER away.
+         {"temperature_sensor chamber_probe", {{"sensor_type", "temperature_mcu"}}}});
+    mgr().discover(hw);
+
+    std::map<std::string, TemperatureSensorRole> roles;
+    for (const auto& c : mgr().get_sensors())
+        roles[c.klipper_name] = c.role;
+    CHECK(roles["temperature_sensor EBBCan"] == TemperatureSensorRole::MCU);
+    CHECK(roles["temperature_sensor cpu"] == TemperatureSensorRole::HOST);
+    CHECK(roles["temperature_sensor hotbox"] == TemperatureSensorRole::AUXILIARY);
+    CHECK(roles["temperature_sensor chamber_probe"] == TemperatureSensorRole::CHAMBER);
+}
+
+namespace {
+std::vector<helix::Notice> g_driver_notices;
+void capture_notice(const helix::Notice& n) {
+    g_driver_notices.push_back(n);
+}
+} // namespace
+
+TEST_CASE_METHOD(TemperatureSensorTestFixture,
+                 "TemperatureSensorManager - a driver overtemperature raises one notice per rise",
+                 "[temperature][driver_overtemp]") {
+    g_driver_notices.clear();
+    const helix::NoticeSubscriber previous = helix::set_notice_subscriber(capture_notice);
+
+    mgr().discover(helix::test::discovery_of({"tmc2209 stepper_z", "tmc2240 stepper_x"}));
+    auto frame = [this](const char* driver, json drv_status) {
+        mgr().update_from_status({{driver, {{"drv_status", std::move(drv_status)}}}});
+    };
+
+    frame("tmc2209 stepper_z", {{"cs_actual", 16}});
+    CHECK(g_driver_notices.empty());
+
+    frame("tmc2209 stepper_z", {{"cs_actual", 16}, {"otpw", 1}});
+    REQUIRE(g_driver_notices.size() == 1);
+    CHECK(g_driver_notices[0].severity == helix::NoticeSeverity::WARNING);
+    CHECK(g_driver_notices[0].message.find("stepper_z") != std::string::npos);
+
+    // Staying hot, or a frame without drv_status, raises nothing more.
+    frame("tmc2209 stepper_z", {{"cs_actual", 20}, {"otpw", 1}});
+    mgr().update_from_status({{"tmc2240 stepper_x", {{"temperature", 61.0}}}});
+    CHECK(g_driver_notices.size() == 1);
+
+    // Clearing re-arms it.
+    frame("tmc2209 stepper_z", {{"cs_actual", 16}});
+    frame("tmc2209 stepper_z", {{"t120", 1}});
+    REQUIRE(g_driver_notices.size() == 2);
+
+    // A shutdown on top of the warning is worse, so it raises again, as an error.
+    frame("tmc2209 stepper_z", {{"otpw", 1}, {"ot", 1}});
+    REQUIRE(g_driver_notices.size() == 3);
+    CHECK(g_driver_notices[2].severity == helix::NoticeSeverity::ERROR);
+    frame("tmc2209 stepper_z", {{"otpw", 1}});
+    CHECK(g_driver_notices.size() == 3);
+
+    // A null drv_status (motors off) clears; the TMC2240 reports flags too.
+    frame("tmc2209 stepper_z", nullptr);
+    frame("tmc2209 stepper_z", {{"otpw", 1}});
+    frame("tmc2240 stepper_x", {{"otpw", 1}});
+    REQUIRE(g_driver_notices.size() == 5);
+    CHECK(g_driver_notices[4].message.find("stepper_x") != std::string::npos);
+
+    // An object that is not a driver is never read for flags.
+    mgr().update_from_status({{"temperature_sensor x", {{"drv_status", {{"ot", 1}}}}}});
+    CHECK(g_driver_notices.size() == 5);
+
+    // Another printer with drivers of the same names: its hot driver notifies.
+    mgr().discover(helix::test::discovery_of({"tmc2209 stepper_z", "tmc2240 stepper_x"}));
+    frame("tmc2209 stepper_z", {{"otpw", 1}});
+    CHECK(g_driver_notices.size() == 6);
+
+    helix::set_notice_subscriber(previous);
+}
+
+TEST_CASE_METHOD(TemperatureSensorTestFixture,
+                 "Temp graph: driver, MCU and host series start off until the user chooses them",
+                 "[temperature][temp_graph_overlay]") {
+    mgr().discover(
+        helix::test::discovery_of({"tmc2240 stepper_x", "tmc2209 stepper_z",
+                                   "temperature_sensor mcu_temp", "temperature_sensor raspberry_pi",
+                                   "temperature_sensor hotbox", "temperature_sensor chamber"}));
+    const auto sensors = mgr().get_sensors_sorted();
+
+    std::map<std::string, TempGraphSensorGroup> graphed;
+    for (const auto& s : temp_graph_sensor_series(sensors))
+        graphed[s.sensor->klipper_name] = s.group;
+    // The chamber is the graph's own chamber series; a driver with no reading has none.
+    CHECK(graphed == std::map<std::string, TempGraphSensorGroup>{
+                         {"tmc2240 stepper_x", TempGraphSensorGroup::StepperDriver},
+                         {"temperature_sensor mcu_temp", TempGraphSensorGroup::Mcu},
+                         {"temperature_sensor raspberry_pi", TempGraphSensorGroup::Host},
+                         {"temperature_sensor hotbox", TempGraphSensorGroup::Auxiliary}});
+
+    // Every group starts hidden; an opt-in shows only its own group, in every view.
+    using G = TempGraphSensorGroup;
+    for (G g : {G::StepperDriver, G::Mcu, G::Host, G::Auxiliary})
+        CHECK_FALSE(temp_graph_sensor_default_visible(g, {}));
+    CHECK(temp_graph_sensor_default_visible(G::StepperDriver, {false, false, true}));
+    CHECK_FALSE(temp_graph_sensor_default_visible(G::Mcu, {false, false, true}));
+    CHECK(temp_graph_sensor_default_visible(G::Mcu, {true, false, false}));
+    CHECK(temp_graph_sensor_default_visible(G::Host, {false, true, false}));
+    CHECK_FALSE(temp_graph_sensor_default_visible(G::Auxiliary, {true, true, true}));
+
+    // Drivers turned on in one view, then off in another: reopening the first view
+    // re-applies its session toggles, but the remembered setting wins for drivers.
+    struct Chip {
+        std::string klipper_name;
+        bool is_sensor;
+        G group;
+        bool visible;
+    };
+    std::vector<Chip> chips{{"tmc2240 stepper_x", true, G::StepperDriver, false},
+                            {"temperature_sensor hotbox", true, G::Auxiliary, false}};
+    temp_graph_restore_session_toggles(
+        chips, {{"tmc2240 stepper_x", true}, {"temperature_sensor hotbox", true}});
+    CHECK_FALSE(chips[0].visible);
+    CHECK(chips[1].visible);
 }

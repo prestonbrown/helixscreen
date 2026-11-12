@@ -902,6 +902,40 @@ class SettingsManager {
     }
 
     // =========================================================================
+    // TEMPERATURE GRAPH
+    // =========================================================================
+
+    /** @brief Whether the temperature graph shows MCU temperatures (default false) */
+    bool get_temp_graph_show_mcu() const {
+        return settings_.get_bool(Key::TempGraphShowMcu);
+    }
+
+    /** @brief Set whether the temperature graph shows MCU temperatures (persisted) */
+    void set_temp_graph_show_mcu(bool show) {
+        settings_.set(Key::TempGraphShowMcu, show);
+    }
+
+    /** @brief Whether the temperature graph shows host temperatures (default false) */
+    bool get_temp_graph_show_host() const {
+        return settings_.get_bool(Key::TempGraphShowHost);
+    }
+
+    /** @brief Set whether the temperature graph shows host temperatures (persisted) */
+    void set_temp_graph_show_host(bool show) {
+        settings_.set(Key::TempGraphShowHost, show);
+    }
+
+    /** @brief Whether the temperature graph shows stepper driver temperatures (default false) */
+    bool get_temp_graph_show_drivers() const {
+        return settings_.get_bool(Key::TempGraphShowDrivers);
+    }
+
+    /** @brief Set whether the temperature graph shows stepper driver temperatures (persisted) */
+    void set_temp_graph_show_drivers(bool show) {
+        settings_.set(Key::TempGraphShowDrivers, show);
+    }
+
+    // =========================================================================
     // BARCODE SCANNER (owned by SettingsManager — manual device selection)
     // =========================================================================
 
@@ -978,6 +1012,9 @@ class SettingsManager {
         DetectionPolicyU1,
         ZOffsetSaveMode,
         BeltLayout,
+        TempGraphShowMcu,
+        TempGraphShowHost,
+        TempGraphShowDrivers,
         COUNT
     };
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;

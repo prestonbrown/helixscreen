@@ -3830,6 +3830,8 @@
   <translation tag="Step" ru="Шаг"/>
   <translation tag="Step 1 of 3" ru="Шаг 1 из 3"/>
   <translation tag="Step {} of {}" ru="Шаг {} из {}"/>
+  <translation tag="Stepper driver {} is overheating" ru="Драйвер шагового двигателя {} перегревается"/>
+  <translation tag="Stepper driver {} overheated and shut down" ru="Драйвер шагового двигателя {} перегрелся и отключился"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." ru="Запись каналов принтера ещё читается. Повторите попытку через мгновение."/>
   <translation tag="Still saving this spool…" ru="Эта катушка ещё сохраняется…"/>
   <translation tag="Still working... taking longer than usual" ru="Всё ещё выполняется... дольше обычного"/>

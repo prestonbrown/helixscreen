@@ -60,8 +60,14 @@ constexpr Row kRows[] = {
     {Match::Prefix, "heater_generic ", ObjectKind::GenericHeater, 0, Scope::Both},
     {Match::Prefix, "temperature_sensor ", ObjectKind::TemperatureSensor, 0, Scope::Both},
     {Match::Prefix, "temperature_fan ", ObjectKind::TemperatureFan, 0, Scope::Both},
+    // Of Klipper's TMC drivers only the TMC2240 reports a die temperature; every
+    // one reports its overtemperature flags in drv_status.
     {Match::Prefix, "tmc2240 ", ObjectKind::DriverTemperature, 0, Scope::Both},
-    {Match::Prefix, "tmc5160 ", ObjectKind::DriverTemperature, 0, Scope::Both},
+    {Match::Prefix, "tmc2130 ", ObjectKind::StepperDriver, 0, Scope::Both},
+    {Match::Prefix, "tmc2208 ", ObjectKind::StepperDriver, 0, Scope::Both},
+    {Match::Prefix, "tmc2209 ", ObjectKind::StepperDriver, 0, Scope::Both},
+    {Match::Prefix, "tmc2660 ", ObjectKind::StepperDriver, 0, Scope::Both},
+    {Match::Prefix, "tmc5160 ", ObjectKind::StepperDriver, 0, Scope::Both},
     {Match::BareOrPrefix, "mcu", ObjectKind::Mcu, 0, Scope::Both},
 
     {Match::Exact, "fan_feedback", ObjectKind::FanFeedback, 0, Scope::Both},
@@ -243,6 +249,8 @@ bool resonance_tester_names_beacon(const nlohmann::json& body) {
 
 constexpr std::string_view kHeater[] = {"temperature", "target", "power"};
 constexpr std::string_view kTemperatureHumidity[] = {"temperature", "humidity"};
+constexpr std::string_view kDriverTemperature[] = {"temperature", "drv_status"};
+constexpr std::string_view kDriverStatus[] = {"drv_status"};
 constexpr std::string_view kTemperatureFan[] = {"temperature", "target", "speed", "rpm"};
 constexpr std::string_view kSpeed[] = {"speed", "rpm"};
 constexpr std::string_view kValue[] = {"value"};
@@ -295,8 +303,11 @@ FieldList status_fields(ObjectKind kind) {
         return fields(kHeater);
     case ObjectKind::TemperatureSensor:
     case ObjectKind::HumidityChip:
-    case ObjectKind::DriverTemperature:
         return fields(kTemperatureHumidity);
+    case ObjectKind::DriverTemperature:
+        return fields(kDriverTemperature);
+    case ObjectKind::StepperDriver:
+        return fields(kDriverStatus);
     case ObjectKind::TemperatureFan:
         return fields(kTemperatureFan);
     case ObjectKind::Fan:
@@ -370,6 +381,10 @@ bool is_temperature(ObjectKind kind) {
     default:
         return false;
     }
+}
+
+bool is_stepper_driver(ObjectKind kind) {
+    return kind == ObjectKind::DriverTemperature || kind == ObjectKind::StepperDriver;
 }
 
 bool is_filament_sensor(ObjectKind kind) {

@@ -2501,10 +2501,10 @@ void MoonrakerClientMock::dispatch_initial_state() {
                 {"temperature", 35.0},
                 {"target", is_chamber_fan ? mock_internal::kMockK2ChamberFanRestingC : 40.0},
                 {"speed", 0.0}};
-        } else if (s.rfind("tmc2240 ", 0) == 0 || s.rfind("tmc5160 ", 0) == 0) {
-            // TMC stepper drivers with built-in temperature
-            double temp = 55.0 + (std::hash<std::string>{}(s) % 20);
-            initial_status[s] = {{"temperature", temp}};
+        } else if (s.rfind("tmc", 0) == 0) {
+            initial_status[s] = {{"drv_status", helix::mock::mock_tmc_drv_status(s)}};
+            if (s.rfind("tmc2240 ", 0) == 0)
+                initial_status[s]["temperature"] = 55.0 + (std::hash<std::string>{}(s) % 20);
         }
     }
 
