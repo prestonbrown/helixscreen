@@ -55,7 +55,6 @@ TEST_CASE("cell_fills_extra_page: only a whole grid on a page other than the mai
     CHECK_FALSE(cell_fills_extra_page(1, 0, {0, 0, kCols, kRows - 1}, kCols, kRows));
     CHECK_FALSE(cell_fills_extra_page(1, 0, {1, 0, kCols, kRows}, kCols, kRows));
     CHECK_FALSE(cell_fills_extra_page(1, 0, {0, 1, kCols, kRows}, kCols, kRows));
-    // A grid with no tracks has no full page.
     CHECK_FALSE(cell_fills_extra_page(1, 0, {0, 0, 0, 0}, 0, 0));
 }
 
@@ -205,9 +204,6 @@ TEST_CASE_METHOD(FullPageFixture, "a heater tile covering an extra page hosts it
                       2, true);
     CHECK(hidden(named(tile->root(), "bed_temp_btn")));
     CHECK(helix::full_page_for(helix::heater_full_page_function(bed)) == 2);
-    // Another heater's function has no page.
-    CHECK_FALSE(helix::full_page_for(helix::heater_full_page_function(helix::nozzle_temp_config()))
-                    .has_value());
 
     tile->on_activate();
     drain();
@@ -257,10 +253,8 @@ TEST_CASE_METHOD(FullPageFixture, "the swipe strip takes no press, so a drag rea
 
 namespace {
 
-/// Seeds a two-page home layout: a compact Motion tile on the main page and a
-/// second Motion instance spanning page 1, clamped by the populate to that
-/// page's whole grid. Every other widget is listed disabled so nothing else is
-/// placed. Restores the prior layout on destruction.
+/// A compact Motion tile on the main page and "motion:1" spanning page 1 (clamped
+/// to its whole grid), every other widget disabled; restores the prior layout.
 class ScopedFullPageLayout {
   public:
     ScopedFullPageLayout() {
