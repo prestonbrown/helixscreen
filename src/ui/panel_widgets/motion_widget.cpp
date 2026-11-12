@@ -41,12 +41,18 @@ void MotionWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
     full_page_.attach(widget_obj);
+    install_delete_hook(widget_obj);
 }
 
 void MotionWidget::detach() {
+    uninstall_delete_hook();
     full_page_.detach();
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
+}
+
+void MotionWidget::on_hooked_root_deleted() {
+    full_page_.on_tile_deleted();
 }
 
 void MotionWidget::on_activate() {

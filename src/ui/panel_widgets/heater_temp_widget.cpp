@@ -123,12 +123,14 @@ void HeaterTempWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     // observers, so this widget keeps none of its own just to feed an icon tint.
     icon_binder_.bind(widget_obj_, printer_state_, cfg_.heater);
     full_page_.attach(widget_obj);
+    install_delete_hook(widget_obj);
 
     spdlog::debug("{} Attached", cfg_.log_tag);
 }
 
 void HeaterTempWidget::detach() {
     lifetime_.invalidate();
+    uninstall_delete_hook();
     full_page_.detach();
     icon_binder_.unbind();
 
@@ -136,6 +138,10 @@ void HeaterTempWidget::detach() {
     parent_screen_ = nullptr;
 
     spdlog::debug("{} Detached", cfg_.log_tag);
+}
+
+void HeaterTempWidget::on_hooked_root_deleted() {
+    full_page_.on_tile_deleted();
 }
 
 void HeaterTempWidget::on_activate() {
