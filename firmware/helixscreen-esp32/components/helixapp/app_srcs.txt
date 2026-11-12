@@ -513,6 +513,7 @@ src/ui/settings/settings_root_status.cpp
 src/ui/shared_font_style.cpp
 src/ui/text_metrics.cpp
 src/ui/style_configs.cpp
+src/ui/filament/target_tool_selection.cpp
 src/ui/controls/temp_graph_controller.cpp
 src/ui/print/print_progress_text.cpp
 src/ui/print/print_status_layout_fitter.cpp

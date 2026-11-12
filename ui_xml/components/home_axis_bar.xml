@@ -8,11 +8,11 @@
        that shows the XY segment (a panel whose bar is too narrow for it
        passes one that stays 0). -->
   <api>
-    <prop name="cb_all" type="string" default=""/>
-    <prop name="cb_x" type="string" default=""/>
-    <prop name="cb_y" type="string" default=""/>
-    <prop name="cb_xy" type="string" default=""/>
-    <prop name="cb_z" type="string" default=""/>
+    <prop name="all_callback" type="string" default=""/>
+    <prop name="x_callback" type="string" default=""/>
+    <prop name="y_callback" type="string" default=""/>
+    <prop name="xy_callback" type="string" default=""/>
+    <prop name="z_callback" type="string" default=""/>
     <prop name="xy_gate" type="string" default="printer_has_individual_xyz_homing"/>
     <!-- 1 when that axis (or set) is homed -->
     <prop name="all_homed" type="string" default="all_homed"/>
@@ -32,7 +32,7 @@
       <bind_style name="home_btn_homed" subject="$all_homed" ref_value="1"/>
       <bind_style name="home_btn_unhomed" subject="$all_homed" ref_value="0"/>
       <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
-      <event_cb trigger="clicked" callback="$cb_all"/>
+      <event_cb trigger="clicked" callback="$all_callback"/>
     </button_group_item>
     <button_group_item name="btn_home_x"
                        width="0" style_min_width="content" style_pad_hor="#space_xs" text="X" flex_grow="1"
@@ -41,7 +41,7 @@
       <bind_style name="home_btn_unhomed" subject="$x_homed" ref_value="0"/>
       <bind_flag_if_eq subject="printer_has_individual_xyz_homing" flag="hidden" ref_value="0"/>
       <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
-      <event_cb trigger="clicked" callback="$cb_x"/>
+      <event_cb trigger="clicked" callback="$x_callback"/>
     </button_group_item>
     <button_group_item name="btn_home_y"
                        width="0" style_min_width="content" style_pad_hor="#space_xs" text="Y" flex_grow="1"
@@ -50,7 +50,7 @@
       <bind_style name="home_btn_unhomed" subject="$y_homed" ref_value="0"/>
       <bind_flag_if_eq subject="printer_has_individual_xyz_homing" flag="hidden" ref_value="0"/>
       <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
-      <event_cb trigger="clicked" callback="$cb_y"/>
+      <event_cb trigger="clicked" callback="$y_callback"/>
     </button_group_item>
     <button_group_item name="btn_home_xy"
                        width="0" style_min_width="content" style_pad_hor="#space_xs" text="XY" flex_grow="1"
@@ -59,7 +59,7 @@
       <bind_style name="home_btn_unhomed" subject="$xy_homed" ref_value="0"/>
       <bind_flag_if_eq subject="$xy_gate" flag="hidden" ref_value="0"/>
       <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
-      <event_cb trigger="clicked" callback="$cb_xy"/>
+      <event_cb trigger="clicked" callback="$xy_callback"/>
     </button_group_item>
     <button_group_item name="btn_home_z"
                        width="0" style_min_width="content" style_pad_hor="#space_xs" text="Z" flex_grow="1"
@@ -68,7 +68,7 @@
       <bind_style name="home_btn_unhomed" subject="$z_homed" ref_value="0"/>
       <bind_flag_if_eq subject="printer_has_individual_xyz_homing" flag="hidden" ref_value="0"/>
       <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
-      <event_cb trigger="clicked" callback="$cb_z"/>
+      <event_cb trigger="clicked" callback="$z_callback"/>
     </button_group_item>
   </view>
 </component>
