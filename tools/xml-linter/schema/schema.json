@@ -2065,6 +2065,10 @@
         }
       },
       "inherits": "lv_obj"
+    },
+    "toolhead_view": {
+      "attributes": {},
+      "inherits": "lv_obj"
     }
   },
   "enums": {
@@ -3026,7 +3030,8 @@
     "humidity_drop",
     "leader_line",
     "swatch_paint",
-    "lv_obj-bind_tile_rung"
+    "lv_obj-bind_tile_rung",
+    "toolhead_view"
   ],
   "runtime_constants": [
     "accent_bar_gap",
@@ -4029,6 +4034,12 @@
     "motion_z_col_w_micro",
     "motion_z_col_w_small",
     "motion_z_col_w_tiny",
+    "motion_z_head_size",
+    "motion_z_head_size_large",
+    "motion_z_head_size_medium",
+    "motion_z_head_size_micro",
+    "motion_z_head_size_small",
+    "motion_z_head_size_tiny",
     "nav_estop_reach",
     "nav_estop_reach_large",
     "nav_estop_reach_medium",
