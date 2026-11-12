@@ -51,10 +51,16 @@ inline const std::shared_ptr<spdlog::sinks::dist_sink_mt>& log_capture_hub() {
 /// Adds @p sink to what @p logger writes to: into the capture hub when the
 /// logger carries it, else onto the logger itself (a test-local logger no
 /// other thread can reach).
+///
+/// The hub is reopened to trace on every attach. logging::set_runtime_level()
+/// sets the level of every sink on the default logger, so a test that calls it
+/// leaves the hub filtering whatever level it chose; each sink behind the hub
+/// keeps its own level.
 inline void attach_log_sink(spdlog::logger& logger, const spdlog::sink_ptr& sink) {
     const auto& hub = log_capture_hub();
     auto& sinks = logger.sinks();
     if (std::find(sinks.begin(), sinks.end(), hub) != sinks.end()) {
+        hub->set_level(spdlog::level::trace);
         hub->add_sink(sink);
     } else {
         sinks.push_back(sink);
