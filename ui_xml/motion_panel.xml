@@ -348,14 +348,6 @@
              word. The leveling buttons are capability-gated, so the row
              carries three to five buttons depending on the printer; the jog
              modes are Jog-tab-only. -->
-        <!-- Home single axes; the pad's centre button homes all -->
-        <home_axis_bar name="motion_home_bar"
-                       width="100%" flex_grow="0" all_callback="on_motion_home_all" x_callback="on_motion_home_x"
-                       y_callback="on_motion_home_y" z_callback="on_motion_home_z" xy_gate="motion_home_bar_xy"
-                       all_homed="motion_all_homed" x_homed="motion_x_homed" y_homed="motion_y_homed"
-                       xy_homed="motion_all_homed" z_homed="motion_z_homed">
-          <bind_flag_if_not_eq subject="motion_tab" flag="hidden" ref_value="0"/>
-        </home_axis_bar>
         <lv_obj name="bottom_row"
                 width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
                 scrollable="false">
@@ -365,6 +357,16 @@
             <bind_flag_if_not_eq subject="motion_tab" flag="hidden" ref_value="0"/>
             <bind_flag_if_not_eq subject="settings_motion_layout" flag="hidden" ref_value="0"/>
           </motion_jog_modes>
+          <!-- Home single axes beside the modes, taking no height from the pad;
+               the pad's centre button homes all. -->
+          <home_axis_bar name="motion_home_bar"
+                         width="0" flex_grow="2" all_callback="on_motion_home_all" x_callback="on_motion_home_x"
+                         y_callback="on_motion_home_y" z_callback="on_motion_home_z" xy_gate="motion_home_bar_xy"
+                         all_homed="motion_all_homed" x_homed="motion_x_homed" y_homed="motion_y_homed"
+                         xy_homed="motion_all_homed" z_homed="motion_z_homed">
+            <bind_flag_if_not_eq subject="motion_tab" flag="hidden" ref_value="0"/>
+            <bind_flag_if_not_eq subject="settings_motion_layout" flag="hidden" ref_value="0"/>
+          </home_axis_bar>
           <!-- Move-tab actions live here rather than under the grid: the grid
                fills the height the separate action row used to claim, and the
                two buttons sit beside QGL in the row the jog modes occupy on
