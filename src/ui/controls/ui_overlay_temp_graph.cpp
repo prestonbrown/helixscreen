@@ -495,17 +495,17 @@ void TempGraphOverlay::discover_series() {
 }
 
 void TempGraphOverlay::apply_default_visibility() {
-    // GraphOnly defaults to the core heaters (nozzle(s), bed, chamber if present)
-    // and the stepper drivers. Heater-specific modes show only their primary
-    // sensor. MCU and host series follow the user's remembered choice in every
-    // mode. Users can toggle additional sensors on via the chip row.
+    // GraphOnly defaults to the core heaters (nozzle(s), bed, chamber if present).
+    // Heater-specific modes show only their primary sensor. Stepper driver, MCU
+    // and host series follow the user's remembered choice in every mode. Users
+    // can toggle additional sensors on via the chip row.
     auto& settings = helix::SettingsManager::instance();
     const helix::TempGraphSensorPrefs prefs{settings.get_temp_graph_show_mcu(),
-                                            settings.get_temp_graph_show_host()};
+                                            settings.get_temp_graph_show_host(),
+                                            settings.get_temp_graph_show_drivers()};
     for (auto& s : series_) {
         if (s.is_sensor) {
-            s.visible =
-                helix::temp_graph_sensor_default_visible(s.group, mode_ == Mode::GraphOnly, prefs);
+            s.visible = helix::temp_graph_sensor_default_visible(s.group, prefs);
             continue;
         }
         switch (mode_) {
@@ -631,16 +631,21 @@ void TempGraphOverlay::toggle_series_visibility(size_t series_idx) {
     s.visible = !s.visible;
     show_series(series_idx);
 
-    // MCU and host are remembered per printer, as a group: every MCU series
-    // follows the chip the user tapped, so the next open matches this one.
-    const bool remembered = s.is_sensor && (s.group == helix::TempGraphSensorGroup::Mcu ||
-                                            s.group == helix::TempGraphSensorGroup::Host);
+    // Drivers, MCU and host are remembered per printer, as a group: every series
+    // of the group follows the chip the user tapped, so the next open matches.
+    const bool remembered = s.is_sensor && s.group != helix::TempGraphSensorGroup::Auxiliary;
     if (remembered) {
         auto& settings = helix::SettingsManager::instance();
-        if (s.group == helix::TempGraphSensorGroup::Mcu) {
+        switch (s.group) {
+        case helix::TempGraphSensorGroup::Mcu:
             settings.set_temp_graph_show_mcu(s.visible);
-        } else {
+            break;
+        case helix::TempGraphSensorGroup::Host:
             settings.set_temp_graph_show_host(s.visible);
+            break;
+        default:
+            settings.set_temp_graph_show_drivers(s.visible);
+            break;
         }
         for (size_t i = 0; i < series_.size(); ++i) {
             auto& other = series_[i];

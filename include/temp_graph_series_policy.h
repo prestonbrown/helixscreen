@@ -13,7 +13,7 @@ namespace helix {
 /// Which default a temperature graph series from TemperatureSensorManager follows.
 enum class TempGraphSensorGroup : uint8_t {
     Auxiliary,     ///< off by default; a chip turns it on for this session
-    StepperDriver, ///< on in the all-series view
+    StepperDriver, ///< opt-in, remembered per printer (SettingsManager)
     Mcu,           ///< opt-in, remembered per printer (SettingsManager)
     Host,          ///< opt-in, remembered per printer (SettingsManager)
 };
@@ -57,20 +57,16 @@ temp_graph_sensor_series(const std::vector<sensors::TemperatureSensorConfig>& se
 struct TempGraphSensorPrefs {
     bool show_mcu = false;
     bool show_host = false;
+    bool show_drivers = false;
 };
 
-/**
- * @brief Whether a sensor series starts visible.
- *
- * @param all_series_view the graph-only view; the nozzle, bed and chamber views
- *        start with only their own heater
- */
+/// Whether a sensor series starts visible: an opt-in group as the user last
+/// chose it, in every view; an auxiliary sensor never.
 [[nodiscard]] constexpr bool temp_graph_sensor_default_visible(TempGraphSensorGroup group,
-                                                               bool all_series_view,
                                                                TempGraphSensorPrefs prefs) {
     switch (group) {
     case TempGraphSensorGroup::StepperDriver:
-        return all_series_view;
+        return prefs.show_drivers;
     case TempGraphSensorGroup::Mcu:
         return prefs.show_mcu;
     case TempGraphSensorGroup::Host:

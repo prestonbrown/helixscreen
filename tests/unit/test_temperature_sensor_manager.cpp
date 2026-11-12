@@ -847,7 +847,7 @@ TEST_CASE_METHOD(TemperatureSensorTestFixture,
 }
 
 TEST_CASE_METHOD(TemperatureSensorTestFixture,
-                 "Temp graph: driver series start on, MCU and host only when the user chose them",
+                 "Temp graph: driver, MCU and host series start off until the user chooses them",
                  "[temperature][temp_graph_overlay]") {
     mgr().discover(
         helix::test::discovery_of({"tmc2240 stepper_x", "tmc2209 stepper_z",
@@ -865,15 +865,13 @@ TEST_CASE_METHOD(TemperatureSensorTestFixture,
                          {"temperature_sensor raspberry_pi", TempGraphSensorGroup::Host},
                          {"temperature_sensor hotbox", TempGraphSensorGroup::Auxiliary}});
 
+    // Every group starts hidden; an opt-in shows only its own group, in every view.
     using G = TempGraphSensorGroup;
-    const TempGraphSensorPrefs none{};
-    const TempGraphSensorPrefs mcu_only{true, false};
-    CHECK(temp_graph_sensor_default_visible(G::StepperDriver, true, none));
-    CHECK_FALSE(temp_graph_sensor_default_visible(G::StepperDriver, false, none));
-    CHECK_FALSE(temp_graph_sensor_default_visible(G::Mcu, true, none));
-    CHECK_FALSE(temp_graph_sensor_default_visible(G::Host, true, none));
-    CHECK(temp_graph_sensor_default_visible(G::Mcu, false, mcu_only));
-    CHECK_FALSE(temp_graph_sensor_default_visible(G::Host, true, mcu_only));
-    CHECK(temp_graph_sensor_default_visible(G::Host, true, {false, true}));
-    CHECK_FALSE(temp_graph_sensor_default_visible(G::Auxiliary, true, {true, true}));
+    for (G g : {G::StepperDriver, G::Mcu, G::Host, G::Auxiliary})
+        CHECK_FALSE(temp_graph_sensor_default_visible(g, {}));
+    CHECK(temp_graph_sensor_default_visible(G::StepperDriver, {false, false, true}));
+    CHECK_FALSE(temp_graph_sensor_default_visible(G::Mcu, {false, false, true}));
+    CHECK(temp_graph_sensor_default_visible(G::Mcu, {true, false, false}));
+    CHECK(temp_graph_sensor_default_visible(G::Host, {false, true, false}));
+    CHECK_FALSE(temp_graph_sensor_default_visible(G::Auxiliary, {true, true, true}));
 }
