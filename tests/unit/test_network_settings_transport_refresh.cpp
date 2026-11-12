@@ -197,8 +197,26 @@ TEST_CASE_METHOD(TransportRefreshFixture,
     Access::wifi_manager(*overlay) = wm;
     auto eth = std::make_shared<EthernetBackendMock>();
     Access::ethernet_manager(*overlay) = std::make_unique<EthernetManager>(eth);
+    struct ReleaseHeld {
+        EthernetBackendMock& mock;
+        ~ReleaseHeld() {
+            mock.release_held_info();
+        }
+    } release_held{*eth};
+    eth->hold_next_info();
     REQUIRE(overlay->create(test_screen()) != nullptr);
     overlay->on_activate();
+
+    // on_activate() waits behind the probe create() left out: two probes out
+    // together can answer in either order, and a stale "connected" landing
+    // last would hide the pulled cable below.
+    CHECK_FALSE(wait_until(
+        [&] {
+            helix::ui::UpdateQueue::instance().drain();
+            return Access::eth_refresh_idle(*overlay);
+        },
+        200));
+    eth->release_held_info();
 
     // Settle every probe create() and on_activate() started: one still in
     // flight would read the pulled cable without the link watch.

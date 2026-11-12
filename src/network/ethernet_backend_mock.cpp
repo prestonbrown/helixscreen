@@ -62,7 +62,25 @@ EthernetInfo EthernetBackendMock::get_info() {
     info.status = connected ? "Connected" : "No cable";
 
     spdlog::trace("[EthernetMock] get_info() → {} ({})", info.ip_address, info.status);
+    std::unique_lock<std::mutex> lock(hold_mutex_);
+    if (hold_next_info_) {
+        hold_next_info_ = false;
+        info_held_ = true;
+        hold_cv_.wait(lock, [this] { return !info_held_; });
+    }
     return info;
+}
+
+void EthernetBackendMock::hold_next_info() {
+    std::lock_guard<std::mutex> lock(hold_mutex_);
+    hold_next_info_ = true;
+}
+
+void EthernetBackendMock::release_held_info() {
+    std::lock_guard<std::mutex> lock(hold_mutex_);
+    hold_next_info_ = false;
+    info_held_ = false;
+    hold_cv_.notify_all();
 }
 
 namespace {

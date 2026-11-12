@@ -336,11 +336,6 @@ void NetworkSettingsOverlay::on_activate() {
     const bool waking = take_wake();
     if (!waking) {
         forget_read_pending_ = false;
-        // A probe still out at the last close never lands, since closing
-        // invalidated lifetime_, and its mark would park every Ethernet
-        // refresh from here on.
-        eth_refresh_in_flight_ = false;
-        eth_refresh_trailing_ = false;
     }
 
     spdlog::debug("[NetworkSettingsOverlay] on_activate()");
@@ -662,11 +657,14 @@ void NetworkSettingsOverlay::update_ethernet_status() {
     // just marks one trailing refresh — a flapping link or a failed-join
     // retry burst must not queue N sequential daemon round trips on the
     // shared fast lane (and mid-join the daemon is one-op-at-a-time anyway).
-    if (eth_refresh_in_flight_) {
+    // One probe at a time also keeps answers in order: two out together can
+    // land in either order, and a stale "connected" applied last would stand.
+    if (eth_probe_outstanding()) {
         eth_refresh_trailing_ = true;
         return;
     }
-    eth_refresh_in_flight_ = true;
+    // A trailing mark left by a dropped probe is served by this one.
+    eth_refresh_trailing_ = false;
 
     // Kick off an async probe — the callback fires on the UI thread via
     // tok.defer() so it's safe to touch subjects there. No bare expired()
@@ -674,6 +672,7 @@ void NetworkSettingsOverlay::update_ethernet_status() {
     // gone, and dropping the bare check silences the bg_tok_expired_check
     // detector for this site (3XNZQB2R audit).
     auto tok = lifetime_.token();
+    eth_probe_token_ = tok;
     ethernet_manager_->get_info_async([this, tok](const EthernetInfo& info) {
         tok.defer("NetworkSettingsOverlay::apply_ethernet_status",
                   [this, info]() { apply_ethernet_status(info); });
@@ -681,7 +680,7 @@ void NetworkSettingsOverlay::update_ethernet_status() {
 }
 
 void NetworkSettingsOverlay::apply_ethernet_status(const EthernetInfo& info) {
-    eth_refresh_in_flight_ = false;
+    eth_probe_token_.reset();
     if (eth_refresh_trailing_) {
         // A refresh was requested while this probe ran — run it now that the
         // lane is free (this pass's data is about to be superseded anyway).

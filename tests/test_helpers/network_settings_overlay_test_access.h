@@ -40,7 +40,7 @@ class NetworkSettingsOverlayTestAccess {
     }
     /// No Ethernet probe in flight or queued behind one.
     static bool eth_refresh_idle(NetworkSettingsOverlay& o) {
-        return !o.eth_refresh_in_flight_ && !o.eth_refresh_trailing_;
+        return !o.eth_probe_outstanding() && !o.eth_refresh_trailing_;
     }
     /// The eth_connected subject (0/1) the Ethernet row binds to.
     static lv_subject_t& eth_connected(NetworkSettingsOverlay& o) {
@@ -149,7 +149,7 @@ class NetworkSettingsOverlayTestAccess {
         o.populate_network_list(networks);
     }
     /// An Ethernet probe the overlay is waiting on.
-    static bool& eth_refresh_in_flight(NetworkSettingsOverlay& o) {
-        return o.eth_refresh_in_flight_;
+    static bool eth_refresh_in_flight(NetworkSettingsOverlay& o) {
+        return o.eth_probe_outstanding();
     }
 };

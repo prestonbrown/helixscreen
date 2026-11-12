@@ -357,8 +357,14 @@ class NetworkSettingsOverlay : public OverlayBase {
     /// Ethernet refresh coalescing: at most one daemon probe in flight, with
     /// one trailing refresh armed while one runs (a flapping link or a
     /// failed-join retry burst collapses to one round trip, not N).
-    bool eth_refresh_in_flight_ = false;
+    /// The probe out now, by the token its answer lands under: it stays
+    /// outstanding until that answer applies or the token is invalidated,
+    /// since an invalidated probe's answer is dropped and never arrives.
+    std::optional<helix::LifetimeToken> eth_probe_token_;
     bool eth_refresh_trailing_ = false;
+    bool eth_probe_outstanding() const {
+        return eth_probe_token_ && !eth_probe_token_->expired();
+    }
     void update_test_state(NetworkTester::TestState state, const NetworkTester::TestResult& result);
     // Caches the scan and rebuilds the rows once an async status read says
     // which network is connected: a status read can block for seconds on
