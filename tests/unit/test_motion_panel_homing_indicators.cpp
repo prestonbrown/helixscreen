@@ -133,3 +133,30 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the motion panel homes single axes",
     helix::ui::UpdateQueue::instance().drain();
     set_moonraker_api(previous);
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture, "the Z column draws what the Z keys move", "[motion][xml]") {
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels)
+        p = lv_obj_create(lv_screen_active());
+    NavigationManager::instance().set_panels(panels.data());
+    REQUIRE(get_global_motion_panel().show(lv_screen_active()));
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* root = get_global_motion_panel().get_root();
+    REQUIRE(root != nullptr);
+    lv_obj_t* head = lv_obj_find_by_name(root, "z_axis_icon_head");
+    lv_obj_t* bed = lv_obj_find_by_name(root, "z_axis_icon_bed");
+    REQUIRE(head != nullptr);
+    REQUIRE(bed != nullptr);
+    lv_subject_t* bed_moves = lv_xml_get_subject(nullptr, "printer_bed_moves");
+    REQUIRE(bed_moves != nullptr);
+
+    lv_subject_set_int(bed_moves, 0);
+    CHECK_FALSE(lv_obj_has_flag(head, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(bed, LV_OBJ_FLAG_HIDDEN));
+    lv_subject_set_int(bed_moves, 1);
+    CHECK(lv_obj_has_flag(head, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(bed, LV_OBJ_FLAG_HIDDEN));
+
+    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::UpdateQueue::instance().drain();
+}

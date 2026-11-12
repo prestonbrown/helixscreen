@@ -177,10 +177,10 @@ TEST_CASE("motion panel fills the header slot and carries the portrait strip", "
     CHECK(xml.find("name=\"bottom_row\"") != std::string::npos);
     CHECK(xml.find("name=\"btn_qgl\"") != std::string::npos);
     CHECK(xml.find("icon_position=\"top\"") != std::string::npos);
-    const bool axis_label =
-        xml.find("name=\"z_axis_label\" width=\"100%\" bind_text=\"motion_z_axis_label\"") !=
-        std::string::npos;
-    CHECK(axis_label);
+    // Between the Z keys, what they move is drawn: the head, or the bed.
+    CHECK(xml.find("name=\"z_axis_label\"") != std::string::npos);
+    CHECK(xml.find("<toolhead_view name=\"z_axis_icon_head\"") != std::string::npos);
+    CHECK(xml.find("name=\"z_axis_icon_bed\" src=\"bed\"") != std::string::npos);
     for (const char* btn : {"z_up_large", "z_up_small", "z_down_small", "z_down_large"}) {
         CHECK(xml.find(std::string("name=\"") + btn + "\"") != std::string::npos);
     }

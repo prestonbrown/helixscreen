@@ -371,27 +371,6 @@ void draw_flow_dots_path(lv_layer_t* layer, const pg::FilamentPath& path, lv_col
 // Toolhead glyph
 // ============================================================================
 
-// The A4T glyph is drawn 6/5 larger than the others at every call site in this
-// widget, so the boost is folded in here.
-namespace {
-
-int32_t drawn_scale(helix::ToolheadStyle style, int32_t scale) {
-    return style == helix::ToolheadStyle::A4T ? scale * 6 / 5 : scale;
-}
-
-} // namespace
-
-void draw_toolhead(lv_layer_t* layer, int32_t cx, int32_t cy, std::optional<lv_color_t> filament,
-                   int32_t scale, lv_opa_t opa) {
-    const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
-    draw_nozzle_for_style(layer, cx, cy, filament, drawn_scale(style, scale), opa);
-}
-
-helix::ui::GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t cy, int32_t scale) {
-    const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
-    return helix::ui::toolhead_bounds(style, cx, cy, drawn_scale(style, scale));
-}
-
 // Nozzle tip Y for the configured style — anchors the heat glow halo.
 int32_t toolhead_tip_y(int32_t nozzle_y, int32_t extruder_scale) {
     switch (helix::SettingsManager::instance().get_effective_toolhead_style()) {

@@ -43,6 +43,7 @@
 #include "ui_coalesced_timer.h"
 #include "ui_filament_path_canvas.h"
 #include "ui_toolhead_badge.h"
+#include "ui_toolhead_view.h"
 
 #include "ams_types.h"
 #include "filament_path_geometry.h"
@@ -491,12 +492,6 @@ void draw_flow_dots_line(lv_layer_t* layer, int32_t x1, int32_t y1, int32_t x2, 
 void draw_flow_dots_path(lv_layer_t* layer, const pg::FilamentPath& path, lv_color_t color,
                          int32_t flow_offset, bool reverse);
 
-/// Toolhead/extruder glyph in the user's configured style. Applies the A4T
-/// style's 6/5 scale boost internally — pass the base scale. @p filament is
-/// the color at the nozzle, or nullopt when nothing is loaded there.
-void draw_toolhead(lv_layer_t* layer, int32_t cx, int32_t cy, std::optional<lv_color_t> filament,
-                   int32_t scale, lv_opa_t opa = LV_OPA_COVER);
-
 /// Y of the nozzle tip for the configured toolhead style (heat glow anchor).
 int32_t toolhead_tip_y(int32_t nozzle_y, int32_t extruder_scale);
 struct BoxColors {
@@ -506,9 +501,6 @@ struct BoxColors {
 BoxColors buffer_box_colors(const FilamentPathData& data, bool has_filament,
                             lv_color_t filament_color);
 
-/// Drawn bounds of draw_toolhead()'s glyph at (@p cx, @p cy) for the
-/// configured style, at the same base scale.
-helix::ui::GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t cy, int32_t scale);
 /// Topmost drawn Y of the toolhead glyph for the configured style (its cap or
 /// shroud, above the nozzle inlet at nozzle_y - extruder_scale * 2).
 int32_t toolhead_top_y(int32_t nozzle_y, int32_t extruder_scale);
