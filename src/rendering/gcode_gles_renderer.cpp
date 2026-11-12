@@ -363,10 +363,7 @@ GCodeGLESRenderer::GCodeGLESRenderer() {
 
 GCodeGLESRenderer::~GCodeGLESRenderer() {
     destroy_gl();
-#if LV_USE_SDL
-    // A shader failure in init_gl() leaves destroy_gl() nothing to tear down.
-    release_sdl_video();
-#endif
+    release_sdl_video(); // a shader failure in init_gl() leaves destroy_gl() nothing
 
     // draw_buf_ is handed to the parallel render thread via dsc.src in
     // draw_cached_to_lvgl — same UAF pattern as GCodeLayerRenderer::cache_buf_
@@ -503,14 +500,13 @@ bool GCodeGLESRenderer::create_egl_context(void* egl_display, const char* label,
 }
 #endif // !LV_USE_SDL
 
-#if LV_USE_SDL
 void GCodeGLESRenderer::release_sdl_video() {
-    if (sdl_video_held_) {
+#if LV_USE_SDL
+    if (sdl_video_held_)
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
-        sdl_video_held_ = false;
-    }
-}
 #endif
+    sdl_video_held_ = false;
+}
 
 bool GCodeGLESRenderer::init_gl() {
     if (gl_initialized_)
@@ -533,18 +529,12 @@ bool GCodeGLESRenderer::init_gl() {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 
-    // SDL_CreateWindow brings video up itself when nothing holds it, and nothing
-    // would take it down. An explicit reference is counted: with the display
-    // holding video this only adds one, and releasing it leaves the display's.
-    if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) {
-        spdlog::warn("[GCode GLES] SDL video init failed: {}", SDL_GetError());
-        gl_init_failed_ = true;
-        return false;
-    }
-    sdl_video_held_ = true;
-
-    auto* window =
-        SDL_CreateWindow("helix-gles-offscreen", 0, 0, 1, 1, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
+    // SDL_CreateWindow's own video init has no matching quit; this reference is
+    // counted, so releasing it with the window leaves the display's hold alone.
+    sdl_video_held_ = SDL_InitSubSystem(SDL_INIT_VIDEO) == 0;
+    auto* window = sdl_video_held_ ? SDL_CreateWindow("helix-gles-offscreen", 0, 0, 1, 1,
+                                                      SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN)
+                                   : nullptr;
     if (!window) {
         spdlog::warn("[GCode GLES] SDL_CreateWindow failed: {}", SDL_GetError());
         release_sdl_video();

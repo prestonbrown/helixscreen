@@ -469,10 +469,6 @@ class GCodeGLESRenderer {
     // SDL GL backend (desktop)
     void* sdl_gl_window_ = nullptr;  // SDL_Window*
     void* sdl_gl_context_ = nullptr; // SDL_GLContext
-    // The SDL video reference init_gl() takes for the hidden window, so the renderer
-    // that brought video up takes it down again with the window.
-    bool sdl_video_held_ = false;
-    void release_sdl_video();
 #else
     // EGL backend (Pi/embedded)
     void* egl_display_ = nullptr; // EGLDisplay
@@ -484,6 +480,10 @@ class GCodeGLESRenderer {
     void* gbm_device_ = nullptr; // struct gbm_device*
     int drm_fd_ = -1;            // DRM file descriptor (owned by us)
 #endif
+    // The counted SDL video reference init_gl() takes for its hidden window (SDL
+    // builds only), released with the window.
+    bool sdl_video_held_ = false;
+    void release_sdl_video();
     bool gl_initialized_ = false;
     bool gl_init_failed_ = false;   // Prevents repeated init attempts
     bool gl_render_failed_ = false; // Set on a fatal GL draw error; sticky for the session
