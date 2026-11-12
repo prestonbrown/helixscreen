@@ -59,6 +59,11 @@ class HeaterTempWidget : public TiledPanelWidget {
     void on_activate() override;
     void on_deactivate() override;
     void on_size_changed(int colspan, int rowspan, int width_px, int height_px) override;
+
+  protected:
+    void on_hooked_root_deleted() override;
+
+  public:
     std::string get_component_name() const override {
         return std::string("panel_widget_") + cfg_.widget_id;
     }

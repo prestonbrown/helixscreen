@@ -59,6 +59,12 @@ class FullPageHost {
     /// The tile is going away (detach()): free the tree and stop being a jump target.
     void detach();
 
+    /// The tile's tree was deleted without detach() (PanelWidget's delete hook).
+    /// Runs inside LVGL's delete event, so it only schedules: the overlay's
+    /// deactivate and cleanup run on the next tick, unless another page has
+    /// embedded it again by then.
+    void on_tile_deleted();
+
     /// The tile's page is on screen (PanelWidget::on_activate()).
     void activate();
     /// The tile's page went off screen or the home panel was covered.
@@ -95,6 +101,8 @@ class FullPageHost {
     helix::ui::WidgetRef tile_root_;
     bool full_page_ = false;
     bool active_ = false;
+    /// This host's embed() succeeded and nothing has released it since.
+    bool hosting_ = false;
     int page_index_ = 0;
 };
 

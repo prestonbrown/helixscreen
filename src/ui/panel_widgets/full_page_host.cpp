@@ -3,6 +3,7 @@
 
 #include "src/ui/panel_widgets/full_page_host.h"
 
+#include "ui_next_tick.h"
 #include "ui_panel_home.h"
 #include "ui_utils.h"
 
@@ -107,6 +108,7 @@ void FullPageHost::embed_if_shown() {
         // the page is shown again.
         return;
     }
+    hosting_ = true;
     // Edit mode disarmed the page before this tree existed; disarm it the same
     // way so the session's restore re-arms it with everything else.
     if (tile_root_ && lv_obj_has_flag(tile_root_, helix::ui::kEditClickSuppressedFlag)) {
@@ -118,6 +120,22 @@ void FullPageHost::release_tree() {
     if (hosts_tree()) {
         overlay_().release_embed();
     }
+    hosting_ = false;
+}
+
+void FullPageHost::on_tile_deleted() {
+    active_ = false;
+    if (!std::exchange(hosting_, false)) {
+        return;
+    }
+    // The overlay is a process-lifetime singleton, so the release is bound to no
+    // object. A tree embedded again before the tick is someone else's to release.
+    helix::ui::run_next_tick([overlay = overlay_]() {
+        OverlayBase& o = overlay();
+        if (!o.is_embedded()) {
+            o.release_embed();
+        }
+    });
 }
 
 std::optional<int> full_page_for(std::string_view function) {

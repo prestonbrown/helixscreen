@@ -197,6 +197,23 @@ TEST_CASE_METHOD(FullPageFixture, "a Motion tile covering an extra page hosts th
     CHECK_FALSE(helix::full_page_for(helix::kMotionFunction).has_value());
 }
 
+TEST_CASE_METHOD(FullPageFixture, "a tile tree deleted without detach releases its embed",
+                 "[full_page][host]") {
+    auto tile = make_tile("motion:1", 1, true);
+    tile->on_activate();
+    drain();
+    MotionPanel& motion = get_global_motion_panel();
+    REQUIRE(motion.is_embedded());
+    REQUIRE(motion.is_visible());
+
+    lv_obj_delete(tile->root());
+    drain();
+    // The overlay's deactivate ran: its observers no longer feed a freed tree.
+    CHECK_FALSE(motion.is_visible());
+    CHECK_FALSE(helix::full_page_for(helix::kMotionFunction).has_value());
+    CHECK(motion.embed(page_));
+}
+
 TEST_CASE_METHOD(FullPageFixture, "a heater tile covering an extra page hosts its own heater",
                  "[full_page][host]") {
     const auto& bed = helix::bed_temp_config();
