@@ -377,6 +377,16 @@ void TempGraphOverlay::open(Mode mode, lv_obj_t* parent_screen) {
     show(parent_screen);
 }
 
+bool TempGraphOverlay::embed_in(Mode mode, lv_obj_t* container) {
+    mode_ = mode;
+    picked_extruder_.clear();
+    if (!embed(container)) {
+        return false;
+    }
+    lv_subject_set_int(&mode_subject_, static_cast<int>(mode_));
+    return true;
+}
+
 void TempGraphOverlay::before_show() {
     // The pairing must survive a navbar panel switch.
     helix::nav::register_overlay(overlay_root_, this, true);

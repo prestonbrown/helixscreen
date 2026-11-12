@@ -74,6 +74,19 @@ class TempGraphOverlay : public OverlayBase {
      */
     void open(Mode mode, lv_obj_t* parent_screen);
 
+    /**
+     * @brief Build the overlay in a specific mode inside a home page
+     *
+     * The full-page form of a heater tile (prestonbrown/helixscreen#1931):
+     * OverlayBase::embed() with the mode open() would set.
+     */
+    bool embed_in(Mode mode, lv_obj_t* container);
+
+    /// The header carries only the title, which a home page repeats.
+    bool embed_keeps_header() const override {
+        return false;
+    }
+
   protected:
     void before_show() override;
 

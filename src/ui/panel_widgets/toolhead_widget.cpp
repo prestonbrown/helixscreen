@@ -28,6 +28,7 @@
 #include "printer_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/live_tile_owner.h"
+#include "src/ui/panel_widgets/motion_widget.h"
 #include "src/ui/panel_widgets/panel_widget_fonts.h"
 #include "subject_managed_panel.h"
 #include "text_measure.h"
@@ -1270,7 +1271,7 @@ void ToolheadWidget::invalidate_plate() {
 }
 
 void ToolheadWidget::open_motion_panel() {
-    get_global_motion_panel().show(parent_screen_);
+    open_motion_controls(parent_screen_);
 }
 
 void ToolheadWidget::clicked_cb(lv_event_t* e) {

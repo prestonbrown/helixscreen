@@ -1294,6 +1294,18 @@ void HomePanel::go_to_main_page() {
     }
 }
 
+bool HomePanel::show_page(int page) {
+    if (!carousel_ || grid_edit_mode_.is_active() || page < 0 ||
+        page >= static_cast<int>(pages_.size())) {
+        return false;
+    }
+    if (ui_carousel_get_current_page(carousel_) != page) {
+        spdlog::debug("[HomePanel] Showing page {}", page);
+        ui_carousel_goto_page(carousel_, page, true);
+    }
+    return true;
+}
+
 void HomePanel::exit_grid_edit_mode() {
     if (!grid_edit_mode_.is_active()) {
         return;

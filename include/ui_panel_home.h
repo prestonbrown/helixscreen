@@ -85,6 +85,10 @@ class HomePanel : public PanelBase {
     /// Navigate the carousel to page 0 (main page) if not already there
     void go_to_main_page();
 
+    /// Move the carousel to config page @p page, animated. False, moving nothing,
+    /// for a page the carousel does not have or while edit mode holds the pages.
+    bool show_page(int page);
+
     /// Leave grid edit mode: the one exit, used by the navbar Done button,
     /// deactivation and page deletion. A live gesture ends uncommitted first,
     /// so a drag over the next-page slot returns to its page before the
