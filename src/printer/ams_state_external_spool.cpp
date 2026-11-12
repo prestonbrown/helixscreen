@@ -147,10 +147,12 @@ void AmsState::restart_bypass_reads() {
     bypass_read_in_flight_ = false;
     bypass_read_again_ = false;
     if (api_ == nullptr) {
+        sync_lane_records_ready();
         return;
     }
     bypass_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
         api_, "bypass", helix::ams::LaneKeyStyle::Lane);
+    sync_lane_records_ready();
     bypass_store_->set_on_written([token = async_lifetime_.token()]() {
         token.defer("AmsState::refresh_bypass_record",
                     []() { AmsState::instance().refresh_bypass_record(); });
@@ -218,6 +220,7 @@ void AmsState::adopt_bypass_records(
     helix::ams::file_bypass_record(record ? &*record : nullptr);
     bypass_record_read_ = std::move(record);
     bypass_store_read_ = true;
+    sync_lane_records_ready();
     refresh_external_spool();
     run_legacy_spool_import();
 }
