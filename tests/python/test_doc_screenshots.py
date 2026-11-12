@@ -173,6 +173,9 @@ def test_capture_runs_recipe_steps_uses_stable_and_crops(tmp_path):
     assert ("navigate", "filament") in session.calls
     shot = [c for c in session.calls if c[0] == "screenshot"][0]
     assert "--stable" in shot
+    # Animations and the mock's simulation are stopped for the shot, then resumed.
+    names = [c[0] for c in session.calls]
+    assert names.index("freeze") < names.index("screenshot") < names.index("unfreeze")
     from PIL import Image
 
     img = Image.open(out)
