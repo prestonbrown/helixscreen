@@ -989,6 +989,8 @@ main() {
     elif [ "$platform" = "k1" ]; then
         K1_FIRMWARE=$(detect_k1_firmware)
         firmware="$K1_FIRMWARE"
+        log_info "K1 firmware flavour: $K1_FIRMWARE"
+        log_k1_ssh_state "install start"
     fi
     set_install_paths "$platform" "$firmware"
 
@@ -1240,6 +1242,7 @@ apply_install() {
         # ships in the release package) and on self-update, which skips
         # stop_competing_uis and would otherwise never see it installed.
         install_k1_creality_backend
+        log_k1_ssh_state "after Creality backend start"
     fi
 
     # Verify all shared library dependencies are satisfied before starting

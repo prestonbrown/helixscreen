@@ -2113,7 +2113,7 @@ TEST_CASE("platform table marks which platforms name printer hardware",
     }
 }
 
-TEST_CASE("mips platform validates MIPS32 LE and captures the AD5X zmod files",
+TEST_CASE("mips platform validates MIPS32 LE and captures both boards' files",
           "[update_checker][platform]") {
     const auto* p = helix::platform::find("mips");
     REQUIRE(p != nullptr);
@@ -2123,8 +2123,19 @@ TEST_CASE("mips platform validates MIPS32 LE and captures the AD5X zmod files",
 
     const auto* ad5x = helix::platform::find("ad5x");
     REQUIRE(ad5x != nullptr);
+    const auto* k1 = helix::platform::find("k1");
+    REQUIRE(k1 != nullptr);
     REQUIRE(!ad5x->diagnostic_files.empty());
-    REQUIRE(p->diagnostic_files == ad5x->diagnostic_files);
+    REQUIRE(!k1->diagnostic_files.empty());
+    for (const auto* board : {ad5x, k1}) {
+        for (const auto& path : board->diagnostic_files) {
+            INFO(path);
+            CHECK(std::find(p->diagnostic_files.begin(), p->diagnostic_files.end(), path) !=
+                  p->diagnostic_files.end());
+        }
+    }
+    CHECK(p->diagnostic_files.size() ==
+          ad5x->diagnostic_files.size() + k1->diagnostic_files.size());
 }
 
 TEST_CASE("elf_header_matches checks class, endianness and machine", "[update_checker][platform]") {
