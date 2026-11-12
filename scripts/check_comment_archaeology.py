@@ -94,6 +94,17 @@ def iter_sources(root: Path):
             yield path
 
 
+def is_shallow_clone(root: Path) -> bool:
+    """True when the repository resolve_commits() asks is a shallow clone.
+
+    CI checks out two commits, so almost every cited SHA is missing there and every
+    citation reads as removed. root is unused: like resolve_commits(), this asks the
+    repository the script lives in.
+    """
+    git_root = Path(__file__).resolve().parent.parent
+    return git_out(git_root, "rev-parse", "--is-shallow-repository").strip() == "true"
+
+
 def resolve_commits(root: Path, tokens: set[str]) -> set[str]:
     """Subset of tokens that name a real commit in this project's history.
 
@@ -362,6 +373,13 @@ def main() -> int:
 
     fallen = {f: (counts.get(f, 0), n) for f, n in baseline.items() if counts.get(f, 0) < n}
     total = sum(counts.values())
+    if fallen and is_shallow_clone(root):
+        # A citation counts only when this clone resolves the commit, and a shallow
+        # clone (CI checks out two commits) resolves almost none, so a fall here says
+        # nothing about the comments. The full-history stages judge it.
+        print(f"OK: {total} commit-SHA citation(s); shallow clone, so the "
+              f"{len(fallen)} file(s) under baseline are not judged here.")
+        return 0
     if fallen:
         return ratchet.under_baseline(
             "Comment archaeology",
