@@ -64,14 +64,7 @@ class WizardLanguageChooserStep : public helix::wizard::Step {
     WizardLanguageChooserStep(WizardLanguageChooserStep&&) = delete;
     WizardLanguageChooserStep& operator=(WizardLanguageChooserStep&&) = delete;
 
-    /**
-     * @brief Initialize reactive subjects
-     */
     void init_subjects() override;
-
-    /**
-     * @brief Register event callbacks
-     */
     void register_callbacks() override;
 
     /**
@@ -103,9 +96,6 @@ class WizardLanguageChooserStep : public helix::wizard::Step {
      */
     bool should_skip() const;
 
-    /**
-     * @brief Get step name for logging
-     */
     const char* get_name() const {
         return "Wizard Language Chooser";
     }
@@ -152,14 +142,12 @@ class WizardLanguageChooserStep : public helix::wizard::Step {
     }
 
   private:
-    // Screen instance
     lv_obj_t* screen_root_ = nullptr;
 
     // SubjectManager, declared ahead of the subject it owns so it tears down
     // after it (the name withdraws before the storage dies).
     SubjectManager subjects_;
 
-    // Subjects
     lv_subject_t welcome_text_{};
 
     // String buffer for welcome text subject
@@ -180,10 +168,6 @@ class WizardLanguageChooserStep : public helix::wizard::Step {
     // Static timer callback
     static void cycle_timer_cb(lv_timer_t* timer);
 };
-
-// ============================================================================
-// Global Instance Access
-// ============================================================================
 
 WizardLanguageChooserStep* get_wizard_language_chooser_step();
 

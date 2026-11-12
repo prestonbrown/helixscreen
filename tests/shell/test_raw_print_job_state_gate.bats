@@ -1,14 +1,15 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Meta-tests for scripts/check_raw_print_job_state.py: every read of the raw
+# Meta-tests for the raw-print-state rule of scripts/check_source_rules.py: every read of the raw
 # print wire (PrintJobState::PRINTING/PAUSED/STANDBY, get_print_job_state(),
 # get_print_state_enum_subject()) carries `// RAW_PRINT_STATE_OK: <reason>`
 # within the lines above it. The gate does not forbid the wire, only reading it
 # silently, so the quiet cases (terminal states, comments, a marked switch, the
 # derivation layer) matter as much as the loud ones.
 
-GATE="scripts/check_raw_print_job_state.py"
+GATE="scripts/check_source_rules.py"
+RULE="--rule raw-print-state"
 
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
@@ -19,7 +20,7 @@ setup() {
 
 run_gate() {
     printf '%s\n' "$2" > "$FIX/$1.cpp"
-    run python3 "$GATE" "$FIX/$1.cpp"
+    run python3 "$GATE" $RULE "$FIX/$1.cpp"
 }
 
 # ------------------------------------------------ shapes that must be CAUGHT
@@ -49,10 +50,10 @@ void Panel::bind() {
         echo 'bool p = s == PrintJobState::PAUSED;'
     }
     far_fixture 11 > "$FIX/near.cpp"
-    run python3 "$GATE" "$FIX/near.cpp"
+    run python3 "$GATE" $RULE "$FIX/near.cpp"
     [ "$status" -eq 0 ]
     far_fixture 12 > "$FIX/far.cpp"
-    run python3 "$GATE" "$FIX/far.cpp"
+    run python3 "$GATE" $RULE "$FIX/far.cpp"
     [ "$status" -eq 1 ]
 }
 
@@ -110,25 +111,24 @@ bool a = s == PrintJobState::PRINTING ||
          s == PrintJobState::PAUSED;'
     [ "$status" -eq 1 ]
     contains "1 > 0" "$output"
-    run python3 "$GATE" --max-allowed=1 "$FIX/grouped.cpp"
+    run python3 "$GATE" $RULE --max-allowed=1 "$FIX/grouped.cpp"
     [ "$status" -eq 0 ]
 }
 
 @test "the derivation layer is allowlisted" {
-    run python3 - "$GATE" <<'EOF'
-import importlib.util, sys
-spec = importlib.util.spec_from_file_location("g", sys.argv[1])
-g = importlib.util.module_from_spec(spec); spec.loader.exec_module(g)
-from pathlib import Path
-root = Path(sys.argv[1]).resolve().parent.parent
+    run python3 - <<'EOF'
+import sys
+sys.path.insert(0, "scripts")
+import check_source_rules as g
+root = g.SCRIPT_ROOT
 f = root / "src/printer/print_lifecycle_state.cpp"
 assert f.exists(), f
-print(len(g.scan(root, [f])))
+print(len(g.raw_print_state_sites(root, [f])))
 EOF
     [ "$status" -eq 0 ]
     [ "$output" = "0" ]
 }
 
 @test "quality-checks runs the gate from qc_decl_ui" {
-    grep -q 'python3 scripts/check_raw_print_job_state.py' scripts/qc/decl_ui.sh
+    grep -q -- '--rule raw-print-state' scripts/qc/decl_ui.sh
 }

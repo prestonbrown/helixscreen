@@ -33,7 +33,7 @@ else
   PIXELS_ARGS=""
 fi
 # shellcheck disable=SC2086
-if python3 scripts/check_hardcoded_pixels.py --max-allowed 150 --summary $PIXELS_ARGS \
+if python3 scripts/check_hardcoded_pixels.py --max-allowed 121 --summary $PIXELS_ARGS \
     >/tmp/hardcoded_pixels.out 2>&1; then
   tail -1 /tmp/hardcoded_pixels.out
 else

@@ -31,7 +31,6 @@
 #include <memory>
 #include <string>
 
-// Forward declarations
 namespace helix {
 class PrinterState;
 }
@@ -93,10 +92,6 @@ class HardwareHealthOverlay : public OverlayBase {
      */
     void on_deactivating(DeactivateReason reason) override;
 
-    //
-    // === Initialization ===
-    //
-
     /**
      * @brief Set PrinterState dependency (required for validation results)
      * @param printer_state Pointer to PrinterState instance
@@ -104,10 +99,6 @@ class HardwareHealthOverlay : public OverlayBase {
     void set_printer_state(PrinterState* printer_state) {
         printer_state_ = printer_state;
     }
-
-    //
-    // === Accessors ===
-    //
 
     /**
      * @brief Check if overlay has been created
@@ -140,10 +131,6 @@ class HardwareHealthOverlay : public OverlayBase {
     void handle_hardware_save_cancel();
 
   private:
-    //
-    // === Internal Methods ===
-    //
-
     /**
      * @brief Populate issue lists from validation result
      *
@@ -151,10 +138,6 @@ class HardwareHealthOverlay : public OverlayBase {
      * Clears existing rows first to allow refresh.
      */
     void populate_hardware_issues();
-
-    //
-    // === State ===
-    //
 
     PrinterState* printer_state_{nullptr};
 

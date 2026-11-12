@@ -21,10 +21,13 @@ components/bed_check_modal.xml
 components/camera_config_modal.xml
 components/camera_fullscreen.xml
 components/panel_widget_camera.xml
+components/panel_widget_gcode_console.xml
 components/panel_widget_toolhead.xml
 components/spaghetti_detection_modal.xml
 components/timelapse_macro_card.xml
 components/upgrade_banner.xml
+console_panel.xml
+console_settings_overlay.xml
 crash_report_modal.xml
 input_shaper_panel.xml
 label_printer_settings.xml

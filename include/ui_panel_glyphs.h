@@ -75,8 +75,8 @@ class GlyphsPanel : public PanelBase {
     void populate_glyphs();
 };
 
-// Global instance accessor (needed by main.cpp)
+// Global instance accessor
 GlyphsPanel& get_global_glyphs_panel();
 
-// Legacy create wrapper (test panel - still used by main.cpp)
+// Build the panel from its XML under @p parent and run its setup()
 lv_obj_t* ui_panel_glyphs_create(lv_obj_t* parent);

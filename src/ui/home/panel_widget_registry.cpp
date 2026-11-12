@@ -44,7 +44,9 @@ void register_clog_detection_widget();
 void register_filament_buffer_widget();
 void register_print_stats_widget();
 void register_maintenance_widget();
+#if HELIX_HAS_CONSOLE
 void register_gcode_console_widget();
+#endif
 void register_bed_temperature_widget();
 void register_chamber_temperature_widget();
 void register_preheat_widget();
@@ -161,7 +163,9 @@ static std::vector<PanelWidgetDef> s_widget_defs = {
     {"maintenance",      TR_NOOP("Maintenance"),       "wrench",           TR_NOOP("Service hours for the parts that wear"), nullptr,           nullptr,                               kCatSystem,   false, 2, 2, 1, 1, 8, 4, false, true, true},
     // Two cells square by default: at two cells tall the tile shows a live tail
     // of the console output, and below that it is the icon tile.
+#if HELIX_HAS_CONSOLE
     {"gcode_console",    TR_NOOP("GCode Console"),     "console",          TR_NOOP("Send G-code and read the replies"),    nullptr,              nullptr,                               kCatControls, false, 4, 4, 1, 2, kBandColspan, kBandColspan, false, true, true},
+#endif
 #if HELIX_HAS_CAMERA
     {"camera",           TR_NOOP("Camera"),            "webcam",           TR_NOOP("Live view from your webcam"),           nullptr,              nullptr,                               kCatPrint,    false, 4, 4, 2, 2, 8, 6, false, true, true, false},
 #endif
@@ -396,7 +400,9 @@ void init_widget_registrations() {
     register_filament_buffer_widget();
     register_print_stats_widget();
     register_maintenance_widget();
+#if HELIX_HAS_CONSOLE
     register_gcode_console_widget();
+#endif
     register_macros_widget();
     register_motion_widget();
     register_filament_sensor_widget();

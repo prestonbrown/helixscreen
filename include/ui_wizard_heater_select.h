@@ -15,7 +15,7 @@
  * @file ui_wizard_heater_select.h
  * @brief Wizard heater selection step - configures bed and hotend heaters
  *
- * Uses hardware discovery from MoonrakerClient to populate dropdowns.
+ * Uses hardware discovery from IMoonrakerAPI to populate dropdowns.
  *
  * ## Subject Bindings (2 total):
  *

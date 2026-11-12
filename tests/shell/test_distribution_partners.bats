@@ -82,6 +82,24 @@ listing() {
     [ "$status" -eq 0 ]
 }
 
+@test "every partner names the maintainer as owner, and a partner without one fails to load" {
+    run python3 "$SCRIPT" table
+    [ "$status" -eq 0 ]
+    contains "| Incumbent screen | Owner | Contact |" "${lines[0]}"
+    rows=$(grep -c '^| \*\*' <<< "$output")
+    [ "$rows" -eq "$(grep -c '| prestonbrown | ' <<< "$output")" ]
+    [ "$rows" -ge 7 ]
+
+    python3 -c '
+import json, sys
+d = json.load(open(sys.argv[1]))
+del d["partners"][0]["owner"]
+json.dump(d, open(sys.argv[2], "w"))' scripts/distribution_partners.json "$TEST_DIR/data.json"
+    run python3 "$SCRIPT" --data "$TEST_DIR/data.json" table
+    [ "$status" -ne 0 ]
+    contains "has no 'owner'" "$output"
+}
+
 @test "a hand edit to the table fails the doc check, and --write repairs it" {
     cp "$DOC" "$TEST_DIR/doc.md"
     sed -i 's/| \*\*Z-Mod\*\*/| **ZMod**/' "$TEST_DIR/doc.md"

@@ -28,7 +28,6 @@
 #include <string>
 #include <vector>
 
-// Forward declarations
 namespace helix {
 class AmsBackend;
 struct DryingPreset;
@@ -114,9 +113,6 @@ class AmsEnvironmentOverlay : public OverlayBase {
     /// Toggle spool rotation for the next start.
     void toggle_dry_rotate();
 
-    /**
-     * @brief Refresh overlay data from backend
-     */
     void refresh();
 
     /// Materials shown in the comfort table when no AMS slot is loaded.
@@ -148,7 +144,7 @@ class AmsEnvironmentOverlay : public OverlayBase {
     /// Start or stop drying on the shown zone's unit.
     void handle_start_stop();
 
-    /// Which of the two dryer inputs a keypad session is filling.
+    /// Which dryer input a keypad session is filling.
     enum class DryerField { Temperature, Duration, HumidityTarget };
 
     /// Open the numeric keypad over one input, ranged by what the shown box accepts.
@@ -165,9 +161,10 @@ class AmsEnvironmentOverlay : public OverlayBase {
     /// keypad hands only a value and this overlay.
     DryerField keypad_field_ = DryerField::Temperature;
 
-    /// Set once the user types a temp or duration, cleared when the overlay is shown
-    /// again. Presets are a starting point, so the auto-selection stands down for the
-    /// rest of a showing in which the user set a value themselves.
+    /// Set once the user types a dryer value, cleared when the overlay is shown again
+    /// or a preset is picked by hand. Presets are a starting point, so the
+    /// auto-selection stands down for the rest of a showing in which the user set a
+    /// value themselves.
     bool dryer_inputs_edited_ = false;
 
     /// Push the selected zone's values into the detail subjects.
@@ -180,7 +177,8 @@ class AmsEnvironmentOverlay : public OverlayBase {
     [[nodiscard]] std::vector<int> selected_dry_gates() const;
     /// Fill the tab pools and publish the count, populate-before-count.
     void rebuild_tabs();
-    /// Restore the dryer temp/duration inputs from the last remembered values.
+    /// Reset the dryer inputs to the default temp and duration and a blank humidity
+    /// target, and clear dryer_inputs_edited_.
     void reset_dryer_inputs();
     /// The unit the on-screen zone belongs to, for the dryer-control call sites that
     /// command a specific box. -1 when no zone is shown, or the shown zone spans
@@ -256,7 +254,6 @@ class AmsEnvironmentOverlay : public OverlayBase {
     char drying_text_buf_[64] = {};
 
     lv_subject_t drying_progress_subject_{};
-    /// The running cycle's DryingPhase as an int; Unknown while idle.
 
     /// The shown unit's picture: its logo art, whether it is full colour (drawn as
     /// is) or a mono mark (tinted), and whether there is one at all.
@@ -279,7 +276,7 @@ class AmsEnvironmentOverlay : public OverlayBase {
     char preset_text_buf_[64] = {};
 
     /// Zone selector + per-zone ceiling. "env_zone_" prefix; the pools are
-    /// distinct from Task 7's overview overlay, which uses "zone_ov_".
+    /// distinct from AmsZoneOverviewOverlay's, which use "zone_ov_".
     lv_subject_t zone_count_subject_{};
     lv_subject_t zone_state_subject_{};
     lv_subject_t temp_range_subject_{};

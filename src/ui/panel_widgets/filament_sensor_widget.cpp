@@ -178,7 +178,7 @@ void FilamentSensorWidget::clicked_cb(lv_event_t* e) {
 
 void FilamentSensorWidget::handle_click() {
     const int sensor_state = lv_subject_get_int(&tile_state_subject_);
-    // Lifecycle, not the raw wire enum (check_raw_print_job_state). The tap
+    // Lifecycle, not the raw wire enum (check_source_rules raw-print-state). The tap
     // policy only asks whether a print is running right now; Paused keeps the
     // full modal on purpose (Load/Unload are safe then), so this is exactly
     // Printing rather than job_holds_machine().

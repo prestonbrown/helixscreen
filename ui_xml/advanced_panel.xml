@@ -57,6 +57,7 @@
         <!-- Console / G-code Terminal -->
         <setting_action_row name="row_console"
                             label="G-code Console" icon="console" description="Send commands directly to printer">
+          <bind_flag_if_eq subject="platform_console_supported" flag="hidden" ref_value="0"/>
           <event_cb trigger="clicked" callback="on_console_row_clicked"/>
         </setting_action_row>
         <!-- Guided cold pull (#2011) -->

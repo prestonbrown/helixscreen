@@ -50,7 +50,7 @@ namespace helix::ui {
  * and capturing touch points for calibration matrix computation. Integrates
  * with TouchCalibrationPanel for state machine logic.
  *
- * Inherits from OverlayBase for lifecycle management (on_activate/on_deactivate).
+ * Inherits from OverlayBase for lifecycle management (on_activate/on_deactivating).
  */
 class TouchCalibrationOverlay : public OverlayBase, public helix::ui::ITouchCalibrationView {
   public:

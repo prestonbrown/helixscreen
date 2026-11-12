@@ -21,9 +21,6 @@
  */
 class MemoryStatsOverlay {
   public:
-    /**
-     * @brief Get singleton instance
-     */
     static MemoryStatsOverlay& instance();
 
     /**
@@ -33,24 +30,9 @@ class MemoryStatsOverlay {
      */
     void init(lv_obj_t* parent, bool initially_visible = false);
 
-    /**
-     * @brief Toggle overlay visibility
-     */
     void toggle();
-
-    /**
-     * @brief Show overlay
-     */
     void show();
-
-    /**
-     * @brief Hide overlay
-     */
     void hide();
-
-    /**
-     * @brief Check if overlay is visible
-     */
     bool is_visible() const;
 
     /**

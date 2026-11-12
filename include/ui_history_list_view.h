@@ -52,9 +52,6 @@ class HistoryListView : public ContainerDeleteNet {
      */
     bool setup(lv_obj_t* container, lv_obj_t* scroll_parent, RowClickCallback on_click);
 
-    /**
-     * @brief Clean up pool and spacers
-     */
     void cleanup();
 
     /**
@@ -135,13 +132,10 @@ class HistoryListView : public ContainerDeleteNet {
     /// run while the tree those pointers refer to is mid-deletion.
     void clear_cached_state();
 
-    /// ContainerDeleteNet: the watched tree died — drop the pool
-    /// before its pointers dangle.
+    /// ContainerDeleteNet: the tree the pool was built under is being deleted
+    /// (panel rebuild, teardown, shutdown). Drop the pool before its pointers
+    /// dangle; it must not outlive the tree (prestonbrown/helixscreen#1396).
     void on_netted_container_destroyed() override;
-
-    /// LV_EVENT_DELETE net on the container: the tree the pool was built under
-    /// is being deleted (panel rebuild, teardown, shutdown). The pool must not
-    /// outlive it (prestonbrown/helixscreen#1396).
 
     // === Static Callbacks ===
     static void on_row_click_static(lv_event_t* e);

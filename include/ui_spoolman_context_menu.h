@@ -56,11 +56,9 @@ class SpoolmanContextMenu : public ContextMenu {
     SpoolmanContextMenu();
     ~SpoolmanContextMenu() override;
 
-    // Non-copyable
     SpoolmanContextMenu(const SpoolmanContextMenu&) = delete;
     SpoolmanContextMenu& operator=(const SpoolmanContextMenu&) = delete;
 
-    // Movable
     SpoolmanContextMenu(SpoolmanContextMenu&& other) noexcept;
     SpoolmanContextMenu& operator=(SpoolmanContextMenu&& other) noexcept;
 
@@ -84,9 +82,6 @@ class SpoolmanContextMenu : public ContextMenu {
         return get_item_index();
     }
 
-    /**
-     * @brief Set callback for menu actions
-     */
     void set_action_callback(ActionCallback callback);
 
   protected:

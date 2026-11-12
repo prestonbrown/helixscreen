@@ -60,9 +60,6 @@ class NotificationHistoryPanel : public PanelBase {
     // === PanelBase Implementation ===
     //
 
-    /**
-     * @brief Initialize subjects for reactive bindings
-     */
     void init_subjects() override;
 
     /**
@@ -184,7 +181,7 @@ class NotificationHistoryPanel : public PanelBase {
     void dispatch_action(const char* action);
 };
 
-// Global instance accessor (needed by main.cpp)
+// Global instance accessor; NotificationManager opens the panel through it.
 NotificationHistoryPanel& get_global_notification_history_panel();
 
 namespace helix::ui {

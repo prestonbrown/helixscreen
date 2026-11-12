@@ -2056,7 +2056,7 @@ shapes live in each backend's doc ([Snapmaker U1](FILAMENT_BACKEND_SNAPMAKER_U1.
 mounting is the toolhead tap (`offer_tool_change()`, `include/tool_change_request.h`) and
 the sidebar's Mount cell, parking is `request_tool_park()`. A backend that needs a tool on
 the carriage to feed it mounts the tool inside its own load. The UI never asks which
-backend it is on: `scripts/check_filament_ops_neutral.py` fails a `get_type()` call or an
+backend it is on: the `filament-ops-neutral` rule of `scripts/check_source_rules.py` fails a `get_type()` call or an
 `AmsType::` name in the filament-op files.
 
 The backend answers per-head questions (`include/ams_backend.h`, "Heads"), none of which

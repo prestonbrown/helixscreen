@@ -265,15 +265,19 @@ void f() {
     [ "$status" -eq 1 ]
 }
 
-@test "coming in under the baseline passes and says to ratchet down" {
+@test "under the baseline passes at commit and fails at a push, naming the new value" {
     f=$(fixture probe.h 'namespace helix {
 class Widget {
     int x;
 };
 }')
-    run python3 "$GATE" --max-allowed 5 "$f"
+    run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --max-allowed 5 "$f"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"ratchet the baseline down"* ]]
+    contains "ratchet the baseline down" "$output"
+    run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --max-allowed 5 "$f"
+    [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
+    contains "scripts/qc/namespace.sh" "$output"
+    contains "--max-allowed: 5 -> 0" "$output"
 }
 
 # --- wiring ---

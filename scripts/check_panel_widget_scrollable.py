@@ -69,6 +69,7 @@ import subprocess
 import sys
 
 from staged_content import catfile_batch
+import ratchet  # noqa: E402
 
 from source_strip import blank_xml_comments
 
@@ -255,8 +256,10 @@ def main():
         print('   Run: python3 scripts/check_panel_widget_scrollable.py --list')
         return 1
     if total < limit:
-        print(f'✅ Panel-widget scrollable: {total} (baseline {limit} - ratchet the baseline down)')
-        return 0
+        return ratchet.under_baseline(
+            'Panel-widget scrollable', 'scripts/qc/design_pixels.sh and BASELINE in tests/shell/test_panel_widget_scrollable_gate.bats',
+            [ratchet.lowered('--max-allowed', limit, total)],
+            f'✅ Panel-widget scrollable: {total} (baseline {limit} - ratchet the baseline down)')
     print(f'✅ Panel-widget scrollable: {total} == baseline ({limit})')
     return 0
 

@@ -415,8 +415,6 @@ src/ui/components/ui_plate_glow.cpp
 src/ui/home/camera_view.cpp
 src/ui/print/card_thumbnail_plan.cpp
 src/ui/controls/chamber_assignment_options.cpp
-src/ui/controls/console_filter_engine.cpp
-src/ui/controls/console_line.cpp
 src/ui/controls/fan_spin_animation.cpp
 src/ui/notify/fault_modal_registry.cpp
 src/ui/filament/filament_action_set.cpp
@@ -475,7 +473,6 @@ src/ui/panel_widgets/fan_widget.cpp
 src/ui/panel_widgets/exclude_map_widget.cpp
 src/ui/panel_widgets/filament_buffer_widget.cpp
 src/ui/panel_widgets/filament_sensor_widget.cpp
-src/ui/panel_widgets/gcode_console_widget.cpp
 src/ui/panel_widgets/heater_temp_widget.cpp
 src/ui/panel_widgets/host_health_widget.cpp
 src/ui/panel_widgets/humidity_widget.cpp
@@ -657,7 +654,6 @@ src/ui/notify/ui_notification_history.cpp
 src/ui/notify/ui_notification_manager.cpp
 src/core/observer_guard.cpp
 src/ui/notify/ui_panel_notification_history.cpp
-src/ui/settings/ui_overlay_console_settings.cpp
 src/ui/settings/ui_overlay_network_settings.cpp
 src/ui/debug/ui_overlay_performance.cpp
 src/ui/printers/ui_overlay_printer_image.cpp
@@ -672,7 +668,6 @@ src/ui/filament/ui_panel_ams_overview.cpp
 src/ui/filament/ui_panel_ams_overview_cards.cpp
 src/ui/ui_panel_base.cpp
 src/ui/ui_panel_common.cpp
-src/ui/controls/ui_panel_console.cpp
 src/ui/controls/ui_panel_controls.cpp
 src/ui/home/quick_action_slots.cpp
 src/ui/home/quick_action_buttons.cpp
@@ -756,7 +751,6 @@ src/ui/settings/ui_settings_connection.cpp
 src/ui/settings/ui_settings_screen_sharing.cpp
 src/ui/settings/ui_settings_updates.cpp
 src/ui/components/ui_severity_card.cpp
-src/ui/debug/ui_snake_game.cpp
 src/ui/settings/ui_sound_preview_overlay.cpp
 src/ui/components/ui_spinner.cpp
 src/ui/components/ui_split_button.cpp

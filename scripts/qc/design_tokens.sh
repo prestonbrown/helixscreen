@@ -31,7 +31,7 @@ fi
 # procedural canvas renderers, and helix-splash (a separate binary that does not
 # link ThemeManager). Ratcheting baseline — port these to theme_manager_get_color().
 HEX_ALLOW='theme_manager|src/ui/theme/|src/rendering/|canvas|confetti|glyph|src/helix_splash.cpp'
-HEX_BASELINE=33
+HEX_BASELINE=27
 HEX_COUNT=$(grep -rn 'lv_color_hex(0x' src include 2>/dev/null | grep -vcE "$HEX_ALLOW" || true)
 if [ "$HEX_COUNT" -gt "$HEX_BASELINE" ]; then
   echo ""
@@ -39,6 +39,18 @@ if [ "$HEX_COUNT" -gt "$HEX_BASELINE" ]; then
   echo "❌ Hardcoded colors: $HEX_COUNT exceeds baseline ($HEX_BASELINE)."
   echo "   Use theme_manager_get_color(\"token\") or an XML design token."
   TOKEN_EXIT=1
+fi
+
+# Under the baseline passes at commit and fails at a push (scripts/ratchet.py).
+HEX_RATCHET_OUT=""
+if [ "$HEX_COUNT" -lt "$HEX_BASELINE" ]; then
+  if ! HEX_RATCHET_OUT=$(python3 scripts/ratchet.py "Hardcoded colors" "scripts/qc/design_tokens.sh" \
+      HEX_BASELINE "$HEX_BASELINE" "$HEX_COUNT" \
+      "✅ Design tokens: $HEX_COUNT hardcoded colors (baseline $HEX_BASELINE — ratchet down)"); then
+    echo ""
+    echo "$HEX_RATCHET_OUT"
+    TOKEN_EXIT=1
+  fi
 fi
 
 # A spacing token C++ reads must be declared in a shipped XML file, not only
@@ -53,7 +65,7 @@ section_time $SECTION_START
 if [ "$TOKEN_EXIT" -eq 0 ]; then
   echo ""
   if [ "$HEX_COUNT" -lt "$HEX_BASELINE" ]; then
-    echo "✅ Design tokens: $HEX_COUNT hardcoded colors (baseline $HEX_BASELINE — ratchet down)"
+    echo "$HEX_RATCHET_OUT"
   else
     qc_count "✅ Design tokens: $HEX_COUNT == baseline ($HEX_BASELINE), no private LVGL APIs"
   fi

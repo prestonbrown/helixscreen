@@ -161,7 +161,7 @@ CPP
   expect_total 0
 }
 
-@test "the gate fails above its baseline and passes at it" {
+@test "the gate fails above its baseline, passes at it, and fails under it only at a push" {
   cat > "$SRC" <<'CPP'
 void Panel::setup(lv_obj_t* root) {
     title_ = lv_obj_find_by_name(root, "title");
@@ -175,4 +175,12 @@ CPP
   [ "$status" -eq 1 ] || fail "$output"
   run python3 scripts/check_imperative_ui.py --max-allowed 1 "$SRC"
   [ "$status" -eq 0 ] || fail "$output"
+
+  run env HELIX_RATCHET_STRICT=0 python3 scripts/check_imperative_ui.py --max-allowed 3 "$SRC"
+  [ "$status" -eq 0 ] || fail "under the baseline failed at commit: $output"
+  contains "ratchet the baseline down" "$output"
+  run env HELIX_RATCHET_STRICT=1 python3 scripts/check_imperative_ui.py --max-allowed 3 "$SRC"
+  [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
+  contains "scripts/qc/decl_ui.sh" "$output"
+  contains "--max-allowed: 3 -> 1" "$output"
 }

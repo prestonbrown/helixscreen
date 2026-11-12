@@ -42,6 +42,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import ratchet  # noqa: E402
 from source_strip import blank_cxx  # noqa: E402
 from staged_content import staged_files  # noqa: E402
 
@@ -304,10 +305,13 @@ def main() -> int:
     fallen = {k: n for k, n in baseline.items() if counts.get(k, 0) < n}
     total = sum(counts.values())
     if fallen:
-        print(f"OK: {total} vendor branch(es), {len(fallen)} pair(s) can be lowered.\n"
-              f"    Ratchet down with --write-baseline.")
-    else:
-        print(f"OK: {total} vendor branch(es) in generic code, none above baseline.")
+        return ratchet.under_baseline(
+            "Vendor branches",
+            f"{ratchet.shown(baseline_path, root)} (python3 scripts/check_vendor_branches.py --write-baseline)",
+            [ratchet.lowered(k, n, counts.get(k, 0)) for k, n in sorted(fallen.items())],
+            f"OK: {total} vendor branch(es), {len(fallen)} pair(s) can be lowered.\n"
+            f"    Ratchet down with --write-baseline.")
+    print(f"OK: {total} vendor branch(es) in generic code, none above baseline.")
     return 0
 
 

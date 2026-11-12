@@ -36,7 +36,7 @@ def load(path):
     if not isinstance(partners, list) or not partners:
         raise ValueError(f'{path}: no partners')
     for p in partners:
-        for key in ('id', 'name', 'finds_release', 'install_source', 'contact', 'fetches'):
+        for key in ('id', 'name', 'finds_release', 'install_source', 'owner', 'contact', 'fetches'):
             if key not in p:
                 raise ValueError(f"{path}: partner {p.get('id', '?')} has no '{key}'")
         for f in p['fetches']:
@@ -88,8 +88,8 @@ def cell(text):
 def render_table(partners):
     rows = [
         '| Partner | Hardware | Fetches (exact asset name) | How it finds the release '
-        '| Install source flag | How it starts us | Incumbent screen | Contact | Sources |',
-        '|---|---|---|---|---|---|---|---|---|',
+        '| Install source flag | How it starts us | Incumbent screen | Owner | Contact | Sources |',
+        '|---|---|---|---|---|---|---|---|---|---|',
     ]
     for p in partners:
         if p['fetches']:
@@ -107,6 +107,7 @@ def render_table(partners):
             cell(p['install_source']),
             cell(p.get('starts', '')),
             cell(p.get('incumbent_screen', '')),
+            cell(p['owner']),
             cell(p['contact']),
             sources,
         ]) + ' |')

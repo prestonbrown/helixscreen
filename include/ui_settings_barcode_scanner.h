@@ -18,7 +18,7 @@ namespace helix::ui {
 /// Persistent settings overlay for barcode scanner selection and configuration.
 /// Twins LabelPrinterSettingsOverlay: keyboard-layout dropdown, USB device list,
 /// Bluetooth discovery + pairing, Auto-detect option. Reached from the Spoolman
-/// settings "Barcode Scanner" row. Replaces the former ScannerPickerModal.
+/// settings "Barcode Scanner" row.
 class BarcodeScannerSettingsOverlay : public OverlayBase {
   public:
     ~BarcodeScannerSettingsOverlay() override;
@@ -77,7 +77,7 @@ class BarcodeScannerSettingsOverlay : public OverlayBase {
     lv_obj_t* btn_bt_pair_ = nullptr;
     lv_obj_t* btn_bt_forget_ = nullptr;
 
-    // BT state (lifted from ScannerPickerModal)
+    // BT state
     struct BtDeviceInfo {
         std::string mac;
         std::string name;

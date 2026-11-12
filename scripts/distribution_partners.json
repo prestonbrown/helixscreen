@@ -12,8 +12,9 @@
     "hardcodes it, `installer` when the mod runs our install.sh and the name is the one",
     "install.sh asks for on that hardware.",
     "",
-    "sources cite where each cell comes from, with the commit read. Contacts and owners are",
-    "Preston's call and stay TBD until he sets them."
+    "sources cite where each cell comes from, with the commit read. owner is who on our side",
+    "holds the partner relationship (the maintainer, prestonbrown). contact is the person on",
+    "the mod's side, TBD until the owner reaches each mod."
   ],
   "partners": [
     {
@@ -25,7 +26,8 @@
       "install_source": "none: Z-Mod extracts the zip itself and never runs install.sh",
       "starts": "Z-Mod's own `S80helixscreen` from `/srv/helixscreen`, selected with `DISPLAY_OFF HELIX=1`",
       "incumbent_screen": "Stock screen; GuppyScreen and HelixScreen are both offered",
-      "contact": "TBD (Preston)",
+      "owner": "prestonbrown",
+      "contact": "TBD",
       "fetches": [
         {"asset": "helixscreen-ad5m.zip", "built_by": "ad5m", "via": "partner"},
         {"asset": "helixscreen-ad5x.zip", "built_by": "mips", "via": "partner"}
@@ -46,7 +48,8 @@
       "install_source": "none (records `curl`)",
       "starts": "The service lands in the mod chroot's `/etc/init.d`, started by Forge-X's own bootstrap (INSTALLER.md § Mod-Managed Hosts)",
       "incumbent_screen": "GuppyScreen",
-      "contact": "TBD (Preston)",
+      "owner": "prestonbrown",
+      "contact": "TBD",
       "fetches": [
         {"asset": "install.sh", "built_by": "installer", "via": "installer"},
         {"asset": "helixscreen-ad5m.zip", "built_by": "ad5m", "via": "installer"},
@@ -70,7 +73,8 @@
       "install_source": "none: extended-pkg unpacks the archive and never runs install.sh",
       "starts": "The lmd.d/30-helixscreen.sh hook bind-mounts `helix-screen` over `/usr/bin/gui` when `[components] gui` is `helixscreen`; in-app self-update is off",
       "incumbent_screen": "Stock Snapmaker GUI; HelixScreen is an opt-in setting (Touchscreen GUI, Experimental)",
-      "contact": "TBD (Preston)",
+      "owner": "prestonbrown",
+      "contact": "TBD",
       "fetches": [
         {"asset": "helixscreen-snapmaker-u1-{tag}.tar.gz", "built_by": "snapmaker-u1", "via": "partner"}
       ],
@@ -89,7 +93,8 @@
       "install_source": "`--source kiauh`",
       "starts": "install.sh's systemd unit",
       "incumbent_screen": "None (a host tool; it also offers KlipperScreen)",
-      "contact": "TBD (Preston)",
+      "owner": "prestonbrown",
+      "contact": "TBD",
       "fetches": [
         {"asset": "install.sh", "built_by": "installer", "via": "partner"}
       ],
@@ -108,7 +113,8 @@
       "install_source": "none (records `curl`)",
       "starts": "install.sh registers HelixScreen with COSmos's `gui-switcher` through an allowlist wrapper",
       "incumbent_screen": "grumpyscreen, atomscreen or guppyscreen, chosen with `config-manager ui screen_ui`",
-      "contact": "TBD (Preston)",
+      "owner": "prestonbrown",
+      "contact": "TBD",
       "fetches": [
         {"asset": "install.sh", "built_by": "installer", "via": "installer"},
         {"asset": "helixscreen-cc1.zip", "built_by": "cc1", "via": "installer"},
@@ -128,7 +134,8 @@
       "install_source": "none yet (`helper-script` is reserved)",
       "starts": "Not applicable",
       "incumbent_screen": "GuppyScreen (the script's own installer)",
-      "contact": "TBD (Preston)",
+      "owner": "prestonbrown",
+      "contact": "TBD",
       "fetches": [],
       "sources": [
         "https://github.com/Guilouz/Creality-Helper-Script/tree/b46787a61b3ce2f04ec04d115a73a46c26814057 (no HelixScreen reference; scripts/guppy_screen.sh)",
@@ -144,7 +151,8 @@
       "install_source": "none",
       "starts": "Not applicable",
       "incumbent_screen": "GrumpyScreen",
-      "contact": "TBD (Preston)",
+      "owner": "prestonbrown",
+      "contact": "TBD",
       "fetches": [],
       "sources": [
         "https://github.com/pellcorp/creality/blob/main/k1/installer.sh (`HelixScreen detected skipping GrumpyScreen`)"

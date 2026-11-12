@@ -29,18 +29,10 @@ class PrintCancelModal : public Modal {
   public:
     using ConfirmCallback = std::function<void()>;
 
-    /**
-     * @brief Get human-readable name for logging
-     * @return "Print Cancel"
-     */
     const char* get_name() const override {
         return "Print Cancel";
     }
 
-    /**
-     * @brief Get XML component name for lv_xml_create()
-     * @return "print_cancel_confirm_modal"
-     */
     const char* component_name() const override {
         return "print_cancel_confirm_modal";
     }

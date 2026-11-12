@@ -46,6 +46,7 @@ from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import ratchet  # noqa: E402
 
 from check_constant_naming import parse_diff  # noqa: E402
 from mutate_diff import comment_only_lines, comment_syntax  # noqa: E402
@@ -362,10 +363,13 @@ def main() -> int:
     fallen = {f: (counts.get(f, 0), n) for f, n in baseline.items() if counts.get(f, 0) < n}
     total = sum(counts.values())
     if fallen:
-        print(f"OK: {total} commit-SHA citation(s), and {len(fallen)} file(s) improved.\n"
-              f"    Ratchet down with --write-baseline.")
-    else:
-        print(f"OK: {total} commit-SHA citation(s) in comments, none above baseline.")
+        return ratchet.under_baseline(
+            "Comment archaeology",
+            f"{ratchet.shown(baseline_path, root)} (python3 scripts/check_comment_archaeology.py --write-baseline)",
+            [ratchet.lowered(f, was, now) for f, (now, was) in sorted(fallen.items())],
+            f"OK: {total} commit-SHA citation(s), and {len(fallen)} file(s) improved.\n"
+            f"    Ratchet down with --write-baseline.")
+    print(f"OK: {total} commit-SHA citation(s) in comments, none above baseline.")
     return 0
 
 

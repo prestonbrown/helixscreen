@@ -47,6 +47,24 @@ firmware. Before you commit:
   `-fsyntax-only` in the `espressif/idf` image and catches the host-green, Xtensa-red class (`int32_t` is `long`).
   It skips with a note when docker or the image is missing; `HELIX_ESP32_SYNTAX=0` skips it.
 
+## The K-Touch feature profile
+
+The firmware leaves out a feature by turning its `HELIX_HAS_*` gate off in
+`firmware/helixscreen-esp32/components/helixapp/CMakeLists.txt`. Every gate's default is in
+`include/helix_features.h`, so the desktop and Pi builds keep the feature. The gated `.cpp` files move from
+`app_srcs.txt` to `app_srcs_excluded.txt`, and the screens only that feature opens are listed in
+`scripts/esp32_xml_exempt_screens.txt`. That CMake block is the one K-Touch feature profile. Beyond the v1 Core+AMS
+cut, it removes:
+
+| Gate | What the panel loses | Entry points removed |
+|---|---|---|
+| `HELIX_HAS_CONSOLE=0` | The G-code console, its settings overlay and the home Console widget | The Advanced page's G-code Console row hides on `platform_console_supported` (0 on the firmware), and the widget is not in the home catalog |
+| `HELIX_HAS_SNAKE_GAME=0` | The Snake easter egg | Seven taps on the About page's printer name do nothing |
+
+Measured with `HELIX_LTO=1` on 2026-11-11 (#1916): the app image went from 6,197,264 to 6,164,992 bytes, saving
+32,272 bytes, nearly all of it in `.flash.text` (29 KB) and `.flash.rodata` (3 KB). That leaves 445,952 bytes under
+`app_max_bytes`. To cut another feature, gate it the same way and record the measured saving in this table.
+
 ## Building
 
 CI (`.github/workflows/esp32-build.yml`) is the reference recipe. ESP-IDF is pinned (`ESP_IDF_VERSION`, v5.5.5);

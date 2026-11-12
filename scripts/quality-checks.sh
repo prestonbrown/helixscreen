@@ -46,11 +46,17 @@ SCRIPT_START=$(date +%s)
 # shellcheck source=scripts/qc/_lib.sh
 . scripts/qc/_lib.sh
 
+HELIX_RATCHET_STRICT="$(qc_ratchet_strictness "$STAGED_ONLY" "${HELIX_QC_SKIP_PUSH_ONLY:-0}")"
+export HELIX_RATCHET_STRICT
+
 echo "🔍 Running quality checks..."
 if [ "$STAGED_ONLY" = true ]; then
   echo "   Mode: Staged files only (pre-commit)"
 else
   echo "   Mode: All files (CI)"
+fi
+if [ "$HELIX_RATCHET_STRICT" = 1 ]; then
+  echo "   Ratchets: strict, a count under its baseline fails (lower the baseline)"
 fi
 echo ""
 

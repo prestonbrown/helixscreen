@@ -44,7 +44,6 @@ class SpoolEditModal : public Modal {
     SpoolEditModal();
     ~SpoolEditModal() override;
 
-    // Non-copyable
     SpoolEditModal(const SpoolEditModal&) = delete;
     SpoolEditModal& operator=(const SpoolEditModal&) = delete;
 

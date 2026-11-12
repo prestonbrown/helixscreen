@@ -17,7 +17,7 @@
  *                                   K2 / FlashForge / similar firmware modules.
  *
  * Toggle state is owned by `helix::SettingsManager` (see its
- * `console_filter_*_subject_` fields) — this class is a thin XML-bound view
+ * `subject_console_filter_*()` accessors); this class is a thin XML-bound view
  * that forwards switch events to the manager.
  */
 class ConsoleSettingsOverlay : public OverlayBase {

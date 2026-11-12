@@ -45,6 +45,7 @@ import argparse
 import os
 import re
 import sys
+import ratchet  # noqa: E402
 
 SCAN_DIRS = ['src', 'include']
 SCAN_EXTS = ('.cpp', '.cc', '.h', '.hpp')
@@ -285,8 +286,10 @@ def main():
         print('   Run: python3 scripts/check_imperative_ui.py --list')
         return 1
     if total < limit:
-        print(f'✅ Imperative UI: {total} (baseline {limit} — ratchet the baseline down)')
-        return 0
+        return ratchet.under_baseline(
+            'Imperative UI', 'scripts/qc/decl_ui.sh',
+            [ratchet.lowered('--max-allowed', limit, total)],
+            f'✅ Imperative UI: {total} (baseline {limit} — ratchet the baseline down)')
     print(f'✅ Imperative UI: {total} == baseline ({limit})')
     return 0
 

@@ -568,6 +568,10 @@ jobs:
     # main only (see the ccache note in compile-ubuntu), and trimmed to the
     # entries this job used. The key is not release.yml's: that cache holds
     # release objects, which share nothing with a debug build.
+    # The ccache action installs ccache with apt, so the mirrors are set first.
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
     - name: Set up ccache
       uses: hendrikmuhs/ccache-action@v1.2.22
       with:

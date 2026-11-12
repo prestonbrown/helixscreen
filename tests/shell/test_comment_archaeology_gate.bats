@@ -108,12 +108,15 @@ run_gate() {
     [ "$status" -eq 1 ]
 }
 
-@test "removing a citation is reported as an improvement, not a failure" {
+@test "removing a citation is an improvement at commit and a baseline to lower at a push" {
     printf 'int x;\n' > "$ROOT/src/clean.cpp"
     printf '1 src/clean.cpp\n' > "$ROOT/base.txt"
-    run_gate
+    HELIX_RATCHET_STRICT=0 run_gate
     [ "$status" -eq 0 ]
-    [[ "$output" == *"improved"* ]]
+    contains "improved" "$output"
+    HELIX_RATCHET_STRICT=1 run_gate
+    [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
+    contains "src/clean.cpp: 1 -> 0" "$output"
 }
 
 # ------------------------------------------------------- history phrases, added lines

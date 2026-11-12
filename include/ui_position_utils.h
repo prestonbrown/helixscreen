@@ -14,10 +14,6 @@
  * For unit conversions, use `unit_conversions.h`:
  * - `to_centimm()` - mm to centimm for storage
  * - `from_centimm()` - centimm to mm for calculations
- *
- * ## Formatting Functions
- *
- * - `format_position()` - Format as "150.00 mm" with consistent width
  */
 
 namespace helix {
@@ -38,7 +34,7 @@ namespace position {
  * @code{.cpp}
  * char buf[16];
  * lv_label_set_text(label, format_position(12750, buf, sizeof(buf)));
- * // Result: "127.50 mm"
+ * // Result: " 127.50 mm" (the number is padded to 7 characters)
  * @endcode
  */
 char* format_position(int centimm, char* buffer, size_t buffer_size);

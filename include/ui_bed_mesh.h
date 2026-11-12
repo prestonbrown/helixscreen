@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-// Bed mesh canvas dimensions
+// Default <bed_mesh> size, until the XML width/height override it
 #define BED_MESH_CANVAS_WIDTH 600
 #define BED_MESH_CANVAS_HEIGHT 400
 
@@ -20,8 +20,8 @@ extern "C" {
 /**
  * @brief Register <bed_mesh> widget with LVGL XML system
  *
- * Creates a canvas widget (600×400 RGB888) optimized for 3D bed mesh rendering.
- * Automatically allocates buffer memory and renderer in create handler.
+ * Creates a plain object (not an lv_canvas; default 600x400) that draws the bed
+ * mesh in a DRAW_POST callback. The create handler allocates its renderer.
  *
  * Usage in XML:
  * @code{.xml}

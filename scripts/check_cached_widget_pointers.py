@@ -21,6 +21,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+import ratchet  # noqa: E402
 
 # A data member: the house trailing-underscore name, a scalar or a C array,
 # optionally static. Locals, parameters and containers do not match.
@@ -96,7 +97,12 @@ def main(argv: list[str]) -> int:
         print("  Run: python3 scripts/check_cached_widget_pointers.py --list")
         return 1
 
-    print(f"✅ raw lv_obj_t* members: {len(hits)} <= baseline ({max_allowed})")
+    if len(hits) < max_allowed:
+        return ratchet.under_baseline(
+            "Raw lv_obj_t* members", "scripts/qc/decl_ui.sh",
+            [ratchet.lowered("--max-allowed", max_allowed, len(hits))],
+            f"✅ raw lv_obj_t* members: {len(hits)} under baseline ({max_allowed}), ratchet it down")
+    print(f"✅ raw lv_obj_t* members: {len(hits)} == baseline ({max_allowed})")
     return 0
 
 

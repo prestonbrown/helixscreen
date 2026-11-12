@@ -94,10 +94,7 @@ class UiMultiselect {
     /// Get count of selected items
     size_t get_selected_count() const;
 
-    /// Select all items
     void select_all();
-
-    /// Deselect all items
     void deselect_all();
 
     /**

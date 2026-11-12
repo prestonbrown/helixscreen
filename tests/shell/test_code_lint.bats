@@ -1743,7 +1743,7 @@ CPP
 }
 
 # The ratchet compares per-file counts to the baseline.
-@test "the vendor-branch gate fails above a nonzero baseline and passes at or below it" {
+@test "the vendor-branch gate fails above a nonzero baseline, passes at it, and fails below it only at a push" {
     local root="$BATS_TEST_TMPDIR/ratchet"
     mkdir -p "$root/src/ui" "$root/src/ui/filament" "$root/src/ui/print"
     printf 'bool a(AmsType t) { return t == AmsType::CFS; }\nbool b(AmsType t) { return t != AmsType::AFC; }\n' \
@@ -1755,9 +1755,12 @@ CPP
     run python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
     [ "$status" -eq 0 ] || fail "two branches at a baseline of two failed: $output"
     printf '3 src/ui/x.cpp:amstype-branch\n' > "$root/base.txt"
-    run python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
-    [ "$status" -eq 0 ] || fail "below baseline failed: $output"
+    run env HELIX_RATCHET_STRICT=0 python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
+    [ "$status" -eq 0 ] || fail "below baseline failed at commit: $output"
     contains "lowered" "$output"
+    run env HELIX_RATCHET_STRICT=1 python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
+    [ "$status" -eq 1 ] || fail "below baseline passed at a push: $output"
+    contains "src/ui/x.cpp:amstype-branch: 3 -> 2" "$output"
 }
 
 @test "the vendor-branch gate is quiet on AmsType::NONE and on build-shape macros" {
