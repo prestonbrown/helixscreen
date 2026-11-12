@@ -32,6 +32,7 @@ ANCHORS = ("center", "top_left", "top_right", "bottom_left", "bottom_right")
 APP_FIELDS = ("recipe", "steps", "env", "size", "crop", "margin", "markers")
 DEFAULT_SIZE = (800, 480)
 DEFAULT_MARGIN = 12
+SETTLE_SECONDS = float(os.environ.get("HELIX_SCREENSHOT_DELAY", "1.5"))
 
 
 class ManifestError(Exception):
@@ -232,6 +233,9 @@ def capture(entry: Entry, session, out_root: Path) -> Path:
     """Drive @p session to the entry's screen and write its image under @p out_root."""
     for step in entry_steps(entry):
         session.ctl(*shlex.split(step))
+    # Overlays and demo screens land asynchronously; let them, as screenshot.sh does.
+    session.ctl("wait_idle")
+    time.sleep(SETTLE_SECONDS)
     with tempfile.TemporaryDirectory() as tmp:
         raw = Path(tmp) / "shot.png"
         # Stop animations and the mock's simulation so the shot is the same every run.
@@ -309,8 +313,10 @@ class AppSession:
 
         r = subprocess.run([str(self.binary), "ctl", "-s", str(self.sock), *args],
                            capture_output=True, text=True)
-        if r.returncode != 0:
-            raise RuntimeError((r.stderr or r.stdout).strip())
+        text = (r.stdout + r.stderr).strip()
+        # ctl can exit 0 on a handler error and print it instead.
+        if r.returncode != 0 or text.startswith("Error:") or "\nError:" in text:
+            raise RuntimeError(f"ctl {' '.join(args)}: {text}")
         try:
             return json.loads(r.stdout) if r.stdout.strip() else {}
         except ValueError:
