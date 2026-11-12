@@ -296,14 +296,7 @@ void TempGraphOverlay::on_activate() {
     apply_default_visibility();
     if (s_visibility_override && s_visibility_override->mode == static_cast<int>(mode_) &&
         s_visibility_override->printer_name == current_printer_name()) {
-        for (auto& s : series_) {
-            for (const auto& [name, vis] : s_visibility_override->per_series) {
-                if (name == s.klipper_name) {
-                    s.visible = vis;
-                    break;
-                }
-            }
-        }
+        helix::temp_graph_restore_session_toggles(series_, s_visibility_override->per_series);
         publish_visibility_snapshot();
         spdlog::debug("[TempGraphOverlay] Restored {} saved chip toggles",
                       s_visibility_override->per_series.size());

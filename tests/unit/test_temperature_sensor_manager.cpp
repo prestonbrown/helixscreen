@@ -843,6 +843,11 @@ TEST_CASE_METHOD(TemperatureSensorTestFixture,
     mgr().update_from_status({{"temperature_sensor x", {{"drv_status", {{"ot", 1}}}}}});
     CHECK(g_driver_notices.size() == 5);
 
+    // Another printer with drivers of the same names: its hot driver notifies.
+    mgr().discover(helix::test::discovery_of({"tmc2209 stepper_z", "tmc2240 stepper_x"}));
+    frame("tmc2209 stepper_z", {{"otpw", 1}});
+    CHECK(g_driver_notices.size() == 6);
+
     helix::set_notice_subscriber(previous);
 }
 
@@ -874,4 +879,19 @@ TEST_CASE_METHOD(TemperatureSensorTestFixture,
     CHECK(temp_graph_sensor_default_visible(G::Mcu, {true, false, false}));
     CHECK(temp_graph_sensor_default_visible(G::Host, {false, true, false}));
     CHECK_FALSE(temp_graph_sensor_default_visible(G::Auxiliary, {true, true, true}));
+
+    // Drivers turned on in one view, then off in another: reopening the first view
+    // re-applies its session toggles, but the remembered setting wins for drivers.
+    struct Chip {
+        std::string klipper_name;
+        bool is_sensor;
+        G group;
+        bool visible;
+    };
+    std::vector<Chip> chips{{"tmc2240 stepper_x", true, G::StepperDriver, false},
+                            {"temperature_sensor hotbox", true, G::Auxiliary, false}};
+    temp_graph_restore_session_toggles(
+        chips, {{"tmc2240 stepper_x", true}, {"temperature_sensor hotbox", true}});
+    CHECK_FALSE(chips[0].visible);
+    CHECK(chips[1].visible);
 }
