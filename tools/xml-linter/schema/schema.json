@@ -1812,6 +1812,9 @@
         "bind_unit": {
           "type": "string"
         },
+        "bind_raw": {
+          "type": "string"
+        },
         "event_cb": {
           "type": "string"
         }

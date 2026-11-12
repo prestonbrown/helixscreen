@@ -303,7 +303,10 @@ void DisplaySettingsManager::init_subjects() {
     units::set_display_temp_unit(get_temp_unit());
     UI_MANAGED_SUBJECT_STRING(temp_unit_symbol_subject_, temp_unit_symbol_buf_,
                               units::display_temp_symbol(), "settings_temp_unit_symbol", subjects_);
-    if (!has_saved_date_format()) {
+    if (has_saved_date_format()) {
+        set_saved_date_format(get_date_format());
+    } else {
+        set_saved_date_format(std::nullopt);
         lv_subject_set_int(settings_.subject(Key::DateFormat), static_cast<int>(get_date_format()));
     }
 
@@ -880,6 +883,7 @@ DateFormat DisplaySettingsManager::get_date_format() const {
 
 void DisplaySettingsManager::set_date_format(DateFormat format) {
     settings_.set(Key::DateFormat, static_cast<int>(format));
+    set_saved_date_format(get_date_format());
 }
 
 void DisplaySettingsManager::on_language_changed() {

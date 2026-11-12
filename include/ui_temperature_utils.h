@@ -270,6 +270,10 @@ char* format_target_or_off(int target, char* buffer, size_t buffer_size);
  */
 char* format_temp_number(float temp, char* buffer, size_t buffer_size);
 
+/// format_temp_number()'s decimal rule on @p value as given, with no unit
+/// conversion: for a reading the user labelled with a unit of their own.
+char* format_number_compact(double value, char* buffer, size_t buffer_size);
+
 /**
  * @brief Format a temperature value with one decimal place
  *

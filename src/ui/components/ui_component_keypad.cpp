@@ -350,8 +350,15 @@ ui_keypad_config_t helix::ui::keypad_config_in_unit(const ui_keypad_config_t& co
     return shown;
 }
 
+bool helix::ui::keypad_typed_off(float typed, float min_c) {
+    return typed == 0.0f && min_c <= 0.0f;
+}
+
 float helix::ui::keypad_value_to_celsius(float typed, float min_c, float max_c,
                                          units::TempUnit unit) {
+    if (keypad_typed_off(typed, min_c)) {
+        return 0.0f;
+    }
     const int celsius = units::unit_to_celsius_whole(typed, unit);
     return std::clamp(static_cast<float>(celsius), min_c, max_c);
 }
@@ -410,8 +417,11 @@ static void handle_confirm() {
     }
     float value = input.value();
 
-    // Validate range - show error if out of bounds
-    if (value < current_config.min_value || value > current_config.max_value) {
+    // Validate range - show error if out of bounds. A temperature's "off" is 0 in
+    // every unit, below a °F range that opens at 32.
+    const bool typed_off =
+        current_config.temperature && helix::ui::keypad_typed_off(value, temperature_min_c);
+    if (!typed_off && (value < current_config.min_value || value > current_config.max_value)) {
         NOTIFY_ERROR(lv_tr("Value must be between {} and {}"), current_config.min_value,
                      current_config.max_value);
         return; // Don't close keypad, let user correct the value

@@ -249,6 +249,8 @@ ThermistorWidget::ThermistorWidget(const std::string& instance_id)
     lv_subject_init_string(&unit_subject_, unit_buffer_, nullptr, sizeof(unit_buffer_),
                            helix::units::display_temp_symbol());
     sizing_.publish_instance_subject(subjects_, &unit_subject_, "unit_subject", "thermistor_unit");
+    lv_subject_init_int(&raw_subject_, 0);
+    sizing_.publish_instance_subject(subjects_, &raw_subject_, "raw_subject", "thermistor_raw");
 }
 
 ThermistorWidget::~ThermistorWidget() {
@@ -625,6 +627,7 @@ void ThermistorWidget::set_unit_override(std::optional<std::string> unit) {
 void ThermistorWidget::apply_unit() {
     const std::string unit = unit_text(unit_override_);
     lv_subject_copy_string(&unit_subject_, unit.c_str());
+    lv_subject_set_int(&raw_subject_, unit_override_ ? 1 : 0);
     // The widest reading changes with the unit, so the rung it fits at may too.
     sizing_.set_content(sizing_content(unit));
     sizing_.remeasure();
@@ -1067,7 +1070,13 @@ void ThermistorWidget::show_page_temp(size_t page, int decidegrees) {
     if (page >= page_temp_->size())
         return;
     char number[16];
-    helix::ui::temperature::format_temp_number(deci_to_degrees_f(decidegrees), number,
-                                               sizeof(number));
+    // An override is text only: the reading shows as the sensor reports it.
+    if (unit_override_) {
+        helix::ui::temperature::format_number_compact(deci_to_degrees_f(decidegrees), number,
+                                                      sizeof(number));
+    } else {
+        helix::ui::temperature::format_temp_number(deci_to_degrees_f(decidegrees), number,
+                                                   sizeof(number));
+    }
     page_temp_->set_string(page, number + unit_text(unit_override_));
 }
