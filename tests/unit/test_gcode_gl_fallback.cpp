@@ -222,16 +222,30 @@ TEST_CASE("gpu_triangle_budget leaves every other driver uncapped", "[gcode][gl_
 #include "gcode_gles_renderer.h"
 #include "gcode_parser.h"
 
+#if LV_USE_SDL
+#include <SDL.h>
+#endif
+
 TEST_CASE("GLES init failure surfaces through render_failed", "[gcode][gl_fallback][1555]") {
-    helix::gcode::GCodeGLESRenderer renderer;
-    const helix::gcode::ParsedGCodeFile empty_gcode;
-    const helix::gcode::GCodeCamera camera;
+#if LV_USE_SDL
+    const Uint32 video_before = SDL_WasInit(SDL_INIT_VIDEO);
+#endif
+    {
+        helix::gcode::GCodeGLESRenderer renderer;
+        const helix::gcode::ParsedGCodeFile empty_gcode;
+        const helix::gcode::GCodeCamera camera;
 
-    // render() attempts GL init first and returns before touching the layer
-    // or geometry when init fails, so null layer/coords are safe here.
-    renderer.render(nullptr, empty_gcode, camera, nullptr);
+        // render() attempts GL init first and returns before touching the layer
+        // or geometry when init fails, so null layer/coords are safe here.
+        renderer.render(nullptr, empty_gcode, camera, nullptr);
 
-    REQUIRE(renderer.render_failed());
+        REQUIRE(renderer.render_failed());
+    }
+#if LV_USE_SDL
+    // The window init_gl() tried to make brought SDL video up. Left up, it hands
+    // every later test in the process an OS clipboard and a live video driver.
+    CHECK(SDL_WasInit(SDL_INIT_VIDEO) == video_before);
+#endif
 }
 
 #endif // ENABLE_GLES_3D

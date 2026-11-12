@@ -469,6 +469,10 @@ class GCodeGLESRenderer {
     // SDL GL backend (desktop)
     void* sdl_gl_window_ = nullptr;  // SDL_Window*
     void* sdl_gl_context_ = nullptr; // SDL_GLContext
+    // The SDL video reference init_gl() takes for the hidden window, so the renderer
+    // that brought video up takes it down again with the window.
+    bool sdl_video_held_ = false;
+    void release_sdl_video();
 #else
     // EGL backend (Pi/embedded)
     void* egl_display_ = nullptr; // EGLDisplay

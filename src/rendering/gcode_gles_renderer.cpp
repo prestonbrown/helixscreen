@@ -363,6 +363,10 @@ GCodeGLESRenderer::GCodeGLESRenderer() {
 
 GCodeGLESRenderer::~GCodeGLESRenderer() {
     destroy_gl();
+#if LV_USE_SDL
+    // A shader failure in init_gl() leaves destroy_gl() nothing to tear down.
+    release_sdl_video();
+#endif
 
     // draw_buf_ is handed to the parallel render thread via dsc.src in
     // draw_cached_to_lvgl — same UAF pattern as GCodeLayerRenderer::cache_buf_
@@ -499,6 +503,15 @@ bool GCodeGLESRenderer::create_egl_context(void* egl_display, const char* label,
 }
 #endif // !LV_USE_SDL
 
+#if LV_USE_SDL
+void GCodeGLESRenderer::release_sdl_video() {
+    if (sdl_video_held_) {
+        SDL_QuitSubSystem(SDL_INIT_VIDEO);
+        sdl_video_held_ = false;
+    }
+}
+#endif
+
 bool GCodeGLESRenderer::init_gl() {
     if (gl_initialized_)
         return true;
@@ -520,10 +533,21 @@ bool GCodeGLESRenderer::init_gl() {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 
+    // SDL_CreateWindow brings video up itself when nothing holds it, and nothing
+    // would take it down. An explicit reference is counted: with the display
+    // holding video this only adds one, and releasing it leaves the display's.
+    if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) {
+        spdlog::warn("[GCode GLES] SDL video init failed: {}", SDL_GetError());
+        gl_init_failed_ = true;
+        return false;
+    }
+    sdl_video_held_ = true;
+
     auto* window =
         SDL_CreateWindow("helix-gles-offscreen", 0, 0, 1, 1, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
     if (!window) {
         spdlog::warn("[GCode GLES] SDL_CreateWindow failed: {}", SDL_GetError());
+        release_sdl_video();
         gl_init_failed_ = true;
         return false;
     }
@@ -532,6 +556,7 @@ bool GCodeGLESRenderer::init_gl() {
     if (!gl_ctx) {
         spdlog::warn("[GCode GLES] SDL_GL_CreateContext failed: {}", SDL_GetError());
         SDL_DestroyWindow(window);
+        release_sdl_video();
         gl_init_failed_ = true;
         return false;
     }
@@ -541,6 +566,7 @@ bool GCodeGLESRenderer::init_gl() {
         SDL_GL_MakeCurrent(window, nullptr);
         SDL_GL_DeleteContext(gl_ctx);
         SDL_DestroyWindow(window);
+        release_sdl_video();
         gl_init_failed_ = true;
         return false;
     }
@@ -836,6 +862,7 @@ void GCodeGLESRenderer::destroy_gl() {
 
         SDL_DestroyWindow(static_cast<SDL_Window*>(sdl_gl_window_));
         sdl_gl_window_ = nullptr;
+        release_sdl_video();
 
         // Restore previous context
         if (saved_ctx) {
