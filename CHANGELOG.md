@@ -5,11 +5,49 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.9] - UNRELEASED
+## [1.0.9] - 2026-11-12
+
+1.0.9 is a maintenance release of fixes ported from 1.1. The main themes:
+
+- **Getting back on its feet.** The crash screen always restarts HelixScreen, and a very large reply from Moonraker no longer leaves the screen offline.
+- **Print start and calibration.** The right macro, the right first layer and the right saved offset.
+- **Printers without the hardware we assumed.** A K2 with no CFS, fan enable pins, and the Sensors settings on printers with no filament sensor.
 
 ### Fixed
 
+**Stability**
+
+- **The crash screen always restarts HelixScreen** - when its countdown ran out, the screen could freeze on its last frame with dead buttons, and HelixScreen never came back. The crash screen now runs on its own, and anything that goes wrong with it still restarts the app.
+- **The crash screen follows the display's rotation** - on a rotated screen it could draw off the edge of the display. If HelixScreen keeps crashing and nobody answers, the crash screen starts Safe Mode after two minutes.
+- **The screen stays connected after a very large reply** - a reply from Moonraker over 5 MB, such as a long console history, disconnected the screen until it was restarted. That reply is now dropped and the connection kept.
+- **K2 print starts no longer crash** - the long nozzle pressure lines a K2 prints on every probe touch could crash HelixScreen during print start.
+- **The 3D preview falls back to 2D instead of crashing** (#1742) - on some boards, opening a file's details crashed inside the graphics driver, and a 1 GB Pi 4 could run out of graphics memory on a large file. The preview now shares the screen's graphics connection and switches to 2D when the GPU runs out of memory.
+- **Stopping a sound mid-play** (#2010) - could crash on ALSA and SDL audio.
+
+**Printing**
+
+- **Saving a calibration keeps the new value** (#1994) - with any Z offset set, Save stored the old value instead, and Creality's Klipper overwrote it every time.
+- **PRINT_START is found on more printers** (#2061) - when the config files do not show the macro, as on Reforge, HelixScreen reads it from what Klipper loaded. Includes written as `./` or `../` paths are followed too, which fixes the Forge-X AD5X.
+- **Preparing ends when the first layer starts** - a slicer that reports layer 0 before the print start kept the screen on Preparing into the second layer, and the time was recorded as purging.
+- **Turning the printer's power off shows no error** (#2076) - a power device that Moonraker stops Klipper with no longer brings up the Klipper error dialog.
+
+**Filament**
+
+- **K2 without a CFS** (#1904) - stock K2 firmware reports a CFS bus even with nothing attached, so Load asked for a slot and Unload saw nothing loaded. When no CFS answers within 90 seconds the K2 works as a single-spool printer, and a CFS that appears later is picked up.
+- **Happy Hare speed settings save** - every speed and toolhead edit was refused as "Invalid value type", and each slider opened at its minimum.
+- **Toolchangers with gaps in their tool numbers** - with tools T0, T2 and T3, the mounted tool and the dock sensors could point at the wrong head, and tool changes sent the slot position instead of the tool number.
+
+**Hardware**
+
+- **Fan enable pins are not fans** - on a K2 the on/off pin that enables a fan was listed as a fan of its own, raised a new-hardware prompt and could take the aux fan slot. An enable pin with no fan beside it still shows.
+- **A fan you skipped stays skipped** (#2040) - on a Z-Mod AD5M Pro, fans declined in the Fans wizard came back on every boot.
+- **Time zones on printers without zone files** (#2003) - on images such as the Creator 5 Pro on Reforge, every clock, ETA and log line read as UTC.
+- **Label printers that only accept encrypted jobs** (#2034) - the label never printed on printers such as the Epson XP-7100. The job is now resent over IPPS.
+
+**Settings and install**
+
 - **Sensors in Settings no longer need a filament sensor** - the Sensors row under Hardware & Devices holds the temperature sensors and the chamber sensor and heater choices, but it only appeared on printers with a filament sensor. It now always appears.
+- **Settings save after a root install** - when an earlier install left the config folder owned by root, HelixScreen could not save settings.json. The installer and every service start now give the folder back to the service user, which also repairs printers that only ever update from the app.
 
 ## [1.0.8] - 2026-11-05
 
@@ -7276,6 +7314,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.0.9]: https://github.com/prestonbrown/helixscreen/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/prestonbrown/helixscreen/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/prestonbrown/helixscreen/compare/v1.0.6...v1.0.7
 [1.0.6]: https://github.com/prestonbrown/helixscreen/compare/v1.0.5...v1.0.6
