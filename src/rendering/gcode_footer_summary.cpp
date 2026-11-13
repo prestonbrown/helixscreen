@@ -88,6 +88,9 @@ GcodeFooterSummary parse_gcode_footer_summary(std::string_view tail) {
     // over filament_colour regardless of which the slicer wrote first.
     std::vector<std::string> extruder_palette;
     std::vector<std::string> filament_palette;
+    std::optional<float> wall_speed;
+    std::optional<float> wall_percent;
+    std::optional<float> perimeter_speed;
 
     while (!tail.empty()) {
         const size_t nl = tail.find('\n');
@@ -116,6 +119,19 @@ GcodeFooterSummary parse_gcode_footer_summary(std::string_view tail) {
             summary.has_usage_line = true;
             summary.grams_per_tool = grams_from_line(body.substr(eq + 1));
             summary.tools_used = used_indices_from_grams(summary.grams_per_tool);
+        } else if (key == "outer_wall_speed" || key == "external_perimeter_speed") {
+            const std::string_view value = helix::text_io::trim(body.substr(eq + 1));
+            const auto v = helix::text_io::parse_leading<float>(value);
+            if (v && !value.empty() && value.back() == '%') {
+                wall_percent = v;
+                wall_speed.reset();
+            } else {
+                wall_speed = v;
+                wall_percent.reset();
+            }
+        } else if (key == "perimeter_speed") {
+            perimeter_speed =
+                helix::text_io::parse_leading<float>(helix::text_io::trim(body.substr(eq + 1)));
         } else if (is_colour_key(key)) {
             std::vector<std::string> palette;
             if (parse_filament_color_palette(body, palette)) {
@@ -130,6 +146,12 @@ GcodeFooterSummary parse_gcode_footer_summary(std::string_view tail) {
 
     summary.colours =
         extruder_palette.empty() ? std::move(filament_palette) : std::move(extruder_palette);
+    if (wall_percent && perimeter_speed) {
+        wall_speed = *perimeter_speed * *wall_percent / 100.0f;
+    }
+    if (wall_speed && *wall_speed > 0.0f) {
+        summary.outer_wall_speed_mm_s = wall_speed;
+    }
     return summary;
 }
 

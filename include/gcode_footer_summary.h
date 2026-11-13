@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -45,6 +46,12 @@ struct GcodeFooterSummary {
     /// True when a per-tool `filament used [g]` vector was seen. Without it
     /// the used-tool question is unanswered (NOT "no tools used").
     bool has_usage_line = false;
+
+    /// Outer wall speed the slicer asked for, mm/s: Orca and Bambu
+    /// `outer_wall_speed`, PrusaSlicer `external_perimeter_speed` (a percentage
+    /// of `perimeter_speed` resolved). nullopt when absent, zero (the slicer's
+    /// "auto") or unresolvable.
+    std::optional<float> outer_wall_speed_mm_s;
 
     /// True when the summary's used-tool set can be trusted as the final
     /// answer for this file. Requires a usage line that named at least one
@@ -159,13 +166,14 @@ inline constexpr size_t kGcodeTailWindowMax = 512u * 1024u;
  * arrived, and every tool rendered the neutral stand-in color.
  */
 struct FooterReadNeed {
-    bool tools = false;   ///< tools_used is still unknown for this file
-    bool palette = false; ///< no per-tool colors from metadata or an earlier read
-    bool grams = false;   ///< no per-tool grams (the per-lane weight check has no opinion)
+    bool tools = false;      ///< tools_used is still unknown for this file
+    bool palette = false;    ///< no per-tool colors from metadata or an earlier read
+    bool grams = false;      ///< no per-tool grams (the per-lane weight check has no opinion)
+    bool wall_speed = false; ///< a saved motor ripple sweep wants the outer wall speed
 
     /// True when a footer read is worth issuing at all.
     [[nodiscard]] bool any() const {
-        return tools || palette || grams;
+        return tools || palette || grams || wall_speed;
     }
 
     /// True when falling back to a whole-file scan is justified if the footer
@@ -189,8 +197,9 @@ struct FooterReadNeed {
  * @param have_grams    Per-tool grams are already in hand.
  */
 [[nodiscard]] inline FooterReadNeed footer_read_need(bool tools_known, bool have_palette,
-                                                     bool have_grams) {
-    return FooterReadNeed{!tools_known, !have_palette, !have_grams};
+                                                     bool have_grams,
+                                                     bool want_wall_speed = false) {
+    return FooterReadNeed{!tools_known, !have_palette, !have_grams, want_wall_speed};
 }
 
 /**

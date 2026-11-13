@@ -271,3 +271,22 @@ TEST_CASE("gcode_tail_window_bytes - sizing", "[gcode][footer_summary]") {
         REQUIRE(gcode_tail_window_bytes(1, 0) > 0);
     }
 }
+
+TEST_CASE("parse_gcode_footer_summary - outer wall speed by slicer", "[gcode][footer_summary]") {
+    auto speed = [](const char* tail) {
+        return parse_gcode_footer_summary(tail).outer_wall_speed_mm_s;
+    };
+    CHECK(speed("; outer_wall_speed = 200\n") == 200.0f);
+    CHECK(speed("; external_perimeter_speed = 25\n") == 25.0f);
+    CHECK(speed("; external_perimeter_speed = 50%\n; perimeter_speed = 60\n") == 30.0f);
+    CHECK(speed("; perimeter_speed = 60\n; external_perimeter_speed = 50%\n") == 30.0f);
+    CHECK_FALSE(speed("; external_perimeter_speed = 50%\n").has_value());
+    CHECK_FALSE(speed("; outer_wall_speed = 0\n").has_value());
+    CHECK_FALSE(speed("; layer_height = 0.2\n").has_value());
+
+    // An Orca file keeps the setting about 8 KB from its end, inside the default window.
+    const std::string path = "assets/test_gcodes/vaso_voronoi_V2_abajo.gcode";
+    const auto tail = helix::gcode::read_file_tail(path, kGcodeTailWindowDefault);
+    REQUIRE_FALSE(tail.empty());
+    CHECK(parse_gcode_footer_summary(tail).outer_wall_speed_mm_s == 200.0f);
+}

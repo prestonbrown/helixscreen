@@ -15,6 +15,7 @@
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
+#include "motor_ripple_store.h"
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "tools_used_cache.h"
@@ -128,6 +129,8 @@ void fill_file_context(PrintStartContext& ctx, const FileStartFacts& facts) {
     ctx.filament_materials = facts.palette.materials;
     ctx.tools_used = file_tools_used(facts);
     ctx.tool_grams = facts.tool_grams;
+    ctx.outer_wall_speed_mm_s = facts.outer_wall_speed_mm_s;
+    ctx.ripple_bands = calibration::ripple::RippleResultCache::instance().bands();
     ctx.fit_file = fit_file_from_sources(facts.fit_record, nullptr, facts.metadata, std::nullopt,
                                          ctx.tools_used);
 }
@@ -254,8 +257,9 @@ void FileStartFactsLoader::load(const std::string& filename, ReadyFn on_ready, D
             req.file_key = filename;
             req.version = version;
             req.gcode_end_byte = metadata ? metadata->gcode_end_byte : 0;
-            req.need = gcode::footer_read_need(tools_known, !facts->palette.colors.empty(),
-                                               !facts->tool_grams.empty());
+            req.need = gcode::footer_read_need(
+                tools_known, !facts->palette.colors.empty(), !facts->tool_grams.empty(),
+                !calibration::ripple::RippleResultCache::instance().bands().empty());
             req.palette_size = facts->palette.colors.size();
             req.download = download;
             req.allow_full_scan = read == FileRead::Whole;
@@ -266,6 +270,7 @@ void FileStartFactsLoader::load(const std::string& filename, ReadyFn on_ready, D
             hooks.on_footer = [facts, answer](const gcode::GcodeFooterSummary& s,
                                               bool tools_answered) {
                 gcode::backfill_from_footer(s, facts->palette.colors, facts->tool_grams);
+                facts->outer_wall_speed_mm_s = s.outer_wall_speed_mm_s;
                 if (tools_answered) {
                     facts->tools_used = s.tools_used;
                 }

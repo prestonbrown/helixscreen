@@ -53,6 +53,9 @@ struct FileStartFacts {
     FilePalette palette;
     std::set<int> tools_used;       ///< empty when the scan could not answer
     std::vector<double> tool_grams; ///< empty means unknown, never zero
+    /// Outer wall speed from the file's footer, read only while a motor ripple
+    /// sweep has saved bands to compare it with.
+    std::optional<float> outer_wall_speed_mm_s;
     /// The plugin's analysis as the fit check reads it; unset without one.
     std::optional<FitFile> fit_record;
 };

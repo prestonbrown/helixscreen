@@ -24,6 +24,7 @@
 #include "filament_variants.h"
 #include "gcode_ops_detector.h"
 #include "macro_param_cache.h"
+#include "motor_ripple_analysis.h"
 #include "operation_patterns.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -560,6 +561,37 @@ CheckResult gate_door_open(const PrintStartContext& ctx) {
                        lv_tr("Start Anyway"));
 }
 
+CheckResult gate_outer_wall_speed(const PrintStartContext& ctx) {
+    namespace ripple = calibration::ripple;
+    if (!ctx.outer_wall_speed_mm_s || ctx.ripple_bands.empty()) {
+        return pass_result();
+    }
+    const float speed = *ctx.outer_wall_speed_mm_s;
+    const auto bands = ripple::merge_bands(ctx.ripple_bands);
+    const ripple::RippleBand* band = ripple::band_containing(bands, speed);
+    if (!band) {
+        return pass_result();
+    }
+    const auto below = ripple::nearest_clear_speed(bands, speed, true);
+    const auto above = ripple::nearest_clear_speed(bands, speed, false);
+    spdlog::info("[PrintStartController] Outer walls at {:.0f} mm/s fall in the {:.0f}-{:.0f} mm/s "
+                 "ripple band - showing pre-print warning",
+                 speed, band->lo_mm_s, band->hi_mm_s);
+    std::string advice;
+    if (below && above) {
+        advice = fmt::format(fmt::runtime(lv_tr("Try {0} or {1} mm/s")), *below, *above);
+    } else if (below || above) {
+        advice = fmt::format(fmt::runtime(lv_tr("Try {0} mm/s")), below ? *below : *above);
+    }
+    const std::string body = fmt::format(
+        fmt::runtime(lv_tr("Your file asks for outer walls at {0:.0f} mm/s. This printer shook "
+                           "hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, "
+                           "which can print fine vertical lines on walls along X or Y. {3} "
+                           "(Orca: Outer wall speed; PrusaSlicer: External perimeters).")),
+        speed, band->lo_mm_s, band->hi_mm_s, advice);
+    return warn_result(lv_tr("Wall Speed Shakes This Printer"), body, lv_tr("Start Anyway"));
+}
+
 CheckResult gate_printer_stopping_command(const PrintStartContext& ctx) {
     const PrinterStopCheck& stop = ctx.printer_stop;
     if (stop.state != PrinterStopCheck::State::Stops) {
@@ -1079,6 +1111,8 @@ const std::vector<PrintStartGate>& default_print_start_gates() {
         // Last: a door is closed in a second, so it is asked after anything
         // that needs the user to think about the file or the filament.
         {"door_open", gate_door_open},
+        // After the door: a wall speed only costs print quality.
+        {"outer_wall_speed", gate_outer_wall_speed},
     };
     return gates;
 }
