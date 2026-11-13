@@ -882,6 +882,7 @@
   <translation tag="Connected to {}" zh="已连接到 {}"/>
   <translation tag="Connected! Discovering printer..." zh="已连接！正在发现打印机..."/>
   <translation tag="Connected, discovering..." zh="已连接，正在发现..."/>
+  <translation tag="Connected, getting address…" zh="已连接，正在获取地址…"/>
   <translation tag="Connecting Camera..." zh="正在连接摄像头..."/>
   <translation tag="Connecting to " zh="正在连接 "/>
   <translation tag="Connecting to %s..." zh="正在连接 %s..."/>
@@ -1680,6 +1681,7 @@
   <translation tag="Generic" zh="通用"/>
   <translation tag="Get help and share feedback" zh="获取帮助和反馈"/>
   <translation tag="Getting Started" zh="入门"/>
+  <translation tag="Getting address…" zh="正在获取地址…"/>
   <translation tag="Glass Effects" zh="玻璃效果"/>
   <translation tag="Global" zh="全局"/>
   <translation tag="Global Z offset" zh="全局Z偏移"/>

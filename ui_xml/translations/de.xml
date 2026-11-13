@@ -882,6 +882,7 @@
   <translation tag="Connected to {}" de="Verbunden mit {}"/>
   <translation tag="Connected! Discovering printer..." de="Verbunden! Drucker wird erkannt..."/>
   <translation tag="Connected, discovering..." de="Verbunden, Erkennung..."/>
+  <translation tag="Connected, getting address…" de="Verbunden, Adresse wird bezogen…"/>
   <translation tag="Connecting Camera..." de="Kamera wird verbunden..."/>
   <translation tag="Connecting to " de="Verbinde mit "/>
   <translation tag="Connecting to %s..." de="Verbinde mit %s..."/>
@@ -1680,6 +1681,7 @@
   <translation tag="Generic" de="Generisch"/>
   <translation tag="Get help and share feedback" de="Hilfe erhalten und Feedback teilen"/>
   <translation tag="Getting Started" de="Erste Schritte"/>
+  <translation tag="Getting address…" de="Adresse wird bezogen…"/>
   <translation tag="Glass Effects" de="Glaseffekte"/>
   <translation tag="Global" de="Global"/>
   <translation tag="Global Z offset" de="Globaler Z-Versatz"/>

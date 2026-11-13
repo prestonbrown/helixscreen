@@ -133,6 +133,10 @@ void WiFiManager::register_backend_callbacks(bool silent) {
         "DISCONNECTED", [this](const std::string& data) { handle_disconnected(data); });
     backend_->register_event_callback(
         "AUTH_FAILED", [this](const std::string& data) { handle_auth_failed(data); });
+    backend_->register_event_callback("ADDRESS_CHANGED", [this](const std::string&) {
+        spdlog::debug("[WiFiManager] Address changed event received");
+        notify_state_observers();
+    });
     backend_->register_event_callback(
         "INIT_FAILED", [this, silent](const std::string& msg) { handle_init_failed(silent, msg); });
     backend_->register_event_callback("REGDOM_CHANGE", [this](const std::string& data) {
@@ -1286,7 +1290,10 @@ void WiFiManager::get_status_async(
     }
     if (!helix::http::HttpExecutor::fast().running()) {
         if (!lane_pooled_) {
-            on_done(backend_ ? backend_->get_status() : WifiBackend::ConnectionStatus{});
+            const WifiBackend::ConnectionStatus status =
+                backend_ ? backend_->get_status() : WifiBackend::ConnectionStatus{};
+            watch_address_if_awaiting(status);
+            on_done(status);
             return;
         }
         // The pool has stopped (app exit): no read may run on this thread.
@@ -1352,6 +1359,7 @@ void WiFiManager::run_status_reads() {
             std::lock_guard<std::mutex> lock(status_waiters_mutex_);
             if (answered_in_time) {
                 cached_status_ = status;
+                watch_address_if_awaiting(status);
             } else {
                 // A read that ran out the reply deadline parsed an empty reply,
                 // which says "disconnected" about a link nobody could ask about.
@@ -1368,6 +1376,50 @@ void WiFiManager::run_status_reads() {
                           [cb = std::move(w.on_done), status]() { cb(status); });
         }
     }
+}
+
+void WiFiManager::watch_address_if_awaiting(const WifiBackend::ConnectionStatus& status) {
+    if (!status.awaiting_ipv4) {
+        return;
+    }
+    async_lifetime_.token().defer("WiFiManager::watch_address",
+                                  [this]() { start_address_watch(); });
+}
+
+void WiFiManager::start_address_watch() {
+    address_watch_elapsed_ms_ = 0;
+    if (address_events_ || !backend_) {
+        return;
+    }
+    address_events_ = backend_->open_address_events();
+    if (!address_events_) {
+        return;
+    }
+    spdlog::debug("[WiFiManager] Joined without an address yet; watching for one");
+    after_ms(kAddressWatchPeriodMs, [this]() { address_watch_tick(); });
+}
+
+void WiFiManager::address_watch_tick() {
+    if (!address_events_) {
+        return;
+    }
+    if (address_events_->poll()) {
+        spdlog::debug("[WiFiManager] Address event; refreshing status observers");
+        notify_state_observers();
+    }
+    bool awaiting;
+    {
+        std::lock_guard<std::mutex> lock(status_waiters_mutex_);
+        awaiting = cached_status_.awaiting_ipv4;
+    }
+    address_watch_elapsed_ms_ += kAddressWatchPeriodMs;
+    if (!awaiting || address_watch_elapsed_ms_ >= kAddressWatchMaxMs) {
+        spdlog::debug("[WiFiManager] Address watch stopped ({})",
+                      awaiting ? "timed out" : "address known");
+        address_events_.reset();
+        return;
+    }
+    after_ms(kAddressWatchPeriodMs, [this]() { address_watch_tick(); });
 }
 
 bool WiFiManager::cached_connected() {

@@ -1024,6 +1024,7 @@ std::optional<WifiBackend::ConnectionStatus> WifiBackendNetworkManager::poll_sta
     // Parse key:value pairs from device show output
     std::istringstream stream(dev_info);
     std::string line;
+    bool getting_ipv4 = false;
 
     while (std::getline(stream, line)) {
         auto fields = split_nmcli_fields(line);
@@ -1032,9 +1033,9 @@ std::optional<WifiBackend::ConnectionStatus> WifiBackendNetworkManager::poll_sta
         }
 
         if (fields[0] == "GENERAL.STATE") {
-            // State like "100 (connected)" or "30 (disconnected)"
-            status.connected = (fields[1].find("connected") != std::string::npos) &&
-                               (fields[1].find("disconnected") == std::string::npos);
+            const NmDeviceState state = wifi_parse_nm_device_state(fields[1]);
+            status.connected = state.connected;
+            getting_ipv4 = state.getting_ipv4;
         } else if (fields[0] == "GENERAL.HWADDR") {
             // nmcli doesn't escape colons in MAC addresses even in -t mode,
             // so split_nmcli_fields splits "2C:CF:67:2B:3C:01" into multiple fields.
@@ -1102,9 +1103,13 @@ std::optional<WifiBackend::ConnectionStatus> WifiBackendNetworkManager::poll_sta
         }
     }
 
-    spdlog::trace("[WifiBackend] NM: Status: connected={} ssid='{}' ip='{}' signal={}%",
+    // An address NM already holds in state 70 (a static one) is not pending.
+    status.awaiting_ipv4 = getting_ipv4 && status.ip_address.empty();
+
+    spdlog::trace("[WifiBackend] NM: Status: connected={} ssid='{}' ip='{}' awaiting_ipv4={} "
+                  "signal={}%",
                   status.connected, helix::redact::ssid(status.ssid), status.ip_address,
-                  status.signal_strength);
+                  status.awaiting_ipv4, status.signal_strength);
 
     return status;
 }
@@ -1121,6 +1126,8 @@ void WifiBackendNetworkManager::status_thread_func() {
     spdlog::debug("[WifiBackend] NM: Status polling thread started");
 
     constexpr auto kPollInterval = std::chrono::seconds(5);
+    // While DHCP is pending the address is the news the UI is waiting for.
+    constexpr auto kAwaitingIpv4PollInterval = std::chrono::seconds(1);
 
     while (status_running_) {
         // Poll nmcli for current status. nullopt = the poll itself failed
@@ -1152,13 +1159,18 @@ void WifiBackendNetworkManager::status_thread_func() {
 
         // Sleep until next poll or wakeup signal.
         // Uses dedicated status_cv_mutex_ (not status_mutex_) so get_status() callers
-        // aren't blocked during the 5-second wait. Safe because the predicates
+        // aren't blocked during the wait. Safe because the predicates
         // (status_running_, status_refresh_requested_) are both atomic.
+        bool awaiting_ipv4;
+        {
+            std::lock_guard<std::mutex> status_lock(status_mutex_);
+            awaiting_ipv4 = cached_status_.awaiting_ipv4;
+        }
         {
             std::unique_lock<std::mutex> lock(status_cv_mutex_);
-            status_cv_.wait_for(lock, kPollInterval, [this] {
-                return !status_running_.load() || status_refresh_requested_.load();
-            });
+            status_cv_.wait_for(
+                lock, awaiting_ipv4 ? kAwaitingIpv4PollInterval : kPollInterval,
+                [this] { return !status_running_.load() || status_refresh_requested_.load(); });
             status_refresh_requested_ = false;
         }
     }
@@ -1168,8 +1180,10 @@ void WifiBackendNetworkManager::status_thread_func() {
 
 std::string WifiBackendNetworkManager::apply_polled_status(const ConnectionStatus& fresh_status) {
     // Update cache and fire events on connection state transitions.
+    ConnectionStatus previous;
     {
         std::lock_guard<std::mutex> lock(status_mutex_);
+        previous = cached_status_;
         cached_status_ = fresh_status;
     }
 
@@ -1188,6 +1202,14 @@ std::string WifiBackendNetworkManager::apply_polled_status(const ConnectionStatu
         spdlog::info("[WifiBackend] NM: Disconnection detected via status poll");
         fire_event("DISCONNECTED");
         return "DISCONNECTED";
+    }
+    // No connection transition announces DHCP finishing, so say it here.
+    if (now_connected && (fresh_status.ip_address != previous.ip_address ||
+                          fresh_status.awaiting_ipv4 != previous.awaiting_ipv4)) {
+        spdlog::debug("[WifiBackend] NM: Address changed (awaiting_ipv4={})",
+                      fresh_status.awaiting_ipv4);
+        fire_event("ADDRESS_CHANGED");
+        return "ADDRESS_CHANGED";
     }
     return {};
 }

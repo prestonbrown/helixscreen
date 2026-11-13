@@ -57,6 +57,21 @@ The regulatory country the mock WiFi radio reports at startup, standing in for o
 HELIX_MOCK_WIFI_COUNTRY=DE ./build/bin/helix-screen --test
 ```
 
+### `HELIX_MOCK_WIFI_DHCP_PENDING`
+
+Makes a Wi-Fi join on the mock radio complete without an address, so the link stays joined with DHCP pending: Network Settings shows "Getting address…" on its IP row and the Settings root shows "Connected, getting address…".
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1` holds the address back; anything else assigns one |
+| **Default** | unset |
+| **File** | `src/network/wifi_backend_mock.cpp` |
+
+```bash
+# Join any secured mock network in Network Settings; it stays awaiting an address
+HELIX_MOCK_WIFI_DHCP_PENDING=1 ./build/bin/helix-screen --test
+```
+
 ### `HELIX_MOCK_IPV4_APPLY_FAIL`
 
 Make every IPv4 apply on the mock Wi-Fi and Ethernet backends fail, so the IPv4 screen's failure path (Network Settings > IPv4 > Apply) can be driven under `--test`. The revert that follows fails too, which leaves the pending-revert record for the next start.

@@ -3,6 +3,7 @@
 
 #include "wifi_backend.h"
 
+#include "core/text_io.h"
 #include "exception_policy.h"
 #include "runtime_config.h"
 #include "spdlog/spdlog.h"
@@ -47,6 +48,16 @@ uint8_t wifi_band_flag_from_frequency(int frequency_mhz) {
 int wifi_signal_percent_from_dbm(int dbm) {
     // -30 dBm = 100% (excellent), -90 dBm = 0% (unusable)
     return std::max(0, std::min(100, (dbm + 90) * 100 / 60));
+}
+
+NmDeviceState wifi_parse_nm_device_state(const std::string& value) {
+    // NM_DEVICE_STATE_IP_CONFIG: joined, waiting on DHCP.
+    constexpr int kNmStateIpConfig = 70;
+    NmDeviceState state;
+    state.getting_ipv4 = helix::text_io::parse_leading<int>(value) == kNmStateIpConfig;
+    state.connected = state.getting_ipv4 || (value.find("connected") != std::string::npos &&
+                                             value.find("disconnected") == std::string::npos);
+    return state;
 }
 
 std::optional<bool> wifi_parse_nm_radio_state(const std::string& output) {

@@ -15,6 +15,7 @@
 #pragma once
 
 #include "ipv4_config.h"
+#include "link_events.h"
 #include "wifi_interface.h"
 
 #include <cstdint>
@@ -209,6 +210,20 @@ int wifi_signal_percent_from_dbm(int dbm);
  */
 std::optional<bool> wifi_parse_nm_radio_state(const std::string& output);
 
+/// What one nmcli GENERAL.STATE value says about the link.
+struct NmDeviceState {
+    bool connected{false};    ///< Associated: 100 (connected), or 70 below
+    bool getting_ipv4{false}; ///< 70 (connecting (getting IP configuration))
+};
+
+/**
+ * @brief Parse nmcli's GENERAL.STATE value ("100 (connected)")
+ *
+ * State 70 counts as connected, the way wpa_supplicant's COMPLETED does:
+ * the radio has joined and only the address is outstanding.
+ */
+NmDeviceState wifi_parse_nm_device_state(const std::string& value);
+
 /**
  * @brief WiFi network information
  */
@@ -275,6 +290,9 @@ class WifiBackend : public helix::net::Ipv4Configurable {
         std::string mac_address; ///< Device WiFi adapter MAC address
         int signal_strength{0};  ///< Signal strength (0-100%)
         int frequency_mhz{0};    ///< Connected frequency in MHz (0 = unknown)
+        /// Joined, but no IPv4 address yet (DHCP still pending). Only with
+        /// connected, and ip_address is empty while it is set.
+        bool awaiting_ipv4{false};
         /// Set by WiFiManager, never by a backend: the control interface has
         /// stopped answering, and the fields above are the last answer it gave.
         bool unresponsive{false};
@@ -618,6 +636,18 @@ class WifiBackend : public helix::net::Ipv4Configurable {
      * @return ConnectionStatus struct with current state
      */
     virtual ConnectionStatus get_status() = 0;
+
+    /**
+     * @brief Where an address gained or lost is announced
+     *
+     * For backends whose get_status() reads live state: WiFiManager watches
+     * this while a status says awaiting_ipv4, and re-reads on each event.
+     *
+     * @return nullptr when nothing announces it
+     */
+    virtual std::unique_ptr<helix::net::LinkEvents> open_address_events() {
+        return nullptr;
+    }
 
     /**
      * @brief Check if WiFi hardware supports 5GHz band

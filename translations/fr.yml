@@ -971,6 +971,7 @@ translations:
   Connected to {}: Connecté à {}
   Connected! Discovering printer...: Connecté ! Découverte de l'imprimante...
   Connected, discovering...: Connecté, découverte...
+  Connected, getting address…: "Connecté, obtention de l'adresse…"
   Connecting Camera...: Connexion à la caméra...
   'Connecting to ': 'Connexion à '
   Connecting to %s...: Connexion à %s...
@@ -1847,6 +1848,7 @@ translations:
   Gear sync: Synchro engrenage
   Generic: Générique
   Get help and share feedback: Obtenir de l'aide et partager vos retours
+  Getting address…: "Obtention de l'adresse…"
   Glass Effects: Effets de verre
   Global: Global
   Global Z offset: Décalage Z global

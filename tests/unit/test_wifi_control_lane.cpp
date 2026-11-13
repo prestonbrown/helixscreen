@@ -776,3 +776,37 @@ TEST_CASE_METHOD(ControlLaneFixture,
     CHECK(backend->is_radio_enabled());
     CHECK(notified > before);
 }
+
+TEST_CASE_METHOD(ControlLaneFixture,
+                 "An address arriving while a status awaits one wakes the state observers",
+                 "[wifi][wifi_dhcp_pending]") {
+    std::atomic<int> fires{0};
+    wm->add_state_observer(guard.token(), [&fires]() { fires.fetch_add(1); });
+
+    backend->set_connected_state(true, "Home", "", 70);
+    REQUIRE(read_status().awaiting_ipv4);
+    process_lvgl(50);
+
+    const int before = fires.load();
+    backend->set_connected_state(true, "Home", "10.0.0.9", 70);
+    REQUIRE(wait_until([&] { return fires.load() > before; }, 3000));
+
+    const WifiBackend::ConnectionStatus status = read_status();
+    CHECK(status.ip_address == "10.0.0.9");
+    CHECK_FALSE(status.awaiting_ipv4);
+}
+
+TEST_CASE_METHOD(ControlLaneFixture, "A link that has its address is not watched for one",
+                 "[wifi][wifi_dhcp_pending]") {
+    std::atomic<int> fires{0};
+    wm->add_state_observer(guard.token(), [&fires]() { fires.fetch_add(1); });
+
+    backend->set_connected_state(true, "Home", "10.0.0.5", 70);
+    REQUIRE_FALSE(read_status().awaiting_ipv4);
+    process_lvgl(50);
+
+    const int before = fires.load();
+    backend->set_connected_state(true, "Home", "10.0.0.9", 70);
+    process_lvgl(1500);
+    CHECK(fires.load() == before);
+}

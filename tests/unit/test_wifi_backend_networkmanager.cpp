@@ -79,6 +79,11 @@ class TestableNMBackend : public WifiBackendNetworkManager {
         return apply_polled_status(st);
     }
 
+    /// Feed one exact poll result through apply_polled_status().
+    std::string feed_status(const ConnectionStatus& st) {
+        return apply_polled_status(st);
+    }
+
     /// Seed the state start() would have established — a resolved interface
     /// and a live backend — since start() itself shells out to nmcli and
     /// refuses without a real NetworkManager.
@@ -988,3 +993,25 @@ TEST_CASE("NM backend: not available on macOS", "[network][nm]") {
     SUCCEED("NetworkManager backend is Linux-only");
 }
 #endif // __APPLE__
+
+TEST_CASE("NM backend: an address arriving after the join fires ADDRESS_CHANGED",
+          "[network][nm][status][wifi_dhcp_pending]") {
+    TestableNMBackend backend;
+    int changes = 0;
+    backend.register_event_callback("ADDRESS_CHANGED", [&](const std::string&) { changes++; });
+
+    WifiBackend::ConnectionStatus st;
+    st.connected = true;
+    st.ssid = "Home";
+    st.awaiting_ipv4 = true;
+    CHECK(backend.feed_status(st) == "CONNECTED");
+    CHECK(backend.feed_status(st).empty());
+    CHECK(changes == 0);
+
+    st.awaiting_ipv4 = false;
+    st.ip_address = "10.0.0.9";
+    CHECK(backend.feed_status(st) == "ADDRESS_CHANGED");
+    CHECK(changes == 1);
+    CHECK(backend.feed_status(st).empty());
+    CHECK(changes == 1);
+}

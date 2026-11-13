@@ -599,4 +599,39 @@ TEST_CASE("wpa status reads the kernel's address when STATUS carries none",
     }
 }
 
+TEST_CASE("wpa status flags a joined link that has no address yet",
+          "[network][wpa][wifi_status_ip][wifi_dhcp_pending]") {
+    WpaFakeFixture fx;
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    std::string kernel_ip;
+    backend.set_ipv4_lookup_for_test([&kernel_ip](const std::string&) { return kernel_ip; });
+    REQUIRE(backend.start().success());
+
+    SECTION("COMPLETED with no address anywhere is awaiting an address") {
+        fx.fake->set_reply("STATUS", "wpa_state=COMPLETED\nssid=Home\n");
+        const WifiBackend::ConnectionStatus status = backend.get_status();
+        CHECK(status.connected);
+        CHECK(status.ip_address.empty());
+        CHECK(status.awaiting_ipv4);
+    }
+
+    SECTION("an address in STATUS is not awaiting") {
+        fx.fake->set_reply("STATUS", "wpa_state=COMPLETED\nssid=Home\nip_address=10.0.0.5\n");
+        CHECK_FALSE(backend.get_status().awaiting_ipv4);
+    }
+
+    SECTION("an address only the kernel holds is not awaiting") {
+        fx.fake->set_reply("STATUS", "wpa_state=COMPLETED\nssid=Home\n");
+        kernel_ip = "192.168.1.77";
+        CHECK_FALSE(backend.get_status().awaiting_ipv4);
+    }
+
+    SECTION("a link still associating is not awaiting an address") {
+        fx.fake->set_reply("STATUS", "wpa_state=ASSOCIATING\nssid=Home\n");
+        const WifiBackend::ConnectionStatus status = backend.get_status();
+        CHECK_FALSE(status.connected);
+        CHECK_FALSE(status.awaiting_ipv4);
+    }
+}
+
 #endif // !__APPLE__

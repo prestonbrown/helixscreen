@@ -356,6 +356,28 @@ TEST_CASE("wifi_parse_nm_radio_state refuses to guess at an unparseable answer",
     CHECK_FALSE(wifi_parse_nm_radio_state("Error: NetworkManager is not running.").has_value());
 }
 
+TEST_CASE("wifi_parse_nm_device_state reads GENERAL.STATE", "[wifi][nm][wifi_dhcp_pending]") {
+    const NmDeviceState online = wifi_parse_nm_device_state("100 (connected)");
+    CHECK(online.connected);
+    CHECK_FALSE(online.getting_ipv4);
+
+    // Joined, waiting on DHCP: connected, as wpa_supplicant's COMPLETED is.
+    const NmDeviceState dhcp =
+        wifi_parse_nm_device_state("70 (connecting (getting IP configuration))");
+    CHECK(dhcp.connected);
+    CHECK(dhcp.getting_ipv4);
+
+    const NmDeviceState down = wifi_parse_nm_device_state("30 (disconnected)");
+    CHECK_FALSE(down.connected);
+    CHECK_FALSE(down.getting_ipv4);
+
+    const NmDeviceState auth = wifi_parse_nm_device_state("50 (connecting (configuring))");
+    CHECK_FALSE(auth.connected);
+    CHECK_FALSE(auth.getting_ipv4);
+
+    CHECK_FALSE(wifi_parse_nm_device_state("").connected);
+}
+
 // ============================================================================
 // The stored expectation belongs to the radio, not to whoever flipped it
 // ============================================================================

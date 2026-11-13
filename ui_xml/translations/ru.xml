@@ -927,6 +927,7 @@
   <translation tag="Connected to {}" ru="Подключен к {}"/>
   <translation tag="Connected! Discovering printer..." ru="Подключен! Обнаружение принтера..."/>
   <translation tag="Connected, discovering..." ru="Подключен, обнаружение..."/>
+  <translation tag="Connected, getting address…" ru="Подключен, получение адреса…"/>
   <translation tag="Connecting Camera..." ru="Подключение камеры..."/>
   <translation tag="Connecting to " ru="Подключение к "/>
   <translation tag="Connecting to %s..." ru="Подключение к %s..."/>
@@ -1728,6 +1729,7 @@
   <translation tag="Generic" ru="Общий"/>
   <translation tag="Get help and share feedback" ru="Получить помощь и поделиться отзывом"/>
   <translation tag="Getting Started" ru="Начало работы"/>
+  <translation tag="Getting address…" ru="Получение адреса…"/>
   <translation tag="Glass Effects" ru="Эффекты стекла"/>
   <translation tag="Global" ru="Общий"/>
   <translation tag="Global Z offset" ru="Общее смещение Z"/>

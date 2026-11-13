@@ -2178,6 +2178,8 @@ WifiBackend::ConnectionStatus WifiBackendWpaSupplicant::get_status() {
                                              : helix::ui::wifi::iface_global_ipv4(iface->netdev);
         }
     }
+    // COMPLETED is the radio's part done; DHCP may still be running.
+    status.awaiting_ipv4 = status.connected && status.ip_address.empty();
 
     // Only log when status actually changes (reduces log noise)
     bool status_changed =
@@ -2187,9 +2189,10 @@ WifiBackend::ConnectionStatus WifiBackendWpaSupplicant::get_status() {
          std::abs(status.signal_strength - last_logged_status_.signal_strength) > 5);
 
     if (status_changed) {
-        spdlog::trace("[WifiBackend] Status: connected={} ssid='{}' ip='{}' signal={}%",
+        spdlog::trace("[WifiBackend] Status: connected={} ssid='{}' ip='{}' awaiting_ipv4={} "
+                      "signal={}%",
                       status.connected, helix::redact::ssid(status.ssid), status.ip_address,
-                      status.signal_strength);
+                      status.awaiting_ipv4, status.signal_strength);
         last_logged_status_ = status;
     }
 

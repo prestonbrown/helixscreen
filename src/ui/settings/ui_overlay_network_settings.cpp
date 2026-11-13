@@ -20,6 +20,7 @@
 #include "core/timer_guard.h"
 #include "ethernet_manager.h"
 #include "network_tester.h"
+#include "settings_root_status.h"
 #include "sort_small.h"
 #include "system_settings_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -620,7 +621,8 @@ void NetworkSettingsOverlay::apply_wifi_status(const WifiBackend::ConnectionStat
 
     if (connected) {
         const std::string& ssid = status.ssid;
-        const std::string& ip = status.ip_address;
+        const std::string ip = helix::settings::status::wifi_address(
+            helix::ui::wifi::link_phase(status), status.ip_address);
         const std::string& mac = status.mac_address;
 
         strncpy(ssid_buffer_, ssid.c_str(), sizeof(ssid_buffer_) - 1);
