@@ -91,6 +91,9 @@ TEST_CASE("mock_hardware_backend: migrated modes run production, the screenshot 
         CAPTURE(mode);
         CHECK(helix::mock::mock_hardware_backend(mode, nullptr) == nullptr);
     }
+    // With no mode, a persona counts only through its hardware flag.
+    CHECK(helix::mock::mock_hardware_backend("", "creator5_zmod") != nullptr);
+    CHECK(helix::mock::mock_hardware_backend("", "voron_24") == nullptr);
 }
 
 TEST_CASE_METHOD(ToolChangerMock, "toolchanger mock: discovery claims the changer, not Happy Hare",

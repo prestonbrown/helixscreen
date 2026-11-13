@@ -1438,7 +1438,7 @@ HELIX_MOCK_PRINTER=creator5_afc ./build/bin/helix-screen --test -vv
 # Elegoo Centauri Carbon on COSMOS, at the CC1's own 480x272 screen size
 HELIX_MOCK_PRINTER=cc1 ./build/bin/helix-screen --test -s micro -vv
 
-# FlashForge Adventurer 5X with the mock IFS (4 slots)
+# FlashForge Adventurer 5X with native Z-Mod's IFS (4 slots)
 HELIX_MOCK_PRINTER=ad5x ./build/bin/helix-screen --test -vv
 
 # Creality K2 Plus with the CFS box
@@ -1454,10 +1454,9 @@ LEDs `led case` / `led hotend`, and the COSMOS macros that name the machine.
 `ad5x`: hostname `ad5x-mock`, a 220x220x220 CoreXY volume, the hardware in
 `assets/config/presets/ad5x.json` `hardware/expected`, the Flashforge `loadcell`
 probe, and `gcode_macro SET_EXTRUDER_SLOT`, which names the machine. Its default
-`HELIX_MOCK_AMS` is `ifs`, the mock IFS simulation. It publishes none of the IFS
-module's own objects (`ifs`, `ifs_materials`, `zmod_ifs`, `_ifs_port_sensor_*`),
-since those make discovery stand up the production AD5X IFS backend; use
-`HELIX_MOCK_AMS=ifs-module` for that.
+`HELIX_MOCK_AMS` is `ifs`: native Z-Mod's `zmod_ifs` / `zmod_color` for the stock
+four-port IFS, which the production `AmsBackendAd5xIfs` drives. The standalone IFS
+module's objects (`ifs`, `ifs_materials`) come only with `HELIX_MOCK_AMS=ifs-module`.
 
 `k2`: the Creality **K2 Plus**. Hostname `K2Plus-50C1`, the capture's 352.5x400x360
 CoreXY volume, and the hardware in `tests/fixtures/printers/creality_k2_plus.json` and
@@ -1597,8 +1596,8 @@ updates its status, `PA_ACTION` is accepted and ignored, and each `PA_GET` answe
 emulation (mod setting `AFC=1`): `AFC`, `AFC_IFS IFS` and `AFC_lane lane1..4`, with
 `CHANGE_TOOL LANE=lane<n+1>` mounting head `n`. Discovery still hands the printer to the
 tool changer. On the `ad5x` persona the same flag adds `zmod_color` and those objects
-(discovery picks `AD5X_IFS`), and the mock IFS backend answers
-`AmsBackend::print_start_params()` the way Z-Mod's AD5X does, so a mapped print logs
+(discovery picks `AD5X_IFS`), and the production `AmsBackendAd5xIfs` reads Z-Mod's AFC as
+a print start that takes the tool map, so a mapped print logs
 `printer.print.start tools=...` from the mock Moonraker.
 
 It also publishes Z-Mod's calibration and chamber air macros. `CALIBRATE_EXTRUDERS`

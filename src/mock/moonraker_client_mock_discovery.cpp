@@ -367,9 +367,9 @@ void MoonrakerClientMock::populate_capabilities() {
         }
         break;
     case PrinterType::FLASHFORGE_AD5X:
-        // The stock AD5X's public IFS macro, which names the machine. None of
-        // the IFS module's own objects: those make discovery stand up the
-        // production AD5X IFS backend, and this persona runs the mock IFS.
+        // The stock AD5X's public IFS macro, which names the machine. The IFS
+        // itself is native Z-Mod's, published by the persona's default AMS mode
+        // (ifs), never the standalone module's objects.
         mock_objects.push_back("gcode_macro SET_EXTRUDER_SLOT");
         // Z-Mod with its built-in AFC enabled (AFC=1).
         if (zmod_builtin_afc_) {

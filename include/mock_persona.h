@@ -179,8 +179,11 @@ struct PersonaDescriptor {
     std::string_view kinematics;       // configfile [printer] kinematics
     DefaultObjects omit;               // inherited defaults this persona does not have
     std::string_view default_mock_ams; // HELIX_MOCK_AMS when unset; "" = none chosen
-    bool hardware_persona;             // production backend drives it (implies --real-ams)
-    const PersonaHardware* hardware;   // never null
+    /// A production backend drives the persona's own objects with no AMS mode
+    /// (implies --real-ams). A persona whose default_mock_ams is mock hardware
+    /// gets --real-ams through that mode instead.
+    bool hardware_persona;
+    const PersonaHardware* hardware; // never null
     /// Probe profile (HELIX_MOCK_PROBE_TYPE value) reported in place of the
     /// default cartographer when the persona omits CARTOGRAPHER; "" = no probe.
     std::string_view probe = {};
@@ -316,7 +319,7 @@ inline constexpr std::array<PersonaEntry, 16> kPersonas = {{
     {"delta", PrinterType::DELTA, "Generic Delta", ""},
     {"snapmaker_u1", PrinterType::SNAPMAKER_U1, "Snapmaker U1", ""},
     {"cc1", PrinterType::ELEGOO_CC1, "Elegoo Centauri Carbon", ""},
-    {"ad5x", PrinterType::FLASHFORGE_AD5X, "Flashforge AD5X (mock IFS)", ""},
+    {"ad5x", PrinterType::FLASHFORGE_AD5X, "Flashforge AD5X (Z-Mod IFS)", ""},
     {"k2", PrinterType::CREALITY_K2_PLUS, "Creality K2 Plus", ""},
 }};
 // clang-format on
