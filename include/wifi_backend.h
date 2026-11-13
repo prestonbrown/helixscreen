@@ -210,6 +210,8 @@ int wifi_signal_percent_from_dbm(int dbm);
  */
 std::optional<bool> wifi_parse_nm_radio_state(const std::string& output);
 
+namespace helix::wifi {
+
 /// What one nmcli GENERAL.STATE value says about the link.
 struct NmDeviceState {
     bool connected{false};    ///< Joined: 70 (getting IP configuration) to 100 (connected)
@@ -223,6 +225,8 @@ struct NmDeviceState {
  * does: the radio has joined; at 70 the address is still outstanding.
  */
 NmDeviceState wifi_parse_nm_device_state(const std::string& value);
+
+} // namespace helix::wifi
 
 /**
  * @brief WiFi network information

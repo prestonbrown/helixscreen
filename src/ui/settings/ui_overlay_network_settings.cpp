@@ -103,7 +103,6 @@ static void network_item_delete_cb(lv_event_t* e) {
 NetworkSettingsOverlay::NetworkSettingsOverlay() {
     std::memset(ssid_buffer_, 0, sizeof(ssid_buffer_));
     std::memset(ip_buffer_, 0, sizeof(ip_buffer_));
-    std::memset(ip_display_buffer_, 0, sizeof(ip_display_buffer_));
     std::memset(mac_buffer_, 0, sizeof(mac_buffer_));
     std::memset(count_buffer_, 0, sizeof(count_buffer_));
     std::memset(eth_ip_buffer_, 0, sizeof(eth_ip_buffer_));

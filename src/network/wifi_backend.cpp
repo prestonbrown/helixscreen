@@ -50,6 +50,8 @@ int wifi_signal_percent_from_dbm(int dbm) {
     return std::max(0, std::min(100, (dbm + 90) * 100 / 60));
 }
 
+namespace helix::wifi {
+
 NmDeviceState wifi_parse_nm_device_state(const std::string& value) {
     // NM_DEVICE_STATE_IP_CONFIG (joined, waiting on DHCP) through
     // NM_DEVICE_STATE_ACTIVATED; IP_CHECK and SECONDARIES lie between.
@@ -66,6 +68,8 @@ NmDeviceState wifi_parse_nm_device_state(const std::string& value) {
                       value.find("disconnected") == std::string::npos;
     return state;
 }
+
+} // namespace helix::wifi
 
 std::optional<bool> wifi_parse_nm_radio_state(const std::string& output) {
     // Trim whitespace and lowercase — nmcli pads non-terse output and always

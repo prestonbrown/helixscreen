@@ -369,7 +369,7 @@ TEST_CASE("wifi_parse_nm_device_state reads GENERAL.STATE", "[wifi][nm][wifi_dhc
         {"30 (disconnected)", false, false},
         {"", false, false},
     }));
-    const NmDeviceState state = wifi_parse_nm_device_state(value);
+    const auto state = helix::wifi::wifi_parse_nm_device_state(value);
     CHECK(state.connected == connected);
     CHECK(state.getting_ipv4 == getting_ipv4);
 }

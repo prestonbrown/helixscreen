@@ -1042,7 +1042,8 @@ std::optional<WifiBackend::ConnectionStatus> WifiBackendNetworkManager::poll_sta
         }
 
         if (fields[0] == "GENERAL.STATE") {
-            const NmDeviceState state = wifi_parse_nm_device_state(fields[1]);
+            const helix::wifi::NmDeviceState state =
+                helix::wifi::wifi_parse_nm_device_state(fields[1]);
             status.connected = state.connected;
             getting_ipv4 = state.getting_ipv4;
         } else if (fields[0] == "GENERAL.HWADDR") {
