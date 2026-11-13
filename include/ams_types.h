@@ -2562,8 +2562,7 @@ struct DeviceAction {
         return a;
     }
 
-    /// A read-only row showing @p value as text.
-    // The parentheses stop the ESP32 spdlog shim's info() macro expanding this declarator.
+    /// A read-only row showing @p value as text ((info): see ESP32_PORT.md "Reading the log").
     static DeviceAction(info)(std::string id, std::string label, std::string section,
                               std::string value, std::string icon = {},
                               std::string description = {}) {
