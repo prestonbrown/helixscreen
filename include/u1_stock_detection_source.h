@@ -4,7 +4,10 @@
 #include "ui_observer_guard.h"
 
 #include "detection_source.h"
+#include "json_fwd.h"
 #include "printer_state.h" // PrintJobState
+
+#include <functional>
 
 namespace helix::detection {
 
@@ -61,6 +64,8 @@ class U1StockSource : public DetectionSource {
     /// DEFECT_DETECTION_CONFIG NOODLE_ENABLE=0|1: the firmware's own
     /// spaghetti detection, which pauses prints by itself, follows the switch.
     void apply_detection_enabled(bool enabled) override;
+    /// noodle.enable from the defect_detection status object.
+    void read_detection_enabled(DetectionEnabledReadCallback done) override;
 
     bool explains_current_pause() const override;
 
@@ -74,6 +79,12 @@ class U1StockSource : public DetectionSource {
     void start();
 
   private:
+    /// Query the defect_detection status object and hand its contents to
+    /// @p on_module, or nullptr when the printer could not be asked or sent
+    /// no such object. Runs on the WebSocket thread.
+    static void query_module(const char* what,
+                             std::function<void(const nlohmann::json* module)> on_module);
+
     void evaluate();
     /// The defect kind the latched exception reports, Unknown when none.
     DetectionKind latched_kind() const;

@@ -401,8 +401,9 @@ TEST_CASE_METHOD(HelixTestFixture, "The detection switch tells a U1 its own nood
     set_moonraker_client(&client);
     m.register_source(std::make_unique<U1StockSource>(nullptr));
 
-    SECTION("switching off and on sends NOODLE_ENABLE and keeps the setting") {
+    SECTION("a toggle always sends NOODLE_ENABLE and keeps the setting") {
         m.apply_objects_list_for_test(json::array({"defect_detection"}));
+        drain();
         client.clear_gcode_script_history();
 
         m.set_detection_enabled(false);
@@ -413,25 +414,57 @@ TEST_CASE_METHOD(HelixTestFixture, "The detection switch tells a U1 its own nood
         m.set_detection_enabled(true);
         CHECK(sm.get_detection_enabled());
         CHECK(client.last_send_script() == "DEFECT_DETECTION_CONFIG NOODLE_ENABLE=1");
+
+        // The printer already matches: a toggle is still the user's word.
+        client.clear_gcode_script_history();
+        m.set_detection_enabled(true);
+        CHECK(client.gcode_script_history() ==
+              std::vector<std::string>{"DEFECT_DETECTION_CONFIG NOODLE_ENABLE=1"});
     }
 
-    SECTION("connect makes the printer match the setting") {
+    SECTION("connect with the printer already matching sends nothing") {
+        // The mock printer reports noodle.enable true, as the stock firmware does.
+        REQUIRE(sm.get_detection_enabled());
+        client.clear_gcode_script_history();
+        m.apply_objects_list_for_test(json::array({"defect_detection"}));
+        drain();
+        CHECK(client.gcode_script_history().empty());
+
+        client.gcode_script("DEFECT_DETECTION_CONFIG NOODLE_ENABLE=0");
         sm.set_detection_enabled(false);
         client.clear_gcode_script_history();
         m.apply_objects_list_for_test(json::array({"defect_detection"}));
+        drain();
+        CHECK(client.gcode_script_history().empty());
+    }
+
+    SECTION("connect with the printer differing sends the setting once") {
+        sm.set_detection_enabled(false);
+        client.clear_gcode_script_history();
+        m.apply_objects_list_for_test(json::array({"defect_detection"}));
+        drain();
         CHECK(client.gcode_script_history() ==
               std::vector<std::string>{"DEFECT_DETECTION_CONFIG NOODLE_ENABLE=0"});
 
-        sm.set_detection_enabled(true);
+        // The printer took it, so the next connect has nothing to send.
         client.clear_gcode_script_history();
         m.apply_objects_list_for_test(json::array({"defect_detection"}));
+        drain();
+        CHECK(client.gcode_script_history().empty());
+
+        sm.set_detection_enabled(true);
+        m.apply_objects_list_for_test(json::array({"defect_detection"}));
+        drain();
         CHECK(client.gcode_script_history() ==
               std::vector<std::string>{"DEFECT_DETECTION_CONFIG NOODLE_ENABLE=1"});
     }
 
     SECTION("a printer without the module is never told") {
-        m.apply_objects_list_for_test(json::array({"gcode_move"}));
+        sm.set_detection_enabled(false);
         client.clear_gcode_script_history();
+        m.apply_objects_list_for_test(json::array({"gcode_move"}));
+        drain();
+        CHECK(client.gcode_script_history().empty());
         m.set_detection_enabled(false);
         CHECK_FALSE(sm.get_detection_enabled());
         CHECK(client.gcode_script_history().empty());

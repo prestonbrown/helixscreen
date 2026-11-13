@@ -116,15 +116,36 @@ bool DetectionManager::set_bed_check_enabled(bool enabled, std::function<void()>
 void DetectionManager::set_detection_enabled(bool enabled) {
     SettingsManager::instance().set_detection_enabled(enabled);
     spdlog::info("DetectionManager: detection -> {}", enabled ? "on" : "off");
-    apply_detection_enabled();
-}
-
-void DetectionManager::apply_detection_enabled() {
-    const bool enabled = SettingsManager::instance().get_detection_enabled();
     for (const auto& src : sources_) {
         if (src && src->available()) {
             src->apply_detection_enabled(enabled);
         }
+    }
+}
+
+void DetectionManager::reconcile_detection_enabled() {
+    for (const auto& src : sources_) {
+        if (!src || !src->available()) {
+            continue;
+        }
+        // sources_ only shrinks in reset_for_test(), which invalidates
+        // lifetime_ first, so the pointer is live whenever the body runs.
+        DetectionSource* raw = src.get();
+        raw->read_detection_enabled(lifetime_.bg_cb(
+            "DetectionManager::on_detection_enabled_read", [raw](std::optional<bool> printer_on) {
+                if (!printer_on || !raw->available()) {
+                    return;
+                }
+                // Read now, not when asked: a toggle made while the query was
+                // out has already been sent and must not be undone.
+                const bool wanted = SettingsManager::instance().get_detection_enabled();
+                if (*printer_on == wanted) {
+                    return;
+                }
+                spdlog::info("DetectionManager: '{}' detection is {} on the printer; setting {}",
+                             raw->id(), *printer_on ? "on" : "off", wanted ? "on" : "off");
+                raw->apply_detection_enabled(wanted);
+            }));
     }
 }
 
@@ -310,8 +331,8 @@ void DetectionManager::apply_objects_list(const json& objects) {
         }
     }
     update_availability();
-    // After the seed, so a first connect hands the printer the seeded value.
-    apply_detection_enabled();
+    // After the seed, so a first connect compares against the seeded value.
+    reconcile_detection_enabled();
 }
 
 void DetectionManager::refresh_capabilities() {
