@@ -3,13 +3,14 @@
 
 #include "ui_z_offset_indicator.h"
 
+#include "ui_toolhead_view.h"
+
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "lvgl/lvgl.h"
-#include "nozzle_renderer_dispatch.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -226,13 +227,15 @@ static void indicator_draw_cb(lv_event_t* e) {
     tri_dsc.p[2].y = marker_y + tri_size;
     lv_draw_triangle(layer, &tri_dsc);
 
-    // --- Nozzle icon centered in space right of scale (fixed at vertical center) ---
-    int32_t nozzle_cx = (scale_x + coords.x1 + w) / 2;
-    int32_t nozzle_y = (scale_top + scale_bottom) / 2;
-    int32_t nozzle_scale = LV_CLAMP(5, h / 10, 12);
-    lv_color_t nozzle_color = data->color_text;
-
-    draw_nozzle_for_style(layer, nozzle_cx, nozzle_y, nozzle_color, nozzle_scale);
+    // --- The configured head, fitted to the space right of the scale ---
+    const lv_area_t head_box{scale_x + tick_half_w + label_pad, scale_top, coords.x1 + w - 1,
+                             scale_bottom};
+    const auto fit = helix::ui::fit_toolhead(
+        helix::SettingsManager::instance().get_effective_toolhead_style(), head_box, 12);
+    const int32_t nozzle_cx = fit.cx;
+    const int32_t nozzle_y = fit.nozzle_y;
+    const int32_t nozzle_scale = fit.scale;
+    helix::ui::draw_toolhead(layer, nozzle_cx, nozzle_y, data->color_text, nozzle_scale);
 
     // --- Direction arrow flash (shaft + V-head, drawn from base to tip) ---
     if (data->arrow_opacity > 0 && data->arrow_progress > 0) {
