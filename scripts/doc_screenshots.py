@@ -33,7 +33,14 @@ MANIFEST = REPO_ROOT / "docs" / "images" / "doc-screenshots.yml"
 
 KINDS = ("app", "manual")
 ANCHORS = ("center", "top_left", "top_right", "bottom_left", "bottom_right")
-APP_FIELDS = ("recipe", "steps", "env", "size", "crop", "margin", "markers")
+APP_FIELDS = ("recipe", "steps", "env", "size", "crop", "margin", "markers", "wizard")
+# The setup wizard's steps in the app's StepId order (include/wizard_step.h);
+# the index is what --wizard-step takes. A test pins the two together.
+WIZARD_STEPS = (
+    "touch_calibration", "language", "wifi", "connection", "printer_identify", "heater_select",
+    "fan_select", "ams_identify", "led_select", "filament_sensor", "input_shaper", "preferences",
+    "summary", "telemetry",
+)
 DEFAULT_SIZE = (800, 480)
 DEFAULT_MARGIN = 12
 SETTLE_SECONDS = float(os.environ.get("HELIX_SCREENSHOT_DELAY", "1.5"))
@@ -68,6 +75,7 @@ class Entry:
     markers: tuple = ()
     source: Optional[str] = None
     recapture: Optional[str] = None
+    wizard: Optional[str] = None
 
 
 def recipe_tokens(script: Path = RECIPES_SCRIPT) -> list[str]:
@@ -123,11 +131,15 @@ def _parse_entry(raw: dict, tokens: set) -> Entry:
                 raise ManifestError(path, f"a manual entry needs {need}")
         return Entry(path=path, kind=kind, source=raw["source"], recapture=raw["recapture"])
 
-    recipe, steps = raw.get("recipe"), raw.get("steps")
+    recipe, steps, wizard = raw.get("recipe"), raw.get("steps"), raw.get("wizard")
     if recipe and steps:
         raise ManifestError(path, "give a recipe or steps, not both")
-    if not recipe and not steps:
-        raise ManifestError(path, "an app entry needs a recipe or steps")
+    if wizard is not None and wizard not in WIZARD_STEPS:
+        raise ManifestError(path, f"wizard step '{wizard}' is not one of {', '.join(WIZARD_STEPS)}")
+    if wizard and recipe:
+        raise ManifestError(path, "a wizard entry starts on its step: give steps, not a recipe")
+    if not recipe and not steps and not wizard:
+        raise ManifestError(path, "an app entry needs a recipe, steps or a wizard step")
     if recipe and recipe not in tokens:
         raise ManifestError(path, f"recipe token '{recipe}' is not in scripts/screenshot-recipes.sh")
     return Entry(
@@ -140,6 +152,7 @@ def _parse_entry(raw: dict, tokens: set) -> Entry:
         crop=raw.get("crop"),
         margin=int(raw.get("margin", DEFAULT_MARGIN)),
         markers=_parse_markers(path, raw.get("markers")),
+        wizard=wizard,
     )
 
 
@@ -309,15 +322,30 @@ def session_env(entry_env: dict, base_env: dict) -> dict:
     return env
 
 
+def launch_flags(wizard: Optional[str], size: tuple, sock) -> list:
+    """The app's command line: as screenshot.sh launches it, or, for a wizard
+    entry, on that wizard step instead of skipping the wizard."""
+    w, h = size
+    flags = ["--test", "--remote", "--remote-socket", str(sock), "--skip-splash", "--dark",
+             "-s", f"{w}x{h}"]
+    if wizard is None:
+        flags.append("--skip-wizard")
+    else:
+        flags += ["--wizard-step", str(WIZARD_STEPS.index(wizard))]
+    return flags
+
+
 class AppSession:
     """A headless --test instance with its own socket and config dir."""
 
-    def __init__(self, env: dict, size: tuple, binary: Path = REPO_ROOT / "build/bin/helix-screen"):
+    def __init__(self, env: dict, size: tuple, wizard: Optional[str] = None,
+                 binary: Path = REPO_ROOT / "build/bin/helix-screen"):
         self.binary = Path(binary)
         if not self.binary.exists():
             raise SystemExit(f"{self.binary} is missing: build the app first (make / gmake)")
         self.env = env
         self.size = size
+        self.wizard = wizard
         self.tmp = Path(tempfile.mkdtemp(prefix="doc-shots-"))
         self.sock = self.tmp / "helix.sock"
 
@@ -331,11 +359,9 @@ class AppSession:
 
         shutil.copy(REPO_ROOT / "config" / "settings.json.template", config / "settings.json")
         env["HELIX_CONFIG_DIR"] = str(config)
-        w, h = self.size
         self.log = open(self.tmp / "app.log", "w")
         self.proc = subprocess.Popen(
-            [str(self.binary), "--test", "--remote", "--remote-socket", str(self.sock),
-             "--skip-splash", "--skip-wizard", "--dark", "-s", f"{w}x{h}"],
+            [str(self.binary)] + launch_flags(self.wizard, self.size, self.sock),
             env=env, stdout=self.log, stderr=subprocess.STDOUT)
         for _ in range(120):
             if self.sock.exists() and self._try("ping"):
@@ -407,7 +433,7 @@ def run(entries, session_factory, out_root: Path) -> int:
         if e.kind == "manual":
             skipped += 1
             continue
-        session = session_factory(e.env, e.size)
+        session = session_factory(e.env, e.size, e.wizard)
         try:
             session.__enter__()
             capture(e, session, out_root)
