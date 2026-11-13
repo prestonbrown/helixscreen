@@ -332,11 +332,11 @@ images:
     kind: app
     recipe: home
     markers:
-      - {n: 1, widget: nav_btn_home, at: center}
-      - {n: 2, widget: nav_btn_controls, at: center}
-      - {n: 3, widget: nav_btn_filament, at: center}
-      - {n: 4, widget: nav_btn_settings, at: center}
-      - {n: 5, widget: nav_btn_advanced, at: center}
+      - {n: 1, widget: nav_btn_home, at: top_right}
+      - {n: 2, widget: nav_btn_controls, at: top_right}
+      - {n: 3, widget: nav_btn_filament, at: top_right}
+      - {n: 4, widget: nav_btn_settings, at: top_right}
+      - {n: 5, widget: nav_btn_advanced, at: top_right}
   - path: docs/images/user/preflight-check.png
     kind: app
     recipe: preflight-check
@@ -364,16 +364,6 @@ images:
   - path: docs/images/user/runout-modal.png
     kind: app
     recipe: runout-modal
-  - path: docs/images/user/safety-spaghetti-k2.png
-    kind: app
-    recipe: safety
-    env:
-      HELIX_MOCK_PRINTER: k2
-    crop: container_detection
-    margin: 12
-    markers:
-      - {n: 1, widget: row_detection_enabled, at: top_right}
-      - {n: 2, widget: row_detection_pause, at: top_right}
   - path: docs/images/user/screen-lock.png
     kind: app
     recipe: lock-screen
@@ -417,11 +407,6 @@ images:
   - path: docs/images/user/settings-display-2.png
     kind: app
     recipe: display-2
-  - path: docs/images/user/settings-display-rotation.png
-    kind: app
-    recipe: display
-    markers:
-      - {n: 1, widget: row_display_rotation, at: top_right}
   - path: docs/images/user/settings-display.png
     kind: app
     recipe: display
@@ -481,7 +466,11 @@ images:
     recipe: system-2
   - path: docs/images/user/settings-system-reset.png
     kind: app
-    recipe: system-2
+    steps:
+      - navigate settings
+      - click row_system
+      - wait_idle
+      - scroll overlay_content 0 -400
     markers:
       - {n: 1, widget: row_telemetry, at: top_right}
       - {n: 2, widget: row_factory_reset, at: top_right}
@@ -501,7 +490,7 @@ images:
     kind: app
     recipe: updates
     markers:
-      - {n: 1, widget: row_update_channel, at: top_right}
+      - {n: 1, widget: row_update_channel_dev, at: top_right}
       - {n: 2, widget: row_check_updates, at: top_right}
   - path: docs/images/user/settings-updates-firmware-managed.png
     kind: app
