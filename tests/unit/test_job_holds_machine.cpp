@@ -333,6 +333,7 @@ constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/pa_tuning_overlay.xml", 1},
     {"ui_xml/plr_wizard_overlay.xml", 4},
     {"ui_xml/motion_panel.xml", 8},
+    {"ui_xml/motor_ripple_panel.xml", 1},
     {"ui_xml/components/move_preset_grid.xml", 11},
     {"ui_xml/components/motion_bed_map.xml", 2},
     // Every layout's home key; the layouts themselves hold only components.

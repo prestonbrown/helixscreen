@@ -8,6 +8,7 @@
   <translation tag=" · {} loosened about {}" zh=" · {} 放松约 {}"/>
   <translation tag=" · {} tightened about {}" zh=" · {} 拉紧约 {}"/>
   <translation tag="&quot;%s&quot; failed to load" zh="&quot;%s&quot; 加载失败"/>
+  <translation tag="&quot;After&quot; is compensation as your printer applies it, with its factory settings." zh="“之后”是打印机按出厂设置应用的补偿。"/>
   <translation tag="%d additional fan" zh="%d 个额外风扇"/>
   <translation tag="%d additional fans" zh="%d 个额外风扇"/>
   <translation tag="%d feeders" zh="%d 个送料器"/>
@@ -279,6 +280,7 @@
   <translation tag="After an error" zh="发生错误后"/>
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." zh="连接{}后，建议重新校准输入整形，以确保打印质量。"/>
   <translation tag="After running the commands, tap Check Again below." zh="执行命令后，点击下方的重新检查。"/>
+  <translation tag="Afterwards, Vertical Artifact Check in this menu shows how much it helped." zh="之后，可在此菜单中通过垂直纹路检查查看改善程度。"/>
   <translation tag="Air filter" zh="空气滤网"/>
   <translation tag="Alert" zh="警报"/>
   <translation tag="Alerts" zh="警报"/>
@@ -964,6 +966,7 @@
   <translation tag="Could not parse tips database" zh="无法解析提示数据库"/>
   <translation tag="Could not reach Spoolman at" zh="无法连接 Spoolman："/>
   <translation tag="Could not read the current IPv4 settings." zh="无法读取当前的 IPv4 设置。"/>
+  <translation tag="Could not read the printer&apos;s limits: {}" zh="无法读取打印机的限制：{}"/>
   <translation tag="Could not read the printer&apos;s storage" zh="无法读取打印机存储"/>
   <translation tag="Could not read the screw adjustments from the printer" zh="无法从打印机读取螺丝调整数据"/>
   <translation tag="Could not remove the job from the queue" zh="无法从队列中移除任务"/>
@@ -1483,6 +1486,7 @@
   <translation tag="Failed to upload modified G-code: {}" zh="上传修改后的 G-code 失败: {}"/>
   <translation tag="Failed to upload the extracted G-code: {}" zh="无法上传提取的 G-code: {}"/>
   <translation tag="Failed to upload the rewritten G-code: {}" zh="上传改写后的 G-code 失败：{}"/>
+  <translation tag="Faint lines: compensation off. Bright lines: compensation on." zh="浅色线条：补偿关闭。亮色线条：补偿开启。"/>
   <translation tag="Fair match" zh="匹配中等"/>
   <translation tag="Fan" zh="风扇"/>
   <translation tag="Fan Calibration" zh="风扇校准"/>
@@ -1594,6 +1598,7 @@
   <translation tag="Filename" zh="文件名"/>
   <translation tag="Filter" zh="滤网"/>
   <translation tag="Filter Fan" zh="过滤风扇"/>
+  <translation tag="Find the print speeds that shake the printer" zh="找出使打印机抖动的打印速度"/>
   <translation tag="Finding where the print stopped..." zh="正在查找打印停止的位置..."/>
   <translation tag="Fine" zh="细调"/>
   <translation tag="Fine Inner" zh="细调内圈"/>
@@ -1680,6 +1685,7 @@
   <translation tag="Generic" zh="通用"/>
   <translation tag="Get help and share feedback" zh="获取帮助和反馈"/>
   <translation tag="Getting Started" zh="入门"/>
+  <translation tag="Getting ready..." zh="正在准备..."/>
   <translation tag="Glass Effects" zh="玻璃效果"/>
   <translation tag="Global" zh="全局"/>
   <translation tag="Global Z offset" zh="全局Z偏移"/>
@@ -2011,6 +2017,7 @@
   <translation tag="Keep hands clear except when asked. The printer moves on its own." zh="除提示时外请让手远离打印机。打印机会自行移动。"/>
   <translation tag="Keep hands clear. The printer moves on its own." zh="请勿将手靠近。打印机会自行移动。"/>
   <translation tag="Keep its own data on this screen (up to 256 KB)." zh="在此屏幕上保存自己的数据（最多256 KB）。"/>
+  <translation tag="Keep outer walls out of these speeds (Orca: Outer wall speed; PrusaSlicer: External perimeters)." zh="外墙请避开这些速度（Orca: Outer wall speed; PrusaSlicer: External perimeters）。"/>
   <translation tag="Keep pushing filament while it cools" zh="冷却时继续推送耗材"/>
   <translation tag="Keep the bypass spool visible when bypass is off" zh="旁路关闭时保持料盘可见"/>
   <translation tag="Keep the rotation distance sync feedback tunes" zh="保存同步反馈调校的旋转距离"/>
@@ -2540,6 +2547,7 @@
   <translation tag="No sensors detected" zh="未检测到传感器"/>
   <translation tag="No shared peaks" zh="无共同峰值"/>
   <translation tag="No slot currently matches." zh="当前没有匹配的槽位。"/>
+  <translation tag="No speed shook the printer clearly more than the rest." zh="没有哪个速度使打印机的抖动明显强于其他速度。"/>
   <translation tag="No spool assigned" zh="未分配料盘"/>
   <translation tag="No spool linked" zh="未关联料盘"/>
   <translation tag="No spools found — tap to retry" zh="未找到料盘 - 点击重试"/>
@@ -2670,6 +2678,7 @@
   <translation tag="Old logs" zh="旧日志"/>
   <translation tag="Old setting on today&apos;s data: {} residual - now: {}" zh="旧设置（今日数据）：残余 {} — 当前：{}"/>
   <translation tag="On" zh="开"/>
+  <translation tag="On a bed-slinger the Y motor is measured only with an accelerometer on the bed." zh="在热床沿 Y 移动的打印机上，只有将加速度传感器装在热床上才能测量 Y 电机。"/>
   <translation tag="On and Off macros must be different" zh="开和关的宏必须不同"/>
   <translation tag="On-screen Alerts" zh="屏幕提醒"/>
   <translation tag="On/Off" zh="开/关"/>
@@ -3350,6 +3359,7 @@
   <translation tag="Round {}" zh="第 {} 轮"/>
   <translation tag="Rounded" zh="圆角"/>
   <translation tag="Run" zh="运行"/>
+  <translation tag="Run Again" zh="再次运行"/>
   <translation tag="Run Calibration Wizard" zh="运行校准向导"/>
   <translation tag="Run Dangerous Macro?" zh="运行危险宏？"/>
   <translation tag="Run Macro" zh="运行宏"/>
@@ -3957,6 +3967,7 @@
   <translation tag="The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it." zh="在任何移动之前，热床和喷嘴同时加热，使打印件重新附着，喷嘴脱离打印件。"/>
   <translation tag="The bed has cooled. Take the spools off the plate, then confirm." zh="热床已冷却。请从热床上取下料盘,然后确认。"/>
   <translation tag="The bed heater. Set its temperature and watch its graph on the bed temperature screen." zh="热床加热器。在热床温度界面设置温度并查看曲线。"/>
+  <translation tag="The bed is clear and the toolhead can move freely" zh="热床已清空，工具头可以自由移动"/>
   <translation tag="The bed is too small for settling laps." zh="打印床太小，无法进行稳定绕圈。"/>
   <translation tag="The bed is too small for the test tower, or its size is unknown." zh="热床太小放不下测试塔,或尺寸未知。"/>
   <translation tag="The bed turns off. The spools stay latched on the bed until you confirm they are off." zh="热床将关闭。在你确认取下之前,料盘仍视为在热床上。"/>
@@ -4048,6 +4059,7 @@
   <translation tag="The printer did not change its bed check" zh="打印机未更改热床检查"/>
   <translation tag="The printer did not change its bed check: {}" zh="打印机未更改热床检查：{}"/>
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." zh="打印机未确认打印已开始 ({})。它仍可能开始：再次开始前请检查打印机。"/>
+  <translation tag="The printer did not report its toolhead limits." zh="打印机未报告其工具头限制。"/>
   <translation tag="The printer did not reset the filter" zh="打印机未重置滤网"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." zh="打印机在角落挤出并重复，直到读数一致为止。你无需用肉眼判断任何东西。"/>
   <translation tag="The printer finishes this measurement on its own." zh="打印机会自行完成这次测量。"/>
@@ -4060,6 +4072,8 @@
   <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." zh="打印机将按需归零，然后确定切刀的位置。请保持料路畅通。"/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." zh="打印机会先归位,然后让热床尽量远离喷嘴。有些料盘耐热性不足,可能会变形。在你确认料盘已从热床上取下之前,此屏幕不会移动任何部件;Mainsail、宏以及切片软件发送的打印不会被阻止。"/>
   <translation tag="The printer homes, then probes each screw position." zh="打印机先归位，然后探测每个螺丝位置。"/>
+  <translation tag="The printer is busy. Run the check when no print or other motion is in progress." zh="打印机正忙。请在没有打印或其他运动进行时运行检查。"/>
+  <translation tag="The printer is not connected." zh="打印机未连接。"/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." zh="打印机尚未归位。继续将对所有轴执行归位操作，移动工具头。请确保热床上没有障碍物。"/>
   <translation tag="The printer is not ready." zh="打印机未就绪。"/>
   <translation tag="The printer is shut down." zh="打印机已关机。"/>
@@ -4102,6 +4116,7 @@
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。请在打印前手动取出耗材。仍要开始打印吗？"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。在清空之前，打印机可能拒绝装载槽位。仍要开始打印吗？"/>
   <translation tag="The toolhead is not homed, so this would home into the print" zh="工具头尚未归位，归位会使喷嘴碰到打印件"/>
+  <translation tag="The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from." zh="工具头以 20 到 300 mm/s 的速度来回移动，同时加速度传感器测量每个电机的抖动强度。大约需要 {0} 分钟，并且噪音较大。抖动最强的速度就是外墙应避开的速度。"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" zh="工具头传感器显示耗材已装载。仍要继续装载吗？"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" zh="工具头传感器显示无耗材。仍要继续卸载吗？"/>
   <translation tag="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing." zh="检测到顶盖已断开连接。为确保打印质量，请连接顶盖后再继续使用。"/>
@@ -4110,6 +4125,7 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" zh="该单元的板载存储已损坏。需更换 CFS 主板"/>
   <translation tag="The unload did not start: unload by hand, then start again" zh="卸载未开始:请手动卸载,然后重新开始"/>
   <translation tag="The unload finishes on its own, but the plate will not move." zh="卸载会自行完成,但热床不会移动。"/>
+  <translation tag="The {0} motor was not measured: {1}." zh="{0} 电机未测量：{1}。"/>
   <translation tag="Theme" zh="主题"/>
   <translation tag="Theme Colors" zh="主题颜色"/>
   <translation tag="Theme Preset" zh="主题预设"/>
@@ -4134,6 +4150,7 @@
   <translation tag="This calibration uses the paper friction method to set your Z-offset." zh="此校准使用纸张摩擦法设置 Z 偏移。"/>
   <translation tag="This cannot be undone." zh="此操作无法撤销。"/>
   <translation tag="This channel offers v{}, older than the installed v{}. Anything added since then will be removed." zh="此通道提供 v{}，早于已安装的 v{}。此后新增的内容都将被移除。"/>
+  <translation tag="This check reads the accelerometer directly, so HelixScreen must run on the printer&apos;s own computer." zh="此检查直接读取加速度传感器，因此 HelixScreen 必须运行在打印机自身的计算机上。"/>
   <translation tag="This check runs Klipper&apos;s resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.&#10;&#10;Each sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs." zh="此检查会沿每条皮带路径运行 Klipper 的共振测试，并比较两个响应。平衡的皮带会给出形状相同、峰值位于相同频率的曲线。&#10;&#10;每次扫频需要几分钟并会移动工具头；运行期间请远离打印机。"/>
   <translation tag="This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again." zh="这会清除所有无限料盘备用设置。在重新设置无限料盘之前，耗材用尽时打印将停止。"/>
   <translation tag="This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand." zh="本次冷拉清理使用此工具头中已装载的耗材。挤出机及耗材路径顶部必须能用手够到。"/>
@@ -4170,6 +4187,7 @@
   <translation tag="This printer cannot calibrate tool offsets automatically" zh="此打印机无法自动校准工具偏移"/>
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." zh="此打印机的通道信息来自 Spoolman。HelixScreen 已清除本地副本；请在 Spoolman 中移除该线轴。"/>
   <translation tag="This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman." zh="此打印机的通道信息来自 Spoolman。请在 Spoolman 中更改颜色、材料和线轴。"/>
+  <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." zh="此打印机具有电机补偿，因此检查会运行两次：先关闭补偿，再开启补偿。"/>
   <translation tag="This printer has no IFS." zh="此打印机没有 IFS。"/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" zh="此打印机没有 INDX LOAD_FILAMENT 宏"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." zh="此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。"/>
@@ -4179,6 +4197,7 @@
   <translation tag="This printer&apos;s INDX macros are missing: {}" zh="此打印机的 INDX 宏缺少：{}"/>
   <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." zh="此打印机的 Moonraker 拒绝了其 API 密钥。请在 设置 &gt; 连接 中检查密钥。"/>
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." zh="此打印机的 Moonraker 要求登录。请在 设置 &gt; 连接 中添加其 API 密钥。"/>
+  <translation tag="This printer&apos;s accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown." zh="此打印机的加速度传感器最高测量 {0:.0f} Hz，因此不显示更快的纹波。"/>
   <translation tag="This printer&apos;s firmware has its own power-loss recovery." zh="此打印机的固件自带断电恢复。"/>
   <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." zh="此打印机的龙门在断电时会下落，因此无法恢复打印。"/>
   <translation tag="This printer&apos;s homing override homes Z along with X and Y, so a print can&apos;t be resumed." zh="此打印机的 homing override 会在 X 和 Y 轴归零时一并将 Z 轴归零，因此无法恢复打印。"/>
@@ -4187,6 +4206,7 @@
   <translation tag="This printer&apos;s network service controls the WiFi radio" zh="此打印机的网络服务控制 WiFi 无线模块"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" zh="此打印机的网络服务管理已保存的 WiFi 网络"/>
   <translation tag="This printer&apos;s screen has not shared a layout" zh="此打印机的屏幕尚未共享布局"/>
+  <translation tag="This printer&apos;s travel or settings cannot hold the test moves." zh="此打印机的行程或设置无法容纳测试移动。"/>
   <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." zh="这会移除插件的 Moonraker 组件并重启 Moonraker。打印机将短暂断开连接。如果 PRINT_START 中仍有旧的阶段跟踪行，它们也会被移除，但会保留备份。重启 Klipper 后生效。"/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." zh="这会将打印机的帮助宏替换为当前版本并重启 Klipper。"/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." zh="这会将打印机的帮助宏替换为当前版本。当前正在打印，Klipper 将在打印结束后重启。"/>
@@ -4318,6 +4338,8 @@
   <translation tag="Try Again" zh="重试"/>
   <translation tag="Try adjusting your search or filters" zh="尝试调整搜索或筛选条件"/>
   <translation tag="Try the operation again. If it persists, check for mechanical issues." zh="请重试该操作。如果问题持续存在，请检查是否有机械故障。"/>
+  <translation tag="Try {0} mm/s" zh="尝试 {0} mm/s"/>
+  <translation tag="Try {0} or {1} mm/s" zh="尝试 {0} 或 {1} mm/s"/>
   <translation tag="Trying again..." zh="正在重试..."/>
   <translation tag="Tune" zh="调优"/>
   <translation tag="Tune Belts" zh="调整皮带"/>
@@ -4481,6 +4503,7 @@
   <translation tag="Version and what the plugin runs" zh="版本及插件运行的功能"/>
   <translation tag="Version {}" zh="版本 {}"/>
   <translation tag="Vertical" zh="垂直"/>
+  <translation tag="Vertical Artifact Check" zh="垂直纹路检查"/>
   <translation tag="Vertical Artifact Compensation" zh="垂直纹路补偿"/>
   <translation tag="Vibration" zh="振动"/>
   <translation tag="Vibration compensation active" zh="振动补偿已启用"/>
@@ -4523,6 +4546,7 @@
   <translation tag="Waiting for the filament system to report its state" zh="正在等待耗材系统报告状态"/>
   <translation tag="Waiting for the printer" zh="正在等待打印机"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." zh="正在等待从 Klipper 读取打印机配置。"/>
+  <translation tag="Wall Speed Shakes This Printer" zh="外墙速度会使此打印机抖动"/>
   <translation tag="Warm" zh="暖色"/>
   <translation tag="Warm Bed" zh="预热热床"/>
   <translation tag="Warm up for a material in one tap" zh="一键为材料预热"/>
@@ -4611,6 +4635,7 @@
   <translation tag="X axis done, starting Y..." zh="X 轴完成，开始 Y 轴..."/>
   <translation tag="X axis limit reached" zh="已到达 X 轴限位"/>
   <translation tag="X is at its limit ({}mm)" zh="X 轴已到达限位 ({}mm)"/>
+  <translation tag="X motor" zh="X 电机"/>
   <translation tag="X:" zh="X："/>
   <translation tag="XY" zh="XY"/>
   <translation tag="XY axis" zh="XY 轴"/>
@@ -4619,6 +4644,7 @@
   <translation tag="Y Offset" zh="Y 偏移"/>
   <translation tag="Y axis limit reached" zh="已到达 Y 轴限位"/>
   <translation tag="Y is at its limit ({}mm)" zh="Y 轴已到达限位 ({}mm)"/>
+  <translation tag="Y motor" zh="Y 电机"/>
   <translation tag="Y:" zh="Y："/>
   <translation tag="YOU WIN!&#10;Score: {}&#10;Tap to play again" zh="你赢了！&#10;得分：{}&#10;点按再玩一次"/>
   <translation tag="Year" zh="年"/>
@@ -4628,6 +4654,7 @@
   <translation tag="You have unsaved changes. Discard them?" zh="您有未保存的更改。是否丢弃？"/>
   <translation tag="Your completed prints will appear here" zh="您完成的打印将显示在此处"/>
   <translation tag="Your filament system" zh="您的耗材系统"/>
+  <translation tag="Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)." zh="您的文件要求外墙速度为 {0:.0f} mm/s。此打印机在上次垂直纹路检查中于 {1:.0f}-{2:.0f} mm/s 抖动最强，这可能会在沿 X 或 Y 的墙面上印出细小的竖线。{3}（Orca: Outer wall speed; PrusaSlicer: External perimeters）。"/>
   <translation tag="Your files" zh="您的文件"/>
   <translation tag="Your print start or end macro also sets LEDs. It and Automatic LED Control may override each other." zh="您的打印开始或结束宏也会设置 LED。它与自动 LED 控制可能会互相覆盖。"/>
   <translation tag="Your printer at a glance" zh="一览您的打印机"/>
@@ -4793,10 +4820,14 @@
   <translation tag="within one bin" zh="在一个频点内"/>
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." zh="wpa_supplicant 未运行。WiFi 功能不可用。"/>
   <translation tag="you have" zh="您有"/>
+  <translation tag="{0:.0f}-{1:.0f} mm/s: the {2}x ripple meets a {3:.0f} Hz resonance" zh="{0:.0f}-{1:.0f} mm/s：{2}x 纹波与 {3:.0f} Hz 共振重合"/>
   <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." zh="{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。"/>
   <translation tag="{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?" zh="已安装 {0}。共用一个探针时，请用 {1} 校准。继续使用 {0}？"/>
   <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." zh="{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。"/>
+  <translation tag="{0} motor, compensation on: {1:.0f} mm/s ({2} of {3})" zh="{0} 电机，补偿开启：{1:.0f} mm/s（{2}/{3}）"/>
+  <translation tag="{0} motor: {1:.0f} mm/s ({2} of {3})" zh="{0} 电机：{1:.0f} mm/s（{2}/{3}）"/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." zh="{0} 在 {2:.0f} Hz 处的共振远强于 {1}。这说明是机械差异(同步轮顶丝、惰轮轴承、皮带走向),而不是张力。"/>
+  <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)" zh="{1:.0f} mm/s 下的 {0}x 纹波：之前 {2:.0f}，之后 {3:.0f}（减少 {4}%）"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" zh="{:.0f}-{:.0f} Hz · 约 {} 分钟"/>
   <translation tag="{} ({})" zh="{}（{}）"/>
   <translation tag="{} Extruders" zh="{} 个挤出机"/>

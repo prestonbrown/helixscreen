@@ -31,6 +31,7 @@
 #include "ui_panel_home.h"
 #include "ui_panel_input_shaper.h"
 #include "ui_panel_motion.h"
+#include "ui_panel_motor_ripple.h"
 #include "ui_panel_print_select.h"
 #include "ui_panel_print_status.h"
 #include "ui_panel_screws_tilt.h"
@@ -327,6 +328,7 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     init_zoffset_row_handler();
     helix::ui::init_tool_offset_row_handler();
     helix::ui::init_stepper_resonance_cal_row_handler();
+    helix::ui::init_motor_ripple_row_handler();
     init_zoffset_event_callbacks();
     init_probe_row_handler();
     helix::ui::init_chamber_air_notices();

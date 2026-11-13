@@ -9,6 +9,7 @@ translations:
   ' · {} loosened about {}': " · {} um etwa {} gelockert"
   ' · {} tightened about {}': " · {} um etwa {} gespannt"
   '"%s" failed to load': '"%s" konnte nicht geladen werden'
+  '"After" is compensation as your printer applies it, with its factory settings.': '"Nachher" ist die Kompensation, wie dein Drucker sie mit seinen Werkseinstellungen anwendet.'
   '%d additional fan': '%d zusätzlicher Lüfter'
   '%d additional fans': '%d zusätzliche Lüfter'
   '%d feeders': '%d Zuführungen'
@@ -295,6 +296,7 @@ translations:
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: 'Nach dem Anschließen von {} empfehlen wir, Input Shaping neu zu kalibrieren, um die Druckqualität zu sichern.'
   After running the commands, tap Check Again below.: Tippen Sie nach Ausführung der
     Befehle unten auf Erneut prüfen.
+  Afterwards, Vertical Artifact Check in this menu shows how much it helped.: 'Danach zeigt die Prüfung vertikaler Artefakte in diesem Menü, wie viel es gebracht hat.'
   Air filter: "Luftfilter"
   Alert: Alarm
   Alerts: Alarme
@@ -1084,6 +1086,7 @@ translations:
   Could not parse tips database: Tipps-Datenbank konnte nicht ausgelesen werden
   Could not reach Spoolman at: 'Spoolman nicht erreichbar unter:'
   Could not read the current IPv4 settings.: 'Die aktuellen IPv4-Einstellungen konnten nicht gelesen werden.'
+  "Could not read the printer's limits: {}": 'Die Grenzwerte des Druckers konnten nicht gelesen werden: {}'
   Could not read the printer's storage: 'Der Speicher des Druckers konnte nicht gelesen werden'
   Could not read the screw adjustments from the printer: Schraubeneinstellungen konnten nicht vom Drucker gelesen werden
   Could not remove the job from the queue: Der Auftrag konnte nicht aus der Warteschlange entfernt werden
@@ -1638,6 +1641,7 @@ translations:
   : "moonraker.conf konnte nicht aktualisiert werden.\nDruckerverbindung prüfen."
   'Failed to upload modified G-code: {}': 'Geänderten G-Code hochladen fehlgeschlagen:
     {}'
+  'Faint lines: compensation off. Bright lines: compensation on.': 'Blasse Linien: Kompensation aus. Helle Linien: Kompensation ein.'
   Fair match: "Mäßige Passung"
   'Failed to upload the extracted G-code: {}': 'Extrahierter G-code konnte nicht hochgeladen werden: {}'
   'Failed to upload the rewritten G-code: {}': 'Umgeschriebener G-code konnte nicht hochgeladen werden: {}'
@@ -1755,6 +1759,7 @@ translations:
   Filename: Dateiname
   Filter: "Filter"
   Filter Fan: 'Filterlüfter'
+  Find the print speeds that shake the printer: 'Finde die Druckgeschwindigkeiten, bei denen der Drucker vibriert'
   Finding where the print stopped...: Suche, wo der Druck stehen blieb...
   Fine: Fein
   Fine Inner: Fein Innen
@@ -1842,6 +1847,7 @@ translations:
   Gear sync: Zahnradsynchronisation
   Generic: Generisch
   Get help and share feedback: Hilfe erhalten und Feedback teilen
+  Getting ready...: 'Wird vorbereitet...'
   Glass Effects: Glaseffekte
   Global: Global
   Global Z offset: Globaler Z-Versatz
@@ -2209,6 +2215,7 @@ translations:
   Keep hands clear. The printer moves on its own.: Hände fernhalten. Der Drucker bewegt sich von selbst.
 
   Keep its own data on this screen (up to 256 KB).: 'Speichert eigene Daten auf diesem Bildschirm (bis zu 256 KB).'
+  'Keep outer walls out of these speeds (Orca: Outer wall speed; PrusaSlicer: External perimeters).': 'Halte Außenwände aus diesen Geschwindigkeiten heraus (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   Keep pushing filament while it cools: "Beim Abkühlen weiter Filament nachschieben"
   Keep the bypass spool visible when bypass is off: Bypass-Spule sichtbar halten, wenn Bypass deaktiviert ist
   Keep Tuning: "Weiter einstellen"
@@ -2768,6 +2775,7 @@ translations:
   No sensors detected: Keine Sensoren erkannt
   No shared peaks: "Keine gemeinsamen Spitzen"
   No slot currently matches.: 'Derzeit passt kein Slot.'
+  No speed shook the printer clearly more than the rest.: 'Keine Geschwindigkeit hat den Drucker deutlich stärker vibrieren lassen als die anderen.'
   No spool assigned: Keine Spule zugewiesen
   No spool linked: 'Keine Spule verknüpft'
   No spools found — tap to retry: Keine Spulen gefunden — tippen zum Wiederholen
@@ -2905,6 +2913,7 @@ translations:
   Old logs: 'Alte Protokolle'
   "Old setting on today's data: {} residual - now: {}": 'Alte Einstellung auf heutigen Daten: {} Restvibration - jetzt: {}'
   'On': Ein
+  On a bed-slinger the Y motor is measured only with an accelerometer on the bed.: 'Bei einem Bed-Slinger wird der Y-Motor nur mit einem Beschleunigungssensor auf dem Heizbett gemessen.'
   On and Off macros must be different: Ein- und Aus-Makros müssen unterschiedlich
     sein
   On-screen Alerts: 'Bildschirmhinweise'
@@ -3630,6 +3639,7 @@ translations:
   Round {}: "Runde {}"
   Rounded: Abgerundet
   Run: Ausführen
+  Run Again: 'Erneut ausführen'
   Run Calibration Wizard: 'Kalibrierungsassistent starten'
   Run Dangerous Macro?: Gefährliches Makro ausführen?
   Run Macro: Makro ausführen
@@ -4307,6 +4317,7 @@ translations:
   "The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.": "Bett und Düse heizen gemeinsam auf, bevor sich etwas bewegt, damit der Druck wieder haftet und die Düse sich von ihm löst."
   The bed has cooled. Take the spools off the plate, then confirm.: Das Heizbett ist abgekühlt. Nimm die Spulen vom Heizbett und bestätige dann.
 
+  The bed is clear and the toolhead can move freely: 'Das Heizbett ist frei und der Werkzeugkopf kann sich ungehindert bewegen'
   The bed is too small for settling laps.: 'Das Bett ist zu klein für Setzrunden.'
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: 'Die Heizbettheizung. Stelle die Temperatur ein und beobachte den Verlauf im Heizbett-Temperatur-Bildschirm.'
   The bed is too small for the test tower, or its size is unknown.: Das Bett ist zu klein für den Testturm oder seine Größe ist unbekannt.
@@ -4412,6 +4423,7 @@ translations:
   The printer did not change its bed check: 'Der Drucker hat seine Bettprüfung nicht geändert'
   'The printer did not change its bed check: {}': 'Der Drucker hat seine Bettprüfung nicht geändert: {}'
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'Der Drucker hat den Druckstart nicht bestätigt ({}). Er kann trotzdem noch starten: Prüfe den Drucker, bevor du ihn erneut startest.'
+  The printer did not report its toolhead limits.: 'Der Drucker hat die Grenzwerte seines Werkzeugkopfs nicht gemeldet.'
   The printer did not reset the filter: 'Der Drucker hat den Filter nicht zurückgesetzt'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'Der Drucker extrudiert in einer Ecke und wiederholt, bis die Messwerte übereinstimmen. Du beurteilst nichts mit dem Auge.'
   The printer finishes this measurement on its own.: 'Der Drucker beendet diese Messung selbst.'
@@ -4430,6 +4442,8 @@ translations:
   : Der Drucker referenziert und fährt das Heizbett dann so weit wie möglich von der Düse weg. Manche Spulen sind nicht hitzebeständig genug und können sich verformen. Von diesem Bildschirm aus bewegt sich nichts, bis du bestätigst, dass die Spulen vom Heizbett sind; Mainsail, Makros und von einem Slicer gesendete Drucke werden nicht blockiert.
 
   The printer homes, then probes each screw position.: "Der Drucker fährt die Referenz an und misst dann jede Schraubenposition."
+  The printer is busy. Run the check when no print or other motion is in progress.: 'Der Drucker ist beschäftigt. Führe die Prüfung aus, wenn kein Druck und keine andere Bewegung läuft.'
+  The printer is not connected.: 'Der Drucker ist nicht verbunden.'
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: Der Drucker ist nicht referenziert. Wenn Sie fortfahren, werden alle Achsen referenziert und der Werkzeugkopf bewegt sich. Stellen Sie sicher, dass das Heizbett frei ist.
   The printer is not ready.: "Der Drucker ist nicht bereit."
   The printer is shut down.: 'Der Drucker ist heruntergefahren.'
@@ -4483,6 +4497,8 @@ translations:
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : Im Werkzeugkopf befindet sich Filament, aber kein AMS-Slot meldet es als geladen. Der Drucker verweigert möglicherweise das Laden eines Slots, bis er geleert ist. Trotzdem starten?
   The toolhead is not homed, so this would home into the print: 'Der Werkzeugkopf ist nicht referenziert, das Referenzieren würde in den Druck fahren'
+  ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
+  : 'Der Werkzeugkopf fährt mit Geschwindigkeiten von 20 bis 300 mm/s hin und her, während der Beschleunigungssensor misst, wie stark jeder Motor vibriert. Das dauert etwa {0} Minuten und ist laut. Von den Geschwindigkeiten mit der stärksten Vibration solltest du deine Außenwände fernhalten.'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: Der
     Werkzeugkopfsensor zeigt an, dass Filament bereits geladen ist. Trotzdem mit dem
     Laden fortfahren?
@@ -4495,6 +4511,7 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: Der interne Speicher der Einheit ist ausgefallen. Die CFS-Hauptplatine muss ersetzt werden
   'The unload did not start: unload by hand, then start again': 'Das Entladen hat nicht begonnen: Entlade von Hand und starte dann erneut'
   The unload finishes on its own, but the plate will not move.: 'Das Entladen läuft zu Ende, aber das Heizbett bewegt sich nicht.'
+  'The {0} motor was not measured: {1}.': 'Der {0}-Motor wurde nicht gemessen: {1}.'
   Theme: Thema
   Theme Colors: Themenfarben
   Theme Preset: Thema-Voreinstellung
@@ -4528,6 +4545,7 @@ translations:
     verwendet die Papierreibungsmethode zur Einstellung Ihres Z-Offsets.
   This cannot be undone.: Dies kann nicht rückgängig gemacht werden.
   This channel offers v{}, older than the installed v{}. Anything added since then will be removed.: 'Dieser Kanal bietet v{}, älter als die installierte v{}. Alles seither Hinzugekommene wird entfernt.'
+  This check reads the accelerometer directly, so HelixScreen must run on the printer's own computer.: 'Diese Prüfung liest den Beschleunigungssensor direkt aus, daher muss HelixScreen auf dem eigenen Computer des Druckers laufen.'
   ? "This check runs Klipper's resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.\n\nEach sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs."
   : "Diese Prüfung führt Klippers Resonanztest entlang jedes Riemenpfads aus und vergleicht die beiden Antworten. Ausgeglichene Riemen ergeben Kurven gleicher Form mit Spitzen bei denselben Frequenzen.\n\nJeder Sweep dauert ein paar Minuten und bewegt den Werkzeugkopf; halten Sie Abstand zum Drucker, während er läuft."
   This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again.: Dies löscht alle Endlosspulen-Reserven. Der Druck stoppt bei Filamentende, bis du die Endlosspule erneut einrichtest.
@@ -4576,6 +4594,7 @@ translations:
   This printer cannot calibrate tool offsets automatically: Dieser Drucker kann Werkzeug-Offsets nicht automatisch kalibrieren
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: Dieser Drucker füllt seine Gates aus Spoolman. HelixScreen hat seine eigene Kopie gelöscht; entferne die Spule in Spoolman.
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: Dieser Drucker füllt seine Gates aus Spoolman. Ändere Farbe, Material und Spule in Spoolman.
+  'This printer has motor compensation, so the check runs twice: with it off, then on.': 'Dieser Drucker hat eine Motorkompensation, daher läuft die Prüfung zweimal: erst ohne, dann mit.'
   This printer has no IFS.: "Dieser Drucker hat kein IFS."
   This printer has no INDX LOAD_FILAMENT macro: "Dieser Drucker hat kein INDX-Makro LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Dieser Drucker hat kein automatisches Entladen. Schneiden Sie das Filament am Werkzeugkopf ab und ziehen Sie es von Hand heraus.
@@ -4586,6 +4605,7 @@ translations:
   "This printer's INDX macros are missing: {}": "Den INDX-Makros dieses Druckers fehlt: {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'Das Moonraker dieses Druckers hat seinen API-Schlüssel abgelehnt. Prüfe den Schlüssel unter Einstellungen > Verbindung.'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Das Moonraker dieses Druckers verlangt eine Anmeldung. Trage seinen API-Schlüssel unter Einstellungen > Verbindung ein.'
+  This printer's accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown.: 'Der Beschleunigungssensor dieses Druckers misst bis {0:.0f} Hz, daher werden schnellere Welligkeiten nicht angezeigt.'
   This printer's firmware has its own power-loss recovery.: "Die Firmware dieses Druckers hat ihre eigene Wiederherstellung nach Stromausfall."
   This printer's gantry drops when the power is cut, so a print can't be resumed.: "Das Portal dieses Druckers sackt bei einem Stromausfall ab, daher kann ein Druck nicht fortgesetzt werden."
   This printer's homing override homes Z along with X and Y, so a print can't be resumed.: "Der Homing-Override dieses Druckers referenziert Z zusammen mit X und Y, daher kann ein Druck nicht fortgesetzt werden."
@@ -4594,6 +4614,7 @@ translations:
   This printer's network service controls the WiFi radio: Der Netzwerkdienst dieses Druckers steuert das WiFi-Funkmodul
   This printer's network service manages saved WiFi networks: Der Netzwerkdienst dieses Druckers verwaltet gespeicherte WiFi-Netzwerke
   This printer's screen has not shared a layout: "Der Bildschirm dieses Druckers hat kein Layout geteilt"
+  This printer's travel or settings cannot hold the test moves.: 'Verfahrweg oder Einstellungen dieses Druckers reichen für die Testbewegungen nicht aus.'
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : Dies entfernt die Moonraker-Komponente des Plugins und startet Moonraker neu. Der Drucker wird kurz getrennt. Falls in PRINT_START noch alte Zeilen zur Phasenverfolgung vorhanden sind, werden sie ebenfalls entfernt, wobei Backups aufbewahrt werden. Ein Klipper-Neustart wendet das an.
   This replaces the printer's helper macros with the current version and restarts Klipper.: 'Dies ersetzt die Hilfsmakros des Druckers durch die aktuelle Version und startet Klipper neu.'
@@ -4751,6 +4772,8 @@ translations:
   Try adjusting your search or filters: Versuchen Sie Suche oder Filter anzupassen
   Try Again: 'Erneut versuchen'
   Try the operation again. If it persists, check for mechanical issues.: Versuchen Sie den Vorgang erneut. Wenn das Problem bestehen bleibt, prüfen Sie auf mechanische Probleme.
+  Try {0} mm/s: 'Versuche {0} mm/s'
+  Try {0} or {1} mm/s: 'Versuche {0} oder {1} mm/s'
   Trying again...: 'Erneuter Versuch...'
   Tune: Abstimmen
   Tune Belts: "Einstellen"
@@ -4913,6 +4936,7 @@ translations:
   Version and what the plugin runs: 'Version und was das Plugin ausführt'
   Version {}: Version {}
   Vertical: Vertikal
+  Vertical Artifact Check: 'Prüfung vertikaler Artefakte'
   Vertical Artifact Compensation: 'Kompensation vertikaler Artefakte'
   Vibration: Vibration
   Vibration compensation active: Vibrationskompensation aktiv
@@ -4956,6 +4980,7 @@ translations:
   Waiting for the filament system to report its state: Warte auf Statusmeldung des Filamentsystems
   Waiting for the printer: Warten auf den Drucker
   Waiting to read the printer's configuration from Klipper.: "Warte darauf, die Konfiguration des Druckers aus Klipper zu lesen."
+  Wall Speed Shakes This Printer: 'Wandgeschwindigkeit bringt diesen Drucker zum Vibrieren'
   Warm: Warm
   Warm Bed: Bett vorheizen
   Warm up for a material in one tap: Material mit einem Tipp vorheizen
@@ -5048,6 +5073,7 @@ translations:
   X axis done, starting Y...: 'X-Achse fertig, starte Y...'
   X axis limit reached: X-Achsen-Limit erreicht
   X is at its limit ({}mm): X ist an seinem Limit ({}mm)
+  X motor: 'X-Motor'
   'X:': 'X:'
   XY: XY
   XY axis: "XY-Achse"
@@ -5056,6 +5082,7 @@ translations:
   Y Offset: Y-Offset
   Y axis limit reached: Y-Achsen-Limit erreicht
   Y is at its limit ({}mm): Y ist an seinem Limit ({}mm)
+  Y motor: 'Y-Motor'
   'Y:': 'Y:'
   ? "YOU WIN!\nScore: {}\nTap to play again"
   : "GEWONNEN!\nPunkte: {}\nZum erneuten Spielen tippen"
@@ -5067,6 +5094,8 @@ translations:
   You have unsaved changes. Discard them?: Sie haben ungespeicherte Änderungen. Verwerfen?
   Your completed prints will appear here: Ihre abgeschlossenen Drucke werden hier
     angezeigt
+  ? 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
+  : 'Deine Datei verlangt Außenwände mit {0:.0f} mm/s. Dieser Drucker vibrierte bei seiner letzten Prüfung vertikaler Artefakte am stärksten bei {1:.0f}-{2:.0f} mm/s, was feine vertikale Linien auf Wänden entlang X oder Y erzeugen kann. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   Your files: 'Ihre Dateien'
   Your print start or end macro also sets LEDs. It and Automatic LED Control may override each other.: 'Ihr Druckstart- oder Druckende-Makro steuert ebenfalls LEDs. Es und die automatische LED-Steuerung können sich gegenseitig überschreiben.'
   Your printer at a glance: Ihr Drucker auf einen Blick
@@ -5244,12 +5273,16 @@ translations:
   within one bin: "innerhalb eines Bins"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant läuft nicht. WiFi-Funktionen sind nicht verfügbar.
   you have: Sie haben
+  '{0:.0f}-{1:.0f} mm/s: the {2}x ripple meets a {3:.0f} Hz resonance': '{0:.0f}-{1:.0f} mm/s: die {2}x-Welligkeit trifft auf eine Resonanz bei {3:.0f} Hz'
   ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
   : '{0} sind offen. {1} druckt am besten in einem warmen, geschlossenen Gehäuse; eine offene Tür kühlt den Bauraum und kann Verzug oder Schichtrisse verursachen. Schließen oder trotzdem starten.'
   ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
   : '{0} ist offen. {1} druckt am besten in einem warmen, geschlossenen Gehäuse; eine offene Tür kühlt den Bauraum und kann Verzug oder Schichtrisse verursachen. Schließen oder trotzdem starten.'
+  '{0} motor, compensation on: {1:.0f} mm/s ({2} of {3})': '{0}-Motor, Kompensation ein: {1:.0f} mm/s ({2} von {3})'
+  '{0} motor: {1:.0f} mm/s ({2} of {3})': '{0}-Motor: {1:.0f} mm/s ({2} von {3})'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} schwingt bei {2:.0f} Hz viel stärker als {1}. Das deutet auf einen mechanischen Unterschied hin (Madenschrauben am Pulley, Umlenkrollenlager, Riemenlauf), nicht auf die Spannung."
+  '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': '{0}x-Welligkeit bei {1:.0f} mm/s: {2:.0f} vorher, {3:.0f} nachher ({4}% weniger)'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · ca. {} Min.'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} Extruder'

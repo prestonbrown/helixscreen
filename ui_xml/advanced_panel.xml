@@ -293,6 +293,14 @@
           <bind_flag_if cond="printer_has_accelerometer eq 0 or printer_supports_belt_compare eq 0" flag="hidden"/>
           <event_cb trigger="clicked" callback="on_belt_tension_row_clicked"/>
         </setting_action_row>
+        <!-- Vertical Artifact Check (hidden without an accelerometer, a supported
+             kinematics or the steppers' geometry) -->
+        <setting_action_row name="row_motor_ripple"
+                            label="Vertical Artifact Check" icon="vibrate"
+                            description="Find the print speeds that shake the printer">
+          <bind_flag_if_eq subject="printer_supports_ripple_check" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_motor_ripple_row_clicked"/>
+        </setting_action_row>
         <!-- Probe Management (hidden if no probe) -->
         <setting_action_row name="row_probe"
                             label="Probe Management" icon="target"

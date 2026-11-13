@@ -9,6 +9,7 @@ translations:
   ' · {} loosened about {}': " · {}を約{}緩めた"
   ' · {} tightened about {}': " · {}を約{}締めた"
   '"%s" failed to load': '"%s" の読み込みに失敗しました'
+  '"After" is compensation as your printer applies it, with its factory settings.': '「後」は、プリンターが工場出荷時の設定で適用する補正です。'
   '%d additional fan': '追加ファン %d 個'
   '%d additional fans': '追加ファン %d 個'
   '%d feeders': '%d フィーダー'
@@ -282,6 +283,7 @@ translations:
   After an error: エラーの後
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: '{}を接続した後は、印刷品質のためにインプットシェーピングの再キャリブレーションをお勧めします。'
   After running the commands, tap Check Again below.: コマンド実行後、下の「再確認」をタップしてください。
+  Afterwards, Vertical Artifact Check in this menu shows how much it helped.: 'その後、このメニューの垂直アーティファクトチェックで効果を確認できます。'
   Air filter: "エアフィルター"
   Alert: アラート
   Alerts: アラート
@@ -1014,6 +1016,7 @@ translations:
   Could not parse tips database: ヒントデータベースを解析できませんでした
   Could not reach Spoolman at: 'Spoolman に接続できません:'
   Could not read the current IPv4 settings.: '現在のIPv4設定を読み取れませんでした。'
+  "Could not read the printer's limits: {}": 'プリンターの限界値を読み取れませんでした: {}'
   Could not read the printer's storage: 'プリンターのストレージを読み取れませんでした'
   Could not read the screw adjustments from the printer: プリンターからネジ調整を読み取れませんでした
   Could not remove the job from the queue: キューからジョブを削除できませんでした
@@ -1546,6 +1549,7 @@ translations:
   'Failed to upload modified G-code: {}': '変更済み G-code のアップロードに失敗しました: {}'
   'Failed to upload the extracted G-code: {}': '抽出した G-code をアップロードできませんでした: {}'
   'Failed to upload the rewritten G-code: {}': '書き換えたG-codeのアップロードに失敗しました: {}'
+  'Faint lines: compensation off. Bright lines: compensation on.': '薄い線: 補正オフ。明るい線: 補正オン。'
   Fair match: "まずまずの一致"
   Fan: ファン
   Fan Calibration: ファンキャリブレーション
@@ -1659,6 +1663,7 @@ translations:
   Filename: ファイル名
   Filter: "フィルター"
   Filter Fan: 'フィルターファン'
+  Find the print speeds that shake the printer: 'プリンターを揺らす印刷速度を見つけます'
   Finding where the print stopped...: 印刷が止まった位置を探しています...
   Fine: 微動
   Fine Inner: 微動・内側
@@ -1746,6 +1751,7 @@ translations:
   Gear sync: ギア同期
   Generic: 汎用
   Get help and share feedback: ヘルプとフィードバック
+  Getting ready...: '準備中...'
   Glass Effects: ガラス効果
   Global: グローバル
   Global Z offset: グローバルZオフセット
@@ -2093,6 +2099,7 @@ translations:
   Keep hands clear. The printer moves on its own.: 手を近づけないでください。プリンターは自動で動きます。
 
   Keep its own data on this screen (up to 256 KB).: 'この画面に独自のデータを保存します（最大256 KB）。'
+  'Keep outer walls out of these speeds (Orca: Outer wall speed; PrusaSlicer: External perimeters).': '外壁はこれらの速度を避けてください (Orca: Outer wall speed; PrusaSlicer: External perimeters)。'
   Keep pushing filament while it cools: "冷却中もフィラメントを押し続けてください"
   Keep the bypass spool visible when bypass is off: バイパスオフ時もバイパススプールの表示を維持
   Keep Tuning: "調整を続ける"
@@ -2628,6 +2635,7 @@ translations:
   No sensors detected: センサーが検出されませんでした
   No shared peaks: "共通のピークなし"
   No slot currently matches.: '現在、一致するスロットはありません。'
+  No speed shook the printer clearly more than the rest.: '他より明らかにプリンターを揺らした速度はありませんでした。'
   No spool assigned: スプール未割当
   No spool linked: 'スプール未リンク'
   No spools found — tap to retry: スプールが見つかりません — タップして再試行
@@ -2765,6 +2773,7 @@ translations:
   Old logs: '古いログ'
   "Old setting on today's data: {} residual - now: {}": '旧設定を今日のデータに適用: 残留 {} - 現在: {}'
   'On': オン
+  On a bed-slinger the Y motor is measured only with an accelerometer on the bed.: 'ベッドが Y 方向に動くプリンターでは、Y モーターはベッド上の加速度センサーでのみ測定されます。'
   On and Off macros must be different: オンとオフのマクロは異なるものにしてください
   On-screen Alerts: '画面上の通知'
   On/Off: オン/オフ
@@ -3462,6 +3471,7 @@ translations:
   Round {}: "ラウンド {}"
   Rounded: ラウンド
   Run: 実行
+  Run Again: '再実行'
   Run Calibration Wizard: 'キャリブレーションウィザードを実行'
   Run Dangerous Macro?: 危険なマクロを実行しますか？
   Run Macro: マクロを実行
@@ -4095,6 +4105,7 @@ translations:
   "The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.": "何かが動く前にベッドとノズルを同時に加熱し、印刷物を再び密着させてノズルを印刷物から離します。"
   The bed has cooled. Take the spools off the plate, then confirm.: ベッドが冷えました。スプールをベッドから取り出してから確認してください。
 
+  The bed is clear and the toolhead can move freely: 'ベッドに物がなく、ツールヘッドが自由に動ける'
   The bed is too small for settling laps.: 'ベッドが小さすぎて、なじませ周回ができません。'
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: 'ベッドヒーター。温度の設定とグラフの確認はベッド温度画面で行えます。'
   The bed is too small for the test tower, or its size is unknown.: ベッドがテストタワーには小さすぎるか、サイズが不明です。
@@ -4197,6 +4208,7 @@ translations:
   The printer did not change its bed check: 'プリンターはベッドチェックを変更しませんでした'
   'The printer did not change its bed check: {}': 'プリンターはベッドチェックを変更しませんでした：{}'
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'プリンターが印刷開始を確認しませんでした ({})。まだ開始する可能性があります。もう一度開始する前にプリンターを確認してください。'
+  The printer did not report its toolhead limits.: 'プリンターがツールヘッドの限界値を報告しませんでした。'
   The printer did not reset the filter: 'プリンターがフィルターをリセットしませんでした'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。'
   The printer finishes this measurement on its own.: 'この測定はプリンターが最後まで行います。'
@@ -4213,6 +4225,8 @@ translations:
   : プリンターはホームに戻ってから、ベッドをノズルからできるだけ離します。耐熱性が足りずに変形するスプールもあります。スプールをベッドから取り出したことを確認するまで、この画面からは何も動きません。Mainsail、マクロ、スライサーから送られた印刷はブロックされません。
 
   The printer homes, then probes each screw position.: "プリンターは原点復帰してから各ネジ位置を測定します。"
+  The printer is busy. Run the check when no print or other motion is in progress.: 'プリンターはビジー状態です。印刷やその他の動作が行われていないときにチェックを実行してください。'
+  The printer is not connected.: 'プリンターが接続されていません。'
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: プリンターがホーミングされていません。続行すると全軸がホーミングされ、ツールヘッドが移動します。ベッドに物がないことを確認してください。
   The printer is not ready.: "プリンターの準備ができていません。"
   The printer is shut down.: 'プリンターはシャットダウンしています。'
@@ -4261,6 +4275,8 @@ translations:
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。取り除くまで、プリンターがスロットの装填を拒否する場合があります。それでも印刷を開始しますか？
   The toolhead is not homed, so this would home into the print: 'ツールヘッドがホーミングされていないため、ホーミングするとノズルが造形物に当たります'
+  ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
+  : 'ツールヘッドが 20 から 300 mm/s の速度で往復し、その間に加速度センサーが各モーターの揺れの強さを測定します。所要時間は約 {0} 分で、大きな音がします。最も揺れる速度が、外壁で避けるべき速度です。'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: ツールヘッドセンサーがフィラメント装填済みを検出しました。それでも装填を続行しますか？
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: ツールヘッドセンサーがフィラメント未検出を報告しました。それでもアンロードを続行しますか？
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: 'トップカバーが外れました。印刷品質のため、続行する前にトップカバーを接続してください。'
@@ -4269,6 +4285,7 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: ユニットの内蔵ストレージが故障しました。CFS のメインボードの交換が必要です
   'The unload did not start: unload by hand, then start again': '排出が始まりませんでした: 手で排出してから、もう一度始めてください'
   The unload finishes on its own, but the plate will not move.: '排出はそのまま完了しますが、ベッドは移動しません。'
+  'The {0} motor was not measured: {1}.': '{0} モーターは測定されませんでした: {1}。'
   Theme: テーマ
   Theme Colors: テーマカラー
   Theme Preset: テーマプリセット
@@ -4300,6 +4317,7 @@ translations:
     Z-offset を設定します。
   This cannot be undone.: この操作は元に戻せません。
   This channel offers v{}, older than the installed v{}. Anything added since then will be removed.: 'このチャンネルが提供するのは v{} で、インストール済みの v{} より古いバージョンです。それ以降に追加されたものは削除されます。'
+  This check reads the accelerometer directly, so HelixScreen must run on the printer's own computer.: 'このチェックは加速度センサーを直接読み取るため、HelixScreen はプリンター本体のコンピューターで動作している必要があります。'
   ? "This check runs Klipper's resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.\n\nEach sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs."
   : "このチェックはKlipperの共振テストを各ベルトパスに沿って実行し、2つの応答を比較します。バランスの取れたベルトは同じ形の曲線になり、ピークが同じ周波数に現れます。\n\n各スイープには数分かかり、ツールヘッドが動きます。実行中はプリンターから離れてください。"
   This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again.: エンドレススプールの予備をすべて消去します。エンドレススプールを再設定するまで、フィラメント切れで印刷が停止します。
@@ -4345,6 +4363,7 @@ translations:
   This printer cannot calibrate tool offsets automatically: このプリンターはツールオフセットを自動でキャリブレートできません
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: このプリンターのゲートは Spoolman から設定されます。HelixScreen 側のコピーはクリアしました。Spoolman でスプールを削除してください。
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: このプリンターのゲートは Spoolman から設定されます。色・素材・スプールの変更は Spoolman で行ってください。
+  'This printer has motor compensation, so the check runs twice: with it off, then on.': 'このプリンターにはモーター補正があるため、チェックは補正オフ、続いてオンの 2 回実行されます。'
   This printer has no IFS.: "このプリンターにはIFSがありません。"
   This printer has no INDX LOAD_FILAMENT macro: "このプリンターにはINDXのLOAD_FILAMENTマクロがありません"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: このプリンターには自動アンロード機能がありません。ヘッド部分でフィラメントを切り、手で引き抜いてください。
@@ -4355,6 +4374,7 @@ translations:
   "This printer's INDX macros are missing: {}": "このプリンターのINDXマクロに不足があります: {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'このプリンターのMoonrakerがAPIキーを拒否しました。設定 > 接続 でキーを確認してください。'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'このプリンターのMoonrakerはログインを要求しています。設定 > 接続 でAPIキーを追加してください。'
+  This printer's accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown.: 'このプリンターの加速度センサーは {0:.0f} Hz までしか測定できないため、それより速いリップルは表示されません。'
   This printer's firmware has its own power-loss recovery.: "このプリンターのファームウェアには独自の停電からの復帰機能があります。"
   This printer's gantry drops when the power is cut, so a print can't be resumed.: "このプリンターのガントリーは電源が切れると落下するため、印刷を再開できません。"
   This printer's homing override homes Z along with X and Y, so a print can't be resumed.: "このプリンターのhoming overrideはXとYと同時にZもホーミングするため、印刷を再開できません。"
@@ -4363,6 +4383,7 @@ translations:
   This printer's network service controls the WiFi radio: このプリンターのネットワークサービスが WiFi 無線を制御しています
   This printer's network service manages saved WiFi networks: このプリンターのネットワークサービスが保存済みの WiFi ネットワークを管理しています
   This printer's screen has not shared a layout: "このプリンターの画面はレイアウトを共有していません"
+  This printer's travel or settings cannot hold the test moves.: 'このプリンターの可動範囲または設定では、テスト動作を行えません。'
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : プラグインの Moonraker コンポーネントを削除し、Moonraker を再起動します。プリンターは一時的に切断されます。PRINT_START に古いフェーズトラッキングの行が残っている場合、それらも削除されますが、バックアップは保持されます。Klipper を再起動すると、その変更が適用されます。
   This replaces the printer's helper macros with the current version and restarts Klipper.: 'プリンターのヘルパーマクロを現在のバージョンに置き換え、Klipper を再起動します。'
@@ -4507,6 +4528,8 @@ translations:
   Try adjusting your search or filters: 検索やフィルターを調整してみてください
   Try Again: '再試行'
   Try the operation again. If it persists, check for mechanical issues.: もう一度お試しください。解決しない場合は機械的な問題がないか確認してください。
+  Try {0} mm/s: '{0} mm/s を試す'
+  Try {0} or {1} mm/s: '{0} または {1} mm/s を試す'
   Trying again...: '再試行中...'
   Tune: チューニング
   Tune Belts: "ベルト調整"
@@ -4663,6 +4686,7 @@ translations:
   Version and what the plugin runs: 'バージョンとプラグインが実行する機能'
   Version {}: バージョン {}
   Vertical: 垂直
+  Vertical Artifact Check: '垂直アーティファクトチェック'
   Vertical Artifact Compensation: '垂直アーティファクト補正'
   Vibration: 振動
   Vibration compensation active: 振動補正が有効です
@@ -4705,6 +4729,7 @@ translations:
   Waiting for the filament system to report its state: フィラメントシステムの状態報告を待機中
   Waiting for the printer: プリンターを待っています
   Waiting to read the printer's configuration from Klipper.: "Klipperからプリンターの設定を読み込むのを待っています。"
+  Wall Speed Shakes This Printer: '壁の速度でこのプリンターが揺れます'
   Warm: ウォーム
   Warm Bed: ベッドを予熱
   Warm up for a material in one tap: 素材に合わせてワンタップで予熱
@@ -4793,6 +4818,7 @@ translations:
   X axis done, starting Y...: 'X軸が完了しました。Y軸を開始します...'
   X axis limit reached: X軸のリミットに達しました
   X is at its limit ({}mm): X軸は限界に達しています ({}mm)
+  X motor: 'X モーター'
   'X:': 'X:'
   XY: XY
   XY axis: "XY軸"
@@ -4801,6 +4827,7 @@ translations:
   Y Offset: Yオフセット
   Y axis limit reached: Y軸のリミットに達しました
   Y is at its limit ({}mm): Y軸は限界に達しています ({}mm)
+  Y motor: 'Y モーター'
   'Y:': 'Y:'
   ? "YOU WIN!\nScore: {}\nTap to play again"
   : "クリア！\nスコア: {}\nタップでもう一度"
@@ -4810,6 +4837,8 @@ translations:
   You can skip this and calibrate later in Settings.: スキップして後で設定でキャリブレーションできます。
   You have unsaved changes. Discard them?: 保存されていない変更があります。破棄しますか？
   Your completed prints will appear here: 完了した印刷がここに表示されます
+  ? 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
+  : 'このファイルは外壁を {0:.0f} mm/s で印刷します。このプリンターは前回の垂直アーティファクトチェックで {1:.0f}-{2:.0f} mm/s で最も強く揺れました。これは X または Y に沿った壁に細い縦線を生じさせることがあります。{3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)。'
   Your files: 'あなたのファイル'
   Your print start or end macro also sets LEDs. It and Automatic LED Control may override each other.: '印刷開始または終了マクロもLEDを設定しています。マクロと自動LED制御が互いに上書きする可能性があります。'
   Your printer at a glance: プリンターを一目で確認
@@ -4982,12 +5011,16 @@ translations:
   within one bin: "1ビン以内"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant が動作していません。WiFi 機能は利用できません。
   you have: 現在は
+  '{0:.0f}-{1:.0f} mm/s: the {2}x ripple meets a {3:.0f} Hz resonance': '{0:.0f}-{1:.0f} mm/s: {2}x リップルが {3:.0f} Hz の共振と重なります'
   ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
   : '{0}が開いています。{1}は暖かく閉じたエンクロージャーで最もよく印刷できます。ドアが開いているとチャンバーが冷え、反りやレイヤーの分離の原因になります。閉じるか、このまま開始してください。'
   ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
   : '{0}が開いています。{1}は暖かく閉じたエンクロージャーで最もよく印刷できます。ドアが開いているとチャンバーが冷え、反りやレイヤーの分離の原因になります。閉じるか、このまま開始してください。'
+  '{0} motor, compensation on: {1:.0f} mm/s ({2} of {3})': '{0} モーター、補正オン: {1:.0f} mm/s ({2} / {3})'
+  '{0} motor: {1:.0f} mm/s ({2} of {3})': '{0} モーター: {1:.0f} mm/s ({2} / {3})'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0}は{2:.0f} Hzで{1}よりはるかに強く共振しています。張力ではなく機械的な違い(プーリーのイモネジ、アイドラーのベアリング、ベルトの走行)を示しています。"
+  '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': '{1:.0f} mm/s での {0}x リップル: 前 {2:.0f}、後 {3:.0f} ({4}% 減少)'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 約{}分'
   '{} ({})': '{}（{}）'
   '{} Extruders': '{} エクストルーダー'

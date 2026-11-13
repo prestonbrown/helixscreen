@@ -8,6 +8,7 @@
   <translation tag=" · {} loosened about {}" ru=" · {} ослаблен примерно на {}"/>
   <translation tag=" · {} tightened about {}" ru=" · {} натянут примерно на {}"/>
   <translation tag="&quot;%s&quot; failed to load" ru="Не удалось загрузить «%s»"/>
+  <translation tag="&quot;After&quot; is compensation as your printer applies it, with its factory settings." ru="«После» означает компенсацию в том виде, в каком её применяет принтер с заводскими настройками."/>
   <translation tag="%d additional fan" ru="%d дополнительный вентилятор"/>
   <translation tag="%d additional fans" ru="%d дополнительных вентилятора"/>
   <translation tag="%d additional fans_few" ru="%d дополнительных вентилятора"/>
@@ -315,6 +316,7 @@
   <translation tag="After an error" ru="После ошибки"/>
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." ru="После подключения {} рекомендуем заново откалибровать компенсацию вибраций для качества печати."/>
   <translation tag="After running the commands, tap Check Again below." ru="После выполнения команд нажмите «Проверить снова» ниже."/>
+  <translation tag="Afterwards, Vertical Artifact Check in this menu shows how much it helped." ru="После этого «Проверка вертикальных артефактов» в этом меню покажет, насколько это помогло."/>
   <translation tag="Air filter" ru="Воздушный фильтр"/>
   <translation tag="Alert" ru="Оповещение"/>
   <translation tag="Alerts" ru="Оповещения"/>
@@ -1009,6 +1011,7 @@
   <translation tag="Could not parse tips database" ru="Не удалось разобрать базу данных советов"/>
   <translation tag="Could not reach Spoolman at" ru="Не удалось связаться со Spoolman по адресу"/>
   <translation tag="Could not read the current IPv4 settings." ru="Не удалось прочитать текущие настройки IPv4."/>
+  <translation tag="Could not read the printer&apos;s limits: {}" ru="Не удалось прочитать пределы принтера: {}"/>
   <translation tag="Could not read the printer&apos;s storage" ru="Не удалось прочитать хранилище принтера"/>
   <translation tag="Could not read the screw adjustments from the printer" ru="Не удалось получить данные регулировки винтов от принтера"/>
   <translation tag="Could not remove the job from the queue" ru="Не удалось удалить задание из очереди"/>
@@ -1528,6 +1531,7 @@
   <translation tag="Failed to upload modified G-code: {}" ru="Не удалось загрузить изменённый G-code: {}"/>
   <translation tag="Failed to upload the extracted G-code: {}" ru="Не удалось загрузить извлечённый G-code: {}"/>
   <translation tag="Failed to upload the rewritten G-code: {}" ru="Не удалось загрузить переписанный G-code: {}"/>
+  <translation tag="Faint lines: compensation off. Bright lines: compensation on." ru="Бледные линии: компенсация выключена. Яркие линии: компенсация включена."/>
   <translation tag="Fair match" ru="Среднее совпадение"/>
   <translation tag="Fan" ru="Вентилятор"/>
   <translation tag="Fan Calibration" ru="Калибровка вентилятора"/>
@@ -1639,6 +1643,7 @@
   <translation tag="Filename" ru="Имя файла"/>
   <translation tag="Filter" ru="Фильтр"/>
   <translation tag="Filter Fan" ru="Вентилятор фильтра"/>
+  <translation tag="Find the print speeds that shake the printer" ru="Найти скорости печати, на которых принтер трясёт"/>
   <translation tag="Finding where the print stopped..." ru="Поиск места, где остановилась печать..."/>
   <translation tag="Fine" ru="Точно"/>
   <translation tag="Fine Inner" ru="Точно (внутренний)"/>
@@ -1728,6 +1733,7 @@
   <translation tag="Generic" ru="Общий"/>
   <translation tag="Get help and share feedback" ru="Получить помощь и поделиться отзывом"/>
   <translation tag="Getting Started" ru="Начало работы"/>
+  <translation tag="Getting ready..." ru="Подготовка..."/>
   <translation tag="Glass Effects" ru="Эффекты стекла"/>
   <translation tag="Global" ru="Общий"/>
   <translation tag="Global Z offset" ru="Общее смещение Z"/>
@@ -2059,6 +2065,7 @@
   <translation tag="Keep hands clear except when asked. The printer moves on its own." ru="Держите руки подальше, если не появится запрос. Принтер двигается сам."/>
   <translation tag="Keep hands clear. The printer moves on its own." ru="Держите руки подальше. Принтер двигается сам."/>
   <translation tag="Keep its own data on this screen (up to 256 KB)." ru="Хранит собственные данные на этом экране (до 256 КБ)."/>
+  <translation tag="Keep outer walls out of these speeds (Orca: Outer wall speed; PrusaSlicer: External perimeters)." ru="Не используйте эти скорости для внешних стенок (Orca: Outer wall speed; PrusaSlicer: External perimeters)."/>
   <translation tag="Keep pushing filament while it cools" ru="Продолжайте подавать филамент, пока он остывает"/>
   <translation tag="Keep the bypass spool visible when bypass is off" ru="Показывать катушку байпаса, даже когда байпас выключен"/>
   <translation tag="Keep the rotation distance sync feedback tunes" ru="Сохранять дистанцию вращения, подобранную обратной связью синхронизации"/>
@@ -2588,6 +2595,7 @@
   <translation tag="No sensors detected" ru="Датчики не обнаружены"/>
   <translation tag="No shared peaks" ru="Нет общих пиков"/>
   <translation tag="No slot currently matches." ru="Сейчас нет подходящего слота."/>
+  <translation tag="No speed shook the printer clearly more than the rest." ru="Ни на одной скорости принтер не трясло заметно сильнее, чем на остальных."/>
   <translation tag="No spool assigned" ru="Катушка не назначена"/>
   <translation tag="No spool linked" ru="Катушка не привязана"/>
   <translation tag="No spools found — tap to retry" ru="Катушки не найдены — нажмите для повтора"/>
@@ -2718,6 +2726,7 @@
   <translation tag="Old logs" ru="Старые журналы"/>
   <translation tag="Old setting on today&apos;s data: {} residual - now: {}" ru="Прежняя настройка на сегодняшних данных: остаточная вибрация {} — сейчас: {}"/>
   <translation tag="On" ru="Вкл"/>
+  <translation tag="On a bed-slinger the Y motor is measured only with an accelerometer on the bed." ru="На принтере с подвижным по Y столом мотор Y измеряется только акселерометром, установленным на столе."/>
   <translation tag="On and Off macros must be different" ru="Макросы включения и выключения должны отличаться"/>
   <translation tag="On-screen Alerts" ru="Экранные оповещения"/>
   <translation tag="On/Off" ru="Вкл/Выкл"/>
@@ -3407,6 +3416,7 @@
   <translation tag="Round {}" ru="Раунд {}"/>
   <translation tag="Rounded" ru="Скруглённый"/>
   <translation tag="Run" ru="Запуск"/>
+  <translation tag="Run Again" ru="Запустить снова"/>
   <translation tag="Run Calibration Wizard" ru="Запустить мастер калибровки"/>
   <translation tag="Run Dangerous Macro?" ru="Запустить опасный макрос?"/>
   <translation tag="Run Macro" ru="Запустить макрос"/>
@@ -4020,6 +4030,7 @@
   <translation tag="The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it." ru="Стол и сопло нагреваются вместе до любого движения, чтобы печать снова прилипла, а сопло отделилось от неё."/>
   <translation tag="The bed has cooled. Take the spools off the plate, then confirm." ru="Стол остыл. Снимите катушки со стола, затем подтвердите."/>
   <translation tag="The bed heater. Set its temperature and watch its graph on the bed temperature screen." ru="Нагреватель стола. Температура задается, а график виден на экране температуры стола."/>
+  <translation tag="The bed is clear and the toolhead can move freely" ru="Стол свободен, и печатающая головка может свободно двигаться"/>
   <translation tag="The bed is too small for settling laps." ru="Стол слишком мал для кругов приработки."/>
   <translation tag="The bed is too small for the test tower, or its size is unknown." ru="Стол слишком мал для тестовой башни, или его размер неизвестен."/>
   <translation tag="The bed turns off. The spools stay latched on the bed until you confirm they are off." ru="Стол выключится. Катушки считаются лежащими на столе, пока вы не подтвердите, что сняли их."/>
@@ -4111,6 +4122,7 @@
   <translation tag="The printer did not change its bed check" ru="Принтер не изменил проверку стола"/>
   <translation tag="The printer did not change its bed check: {}" ru="Принтер не изменил проверку стола: {}"/>
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." ru="Принтер не подтвердил начало печати ({}). Печать ещё может начаться: проверьте принтер, прежде чем запускать её снова."/>
+  <translation tag="The printer did not report its toolhead limits." ru="Принтер не сообщил пределы печатающей головки."/>
   <translation tag="The printer did not reset the filter" ru="Принтер не сбросил счётчик фильтра"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ru="Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз."/>
   <translation tag="The printer finishes this measurement on its own." ru="Принтер завершит это измерение сам."/>
@@ -4123,6 +4135,8 @@
   <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." ru="Принтер при необходимости ищет ноль, затем определяет положение резака. Держите путь филамента свободным."/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." ru="Принтер выполнит парковку, затем отведёт стол как можно дальше от сопла. Некоторые катушки недостаточно термостойкие и могут деформироваться. С этого экрана ничего не будет двигаться, пока вы не подтвердите, что катушки сняты со стола; Mainsail, макросы и печать, отправленная из слайсера, не блокируются."/>
   <translation tag="The printer homes, then probes each screw position." ru="Принтер выполняет парковку, затем измеряет каждую позицию винта."/>
+  <translation tag="The printer is busy. Run the check when no print or other motion is in progress." ru="Принтер занят. Запустите проверку, когда не идёт печать или другое движение."/>
+  <translation tag="The printer is not connected." ru="Принтер не подключён."/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." ru="Принтер не запаркован. Продолжение выполнит парковку всех осей, печатающая головка переместится. Убедитесь, что стол свободен."/>
   <translation tag="The printer is not ready." ru="Принтер не готов."/>
   <translation tag="The printer is shut down." ru="Принтер выключен."/>
@@ -4165,6 +4179,7 @@
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" ru="В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Извлеките его вручную перед печатью. Всё равно начать?"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" ru="В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Принтер может отказаться загружать слот, пока она не будет очищена. Всё равно начать?"/>
   <translation tag="The toolhead is not homed, so this would home into the print" ru="Печатающая головка не запаркована, парковка ударит её о модель"/>
+  <translation tag="The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from." ru="Печатающая головка движется взад и вперёд на скоростях от 20 до 300 mm/s, а акселерометр измеряет, насколько сильно трясёт каждый мотор. Это займёт около {0} минут и будет шумно. Скорости с самой сильной тряской и есть те, которых следует избегать для внешних стенок."/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" ru="Датчик печатающей головки показывает, что филамент уже загружен. Всё равно продолжить загрузку?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" ru="Датчик печатающей головки показывает, что филамент отсутствует. Всё равно продолжить выгрузку?"/>
   <translation tag="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing." ru="Верхняя крышка отключена. Для качества печати подключите её, прежде чем продолжить."/>
@@ -4173,6 +4188,7 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" ru="Встроенная память блока вышла из строя. Требуется замена материнской платы CFS"/>
   <translation tag="The unload did not start: unload by hand, then start again" ru="Выгрузка не началась: выгрузите вручную и начните заново"/>
   <translation tag="The unload finishes on its own, but the plate will not move." ru="Выгрузка завершится сама, но стол не будет перемещаться."/>
+  <translation tag="The {0} motor was not measured: {1}." ru="Мотор {0} не измерен: {1}."/>
   <translation tag="Theme" ru="Тема"/>
   <translation tag="Theme Colors" ru="Цвета темы"/>
   <translation tag="Theme Preset" ru="Пресет темы"/>
@@ -4197,6 +4213,7 @@
   <translation tag="This calibration uses the paper friction method to set your Z-offset." ru="Эта калибровка использует метод трения бумаги об сопло для установки Z-смещения."/>
   <translation tag="This cannot be undone." ru="Это действие нельзя отменить."/>
   <translation tag="This channel offers v{}, older than the installed v{}. Anything added since then will be removed." ru="Этот канал предлагает v{}, старее установленной v{}. Всё добавленное с тех пор будет удалено."/>
+  <translation tag="This check reads the accelerometer directly, so HelixScreen must run on the printer&apos;s own computer." ru="Эта проверка читает акселерометр напрямую, поэтому HelixScreen должен работать на собственном компьютере принтера."/>
   <translation tag="This check runs Klipper&apos;s resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.&#10;&#10;Each sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs." ru="Эта проверка запускает резонансный тест Klipper по каждому пути ремня и сравнивает два отклика. Сбалансированные ремни дают кривые одинаковой формы с пиками на одних и тех же частотах.&#10;&#10;Каждый свип занимает несколько минут и перемещает печатающую головку; держитесь подальше от принтера во время работы."/>
   <translation tag="This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again." ru="Это очистит все резервы бесконечной катушки. Печать будет останавливаться при окончании филамента, пока вы снова не настроите бесконечную катушку."/>
   <translation tag="This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand." ru="Для этой холодной протяжки используется филамент, загруженный в эту головку. Экструдер и верх пути филамента должны быть доступны рукой."/>
@@ -4233,6 +4250,7 @@
   <translation tag="This printer cannot calibrate tool offsets automatically" ru="Этот принтер не может калибровать смещения инструментов автоматически"/>
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." ru="Этот принтер берёт данные шлюзов из Spoolman. HelixScreen очистил свою копию; удалите катушку в Spoolman."/>
   <translation tag="This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman." ru="Этот принтер берёт данные шлюзов из Spoolman. Меняйте цвет, материал и катушку в Spoolman."/>
+  <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." ru="У этого принтера есть компенсация моторов, поэтому проверка выполняется дважды: сначала с выключенной, затем с включённой."/>
   <translation tag="This printer has no IFS." ru="У этого принтера нет IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" ru="На этом принтере нет макроса INDX LOAD_FILAMENT"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." ru="У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную."/>
@@ -4242,6 +4260,7 @@
   <translation tag="This printer&apos;s INDX macros are missing: {}" ru="В макросах INDX этого принтера отсутствует: {}"/>
   <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." ru="Moonraker этого принтера отклонил его API-ключ. Проверьте ключ в Настройки &gt; Соединение."/>
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." ru="Moonraker этого принтера требует входа. Добавьте его API-ключ в Настройки &gt; Соединение."/>
+  <translation tag="This printer&apos;s accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown." ru="Акселерометр этого принтера измеряет до {0:.0f} Hz, поэтому более быстрые пульсации не показаны."/>
   <translation tag="This printer&apos;s firmware has its own power-loss recovery." ru="Прошивка этого принтера имеет собственное восстановление после отключения питания."/>
   <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." ru="Портал этого принтера опускается при отключении питания, поэтому печать нельзя продолжить."/>
   <translation tag="This printer&apos;s homing override homes Z along with X and Y, so a print can&apos;t be resumed." ru="Homing override этого принтера паркует Z вместе с X и Y, поэтому печать нельзя продолжить."/>
@@ -4250,6 +4269,7 @@
   <translation tag="This printer&apos;s network service controls the WiFi radio" ru="WiFi-модулем управляет сетевая служба этого принтера"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" ru="Сохранёнными сетями WiFi управляет сетевая служба этого принтера"/>
   <translation tag="This printer&apos;s screen has not shared a layout" ru="Экран этого принтера не поделился раскладкой"/>
+  <translation tag="This printer&apos;s travel or settings cannot hold the test moves." ru="Ход или настройки этого принтера не позволяют выполнить тестовые движения."/>
   <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." ru="Это удаляет компонент Moonraker плагина и перезапускает Moonraker. Принтер ненадолго отключится. Если в PRINT_START всё ещё остались старые строки отслеживания фаз, они также удаляются, при этом резервные копии сохраняются. Перезапуск Klipper применяет эти изменения."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." ru="Это заменит вспомогательные макросы принтера текущей версией и перезапустит Klipper."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." ru="Это заменит вспомогательные макросы принтера текущей версией. Идёт печать, поэтому Klipper перезапустится после её завершения."/>
@@ -4381,6 +4401,8 @@
   <translation tag="Try Again" ru="Повторить"/>
   <translation tag="Try adjusting your search or filters" ru="Попробуйте изменить поиск или фильтры"/>
   <translation tag="Try the operation again. If it persists, check for mechanical issues." ru="Повторите операцию. Если проблема не исчезает, проверьте механические неисправности."/>
+  <translation tag="Try {0} mm/s" ru="Попробуйте {0} mm/s"/>
+  <translation tag="Try {0} or {1} mm/s" ru="Попробуйте {0} или {1} mm/s"/>
   <translation tag="Trying again..." ru="Повторная попытка..."/>
   <translation tag="Tune" ru="Настройка"/>
   <translation tag="Tune Belts" ru="Настроить"/>
@@ -4544,6 +4566,7 @@
   <translation tag="Version and what the plugin runs" ru="Версия и что выполняет плагин"/>
   <translation tag="Version {}" ru="Версия {}"/>
   <translation tag="Vertical" ru="Вертикально"/>
+  <translation tag="Vertical Artifact Check" ru="Проверка вертикальных артефактов"/>
   <translation tag="Vertical Artifact Compensation" ru="Компенсация вертикальных артефактов"/>
   <translation tag="Vibration" ru="Вибрация"/>
   <translation tag="Vibration compensation active" ru="Компенсация вибраций активна"/>
@@ -4586,6 +4609,7 @@
   <translation tag="Waiting for the filament system to report its state" ru="Ожидание состояния системы филамента"/>
   <translation tag="Waiting for the printer" ru="Ожидание принтера"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." ru="Ожидание чтения конфигурации принтера из Klipper."/>
+  <translation tag="Wall Speed Shakes This Printer" ru="Скорость стенок вызывает тряску принтера"/>
   <translation tag="Warm" ru="Тёплый"/>
   <translation tag="Warm Bed" ru="Прогреть стол"/>
   <translation tag="Warm up for a material in one tap" ru="Преднагрев под материал одним нажатием"/>
@@ -4674,6 +4698,7 @@
   <translation tag="X axis done, starting Y..." ru="Ось X готова, запуск Y..."/>
   <translation tag="X axis limit reached" ru="Достигнут предел оси X"/>
   <translation tag="X is at its limit ({}mm)" ru="X на пределе ({}mm)"/>
+  <translation tag="X motor" ru="Мотор X"/>
   <translation tag="X:" ru="X:"/>
   <translation tag="XY" ru="XY"/>
   <translation tag="XY axis" ru="Ось XY"/>
@@ -4682,6 +4707,7 @@
   <translation tag="Y Offset" ru="Смещение Y"/>
   <translation tag="Y axis limit reached" ru="Достигнут предел оси Y"/>
   <translation tag="Y is at its limit ({}mm)" ru="Y на пределе ({}mm)"/>
+  <translation tag="Y motor" ru="Мотор Y"/>
   <translation tag="Y:" ru="Y:"/>
   <translation tag="YOU WIN!&#10;Score: {}&#10;Tap to play again" ru="ПОБЕДА!&#10;Счёт: {}&#10;Нажмите, чтобы сыграть снова"/>
   <translation tag="Year" ru="Год"/>
@@ -4691,6 +4717,7 @@
   <translation tag="You have unsaved changes. Discard them?" ru="У вас есть несохранённые изменения. Отменить их?"/>
   <translation tag="Your completed prints will appear here" ru="Ваши завершённые печати появятся здесь"/>
   <translation tag="Your filament system" ru="Ваша система филамента"/>
+  <translation tag="Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)." ru="В файле внешние стенки печатаются на {0:.0f} mm/s. При последней проверке вертикальных артефактов этот принтер сильнее всего трясло на {1:.0f}-{2:.0f} mm/s, что может оставлять тонкие вертикальные линии на стенках вдоль X или Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)."/>
   <translation tag="Your files" ru="Ваши файлы"/>
   <translation tag="Your print start or end macro also sets LEDs. It and Automatic LED Control may override each other." ru="Ваш макрос начала или окончания печати тоже управляет светодиодами. Он и автоматическое управление светодиодами могут перезаписывать друг друга."/>
   <translation tag="Your printer at a glance" ru="Ваш принтер одним взглядом"/>
@@ -4859,10 +4886,14 @@
   <translation tag="within one bin" ru="в пределах одного бина"/>
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." ru="wpa_supplicant не запущен. Функции WiFi недоступны."/>
   <translation tag="you have" ru="у вас"/>
+  <translation tag="{0:.0f}-{1:.0f} mm/s: the {2}x ripple meets a {3:.0f} Hz resonance" ru="{0:.0f}-{1:.0f} mm/s: пульсация {2}x совпадает с резонансом {3:.0f} Hz"/>
   <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." ru="{0} открыты. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте их или начните всё равно."/>
   <translation tag="{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?" ru="Установлен {0}. С общим датчиком калибруйте с {1}. Продолжить с {0}?"/>
   <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." ru="{0} открыта. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте её или начните всё равно."/>
+  <translation tag="{0} motor, compensation on: {1:.0f} mm/s ({2} of {3})" ru="Мотор {0}, компенсация вкл.: {1:.0f} mm/s ({2} из {3})"/>
+  <translation tag="{0} motor: {1:.0f} mm/s ({2} of {3})" ru="Мотор {0}: {1:.0f} mm/s ({2} из {3})"/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." ru="{0} резонирует на {2:.0f} Гц намного сильнее, чем {1}. Это указывает на механическое различие (установочные винты шкивов, подшипники роликов, ход ремня), а не на натяжение."/>
+  <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)" ru="Пульсация {0}x на {1:.0f} mm/s: {2:.0f} до, {3:.0f} после ({4}% меньше)"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ru="{:.0f}-{:.0f} Гц · примерно {} мин"/>
   <translation tag="{} ({})" ru="{} ({})"/>
   <translation tag="{} Extruders" ru="Экструдеров: {}"/>

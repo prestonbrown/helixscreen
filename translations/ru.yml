@@ -9,6 +9,7 @@ translations:
   ' · {} loosened about {}': " · {} ослаблен примерно на {}"
   ' · {} tightened about {}': " · {} натянут примерно на {}"
   '"%s" failed to load': Не удалось загрузить «%s»
+  '"After" is compensation as your printer applies it, with its factory settings.': '«После» означает компенсацию в том виде, в каком её применяет принтер с заводскими настройками.'
   '%d additional fan': '%d дополнительный вентилятор'
   '%d additional fans':
     one: '%d дополнительный вентилятор'
@@ -338,6 +339,7 @@ translations:
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: 'После подключения {} рекомендуем заново откалибровать компенсацию вибраций для качества печати.'
   After running the commands, tap Check Again below.: После выполнения команд нажмите
     «Проверить снова» ниже.
+  Afterwards, Vertical Artifact Check in this menu shows how much it helped.: 'После этого «Проверка вертикальных артефактов» в этом меню покажет, насколько это помогло.'
   Air filter: "Воздушный фильтр"
   Alert: Оповещение
   Alerts: Оповещения
@@ -1129,6 +1131,7 @@ translations:
   Could not parse tips database: Не удалось разобрать базу данных советов
   Could not reach Spoolman at: Не удалось связаться со Spoolman по адресу
   Could not read the current IPv4 settings.: 'Не удалось прочитать текущие настройки IPv4.'
+  "Could not read the printer's limits: {}": 'Не удалось прочитать пределы принтера: {}'
   Could not read the printer's storage: 'Не удалось прочитать хранилище принтера'
   Could not read the screw adjustments from the printer: Не удалось получить данные регулировки винтов от принтера
   Could not remove the job from the queue: Не удалось удалить задание из очереди
@@ -1674,6 +1677,7 @@ translations:
     {}'
   'Failed to upload the extracted G-code: {}': 'Не удалось загрузить извлечённый G-code: {}'
   'Failed to upload the rewritten G-code: {}': 'Не удалось загрузить переписанный G-code: {}'
+  'Faint lines: compensation off. Bright lines: compensation on.': 'Бледные линии: компенсация выключена. Яркие линии: компенсация включена.'
   Fair match: "Среднее совпадение"
   Fan: Вентилятор
   Fan Calibration: Калибровка вентилятора
@@ -1789,6 +1793,7 @@ translations:
   Filename: Имя файла
   Filter: "Фильтр"
   Filter Fan: 'Вентилятор фильтра'
+  Find the print speeds that shake the printer: 'Найти скорости печати, на которых принтер трясёт'
   Finding where the print stopped...: Поиск места, где остановилась печать...
   Fine: Точно
   Fine Inner: Точно (внутренний)
@@ -1880,6 +1885,7 @@ translations:
   Gear sync: Синхронизация шестерни
   Generic: Общий
   Get help and share feedback: Получить помощь и поделиться отзывом
+  Getting ready...: 'Подготовка...'
   Glass Effects: Эффекты стекла
   Global: Общий
   Global Z offset: Общее смещение Z
@@ -2248,6 +2254,7 @@ translations:
   Keep hands clear. The printer moves on its own.: Держите руки подальше. Принтер двигается сам.
 
   Keep its own data on this screen (up to 256 KB).: 'Хранит собственные данные на этом экране (до 256 КБ).'
+  'Keep outer walls out of these speeds (Orca: Outer wall speed; PrusaSlicer: External perimeters).': 'Не используйте эти скорости для внешних стенок (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   Keep pushing filament while it cools: "Продолжайте подавать филамент, пока он остывает"
   Keep the bypass spool visible when bypass is off: Показывать катушку байпаса, даже когда байпас выключен
   Keep Tuning: Продолжить
@@ -2805,6 +2812,7 @@ translations:
   No sensors detected: Датчики не обнаружены
   No shared peaks: "Нет общих пиков"
   No slot currently matches.: 'Сейчас нет подходящего слота.'
+  No speed shook the printer clearly more than the rest.: 'Ни на одной скорости принтер не трясло заметно сильнее, чем на остальных.'
   No spool assigned: Катушка не назначена
   No spool linked: 'Катушка не привязана'
   No spools found — tap to retry: Катушки не найдены — нажмите для повтора
@@ -2942,6 +2950,7 @@ translations:
   Old logs: 'Старые журналы'
   "Old setting on today's data: {} residual - now: {}": 'Прежняя настройка на сегодняшних данных: остаточная вибрация {} — сейчас: {}'
   'On': Вкл
+  On a bed-slinger the Y motor is measured only with an accelerometer on the bed.: 'На принтере с подвижным по Y столом мотор Y измеряется только акселерометром, установленным на столе.'
   On and Off macros must be different: Макросы включения и выключения должны отличаться
   On-screen Alerts: 'Экранные оповещения'
   On/Off: Вкл/Выкл
@@ -3675,6 +3684,7 @@ translations:
   Round {}: "Раунд {}"
   Rounded: Скруглённый
   Run: Запуск
+  Run Again: 'Запустить снова'
   Run Calibration Wizard: 'Запустить мастер калибровки'
   Run Dangerous Macro?: Запустить опасный макрос?
   Run Macro: Запустить макрос
@@ -4356,6 +4366,7 @@ translations:
   "The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.": "Стол и сопло нагреваются вместе до любого движения, чтобы печать снова прилипла, а сопло отделилось от неё."
   The bed has cooled. Take the spools off the plate, then confirm.: Стол остыл. Снимите катушки со стола, затем подтвердите.
 
+  The bed is clear and the toolhead can move freely: 'Стол свободен, и печатающая головка может свободно двигаться'
   The bed is too small for settling laps.: 'Стол слишком мал для кругов приработки.'
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: 'Нагреватель стола. Температура задается, а график виден на экране температуры стола.'
   The bed is too small for the test tower, or its size is unknown.: Стол слишком мал для тестовой башни, или его размер неизвестен.
@@ -4459,6 +4470,7 @@ translations:
   The printer did not change its bed check: 'Принтер не изменил проверку стола'
   'The printer did not change its bed check: {}': 'Принтер не изменил проверку стола: {}'
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'Принтер не подтвердил начало печати ({}). Печать ещё может начаться: проверьте принтер, прежде чем запускать её снова.'
+  The printer did not report its toolhead limits.: 'Принтер не сообщил пределы печатающей головки.'
   The printer did not reset the filter: 'Принтер не сбросил счётчик фильтра'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз.'
   The printer finishes this measurement on its own.: 'Принтер завершит это измерение сам.'
@@ -4476,6 +4488,8 @@ translations:
   : Принтер выполнит парковку, затем отведёт стол как можно дальше от сопла. Некоторые катушки недостаточно термостойкие и могут деформироваться. С этого экрана ничего не будет двигаться, пока вы не подтвердите, что катушки сняты со стола; Mainsail, макросы и печать, отправленная из слайсера, не блокируются.
 
   The printer homes, then probes each screw position.: "Принтер выполняет парковку, затем измеряет каждую позицию винта."
+  The printer is busy. Run the check when no print or other motion is in progress.: 'Принтер занят. Запустите проверку, когда не идёт печать или другое движение.'
+  The printer is not connected.: 'Принтер не подключён.'
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: Принтер не запаркован. Продолжение выполнит парковку всех осей, печатающая головка переместится. Убедитесь, что стол свободен.
   The printer is not ready.: "Принтер не готов."
   The printer is shut down.: 'Принтер выключен.'
@@ -4526,6 +4540,8 @@ translations:
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : 'В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Принтер может отказаться загружать слот, пока она не будет очищена. Всё равно начать?'
   The toolhead is not homed, so this would home into the print: 'Печатающая головка не запаркована, парковка ударит её о модель'
+  ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
+  : 'Печатающая головка движется взад и вперёд на скоростях от 20 до 300 mm/s, а акселерометр измеряет, насколько сильно трясёт каждый мотор. Это займёт около {0} минут и будет шумно. Скорости с самой сильной тряской и есть те, которых следует избегать для внешних стенок.'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: Датчик
     печатающей головки показывает, что филамент уже загружен. Всё равно продолжить
     загрузку?
@@ -4538,6 +4554,7 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: Встроенная память блока вышла из строя. Требуется замена материнской платы CFS
   'The unload did not start: unload by hand, then start again': 'Выгрузка не началась: выгрузите вручную и начните заново'
   The unload finishes on its own, but the plate will not move.: 'Выгрузка завершится сама, но стол не будет перемещаться.'
+  'The {0} motor was not measured: {1}.': 'Мотор {0} не измерен: {1}.'
   Theme: Тема
   Theme Colors: Цвета темы
   Theme Preset: Пресет темы
@@ -4571,6 +4588,7 @@ translations:
     использует метод трения бумаги об сопло для установки Z-смещения.
   This cannot be undone.: Это действие нельзя отменить.
   This channel offers v{}, older than the installed v{}. Anything added since then will be removed.: 'Этот канал предлагает v{}, старее установленной v{}. Всё добавленное с тех пор будет удалено.'
+  This check reads the accelerometer directly, so HelixScreen must run on the printer's own computer.: 'Эта проверка читает акселерометр напрямую, поэтому HelixScreen должен работать на собственном компьютере принтера.'
   ? "This check runs Klipper's resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.\n\nEach sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs."
   : "Эта проверка запускает резонансный тест Klipper по каждому пути ремня и сравнивает два отклика. Сбалансированные ремни дают кривые одинаковой формы с пиками на одних и тех же частотах.\n\nКаждый свип занимает несколько минут и перемещает печатающую головку; держитесь подальше от принтера во время работы."
   This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again.: Это очистит все резервы бесконечной катушки. Печать будет останавливаться при окончании филамента, пока вы снова не настроите бесконечную катушку.
@@ -4618,6 +4636,7 @@ translations:
   This printer cannot calibrate tool offsets automatically: Этот принтер не может калибровать смещения инструментов автоматически
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: Этот принтер берёт данные шлюзов из Spoolman. HelixScreen очистил свою копию; удалите катушку в Spoolman.
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: Этот принтер берёт данные шлюзов из Spoolman. Меняйте цвет, материал и катушку в Spoolman.
+  'This printer has motor compensation, so the check runs twice: with it off, then on.': 'У этого принтера есть компенсация моторов, поэтому проверка выполняется дважды: сначала с выключенной, затем с включённой.'
   This printer has no IFS.: "У этого принтера нет IFS."
   This printer has no INDX LOAD_FILAMENT macro: "На этом принтере нет макроса INDX LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную.
@@ -4628,6 +4647,7 @@ translations:
   "This printer's INDX macros are missing: {}": "В макросах INDX этого принтера отсутствует: {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'Moonraker этого принтера отклонил его API-ключ. Проверьте ключ в Настройки > Соединение.'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Moonraker этого принтера требует входа. Добавьте его API-ключ в Настройки > Соединение.'
+  This printer's accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown.: 'Акселерометр этого принтера измеряет до {0:.0f} Hz, поэтому более быстрые пульсации не показаны.'
   This printer's firmware has its own power-loss recovery.: "Прошивка этого принтера имеет собственное восстановление после отключения питания."
   This printer's gantry drops when the power is cut, so a print can't be resumed.: "Портал этого принтера опускается при отключении питания, поэтому печать нельзя продолжить."
   This printer's homing override homes Z along with X and Y, so a print can't be resumed.: "Homing override этого принтера паркует Z вместе с X и Y, поэтому печать нельзя продолжить."
@@ -4636,6 +4656,7 @@ translations:
   This printer's network service controls the WiFi radio: WiFi-модулем управляет сетевая служба этого принтера
   This printer's network service manages saved WiFi networks: Сохранёнными сетями WiFi управляет сетевая служба этого принтера
   This printer's screen has not shared a layout: "Экран этого принтера не поделился раскладкой"
+  This printer's travel or settings cannot hold the test moves.: 'Ход или настройки этого принтера не позволяют выполнить тестовые движения.'
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : Это удаляет компонент Moonraker плагина и перезапускает Moonraker. Принтер ненадолго отключится. Если в PRINT_START всё ещё остались старые строки отслеживания фаз, они также удаляются, при этом резервные копии сохраняются. Перезапуск Klipper применяет эти изменения.
   This replaces the printer's helper macros with the current version and restarts Klipper.: 'Это заменит вспомогательные макросы принтера текущей версией и перезапустит Klipper.'
@@ -4789,6 +4810,8 @@ translations:
   Try adjusting your search or filters: Попробуйте изменить поиск или фильтры
   Try Again: 'Повторить'
   Try the operation again. If it persists, check for mechanical issues.: Повторите операцию. Если проблема не исчезает, проверьте механические неисправности.
+  Try {0} mm/s: 'Попробуйте {0} mm/s'
+  Try {0} or {1} mm/s: 'Попробуйте {0} или {1} mm/s'
   Trying again...: 'Повторная попытка...'
   Tune: Настройка
   Tune Belts: "Настроить"
@@ -4950,6 +4973,7 @@ translations:
   Version and what the plugin runs: 'Версия и что выполняет плагин'
   Version {}: Версия {}
   Vertical: Вертикально
+  Vertical Artifact Check: 'Проверка вертикальных артефактов'
   Vertical Artifact Compensation: 'Компенсация вертикальных артефактов'
   Vibration: Вибрация
   Vibration compensation active: Компенсация вибраций активна
@@ -4993,6 +5017,7 @@ translations:
   Waiting for the filament system to report its state: Ожидание состояния системы филамента
   Waiting for the printer: Ожидание принтера
   Waiting to read the printer's configuration from Klipper.: "Ожидание чтения конфигурации принтера из Klipper."
+  Wall Speed Shakes This Printer: 'Скорость стенок вызывает тряску принтера'
   Warm: Тёплый
   Warm Bed: Прогреть стол
   Warm up for a material in one tap: Преднагрев под материал одним нажатием
@@ -5084,6 +5109,7 @@ translations:
   X axis done, starting Y...: 'Ось X готова, запуск Y...'
   X axis limit reached: Достигнут предел оси X
   X is at its limit ({}mm): X на пределе ({}mm)
+  X motor: 'Мотор X'
   'X:': 'X:'
   XY: XY
   XY axis: "Ось XY"
@@ -5092,6 +5118,7 @@ translations:
   Y Offset: Смещение Y
   Y axis limit reached: Достигнут предел оси Y
   Y is at its limit ({}mm): Y на пределе ({}mm)
+  Y motor: 'Мотор Y'
   'Y:': 'Y:'
   ? "YOU WIN!\nScore: {}\nTap to play again"
   : "ПОБЕДА!\nСчёт: {}\nНажмите, чтобы сыграть снова"
@@ -5103,6 +5130,8 @@ translations:
   You have unsaved changes. Discard them?: У вас есть несохранённые изменения. Отменить
     их?
   Your completed prints will appear here: Ваши завершённые печати появятся здесь
+  ? 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
+  : 'В файле внешние стенки печатаются на {0:.0f} mm/s. При последней проверке вертикальных артефактов этот принтер сильнее всего трясло на {1:.0f}-{2:.0f} mm/s, что может оставлять тонкие вертикальные линии на стенках вдоль X или Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   Your files: 'Ваши файлы'
   Your print start or end macro also sets LEDs. It and Automatic LED Control may override each other.: 'Ваш макрос начала или окончания печати тоже управляет светодиодами. Он и автоматическое управление светодиодами могут перезаписывать друг друга.'
   Your printer at a glance: Ваш принтер одним взглядом
@@ -5282,12 +5311,16 @@ translations:
   within one bin: "в пределах одного бина"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant не запущен. Функции WiFi недоступны.
   you have: у вас
+  '{0:.0f}-{1:.0f} mm/s: the {2}x ripple meets a {3:.0f} Hz resonance': '{0:.0f}-{1:.0f} mm/s: пульсация {2}x совпадает с резонансом {3:.0f} Hz'
   ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
   : '{0} открыты. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте их или начните всё равно.'
   ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
   : '{0} открыта. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте её или начните всё равно.'
+  '{0} motor, compensation on: {1:.0f} mm/s ({2} of {3})': 'Мотор {0}, компенсация вкл.: {1:.0f} mm/s ({2} из {3})'
+  '{0} motor: {1:.0f} mm/s ({2} of {3})': 'Мотор {0}: {1:.0f} mm/s ({2} из {3})'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} резонирует на {2:.0f} Гц намного сильнее, чем {1}. Это указывает на механическое различие (установочные винты шкивов, подшипники роликов, ход ремня), а не на натяжение."
+  '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': 'Пульсация {0}x на {1:.0f} mm/s: {2:.0f} до, {3:.0f} после ({4}% меньше)'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Гц · примерно {} мин'
   '{} ({})': '{} ({})'
   '{} Extruders': 'Экструдеров: {}'

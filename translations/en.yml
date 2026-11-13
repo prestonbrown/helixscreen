@@ -9,6 +9,7 @@ translations:
   ' · {} loosened about {}': ' · {} loosened about {}'
   ' · {} tightened about {}': ' · {} tightened about {}'
   '"%s" failed to load': '"%s" failed to load'
+  '"After" is compensation as your printer applies it, with its factory settings.': '"After" is compensation as your printer applies it, with its factory settings.'
   '%d additional fan': '%d additional fan'
   '%d additional fans': '%d additional fans'
   '%d feeders': '%d feeders'
@@ -288,6 +289,7 @@ translations:
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: After connecting the {}, we recommend recalibrating input shaping to ensure print quality.
   After running the commands, tap Check Again below.: After running the commands,
     tap Check Again below.
+  Afterwards, Vertical Artifact Check in this menu shows how much it helped.: Afterwards, Vertical Artifact Check in this menu shows how much it helped.
   Air filter: Air filter
   Alert: Alert
   Alerts: Alerts
@@ -1053,6 +1055,7 @@ translations:
   Could not parse tips database: Could not parse tips database
   Could not reach Spoolman at: Could not reach Spoolman at
   Could not read the current IPv4 settings.: Could not read the current IPv4 settings.
+  "Could not read the printer's limits: {}": "Could not read the printer's limits: {}"
   Could not read the printer's storage: Could not read the printer's storage
   Could not read the screw adjustments from the printer: Could not read the screw adjustments from the printer
   Could not remove the job from the queue: Could not remove the job from the queue
@@ -1586,6 +1589,7 @@ translations:
   'Failed to upload modified G-code: {}': 'Failed to upload modified G-code: {}'
   'Failed to upload the extracted G-code: {}': 'Failed to upload the extracted G-code: {}'
   'Failed to upload the rewritten G-code: {}': 'Failed to upload the rewritten G-code: {}'
+  'Faint lines: compensation off. Bright lines: compensation on.': 'Faint lines: compensation off. Bright lines: compensation on.'
   Fair match: Fair match
   Fan: Fan
   Fan Calibration: Fan Calibration
@@ -1701,6 +1705,7 @@ translations:
   Filename: Filename
   Filter: Filter
   Filter Fan: Filter Fan
+  Find the print speeds that shake the printer: Find the print speeds that shake the printer
   Finding where the print stopped...: Finding where the print stopped...
   Fine: Fine
   Fine Inner: Fine Inner
@@ -1787,6 +1792,7 @@ translations:
   Gear sync: Gear sync
   Generic: Generic
   Get help and share feedback: Get help and share feedback
+  Getting ready...: Getting ready...
   Glass Effects: Glass Effects
   Global: Global
   Global Z offset: Global Z offset
@@ -2150,6 +2156,7 @@ translations:
   Keep hands clear except when asked. The printer moves on its own.: Keep hands clear except when asked. The printer moves on its own.
   Keep hands clear. The printer moves on its own.: Keep hands clear. The printer moves on its own.
   Keep its own data on this screen (up to 256 KB).: Keep its own data on this screen (up to 256 KB).
+  'Keep outer walls out of these speeds (Orca: Outer wall speed; PrusaSlicer: External perimeters).': 'Keep outer walls out of these speeds (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   Keep pushing filament while it cools: Keep pushing filament while it cools
   Keep the bypass spool visible when bypass is off: Keep the bypass spool visible when bypass is off
   Keep Tuning: Keep Tuning
@@ -2702,6 +2709,7 @@ translations:
   No sensors detected: No sensors detected
   No shared peaks: No shared peaks
   No slot currently matches.: No slot currently matches.
+  No speed shook the printer clearly more than the rest.: No speed shook the printer clearly more than the rest.
   No spool assigned: No spool assigned
   No spool linked: No spool linked
   No spools found — tap to retry: No spools found — tap to retry
@@ -2837,6 +2845,7 @@ translations:
   Old logs: Old logs
   "Old setting on today's data: {} residual - now: {}": "Old setting on today's data: {} residual - now: {}"
   'On': 'On'
+  On a bed-slinger the Y motor is measured only with an accelerometer on the bed.: On a bed-slinger the Y motor is measured only with an accelerometer on the bed.
   On and Off macros must be different: On and Off macros must be different
   On-screen Alerts: On-screen Alerts
   On/Off: On/Off
@@ -3553,6 +3562,7 @@ translations:
   Round {}: Round {}
   Rounded: Rounded
   Run: Run
+  Run Again: Run Again
   Run Calibration Wizard: Run Calibration Wizard
   Run Dangerous Macro?: Run Dangerous Macro?
   Run Macro: Run Macro
@@ -4215,6 +4225,7 @@ translations:
     interfering with prints. You can re-enable it in Settings > Display.
   The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.: The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.
   The bed has cooled. Take the spools off the plate, then confirm.: The bed has cooled. Take the spools off the plate, then confirm.
+  The bed is clear and the toolhead can move freely: The bed is clear and the toolhead can move freely
   The bed is too small for settling laps.: The bed is too small for settling laps.
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: The bed heater. Set its temperature and watch its graph on the bed temperature screen.
   The bed is too small for the test tower, or its size is unknown.: The bed is too small for the test tower, or its size is unknown.
@@ -4316,6 +4327,7 @@ translations:
   The printer did not change its bed check: The printer did not change its bed check
   'The printer did not change its bed check: {}': 'The printer did not change its bed check: {}'
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.'
+  The printer did not report its toolhead limits.: The printer did not report its toolhead limits.
   The printer did not reset the filter: The printer did not reset the filter
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.
   The printer finishes this measurement on its own.: 'The printer finishes this measurement on its own.'
@@ -4331,6 +4343,8 @@ translations:
   ? The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked.
   : The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked.
   The printer homes, then probes each screw position.: The printer homes, then probes each screw position.
+  The printer is busy. Run the check when no print or other motion is in progress.: The printer is busy. Run the check when no print or other motion is in progress.
+  The printer is not connected.: The printer is not connected.
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.
   The printer is not ready.: The printer is not ready.
   The printer is shut down.: The printer is shut down.
@@ -4381,6 +4395,8 @@ translations:
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   The toolhead is not homed, so this would home into the print: The toolhead is not homed, so this would home into the print
+  ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
+  : The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: The
     toolhead sensor indicates filament is already loaded. Proceed with load anyway?
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: The
@@ -4391,6 +4407,7 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: The unit's onboard storage has failed. The CFS mainboard needs replacing
   'The unload did not start: unload by hand, then start again': 'The unload did not start: unload by hand, then start again'
   The unload finishes on its own, but the plate will not move.: The unload finishes on its own, but the plate will not move.
+  'The {0} motor was not measured: {1}.': 'The {0} motor was not measured: {1}.'
   Theme: Theme
   Theme Colors: Theme Colors
   Theme Preset: Theme Preset
@@ -4424,6 +4441,7 @@ translations:
     uses the paper friction method to set your Z-offset.
   This cannot be undone.: This cannot be undone.
   This channel offers v{}, older than the installed v{}. Anything added since then will be removed.: This channel offers v{}, older than the installed v{}. Anything added since then will be removed.
+  This check reads the accelerometer directly, so HelixScreen must run on the printer's own computer.: This check reads the accelerometer directly, so HelixScreen must run on the printer's own computer.
   ? "This check runs Klipper's resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.\n\nEach sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs."
   : "This check runs Klipper's resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.\n\nEach sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs."
   This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again.: This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again.
@@ -4472,6 +4490,7 @@ translations:
   This printer cannot calibrate tool offsets automatically: This printer cannot calibrate tool offsets automatically
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.
+  'This printer has motor compensation, so the check runs twice: with it off, then on.': 'This printer has motor compensation, so the check runs twice: with it off, then on.'
   This printer has no IFS.: This printer has no IFS.
   This printer has no INDX LOAD_FILAMENT macro: This printer has no INDX LOAD_FILAMENT macro
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: This printer has no automatic unload. Cut the filament at the head and pull it out by hand.
@@ -4482,6 +4501,7 @@ translations:
   "This printer's INDX macros are missing: {}": "This printer's INDX macros are missing: {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: This printer's Moonraker rejected its API key. Check the key in Settings > Connection.
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: This printer's Moonraker requires a login. Add its API key in Settings > Connection.
+  This printer's accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown.: This printer's accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown.
   This printer's firmware has its own power-loss recovery.: This printer's firmware has its own power-loss recovery.
   This printer's gantry drops when the power is cut, so a print can't be resumed.: This printer's gantry drops when the power is cut, so a print can't be resumed.
   This printer's homing override homes Z along with X and Y, so a print can't be resumed.: "This printer's homing override homes Z along with X and Y, so a print can't be resumed."
@@ -4490,6 +4510,7 @@ translations:
   This printer's network service controls the WiFi radio: This printer's network service controls the WiFi radio
   This printer's network service manages saved WiFi networks: This printer's network service manages saved WiFi networks
   This printer's screen has not shared a layout: This printer's screen has not shared a layout
+  This printer's travel or settings cannot hold the test moves.: This printer's travel or settings cannot hold the test moves.
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   This replaces the printer's helper macros with the current version and restarts Klipper.: This replaces the printer's helper macros with the current version and restarts Klipper.
@@ -4645,6 +4666,8 @@ translations:
   Try adjusting your search or filters: Try adjusting your search or filters
   Try Again: Try Again
   Try the operation again. If it persists, check for mechanical issues.: Try the operation again. If it persists, check for mechanical issues.
+  Try {0} mm/s: Try {0} mm/s
+  Try {0} or {1} mm/s: Try {0} or {1} mm/s
   Trying again...: Trying again...
   Tune: Tune
   Tune Belts: Tune Belts
@@ -4811,6 +4834,7 @@ translations:
   Version and what the plugin runs: Version and what the plugin runs
   Version {}: Version {}
   Vertical: Vertical
+  Vertical Artifact Check: Vertical Artifact Check
   Vertical Artifact Compensation: Vertical Artifact Compensation
   Vibration: Vibration
   Vibration compensation active: Vibration compensation active
@@ -4855,6 +4879,7 @@ translations:
   Waiting for the filament system to report its state: Waiting for the filament system to report its state
   Waiting for the printer: Waiting for the printer
   Waiting to read the printer's configuration from Klipper.: "Waiting to read the printer's configuration from Klipper."
+  Wall Speed Shakes This Printer: Wall Speed Shakes This Printer
   Warm: Warm
   Warm Bed: Warm Bed
   Warm up for a material in one tap: Warm up for a material in one tap
@@ -4946,6 +4971,7 @@ translations:
   X axis done, starting Y...: X axis done, starting Y...
   X axis limit reached: X axis limit reached
   X is at its limit ({}mm): X is at its limit ({}mm)
+  X motor: X motor
   'X:': 'X:'
   XY: XY
   XY axis: XY axis
@@ -4954,6 +4980,7 @@ translations:
   Y Offset: Y Offset
   Y axis limit reached: Y axis limit reached
   Y is at its limit ({}mm): Y is at its limit ({}mm)
+  Y motor: Y motor
   'Y:': 'Y:'
   ? "YOU WIN!\nScore: {}\nTap to play again"
   : "YOU WIN!\nScore: {}\nTap to play again"
@@ -4964,6 +4991,8 @@ translations:
     later in Settings.
   You have unsaved changes. Discard them?: You have unsaved changes. Discard them?
   Your completed prints will appear here: Your completed prints will appear here
+  ? 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
+  : 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   Your files: Your files
   Your print start or end macro also sets LEDs. It and Automatic LED Control may override each other.: Your print start or end macro also sets LEDs. It and Automatic LED Control may override each other.
   Your printer at a glance: Your printer at a glance
@@ -5134,12 +5163,16 @@ translations:
   within one bin: within one bin
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant is not running. WiFi features unavailable.
   you have: you have
+  '{0:.0f}-{1:.0f} mm/s: the {2}x ripple meets a {3:.0f} Hz resonance': '{0:.0f}-{1:.0f} mm/s: the {2}x ripple meets a {3:.0f} Hz resonance'
   ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
   : '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
   ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
   : '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
+  '{0} motor, compensation on: {1:.0f} mm/s ({2} of {3})': '{0} motor, compensation on: {1:.0f} mm/s ({2} of {3})'
+  '{0} motor: {1:.0f} mm/s ({2} of {3})': '{0} motor: {1:.0f} mm/s ({2} of {3})'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
+  '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · about {} min'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} Extruders'
