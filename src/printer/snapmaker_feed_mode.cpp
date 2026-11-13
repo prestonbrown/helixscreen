@@ -3,7 +3,7 @@
 
 #include "snapmaker_feed_mode.h"
 
-#include <fmt/format.h>
+#include <spdlog/fmt/fmt.h>
 
 #include "hv/json.hpp"
 
@@ -45,15 +45,6 @@ std::optional<FeedChannel> stock_channel(int head) {
         return std::nullopt;
     }
     return stock_table()[static_cast<size_t>(head)];
-}
-
-int stock_head(const std::string& module, int channel) {
-    for (int h = 0; h < kHeadCount; ++h) {
-        if (stock_table()[static_cast<size_t>(h)] == FeedChannel{module, channel}) {
-            return h;
-        }
-    }
-    return -1;
 }
 
 FeedChannelMap stock_channel_map() {

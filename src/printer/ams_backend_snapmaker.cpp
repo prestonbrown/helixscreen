@@ -53,9 +53,6 @@ namespace helix {
 
 namespace {
 
-/// The section the firmware's print preferences sit in.
-constexpr const char* kPrintPrefsSection = "print_prefs";
-
 /// Parses a pending insert verdict may hold while waiting for the tag
 /// reader's filament_detect.info entry. Status frames arrive about once a
 /// second, so eight parses is roughly eight seconds: long enough for a read to
@@ -2815,12 +2812,7 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
       // with sync_from_backend() which acquires mutex_ via get_system_info()
         std::lock_guard<std::mutex> lock(mutex_);
 
-        if (!feed_variable_object_.empty()) {
-            if (const nlohmann::json* fv =
-                    helix::json_util::find_member(status, feed_variable_object_.c_str())) {
-                feed_channels_ = snapmaker::feed_mode::read_channel_map(fv, feed_channels_);
-            }
-        }
+        update_feed_channels_locked(status);
 
         bool frame_names_state = false;
         bool frame_names_file = false;
@@ -3680,7 +3672,6 @@ std::vector<bool> end_unload_list(const snapmaker::PrintPreferences& p,
 }
 
 constexpr std::string_view kEndUnloadPrefix = "snapmaker_end_unload_t";
-constexpr std::string_view kAutoLoadPrefix = "snapmaker_auto_load_t";
 constexpr std::string_view kNozzleDiameterPrefix = "snapmaker_nozzle_diameter_t";
 constexpr std::string_view kNozzleFlowPrefix = "snapmaker_nozzle_flow_t";
 constexpr const char* kToolheadSection = "toolhead";
@@ -3739,11 +3730,7 @@ std::vector<helix::printer::DeviceSection> AmsBackendSnapmaker::get_device_secti
     using helix::printer::DeviceSection;
     std::vector<DeviceSection> out;
     // Nothing reported yet - an empty section is worse than none.
-    bool auto_load_rows = false;
-    for (int h = 0; h < kNumTools; ++h) {
-        auto_load_rows = auto_load_rows || channel_snapshot(h).auto_reported;
-    }
-    if (!print_preferences().empty() || auto_load_rows) {
+    if (!print_preferences().empty() || auto_load_reported()) {
         out.push_back(helix::printer::device_section(kPrintPrefsSection, 50, ""));
     }
     const auto nozzles = reported_nozzles();
@@ -3816,29 +3803,7 @@ std::vector<helix::printer::DeviceAction> AmsBackendSnapmaker::get_device_action
         out.push_back(std::move(a));
     }
 
-    // Each head's Auto loading: whether its feeder takes a spool pushed into its
-    // port and feeds it. Only a head whose feeder has reported its mode gets a
-    // row.
-    for (int h = 0; h < kNumTools; ++h) {
-        const ChannelSnapshot snap = channel_snapshot(h);
-        if (!snap.auto_reported) {
-            continue;
-        }
-        DeviceAction a =
-            DeviceAction::toggle(std::string(kAutoLoadPrefix) + std::to_string(h),
-                                 TR_NOOP("Auto loading"), kPrintPrefsSection, !snap.disable_auto);
-        a.slot_index = h;
-        a.tool_index = h;
-        if (snap.module_reported && !snap.module_exist) {
-            a.enabled = false;
-            a.disable_reason = TR_NOOP("No feeder attached");
-        } else if (snapmaker::channel_state_in_progress(snap.state)) {
-            // The firmware holds the switch until the feed ends.
-            a.enabled = false;
-            a.disable_reason = TR_NOOP("Wait for the load or unload to finish");
-        }
-        out.push_back(std::move(a));
-    }
+    append_auto_load_actions(out);
 
     // Each head's nozzle, one row per field the head reports. A head reading a
     // value no option names shows it as unknown rather than as an option.
@@ -3982,17 +3947,8 @@ std::string AmsBackendSnapmaker::build_preference_gcode(const std::string& actio
         auto list = end_unload_list(prefs, soft);
         list[*tool] = v;
         changes.end_unload_filament = std::move(list);
-    } else if (const auto head = tool_from_action_id(kAutoLoadPrefix, action_id)) {
-        const auto [v, err] = printer::device_action_value<bool>(value, "setting");
-        if (!err || *head >= static_cast<size_t>(kNumTools)) {
-            return {};
-        }
-        std::optional<snapmaker::feed_mode::FeedChannel> channel;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            channel = feed_channels_[*head];
-        }
-        return channel ? snapmaker::feed_mode::auto_mode_gcode(*channel, v) : std::string{};
+    } else if (const auto head = tool_from_action_id(kAutoLoadActionPrefix, action_id)) {
+        return auto_load_gcode(*head, value);
     } else {
         return {};
     }

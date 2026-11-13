@@ -16,13 +16,6 @@ TEST_CASE("feed mode: the stock wiring names each head's module and channel",
     CHECK(stock_channel(3) == FeedChannel{"right", 1});
     CHECK_FALSE(stock_channel(-1).has_value());
     CHECK_FALSE(stock_channel(4).has_value());
-
-    CHECK(stock_head("left", 1) == 0);
-    CHECK(stock_head("left", 0) == 1);
-    CHECK(stock_head("right", 0) == 2);
-    CHECK(stock_head("right", 1) == 3);
-    CHECK(stock_head("right", 2) == -1);
-    CHECK(stock_head("middle", 0) == -1);
 }
 
 TEST_CASE("feed mode: the macro's sequences decide the map", "[snapmaker][feed_mode]") {

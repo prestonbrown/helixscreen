@@ -51,9 +51,6 @@ using FeedChannelMap = std::array<std::optional<FeedChannel>, kHeadCount>;
 /// The stock wiring for @p head, or nullopt for a head the U1 does not have.
 [[nodiscard]] std::optional<FeedChannel> stock_channel(int head);
 
-/// The head the stock wiring feeds from @p module's @p channel, or -1.
-[[nodiscard]] int stock_head(const std::string& module, int channel);
-
 /// Every head on the stock wiring.
 [[nodiscard]] FeedChannelMap stock_channel_map();
 

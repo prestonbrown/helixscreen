@@ -26,6 +26,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -605,6 +606,11 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// head reports, unavailable while a print is printing or paused (the
     /// firmware refuses the change then).
     [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
+
+    /// The device section the print preferences and Auto loading rows sit in.
+    static constexpr const char* kPrintPrefsSection = "print_prefs";
+    /// Each head's Auto loading row id: this prefix, then the head number.
+    static constexpr std::string_view kAutoLoadActionPrefix = "snapmaker_auto_load_t";
 
     /// Sends the line build_preference_gcode() maps the action id to, or the nozzle change
     /// build_nozzle_change() makes of it. Unknown ids are reported as not supported.
@@ -1417,6 +1423,18 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// Each head's feeder module and channel, as that macro's frames have
     /// stated them, the stock wiring until they do. All access under mutex_.
     snapmaker::feed_mode::FeedChannelMap feed_channels_ = snapmaker::feed_mode::stock_channel_map();
+
+    // Auto loading (src/printer/ams_backend_snapmaker_auto_load.cpp).
+    /// Some head's feeder has reported its mode, so the rows have a state to show.
+    [[nodiscard]] bool auto_load_reported() const;
+    /// One Auto loading row per head whose feeder has reported its mode.
+    void append_auto_load_actions(std::vector<helix::printer::DeviceAction>& out) const;
+    /// The command that sets @p head's Auto loading to @p value; empty when
+    /// the value is not a bool or the head names no feeder channel.
+    [[nodiscard]] std::string auto_load_gcode(size_t head, const std::any& value) const;
+    /// Lays the head-to-channel macro's frame, when @p status carries one,
+    /// over feed_channels_. Caller holds mutex_.
+    void update_feed_channels_locked(const nlohmann::json& status);
 
     /// The batch do_filament_batch() dispatched, verified head-by-head in
     /// handle_status's channel_state parse. All access under mutex_.
