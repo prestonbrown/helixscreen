@@ -1142,6 +1142,8 @@ void PrinterDiscovery::clear() {
     chamber_fan_resting_deci_ = 0;
     filament_diameter_mm_ = filament::kDefaultDiameterMm;
     nozzle_diameter_mm_ = kDefaultNozzleDiameterMm;
+    stepper_x_geometry_.reset();
+    stepper_y_geometry_.reset();
     fit_machine_.reset();
     leveling_probe_points_.clear();
     probe_xy_offset_.reset();
@@ -1229,6 +1231,38 @@ void PrinterDiscovery::parse_extruder_dimensions(const nlohmann::json& settings)
     };
     read_positive("filament_diameter", filament_diameter_mm_);
     read_positive("nozzle_diameter", nozzle_diameter_mm_);
+}
+
+void PrinterDiscovery::parse_stepper_geometry(const nlohmann::json& settings) {
+    auto read =
+        [&settings](const char* section) -> std::optional<calibration::ripple::MotorGeometry> {
+        const auto s = settings.find(section);
+        if (s == settings.end() || !s->is_object()) {
+            return std::nullopt;
+        }
+        const auto rd = s->find("rotation_distance");
+        if (rd == s->end() || !rd->is_number() || !(rd->get<float>() > 0.0f)) {
+            return std::nullopt;
+        }
+        calibration::ripple::MotorGeometry g;
+        g.rotation_distance_mm = rd->get<float>();
+        const auto steps = s->find("full_steps_per_rotation");
+        if (steps != s->end() && steps->is_number_integer() && steps->get<int>() > 0) {
+            g.full_steps_per_rotation = steps->get<int>();
+        }
+        const auto gear = s->find("gear_ratio");
+        if (gear != s->end() && gear->is_array()) {
+            for (const auto& pair : *gear) {
+                if (pair.is_array() && pair.size() == 2 && pair[0].is_number() &&
+                    pair[1].is_number() && pair[1].get<float>() > 0.0f) {
+                    g.gear_ratio *= pair[0].get<float>() / pair[1].get<float>();
+                }
+            }
+        }
+        return g;
+    };
+    stepper_x_geometry_ = read("stepper_x");
+    stepper_y_geometry_ = read("stepper_y");
 }
 
 void PrinterDiscovery::parse_leveling_probe_points(const nlohmann::json& settings) {
