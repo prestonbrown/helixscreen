@@ -386,7 +386,7 @@ def xml_create_then_hide(root: Path, files: Files, max_allowed: int) -> int:
             if any(XML_HIDDEN_OK in lines[i] for i in range(start, end + 1)):
                 continue
             hide = re.compile(
-                r"lv_obj_add_flag\(\s*" + re.escape(var) + r"\s*,\s*LV_OBJ_FLAG_HIDDEN\b"
+                r"lv_obj_set_hidden\(\s*" + re.escape(var) + r"\s*,\s*true\s*\)"
             )
             for i in range(end, min(end + XML_HIDE_WINDOW, len(lines))):
                 if hide.search(lines[i]):

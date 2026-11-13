@@ -770,7 +770,7 @@ text_updates=$(grep -rn 'lv_label_set_text' src/ui_*.cpp 2>/dev/null | wc -l | t
 
 # Visibility - categorize by pattern
 visibility_pool=$(grep -rE 'lv_obj_(add|clear)_flag.*(pool|Pool).*HIDDEN' src/ui_*.cpp 2>/dev/null | wc -l | tr -d ' ')
-visibility_total=$(grep -rn 'lv_obj_add_flag.*HIDDEN\|lv_obj_clear_flag.*HIDDEN' src/ui_*.cpp 2>/dev/null | wc -l | tr -d ' ')
+visibility_total=$(grep -rn 'lv_obj_set_hidden(' src/ui_*.cpp 2>/dev/null | wc -l | tr -d ' ')
 visibility_actionable=$((visibility_total - visibility_pool))
 
 # Inline styles

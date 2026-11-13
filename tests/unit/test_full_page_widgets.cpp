@@ -16,6 +16,7 @@
 
 #include "ui_carousel.h"
 #include "ui_nav_manager.h"
+#include "ui_obj_flags.h"
 #include "ui_panel_filament.h"
 #include "ui_panel_home.h"
 #include "ui_panel_motion.h"
@@ -119,7 +120,7 @@ class FullPageFixture : public LVGLUITestFixture {
             lv_xml_create(page_, widget->get_component_name().c_str(), widget->xml_attrs()));
         REQUIRE(root != nullptr);
         lv_obj_set_size(root, LV_PCT(100), LV_PCT(100));
-        lv_obj_set_flag(root, helix::kPanelWidgetTileFlag, true);
+        helix::ui::obj_set_flags(root, helix::kPanelWidgetTileFlag, true);
         widget->attach_tile(root, lv_screen_active());
         widget->set_page_placement(page_index, fills);
         widget->notify_size_changed(24, 16, 700, 440);

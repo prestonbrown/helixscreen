@@ -3,6 +3,7 @@
 
 #include "src/ui/panel_widgets/full_page_host.h"
 
+#include "ui_obj_flags.h"
 #include "ui_panel_home.h"
 #include "ui_utils.h"
 
@@ -30,8 +31,8 @@ void rearm_clicks(lv_obj_t* root) {
     if (!root) {
         return;
     }
-    if (lv_obj_has_flag(root, helix::ui::kEditClickSuppressedFlag)) {
-        lv_obj_set_flag(root, helix::ui::kEditClickSuppressedFlag, false);
+    if (helix::ui::obj_has_flags(root, helix::ui::kEditClickSuppressedFlag)) {
+        helix::ui::obj_set_flags(root, helix::ui::kEditClickSuppressedFlag, false);
         lv_obj_set_clickable(root, true);
     }
     helix::ui::enable_widget_clicks_recursive(root);
@@ -123,7 +124,7 @@ void FullPageHost::embed_if_shown() {
     publish_state();
     // Edit mode disarmed the page before this tree existed; disarm it the same
     // way so the session's restore re-arms it with everything else.
-    if (tile_root_ && lv_obj_has_flag(tile_root_, helix::ui::kEditClickSuppressedFlag)) {
+    if (tile_root_ && helix::ui::obj_has_flags(tile_root_, helix::ui::kEditClickSuppressedFlag)) {
         helix::ui::disable_widget_clicks_recursive(host);
     }
 }

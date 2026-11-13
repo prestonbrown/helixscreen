@@ -17,6 +17,7 @@
  */
 
 #include "ui_ams_sidebar.h"
+#include "ui_obj_flags.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/armed_timers.h"
@@ -843,7 +844,7 @@ TEST_CASE_METHOD(OptimisticSidebarFixture,
     // Mark the bar, so a rebuilt one cannot pass for it at a reused address.
     lv_obj_t* bar = stepper();
     REQUIRE(bar != nullptr);
-    lv_obj_add_flag(bar, LV_OBJ_FLAG_USER_1);
+    helix::ui::obj_set_flags(bar, LV_OBJ_FLAG_USER_1, true);
 
     for (const char* phase : {"unload_heating", "unload_doing"}) {
         u1.feed(0, phase);
@@ -852,7 +853,7 @@ TEST_CASE_METHOD(OptimisticSidebarFixture,
         CHECK(shown_steps() == helix::StepOperationType::UNLOAD);
         CHECK(steps_shown());
         REQUIRE(stepper() == bar);
-        CHECK(lv_obj_has_flag(bar, LV_OBJ_FLAG_USER_1));
+        CHECK(helix::ui::obj_has_flags(bar, LV_OBJ_FLAG_USER_1));
         CHECK(lv_obj_get_child_count(lv_obj_find_by_name(panel_, "progress_stepper_container")) ==
               1);
     }

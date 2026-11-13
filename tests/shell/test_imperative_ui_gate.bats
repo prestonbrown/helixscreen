@@ -32,7 +32,7 @@ void Panel::setup(lv_obj_t* root) {
 
 void Panel::update_title() {
     lv_label_set_text(title_, "x");
-    lv_obj_add_flag(icon_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(icon_, true);
     lv_obj_set_style_bg_opa(icon_, 0, 0);
     lv_obj_add_event_cb(icon_, on_tap, LV_EVENT_CLICKED, this);
 }
@@ -112,7 +112,7 @@ void Panel::setup(lv_obj_t* root) {
 
 void Panel::add_row(lv_obj_t* list) {
     auto* btn = make_row(list);
-    lv_obj_add_flag(btn, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(btn, true);
 }
 CPP
   expect_total 0

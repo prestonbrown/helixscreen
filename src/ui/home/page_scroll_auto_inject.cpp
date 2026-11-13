@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "page_scroll_auto_inject.h"
 
+#include "ui_obj_flags.h"
+
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "panel_widget.h"
@@ -66,8 +68,7 @@ bool PageScrollAutoInject::qualifies(lv_obj_t* obj) {
 // arrives after the walk (Print Files fills its list asynchronously). Content-sized
 // containers that do not flex-grow never overflow, which keeps the watched set small.
 bool PageScrollAutoInject::may_overflow_later(lv_obj_t* obj) {
-    return lv_obj_is_scrollable(obj) &&
-           (lv_obj_get_scroll_dir(obj) & LV_DIR_VER) != 0 &&
+    return lv_obj_is_scrollable(obj) && (lv_obj_get_scroll_dir(obj) & LV_DIR_VER) != 0 &&
            lv_obj_get_style_layout(obj, LV_PART_MAIN) != LV_LAYOUT_NONE &&
            (lv_obj_get_style_height(obj, LV_PART_MAIN) != LV_SIZE_CONTENT ||
             lv_obj_get_style_flex_grow(obj, LV_PART_MAIN) > 0);
@@ -112,7 +113,7 @@ void PageScrollAutoInject::walk_and_attach(lv_obj_t* obj, bool ancestor_managed)
     // taller, so a gutter inside one sits on the widget's own content instead of
     // beside it. Cut the whole subtree: most tile roots are non-scrollable and
     // the walk would otherwise sail through them into a widget's inner list.
-    if (lv_obj_has_flag(obj, helix::kPanelWidgetTileFlag)) {
+    if (helix::ui::obj_has_flags(obj, helix::kPanelWidgetTileFlag)) {
         return;
     }
     // A container already managed from an earlier on_root_shown() pass must

@@ -148,7 +148,7 @@ run_gate() {
 @test "ui_card really does clear the flag - the exemption is not folklore" {
     # If this create handler ever stops clearing the flag, the exemption above
     # silently becomes a hole. Pin it to the source.
-    run grep -q "lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE)" src/ui/components/ui_card.cpp
+    run grep -q "lv_obj_set_scrollable(obj, false)" src/ui/components/ui_card.cpp
     [ "$status" -eq 0 ]
 }
 

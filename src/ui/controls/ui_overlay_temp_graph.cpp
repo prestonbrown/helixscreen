@@ -585,8 +585,8 @@ void TempGraphOverlay::create_chips() {
         lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_border_width(dot, 0, 0);
         helix::ui::apply_swatch_color(dot, lv_color_to_u32(s.color) & 0xFFFFFF, "");
-        lv_obj_remove_flag(
-            dot, static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE));
+        lv_obj_set_clickable(dot, false);
+        lv_obj_set_scrollable(dot, false);
         lv_obj_set_event_bubble(dot, true);
 
         // Label — strip redundant " Temperature" suffix for chip brevity
@@ -782,7 +782,7 @@ void TempGraphOverlay::configure_control_strip() {
             lv_subject_set_int(&chamber_preset_visible_subjects_[i], show ? 1 : 0);
             if (i >= 1 && i <= 3) {
                 lv_subject_set_string(&chamber_preset_text_subjects_[i - 1],
-                                       helix::units::format_display_temp(preset_values[i]).c_str());
+                                      helix::units::format_display_temp(preset_values[i]).c_str());
             }
         }
     }

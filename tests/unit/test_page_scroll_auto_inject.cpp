@@ -1,5 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "ui_obj_flags.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "display_settings_manager.h"
 #include "page_scroll_auto_inject.h"
@@ -102,7 +104,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AutoInject cuts the walk at a home widget t
     lv_obj_t* tile = lv_obj_create(root);
     lv_obj_set_size(tile, 240, 200);
     lv_obj_set_scrollable(tile, false);
-    lv_obj_add_flag(tile, helix::kPanelWidgetTileFlag);
+    helix::ui::obj_set_flags(tile, helix::kPanelWidgetTileFlag, true);
     lv_obj_t* inner = add_vscroll(tile, 20);
 
     // A page-level container beside the tile must still qualify, or the cut is
@@ -136,7 +138,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AutoInject skips a tile whose own root scro
     lv_obj_set_size(root, 480, 320);
 
     lv_obj_t* tile = add_vscroll(root, 20); // overflows; would qualify unmarked
-    lv_obj_add_flag(tile, helix::kPanelWidgetTileFlag);
+    helix::ui::obj_set_flags(tile, helix::kPanelWidgetTileFlag, true);
 
     lv_obj_update_layout(root);
     inj.on_root_shown(root);

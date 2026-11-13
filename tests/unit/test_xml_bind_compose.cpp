@@ -19,6 +19,8 @@
 //
 // The count assertion at the bottom is what notices that you did not.
 
+#include "ui_obj_flags.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "core/update_queue.h"
@@ -162,7 +164,7 @@ struct InventoryFixture : public XMLTestFixture {
 
     bool applied(const BindGroup& g, lv_obj_t* obj) const {
         return g.kind == BindKind::State ? lv_obj_has_state(obj, state_from_name(g.bits))
-                                         : lv_obj_has_flag(obj, flag_from_name(g.bits));
+                                         : helix::ui::obj_has_flags(obj, flag_from_name(g.bits));
     }
 
     /// Register the base components once, so a panel whose target widget sits

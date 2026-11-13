@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_obj_flags.h"
+
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "panel_widget.h"
@@ -158,7 +160,7 @@ class PanelWidgetHarnessBase {
                 sizing->set_cell_metrics(cell_metrics_);
             }
         }
-        lv_obj_add_flag(obj_, kPanelWidgetTileFlag);
+        helix::ui::obj_set_flags(obj_, kPanelWidgetTileFlag, true);
         widget.attach_tile(obj_, screen);
         return true;
     }
@@ -453,8 +455,8 @@ inline void walk(lv_obj_t* o, const std::string& path, const OverflowExceptions&
     }
 
     const char* name = lv_obj_get_name(o);
-    const bool scroll_exempt = lv_obj_is_scrollable(o) &&
-                               lv_obj_get_scroll_dir(o) != LV_DIR_NONE && ex.exempts(name);
+    const bool scroll_exempt =
+        lv_obj_is_scrollable(o) && lv_obj_get_scroll_dir(o) != LV_DIR_NONE && ex.exempts(name);
     if (scroll_exempt) {
         r.skipped.push_back(path + " (named scrollable exception)");
         return;

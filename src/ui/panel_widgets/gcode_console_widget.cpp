@@ -4,6 +4,7 @@
 #include "gcode_console_widget.h"
 
 #include "ui_event_safety.h"
+#include "ui_obj_flags.h"
 #include "ui_panel_console.h"
 #include "ui_utils.h"
 
@@ -287,7 +288,7 @@ void GCodeConsoleWidget::clicked_cb(lv_event_t* e) {
     // Both faces share this callback, so the owner comes from the tile root
     // rather than from whichever child was tapped.
     lv_obj_t* obj = lv_event_get_current_target_obj(e);
-    while (obj && !lv_obj_has_flag(obj, kPanelWidgetTileFlag)) {
+    while (obj && !helix::ui::obj_has_flags(obj, kPanelWidgetTileFlag)) {
         obj = lv_obj_get_parent(obj);
     }
     auto* self = obj ? static_cast<GCodeConsoleWidget*>(lv_obj_get_user_data(obj)) : nullptr;

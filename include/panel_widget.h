@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_obj_flags.h"
+
 #include "json_fwd.h"
 #include "lvgl/lvgl.h"
 
@@ -334,7 +336,7 @@ template <typename T> T* panel_widget_from_event(lv_event_t* e) {
     if (!obj)
         return nullptr;
     for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
-        if (lv_obj_has_flag(o, kPanelWidgetTileFlag)) {
+        if (helix::ui::obj_has_flags(o, kPanelWidgetTileFlag)) {
             return static_cast<T*>(lv_obj_get_user_data(o));
         }
     }

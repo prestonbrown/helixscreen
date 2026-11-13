@@ -5,6 +5,7 @@
 
 #include "ui_ams_mini_status.h"
 #include "ui_notification.h"
+#include "ui_obj_flags.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
@@ -590,7 +591,7 @@ lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cel
 
     // Mark the tile root so tree walks that only make sense at page
     // level stop here. See kPanelWidgetTileFlag in panel_widget.h.
-    lv_obj_add_flag(widget, kPanelWidgetTileFlag);
+    helix::ui::obj_set_flags(widget, kPanelWidgetTileFlag, true);
 
     spdlog::debug("[PanelWidgetManager] Placed widget '{}' at ({},{} {}x{})", slot.widget_id,
                   cell.col, cell.row, cell.colspan, cell.rowspan);
@@ -1644,7 +1645,7 @@ PanelWidgetManager::swap_gated_tiles(const std::string& panel_id, lv_obj_t* cont
         for (uint32_t i = 0; i < count && !tile; ++i) {
             lv_obj_t* child = lv_obj_get_child(container, static_cast<int32_t>(i));
             const char* name = lv_obj_get_name(child);
-            if (lv_obj_has_flag(child, kPanelWidgetTileFlag) && name && id == name) {
+            if (helix::ui::obj_has_flags(child, kPanelWidgetTileFlag) && name && id == name) {
                 tile = child;
             }
         }
@@ -1784,7 +1785,7 @@ bool PanelWidgetManager::relayout_tiles_impl(const std::string& panel_id, lv_obj
             continue;
         }
         const char* name = lv_obj_get_name(child);
-        if (!lv_obj_has_flag(child, kPanelWidgetTileFlag)) {
+        if (!helix::ui::obj_has_flags(child, kPanelWidgetTileFlag)) {
             // Card backgrounds are the unnamed grid children; edit mode's own
             // objects float.
             if (!name && !lv_obj_is_floating(child)) {

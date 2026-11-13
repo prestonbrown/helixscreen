@@ -5,6 +5,7 @@
 
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
+#include "ui_obj_flags.h"
 #include "ui_text.h"
 #include "ui_variant.h"
 #include "ui_widget_ref.h"
@@ -509,7 +510,7 @@ void button_style_changed_cb(lv_event_t* e) {
  */
 void button_clicked_sound_cb(lv_event_t* e) {
     auto* btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    if (lv_obj_has_flag(btn, LV_OBJ_FLAG_USER_4))
+    if (helix::ui::obj_has_flags(btn, LV_OBJ_FLAG_USER_4))
         return; // Suppressed (e.g., sound preview buttons)
     SoundManager::instance().play("button_tap");
 }

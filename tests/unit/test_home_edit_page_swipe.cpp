@@ -30,6 +30,7 @@
 #include "ui_drag_surface.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
+#include "ui_obj_flags.h"
 #include "ui_panel_home.h"
 #include "ui_utils.h"
 #include "ui_widget_catalog_overlay.h"
@@ -650,8 +651,7 @@ class EditHomeFixture : public LVGLTestFixture {
     /// The carousel swipes: its scroll container scrolls horizontally.
     bool scroll_live() {
         lv_obj_t* scroll = scroller();
-        return lv_obj_is_scrollable(scroll) &&
-               lv_obj_get_scroll_dir(scroll) == LV_DIR_HOR;
+        return lv_obj_is_scrollable(scroll) && lv_obj_get_scroll_dir(scroll) == LV_DIR_HOR;
     }
 
     /// The swipe policy the panel last stated to the carousel.
@@ -4944,7 +4944,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "mark_drag_surface sets the flag and the input
 
     helix::ui::mark_drag_surface(obj);
 
-    CHECK(lv_obj_has_flag(obj, helix::ui::kDragSurfaceFlag));
+    CHECK(helix::ui::obj_has_flags(obj, helix::ui::kDragSurfaceFlag));
     CHECK(lv_obj_is_clickable(obj));
     CHECK(lv_obj_is_press_lock(obj));
     CHECK_FALSE(lv_obj_is_scrollable(obj));

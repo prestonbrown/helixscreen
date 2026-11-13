@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_effects.h"
+#include "ui_obj_flags.h"
 #include "ui_widget_ref.h"
 
 #include "core/static_panel_registry.h"
@@ -546,7 +547,7 @@ inline void disable_widget_clicks_recursive(lv_obj_t* obj) {
             continue;
         if (lv_obj_is_clickable(child)) {
             lv_obj_set_clickable(child, false);
-            lv_obj_add_flag(child, kEditClickSuppressedFlag);
+            helix::ui::obj_set_flags(child, kEditClickSuppressedFlag, true);
         }
         disable_widget_clicks_recursive(child);
     }
@@ -566,8 +567,8 @@ inline void enable_widget_clicks_recursive(lv_obj_t* obj) {
         lv_obj_t* child = lv_obj_get_child(obj, static_cast<int32_t>(i));
         if (!child)
             continue;
-        if (lv_obj_has_flag(child, kEditClickSuppressedFlag)) {
-            lv_obj_remove_flag(child, kEditClickSuppressedFlag);
+        if (helix::ui::obj_has_flags(child, kEditClickSuppressedFlag)) {
+            helix::ui::obj_set_flags(child, kEditClickSuppressedFlag, false);
             lv_obj_set_clickable(child, true);
         }
         enable_widget_clicks_recursive(child);

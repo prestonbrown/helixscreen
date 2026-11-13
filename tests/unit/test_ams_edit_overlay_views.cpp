@@ -11,6 +11,7 @@
 #include "ui_component_keypad.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
+#include "ui_obj_flags.h"
 #include "ui_swatch.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -1528,7 +1529,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
         static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "panel_widget_active_spool", nullptr));
     REQUIRE(comp != nullptr);
     ActiveSpoolWidget widget(&api);
-    lv_obj_add_flag(comp, helix::kPanelWidgetTileFlag);
+    helix::ui::obj_set_flags(comp, helix::kPanelWidgetTileFlag, true);
     widget.attach_tile(comp, test_screen());
 
     lv_obj_t* btn = lv_obj_find_by_name(comp, "spoolman_btn");
@@ -2532,8 +2533,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the open More section scrolls into reach, u
     REQUIRE(content);
     REQUIRE(comment);
     lv_obj_update_layout(content);
-    REQUIRE_FALSE(
-        lv_obj_is_hidden(lv_obj_get_parent(lv_obj_get_parent(comment))));
+    REQUIRE_FALSE(lv_obj_is_hidden(lv_obj_get_parent(lv_obj_get_parent(comment))));
 
     lv_area_t field;
     lv_area_t box;

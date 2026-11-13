@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_drag_surface.h"
 
+#include "ui_obj_flags.h"
+
 namespace helix::ui {
 
 void mark_drag_surface(lv_obj_t* obj) {
     if (!obj) {
         return;
     }
-    lv_obj_add_flag(obj, kDragSurfaceFlag);
+    helix::ui::obj_set_flags(obj, kDragSurfaceFlag, true);
     lv_obj_set_clickable(obj, true);
     // LVGL's scroll search stops at an object that neither scrolls nor chains, so a
     // drag starting here never reaches the home carousel's page strip.
@@ -21,8 +23,8 @@ void mark_drag_surface(lv_obj_t* obj) {
 
 bool is_drag_surface_hit(lv_obj_t* target, lv_obj_t* stop_at) {
     for (lv_obj_t* obj = target; obj; obj = lv_obj_get_parent(obj)) {
-        if (lv_obj_has_flag(obj, kDragSurfaceFlag) || lv_obj_has_class(obj, &lv_arc_class) ||
-            lv_obj_has_class(obj, &lv_slider_class)) {
+        if (helix::ui::obj_has_flags(obj, kDragSurfaceFlag) ||
+            lv_obj_has_class(obj, &lv_arc_class) || lv_obj_has_class(obj, &lv_slider_class)) {
             return true;
         }
         if (obj == stop_at) {
