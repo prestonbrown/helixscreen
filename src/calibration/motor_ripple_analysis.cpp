@@ -175,4 +175,107 @@ SpeedResult analyze_capture(const std::vector<AccelSample>& samples, float sampl
     return out;
 }
 
+std::vector<RippleBand> find_bands(const MotorSweep& sweep, float electrical_mm, float factor,
+                                   float floor_mm_s2) {
+    const auto& sp = sweep.speeds;
+    std::vector<RippleBand> out;
+    if (sp.empty()) {
+        return out;
+    }
+    std::array<float, 3> med{};
+    for (size_t k = 0; k < kHarmonics.size(); ++k) {
+        std::vector<float> vals;
+        for (const auto& r : sp) {
+            if (r.ripple[k]) {
+                vals.push_back(*r.ripple[k]);
+            }
+        }
+        med[k] = median(vals);
+    }
+
+    std::optional<RippleBand> cur;
+    for (size_t i = 0; i < sp.size(); ++i) {
+        int best_k = -1;
+        float best = 0.0f;
+        for (size_t k = 0; k < kHarmonics.size(); ++k) {
+            const auto& v = sp[i].ripple[k];
+            if (v && *v > factor * med[k] && *v > floor_mm_s2 && *v > best) {
+                best = *v;
+                best_k = static_cast<int>(k);
+            }
+        }
+        if (best_k < 0) {
+            continue;
+        }
+        const float s = sp[i].speed_mm_s;
+        const float lo = i > 0 ? (sp[i - 1].speed_mm_s + s) / 2.0f : s;
+        const float hi = i + 1 < sp.size() ? (sp[i + 1].speed_mm_s + s) / 2.0f : s;
+        const int harmonic = kHarmonics[static_cast<size_t>(best_k)];
+        if (cur && cur->hi_mm_s >= lo - 1e-3f) {
+            cur->hi_mm_s = hi;
+        } else {
+            if (cur) {
+                out.push_back(*cur);
+            }
+            cur = RippleBand{};
+            cur->motor = sweep.motor;
+            cur->lo_mm_s = lo;
+            cur->hi_mm_s = hi;
+        }
+        if (best > cur->peak_mm_s2) {
+            cur->harmonic = harmonic;
+            cur->peak_speed_mm_s = s;
+            cur->peak_mm_s2 = best;
+            cur->freq_hz = ripple_freq_hz(s, harmonic, electrical_mm);
+        }
+    }
+    if (cur) {
+        out.push_back(*cur);
+    }
+    return out;
+}
+
+std::vector<RippleBand> merge_bands(std::vector<RippleBand> bands) {
+    std::sort(bands.begin(), bands.end(),
+              [](const RippleBand& a, const RippleBand& b) { return a.lo_mm_s < b.lo_mm_s; });
+    std::vector<RippleBand> out;
+    for (const auto& b : bands) {
+        if (!out.empty() && b.lo_mm_s <= out.back().hi_mm_s) {
+            auto& m = out.back();
+            m.hi_mm_s = std::max(m.hi_mm_s, b.hi_mm_s);
+            if (b.peak_mm_s2 > m.peak_mm_s2) {
+                const float lo = m.lo_mm_s;
+                const float hi = m.hi_mm_s;
+                m = b;
+                m.lo_mm_s = lo;
+                m.hi_mm_s = hi;
+            }
+        } else {
+            out.push_back(b);
+        }
+    }
+    return out;
+}
+
+const RippleBand* band_containing(const std::vector<RippleBand>& bands, float speed_mm_s) {
+    for (const auto& b : bands) {
+        if (speed_mm_s >= b.lo_mm_s && speed_mm_s <= b.hi_mm_s) {
+            return &b;
+        }
+    }
+    return nullptr;
+}
+
+std::optional<int> nearest_clear_speed(const std::vector<RippleBand>& bands, float speed_mm_s,
+                                       bool below) {
+    float x = speed_mm_s;
+    while (const RippleBand* b = band_containing(bands, x)) {
+        x = below ? std::floor(b->lo_mm_s - 1e-3f) : std::ceil(b->hi_mm_s + 1e-3f);
+    }
+    if (x < kSweepMinMmS || x > kSweepMaxMmS) {
+        return std::nullopt;
+    }
+    return static_cast<int>(std::lround(x));
+}
+
 } // namespace helix::calibration::ripple
