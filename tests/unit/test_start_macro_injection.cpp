@@ -37,6 +37,45 @@ TEST_CASE("a firmware that starts the print before the file is named by its conf
         json{{"virtual_sdcard", {{"auto_creator5_start", "True"}}}}));
 }
 
+TEST_CASE("Reforge's ff_print runs its before-macro ahead of the file",
+          "[print][collector][start_macro][reforge]") {
+    // Klipper4FlashForge/firmware eda86c1: ff_print.py wraps SDCARD_PRINT_FILE
+    // and M23 and runs before_macro (default FF_BEFORE_PRINT_START) first;
+    // ff-print-macros.cfg's FF_BEFORE_PRINT_START runs START_PRINT only while
+    // its variable_prepare is on. configfile.settings carries the section with
+    // its defaults, names lowercased, values as Klipper read them.
+    const json ff_print = {{"before_macro", "FF_BEFORE_PRINT_START"},
+                           {"after_macro", "FF_AFTER_PRINT_END"}};
+    auto prepare = [](const char* value) {
+        return json{{"variable_prepare", value}, {"variable_prepare_on_m23", "0"}};
+    };
+
+    SECTION("the section alone, as shipped") {
+        CHECK(helix::firmware_runs_start_macro_before_file(json{{"ff_print", ff_print}}));
+    }
+    SECTION("the shipped macro with prepare on") {
+        CHECK(helix::firmware_runs_start_macro_before_file(
+            json{{"ff_print", ff_print}, {"gcode_macro ff_before_print_start", prepare("1")}}));
+    }
+    SECTION("prepare off: the slicer profile calls START_PRINT from the file") {
+        CHECK_FALSE(helix::firmware_runs_start_macro_before_file(
+            json{{"ff_print", ff_print}, {"gcode_macro ff_before_print_start", prepare("0")}}));
+        CHECK_FALSE(helix::firmware_runs_start_macro_before_file(
+            json{{"ff_print", ff_print}, {"gcode_macro ff_before_print_start", prepare("False")}}));
+    }
+    SECTION("a before_macro of the user's own is the one whose prepare counts") {
+        const json own = {{"before_macro", "MY_PREP"}};
+        CHECK_FALSE(helix::firmware_runs_start_macro_before_file(
+            json{{"ff_print", own}, {"gcode_macro my_prep", prepare("0")}}));
+        CHECK(helix::firmware_runs_start_macro_before_file(
+            json{{"ff_print", own}, {"gcode_macro ff_before_print_start", prepare("0")}}));
+    }
+    SECTION("a gcode_macro of that name without ff_print says nothing") {
+        CHECK_FALSE(helix::firmware_runs_start_macro_before_file(
+            json{{"gcode_macro ff_before_print_start", prepare("1")}}));
+    }
+}
+
 TEST_CASE("discovery keeps whether the firmware starts the print before the file",
           "[print][collector][start_macro]") {
     helix::PrinterDiscovery hw;
