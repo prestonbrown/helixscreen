@@ -28,6 +28,7 @@
 #include "app_globals.h"
 #include "format_utils.h"
 #include "hardware_role_registry.h"
+#include "helix/ui/text_metrics.h"
 #include "i18n_plural.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
@@ -715,11 +716,16 @@ void ControlsPanel::sync_nozzle_tool() {
     const auto& tools = helix::ToolState::instance().tools();
     if (nozzle_tool_dropdown_ && nozzle_tool() < static_cast<int>(tools.size())) {
         lv_dropdown_set_selected(nozzle_tool_dropdown_, static_cast<uint32_t>(nozzle_tool()));
-        // The closed control shows the tool's name; the open list adds its
-        // G-code name beside it.
+        // The closed control sits beside the nozzle glyph and the temperature,
+        // so it shows the tool's number as the screen counts it (the graph's
+        // nozzle picker does the same), or its configured name; the open list
+        // spells out "Tool 1 (T0)".
         const auto& tool = tools[static_cast<size_t>(nozzle_tool())];
-        lv_dropdown_set_text(nozzle_tool_dropdown_,
-                             helix::ui::active_tool_name_label(tool.name, tool.index).c_str());
+        const std::string closed = helix::ui::is_generated_tool_name(tool.name)
+                                       ? helix::ui::lane_number_text(tool.index)
+                                       : tool.name;
+        lv_dropdown_set_text(nozzle_tool_dropdown_, closed.c_str());
+        helix::ui::fit_dropdown_to_text(nozzle_tool_dropdown_);
     }
     nozzle_observers_.bind<ControlsPanel>(
         printer_state_.temperature_state(), nozzle_extruder_name(), nozzle_tool_mounted(), this,

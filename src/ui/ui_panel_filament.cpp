@@ -33,6 +33,7 @@
 #include "filament_op_slot_resolver.h"
 #include "filament_sensor_manager.h"
 #include "gcode_unknown_command.h"
+#include "helix/ui/text_metrics.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_executor.h"
@@ -1109,6 +1110,7 @@ void FilamentPanel::sync_tool_dropdown_text() {
                     : helix::ui::tool_label(tool.index);
     }
     lv_dropdown_set_text(extruder_dropdown_, label.c_str());
+    helix::ui::fit_dropdown_to_text(extruder_dropdown_);
 }
 
 void FilamentPanel::defer_temps_update() {

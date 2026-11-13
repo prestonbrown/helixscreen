@@ -30,4 +30,13 @@ int32_t text_width(const char* txt, const lv_font_t* font, int32_t letter_space 
 int32_t text_width_n(const char* txt, uint32_t len, const lv_font_t* font,
                      int32_t letter_space = 0);
 
+/**
+ * @brief Widen a closed dropdown so its button text and arrow both fit.
+ *
+ * lv_dropdown reports no content width, so width="content" falls back to the
+ * min width the XML gives it; text set later (lv_dropdown_set_text) is not
+ * measured. Call after setting the text. Never narrower than the XML min width.
+ */
+void fit_dropdown_to_text(lv_obj_t* dropdown);
+
 } // namespace helix::ui
