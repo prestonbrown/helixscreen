@@ -228,50 +228,10 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
     spdlog::debug("[MoonrakerClientMock] Registered {} RPC method handlers",
                   method_handlers_.size());
 
-    // MedusaHC drives the real AmsBackendToolChanger, and klipper-toolchanger
-    // reports no material, colour, brand or weight - the override store is the
-    // whole of filament identity there. Without these records every lane renders
-    // at kAmsDefaultSlotColor, which makes colour and ghost bugs invisible.
-    // Outer key style is T<n> (lane_key_style_for), inner "lane" is 0-based.
     if (is_mock_lane_status()) {
         seed_lane_status_records();
     }
-    if (mock_medusa_variant() != MedusaVariant::NONE) {
-        // Each lane mirrors a spool from the mock Spoolman inventory - id,
-        // vendor, material, colour and weights - so the active-spool card and
-        // the lane it names cannot describe different filament.
-        struct Lane {
-            int spoolman_id;
-            const char* material;
-            const char* brand;
-            const char* spool_name;
-            const char* color;
-            double remaining_g;
-        };
-        static constexpr Lane kLanes[] = {
-            {2, "Silk PLA", "eSUN", "Silk Blue", "#26DCD9", 750.0},
-            {4, "ABS", "Flashforge", "Fire Engine Red", "#D20000", 100.0},
-            {13, "PETG", "Bambu Lab", "Translucent Green PETG", "#29A261", 1000.0},
-            {5, "PETG", "Kingroon", "Signal Yellow", "#F4E111", 1000.0},
-            {3, "ASA", "Elegoo", "Pop Blue", "#00AEFF", 500.0},
-            {15, "PLA", "Bambu Lab", "Red PLA", "#C12E1F", 1000.0},
-        };
-        static_assert(std::size(kLanes) == kMedusaMaxTools);
-        for (int i = 0; i < medusa_tool_count(); ++i) {
-            const Lane& l = kLanes[i];
-            mock_db_set("lane_data",
-                        "T" + std::to_string(i), // DISPLAY_NUMBERING_OK: database key mirrors
-                                                 // the T<n> wire format, not a display label
-                        json{{"lane", std::to_string(i)},
-                             {"spoolman_id", l.spoolman_id},
-                             {"material", l.material},
-                             {"brand", l.brand},
-                             {"spool_name", l.spool_name},
-                             {"color", l.color},
-                             {"remaining_weight_g", l.remaining_g},
-                             {"total_weight_g", 1000.0}});
-        }
-    }
+    seed_tool_lane_records();
 
     // Filament in the head that no lane claims: what a firmware that lost its
     // loaded-lane record leaves behind.

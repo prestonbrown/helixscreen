@@ -1134,8 +1134,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     tool_names.push_back(name);
                 }
                 // Beside a MedusaHC, pin_watch keeps tool_number on the docks' tool.
-                const int tool_number =
-                    self->is_mock_medusahc() ? self->sync_medusa_toolchanger_tool() : 0;
+                const int tool_number = self->is_mock_medusahc()
+                                            ? self->sync_medusa_toolchanger_tool()
+                                            : self->toolchanger_tool();
                 status_obj["toolchanger"] = {{"status", "ready"},
                                              {"tool_number", tool_number},
                                              {"tool_numbers", tool_numbers},

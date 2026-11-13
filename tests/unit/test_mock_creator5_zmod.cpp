@@ -206,11 +206,9 @@ TEST_CASE("The mock persona and HELIX_MOCK_AMS pick the mock AMS's type",
     config->use_real_ams = false;
     REQUIRE(config->should_mock_ams());
 
-    // Reforge: the persona, not the generic Happy Hare default, picks the
-    // topology. Then every spelling HELIX_MOCK_AMS accepts for an AFC mock.
+    // Every spelling HELIX_MOCK_AMS accepts for an AFC mock.
     auto [variable, value, type] = GENERATE(table<const char*, const char*, helix::AmsType>(
-        {{"HELIX_MOCK_PRINTER", "creator5", helix::AmsType::TOOL_CHANGER},
-         {"HELIX_MOCK_AMS", "afc", helix::AmsType::AFC},
+        {{"HELIX_MOCK_AMS", "afc", helix::AmsType::AFC},
          {"HELIX_MOCK_AMS", "box_turtle", helix::AmsType::AFC},
          {"HELIX_MOCK_AMS", "boxturtle", helix::AmsType::AFC},
          {"HELIX_MOCK_AMS", "quattro_box", helix::AmsType::AFC}}));

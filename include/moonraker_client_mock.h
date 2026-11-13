@@ -2391,6 +2391,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         return active_gcode_tool_.load();
     }
 
+    /// klipper-toolchanger's tool_number as the mock last set it (-1 = none mounted).
+    [[nodiscard]] int toolchanger_tool() const {
+        return toolchanger_tool_.load();
+    }
+
   private:
     void notify_active_gcode_tool_observers(int tool) {
         std::vector<std::function<void(int, uint32_t)>> snapshot;
@@ -2626,7 +2631,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     bool mmu_enabled_{true};                           ///< MMU available (default true)
     std::atomic<bool> hh_sync_feedback_enabled_{true}; ///< MMU_SYNC_FEEDBACK ENABLE=
     std::atomic<bool> hh_fan_enabled_{true};           ///< MMU_FAN ENABLE=
-    std::atomic<int> hh_fan_mode_{2};                  ///< MMU_FAN FAN_FORCED=, 2 = auto
+    std::atomic<int> toolchanger_tool_{0}; ///< toolchanger.tool_number (plain toolchanger mode)
+    std::atomic<int> hh_fan_mode_{2};      ///< MMU_FAN FAN_FORCED=, 2 = auto
 
     // --- MedusaHC swap simulation -------------------------------------------
     // Driven from gcode_script() (the swap, unmount and feeder commands) and
@@ -3004,8 +3010,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     GcodeResult gcode_lane_status(const std::string& gcode);
     /// The producer's lane_data records, one per lane, written as it would.
     void seed_lane_status_records();
+    /// The T<n> lane_data records a tool changer's identity lives in (MedusaHC and plain
+    /// klipper-toolchanger modes; nothing otherwise).
+    void seed_tool_lane_records();
     GcodeResult gcode_openams_line(const std::string& gcode);
     GcodeResult gcode_happy_hare(const std::string& gcode);
+    /// klipper-toolchanger's SELECT_TOOL and UNSELECT_TOOL in the plain toolchanger mode:
+    /// a swap reports "changing", then "ready" on the new tool_number.
+    GcodeResult gcode_toolchanger(const std::string& gcode);
     GcodeResult gcode_u1_feeding(const std::string& gcode);
     /// SET_PURIFIER_MODE, SET_PURIFIER and the mock-only HELIX_MOCK_TOP_COVER
     /// PRESENT=0|1, which lifts the top off or puts it back. U1 only.

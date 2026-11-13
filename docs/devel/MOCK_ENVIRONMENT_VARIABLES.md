@@ -759,7 +759,7 @@ Select the mock AMS topology/type.
 | `ace` | 1 | Anycubic ACE identity on the mock backend, 4 slots |
 | `afc` | 1 | AFC Box Turtle, HUB, 4 slots. Aliases: `box_turtle`, `boxturtle` |
 | `quattro_box` | 1 | AFC Quattro Box, HUB; `HELIX_AMS_GATES` sets its lanes. Alias: `quattrobox` |
-| `toolchanger` / `tc` | 1 | Tool Changer, PARALLEL topology. Alias: `tool_changer` |
+| `toolchanger` / `tc` | 1 | **klipper-toolchanger - mock HARDWARE, real backend.** Publishes `toolchanger` and `tool T0`..`tool T3` with no `mmu`, seeds `lane_data` `T0`..`T3` from Spoolman spools 1-4, and answers `SELECT_TOOL` / `UNSELECT_TOOL` with a "changing" then "ready" frame on the new `tool_number`, so real discovery builds the production `AmsBackendToolChanger`. Alias: `tool_changer`; the `creator5` persona's default |
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
 | `multi` | 2 | Box Turtle (4 slots) + Night Owl (2 slots), single toolhead |
 | `torture` | **5** | **Its unit-card row overflows.** See below |

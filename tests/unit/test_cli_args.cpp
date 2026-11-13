@@ -369,7 +369,7 @@ TEST_CASE("parse_cli_args: HELIX_MOCK_PRINTER=creator5_zmod implies --real-ams u
 
 TEST_CASE("parse_cli_args: an explicit HELIX_MOCK_AMS wins over the persona", "[cli_args][mock]") {
     ScopedRuntimeConfig scoped_config;
-    ScopedEnv ams{"HELIX_MOCK_AMS", "toolchanger"};
+    ScopedEnv ams{"HELIX_MOCK_AMS", "mixed"};
     ScopedEnv printer{"HELIX_MOCK_PRINTER", "creator5_zmod"};
     CliArgs args;
     REQUIRE(parse({"helix-screen", "--test"}, args));
@@ -395,15 +395,6 @@ TEST_CASE("parse_cli_args: --real-moonraker implies --real-ams", "[cli_args][moc
         REQUIRE(parse({"helix-screen", "--test", "--real-moonraker"}, args));
         REQUIRE(get_runtime_config()->use_real_ams);
     }
-}
-
-TEST_CASE("parse_cli_args: other personas do not imply --real-ams", "[cli_args][mock]") {
-    ScopedRuntimeConfig scoped_config;
-    ScopedEnv ams{"HELIX_MOCK_AMS", nullptr};
-    ScopedEnv printer{"HELIX_MOCK_PRINTER", "creator5"};
-    CliArgs args;
-    REQUIRE(parse({"helix-screen", "--test"}, args));
-    REQUIRE_FALSE(get_runtime_config()->use_real_ams);
 }
 
 // ============================================================================

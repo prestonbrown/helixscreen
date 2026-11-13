@@ -409,4 +409,45 @@ enum class MedusaVariant {
     return p && descriptor(p->type).hardware_persona;
 }
 
+/// The production backend a mock AMS selection stands up, as a log label, or nullptr when
+/// AmsBackendMock simulates it. A non-null answer means mock HARDWARE: MoonrakerClientMock
+/// publishes the objects and frames that firmware does, and real discovery builds the
+/// backend against them. `mode` is effective_mock_ams()'s answer. The CLI's --real-ams
+/// implication and AmsBackend's mock selection both decide through this one table.
+[[nodiscard]] inline const char* mock_hardware_backend(std::string_view mode,
+                                                       const char* printer_env) {
+    struct Row {
+        std::string_view mode;
+        const char* backend;
+    };
+    static constexpr Row kRows[] = {
+        {"ifs-module", "AD5X IFS"},
+        {"ifs_module", "AD5X IFS"},
+        {"ad5x-module", "AD5X IFS"},
+        {"ifs-jacker", "AD5X IFS"},
+        {"ifs_jacker", "AD5X IFS"},
+        {"cfs", "CFS"},
+        {"cfs-k1", "CFS"},
+        {"openams", "OpenAMS"},
+        {"multiace", "multiACE-on-U1"},
+        {"indx", "INDX"},
+        {"lane_status", "lane_status"},
+        {"toolchanger", "tool-changer"},
+        {"tool_changer", "tool-changer"},
+        {"tc", "tool-changer"},
+    };
+    if (medusa_variant(mode) != MedusaVariant::NONE) {
+        return "tool-changer";
+    }
+    for (const Row& row : kRows) {
+        if (mode == row.mode) {
+            return row.backend;
+        }
+    }
+    if (mode.empty() && printer_env && is_hardware_persona(printer_env)) {
+        return "persona";
+    }
+    return nullptr;
+}
+
 } // namespace helix::mock

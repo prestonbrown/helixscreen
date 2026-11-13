@@ -926,6 +926,7 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_tool_change(const st
         // klipper-toolchanger reports the mounted tool as tool_number beside it.
         json status = {{"toolhead", {{"extruder", extruder_name}}}};
         if (is_mock_toolchanger()) {
+            toolchanger_tool_ = tool_index;
             status["toolchanger"] = {{"tool_number", tool_index}};
         }
         dispatch_status_update(status);
@@ -1450,6 +1451,9 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
         return *r;
     }
     if (is_mock_reforge_afc() && (r = gcode_reforge_afc(g))) {
+        return *r;
+    }
+    if (mock_toolchanger_selected() && !is_mock_reforge_afc() && (r = gcode_toolchanger(g))) {
         return *r;
     }
     if ((r = gcode_respond(raw_gcode))) {

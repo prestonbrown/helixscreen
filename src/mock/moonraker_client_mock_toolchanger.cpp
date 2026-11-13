@@ -3,6 +3,7 @@
 // klipper-toolchanger mock hardware (HELIX_MOCK_AMS=toolchanger): the active tool,
 // per-tool gcode offsets and the offset calibration macro.
 
+#include "core/text_io.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
 
@@ -11,6 +12,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
+#include <iterator>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -30,19 +32,112 @@ bool MoonrakerClientMock::is_mock_toolchanger() const {
     return mock_toolchanger_selected() || is_mock_reforge_afc();
 }
 
+void MoonrakerClientMock::seed_tool_lane_records() {
+    // klipper-toolchanger reports no material, colour, brand or weight: the
+    // override store is the whole of filament identity there, and without these
+    // records every tool renders at kAmsDefaultSlotColor, which makes colour and
+    // ghost bugs invisible. Each record mirrors a spool from the mock Spoolman
+    // inventory (id, vendor, material, colour, weights), so the active-spool card
+    // and the tool it names cannot describe different filament.
+    struct Lane {
+        int spoolman_id;
+        const char* material;
+        const char* brand;
+        const char* spool_name;
+        const char* color;
+        double remaining_g;
+    };
+    static constexpr Lane kMedusaLanes[] = {
+        {2, "Silk PLA", "eSUN", "Silk Blue", "#26DCD9", 750.0},
+        {4, "ABS", "Flashforge", "Fire Engine Red", "#D20000", 100.0},
+        {13, "PETG", "Bambu Lab", "Translucent Green PETG", "#29A261", 1000.0},
+        {5, "PETG", "Kingroon", "Signal Yellow", "#F4E111", 1000.0},
+        {3, "ASA", "Elegoo", "Pop Blue", "#00AEFF", 500.0},
+        {15, "PLA", "Bambu Lab", "Red PLA", "#C12E1F", 1000.0},
+    };
+    static_assert(std::size(kMedusaLanes) == kMedusaMaxTools);
+    // Spools 1-4 in order, the lanes the mock AMS seeds on every other mode.
+    static constexpr Lane kToolChangerLanes[] = {
+        {1, "PLA", "Polymaker", "Jet Black", "#1A1A2E", 850.0},
+        {2, "Silk PLA", "eSUN", "Silk Blue", "#26DCD9", 750.0},
+        {3, "ASA", "Elegoo", "Pop Blue", "#00AEFF", 500.0},
+        {4, "ABS", "Flashforge", "Fire Engine Red", "#D20000", 100.0},
+    };
+
+    const Lane* lanes = nullptr;
+    int count = 0;
+    if (mock_medusa_variant() != MedusaVariant::NONE) {
+        lanes = kMedusaLanes;
+        count = medusa_tool_count();
+    } else if (mock_toolchanger_selected()) {
+        lanes = kToolChangerLanes;
+        count = static_cast<int>(std::size(kToolChangerLanes));
+    }
+    for (int i = 0; i < count; ++i) {
+        const Lane& l = lanes[i];
+        // Outer key style is T<n> (lane_key_style_for), inner "lane" is 0-based.
+        mock_db_set("lane_data",
+                    "T" + std::to_string(i), // DISPLAY_NUMBERING_OK: database key mirrors
+                                             // the T<n> wire format, not a display label
+                    json{{"lane", std::to_string(i)},
+                         {"spoolman_id", l.spoolman_id},
+                         {"material", l.material},
+                         {"brand", l.brand},
+                         {"spool_name", l.spool_name},
+                         {"color", l.color},
+                         {"remaining_weight_g", l.remaining_g},
+                         {"total_weight_g", 1000.0}});
+    }
+}
+
+MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_toolchanger(const std::string& gcode) {
+    const std::string cmd = gcode.substr(0, gcode.find_first_of(" \t"));
+    int tool = -1;
+    if (cmd == "SELECT_TOOL") {
+        // TOOL="tool T<n>" names the tool object; T=<n> is a tool number.
+        if (const size_t named = gcode.find("TOOL=\"tool T"); named != std::string::npos) {
+            tool = helix::text_io::parse_leading<int>(gcode.substr(named + 12)).value_or(-1);
+        } else if (const size_t t = gcode.find(" T="); t != std::string::npos) {
+            tool = helix::text_io::parse_leading<int>(gcode.substr(t + 3)).value_or(-1);
+        }
+        const int count = static_cast<int>(discovery_.hardware().tool_names().size());
+        if (tool < 0 || tool >= count) {
+            dispatch_gcode_response(fmt::format("!! Unknown tool: {}", gcode));
+            return 1;
+        }
+    } else if (cmd != "UNSELECT_TOOL") {
+        return std::nullopt;
+    }
+    spdlog::info("[MoonrakerClientMock] klipper-toolchanger: {} -> tool_number {}", cmd, tool);
+    dispatch_status_update({{"toolchanger", {{"status", "changing"}}}});
+    std::vector<helix::SharedCallback<void()>> steps;
+    steps.emplace_back([this, tool] {
+        if (tool >= 0) {
+            dispatch_gcode_response(fmt::format("Selected tool {} (T{})", tool, tool));
+        }
+    });
+    play_console_steps(std::move(steps), 800, [this, tool] {
+        dispatch_status_update({{"toolchanger", {{"status", "ready"}}}});
+        dispatch_toolchanger_tool(tool);
+    });
+    return 0;
+}
+
 void MoonrakerClientMock::dispatch_toolchanger_tool(int tool) {
+    toolchanger_tool_ = tool;
     // klipper-toolchanger publishes `toolchanger.tool` as the gcode name itself,
     // so this is the wire value the mock reproduces, not a label the UI renders.
     json update = {
         {"toolchanger",
          {{"tool_number", tool},
-          {"tool", "T" + std::to_string(tool)}}}}; // DISPLAY_NUMBERING_OK: wire value, not a label
+          {"tool", tool >= 0 ? json("T" + std::to_string(tool)) // DISPLAY_NUMBERING_OK: wire
+                             : json(nullptr)}}}};               // value, not a label
     dispatch_status_update(update);
-    // The mock AMS backend does not read toolchanger.tool_number (a production
-    // backend does); it follows the simulator through this hook instead, the
-    // same one a print's tool changes use. Without it ToolState's active tool
-    // never moves under --test and no row ever reads Measuring.
-    notify_active_gcode_tool_observers(tool);
+    // An AmsBackendMock reads no toolchanger.tool_number; it follows the
+    // simulator through this hook, the same one a print's tool changes use.
+    if (tool >= 0) {
+        notify_active_gcode_tool_observers(tool);
+    }
 }
 
 void MoonrakerClientMock::apply_calibrated_tool_offset(int tool, double x, double y, double z) {

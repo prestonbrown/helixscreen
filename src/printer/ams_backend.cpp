@@ -825,38 +825,22 @@ static std::unique_ptr<AmsBackend> try_create_mock(IMoonrakerClient* mock_client
         spdlog::info("[AMS Backend] Mock AMS disabled via HELIX_MOCK_AMS=none");
         return nullptr;
     }
-    // The MedusaHC modes are mock HARDWARE, not a mock backend: MoonrakerClientMock
-    // seeds the discovery objects and status a real hotend changer publishes, and
-    // the point is to exercise the production AmsBackendToolChanger +
-    // toolchanger_addon path against them. Declining here is what lets real
-    // discovery run, the same escape hatch HELIX_MOCK_AMS=none uses.
-    if (helix::mock::medusa_variant(mode) != helix::mock::MedusaVariant::NONE) {
-        spdlog::info("[AMS Backend] HELIX_MOCK_AMS={} selects mock hardware, not a mock "
-                     "backend - deferring to real discovery",
-                     mode);
-        return nullptr;
-    }
-    // multiACE on a U1, INDX and a lane_status producer: mock hardware the same
-    // way. MoonrakerClientMock seeds their objects and frames, and the
-    // production AmsBackendMultiAce / AmsBackendIndx / AmsBackendLaneStatus run
-    // against them (multiACE pairs with HELIX_MOCK_PRINTER=snapmaker_u1).
-    if (mode == "multiace" || mode == "indx" || mode == "lane_status") {
-        spdlog::info("[AMS Backend] HELIX_MOCK_AMS={} selects mock hardware, not a mock "
-                     "backend - deferring to real discovery",
-                     mode);
-        return nullptr;
-    }
-    // Personas that model firmware HelixScreen talks to through a production
-    // backend are mock hardware too: decline, and real discovery builds that
-    // backend against the mock's objects. Decided from the header-only persona table: the
-    // firmware build's link check reads this object and must find no MoonrakerClientMock symbol.
+    // Mock HARDWARE, not a mock backend: MoonrakerClientMock seeds the objects and
+    // frames that firmware publishes, and declining here lets real discovery build
+    // the production backend against them, the same escape hatch
+    // HELIX_MOCK_AMS=none uses.
     const char* printer_env = std::getenv("HELIX_MOCK_PRINTER");
-    if (mode.empty() && printer_env && helix::mock::is_hardware_persona(printer_env)) {
-        spdlog::info("[AMS Backend] Mock printer persona is mock hardware - deferring to real "
-                     "discovery");
+    if (const char* backend = helix::mock::mock_hardware_backend(mode, printer_env)) {
+        spdlog::info("[AMS Backend] HELIX_MOCK_AMS={} selects mock hardware ({}), not a mock "
+                     "backend - deferring to real discovery",
+                     mode, backend);
         return nullptr;
     }
 
+    // Everything else stays on AmsBackendMock. The fictional screenshot topologies
+    // (mixed, multi, torture, stealth, vivid, htlf_toolchanger) model no single
+    // firmware: they combine units no one controller publishes, to fill and overflow
+    // the panel's layouts, so there is no production backend for mock frames to drive.
     spdlog::debug("[AMS Backend] Creating mock backend with {} gates (mock mode enabled)",
                   config->mock_ams_gate_count);
     return create_mock_with_features(config->mock_ams_gate_count, mock_client);

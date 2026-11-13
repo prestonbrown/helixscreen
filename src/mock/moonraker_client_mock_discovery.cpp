@@ -491,12 +491,12 @@ void MoonrakerClientMock::populate_capabilities() {
     }
 
     // MMU/AMS system - Happy Hare uses "mmu" object name.
-    // Suppressed in the MedusaHC modes, the standalone IFS module mode, the OpenAMS
-    // mode and any persona that omits it: "mmu" detects Happy Hare (priority over every
+    // Suppressed in the MedusaHC and toolchanger modes, the standalone IFS module mode,
+    // the OpenAMS mode and any persona that omits it: "mmu" detects Happy Hare (priority over every
     // other filament system) and would stand the wrong backend up.
     if (mmu_enabled_ && !is_mock_medusahc() && !is_mock_ifs_module() && !is_mock_ifs_jacker() &&
         !is_mock_openams() && !is_mock_indx() && !is_mock_lane_status() &&
-        inherits(kHappyHareMmu)) {
+        !mock_toolchanger_selected() && inherits(kHappyHareMmu)) {
         mock_objects.push_back("mmu");
     }
 
