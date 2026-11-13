@@ -475,10 +475,6 @@ The BTT Pad 7 and similar Klipper pads combine the computer and touchscreen in o
 
 The easiest way: **Settings > Display > Screen Rotation**. Pick Normal, 90° Clockwise, 180° Upside Down or 270° Clockwise, then restart HelixScreen. Touch follows the rotation by itself.
 
-![The Display settings screen, with the Screen Rotation row marked](../images/user/settings-display-rotation.png)
-
-1. **Screen Rotation**: turns the picture in steps of 90 degrees.
-
 If the display can rotate itself, that costs nothing, so prefer it:
 
 - A monitor with a rotation option in its own menu
