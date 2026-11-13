@@ -419,16 +419,14 @@ size_t observer_count(lv_subject_t* subject) {
 /// The global Filament panel built from its real XML into the fixture's panel
 /// container and registered as the Filament main panel, the way PanelFactory
 /// does it; unregistered again on the way out.
-class ScopedFilamentPanel {
-  public:
+struct ScopedFilamentPanel {
     ScopedFilamentPanel() {
         helix::ToolState::instance().init_subjects(true);
         AmsState::instance().init_subjects(true);
         FilamentPanel& panel = get_global_filament_panel();
         panel.init_subjects();
-        home_ = lv_screen_active();
-        root_ = static_cast<lv_obj_t*>(lv_xml_create(home_, "filament_panel", nullptr));
-        REQUIRE(root_ != nullptr);
+        root = static_cast<lv_obj_t*>(lv_xml_create(home, "filament_panel", nullptr));
+        REQUIRE(root != nullptr);
         auto& nav = NavigationManager::instance();
         // Only the Filament panel takes part; the panels the switches below
         // pass through have no instance, so they activate nothing.
@@ -436,10 +434,10 @@ class ScopedFilamentPanel {
             nav.register_panel_instance(id, nullptr);
         }
         nav.set_active(PanelId::Home);
-        nav.replace_panel_widget(PanelId::Filament, root_);
+        nav.replace_panel_widget(PanelId::Filament, root);
         nav.register_panel_instance(PanelId::Filament, &panel);
-        panel.setup(root_, lv_screen_active());
-        lv_obj_set_hidden(root_, true);
+        panel.setup(root, lv_screen_active());
+        lv_obj_set_hidden(root, true);
     }
 
     ~ScopedFilamentPanel() {
@@ -449,13 +447,6 @@ class ScopedFilamentPanel {
         nav.register_panel_instance(PanelId::Filament, nullptr);
     }
 
-    lv_obj_t* root() const {
-        return root_;
-    }
-    lv_obj_t* home() const {
-        return home_;
-    }
-
     /// One observer per binding and per C++ watch: a second tree or a second
     /// setup() would add to both.
     static size_t observers() {
@@ -463,9 +454,8 @@ class ScopedFilamentPanel {
                observer_count(AmsState::instance().get_ams_type_subject());
     }
 
-  private:
-    lv_obj_t* home_ = nullptr;
-    lv_obj_t* root_ = nullptr;
+    lv_obj_t* home = lv_screen_active();
+    lv_obj_t* root = nullptr;
 };
 
 } // namespace
@@ -487,9 +477,9 @@ TEST_CASE_METHOD(FullPageFixture, "a Filament full page shows the Filament panel
     // Shown: the one tree moves into the page; nothing is built or observed twice.
     tile->on_activate();
     drain();
-    CHECK(lv_obj_get_parent(fp.root()) == body);
-    CHECK_FALSE(hidden(fp.root()));
-    CHECK(get_global_filament_panel().get_panel() == fp.root());
+    CHECK(lv_obj_get_parent(fp.root) == body);
+    CHECK_FALSE(hidden(fp.root));
+    CHECK(get_global_filament_panel().get_panel() == fp.root);
     CHECK(ScopedFilamentPanel::observers() == observers);
     CHECK(tile->full_page().hosts_tree());
     // The panel's tree does not paint over the frame's placeholder; it steps aside.
@@ -505,18 +495,18 @@ TEST_CASE_METHOD(FullPageFixture, "a Filament full page shows the Filament panel
     // Switching between other panels leaves the lent tree on show.
     nav.set_active(PanelId::Settings);
     drain();
-    CHECK(lv_obj_get_parent(fp.root()) == body);
-    CHECK_FALSE(hidden(fp.root()));
+    CHECK(lv_obj_get_parent(fp.root) == body);
+    CHECK_FALSE(hidden(fp.root));
     nav.set_active(PanelId::Home);
 
     // Edit mode disarms the page; handing the tree back re-arms what it took.
     helix::ui::disable_widget_clicks_recursive(tile->root());
-    REQUIRE_FALSE(lv_obj_is_clickable(fp.root()));
+    REQUIRE_FALSE(lv_obj_is_clickable(fp.root));
     tile->on_deactivate();
     drain();
-    CHECK(lv_obj_get_parent(fp.root()) == fp.home());
-    CHECK(hidden(fp.root()));
-    CHECK(lv_obj_is_clickable(fp.root()));
+    CHECK(lv_obj_get_parent(fp.root) == fp.home);
+    CHECK(hidden(fp.root));
+    CHECK(lv_obj_is_clickable(fp.root));
     CHECK(nav.panel_lent_to(PanelId::Filament) == nullptr);
     CHECK(lv_subject_get_int(state) == static_cast<int>(helix::FullPageState::Empty));
     CHECK_FALSE(hidden(named(tile->root(), "full_page_placeholder")));
@@ -527,16 +517,16 @@ TEST_CASE_METHOD(FullPageFixture, "a Filament full page shows the Filament panel
     // back first, and while it is open the page does not get it.
     tile->on_activate();
     drain();
-    REQUIRE(lv_obj_get_parent(fp.root()) == body);
+    REQUIRE(lv_obj_get_parent(fp.root) == body);
     nav.set_active(PanelId::Filament);
     drain();
-    CHECK(lv_obj_get_parent(fp.root()) == fp.home());
-    CHECK_FALSE(hidden(fp.root()));
+    CHECK(lv_obj_get_parent(fp.root) == fp.home);
+    CHECK_FALSE(hidden(fp.root));
     CHECK(lv_subject_get_int(on_page) == 0);
     tile->on_deactivate();
     tile->on_activate();
     drain();
-    CHECK(lv_obj_get_parent(fp.root()) == fp.home());
+    CHECK(lv_obj_get_parent(fp.root) == fp.home);
     CHECK_FALSE(tile->full_page().hosts_tree());
     CHECK(ScopedFilamentPanel::observers() == observers);
 }
@@ -548,13 +538,13 @@ TEST_CASE_METHOD(FullPageFixture, "a Filament page deleted without detach keeps 
         place(std::make_unique<helix::FilamentOpsWidget>("filament_ops:1"), 1, /*fills=*/true);
     tile->on_activate();
     drain();
-    REQUIRE(lv_obj_get_parent(fp.root()) == named(tile->root(), "full_page_body"));
+    REQUIRE(lv_obj_get_parent(fp.root) == named(tile->root(), "full_page_body"));
 
     lv_obj_delete(tile->root());
     drain();
-    REQUIRE(lv_obj_is_in_widget_tree(fp.root()));
-    CHECK(lv_obj_get_parent(fp.root()) == fp.home());
-    CHECK(get_global_filament_panel().get_panel() == fp.root());
+    REQUIRE(lv_obj_is_in_widget_tree(fp.root));
+    CHECK(lv_obj_get_parent(fp.root) == fp.home);
+    CHECK(get_global_filament_panel().get_panel() == fp.root);
     CHECK(NavigationManager::instance().panel_lent_to(PanelId::Filament) == nullptr);
     CHECK_FALSE(helix::full_page_for(helix::kFilamentOpsFunction).has_value());
 }
