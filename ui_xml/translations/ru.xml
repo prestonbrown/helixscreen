@@ -4366,6 +4366,7 @@
   <translation tag="Toolhead Style" ru="Стиль печатающей головки"/>
   <translation tag="Toolhead X" ru="Печатающая головка X"/>
   <translation tag="Toolhead Y" ru="Печатающая головка Y"/>
+  <translation tag="Toolhead did not return to park: {}" ru="Печатающая головка не вернулась в положение парковки: {}"/>
   <translation tag="Toolhead jam" ru="Замятие в печатающей головке"/>
   <translation tag="Toolhead lost homing" ru="Печатающая головка потеряла парковку"/>
   <translation tag="Toolhead offset calibration" ru="Калибровка смещений головок"/>

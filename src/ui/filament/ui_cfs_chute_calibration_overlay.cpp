@@ -348,7 +348,7 @@ void CfsChuteCalibrationOverlay::save_position() {
             set_state(State::DONE);
         },
         [this, backend](const MoonrakerError& failure, bool position_saved) {
-            report_step_failure(failure);
+            report_step_failure(failure, position_saved);
             if (position_saved) {
                 show_saved(*backend, /*parked=*/false);
                 set_state(State::DONE);
@@ -371,15 +371,21 @@ void CfsChuteCalibrationOverlay::update_x_display(int centimm) {
     lv_subject_set_string(&s_cfs_chute_x_text, s_cfs_chute_x_buf);
 }
 
-void CfsChuteCalibrationOverlay::report_step_failure(const MoonrakerError& failure) {
+void CfsChuteCalibrationOverlay::report_step_failure(const MoonrakerError& failure,
+                                                     bool position_saved) {
     // GcodeErrorRouter reports Klipper's own `!!` copy of a raised error,
     // with its recovery modal when the fault has one; a second toast here
     // would repeat it. Only a failure Klipper never saw is ours to report.
     if (failure.raised_by_klipper()) {
         return;
     }
-    NOTIFY_ERROR(lv_tr("Purge chute calibration failed: {}"),
-                 helix::decode_firmware_error_text(failure.message));
+    const std::string reason = helix::decode_firmware_error_text(failure.message);
+    if (position_saved) {
+        // Only the park failed: the save went through, and the done screen says so.
+        NOTIFY_ERROR(lv_tr("Toolhead did not return to park: {}"), reason);
+    } else {
+        NOTIFY_ERROR(lv_tr("Purge chute calibration failed: {}"), reason);
+    }
 }
 
 void CfsChuteCalibrationOverlay::show_saved(const ICfsCalibration& backend, bool parked) {

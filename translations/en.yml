@@ -4629,6 +4629,7 @@ translations:
   Toolhead Style: Toolhead Style
   Toolhead X: Toolhead X
   Toolhead Y: Toolhead Y
+  'Toolhead did not return to park: {}': 'Toolhead did not return to park: {}'
   Toolhead jam: Toolhead jam
   Toolhead lost homing: Toolhead lost homing
   Toolhead offset calibration: Toolhead offset calibration

@@ -4303,6 +4303,7 @@
   <translation tag="Toolhead Style" fr="Style de tête d&apos;outil"/>
   <translation tag="Toolhead X" fr="Tête d&apos;outil X"/>
   <translation tag="Toolhead Y" fr="Tête d&apos;outil Y"/>
+  <translation tag="Toolhead did not return to park: {}" fr="La tête n&apos;est pas revenue en position de parking : {}"/>
   <translation tag="Toolhead jam" fr="Bourrage de la tête d&apos;outil"/>
   <translation tag="Toolhead lost homing" fr="La tête d&apos;outil a perdu sa référence"/>
   <translation tag="Toolhead offset calibration" fr="Calibration des offsets des têtes d&apos;outil"/>

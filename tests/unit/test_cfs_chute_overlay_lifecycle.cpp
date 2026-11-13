@@ -461,6 +461,33 @@ TEST_CASE_METHOD(ChuteOverlayFixture, "Chute overlay reports each failed step on
         CHECK(state() == kIdle);
     }
 
+    SECTION("a Klippy disconnect is Moonraker's answer, with no `!!` copy, so it is toasted") {
+        tap_start();
+        REQUIRE(backend->start_failed);
+        MoonrakerError gone =
+            chute_error(MoonrakerErrorType::JSON_RPC_ERROR, "Klippy Disconnected");
+        gone.code = 503;
+        backend->start_failed(gone);
+        settle();
+        CHECK(toasts.shown.size() == 1);
+        CHECK(state() == kIdle);
+    }
+
+    SECTION("a park that times out after a good save names the park, not the save") {
+        reach_adjusting();
+        lv_obj_t* save =
+            lv_obj_find_by_name(get_cfs_chute_calibration_overlay().get_root(), "btn_chute_save");
+        REQUIRE(save);
+        lv_obj_send_event(save, LV_EVENT_CLICKED, nullptr);
+        REQUIRE(backend->save_failed);
+        backend->save_failed(chute_error(MoonrakerErrorType::TIMEOUT, "Request timed out"),
+                             /*position_saved=*/true);
+        settle();
+        REQUIRE(toasts.shown.size() == 1);
+        CHECK(toasts.shown[0].find("did not return to park") != std::string::npos);
+        CHECK(state() == kDone);
+    }
+
     SECTION("a failed park after a good save ends on the done screen with a note") {
         reach_adjusting();
         lv_obj_t* save =

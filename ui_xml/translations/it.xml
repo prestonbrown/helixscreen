@@ -4303,6 +4303,7 @@
   <translation tag="Toolhead Style" it="Stile testina"/>
   <translation tag="Toolhead X" it="Testina X"/>
   <translation tag="Toolhead Y" it="Testina Y"/>
+  <translation tag="Toolhead did not return to park: {}" it="La testina non è tornata in posizione di parcheggio: {}"/>
   <translation tag="Toolhead jam" it="Inceppamento testina"/>
   <translation tag="Toolhead lost homing" it="La testina ha perso l&apos;homing"/>
   <translation tag="Toolhead offset calibration" it="Calibrazione offset testine"/>

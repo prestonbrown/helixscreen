@@ -4733,6 +4733,7 @@ translations:
   Toolhead Style: Toolhead-Stil
   Toolhead X: Werkzeugkopf X
   Toolhead Y: Werkzeugkopf Y
+  'Toolhead did not return to park: {}': 'Der Druckkopf ist nicht in die Parkposition zurückgekehrt: {}'
   Toolhead jam: Werkzeugkopf-Stau
   Toolhead lost homing: Werkzeugkopf hat die Referenzierung verloren
   Toolhead offset calibration: Werkzeugkopf-Offset-Kalibrierung

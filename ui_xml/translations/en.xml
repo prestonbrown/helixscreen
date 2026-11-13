@@ -4303,6 +4303,7 @@
   <translation tag="Toolhead Style" en="Toolhead Style"/>
   <translation tag="Toolhead X" en="Toolhead X"/>
   <translation tag="Toolhead Y" en="Toolhead Y"/>
+  <translation tag="Toolhead did not return to park: {}" en="Toolhead did not return to park: {}"/>
   <translation tag="Toolhead jam" en="Toolhead jam"/>
   <translation tag="Toolhead lost homing" en="Toolhead lost homing"/>
   <translation tag="Toolhead offset calibration" en="Toolhead offset calibration"/>
