@@ -155,7 +155,7 @@ See [docs/devel/GALLERY.md](docs/devel/GALLERY.md) for the full gallery.
 
 ³ Snapmaker U1 needs SSH access. Stock firmware (1.2+) provides it via the **Root access** option in printer settings; the community [PAXX Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware) enables SSH by default and is the easiest path. Tested on PAXX 1.3.x/1.4.x; the stock-firmware path is unverified on a real stock device. Reinstall HelixScreen after any firmware update — it resets system files and the stock screen returns until you reinstall.
 
-⁴ Android is a **remote** client only. It monitors and controls a printer over your network and does not replace a printer's own panel. Needs Android 9.0 or newer, and runs in landscape. Not on Google Play yet, so you install the APK yourself from a [GitHub release](https://github.com/prestonbrown/helixscreen/releases/latest). See [Android app](docs/user/INSTALL.md#android-app-experimental).
+⁴ Android is a **remote** client only. It monitors and controls a printer over your network and does not replace a printer's own panel. Needs Android 9.0 or newer, and runs in landscape. Install it from [Google Play](https://play.google.com/store/apps/details?id=org.helixscreen.app), or install the APK yourself from a [GitHub release](https://github.com/prestonbrown/helixscreen/releases/latest). See [Android app](docs/user/INSTALL.md#android-app-experimental).
 
 ## Installation
 
@@ -184,7 +184,7 @@ Also available through [KIAUH](https://github.com/dw-0/kiauh) as an extension.
 
 **Flashforge AD5M/Pro:** Install the [Forge-X](https://github.com/DrA1ex/ff5m) firmware mod and then HelixScreen, or turn HelixScreen on from [ZMOD](https://github.com/ghzserg/zmod). See the [AD5M guide](docs/user/guide/install-ad5m.md).
 
-**Android (experimental):** There is an Android build for watching and controlling a printer from a phone or tablet. It is not on Google Play yet, so download the APK from the [latest release](https://github.com/prestonbrown/helixscreen/releases/latest) and install it. `helixscreen-android-arm64-v<VERSION>.apk` covers essentially any modern phone or tablet. Nothing gets installed on the printer; the app just needs to reach Moonraker on your network. See [Android app](docs/user/INSTALL.md#android-app-experimental).
+**Android (experimental):** There is an Android build for watching and controlling a printer from a phone or tablet. Install it from [Google Play](https://play.google.com/store/apps/details?id=org.helixscreen.app), or download the APK from the [latest release](https://github.com/prestonbrown/helixscreen/releases/latest) and install it. `helixscreen-android-arm64-v<VERSION>.apk` covers essentially any modern phone or tablet. Nothing gets installed on the printer; the app just needs to reach Moonraker on your network. See [Android app](docs/user/INSTALL.md#android-app-experimental).
 
 See the [Installation Guide](docs/user/INSTALL.md) for detailed instructions, display configuration, and troubleshooting.
 

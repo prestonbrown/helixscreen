@@ -74,7 +74,7 @@ FlashForge's four-head tool changer. Both models are recognized separately (the 
 
 **Requirements:** one of the two firmwares that replace the stock software: [Z-Mod](https://wiki.zmod.link/C5PRO/), which installs and updates HelixScreen itself, or [Reforge](https://github.com/Klipper4FlashForge/firmware), which ships with HelixScreen. See the [Installation Guide](../INSTALL.md).
 
-**Status:** Preliminary. Checked against a simulated printer and a debug bundle from a real Creator 5 Pro; the tool-change step wording during a live print is still waiting on hardware.
+**Status:** Tested on a Creator 5 Pro.
 
 ---
 
