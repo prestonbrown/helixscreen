@@ -1837,6 +1837,11 @@ void set_overlay_width_unmanaged(lv_obj_t* overlay) {
     NavigationManager::instance().set_overlay_width_unmanaged(overlay);
 }
 
+void request_panel(PanelId panel_id) {
+    NavigationManager::instance().request_panel(panel_id,
+                                                NavigationManager::SwitchDispatch::Queued);
+}
+
 void set_active(PanelId panel_id) {
     NavigationManager::instance().set_active(panel_id);
 }

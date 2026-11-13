@@ -22,6 +22,7 @@
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
@@ -542,7 +543,7 @@ TEST_CASE_METHOD(FullPageFixture, "a Filament page deleted without detach keeps 
 
     lv_obj_delete(tile->root());
     drain();
-    REQUIRE(lv_obj_is_in_widget_tree(fp.root));
+    REQUIRE(helix::test::widget_in_tree(fp.root));
     CHECK(lv_obj_get_parent(fp.root) == fp.home);
     CHECK(get_global_filament_panel().get_panel() == fp.root);
     CHECK(NavigationManager::instance().panel_lent_to(PanelId::Filament) == nullptr);

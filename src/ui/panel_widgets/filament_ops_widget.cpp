@@ -4,7 +4,7 @@
 #include "filament_ops_widget.h"
 
 #include "ui_event_safety.h"
-#include "ui_nav_manager.h"
+#include "ui_nav.h"
 #include "ui_panel_filament.h"
 
 #include "panel_widget_registry.h"
@@ -26,8 +26,7 @@ void open_filament_controls() {
     if (jump_to_full_page(kFilamentOpsFunction)) {
         return;
     }
-    NavigationManager::instance().request_panel(PanelId::Filament,
-                                                NavigationManager::SwitchDispatch::Queued);
+    helix::nav::request_panel(PanelId::Filament);
 }
 
 FilamentOpsWidget::FilamentOpsWidget(const std::string& instance_id)
