@@ -4081,6 +4081,7 @@
   <translation tag="Toolhead Sensor" de="Werkzeugkopfsensor"/>
   <translation tag="Toolhead Style" de="Toolhead-Stil"/>
   <translation tag="Toolhead Y" de="Werkzeugkopf Y"/>
+  <translation tag="Toolhead did not return to park: {}" de="Der Druckkopf ist nicht in die Parkposition zurückgekehrt: {}"/>
   <translation tag="Toolhead jam" de="Werkzeugkopf-Stau"/>
   <translation tag="Toolhead lost homing" de="Werkzeugkopf hat die Referenzierung verloren"/>
   <translation tag="Toolhead offset calibration" de="Werkzeugkopf-Offset-Kalibrierung"/>

@@ -750,6 +750,9 @@ class CfsLiveAckBackend : public AmsBackendCfs {
     ~CfsLiveAckBackend() override {
         drain_calib_queue();
     }
+    void set_client_for_test(helix::IMoonrakerClient* client) {
+        client_ = client;
+    }
 };
 
 TEST_CASE("CFS calibration steps complete in the queue pass after each answer",
@@ -773,6 +776,26 @@ TEST_CASE("CFS calibration steps complete in the queue pass after each answer",
         REQUIRE(backend.save_chute_position([&] { saved = true; }).success());
         CHECK(UpdateQueueTestAccess::passes_until([&] { return saved; }) == 2);
     }
+}
+
+TEST_CASE("CFS chute park failure keeps the pair the save wrote (#2007)",
+          "[ams][cfs][calib][2007]") {
+    CfsLiveAckBackend backend;
+    backend.set_client_for_test(&backend.printer.client);
+    backend.printer.client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR,
+                                                  "Must home axis first", "CMD=Y_SAFE");
+    bool position_saved = false;
+    REQUIRE(backend
+                .save_chute_position(nullptr, [&](const MoonrakerError&,
+                                                  bool was_saved) { position_saved = was_saved; })
+                .success());
+    backend.printer.client.dispatch_gcode_response("cmd_save_extrude_pos x=152.50 y=219.50");
+    drain_calib_queue();
+    REQUIRE(position_saved);
+    double x = 0.0, y = 0.0;
+    REQUIRE(backend.last_chute_saved_position(x, y));
+    CHECK(x == Catch::Approx(152.5));
+    CHECK(y == Catch::Approx(219.5));
 }
 
 TEST_CASE("CFS Endless Spool switch records the box's answer in the queue pass after it",

@@ -4081,6 +4081,7 @@
   <translation tag="Toolhead Sensor" es="Sensor del Cabezal"/>
   <translation tag="Toolhead Style" es="Estilo de Cabezal"/>
   <translation tag="Toolhead Y" es="Cabezal Y"/>
+  <translation tag="Toolhead did not return to park: {}" es="El cabezal no volvió a la posición de estacionamiento: {}"/>
   <translation tag="Toolhead jam" es="Atasco del cabezal"/>
   <translation tag="Toolhead lost homing" es="El cabezal perdió el posicionamiento"/>
   <translation tag="Toolhead offset calibration" es="Calibración de offsets de cabezales"/>

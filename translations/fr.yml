@@ -4531,6 +4531,7 @@ translations:
   Toolhead Sensor: Capteur de tête d'outil
   Toolhead Style: Style de tête d'outil
   Toolhead Y: Tête d'outil Y
+  'Toolhead did not return to park: {}': 'La tête n''est pas revenue en position de parking : {}'
   Toolhead jam: Bourrage de la tête d'outil
   Toolhead lost homing: La tête d'outil a perdu sa référence
   Toolhead offset calibration: Calibration des offsets des têtes d'outil

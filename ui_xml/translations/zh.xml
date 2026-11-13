@@ -4081,6 +4081,7 @@
   <translation tag="Toolhead Sensor" zh="工具头传感器"/>
   <translation tag="Toolhead Style" zh="工具头样式"/>
   <translation tag="Toolhead Y" zh="工具头 Y"/>
+  <translation tag="Toolhead did not return to park: {}" zh="打印头未返回停放位置：{}"/>
   <translation tag="Toolhead jam" zh="工具头堵塞"/>
   <translation tag="Toolhead lost homing" zh="工具头已失去归位"/>
   <translation tag="Toolhead offset calibration" zh="工具头偏移校准"/>

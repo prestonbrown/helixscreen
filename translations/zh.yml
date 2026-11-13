@@ -4253,6 +4253,7 @@ translations:
   Toolhead Sensor: 工具头传感器
   Toolhead Style: 工具头样式
   Toolhead Y: 工具头 Y
+  'Toolhead did not return to park: {}': '打印头未返回停放位置：{}'
   Toolhead jam: 工具头堵塞
   Toolhead lost homing: 工具头已失去归位
   Toolhead offset calibration: 工具头偏移校准

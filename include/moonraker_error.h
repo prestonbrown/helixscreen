@@ -7,6 +7,7 @@
 #include "firmware_error_envelope.h"
 #include "format_utils.h"
 #include "json_fwd.h"
+#include "text_io.h"
 #include "translation_loader.h"
 
 #include <optional>
@@ -75,16 +76,35 @@ struct MoonrakerError {
     }
 
     /**
+     * @brief Did Moonraker fail the request because Klippy went away?
+     *
+     * Moonraker answers a pending request with 503 "Klippy Disconnected" when
+     * the host restarts, and that arrives as a JSON-RPC error like Klipper's own
+     * rejections, so the code and the wording are what separate them. The two
+     * words are matched independently, uppercased, so a "klippy has
+     * disconnected" phrasing does not slip past.
+     */
+    bool is_klippy_disconnect() const {
+        if (code == 503) {
+            return true;
+        }
+        const std::string upper = helix::text_io::to_upper(message);
+        return upper.find("KLIPPY") != std::string::npos &&
+               upper.find("DISCONNECT") != std::string::npos;
+    }
+
+    /**
      * @brief Did Klipper itself raise this failed printer.gcode.script?
      *
      * Klipper copies a script's error onto its gcode response stream as a `!!`
      * line, and GcodeErrorRouter reports that copy: classified, decoded, and as
-     * a recovery modal when the fault has one. Every other type (a timeout, a
-     * lost socket, a refusal before the send) never reached Klipper's
-     * dispatcher, so only the caller can report it.
+     * a recovery modal when the fault has one. A Klippy disconnect is Moonraker's
+     * answer, with no `!!` line, and every other type (a timeout, a lost socket,
+     * a refusal before the send) never reached Klipper's dispatcher, so only the
+     * caller can report those.
      */
     bool raised_by_klipper() const {
-        return type == MoonrakerErrorType::JSON_RPC_ERROR;
+        return type == MoonrakerErrorType::JSON_RPC_ERROR && !is_klippy_disconnect();
     }
 
     /**

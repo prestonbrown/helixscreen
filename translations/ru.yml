@@ -4540,6 +4540,7 @@ translations:
   Toolhead Sensor: Датчик печатающей головки
   Toolhead Style: Стиль печатающей головки
   Toolhead Y: Печатающая головка Y
+  'Toolhead did not return to park: {}': 'Печатающая головка не вернулась в положение парковки: {}'
   Toolhead jam: Замятие в печатающей головке
   Toolhead lost homing: Печатающая головка потеряла парковку
   Toolhead offset calibration: Калибровка смещений головок

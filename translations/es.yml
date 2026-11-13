@@ -4500,6 +4500,7 @@ translations:
   Toolhead Sensor: Sensor del Cabezal
   Toolhead Style: Estilo de Cabezal
   Toolhead Y: Cabezal Y
+  'Toolhead did not return to park: {}': 'El cabezal no volvió a la posición de estacionamiento: {}'
   Toolhead jam: Atasco del cabezal
   Toolhead lost homing: El cabezal perdió el posicionamiento
   Toolhead offset calibration: Calibración de offsets de cabezales

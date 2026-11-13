@@ -4500,6 +4500,7 @@ translations:
   Toolhead Sensor: Sensore testina
   Toolhead Style: Stile testina
   Toolhead Y: Testina Y
+  'Toolhead did not return to park: {}': 'La testina non è tornata in posizione di parcheggio: {}'
   Toolhead jam: Inceppamento testina
   Toolhead lost homing: La testina ha perso l'homing
   Toolhead offset calibration: Calibrazione offset testine

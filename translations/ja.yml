@@ -4262,6 +4262,7 @@ translations:
   Toolhead Sensor: ツールヘッドセンサー
   Toolhead Style: ツールヘッドスタイル
   Toolhead Y: ツールヘッド Y
+  'Toolhead did not return to park: {}': 'ツールヘッドが待機位置に戻りませんでした: {}'
   Toolhead jam: ツールヘッドの詰まり
   Toolhead lost homing: ツールヘッドのホーミングが解除されました
   Toolhead offset calibration: ツールヘッドオフセットのキャリブレーション

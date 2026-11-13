@@ -79,7 +79,8 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
     void handle_jog(double delta_mm);
     void save_position();
     /// Toast a failed step unless GcodeErrorRouter has reported it already.
-    void report_step_failure(const MoonrakerError& failure);
+    /// @p position_saved: only the park after a good save failed.
+    void report_step_failure(const MoonrakerError& failure, bool position_saved = false);
     /// Fill the done screen; @p parked false adds that the head may be at the chute.
     void show_saved(const helix::AmsBackend& backend, bool parked);
     void update_y_display(int centimm);

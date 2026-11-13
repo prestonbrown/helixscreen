@@ -4081,6 +4081,7 @@
   <translation tag="Toolhead Sensor" ja="ツールヘッドセンサー"/>
   <translation tag="Toolhead Style" ja="ツールヘッドスタイル"/>
   <translation tag="Toolhead Y" ja="ツールヘッド Y"/>
+  <translation tag="Toolhead did not return to park: {}" ja="ツールヘッドが待機位置に戻りませんでした: {}"/>
   <translation tag="Toolhead jam" ja="ツールヘッドの詰まり"/>
   <translation tag="Toolhead lost homing" ja="ツールヘッドのホーミングが解除されました"/>
   <translation tag="Toolhead offset calibration" ja="ツールヘッドオフセットのキャリブレーション"/>
