@@ -247,7 +247,7 @@ void present_detection(const DetectionEvent& e, DetectionPolicy p) {
         [] { get_moonraker_api()->job().resume_print([] {}, [](const MoonrakerError&) {}); });
     modal->set_on_abort([] { helix::AbortManager::instance().start_abort(); });
     modal->set_on_disable([] {
-        SettingsManager::instance().set_detection_enabled(false);
+        DetectionManager::instance().set_detection_enabled(false);
         ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Detection turned off"), 4000);
     });
     // The source owns its tuning command; can_tune() sources that run their

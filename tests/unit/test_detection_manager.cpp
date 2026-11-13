@@ -391,6 +391,56 @@ TEST_CASE_METHOD(HelixTestFixture, "DetectionManager bed check follows the print
     m.reset_for_test();
 }
 
+TEST_CASE_METHOD(HelixTestFixture, "The detection switch tells a U1 its own noodle detection",
+                 "[detection][manager][detection_switch]") {
+    DetectionSettingsGuard guard;
+    auto& m = DetectionManager::instance();
+    m.reset_for_test();
+    auto& sm = SettingsManager::instance();
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::SNAPMAKER_U1);
+    set_moonraker_client(&client);
+    m.register_source(std::make_unique<U1StockSource>(nullptr));
+
+    SECTION("switching off and on sends NOODLE_ENABLE and keeps the setting") {
+        m.apply_objects_list_for_test(json::array({"defect_detection"}));
+        client.clear_gcode_script_history();
+
+        m.set_detection_enabled(false);
+        CHECK_FALSE(sm.get_detection_enabled());
+        CHECK(client.gcode_script_history() ==
+              std::vector<std::string>{"DEFECT_DETECTION_CONFIG NOODLE_ENABLE=0"});
+
+        m.set_detection_enabled(true);
+        CHECK(sm.get_detection_enabled());
+        CHECK(client.last_send_script() == "DEFECT_DETECTION_CONFIG NOODLE_ENABLE=1");
+    }
+
+    SECTION("connect makes the printer match the setting") {
+        sm.set_detection_enabled(false);
+        client.clear_gcode_script_history();
+        m.apply_objects_list_for_test(json::array({"defect_detection"}));
+        CHECK(client.gcode_script_history() ==
+              std::vector<std::string>{"DEFECT_DETECTION_CONFIG NOODLE_ENABLE=0"});
+
+        sm.set_detection_enabled(true);
+        client.clear_gcode_script_history();
+        m.apply_objects_list_for_test(json::array({"defect_detection"}));
+        CHECK(client.gcode_script_history() ==
+              std::vector<std::string>{"DEFECT_DETECTION_CONFIG NOODLE_ENABLE=1"});
+    }
+
+    SECTION("a printer without the module is never told") {
+        m.apply_objects_list_for_test(json::array({"gcode_move"}));
+        client.clear_gcode_script_history();
+        m.set_detection_enabled(false);
+        CHECK_FALSE(sm.get_detection_enabled());
+        CHECK(client.gcode_script_history().empty());
+    }
+
+    set_moonraker_client(nullptr);
+    m.reset_for_test();
+}
+
 TEST_CASE_METHOD(HelixTestFixture, "DetectionManager bed check needs a source that has one",
                  "[detection][manager][bed_check]") {
     auto& m = DetectionManager::instance();

@@ -97,6 +97,14 @@ class DetectionSource {
     virtual void on_objects_listed(const std::vector<std::string>& objects) {
         (void)objects;
     }
+    /// Make the printer's own detector follow the Spaghetti Detection switch,
+    /// for sources whose firmware detects (and pauses) by itself. Called on
+    /// the main thread while available(): on every connect and whenever the
+    /// switch changes. Sources that detect in HelixScreen keep the no-op and
+    /// read the setting themselves.
+    virtual void apply_detection_enabled(bool enabled) {
+        (void)enabled;
+    }
     /// The printer's stored preference, or nullopt when this source has none
     /// (settings then keep their defaults: on, pause on detect).
     virtual std::optional<DetectionPreference> printer_preference() const {

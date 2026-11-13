@@ -17,6 +17,9 @@ namespace helix::detection {
  * (code 1) report, emits a DetectionEvent. The firmware self-pauses on the
  * same snapshot, so already_paused is always true.
  *
+ * The Spaghetti Detection switch is sent to the module (NOODLE_ENABLE), so
+ * switching it off stops the firmware pausing prints, not just the dialog.
+ *
  * The module's pre-print bed check is switched with DEFECT_DETECTION_CONFIG
  * CLEAN_BED_ENABLE and read back from the defect_detection status object,
  * whose get_status() returns the module's stored config.
@@ -54,6 +57,10 @@ class U1StockSource : public DetectionSource {
     /// DEFECT_DETECTION_CONFIG NOODLE_SENSITIVITY=low, the stock firmware's
     /// one-step-down sensitivity command.
     void tune() override;
+
+    /// DEFECT_DETECTION_CONFIG NOODLE_ENABLE=0|1: the firmware's own
+    /// spaghetti detection, which pauses prints by itself, follows the switch.
+    void apply_detection_enabled(bool enabled) override;
 
     bool explains_current_pause() const override;
 
