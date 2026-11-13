@@ -71,8 +71,17 @@ class TempGraphOverlay : public OverlayBase {
      *
      * @param mode The display mode (determines which controls are shown)
      * @param parent_screen Parent screen for lazy creation
+     * @param nozzle_extruder In Nozzle mode, the extruder the card opens on
+     *        (the tool the caller is showing). Empty keeps the remembered pick;
+     *        the mounted extruder means no pick.
      */
-    void open(Mode mode, lv_obj_t* parent_screen);
+    void open(Mode mode, lv_obj_t* parent_screen, const std::string& nozzle_extruder = {});
+
+    /// The extruder the nozzle card was told to show instead of the mounted
+    /// one; empty when it follows the mounted tool.
+    [[nodiscard]] const std::string& picked_extruder() const {
+        return picked_extruder_;
+    }
 
   protected:
     void before_show() override;

@@ -31,6 +31,9 @@ struct ControlsPanelTestAccess {
         p.init_subjects();
         p.register_observers();
     }
+    static void nozzle_row_clicked(ControlsPanel& p) {
+        p.handle_nozzle_temp_clicked();
+    }
     static int nozzle_tool(const ControlsPanel& p) {
         return p.nozzle_tool();
     }

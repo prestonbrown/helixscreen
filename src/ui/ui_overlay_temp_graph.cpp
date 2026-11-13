@@ -365,8 +365,23 @@ void TempGraphOverlay::on_ui_destroyed() {
 // Public API
 // ─────────────────────────────────────────────────────────────────────────────
 
-void TempGraphOverlay::open(Mode mode, lv_obj_t* parent_screen) {
+void TempGraphOverlay::open(Mode mode, lv_obj_t* parent_screen,
+                            const std::string& nozzle_extruder) {
     mode_ = mode;
+    if (!nozzle_extruder.empty()) {
+        // The caller's tool beats both a remembered pick and the tool-change
+        // check activation runs, so the card opens on what the caller showed.
+        // Mounted means the tool ToolState has on the carriage, the same test
+        // the Controls row uses to decide what it shows.
+        const auto& tools = helix::ToolState::instance();
+        const int active = tools.active_tool_index();
+        const auto& list = tools.tools();
+        const bool mounted =
+            active >= 0 && active < static_cast<int>(list.size()) &&
+            list[static_cast<size_t>(active)].extruder_name.value_or("") == nozzle_extruder;
+        picked_extruder_ = mounted ? std::string{} : nozzle_extruder;
+        pick_tool_ = kNoPickTool;
+    }
 
     show(parent_screen);
 }

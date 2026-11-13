@@ -982,7 +982,11 @@ void ControlsPanel::handle_quick_actions_clicked() {
 
 void ControlsPanel::handle_nozzle_temp_clicked() {
     spdlog::debug("[{}] Nozzle temp clicked - opening temperature graph", get_name());
-    get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Nozzle, parent_screen_);
+    // On a multi-head printer the row shows a chosen tool; the graph opens on it.
+    const std::string tool = helix::ToolState::instance().has_multiple_toolheads()
+                                 ? nozzle_extruder_name()
+                                 : std::string{};
+    get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Nozzle, parent_screen_, tool);
 }
 
 void ControlsPanel::handle_bed_temp_clicked() {
