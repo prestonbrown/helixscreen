@@ -298,6 +298,17 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
         }
     }
 
+    if (is_mock_ifs_jacker()) {
+        // Ports behind the jacker (HELIX_MOCK_IFS_PORTS, 4..16; default two
+        // IFS units). Ports 3 and 7 start empty so the overview shows both states.
+        if (const char* ports = std::getenv("HELIX_MOCK_IFS_PORTS")) {
+            ifs_jacker_ports_ =
+                std::clamp(helix::text_io::parse_leading<int>(ports).value_or(8), 4, 16);
+        }
+        const uint32_t all = (1u << ifs_jacker_ports_) - 1u;
+        ifs_jacker_presence_.store(all & ~((1u << 2) | (1u << 6)));
+    }
+
     // OpenAMS reads no identity off its spools: color and material come from the
     // override store, which reads the shared lane_data namespace (laneN keys,
     // N = 1-based global slot; inner "lane" is 0-based).
@@ -920,6 +931,9 @@ nlohmann::json MoonrakerClientMock::defect_detection_status() const {
 }
 
 json MoonrakerClientMock::zmod_color_status() const {
+    if (is_mock_ifs_jacker()) {
+        return ifs_jacker_zmod_color_json();
+    }
     std::lock_guard<std::mutex> lock(zmod_mutex_);
     json slots = json::array();
     for (std::size_t i = 0; i < zmod_slots_.size(); ++i) {

@@ -1498,9 +1498,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * display, valid_types, hidden_types, palette (the 24 firmware colours)
      * and slots (the 4 heads' Material/HEX registry). Served by the
      * objects.query/subscribe handlers and republished on _T_IN/_T_OUT/
-     * CHANGE_ZCOLOR.
+     * CHANGE_ZCOLOR. Under HELIX_MOCK_AMS=ifs-jacker, the AD5X's IFS frame
+     * instead (ifs_jacker_zmod_color_json()).
      */
     json zmod_color_status() const;
+
+    /// The `zmod_ifs` object: the IFS Jacker mock's frame, empty in every
+    /// other mode.
+    json zmod_ifs_status() const;
 
     /**
      * @brief Status of one stock FlashForge driver-latch pin
@@ -2814,6 +2819,21 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// was one of ours (the caller then stops walking the generic chain).
     bool apply_ifs_module_gcode(const std::string& cmd, const std::string& gcode);
 
+    // HELIX_MOCK_AMS=ifs-jacker: native Z-Mod on an AD5X whose IFS port runs
+    // through an IFS Jacker, so the firmware drives HELIX_MOCK_IFS_PORTS
+    // channels (default 8, 4..16). Publishes zmod_ifs / zmod_color with that
+    // color_limit plus the stock IFS motion and head switch sensors, so real
+    // discovery sets AmsType::AD5X_IFS and the PRODUCTION AmsBackendAd5xIfs
+    // runs; try_create_mock() declines the value.
+    bool is_mock_ifs_jacker() const;
+    /// The `zmod_ifs` object frame.
+    [[nodiscard]] nlohmann::json ifs_jacker_zmod_ifs_json() const;
+    /// The `zmod_color` object frame, one slot per port.
+    [[nodiscard]] nlohmann::json ifs_jacker_zmod_color_json() const;
+    /// Apply one Z-Mod IFS gcode command token. @return true when the token
+    /// was one of ours.
+    bool apply_ifs_jacker_gcode(const std::string& cmd, const std::string& gcode);
+
     // --- multiACE mock hardware ----------------------------------------------
     // HELIX_MOCK_AMS=multiace: pushes the U1's own objects plus a plain `ace`
     // so real discovery builds the PRODUCTION AmsBackendMultiAce and runs it
@@ -2935,7 +2955,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     using GcodeResult = std::optional<int>;
     GcodeResult gcode_skip_wrappers(const std::string& gcode);
     GcodeResult gcode_layer_pause(const std::string& gcode);
-    GcodeResult gcode_ifs_module(const std::string& gcode);
+    /// Hand each line's command token to @p apply (an IFS mock's
+    /// apply_*_gcode); 0 when any line was one of its commands.
+    GcodeResult gcode_each_command(const std::string& gcode,
+                                   bool (MoonrakerClientMock::*apply)(const std::string&,
+                                                                      const std::string&));
     GcodeResult gcode_medusa(const std::string& gcode);
     GcodeResult gcode_indx(const std::string& gcode);
     /// RESPOND: echoes MSG on the console the way Klipper's [respond] does, so
@@ -3015,6 +3039,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::atomic<bool> ifs_module_head_loaded_{false};
     /// Per-lane silk presence bitmask, bit i = lane i+1.
     std::atomic<uint8_t> ifs_module_presence_{0x0F};
+    /// IFS Jacker mock (HELIX_MOCK_AMS=ifs-jacker): ports the firmware drives,
+    /// the seated channel (1-based, 0 = none), whether the head switch reads
+    /// filament, and per-port silk presence (bit i = port i+1).
+    int ifs_jacker_ports_ = 8;
+    std::atomic<int> ifs_jacker_chan_{0};
+    std::atomic<bool> ifs_jacker_head_loaded_{false};
+    std::atomic<uint32_t> ifs_jacker_presence_{0};
     /// Slot -> {type, bare-hex colour}; IFS_SET_MATERIAL writes land here.
     mutable std::mutex ifs_module_materials_mutex_;
     std::map<int, std::pair<std::string, std::string>> ifs_module_materials_{

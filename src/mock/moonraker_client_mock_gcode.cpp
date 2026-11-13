@@ -54,10 +54,12 @@ std::string normalize_gcode_command_case(const std::string& raw) {
 
 } // namespace
 
-// Standalone IFS module commands (HELIX_MOCK_AMS=ifs-module): matched on the
-// command token exactly — a bare T<n> must not be confused with a temperature
-// parameter elsewhere in a line.
-MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_ifs_module(const std::string& gcode) {
+// The IFS mocks' commands (HELIX_MOCK_AMS=ifs-module, ifs-jacker): matched on
+// the command token exactly — a bare T<n> must not be confused with a
+// temperature parameter elsewhere in a line.
+MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_each_command(
+    const std::string& gcode,
+    bool (MoonrakerClientMock::*apply)(const std::string&, const std::string&)) {
     // One script can carry several commands, one per line.
     bool handled = false;
     size_t start = 0;
@@ -68,7 +70,7 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_ifs_module(const std
         }
         const std::string line = gcode.substr(start, end - start);
         const size_t ifs_token_end = line.find_first_of(" \t");
-        handled |= apply_ifs_module_gcode(line.substr(0, ifs_token_end), line);
+        handled |= (this->*apply)(line.substr(0, ifs_token_end), line);
         start = end + 1;
     }
     if (handled) {
@@ -1433,7 +1435,12 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
 
     gcode_skip_wrappers(g);
     gcode_layer_pause(g);
-    if (is_mock_ifs_module() && (r = gcode_ifs_module(g))) {
+    if (is_mock_ifs_module() &&
+        (r = gcode_each_command(g, &MoonrakerClientMock::apply_ifs_module_gcode))) {
+        return *r;
+    }
+    if (is_mock_ifs_jacker() &&
+        (r = gcode_each_command(g, &MoonrakerClientMock::apply_ifs_jacker_gcode))) {
         return *r;
     }
     if (is_mock_medusahc() && (r = gcode_medusa(g))) {

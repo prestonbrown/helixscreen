@@ -747,7 +747,8 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
             spdlog::info("[CLI] HELIX_MOCK_AMS={} implies --real-ams (mock hardware, real "
                          "tool-changer backend)",
                          mode);
-        } else if (mode == "ifs-module" || mode == "ifs_module" || mode == "ad5x-module") {
+        } else if (mode == "ifs-module" || mode == "ifs_module" || mode == "ad5x-module" ||
+                   mode == "ifs-jacker" || mode == "ifs_jacker") {
             config.use_real_ams = true;
             spdlog::info("[CLI] HELIX_MOCK_AMS={} implies --real-ams (mock hardware, real "
                          "AD5X IFS backend)",

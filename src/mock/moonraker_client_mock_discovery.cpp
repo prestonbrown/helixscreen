@@ -471,8 +471,9 @@ void MoonrakerClientMock::populate_capabilities() {
     // Suppressed in the MedusaHC modes, the standalone IFS module mode, the OpenAMS
     // mode and any persona that omits it: "mmu" detects Happy Hare (priority over every
     // other filament system) and would stand the wrong backend up.
-    if (mmu_enabled_ && !is_mock_medusahc() && !is_mock_ifs_module() && !is_mock_openams() &&
-        !is_mock_indx() && !is_mock_lane_status() && inherits(kHappyHareMmu)) {
+    if (mmu_enabled_ && !is_mock_medusahc() && !is_mock_ifs_module() && !is_mock_ifs_jacker() &&
+        !is_mock_openams() && !is_mock_indx() && !is_mock_lane_status() &&
+        inherits(kHappyHareMmu)) {
         mock_objects.push_back("mmu");
     }
 
@@ -641,6 +642,20 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back("filament_switch_sensor toolhead");
         spdlog::info("[MoonrakerClientMock] Standalone IFS module mock: ifs + ifs_materials + "
                      "4 lane sensors + toolhead");
+    }
+
+    // IFS Jacker mock mode (HELIX_MOCK_AMS=ifs-jacker): native Z-Mod's own IFS
+    // objects and the stock IFS sensors, which discovery reads as AD5X IFS.
+    if (is_mock_ifs_jacker()) {
+        for (const char* obj : {"zmod", "zmod_ifs", "zmod_color", "save_variables",
+                                "filament_motion_sensor ifs_motion_sensor",
+                                "filament_switch_sensor head_switch_sensor"}) {
+            if (std::find(mock_objects.begin(), mock_objects.end(), obj) == mock_objects.end()) {
+                mock_objects.push_back(obj);
+            }
+        }
+        spdlog::info("[MoonrakerClientMock] IFS Jacker mock: zmod_ifs + zmod_color, {} ports",
+                     ifs_jacker_ports_);
     }
 
     // CFS mock mode (HELIX_MOCK_AMS=cfs): the stock K1 `box` status object the
