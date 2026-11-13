@@ -47,6 +47,7 @@
 #include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
 #include "ui_panel_input_shaper.h"
+#include "ui_panel_motor_ripple.h"
 #include "ui_panel_screws_tilt.h"
 #include "ui_stepper_resonance_cal_modal.h"
 #include "ui_toast_manager.h"
@@ -216,6 +217,11 @@ static void esp32_staged_feature_row_cb(lv_event_t* /*e*/) {
 // src/ui/calibration/ui_panel_belt_tension.cpp
 void init_belt_tension_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_belt_tension_row_clicked", esp32_staged_feature_row_cb);
+}
+
+// src/ui/calibration/ui_panel_motor_ripple.cpp
+void helix::ui::init_motor_ripple_row_handler() {
+    lv_xml_register_event_cb(nullptr, "on_motor_ripple_row_clicked", esp32_staged_feature_row_cb);
 }
 
 // src/ui/calibration/ui_panel_input_shaper.cpp

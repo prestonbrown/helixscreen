@@ -4,6 +4,7 @@
 // The last motor ripple sweep, kept in the printer's Moonraker database so the
 // print-start check can warn about a file's wall speed after a restart.
 
+#include "async_lifetime_guard.h"
 #include "json_fwd.h"
 #include "motor_ripple_types.h"
 
@@ -44,6 +45,7 @@ class RippleResultCache {
   private:
     std::optional<SweepResult> result_;
     uint64_t generation_ = 0;
+    helix::AsyncLifetimeGuard lifetime_;
 };
 
 } // namespace helix::calibration::ripple

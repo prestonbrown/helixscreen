@@ -10,7 +10,7 @@
 #include <memory>
 #include <vector>
 
-struct ui_frequency_response_chart_t;
+struct ui_frequency_response_chart_t; // NAMESPACE_OK: the chart API's own file-scope type
 
 namespace helix::ui {
 

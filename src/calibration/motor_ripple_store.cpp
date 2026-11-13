@@ -179,24 +179,21 @@ void RippleResultCache::load(IMoonrakerAPI& api) {
     const uint64_t gen = ++generation_;
     api.database_get_item(
         kRippleDbNamespace, kRippleDbKey,
-        [this, gen](const json& value) {
-            auto parsed = ripple_result_from_json(value);
-            helix::ui::queue_update("RippleResultCache::load", [this, gen, parsed]() {
-                if (gen != generation_) {
-                    return;
-                }
-                result_ = parsed;
-                spdlog::debug("[RippleResult] Loaded: {}", result_ ? "a saved sweep" : "none");
-            });
-        },
-        [this, gen](const MoonrakerError& err) {
+        lifetime_.bg_cb("RippleResultCache::load",
+                        [this, gen](const json& value) {
+                            if (gen != generation_) {
+                                return;
+                            }
+                            result_ = ripple_result_from_json(value);
+                            spdlog::debug("[RippleResult] Loaded: {}",
+                                          result_ ? "a saved sweep" : "none");
+                        }),
+        lifetime_.bg_cb("RippleResultCache::load_none", [this, gen](const MoonrakerError& err) {
             spdlog::debug("[RippleResult] No saved sweep: {}", err.message);
-            helix::ui::queue_update("RippleResultCache::load_none", [this, gen]() {
-                if (gen == generation_) {
-                    result_.reset();
-                }
-            });
-        });
+            if (gen == generation_) {
+                result_.reset();
+            }
+        }));
 }
 
 void RippleResultCache::save(IMoonrakerAPI& api, const SweepResult& result) {

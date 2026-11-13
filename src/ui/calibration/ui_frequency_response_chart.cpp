@@ -1918,6 +1918,7 @@ bool ui_frequency_response_chart_is_chart_mode(ui_frequency_response_chart_t* ch
     return chart ? chart->chart_mode : false;
 }
 
+// NAMESPACE_OK: extends this file's file-scope C chart API
 void ui_frequency_response_chart_set_x_unit(ui_frequency_response_chart_t* chart,
                                             const char* unit) {
     if (!chart || !unit) {
@@ -1929,10 +1930,12 @@ void ui_frequency_response_chart_set_x_unit(ui_frequency_response_chart_t* chart
     }
 }
 
+// NAMESPACE_OK: extends this file's file-scope C chart API
 const char* ui_frequency_response_chart_get_x_unit(ui_frequency_response_chart_t* chart) {
     return chart ? chart->x_unit.c_str() : "";
 }
 
+// NAMESPACE_OK: extends this file's file-scope C chart API
 void ui_frequency_response_chart_set_bands(ui_frequency_response_chart_t* chart,
                                            const FrChartBand* bands, size_t count) {
     if (!chart) {
@@ -1944,10 +1947,12 @@ void ui_frequency_response_chart_set_bands(ui_frequency_response_chart_t* chart,
     }
 }
 
+// NAMESPACE_OK: extends this file's file-scope C chart API
 size_t ui_frequency_response_chart_get_band_count(ui_frequency_response_chart_t* chart) {
     return chart ? chart->bands.size() : 0;
 }
 
+// NAMESPACE_OK: extends this file's file-scope C chart API
 std::string ui_frequency_response_chart_format_x_label(float value, bool first, const char* unit) {
     char buf[24];
     if (first && unit && *unit) {
@@ -1958,6 +1963,7 @@ std::string ui_frequency_response_chart_format_x_label(float value, bool first, 
     return buf;
 }
 
+// NAMESPACE_OK: extends this file's file-scope C chart API
 std::optional<std::pair<int32_t, int32_t>>
 ui_frequency_response_chart_band_pixels(FrChartBand band, float min, float max, int32_t x1,
                                         int32_t x2) {

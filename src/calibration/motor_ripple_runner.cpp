@@ -282,7 +282,8 @@ struct MotorRippleRunner::Impl : std::enable_shared_from_this<MotorRippleRunner:
                 spdlog::warn("[MotorRipple] Restore after the sweep was refused: {}", err.message);
                 deliver(false);
             },
-            0, /*silent=*/true);
+            0, /*silent=*/true, /*on_queued=*/nullptr,
+            /*caller_surfaces_errors=*/false);
     }
 
     void deliver_result(bool restored) {
@@ -346,7 +347,8 @@ struct MotorRippleRunner::Impl : std::enable_shared_from_this<MotorRippleRunner:
                     }
                 });
             },
-            0, /*silent=*/true);
+            0, /*silent=*/true, /*on_queued=*/nullptr,
+            /*caller_surfaces_errors=*/false);
     }
 
     void fail(const std::string& reason) {

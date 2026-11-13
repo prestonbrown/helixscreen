@@ -957,6 +957,11 @@ src/printer/probe_preparation.cpp
 #     stays excluded.
 src/calibration/resonance_console.cpp
 src/calibration/shaper_csv_parser.cpp
+# The motor ripple sweep pieces the print-start check, discovery and the
+# capability rule read: bands, the saved result, the capability and texts.
+src/calibration/motor_ripple_analysis.cpp
+src/calibration/motor_ripple_store.cpp
+src/calibration/motor_ripple_view.cpp
 
 # ===== mocks (CONFIG_HELIX_MOCK_PRINTER only) =====
 # MOCK: src/mock/moonraker_api_mock.cpp
