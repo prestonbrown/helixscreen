@@ -14,6 +14,11 @@ The easiest ways to update, in order:
 2. **From Mainsail or Fluidd:** HelixScreen appears in the update manager on Raspberry Pi and other generic Linux installs, and on most all-in-one printers that run Mainsail or Fluidd. Click **Update** next to it.
 3. **From a terminal:** see the next section.
 
+![The Updates screen, with the Update Channel and Check for Updates rows marked](../images/user/settings-updates-check.png)
+
+1. **Update Channel**: picks Stable or Beta.
+2. **Check for Updates**: asks for a new version. When one is out, an **Install Update** row appears below it.
+
 An update keeps your settings. See [What an Update Keeps](#what-an-update-keeps).
 
 > **One thing that can change: your home screen arrangement.** If an update changes how the home grid is sized, saved widget positions no longer fit the new cells, so HelixScreen re-places the widgets on the new grid. Which widgets you have and how each is set up is kept; only their positions and sizes are worked out again. See [What Happens on Upgrade](guide/home-panel.md#what-happens-on-upgrade).
@@ -148,6 +153,11 @@ If HelixScreen shows the setup wizard on every start after an update, its settin
 1. Open **Settings > System**
 2. Tap **Factory Reset** and confirm
 
+![The System settings screen, with the Share Usage Data and Factory Reset rows marked](../images/user/settings-system-reset.png)
+
+1. **Share Usage Data**: turns anonymous usage statistics on or off.
+2. **Factory Reset**: erases every HelixScreen setting and restarts into the setup wizard.
+
 HelixScreen resets every setting to its default and restarts into the setup wizard.
 
 **From a terminal,** reinstall with fresh settings:
@@ -175,6 +185,8 @@ Your network connection belongs to the system, not to HelixScreen, so it stays c
 ## Checking Your Version
 
 **On the touchscreen:** **Settings > Help & About > About** shows **Current Version**.
+
+![The Current Version row on the About screen](../images/user/about-version-row.png)
 
 **Over SSH:** run `<install folder>/bin/helix-screen --version`, for example `~/helixscreen/bin/helix-screen --version` on a Raspberry Pi. Each printer's install guide lists its install folder.
 

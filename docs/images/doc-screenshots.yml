@@ -135,9 +135,13 @@ images:
     source: captured by hand before the manifest existed
     recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
   - path: docs/images/screenshot-wizard-wifi.png
-    kind: manual
-    source: captured by hand before the manifest existed
-    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+    kind: app
+    wizard: wifi
+  - path: docs/images/user/about-version-row.png
+    kind: app
+    recipe: about
+    crop: row_version
+    margin: 12
   - path: docs/images/user/advanced-console.png
     kind: app
     recipe: console
@@ -311,6 +315,28 @@ images:
   - path: docs/images/user/home.png
     kind: app
     recipe: home
+  - path: docs/images/user/klipper-recovery-dialog.png
+    kind: app
+    env:
+      HELIX_MOCK_KLIPPY_ERROR: "Option 'preload_length' in section 'filament_feed left' must have maximum of 1500.0"
+    steps:
+      - navigate home
+      - wait_idle
+  - path: docs/images/user/manage-printers.png
+    kind: app
+    recipe: printers
+    markers:
+      - {n: 1, widget: row_printer_switcher, at: top_right}
+      - {n: 2, widget: btn_add_printer, at: top_right}
+  - path: docs/images/user/nav-bar.png
+    kind: app
+    recipe: home
+    markers:
+      - {n: 1, widget: nav_btn_home, at: center}
+      - {n: 2, widget: nav_btn_controls, at: center}
+      - {n: 3, widget: nav_btn_filament, at: center}
+      - {n: 4, widget: nav_btn_settings, at: center}
+      - {n: 5, widget: nav_btn_advanced, at: center}
   - path: docs/images/user/preflight-check.png
     kind: app
     recipe: preflight-check
@@ -338,6 +364,16 @@ images:
   - path: docs/images/user/runout-modal.png
     kind: app
     recipe: runout-modal
+  - path: docs/images/user/safety-spaghetti-k2.png
+    kind: app
+    recipe: safety
+    env:
+      HELIX_MOCK_PRINTER: k2
+    crop: container_detection
+    margin: 12
+    markers:
+      - {n: 1, widget: row_detection_enabled, at: top_right}
+      - {n: 2, widget: row_detection_pause, at: top_right}
   - path: docs/images/user/screen-lock.png
     kind: app
     recipe: lock-screen
@@ -381,6 +417,11 @@ images:
   - path: docs/images/user/settings-display-2.png
     kind: app
     recipe: display-2
+  - path: docs/images/user/settings-display-rotation.png
+    kind: app
+    recipe: display
+    markers:
+      - {n: 1, widget: row_display_rotation, at: top_right}
   - path: docs/images/user/settings-display.png
     kind: app
     recipe: display
@@ -438,6 +479,12 @@ images:
   - path: docs/images/user/settings-system-2.png
     kind: app
     recipe: system-2
+  - path: docs/images/user/settings-system-reset.png
+    kind: app
+    recipe: system-2
+    markers:
+      - {n: 1, widget: row_telemetry, at: top_right}
+      - {n: 2, widget: row_factory_reset, at: top_right}
   - path: docs/images/user/settings-system.png
     kind: app
     recipe: system
@@ -450,6 +497,19 @@ images:
   - path: docs/images/user/settings-touch-input.png
     kind: app
     recipe: touch-input
+  - path: docs/images/user/settings-updates-check.png
+    kind: app
+    recipe: updates
+    markers:
+      - {n: 1, widget: row_update_channel, at: top_right}
+      - {n: 2, widget: row_check_updates, at: top_right}
+  - path: docs/images/user/settings-updates-firmware-managed.png
+    kind: app
+    recipe: updates
+    env:
+      HELIX_DISABLE_AUTO_UPDATES: "1"
+    crop: container_updates_firmware_managed
+    margin: 12
   - path: docs/images/user/settings-updates.png
     kind: app
     recipe: updates
@@ -473,10 +533,21 @@ images:
     source: captured by hand before the manifest existed
     recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
   - path: docs/images/user/wizard-connection.png
-    kind: manual
-    source: captured by hand before the manifest existed
-    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+    kind: app
+    wizard: connection
+    markers:
+      - {n: 1, widget: ip_input, at: top_right}
+      - {n: 2, widget: port_input, at: top_right}
+      - {n: 3, widget: btn_test_connection, at: top_right}
+  - path: docs/images/user/wizard-preferences.png
+    kind: app
+    wizard: preferences
+  - path: docs/images/user/wizard-printer-identify.png
+    kind: app
+    wizard: printer_identify
+  - path: docs/images/user/wizard-telemetry.png
+    kind: app
+    wizard: telemetry
   - path: docs/images/user/wizard-wifi.png
-    kind: manual
-    source: captured by hand before the manifest existed
-    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+    kind: app
+    wizard: wifi

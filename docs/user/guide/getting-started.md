@@ -8,6 +8,14 @@ This page covers the first start: the setup wizard, finding your way around, and
 
 ## Quick Reference
 
+![The Home panel, with the five navigation bar buttons marked](../../images/user/nav-bar.png)
+
+1. **Home**: the printer at a glance.
+2. **Controls**: motion, temperatures and fans.
+3. **Filament**: loading, unloading and filament system slots.
+4. **Settings**: the screen, the printer and HelixScreen.
+5. **Advanced**: calibration and other tools.
+
 | Navigation bar icon | Panel | What you do there |
 |---------------------|-------|-------------------|
 | House | Home | Watch the printer, start prints, see temperatures |
@@ -60,6 +68,8 @@ The printer picture on the Home panel shows whether HelixScreen can reach your p
 
 When Klipper stops, a dialog says why and offers **Restart Klipper** and **Firmware Restart**.
 
+![The dialog HelixScreen shows when Klipper stops, with its reason and the two restart buttons](../../images/user/klipper-recovery-dialog.png)
+
 ---
 
 ## First-Time Setup
@@ -67,6 +77,11 @@ When Klipper stops, a dialog says why and offers **Restart Klipper** and **Firmw
 The first time HelixScreen starts, a setup wizard walks you through the settings it needs. It shows only the steps that apply to your hardware, and its "Step 3 of 8" counter counts only those.
 
 To run the whole wizard again later, use **Settings > System > Factory Reset**. That erases your HelixScreen settings, so read [System settings](settings/system.md) first.
+
+![The System settings screen, with the Share Usage Data and Factory Reset rows marked](../../images/user/settings-system-reset.png)
+
+1. **Share Usage Data**: your answer to the wizard's usage statistics question, which you can change here.
+2. **Factory Reset**: erases your HelixScreen settings and runs the wizard again.
 
 ### The Wizard Steps
 
@@ -93,7 +108,7 @@ You can go back to an earlier step with **Back** at any time. When you finish, H
 
 ### Network
 
-![Printer Setup: Network](../../images/user/wizard-wifi.png)
+![The setup wizard's network step, listing nearby WiFi networks](../../images/user/wizard-wifi.png)
 
 This step connects the screen itself to WiFi. If you use Ethernet, the left side shows your wired connection; tap **Next** to move on.
 
@@ -114,7 +129,11 @@ A network that hides its name never appears in the list. Tap **Add Hidden Networ
 
 ### Connection
 
-![Printer Setup: Connection](../../images/user/wizard-connection.png)
+![The setup wizard's connection step, with the address, port and Test Connection marked](../../images/user/wizard-connection.png)
+
+1. **Network Address**: the printer's hostname or IP address.
+2. **Port**: the Moonraker port, usually `7125`.
+3. **Test Connection**: checks the address and port and shows the result on this step.
 
 This step tells HelixScreen where your printer's Moonraker is.
 
@@ -134,6 +153,8 @@ To point HelixScreen at a different printer address later, use **Settings > Conn
 
 ### Picking Your Printer Model
 
+![The setup wizard's printer identification step, with a search box and brand tiles](../../images/user/wizard-printer-identify.png)
+
 The **Printer Setup: Identity** step lists every printer HelixScreen knows. Type in the search box to filter by model or brand, or tap a brand tile (Creality, Prusa, Voron and so on) to see only that brand's printers, and tap **Back** to return to the tiles.
 
 If HelixScreen already recognized your printer, the step opens on it, inside its brand's list. If several models match equally well, it starts on those, and the one you pick is saved. A model picked wrongly here can be fixed later without running the wizard again; see [Supported Printers](supported-printers.md).
@@ -142,15 +163,24 @@ If HelixScreen already recognized your printer, the step opens on it, inside its
 
 Many printers have a ready-made profile in HelixScreen, for example the Creality K1 and K2 series, the FlashForge Adventurer 5M and 5X, the Snapmaker U1 and the QIDI Q2. When HelixScreen recognizes one of these, it already knows the heaters, fans and other hardware, so the wizard is shorter: it skips the Identity, Heaters, Fans, filament system, LEDs, Filament Sensor and Input Shaping steps, and ends with **Help Improve HelixScreen** instead of the Review step.
 
+![The Help Improve HelixScreen step, with its anonymous statistics switch](../../images/user/wizard-telemetry.png)
+
 **Help Improve HelixScreen** asks whether to send anonymous usage statistics. No personal data is collected, and you can change your answer later in **Settings > System > Share Usage Data**. The [Telemetry guide](../TELEMETRY.md) lists what is and is not sent.
 
 On a printer without a profile you see the full set of hardware steps, ending with Review.
 
 ### Preferences
 
+![The setup wizard's Preferences step, with its on/off choices](../../images/user/wizard-preferences.png)
+
 This step offers a few on/off choices: opening the slot editor when you load a new spool, and turning the nozzle heater off after a load or unload. On your first printer it also offers text labels on Home widgets and letting the screen sleep during a print, plus **Sounds** where the screen can play sound. Two filament-system choices appear only when your filament system uses them. Every choice here is also in Settings, so nothing you pick is final.
 
 ### Adding Another Printer
+
+![The Manage Printers screen, with Show Printer Switcher and Add Printer marked](../../images/user/manage-printers.png)
+
+1. **Show Printer Switcher**: adds a printer button to the navigation bar.
+2. **+ Add Printer**: runs the setup wizard for another printer.
 
 One screen can control several printers. Open **Settings > Connection > Printers** and tap **+ Add Printer**. The wizard runs again for the new printer, without the Network and Language steps, which belong to the screen and are already set.
 

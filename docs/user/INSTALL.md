@@ -382,7 +382,15 @@ Pick your language. This step is skipped when a language other than English is a
 
 Connect to WiFi, or check that Ethernet is connected. Pick a network from the list, or tap **Add Hidden Network** to join one that does not broadcast its name. If you are already connected, go on to the next step.
 
+![The setup wizard's network step, listing nearby WiFi networks](../images/user/wizard-wifi.png)
+
 ### Step 4: Moonraker Connection
+
+![The setup wizard's connection step, with the address, port and Test Connection marked](../images/user/wizard-connection.png)
+
+1. **Network Address**: the printer's hostname or IP address.
+2. **Port**: usually `7125`.
+3. **Test Connection**: checks the address and port before you go on.
 
 Tell HelixScreen where your printer's Moonraker is. Printers found on your network are listed under **Discovered Printers**. To enter one by hand, type its **Network Address** and **Port** (usually `7125`):
 
@@ -394,6 +402,8 @@ Tap **Test Connection**. The wizard goes on once the connection works.
 ### Step 5: Printer Identification
 
 Give your printer a name and choose its type. HelixScreen suggests a type from what the printer reports about itself. To pick one yourself, search by name or browse by maker; the list covers over 100 printers.
+
+![The setup wizard's printer identification step, with a search box and brand tiles](../images/user/wizard-printer-identify.png)
 
 ### Step 6: Heaters
 
@@ -465,6 +475,10 @@ The BTT Pad 7 and similar Klipper pads combine the computer and touchscreen in o
 
 The easiest way: **Settings > Display > Screen Rotation**. Pick Normal, 90° Clockwise, 180° Upside Down or 270° Clockwise, then restart HelixScreen. Touch follows the rotation by itself.
 
+![The Display settings screen, with the Screen Rotation row marked](../images/user/settings-display-rotation.png)
+
+1. **Screen Rotation**: turns the picture in steps of 90 degrees.
+
 If the display can rotate itself, that costs nothing, so prefer it:
 
 - A monitor with a rotation option in its own menu
@@ -513,6 +527,11 @@ There are three ways to update, in order of preference: in the app, from Mainsai
 ### In the App (Preferred)
 
 Go to **Settings > Updates > Check for Updates**. When a new version is out, tap **Install Update**: the app downloads it with a progress bar and installs it, with no SSH and no web browser. **Update Channel** on the same screen picks Stable or Beta. See [Updates](guide/settings/updates.md) for the full walkthrough.
+
+![The Updates screen, with the Update Channel and Check for Updates rows marked](../images/user/settings-updates-check.png)
+
+1. **Update Channel**: picks Stable or Beta.
+2. **Check for Updates**: asks for a new version. When one is out, an **Install Update** row appears below it.
 
 Some installs cannot update themselves. Where the printer's firmware ships HelixScreen, the screen says **Managed by your firmware** and you update the firmware instead. Where HelixScreen can see a new version but cannot install it, the screen says to update from a terminal and shows a QR code to [UPGRADING.md](UPGRADING.md). The Linux desktop package and the Android app open the release page instead.
 
