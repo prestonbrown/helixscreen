@@ -52,9 +52,9 @@ Minimal LVGL implementation for wizard UI testing.
 **Mocked Functions:**
 - Widget creation: `lv_xml_create()`, `lv_obj_find_by_name()`
 - Textareas: `lv_textarea_get_text()`, `lv_textarea_set_text()`
-- Subjects: `lv_subject_init_string()`, `lv_subject_copy_string()`
+- Subjects: `lv_subject_init_string()`, `lv_subject_set_string()`
 - Events: `lv_obj_add_event_cb()`, `lv_event_send()`
-- Timers: `lv_timer_create()`, `lv_timer_del()`, `lv_tick_get()`
+- Timers: `lv_timer_create()`, `lv_timer_delete()`, `lv_tick_get()`
 
 **Test Control API:**
 ```cpp

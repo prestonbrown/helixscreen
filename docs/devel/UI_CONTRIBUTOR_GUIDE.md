@@ -1169,7 +1169,7 @@ Two rules, both required — they address different crashes.
 
 **Rule 1 — never destroy a container from inside an event callback on its own child** (issue #80). The child widget is still on the call stack; deleting its parent synchronously causes use-after-free. Defer the rebuild to the next tick.
 
-**Rule 2 — never call synchronous widget deletion inside a deferred callback** (issue #776). `lv_obj_clean()`, `lv_obj_del()`, and `helix::ui::safe_delete()` all run synchronously. Multiple sync deletions in the same `UpdateQueue::process_pending()` batch corrupt LVGL's event linked list → SIGSEGV in `lv_event_mark_deleted`. `ui_queue_update`, `lifetime_.defer`, `tok.defer`, and observer callbacks all share that batch — the deferral alone is not enough.
+**Rule 2 — never call synchronous widget deletion inside a deferred callback** (issue #776). `lv_obj_clean()`, `lv_obj_delete()`, and `helix::ui::safe_delete()` all run synchronously. Multiple sync deletions in the same `UpdateQueue::process_pending()` batch corrupt LVGL's event linked list → SIGSEGV in `lv_event_mark_deleted`. `ui_queue_update`, `lifetime_.defer`, `tok.defer`, and observer callbacks all share that batch — the deferral alone is not enough.
 
 **Use the safe replacement** — it reparents children to `lv_layer_top()` and schedules them for `lv_obj_delete_async()`, which runs outside our UpdateQueue batch:
 
@@ -1202,7 +1202,7 @@ Replacements table:
 | ❌ Banned in deferred callbacks | ✅ Use instead |
 |---------------------------------|----------------|
 | `safe_delete(ptr)` | `safe_delete_deferred(ptr)` |
-| `lv_obj_delete(obj)` / `lv_obj_del(obj)` | `lv_obj_delete_async(obj)` |
+| `lv_obj_delete(obj)` | `lv_obj_delete_async(obj)` |
 | `lv_obj_clean(container)` | `helix::ui::safe_clean_children(container)` |
 
 See `include/ui_utils.h` and [`THREADING.md`](THREADING.md) §3 for the full rationale.

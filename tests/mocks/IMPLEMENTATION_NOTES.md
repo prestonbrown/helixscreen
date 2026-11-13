@@ -113,11 +113,11 @@ MOCK_OBJS := build/obj/tests/mocks/*.o
 **Problem:** Full LVGL emulation is too complex.
 
 **Solution:** Only mock functions actually used by wizard connection screen:
-- Widget: `lv_xml_create()`, `lv_obj_find_by_name()`, `lv_scr_act()`
+- Widget: `lv_xml_create()`, `lv_obj_find_by_name()`, `lv_screen_active()`
 - Textarea: `lv_textarea_get_text()`, `lv_textarea_set_text()`
-- Subject: `lv_subject_init_string()`, `lv_subject_copy_string()`, `lv_xml_register_subject()`
+- Subject: `lv_subject_init_string()`, `lv_subject_set_string()`, `lv_xml_register_subject()`
 - Event: `lv_obj_add_event_cb()`, `lv_event_send()`, `lv_xml_register_event_cb()`
-- Timer: `lv_timer_create()`, `lv_timer_del()`, `lv_tick_get()`
+- Timer: `lv_timer_create()`, `lv_timer_delete()`, `lv_tick_get()`
 
 **Future:** Add more functions as needed for other panel tests.
 

@@ -154,8 +154,8 @@ between pages - and `anim` follows the Animations setting.
 > child is positioned before assuming the walk is at fault.
 
 Z-order is implicit from child index. The gutter is appended at attach time, so
-anything added to the container afterwards draws over it. Nothing calls
-`lv_obj_move_foreground()` anywhere in the feature.
+anything added to the container afterwards draws over it. Nothing reorders
+it with `lv_obj_move_to_index()` anywhere in the feature.
 
 ---
 

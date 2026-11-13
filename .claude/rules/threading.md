@@ -27,7 +27,7 @@ later, usually on a customer's printer.
 4. **A fetched `SubjectLifetime` must be handed to `observe<V>`.** It is the required 4th
    parameter, so omitting it does not compile; handing it a default-constructed token is
    silent: the guard never sees the subject die and `reset()` calls
-   `lv_observer_remove()` on freed memory (#705). Local
+   `lv_observer_delete()` on freed memory (#705). Local
    vs member is not what decides correctness: the `get_*_subject(name, lifetime)`
    accessors assign the owner's own `shared_ptr`, so a caller's copy dying never
    expires the guard.

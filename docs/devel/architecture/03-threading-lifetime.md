@@ -152,7 +152,7 @@ Who has a guard already: `Modal` ([`include/ui_modal.h#"class Modal {"`](../../.
 
 ### Guard two: `SubjectLifetime` - observers that outlive their subject
 
-The mirrored problem: dynamic subjects (per-fan, per-sensor, per-extruder) are destroyed and recreated when hardware is rediscovered, and an `ObserverGuard` still holding an observer pointer into the dead subject's list would call `lv_observer_remove()` on freed memory in its `reset()` (#705).
+The mirrored problem: dynamic subjects (per-fan, per-sensor, per-extruder) are destroyed and recreated when hardware is rediscovered, and an `ObserverGuard` still holding an observer pointer into the dead subject's list would call `lv_observer_delete()` on freed memory in its `reset()` (#705).
 
 `SubjectLifetime` ([`include/core/observer_guard.h#SubjectLifetime`](../../../include/core/observer_guard.h)) is deliberately dumber than the generation counter: a `shared_ptr<bool>` whose *value*, not its refcount, signals death. Before destroying a subject, the owner writes `*lifetime = false` and only then deinits; `ObserverGuard::reset()` (`include/core/observer_guard.h#reset`) treats an expired pointer *or* a false value as "observer already freed, skip removal":
 

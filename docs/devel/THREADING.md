@@ -27,7 +27,7 @@ printer rather than your desk.
 | 5 | Never `std::thread(...).detach()` for one-shot work | `EAGAIN` → `std::system_error` → `std::terminate` | #724, #837, L083 |
 | 6 | Never `ObserverGuard::release()` in normal cleanup — use `reset()` | Leaks `LambdaObserverContext`, corrupts rendering | #579 |
 | 7 | Never delete container children inside an input event handler | Child-list iteration corrupted → SIGSEGV | — |
-| 8 | Every `init_subjects()` self-registers its `deinit_subjects()` | Crash in `lv_observer_remove` at shutdown | — |
+| 8 | Every `init_subjects()` self-registers its `deinit_subjects()` | Crash in `lv_observer_delete` at shutdown | — |
 | 9 | A raw `lv_timer_t*` cancelled in `cleanup()` must also be cancelled in the destructor | Armed timer firing on a freed `this` | #1173, #750, #751 |
 
 Invariants 2 and 9 have automated gates (`scripts/check_l081_anti_pattern.py`,
@@ -52,7 +52,7 @@ void update_from_websocket_thread(int temp) {
 ```
 
 Subject updates trigger bound observers, and those observers call widget APIs —
-`lv_label_set_text()` → `lv_obj_invalidate()`, `lv_obj_add_flag()` → `lv_obj_invalidate()`.
+`lv_label_set_text()` → `lv_obj_invalidate()`, `lv_obj_set_hidden()` → `lv_obj_invalidate()`.
 Any widget modification while `lv_timer_handler()` is rendering trips the
 `!disp->rendering_in_progress` assertion, which on embedded targets is an infinite loop.
 
@@ -610,7 +610,7 @@ The `lifetime` parameter of `observe<V>` has no default, so omitting it does not
 token, or `subject_never_freed()` for a subject that outlives the process. (`AnimatedValue::bind`
 still defaults it to `{}`, so a missing token there compiles silently.) Without a token the guard's
 `has_alive_token_` stays `false`, `subject_dead` can never become `true`, and `reset()` calls
-`lv_observer_remove()` on a subject `lv_subject_deinit()` already freed.
+`lv_observer_delete()` on a subject `lv_subject_deinit()` already freed.
 
 ### Local or member? Not what decides correctness
 
@@ -655,8 +655,8 @@ Order **would** matter for a token the observing code exclusively owns — one i
 first, token second** — i.e. declare the token **before** the observer:
 
 - **Observer first (token still alive):** `lock()` succeeds, `*token == true`, so
-  `lv_observer_remove()` runs against a live subject. Correct.
-- **Token first:** the `weak_ptr` expires, `reset()` *skips* `lv_observer_remove()`, and a live
+  `lv_observer_delete()` runs against a live subject. Correct.
+- **Token first:** the `weak_ptr` expires, `reset()` *skips* `lv_observer_delete()`, and a live
   observer is left orphaned on a live subject while its `LambdaObserverContext` is freed — UAF on
   the next notify. Same failure family the `created_epoch_` machinery exists to prevent
   (`include/core/observer_guard.h`, debug bundles 449TVQ82 / X3RA4252).
@@ -790,7 +790,7 @@ reassignment, no widget destruction. A handler that wants the value now and UI w
   `StaticSubjectRegistry::register_deinit()` callbacks, where the subject is already
   destroyed.
 
-If you reason *"`release()` skips `lv_observer_remove()`, so it must be safer"* — that is the
+If you reason *"`release()` skips `lv_observer_delete()`, so it must be safer"* — that is the
 exact misconception behind 17 separate #579 reports. Skipping the remove leaks the
 `LambdaObserverContext` and corrupts rendering state. Don't write `release()` in new cleanup
 code.
@@ -802,7 +802,7 @@ code.
 C++ does not guarantee destruction order of statics across translation units. When
 `lv_deinit()` runs it deletes widgets, which try to remove their observers from subjects. If
 singleton subjects haven't been deinitialized first, that corrupts a linked list and crashes
-in `lv_observer_remove`.
+in `lv_observer_delete`.
 
 Two self-registration registries enforce the order:
 
@@ -1091,7 +1091,7 @@ Relevant tags: `[state]` (subjects/observers), `[connection]` (WebSocket lifecyc
 | `std::terminate without active exception` on K1/AD5M/CC1 | Detached `std::thread` hit `EAGAIN` | Managed pool, or try/catch around the spawn (§8) |
 | SIGSEGV in `lv_event_mark_deleted` | Sync widget deletion inside a queued callback | `*_deferred` / `_async` / `safe_clean_children` (§3) |
 | App hangs, stops answering pings | `lv_subject_set_*()` from a background thread during render | `queue_update()` (§1) |
-| Crash on shutdown in `lv_observer_remove` | `init_subjects()` never self-registered its cleanup | Register inside `init_subjects()` (§7) |
+| Crash on shutdown in `lv_observer_delete` | `init_subjects()` never self-registered its cleanup | Register inside `init_subjects()` (§7) |
 | Crash deleting a widget during a button click | Sync deletion during `indev` dispatch | Null the pointer, let the rebuild clean (§9) |
 | Timer callback fires after its owner was destroyed | Raw `lv_timer_t*` cancelled in `cleanup()` but not the destructor | Share a `cancel_*_timer()` + `lv_timer_cancel_safe()` between both paths (§10) |
 | Rendering corrupted / observer context leaked | `ObserverGuard::release()` used for normal cleanup (#579) | `reset()` (§6) |

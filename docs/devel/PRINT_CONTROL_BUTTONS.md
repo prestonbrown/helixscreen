@@ -260,7 +260,7 @@ print_state_observer_ = observe<int>(
 
 `recompute()` reads the current print state and the `StandardMacros`
 availability, calls `compute_control_button_view()`, and copies the result into
-the five subjects (`lv_subject_copy_string` for icon/label, `lv_subject_set_int`
+the five subjects (`lv_subject_set_string` for icon/label, `lv_subject_set_int`
 for the flags). It is the single place subjects are written.
 
 ### Dispatch
