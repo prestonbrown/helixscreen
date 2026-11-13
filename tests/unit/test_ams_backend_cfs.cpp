@@ -7892,8 +7892,11 @@ TEST_CASE("CFS: a weights-only edit is cleared when its bay reads EMPTY",
     CHECK_FALSE(after.pending.has_value());
 }
 
-TEST_CASE("CFS reads the chute wiper and purge position from the configfile each Klipper start",
-          "[ams][cfs][chute][2007][purge_chute]") {
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "CFS reads the chute wiper and purge position from the configfile each Klipper "
+                 "start",
+                 "[ams][cfs][chute][2007][purge_chute]") {
+    get_printer_state().init_subjects(false); // the purge reads its homed axes
     helix::test::StartedBackend<UnansweredClientCfs> cfs;
     auto& client = cfs.wire().fake_client();
     auto answer_configfile = [&client](const json& settings) {
