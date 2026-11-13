@@ -40,10 +40,10 @@ class MockRippleBatchSource final : public IAccelBatchSource {
     /// Amplitude the mock gives harmonic `k` at `belt_speed`.
     [[nodiscard]] static float ripple_amplitude(float belt_speed, int k, bool compensated);
 
-  private:
-    friend void mock_ripple_on_script(const std::string& script);
+    /// One speed's capture, straight to the batch callback. mock_ripple_on_script() calls it.
     void emit(float belt_speed, bool compensated);
 
+  private:
     float rate_;
     float t_ = 0.0f;
     uint32_t seed_ = 1;
