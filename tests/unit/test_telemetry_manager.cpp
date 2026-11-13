@@ -3122,7 +3122,7 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     const auto mtime = fs::last_write_time(d.state / "telemetry_device.json");
     reinit(tm, d);
     CHECK(read_text(d.state / "telemetry_device.json") == old_identity);
-    CHECK(fs::last_write_time(d.state / "telemetry_device.json") == mtime);
+    CHECK((fs::last_write_time(d.state / "telemetry_device.json") == mtime));
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture,

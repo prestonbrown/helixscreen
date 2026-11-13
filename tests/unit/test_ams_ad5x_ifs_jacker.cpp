@@ -159,7 +159,8 @@ TEST_CASE("AD5X IFS groups jacker lanes into IFS units of four",
         // Growing again, the dropped lanes start unobserved: no colour, no
         // material, no presence carried over from before the shrink.
         backend.fire_status(json{{"zmod_color", {{"color_limit", 8}}}});
-        const auto* lane6 = backend.get_system_info().get_slot_global(5);
+        const auto grown = backend.get_system_info();
+        const auto* lane6 = grown.get_slot_global(5);
         REQUIRE(lane6 != nullptr);
         CHECK(lane6->color_rgb != 0x445566u);
         CHECK(lane6->material.empty());
