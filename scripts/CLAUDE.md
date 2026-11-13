@@ -182,6 +182,8 @@ each screen maps to a navigation recipe in `screenshot-recipes.sh`, the single s
 | `doc_screenshots.py` | The doc-image manifest (`docs/images/doc-screenshots.yml`): `app` entries a headless `--test` instance regenerates, `manual` entries naming their source. Tests: `tests/python/test_doc_screenshots.py` |
 | `ad5m-screenshot.sh` | Remote screenshot capture from AD5M printer |
 | `esp32_serial_snapshot.py` | Screenshot an ESP32 panel over its serial console |
+| `detokenize_log.py` | Turn an ESP32 console capture's token records back into log text |
+| `esp32_logtok_db.py` | Firmware build step: the token database of an ELF's tokenized log strings |
 | `generate-test-data.py` | Generate mock test data for test suites |
 | `test_clean_shutdown.sh` | Verify clean shutdown behavior |
 | `afc-test.sh` | AFC live smoke test against a real printer |

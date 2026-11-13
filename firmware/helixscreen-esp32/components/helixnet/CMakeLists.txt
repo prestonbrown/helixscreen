@@ -34,10 +34,14 @@ set(REPO_SRCS ${REPO_ROOT}/src/format_utils.cpp
 
 idf_component_register(
     SRCS esp_moonraker_client.cpp esp_http_lane.cpp esp_rest_api.cpp coverage_assert.cpp
-         shim/platform_stubs.cpp ${REPO_SRCS}
+         shim/platform_stubs.cpp shim/log_token.cpp shim/log_token_esp.cpp ${REPO_SRCS}
     INCLUDE_DIRS "."
     REQUIRES esp_websocket_client esp_http_client esp_timer esp_event
-    PRIV_REQUIRES pthread)
+    PRIV_REQUIRES pthread esp_app_format)
+
+# The tokenized-log format strings' non-loaded output section (shim/log_token.h).
+# INTERFACE: the final link is the app's, not this component's.
+target_linker_script(${COMPONENT_LIB} INTERFACE "${CMAKE_CURRENT_LIST_DIR}/helix_logfmt.ld")
 
 # Repo headers + shim aliases are PRIVATE: only helixnet's own TUs compile
 # against i_moonraker_client.h / the sub-API headers. The C-linkage

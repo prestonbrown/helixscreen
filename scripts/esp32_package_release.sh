@@ -13,6 +13,8 @@
 #   helixscreen-esp32-ktouch-factory.bin  every image merged, flashed at 0x0
 #   flash_args + the images it names      for an update that keeps WiFi
 #   README.txt                            both esptool commands
+#   helixscreen-esp32-ktouch-logtok.json  the token database that turns this build's
+#                                         console log into text (detokenize_log.py)
 #
 # Needs esptool importable by $PYTHON (default python3): the ESP-IDF image's
 # python has it. Called by .github/workflows/esp32-build.yml when releasing.
@@ -26,9 +28,16 @@ PYTHON="${PYTHON:-python3}"
 
 NAME="helixscreen-esp32-ktouch-${TAG}"
 FACTORY="helixscreen-esp32-ktouch-factory.bin"
+LOGTOK="helixscreen-esp32-ktouch-logtok.json"
 PARTITIONS="$BUILD_DIR/../partitions.csv"
 
 [ -f "$BUILD_DIR/flash_args" ] || { echo "error: no flash_args in $BUILD_DIR (build first)" >&2; exit 1; }
+# Without its database a release's console log cannot be read at all.
+[ -f "$BUILD_DIR/helixscreen_esp32.logtok.json" ] ||
+    { echo "error: no helixscreen_esp32.logtok.json in $BUILD_DIR (build first)" >&2; exit 1; }
+python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1])).get("tokens") else 1)' \
+    "$BUILD_DIR/helixscreen_esp32.logtok.json" ||
+    { echo "error: $BUILD_DIR/helixscreen_esp32.logtok.json has no tokens (built with CONFIG_HELIX_LOG_TOKENIZE off?)" >&2; exit 1; }
 mkdir -p "$OUT_DIR"
 OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 
@@ -44,6 +53,8 @@ tail -n +2 "$BUILD_DIR/flash_args" | while read -r _offset path; do
     mkdir -p "$PKG/$(dirname "$path")"
     cp "$BUILD_DIR/$path" "$PKG/$path"
 done
+
+cp "$BUILD_DIR/helixscreen_esp32.logtok.json" "$PKG/$LOGTOK"
 
 # No --fill-flash-size: the image must stop short of the cfg partition, so a
 # fresh install leaves saved settings alone.
@@ -70,6 +81,10 @@ Fresh install (also wipes saved WiFi; settings are kept):
 
 Update an existing HelixScreen install (keeps WiFi and settings):
   python3 -m esptool --chip esp32s3 -p PORT -b 460800 write_flash @flash_args
+
+The serial console prints most log lines as "$..." records. To read a capture:
+  python3 scripts/detokenize_log.py ${LOGTOK} serial.log
+(scripts/detokenize_log.py is in the HelixScreen source tree.)
 
 Full guide: https://github.com/prestonbrown/helixscreen/blob/main/docs/user/INSTALL.md
 EOF

@@ -2562,10 +2562,10 @@ struct DeviceAction {
         return a;
     }
 
-    /// A read-only row showing @p value as text.
-    static DeviceAction info(std::string id, std::string label, std::string section,
-                             std::string value, std::string icon = {},
-                             std::string description = {}) {
+    /// A read-only row showing @p value as text ((info): see ESP32_PORT.md "Reading the log").
+    static DeviceAction(info)(std::string id, std::string label, std::string section,
+                              std::string value, std::string icon = {},
+                              std::string description = {}) {
         DeviceAction a =
             toggle(std::move(id), std::move(label), std::move(section), std::any(std::move(value)),
                    std::move(icon), std::move(description));
