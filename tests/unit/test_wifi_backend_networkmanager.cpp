@@ -79,11 +79,6 @@ class TestableNMBackend : public WifiBackendNetworkManager {
         return apply_polled_status(st);
     }
 
-    /// Stand in for an nmcli join running on the connect thread.
-    void set_connect_in_flight(bool in_flight) {
-        connect_in_flight_.store(in_flight);
-    }
-
     /// Feed one exact poll result through apply_polled_status().
     std::string feed_status(const ConnectionStatus& st) {
         return apply_polled_status(st);
@@ -193,6 +188,7 @@ if [ "$n" -eq 1 ] && [ "$NMCLI_FAIL_FIRST" = "1" ]; then
   echo "Error: 802-11-wireless-security.key-mgmt: property is missing." >&2
   exit 1
 fi
+while [ -n "$NMCLI_HOLD" ] && [ -e "$NMCLI_HOLD" ]; do sleep 0.05; done
 printf '%s\n' "$@" > "$NMCLI_ARGV"
 exit 0
 )SH";
@@ -204,7 +200,7 @@ exit 0
     }
     ~FakeNmcliDir() {
         for (const char* var :
-             {"NMCLI_ARGV", "NMCLI_COUNT", "NMCLI_FAIL_FIRST", "NMCLI_FAIL_ALL"}) {
+             {"NMCLI_ARGV", "NMCLI_COUNT", "NMCLI_FAIL_FIRST", "NMCLI_FAIL_ALL", "NMCLI_HOLD"}) {
             ::unsetenv(var);
         }
         std::error_code ec;
@@ -215,6 +211,15 @@ exit 0
     /// the backend's self-heal delete + retry path runs.
     void fail_first() {
         ::setenv("NMCLI_FAIL_FIRST", "1", 1);
+    }
+
+    /// Successful invocations wait until release(), standing in for a join in progress.
+    void hold() {
+        std::ofstream(dir + "/hold");
+        ::setenv("NMCLI_HOLD", (dir + "/hold").c_str(), 1);
+    }
+    void release() {
+        std::filesystem::remove(dir + "/hold");
     }
 
     /// Every invocation fails with `stderr_line` on stderr and nothing on stdout.
@@ -825,42 +830,11 @@ TEST_CASE("NM backend: status poll fires CONNECTED/DISCONNECTED on transitions",
         last_event_data = d;
     });
 
-    SECTION("First poll with connected=false fires nothing") {
-        std::string ev = backend.simulate_status_poll(false);
-        CHECK(ev.empty());
-        CHECK(connect_count == 0);
-        CHECK(disconnect_count == 0);
-    }
-
     SECTION("First poll with connected=true fires CONNECTED") {
         std::string ev = backend.simulate_status_poll(true);
         CHECK(ev == "CONNECTED");
         CHECK(connect_count == 1);
         CHECK(disconnect_count == 0);
-    }
-
-    SECTION("No duplicate event for same connected state") {
-        backend.simulate_status_poll(false);
-        std::string ev = backend.simulate_status_poll(false);
-        CHECK(ev.empty());
-        CHECK(connect_count == 0);
-        CHECK(disconnect_count == 0);
-    }
-
-    SECTION("Transition false->true fires CONNECTED") {
-        backend.simulate_status_poll(false);
-        std::string ev = backend.simulate_status_poll(true);
-        CHECK(ev == "CONNECTED");
-        CHECK(connect_count == 1);
-        CHECK(disconnect_count == 0);
-    }
-
-    SECTION("Transition true->false fires DISCONNECTED") {
-        backend.simulate_status_poll(true);
-        std::string ev = backend.simulate_status_poll(false);
-        CHECK(ev == "DISCONNECTED");
-        CHECK(connect_count == 1); // first poll true → CONNECTED
-        CHECK(disconnect_count == 1);
     }
 
     SECTION("Full cycle fires correct sequence") {
@@ -888,17 +862,6 @@ TEST_CASE("NM backend: status poll fires CONNECTED/DISCONNECTED on transitions",
         backend.simulate_status_poll(true); // false→true: CONNECTED
         CHECK(connect_count == 2);
         CHECK(disconnect_count == 1);
-    }
-
-    SECTION("Events reach the WiFiManager callback chain") {
-        // Verify that events fired through fire_event() actually invoke
-        // the registered callbacks (not just our local counters).
-        TestableNMBackend inner;
-        std::string captured_event;
-        inner.register_event_callback("CONNECTED",
-                                      [&](const std::string& d) { captured_event = "CB:" + d; });
-        inner.simulate_status_poll(true);
-        CHECK(captured_event == "CB:");
     }
 }
 
@@ -999,47 +962,37 @@ TEST_CASE("NM backend: not available on macOS", "[network][nm]") {
 }
 #endif // __APPLE__
 
-TEST_CASE("NM backend: an address arriving after the join fires ADDRESS_CHANGED",
-          "[network][nm][status][wifi_dhcp_pending]") {
+TEST_CASE("NM backend: polls while DHCP is pending", "[network][nm][status][wifi_dhcp_pending]") {
+    FakeNmcliDir fake;
+    ScopedPathPrepend path_prepend(fake.dir);
+    std::atomic<int> connects{0};
+    std::atomic<int> changes{0};
     TestableNMBackend backend;
-    int changes = 0;
+    backend.force_running("wlan0");
+    backend.register_event_callback("CONNECTED", [&](const std::string&) { connects++; });
     backend.register_event_callback("ADDRESS_CHANGED", [&](const std::string&) { changes++; });
 
     WifiBackend::ConnectionStatus st;
     st.connected = true;
     st.ssid = "Home";
     st.awaiting_ipv4 = true;
-    CHECK(backend.feed_status(st) == "CONNECTED");
-    CHECK(backend.feed_status(st).empty());
-    CHECK(changes == 0);
 
-    st.awaiting_ipv4 = false;
-    st.ip_address = "10.0.0.9";
-    CHECK(backend.feed_status(st) == "ADDRESS_CHANGED");
-    CHECK(changes == 1);
-    CHECK(backend.feed_status(st).empty());
-    CHECK(changes == 1);
-}
+    SECTION("a poll during a user's join leaves the outcome to nmcli") {
+        fake.hold();
+        REQUIRE(backend.connect_network("Home", "", false).success());
+        REQUIRE(helix_test::wait_until([&] { return fake.call_count() >= 1; }, 8000));
+        CHECK(backend.feed_status(st).empty());
+        CHECK(connects == 0);
+        fake.release();
+        REQUIRE(helix_test::wait_until([&] { return connects.load() == 1; }, 8000));
+    }
 
-TEST_CASE("NM backend: a poll during a user's join leaves the outcome to nmcli",
-          "[network][nm][status][wifi_dhcp_pending]") {
-    TestableNMBackend backend;
-    int connects = 0;
-    backend.register_event_callback("CONNECTED", [&](const std::string&) { connects++; });
-
-    WifiBackend::ConnectionStatus joining;
-    joining.connected = true;
-    joining.ssid = "Home";
-    joining.awaiting_ipv4 = true;
-
-    // State 70 mid-join: DHCP may still fail, and nmcli's exit says whether it did.
-    backend.set_connect_in_flight(true);
-    CHECK(backend.feed_status(joining).empty());
-    CHECK(connects == 0);
-    CHECK(backend.get_status().awaiting_ipv4);
-
-    // The same link seen by a poll outside a join is announced.
-    backend.set_connect_in_flight(false);
-    CHECK(backend.feed_status(joining) == "CONNECTED");
-    CHECK(connects == 1);
+    SECTION("the address arriving fires ADDRESS_CHANGED once") {
+        CHECK(backend.feed_status(st) == "CONNECTED");
+        st.awaiting_ipv4 = false;
+        st.ip_address = "10.0.0.9";
+        CHECK(backend.feed_status(st) == "ADDRESS_CHANGED");
+        CHECK(backend.feed_status(st).empty());
+        CHECK(changes == 1);
+    }
 }

@@ -126,11 +126,9 @@ class NetworkSettingsOverlayTestAccess {
     static std::string ssid(NetworkSettingsOverlay& o) {
         return o.ssid_buffer_;
     }
-    /// The address itself: what the IPv4 row hands the static-address form.
     static std::string ip(NetworkSettingsOverlay& o) {
         return o.ip_buffer_;
     }
-    /// What the IP row shows.
     static std::string ip_display(NetworkSettingsOverlay& o) {
         return o.ip_display_buffer_;
     }

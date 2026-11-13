@@ -46,6 +46,7 @@ std::atomic<int> g_forget_calls{0};
 class StallingBackend : public WifiBackendMock {
   public:
     static constexpr auto kMaxStall = std::chrono::seconds(3);
+    using WifiBackendMock::dispatch_event; // events as the real backends raise them
 
     WiFiError get_scan_results(std::vector<WiFiNetwork>& networks) override {
         if (fail_results_.load()) {
@@ -777,25 +778,6 @@ TEST_CASE_METHOD(ControlLaneFixture,
     CHECK(notified > before);
 }
 
-TEST_CASE_METHOD(ControlLaneFixture,
-                 "An address arriving while a status awaits one wakes the state observers",
-                 "[wifi][wifi_dhcp_pending]") {
-    std::atomic<int> fires{0};
-    wm->add_state_observer(guard.token(), [&fires]() { fires.fetch_add(1); });
-
-    backend->set_connected_state(true, "Home", "", 70);
-    REQUIRE(read_status().awaiting_ipv4);
-    process_lvgl(50);
-
-    const int before = fires.load();
-    backend->set_connected_state(true, "Home", "10.0.0.9", 70);
-    REQUIRE(wait_until([&] { return fires.load() > before; }, 3000));
-
-    const WifiBackend::ConnectionStatus status = read_status();
-    CHECK(status.ip_address == "10.0.0.9");
-    CHECK_FALSE(status.awaiting_ipv4);
-}
-
 TEST_CASE_METHOD(ControlLaneFixture, "A link that has its address is not watched for one",
                  "[wifi][wifi_dhcp_pending]") {
     std::atomic<int> fires{0};
@@ -812,7 +794,7 @@ TEST_CASE_METHOD(ControlLaneFixture, "A link that has its address is not watched
 }
 
 TEST_CASE_METHOD(ControlLaneFixture,
-                 "A CONNECTED event mid-watch does not end the wait for an address",
+                 "An address arriving while a status awaits one wakes the state observers",
                  "[wifi][wifi_dhcp_pending]") {
     std::atomic<int> fires{0};
     wm->add_state_observer(guard.token(), [&fires]() { fires.fetch_add(1); });
@@ -821,8 +803,8 @@ TEST_CASE_METHOD(ControlLaneFixture,
     REQUIRE(read_status().awaiting_ipv4);
     process_lvgl(50);
 
-    // CONNECTED knows no address; the cached status it leaves has none either.
-    WiFiManagerTestAccess::fire_connected(*wm);
+    // A CONNECTED knows no address, and the watch must outlast the status it leaves.
+    backend->dispatch_event("CONNECTED");
     process_lvgl(1000);
 
     const int before = fires.load();

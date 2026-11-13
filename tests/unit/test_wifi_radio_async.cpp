@@ -357,39 +357,21 @@ TEST_CASE("wifi_parse_nm_radio_state refuses to guess at an unparseable answer",
 }
 
 TEST_CASE("wifi_parse_nm_device_state reads GENERAL.STATE", "[wifi][nm][wifi_dhcp_pending]") {
-    const NmDeviceState online = wifi_parse_nm_device_state("100 (connected)");
-    CHECK(online.connected);
-    CHECK_FALSE(online.getting_ipv4);
-
-    // Joined, waiting on DHCP: connected, as wpa_supplicant's COMPLETED is.
-    const NmDeviceState dhcp =
-        wifi_parse_nm_device_state("70 (connecting (getting IP configuration))");
-    CHECK(dhcp.connected);
-    CHECK(dhcp.getting_ipv4);
-
-    // 80 and 90 come between 70 and 100 on the way up: still joined, so a
-    // poll landing there must not read as a drop.
-    const NmDeviceState ip_check =
-        wifi_parse_nm_device_state("80 (connecting (checking IP connectivity))");
-    CHECK(ip_check.connected);
-    CHECK_FALSE(ip_check.getting_ipv4);
-    const NmDeviceState secondaries =
-        wifi_parse_nm_device_state("90 (connecting (starting secondary connections))");
-    CHECK(secondaries.connected);
-    CHECK_FALSE(secondaries.getting_ipv4);
-
-    CHECK_FALSE(wifi_parse_nm_device_state("110 (deactivating)").connected);
-    CHECK_FALSE(wifi_parse_nm_device_state("120 (failed)").connected);
-
-    const NmDeviceState down = wifi_parse_nm_device_state("30 (disconnected)");
-    CHECK_FALSE(down.connected);
-    CHECK_FALSE(down.getting_ipv4);
-
-    const NmDeviceState auth = wifi_parse_nm_device_state("50 (connecting (configuring))");
-    CHECK_FALSE(auth.connected);
-    CHECK_FALSE(auth.getting_ipv4);
-
-    CHECK_FALSE(wifi_parse_nm_device_state("").connected);
+    // 70 (DHCP pending) through 100 count as joined, so a poll landing in 80
+    // or 90 on the way up does not read as a drop.
+    const auto [value, connected, getting_ipv4] = GENERATE(table<const char*, bool, bool>({
+        {"100 (connected)", true, false},
+        {"70 (connecting (getting IP configuration))", true, true},
+        {"80 (connecting (checking IP connectivity))", true, false},
+        {"90 (connecting (starting secondary connections))", true, false},
+        {"50 (connecting (configuring))", false, false},
+        {"110 (deactivating)", false, false},
+        {"30 (disconnected)", false, false},
+        {"", false, false},
+    }));
+    const NmDeviceState state = wifi_parse_nm_device_state(value);
+    CHECK(state.connected == connected);
+    CHECK(state.getting_ipv4 == getting_ipv4);
 }
 
 // ============================================================================

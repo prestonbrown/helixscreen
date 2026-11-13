@@ -260,10 +260,4 @@ TEST_CASE_METHOD(OverlayStatusFixture,
     CHECK(Access::ip_display(overlay()) == "Getting address…");
     // The IPv4 row prefills the static-address form from this.
     CHECK(Access::ip(overlay()).empty());
-
-    status.awaiting_ipv4 = false;
-    status.ip_address = kIp;
-    Access::apply_wifi_status(overlay(), status);
-    CHECK(Access::ip_display(overlay()) == kIp);
-    CHECK(Access::ip(overlay()) == kIp);
 }

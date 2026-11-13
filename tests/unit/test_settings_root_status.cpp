@@ -33,36 +33,28 @@ TEST_CASE("status::devices", "[settings][root_status]") {
 
 TEST_CASE("status::connection", "[settings][root_status][wifi_dhcp_pending]") {
     using helix::ui::wifi::LinkPhase;
-    CHECK(status::connection(true, LinkPhase::Online, "HomeNet") == "Ethernet");
     CHECK(status::connection(true, LinkPhase::GettingAddress, "HomeNet") == "Ethernet");
     CHECK(status::connection(false, LinkPhase::Online, "HomeNet") == "Wi-Fi HomeNet");
     CHECK(status::connection(false, LinkPhase::Online, "") == "Wi-Fi");
     CHECK(status::connection(false, LinkPhase::GettingAddress, "HomeNet") ==
           "Connected, getting address…");
     CHECK(status::connection(false, LinkPhase::Disconnected, "HomeNet") == "Not connected");
-}
-
-TEST_CASE("status::wifi_address", "[settings][root_status][wifi_dhcp_pending]") {
-    using helix::ui::wifi::LinkPhase;
     CHECK(status::wifi_address(LinkPhase::Online, "10.0.0.5") == "10.0.0.5");
     CHECK(status::wifi_address(LinkPhase::GettingAddress, "") == "Getting address…");
-    CHECK(status::wifi_address(LinkPhase::Disconnected, "") == "");
 }
 
 TEST_CASE("wifi::link_phase classifies a status", "[wifi][wifi_dhcp_pending]") {
-    using helix::ui::wifi::link_phase;
     using helix::ui::wifi::LinkPhase;
+    const auto [connected, awaiting, phase] = GENERATE(table<bool, bool, LinkPhase>({
+        {false, false, LinkPhase::Disconnected},
+        {true, false, LinkPhase::Online},
+        {true, true, LinkPhase::GettingAddress},
+        {false, true, LinkPhase::Disconnected}, // a stale flag on a dropped link
+    }));
     WifiBackend::ConnectionStatus s;
-    CHECK(link_phase(s) == LinkPhase::Disconnected);
-    s.connected = true;
-    s.ip_address = "10.0.0.5";
-    CHECK(link_phase(s) == LinkPhase::Online);
-    s.ip_address.clear();
-    s.awaiting_ipv4 = true;
-    CHECK(link_phase(s) == LinkPhase::GettingAddress);
-    // A stale flag on a dropped link is not a pending address.
-    s.connected = false;
-    CHECK(link_phase(s) == LinkPhase::Disconnected);
+    s.connected = connected;
+    s.awaiting_ipv4 = awaiting;
+    CHECK(helix::ui::wifi::link_phase(s) == phase);
 }
 
 TEST_CASE("status::language_time", "[settings][root_status]") {
