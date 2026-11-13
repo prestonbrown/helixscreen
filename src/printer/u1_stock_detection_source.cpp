@@ -32,6 +32,19 @@ void U1StockSource::tune() {
         nullptr, nullptr);
 }
 
+void U1StockSource::apply_detection_enabled(bool enabled) {
+    IMoonrakerClient* client = get_moonraker_client();
+    if (!client) {
+        return;
+    }
+    // The module persists noodle.enable in its own config file. Null callbacks
+    // for the same reason as tune(): Klipper's `!!` broadcast reports a refusal.
+    const std::string script =
+        std::string("DEFECT_DETECTION_CONFIG NOODLE_ENABLE=") + (enabled ? "1" : "0");
+    spdlog::info("[U1StockSource] {}", script);
+    client->send_jsonrpc("printer.gcode.script", json{{"script", script}}, nullptr, nullptr);
+}
+
 void U1StockSource::read_bed_check(BedCheckReadCallback done) {
     json params = {{"objects", {{"defect_detection", nullptr}}}};
     get_moonraker_client()->send_jsonrpc(

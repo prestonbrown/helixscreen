@@ -116,6 +116,21 @@ bool DetectionManager::set_bed_check_enabled(bool enabled, std::function<void()>
     return true;
 }
 
+void DetectionManager::set_detection_enabled(bool enabled) {
+    SettingsManager::instance().set_detection_enabled(enabled);
+    spdlog::info("DetectionManager: detection -> {}", enabled ? "on" : "off");
+    apply_detection_enabled();
+}
+
+void DetectionManager::apply_detection_enabled() {
+    const bool enabled = SettingsManager::instance().get_detection_enabled();
+    for (const auto& src : sources_) {
+        if (src && src->available()) {
+            src->apply_detection_enabled(enabled);
+        }
+    }
+}
+
 void DetectionManager::show_bed_check_refusal(const std::string& refusal) {
     const std::string text =
         refusal.empty()
@@ -298,6 +313,8 @@ void DetectionManager::apply_objects_list(const json& objects) {
         }
     }
     update_availability();
+    // After the seed, so a first connect hands the printer the seeded value.
+    apply_detection_enabled();
 }
 
 void DetectionManager::refresh_capabilities() {

@@ -514,3 +514,38 @@ TEST_CASE_METHOD(BedCheckPresenterFixture, "ESC closes the bed check modal witho
     CHECK_FALSE(helix::AbortManager::instance().is_aborting());
     CHECK(mock_client.gcode_script_history().empty());
 }
+
+// "Turn off detection" on a U1 tells the printer too: its firmware pauses on
+// its own, so hiding HelixScreen's dialog alone would leave prints stopping
+// with nothing on screen.
+TEST_CASE_METHOD(PresenterFixture, "Turn off detection switches a U1's own detection off",
+                 "[detection][modal][presenter][detection_switch]") {
+    MoonrakerClientMock u1(MoonrakerClientMock::PrinterType::SNAPMAKER_U1);
+    set_moonraker_client(&u1);
+    auto& m = helix::detection::DetectionManager::instance();
+    m.register_source(std::make_unique<helix::detection::U1StockSource>(nullptr));
+    SettingsManager::instance().set_detection_enabled(true);
+    m.apply_objects_list_for_test(nlohmann::json::array({"defect_detection"}));
+
+    helix::detection::present_detection(spaghetti_event(true),
+                                        helix::detection::DetectionPolicy::DeferToSource);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(ModalStack::instance().top_component_name() == "spaghetti_detection_modal");
+    lv_obj_t* turn_off = lv_obj_find_by_name(ModalStack::instance().top_dialog(), "btn_quaternary");
+    REQUIRE(turn_off != nullptr);
+    u1.clear_gcode_script_history();
+
+    lv_obj_send_event(turn_off, LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
+
+    CHECK_FALSE(SettingsManager::instance().get_detection_enabled());
+    CHECK(u1.gcode_script_history() ==
+          std::vector<std::string>{"DEFECT_DETECTION_CONFIG NOODLE_ENABLE=0"});
+
+    ModalStack::instance().clear();
+    process_lvgl(20);
+    set_moonraker_client(nullptr);
+    m.reset_for_test();
+    SettingsManager::instance().set_detection_enabled(true);
+}

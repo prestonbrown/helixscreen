@@ -97,6 +97,12 @@ class DetectionManager {
         return &bed_check_switchable_subject_;
     }
 
+    /// The Spaghetti Detection switch: store the setting and hand it to every
+    /// capable source, so a printer whose firmware detects by itself stops (or
+    /// resumes) detecting too. Every caller that changes the switch goes
+    /// through here. Main thread.
+    void set_detection_enabled(bool enabled);
+
     /// Switch the printer's bed check. The subject follows at once and goes
     /// back, with a toast carrying the printer's reason, if the printer
     /// refuses. @p on_accepted runs on the main thread once it accepts.
@@ -152,6 +158,9 @@ class DetectionManager {
     /// One-time copy of the printer's stored detection preference into the
     /// settings, the first start where a capable source exists.
     void maybe_seed_settings();
+
+    /// Hand the stored switch to every capable source.
+    void apply_detection_enabled();
 
     /// The capable source with a bed check, or nullptr.
     DetectionSource* bed_check_source() const;
