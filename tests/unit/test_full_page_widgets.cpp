@@ -652,7 +652,9 @@ TEST_CASE_METHOD(FullPageFixture, "navigation from a Filament full page finds th
 
     // An overlay opened from the lent tree covers the home panel: the tree goes
     // home under it, and back on the page when the overlay closes.
-    lv_obj_send_event(named(fp.root, "btn_temp_graph"), LV_EVENT_CLICKED, nullptr);
+    const char* opener = GENERATE("btn_temp_graph", "external_spool_row"); // AMS edit overlay
+    CAPTURE(opener);
+    lv_obj_send_event(named(fp.root, opener), LV_EVENT_CLICKED, nullptr);
     drain();
     REQUIRE(nav.has_open_overlays());
     CHECK(lv_obj_get_parent(fp.root) == fp.home);
@@ -678,4 +680,12 @@ TEST_CASE_METHOD(FullPageFixture, "navigation from a Filament full page finds th
     process_lvgl(1000);
     drain();
     CHECK(lent_to_page());
+
+    // The home panel rebuilt (hot reload, a layout change) gives the tree back
+    // before its old tree is condemned.
+    REQUIRE(get_global_home_panel().rebuild());
+    drain();
+    REQUIRE(helix::test::widget_in_tree(fp.root));
+    CHECK(lv_obj_get_parent(fp.root) == fp.home);
+    CHECK(get_global_filament_panel().get_panel() == fp.root);
 }
