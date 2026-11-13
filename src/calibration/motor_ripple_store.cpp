@@ -135,7 +135,10 @@ std::optional<SweepResult> ripple_result_from_json(const json& j) {
         return std::nullopt;
     }
     auto s = sweeps_from_json(*sweeps);
-    auto c = comp ? sweeps_from_json(*comp) : std::optional<std::vector<MotorSweep>>{{}};
+    std::optional<std::vector<MotorSweep>> c = std::vector<MotorSweep>{};
+    if (comp) {
+        c = sweeps_from_json(*comp);
+    }
     if (!s || !c) {
         return std::nullopt;
     }
