@@ -11,6 +11,7 @@
 #include "runtime_config.h"
 #include "text_io.h"
 #include "theme_manager.h"
+#include "wizard_step.h"
 
 #include <spdlog/spdlog.h>
 
@@ -304,13 +305,14 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
         // Wizard step
         else if (strcmp(argv[i], "--wizard-step") == 0) {
             if (i + 1 >= argc) {
-                printf("Error: --wizard-step requires an argument (0-12)\n");
+                printf("Error: --wizard-step requires an argument (0-%d)\n",
+                       helix::wizard::STEP_COUNT - 1);
                 return false;
             }
             args.wizard_step = atoi(argv[++i]);
             args.force_wizard = true;
-            if (args.wizard_step < 0 || args.wizard_step > 12) {
-                printf("Error: wizard step must be 0-12\n");
+            if (args.wizard_step < 0 || args.wizard_step >= helix::wizard::STEP_COUNT) {
+                printf("Error: wizard step must be 0-%d\n", helix::wizard::STEP_COUNT - 1);
                 return false;
             }
         }
