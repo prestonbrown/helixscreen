@@ -1,129 +1,115 @@
 # Label Printing
 
-Print spool labels directly from HelixScreen to a compatible thermal label printer. On every layout the **spool number** is the first and largest line, so you can identify a spool from across the room without scanning it. Labels also include vendor, material type and color, remaining weight, temperatures, and a QR code linking back to Spoolman.
+Print spool labels directly from HelixScreen. Each label leads with the **spool number** as its first and largest line, so you can identify a spool from across the room without scanning it. A label also carries the vendor, material and color, remaining weight, and a QR code that links back to the spool in Spoolman. Scan that QR code later with the [barcode scanner](barcode-scanner.md) or the camera to pick the spool again.
 
-> **Two ways to print labels:** Most of this guide covers **thermal label printers** — dedicated devices (Brother, Phomemo, Niimbot, MakeID) that print one label at a time onto a roll or tape. If you don't own one, HelixScreen can also print onto **Avery-style sheet labels** using a normal networked office printer (inkjet or laser). See [Office-Printer (Sheet) Labels](#office-printer-sheet-labels) below.
+There are two ways to print labels:
+
+- **Thermal label printers** (Brother, Phomemo, Niimbot, MakeID) print one label at a time onto a roll or tape. Most of this page covers them.
+- **An ordinary office printer** (inkjet or laser) can print onto **Avery-style sheet labels**. See [Office-Printer (Sheet) Labels](#office-printer-sheet-labels).
+
+> Label printing is not available on the Adventurer 5M and 5M Pro builds or on the BigTreeTech K-Touch (ESP32) screen. The K-Touch hides the **Label Printer** row. On the Adventurer 5M builds the row and the spool menu's **Print Label** can still appear, but they do nothing.
 
 ---
 
 ## Supported Printers
 
-HelixScreen supports five families of label printers:
-
 | Brand | Connection | Models |
 |-------|------------|--------|
-| **Brother QL** | Network (TCP) or Bluetooth | QL-820NWB, QL-810W, QL-800, TD-*, RJ-* |
-| **Brother PT** | Bluetooth | PT-P300BT, PT-P710BT, PT-P910BT, and other P-Touch models with Bluetooth |
-| **Phomemo** | USB or Bluetooth | M110, M120, M02, Q199, and other M*/Q* series |
-| **Niimbot** | Bluetooth only | B21, D11, D110 |
-| **MakeID** | Bluetooth only | E1 (advertises as "YichipFPGA-XXXX"), L1, M1 — 9/12/16mm continuous tape |
+| **Brother QL** | Network or Bluetooth | QL-820NWB, QL-810W, QL-800 and other QL, TD and RJ models |
+| **Brother PT** | Bluetooth | PT-P300BT, PT-P710BT, PT-P910BT and other P-Touch models with Bluetooth |
+| **Phomemo** | USB or Bluetooth | M110, M120, M02, Q199 and other M and Q series |
+| **Niimbot** | Bluetooth | B21 and the other B-series printers, D11, D110 |
+| **MakeID** | Bluetooth | E1 (it advertises itself as "YichipFPGA-" followed by digits), L1, M1, with 9, 12 or 16 mm continuous tape |
 
-> **Note:** Bluetooth label printing requires a Bluetooth adapter on your HelixScreen device (Raspberry Pi 4/5 have built-in Bluetooth). Devices without Bluetooth hardware will only see Network and USB options. If Bluetooth is disabled for UART, see the [Bluetooth Setup Guide](bluetooth-setup.md).
+Bluetooth printing needs a Bluetooth adapter on the device running HelixScreen (a Raspberry Pi 4 or 5 has one built in). Without Bluetooth hardware the **Type** dropdown offers only Network and USB. If Bluetooth is turned off for UART use, see the [Bluetooth Setup Guide](bluetooth-setup.md).
 
 ---
 
-## Setting Up Your Label Printer
+## Setting Up a Label Printer
 
-### Step 1: Open Label Printer Settings
+### Step 1: Open Label Printer settings
 
-1. Go to **Settings → Devices → Spoolman → Label Printer**
-2. Tap to open the Label Printer settings overlay
+Go to **Settings > Devices > Spoolman > Label Printer**.
 
 ![Label Printer Settings](../../images/user/settings-label-printer.png)
 
-### Step 2: Select Connection Type
+### Step 2: Choose the connection type
 
-Choose your printer's connection method:
+Under **Connection Type**, set **Type**:
 
-| Type | When to Use |
-|------|-------------|
-| **Network** | Brother QL printers connected via Ethernet or WiFi |
-| **USB** | Phomemo printers connected via USB cable |
-| **Bluetooth** | Any supported printer paired via Bluetooth |
+| Type | Use it for |
+|------|------------|
+| **Network** | Brother QL printers on Ethernet or Wi-Fi, and office printers for sheet labels |
+| **USB** | Phomemo printers on a USB cable |
+| **Bluetooth** | Any supported printer paired over Bluetooth |
 
-> **Bluetooth** only appears when HelixScreen detects Bluetooth hardware on your device.
+### Step 3: Select your printer
 
-### Step 3: Configure Your Printer
+**Network.** HelixScreen searches your network and lists what it finds under **Discovered Printers**. Pick yours and the address and port are filled in. You can also type the address and port by hand under **Manual** (the standard port for a Brother QL is 9100).
 
-**For Network printers:**
-1. Enter the printer's IP address
-2. Port defaults to 9100 (standard for Brother QL)
+**USB.** Plug the printer in and pick it from **Detected USB Printers**.
 
-**For USB printers:**
-1. Connect the printer via USB
-2. HelixScreen auto-detects the printer
+**Bluetooth.**
 
-**For Bluetooth printers:**
-1. Turn on your label printer and make sure it's in pairing mode
-2. Tap **Scan** to discover nearby printers
-3. Select your printer from the dropdown
-4. If the printer isn't yet paired, HelixScreen will prompt to pair it (most label printers use "Just Works" pairing — no PIN required)
+1. Turn the printer on and put it in pairing mode.
+2. Tap **Scan for Printers**.
+3. Pick your printer from the **Printer** dropdown. If it is not paired yet, HelixScreen asks **Pair with** the printer's name. Tap **Pair**. Most label printers pair without a PIN.
+4. Tap **Connect** to check the link. **Forget** removes the pairing.
 
-### Step 4: Choose Label Size
+### Step 4: Choose the label size
 
-Select the label size that matches your loaded label roll:
+The **Label Size** dropdown follows the printer you picked, so a Niimbot D11 shows different sizes from a B21.
 
-**Brother QL sizes:** 29mm, 62mm, 29x90mm, and more (300 DPI)
+| Printer | Sizes |
+|---------|-------|
+| Brother QL | 29 mm and 38 mm continuous, 62 mm continuous, 23x23, 29x90, 62x29 and 62x100 mm |
+| Brother PT | Set automatically (see below) |
+| Phomemo | 40x30, 40x20, 50x30, 50x50, 50x80, 30x20, 25x10 and 40x60 mm |
+| Niimbot B-series | 50x30, 40x30, 30x20, 30x40, 40x40, 50x50, 40x20, 25x30, 14x40, 14x60 and 50x80 mm |
+| Niimbot D11 and D110 | 12x22, 12x30, 12x40, 12x50, 12x60 and 12x70 mm |
+| MakeID E1 | 9x30, 9x40, 12x30, 12x40, 12x50, 16x30, 16x40 and 16x50 mm |
 
-**Brother PT sizes:** 3.5mm, 6mm, 9mm, 12mm, 18mm, 24mm continuous tape (180 DPI). Tape width is **auto-detected** — HelixScreen reads the installed tape cassette and adjusts the label layout automatically. Narrow tapes (≤9mm) use a compact minimal layout. The remaining weight always sits on its own line, so a narrow label truncates the weight, never the spool number.
+**Brother QL over the network** reads the loaded roll from the printer when you print, and uses that size. The dropdown is the fallback if the printer does not answer. A Brother QL over Bluetooth always uses the size you chose.
 
-**Phomemo sizes:** 40x30mm, 50x30mm, and more (203 DPI)
+**Brother PT** printers read the installed tape cassette (3.5, 6, 9, 12, 18 or 24 mm) when you print, so the **Label Size** dropdown shows **Auto-detect** and cannot be changed. If no tape is installed you get the message "No tape detected in printer".
 
-**Niimbot B21 sizes:** 50x30mm, 40x30mm, 50x50mm, 40x20mm, 50x80mm (203 DPI)
+### Step 5: Choose a preset
 
-**Niimbot D11/D110 sizes:** 12x40mm, 12x22mm, 12x30mm, 12x50mm, 12x60mm, 12x70mm (203 DPI)
+| Preset | What the label shows |
+|--------|----------------------|
+| **Standard** | Spool number, vendor, material and color, weight, and the recommended temperatures, lot number and notes when the spool has them and they fit, plus the QR code |
+| **Compact** | Spool number, vendor, material and color, plus the QR code |
+| **QR Only** | The QR code and the spool number |
 
-**MakeID E1 sizes:** 9x30mm, 12x30mm, 12x40mm, 16x30mm, 16x40mm (203 DPI)
+Small labels cannot fit text, so the **Preset** dropdown is locked to **QR Only** on any label that is no more than about 31 mm in both width and length. That covers, for example, the Phomemo 30x20 and 25x10, the Niimbot 30x20 and 25x30, the 12x22 and 12x30 Niimbot D11 labels, the MakeID 30 mm labels and the Brother QL 23x23. Brother PT tape of 9 mm or narrower always prints as **QR Only** too, whatever the preset says. A spool that is not tracked in Spoolman has no spool number or QR code, so its label carries only text: the vendor, material and color, plus the weight on the **Standard** preset.
 
-> **Tip:** The size list updates automatically based on the detected printer model. A Niimbot D11 shows different sizes than a B21.
+### Step 6: Test it
 
-### Step 5: Choose Label Preset
-
-| Preset | Description |
-|--------|-------------|
-| **Standard** | Full label with spool number, vendor, material and color, weight, temps, and QR code |
-| **Compact** | Condensed layout for smaller labels |
-| **QR Only** | A QR code and the spool number - no material or color text |
+Tap **Test Print**. It prints a sample label (a Hatchbox PLA spool) whose QR code deliberately matches no real spool, so scanning it cannot change your active spool.
 
 ---
 
 ## Printing a Label
 
-1. Navigate to the **Spoolman** panel (via Filament tab)
-2. Find the spool you want to label
-3. Tap the **Print Label** button
-4. The label prints automatically using your configured printer
+Once a printer is set up, **Print Label** appears in three places:
 
-A toast notification confirms success or shows an error message.
+- The menu you get when you tap a spool in the Spoolman spool list (reached from the **Filament** tab).
+- The spool editor for a Spoolman spool.
+- The slot editor on the filament system screen, for a slot linked to a Spoolman spool.
+
+A message confirms **Label printed**, or names what went wrong. Until a printer is configured, **Print Label** in the spool menu says "Set up your label printer in Settings".
 
 ---
 
 ## Office-Printer (Sheet) Labels
 
-No thermal label printer? If you have an ordinary networked office printer (inkjet or laser), HelixScreen can print spool labels onto **Avery-style sheet labels** instead. It lays out multiple spool labels on a standard Letter or A4 sheet of peel-off labels, and prints over the network — no drivers or extra software required. Under the hood HelixScreen talks to the printer using IPP (Internet Printing Protocol), the same standard your computer uses for "driverless" printing.
+If you have no thermal label printer, HelixScreen can print spool labels onto Avery-style sheets using a networked office printer. It lays several labels out on a Letter or A4 sheet and sends the job over the network with no driver needed. This path is separate from the thermal printers above, but it uses the same **Label Printer** screen.
 
-This is a completely separate path from the thermal label printers above — you configure it in the same **Label Printer** settings screen, but you pick your office printer instead of a thermal one.
+### Set it up
 
-### Step 1: Set the Connection Type to Network
-
-1. Go to **Settings → Devices → Spoolman → Label Printer**
-2. Under **Connection Type**, set **Type** to **Network**
-
-### Step 2: Pick Your Office Printer
-
-Under **Discovered Printers**, open the **Printer** dropdown. HelixScreen automatically scans your network for printers. Office printers that support driverless printing appear with an **[IPP]** tag after their name, for example:
-
-```
-Office HP LaserJet [IPP]
-```
-
-Select the printer with the **[IPP]** tag. HelixScreen fills in its address and sets the port automatically (IPP printers use port **631**).
-
-> **If your printer doesn't show up:** Make sure it's powered on, connected to the same network, and has driverless / AirPrint / IPP printing enabled (most modern printers do by default). You can also type the printer's IP address into the **Manual** field under the Network section, but selecting the discovered **[IPP]** entry is the reliable way to turn on IPP mode.
-
-### Step 3: Choose the Sheet (Label Size)
-
-Once an IPP printer is selected, the **Label Size** dropdown lists Avery-style sheet templates instead of thermal roll sizes. Pick the one that matches the label sheets you loaded in the printer:
+1. Go to **Settings > Devices > Spoolman > Label Printer** and set **Type** to **Network**.
+2. Open the **Printer** dropdown under **Discovered Printers**. Office printers that support driverless printing show **[IPP]** after their name, for example `Office HP LaserJet (192.168.1.40) [IPP]`. Pick one of those. The port is set to 631 for you.
+3. Set **Label Size** to the sheet you loaded:
 
 | Sheet | Layout |
 |-------|--------|
@@ -133,87 +119,48 @@ Once an IPP printer is selected, the **Label Size** dropdown lists Avery-style s
 | **Avery 5195** | 60 labels, 2/3" x 1-3/4" (Letter) |
 | **Avery 5199** | 4 labels, 3-1/2" x 4" (Letter) |
 | **Avery 8126** | 2 labels, 8-1/2" x 5-1/2" (Letter) |
-| **Avery L7160 / L7159 / L7161 / L7163** | 14–24 labels per A4 sheet |
+| **Avery L7163** | 14 labels, 99.1 x 38.1 mm (A4) |
+| **Avery L7160** | 21 labels, 63.5 x 38.1 mm (A4) |
+| **Avery L7161** | 18 labels, 63.5 x 46.6 mm (A4) |
+| **Avery L7159** | 24 labels, 63.5 x 33.9 mm (A4) |
 
-Pick your **Preset** (Standard, Compact, or QR Only) the same way as for thermal printers.
+4. Pick a **Preset**. **Labels Per Sheet** sets how many copies of a label go on a sheet by default.
 
-### Step 4: Print a Label onto a Sheet
+If your printer is not listed, check that it is on, on the same network, and has driverless, AirPrint or IPP printing enabled. Only the discovered **[IPP]** entry turns sheet printing on; typing an address by hand does not.
 
-1. Navigate to the **Spoolman** panel (via the Filament tab)
-2. Find the spool you want to label and tap **Print Label**
-3. Because your printer is set to an office (IPP) printer, a **Sheet Label Print** dialog appears instead of printing right away:
+### Print onto a sheet
+
+Tap **Print Label** as described above. Because the printer is a sheet printer, a **Sheet Label Print** dialog opens first:
 
 | Option | What it does |
 |--------|--------------|
-| **Template** | Shows the sheet you selected in settings (read-only) |
-| **Labels** | How many copies of this label to print on the sheet |
-| **Start at** | Which position on the sheet to begin at (**Position 1**, **Position 2**, …) |
+| **Template** | The sheet you chose in settings (read only) |
+| **Labels** | How many copies to print |
+| **Start at** | Which position on the sheet to begin at (**Position 1**, **Position 2** and so on) |
 
-4. Tap **Print** to send the job, or **Cancel** to back out
+Tap **Print** to send the job or **Cancel** to back out. **Start at** lets you reuse a partly used sheet: choose the first blank position and the used ones are skipped. HelixScreen remembers your **Labels** choice.
 
-The **Start at** option lets you reuse a partially-used sheet: if you've already peeled off the first few labels, choose the position of the first blank label so HelixScreen skips the used ones and prints into the empty spots. HelixScreen remembers your **Labels** choice for next time.
-
-### Notes and Limits
-
-- Requires a networked printer that supports driverless (IPP) printing — most inkjet and laser printers made in the last several years do.
-- Only the Avery-style sheet sizes listed above are available in this mode. Thermal roll and tape sizes only apply to thermal label printers.
-- Bluetooth and USB connection types are for thermal printers only. Sheet printing is always over the network.
-- Use the **Test Print** button in Label Printer settings to confirm the printer responds before printing real spool labels.
+Sheet printing is network only. Bluetooth and USB are for thermal printers.
 
 ---
 
 ## Troubleshooting
 
-### Bluetooth printer not found during scan
+**The Bluetooth scan finds nothing.** Make sure the printer is on and in pairing mode, move it closer (Bluetooth reaches about 10 meters), and scan again. Some printers take a few seconds to start advertising.
 
-- Make sure the printer is powered on and in discoverable mode
-- Move the printer closer to the HelixScreen device (Bluetooth range is typically 10 meters)
-- Try scanning again — some printers take a few seconds to advertise
+**"Bluetooth not available".** The device has no Bluetooth hardware, or it is disabled. On a Raspberry Pi, `bluetoothctl show` should list an adapter. If Bluetooth is disabled for UART, see the [Bluetooth Setup Guide](bluetooth-setup.md).
 
-### Print says "success" but nothing prints
+**It says the label printed but nothing came out.** Check that labels are loaded and the printer has no error (paper jam, open cover). Turn a Bluetooth printer off and on and try again. Check that **Label Size** matches the roll in the printer.
 
-- Check that the printer has labels loaded and isn't in an error state (paper jam, cover open)
-- For Bluetooth printers, try turning the printer off and on, then print again
-- Check the label size setting matches the actual label roll loaded in the printer
+**"No USB printer detected".** Unplug and replug the cable, try another USB port, and check that the printer is on.
 
-### "Bluetooth not available" error
+**Other messages.** "Printer didn't respond" means the printer is off or out of range. "Printer is not paired" means pair it again from the Label Printer screen. "Can't connect" usually clears by tapping **Forget** and pairing again. "Lost connection during print" means the link dropped mid-job; try again.
 
-- Your device doesn't have Bluetooth hardware, or it's disabled
-- On Raspberry Pi, check that Bluetooth is enabled: `bluetoothctl show` should list an adapter
-- If Bluetooth is disabled for UART (common in Klipper setups), see the [Bluetooth Setup Guide](bluetooth-setup.md) for how to enable it or add a USB dongle
-- The Bluetooth plugin (`libhelix-bluetooth.so`) must be present next to the HelixScreen binary
+**Niimbot will not connect.** Niimbot printers use Bluetooth Low Energy, which allows one connection at a time, so close the Niimbot phone app first. Then power-cycle the printer. The first print after connecting takes a few extra seconds while the link starts up.
 
-### "No USB printer detected"
+**MakeID will not connect.** Look for the name "YichipFPGA-" followed by digits when scanning. Close the MakeID phone app, power-cycle the printer and try again.
 
-- Unplug and replug the USB cable
-- Try a different USB port
-- Check that the printer is powered on
-
-### Niimbot printer not connecting
-
-- Niimbot printers use BLE (Bluetooth Low Energy), which requires Bluetooth 4.0 or later
-- Make sure no other app (like the Niimbot phone app) is currently connected to the printer — BLE only allows one connection at a time
-- Power cycle the printer and try again
-
-### Niimbot first print is slow
-
-- The first print after connecting takes a few extra seconds — HelixScreen needs to initialize the BLE connection and warm up the printer's thermal subsystem
-- Subsequent prints are faster because the connection stays alive between jobs
-
-### MakeID printer not working
-
-- MakeID E1 advertises as "YichipFPGA-XXXX" over Bluetooth — look for this name during scanning
-- Make sure no other app (like the MakeID phone app) is connected to the printer
-- MakeID printers use Bluetooth Classic (RFCOMM), so any Bluetooth adapter that supports standard Bluetooth will work (BLE-only dongles are not required)
-- Power cycle the printer and try again if the first attempt fails
-
-### Brother PT printer not printing
-
-- Brother PT printers connect via Bluetooth Classic (RFCOMM), not BLE — make sure your Bluetooth adapter supports standard Bluetooth profiles
-- The printer must be paired at the OS level first, then configured in HelixScreen with its Bluetooth MAC address
-- If auto-detection shows "No tape installed", check that a tape cassette is properly seated in the printer
-- If the label is blank or cut incorrectly, the tape width may not have been detected properly — power cycle the printer and try again
-- For narrow tapes (3.5mm, 6mm), labels use a minimal format with less detail — this is expected
+**Brother PT will not print.** Pair the printer first, then pick it on the Label Printer screen. If the message is "No tape detected", re-seat the tape cassette. If the label is blank or cut wrong, power-cycle the printer. Labels on 3.5, 6 and 9 mm tape carry only the QR code and spool number; that is expected.
 
 ---
 

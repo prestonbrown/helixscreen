@@ -1,8 +1,8 @@
 # Filament Tracking & Spoolman
 
-HelixScreen keeps track of what filament is loaded and how much of it is left — the material, brand, color, and remaining weight of each spool. This works two ways: a built-in tracker that runs on its own, and a deeper integration with [Spoolman](https://github.com/Donkie/Spoolman) if you run a Spoolman server for your filament inventory.
+HelixScreen keeps track of what filament is loaded and how much of it is left: the material, brand, color and remaining weight of each spool. It does this in two ways. A built-in tracker works on its own, and a deeper integration is available if you run a [Spoolman](https://github.com/Donkie/Spoolman) server for your filament inventory.
 
-This page explains what gets tracked in each mode, how remaining weight is kept up to date, and how to connect Spoolman. For the hands-on filament controls (load, unload, purge, AMS slots), see [Filament Management](filament.md).
+This page explains what is tracked in each mode, how remaining weight is kept up to date, and how to connect Spoolman. For the hands-on filament controls (load, unload, purge, AMS slots), see [Filament Management](filament.md).
 
 ---
 
@@ -10,126 +10,132 @@ This page explains what gets tracked in each mode, how remaining weight is kept 
 
 | | Without Spoolman | With Spoolman |
 |---|---|---|
-| **What you set** | Material, color, brand, remaining weight per spool — entered on the touchscreen | Same, but pulled from your Spoolman inventory when you assign a spool |
-| **Where it's stored** | On the printer (survives restarts and reboots) | In your Spoolman database, shared across every tool that reads it |
-| **How usage is tracked** | HelixScreen estimates it from how much filament each print extrudes | Spoolman tracks consumption itself, through Moonraker; HelixScreen displays the result |
-| **Best for** | A single printer, no inventory system | Managing many spools across one or more printers |
+| **What you set** | Material, color, brand and remaining weight per spool, entered on the touchscreen | The same details, filled in from your Spoolman inventory when you link a spool |
+| **Where it is stored** | On the printer, so it survives restarts and reboots | In your Spoolman database, shared with every tool that reads it |
+| **How usage is tracked** | HelixScreen estimates it from how much filament each print uses | Spoolman subtracts usage itself, through Moonraker; HelixScreen shows the result |
+| **Best for** | One printer and no inventory system | Many spools, or more than one printer |
 
-You don't have to choose up front — everything works without Spoolman, and connecting Spoolman later just adds the inventory and shared-database features on top.
+Everything works without Spoolman. Connecting it later adds the inventory and does not erase anything.
 
 ---
 
 ## Tracking Without Spoolman
 
-Out of the box, HelixScreen tracks filament on its own. Nothing to enable.
+Nothing needs to be turned on.
 
-### Telling HelixScreen what's loaded
+### Telling HelixScreen what is loaded
 
-**Single spool (no AMS):** Tap the spool icon on the Filament panel to configure the **external spool** — set the material, color, and brand. Once set, the whole UI knows your filament: preset heat buttons show the right temperature, purge heats correctly, and the Home panel's Active Spool widget shows it. See [External Spool Configuration](filament.md#external-spool-configuration).
+**A single spool (no multi-filament system):** tap the spool icon on the Filament panel to set up the **external spool**: material, color and brand. Once it is set, the preset heat buttons, the purge temperature and the **Active Spool** widget on the Home panel all use it. See [External Spool Configuration](filament.md#external-spool-configuration).
 
-**AMS / multi-material:** Each slot carries its own material, color, vendor, and remaining weight. On systems with **RFID** readers (Creality CFS, Snapmaker U1), spool info is detected automatically when you seat a spool. On systems without RFID, tap a slot and choose **Edit Spool** to enter it yourself. See [Editing Filament Properties](filament.md#editing-filament-properties).
-
-This information persists on the printer — it survives restarts, and it's written where OrcaSlicer 2.3.2+ can read it, so your slicer's filament panel stays in sync. See [Syncing with OrcaSlicer](filament.md#syncing-with-orcaslicer-232-and-later).
+**A multi-filament system:** each slot has its own material, color, brand and remaining weight. Systems that read a spool's tag (Creality CFS, Snapmaker U1) fill these in when you seat a spool. On other systems, tap a slot and choose **Edit Spool** to enter them yourself. See [Editing Filament Properties](filament.md#editing-filament-properties).
 
 ### Where a lane's details come from
 
-HelixScreen keeps no copy of your lanes of its own. Everything a lane shows lives on the printer:
+HelixScreen keeps no private copy of your lanes. A lane shows, in this order of priority:
 
-- **What your filament system holds.** AFC, Happy Hare, the CFS, the ACE, the QIDI Box, the AD5X and the Snapmaker U1 each remember some of a spool's details themselves (color and material at least). Those come first.
-- **The printer's shared lane record.** The rest (brand, spool name, weights, the Spoolman link where the system can't hold it) is kept in a record on the printer that OrcaSlicer, Mainsail, Fluidd and other screens can read too.
-- **Spoolman**, for the spool the lane is linked to, fills in whatever the two above leave blank.
+1. **What your filament system holds.** AFC, Happy Hare, the CFS, the ACE, the QIDI Box, the AD5X and the Snapmaker U1 each remember some details of a spool themselves, at least color and material.
+2. **The lane record on the printer.** Brand, spool name, weights and, where the system cannot hold it, the Spoolman link are kept in a record that OrcaSlicer, Mainsail, Fluidd and other screens read too. OrcaSlicer 2.3.2 and later keeps its filament panel in step with it. See [Syncing with OrcaSlicer](filament.md#syncing-with-orcaslicer-232-and-later).
+3. **Spoolman**, for the spool the lane is linked to. It fills in only what the first two leave blank. Remaining weight is the exception: for a linked spool, Spoolman's weight comes first.
 
-Because it all lives on the printer:
+Because everything lives on the printer:
 
-- **A second screen sees the same thing.** Another HelixScreen, Mainsail or Fluidd showing the same printer agrees with this one. A change made on any of them shows here within about ten seconds.
-- **Saving waits for the printer.** When you save a spool edit, the editor shows **Saving...** and closes once the printer has the new details. If the printer can't take them, the editor stays open with a line under Save, for example **Not saved: Spoolman is offline. Try again.**, and keeps what you entered so you can try again. Nothing is queued to retry later.
-- **Editing waits for the connection.** While HelixScreen is connecting, or reading the lanes for the first time, **Edit Spool** is unavailable and the editor shows **Loading lane details…**. While the printer is disconnected, edits are refused.
+- **A second screen agrees with this one.** Another HelixScreen, Mainsail or Fluidd showing the same printer sees the same lanes, and a change made on any of them shows up here within about ten seconds.
+- **Saving waits for the printer.** The spool editor shows **Saving...** and closes once the printer has the new details. If the printer cannot take them, the editor stays open, keeps what you typed and shows a line under Save, for example **Not saved: the printer did not confirm it. Try again.** Nothing is queued to retry later.
+- **Editing waits for the connection.** While HelixScreen is connecting or reading the lanes for the first time, **Edit Spool** is unavailable and the editor shows **Loading lane details...**. While the printer is disconnected, edits are refused.
 
 ### How remaining weight is estimated
 
-When you set a spool's remaining weight, HelixScreen keeps it current on its own:
+When a spool has a known remaining weight, HelixScreen keeps it current as you print:
 
-- When a print starts, it records the spool's current weight as a baseline.
-- While printing, it watches how much filament the extruder pushes and converts that length into grams (using the material's density), lowering the remaining weight as the print runs.
-- When the print pauses, finishes, or is canceled, it saves the updated weight.
+- When a print starts, it takes the spool's current weight as the starting point.
+- While the print runs, it follows the filament length the printer reports as used and converts it to grams using the material's density and your printer's configured filament diameter. The remaining weight on screen drops as the print goes.
+- The new weight is saved to the printer about once a minute during the print, and again when the print pauses, finishes, is canceled or fails.
+- If you edit the spool's weight during a print, HelixScreen starts counting again from the number you entered.
 
-This is an **estimate**, not a scale reading, so it's only as accurate as the starting weight and material you entered. For it to run, HelixScreen needs to know the material (to look up its density) and a starting weight above zero.
+On a multi-filament system with one extruder (Happy Hare, CFS, ACE, AD5X and similar), only the loaded slot is charged. On a tool changer, each tool's own extruder charges the slot it is assigned to.
 
-> **Note:** For AMS systems whose firmware already reports filament remaining on its own (some Creality CFS and Snapmaker U1 setups read it from the spool tag), HelixScreen defers to the hardware's number instead of estimating.
+This is an **estimate**, not a scale reading, so it is only as accurate as the starting weight and material you entered. A spool is skipped, and its weight does not change, when:
+
+- its material is not one HelixScreen knows the density of, or its remaining weight is unknown;
+- it is linked to a Spoolman spool, because Spoolman does the counting for it;
+- it is the external spool and the printer has a load cell set up to weigh it (the load cell is used instead).
+
+If your filament system reports a weight itself, for example from a spool tag, the screen shows that number in place of the estimate.
 
 ---
 
 ## Tracking With Spoolman
 
-[Spoolman](https://github.com/Donkie/Spoolman) is a free, self-hosted filament inventory manager. Connect it and HelixScreen becomes a front-end to your spool library: assign real spools to the printer, browse your whole inventory on the touchscreen, and let Spoolman keep the authoritative record of how much filament each spool has left.
+Spoolman is a free, self-hosted filament inventory manager. With it connected, HelixScreen becomes a front end to your spool library: link real spools to the printer, browse your inventory on the touchscreen, and let Spoolman keep the record of how much each spool has left.
 
-HelixScreen reaches Spoolman **through Moonraker** — you point Moonraker at your Spoolman server (HelixScreen sets this up for you), and Moonraker relays the requests. That means Spoolman's own consumption tracking and any other tools you connect all share the same numbers.
+HelixScreen talks to Spoolman **through Moonraker**. You give HelixScreen your Spoolman address, and it configures Moonraker to relay the requests.
 
 ### Connecting Spoolman
 
 You need a running Spoolman server on your network. Then, on the printer:
 
-1. Open **Settings → Devices → Spoolman**.
-2. On the setup screen, enter your Spoolman server's **IP address / hostname** and **port** (the default is `7912`).
+1. Open **Settings > Devices > Spoolman**.
+2. Under **Server Setup**, enter your server's **IP Address / Hostname** and **Port** (the port starts as `7912`).
 3. Tap **Connect**.
 
-HelixScreen verifies the server is reachable and configures Moonraker automatically — you don't need to edit `moonraker.conf` by hand. Once connected, the same screen shows the server URL with **Change** and **Remove** options.
+HelixScreen checks that the server is reachable and sets up Moonraker for you; you do not edit `moonraker.conf` by hand. Once connected, the page shows **Spoolman Server** with **Change** and **Remove** buttons. **Remove** asks you to confirm, then takes the Spoolman setting out of Moonraker and restarts that service.
 
-Full setting-by-setting reference: [Settings → Devices → Spoolman](settings/devices.md#spoolman).
+Every setting on that page is described in [Settings > Devices > Spoolman](settings/devices.md#spoolman).
 
 ### Weight sync
 
-With Spoolman connected, HelixScreen doesn't decrement weight itself — Spoolman does, against whichever spool is active, as the print runs. HelixScreen periodically **reads** the updated weight back so the display stays current.
+With Spoolman connected, HelixScreen does not subtract weight itself for linked spools. Spoolman does, against the **active spool**, as the print runs. HelixScreen reads the new weight back so the screen stays current:
 
-- Turn on **Sync with Spoolman** under **Settings → Devices → Spoolman** to enable this polling.
-- Choose a **Refresh Interval** — 30 seconds, 1 minute, 2 minutes, or 5 minutes. Shorter is more up to date but chattier on the network.
-- Weights also refresh automatically whenever a print **starts, pauses, or completes**, so the numbers are fresh at the moments that matter even between polls.
+- **Sync with Spoolman**, under **Settings > Devices > Spoolman > Weight Sync**, is on by default and turns this reading on or off.
+- Weights are also read again whenever a print starts, pauses or completes.
+- **Refresh Interval** offers 30 s, 1 min, 2 min and 5 min. In 1.1 the choice is saved but the screen still checks every 30 seconds whichever you pick.
+- On a printer with several tools or lanes, turn on **Switch spools at each tool change** (same page) so each tool's filament is charged to that tool's spool. See [Switch spools at each tool change](settings/devices.md#switch-spools-at-each-tool-change).
 
-- On a printer with several tools or lanes, turn on **Switch spools at each tool change** (same page) so each tool's filament is charged to that tool's spool. See [Settings → Devices → Spoolman](settings/devices.md#switch-spools-at-each-tool-change).
+HelixScreen writes to Spoolman only when you make a change (linking a spool, editing a spool, creating one, saving a pressure advance value), and when it switches the active spool as described below.
 
-> **Note:** Because Spoolman owns consumption for any spool you've assigned from it, HelixScreen's own estimator stands down for those spools — you won't get two systems fighting over the same number. HelixScreen only writes to Spoolman when *you* make an explicit change (assigning a spool, editing weight, or creating a spool), plus switching the active spool when a lane loads or, with **Switch spools at each tool change** on, when the tool changes.
+> **What the printer holds comes first.** A lane shows what your filament system or the printer holds for it. Spoolman's details fill in only what the printer leaves blank (remaining weight excepted), and only for the spool the lane is linked to. A color set on the printer's own menu (on an AD5X, for example) therefore shows on the lane even when a Spoolman spool is linked.
 
-> **What the printer holds comes first.** A lane shows what your filament system or the
-> printer itself holds for it; Spoolman's details fill in only what the printer leaves
-> blank, and only for the spool the lane is linked to. So a color set on the printer's own
-> menu (on an AD5X, for example) shows on the lane even when a Spoolman spool is linked.
-
-### Browsing and assigning spools
+### Browsing and linking spools
 
 ![Spoolman inventory panel](../../images/user/advanced-spoolman.png)
 
-Once connected, a few things light up:
+With Spoolman connected, **Advanced > Spoolman** opens the spool inventory:
 
-- **Spool inventory panel** — Reach it from the **Filament** nav tab. A scrollable, searchable list of every spool in your Spoolman database, each shown with a color-coded 3D spool, its weight, and remaining percentage. Search by vendor, material, or color; filter by storage location. Tap a spool for a context menu to **set it active**, edit, print a label, duplicate, or delete.
-- **Assign to the printer** — Setting a spool "active" tells HelixScreen (and Spoolman) that this is the spool currently feeding the printer. The Home panel's Active Spool widget reflects it.
-- **Assign to an AMS slot** - Tap a slot and choose **Select Spool**, or tap the Spoolman button in the spool editor's header, to pick from Spoolman and auto-fill that slot's brand, material, color, and temperatures. A spool already linked to another slot is grayed out in the list. See [Editing Filament Properties](filament.md#editing-filament-properties).
-- **Scan to assign** — If you print QR-coded spool labels, scan one to look the spool up in Spoolman and link it, instead of picking from the list. See [Barcode Scanner](barcode-scanner.md) and [Label Printing](label-printing.md).
-
-### Which spool Spoolman charges on a multi-filament system
-
-Moonraker records filament usage against one spool at a time: Spoolman's **active spool**. If no spool is active while a print runs, nothing is deducted from any spool for that print. On a system with lanes (CFS, AFC, Happy Hare, QIDI Box, ACE and the others), HelixScreen sets the active spool for you:
-
-- **When a lane becomes the loaded one** and that lane is linked to a Spoolman spool, HelixScreen makes that spool the active spool. It does this on every load, including reloading the same spool, so a spool that something else cleared in between is set again.
-- **Linking a spool to the lane that is already loaded** makes it the active spool straight away. You don't need to unload and reload.
-- **The link is the only thing that counts.** HelixScreen goes by which Spoolman spool you linked to the lane. Names play no part: a spool whose filament Spoolman calls "RePETG" is charged the same as one called "PETG", whatever your slicer profile is named.
-- **A print started before the lane was linked is not tracked**, and neither is a print from a lane with no spool linked. Link the spool first (see [Editing Filament Properties](filament.md#editing-filament-properties)), then print.
-- **Unloading does not clear the active spool.** The last spool set stays active until another one is set, either by the next load of a linked lane or by you.
-
-Some filament systems set the active spool themselves, and HelixScreen leaves it to them: **AFC**, **Happy Hare** when its own Spoolman support is turned on, and **INDX** when its tool-change macros set the spool. On the **AD5X IFS**, HelixScreen never changes the active spool on its own; it changes only when you set it.
-
-> **Creality CFS:** HelixScreen counts a CFS lane as loaded once the toolhead's filament sensor sees filament from it. While a load is still feeding, the Home panel's Active Spool widget shows no spool. The lane's spool is active by the time the filament reaches the toolhead.
-
-To check which spool is active, look at the Active Spool widget on the Home panel, or at the active spool shown in Mainsail or Fluidd.
+- **The list.** Every spool in your Spoolman database, each with a color-coded spool picture, its weight and the percentage left. A warning icon marks any spool under 100 g. The title shows how many spools there are.
+- **Search and filter.** Type in **Search spools...** to find a spool by vendor, material, filament name, location or ID number. When any spool has a storage location, a location dropdown appears beside the search box.
+- **Refresh and add.** The round refresh button in the header reloads the list. **+ Add** creates a spool (below).
+- **The spool menu.** Tap a spool for **Set Active**, **Edit**, **Print Label** (which asks you to set up a label printer first if you have none), **Duplicate**, **Archive** and **Delete**. Archive asks you to confirm and can be undone from Spoolman's own web page. It is not offered for the active spool.
+- **Set Active** tells Spoolman and HelixScreen that this is the spool feeding the printer. The Home panel's **Active Spool** widget shows it.
+- **Link a spool to a slot.** Tap a slot and choose **Select Spool**, or tap the Spoolman button in the spool editor's header, to pick from Spoolman and fill in that slot's brand, material, color and temperatures. A spool already linked to another slot is grayed out. See [Editing Filament Properties](filament.md#editing-filament-properties).
+- **Scan to link.** Scan a QR-coded spool label to look the spool up and link it. See [Barcode Scanner](barcode-scanner.md) and [Label Printing](label-printing.md).
 
 ### Adding a spool
 
-Tap **+ Add** in the Spoolman panel to create a new spool in three steps:
+Tap **+ Add** to start **New Spool**, which has three steps:
 
-1. **Select Vendor** — Search your existing vendors, or tap **+ New** to add one.
-2. **Select Filament** — Pick an existing filament, or tap **+ New** to create one with its material, color, temperature ranges, and weight.
-3. **Spool Details** — Set the remaining weight, price, lot number, and any notes.
+1. **Vendor.** Search your vendors or tap **+ New**. When your Spoolman server offers it, matches from SpoolmanDB (Spoolman's public catalog) are listed under **From SpoolmanDB**.
+2. **Filament.** Choose an existing filament or tap **+ New** to create one with its material, color, temperature ranges and weight.
+3. **Spool details.** Set **Remaining Weight (g)**, **Price**, an optional lot number and optional notes, then tap **Create Spool**.
 
-HelixScreen creates the vendor, filament, and spool records together in Spoolman, so the new spool is ready to assign right away.
+HelixScreen creates the vendor, filament and spool in Spoolman together, so the new spool is ready to link right away.
+
+### Which spool Spoolman charges on a multi-filament system
+
+Moonraker records usage against one spool at a time: Spoolman's **active spool**. If no spool is active during a print, no spool is charged. On a system with lanes (CFS, AFC, Happy Hare, QIDI Box, ACE and others), HelixScreen sets the active spool for you:
+
+- **When a lane becomes the loaded one** and is linked to a Spoolman spool, that spool becomes active. This happens on every load, including reloading the same spool.
+- **Linking a spool to the lane that is already loaded** makes it active straight away; you do not need to unload and reload.
+- **Only the link counts.** Names play no part: a spool whose filament Spoolman calls "RePETG" is charged the same as one called "PETG", whatever your slicer profile is named.
+- **A print started before the lane was linked is not tracked**, and neither is a print from a lane with no linked spool. Link the spool first, then print.
+- **Unloading does not clear the active spool.** The last one set stays active until another is set.
+
+Some systems set the active spool themselves, and HelixScreen leaves it to them: **AFC**, **Happy Hare** when its own Spoolman support is on, and **INDX** when its tool-change macros set the spool. On the **AD5X IFS**, HelixScreen never changes the active spool on its own; it changes only when you set it.
+
+> **Creality CFS:** a CFS lane counts as loaded once the toolhead's filament sensor sees filament from it. While a load is still feeding, the Active Spool widget shows no spool; the lane's spool is active by the time the filament reaches the toolhead.
+
+### Spools named by a tag
+
+On systems that read a spool's tag, a tag that names a Spoolman spool links the slot to that spool, just as picking it by hand would. A tag naming a spool Spoolman does not have gets a short notice and leaves the slot alone. **Link Spools from Tags** in the filament system's settings turns this off.
 
 ### Pressure advance per filament
 
@@ -137,44 +143,43 @@ HelixScreen creates the vendor, filament, and spool records together in Spoolman
 
 When you finish a [pressure advance test tower](calibration.md#pressure-advance-tuning-test-tower), **Save to Spool** stores the value on that spool's **filament** in Spoolman, in an extra field named `pressure_advance` (HelixScreen creates the field the first time). Every spool of that filament shares it.
 
-From then on, when a spool of that filament becomes active (set active from the Spoolman panel, Spoolman's web page, or an AMS slot change), HelixScreen sets that pressure advance on the extruder the spool feeds (on a tool changer, the tool the spool is assigned to). It does this only when nothing is printing: if your slicer sets pressure advance at the start of a print, the slicer's value wins for that print.
+Afterwards, when a spool of that filament becomes active, HelixScreen sets that pressure advance on the extruder the spool feeds (on a tool changer, the tool the spool is assigned to). It does this only when nothing is printing, so a pressure advance your slicer sets at the start of a print wins for that print.
 
-**Getting it into OrcaSlicer.** OrcaSlicer does not read Spoolman directly. [spoolman2slicer](https://github.com/bofh69/spoolman2slicer) turns your Spoolman filaments into OrcaSlicer filament profiles, and its templates already read the `pressure_advance` field, so the value you tuned ends up in the profile. HelixScreen also keeps the latest results in Moonraker's database for a future OrcaSlicer plugin; plugins can read it today but cannot yet change a profile.
+**Getting it into OrcaSlicer.** OrcaSlicer does not read Spoolman directly. [spoolman2slicer](https://github.com/bofh69/spoolman2slicer) turns your Spoolman filaments into OrcaSlicer profiles, and its templates already read the `pressure_advance` field. HelixScreen also keeps the latest results in Moonraker's database for slicer plugins to read.
 
 ---
 
 ## Seeing How Much Is Left
 
-However it's tracked, remaining filament shows up in the same places:
+However it is tracked, remaining filament shows in the same places:
 
 | Where | What it shows |
 |---|---|
-| **Active Spool widget** (Home panel) | Current spool's material, color, and remaining vs. total weight |
-| **AMS sidebar** | Remaining weight of the loaded slot |
-| **Edit Spool** editor | The slot's remaining weight, plus the spool's full weight when it is known, for example 750 g of 1000 g |
-| **Spoolman inventory panel** | Weight and remaining percentage for every spool, with a warning icon on any spool that's running low (under 100 g) |
+| **Active Spool** widget (Home panel) | The loaded spool's color, material, brand and, at wider sizes, remaining and total weight, for example 750g / 1000g. Works with or without Spoolman |
+| **Multi-filament system screens** | Remaining weight of the loaded slot and of each slot |
+| **Edit Spool** editor | The slot's remaining weight, and its full weight when known |
+| **Spoolman inventory** | Weight and percentage left for every spool, with a warning icon under 100 g |
 
-**Runout** — actually running out of filament mid-print — is handled by your filament sensors and multi-filament hardware, not by the weight number. The printer's firmware pauses the print; HelixScreen then guides you through reloading. On **AFC (Box Turtle)** and **Happy Hare**, a backup slot you configured can take over automatically (Endless Spool). On the **Creality CFS**, **Auto-Refill** is run by the box itself and always pauses first: it switches only when Auto-Refill is on and another slot holds the exact same material and color, and otherwise leaves the print paused for you. See [Reading Error States](filament.md#reading-error-states) and the Endless Spool notes in [Filament Management](filament.md#slot-context-menu).
+**Running out** mid-print is caught by your filament sensors and multi-filament hardware, not by the weight number. The printer's firmware pauses the print and HelixScreen guides you through reloading. On **AFC** and **Happy Hare**, a backup slot you configured can take over automatically (Endless Spool). On the **Creality CFS**, **Auto-Refill** is run by the box and always pauses first: it switches only when Auto-Refill is on and another slot holds the exact same material and color. See [Reading Error States](filament.md#reading-error-states), [Slot Context Menu](filament.md#slot-context-menu) and [Sensors](sensors.md).
 
-> **Tip:** The remaining weight is only as good as the starting number. Whenever you load a fresh spool, set its weight, either by entering the grams on it in the Edit Spool editor (on a spool weighed for the first time, that number also becomes its full weight) or by assigning a fresh Spoolman spool, so the estimate has an accurate starting point.
+> **Tip:** The remaining weight is only as good as the starting number. When you load a fresh spool, set its weight (enter the grams in the Edit Spool editor, or link a fresh Spoolman spool) so the estimate starts from the right place.
 
 ---
 
 ## Which Should I Use?
 
-- **Just want the touchscreen to know what's loaded and roughly how much is left?** The built-in tracking does that with nothing to install.
-- **Juggling a lot of spools, or more than one printer?** Run Spoolman. You get a real inventory, shared across everything that talks to Moonraker, with Spoolman keeping the authoritative consumption record.
-
-You can start without Spoolman and add it whenever you like — connecting it doesn't erase anything, it just layers the inventory features on top.
+- **Want the touchscreen to know what is loaded and roughly how much is left?** The built-in tracking does that with nothing to install.
+- **Juggling many spools, or several printers?** Run Spoolman for a real inventory shared by everything that talks to Moonraker.
 
 ---
 
 ## See Also
 
-- [Filament Management](filament.md) — Load/unload, AMS slots, filament drying and humidity, and the spool editors referenced above
-- [Settings → Devices → Spoolman](settings/devices.md#spoolman) — Every Spoolman setting in one place
-- [Barcode Scanner](barcode-scanner.md) — Scan Spoolman QR codes to identify spools
-- [Label Printing](label-printing.md) — Print spool labels with a QR code linking back to Spoolman
+- [Filament Management](filament.md): load and unload, AMS slots, drying and humidity, and the spool editors
+- [Settings > Devices > Spoolman](settings/devices.md#spoolman): every Spoolman setting in one place
+- [Sensors](sensors.md): filament runout and motion sensors
+- [Barcode Scanner](barcode-scanner.md): scan Spoolman QR codes
+- [Label Printing](label-printing.md): print spool labels that link back to Spoolman
 
 ---
 
