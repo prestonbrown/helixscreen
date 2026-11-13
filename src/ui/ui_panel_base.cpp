@@ -213,5 +213,10 @@ lv_obj_t* PanelBase::embedded_root() const {
 }
 
 void PanelBase::host_deleting() {
+    // Runs from the tile's LV_EVENT_DELETE. LVGL sends that event before it
+    // deletes any child (lib/lvgl/src/core/lv_obj_tree.c#obj_delete_core: the
+    // event, then the child loop, which re-reads child 0 each pass), so the lent
+    // tree is still whole and moving it out takes it off that loop. The panel
+    // container is outside the dying subtree unless the whole layout is going.
     release_embed();
 }

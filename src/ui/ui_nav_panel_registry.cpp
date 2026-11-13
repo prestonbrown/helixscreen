@@ -108,7 +108,11 @@ bool PanelRegistry::reclaim(int idx) {
     }
     lv_obj_set_hidden(panel, true);
     if (!home) {
-        spdlog::warn("[NavigationManager] Panel {} lent out has no container to return to", idx);
+        // The panel container is being deleted with everything in it (a printer
+        // switch tears the whole layout down), so the tree goes with the page and
+        // the slot clears itself.
+        spdlog::debug("[NavigationManager] Panel {} lent out: its container is going, so is it",
+                      idx);
         return true;
     }
     lv_obj_set_parent(panel, home);

@@ -35,7 +35,8 @@ class FullPageContent {
      * @brief The page holding this view's tree is being deleted without a release
      *
      * Runs inside LVGL's delete event of the page's tile, before LVGL deletes the
-     * tile's children, so the embedded tree is still whole. A view that owns its
+     * tile's children (lib/lvgl/src/core/lv_obj_tree.c#obj_delete_core sends
+     * LV_EVENT_DELETE first), so the embedded tree is still whole. A view that owns its
      * tree elsewhere takes it back here and now; one whose tree dies with the page
      * may only schedule its cleanup.
      */

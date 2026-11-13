@@ -421,7 +421,7 @@ size_t observer_count(lv_subject_t* subject) {
 /// container and registered as the Filament main panel, the way PanelFactory
 /// does it; unregistered again on the way out.
 struct ScopedFilamentPanel {
-    ScopedFilamentPanel() {
+    explicit ScopedFilamentPanel(lv_obj_t* container = lv_screen_active()) : home(container) {
         helix::ToolState::instance().init_subjects(true);
         AmsState::instance().init_subjects(true);
         FilamentPanel& panel = get_global_filament_panel();
@@ -455,7 +455,7 @@ struct ScopedFilamentPanel {
                observer_count(AmsState::instance().get_ams_type_subject());
     }
 
-    lv_obj_t* home = lv_screen_active();
+    lv_obj_t* home;
     lv_obj_t* root = nullptr;
 };
 
@@ -533,18 +533,149 @@ TEST_CASE_METHOD(FullPageFixture, "a Filament full page shows the Filament panel
 
 TEST_CASE_METHOD(FullPageFixture, "a Filament page deleted without detach keeps the panel's tree",
                  "[full_page][host]") {
-    ScopedFilamentPanel fp;
+    enum class Deleted { Tile, Page, Layout, LayoutDeferred };
+    const Deleted what =
+        GENERATE(Deleted::Tile, Deleted::Page, Deleted::Layout, Deleted::LayoutDeferred);
+    CAPTURE(static_cast<int>(what));
+    // The app's shape: one layout holding the panel container and the home page.
+    lv_obj_t* layout = lv_obj_create(lv_screen_active());
+    lv_obj_t* container = lv_obj_create(layout);
+    lv_obj_set_parent(page_, layout);
+    ScopedFilamentPanel fp(container);
     auto tile =
         place(std::make_unique<helix::FilamentOpsWidget>("filament_ops:1"), 1, /*fills=*/true);
     tile->on_activate();
     drain();
     REQUIRE(lv_obj_get_parent(fp.root) == named(tile->root(), "full_page_body"));
+    auto& nav = NavigationManager::instance();
 
-    lv_obj_delete(tile->root());
+    switch (what) {
+    case Deleted::Tile:
+        lv_obj_delete(tile->root());
+        break;
+    case Deleted::Page: // a home page rebuilt from under its tiles
+        lv_obj_delete(page_);
+        break;
+    case Deleted::Layout: // the whole layout, as a printer switch takes it down
+        lv_obj_delete(layout);
+        break;
+    case Deleted::LayoutDeferred: // ... through the helper the printer switch uses
+        helix::ui::safe_delete_subtree(layout);
+        break;
+    }
     drain();
-    REQUIRE(helix::test::widget_in_tree(fp.root));
-    CHECK(lv_obj_get_parent(fp.root) == fp.home);
-    CHECK(get_global_filament_panel().get_panel() == fp.root);
-    CHECK(NavigationManager::instance().panel_lent_to(PanelId::Filament) == nullptr);
+    CHECK(nav.panel_lent_to(PanelId::Filament) == nullptr);
     CHECK_FALSE(helix::full_page_for(helix::kFilamentOpsFunction).has_value());
+    if (what == Deleted::Tile || what == Deleted::Page) {
+        // The panel container lives on, so the tree goes home whole.
+        REQUIRE(helix::test::widget_in_tree(fp.root));
+        CHECK(lv_obj_get_parent(fp.root) == fp.home);
+        CHECK(get_global_filament_panel().get_panel() == fp.root);
+    } else {
+        // The container is going too: the tree goes with it and nav forgets it.
+        CHECK(nav.get_panel_widget(PanelId::Filament) == nullptr);
+        CHECK(get_global_filament_panel().get_panel() == nullptr);
+    }
+}
+
+namespace {
+
+/// The app's HomePanel with the "filament_ops" layout, registered with
+/// NavigationManager as the Home panel so overlays and the navbar deactivate
+/// it the way they do in the app; unregistered on the way out.
+struct ScopedHome {
+    explicit ScopedHome(FullPageFixture& fx) {
+        root = lv_obj_create(lv_screen_active());
+        lv_obj_set_size(root, LV_PCT(100), LV_PCT(100));
+        lv_obj_t* host = lv_obj_create(root);
+        lv_obj_set_name(host, "carousel_host");
+        lv_obj_set_size(host, LV_PCT(100), LV_PCT(100));
+        HomePanel& home = get_global_home_panel();
+        if (!home.are_subjects_initialized()) {
+            home.init_subjects();
+        }
+        home.setup(root, lv_screen_active());
+        home.finalize_setup();
+        auto& nav = NavigationManager::instance();
+        nav.replace_panel_widget(PanelId::Home, root);
+        nav.register_panel_instance(PanelId::Home, &home);
+        home.on_activate();
+        fx.drain();
+    }
+    ~ScopedHome() {
+        NavigationManager::instance().register_panel_instance(PanelId::Home, nullptr);
+    }
+    lv_obj_t* root = nullptr;
+};
+
+/// Printer connected and Klipper ready, so the navbar may switch to Filament.
+struct ScopedPrinterReady {
+    ScopedPrinterReady()
+        : connection(lv_subject_get_int(
+              get_printer_state().network_state().get_printer_connection_state_subject())),
+          klippy(
+              lv_subject_get_int(get_printer_state().network_state().get_klippy_state_subject())) {
+        set(static_cast<int>(helix::ConnectionState::CONNECTED),
+            static_cast<int>(helix::KlippyState::READY));
+    }
+    ~ScopedPrinterReady() {
+        set(connection, klippy);
+    }
+    static void set(int conn, int klip) {
+        auto& state = get_printer_state();
+        state.set_printer_connection_state(conn, "");
+        state.set_klippy_state_sync(static_cast<helix::KlippyState>(klip));
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
+    int connection;
+    int klippy;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(FullPageFixture, "navigation from a Filament full page finds the panel's tree",
+                 "[full_page][nav]") {
+    ScopedFilamentPanel fp;
+    ScopedFullPageLayout layout("filament_ops");
+    ScopedHome home(*this);
+    ScopedPrinterReady ready;
+    auto& nav = NavigationManager::instance();
+    const auto lent_to_page = [&] {
+        lv_obj_t* parent = lv_obj_get_parent(fp.root);
+        return parent != fp.home && lv_obj_get_name(parent) &&
+               std::string(lv_obj_get_name(parent)) == "full_page_body";
+    };
+    REQUIRE(get_global_home_panel().show_page(1));
+    process_lvgl(1000);
+    drain();
+    REQUIRE(lent_to_page());
+
+    // An overlay opened from the lent tree covers the home panel: the tree goes
+    // home under it, and back on the page when the overlay closes.
+    lv_obj_send_event(named(fp.root, "btn_temp_graph"), LV_EVENT_CLICKED, nullptr);
+    drain();
+    REQUIRE(nav.has_open_overlays());
+    CHECK(lv_obj_get_parent(fp.root) == fp.home);
+    CHECK(hidden(fp.root));
+    CHECK(nav.get_active() == PanelId::Home);
+    nav.go_back();
+    process_lvgl(1000);
+    drain();
+    CHECK_FALSE(nav.has_open_overlays());
+    CHECK(nav.get_active() == PanelId::Home);
+    CHECK(lent_to_page());
+
+    // The navbar's Filament button (and ctl navigate filament) takes the tree back.
+    REQUIRE(nav.request_panel(PanelId::Filament, NavigationManager::SwitchDispatch::Inline) ==
+            NavigationManager::PanelRequest::Switched);
+    drain();
+    CHECK(nav.get_active() == PanelId::Filament);
+    CHECK(lv_obj_get_parent(fp.root) == fp.home);
+    CHECK_FALSE(hidden(fp.root));
+    CHECK(nav.panel_lent_to(PanelId::Filament) == nullptr);
+    REQUIRE(nav.request_panel(PanelId::Home, NavigationManager::SwitchDispatch::Inline) ==
+            NavigationManager::PanelRequest::Switched);
+    process_lvgl(1000);
+    drain();
+    CHECK(lent_to_page());
 }
