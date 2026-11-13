@@ -20,6 +20,7 @@
 #include "core/timer_guard.h"
 #include "ethernet_manager.h"
 #include "network_tester.h"
+#include "settings_root_status.h"
 #include "sort_small.h"
 #include "system_settings_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -172,7 +173,7 @@ void NetworkSettingsOverlay::init_subjects() {
 
     // WiFi string subjects
     UI_MANAGED_SUBJECT_STRING(connected_ssid_, ssid_buffer_, "", "connected_ssid", subjects_);
-    UI_MANAGED_SUBJECT_STRING(ip_address_, ip_buffer_, "", "ip_address", subjects_);
+    UI_MANAGED_SUBJECT_STRING(ip_display_, ip_display_buffer_, "", "wifi_ip_display", subjects_);
     UI_MANAGED_SUBJECT_STRING(mac_address_, mac_buffer_, "", "mac_address", subjects_);
     UI_MANAGED_SUBJECT_STRING(network_count_, count_buffer_, "(0)", "network_count", subjects_);
 
@@ -629,7 +630,9 @@ void NetworkSettingsOverlay::apply_wifi_status(const WifiBackend::ConnectionStat
 
         strncpy(ip_buffer_, ip.c_str(), sizeof(ip_buffer_) - 1);
         ip_buffer_[sizeof(ip_buffer_) - 1] = '\0';
-        lv_subject_notify(&ip_address_);
+        lv_subject_copy_string(
+            &ip_display_,
+            helix::settings::status::wifi_address(helix::ui::wifi::link_phase(status), ip).c_str());
 
         strncpy(mac_buffer_, mac.c_str(), sizeof(mac_buffer_) - 1);
         mac_buffer_[sizeof(mac_buffer_) - 1] = '\0';
@@ -642,7 +645,7 @@ void NetworkSettingsOverlay::apply_wifi_status(const WifiBackend::ConnectionStat
         ip_buffer_[0] = '\0';
         mac_buffer_[0] = '\0';
         lv_subject_notify(&connected_ssid_);
-        lv_subject_notify(&ip_address_);
+        lv_subject_copy_string(&ip_display_, "");
         lv_subject_notify(&mac_address_);
     }
 }
@@ -1079,7 +1082,7 @@ void NetworkSettingsOverlay::finish_wlan_toggle(bool requested, bool success, bo
         ip_buffer_[0] = '\0';
         mac_buffer_[0] = '\0';
         lv_subject_notify(&connected_ssid_);
-        lv_subject_notify(&ip_address_);
+        lv_subject_copy_string(&ip_display_, "");
         lv_subject_notify(&mac_address_);
     }
 

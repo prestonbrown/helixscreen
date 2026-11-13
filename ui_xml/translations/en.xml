@@ -882,6 +882,7 @@
   <translation tag="Connected to {}" en="Connected to {}"/>
   <translation tag="Connected! Discovering printer..." en="Connected! Discovering printer..."/>
   <translation tag="Connected, discovering..." en="Connected, discovering..."/>
+  <translation tag="Connected, getting address…" en="Connected, getting address…"/>
   <translation tag="Connecting Camera..." en="Connecting Camera..."/>
   <translation tag="Connecting to " en="Connecting to "/>
   <translation tag="Connecting to %s..." en="Connecting to %s..."/>
@@ -1681,6 +1682,7 @@
   <translation tag="Generic" en="Generic"/>
   <translation tag="Get help and share feedback" en="Get help and share feedback"/>
   <translation tag="Getting Started" en="Getting Started"/>
+  <translation tag="Getting address…" en="Getting address…"/>
   <translation tag="Glass Effects" en="Glass Effects"/>
   <translation tag="Global" en="Global"/>
   <translation tag="Global Z offset" en="Global Z offset"/>

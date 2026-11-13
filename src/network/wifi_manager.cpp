@@ -133,6 +133,10 @@ void WiFiManager::register_backend_callbacks(bool silent) {
         "DISCONNECTED", [this](const std::string& data) { handle_disconnected(data); });
     backend_->register_event_callback(
         "AUTH_FAILED", [this](const std::string& data) { handle_auth_failed(data); });
+    backend_->register_event_callback("ADDRESS_CHANGED", [this](const std::string&) {
+        spdlog::debug("[WiFiManager] Address changed event received");
+        notify_state_observers();
+    });
     backend_->register_event_callback(
         "INIT_FAILED", [this, silent](const std::string& msg) { handle_init_failed(silent, msg); });
     backend_->register_event_callback("REGDOM_CHANGE", [this](const std::string& data) {
@@ -1276,103 +1280,6 @@ void WiFiManager::set_enabled_async(bool enabled, helix::LifetimeToken token,
             report_radio_result(enabled, unresponsive_error(), has_non_wifi_fallback());
             answer(false, is_enabled());
         });
-}
-
-void WiFiManager::get_status_async(
-    helix::LifetimeToken token,
-    helix::SharedCallback<void(const WifiBackend::ConnectionStatus&)> on_done) {
-    if (!on_done) {
-        return;
-    }
-    if (!helix::http::HttpExecutor::fast().running()) {
-        if (!lane_pooled_) {
-            on_done(backend_ ? backend_->get_status() : WifiBackend::ConnectionStatus{});
-            return;
-        }
-        // The pool has stopped (app exit): no read may run on this thread.
-        WifiBackend::ConnectionStatus cached;
-        {
-            std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-            cached = cached_status_;
-        }
-        cached.unresponsive = true;
-        on_done(cached);
-        return;
-    }
-    const bool stalled = control_stalled();
-    {
-        std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-        if (status_read_inflight_ && !stalled) {
-            status_waiters_.push_back({std::move(token), std::move(on_done)});
-            return;
-        }
-        if (stalled || !breaker_allows_call()) {
-            WifiBackend::ConnectionStatus cached = cached_status_;
-            cached.unresponsive = true;
-            token.defer("WiFiManager::get_status_async(unresponsive)",
-                        [cb = std::move(on_done), cached]() { cb(cached); });
-            return;
-        }
-        status_waiters_.push_back({std::move(token), std::move(on_done)});
-        status_read_inflight_ = true;
-    }
-    // A read dropped unrun clears the in-flight mark, so the next caller
-    // starts a read that also answers everyone still waiting.
-    submit_control(
-        "get_status", ControlKind::Health, [this]() { run_status_reads(); },
-        [this]() {
-            breaker_abandon_probe();
-            std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-            status_read_inflight_ = false;
-        });
-}
-
-void WiFiManager::run_status_reads() {
-    // `this` is valid for the whole body: see radio_op_mutex_.
-    // get_status_async() admitted the first read; each later one asks again.
-    bool first = true;
-    for (;;) {
-        std::vector<StatusWaiter> batch;
-        {
-            std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-            if (status_waiters_.empty()) {
-                status_read_inflight_ = false;
-                return;
-            }
-            batch.swap(status_waiters_);
-        }
-        const bool admitted = first || breaker_allows_call();
-        first = false;
-        WifiBackend::ConnectionStatus status;
-        if (admitted) {
-            // Every waiter in the batch asked before this read began.
-            const auto started = std::chrono::steady_clock::now();
-            status = backend_ ? backend_->get_status() : WifiBackend::ConnectionStatus{};
-            const bool answered_in_time = record_health_call(started);
-            std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-            if (answered_in_time) {
-                cached_status_ = status;
-            } else {
-                // A read that ran out the reply deadline parsed an empty reply,
-                // which says "disconnected" about a link nobody could ask about.
-                status = cached_status_;
-                status.unresponsive = breaker_open();
-            }
-        } else {
-            std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-            status = cached_status_;
-            status.unresponsive = true;
-        }
-        for (auto& w : batch) {
-            w.token.defer("WiFiManager::get_status_async",
-                          [cb = std::move(w.on_done), status]() { cb(status); });
-        }
-    }
-}
-
-bool WiFiManager::cached_connected() {
-    std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-    return cached_status_.connected;
 }
 
 // ============================================================================

@@ -275,7 +275,7 @@ void SettingsPanel::refresh_status_lines() {
                 if (seq != connection_probe_seq_) {
                     return;
                 }
-                last_wifi_connected_ = status.connected;
+                last_wifi_phase_ = helix::ui::wifi::link_phase(status);
                 last_wifi_ssid_ = status.ssid;
                 render_connection_status();
             });
@@ -295,10 +295,10 @@ void SettingsPanel::refresh_status_lines() {
 }
 
 void SettingsPanel::render_connection_status() {
-    lv_subject_copy_string(&settings_status_connection_subject_,
-                           helix::settings::status::connection(
-                               last_ethernet_up_, last_wifi_connected_, last_wifi_ssid_)
-                               .c_str());
+    lv_subject_copy_string(
+        &settings_status_connection_subject_,
+        helix::settings::status::connection(last_ethernet_up_, last_wifi_phase_, last_wifi_ssid_)
+            .c_str());
 }
 
 // ============================================================================

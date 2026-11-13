@@ -882,6 +882,7 @@
   <translation tag="Connected to {}" ja="{} に接続しました"/>
   <translation tag="Connected! Discovering printer..." ja="接続完了！プリンターを検出中..."/>
   <translation tag="Connected, discovering..." ja="接続済み、検出中..."/>
+  <translation tag="Connected, getting address…" ja="接続済み、アドレス取得中…"/>
   <translation tag="Connecting Camera..." ja="カメラに接続中..."/>
   <translation tag="Connecting to " ja="接続中: "/>
   <translation tag="Connecting to %s..." ja="%sに接続中..."/>
@@ -1681,6 +1682,7 @@
   <translation tag="Generic" ja="汎用"/>
   <translation tag="Get help and share feedback" ja="ヘルプとフィードバック"/>
   <translation tag="Getting Started" ja="はじめに"/>
+  <translation tag="Getting address…" ja="アドレス取得中…"/>
   <translation tag="Glass Effects" ja="ガラス効果"/>
   <translation tag="Global" ja="グローバル"/>
   <translation tag="Global Z offset" ja="グローバルZオフセット"/>

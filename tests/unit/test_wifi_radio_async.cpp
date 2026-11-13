@@ -356,6 +356,24 @@ TEST_CASE("wifi_parse_nm_radio_state refuses to guess at an unparseable answer",
     CHECK_FALSE(wifi_parse_nm_radio_state("Error: NetworkManager is not running.").has_value());
 }
 
+TEST_CASE("wifi_parse_nm_device_state reads GENERAL.STATE", "[wifi][nm][wifi_dhcp_pending]") {
+    // 70 (DHCP pending) through 100 count as joined, so a poll landing in 80
+    // or 90 on the way up does not read as a drop.
+    const auto [value, connected, getting_ipv4] = GENERATE(table<const char*, bool, bool>({
+        {"100 (connected)", true, false},
+        {"70 (connecting (getting IP configuration))", true, true},
+        {"80 (connecting (checking IP connectivity))", true, false},
+        {"90 (connecting (starting secondary connections))", true, false},
+        {"50 (connecting (configuring))", false, false},
+        {"110 (deactivating)", false, false},
+        {"30 (disconnected)", false, false},
+        {"", false, false},
+    }));
+    const auto state = helix::wifi::wifi_parse_nm_device_state(value);
+    CHECK(state.connected == connected);
+    CHECK(state.getting_ipv4 == getting_ipv4);
+}
+
 // ============================================================================
 // The stored expectation belongs to the radio, not to whoever flipped it
 // ============================================================================

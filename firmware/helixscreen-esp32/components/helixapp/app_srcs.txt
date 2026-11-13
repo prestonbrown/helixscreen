@@ -839,6 +839,7 @@ src/network/wifi_ui_utils.cpp
 # wifi_backend_esp.cpp (LOCAL_SRCS, CMakeLists.txt) against esp_wifi.
 src/network/wifi_ap_steering.cpp
 src/network/wifi_manager.cpp
+src/network/wifi_manager_status.cpp
 src/network/wifi_interface.cpp
 src/network/wifi_scan_scheduler.cpp
 src/network/wifi_control_breaker.cpp

@@ -692,6 +692,20 @@ class WiFiManager {
     bool cached_connected();
     void run_status_reads();
 
+    // While a status read says the link awaits an address, the backend's
+    // address events are polled on the LVGL thread and each one wakes the
+    // state observers, whose re-read finds the address. The watch ends when
+    // the cached status has an address or no link, or after kAddressWatchMaxMs; the
+    // next read that still finds none starts it again. LVGL thread only.
+    static constexpr uint32_t kAddressWatchPeriodMs = 250;
+    static constexpr uint32_t kAddressWatchMaxMs = 60000;
+    std::unique_ptr<helix::net::LinkEvents> address_events_;
+    uint32_t address_watch_elapsed_ms_ = 0;
+    // Any thread: starts the watch when @p status awaits an address.
+    void watch_address_if_awaiting(const WifiBackend::ConnectionStatus& status);
+    void start_address_watch();
+    void address_watch_tick();
+
     // The control lane: backend control calls run here one at a time, in
     // submission order, on an HttpExecutor::fast() worker (see the class
     // comment). The running drain holds a radio op, so the destructor and the
