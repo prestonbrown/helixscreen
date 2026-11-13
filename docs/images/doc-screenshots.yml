@@ -470,7 +470,7 @@ images:
       - navigate settings
       - click row_system
       - wait_idle
-      - scroll overlay_content 0 -400
+      - scroll overlay_content 0 -200
     markers:
       - {n: 1, widget: row_telemetry, at: top_right}
       - {n: 2, widget: row_factory_reset, at: top_right}
