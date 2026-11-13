@@ -5,16 +5,32 @@
 // AUTO_FEEDING channel walk, and each head's Auto loading (FEED_AUTO AUTO=).
 
 #include "core/text_io.h"
-#include "gcode_parser.h"
 #include "moonraker_client_mock.h"
 
 #include <spdlog/spdlog.h>
 
 #include <array>
 #include <cstdlib>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
+
+namespace {
+
+/// The value of `KEY=value` in a command line, the parameter spelled exactly
+/// as the backend sends it.
+std::optional<std::string> feeder_param(const std::string& gcode, std::string_view key) {
+    const std::string needle = " " + std::string(key) + "=";
+    const size_t at = gcode.find(needle);
+    if (at == std::string::npos) {
+        return std::nullopt;
+    }
+    const size_t start = at + needle.size();
+    return gcode.substr(start, gcode.find_first_of(" \t", start) - start);
+}
+
+} // namespace
 
 nlohmann::json MoonrakerClientMock::u1_feed_side_json(int ext) const {
     // "filament_feed left" carries extruders 0/1, "right" carries 2/3.
@@ -107,9 +123,9 @@ bool MoonrakerClientMock::apply_u1_auto_mode_gcode(const std::string& gcode) {
     if (gcode.rfind("FEED_AUTO ", 0) != 0) {
         return false;
     }
-    const auto module = helix::gcode::gcode_param_value(gcode, "MODULE");
-    const auto channel = helix::gcode::gcode_param_value(gcode, "CHANNEL");
-    const auto mode = helix::gcode::gcode_param_value(gcode, "AUTO");
+    const auto module = feeder_param(gcode, "MODULE");
+    const auto channel = feeder_param(gcode, "CHANNEL");
+    const auto mode = feeder_param(gcode, "AUTO");
     if (!module || !channel || !mode) {
         return true;
     }
