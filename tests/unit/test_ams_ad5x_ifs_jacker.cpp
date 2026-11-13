@@ -59,9 +59,15 @@ json ifs_frame(int lanes, int chan, const std::vector<int>& loaded_ports) {
 
 /// A started backend that records the gcode it sends. No GET_ZCOLOR follow-up
 /// query, so a dispatch leaves no debounce task behind.
-class CapturingAd5xIfs : public helix::test::StartedBackend<AmsBackendAd5xIfs> {
+class CapturingAd5xIfs : public helix::test::WiredBackend<AmsBackendAd5xIfs> {
   public:
-    CapturingAd5xIfs() {
+    /// @p startup_status answers the backend's start-up objects query.
+    explicit CapturingAd5xIfs(const json& startup_status = json::object()) {
+        if (!startup_status.empty()) {
+            wire().respond_to("printer.objects.query", json{{"status", startup_status}});
+        }
+        REQUIRE(start().success());
+        helix::ui::UpdateQueue::instance().drain();
         helix::Ad5xIfsTestAccess::set_zcolor_supported(*this, false);
     }
 
@@ -149,6 +155,15 @@ TEST_CASE("AD5X IFS groups jacker lanes into IFS units of four",
         CHECK(info.units[0].name == "IFS");
         CHECK(info.total_slots == 4);
         CHECK(info.get_slot_global(0)->color_rgb == 0xFF0000u);
+
+        // Growing again, the dropped lanes start unobserved: no colour, no
+        // material, no presence carried over from before the shrink.
+        backend.fire_status(json{{"zmod_color", {{"color_limit", 8}}}});
+        const auto* lane6 = backend.get_system_info().get_slot_global(5);
+        REQUIRE(lane6 != nullptr);
+        CHECK(lane6->color_rgb != 0x445566u);
+        CHECK(lane6->material.empty());
+        CHECK(lane6->status == helix::SlotStatus::EMPTY);
     }
 }
 
@@ -213,6 +228,38 @@ TEST_CASE("AD5X IFS on a four-port IFS refuses lane 5", "[ams][ad5x_ifs][ifs_jac
     CHECK_FALSE(backend.load_filament(4).success());
     CHECK_FALSE(backend.eject_lane(4).success());
     CHECK(backend.sent.empty());
+}
+
+TEST_CASE("AD5X IFS keeps the plugin's four-port tool table honest",
+          "[ams][ad5x_ifs][ifs_jacker][2039]") {
+    // lessWaste installed: its macro and its save_variables rows.
+    CapturingAd5xIfs backend(
+        json{{"gcode_macro _ifs_vars", {{"variable_backup", 0}}},
+             {"save_variables", {{"variables", {{"less_waste_tools", json::array({1, 2})}}}}}});
+    backend.fire_status(color_frame(8));
+    backend.sent.clear();
+
+    // The table cannot name lane 5: the pick is refused, not stored unmapped.
+    CHECK_FALSE(backend.can_set_tool_mapping(0, 4).success());
+    CHECK_FALSE(backend.set_tool_mapping(0, 4).success());
+    CHECK(backend.sent.empty());
+    CHECK(backend.set_tool_mapping(0, 3).success());
+}
+
+TEST_CASE("AD5X IFS restores a remembered seated lane past the fourth",
+          "[ams][ad5x_ifs][ifs_jacker][2039]") {
+    // The seated lane is read at start, before color_limit arrives.
+    helix::test::WiredBackend<AmsBackendAd5xIfs> backend;
+    backend.wire().respond_to("server.database.get_item", json{{"value", 5}});
+    REQUIRE(backend.start().success());
+    helix::ui::UpdateQueue::instance().drain();
+
+    // After a power cycle the firmware reports Chan 0 with filament at the head:
+    // the remembered lane 6 is restored as the seated one.
+    backend.fire_status(
+        json{{"filament_switch_sensor head_switch_sensor", {{"filament_detected", true}}}});
+    backend.fire_status(ifs_frame(8, 0, {2, 6}));
+    CHECK(backend.get_current_slot() == 5);
 }
 
 TEST_CASE("AD5X IFS starts a jacker print with ports past four",

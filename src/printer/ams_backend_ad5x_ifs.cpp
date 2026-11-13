@@ -349,10 +349,12 @@ void AmsBackendAd5xIfs::on_started() {
         // Restore the last-known seated lane (#1065 power-cycle floor). The
         // firmware forgets the seated channel across a reboot, so this is the only
         // way to relabel Unload/Eject correctly when IFS_STATUS returns Chan=0 with
-        // a lane still physically at the head. Range-check against the port count — a
-        // stale/corrupt value is discarded rather than trusted.
+        // a lane still physically at the head. A value past any port the
+        // firmware could drive is discarded; the port count itself arrives by
+        // subscription after this, so remembered_unload_lane_locked() checks
+        // the lane against it at use.
         std::optional<int> seated = override_store_->load_seated_slot_blocking();
-        if (seated.has_value() && !valid_slot(*seated)) {
+        if (seated.has_value() && (*seated < 0 || *seated >= kMaxPorts)) {
             seated.reset();
         }
         {
@@ -915,7 +917,8 @@ void AmsBackendAd5xIfs::apply_save_variables_locked(const ad5x::SaveVariables& p
     // forever. The gate makes "macro present" load-bearing for trusting the
     // plugin's data, matching the contract has_ifs_vars_ already advertises.
     if (has_ifs_vars_) {
-        // Tool mapping: 16-element array, index=tool, value=port (1-4, 5=unmapped).
+        // Tool mapping: 16-element array, index=tool, value=port 1-4 or
+        // kUnmappedPort (the parse turns the plugin's 5 into it).
         //
         // Both-prefixes-conflict guard (#904): TMTYD's printer had bambufy_tools=
         // [4,2,4,3,...] AND less_waste_tools=[2,1,3,4] left over from past plugin
@@ -1523,7 +1526,7 @@ helix::FirmwareRouting AmsBackendAd5xIfs::firmware_default_routing() const {
     helix::FirmwareRouting routing;
     routing.head_for_tool.reserve(static_cast<size_t>(kToolMapSize));
     for (int t = 0; t < kToolMapSize; ++t) {
-        const int port = tool_map_[static_cast<size_t>(t)]; // 1-based; 5 = unmapped
+        const int port = tool_map_[static_cast<size_t>(t)]; // 1-based; kUnmappedPort = none
         routing.head_for_tool.push_back(valid_port(port) ? port - 1 : -1);
     }
     routing.fallback_head = -1; // tools past the table have no port
@@ -3077,13 +3080,22 @@ AmsError AmsBackendAd5xIfs::can_set_tool_mapping(int tool_number, int slot_index
         return AmsErrorHelper::invalid_parameter("Invalid tool number");
     }
     bool wire_backed = false;
+    bool plugin_backed = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         wire_backed = ifs_tool_map_live_;
+        plugin_backed = has_ifs_vars_;
     }
-    // Only the Forge-X wire rejects a lane; the plugin table takes any slot and
-    // stores an out-of-range one as unmapped.
-    return wire_backed ? validate_slot_index(slot_index) : AmsErrorHelper::success();
+    if (wire_backed) {
+        return validate_slot_index(slot_index);
+    }
+    // The plugin table is four ports wide, so a lane past the fourth that an
+    // IFS Jacker adds cannot be written there. Any other out-of-range slot is
+    // stored as unmapped.
+    if (plugin_backed && slot_index >= kDefaultPorts && valid_slot(slot_index)) {
+        return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, kDefaultPorts - 1);
+    }
+    return AmsErrorHelper::success();
 }
 
 AmsError AmsBackendAd5xIfs::set_tool_mapping_impl(int tool_number, int slot_index) {
@@ -3118,10 +3130,8 @@ AmsError AmsBackendAd5xIfs::set_tool_mapping_impl(int tool_number, int slot_inde
     // ZMOD + lessWaste/bambufy: the plugin's save_variables table. Applied
     // locally (the read-back is polled, not pushed) and persisted through the
     // _IFS_VARS macro the plugin replays at print start.
-    // The plugin table is four ports wide: a lane past the fourth has no value
-    // there, so it is stored unmapped like any other out-of-range slot.
-    const bool port_fits = valid_slot(slot_index) && (!plugin_backed || slot_index < kDefaultPorts);
-    const int port = port_fits ? (slot_index + 1) : kUnmappedPort;
+    // can_set_tool_mapping() refused a lane the plugin table cannot name.
+    const int port = valid_slot(slot_index) ? (slot_index + 1) : kUnmappedPort;
     std::string tools_val;
     {
         std::lock_guard<std::mutex> lock(mutex_);
