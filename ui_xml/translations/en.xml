@@ -1530,6 +1530,7 @@
   <translation tag="Filament Mapping is not available on this device." en="Filament Mapping is not available on this device."/>
   <translation tag="Filament Mapping is unavailable" en="Filament Mapping is unavailable"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" en="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer"/>
+  <translation tag="Filament Operations" en="Filament Operations"/>
   <translation tag="Filament Runout" en="Filament Runout"/>
   <translation tag="Filament Sensor" en="Filament Sensor"/>
   <translation tag="Filament Sensors" en="Filament Sensors"/>
@@ -2154,6 +2155,7 @@
   <translation tag="Load the required filaments or start anyway?" en="Load the required filaments or start anyway?"/>
   <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." en="Load, unload, and purge from here. Choose a material to set its temperatures first."/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." en="Load, unload, and swap spools, set temperatures, and monitor runout sensors."/>
+  <translation tag="Load, unload, purge, and extrude filament" en="Load, unload, purge, and extrude filament"/>
   <translation tag="Load..." en="Load..."/>
   <translation tag="Loaded" en="Loaded"/>
   <translation tag="Loading" en="Loading"/>
@@ -2376,6 +2378,7 @@
   <translation tag="Mount tool" en="Mount tool"/>
   <translation tag="Mount which tool?" en="Mount which tool?"/>
   <translation tag="Mount..." en="Mount..."/>
+  <translation tag="Mounted: {}" en="Mounted: {}"/>
   <translation tag="Move" en="Move"/>
   <translation tag="Move here" en="Move here"/>
   <translation tag="Move out of range" en="Move out of range"/>
@@ -2551,6 +2554,7 @@
   <translation tag="No timelapse videos found" en="No timelapse videos found"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" en="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?"/>
   <translation tag="No tool is mounted" en="No tool is mounted"/>
+  <translation tag="No tool mounted" en="No tool mounted"/>
   <translation tag="No tool on the head" en="No tool on the head"/>
   <translation tag="No tools to calibrate" en="No tools to calibrate"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" en="No turn: the gap moved {:.1f} Hz"/>
@@ -2799,9 +2803,11 @@
   <translation tag="Pick Color" en="Pick Color"/>
   <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." en="Pick how HelixScreen behaves. You can change any of these later in Settings."/>
   <translation tag="Pick the best band" en="Pick the best band"/>
+  <translation tag="Pick up" en="Pick up"/>
   <translation tag="Pick up and park each tool in turn" en="Pick up and park each tool in turn"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" en="Pick up the tool, heat it, and pull the filament out"/>
   <translation tag="Pick up tool" en="Pick up tool"/>
+  <translation tag="Pick-up step cancelled; nothing was sent" en="Pick-up step cancelled; nothing was sent"/>
   <translation tag="Picking up tool" en="Picking up tool"/>
   <translation tag="Pill" en="Pill"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" en="Pixels before a press becomes a scroll (lower = scrolls engage sooner)"/>
@@ -4822,6 +4828,7 @@
   <translation tag="{} d" en="{} d"/>
   <translation tag="{} days" en="{} days"/>
   <translation tag="{} detected" en="{} detected"/>
+  <translation tag="{} did not arrive; nothing was sent" en="{} did not arrive; nothing was sent"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." en="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming."/>
   <translation tag="{} disabled" en="{} disabled"/>
   <translation tag="{} disconnected" en="{} disconnected"/>

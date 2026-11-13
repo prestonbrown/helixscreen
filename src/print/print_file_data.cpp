@@ -10,8 +10,6 @@
 
 using helix::ui::format_filament_weight;
 using helix::ui::format_file_size;
-using helix::ui::format_modified_date;
-using helix::ui::format_print_time;
 
 // ============================================================================
 // FACTORY METHODS
@@ -30,10 +28,8 @@ PrintFileData PrintFileData::from_moonraker_file(const FileInfo& file,
     data.filament_grams = 0.0f;
     data.metadata_fetched = false;
 
-    // Format display strings using centralized helpers
+    // print_time_str stays empty: it translates, and this runs on the WebSocket thread.
     data.size_str = format_file_size(data.file_size_bytes);
-    data.modified_str = format_modified_date(data.modified_timestamp);
-    data.print_time_str = format_print_time(data.print_time_minutes);
     data.filament_str = format_filament_weight(data.filament_grams);
 
     // Metadata fields not available until fetch - use consistent placeholder
@@ -62,7 +58,6 @@ PrintFileData PrintFileData::from_usb_file(const UsbGcodeFile& file,
 
     // Format display strings using centralized helpers
     data.size_str = format_file_size(data.file_size_bytes);
-    data.modified_str = format_modified_date(data.modified_timestamp);
 
     // USB files show "--" for metadata we can't get from Moonraker
     data.print_time_str = "--";
@@ -88,7 +83,6 @@ PrintFileData PrintFileData::make_directory(const std::string& name, const std::
 
     // Directory display strings
     data.size_str = is_parent ? "" : "Folder";
-    data.modified_str = "";
     data.print_time_str = "";
     data.filament_str = "";
 
@@ -96,6 +90,14 @@ PrintFileData PrintFileData::make_directory(const std::string& name, const std::
 }
 
 namespace helix {
+
+void format_unfetched_print_times(std::vector<PrintFileData>& files) {
+    for (auto& file : files) {
+        if (!file.is_dir && !file.metadata_fetched && file.print_time_str.empty()) {
+            file.print_time_str = helix::ui::format_print_time(file.print_time_minutes);
+        }
+    }
+}
 
 UsbCopyTarget choose_usb_copy_target(const std::string& filename, uint64_t size,
                                      const std::map<std::string, uint64_t>& existing) {

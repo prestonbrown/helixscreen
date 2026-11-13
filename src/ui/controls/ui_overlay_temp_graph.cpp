@@ -331,11 +331,12 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
     nozzle_card_target_observer_.reset();
     nozzle_card_power_observer_.reset();
     extruder_version_observer_.reset();
+    active_tool_observer_.reset();
 
-    // picked_extruder_ deliberately survives deactivation: the custom-entry
-    // keypad stacks on top of this overlay, and its confirm still targets the
-    // picked tool. open() is what drops the pick - opening means a fresh
-    // view.
+    // picked_extruder_ deliberately survives deactivation and reopening: the
+    // custom-entry keypad stacks on top of this overlay and its confirm still
+    // targets the picked tool, and a user who picked a docked tool expects it
+    // back next visit. A tool change is what drops it.
 
     // Clear any pinned caption before the controller (and its graph) are torn
     // down below.
@@ -376,12 +377,6 @@ void TempGraphOverlay::on_ui_destroyed() {
 
 void TempGraphOverlay::open(Mode mode, lv_obj_t* parent_screen) {
     mode_ = mode;
-
-    // Opening means a fresh view: drop any tool picked on a previous visit so
-    // the card starts on the machine's active tool. Deactivation must NOT
-    // clear it - the custom-entry keypad stacks on top of this overlay and
-    // its confirm still targets the picked tool.
-    picked_extruder_.clear();
 
     show(parent_screen);
 }
@@ -1105,6 +1100,29 @@ void TempGraphOverlay::watch_extruder_version() {
         printer_state_->temperature_state().get_extruder_version_subject(), this,
         [](TempGraphOverlay* self, int /*version*/) { self->repoint_nozzle_card(); },
         printer_state_->temperature_state().get_subjects_lifetime());
+
+    // A pick lasts across visits until a tool change, which moves the card to
+    // the newly mounted tool. A change while the overlay was closed counts too.
+    const int active = helix::ToolState::instance().active_tool_index();
+    if (pick_tool_ != kNoPickTool && active != pick_tool_) {
+        picked_extruder_.clear();
+    }
+    pick_tool_ = active;
+    active_tool_observer_ = helix::ui::observe<int>(
+        helix::ToolState::instance().get_active_tool_subject(), this,
+        [](TempGraphOverlay* self, int tool) {
+            if (tool == self->pick_tool_) {
+                return; // the attach replay, not a change
+            }
+            self->pick_tool_ = tool;
+            if (!self->picked_extruder_.empty()) {
+                self->picked_extruder_.clear();
+                self->repoint_nozzle_card();
+                self->lifetime_.defer("rebuild_extruder_selector",
+                                      [self]() { self->rebuild_extruder_selector(); });
+            }
+        },
+        helix::ToolState::instance().get_subjects_lifetime());
 }
 
 void TempGraphOverlay::repoint_nozzle_card() {

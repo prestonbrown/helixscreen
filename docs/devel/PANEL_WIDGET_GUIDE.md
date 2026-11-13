@@ -569,10 +569,10 @@ the picker.
 
 ### Full-page widgets
 
-A widget whose tap opens an overlay can show that overlay's own controls in place when
-it fills a page (prestonbrown/helixscreen#1931). It is a size, not a page type: nothing
-new is saved, and a full page is just an entry spanning the whole grid of a page other
-than the main page. Motion and the three heater tiles opt in.
+A widget whose tap opens an overlay or a main panel can show that view's own controls in
+place when it fills a page (prestonbrown/helixscreen#1931). It is a size, not a page type:
+nothing new is saved, and a full page is just an entry spanning the whole grid of a page
+other than the main page. Motion, Filament Operations and the three heater tiles opt in.
 
 - **The rule** is `helix::cell_fills_extra_page()` (`include/grid_layout.h`). The manager
   evaluates it for every tile in `announce_tile_size()` and hands the answer to the widget
@@ -580,11 +580,15 @@ than the main page. Motion and the three heater tiles opt in.
   `on_size_changed()` reads `fills_extra_page()` and `page_index()` for the placement it
   belongs to, on a populate, a gated swap and an in-place resize alike.
 - **The host** is `helix::FullPageHost` (`src/ui/panel_widgets/full_page_host.h`), built in
-  the widget's constructor. It publishes `<instance>_full_page` (prop `full_page_subject`),
+  the widget's constructor. It publishes `<instance>_full_page` (prop `full_page_subject`,
+  values `helix::FullPageState`: 0 a tile, 1 a full page, 2 a full page holding its view),
   which the tile's XML uses to hide its compact face and show `full_page_frame`
-  (`ui_xml/full_page_frame.xml`): a `full_page_body` and a non-clickable swipe strip, so a
-  drag that starts there always reaches the carousel. The widget forwards `attach`,
-  `detach`, `on_activate`, `on_deactivate` and its placement.
+  (`ui_xml/full_page_frame.xml`): a `full_page_body`, a placeholder that hides at 2, and a
+  non-clickable swipe strip, so a drag that starts there always reaches the carousel. The
+  widget forwards `attach`, `detach`, `on_activate`, `on_deactivate` and its placement.
+- **The content** is a `helix::FullPageContent` (`include/full_page_content.h`):
+  `embed()`, `release_embed()`, `embedded_root()` and `host_deleting()`. OverlayBase and
+  PanelBase both implement it, so one host serves both kinds of view.
 - **One set of controls.** While the page is shown the host builds the overlay's own tree in
   `full_page_body` with `OverlayBase::embed()`: the same `create()`, callbacks and subjects,
   off the navigation stack, with the header's back affordance disarmed. `release_embed()`
@@ -593,13 +597,42 @@ than the main page. Motion and the three heater tiles opt in.
   Controls panel) always gets its tree on the stack. An overlay with a mode embeds through
   its own entry point (`TempGraphOverlay::embed_in()`), never `before_show()`, which
   registers with NavigationManager.
-- **Jumps.** Each host names the function it serves (`"motion"`, `"temp:<widget id>"`).
+- **A main panel** has one tree for the whole session, with its observers wired in
+  `setup()`, so a page never builds a second one. `PanelBase::embed()` asks
+  `NavigationManager::lend_panel()` to move the panel's live tree into `full_page_body`
+  (building a deferred ESP32 panel first) and `release_embed()` hands it back with
+  `reclaim_panel()`. A lent panel is skipped by every `show_only()`, and any switch to
+  that panel reclaims it first, so the navigation bar always finds its tree at home.
+  Lending refuses the active panel. `PanelBase::on_lent_to_page()` runs on every move in
+  either direction; FilamentPanel publishes `filament_on_page` from it, and its XML binds
+  that to drop the root padding and tighten the operation rows, which is what fits it
+  above the strip at 480x272.
+- **Delete without detach.** A tile tree deleted raw calls the host from the delete hook,
+  before LVGL deletes the tile's children. An overlay's tree dies with the page, so it
+  only schedules its deactivate for the next tick; a main panel's tree must not die, so
+  `PanelBase::host_deleting()` hands it back right there. This is the one exception to
+  "never reparent from `on_hooked_root_deleted()`": LVGL sends LV_EVENT_DELETE before it
+  deletes any child (`lib/lvgl/src/core/lv_obj_tree.c#obj_delete_core`), so the borrowed
+  subtree is still whole, and moving it out is what keeps LVGL from freeing it. The same
+  holds when the delete starts at the page or further up. When the panel container is
+  itself going (a printer switch deletes the whole layout), there is nowhere to return
+  the tree to: it dies with the layout and NavigationManager's slot clears itself.
+- **Navigation while lent.** An overlay opened from the lent tree covers the home panel,
+  whose deactivation hands the tree back; closing the overlay re-activates the page,
+  which lends it again. The navbar button and `ctl navigate filament` take the tree back
+  before the Filament panel is shown. Modals sit above the home panel and leave the
+  tree where it is.
+- **Jumps.** Each host names the function it serves (`"motion"`, `"filament"`,
+  `"temp:<widget id>"`).
   A tile that would open that overlay asks `jump_to_full_page()` first, which moves the
   carousel through `HomePanel::show_page()`; it opens the overlay only when there is no
-  full page. The widget ids are `multi_instance` so a compact tile and a full page can
+  full page (the Filament tile requests the Filament panel instead, as its navigation bar
+  button does). The widget ids are `multi_instance` so a compact tile and a full page can
   coexist. A build that predates this keeps `motion:1` in the page's `retained` list.
 - **Edit mode.** A tree embedded while the session holds the page is disarmed with
   `disable_widget_clicks_recursive()`, so the session's restore re-arms it with the rest.
+  A tree leaving the page is re-armed by the host first, since a lent panel lives on
+  outside the page where that restore never reaches.
 
 ### Engine contracts this pattern relies on
 

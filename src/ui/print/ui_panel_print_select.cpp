@@ -557,6 +557,7 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
                           panel->get_name(), c->files.size());
 
             panel->refresh_guard_.release();
+            helix::format_unfetched_print_times(c->files);
 
             // Snapshot previous file list (filename + modified time, in sorted
             // order) before replacing, so repopulation is skipped when nothing
