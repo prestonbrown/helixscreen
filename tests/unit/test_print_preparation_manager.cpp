@@ -3220,6 +3220,8 @@ TEST_CASE_METHOD(HelixTestFixture,
     auto& api = mock_printer.api;
 
     PrintPreparationManager manager;
+    // An earlier start, refused before it sent anything, leaves its parameters.
+    manager.start_print(kRemapFixture, "", nullptr, nullptr, {}, {{"plateindex", "3"}});
     manager.set_dependencies(&api, &state);
     state.print_state().begin_preparing(PrintJobRef{kRemapFixture, "gcodes", ""});
 
@@ -3228,8 +3230,6 @@ TEST_CASE_METHOD(HelixTestFixture,
     REQUIRE_FALSE(original.empty());
     REQUIRE(count_exact_lines(original, "T1") == 11);
     REQUIRE(count_exact_lines(original, "T2") == 5);
-    // An earlier start's parameters, left for the next start to send.
-    PrintPreparationManagerTestAccess::set_start_params(manager, {{"plateindex", "3"}});
 
     manager.modify_and_print_with_remap(kRemapFixture, {{1, 2}}, nullptr);
     drain_until_quiet();

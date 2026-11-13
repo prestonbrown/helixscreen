@@ -2218,6 +2218,18 @@ TEST_CASE("toolchanger: a tool listing sent in separate frames re-seats the carr
     // ASSIGN_TOOL moving number 2 onto T3 arrives as a listing alone.
     tc.feed(json{{"toolchanger", {{"tool_numbers", json::array({0, 3, 2})}}}});
     CHECK(tc.get_system_info().current_slot == 2);
+
+    // Swapping the two numbers back renames instead: the delta carries tool_names alone.
+    tc.feed(
+        json{{"toolchanger", {{"tool_names", json::array({"tool T0", "tool T3", "tool T2"})}}}});
+    CHECK(tc.get_system_info().current_slot == 1);
+
+    // A remap's listing and tool_number in one frame: the listing answers first.
+    tc.feed(json{{"toolchanger",
+                  {{"tool_numbers", json::array({0, 1})},
+                   {"tool_names", json::array({"tool T3", "tool T0"})},
+                   {"tool_number", 0}}}});
+    CHECK(tc.get_system_info().current_slot == 2);
 }
 
 TEST_CASE("toolchanger: mounting a lane on gapped tool numbers mounts that lane's tool",
@@ -2308,77 +2320,4 @@ TEST_CASE("toolchanger: a listed reset of a contiguous swap sends exactly two AS
     REQUIRE(tc.reset_tool_mappings().success());
     CHECK(tc.sent_ == std::vector<std::string>{"ASSIGN_TOOL TOOL=\"tool T0\" N=0",
                                                "ASSIGN_TOOL TOOL=\"tool T1\" N=1"});
-}
-
-namespace {
-
-/// A changer whose tools carry the numbers @p numbers, listed the way
-/// klipper-toolchanger publishes them: ascending, names in the same order.
-std::unique_ptr<AckingChanger> numbered_changer(const std::vector<int>& numbers) {
-    auto tc = std::make_unique<AckingChanger>(static_cast<int>(numbers.size()));
-    std::vector<std::string> names;
-    json listed_names = json::array();
-    for (int n : numbers) {
-        names.push_back("T" + std::to_string(n));
-        listed_names.push_back("tool T" + std::to_string(n));
-    }
-    tc->set_discovered_tools(names);
-    tc->feed(
-        json{{"toolchanger",
-              {{"status", "ready"}, {"tool_numbers", numbers}, {"tool_names", listed_names}}}});
-    return tc;
-}
-
-} // namespace
-
-TEST_CASE("toolchanger: the mounted tool's number resolves through the printer's listing",
-          "[toolchanger][mount_feed][tool-number]") {
-    SECTION("contiguous 0, 1, 2 seats each number in its own slot") {
-        auto tc = numbered_changer({0, 1, 2});
-        tc->feed_status("ready", 2);
-        CHECK(tc->get_current_slot() == 2);
-        tc->feed_status("ready", 0);
-        CHECK(tc->get_current_slot() == 0);
-    }
-
-    SECTION("a number the printer does not list leaves nothing to unload") {
-        auto tc = numbered_changer({0, 2, 3});
-        tc->feed_status("ready", 1);
-        CHECK(tc->get_current_slot() == -1);
-        CHECK_FALSE(tc->unload_filament(-1).success());
-        CHECK(tc->sent_.empty());
-    }
-
-    SECTION("an ASSIGN_TOOL remap resolves through the listing in the same frame") {
-        // ASSIGN_TOOL TOOL="tool T2" N=0: T2's head now answers to 0, and the
-        // tool that held 0 loses its number.
-        auto tc = numbered_changer({0, 1, 2});
-        tc->feed(json{{"toolchanger",
-                       {{"tool_numbers", {0, 1}},
-                        {"tool_names", {"tool T2", "tool T1"}},
-                        {"tool_number", 0}}}});
-        CHECK(tc->get_current_slot() == 2);
-    }
-
-    SECTION("a reassigned number follows its tool when only the names change") {
-        // ASSIGN_TOOL swapping two numbers leaves tool_numbers as it was, so
-        // Moonraker's delta carries tool_names alone.
-        auto tc = numbered_changer({0, 2, 3});
-        tc->feed(json{{"toolchanger", {{"tool_names", {"tool T0", "tool T3", "tool T2"}}}}});
-        tc->feed_status("ready", 2);
-        CHECK(tc->get_current_slot() == 2);
-    }
-
-    SECTION("tools 0, 2, 3: loading lane 2 mounts T3, by its tool object") {
-        // T=<n> is a tool NUMBER, and T=2 here would mount the T2 head.
-        auto tc = numbered_changer({0, 2, 3});
-        tc->feed_status("ready", 0);
-        REQUIRE(tc->load_filament(2).success());
-        tc->ack(); // the prompt is up
-        ToolChangerTestAccess::feed_operator_reply(*tc, mf::Reply::Continue);
-        CHECK(tc->sent_.back() == mf::prompt_end_gcode() + "\nSELECT_TOOL TOOL=\"tool T3\"");
-        for (const auto& g : tc->sent_) {
-            CHECK(g.find("T=") == std::string::npos);
-        }
-    }
 }

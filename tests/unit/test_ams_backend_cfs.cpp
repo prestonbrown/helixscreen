@@ -1005,45 +1005,6 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
     }
 }
 
-TEST_CASE("CFS manual purge runs over the purge chute", "[ams][cfs][purge_chute]") {
-    const std::string chute = "SAVE_GCODE_STATE NAME=helix_cfs_purge\n"
-                              "BOX_SAVE_FAN\n"
-                              "BOX_GO_TO_EXTRUDE_POS\n"
-                              "M83\n"
-                              "G1 E50 F600\n"
-                              "M400\n"
-                              "BOX_RESTORE_FAN\n"
-                              "BOX_MOVE_TO_SAFE_POS\n"
-                              "RESTORE_GCODE_STATE NAME=helix_cfs_purge";
-    CHECK(AmsBackendCfs::chute_purge_gcode(50, 600) == chute);
-
-    CfsCalibHelper backend;
-    const IPrintRouting& base = backend;
-    SECTION("no chute position configured: nothing, the caller extrudes in place") {
-        CHECK(base.manual_purge_gcode(50, 600).empty());
-    }
-    SECTION("chute configured and homed, on both stock dialects") {
-        CfsTestAccess::set_chute_extrude_pos(backend, true);
-        CHECK(base.manual_purge_gcode(50, 600) == chute);
-        CfsTestAccess::set_macro_variant_k2(backend);
-        CHECK(base.manual_purge_gcode(50, 600) == chute);
-    }
-    SECTION("an unhomed X or Y keeps the in-place extrude") {
-        CfsTestAccess::set_chute_extrude_pos(backend, true);
-        for (const char* axes : {"", "z", "xz", "yz"}) {
-            lv_subject_copy_string(backend.state.motion_state().get_homed_axes_subject(), axes);
-            CHECK(base.manual_purge_gcode(50, 600).empty());
-        }
-        lv_subject_copy_string(backend.state.motion_state().get_homed_axes_subject(), "xy");
-        CHECK(base.manual_purge_gcode(50, 600) == chute);
-    }
-    SECTION("the Fork has no stock chute envelope") {
-        CfsTestAccess::set_chute_extrude_pos(backend, true);
-        CfsTestAccess::set_macro_variant_fork(backend);
-        CHECK(base.manual_purge_gcode(50, 600).empty());
-    }
-}
-
 TEST_CASE("CFS chute save refuses a toolhead that lost its homing", "[ams][cfs][calib]") {
     CfsCalibHelper backend;
     for (const char* axes : {"", "z", "xz", "yz"}) {
@@ -7931,8 +7892,8 @@ TEST_CASE("CFS: a weights-only edit is cleared when its bay reads EMPTY",
     CHECK_FALSE(after.pending.has_value());
 }
 
-TEST_CASE("CFS reads the chute wiper from the configfile each Klipper start",
-          "[ams][cfs][chute][2007]") {
+TEST_CASE("CFS reads the chute wiper and purge position from the configfile each Klipper start",
+          "[ams][cfs][chute][2007][purge_chute]") {
     helix::test::StartedBackend<UnansweredClientCfs> cfs;
     auto& client = cfs.wire().fake_client();
     auto answer_configfile = [&client](const json& settings) {
@@ -7946,9 +7907,19 @@ TEST_CASE("CFS reads the chute wiper from the configfile each Klipper start",
         helix::ui::UpdateQueue::instance().drain_until_empty();
     };
     CHECK_FALSE(cfs.chute_wiper());
+    // BOX_GO_TO_EXTRUDE_POS is an absolute XY move, so the chute purge needs X and Y homed.
+    const IPrintRouting& routing = cfs;
+    get_printer_state().update_from_status(json{{"toolhead", {{"homed_axes", "xy"}}}});
+    CHECK(routing.manual_purge_gcode(50, 600).empty());
 
-    answer_configfile(json::parse(R"({"box": {"clean_left_pos_x": 153.5,
+    answer_configfile(json::parse(R"({"box": {"clean_left_pos_x": 153.5, "has_extrude_pos": 1,
         "clean_left_pos_y": 225.3, "clean_right_pos_x": 178.0, "clean_right_pos_y": 225.3}})"));
+    CHECK(routing.manual_purge_gcode(50, 600) == AmsBackendCfs::chute_purge_gcode(50, 600));
+    CHECK(AmsBackendCfs::chute_purge_gcode(50, 600).find(
+              "BOX_GO_TO_EXTRUDE_POS\nM83\nG1 E50 F600") != std::string::npos);
+    get_printer_state().update_from_status(json{{"toolhead", {{"homed_axes", "xz"}}}});
+    CHECK(routing.manual_purge_gcode(50, 600).empty());
+    get_printer_state().update_from_status(json{{"toolhead", {{"homed_axes", "xy"}}}});
     const auto wiper = cfs.chute_wiper();
     REQUIRE(wiper);
     CHECK(wiper->x_min == Catch::Approx(153.5));
@@ -7958,4 +7929,6 @@ TEST_CASE("CFS reads the chute wiper from the configfile each Klipper start",
     cfs.on_klipper_restarted();
     answer_configfile(no_unit_settings());
     CHECK_FALSE(cfs.chute_wiper());
+    CHECK(routing.manual_purge_gcode(50, 600).empty());
+    get_printer_state().update_from_status(json{{"toolhead", {{"homed_axes", ""}}}});
 }

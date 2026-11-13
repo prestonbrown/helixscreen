@@ -1249,7 +1249,8 @@ void HistoryListPanel::handle_reprint() {
     if (print_panel) {
         // select_file_by_name searches the file list and shows detail view if found
         if (print_panel->select_file_by_name(filename, archive_plate)) {
-            spdlog::info("[{}] Navigated to file details for: {}", get_name(), filename);
+            spdlog::info("[{}] Navigated to file details for: {} (plate {})", get_name(), filename,
+                         archive_plate);
         } else {
             spdlog::warn("[{}] File not found in print panel: {}", get_name(), filename);
             ui_notification_warning("File not found in print list");

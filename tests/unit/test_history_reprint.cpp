@@ -23,7 +23,6 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/history_list_panel_test_access.h"
 #include "../test_helpers/log_capture.h"
-#include "../test_helpers/print_select_panel_test_access.h"
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
@@ -142,7 +141,22 @@ class HistoryReprintFixture : public LVGLUITestFixture {
 
 TEST_CASE_METHOD(HistoryReprintFixture,
                  "Reprint selects the job's file even when navigation re-filters the list",
-                 "[history][reprint]") {
+                 "[history][reprint][2063]") {
+    // This screen started the file on plate 4 and the history job names no
+    // plate, so the reprint opens that plate (#2063).
+    auto& ps = get_printer_state().print_state();
+    helix::ScopeExit finish_print([]() {
+        get_printer_state().update_from_status(
+            nlohmann::json{{"print_stats", {{"state", "complete"}, {"filename", kReprintFile}}}});
+        drain();
+    });
+    ps.begin_preparing(helix::PrintJobRef{kReprintFile, "", ""});
+    drain();
+    ps.note_start_plate(helix::PrinterPrintState::start_record_printer_id(), kReprintFile, 4);
+    get_printer_state().update_from_status(
+        nlohmann::json{{"print_stats", {{"state", "printing"}, {"filename", kReprintFile}}}});
+    drain();
+
     HistoryListPanelTestAccess::set_jobs(panel, {job("other.gcode"), job(kReprintFile)});
     HistoryListPanelTestAccess::select_job(panel, {job("other.gcode"), job(kReprintFile)}, 1);
     const PrintHistoryJob* jobs_before = HistoryListPanelTestAccess::filtered_jobs(panel).data();
@@ -155,37 +169,6 @@ TEST_CASE_METHOD(HistoryReprintFixture,
     REQUIRE(HistoryListPanelTestAccess::filtered_jobs(panel).data() != jobs_before);
 
     CHECK(logs.has_line_with({"Set pending file selection: '" + kReprintFile + "'"}));
-    CHECK(logs.has_line_with({"Navigated to file details for: " + kReprintFile}));
+    CHECK(logs.has_line_with({"Navigated to file details for: " + kReprintFile + " (plate 4)"}));
     drain();
-}
-
-TEST_CASE_METHOD(HistoryReprintFixture,
-                 "Reprint opens the plate this screen started when history names none",
-                 "[history][reprint][2063]") {
-    PrintSelectPanel* print_panel = get_print_select_panel(get_printer_state(), nullptr);
-    REQUIRE(print_panel != nullptr);
-    // The print-select panel and the print state outlive this case: hand both
-    // back as found, whichever check stops it.
-    helix::ScopeExit restore([print_panel]() {
-        PrintSelectPanelTestAccess::set_pending_archive_plate(*print_panel, 0);
-        get_printer_state().update_from_status(
-            nlohmann::json{{"print_stats", {{"state", "complete"}, {"filename", kReprintFile}}}});
-        drain();
-    });
-
-    auto& ps = get_printer_state().print_state();
-    ps.begin_preparing(helix::PrintJobRef{kReprintFile, "", ""});
-    drain();
-    ps.note_start_plate(helix::PrinterPrintState::start_record_printer_id(), kReprintFile, 4);
-    get_printer_state().update_from_status(
-        nlohmann::json{{"print_stats", {{"state", "printing"}, {"filename", kReprintFile}}}});
-    drain();
-    REQUIRE(ps.confirmed_start_plate(helix::PrinterPrintState::start_record_printer_id(),
-                                     kReprintFile) == 4);
-
-    HistoryListPanelTestAccess::set_jobs(panel, {job(kReprintFile)});
-    HistoryListPanelTestAccess::select_job(panel, {job(kReprintFile)}, 0);
-    HistoryListPanelTestAccess::handle_reprint(panel);
-
-    CHECK(PrintSelectPanelTestAccess::pending_archive_plate(*print_panel) == 4);
 }

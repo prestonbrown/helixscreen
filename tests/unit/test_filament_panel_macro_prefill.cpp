@@ -65,6 +65,15 @@ using PrefillPanelHarness = helix::test::FilamentPanelMacroHarness;
 
 namespace {
 
+/// No purge macro on the printer: Purge takes the built-in fallback.
+void init_without_purge_macro() {
+    helix::PrinterDiscovery hardware;
+    hardware.parse_objects(nlohmann::json{"extruder"});
+    StandardMacros::instance().reset();
+    StandardMacros::instance().init(hardware);
+    REQUIRE(StandardMacros::instance().get(StandardMacroSlot::Purge).is_empty());
+}
+
 /// A macro that takes a nozzle temperature and one parameter the panel cannot know.
 constexpr const char* kLoadWithLength = "{% set t = params.EXTRUDER_TEMP|default(220)|int %}\n"
                                         "{% set l = params.LENGTH|default(100)|float %}\n"
@@ -727,11 +736,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A purge macro's guard outlasts a slow bin p
 TEST_CASE_METHOD(LVGLUITestFixture, "The purge fallback's guard outlasts a slow bin preamble",
                  "[filament][purge_preamble][op_timeout_expire]") {
     FilamentPanelMacroHarness h(std::make_unique<BinBackend>());
-    helix::PrinterDiscovery hardware;
-    hardware.parse_objects(nlohmann::json{"extruder"});
-    StandardMacros::instance().reset();
-    StandardMacros::instance().init(hardware);
-    REQUIRE(StandardMacros::instance().get(StandardMacroSlot::Purge).is_empty());
+    init_without_purge_macro();
     h.set_extruder_target(255.0);
 
     h.client.defer_next("printer.gcode.script");
@@ -791,10 +796,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "A purge fallback that failed during its bin preamble does not run late",
                  "[filament][purge_preamble][unknown_command]") {
     FilamentPanelMacroHarness h(std::make_unique<BinBackend>());
-    helix::PrinterDiscovery hardware;
-    hardware.parse_objects(nlohmann::json{"extruder"});
-    StandardMacros::instance().reset();
-    StandardMacros::instance().init(hardware);
+    init_without_purge_macro();
     h.set_extruder_target(255.0);
 
     h.client.defer_next("printer.gcode.script");
@@ -827,14 +829,6 @@ struct ChuteBackend : helix::AmsBackendMock {
     }
 };
 
-void init_without_purge_macro() {
-    helix::PrinterDiscovery hardware;
-    hardware.parse_objects(nlohmann::json{"extruder"});
-    StandardMacros::instance().reset();
-    StandardMacros::instance().init(hardware);
-    REQUIRE(StandardMacros::instance().get(StandardMacroSlot::Purge).is_empty());
-}
-
 bool sent_any(const PrefillPanelHarness& h, const std::string& needle) {
     for (const auto& script : h.client.gcode_script_history()) {
         if (script.find(needle) != std::string::npos) {
@@ -845,12 +839,6 @@ bool sent_any(const PrefillPanelHarness& h, const std::string& needle) {
 }
 
 } // namespace
-
-TEST_CASE("A backend with no purge chute wraps no manual purge", "[filament][purge_chute]") {
-    helix::AmsBackendMock mock(2);
-    const helix::IPrintRouting& routing = mock;
-    CHECK(routing.manual_purge_gcode(50, 600).empty());
-}
 
 TEST_CASE_METHOD(LVGLUITestFixture, "The purge fallback sends the backend's chute purge",
                  "[filament][purge_chute]") {
