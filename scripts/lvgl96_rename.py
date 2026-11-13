@@ -8,8 +8,10 @@ Two kinds of rewrite, both read from lib/lvgl at run time so the table is LVGL's
    every `#define OLD NEW` whose NEW is a single identifier, and every
    `typedef NEW OLD;`. Chains resolve to the final name. These are the names
    LV_DISABLE_API_MAPPING removes, less any name lv_conf_internal.h still reads as a
-   config option. Map entries that are expressions or function-like
-   macros are reported, never rewritten.
+   config option. The map's static inline functions rewrite onto their replacement
+   (lv_obj_move_foreground(o) -> lv_obj_move_to_index(o, -1), lv_task_handler ->
+   lv_timer_handler). Map entries that are expressions or function-like macros are
+   reported, never rewritten.
 
 2. The deprecated flag calls, onto the per-flag functions declared in lv_obj.h:
      lv_obj_add_flag(o, LV_OBJ_FLAG_X)        -> lv_obj_set_x(o, true)
@@ -54,6 +56,14 @@ OPT_OUT = "LV_DEPRECATED_OK"
 
 FLAG_FUNCS = ("lv_obj_add_flag", "lv_obj_remove_flag", "lv_obj_set_flag",
               "lv_obj_has_flag", "lv_obj_has_flag_any")
+
+# The API map's static inline functions, each read against its LVGL 9.6 replacement:
+# lv_obj_move_to_index() counts a negative index from the end and returns early on a
+# parentless object, as the inline bodies do.
+INLINE_RENAMES = {"lv_task_handler": "lv_timer_handler"}
+INLINE_CALLS = {"lv_obj_move_foreground": "lv_obj_move_to_index(%s, -1)",
+                "lv_obj_move_background": "lv_obj_move_to_index(%s, 0)"}
+CALL_FUNCS = FLAG_FUNCS + tuple(INLINE_CALLS)
 IDENT = re.compile(r"[A-Za-z_]\w*")
 
 
@@ -66,6 +76,7 @@ def load_api_map():
     map_dir = os.path.join(LVGL_INC, "api_map")
     define = re.compile(r"^\s*#\s*define\s+(\w+)(\([^)]*\))?\s*(.*?)\s*$")
     typedef = re.compile(r"^\s*typedef\s+(\w+)\s+(\w+)\s*;")
+    inline = re.compile(r"^\s*static\s+inline\b[^(]*?\b(\w+)\s*\(")
     for name in sorted(os.listdir(map_dir)):
         if not name.endswith(".h"):
             continue
@@ -86,6 +97,14 @@ def load_api_map():
             m = typedef.match(line)
             if m:
                 raw[m.group(2)] = m.group(1)
+                continue
+            m = inline.match(line)
+            if m:
+                fn = m.group(1)
+                if fn in INLINE_RENAMES:
+                    raw[fn] = INLINE_RENAMES[fn]
+                elif fn not in INLINE_CALLS:
+                    complex_.add(fn)
     # Some map entries point the other way: lv_conf_internal.h still reads the "old"
     # name as a live config option (LV_DRAW_LAYER_SIMPLE_BUF_SIZE), so it stays.
     with open(os.path.join(LVGL_INC, "config", "lv_conf_internal.h"), encoding="utf-8") as fh:
@@ -182,7 +201,7 @@ class Rewriter:
     def __init__(self):
         self.renames, self.complex = load_api_map()
         self.setters, self.getters = load_flag_funcs()
-        names = sorted(set(self.renames) | self.complex | set(FLAG_FUNCS), key=len, reverse=True)
+        names = sorted(set(self.renames) | self.complex | set(CALL_FUNCS), key=len, reverse=True)
         self.any_name = re.compile(r"\b(" + "|".join(map(re.escape, names)) + r")\b")
 
     def rename(self, text):
@@ -203,6 +222,10 @@ class Rewriter:
 
     def flag_replacement(self, func, args):
         """The rewritten call text, or a reason string prefixed with '!'."""
+        if func in INLINE_CALLS:
+            if len(args) != 1:
+                return "!argument count"
+            return INLINE_CALLS[func] % args[0]
         want = 3 if func == "lv_obj_set_flag" else 2
         if len(args) != want:
             return "!argument count"
@@ -223,12 +246,12 @@ class Rewriter:
         return "lv_obj_set_%s(%s,%s)" % (name.lower(), args[0], value)
 
     def flags(self, text, path, report):
-        """Rewrite every flag call that maps cleanly, then report the rest once."""
+        """Rewrite every call that maps cleanly, then report the rest once."""
         count, rewrite = 0, True
         while True:
             kind = classify(text)
             changed = False
-            for m in re.finditer(r"\b(%s)\b" % "|".join(FLAG_FUNCS), text):
+            for m in re.finditer(r"\b(%s)\b" % "|".join(CALL_FUNCS), text):
                 if kind[m.start()] != CODE:
                     continue
                 func = m.group(1)
@@ -333,7 +356,7 @@ def main():
 
     for path, line, func, why, txt in report:
         print("HAND %s:%d: %s: %s | %s" % (path, line, func, why, txt))
-    print("lvgl96_rename: %d rename(s), %d flag call(s) rewritten in %d file(s); %d left for hand edit"
+    print("lvgl96_rename: %d rename(s), %d call(s) rewritten in %d file(s); %d left for hand edit"
           % (total_ren, total_flag, files_changed, len(report)), file=sys.stderr)
     return 0
 

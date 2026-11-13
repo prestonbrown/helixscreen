@@ -197,7 +197,7 @@ void raise_chrome_on(lv_obj_t* parent, const lv_obj_t* except) {
         if (e.raise) {
             e.raise();
         } else {
-            lv_obj_move_foreground(obj);
+            lv_obj_move_to_index(obj, -1);
         }
     }
 }
@@ -252,7 +252,7 @@ void bring_to_front(lv_obj_t* obj) {
     if (!obj) {
         return;
     }
-    lv_obj_move_foreground(obj);
+    lv_obj_move_to_index(obj, -1);
     if (!s_chrome_covered) {
         raise_chrome_on(lv_obj_get_parent(obj), obj);
     }

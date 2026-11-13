@@ -1822,7 +1822,7 @@ bool Application::run_wizard() {
     // Move keyboard above wizard
     lv_obj_t* keyboard = KeyboardManager::instance().get_instance();
     if (keyboard) {
-        lv_obj_move_foreground(keyboard);
+        lv_obj_move_to_index(keyboard, -1);
     }
 
     return true;

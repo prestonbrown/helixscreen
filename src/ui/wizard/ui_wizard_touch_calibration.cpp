@@ -578,7 +578,7 @@ void WizardTouchCalibrationStep::ensure_skip_on_top() {
     // After any lv_obj_move_foreground(touch_overlay), the skip group may end up
     // behind the overlay. Re-assert its z-order so it stays clickable.
     if (raised_skip_.obj) {
-        lv_obj_move_foreground(raised_skip_.obj);
+        lv_obj_move_to_index(raised_skip_.obj, -1);
     }
 }
 
@@ -597,7 +597,7 @@ void WizardTouchCalibrationStep::update_crosshair_position() {
         return;
     }
     if (touch_overlay) {
-        lv_obj_move_foreground(touch_overlay);
+        lv_obj_move_to_index(touch_overlay, -1);
     }
     ensure_skip_on_top();
 

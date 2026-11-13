@@ -362,7 +362,7 @@ void KeyboardManager::show_overlay(const lv_area_t* key_area, const char* altern
     }
 
     lv_obj_set_pos(overlay_, overlay_x, overlay_y);
-    lv_obj_move_foreground(overlay_);
+    lv_obj_move_to_index(overlay_, -1);
     lv_obj_update_layout(overlay_);
 
     spdlog::info("[KeyboardManager] Showing overlay with {} alternatives at ({}, {})", alt_count,
@@ -1440,7 +1440,7 @@ void KeyboardManager::show(lv_obj_t* textarea) {
 
     lv_keyboard_set_textarea(keyboard_, textarea);
     lv_obj_set_hidden(keyboard_, false);
-    lv_obj_move_foreground(keyboard_);
+    lv_obj_move_to_index(keyboard_, -1);
     lv_obj_update_layout(screen);
     {
         // The keyboard covers the bottom of the navbar, where the E-stop sits:

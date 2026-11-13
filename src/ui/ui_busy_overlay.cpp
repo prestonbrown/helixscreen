@@ -106,7 +106,7 @@ void create_overlay_internal() {
     lv_label_set_text(g_label, g_pending_text.c_str());
 
     // Bring to foreground
-    lv_obj_move_foreground(g_overlay);
+    lv_obj_move_to_index(g_overlay, -1);
 
     g_pending_show = false;
     spdlog::debug("[BusyOverlay] Created overlay with text: '{}'", g_pending_text);

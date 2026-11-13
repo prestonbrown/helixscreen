@@ -149,7 +149,7 @@ void SaverBase::start_print_card() {
 
 void SaverBase::keep_print_card_on_top() {
     if (lv_obj_t* obj = card_.canvas.obj()) {
-        lv_obj_move_foreground(obj);
+        lv_obj_move_to_index(obj, -1);
     }
 }
 
@@ -181,7 +181,7 @@ void SaverBase::step_print_card(uint32_t dt_ms, const ClockInput& in) {
     }
     if (!card_.shown) {
         // Above whatever the scene added to the overlay since it started.
-        lv_obj_move_foreground(obj);
+        lv_obj_move_to_index(obj, -1);
         lv_obj_set_hidden(obj, false); // DECLARATIVE_OK: per-frame print state
         card_.shown = true;
     }

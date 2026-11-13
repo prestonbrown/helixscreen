@@ -145,7 +145,7 @@ void ModalStack::push(lv_obj_t* backdrop, lv_obj_t* dialog, const std::string& c
                       {}});
     sync_chrome_cover(*this);
     if (backdrop) {
-        lv_obj_move_foreground(backdrop);
+        lv_obj_move_to_index(backdrop, -1);
         // Added after the entry's handle hook, so the handle reads nullptr by now.
         // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
         lv_obj_add_event_cb(

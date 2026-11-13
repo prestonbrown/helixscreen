@@ -4181,7 +4181,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     // The rebuild appends the new root to its parent, here the screen the
     // catalog sat on; the app's panel parent holds panels only, below it.
     lv_obj_set_hidden(rebuilt_root, false);
-    lv_obj_move_background(rebuilt_root);
+    lv_obj_move_to_index(rebuilt_root, 0);
     adopt_panel_root();
     settle();
 

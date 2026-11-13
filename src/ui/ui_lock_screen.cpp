@@ -76,7 +76,7 @@ void LockScreenOverlay::create_overlay() {
     lv_obj_set_style_radius(overlay_, 0, 0);
 
     // Bring above all other content on lv_layer_top()
-    lv_obj_move_foreground(overlay_);
+    lv_obj_move_to_index(overlay_, -1);
 
     // Instantiate the lock_screen XML component (defines background, card, keypad)
     pin_display_ = std::make_unique<PinDisplay>("lock_pin");

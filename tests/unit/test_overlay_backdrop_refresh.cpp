@@ -166,7 +166,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Backdrop refresh re-snapshots the live base c
 
     lv_obj_set_hidden(base, true);
     lv_obj_t* overlay = make_flat_layer(screen, kOverlayColor);
-    lv_obj_move_foreground(overlay);
+    lv_obj_move_to_index(overlay, -1);
     NavigationManagerTestAccess::set_panel_stack(nav, {base, overlay});
     process_lvgl(20);
 
