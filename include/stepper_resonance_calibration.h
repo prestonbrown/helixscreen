@@ -52,6 +52,22 @@ Procedure resolve(const PrinterDiscovery& hw);
 /// the homing a Procedure's needs_home asks for.
 std::string calibrate_gcode(const PrinterDiscovery& hw, int tool);
 
+/// How this printer switches its motor compensation on and off outside the
+/// calibration routine. Prints enable it at start and disable it at the end,
+/// so a measurement taken while idle runs uncompensated unless it enables it.
+struct CompensationToggle {
+    std::string enable_gcode; ///< empty: no toggle
+    std::string disable_gcode;
+    /// Enable applies fixed factory numbers rather than a saved calibration.
+    bool applies_factory_values = false;
+
+    [[nodiscard]] bool present() const {
+        return !enable_gcode.empty() && !disable_gcode.empty();
+    }
+};
+
+[[nodiscard]] CompensationToggle compensation_toggle(const PrinterDiscovery& hw);
+
 /// The entry's name and what it does, untranslated (pass them through lv_tr()).
 const char* entry_name();
 const char* entry_description();
