@@ -62,12 +62,12 @@ These are the usual locations for a first install. An existing install always st
 | Linux board with no Klipper on it (separate screen), installed as a normal user | `~/helixscreen` | systemd service `helixscreen` |
 | Linux board with no Klipper on it, installed as root | `/opt/helixscreen` | systemd service `helixscreen` |
 | x86_64 Linux desktop (`--desktop`) | `~/.local/share/helixscreen` | your applications menu; no service |
-| Adventurer 5M, Forge-X | `/opt/config/mod_data/helixscreen` (Forge-X manages it) | Forge-X, through `S90helixscreen` inside its own system folder |
+| Adventurer 5M, Forge-X | `/opt/config/mod_data/helixscreen` | Forge-X, through `/data/.mod/.forge-x/etc/init.d/S90helixscreen` inside its own system folder (the printer's main `/etc/init.d` has none) |
 | Adventurer 5M, Forge-X, installed by an older release or with `--standalone` | `/opt/helixscreen` | `/etc/init.d/S90helixscreen` |
 | Adventurer 5M, ZMOD | `/srv/helixscreen` | `/etc/init.d/S80helixscreen` |
 | Adventurer 5M, Klipper Mod v00.06 and newer | `/opt/helixscreen` | `/etc/init.d/S80helixscreen` |
 | Adventurer 5M, Klipper Mod v00.05 and older | `/root/printer_software/helixscreen` | `/etc/init.d/S80helixscreen` |
-| Adventurer 5X and Creator 5 | `/srv/helixscreen`, or the mod's own folder where the mod manages HelixScreen | `S80helixscreen` |
+| Adventurer 5X and Creator 5 / Creator 5 Pro, Z-Mod | `/srv/helixscreen` inside Z-Mod's system folder; from a plain SSH login that is `/usr/data/.mod/.zmod/srv/helixscreen` | Z-Mod's own `/etc/init.d/S80helixscreen`, inside the same system folder |
 | Creality K1 series | `/usr/data/helixscreen` | `/etc/init.d/S99helixscreen` |
 | Creality K2 series | `/mnt/UDISK/helixscreen` | `/etc/init.d/S99helixscreen` |
 | Elegoo Centauri Carbon | `/user-resource/helixscreen` | `/etc/init.d/helixscreen` |
@@ -104,6 +104,15 @@ systemctl is-active helixscreen     # expect: active
 /etc/init.d/S99helixscreen status
 ```
 
+On an Adventurer 5M with Forge-X, and on Z-Mod printers, the script sits inside the mod's own system folder, so run it through `chroot`:
+
+```bash
+/usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen status    # Adventurer 5M, Forge-X
+chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen status             # Z-Mod (Adventurer 5X, Creator 5)
+```
+
+Both answer `helixscreen is running (PID ...)` when HelixScreen is up.
+
 The Snapmaker U1's init script has no `status` action. On the U1, and on any printer, you can check for the running program instead:
 
 ```bash
@@ -120,8 +129,10 @@ On a full Linux system, use `ps aux` instead of `ps`.
 
 HelixScreen writes two logs:
 
-- **The app log**, its normal messages. On a Raspberry Pi it goes to the system journal. On printers it goes to the system log.
+- **The app log**, its normal messages. On a Raspberry Pi it goes to the system journal. On most printers it is a file, `helix.log`, kept outside the install folder so an update does not delete it.
 - **The launcher log** (`launcher.log`), which records starts, stops and crash output. It is in `/var/log/helixscreen/` when that folder survives a reboot, and otherwise in the `logs` folder inside the install folder.
+
+The Creator 5 with Z-Mod is the exception: Z-Mod's own service script writes everything, app and launcher output together, to one file, `helixscreen.log`.
 
 **Raspberry Pi and other systemd Linux:**
 
@@ -131,14 +142,34 @@ journalctl -u helixscreen -p err --no-pager    # errors only
 journalctl -u helixscreen -f                   # follow live
 ```
 
-**Adventurer 5M** (its system log is kept on disk):
+**Adventurer 5M with Forge-X:**
 
 ```bash
-grep helix-screen /var/log/messages | tail -100
-tail -100 INSTALL/logs/launcher.log
+tail -100 /data/.helixscreen/logs/helix.log
+tail -100 /opt/config/mod_data/helixscreen/logs/launcher.log
 ```
 
-**K1, K2 and other printers with an in-memory system log:**
+**Creality K1 series:**
+
+```bash
+tail -100 /usr/data/helixscreen-state/logs/helix.log
+tail -100 /usr/data/helixscreen/logs/launcher.log
+```
+
+**Creator 5 / Creator 5 Pro with Z-Mod** (one file; the same path works inside and outside Z-Mod's system folder):
+
+```bash
+tail -100 /opt/config/mod_data/log/helixscreen.log
+```
+
+**Snapmaker U1 with PAXX firmware** (both are kept on the printer's storage and survive a restart):
+
+```bash
+grep helix-screen /home/lava/printer_data/logs/syslog | tail -100
+tail -100 /var/log/helixscreen/launcher.log
+```
+
+**K2 and other printers with an in-memory system log:**
 
 ```bash
 logread | grep helix-screen | tail -100
@@ -268,10 +299,10 @@ Restart with `/etc/init.d/S80helixscreen restart`.
 
 ### Creality K1 Series
 
-On Simple AF (`/usr/data/pellcorp` exists), the installer switches off GuppyScreen. Check that its init script is no longer executable:
+On Simple AF (`/usr/data/pellcorp` exists), the installer switches off GrumpyScreen, Simple AF's screen program. Check that its init script is no longer executable (`-rw-------`, no `x`):
 
 ```bash
-ls -la /etc/init.d/S99guppyscreen
+ls -la /etc/init.d/S99grumpyscreen
 ```
 
 Creality's background services keep running, so Creality Print can still reach the printer; only the stock screen is replaced. Restart with `/etc/init.d/S99helixscreen restart`.
@@ -314,7 +345,7 @@ For a clean install, first check that no earlier install is present: the install
 | Adventurer 5M with Forge-X: the screen dims after boot | Run the installer again to restore the backlight patch |
 | Adventurer 5M with Forge-X: GuppyScreen comes back | Run the installer again; it switches GuppyScreen off |
 | Adventurer 5M with Klipper Mod: KlipperScreen comes back | `chmod -x /etc/init.d/S80klipperscreen`, then reboot |
-| K1 with Simple AF: GuppyScreen comes back | `chmod -x /etc/init.d/S99guppyscreen`, then reboot |
+| K1 with Simple AF: GrumpyScreen comes back | `chmod -x /etc/init.d/S99grumpyscreen`, then reboot |
 | K1: nothing on the screen | Check that Simple AF (or your other firmware mod) is installed and working first |
 
 ---

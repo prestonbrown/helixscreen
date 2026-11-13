@@ -55,7 +55,7 @@ cd pellcorp
 sh installer.sh
 ```
 
-Follow its prompts. When its own screen (GuppyScreen) appears on the touchscreen, go on to Step 4.
+Follow its prompts. When its own screen (GrumpyScreen) appears on the touchscreen, go on to Step 4.
 
 ### Option B: Guilouz Helper Script
 
@@ -93,7 +93,7 @@ sh /usr/data/install.sh --local /usr/data/helixscreen-k1.zip
 ### What the installer does
 
 - Recognizes the K1 and which community firmware it runs.
-- Stops the screen program that was running (Creality's own screen, or GuppyScreen) and keeps it from starting at boot.
+- Stops the screen program that was running (Creality's own screen, GuppyScreen, or GrumpyScreen on Simple AF) and keeps it from starting at boot. On Simple AF, GrumpyScreen's boot script `/etc/init.d/S99grumpyscreen` stays on the printer but is no longer executable.
 - Keeps Creality's backend services running and starts them at every boot, so Creality Print and Creality Cloud keep working. On Simple AF those services were already removed by Simple AF.
 - Keeps SSH working: on stock firmware, SSH was started by the screen program the installer turns off, so the installer starts it on its own.
 - Installs HelixScreen to `/usr/data/helixscreen` with the boot service `/etc/init.d/S99helixscreen`, and adds HelixScreen to Moonraker's update manager so Fluidd or Mainsail can update it.
@@ -156,7 +156,7 @@ tail -100 /usr/data/helixscreen-state/logs/helix.log   # the app's log
 tail -100 /usr/data/helixscreen/logs/launcher.log      # startup and crash output
 ```
 
-The app's log is kept outside the HelixScreen folder, so an update does not delete it.
+The app's log is kept outside the HelixScreen folder, so an update does not delete it. The startup log stays inside the HelixScreen folder because the K1's `/var/log` is held in memory and cleared at every restart.
 
 ## Updating
 
@@ -178,7 +178,7 @@ Your settings are kept. See [Upgrading](../UPGRADING.md) for specific versions a
 cp /usr/data/helixscreen/install.sh /tmp/install.sh && sh /tmp/install.sh --uninstall
 ```
 
-The installer will not uninstall from inside its own folder, so it is copied to `/tmp` first. This removes HelixScreen and brings back the screen program the printer had before: Creality's own screen, or GuppyScreen.
+The installer will not uninstall from inside its own folder, so it is copied to `/tmp` first. This removes HelixScreen and brings back the screen program the printer had before: Creality's own screen, GuppyScreen, or GrumpyScreen on Simple AF.
 
 The easy installer cannot remove HelixScreen yet; use the command above.
 
