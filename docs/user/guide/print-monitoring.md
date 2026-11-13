@@ -227,7 +227,7 @@ On other printers the detection settings stay hidden.
 
 Under **Settings > Safety & Alerts**:
 
-- **Spaghetti Detection** ("Watch the camera during a print for failed prints") switches detection on or off. It is on by default. On a K2, the first time HelixScreen runs it copies the printer's own AI detection switch and pause choice, so detection stays off if you had it off in Creality's settings. After that, HelixScreen's switches are the ones that count.
+- **Spaghetti Detection** ("Watch the camera during a print for failed prints") switches detection on or off. It is on by default. On a K2, the first time HelixScreen runs it copies the printer's own AI detection switch and pause choice, so detection stays off if you had it off in Creality's settings. After that, HelixScreen's switches are the ones that count. On a Snapmaker U1 the switch also turns the printer's own detection on or off, so with it off the U1 stops pausing prints for spaghetti. HelixScreen sets the printer to match the switch each time it connects.
 - **Pause on Detection** ("Pause the print when a failure is seen (off = warn only)") decides whether a detection pauses the print or only warns you. It is greyed out while Spaghetti Detection is off, and hidden on the U1, which always pauses by itself.
 - **Bed Clear Check** ("Camera checks the bed is empty before each print") appears on the Snapmaker U1 only. See below.
 
@@ -248,7 +248,7 @@ On a K2, the pre-print options of a file can also include an **AI detection** ti
 | **Resume** | Continues the paused print. |
 | **Abort** | Cancels the print. |
 | **Reduce Sensitivity** | (U1 only) Tells the printer to be less quick to flag spaghetti, and leaves the dialog open so you can then Resume or Abort. |
-| **Turn off detection** | Switches Spaghetti Detection off and leaves the dialog open for your Resume or Abort choice. |
+| **Turn off detection** | Switches Spaghetti Detection off (on a U1, the printer's own detection too) and leaves the dialog open for your Resume or Abort choice. |
 
 > **Note:** On the U1, the dialog appears for spaghetti failures. The printer's other defect codes (residue, dirty nozzle) are recognized but not shown.
 
