@@ -23,6 +23,9 @@ struct PrintSelectPanelTestAccess {
     static int pending_archive_plate(const PrintSelectPanel& panel) {
         return panel.pending_archive_plate_;
     }
+    static void set_pending_archive_plate(PrintSelectPanel& panel, int plate) {
+        panel.pending_archive_plate_ = plate;
+    }
 
     /// The installer the install prompt runs, for pointing it at a stub install.sh.
     static helix::HelixPluginInstaller& plugin_installer(PrintSelectPanel& panel) {

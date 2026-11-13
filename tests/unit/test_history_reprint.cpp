@@ -30,6 +30,7 @@
 #include "display_settings_manager.h"
 #include "print_job_ref.h"
 #include "printer_state.h"
+#include "scope_exit.h"
 
 #include <string>
 #include <vector>
@@ -161,6 +162,17 @@ TEST_CASE_METHOD(HistoryReprintFixture,
 TEST_CASE_METHOD(HistoryReprintFixture,
                  "Reprint opens the plate this screen started when history names none",
                  "[history][reprint][2063]") {
+    PrintSelectPanel* print_panel = get_print_select_panel(get_printer_state(), nullptr);
+    REQUIRE(print_panel != nullptr);
+    // The print-select panel and the print state outlive this case: hand both
+    // back as found, whichever check stops it.
+    helix::ScopeExit restore([print_panel]() {
+        PrintSelectPanelTestAccess::set_pending_archive_plate(*print_panel, 0);
+        get_printer_state().update_from_status(
+            nlohmann::json{{"print_stats", {{"state", "complete"}, {"filename", kReprintFile}}}});
+        drain();
+    });
+
     auto& ps = get_printer_state().print_state();
     ps.begin_preparing(helix::PrintJobRef{kReprintFile, "", ""});
     drain();
@@ -175,10 +187,5 @@ TEST_CASE_METHOD(HistoryReprintFixture,
     HistoryListPanelTestAccess::select_job(panel, {job(kReprintFile)}, 0);
     HistoryListPanelTestAccess::handle_reprint(panel);
 
-    PrintSelectPanel* print_panel = get_print_select_panel(get_printer_state(), nullptr);
-    REQUIRE(print_panel != nullptr);
     CHECK(PrintSelectPanelTestAccess::pending_archive_plate(*print_panel) == 4);
-    get_printer_state().update_from_status(
-        nlohmann::json{{"print_stats", {{"state", "complete"}, {"filename", kReprintFile}}}});
-    drain();
 }
