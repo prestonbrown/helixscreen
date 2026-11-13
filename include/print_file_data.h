@@ -77,9 +77,10 @@ struct PrintFileData {
     std::vector<std::string>
         filament_colors; ///< Hex colors per tool (e.g., ["#ED1C24", "#00C1AE"])
 
-    // Formatted strings (cached for performance)
+    // Formatted strings (cached for performance). Entries are built on the WebSocket
+    // thread, so nothing here reads the language or the time format: a view formats
+    // modified_timestamp where it draws it, and the panel fills print_time_str.
     std::string size_str;
-    std::string modified_str;
     std::string print_time_str;
     std::string filament_str;
     std::string layer_count_str;  ///< Formatted layer count string
@@ -200,6 +201,11 @@ struct UsbCopyTarget {
  *
  * @param existing Filenames already in the copy folder, with their sizes
  */
+/// Gives each file still waiting for its metadata the print time it shows meanwhile.
+/// This translates, so it runs on the main thread; the factories above leave the
+/// string empty because the file provider calls them on the WebSocket thread.
+void format_unfetched_print_times(std::vector<PrintFileData>& files);
+
 UsbCopyTarget choose_usb_copy_target(const std::string& filename, uint64_t size,
                                      const std::map<std::string, uint64_t>& existing);
 
