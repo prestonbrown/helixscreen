@@ -59,7 +59,7 @@ Under the jog pad (beside the Fine / Coarse / Turbo buttons in landscape) is a r
 | **Y** | Homes Y only. |
 | **Z** | Homes Z only. |
 
-Each button turns **green** once its axis is homed and stays gray until then. **All** turns green when X, Y and Z are all homed. The buttons are disabled while a homing or leveling run is in progress. When homing finishes, a message tells you ("All axes homed", or "X axis homed" for a single axis), and a failure shows "Homing failed" with the reason.
+Each button turns **green** once its axis is homed and stays gray until then. **All** turns green when X, Y and Z are all homed. The buttons are disabled while a homing, leveling or other action started from the Controls panel is running. A home started from this bar or from the jog pad's center does not lock them, so wait for the "homed" message before tapping again, or a second home is sent. When homing finishes, a message tells you ("All axes homed", or "X axis homed" for a single axis), and a failure shows "Homing failed" with the reason.
 
 On a **delta** printer the axes can only be homed together, so the bar shows **All** alone. The Controls panel has a similar bar that adds an **XY** button (see [Homing](#homing)).
 

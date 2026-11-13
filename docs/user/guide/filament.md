@@ -47,7 +47,7 @@ When the nozzle is too cold to move filament and HelixScreen doesn't know what i
 
 ### Choosing a tool on a multi-head printer
 
-On a printer with more than one tool (a tool changer, an IDEX or dual-extruder machine, the Snapmaker U1), the multi-filament card at the bottom left of the Filament panel has a dropdown that chooses which tool the panel acts on. Its caption uses your printer's own word for a tool (**Toolhead** on the Snapmaker U1). The closed dropdown shows just the tool's G-code name, such as **T0**; open it to see the full list.
+On a printer with more than one tool (a tool changer, an IDEX or dual-extruder machine, the Snapmaker U1), and on a single-head printer whose filament system (Happy Hare, AFC, OpenAMS, CFS, QIDI Box, AD5X IFS) counts each lane as a tool, the multi-filament card at the bottom left of the Filament panel has a dropdown that chooses which tool the panel acts on. Its caption uses your printer's own word for a tool (**Toolhead** on the Snapmaker U1). The closed dropdown shows just the tool's G-code name, such as **T0**; open it to see the full list. On a single-head printer the list names the lanes (such as **Slot 1 (T0)**) and the card has no **Manage** button: tap the slot bars to open the Filament System panel. Choosing a lane there aims Load and Unload at it, and no tool is picked up.
 
 Choosing a tool in the dropdown only aims the panel at it. Nothing moves, and the printer does not change tools. The tool is picked up when you use a button that needs it: **Load**, **Unload**, **Extrude**, **Retract** or **Purge** first pick up the selected tool if it is not the mounted one, then carry on. That pick-up follows **Settings > Printing > Confirm tool changes** (on by default, shown only on multi-tool printers): with it on, the printer asks before switching. A paused print always asks, and the switch is refused while printing, while spools lie on the bed, or while the filament system is waiting for you. If the tool does not arrive, the step is dropped and a message says that nothing was sent.
 
@@ -108,9 +108,9 @@ With a QIDI Box, box slots load and unload the way the stock screen does them.
 
 1. The gear, which opens Multi-Filament System Management.
 2. What is loaded now.
-3. Load, Unload, Reset and the other actions.
+3. The action buttons: Load, Unload and the others your system offers (a Happy Hare printer shows Home here).
 
-A printer with a multi-material system (Happy Hare, AFC, OpenAMS, ACE, a tool changer, the Snapmaker U1, the Creality CFS, the AD5X IFS, the QIDI Box) gets a Filament System panel that draws your slots and the filament path. Tap **Manage** on the Filament panel's multi-filament card to open it; on a multi-head printer the card has the tool dropdown instead. The panel's header has a gear that opens Multi-Filament System Management. The details live on their own pages:
+A printer with a multi-material system (Happy Hare, AFC, OpenAMS, ACE, a tool changer, the Snapmaker U1, the Creality CFS, the AD5X IFS, the QIDI Box) gets a Filament System panel that draws your slots and the filament path. Tap the slot bars on the Filament panel's multi-filament card to open it (**Manage** does the same, on printers where the card has that button; a printer with several tools shows the tool dropdown instead of **Manage**). The panel's header has a gear that opens Multi-Filament System Management. The details live on their own pages:
 
 | Topic | Page |
 |-------|------|
@@ -123,6 +123,15 @@ A printer with a multi-material system (Happy Hare, AFC, OpenAMS, ACE, a tool ch
 ### Where each topic lives
 
 The headings below are short pointers, so older links keep working.
+
+- <a id="ams-management-settings-overlay"></a>[Multi-Filament System Management](filament-ams-panel.md#multi-filament-system-management)
+- <a id="slot-view"></a>[Slot view](filament-ams-panel.md#slot-view)
+- <a id="assigned-tool"></a>[Assigned tool](filament-ams-panel.md#assigned-tool)
+- <a id="where-lane-information-comes-from"></a>[Where lane information comes from](filament-ams-panel.md#where-lane-information-comes-from)
+- <a id="tips"></a>[Tips](filament-ams-panel.md#tips)
+- <a id="snapmaker-u1-snapswap"></a><a id="runout-and-resume"></a>[Snapmaker U1 and runout](filament-tool-changers.md#snapmaker-u1-snapswap)
+- <a id="medusahc-hotend-changer"></a>[MedusaHC](filament-tool-changers.md#medusahc-hotend-changer)
+- <a id="rfid-detection"></a>[RFID detection](filament-cfs.md#rfid-detection)
 
 #### Sidebar
 

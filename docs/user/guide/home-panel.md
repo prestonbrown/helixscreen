@@ -182,6 +182,12 @@ Tap the **Printer Image** widget to open the Printer Manager, where you change t
 
 Older links to topics that moved still land here. Each entry points to the page that now holds the topic.
 
+- <a id="entering-edit-mode"></a><a id="selecting-a-widget"></a><a id="moving-a-widget"></a><a id="resizing-a-widget"></a><a id="removing-a-widget"></a>[Entering edit mode, selecting, moving, resizing and removing a widget](home-edit-mode.md#entering-edit-mode)
+- <a id="hardware-gated-widgets"></a>[Hardware-gated widgets](home-widgets.md#hardware-gated-widgets)
+- <a id="emergency-stop"></a>[Emergency stop](motion.md#emergency-stop) and the [tool badge](#emergency-stop-and-the-tool-badge)<a id="active-tool-badge"></a>
+- <a id="managing-multiple-printers"></a><a id="switching-between-printers"></a><a id="removing-a-printer"></a>[Managing, switching and removing printers](printer-manager.md#managing-multiple-printers)
+- <a id="using-custom-printer-images"></a>[Using custom printer images](printer-manager.md#using-custom-printer-images)
+- <a id="rotation--flip"></a><a id="stream-status"></a>[Camera rotation, flip and stream status](home-widgets-print.md#rotation--flip)
 - <a id="multiple-pages-note"></a>Page navigation, adding and deleting pages: this page, above.
 - <a id="configuring-a-widget"></a>[Configuring a widget](home-edit-mode.md#configuring-a-widget) (the gear button)
 - <a id="adding-a-widget"></a>[Adding a widget](home-edit-mode.md#adding-a-widget) and <a id="resetting-to-defaults"></a>[resetting to defaults](home-edit-mode.md#resetting-to-defaults)

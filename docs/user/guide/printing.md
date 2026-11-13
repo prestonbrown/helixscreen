@@ -269,7 +269,7 @@ The Print Status panel shows:
 
 **Files button.** While a print runs, a folder icon in the print screen's header opens the file list, so you can line up the next job without leaving the print view. A second print can never start while one runs; when your printer has a job queue, the button becomes **Add to Queue** instead (see [Queueing a Print](#queueing-a-print)).
 
-**Camera button.** If HelixScreen runs on a separate screen or device from the printer (see [Camera](camera.md)) and the printer has a webcam, the header also gains a **Camera** button that opens the full-screen webcam view. On the printer's own screen it stays hidden - you can already see the print.
+**Camera button.** If HelixScreen runs on a separate screen or device from the printer (see [Camera](camera.md)) and the printer has a webcam, **More** holds a **Camera** item that opens the full-screen webcam view. On the printer's own screen it stays hidden - you can already see the print.
 
 **Why a print paused or stopped.** When a print pauses, the preview card shows **Print Paused** with the reason under it, when the printer gave one: Klipper's own message for the pause, or the last error the printer reported just before it (for example a filament system that failed to load). A filament runout reads **Filament Runout**, with the slot when HelixScreen knows it. The reason clears when you resume. A canceled or failed print shows its reason the same way under **Print Canceled** or **Print Failed**, in the completion dialog or the "Print canceled" message, so a print canceled after a failed command (a gantry level that never converged, say) says which command failed. Canceling a paused print keeps the pause's reason.
 
@@ -384,7 +384,7 @@ The overlay also holds the Z-Offset controls (see [Z-Offset / Baby Steps](#z-off
 - **Speed**: slow down (60 to 80%) for intricate details or if you see layer separation. Speed up for large infill areas.
 - **Flow**: increase (105 to 110%) if you see gaps between extrusion lines. Decrease (95 to 98%) for blobs or over-packed lines.
 
-> **Note:** Speed and flow adjustments are temporary and only affect the current print. The next print uses your slicer's original values.
+> **Note:** Speed and flow adjustments are not saved to your files. They last until the printer restarts or something else sets them, so a slicer that does not reset speed and flow in its start or end G-code leaves your change in place for the next print.
 
 > **Fan speed:** Part cooling fan speed is not adjusted from the Tune overlay. Current fan speeds are shown on the Print Status panel; tap a fan chip to open the fan controls.
 
@@ -418,8 +418,8 @@ Choose a step size (0.05, 0.025, 0.01 or 0.005 mm), then tap the two arrow butto
 
 **Saving your Z-Offset:**
 
-1. Get the first layer looking good.
-2. Tap **Save Z-Offset** on the Controls panel (it appears once you have an unsaved change). HelixScreen asks you to confirm, because saving restarts Klipper and the printer briefly disconnects.
+1. Get the first layer looking good with the baby steps.
+2. After the print finishes or is canceled, tap **Save Z-Offset** on the Controls panel (it appears once you have an unsaved change). The button is grayed out while a print is running or paused, so your adjustment waits until then. HelixScreen asks you to confirm, because saving restarts Klipper and the printer briefly disconnects.
 3. Future prints use the saved value as their starting point.
 
 Next to the Z-Offset reading, the Tune overlay can show a line such as "Saved 0.150 mm", the offset stored in your printer config, or "Saved 0.150 mm, 0.200 mm after Save" when saving now would change it.

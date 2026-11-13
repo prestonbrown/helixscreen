@@ -38,9 +38,9 @@ The Spoolman QR scanner is the exception: it still uses the printer's webcam for
 
 ## Choosing Between Several Cameras
 
-When Moonraker lists more than one enabled webcam, HelixScreen picks one automatically: the first camera whose service is an MJPEG streamer (such as mjpegstreamer or ustreamer) and that is running, otherwise the first camera with a usable snapshot address. That automatic choice is what the fullscreen viewer and the QR scanner always show.
+When Moonraker lists more than one enabled webcam, HelixScreen picks one automatically: the first camera whose service is an MJPEG streamer (such as mjpegstreamer or ustreamer) and that is running, otherwise the first camera with a usable snapshot address. That automatic choice is what **Settings > Devices > Camera**, **More > Camera** on the print screen and the QR scanner show.
 
-A home widget can show a specific camera instead. In edit mode, tap the gear icon on the Camera widget and pick one under **Source**. The list only appears when there is more than one choice:
+A home widget can show a specific camera instead, and tapping that widget opens the fullscreen view on the same camera, with the widget's rotation and flip. In edit mode, tap the gear icon on the Camera widget and pick one under **Source**. The list only appears when there is more than one choice:
 
 - **Automatic:** the camera HelixScreen would pick on its own.
 - A named camera, one of Moonraker's enabled webcams. A note beside the name says what you get: **Snapshot only** for a camera whose service is not MJPEG (WebRTC, HLS, an IP camera), which HelixScreen polls rather than streams, and **Unavailable** for one that is not running.
@@ -72,7 +72,7 @@ To correct a camera that is mounted upside down or mirrored, enter edit mode on 
 - **Rotation:** 0°, 90°, 180° or 270°
 - **Flip:** **Horizontal** and **Vertical**, either or both
 
-Tap **Save** to apply or **Cancel** to discard. The settings are saved with the widget and survive restarts.
+Tap **Save** to apply or **Cancel** to discard. The settings belong to that one widget and to the fullscreen view you open from it, and they survive restarts. The viewer under **Settings > Devices > Camera**, **More > Camera** on the print screen and the camera preview on the print screen always show the raw image, so a camera that is mounted upside down still looks upside down there.
 
 ---
 

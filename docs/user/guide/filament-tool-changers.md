@@ -4,6 +4,16 @@ Printers with one toolhead or hot end per slot. Back to [Filament Management](fi
 
 ---
 
+## Choosing and picking up a tool
+
+Which tool the Filament panel acts on, the **Pick up** and **Park** button, and what **Confirm tool changes** does are on the Filament page: see [Choosing a tool on a multi-head printer](filament.md#choosing-a-tool-on-a-multi-head-printer). The sidebar's **Mounted** line and the **Mount...** and **Park** buttons are described under [The sidebar](filament-ams-panel.md#sidebar). The temperature screen has its own tool picker (see [Temperature Control](temperature.md)).
+
+## Other tool changers
+
+A klipper-toolchanger printer with no feed command has no Load and Unload: filament goes in and out of each tool by hand, and the sidebar offers **Mount...** and **Park** instead. A Creator 5 with its own filament feed loads filament into the tool through Load, while Unload stays a cut by hand. Both are covered under [The sidebar](filament-ams-panel.md#sidebar), and the Creator 5's tool offset prompt is in [Calibration](calibration.md).
+
+---
+
 ## Snapmaker U1 (SnapSwap)
 
 The Snapmaker U1 is a **4-toolhead changer**, not a shared-path AMS. Each of its four slots has its own independent toolhead, so the topology is **parallel**: every slot keeps its own spool permanently attached to its own tool. There is no hub or selector to share between slots.
