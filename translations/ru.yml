@@ -1095,6 +1095,7 @@ translations:
   Load all stopped: 'Загрузка всех остановлена'
   "Load and unload": "Загрузка и выгрузка"
   Load stopped: 'Загрузка остановлена'
+  "Load, unload, purge, and extrude filament": "Загрузка, выгрузка, прочистка и экструзия филамента"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Здесь можно загрузить, выгрузить и продуть филамент. Сначала выберите материал, чтобы задать его температуру."
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Загружайте, выгружайте и меняйте катушки, задавайте температуру и следите за датчиками филамента."
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "Удерживайте плитку, чтобы войти в режим редактирования. Новая сетка позволяет переставлять, менять размер, удалять и добавлять виджеты, а также перетаскивать их между страницами."
@@ -1723,6 +1724,7 @@ translations:
   Filament Mapping is unavailable: Сопоставление филамента недоступно
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: Этот принтер не поддерживает сопоставление филамента, поэтому печать использует инструменты, назначенные на принтере
   Filament Runout: Окончание филамента
+  Filament Operations: Операции с филаментом
   Filament Sensor: Датчик филамента
   Filament Sensors: 'Датчики филамента'
   Filament System Error: Ошибка системы филамента
@@ -2634,6 +2636,7 @@ translations:
   Mount tool: 'Установить инструмент'
   Mount which tool?: 'Какой инструмент установить?'
   Mount...: 'Установить...'
+  'Mounted: {}': 'Установлен: {}'
   Move: Двигать
   Move here: Переместить сюда
   Move out of range: 'Движение за пределами диапазона'
@@ -2821,6 +2824,7 @@ translations:
   No timelapse videos found: Таймлапс-видео не найдены
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Неизвестно, какой инструмент установлен. С общим датчиком калибруйте с {}. Всё равно продолжить?'
   No tool is mounted: 'Инструмент не установлен'
+  No tool mounted: 'Инструмент не установлен'
   No tool on the head: "На печатающей головке нет инструмента"
   No tools to calibrate: Нет инструментов для калибровки
   'No turn: the gap moved {:.1f} Hz': "Без поворота: разница сдвинулась на {:.1f} Гц"
@@ -3085,9 +3089,11 @@ translations:
   Pick Color: Выбрать цвет
   Pick how HelixScreen behaves. You can change any of these later in Settings.: 'Выберите, как будет вести себя HelixScreen. Всё это можно изменить позже в Настройках.'
   Pick the best band: Выберите лучшую полосу
+  Pick up: 'Установить'
   Pick up and park each tool in turn: Взять и поставить на место каждый инструмент по очереди
   Pick up the tool, heat it, and pull the filament out: "Возьмите инструмент, нагрейте его и вытяните филамент"
   Pick up tool: Забрать инструмент
+  Pick-up step cancelled; nothing was sent: 'Шаг после установки отменён; ничего не отправлено'
   Picking up tool: Захват инструмента
   Pill: Овал
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Пикселей
@@ -5325,6 +5331,7 @@ translations:
   '{} d': "{} д"
   '{} days': "{} дн."
   '{} detected': '{}: обнаружено'
+  '{} did not arrive; nothing was sent': '{} не прибыл; ничего не отправлено'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}: филамент не загрузился. Перед продолжением проверьте, что хотэнд установлен правильно, и выполните пробную экструзию.'
   '{} disabled': '{} выключено'
   '{} disconnected': '{}: отключено'

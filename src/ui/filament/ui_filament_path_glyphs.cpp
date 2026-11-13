@@ -335,33 +335,12 @@ void draw_flow(lv_layer_t* layer, const FilamentPathData& data, const pg::Filame
 // Toolhead glyph
 // ============================================================================
 
-// The A4T glyph is drawn 6/5 larger than the others at every call site in this
-// widget, so the boost is folded in here.
-namespace {
-
-int32_t drawn_scale(helix::ToolheadStyle style, int32_t scale) {
-    return style == helix::ToolheadStyle::A4T ? scale * 6 / 5 : scale;
-}
-
-} // namespace
-
-void draw_toolhead(lv_layer_t* layer, int32_t cx, int32_t cy, std::optional<lv_color_t> filament,
-                   int32_t scale, lv_opa_t opa) {
-    const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
-    draw_nozzle_for_style(layer, cx, cy, filament, drawn_scale(style, scale), opa);
-}
-
-helix::ui::GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t cy, int32_t scale) {
-    const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
-    return helix::ui::toolhead_bounds(style, cx, cy, drawn_scale(style, scale));
-}
-
 // Nozzle tip Y for the configured style — anchors the heat glow halo.
 int32_t toolhead_tip_y(int32_t nozzle_y, int32_t extruder_scale) {
     const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
     if (const helix::ui::ToolheadArt* art = helix::ui::toolhead_art_for(style)) {
-        const helix::ui::ToolheadArtRect r =
-            helix::ui::toolhead_art_rect(*art, 0, nozzle_y, drawn_scale(style, extruder_scale));
+        const helix::ui::ToolheadArtRect r = helix::ui::toolhead_art_rect(
+            *art, 0, nozzle_y, helix::ui::toolhead_drawn_scale(style, extruder_scale));
         return r.y + static_cast<int32_t>(r.h * art->tip_y);
     }
     switch (style) {
@@ -378,7 +357,8 @@ int32_t toolhead_tip_y(int32_t nozzle_y, int32_t extruder_scale) {
 
 helix::ui::ToolheadInlet path_toolhead_inlet(int32_t nozzle_y, int32_t extruder_scale) {
     const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
-    return helix::ui::toolhead_inlet(style, nozzle_y, drawn_scale(style, extruder_scale));
+    return helix::ui::toolhead_inlet(style, nozzle_y,
+                                     helix::ui::toolhead_drawn_scale(style, extruder_scale));
 }
 
 int32_t toolhead_top_y(int32_t nozzle_y, int32_t extruder_scale) {
@@ -387,7 +367,8 @@ int32_t toolhead_top_y(int32_t nozzle_y, int32_t extruder_scale) {
 
 int32_t toolhead_standing_on(int32_t bottom_y, int32_t scale) {
     const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
-    return helix::ui::toolhead_nozzle_standing_on(style, bottom_y, drawn_scale(style, scale));
+    return helix::ui::toolhead_nozzle_standing_on(style, bottom_y,
+                                                  helix::ui::toolhead_drawn_scale(style, scale));
 }
 
 void draw_tool_badge(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t scale,

@@ -5,8 +5,8 @@
 
 #include "ui_widget_ref.h"
 
+#include "full_page_content.h"
 #include "lvgl/lvgl.h"
-#include "overlay_base.h"
 #include "subject_managed_panel.h"
 
 #include <functional>
@@ -18,33 +18,42 @@ namespace helix {
 
 class TileSizing;
 
+/// The values of a tile's `<instance>_full_page` subject.
+enum class FullPageState : int {
+    Compact = 0, ///< A tile: the compact face
+    Empty = 1, ///< A full page showing its placeholder (off screen, or the view is open elsewhere)
+    Hosting = 2, ///< A full page holding the view's tree
+};
+
 /**
  * @brief The full-page form of a home widget (prestonbrown/helixscreen#1931)
  *
- * A widget that can show its overlay's controls in place owns one of these. When
+ * A widget that can show the view it opens in place owns one of these. When
  * the manager places the tile over a whole page other than the main page
- * (PanelWidget::fills_extra_page()), the host publishes `<instance>_full_page` = 1,
- * which the tile's XML uses to swap its compact face for `full_page_frame`, and
+ * (PanelWidget::fills_extra_page()), the host publishes `<instance>_full_page`
+ * (FullPageState), which the tile's XML uses to swap its compact face for
+ * `full_page_frame` and the frame uses to drop its placeholder, and
  * while that page is the one on screen it builds the overlay's own tree inside the
- * frame's `full_page_body` (OverlayBase::embed()). The tree is freed whenever the
- * page goes off screen or the home panel is covered, so a full page costs memory
+ * frame's `full_page_body` (FullPageContent::embed()): an overlay builds its tree
+ * there, a main panel lends its one tree. The tree leaves whenever the page goes
+ * off screen or the home panel is covered, so an overlay's full page costs memory
  * only while it is looked at.
  *
- * Tiles that open the same overlay ask jump_to_full_page() first, so they move the
- * carousel to the page instead of opening the overlay over it.
+ * Tiles that open the same view ask jump_to_full_page() first, so they move the
+ * carousel to the page instead of opening the view over it.
  */
 class FullPageHost {
   public:
-    /// Builds the overlay's tree inside a container; false when it could not.
-    using EmbedFn = std::function<bool(OverlayBase&, lv_obj_t*)>;
+    /// Shows the content inside a container; false when it could not.
+    using EmbedFn = std::function<bool(FullPageContent&, lv_obj_t*)>;
 
-    /// @p function names what the page hosts ("motion"); @p overlay resolves the
-    /// overlay to embed, on first use; @p embed builds it (an overlay with a mode
-    /// sets it around OverlayBase::embed()), plain embed() when empty. Publishes
+    /// @p function names what the page hosts ("motion"); @p content resolves the
+    /// view to embed, on first use; @p embed shows it (an overlay with a mode
+    /// sets it around embed()), plain embed() when empty. Publishes
     /// the instance subject through @p sizing, so construct the host in the
     /// widget's constructor.
-    FullPageHost(TileSizing& sizing, std::string function, std::function<OverlayBase&()> overlay,
-                 EmbedFn embed = {});
+    FullPageHost(TileSizing& sizing, std::string function,
+                 std::function<FullPageContent&()> content, EmbedFn embed = {});
     ~FullPageHost();
 
     FullPageHost(const FullPageHost&) = delete;
@@ -60,9 +69,8 @@ class FullPageHost {
     void detach();
 
     /// The tile's tree was deleted without detach() (PanelWidget's delete hook).
-    /// Runs inside LVGL's delete event, so it only schedules: the overlay's
-    /// deactivate and cleanup run on the next tick, unless another page has
-    /// embedded it again by then.
+    /// Runs inside LVGL's delete event, before the tile's children go: the content
+    /// takes what it must out of the dying tree (FullPageContent::host_deleting()).
     void on_tile_deleted();
 
     /// The tile's page is on screen (PanelWidget::on_activate()).
@@ -73,7 +81,7 @@ class FullPageHost {
     bool is_full_page() const {
         return full_page_;
     }
-    /// Whether this host's frame holds the overlay's tree right now.
+    /// Whether this host's frame holds the content's tree right now.
     bool hosts_tree() const;
 
     const std::string& function() const {
@@ -90,10 +98,11 @@ class FullPageHost {
   private:
     void embed_if_shown();
     void release_tree();
+    void publish_state();
     lv_obj_t* body() const;
 
     std::string function_;
-    std::function<OverlayBase&()> overlay_;
+    std::function<FullPageContent&()> content_;
     EmbedFn embed_;
     SubjectManager subjects_;
     lv_subject_t full_page_subject_{};

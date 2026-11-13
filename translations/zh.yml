@@ -978,6 +978,7 @@ translations:
   Load all stopped: '全部装载已停止'
   "Load and unload": "加载和卸载"
   Load stopped: '装载已停止'
+  "Load, unload, purge, and extrude filament": "装载、卸载、清洗和挤出耗材"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "在此加载、卸载和排料。先选择材料以设置其温度。"
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "加载、卸载和更换料盘，设置温度，并监控耗材传感器。"
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "长按任意磁贴进入编辑模式。全新的网格可让您重新排列、调整大小、移除或添加小部件，并在页面之间拖动。"
@@ -1591,6 +1592,7 @@ translations:
   Filament Mapping is unavailable: 耗材映射不可用
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: 此打印机不支持耗材映射，因此打印将使用打印机上分配的工具
   Filament Runout: 耗材用尽
+  Filament Operations: 耗材操作
   Filament Sensor: 耗材传感器
   Filament Sensors: '耗材传感器'
   Filament System Error: 耗材系统错误
@@ -2459,6 +2461,7 @@ translations:
   Mount tool: '装上工具'
   Mount which tool?: '装上哪个工具？'
   Mount...: '装上...'
+  'Mounted: {}': '已装上: {}'
   Move: 移动
   Move here: 移动到此处
   Move out of range: '移动超出范围'
@@ -2637,6 +2640,7 @@ translations:
   No timelapse videos found: 未找到延时视频
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: '不知道当前安装的是哪个工具。共用一个探针时，请用 {} 校准。仍然继续？'
   No tool is mounted: '未安装工具'
+  No tool mounted: '未装上工具'
   No tool on the head: "工具头上没有工具"
   No tools to calibrate: 没有可校准的工具
   'No turn: the gap moved {:.1f} Hz': "未转动:差距移动了 {:.1f} Hz"
@@ -2899,9 +2903,11 @@ translations:
   Pick Color: 选择颜色
   Pick how HelixScreen behaves. You can change any of these later in Settings.: '选择 HelixScreen 的行为方式。以后可在“设置”中更改。'
   Pick the best band: 选择最佳区段
+  Pick up: '装上'
   Pick up and park each tool in turn: 依次装上并停放每个工具
   Pick up the tool, heat it, and pull the filament out: "装上工具，加热后抽出耗材"
   Pick up tool: 取出工具
+  Pick-up step cancelled; nothing was sent: '装上后的步骤已取消；未发送任何指令'
   Picking up tool: 正在取用工具
   Pill: 胶囊
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): 按下转为滚动前的像素数(越低
@@ -5007,6 +5013,7 @@ translations:
   '{} d': "{} 天"
   '{} days': "{} 天"
   '{} detected': '检测到{}'
+  '{} did not arrive; nothing was sent': '{} 未到位；未发送任何指令'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}未装载。恢复前请检查热端是否安装到位，并进行一次测试挤出。'
   '{} disabled': '已停用{}'
   '{} disconnected': '{}已断开'

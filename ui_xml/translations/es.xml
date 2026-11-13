@@ -1533,6 +1533,7 @@
   <translation tag="Filament Mapping is not available on this device." es="El mapeo de filamento no está disponible en este dispositivo."/>
   <translation tag="Filament Mapping is unavailable" es="El mapeo de filamento no está disponible"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" es="Esta impresora no admite el mapeo de filamento, así que la impresión usa las herramientas asignadas en la impresora"/>
+  <translation tag="Filament Operations" es="Operaciones de filamento"/>
   <translation tag="Filament Runout" es="Filamento Agotado"/>
   <translation tag="Filament Sensor" es="Sensor de Filamento"/>
   <translation tag="Filament Sensors" es="Sensores de filamento"/>
@@ -2157,6 +2158,7 @@
   <translation tag="Load the required filaments or start anyway?" es="¿Cargar los filamentos requeridos o iniciar de todos modos?"/>
   <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." es="Carga, descarga y purga desde aquí. Elige primero un material para ajustar sus temperaturas."/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." es="Carga, descarga y cambia bobinas, ajusta temperaturas y supervisa los sensores de filamento."/>
+  <translation tag="Load, unload, purge, and extrude filament" es="Cargar, descargar, purgar y extruir filamento"/>
   <translation tag="Load..." es="Cargar..."/>
   <translation tag="Loaded" es="Cargado"/>
   <translation tag="Loading" es="Cargando"/>
@@ -2379,6 +2381,7 @@
   <translation tag="Mount tool" es="Montar herramienta"/>
   <translation tag="Mount which tool?" es="¿Qué herramienta montar?"/>
   <translation tag="Mount..." es="Montar..."/>
+  <translation tag="Mounted: {}" es="Montada: {}"/>
   <translation tag="Move" es="Mover"/>
   <translation tag="Move here" es="Mover aquí"/>
   <translation tag="Move out of range" es="Movimiento fuera de rango"/>
@@ -2555,6 +2558,7 @@
   <translation tag="No timelapse videos found" es="No se encontraron videos timelapse"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" es="No se sabe qué herramienta está montada. Con una sonda compartida, calibra con {}. ¿Continuar de todos modos?"/>
   <translation tag="No tool is mounted" es="No hay ninguna herramienta montada"/>
+  <translation tag="No tool mounted" es="Ninguna herramienta montada"/>
   <translation tag="No tool on the head" es="No hay herramienta en el cabezal"/>
   <translation tag="No tools to calibrate" es="No hay herramientas para calibrar"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" es="Sin giro: la diferencia se movió {:.1f} Hz"/>
@@ -2803,9 +2807,11 @@
   <translation tag="Pick Color" es="Elegir Color"/>
   <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." es="Elige cómo se comporta HelixScreen. Puedes cambiarlo más tarde en Ajustes."/>
   <translation tag="Pick the best band" es="Elige la mejor franja"/>
+  <translation tag="Pick up" es="Montar"/>
   <translation tag="Pick up and park each tool in turn" es="Tomar y aparcar cada herramienta por turno"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" es="Toma la herramienta, caliéntala y saca el filamento"/>
   <translation tag="Pick up tool" es="Recoger herramienta"/>
+  <translation tag="Pick-up step cancelled; nothing was sent" es="Paso de recogida cancelado; no se envió nada"/>
   <translation tag="Picking up tool" es="Recogiendo herramienta"/>
   <translation tag="Pill" es="Píldora"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" es="Píxeles antes de que una pulsación se convierta en desplazamiento (menor = se activa antes)"/>
@@ -4827,6 +4833,7 @@
   <translation tag="{} d" es="{} d"/>
   <translation tag="{} days" es="{} días"/>
   <translation tag="{} detected" es="{} detectada"/>
+  <translation tag="{} did not arrive; nothing was sent" es="{} no llegó; no se envió nada"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." es="{} no se cargó. Compruebe que su hotend esté bien asentado y haga una extrusión de prueba antes de reanudar."/>
   <translation tag="{} disabled" es="{} desactivado"/>
   <translation tag="{} disconnected" es="{} desconectada"/>

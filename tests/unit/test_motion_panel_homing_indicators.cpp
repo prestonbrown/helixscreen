@@ -24,8 +24,12 @@
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
+#include "moonraker_api.h"
+#include "moonraker_client_mock.h"
+#include "printer_state.h"
 #include "theme_manager.h"
 
+#include <algorithm>
 #include <array>
 #include <lvgl.h>
 
@@ -37,22 +41,25 @@ bool same_color(const lv_color_t& a, const lv_color_t& b) {
     return a.red == b.red && a.green == b.green && a.blue == b.blue;
 }
 
-} // namespace
-
-TEST_CASE_METHOD(LVGLUITestFixture, "unhomed axes mute their coordinate readouts",
-                 "[motion][homed][xml]") {
+/// The global MotionPanel shown over a full panel set, as the controls screen
+/// opens it; returns its root.
+lv_obj_t* show_motion_panel() {
     std::array<lv_obj_t*, kUiPanelCount> panels{};
     for (auto& p : panels)
         p = lv_obj_create(lv_screen_active());
     NavigationManager::instance().set_panels(panels.data());
-
-    lv_obj_t* cached = nullptr;
     REQUIRE(get_global_motion_panel().show(lv_screen_active()));
-    cached = get_global_motion_panel().get_root();
     helix::ui::UpdateQueue::instance().drain();
-
     lv_obj_t* root = get_global_motion_panel().get_root();
     REQUIRE(root != nullptr);
+    return root;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "unhomed axes mute their coordinate readouts",
+                 "[motion][homed][xml]") {
+    lv_obj_t* root = show_motion_panel();
 
     // The landscape branch renders header_pos_* (the portrait strip's
     // row_pos_* labels carry the same binding pair).
@@ -79,6 +86,65 @@ TEST_CASE_METHOD(LVGLUITestFixture, "unhomed axes mute their coordinate readouts
     CHECK(same_color(lv_obj_get_style_text_color(x_letter, LV_PART_MAIN), letter));
     CHECK(same_color(lv_obj_get_style_text_color(z_value, LV_PART_MAIN), muted));
     CHECK(same_color(lv_obj_get_style_text_color(z_letter, LV_PART_MAIN), muted));
+
+    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "the motion panel homes single axes",
+                 "[motion][homed][xml][target_tool]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    state.set_klippy_state_sync(helix::KlippyState::READY);
+    MoonrakerAPI api(client, state);
+    IMoonrakerAPI* previous = get_moonraker_api();
+    set_moonraker_api(&api);
+
+    lv_obj_t* root = show_motion_panel();
+    lv_subject_t* individual = lv_xml_get_subject(nullptr, "printer_has_individual_xyz_homing");
+    REQUIRE(individual != nullptr);
+    lv_subject_set_int(individual, 1);
+
+    for (const char* name : {"btn_home_all", "btn_home_x", "btn_home_y", "btn_home_z"}) {
+        CAPTURE(name);
+        lv_obj_t* btn = lv_obj_find_by_name(root, name);
+        REQUIRE(btn != nullptr);
+        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    }
+    lv_obj_t* xy = lv_obj_find_by_name(root, "btn_home_xy");
+    REQUIRE(xy != nullptr);
+    CHECK(lv_obj_has_flag(xy, LV_OBJ_FLAG_HIDDEN));
+
+    client.clear_gcode_script_history();
+    lv_obj_send_event(lv_obj_find_by_name(root, "btn_home_x"), LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    const auto& h = client.gcode_script_history();
+    CHECK(std::find(h.begin(), h.end(), "G28 X") != h.end());
+
+    lv_subject_set_int(individual, 0);
+    CHECK(lv_obj_has_flag(lv_obj_find_by_name(root, "btn_home_x"), LV_OBJ_FLAG_HIDDEN));
+
+    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::UpdateQueue::instance().drain();
+    set_moonraker_api(previous);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "the Z column draws what the Z keys move", "[motion][xml]") {
+    lv_obj_t* root = show_motion_panel();
+    lv_obj_t* head = lv_obj_find_by_name(root, "z_axis_icon_head");
+    lv_obj_t* bed = lv_obj_find_by_name(root, "z_axis_icon_bed");
+    REQUIRE(head != nullptr);
+    REQUIRE(bed != nullptr);
+    lv_subject_t* bed_moves = lv_xml_get_subject(nullptr, "printer_bed_moves");
+    REQUIRE(bed_moves != nullptr);
+
+    lv_subject_set_int(bed_moves, 0);
+    CHECK_FALSE(lv_obj_has_flag(head, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(bed, LV_OBJ_FLAG_HIDDEN));
+    lv_subject_set_int(bed_moves, 1);
+    CHECK(lv_obj_has_flag(head, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(bed, LV_OBJ_FLAG_HIDDEN));
 
     StaticPanelRegistry::instance().destroy_all();
     helix::ui::UpdateQueue::instance().drain();

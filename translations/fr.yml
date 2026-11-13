@@ -1052,6 +1052,7 @@ translations:
   Load all stopped: 'Chargement global arrêté'
   "Load and unload": "Charger et décharger"
   Load stopped: 'Chargement arrêté'
+  "Load, unload, purge, and extrude filament": "Charger, décharger, purger et extruder le filament"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Chargez, déchargez et purgez ici. Choisissez d'abord un matériau pour régler ses températures."
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Chargez, déchargez et changez de bobine, réglez les températures et surveillez les capteurs de filament."
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "Appuyez longuement sur une tuile pour passer en mode édition. La nouvelle grille permet de réorganiser, redimensionner, retirer ou ajouter des widgets, et de les faire glisser entre les pages."
@@ -1693,6 +1694,7 @@ translations:
   Filament Mapping is unavailable: Le mappage du filament est indisponible
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: Cette imprimante ne prend pas en charge le mappage du filament, l'impression utilise donc les outils attribués sur l'imprimante
   Filament Runout: Fin de filament
+  Filament Operations: Opérations filament
   Filament Sensor: Capteur de filament
   Filament Sensors: 'Capteurs de filament'
   Filament System Error: Erreur du système de filament
@@ -2603,6 +2605,7 @@ translations:
   Mount tool: 'Monter l''outil'
   Mount which tool?: 'Monter quel outil ?'
   Mount...: 'Monter...'
+  'Mounted: {}': 'Monté : {}'
   Move: Déplacer
   Move here: Déplacer ici
   Move out of range: 'Déplacement hors limites'
@@ -2791,6 +2794,7 @@ translations:
   No timelapse videos found: Aucune vidéo timelapse trouvée
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Aucun outil n''est connu comme monté. Avec une sonde partagée, calibrez avec {}. Continuer quand même ?'
   No tool is mounted: 'Aucun outil n''est monté'
+  No tool mounted: 'Aucun outil monté'
   No tool on the head: "Aucun outil sur la tête d'outil"
   No tools to calibrate: Aucun outil à calibrer
   'No turn: the gap moved {:.1f} Hz': "Sans rotation : l'écart a bougé de {:.1f} Hz"
@@ -3057,9 +3061,11 @@ translations:
   Pick Color: Choisir la couleur
   Pick how HelixScreen behaves. You can change any of these later in Settings.: 'Choisissez le comportement de HelixScreen. Vous pourrez tout modifier plus tard dans Paramètres.'
   Pick the best band: Choisir la meilleure bande
+  Pick up: 'Monter'
   Pick up and park each tool in turn: Prendre et ranger chaque outil tour à tour
   Pick up the tool, heat it, and pull the filament out: "Prenez l'outil, chauffez-le et retirez le filament"
   Pick up tool: Prendre l'outil
+  Pick-up step cancelled; nothing was sent: 'Étape de prise annulée ; rien n''a été envoyé'
   Picking up tool: Prise de l'outil
   Pill: Pilule
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Pixels avant
@@ -5305,6 +5311,7 @@ translations:
   '{} d': "{} j"
   '{} days': "{} jours"
   '{} detected': '{} détecté'
+  '{} did not arrive; nothing was sent': '{} n''est pas arrivé ; rien n''a été envoyé'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{} ne s''est pas chargé. Vérifiez que sa hotend est bien en place et faites une extrusion de test avant de reprendre.'
   '{} disabled': '{} désactivé'
   '{} disconnected': '{} débranché'

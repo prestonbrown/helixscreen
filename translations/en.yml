@@ -1020,6 +1020,7 @@ translations:
   Load all stopped: Load all stopped
   "Load and unload": "Load and unload"
   Load stopped: Load stopped
+  "Load, unload, purge, and extrude filament": "Load, unload, purge, and extrude filament"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Load, unload, and purge from here. Choose a material to set its temperatures first."
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Load, unload, and swap spools, set temperatures, and monitor runout sensors."
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages."
@@ -1635,6 +1636,7 @@ translations:
   Filament Mapping is unavailable: Filament Mapping is unavailable
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer
   Filament Runout: Filament Runout
+  Filament Operations: Filament Operations
   Filament Sensor: Filament Sensor
   Filament Sensors: Filament Sensors
   Filament System Error: Filament System Error
@@ -2534,6 +2536,7 @@ translations:
   Mount tool: Mount tool
   Mount which tool?: Mount which tool?
   Mount...: Mount...
+  'Mounted: {}': 'Mounted: {}'
   Move: Move
   Move here: Move here
   Move out of range: Move out of range
@@ -2717,6 +2720,7 @@ translations:
   No timelapse videos found: No timelapse videos found
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?'
   No tool is mounted: No tool is mounted
+  No tool mounted: No tool mounted
   No tool on the head: No tool on the head
   No tools to calibrate: No tools to calibrate
   'No turn: the gap moved {:.1f} Hz': 'No turn: the gap moved {:.1f} Hz'
@@ -2980,9 +2984,11 @@ translations:
   Pick Color: Pick Color
   Pick how HelixScreen behaves. You can change any of these later in Settings.: Pick how HelixScreen behaves. You can change any of these later in Settings.
   Pick the best band: Pick the best band
+  Pick up: Pick up
   Pick up and park each tool in turn: Pick up and park each tool in turn
   Pick up the tool, heat it, and pull the filament out: Pick up the tool, heat it, and pull the filament out
   Pick up tool: Pick up tool
+  Pick-up step cancelled; nothing was sent: Pick-up step cancelled; nothing was sent
   Picking up tool: Picking up tool
   Pill: Pill
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Pixels before
@@ -5169,6 +5175,7 @@ translations:
   '{} d': '{} d'
   '{} days': '{} days'
   '{} detected': '{} detected'
+  '{} did not arrive; nothing was sent': '{} did not arrive; nothing was sent'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": "{} didn't load. Check that its hotend is seated and do a test extrude before resuming."
   '{} disabled': '{} disabled'
   '{} disconnected': '{} disconnected'

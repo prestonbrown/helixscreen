@@ -79,8 +79,7 @@ struct SidebarGridFixture : public XMLTestFixture {
     int original_bp_ = 0;
 };
 
-constexpr const char* kActions[] = {"btn_load", "btn_unload", "btn_reset", "btn_check_gates",
-                                    "btn_settings"};
+constexpr const char* kActions[] = {"btn_load", "btn_unload", "btn_reset", "btn_check_gates"};
 
 } // namespace
 
@@ -93,12 +92,10 @@ TEST_CASE_METHOD(SidebarGridFixture, "AMS sidebar: the actions sit two to a row 
         const lv_area_t unload = at("btn_unload");
         const lv_area_t reset = at("btn_reset");
         const lv_area_t check = at("btn_check_gates");
-        const lv_area_t settings = at("btn_settings");
-        // Load | Unload over Home | Check slots, then Settings.
+        // Load | Unload over Home | Check slots.
         CHECK(load.y1 == unload.y1);
         CHECK(reset.y1 == check.y1);
         CHECK(reset.y1 > unload.y2);
-        CHECK(settings.y1 > check.y2);
         CHECK(unload.x1 > load.x2);
         CHECK(check.x1 > reset.x2);
         for (const char* name : kActions) {
@@ -115,23 +112,22 @@ TEST_CASE_METHOD(SidebarGridFixture, "AMS sidebar: the actions sit two to a row 
 
 TEST_CASE_METHOD(SidebarGridFixture, "AMS sidebar: a row the actions do not fill is centred",
                  "[ams][sidebar][action_grid]") {
-    // Three actions: Unload | Home, then Settings alone on the second row.
-    lv_obj_add_flag(named("btn_load"), LV_OBJ_FLAG_HIDDEN);
+    // Three actions: Load | Unload, then Home alone on the second row.
     lv_obj_add_flag(named("btn_check_gates"), LV_OBJ_FLAG_HIDDEN);
     for (int breakpoint = 0; breakpoint <= 4; ++breakpoint) {
         CAPTURE(breakpoint);
         use_breakpoint(breakpoint);
         const lv_area_t grid = at("action_buttons_container");
+        const lv_area_t load = at("btn_load");
         const lv_area_t unload = at("btn_unload");
         const lv_area_t reset = at("btn_reset");
-        const lv_area_t settings = at("btn_settings");
-        REQUIRE(settings.y1 > unload.y2);
-        CAPTURE(grid.x1, grid.x2, unload.x1, reset.x2, settings.x1, settings.x2);
+        REQUIRE(reset.y1 > unload.y2);
+        CAPTURE(grid.x1, grid.x2, load.x1, unload.x2, reset.x1, reset.x2);
         // The lone button keeps its cell width and stands in the middle.
-        CHECK(lv_area_get_width(&settings) == lv_area_get_width(&unload));
-        CHECK(std::abs((settings.x1 - grid.x1) - (grid.x2 - settings.x2)) <= 1);
+        CHECK(lv_area_get_width(&reset) == lv_area_get_width(&unload));
+        CHECK(std::abs((reset.x1 - grid.x1) - (grid.x2 - reset.x2)) <= 1);
         // A full row leaves its slack evenly on both sides.
-        CHECK(std::abs((unload.x1 - grid.x1) - (grid.x2 - reset.x2)) <= 1);
+        CHECK(std::abs((load.x1 - grid.x1) - (grid.x2 - unload.x2)) <= 1);
     }
 }
 
