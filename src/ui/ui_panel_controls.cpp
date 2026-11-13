@@ -702,7 +702,8 @@ void ControlsPanel::populate_nozzle_tool_dropdown() {
             if (!options.empty()) {
                 options += '\n';
             }
-            options += helix::ui::tool_label(tool.index);
+            options +=
+                helix::ui::active_tool_label(tool.name, tool.index, helix::ui::ToolLabelForm::Full);
         }
         lv_dropdown_set_options(nozzle_tool_dropdown_, options.c_str());
     }
@@ -711,8 +712,14 @@ void ControlsPanel::populate_nozzle_tool_dropdown() {
 
 void ControlsPanel::sync_nozzle_tool() {
     update_nozzle_label();
-    if (nozzle_tool_dropdown_ && nozzle_tool() < helix::ToolState::instance().tool_count()) {
+    const auto& tools = helix::ToolState::instance().tools();
+    if (nozzle_tool_dropdown_ && nozzle_tool() < static_cast<int>(tools.size())) {
         lv_dropdown_set_selected(nozzle_tool_dropdown_, static_cast<uint32_t>(nozzle_tool()));
+        // The closed control shows the tool's name; the open list adds its
+        // G-code name beside it.
+        const auto& tool = tools[static_cast<size_t>(nozzle_tool())];
+        lv_dropdown_set_text(nozzle_tool_dropdown_,
+                             helix::ui::active_tool_name_label(tool.name, tool.index).c_str());
     }
     nozzle_observers_.bind<ControlsPanel>(
         printer_state_.temperature_state(), nozzle_extruder_name(), nozzle_tool_mounted(), this,

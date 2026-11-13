@@ -1090,7 +1090,8 @@ void FilamentPanel::update_tool_noun() {
 }
 
 void FilamentPanel::sync_tool_dropdown_text() {
-    // The closed dropdown shows the G-code name ("T0"), not the full option
+    // The closed dropdown shows the toolhead's name ("Tool 1"), or the G-code
+    // name of a lane on a single head, not the full option
     // string the open list carries; every selection change routes through here
     // so the two can never disagree.
     if (!extruder_dropdown_)
@@ -1100,7 +1101,12 @@ void FilamentPanel::sync_tool_dropdown_text() {
     const int selected = static_cast<int>(lv_dropdown_get_selected(extruder_dropdown_));
     std::string label;
     if (selected >= 0 && selected < static_cast<int>(tools.size())) {
-        label = helix::ui::tool_label(tools[selected].index);
+        // A toolhead is named as the screen numbers it; a lane feeding the one
+        // head answers to its G-code name.
+        const auto& tool = tools[static_cast<size_t>(selected)];
+        label = ts.has_multiple_toolheads()
+                    ? helix::ui::active_tool_name_label(tool.name, tool.index)
+                    : helix::ui::tool_label(tool.index);
     }
     lv_dropdown_set_text(extruder_dropdown_, label.c_str());
 }
@@ -2239,7 +2245,7 @@ void FilamentPanel::populate_extruder_dropdown() {
 
     // Build options string ("Tool 1 (T0)\nTool 2 (T1)\n..."). The open list
     // sizes itself to its widest option, so it always has room for the full
-    // form; the closed control shows only the G-code name. With one head, every
+    // form; the closed control shows only the tool's name. With one head, every
     // tool is a lane the hub feeds into it, so each is named by its lane
     // ("Slot 1 (T0)", "1A (T0)"): "Tool 2" would name a toolhead the printer
     // does not have.

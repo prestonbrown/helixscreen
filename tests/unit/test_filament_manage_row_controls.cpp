@@ -144,7 +144,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Cool Down keeps its grid cell while nothing
     CHECK_FALSE(lv_obj_has_state(cooldown, LV_STATE_DISABLED));
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown names the tool as G-code does",
+TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown names the tool as the screen numbers it",
                  "[filament][ui][tool][1769]") {
     ManageRowHarness h(*this, {"extruder", "extruder1"}, AmsType::NONE);
 
@@ -153,7 +153,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown names the tool as G-co
 
     const char* closed = lv_dropdown_get_text(dd);
     REQUIRE(closed != nullptr);
-    CHECK(std::string(closed) == "T0");
+    CHECK(std::string(closed) == "Tool 1");
 
     // The active tool moving to the second head moves the closed text with it.
     lv_subject_set_int(ToolState::instance().get_active_tool_subject(), 1);
@@ -161,13 +161,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown names the tool as G-co
     REQUIRE(lv_dropdown_get_selected(dd) == 1);
     closed = lv_dropdown_get_text(dd);
     REQUIRE(closed != nullptr);
-    CHECK(std::string(closed) == "T1");
+    CHECK(std::string(closed) == "Tool 2");
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown keeps T<n> for a configured tool name",
+TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown shows a configured tool name as is",
                  "[filament][ui][tool][1769]") {
-    // The closed control is as narrow as a tool switcher segment, so it reads
-    // the G-code name; the open list carries each configured name beside it.
+    // A configured name is what the machine is labeled with; the open list
+    // adds each tool's G-code name beside it.
     ManageRowHarness h(*this, {"toolchanger", "tool Left", "tool Right", "extruder", "extruder1"},
                        AmsType::NONE);
 
@@ -178,7 +178,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown keeps T<n> for a confi
 
     const char* closed = lv_dropdown_get_text(dd);
     REQUIRE(closed != nullptr);
-    CHECK(std::string(closed) == "T0");
+    CHECK(std::string(closed) == "Left");
     const char* options = lv_dropdown_get_options(dd);
     REQUIRE(options != nullptr);
     CHECK(std::string(options) == "Left (T0)\nRight (T1)");
@@ -407,13 +407,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(dd != nullptr);
     lv_subject_set_int(ToolState::instance().get_active_tool_subject(), 1);
     h.fx.process_lvgl(30);
-    REQUIRE(std::string(lv_dropdown_get_text(dd)) == "T1");
+    REQUIRE(std::string(lv_dropdown_get_text(dd)) == "Tool 2");
 
     // A park leaves no tool on the carriage; the panel still aims at the tool
     // it was on, so heating it needs no pick up.
     lv_subject_set_int(ToolState::instance().get_active_tool_subject(), -1);
     h.fx.process_lvgl(30);
-    CHECK(std::string(lv_dropdown_get_text(dd)) == "T1");
+    CHECK(std::string(lv_dropdown_get_text(dd)) == "Tool 2");
 }
 
 namespace {

@@ -16,8 +16,10 @@
 #include "../test_helpers/filament_panel_test_access.h"
 #include "../test_helpers/modal_answer.h"
 #include "../test_helpers/scoped_shared_resource.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "material_settings_manager.h"
 #include "moonraker_api.h"
@@ -180,6 +182,21 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: a tool change moves the sel
     CHECK(TA::target_tool(*h.panel) == 0);
     lv_obj_t* dd = TA::extruder_dropdown(*h.panel);
     CHECK(lv_dropdown_get_selected(dd) == 0);
+}
+
+TEST_CASE_METHOD(
+    LVGLUITestFixture,
+    "Filament panel: the closed tool chooser names the toolhead as the screen numbers it",
+    "[filament][target_tool][numbering]") {
+    TargetToolHarness h(*this);
+    h.choose(1);
+    lv_obj_t* dd = TA::extruder_dropdown(*h.panel);
+    CHECK(std::string(lv_dropdown_get_text(dd)) == "Tool 2");
+    {
+        ScopedZeroLaneNumbering zero;
+        h.choose(1);
+        CHECK(std::string(lv_dropdown_get_text(dd)) == "Tool 1");
+    }
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
