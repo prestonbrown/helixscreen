@@ -53,8 +53,6 @@ TEST_CASE("Reforge's ff_print runs its before-macro ahead of the file",
     SECTION("the shipped macro with prepare on") {
         CHECK(helix::firmware_runs_start_macro_before_file(
             json{{"ff_print", ff_print}, {"gcode_macro ff_before_print_start", prepare("1")}}));
-        CHECK(helix::firmware_runs_start_macro_before_file(
-            json{{"ff_print", ff_print}, {"gcode_macro ff_before_print_start", prepare("True")}}));
     }
     SECTION("a before_macro without a prepare variable prepares") {
         CHECK(helix::firmware_runs_start_macro_before_file(

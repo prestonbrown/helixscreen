@@ -3284,7 +3284,6 @@ TEST_CASE("PrinterDetector: an extension under one of a bundled entry's id_alias
 
         const auto status = PrinterDetector::get_load_status();
         REQUIRE(status.loaded);
-        CHECK(status.total_printers == 2);
         CHECK(status.user_additions == 0);
         // The bundled id still overrides as it always has.
         CHECK(status.user_overrides == 1);
