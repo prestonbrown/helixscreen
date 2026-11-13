@@ -678,9 +678,15 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     status_obj["filament_feed right"] = self->u1_feed_side_json(2);
                 }
             }
-            // Z-Mod's colour registry (creator5_zmod persona).
+            // Z-Mod's colour registry (creator5_zmod persona) and IFS state
+            // (HELIX_MOCK_AMS=ifs-jacker).
             if (objects.contains("zmod_color")) {
                 status_obj["zmod_color"] = self->zmod_color_status();
+            }
+            if (objects.contains("zmod_ifs")) {
+                if (auto ifs = self->zmod_ifs_status(); !ifs.empty()) {
+                    status_obj["zmod_ifs"] = std::move(ifs);
+                }
             }
             // Stock FlashForge driver-latch pins (creator5_zmod persona).
             for (const char* pin : {"output_pin enable_pin_tmc_x", "output_pin enable_pin_tmc_y"}) {
@@ -1037,9 +1043,15 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     }
                 }
             }
-            // Z-Mod's colour registry (creator5_zmod persona).
+            // Z-Mod's colour registry (creator5_zmod persona) and IFS state
+            // (HELIX_MOCK_AMS=ifs-jacker).
             if (objects.contains("zmod_color")) {
                 status_obj["zmod_color"] = self->zmod_color_status();
+            }
+            if (objects.contains("zmod_ifs")) {
+                if (auto ifs = self->zmod_ifs_status(); !ifs.empty()) {
+                    status_obj["zmod_ifs"] = std::move(ifs);
+                }
             }
             // Stock FlashForge driver-latch pins (creator5_zmod persona).
             for (const char* pin : {"output_pin enable_pin_tmc_x", "output_pin enable_pin_tmc_y"}) {

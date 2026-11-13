@@ -82,7 +82,7 @@ TEST_CASE("AD5X GET_ZCOLOR parse keeps the IFS_STATUS line from a prompt-dialog 
     CHECK(r.ifs_chan == 4);
     CHECK(r.ifs_state == 4);
     REQUIRE(r.ifs_ports);
-    CHECK(*r.ifs_ports == std::array<bool, 4>{false, true, true, true});
+    CHECK(*r.ifs_ports == std::vector<bool>{false, true, true, true});
 }
 
 TEST_CASE("AD5X GET_ZCOLOR parse takes the first usable IFS_STATUS Chan and any line's Ports",
@@ -94,7 +94,7 @@ TEST_CASE("AD5X GET_ZCOLOR parse takes the first usable IFS_STATUS Chan and any 
     CHECK(r.ifs_chan == 2);
     CHECK(r.ifs_state == -1);
     REQUIRE(r.ifs_ports);
-    CHECK(*r.ifs_ports == std::array<bool, 4>{true, false, true, false});
+    CHECK(*r.ifs_ports == std::vector<bool>{true, false, true, false});
 }
 
 TEST_CASE("AD5X IFS_STATUS object reads Chan and Ports independently, Ports all or nothing",

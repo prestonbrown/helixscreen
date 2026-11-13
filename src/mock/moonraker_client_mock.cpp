@@ -298,6 +298,8 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
         }
     }
 
+    init_ifs_jacker_from_env();
+
     // OpenAMS reads no identity off its spools: color and material come from the
     // override store, which reads the shared lane_data namespace (laneN keys,
     // N = 1-based global slot; inner "lane" is 0-based).
@@ -920,6 +922,9 @@ nlohmann::json MoonrakerClientMock::defect_detection_status() const {
 }
 
 json MoonrakerClientMock::zmod_color_status() const {
+    if (is_mock_ifs_jacker()) {
+        return ifs_jacker_zmod_color_json();
+    }
     std::lock_guard<std::mutex> lock(zmod_mutex_);
     json slots = json::array();
     for (std::size_t i = 0; i < zmod_slots_.size(); ++i) {

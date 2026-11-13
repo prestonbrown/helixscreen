@@ -24,9 +24,9 @@ ZColorSilentResult parse_zcolor_silent(const std::vector<std::string>& lines) {
     static const helix::Regex summary_re(
         R"(^//\s*Extruder:\s*(.+?)\s*\|\s*IFS:\s*(True|False)\s*$)");
     // Slot: "// N: MATERIAL/HEX" or "// N: MATERIAL/NAME/HEX" or old "// N: MATERIAL"
-    static const helix::Regex slot_re(R"(^//\s*([1-9])\s*:\s*(.+?)\s*$)");
+    static const helix::Regex slot_re(R"(^//\s*([1-9]\d?)\s*:\s*(.+?)\s*$)");
     // Extruder detail inside summary text: "N: MATERIAL/..."
-    static const helix::Regex extruder_slot_re(R"(^([1-9])\s*:)");
+    static const helix::Regex extruder_slot_re(R"(^([1-9]\d?)\s*:)");
     // current channel: "None (N)" or bare "N" form — look for "(N)" paren form
     static const helix::Regex channel_paren_re(R"(\((\d+)\))");
 
@@ -81,7 +81,7 @@ ZColorSilentResult parse_zcolor_silent(const std::vector<std::string>& lines) {
             helix::RegexMatch em;
             if (helix::regex_search(extruder_part, em, extruder_slot_re)) {
                 const auto n = helix::text_io::parse_leading<int>(em[1].str());
-                if (n && *n >= 1 && *n <= kNumPorts) {
+                if (n && *n >= 1 && *n <= kMaxPorts) {
                     result.extruder_slot = *n - 1; // 0-based
                 }
             }
@@ -101,7 +101,7 @@ ZColorSilentResult parse_zcolor_silent(const std::vector<std::string>& lines) {
                 continue;
             }
             const int n = *parsed_n;
-            if (n < 1 || n > kNumPorts) {
+            if (n < 1 || n > kMaxPorts) {
                 continue; // slot number out of range — skip (e.g. "// 99: nonsense")
             }
 
@@ -151,24 +151,31 @@ void read_ifs_status_object(const json& obj, ZColorSilentResult& result) {
         result.saw_valid_response = true;
     }
 
+    if (auto limit = obj.find("color_limit"); limit != obj.end() && limit->is_number_integer()) {
+        result.port_count = clamp_port_count(limit->get<int>());
+    }
+
     // Per-port presence: the RS-485 silk switch for port i+1, and the presence
     // authority in apply_zcolor_result — which is what makes empty-channel
     // resurrection from a stale ffmColor impossible (#981). All or nothing: one
     // non-boolean entry discards the array rather than inventing a value for
     // that port.
     auto ports_it = obj.find("Ports");
-    if (ports_it == obj.end() || !ports_it->is_array() || ports_it->size() != kNumPorts) {
+    // One entry per port: never fewer than one IFS has, never more than kMaxPorts.
+    if (ports_it == obj.end() || !ports_it->is_array() ||
+        ports_it->size() < static_cast<size_t>(kDefaultPorts) ||
+        ports_it->size() > static_cast<size_t>(kMaxPorts)) {
         return;
     }
-    std::array<bool, kNumPorts> ports{};
-    for (int p = 0; p < kNumPorts; ++p) {
-        const auto& v = (*ports_it)[static_cast<size_t>(p)];
+    std::vector<bool> ports;
+    ports.reserve(ports_it->size());
+    for (const auto& v : *ports_it) {
         if (!v.is_boolean()) {
             return;
         }
-        ports[static_cast<size_t>(p)] = v.get<bool>();
+        ports.push_back(v.get<bool>());
     }
-    result.ifs_ports = ports;
+    result.ifs_ports = std::move(ports);
     result.saw_valid_response = true;
 }
 
@@ -186,7 +193,11 @@ bool read_zmod_color_object(const json& obj, ZColorSilentResult& result,
         channel = chan_it->get<int>();
     }
 
-    auto slots = helix::zmod_color::parse_slots(obj, kNumPorts);
+    if (auto limit = obj.find("color_limit"); limit != obj.end() && limit->is_number_integer()) {
+        result.port_count = clamp_port_count(limit->get<int>());
+    }
+
+    auto slots = helix::zmod_color::parse_slots(obj, kMaxPorts);
     if (!slots) {
         return false;
     }
@@ -255,7 +266,7 @@ bool read_ifs_materials_object(const json& obj, ZColorSilentResult& result) {
             continue;
         }
         const int id = *id_number;
-        if (id < 1 || id > kNumPorts || !slot_it.value().is_object()) {
+        if (id < 1 || id > kDefaultPorts || !slot_it.value().is_object()) {
             continue;
         }
         const auto& entry = slot_it.value();
@@ -290,7 +301,7 @@ IfsModuleObject parse_ifs_module_object(const json& obj) {
     // nothing across the array - one non-integer entry discards the presence
     // view rather than inventing values.
     if (auto lc = obj.find("loaded_channels"); lc != obj.end() && lc->is_array()) {
-        std::array<bool, kNumPorts> ports{};
+        std::array<bool, kDefaultPorts> ports{};
         bool usable = true;
         for (const auto& ch : *lc) {
             if (!ch.is_number_integer()) {
@@ -298,7 +309,7 @@ IfsModuleObject parse_ifs_module_object(const json& obj) {
                 break;
             }
             const int c = ch.get<int>();
-            if (c >= 1 && c <= kNumPorts) {
+            if (c >= 1 && c <= kDefaultPorts) {
                 ports[static_cast<size_t>(c - 1)] = true;
             }
         }
@@ -346,7 +357,7 @@ std::optional<bool> first_reading(const json& status, std::initializer_list<cons
 SensorFrame parse_sensor_frame(const json& status) {
     SensorFrame f;
     // Leading space in sensor name is intentional — Klipper object naming convention
-    for (int port = 1; port <= kNumPorts; ++port) {
+    for (int port = 1; port <= kDefaultPorts; ++port) {
         const std::string key = "filament_switch_sensor _ifs_port_sensor_" + std::to_string(port);
         f.port_detected[static_cast<size_t>(port - 1)] = filament_detected(status, key.c_str());
     }
@@ -392,7 +403,7 @@ SaveVariables parse_save_variables(const json& vars, const std::string& known_pr
     }
     if (auto it = vars.find("ifs_loaded"); it != vars.end() && it->is_number_integer()) {
         const int loaded = it->get<int>();
-        out.module_loaded = (loaded >= 1 && loaded <= kNumPorts) ? loaded : 0;
+        out.module_loaded = (loaded >= 1 && loaded <= kDefaultPorts) ? loaded : 0;
     }
 
     const std::string p = out.prefix.value_or(known_prefix);
@@ -407,7 +418,8 @@ SaveVariables parse_save_variables(const json& vars, const std::string& known_pr
         const size_t n = std::min(self_tools->size(), static_cast<size_t>(kToolMapSize));
         for (size_t i = 0; i < n; ++i) {
             if ((*self_tools)[i].is_number_integer()) {
-                out.tools[i] = (*self_tools)[i].get<int>();
+                const int port = (*self_tools)[i].get<int>();
+                out.tools[i] = (port >= 1 && port <= kDefaultPorts) ? port : kUnmappedPort;
             }
         }
     }
@@ -449,7 +461,7 @@ std::optional<ToolMap> parse_ifs_tool_map(const json& ifs_object) {
         const json& lane = entry.value();
         if (lane.is_number_integer()) {
             const int port = lane.get<int>();
-            if (port >= 1 && port <= kNumPorts) {
+            if (port >= 1 && port <= kDefaultPorts) {
                 parsed[static_cast<size_t>(*tool_number)] = port;
             }
         }
@@ -551,7 +563,7 @@ std::optional<AdventurerFile> parse_adventurer_json(const std::string& content) 
     const auto& ffm = *ffm_it;
     file.has_ffm = true;
 
-    for (int port = 1; port <= kNumPorts; ++port) {
+    for (int port = 1; port <= kMaxPorts; ++port) {
         auto color_it = ffm.find("ffmColor" + std::to_string(port));
         auto type_it = ffm.find("ffmType" + std::to_string(port));
         if (color_it == ffm.end() && type_it == ffm.end())

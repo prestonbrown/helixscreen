@@ -861,7 +861,7 @@ AmsBackendAd5xIfs::UnloadLaneDecision table_verdict(bool module, int recorded, i
     in.module = module;
     in.recorded_lane = recorded;
     in.at_hub_lane = at_hub;
-    in.present = present;
+    std::copy(present.begin(), present.end(), in.present.begin());
     in.head_loaded = head;
     return AmsBackendAd5xIfs::decide_unload_lane(in);
 }
