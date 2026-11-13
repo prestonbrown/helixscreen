@@ -26,7 +26,8 @@ bool MoonrakerClientMock::mock_toolchanger_selected() {
 }
 
 bool MoonrakerClientMock::is_mock_toolchanger() const {
-    return mock_toolchanger_selected();
+    // Reforge's ff_toolchange publishes klipper-toolchanger's objects under AFC too.
+    return mock_toolchanger_selected() || is_mock_reforge_afc();
 }
 
 void MoonrakerClientMock::dispatch_toolchanger_tool(int tool) {

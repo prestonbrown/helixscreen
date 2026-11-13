@@ -52,6 +52,7 @@ constexpr Expectation kExpected[] = {
     {"ad5m",               "FlashForge Adventurer 5M",  "ad5m",         true},
     {"creator5",           "FlashForge Creator 5 Pro",  "creator5_pro", true},
     {"creator5_zmod",      "FlashForge Creator 5 Pro",  "creator5_pro", true},
+    {"creator5_afc",       "FlashForge Creator 5 Pro",  "creator5_pro", true},
     {"generic_corexy",     "",                          "",             false},
     {"generic_bedslinger", "",                          "",             false},
     {"multi_extruder",     "",                          "",             false},

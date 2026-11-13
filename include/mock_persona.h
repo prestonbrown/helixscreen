@@ -29,6 +29,7 @@ enum class PrinterType {
     FLASHFORGE_AD5X,          // FlashForge Adventurer 5X (IFS, simulated by the mock AMS)
     CREALITY_K2_PLUS,         // Creality K2 Plus (CFS box, chamber heater)
     SNAPMAKER_U1,             // Snapmaker U1 (4 independent extruders)
+    FLASHFORGE_CREATOR5_AFC,  // FlashForge Creator 5 Pro on Reforge with AFC over its changer
 };
 
 /// Bit set of the objects every mock persona inherits by default.
@@ -99,7 +100,7 @@ inline constexpr PersonaHardware kFlashforgeAd5mHardware = {
     {"fan", "heater_fan hotend_fan", "controller_fan stepper_driver_fan"},
     {}};
 
-/// FlashForge Creator 5 Pro, stock or on Z-Mod: 4-head tool changer, enclosed, heated
+/// FlashForge Creator 5 Pro, on Reforge or Z-Mod: 4-head tool changer, enclosed, heated
 /// chamber. Object names mirror assets/config/presets/creator5_pro.json so the mock
 /// and the shipped preset describe the same machine.
 inline constexpr PersonaHardware kCreator5Hardware = {
@@ -241,6 +242,10 @@ struct PersonaDescriptor {
                 "snapmaker",
                 false,
                 &kSnapmakerU1Hardware};
+    case PrinterType::FLASHFORGE_CREATOR5_AFC:
+        // Reforge as its master ships it: AFC over ff_toolchange, driven by the
+        // production AFC backend.
+        return {"mock-printer", standard, "corexy", kHappyHareMmu, "", true, &kCreator5Hardware};
     case PrinterType::FLASHFORGE_CREATOR5_ZMOD:
         // Travel as a Z-Mod Creator 5 Pro reports it: the purge chute sits
         // beyond the bed at X275 Y254.
@@ -296,7 +301,7 @@ struct PersonaEntry {
 /// Every HELIX_MOCK_PRINTER value. Row 0 is the default persona. One row per
 /// line: scripts/screenshot.sh extracts the ids with sed.
 // clang-format off
-inline constexpr std::array<PersonaEntry, 15> kPersonas = {{
+inline constexpr std::array<PersonaEntry, 16> kPersonas = {{
     {"voron_24", PrinterType::VORON_24, "Voron 2.4", ""},
     {"voron_trident", PrinterType::VORON_TRIDENT, "Voron Trident", ""},
     {"k1", PrinterType::CREALITY_K1, "Creality K1", "Creality K1C"},
@@ -304,6 +309,7 @@ inline constexpr std::array<PersonaEntry, 15> kPersonas = {{
     {"ad5m", PrinterType::FLASHFORGE_AD5M, "Flashforge AD5M", ""},
     {"creator5", PrinterType::FLASHFORGE_CREATOR5, "FlashForge Creator 5 Pro", ""},
     {"creator5_zmod", PrinterType::FLASHFORGE_CREATOR5_ZMOD, "FlashForge Creator 5 Pro (Z-Mod)", ""},
+    {"creator5_afc", PrinterType::FLASHFORGE_CREATOR5_AFC, "FlashForge Creator 5 Pro (Reforge AFC)", ""},
     {"generic_corexy", PrinterType::GENERIC_COREXY, "Generic CoreXY", ""},
     {"generic_bedslinger", PrinterType::GENERIC_BEDSLINGER, "Generic Bedslinger", ""},
     {"multi_extruder", PrinterType::MULTI_EXTRUDER, "Multi-Extruder", ""},

@@ -2746,6 +2746,15 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         std::vector<std::array<double, 3>> offsets;
         double global_z = -0.05; ///< save_variables global_z_offset
     };
+    // --- Reforge AFC (moonraker_client_mock_reforge.cpp), behind reforge_afc_mutex_ ---
+    mutable std::mutex reforge_afc_mutex_;
+    /// Per lane e<n>: the T number AFC maps to it.
+    std::array<int, 4> reforge_lane_map_{0, 1, 2, 3};
+    /// The head on the carriage, -1 for none.
+    int reforge_mounted_ = -1;
+    /// Mount @p head as AFC_SELECT_TOOL does and publish what moved.
+    void reforge_mount(int head);
+
     mutable std::mutex indx_mutex_;
     IndxMockState indx_;
     /// The INDX frame last sent, so a change sends only what moved.
@@ -2911,6 +2920,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// The `ace` object frame, the engine's get_status() shape.
     [[nodiscard]] nlohmann::json multiace_status_json() const;
 
+    // --- Reforge AFC over ff_toolchange (creator5_afc persona; public for the mock tests) ---
+    bool is_mock_reforge_afc() const;
+    /// Every AFC object Reforge's ff-afc.cfg makes AFC publish, keyed as Klipper names them.
+    [[nodiscard]] nlohmann::json reforge_afc_status_json() const;
+    /// The configfile sections ff-afc.cfg and ff-print-macros.cfg declare.
+    [[nodiscard]] nlohmann::json reforge_afc_config_sections() const;
+
     // --- Bondtech INDX mock hardware (public for the mock tests) ---
     bool is_mock_indx() const;
     /// The simulated extruder target (0 = off).
@@ -2938,6 +2954,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     GcodeResult gcode_ifs_module(const std::string& gcode);
     GcodeResult gcode_medusa(const std::string& gcode);
     GcodeResult gcode_indx(const std::string& gcode);
+    /// AFC_SELECT_TOOL, CHANGE_TOOL, SET_MAP and T<n> on the creator5_afc persona.
+    GcodeResult gcode_reforge_afc(const std::string& gcode);
     /// RESPOND: echoes MSG on the console the way Klipper's [respond] does, so
     /// an action prompt a script raises reaches the screen.
     GcodeResult gcode_respond(const std::string& gcode);
