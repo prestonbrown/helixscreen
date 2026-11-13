@@ -29,13 +29,13 @@ An update keeps your settings. See [What an Update Keeps](#what-an-update-keeps)
 
 SSH into the printer (or the computer HelixScreen runs on) and run the installer with `--update`.
 
-**Most printers** (Raspberry Pi and other generic Linux hosts, Creality K2, Elegoo Centauri Carbon, Snapmaker U1, Creality Sonic Pad, QIDI):
+**Most printers** (Raspberry Pi and other generic Linux hosts, Elegoo Centauri Carbon, Snapmaker U1, Creality Sonic Pad, QIDI):
 
 ```bash
 curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --update
 ```
 
-If the printer has no `curl`, run the copy of the installer that came with your install instead. It is in the install folder:
+If the printer has no `curl` (the Creality K2 series, for one), run the copy of the installer that came with your install instead. It is in the install folder:
 
 ```bash
 sh <install folder>/install.sh --update

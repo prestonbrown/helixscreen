@@ -403,7 +403,7 @@ Tap **Test Connection**. The wizard goes on once the connection works.
 
 Give your printer a name and choose its type. HelixScreen suggests a type from what the printer reports about itself. To pick one yourself, search by name or browse by maker; the list covers over 100 printers.
 
-![The setup wizard's printer identification step, with a search box and brand tiles](../images/user/wizard-printer-identify.png)
+![The setup wizard's printer identification step, with a search box and the list of printers](../images/user/wizard-printer-identify.png)
 
 ### Step 6: Heaters
 
