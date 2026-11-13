@@ -188,7 +188,8 @@ moonraker_asset_name_support_in() {
 # keep their moonraker.conf git-tracked in their own repo, so a stanza written
 # there dirties their checkout and their OTA drops it again. On a mod host the
 # sanctioned include point is the mod's user.moonraker.conf (included by the
-# mod's conf), which the host profile recorded in HOST_MOONRAKER_USER_CONF.
+# mod's conf), which the host profile recorded in HOST_MOONRAKER_USER_CONF, or
+# which a mod-owned candidate names in its own [include] line.
 find_moonraker_conf() {
     # Mod host: answer before any filesystem discovery can find the mod's own
     # conf (or a symlink to it). The user conf may not exist yet; the stanza
@@ -202,30 +203,71 @@ find_moonraker_conf() {
     # firmware declared one (COSMOS), else <KLIPPER_HOME>/printer_data/config.
     local config_dir
     config_dir="$(klipper_config_dir)"
-    if [ -n "$config_dir" ]; then
-        local user_conf="${config_dir}/moonraker.conf"
-        if [ -f "$user_conf" ] && ! host_path_is_mod_owned "$user_conf"; then
-            echo "$user_conf"
-            return 0
-        fi
+    if [ -n "$config_dir" ] && moonraker_conf_answer "${config_dir}/moonraker.conf"; then
+        return 0
     fi
 
     # The conf the running Moonraker loads, from its command line.
     local loaded
     loaded=$(running_moonraker_conf)
-    if [ -n "$loaded" ] && ! host_path_is_mod_owned "$loaded"; then
-        echo "$loaded"
+    if [ -n "$loaded" ] && moonraker_conf_answer "$loaded"; then
         return 0
     fi
 
     # Static fallback
     for conf in $MOONRAKER_CONF_PATHS; do
-        if [ -f "$conf" ] && ! host_path_is_mod_owned "$conf"; then
-            echo "$conf"
+        if moonraker_conf_answer "$conf"; then
             return 0
         fi
     done
     echo ""
+}
+
+# Print what find_moonraker_conf answers for candidate conf @1: @1 itself, or
+# for a mod-owned @1 the user conf it includes (mod_user_moonraker_conf).
+# Returns 1, printing nothing, when @1 is missing or neither is ours to edit.
+moonraker_conf_answer() {
+    [ -f "$1" ] || return 1
+    if ! host_path_is_mod_owned "$1"; then
+        printf '%s\n' "$1"
+        return 0
+    fi
+    mod_user_moonraker_conf "$1"
+}
+
+# Print the user conf mod-owned moonraker.conf @1 includes
+# ([include ...user.moonraker.conf]), resolved the way Moonraker resolves it:
+# a relative include against the directory of @1 as the path was given, so a
+# conf linked into the mod's tree resolves beside the link (Z-Mod's AD5X
+# config dir), not inside the tree. Returns 1 when @1 includes none, or the
+# one it names is mod-owned as well.
+mod_user_moonraker_conf() {
+    local inc
+    inc=$(sed -n 's/^\[include[[:space:]]\{1,\}\([^]]*user\.moonraker\.conf\)[[:space:]]*\][[:space:]]*$/\1/p' "$1" 2>/dev/null | sed -n 1p)
+    [ -n "$inc" ] || return 1
+    case "$inc" in
+        /*) inc="$(running_moonraker_root)$inc" ;;
+        *) inc="$(dirname "$1")/$inc" ;;
+    esac
+    host_path_is_mod_owned "$inc" && return 1
+    printf '%s\n' "$inc"
+}
+
+# Print the mod-owned moonraker.conf that includes user conf @1, from the
+# candidates find_moonraker_conf walks. Empty when @1 is no mod's user conf.
+# A stanza an earlier install appended to the mod's conf is reachable only
+# from there: the user conf includes nothing back.
+mod_conf_including_user_conf() {
+    local config_dir cand
+    config_dir="$(klipper_config_dir)"
+    for cand in ${config_dir:+"${config_dir}/moonraker.conf"} "$(running_moonraker_conf)" $MOONRAKER_CONF_PATHS; do
+        [ -f "$cand" ] && host_path_is_mod_owned "$cand" || continue
+        if [ "$(mod_user_moonraker_conf "$cand")" = "$1" ]; then
+            printf '%s\n' "$cand"
+            return 0
+        fi
+    done
+    return 0
 }
 
 # Check if update_manager section for helixscreen already exists
@@ -248,6 +290,32 @@ update_manager_stanza_files() {
 conf_left_to_mod() {
     host_path_is_mod_owned "$1" || return 1
     log_warn "$2 is in $1, which the firmware mod owns - leaving it in place"
+}
+
+# Warn that the [update_manager helixscreen] stanza in mod-owned conf @1 now
+# duplicates the one in user conf @2, and say how to remove it. The mod's conf
+# is a file in the mod's git tree: the entry marks that tree modified, and
+# Moonraker refuses to update a modified git_repo, so the mod's own updates
+# stay blocked until the file is restored. That file is the mod's to restore.
+warn_mod_conf_stanza() {
+    local real
+    real=$(host_canonical_path "$1")
+    log_warn "An earlier HelixScreen install added [update_manager helixscreen] to"
+    log_warn "  $1"
+    log_warn "which belongs to the firmware mod. Moonraker reports the mod's git tree as"
+    log_warn "modified and will not update the mod until that file is restored."
+    log_warn "HelixScreen's updater entry is now in $2. To unblock the mod's updates:"
+    log_warn "  git -C $(dirname "$real") checkout -- $(basename "$real")"
+    log_warn "then restart Moonraker."
+}
+
+# warn_mod_conf_stanza for each mod-owned file in list @1 (one per line).
+warn_mod_conf_stanzas() {
+    [ -n "$1" ] || return 0
+    printf '%s\n' "$1" | while IFS= read -r _wmcs_file; do
+        [ -n "$_wmcs_file" ] && warn_mod_conf_stanza "$_wmcs_file" "$2"
+    done
+    return 0
 }
 
 # update_manager_stanza_files @1 without the firmware mod's files, each of
@@ -1033,10 +1101,25 @@ configure_moonraker_updates() {
     # Every check and rewrite below goes to the files Moonraker reads it from;
     # appending one to the conf would leave two for Moonraker to merge. A
     # stanza in the firmware mod's files counts as present but is never edited.
-    local stanza_files editable_files stanza_conf
-    stanza_files=$(update_manager_stanza_files "$conf")
-    editable_files=$(update_manager_editable_stanza_files "$conf")
+    # When conf is the user conf a mod's own conf includes, the search starts
+    # at the mod's conf, which reaches the user conf and everything beside it.
+    local mod_conf stanza_files editable_files stanza_conf
+    mod_conf=$(mod_conf_including_user_conf "$conf")
+    stanza_files=$(update_manager_stanza_files "${mod_conf:-$conf}")
+    editable_files=$(update_manager_editable_stanza_files "${mod_conf:-$conf}")
     stanza_conf=$(printf '%s\n' "$editable_files" | sed -n 1p)
+    # The upgrade case: an earlier install appended the stanza to the mod's
+    # conf. The user conf still takes one when no editable file holds it, so
+    # the updater keeps working once the mod's file is restored. Moonraker
+    # merges a section that appears in more than one file and rejects a
+    # repeat only within one file.
+    local mod_stanza_files=""
+    if [ -n "$mod_conf" ] && [ -n "$stanza_files" ]; then
+        mod_stanza_files=$(printf '%s\n' "$stanza_files" | while IFS= read -r _mcs_file; do
+            if host_path_is_mod_owned "$_mcs_file"; then printf '%s\n' "$_mcs_file"; fi
+        done)
+        [ -n "$editable_files" ] || stanza_files=""
+    fi
 
     # Gate on Moonraker's asset_name support before arming the one-click
     # updater (prestonbrown/helixscreen#993). On a Moonraker that ignores
@@ -1126,6 +1209,7 @@ STALE_FILES
         done <<STANZA_FILES
 $editable_files
 STANZA_FILES
+        warn_mod_conf_stanzas "$mod_stanza_files" "$stanza_conf"
         # Where the OS has no package manager, silence the provider warnings.
         disable_system_updates_on_buildroot "$conf"
         # Still ensure asvc is correct even if section already exists
@@ -1137,6 +1221,7 @@ STANZA_FILES
     fi
 
     add_update_manager_section "$conf"
+    warn_mod_conf_stanzas "$mod_stanza_files" "$conf"
     # Where the OS has no package manager, silence the provider warnings.
     disable_system_updates_on_buildroot "$conf"
     ensure_moonraker_asvc "$conf"
