@@ -132,7 +132,12 @@ void MotorRipplePanel::before_show() {
         set_view(View::Running);
         return;
     }
-    const auto& hw = get_moonraker_api()->hardware();
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (!api) {
+        fail(lv_tr("The printer is not connected."));
+        return;
+    }
+    const auto& hw = api->hardware();
     const auto toggle = stepper_resonance_cal::compensation_toggle(hw);
     compare_mode_ = toggle.present();
     lv_subject_set_int(&compare_, compare_mode_ ? 1 : 0);
