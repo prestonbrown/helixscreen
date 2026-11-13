@@ -3901,6 +3901,7 @@
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" en="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" en="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?"/>
   <translation tag="The toolhead is not homed, so this would home into the print" en="The toolhead is not homed, so this would home into the print"/>
+  <translation tag="The toolhead may still be at the chute. Move it away before printing." en="The toolhead may still be at the chute. Move it away before printing."/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" en="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" en="The toolhead sensor indicates no filament is present. Proceed with unload anyway?"/>
   <translation tag="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing." en="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing."/>

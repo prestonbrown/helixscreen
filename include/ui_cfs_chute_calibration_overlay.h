@@ -13,6 +13,11 @@
 #include <atomic>
 #include <memory>
 
+struct MoonrakerError; // NAMESPACE_OK: MoonrakerError itself is global (moonraker_error.h)
+namespace helix {
+class AmsBackend;
+}
+
 namespace helix::ui {
 
 /**
@@ -73,6 +78,10 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
     void start_calibration();
     void handle_jog(double delta_mm);
     void save_position();
+    /// Toast a failed step unless GcodeErrorRouter has reported it already.
+    void report_step_failure(const MoonrakerError& failure);
+    /// Fill the done screen; @p parked false adds that the head may be at the chute.
+    void show_saved(const helix::AmsBackend& backend, bool parked);
     void update_y_display(int centimm);
 
     /// Live toolhead Y in mm, from the position subject; drives the readout

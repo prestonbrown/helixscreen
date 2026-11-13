@@ -4055,6 +4055,7 @@ translations:
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。取り除くまで、プリンターがスロットの装填を拒否する場合があります。それでも印刷を開始しますか？
   The toolhead is not homed, so this would home into the print: 'ツールヘッドがホーミングされていないため、ホーミングするとノズルが造形物に当たります'
+  'The toolhead may still be at the chute. Move it away before printing.': 'ツールヘッドがまだシュートにある可能性があります。印刷前に移動してください。'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: ツールヘッドセンサーがフィラメント装填済みを検出しました。それでも装填を続行しますか？
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: ツールヘッドセンサーがフィラメント未検出を報告しました。それでもアンロードを続行しますか？
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: 'トップカバーが外れました。印刷品質のため、続行する前にトップカバーを接続してください。'

@@ -75,6 +75,19 @@ struct MoonrakerError {
     }
 
     /**
+     * @brief Did Klipper itself raise this failed printer.gcode.script?
+     *
+     * Klipper copies a script's error onto its gcode response stream as a `!!`
+     * line, and GcodeErrorRouter reports that copy: classified, decoded, and as
+     * a recovery modal when the fault has one. Every other type (a timeout, a
+     * lost socket, a refusal before the send) never reached Klipper's
+     * dispatcher, so only the caller can report it.
+     */
+    bool raised_by_klipper() const {
+        return type == MoonrakerErrorType::JSON_RPC_ERROR;
+    }
+
+    /**
      * @brief May the printer still be running a command whose RPC failed?
      *
      * A socket that drops after the request went out leaves the command as

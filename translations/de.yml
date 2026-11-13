@@ -4279,6 +4279,7 @@ translations:
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : Im Werkzeugkopf befindet sich Filament, aber kein AMS-Slot meldet es als geladen. Der Drucker verweigert möglicherweise das Laden eines Slots, bis er geleert ist. Trotzdem starten?
   The toolhead is not homed, so this would home into the print: 'Der Werkzeugkopf ist nicht referenziert, das Referenzieren würde in den Druck fahren'
+  'The toolhead may still be at the chute. Move it away before printing.': 'Der Druckkopf befindet sich möglicherweise noch an der Rinne. Bewege ihn vor dem Drucken weg.'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: Der
     Werkzeugkopfsensor zeigt an, dass Filament bereits geladen ist. Trotzdem mit dem
     Laden fortfahren?
