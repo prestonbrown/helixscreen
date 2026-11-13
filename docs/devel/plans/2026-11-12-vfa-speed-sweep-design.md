@@ -162,12 +162,19 @@ For each speed's samples:
 
 Bands come from these values:
 
-- **Rule:** a speed is "shaky" when its broadband level exceeds a factor of the sweep's
-  median broadband. Neighbouring shaky speeds merge into one band, which is labelled with
-  the ripple that peaks inside it and that ripple's frequency there.
-- **Calibrating the factor:** start at 1.8x and fit it to the Voron and Q2 data. The
-  Voron should yield about 80-93 and 158-176 mm/s, plus about 40-46 if the 4x clears the
-  bar. The Q2 should yield about 40-50 and 85-105 mm/s.
+- **Rule:** a speed is "shaky" when any ripple there exceeds **3.0x that ripple's own
+  median over the sweep and 500 mm/s^2**. Each shaky speed covers half the gap to its
+  neighbouring speeds on either side, and overlapping or touching ranges merge into one
+  band. The band is labelled with the ripple whose peak inside it is highest, that peak's
+  speed and its frequency.
+- **Why not broadband:** the spike tried broadband first, and it missed the Voron X
+  motor's 1x peak at 172 mm/s. That ripple was 5x its own median, but broadband rose only
+  1.2x. Broadband stays as a chart series only.
+- **Fixture results:** checked on the spike fixtures (`tests/fixtures/motor_ripple/`), this
+  rule gives:
+  - Voron X: 77-97 (2x), 113-122 (2x) and 166-179 mm/s (1x).
+  - Voron Y: 42-45 (4x), 77-97 (2x) and 154-179 mm/s (1x).
+  - Q2: bands at about 39-45, 49-53 and 84-105 mm/s, among others.
 - **Speed cost:** this runs per speed as each capture finishes, off the main thread, and
   must keep up on a MIPS K1C-class board (Goertzel, not a full FFT per frame, if the
   broadband step is too slow).
@@ -306,7 +313,8 @@ Also settled:
 
 ## Left to the builder
 
-- Exact frame, threshold and band-factor constants, fitted to the spike data.
+- Exact frame and motion-threshold constants. The band rule's 3.0x and 500 mm/s^2 are
+  fixed above, and the fixtures pin them.
 - Module and class names.
 - Whether the results chart is one widget with a motor toggle or two charts, chosen by the
   geometry measurements.
