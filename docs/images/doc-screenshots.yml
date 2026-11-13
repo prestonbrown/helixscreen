@@ -706,7 +706,7 @@ images:
     markers:
       - {n: 1, widget: sync_toggle, at: top_right}
       - {n: 2, widget: interval_dropdown, at: top_right}
-      - {n: 3, widget: row_filament_accounting, at: center}
+      - {n: 3, widget: row_filament_accounting, at: top_right}
   - path: docs/images/user/label-printer-settings-2.png
     kind: app
     steps:
