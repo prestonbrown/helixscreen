@@ -56,6 +56,10 @@ std::string preheat_status_text(bool step_list_shows_temp, int current_c, int ta
  *
  * Static callbacks find their sidebar by the panel the firing widget sits in.
  */
+/// The sidebar's mounted line on a multi-head printer: "Mounted: <tool>" for
+/// @p active_tool >= 0, "No tool mounted" otherwise.
+[[nodiscard]] std::string mounted_tool_text(LaneNoun tool_noun, int active_tool);
+
 class AmsOperationSidebar {
   public:
     explicit AmsOperationSidebar(PrinterState& ps);
@@ -222,6 +226,7 @@ class AmsOperationSidebar {
     ObserverGuard action_observer_;
     ObserverGuard current_slot_observer_;
     ObserverGuard active_backend_observer_;
+    ObserverGuard active_tool_observer_;
     ObserverGuard extruder_temp_observer_;
     ObserverGuard extruder_target_observer_;
     // The heaters the step bar's live-temp steps heat, where the backend names

@@ -978,6 +978,7 @@ translations:
   Load all stopped: 'すべてのロードを停止しました'
   "Load and unload": "装填と排出"
   Load stopped: 'ロードを停止しました'
+  "Load, unload, purge, and extrude filament": "フィラメントのロード、アンロード、パージ、押し出し"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "ここで装填、排出、パージを行います。先に材料を選ぶと温度が設定されます。"
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "スプールの装填、排出、交換、温度の設定、フィラメントセンサーの監視ができます。"
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "タイルを長押しすると編集モードになります。新しいグリッドでは、ウィジェットの並べ替え、サイズ変更、削除、追加、ページ間のドラッグができます。"
@@ -1593,6 +1594,7 @@ translations:
   Filament Mapping is unavailable: フィラメントマッピングは利用できません
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: このプリンターはフィラメントマッピングに対応していないため、プリンターで割り当てられたツールで印刷します
   Filament Runout: フィラメント切れ
+  Filament Operations: フィラメント操作
   Filament Sensor: フィラメントセンサー
   Filament Sensors: 'フィラメントセンサー'
   Filament System Error: フィラメントシステムエラー
@@ -2464,6 +2466,7 @@ translations:
   Mount tool: 'ツールを装着'
   Mount which tool?: 'どのツールを装着しますか？'
   Mount...: '装着...'
+  'Mounted: {}': '装着中: {}'
   Move: 移動
   Move here: ここへ移動
   Move out of range: '移動範囲外です'
@@ -2642,6 +2645,7 @@ translations:
   No timelapse videos found: タイムラプス動画が見つかりません
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: '装着中のツールが不明です。共有プローブでは {} で校正してください。このまま続行しますか？'
   No tool is mounted: 'ツールが装着されていません'
+  No tool mounted: 'ツール未装着'
   No tool on the head: "ツールヘッドにツールがありません"
   No tools to calibrate: キャリブレートするツールがありません
   'No turn: the gap moved {:.1f} Hz': "回していません: 差は{:.1f} Hz動きました"
@@ -2904,9 +2908,11 @@ translations:
   Pick Color: 色を選択
   Pick how HelixScreen behaves. You can change any of these later in Settings.: 'HelixScreen の動作を選択します。すべて後で「設定」から変更できます。'
   Pick the best band: 最適な区間を選択
+  Pick up: '装着'
   Pick up and park each tool in turn: 各ツールを順に取り付けて戻す
   Pick up the tool, heat it, and pull the filament out: "ツールを取り付けて加熱し、フィラメントを引き抜いてください"
   Pick up tool: ツールを取得
+  Pick-up step cancelled; nothing was sent: '装着後の操作を取り消しました。何も送信していません'
   Picking up tool: ツールを取得中
   Pill: ピル
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): 押下がスクロールに変わるまでのピクセル数
@@ -5014,6 +5020,7 @@ translations:
   '{} d': "{}日"
   '{} days': "{}日"
   '{} detected': '{}を検出'
+  '{} did not arrive; nothing was sent': '{} が到着しませんでした。何も送信していません'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}がロードされませんでした。再開する前に、ホットエンドが正しく取り付けられているか確認し、テスト押し出しを行ってください。'
   '{} disabled': '{} を無効にしました'
   '{} disconnected': '{}が外れました'

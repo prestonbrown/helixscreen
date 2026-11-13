@@ -4,6 +4,7 @@
 #include "overlay_base.h"
 
 #include "ui_nav_manager.h"
+#include "ui_next_tick.h"
 #include "ui_open_instances.h"
 #include "ui_overlay_open_trace.h"
 #include "ui_panel_common.h"
@@ -232,6 +233,15 @@ void OverlayBase::release_embed() {
         on_ui_destroyed();
     }
     spdlog::debug("[{}] released its page host", get_name());
+}
+
+void OverlayBase::host_deleting() {
+    // A tree embedded again before the tick is someone else's to release.
+    helix::ui::run_next_tick(object_lifetime_.token(), [this]() {
+        if (!is_embedded()) {
+            release_embed();
+        }
+    });
 }
 
 void OverlayBase::report_foreign_close_callback() const {

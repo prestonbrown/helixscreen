@@ -88,6 +88,12 @@ struct FilamentPanelTestAccess {
         p.selected_material_ = preset;
     }
 
+    static void handle_target_tool_action(FilamentPanel& p) {
+        p.handle_target_tool_action();
+    }
+    static int target_tool(const FilamentPanel& p) {
+        return p.target_tool();
+    }
     static void populate_extruder_dropdown(FilamentPanel& p) {
         p.populate_extruder_dropdown();
     }

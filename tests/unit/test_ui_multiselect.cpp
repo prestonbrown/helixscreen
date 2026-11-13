@@ -286,3 +286,46 @@ TEST_CASE_METHOD(MultiSelectTestFixture,
     REQUIRE(std::find(keys.begin(), keys.end(), "lane_a") != keys.end());
     REQUIRE(ms.get_selected_count() == 1);
 }
+
+TEST_CASE_METHOD(MultiSelectTestFixture, "UiMultiselect: an All row toggles every enabled row",
+                 "[multiselect][batch]") {
+    lv_obj_t* container = lv_obj_create(test_screen());
+    UiMultiselect ms;
+    ms.attach(container);
+    ms.set_select_all_label("All");
+    ms.set_items({{"0", "T0"}, {"1", "T1"}, {"2", "T2"}, {"3", "T3", false, false}});
+
+    lv_obj_t* all = lv_obj_find_by_name(container, "item_all");
+    REQUIRE(all != nullptr);
+    lv_obj_t* all_check = lv_obj_find_by_name(all, "check");
+    REQUIRE(all_check != nullptr);
+    // The All row is not an item: counts and keys see only the tools.
+    REQUIRE(ms.item_count() == 4);
+
+    lv_obj_send_event(all, LV_EVENT_CLICKED, nullptr);
+    CHECK(ms.get_selected_keys() == std::vector<std::string>{"0", "1", "2"});
+    CHECK(lv_obj_has_state(all_check, LV_STATE_CHECKED));
+
+    SECTION("unchecking one tool unchecks All, rechecking it checks All again") {
+        lv_obj_t* row1 = lv_obj_find_by_name(container, "item_1");
+        lv_obj_send_event(row1, LV_EVENT_CLICKED, nullptr);
+        CHECK_FALSE(lv_obj_has_state(all_check, LV_STATE_CHECKED));
+        CHECK(ms.get_selected_count() == 2);
+        lv_obj_send_event(row1, LV_EVENT_CLICKED, nullptr);
+        CHECK(lv_obj_has_state(all_check, LV_STATE_CHECKED));
+    }
+    SECTION("All again clears every row") {
+        lv_obj_send_event(all, LV_EVENT_CLICKED, nullptr);
+        CHECK(ms.get_selected_count() == 0);
+        CHECK_FALSE(lv_obj_has_state(all_check, LV_STATE_CHECKED));
+    }
+}
+
+TEST_CASE_METHOD(MultiSelectTestFixture, "UiMultiselect: no All row unless asked",
+                 "[multiselect][batch]") {
+    lv_obj_t* container = lv_obj_create(test_screen());
+    UiMultiselect ms;
+    ms.attach(container);
+    ms.set_items({{"0", "T0"}, {"1", "T1"}});
+    CHECK(lv_obj_find_by_name(container, "item_all") == nullptr);
+}

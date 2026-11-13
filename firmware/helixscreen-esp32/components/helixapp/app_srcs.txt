@@ -472,6 +472,7 @@ src/ui/panel_widgets/control_buttons_widget.cpp
 src/ui/panel_widgets/display_message_widget.cpp
 src/ui/panel_widgets/fan_stack_widget.cpp
 src/ui/panel_widgets/fan_widget.cpp
+src/ui/panel_widgets/filament_ops_widget.cpp
 src/ui/panel_widgets/full_page_host.cpp
 src/ui/panel_widgets/exclude_map_widget.cpp
 src/ui/panel_widgets/filament_buffer_widget.cpp
@@ -516,6 +517,8 @@ src/ui/settings/settings_root_status.cpp
 src/ui/shared_font_style.cpp
 src/ui/text_metrics.cpp
 src/ui/style_configs.cpp
+src/ui/filament/target_tool_selection.cpp
+src/ui/filament/ui_toolhead_view.cpp
 src/ui/controls/temp_graph_controller.cpp
 src/ui/print/print_progress_text.cpp
 src/ui/print/print_status_layout_fitter.cpp

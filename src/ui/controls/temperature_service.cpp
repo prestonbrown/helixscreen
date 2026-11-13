@@ -570,15 +570,17 @@ void TemperatureService::setup_mini_combined_graph(lv_obj_t* container) {
     }
     config.initial_features = features;
     {
+        const std::string& charted =
+            mini_graph_extruder_.empty() ? active_extruder_name_ : mini_graph_extruder_;
         helix::TempGraphSeriesSpec nozzle_spec;
-        nozzle_spec.klipper_name = active_extruder_name_;
+        nozzle_spec.klipper_name = charted;
         nozzle_spec.color = heaters_[idx(HeaterType::Nozzle)].config.color;
         nozzle_spec.show_target = true;
         // Source the localized "Nozzle [N]" label from PrinterTemperatureState
         // so the mini-graph legend matches the rest of the temp UI instead of
         // showing the raw Klipper "extruder" / "extruderN" identifier.
         const auto& exts = printer_state_.temperature_state().extruders();
-        auto it = exts.find(active_extruder_name_);
+        auto it = exts.find(charted);
         if (it != exts.end() && !it->second.display_name.empty())
             nozzle_spec.display_name = it->second.display_name;
         helix::TempGraphSeriesSpec bed_spec;
@@ -616,6 +618,17 @@ void TemperatureService::setup_mini_combined_graph(lv_obj_t* container) {
 
     spdlog::debug("[TempPanel] Mini combined graph created with {} point capacity",
                   kMiniGraphPoints);
+}
+
+void TemperatureService::set_mini_graph_extruder(const std::string& klipper_name) {
+    if (klipper_name == mini_graph_extruder_) {
+        return;
+    }
+    mini_graph_extruder_ = klipper_name;
+    if (mini_graph_controller_ && mini_graph_container_) {
+        mini_graph_controller_.reset();
+        setup_mini_combined_graph(mini_graph_container_);
+    }
 }
 
 void TemperatureService::register_heater_graph(ui_temp_graph_t* graph, SeriesId series_id,
