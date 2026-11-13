@@ -38,7 +38,7 @@ class EthernetBackendMock : public EthernetBackend {
     bool has_interface() override;
     EthernetInfo get_info() override;
     /// Fires after each set_connected_state() that changes the link.
-    std::unique_ptr<helix::ethernet::LinkEvents> open_link_events() override;
+    std::unique_ptr<helix::net::LinkEvents> open_link_events() override;
 
     /// In memory, one config for the process (helix::net::mock_ipv4_store).
     /// HELIX_MOCK_IPV4_APPLY_FAIL=1 makes applies fail.
