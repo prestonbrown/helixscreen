@@ -13,6 +13,7 @@
 #include "lane_binding.h"
 #include "lane_observation.h"
 #include "snapmaker_channel_state.h"
+#include "snapmaker_feed_mode.h"
 #include "snapmaker_nozzle_properties.h"
 #include "snapmaker_print_preferences.h"
 #include "snapmaker_status_parse.h"
@@ -25,6 +26,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -281,6 +283,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
         bool disable_auto{false};
         /// A frame has carried module_exist, so module_exist is the firmware's word.
         bool module_reported{false};
+        /// A frame has carried disable_auto, so the head's Auto loading is known.
+        bool auto_reported{false};
         /// The head's filament_motion_sensor `enabled` flag. Arrives from the
         /// sensor status objects, not the feeder frame, so a feeder write
         /// carries the previous value forward instead of defaulting it.
@@ -298,6 +302,12 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// says either.
     [[nodiscard]] static bool feeder_absent(const ChannelSnapshot& snap) {
         return (snap.module_reported && !snap.module_exist) || snap.disable_auto;
+    }
+
+    /// Whether @p snap names a feeder that is there with its Auto loading off,
+    /// which the user can turn on, as opposed to no feeder at all.
+    [[nodiscard]] static bool auto_load_off(const ChannelSnapshot& snap) {
+        return snap.disable_auto && !(snap.module_reported && !snap.module_exist);
     }
 
     /// Eligibility answered from the feeder's own channel fields: only a
@@ -590,15 +600,20 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     [[nodiscard]] std::vector<helix::printer::DeviceSection> get_device_sections() const override;
 
     /// One DeviceAction per reported preference: toggles, a sensitivity
-    /// dropdown, and one end-unload toggle per reported toolhead. Then, per
+    /// dropdown, one end-unload toggle per reported toolhead, and an Auto
+    /// loading toggle per head whose feeder reports its mode. Then, per
     /// head, a nozzle diameter and a nozzle flow dropdown for each field the
     /// head reports, unavailable while a print is printing or paused (the
     /// firmware refuses the change then).
     [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
 
-    /// Sends the SET_PRINT_PREFERENCES line build_preference_gcode() maps the
-    /// action id to, or the nozzle change build_nozzle_change() makes of it.
-    /// Unknown ids are reported as not supported.
+    /// The device section the print preferences and Auto loading rows sit in.
+    static constexpr const char* kPrintPrefsSection = "print_prefs";
+    /// Each head's Auto loading row id: this prefix, then the head number.
+    static constexpr std::string_view kAutoLoadActionPrefix = "snapmaker_auto_load_t";
+
+    /// Sends the line build_preference_gcode() maps the action id to, or the nozzle change
+    /// build_nozzle_change() makes of it. Unknown ids are reported as not supported.
     AmsError do_execute_device_action(const std::string& action_id, const std::any& value) override;
 
     /// A nozzle change reports through @p on_done once the firmware has answered;
@@ -1399,6 +1414,27 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// (snapmaker::nozzle_offset::supported), cached by set_discovery(). All
     /// access under mutex_.
     bool nozzle_offset_supported_ = false;
+
+    /// The status-object key of the macro that maps heads to feeder channels
+    /// ("gcode_macro " + its config-case name; empty when the firmware lacks
+    /// it), cached by set_discovery(). All access under mutex_.
+    std::string feed_variable_object_;
+
+    /// Each head's feeder module and channel, as that macro's frames have
+    /// stated them, the stock wiring until they do. All access under mutex_.
+    snapmaker::feed_mode::FeedChannelMap feed_channels_ = snapmaker::feed_mode::stock_channel_map();
+
+    // Auto loading (src/printer/ams_backend_snapmaker_auto_load.cpp).
+    /// Some head's feeder has reported its mode, so the rows have a state to show.
+    [[nodiscard]] bool auto_load_reported() const;
+    /// One Auto loading row per head whose feeder has reported its mode.
+    void append_auto_load_actions(std::vector<helix::printer::DeviceAction>& out) const;
+    /// The command that sets @p head's Auto loading to @p value; empty when
+    /// the value is not a bool or the head names no feeder channel.
+    [[nodiscard]] std::string auto_load_gcode(size_t head, const std::any& value) const;
+    /// Lays the head-to-channel macro's frame, when @p status carries one,
+    /// over feed_channels_. Caller holds mutex_.
+    void update_feed_channels_locked(const nlohmann::json& status);
 
     /// The batch do_filament_batch() dispatched, verified head-by-head in
     /// handle_status's channel_state parse. All access under mutex_.

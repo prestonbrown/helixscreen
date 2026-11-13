@@ -362,6 +362,9 @@
   <translation tag="Auto Bed Mesh" de="Automatisches Bettnetz"/>
   <translation tag="Auto Cal" de="Auto-Kal."/>
   <translation tag="Auto Fans" de="Automatische Lüfter"/>
+  <translation tag="Auto loading" de="Automatisches Laden"/>
+  <translation tag="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand." de="Automatisches Laden ist für diesen Werkzeugkopf aus. Schalten Sie es unter Druckverhalten ein oder laden Sie das Filament von Hand."/>
+  <translation tag="Auto loading is off; turn it on under Print Behavior" de="Automatisches Laden ist aus; unter Druckverhalten einschalten"/>
   <translation tag="Auto-Detect" de="Auto-Erkennung"/>
   <translation tag="Auto-Heat on Load" de="Automatisches Heizen beim Laden"/>
   <translation tag="Auto-Replenish" de="Automatisch nachfüllen"/>
@@ -2495,6 +2498,7 @@
   <translation tag="No events queued" de="Keine Ereignisse in Warteschlange"/>
   <translation tag="No extruder heater found. Check [extruder] in printer.cfg" de="Kein Extruder-Heizelement gefunden. [extruder] in printer.cfg prüfen"/>
   <translation tag="No fans detected" de="Keine Lüfter erkannt"/>
+  <translation tag="No feeder attached" de="Keine Zuführung angeschlossen"/>
   <translation tag="No filament" de="Kein Filament"/>
   <translation tag="No filament environment sensors" de="Keine Filament-Umgebungssensoren"/>
   <translation tag="No filament loaded to unload" de="Kein Filament zum Entladen geladen"/>
@@ -4516,6 +4520,7 @@
   <translation tag="Wait for the current filament operation to finish" de="Warten Sie, bis der aktuelle Filamentvorgang abgeschlossen ist"/>
   <translation tag="Wait for the current operation to complete" de="Warten Sie, bis der aktuelle Vorgang abgeschlossen ist"/>
   <translation tag="Wait for the current operation to complete or cancel it first" de="Warten Sie, bis der aktuelle Vorgang abgeschlossen ist, oder brechen Sie ihn zuvor ab"/>
+  <translation tag="Wait for the load or unload to finish" de="Warten Sie, bis das Laden oder Entladen abgeschlossen ist"/>
   <translation tag="Wait for the motor to stop" de="Warte, bis der Motor stillsteht"/>
   <translation tag="Wait for the nozzle to stop moving" de="Warten Sie, bis die Düse stillsteht"/>
   <translation tag="Wait for the running INDX operation to finish" de="Warten Sie, bis der laufende INDX-Vorgang abgeschlossen ist"/>

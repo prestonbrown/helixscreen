@@ -362,6 +362,9 @@
   <translation tag="Auto Bed Mesh" it="Mesh piano automatica"/>
   <translation tag="Auto Cal" it="Cal. auto"/>
   <translation tag="Auto Fans" it="Ventilatori automatici"/>
+  <translation tag="Auto loading" it="Caricamento automatico"/>
+  <translation tag="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand." it="Il caricamento automatico è disattivato per questa testina. Attivalo in Comportamento di stampa o carica il filamento a mano."/>
+  <translation tag="Auto loading is off; turn it on under Print Behavior" it="Caricamento automatico disattivato; attivalo in Comportamento di stampa"/>
   <translation tag="Auto-Detect" it="Rilevamento auto"/>
   <translation tag="Auto-Heat on Load" it="Riscaldamento automatico al caricamento"/>
   <translation tag="Auto-Replenish" it="Rifornimento automatico"/>
@@ -2495,6 +2498,7 @@
   <translation tag="No events queued" it="Nessun evento in coda"/>
   <translation tag="No extruder heater found. Check [extruder] in printer.cfg" it="Riscaldatore dell&apos;estrusore non trovato. Controlla [extruder] in printer.cfg"/>
   <translation tag="No fans detected" it="Nessuna ventola rilevata"/>
+  <translation tag="No feeder attached" it="Nessun alimentatore collegato"/>
   <translation tag="No filament" it="Nessun filamento"/>
   <translation tag="No filament environment sensors" it="Nessun sensore ambientale del filamento"/>
   <translation tag="No filament loaded to unload" it="Nessun filamento caricato da scaricare"/>
@@ -4516,6 +4520,7 @@
   <translation tag="Wait for the current filament operation to finish" it="Attendi il completamento dell&apos;operazione di filamento in corso"/>
   <translation tag="Wait for the current operation to complete" it="Attendi il completamento dell&apos;operazione corrente"/>
   <translation tag="Wait for the current operation to complete or cancel it first" it="Attendi il completamento dell&apos;operazione corrente o annullala prima"/>
+  <translation tag="Wait for the load or unload to finish" it="Attendi la fine del caricamento o dello scaricamento"/>
   <translation tag="Wait for the motor to stop" it="Attendi che il motore si fermi"/>
   <translation tag="Wait for the nozzle to stop moving" it="Attendi che l&apos;ugello si fermi"/>
   <translation tag="Wait for the running INDX operation to finish" it="Attendi la fine dell&apos;operazione INDX in corso"/>

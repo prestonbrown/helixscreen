@@ -368,6 +368,9 @@ translations:
   Auto Bed Mesh: 自动热床网格
   Auto Cal: 自动校准
   Auto Fans: 自动风扇
+  Auto loading: "自动装料"
+  Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand.: "此工具头的自动装料已关闭。请在“打印行为”中开启，或手动装入耗材。"
+  Auto loading is off; turn it on under Print Behavior: "自动装料已关闭；请在“打印行为”中开启"
   Auto-Detect: 自动检测
   Auto-Heat on Load: 加载时自动加热
   Auto-Replenish: 自动补充
@@ -2577,6 +2580,7 @@ translations:
   No events queued: 无排队事件
   No extruder heater found. Check [extruder] in printer.cfg: '未找到挤出机加热器。请检查 printer.cfg 中的 [extruder]'
   No fans detected: 未检测到风扇
+  No feeder attached: "未连接送料器"
   No filament: 无耗材
   No filament environment sensors: 无耗材环境传感器
   No filament loaded to unload: 没有已加载的耗材可卸载
@@ -4689,6 +4693,7 @@ translations:
   Wait for the current filament operation to finish: 请等待当前耗材操作完成
   Wait for the current operation to complete: 请等待当前操作完成
   Wait for the current operation to complete or cancel it first: 请等待当前操作完成，或先将其取消
+  Wait for the load or unload to finish: "请等待装入或卸载完成"
   Wait for the motor to stop: "请等待电机停止"
   Wait for the nozzle to stop moving: 请等待喷嘴停止移动
   Wait for the running INDX operation to finish: 请等待正在进行的INDX操作完成

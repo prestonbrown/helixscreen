@@ -362,6 +362,9 @@
   <translation tag="Auto Bed Mesh" zh="自动热床网格"/>
   <translation tag="Auto Cal" zh="自动校准"/>
   <translation tag="Auto Fans" zh="自动风扇"/>
+  <translation tag="Auto loading" zh="自动装料"/>
+  <translation tag="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand." zh="此工具头的自动装料已关闭。请在“打印行为”中开启，或手动装入耗材。"/>
+  <translation tag="Auto loading is off; turn it on under Print Behavior" zh="自动装料已关闭；请在“打印行为”中开启"/>
   <translation tag="Auto-Detect" zh="自动检测"/>
   <translation tag="Auto-Heat on Load" zh="加载时自动加热"/>
   <translation tag="Auto-Replenish" zh="自动补充"/>
@@ -2495,6 +2498,7 @@
   <translation tag="No events queued" zh="无排队事件"/>
   <translation tag="No extruder heater found. Check [extruder] in printer.cfg" zh="未找到挤出机加热器。请检查 printer.cfg 中的 [extruder]"/>
   <translation tag="No fans detected" zh="未检测到风扇"/>
+  <translation tag="No feeder attached" zh="未连接送料器"/>
   <translation tag="No filament" zh="无耗材"/>
   <translation tag="No filament environment sensors" zh="无耗材环境传感器"/>
   <translation tag="No filament loaded to unload" zh="没有已加载的耗材可卸载"/>
@@ -4516,6 +4520,7 @@
   <translation tag="Wait for the current filament operation to finish" zh="请等待当前耗材操作完成"/>
   <translation tag="Wait for the current operation to complete" zh="请等待当前操作完成"/>
   <translation tag="Wait for the current operation to complete or cancel it first" zh="请等待当前操作完成，或先将其取消"/>
+  <translation tag="Wait for the load or unload to finish" zh="请等待装入或卸载完成"/>
   <translation tag="Wait for the motor to stop" zh="请等待电机停止"/>
   <translation tag="Wait for the nozzle to stop moving" zh="请等待喷嘴停止移动"/>
   <translation tag="Wait for the running INDX operation to finish" zh="请等待正在进行的INDX操作完成"/>

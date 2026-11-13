@@ -10,6 +10,7 @@
 #include "notice.h"
 #include "printer_discovery.h"
 #include "settings_manager.h"
+#include "snapmaker_feed_mode.h"
 #include "snapmaker_nozzle_offset.h"
 #include "test_helpers/backend_harness.h"
 
@@ -702,4 +703,144 @@ TEST_CASE("a nozzle pick names the diameter and only a flow type that changes",
             backend.build_nozzle_change("snapmaker_nozzle_flow_t9", pick("Standard")).valid);
         CHECK_FALSE(backend.build_nozzle_change("snapmaker_nozzle_flow_t", pick("Standard")).valid);
     }
+}
+
+// ============================================================================
+// Auto loading: each head's feeder in or out of automatic mode
+// ============================================================================
+
+namespace {
+/// One head's entry in its feeder's frame.
+nlohmann::json feeder(int head, const nlohmann::json& fields) {
+    return {{head < 2 ? "filament_feed left" : "filament_feed right",
+             {{"extruder" + std::to_string(head), fields}}}};
+}
+std::string auto_load_id(int head) {
+    return "snapmaker_auto_load_t" + std::to_string(head);
+}
+bool has_section(const AmsBackendSnapmaker& b, const char* id) {
+    const auto sections = b.get_device_sections();
+    return std::any_of(sections.begin(), sections.end(),
+                       [&](const DeviceSection& s) { return s.id == id; });
+}
+} // namespace
+
+TEST_CASE("auto loading offers a row only for heads whose feeder reports its mode",
+          "[ams][snapmaker][actions][auto_load]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    CHECK(find_action(backend.get_device_actions(), auto_load_id(0)) == nullptr);
+    CHECK_FALSE(has_section(backend, "print_prefs"));
+
+    backend.fire_status(feeder(0, {{"module_exist", true}, {"disable_auto", false}}));
+    backend.fire_status(feeder(2, {{"module_exist", true}, {"disable_auto", true}}));
+    const auto actions = backend.get_device_actions();
+    const DeviceAction* t0 = find_action(actions, auto_load_id(0));
+    const DeviceAction* t2 = find_action(actions, auto_load_id(2));
+    REQUIRE(t0 != nullptr);
+    REQUIRE(t2 != nullptr);
+    CHECK(find_action(actions, auto_load_id(1)) == nullptr);
+    CHECK(t0->type == ActionType::TOGGLE);
+    CHECK(t0->section == "print_prefs");
+    CHECK(t0->label == "Auto loading");
+    CHECK(t0->tool_index == 0);
+    CHECK(t2->slot_index == 2);
+    CHECK(std::any_cast<bool>(t0->current_value) == true);
+    CHECK(std::any_cast<bool>(t2->current_value) == false);
+    CHECK(t0->enabled);
+    // The rows alone open the section: no print preference has been reported.
+    CHECK(has_section(backend, "print_prefs"));
+}
+
+TEST_CASE("an auto loading row is disabled where its feeder cannot act",
+          "[ams][snapmaker][actions][auto_load]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    const auto row = [&](int head) {
+        const auto actions = backend.get_device_actions();
+        const DeviceAction* a = find_action(actions, auto_load_id(head));
+        REQUIRE(a != nullptr);
+        return *a;
+    };
+
+    backend.fire_status(feeder(1, {{"module_exist", false}, {"disable_auto", false}}));
+    CHECK_FALSE(row(1).enabled);
+    CHECK(row(1).disable_reason == "No feeder attached");
+
+    backend.fire_status(feeder(
+        3, {{"module_exist", true}, {"disable_auto", false}, {"channel_state", "load_feeding"}}));
+    CHECK_FALSE(row(3).enabled);
+    CHECK(row(3).disable_reason == "Wait for the load or unload to finish");
+    backend.fire_status(feeder(3, {{"channel_state", "load_finish"}}));
+    CHECK(row(3).enabled);
+}
+
+TEST_CASE("auto loading sends FEED_AUTO for the head's feeder channel",
+          "[ams][snapmaker][actions][auto_load]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    const int head = GENERATE(0, 1, 2, 3);
+    const bool on = GENERATE(true, false);
+    backend.fire_status(feeder(head, {{"module_exist", true}, {"disable_auto", on}}));
+    CHECK(backend.build_preference_gcode(auto_load_id(head), std::any(on)) ==
+          snapmaker::feed_mode::auto_mode_gcode(*snapmaker::feed_mode::stock_channel(head), on));
+    // A head the firmware has not reported names no channel.
+    CHECK(backend.build_preference_gcode(auto_load_id(4), std::any(on)).empty());
+}
+
+TEST_CASE("auto loading follows the printer's own head-to-channel map",
+          "[ams][snapmaker][actions][auto_load]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    helix::PrinterDiscovery d;
+    d.parse_objects(nlohmann::json::array({"gcode_macro _FILAMENT_FEED_VARIABLE"}));
+    backend.set_discovery(d);
+    backend.fire_status({{"gcode_macro _FILAMENT_FEED_VARIABLE",
+                          {{"module_sequence", {"right", "right", "left", "left"}},
+                           {"channel_sequence", {0, 1, 1, 0}}}}});
+    backend.fire_status(feeder(0, {{"module_exist", true}, {"disable_auto", true}}));
+    CHECK(backend.build_preference_gcode(auto_load_id(0), std::any(true)) ==
+          "FEED_AUTO MODULE=right CHANNEL=0 AUTO=1");
+
+    // Another printer's discovery drops the map; until its own macro frame
+    // lands, the head takes the stock wiring.
+    backend.set_discovery(helix::PrinterDiscovery{});
+    CHECK(backend.build_preference_gcode(auto_load_id(0), std::any(true)) ==
+          "FEED_AUTO MODULE=left CHANNEL=1 AUTO=1");
+}
+
+TEST_CASE("a feeder's mode change redraws the row and a repeat does not",
+          "[ams][snapmaker][actions][auto_load]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(feeder(1, {{"module_exist", true}, {"disable_auto", false}}));
+    int changes = 0;
+    backend.set_event_callback([&](const std::string& ev, const std::string&) {
+        if (ev == AmsBackend::EVENT_STATE_CHANGED) {
+            ++changes;
+        }
+    });
+    backend.fire_status(feeder(1, {{"disable_auto", true}}));
+    CHECK(changes == 1);
+    CHECK(std::any_cast<bool>(
+              find_action(backend.get_device_actions(), auto_load_id(1))->current_value) == false);
+    backend.fire_status(feeder(1, {{"disable_auto", true}}));
+    CHECK(changes == 1);
+}
+
+TEST_CASE("a load refused because auto loading is off names the setting",
+          "[ams][snapmaker][auto_load][1832]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    const bool module = GENERATE(true, false);
+    backend.fire_status(feeder(1, {{"filament_detected", true},
+                                   {"channel_state", "preload_finish"},
+                                   {"module_exist", module},
+                                   {"disable_auto", module}}));
+    const AmsError err = backend.load_filament(1);
+    INFO(err.user_msg);
+    CHECK(err.result == AmsResult::WRONG_STATE);
+    CHECK((err.user_msg.find("Auto loading") != std::string::npos) == module);
+    CHECK((backend.head_filament_ops(1).load_reason.find("Auto loading") != std::string::npos) ==
+          module);
 }

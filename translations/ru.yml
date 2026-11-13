@@ -437,6 +437,9 @@ translations:
   Auto Bed Mesh: Авто сетка стола
   Auto Cal: Авто кал.
   Auto Fans: Автоматические вентиляторы
+  Auto loading: "Автозагрузка"
+  Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand.: "Автозагрузка для этой печатающей головки выключена. Включите её в разделе «Поведение при печати» или загрузите филамент вручную."
+  Auto loading is off; turn it on under Print Behavior: "Автозагрузка выключена; включите её в разделе «Поведение при печати»"
   Auto-Detect: Автоопределение
   Auto-Heat on Load: Автонагрев при загрузке
   Auto-Replenish: Автопополнение
@@ -2759,6 +2762,7 @@ translations:
   No events queued: Нет событий в очереди
   No extruder heater found. Check [extruder] in printer.cfg: 'Нагреватель экструдера не найден. Проверьте [extruder] в printer.cfg'
   No fans detected: Вентиляторы не обнаружены
+  No feeder attached: "Фидер не подключён"
   No filament: Нет филамента
   No filament environment sensors: Нет датчиков среды филамента
   No filament loaded to unload: Нет загруженного филамента для выгрузки
@@ -4985,6 +4989,7 @@ translations:
   Wait for the current filament operation to finish: Дождитесь завершения текущей операции с филаментом
   Wait for the current operation to complete: Дождитесь завершения текущей операции
   Wait for the current operation to complete or cancel it first: Дождитесь завершения текущей операции или сначала отмените её
+  Wait for the load or unload to finish: "Дождитесь окончания загрузки или выгрузки"
   Wait for the motor to stop: "Дождитесь остановки двигателя"
   Wait for the nozzle to stop moving: Дождитесь остановки сопла
   Wait for the running INDX operation to finish: Дождитесь завершения текущей операции INDX

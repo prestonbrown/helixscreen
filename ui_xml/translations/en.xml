@@ -362,6 +362,9 @@
   <translation tag="Auto Bed Mesh" en="Auto Bed Mesh"/>
   <translation tag="Auto Cal" en="Auto Cal"/>
   <translation tag="Auto Fans" en="Auto Fans"/>
+  <translation tag="Auto loading" en="Auto loading"/>
+  <translation tag="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand." en="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand."/>
+  <translation tag="Auto loading is off; turn it on under Print Behavior" en="Auto loading is off; turn it on under Print Behavior"/>
   <translation tag="Auto-Detect" en="Auto-Detect"/>
   <translation tag="Auto-Heat on Load" en="Auto-Heat on Load"/>
   <translation tag="Auto-Replenish" en="Auto-Replenish"/>
@@ -2495,6 +2498,7 @@
   <translation tag="No events queued" en="No events queued"/>
   <translation tag="No extruder heater found. Check [extruder] in printer.cfg" en="No extruder heater found. Check [extruder] in printer.cfg"/>
   <translation tag="No fans detected" en="No fans detected"/>
+  <translation tag="No feeder attached" en="No feeder attached"/>
   <translation tag="No filament" en="No filament"/>
   <translation tag="No filament environment sensors" en="No filament environment sensors"/>
   <translation tag="No filament loaded to unload" en="No filament loaded to unload"/>
@@ -4516,6 +4520,7 @@
   <translation tag="Wait for the current filament operation to finish" en="Wait for the current filament operation to finish"/>
   <translation tag="Wait for the current operation to complete" en="Wait for the current operation to complete"/>
   <translation tag="Wait for the current operation to complete or cancel it first" en="Wait for the current operation to complete or cancel it first"/>
+  <translation tag="Wait for the load or unload to finish" en="Wait for the load or unload to finish"/>
   <translation tag="Wait for the motor to stop" en="Wait for the motor to stop"/>
   <translation tag="Wait for the nozzle to stop moving" en="Wait for the nozzle to stop moving"/>
   <translation tag="Wait for the running INDX operation to finish" en="Wait for the running INDX operation to finish"/>

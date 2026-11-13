@@ -444,7 +444,7 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_openams_line(const s
 // DEFECT_DETECTION_CONFIG are U1-only vocabulary, so no mock printer mode
 // needs to arm them, and no other printer's script can contain the tokens.
 MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_u1_feeding(const std::string& gcode) {
-    if (apply_u1_feeding_gcode(gcode)) {
+    if (apply_u1_feeding_gcode(gcode) || apply_u1_auto_mode_gcode(gcode)) {
         return 0;
     }
     if (apply_multiace_gcode(gcode)) {
