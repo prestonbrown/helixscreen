@@ -2826,6 +2826,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     // discovery sets AmsType::AD5X_IFS and the PRODUCTION AmsBackendAd5xIfs
     // runs; try_create_mock() declines the value.
     bool is_mock_ifs_jacker() const;
+    /// Port count and starting presence from HELIX_MOCK_IFS_PORTS (ifs-jacker only).
+    void init_ifs_jacker_from_env();
     /// The `zmod_ifs` object frame.
     [[nodiscard]] nlohmann::json ifs_jacker_zmod_ifs_json() const;
     /// The `zmod_color` object frame, one slot per port.

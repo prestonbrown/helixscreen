@@ -12,12 +12,15 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <string>
 
 using namespace helix;
 using mock_internal::effective_mock_ams_env;
 
+namespace helix {
 namespace {
 
 struct JackerLane {
@@ -57,10 +60,24 @@ int port_param(const std::string& gcode) {
 }
 
 } // namespace
+} // namespace helix
 
 bool MoonrakerClientMock::is_mock_ifs_jacker() const {
     const std::string ams_type = effective_mock_ams_env();
     return ams_type == "ifs-jacker" || ams_type == "ifs_jacker";
+}
+
+void MoonrakerClientMock::init_ifs_jacker_from_env() {
+    if (!is_mock_ifs_jacker()) {
+        return;
+    }
+    // Ports behind the jacker (HELIX_MOCK_IFS_PORTS, 4..16; default two IFS
+    // units). Ports 3 and 7 start empty so the overview shows both states.
+    if (const char* ports = std::getenv("HELIX_MOCK_IFS_PORTS")) {
+        ifs_jacker_ports_ = std::clamp(text_io::parse_leading<int>(ports).value_or(8), 4, 16);
+    }
+    const uint32_t all = (1u << ifs_jacker_ports_) - 1u;
+    ifs_jacker_presence_.store(all & ~((1u << 2) | (1u << 6)));
 }
 
 nlohmann::json MoonrakerClientMock::zmod_ifs_status() const {

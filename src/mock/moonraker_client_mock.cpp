@@ -298,16 +298,7 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
         }
     }
 
-    if (is_mock_ifs_jacker()) {
-        // Ports behind the jacker (HELIX_MOCK_IFS_PORTS, 4..16; default two
-        // IFS units). Ports 3 and 7 start empty so the overview shows both states.
-        if (const char* ports = std::getenv("HELIX_MOCK_IFS_PORTS")) {
-            ifs_jacker_ports_ =
-                std::clamp(helix::text_io::parse_leading<int>(ports).value_or(8), 4, 16);
-        }
-        const uint32_t all = (1u << ifs_jacker_ports_) - 1u;
-        ifs_jacker_presence_.store(all & ~((1u << 2) | (1u << 6)));
-    }
+    init_ifs_jacker_from_env();
 
     // OpenAMS reads no identity off its spools: color and material come from the
     // override store, which reads the shared lane_data namespace (laneN keys,
