@@ -312,6 +312,9 @@ void MoonrakerClientMock::populate_capabilities() {
         // macros (c5pro_generic.cfg).
         mock_objects.push_back("gcode_macro CALIBRATE_EXTRUDERS");
         mock_objects.push_back("gcode_macro CALIBRATE_VFA");
+        // The stock compensation toggle prints run at start and end.
+        mock_objects.push_back("gcode_macro STEPPER_RESONANCE_DAMP_ENABLE");
+        mock_objects.push_back("gcode_macro STEPPER_RESONANCE_DAMP_DISABLE");
         mock_objects.push_back("gcode_macro AIR_CIRCULATION_INTERNAL");
         mock_objects.push_back("gcode_macro AIR_CIRCULATION_EXTERNAL");
         mock_objects.push_back("gcode_macro AIR_CIRCULATION_STOP");
@@ -709,8 +712,14 @@ void MoonrakerClientMock::populate_capabilities() {
     // --test detects against an empty volume the live path no longer sees.
     const auto axis_max = persona.axis_max;
     const auto axis_min = persona.axis_min;
-    mock_config["stepper_x"] = {{"position_min", axis_min.x}, {"position_max", axis_max.x}};
-    mock_config["stepper_y"] = {{"position_min", axis_min.y}, {"position_max", axis_max.y}};
+    mock_config["stepper_x"] = {{"position_min", axis_min.x},
+                                {"position_max", axis_max.x},
+                                {"rotation_distance", 40.0},
+                                {"full_steps_per_rotation", 200}};
+    mock_config["stepper_y"] = {{"position_min", axis_min.y},
+                                {"position_max", axis_max.y},
+                                {"rotation_distance", 40.0},
+                                {"full_steps_per_rotation", 200}};
     mock_config["stepper_z"] = {{"position_min", axis_min.z}, {"position_max", axis_max.z}};
     for (const auto& [name, settings] : extra_config_settings_.items()) {
         mock_config[name] = settings;

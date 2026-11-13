@@ -507,8 +507,16 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         // settings reader (belt hardware detect) and a config
                         // reader (bed moves detection) see the same machine.
                         {"kinematics", self->kinematics()}}},
-                      {"stepper_x", {{"position_min", axis_min.x}, {"position_max", axis_max.x}}},
-                      {"stepper_y", {{"position_min", axis_min.y}, {"position_max", axis_max.y}}},
+                      {"stepper_x",
+                       {{"position_min", axis_min.x},
+                        {"position_max", axis_max.x},
+                        {"rotation_distance", 40.0},
+                        {"full_steps_per_rotation", 200}}},
+                      {"stepper_y",
+                       {{"position_min", axis_min.y},
+                        {"position_max", axis_max.y},
+                        {"rotation_distance", 40.0},
+                        {"full_steps_per_rotation", 200}}},
                       {"stepper_z", stepper_z_settings},
                       {"extruder", extruder_settings},
                       // Resonance sweep bounds — the input shaper collector
@@ -1221,8 +1229,16 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         // settings reader (belt hardware detect) and a config
                         // reader (bed moves detection) see the same machine.
                         {"kinematics", self->kinematics()}}},
-                      {"stepper_x", {{"position_min", axis_min.x}, {"position_max", axis_max.x}}},
-                      {"stepper_y", {{"position_min", axis_min.y}, {"position_max", axis_max.y}}},
+                      {"stepper_x",
+                       {{"position_min", axis_min.x},
+                        {"position_max", axis_max.x},
+                        {"rotation_distance", 40.0},
+                        {"full_steps_per_rotation", 200}}},
+                      {"stepper_y",
+                       {{"position_min", axis_min.y},
+                        {"position_max", axis_max.y},
+                        {"rotation_distance", 40.0},
+                        {"full_steps_per_rotation", 200}}},
                       {"stepper_z",
                        {{"position_min", axis_min.z},
                         {"position_max", axis_max.z},

@@ -94,6 +94,8 @@
       "gcode_button topDoor",
       "gcode_macro CALIBRATE_EXTRUDERS",
       "gcode_macro CALIBRATE_VFA",
+      "gcode_macro STEPPER_RESONANCE_DAMP_ENABLE",
+      "gcode_macro STEPPER_RESONANCE_DAMP_DISABLE",
       "gcode_macro AIR_CIRCULATION_INTERNAL",
       "gcode_macro AIR_CIRCULATION_EXTERNAL",
       "gcode_macro AIR_CIRCULATION_STOP",

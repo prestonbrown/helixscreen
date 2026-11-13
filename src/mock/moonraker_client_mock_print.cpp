@@ -5,6 +5,7 @@
 #include "core/update_queue.h"
 #include "moonraker_client_mock_internal.h"
 #include "printer_state.h"
+#include "ripple_batch_source_mock.h"
 #include "rpc_error_correlation.h"
 #include "rpc_error_policy.h"
 
@@ -52,6 +53,10 @@ void register_print_handlers(std::unordered_map<std::string, MethodHandler>& reg
         if (self->simulate_indx_blocking(script, success_cb, error_cb)) {
             return true;
         }
+
+        // A motor ripple sweep step fills the mock accelerometer stream while
+        // it "runs", so the capture holds that speed's samples.
+        helix::calibration::ripple::mock_ripple_on_script(script);
 
         // A MedusaHC swap blocks its script until the docks confirm it, so a
         // run that starts one stops there and is answered when the swap ends.

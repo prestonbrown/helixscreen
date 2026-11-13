@@ -1648,6 +1648,27 @@ The mock accepts the calibration commands without simulating a sweep; the closin
 HELIX_MOCK_STEPPER_RESONANCE=1 ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_ACCEL_RATE`
+
+The sample rate of the mock accelerometer a motor ripple sweep (Vertical Artifact Check)
+streams from, in Hz. Lower it to see how the check behaves on a printer whose
+accelerometer is slow: at `387`, like QIDI's stock `lis2dw` driver, every ripple above
+about 174 Hz reads as unmeasured.
+
+| Property | Value |
+|----------|-------|
+| **Values** | A positive number of samples per second |
+| **Default** | `3200` |
+| **File** | `src/mock/ripple_batch_source_mock.cpp` |
+
+The mock's ripple meets one resonance at 216 Hz (the 2x at about 86 mm/s on the mock's
+40 mm rotation distance), and the `creator5_zmod` persona's
+`STEPPER_RESONANCE_DAMP_ENABLE` cuts it to a quarter.
+
+```bash
+HELIX_MOCK_ACCEL_RATE=387 ./build/bin/helix-screen --test -vv
+```
+
 ### `HELIX_MOCK_OBJECTS`
 
 Append additional Klipper objects to the mock's advertised object list, so capability detection paths that depend on an object being present can be exercised without a matching mock printer type.
