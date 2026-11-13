@@ -77,6 +77,9 @@ namespace {
  * - Add new printers (unique ID)
  * - Override bundled printers (same ID replaces bundled)
  * - Disable bundled printers ("enabled": false)
+ *
+ * A bundled entry's "id_aliases" are other publishers' ids for the same
+ * printer; an extension entry under one of them is skipped, not added.
  */
 struct PrinterDatabase {
     json data;
@@ -194,6 +197,10 @@ struct PrinterDatabase {
     bool compacted = false;
 
   private:
+    /// A bundled entry's "id_aliases" -> that entry's id. Extensions under one
+    /// of these ids are skipped (merge_extension_file).
+    std::map<std::string, std::string> superseding_ids;
+
     void merge_user_extensions() {
         const std::string extensions_dir = helix::writable_path("printer_database.d");
 
@@ -207,6 +214,19 @@ struct PrinterDatabase {
             std::string id = helix::json_util::safe_string(data["printers"][i], "id");
             if (!id.empty()) {
                 bundled_index[id] = i;
+            }
+        }
+        superseding_ids.clear();
+        for (const auto& printer : data["printers"]) {
+            const std::string id = helix::json_util::safe_string(printer, "id");
+            const json* aliases = helix::json_util::find_member(printer, "id_aliases");
+            if (id.empty() || aliases == nullptr || !aliases->is_array()) {
+                continue;
+            }
+            for (const auto& alias : *aliases) {
+                if (alias.is_string() && bundled_index.count(alias.get<std::string>()) == 0) {
+                    superseding_ids.emplace(alias.get<std::string>(), id);
+                }
             }
         }
 
@@ -294,6 +314,18 @@ struct PrinterDatabase {
             bool enabled = helix::json_util::safe_bool(printer, "enabled", true);
 
             auto it = bundled_index.find(id);
+            if (it == bundled_index.end()) {
+                // Another publisher's id for a printer a bundled entry already
+                // describes. Loading it would put a second entry of the same name
+                // up against the bundled one on detection score, so the bundled
+                // entry stands; an extension changes it under the bundled id.
+                if (auto sup = superseding_ids.find(id); sup != superseding_ids.end()) {
+                    spdlog::info("[PrinterDetector] {}: '{}' is the bundled '{}' under another "
+                                 "id; keeping the bundled entry (override it as '{}')",
+                                 file_path, id, sup->second, sup->second);
+                    continue;
+                }
+            }
             if (it != bundled_index.end()) {
                 // Override bundled printer
                 if (!enabled) {

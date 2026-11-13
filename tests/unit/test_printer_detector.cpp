@@ -3240,6 +3240,101 @@ TEST_CASE("PrinterDetector: a malformed database degrades without throwing",
     }
 }
 
+TEST_CASE("PrinterDetector: an extension under one of a bundled entry's id_aliases is superseded",
+          "[printer][db_shape][id_aliases]") {
+    // A firmware that ships its own printer_database.d entry for a machine the
+    // bundled database already knows, under its own spelling of the id (Reforge's
+    // flashforge_creator5_pro beside our flashforge_creator_5_pro), would load as
+    // a second entry of the same name and compete with ours on detection.
+    namespace fs = std::filesystem;
+    auto temp_root =
+        fs::temp_directory_path() / ("test_printer_detector_id_alias_" + std::to_string(getpid()));
+    struct RestoreDatabase {
+        fs::path root;
+        ~RestoreDatabase() {
+            PrinterDetector::reload();
+            fs::remove_all(root);
+        }
+    } restore{temp_root};
+    {
+        helix::ScopedEnv data_g("HELIX_DATA_DIR", nullptr);
+        helix::ScopedEnv config_g("HELIX_CONFIG_DIR", nullptr);
+        CwdGuard cwd_g;
+
+        fs::remove_all(temp_root);
+        fs::create_directories(temp_root / "assets" / "config");
+        fs::create_directories(temp_root / "config_dir" / "printer_database.d");
+        std::ofstream(temp_root / "assets" / "config" / "printer_database.json") << R"({
+                "printers": [
+                    { "id": "acme_x_1", "name": "Acme X1", "id_aliases": ["acme_x1"],
+                      "probe_type": "eddy" },
+                    { "id": "acme_x_2", "name": "Acme X2", "probe_type": "bltouch" }
+                ]
+            })";
+        std::ofstream(temp_root / "config_dir" / "printer_database.d" / "vendor.json") << R"({
+                "printers": [
+                    { "id": "acme_x1", "name": "Acme X1", "probe_type": "klicky" },
+                    { "id": "acme_x_2", "name": "Acme X2", "probe_type": "tap" }
+                ]
+            })";
+        setenv("HELIX_DATA_DIR", temp_root.c_str(), 1);
+        setenv("HELIX_CONFIG_DIR", (temp_root / "config_dir").c_str(), 1);
+        REQUIRE(chdir(temp_root.c_str()) == 0);
+        PrinterDetector::reload();
+
+        const auto status = PrinterDetector::get_load_status();
+        REQUIRE(status.loaded);
+        CHECK(status.total_printers == 2);
+        CHECK(status.user_additions == 0);
+        // The bundled id still overrides as it always has.
+        CHECK(status.user_overrides == 1);
+        CHECK(PrinterDetector::get_probe_type("Acme X2") == "tap");
+
+        const auto& names = PrinterDetector::get_list_names();
+        CHECK(std::count(names.begin(), names.end(), "Acme X1") == 1);
+        CHECK(PrinterDetector::get_probe_type("Acme X1") == "eddy");
+    }
+}
+
+TEST_CASE("PrinterDetector: the bundled Creator 5 entries supersede Reforge's own ids",
+          "[printer][db_shape][id_aliases][creator5]") {
+    // Reforge (Klipper4FlashForge/firmware eda86c1) installs
+    // printer_database.d/flashforge_creator5.json with these two ids.
+    namespace fs = std::filesystem;
+    auto temp_root = fs::temp_directory_path() /
+                     ("test_printer_detector_reforge_ids_" + std::to_string(getpid()));
+    struct RestoreDatabase {
+        fs::path root;
+        ~RestoreDatabase() {
+            PrinterDetector::reload();
+            fs::remove_all(root);
+        }
+    } restore{temp_root};
+    {
+        helix::ScopedEnv config_g("HELIX_CONFIG_DIR", nullptr);
+        fs::remove_all(temp_root);
+        fs::create_directories(temp_root / "printer_database.d");
+        std::ofstream(temp_root / "printer_database.d" / "flashforge_creator5.json") << R"({
+                "printers": [
+                    { "id": "flashforge_creator5_pro", "name": "FlashForge Creator 5 Pro",
+                      "image": "generic-corexy.png", "heuristics": [] },
+                    { "id": "flashforge_creator5", "name": "FlashForge Creator 5",
+                      "image": "generic-corexy.png", "heuristics": [] }
+                ]
+            })";
+        setenv("HELIX_CONFIG_DIR", temp_root.c_str(), 1);
+        PrinterDetector::reload();
+
+        REQUIRE(PrinterDetector::get_load_status().loaded);
+        CHECK(PrinterDetector::get_load_status().user_additions == 0);
+        const auto& names = PrinterDetector::get_list_names();
+        CHECK(std::count(names.begin(), names.end(), "FlashForge Creator 5 Pro") == 1);
+        CHECK(std::count(names.begin(), names.end(), "FlashForge Creator 5") == 1);
+        CHECK(PrinterDetector::get_image_for_printer("FlashForge Creator 5 Pro") ==
+              "flashforge-creator-5-pro.png");
+    }
+}
+
 TEST_CASE("PrinterDetector: an unchanged broken database is read once, not once per lookup",
           "[printer][db_shape]") {
     namespace fs = std::filesystem;
