@@ -252,6 +252,7 @@ src/printer/queued_job_options.cpp
 src/printer/printer_calibration_state.cpp
 src/printer/printer_capabilities_state.cpp
 src/printer/printer_composite_visibility_state.cpp
+src/printer/printer_database_merge.cpp
 src/printer/printer_detector.cpp
 src/printer/printer_excluded_objects_state.cpp
 src/printer/printer_fan_state.cpp

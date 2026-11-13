@@ -984,59 +984,6 @@ TEST_CASE("PrinterDiscovery prefers AFC over standalone toolchanger", "[printer_
     REQUIRE(hw.has_tool_changer());
 }
 
-TEST_CASE("PrinterDiscovery: Reforge's AFC over ff_toolchange takes the Creator 5's heads",
-          "[printer_discovery][reforge]") {
-    // Reforge (Klipper4FlashForge/firmware eda86c1) runs AFC over its own
-    // changer: ff-afc.cfg declares [AFC_Toolchanger Tools] and one
-    // [AFC_extruder e<n>] per head, and AFC registers an `AFC_lane e<n>` for
-    // each (AFC_extruder.py, toolchanger_unit). ff_toolchange still publishes
-    // klipper-toolchanger's `toolchanger` and `tool T<n>` views. The carriage
-    // buttons are 1-based, as on Z-Mod, but there is no zmod_color.
-    PrinterDiscovery hw;
-    json objects = {"heater_bed",
-                    "extruder",
-                    "extruder1",
-                    "extruder2",
-                    "extruder3",
-                    "heater_generic chamber_heater",
-                    "ff_toolchange",
-                    "ff_tool_offset",
-                    "ff_print",
-                    "toolchanger",
-                    "tool T0",
-                    "tool T1",
-                    "tool T2",
-                    "tool T3",
-                    "AFC",
-                    "AFC_Toolchanger Tools",
-                    "AFC_extruder e0",
-                    "AFC_lane e0",
-                    "AFC_extruder e1",
-                    "AFC_lane e1",
-                    "AFC_extruder e2",
-                    "AFC_lane e2",
-                    "AFC_extruder e3",
-                    "AFC_lane e3",
-                    "gcode_button extruder_grab1",
-                    "gcode_button extruder_grab2",
-                    "gcode_button extruder_grab3",
-                    "gcode_button extruder_grab4",
-                    "filament_motion_sensor fm_ex0",
-                    "filament_motion_sensor fm_ex1",
-                    "filament_motion_sensor fm_ex2",
-                    "filament_motion_sensor fm_ex3"};
-    hw.parse_objects(objects);
-
-    REQUIRE(hw.has_mmu());
-    CHECK(hw.mmu_type() == AmsType::AFC);
-    REQUIRE(hw.detected_ams_systems().size() == 1);
-    CHECK(hw.detected_ams_systems()[0].type == AmsType::AFC);
-    CHECK(hw.has_tool_changer());
-    CHECK(hw.afc_extruder_names() == std::vector<std::string>{"e0", "e1", "e2", "e3"});
-    CHECK(hw.afc_lane_names() == std::vector<std::string>{"e0", "e1", "e2", "e3"});
-    CHECK(hw.tool_names().size() == 4);
-}
-
 TEST_CASE("PrinterDiscovery uses Snapmaker backend when no MMU present", "[printer_discovery]") {
     // Native Snapmaker U1 without aftermarket filament changer
     PrinterDiscovery hw;

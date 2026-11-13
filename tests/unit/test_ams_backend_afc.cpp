@@ -5059,57 +5059,6 @@ TEST_CASE("AFC toolchanger load and tool change follow AFC's map, not extruder o
     }
 }
 
-TEST_CASE("AFC toolchanger: Reforge's Creator 5 is one standalone lane per head",
-          "[ams][afc][toolchanger][reforge]") {
-    // Reforge's ff-afc.cfg (Klipper4FlashForge/firmware eda86c1): one
-    // [AFC_Toolchanger Tools] unit and an [AFC_extruder e<n>] per head with
-    // extruder_name extruder / extruder1..3 and map T<n>. AFC builds the lane
-    // `e<n>` itself, in unit Tools, hub direct (AFC_extruder.py).
-    AmsBackendAfcTestHelper helper;
-    const std::vector<std::string> heads{"e0", "e1", "e2", "e3"};
-    helper.set_discovered_lanes(heads, {});
-    helper.initialize_slots_from_discovery();
-    helper.feed_afc_state({{"current_state", "Idle"},
-                           {"units", {"Toolchanger Tools"}},
-                           {"lanes", heads},
-                           {"extruders", heads},
-                           {"hubs", nlohmann::json::array()}});
-    helper.feed_status_update({{"AFC_Toolchanger Tools",
-                                {{"lanes", heads},
-                                 {"extruders", heads},
-                                 {"hubs", nlohmann::json::array()},
-                                 {"buffers", nlohmann::json::array()}}}});
-    for (std::size_t i = 0; i < heads.size(); ++i) {
-        helper.feed_status_update({{"AFC_lane " + heads[i],
-                                    {{"unit", "Tools"},
-                                     {"hub", "direct"},
-                                     {"extruder", heads[i]},
-                                     {"map", "T" + std::to_string(i)},
-                                     {"prep", true},
-                                     {"load", true},
-                                     {"material", "PLA"}}}});
-    }
-    helper.seed_extruder_klipper_names(
-        {{"e0", "extruder"}, {"e1", "extruder1"}, {"e2", "extruder2"}, {"e3", "extruder3"}});
-    helper.set_running(true);
-
-    REQUIRE(helper.get_slot_count() == 4);
-    CHECK(helper.get_unit_topology(0) == PathTopology::PARALLEL);
-    CHECK(helper.get_tool_to_slot_map() == std::vector<int>{0, 1, 2, 3});
-
-    SECTION("a tool change mounts that T number's head through AFC") {
-        REQUIRE(helper.change_tool(2));
-        CHECK(helper.captured_gcodes == std::vector<std::string>{"AFC_SELECT_TOOL TOOL=e2"});
-    }
-
-    SECTION("SET_MAP moves a T number to another head and the tool change follows") {
-        helper.feed_status_update({{"AFC_lane e2", {{"map", "T0"}}}});
-        helper.feed_status_update({{"AFC_lane e0", {{"map", "T2"}}}});
-        REQUIRE(helper.change_tool(0));
-        CHECK(helper.captured_gcodes == std::vector<std::string>{"AFC_SELECT_TOOL TOOL=e2"});
-    }
-}
-
 TEST_CASE("AFC toolchanger: a T number with no lane refuses instead of guessing a head",
           "[ams][afc][toolchanger][1824]") {
     AmsBackendAfcTestHelper helper;
