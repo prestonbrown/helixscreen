@@ -55,6 +55,7 @@
   "gcode_macro START_PRINT": [
     "preparation_done"
   ],
+  "gcode_macro _FILAMENT_FEED_VARIABLE": null,
   "gcode_macro _HELIX_STATE": [
     "print_started"
   ],

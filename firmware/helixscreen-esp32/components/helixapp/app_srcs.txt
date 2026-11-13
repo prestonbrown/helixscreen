@@ -270,6 +270,7 @@ src/printer/sensor_state.cpp
 src/printer/slot_registry.cpp
 src/printer/snapmaker_channel_state.cpp
 src/printer/snapmaker_exceptions.cpp
+src/printer/snapmaker_feed_mode.cpp
 src/printer/pause_descriptor.cpp
 src/printer/snapmaker_nozzle_offset.cpp
 src/printer/snapmaker_nozzle_properties.cpp
