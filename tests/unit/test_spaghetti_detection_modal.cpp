@@ -526,6 +526,7 @@ TEST_CASE_METHOD(PresenterFixture, "Turn off detection switches a U1's own detec
     m.register_source(std::make_unique<helix::detection::U1StockSource>(nullptr));
     SettingsManager::instance().set_detection_enabled(true);
     m.apply_objects_list_for_test(nlohmann::json::array({"defect_detection"}));
+    helix::ui::UpdateQueue::instance().drain();
 
     helix::detection::present_detection(spaghetti_event(true),
                                         helix::detection::DetectionPolicy::DeferToSource);

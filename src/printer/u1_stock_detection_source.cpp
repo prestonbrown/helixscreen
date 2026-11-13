@@ -45,11 +45,17 @@ void U1StockSource::apply_detection_enabled(bool enabled) {
     client->send_jsonrpc("printer.gcode.script", json{{"script", script}}, nullptr, nullptr);
 }
 
-void U1StockSource::read_bed_check(BedCheckReadCallback done) {
+void U1StockSource::query_module(const char* what,
+                                 std::function<void(const json* module)> on_module) {
+    IMoonrakerClient* client = get_moonraker_client();
+    if (!client) {
+        on_module(nullptr);
+        return;
+    }
     json params = {{"objects", {{"defect_detection", nullptr}}}};
-    get_moonraker_client()->send_jsonrpc(
+    client->send_jsonrpc(
         "printer.objects.query", params,
-        [done](const json& resp) {
+        [on_module](const json& resp) {
             const json* module = nullptr;
             if (auto r = resp.find("result"); r != resp.end() && r->is_object()) {
                 if (auto st = r->find("status"); st != r->end() && st->is_object()) {
@@ -59,35 +65,53 @@ void U1StockSource::read_bed_check(BedCheckReadCallback done) {
                     }
                 }
             }
-            const json* clean_bed = nullptr;
-            if (module) {
-                if (auto cb = module->find("clean_bed"); cb != module->end() && cb->is_object()) {
-                    clean_bed = &*cb;
-                }
-            }
-            const json* enable = nullptr;
-            if (clean_bed) {
-                if (auto en = clean_bed->find("enable");
-                    en != clean_bed->end() && en->is_boolean()) {
-                    enable = &*en;
-                }
-            }
-            if (!enable) {
-                done(std::nullopt);
-                return;
-            }
-            BedCheckState state;
-            state.enabled = enable->get<bool>();
-            if (auto main = module->find("main_enable");
-                main != module->end() && main->is_boolean()) {
-                state.module_enabled = main->get<bool>();
-            }
-            done(state);
+            on_module(module);
         },
-        [done](const MoonrakerError& err) {
-            spdlog::warn("[U1StockSource] bed check state unreadable: {}", err.message);
-            done(std::nullopt);
+        [on_module, what](const MoonrakerError& err) {
+            spdlog::warn("[U1StockSource] {} unreadable: {}", what, err.message);
+            on_module(nullptr);
         });
+}
+
+namespace {
+
+/// The boolean `enable` of the named feature block, or nullopt when absent.
+std::optional<bool> feature_enable(const json* module, const char* feature) {
+    if (!module) {
+        return std::nullopt;
+    }
+    auto block = module->find(feature);
+    if (block == module->end() || !block->is_object()) {
+        return std::nullopt;
+    }
+    auto en = block->find("enable");
+    if (en == block->end() || !en->is_boolean()) {
+        return std::nullopt;
+    }
+    return en->get<bool>();
+}
+
+} // namespace
+
+void U1StockSource::read_detection_enabled(DetectionEnabledReadCallback done) {
+    query_module("detection state",
+                 [done](const json* module) { done(feature_enable(module, "noodle")); });
+}
+
+void U1StockSource::read_bed_check(BedCheckReadCallback done) {
+    query_module("bed check state", [done](const json* module) {
+        const std::optional<bool> enable = feature_enable(module, "clean_bed");
+        if (!enable) {
+            done(std::nullopt);
+            return;
+        }
+        BedCheckState state;
+        state.enabled = *enable;
+        if (auto main = module->find("main_enable"); main != module->end() && main->is_boolean()) {
+            state.module_enabled = main->get<bool>();
+        }
+        done(state);
+    });
 }
 
 void U1StockSource::set_bed_check(bool enabled, BedCheckSetCallback done) {

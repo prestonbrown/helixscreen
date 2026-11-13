@@ -159,8 +159,10 @@ class DetectionManager {
     /// settings, the first start where a capable source exists.
     void maybe_seed_settings();
 
-    /// Hand the stored switch to every capable source.
-    void apply_detection_enabled();
+    /// Ask every capable source for its printer's own detection switch and
+    /// send the stored setting only to one that differs: a resend rewrites
+    /// the printer's config, and on some printers lights the chamber mid-print.
+    void reconcile_detection_enabled();
 
     /// The capable source with a bed check, or nullptr.
     DetectionSource* bed_check_source() const;
