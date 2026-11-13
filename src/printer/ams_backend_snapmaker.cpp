@@ -239,6 +239,12 @@ nlohmann::json AmsBackendSnapmaker::required_status_objects(const helix::Printer
     if (!batch_macro.empty()) {
         objects[fmt::format("gcode_macro {}", batch_macro)] = nullptr;
     }
+    // The head-to-feeder-channel map the Auto loading rows send to.
+    const std::string feed_variable =
+        hw.macro_config_name(snapmaker::feed_mode::kFeedVariableMacro);
+    if (!feed_variable.empty()) {
+        objects[fmt::format("gcode_macro {}", feed_variable)] = nullptr;
+    }
     // ACE units hung off the heads (AmsBackendMultiAce reads it).
     if (multiace::present(hw)) {
         objects["ace"] = nullptr;
@@ -313,6 +319,9 @@ void AmsBackendSnapmaker::set_discovery(const helix::PrinterDiscovery& discovery
     use_batch_macro_ = !macro.empty();
     batch_macro_object_ = macro.empty() ? std::string{} : "gcode_macro " + macro;
     nozzle_offset_supported_ = snapmaker::nozzle_offset::supported(discovery);
+    const std::string feed_variable =
+        discovery.macro_config_name(snapmaker::feed_mode::kFeedVariableMacro);
+    feed_variable_object_ = feed_variable.empty() ? std::string{} : "gcode_macro " + feed_variable;
 }
 
 void AmsBackendSnapmaker::before_disconnect() {
@@ -577,8 +586,14 @@ AmsError AmsBackendSnapmaker::do_load_filament(int slot_index) {
     // whose module is absent or out of automatic mode, or whose motion sensor
     // is disabled. Those are refused here, where the user can be told why.
     switch (const auto eligibility = slot_op_eligibility(slot_index, /*load=*/true)) {
-    case FilamentOpEligibility::AlreadyLoaded:
     case FilamentOpEligibility::FeederUnavailable:
+        if (auto_load_off(channel_snapshot(slot_index))) {
+            return AmsErrorHelper::slot_ineligible(
+                lane_noun(), slot_index,
+                TR_NOOP("Auto loading is off; turn it on under Print Behavior"));
+        }
+        [[fallthrough]];
+    case FilamentOpEligibility::AlreadyLoaded:
     case FilamentOpEligibility::SensorDisabled:
         return AmsErrorHelper::slot_ineligible(lane_noun(), slot_index,
                                                filament_op_eligibility_reason(eligibility));
@@ -865,7 +880,11 @@ HeadFilamentOps AmsBackendSnapmaker::head_filament_ops(int head) const {
         return ops;
     }
     ops.load = FilamentOpSupport::Manual;
-    ops.load_reason = lv_tr("This toolhead has no automatic feeder. Load the filament by hand.");
+    ops.load_reason =
+        auto_load_off(channel_snapshot(head))
+            ? lv_tr("Auto loading is off for this toolhead. Turn it on under Print Behavior, or "
+                    "load the filament by hand.")
+            : lv_tr("This toolhead has no automatic feeder. Load the filament by hand.");
     ops.guided_hand_load = true;
     return ops;
 }
@@ -1962,7 +1981,12 @@ void AmsBackendSnapmaker::apply_feed_channel_locked(const snapmaker::FeedChannel
         snap.module_reported = true;
     }
     if (channel.disable_auto) {
+        // The Auto loading row shows this, so a change redraws the overlay.
+        if (!snap.auto_reported || snap.disable_auto != *channel.disable_auto) {
+            fx.changed = true;
+        }
         snap.disable_auto = *channel.disable_auto;
+        snap.auto_reported = true;
     }
     // The op lifecycle, error surfacing and batch
     // verification read the op's outcome; the latch and the
@@ -2787,6 +2811,13 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
     { // Scope lock — emit_event MUST be called outside mutex_ to avoid deadlock
       // with sync_from_backend() which acquires mutex_ via get_system_info()
         std::lock_guard<std::mutex> lock(mutex_);
+
+        if (!feed_variable_object_.empty()) {
+            if (const nlohmann::json* fv =
+                    helix::json_util::find_member(status, feed_variable_object_.c_str())) {
+                feed_channels_ = snapmaker::feed_mode::read_channel_map(fv, feed_channels_);
+            }
+        }
 
         bool frame_names_state = false;
         bool frame_names_file = false;
@@ -3646,6 +3677,7 @@ std::vector<bool> end_unload_list(const snapmaker::PrintPreferences& p,
 }
 
 constexpr std::string_view kEndUnloadPrefix = "snapmaker_end_unload_t";
+constexpr std::string_view kAutoLoadPrefix = "snapmaker_auto_load_t";
 constexpr std::string_view kNozzleDiameterPrefix = "snapmaker_nozzle_diameter_t";
 constexpr std::string_view kNozzleFlowPrefix = "snapmaker_nozzle_flow_t";
 constexpr const char* kToolheadSection = "toolhead";
@@ -3704,7 +3736,11 @@ std::vector<helix::printer::DeviceSection> AmsBackendSnapmaker::get_device_secti
     using helix::printer::DeviceSection;
     std::vector<DeviceSection> out;
     // Nothing reported yet - an empty section is worse than none.
-    if (!print_preferences().empty()) {
+    bool auto_load_rows = false;
+    for (int h = 0; h < kNumTools; ++h) {
+        auto_load_rows = auto_load_rows || channel_snapshot(h).auto_reported;
+    }
+    if (!print_preferences().empty() || auto_load_rows) {
         out.push_back(helix::printer::device_section(kPrintPrefsSection, 50, ""));
     }
     const auto nozzles = reported_nozzles();
@@ -3773,6 +3809,30 @@ std::vector<helix::printer::DeviceAction> AmsBackendSnapmaker::get_device_action
         if (head_is_soft(soft, t)) {
             a.enabled = false;
             a.disable_reason = TR_NOOP("Soft filament is never unloaded");
+        }
+        out.push_back(std::move(a));
+    }
+
+    // Each head's Auto loading: whether its feeder takes a spool pushed into its
+    // port and feeds it. Only a head whose feeder has reported its mode gets a
+    // row.
+    for (int h = 0; h < kNumTools; ++h) {
+        const ChannelSnapshot snap = channel_snapshot(h);
+        if (!snap.auto_reported) {
+            continue;
+        }
+        DeviceAction a =
+            DeviceAction::toggle(std::string(kAutoLoadPrefix) + std::to_string(h),
+                                 TR_NOOP("Auto loading"), kPrintPrefsSection, !snap.disable_auto);
+        a.slot_index = h;
+        a.tool_index = h;
+        if (snap.module_reported && !snap.module_exist) {
+            a.enabled = false;
+            a.disable_reason = TR_NOOP("No feeder attached");
+        } else if (snapmaker::channel_state_in_progress(snap.state)) {
+            // The firmware holds the switch until the feed ends.
+            a.enabled = false;
+            a.disable_reason = TR_NOOP("Wait for the load or unload to finish");
         }
         out.push_back(std::move(a));
     }
@@ -3919,6 +3979,17 @@ std::string AmsBackendSnapmaker::build_preference_gcode(const std::string& actio
         auto list = end_unload_list(prefs, soft);
         list[*tool] = v;
         changes.end_unload_filament = std::move(list);
+    } else if (const auto head = tool_from_action_id(kAutoLoadPrefix, action_id)) {
+        const auto [v, err] = printer::device_action_value<bool>(value, "setting");
+        if (!err || *head >= static_cast<size_t>(kNumTools)) {
+            return {};
+        }
+        std::optional<snapmaker::feed_mode::FeedChannel> channel;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            channel = feed_channels_[*head];
+        }
+        return channel ? snapmaker::feed_mode::auto_mode_gcode(*channel, v) : std::string{};
     } else {
         return {};
     }

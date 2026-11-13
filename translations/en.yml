@@ -382,6 +382,9 @@ translations:
   Auto Bed Mesh: Auto Bed Mesh
   Auto Cal: Auto Cal
   Auto Fans: Auto Fans
+  Auto loading: Auto loading
+  Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand.: Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand.
+  Auto loading is off; turn it on under Print Behavior: Auto loading is off; turn it on under Print Behavior
   Auto-Detect: Auto-Detect
   Auto-Heat on Load: Auto-Heat on Load
   Auto-Replenish: Auto-Replenish
@@ -2651,6 +2654,7 @@ translations:
   No events queued: No events queued
   No extruder heater found. Check [extruder] in printer.cfg: No extruder heater found. Check [extruder] in printer.cfg
   No fans detected: No fans detected
+  No feeder attached: No feeder attached
   No filament: No filament
   No filament environment sensors: No filament environment sensors
   No filament loaded to unload: No filament loaded to unload
@@ -4839,6 +4843,7 @@ translations:
     operation to finish
   Wait for the current operation to complete: Wait for the current operation to complete
   Wait for the current operation to complete or cancel it first: Wait for the current operation to complete or cancel it first
+  Wait for the load or unload to finish: Wait for the load or unload to finish
   Wait for the motor to stop: Wait for the motor to stop
   Wait for the nozzle to stop moving: Wait for the nozzle to stop moving
   Wait for the running INDX operation to finish: Wait for the running INDX operation to finish

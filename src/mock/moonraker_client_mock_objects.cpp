@@ -657,6 +657,16 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             if (objects.contains("lane_status") && self->is_mock_lane_status()) {
                 status_obj["lane_status"] = self->lane_status_json();
             }
+            // multiACE on a U1: both feeder sides at rest, so the backend's
+            // first frame carries each head's channel state and Auto loading.
+            if (self->is_mock_multiace()) {
+                if (objects.contains("filament_feed left")) {
+                    status_obj["filament_feed left"] = self->u1_feed_side_json(0);
+                }
+                if (objects.contains("filament_feed right")) {
+                    status_obj["filament_feed right"] = self->u1_feed_side_json(2);
+                }
+            }
             // Z-Mod's colour registry (creator5_zmod persona).
             if (objects.contains("zmod_color")) {
                 status_obj["zmod_color"] = self->zmod_color_status();
@@ -973,6 +983,16 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             }
             if (objects.contains("lane_status") && self->is_mock_lane_status()) {
                 status_obj["lane_status"] = self->lane_status_json();
+            }
+            // multiACE on a U1: both feeder sides at rest, so the backend's
+            // first frame carries each head's channel state and Auto loading.
+            if (self->is_mock_multiace()) {
+                if (objects.contains("filament_feed left")) {
+                    status_obj["filament_feed left"] = self->u1_feed_side_json(0);
+                }
+                if (objects.contains("filament_feed right")) {
+                    status_obj["filament_feed right"] = self->u1_feed_side_json(2);
+                }
             }
 
             // MedusaHC (HELIX_MOCK_AMS=medusahc[-ktc|-tn]). Emitted only for

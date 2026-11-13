@@ -401,6 +401,9 @@
   <translation tag="Auto Bed Mesh" ru="Авто сетка стола"/>
   <translation tag="Auto Cal" ru="Авто кал."/>
   <translation tag="Auto Fans" ru="Автоматические вентиляторы"/>
+  <translation tag="Auto loading" ru="Автозагрузка"/>
+  <translation tag="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand." ru="Автозагрузка для этой печатающей головки выключена. Включите её в разделе «Поведение при печати» или загрузите филамент вручную."/>
+  <translation tag="Auto loading is off; turn it on under Print Behavior" ru="Автозагрузка выключена; включите её в разделе «Поведение при печати»"/>
   <translation tag="Auto-Detect" ru="Автоопределение"/>
   <translation tag="Auto-Heat on Load" ru="Автонагрев при загрузке"/>
   <translation tag="Auto-Replenish" ru="Автопополнение"/>
@@ -2538,6 +2541,7 @@
   <translation tag="No events queued" ru="Нет событий в очереди"/>
   <translation tag="No extruder heater found. Check [extruder] in printer.cfg" ru="Нагреватель экструдера не найден. Проверьте [extruder] в printer.cfg"/>
   <translation tag="No fans detected" ru="Вентиляторы не обнаружены"/>
+  <translation tag="No feeder attached" ru="Фидер не подключён"/>
   <translation tag="No filament" ru="Нет филамента"/>
   <translation tag="No filament environment sensors" ru="Нет датчиков среды филамента"/>
   <translation tag="No filament loaded to unload" ru="Нет загруженного филамента для выгрузки"/>
@@ -4571,6 +4575,7 @@
   <translation tag="Wait for the current filament operation to finish" ru="Дождитесь завершения текущей операции с филаментом"/>
   <translation tag="Wait for the current operation to complete" ru="Дождитесь завершения текущей операции"/>
   <translation tag="Wait for the current operation to complete or cancel it first" ru="Дождитесь завершения текущей операции или сначала отмените её"/>
+  <translation tag="Wait for the load or unload to finish" ru="Дождитесь окончания загрузки или выгрузки"/>
   <translation tag="Wait for the motor to stop" ru="Дождитесь остановки двигателя"/>
   <translation tag="Wait for the nozzle to stop moving" ru="Дождитесь остановки сопла"/>
   <translation tag="Wait for the running INDX operation to finish" ru="Дождитесь завершения текущей операции INDX"/>

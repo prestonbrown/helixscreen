@@ -391,6 +391,9 @@ translations:
   Auto Bed Mesh: Mesh piano automatica
   Auto Cal: Cal. auto
   Auto Fans: Ventilatori automatici
+  Auto loading: "Caricamento automatico"
+  Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand.: "Il caricamento automatico è disattivato per questa testina. Attivalo in Comportamento di stampa o carica il filamento a mano."
+  Auto loading is off; turn it on under Print Behavior: "Caricamento automatico disattivato; attivalo in Comportamento di stampa"
   Auto-Detect: Rilevamento auto
   Auto-Heat on Load: Riscaldamento automatico al caricamento
   Auto-Replenish: Rifornimento automatico
@@ -2709,6 +2712,7 @@ translations:
   No events queued: Nessun evento in coda
   No extruder heater found. Check [extruder] in printer.cfg: 'Riscaldatore dell''estrusore non trovato. Controlla [extruder] in printer.cfg'
   No fans detected: Nessuna ventola rilevata
+  No feeder attached: "Nessun alimentatore collegato"
   No filament: Nessun filamento
   No filament environment sensors: Nessun sensore ambientale del filamento
   No filament loaded to unload: Nessun filamento caricato da scaricare
@@ -4933,6 +4937,7 @@ translations:
   Wait for the current filament operation to finish: Attendi il completamento dell'operazione di filamento in corso
   Wait for the current operation to complete: Attendi il completamento dell'operazione corrente
   Wait for the current operation to complete or cancel it first: Attendi il completamento dell'operazione corrente o annullala prima
+  Wait for the load or unload to finish: "Attendi la fine del caricamento o dello scaricamento"
   Wait for the motor to stop: "Attendi che il motore si fermi"
   Wait for the nozzle to stop moving: Attendi che l'ugello si fermi
   Wait for the running INDX operation to finish: Attendi la fine dell'operazione INDX in corso

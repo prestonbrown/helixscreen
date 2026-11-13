@@ -25,6 +25,7 @@
 #include "runtime_config.h"
 #include "shaper_response.h"
 #include "simulated_clock.h"
+#include "snapmaker_feed_mode.h"
 
 #include <spdlog/spdlog.h>
 
@@ -1207,7 +1208,7 @@ nlohmann::json MoonrakerClientMock::u1_feed_side_json(int ext) const {
             {"channel_error", "ok"},
             {"channel_error_state", "none"},
             {"channel_action_state", u1_channel_state_[static_cast<size_t>(i)]},
-            {"disable_auto", false},
+            {"disable_auto", u1_disable_auto_[static_cast<size_t>(i)]},
             {"filament_detected", u1_filament_detected_[static_cast<size_t>(i)]},
             {"module_exist", true},
         };
@@ -1245,6 +1246,12 @@ bool MoonrakerClientMock::apply_u1_feeding_gcode(const std::string& gcode) {
     // "UNLOAD=1" contains "LOAD=1" as a substring; the direction must be read
     // unload-first.
     const bool unload = gcode.find("UNLOAD=1") != std::string::npos;
+    if (!unload && u1_disable_auto_[static_cast<size_t>(ext)]) {
+        spdlog::info("[MoonrakerClientMock] U1 feeder: extruder {} Auto loading is off; load "
+                     "ignored",
+                     ext);
+        return true;
+    }
 
     int fail_slot = -1;
     if (const char* fail_env = std::getenv("HELIX_MOCK_BATCH_FAIL_SLOT")) {
@@ -1275,6 +1282,29 @@ bool MoonrakerClientMock::apply_u1_feeding_gcode(const std::string& gcode) {
     publish_u1_channel_frame(ext);
     spdlog::info("[MoonrakerClientMock] U1 feeder: extruder {} {} -> {}", ext,
                  unload ? "unload" : "load", terminal);
+    return true;
+}
+
+bool MoonrakerClientMock::apply_u1_auto_mode_gcode(const std::string& gcode) {
+    if (gcode.rfind("FEED_AUTO ", 0) != 0) {
+        return false;
+    }
+    const auto module = helix::gcode::gcode_param_value(gcode, "MODULE");
+    const auto channel = helix::gcode::gcode_param_value(gcode, "CHANNEL");
+    const auto mode = helix::gcode::gcode_param_value(gcode, "AUTO");
+    if (!module || !channel || !mode) {
+        return true;
+    }
+    const int head = helix::snapmaker::feed_mode::stock_head(
+        helix::text_io::to_lower(*module),
+        helix::text_io::parse_leading<int>(*channel).value_or(-1));
+    if (head < 0) {
+        return true;
+    }
+    u1_disable_auto_[static_cast<size_t>(head)] = *mode == "0";
+    publish_u1_channel_frame(head);
+    spdlog::info("[MoonrakerClientMock] U1 feeder: extruder {} Auto loading {}", head,
+                 *mode == "0" ? "off" : "on");
     return true;
 }
 

@@ -362,6 +362,9 @@
   <translation tag="Auto Bed Mesh" ja="自動ベッドメッシュ"/>
   <translation tag="Auto Cal" ja="自動キャリブレーション"/>
   <translation tag="Auto Fans" ja="自動ファン"/>
+  <translation tag="Auto loading" ja="自動ロード"/>
+  <translation tag="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand." ja="このツールヘッドの自動ロードはオフです。印刷時の動作でオンにするか、フィラメントを手動でロードしてください。"/>
+  <translation tag="Auto loading is off; turn it on under Print Behavior" ja="自動ロードがオフです。印刷時の動作でオンにしてください"/>
   <translation tag="Auto-Detect" ja="自動検出"/>
   <translation tag="Auto-Heat on Load" ja="装填時に自動加熱"/>
   <translation tag="Auto-Replenish" ja="自動補充"/>
@@ -2490,6 +2493,7 @@
   <translation tag="No events queued" ja="キューにイベントはありません"/>
   <translation tag="No extruder heater found. Check [extruder] in printer.cfg" ja="エクストルーダーヒーターが見つかりません。printer.cfg の [extruder] を確認してください"/>
   <translation tag="No fans detected" ja="ファンが検出されませんでした"/>
+  <translation tag="No feeder attached" ja="フィーダーが接続されていません"/>
   <translation tag="No filament" ja="フィラメントなし"/>
   <translation tag="No filament environment sensors" ja="フィラメント環境センサーがありません"/>
   <translation tag="No filament loaded to unload" ja="取出すフィラメントが装填されていません"/>
@@ -4508,6 +4512,7 @@
   <translation tag="Wait for the current filament operation to finish" ja="現在のフィラメント操作が完了するまでお待ちください"/>
   <translation tag="Wait for the current operation to complete" ja="現在の操作が完了するまでお待ちください"/>
   <translation tag="Wait for the current operation to complete or cancel it first" ja="現在の操作が完了するまで待つか、先にキャンセルしてください"/>
+  <translation tag="Wait for the load or unload to finish" ja="ロードまたは排出が終わるまでお待ちください"/>
   <translation tag="Wait for the motor to stop" ja="モーターが止まるまでお待ちください"/>
   <translation tag="Wait for the nozzle to stop moving" ja="ノズルが止まるまでお待ちください"/>
   <translation tag="Wait for the running INDX operation to finish" ja="実行中のINDX操作が終わるまでお待ちください"/>

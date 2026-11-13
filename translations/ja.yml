@@ -369,6 +369,9 @@ translations:
   Auto Bed Mesh: 自動ベッドメッシュ
   Auto Cal: 自動キャリブレーション
   Auto Fans: 自動ファン
+  Auto loading: "自動ロード"
+  Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand.: "このツールヘッドの自動ロードはオフです。印刷時の動作でオンにするか、フィラメントを手動でロードしてください。"
+  Auto loading is off; turn it on under Print Behavior: "自動ロードがオフです。印刷時の動作でオンにしてください"
   Auto-Detect: 自動検出
   Auto-Heat on Load: 装填時に自動加熱
   Auto-Replenish: 自動補充
@@ -2579,6 +2582,7 @@ translations:
   No events queued: キューにイベントはありません
   No extruder heater found. Check [extruder] in printer.cfg: 'エクストルーダーヒーターが見つかりません。printer.cfg の [extruder] を確認してください'
   No fans detected: ファンが検出されませんでした
+  No feeder attached: "フィーダーが接続されていません"
   No filament: フィラメントなし
   No filament environment sensors: フィラメント環境センサーがありません
   No filament loaded to unload: 取出すフィラメントが装填されていません
@@ -4690,6 +4694,7 @@ translations:
   Wait for the current filament operation to finish: 現在のフィラメント操作が完了するまでお待ちください
   Wait for the current operation to complete: 現在の操作が完了するまでお待ちください
   Wait for the current operation to complete or cancel it first: 現在の操作が完了するまで待つか、先にキャンセルしてください
+  Wait for the load or unload to finish: "ロードまたは排出が終わるまでお待ちください"
   Wait for the motor to stop: "モーターが止まるまでお待ちください"
   Wait for the nozzle to stop moving: ノズルが止まるまでお待ちください
   Wait for the running INDX operation to finish: 実行中のINDX操作が終わるまでお待ちください
