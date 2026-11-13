@@ -765,7 +765,7 @@ Select the mock AMS topology/type.
 | `torture` | **5** | **Its unit-card row overflows.** See below |
 | `stealth` | 5 | StealthChanger-style AFC toolchanger: ACE straight to T0-T3, four hub units on T4-T6 (two share T6), 7 toolheads close together. Exercises the overview's mini-hub row |
 | `vivid` | 3 | 2x Box Turtle + ViViD, 12 slots |
-| `ifs` | 1 | AD5X IFS, 4 slots, LINEAR. Aliases: `ad5x`, `ad5x_ifs` |
+| `ifs` | 1 | **Native Z-Mod AD5X IFS - mock HARDWARE, real backend.** `zmod_ifs` / `zmod_color` for the stock four ports (black PLA, white PETG, purple PLA, brown ABS; port 1 in the head) with the commands `ifs-jacker` answers, so the production `AmsBackendAd5xIfs` runs. Aliases: `ad5x`, `ad5x_ifs`; the `ad5x` persona's default |
 | `htlf_toolchanger` | 2 | AFC HTLF + Toolchanger: 4 HTLF lanes (2 direct, 2 hub→shared extruder) + 3 standalone toolheads. Tests MIXED topology. Aliases: `htlf_tc`, `htlf` |
 | `snapmaker` | 1 | Snapmaker U1, 4 slots, PARALLEL, non-editable mapping. Aliases: `snapswap`, `u1` |
 | `medusahc` | 1 | **MedusaHC hotend changer - mock HARDWARE, real backend.** The stock Irbis3D install: controller + dock sensors, no klipper-toolchanger. Aliases: `medusa`, `mhc`. See below |

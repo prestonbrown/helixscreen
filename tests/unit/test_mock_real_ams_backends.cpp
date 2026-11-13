@@ -81,7 +81,7 @@ TEST_CASE("mock_hardware_backend: migrated modes run production, the screenshot 
           "topologies stay on the mock backend",
           "[ams][mock]") {
     for (const char* mode : {"toolchanger", "tool_changer", "tc", "afc", "box_turtle", "boxturtle",
-                             "medusahc", "indx", "cfs"}) {
+                             "ifs", "ad5x", "ad5x_ifs", "medusahc", "indx", "cfs"}) {
         CAPTURE(mode);
         CHECK(helix::mock::mock_hardware_backend(mode, nullptr) != nullptr);
     }
@@ -182,4 +182,28 @@ TEST_CASE_METHOD(AfcMock, "AFC mock: lane edits and eject republish the lane", "
     REQUIRE(mock->gcode_script("LANE_UNLOAD LANE=lane4") == 0);
     CHECK(lane(4)["status"] == "None");
     CHECK(lane(4)["prep"] == false);
+}
+
+TEST_CASE("IFS mock: the stock AD5X is native Z-Mod's four-port IFS, port 1 in the head",
+          "[ams][mock][ad5x]") {
+    helix::ScopedEnv ams{"HELIX_MOCK_AMS", "ifs"};
+    helix::ScopedEnv printer{"HELIX_MOCK_PRINTER", nullptr};
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::FLASHFORGE_AD5X);
+    CHECK(mock.hardware().mmu_type() == helix::AmsType::AD5X_IFS);
+
+    const json color = mock.zmod_color_status();
+    REQUIRE(color["slots"].size() == 4);
+    CHECK(color["slots"][0]["HEX"] == "000000");
+    CHECK(color["slots"][2]["HEX"] == "8000FF");
+    CHECK(color["active_tool_id"] == 0);
+    const json ifs = mock.zmod_ifs_status();
+    CHECK(ifs["color_limit"] == 4);
+    CHECK(ifs["Chan"] == 1);
+    CHECK(ifs["Ports"] == json::array({true, true, true, true}));
+
+    REQUIRE(mock.gcode_script("_IFS_REMOVE_CURRENT_PRUTOK") == 0);
+    CHECK(mock.zmod_color_status()["active_tool_id"] == -1);
+    REQUIRE(mock.gcode_script("INSERT_PRUTOK_IFS PRUTOK=3") == 0);
+    CHECK(mock.zmod_ifs_status()["Chan"] == 3);
+    CHECK(mock.zmod_color_status()["extruder_sensor"] == true);
 }

@@ -757,7 +757,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
         }
 
         // IFS Jacker mock: native Z-Mod's IFS objects and the stock sensors.
-        if (is_mock_ifs_jacker()) {
+        if (is_mock_zmod_ifs()) {
             status_obj["zmod_ifs"] = ifs_jacker_zmod_ifs_json();
             status_obj["zmod_color"] = ifs_jacker_zmod_color_json();
             status_obj["filament_motion_sensor ifs_motion_sensor"] = {

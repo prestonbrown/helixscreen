@@ -885,7 +885,7 @@ nlohmann::json MoonrakerClientMock::defect_detection_status() const {
 }
 
 json MoonrakerClientMock::zmod_color_status() const {
-    if (is_mock_ifs_jacker()) {
+    if (is_mock_zmod_ifs()) {
         return ifs_jacker_zmod_color_json();
     }
     std::lock_guard<std::mutex> lock(zmod_mutex_);

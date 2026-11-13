@@ -1501,13 +1501,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * display, valid_types, hidden_types, palette (the 24 firmware colours)
      * and slots (the 4 heads' Material/HEX registry). Served by the
      * objects.query/subscribe handlers and republished on _T_IN/_T_OUT/
-     * CHANGE_ZCOLOR. Under HELIX_MOCK_AMS=ifs-jacker, the AD5X's IFS frame
-     * instead (ifs_jacker_zmod_color_json()).
+     * CHANGE_ZCOLOR. Under the AD5X's native IFS modes (ifs, ifs-jacker), the
+     * IFS frame instead (ifs_jacker_zmod_color_json()).
      */
     json zmod_color_status() const;
 
-    /// The `zmod_ifs` object: the IFS Jacker mock's frame, empty in every
-    /// other mode.
+    /// The `zmod_ifs` object: the native IFS mock's frame (ifs, ifs-jacker),
+    /// empty in every other mode.
     json zmod_ifs_status() const;
 
     /**
@@ -2864,13 +2864,16 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// was one of ours (the caller then stops walking the generic chain).
     bool apply_ifs_module_gcode(const std::string& cmd, const std::string& gcode);
 
-    // HELIX_MOCK_AMS=ifs-jacker: native Z-Mod on an AD5X whose IFS port runs
-    // through an IFS Jacker, so the firmware drives HELIX_MOCK_IFS_PORTS
-    // channels (default 8, 4..16). Publishes zmod_ifs / zmod_color with that
-    // color_limit plus the stock IFS motion and head switch sensors, so real
-    // discovery sets AmsType::AD5X_IFS and the PRODUCTION AmsBackendAd5xIfs
-    // runs; try_create_mock() declines the value.
-    bool is_mock_ifs_jacker() const;
+    // Native Z-Mod's IFS on an AD5X. HELIX_MOCK_AMS=ifs (also `ad5x`, `ad5x_ifs`,
+    // and the ad5x persona's default) is the stock four-port IFS; ifs-jacker runs
+    // the IFS port through an IFS Jacker, so the firmware drives
+    // HELIX_MOCK_IFS_PORTS channels (default 8, 4..16). Publishes zmod_ifs /
+    // zmod_color with that color_limit plus the stock IFS motion and head switch
+    // sensors, so real discovery sets AmsType::AD5X_IFS and the PRODUCTION
+    // AmsBackendAd5xIfs runs; try_create_mock() declines these values.
+    bool is_mock_zmod_ifs() const;
+    /// The stock four-port IFS, no Jacker.
+    [[nodiscard]] bool is_mock_zmod_ifs_stock() const;
     /// Port count and starting presence from HELIX_MOCK_IFS_PORTS (ifs-jacker only).
     void init_ifs_jacker_from_env();
     /// The `zmod_ifs` object frame.

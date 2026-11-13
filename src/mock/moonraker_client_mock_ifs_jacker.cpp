@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// IFS Jacker mock hardware (HELIX_MOCK_AMS=ifs-jacker): native Z-Mod on an AD5X
-// whose IFS port runs through an IFS Jacker, so the firmware drives more than
-// four channels. The zmod_ifs / zmod_color frames carry that count as
-// color_limit, the way Z-Mod publishes it, and the real AD5X IFS backend runs
-// against them under --test.
+// Native Z-Mod IFS mock hardware on an AD5X: the stock four-port IFS
+// (HELIX_MOCK_AMS=ifs) or one whose IFS port runs through an IFS Jacker
+// (ifs-jacker), so the firmware drives more than four channels. The zmod_ifs /
+// zmod_color frames carry that count as color_limit, the way Z-Mod publishes it,
+// and the real AD5X IFS backend runs against them under --test.
 
 #include "core/text_io.h"
 #include "moonraker_client_mock.h"
@@ -47,6 +47,10 @@ constexpr std::array<JackerLane, 16> kJackerLanes{{{"PLA", "A03CF7"},
                                                    {"ABS", "BDBDBD"},
                                                    {"PLA", "FF7043"}}};
 
+// The stock IFS's four spools.
+constexpr std::array<JackerLane, 4> kStockLanes{
+    {{"PLA", "000000"}, {"PETG", "FFFFFF"}, {"PLA", "8000FF"}, {"ABS", "804000"}}};
+
 /// PRUTOK= / CHANNEL= value of a Z-Mod IFS command line; -1 when absent.
 int port_param(const std::string& gcode) {
     for (const char* key : {"PRUTOK=", "CHANNEL="}) {
@@ -62,13 +66,26 @@ int port_param(const std::string& gcode) {
 } // namespace
 } // namespace helix
 
-bool MoonrakerClientMock::is_mock_ifs_jacker() const {
+bool MoonrakerClientMock::is_mock_zmod_ifs_stock() const {
     const std::string ams_type = effective_mock_ams_env();
-    return ams_type == "ifs-jacker" || ams_type == "ifs_jacker";
+    return ams_type == "ifs" || ams_type == "ad5x" || ams_type == "ad5x_ifs";
+}
+
+bool MoonrakerClientMock::is_mock_zmod_ifs() const {
+    const std::string ams_type = effective_mock_ams_env();
+    return ams_type == "ifs-jacker" || ams_type == "ifs_jacker" || is_mock_zmod_ifs_stock();
 }
 
 void MoonrakerClientMock::init_ifs_jacker_from_env() {
-    if (!is_mock_ifs_jacker()) {
+    if (!is_mock_zmod_ifs()) {
+        return;
+    }
+    if (is_mock_zmod_ifs_stock()) {
+        // The stock IFS: four full ports, port 1 in the head.
+        ifs_jacker_ports_ = 4;
+        ifs_jacker_presence_.store(0xFu);
+        ifs_jacker_chan_.store(1);
+        ifs_jacker_head_loaded_.store(true);
         return;
     }
     // Ports behind the jacker (HELIX_MOCK_IFS_PORTS, 4..16; default two IFS
@@ -81,7 +98,7 @@ void MoonrakerClientMock::init_ifs_jacker_from_env() {
 }
 
 nlohmann::json MoonrakerClientMock::zmod_ifs_status() const {
-    return is_mock_ifs_jacker() ? ifs_jacker_zmod_ifs_json() : json::object();
+    return is_mock_zmod_ifs() ? ifs_jacker_zmod_ifs_json() : json::object();
 }
 
 nlohmann::json MoonrakerClientMock::ifs_jacker_zmod_ifs_json() const {
@@ -102,7 +119,8 @@ nlohmann::json MoonrakerClientMock::ifs_jacker_zmod_color_json() const {
     const uint32_t presence = ifs_jacker_presence_.load();
     json slots = json::array();
     for (int i = 0; i < ifs_jacker_ports_; ++i) {
-        const auto& lane = kJackerLanes[static_cast<size_t>(i)];
+        const auto& lane = is_mock_zmod_ifs_stock() ? kStockLanes[static_cast<size_t>(i)]
+                                                    : kJackerLanes[static_cast<size_t>(i)];
         slots.push_back({{"ID", std::to_string(i + 1)},
                          {"Material", lane.material},
                          {"Color", ""},

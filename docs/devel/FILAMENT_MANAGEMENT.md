@@ -3420,7 +3420,7 @@ The seed dispatches `handle_status` from the main thread (inside an `UpdateQueue
 | Variable | Values | Default | Description |
 |----------|--------|---------|-------------|
 | `HELIX_AMS_GATES` | 1-16 | 4 | Number of simulated slots |
-| `HELIX_MOCK_AMS` | `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `ad5x`, `ad5x_ifs`, `htlf_toolchanger`, `htlf_tc`, `htlf`, `snapmaker`, `snapswap`, `u1` | Happy Hare | AMS type to simulate |
+| `HELIX_MOCK_AMS` | `mixed`, `multi`, `torture`, `stealth`, `vivid`, `htlf_toolchanger`, `htlf_tc`, `htlf`, `snapmaker`, `snapswap`, `u1` | Happy Hare | AMS type to simulate |
 | `HELIX_MOCK_AMS_STATE` | `idle`, `loading`, `error`, `bypass`, `unaccounted`, `grade` | `idle` | Visual scenario to simulate |
 | `HELIX_MOCK_DRYER` | `1`, `true` | Disabled | Simulate integrated dryer |
 | `HELIX_MOCK_DRYER_SPEED` | Integer | 60 | Dryer speed multiplier (60 = 1 real sec = 1 sim min) |
@@ -3468,14 +3468,10 @@ identity from, and answers `SELECT_TOOL` / `UNSELECT_TOOL`, so the production
 HELIX_MOCK_AMS=ifs ./build/bin/helix-screen --test
 ```
 
-- Reports `AmsType::AD5X_IFS` with type name "AD5X IFS"
-- Uses `PathTopology::LINEAR`
-- 4 slots with bypass support
-- Tool mapping enabled; endless spool `Unsupported` - the scenario clears
-  `endless_spool_supported_` / `endless_spool_editable_`, not just
-  `system_info_.endless_spool_enabled`. Clearing only the bit left the mock AD5X with an
-  editable backup dropdown and endless-spool arrows the real backend does not have. The
-  Snapmaker scenario clears the same pair for the same reason.
+Mock hardware, not `AmsBackendMock`: native Z-Mod's `zmod_ifs` / `zmod_color` for the stock
+four-port IFS (port 1 in the head), the same frames and commands as `ifs-jacker` with four
+ports, so the production `AmsBackendAd5xIfs` runs (`src/mock/moonraker_client_mock_ifs_jacker.cpp`).
+The `ad5x` persona's default.
 
 ### Mock Realistic Mode
 

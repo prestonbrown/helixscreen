@@ -16,7 +16,6 @@
 #ifdef HELIX_ENABLE_MOCKS
 #include "ams_backend_mock.h"
 #include "app_globals.h"
-#include "env_knobs.h"
 #include "mock_persona.h"
 #include "moonraker_client_mock.h"
 #endif
@@ -667,19 +666,13 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
                                                                  std::getenv("HELIX_MOCK_PRINTER"));
 
     if (!ams_type.empty()) {
-        if (ams_type == "afc" || ams_type == "box_turtle" || ams_type == "boxturtle") {
-            mock->set_afc_mode(true);
-            spdlog::info("[AMS Backend] Mock AFC mode enabled");
-        } else if (ams_type == "quattro_box" || ams_type == "quattrobox") {
+        if (ams_type == "quattro_box" || ams_type == "quattrobox") {
             mock->set_afc_mode(true);
             mock->set_afc_unit_name("Quattro_Box QuattroBox_1");
             spdlog::info("[AMS Backend] Mock Quattro Box mode enabled");
         } else if (ams_type == "ercf" || ams_type == "tradrack") {
             mock->set_unit_model(ams_type == "ercf" ? "ERCF" : "Tradrack");
             spdlog::info("[AMS Backend] Mock selector rail: {}", ams_type);
-        } else if (ams_type == "toolchanger" || ams_type == "tool_changer" || ams_type == "tc") {
-            mock->set_tool_changer_mode(true);
-            spdlog::info("[AMS Backend] Mock tool changer mode enabled");
         } else if (ams_type == "mixed") {
             mock->set_mixed_topology_mode(true);
             spdlog::info("[AMS Backend] Mock mixed topology mode enabled");
@@ -695,11 +688,6 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
         } else if (ams_type == "vivid") {
             mock->set_vivid_mixed_mode(true);
             spdlog::info("[AMS Backend] Mock ViViD mixed mode enabled");
-        } else if (ams_type == "ifs" || ams_type == "ad5x" || ams_type == "ad5x_ifs") {
-            mock->set_ifs_mode(true);
-            // Z-Mod with its built-in AFC: the print start carries the map.
-            mock->set_print_start_takes_tool_slots(helix::env_flag("HELIX_MOCK_ZMOD_AFC"));
-            spdlog::info("[AMS Backend] Mock AD5X IFS mode enabled");
         } else if (ams_type == "htlf_toolchanger" || ams_type == "htlf_tc" || ams_type == "htlf") {
             mock->set_htlf_toolchanger_mode(true);
             spdlog::info("[AMS Backend] Mock HTLF+Toolchanger mode enabled");

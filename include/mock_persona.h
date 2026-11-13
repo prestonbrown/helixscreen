@@ -26,7 +26,7 @@ enum class PrinterType {
     MULTI_EXTRUDER,           // Multi-extruder test case (2 extruders)
     DELTA,                    // Generic linear delta (every axis homes together)
     ELEGOO_CC1,               // Elegoo Centauri Carbon on COSMOS (load-cell probe)
-    FLASHFORGE_AD5X,          // FlashForge Adventurer 5X (IFS, simulated by the mock AMS)
+    FLASHFORGE_AD5X,          // FlashForge Adventurer 5X (native Z-Mod IFS, mock hardware)
     CREALITY_K2_PLUS,         // Creality K2 Plus (CFS box, chamber heater)
     SNAPMAKER_U1,             // Snapmaker U1 (4 independent extruders)
     FLASHFORGE_CREATOR5_AFC,  // FlashForge Creator 5 Pro on Reforge with AFC over its changer
@@ -426,6 +426,9 @@ enum class MedusaVariant {
         {"ad5x-module", "AD5X IFS"},
         {"ifs-jacker", "AD5X IFS"},
         {"ifs_jacker", "AD5X IFS"},
+        {"ifs", "AD5X IFS"},
+        {"ad5x", "AD5X IFS"},
+        {"ad5x_ifs", "AD5X IFS"},
         {"cfs", "CFS"},
         {"cfs-k1", "CFS"},
         {"openams", "OpenAMS"},

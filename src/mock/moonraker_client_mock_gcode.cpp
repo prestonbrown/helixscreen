@@ -1440,7 +1440,7 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
         (r = gcode_each_command(g, &MoonrakerClientMock::apply_ifs_module_gcode))) {
         return *r;
     }
-    if (is_mock_ifs_jacker() &&
+    if (is_mock_zmod_ifs() &&
         (r = gcode_each_command(g, &MoonrakerClientMock::apply_ifs_jacker_gcode))) {
         return *r;
     }

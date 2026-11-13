@@ -233,27 +233,6 @@ TEST_CASE("A mock-hardware persona declines the mock AMS backend", "[mock][creat
     CHECK(helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr) == nullptr);
 }
 
-TEST_CASE("The mock AD5X backend carries the tools map only on Z-Mod's built-in AFC",
-          "[mock][ad5x][zmod][2033]") {
-    MockTopologyGuards guards;
-    helix::ScopedEnv ams{"HELIX_MOCK_AMS", "ad5x"};
-    ScopedRuntimeConfig scoped_config;
-    auto* config = get_runtime_config();
-    config->test_mode = true;
-    config->use_real_ams = false;
-
-    {
-        helix::ScopedEnv afc{"HELIX_MOCK_ZMOD_AFC", "1"};
-        auto backend = helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr);
-        REQUIRE(backend != nullptr);
-        CHECK(backend->print_start_params({{0, 2}}) == helix::PrintStartParams{{"tools", "3"}});
-    }
-    helix::ScopedEnv afc{"HELIX_MOCK_ZMOD_AFC", nullptr};
-    auto backend = helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr);
-    REQUIRE(backend != nullptr);
-    CHECK(backend->print_start_params({{0, 2}}).empty());
-}
-
 TEST_CASE("The Z-Mod C5 persona answers T_INFO with the tool-state block",
           "[mock][creator5][zmod]") {
     MockTopologyGuards guards;
