@@ -52,7 +52,11 @@ nlohmann::json MoonrakerClientMock::u1_feed_side_json(int ext) const {
 
 void MoonrakerClientMock::publish_u1_channel_frame(int ext) {
     const std::string side = (ext < 2) ? "left" : "right";
-    dispatch_status_update({{"filament_feed " + side, u1_feed_side_json(ext)}});
+    nlohmann::json frame = {{"filament_feed " + side, u1_feed_side_json(ext)}};
+    if (is_mock_u1_snapswap()) {
+        frame["print_task_config"] = u1_snapswap_status_json()["print_task_config"];
+    }
+    dispatch_status_update(frame);
 }
 
 bool MoonrakerClientMock::apply_u1_feeding_gcode(const std::string& gcode) {

@@ -710,7 +710,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
 
         // Toolchanger mock mode: the extra extruders on the live subscription
         // stream, each following its own target (secondary_extruder_temp()).
-        if (is_mock_toolchanger() || is_mock_medusahc()) {
+        if (is_mock_toolchanger() || is_mock_medusahc() || is_mock_u1_snapswap()) {
             const int count = is_mock_medusahc() ? medusa_tool_count() : 4;
             for (int t = 1; t < count; ++t) {
                 status_obj["extruder" + std::to_string(t)] = {

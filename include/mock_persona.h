@@ -28,7 +28,7 @@ enum class PrinterType {
     ELEGOO_CC1,               // Elegoo Centauri Carbon on COSMOS (load-cell probe)
     FLASHFORGE_AD5X,          // FlashForge Adventurer 5X (native Z-Mod IFS, mock hardware)
     CREALITY_K2_PLUS,         // Creality K2 Plus (CFS box, chamber heater)
-    SNAPMAKER_U1,             // Snapmaker U1 (4 independent extruders)
+    SNAPMAKER_U1,             // Snapmaker U1 (4 independent extruders, SnapSwap mock hardware)
     FLASHFORGE_CREATOR5_AFC,  // FlashForge Creator 5 Pro on Reforge with AFC over its changer
 };
 
@@ -441,6 +441,9 @@ enum class MedusaVariant {
         {"afc", "AFC"},
         {"box_turtle", "AFC"},
         {"boxturtle", "AFC"},
+        {"snapmaker", "Snapmaker"},
+        {"snapswap", "Snapmaker"},
+        {"u1", "Snapmaker"},
     };
     if (medusa_variant(mode) != MedusaVariant::NONE) {
         return "tool-changer";

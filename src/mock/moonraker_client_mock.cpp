@@ -2479,7 +2479,7 @@ void MoonrakerClientMock::dispatch_initial_state() {
     if (is_mock_lane_status()) {
         initial_status["lane_status"] = lane_status_json();
     }
-    initial_status.update(afc_status_json());
+    merge_mock_ams_hardware_status(initial_status);
 
     // multiACE mock: the `ace` object and both filament_feed sides at rest, so
     // the production backend's first parse sees what a booted rig reports.

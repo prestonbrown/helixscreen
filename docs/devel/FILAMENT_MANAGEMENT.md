@@ -3420,7 +3420,7 @@ The seed dispatches `handle_status` from the main thread (inside an `UpdateQueue
 | Variable | Values | Default | Description |
 |----------|--------|---------|-------------|
 | `HELIX_AMS_GATES` | 1-16 | 4 | Number of simulated slots |
-| `HELIX_MOCK_AMS` | `mixed`, `multi`, `torture`, `stealth`, `vivid`, `htlf_toolchanger`, `htlf_tc`, `htlf`, `snapmaker`, `snapswap`, `u1` | Happy Hare | AMS type to simulate |
+| `HELIX_MOCK_AMS` | `mixed`, `multi`, `torture`, `stealth`, `vivid`, `htlf_toolchanger`, `htlf_tc`, `htlf` | Happy Hare | AMS type `AmsBackendMock` simulates; the mock-hardware modes are in `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md` |
 | `HELIX_MOCK_AMS_STATE` | `idle`, `loading`, `error`, `bypass`, `unaccounted`, `grade` | `idle` | Visual scenario to simulate |
 | `HELIX_MOCK_DRYER` | `1`, `true` | Disabled | Simulate integrated dryer |
 | `HELIX_MOCK_DRYER_SPEED` | Integer | 60 | Dryer speed multiplier (60 = 1 real sec = 1 sim min) |

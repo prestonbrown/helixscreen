@@ -767,7 +767,7 @@ Select the mock AMS topology/type.
 | `vivid` | 3 | 2x Box Turtle + ViViD, 12 slots |
 | `ifs` | 1 | **Native Z-Mod AD5X IFS - mock HARDWARE, real backend.** `zmod_ifs` / `zmod_color` for the stock four ports (black PLA, white PETG, purple PLA, brown ABS; port 1 in the head) with the commands `ifs-jacker` answers, so the production `AmsBackendAd5xIfs` runs. Aliases: `ad5x`, `ad5x_ifs`; the `ad5x` persona's default |
 | `htlf_toolchanger` | 2 | AFC HTLF + Toolchanger: 4 HTLF lanes (2 direct, 2 hub→shared extruder) + 3 standalone toolheads. Tests MIXED topology. Aliases: `htlf_tc`, `htlf` |
-| `snapmaker` | 1 | Snapmaker U1, 4 slots, PARALLEL, non-editable mapping. Aliases: `snapswap`, `u1` |
+| `snapmaker` | 1 | **A stock Snapmaker U1's SnapSwap - mock HARDWARE, real backend.** Publishes `filament_detect` (RFID tags), `print_task_config`, both `filament_feed` sides and each head's park/active pins over four extruders, with no `mmu`; `T<n>` moves the carriage, `AUTO_FEEDING` walks a feeder (an unload empties the head's record) and `SET_PRINT_FILAMENT_CONFIG` rewrites one, so real discovery builds the production `AmsBackendSnapmaker`. Aliases: `snapswap`, `u1`; the `snapmaker_u1` persona's default |
 | `medusahc` | 1 | **MedusaHC hotend changer - mock HARDWARE, real backend.** The stock Irbis3D install: controller + dock sensors, no klipper-toolchanger. Aliases: `medusa`, `mhc`. See below |
 | `medusahc-ktc` | 1 | The same controller with the optional klipper-toolchanger beside it. Alias: `medusa-ktc` |
 | `medusahc-tn` | 1 | A six-tool MedusaHC on the controller alone (topi's machine). Alias: `medusa-tn` |

@@ -251,6 +251,6 @@ TEST_CASE_METHOD(HelixTestFixture, "The snapmaker_u1 persona mirrors the U1 capt
     }
     CHECK(extruders == 4);
     CHECK(helix::mock::effective_mock_ams(nullptr, "snapmaker_u1") == "snapmaker");
-    const auto& objs = hw.printer_objects();
-    CHECK(std::find(objs.begin(), objs.end(), "filament_detect") == objs.end());
+    // Its default SnapSwap is mock hardware the production backend claims.
+    CHECK(hw.mmu_type() == helix::AmsType::SNAPMAKER);
 }

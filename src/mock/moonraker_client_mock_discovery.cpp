@@ -390,9 +390,8 @@ void MoonrakerClientMock::populate_capabilities() {
         }
         break;
     case PrinterType::SNAPMAKER_U1:
-        // The U1 capture's identifying objects. Not `filament_detect`, which would
-        // make discovery stand up the production Snapmaker backend; this persona
-        // runs the mock one.
+        // The U1 capture's identifying objects. The feed objects come with the
+        // AMS mode (snapmaker by default, multiace on request), which owns them.
         for (const char* obj :
              {"tool", "fm175xx_reader", "tmc2240 stepper_x", "purifier", "camera",
               "defect_detection", "gcode_macro FILAMENT_DT_UPDATE", "gcode_macro FILAMENT_DT_QUERY",
@@ -491,12 +490,13 @@ void MoonrakerClientMock::populate_capabilities() {
     }
 
     // MMU/AMS system - Happy Hare uses "mmu" object name.
-    // Suppressed in the MedusaHC, toolchanger and AFC modes, the standalone IFS module mode,
-    // the OpenAMS mode and any persona that omits it: "mmu" detects Happy Hare (priority over every
-    // other filament system) and would stand the wrong backend up.
+    // Suppressed in the MedusaHC, toolchanger, AFC and SnapSwap modes, the standalone IFS module
+    // mode, the OpenAMS mode and any persona that omits it: "mmu" detects Happy Hare (priority over
+    // every other filament system) and would stand the wrong backend up.
     if (mmu_enabled_ && !is_mock_medusahc() && !is_mock_ifs_module() && !is_mock_zmod_ifs() &&
         !is_mock_openams() && !is_mock_indx() && !is_mock_lane_status() &&
-        !mock_toolchanger_selected() && !is_mock_afc_boxturtle() && inherits(kHappyHareMmu)) {
+        !mock_toolchanger_selected() && !is_mock_afc_boxturtle() && !is_mock_u1_snapswap() &&
+        inherits(kHappyHareMmu)) {
         mock_objects.push_back("mmu");
     }
 
@@ -645,13 +645,23 @@ void MoonrakerClientMock::populate_capabilities() {
                                                                 : "controller-tn");
     }
 
+    // A stock U1's SnapSwap (HELIX_MOCK_AMS=snapmaker): the U1's feed objects,
+    // which real discovery reads as AmsType::SNAPMAKER.
+    if (is_mock_u1_snapswap()) {
+        for (const char* obj : {"filament_detect", "filament_feed left", "filament_feed right",
+                                "print_task_config", "machine_state_manager"}) {
+            if (std::find(mock_objects.begin(), mock_objects.end(), obj) == mock_objects.end()) {
+                mock_objects.push_back(obj);
+            }
+        }
+    }
+
     // multiACE mock hardware (HELIX_MOCK_AMS=multiace): the U1's own feed
     // objects plus the plain `ace` object multiACE registers, so real
     // discovery stands the PRODUCTION AmsBackendMultiAce up against the frames
     // the simulation serves below (same rule as the MedusaHC modes:
-    // try_create_mock() declines this value). The U1 persona deliberately
-    // omits `filament_detect` so the plain mock backend runs; this mode puts
-    // it back, so pair it with HELIX_MOCK_PRINTER=snapmaker_u1.
+    // try_create_mock() declines this value). Pair it with
+    // HELIX_MOCK_PRINTER=snapmaker_u1.
     if (is_mock_multiace()) {
         for (const char* obj : {"filament_detect", "filament_feed left", "filament_feed right",
                                 "print_task_config", "machine_state_manager", "ace"}) {
@@ -975,8 +985,9 @@ void MoonrakerClientMock::populate_hardware() {
     // Gated entirely on is_mock_toolchanger() so other AMS modes are unaffected.
     // MedusaHC joins this: a hotend changer is one hot end (and so one extruder
     // heater) per tool, which is also how PrinterDiscovery names its tools when
-    // the controller-tn variant ships no [tool N] objects.
-    if (is_mock_toolchanger() || is_mock_medusahc()) {
+    // the controller-tn variant ships no [tool N] objects. A U1's SnapSwap is four
+    // heads too.
+    if (is_mock_toolchanger() || is_mock_medusahc() || is_mock_u1_snapswap()) {
         const int tools = is_mock_medusahc() ? medusa_tool_count() : 4;
         for (int t = 1; t < tools; ++t) {
             const std::string ext = "extruder" + std::to_string(t);

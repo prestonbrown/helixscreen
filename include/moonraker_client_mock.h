@@ -2827,6 +2827,21 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// as the firmware answers it.
     std::array<bool, static_cast<size_t>(kU1Channels)> u1_disable_auto_{};
 
+    /// The SnapSwap mock's spools (RFID tag and print_task_config agree) and the
+    /// head on the carriage, behind u1_snapswap_mutex_.
+    struct U1Spool {
+        std::string type;
+        std::string vendor;
+        uint32_t rgb;
+    };
+    mutable std::mutex u1_snapswap_mutex_;
+    std::array<U1Spool, static_cast<size_t>(kU1Channels)> u1_spools_{
+        {{"PLA", "Snapmaker", 0x1E9E4A},
+         {"PLA", "Snapmaker", 0xC71585},
+         {"PLA", "Snapmaker", 0x19C3D6},
+         {"PLA", "Snapmaker", 0xF08000}}};
+    int u1_active_head_ = 0;
+
     /// FEED_AUTO MODULE=<m> CHANNEL=<c> AUTO=<0|1>: set that channel's head's
     /// automatic mode and publish it. @return true when the line was one.
     bool apply_u1_auto_mode_gcode(const std::string& gcode);
@@ -2988,6 +3003,17 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// The configfile sections ff-afc.cfg and ff-print-macros.cfg declare.
     [[nodiscard]] nlohmann::json reforge_afc_config_sections() const;
 
+    // --- A stock U1's SnapSwap (HELIX_MOCK_AMS=snapmaker; public for the mock tests) ---
+    bool is_mock_u1_snapswap() const;
+    /// filament_detect, print_task_config, each head's pins and both feeder sides.
+    [[nodiscard]] nlohmann::json u1_snapswap_status_json() const;
+    /// Every object the AMS mock hardware of this mode publishes (AFC, SnapSwap), else {}.
+    [[nodiscard]] nlohmann::json mock_ams_hardware_status() const;
+    /// mock_ams_hardware_status() into a status frame, field by field where the frame
+    /// already holds the object (a heater's temperature stays), limited to @p only's keys.
+    void merge_mock_ams_hardware_status(nlohmann::json& into,
+                                        const nlohmann::json* only = nullptr) const;
+
     // --- AFC on one Box Turtle (HELIX_MOCK_AMS=afc; public for the mock tests) ---
     bool is_mock_afc_boxturtle() const;
     /// Every AFC object the Box Turtle mock publishes, keyed as Klipper names them.
@@ -3048,6 +3074,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     GcodeResult gcode_happy_hare(const std::string& gcode);
     /// AFC's lane commands on the Box Turtle mock (TOOL_LOAD, T<n>, TOOL_UNLOAD, SET_*).
     GcodeResult gcode_afc_boxturtle(const std::string& gcode);
+    /// T<n> moves the carriage's pins; SET_PRINT_FILAMENT_CONFIG rewrites a head's record.
+    GcodeResult gcode_u1_snapswap(const std::string& gcode);
     /// klipper-toolchanger's SELECT_TOOL and UNSELECT_TOOL in the plain toolchanger mode:
     /// a swap reports "changing", then "ready" on the new tool_number.
     GcodeResult gcode_toolchanger(const std::string& gcode);

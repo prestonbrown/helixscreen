@@ -80,8 +80,9 @@ struct AfcMock : MockHardware {
 TEST_CASE("mock_hardware_backend: migrated modes run production, the screenshot "
           "topologies stay on the mock backend",
           "[ams][mock]") {
-    for (const char* mode : {"toolchanger", "tool_changer", "tc", "afc", "box_turtle", "boxturtle",
-                             "ifs", "ad5x", "ad5x_ifs", "medusahc", "indx", "cfs"}) {
+    for (const char* mode :
+         {"toolchanger", "tool_changer", "tc", "afc", "box_turtle", "boxturtle", "ifs", "ad5x",
+          "ad5x_ifs", "snapmaker", "snapswap", "u1", "medusahc", "indx", "cfs"}) {
         CAPTURE(mode);
         CHECK(helix::mock::mock_hardware_backend(mode, nullptr) != nullptr);
     }
@@ -206,4 +207,34 @@ TEST_CASE("IFS mock: the stock AD5X is native Z-Mod's four-port IFS, port 1 in t
     REQUIRE(mock.gcode_script("INSERT_PRUTOK_IFS PRUTOK=3") == 0);
     CHECK(mock.zmod_ifs_status()["Chan"] == 3);
     CHECK(mock.zmod_color_status()["extruder_sensor"] == true);
+}
+
+TEST_CASE("SnapSwap mock: a stock U1's four heads, swap, unload and re-tag",
+          "[ams][mock][snapmaker]") {
+    // Built under the persona whose default this is.
+    helix::ScopedEnv ams{"HELIX_MOCK_AMS", nullptr};
+    helix::ScopedEnv u1{"HELIX_MOCK_PRINTER", "snapmaker_u1"};
+    MoonrakerClientMock u1_mock(MoonrakerClientMock::PrinterType::SNAPMAKER_U1, 100.0);
+    CHECK(u1_mock.hardware().mmu_type() == helix::AmsType::SNAPMAKER);
+
+    json status = u1_mock.u1_snapswap_status_json();
+    CHECK(status["print_task_config"]["filament_color_rgba"][0] == "1E9E4AFF");
+    CHECK(status["filament_detect"]["info"][3]["ARGB_COLOR"] == 0xFFF08000u);
+    CHECK(status["extruder"]["active_pin"] == true);
+    CHECK(status["extruder2"]["park_pin"] == true);
+
+    u1_mock.gcode_script("T2");
+    status = u1_mock.u1_snapswap_status_json();
+    CHECK(status["extruder2"]["active_pin"] == true);
+    CHECK(status["extruder"]["park_pin"] == true);
+
+    REQUIRE(u1_mock.gcode_script("AUTO_FEEDING EXTRUDER=3 UNLOAD=1") == 0);
+    CHECK(u1_mock.u1_snapswap_status_json()["print_task_config"]["filament_exist"][3] == false);
+
+    REQUIRE(u1_mock.gcode_script("SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 VENDOR=Generic "
+                                 "FILAMENT_TYPE=PETG FILAMENT_COLOR_RGBA=112233FF") == 0);
+    const json ptc = u1_mock.u1_snapswap_status_json()["print_task_config"];
+    CHECK(ptc["filament_type"][1] == "PETG");
+    CHECK(ptc["filament_vendor"][1] == "Generic");
+    CHECK(ptc["filament_color_rgba"][1] == "112233FF");
 }

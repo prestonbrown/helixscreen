@@ -691,9 +691,6 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
         } else if (ams_type == "htlf_toolchanger" || ams_type == "htlf_tc" || ams_type == "htlf") {
             mock->set_htlf_toolchanger_mode(true);
             spdlog::info("[AMS Backend] Mock HTLF+Toolchanger mode enabled");
-        } else if (ams_type == "snapmaker" || ams_type == "snapswap" || ams_type == "u1") {
-            mock->set_snapmaker_mode(true);
-            spdlog::info("[AMS Backend] Mock Snapmaker U1 mode enabled");
         }
     }
 

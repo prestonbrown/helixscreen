@@ -660,14 +660,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             if (objects.contains("lane_status") && self->is_mock_lane_status()) {
                 status_obj["lane_status"] = self->lane_status_json();
             }
-            {
-                const auto afc = self->afc_status_json();
-                for (const auto& [name, value] : afc.items()) {
-                    if (objects.contains(name)) {
-                        status_obj[name] = value;
-                    }
-                }
-            }
+            self->merge_mock_ams_hardware_status(status_obj, &objects);
             // multiACE on a U1: both feeder sides at rest, so the backend's
             // first frame carries each head's channel state and Auto loading.
             if (self->is_mock_multiace()) {
@@ -1001,14 +994,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             if (objects.contains("lane_status") && self->is_mock_lane_status()) {
                 status_obj["lane_status"] = self->lane_status_json();
             }
-            {
-                const auto afc = self->afc_status_json();
-                for (const auto& [name, value] : afc.items()) {
-                    if (objects.contains(name)) {
-                        status_obj[name] = value;
-                    }
-                }
-            }
+            self->merge_mock_ams_hardware_status(status_obj, &objects);
             // multiACE on a U1: both feeder sides at rest, so the backend's
             // first frame carries each head's channel state and Auto loading.
             if (self->is_mock_multiace()) {
