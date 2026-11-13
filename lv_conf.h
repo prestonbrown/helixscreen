@@ -17,6 +17,11 @@
 #ifndef LV_CONF_H
 #define LV_CONF_H
 
+/* Leave out LVGL's API map: a name LVGL has renamed or deprecated fails to compile
+ * instead of resolving through a compatibility macro. scripts/lvgl96_rename.py ports
+ * code written against the old names. */
+#define LV_DISABLE_API_MAPPING 1
+
 /* If you need to include anything here, do it inside the `__ASSEMBLY__` guard */
 #if 0 && defined(__ASSEMBLY__)
 #include "my_include.h"
