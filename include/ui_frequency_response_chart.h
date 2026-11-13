@@ -53,6 +53,8 @@
 #include "platform_capabilities.h"
 
 #include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -586,3 +588,31 @@ size_t ui_frequency_response_chart_get_max_points(ui_frequency_response_chart_t*
  * @return true if chart mode, false if table mode or NULL chart
  */
 bool ui_frequency_response_chart_is_chart_mode(ui_frequency_response_chart_t* chart);
+
+// ============================================================================
+// Axis unit and shaded x-bands
+// ============================================================================
+
+/// One shaded stretch of the x axis, in the axis' own unit.
+struct FrChartBand {
+    float x_lo;
+    float x_hi;
+};
+
+/// The unit the first x tick carries ("Hz" by default, "mm/s" for a speed sweep).
+void ui_frequency_response_chart_set_x_unit(ui_frequency_response_chart_t* chart, const char* unit);
+const char* ui_frequency_response_chart_get_x_unit(ui_frequency_response_chart_t* chart);
+
+/// Shade these stretches of the plot behind the series; nullptr or 0 clears them.
+void ui_frequency_response_chart_set_bands(ui_frequency_response_chart_t* chart,
+                                           const FrChartBand* bands, size_t count);
+size_t ui_frequency_response_chart_get_band_count(ui_frequency_response_chart_t* chart);
+
+/// The text of one x tick: the value, and the unit on the first tick only.
+std::string ui_frequency_response_chart_format_x_label(float value, bool first, const char* unit);
+
+/// The pixel columns a band covers on a plot spanning [x1, x2] for values
+/// [min, max], clipped to the plot; nullopt when it lies wholly outside.
+std::optional<std::pair<int32_t, int32_t>>
+ui_frequency_response_chart_band_pixels(FrChartBand band, float min, float max, int32_t x1,
+                                        int32_t x2);

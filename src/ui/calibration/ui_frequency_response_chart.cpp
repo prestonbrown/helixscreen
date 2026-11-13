@@ -128,6 +128,8 @@ struct ui_frequency_response_chart_t {
 
     float freq_min = 0.0f;
     float freq_max = 200.0f;
+    std::string x_unit = "Hz";
+    std::vector<FrChartBand> bands; ///< shaded behind the series
     float amp_min = 0.0f;
     float amp_max = 1e9f;
 
@@ -1341,6 +1343,22 @@ static void draw_styled_series_cb(lv_event_t* e) {
 
     const float freq_range = chart->freq_max - chart->freq_min;
 
+    // Bands first, so the cursor tint and every line land on top of them.
+    if (!chart->bands.empty() && freq_range > 0.0f) {
+        lv_draw_rect_dsc_t band_dsc;
+        lv_draw_rect_dsc_init(&band_dsc);
+        band_dsc.bg_color = theme_manager_get_color("warning");
+        band_dsc.bg_opa = LV_OPA_20;
+        for (const FrChartBand& band : chart->bands) {
+            const auto px = ui_frequency_response_chart_band_pixels(
+                band, chart->freq_min, chart->freq_max, plot.x1, plot.x2);
+            if (px) {
+                lv_area_t area = {px->first, plot.y1, px->second, plot.y2};
+                lv_draw_rect(layer, &band_dsc, &area);
+            }
+        }
+    }
+
     // Sweep cursor: tint from the plot's left edge to the cursor, then a 2px
     // vertical line in the cursor color.
     if (chart->cursor_active && freq_range > 0.0f) {
@@ -1651,7 +1669,7 @@ static void draw_x_axis_labels_cb(lv_event_t* e) {
     const int32_t half_w = ui_frequency_response_chart_x_label_half_width(label_font);
 
     // Persistent label buffers (LVGL may defer drawing)
-    static char freq_labels[8][12];
+    static char freq_labels[8][16];
     int label_idx = 0;
 
     // Ticks sit on round multiples of the interval, so a band starting at
@@ -1663,7 +1681,10 @@ static void draw_x_axis_labels_cb(lv_event_t* e) {
 
         // Format label
         char* buf = freq_labels[label_idx];
-        snprintf(buf, 12, label_idx == 0 ? "%.0f Hz" : "%.0f", freq);
+        snprintf(
+            buf, sizeof(freq_labels[0]), "%s",
+            ui_frequency_response_chart_format_x_label(freq, label_idx == 0, chart->x_unit.c_str())
+                .c_str());
         ++label_idx;
 
         // Center label on tick position, kept inside the chart's own box
@@ -1895,4 +1916,58 @@ size_t ui_frequency_response_chart_get_max_points(ui_frequency_response_chart_t*
 
 bool ui_frequency_response_chart_is_chart_mode(ui_frequency_response_chart_t* chart) {
     return chart ? chart->chart_mode : false;
+}
+
+void ui_frequency_response_chart_set_x_unit(ui_frequency_response_chart_t* chart,
+                                            const char* unit) {
+    if (!chart || !unit) {
+        return;
+    }
+    chart->x_unit = unit;
+    if (chart->root) {
+        lv_obj_invalidate(chart->root);
+    }
+}
+
+const char* ui_frequency_response_chart_get_x_unit(ui_frequency_response_chart_t* chart) {
+    return chart ? chart->x_unit.c_str() : "";
+}
+
+void ui_frequency_response_chart_set_bands(ui_frequency_response_chart_t* chart,
+                                           const FrChartBand* bands, size_t count) {
+    if (!chart) {
+        return;
+    }
+    chart->bands.assign(bands, bands ? bands + count : bands);
+    if (chart->chart) {
+        lv_obj_invalidate(chart->chart);
+    }
+}
+
+size_t ui_frequency_response_chart_get_band_count(ui_frequency_response_chart_t* chart) {
+    return chart ? chart->bands.size() : 0;
+}
+
+std::string ui_frequency_response_chart_format_x_label(float value, bool first, const char* unit) {
+    char buf[24];
+    if (first && unit && *unit) {
+        snprintf(buf, sizeof(buf), "%.0f %s", value, unit);
+    } else {
+        snprintf(buf, sizeof(buf), "%.0f", value);
+    }
+    return buf;
+}
+
+std::optional<std::pair<int32_t, int32_t>>
+ui_frequency_response_chart_band_pixels(FrChartBand band, float min, float max, int32_t x1,
+                                        int32_t x2) {
+    const float range = max - min;
+    if (!(range > 0.0f) || band.x_hi <= min || band.x_lo >= max) {
+        return std::nullopt;
+    }
+    const auto at = [&](float v) {
+        const float frac = (std::clamp(v, min, max) - min) / range;
+        return x1 + static_cast<int32_t>(frac * static_cast<float>(x2 - x1));
+    };
+    return std::make_pair(at(band.x_lo), at(band.x_hi));
 }
