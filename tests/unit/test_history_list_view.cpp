@@ -11,11 +11,15 @@
 #include "../test_helpers/history_list_panel_test_access.h"
 #include "core/data_root_resolver.h"
 #include "core/update_queue.h"
+#include "display_settings_manager.h"
+#include "locale_formats.h"
 #include "lvgl.h"
+#include "region_defaults.h"
 #include "thumbnail_cache.h"
 #include "translation_loader.h"
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -124,16 +128,42 @@ struct ScopedGerman {
 } // namespace
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "HistoryListView - a row's status and filament read in the UI language",
+                 "HistoryListView - a row's status, filament and date follow the UI settings",
                  "[history_list_view][history][translation]") {
+    auto& display = helix::DisplaySettingsManager::instance();
+    struct Restore {
+        helix::TimeFormat time = helix::DisplaySettingsManager::instance().get_time_format();
+        std::optional<helix::DateFormat> order = helix::saved_date_format();
+        ~Restore() {
+            helix::ui::locale_set_language("en");
+            helix::DisplaySettingsManager::instance().set_time_format(time);
+            helix::set_saved_date_format(order);
+        }
+    } restore;
+    helix::set_saved_date_format(std::nullopt);
+    helix::ui::locale_set_language("en");
+    display.set_time_format(helix::TimeFormat::HOUR_12);
+    std::vector<PrintHistoryJob> jobs = make_test_jobs(3);
+    jobs[0].start_time = 1733063400.0;
+    const std::string english_12h = format_modified_date(1733063400);
+
     ScopedGerman german;
     REQUIRE(std::string(lv_tr("Completed")) != "Completed"); // the pack loaded
+    helix::ui::locale_set_language("de");
+    display.set_time_format(helix::TimeFormat::HOUR_24);
 
     HistoryListView view;
     lv_obj_t* container = make_scroll_container(test_screen());
     view.setup(container, nullptr, [](size_t) {});
-    view.populate(make_test_jobs(3));
+    view.populate(jobs);
     process_lvgl(50);
+
+    // Jobs are parsed off the main thread and carry no date text: the row
+    // formats start_time in the settings live when it is drawn.
+    lv_obj_t* date = lv_obj_find_by_name(container, "row_date");
+    REQUIRE(date != nullptr);
+    CHECK(std::string(lv_label_get_text(date)) == format_modified_date(1733063400));
+    CHECK(std::string(lv_label_get_text(date)) != english_12h);
 
     lv_obj_t* status = lv_obj_find_by_name(container, "row_status");
     REQUIRE(status != nullptr);

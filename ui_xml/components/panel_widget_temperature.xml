@@ -10,7 +10,7 @@
     <prop name="tile_label_subject" type="string" default=""/>
     <prop name="tile_dir_subject" type="string" default=""/>
     <prop name="tile_target_subject" type="string" default=""/>
-    <!-- 1 while this instance covers a whole extra page (FullPageHost). -->
+    <!-- FullPageState: 0 a tile, 1 a full page, 2 a full page holding its view. -->
     <prop name="full_page_subject" type="string" default=""/>
   </api>
   <view name="panel_widget_temperature"
@@ -19,7 +19,7 @@
     <ui_button name="temp_btn"
                width="100%" height="100%" style_pad_ver="0" variant="ghost" style_border_width="0" focusable="false">
       <style name="styles.tile_column"/>
-      <bind_flag_if_eq subject="$full_page_subject" flag="hidden" ref_value="1"/>
+      <bind_flag_if_not_eq subject="$full_page_subject" flag="hidden" ref_value="0"/>
       <bind_style_if_eq name="styles.tile_row" subject="$tile_dir_subject" ref_value="1"/>
       <bind_state_if_not_eq subject="printer_connection_state" state="disabled" ref_value="2"/>
       <event_cb trigger="clicked" callback="temp_clicked_cb"/>
@@ -29,8 +29,9 @@
                     show_target="true" hide_target_when_off="true" hide_target_below_bp="small"
                     bind_current="extruder_temp" bind_target="extruder_target" align="center"/>
     </ui_button>
-    <full_page_frame name="temp_full_page" icon="thermometer" label="Nozzle Temperature">
-      <bind_flag_if_not_eq subject="$full_page_subject" flag="hidden" ref_value="1"/>
+    <full_page_frame name="temp_full_page"
+                     state_subject="$full_page_subject" icon="thermometer" label="Nozzle Temperature">
+      <bind_flag_if_eq subject="$full_page_subject" flag="hidden" ref_value="0"/>
     </full_page_frame>
   </view>
 </component>

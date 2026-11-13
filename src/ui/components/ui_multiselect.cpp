@@ -62,6 +62,13 @@ void UiMultiselect::set_items(const std::vector<MultiSelectItem>& items) {
 
     clear_rows();
 
+    if (!select_all_label_.empty()) {
+        all_row_ = build_row({"all", select_all_label_});
+        lv_obj_set_style_border_side(all_row_->row, LV_BORDER_SIDE_BOTTOM, 0);
+        lv_obj_set_style_border_width(all_row_->row, 1, 0);
+        lv_obj_set_style_border_color(all_row_->row, theme_manager_get_color("border"), 0);
+    }
+
     for (size_t i = 0; i < items.size(); ++i) {
         auto* row_obj = create_row(items[i]);
         // Add bottom border as divider (except last row)
@@ -74,6 +81,11 @@ void UiMultiselect::set_items(const std::vector<MultiSelectItem>& items) {
 }
 
 lv_obj_t* UiMultiselect::create_row(const MultiSelectItem& item) {
+    rows_.push_back(build_row(item));
+    return rows_.back()->row;
+}
+
+std::unique_ptr<UiMultiselect::RowData> UiMultiselect::build_row(const MultiSelectItem& item) {
     auto data = std::make_unique<RowData>();
     data->key = item.key.empty() ? item.label : item.key;
     data->label = item.label;
@@ -135,8 +147,23 @@ lv_obj_t* UiMultiselect::create_row(const MultiSelectItem& item) {
     // Row click toggles selection
     lv_obj_add_event_cb(row, on_row_clicked, LV_EVENT_CLICKED, nullptr);
 
-    rows_.push_back(std::move(data));
-    return row;
+    return data;
+}
+
+void UiMultiselect::sync_all_row() {
+    if (!all_row_) {
+        return;
+    }
+    bool any_enabled = false;
+    bool every = true;
+    for (const auto& row : rows_) {
+        if (row->enabled) {
+            any_enabled = true;
+            every = every && row->selected;
+        }
+    }
+    all_row_->selected = any_enabled && every;
+    update_checkbox_visual(all_row_.get());
 }
 
 void UiMultiselect::on_row_clicked(lv_event_t* e) {
@@ -148,6 +175,14 @@ void UiMultiselect::on_row_clicked(lv_event_t* e) {
     if (!data->enabled)
         return;
     UiMultiselect* owner = data->owner;
+    if (data == owner->all_row_.get()) {
+        if (data->selected) {
+            owner->deselect_all();
+        } else {
+            owner->select_all();
+        }
+        return;
+    }
     if (!data->selected && owner->max_selected_ > 0 &&
         owner->get_selected_count() >= owner->max_selected_) {
         if (owner->max_selected_ > 1)
@@ -164,6 +199,8 @@ void UiMultiselect::on_row_clicked(lv_event_t* e) {
 
     data->selected = !data->selected;
     data->owner->update_checkbox_visual(data);
+
+    owner->sync_all_row();
 
     if (data->owner->on_change_) {
         data->owner->on_change_(data->key, data->selected);
@@ -183,6 +220,7 @@ void UiMultiselect::update_checkbox_visual(RowData* data) {
 void UiMultiselect::clear_rows() {
     // Clear the vector first (frees RowData), then clean LVGL children
     rows_.clear();
+    all_row_.reset();
     if (container_) {
         lv_obj_clean(container_);
     }
@@ -225,6 +263,7 @@ void UiMultiselect::select_all() {
                 on_change_(row->key, true);
         }
     }
+    sync_all_row();
 }
 
 void UiMultiselect::deselect_all() {
@@ -236,6 +275,7 @@ void UiMultiselect::deselect_all() {
                 on_change_(row->key, false);
         }
     }
+    sync_all_row();
 }
 
 bool UiMultiselect::set_selected(const std::string& key, bool selected) {
@@ -246,6 +286,7 @@ bool UiMultiselect::set_selected(const std::string& key, bool selected) {
                 update_checkbox_visual(row.get());
                 if (on_change_)
                     on_change_(key, selected);
+                sync_all_row();
             }
             return true;
         }

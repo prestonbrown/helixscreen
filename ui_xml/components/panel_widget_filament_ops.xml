@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <api>
+    <!-- Per-instance subject names, supplied by the widget at creation. They
+         must exist before this component is parsed: a binding whose subject is
+         missing at parse time is dropped permanently and silently. -->
+    <prop name="tile_icon_subject" type="string" default=""/>
+    <prop name="tile_label_subject" type="string" default=""/>
+    <prop name="tile_dir_subject" type="string" default=""/>
+    <prop name="tile_target_subject" type="string" default=""/>
+    <!-- FullPageState: 0 a tile, 1 a full page, 2 a full page holding its view. -->
+    <prop name="full_page_subject" type="string" default=""/>
+  </api>
+  <view name="panel_widget_filament_ops"
+        extends="lv_obj" height="100%" flex_grow="1" style_pad_all="0" scrollable="false">
+    <home_action_tile name="filament_ops_compact"
+                      width="100%" height="100%" icon="filament" icon_variant="secondary" label="Filament"
+                      callback="filament_ops_widget_clicked_cb" button_name="filament_ops_button"
+                      icon_name="filament_ops_icon" tile_icon_subject="$tile_icon_subject"
+                      tile_label_subject="$tile_label_subject" tile_dir_subject="$tile_dir_subject"
+                      disabled_cond="nav_buttons_enabled ne 1">
+      <bind_flag_if_not_eq subject="$full_page_subject" flag="hidden" ref_value="0"/>
+    </home_action_tile>
+    <full_page_frame name="filament_ops_full_page" state_subject="$full_page_subject" icon="filament" label="Filament">
+      <bind_flag_if_eq subject="$full_page_subject" flag="hidden" ref_value="0"/>
+    </full_page_frame>
+  </view>
+</component>

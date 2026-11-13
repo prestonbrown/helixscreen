@@ -1530,6 +1530,7 @@
   <translation tag="Filament Mapping is not available on this device." zh="此设备不支持耗材映射。"/>
   <translation tag="Filament Mapping is unavailable" zh="耗材映射不可用"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" zh="此打印机不支持耗材映射，因此打印将使用打印机上分配的工具"/>
+  <translation tag="Filament Operations" zh="耗材操作"/>
   <translation tag="Filament Runout" zh="耗材用尽"/>
   <translation tag="Filament Sensor" zh="耗材传感器"/>
   <translation tag="Filament Sensors" zh="耗材传感器"/>
@@ -2154,6 +2155,7 @@
   <translation tag="Load the required filaments or start anyway?" zh="加载所需耗材还是直接开始？"/>
   <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." zh="在此加载、卸载和排料。先选择材料以设置其温度。"/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." zh="加载、卸载和更换料盘，设置温度，并监控耗材传感器。"/>
+  <translation tag="Load, unload, purge, and extrude filament" zh="装载、卸载、清洗和挤出耗材"/>
   <translation tag="Load..." zh="加载..."/>
   <translation tag="Loaded" zh="已加载"/>
   <translation tag="Loading" zh="加载中"/>
@@ -2376,6 +2378,7 @@
   <translation tag="Mount tool" zh="装上工具"/>
   <translation tag="Mount which tool?" zh="装上哪个工具？"/>
   <translation tag="Mount..." zh="装上..."/>
+  <translation tag="Mounted: {}" zh="已装上: {}"/>
   <translation tag="Move" zh="移动"/>
   <translation tag="Move here" zh="移动到此处"/>
   <translation tag="Move out of range" zh="移动超出范围"/>
@@ -2551,6 +2554,7 @@
   <translation tag="No timelapse videos found" zh="未找到延时视频"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" zh="不知道当前安装的是哪个工具。共用一个探针时，请用 {} 校准。仍然继续？"/>
   <translation tag="No tool is mounted" zh="未安装工具"/>
+  <translation tag="No tool mounted" zh="未装上工具"/>
   <translation tag="No tool on the head" zh="工具头上没有工具"/>
   <translation tag="No tools to calibrate" zh="没有可校准的工具"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" zh="未转动:差距移动了 {:.1f} Hz"/>
@@ -2799,9 +2803,11 @@
   <translation tag="Pick Color" zh="选择颜色"/>
   <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." zh="选择 HelixScreen 的行为方式。以后可在“设置”中更改。"/>
   <translation tag="Pick the best band" zh="选择最佳区段"/>
+  <translation tag="Pick up" zh="装上"/>
   <translation tag="Pick up and park each tool in turn" zh="依次装上并停放每个工具"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" zh="装上工具，加热后抽出耗材"/>
   <translation tag="Pick up tool" zh="取出工具"/>
+  <translation tag="Pick-up step cancelled; nothing was sent" zh="装上后的步骤已取消；未发送任何指令"/>
   <translation tag="Picking up tool" zh="正在取用工具"/>
   <translation tag="Pill" zh="胶囊"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" zh="按下转为滚动前的像素数(越低 = 滚动越快触发)"/>
@@ -4822,6 +4828,7 @@
   <translation tag="{} d" zh="{} 天"/>
   <translation tag="{} days" zh="{} 天"/>
   <translation tag="{} detected" zh="检测到{}"/>
+  <translation tag="{} did not arrive; nothing was sent" zh="{} 未到位；未发送任何指令"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." zh="{}未装载。恢复前请检查热端是否安装到位，并进行一次测试挤出。"/>
   <translation tag="{} disabled" zh="已停用{}"/>
   <translation tag="{} disconnected" zh="{}已断开"/>

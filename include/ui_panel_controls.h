@@ -18,6 +18,8 @@
 #include "quick_action_buttons.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
+#include "target_nozzle_observers.h"
+#include "target_tool_selection.h"
 #include "ui/position_observer_bundle.h"
 #include "ui/temperature_observer_bundle.h"
 
@@ -164,6 +166,31 @@ class ControlsPanel : public PanelBase {
     lv_subject_t nozzle_label_subject_{};
     char nozzle_label_buf_[32] = {};
     ObserverGuard active_tool_observer_;
+    ObserverGuard tools_version_observer_;
+    ObserverGuard extruder_version_observer_;
+
+    // The nozzle row aims at a chosen tool on multi-head printers.
+    helix::ui::TargetToolSelection nozzle_tool_;
+    helix::ui::TargetNozzleObservers nozzle_observers_;
+    lv_subject_t nozzle_cur_deci_subject_{};
+    lv_subject_t nozzle_tgt_deci_subject_{};
+    lv_subject_t nozzle_multi_head_subject_{};
+    helix::ui::WidgetRef nozzle_tool_dropdown_;
+    /// The nozzle row's tool, clamped to the current tool list.
+    [[nodiscard]] int nozzle_tool() const;
+    /// Whether the row's tool is the one on the carriage (always, with one head).
+    [[nodiscard]] bool nozzle_tool_mounted() const;
+    /// That tool's Klipper extruder ("extruder" when it names none).
+    [[nodiscard]] std::string nozzle_extruder_name() const;
+    /// Bring the row's label, chooser and temperature source to nozzle_tool().
+    void sync_nozzle_tool();
+    void populate_nozzle_tool_dropdown();
+
+  public:
+    /// The nozzle row's chooser picked @p tool.
+    void select_nozzle_tool(int tool);
+
+  private:
     void update_nozzle_label();
 
     // Nozzle temperature display

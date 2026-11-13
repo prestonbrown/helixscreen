@@ -11,6 +11,12 @@
     <px name="motion_z_col_w_small" value="64"/>
     <px name="motion_z_col_w_medium" value="64"/>
     <px name="motion_z_col_w_large" value="64"/>
+    <!-- The drawn head between the Z keys (what the keys move). -->
+    <px name="motion_z_head_size_micro" value="28"/>
+    <px name="motion_z_head_size_tiny" value="32"/>
+    <px name="motion_z_head_size_small" value="36"/>
+    <px name="motion_z_head_size_medium" value="44"/>
+    <px name="motion_z_head_size_large" value="52"/>
     <!-- Bed tab toolhead marker diameter (components/motion_bed_map.xml). -->
     <px name="bed_map_marker_size_micro" value="10"/>
     <px name="bed_map_marker_size_tiny" value="12"/>
@@ -329,7 +335,17 @@
             </motion_jog_button>
             <!-- Same widget and binding as the landscape column between the
                  up and down buttons: "Print Head" or "Bed" by kinematics. -->
-            <text_body name="z_axis_label" width="100%" bind_text="motion_z_axis_label" style_text_align="center"/>
+            <!-- What the Z keys move, drawn: the print head, or the bed where the bed moves -->
+            <lv_obj name="z_axis_label"
+                    width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_opa="0"
+                    scrollable="false" flex_flow="row" style_flex_main_place="center">
+              <toolhead_view name="z_axis_icon_head" width="#motion_z_head_size" height="#motion_z_head_size">
+                <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="1"/>
+              </toolhead_view>
+              <icon name="z_axis_icon_bed" src="bed" size="lg" variant="text">
+                <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="0"/>
+              </icon>
+            </lv_obj>
             <motion_jog_button name="z_down_small"
                                width="100%" jog="z_down_small" flex_grow="1" icon_position="top"
                                style_pad_hor="#space_xxs" icon="arrow_down" bind_icon="motion_z_down_icon"
@@ -348,6 +364,16 @@
              word. The leveling buttons are capability-gated, so the row
              carries three to five buttons depending on the printer; the jog
              modes are Jog-tab-only. -->
+        <!-- Home single axes, a row of its own above the modes; the pad gives up
+             the height. The pad's centre button homes all. -->
+        <home_axis_bar name="motion_home_bar"
+                       width="100%" flex_grow="0" all_callback="on_motion_home_all" x_callback="on_motion_home_x"
+                       y_callback="on_motion_home_y" z_callback="on_motion_home_z" xy_gate="motion_home_bar_xy"
+                       all_homed="motion_all_homed" x_homed="motion_x_homed" y_homed="motion_y_homed"
+                       xy_homed="motion_all_homed" z_homed="motion_z_homed">
+          <bind_flag_if_not_eq subject="motion_tab" flag="hidden" ref_value="0"/>
+          <bind_flag_if_not_eq subject="settings_motion_layout" flag="hidden" ref_value="0"/>
+        </home_axis_bar>
         <lv_obj name="bottom_row"
                 width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
                 scrollable="false">
@@ -470,13 +496,23 @@
             <!-- Fine/Coarse/Turbo jog mode toggle -->
             <!-- Landscape keeps full-width mode buttons at button height: a taller
                  near-square key would take its height from the pad above. -->
-            <motion_jog_modes name="jog_modes"
-                              button_height="#motion_mode_row_h" max_width="100%" icon_position="left"
-                              fine_callback="on_jog_mode_fine" coarse_callback="on_jog_mode_coarse"
-                              turbo_callback="on_jog_mode_turbo">
+            <!-- Jog modes, then the single-axis home bar (the pad's centre
+                 button homes all) sharing the row. -->
+            <lv_obj name="jog_modes_row"
+                    width="100%" height="content" style_pad_all="0" style_border_opa="0" style_bg_opa="0"
+                    scrollable="false" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
               <bind_flag_if_not_eq subject="motion_tab" flag="hidden" ref_value="0"/>
               <bind_flag_if_not_eq subject="settings_motion_layout" flag="hidden" ref_value="0"/>
-            </motion_jog_modes>
+              <motion_jog_modes name="jog_modes"
+                                width="0" flex_grow="3" button_height="#motion_mode_row_h" max_width="100%"
+                                icon_position="left" fine_callback="on_jog_mode_fine"
+                                coarse_callback="on_jog_mode_coarse" turbo_callback="on_jog_mode_turbo"/>
+              <home_axis_bar name="motion_home_bar"
+                             width="0" height="#motion_mode_row_h" flex_grow="2" all_callback="on_motion_home_all"
+                             x_callback="on_motion_home_x" y_callback="on_motion_home_y" z_callback="on_motion_home_z"
+                             xy_gate="motion_home_bar_xy" all_homed="motion_all_homed" x_homed="motion_x_homed"
+                             y_homed="motion_y_homed" xy_homed="motion_all_homed" z_homed="motion_z_homed"/>
+            </lv_obj>
           </lv_obj>
         </lv_obj>
         <!-- Right Column: Z-Axis Controls + Leveling (extends full height) -->
@@ -503,7 +539,17 @@
               <bind_state_if_eq subject="motion_z_up_blocked" state="disabled" ref_value="1"/>
             </motion_jog_button>
             <!-- Z-Axis label - shows "Bed" or "Print Head" based on kinematics -->
-            <text_body name="z_axis_label" width="100%" bind_text="motion_z_axis_label" style_text_align="center"/>
+            <!-- What the Z keys move, drawn: the print head, or the bed where the bed moves -->
+            <lv_obj name="z_axis_label"
+                    width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_opa="0"
+                    scrollable="false" flex_flow="row" style_flex_main_place="center">
+              <toolhead_view name="z_axis_icon_head" width="#motion_z_head_size" height="#motion_z_head_size">
+                <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="1"/>
+              </toolhead_view>
+              <icon name="z_axis_icon_bed" src="bed" size="lg" variant="text">
+                <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="0"/>
+              </icon>
+            </lv_obj>
             <motion_jog_button name="z_down_small"
                                width="100%" jog="z_down_small" flex_grow="1" style_max_height="#button_height_lg"
                                stacked_subject="motion_z_keys_stacked" stacked_if_eq="1" style_pad_hor="#space_xxs"

@@ -227,6 +227,25 @@ class NavigationManager {
     lv_obj_t* get_panel_widget(helix::PanelId id) const;
 
     /**
+     * @brief Lend main panel @p id's widget tree to @p container
+     *
+     * A home full page (prestonbrown/helixscreen#1931) shows a main panel's own
+     * tree: built first if deferred, moved under @p container and shown, with its
+     * observers and callbacks as they are. Panel switches leave a lent tree alone
+     * until reclaim_panel(), and a switch to @p id itself reclaims it first.
+     *
+     * @return false, moving nothing, for the active panel, a panel already lent,
+     *         or one that has no tree
+     */
+    bool lend_panel(helix::PanelId id, lv_obj_t* container);
+
+    /// Move a lent tree back under the panel container, hidden; no-op when not lent.
+    void reclaim_panel(helix::PanelId id);
+
+    /// The container panel @p id is lent to, or nullptr.
+    lv_obj_t* panel_lent_to(helix::PanelId id) const;
+
+    /**
      * @brief Register a builder for panels that are instantiated lazily.
      *
      * On the ESP32 firmware only the home panel is built at boot (app_layout

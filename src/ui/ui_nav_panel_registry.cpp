@@ -3,6 +3,8 @@
 
 #include "ui_nav_panel_registry.h"
 
+#include "ui_panel_base.h"
+
 #include <spdlog/spdlog.h>
 
 namespace helix::ui {
@@ -64,7 +66,7 @@ int PanelRegistry::index_of(const lv_obj_t* obj) const {
 
 void PanelRegistry::show_only(int idx) {
     for (int i = 0; i < kCount; i++) {
-        if (widgets_[i]) {
+        if (widgets_[i] && !lent_to_[i]) {
             if (i == idx) {
                 lv_obj_remove_flag(widgets_[i], LV_OBJ_FLAG_HIDDEN);
             } else {
@@ -72,6 +74,54 @@ void PanelRegistry::show_only(int idx) {
             }
         }
     }
+}
+
+bool PanelRegistry::lend(int idx, lv_obj_t* container) {
+    if (!in_range(idx) || !container || !widgets_[idx] || lent_to_[idx]) {
+        return false;
+    }
+    lv_obj_t* panel = widgets_[idx].get();
+    lent_from_[idx] = lv_obj_get_parent(panel);
+    lent_index_[idx] = lv_obj_get_index(panel);
+    lent_to_[idx] = container;
+    lv_obj_set_parent(panel, container);
+    lv_obj_set_hidden(panel, false);
+    if (instances_[idx]) {
+        instances_[idx]->on_lent_to_page(true);
+    }
+    return true;
+}
+
+bool PanelRegistry::reclaim(int idx) {
+    if (!in_range(idx) || !lent_to_[idx]) {
+        return false;
+    }
+    lent_to_[idx] = nullptr;
+    if (instances_[idx]) {
+        instances_[idx]->on_lent_to_page(false);
+    }
+    lv_obj_t* panel = widgets_[idx].get();
+    lv_obj_t* home = lent_from_[idx].get();
+    lent_from_[idx] = nullptr;
+    if (!panel) {
+        return true;
+    }
+    lv_obj_set_hidden(panel, true);
+    if (!home) {
+        // The panel container is being deleted with everything in it (a printer
+        // switch tears the whole layout down), so the tree goes with the page and
+        // the slot clears itself.
+        spdlog::debug("[NavigationManager] Panel {} lent out: its container is going, so is it",
+                      idx);
+        return true;
+    }
+    lv_obj_set_parent(panel, home);
+    lv_obj_move_to_index(panel, lent_index_[idx]);
+    return true;
+}
+
+lv_obj_t* PanelRegistry::lent_to(int idx) const {
+    return in_range(idx) ? lent_to_[idx].get() : nullptr;
 }
 
 void PanelRegistry::set_instance(int idx, PanelBase* panel) {
@@ -122,6 +172,8 @@ void PanelRegistry::clear_instances() {
 void PanelRegistry::reset() {
     for (int i = 0; i < kCount; i++) {
         widgets_[i] = nullptr;
+        lent_to_[i] = nullptr;
+        lent_from_[i] = nullptr;
     }
     stale_.fill(false);
     clear_instances();
