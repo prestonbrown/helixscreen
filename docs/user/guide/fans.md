@@ -61,12 +61,6 @@ Two printers have it today:
 - **FlashForge Creator 5 Pro running Z-Mod.** The buttons run the printer's `AIR_CIRCULATION_INTERNAL`, `AIR_CIRCULATION_EXTERNAL` and `AIR_CIRCULATION_STOP` macros. The buttons do not stay highlighted, because the printer does not report which mode is active once its fans have been changed.
 - **Snapmaker U1 with the Top Cover fitted.** The printer reports its active mode, so the matching button stays highlighted. The exhaust and recirculation fans appear as dials on the same screen, and HelixScreen keeps the fan that the active mode drives at 10% or above and refuses to turn on the fan that the mode keeps off. With the cover off, the row is hidden and nothing is offered, because the firmware ignores the commands.
 
-![The Chamber Air row on the All Fans screen of a Snapmaker U1](../../images/user/fans-chamber-air.png)
-
-1. Recirculate.
-2. Exhaust.
-3. Off.
-
 #### Top Cover Notices and Targets (Snapmaker U1)
 
 The first time HelixScreen sees the Top Cover fitted, it tells you "Top Cover detected" and offers **Open Fans**. Afterwards it asks "Recalibrate input shaping?", recommending that you recalibrate after connecting the cover, with **Calibrate now** or **Later**. A detection that happens during a print waits until the print ends. If the cover is taken off later, a warning says it was disconnected and asks you to reconnect it before continuing, to protect print quality. A cover that is already off when HelixScreen starts gives no warning.
@@ -78,12 +72,6 @@ The first time HelixScreen sees the Top Cover fitted, it tells you "Top Cover de
 | **Exhaust: keep chamber at or below** | 20 to 80°C |
 | **Exhaust fan speed** | 10 to 100% |
 | **Recirculation fan speed** | 10 to 100% |
-
-![The Chamber Air section of the Fans settings](../../images/user/settings-fans-chamber-air.png)
-
-1. The target temperature.
-2. The exhaust fan percentage.
-3. The recirculate fan percentage.
 
 ---
 
