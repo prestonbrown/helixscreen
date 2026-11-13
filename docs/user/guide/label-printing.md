@@ -87,19 +87,13 @@ Small labels cannot fit text, so the **Preset** dropdown is locked to **QR Only*
 
 Tap **Test Print**. It prints a sample label (a Hatchbox PLA spool) whose QR code deliberately matches no real spool, so scanning it cannot change your active spool.
 
-![The lower half of Label Printer settings](../../images/user/label-printer-settings-2.png)
-
-1. Label Size.
-2. Preset.
-3. Test Print.
-
 ---
 
 ## Printing a Label
 
 Once a printer is set up, **Print Label** appears in three places:
 
-- The menu you get when you tap a spool in the Spoolman spool list (reached from the **Filament** tab).
+- The menu you get when you tap a spool in the Spoolman spool list (reached from **Advanced > Spoolman**).
 - The spool editor for a Spoolman spool.
 - The slot editor on the filament system screen, for a slot linked to a Spoolman spool.
 
@@ -131,6 +125,12 @@ If you have no thermal label printer, HelixScreen can print spool labels onto Av
 | **Avery L7159** | 24 labels, 63.5 x 33.9 mm (A4) |
 
 4. Pick a **Preset**. **Labels Per Sheet** sets how many copies of a label go on a sheet by default.
+
+![The lower half of Label Printer settings with an office printer chosen](../../images/user/label-printer-settings-2.png)
+
+1. Label Size, here the Avery sheet you loaded.
+2. Preset.
+3. Test Print.
 
 If your printer is not listed, check that it is on, on the same network, and has driverless, AirPrint or IPP printing enabled. Only the discovered **[IPP]** entry turns sheet printing on; typing an address by hand does not.
 

@@ -113,7 +113,7 @@ A preset sets a heater's target in one tap. There are four preset slots, and eac
 | ABS (shown as **ABS/ASA**) | 255°C | 100°C |
 | TPU | 225°C | 50°C |
 
-  If you change a material's temperatures in **Settings > Printing > Material Temperatures** (see [Material Temperatures](settings/printing.md#material-temperatures)), its presets change with it. A preset above the printer's maximum is applied at that maximum.
+  If you change a material's temperatures in **Settings > Printing > Material Temperatures** (see [Material Temperatures](settings/printing.md#material-temperatures)), its presets change with it. A preset above the heater's configured maximum is hidden on the graph screen, so a printer limited to 250°C shows no ABS/ASA preset. A target above the maximum that does reach the printer is refused with "Temperature N°C is out of range", never lowered to the limit.
 - **Chamber** presets do not depend on the material. They are fixed steps by position: **40°C**, **50°C** and **60°C**. A step above the chamber heater's configured maximum is hidden.
 
 The graph screen has room for **Off** and the first three slots. The Filament screen shows all four.

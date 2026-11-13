@@ -200,7 +200,7 @@ images:
     markers:
       - {n: 1, widget: btn_ams_settings, at: top_right}
       - {n: 2, widget: current_loaded_card, at: top_right}
-      - {n: 3, widget: action_buttons_container, at: top_right}
+      - {n: 3, widget: btn_load, at: top_right}
   - path: docs/images/user/camera.png
     kind: manual
     source: captured by hand before the manifest existed
@@ -222,7 +222,7 @@ images:
     recipe: motion
     markers:
       - {n: 1, widget: motion_tab_rail, at: top_right}
-      - {n: 2, widget: header_coords, at: top_right}
+      - {n: 2, widget: header_coords, at: top_left}
       - {n: 3, widget: motion_home_bar, at: top_right}
       - {n: 4, widget: z_controls, at: top_right}
   - path: docs/images/user/controls-pid.png
@@ -232,8 +232,8 @@ images:
     kind: app
     recipe: nozzle-temp
     markers:
-      - {n: 1, widget: chip_row, at: top_right}
-      - {n: 2, widget: graph_container, at: top_right}
+      - {n: 1, widget: chip_row, at: top_left}
+      - {n: 2, widget: graph_container, at: center}
       - {n: 3, widget: nozzle_display_card, at: top_right}
       - {n: 4, widget: nozzle_preset_grid, at: top_right}
       - {n: 5, widget: nozzle_btn_custom, at: top_right}
@@ -706,7 +706,7 @@ images:
     markers:
       - {n: 1, widget: sync_toggle, at: top_right}
       - {n: 2, widget: interval_dropdown, at: top_right}
-      - {n: 3, widget: row_filament_accounting, at: top_right}
+      - {n: 3, widget: row_filament_accounting, at: center}
   - path: docs/images/user/label-printer-settings-2.png
     kind: app
     steps:

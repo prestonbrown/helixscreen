@@ -16,7 +16,7 @@ The settings live at **Settings > Devices > Spoolman > Barcode Scanner**. They a
 
 A scan only counts while the **Scan Spool QR Code** screen is open. Open it from **Scan QR Code** in a filament slot's menu, from the QR scan button in the slot editor's header, or from the external spool's menu. Outside that screen a scanner is just a keyboard, so what you scan is typed into whatever field is focused.
 
-If no scanner is set up, or the one you chose is not plugged in, the screen uses the printer's webcam instead ("Point camera at QR code on spool"). With no webcam it says "No camera" and asks you to use a USB barcode scanner. When your chosen scanner is attached, the screen says "Scan the spool label with your barcode scanner" and skips the camera. The screen closes by itself after 60 seconds without a scan.
+If no scanner is set up, or the one you chose is not plugged in, the screen uses the printer's webcam instead ("Point camera at QR code on spool"). **On a printer whose bed moves in Z, opening this screen first moves Z to 150 mm when the printer is homed and lower than that, to make room for the camera view. Keep the bed and the area below it clear.** With no webcam it says "No camera" and asks you to use a USB barcode scanner. When your chosen scanner is attached, the screen says "Scan the spool label with your barcode scanner" and skips the camera. The screen closes by itself after 60 seconds without a scan.
 
 ---
 
