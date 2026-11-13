@@ -120,6 +120,7 @@ bench-only values there, never in a committed file:
 | `CONFIG_HELIX_HIL_MOONRAKER_URL` | First-boot Moonraker host (`ws://host:7125/websocket`); never overrides a host saved in Settings |
 | `CONFIG_HELIX_MOCK_PRINTER=y` | Synthetic printer, no network (chapter 17, Mock mode) |
 | `CONFIG_HELIX_LOG_STRIP_DEBUG=n` | Keep `spdlog::debug`/`trace`; stripped by default, so a debug line you add does not print |
+| `CONFIG_HELIX_LOG_TOKENIZE=n` | Print info/warn/error/critical as plain text instead of token records (section "Reading the log") |
 | `CONFIG_HELIX_SUBJECT_DEBUG_STRIP=n` | Keep the subject macros' `SubjectDebugRegistry` records, so an LVGL subject warning names the subject |
 | `CONFIG_HELIX_AMS_HTTP_POLL_BACKENDS=y` | Let the ACE and AD5X IFS backends run |
 | `CONFIG_HELIX_FAULT_CRASH_HOST` | Abort when connected to a matching host, to exercise the boot crash guard (#1750) |
@@ -168,6 +169,36 @@ scripts/esp32_serial_snapshot.py /dev/ttyUSB0 out.png --notes                # a
 Without `--settle` the capture lands during boot, before WiFi and Moonraker: zero temperatures and a greyed navbar
 mean "not connected yet", not a bug. The log lines worth grepping are listed in chapter 17 (Crash recovery and
 diagnostics); the boot heap gates print as `heap before pthread` and `internal heap before rgb panel`.
+
+### Reading the log
+
+`spdlog::info`/`warn`/`error`/`critical` print as token records, not text: a line `$` + base64 holding a
+token and the call's arguments. The format strings stay out of the image (#1915); the build writes them to
+`<build>/helixscreen_esp32.logtok.json`, and the release zip carries the same file as
+`<zip folder>/helixscreen-esp32-ktouch-logtok.json`. Turn a capture back into text with the database of the build that
+printed it:
+
+```bash
+scripts/detokenize_log.py build/helixscreen_esp32.logtok.json serial.log     # or pipe the console in
+scripts/detokenize_log.py --level <db> serial.log                             # prefix [I]/[W]/[E]
+```
+
+Other lines (ESP-IDF's own logs, the snapshot protocol, `printf`) pass through unchanged. The firmware prints
+`$HLT1:<ELF SHA-256>` before its first record and every 200 after, the same hash as the boot banner's
+`ELF file SHA256`; the tool warns when it does not match the database, because a token then points at a
+different string. A record whose arguments did not fit its 192 bytes ends in `[cut]`.
+
+How it works: in a firmware translation unit the shim (`components/helixnet/shim/spdlog_shim.h`) defines
+`info(...)`, `warn(...)`, `error(...)` and `critical(...)` as macros that wrap a string-literal first argument
+with its token: the offset of its stringized text in the ELF's `.helix_logfmt` section, which is `(INFO)` and
+never loaded (`components/helixnet/helix_logfmt.ld`). Every call reaches one out-of-line emitter
+(`shim/log_token_esp.cpp`) with the arguments type-erased by fmt, and the format string itself is never
+referenced, so it never reaches flash. A call whose format is not a plain literal, or whose arguments include
+a type with its own `fmt::formatter`, prints text as before. `debug`/`trace` are not tokenized.
+
+Because those four names are macros there, a firmware-compiled declaration of any other function named
+`info`, `warn`, `error` or `critical` with parameters must parenthesize its name (`static HardwareIssue
+(info)(...)`); calls to it need nothing, and the firmware compile fails loudly on a declaration that forgets.
 
 ## Debugging recipes
 

@@ -192,7 +192,8 @@ class ErrorContext {
      *
      * @param details Error details
      */
-    void error(const char* details) {
+    // The parentheses stop the ESP32 spdlog shim's error() macro expanding this declarator.
+    void(error)(const char* details) {
         spdlog::error("[{}] {}", operation_, details);
         ui_notification_error(operation_, details, false);
     }
@@ -202,7 +203,8 @@ class ErrorContext {
      *
      * @param details Error details
      */
-    void critical(const char* details) {
+    // The parentheses stop the ESP32 spdlog shim's critical() macro expanding this declarator.
+    void(critical)(const char* details) {
         spdlog::error("[{}] CRITICAL: {}", operation_, details);
         ui_notification_error(operation_, details, true);
     }

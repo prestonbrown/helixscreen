@@ -2563,9 +2563,10 @@ struct DeviceAction {
     }
 
     /// A read-only row showing @p value as text.
-    static DeviceAction info(std::string id, std::string label, std::string section,
-                             std::string value, std::string icon = {},
-                             std::string description = {}) {
+    // The parentheses stop the ESP32 spdlog shim's info() macro expanding this declarator.
+    static DeviceAction(info)(std::string id, std::string label, std::string section,
+                              std::string value, std::string icon = {},
+                              std::string description = {}) {
         DeviceAction a =
             toggle(std::move(id), std::move(label), std::move(section), std::any(std::move(value)),
                    std::move(icon), std::move(description));

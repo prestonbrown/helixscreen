@@ -21,6 +21,7 @@ setup() {
     echo boot > "$BUILD/bootloader/bootloader.bin"
     echo app > "$BUILD/app.bin"
     echo table > "$BUILD/partition_table/partition-table.bin"
+    echo '{"format": 1, "tokens": {}}' > "$BUILD/helixscreen_esp32.logtok.json"
     printf 'nvs,      data, nvs,     0x9000,   0x6000,\ncfg,      data, spiffs,  0x1000,   0x20000,\n' \
         > "$FW/partitions.csv"
 
@@ -45,13 +46,22 @@ EOF
     [ "$status" -eq 0 ] || fail "$output"
     local d=helixscreen-esp32-ktouch-v1.2.3 f
     for f in helixscreen-esp32-ktouch-factory.bin flash_args README.txt app.bin \
-             bootloader/bootloader.bin partition_table/partition-table.bin; do
+             bootloader/bootloader.bin partition_table/partition-table.bin \
+             helixscreen-esp32-ktouch-logtok.json; do
         grep -qx "$d/$f" <<<"$output" || fail "missing $d/$f in:"$'\n'"$output"
     done
 
     run unzip -p "$OUT/helixscreen-esp32-ktouch-v1.2.3.zip" "$d/README.txt"
     [[ "$output" == *"write_flash 0x0 helixscreen-esp32-ktouch-factory.bin"* ]] || fail "$output"
     [[ "$output" == *"write_flash @flash_args"* ]] || fail "$output"
+    [[ "$output" == *"detokenize_log.py helixscreen-esp32-ktouch-logtok.json"* ]] || fail "$output"
+}
+
+@test "a build without its token database is refused" {
+    rm "$BUILD/helixscreen_esp32.logtok.json"
+    PYTHON="$FAKE_PY" FAKE_FACTORY_BYTES=4096 run bash "$SCRIPT" v1.2.3 "$BUILD" "$OUT"
+    [ "$status" -ne 0 ] || fail "packaged a build with no token database: $output"
+    [[ "$output" == *"logtok.json"* ]] || fail "$output"
 }
 
 @test "a factory image reaching the cfg partition is refused" {

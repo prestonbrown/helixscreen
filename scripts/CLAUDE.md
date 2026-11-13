@@ -181,6 +181,8 @@ each screen maps to a navigation recipe in `screenshot-recipes.sh`, the single s
 | `screenshot-all.sh` | Capture all documentation screenshots |
 | `ad5m-screenshot.sh` | Remote screenshot capture from AD5M printer |
 | `esp32_serial_snapshot.py` | Screenshot an ESP32 panel over its serial console |
+| `detokenize_log.py` | Turn an ESP32 console capture's token records back into log text |
+| `esp32_logtok_db.py` | Firmware build step: the token database of an ELF's tokenized log strings |
 | `generate-screenshots.sh` | Generate screenshots for documentation/marketing |
 | `generate-test-data.py` | Generate mock test data for test suites |
 | `test_clean_shutdown.sh` | Verify clean shutdown behavior |
