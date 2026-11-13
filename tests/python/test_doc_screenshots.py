@@ -203,7 +203,7 @@ def test_run_counts_and_skips_manual(tmp_path, capsys):
     sessions = []
 
     class Factory(FakeSession):
-        def __init__(self, env, size):
+        def __init__(self, env, size, wizard=None):
             super().__init__({})
             sessions.append(self)
 
@@ -270,7 +270,7 @@ def test_run_survives_a_failed_boot_and_cleans_up(tmp_path, capsys):
     class Factory(FakeSession):
         boots = 0
 
-        def __init__(self, env, size):
+        def __init__(self, env, size, wizard=None):
             super().__init__({})
 
         def __enter__(self):
@@ -320,3 +320,40 @@ def test_lint_and_loader_agree_on_the_manifest():
     by_regex = check_doc_images.MANIFEST_PATH_RE.findall(text)
     by_yaml = [e.path for e in load_manifest(REPO_ROOT / "docs/images/doc-screenshots.yml")]
     assert by_regex == by_yaml
+
+
+def test_wizard_entry_needs_no_recipe_and_names_a_real_step(tmp_path):
+    manifest = write(tmp_path, """
+        images:
+          - {path: docs/images/user/wizard-connection.png, kind: app, wizard: connection}
+          - {path: docs/images/user/wizard-wifi.png, kind: app, wizard: wifi, steps: [wait_idle]}
+        """)
+    a, b = load_manifest(manifest, tokens=[])
+    assert a.wizard == "connection" and a.steps == ()
+    assert b.wizard == "wifi" and b.steps == ("wait_idle",)
+    bad = write(tmp_path, """
+        images:
+          - {path: docs/images/user/x.png, kind: app, wizard: nonsense}
+        """)
+    with pytest.raises(ManifestError, match="wizard step 'nonsense'"):
+        load_manifest(bad, tokens=[])
+
+
+def test_wizard_launch_shows_the_step_instead_of_skipping_it():
+    plain = doc_screenshots.launch_flags(None, (800, 480), "/tmp/s.sock")
+    assert "--skip-wizard" in plain and "--wizard-step" not in plain
+    wiz = doc_screenshots.launch_flags("connection", (800, 480), "/tmp/s.sock")
+    assert "--skip-wizard" not in wiz
+    assert wiz[wiz.index("--wizard-step") + 1] == "3"
+    assert doc_screenshots.launch_flags("printer_identify", (800, 480), "/tmp/s.sock")[
+        wiz.index("--wizard-step") + 1] == "4"
+
+
+def test_wizard_step_names_follow_the_app_enum():
+    import re
+
+    header = (REPO_ROOT / "include/wizard_step.h").read_text()
+    body = header[header.index("enum class StepId {"):].split("};")[0]
+    names = re.findall(r"^\s*([A-Z]\w*)", body.split("{", 1)[1], re.M)
+    snake = [re.sub(r"(?<!^)(?=[A-Z])", "_", n).lower() for n in names]
+    assert list(doc_screenshots.WIZARD_STEPS) == snake
