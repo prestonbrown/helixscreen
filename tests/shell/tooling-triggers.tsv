@@ -105,6 +105,7 @@ tests/shell/test_lfs_sites_gate.bats	mk/patches.mk mk/rules.mk patches/lvgl-drm-
 tests/shell/test_libhv_dns_resolver_patch.bats	lib/libhv mk/patches.mk mk/rules.mk patches/libhv-dns-resolver-fallback.patch
 tests/shell/test_link_parity_gate.bats	Makefile mk/ scripts/check_link_parity.py scripts/mutate_diff.py scripts/qc/link_parity.sh scripts/quality-checks.sh src/ui/home/ui_panel_home.cpp
 tests/shell/test_load_base_rule_conformance.bats	scripts/resolve-backtrace.sh scripts/telemetry-crashes.py server/crash-worker/src/symbol-resolver.ts tests/fixtures/load_base_rule.json
+tests/shell/test_lvgl_deprecated_gate.bats	scripts/lvgl96_rename.py scripts/qc/lvgl_deprecated.sh scripts/quality-checks.sh scripts/source_strip.py lib/lvgl
 tests/shell/test_lvgl_event_code_gate.bats	Makefile lib/lvgl lv_conf.h mk/tools.mk scripts/gen_lvgl_event_codes.py scripts/qc/lvgl_event_codes.sh scripts/quality-checks.sh server/crash-worker/
 tests/shell/test_make_t_timeout.bats	scripts/check_test_binary_current.sh scripts/qc/hidden_tests.sh
 tests/shell/test_makefile_continuation.bats	Makefile mk/*.mk

@@ -22,7 +22,9 @@ Two kinds of rewrite, both read from lib/lvgl at run time so the table is LVGL's
    Only when the flag argument is one literal LV_OBJ_FLAG_* constant whose setter or
    getter exists. An OR-ed mask, a flag held in a variable, a USER/WIDGET/LAYOUT flag
    (no per-flag function exists) or a call the parser cannot split is left as it is
-   and reported for a hand edit. A line carrying `LV_DEPRECATED_OK: <reason>` is
+   and reported for a hand edit: helix::ui::obj_set_flags()/obj_has_flags()
+   (include/ui_obj_flags.h) carry those, and --check fails a wrapper call naming a
+   built-in flag that has its own function. A line carrying `LV_DEPRECATED_OK: <reason>` is
    exempt from the report and from --check.
 
 The subject init/deinit API (lv_subject_init_*, lv_subject_deinit) is out of scope:
@@ -64,6 +66,12 @@ INLINE_RENAMES = {"lv_task_handler": "lv_timer_handler"}
 INLINE_CALLS = {"lv_obj_move_foreground": "lv_obj_move_to_index(%s, -1)",
                 "lv_obj_move_background": "lv_obj_move_to_index(%s, 0)"}
 CALL_FUNCS = FLAG_FUNCS + tuple(INLINE_CALLS)
+
+# include/ui_obj_flags.h: the one sanctioned home of the generic flag calls, for flags
+# with no per-flag function. --check fails a wrapper call that names a built-in flag
+# which has one, so the wrapper cannot hide a lv_obj_set_hidden() from the
+# declarative-UI gates.
+WRAPPERS = {"obj_set_flags": "setters", "obj_has_flags": "getters"}
 IDENT = re.compile(r"[A-Za-z_]\w*")
 
 
@@ -279,7 +287,8 @@ class Rewriter:
                 rewrite = False
 
     def remaining(self, text, path):
-        """Deprecated names still present in code (not comments or strings)."""
+        """Deprecated names still present in code (not comments or strings), and
+        wrapper calls naming a built-in flag that has its own function."""
         kind = classify(text)
         hits = []
         for m in self.any_name.finditer(text):
@@ -287,6 +296,17 @@ class Rewriter:
                 continue
             hits.append((path, line_of(text, m.start()), m.group(1),
                          line_text(text, m.start()).strip()))
+        for m in re.finditer(r"\b(%s)\s*\(" % "|".join(WRAPPERS), text):
+            if kind[m.start()] != CODE:
+                continue
+            parsed = split_args(text, kind, m.end() - 1)
+            if parsed is None or len(parsed[0]) < 2 or opted_out(text, m.start(), parsed[1]):
+                continue
+            own = self.setters if WRAPPERS[m.group(1)] == "setters" else self.getters
+            named = set(re.findall(r"\bLV_OBJ_FLAG_(\w+)", parsed[0][1]))
+            if named & own:
+                hits.append((path, line_of(text, m.start()), m.group(1),
+                             "built-in flag with its own function: %s" % " ".join(sorted(named & own))))
         return hits
 
 
@@ -330,7 +350,7 @@ def main():
                 text = fh.read()
         except (OSError, UnicodeDecodeError):
             continue
-        if not rw.any_name.search(text):
+        if not rw.any_name.search(text) and not any(w in text for w in WRAPPERS):
             continue
         rel = os.path.relpath(path, REPO)
         if a.check:
@@ -347,6 +367,8 @@ def main():
         for path_, line, name, _txt in rw.remaining(new, rel):
             if name in rw.complex:
                 report.append((path_, line, name, "API-map expression; hand edit", _txt))
+            elif name in WRAPPERS:
+                report.append((path_, line, name, _txt, ""))
 
     if a.check:
         for path, line, name, txt in remaining:

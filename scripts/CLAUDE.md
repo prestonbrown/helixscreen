@@ -158,7 +158,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `platform_manifest.py` | Answers derived questions about a platform from `platforms.json` |
 | `rename_observers.py` | Rewrites retired observer factory names onto `observe<V>()` |
 | `rename_update_queue_drain.py` | Rewrites `UpdateQueueTestAccess` drains onto the queue's own methods |
-| `lvgl96_rename.py` | Rewrites code off the names LVGL 9.6 deprecates (API map, flag calls); `--check` fails on any left |
+| `lvgl96_rename.py` | Rewrites code off the names LVGL 9.6 deprecates (API map, flag calls); `--check` (gated as `qc_lvgl_deprecated`) fails on any left |
 | `rename_constants.py` | Renames `UPPER_SNAKE_CASE` C++ constants to `kCamelCase` (plan, then apply) |
 | `check_constant_naming.py` | Fail on a new `UPPER_SNAKE_CASE` constant in added lines |
 | `audit_codebase.sh` | Check for coding standard violations. `--strict` for CI |
