@@ -197,6 +197,10 @@ images:
   - path: docs/images/user/ams.png
     kind: app
     recipe: ams
+    markers:
+      - {n: 1, widget: btn_ams_settings, at: top_right}
+      - {n: 2, widget: current_loaded_card, at: top_right}
+      - {n: 3, widget: action_buttons_container, at: top_right}
   - path: docs/images/user/camera.png
     kind: manual
     source: captured by hand before the manifest existed
@@ -216,12 +220,24 @@ images:
   - path: docs/images/user/controls-motion.png
     kind: app
     recipe: motion
+    markers:
+      - {n: 1, widget: motion_tab_rail, at: top_right}
+      - {n: 2, widget: header_coords, at: top_right}
+      - {n: 3, widget: jog_pad_container, at: top_right}
+      - {n: 4, widget: motion_home_bar, at: top_right}
+      - {n: 5, widget: z_controls, at: top_right}
   - path: docs/images/user/controls-pid.png
     kind: app
     recipe: pid
   - path: docs/images/user/controls-temperature.png
     kind: app
     recipe: nozzle-temp
+    markers:
+      - {n: 1, widget: chip_row, at: top_right}
+      - {n: 2, widget: graph_container, at: top_right}
+      - {n: 3, widget: nozzle_display_card, at: top_right}
+      - {n: 4, widget: nozzle_preset_grid, at: top_right}
+      - {n: 5, widget: nozzle_btn_custom, at: top_right}
   - path: docs/images/user/controls-tool-offsets.png
     kind: manual
     source: captured by hand before the manifest existed
@@ -540,3 +556,205 @@ images:
   - path: docs/images/user/wizard-wifi.png
     kind: app
     wizard: wifi
+  - path: docs/images/user/home-edit-nav-buttons.png
+    kind: app
+    steps:
+      - navigate home
+      - long_press 200 111
+      - wait_idle
+    markers:
+      - {n: 1, widget: nav_btn_edit_add, at: top_right}
+      - {n: 2, widget: nav_btn_edit_done, at: top_right}
+  - path: docs/images/user/print-status-controls.png
+    kind: app
+    recipe: print-status
+    crop: ps_strip_buttons
+    margin: 12
+    markers:
+      - {n: 1, widget: btn_pause, at: top_right}
+      - {n: 2, widget: btn_tune, at: top_right}
+      - {n: 3, widget: btn_more, at: top_right}
+      - {n: 4, widget: btn_cancel, at: top_right}
+  - path: docs/images/user/print-tune-callouts.png
+    kind: app
+    recipe: print-tune
+    markers:
+      - {n: 1, widget: speed_readout, at: top_right}
+      - {n: 2, widget: flow_readout, at: top_right}
+      - {n: 3, widget: btn_reset, at: top_right}
+      - {n: 4, widget: z_offset_section, at: top_right}
+  - path: docs/images/user/preflight-material.png
+    kind: app
+    recipe: preflight-material
+    markers:
+      - {n: 1, widget: preflight_explanation, at: top_right}
+      - {n: 2, widget: btn_set_material, at: top_right}
+  - path: docs/images/user/detection-settings.png
+    kind: app
+    env:
+      HELIX_MOCK_DETECTION_CAPABLE: "1"
+    steps:
+      - navigate settings
+      - click row_safety
+      - wait_idle
+      - scroll overlay_content 0 -150
+    crop: container_detection
+    margin: 12
+    markers:
+      - {n: 1, widget: row_detection_enabled, at: top_right}
+      - {n: 2, widget: row_detection_pause, at: top_right}
+  - path: docs/images/user/history-time-filters.png
+    kind: app
+    recipe: history-dashboard
+    markers:
+      - {n: 1, widget: filter_day, at: top_right}
+      - {n: 2, widget: filter_all, at: top_right}
+      - {n: 3, widget: card_success_rate, at: top_right}
+      - {n: 4, widget: card_prints_trend, at: top_right}
+      - {n: 5, widget: card_filament_chart, at: top_right}
+  - path: docs/images/user/motion-home-bar.png
+    kind: app
+    recipe: motion
+    crop: motion_home_bar
+    margin: 12
+    markers:
+      - {n: 1, widget: btn_home_all, at: top_right}
+      - {n: 2, widget: btn_home_x, at: top_right}
+      - {n: 3, widget: btn_home_z, at: top_right}
+  - path: docs/images/user/motion-z-column.png
+    kind: app
+    recipe: motion
+    crop: right_column
+    markers:
+      - {n: 1, widget: z_up_large, at: top_right}
+      - {n: 2, widget: z_axis_icon_head, at: top_right}
+      - {n: 3, widget: z_down_large, at: top_right}
+  - path: docs/images/user/controls-home-row.png
+    kind: app
+    recipe: controls
+    crop: card_quick_actions
+    margin: 12
+  - path: docs/images/user/controls-nozzle-chooser.png
+    kind: app
+    env:
+      HELIX_MOCK_AMS: "toolchanger"
+    steps:
+      - navigate controls
+      - wait_idle
+    crop: card_temperatures
+    margin: 12
+    markers:
+      - {n: 1, widget: nozzle_tool_dropdown, at: top_right}
+      - {n: 2, widget: nozzle_temp_edit_container, at: top_right}
+  - path: docs/images/user/temp-nozzle-picker.png
+    kind: app
+    env:
+      HELIX_MOCK_AMS: "toolchanger"
+    steps:
+      - navigate controls
+      - click btn_nozzle_temp
+      - wait_idle
+    crop: nozzle_control_strip
+    margin: 12
+    markers:
+      - {n: 1, widget: extruder_selector_row, at: top_right}
+      - {n: 2, widget: nozzle_display_card, at: top_right}
+  - path: docs/images/user/temp-chamber-diagnostics.png
+    kind: app
+    env:
+      HELIX_MOCK_OBJECTS: "heater_generic dragonbreath dragonbreath output_pin dragonbreath_filter"
+    steps:
+      - navigate controls
+      - click btn_chamber_temp
+      - wait_idle
+    crop: chamber_display_card
+    margin: 12
+    markers:
+      - {n: 1, widget: element_readout, at: top_right}
+      - {n: 2, widget: filter_fan_readout, at: top_right}
+      - {n: 3, widget: filter_fan_switch, at: top_right}
+  - path: docs/images/user/chamber-card-stock.png
+    kind: app
+    env:
+      HELIX_MOCK_OBJECTS: "heater_generic panda_breath panda_breath"
+    steps:
+      - navigate controls
+      - click btn_chamber_temp
+      - wait_idle
+    crop: chamber_display_card
+    margin: 12
+    markers:
+      - {n: 1, widget: dryer_row, at: top_right}
+      - {n: 2, widget: dryer_start_button, at: top_right}
+  - path: docs/images/user/fans-chamber-air.png
+    kind: app
+    recipe: fan
+    env:
+      HELIX_MOCK_PRINTER: "snapmaker_u1"
+    crop: chamber_air_row
+    margin: 12
+    markers:
+      - {n: 1, widget: btn_chamber_air_recirculate, at: top_right}
+      - {n: 2, widget: btn_chamber_air_exhaust, at: top_right}
+      - {n: 3, widget: btn_chamber_air_off, at: top_right}
+  - path: docs/images/user/settings-fans-chamber-air.png
+    kind: app
+    recipe: fan-settings
+    env:
+      HELIX_MOCK_PRINTER: "snapmaker_u1"
+    crop: chamber_air_section
+    margin: 12
+    markers:
+      - {n: 1, widget: row_chamber_air_target_c, at: top_right}
+      - {n: 2, widget: row_chamber_air_exhaust_pct, at: top_right}
+      - {n: 3, widget: row_chamber_air_recirculate_pct, at: top_right}
+  - path: docs/images/user/filament-tool-select.png
+    kind: app
+    env:
+      HELIX_MOCK_AMS: "toolchanger"
+    steps:
+      - navigate filament
+      - wait_idle
+    crop: spool_card
+    margin: 12
+    markers:
+      - {n: 1, widget: extruder_dropdown, at: top_right}
+  - path: docs/images/user/spoolman-settings.png
+    kind: app
+    steps:
+      - navigate settings
+      - click row_devices
+      - click row_spoolman_settings
+      - wait_idle
+    crop: group_weight_sync
+    margin: 12
+    markers:
+      - {n: 1, widget: sync_toggle, at: top_right}
+      - {n: 2, widget: interval_dropdown, at: top_right}
+      - {n: 3, widget: row_filament_accounting, at: top_right}
+  - path: docs/images/user/sensors-chamber.png
+    kind: app
+    steps:
+      - navigate settings
+      - click row_devices
+      - click row_filament_sensors
+      - wait_idle
+      - scroll temp_sensors_section
+    crop: temp_sensors_section
+    margin: 12
+    markers:
+      - {n: 1, widget: chamber_heater_dropdown, at: top_right}
+      - {n: 2, widget: chamber_sensor_dropdown, at: top_right}
+  - path: docs/images/user/label-printer-settings-2.png
+    kind: app
+    steps:
+      - navigate settings
+      - click row_devices
+      - click row_spoolman_settings
+      - click row_label_printer
+      - wait_idle
+      - scroll overlay_content 0 -300
+    markers:
+      - {n: 1, widget: row_label_size, at: top_right}
+      - {n: 2, widget: row_preset, at: top_right}
+      - {n: 3, widget: btn_test_print, at: top_right}

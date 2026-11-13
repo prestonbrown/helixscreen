@@ -20,6 +20,14 @@ HelixScreen keeps the newest jobs in memory and fetches older ones when a range 
 
 On **All**, the **Total Prints**, **Print Time** and **Filament Used** figures come from Moonraker's lifetime totals, so they cover every job. The **Success Rate** and the charts still use the jobs HelixScreen has loaded.
 
+![The History Dashboard with its time range buttons and cards numbered](../../images/user/history-time-filters.png)
+
+1. The shortest time range button.
+2. All, the default range.
+3. Success Rate.
+4. Prints Trend.
+5. Filament by Type.
+
 ### Statistics
 
 | Stat | What it shows |

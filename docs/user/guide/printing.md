@@ -275,6 +275,13 @@ The Print Status panel shows:
 
 **Pause ticks on the progress bar.** Scheduled stops in the file - filament changes (`M600`), `PAUSE`/`M601` commands, and slicer pause-at-layer markers - each draw a small tick on the progress bar where they fall, on both the print screen and the home print card. On a file sliced with `M73` progress markers, the ticks sit at the slicer's own percentages.
 
+![The print control buttons under the print status](../../images/user/print-status-controls.png)
+
+1. Pause, which becomes Resume while the print is paused.
+2. Tune, which opens the Print Tune overlay.
+3. More, which holds Camera, Timelapse and Light.
+4. Cancel.
+
 ### Pausing at a Layer
 
 You can tell a running print to pause at a layer you pick - to drop in a magnet or nut, or swap filament for a color band - even when the file has no pause in it.
@@ -346,6 +353,13 @@ You don't have to wait for a print to end before picking the next one. While a p
 ## Print Tune Overlay
 
 ![Print Tune Overlay](../../images/user/print-tune.png)
+
+![The Print Tune overlay with its main controls numbered](../../images/user/print-tune-callouts.png)
+
+1. Print Speed.
+2. Flow Rate.
+3. Reset Speed & Flow, which returns both to 100%.
+4. Z-Offset, with its step sizes and the two arrow buttons.
 
 Tap **Tune** during a print to open **Print Tuning**. You can also keep the Speed / Flow and Z-Offset readings on the home screen and tap them to open it: see the [Speed / Flow](home-widgets-print.md#speed--flow-widget) and [Z-Offset](home-widgets-print.md#z-offset-widget) widgets.
 

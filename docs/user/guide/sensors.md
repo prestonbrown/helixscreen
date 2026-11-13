@@ -128,3 +128,8 @@ A chamber heater can supply the chamber temperature itself: when one is connecte
 ---
 
 **Next:** [Security & Screen Lock](security.md) | **Prev:** [Fans](fans.md) | [Back to User Guide](../USER_GUIDE.md)
+
+![The Chamber Assignment dropdowns](../../images/user/sensors-chamber.png)
+
+1. Chamber Heater.
+2. Chamber Sensor.

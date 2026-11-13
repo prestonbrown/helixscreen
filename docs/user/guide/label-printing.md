@@ -87,6 +87,12 @@ Small labels cannot fit text, so the **Preset** dropdown is locked to **QR Only*
 
 Tap **Test Print**. It prints a sample label (a Hatchbox PLA spool) whose QR code deliberately matches no real spool, so scanning it cannot change your active spool.
 
+![The lower half of Label Printer settings](../../images/user/label-printer-settings-2.png)
+
+1. Label Size.
+2. Preset.
+3. Test Print.
+
 ---
 
 ## Printing a Label

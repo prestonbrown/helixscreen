@@ -2,6 +2,12 @@
 
 ![Motion Panel](../../images/user/controls-motion.png)
 
+1. The tab rail (Jog, Move, Bed).
+2. The position readout.
+3. The jog pad.
+4. The home bar.
+5. The Z buttons.
+
 ---
 
 Open the Motion screen by tapping **Motion** on the Controls panel. It has three tabs, **Jog**, **Move** and **Bed**, and it always opens on Jog. In landscape the tabs sit in a rail on the left edge of the screen. In portrait they become icon pills in the header.
@@ -60,6 +66,12 @@ On a **delta** printer the axes can only be homed together, so the bar shows **A
 
 The home bar belongs to the Jog Pad layout. The other [Jog layouts](#jog-layouts) have their own home keys.
 
+![The home bar under the jog pad](../../images/user/motion-home-bar.png)
+
+1. Home all axes.
+2. Home X (Y sits between X and Z).
+3. Home Z.
+
 ### Z-Axis Controls
 
 The right column has four Z buttons (two large steps and two small steps, up and down) with a label between them. The label reads **Bed** on printers whose bed moves up and down (such as the Voron Trident or the Snapmaker U1) and **Print Head** where the head or gantry moves in Z (bed-slingers, the Voron 2.4, deltas). The arrows show the direction of whatever moves: on a **Bed** printer the up arrow raises the bed toward the nozzle, and on a **Print Head** printer it lifts the head away from the bed.
@@ -69,6 +81,12 @@ Each Z button also carries a **Z+** or **Z−** tag after its distance (for exam
 If you would rather the arrows follow the Z value than the bed, set **Z Buttons Move** to **Nozzle** in [Motion Settings](#motion-settings); **Bed** forces the bed convention, and **Auto** goes back to choosing from your printer type.
 
 A Z button that would move past a Z limit is grayed out, so you can see the edge before you press. Which pair grays out depends on what moves in Z on your printer.
+
+![The Z column on the right of the Motion screen](../../images/user/motion-z-column.png)
+
+1. The large step up.
+2. The toolhead picture, which is a bed icon on printers whose bed moves in Z.
+3. The large step down.
 
 ### Jog Modes
 
@@ -223,6 +241,8 @@ Each button turns **green** once that axis is homed and gray when it is not. All
 A status message confirms when homing begins and when it completes, the same way the leveling buttons do. If the printer connection is down, tapping a button tells you so rather than doing nothing.
 
 The Motion screen has its own home buttons: the [Home Bar](#home-bar) and the jog pad's center button, which homes all axes.
+
+![The Home row in the Quick Actions card of the Controls panel](../../images/user/controls-home-row.png)
 
 ---
 

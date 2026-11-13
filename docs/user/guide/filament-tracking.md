@@ -95,6 +95,12 @@ HelixScreen writes to Spoolman only when you make a change (linking a spool, edi
 
 > **What the printer holds comes first.** A lane shows what your filament system or the printer holds for it. Spoolman's details fill in only what the printer leaves blank (remaining weight excepted), and only for the spool the lane is linked to. A color set on the printer's own menu (on an AD5X, for example) therefore shows on the lane even when a Spoolman spool is linked.
 
+![The weight sync settings on the Spoolman page](../../images/user/spoolman-settings.png)
+
+1. Sync with Spoolman.
+2. Refresh Interval.
+3. Switch spools at each tool change.
+
 ### Browsing and linking spools
 
 ![Spoolman inventory panel](../../images/user/advanced-spoolman.png)

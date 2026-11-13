@@ -53,6 +53,10 @@ Choosing a tool in the dropdown only aims the panel at it. Nothing moves, and th
 
 One button beside the dropdown does the tool change by itself. It reads **Pick up** when the selected tool is not the mounted one, and **Park** when it is mounted and your printer can park a tool in its dock. With a single-head printer, or when neither applies, the button is hidden.
 
+![The filament spool card with its tool drop-down](../../images/user/filament-tool-select.png)
+
+1. The tool drop-down, which aims the panel at a tool and moves nothing.
+
 ### Customizing which macro runs
 
 You can override any of these buttons to run a different macro:
@@ -101,6 +105,10 @@ With a QIDI Box, box slots load and unload the way the stock screen does them.
 ## AMS / Multi-Material Systems
 
 ![AMS Panel](../../images/user/ams.png)
+
+1. The gear, which opens Multi-Filament System Management.
+2. What is loaded now.
+3. Load, Unload, Reset and the other actions.
 
 A printer with a multi-material system (Happy Hare, AFC, OpenAMS, ACE, a tool changer, the Snapmaker U1, the Creality CFS, the AD5X IFS, the QIDI Box) gets a Filament System panel that draws your slots and the filament path. Tap **Manage** on the Filament panel's multi-filament card to open it; on a multi-head printer the card has the tool dropdown instead. The panel's header has a gear that opens Multi-Filament System Management. The details live on their own pages:
 
