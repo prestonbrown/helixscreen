@@ -83,6 +83,11 @@ void set_overlay_width_unmanaged(lv_obj_t* overlay);
 /// Swap the base panel. See NavigationManager::set_active().
 void set_active(PanelId panel_id);
 
+/// Do what tapping @p panel_id's navigation bar button does, queued for a later
+/// UpdateQueue drain, as an LVGL event callback needs. See
+/// NavigationManager::request_panel().
+void request_panel(PanelId panel_id);
+
 /// Deactivate the current panel and overlay and clear the navigation registries. See
 /// NavigationManager::shutdown().
 void shutdown();

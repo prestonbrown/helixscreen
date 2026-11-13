@@ -3,11 +3,9 @@
 
 #include "src/ui/panel_widgets/full_page_host.h"
 
-#include "ui_next_tick.h"
 #include "ui_panel_home.h"
 #include "ui_utils.h"
 
-#include "overlay_base.h"
 #include "src/ui/panel_widgets/tile_sizing.h"
 
 #include <spdlog/spdlog.h>
@@ -26,11 +24,24 @@ std::vector<FullPageHost*>& live_hosts() {
     return hosts;
 }
 
+/// Give back the clicks edit mode took from a tree leaving the page: a lent tree
+/// lives on outside it, where the session's restore never reaches.
+void rearm_clicks(lv_obj_t* root) {
+    if (!root) {
+        return;
+    }
+    if (lv_obj_has_flag(root, helix::ui::kEditClickSuppressedFlag)) {
+        lv_obj_set_flag(root, helix::ui::kEditClickSuppressedFlag, false);
+        lv_obj_set_clickable(root, true);
+    }
+    helix::ui::enable_widget_clicks_recursive(root);
+}
+
 } // namespace
 
 FullPageHost::FullPageHost(TileSizing& sizing, std::string function,
-                           std::function<OverlayBase&()> overlay, EmbedFn embed)
-    : function_(std::move(function)), overlay_(std::move(overlay)), embed_(std::move(embed)) {
+                           std::function<FullPageContent&()> content, EmbedFn embed)
+    : function_(std::move(function)), content_(std::move(content)), embed_(std::move(embed)) {
     // Published before the manager parses the tile's component, which drops a
     // binding whose subject is missing at parse time.
     lv_subject_init_int(&full_page_subject_, 0);
@@ -51,11 +62,11 @@ lv_obj_t* FullPageHost::body() const {
 
 bool FullPageHost::hosts_tree() const {
     lv_obj_t* host = body();
-    if (!host || !overlay_) {
+    if (!host || !content_) {
         return false;
     }
-    OverlayBase& overlay = overlay_();
-    return overlay.is_embedded() && lv_obj_get_parent(overlay.get_root()) == host;
+    lv_obj_t* root = content_().embedded_root();
+    return root && lv_obj_get_parent(root) == host;
 }
 
 void FullPageHost::set_placement(bool fills_extra_page, int page_index) {
@@ -64,7 +75,7 @@ void FullPageHost::set_placement(bool fills_extra_page, int page_index) {
         return;
     }
     full_page_ = fills_extra_page;
-    lv_subject_set_int(&full_page_subject_, full_page_ ? 1 : 0);
+    publish_state();
     spdlog::debug("[FullPageHost] '{}' {} on page {}", function_,
                   full_page_ ? "is a full page" : "is a compact tile", page_index_);
     if (full_page_) {
@@ -99,16 +110,17 @@ void FullPageHost::deactivate() {
 
 void FullPageHost::embed_if_shown() {
     lv_obj_t* host = body();
-    if (!active_ || !full_page_ || !host || !overlay_ || hosts_tree()) {
+    if (!active_ || !full_page_ || !host || !content_ || hosts_tree()) {
         return;
     }
-    OverlayBase& overlay = overlay_();
-    if (!(embed_ ? embed_(overlay, host) : overlay.embed(host))) {
-        // The overlay is open on the stack. The frame keeps its compact face until
-        // the page is shown again.
+    FullPageContent& content = content_();
+    if (!(embed_ ? embed_(content, host) : content.embed(host))) {
+        // The view is open elsewhere. The frame keeps its placeholder until the
+        // page is shown again.
         return;
     }
     hosting_ = true;
+    publish_state();
     // Edit mode disarmed the page before this tree existed; disarm it the same
     // way so the session's restore re-arms it with everything else.
     if (tile_root_ && lv_obj_has_flag(tile_root_, helix::ui::kEditClickSuppressedFlag)) {
@@ -118,9 +130,19 @@ void FullPageHost::embed_if_shown() {
 
 void FullPageHost::release_tree() {
     if (hosts_tree()) {
-        overlay_().release_embed();
+        FullPageContent& content = content_();
+        rearm_clicks(content.embedded_root());
+        content.release_embed();
     }
     hosting_ = false;
+    publish_state();
+}
+
+void FullPageHost::publish_state() {
+    const FullPageState state = !full_page_ ? FullPageState::Compact
+                                : hosting_  ? FullPageState::Hosting
+                                            : FullPageState::Empty;
+    lv_subject_set_int(&full_page_subject_, static_cast<int>(state));
 }
 
 void FullPageHost::on_tile_deleted() {
@@ -128,14 +150,9 @@ void FullPageHost::on_tile_deleted() {
     if (!std::exchange(hosting_, false)) {
         return;
     }
-    // The overlay is a process-lifetime singleton, so the release is bound to no
-    // object. A tree embedded again before the tick is someone else's to release.
-    helix::ui::run_next_tick([overlay = overlay_]() {
-        OverlayBase& o = overlay();
-        if (!o.is_embedded()) {
-            o.release_embed();
-        }
-    });
+    FullPageContent& content = content_();
+    rearm_clicks(content.embedded_root());
+    content.host_deleting();
 }
 
 std::optional<int> full_page_for(std::string_view function) {

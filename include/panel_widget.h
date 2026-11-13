@@ -294,6 +294,9 @@ class PanelWidget {
      * and async-guard expiry ONLY. Never reset observers or reparent/clean
      * widgets from here — those need a live tree and a non-delete context
      * (detach() and the destructor still run later on the normal paths).
+     * The one exception is a subtree the tile borrowed from an owner that
+     * outlives it (FullPageContent::host_deleting()): the event fires before
+     * LVGL deletes the children, so handing it back here is what keeps it.
      */
     virtual void on_hooked_root_deleted() {}
 
