@@ -488,7 +488,6 @@ TEST_CASE_METHOD(FullPageFixture, "a Filament full page shows the Filament panel
     REQUIRE(state != nullptr);
     CHECK(lv_subject_get_int(state) == static_cast<int>(helix::FullPageState::Hosting));
     CHECK(hidden(named(tile->root(), "full_page_placeholder")));
-    // The panel's XML tightens itself for the page by this subject.
     lv_subject_t* on_page = lv_xml_get_subject(nullptr, "filament_on_page");
     REQUIRE(on_page != nullptr);
     CHECK(lv_subject_get_int(on_page) == 1);
