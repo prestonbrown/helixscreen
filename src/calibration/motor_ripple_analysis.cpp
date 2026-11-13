@@ -55,6 +55,21 @@ float goertzel_power(const float* x, const float* w, int n, float mean, float co
 
 } // namespace
 
+float electrical_cycle_mm(const MotorGeometry& g) {
+    if (g.full_steps_per_rotation <= 0 || !(g.gear_ratio > 0.0f)) {
+        return 0.0f;
+    }
+    return g.rotation_distance_mm / g.gear_ratio * 4.0f /
+           static_cast<float>(g.full_steps_per_rotation);
+}
+
+float ripple_freq_hz(float speed_mm_s, int harmonic, float electrical_mm) {
+    if (!(electrical_mm > 0.0f)) {
+        return 0.0f;
+    }
+    return static_cast<float>(harmonic) * speed_mm_s / electrical_mm;
+}
+
 float ceiling_hz(float sample_rate_hz) {
     return kCeilingFraction * sample_rate_hz;
 }

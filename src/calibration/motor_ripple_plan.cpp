@@ -71,21 +71,6 @@ float test_accel(const SweepPlanInputs& in) {
 
 } // namespace
 
-float electrical_cycle_mm(const MotorGeometry& g) {
-    if (g.full_steps_per_rotation <= 0 || !(g.gear_ratio > 0.0f)) {
-        return 0.0f;
-    }
-    return g.rotation_distance_mm / g.gear_ratio * 4.0f /
-           static_cast<float>(g.full_steps_per_rotation);
-}
-
-float ripple_freq_hz(float speed_mm_s, int harmonic, float electrical_mm) {
-    if (!(electrical_mm > 0.0f)) {
-        return 0.0f;
-    }
-    return static_cast<float>(harmonic) * speed_mm_s / electrical_mm;
-}
-
 std::vector<float> sweep_speeds(float max_velocity_mm_s) {
     const float top = std::min(kSweepMaxMmS, kSweepVelocityFraction * max_velocity_mm_s);
     std::vector<float> out;

@@ -219,11 +219,6 @@ void init_belt_tension_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_belt_tension_row_clicked", esp32_staged_feature_row_cb);
 }
 
-// src/ui/calibration/ui_panel_motor_ripple.cpp
-void helix::ui::init_motor_ripple_row_handler() {
-    lv_xml_register_event_cb(nullptr, "on_motor_ripple_row_clicked", esp32_staged_feature_row_cb);
-}
-
 // src/ui/calibration/ui_panel_input_shaper.cpp
 void init_input_shaper_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_input_shaper_row_clicked", esp32_staged_feature_row_cb);
@@ -247,6 +242,12 @@ void init_zoffset_event_callbacks() {}
 // hardware where it would show, the tap must still give feedback rather than
 // silently doing nothing.
 namespace helix::ui {
+// src/ui/calibration/ui_panel_motor_ripple.cpp — staged row: it tracks
+// printer_supports_ripple_check, written by the KEPT motor_ripple_view.
+void init_motor_ripple_row_handler() {
+    lv_xml_register_event_cb(nullptr, "on_motor_ripple_row_clicked", esp32_staged_feature_row_cb);
+}
+
 void init_tool_offset_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_tool_offset_row_clicked", esp32_staged_feature_row_cb);
 }
