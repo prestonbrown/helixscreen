@@ -269,13 +269,14 @@ MoonrakerClientMock::gcode_set_gcode_offset(const std::string& gcode) {
 // app. One parameter per command, as in the firmware.
 namespace {
 
-/// Reforge's ff_toolchange, which the creator5 persona models, registers
-/// neither SET_TOOL_PARAMETER nor SAVE_TOOL_PARAMETER: Klipper answers both
-/// with its unknown-command error, returned here, or nullopt where the
-/// persona has the command.
+/// Reforge's ff_toolchange, which the creator5 and creator5_afc personas
+/// model, registers neither SET_TOOL_PARAMETER nor SAVE_TOOL_PARAMETER:
+/// Klipper answers both with its unknown-command error, returned here, or
+/// nullopt where the persona has the command.
 std::optional<std::string> unregistered_tool_parameter_error(MoonrakerClientMock::PrinterType type,
                                                              const char* command) {
-    if (type != MoonrakerClientMock::PrinterType::FLASHFORGE_CREATOR5) {
+    if (type != MoonrakerClientMock::PrinterType::FLASHFORGE_CREATOR5 &&
+        type != MoonrakerClientMock::PrinterType::FLASHFORGE_CREATOR5_AFC) {
         return std::nullopt;
     }
     spdlog::warn("[MoonrakerClientMock] {}: not registered on this firmware", command);

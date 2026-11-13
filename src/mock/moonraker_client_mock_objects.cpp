@@ -554,6 +554,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["configfile"]["config"].merge_patch(pa_adjust_configfile_sections(self));
                 status_obj["configfile"]["settings"].merge_patch(
                     pa_adjust_configfile_sections(self));
+                const json reforge_sections = self->reforge_afc_config_sections();
+                status_obj["configfile"]["settings"].merge_patch(reforge_sections);
+                status_obj["configfile"]["config"].merge_patch(reforge_sections);
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and
@@ -656,6 +659,13 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             }
             if (objects.contains("lane_status") && self->is_mock_lane_status()) {
                 status_obj["lane_status"] = self->lane_status_json();
+            }
+            if (self->is_mock_reforge_afc()) {
+                for (const auto& [name, value] : self->reforge_afc_status_json().items()) {
+                    if (objects.contains(name)) {
+                        status_obj[name] = value;
+                    }
+                }
             }
             // Z-Mod's colour registry (creator5_zmod persona).
             if (objects.contains("zmod_color")) {
@@ -974,6 +984,13 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             if (objects.contains("lane_status") && self->is_mock_lane_status()) {
                 status_obj["lane_status"] = self->lane_status_json();
             }
+            if (self->is_mock_reforge_afc()) {
+                for (const auto& [name, value] : self->reforge_afc_status_json().items()) {
+                    if (objects.contains(name)) {
+                        status_obj[name] = value;
+                    }
+                }
+            }
 
             // MedusaHC (HELIX_MOCK_AMS=medusahc[-ktc|-tn]). Emitted only for
             // the objects this variant actually ships, so a consumer that reads
@@ -1274,6 +1291,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["configfile"]["config"].merge_patch(pa_adjust_configfile_sections(self));
                 status_obj["configfile"]["settings"].merge_patch(
                     pa_adjust_configfile_sections(self));
+                const json reforge_sections = self->reforge_afc_config_sections();
+                status_obj["configfile"]["settings"].merge_patch(reforge_sections);
+                status_obj["configfile"]["config"].merge_patch(reforge_sections);
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and
