@@ -87,10 +87,16 @@ class SweepAPI : public MoonrakerAPI {
   public:
     using MoonrakerAPI::MoonrakerAPI;
 
-    void execute_gcode(const std::string& gcode, SuccessCallback on_success, ErrorCallback,
+    void execute_gcode(const std::string& gcode, SuccessCallback on_success, ErrorCallback on_error,
                        uint32_t = 0, bool = false, SuccessCallback = nullptr, bool = true,
                        bool = false) override {
         scripts.push_back(gcode);
+        if (!fail_scripts_with.empty() && gcode.find(fail_scripts_with) != std::string::npos) {
+            if (on_error) {
+                on_error(MoonrakerError{});
+            }
+            return;
+        }
         if (gcode.find("G4 P250") != std::string::npos) {
             ++speed_scripts;
             if (hold_speeds) {
@@ -113,6 +119,7 @@ class SweepAPI : public MoonrakerAPI {
     }
 
     std::vector<std::string> scripts;
+    std::string fail_scripts_with; ///< refuse any script containing this
     int speed_scripts = 0;
     int dirty_remaining = 0;
     bool hold_speeds = false;
@@ -281,7 +288,11 @@ TEST_CASE_METHOD(RunnerFixture, "cancel mid-speed stops the sweep and restores t
     runner->cancel();
     drain();
     CHECK(last_script_restores());
-    CHECK(api->scripts.back().find("DAMP_OFF") != std::string::npos);
+    // The limits come back before compensation is switched off, so a refused
+    // macro cannot leave the test limits behind.
+    const std::string& cleanup = api->scripts.back();
+    REQUIRE(cleanup.find("DAMP_OFF") != std::string::npos);
+    CHECK(cleanup.find("SET_VELOCITY_LIMIT") < cleanup.find("DAMP_OFF"));
     api->held(); // the in-flight speed finishing late sends nothing more
     drain();
     CHECK(api->speed_scripts == 1);
@@ -328,4 +339,15 @@ TEST_CASE_METHOD(RunnerFixture, "a refused plan or a busy runner does not start"
     REQUIRE(runner->start(request(MotorRippleRunner::Mode::Sweep), callbacks()));
     drain();
     CHECK_FALSE(runner->start(request(MotorRippleRunner::Mode::Sweep), callbacks()));
+}
+
+TEST_CASE_METHOD(RunnerFixture, "a refused final restore still delivers the measured sweep",
+                 "[ripple][runner]") {
+    api->fail_scripts_with = "RESTORE_GCODE_STATE";
+    REQUIRE(runner->start(request(MotorRippleRunner::Mode::Sweep), callbacks()));
+    drain();
+    REQUIRE(result.has_value());
+    CHECK_FALSE(result->printer_restored);
+    CHECK(result->sweeps.size() == 2);
+    CHECK(runner->phase() == MotorRippleRunner::Phase::Done);
 }

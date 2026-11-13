@@ -4154,6 +4154,7 @@
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." ru="Принтер читает файл до последней сохранённой позиции. Большой файл может занять минуту."/>
   <translation tag="The printer records lane {} in the toolhead, not this one" ru="По записи принтера в печатающей головке канал {}, а не этот"/>
   <translation tag="The printer refused that port: check the port (Moonraker is usually 7125)." ru="Принтер отклонил этот порт: проверьте порт (Moonraker обычно использует 7125)."/>
+  <translation tag="The printer refused the command that puts its speed limits back. Restart Klipper before printing." ru="Принтер отклонил команду, возвращающую его ограничения скорости. Перезапустите Klipper перед печатью."/>
   <translation tag="The printer rejected the filament configuration. The print was not started." ru="Принтер отклонил конфигурацию филамента. Печать не была запущена."/>
   <translation tag="The printer reports measured fan speeds. HelixScreen shows them on the Fans screen." ru="Принтер сообщает измеренные скорости вентиляторов. HelixScreen показывает их на экране «Вентиляторы»."/>
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." ru="Принтер не сообщает запись канала, поэтому выгрузить можно только очисткой экструдера."/>

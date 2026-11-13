@@ -4485,6 +4485,7 @@ translations:
   The printer reads the file up to the last saved position. A large file can take a minute.: L'imprimante lit le fichier jusqu'à la dernière position enregistrée. Un gros fichier peut prendre une minute.
   The printer records lane {} in the toolhead, not this one: 'L''imprimante enregistre la voie {} dans la tête, pas celle-ci'
   'The printer refused that port: check the port (Moonraker is usually 7125).': "L'imprimante a refusé ce port : vérifiez le port (Moonraker utilise généralement 7125)."
+  The printer refused the command that puts its speed limits back. Restart Klipper before printing.: 'L''imprimante a refusé la commande qui rétablit ses limites de vitesse. Redémarrez Klipper avant d''imprimer.'
   The printer rejected the filament configuration. The print was not started.: L'imprimante
     a rejeté la configuration du filament. L'impression n'a pas été démarrée.
   The printer reports measured fan speeds. HelixScreen shows them on the Fans screen.: 'L''imprimante signale les vitesses mesurées des ventilateurs. HelixScreen les affiche sur l''écran Ventilateurs.'

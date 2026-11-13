@@ -4458,6 +4458,7 @@ translations:
   The printer reads the file up to the last saved position. A large file can take a minute.: La impresora lee el archivo hasta la última posición guardada. Un archivo grande puede tardar un minuto.
   The printer records lane {} in the toolhead, not this one: 'La impresora registra el carril {} en el cabezal, no este'
   'The printer refused that port: check the port (Moonraker is usually 7125).': "La impresora rechazó ese puerto: comprueba el puerto (Moonraker suele usar el 7125)."
+  The printer refused the command that puts its speed limits back. Restart Klipper before printing.: 'La impresora rechazó el comando que restablece sus límites de velocidad. Reinicie Klipper antes de imprimir.'
   The printer rejected the filament configuration. The print was not started.: La
     impresora rechazó la configuración de filamento. La impresión no se inició.
   The printer reports measured fan speeds. HelixScreen shows them on the Fans screen.: 'La impresora informa de las velocidades medidas de los ventiladores. HelixScreen las muestra en la pantalla Ventiladores.'

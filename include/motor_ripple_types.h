@@ -76,6 +76,9 @@ struct SweepResult {
     std::vector<MotorSweep> compensated_sweeps; ///< compensation on; empty unless compare mode
     std::vector<RippleBand> bands; ///< from compensated_sweeps when present, else sweeps
     std::vector<SkippedMotor> skipped;
+    /// False when the closing script that puts the printer's limits and state
+    /// back was refused; the measurements are still good.
+    bool printer_restored = true;
 };
 
 /// Belt travel per electrical cycle: rotation_distance / gear * 4 / full_steps.

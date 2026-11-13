@@ -4238,6 +4238,7 @@ translations:
   The printer reads the file up to the last saved position. A large file can take a minute.: 打印机正在读取文件直到最后保存的位置。大文件可能需要一分钟。
   The printer records lane {} in the toolhead, not this one: '打印机记录的工具头里是耗材通道{}，不是这个'
   'The printer refused that port: check the port (Moonraker is usually 7125).': "打印机拒绝了该端口:请检查端口(Moonraker 通常为 7125)。"
+  The printer refused the command that puts its speed limits back. Restart Klipper before printing.: '打印机拒绝了恢复其速度限制的命令。打印前请重启 Klipper。'
   The printer rejected the filament configuration. The print was not started.: 打印机拒绝了该耗材配置。打印未启动。
   The printer reports measured fan speeds. HelixScreen shows them on the Fans screen.: '打印机会报告测得的风扇转速。HelixScreen 在风扇界面显示。'
   The printer reports no lane record, so only clearing the extruder can unload it.: '打印机没有耗材通道记录，所以只能通过清空挤出机来卸载。'

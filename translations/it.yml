@@ -4457,6 +4457,7 @@ translations:
   The printer reads the file up to the last saved position. A large file can take a minute.: La stampante legge il file fino all'ultima posizione salvata. Un file grande può richiedere un minuto.
   The printer records lane {} in the toolhead, not this one: 'La stampante registra la corsia {} nella testina, non questa'
   'The printer refused that port: check the port (Moonraker is usually 7125).': "La stampante ha rifiutato quella porta: controlla la porta (Moonraker di solito usa la 7125)."
+  The printer refused the command that puts its speed limits back. Restart Klipper before printing.: 'La stampante ha rifiutato il comando che ripristina i suoi limiti di velocità. Riavvia Klipper prima di stampare.'
   The printer rejected the filament configuration. The print was not started.: La
     stampante ha rifiutato la configurazione del filamento. La stampa non è stata
     avviata.

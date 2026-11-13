@@ -106,12 +106,14 @@ struct MotorRippleRunner::Impl : std::enable_shared_from_this<MotorRippleRunner:
             timeout_ms, /*silent=*/true);
     }
 
+    /// The limits and gcode state come first: Klipper stops a script at the
+    /// first refused command, and a refused macro after them leaves nothing
+    /// of the test behind.
     std::string cleanup_script() const {
-        std::string s;
+        std::string s = restore_gcode(req.plan);
         if (req.mode == Mode::CompensationCompare && req.toggle.present()) {
-            s += req.toggle.disable_gcode + "\n";
+            s += "\n" + req.toggle.disable_gcode;
         }
-        s += restore_gcode(req.plan);
         if (!req.tool_return_gcode.empty()) {
             s += "\n" + req.tool_return_gcode;
         }
@@ -264,8 +266,29 @@ struct MotorRippleRunner::Impl : std::enable_shared_from_this<MotorRippleRunner:
         stop_source();
         set_phase(Phase::Restoring);
         ++generation;
-        send(cleanup_script(), 0, [this]() {
+        std::weak_ptr<Impl> weak = shared_from_this();
+        const uint64_t gen = generation;
+        auto deliver = [weak, gen](bool restored) {
+            helix::ui::queue_update("MotorRipple::finished", [weak, gen, restored]() {
+                auto self = weak.lock();
+                if (self && self->generation == gen) {
+                    self->deliver_result(restored);
+                }
+            });
+        };
+        api.execute_gcode(
+            cleanup_script(), [deliver]() { deliver(true); },
+            [deliver](const MoonrakerError& err) {
+                spdlog::warn("[MotorRipple] Restore after the sweep was refused: {}", err.message);
+                deliver(false);
+            },
+            0, /*silent=*/true);
+    }
+
+    void deliver_result(bool restored) {
+        {
             SweepResult result;
+            result.printer_restored = restored;
             result.sample_rate_hz = sample_rate;
             result.ceiling_hz = ceiling_hz(sample_rate);
             result.unix_time = static_cast<int64_t>(std::time(nullptr));
@@ -285,7 +308,7 @@ struct MotorRippleRunner::Impl : std::enable_shared_from_this<MotorRippleRunner:
             if (cb.on_done) {
                 cb.on_done(result);
             }
-        });
+        }
     }
 
     /// Stop measuring and put the printer back, then report `terminal`.

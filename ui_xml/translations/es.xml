@@ -4091,6 +4091,7 @@
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." es="La impresora lee el archivo hasta la última posición guardada. Un archivo grande puede tardar un minuto."/>
   <translation tag="The printer records lane {} in the toolhead, not this one" es="La impresora registra el carril {} en el cabezal, no este"/>
   <translation tag="The printer refused that port: check the port (Moonraker is usually 7125)." es="La impresora rechazó ese puerto: comprueba el puerto (Moonraker suele usar el 7125)."/>
+  <translation tag="The printer refused the command that puts its speed limits back. Restart Klipper before printing." es="La impresora rechazó el comando que restablece sus límites de velocidad. Reinicie Klipper antes de imprimir."/>
   <translation tag="The printer rejected the filament configuration. The print was not started." es="La impresora rechazó la configuración de filamento. La impresión no se inició."/>
   <translation tag="The printer reports measured fan speeds. HelixScreen shows them on the Fans screen." es="La impresora informa de las velocidades medidas de los ventiladores. HelixScreen las muestra en la pantalla Ventiladores."/>
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." es="La impresora no informa ningún registro de carril, así que solo vaciar el extrusor puede descargar."/>

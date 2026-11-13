@@ -78,7 +78,6 @@ MotorRipplePanel& get_motor_ripple_panel() {
 MotorRipplePanel::MotorRipplePanel() = default;
 
 MotorRipplePanel::~MotorRipplePanel() {
-    lifetime_.invalidate();
     runner_.reset();
     deinit_subjects_base(subjects_);
 }
@@ -121,7 +120,18 @@ lv_obj_t* MotorRipplePanel::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
+bool MotorRipplePanel::run_active() const {
+    return runner_ &&
+           (runner_->phase() == Phase::Preparing || runner_->phase() == Phase::Measuring ||
+            runner_->phase() == Phase::Restoring);
+}
+
 void MotorRipplePanel::before_show() {
+    // Reopened while a run is still putting the printer back: show it, not Start.
+    if (run_active()) {
+        set_view(View::Running);
+        return;
+    }
     const auto& hw = get_moonraker_api()->hardware();
     const auto toggle = stepper_resonance_cal::compensation_toggle(hw);
     compare_mode_ = toggle.present();
@@ -176,7 +186,7 @@ void MotorRipplePanel::fail(const std::string& reason) {
 }
 
 void MotorRipplePanel::start_clicked() {
-    if (lv_subject_get_int(&bed_clear_) == 0) {
+    if (lv_subject_get_int(&bed_clear_) == 0 || run_active()) {
         return;
     }
     if (lv_subject_get_int(
@@ -369,8 +379,8 @@ void MotorRipplePanel::on_speed(bool compensated, ripple::MotorId motor,
 void MotorRipplePanel::on_done(const ripple::SweepResult& result) {
     ripple::SweepResult saved = result;
     saved.skipped = skipped_;
-    if (IMoonrakerAPI* api = get_moonraker_api()) {
-        ripple::RippleResultCache::instance().save(*api, saved);
+    if (IMoonrakerAPI* save_api = get_moonraker_api()) {
+        ripple::RippleResultCache::instance().save(*save_api, saved);
     }
     bands_ = ripple::merge_bands(result.bands);
     std::string summary = ripple::ripple_band_summary(result.bands);
@@ -389,8 +399,15 @@ void MotorRipplePanel::on_done(const ripple::SweepResult& result) {
         summary += fmt::format(fmt::runtime(lv_tr("The {0} motor was not measured: {1}.")),
                                s.motor == ripple::MotorId::StepperX ? "X" : "Y", s.reason);
     }
+    if (!result.printer_restored) {
+        summary += "\n";
+        summary += lv_tr("The printer refused the command that puts its speed limits back. "
+                         "Restart Klipper before printing.");
+    }
     set_text(summary_text_, summary);
-    const auto toggle = stepper_resonance_cal::compensation_toggle(get_moonraker_api()->hardware());
+    IMoonrakerAPI* api = get_moonraker_api();
+    const auto toggle = api ? stepper_resonance_cal::compensation_toggle(api->hardware())
+                            : stepper_resonance_cal::CompensationToggle{};
     set_text(reduction_text_,
              result.compensated_sweeps.empty()
                  ? std::string()

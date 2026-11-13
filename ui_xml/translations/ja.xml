@@ -4091,6 +4091,7 @@
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." ja="プリンターは最後に保存された位置までファイルを読み込みます。大きなファイルでは1分かかることがあります。"/>
   <translation tag="The printer records lane {} in the toolhead, not this one" ja="プリンターの記録ではツールヘッドにあるのはレーン{}で、このレーンではありません"/>
   <translation tag="The printer refused that port: check the port (Moonraker is usually 7125)." ja="プリンターがそのポートを拒否しました: ポートを確認してください(Moonrakerは通常7125)。"/>
+  <translation tag="The printer refused the command that puts its speed limits back. Restart Klipper before printing." ja="プリンターが速度制限を元に戻すコマンドを拒否しました。印刷する前に Klipper を再起動してください。"/>
   <translation tag="The printer rejected the filament configuration. The print was not started." ja="プリンターがフィラメント設定を拒否しました。印刷は開始されませんでした。"/>
   <translation tag="The printer reports measured fan speeds. HelixScreen shows them on the Fans screen." ja="プリンターはファンの実測回転数を報告します。HelixScreenはファン画面に表示します。"/>
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." ja="プリンターにレーン記録がないため、取り出すにはエクストルーダーを空にするしかありません。"/>

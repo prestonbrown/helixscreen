@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "async_lifetime_guard.h"
 #include "lvgl/lvgl.h"
 #include "motor_ripple_runner.h"
 #include "overlay_base.h"
@@ -56,6 +55,7 @@ class MotorRipplePanel : public OverlayBase {
   private:
     using Phase = calibration::ripple::MotorRippleRunner::Phase;
 
+    [[nodiscard]] bool run_active() const;
     void set_view(View v);
     void fail(const std::string& reason);
     void begin_with_facts(const calibration::LiveSweepFacts& facts);
@@ -96,7 +96,6 @@ class MotorRipplePanel : public OverlayBase {
     std::vector<calibration::ripple::RippleBand> bands_;
     std::vector<calibration::ripple::SkippedMotor> skipped_;
     bool compare_mode_ = false;
-    helix::AsyncLifetimeGuard lifetime_;
 };
 
 MotorRipplePanel& get_motor_ripple_panel();
