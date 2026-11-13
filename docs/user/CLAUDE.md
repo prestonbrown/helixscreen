@@ -29,12 +29,23 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/install-linux-desktop.md` | x86_64 Linux desktop package: the app in a window, per-user install with `--desktop`, connecting to a remote printer, window size, updating, uninstall, running from the tarball |
 | `guide/install-esp32.md` | BigTreeTech K-Touch (ESP32-S3) alpha firmware: browser flasher, esptool install, first-boot hotspot setup, updating, recovery, other ESP32-S3 panels |
 | `guide/home-panel.md` | Home dashboard, printer manager, custom images |
+| `guide/home-widgets.md` | Widget catalog: every Home Panel widget by group, sizes and hardware needs |
+| `guide/home-widgets-print.md` | Print widgets: Job Queue, Speed / Flow, Z-Offset, Exclude Objects, Camera |
+| `guide/home-widgets-filament.md` | Filament widgets: Clog Detection, Filament Buffer, Filament Dryer |
+| `guide/home-widgets-controls.md` | Control and system widgets: Toolhead, Bed Mesh, Tool Switcher, GCode Console, power, LEDs |
+| `guide/home-edit-mode.md` | Edit Mode: adding, moving and resizing widgets, pages |
+| `guide/printer-manager.md` | Printer Manager: name, model, custom printer image, capability chips |
 | `guide/printing.md` | File selection, printing, the file-fits-printer check, the door-open warning, pausing at a layer, tune overlay, Z-offset, recovering after a power loss (firmware recovery and the plugin's guided resume) |
 | `guide/print-monitoring.md` | Pre-print filament checks (empty-slot block, unassigned-tool Color Mismatch, bypass exemption), camera-based failure detection (Snapmaker U1 dialog, Creality K2 AI toggle) |
 | `guide/temperature.md` | Nozzle/bed temperature panels, presets, reassigning preset filament types, graphs, drying filament on the bed, chamber heater diagnostics card |
 | `guide/chamber-heater.md` | Add-on chamber heater setup (BIGTREETECH Panda Breath): network step, stock vs DragonBreath firmware, the Klipper module and config each needs, the Snapmaker U1 menu shortcut, troubleshooting |
 | `guide/motion.md` | Jog/Move/Bed tabs, jog pad, bed map, tap-to-move coordinates, bed position grid, lifting over a print left on the bed (Cleared), park, motors off, homing, E-stop |
 | `guide/filament.md` | Extrusion, the QIDI M604 load wizard, AMS, CFS (and a K2 with none), Spoolman, filament drying and humidity by box |
+| `guide/filament-ams-panel.md` | The multi-filament panel: slots, path, sidebar (Mounted line), slot editor, load/unload, tool picker |
+| `guide/filament-mapping.md` | Slot-to-tool mapping per print and as a standing table, OrcaSlicer sync |
+| `guide/filament-tool-changers.md` | Tool changers: MedusaHC, Snapmaker U1, Creator 5, pick up/park and the target tool |
+| `guide/filament-cfs.md` | Creality CFS (K1/K2), RFID tags, a K2 with no CFS |
+| `guide/filament-drying.md` | Filament drying by box, presets, humidity |
 | `guide/filament-tracking.md` | Filament tracking with/without Spoolman, usage estimation, connecting Spoolman, spool inventory |
 | `guide/bluetooth-setup.md` | Enabling Bluetooth on Raspberry Pi and BTT Pi, UART conflicts, USB dongle setup |
 | `guide/barcode-scanner.md` | USB + Bluetooth barcode scanner setup, keymaps, BT-HID bonded-only workaround |

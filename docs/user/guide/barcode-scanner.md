@@ -1,99 +1,105 @@
 # Barcode Scanner Setup
 
-HelixScreen can read Spoolman QR codes from a USB or Bluetooth barcode scanner, so you can identify a spool by scanning it instead of picking from a list.
+HelixScreen can read the QR code on a Spoolman spool label from a USB or Bluetooth barcode scanner, so you can pick a spool by scanning it instead of choosing from a list. You print those labels from HelixScreen itself; see [Label Printing](label-printing.md).
 
-This guide covers both USB and Bluetooth scanners, and how to fix the most common Bluetooth pairing problem on Raspberry Pi.
+Scanning is a shortcut for assigning spools. See [Filament Tracking & Spoolman](filament-tracking.md) for what happens once a spool is linked.
 
-Scanning is a shortcut for assigning spools — see [Filament Tracking & Spoolman](filament-tracking.md) for what happens once a spool is linked.
+HelixScreen only acts on Spoolman spool QR codes. Any other barcode you scan is ignored.
 
 ![Barcode Scanner Settings](../../images/user/settings-barcode-scanner.png)
 
-The Barcode Scanner settings overlay lives at **Settings → Devices → Spoolman → Barcode Scanner**.
+The settings live at **Settings > Devices > Spoolman > Barcode Scanner**. They are not available on the BigTreeTech K-Touch (ESP32) screen.
+
+---
+
+## Where scanning happens
+
+A scan only counts while the **Scan Spool QR Code** screen is open. Open it from **Scan QR Code** in a filament slot's menu, from the QR scan button in the slot editor's header, or from the external spool's menu. Outside that screen a scanner is just a keyboard, so what you scan is typed into whatever field is focused.
+
+If no scanner is set up, or the one you chose is not plugged in, the screen uses the printer's webcam instead ("Point camera at QR code on spool"). With no webcam it says "No camera" and asks you to use a USB barcode scanner. When your chosen scanner is attached, the screen says "Scan the spool label with your barcode scanner" and skips the camera. The screen closes by itself after 60 seconds without a scan.
 
 ---
 
 ## USB Scanners
 
-Most USB barcode scanners present themselves to the Pi as a plain HID keyboard — no driver install needed.
+Most USB barcode scanners present themselves as a plain keyboard, so no driver is needed.
 
 1. Plug the scanner into any USB port.
-2. Open **Settings → Devices → Spoolman → Barcode Scanner**.
-3. If the scanner appears under "USB devices", tap it to select. Otherwise "Auto-detect" will pick the first HID keyboard that isn't your physical keyboard.
-4. Open the QR scanner overlay (wherever the app offers it — e.g. from the filament panel) and test by scanning a Spoolman QR code.
+2. Open **Settings > Devices > Spoolman > Barcode Scanner**.
+3. Under **USB Devices**, tap your scanner to select it (a check mark shows the choice, and **Selected** at the top names it). Tap **Refresh** if it is not listed. **Auto-detect** ("Use first HID scanner found") is the default and picks a keyboard-like device for you, but choosing your scanner by name is more reliable.
+4. Open the scan screen as described above and scan a Spoolman label.
 
 ### Keyboard Layout
 
-If scanned text comes out garbled, the scanner is emitting keycodes for a different keyboard layout than the one HelixScreen is decoding. Use the **Layout** setting under **Barcode Scanner → Keyboard Layout** to pick the layout your scanner is programmed to use (QWERTY is the default).
+A scanner sends key codes for the keyboard layout it was programmed with, and HelixScreen cannot tell which that is. If scanned text comes out garbled, set **Layout** under **Keyboard Layout** to the layout the scanner uses:
+
+- **US QWERTY** (the default, right for most scanners)
+- **German QWERTZ**
+- **French AZERTY**
+
+The change takes effect straight away. The app's display language does not change it.
 
 ---
 
 ## Bluetooth Scanners
 
-HelixScreen supports Bluetooth HID barcode scanners (the kind that pair as a keyboard-like device).
+HelixScreen supports Bluetooth scanners that pair as a keyboard-like (HID) device. The **Bluetooth Scanners** section appears only when the device running HelixScreen has Bluetooth. If you do not see it, see [Bluetooth Setup](bluetooth-setup.md).
 
 ### Pairing
 
-1. Power on the scanner. Make sure it's in Classic Bluetooth pairing mode (not BLE). The scanner's manual will have a config barcode to select Classic mode if needed — most default to Classic.
-2. Open **Settings → Devices → Spoolman → Barcode Scanner**, then under **Bluetooth Scanners** tap **Scan**.
-3. When your scanner appears in the dropdown, tap **Pair**.
-4. If pairing succeeds, the scanner becomes selected automatically.
+1. Power on the scanner and put it in Classic Bluetooth pairing mode (not BLE). The scanner's manual has a setup barcode for this; most scanners default to Classic.
+2. Under **Bluetooth Scanners**, tap **Scan**.
+3. Choose your scanner in the **Scanner** dropdown, then tap **Pair** and confirm **Pair with** the scanner's name.
+4. When the keyboard connection comes up you see **Paired successfully** and the scanner becomes the selected one. Already paired scanners show "(paired)" in the dropdown; choosing one selects it. **Forget** removes the pairing.
 
-### ⚠️ Scanner bonded but didn't attach as a keyboard
+### Pairing warnings
 
-If you see a warning toast that the scanner bonded but didn't attach as a keyboard (it may also suggest adding `ClassicBondedOnly=false`), your adapter is refusing the HID connection because the scanner didn't perform a **bonded** pair.
+**"Pairing did not complete. The scanner did not bond."** The scanner was not in pairing mode when you tapped **Pair**. Turn it off and on, then tap **Pair** again.
 
-This is a security default in BlueZ: HID devices must be bonded (cryptographic key exchanged and stored) before the kernel will route their keystrokes. Many inexpensive barcode scanners only support "Just Works" pairing, which produces a paired-but-not-bonded link — and gets rejected.
+**"Scanner bonded but didn't attach as a keyboard."** The scanner paired, but the Bluetooth system refused the keyboard connection. Turn the scanner off and on and tap **Pair** again. If it still fails, relax the Bluetooth keyboard policy on the device. Many inexpensive scanners cannot meet the default one. You need SSH access.
 
-#### Fix
-
-Relax the HID-bonded-only policy on your Pi. You'll need SSH access.
-
-1. SSH to the Pi:
+1. Connect:
    ```bash
    ssh pi@helixpi.local
    ```
-2. Edit the BlueZ input config:
+2. Edit the Bluetooth input config:
    ```bash
    sudo nano /etc/bluetooth/input.conf
    ```
-3. Find the line:
-   ```
-   #ClassicBondedOnly=true
-   ```
-   Uncomment it and change to:
+3. Find the line `#ClassicBondedOnly=true`, remove the `#` and set it to:
    ```
    ClassicBondedOnly=false
    ```
-4. Save and restart BlueZ:
+4. Save, then restart Bluetooth:
    ```bash
    sudo systemctl restart bluetooth
    ```
-5. In HelixScreen, forget any previous pairing for this scanner, then pair again. You should not see the warning this time and scanning into the QR overlay will work.
+5. In HelixScreen, tap **Forget** for the scanner and pair it again.
 
-> **Security note:** `ClassicBondedOnly=false` lets any unbonded HID peripheral connect, which slightly widens the attack surface for keystroke injection. This is only a concern in hostile RF environments. For typical home and workshop use, the change is safe.
+> **Security note:** this setting lets any unbonded keyboard-type Bluetooth device connect, which slightly widens the risk of someone injecting keystrokes. That only matters in a hostile radio environment. For a home or workshop it is generally fine.
 
-### BLE Mode
+### BLE mode
 
-Some scanners support both Classic and BLE modes. BLE uses different pairing mechanics that always bond, so the issue above doesn't apply — but not all scanners advertise reliably in BLE. If Classic works, stick with it.
+Some scanners also have a BLE mode, which always bonds, so the warning above does not apply. Not every scanner advertises reliably in BLE, so if Classic works, stay with it.
 
 ---
 
 ## Sharing a scanner with another tool (device blacklist)
 
-If another program on the same Pi already reads your barcode scanner — for example [afc-spool-scan](https://github.com/AFCProject/afc-spool-scan), which loads spools straight into AFC — HelixScreen can get in its way. HelixScreen automatically claims the first keyboard-like device it finds, and a USB barcode scanner looks exactly like a keyboard, so both programs end up fighting over it.
+If another program on the same device already reads your scanner, for example [afc-spool-scan](https://github.com/AFCProject/afc-spool-scan), HelixScreen can get in its way. A USB scanner looks like a keyboard, and HelixScreen claims keyboard-like devices it finds, so both programs end up competing for it.
 
-You can tell HelixScreen to leave a specific device alone by adding its USB ID to a **blacklist**. A blacklisted device is ignored completely — HelixScreen won't use it for keyboard input or for the built-in scan overlay — leaving it free for the other tool. It still shows up in the Barcode Scanner device list so you can identify it.
+You can tell HelixScreen to ignore a specific device by adding its USB ID to a blacklist. A blacklisted device is skipped entirely, for keyboard input and for the scan screen. It still appears in the USB Devices list so you can identify it.
 
 ### 1. Find the scanner's USB ID
 
-The ID is a `vendor:product` pair like `002c:261a`. Find it either way:
+The ID is a `vendor:product` pair such as `002c:261a`. Find it either way:
 
-- **In HelixScreen:** open **Settings → Devices → Spoolman → Barcode Scanner**. Each entry in the USB device list shows its ID.
-- **Over SSH:** run `lsusb` and look for your scanner. The ID is the pair right after `ID`, e.g. `Bus 001 Device 005: ID 002c:261a ...`.
+- **In HelixScreen:** open **Settings > Devices > Spoolman > Barcode Scanner**. Each entry under **USB Devices** shows its ID.
+- **Over SSH:** run `lsusb` and read the pair after `ID`, for example `Bus 001 Device 005: ID 002c:261a ...`.
 
 ### 2. Add it to your settings
 
-Edit `~/helixscreen/config/settings.json` (the path varies by platform — see the table in [Configuration](../CONFIGURATION.md#configuration-file-location)) and add the ID to the `input` section:
+Edit `~/helixscreen/config/settings.json` (the path varies by platform; see the table in [Configuration](../CONFIGURATION.md#configuration-file-location)) and add the ID to the `input` section, in lowercase:
 
 ```json
 "input": {
@@ -101,7 +107,7 @@ Edit `~/helixscreen/config/settings.json` (the path varies by platform — see t
 }
 ```
 
-Use lowercase, and list as many devices as you need: `["002c:261a", "1a2c:4c5e"]`.
+List as many devices as you need: `["002c:261a", "1a2c:4c5e"]`.
 
 ### 3. Restart HelixScreen
 
@@ -109,28 +115,28 @@ Use lowercase, and list as many devices as you need: `["002c:261a", "1a2c:4c5e"]
 sudo systemctl restart helixscreen
 ```
 
-After the restart, HelixScreen no longer opens that device, and your other scanner tool has it to itself.
-
 ---
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
-| No scanner appears in the dropdown | Is Bluetooth enabled on your Pi? See [Bluetooth Setup](bluetooth-setup.md). |
-| "Pairing failed" (Connection timed out) | Scanner isn't in pairable mode. Power-cycle it and scan its Classic-mode config barcode. |
-| "Pairing failed" (Host is down) | Scanner is flashing but refusing Classic connections. Power-cycle and retry; some scanners get stuck between BLE and Classic advertising. |
-| "Scanner bonded but didn't attach as a keyboard" | Set `ClassicBondedOnly=false` — see above. |
-| Scanner pairs, but scanned text types into the app's UI instead of being captured as a QR code | Open the QR scanner overlay before scanning. Outside the overlay, the scanner is just a keyboard. |
-| Scanned text has wrong characters | Set the correct **Layout** under **Barcode Scanner → Keyboard Layout**. |
-| Another tool (e.g. afc-spool-scan) stopped seeing the scanner after installing HelixScreen | Blacklist the device so HelixScreen ignores it — see [Sharing a scanner with another tool](#sharing-a-scanner-with-another-tool-device-blacklist). |
+| No **Bluetooth Scanners** section | The device has no Bluetooth, or it is disabled. See [Bluetooth Setup](bluetooth-setup.md). |
+| The scanner dropdown shows "(none)" | Tap **Scan** with the scanner in pairing mode. |
+| "Pairing failed" | Power-cycle the scanner, put it in Classic pairing mode and try again. |
+| "Pairing did not complete" | The scanner was not in pairing mode. Turn it off and on, then tap **Pair** again. |
+| "Scanner bonded but didn't attach as a keyboard" | See [Pairing warnings](#pairing-warnings). |
+| Scanned text appears in a text field instead of selecting a spool | Open the **Scan Spool QR Code** screen before scanning. |
+| Scanned text has wrong characters | Set the right **Layout** under **Keyboard Layout**. |
+| The scan screen shows the camera although a scanner is plugged in | Select the scanner by name under **USB Devices** (or pair it); **Auto-detect** does not count as a chosen scanner. |
+| Another tool stopped seeing the scanner after HelixScreen was installed | Blacklist the device; see [Sharing a scanner with another tool](#sharing-a-scanner-with-another-tool-device-blacklist). |
 
 ---
 
 ## Notes
 
-- Only one scanner (USB or Bluetooth) is used at a time. If both are configured, the paired Bluetooth scanner wins.
-- When a Bluetooth scanner is selected, HelixScreen captures its keystrokes exclusively so they don't leak into other UI widgets. USB scanners run in passive mode (some scanners rely on this) — if USB scanner keystrokes leak into focused text inputs, that is a known limitation.
+- One scanner is used at a time. If a Bluetooth scanner is paired and present, it wins over a USB one.
+- A selected Bluetooth scanner is captured exclusively, so its keystrokes do not leak into other fields. USB scanners are read passively, because some depend on that. If a USB scanner types into a focused text field, that is a known limitation.
 
 ---
 

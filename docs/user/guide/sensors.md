@@ -1,165 +1,129 @@
 # Sensors
 
-HelixScreen discovers the sensors your printer reports to Klipper and groups them by type. Filament switch/motion sensors, door and button inputs, and filament width sensors are configurable: you assign each one a role, and for filament sensors choose whether it is monitored. The remaining sensor types are shown as read-only information.
+HelixScreen lists the sensors your printer reports to Klipper and groups them by kind. Filament switch and motion sensors, door and button inputs, and filament width sensors are things you configure: each gets a role, and filament and width sensors also get an **Enabled** switch. The other kinds are shown for information only.
 
-Open the Sensor Settings overlay from **Settings > Devices > Sensors**.
+Open the page from **Settings > Devices > Sensors**. A section appears only when the printer has at least one sensor of that kind, and the screen says **No sensors detected** when none are listed.
 
 ![Sensor Settings](../../images/user/settings-sensors.png)
+
+Each section header shows how many sensors it lists. Changes to a role or a switch save immediately.
 
 ---
 
 ## Switch Sensors (Filament Runout & Motion)
 
-The **Switch Sensors** section lists standalone filament sensors — both switch-style runout sensors and motion (encoder) sensors. Sensors that belong to a multi-material system (AMS/CFS) are filtered out and managed by that system instead.
+**Switch Sensors** lists standalone filament sensors: switch-style runout sensors and motion (encoder) sensors. The row shows the sensor's kind (switch or motion), which HelixScreen detects itself. Sensors that belong to a multi-filament system (AMS, CFS, AFC and the like) are left out and managed by that system.
 
-### Master toggle
+**Enable Monitoring** at the top of the section turns filament sensor monitoring on or off for all of these sensors at once.
 
-An **Enable Monitoring** switch at the top of the section turns filament sensor monitoring on or off for all switch sensors at once.
+### Roles
 
-### Per-sensor role
+Each row has a **Role** dropdown:
 
-Each sensor row has a role dropdown. Choose how that sensor is used:
+| Role | What it is for |
+|------|----------------|
+| **None** | Not assigned, so not monitored |
+| **Runout** | The sensor that watches for filament running out during a print |
+| **Toolhead** | A sensor at the toolhead. On the Filament panel, Load warns if it already sees filament, and Unload warns if it sees none |
+| **Entry** | A sensor where filament enters the printer. You can point the Home panel's Filament Sensor tile at it |
 
-| Role | Meaning |
-|------|---------|
-| **None** | Sensor discovered but not assigned — not monitored |
-| **Runout** | Primary runout detection — used to detect filament running out |
-| **Toolhead** | Toolhead/nozzle proximity sensor |
-| **Entry** | Entry-point detection sensor |
+The **Enabled** switch on a row appears once the sensor has a role other than **None**. Only one sensor holds each role, so giving a role to a second sensor takes it from the first. The exception is **Runout**, which can be held once per lane or toolhead on printers where each has its own sensor, such as the Snapmaker U1.
 
-Each sensor also has an enable toggle, which appears once a role other than **None** is assigned. Changing a role or toggle saves immediately.
+A sensor whose name contains "runout" starts out with the **Runout** role if no other sensor has it. Everything else starts as **None**.
 
-> The sensor's hardware kind (switch vs. motion) is detected automatically and shown on the row — it isn't something you set. Roles are what you assign.
+### What happens on a runout
+
+The printer's firmware pauses the print when a sensor reports no filament. HelixScreen then shows a dialog that guides you through loading new filament and resuming. On a multi-filament system, the notice that a runout sensor has gone clear waits about 45 seconds, because a normal tool change also clears it for a while. On the Home panel, the **Filament Sensor** tile shows the sensor's state and opens the same load, unload and purge actions when tapped. Edit mode picks which sensor it follows. See [Home Panel](home-panel.md).
+
+On a Creality K2 with no CFS attached, the toolhead filament sensor is listed here and can watch for runout like any other.
 
 ---
 
 ## Inputs (Doors and Buttons)
 
-The **Inputs** section lists the on/off inputs your printer reports to Klipper as buttons: door and lid switches, front-panel buttons, and on tool-changing printers the sensors that say whether each tool sits in its dock or on the carriage. The section only appears when the printer has at least one.
+**Inputs** lists the on/off inputs your printer reports to Klipper as buttons: door and lid switches, front-panel buttons and, on tool-changing printers, the sensors that say whether each tool sits in its dock or on the carriage. The section appears only when the printer has at least one.
 
-Each row shows the input's name and its live state:
+Each row shows the input's name and its live state. **--** means the printer has not reported it yet.
 
 | Role | States shown |
 |------|--------------|
 | **Door** | **Opened** (in orange) or **Closed** |
 | **Other** | **Pressed** or **Released** |
 
-**--** means the printer has not reported the input yet.
-
 ### Marking an input as a door
 
-An input whose name contains "door", "lid" or "cover" starts out as a **Door**. Everything else starts as **Other**. To change it:
+An input whose name contains "door", "lid" or "cover" starts as **Door**; everything else starts as **Other**. To change it:
 
 1. Open **Settings > Devices > Sensors** and scroll to **Inputs**.
 2. Tap the **Role** dropdown on the input's row.
 3. Pick **Door** or **Other**.
 
-The change saves immediately and is remembered for this printer. A printer can have more than one door: a front door and a top cover can both be **Door**.
+The choice is remembered for this printer. A printer can have several doors, for example a front door and a top cover.
 
 ### If a closed door shows Opened
 
-Door switches are wired either way round. If a door reads **Opened** while it is shut, turn on **Invert** on that row. The switch only appears for inputs set to **Door**.
+Door switches are wired either way round. If a door reads **Opened** while it is shut, turn on **Invert** on that row. Every input row has an **Invert** switch.
 
 ### Door-open warning
 
-**Warn if a door is open**, at the top of the section, controls the door check:
+**Warn if a door is open**, at the top of the section, controls the door check. Under it the screen notes it applies "for materials that need a warm enclosure, like ABS or ASA".
 
-- Before a print starts, HelixScreen warns you if any door reads open and the print uses a material that needs a warm enclosure, like ABS or ASA. See [Door-open warning](printing.md#door-open-warning).
-- During a print of such a material, opening a door shows a short warning message. PLA and PETG prints, and prints whose materials HelixScreen can't tell, never show it. If your printer already shows its own message when a door opens (Z-Mod on the Creator 5 does), HelixScreen leaves it to the printer and does not add a second one.
+- Before a print starts, HelixScreen warns you if any door reads open and the print uses a material that needs a warm enclosure. See [Door-open warning](printing.md#door-open-warning).
+- When a door opens during a print of such a material, a short warning message appears. PLA and PETG prints, and prints whose materials HelixScreen cannot tell, never show it. If the printer's own configuration already reacts when that door opens (a door button that runs its own G-code), HelixScreen leaves the announcement to the printer and does not add a second one.
 
-It is on by default when the printer has at least one door input, and off when it has none. Turn it off here if you print with the door open on purpose.
+The check is on by default when the printer has at least one door input and off when it has none. Turn it off here if you print with the door open on purpose.
 
 ---
 
-## Width Sensors (Flow Compensation)
+## Width Sensors
 
-If your printer has a filament width sensor, it appears in its own **Width Sensors** section. These sensors sit in the filament path and continuously measure the diameter of the filament passing through — HelixScreen recognizes two kinds:
+If your printer has a filament width sensor, it appears under **Width Sensors**. These sensors sit in the filament path and measure its diameter as it passes. HelixScreen recognizes two kinds, shown on the row:
 
-| Type | How it measures |
+| Kind | How it measures |
 |------|-----------------|
-| **TSL1401CL** | An optical (line-scan) sensor that reads the filament's shadow |
+| **TSL1401CL** | An optical line-scan sensor that reads the filament's shadow |
 | **Hall** | A magnetic sensor that reads the filament's thickness |
 
-### What flow compensation does
+Each row has a **Role** dropdown (**None** or **Flow Compensation**) and an **Enabled** switch. Only one sensor can hold **Flow Compensation**. The first width sensor found starts with that role.
 
-Real filament isn't perfectly round or perfectly 1.75 mm — it varies slightly along the spool. A width sensor measures the *actual* diameter in real time so Klipper can adjust how much it extrudes: thinner filament gets pushed a little faster, thicker filament a little slower. The result is more consistent extrusion and fewer thin or over-packed walls, especially with cheaper or older filament.
+The sensor with the **Flow Compensation** role, when enabled, supplies the live diameter (for example 1.75 mm) shown on the **Width Sensor** tile you can add to the Home panel. With no such sensor, the tile has nothing to show.
 
-Klipper performs the compensation itself. HelixScreen's job is to show you the live measurement and let you pick which sensor is in charge.
-
-### Enabling a width sensor
-
-Each width sensor row has two controls:
-
-- **Role** dropdown — set this to **Flow Compensation** to make the sensor active, or **None** to ignore it. Only one sensor can hold the Flow Compensation role at a time; assigning it to a second sensor clears it from the first.
-- **Enabled** toggle — turns the selected sensor's monitoring on or off.
-
-Changes save immediately. Once a sensor is enabled with the Flow Compensation role, its live measured diameter (for example, "1.75mm") appears on the **Width** dashboard widget you can add to the Home Panel.
-
-> When no width sensor is enabled, the Width dashboard widget and diameter reading simply don't appear — nothing else changes.
+HelixScreen only displays the reading. Whether Klipper adjusts extrusion for the measured width is set in your printer's own configuration and G-code.
 
 ---
 
-## Clog & Flow Detection
+## Clog and Flow Detection
 
-If your printer has a multi-material system or buffer with flow monitoring (Happy Hare, AFC, or a compatible MMU), HelixScreen can watch the filament path for **clogs and flow problems** while you print. This is a live health check on the filament actually moving — if the filament stops feeding the way it should, that usually means a clog, a jam, or a run-out.
-
-There are three kinds of flow-monitoring hardware HelixScreen understands:
-
-| Source | What it watches |
-|--------|-----------------|
-| **Encoder** | A wheel that counts filament movement — reports a clog percentage (how far the reading has drifted from expected) |
-| **Flowguard** | Bidirectional flow monitoring — flags both under-feeding (clog risk) and over-feeding (tangle risk) |
-| **AFC buffer** | A spring-loaded buffer — reports how close it is to a fault condition. An AFC buffer built with a filament pressure sensor (`type: FPS_PSF`) additionally reports how hard the filament is pulling or pushing, and gets the buffer sync meter that Happy Hare printers have. |
-
-### Where it shows up
-
-Clog and flow detection surface through the **Clog Detection** dashboard widget — a horizontal FlowGuard bar that stays green while flow is healthy and shifts toward orange and red as trouble builds, with an icon at the top right that goes from a check to a warning triangle to a red nozzle as things get worse. You add and configure it from the Home Panel rather than this Sensors screen. See **[Clog Detection Widget](home-panel.md#clog-detection-widget)** for the full widget walkthrough, and the [Filament guide](filament.md) for the same reading drawn as an arc in the filament sidebar.
-
-**What happens on a real clog:** the meter turns red and shows a warning, but the actual pause is handled by your printer's firmware (Happy Hare or AFC). HelixScreen visualizes the problem; the firmware stops the print.
-
-### Configuring it
-
-On the Home Panel, long-press to enter **Edit Mode**, tap the **Clog Detection** widget to select it, then tap the **gear icon**. The Clog Detection config modal opens with these settings:
-
-| Setting | What it controls |
-|---------|------------------|
-| **Source** | Which flow-monitoring hardware feeds the meter. **Auto** (recommended) picks the best one your printer has; or force **Encoder**, **Flowguard**, or **AFC**. Only sources your hardware actually reports are shown. |
-| **Detection Mode** | **Auto** lets the firmware decide when a clog has happened. **Manual** lets you set a fixed detection length (below) — choosing it sends a configuration command to the firmware. |
-| **Detection Length** | *(Manual mode only)* How far the filament can under-feed — from **2 mm to 30 mm** — before it's treated as a clog. Shorter trips sooner (more sensitive); longer is more tolerant of normal variation. |
-| **Danger Zone** | Where the red warning band starts on the gauge, from **0% to 90%**. Leave it at **0** to let HelixScreen compute a sensible threshold from the firmware's own headroom. This only affects the on-screen warning band — it does not change when the firmware pauses. |
-
-Tap **Save** to apply, or **Cancel** to discard.
-
-> **Tuning tip:** start with **Auto** source and **Auto** mode — that works for most setups. Only switch to Manual and shorten the Detection Length if real clogs are slipping through unnoticed, or lengthen it if you're getting false alarms on filament that's actually fine.
+Printers with a Happy Hare or AFC system, or another MMU that reports flow, can show a live clog and flow meter. It lives on the Home panel's **Clog Detection** tile and in the filament system screen, not on this page. See [Clog Detection Widget](home-widgets-filament.md#clog-detection-widget) for what it reads and how to set its source, detection mode, detection length and danger zone. The meter only displays; the pause on a real clog comes from the printer's firmware.
 
 ---
 
 ## Read-Only Sensor Types
 
-The remaining sections list sensors for information only — there's nothing to configure here. A section only appears when at least one sensor of that type is detected.
+These sections list sensors for information. Probes, humidity sensors, accelerometers, load cells and temperature sensors have no setting you can change here, apart from the chamber pickers below.
 
-| Section | What it covers | Type labels shown |
-|---------|----------------|-------------------|
-| **Probe Sensors** | Z probes for bed leveling and mesh | BLTouch, Smart Effector, Eddy, Probe |
-| **Humidity Sensors** | Chamber and dryer humidity monitoring | BME280, HTU21D, SHT3X, AHT10, AHT20, AHT20-F |
-| **Accelerometers** | Input shaper calibration sensors | ADXL345, LIS2DW, LIS3DH, MPU9250, ICM20948 |
-| **Color Sensors** | TD-1 filament color detection | TD-1 |
-| **Temperature Sensors** | MCU, host, and auxiliary temperature monitoring, including board thermistors such as an extruder board's and generic heaters such as a filament dryer | MCU, Host, Aux |
+| Section | What it covers | Kinds shown |
+|---------|----------------|-------------|
+| **Probe Sensors** | Z probes for bed leveling and meshes | Probe, BLTouch, Smart Effector, Eddy Current, Cartographer, Beacon, Voron Tap, Klicky, Creality ProTouch, Load Cell |
+| **Humidity Sensors** | Chamber and dryer humidity | BME280, HTU21D, SHT3X, AHT10, AHT20, AHT20-F, AHT3x, temperature_oams |
+| **Accelerometers** | Input shaper sensors | ADXL345, LIS2DW, LIS3DH, MPU9250, ICM20948 |
+| **Load Cells** | Force and weight sensors | None |
+| **Temperature Sensors** | MCU, host, driver and other temperature objects, including temperature fans and generic heaters such as a filament dryer | None |
 
-> Probes, humidity, accelerometer, color, and temperature sensors are display-only — HelixScreen shows their readings but there's nothing to set on this screen.
+A role that HelixScreen has already given a sensor (for example a probe's **Z Probe** role) shows beside **Role:** as plain text. A sensor the printer reports under a plain name such as "bltouch" is listed by its kind, with the Klipper name underneath.
 
 ---
 
 ## Chamber Assignment
 
-Inside the **Temperature Sensors** section, two dropdowns let you override auto-detection if your chamber heater or sensor isn't named "chamber":
+Inside **Temperature Sensors**, two dropdowns let you override auto-detection when your chamber heater or sensor is not named "chamber":
 
-- **Chamber Heater** — pick which generic heater is your chamber heater (or leave on **Auto**, or disable with **None**).
-- **Chamber Sensor** — pick which temperature sensor reports chamber temperature (Auto / a specific sensor / None).
+- **Chamber Heater** lists the printer's generic heaters (the bed and extruders are left out).
+- **Chamber Sensor** lists its temperature sensors.
 
-The **Auto** option shows the currently detected name in parentheses, or "(none detected)" when nothing matched.
+Each starts on **Auto**, which shows what was detected in parentheses, or **(none detected)**. The last option, **None (disable)**, turns the role off. A saved choice the printer no longer reports stays in the list marked **not detected**, so you can clear it.
 
-A chamber heater can supply the chamber temperature reading itself: when one is connected and no sensor is assigned, the heater's reported temperature is used. Naming a sensor here always wins for the reading; the heater keeps its target but the sensor becomes the temperature you see.
+A chamber heater can supply the chamber temperature itself: when one is connected and no sensor is named, the heater's reading is used. A sensor you pick by hand wins. The sensor that serves as the chamber sensor is not repeated in the list below the dropdowns.
 
 ---
 

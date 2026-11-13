@@ -1,101 +1,124 @@
 # Print Monitoring & Failure Detection
 
-HelixScreen watches over a print in two ways: it runs a series of filament checks *before* a job starts (an empty required slot stops with **Check filament**; unassigned tools, a grade or material change, stray filament in the toolhead, and a too-light spool each raise their own warning below), and — on printers that support it — it reacts when the printer's own camera spots a print going wrong. This page covers both.
+HelixScreen watches a print in three places. Before the print starts it checks the file and your filament and warns you about anything that looks wrong. While the print runs it shows a recovery dialog if the filament runs out. On the printers that can do it, it also reacts when a camera spots a failed print. This page covers all three.
 
 ---
 
-## Pre-Print Filament Check
+<a id="pre-print-filament-check"></a>
+## Before a Print Starts
 
-When you start a multi-color or multi-tool print, HelixScreen compares what the sliced file expects in each tool against what's actually loaded in your filament system. If a required tool points at an **empty slot**, HelixScreen stops and shows a **Check filament** dialog before anything heats up or moves — so you don't discover the problem halfway through a long print.
+When you tap **Print** on a file, HelixScreen runs a series of checks before anything heats up or moves. Most of them only warn: the dialog has a **Cancel** button and a button that starts the print anyway. A few block the print outright. If the file is still being checked when you tap, a **Checking filament...** message appears and the print continues as soon as the check finishes.
 
-This check runs automatically. You don't turn it on; it's part of starting any print on a system with a multi-slot filament backend (AMS, CFS, IFS, Box Turtle, Happy Hare, etc.). On a single-extruder printer with no such system, there are no slots to compare against, so this dialog never appears — filament presence there is handled by your runout sensor instead.
+The checks run in this order:
 
-**Printing from bypass is the other exception.** When bypass is engaged, filament goes straight to the extruder without passing through any slot, so there is no slot for the check to look at and every tool would read as unfed. Rather than warn about all of them, HelixScreen skips the slot checks for as long as bypass stays engaged — and tells you so: the file details show a **Bypass active** note (and, for a single-tool file, hide the Filament Mapping card entirely — the lanes aren't feeding this print, so there is nothing to assign), and if the material you set on the external spool doesn't match what the file was sliced for (for example, the file says ASA but the spool holds PLA), you get one **Material Mismatch** warning naming the spool. A same-material *grade* difference there — file sliced ASA-GF, spool holding plain ASA — raises the [Filament Grade Mismatch](#the-filament-grade-mismatch-dialog) warning below instead. Tap **Start Anyway** to print regardless. Disengage bypass and the slot checks come back on the next print — you don't have to restart anything.
+| Check | Appears when | Can you start anyway? |
+|-------|--------------|-----------------------|
+| [Check filament](#the-check-filament-dialog) | A tool the file uses points at an empty slot, or at a slot with no material set (Snapmaker U1 only) | Yes, with **Print Anyway** |
+| [File Will Stop the Printer](#file-will-stop-the-printer) | The file calls a command your printer treats as an emergency stop | No |
+| [File Does Not Fit This Printer](#file-does-not-fit-this-printer) | The file moves past the printer's travel, heats past its limits or needs a tool the printer lacks | No |
+| [Sliced for a Different Setup](#file-does-not-fit-this-printer) | The file was sliced for a different nozzle size | Yes |
+| [Mixed-Temperature Materials](#the-mixed-temperature-materials-dialog) | The file prints two materials that need very different temperatures | Yes |
+| [Not Enough Filament](#the-not-enough-filament-dialog) | The spool, or a mapped slot, holds less filament than the file needs | Yes |
+| [Bypass Is Active](#printing-from-bypass) | The file needs several slots but bypass is engaged | Yes |
+| [Filament In The Toolhead](#the-filament-in-the-toolhead-dialog) | Filament sits in the toolhead that no slot reports loaded | Yes |
+| [No Filament Detected](#the-no-filament-detected-dialog) | The filament system or the runout sensor reports no filament for the print | Yes |
+| [Color Mismatch](#the-color-mismatch-dialog) | A tool the file uses has no slot assigned | Yes |
+| [Material Mismatch](#the-material-mismatch-and-filament-grade-mismatch-dialogs) and Filament Grade Mismatch | The loaded material or grade differs from what the file was sliced for | Yes |
+| Door Open | A door sensor reports an open door on a material that wants a closed enclosure (see [Printing](printing.md)) | Yes |
 
-### What the check looks at
+The filament checks need something to compare against. On a printer with a multi-slot filament system (AMS, CFS, IFS, Box Turtle, Happy Hare and so on), HelixScreen compares each tool with the slot mapped to it. On a printer without one, the [No Filament Detected](#the-no-filament-detected-dialog) check uses your runout sensor instead.
 
-For every tool the file uses (T0, T1, T2, …), HelixScreen compares the slot mapped to that tool against the slicer's intent:
+### Printing from bypass
 
-| Result | What it means | Row glyph |
-|--------|---------------|-----------|
-| **Match** | The mapped slot has filament, and its material and color line up with the file | Green check (✓) |
-| **Color differs** | Right material, but the loaded color doesn't match the file's color | Amber warning (⚠) |
-| **Material differs** | The loaded material doesn't match what the tool needs | Amber warning (⚠) |
-| **Empty slot** | The tool maps to a slot with no filament in it | Red cross (✗) |
+When bypass is engaged, filament goes straight to the extruder without passing through any slot. Every tool would read as unfed, so HelixScreen skips the slot checks for as long as bypass stays engaged and tells you so. The file details show **Bypass active — this print runs on the external spool.** For a single-tool file the Filament Mapping card is hidden, because there is nothing to assign.
+
+Two things are still checked:
+
+- **Material:** if the material set on the external spool does not match the file (the file says ASA, the spool holds PLA), you get one [Material Mismatch](#the-material-mismatch-and-filament-grade-mismatch-dialogs) warning naming the spool.
+- **Amount:** a spool with a known remaining weight is compared with what the file needs (see [Not Enough Filament](#the-not-enough-filament-dialog)).
+
+A file that uses several tools gets the **Bypass Is Active** warning instead: the printer may refuse to load a slot while bypass filament is in the toolhead, so remove the filament and turn bypass off first, or tap **Start Anyway**. Disengage bypass and the slot checks come back on the next print.
 
 ### The Check filament dialog
 
 ![Check filament dialog](../../images/user/preflight-check.png)
 
-The dialog appears when at least one required tool maps to an empty slot **and** you are not printing from bypass — an empty slot is the one condition serious enough to stop a print. When it opens, you see one row per tool:
+This dialog stops a print before it heats, so you do not find the problem halfway through. It appears when a tool the file uses has a problem that would ruin the print:
 
-- A **`Tx`** label (the tool number)
-- The **slicer's intended color** as a swatch
-- An **arrow**
-- The **actually-loaded color** as a swatch, or an **`EMPTY`** label if that slot has no filament
-- A **severity glyph** (✓ / ⚠ / ✗) on the right
+- the tool points at an **empty slot**, or
+- on a Snapmaker U1, the tool points at a slot that has filament but no material set, and the print has **Pressure Advance Calibration** switched on (that calibration refuses a slot with no material).
 
-Below the rows, a short explanation calls out the first blocking problem, for example:
+It does not appear while you are printing from bypass, or on a printer with no multi-slot filament system.
+
+The dialog shows one row per tool: the tool label (**T0**, **T1** and so on), the color the slicer wanted, an arrow, the color actually loaded (or **EMPTY** when the slot has no filament), and a status icon on the right.
+
+| Icon | Meaning |
+|------|---------|
+| Green check | The slot has filament and matches the file |
+| Amber warning | The color or the material differs. This only warns |
+| Red cross | The slot is empty, or the slot has no material set |
+
+Below the rows, one line explains the first blocking problem, for example:
 
 > *T1 needs filament in slot 2, which is empty — this print will run out.*
 
-**Buttons:**
+If a tool has no slot at all, the line reads **T1 has no lane assigned. Pick one before printing.** (HelixScreen uses your filament system's own word for the position, such as slot or lane.)
+
+For a slot with no material set, the line says which slot it is and a button appears that names the fix, for example **Set Slot 2 to PLA**. Tap it to write the file's material onto that slot. The button only appears when the file names a material for the tool and the slot belongs to the first filament system.
 
 | Button | Action |
 |--------|--------|
-| **Map Filament…** | Opens [Filament Mapping](filament.md#filament-mapping) so you can point the tool at a slot that has filament. Only shown when your filament system supports Filament Mapping — it's hidden on ACE and single-extruder (no-AMS) systems. |
+| **Map Filament…** | Opens [Filament Mapping](filament.md#filament-mapping) so you can point the tool at a slot that has filament. It is hidden when a remap cannot be carried out: when your filament system has no way to remap, when remapping needs the [HelixPrint plugin](helixprint-plugin.md) and it is not installed, when the file uses no tools worth mapping, and on a screen that cannot keep a local copy of the file. |
 | **Cancel** | Backs out without printing. Load or map the missing filament, then start again. |
-| **Print Anyway** | Starts the print despite the warning. Use this only if you know the check is wrong (for example, filament is physically loaded but not yet detected). |
+| **Print Anyway** | Starts the print despite the problem. Use it only if you know the check is wrong, for example when filament is loaded but not yet detected. |
 
-> **Note:** An empty slot is the only thing that raises this dialog. A **material or color mismatch does not stop the print** — those are advisory. They show up as an amber or red outline on that tool's chip in the FILAMENTS card when you pick the file (see [Filament Mapping](filament.md#filament-mapping)), and if the dialog is already open for an empty slot, mismatched tools show an amber warning glyph on their row too.
+> **Tip:** The check re-runs every time you tap Print, and again whenever your filament system's state changes. Loading a slot or engaging bypass while the file is open clears the warning without reopening the file.
 
-> **Tip:** If you meant to load that filament, tap **Cancel**, sort out the slot from the [AMS panel](filament.md#ams--multi-material-systems), and start the print again — the check re-runs each time. It also re-runs the moment your filament system's state changes, so loading a slot (or engaging bypass) while the file is still open clears the warning without reopening it.
+> **Note:** A color or material difference alone does not raise this dialog. It shows as an amber or red outline on that tool's chip in the FILAMENTS card of the file details (see [Filament Mapping](filament.md#filament-mapping)), and the material difference raises its own warning below.
+
+### The No Filament Detected dialog
+
+This warning has two forms. On a printer with a multi-slot filament system it lists the tools whose slot holds no filament, for example **T1 → Slot 2: no filament loaded.** On a printer without one it appears when the runout sensor is on and reports no filament: **The runout sensor indicates no filament is loaded. Start print anyway?** The proceed button reads **Start Print**.
+
+The multi-slot form is skipped on systems that unload the toolhead after every print on purpose (the FlashForge AD5X IFS), and while you print a single-tool file from bypass.
 
 ### The Color Mismatch dialog
 
 ![Color Mismatch dialog](../../images/user/color-mismatch.png)
 
-There's a second, separate dialog you may see right after the first one clears. Where **Check filament** is about a tool pointing at a slot that's *empty*, **Color Mismatch** is about a tool that doesn't point at a slot **at all** — the file asks for a tool your filament system has no lane assigned to. That happens most often when a file was sliced for more tools than your system has, or when automatic matching couldn't find a home for one of them.
+Where **Check filament** is about a tool pointing at an empty slot, **Color Mismatch** is about a tool that points at no slot at all: the file asks for a tool your filament system has no slot assigned to. That happens most often when a file was sliced for more tools than your system has, or when automatic matching could not find a home for one of them.
 
 It lists each unmatched tool with the color and material the file wants:
 
 > *T2: Medium Vibrant Orange (PETG)*
 
-**Buttons:**
-
 | Button | Action |
 |--------|--------|
-| **Cancel** | Backs out without printing. Map the tool to a slot in [Filament Mapping](filament.md#filament-mapping), then start again. |
-| **Start Anyway** | Starts the print regardless. Your printer's firmware decides what to do when it reaches that tool. |
+| **Cancel** | Backs out. Map the tool to a slot in [Filament Mapping](filament.md#filament-mapping), then start again. |
+| **Start Anyway** | Starts the print. Your printer's firmware decides what to do when it reaches that tool. |
 
-The name is a little misleading — despite "Color Mismatch", a merely *wrong* color never raises it. It only appears when a tool has no matching filament at all.
+Despite the name, a merely wrong color never raises it. It only appears when a tool has no matching filament at all. It is skipped for single-color files, while you print from bypass, and on printers whose firmware picks the slots when the print starts.
 
-Like the empty-slot check, this one is skipped while you're printing from bypass — for a single-tool file, which is the normal bypass case. A multi-tool file with bypass engaged gets its own warning instead: the printer may refuse to load a lane while bypass filament is in the toolhead.
+### The Material Mismatch and Filament Grade Mismatch dialogs
 
-### The Filament Grade Mismatch dialog
+When the filament mapped to a tool is a different material from the one the file was sliced for, **Material Mismatch** says so and shows the temperature ranges of both materials where it knows them. It ends with a reminder that the wrong material can cause clogs, poor adhesion or a failed print. **Start Anyway** prints regardless. Unknown materials never raise it, and tools the file never extrudes with are ignored.
 
-Some filaments are the same plastic with something mixed into it. **PLA-CF** is PLA with chopped carbon fiber; **ASA-GF** is ASA with glass fiber; wood, marble, metal and glow-in-the-dark filaments carry a powder. Those all print differently from the plain version — slower, because the filler thickens the melt, and they grind away at a brass nozzle, which is why they normally want a hardened one. A slicer profile for a filled filament is not the profile for its plain counterpart.
+Some filaments are the same plastic with something mixed into it. **PLA-CF** is PLA with chopped carbon fiber, **ASA-GF** is ASA with glass fiber, and wood, marble, metal and glow-in-the-dark filaments carry a powder. They print differently from the plain version and wear a brass nozzle, so a slicer profile for one is not the profile for the other. When the loaded filament is the same plastic but a different *grade*, HelixScreen shows **Filament Grade Mismatch** instead. The wording depends on which way round it is:
 
-Marketing suffixes are the opposite case. **PLA+**, **ABS+** and the like are the same plastic with a toughener, printed on the same hardware with much the same settings, and **Silk** and **Matte** are finishes rather than fillers.
+| Situation | What you are told |
+|-----------|-------------------|
+| The **loaded** spool is the filled one (the file wants PLA, the slot holds PLA-CF) | The filled filament runs at a lower flow rate and needs a hardened nozzle. This is the direction that can wear out a brass nozzle |
+| The **file** is the filled one (the file wants PLA-CF, the slot holds PLA) | It will print slower and hotter than the loaded spool needs, which wastes time but does no harm |
 
-So when the loaded filament is the same material as the file wants but a different *grade*, HelixScreen shows **Filament Grade Mismatch** rather than the Material Mismatch dialog — the polymer is right, so calling it a material mismatch would be misleading, but the difference is still worth a look. It is a warning, never a block, and **PLA vs PLA+** raises nothing at all.
+Marketing suffixes raise nothing: **PLA+** against **PLA**, or **Silk** and **Matte** finishes. If one print has both a wrong material and a grade difference, you get one Material Mismatch dialog that lists everything.
 
-The wording depends on which way round it is, because the risk isn't symmetric:
-
-| Situation | What you're told |
-|-----------|------------------|
-| The **loaded** spool is the filled one (file wants PLA, lane holds PLA-CF) | That filled filament runs at a lower flow rate and needs a hardened nozzle — this is the direction that can wear out a brass nozzle |
-| The **file** is the filled one (file wants PLA-CF, lane holds PLA) | That it will print slower and hotter than the loaded spool needs — a waste of time, not a hardware risk |
-
-**Buttons:** **Start Anyway** prints as-is; **Cancel** backs out so you can load the right spool.
-
-Your Filament Mapping is unaffected either way. HelixScreen still routes the tool to that lane, exactly as it did before — the grade difference changes what you're told, not where the filament comes from.
+Neither dialog changes your Filament Mapping: the tool still feeds from the slot it was mapped to.
 
 ### The Mixed-Temperature Materials dialog
 
-Some plastics print far hotter than others. ABS, ASA, PC and nylon want a nozzle above 240°C and a warm enclosure; PLA, PVA and TPU soften not far above 60°C and print below 230°C. When one file uses a material from each end, the cooler one can be damaged by the conditions the hotter one needs.
+Some plastics print far hotter than others. ABS, ASA, PC and nylon want a nozzle above 240°C and a warm enclosure. PLA, PVA and TPU soften not far above 60°C and print below 230°C. When one file uses a material from each end, the cooler one can be damaged by what the hotter one needs.
 
-Before a print that uses two or more materials, HelixScreen checks every pair the file actually prints with. It warns when the hotter material needs a heated enclosure and the two have no nozzle temperature in common. The temperatures come from HelixScreen's filament list, the same one the Material Mismatch dialog uses.
+HelixScreen checks every pair of materials the file actually prints with. It warns when the hotter material wants a heated enclosure and the two have no nozzle temperature in common.
 
 | Pair | Warns? |
 |------|--------|
@@ -103,97 +126,95 @@ Before a print that uses two or more materials, HelixScreen checks every pair th
 | PLA + PETG, PLA + TPU, PLA + PVA | No: none of them needs an enclosure |
 | PETG + ABS, ABS + PC | No: their nozzle temperatures overlap |
 
-What the dialog says depends on your printer:
+The message depends on your printer. With **one nozzle**, the cooler material goes through the same nozzle at the hotter material's temperature, where it can burn and clog. With **several nozzles** (a tool changer, or two or more hotends), each material has its own nozzle but they share the bed and the enclosure, and the heat can soften the cooler one and jam its nozzle.
 
-- **One nozzle** (a filament system feeding a single hotend): the cooler material goes through the same nozzle at the hotter material's temperature, where it can burn and clog the nozzle.
-- **Several nozzles** (a tool changer or a printer with two or more hotends): each material has its own nozzle, but they share the bed and the enclosure, and the heat the hotter material needs can soften the cooler one and jam its nozzle.
-
-Only the materials the file prints with count. A slicer profile often lists a material for every tool, even for a file that uses one, and those unused tools are ignored. A material name HelixScreen does not recognize never triggers the warning.
-
-**Buttons:** **Start Anyway** prints as-is; **Cancel** backs out so you can re-slice with compatible materials. The check runs on every print that mixes materials and has no setting to turn it off: choosing **Start Anyway** is how you print a combination you know works on your printer.
+A slicer profile often lists a material for every tool even when the file uses one, and those unused tools are ignored. **Start Anyway** is how you print a combination you know works on your printer. There is no setting to turn the check off.
 
 ### The Filament In The Toolhead dialog
 
-The dialogs above compare what the *file* needs against what your slots hold. This one looks at the toolhead itself: filament is sitting in it, but no lane in your filament system reports having loaded it. That usually means leftovers — filament that was on its way in or out when an earlier job was canceled or aborted, and never got seated in a lane. Rather than silently print on top of unknown material, HelixScreen asks first:
+![The Filament In The Toolhead dialog](../../images/screenshot-unaccounted-dialog.png)
 
-> *The toolhead has filament but no AMS lane reports it loaded. Pull it out manually before printing. Start anyway?*
+The checks above compare the file with your slots. This one looks at the toolhead itself: filament is sitting in it, but no slot reports having loaded it. That usually means leftovers from a canceled or aborted job. HelixScreen asks before printing on top of unknown material.
 
-**Buttons:**
+On most systems the message is **The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?** On a system that can clear the toolhead by itself (the Creality CFS), it says instead that the printer may refuse to load a slot until the toolhead is cleared.
 
 | Button | Action |
 |--------|--------|
-| **Start Anyway** | Starts the print with the stray filament left in the toolhead. Reasonable when you know what it is and it matches the file — the tail of the spool you just printed with, for example. |
-| **Cancel** | Backs out. Tap **Unload** in the filament sidebar, pull the filament out by hand, or load it properly from a lane, then start the print again. |
+| **Start Anyway** | Starts the print with the filament left in the toolhead. Reasonable when you know it is the tail of the spool you just printed with. |
+| **Cancel** | Backs out. Tap **Unload** in the filament sidebar, pull the filament out by hand, or load it properly from a slot, then start again. |
 
-![The Filament In The Toolhead dialog](../../images/screenshot-unaccounted-dialog.png)
-
-Only filament systems that can actually tell raise this dialog — AFC (Box Turtle), Happy Hare, Creality CFS, and FlashForge AD5X IFS. On a system that can't determine it, the dialog never appears, and printing from bypass skips it too: bypass means the toolhead filament is the external spool's, which is exactly what you intended.
+Only filament systems that can tell raise this dialog: AFC (Box Turtle), Happy Hare, Creality CFS and FlashForge AD5X IFS. Printing from bypass skips it, because the toolhead filament is then the external spool's.
 
 ### The Not Enough Filament dialog
 
-This one is about quantity, not identity: when you print from the **external spool** and HelixScreen knows how much filament is left on it — a spool tracked through Spoolman with its remaining weight recorded — it compares that against what the file is expected to use before starting:
+This one is about quantity. It compares what the file is expected to use with what is left, and warns when the spool is short:
 
 > *This print needs about 108g but the spool has about 62g remaining. Start anyway?*
 
-**Buttons:**
+There are two forms:
 
-| Button | Action |
-|--------|--------|
-| **Start Anyway** | Starts the print. Often reasonable: the estimate comes from the slicer's numbers, and spools frequently hold a little more than their label says — a small shortfall may still fit. |
-| **Cancel** | Backs out. Swap in a fuller spool (or a fresh one) and start again. |
+- **The external spool.** Used when you print without a multi-slot filament system, or from bypass. It needs a spool tracked through Spoolman with its remaining weight recorded.
+- **Slots.** On a multi-slot system, each tool the file uses is compared with the remaining weight of the slot it is mapped to. A single short slot reads **Slot 2 has about 40g but T1 needs about 95g. Start anyway?** Several short slots are listed together. Slots with no weight on record are never compared.
 
-The estimate uses the file's own filament weight when the slicer recorded it; when it only recorded a length, HelixScreen converts it using the material set on the spool. Two honest silences: spools whose remaining weight is unknown are never compared (there is nothing to compare against), and spools sitting in AMS slots are not covered by this dialog — slot-level tracking belongs to your filament system.
+The estimate uses the file's own filament weight when the slicer recorded it, and otherwise converts the filament length using the spool's material. A small shortfall may still fit, since spools often hold a little more than their label says. **Start Anyway** prints, and **Cancel** lets you swap in a fuller spool.
 
-## File Will Stop the Printer
+### File Will Stop the Printer
 
-Some printers have macros that double as emergency stops (a `HALT`, a vendor stop command), and a file sliced for a different printer profile can call one by name. HelixScreen scans the start of every file before it can start, looking for commands this printer treats as an emergency stop. When it finds one, starting that file is blocked outright:
+Some printers have macros that double as emergency stops (a `HALT` or a vendor stop command), and a file sliced for a different printer profile can call one by name. HelixScreen scans the start of the file for commands your printer treats as an emergency stop, and when it finds one it refuses to start the print:
 
 > *Line 4123 calls HALT, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.*
 
-The dialog names the line and the command, plus the printer's own stop message when it has one. The same check runs when you start a job from the print queue (queue entries usually arrive from a slicer or web UI, so nothing else has looked at them): tap a queued job whose file fails it and the same dialog appears, with the job **left in the queue** so you can fix or remove it.
+The dialog names the line and the command, plus the printer's own stop message when it has one. The same check runs when you start a job from the print queue. The job stays in the queue so you can fix or remove it.
 
----
+### File Does Not Fit This Printer
 
-## File Does Not Fit This Printer
-
-A file sliced for another printer can ask for moves this printer can't make or temperatures its heaters don't allow. Before a print starts, HelixScreen compares the file with the printer's own limits (its travel, its heaters' maximum temperatures and its tools) and stops a file that breaks one:
+A file sliced for another printer can ask for moves this printer cannot make, or temperatures its heaters do not allow. HelixScreen compares the file with the printer's own limits (its travel, its heaters' maximum temperatures and its tools) and blocks a file that breaks one:
 
 > *Moves to X 360 mm, past this printer's 350 mm.*
 > *Re-slice the file with a profile made for this printer.*
 
-A file sliced for a different nozzle size gets the softer **Sliced for a Different Setup** warning, with **Start Anyway**. A different printer model in the slicer profile is only shown in the file details. The findings also show in the file's details before you tap Start Print; see [Does the file fit this printer?](printing.md#does-the-file-fit-this-printer).
+A file sliced for a different nozzle size gets the softer **Sliced for a Different Setup** warning with **Start Anyway**. A different printer model in the slicer profile is only noted in the file details. The findings also show in the file's details before you tap Print; see [Does the file fit this printer?](printing.md#does-the-file-fit-this-printer).
 
 ---
 
 ## Filament Runout During a Print
 
-When the runout sensor stops detecting filament during a print, **the printer's own firmware pauses the job** - that happens before HelixScreen is involved at all. HelixScreen notices the pause and shows the **Filament Runout** modal so you can recover without dropping to the console.
+When the runout sensor stops detecting filament during a print, **the printer's own firmware pauses the job** before HelixScreen is involved. HelixScreen notices the pause and shows the **Filament Runout** dialog so you can recover without opening the console.
 
 ![Filament runout modal](../../images/user/runout-modal.png)
 
+While the print is paused the dialog offers:
+
 | Button | Action |
 |--------|--------|
-| **Load** | Runs your load sequence (heat → feed → purge) to bring fresh filament to the nozzle. On an AMS system this loads from the active slot. |
+| **Load** | Runs your load sequence (heat, feed, purge) to bring fresh filament to the nozzle. On a multi-slot system this loads from the active slot. |
 | **Unload** | Retracts the remaining filament so you can swap the spool before loading. |
 | **Purge** | Extrudes a little filament to clear the old color or confirm flow. |
-| **Close** | Dismisses the modal — resume the print from the status screen once filament is loaded. |
+| **Resume Print** | Continues the print once filament is loaded. |
+| **Cancel Print** | Cancels the print. |
 
-This modal is what handles the recovery on tool-changer and single-extruder printers, on any multi-filament system running from an external spool (bypass), and on the Anycubic ACE and QIDI Box - those two report nothing of their own when filament runs out. Bypass prints get extra protection automatically: when you engage bypass, HelixScreen switches on the toolhead runout sensor at the printer if the filament system's own software had left it off, and switches it back when you disengage.
+Outside a pause, for instance when you tap the Filament Sensor tile on the home screen, the dialog shows **Load**, **Unload**, **Purge** and **Close** instead. While a print is running, Load, Unload and Purge are hidden and only **Close** remains, because they would ruin the print.
 
-Systems that *do* raise their own runout alert show that alert instead, so one runout never produces two dialogs. What actually happens next differs by system:
+On the **Snapmaker U1**, which feeds the next filament by itself when you resume, the dialog has no Load, Unload or Purge buttons. It says **Refill the spool, then Resume.** and keeps **Resume Print** disabled until filament is back at that tool's feed port. If the port still sees filament, the dialog says **Motion sensor stuck: filament is still at the feeder. Resume to feed it.**
 
-- **AFC (Box Turtle) and Happy Hare** can switch to a backup slot, if you configured one and it holds compatible filament. Otherwise their alert offers the recovery buttons.
-- **Creality CFS** always pauses the print first. The box only switches spools when **Auto-Refill** is switched on *and* another slot holds the exact same material **and** color. If either condition is missing it says so and the print simply stays paused until you load filament and resume.
-- **FlashForge AD5X IFS** does not switch spools at all on stock firmware. Its alert tells you filament ran out and offers Resume, Purge, and an IFS reset.
+This dialog handles recovery on tool-changer and single-extruder printers, on any multi-filament system running from an external spool (bypass), and on the Anycubic ACE and QIDI Box, which report nothing of their own when filament runs out. Bypass prints get extra protection automatically: when you engage bypass, HelixScreen switches on the toolhead runout sensor at the printer if the filament system's own software had left it off, and switches it back when you disengage.
+
+Systems that *do* raise their own runout alert show that alert instead, so one runout never produces two dialogs. What happens next differs by system:
+
+- **AFC (Box Turtle) and Happy Hare** can switch to a backup slot if you configured one and it holds compatible filament. Otherwise their alert offers the recovery buttons.
+- **Creality CFS** always pauses the print first. The box only switches spools when **Auto-Refill** is switched on *and* another slot holds the exact same material and color. If either condition is missing, the alert says so and the print stays paused until you load filament and resume.
+- **FlashForge AD5X IFS** does not switch spools on stock firmware. Its alert tells you filament ran out and offers Resume, Purge and an IFS reset.
+
+A runout alert only appears while the firmware is actually running the sensor. A sensor the printer has switched off for its own operations raises none.
 
 ---
 
 ## Print-Failure Detection
 
-Some printers can watch a print through their camera and flag spaghetti: a print that has come loose and turned into a tangle. HelixScreen supports this on two printers:
+Some printers can watch a print through a camera and flag a failure. HelixScreen supports this on two:
 
 - **Snapmaker U1** (stock firmware): the printer's own defect detector flags the failure and pauses the print itself.
-- **Creality K2 family** (stock firmware, which ships Creality's AI model): HelixScreen runs the printer's own AI model on a camera snapshot every 25 seconds while a print is running, using the interval and sensitivity from the printer's AI settings.
+- **Creality K2, K2 Plus and K2 Pro** (stock firmware, which ships Creality's AI model): HelixScreen runs the printer's own AI model on a camera snapshot at a fixed interval while a print is running. The interval and the confidence needed to flag a failure come from the printer's own AI settings: every 25 seconds at 77.5 percent unless the printer says otherwise.
 
 On other printers the detection settings stay hidden.
 
@@ -201,34 +222,46 @@ On other printers the detection settings stay hidden.
 
 Under **Settings > Safety & Alerts**:
 
-- **Spaghetti Detection** switches detection on or off. It's on by default. On a K2, the first time HelixScreen runs it copies the printer's own AI detection setting, so detection stays off if you had it off in Creality's settings. After that, HelixScreen's switch is the one that counts.
-- **Pause on Detection** decides whether a detection pauses the print or only warns you. It's hidden on the U1, which always pauses by itself.
+- **Spaghetti Detection** ("Watch the camera during a print for failed prints") switches detection on or off. It is on by default. On a K2, the first time HelixScreen runs it copies the printer's own AI detection switch and pause choice, so detection stays off if you had it off in Creality's settings. After that, HelixScreen's switches are the ones that count.
+- **Pause on Detection** ("Pause the print when a failure is seen (off = warn only)") decides whether a detection pauses the print or only warns you. It is greyed out while Spaghetti Detection is off, and hidden on the U1, which always pauses by itself.
+- **Bed Clear Check** ("Camera checks the bed is empty before each print") appears on the Snapmaker U1 only. See below.
+
+On a K2, the pre-print options of a file can also include an **AI detection** tile ("Monitor for print abnormalities"), which is off by default. It appears only when the printer has Creality's own AI start macro.
 
 ### What happens on a detection
 
-- **Pause on Detection on**, or a printer that paused by itself: the print is paused and a **Print issue detected** dialog explains what was seen, with the detection's confidence where the printer reports one.
-- **Pause on Detection off**: a warning toast appears and the print keeps going.
-
-The dialog offers:
+- **Pause on Detection on**, or a printer that paused by itself: the print is paused and a **Print issue detected** dialog opens. On a screen that has the [camera view](camera.md), it also shows a small camera picture of the moment (not on the printer's own screen of a K2 or U1, which has no camera view). Below is a line of text: **Spaghetti detected (91%)** on a K2, where the model reports its confidence, or the printer's own message on a U1.
+- **Pause on Detection off:** a **Spaghetti detected** warning toast appears and the print keeps going. A U1 has already paused by itself, so it always gets the dialog.
 
 | Button | Action |
 |--------|--------|
 | **Resume** | Continues the paused print. |
 | **Abort** | Cancels the print. |
-| **Reduce Sensitivity** | (U1 only) Tells the printer to be less quick to flag issues, and leaves the dialog open so you can then Resume or Abort. |
-| **Turn off detection** | Switches detection off, and leaves the dialog open for your Resume or Abort choice. |
+| **Reduce Sensitivity** | (U1 only) Tells the printer to be less quick to flag spaghetti, and leaves the dialog open so you can then Resume or Abort. |
+| **Turn off detection** | Switches Spaghetti Detection off and leaves the dialog open for your Resume or Abort choice. |
 
-> **Note:** On the U1, only spaghetti-type failures raise this dialog. Its other defect codes (dirty bed, residue, dirty nozzle) are recognized internally but not surfaced.
+> **Note:** On the U1, the dialog appears for spaghetti failures. The printer's other defect codes (residue, dirty nozzle) are recognized but not shown.
 
-> **Note:** The dialog shows a text description of the detected issue, not a camera still.
+### Bed Clear Check (Snapmaker U1)
+
+Before a print, the U1's camera looks over the bed. If it thinks something is on it, the printer stops before printing and HelixScreen opens **Something on the bed?** whatever your Spaghetti Detection settings say. A false alarm on a clear bed is possible. The paused job cannot be resumed.
+
+| Button | Action |
+|--------|--------|
+| **Restart print** | Starts the same file again from the beginning. |
+| **Cancel print** | Cancels the job. |
+| **Turn off bed check** | Switches the check off for later prints. Only shown while the check is on. |
+
+Turn the check off or back on any time with **Settings > Safety & Alerts > Bed Clear Check**. The row is greyed out when the printer's detection module is off.
 
 ---
 
 ## See Also
 
-- [Filament Management](filament.md) — AMS slots, Filament Mapping, and loading filament
-- [Printing](printing.md) — Starting prints, pre-print options, and monitoring during a print
-- [Supported Printers](supported-printers.md) — Which detection and filament features each model supports
+- [Filament Management](filament.md): AMS slots, Filament Mapping, and loading filament
+- [Printing](printing.md): starting prints, pre-print options, and monitoring during a print
+- [Safety & Alerts](settings/safety.md): all the safety settings in one place
+- [Supported Printers](supported-printers.md): which detection and filament features each model supports
 
 ---
 
