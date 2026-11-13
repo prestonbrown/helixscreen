@@ -212,7 +212,7 @@ Ignore the `.aab` file on the release page. It is for publishing to Google Play 
 - **Foldables and unusual screen shapes** can show layout quirks when the device folds or resizes. Reports with a screenshot are welcome.
 - **Power controls are hidden.** An Android app cannot shut down or restart the device it runs on, so the shutdown widget never appears on the Home screen (the widget catalog marks it "Not available on Android") and the power section of the Advanced screen is hidden. Moonraker power devices, such as smart plugs, still work.
 
-**Google Play.** Play Store distribution is being set up. An install from Play is signed differently from these APKs, so moving from a downloaded APK to the Play version means uninstalling first and setting the app up again.
+**Google Play.** HelixScreen is on [Google Play](https://play.google.com/store/apps/details?id=org.helixscreen.app), which installs and updates it like any other app. An install from Play is signed differently from the APKs on the release page, so moving from a downloaded APK to the Play version means uninstalling first and setting the app up again.
 
 ---
 
