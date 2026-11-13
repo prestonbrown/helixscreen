@@ -153,7 +153,7 @@ To point HelixScreen at a different printer address later, use **Settings > Conn
 
 ### Picking Your Printer Model
 
-![The setup wizard's printer identification step, with a search box and brand tiles](../../images/user/wizard-printer-identify.png)
+![The setup wizard's printer identification step, with a search box and the list of printers](../../images/user/wizard-printer-identify.png)
 
 The **Printer Setup: Identity** step lists every printer HelixScreen knows. Type in the search box to filter by model or brand, or tap a brand tile (Creality, Prusa, Voron and so on) to see only that brand's printers, and tap **Back** to return to the tiles.
 
@@ -161,7 +161,7 @@ If HelixScreen already recognized your printer, the step opens on it, inside its
 
 ### Preset Setup
 
-Many printers have a ready-made profile in HelixScreen, for example the Creality K1 and K2 series, the FlashForge Adventurer 5M and 5X, the Snapmaker U1 and the QIDI Q2. When HelixScreen recognizes one of these, it already knows the heaters, fans and other hardware, so the wizard is shorter: it skips the Identity, Heaters, Fans, filament system, LEDs, Filament Sensor and Input Shaping steps, and ends with **Help Improve HelixScreen** instead of the Review step.
+Some install packages bring a ready-made profile for their printer: the Creality K2 series, the FlashForge Adventurer 5M, the Snapmaker U1 and the Elegoo Centauri Carbon. On those, HelixScreen already knows the heaters, fans and other hardware, so the wizard is shorter: it skips the Identity, Heaters, Fans, filament system, LEDs, Filament Sensor and Input Shaping steps, and ends with **Help Improve HelixScreen** instead of the Review step.
 
 ![The Help Improve HelixScreen step, with its anonymous statistics switch](../../images/user/wizard-telemetry.png)
 

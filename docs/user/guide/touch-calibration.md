@@ -94,7 +94,8 @@ Use this when your screen is too damaged to navigate the UI. It's the least erro
    sudo systemctl restart helixscreen
 
    # Printer firmware (init.d):
-   /etc/init.d/S99helixscreen restart   # K1 / K2 / Snapmaker U1
+   /etc/init.d/S99helixscreen restart   # K1 / K2
+   /userdata/helixscreen/config/helixscreen.init restart # Snapmaker U1
    /etc/init.d/S80helixscreen restart   # AD5M (Klipper Mod, ZMOD)
    /usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen restart   # AD5M (Forge-X)
    chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen restart          # AD5X / Creator 5 (Z-Mod)
@@ -111,7 +112,8 @@ Use this for automation, remote management, or as an alternative to the env var.
 2. Stop the service so it doesn't overwrite your edits — use the command that matches your platform:
    ```bash
    sudo systemctl stop helixscreen          # Raspberry Pi
-   /etc/init.d/S99helixscreen stop          # K1 / K2 / Snapmaker U1
+   /etc/init.d/S99helixscreen stop          # K1 / K2
+   /userdata/helixscreen/config/helixscreen.init stop # Snapmaker U1
    /etc/init.d/S80helixscreen stop          # AD5M (Klipper Mod, ZMOD)
    /usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen stop   # AD5M (Forge-X)
    chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen stop          # AD5X / Creator 5 (Z-Mod)
@@ -245,7 +247,8 @@ Restart commands:
 
 ```bash
 sudo systemctl restart helixscreen        # Raspberry Pi
-/etc/init.d/S99helixscreen restart        # K1 / K2 / Snapmaker U1
+/etc/init.d/S99helixscreen restart        # K1 / K2
+/userdata/helixscreen/config/helixscreen.init restart # Snapmaker U1
 /etc/init.d/S80helixscreen restart        # AD5M (Klipper Mod, ZMOD)
 /usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen restart   # AD5M (Forge-X)
 chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen restart          # AD5X / Creator 5 (Z-Mod)
@@ -308,7 +311,8 @@ HELIX_TOUCH_DEVICE=/dev/input/event0
 HELIX_DISPLAY_ROTATION=90
 
 # Then restart helix-screen (varies by platform — usually):
-/etc/init.d/S99helixscreen restart   # K1 / K2 / Snapmaker U1
+/etc/init.d/S99helixscreen restart   # K1 / K2
+/userdata/helixscreen/config/helixscreen.init restart # Snapmaker U1
 /etc/init.d/S80helixscreen restart   # AD5M (Klipper Mod, ZMOD)
 /usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen restart   # AD5M (Forge-X)
 chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen restart          # AD5X / Creator 5 (Z-Mod)

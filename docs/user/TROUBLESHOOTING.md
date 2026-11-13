@@ -2099,7 +2099,7 @@ If the result points inside your HelixScreen folder and not into `~/helix_print`
 
 **Option 3: full manual reset over SSH.** Deleting `settings.json` alone does not re-run the wizard: HelixScreen keeps rolling backup copies outside the install directory and restores the most recent one the next time the file is missing. To truly start over:
 
-1. Stop the service (`sudo systemctl stop helixscreen` on Raspberry Pi; `/etc/init.d/S99helixscreen stop` on K1 / K2 / Snapmaker U1; `/etc/init.d/S80helixscreen stop` on AD5M with Klipper Mod or ZMOD; `/usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen stop` on AD5M with Forge-X; `chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen stop` on AD5X and Creator 5 (Z-Mod); `/etc/init.d/helixscreen stop` on CC1)
+1. Stop the service (`sudo systemctl stop helixscreen` on Raspberry Pi; `/etc/init.d/S99helixscreen stop` on K1 / K2; `/userdata/helixscreen/config/helixscreen.init stop` on Snapmaker U1; `/etc/init.d/S80helixscreen stop` on AD5M with Klipper Mod or ZMOD; `/usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen stop` on AD5M with Forge-X; `chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen stop` on AD5X and Creator 5 (Z-Mod); `/etc/init.d/helixscreen stop` on CC1)
 2. Delete the config and every backup copy (the install directory for your platform is in [Config File Locations](guide/touch-calibration.md#config-file-locations), for example `/srv/helixscreen` on FlashForge Z-Mod installs). Drop `sudo` on printers where you are already root (FlashForge, Creality, Snapmaker U1):
    ```bash
    sudo rm -f /srv/helixscreen/config/settings.json   # your install dir here
