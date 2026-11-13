@@ -169,8 +169,6 @@ The card appears only when the heater provides diagnostics. A printer with a pla
 ![The chamber card with a DragonBreath heater's diagnostics](../../images/user/temp-chamber-diagnostics.png)
 
 1. The heating-element temperature.
-2. The filter-fan speed.
-3. The filter-fan switch.
 
 ### Drying Filament in the Chamber
 

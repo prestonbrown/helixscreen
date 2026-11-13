@@ -4,9 +4,8 @@
 
 1. The tab rail (Jog, Move, Bed).
 2. The position readout.
-3. The jog pad.
-4. The home bar.
-5. The Z buttons.
+3. The home bar, under the jog pad.
+4. The Z buttons.
 
 ---
 

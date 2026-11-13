@@ -223,9 +223,8 @@ images:
     markers:
       - {n: 1, widget: motion_tab_rail, at: top_right}
       - {n: 2, widget: header_coords, at: top_right}
-      - {n: 3, widget: jog_pad_container, at: top_right}
-      - {n: 4, widget: motion_home_bar, at: top_right}
-      - {n: 5, widget: z_controls, at: top_right}
+      - {n: 3, widget: motion_home_bar, at: top_right}
+      - {n: 4, widget: z_controls, at: top_right}
   - path: docs/images/user/controls-pid.png
     kind: app
     recipe: pid
@@ -671,8 +670,6 @@ images:
     margin: 12
     markers:
       - {n: 1, widget: element_readout, at: top_right}
-      - {n: 2, widget: filter_fan_readout, at: top_right}
-      - {n: 3, widget: filter_fan_switch, at: top_right}
   - path: docs/images/user/chamber-card-stock.png
     kind: app
     env:
@@ -684,30 +681,8 @@ images:
     crop: chamber_display_card
     margin: 12
     markers:
-      - {n: 1, widget: dryer_row, at: top_right}
+      - {n: 1, widget: dryer_row, at: top_left}
       - {n: 2, widget: dryer_start_button, at: top_right}
-  - path: docs/images/user/fans-chamber-air.png
-    kind: app
-    recipe: fan
-    env:
-      HELIX_MOCK_PRINTER: "snapmaker_u1"
-    crop: chamber_air_row
-    margin: 12
-    markers:
-      - {n: 1, widget: btn_chamber_air_recirculate, at: top_right}
-      - {n: 2, widget: btn_chamber_air_exhaust, at: top_right}
-      - {n: 3, widget: btn_chamber_air_off, at: top_right}
-  - path: docs/images/user/settings-fans-chamber-air.png
-    kind: app
-    recipe: fan-settings
-    env:
-      HELIX_MOCK_PRINTER: "snapmaker_u1"
-    crop: chamber_air_section
-    margin: 12
-    markers:
-      - {n: 1, widget: row_chamber_air_target_c, at: top_right}
-      - {n: 2, widget: row_chamber_air_exhaust_pct, at: top_right}
-      - {n: 3, widget: row_chamber_air_recirculate_pct, at: top_right}
   - path: docs/images/user/filament-tool-select.png
     kind: app
     env:
@@ -732,19 +707,6 @@ images:
       - {n: 1, widget: sync_toggle, at: top_right}
       - {n: 2, widget: interval_dropdown, at: top_right}
       - {n: 3, widget: row_filament_accounting, at: top_right}
-  - path: docs/images/user/sensors-chamber.png
-    kind: app
-    steps:
-      - navigate settings
-      - click row_devices
-      - click row_filament_sensors
-      - wait_idle
-      - scroll temp_sensors_section
-    crop: temp_sensors_section
-    margin: 12
-    markers:
-      - {n: 1, widget: chamber_heater_dropdown, at: top_right}
-      - {n: 2, widget: chamber_sensor_dropdown, at: top_right}
   - path: docs/images/user/label-printer-settings-2.png
     kind: app
     steps:
