@@ -109,12 +109,22 @@ run_gate() {
 }
 
 @test "removing a citation is an improvement at commit and a baseline to lower at a push" {
+    # A shallow clone (CI's checkout) skips the under-baseline verdict, so the gate
+    # runs from a full repository of its own here.
+    unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX
+    local full="$BATS_TEST_TMPDIR/full"
+    mkdir -p "$full/scripts"
+    cp scripts/*.py "$full/scripts/"
+    git -C "$full" init -q
+    git -C "$full" -c user.email=t@example.com -c user.name=t commit -q --allow-empty -m base
     printf 'int x;\n' > "$ROOT/src/clean.cpp"
     printf '1 src/clean.cpp\n' > "$ROOT/base.txt"
-    HELIX_RATCHET_STRICT=0 run_gate
+    HELIX_RATCHET_STRICT=0 run python3 "$full/scripts/check_comment_archaeology.py" \
+        --repo-root "$ROOT" --baseline "$ROOT/base.txt"
     [ "$status" -eq 0 ]
     contains "improved" "$output"
-    HELIX_RATCHET_STRICT=1 run_gate
+    HELIX_RATCHET_STRICT=1 run python3 "$full/scripts/check_comment_archaeology.py" \
+        --repo-root "$ROOT" --baseline "$ROOT/base.txt"
     [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
     contains "src/clean.cpp: 1 -> 0" "$output"
 }
