@@ -491,12 +491,12 @@ void MoonrakerClientMock::populate_capabilities() {
     }
 
     // MMU/AMS system - Happy Hare uses "mmu" object name.
-    // Suppressed in the MedusaHC and toolchanger modes, the standalone IFS module mode,
+    // Suppressed in the MedusaHC, toolchanger and AFC modes, the standalone IFS module mode,
     // the OpenAMS mode and any persona that omits it: "mmu" detects Happy Hare (priority over every
     // other filament system) and would stand the wrong backend up.
     if (mmu_enabled_ && !is_mock_medusahc() && !is_mock_ifs_module() && !is_mock_ifs_jacker() &&
         !is_mock_openams() && !is_mock_indx() && !is_mock_lane_status() &&
-        !mock_toolchanger_selected() && inherits(kHappyHareMmu)) {
+        !mock_toolchanger_selected() && !is_mock_afc_boxturtle() && inherits(kHappyHareMmu)) {
         mock_objects.push_back("mmu");
     }
 
@@ -716,6 +716,12 @@ void MoonrakerClientMock::populate_capabilities() {
     if (is_mock_indx()) {
         read_indx_knobs();
         append_indx_objects(mock_objects);
+    }
+
+    // AFC on one Box Turtle (HELIX_MOCK_AMS=afc): real discovery claims AFC
+    // from these and builds the production AmsBackendAfc.
+    if (is_mock_afc_boxturtle()) {
+        append_afc_boxturtle_objects(mock_objects);
     }
 
     // Lane Status Surface mock hardware (HELIX_MOCK_AMS=lane_status): the

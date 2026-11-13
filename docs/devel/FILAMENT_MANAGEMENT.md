@@ -3420,7 +3420,7 @@ The seed dispatches `handle_status` from the main thread (inside an `UpdateQueue
 | Variable | Values | Default | Description |
 |----------|--------|---------|-------------|
 | `HELIX_AMS_GATES` | 1-16 | 4 | Number of simulated slots |
-| `HELIX_MOCK_AMS` | `afc`, `box_turtle`, `boxturtle`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `ad5x`, `ad5x_ifs`, `htlf_toolchanger`, `htlf_tc`, `htlf`, `snapmaker`, `snapswap`, `u1` | Happy Hare | AMS type to simulate |
+| `HELIX_MOCK_AMS` | `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `ad5x`, `ad5x_ifs`, `htlf_toolchanger`, `htlf_tc`, `htlf`, `snapmaker`, `snapswap`, `u1` | Happy Hare | AMS type to simulate |
 | `HELIX_MOCK_AMS_STATE` | `idle`, `loading`, `error`, `bypass`, `unaccounted`, `grade` | `idle` | Visual scenario to simulate |
 | `HELIX_MOCK_DRYER` | `1`, `true` | Disabled | Simulate integrated dryer |
 | `HELIX_MOCK_DRYER_SPEED` | Integer | 60 | Dryer speed multiplier (60 = 1 real sec = 1 sim min) |
@@ -3431,16 +3431,10 @@ The seed dispatches `handle_status` from the main thread (inside an `UpdateQueue
 HELIX_MOCK_AMS=afc ./build/bin/helix-screen --test
 ```
 
-When AFC mock mode is enabled:
-
-- Reports `AmsType::AFC` with type name "AFC (Mock)"
-- Uses `PathTopology::HUB` (4 lanes merge through hub)
-- Configures 4 lanes with realistic filament data (PLA, PETG, ABS, ASA)
-- Sets AFC's device sections (`afc_default_sections()`)
-- Includes mock device actions: calibration wizard, bowden length slider, speed multipliers, lane tests, blade change, park, brush, motor reset, LED toggle, quiet mode toggle
-- Uses `TipMethod::CUT`
-- Editable endless spool with pre-configured backup mapping
-- Supports auto-heat on load
+Mock hardware, not `AmsBackendMock`: the mock client publishes the objects AFC-Klipper-Add-On
+registers for one Box Turtle (shapes from `tests/fixtures/afc_*.json`) and answers AFC's lane
+commands, so the production `AmsBackendAfc` runs (`src/mock/moonraker_client_mock_afc.cpp`).
+`quattro_box` is still `AmsBackendMock`'s AFC simulation.
 
 ### Mock Mixed Topology Mode
 

@@ -50,15 +50,28 @@ class StatusFrames {
     std::vector<json> frames_;
 };
 
-struct ToolChangerMock : LVGLTestFixture {
-    helix::ScopedEnv ams{"HELIX_MOCK_AMS", "toolchanger"};
+/// A mock client built under one HELIX_MOCK_AMS value, recording its frames.
+struct MockHardware : LVGLTestFixture {
+    helix::ScopedEnv ams;
     helix::ScopedEnv printer{"HELIX_MOCK_PRINTER", nullptr};
     StatusFrames frames;
     std::optional<MoonrakerClientMock> mock;
 
-    ToolChangerMock() {
+    explicit MockHardware(const char* mode) : ams("HELIX_MOCK_AMS", mode) {
         mock.emplace(MoonrakerClientMock::PrinterType::VORON_24, 100.0);
         mock->register_notify_update(frames.callback());
+    }
+};
+
+struct ToolChangerMock : MockHardware {
+    ToolChangerMock() : MockHardware("toolchanger") {}
+};
+
+struct AfcMock : MockHardware {
+    AfcMock() : MockHardware("afc") {}
+
+    json lane(int n) {
+        return mock->afc_boxturtle_status_json()["AFC_stepper lane" + std::to_string(n)];
     }
 };
 
@@ -67,7 +80,8 @@ struct ToolChangerMock : LVGLTestFixture {
 TEST_CASE("mock_hardware_backend: migrated modes run production, the screenshot "
           "topologies stay on the mock backend",
           "[ams][mock]") {
-    for (const char* mode : {"toolchanger", "tool_changer", "tc", "medusahc", "indx", "cfs"}) {
+    for (const char* mode : {"toolchanger", "tool_changer", "tc", "afc", "box_turtle", "boxturtle",
+                             "medusahc", "indx", "cfs"}) {
         CAPTURE(mode);
         CHECK(helix::mock::mock_hardware_backend(mode, nullptr) != nullptr);
     }
@@ -115,4 +129,57 @@ TEST_CASE_METHOD(ToolChangerMock, "toolchanger mock: SELECT_TOOL swaps, UNSELECT
     // A tool the changer does not have is refused, and nothing moves.
     CHECK(mock->gcode_script("SELECT_TOOL T=7") != 0);
     CHECK(mock->toolchanger_tool() == -1);
+}
+
+TEST_CASE_METHOD(AfcMock, "AFC mock: discovery claims AFC on one Box Turtle, lane 1 tooled",
+                 "[ams][mock][afc]") {
+    const helix::PrinterDiscovery hw = mock->hardware();
+    CHECK(hw.mmu_type() == helix::AmsType::AFC);
+    const json status = mock->afc_boxturtle_status_json();
+    CHECK(status["AFC_BoxTurtle Turtle_1"]["lanes"].size() == 4);
+    CHECK(status["AFC"]["current_load"] == "lane1");
+    CHECK(lane(1)["status"] == "Tooled");
+    CHECK(lane(1)["color"] == "#1A1A2E");
+    CHECK(lane(1)["spool_id"] == 1);
+    // Lane 4 is the unlinked, weightless lane.
+    CHECK(lane(4)["spool_id"].is_null());
+    CHECK(lane(4)["weight"].is_null());
+    CHECK(lane(2)["status"] == "Loaded");
+}
+
+TEST_CASE_METHOD(AfcMock, "AFC mock: load, T<n> and unload move the toolhead lane",
+                 "[ams][mock][afc]") {
+    REQUIRE(mock->gcode_script("CHANGE_TOOL LANE=lane3") == 0);
+    CHECK(frames.values("AFC", "current_state").back() == "Loading");
+    process_lvgl(2000);
+    CHECK(mock->afc_boxturtle_status_json()["AFC"]["current_load"] == "lane3");
+    CHECK(lane(3)["tool_loaded"] == true);
+    CHECK(lane(1)["tool_loaded"] == false);
+    CHECK(frames.values("AFC", "current_state").back() == "Idle");
+
+    // T1 resolves through the lane map: lane2 carries T1.
+    REQUIRE(mock->gcode_script("T1") == 0);
+    process_lvgl(2000);
+    CHECK(mock->afc_boxturtle_status_json()["AFC_extruder extruder"]["lane_loaded"] == "lane2");
+
+    REQUIRE(mock->gcode_script("TOOL_UNLOAD") == 0);
+    process_lvgl(2000);
+    CHECK(mock->afc_boxturtle_status_json()["AFC"]["current_load"].is_null());
+
+    CHECK(mock->gcode_script("CHANGE_TOOL LANE=lane9") != 0);
+    CHECK(mock->gcode_script("T7") != 0);
+}
+
+TEST_CASE_METHOD(AfcMock, "AFC mock: lane edits and eject republish the lane", "[ams][mock][afc]") {
+    REQUIRE(mock->gcode_script("SET_COLOR LANE=lane2 COLOR=00FF00") == 0);
+    REQUIRE(mock->gcode_script("SET_MATERIAL LANE=lane2 MATERIAL=PETG") == 0);
+    REQUIRE(mock->gcode_script("SET_MAP LANE=lane2 MAP=T3") == 0);
+    CHECK(lane(2)["color"] == "#00FF00");
+    CHECK(lane(2)["material"] == "PETG");
+    CHECK(lane(2)["map"] == "T3");
+    CHECK(frames.values("AFC_stepper lane2", "color").back() == "#00FF00");
+
+    REQUIRE(mock->gcode_script("LANE_UNLOAD LANE=lane4") == 0);
+    CHECK(lane(4)["status"] == "None");
+    CHECK(lane(4)["prep"] == false);
 }

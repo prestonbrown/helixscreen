@@ -660,9 +660,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             if (objects.contains("lane_status") && self->is_mock_lane_status()) {
                 status_obj["lane_status"] = self->lane_status_json();
             }
-            if (self->is_mock_reforge_afc()) {
-                const auto reforge = self->reforge_afc_status_json();
-                for (const auto& [name, value] : reforge.items()) {
+            {
+                const auto afc = self->afc_status_json();
+                for (const auto& [name, value] : afc.items()) {
                     if (objects.contains(name)) {
                         status_obj[name] = value;
                     }
@@ -1001,9 +1001,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             if (objects.contains("lane_status") && self->is_mock_lane_status()) {
                 status_obj["lane_status"] = self->lane_status_json();
             }
-            if (self->is_mock_reforge_afc()) {
-                const auto reforge = self->reforge_afc_status_json();
-                for (const auto& [name, value] : reforge.items()) {
+            {
+                const auto afc = self->afc_status_json();
+                for (const auto& [name, value] : afc.items()) {
                     if (objects.contains(name)) {
                         status_obj[name] = value;
                     }

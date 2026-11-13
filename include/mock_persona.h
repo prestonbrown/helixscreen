@@ -435,6 +435,9 @@ enum class MedusaVariant {
         {"toolchanger", "tool-changer"},
         {"tool_changer", "tool-changer"},
         {"tc", "tool-changer"},
+        {"afc", "AFC"},
+        {"box_turtle", "AFC"},
+        {"boxturtle", "AFC"},
     };
     if (medusa_variant(mode) != MedusaVariant::NONE) {
         return "tool-changer";

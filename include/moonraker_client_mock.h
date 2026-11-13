@@ -2760,6 +2760,27 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         std::vector<std::array<double, 3>> offsets;
         double global_z = -0.05; ///< save_variables global_z_offset
     };
+    // --- AFC Box Turtle (moonraker_client_mock_afc.cpp), behind afc_mutex_ ---
+    struct AfcLane {
+        std::string name; ///< filament_name, "" when unlinked
+        std::string material;
+        std::string color;
+        int spool_id;  ///< 0 = not linked
+        double weight; ///< < 0 = unknown
+        int map;       ///< T number, -1 = none
+        bool present;  ///< prep/load sensors see filament
+    };
+    mutable std::mutex afc_mutex_;
+    std::vector<AfcLane> afc_lanes_;
+    int afc_loaded_ = -1; ///< lane index in the toolhead, -1 = none
+    std::string afc_state_ = "Idle";
+    /// HELIX_AMS_GATES, clamped to the lanes the mock has spools for.
+    static int afc_lane_count();
+    void init_afc_boxturtle();
+    void append_afc_boxturtle_objects(nlohmann::json& objects) const;
+    /// Publishes `state`, then after a beat the lane (-1 = none) at rest in the toolhead.
+    void afc_move(int lane, const char* state);
+
     // --- Reforge AFC (moonraker_client_mock_reforge.cpp), behind reforge_afc_mutex_ ---
     mutable std::mutex reforge_afc_mutex_;
     /// Per lane e<n>: the T number AFC maps to it.
@@ -2964,6 +2985,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// The configfile sections ff-afc.cfg and ff-print-macros.cfg declare.
     [[nodiscard]] nlohmann::json reforge_afc_config_sections() const;
 
+    // --- AFC on one Box Turtle (HELIX_MOCK_AMS=afc; public for the mock tests) ---
+    bool is_mock_afc_boxturtle() const;
+    /// Every AFC object the Box Turtle mock publishes, keyed as Klipper names them.
+    [[nodiscard]] nlohmann::json afc_boxturtle_status_json() const;
+    /// The AFC objects of whichever AFC mock hardware runs (Box Turtle or Reforge), else {}.
+    [[nodiscard]] nlohmann::json afc_status_json() const;
+
     // --- Bondtech INDX mock hardware (public for the mock tests) ---
     bool is_mock_indx() const;
     /// The simulated extruder target (0 = off).
@@ -3015,6 +3043,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     void seed_tool_lane_records();
     GcodeResult gcode_openams_line(const std::string& gcode);
     GcodeResult gcode_happy_hare(const std::string& gcode);
+    /// AFC's lane commands on the Box Turtle mock (TOOL_LOAD, T<n>, TOOL_UNLOAD, SET_*).
+    GcodeResult gcode_afc_boxturtle(const std::string& gcode);
     /// klipper-toolchanger's SELECT_TOOL and UNSELECT_TOOL in the plain toolchanger mode:
     /// a swap reports "changing", then "ready" on the new tool_number.
     GcodeResult gcode_toolchanger(const std::string& gcode);

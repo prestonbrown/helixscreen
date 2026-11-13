@@ -1453,6 +1453,9 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
     if (is_mock_reforge_afc() && (r = gcode_reforge_afc(g))) {
         return *r;
     }
+    if (is_mock_afc_boxturtle() && (r = gcode_afc_boxturtle(g))) {
+        return *r;
+    }
     if (mock_toolchanger_selected() && !is_mock_reforge_afc() && (r = gcode_toolchanger(g))) {
         return *r;
     }

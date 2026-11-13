@@ -232,6 +232,9 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
         seed_lane_status_records();
     }
     seed_tool_lane_records();
+    if (is_mock_afc_boxturtle()) {
+        init_afc_boxturtle();
+    }
 
     // Filament in the head that no lane claims: what a firmware that lost its
     // loaded-lane record leaves behind.
@@ -2476,9 +2479,7 @@ void MoonrakerClientMock::dispatch_initial_state() {
     if (is_mock_lane_status()) {
         initial_status["lane_status"] = lane_status_json();
     }
-    if (is_mock_reforge_afc()) {
-        initial_status.update(reforge_afc_status_json());
-    }
+    initial_status.update(afc_status_json());
 
     // multiACE mock: the `ace` object and both filament_feed sides at rest, so
     // the production backend's first parse sees what a booted rig reports.

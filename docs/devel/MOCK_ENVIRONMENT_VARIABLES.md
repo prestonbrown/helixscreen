@@ -757,7 +757,7 @@ Select the mock AMS topology/type.
 | *(unset)* | 1 | The persona's default AMS (see **Default**); Happy Hare, LINEAR, 4 slots where the persona has none |
 | `none` | - | No mock AMS at all |
 | `ace` | 1 | Anycubic ACE identity on the mock backend, 4 slots |
-| `afc` | 1 | AFC Box Turtle, HUB, 4 slots. Aliases: `box_turtle`, `boxturtle` |
+| `afc` | 1 | **AFC on one Box Turtle - mock HARDWARE, real backend.** Publishes `AFC`, `AFC_BoxTurtle Turtle_1`, its hub, TurtleNeck buffer, `AFC_extruder extruder` and `AFC_stepper lane1`..`laneN` (`HELIX_AMS_GATES`, up to 8; lane 1 tooled, lane 4 unlinked and weightless) with no `mmu`, and answers `TOOL_LOAD` / `CHANGE_TOOL` / `T<n>` / `TOOL_UNLOAD`, `SET_COLOR` / `SET_MATERIAL` / `SET_WEIGHT` / `SET_SPOOL_ID` / `SET_MAP` and `LANE_UNLOAD`, so real discovery builds the production `AmsBackendAfc`. Aliases: `box_turtle`, `boxturtle` |
 | `quattro_box` | 1 | AFC Quattro Box, HUB; `HELIX_AMS_GATES` sets its lanes. Alias: `quattrobox` |
 | `toolchanger` / `tc` | 1 | **klipper-toolchanger - mock HARDWARE, real backend.** Publishes `toolchanger` and `tool T0`..`tool T3` with no `mmu`, seeds `lane_data` `T0`..`T3` from Spoolman spools 1-4, and answers `SELECT_TOOL` / `UNSELECT_TOOL` with a "changing" then "ready" frame on the new `tool_number`, so real discovery builds the production `AmsBackendToolChanger`. Alias: `tool_changer`; the `creator5` persona's default |
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
