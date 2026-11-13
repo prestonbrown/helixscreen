@@ -1393,7 +1393,7 @@ Select which printer the mock Moonraker client impersonates. Drives the mock's r
 
 | Property | Value |
 |----------|-------|
-| **Values** | see `include/mock_persona.h#kPersonas`: currently `voron_24`, `voron_trident`, `k1`, `k1max`, `ad5m`, `creator5`, `creator5_zmod`, `generic_corexy`, `generic_bedslinger`, `multi_extruder`, `delta`, `snapmaker_u1`, `cc1`, `ad5x`, `k2`. Matched exactly (case-sensitive); an unrecognised value falls back to `voron_24` with a warning listing the valid ids |
+| **Values** | see `include/mock_persona.h#kPersonas`: currently `voron_24`, `voron_trident`, `k1`, `k1max`, `ad5m`, `creator5`, `creator5_zmod`, `creator5_afc`, `generic_corexy`, `generic_bedslinger`, `multi_extruder`, `delta`, `snapmaker_u1`, `cc1`, `ad5x`, `k2`. Matched exactly (case-sensitive); an unrecognised value falls back to `voron_24` with a warning listing the valid ids |
 | **Default** | `voron_24` (Voron 2.4); unset and empty both select it silently |
 | **File** | `include/mock_persona.h` |
 
@@ -1415,6 +1415,9 @@ HELIX_MOCK_PRINTER=creator5 ./build/bin/helix-screen --test -vv
 
 # FlashForge Creator 5 Pro on Z-Mod firmware (mock hardware, real tool changer backend)
 HELIX_MOCK_PRINTER=creator5_zmod ./build/bin/helix-screen --test -vv
+
+# FlashForge Creator 5 Pro on Reforge master: AFC over ff_toolchange (mock hardware, real AFC backend)
+HELIX_MOCK_PRINTER=creator5_afc ./build/bin/helix-screen --test -vv
 
 # Elegoo Centauri Carbon on COSMOS, at the CC1's own 480x272 screen size
 HELIX_MOCK_PRINTER=cc1 ./build/bin/helix-screen --test -s micro -vv
@@ -1515,7 +1518,8 @@ Tool offsets save as on Reforge: the persona refuses `SET_TOOL_PARAMETER` and
 Tool Offsets panel's Save sends `SAVE_CONFIG`, preceded by
 `TOOL_Z_ADJUST TOOL=<n> ADJUST=0 SAVE=1` for a tool whose Z moved
 ([FILAMENT_BACKEND_TOOLCHANGER.md](FILAMENT_BACKEND_TOOLCHANGER.md#reforge)). The
-persona still models Reforge without AFC.
+persona models Reforge's tagged releases, which run no AFC; `creator5_afc` below models
+its master.
 
 The default is the persona's `default_mock_ams` in
 `include/mock_persona.h#descriptor`, applied by
@@ -1525,6 +1529,22 @@ consults so they cannot disagree about what the mock is presenting.
 Build volume is deliberately left at the generic mock value: the Creator 5 Pro's
 real travel limits are not documented in this repo, and detection keys off
 `ff_toolchange`, not the volume.
+
+#### The `creator5_afc` persona
+
+Reforge's master as it ships (Klipper4FlashForge/firmware since the 2026-11-04 AFC
+migration): mock HARDWARE, like `creator5_zmod`, so the production `AmsBackendAfc`
+drives it. Beside the `creator5` hardware it publishes what `ff-afc.cfg` makes AFC
+register: `AFC`, `AFC_Toolchanger Tools`, `AFC_extruder e0..e3` and `AFC_lane e0..e3`,
+one standalone lane per head with `map: T<n>`, and the `[afc_extruder e<n>]
+extruder_name` sections in configfile that tie lane `e<n>` to `extruder<n>`. ff_toolchange
+keeps publishing `toolchanger` and `tool T0..3`, and the persona adds `ff_print` (with its
+`FF_BEFORE_PRINT_START` macro, so the start sequence runs before the file), `ff_tool_offset`,
+printer.base.cfg's 1-based `gcode_button extruder_pos1..4` / `extruder_grab1..4`, and the
+`fm_ex0..3` clog sensors; AFC owns the `fd_ex` presence switches and hides them. `AFC_SELECT_TOOL`,
+`CHANGE_TOOL`, `SET_MAP` and `T<n>` move the mounted head and the map
+(`src/mock/moonraker_client_mock_reforge.cpp`). Tool offsets save the Reforge way, as on
+`creator5`.
 
 #### The `creator5_zmod` persona
 
