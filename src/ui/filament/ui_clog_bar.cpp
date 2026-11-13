@@ -91,10 +91,10 @@ void UiClogBar::relayout() {
             return;
         }
         if (w <= 0) {
-            lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(obj, true);
             return;
         }
-        lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(obj, false);
         lv_obj_set_width(obj, w);
         lv_obj_set_x(obj, x);
     };

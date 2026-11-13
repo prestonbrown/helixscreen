@@ -256,8 +256,8 @@ void arrow_btn_clicked_cb(lv_event_t* e) {
         lv_obj_set_size(data->click_overlay, lv_pct(100), lv_pct(100));
         lv_obj_set_style_bg_opa(data->click_overlay, LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_set_style_border_width(data->click_overlay, 0, LV_PART_MAIN);
-        lv_obj_remove_flag(data->click_overlay, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(data->click_overlay, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_scrollable(data->click_overlay, false);
+        lv_obj_set_clickable(data->click_overlay, true);
         lv_obj_set_user_data(data->click_overlay, sb);
 
         // Move overlay behind the dropdown list but above everything else
@@ -414,7 +414,7 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_set_style_pad_column(sb, 0, LV_PART_MAIN);
     lv_obj_set_flex_flow(sb, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(sb, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_remove_flag(sb, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(sb, false);
 
     // Apply variant style to container
     const char* variant_str = lv_xml_get_value_of(attrs, "variant");
@@ -441,7 +441,7 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     // Using lv_obj instead of lv_button to avoid button's content-based min sizing
     data->main_btn = lv_obj_create(sb);
     lv_obj_set_user_data(data->main_btn, data); // Store data here (sb's user_data is for callers)
-    lv_obj_add_flag(data->main_btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(data->main_btn, true);
     lv_obj_set_style_bg_opa(data->main_btn, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(data->main_btn, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(data->main_btn, 0, LV_PART_MAIN);
@@ -449,7 +449,7 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_set_width(data->main_btn, 0);
     lv_obj_set_style_min_width(data->main_btn, 0, LV_PART_MAIN);
     lv_obj_set_height(data->main_btn, lv_pct(100));
-    lv_obj_remove_flag(data->main_btn, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(data->main_btn, false);
     lv_obj_set_flex_flow(data->main_btn, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(data->main_btn, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
@@ -483,12 +483,12 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
         LV_PART_MAIN);
     lv_obj_set_style_border_width(divider, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(divider, 0, LV_PART_MAIN);
-    lv_obj_remove_flag(divider, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(divider, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(divider, false);
+    lv_obj_set_clickable(divider, false);
 
     // --- Arrow button (ghost, covers full area right of divider) ---
     data->arrow_btn = lv_obj_create(sb);
-    lv_obj_add_flag(data->arrow_btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(data->arrow_btn, true);
     lv_obj_set_style_bg_opa(data->arrow_btn, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(data->arrow_btn, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(data->arrow_btn, 0, LV_PART_MAIN);
@@ -497,7 +497,7 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_set_style_pad_right(data->arrow_btn, theme_manager_get_spacing("space_xs"),
                                LV_PART_MAIN);
     lv_obj_set_size(data->arrow_btn, LV_SIZE_CONTENT, lv_pct(100));
-    lv_obj_remove_flag(data->arrow_btn, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(data->arrow_btn, false);
     lv_obj_set_flex_flow(data->arrow_btn, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(data->arrow_btn, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
@@ -519,7 +519,7 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_set_style_opa(data->dropdown, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(data->dropdown, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(data->dropdown, 0, LV_PART_MAIN);
-    lv_obj_remove_flag(data->dropdown, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(data->dropdown, false);
     lv_dropdown_set_dir(data->dropdown, LV_DIR_BOTTOM);
 
 #if LV_USE_TRANSLATION

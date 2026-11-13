@@ -114,11 +114,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "wifi password modal withdraws Connect while
     REQUIRE(divider != nullptr);
 
     lv_subject_set_int(connecting, 1);
-    CHECK(lv_obj_has_flag(connect, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(divider, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(cancel, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(connect));
+    CHECK(lv_obj_is_hidden(divider));
+    CHECK_FALSE(lv_obj_is_hidden(cancel));
 
     lv_subject_set_int(connecting, 0);
-    CHECK_FALSE(lv_obj_has_flag(connect, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(divider, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(connect));
+    CHECK_FALSE(lv_obj_is_hidden(divider));
 }

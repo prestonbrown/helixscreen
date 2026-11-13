@@ -725,7 +725,7 @@ void BeltTensionPanel::on_error(const std::string& message) {
     spdlog::warn("[BeltTension] Error: {}", message);
     cancel_run();
     snprintf(error_message_buf_, sizeof(error_message_buf_), "%s", message.c_str());
-    lv_subject_copy_string(&error_message_subject_, error_message_buf_);
+    lv_subject_set_string(&error_message_subject_, error_message_buf_);
     set_view_state(ViewState::ERROR);
 }
 
@@ -823,7 +823,7 @@ void BeltTensionPanel::set_identify_status(int state, const std::string& text) {
         return;
     }
     snprintf(identify_status_buf_, sizeof(identify_status_buf_), "%s", text.c_str());
-    lv_subject_copy_string(&identify_status_subject_, identify_status_buf_);
+    lv_subject_set_string(&identify_status_subject_, identify_status_buf_);
     lv_subject_set_int(&identify_state_subject_, state);
 }
 
@@ -855,7 +855,7 @@ void BeltTensionPanel::refresh_names() {
         return;
     }
     for (int slot = 0; slot < 2; ++slot) {
-        lv_subject_copy_string(
+        lv_subject_set_string(
             &slot_name_subject_[slot],
             helix::ui::belt_path_name(helix::ui::belt_path_in_slot(slot)).title.c_str());
     }
@@ -1028,7 +1028,7 @@ void BeltTensionPanel::start_settle() {
     settling_ = true;
     const uint32_t generation = ++settle_generation_;
     lv_subject_set_int(&running_path_subject_, 2); // neither path's colour
-    lv_subject_copy_string(&run_title_subject_, lv_tr("Settling belts"));
+    lv_subject_set_string(&run_title_subject_, lv_tr("Settling belts"));
     refresh_run_detail();
     refresh_notes();
 
@@ -1276,19 +1276,19 @@ void BeltTensionPanel::populate_results(const helix::calibration::BeltComparison
         break;
     }
     snprintf(verdict_text_buf_, sizeof(verdict_text_buf_), "%s", verdict_label);
-    lv_subject_copy_string(&verdict_text_subject_, verdict_text_buf_);
+    lv_subject_set_string(&verdict_text_subject_, verdict_text_buf_);
 
     snprintf(similarity_buf_, sizeof(similarity_buf_), "%.0f%%",
              static_cast<double>(cmp.similarity_percent));
-    lv_subject_copy_string(&similarity_subject_, similarity_buf_);
+    lv_subject_set_string(&similarity_subject_, similarity_buf_);
     similarity_percent_ = cmp.similarity_percent;
 
     refresh_peak_lines(cmp);
 
-    lv_subject_copy_string(&tune_cta_subject_,
-                           cmp.verdict == helix::calibration::BeltVerdict::MATCHED
-                               ? lv_tr("Fine-tune")
-                               : lv_tr("Tune Belts"));
+    lv_subject_set_string(&tune_cta_subject_,
+                          cmp.verdict == helix::calibration::BeltVerdict::MATCHED
+                              ? lv_tr("Fine-tune")
+                              : lv_tr("Tune Belts"));
 
     push_chart_markers(cmp);
     refresh_notes();
@@ -1312,7 +1312,7 @@ void BeltTensionPanel::refresh_peak_lines(const helix::calibration::BeltComparis
                            : fmt::format(fmt::runtime(lv_tr("Peaks {} Hz")), pair_list)) +
         tune_facts_suffix_;
     snprintf(facts_buf_, sizeof(facts_buf_), "%s", facts.c_str());
-    lv_subject_copy_string(&facts_subject_, facts_buf_);
+    lv_subject_set_string(&facts_subject_, facts_buf_);
 
     // Unpaired peaks, the strongest few per path, in frequency order:
     // "Only on Path A: 120, 129 Hz".
@@ -1347,7 +1347,7 @@ void BeltTensionPanel::refresh_peak_lines(const helix::calibration::BeltComparis
                                 join_freqs(only));
     }
     snprintf(unpaired_buf_, sizeof(unpaired_buf_), "%s", unpaired.c_str());
-    lv_subject_copy_string(&unpaired_subject_, unpaired_buf_);
+    lv_subject_set_string(&unpaired_subject_, unpaired_buf_);
     lv_subject_set_int(&has_unpaired_subject_, unpaired.empty() ? 0 : 1);
 }
 
@@ -1436,7 +1436,7 @@ void BeltTensionPanel::refresh_notes() {
         }
 
         snprintf(slot_note_buf_[slot], sizeof(slot_note_buf_[slot]), "%s", note.c_str());
-        lv_subject_copy_string(&slot_note_subject_[slot], slot_note_buf_[slot]);
+        lv_subject_set_string(&slot_note_subject_[slot], slot_note_buf_[slot]);
     }
 }
 
@@ -1447,7 +1447,7 @@ void BeltTensionPanel::refresh_similarity_was() {
         was = fmt::format(fmt::runtime(lv_tr("was {:.0f}%")), was_similarity_percent_);
     }
     snprintf(similarity_was_buf_, sizeof(similarity_was_buf_), "%s", was.c_str());
-    lv_subject_copy_string(&similarity_was_subject_, similarity_was_buf_);
+    lv_subject_set_string(&similarity_was_subject_, similarity_was_buf_);
     lv_subject_set_int(&has_similarity_was_subject_, was.empty() ? 0 : 1);
 }
 
@@ -1466,8 +1466,8 @@ void BeltTensionPanel::refresh_run_title() {
     }
     // A single-path run is a re-test: the path already has a result.
     const char* title = run_queue_total_ == 1 ? lv_tr("Re-measuring {}") : lv_tr("Measuring {}");
-    lv_subject_copy_string(&run_title_subject_,
-                           fmt::format(fmt::runtime(title), path_phrase(queue_.front())).c_str());
+    lv_subject_set_string(&run_title_subject_,
+                          fmt::format(fmt::runtime(title), path_phrase(queue_.front())).c_str());
 }
 
 void BeltTensionPanel::refresh_run_detail() {
@@ -1483,7 +1483,7 @@ void BeltTensionPanel::refresh_run_detail() {
                              (lv_tick_get() - run_started_ms_) / 1000 % 60)
                      .c_str());
     }
-    lv_subject_copy_string(&run_detail_subject_, run_detail_buf_);
+    lv_subject_set_string(&run_detail_subject_, run_detail_buf_);
 }
 
 void BeltTensionPanel::start_elapsed_timer() {
@@ -1924,15 +1924,15 @@ void BeltTensionPanel::refresh_tune() {
                                                    : lv_tr("Loosen {}")),
                                   adj_name);
     }
-    lv_subject_copy_string(&tune_instruction_subject_, instruction.c_str());
+    lv_subject_set_string(&tune_instruction_subject_, instruction.c_str());
 
     std::string amount;
     if (screw && stage == BeltTuneStage::TUNE) {
         amount = tune_turns_ > 0.0f ? format_turn_amount(tune_turns_) : lv_tr("Not turned");
     }
-    lv_subject_copy_string(&tune_amount_subject_, amount.c_str());
-    lv_subject_copy_string(&tune_gap_subject_,
-                           has_gap ? fmt::format("{:.1f} Hz", std::abs(gap)).c_str() : "--");
+    lv_subject_set_string(&tune_amount_subject_, amount.c_str());
+    lv_subject_set_string(&tune_gap_subject_,
+                          has_gap ? fmt::format("{:.1f} Hz", std::abs(gap)).c_str() : "--");
 
     std::string caption;
     if (has_gap) {
@@ -1942,27 +1942,27 @@ void BeltTensionPanel::refresh_tune() {
                                                             : lv_tr("{} is tighter")),
                                     path_title(adj));
     }
-    lv_subject_copy_string(&tune_gap_caption_subject_, caption.c_str());
+    lv_subject_set_string(&tune_gap_caption_subject_, caption.c_str());
 
     const int rounds = t.total_rounds();
-    lv_subject_copy_string(
+    lv_subject_set_string(
         &tune_round_subject_,
         fmt::format(fmt::runtime(lv_tr("Round {}")),
                     tune_phase_ == TunePhase::MATCHED ? std::max(1, rounds) : rounds + 1)
             .c_str());
-    lv_subject_copy_string(&tune_zone_subject_,
-                           zone ? fmt::format(fmt::runtime(lv_tr("Zone {:.0f}-{:.0f} Hz")),
-                                              zone->window.freq_start_hz, zone->window.freq_end_hz)
-                                      .c_str()
-                                : "");
+    lv_subject_set_string(&tune_zone_subject_,
+                          zone ? fmt::format(fmt::runtime(lv_tr("Zone {:.0f}-{:.0f} Hz")),
+                                             zone->window.freq_start_hz, zone->window.freq_end_hz)
+                                     .c_str()
+                               : "");
     const auto rate = t.hz_per_turn();
-    lv_subject_copy_string(
+    lv_subject_set_string(
         &tune_rate_subject_,
         screw && rate ? fmt::format(fmt::runtime(lv_tr("~{:.1f} Hz / turn")), *rate).c_str() : "");
     const std::string last = tune_last_message();
-    lv_subject_copy_string(&tune_last_subject_, last.c_str());
+    lv_subject_set_string(&tune_last_subject_, last.c_str());
     lv_subject_set_int(&tune_has_last_subject_, last.empty() ? 0 : 1);
-    lv_subject_copy_string(
+    lv_subject_set_string(
         &tune_hint_subject_,
         unrepeatable ? lv_tr("These readings aren't repeatable, so tuning can't be steered. Check "
                              "the mechanics first.")
@@ -1980,34 +1980,34 @@ void BeltTensionPanel::refresh_tune() {
             path_title(power->stronger), path_phrase(other_path(power->stronger)), power->freq_hz);
     }
     snprintf(tune_power_hint_buf_, sizeof(tune_power_hint_buf_), "%s", power_line.c_str());
-    lv_subject_copy_string(&tune_power_hint_subject_, tune_power_hint_buf_);
+    lv_subject_set_string(&tune_power_hint_subject_, tune_power_hint_buf_);
     lv_subject_set_int(&tune_has_power_hint_subject_, power ? 1 : 0);
 
-    lv_subject_copy_string(
+    lv_subject_set_string(
         &tune_tensioner_subject_,
         fmt::format(fmt::runtime(lv_tr("Tensioner: {}")), path_title(adj)).c_str());
 
     const auto swept = t.sweep_window();
-    lv_subject_copy_string(
+    lv_subject_set_string(
         &tune_measure_label_subject_,
         calibrating
             ? fmt::format(fmt::runtime(lv_tr("Measure (~{} min)")), full_check_minutes()).c_str()
             : fmt::format(fmt::runtime(lv_tr("Re-measure (~{} min)")),
                           swept ? round_minutes(*swept, tune_round_pairs()) : 1)
                   .c_str());
-    lv_subject_copy_string(&tune_measure_short_label_subject_,
-                           calibrating ? lv_tr("Measure") : lv_tr("Re-measure"));
+    lv_subject_set_string(&tune_measure_short_label_subject_,
+                          calibrating ? lv_tr("Measure") : lv_tr("Re-measure"));
     // Next zone sweeps at once: its baseline pair over the next zone's sweep window.
     const auto next = t.peek_next_zone();
-    lv_subject_copy_string(&tune_next_zone_label_subject_,
-                           next ? fmt::format(fmt::runtime(lv_tr("Next Zone (~{} min)")),
-                                              round_minutes(helix::calibration::zone_sweep_window(
-                                                                next->window, sweep_cfg_.min_freq,
-                                                                sweep_cfg_.max_freq),
-                                                            2))
-                                      .c_str()
-                                : "");
-    lv_subject_copy_string(
+    lv_subject_set_string(&tune_next_zone_label_subject_,
+                          next ? fmt::format(fmt::runtime(lv_tr("Next Zone (~{} min)")),
+                                             round_minutes(helix::calibration::zone_sweep_window(
+                                                               next->window, sweep_cfg_.min_freq,
+                                                               sweep_cfg_.max_freq),
+                                                           2))
+                                     .c_str()
+                               : "");
+    lv_subject_set_string(
         &tune_confirm_label_subject_,
         fmt::format(fmt::runtime(lv_tr("Confirm (full, ~{} min)")), full_check_minutes()).c_str());
 
@@ -2155,18 +2155,18 @@ void BeltTensionPanel::refresh_gate() {
     if (gate == helix::calibration::BeltGate::NOT_COREXY && !detected_hw_.kinematics_name.empty()) {
         // Name what the printer is, so the user can tell a wrong machine from
         // a missing detection.
-        lv_subject_copy_string(&gate_message_subject_,
-                               fmt::format(lv_tr("Belt Tension needs a CoreXY printer. "
-                                                 "This one is {}."),
-                                           detected_hw_.kinematics_name)
-                                   .c_str());
+        lv_subject_set_string(&gate_message_subject_,
+                              fmt::format(lv_tr("Belt Tension needs a CoreXY printer. "
+                                                "This one is {}."),
+                                          detected_hw_.kinematics_name)
+                                  .c_str());
     } else if (gate == helix::calibration::BeltGate::OK && calibrator_ &&
                calibrator_->get_state() ==
                    helix::calibration::BeltTensionCalibrator::State::BUZZING) {
-        lv_subject_copy_string(&gate_message_subject_, lv_tr("Wait for the motor to stop"));
+        lv_subject_set_string(&gate_message_subject_, lv_tr("Wait for the motor to stop"));
     } else {
-        lv_subject_copy_string(&gate_message_subject_,
-                               lv_tr(helix::calibration::belt_gate_message(gate)));
+        lv_subject_set_string(&gate_message_subject_,
+                              lv_tr(helix::calibration::belt_gate_message(gate)));
     }
     spdlog::debug("[BeltTension] gate = {}", helix::calibration::belt_gate_message(gate));
 
@@ -2277,7 +2277,7 @@ void BeltTensionPanel::refresh_hw_sweep() {
              fmt::format(lv_tr("{:.0f}-{:.0f} Hz · about {} min"), sweep_cfg_.min_freq,
                          sweep_cfg_.max_freq, full_check_minutes())
                  .c_str());
-    lv_subject_copy_string(&hw_sweep_subject_, hw_sweep_buf_);
+    lv_subject_set_string(&hw_sweep_subject_, hw_sweep_buf_);
 }
 
 // ============================================================================

@@ -227,9 +227,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                 lv_obj_t* const row = lv_obj_find_by_name(root, name);
                 REQUIRE(row != nullptr);
                 if (compact) {
-                    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+                    CHECK(lv_obj_is_hidden(row));
                 } else {
-                    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+                    CHECK_FALSE(lv_obj_is_hidden(row));
                 }
             }
         }
@@ -343,11 +343,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_t* const card = lv_obj_find_by_name(root, "options_card");
     REQUIRE(card != nullptr);
-    CHECK(lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(card));
 
     lv_obj_t* const print = lv_obj_find_by_name(root, "print_button");
     REQUIRE(print != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(print, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(print));
     const Rect r = coords_of(print);
     CHECK(r.x1 >= 0);
     CHECK(r.y1 >= 0);
@@ -423,11 +423,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         REQUIRE(skeleton != nullptr);
         lv_subject_set_int(ready, 1);
         lv_obj_update_layout(root);
-        REQUIRE_FALSE(lv_obj_has_flag(chips, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(chips));
         const Rect chips_r = coords_of(chips);
         lv_subject_set_int(ready, 0);
         lv_obj_update_layout(root);
-        REQUIRE_FALSE(lv_obj_has_flag(skeleton, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(skeleton));
         const Rect skel_r = coords_of(skeleton);
         CHECK(skel_r.x1 == chips_r.x1);
         CHECK(skel_r.y1 == chips_r.y1);

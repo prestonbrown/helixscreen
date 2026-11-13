@@ -540,8 +540,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - SHUTDOWN shows all button
     REQUIRE(dismiss_btn != nullptr);
 
     // All buttons visible for SHUTDOWN (can restart)
-    REQUIRE_FALSE(lv_obj_has_flag(restart_row, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE_FALSE(lv_obj_has_flag(dismiss_btn, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(restart_row));
+    REQUIRE_FALSE(lv_obj_is_hidden(dismiss_btn));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - DISCONNECTED hides restart buttons",
@@ -562,11 +562,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - DISCONNECTED hides restar
 
     // Restart row hidden when disconnected (can't restart). Hiding the wrapper takes
     // modal_button_row's leading divider with it, so no orphaned rule is left behind.
-    REQUIRE(lv_obj_has_flag(restart_row, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(restart_row));
 
     // The close X is always visible, and with the restart row hidden it is the
     // only way out, so it must actually close the dialog.
-    REQUIRE_FALSE(lv_obj_has_flag(dismiss_btn, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(dismiss_btn));
     lv_obj_send_event(dismiss_btn, LV_EVENT_CLICKED, nullptr);
     process_lvgl(50);
     CHECK(lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card") == nullptr);
@@ -607,14 +607,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - SHUTDOWN then DISCONNECTE
 
     lv_obj_t* restart_row = lv_obj_find_by_name(dialog, "recovery_restart_actions");
     REQUIRE(restart_row != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(restart_row, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(restart_row));
 
     // Connection drops - DISCONNECTED fires, buttons should update
     estop.show_recovery_for(RecoveryReason::DISCONNECTED);
     process_lvgl(50);
 
     // Restart row should now be hidden
-    REQUIRE(lv_obj_has_flag(restart_row, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(restart_row));
 }
 
 // ============================================================================
@@ -714,7 +714,7 @@ std::string recovery_texts(lv_obj_t* dialog, std::string& out_code) {
     REQUIRE(message != nullptr);
     lv_obj_t* code = lv_obj_find_by_name(dialog, "recovery_code");
     REQUIRE(code != nullptr);
-    out_code = lv_obj_has_flag(code, LV_OBJ_FLAG_HIDDEN) ? "" : lv_label_get_text(code);
+    out_code = lv_obj_is_hidden(code) ? "" : lv_label_get_text(code);
     return lv_label_get_text(message);
 }
 

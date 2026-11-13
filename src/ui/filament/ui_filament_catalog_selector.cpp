@@ -405,9 +405,9 @@ void FilamentCatalogSelector::sync_type_group_visibility() {
     // names are process-global — a bound subject would toggle the type
     // dropdown of every live selector (picker modal + AMS editor) in lockstep.
     if (is_favorites_vendor(current_vendor())) {
-        lv_obj_add_flag(group, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(group, true);
     } else {
-        lv_obj_remove_flag(group, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(group, false);
     }
 }
 

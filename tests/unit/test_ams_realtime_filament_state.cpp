@@ -302,7 +302,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Per-slot LIVE subjects notify observers on se
     CHECK(fire_count > baseline); // observer fired → panel would redraw the lane
     CHECK(last_value == 0);
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
     ams.clear_backends();
     ams.deinit_subjects();
 }
@@ -357,7 +357,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Active-loaded subject is the single highlight
     CHECK(fire_count > baseline); // badge observer fired → highlight drops
     CHECK(last_value == 0);
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
     ams.clear_backends();
     ams.deinit_subjects();
 }

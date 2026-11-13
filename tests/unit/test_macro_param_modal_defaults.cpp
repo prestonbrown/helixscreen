@@ -144,11 +144,11 @@ TEST_CASE_METHOD(SaveModeFixture, "Save mode shows the defaults furniture and hi
                  "[macro][macro_params][macro_param_defaults_modal]") {
     show_defaults({});
 
-    CHECK(lv_obj_has_flag(widget("modal_title"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(widget("modal_title_save"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(widget("run_button_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(widget("save_button_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(widget("save_extras"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(widget("modal_title")));
+    CHECK_FALSE(lv_obj_is_hidden(widget("modal_title_save")));
+    CHECK(lv_obj_is_hidden(widget("run_button_row")));
+    CHECK_FALSE(lv_obj_is_hidden(widget("save_button_row")));
+    CHECK_FALSE(lv_obj_is_hidden(widget("save_extras")));
     lv_obj_t* ask = widget("ask_row");
     CHECK(lv_obj_has_state(lv_obj_find_by_name(ask, "toggle"), LV_STATE_CHECKED));
 }
@@ -157,11 +157,11 @@ TEST_CASE_METHOD(SaveModeFixture, "Run mode shows none of the save-mode furnitur
                  "[macro][macro_params][macro_param_defaults_modal]") {
     show_run();
 
-    CHECK_FALSE(lv_obj_has_flag(widget("modal_title"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(widget("modal_title_save"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(widget("run_button_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(widget("save_button_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(widget("save_extras"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(widget("modal_title")));
+    CHECK(lv_obj_is_hidden(widget("modal_title_save")));
+    CHECK_FALSE(lv_obj_is_hidden(widget("run_button_row")));
+    CHECK(lv_obj_is_hidden(widget("save_button_row")));
+    CHECK(lv_obj_is_hidden(widget("save_extras")));
 }
 
 TEST_CASE_METHOD(SaveModeFixture, "Saved values prefill the fields and Save hands back the record",
@@ -240,7 +240,7 @@ TEST_CASE_METHOD(SaveModeFixture, "An UNKNOWN macro's saved values prefill one f
     show_unknown_defaults({{"PURGE", "1"}, {"LANE", "lane2"}}, /*ask=*/false);
 
     CHECK(field_texts() == std::vector<std::string>{"LANE=lane2 PURGE=1"});
-    CHECK_FALSE(lv_obj_has_flag(widget("save_extras"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(widget("save_extras")));
     CHECK_FALSE(
         lv_obj_has_state(lv_obj_find_by_name(widget("ask_row"), "toggle"), LV_STATE_CHECKED));
 }

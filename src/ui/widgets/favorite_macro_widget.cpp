@@ -164,7 +164,7 @@ void FavoriteMacroWidget::update_display() {
     // Unconfigured shows the component's own "Configure" label, which
     // re-translates itself.
     if (!unconfigured) {
-        lv_subject_copy_string(
+        lv_subject_set_string(
             &name_subject_, helix::get_display_name(macro_name_, helix::DeviceType::MACRO).c_str());
     }
     lv_subject_set_int(&named_subject_, unconfigured ? 0 : 1);

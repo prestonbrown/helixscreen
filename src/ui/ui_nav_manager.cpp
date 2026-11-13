@@ -189,7 +189,7 @@ void NavigationManager::clear_overlay_stack() {
     // Hide all overlay panels immediately (no animation for connection loss)
     while (panel_stack_.size() > 1) {
         lv_obj_t* overlay = panel_stack_.back();
-        lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(overlay, true);
         reset_overlay_transform(overlay);
 
         // Deactivate the overlay to stop background work (camera, timers, etc.)
@@ -477,7 +477,7 @@ void NavigationManager::switch_to_panel_impl(int panel_id) {
     if (screen) {
         for (uint32_t i = 0; i < lv_obj_get_child_count(screen); i++) {
             lv_obj_t* child = lv_obj_get_child(screen, static_cast<int32_t>(i));
-            if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(child)) {
                 continue;
             }
 
@@ -488,7 +488,7 @@ void NavigationManager::switch_to_panel_impl(int panel_id) {
             }
 
             if (!panels_.is_main_panel(child)) {
-                lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(child, true);
                 reset_overlay_transform(child);
                 spdlog::trace("[NavigationManager] Hiding overlay panel {} (nav button clicked)",
                               (void*)child);
@@ -552,7 +552,7 @@ void NavigationManager::switch_to_panel_impl(int panel_id) {
     // Show the clicked panel
     lv_obj_t* new_panel = panels_.widget(static_cast<int>(panel_id));
     if (new_panel) {
-        lv_obj_remove_flag(new_panel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(new_panel, false);
         panel_stack_.push_back(new_panel);
         spdlog::trace("[NavigationManager] Showing panel {} (stack depth: {})", (void*)new_panel,
                       panel_stack_.size());
@@ -1382,11 +1382,11 @@ void NavigationManager::push_overlay(lv_obj_t* overlay_panel, bool hide_previous
             is_first_overlay && !is_destination && mgr.backdrop_.primary_is_dim_layer();
         if (hide_previous && !mgr.panel_stack_.empty() && !base_shows_through) {
             lv_obj_t* current_top = mgr.panel_stack_.back();
-            lv_obj_add_flag(current_top, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(current_top, true);
         }
 
         // Show overlay
-        lv_obj_remove_flag(overlay_panel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(overlay_panel, false);
         helix::ui::bring_to_front(overlay_panel);
         // Modals stay above any overlay, including one pushed while they show.
         ModalStack::instance().raise_visible_to_foreground();
@@ -1395,7 +1395,7 @@ void NavigationManager::push_overlay(lv_obj_t* overlay_panel, bool hide_previous
         // dismiss-backdrop. Without this, a touch that misses an interactive
         // child (a gap between buttons, padding) falls through to the backdrop
         // and dismisses the whole overlay (#1066).
-        lv_obj_add_flag(overlay_panel, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(overlay_panel, true);
         mgr.ensure_delete_hook(overlay_panel);
         mgr.panel_stack_.push_back(overlay_panel);
         mgr.overlay_animate_slide_in(overlay_panel);
@@ -1585,9 +1585,8 @@ void NavigationManager::go_back_now() {
                     ModalStack::instance().backdrop_for_backdrop(child)) {
                     continue;
                 }
-                if (!mgr.panels_.is_main_panel(child) &&
-                    !lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
-                    lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+                if (!mgr.panels_.is_main_panel(child) && !lv_obj_is_hidden(child)) {
+                    lv_obj_set_hidden(child, true);
                     reset_overlay_transform(child);
                 }
             }
@@ -1603,7 +1602,7 @@ void NavigationManager::go_back_now() {
             spdlog::trace("[NavigationManager] go_back stack empty, falling back to HOME");
             mgr.panels_.show_only(-1);
             if (lv_obj_t* home = mgr.panels_.widget(static_cast<int>(PanelId::Home))) {
-                lv_obj_remove_flag(home, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(home, false);
                 mgr.panel_stack_.push_back(home);
                 mgr.active_panel_ = PanelId::Home;
                 lv_subject_set_int(&mgr.active_panel_subject_, static_cast<int>(PanelId::Home));
@@ -1620,7 +1619,7 @@ void NavigationManager::go_back_now() {
             mgr.active_panel_ = static_cast<PanelId>(prev_idx);
             lv_subject_set_int(&mgr.active_panel_subject_, prev_idx);
         }
-        lv_obj_remove_flag(prev, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(prev, false);
 
         // Lifecycle: re-activate what the close restored — the main panel or the
         // overlay beneath. Runs LAST, after the un-hide above, so an
@@ -1867,8 +1866,7 @@ bool is_push_pending(lv_obj_t* panel) {
 }
 
 bool is_showing(lv_obj_t* panel) {
-    return panel && (is_in_stack(panel) || is_push_pending(panel) ||
-                     !lv_obj_has_flag(panel, LV_OBJ_FLAG_HIDDEN));
+    return panel && (is_in_stack(panel) || is_push_pending(panel) || !lv_obj_is_hidden(panel));
 }
 
 } // namespace helix::nav

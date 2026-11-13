@@ -173,7 +173,7 @@ bool PrinterSwitchFlow::confirm_pending() {
     auto& stack = ModalStack::instance();
     lv_obj_t* backdrop = stack.backdrop_for(m_confirm_dialog);
     if (backdrop && !stack.is_exiting(backdrop)) {
-        if (!lv_obj_has_flag(backdrop, LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(backdrop)) {
             return true;
         }
         // Hidden but still stacked, it would keep ModalStack non-empty and hold back

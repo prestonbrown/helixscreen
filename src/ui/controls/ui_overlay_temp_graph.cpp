@@ -576,8 +576,8 @@ void TempGraphOverlay::create_chips() {
         lv_obj_set_flex_align(chip, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                               LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_gap(chip, theme_manager_get_spacing("space_xxs"), 0);
-        lv_obj_remove_flag(chip, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(chip, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_scrollable(chip, false);
+        lv_obj_set_clickable(chip, true);
 
         // Color dot
         lv_obj_t* dot = lv_obj_create(chip);
@@ -587,7 +587,7 @@ void TempGraphOverlay::create_chips() {
         helix::ui::apply_swatch_color(dot, lv_color_to_u32(s.color) & 0xFFFFFF, "");
         lv_obj_remove_flag(
             dot, static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE));
-        lv_obj_add_flag(dot, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_set_event_bubble(dot, true);
 
         // Label — strip redundant " Temperature" suffix for chip brevity
         std::string chip_label = s.display_name;
@@ -600,8 +600,8 @@ void TempGraphOverlay::create_chips() {
         lv_label_set_text(label, chip_label.c_str());
         lv_obj_set_style_text_font(label, theme_manager_get_font("font_small"), 0);
         lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
-        lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(label, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_set_clickable(label, false);
+        lv_obj_set_event_bubble(label, true);
 
         // Store index as user data for click handler
         lv_obj_set_user_data(chip, reinterpret_cast<void*>(i));
@@ -781,7 +781,7 @@ void TempGraphOverlay::configure_control_strip() {
             const bool show = !c || c->preset_visible(heater_type, preset_values[i]);
             lv_subject_set_int(&chamber_preset_visible_subjects_[i], show ? 1 : 0);
             if (i >= 1 && i <= 3) {
-                lv_subject_copy_string(&chamber_preset_text_subjects_[i - 1],
+                lv_subject_set_string(&chamber_preset_text_subjects_[i - 1],
                                        helix::units::format_display_temp(preset_values[i]).c_str());
             }
         }
@@ -1008,8 +1008,8 @@ void TempGraphOverlay::rebuild_extruder_selector() {
         // Rounded rectangle rather than a full-circle pill.
         lv_obj_set_style_radius(btn, pill_radius, 0);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
-        lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_scrollable(btn, false);
+        lv_obj_set_clickable(btn, true);
 
         // Highlight the pill the card is displaying - the pick, or the
         // machine's active tool when no pick is held.
@@ -1040,8 +1040,8 @@ void TempGraphOverlay::rebuild_extruder_selector() {
                                                                  theme_manager_get_color("primary"))
                       : theme_manager_get_color("text"),
             0);
-        lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(label, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_set_clickable(label, false);
+        lv_obj_set_event_bubble(label, true);
         lv_obj_center(label); // center the digit within the grown pill
 
         // Store name as obj name for lookup in callback
@@ -1207,7 +1207,7 @@ void TempGraphOverlay::update_nozzle_card_status() {
         lv_subject_get_int(&nozzle_card_target_subject_), nozzle_card_power_,
         helix::ChamberMode::Heating);
     lv_subject_set_int(&nozzle_card_status_state_subject_, static_cast<int>(status.state));
-    lv_subject_copy_string(&nozzle_card_status_subject_, status.duty.c_str());
+    lv_subject_set_string(&nozzle_card_status_subject_, status.duty.c_str());
 }
 
 void TempGraphOverlay::publish_nozzle_badge() {
@@ -1221,10 +1221,10 @@ void TempGraphOverlay::publish_nozzle_badge() {
     const auto& extruders = temp_state.extruders();
     auto it = extruders.find(displayed_extruder_name());
     if (it == extruders.end()) {
-        lv_subject_copy_string(&nozzle_badge_subject_, "");
+        lv_subject_set_string(&nozzle_badge_subject_, "");
         return;
     }
     auto number = extruder_number_token(it->second.display_name);
     std::string text(number);
-    lv_subject_copy_string(&nozzle_badge_subject_, text.c_str());
+    lv_subject_set_string(&nozzle_badge_subject_, text.c_str());
 }

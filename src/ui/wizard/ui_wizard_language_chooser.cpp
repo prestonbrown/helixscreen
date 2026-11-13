@@ -275,14 +275,14 @@ void WizardLanguageChooserStep::animate_crossfade(const char* new_text) {
     lv_obj_t* welcome_header = helix::ui::find_required(screen_root_, "welcome_header", get_name());
     if (!welcome_header) {
         // Fallback: just update the subject directly
-        lv_subject_copy_string(&welcome_text_, new_text);
+        lv_subject_set_string(&welcome_text_, new_text);
         return;
     }
 
     // Check if animations are enabled
     if (!DisplaySettingsManager::instance().get_animations_enabled()) {
         // No animation: just update the text immediately
-        lv_subject_copy_string(&welcome_text_, new_text);
+        lv_subject_set_string(&welcome_text_, new_text);
         return;
     }
 
@@ -314,7 +314,7 @@ void WizardLanguageChooserStep::animate_crossfade(const char* new_text) {
 
         if (ctx && ctx->step) {
             // Update the text while invisible
-            lv_subject_copy_string(ctx->step->get_welcome_text_subject(), ctx->new_text);
+            lv_subject_set_string(ctx->step->get_welcome_text_subject(), ctx->new_text);
 
             // Fade in animation (opacity: 0 -> 255)
             lv_anim_t fade_in;
@@ -408,7 +408,7 @@ void WizardLanguageChooserStep::cleanup() {
     }
 
     // Reset UI references
-    // Note: Do NOT call lv_obj_del() here - the wizard framework handles
+    // Note: Do NOT call lv_obj_delete() here - the wizard framework handles
     // object deletion when clearing wizard_content container
     screen_root_ = nullptr;
 

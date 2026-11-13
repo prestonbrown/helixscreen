@@ -755,7 +755,7 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: version observer fires on
     REQUIRE(user_data[0] >= 2);
     REQUIRE(user_data[1] > before);
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
     ctrl.deinit();
 }
 

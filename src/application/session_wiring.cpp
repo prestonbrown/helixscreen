@@ -208,7 +208,7 @@ lv_obj_t* create_app_layout(lv_obj_t* screen,
         return nullptr;
     }
     laps.lap("app_layout");
-    lv_obj_remove_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(screen, false);
     lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_OFF);
     lv_obj_update_layout(screen);
     NavigationManager::instance().set_app_layout(app_layout);

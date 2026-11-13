@@ -53,7 +53,7 @@ static void set_xml_subject(const char* name, int value) {
 static void set_xml_subject_str(const char* name, const char* value) {
     lv_subject_t* subject = lv_xml_get_subject(NULL, name);
     REQUIRE(subject != nullptr);
-    lv_subject_copy_string(subject, value);
+    lv_subject_set_string(subject, value);
 }
 
 // Look up a named descendant, failing the test with the name if it is absent.
@@ -73,7 +73,7 @@ static lv_obj_t* require_named(lv_obj_t* root, const char* name) {
 // the boundary and read the resolved flag.
 static bool is_hidden(lv_obj_t* obj) {
     REQUIRE(obj != nullptr);
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 static std::string label_text_of(lv_obj_t* obj) {

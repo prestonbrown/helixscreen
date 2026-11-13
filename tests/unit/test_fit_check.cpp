@@ -637,7 +637,7 @@ class FitDetailFixture : private PrintSelectGlobalStateReset, public PrintSelect
     }
 
     bool shown(const char* name) const {
-        return !lv_obj_has_flag(find(name), LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(find(name));
     }
 
     PlantedGcode file_{"fit_hot.gcode", "",

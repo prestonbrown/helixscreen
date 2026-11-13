@@ -93,7 +93,7 @@ void PrintSelectCardView::clear_cached_state() {
     stop_prebuild();
 
     // Deinitialize subjects - this properly removes all attached observers.
-    // We use lv_subject_deinit() instead of lv_observer_remove() because
+    // We use lv_subject_deinit() instead of lv_observer_delete() because
     // widget-bound observers (from lv_label_bind_text, lv_obj_bind_flag_if_*)
     // can be auto-removed by LVGL when widgets are deleted, leaving dangling
     // pointers. Working from the subject side is always safe since we own them.
@@ -281,8 +281,7 @@ void PrintSelectCardView::grow_pool(size_t count, const CardDimensions& dims) {
             lv_obj_set_width(card, dims.card_width);
             lv_obj_set_height(card, dims.card_height);
             lv_obj_set_style_flex_grow(card, 0, LV_PART_MAIN);
-            lv_obj_add_flag(
-                card, LV_OBJ_FLAG_HIDDEN); // XML_HIDDEN_OK: pooled row, built once with its list
+            lv_obj_set_hidden(card, true); // XML_HIDDEN_OK: pooled row, built once with its list
 
             // Tap and hold handlers attached ONCE at pool creation.
             lv_obj_add_event_cb(card, on_card_clicked, LV_EVENT_CLICKED, this);
@@ -588,7 +587,7 @@ void PrintSelectCardView::configure_card(lv_obj_t* card, size_t pool_index, size
     // Store file index for click handler
     lv_obj_set_user_data(card, reinterpret_cast<void*>(file_index));
 
-    lv_obj_remove_flag(card, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(card, false);
 }
 
 // ============================================================================
@@ -651,7 +650,7 @@ void PrintSelectCardView::update_visible(const std::vector<PrintFileData>& file_
     if (!container_ || !pool_initialized_ || file_list.empty()) {
         for (lv_obj_t* card : card_pool_) {
             if (card) {
-                lv_obj_add_flag(card, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(card, true);
             }
         }
         std::fill(card_pool_indices_.begin(), card_pool_indices_.end(), -1);
@@ -710,7 +709,7 @@ void PrintSelectCardView::update_visible(const std::vector<PrintFileData>& file_
                            file_list[static_cast<size_t>(file_idx)], dims);
         },
         [this](size_t slot) {
-            lv_obj_add_flag(card_pool_[slot], LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(card_pool_[slot], true);
 #if defined(HELIX_PLATFORM_ESP32)
             release_esp_thumbnail(card_pool_[slot], *card_data_pool_[slot]);
 #endif

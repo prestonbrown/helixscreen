@@ -149,8 +149,8 @@ void PrintControlButtons::recompute() {
 
     std::snprintf(primary_icon_buf_, sizeof(primary_icon_buf_), "%s", v.primary_icon);
     std::snprintf(primary_label_buf_, sizeof(primary_label_buf_), "%s", v.primary_label);
-    lv_subject_copy_string(&primary_icon_subject_, primary_icon_buf_);
-    lv_subject_copy_string(&primary_label_subject_, primary_label_buf_);
+    lv_subject_set_string(&primary_icon_subject_, primary_icon_buf_);
+    lv_subject_set_string(&primary_label_subject_, primary_label_buf_);
     lv_subject_set_int(&primary_enabled_subject_, v.primary_enabled ? 1 : 0);
     lv_subject_set_int(&stop_enabled_subject_, v.stop_enabled ? 1 : 0);
     lv_subject_set_int(&pending_action_subject_, static_cast<int>(pending_action_));

@@ -191,8 +191,8 @@ const OverlayCase kOverlayCases[] = {
     {"Motion", as_base<&get_global_motion_panel>, nullptr,
      [] {
          auto* homed = get_printer_state().motion_state().get_homed_axes_subject();
-         lv_subject_copy_string(homed, "xyz");
-         lv_subject_copy_string(homed, "");
+         lv_subject_set_string(homed, "xyz");
+         lv_subject_set_string(homed, "");
      }},
     {"Macro Buttons", as_base<&get_macro_buttons_overlay>},
     {"Theme Editor", as_base<&get_theme_editor_overlay>},
@@ -382,9 +382,7 @@ TEST_CASE_METHOD(DestroyOnCloseFixture, "History List repopulates when closed un
     lv_obj_t* row = nullptr;
     for (uint32_t i = 0; !row && i < lv_obj_get_child_count(list); ++i) {
         lv_obj_t* child = lv_obj_get_child(list, static_cast<int32_t>(i));
-        row = lv_obj_get_event_count(child) > 0 && !lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)
-                  ? child
-                  : nullptr;
+        row = lv_obj_get_event_count(child) > 0 && !lv_obj_is_hidden(child) ? child : nullptr;
     }
     REQUIRE(row != nullptr);
     lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);

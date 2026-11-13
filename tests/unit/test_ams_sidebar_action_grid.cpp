@@ -41,7 +41,7 @@ struct SidebarGridFixture : public XMLTestFixture {
         REQUIRE(root_ != nullptr);
         // Check slots shows on backends that probe their slots; show it here so
         // all four actions are in play.
-        lv_obj_remove_flag(named("btn_check_gates"), LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(named("btn_check_gates"), false);
         bp_ = lv_xml_get_subject(nullptr, "ui_breakpoint");
         REQUIRE(bp_ != nullptr);
         original_bp_ = lv_subject_get_int(bp_);
@@ -105,7 +105,7 @@ TEST_CASE_METHOD(SidebarGridFixture, "AMS sidebar: the actions sit two to a row 
             CHECK(lv_area_get_width(&a) * 2 <= lv_obj_get_width(root_));
         }
         // The status keeps its own line under the strip.
-        CHECK_FALSE(lv_obj_has_flag(named("status_section"), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(named("status_section")));
         CHECK(at("status_section").y1 > at("current_loaded_card").y2);
     }
 }
@@ -113,7 +113,7 @@ TEST_CASE_METHOD(SidebarGridFixture, "AMS sidebar: the actions sit two to a row 
 TEST_CASE_METHOD(SidebarGridFixture, "AMS sidebar: a row the actions do not fill is centred",
                  "[ams][sidebar][action_grid]") {
     // Three actions: Load | Unload, then Home alone on the second row.
-    lv_obj_add_flag(named("btn_check_gates"), LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(named("btn_check_gates"), true);
     for (int breakpoint = 0; breakpoint <= 4; ++breakpoint) {
         CAPTURE(breakpoint);
         use_breakpoint(breakpoint);

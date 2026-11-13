@@ -95,11 +95,11 @@ constexpr uint32_t kReadPeriodMs = ScopedPointerIndev::kReadPeriodMs;
 constexpr int kCellTracks = helix::GridLayout::TRACKS_PER_CELL;
 
 bool is_hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 bool is_clickable(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    return lv_obj_is_clickable(obj);
 }
 
 /// Installs a known "home" widget config and puts the prior one back however the
@@ -373,7 +373,7 @@ class ScopedBadgeRecorder {
     }
 
     ~ScopedBadgeRecorder() {
-        lv_observer_remove(observer_);
+        lv_observer_delete(observer_);
     }
 
     ScopedBadgeRecorder(const ScopedBadgeRecorder&) = delete;
@@ -492,15 +492,15 @@ class EditHomeFixture : public LVGLTestFixture {
         lv_obj_set_size(root_, LV_PCT(100), LV_PCT(100));
         lv_obj_set_style_pad_all(root_, 0, LV_PART_MAIN);
         lv_obj_set_style_border_width(root_, 0, LV_PART_MAIN);
-        lv_obj_remove_flag(root_, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(root_, false);
 
         lv_obj_t* host = lv_obj_create(root_);
         lv_obj_set_name(host, "carousel_host");
         lv_obj_set_size(host, LV_PCT(100), LV_PCT(100));
         lv_obj_set_style_pad_all(host, 0, LV_PART_MAIN);
         lv_obj_set_style_border_width(host, 0, LV_PART_MAIN);
-        lv_obj_remove_flag(host, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_remove_flag(host, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_clickable(host, false);
+        lv_obj_set_scrollable(host, false);
         for (const auto& handler : HomePanelTestAccess::grid_handlers()) {
             lv_obj_add_event_cb(host, handler.cb, handler.code, nullptr);
         }
@@ -650,7 +650,7 @@ class EditHomeFixture : public LVGLTestFixture {
     /// The carousel swipes: its scroll container scrolls horizontally.
     bool scroll_live() {
         lv_obj_t* scroll = scroller();
-        return lv_obj_has_flag(scroll, LV_OBJ_FLAG_SCROLLABLE) &&
+        return lv_obj_is_scrollable(scroll) &&
                lv_obj_get_scroll_dir(scroll) == LV_DIR_HOR;
     }
 
@@ -1109,7 +1109,7 @@ class EditHomeFixture : public LVGLTestFixture {
         CHECK(GridEditModeTestAccess::snap_preview(grid()) == nullptr);
         CHECK(grid().selected_widget() == nullptr);
         CHECK(scroll_live());
-        CHECK_FALSE(lv_obj_has_flag(widget_on(0, origin.id.c_str()), LV_OBJ_FLAG_FLOATING));
+        CHECK_FALSE(lv_obj_is_floating(widget_on(0, origin.id.c_str())));
         const helix::PanelWidgetEntry now = entry_on_page(0, origin.id.c_str());
         CHECK(now.col == origin.col);
         CHECK(now.row == origin.row);
@@ -1293,7 +1293,7 @@ TEST_CASE_METHOD(EditHomeFixture,
         REQUIRE(lv_obj_get_group(control) == group.get());
         lv_group_focus_obj(outside);
         REQUIRE(group.focused() == outside);
-        lv_obj_add_flag(outside, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(outside, true);
         REQUIRE(group.focused() == control);
     };
 
@@ -1557,7 +1557,7 @@ TEST_CASE_METHOD(
     // The rebuild the end scheduled laid the widget out on its page again.
     REQUIRE(HomePanelTestAccess::edit_mode_active(panel()));
     widget = widget_on(0, "temperature");
-    CHECK_FALSE(lv_obj_has_flag(widget, LV_OBJ_FLAG_FLOATING));
+    CHECK_FALSE(lv_obj_is_floating(widget));
     CHECK(lv_obj_get_child_by_name(slot_container(), "temperature") == nullptr);
     CHECK(current_page() == 0);
     CHECK(grid().page_index() == 0);
@@ -1682,7 +1682,7 @@ TEST_CASE_METHOD(EditHomeFixture,
 
     // Toast teardown resets input this way, scoped to the dying toast.
     lv_obj_t* other = lv_obj_create(test_screen());
-    lv_obj_add_flag(other, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(other, true);
     helix::ui::reset_input_within(other);
     REQUIRE(grid().is_dragging());
     REQUIRE_FALSE(scroll_live());
@@ -2892,7 +2892,7 @@ TEST_CASE_METHOD(EditHomeFixture,
 
     // The exit's rebuild laid the widget out on its page again.
     widget = widget_on(0, "temperature");
-    CHECK_FALSE(lv_obj_has_flag(widget, LV_OBJ_FLAG_FLOATING));
+    CHECK_FALSE(lv_obj_is_floating(widget));
     CHECK(lv_obj_get_child_by_name(slot_container(), "temperature") == nullptr);
     CHECK(current_page() == 0);
     CHECK(config().page_count() == 1);
@@ -3265,7 +3265,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a page flip during edit mode re-scopes the ed
     // can arm its clicks again, and then only the re-scope disarms it.
     lv_obj_t* fan = widget_on(1, "fan");
     REQUIRE_FALSE(is_clickable(fan));
-    lv_obj_add_flag(fan, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(fan, true);
 
     // A swipe comes to rest on page 1, and the page observer re-scopes.
     settle_swipe_on(1);
@@ -3777,7 +3777,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     CHECK(grid().page_index() == 0);
     CHECK(current_page() == 0);
     CHECK(lv_obj_get_parent(temperature) == page(0));
-    CHECK_FALSE(lv_obj_has_flag(temperature, LV_OBJ_FLAG_FLOATING));
+    CHECK_FALSE(lv_obj_is_floating(temperature));
     CHECK(grid().selected_widget() == temperature);
     check_session_on_screen();
 }
@@ -4167,7 +4167,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     // Hidden, so the rebuild skips on_activate(), whose Spoolman polling and
     // first-run tour this case does not stand up.
     lv_obj_t* root_before = HomePanelTestAccess::panel_root(panel());
-    lv_obj_add_flag(root_before, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root_before, true);
     NavigationManager::instance().rebuild_active_views();
     lv_obj_t* rebuilt_root = HomePanelTestAccess::panel_root(panel());
     REQUIRE(rebuilt_root != root_before);
@@ -4180,7 +4180,7 @@ TEST_CASE_METHOD(EditHomeFixture,
 
     // The rebuild appends the new root to its parent, here the screen the
     // catalog sat on; the app's panel parent holds panels only, below it.
-    lv_obj_remove_flag(rebuilt_root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(rebuilt_root, false);
     lv_obj_move_background(rebuilt_root);
     adopt_panel_root();
     settle();
@@ -4862,7 +4862,7 @@ namespace {
 lv_obj_t* fill_child(lv_obj_t* widget, lv_obj_t* child) {
     lv_obj_set_size(child, LV_PCT(100), LV_PCT(100));
     lv_obj_center(child);
-    lv_obj_add_flag(child, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_event_bubble(child, true);
     lv_obj_update_layout(widget);
     return child;
 }
@@ -4938,19 +4938,19 @@ TEST_CASE_METHOD(LVGLTestFixture, "mark_drag_surface sets the flag and the input
                  "[home][drag_surface]") {
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_t* obj = lv_obj_create(parent);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_set_clickable(obj, false);
+    lv_obj_set_gesture_bubble(obj, true);
     REQUIRE_FALSE(helix::ui::is_drag_surface_hit(obj, parent));
 
     helix::ui::mark_drag_surface(obj);
 
     CHECK(lv_obj_has_flag(obj, helix::ui::kDragSurfaceFlag));
-    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE));
-    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_PRESS_LOCK));
-    CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLLABLE));
-    CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLL_CHAIN_HOR));
-    CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLL_CHAIN_VER));
-    CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_GESTURE_BUBBLE));
+    CHECK(lv_obj_is_clickable(obj));
+    CHECK(lv_obj_is_press_lock(obj));
+    CHECK_FALSE(lv_obj_is_scrollable(obj));
+    CHECK_FALSE(lv_obj_is_scroll_chain_hor(obj));
+    CHECK_FALSE(lv_obj_is_scroll_chain_ver(obj));
+    CHECK_FALSE(lv_obj_is_gesture_bubble(obj));
 
     // A press on a child of the surface is a hit; the walk stops at stop_at.
     lv_obj_t* child = lv_obj_create(obj);
@@ -5076,10 +5076,10 @@ TEST_CASE_METHOD(EditHomeFixture,
     // A widget with no configure action gets only Remove.
     lv_obj_t* configure = callout_part("tile_callout_configure");
     REQUIRE(configure != nullptr);
-    CHECK(lv_obj_has_flag(configure, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(configure));
     lv_obj_t* remove = callout_part("tile_callout_remove");
     REQUIRE(remove != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(remove, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(remove));
 }
 
 TEST_CASE_METHOD(EditHomeFixture, "a hold on a tile raises its callout, and lifting leaves it open",
@@ -5288,7 +5288,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     open_callout_by_taps("temperature");
     lv_obj_t* configure = callout_part("tile_callout_configure");
     REQUIRE(configure != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(configure, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(configure));
 
     SECTION("a tap inside the lockout does nothing") {
         lv_point_t r = center_of(configure);

@@ -311,7 +311,7 @@ void collect_labels(lv_obj_t* root, const char* name, std::vector<std::string>& 
 
 bool hidden_up_to(lv_obj_t* obj, lv_obj_t* root) {
     for (; obj && obj != root; obj = lv_obj_get_parent(obj)) {
-        if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(obj)) {
             return true;
         }
     }
@@ -573,12 +573,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* root = activate_overlay(test_screen());
     lv_obj_t* placeholder = lv_obj_find_by_name(root, "no_sensors_placeholder");
     REQUIRE(placeholder != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(placeholder, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(placeholder));
 
     // One sensor appearing while the overlay is open hides it.
     helix::sensors::InputSensorManager::instance().discover(every_kind_discovery());
     ScopedSensorManagers::drain();
-    CHECK(lv_obj_has_flag(placeholder, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(placeholder));
 }
 
 // Switch sensors a filament system owns are listed nowhere in Settings, so a
@@ -601,11 +601,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_t* switches = lv_obj_find_by_name(root, "switch_sensors_section");
     REQUIRE(switches != nullptr);
-    CHECK(lv_obj_has_flag(switches, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(switches));
     // Nothing is listed anywhere, so the placeholder says so.
     lv_obj_t* placeholder = lv_obj_find_by_name(root, "no_sensors_placeholder");
     REQUIRE(placeholder != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(placeholder, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(placeholder));
 }
 
 // Temperature rows show no reading, so a status frame refills nothing; a change
@@ -620,7 +620,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(name0 != nullptr);
     const std::string filled = lv_subject_get_string(name0);
     REQUIRE_FALSE(filled.empty());
-    lv_subject_copy_string(name0, "untouched");
+    lv_subject_set_string(name0, "untouched");
 
     auto& temps = helix::sensors::TemperatureSensorManager::instance();
     temps.update_from_status({{"temperature_sensor mcu_temp", {{"temperature", 41.5}}}});

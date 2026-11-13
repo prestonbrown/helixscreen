@@ -327,13 +327,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "a cond binding outlives a subject it reads wi
     REQUIRE(view != nullptr);
 
     lv_subject_set_int(&setting, 1);
-    REQUIRE(lv_obj_has_flag(view, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(view));
 
     lv_subject_deinit(panel_tab.get());
     panel_tab.reset();
     lv_subject_set_int(&setting, 0); // reads freed storage if the binding still evaluates
 
-    CHECK(lv_obj_has_flag(view, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(view));
     lv_obj_delete(view);
     lv_subject_deinit(&setting);
     lv_xml_unregister_subject(nullptr, "cond_lifetime_tab");

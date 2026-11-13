@@ -43,7 +43,7 @@ TEST_CASE_METHOD(XMLTestFixture, "AmsPanel open paints the filament path once",
         static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ams_panel", nullptr));
     REQUIRE(panel_obj != nullptr);
     panel.setup(panel_obj, test_screen());
-    lv_obj_add_flag(panel_obj, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(panel_obj, true);
     process_lvgl(100);
 
     lv_obj_t* canvas = lv_obj_find_by_name(panel.get_panel(), "path_canvas");
@@ -53,7 +53,7 @@ TEST_CASE_METHOD(XMLTestFixture, "AmsPanel open paints the filament path once",
     CHECK(data->layers.render_count == 0);
 
     // The push shows it and activates it.
-    lv_obj_remove_flag(panel_obj, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(panel_obj, false);
     panel.on_activate();
     process_lvgl(200);
 
@@ -94,7 +94,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "FilamentPath: a canvas shown with no state ch
                  "[filament_path][render_once]") {
     lv_obj_t* box = lv_obj_create(test_screen());
     lv_obj_set_size(box, 600, 400);
-    lv_obj_add_flag(box, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(box, true);
     lv_obj_t* path = ui_filament_path_canvas_create(box);
     REQUIRE(path != nullptr);
     lv_obj_set_size(path, 470, 294);
@@ -107,7 +107,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "FilamentPath: a canvas shown with no state ch
 
     // Shown by its parent; nothing about the path itself changes. A drawn
     // frame is what notices.
-    lv_obj_remove_flag(box, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(box, false);
     lv_refr_now(nullptr);
     process_lvgl(100);
     CHECK(data->layers.render_count == 1);
@@ -121,7 +121,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "[filament_path][render_once]") {
     lv_obj_t* box = lv_obj_create(test_screen());
     lv_obj_set_size(box, 600, 400);
-    lv_obj_add_flag(box, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(box, true);
     lv_obj_t* path = ui_filament_path_canvas_create(box);
     REQUIRE(path != nullptr);
     lv_obj_set_size(path, 470, 294);
@@ -135,7 +135,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     process_lvgl(100);
     CHECK(data->layers.render_count == 0);
 
-    lv_obj_remove_flag(box, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(box, false);
     lv_refr_now(nullptr);
     process_lvgl(100);
     CHECK(data->layers.render_count == 1);

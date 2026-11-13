@@ -49,7 +49,7 @@ class ProbeOverlayZOffsetFixture : public XMLTestFixture {
     }
 
     bool button_hidden() const {
-        return lv_obj_has_flag(button_, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(button_);
     }
 
     lv_obj_t* overlay_ = nullptr;
@@ -102,11 +102,11 @@ TEST_CASE_METHOD(XMLTestFixture, "Probe overlay hides the Z offset row while the
     lv_obj_t* row = lv_obj_find_by_name(overlay, "probe_z_offset_row");
     REQUIRE(row != nullptr);
     process_lvgl(10);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     lv_subject_set_int(known, 1);
     process_lvgl(10);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     lv_subject_set_int(known, 0);
 }

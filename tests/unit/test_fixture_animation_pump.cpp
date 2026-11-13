@@ -48,7 +48,7 @@ void start_anim(AnimProbe& probe, uint32_t duration_ms) {
     lv_anim_set_var(&a, &probe);
     lv_anim_set_user_data(&a, &probe);
     lv_anim_set_exec_cb(&a, set_value_cb);
-    lv_anim_set_ready_cb(&a, ready_cb);
+    lv_anim_set_completed_cb(&a, ready_cb);
     lv_anim_set_values(&a, 0, 100);
     lv_anim_set_duration(&a, duration_ms);
     lv_anim_set_path_cb(&a, lv_anim_path_linear);

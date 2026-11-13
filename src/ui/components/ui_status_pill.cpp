@@ -55,7 +55,7 @@ static void* ui_status_pill_xml_create(lv_xml_parser_state_t* state, const char*
     lv_obj_t* pill = lv_obj_create(parent);
     lv_obj_set_size(pill, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_scrollbar_mode(pill, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_remove_flag(pill, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(pill, false);
     lv_obj_set_style_radius(pill, 4, LV_PART_MAIN);
     lv_obj_set_style_border_width(pill, 0, LV_PART_MAIN);
 

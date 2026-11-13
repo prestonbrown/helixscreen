@@ -104,7 +104,7 @@ TEST_CASE_METHOD(SpoolsFx, "history's detail card lists the spools the job used"
     lv_obj_t* label = lv_obj_find_by_name(test_screen(), "spools_label");
     REQUIRE(section != nullptr);
     REQUIRE(label != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(section));
     CHECK(std::string(lv_label_get_text(label)) == text);
 
     // A tree deleted with its screen is created afresh on the next open.

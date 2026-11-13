@@ -126,7 +126,7 @@ void MemoryStatsOverlay::show() {
     if (!overlay_)
         return;
 
-    lv_obj_remove_flag(overlay_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay_, false);
     lv_obj_move_foreground(overlay_);
     update(); // Immediate update when shown
     spdlog::debug("[MemoryStats] Overlay shown");
@@ -136,14 +136,14 @@ void MemoryStatsOverlay::hide() {
     if (!overlay_)
         return;
 
-    lv_obj_add_flag(overlay_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay_, true);
     spdlog::debug("[MemoryStats] Overlay hidden");
 }
 
 bool MemoryStatsOverlay::is_visible() const {
     if (!overlay_)
         return false;
-    return !lv_obj_has_flag(overlay_, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(overlay_);
 }
 
 void MemoryStatsOverlay::shutdown() {
@@ -185,7 +185,7 @@ void MemoryStatsOverlay::update() {
         int mb = static_cast<int>(kb / 1024);
         int decimal = static_cast<int>((kb % 1024) * 10 / 1024);
         snprintf(buf, sizeof(buf), "%s%d.%d", sign, mb, decimal);
-        lv_subject_copy_string(&subject, buf);
+        lv_subject_set_string(&subject, buf);
     };
 
     if (helix::read_memory_stats(rss_kb, hwm_kb)) {
@@ -198,7 +198,7 @@ void MemoryStatsOverlay::update() {
         if (private_kb > 0) {
             set_mb(private_text_, "", private_kb);
         } else {
-            lv_subject_copy_string(&private_text_, "--");
+            lv_subject_set_string(&private_text_, "--");
         }
         set_mb(delta_text_, delta_kb >= 0 ? "+" : "-", delta_kb >= 0 ? delta_kb : -delta_kb);
         // Growth tone: stable, growing, high growth
@@ -206,10 +206,10 @@ void MemoryStatsOverlay::update() {
         lv_subject_set_int(&delta_tone_, static_cast<int>(tone));
     } else {
         // Not available
-        lv_subject_copy_string(&rss_text_, "N/A");
-        lv_subject_copy_string(&hwm_text_, "N/A");
-        lv_subject_copy_string(&private_text_, "N/A");
-        lv_subject_copy_string(&delta_text_, "N/A");
+        lv_subject_set_string(&rss_text_, "N/A");
+        lv_subject_set_string(&hwm_text_, "N/A");
+        lv_subject_set_string(&private_text_, "N/A");
+        lv_subject_set_string(&delta_text_, "N/A");
     }
 
     // Pressure level is available regardless of /proc stats
@@ -231,6 +231,6 @@ void MemoryStatsOverlay::update() {
         tone = Tone::Bad;
         break;
     }
-    lv_subject_copy_string(&pressure_text_, level_str);
+    lv_subject_set_string(&pressure_text_, level_str);
     lv_subject_set_int(&pressure_tone_, static_cast<int>(tone));
 }

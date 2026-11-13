@@ -69,7 +69,7 @@ void IndexedSubjectPool::set_string(size_t i, const std::string& v) {
     // LVGL cuts at the byte; a cut inside a multi-byte codepoint leaves an
     // invalid tail that renders as a stray glyph.
     const std::string fitted(helix::text_io::utf8_prefix(v, string_cap_ > 0 ? string_cap_ - 1 : 0));
-    lv_subject_copy_string(subjects_.at(i).get(), fitted.c_str());
+    lv_subject_set_string(subjects_.at(i).get(), fitted.c_str());
 }
 
 lv_subject_t* IndexedSubjectPool::at(size_t i) {

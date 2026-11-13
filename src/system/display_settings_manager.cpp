@@ -859,7 +859,7 @@ void DisplaySettingsManager::set_temp_unit(units::TempUnit unit) {
     settings_.set(Key::TempUnit, static_cast<int>(unit));
     units::set_display_temp_unit(get_temp_unit());
     if (subjects_initialized_) {
-        lv_subject_copy_string(&temp_unit_symbol_subject_, units::display_temp_symbol());
+        lv_subject_set_string(&temp_unit_symbol_subject_, units::display_temp_symbol());
     }
     // The preset labels are formatted once into shared subjects; redo them now.
     presets::refresh_subjects();

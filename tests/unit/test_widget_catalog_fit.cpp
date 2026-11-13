@@ -231,13 +231,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(10);
 
     lv_obj_t* refused = result_row(kRefusedId);
-    CHECK_FALSE(lv_obj_has_flag(refused, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(refused));
     const auto* def = find_widget_def(kRefusedId);
     REQUIRE(def != nullptr);
     CHECK(label_contains(refused, expected_fit_reason(*def)));
 
     lv_obj_t* offered = result_row(kOfferedId);
-    CHECK(lv_obj_has_flag(offered, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(offered));
     CHECK_FALSE(label_contains(offered, "Needs"));
 
     NavigationManager::instance().go_back();
@@ -256,7 +256,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(10);
 
     lv_obj_t* row = result_row(kRefusedId);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(row));
     CHECK_FALSE(label_contains(row, "Needs"));
 
     NavigationManager::instance().go_back();
@@ -284,7 +284,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(10);
 
     lv_obj_t* row = result_row(kRefusedId);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(row));
     CHECK_FALSE(label_contains(row, "Needs"));
 
     NavigationManager::instance().go_back();
@@ -340,7 +340,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     std::vector<int32_t> row_dsc = GridLayout::make_row_dsc(dims.rows);
 
     lv_obj_t* container = lv_obj_create(test_screen());
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
     lv_obj_set_style_pad_all(container, 0, 0);
     lv_obj_set_style_border_width(container, 0, 0);
     lv_obj_set_size(container, 715, 475);
@@ -353,7 +353,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             lv_obj_t* tile = lv_obj_create(container);
             lv_obj_set_name(tile,
                             (std::string(kTileId) + ":" + std::to_string(r * 6 + c + 1)).c_str());
-            lv_obj_remove_flag(tile, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_scrollable(tile, false);
             lv_obj_set_grid_cell(tile, LV_GRID_ALIGN_STRETCH, c * 2, 2, LV_GRID_ALIGN_STRETCH,
                                  r * 2, 2);
         }
@@ -376,7 +376,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(10);
 
     lv_obj_t* refused = result_row(kRefusedId);
-    CHECK_FALSE(lv_obj_has_flag(refused, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(refused));
     const auto* def = find_widget_def(kRefusedId);
     REQUIRE(def != nullptr);
     CHECK(label_contains(refused, expected_fit_reason(*def)));

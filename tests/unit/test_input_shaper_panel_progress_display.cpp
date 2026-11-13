@@ -64,7 +64,7 @@ class InputShaperPanelProgressFixture : public LVGLTestFixture {
         // read as fully homed so the calibrator goes straight to the command.
         PrinterStateTestAccess::reset(get_printer_state());
         get_printer_state().init_subjects(false);
-        lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
 
         panel_ = &get_global_input_shaper_panel();
         panel_->init_subjects();

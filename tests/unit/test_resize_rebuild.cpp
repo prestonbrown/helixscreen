@@ -62,7 +62,7 @@ class RebuiltOverlay : public OverlayBase {
     lv_obj_t* create(lv_obj_t* parent) override {
         parent_screen_ = parent;
         overlay_root_ = lv_obj_create(parent);
-        lv_obj_add_flag(overlay_root_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(overlay_root_, true);
         return overlay_root_;
     }
 
@@ -92,7 +92,7 @@ class ResizeRebuildFixture : public MoonrakerTestFixture {
             panels[static_cast<int>(id)] = static_cast<lv_obj_t*>(
                 lv_xml_create(test_screen(), "resize_rebuild_panel", nullptr));
         }
-        lv_obj_add_flag(panels[static_cast<int>(PanelId::Controls)], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(panels[static_cast<int>(PanelId::Controls)], true);
         nav.set_panels(panels);
         home.setup(panels[static_cast<int>(PanelId::Home)], test_screen());
         controls.setup(panels[static_cast<int>(PanelId::Controls)], test_screen());

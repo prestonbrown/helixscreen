@@ -262,34 +262,33 @@ TimelapseCardDimensions TimelapseVideosOverlay::calculate_card_dimensions() {
     // Force layout so dimensions are computed
     lv_obj_update_layout(overlay_root_);
 
-    lv_coord_t overlay_height = lv_obj_get_height(overlay_root_);
+    int32_t overlay_height = lv_obj_get_height(overlay_root_);
 
     // Get header height (first child of overlay_root, from overlay_panel)
     lv_obj_t* header = lv_obj_get_child(overlay_root_, 0);
-    lv_coord_t header_height = header ? lv_obj_get_height(header) : 56;
+    int32_t header_height = header ? lv_obj_get_height(header) : 56;
 
     lv_obj_t* content = helix::ui::find_required(overlay_root_, "overlay_content", get_name());
-    lv_coord_t content_pad_top = content ? lv_obj_get_style_pad_top(content, LV_PART_MAIN) : 0;
-    lv_coord_t content_pad_bottom =
-        content ? lv_obj_get_style_pad_bottom(content, LV_PART_MAIN) : 0;
+    int32_t content_pad_top = content ? lv_obj_get_style_pad_top(content, LV_PART_MAIN) : 0;
+    int32_t content_pad_bottom = content ? lv_obj_get_style_pad_bottom(content, LV_PART_MAIN) : 0;
 
     // Check if render section is visible and get its height
     lv_obj_t* render_section =
         helix::ui::find_required(overlay_root_, "render_section", get_name());
-    lv_coord_t render_height = 0;
-    if (render_section && !lv_obj_has_flag(render_section, LV_OBJ_FLAG_HIDDEN)) {
+    int32_t render_height = 0;
+    if (render_section && !lv_obj_is_hidden(render_section)) {
         render_height = lv_obj_get_height(render_section);
     }
 
     // Grid container top padding
-    lv_coord_t grid_pad_top = lv_obj_get_style_pad_top(video_grid_container_, LV_PART_MAIN);
+    int32_t grid_pad_top = lv_obj_get_style_pad_top(video_grid_container_, LV_PART_MAIN);
 
     // Content row gap (between render section and grid)
-    lv_coord_t content_gap = content ? lv_obj_get_style_pad_row(content, LV_PART_MAIN) : 0;
+    int32_t content_gap = content ? lv_obj_get_style_pad_row(content, LV_PART_MAIN) : 0;
 
     // Available height for video grid
-    lv_coord_t available_height = overlay_height - header_height - content_pad_top -
-                                  content_pad_bottom - render_height - grid_pad_top - content_gap;
+    int32_t available_height = overlay_height - header_height - content_pad_top -
+                               content_pad_bottom - render_height - grid_pad_top - content_gap;
 
     // Card gap from grid container
     int card_gap = lv_obj_get_style_pad_row(video_grid_container_, LV_PART_MAIN);
@@ -409,11 +408,11 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
         spdlog::debug("[{}] No companion thumbnail for '{}'", get_name(), filename);
         if (no_thumb_icon) {
             // DECLARATIVE_OK: per-card thumbnail state on a generated collection
-            lv_obj_remove_flag(no_thumb_icon, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(no_thumb_icon, false);
         }
         if (thumbnail) {
             // DECLARATIVE_OK: per-card thumbnail state on a generated collection
-            lv_obj_add_flag(thumbnail, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(thumbnail, true);
         }
         return;
     }
@@ -441,11 +440,11 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
         if (thumbnail) {
             lv_image_set_src(thumbnail, cached.c_str());
             // DECLARATIVE_OK: per-card thumbnail state on a generated collection
-            lv_obj_remove_flag(thumbnail, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(thumbnail, false);
         }
         if (no_thumb_icon) {
             // DECLARATIVE_OK: per-card thumbnail state on a generated collection
-            lv_obj_add_flag(no_thumb_icon, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(no_thumb_icon, true);
         }
         return;
     }
@@ -454,7 +453,7 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
     if (!api_) {
         if (no_thumb_icon) {
             // DECLARATIVE_OK: per-card thumbnail state on a generated collection
-            lv_obj_remove_flag(no_thumb_icon, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(no_thumb_icon, false);
         }
         return;
     }
@@ -462,7 +461,7 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
     // Show placeholder while loading
     if (no_thumb_icon) {
         // DECLARATIVE_OK: per-card thumbnail state on a generated collection
-        lv_obj_remove_flag(no_thumb_icon, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(no_thumb_icon, false);
     }
 
     std::string filename_copy = filename;
@@ -536,11 +535,11 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
                                 if (thumb) {
                                     lv_image_set_src(thumb, lvbin_path.c_str());
                                     // DECLARATIVE_OK: per-card thumbnail state
-                                    lv_obj_remove_flag(thumb, LV_OBJ_FLAG_HIDDEN);
+                                    lv_obj_set_hidden(thumb, false);
                                 }
                                 if (icon) {
                                     // DECLARATIVE_OK: per-card thumbnail state
-                                    lv_obj_add_flag(icon, LV_OBJ_FLAG_HIDDEN);
+                                    lv_obj_set_hidden(icon, true);
                                 }
                                 spdlog::debug("[Timelapse Videos] Thumbnail loaded for '{}'",
                                               filename_copy);

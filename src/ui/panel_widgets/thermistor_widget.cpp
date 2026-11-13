@@ -336,7 +336,7 @@ void ThermistorWidget::bind_carousel_sensors() {
     }
 
     // Lifetimes must clear BEFORE observers so weak_ptr-tracked subject-death
-    // detection in ObserverGuard::reset() correctly skips lv_observer_remove()
+    // detection in ObserverGuard::reset() correctly skips lv_observer_delete()
     // on a recreated subject (#705 ordering rule). Clearing the observers drops
     // their queued callbacks, so none reaches the pages cleaned below.
     {
@@ -418,7 +418,7 @@ void ThermistorWidget::bind_carousel_sensors() {
         // DECLARATIVE_OK: ui_carousel_add_item() owns its pages' scroll container and indicators,
         // so a <repeat> cannot build them.
         auto* page = static_cast<lv_obj_t*>(
-            lv_xml_create(lv_scr_act(), "thermistor_carousel_page", page_attrs));
+            lv_xml_create(lv_screen_active(), "thermistor_carousel_page", page_attrs));
         if (!page) {
             spdlog::error("[ThermistorWidget] thermistor_carousel_page not registered");
             continue;
@@ -626,7 +626,7 @@ void ThermistorWidget::set_unit_override(std::optional<std::string> unit) {
 
 void ThermistorWidget::apply_unit() {
     const std::string unit = unit_text(unit_override_);
-    lv_subject_copy_string(&unit_subject_, unit.c_str());
+    lv_subject_set_string(&unit_subject_, unit.c_str());
     lv_subject_set_int(&raw_subject_, unit_override_ ? 1 : 0);
     // The widest reading changes with the unit, so the rung it fits at may too.
     sizing_.set_content(sizing_content(unit));
@@ -684,7 +684,7 @@ void ThermistorWidget::update_display() {
     // No sensor shows the component's own "Select sensor" label, which
     // re-translates itself.
     if (!selected_sensor_.empty()) {
-        lv_subject_copy_string(&name_subject_, display_name_.c_str());
+        lv_subject_set_string(&name_subject_, display_name_.c_str());
     }
     lv_subject_set_int(&named_subject_, selected_sensor_.empty() ? 0 : 1);
 }
@@ -861,7 +861,7 @@ void ThermistorWidget::ConfigurePicker::fill_rows() {
 void ThermistorWidget::ConfigurePicker::fill_unit_row() {
     const auto& unit = owner_.unit_override_;
     const std::string shown = unit && unit->empty() ? std::string(lv_tr("None")) : unit_text(unit);
-    lv_subject_copy_string(&s_cfg_unit_subject, shown.c_str());
+    lv_subject_set_string(&s_cfg_unit_subject, shown.c_str());
     lv_subject_set_int(&s_cfg_unit_custom_subject, unit ? 1 : 0);
 }
 
@@ -923,7 +923,7 @@ void ThermistorWidget::ConfigurePicker::on_created(lv_obj_t* backdrop) {
         lv_obj_set_style_pad_gap(icon_grid, theme_manager_get_spacing("space_xxs"), 0);
         lv_obj_set_style_bg_opa(icon_grid, 0, 0);
         lv_obj_set_style_border_width(icon_grid, 0, 0);
-        lv_obj_remove_flag(icon_grid, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(icon_grid, false);
 
         std::string effective_icon =
             owner_.icon_name_.empty() ? std::string(kDefaultIcon) : owner_.icon_name_;

@@ -252,7 +252,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack icons line up one under the other
     REQUIRE(part_icon != nullptr);
     REQUIRE(hotend_icon != nullptr);
     REQUIRE(aux_icon != nullptr);
-    REQUIRE(!lv_obj_has_flag(h.child("fan_stack_aux_row"), LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(!lv_obj_is_hidden(h.child("fan_stack_aux_row")));
 
     // --- Compact tier: one shared left edge despite "35%" vs "0%" rows. ---
     h.resize(1, 1, w_normal() - 1, h_tall() - 1);
@@ -447,7 +447,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack rows fit the cell they were grant
         for (const char* rn : {"fan_stack_part_row", "fan_stack_hotend_row", "fan_stack_aux_row"}) {
             lv_obj_t* row = h.child(rn);
             REQUIRE(row != nullptr);
-            if (lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN))
+            if (lv_obj_is_hidden(row))
                 continue;
             INFO(c.name << ": granted " << c.width_px << "px, cell content " << cell_w << "px, "
                         << rn << " " << lv_obj_get_width(row) << "px, band " << w_normal()
@@ -595,7 +595,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack: two tiles keep their own text",
 
     for (auto* h : {&a, &b}) {
         CHECK(std::string(lv_label_get_text(h->child("fan_stack_part_speed"))) == "35%");
-        CHECK(lv_obj_has_flag(h->child("fan_stack_aux_row"), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(h->child("fan_stack_aux_row")));
     }
     // The narrow tile names its rows by letter, the wider one in full.
     CHECK(std::string(lv_label_get_text(a.child("fan_stack_part_name"))) == lv_tr("P"));

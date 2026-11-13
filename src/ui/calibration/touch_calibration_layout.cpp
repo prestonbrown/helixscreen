@@ -23,7 +23,7 @@ CaptureSurfaceWidgets reparent_capture_surface_fullscreen(lv_obj_t* screen_root)
         lv_obj_set_parent(w.capture_overlay, screen);
         lv_obj_set_size(w.capture_overlay, LV_PCT(100), LV_PCT(100));
         lv_obj_set_pos(w.capture_overlay, 0, 0);
-        lv_obj_add_flag(w.capture_overlay, LV_OBJ_FLAG_FLOATING);
+        lv_obj_set_floating(w.capture_overlay, true);
         lv_obj_move_foreground(w.capture_overlay);
     } else {
         spdlog::warn("[TouchCalLayout] touch_capture_overlay not found");
@@ -33,7 +33,7 @@ CaptureSurfaceWidgets reparent_capture_surface_fullscreen(lv_obj_t* screen_root)
     if (w.crosshair) {
         w.crosshair_original_parent = lv_obj_get_parent(w.crosshair);
         lv_obj_set_parent(w.crosshair, screen);
-        lv_obj_add_flag(w.crosshair, LV_OBJ_FLAG_FLOATING);
+        lv_obj_set_floating(w.crosshair, true);
         lv_obj_move_foreground(w.crosshair);
     } else {
         spdlog::warn("[TouchCalLayout] crosshair not found");
@@ -64,7 +64,7 @@ RaisedControl raise_control_above_capture(lv_obj_t* search_root, const char* nam
     lv_obj_get_coords(r.obj, &area);
 
     lv_obj_set_parent(r.obj, lv_screen_active());
-    lv_obj_add_flag(r.obj, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_floating(r.obj, true);
     lv_obj_set_pos(r.obj, area.x1, area.y1);
     lv_obj_set_size(r.obj, lv_area_get_width(&area), lv_area_get_height(&area));
     lv_obj_move_foreground(r.obj);
@@ -77,7 +77,7 @@ void restore_raised_control(const RaisedControl& r) {
         return;
     }
     lv_obj_set_parent(r.obj, r.original_parent);
-    lv_obj_remove_flag(r.obj, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_floating(r.obj, false);
     lv_obj_set_pos(r.obj, 0, 0);
     lv_obj_set_size(r.obj, r.orig_w, r.orig_h);
 }

@@ -101,15 +101,15 @@ TEST_CASE_METHOD(XMLTestFixture, "Clog config hides mode/length when the backend
     SECTION("unsupported backend (AFC and friends) hides both sections") {
         lv_subject_set_int(supported, 0);
         lv_obj_update_layout(dlg);
-        REQUIRE(lv_obj_has_flag(mode_section, LV_OBJ_FLAG_HIDDEN));
-        REQUIRE(lv_obj_has_flag(det_length_section, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE(lv_obj_is_hidden(mode_section));
+        REQUIRE(lv_obj_is_hidden(det_length_section));
     }
 
     SECTION("Happy Hare shows both sections") {
         lv_subject_set_int(supported, 1);
         lv_obj_update_layout(dlg);
-        REQUIRE_FALSE(lv_obj_has_flag(mode_section, LV_OBJ_FLAG_HIDDEN));
-        REQUIRE_FALSE(lv_obj_has_flag(det_length_section, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(mode_section));
+        REQUIRE_FALSE(lv_obj_is_hidden(det_length_section));
     }
 
     // A source button shows only while the backend reports that source.
@@ -119,9 +119,9 @@ TEST_CASE_METHOD(XMLTestFixture, "Clog config hides mode/length when the backend
         lv_subject_t* avail =
             lv_xml_get_subject(nullptr, (std::string("clog_src_") + src + "_available").c_str());
         REQUIRE((btn && avail));
-        CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(btn));
         lv_subject_set_int(avail, 1);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
     }
 
     // Tear the widget tree down before `modal` (and its subjects) go out of
@@ -142,9 +142,9 @@ TEST_CASE_METHOD(XMLTestFixture, "Clog config hides the danger threshold for a m
     lv_subject_t* mode = ams.get_clog_meter_mode_subject();
 
     lv_subject_set_int(mode, 4); // Motion: a state has no danger band
-    CHECK(lv_obj_has_flag(threshold, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(threshold));
     lv_subject_set_int(mode, 1); // Encoder
-    CHECK_FALSE(lv_obj_has_flag(threshold, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(threshold));
 
     lv_obj_delete(dlg);
     lv_subject_set_int(mode, 0);

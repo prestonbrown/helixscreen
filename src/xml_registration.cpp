@@ -259,12 +259,12 @@ static void on_setting_info_clicked(lv_event_t* e) {
     // One shared callback discloses the tapped row's description for every
     // setting-row component; the open/closed state belongs to that row alone and
     // no C++ object owns the row to publish it from.
-    if (lv_obj_has_flag(desc, LV_OBJ_FLAG_HIDDEN)) {
+    if (lv_obj_is_hidden(desc)) {
         // DECLARATIVE_OK: per-row disclosure toggle with no owning object (see above)
-        lv_obj_remove_flag(desc, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(desc, false);
     } else {
         // DECLARATIVE_OK: per-row disclosure toggle with no owning object (see above)
-        lv_obj_add_flag(desc, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(desc, true);
     }
     LVGL_SAFE_EVENT_CB_END();
 }

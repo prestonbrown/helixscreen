@@ -517,7 +517,7 @@ class SeedPopulateFixture : public HomeLayoutSyncFixture {
         lv_obj_set_size(container_, 710, 466);
         lv_obj_set_style_pad_all(container_, 0, 0);
         lv_obj_set_style_border_width(container_, 0, 0);
-        lv_obj_remove_flag(container_, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(container_, false);
 
         saved_home_ = global_config_->get<json>(home_path(), json());
         fresh_home();

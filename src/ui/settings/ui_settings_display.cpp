@@ -171,7 +171,7 @@ void DisplaySettingsOverlay::init_brightness_controls() {
 
         helix::format::format_percent(brightness, brightness_value_buf_,
                                       sizeof(brightness_value_buf_));
-        lv_subject_copy_string(&brightness_value_subject_, brightness_value_buf_);
+        lv_subject_set_string(&brightness_value_subject_, brightness_value_buf_);
 
         spdlog::debug("[{}] Brightness initialized to {}%", get_name(), brightness);
     }
@@ -335,7 +335,7 @@ void DisplaySettingsOverlay::handle_brightness_changed(int value) {
     DisplaySettingsManager::instance().preview_brightness(value);
 
     helix::format::format_percent(value, brightness_value_buf_, sizeof(brightness_value_buf_));
-    lv_subject_copy_string(&brightness_value_subject_, brightness_value_buf_);
+    lv_subject_set_string(&brightness_value_subject_, brightness_value_buf_);
 }
 
 } // namespace helix::settings

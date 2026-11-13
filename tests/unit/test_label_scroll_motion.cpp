@@ -174,12 +174,12 @@ class ScrollMotionFixture : public XMLTestFixture {
 
     /// Replace the bound filename before a card is built.
     void set_filename(const char* text) {
-        lv_subject_copy_string(&filename_, text);
+        lv_subject_set_string(&filename_, text);
     }
 
     /// Replace the bound message and let the binding reach the label.
     void set_message(const char* text) {
-        lv_subject_copy_string(&message_, text);
+        lv_subject_set_string(&message_, text);
         lv_obj_update_layout(test_screen());
     }
 
@@ -482,7 +482,7 @@ TEST_CASE_METHOD(ScrollMotionFixture, "animations on: the scrolling label draws 
 
     // Ask for the draw-task event ourselves: while scrolling, the hook must
     // leave the descriptor alone even when it hears about the task.
-    lv_obj_add_flag(label, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    lv_obj_set_send_draw_task_events(label, true);
     const auto drawn = rendered_text(label);
 
     REQUIRE(drawn.has_value());

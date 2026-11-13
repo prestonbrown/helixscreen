@@ -401,7 +401,7 @@ TEST_CASE_METHOD(KlippyRecoveryFixture,
     CHECK(std::string(lv_label_get_text(message)).find("dragonbreath") != std::string::npos);
     lv_obj_t* restart_row = lv_obj_find_by_name(recovery, "recovery_restart_actions");
     REQUIRE(restart_row != nullptr);
-    CHECK(lv_obj_has_flag(restart_row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(restart_row));
     CHECK(fault_carrier_showing());
 }
 

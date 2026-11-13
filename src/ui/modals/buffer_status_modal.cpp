@@ -98,7 +98,7 @@ helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& inf
                                                  int effective_unit) {
     // Cleared up front: the modal's subjects are static, so a message left from
     // a previous open would otherwise sit under a supported backend's body.
-    lv_subject_copy_string(&unsupported_subject_, "");
+    lv_subject_set_string(&unsupported_subject_, "");
 
     // The slider and its words follow this unit's buffer, or with -1 the one
     // feeding the toolhead.
@@ -106,14 +106,14 @@ helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& inf
     lv_subject_set_int(&show_meter_subject_, r.has_slider ? 1 : 0);
     lv_subject_set_int(&show_reading_subject_, r.present() ? 1 : 0);
     lv_subject_set_int(&status_subject_, static_cast<int>(r.status));
-    lv_subject_copy_string(&description_subject_, helix::buffer_lean_text(r));
+    lv_subject_set_string(&description_subject_, helix::buffer_lean_text(r));
     const std::string value =
         (r.has_slider && !r.text_only())
             ? fmt::format("{} {}", helix::buffer_label(r), helix::buffer_value_text(r))
             : helix::buffer_value_text(r);
-    lv_subject_copy_string(&value_subject_, value.c_str());
-    lv_subject_copy_string(&target_subject_, helix::buffer_target_text(r).c_str());
-    lv_subject_copy_string(&trace_caption_subject_, helix::buffer_trace_caption(r));
+    lv_subject_set_string(&value_subject_, value.c_str());
+    lv_subject_set_string(&target_subject_, helix::buffer_target_text(r).c_str());
+    lv_subject_set_string(&trace_caption_subject_, helix::buffer_trace_caption(r));
 
     switch (helix::ams_type_traits(info.type).buffer_rows) {
     case helix::AmsBufferRows::SyncDrive: {
@@ -126,30 +126,30 @@ helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& inf
             break;
         case helix::SpoolMotorAction::Rewinding:
             lv_subject_set_int(&show_espooler_subject_, 1);
-            lv_subject_copy_string(&espooler_value_subject_, lv_tr("Rewinding"));
+            lv_subject_set_string(&espooler_value_subject_, lv_tr("Rewinding"));
             break;
         case helix::SpoolMotorAction::Assisting:
             lv_subject_set_int(&show_espooler_subject_, 1);
-            lv_subject_copy_string(&espooler_value_subject_, lv_tr("Assisting"));
+            lv_subject_set_string(&espooler_value_subject_, lv_tr("Assisting"));
             break;
         case helix::SpoolMotorAction::Other:
             lv_subject_set_int(&show_espooler_subject_, 1);
-            lv_subject_copy_string(&espooler_value_subject_, info.espooler_state.c_str());
+            lv_subject_set_string(&espooler_value_subject_, info.espooler_state.c_str());
             break;
         }
 
         // Gear sync
-        lv_subject_copy_string(&gear_sync_value_subject_,
-                               info.sync_drive ? lv_tr("Active") : lv_tr("Inactive"));
+        lv_subject_set_string(&gear_sync_value_subject_,
+                              info.sync_drive ? lv_tr("Active") : lv_tr("Inactive"));
 
         // Flow rate
         if (info.sync_feedback_flow_rate >= 0) {
             auto flow_str = fmt::format("{:.0f}%", info.sync_feedback_flow_rate);
-            lv_subject_copy_string(&flow_value_subject_, flow_str.c_str());
+            lv_subject_set_string(&flow_value_subject_, flow_str.c_str());
             lv_subject_set_int(&show_flow_subject_, 1);
         } else if (info.encoder_flow_rate >= 0) {
             auto flow_str = fmt::format("{}%", info.encoder_flow_rate);
-            lv_subject_copy_string(&flow_value_subject_, flow_str.c_str());
+            lv_subject_set_string(&flow_value_subject_, flow_str.c_str());
             lv_subject_set_int(&show_flow_subject_, 1);
         } else {
             lv_subject_set_int(&show_flow_subject_, 0);
@@ -172,17 +172,17 @@ helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& inf
                 // State
                 switch (bh.motion) {
                 case helix::BufferMotion::Advancing:
-                    lv_subject_copy_string(&state_subject_, lv_tr("Feeding filament forward"));
+                    lv_subject_set_string(&state_subject_, lv_tr("Feeding filament forward"));
                     break;
                 case helix::BufferMotion::Trailing:
-                    lv_subject_copy_string(&state_subject_, lv_tr("Pulling filament back"));
+                    lv_subject_set_string(&state_subject_, lv_tr("Pulling filament back"));
                     break;
                 case helix::BufferMotion::Unknown:
                     if (!bh.state.empty()) {
                         auto s = fmt::format("{}: {}", lv_tr("State"), bh.state);
-                        lv_subject_copy_string(&state_subject_, s.c_str());
+                        lv_subject_set_string(&state_subject_, s.c_str());
                     } else {
-                        lv_subject_copy_string(&state_subject_, "");
+                        lv_subject_set_string(&state_subject_, "");
                     }
                     break;
                 }
@@ -191,7 +191,7 @@ helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& inf
                 if (bh.fault_detection_enabled && bh.distance_to_fault >= 0) {
                     auto d = fmt::format("{:.1f} mm {}", bh.distance_to_fault,
                                          lv_tr("remaining before clog detection triggers"));
-                    lv_subject_copy_string(&fault_distance_subject_, d.c_str());
+                    lv_subject_set_string(&fault_distance_subject_, d.c_str());
                     lv_subject_set_int(&show_distance_subject_, 1);
                 } else {
                     lv_subject_set_int(&show_distance_subject_, 0);
@@ -199,7 +199,7 @@ helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& inf
             }
         }
         if (!found_health) {
-            lv_subject_copy_string(&state_subject_, lv_tr("No buffer data available"));
+            lv_subject_set_string(&state_subject_, lv_tr("No buffer data available"));
             lv_subject_set_int(&show_distance_subject_, 0);
         }
         break;
@@ -215,7 +215,7 @@ helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& inf
             // whole body. The modal is reachable from the AMS panel as well as
             // the tile, so it has to answer rather than rely on the tile's gate.
             lv_subject_set_int(&type_subject_, 0);
-            lv_subject_copy_string(
+            lv_subject_set_string(
                 &unsupported_subject_,
                 lv_tr("This filament system does not report buffer or flow data."));
         }

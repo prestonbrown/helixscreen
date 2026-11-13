@@ -66,15 +66,15 @@ TEST_CASE_METHOD(XMLTestFixture, "PrintStatusWidget picker: Show Sections follow
 
     lv_obj_t* group = lv_obj_find_by_name(test_screen(), "show_sections_group");
     REQUIRE(group != nullptr);
-    CHECK(lv_obj_has_flag(group, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(group));
 
     lv_obj_send_event(lv_obj_find_by_name(lv_obj_get_parent(group), "layout_btn_library"),
                       LV_EVENT_CLICKED, nullptr);
-    CHECK_FALSE(lv_obj_has_flag(group, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(group));
 
     lv_obj_send_event(lv_obj_find_by_name(lv_obj_get_parent(group), "layout_btn_detailed"),
                       LV_EVENT_CLICKED, nullptr);
-    CHECK(lv_obj_has_flag(group, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(group));
 
     w.detach();
 }

@@ -92,8 +92,8 @@ void ConnectionSettingsOverlay::refresh_printer_host() {
     if (!subjects_initialized_) {
         return;
     }
-    lv_subject_copy_string(&printer_host_value_subject_, printer_host_display().c_str());
-    lv_subject_copy_string(&printer_api_key_value_subject_, printer_api_key_display().c_str());
+    lv_subject_set_string(&printer_host_value_subject_, printer_host_display().c_str());
+    lv_subject_set_string(&printer_api_key_value_subject_, printer_api_key_display().c_str());
 }
 
 } // namespace helix::settings

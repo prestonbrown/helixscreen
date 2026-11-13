@@ -63,7 +63,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "lv_indev_delete leaves no animation targeting
     lv_obj_set_pos(container, 0, 0);
     lv_obj_set_size(container, 200, 200);
     lv_obj_set_style_pad_all(container, 0, 0);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, true);
 
     lv_obj_t* tall = lv_obj_create(container);
     lv_obj_set_size(tall, 180, 1000);

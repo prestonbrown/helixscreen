@@ -172,7 +172,7 @@ void PrinterImageOverlay::update_preview(const std::string& /*image_id*/,
                                          const std::string& display_name,
                                          const std::string& preview_path) {
     // Update preview name via subject binding
-    lv_subject_copy_string(&preview_name_subject_, display_name.c_str());
+    lv_subject_set_string(&preview_name_subject_, display_name.c_str());
 
     if (!preview_path.empty()) {
         // Copy path to buffer and update pointer subject
@@ -323,7 +323,7 @@ void PrinterImageOverlay::populate_custom_images() {
                                         "on_printer_image_card_clicked");
         if (row && !entry.valid) {
             lv_obj_add_state(row, LV_STATE_DISABLED);
-            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(row, false);
         }
     }
 }
@@ -392,11 +392,11 @@ void PrinterImageOverlay::populate_usb_images(const std::vector<std::string>& im
     spdlog::debug("[{}] Found {} importable images on USB", get_name(), image_paths.size());
 
     if (image_paths.empty()) {
-        lv_subject_copy_string(&usb_status_subject_, lv_tr("No images found on USB drive"));
+        lv_subject_set_string(&usb_status_subject_, lv_tr("No images found on USB drive"));
         return;
     }
 
-    lv_subject_copy_string(&usb_status_subject_, "");
+    lv_subject_set_string(&usb_status_subject_, "");
 
     for (const auto& path : image_paths) {
         std::string filename = std::string(hfs::filename(path));
@@ -413,7 +413,7 @@ void PrinterImageOverlay::handle_usb_import(const std::string& source_path) {
 
     // Update status via subject binding
     std::string msg = fmt::format(fmt::runtime(lv_tr("Importing {}...")), filename);
-    lv_subject_copy_string(&usb_status_subject_, msg.c_str());
+    lv_subject_set_string(&usb_status_subject_, msg.c_str());
 
     // import_image_async() currently runs synchronously, but the callback is wrapped
     // in helix::ui::queue_update() for safety in case the implementation becomes truly async
@@ -425,13 +425,13 @@ void PrinterImageOverlay::handle_usb_import(const std::string& source_path) {
 
                     if (result.success) {
                         spdlog::info("[Printer Image] USB import success: {}", result.id);
-                        lv_subject_copy_string(&overlay.usb_status_subject_, "");
+                        lv_subject_set_string(&overlay.usb_status_subject_, "");
                         overlay.refresh_custom_images();
                         overlay.handle_image_selected(result.id);
                         NOTIFY_SUCCESS(lv_tr("Imported {}"), filename);
                     } else {
                         spdlog::warn("[Printer Image] USB import failed: {}", result.error);
-                        lv_subject_copy_string(&overlay.usb_status_subject_, result.error.c_str());
+                        lv_subject_set_string(&overlay.usb_status_subject_, result.error.c_str());
                         NOTIFY_WARNING(lv_tr("Import failed: {}"), result.error);
                     }
                 });

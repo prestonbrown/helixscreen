@@ -25,7 +25,7 @@ namespace {
 bool hidden(lv_obj_t* card, const char* name) {
     lv_obj_t* obj = lv_obj_find_by_name(card, name);
     REQUIRE(obj != nullptr);
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 std::string text(lv_obj_t* card, const char* name) {
     lv_obj_t* obj = lv_obj_find_by_name(card, name);
@@ -94,8 +94,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(card != nullptr);
     lv_obj_set_width(card, 137);
     AmsStateTestAccess::sync_buffer(ams, test::fps_units({0.32f}), 0);
-    lv_subject_copy_string(ams.get_current_material_text_subject(),
-                           "Polymaker Jet Black PLA Galaxy Sparkle Edition");
+    lv_subject_set_string(ams.get_current_material_text_subject(),
+                          "Polymaker Jet Black PLA Galaxy Sparkle Edition");
 
     for (int breakpoint = 0; breakpoint <= 4; ++breakpoint) {
         CAPTURE(breakpoint);

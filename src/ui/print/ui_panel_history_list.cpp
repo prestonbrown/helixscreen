@@ -629,14 +629,13 @@ void HistoryListPanel::update_empty_state() {
 
         if (filters_active) {
             // Filters are active but yielded no results
-            lv_subject_copy_string(&subject_empty_message_, lv_tr("No matching prints"));
-            lv_subject_copy_string(&subject_empty_hint_,
-                                   lv_tr("Try adjusting your search or filters"));
+            lv_subject_set_string(&subject_empty_message_, lv_tr("No matching prints"));
+            lv_subject_set_string(&subject_empty_hint_,
+                                  lv_tr("Try adjusting your search or filters"));
         } else if (jobs_.empty()) {
             // No jobs at all
-            lv_subject_copy_string(&subject_empty_message_, lv_tr("No print history found"));
-            lv_subject_copy_string(&subject_empty_hint_,
-                                   lv_tr("Completed prints will appear here"));
+            lv_subject_set_string(&subject_empty_message_, lv_tr("No print history found"));
+            lv_subject_set_string(&subject_empty_hint_, lv_tr("Completed prints will appear here"));
         }
     }
 
@@ -1061,30 +1060,30 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
 // A timestamp of 0 or below is "not recorded": the date reads "-" with no time.
 static void set_date_time_subjects(double timestamp, lv_subject_t* date, lv_subject_t* time) {
     if (timestamp <= 0) {
-        lv_subject_copy_string(date, "-");
-        lv_subject_copy_string(time, "");
+        lv_subject_set_string(date, "-");
+        lv_subject_set_string(time, "");
         return;
     }
     const time_t ts = static_cast<time_t>(timestamp);
-    lv_subject_copy_string(date, helix::ui::format_month_day(ts).c_str());
-    lv_subject_copy_string(time, helix::ui::format_time(ts).c_str());
+    lv_subject_set_string(date, helix::ui::format_month_day(ts).c_str());
+    lv_subject_set_string(time, helix::ui::format_time(ts).c_str());
 }
 
 void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
-    // Update string subjects using lv_subject_copy_string (LVGL 9.4 API)
+    // Update string subjects using lv_subject_set_string (LVGL 9.4 API)
     helix::gcode::note_displayed_filename(job.filename);
-    lv_subject_copy_string(&detail_filename_, job.filename.c_str());
-    lv_subject_copy_string(&detail_status_, lv_tr(status_to_label(job.status)));
-    lv_subject_copy_string(&detail_status_icon_, status_to_icon(job.status));
-    lv_subject_copy_string(&detail_status_variant_, status_to_variant(job.status));
+    lv_subject_set_string(&detail_filename_, job.filename.c_str());
+    lv_subject_set_string(&detail_status_, lv_tr(status_to_label(job.status)));
+    lv_subject_set_string(&detail_status_icon_, status_to_icon(job.status));
+    lv_subject_set_string(&detail_status_variant_, status_to_variant(job.status));
 
     // Date and time are separate subjects: the overlay stacks them, since one
     // line is wider than a metadata column.
     set_date_time_subjects(job.start_time, &detail_start_date_, &detail_start_time_);
     set_date_time_subjects(job.end_time, &detail_end_date_, &detail_end_time_);
 
-    lv_subject_copy_string(&detail_duration_,
-                           helix::format::duration(static_cast<int>(job.print_duration)).c_str());
+    lv_subject_set_string(&detail_duration_,
+                          helix::format::duration(static_cast<int>(job.print_duration)).c_str());
 
     char layers_buf[32];
     if (job.layer_count > 0) {
@@ -1092,7 +1091,7 @@ void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     } else {
         snprintf(layers_buf, sizeof(layers_buf), "-");
     }
-    lv_subject_copy_string(&detail_layers_, layers_buf);
+    lv_subject_set_string(&detail_layers_, layers_buf);
 
     char layer_height_buf[32];
     if (job.layer_height > 0) {
@@ -1101,7 +1100,7 @@ void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     } else {
         snprintf(layer_height_buf, sizeof(layer_height_buf), "-");
     }
-    lv_subject_copy_string(&detail_layer_height_, layer_height_buf);
+    lv_subject_set_string(&detail_layer_height_, layer_height_buf);
 
     char temp_buf[32];
     if (job.nozzle_temp > 0) {
@@ -1110,7 +1109,7 @@ void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     } else {
         snprintf(temp_buf, sizeof(temp_buf), "-");
     }
-    lv_subject_copy_string(&detail_nozzle_temp_, temp_buf);
+    lv_subject_set_string(&detail_nozzle_temp_, temp_buf);
 
     if (job.bed_temp > 0) {
         snprintf(temp_buf, sizeof(temp_buf), "%s",
@@ -1118,12 +1117,12 @@ void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     } else {
         snprintf(temp_buf, sizeof(temp_buf), "-");
     }
-    lv_subject_copy_string(&detail_bed_temp_, temp_buf);
+    lv_subject_set_string(&detail_bed_temp_, temp_buf);
 
-    lv_subject_copy_string(&detail_filament_, job.filament_str.c_str());
+    lv_subject_set_string(&detail_filament_, job.filament_str.c_str());
     const std::string materials = helix::filament_type_text(job.filament_type);
-    lv_subject_copy_string(&detail_filament_type_,
-                           materials.empty() ? lv_tr("Unknown") : materials.c_str());
+    lv_subject_set_string(&detail_filament_type_,
+                          materials.empty() ? lv_tr("Unknown") : materials.c_str());
 
     // Set reprint availability based on file existence
     lv_subject_set_int(&detail_can_reprint_, job.exists ? 1 : 0);
@@ -1161,7 +1160,7 @@ void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
 
 void HistoryListPanel::fetch_spool_usage(const PrintHistoryJob& job) {
     const uint32_t request = ++detail_spools_request_;
-    lv_subject_copy_string(&detail_spools_, "");
+    lv_subject_set_string(&detail_spools_, "");
     lv_subject_set_int(&detail_has_spools_, 0);
     const PluginFeatureState accounting = get_printer_state().plugin_status_state().plugin_feature(
         kFilamentAccountingFeature, kFilamentAccountingMinVersion);
@@ -1200,7 +1199,7 @@ void HistoryListPanel::fetch_spool_usage(const PrintHistoryJob& job) {
                                         : std::string();
                     },
                     noun);
-                lv_subject_copy_string(&detail_spools_, text.c_str());
+                lv_subject_set_string(&detail_spools_, text.c_str());
                 lv_subject_set_int(&detail_has_spools_, 1);
             }),
         [](const MoonrakerError& err) {

@@ -14,7 +14,7 @@
  * the death token handed out by PrinterImageManager::get_subjects_lifetime().
  * HomePanel attaches its observer in the constructor and resets the guard only
  * at member destruction — after deinit_subjects() has already run — so without
- * the token that reset calls lv_observer_remove() on a freed node.
+ * the token that reset calls lv_observer_delete() on a freed node.
  */
 
 #include "ui_panel_home.h"
@@ -95,7 +95,7 @@ TEST_CASE_METHOD(
     CHECK(lv_ll_get_len(&subject_->subs_ll) == 0);
 
     // Destroying the panel resets its guard. With the death token the reset
-    // skips lv_observer_remove(); without it this is a double free of a node
+    // skips lv_observer_delete(); without it this is a double free of a node
     // lv_subject_deinit() already freed.
     panel_release();
 

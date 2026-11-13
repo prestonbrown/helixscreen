@@ -168,6 +168,6 @@ bool jog_pad_is_homed(lv_obj_t* obj);
  * @return the label box to pass to lv_draw_label
  */
 namespace helix {
-lv_area_t jog_pad_home_icon_area(lv_coord_t center_x, lv_coord_t center_y, lv_coord_t home_radius,
+lv_area_t jog_pad_home_icon_area(int32_t center_x, int32_t center_y, int32_t home_radius,
                                  const lv_font_t* font);
 } // namespace helix

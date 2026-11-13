@@ -188,8 +188,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "WidgetRef cleared from another delete handler
 TEST_CASE_METHOD(LVGLTestFixture, "WidgetRef converts to lv_obj_t* for LVGL calls",
                  "[widget_ref]") {
     WidgetRef ref(lv_obj_create(test_screen()));
-    lv_obj_add_flag(ref, LV_OBJ_FLAG_HIDDEN);
-    CHECK(lv_obj_has_flag(ref.get(), LV_OBJ_FLAG_HIDDEN));
+    lv_obj_set_hidden(ref, true);
+    CHECK(lv_obj_is_hidden(ref.get()));
 
     lv_obj_t* raw = ref;
     CHECK(raw == ref.get());
@@ -415,7 +415,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_delete on a handle deletes it if live an
     helix::ui::safe_delete_deferred(deferred);
     CHECK(deferred.get() == nullptr);
     REQUIRE(deferred_watch.get() != nullptr); // alive and hidden until the async tick
-    CHECK(lv_obj_has_flag(deferred_watch, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(deferred_watch));
     process_lvgl(20);
     CHECK(deferred_watch.get() == nullptr);
 }

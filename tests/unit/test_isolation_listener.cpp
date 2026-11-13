@@ -268,7 +268,7 @@ class IsolationListener : public Catch::EventListenerBase {
 
         // Production teardown calls ObserverGuard::invalidate_all() before LVGL is
         // torn down so surviving singletons release their observers instead of
-        // calling lv_observer_remove() on freed state. The test binary has no such
+        // calling lv_observer_delete() on freed state. The test binary has no such
         // hook, so global panel singletons (e.g. PrintStatusPanel) held in
         // function-local statics destruct during __run_exit_handlers and crash in
         // lv_ll_remove (SIGSEGV at exit, after every test passed). Bumping the

@@ -219,8 +219,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         h.resize(1, 5, w_wide(), 300);
         process_lvgl(30);
         CHECK(lv_subject_get_int(PrintStatusWidget::view_subject_for_test()) == 2); // idle_detailed
-        CHECK_FALSE(lv_obj_has_flag(idle_detailed, LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(idle_compact, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(idle_detailed));
+        CHECK(lv_obj_is_hidden(idle_compact));
 
         // Compact band. Contradicting span (colspan=5 — old predicate
         // colspan<=1 would NOT have gone compact here).
@@ -228,8 +228,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         process_lvgl(30);
         CHECK(lv_subject_get_int(PrintStatusWidget::view_subject_for_test()) ==
               1); // idle_library_compact
-        CHECK_FALSE(lv_obj_has_flag(idle_compact, LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(idle_detailed, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(idle_compact));
+        CHECK(lv_obj_is_hidden(idle_detailed));
     }
     PrintStatusWidget::destroy_formatter_for_test();
 }
@@ -288,7 +288,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "print_status idle detailed filename spans t
         lv_obj_update_layout(test_screen());
 
         // Long names must still scroll rather than ellipsize or clip.
-        CHECK(lv_label_get_long_mode(filename) == LV_LABEL_LONG_SCROLL_CIRCULAR);
+        CHECK(lv_label_get_long_mode(filename) == LV_LABEL_LONG_MODE_SCROLL_CIRCULAR);
     }
     PrintStatusWidget::destroy_formatter_for_test();
 }
@@ -390,7 +390,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         // — old predicate colspan>=3 would not have shown it here).
         h.resize(1, 1, w_wide(), 400);
         CHECK(lv_subject_get_int(PrintStatusWidget::show_filament_active_subject_for_test()) == 0);
-        CHECK(lv_obj_has_flag(filament_row, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(filament_row));
 
         // Wide band, filament now used: visible. Isolates on_size_changed's
         // half of the gate (:461) — re-run on_size_changed at the SAME
@@ -399,14 +399,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         UpdateQueue::instance().drain_until_empty();
         h.resize(1, 1, w_wide(), 400);
         CHECK(lv_subject_get_int(PrintStatusWidget::show_filament_active_subject_for_test()) == 1);
-        CHECK_FALSE(lv_obj_has_flag(filament_row, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(filament_row));
 
         // Normal (not wide) band, filament still used: hidden again.
         // Contradicting span (colspan=5 — old predicate colspan>=3 would
         // have kept it shown).
         h.resize(5, 1, w_normal(), 400);
         CHECK(lv_subject_get_int(PrintStatusWidget::show_filament_active_subject_for_test()) == 0);
-        CHECK(lv_obj_has_flag(filament_row, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(filament_row));
 
         // --- Mirror (:1712): back to wide band via one resize call...
         h.resize(1, 1, w_wide(), 400);
@@ -420,13 +420,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                            0); // e.g. print re-sliced
         UpdateQueue::instance().drain_until_empty();
         CHECK(lv_subject_get_int(PrintStatusWidget::show_filament_active_subject_for_test()) == 0);
-        CHECK(lv_obj_has_flag(filament_row, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(filament_row));
 
         lv_subject_set_int(ps.print_state().get_print_filament_used_subject(),
                            2000); // extrusion resumes
         UpdateQueue::instance().drain_until_empty();
         CHECK(lv_subject_get_int(PrintStatusWidget::show_filament_active_subject_for_test()) == 1);
-        CHECK_FALSE(lv_obj_has_flag(filament_row, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(filament_row));
     }
     PrintStatusWidget::destroy_formatter_for_test();
 }
@@ -472,7 +472,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             lv_obj_t* row = h.child("up_next_row");
             REQUIRE(card != nullptr);
             REQUIRE(row != nullptr);
-            CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+            CHECK_FALSE(lv_obj_is_hidden(row));
             lv_obj_update_layout(card);
             const int content_bottom = lv_obj_get_height(card) -
                                        lv_obj_get_style_pad_top(card, LV_PART_MAIN) -
@@ -531,7 +531,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         process_lvgl(30);
         CHECK(library_subject("print_status_library_grid") == 0);
         CHECK(library_subject("print_status_library_icon_only") == 0);
-        CHECK_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(label));
         const lv_font_t* column_icon_font = lv_obj_get_style_text_font(icon, LV_PART_MAIN);
 
         // A 4x2 home cell: the stacked buttons would be shorter than one line.
@@ -539,8 +539,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         process_lvgl(30);
         CHECK(library_subject("print_status_library_grid") == 1);
         CHECK(library_subject("print_status_library_icon_only") == 1);
-        CHECK(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(label));
+        CHECK_FALSE(lv_obj_is_hidden(icon));
         lv_obj_t* actions = h.child("library_actions");
         REQUIRE(actions != nullptr);
         CHECK(lv_obj_get_style_flex_flow(actions, LV_PART_MAIN) == LV_FLEX_FLOW_ROW_WRAP);
@@ -689,7 +689,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             check_fits(1);
 
             // A hidden flex column lays out at 0px; measuring it would publish 0.
-            lv_obj_add_flag(h.root(), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(h.root(), true);
             lv_subject_t* view = lv_xml_get_subject(nullptr, "print_status_view");
             REQUIRE(lv_subject_get_int(view) == 4);
             lv_subject_set_int(view, 3);
@@ -700,11 +700,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         }
 
         SECTION("started while the dashboard is hidden") {
-            lv_obj_add_flag(h.root(), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(h.root(), true);
             helix::test::set_wire_state(ps, PrintJobState::PRINTING);
             process_lvgl(30);
             REQUIRE(h.child("detailed_time_row") != nullptr);
-            lv_obj_remove_flag(h.root(), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(h.root(), false);
             process_lvgl(30);
             check_fits(0);
 

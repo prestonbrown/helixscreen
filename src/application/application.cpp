@@ -1877,8 +1877,8 @@ void Application::apply_startup_cli_actions() {
             char version_text[128];
             snprintf(version_text, sizeof(version_text), "v%s (latest release)",
                      info->version.c_str());
-            lv_subject_copy_string(checker.version_text_subject(), version_text);
-            lv_subject_copy_string(checker.release_notes_subject(), info->release_notes.c_str());
+            lv_subject_set_string(checker.version_text_subject(), version_text);
+            lv_subject_set_string(checker.release_notes_subject(), info->release_notes.c_str());
             lv_subject_set_int(checker.changelog_visible_subject(), 1);
             checker.show_update_notification();
             spdlog::info("[Application] Showing release notes for v{}", info->version);
@@ -2547,7 +2547,7 @@ void Application::shutdown() {
     // They must outlive m_display.reset(), because that is what runs lv_xml_deinit():
     // a component scope holding a <subject_expr> owns RAW lv_observer_t* pointers
     // (lv_xml_subject_expr_t::observers) attached to these subjects, and releases them
-    // with lv_observer_remove(). Those are not ObserverGuards, so
+    // with lv_observer_delete(). Those are not ObserverGuards, so
     // ObserverGuard::invalidate_all() does not cover them; deinitialising the subjects
     // first frees every observer on them and the later scope teardown reads freed
     // memory.

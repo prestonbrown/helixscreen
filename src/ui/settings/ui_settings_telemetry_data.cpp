@@ -78,15 +78,15 @@ void TelemetryDataOverlay::update_status() {
 
     // Update status text
     const char* status_text = enabled ? lv_tr("Telemetry Enabled") : lv_tr("Telemetry Disabled");
-    lv_subject_copy_string(&status_subject_, status_text);
+    lv_subject_set_string(&status_subject_, status_text);
 
     // Update detail text with event count
     if (count == 0) {
-        lv_subject_copy_string(&detail_subject_, lv_tr("No events queued"));
+        lv_subject_set_string(&detail_subject_, lv_tr("No events queued"));
     } else {
         snprintf(detail_buf_, sizeof(detail_buf_),
                  helix::ui::tr_plural("1 event queued", "%zu events queued", count), count);
-        lv_subject_copy_string(&detail_subject_, detail_buf_);
+        lv_subject_set_string(&detail_subject_, detail_buf_);
     }
 
     // Update count subject for show/hide logic
@@ -588,14 +588,14 @@ void TelemetryDataOverlay::populate_events() {
         lv_obj_set_style_pad_gap(card, theme_manager_get_spacing("space_xxs"), 0);
         lv_obj_set_style_border_width(card, 0, 0);
         lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
-        lv_obj_remove_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(card, false);
 
         // Helper: create a label that wraps within the card
         auto make_label = [&](lv_obj_t* parent, const std::string& text,
                               const char* color_token) -> lv_obj_t* {
             lv_obj_t* label = lv_label_create(parent);
             lv_label_set_text(label, text.c_str());
-            lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+            lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
             lv_obj_set_width(label, lv_pct(100));
             lv_obj_set_style_text_color(label, theme_manager_get_color(color_token), 0);
             lv_obj_set_style_text_font(label, lv_font_get_default(), 0);

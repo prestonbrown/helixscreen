@@ -388,7 +388,7 @@ void PACalibrationPanel::refresh_tools(bool adopt_active) {
                 sub = info->material;
             }
         }
-        lv_subject_copy_string(&tool_sub_[i], sub.c_str());
+        lv_subject_set_string(&tool_sub_[i], sub.c_str());
     }
 }
 
@@ -399,7 +399,7 @@ void PACalibrationPanel::refresh_presets() {
         // "220°C / 60°C"; the bed is not part of this decision and would read
         // as noise beside a nozzle target.
         const int temp = name.empty() ? 0 : material_nozzle_temp(name);
-        lv_subject_copy_string(
+        lv_subject_set_string(
             &preset_temp_[i],
             temp ? fmt::format("{}°", helix::units::to_display_temp_whole(temp)).c_str() : "");
         lv_subject_set_int(&preset_selected_[i], i == selected_preset_ ? 1 : 0);
@@ -407,14 +407,14 @@ void PACalibrationPanel::refresh_presets() {
 }
 
 void PACalibrationPanel::update_temp_display() {
-    lv_subject_copy_string(
+    lv_subject_set_string(
         &temp_display_,
         fmt::format("{}°", helix::units::to_display_temp_whole(target_temp_)).c_str());
     char range[32];
     helix::ui::temperature::format_temperature_range(kTempMin, kTempMax, range, sizeof(range));
-    lv_subject_copy_string(&temp_note_, state_ == IDLE || state_ == COMPLETE || state_ == ERROR
-                                            ? range
-                                            : lv_tr("locked"));
+    lv_subject_set_string(&temp_note_, state_ == IDLE || state_ == COMPLETE || state_ == ERROR
+                                           ? range
+                                           : lv_tr("locked"));
 }
 
 // ============================================================================
@@ -442,12 +442,12 @@ void PACalibrationPanel::set_state(State s) {
 void PACalibrationPanel::update_action_button() {
     const bool running = (state_ == HEATING || state_ == MEASURING);
     lv_subject_set_int(&action_is_stop_, running ? 1 : 0);
-    lv_subject_copy_string(&action_text_, running ? lv_tr("Stop") : lv_tr("Start"));
+    lv_subject_set_string(&action_text_, running ? lv_tr("Stop") : lv_tr("Start"));
 }
 
 void PACalibrationPanel::update_phase_rows() {
-    lv_subject_copy_string(&phase_name_[kPhaseHeat], lv_tr("Heat nozzle"));
-    lv_subject_copy_string(&phase_name_[kPhaseMeasure], lv_tr("Measure"));
+    lv_subject_set_string(&phase_name_[kPhaseHeat], lv_tr("Heat nozzle"));
+    lv_subject_set_string(&phase_name_[kPhaseMeasure], lv_tr("Measure"));
 
     // 0 pending, 1 running, 2 done.
     int heat = 0;
@@ -470,7 +470,7 @@ void PACalibrationPanel::publish_last_result() {
     if (!have_result_) {
         return;
     }
-    lv_subject_copy_string(&last_value_, format_k(result_k_).c_str());
+    lv_subject_set_string(&last_value_, format_k(result_k_).c_str());
     // Material and temperature travel with the number. Without them it is
     // nearly useless a week later - which is exactly the mistake a sticky note
     // makes.
@@ -481,7 +481,7 @@ void PACalibrationPanel::publish_last_result() {
     if (lv_subject_get_int(&multi_tool_) == 1) {
         ctx = fmt::format("T{}, {}", result_tool_, ctx);
     }
-    lv_subject_copy_string(&last_context_, ctx.c_str());
+    lv_subject_set_string(&last_context_, ctx.c_str());
 }
 
 // ============================================================================
@@ -543,8 +543,8 @@ void PACalibrationPanel::begin_run() {
     controller->set_target(heater, static_cast<double>(target_temp_));
 
     set_state(HEATING);
-    lv_subject_copy_string(&phase_label_, lv_tr("Heating nozzle"));
-    lv_subject_copy_string(
+    lv_subject_set_string(&phase_label_, lv_tr("Heating nozzle"));
+    lv_subject_set_string(
         &prog_foot_,
         lv_tr("Heating is nearly the whole wait. Leaving the screen now stops the run."));
     arm_run_timer(kHeatDeadlineMs);
@@ -572,12 +572,12 @@ void PACalibrationPanel::begin_measure() {
     set_state(MEASURING);
     arm_run_timer(traits->timeout_ms + kMeasureDeadlineGraceMs);
     phase_start_tick_ms_ = lv_tick_get();
-    lv_subject_copy_string(&phase_label_, lv_tr("Measuring"));
-    lv_subject_copy_string(&big_, "...");
-    lv_subject_copy_string(&big_sub_, lv_tr("K so far"));
-    lv_subject_copy_string(&prog_foot_,
-                           lv_tr("The printer extrudes in a corner and repeats until the readings "
-                                 "agree. You do not judge anything by eye."));
+    lv_subject_set_string(&phase_label_, lv_tr("Measuring"));
+    lv_subject_set_string(&big_, "...");
+    lv_subject_set_string(&big_sub_, lv_tr("K so far"));
+    lv_subject_set_string(&prog_foot_,
+                          lv_tr("The printer extrudes in a corner and repeats until the readings "
+                                "agree. You do not judge anything by eye."));
 
     // tok.defer, not queue_update: these fire on the response thread and the
     // guard drops the call if the panel is gone before the main-thread drain.
@@ -666,7 +666,7 @@ void PACalibrationPanel::on_result(float k) {
     // left to do with it.
     const auto traits = helix::pacal::traits(hw);
     const helix::pacal::Kept kept = traits ? traits->kept : helix::pacal::Kept::Nothing;
-    lv_subject_copy_string(
+    lv_subject_set_string(
         &keep_note_,
         kept == helix::pacal::Kept::Permanently
             ? lv_tr("The printer applied this value and keeps it for this tool.")
@@ -682,9 +682,9 @@ void PACalibrationPanel::on_result(float k) {
     const bool plausible = helix::pacal::is_plausible(hw, k);
     const auto range = helix::pacal::sane_range(hw);
 
-    lv_subject_copy_string(&result_, format_k(k).c_str());
+    lv_subject_set_string(&result_, format_k(k).c_str());
     lv_subject_set_int(&result_plausible_, plausible ? 1 : 0);
-    lv_subject_copy_string(
+    lv_subject_set_string(
         &result_sanity_,
         plausible
             ? fmt::format(fmt::runtime(lv_tr("Typical for a {} extruder ({:.2f}-{:.2f}).")),
@@ -723,14 +723,14 @@ void PACalibrationPanel::on_attempt(const helix::pacal::Attempt& a) {
     if (a.expected > 0) {
         attempts_expected_ = a.expected;
     }
-    lv_subject_copy_string(&phase_meta_[kPhaseMeasure],
-                           fmt::format(fmt::runtime(lv_tr("attempt {}")), a.index).c_str());
+    lv_subject_set_string(&phase_meta_[kPhaseMeasure],
+                          fmt::format(fmt::runtime(lv_tr("attempt {}")), a.index).c_str());
 
     // The candidate the printer is trying right now. Without it the big
     // readout sits empty for the whole measuring phase and a machine that is
     // deliberately repeating itself looks like a machine that has hung.
     if (k_so_far > 0.0f) {
-        lv_subject_copy_string(&big_, format_k(k_so_far).c_str());
+        lv_subject_set_string(&big_, format_k(k_so_far).c_str());
     }
     update_progress_display();
 }
@@ -738,11 +738,11 @@ void PACalibrationPanel::on_attempt(const helix::pacal::Attempt& a) {
 void PACalibrationPanel::show_error(const std::string& message) {
     // A refusal is long, specific and the most valuable text on the screen. It
     // gets the whole stage, verbatim - never a truncated title.
-    lv_subject_copy_string(&error_title_, lv_tr("Run stopped"));
-    lv_subject_copy_string(&error_detail_, message.c_str());
-    lv_subject_copy_string(&error_hint_,
-                           lv_tr("Nothing was changed. Temperature and material are kept, so a "
-                                 "retry is one tap."));
+    lv_subject_set_string(&error_title_, lv_tr("Run stopped"));
+    lv_subject_set_string(&error_detail_, message.c_str());
+    lv_subject_set_string(&error_hint_,
+                          lv_tr("Nothing was changed. Temperature and material are kept, so a "
+                                "retry is one tap."));
     lv_subject_set_int(&progress_, 0);
     set_state(ERROR);
     spdlog::warn("[{}] Run failed: {}", get_name(), message);
@@ -832,17 +832,17 @@ void PACalibrationPanel::on_nozzle_temp(int temp_deci) {
     }
     const float temp = helix::ui::temperature::deci_to_degrees_f(temp_deci);
 
-    lv_subject_copy_string(&big_,
-                           fmt::format("{}°", helix::units::to_display_temp_whole(temp)).c_str());
+    lv_subject_set_string(&big_,
+                          fmt::format("{}°", helix::units::to_display_temp_whole(temp)).c_str());
     // Spelled out, not "-> 245" and not an arrow glyph: U+2192 is not in the
     // baked Noto subset and drew as a tofu box.
-    lv_subject_copy_string(&big_sub_, fmt::format(fmt::runtime(lv_tr("target {}°")),
-                                                  helix::units::to_display_temp_whole(target_temp_))
-                                          .c_str());
-    lv_subject_copy_string(&phase_meta_[kPhaseHeat],
-                           fmt::format("{}° / {}°", helix::units::to_display_temp_whole(temp),
-                                       helix::units::to_display_temp_whole(target_temp_))
-                               .c_str());
+    lv_subject_set_string(&big_sub_, fmt::format(fmt::runtime(lv_tr("target {}°")),
+                                                 helix::units::to_display_temp_whole(target_temp_))
+                                         .c_str());
+    lv_subject_set_string(&phase_meta_[kPhaseHeat],
+                          fmt::format("{}° / {}°", helix::units::to_display_temp_whole(temp),
+                                      helix::units::to_display_temp_whole(target_temp_))
+                              .c_str());
     update_progress_display();
 
     if (temp >= static_cast<float>(target_temp_) - kAtTargetToleranceC) {
@@ -901,7 +901,7 @@ void PACalibrationPanel::update_progress_display() {
     }
 
     lv_subject_set_int(&progress_, std::clamp(pct, 0, 100));
-    lv_subject_copy_string(&remaining_, format_clock(std::max(0, remaining_s)).c_str());
+    lv_subject_set_string(&remaining_, format_clock(std::max(0, remaining_s)).c_str());
 }
 
 void PACalibrationPanel::select_tool(int tool) {

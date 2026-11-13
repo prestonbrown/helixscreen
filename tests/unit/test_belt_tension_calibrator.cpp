@@ -381,7 +381,7 @@ class BeltCalibratorFixture : public LVGLTestFixture {
 
         PrinterStateTestAccess::reset(get_printer_state());
         get_printer_state().init_subjects(false);
-        lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
 
         calibrator_ = std::make_unique<BeltTensionCalibrator>(api_.get());
     }
@@ -508,7 +508,7 @@ TEST_CASE_METHOD(BeltCalibratorFixture, "measure_path forwards its window",
 
 TEST_CASE_METHOD(BeltCalibratorFixture, "cancel while homing never starts the sweep",
                  "[belt_tension][calibrator]") {
-    lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
     mock_client_.clear_gcode_script_history();
     bool called = false;
     calibrator_->measure_path(
@@ -583,7 +583,7 @@ TEST_CASE_METHOD(BeltCalibratorFixture, "settle sends the planned laps and repor
 
 TEST_CASE_METHOD(BeltCalibratorFixture, "settle homes first when XY is not homed",
                  "[belt_tension][calibrator][settle]") {
-    lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
     const auto inputs = voron_settle_inputs();
     const auto plan = plan_belt_settle(inputs);
     REQUIRE(plan.refusal == BeltSettleRefusal::NONE);
@@ -622,7 +622,7 @@ TEST_CASE_METHOD(BeltCalibratorFixture, "settle sends the laps with the plan's t
 TEST_CASE_METHOD(BeltCalibratorFixture, "a refused settle sends nothing",
                  "[belt_tension][calibrator][settle]") {
     // Unhomed too: a refusal known before homing must not home either.
-    lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
     auto inputs = voron_settle_inputs();
     inputs.probe_point.reset();
     mock_client_.clear_gcode_script_history();

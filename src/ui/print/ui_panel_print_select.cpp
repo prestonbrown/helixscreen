@@ -2135,12 +2135,12 @@ void PrintSelectPanel::set_selected_file(const char* filename, const char* thumb
                                          const char* layer_count, const char* print_height,
                                          const char* layer_height, const char* filament_type) {
     create_detail_view();
-    lv_subject_copy_string(&selected_filename_subject_, filename);
+    lv_subject_set_string(&selected_filename_subject_, filename);
     update_plate_stepper();
 
     // Display filename strips .gcode extension for cleaner UI
     std::string display_name = strip_gcode_extension(filename);
-    lv_subject_copy_string(&selected_display_filename_subject_, display_name.c_str());
+    lv_subject_set_string(&selected_display_filename_subject_, display_name.c_str());
 
     // Card thumbnail uses POINTER subject - copy to buffer then update pointer
     // This is the pre-scaled .bin for fast card rendering
@@ -2176,12 +2176,12 @@ void PrintSelectPanel::set_selected_file(const char* filename, const char* thumb
     // shows the same thing as one that was already up.
     lv_subject_set_int(&selected_has_thumbnail_subject_, has_image ? 1 : 0);
 
-    lv_subject_copy_string(&selected_print_time_subject_, print_time);
-    lv_subject_copy_string(&selected_filament_weight_subject_, filament_weight);
-    lv_subject_copy_string(&selected_layer_count_subject_, layer_count);
-    lv_subject_copy_string(&selected_print_height_subject_, print_height);
-    lv_subject_copy_string(&selected_layer_height_subject_, layer_height ? layer_height : "");
-    lv_subject_copy_string(&selected_filament_type_subject_, filament_type ? filament_type : "");
+    lv_subject_set_string(&selected_print_time_subject_, print_time);
+    lv_subject_set_string(&selected_filament_weight_subject_, filament_weight);
+    lv_subject_set_string(&selected_layer_count_subject_, layer_count);
+    lv_subject_set_string(&selected_print_height_subject_, print_height);
+    lv_subject_set_string(&selected_layer_height_subject_, layer_height ? layer_height : "");
+    lv_subject_set_string(&selected_filament_type_subject_, filament_type ? filament_type : "");
     apply_plate_stats_to_detail();
     // The open detail view knows which tools the print uses; its text wins.
     if (detail_view_ && detail_view_->is_visible()) {
@@ -2209,9 +2209,9 @@ void PrintSelectPanel::apply_plate_stats_to_detail() {
         format_print_time(card_total_minutes(static_cast<int>(meta.estimated_time / 60.0)));
     const std::string weight =
         format_filament_weight(static_cast<float>(meta.filament_weight_total));
-    lv_subject_copy_string(&selected_print_time_subject_, time.c_str());
-    lv_subject_copy_string(&selected_filament_weight_subject_, weight.c_str());
-    lv_subject_copy_string(&selected_filament_type_subject_, it->filament_type.c_str());
+    lv_subject_set_string(&selected_print_time_subject_, time.c_str());
+    lv_subject_set_string(&selected_filament_weight_subject_, weight.c_str());
+    lv_subject_set_string(&selected_filament_type_subject_, it->filament_type.c_str());
 }
 
 void PrintSelectPanel::fill_missing_from_archive(size_t i) {
@@ -2384,8 +2384,8 @@ CardDimensions PrintSelectPanel::calculate_card_dimensions() {
     // The container's own content box already excludes the header, the context
     // banner and its padding, whichever of them is showing.
     lv_obj_update_layout(card_view_container_);
-    lv_coord_t container_width = lv_obj_get_content_width(card_view_container_);
-    lv_coord_t available_height = lv_obj_get_content_height(card_view_container_);
+    int32_t container_width = lv_obj_get_content_width(card_view_container_);
+    int32_t available_height = lv_obj_get_content_height(card_view_container_);
     sized_for_w_ = container_width;
     sized_for_h_ = available_height;
     spdlog::trace("[{}] Card container content height: {}px", get_name(), available_height);
@@ -2634,18 +2634,18 @@ void PrintSelectPanel::update_print_button_state() {
     const bool queue_busy = queue_mode && view.blocked_reason[0] != '\0';
 
     print_button_mode_ = view.mode;
-    lv_subject_copy_string(&button_label_subject_,
-                           queue_mode ? lv_tr("Add to Queue") : lv_tr("Print"));
+    lv_subject_set_string(&button_label_subject_,
+                          queue_mode ? lv_tr("Add to Queue") : lv_tr("Print"));
     // The queue operation's clock icon, the one the job queue surfaces use;
     // the printer icon stays for a direct start.
-    lv_subject_copy_string(&button_icon_subject_, queue_mode ? "progress_clock" : "print");
+    lv_subject_set_string(&button_icon_subject_, queue_mode ? "progress_clock" : "print");
     // Queue mode's own caption is contextual (in flight, or waiting for the
     // current print) rather than a block, so it is mapped here; the pure
     // function's reason only decides enabled/disabled for it.
-    lv_subject_copy_string(&blocked_reason_subject_, queue_busy ? lv_tr("Adding to queue...")
-                                                     : queue_mode
-                                                         ? lv_tr("Starts after the current print")
-                                                         : lv_tr(view.blocked_reason));
+    lv_subject_set_string(&blocked_reason_subject_, queue_busy ? lv_tr("Adding to queue...")
+                                                    : queue_mode
+                                                        ? lv_tr("Starts after the current print")
+                                                        : lv_tr(view.blocked_reason));
 
     const int new_value = enabled ? 1 : 0;
     // Only update if value changed (avoid unnecessary subject notifications)
@@ -2675,7 +2675,7 @@ void PrintSelectPanel::update_sort_indicators() {
             return;
 
         if (show) {
-            lv_obj_remove_flag(icon, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(icon, false);
 
             if (!animations_enabled) {
                 // Instant show
@@ -2701,12 +2701,12 @@ void PrintSelectPanel::update_sort_indicators() {
             // Hide icon
             if (!animations_enabled) {
                 // Instant hide
-                lv_obj_add_flag(icon, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(icon, true);
                 return;
             }
 
             // Hide with fade out (hide flag set in completion callback)
-            bool is_visible = !lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN);
+            bool is_visible = !lv_obj_is_hidden(icon);
             if (is_visible) {
                 lv_anim_t fade_out;
                 lv_anim_init(&fade_out);
@@ -2719,12 +2719,12 @@ void PrintSelectPanel::update_sort_indicators() {
                                          LV_PART_MAIN);
                 });
                 lv_anim_set_completed_cb(&fade_out, [](lv_anim_t* anim) {
-                    lv_obj_add_flag(static_cast<lv_obj_t*>(anim->var), LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_set_hidden(static_cast<lv_obj_t*>(anim->var), true);
                 });
                 lv_anim_start(&fade_out);
             } else {
                 // Already hidden, just ensure it stays hidden
-                lv_obj_add_flag(icon, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(icon, true);
             }
         }
     };

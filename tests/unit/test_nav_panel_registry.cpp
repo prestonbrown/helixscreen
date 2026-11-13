@@ -87,12 +87,12 @@ TEST_CASE_METHOD(RegistryFixture, "replace_widget returns the displaced widget",
 TEST_CASE_METHOD(RegistryFixture, "show_only shows one panel and hides the rest",
                  "[navigation][panel_registry]") {
     registry.show_only(kControls);
-    CHECK(lv_obj_has_flag(home, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(controls, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(home));
+    CHECK_FALSE(lv_obj_is_hidden(controls));
 
     registry.show_only(-1);
-    CHECK(lv_obj_has_flag(home, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(controls, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(home));
+    CHECK(lv_obj_is_hidden(controls));
 }
 
 TEST_CASE_METHOD(RegistryFixture, "Instances register by slot and are found by pointer",

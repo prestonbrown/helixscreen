@@ -100,7 +100,7 @@ class BeltPanelFixture : public XMLTestFixture {
             static_cast<int>(ConnectionState::CONNECTED), nullptr);
         get_printer_state().set_klippy_state_sync(KlippyState::READY);
         lv_subject_set_int(get_printer_state().print_state().get_print_active_subject(), 0);
-        lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
         // The settling laps plan from the toolhead's limits and max velocity.
         set_toolhead_limits(500.0);
         set_accel_subject(1);
@@ -720,14 +720,14 @@ static std::vector<uint32_t> drawn_label_colors(lv_obj_t* obj) {
             out->push_back(lv_color_to_u32(dsc->color) & 0xFFFFFF);
         }
     };
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    lv_obj_set_send_draw_task_events(obj, true);
     lv_obj_add_event_cb(obj, capture, LV_EVENT_DRAW_TASK_ADDED, &colors);
     // A snapshot renders the object whether or not the overlay is on screen.
     if (lv_draw_buf_t* snap = lv_snapshot_take(obj, LV_COLOR_FORMAT_ARGB8888)) {
         lv_draw_buf_destroy(snap);
     }
     lv_obj_remove_event_cb_with_user_data(obj, capture, &colors);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    lv_obj_set_send_draw_task_events(obj, false);
     return colors;
 }
 
@@ -915,7 +915,7 @@ std::vector<std::string> resonance_lines(BeltPanelFixture& fx) {
 }
 
 bool lv_hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 lv_obj_t* named(BeltPanelFixture& fx, const char* name) {
@@ -4074,7 +4074,7 @@ struct DrawnLabel {
 /// The labels a widget draws on one refresh, read from its draw tasks.
 std::vector<DrawnLabel> drawn_labels(lv_obj_t* obj) {
     std::vector<DrawnLabel> out;
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    lv_obj_set_send_draw_task_events(obj, true);
     lv_obj_add_event_cb(
         obj,
         [](lv_event_t* e) {
@@ -4088,7 +4088,7 @@ std::vector<DrawnLabel> drawn_labels(lv_obj_t* obj) {
     lv_obj_invalidate(obj);
     lv_refr_now(nullptr);
     lv_obj_remove_event_cb_with_user_data(obj, nullptr, &out);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    lv_obj_set_send_draw_task_events(obj, false);
     return out;
 }
 
@@ -4100,7 +4100,7 @@ TEST_CASE("the START sketch labels each diagonal with its path's name and color"
     set_layout(helix::calibration::BeltLayout::A_LEFT_B_RIGHT);
     lv_obj_t* sketch = named(fx, "bt_sketch");
     // Created but never pushed, the overlay is still hidden; show it to draw it.
-    lv_obj_remove_flag(fx.view(), LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(fx.view(), false);
     lv_obj_update_layout(lv_obj_get_screen(sketch));
     INFO("sketch " << lv_obj_get_width(sketch) << "x" << lv_obj_get_height(sketch)
                    << " on active screen " << (lv_obj_get_screen(sketch) == lv_screen_active())

@@ -256,7 +256,7 @@ void reset_button_gating_subjects() {
     lv_subject_set_int(&s_mount_disabled, 1);
     lv_subject_set_int(&s_park_hidden, 1);
     lv_subject_set_int(&s_park_disabled, 1);
-    lv_subject_copy_string(&s_action_reason, "");
+    lv_subject_set_string(&s_action_reason, "");
     lv_subject_set_int(&s_action_reason_shown, 0);
     // Shown by default, as on most backends; refresh_button_gating() hides it
     // where Reset has nothing to clear.
@@ -265,7 +265,7 @@ void reset_button_gating_subjects() {
     lv_subject_set_int(&s_check_gates_shown, 0);
     lv_subject_set_int(&s_stepper_shown, 0);
     lv_subject_set_int(&s_mounted_shown, 0);
-    lv_subject_copy_string(&s_mounted_text, "");
+    lv_subject_set_string(&s_mounted_text, "");
 }
 
 void init_button_gating_subjects() {
@@ -1580,7 +1580,7 @@ void AmsOperationSidebar::refresh_button_gating() {
     const std::string& reason =
         !actions.load.reason.empty() ? actions.load.reason : actions.unload.reason;
     if (reason != lv_subject_get_string(&s_action_reason)) {
-        lv_subject_copy_string(&s_action_reason, reason.c_str());
+        lv_subject_set_string(&s_action_reason, reason.c_str());
     }
     lv_subject_set_int(&s_action_reason_shown, reason.empty() ? 0 : 1);
 
@@ -1606,7 +1606,7 @@ void AmsOperationSidebar::refresh_button_gating() {
     const std::string mounted = mounted_tool_text(backend ? backend->tool_noun() : LaneNoun::Tool,
                                                   tools.active_tool_index());
     if (mounted != lv_subject_get_string(&s_mounted_text)) {
-        lv_subject_copy_string(&s_mounted_text, mounted.c_str());
+        lv_subject_set_string(&s_mounted_text, mounted.c_str());
     }
 }
 

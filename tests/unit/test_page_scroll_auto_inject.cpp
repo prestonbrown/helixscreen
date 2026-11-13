@@ -13,7 +13,7 @@ namespace {
 lv_obj_t* add_vscroll(lv_obj_t* parent, int n) {
     lv_obj_t* c = lv_obj_create(parent);
     lv_obj_set_size(c, 400, 200);
-    lv_obj_add_flag(c, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(c, true);
     lv_obj_set_flex_flow(c, LV_FLEX_FLOW_COLUMN);
     for (int i = 0; i < n; ++i) {
         lv_obj_t* r = lv_obj_create(c);
@@ -101,7 +101,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AutoInject cuts the walk at a home widget t
     // the tile would therefore miss this entirely — only the mark catches it.
     lv_obj_t* tile = lv_obj_create(root);
     lv_obj_set_size(tile, 240, 200);
-    lv_obj_remove_flag(tile, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(tile, false);
     lv_obj_add_flag(tile, helix::kPanelWidgetTileFlag);
     lv_obj_t* inner = add_vscroll(tile, 20);
 
@@ -236,7 +236,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AutoInject does not re-walk for a list fill
     inj.on_root_shown(root);
     REQUIRE(inj.managed_count() == 0);
 
-    lv_obj_add_flag(root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root, true);
     for (int i = 0; i < 20; ++i) {
         lv_obj_t* r = lv_obj_create(list);
         lv_obj_set_size(r, lv_pct(100), 60);
@@ -250,7 +250,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AutoInject does not re-walk for a list fill
     CHECK(inj.late_rewalk_count() == before);
     CHECK(inj.managed_count() == 0);
 
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root, false);
     inj.on_root_shown(root);
     CHECK(inj.managed_count() == 1);
     CHECK(lv_obj_find_by_name(list, "up") != nullptr);

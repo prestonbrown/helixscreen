@@ -1223,7 +1223,7 @@ void PrintStatusWidget::set_thumb_on_widgets(const char* src) {
         lv_image_set_src(hero, src);
     }
 #endif
-    lv_subject_copy_string(&idle_thumb_path_subject_, src);
+    lv_subject_set_string(&idle_thumb_path_subject_, src);
 }
 
 void PrintStatusWidget::on_edit_mode_exited() {
@@ -1242,10 +1242,10 @@ void PrintStatusWidget::update_last_print_availability() {
         if (!row)
             continue;
         if (last_print_available_) {
-            lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(row, true);
             lv_obj_set_style_opa(row, LV_OPA_100, 0);
         } else {
-            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(row, false);
             lv_obj_set_style_opa(row, LV_OPA_40, 0);
         }
     }
@@ -1640,8 +1640,8 @@ void PrintStatusWidget::ConfigurePicker::on_created(lv_obj_t* backdrop) {
         lv_obj_set_style_pad_gap(row, space_xs, 0);
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_scrollable(row, false);
+        lv_obj_set_clickable(row, true);
 
         lv_obj_t* cb = lv_checkbox_create(row);
         lv_checkbox_set_text(cb, "");
@@ -1649,7 +1649,7 @@ void PrintStatusWidget::ConfigurePicker::on_created(lv_obj_t* backdrop) {
         if (opt.checked) {
             lv_obj_add_state(cb, LV_STATE_CHECKED);
         }
-        lv_obj_remove_flag(cb, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(cb, false);
 
         lv_obj_t* label = lv_label_create(row);
         lv_label_set_text(label, opt.label);
@@ -1851,13 +1851,13 @@ void PrintStatusWidget::fit_nozzle_picker() {
     int shown = 0;
     for (uint32_t i = 0; i < lv_obj_get_child_count(row); ++i) {
         lv_obj_t* child = lv_obj_get_child(row, static_cast<int32_t>(i));
-        if (!lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(child)) {
             need += lv_obj_get_width(child);
             ++shown;
         }
     }
     need += lv_obj_get_style_pad_column(row, LV_PART_MAIN) * std::max(0, shown - 1);
-    if (lv_obj_has_flag(chevron, LV_OBJ_FLAG_HIDDEN)) {
+    if (lv_obj_is_hidden(chevron)) {
         need += chevron_need;
     }
 
@@ -1941,7 +1941,7 @@ void PrintStatusWidget::fit_speed_row() {
     int need = row_h;
     for (uint32_t i = 0; i < lv_obj_get_child_count(col); ++i) {
         lv_obj_t* child = lv_obj_get_child(col, static_cast<int32_t>(i));
-        if (child == row || lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+        if (child == row || lv_obj_is_hidden(child)) {
             continue;
         }
         need += lv_obj_get_height(child) + gap;
@@ -1996,13 +1996,13 @@ void PrintStatusWidget::NozzleToolPicker::on_created(lv_obj_t* backdrop) {
         lv_obj_set_style_pad_all(row, space_sm, 0);
         lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(row, 0, 0);
-        lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_scrollable(row, false);
+        lv_obj_set_clickable(row, true);
 
         lv_obj_t* lbl = lv_label_create(row);
         lv_label_set_text(lbl, label);
         lv_obj_set_style_text_color(lbl, theme_manager_get_color("text"), 0);
-        lv_obj_remove_flag(lbl, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(lbl, false);
 
         lv_obj_set_user_data(row, new RowPayload{this, tool_key});
 
@@ -2233,11 +2233,11 @@ void PrintStatusWidget::DetailedFormatter::update_layer_text() {
     std::string text =
         helix::ui::format_layer_progress_compact(cur, tot, ps.print_state().layer_is_accurate(), 0);
     snprintf(layer_text_buf_, sizeof(layer_text_buf_), "%s", text.c_str());
-    lv_subject_copy_string(&layer_text_subject_, layer_text_buf_);
+    lv_subject_set_string(&layer_text_subject_, layer_text_buf_);
     std::string z = helix::ui::format_layer_z(ps.print_state().layer_line_z_centimm(
         cur, lv_subject_get_int(ps.motion_state().get_gcode_position_z_subject())));
     snprintf(layer_z_text_buf_, sizeof(layer_z_text_buf_), "%s", z.c_str());
-    lv_subject_copy_string(&layer_z_text_subject_, layer_z_text_buf_);
+    lv_subject_set_string(&layer_z_text_subject_, layer_z_text_buf_);
     // The count and the Z both grow as the print climbs, so the room for the Z
     // is measured again each time they change.
     for (auto* widget : live_instances()) {
@@ -2252,10 +2252,10 @@ void PrintStatusWidget::DetailedFormatter::update_time_text() {
     const size_t old_len = strlen(elapsed_text_buf_) + strlen(remaining_text_buf_);
     snprintf(elapsed_text_buf_, sizeof(elapsed_text_buf_), "%s",
              helix::format::duration_padded(elapsed).c_str());
-    lv_subject_copy_string(&elapsed_text_subject_, elapsed_text_buf_);
+    lv_subject_set_string(&elapsed_text_subject_, elapsed_text_buf_);
     snprintf(remaining_text_buf_, sizeof(remaining_text_buf_), "%s",
              helix::format::duration_padded(remain).c_str());
-    lv_subject_copy_string(&remaining_text_subject_, remaining_text_buf_);
+    lv_subject_set_string(&remaining_text_subject_, remaining_text_buf_);
     // A time that gains or loses a field ("59m" to "1h 00m") changes what the
     // time row needs; ticks within one length do not.
     if (strlen(elapsed_text_buf_) + strlen(remaining_text_buf_) != old_len) {
@@ -2274,7 +2274,7 @@ void PrintStatusWidget::DetailedFormatter::update_filament_text() {
         std::string text = helix::format::format_filament_length(static_cast<double>(used_mm));
         snprintf(filament_text_buf_, sizeof(filament_text_buf_), "%s", text.c_str());
     }
-    lv_subject_copy_string(&filament_text_subject_, filament_text_buf_);
+    lv_subject_set_string(&filament_text_subject_, filament_text_buf_);
 
     // Keep the show_filament_active gate honest as filament accumulates.
     // on_size_changed handles the width-band side; this side handles the
@@ -2291,14 +2291,14 @@ void PrintStatusWidget::DetailedFormatter::update_speed_flow_text() {
              helix::tune::live_speed_text(
                  lv_subject_get_int(ps.motion_state().get_live_velocity_subject()))
                  .c_str());
-    lv_subject_copy_string(&speed_text_subject_, speed_text_buf_);
+    lv_subject_set_string(&speed_text_subject_, speed_text_buf_);
     snprintf(flow_text_buf_, sizeof(flow_text_buf_), "· %s",
              helix::tune::live_flow_text(
                  helix::tune::volumetric_flow_mm3_s(
                      lv_subject_get_int(ps.motion_state().get_live_extruder_velocity_subject()),
                      ps.get_discovery().filament_diameter_mm()))
                  .c_str());
-    lv_subject_copy_string(&flow_text_subject_, flow_text_buf_);
+    lv_subject_set_string(&flow_text_subject_, flow_text_buf_);
     // A rate gaining a digit can push the flow out of its row.
     if (strlen(speed_text_buf_) + strlen(flow_text_buf_) != speed_flow_len_) {
         speed_flow_len_ = strlen(speed_text_buf_) + strlen(flow_text_buf_);
@@ -2331,7 +2331,7 @@ void PrintStatusWidget::DetailedFormatter::update_nozzle_text() {
     // the pinning + auto-mode dispatch.
     helix::ui::temperature::format_temperature_pair(cd_to_c(temp_dd), cd_to_c(tgt_dd),
                                                     nozzle_text_buf_, sizeof(nozzle_text_buf_));
-    lv_subject_copy_string(&nozzle_text_subject_, nozzle_text_buf_);
+    lv_subject_set_string(&nozzle_text_subject_, nozzle_text_buf_);
 }
 
 bool PrintStatusWidget::DetailedFormatter::set_nozzle_tool_override(
@@ -2446,7 +2446,7 @@ void PrintStatusWidget::DetailedFormatter::update_tool_label() {
             nozzle_badge_text_buf_[0] = '\0';
         }
     }
-    lv_subject_copy_string(&nozzle_badge_text_subject_, nozzle_badge_text_buf_);
+    lv_subject_set_string(&nozzle_badge_text_subject_, nozzle_badge_text_buf_);
 }
 
 namespace helix {
@@ -2513,20 +2513,20 @@ void PrintStatusWidget::DetailedFormatter::update_idle_fields() {
     // Reprint via print_status_idle_has_last).
     const PrintHistoryJob* newest = hm ? hm->get_newest_existing_job() : nullptr;
     if (!newest) {
-        lv_subject_copy_string(&idle_filename_subject_, "");
-        lv_subject_copy_string(&idle_when_subject_, lv_tr("No prints yet"));
-        lv_subject_copy_string(&idle_meta_subject_, "");
+        lv_subject_set_string(&idle_filename_subject_, "");
+        lv_subject_set_string(&idle_when_subject_, lv_tr("No prints yet"));
+        lv_subject_set_string(&idle_meta_subject_, "");
         lv_subject_set_int(&idle_has_last_subject_, 0);
         return;
     }
     const double now_s = wall_now_s();
     const LastPrintText text = describe_last_print(*newest, now_s);
     snprintf(idle_filename_buf_, sizeof(idle_filename_buf_), "%s", text.filename.c_str());
-    lv_subject_copy_string(&idle_filename_subject_, idle_filename_buf_);
+    lv_subject_set_string(&idle_filename_subject_, idle_filename_buf_);
     snprintf(idle_when_buf_, sizeof(idle_when_buf_), "%s", text.when.c_str());
-    lv_subject_copy_string(&idle_when_subject_, idle_when_buf_);
+    lv_subject_set_string(&idle_when_subject_, idle_when_buf_);
     snprintf(idle_meta_buf_, sizeof(idle_meta_buf_), "%s", text.meta.c_str());
-    lv_subject_copy_string(&idle_meta_subject_, idle_meta_buf_);
+    lv_subject_set_string(&idle_meta_subject_, idle_meta_buf_);
     lv_subject_set_int(&idle_has_last_subject_, 1);
 }
 

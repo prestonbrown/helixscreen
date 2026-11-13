@@ -651,7 +651,7 @@ TEST_CASE_METHOD(WizardInputShaperStepTestFixture, "WizardInputShaperStep - erro
         REQUIRE(status != nullptr);
 
         // Simulate error message update
-        lv_subject_copy_string(status, "Accelerometer not responding");
+        lv_subject_set_string(status, "Accelerometer not responding");
 
         const char* msg = lv_subject_get_string(status);
         REQUIRE(std::string(msg) == "Accelerometer not responding");
@@ -678,7 +678,7 @@ TEST_CASE_METHOD(WizardInputShaperStepTestFixture, "WizardInputShaperStep - erro
         std::string long_error(200, 'E');
 
         // Should not crash - LVGL truncates safely
-        lv_subject_copy_string(status, long_error.c_str());
+        lv_subject_set_string(status, long_error.c_str());
 
         // Verify it was truncated (not full length)
         const char* msg = lv_subject_get_string(status);
@@ -802,7 +802,7 @@ class WizardPreviewFixture : public LVGLUITestFixture {
         PrinterStateTestAccess::reset(get_printer_state());
         get_printer_state().init_subjects(false);
         get_printer_state().set_klippy_state_sync(KlippyState::READY);
-        lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
         if (reachable) {
             api_ = std::make_unique<MoonrakerAPIMock>(client_, get_printer_state());
         } else {

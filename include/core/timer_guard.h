@@ -209,7 +209,7 @@ class ElapsedLabelTimer {
     void format() {
         if (subject_ && formatter_) {
             const std::string text = formatter_(elapsed_seconds());
-            lv_subject_copy_string(subject_, text.c_str());
+            lv_subject_set_string(subject_, text.c_str());
         }
     }
 

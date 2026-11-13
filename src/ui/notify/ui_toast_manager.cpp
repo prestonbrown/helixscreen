@@ -320,8 +320,8 @@ void ToastManager::ensure_stack_container() {
         lv_obj_set_style_bg_opa(toast_stack_, LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_set_style_border_width(toast_stack_, 0, LV_PART_MAIN);
         // Container itself should never intercept clicks — only the toasts inside do.
-        lv_obj_clear_flag(toast_stack_, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_clear_flag(toast_stack_, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_scrollable(toast_stack_, false);
+        lv_obj_set_clickable(toast_stack_, false);
     }
 
     // (Re)apply size + anchor every time — picks up breakpoint changes between
@@ -624,7 +624,7 @@ void ToastManager::detach_from_input(lv_obj_t* widget) {
     // has begun (CLICKABLE gates indev hit-testing).
     if (lv_obj_t* action_btn =
             helix::ui::find_required(widget, "toast_action_btn", "ToastManager")) {
-        lv_obj_remove_flag(action_btn, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(action_btn, false);
     }
 }
 

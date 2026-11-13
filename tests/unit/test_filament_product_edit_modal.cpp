@@ -25,9 +25,7 @@ TEST_CASE_METHOD(
         return obj;
     };
     auto title = [&dialog]() { return std::string(lv_label_get_text(dialog("header_title"))); };
-    auto delete_shown = [&dialog]() {
-        return !lv_obj_has_flag(dialog("btn_secondary"), LV_OBJ_FLAG_HIDDEN);
-    };
+    auto delete_shown = [&dialog]() { return !lv_obj_is_hidden(dialog("btn_secondary")); };
 
     // An id the shipped catalog does not hold is the user's own: it can be deleted.
     for (int round = 0; round < 2; ++round) {

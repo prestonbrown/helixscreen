@@ -355,7 +355,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "A chip centres each label on its ban
         lv_obj_t* label = lv_obj_find_by_name(chip, label_name);
         REQUIRE(band != nullptr);
         REQUIRE(label != nullptr);
-        REQUIRE_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(label));
         REQUIRE(std::string(lv_label_get_text(label)).size() > 0);
         CAPTURE(lv_obj_get_height(band), lv_obj_get_height(label));
         CHECK(std::abs(centre_y(label) - centre_y(band)) <= 1.0);

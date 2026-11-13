@@ -258,7 +258,7 @@ TEST_CASE_METHOD(ThermistorPickerFixture, "thermistor sensor picker rows bind to
     CHECK(row_text(row_a, "row_name").rfind("Helix Test Probe", 0) == 0);
     CHECK(row_text(row_a, "row_temp") == "0\xC2\xB0"
                                          "C");
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(row_a, "row_check"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(row_a, "row_check")));
     CHECK(lv_obj_get_style_bg_opa(row_a, LV_PART_MAIN) == 30);
     CHECK(lv_obj_get_style_bg_opa(row_b, LV_PART_MAIN) == 0);
 

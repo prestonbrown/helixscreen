@@ -295,7 +295,7 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
     // Set responsive padding for content area
     lv_obj_t* content_container = find_required(overlay_root_, "content_container", get_name());
     if (content_container) {
-        lv_coord_t padding = ui_get_header_content_padding();
+        int32_t padding = ui_get_header_content_padding();
         lv_obj_set_style_pad_all(content_container, padding, 0);
     }
 
@@ -531,7 +531,7 @@ void PrintSelectDetailView::publish_material_text() {
                                    used && !used->empty() ? used : std::optional<std::set<int>>{});
     // A file naming no material keeps the panel's text (its filament name).
     if (!text.empty()) {
-        lv_subject_copy_string(material_text_subject_, text.c_str());
+        lv_subject_set_string(material_text_subject_, text.c_str());
     }
 }
 
@@ -1298,7 +1298,7 @@ void PrintSelectDetailView::handle_resize(lv_obj_t* parent_screen) {
     lv_obj_t* content_container =
         helix::ui::find_required(overlay_root_, "content_container", get_name());
     if (content_container) {
-        lv_coord_t padding = ui_get_header_content_padding();
+        int32_t padding = ui_get_header_content_padding();
         lv_obj_set_style_pad_all(content_container, padding, 0);
     }
 }
@@ -1328,7 +1328,7 @@ void PrintSelectDetailView::update_history_status(FileHistoryStatus status, int 
         snprintf(buf, sizeof(buf), "%s", lv_tr("Last print canceled"));
         break;
     }
-    lv_subject_copy_string(&detail_history_text_, buf);
+    lv_subject_set_string(&detail_history_text_, buf);
     lv_subject_set_int(&detail_history_status_, static_cast<int>(status));
 }
 
@@ -1424,7 +1424,7 @@ void PrintSelectDetailView::poll_load_progress() {
     } else {
         snprintf(buf, sizeof(buf), "%s", lv_tr("Indexing G-code..."));
     }
-    lv_subject_copy_string(&detail_gcode_progress_text_, buf);
+    lv_subject_set_string(&detail_gcode_progress_text_, buf);
 }
 
 void PrintSelectDetailView::show_gcode_viewer(bool show) {
@@ -2087,8 +2087,8 @@ void PrintSelectDetailView::refresh_fit_check() {
     // 0 nothing, then one past the worst FitSeverity: 1 note, 2 warn, 3 block.
     const auto worst = helix::fit_worst(findings);
     const int severity = worst ? static_cast<int>(*worst) + 1 : 0;
-    lv_subject_copy_string(&detail_fit_text_,
-                           helix::fit_findings_text(findings, helix::FitSeverity::Note).c_str());
+    lv_subject_set_string(&detail_fit_text_,
+                          helix::fit_findings_text(findings, helix::FitSeverity::Note).c_str());
     lv_subject_set_int(&detail_fit_severity_, severity);
 }
 
@@ -2196,7 +2196,7 @@ void PrintSelectDetailView::publish_exclude_picks() {
     lv_subject_set_int(&detail_exclude_pick_count_, count);
     std::snprintf(detail_exclude_pick_count_text_buf_, sizeof(detail_exclude_pick_count_text_buf_),
                   "%d", count);
-    lv_subject_copy_string(&detail_exclude_pick_count_text_, detail_exclude_pick_count_text_buf_);
+    lv_subject_set_string(&detail_exclude_pick_count_text_, detail_exclude_pick_count_text_buf_);
     if (gcode_viewer_) {
         helix::ui::gcode_viewer_set_excluded_objects(gcode_viewer_, {picks.begin(), picks.end()});
     }
@@ -2438,7 +2438,7 @@ void PrintSelectDetailView::load_gcode_for_preview() {
     // Show loading spinner over thumbnail, and start reporting real progress
     // as soon as the streaming indexer has any to report.
     lv_subject_set_int(&detail_gcode_progress_, 0);
-    lv_subject_copy_string(&detail_gcode_progress_text_, lv_tr("Indexing G-code..."));
+    lv_subject_set_string(&detail_gcode_progress_text_, lv_tr("Indexing G-code..."));
     lv_subject_set_int(&detail_gcode_loading_, 1);
     start_progress_timer();
 
@@ -2667,7 +2667,7 @@ void PrintSelectDetailView::update_prep_time_label() {
     int estimate_s = lv_subject_get_int(prep_manager_->get_preprint_estimate_subject());
 
     if (estimate_s <= 0) {
-        lv_subject_copy_string(&prep_time_estimate_subject_, "");
+        lv_subject_set_string(&prep_time_estimate_subject_, "");
         lv_subject_set_int(&preprint_estimate_visible_, 0);
         return;
     }
@@ -2684,7 +2684,7 @@ void PrintSelectDetailView::update_prep_time_label() {
     } else {
         snprintf(buf, sizeof(buf), "~%d sec prep time", secs);
     }
-    lv_subject_copy_string(&prep_time_estimate_subject_, buf);
+    lv_subject_set_string(&prep_time_estimate_subject_, buf);
     lv_subject_set_int(&preprint_estimate_visible_, 1);
 }
 

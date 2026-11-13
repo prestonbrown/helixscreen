@@ -102,7 +102,7 @@ class ControlsSaveZOffsetFixture : public LVGLUITestFixture {
     }
 
     bool save_button_visible() {
-        return !lv_obj_has_flag(save_button(), LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(save_button());
     }
 
     void click_save() {

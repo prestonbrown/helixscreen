@@ -181,8 +181,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(lv_obj_get_parent(obj) == lv_layer_top());
     CHECK(lv_obj_get_style_bg_opa(obj, LV_PART_MAIN) == LV_OPA_COVER);
     CHECK(lv_color_eq(lv_obj_get_style_bg_color(obj, LV_PART_MAIN), lv_color_black()));
-    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE));
-    CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLLABLE));
+    CHECK(lv_obj_is_clickable(obj));
+    CHECK_FALSE(lv_obj_is_scrollable(obj));
 
     overlay.make_transparent();
     CHECK(lv_obj_get_style_bg_opa(obj, LV_PART_MAIN) == LV_OPA_TRANSP);
@@ -190,7 +190,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     overlay.destroy();
     CHECK(overlay.obj() == nullptr);
     // Deleted on a later timer pass, hidden until then.
-    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(obj));
 }
 
 // ============================================================================
@@ -250,7 +250,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "releasing a saver canvas hides it and frees i
 
     canvas.release();
 
-    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(obj));
     CHECK(canvas.obj() == nullptr);
     CHECK(canvas.data() == nullptr);
     CHECK(canvas.buffer_size() == 0);
@@ -575,10 +575,10 @@ TEST_CASE_METHOD(
     CHECK_FALSE(saver.is_active());
     CHECK(timer->timer_cb == nullptr);
     CHECK(SaverTestAccess::timer(saver) == nullptr);
-    CHECK(lv_obj_has_flag(canvas, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(canvas));
     CHECK(SaverTestAccess::draw_buf_size(saver) == 0);
     CHECK(SaverTestAccess::overlay(saver) == nullptr);
-    CHECK(lv_obj_has_flag(overlay, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(overlay));
     CHECK(saver.calls == std::vector<std::string>{"start", "stop"});
 }
 

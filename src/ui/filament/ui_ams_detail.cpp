@@ -125,7 +125,7 @@ bool draws_tray() {
 /// last lane's spool and badge, as tall as the spools and level with them.
 void place_env_pill_beside_spools(lv_obj_t* pill, lv_obj_t* container,
                                   const helix::ui::WidgetRef slot_widgets[], int n) {
-    if (!pill || lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN))
+    if (!pill || lv_obj_is_hidden(pill))
         return;
     clear_translate(pill);
     int32_t top = INT32_MAX, bottom = INT32_MIN, lanes_right = INT32_MIN;
@@ -335,8 +335,8 @@ void ams_detail_destroy_slots(AmsDetailWidgets& w, helix::ui::WidgetRef slot_wid
     //   2. Synchronous lv_obj_delete() inside UpdateQueue::process_pending(),
     //      which can corrupt LVGL's event linked list.
     lv_obj_t* condemned = lv_obj_create(lv_screen_active());
-    lv_obj_add_flag(condemned, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(condemned, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_hidden(condemned, true);
+    lv_obj_set_scrollable(condemned, false);
     lv_obj_set_size(condemned, 0, 0);
 
     for (int i = 0; i < slot_count; ++i) {
@@ -452,7 +452,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     if (!draws_tray()) {
         // The tray is a draw-hook canvas; this renderer decides per unit
         // whether it has anything to draw.
-        lv_obj_add_flag(w.slot_tray, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: draw-hook canvas
+        lv_obj_set_hidden(w.slot_tray, true); // DECLARATIVE_OK: draw-hook canvas
         if (!container || !slot_widgets || slot_count <= 0)
             return;
         const int n = std::min(slot_count, kAmsDetailMaxSlots);
@@ -461,7 +461,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         place_env_pill_beside_spools(w.env_indicator, container, slot_widgets, n);
         return;
     }
-    lv_obj_remove_flag(w.slot_tray, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: as above
+    lv_obj_set_hidden(w.slot_tray, false); // DECLARATIVE_OK: as above
 
     // Attach draw callbacks once per object instance. This function runs on every
     // panel rebuild, so remove-then-add is what keeps it idempotent:
@@ -600,7 +600,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
 
     // A unit with its own drawing keeps its pill low and tucked over the end of the body,
     // where it covers neither a spool nor the lid's outline.
-    if (shell && w.env_indicator && !lv_obj_has_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN)) {
+    if (shell && w.env_indicator && !lv_obj_is_hidden(w.env_indicator)) {
         const int32_t tuck = theme_manager_get_spacing("space_sm");
         // DECLARATIVE_OK: measured layout; the pill's place depends on the drawn unit
         lv_obj_set_height(w.env_indicator, LV_SIZE_CONTENT);
@@ -613,7 +613,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         const int32_t pill_bottom = origin.y + (int32_t)std::lround(box.fb) + tuck;
         lv_obj_set_style_translate_x(w.env_indicator, left - a.x1, LV_PART_MAIN);
         lv_obj_set_style_translate_y(w.env_indicator, pill_bottom - a.y2, LV_PART_MAIN);
-    } else if (w.env_indicator && !lv_obj_has_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN)) {
+    } else if (w.env_indicator && !lv_obj_is_hidden(w.env_indicator)) {
         const int32_t pill_top = origin.y + (int32_t)std::lround(top);
         const int32_t pill_bottom = origin.y + (int32_t)std::lround(box.fb);
         const int32_t right = origin.x + (int32_t)std::lround(tray::pill_left_x(box, badge_end));
@@ -927,10 +927,10 @@ void ams_detail_pre_show_env_indicator(AmsDetailWidgets& w, int unit_index) {
     // reading on.
     auto* backend = helix::AmsState::instance().get_backend();
     if (backend && backend->has_environment_sensors()) {
-        lv_obj_remove_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: layout
+        lv_obj_set_hidden(w.env_indicator, false); // DECLARATIVE_OK: layout
         spdlog::debug("[AmsDetail] Pre-showed env indicator for unit {}", u);
     } else {
-        lv_obj_add_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: as above
+        lv_obj_set_hidden(w.env_indicator, true); // DECLARATIVE_OK: as above
     }
 }
 

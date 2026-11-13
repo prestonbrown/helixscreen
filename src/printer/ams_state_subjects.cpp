@@ -725,7 +725,7 @@ void AmsState::install_connection_state_observer() {
 void AmsState::install_print_state_observer() {
     // Idempotent: reset any prior guard before installing a fresh one. The
     // reset path uses the alive token from the *previous* install so it can
-    // safely skip lv_observer_remove() if PrinterState already deinit'd its
+    // safely skip lv_observer_delete() if PrinterState already deinit'd its
     // subjects (e.g. between tests).
     print_state_observer_.reset();
     auto lifetime = get_printer_state().print_state().get_static_subjects_lifetime();
@@ -1443,7 +1443,7 @@ void AmsState::BackendSlotSubjects::write(int i, const SlotInfo& slot) {
     lv_subject_set_int(&lane_states[i], static_cast<int>(helix::ui::classify_lane(slot)));
     // No prev buffer, so LVGL notifies on every copy; compare here instead.
     if (strcmp(lv_subject_get_string(&materials[i]), slot.material.c_str()) != 0)
-        lv_subject_copy_string(&materials[i], slot.material.c_str());
+        lv_subject_set_string(&materials[i], slot.material.c_str());
     write_slot_name(&names[i], kSlotNameBufSize, slot);
     bool has_error = false;
     int severity = 0;

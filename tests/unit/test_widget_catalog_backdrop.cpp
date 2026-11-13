@@ -16,7 +16,7 @@ std::vector<lv_obj_t*> visible_children(lv_obj_t* parent) {
     std::vector<lv_obj_t*> out;
     for (uint32_t i = 0; i < lv_obj_get_child_count(parent); ++i) {
         lv_obj_t* c = lv_obj_get_child(parent, static_cast<int32_t>(i));
-        if (!lv_obj_has_flag(c, LV_OBJ_FLAG_HIDDEN))
+        if (!lv_obj_is_hidden(c))
             out.push_back(c);
     }
     return out;
@@ -40,7 +40,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "widget catalog: nothing shows before the pu
     process_lvgl(10);
     lv_obj_t* overlay = lv_obj_find_by_name(test_screen(), "widget_catalog_overlay");
     REQUIRE(overlay != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(overlay, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(overlay));
     // The backdrop arrived with the push, behind the panel.
     const auto after = visible_children(test_screen());
     CHECK(after.size() >= before.size() + 2);

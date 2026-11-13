@@ -468,7 +468,7 @@ static void* z_offset_indicator_xml_create(lv_xml_parser_state_t* state, const c
 
     // Default: full width, full parent height (stretches to sibling-driven row height)
     lv_obj_set_size(obj, LV_PCT(100), LV_PCT(100));
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(obj, false);
 
     // Remove default styles and make transparent
     lv_obj_remove_style_all(obj);

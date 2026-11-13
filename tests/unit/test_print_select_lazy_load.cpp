@@ -73,7 +73,7 @@ TEST_CASE_METHOD(UnvisitedPrintSelectFixture,
 
     lv_obj_t* icon = lv_obj_find_by_name(test_screen(), "detail_no_thumbnail_icon");
     REQUIRE(icon != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(icon));
 }
 
 TEST_CASE_METHOD(UnvisitedPrintSelectFixture,
@@ -93,13 +93,13 @@ TEST_CASE_METHOD(UnvisitedPrintSelectFixture,
         REQUIRE(PrintSelectPanelTestAccess::detail_view_visible(*panel_));
         lv_obj_t* icon = lv_obj_find_by_name(test_screen(), "detail_no_thumbnail_icon");
         REQUIRE(icon != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(icon));
         // Cards carry a gradient_bg too; this is the preview's.
         lv_obj_t* preview = lv_obj_find_by_name(test_screen(), "detail_preview_clear_area");
         REQUIRE(preview != nullptr);
         lv_obj_t* gradient = lv_obj_find_by_name(preview, "gradient_bg");
         REQUIRE(gradient != nullptr);
-        CHECK(lv_obj_has_flag(gradient, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(gradient));
 
         NavigationManager::instance().go_back();
         drain();

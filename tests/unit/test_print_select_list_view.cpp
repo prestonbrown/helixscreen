@@ -34,7 +34,7 @@ std::string visible_print_times(lv_obj_t* container) {
     std::string out;
     for (uint32_t i = 0; i < lv_obj_get_child_count(container); i++) {
         lv_obj_t* row = lv_obj_get_child(container, i);
-        if (lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(row)) {
             continue;
         }
         if (lv_obj_t* t = lv_obj_find_by_name(row, "row_print_time")) {
@@ -52,7 +52,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     PrintSelectListView view;
     lv_obj_t* container = lv_obj_create(test_screen());
     lv_obj_set_size(container, 600, 400);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, true);
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
     view.setup(container, nullptr, nullptr);
 
@@ -103,7 +103,7 @@ TEST_CASE_METHOD(
     PrintSelectListView view;
     lv_obj_t* container = lv_obj_create(test_screen());
     lv_obj_set_size(container, 600, 400);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, true);
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
     view.setup(container, nullptr, nullptr);
 
@@ -127,8 +127,7 @@ TEST_CASE_METHOD(
     lv_obj_t* row = nullptr;
     for (uint32_t i = 0; i < lv_obj_get_child_count(container); i++) {
         lv_obj_t* r = lv_obj_get_child(container, static_cast<int32_t>(i));
-        if (!lv_obj_has_flag(r, LV_OBJ_FLAG_HIDDEN) &&
-            reinterpret_cast<size_t>(lv_obj_get_user_data(r)) == 2) {
+        if (!lv_obj_is_hidden(r) && reinterpret_cast<size_t>(lv_obj_get_user_data(r)) == 2) {
             row = r;
         }
     }

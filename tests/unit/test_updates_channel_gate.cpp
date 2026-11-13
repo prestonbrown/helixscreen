@@ -90,7 +90,7 @@ struct UpdatesChannelGateFixture : public LVGLUITestFixture {
         REQUIRE(root_ != nullptr);
         lv_obj_t* obj = lv_obj_find_by_name(root_, name);
         REQUIRE(obj != nullptr);
-        return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(obj);
     }
 
     lv_obj_t* dropdown(const char* row_name) const {

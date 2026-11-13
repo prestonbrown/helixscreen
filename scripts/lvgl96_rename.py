@@ -223,7 +223,8 @@ class Rewriter:
         return "lv_obj_set_%s(%s,%s)" % (name.lower(), args[0], value)
 
     def flags(self, text, path, report):
-        count = 0
+        """Rewrite every flag call that maps cleanly, then report the rest once."""
+        count, rewrite = 0, True
         while True:
             kind = classify(text)
             changed = False
@@ -234,28 +235,25 @@ class Rewriter:
                 j = m.end()
                 while j < len(text) and text[j] in " \t\r\n":
                     j += 1
-                if j >= len(text) or text[j] != "(":
-                    if not opted_out(text, m.start(), m.end()):
-                        report.append((path, line_of(text, m.start()), func, "not a call",
-                                       line_text(text, m.start()).strip()))
-                    continue
-                parsed = split_args(text, kind, j)
+                parsed = split_args(text, kind, j) if j < len(text) and text[j] == "(" else None
                 if parsed is None:
-                    report.append((path, line_of(text, m.start()), func, "unbalanced call", ""))
-                    continue
-                args, end = parsed
-                repl = self.flag_replacement(func, args)
-                if repl.startswith("!"):
-                    if not opted_out(text, m.start(), end):
-                        report.append((path, line_of(text, m.start()), func, repl[1:],
-                                       line_text(text, m.start()).strip()))
-                    continue
-                text = text[:m.start()] + repl + text[end:]
-                count += 1
-                changed = True
-                break  # positions moved; rescan (nested calls rewrite on the next pass)
-            if not changed:
+                    why, end = ("not a call" if j >= len(text) or text[j] != "(" else "unbalanced call"), m.end()
+                else:
+                    args, end = parsed
+                    repl = self.flag_replacement(func, args)
+                    if rewrite and not repl.startswith("!"):
+                        text = text[:m.start()] + repl + text[end:]
+                        count += 1
+                        changed = True
+                        break  # offsets moved; rescan (a nested call rewrites next pass)
+                    why = repl[1:]
+                if not rewrite and not opted_out(text, m.start(), end):
+                    report.append((path, line_of(text, m.start()), func, why,
+                                   line_text(text, m.start()).strip()))
+            if not rewrite:
                 return text, count
+            if not changed:
+                rewrite = False
 
     def remaining(self, text, path):
         """Deprecated names still present in code (not comments or strings)."""

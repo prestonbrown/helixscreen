@@ -90,7 +90,7 @@ class CapabilityFixture : public LVGLUITestFixture {
     static bool hidden(lv_obj_t* root, const char* name) {
         lv_obj_t* obj = lv_obj_find_by_name(root, name);
         REQUIRE(obj != nullptr);
-        return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(obj);
     }
 };
 
@@ -282,9 +282,9 @@ TEST_CASE_METHOD(CapabilityFixture, "Micro screens give the Ethernet MAC line up
     const int32_t saved = lv_subject_get_int(bp);
 
     lv_subject_set_int(bp, 0);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
     lv_subject_set_int(bp, 1);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
     lv_subject_set_int(bp, saved);
 }
 

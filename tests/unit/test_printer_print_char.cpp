@@ -1078,7 +1078,7 @@ TEST_CASE("Print: string observer sees updated enum (issue #125 regression)",
     // Verify can_start_new_print is true after the full update
     REQUIRE(state.print_state().can_start_new_print() == true);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // ============================================================================

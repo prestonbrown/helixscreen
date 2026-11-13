@@ -85,7 +85,7 @@ TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: real drag lands on the gutter-aw
     REQUIRE(content_h == nrows * kCellPx + (nrows - 1) * gutter);
 
     lv_obj_t* container = lv_obj_create(test_screen());
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
     lv_obj_set_style_pad_all(container, 0, 0);
     lv_obj_set_style_border_width(container, 0, 0);
     lv_obj_set_size(container, content_w, content_h);
@@ -112,7 +112,7 @@ TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: real drag lands on the gutter-aw
     constexpr int kRowspan = GridLayout::TRACKS_PER_CELL;
     lv_obj_t* widget = lv_obj_create(container);
     lv_obj_set_name(widget, "humidity");
-    lv_obj_remove_flag(widget, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(widget, false);
     lv_obj_set_grid_cell(widget, LV_GRID_ALIGN_STRETCH, 0, kColspan, LV_GRID_ALIGN_STRETCH, 0,
                          kRowspan);
     lv_obj_update_layout(container);
@@ -296,7 +296,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     const int content_h = kCellPx;
 
     lv_obj_t* container = lv_obj_create(test_screen());
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
     lv_obj_set_style_pad_all(container, 0, 0);
     lv_obj_set_style_border_width(container, 0, 0);
     lv_obj_set_size(container, content_w, content_h);
@@ -314,7 +314,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     lv_obj_t* widget = lv_obj_create(container);
     lv_obj_set_name(widget, "humidity");
-    lv_obj_remove_flag(widget, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(widget, false);
     lv_obj_set_grid_cell(widget, LV_GRID_ALIGN_STRETCH, 0, kColspan, LV_GRID_ALIGN_STRETCH, 0,
                          kRowspan);
     lv_obj_update_layout(container);
@@ -448,7 +448,7 @@ GuardFixture make_guard_fixture(lv_obj_t* parent, const std::string& panel_id) {
     f.panel_id = panel_id;
 
     f.container = lv_obj_create(parent);
-    lv_obj_remove_flag(f.container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(f.container, false);
     lv_obj_set_style_pad_all(f.container, 0, 0);
     lv_obj_set_style_border_width(f.container, 0, 0);
     lv_obj_set_size(f.container, content_w, content_h);
@@ -463,7 +463,7 @@ GuardFixture make_guard_fixture(lv_obj_t* parent, const std::string& panel_id) {
     constexpr int kRowspan = GridLayout::TRACKS_PER_CELL;
     f.widget = lv_obj_create(f.container);
     lv_obj_set_name(f.widget, "humidity");
-    lv_obj_remove_flag(f.widget, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(f.widget, false);
     lv_obj_set_grid_cell(f.widget, LV_GRID_ALIGN_STRETCH, 0, kColspan, LV_GRID_ALIGN_STRETCH, 0,
                          kRowspan);
     lv_obj_update_layout(f.container);

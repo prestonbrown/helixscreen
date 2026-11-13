@@ -37,7 +37,7 @@ class HeaterStatusFixture : public XMLTestFixture {
     static bool hidden(const char* name) {
         lv_obj_t* icon = lv_obj_find_by_name(lv_screen_active(), name);
         REQUIRE(icon != nullptr);
-        return lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(icon);
     }
 
     lv_subject_t* state_ = nullptr;

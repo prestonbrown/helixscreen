@@ -180,7 +180,7 @@ TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
 // Regression: attach() must defer the initial idle reset (AD5M SY6JLLKJ)
 //
 // Calling reset_print_card_to_idle() synchronously from attach() cascades:
-//   lv_subject_copy_string(idle_thumb_path) → bind_src observer →
+//   lv_subject_set_string(idle_thumb_path) → bind_src observer →
 //   lv_image_set_src → update_align → lv_obj_update_layout → grid_update
 // which crashed in grid_update reading half-built track data when the parent
 // page-grid was still mid-construction (populate_page builds widgets one at a
@@ -196,7 +196,7 @@ TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
     // it is non-null whether or not lv_subject_init_string() has ever run. Assert
     // the subject is actually a live string subject instead: an uninitialized
     // lv_subject_t is zeroed, so type would be 0 (not STRING) and the backing
-    // buffer pointer would be null, and lv_subject_copy_string() below would
+    // buffer pointer would be null, and lv_subject_set_string() below would
     // silently no-op.
     REQUIRE(subj->type == LV_SUBJECT_TYPE_STRING);
     REQUIRE(subj->value.pointer != nullptr);
@@ -206,7 +206,7 @@ TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
     // reset_print_card_to_idle() (which rewrites to benchy) ran before
     // attach() returned, or only after the next LVGL tick.
     static constexpr const char* kSentinel = "A:assets/images/__test_seed__.png";
-    lv_subject_copy_string(subj, kSentinel);
+    lv_subject_set_string(subj, kSentinel);
 
     auto current_value = [&]() {
         const char* p = static_cast<const char*>(subj->value.pointer);
@@ -253,7 +253,7 @@ TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
     widget.detach();
     CHECK_FALSE(PrintStatusWidgetTestAccess::idle_reset_pending(widget));
 
-    lv_subject_copy_string(subj, kSentinel);
+    lv_subject_set_string(subj, kSentinel);
     process_lvgl(200);
     CHECK(std::string(static_cast<const char*>(subj->value.pointer)) == kSentinel);
 }

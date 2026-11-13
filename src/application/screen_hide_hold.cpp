@@ -16,10 +16,10 @@ void ScreenHideHold::acquire(lv_obj_t* screen) {
         return;
     }
     m_screen = screen;
-    m_hid_screen = screen != nullptr && !lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN);
+    m_hid_screen = screen != nullptr && !lv_obj_is_hidden(screen);
     if (m_hid_screen) {
         // DECLARATIVE_OK: screen hidden under an opaque top-layer overlay
-        lv_obj_add_flag(screen, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(screen, true);
     }
 }
 
@@ -33,7 +33,7 @@ void ScreenHideHold::release() {
 void ScreenHideHold::show_hidden_screen() {
     if (m_hid_screen && m_screen && lv_is_initialized()) {
         // DECLARATIVE_OK: screen hidden under an opaque top-layer overlay
-        lv_obj_remove_flag(m_screen, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(m_screen, false);
     }
     m_screen = nullptr;
     m_hid_screen = false;

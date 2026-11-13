@@ -24,7 +24,7 @@ lv_obj_t* NavigationManager::navbar_target_at(lv_obj_t* navbar, const lv_point_t
                                                "nav_btn_settings", "nav_btn_advanced"};
     for (const char* name : kTargets) {
         lv_obj_t* btn = lv_obj_find_by_name(navbar, name);
-        if (!btn || lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN)) {
+        if (!btn || lv_obj_is_hidden(btn)) {
             continue;
         }
         lv_area_t area;
@@ -70,7 +70,7 @@ void NavigationManager::wire_events(lv_obj_t* navbar) {
     // Store navbar reference for z-order management when showing overlays
     navbar_widget_ = navbar;
 
-    lv_obj_remove_flag(navbar, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(navbar, false);
 
     const char* button_names[] = {"nav_btn_home",     "nav_btn_print_select", "nav_btn_controls",
                                   "nav_btn_filament", "nav_btn_settings",     "nav_btn_advanced"};
@@ -86,7 +86,7 @@ void NavigationManager::wire_events(lv_obj_t* navbar) {
         lv_obj_add_event_cb(btn, nav_button_clicked_cb, LV_EVENT_CLICKED, (void*)(uintptr_t)i);
 
         // Remove focus ring — nav buttons use icon color swap for active state
-        lv_obj_remove_flag(btn, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+        lv_obj_set_click_focusable(btn, false);
         lv_group_remove_obj(btn);
     }
 
@@ -156,9 +156,9 @@ void NavigationManager::wire_status_icons(lv_obj_t* navbar) {
             continue;
         }
 
-        lv_obj_add_flag(icon_widget, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_remove_flag(icon_widget, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_event_bubble(icon_widget, true);
+        lv_obj_set_clickable(icon_widget, false);
+        lv_obj_set_clickable(btn, true);
 
         spdlog::trace("[NavigationManager] Status icon {} wired", button_names[i]);
     }

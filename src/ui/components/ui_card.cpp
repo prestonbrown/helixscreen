@@ -46,7 +46,7 @@ static void* ui_card_xml_create(lv_xml_parser_state_t* state, const char** attrs
     lv_obj_set_style_opa(obj, LV_OPA_50, LV_PART_MAIN | LV_STATE_DISABLED);
 
     // Disable scrolling (cards are fixed containers, not scroll areas)
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(obj, false);
 
     // Shadow: 0 (no shadow by default - can be overridden in XML)
     lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN);

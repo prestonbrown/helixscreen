@@ -94,11 +94,11 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent, AddCallback on_add) {
         adding ? helix::kDefaultMoonrakerPort
                : config->get<int>(config->df() + "moonraker_port", helix::kDefaultMoonrakerPort);
 
-    lv_subject_copy_string(&host_ip_subject_, host.c_str());
-    lv_subject_copy_string(&host_port_subject_, std::to_string(port).c_str());
+    lv_subject_set_string(&host_ip_subject_, host.c_str());
+    lv_subject_set_string(&host_port_subject_, std::to_string(port).c_str());
     // The key belongs to the active printer's entry; a printer being added starts without one.
     const std::string api_key = adding ? std::string{} : active_printer_credential().api_key;
-    lv_subject_copy_string(&api_key_subject_, api_key.c_str());
+    lv_subject_set_string(&api_key_subject_, api_key.c_str());
 
     bool result = show(parent);
     if (result && dialog()) {
@@ -204,7 +204,7 @@ void ChangeHostModal::deinit_subjects() {
         return;
 
     // release() because subjects are about to be destroyed —
-    // calling reset() (which does lv_observer_remove) on a dead subject = crash.
+    // calling reset() (which does lv_observer_delete) on a dead subject = crash.
     host_ip_observer_.release();
     host_port_observer_.release();
     api_key_observer_.release();
@@ -260,7 +260,7 @@ void ChangeHostModal::on_test_success(const std::string& host,
     const std::string port_text = std::to_string(result.port);
     if (sanitize_port(lv_subject_get_string(&host_port_subject_)) != port_text) {
         port_set_by_app_ = true;
-        lv_subject_copy_string(&host_port_subject_, port_text.c_str());
+        lv_subject_set_string(&host_port_subject_, port_text.c_str());
         port_set_by_app_ = false;
     }
 
@@ -403,7 +403,7 @@ void ChangeHostModal::set_status(StatusKind kind, const char* text) {
     }
     // The status line's icon and text bind these
     lv_subject_set_int(&status_kind_subject_, static_cast<int>(kind));
-    lv_subject_copy_string(&status_text_subject_, text ? text : "");
+    lv_subject_set_string(&status_text_subject_, text ? text : "");
 }
 
 // ============================================================================
@@ -527,10 +527,10 @@ void ChangeHostModal::handle_printer_picked(uint32_t selected) {
                  picked->port);
     const std::string host = picked->ip_address;
     const std::string port = std::to_string(picked->port);
-    lv_subject_copy_string(&host_ip_subject_, host.c_str());
+    lv_subject_set_string(&host_ip_subject_, host.c_str());
     // The discovered port is where Moonraker answered, not something the user typed.
     port_set_by_app_ = true;
-    lv_subject_copy_string(&host_port_subject_, port.c_str());
+    lv_subject_set_string(&host_port_subject_, port.c_str());
     port_set_by_app_ = false;
     port_origin_ = helix::PortOrigin::Discovered;
 }

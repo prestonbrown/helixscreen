@@ -146,7 +146,7 @@ void AdvancedPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     if (auto* timelapse_row =
             helix::ui::find_required(panel_, "row_timelapse_videos", get_name())) {
         // DECLARATIVE_OK: compile-time capability (#if), no runtime subject exists
-        lv_obj_add_flag(timelapse_row, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(timelapse_row, true);
     }
 #endif
 

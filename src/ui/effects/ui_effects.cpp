@@ -16,7 +16,7 @@
 
 namespace helix::ui {
 
-void create_ripple(lv_obj_t* parent, lv_coord_t x, lv_coord_t y, int start_size, int end_size,
+void create_ripple(lv_obj_t* parent, int32_t x, int32_t y, int start_size, int end_size,
                    int32_t duration_ms) {
     if (!parent) {
         return;
@@ -36,8 +36,8 @@ void create_ripple(lv_obj_t* parent, lv_coord_t x, lv_coord_t y, int start_size,
     lv_obj_set_style_border_width(ripple, 0, 0);
 
     // Take out of flex layout so position works, and make non-clickable
-    lv_obj_add_flag(ripple, LV_OBJ_FLAG_FLOATING);
-    lv_obj_remove_flag(ripple, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_floating(ripple, true);
+    lv_obj_set_clickable(ripple, false);
 
     // Position centered on touch point
     lv_obj_set_pos(ripple, x - start_size / 2, y - start_size / 2);
@@ -84,7 +84,7 @@ void create_ripple(lv_obj_t* parent, lv_coord_t x, lv_coord_t y, int start_size,
     lv_anim_start(&fade_anim);
 }
 
-void create_touch_marker(lv_obj_t* parent, lv_coord_t x, lv_coord_t y) {
+void create_touch_marker(lv_obj_t* parent, int32_t x, int32_t y) {
     if (!parent) {
         return;
     }
@@ -109,8 +109,8 @@ void create_touch_marker(lv_obj_t* parent, lv_coord_t x, lv_coord_t y) {
     // White ring keeps the dot legible over any background or crosshair color.
     lv_obj_set_style_border_width(dot, 2, 0);
     lv_obj_set_style_border_color(dot, lv_color_white(), 0);
-    lv_obj_add_flag(dot, LV_OBJ_FLAG_FLOATING);
-    lv_obj_remove_flag(dot, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_floating(dot, true);
+    lv_obj_set_clickable(dot, false);
     lv_obj_set_pos(dot, x - kDotSize / 2, y - kDotSize / 2);
 
     // Hold (anim delay), then fade out and self-delete.
@@ -233,9 +233,9 @@ void remove_always_on_top(lv_obj_t* obj) {
 ScopedHideChrome::ScopedHideChrome() {
     for (const ChromeEntry& e : s_always_on_top) {
         lv_obj_t* obj = e.obj;
-        if (obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+        if (obj && !lv_obj_is_hidden(obj)) {
             hidden_.emplace_back(obj);
-            lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(obj, true);
         }
     }
 }
@@ -243,7 +243,7 @@ ScopedHideChrome::ScopedHideChrome() {
 ScopedHideChrome::~ScopedHideChrome() {
     for (lv_obj_t* obj : hidden_) {
         if (obj) {
-            lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(obj, false);
         }
     }
 }

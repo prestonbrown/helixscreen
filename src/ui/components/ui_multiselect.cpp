@@ -112,7 +112,7 @@ std::unique_ptr<UiMultiselect::RowData> UiMultiselect::build_row(const MultiSele
     // Transparent background, no border by default
     lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(row, 0, 0);
-    lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(row, false);
 
     // Label: flex grow to fill available space
     lv_obj_t* label = lv_label_create(row);
@@ -126,7 +126,7 @@ std::unique_ptr<UiMultiselect::RowData> UiMultiselect::build_row(const MultiSele
     lv_obj_t* cb = lv_checkbox_create(row);
     lv_obj_set_name(cb, "check");
     lv_checkbox_set_text(cb, "");
-    lv_obj_remove_flag(cb, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(cb, false);
 
     // Set initial state
     if (data->selected) {
@@ -134,7 +134,7 @@ std::unique_ptr<UiMultiselect::RowData> UiMultiselect::build_row(const MultiSele
     }
     if (!item.enabled) {
         lv_obj_add_state(cb, LV_STATE_DISABLED);
-        lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(row, false);
     }
 
     data->row = row;

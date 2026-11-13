@@ -59,7 +59,7 @@ class NozzleTempsWidget : public PanelWidget {
         lv_obj_t* temp_label = nullptr;
         lv_obj_t* target_label = nullptr;
         // Lifetimes MUST be declared before observers: C++ destroys members in
-        // reverse order, so observers are destroyed first (calling lv_observer_remove
+        // reverse order, so observers are destroyed first (calling lv_observer_delete
         // while the lifetime shared_ptr is still alive and the subject is valid).
         // If the subject was already freed (reconnect), clear_rows() explicitly
         // resets lifetimes before observers to let the weak_ptr expire. (#673)

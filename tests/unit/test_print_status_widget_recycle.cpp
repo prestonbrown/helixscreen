@@ -58,7 +58,7 @@ int scrollable_state(lv_obj_t* comp, const char* name) {
     if (child == nullptr) {
         return -1;
     }
-    return lv_obj_has_flag(child, LV_OBJ_FLAG_SCROLLABLE) ? 1 : 0;
+    return lv_obj_is_scrollable(child) ? 1 : 0;
 }
 
 } // namespace

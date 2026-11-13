@@ -76,7 +76,7 @@ lv_obj_t* find_widget(const char* name) {
 }
 
 bool hidden(lv_obj_t* obj) {
-    return obj == nullptr || lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return obj == nullptr || lv_obj_is_hidden(obj);
 }
 
 /// Registers a TemperatureController over this fixture's PrinterState/API as

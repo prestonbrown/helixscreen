@@ -84,7 +84,7 @@ TEST_CASE_METHOD(StopReasonPanelFixture, "Paused overlay: the stop reason says w
     lv_obj_t* reason = find("paused_badge_reason");
     REQUIRE(reason != nullptr);
     CHECK(label_text(reason) == kReason);
-    CHECK_FALSE(lv_obj_has_flag(reason, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(reason));
 }
 
 TEST_CASE_METHOD(StopReasonPanelFixture,
@@ -111,12 +111,12 @@ TEST_CASE_METHOD(StopReasonPanelFixture, "Canceled overlay: the stop reason show
                  "[print_status][stop_reason]") {
     lv_obj_t* reason = find("cancel_reason_label");
     REQUIRE(reason != nullptr);
-    CHECK(lv_obj_has_flag(reason, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(reason));
 
     state().print_state().set_print_stop_reason(kReason);
     settle();
     CHECK(label_text(reason) == kReason);
-    CHECK_FALSE(lv_obj_has_flag(reason, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(reason));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Completion modal: the stop reason shows under the filename",
@@ -130,11 +130,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Completion modal: the stop reason shows und
     lv_obj_t* reason = lv_obj_find_by_name(dialog, "stop_reason_label");
     REQUIRE(reason != nullptr);
     CHECK(label_text(reason) == kReason);
-    CHECK_FALSE(lv_obj_has_flag(reason, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(reason));
 
     state().print_state().set_print_stop_reason("");
     UpdateQueue::instance().drain();
-    CHECK(lv_obj_has_flag(reason, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(reason));
 
     helix::ui::modal_hide(dialog);
     UpdateQueue::instance().drain();

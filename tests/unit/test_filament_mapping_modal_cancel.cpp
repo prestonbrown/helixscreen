@@ -171,7 +171,7 @@ TEST_CASE_METHOD(MappingCancelFixture,
         modal.set_mappings({t0, t1});
     };
     auto note_hidden = [&](FilamentMappingModal& modal) {
-        return lv_obj_has_flag(find(modal, "start_macro_note_row"), LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(find(modal, "start_macro_note_row"));
     };
 
     {
@@ -265,9 +265,7 @@ TEST_CASE_METHOD(MappingCancelFixture, "A remap row shows its tool, pick and war
         REQUIRE(obj != nullptr);
         return obj;
     };
-    auto shown = [&](int tool, const char* name) {
-        return !lv_obj_has_flag(part(tool, name), LV_OBJ_FLAG_HIDDEN);
-    };
+    auto shown = [&](int tool, const char* name) { return !lv_obj_is_hidden(part(tool, name)); };
     auto text = [&](int tool, const char* name) {
         return std::string(lv_label_get_text(part(tool, name)));
     };
@@ -296,7 +294,7 @@ TEST_CASE_METHOD(MappingCancelFixture, "A remap row shows its tool, pick and war
     lv_obj_add_state(toggle, LV_STATE_CHECKED);
     lv_obj_send_event(toggle, LV_EVENT_VALUE_CHANGED, nullptr);
     CHECK_FALSE(shown(0, "trigger_chevron"));
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_get_child(list, 1), LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(lv_obj_get_child(list, 1)));
     lv_obj_send_event(lv_obj_find_by_name(modal.dialog(), "btn_secondary"), LV_EVENT_CLICKED,
                       nullptr);
     helix::ui::UpdateQueue::instance().drain();

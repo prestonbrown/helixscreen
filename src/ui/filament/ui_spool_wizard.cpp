@@ -509,10 +509,10 @@ void SpoolWizardOverlay::enter_spool_details() {
     helix::parse_hex_color(selected_filament_.color_hex.c_str(), color_val);
     if (subjects_initialized_) {
         lv_subject_set_color(&summary_color_subject_, lv_color_hex(color_val));
-        lv_subject_copy_string(&summary_colors_subject_,
-                               selected_filament_.multi_color_hexes.c_str());
+        lv_subject_set_string(&summary_colors_subject_,
+                              selected_filament_.multi_color_hexes.c_str());
         const std::string finish = selected_filament_.material + " " + selected_filament_.name;
-        lv_subject_copy_string(&summary_finish_subject_, finish.c_str());
+        lv_subject_set_string(&summary_finish_subject_, finish.c_str());
     }
 
     // Enable proceed if weight is pre-filled
@@ -585,7 +585,7 @@ void SpoolWizardOverlay::update_step_label() {
 
     // The header title binds it.
     if (subjects_initialized_) {
-        lv_subject_copy_string(&step_label_subject_, step_label_buf_);
+        lv_subject_set_string(&step_label_subject_, step_label_buf_);
     }
 }
 
@@ -990,11 +990,11 @@ void SpoolWizardOverlay::publish_vendor_selection() {
     if (subjects_initialized_) {
         std::snprintf(selected_vendor_name_buf_, sizeof(selected_vendor_name_buf_), "%s",
                       selected_vendor_.name.c_str());
-        lv_subject_copy_string(&selected_vendor_name_subject_, selected_vendor_name_buf_);
+        lv_subject_set_string(&selected_vendor_name_subject_, selected_vendor_name_buf_);
 
         std::snprintf(summary_vendor_buf_, sizeof(summary_vendor_buf_), "%s",
                       selected_vendor_.name.c_str());
-        lv_subject_copy_string(&summary_vendor_subject_, summary_vendor_buf_);
+        lv_subject_set_string(&summary_vendor_subject_, summary_vendor_buf_);
     }
 }
 
@@ -1120,10 +1120,10 @@ void SpoolWizardOverlay::confirm_create_vendor() {
     if (subjects_initialized_) {
         std::snprintf(selected_vendor_name_buf_, sizeof(selected_vendor_name_buf_), "%s",
                       name.c_str());
-        lv_subject_copy_string(&selected_vendor_name_subject_, selected_vendor_name_buf_);
+        lv_subject_set_string(&selected_vendor_name_subject_, selected_vendor_name_buf_);
 
         std::snprintf(summary_vendor_buf_, sizeof(summary_vendor_buf_), "%s", name.c_str());
-        lv_subject_copy_string(&summary_vendor_subject_, summary_vendor_buf_);
+        lv_subject_set_string(&summary_vendor_subject_, summary_vendor_buf_);
 
         lv_subject_set_int(&vendor_count_subject_, static_cast<int32_t>(filtered_vendors_.size()));
     }
@@ -1314,7 +1314,7 @@ void SpoolWizardOverlay::publish_filament_summary() {
         const std::string summary =
             helix::compose_filament_label("", selected_filament_.name, selected_filament_.material);
         std::snprintf(summary_filament_buf_, sizeof(summary_filament_buf_), "%s", summary.c_str());
-        lv_subject_copy_string(&summary_filament_subject_, summary_filament_buf_);
+        lv_subject_set_string(&summary_filament_subject_, summary_filament_buf_);
     }
 }
 
@@ -1646,7 +1646,7 @@ void SpoolWizardOverlay::confirm_create_filament() {
 
         // Update summary display
         std::snprintf(summary_filament_buf_, sizeof(summary_filament_buf_), "%s", summary.c_str());
-        lv_subject_copy_string(&summary_filament_subject_, summary_filament_buf_);
+        lv_subject_set_string(&summary_filament_subject_, summary_filament_buf_);
     }
 
     // Repopulate the list and highlight the new entry

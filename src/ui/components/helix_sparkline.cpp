@@ -24,7 +24,7 @@ lv_obj_t* HelixSparkline::create(lv_obj_t* parent, const std::string& source) {
     lv_obj_set_user_data(impl->obj_, impl);
     lv_obj_remove_style_all(impl->obj_);
     lv_obj_set_size(impl->obj_, 80, 16);
-    lv_obj_clear_flag(impl->obj_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(impl->obj_, false);
 
     // LV_EVENT_DRAW_MAIN_END fires after the base LVGL draw pass — we overlay
     // our sparkline lines on top without interfering with style-based rendering.
@@ -38,7 +38,7 @@ lv_obj_t* HelixSparkline::create(lv_obj_t* parent, const std::string& source) {
     // between tests). Pass PerformanceState's subject lifetime so this observer
     // releases safely when the subject is torn down — otherwise a sparkline that
     // outlives the subject (e.g. a row condemned via lv_obj_delete_async, then
-    // deleted after deinit_subjects()) would call lv_observer_remove() on a
+    // deleted after deinit_subjects()) would call lv_observer_delete() on a
     // freed subject → UAF at lv_observer.c:584.
     lv_subject_t* tick = lv_xml_get_subject(nullptr, "perf_history_tick");
     if (tick) {

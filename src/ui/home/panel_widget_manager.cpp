@@ -505,8 +505,8 @@ lv_obj_t* create_card_background(lv_obj_t* container, const CardRect& card,
     lv_obj_remove_style(card_bg, nullptr, LV_PART_MAIN);
     lv_obj_add_style(card_bg, ThemeManager::instance().get_style(StyleRole::Card), LV_PART_MAIN);
     lv_obj_set_style_pad_all(card_bg, 0, 0);
-    lv_obj_remove_flag(card_bg, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(card_bg, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_clickable(card_bg, false);
+    lv_obj_set_scrollable(card_bg, false);
     // Set initial size from the track dimensions so the card renders at
     // approximately the right shape on the first frame, before the grid layout
     // resolves. Grid STRETCH overrides once layout runs.
@@ -611,7 +611,7 @@ lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cel
         // indev hit test entirely, so the press walks up to the parent
         // instead. Safe without a restore path: an un-gate rebuilds the
         // tile from scratch (see the gate observers' rebuild).
-        lv_obj_remove_flag(widget, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(widget, false);
 
         const auto* gated_def = find_widget_def(slot.widget_id);
         const char* type_icon = (gated_def && gated_def->icon) ? gated_def->icon : "cancel";
@@ -626,7 +626,7 @@ lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cel
             "center", "clickable", "false", "event_bubble", "true",    nullptr};
         if (auto* type_overlay =
                 static_cast<lv_obj_t*>(lv_xml_create(widget, "icon", type_icon_attrs))) {
-            lv_obj_add_flag(type_overlay, LV_OBJ_FLAG_FLOATING);
+            lv_obj_set_floating(type_overlay, true);
             lv_obj_set_style_opa(type_overlay, LV_OPA_COVER, 0);
         }
 
@@ -634,7 +634,7 @@ lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cel
                                      "muted",        "align",  "center", "clickable", "false",
                                      "event_bubble", "true",   nullptr};
         if (auto* badge = static_cast<lv_obj_t*>(lv_xml_create(widget, "icon", badge_attrs))) {
-            lv_obj_add_flag(badge, LV_OBJ_FLAG_FLOATING);
+            lv_obj_set_floating(badge, true);
             lv_obj_set_style_opa(badge, LV_OPA_COVER, 0);
         }
 
@@ -648,7 +648,7 @@ lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cel
         if (auto* sizing = slot.instance->tile_sizing()) {
             sizing->set_content_root(widget);
         }
-        slot.instance->attach_tile(widget, lv_scr_act());
+        slot.instance->attach_tile(widget, lv_screen_active());
         attached = slot.instance.get();
         result.push_back(std::move(slot.instance));
     }
@@ -1780,14 +1780,14 @@ bool PanelWidgetManager::relayout_tiles_impl(const std::string& panel_id, lv_obj
         lv_obj_t* child = lv_obj_get_child(container, static_cast<int32_t>(i));
         // A hidden child is condemned: safe_delete_deferred() hides what it
         // queues for deletion.
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(child)) {
             continue;
         }
         const char* name = lv_obj_get_name(child);
         if (!lv_obj_has_flag(child, kPanelWidgetTileFlag)) {
             // Card backgrounds are the unnamed grid children; edit mode's own
             // objects float.
-            if (!name && !lv_obj_has_flag(child, LV_OBJ_FLAG_FLOATING)) {
+            if (!name && !lv_obj_is_floating(child)) {
                 cards.push_back(child);
             }
             continue;

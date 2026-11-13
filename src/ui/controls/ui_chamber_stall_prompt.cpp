@@ -123,8 +123,8 @@ class ChamberStallModal : public Modal {
     static void set_content(const std::string& message, const std::string& hint, bool can_retry,
                             bool busy) {
         init_subjects();
-        lv_subject_copy_string(&message_subject_, message.c_str());
-        lv_subject_copy_string(&hint_subject_, hint.c_str());
+        lv_subject_set_string(&message_subject_, message.c_str());
+        lv_subject_set_string(&hint_subject_, hint.c_str());
         lv_subject_set_int(&no_retry_subject_, can_retry ? 0 : 1);
         lv_subject_set_int(&busy_subject_, busy ? 1 : 0);
     }

@@ -54,7 +54,7 @@ bool clip(lv_area_t* a, const lv_area_t& by) {
 }
 
 bool is_visible(lv_obj_t* o) {
-    return !lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(o);
 }
 
 /// The area `o` paints, its shadow or outline included.
@@ -264,7 +264,7 @@ bool plan_blit(lv_obj_t* obj, lv_area_t* out, Statics& statics) {
     if (!disp || disp->prev_scr || lv_display_get_rotation(disp) != LV_DISPLAY_ROTATION_0)
         return false;
     if (obj->class_p != &lv_obj_class || !is_visible(obj) || has_draw_handler(obj) ||
-        lv_obj_has_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE) ||
+        lv_obj_is_overflow_visible(obj) ||
         lv_obj_get_style_base_dir(obj, LV_PART_MAIN) == LV_BASE_DIR_RTL)
         return false;
     lv_obj_t* screen = lv_display_get_screen_active(disp);
@@ -277,8 +277,7 @@ bool plan_blit(lv_obj_t* obj, lv_area_t* out, Statics& statics) {
         if (!is_visible(o) || composited(o))
             return false;
         lv_obj_t* parent = lv_obj_get_parent(o);
-        if (parent && !lv_obj_has_flag(parent, LV_OBJ_FLAG_OVERFLOW_VISIBLE) &&
-            !clip(&r, parent->coords))
+        if (parent && !lv_obj_is_overflow_visible(parent) && !clip(&r, parent->coords))
             return false;
     }
     lv_area_t scr = {0, 0, lv_display_get_horizontal_resolution(disp) - 1,
@@ -290,7 +289,7 @@ bool plan_blit(lv_obj_t* obj, lv_area_t* out, Statics& statics) {
     uint32_t n = lv_obj_get_child_count(obj);
     for (uint32_t i = 0; i < n; i++) {
         lv_obj_t* child = lv_obj_get_child(obj, static_cast<int32_t>(i));
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_FLOATING) && !statics.add(child, r))
+        if (lv_obj_is_floating(child) && !statics.add(child, r))
             return false;
     }
 

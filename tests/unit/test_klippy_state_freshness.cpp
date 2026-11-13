@@ -393,7 +393,7 @@ TEST_CASE_METHOD(KlippyFreshnessFixture,
     live("ready", 100.0);
     CHECK(klippy() == KlippyState::SHUTDOWN);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // ============================================================================

@@ -365,7 +365,7 @@ void WizardPrinterIdentifyStep::handle_printer_name_changed(lv_event_t* event) {
 
     // Update subject with raw text (guard prevents re-entry from observer notification)
     updating_from_subject_ = true;
-    lv_subject_copy_string(&printer_name_, text);
+    lv_subject_set_string(&printer_name_, text);
     updating_from_subject_ = false;
 
     // Validate
@@ -605,7 +605,7 @@ void WizardPrinterIdentifyStep::cleanup() {
         if (!list_cache_container_) {
             // Create a persistent off-screen container (parented to active screen's layer)
             list_cache_container_ = lv_obj_create(lv_layer_sys());
-            lv_obj_add_flag(list_cache_container_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(list_cache_container_, true);
             lv_obj_set_size(list_cache_container_, 0, 0);
         }
         while (lv_obj_get_child_count(printer_type_list_) > 0) {
@@ -620,7 +620,7 @@ void WizardPrinterIdentifyStep::cleanup() {
     if (vendor_tiles_ && lv_obj_get_child_count(vendor_tiles_) > 0) {
         if (!tile_cache_container_) {
             tile_cache_container_ = lv_obj_create(lv_layer_sys());
-            lv_obj_add_flag(tile_cache_container_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(tile_cache_container_, true);
             lv_obj_set_size(tile_cache_container_, 0, 0);
         }
         while (lv_obj_get_child_count(vendor_tiles_) > 0) {
@@ -683,7 +683,7 @@ void WizardPrinterIdentifyStep::populate_printer_type_list() {
         lv_obj_set_height(btn, LV_SIZE_CONTENT);
         lv_obj_set_style_pad_all(btn, theme_manager_get_spacing("space_md"), LV_PART_MAIN);
         lv_obj_set_style_radius(btn, theme_manager_get_spacing("border_radius"), LV_PART_MAIN);
-        lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(btn, false);
         lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(btn, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
 
@@ -722,7 +722,7 @@ void WizardPrinterIdentifyStep::populate_printer_type_list() {
         lv_obj_set_style_text_color(vendor_label, theme_manager_get_color("text_muted"),
                                     LV_PART_MAIN);
         if (entry.group.empty()) {
-            lv_obj_add_flag(vendor_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(vendor_label, true);
         }
 
         // Store index in user_data and attach click handler
@@ -795,7 +795,7 @@ void WizardPrinterIdentifyStep::populate_vendor_tiles() {
         lv_obj_set_style_radius(tile, theme_manager_get_spacing("border_radius"), LV_PART_MAIN);
         lv_obj_set_style_bg_color(tile, theme_manager_get_color("card_bg"), LV_PART_MAIN);
         lv_obj_set_style_bg_opa(tile, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_remove_flag(tile, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(tile, false);
 
         lv_obj_t* label = lv_label_create(tile);
         lv_label_set_text(label, vendor_groups_[g].name.c_str());
@@ -841,10 +841,10 @@ void WizardPrinterIdentifyStep::apply_view(int view) {
                              static_cast<int>(i)) != candidate_indices_.end();
         }
         if (show) {
-            lv_obj_remove_flag(row, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(row, false);
             ++visible;
         } else {
-            lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(row, true);
         }
 
         // Child 1 of a row is its vendor label (child 0 is the model name);
@@ -852,9 +852,9 @@ void WizardPrinterIdentifyStep::apply_view(int view) {
         lv_obj_t* vendor_label = lv_obj_get_child(row, 1);
         if (vendor_label) {
             if ((view == kViewSearch || view == kViewCandidates) && !entry.group.empty()) {
-                lv_obj_remove_flag(vendor_label, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(vendor_label, false);
             } else {
-                lv_obj_add_flag(vendor_label, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(vendor_label, true);
             }
         }
     }

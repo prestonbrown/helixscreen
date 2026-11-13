@@ -268,7 +268,7 @@ struct ContentFitsFixture : public LVGLUITestFixture {
         // it: PrintStatusWidget's formatter is a process-lifetime static whose
         // observers sit on ToolState and PrinterState subjects. Tearing those
         // subjects down first frees the observer nodes, and the formatter's
-        // guards then call lv_observer_remove() on freed memory.
+        // guards then call lv_observer_delete() on freed memory.
         PrintStatusWidget::destroy_formatter_for_test();
         ToolState::instance().deinit_subjects();
         helix::ui::UpdateQueue::instance().drain_until_empty();
@@ -457,7 +457,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "overflow detector: a child past the content
                  "[content_fits][detector]") {
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_set_size(parent, 100, 100);
-    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(parent, false);
     lv_obj_set_style_pad_all(parent, 0, 0);
     lv_obj_set_style_border_width(parent, 0, 0);
 
@@ -481,7 +481,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // overruns once the 20px padding is taken out.
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_set_size(parent, 100, 100);
-    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(parent, false);
     lv_obj_set_style_border_width(parent, 0, 0);
     lv_obj_set_style_pad_all(parent, 20, 0);
 
@@ -532,7 +532,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "overflow detector: a clipped string reports
 
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_set_size(parent, 60, 40);
-    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(parent, false);
     lv_obj_set_style_pad_all(parent, 0, 0);
     lv_obj_set_style_border_width(parent, 0, 0);
 
@@ -556,7 +556,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_set_size(parent, 60, 40);
-    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(parent, false);
     lv_obj_set_style_pad_all(parent, 0, 0);
     lv_obj_set_style_border_width(parent, 0, 0);
 
@@ -581,7 +581,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "overflow detector: a tree that fits reports
     // layout, or it gets switched off.
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_set_size(parent, 200, 120);
-    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(parent, false);
     lv_obj_set_style_pad_all(parent, 4, 0);
     lv_obj_set_style_border_width(parent, 0, 0);
 
@@ -1152,10 +1152,10 @@ TEST_CASE_METHOD(ContentFitsFixture,
             lv_obj_t* name = harness.child("fav_macro_name_prompt");
             REQUIRE(badge != nullptr);
             REQUIRE(name != nullptr);
-            CHECK_FALSE(lv_obj_has_flag(badge, LV_OBJ_FLAG_HIDDEN));
+            CHECK_FALSE(lv_obj_is_hidden(badge));
             // Whether the name fits beside the disc depends on the tier's faces; wherever it
             // is drawn it must be whole.
-            if (!lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN)) {
+            if (!lv_obj_is_hidden(name)) {
                 ++names_drawn;
                 // Inside the tile's content box on every edge, and a whole line of its face
                 // tall: its dots ellipsize the width by design, never the height.

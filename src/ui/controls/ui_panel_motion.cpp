@@ -773,7 +773,7 @@ void MotionPanel::fit_jog_pad() {
         return;
 
     lv_obj_update_layout(overlay_root_);
-    const lv_coord_t wrapper_h = lv_obj_get_height(jog_wrapper);
+    const int32_t wrapper_h = lv_obj_get_height(jog_wrapper);
 
     // Portrait only: the Z column grows beside the wrapper, so the wrapper's
     // resolved share under-reports the width a square pad could claim. Size
@@ -783,18 +783,18 @@ void MotionPanel::fit_jog_pad() {
     // wrapper: the pad centres in it and the Z controls live in a separate
     // right-hand column.
     lv_obj_t* pad_row = lv_obj_get_parent(jog_wrapper);
-    lv_coord_t wrapper_w = lv_obj_get_width(jog_wrapper);
+    int32_t wrapper_w = lv_obj_get_width(jog_wrapper);
     const bool portrait_pad_row = lv_streq(lv_obj_get_name(pad_row), "pad_row");
     if (portrait_pad_row) {
         lv_obj_t* z_column = lv_obj_get_child_by_name(pad_row, "z_column");
         if (z_column) {
-            const lv_coord_t z_floor = lv_obj_get_style_min_width(z_column, LV_PART_MAIN);
+            const int32_t z_floor = lv_obj_get_style_min_width(z_column, LV_PART_MAIN);
             wrapper_w = lv_obj_get_content_width(pad_row) - z_floor -
                         lv_obj_get_style_pad_column(pad_row, LV_PART_MAIN);
         }
     }
 
-    const lv_coord_t jog_size = LV_MIN(wrapper_w, wrapper_h);
+    const int32_t jog_size = LV_MIN(wrapper_w, wrapper_h);
     if (portrait_pad_row) {
         lv_obj_set_width(jog_wrapper, jog_size);
         lv_obj_set_flex_grow(jog_wrapper, 0);
@@ -804,8 +804,8 @@ void MotionPanel::fit_jog_pad() {
         lv_obj_t* right_column = lv_obj_find_by_name(overlay_root_, "right_column");
         lv_obj_t* z_key = right_column ? lv_obj_find_by_name(right_column, "z_up_large") : nullptr;
         if (z_key && lv_obj_get_height(z_key) > 0) {
-            const lv_coord_t max_w = lv_obj_get_style_max_width(right_column, LV_PART_MAIN);
-            const lv_coord_t near_square = lv_obj_get_height(z_key) * 7 / 5;
+            const int32_t max_w = lv_obj_get_style_max_width(right_column, LV_PART_MAIN);
+            const int32_t near_square = lv_obj_get_height(z_key) * 7 / 5;
             lv_obj_set_width(right_column, LV_MIN(max_w, near_square));
             lv_obj_set_flex_grow(right_column, 0);
             // A key too short to stack keeps its label beside the arrow, which
@@ -1091,17 +1091,17 @@ void MotionPanel::update_z_axis_label(bool bed_moves) {
     const char* label = bed_moves ? lv_tr("Bed") : lv_tr("Print Head");
     std::strncpy(z_axis_label_buf_, label, sizeof(z_axis_label_buf_) - 1);
     z_axis_label_buf_[sizeof(z_axis_label_buf_) - 1] = '\0';
-    lv_subject_copy_string(&z_axis_label_subject_, z_axis_label_buf_);
+    lv_subject_set_string(&z_axis_label_subject_, z_axis_label_buf_);
 
     // Update Z button icons: expand variants (with platform line) for bed-moves
     const char* up_icon = bed_moves ? "arrow_expand_up" : "arrow_up";
     const char* down_icon = bed_moves ? "arrow_expand_down" : "arrow_down";
     std::strncpy(z_up_icon_buf_, up_icon, sizeof(z_up_icon_buf_) - 1);
     z_up_icon_buf_[sizeof(z_up_icon_buf_) - 1] = '\0';
-    lv_subject_copy_string(&z_up_icon_subject_, z_up_icon_buf_);
+    lv_subject_set_string(&z_up_icon_subject_, z_up_icon_buf_);
     std::strncpy(z_down_icon_buf_, down_icon, sizeof(z_down_icon_buf_) - 1);
     z_down_icon_buf_[sizeof(z_down_icon_buf_) - 1] = '\0';
-    lv_subject_copy_string(&z_down_icon_subject_, z_down_icon_buf_);
+    lv_subject_set_string(&z_down_icon_subject_, z_down_icon_buf_);
 
     // The inversion flips which bound each on-screen direction drives toward,
     // and which way each key's Z+/Z- tag reads.
@@ -1121,9 +1121,9 @@ void MotionPanel::refresh_position_display() {
     format_axis_value(pos_x_buf_, sizeof(pos_x_buf_), x);
     format_axis_value(pos_y_buf_, sizeof(pos_y_buf_), y);
     format_axis_value(pos_z_buf_, sizeof(pos_z_buf_), z);
-    lv_subject_copy_string(&pos_x_subject_, pos_x_buf_);
-    lv_subject_copy_string(&pos_y_subject_, pos_y_buf_);
-    lv_subject_copy_string(&pos_z_subject_, pos_z_buf_);
+    lv_subject_set_string(&pos_x_subject_, pos_x_buf_);
+    lv_subject_set_string(&pos_y_subject_, pos_y_buf_);
+    lv_subject_set_string(&pos_z_subject_, pos_z_buf_);
 }
 
 // ============================================================================
@@ -1505,7 +1505,7 @@ void MotionPanel::refresh_tab_labels() {
     for (int i = 0; i < 3; ++i) {
         snprintf(motion_tab_label_buf_[i], sizeof(motion_tab_label_buf_[i]), "%s", tab_labels[i]);
         if (subjects_initialized_) {
-            lv_subject_copy_string(&motion_tab_label_[i], motion_tab_label_buf_[i]);
+            lv_subject_set_string(&motion_tab_label_[i], motion_tab_label_buf_[i]);
         }
     }
 }
@@ -1791,7 +1791,7 @@ void MotionPanel::refresh_bed_readout() {
         return;
     }
     snprintf(motion_bed_readout_buf_, sizeof(motion_bed_readout_buf_), "%s", text.c_str());
-    lv_subject_copy_string(&motion_bed_readout_, motion_bed_readout_buf_);
+    lv_subject_set_string(&motion_bed_readout_, motion_bed_readout_buf_);
 }
 
 void MotionPanel::handle_bed_touch(helix::BedTouch phase, lv_obj_t* area, lv_point_t screen_point) {
@@ -1883,10 +1883,10 @@ void MotionPanel::update_jog_distance_labels() {
 
     const auto& mode_dist = get_jog_mode_distances(current_mode_);
     snprintf(jog_outer_label_buf_, sizeof(jog_outer_label_buf_), "%smm", mode_dist.outer_label);
-    lv_subject_copy_string(&jog_outer_label_subject_, jog_outer_label_buf_);
+    lv_subject_set_string(&jog_outer_label_subject_, jog_outer_label_buf_);
 
     snprintf(jog_inner_label_buf_, sizeof(jog_inner_label_buf_), "%smm", mode_dist.inner_label);
-    lv_subject_copy_string(&jog_inner_label_subject_, jog_inner_label_buf_);
+    lv_subject_set_string(&jog_inner_label_subject_, jog_inner_label_buf_);
     refresh_z_key_labels();
 }
 
@@ -1900,13 +1900,13 @@ void MotionPanel::refresh_z_key_labels() {
     for (int dir = 0; dir < 2; ++dir) {
         std::snprintf(z_tag_buf_[dir], sizeof(z_tag_buf_[dir]), "%s",
                       helix::z_direction_tag(screen_sign[dir], bed_moves_));
-        lv_subject_copy_string(&z_tag_subject_[dir], z_tag_buf_[dir]);
+        lv_subject_set_string(&z_tag_subject_[dir], z_tag_buf_[dir]);
         for (int ring = 0; ring < 2; ++ring) {
             const std::string label =
                 helix::z_key_label(ring_label[ring], screen_sign[dir], bed_moves_);
             std::snprintf(z_key_label_buf_[dir][ring], sizeof(z_key_label_buf_[dir][ring]), "%s",
                           label.c_str());
-            lv_subject_copy_string(&z_key_label_subject_[dir][ring], z_key_label_buf_[dir][ring]);
+            lv_subject_set_string(&z_key_label_subject_[dir][ring], z_key_label_buf_[dir][ring]);
         }
     }
 }
@@ -1924,7 +1924,7 @@ void MotionPanel::refresh_step_list() {
     const int count = static_cast<int>(std::min<size_t>(steps_.size(), kJogStepMax));
     for (int i = 0; i < count; ++i) {
         format_distance_label(step_label_buf_[i], sizeof(step_label_buf_[i]), steps_[i]);
-        lv_subject_copy_string(&step_label_subject_[i], step_label_buf_[i]);
+        lv_subject_set_string(&step_label_subject_[i], step_label_buf_[i]);
     }
     for (int i = 0; i < kJogStepMax; ++i) {
         lv_subject_set_int(&step_active_subject_[i], i == static_cast<int>(step_index_) ? 1 : 0);

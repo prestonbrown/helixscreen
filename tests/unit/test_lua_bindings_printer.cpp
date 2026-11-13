@@ -18,7 +18,7 @@ TEST_CASE_METHOD(XMLTestFixture, "printer.get maps the stable names",
                  "[plugin][bindings][printer]") {
     BoundRuntime b({&install_printer_bindings});
     lv_subject_set_int(lv_xml_get_subject(nullptr, "bed_temp"), 605);
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "print_state"), "printing");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "print_state"), "printing");
     lv_subject_set_int(lv_xml_get_subject(nullptr, "printer_connection_state"),
                        static_cast<int>(helix::ConnectionState::CONNECTED));
     REQUIRE(b.t.run(R"(

@@ -136,7 +136,7 @@ TEST_CASE("PrinterState: Observer fires when printer connection state changes",
     REQUIRE(user_data[0] == 3); // Callback fired three times total (initial + 2 changes)
     REQUIRE(user_data[1] == static_cast<int>(ConnectionState::CONNECTED));
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 TEST_CASE("PrinterState: Observer fires when network status changes",
@@ -168,7 +168,7 @@ TEST_CASE("PrinterState: Observer fires when network status changes",
     REQUIRE(lv_subject_get_int(state.network_state().get_network_status_subject()) ==
             static_cast<int>(NetworkStatus::DISCONNECTED));
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 TEST_CASE("PrinterState: Multiple observers on same subject all fire", "[state][observer]") {
@@ -206,9 +206,9 @@ TEST_CASE("PrinterState: Multiple observers on same subject all fire", "[state][
     REQUIRE(count2 == 2);
     REQUIRE(count3 == 2);
 
-    lv_observer_remove(observer1);
-    lv_observer_remove(observer2);
-    lv_observer_remove(observer3);
+    lv_observer_delete(observer1);
+    lv_observer_delete(observer2);
+    lv_observer_delete(observer3);
 }
 
 // ============================================================================
@@ -746,7 +746,7 @@ TEST_CASE("PrinterState: observer fires when nav_buttons_enabled changes",
     REQUIRE(user_data[0] == 3);
     REQUIRE(user_data[1] == 0);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 TEST_CASE("PrinterState: was_ever_connected flag behavior",
@@ -1199,7 +1199,7 @@ TEST_CASE("PrinterState: Observer fires when klippy state changes", "[state][kli
     REQUIRE(user_data[0] == 3);
     REQUIRE(user_data[1] == static_cast<int>(KlippyState::ERROR));
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 TEST_CASE("PrinterState: Update klippy state from webhooks notification",
@@ -1454,7 +1454,7 @@ TEST_CASE("PrinterState: Observer fires when bed_moves changes", "[state][kinema
     REQUIRE(user_data[0] == 3);
     REQUIRE(user_data[1] == 0); // Back to gantry moves
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // ============================================================================
@@ -1807,7 +1807,7 @@ TEST_CASE("PrinterState: chamber heater presence follows each discovery, never t
     struct ObserverRemove {
         lv_observer_t* observer;
         ~ObserverRemove() {
-            lv_observer_remove(observer);
+            lv_observer_delete(observer);
         }
     } remove_observer{observer};
 

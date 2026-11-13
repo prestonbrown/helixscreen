@@ -144,15 +144,15 @@ static void apply_target_visibility(TempDisplayData* data) {
     bool hide = size_hides || bp_hides || (data->hide_target_when_off && data->target_temp == 0);
     if (data->separator_label) {
         if (hide)
-            lv_obj_add_flag(data->separator_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->separator_label, true);
         else
-            lv_obj_remove_flag(data->separator_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->separator_label, false);
     }
     if (data->target_label) {
         if (hide)
-            lv_obj_add_flag(data->target_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->target_label, true);
         else
-            lv_obj_remove_flag(data->target_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->target_label, false);
     }
 }
 
@@ -272,7 +272,7 @@ static void format_target_text(TempDisplayData* data) {
                  data->raw ? data->target_temp
                            : helix::units::to_display_temp_whole(data->target_temp));
     }
-    lv_subject_copy_string(&data->target_text_subject, data->target_text_buf);
+    lv_subject_set_string(&data->target_text_subject, data->target_text_buf);
 }
 
 /**
@@ -319,7 +319,7 @@ static void update_display(TempDisplayData* data) {
         format_deci_temp(data->current_text_buf, sizeof(data->current_text_buf),
                          data->current_deci);
     }
-    lv_subject_copy_string(&data->current_text_subject, data->current_text_buf);
+    lv_subject_set_string(&data->current_text_subject, data->current_text_buf);
 
     // Update target temp via subject (shows "--" when heater off)
     format_target_text(data);
@@ -411,7 +411,7 @@ static void current_temp_observer_cb(lv_observer_t* observer, lv_subject_t* subj
 
     // Update the text subject (which automatically updates the label via binding)
     format_deci_temp(data->current_text_buf, sizeof(data->current_text_buf), deci);
-    lv_subject_copy_string(&data->current_text_subject, data->current_text_buf);
+    lv_subject_set_string(&data->current_text_subject, data->current_text_buf);
 }
 
 /** Observer callback for target temperature subject */
@@ -488,7 +488,7 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
 
     // Create main container (row layout)
     lv_obj_t* container = lv_obj_create(parent);
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
     lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
@@ -673,7 +673,7 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
                 data->current_deci = deci;
                 data->current_temp = deci_to_degrees(deci);
                 format_deci_temp(data->current_text_buf, sizeof(data->current_text_buf), deci);
-                lv_subject_copy_string(&data->current_text_subject, data->current_text_buf);
+                lv_subject_set_string(&data->current_text_subject, data->current_text_buf);
                 spdlog::trace("[temp_display] Bound current to subject '{}' ({}°C)", value,
                               data->current_temp);
             } else if (!subject) {
@@ -744,7 +744,7 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
             if (data && value && value[0] != '\0') {
                 strncpy(data->event_cb_name, value, sizeof(data->event_cb_name) - 1);
                 data->event_cb_name[sizeof(data->event_cb_name) - 1] = '\0';
-                lv_obj_add_flag(container, LV_OBJ_FLAG_CLICKABLE);
+                lv_obj_set_clickable(container, true);
                 lv_obj_add_event_cb(container, on_click, LV_EVENT_CLICKED, nullptr);
                 spdlog::trace("[temp_display] Registered click callback '{}'", value);
             }
@@ -791,7 +791,7 @@ void ui_temp_display_set_current(lv_obj_t* obj, int current) {
     // Note: this API takes whole degrees, so format as "XX.0"
     snprintf(data->current_text_buf, sizeof(data->current_text_buf), "%.1f",
              helix::units::to_display_temp(current));
-    lv_subject_copy_string(&data->current_text_subject, data->current_text_buf);
+    lv_subject_set_string(&data->current_text_subject, data->current_text_buf);
 }
 
 int ui_temp_display_get_current(lv_obj_t* obj) {

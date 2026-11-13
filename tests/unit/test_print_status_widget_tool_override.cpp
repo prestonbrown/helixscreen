@@ -366,9 +366,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(target != nullptr);
     lv_obj_t* number = lv_obj_find_by_name(target, "tool_badge");
     REQUIRE(number != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(number, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(number));
     CHECK(std::string(lv_label_get_text(number)) == "3");
-    CHECK(lv_obj_has_flag(nozzle_chevron(target), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(nozzle_chevron(target)));
 
     lv_obj_delete(card);
     ts.clear_ams_topology();
@@ -402,13 +402,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Detailed card: the picker goes where the ro
     lv_obj_set_width(host, 600);
     PrintStatusWidgetTestAccess::fit_nozzle_picker(w, host);
     CHECK(lv_subject_get_int(fits) == 1);
-    CHECK_FALSE(lv_obj_has_flag(chevron, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(chevron));
     CHECK(PrintStatusWidgetTestAccess::nozzle_picker_available(w));
 
     lv_obj_set_width(host, 120);
     PrintStatusWidgetTestAccess::fit_nozzle_picker(w, host);
     CHECK(lv_subject_get_int(fits) == 0);
-    CHECK(lv_obj_has_flag(chevron, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(chevron));
     CHECK_FALSE(PrintStatusWidgetTestAccess::nozzle_picker_available(w));
 
     // Room for every reading but not the chevron: hiding the chevron must not
@@ -457,7 +457,7 @@ void check_row_drops_piece(lv_obj_t* screen, const char* row_name, const char* p
     lv_obj_set_width(row, 400);
     PrintStatusWidgetTestAccess::fit_row(w, host, row_name, fits);
     CHECK(lv_subject_get_int(fits) == 1);
-    CHECK_FALSE(lv_obj_has_flag(piece, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(piece));
 
     // The row as laid out with every piece shown.
     lv_obj_update_layout(row);
@@ -471,7 +471,7 @@ void check_row_drops_piece(lv_obj_t* screen, const char* row_name, const char* p
     lv_obj_set_width(row, whole - 1);
     PrintStatusWidgetTestAccess::fit_row(w, host, row_name, fits);
     CHECK(lv_subject_get_int(fits) == 0);
-    CHECK(lv_obj_has_flag(piece, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(piece));
 
     // Hiding the piece must not read as room for it.
     PrintStatusWidgetTestAccess::fit_row(w, host, row_name, fits);
@@ -496,7 +496,7 @@ struct FormatterTexts {
         PrintStatusWidget::release_formatter_for_test();
     }
     static void set(const char* subject, const char* text) {
-        lv_subject_copy_string(lv_xml_get_subject(nullptr, subject), text);
+        lv_subject_set_string(lv_xml_get_subject(nullptr, subject), text);
     }
 };
 
@@ -548,12 +548,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_set_width(row, 400);
     PrintStatusWidgetTestAccess::fit_row(w, host, "detailed_filament_row", fits);
     CHECK(lv_subject_get_int(fits) == 1);
-    CHECK_FALSE(lv_obj_has_flag(flow, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(flow));
 
     lv_obj_set_width(row, 60);
     PrintStatusWidgetTestAccess::fit_row(w, host, "detailed_filament_row", fits);
     CHECK(lv_subject_get_int(fits) == 0);
-    CHECK(lv_obj_has_flag(flow, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(flow));
 
     // Hiding the flow must not read as room for it.
     PrintStatusWidgetTestAccess::fit_row(w, host, "detailed_filament_row", fits);
@@ -592,13 +592,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Detailed card: the speed row goes where the
     lv_obj_set_height(card, 300);
     PrintStatusWidgetTestAccess::fit_speed_row(w, host);
     CHECK(lv_subject_get_int(fits) == 1);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     // Too short for the speed row beside the others.
     lv_obj_set_height(card, 90);
     PrintStatusWidgetTestAccess::fit_speed_row(w, host);
     CHECK(lv_subject_get_int(fits) == 0);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     lv_obj_set_height(card, 300);
     PrintStatusWidgetTestAccess::fit_speed_row(w, host);

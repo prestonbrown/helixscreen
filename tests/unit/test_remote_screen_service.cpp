@@ -212,7 +212,7 @@ TEST_CASE_METHOD(
     CHECK(value("remote_screen_lan_mode") == 1);
     m.set_control_active(true);
     CHECK(seen == 1);
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // A switch rebuilds the print subjects; the next connect's apply_settings() must

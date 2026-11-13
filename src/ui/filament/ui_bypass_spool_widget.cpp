@@ -77,14 +77,14 @@ void bypass_spool_set_visible(BypassSpoolWidgets& w, bool visible) {
             continue;
         }
         if (visible) {
-            lv_obj_remove_flag(part, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(part, false);
         } else {
-            lv_obj_add_flag(part, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(part, true);
         }
     }
 
     if (!visible && w.material_label != nullptr) {
-        lv_obj_add_flag(w.material_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(w.material_label, true);
     }
 }
 
@@ -109,8 +109,8 @@ BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click,
     lv_obj_set_style_bg_color(w.box, theme_manager_get_color("card_bg"), 0);
     lv_obj_set_style_radius(w.box, theme_manager_get_spacing("border_radius"), 0);
     lv_obj_set_style_border_width(w.box, 0, 0);
-    lv_obj_remove_flag(w.box, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(w.box, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_scrollable(w.box, false);
+    lv_obj_set_floating(w.box, true);
 
     w.spool_canvas = ui_spool_canvas_create(w.box, kBypassSpoolSize);
     if (!w.spool_canvas) {
@@ -121,22 +121,22 @@ BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click,
     lv_obj_set_pos(w.spool_canvas, kBoxPad, kBoxPad);
 
     if (on_click) {
-        lv_obj_add_flag(w.box, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(w.box, true);
         lv_obj_add_event_cb(w.box, on_click, LV_EVENT_CLICKED, user_data);
     }
 
     w.bypass_label = lv_label_create(parent);
     lv_label_set_text(w.bypass_label, lv_tr("Bypass"));
     lv_obj_set_style_text_color(w.bypass_label, theme_manager_get_color("text"), 0);
-    lv_obj_add_flag(w.bypass_label, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_floating(w.bypass_label, true);
     lv_obj_update_layout(w.bypass_label);
     w.cached_bypass_label_w = lv_obj_get_width(w.bypass_label);
 
     w.material_label = lv_label_create(parent);
     lv_label_set_text(w.material_label, "");
     lv_obj_set_style_text_color(w.material_label, theme_manager_get_color("text"), 0);
-    lv_obj_add_flag(w.material_label, LV_OBJ_FLAG_FLOATING);
-    lv_obj_add_flag(w.material_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_floating(w.material_label, true);
+    lv_obj_set_hidden(w.material_label, true);
 
     return w;
 }
@@ -209,9 +209,9 @@ void bypass_spool_set_material(BypassSpoolWidgets& w, const char* material) {
 
     lv_label_set_text(w.material_label, w.cached_material);
     if (w.cached_material[0] == '\0') {
-        lv_obj_add_flag(w.material_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(w.material_label, true);
     } else {
-        lv_obj_remove_flag(w.material_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(w.material_label, false);
     }
 }
 

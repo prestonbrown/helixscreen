@@ -40,7 +40,7 @@ class MeterFx : public XMLTestFixture {
     }
 
     static void printer_state(const char* state) {
-        lv_subject_copy_string(lv_xml_get_subject(nullptr, "print_state"), state);
+        lv_subject_set_string(lv_xml_get_subject(nullptr, "print_state"), state);
         drain();
     }
     static void connection(helix::ConnectionState state) {

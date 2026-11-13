@@ -102,7 +102,7 @@ void ui_show_fatal_error(const char* title, const char* message, const char* con
     lv_obj_set_style_text_color(msg_label, lv_color_hex(kBootstrapTextMuted), 0);
     lv_obj_set_style_pad_top(msg_label, 15, 0);
     lv_obj_set_width(msg_label, LV_PCT(100));
-    lv_label_set_long_mode(msg_label, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(msg_label, LV_LABEL_LONG_MODE_WRAP);
 
     // Suggestions header and list
     if (suggestions && suggestions[0]) {
@@ -120,7 +120,7 @@ void ui_show_fatal_error(const char* title, const char* message, const char* con
             lv_obj_set_style_text_color(suggest, lv_color_hex(kBootstrapTextSubtle), 0);
             lv_obj_set_style_pad_top(suggest, 5, 0);
             lv_obj_set_width(suggest, LV_PCT(100));
-            lv_label_set_long_mode(suggest, LV_LABEL_LONG_WRAP);
+            lv_label_set_long_mode(suggest, LV_LABEL_LONG_MODE_WRAP);
         }
     }
 

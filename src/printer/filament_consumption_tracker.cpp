@@ -79,7 +79,7 @@ void FilamentConsumptionTracker::start() {
     // Self-register with StaticSubjectRegistry so stop() runs as part of
     // deinit_all() in proper LIFO order. Because PrinterState registers
     // earlier (during SubjectInitializer::init_core_and_state() at app
-    // startup), our entry deinits FIRST — which means lv_observer_remove()
+    // startup), our entry deinits FIRST — which means lv_observer_delete()
     // sees live PrinterState subjects (#927). Deinit running after
     // StaticPanelRegistry::destroy_all() lets overlay teardown free our
     // observer struct out from under us; self-registered, no other deinit step
@@ -100,7 +100,7 @@ void FilamentConsumptionTracker::stop() {
 
     // [L077] Reset the lifetime FIRST so the weak_ptr inside each extruder
     // ObserverGuard expires before the guard's destructor runs — otherwise
-    // lv_observer_remove() may fire on a PrinterState subject that is about
+    // lv_observer_delete() may fire on a PrinterState subject that is about
     // to be deinit'd.
     extruder_lifetime_.reset();
     for (auto& o : extruder_obs_) {

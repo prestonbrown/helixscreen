@@ -173,8 +173,8 @@ void refresh_subjects() {
         const std::string temps = temp_label(i);
         std::snprintf(s.name_bufs[i].data(), s.name_bufs[i].size(), "%s", label.c_str());
         std::snprintf(s.temp_bufs[i].data(), s.temp_bufs[i].size(), "%s", temps.c_str());
-        lv_subject_copy_string(&s.name_subjects[i], s.name_bufs[i].data());
-        lv_subject_copy_string(&s.temp_subjects[i], s.temp_bufs[i].data());
+        lv_subject_set_string(&s.name_subjects[i], s.name_bufs[i].data());
+        lv_subject_set_string(&s.temp_subjects[i], s.temp_bufs[i].data());
     }
 }
 

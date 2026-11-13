@@ -58,7 +58,7 @@ void ensure_cutter_subjects() {
 
 void set_cutter_row_state(const char* status_text, bool busy) {
     ensure_cutter_subjects();
-    lv_subject_copy_string(&s_cfs_cutter_status, status_text);
+    lv_subject_set_string(&s_cfs_cutter_status, status_text);
     // 0 = nothing to report (line hidden), 1 = running, 2 = result.
     lv_subject_set_int(&s_cfs_cutter_phase, busy ? 1 : (status_text[0] != '\0' ? 2 : 0));
     // The backend greys every calibration action while one runs; the section

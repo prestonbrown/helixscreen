@@ -1020,7 +1020,7 @@ TEST_CASE_METHOD(AbortManagerTestFixture, "AbortManager: State subject updates d
             static_cast<int>(AbortManager::State::PROBE_QUEUE));
 
     // Remove observer before callback_count goes out of scope
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // ============================================================================

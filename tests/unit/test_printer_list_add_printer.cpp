@@ -49,11 +49,11 @@ class AddPrinterFixture : public LVGLUITestFixture {
         lv_obj_t* panels[kUiPanelCount] = {nullptr};
         panels[static_cast<int>(PanelId::Home)] = lv_obj_create(test_screen());
         panels[static_cast<int>(PanelId::Settings)] = lv_obj_create(test_screen());
-        lv_obj_add_flag(panels[static_cast<int>(PanelId::Settings)], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(panels[static_cast<int>(PanelId::Settings)], true);
         nav.set_panels(panels);
 
         list_overlay_ = lv_obj_create(test_screen());
-        lv_obj_add_flag(list_overlay_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(list_overlay_, true);
         nav.register_overlay_instance(list_overlay_, nullptr);
         nav.push_overlay(list_overlay_);
         drain();
@@ -90,7 +90,7 @@ TEST_CASE_METHOD(AddPrinterFixture, "Printers list: Add Printer opens after the 
     drain();
 
     REQUIRE(opened != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(opened, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(opened));
 }
 
 TEST_CASE_METHOD(AddPrinterFixture,
@@ -126,7 +126,7 @@ TEST_CASE_METHOD(AddPrinterFixture, "Navigation: closing an overlay leaves an op
 
     lv_obj_t* backdrop = ModalStack::instance().backdrop_for(dialog);
     REQUIRE(backdrop != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(backdrop, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(backdrop));
     Modal::hide(dialog);
     drain();
 }
@@ -144,7 +144,7 @@ TEST_CASE_METHOD(AddPrinterFixture, "Navigation: a panel switch leaves an open m
 
     lv_obj_t* backdrop = ModalStack::instance().backdrop_for(dialog);
     REQUIRE(backdrop != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(backdrop, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(backdrop));
     Modal::hide(dialog);
     drain();
 }
@@ -203,8 +203,8 @@ class PickerSwitchFixture : public AddPrinterFixture {
         REQUIRE(dialog != nullptr);
         lv_obj_t* backdrop = ModalStack::instance().backdrop_for(dialog);
         REQUIRE(backdrop != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(backdrop, LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(dialog, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(backdrop));
+        CHECK_FALSE(lv_obj_is_hidden(dialog));
         return dialog;
     }
 
@@ -270,7 +270,7 @@ TEST_CASE_METHOD(
     "Switch flow: a confirmation hidden without a dismissal does not block the next pick",
     "[multi-printer][switch_flow]") {
     lv_obj_t* dialog = pick_and_expect_confirm("beta");
-    lv_obj_add_flag(ModalStack::instance().backdrop_for(dialog), LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(ModalStack::instance().backdrop_for(dialog), true);
 
     flow_.request_switch("beta");
     drain();
@@ -285,7 +285,7 @@ TEST_CASE_METHOD(PickerSwitchFixture,
                  "Switch flow: a hidden confirmation is closed, not left on the modal stack",
                  "[multi-printer][switch_flow]") {
     lv_obj_t* dialog = pick_and_expect_confirm("beta");
-    lv_obj_add_flag(ModalStack::instance().backdrop_for(dialog), LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(ModalStack::instance().backdrop_for(dialog), true);
     helix::test::set_wire_state(get_printer_state(), PrintJobState::STANDBY);
     drain();
 

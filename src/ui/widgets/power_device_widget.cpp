@@ -107,7 +107,7 @@ PowerDeviceWidget::PowerDeviceWidget(const std::string& instance_id)
 }
 
 void PowerDeviceWidget::set_name_text(const char* text) {
-    lv_subject_copy_string(&name_subject_, text);
+    lv_subject_set_string(&name_subject_, text);
     lv_subject_set_int(&named_subject_, 1);
 }
 
@@ -238,7 +238,7 @@ void PowerDeviceWidget::update_display(int status) {
                        : status == 0 ? lv_tr("OFF")
                        : status == 2 ? lv_tr("LOCKED")
                                      : "";
-    lv_subject_copy_string(&status_text_subject_, text);
+    lv_subject_set_string(&status_text_subject_, text);
 
     if (status == -1) {
         // The component's own "Configure" label, which re-translates itself.
@@ -700,7 +700,7 @@ void PowerDeviceWidget::update_all_devices_display(bool any_on) {
     }
 
     lv_subject_set_int(&state_subject_, last_status_);
-    lv_subject_copy_string(&status_text_subject_, any_on ? lv_tr("ON") : lv_tr("OFF"));
+    lv_subject_set_string(&status_text_subject_, any_on ? lv_tr("ON") : lv_tr("OFF"));
     set_name_text(lv_tr("All Devices"));
 }
 
@@ -755,7 +755,7 @@ void PowerDeviceWidget::setup_carousel() {
     lv_obj_set_style_pad_all(control_page, 0, 0);
     lv_obj_set_style_bg_opa(control_page, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(control_page, 0, 0);
-    lv_obj_remove_flag(control_page, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(control_page, false);
 
     // Copy the original widget's flex layout to the control page
     lv_obj_set_flex_flow(control_page, LV_FLEX_FLOW_COLUMN);
@@ -763,8 +763,8 @@ void PowerDeviceWidget::setup_carousel() {
                           LV_FLEX_ALIGN_CENTER);
 
     // Allow click events to bubble up from control page
-    lv_obj_add_flag(control_page, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(control_page, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_clickable(control_page, true);
+    lv_obj_set_event_bubble(control_page, true);
 
     for (auto* child : existing_children) {
         lv_obj_set_parent(child, control_page);
@@ -778,9 +778,9 @@ void PowerDeviceWidget::setup_carousel() {
     lv_obj_set_style_pad_all(energy_container, 0, 0);
     lv_obj_set_style_bg_opa(energy_container, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(energy_container, 0, 0);
-    lv_obj_remove_flag(energy_container, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(energy_container, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(energy_container, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_scrollable(energy_container, false);
+    lv_obj_set_clickable(energy_container, true);
+    lv_obj_set_event_bubble(energy_container, true);
 
     energy_page_ = static_cast<lv_obj_t*>(
         lv_xml_create(energy_container, "power_device_energy_page", nullptr));
@@ -889,7 +889,7 @@ void PowerDeviceWidget::attach_sensor_observers() {
 
 void PowerDeviceWidget::detach_sensor_observers() {
     // Reset lifetimes BEFORE observers so the guard's weak_ptr expires and
-    // skips lv_observer_remove() on potentially-freed subjects (#705).
+    // skips lv_observer_delete() on potentially-freed subjects (#705).
     power_lifetime_ = {};
     voltage_lifetime_ = {};
     current_lifetime_ = {};

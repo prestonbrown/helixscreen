@@ -183,22 +183,22 @@ TEST_CASE_METHOD(MoveTabFixture, "motion tab switching toggles the tab container
                  "[motion][move-tab][xml]") {
     auto& ps = get_printer_state();
     // Jog is the panel's landing tab: the jog row is up, the Move tab is not.
-    CHECK_FALSE(lv_obj_has_flag(panel_widget("jog_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(panel_widget("jog_modes_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(panel_widget("move_tab"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(panel_widget("jog_row")));
+    CHECK_FALSE(lv_obj_is_hidden(panel_widget("jog_modes_row")));
+    CHECK(lv_obj_is_hidden(panel_widget("move_tab")));
 
     get_global_motion_panel().set_motion_tab(1);
     drain();
-    CHECK(lv_obj_has_flag(panel_widget("jog_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(panel_widget("jog_modes_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(panel_widget("move_tab"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(panel_widget("jog_row")));
+    CHECK(lv_obj_is_hidden(panel_widget("jog_modes_row")));
+    CHECK_FALSE(lv_obj_is_hidden(panel_widget("move_tab")));
     // The Z column stays on every tab.
-    CHECK_FALSE(lv_obj_has_flag(panel_widget("z_controls"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(panel_widget("z_controls")));
 
     get_global_motion_panel().set_motion_tab(0);
     drain();
-    CHECK_FALSE(lv_obj_has_flag(panel_widget("jog_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(panel_widget("move_tab"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(panel_widget("jog_row")));
+    CHECK(lv_obj_is_hidden(panel_widget("move_tab")));
 }
 
 TEST_CASE_METHOD(MoveTabFixture, "the tab rail renders filled pills", "[motion][move-tab][xml]") {
@@ -273,7 +273,7 @@ TEST_CASE_METHOD(MoveTabFixture, "unhomed presets are disabled and send nothing"
     }
 
     // The backstop: a click delivered anyway neither homes nor moves.
-    lv_obj_clear_state(preset, LV_STATE_DISABLED);
+    lv_obj_remove_state(preset, LV_STATE_DISABLED);
     click(preset);
     INFO(all_scripts());
     CHECK(client_.gcode_script_history().empty());
@@ -386,7 +386,7 @@ TEST_CASE_METHOD(MoveTabFixture, "unhomed park is disabled and sends nothing, ma
     lv_obj_t* park = panel_widget("move_park");
     CHECK(lv_obj_has_state(park, LV_STATE_DISABLED));
 
-    lv_obj_clear_state(park, LV_STATE_DISABLED);
+    lv_obj_remove_state(park, LV_STATE_DISABLED);
     click(park);
     INFO(all_scripts());
     CHECK(client_.gcode_script_history().empty());
@@ -542,7 +542,7 @@ TEST_CASE_METHOD(MoveTabFixture, "a print or disabled nav gates the move grid",
     // widget still moves nothing.
     ps.update_from_status({{"print_stats", {{"state", "printing"}}}});
     drain();
-    lv_obj_clear_state(preset, LV_STATE_DISABLED);
+    lv_obj_remove_state(preset, LV_STATE_DISABLED);
     click(preset);
     CHECK(all_scripts().empty());
 }
@@ -603,13 +603,13 @@ bool readout_at_rest() {
 
 TEST_CASE_METHOD(MoveTabFixture, "bed tab: the plate fits its slot and the pills show",
                  "[motion][bed-tab][xml]") {
-    CHECK(lv_obj_has_flag(panel_widget("bed_tab"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(panel_widget("motion_tab_bed"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(panel_widget("bed_tab")));
+    CHECK_FALSE(lv_obj_is_hidden(panel_widget("motion_tab_bed")));
 
     get_global_motion_panel().set_motion_tab(2);
     drain();
-    CHECK_FALSE(lv_obj_has_flag(panel_widget("bed_tab"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(panel_widget("move_tab"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(panel_widget("bed_tab")));
+    CHECK(lv_obj_is_hidden(panel_widget("move_tab")));
 
     // 350x350 travel: a square plate inside the surface.
     lv_obj_t* area = panel_widget("bed_map_area");
@@ -775,13 +775,13 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: unhomed hides the marker and offers H
     drain();
     lv_obj_t* marker = panel_widget("bed_map_marker");
     lv_obj_t* home = panel_widget("bed_map_home");
-    CHECK_FALSE(lv_obj_has_flag(marker, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(home, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(marker));
+    CHECK(lv_obj_is_hidden(home));
 
     ps.update_from_status(ready_status("z"));
     drain();
-    CHECK(lv_obj_has_flag(marker, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(home, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(marker));
+    CHECK_FALSE(lv_obj_is_hidden(home));
 
     click(home);
     CHECK(all_scripts().find("G28") != std::string::npos);
@@ -838,7 +838,7 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: Cleared shows while a part may be on 
     REQUIRE(occupied != nullptr);
     lv_obj_t* cleared = panel_widget("bed_map_cleared");
     CHECK(lv_subject_get_int(occupied) == 1);
-    CHECK_FALSE(lv_obj_has_flag(cleared, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(cleared));
 
     click(cleared);
     // A dismissed question clears nothing; only a yes does.
@@ -848,7 +848,7 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: Cleared shows while a part may be on 
     helix::test::answer_top_modal("btn_primary");
 
     CHECK(lv_subject_get_int(occupied) == 0);
-    CHECK(lv_obj_has_flag(cleared, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(cleared));
     // The lift falls back to the plain clearance (commanded Z 10 is above it).
     CHECK(bed_readout().find("last print") == std::string::npos);
     CHECK(client_.gcode_script_history().empty());
@@ -1030,8 +1030,8 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: Z unhomed counts as unhomed, like Par
     drain();
     lv_obj_t* area = panel_widget("bed_map_area");
     // With Z unknown no lift can be computed, so the map offers Home instead.
-    CHECK(lv_obj_has_flag(panel_widget("bed_map_marker"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(panel_widget("bed_map_home"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(panel_widget("bed_map_marker")));
+    CHECK_FALSE(lv_obj_is_hidden(panel_widget("bed_map_home")));
 
     // Neither a drag nor its release moves or homes anything.
     panel.handle_bed_touch(helix::BedTouch::Pressed, area, far_point(area, false, false));
@@ -1218,8 +1218,8 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: crosshair guides cross the plate thro
 
     get_printer_state().update_from_status(ready_status(""));
     drain();
-    CHECK(lv_obj_has_flag(guide_x, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(guide_y, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(guide_x));
+    CHECK(lv_obj_is_hidden(guide_y));
 }
 
 TEST_CASE_METHOD(MoveTabFixture, "bed tab: unhomed shows the jog pad's warning home button",
@@ -1228,7 +1228,7 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: unhomed shows the jog pad's warning h
     get_printer_state().update_from_status(ready_status(""));
     drain();
     lv_obj_t* home = panel_widget("bed_map_home");
-    REQUIRE_FALSE(lv_obj_has_flag(home, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(home));
     const auto& palette = ThemeManager::instance().current_palette();
     CHECK(lv_color_eq(lv_obj_get_style_border_color(home, LV_PART_MAIN), palette.warning));
     CHECK(lv_color_eq(lv_obj_get_style_bg_color(home, LV_PART_MAIN), palette.elevated_bg));

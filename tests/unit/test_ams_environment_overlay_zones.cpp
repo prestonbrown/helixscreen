@@ -240,7 +240,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Zone tabs keep the card-on-flat look", "[ams][
         CHECK(lv_color_to_u32(lv_obj_get_style_text_color(label, LV_PART_MAIN)) ==
               lv_color_to_u32(theme_manager_get_color("text")));
         lv_obj_t* light = lv_obj_find_by_name(tab, "light_dot");
-        CHECK((light == nullptr || lv_obj_has_flag(light, LV_OBJ_FLAG_HIDDEN)));
+        CHECK((light == nullptr || lv_obj_is_hidden(light)));
     }
 
     reset_overlay_singleton();
@@ -480,7 +480,7 @@ TEST_CASE_METHOD(XMLTestFixture, "The cross-unit affordance leaves the list dril
 
     lv_obj_t* subtitle = lv_obj_find_by_name(lv_screen_active(), "subtitle_label");
     REQUIRE(subtitle != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(subtitle, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(subtitle));
 
     // Through the widget, not a direct call: on_all_zones_clicked is only reachable
     // as an XML event_cb.
@@ -518,7 +518,7 @@ TEST_CASE_METHOD(XMLTestFixture, "A queued zone says what it is waiting for",
 
     lv_obj_t* banner = lv_obj_find_by_name(lv_screen_active(), "queued_banner");
     REQUIRE(banner != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(banner));
 
     // The banner names the zone being waited on, not a generic "please wait".
     const std::string text =
@@ -527,7 +527,7 @@ TEST_CASE_METHOD(XMLTestFixture, "A queued zone says what it is waiting for",
 
     // Selecting the running zone puts it away.
     overlay.select_zone(0);
-    CHECK(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(banner));
 
     reset_overlay_singleton();
 }
@@ -579,7 +579,7 @@ TEST_CASE_METHOD(XMLTestFixture, "An idle zone shows no queued banner", "[ams][z
     // Proves the banner exists and is being driven, rather than the lookup silently
     // returning null and the assertion passing for the wrong reason.
     REQUIRE(banner != nullptr);
-    CHECK(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(banner));
 
     reset_overlay_singleton();
 }
@@ -593,11 +593,11 @@ TEST_CASE_METHOD(XMLTestFixture, "A queued zone shows no progress bar", "[ams][z
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_t* bar = lv_obj_find_by_name(lv_screen_active(), "drying_progress_bar");
     REQUIRE(bar != nullptr);
-    CHECK(lv_obj_has_flag(bar, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(bar));
 
     // The active zone still shows it, so the gate is not simply always-hidden.
     overlay.select_zone(0);
-    CHECK_FALSE(lv_obj_has_flag(bar, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(bar));
 
     // A dry of unknown length has a countdown and no bar.
     auto unknown = capped_rig_zones();
@@ -606,7 +606,7 @@ TEST_CASE_METHOD(XMLTestFixture, "A queued zone shows no progress bar", "[ams][z
     helix::ui::UpdateQueue::instance().drain();
     bar = lv_obj_find_by_name(lv_screen_active(), "drying_progress_bar");
     REQUIRE(bar != nullptr);
-    CHECK(lv_obj_has_flag(bar, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(bar));
 
     reset_overlay_singleton();
 }
@@ -623,14 +623,14 @@ TEST_CASE_METHOD(XMLTestFixture, "An empty zone set clears a stale queued banner
 
     lv_obj_t* banner = lv_obj_find_by_name(lv_screen_active(), "queued_banner");
     REQUIRE(banner != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(banner));
 
     // Re-shown with nothing to display, the way a disconnect or a stale caller might -
     // the banner must not go on naming a zone that is no longer there.
     overlay.show_zone(lv_screen_active(), {}, 0, false);
     helix::ui::UpdateQueue::instance().drain();
 
-    CHECK(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(banner));
     lv_subject_t* banner_text = lv_xml_get_subject(nullptr, "env_queued_banner_text");
     REQUIRE(banner_text != nullptr);
     CHECK(std::string(lv_subject_get_string(banner_text)).empty());

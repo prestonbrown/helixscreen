@@ -417,11 +417,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "hidden subtrees still contain findable names"
     // resolution has to filter on LV_OBJ_FLAG_HIDDEN rather than trust the
     // lookup. Clicking one of these is always a no-op.
     lv_obj_t* hidden = lv_obj_create(screen);
-    lv_obj_add_flag(hidden, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(hidden, true);
     lv_obj_t* buried = lv_obj_create(hidden);
     lv_obj_set_name(buried, "btn_only_in_hidden");
 
-    REQUIRE(lv_obj_has_flag(hidden, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(hidden));
     REQUIRE(lv_obj_find_by_name(screen, "btn_only_in_hidden") == buried);
 }
 
@@ -451,14 +451,14 @@ struct ContextMenuTree {
 ContextMenuTree build_context_menu(lv_obj_t* parent) {
     ContextMenuTree t{};
     t.backdrop = lv_obj_create(parent);
-    lv_obj_add_flag(t.backdrop, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(t.backdrop, true);
     lv_obj_add_event_cb(t.backdrop, noop_event_cb, LV_EVENT_CLICKED, nullptr);
 
     t.card = lv_obj_create(t.backdrop);
-    lv_obj_add_flag(t.card, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(t.card, true);
 
     lv_obj_t* hidden_row = lv_obj_create(t.card);
-    lv_obj_add_flag(hidden_row, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(hidden_row, true);
     t.hidden_dropdown = lv_dropdown_create(hidden_row);
 
     lv_obj_t* visible_row = lv_obj_create(t.card);
@@ -490,7 +490,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl: descent stops at a nested click target",
     // click target of its own, so the search must not tunnel through it even
     // though nothing above it claims the click.
     lv_obj_t* backdrop = lv_obj_create(lv_screen_active());
-    lv_obj_add_flag(backdrop, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(backdrop, true);
 
     lv_obj_t* card = lv_obj_create(backdrop);
     lv_obj_add_event_cb(card, noop_event_cb, LV_EVENT_CLICKED, nullptr);
@@ -511,7 +511,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl: a composite row still descends to its co
     // does nothing on its own must still reach the switch nested inside it,
     // through as much non-interactive scaffolding as the layout uses.
     lv_obj_t* row = lv_obj_create(lv_screen_active());
-    lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE); // clickable, but no handler
+    lv_obj_set_clickable(row, true); // clickable, but no handler
     lv_obj_t* inner = lv_obj_create(row);
     lv_obj_t* deeper = lv_obj_create(inner);
     lv_obj_t* sw = lv_switch_create(deeper);
@@ -578,7 +578,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl click: every reason a tap would miss", "[
 
     SECTION("a plain object is not a click target") {
         lv_obj_t* obj = lv_obj_create(lv_screen_active());
-        lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(obj, false);
         CHECK(std::string(helix::click_blocker(obj)) == "not clickable");
     }
 
@@ -594,7 +594,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl click: every reason a tap would miss", "[
         lv_obj_t* parent = lv_obj_create(lv_screen_active());
         lv_obj_t* btn = lv_button_create(parent);
         CHECK(helix::click_blocker(btn) == nullptr);
-        lv_obj_add_flag(parent, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(parent, true);
         CHECK(std::string(helix::click_blocker(btn)) == "hidden");
     }
 
@@ -610,9 +610,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl click: every reason a tap would miss", "[
 
     SECTION("hidden outranks the other two, matching the order a finger hits them") {
         lv_obj_t* obj = lv_obj_create(lv_screen_active());
-        lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(obj, false);
         lv_obj_add_state(obj, LV_STATE_DISABLED);
-        lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(obj, true);
         CHECK(std::string(helix::click_blocker(obj)) == "hidden");
     }
 }
@@ -717,7 +717,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl click: a checkable button toggles and sti
                  "[remote][ctl]") {
     lv_obj_t* btn = lv_button_create(lv_screen_active());
     lv_obj_set_name(btn, "ctl_checkable_button");
-    lv_obj_add_flag(btn, LV_OBJ_FLAG_CHECKABLE);
+    lv_obj_set_checkable(btn, true);
 
     std::vector<int> codes;
     lv_obj_add_event_cb(btn, record_code_cb, LV_EVENT_SHORT_CLICKED, &codes);
@@ -786,7 +786,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl click: a tap handled by a bubbled-to pare
     lv_obj_add_event_cb(parent, record_code_cb, LV_EVENT_SHORT_CLICKED, &codes);
     lv_obj_t* child = lv_button_create(parent);
     lv_obj_set_name(child, "ctl_bubbling_child");
-    lv_obj_add_flag(child, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_event_bubble(child, true);
 
     CtlClickRig rig;
     const nlohmann::json r = rig.click("ctl_bubbling_child");
@@ -795,7 +795,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl click: a tap handled by a bubbled-to pare
     CHECK(codes == std::vector<int>{LV_EVENT_SHORT_CLICKED});
 
     // Without EVENT_BUBBLE the parent's handler never hears the tap.
-    lv_obj_remove_flag(child, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_event_bubble(child, false);
     CHECK_FALSE(rig.click("ctl_bubbling_child").value("tap_handled", true));
 }
 
@@ -806,7 +806,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl click: a widget its tap deletes gets noth
     lv_obj_add_event_cb(parent, record_code_cb, LV_EVENT_CLICKED, &parent_codes);
     lv_obj_t* btn = lv_button_create(parent);
     lv_obj_set_name(btn, "ctl_self_deleting");
-    lv_obj_add_flag(btn, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_event_bubble(btn, true);
     lv_obj_add_event_cb(
         btn, [](lv_event_t* e) { lv_obj_delete(lv_event_get_current_target_obj(e)); },
         LV_EVENT_SHORT_CLICKED, nullptr);
@@ -837,7 +837,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     box(roomy, "small_child", 90, 90);
     lv_obj_t* hidden = box(root, "hidden", 100, 100);
     box(hidden, "hidden_child", 150, 150);
-    lv_obj_add_flag(hidden, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(hidden, true);
     lv_obj_t* dotted = lv_label_create(box(root, "dotted_host", 100, 30));
     lv_obj_set_size(dotted, 40, 20);
     lv_label_set_long_mode(dotted, LV_LABEL_LONG_MODE_DOTS);
@@ -905,7 +905,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl scroll: a row below the fold ends up insi
 TEST_CASE_METHOD(LVGLTestFixture, "ctl scroll: an ancestor that cannot scroll is reported",
                  "[remote][ctl][scroll]") {
     ScrollTree t = build_scroll_tree(test_screen());
-    lv_obj_remove_flag(t.viewport, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(t.viewport, false);
 
     CHECK(helix::scroll_into_view(t.row) == t.viewport);
 }
@@ -931,14 +931,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl scroll: overflow-visible ancestors do not
     lv_obj_update_layout(test_screen());
     REQUIRE(helix::view_clipper(child) == host);
 
-    lv_obj_add_flag(host, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+    lv_obj_set_overflow_visible(host, true);
     CHECK(helix::view_clipper(child) == nullptr);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "ctl scroll: a widget inside a hidden ancestor is not in view",
                  "[remote][ctl][scroll]") {
     ScrollTree t = build_scroll_tree(test_screen());
-    lv_obj_add_flag(t.column, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(t.column, true);
 
     CHECK(helix::scroll_into_view(t.row) == t.column);
 }
@@ -993,13 +993,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl scroll: the reply says why a widget stays
     CtlClickRig rig;
 
     SECTION("a hidden ancestor") {
-        lv_obj_add_flag(t.column, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(t.column, true);
         CHECK_THAT(scroll_error(rig, t.row),
                    Catch::Matchers::EndsWith("is still out of view: hidden by " +
                                              helix::path_of(t.column)));
     }
     SECTION("an ancestor that clips without scrolling") {
-        lv_obj_remove_flag(t.viewport, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(t.viewport, false);
         CHECK_THAT(scroll_error(rig, t.row),
                    Catch::Matchers::EndsWith("is still out of view: clipped by " +
                                              helix::path_of(t.viewport)));
@@ -1017,8 +1017,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl scroll: the reply says why a widget stays
     }
     SECTION("the loaded screen itself, when it does not scroll") {
         lv_obj_t* const screen = lv_screen_active();
-        const bool screen_scrolls = lv_obj_has_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_remove_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+        const bool screen_scrolls = lv_obj_is_scrollable(screen);
+        lv_obj_set_scrollable(screen, false);
         lv_obj_t* below = lv_obj_create(screen);
         lv_obj_set_size(below, 50, 50);
         lv_obj_set_pos(below, 0, lv_obj_get_height(screen) + 100);
@@ -1026,7 +1026,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl scroll: the reply says why a widget stays
         const std::string error = scroll_error(rig, below);
         lv_obj_delete(below);
         if (screen_scrolls) {
-            lv_obj_add_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_scrollable(screen, true);
         }
         CHECK_THAT(error, Catch::Matchers::EndsWith("is still out of view: clipped by " +
                                                     helix::path_of(screen)));
@@ -1051,7 +1051,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(spinner != nullptr);
     lv_refr_now(nullptr);
     process_lvgl(100);
-    lv_obj_add_flag(box, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(box, true);
     process_lvgl(100);
     REQUIRE(lv_anim_get(spinner, nullptr) == nullptr);
 
@@ -1064,7 +1064,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     } unfreeze_on_exit{rig};
 
     REQUIRE(rig.request("freeze", nlohmann::json::object())["result"].value("frozen", false));
-    lv_obj_remove_flag(box, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(box, false);
     lv_refr_now(nullptr);
     process_lvgl(100);
     CHECK(lv_anim_get(spinner, nullptr) == nullptr);

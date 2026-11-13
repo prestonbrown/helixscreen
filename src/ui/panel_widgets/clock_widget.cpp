@@ -248,17 +248,17 @@ void ClockWidget::update_clock() {
     if (tm_info) {
         // Time — use user's preferred format (12h/24h)
         std::string time_str = helix::ui::format_time(tm_info);
-        lv_subject_copy_string(&s_time_subject, time_str.c_str());
+        lv_subject_set_string(&s_time_subject, time_str.c_str());
 
         // Date — locale-aware formatting
         std::string date_str = helix::ui::format_localized_date(tm_info);
-        lv_subject_copy_string(&s_date_subject, date_str.c_str());
+        lv_subject_set_string(&s_date_subject, date_str.c_str());
     }
 
     // Uptime from /proc/uptime
     char uptime_buf[64];
     format_uptime(uptime_buf, sizeof(uptime_buf));
-    lv_subject_copy_string(&s_uptime_subject, uptime_buf);
+    lv_subject_set_string(&s_uptime_subject, uptime_buf);
 }
 
 void ClockWidget::clock_timer_cb(lv_timer_t* timer) {

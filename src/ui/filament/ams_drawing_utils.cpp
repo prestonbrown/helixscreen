@@ -120,8 +120,8 @@ std::string get_unit_display_name(const helix::AmsUnit& unit, int unit_index) {
 
 lv_obj_t* create_transparent_container(lv_obj_t* parent) {
     lv_obj_t* c = lv_obj_create(parent);
-    lv_obj_remove_flag(c, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(c, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_scrollable(c, false);
+    lv_obj_set_event_bubble(c, true);
     lv_obj_set_style_bg_opa(c, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(c, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(c, 0, LV_PART_MAIN);
@@ -165,8 +165,8 @@ void start_pulse(lv_obj_t* dot, lv_color_t base_color) {
     lv_anim_init(&sa);
     lv_anim_set_var(&sa, dot);
     lv_anim_set_values(&sa, kPulseScaleMax, kPulseScaleMin);
-    lv_anim_set_time(&sa, kPulseDurationMs);
-    lv_anim_set_playback_time(&sa, kPulseDurationMs);
+    lv_anim_set_duration(&sa, kPulseDurationMs);
+    lv_anim_set_reverse_duration(&sa, kPulseDurationMs);
     lv_anim_set_repeat_count(&sa, LV_ANIM_REPEAT_INFINITE);
     lv_anim_set_path_cb(&sa, lv_anim_path_ease_in_out);
     lv_anim_set_exec_cb(&sa, pulse_scale_anim_cb);
@@ -176,8 +176,8 @@ void start_pulse(lv_obj_t* dot, lv_color_t base_color) {
     lv_anim_init(&ca);
     lv_anim_set_var(&ca, dot);
     lv_anim_set_values(&ca, kPulseSatMax, kPulseSatMin);
-    lv_anim_set_time(&ca, kPulseDurationMs);
-    lv_anim_set_playback_time(&ca, kPulseDurationMs);
+    lv_anim_set_duration(&ca, kPulseDurationMs);
+    lv_anim_set_reverse_duration(&ca, kPulseDurationMs);
     lv_anim_set_repeat_count(&ca, LV_ANIM_REPEAT_INFINITE);
     lv_anim_set_path_cb(&ca, lv_anim_path_ease_in_out);
     lv_anim_set_exec_cb(&ca, pulse_color_anim_cb);
@@ -225,10 +225,10 @@ lv_obj_t* create_error_badge(lv_obj_t* parent, int32_t size) {
     lv_obj_set_style_radius(badge, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(badge, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_width(badge, 0, LV_PART_MAIN);
-    lv_obj_remove_flag(badge, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(badge, LV_OBJ_FLAG_EVENT_BUBBLE);
-    lv_obj_add_flag(badge, LV_OBJ_FLAG_IGNORE_LAYOUT);
-    lv_obj_add_flag(badge, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_scrollable(badge, false);
+    lv_obj_set_event_bubble(badge, true);
+    lv_obj_set_ignore_layout(badge, true);
+    lv_obj_set_hidden(badge, true);
     return badge;
 }
 
@@ -241,7 +241,7 @@ void update_error_badge(lv_obj_t* badge, bool has_error, helix::SlotError::Sever
     if (has_error) {
         lv_color_t color = severity_color(severity);
         lv_obj_set_style_bg_color(badge, color, LV_PART_MAIN);
-        lv_obj_remove_flag(badge, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(badge, false);
         if (animate) {
             start_pulse(badge, color);
         } else {
@@ -249,7 +249,7 @@ void update_error_badge(lv_obj_t* badge, bool has_error, helix::SlotError::Sever
         }
     } else {
         stop_pulse(badge);
-        lv_obj_add_flag(badge, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(badge, true);
     }
 }
 
@@ -300,9 +300,9 @@ void apply_logo(lv_obj_t* image, const helix::AmsUnit& unit, const helix::AmsSys
 
     if (path && path[0]) {
         lv_image_set_src(image, path);
-        lv_obj_remove_flag(image, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(image, false);
     } else {
-        lv_obj_add_flag(image, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(image, true);
     }
 }
 
@@ -314,9 +314,9 @@ void apply_logo(lv_obj_t* image, const std::string& type_name) {
     const char* path = helix::AmsState::get_logo_path(type_name);
     if (path && path[0]) {
         lv_image_set_src(image, path);
-        lv_obj_remove_flag(image, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(image, false);
     } else {
-        lv_obj_add_flag(image, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(image, true);
     }
 }
 
@@ -831,15 +831,15 @@ lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, boo
     lv_obj_set_style_border_color(badge, theme_manager_get_color("card_bg"), LV_PART_MAIN);
     lv_obj_set_style_pad_all(badge, 0, LV_PART_MAIN);
     lv_obj_align(badge, LV_ALIGN_BOTTOM_RIGHT, -2, -2);
-    lv_obj_remove_flag(badge, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(badge, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_scrollable(badge, false);
+    lv_obj_set_event_bubble(badge, true);
     lv_obj_t* lbl = lv_label_create(badge);
     lv_label_set_text(lbl, lane_badge_text(lane_number).c_str());
     const lv_font_t* f = theme_manager_get_font("font_xs");
     if (f)
         lv_obj_set_style_text_font(lbl, f, LV_PART_MAIN);
     lv_obj_center(lbl);
-    lv_obj_add_flag(lbl, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_event_bubble(lbl, true);
     set_lane_badge_active(badge, active);
     return badge;
 }

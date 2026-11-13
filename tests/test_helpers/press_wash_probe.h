@@ -48,7 +48,7 @@ inline lv_obj_t* row_with_label(lv_obj_t* root, const char* text) {
         if (lv_obj_check_type(child, &lv_label_class)) {
             const char* t = lv_label_get_text(child);
             if (t && std::strcmp(t, text) == 0) {
-                return lv_obj_has_flag(root, LV_OBJ_FLAG_CLICKABLE) ? root : nullptr;
+                return lv_obj_is_clickable(root) ? root : nullptr;
             }
         }
         if (lv_obj_t* found = row_with_label(child, text)) {

@@ -101,8 +101,8 @@ bool PinEntryModal::create() {
     lv_obj_set_style_border_width(backdrop_, 0, 0);
     lv_obj_set_style_pad_all(backdrop_, 0, 0);
     lv_obj_set_style_radius(backdrop_, 0, 0);
-    lv_obj_add_flag(backdrop_, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(backdrop_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_clickable(backdrop_, true);
+    lv_obj_set_scrollable(backdrop_, false);
     cover_chrome();
     helix::ui::bring_to_front(backdrop_);
 

@@ -38,7 +38,7 @@ void HeadPicker::refresh() {
         if (i < static_cast<int>(heads.size())) {
             label = tool_label(heads[static_cast<size_t>(i)].representative_tool(active));
         }
-        lv_subject_copy_string(&tool_label_[i], label.c_str());
+        lv_subject_set_string(&tool_label_[i], label.c_str());
     }
     lv_subject_set_int(&tool_count_, count);
 }

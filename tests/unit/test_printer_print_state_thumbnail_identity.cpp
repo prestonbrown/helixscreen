@@ -115,7 +115,7 @@ TEST_CASE_METHOD(ThumbnailIdentityFixture,
         CHECK(state().print_state().get_print_thumbnail_file() == "model_b.gcode");
     }
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }
 
 TEST_CASE_METHOD(ThumbnailIdentityFixture,

@@ -296,7 +296,7 @@ TEST_CASE_METHOD(SensorManagerFixture,
 
     const int before = mgr.refresh_count;
     mgr.update_from_status(json{{"temperature_sensor chamber", {{"temperature", 33}}}});
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 
     CHECK(ctx.fired);
     CHECK(role_of_name("temperature_sensor board") == kChamber);

@@ -103,8 +103,8 @@ void* canvas_xml_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_t* obj = lv_obj_create(parent);
     lv_obj_remove_style_all(obj);
     lv_obj_set_size(obj, lv_pct(100), lv_pct(100));
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, false);
 
     // The heap name is the per-instance state: every callback receives it as
     // user_data and LV_EVENT_DELETE frees it with the instance. An unnamed

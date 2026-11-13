@@ -26,9 +26,9 @@ static void width_sensor_widget_init_subjects() {
                         float diameter_mm = diameter / 1000.0f;
                         char buf[16];
                         helix::format::format_diameter_mm(diameter_mm, buf, sizeof(buf));
-                        lv_subject_copy_string(text_subj, buf);
+                        lv_subject_set_string(text_subj, buf);
                     } else {
-                        lv_subject_copy_string(text_subj, helix::format::UNAVAILABLE);
+                        lv_subject_set_string(text_subj, helix::format::UNAVAILABLE);
                     }
                 },
                 wsm.subjects_lifetime());

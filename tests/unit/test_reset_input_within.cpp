@@ -45,7 +45,7 @@ ToastShape make_toast(lv_obj_t* parent) {
     toast.root = lv_obj_create(parent);
     lv_obj_set_size(toast.root, 240, 100);
     lv_obj_align(toast.root, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
-    lv_obj_remove_flag(toast.root, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(toast.root, false);
     toast.action_btn = lv_button_create(toast.root);
     lv_obj_set_size(toast.action_btn, 60, 40);
     lv_obj_align(toast.action_btn, LV_ALIGN_RIGHT_MID, 0, 0);
@@ -65,7 +65,7 @@ void make_held_target(lv_obj_t* parent, HeldTarget& target) {
     target.obj = lv_obj_create(parent);
     lv_obj_set_size(target.obj, 100, 100);
     lv_obj_align(target.obj, LV_ALIGN_TOP_LEFT, 0, 0);
-    lv_obj_remove_flag(target.obj, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(target.obj, false);
     lv_obj_add_event_cb(target.obj, count_event, LV_EVENT_RELEASED, &target.released);
     lv_obj_add_event_cb(target.obj, count_event, LV_EVENT_CLICKED, &target.clicked);
 }

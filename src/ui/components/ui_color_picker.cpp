@@ -369,7 +369,7 @@ void ColorPicker::update_preview(uint32_t color_rgb, bool from_hsv_picker, bool 
     // Update color name via subject (both labels bound to same subject)
     std::string name = helix::get_color_name_from_hex(color_rgb);
     snprintf(name_buf_, sizeof(name_buf_), "%s", name.c_str());
-    lv_subject_copy_string(&name_subject_, name_buf_);
+    lv_subject_set_string(&name_subject_, name_buf_);
 
     // Sync HSV pickers (unless change came from HSV picker)
     if (!from_hsv_picker) {

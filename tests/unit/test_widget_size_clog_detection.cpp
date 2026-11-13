@@ -45,7 +45,7 @@ constexpr int kCell = GridLayout::TRACKS_PER_CELL;
 int piece_x(lv_obj_t* track, const char* name) {
     lv_obj_t* obj = lv_obj_find_by_name(track, name);
     REQUIRE(obj != nullptr);
-    if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+    if (lv_obj_is_hidden(obj)) {
         return -1;
     }
     return lv_obj_get_x(obj);
@@ -54,7 +54,7 @@ int piece_x(lv_obj_t* track, const char* name) {
 int piece_w(lv_obj_t* track, const char* name) {
     lv_obj_t* obj = lv_obj_find_by_name(track, name);
     REQUIRE(obj != nullptr);
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN) ? 0 : lv_obj_get_width(obj);
+    return lv_obj_is_hidden(obj) ? 0 : lv_obj_get_width(obj);
 }
 
 /// Push one sample through the subjects the bar observes.
@@ -298,7 +298,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clog_detection draws the threshold over the
     REQUIRE(rule != nullptr);
     REQUIRE(fill != nullptr);
 
-    CHECK_FALSE(lv_obj_has_flag(rule, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(rule));
     CHECK(lv_obj_get_x(rule) == g.danger_hi_x);
 
     // Drawn after the fill, which is what keeps it visible through one.

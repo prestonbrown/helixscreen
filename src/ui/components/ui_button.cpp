@@ -524,10 +524,10 @@ bool is_column(lv_obj_t* btn) {
 /// minimum a column button holds in place of style_min_width="content".
 void apply_stacked_min_width(lv_obj_t* btn, UiButtonData* data) {
     int32_t inner = 0;
-    if (data->icon && !lv_obj_has_flag(data->icon, LV_OBJ_FLAG_HIDDEN)) {
+    if (data->icon && !lv_obj_is_hidden(data->icon)) {
         inner = lv_obj_get_width(data->icon);
     }
-    if (data->label && !lv_obj_has_flag(data->label, LV_OBJ_FLAG_HIDDEN)) {
+    if (data->label && !lv_obj_is_hidden(data->label)) {
         inner = LV_MAX(inner, lv_obj_get_width(data->label));
     }
     const int32_t min_w = inner + lv_obj_get_style_space_left(btn, LV_PART_MAIN) +
@@ -902,7 +902,7 @@ void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     defer_button_contrast_update(btn);
 
     // Prevent accidental click when scrolling.
-    lv_obj_remove_flag(btn, LV_OBJ_FLAG_PRESS_LOCK);
+    lv_obj_set_press_lock(btn, false);
 
     const char* pos_name = icon_on_top      ? "top"
                            : icon_on_bottom ? "bottom"
@@ -1006,7 +1006,7 @@ lv_obj_t* ensure_op_spinner(lv_obj_t* btn, UiButtonData* data) {
 
     lv_obj_t* arc = lv_arc_create(btn);
     lv_obj_set_size(arc, sz, sz);
-    lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(arc, false);
     lv_arc_set_bg_angles(arc, 0, 360);
     lv_arc_set_rotation(arc, 270);
     lv_obj_set_style_opa(arc, LV_OPA_0, LV_PART_KNOB);
@@ -1021,7 +1021,7 @@ lv_obj_t* ensure_op_spinner(lv_obj_t* btn, UiButtonData* data) {
     int32_t icon_index = lv_obj_get_index(data->icon);
     lv_obj_move_to_index(arc, icon_index);
 
-    lv_obj_add_flag(arc, LV_OBJ_FLAG_HIDDEN); // shown only while busy
+    lv_obj_set_hidden(arc, true); // shown only while busy
     lv_obj_add_event_cb(arc, op_spinner_delete_cb, LV_EVENT_DELETE, nullptr);
 
     data->op_spinner = arc;
@@ -1039,9 +1039,9 @@ void apply_op_state(lv_obj_t* btn, UiButtonData* data, int op_state) {
     switch (op_state) {
     case 1: { // busy: hide glyph, show animated spinner
         lv_obj_t* arc = ensure_op_spinner(btn, data);
-        lv_obj_add_flag(data->icon, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->icon, true);
         if (arc) {
-            lv_obj_remove_flag(arc, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(arc, false);
             op_spinner_anim::stop(arc); // restart cleanly if re-entered
             op_spinner_anim::start(arc);
         }
@@ -1050,25 +1050,25 @@ void apply_op_state(lv_obj_t* btn, UiButtonData* data, int op_state) {
     case 2: { // done: show check glyph, hide spinner
         if (data->op_spinner) {
             op_spinner_anim::stop(data->op_spinner);
-            lv_obj_add_flag(data->op_spinner, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->op_spinner, true);
         }
         const char* check_cp = helix::ui::icon::lookup_codepoint("check");
         if (check_cp) {
             lv_label_set_text(data->icon, check_cp);
         }
-        lv_obj_remove_flag(data->icon, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->icon, false);
         break;
     }
     case 0:
     default: { // idle: restore original glyph, hide spinner
         if (data->op_spinner) {
             op_spinner_anim::stop(data->op_spinner);
-            lv_obj_add_flag(data->op_spinner, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->op_spinner, true);
         }
         if (data->op_idle_glyph[0] != '\0') {
             lv_label_set_text(data->icon, data->op_idle_glyph);
         }
-        lv_obj_remove_flag(data->icon, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->icon, false);
         break;
     }
     }
@@ -1513,9 +1513,9 @@ void ui_button_set_label_hidden(lv_obj_t* btn, bool hidden) {
         return;
     }
     if (hidden) {
-        lv_obj_add_flag(data->label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->label, true);
     } else {
-        lv_obj_remove_flag(data->label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->label, false);
     }
     if (data->min_width_content) {
         fit_column_min_width(btn, data);
@@ -1532,9 +1532,9 @@ void ui_button_set_icon_hidden(lv_obj_t* btn, bool hidden) {
         return;
     }
     if (hidden) {
-        lv_obj_add_flag(data->icon, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->icon, true);
     } else {
-        lv_obj_remove_flag(data->icon, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->icon, false);
     }
     if (data->min_width_content) {
         fit_column_min_width(btn, data);

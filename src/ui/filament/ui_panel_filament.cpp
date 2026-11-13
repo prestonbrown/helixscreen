@@ -711,7 +711,7 @@ void FilamentPanel::fit_portrait_graph(lv_obj_t* column) {
     const uint32_t count = lv_obj_get_child_count(column);
     for (uint32_t i = 0; i < count; i++) {
         lv_obj_t* child = lv_obj_get_child(column, static_cast<int32_t>(i));
-        if (child == temp_graph_card_ || lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN))
+        if (child == temp_graph_card_ || lv_obj_is_hidden(child))
             continue;
         // Each visible sibling brings its own height plus one gap to the graph's side.
         used += lv_obj_get_height(child) + gap;
@@ -788,7 +788,7 @@ void FilamentPanel::setup_orientation_rewire_observer() {
 void FilamentPanel::update_temp_display() {
     format_temperature_pair(nozzle_current_, nozzle_target_, temp_display_buf_,
                             sizeof(temp_display_buf_));
-    lv_subject_copy_string(&temp_display_subject_, temp_display_buf_);
+    lv_subject_set_string(&temp_display_subject_, temp_display_buf_);
 }
 
 void FilamentPanel::update_status_icon(const char* icon_name, const char* variant) {
@@ -826,7 +826,7 @@ void FilamentPanel::update_status() {
         std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Heating: %d / %s"),
                       helix::units::to_display_temp_whole(nozzle_current_),
                       helix::units::format_display_temp(nozzle_target_).c_str());
-        lv_subject_copy_string(&status_subject_, status_buf_);
+        lv_subject_set_string(&status_subject_, status_buf_);
         last_status_branch_ = StatusBranch::NozzleHeating;
         update_status_icon("flash", "warning");
         return; // Already updated, exit early
@@ -834,7 +834,7 @@ void FilamentPanel::update_status() {
         // Chamber is heating (show only if nozzle is cold)
         std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Chamber heating to %s..."),
                       helix::units::format_display_temp(deci_to_degrees(chamber_target_)).c_str());
-        lv_subject_copy_string(&status_subject_, status_buf_);
+        lv_subject_set_string(&status_subject_, status_buf_);
         last_status_branch_ = StatusBranch::ChamberHeating;
         update_status_icon("fire", "warning");
         return;
@@ -843,7 +843,7 @@ void FilamentPanel::update_status() {
         // Chamber at target (show only if nozzle is cold)
         std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Chamber at %s"),
                       helix::units::format_display_temp(deci_to_degrees(chamber_target_)).c_str());
-        lv_subject_copy_string(&status_subject_, status_buf_);
+        lv_subject_set_string(&status_subject_, status_buf_);
         last_status_branch_ = StatusBranch::ChamberAtTarget;
         update_status_icon("check", "success");
         return;
@@ -858,14 +858,14 @@ void FilamentPanel::update_status() {
         update_status_icon("cooldown", "secondary");
     }
 
-    lv_subject_copy_string(&status_subject_, status_msg);
+    lv_subject_set_string(&status_subject_, status_msg);
 }
 
 void FilamentPanel::update_warning_text() {
     std::snprintf(warning_temps_buf_, sizeof(warning_temps_buf_), lv_tr("Current: %s | Target: %s"),
                   helix::units::format_display_temp(nozzle_current_).c_str(),
                   helix::units::format_display_temp(nozzle_target_).c_str());
-    lv_subject_copy_string(&warning_temps_subject_, warning_temps_buf_);
+    lv_subject_set_string(&warning_temps_subject_, warning_temps_buf_);
 }
 
 void FilamentPanel::update_safety_warning_text() {
@@ -873,7 +873,7 @@ void FilamentPanel::update_safety_warning_text() {
                   lv_tr("Heat to at least %s for filament operations"),
                   helix::units::format_display_temp(min_extrude_temp_).c_str());
     if (subjects_initialized_) {
-        lv_subject_copy_string(&safety_warning_text_subject_, safety_warning_text_buf_);
+        lv_subject_set_string(&safety_warning_text_subject_, safety_warning_text_buf_);
     }
 }
 
@@ -1045,7 +1045,7 @@ void FilamentPanel::update_target_tool_action() {
     } else if (action == helix::ui::TargetToolAction::Park) {
         text = lv_tr("Park");
     }
-    lv_subject_copy_string(&target_tool_action_text_subject_, text);
+    lv_subject_set_string(&target_tool_action_text_subject_, text);
     lv_subject_set_int(&target_tool_action_subject_, static_cast<int>(action));
 }
 
@@ -1090,7 +1090,7 @@ void FilamentPanel::update_nozzle_label() {
     auto label = helix::ToolState::instance().nozzle_label(target_tool());
     std::snprintf(nozzle_label_buf_, sizeof(nozzle_label_buf_), "%s", label.c_str());
     if (subjects_initialized_) {
-        lv_subject_copy_string(&nozzle_label_subject_, nozzle_label_buf_);
+        lv_subject_set_string(&nozzle_label_subject_, nozzle_label_buf_);
     }
 }
 
@@ -1098,7 +1098,7 @@ void FilamentPanel::update_tool_noun() {
     auto noun = helix::ui::noun_text(helix::ui::active_tool_noun());
     std::snprintf(tool_noun_buf_, sizeof(tool_noun_buf_), "%s", noun.c_str());
     if (subjects_initialized_) {
-        lv_subject_copy_string(&tool_noun_subject_, tool_noun_buf_);
+        lv_subject_set_string(&tool_noun_subject_, tool_noun_buf_);
     }
 }
 
@@ -1461,8 +1461,8 @@ void FilamentPanel::update_material_temp_display() {
     // Use centralized formatting with em dash for heater-off state
     format_target_or_off(nozzle_target_, material_nozzle_buf_, sizeof(material_nozzle_buf_));
     format_target_or_off(bed_target_, material_bed_buf_, sizeof(material_bed_buf_));
-    lv_subject_copy_string(&material_nozzle_temp_subject_, material_nozzle_buf_);
-    lv_subject_copy_string(&material_bed_temp_subject_, material_bed_buf_);
+    lv_subject_set_string(&material_nozzle_temp_subject_, material_nozzle_buf_);
+    lv_subject_set_string(&material_bed_temp_subject_, material_bed_buf_);
 }
 
 void FilamentPanel::update_chamber_temp_display() {
@@ -1470,8 +1470,8 @@ void FilamentPanel::update_chamber_temp_display() {
     format_temperature(chamber_current_, chamber_current_buf_, sizeof(chamber_current_buf_));
     format_target_or_off(deci_to_degrees(chamber_target_), chamber_target_buf_,
                          sizeof(chamber_target_buf_));
-    lv_subject_copy_string(&chamber_current_subject_, chamber_current_buf_);
-    lv_subject_copy_string(&chamber_target_subject_, chamber_target_buf_);
+    lv_subject_set_string(&chamber_current_subject_, chamber_current_buf_);
+    lv_subject_set_string(&chamber_target_subject_, chamber_target_buf_);
 
     // 4-state heating color (matches nozzle/bed)
     lv_subject_set_int(
@@ -1483,14 +1483,14 @@ void FilamentPanel::update_left_card_temps() {
     // Update current temps
     format_temperature(nozzle_current_, nozzle_current_buf_, sizeof(nozzle_current_buf_));
     format_temperature(bed_current_, bed_current_buf_, sizeof(bed_current_buf_));
-    lv_subject_copy_string(&nozzle_current_subject_, nozzle_current_buf_);
-    lv_subject_copy_string(&bed_current_subject_, bed_current_buf_);
+    lv_subject_set_string(&nozzle_current_subject_, nozzle_current_buf_);
+    lv_subject_set_string(&bed_current_subject_, bed_current_buf_);
 
     // Update target temps using centralized formatting with em dash for heater-off state
     format_target_or_off(nozzle_target_, nozzle_target_buf_, sizeof(nozzle_target_buf_));
     format_target_or_off(bed_target_, bed_target_buf_, sizeof(bed_target_buf_));
-    lv_subject_copy_string(&nozzle_target_subject_, nozzle_target_buf_);
-    lv_subject_copy_string(&bed_target_subject_, bed_target_buf_);
+    lv_subject_set_string(&nozzle_target_subject_, nozzle_target_buf_);
+    lv_subject_set_string(&bed_target_subject_, bed_target_buf_);
 
     // Temperature label colors use the 4-state heating logic
     // (matches temp_display widget: gray=off, red=heating, green=at-temp, blue=cooling)
@@ -2113,7 +2113,7 @@ void FilamentPanel::update_multi_filament_card_visibility() {
     const char* title = external_spool_mode ? lv_tr("External Spool") : lv_tr("Multi-Filament");
     std::strncpy(card_title_buf_, title, sizeof(card_title_buf_) - 1);
     card_title_buf_[sizeof(card_title_buf_) - 1] = '\0';
-    lv_subject_copy_string(&card_title_subject_, card_title_buf_);
+    lv_subject_set_string(&card_title_subject_, card_title_buf_);
 
     spdlog::debug("[{}] Multi-filament card: ams={}, multi_tool={}, title={}", get_name(), has_ams,
                   multi_tool, title);
@@ -2137,8 +2137,8 @@ void FilamentPanel::setup_external_spool_display() {
     }
     external_spool_container_wired_ = external_spool_container_;
     // L071: Canvas absorbs clicks — pass through to parent row's event_cb
-    lv_obj_remove_flag(external_spool_canvas_, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(external_spool_canvas_, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_clickable(external_spool_canvas_, false);
+    lv_obj_set_event_bubble(external_spool_canvas_, true);
 
     // Set initial state from AmsState
     update_external_spool_from_state();
@@ -2181,7 +2181,7 @@ void FilamentPanel::update_external_spool_from_state() {
             snprintf(id_buf, sizeof(id_buf), " #%d", ext->spoolman_id);
             mat_text += id_buf; // i18n: do not translate — Spoolman ID
         }
-        lv_subject_copy_string(&external_spool_material_subject_, mat_text.c_str());
+        lv_subject_set_string(&external_spool_material_subject_, mat_text.c_str());
 
         // Second line: color name + remaining weight in grams
         std::string detail;
@@ -2196,7 +2196,7 @@ void FilamentPanel::update_external_spool_from_state() {
             }
             detail += weight_str;
         }
-        lv_subject_copy_string(&external_spool_detail_subject_, detail.c_str());
+        lv_subject_set_string(&external_spool_detail_subject_, detail.c_str());
         lv_subject_set_int(&external_spool_assigned_subject_, 1);
     } else {
         // No spool assigned - show muted empty spool; the row's own
@@ -2244,9 +2244,9 @@ void FilamentPanel::populate_extruder_dropdown() {
     // has neither an AMS nor a second tool.
     const bool multi_tool = ts.is_multi_tool();
     if (extruder_selector_group_)
-        lv_obj_set_flag(extruder_selector_group_, LV_OBJ_FLAG_HIDDEN, !multi_tool);
+        lv_obj_set_hidden(extruder_selector_group_, !multi_tool);
     if (btn_manage_slots_)
-        lv_obj_set_flag(btn_manage_slots_, LV_OBJ_FLAG_HIDDEN, multi_tool);
+        lv_obj_set_hidden(btn_manage_slots_, multi_tool);
 
     if (!multi_tool)
         return;
@@ -2484,11 +2484,11 @@ void FilamentPanel::update_spool_preset() {
     }
 
     // Novel material — show spool preset button.
-    lv_subject_copy_string(&spool_preset_name_subject_, active.material_name.c_str());
+    lv_subject_set_string(&spool_preset_name_subject_, active.material_name.c_str());
     auto text = fmt::format(
         "{} / {}", helix::units::to_display_temp_whole(active.material_info.nozzle_recommended()),
         helix::units::format_display_temp(active.material_info.bed_temp));
-    lv_subject_copy_string(&spool_preset_temps_subject_, text.c_str());
+    lv_subject_set_string(&spool_preset_temps_subject_, text.c_str());
     lv_subject_set_int(&spool_preset_shown_subject_, 1);
 
     // Deselect spool button initially (user must tap)

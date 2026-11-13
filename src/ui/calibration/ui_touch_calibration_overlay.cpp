@@ -56,7 +56,7 @@ TouchCalibrationOverlay::TouchCalibrationOverlay() {
     // Set up countdown callback to update Accept button text
     controller_.panel()->set_countdown_callback([this](int remaining) {
         snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept (%d)", remaining);
-        lv_subject_copy_string(&accept_button_text_, accept_text_buffer_);
+        lv_subject_set_string(&accept_button_text_, accept_text_buffer_);
         spdlog::debug("[{}] Countdown: {} seconds remaining", get_name(), remaining);
     });
 
@@ -79,10 +79,10 @@ TouchCalibrationOverlay::TouchCalibrationOverlay() {
 
         // Reset accept button text
         snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept");
-        lv_subject_copy_string(&accept_button_text_, accept_text_buffer_);
+        lv_subject_set_string(&accept_button_text_, accept_text_buffer_);
 
-        lv_subject_copy_string(&instruction_subject_,
-                               lv_tr("Calibration timed out. Please try again."));
+        lv_subject_set_string(&instruction_subject_,
+                              lv_tr("Calibration timed out. Please try again."));
 
         // Restart calibration from POINT_1
         controller_.panel()->start();
@@ -362,10 +362,10 @@ void TouchCalibrationOverlay::on_activate() {
     // (independent of content layout — the capture surface is screen-absolute).
     raised_cancel_ = helix::ui::raise_control_above_capture(overlay_root_, "cancel_chip");
     if (raised_cancel_.obj) {
-        constexpr lv_coord_t kCancelChipInset = 12;
+        constexpr int32_t kCancelChipInset = 12;
         lv_obj_t* scr = lv_screen_active();
         lv_obj_update_layout(scr);
-        lv_coord_t chip_h = lv_obj_get_height(raised_cancel_.obj);
+        int32_t chip_h = lv_obj_get_height(raised_cancel_.obj);
         // Absolute screen-corner placement (align is TOP_LEFT so set_pos is
         // absolute, not an offset from an alignment anchor).
         lv_obj_set_align(raised_cancel_.obj, LV_ALIGN_TOP_LEFT);
@@ -485,7 +485,7 @@ void TouchCalibrationOverlay::handle_accept_clicked() {
 
     // Reset accept button text for next calibration
     snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept");
-    lv_subject_copy_string(&accept_button_text_, accept_text_buffer_);
+    lv_subject_set_string(&accept_button_text_, accept_text_buffer_);
 
     // Accept in panel (transitions to COMPLETE state)
     controller_.panel()->accept();
@@ -619,7 +619,7 @@ void TouchCalibrationOverlay::abort_session(const char* reason) {
     hold_repeat_count_ = 0;
 
     snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept");
-    lv_subject_copy_string(&accept_button_text_, accept_text_buffer_);
+    lv_subject_set_string(&accept_button_text_, accept_text_buffer_);
 
     update_state_subject();
     update_instruction_text();
@@ -682,13 +682,13 @@ void TouchCalibrationOverlay::update_instruction_text() {
 
     switch (p.state) {
     case helix::TouchCalibrationPanel::State::IDLE:
-        lv_subject_copy_string(&instruction_subject_, lv_tr("Tap anywhere to begin"));
+        lv_subject_set_string(&instruction_subject_, lv_tr("Tap anywhere to begin"));
         return;
     case helix::TouchCalibrationPanel::State::VERIFY:
-        lv_subject_copy_string(&instruction_subject_, lv_tr("Touch anywhere to verify accuracy"));
+        lv_subject_set_string(&instruction_subject_, lv_tr("Touch anywhere to verify accuracy"));
         return;
     case helix::TouchCalibrationPanel::State::COMPLETE:
-        lv_subject_copy_string(&instruction_subject_, lv_tr("Calibration complete"));
+        lv_subject_set_string(&instruction_subject_, lv_tr("Calibration complete"));
         return;
     default:
         break;
@@ -701,7 +701,7 @@ void TouchCalibrationOverlay::update_instruction_text() {
     snprintf(instruction_buffer_, sizeof(instruction_buffer_),
              lv_tr("Tap the crosshair (point %1$d of 3) \xe2\x80\x94 touch %2$d of %3$d"),
              p.point_num, p.current_sample + 1, p.total_samples);
-    lv_subject_copy_string(&instruction_subject_, instruction_buffer_);
+    lv_subject_set_string(&instruction_subject_, instruction_buffer_);
 }
 
 void TouchCalibrationOverlay::restore_reparented_widgets() {
@@ -713,7 +713,7 @@ void TouchCalibrationOverlay::restore_reparented_widgets() {
     // parent re-lays it out once FLOATING is cleared.
     if (capture_overlay_ && capture_orig_parent_) {
         lv_obj_set_parent(capture_overlay_, capture_orig_parent_);
-        lv_obj_remove_flag(capture_overlay_, LV_OBJ_FLAG_FLOATING);
+        lv_obj_set_floating(capture_overlay_, false);
         lv_obj_set_size(capture_overlay_, LV_PCT(100), LV_PCT(100));
         lv_obj_set_pos(capture_overlay_, 0, 0);
     }
@@ -722,8 +722,8 @@ void TouchCalibrationOverlay::restore_reparented_widgets() {
     // Crosshair back into its content parent (hidden until the next capture).
     if (crosshair_ && crosshair_orig_parent_) {
         lv_obj_set_parent(crosshair_, crosshair_orig_parent_);
-        lv_obj_remove_flag(crosshair_, LV_OBJ_FLAG_FLOATING);
-        lv_obj_add_flag(crosshair_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_floating(crosshair_, false);
+        lv_obj_set_hidden(crosshair_, true);
     }
 }
 

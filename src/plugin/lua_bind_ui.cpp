@@ -139,7 +139,7 @@ int subject_set(lua_State* L) {
         size_t len = 0;
         const char* v = luaL_checklstring(L, 2, &len);
         luaL_argcheck(L, len < kMaxString, 2, "string longer than 1023 bytes");
-        lv_subject_copy_string(&s.subject, v);
+        lv_subject_set_string(&s.subject, v);
     } else {
         lua_Integer v = luaL_checkinteger(L, 2);
         luaL_argcheck(L, v >= INT32_MIN && v <= INT32_MAX, 2, "integer out of range");
@@ -885,7 +885,7 @@ void install_ui_bindings(PluginContext& ctx) {
         }
         for (auto& o : state->observers) {
             if (o->handle)
-                lv_observer_remove(o->handle);
+                lv_observer_delete(o->handle);
         }
         for (auto& s : state->subjects) {
             // A later registration under the same name replaced the record's pointer, so

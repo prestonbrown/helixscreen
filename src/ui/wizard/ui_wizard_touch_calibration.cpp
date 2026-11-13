@@ -442,8 +442,8 @@ void WizardTouchCalibrationStep::handle_test_area_touched(lv_event_t* e) {
     // lv_obj_get_coords returns screen-absolute coordinates of the object
     lv_area_t area_coords;
     lv_obj_get_coords(test_touch_area_, &area_coords);
-    lv_coord_t local_x = point.x - area_coords.x1;
-    lv_coord_t local_y = point.y - area_coords.y1;
+    int32_t local_x = point.x - area_coords.x1;
+    int32_t local_y = point.y - area_coords.y1;
 
     spdlog::debug("[{}] Test area touched at screen ({}, {}), local ({}, {})", get_name(), point.x,
                   point.y, local_x, local_y);
@@ -451,7 +451,7 @@ void WizardTouchCalibrationStep::handle_test_area_touched(lv_event_t* e) {
     create_ripple_at(local_x, local_y);
 }
 
-void WizardTouchCalibrationStep::create_ripple_at(lv_coord_t x, lv_coord_t y) {
+void WizardTouchCalibrationStep::create_ripple_at(int32_t x, int32_t y) {
     if (!test_touch_area_) {
         return;
     }
@@ -509,8 +509,8 @@ void WizardTouchCalibrationStep::on_calibration_complete(const helix::TouchCalib
         lv_subject_set_int(&calibration_valid_, 1);
 
         // Update header subtitle to show success
-        lv_subject_copy_string(&wizard_subtitle,
-                               lv_tr("Calibration complete! Press 'Next' to continue."));
+        lv_subject_set_string(&wizard_subtitle,
+                              lv_tr("Calibration complete! Press 'Next' to continue."));
 
         // Change button text from "Skip" to "Next" since calibration is complete
         lv_subject_set_int(&wizard_show_skip, 0);
@@ -542,10 +542,10 @@ void WizardTouchCalibrationStep::update_instruction_text() {
 
     switch (p.state) {
     case helix::TouchCalibrationPanel::State::IDLE:
-        lv_subject_copy_string(&wizard_subtitle, lv_tr("Tap anywhere to begin calibration"));
+        lv_subject_set_string(&wizard_subtitle, lv_tr("Tap anywhere to begin calibration"));
         return;
     case helix::TouchCalibrationPanel::State::VERIFY:
-        lv_subject_copy_string(&wizard_subtitle, lv_tr("Computing calibration..."));
+        lv_subject_set_string(&wizard_subtitle, lv_tr("Computing calibration..."));
         return;
     case helix::TouchCalibrationPanel::State::COMPLETE:
         // Don't overwrite — on_calibration_complete sets the success message
@@ -568,9 +568,9 @@ void WizardTouchCalibrationStep::update_instruction_text() {
         char combined[256];
         snprintf(combined, sizeof(combined), "%s %s",
                  lv_tr("Calibration failed - touch targets more precisely."), step_text);
-        lv_subject_copy_string(&wizard_subtitle, combined);
+        lv_subject_set_string(&wizard_subtitle, combined);
     } else {
-        lv_subject_copy_string(&wizard_subtitle, step_text);
+        lv_subject_set_string(&wizard_subtitle, step_text);
     }
 }
 

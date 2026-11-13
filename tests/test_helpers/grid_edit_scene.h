@@ -58,7 +58,7 @@ struct GridEditScene {
         REQUIRE(content_h == nrows * kCellPx + (nrows - 1) * gutter);
 
         container = lv_obj_create(parent);
-        lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(container, false);
         lv_obj_set_style_pad_all(container, 0, 0);
         lv_obj_set_style_border_width(container, 0, 0);
         lv_obj_set_size(container, content_w, content_h);
@@ -71,7 +71,7 @@ struct GridEditScene {
 
         widget = lv_obj_create(container);
         lv_obj_set_name(widget, "temperature");
-        lv_obj_remove_flag(widget, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(widget, false);
         lv_obj_set_grid_cell(widget, LV_GRID_ALIGN_STRETCH, 0, kColspan, LV_GRID_ALIGN_STRETCH, 0,
                              kRowspan);
         lv_obj_update_layout(container);

@@ -155,9 +155,9 @@ void UpgradeBanner::evaluate_visibility() {
     bool should_show = UpgradeNudge::instance().should_show_banner();
     if (should_show) {
         update_message_text();
-        lv_obj_remove_flag(banner_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(banner_, false);
     } else {
-        lv_obj_add_flag(banner_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(banner_, true);
     }
 }
 

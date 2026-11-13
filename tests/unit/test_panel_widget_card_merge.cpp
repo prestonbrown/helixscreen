@@ -418,7 +418,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Card merge: an in-place relayout replaces only
     // relayout that still wants its rectangle builds a live one in its place.
     lv_obj_t* condemned = card_behind(shutdown);
     REQUIRE(condemned != nullptr);
-    lv_obj_add_flag(condemned, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(condemned, true);
     REQUIRE(mgr.relayout_tiles(panel_id, container, 1, {"lock"}, "", held));
     lv_obj_update_layout(container);
     bool live_card_behind_shutdown = false;
@@ -428,7 +428,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Card merge: an in-place relayout replaces only
         for (lv_obj_t* card : card_backgrounds(container, ids)) {
             lv_area_t c_area;
             lv_obj_get_coords(card, &c_area);
-            if (!lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN) && area_contains(c_area, w_area)) {
+            if (!lv_obj_is_hidden(card) && area_contains(c_area, w_area)) {
                 live_card_behind_shutdown = true;
             }
         }

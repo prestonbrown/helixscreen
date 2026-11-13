@@ -97,7 +97,7 @@ class WizardSummaryStep : public helix::wizard::Step {
     /**
      * @brief Cleanup resources
      *
-     * Resets UI references. Does NOT call lv_obj_del() - wizard
+     * Resets UI references. Does NOT call lv_obj_delete() - wizard
      * framework handles widget deletion.
      */
     void cleanup() override;

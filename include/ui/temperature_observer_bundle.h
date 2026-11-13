@@ -75,7 +75,7 @@ template <typename Panel> class TemperatureObserverBundle {
         // this bundle routinely outlive a PrinterState::deinit_subjects() cycle
         // (printer switch in production, per-fixture teardown in tests). Without
         // the token, deinit frees the observer nodes and the next clear() calls
-        // lv_observer_remove() on freed memory.
+        // lv_observer_delete() on freed memory.
         const SubjectLifetime lifetime = state.get_subjects_lifetime();
 
         nozzle_temp_observer_ =

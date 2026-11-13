@@ -376,7 +376,7 @@ TEST_CASE_METHOD(OneExtruderTemps,
     CHECK(state.get_extruder_temp_subject("extruder", again) == temp);
     CHECK(lv_subject_get_int(state.get_extruder_version_subject()) == version);
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }
 
 TEST_CASE_METHOD(TwoExtruderTemps,

@@ -144,8 +144,8 @@ TEST_CASE_METHOD(XMLTestFixture, "A dryer that heats its gates together offers n
 
     CHECK(subject_int("env_dry_gate_count") == 0);
     CHECK(subject_int("env_dry_rotate_visible") == 0);
-    CHECK(lv_obj_has_flag(find_widget("dry_gate_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(find_widget("zone_slots_label"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(find_widget("dry_gate_row")));
+    CHECK_FALSE(lv_obj_is_hidden(find_widget("zone_slots_label")));
 
     press_start_stop();
     REQUIRE(backend->starts.size() == 1);
@@ -161,8 +161,8 @@ TEST_CASE_METHOD(XMLTestFixture, "A per-lane dryer offers a chip per lane, all s
     auto& overlay = get_ams_environment_overlay();
 
     REQUIRE(subject_int("env_dry_gate_count") == 4);
-    CHECK_FALSE(lv_obj_has_flag(find_widget("dry_gate_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(find_widget("zone_slots_label"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(find_widget("dry_gate_row")));
+    CHECK(lv_obj_is_hidden(find_widget("zone_slots_label")));
     CHECK(subject_string("env_dry_gate_label_0") == "1");
     CHECK(subject_string("env_dry_gate_label_3") == "4");
     for (const char* sel : {"env_dry_gate_selected_0", "env_dry_gate_selected_1",

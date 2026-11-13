@@ -68,9 +68,9 @@ void PanelRegistry::show_only(int idx) {
     for (int i = 0; i < kCount; i++) {
         if (widgets_[i] && !lent_to_[i]) {
             if (i == idx) {
-                lv_obj_remove_flag(widgets_[i], LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(widgets_[i], false);
             } else {
-                lv_obj_add_flag(widgets_[i], LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(widgets_[i], true);
             }
         }
     }

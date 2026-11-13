@@ -444,7 +444,7 @@ void ToolSwitcherWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     //
     // Takes the lifetime token. print_lifecycle is one of PrinterPrintState's
     // static subjects, torn down by deinit_subjects() between test cases, and an
-    // ObserverGuard that outlives that cycle calls lv_observer_remove() on freed
+    // ObserverGuard that outlives that cycle calls lv_observer_delete() on freed
     // memory (#705).
     print_state_observer_ = helix::ui::observe<int>(
         printer_state_.print_state().get_print_lifecycle_subject(), this,

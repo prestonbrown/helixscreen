@@ -247,7 +247,7 @@ void CfsChuteCalibrationOverlay::fit_jog_pad() {
     }
     lv_obj_t* wrapper = lv_obj_get_parent(jog_pad_);
     lv_obj_update_layout(wrapper);
-    const lv_coord_t size = LV_MIN(lv_obj_get_width(wrapper), lv_obj_get_height(wrapper));
+    const int32_t size = LV_MIN(lv_obj_get_width(wrapper), lv_obj_get_height(wrapper));
     lv_obj_set_size(jog_pad_, size, size);
 }
 
@@ -345,7 +345,7 @@ void CfsChuteCalibrationOverlay::save_position() {
                 backend->last_chute_saved_position(x, y)
                     ? fmt::format(lv_tr("Chute position: X {:.1f}, Y {:.1f}"), x, y)
                     : std::string(lv_tr("Purge chute position saved."));
-            lv_subject_copy_string(&s_cfs_chute_saved_text, text.c_str());
+            lv_subject_set_string(&s_cfs_chute_saved_text, text.c_str());
             set_state(State::DONE);
         },
         [this](const std::string& klipper_msg) {
@@ -364,14 +364,14 @@ void CfsChuteCalibrationOverlay::update_x_display(int centimm) {
     current_x_mm_ = helix::units::from_centimm(centimm);
     x_known_ = true;
     helix::ui::position::format_position(centimm, s_cfs_chute_x_buf, sizeof(s_cfs_chute_x_buf));
-    lv_subject_copy_string(&s_cfs_chute_x_text, s_cfs_chute_x_buf);
+    lv_subject_set_string(&s_cfs_chute_x_text, s_cfs_chute_x_buf);
 }
 
 void CfsChuteCalibrationOverlay::update_y_display(int centimm) {
     current_y_mm_ = helix::units::from_centimm(centimm);
     y_known_ = true;
     helix::ui::position::format_position(centimm, s_cfs_chute_y_buf, sizeof(s_cfs_chute_y_buf));
-    lv_subject_copy_string(&s_cfs_chute_y_text, s_cfs_chute_y_buf);
+    lv_subject_set_string(&s_cfs_chute_y_text, s_cfs_chute_y_buf);
 }
 
 } // namespace helix::ui

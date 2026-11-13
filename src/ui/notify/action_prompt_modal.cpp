@@ -317,7 +317,7 @@ void ActionPromptModal::populate_content() {
     // A title longer than the buffer is cut whole characters short, never mid-character.
     const std::string title(
         text_io::utf8_prefix(prompt_data_.title, sizeof(subjects.title_buf) - 1));
-    lv_subject_copy_string(&subjects.title, title.c_str());
+    lv_subject_set_string(&subjects.title, title.c_str());
     lv_subject_set_int(&subjects.error, prompt_data_.severity == "error" ? 1 : 0);
     lv_subject_set_int(&subjects.has_text, prompt_data_.text_lines.empty() ? 0 : 1);
 
@@ -338,7 +338,7 @@ void ActionPromptModal::create_text_lines() {
         lv_obj_t* label = lv_label_create(content_container);
         lv_label_set_text(label, line.c_str());
         lv_obj_set_width(label, lv_pct(100));
-        lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+        lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
 
         // Apply body text styling
         lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), LV_PART_MAIN);
@@ -401,7 +401,7 @@ void ActionPromptModal::create_buttons() {
                 lv_obj_set_style_bg_color(divider, theme_manager_get_color("border"), LV_PART_MAIN);
                 lv_obj_set_style_bg_opa(divider, LV_OPA_COVER, LV_PART_MAIN);
                 lv_obj_set_style_pad_all(divider, 0, LV_PART_MAIN);
-                lv_obj_remove_flag(divider, LV_OBJ_FLAG_SCROLLABLE);
+                lv_obj_set_scrollable(divider, false);
             }
             create_button(btn, footer_container);
             has_footer_buttons = true;

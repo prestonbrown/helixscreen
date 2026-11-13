@@ -391,7 +391,7 @@ void ScrewsTiltPanel::on_screws_tilt_results(const std::vector<ScrewTiltResult>&
                  helix::ui::tr_plural("Completed in %d probe", "Completed in %d probes",
                                       static_cast<uint64_t>(probe_count_)),
                  probe_count_);
-        lv_subject_copy_string(&probe_count_subject_, buf);
+        lv_subject_set_string(&probe_count_subject_, buf);
     }
 
     set_state(State::RESULTS);
@@ -412,7 +412,7 @@ void ScrewsTiltPanel::on_screws_tilt_error(const std::string& message) {
     if (clean.empty()) {
         clean = lv_tr("An error occurred during probing.");
     }
-    lv_subject_copy_string(&error_message_subject_, clean.c_str());
+    lv_subject_set_string(&error_message_subject_, clean.c_str());
     set_state(State::ERROR);
 }
 
@@ -437,7 +437,7 @@ void ScrewsTiltPanel::populate_results(const std::vector<ScrewTiltResult>& resul
                  lv_tr("Or instead of turning the others"),
                  results[hint.screw_index].display_name().c_str(),
                  describe_screw_turn(hint.signed_minutes, hint.tighten).c_str());
-        lv_subject_copy_string(&recenter_hint_subject_, recenter_hint_buf_);
+        lv_subject_set_string(&recenter_hint_subject_, recenter_hint_buf_);
         spdlog::info("[ScrewsTilt] Re-centring hint: {} instead of {} screws", recenter_hint_buf_,
                      hint.replaces);
     }
@@ -459,8 +459,8 @@ void ScrewsTiltPanel::populate_results(const std::vector<ScrewTiltResult>& resul
 
             // Update subjects - this triggers XML binding updates
             lv_subject_set_int(&screw_visible_subjects_[i], 1); // Show row
-            lv_subject_copy_string(&screw_name_subjects_[i], screw_name_bufs_[i]);
-            lv_subject_copy_string(&screw_adjustment_subjects_[i], screw_adj_bufs_[i]);
+            lv_subject_set_string(&screw_name_subjects_[i], screw_name_bufs_[i]);
+            lv_subject_set_string(&screw_adjustment_subjects_[i], screw_adj_bufs_[i]);
 
             // Update dot color (not bindable via subject, so do directly)
             if (screw_dots_[i]) {
@@ -483,7 +483,7 @@ void ScrewsTiltPanel::clear_results() {
     // Deferred: results arrive inside a queued UI-update batch, where a
     // synchronous delete corrupts LVGL's event list.
     helix::ui::safe_delete_deferred(tilt_surface_);
-    lv_subject_copy_string(&tilt_spread_subject_, "");
+    lv_subject_set_string(&tilt_spread_subject_, "");
 
     // Clear bed diagram indicators (dynamically positioned)
     for (auto& indicator : screw_indicators_) {
@@ -525,7 +525,7 @@ void ScrewsTiltPanel::create_tilt_surface() {
              fmt::format(fmt::runtime(lv_tr("Corners differ by {} mm")),
                          fmt::format("{:.2f}", surface.spread_mm))
                  .c_str());
-    lv_subject_copy_string(&tilt_spread_subject_, tilt_spread_buf_);
+    lv_subject_set_string(&tilt_spread_subject_, tilt_spread_buf_);
 
     // Rendered at the box's own size: a stretched image samples past its edges
     // and bleeds the opposite corner's colour into each one.
@@ -570,7 +570,7 @@ void ScrewsTiltPanel::create_tilt_surface() {
     lv_obj_set_style_radius(tilt_surface_,
                             lv_obj_get_style_radius(bed_diagram_container_, LV_PART_MAIN), 0);
     lv_obj_set_style_image_opa(tilt_surface_, LV_OPA_50, 0); // a backdrop to the screw icons
-    lv_obj_remove_flag(tilt_surface_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(tilt_surface_, false);
     lv_obj_move_to_index(tilt_surface_, 0); // beneath the screw indicators
 }
 

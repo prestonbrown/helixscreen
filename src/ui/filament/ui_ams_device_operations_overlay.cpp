@@ -376,10 +376,10 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
         lv_subject_set_int(&can_home_subject_, 0);
         lv_subject_set_int(&can_recover_subject_, 0);
         details_buf_[0] = '\0';
-        lv_subject_copy_string(&details_subject_, details_buf_);
+        lv_subject_set_string(&details_subject_, details_buf_);
         lv_subject_set_int(&has_details_subject_, 0);
         system_info_buf_[0] = '\0';
-        lv_subject_copy_string(&system_info_subject_, system_info_buf_);
+        lv_subject_set_string(&system_info_subject_, system_info_buf_);
 
         if (section_list_container_) {
             helix::ui::safe_clean_children(section_list_container_); // [L081]
@@ -403,7 +403,7 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
         snprintf(system_info_buf_, sizeof(system_info_buf_), "%s: %s · v%s", lv_tr("System"),
                  info.type_name.c_str(), info.version.c_str());
     }
-    lv_subject_copy_string(&system_info_subject_, system_info_buf_);
+    lv_subject_set_string(&system_info_subject_, system_info_buf_);
 
     std::string details;
     for (const DeviceDetailRow& row : ams_device_detail_rows(info)) {
@@ -413,7 +413,7 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
         details += row.label + ": " + row.value;
     }
     snprintf(details_buf_, sizeof(details_buf_), "%s", details.c_str());
-    lv_subject_copy_string(&details_subject_, details_buf_);
+    lv_subject_set_string(&details_subject_, details_buf_);
     lv_subject_set_int(&has_details_subject_, details.empty() ? 0 : 1);
 
     lv_subject_set_int(&supports_bypass_subject_,

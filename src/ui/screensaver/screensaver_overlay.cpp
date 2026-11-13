@@ -21,8 +21,8 @@ void SaverOverlay::create() {
     lv_obj_set_style_radius(obj_, 0, 0);
     // Clickable, so the waking touch lands here rather than on the panel beneath; LVGL still
     // counts it as activity.
-    lv_obj_add_flag(obj_, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(obj_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_clickable(obj_, true);
+    lv_obj_set_scrollable(obj_, false);
 }
 
 void SaverOverlay::make_transparent() {

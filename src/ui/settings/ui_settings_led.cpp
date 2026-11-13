@@ -173,7 +173,7 @@ void LedSettingsOverlay::populate_macro_devices_impl() {
             lv_label_set_text(note, lv_tr("No LED macros detected on your printer. "
                                           "Add Klipper macros for LED control first."));
             lv_obj_set_width(note, lv_pct(100));
-            lv_label_set_long_mode(note, LV_LABEL_LONG_WRAP);
+            lv_label_set_long_mode(note, LV_LABEL_LONG_MODE_WRAP);
             lv_obj_set_style_text_color(note, theme_manager_get_color("text_subtle"), 0);
             int32_t note_pad_hor = theme_manager_get_spacing("space_xl");
             lv_obj_set_style_pad_left(note, note_pad_hor, 0);
@@ -212,7 +212,7 @@ void LedSettingsOverlay::populate_macro_devices_impl() {
         lv_obj_set_style_pad_gap(header_row, theme_manager_get_spacing("space_sm"), 0);
         lv_obj_set_style_bg_opa(header_row, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(header_row, 0, 0);
-        lv_obj_remove_flag(header_row, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(header_row, false);
 
         // Device name
         auto* name_label = lv_label_create(header_row);
@@ -244,7 +244,7 @@ void LedSettingsOverlay::populate_macro_devices_impl() {
         lv_obj_set_style_bg_opa(spacer, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(spacer, 0, 0);
         lv_obj_set_style_pad_all(spacer, 0, 0);
-        lv_obj_remove_flag(spacer, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(spacer, false);
 
         // Icon-only edit/delete buttons share the larger touch target. Read once
         // per row; the token is flat today but reading it keeps these in step if
@@ -313,7 +313,7 @@ void LedSettingsOverlay::populate_macro_devices_impl() {
 
             auto* summary_label = lv_label_create(card);
             lv_label_set_text(summary_label, summary.c_str());
-            lv_label_set_long_mode(summary_label, LV_LABEL_LONG_WRAP);
+            lv_label_set_long_mode(summary_label, LV_LABEL_LONG_MODE_WRAP);
             lv_obj_set_width(summary_label, lv_pct(100));
             lv_obj_set_style_text_color(summary_label, text_muted, 0);
         }
@@ -328,7 +328,7 @@ void LedSettingsOverlay::populate_macro_devices_impl() {
             lv_obj_set_style_pad_gap(edit_container, theme_manager_get_spacing("space_sm"), 0);
             lv_obj_set_style_bg_opa(edit_container, LV_OPA_TRANSP, 0);
             lv_obj_set_style_border_width(edit_container, 0, 0);
-            lv_obj_remove_flag(edit_container, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_scrollable(edit_container, false);
             lv_obj_set_name(edit_container, fmt::format("macro_edit_{}", i).c_str());
 
             rebuild_macro_edit_controls(edit_container, i);
@@ -396,7 +396,7 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
     // Type help text (form rebuilds on type change, so static text is fine)
     auto* type_help = lv_label_create(container);
     lv_obj_set_width(type_help, lv_pct(100));
-    lv_label_set_long_mode(type_help, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(type_help, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_style_text_color(type_help, theme_manager_get_color("text_subtle"), 0);
     int32_t help_pad_hor = theme_manager_get_spacing("space_xl");
     lv_obj_set_style_pad_left(type_help, help_pad_hor, 0);
@@ -494,7 +494,7 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
         // Not fatal any more -- the fields below still take a typed macro name.
         auto* no_macros = lv_label_create(container);
         lv_label_set_text(no_macros, lv_tr("No LED macros detected. Type a macro name below."));
-        lv_label_set_long_mode(no_macros, LV_LABEL_LONG_WRAP);
+        lv_label_set_long_mode(no_macros, LV_LABEL_LONG_MODE_WRAP);
         lv_obj_set_width(no_macros, lv_pct(100));
         lv_obj_set_style_text_color(no_macros, theme_manager_get_color("text_subtle"), 0);
     }
@@ -535,7 +535,7 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
                 lv_obj_set_style_pad_gap(preset_row, theme_manager_get_spacing("space_xxs"), 0);
                 lv_obj_set_style_bg_opa(preset_row, LV_OPA_TRANSP, 0);
                 lv_obj_set_style_border_width(preset_row, 0, 0);
-                lv_obj_remove_flag(preset_row, LV_OBJ_FLAG_SCROLLABLE);
+                lv_obj_set_scrollable(preset_row, false);
                 lv_obj_set_name(preset_row,
                                 fmt::format("macro_preset_row_{}_{}", index, p).c_str());
 
@@ -662,7 +662,7 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
     lv_obj_set_style_pad_all(save_row, 0, 0);
     lv_obj_set_style_bg_opa(save_row, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(save_row, 0, 0);
-    lv_obj_remove_flag(save_row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(save_row, false);
 
     auto* save_btn = lv_button_create(save_row);
     // Named so `helix-screen ctl` can drive the save path end to end.

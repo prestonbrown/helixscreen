@@ -36,7 +36,7 @@ FirstScreen measure_first_screen(lv_obj_t* container) {
     FirstScreen out;
     for (uint32_t i = 0; i < lv_obj_get_child_count(container); i++) {
         lv_obj_t* child = lv_obj_get_child(container, static_cast<int32_t>(i));
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN) || lv_obj_get_height(child) == 0) {
+        if (lv_obj_is_hidden(child) || lv_obj_get_height(child) == 0) {
             continue;
         }
         lv_area_t a;
@@ -72,13 +72,12 @@ TEST_CASE_METHOD(PrintSelectPanelFixture,
     REQUIRE(container != nullptr);
     REQUIRE(banner != nullptr);
 
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(panel_obj_, "empty_state_container"),
-                          LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(container, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(panel_obj_, "empty_state_container")));
+    CHECK_FALSE(lv_obj_is_hidden(container));
     panel_->set_sort_recent();
     settle();
 
-    REQUIRE_FALSE(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(banner));
     REQUIRE(lv_obj_get_height(banner) > 0);
 
     const FirstScreen shown = measure_first_screen(container);
@@ -90,7 +89,7 @@ TEST_CASE_METHOD(PrintSelectPanelFixture,
     // Hiding the banner hands its height back; the grid regrows to fill it.
     panel_->refresh_files(true);
     settle();
-    REQUIRE(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(banner));
     const int grown_h = lv_obj_get_content_height(container);
     const FirstScreen regrown = measure_first_screen(container);
     CHECK(regrown.overflow == 0);
@@ -98,7 +97,7 @@ TEST_CASE_METHOD(PrintSelectPanelFixture,
     int card_h = -1;
     for (uint32_t i = 0; i < lv_obj_get_child_count(container); i++) {
         lv_obj_t* child = lv_obj_get_child(container, static_cast<int32_t>(i));
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN) || lv_obj_get_height(child) == 0 ||
+        if (lv_obj_is_hidden(child) || lv_obj_get_height(child) == 0 ||
             lv_obj_get_width(child) >= lv_obj_get_content_width(container)) {
             continue; // spacers span the full width
         }

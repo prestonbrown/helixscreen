@@ -3,7 +3,7 @@
 
 /**
  * @file test_observer_guard_non_registry_subject.cpp
- * @brief ObserverGuard must not skip lv_observer_remove() for subjects
+ * @brief ObserverGuard must not skip lv_observer_delete() for subjects
  *        StaticSubjectRegistry never frees.
  *
  * invalidate_all() marks "the registry's subjects were just freed by

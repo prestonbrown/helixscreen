@@ -268,7 +268,7 @@ void TemperatureService::update_display(HeaterType type) {
     auto& h = heaters_[idx(type)];
     char text[sizeof(h.display_buf)];
     format_display(h, text, sizeof(text));
-    lv_subject_copy_string(&h.display_subject, text);
+    lv_subject_set_string(&h.display_subject, text);
 }
 
 void TemperatureService::format_display(const HeaterState& h, char* buf, size_t size) {
@@ -312,7 +312,7 @@ void TemperatureService::update_status(HeaterType type) {
         snprintf(h.status_buf.data(), h.status_buf.size(), "%s", status.duty.c_str());
     }
 
-    lv_subject_copy_string(&h.status_subject, h.status_buf.data());
+    lv_subject_set_string(&h.status_subject, h.status_buf.data());
 
     int heating_state = (h.target > 0) ? 1 : 0;
     lv_subject_set_int(&h.heating_subject, heating_state);

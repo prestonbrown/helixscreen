@@ -46,7 +46,7 @@ void PageScrollAutoInject::shutdown() {
 }
 
 bool PageScrollAutoInject::qualifies(lv_obj_t* obj) {
-    if (!lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLLABLE)) {
+    if (!lv_obj_is_scrollable(obj)) {
         return false;
     }
     if ((lv_obj_get_scroll_dir(obj) & LV_DIR_VER) == 0) {
@@ -66,7 +66,7 @@ bool PageScrollAutoInject::qualifies(lv_obj_t* obj) {
 // arrives after the walk (Print Files fills its list asynchronously). Content-sized
 // containers that do not flex-grow never overflow, which keeps the watched set small.
 bool PageScrollAutoInject::may_overflow_later(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLLABLE) &&
+    return lv_obj_is_scrollable(obj) &&
            (lv_obj_get_scroll_dir(obj) & LV_DIR_VER) != 0 &&
            lv_obj_get_style_layout(obj, LV_PART_MAIN) != LV_LAYOUT_NONE &&
            (lv_obj_get_style_height(obj, LV_PART_MAIN) != LV_SIZE_CONTENT ||
@@ -88,7 +88,7 @@ void PageScrollAutoInject::late_fill_cb(lv_event_t* e) {
     // re-walk on every pass without ever being claimed. on_root_shown() claims it
     // when its panel is shown.
     for (lv_obj_t* o = target; o != nullptr; o = lv_obj_get_parent(o)) {
-        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(o)) {
             return;
         }
     }
@@ -103,7 +103,7 @@ void PageScrollAutoInject::late_fill_cb(lv_event_t* e) {
 }
 
 void PageScrollAutoInject::walk_and_attach(lv_obj_t* obj, bool ancestor_managed) {
-    if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+    if (lv_obj_is_hidden(obj)) {
         return; // don't inject into hidden/stacked panels
     }
     // Page scrolling is a page affordance. A home widget tile is sized by the

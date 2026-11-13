@@ -167,7 +167,7 @@ void MoonrakerManager::shutdown() {
     release_print_start_collector();
     m_print_stop_reason.reset();
 
-    // Release observer guards without calling lv_observer_remove().
+    // Release observer guards without calling lv_observer_delete().
     // During shutdown, subjects may already be deinitialized (which frees observers).
     // Using release() avoids double-free of already-removed observers.
     m_print_start_observer.release();

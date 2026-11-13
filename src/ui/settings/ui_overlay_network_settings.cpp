@@ -126,7 +126,7 @@ NetworkSettingsOverlay::~NetworkSettingsOverlay() {
     ethernet_manager_.reset();
     network_tester_.reset();
 
-    // Modal dialogs: use helix::ui::modal_hide() - NOT lv_obj_del()!
+    // Modal dialogs: use helix::ui::modal_hide() - NOT lv_obj_delete()!
     if (lv_is_initialized()) {
         if (test_modal_) {
             helix::ui::modal_hide(test_modal_);
@@ -476,8 +476,8 @@ void NetworkSettingsOverlay::refresh_ipv4_rows() {
     auto token = lifetime_.token();
     const auto summary_into = [](lv_subject_t& subject) {
         return [&subject](bool ok, const helix::net::Ipv4Config& config) {
-            lv_subject_copy_string(&subject, ok ? helix::settings::ipv4_row_summary(config).c_str()
-                                                : lv_tr("Unknown"));
+            lv_subject_set_string(&subject, ok ? helix::settings::ipv4_row_summary(config).c_str()
+                                               : lv_tr("Unknown"));
         };
     };
     if (wifi_manager_ && wifi_manager_->supports_ipv4_config()) {
@@ -630,7 +630,7 @@ void NetworkSettingsOverlay::apply_wifi_status(const WifiBackend::ConnectionStat
 
         strncpy(ip_buffer_, ip.c_str(), sizeof(ip_buffer_) - 1);
         ip_buffer_[sizeof(ip_buffer_) - 1] = '\0';
-        lv_subject_copy_string(
+        lv_subject_set_string(
             &ip_display_,
             helix::settings::status::wifi_address(helix::ui::wifi::link_phase(status), ip).c_str());
 
@@ -645,7 +645,7 @@ void NetworkSettingsOverlay::apply_wifi_status(const WifiBackend::ConnectionStat
         ip_buffer_[0] = '\0';
         mac_buffer_[0] = '\0';
         lv_subject_notify(&connected_ssid_);
-        lv_subject_copy_string(&ip_display_, "");
+        lv_subject_set_string(&ip_display_, "");
         lv_subject_notify(&mac_address_);
     }
 }
@@ -902,7 +902,7 @@ void NetworkSettingsOverlay::clear_network_list() {
         if (name && strncmp(name, "network_item_", 13) == 0) {
             // Remove clickable flag to prevent stale indev click events —
             // LVGL's indev may have cached this item as the pressed target.
-            lv_obj_remove_flag(child, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(child, false);
 
             // Defer deletion to next tick — safe_delete_deferred hides immediately
             // and deletes via lv_obj_delete_async, preventing event list corruption
@@ -915,7 +915,7 @@ void NetworkSettingsOverlay::clear_network_list() {
 }
 
 void NetworkSettingsOverlay::show_password_status(const std::string& text) {
-    lv_subject_copy_string(&password_status_, text.c_str());
+    lv_subject_set_string(&password_status_, text.c_str());
     lv_subject_set_int(&password_status_shown_, text.empty() ? 0 : 1);
 }
 
@@ -1082,7 +1082,7 @@ void NetworkSettingsOverlay::finish_wlan_toggle(bool requested, bool success, bo
         ip_buffer_[0] = '\0';
         mac_buffer_[0] = '\0';
         lv_subject_notify(&connected_ssid_);
-        lv_subject_copy_string(&ip_display_, "");
+        lv_subject_set_string(&ip_display_, "");
         lv_subject_notify(&mac_address_);
     }
 

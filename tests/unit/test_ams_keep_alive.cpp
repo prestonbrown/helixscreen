@@ -225,7 +225,7 @@ TEST_CASE_METHOD(AmsKeepAliveFixture, "AmsPanel: a printer switch still drops th
     // tree to its caller to free; what matters here is that the panel lets go.
     helix::ui::destroy_static_panels();
     CHECK(get_existing_ams_panel() == nullptr);
-    CHECK(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(root));
 
     open();
     CHECK(panel_obj() != root);

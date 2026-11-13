@@ -118,14 +118,14 @@ TEST_CASE_METHOD(XMLTestFixture, "plugin rows appear with heading and label",
     REQUIRE(items.size() == 2);
     CHECK(label_text(items[0], "item_label") == "Go now");
     CHECK_FALSE(lv_obj_has_state(items[0], LV_STATE_DISABLED));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(items[0], "item_reason"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(items[0], "item_reason")));
     // The divider separates plugin rows from the app's own.
     CHECK(lv_obj_get_child_count(rows) == 4);
 
     CHECK(lv_obj_has_state(items[1], LV_STATE_DISABLED));
     lv_obj_t* reason = lv_obj_find_by_name(items[1], "item_reason");
     CHECK(std::string(lv_label_get_text(reason)) == "Busy");
-    CHECK_FALSE(lv_obj_has_flag(reason, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(reason));
     menu.hide();
 }
 
@@ -246,7 +246,7 @@ TEST_CASE_METHOD(XMLTestFixture, "plugin items menu widens to show a long label 
     for (const auto& [name, text] : set) {
         lv_obj_t* l = lv_obj_find_by_name(rows, name);
         REQUIRE(l);
-        REQUIRE_FALSE(lv_obj_has_flag(l, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(l));
         const int32_t need =
             helix::ui::text_width(text, lv_obj_get_style_text_font(l, LV_PART_MAIN),
                                   lv_obj_get_style_text_letter_space(l, LV_PART_MAIN));

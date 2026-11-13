@@ -111,7 +111,7 @@ static void remove_owner_callbacks_in_tree(lv_obj_t* root, void* owner) {
 // longer select anything in the tree. This does NOT stop a press that is already
 // down - see Modal::disarm_tree.
 static void disable_clicks_in_tree(lv_obj_t* root) {
-    for_each_in_tree(root, [](lv_obj_t* obj) { lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE); });
+    for_each_in_tree(root, [](lv_obj_t* obj) { lv_obj_set_clickable(obj, false); });
 }
 
 // ============================================================================
@@ -592,7 +592,7 @@ void ModalStack::animate_exit(lv_obj_t* backdrop, lv_obj_t* dialog) {
         spdlog::debug("[ModalStack] Exit without animation - hiding, finishing next tick");
         // finish_exit frees an owned instance before it queues the tree's delete;
         // this runs inside hide()'s frame, so the whole sequence waits a tick.
-        lv_obj_add_flag(backdrop, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(backdrop, true);
         helix::ui::queue_update(
             "ModalStack::finish_exit",
             [backdrop = helix::ui::WeakWidget(backdrop)]() { ModalStack::finish_exit(backdrop); });
@@ -787,7 +787,7 @@ lv_obj_t* Modal::show(const char* component_name, const char** attrs) {
     lv_obj_add_event_cb(backdrop, backdrop_click_cb, LV_EVENT_CLICKED, nullptr);
 
     lv_obj_add_event_cb(backdrop, esc_key_cb, LV_EVENT_KEY, nullptr);
-    lv_obj_add_flag(backdrop, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(backdrop, true);
     lv_group_t* group = lv_group_get_default();
     if (group) {
         lv_group_add_obj(group, backdrop);
@@ -1196,7 +1196,7 @@ bool Modal::create_and_show(lv_obj_t* parent, const char* comp_name, const char*
     lv_obj_add_event_cb(backdrop_, backdrop_click_cb, LV_EVENT_CLICKED, this);
 
     lv_obj_add_event_cb(backdrop_, esc_key_cb, LV_EVENT_KEY, this);
-    lv_obj_add_flag(backdrop_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(backdrop_, true);
     lv_group_t* group = lv_group_get_default();
     if (group) {
         lv_group_add_obj(group, backdrop_);

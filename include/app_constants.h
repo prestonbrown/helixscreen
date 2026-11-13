@@ -53,13 +53,13 @@ constexpr int kDefaultMinTemp = 0;
  */
 namespace responsive {
 /// Tiny screens: <= 479px height
-constexpr lv_coord_t kBreakpointTinyMax = 479;
+constexpr int32_t kBreakpointTinyMax = 479;
 
 /// Small screens: 480-599px height
-constexpr lv_coord_t kBreakpointSmallMax = 599;
+constexpr int32_t kBreakpointSmallMax = 599;
 
 /// Medium screens: 600-1023px height
-constexpr lv_coord_t kBreakpointMediumMax = 1023;
+constexpr int32_t kBreakpointMediumMax = 1023;
 
 /// Large screens: >= 1024px height
 // (No max defined - anything above MEDIUM is large)

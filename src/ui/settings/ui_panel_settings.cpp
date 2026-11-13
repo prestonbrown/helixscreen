@@ -218,23 +218,23 @@ void SettingsPanel::refresh_status_lines() {
 
     // Formatted here rather than once at init, so it is in the language of the
     // latest return to the settings root.
-    lv_subject_copy_string(&settings_status_display_subject_,
-                           display(status_int_subject("settings_brightness", 0),
-                                   status_int_subject("settings_display_sleep", 0),
-                                   status_int_subject("settings_has_dimming", 0) != 0)
-                               .c_str());
+    lv_subject_set_string(&settings_status_display_subject_,
+                          display(status_int_subject("settings_brightness", 0),
+                                  status_int_subject("settings_display_sleep", 0),
+                                  status_int_subject("settings_has_dimming", 0) != 0)
+                              .c_str());
 
-    lv_subject_copy_string(&settings_status_appearance_subject_,
-                           appearance(status_int_subject("settings_dark_mode", 0) != 0,
-                                      theme_manager_get_active_theme().name)
-                               .c_str());
+    lv_subject_set_string(&settings_status_appearance_subject_,
+                          appearance(status_int_subject("settings_dark_mode", 0) != 0,
+                                     theme_manager_get_active_theme().name)
+                              .c_str());
 
-    lv_subject_copy_string(&settings_status_sound_subject_,
-                           sound(status_int_subject("settings_sounds_enabled", 0) != 0,
-                                 status_int_subject("settings_volume", 0))
-                               .c_str());
+    lv_subject_set_string(&settings_status_sound_subject_,
+                          sound(status_int_subject("settings_sounds_enabled", 0) != 0,
+                                status_int_subject("settings_volume", 0))
+                              .c_str());
 
-    lv_subject_copy_string(
+    lv_subject_set_string(
         &settings_status_devices_subject_,
         devices(lv_subject_get_int(
                     printer_state_.hardware_validation_state().get_hardware_status_level_subject()))
@@ -245,7 +245,7 @@ void SettingsPanel::refresh_status_lines() {
         // nullptr there (wifi_backend.cpp, ethernet_backend.cpp under
         // __ANDROID__) — so probing either just logs errors/warnings for
         // nothing. Show the printer host instead.
-        lv_subject_copy_string(
+        lv_subject_set_string(
             &settings_status_connection_subject_,
             helix::settings::ConnectionSettingsOverlay::printer_host_display().c_str());
     } else {
@@ -281,21 +281,21 @@ void SettingsPanel::refresh_status_lines() {
             });
     }
 
-    lv_subject_copy_string(
+    lv_subject_set_string(
         &settings_status_language_time_subject_,
         language_time(SystemSettingsManager::instance().get_language_display_name(),
                       status_int_subject("settings_time_format", 0))
             .c_str());
 
-    lv_subject_copy_string(&settings_status_updates_subject_,
-                           updates(status_int_subject("update_status", 0),
-                                   status_string_subject("update_new_version", ""), helix_version(),
-                                   lv_subject_get_int(&updates_firmware_managed_subject_) != 0)
-                               .c_str());
+    lv_subject_set_string(&settings_status_updates_subject_,
+                          updates(status_int_subject("update_status", 0),
+                                  status_string_subject("update_new_version", ""), helix_version(),
+                                  lv_subject_get_int(&updates_firmware_managed_subject_) != 0)
+                              .c_str());
 }
 
 void SettingsPanel::render_connection_status() {
-    lv_subject_copy_string(
+    lv_subject_set_string(
         &settings_status_connection_subject_,
         helix::settings::status::connection(last_ethernet_up_, last_wifi_phase_, last_wifi_ssid_)
             .c_str());

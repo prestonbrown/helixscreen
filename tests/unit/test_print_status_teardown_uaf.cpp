@@ -258,7 +258,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::FilamentSensorManager::instance().deinit_subjects();
 
     // Every guard reset() lands here. Each one that never learned its subject
-    // died calls lv_observer_remove() on a freed node.
+    // died calls lv_observer_delete() on a freed node.
     panel->deinit_subjects();
     panel.reset();
     UpdateQueue::instance().drain();

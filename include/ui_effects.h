@@ -29,8 +29,8 @@ namespace helix::ui {
  * @param end_size Final diameter in pixels (default: 120)
  * @param duration_ms Animation duration in milliseconds (default: 400)
  */
-void create_ripple(lv_obj_t* parent, lv_coord_t x, lv_coord_t y, int start_size = 20,
-                   int end_size = 120, int32_t duration_ms = 400);
+void create_ripple(lv_obj_t* parent, int32_t x, int32_t y, int start_size = 20, int end_size = 120,
+                   int32_t duration_ms = 400);
 
 /**
  * @brief Draw a touch marker: an expanding ripple plus a lingering center dot
@@ -50,7 +50,7 @@ void create_ripple(lv_obj_t* parent, lv_coord_t x, lv_coord_t y, int start_size 
  * @param x X coordinate relative to parent (touch point)
  * @param y Y coordinate relative to parent (touch point)
  */
-void create_touch_marker(lv_obj_t* parent, lv_coord_t x, lv_coord_t y);
+void create_touch_marker(lv_obj_t* parent, int32_t x, int32_t y);
 
 /**
  * @brief Create a fullscreen backdrop for modals and overlays

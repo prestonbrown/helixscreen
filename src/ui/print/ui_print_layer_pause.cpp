@@ -155,7 +155,7 @@ void PrintLayerPauseControls::refresh_status_text() {
                                 print.slicer_current_layer(), print.slicer_total_layers(),
                                 lv_subject_get_int(print.get_layer_pause_layer_subject()));
     std::snprintf(status_text_buf_, sizeof(status_text_buf_), "%s", text.c_str());
-    lv_subject_copy_string(&status_text_subject_, status_text_buf_);
+    lv_subject_set_string(&status_text_subject_, status_text_buf_);
 }
 
 void PrintLayerPauseControls::open_modal() {

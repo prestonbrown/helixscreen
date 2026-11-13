@@ -663,7 +663,7 @@ TEST_CASE_METHOD(ToolSwitcherFixture,
     REQUIRE(list != nullptr);
     lv_obj_t* park = lv_obj_find_by_name(lv_obj_get_parent(list), "tool_park_btn");
     REQUIRE(park != nullptr);
-    CHECK(lv_obj_has_flag(park, LV_OBJ_FLAG_HIDDEN) == !tool_changer);
+    CHECK(lv_obj_is_hidden(park) == !tool_changer);
     ToolSwitcherTestAccess::hide_picker(h.widget());
     process_lvgl(30);
 }

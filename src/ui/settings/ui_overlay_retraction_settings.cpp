@@ -193,25 +193,25 @@ void RetractionSettingsOverlay::update_display_labels() {
         // Two decimals to match the slider's 0.01mm resolution and the %.2f
         // the G-code sends. One decimal displayed a typed 0.85 as "0.8mm".
         snprintf(retract_length_buf_, sizeof(retract_length_buf_), "%.2fmm", centimm / 100.0);
-        lv_subject_copy_string(&retract_length_display_, retract_length_buf_);
+        lv_subject_set_string(&retract_length_display_, retract_length_buf_);
     }
 
     if (retract_speed_slider_) {
         int speed = lv_slider_get_value(retract_speed_slider_);
         snprintf(retract_speed_buf_, sizeof(retract_speed_buf_), "%dmm/s", speed);
-        lv_subject_copy_string(&retract_speed_display_, retract_speed_buf_);
+        lv_subject_set_string(&retract_speed_display_, retract_speed_buf_);
     }
 
     if (unretract_extra_slider_) {
         int centimm = lv_slider_get_value(unretract_extra_slider_);
         snprintf(unretract_extra_buf_, sizeof(unretract_extra_buf_), "%.2fmm", centimm / 100.0);
-        lv_subject_copy_string(&unretract_extra_display_, unretract_extra_buf_);
+        lv_subject_set_string(&unretract_extra_display_, unretract_extra_buf_);
     }
 
     if (unretract_speed_slider_) {
         int speed = lv_slider_get_value(unretract_speed_slider_);
         snprintf(unretract_speed_buf_, sizeof(unretract_speed_buf_), "%dmm/s", speed);
-        lv_subject_copy_string(&unretract_speed_display_, unretract_speed_buf_);
+        lv_subject_set_string(&unretract_speed_display_, unretract_speed_buf_);
     }
 }
 

@@ -58,8 +58,7 @@ int visible_rows(lv_obj_t* rows) {
     for (uint32_t i = 0; i < lv_obj_get_child_count(rows); ++i) {
         lv_obj_t* child = lv_obj_get_child(rows, static_cast<int32_t>(i));
         const char* name = lv_obj_get_name(child);
-        if (name && std::strcmp(name, "history_row") == 0 &&
-            !lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+        if (name && std::strcmp(name, "history_row") == 0 && !lv_obj_is_hidden(child)) {
             ++n;
         }
     }

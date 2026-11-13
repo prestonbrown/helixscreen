@@ -115,8 +115,8 @@ TEST_CASE_METHOD(NavIconCrossfadeFixture,
 
     // A regression back to hidden-flag exclusivity removes one of the pair
     // from the tree instead of merely changing its opacity.
-    REQUIRE_FALSE(lv_obj_has_flag(active, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE_FALSE(lv_obj_has_flag(inactive, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(active));
+    REQUIRE_FALSE(lv_obj_is_hidden(inactive));
 
     REQUIRE(lv_obj_has_state(active, LV_STATE_CHECKED));
     REQUIRE_FALSE(lv_obj_has_state(inactive, LV_STATE_CHECKED));

@@ -94,7 +94,7 @@ struct KeypadLayoutFixture : LVGLUITestFixture {
     }
 
     static bool shown(lv_obj_t* keypad, const char* name) {
-        return !lv_obj_has_flag(key(keypad, name), LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(key(keypad, name));
     }
 
     void press(lv_obj_t* keypad, const char* name) {

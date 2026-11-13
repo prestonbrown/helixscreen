@@ -131,7 +131,7 @@ bool PrinterPrintState::apply_print_message(const nlohmann::json& stats) {
         msg_it->is_string() ? decode_firmware_error_text(msg_it->get_ref<const std::string&>())
                             : std::string();
     if (new_msg != lv_subject_get_string(&print_message_)) {
-        lv_subject_copy_string(&print_message_, new_msg.c_str());
+        lv_subject_set_string(&print_message_, new_msg.c_str());
     }
     return true;
 }
@@ -199,7 +199,7 @@ bool PrinterPrintState::apply_print_job_state(const nlohmann::json& status,
             slicer_progress_active_ = false;
             // This frame's own message is already applied.
             if (!frame_has_message) {
-                lv_subject_copy_string(&print_message_, "");
+                lv_subject_set_string(&print_message_, "");
             }
         }
 
@@ -234,7 +234,7 @@ bool PrinterPrintState::apply_print_job_state(const nlohmann::json& status,
         // because a preparing job the printer never took set no M117.
         if (job_has_ended(new_state) ||
             (new_state == PrintJobState::STANDBY && printer_has_job(current_state))) {
-            lv_subject_copy_string(&display_message_, "");
+            lv_subject_set_string(&display_message_, "");
             update_display_message_visible();
         }
     }
@@ -262,7 +262,7 @@ bool PrinterPrintState::apply_print_job_state(const nlohmann::json& status,
     // Update string subject AFTER enum so observers see consistent state
     // (PrintSelectPanel observes print_state_ string but reads print_state_enum_)
     if (strcmp(lv_subject_get_string(&print_state_), state_str.c_str()) != 0) {
-        lv_subject_copy_string(&print_state_, state_str.c_str());
+        lv_subject_set_string(&print_state_, state_str.c_str());
     }
 
     // Update print_active (1 when PRINTING/PAUSED, 0 otherwise)
@@ -286,7 +286,7 @@ bool PrinterPrintState::apply_print_job_state(const nlohmann::json& status,
                 lv_subject_set_int(&print_start_phase_, static_cast<int>(PrintStartPhase::IDLE));
                 lv_subject_set_int(&print_start_chamber_wait_, 0);
                 publish_lifecycle_state();
-                lv_subject_copy_string(&print_start_message_, "");
+                lv_subject_set_string(&print_start_message_, "");
                 lv_subject_set_int(&print_start_progress_, 0);
                 update_display_message_visible();
             }
@@ -308,7 +308,7 @@ void PrinterPrintState::apply_print_filename(const nlohmann::json& stats,
             // print_filename_ runs, or an immediate observer resolves the
             // new print through the previous one's name.
             recompute_effective_print_filename(filename);
-            lv_subject_copy_string(&print_filename_, filename.c_str());
+            lv_subject_set_string(&print_filename_, filename.c_str());
             identity_follows_job = false;
         }
         reconcile_preparing();
@@ -471,7 +471,7 @@ void PrinterPrintState::apply_display_status(const nlohmann::json& status, bool 
                               ? display["message"].get_ref<const std::string&>().c_str()
                               : ""; // null or non-string clears the message
         if (strcmp(lv_subject_get_string(&display_message_), msg) != 0) {
-            lv_subject_copy_string(&display_message_, msg);
+            lv_subject_set_string(&display_message_, msg);
         }
         update_display_message_visible();
     }

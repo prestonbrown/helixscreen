@@ -153,7 +153,7 @@ struct MaintenanceModelFixture : public LVGLUITestFixture {
 /// Whether an object draws: it and every ancestor is unhidden.
 bool shown(lv_obj_t* obj) {
     for (lv_obj_t* o = obj; o != nullptr; o = lv_obj_get_parent(o)) {
-        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(o))
             return false;
     }
     return true;
@@ -571,11 +571,11 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     REQUIRE(overlay != nullptr);
     lv_obj_t* belt = lv_obj_find_by_name(overlay, "mt_interval_6");
     REQUIRE(belt != nullptr);
-    CHECK(lv_obj_has_flag(belt, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(belt));
     lv_subject_t* available = lv_xml_get_subject(nullptr, "maintenance_belt_available");
     REQUIRE(available != nullptr);
     lv_subject_set_int(available, 1);
-    CHECK_FALSE(lv_obj_has_flag(belt, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(belt));
     lv_obj_delete(overlay);
 }
 

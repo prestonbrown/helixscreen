@@ -200,9 +200,9 @@ TEST_CASE_METHOD(SidebarGuardFixture,
     // It shows only where the backend can check its gates.
     lv_subject_t* shown = gate("ams_sidebar_check_gates_shown");
     lv_subject_set_int(shown, 0);
-    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(btn));
     lv_subject_set_int(shown, 1);
-    CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(btn));
 }
 
 TEST_CASE_METHOD(SidebarDirectionGateFixture,
@@ -214,9 +214,9 @@ TEST_CASE_METHOD(SidebarDirectionGateFixture,
         REQUIRE(loaded != nullptr);
         REQUIRE(lv_subject_get_int(loaded) == 0); // no tool on the carriage
         CHECK(gate_value("ams_sidebar_unload_picks") == 1);
-        CHECK_FALSE(lv_obj_has_flag(button("btn_load"), LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(button("btn_unload"), LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(button("btn_batch_unload"), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(button("btn_load")));
+        CHECK(lv_obj_is_hidden(button("btn_unload")));
+        CHECK_FALSE(lv_obj_is_hidden(button("btn_batch_unload")));
         CHECK(gate_value("ams_sidebar_unload_disabled") == 0);
         CHECK(gate_value("ams_sidebar_load_disabled") == 0);
     }
@@ -266,9 +266,9 @@ TEST_CASE_METHOD(SidebarDirectionGateFixture,
         REQUIRE(mock->start().success());
         build(std::move(mock));
         CHECK(gate_value("ams_sidebar_unload_picks") == 0);
-        CHECK_FALSE(lv_obj_has_flag(button("btn_load"), LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(button("btn_batch_unload"), LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(button("btn_unload"), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(button("btn_load")));
+        CHECK(lv_obj_is_hidden(button("btn_batch_unload")));
+        CHECK_FALSE(lv_obj_is_hidden(button("btn_unload")));
         lv_subject_t* loaded = helix::AmsState::instance().get_filament_loaded_subject();
         REQUIRE(loaded != nullptr);
         REQUIRE(lv_subject_get_int(loaded) == 1); // something IS loaded
@@ -348,7 +348,7 @@ TEST_CASE_METHOD(SidebarDirectionGateFixture,
     REQUIRE(fresh != nullptr);
     lv_obj_t* unload = lv_obj_find_by_name(fresh, "btn_unload");
     REQUIRE(unload != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(unload, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(unload));
     lv_obj_delete(fresh);
 }
 
@@ -419,13 +419,13 @@ TEST_CASE_METHOD(SidebarDirectionGateFixture,
               helix::ui::mounted_tool_text(helix::AmsState::instance().get_backend()->tool_noun(),
                                            active));
         CHECK(std::string(lv_subject_get_string(text)) != lv_tr("No tool mounted"));
-        CHECK_FALSE(lv_obj_has_flag(button("mounted_line"), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(button("mounted_line")));
     }
     SECTION("one head") {
         seed_tools({"extruder"}, 0);
         build(std::make_unique<helix::AmsBackendMock>(4));
         CHECK(gate_value("ams_sidebar_mounted_shown") == 0);
-        CHECK(lv_obj_has_flag(button("mounted_line"), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(button("mounted_line")));
     }
 }
 

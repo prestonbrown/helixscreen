@@ -514,7 +514,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
     // the viewer (e.g., detail panel uses XML-based loading overlay), creating an
     // LVGL spinner child causes crashes during deletion — the spinner's animation
     // timer events corrupt the event list during safe_delete in the async callback.
-    if (!lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+    if (!lv_obj_is_hidden(obj)) {
         create_loading_ui(st, obj, lv_tr("Loading G-code..."));
     }
 
@@ -771,7 +771,7 @@ void helix::gcode_viewer::start_on_demand_3d_build(gcode_viewer_state_t* st, lv_
     };
 
     // The 3D view has no mesh to draw until the result lands.
-    if (!st->loading_container && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+    if (!st->loading_container && !lv_obj_is_hidden(obj)) {
         create_loading_ui(st, obj, lv_tr("Loading G-code..."));
     }
 

@@ -950,8 +950,8 @@ void KeyboardManager::keyboard_draw_alternative_chars(lv_event_t* e) {
                 if (!hint_font) {
                     continue; // No font small enough to sit on this key.
                 }
-                const lv_coord_t hint_h = theme_manager_get_font_height(hint_font);
-                const lv_coord_t hint_w = static_cast<lv_coord_t>(hint_h * 0.9f);
+                const int32_t hint_h = theme_manager_get_font_height(hint_font);
+                const int32_t hint_w = static_cast<int32_t>(hint_h * 0.9f);
 
                 // Containment is enforced in compute_hint_area(); a false return means
                 // the glyph cannot fit this key, so draw nothing rather than spill onto
@@ -1046,7 +1046,7 @@ void slide_page(lv_obj_t* screen, lv_obj_t* keyboard, lv_anim_path_cb_t path,
         lv_anim_init(&a);
         lv_anim_set_var(&a, child);
         lv_anim_set_values(&a, current_y, target_y);
-        lv_anim_set_time(&a, 200);
+        lv_anim_set_duration(&a, 200);
         lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
         lv_anim_set_path_cb(&a, path);
         lv_anim_start(&a);
@@ -1282,7 +1282,7 @@ void KeyboardManager::init(lv_obj_t* parent) {
         [](KeyboardManager* self, int) { self->apply_key_styles(); }, subject_never_freed());
 
     lv_obj_align(keyboard_, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_add_flag(keyboard_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(keyboard_, true);
 
     lv_obj_add_event_cb(keyboard_, keyboard_event_cb, LV_EVENT_READY, nullptr);
     lv_obj_add_event_cb(keyboard_, keyboard_event_cb, LV_EVENT_CANCEL, nullptr);
@@ -1439,7 +1439,7 @@ void KeyboardManager::show(lv_obj_t* textarea) {
     apply_keyboard_mode();
 
     lv_keyboard_set_textarea(keyboard_, textarea);
-    lv_obj_remove_flag(keyboard_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(keyboard_, false);
     lv_obj_move_foreground(keyboard_);
     lv_obj_update_layout(screen);
     {
@@ -1459,7 +1459,7 @@ void KeyboardManager::show(lv_obj_t* textarea) {
         lv_anim_init(&slide_anim);
         lv_anim_set_var(&slide_anim, keyboard_);
         lv_anim_set_values(&slide_anim, keyboard_height, 0);
-        lv_anim_set_time(&slide_anim, kKeyboardSlideDurationMs);
+        lv_anim_set_duration(&slide_anim, kKeyboardSlideDurationMs);
         lv_anim_set_path_cb(&slide_anim, lv_anim_path_ease_out);
         lv_anim_set_exec_cb(&slide_anim, [](void* obj, int32_t value) {
             lv_obj_set_style_translate_y(static_cast<lv_obj_t*>(obj), value, LV_PART_MAIN);
@@ -1487,8 +1487,7 @@ void KeyboardManager::show(lv_obj_t* textarea) {
     int32_t shift_up = ta_bottom - desired_bottom;
 
     auto reveal = reveal_targets_.find(textarea);
-    if (reveal != reveal_targets_.end() && reveal->second &&
-        !lv_obj_has_flag(reveal->second, LV_OBJ_FLAG_HIDDEN)) {
+    if (reveal != reveal_targets_.end() && reveal->second && !lv_obj_is_hidden(reveal->second)) {
         lv_area_t target_coords;
         lv_obj_get_coords(reveal->second, &target_coords);
         const int32_t target_bottom = target_coords.y2 + pending_page_slide(screen, reveal->second);
@@ -1552,19 +1551,19 @@ void KeyboardManager::hide() {
         lv_anim_init(&slide_anim);
         lv_anim_set_var(&slide_anim, keyboard_);
         lv_anim_set_values(&slide_anim, 0, keyboard_height);
-        lv_anim_set_time(&slide_anim, kKeyboardExitDurationMs);
+        lv_anim_set_duration(&slide_anim, kKeyboardExitDurationMs);
         lv_anim_set_path_cb(&slide_anim, lv_anim_path_ease_in);
         lv_anim_set_exec_cb(&slide_anim, [](void* obj, int32_t value) {
             lv_obj_set_style_translate_y(static_cast<lv_obj_t*>(obj), value, LV_PART_MAIN);
         });
         lv_anim_set_completed_cb(&slide_anim, [](lv_anim_t* anim) {
             lv_obj_t* kb = static_cast<lv_obj_t*>(anim->var);
-            lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(kb, true);
             lv_obj_set_style_translate_y(kb, 0, LV_PART_MAIN);
         });
         lv_anim_start(&slide_anim);
     } else {
-        lv_obj_add_flag(keyboard_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(keyboard_, true);
     }
 
     spdlog::debug("[KeyboardManager] Restoring screen children to y=0");
@@ -1575,7 +1574,7 @@ bool KeyboardManager::is_visible() const {
     if (keyboard_ == nullptr) {
         return false;
     }
-    return !lv_obj_has_flag(keyboard_, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(keyboard_);
 }
 
 bool KeyboardManager::is_password_context() const {
@@ -1625,7 +1624,7 @@ void KeyboardManager::reset() {
     // dereferences keyboard_, and init() installs a fresh one on rebuild.
     theme_observer_.reset();
 
-    context_textarea_ = nullptr; // Child of app_layout — deleted by lv_obj_del(m_app_layout)
+    context_textarea_ = nullptr; // Child of app_layout — deleted by lv_obj_delete(m_app_layout)
     reveal_targets_.clear();
 
     // Long-press overlay (also child of m_screen) — deferred delete for the same

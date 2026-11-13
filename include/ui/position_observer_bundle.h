@@ -62,7 +62,7 @@ template <typename Panel> class PositionObserverBundle {
         clear();
 
         // PrinterState-owned subjects: a panel outliving a deinit_subjects()
-        // cycle needs the death signal, or clear() calls lv_observer_remove()
+        // cycle needs the death signal, or clear() calls lv_observer_delete()
         // on observer nodes lv_subject_deinit() already freed.
         const SubjectLifetime lifetime = state.get_subjects_lifetime();
 

@@ -144,7 +144,7 @@ TEST_CASE_METHOD(NotificationHistoryPanelFixture,
 
     // NavigationManager::go_back() only hides an overlay's widget tree; it is
     // never destroyed and the version observer stays attached.
-    lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root_, true);
 
     NotificationHistory::instance().add(make_entry("Entry One", "arrived while hidden"));
     helix::ui::notification_refresh_from_history();
@@ -193,7 +193,7 @@ TEST_CASE_METHOD(NotificationHistoryPanelFixture,
     NavigationManager::instance().set_panels(panels);
 
     // How the manager opens it: built hidden, push queued.
-    lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root_, true);
     panel_->refresh();
     REQUIRE(lv_obj_get_child_count(overlay) == 0);
     helix::nav::register_overlay(root_, nullptr);
@@ -234,10 +234,10 @@ TEST_CASE_METHOD(NotificationHistoryPanelFixture,
     REQUIRE(lv_obj_get_child_count(overlay) == 2);
     lv_obj_t* first = lv_obj_get_child(overlay, 0); // newest first: "Acting"
     lv_obj_t* second = lv_obj_get_child(overlay, 1);
-    CHECK(lv_obj_has_flag(first, LV_OBJ_FLAG_CLICKABLE));
-    CHECK_FALSE(lv_obj_has_flag(second, LV_OBJ_FLAG_CLICKABLE));
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(first, "icon_error"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(first, "icon_info"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_clickable(first));
+    CHECK_FALSE(lv_obj_is_clickable(second));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(first, "icon_error")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(first, "icon_info")));
 
     panel_->handle_item_clicked(1);
     CHECK(ran.empty());

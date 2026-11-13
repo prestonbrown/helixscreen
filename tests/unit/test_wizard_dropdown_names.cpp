@@ -76,7 +76,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     auto shown = [](lv_obj_t* root, const char* name) {
         lv_obj_t* obj = lv_obj_find_by_name(root, name);
         REQUIRE(obj != nullptr);
-        return !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(obj);
     };
 
     api.hardware().parse_objects(nlohmann::json::array({"heater_fan hotend_fan", "fan"}));

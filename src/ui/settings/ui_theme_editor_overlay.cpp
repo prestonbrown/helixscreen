@@ -304,8 +304,8 @@ void ThemeEditorOverlay::publish_property_values() {
         return;
     }
     const auto& props = editing_theme_.properties;
-    lv_subject_copy_string(&radius_name_subject_,
-                           lv_tr(helix::BorderRadiusSizes::name(props.border_radius_size)));
+    lv_subject_set_string(&radius_name_subject_,
+                          lv_tr(helix::BorderRadiusSizes::name(props.border_radius_size)));
     lv_subject_set_int(&border_width_subject_, props.border_width);
     lv_subject_set_int(&border_opacity_subject_, props.border_opacity);
     lv_subject_set_int(&shadow_subject_, props.shadow_intensity);
@@ -332,8 +332,8 @@ void ThemeEditorOverlay::update_title_dirty_indicator() {
         return;
     }
     // The header title and the Save button bind these
-    lv_subject_copy_string(&title_subject_, dirty_ ? lv_tr("Edit Theme Colors (Modified)")
-                                                   : lv_tr("Edit Theme Colors"));
+    lv_subject_set_string(&title_subject_, dirty_ ? lv_tr("Edit Theme Colors (Modified)")
+                                                  : lv_tr("Edit Theme Colors"));
     lv_subject_set_int(&dirty_subject_, dirty_ ? 1 : 0);
 }
 
@@ -341,7 +341,7 @@ void ThemeEditorOverlay::show_save_as_status(const char* text) {
     if (!subjects_initialized_) {
         return;
     }
-    lv_subject_copy_string(&save_as_status_subject_, text);
+    lv_subject_set_string(&save_as_status_subject_, text);
     lv_subject_set_int(&save_as_status_shown_subject_, text[0] != '\0' ? 1 : 0);
 }
 

@@ -88,14 +88,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PreflightCheckModal renders one visible row
               "T" + std::to_string(i));
     }
     lv_obj_t* empty_row = lv_obj_get_child(list, 2);
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(empty_row, "empty_label"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(empty_row, "seated_swatch"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(empty_row, "empty_label")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(empty_row, "seated_swatch")));
 
     // Bug 2: the list must actually occupy vertical space. A flex_grow child in a
     // content-sized parent collapses to zero height, hiding the rows even once
     // they create. Assert the list is at least as tall as its rows stack up to.
-    lv_coord_t list_h = lv_obj_get_height(list);
-    lv_coord_t rows_h = 0;
+    int32_t list_h = lv_obj_get_height(list);
+    int32_t rows_h = 0;
     for (uint32_t i = 0; i < lv_obj_get_child_count(list); i++) {
         rows_h += lv_obj_get_height(lv_obj_get_child(list, i));
     }
@@ -197,8 +197,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // A loaded lane's row shows its swatch instead of EMPTY.
     lv_obj_t* loaded =
         lv_obj_get_child(lv_obj_find_by_name(test_screen(), "preflight_tool_list"), 1);
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(loaded, "seated_swatch"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(loaded, "empty_label"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(loaded, "seated_swatch")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(loaded, "empty_label")));
 
     modal->hide();
     process_lvgl(50);
@@ -255,7 +255,7 @@ bool remap_button_offered(lv_obj_t* screen, void (*process)(lv_obj_t*)) {
 
     lv_obj_t* btn = lv_obj_find_by_name(screen, "btn_tertiary");
     REQUIRE(btn != nullptr);
-    const bool offered = !lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN);
+    const bool offered = !lv_obj_is_hidden(btn);
 
     modal->hide();
     process(screen);
@@ -329,7 +329,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
         lv_obj_t* row = lv_obj_find_by_name(test_screen(), "preflight_material_fix_row");
         REQUIRE(row != nullptr);
-        REQUIRE_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(row));
         lv_obj_t* btn = lv_obj_find_by_name(row, "btn_set_material");
         REQUIRE(btn != nullptr);
         const std::string label =
@@ -352,7 +352,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         auto* modal = show(pf);
         lv_obj_t* row = lv_obj_find_by_name(test_screen(), "preflight_material_fix_row");
         REQUIRE(row != nullptr);
-        CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(row));
         modal->hide();
         pump();
     }

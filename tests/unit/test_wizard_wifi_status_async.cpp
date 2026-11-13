@@ -167,8 +167,8 @@ TEST_CASE_METHOD(WizardWifiStatusFixture,
     }
     REQUIRE(other != nullptr);
     CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(other, "security_label"))) == "WPA3");
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(other, "sig_4_lock"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(other, "sig_4"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(other, "sig_4_lock")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(other, "sig_4")));
 }
 
 TEST_CASE_METHOD(WizardWifiStatusFixture,

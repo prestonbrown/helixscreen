@@ -339,8 +339,7 @@ TEST_CASE_METHOD(ConnFailedFixture, "A never-connected remote host still offers 
     CHECK(primary_text.find("Reconnect") != std::string::npos);
     const std::string cancel_text = UITest::button_text(Modal::get_top(), "btn_secondary");
     CHECK(cancel_text.find("Change Address") != std::string::npos);
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(Modal::get_top(), "btn_secondary"),
-                                LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(Modal::get_top(), "btn_secondary")));
 
     cfg->set<std::string>(key, prev);
     helix::invalidate_host_identity_cache();

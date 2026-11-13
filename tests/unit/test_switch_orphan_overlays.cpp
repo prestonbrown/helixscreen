@@ -249,7 +249,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a rotation rebuilds the jog pad the motion 
     CHECK_FALSE(helix::ui::jog_pad_is_homed(old_pad));
 
     lv_subject_t* homed_axes = get_printer_state().motion_state().get_homed_axes_subject();
-    lv_subject_copy_string(homed_axes, "xyz");
+    lv_subject_set_string(homed_axes, "xyz");
     helix::ui::UpdateQueue::instance().drain();
     lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
     REQUIRE(portrait != nullptr);
@@ -270,7 +270,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a rotation rebuilds the jog pad the motion 
     process_lvgl(100);
 
     lv_subject_set_int(portrait, was_portrait);
-    lv_subject_copy_string(homed_axes, "");
+    lv_subject_set_string(homed_axes, "");
     helix::PrinterCacheRegistry::instance().invalidate_all();
     helix::ui::destroy_static_panels();
     helix::ui::UpdateQueue::instance().drain();

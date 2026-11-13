@@ -58,7 +58,7 @@ class PrintControlButtons {
      * entry at shutdown, and in tests by HelixTestFixture::reset_all() on EVERY
      * fixture construction. deinit_all() frees every observer node on them, so an
      * ObserverGuard held by an observer that outlives the teardown must carry this
-     * token or its next reset() calls lv_observer_remove() on freed memory.
+     * token or its next reset() calls lv_observer_delete() on freed memory.
      *
      * Never empty: an empty token reads as "already dead" and would suppress
      * removal for live observers instead.

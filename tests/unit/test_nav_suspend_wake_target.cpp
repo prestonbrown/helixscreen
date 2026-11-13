@@ -157,7 +157,7 @@ class SuspendWakeFixture : public LVGLUITestFixture {
 
     lv_obj_t* make_overlay(IPanelLifecycle* lifecycle) {
         lv_obj_t* w = lv_obj_create(test_screen());
-        lv_obj_add_flag(w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(w, true);
         NavigationManager::instance().register_overlay_instance(w, lifecycle);
         return w;
     }

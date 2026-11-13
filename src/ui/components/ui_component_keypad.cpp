@@ -279,12 +279,12 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
         lv_subject_set_int(&keypad_allow_negative_subject, config->allow_negative ? 1 : 0);
     }
 
-    lv_subject_copy_string(&keypad_title_subject, config->title_label ? config->title_label : "");
+    lv_subject_set_string(&keypad_title_subject, config->title_label ? config->title_label : "");
 
     // Update display via subject (reactive binding updates XML automatically)
     update_display();
 
-    lv_subject_copy_string(&keypad_unit_subject, config->unit_label ? config->unit_label : "");
+    lv_subject_set_string(&keypad_unit_subject, config->unit_label ? config->unit_label : "");
 
     // Register with nullptr lifecycle — keypad is function-based, not class-based
     // The panel authors its own width (#keypad_width, per breakpoint): a pad of
@@ -392,7 +392,7 @@ void ui_keypad_hide() {
 bool ui_keypad_is_visible() {
     if (!keypad_widget)
         return false;
-    return !lv_obj_has_flag(keypad_widget, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(keypad_widget);
 }
 
 lv_subject_t* ui_keypad_get_display_subject() {
@@ -403,7 +403,7 @@ lv_subject_t* ui_keypad_get_display_subject() {
 // Input Logic
 // ============================================================================
 static void update_display() {
-    lv_subject_copy_string(&keypad_display_subject, input.buf);
+    lv_subject_set_string(&keypad_display_subject, input.buf);
 }
 
 static void handle_confirm() {

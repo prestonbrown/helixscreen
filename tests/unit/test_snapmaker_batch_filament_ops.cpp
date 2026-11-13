@@ -753,7 +753,7 @@ TEST_CASE_METHOD(BatchFixture, "An op's working head names the header, not the l
             &notifications);
         notifications = 0; // adding an observer notifies it once
         ams.sync_from_backend();
-        lv_observer_remove(obs);
+        lv_observer_delete(obs);
         CHECK(notifications == 0);
         CHECK(std::string(lv_subject_get_string(header)) == working_header);
     }
@@ -919,8 +919,8 @@ TEST_CASE_METHOD(BatchModalFixture,
     };
 
     // Several heads: Unload is the picker button; the one-tap one hides.
-    CHECK(lv_obj_has_flag(ui.button("btn_unload"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(ui.button("btn_batch_unload"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(ui.button("btn_unload")));
+    CHECK_FALSE(lv_obj_is_hidden(ui.button("btn_batch_unload")));
     tap_expects_no_picker(ui.button("btn_batch_unload"));
     tap_expects_no_picker(ui.button("btn_load"));
 }

@@ -338,7 +338,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanOverlay: Change shows setup until C
         REQUIRE(obj != nullptr);
         return obj;
     };
-    auto hidden = [&](const char* name) { return lv_obj_has_flag(find(name), LV_OBJ_FLAG_HIDDEN); };
+    auto hidden = [&](const char* name) { return lv_obj_is_hidden(find(name)); };
     auto click = [&](const char* name) {
         lv_obj_send_event(find(name), LV_EVENT_CLICKED, nullptr);
     };

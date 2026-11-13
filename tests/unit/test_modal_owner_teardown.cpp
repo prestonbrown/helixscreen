@@ -423,12 +423,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Owner-less hide disarms deeply nested butto
         depth++;
     }
     REQUIRE(depth >= 2); // >= 2 ancestors between button and dialog
-    REQUIRE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(primary));
 
     Modal::hide(dialog);
 
     REQUIRE(helix::test::widget_in_tree(primary));
-    CHECK_FALSE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(primary));
 
     process_lvgl(50);
     CHECK(ModalStack::instance().stack_empty());
@@ -548,12 +548,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Instance hide disarms through the shared pa
     REQUIRE(dialog != nullptr);
     lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
     REQUIRE(primary != nullptr);
-    REQUIRE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(primary));
 
     modal.hide();
 
     REQUIRE(helix::test::widget_in_tree(primary));
-    CHECK_FALSE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(primary));
     CHECK(modal.hide_calls == 1);
 
     process_lvgl(50);
@@ -613,12 +613,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A helper dialog disarms through its owner",
     REQUIRE(dialog != nullptr);
     lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
     REQUIRE(primary != nullptr);
-    REQUIRE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(primary));
 
     Modal::hide(dialog);
 
     REQUIRE(helix::test::widget_in_tree(primary));
-    CHECK_FALSE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(primary));
 
     process_lvgl(50);
     CHECK(ModalStack::instance().stack_empty());
@@ -1192,7 +1192,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "stacked confirmations keep their own captio
     CHECK(text_of(upper, "btn_secondary") == "Nope");
 
     // The warning icon belongs to the lower dialog, the error icon to the upper.
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(lower, "icon_warning"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(lower, "icon_error"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(upper, "icon_error"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(lower, "icon_warning")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(lower, "icon_error")));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(upper, "icon_error")));
 }

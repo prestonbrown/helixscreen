@@ -67,7 +67,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Summary asks for telemetry only on the firs
         REQUIRE(root != nullptr);
         lv_obj_t* obj = lv_obj_find_by_name(root, name);
         REQUIRE(obj != nullptr);
-        const bool shown = !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        const bool shown = !lv_obj_is_hidden(obj);
         step->cleanup();
         lv_obj_delete(root);
         return shown;

@@ -51,7 +51,7 @@ class PrintCompletionTestFixture : public LVGLTestFixture {
     ~PrintCompletionTestFixture() {
         // Remove observer if registered
         if (observer_ != nullptr) {
-            lv_observer_remove(observer_);
+            lv_observer_delete(observer_);
             observer_ = nullptr;
         }
         PrinterStateTestAccess::reset(state_);

@@ -113,12 +113,12 @@ void PrinterVersionsState::deinit_subjects() {
 
 void PrinterVersionsState::set_klipper_version_internal(const std::string& version) {
     klipper_version_raw_ = version;
-    lv_subject_copy_string(&klipper_version_, display_version(version).c_str());
+    lv_subject_set_string(&klipper_version_, display_version(version).c_str());
     spdlog::debug("[PrinterVersionsState] Klipper version set: {}", version);
 }
 
 void PrinterVersionsState::set_moonraker_version_internal(const std::string& version) {
-    lv_subject_copy_string(&moonraker_version_, display_version(version).c_str());
+    lv_subject_set_string(&moonraker_version_, display_version(version).c_str());
     // Derived from the raw string, not the display form: display_version()
     // collapses placeholders to a translated label that no comparison can read.
     const bool degraded = moonraker_history_is_degraded(version);
@@ -129,12 +129,12 @@ void PrinterVersionsState::set_moonraker_version_internal(const std::string& ver
 
 void PrinterVersionsState::set_firmware_name_internal(const std::string& name) {
     if (name != klipper_firmware_name_buf_) {
-        lv_subject_copy_string(&klipper_firmware_name_, name.c_str());
+        lv_subject_set_string(&klipper_firmware_name_, name.c_str());
     }
 }
 
 void PrinterVersionsState::set_os_version_internal(const std::string& version) {
-    lv_subject_copy_string(&os_version_, display_version(version).c_str());
+    lv_subject_set_string(&os_version_, display_version(version).c_str());
     spdlog::debug("[PrinterVersionsState] OS version set: {}", version);
 }
 

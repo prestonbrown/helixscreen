@@ -41,7 +41,7 @@ static void set_int(const char* name, int value) {
 static void set_string(const char* name, const char* value) {
     lv_subject_t* s = lv_xml_get_subject(nullptr, name);
     if (s) {
-        lv_subject_copy_string(s, value);
+        lv_subject_set_string(s, value);
     } else {
         spdlog::warn("[Scenario] Subject not found: {}", name);
     }

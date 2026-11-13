@@ -160,7 +160,7 @@ lv_obj_t* part(PanelWidgetHarness<ZOffsetWidget>& h, const char* name) {
 }
 
 bool hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 /// Whether an object draws: it and every ancestor up to the widget root is unhidden.

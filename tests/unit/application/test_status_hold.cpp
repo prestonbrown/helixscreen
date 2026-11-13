@@ -173,7 +173,7 @@ class StatusHoldFixture : public ApplicationTestFixture {
     }
 
     ~StatusHoldFixture() override {
-        lv_observer_remove(bed_observer);
+        lv_observer_delete(bed_observer);
         mgr.shutdown();
         set_moonraker_api(nullptr);
         AmsState::instance().set_moonraker_api(nullptr);
@@ -263,7 +263,7 @@ TEST_CASE_METHOD(StatusHoldFixture,
     CHECK(lv_subject_get_int(print.get_print_state_enum_subject()) ==
           static_cast<int>(PrintJobState::PRINTING));
     CHECK(duration_at_edge == 120);
-    lv_observer_remove(edge);
+    lv_observer_delete(edge);
 }
 
 TEST_CASE_METHOD(StatusHoldFixture,
@@ -395,11 +395,11 @@ TEST_CASE_METHOD(AsleepWakeFixture,
     ui::UpdateQueue::instance().drain();
     REQUIRE_FALSE(dm.is_display_sleeping());
     CHECK(refreshes == 0);
-    CHECK(lv_obj_has_flag(lv_screen_active(), LV_OBJ_FLAG_HIDDEN)); // the panel is still dark
+    CHECK(lv_obj_is_hidden(lv_screen_active())); // the panel is still dark
 
     dm.check_display_sleep();
     CHECK(refreshes >= 1);
     CHECK(bed_at_first == 560);
     CHECK(text_at_first == "after");
-    CHECK_FALSE(lv_obj_has_flag(lv_screen_active(), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_screen_active()));
 }

@@ -124,7 +124,7 @@ TEST_CASE_METHOD(MetadataStripFixture,
     // behaviour is under test, not the visibility binding.
     lv_obj_t* objects_cluster = lv_obj_find_by_name(root_, "objects_cluster");
     REQUIRE(objects_cluster != nullptr);
-    lv_obj_clear_flag(objects_cluster, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(objects_cluster, false);
     lv_label_set_text(layer, "474 / 1334 · 55.4mm");
     lv_label_set_text(objects, "12/12");
     lv_label_set_text(filament, "92.6m");

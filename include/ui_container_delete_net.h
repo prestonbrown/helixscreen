@@ -90,7 +90,7 @@ class ContainerDeleteNet {
             if (!*slot) {
                 *slot = lv_obj_create(container);
                 lv_obj_remove_style_all(*slot);
-                lv_obj_remove_flag(*slot, LV_OBJ_FLAG_CLICKABLE);
+                lv_obj_set_clickable(*slot, false);
                 lv_obj_set_width(*slot, lv_pct(100));
                 lv_obj_set_height(*slot, 0);
             }

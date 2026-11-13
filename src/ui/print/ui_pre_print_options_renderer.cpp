@@ -146,13 +146,13 @@ void PrePrintOptionsRenderer::populate(lv_obj_t* container, const PrePrintOption
     // Order matters: deinit subjects (observers attached to live widgets) BEFORE
     // we ask LVGL to delete those widgets. If we deleted widgets first,
     // `safe_clean_children`'s widget cleanup would later fire each observer's
-    // LV_EVENT_DELETE handler, and that handler calls `lv_observer_remove` on
+    // LV_EVENT_DELETE handler, and that handler calls `lv_observer_delete` on
     // the still-live subject — except in our case the subject is about to
     // disappear and our deinit walk would race the widget-side cleanup. By
     // deiniting subjects first, we walk each subject's observer list and
     // uninstall the per-observer state from the (still-alive) widget, so the
     // subsequent widget delete has nothing to do for those observers. The
-    // alternative ordering would risk `lv_observer_remove` touching a freed
+    // alternative ordering would risk `lv_observer_delete` touching a freed
     // subject's `subs_ll` (UAF).
     //
     // clear() also drops on_toggle_, so the caller's callback is assigned
@@ -306,9 +306,9 @@ void PrePrintOptionsRenderer::make_row(lv_obj_t* container, const PrePrintOption
                 [](lv_observer_t* observer, lv_subject_t* subject) {
                     auto* widget = static_cast<lv_obj_t*>(lv_observer_get_target(observer));
                     if (lv_subject_get_int(subject) == 0) {
-                        lv_obj_add_flag(widget, LV_OBJ_FLAG_HIDDEN);
+                        lv_obj_set_hidden(widget, true);
                     } else {
-                        lv_obj_remove_flag(widget, LV_OBJ_FLAG_HIDDEN);
+                        lv_obj_set_hidden(widget, false);
                     }
                 },
                 row.row, nullptr);

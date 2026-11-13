@@ -68,7 +68,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     REQUIRE(em.is_callout_open());
     lv_obj_t* configure = lv_obj_find_by_name(lv_screen_active(), "tile_callout_configure");
     REQUIRE(configure != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(configure, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(configure));
     process_lvgl(20); // the card's first frame starts the lockout
 
     helix_test::ScopedPointerIndev pointer;

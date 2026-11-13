@@ -412,9 +412,9 @@ bool OverlayBase::rebuild() {
     overlay_root_ = new_root;
 
     if (was_visible) {
-        lv_obj_remove_flag(new_root, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(new_root, false);
     } else {
-        lv_obj_add_flag(new_root, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(new_root, true);
     }
 
     NavigationManager::instance().rekey_overlay_widget(old_root, new_root);

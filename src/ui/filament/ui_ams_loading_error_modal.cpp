@@ -44,8 +44,8 @@ bool AmsLoadingErrorModal::show(lv_obj_t* parent, const std::string& error_messa
     error_message_ = error_message;
     retry_callback_ = std::move(retry_callback);
     init_subjects();
-    lv_subject_copy_string(&message_subject_, error_message.c_str());
-    lv_subject_copy_string(&hint_subject_, hint_message.c_str());
+    lv_subject_set_string(&message_subject_, error_message.c_str());
+    lv_subject_set_string(&hint_subject_, hint_message.c_str());
 
     // Show the modal via Modal base class (buttons wired in on_show())
     if (!Modal::show(parent, names_.attrs())) {

@@ -43,9 +43,9 @@ bool DebugBundleModal::show_modal(lv_obj_t* parent) {
     // Reset to consent state
     lv_subject_set_int(&state_subject_, 0);
     lv_subject_set_int(&include_logs_subject_, 0);
-    lv_subject_copy_string(&status_subject_, "");
-    lv_subject_copy_string(&share_code_subject_, "");
-    lv_subject_copy_string(&error_subject_, "");
+    lv_subject_set_string(&status_subject_, "");
+    lv_subject_set_string(&share_code_subject_, "");
+    lv_subject_set_string(&error_subject_, "");
 
     return show(parent);
 }
@@ -188,7 +188,7 @@ void DebugBundleModal::handle_upload() {
 
     // Transition to uploading state
     lv_subject_set_int(&state_subject_, 1);
-    lv_subject_copy_string(&status_subject_, lv_tr("Collecting data..."));
+    lv_subject_set_string(&status_subject_, lv_tr("Collecting data..."));
 
     auto token = lifetime_.token();
 
@@ -197,7 +197,7 @@ void DebugBundleModal::handle_upload() {
             // Marshal to UI thread — this callback fires from the upload thread
             token.defer([this, result]() {
                 if (result.success) {
-                    lv_subject_copy_string(&share_code_subject_, result.share_code.c_str());
+                    lv_subject_set_string(&share_code_subject_, result.share_code.c_str());
                     lv_subject_set_int(&state_subject_, 2);
                     spdlog::info("[DebugBundleModal] Upload succeeded, "
                                  "share code: {}",
@@ -205,10 +205,10 @@ void DebugBundleModal::handle_upload() {
                 } else {
                     // A build-gate refusal shows the translated message; a
                     // transport failure shows the collector's detail verbatim.
-                    lv_subject_copy_string(&error_subject_,
-                                           result.uploads_disabled
-                                               ? lv_tr("Upload unavailable in this build")
-                                               : result.error_message.c_str());
+                    lv_subject_set_string(&error_subject_,
+                                          result.uploads_disabled
+                                              ? lv_tr("Upload unavailable in this build")
+                                              : result.error_message.c_str());
                     lv_subject_set_int(&state_subject_, 3);
                     spdlog::warn("[DebugBundleModal] Upload failed: {}", result.error_message);
                 }

@@ -239,7 +239,7 @@ void SpoolmanManager::deinit_subjects() {
     // Release cross-singleton observers — they observe subjects from PrinterState
     // which may already be destroyed during StaticSubjectRegistry::deinit_all()
     // reverse-order teardown. Using release() (not reset()) avoids dereferencing
-    // a dangling subject pointer in lv_observer_remove().
+    // a dangling subject pointer in lv_observer_delete().
     print_state_observer_.release();
     spoolman_availability_observer_.release();
 

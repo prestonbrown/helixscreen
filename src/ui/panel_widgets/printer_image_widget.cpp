@@ -98,7 +98,7 @@ bool publish_callout_text(lv_subject_t* text, const std::string& full) {
     const std::string t = pinned ? helix::ui::compact_callout_text(full) : full;
     if (t == lv_subject_get_string(text))
         return false;
-    lv_subject_copy_string(text, t.c_str());
+    lv_subject_set_string(text, t.c_str());
     return true;
 }
 
@@ -394,7 +394,7 @@ void PrinterImageWidget::reload_from_config() {
 
     // Show printer name if set, otherwise fall back to printer type, then " " for layout
     std::string display_name = helix::get_printer_display_name(" ");
-    lv_subject_copy_string(&s_printer_type_subject, display_name.c_str());
+    lv_subject_set_string(&s_printer_type_subject, display_name.c_str());
 
     if (!host.empty() && host != "127.0.0.1" && host != "localhost") {
     }
@@ -932,7 +932,7 @@ void PrinterImageWidget::apply_callout_layout() {
     int nozzle_icons = icon_px("heater");
     if (lv_obj_t* nozzle = lv_obj_find_by_name(widget_obj_, "callout_chip_nozzle")) {
         lv_obj_t* badge = lv_obj_find_by_name(nozzle, "tool_badge");
-        if (badge && !lv_obj_has_flag(badge, LV_OBJ_FLAG_HIDDEN)) {
+        if (badge && !lv_obj_is_hidden(badge)) {
             nozzle_icons +=
                 lv_obj_get_style_pad_column(lv_obj_get_parent(badge), LV_PART_MAIN) +
                 helix::ui::measure_text_px(lv_label_get_text(badge),

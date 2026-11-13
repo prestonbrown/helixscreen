@@ -474,7 +474,7 @@ void ui_frequency_response_chart_destroy(ui_frequency_response_chart_t* chart) {
 
     // Delete root widget (also deletes chart if present)
     if (chart_ptr->root) {
-        lv_obj_del(chart_ptr->root);
+        lv_obj_delete(chart_ptr->root);
     }
 
     spdlog::trace("[FreqChart] Destroyed");
@@ -899,7 +899,7 @@ void ui_frequency_response_chart_mark_peak(ui_frequency_response_chart_t* chart,
         lv_anim_set_var(&chart->pulse_anim, chart);
         lv_anim_set_values(&chart->pulse_anim, 80, 255);
         lv_anim_set_duration(&chart->pulse_anim, 1200);
-        lv_anim_set_playback_duration(&chart->pulse_anim, 1200);
+        lv_anim_set_reverse_duration(&chart->pulse_anim, 1200);
         lv_anim_set_repeat_count(&chart->pulse_anim, LV_ANIM_REPEAT_INFINITE);
         lv_anim_set_path_cb(&chart->pulse_anim, lv_anim_path_ease_in_out);
         lv_anim_set_exec_cb(&chart->pulse_anim, [](void* var, int32_t val) {
@@ -1872,7 +1872,7 @@ void ui_frequency_response_chart_configure_for_platform(ui_frequency_response_ch
                 chart->series[i].lv_series = nullptr;
             }
         }
-        lv_obj_del(chart->chart);
+        lv_obj_delete(chart->chart);
         chart->chart = nullptr;
     } else if (chart->chart_mode && chart->chart) {
         // Update point count if chart exists and mode is chart

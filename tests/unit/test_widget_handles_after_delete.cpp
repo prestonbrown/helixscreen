@@ -37,10 +37,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "always-on-top chrome skips a widget that died
     SECTION("a chrome hide that spans the delete") {
         {
             ScopedHideChrome hide;
-            CHECK(lv_obj_has_flag(kept, LV_OBJ_FLAG_HIDDEN));
+            CHECK(lv_obj_is_hidden(kept));
             lv_obj_delete(doomed);
         }
-        CHECK_FALSE(lv_obj_has_flag(kept, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(kept));
     }
 
     remove_always_on_top(nullptr);
@@ -56,9 +56,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "bypass spool visibility skips parts that died
     lv_obj_delete(w.box);
 
     bypass_spool_set_visible(w, false);
-    CHECK(lv_obj_has_flag(w.bypass_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(w.bypass_label));
     bypass_spool_set_visible(w, true);
-    CHECK_FALSE(lv_obj_has_flag(w.bypass_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(w.bypass_label));
 
     bypass_spool_destroy(w);
 }

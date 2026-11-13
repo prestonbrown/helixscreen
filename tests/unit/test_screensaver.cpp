@@ -273,9 +273,9 @@ struct SpriteView {
 std::vector<SpriteView> view_sprites(const FlyingToasterScreensaver& ss) {
     std::vector<SpriteView> out;
     for (const auto& s : ToasterAccess::sprites(ss)) {
-        out.push_back(
-            {lv_obj_has_flag(s.img, LV_OBJ_FLAG_HIDDEN), lv_obj_get_style_x(s.img, LV_PART_MAIN),
-             lv_obj_get_style_y(s.img, LV_PART_MAIN), ToasterAccess::frame_of(ss, s.img)});
+        out.push_back({lv_obj_is_hidden(s.img), lv_obj_get_style_x(s.img, LV_PART_MAIN),
+                       lv_obj_get_style_y(s.img, LV_PART_MAIN),
+                       ToasterAccess::frame_of(ss, s.img)});
     }
     return out;
 }
@@ -321,7 +321,7 @@ SpriteTally check_sprites_at(const FlyingToasterScreensaver& ss, uint32_t elapse
             continue;
         }
         const bool on_screen = pos.x + size > 0 && pos.x < w && pos.y + size > 0 && pos.y < h;
-        CHECK(lv_obj_has_flag(s.img, LV_OBJ_FLAG_HIDDEN) == !on_screen);
+        CHECK(lv_obj_is_hidden(s.img) == !on_screen);
         if (!on_screen) {
             continue;
         }
@@ -627,7 +627,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ScreensaverManager start/stop lifecycle", "[s
 namespace {
 
 bool is_hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 /// Stops the shared manager however the test exits, so a failed assertion cannot
@@ -651,7 +651,7 @@ struct UnhideProbe {
 
 void record_invalidate_while_visible(lv_event_t* e) {
     auto* probe = static_cast<UnhideProbe*>(lv_event_get_user_data(e));
-    if (!lv_obj_has_flag(probe->screen, LV_OBJ_FLAG_HIDDEN)) {
+    if (!lv_obj_is_hidden(probe->screen)) {
         probe->saw_visible = true;
     }
 }
@@ -684,7 +684,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ScreensaverManager leaves an already hidden s
     auto& mgr = ScreensaverManager::instance();
     StopSaverOnExit stop_on_exit;
     REQUIRE_FALSE(helix::active_screen_hide_hold().is_held());
-    lv_obj_add_flag(test_screen(), LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(test_screen(), true);
 
     mgr.start(ScreensaverType::STARFIELD);
     REQUIRE(mgr.is_active());
@@ -831,13 +831,13 @@ constexpr uint32_t kPipesStepMs = 100;
 class DrawTaskCounter {
   public:
     explicit DrawTaskCounter(lv_obj_t* obj) : obj_(obj) {
-        lv_obj_add_flag(obj_, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+        lv_obj_set_send_draw_task_events(obj_, true);
         lv_obj_add_event_cb(obj_, on_task_added, LV_EVENT_DRAW_TASK_ADDED, this);
     }
     ~DrawTaskCounter() {
         if (helix::test::widget_in_tree(obj_)) {
             lv_obj_remove_event_cb_with_user_data(obj_, on_task_added, this);
-            lv_obj_remove_flag(obj_, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+            lv_obj_set_send_draw_task_events(obj_, false);
         }
     }
     DrawTaskCounter(const DrawTaskCounter&) = delete;
@@ -892,7 +892,7 @@ void check_overlay_draws_only_its_canvas(lv_obj_t* overlay, lv_obj_t* canvas) {
 /// buffer is already freed.
 void check_stopped_canvas_is_not_drawn(lv_obj_t* canvas) {
     REQUIRE(helix::test::widget_in_tree(canvas));
-    CHECK(lv_obj_has_flag(canvas, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(canvas));
 
     DrawTaskCounter canvas_tasks(canvas);
     refresh_top_layer();
@@ -1526,7 +1526,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
             CHECK(SaverTestAccess::timer(ss)->period == 33);
             const size_t kept = ToasterAccess::sprites(ss).size();
             CHECK(kept < previous);
-            CHECK(lv_obj_has_flag(all_sprites[kept].img, LV_OBJ_FLAG_HIDDEN));
+            CHECK(lv_obj_is_hidden(all_sprites[kept].img));
             previous = kept;
         }
         // The bottom rung is the sparsest thing the gate can fall back to.

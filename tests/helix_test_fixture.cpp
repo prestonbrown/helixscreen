@@ -480,7 +480,7 @@ void HelixTestFixture::reset_all() {
     // subject; lv_subject_deinit frees the observer node, leaving the
     // controller's ObserverGuard with a dangling lv_observer_t*. The next
     // destructor that walks it (the singleton's own static teardown at exit, or
-    // the next fixture's reset()) calls lv_observer_remove() on freed memory →
+    // the next fixture's reset()) calls lv_observer_delete() on freed memory →
     // SIGSEGV / heap corruption. This surfaced as nightly [slow] crashes:
     // a segfault in ~PrintControlButtons at process exit, plus mid-run
     // "malloc(): unaligned tcache chunk detected" aborts. Removing the observer

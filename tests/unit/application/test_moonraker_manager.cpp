@@ -503,7 +503,7 @@ TEST_CASE("should_complete_preprint - non-layer-reporting printer falls back to 
 // StaticSubjectRegistry::deinit_all() BEFORE destroying singletons that the
 // Application owns directly (m_moonraker, etc.). Subject memory is freed at
 // that point, so any ObserverGuard member whose dtor still calls
-// lv_observer_remove() — i.e. any member NOT released() in that class's
+// lv_observer_delete() — i.e. any member NOT released() in that class's
 // own shutdown() — segfaults during teardown.
 //
 // Originally this test covered just MoonrakerManager (issue #888 / bundle
@@ -1095,7 +1095,7 @@ TEST_CASE_METHOD(ManagerCollectorArmingFixture,
                  "a homed_axes change reaches the armed collector without a timer tick",
                  "[application][print_start]") {
     auto& ps = get_printer_state();
-    lv_subject_copy_string(ps.motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(ps.motion_state().get_homed_axes_subject(), "");
     auto collector = mgr.print_start_collector();
     collector->start();
     collector->enable_fallbacks();
@@ -1104,7 +1104,7 @@ TEST_CASE_METHOD(ManagerCollectorArmingFixture,
     helix::ui::UpdateQueue::instance().drain();
 
     // A cold G28 moves no heater target; only homed_axes changes.
-    lv_subject_copy_string(ps.motion_state().get_homed_axes_subject(), "xy");
+    lv_subject_set_string(ps.motion_state().get_homed_axes_subject(), "xy");
     helix::ui::UpdateQueue::instance().drain();
     CHECK(lv_subject_get_int(ps.print_state().get_print_start_phase_subject()) ==
           static_cast<int>(PrintStartPhase::HOMING));

@@ -109,7 +109,7 @@ void update_particles(ConfettiData* data) {
 
         if (p.life <= 0) {
             // Hide dead particles
-            lv_obj_add_flag(p.obj, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(p.obj, true);
             continue;
         }
 
@@ -180,10 +180,10 @@ lv_obj_t* confetti_create_internal(lv_obj_t* parent) {
     lv_obj_remove_style_all(container);
     lv_obj_set_size(container, width, height);
     lv_obj_set_pos(container, 0, 0);
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_IGNORE_LAYOUT);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_clickable(container, false);
+    lv_obj_set_scrollable(container, false);
+    lv_obj_set_ignore_layout(container, true);
+    lv_obj_set_floating(container, true);
 
     ConfettiData* data = new ConfettiData();
     data->container = container;
@@ -236,10 +236,10 @@ void ui_confetti_burst(lv_obj_t* confetti, int count) {
         // Create the visual object
         p.obj = lv_obj_create(data->container);
         lv_obj_remove_style_all(p.obj);
-        lv_obj_remove_flag(p.obj, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_remove_flag(p.obj, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(p.obj, LV_OBJ_FLAG_IGNORE_LAYOUT);
-        lv_obj_add_flag(p.obj, LV_OBJ_FLAG_FLOATING);
+        lv_obj_set_clickable(p.obj, false);
+        lv_obj_set_scrollable(p.obj, false);
+        lv_obj_set_ignore_layout(p.obj, true);
+        lv_obj_set_floating(p.obj, true);
 
         // Random color
         lv_color_t color = kConfettiColors[random_int(data->rng, 0, kNumColors - 1)];
@@ -298,7 +298,7 @@ void ui_confetti_clear(lv_obj_t* confetti) {
     // Hide all particles
     for (auto& p : data->particles) {
         if (p.obj) {
-            lv_obj_add_flag(p.obj, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(p.obj, true);
         }
     }
     data->particles.clear();

@@ -95,7 +95,7 @@ struct ManageRowHarness {
     [[nodiscard]] bool hidden(const char* name) const {
         lv_obj_t* obj = lv_obj_find_by_name(root, name);
         REQUIRE(obj != nullptr);
-        return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(obj);
     }
 };
 
@@ -192,12 +192,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Cool Down keeps its grid cell while nothing
     h.fx.process_lvgl(30);
     // Disabled, never hidden: the material grid must not reflow when the
     // heaters are cold.
-    CHECK_FALSE(lv_obj_has_flag(cooldown, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(cooldown));
     CHECK(lv_obj_has_state(cooldown, LV_STATE_DISABLED));
 
     lv_subject_set_int(heating, 1);
     h.fx.process_lvgl(30);
-    CHECK_FALSE(lv_obj_has_flag(cooldown, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(cooldown));
     CHECK_FALSE(lv_obj_has_state(cooldown, LV_STATE_DISABLED));
 }
 
@@ -344,14 +344,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_subject_t* spacer = lv_xml_get_subject(nullptr, "filament_graph_spacer");
     REQUIRE(spacer != nullptr);
     CHECK(lv_subject_get_int(spacer) == 1);
-    CHECK(lv_obj_has_flag(container, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(container));
+    CHECK_FALSE(lv_obj_is_hidden(card));
     CHECK(lv_obj_get_style_bg_opa(card, LV_PART_MAIN) == 0);
-    CHECK_FALSE(lv_obj_has_flag(card, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(card));
 
     // The strip button replaces the tappable card, left of the AMS mini
     // status widget.
-    CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(btn));
     lv_obj_t* mini = lv_obj_find_by_name(h.root, "ams_mini_status");
     REQUIRE(mini != nullptr);
     lv_area_t btn_area, mini_area;
@@ -380,7 +380,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Strip graph button stays hidden in landscap
     lv_obj_t* btn = lv_obj_find_by_name(h.root, "btn_temp_graph");
     REQUIRE(btn != nullptr);
     h.fx.process_lvgl(30);
-    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(btn));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,

@@ -118,8 +118,8 @@ TEST_CASE_METHOD(PrintStatusHeaderFixture,
 
     // Baseline: header_bar's hide_action_button default, untouched; the Files
     // entry opts in via hide_action_icon="false".
-    REQUIRE(lv_obj_has_flag(action, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(files, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(action));
+    CHECK_FALSE(lv_obj_is_hidden(files));
 
     // The three states the removed code un-hid the button for, plus the ones
     // around them so a re-added show/hide pair cannot pass by hiding on the way
@@ -136,10 +136,10 @@ TEST_CASE_METHOD(PrintStatusHeaderFixture,
         CAPTURE(static_cast<int>(s));
         // An unconfigured button has no text, no icon and no callback. Revealing
         // it paints an empty #primary pill over the header.
-        CHECK(lv_obj_has_flag(action, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(action));
         // The Files entry is the print-select affordance: it must stay reachable
         // for the whole print, not just the active states.
-        CHECK_FALSE(lv_obj_has_flag(files, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(files));
     }
 }
 

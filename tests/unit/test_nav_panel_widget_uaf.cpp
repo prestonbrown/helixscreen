@@ -108,8 +108,8 @@ TEST_CASE_METHOD(NavPanelWidgetUafFixture,
                                                             PanelId::Home);
 
     // Surviving panels are untouched by the scrub and still get their flags.
-    CHECK(lv_obj_has_flag(panel(PanelId::Home), LV_OBJ_FLAG_HIDDEN) == false);
-    CHECK(lv_obj_has_flag(panel(PanelId::Controls), LV_OBJ_FLAG_HIDDEN) == true);
+    CHECK(lv_obj_is_hidden(panel(PanelId::Home)) == false);
+    CHECK(lv_obj_is_hidden(panel(PanelId::Controls)) == true);
 }
 
 TEST_CASE_METHOD(NavPanelWidgetUafFixture,
@@ -132,7 +132,7 @@ TEST_CASE_METHOD(NavPanelWidgetUafFixture,
     // SIGSEGV inside lv_obj_add_flag().
     helix::ui::UpdateQueue::instance().drain();
 
-    CHECK(lv_obj_has_flag(panel(PanelId::Home), LV_OBJ_FLAG_HIDDEN) == true);
+    CHECK(lv_obj_is_hidden(panel(PanelId::Home)) == true);
 }
 
 TEST_CASE_METHOD(NavPanelWidgetUafFixture,
@@ -152,7 +152,7 @@ TEST_CASE_METHOD(NavPanelWidgetUafFixture,
 
     NavigationManagerTestAccess::handle_active_panel_change(NavigationManager::instance(),
                                                             PanelId::Filament);
-    CHECK(lv_obj_has_flag(replacement, LV_OBJ_FLAG_HIDDEN) == false);
+    CHECK(lv_obj_is_hidden(replacement) == false);
 
     // A widget registered only through replace_panel_widget() needs the same
     // protection as one registered through set_panels().
@@ -161,7 +161,7 @@ TEST_CASE_METHOD(NavPanelWidgetUafFixture,
 
     NavigationManagerTestAccess::handle_active_panel_change(NavigationManager::instance(),
                                                             PanelId::Home);
-    CHECK(lv_obj_has_flag(panel(PanelId::Home), LV_OBJ_FLAG_HIDDEN) == false);
+    CHECK(lv_obj_is_hidden(panel(PanelId::Home)) == false);
 }
 
 TEST_CASE_METHOD(NavPanelWidgetUafFixture,

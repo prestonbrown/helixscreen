@@ -106,7 +106,7 @@ TEST_CASE_METHOD(StandaloneViewerFixture,
         lv_obj_t* s =
             lv_obj_find_by_name(CameraWidgetTestAccess::standalone_overlay(), "fullscreen_spinner");
         REQUIRE(s != nullptr);
-        return lv_obj_has_flag(s, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(s);
     };
     CHECK_FALSE(spinner_hidden());
     // What the first frame does: with no camera tile placed, the viewer owns the binding.

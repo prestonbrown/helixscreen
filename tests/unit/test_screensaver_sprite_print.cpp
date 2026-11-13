@@ -445,7 +445,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a finished print pops toast", "[screensaver][
     bool was_shown = false;
     for (uint32_t t = 33; t <= 9000; t += 33) {
         advance_saver(ss, 33);
-        const bool shown = !lv_obj_has_flag(pop, LV_OBJ_FLAG_HIDDEN);
+        const bool shown = !lv_obj_is_hidden(pop);
         if (shown && !was_shown) {
             pop_starts.push_back(t);
         }
@@ -458,8 +458,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "a finished print pops toast", "[screensaver][
         bool from_toaster = false;
         for (uint32_t i = 0; i < lv_obj_get_child_count(overlay); i++) {
             lv_obj_t* child = lv_obj_get_child(overlay, static_cast<int32_t>(i));
-            if (child == pop || lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN) ||
-                shows_toast(ss, child) || child == ss.print_card_obj()) {
+            if (child == pop || lv_obj_is_hidden(child) || shows_toast(ss, child) ||
+                child == ss.print_card_obj()) {
                 continue;
             }
             from_toaster |=
@@ -477,7 +477,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a finished print pops toast", "[screensaver][
     in = print_input(ClockPrintPhase::NONE, 0);
     for (int i = 0; i < 4000 / 33; i++) {
         advance_saver(ss, 33);
-        REQUIRE(lv_obj_has_flag(pop, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE(lv_obj_is_hidden(pop));
     }
 }
 
@@ -532,7 +532,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     bool popped = false;
     for (int i = 0; i < 6000 / 33 && !popped; i++) {
         advance_saver(ss, 33);
-        popped = !lv_obj_has_flag(first, LV_OBJ_FLAG_HIDDEN);
+        popped = !lv_obj_is_hidden(first);
     }
     REQUIRE(popped);
 
@@ -545,7 +545,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     popped = false;
     for (int i = 0; i < 6000 / 33 && !popped; i++) {
         advance_saver(ss, 33);
-        popped = !lv_obj_has_flag(pop, LV_OBJ_FLAG_HIDDEN);
+        popped = !lv_obj_is_hidden(pop);
     }
     CHECK(popped);
 }

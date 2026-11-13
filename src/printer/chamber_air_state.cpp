@@ -53,8 +53,8 @@ void ChamberAirState::init_subjects(bool register_xml) {
     target_text_observer_ = ui::observe<int>(
         &chamber_air_target_c_, this,
         [](ChamberAirState* self, int celsius) {
-            lv_subject_copy_string(&self->chamber_air_target_text_,
-                                   units::format_display_temp(celsius).c_str());
+            lv_subject_set_string(&self->chamber_air_target_text_,
+                                  units::format_display_temp(celsius).c_str());
         },
         subjects_.get_subjects_lifetime(), ui::Dispatch::Immediate);
     subjects_initialized_ = true;

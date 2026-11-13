@@ -2893,7 +2893,7 @@ class AmsState {
     // Currently Loaded display subjects (reactive binding for "Currently Loaded" card)
     lv_subject_t current_material_text_{};
     // Holds a full filament identity — brand, Spoolman filament name and
-    // material concatenated. lv_subject_copy_string() truncates with
+    // material concatenated. lv_subject_set_string() truncates with
     // lv_strlcpy and reports nothing, so an undersized buffer clips the label
     // silently; real Spoolman names run past 50 characters on their own.
     char current_material_text_buf_[128];

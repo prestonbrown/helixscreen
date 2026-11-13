@@ -753,9 +753,9 @@ void DisplayManager::debug_touch_tick(lv_timer_t* t) {
     lv_point_t point;
     lv_indev_get_point(indev, &point);
 
-    static lv_coord_t last_x = -100, last_y = -100;
-    lv_coord_t dx = point.x - last_x;
-    lv_coord_t dy = point.y - last_y;
+    static int32_t last_x = -100, last_y = -100;
+    int32_t dx = point.x - last_x;
+    int32_t dy = point.y - last_y;
     if (dx * dx + dy * dy < 25) // <5px movement
         return;
 
@@ -1330,8 +1330,8 @@ void DisplayManager::on_screen_size_changed(lv_obj_t* screen) {
         return;
     }
 
-    lv_coord_t width = lv_obj_get_width(screen);
-    lv_coord_t height = lv_obj_get_height(screen);
+    int32_t width = lv_obj_get_width(screen);
+    int32_t height = lv_obj_get_height(screen);
 
     if (m_resize_fanout_suspended) {
         spdlog::debug("[DisplayManager] Screen size changed to {}x{} while resize fanout "

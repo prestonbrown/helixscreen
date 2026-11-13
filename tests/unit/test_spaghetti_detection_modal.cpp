@@ -116,8 +116,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpaghettiDetectionModal hides the Tune row 
         lv_obj_t* div = lv_obj_find_by_name(modal->dialog(), "div_tertiary");
         REQUIRE(btn != nullptr);
         REQUIRE(div != nullptr);
-        CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(div, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(btn));
+        CHECK(lv_obj_is_hidden(div));
         modal->hide();
         process_lvgl(50);
     }
@@ -132,8 +132,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpaghettiDetectionModal hides the Tune row 
         lv_obj_t* div = lv_obj_find_by_name(modal->dialog(), "div_tertiary");
         REQUIRE(btn != nullptr);
         REQUIRE(div != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(div, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
+        CHECK_FALSE(lv_obj_is_hidden(div));
         modal->hide();
         process_lvgl(50);
     }
@@ -155,7 +155,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpaghettiDetectionModal preview follows the
         REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
         lv_obj_t* preview = lv_obj_find_by_name(modal->dialog(), "detection_preview");
         REQUIRE(preview != nullptr);
-        CHECK(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(preview));
         modal->hide();
         process_lvgl(50);
     }
@@ -166,7 +166,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpaghettiDetectionModal preview follows the
         REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
         lv_obj_t* preview = lv_obj_find_by_name(modal->dialog(), "detection_preview");
         REQUIRE(preview != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(preview));
         CHECK(lv_image_get_src(preview) != nullptr);
         modal->hide();
         process_lvgl(50);
@@ -179,7 +179,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpaghettiDetectionModal preview follows the
         modal->attach_frame(frame);
         lv_obj_t* preview = lv_obj_find_by_name(modal->dialog(), "detection_preview");
         REQUIRE(preview != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(preview));
         modal->hide();
         process_lvgl(50);
     }
@@ -450,14 +450,14 @@ TEST_CASE_METHOD(BedCheckPresenterFixture, "a dirty bed shows the bed check moda
     CHECK(toasts.empty());
     lv_obj_t* turn_off = lv_obj_find_by_name(dialog, "btn_tertiary");
     REQUIRE(turn_off != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(turn_off, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(turn_off));
 
     // Turn off bed check: the printer is told, the button goes, and the
     // print's Restart/Cancel decision stays on screen.
     click("btn_tertiary");
     CHECK(u1.last_send_script() == "DEFECT_DETECTION_CONFIG CLEAN_BED_ENABLE=0");
     CHECK(ModalStack::instance().top_component_name() == "bed_check_modal");
-    CHECK(lv_obj_has_flag(turn_off, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(turn_off));
     REQUIRE(toasts.size() == 1);
     CHECK(toasts[0].second == "Bed check turned off");
 

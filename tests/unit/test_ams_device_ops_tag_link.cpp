@@ -101,12 +101,12 @@ TEST_CASE_METHOD(DeviceOpsTagLinkFixture,
     SECTION("a backend whose tags name spools") {
         show_with(std::make_unique<TagNamingMock>());
         CHECK(capability() == 1);
-        CHECK_FALSE(lv_obj_has_flag(row(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(row()));
     }
     SECTION("a backend whose tags cannot") {
         show_with(std::make_unique<AmsBackendMock>(4));
         CHECK(capability() == 0);
-        CHECK(lv_obj_has_flag(row(), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(row()));
     }
 }
 

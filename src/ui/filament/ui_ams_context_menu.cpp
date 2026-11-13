@@ -267,13 +267,13 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         // tree is rebuilt from XML each time. A lane menu shown earlier leaves
         // its answers behind, so a bypass menu that did not clear them would
         // render that lane's unload refusal under the bypass spool's own Unload.
-        lv_subject_copy_string(&slot_unload_hint_subject_, "");
+        lv_subject_set_string(&slot_unload_hint_subject_, "");
         lv_subject_set_int(&slot_unload_hint_visible_subject_, 0);
-        lv_subject_copy_string(&slot_load_hint_subject_, "");
+        lv_subject_set_string(&slot_load_hint_subject_, "");
         lv_subject_set_int(&slot_load_hint_visible_subject_, 0);
         lv_subject_set_int(&slot_mount_subject_, 0);
         lv_subject_set_int(&slot_park_subject_, 0);
-        lv_subject_copy_string(&slot_eject_hint_subject_, "");
+        lv_subject_set_string(&slot_eject_hint_subject_, "");
         lv_subject_set_int(&slot_eject_hint_visible_subject_, 0);
 
         lv_subject_set_int(&slot_can_purge_subject_, ext_gating.purge_disabled ? 0 : 1);
@@ -289,13 +289,13 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
                                          ext_sys.has_hardware_bypass_sensor);
         if (bypass_offered) {
             // Names the action, not the state, so it reads as a command.
-            lv_subject_copy_string(&slot_bypass_text_subject_, backend->is_bypass_active()
-                                                                   ? lv_tr("Disable Bypass")
-                                                                   : lv_tr("Enable Bypass"));
+            lv_subject_set_string(&slot_bypass_text_subject_, backend->is_bypass_active()
+                                                                  ? lv_tr("Disable Bypass")
+                                                                  : lv_tr("Enable Bypass"));
         }
         lv_subject_set_int(&slot_bypass_shown_subject_, bypass_offered ? 1 : 0);
 
-        lv_subject_copy_string(&slot_header_subject_, lv_tr("External Spool"));
+        lv_subject_set_string(&slot_header_subject_, lv_tr("External Spool"));
 
         // Show Clear Spool button when external spool has an assignment.
         // btn_edit ("Edit Spool") is always shown so users can reopen the editor.
@@ -310,7 +310,7 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         // with the lane menu (one menu on screen at a time), so a lane's
         // refusal must not bleed into this menu's button and hint.
         lv_subject_set_int(&slot_can_clear_subject_, 1);
-        lv_subject_copy_string(&slot_clear_hint_subject_, "");
+        lv_subject_set_string(&slot_clear_hint_subject_, "");
         lv_subject_set_int(&slot_clear_hint_visible_subject_, 0);
 
         return;
@@ -396,9 +396,9 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         unload_hint.clear();
     }
     // Already translated by the backend, which had the literal to extract.
-    lv_subject_copy_string(&slot_load_hint_subject_, load_hint.c_str());
+    lv_subject_set_string(&slot_load_hint_subject_, load_hint.c_str());
     lv_subject_set_int(&slot_load_hint_visible_subject_, load_hint.empty() ? 0 : 1);
-    lv_subject_copy_string(&slot_unload_hint_subject_, unload_hint.c_str());
+    lv_subject_set_string(&slot_unload_hint_subject_, unload_hint.c_str());
     lv_subject_set_int(&slot_unload_hint_visible_subject_, unload_hint.empty() ? 0 : 1);
 
     // Eject is offered only on a lane that is not the loaded one (the loaded lane shows
@@ -407,7 +407,7 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     const std::string eject_hint = (backend_ && !pending_is_loaded_)
                                        ? backend_->eject_unavailable_reason(slot_index)
                                        : std::string();
-    lv_subject_copy_string(&slot_eject_hint_subject_, eject_hint.c_str());
+    lv_subject_set_string(&slot_eject_hint_subject_, eject_hint.c_str());
     lv_subject_set_int(&slot_eject_hint_visible_subject_, eject_hint.empty() ? 0 : 1);
 
     const bool can_load = ops.can_load && acts.load.reason.empty();
@@ -464,14 +464,14 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
             print_blocks_clear
                 ? helix::ui::clear_spool_blocked_hint(backend_->lane_noun(), slot_index)
                 : refusal;
-        lv_subject_copy_string(&slot_clear_hint_subject_, clear_hint.c_str());
+        lv_subject_set_string(&slot_clear_hint_subject_, clear_hint.c_str());
         lv_subject_set_int(&slot_clear_hint_visible_subject_, clear_hint.empty() ? 0 : 1);
     }
 
     // The header names the position as the hardware does: the lane's own name
     // ("2B") when the backend has one, else the backend's word with a 1-based
     // number ("Gate 3").
-    lv_subject_copy_string(&slot_header_subject_, menu_lane_label(slot_index).c_str());
+    lv_subject_set_string(&slot_header_subject_, menu_lane_label(slot_index).c_str());
 
     append_slot_plugin_rows(menu_obj, slot_index);
 }

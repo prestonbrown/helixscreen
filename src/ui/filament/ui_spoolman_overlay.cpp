@@ -417,7 +417,7 @@ void SpoolmanOverlay::update_scanner_status_text() {
     auto name = helix::SettingsManager::instance().get_scanner_device_name();
     const char* status = id.empty() ? lv_tr("Auto-detect") : name.c_str();
     snprintf(scanner_status_buf_, sizeof(scanner_status_buf_), "%s", status);
-    lv_subject_copy_string(&scanner_device_status_subject_, scanner_status_buf_);
+    lv_subject_set_string(&scanner_device_status_subject_, scanner_status_buf_);
 }
 
 // ============================================================================
@@ -425,7 +425,7 @@ void SpoolmanOverlay::update_scanner_status_text() {
 // ============================================================================
 
 void SpoolmanOverlay::set_setup_status(const char* text, bool is_error) {
-    lv_subject_copy_string(&setup_status_subject_, text);
+    lv_subject_set_string(&setup_status_subject_, text);
     lv_subject_set_int(&setup_status_error_subject_, is_error ? 1 : 0);
 }
 
@@ -1405,7 +1405,7 @@ void SpoolmanOverlay::update_server_url_display() {
             // "Connected" without inventing a URL.
             if (res.status != SpoolmanConfigTarget::Status::Undefined)
                 spdlog::warn("[{}] Cannot show Spoolman URL: {}", get_name(), res.detail);
-            lv_subject_copy_string(&server_url_subject_, lv_tr("Connected"));
+            lv_subject_set_string(&server_url_subject_, lv_tr("Connected"));
             return;
         }
 
@@ -1413,11 +1413,11 @@ void SpoolmanOverlay::update_server_url_display() {
         auto url =
             helix::MoonrakerConfigManager::get_section_value(res.content, "spoolman", "server");
         if (url.empty()) {
-            lv_subject_copy_string(&server_url_subject_, lv_tr("Connected"));
+            lv_subject_set_string(&server_url_subject_, lv_tr("Connected"));
             return;
         }
         auto text = fmt::format("{} {}", lv_tr("Connected to"), url);
-        lv_subject_copy_string(&server_url_subject_, text.c_str());
+        lv_subject_set_string(&server_url_subject_, text.c_str());
     });
 }
 

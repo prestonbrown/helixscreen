@@ -343,7 +343,7 @@ void SpoolmanPanel::show_spool_list() {
 
 void SpoolmanPanel::update_spool_count() {
     if (cached_spools_.empty()) {
-        lv_subject_copy_string(&header_title_subject_, "Spoolman");
+        lv_subject_set_string(&header_title_subject_, "Spoolman");
     } else if (filtered_spools_.size() != cached_spools_.size()) {
         // Show filtered count: "Spoolman: 5/19 Spools"
         char buf[64];
@@ -351,14 +351,14 @@ void SpoolmanPanel::update_spool_count() {
                  helix::ui::tr_plural("Spoolman: %zu/%zu Spool", "Spoolman: %zu/%zu Spools",
                                       cached_spools_.size()),
                  filtered_spools_.size(), cached_spools_.size());
-        lv_subject_copy_string(&header_title_subject_, buf);
+        lv_subject_set_string(&header_title_subject_, buf);
     } else {
         char buf[64];
         snprintf(buf, sizeof(buf),
                  helix::ui::tr_plural("Spoolman: %zu Spool", "Spoolman: %zu Spools",
                                       cached_spools_.size()),
                  cached_spools_.size());
-        lv_subject_copy_string(&header_title_subject_, buf);
+        lv_subject_set_string(&header_title_subject_, buf);
     }
 }
 

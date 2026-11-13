@@ -248,7 +248,7 @@ TEST_CASE_METHOD(GlassGateFixture,
     helix::DisplaySettingsManager::instance().set_glass_effects(true);
     CHECK(helix::ui::glass_effective());
     CHECK(ThemeManager::instance().is_glass());
-    CHECK(lv_obj_has_flag(top_card, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS));
+    CHECK(lv_obj_is_send_draw_task_events(top_card));
     CHECK(helix::ui::glass_attached(top_card));
     CHECK(helix::ui::glass_attached(screen_child));
 
@@ -259,7 +259,7 @@ TEST_CASE_METHOD(GlassGateFixture,
     helix::DisplaySettingsManager::instance().set_glass_effects(false);
     CHECK_FALSE(helix::ui::glass_effective());
     CHECK_FALSE(ThemeManager::instance().is_glass());
-    CHECK_FALSE(lv_obj_has_flag(top_card, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS));
+    CHECK_FALSE(lv_obj_is_send_draw_task_events(top_card));
     CHECK_FALSE(helix::ui::glass_attached(screen_child));
 
     lv_obj_t* created_flat = lv_obj_create(test_screen());

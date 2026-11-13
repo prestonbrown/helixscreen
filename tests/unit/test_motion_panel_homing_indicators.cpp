@@ -79,7 +79,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "unhomed axes mute their coordinate readouts
     CHECK(same_color(lv_obj_get_style_text_color(x_value, LV_PART_MAIN), muted));
 
     // X and Y homed, Z left unhomed.
-    lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "xy");
+    lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "xy");
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK(same_color(lv_obj_get_style_text_color(x_value, LV_PART_MAIN), value));
@@ -110,11 +110,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the motion panel homes single axes",
         CAPTURE(name);
         lv_obj_t* btn = lv_obj_find_by_name(root, name);
         REQUIRE(btn != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
     }
     lv_obj_t* xy = lv_obj_find_by_name(root, "btn_home_xy");
     REQUIRE(xy != nullptr);
-    CHECK(lv_obj_has_flag(xy, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(xy));
 
     client.clear_gcode_script_history();
     lv_obj_send_event(lv_obj_find_by_name(root, "btn_home_x"), LV_EVENT_CLICKED, nullptr);
@@ -123,7 +123,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the motion panel homes single axes",
     CHECK(std::find(h.begin(), h.end(), "G28 X") != h.end());
 
     lv_subject_set_int(individual, 0);
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(root, "btn_home_x"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(root, "btn_home_x")));
 
     StaticPanelRegistry::instance().destroy_all();
     helix::ui::UpdateQueue::instance().drain();
@@ -140,11 +140,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the Z column draws what the Z keys move", "
     REQUIRE(bed_moves != nullptr);
 
     lv_subject_set_int(bed_moves, 0);
-    CHECK_FALSE(lv_obj_has_flag(head, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(bed, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(head));
+    CHECK(lv_obj_is_hidden(bed));
     lv_subject_set_int(bed_moves, 1);
-    CHECK(lv_obj_has_flag(head, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(bed, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(head));
+    CHECK_FALSE(lv_obj_is_hidden(bed));
 
     StaticPanelRegistry::instance().destroy_all();
     helix::ui::UpdateQueue::instance().drain();

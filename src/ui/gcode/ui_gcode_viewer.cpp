@@ -497,7 +497,7 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
                 // corrupting LVGL's event list during UpdateQueue batch (crash #356)
                 // Use lv_obj_delete_async() — LVGL cancels it automatically if the
                 // object is deleted first, unlike custom lv_async_call lambdas.
-                lv_obj_add_flag(state->ghost_progress_label_, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(state->ghost_progress_label_, true);
                 lv_obj_delete_async(state->ghost_progress_label_);
                 state->ghost_progress_label_ = nullptr;
             });
@@ -853,8 +853,8 @@ lv_obj_t* helix::ui::gcode_viewer_create(lv_obj_t* parent) {
     lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(obj, 0, 0);
     lv_obj_set_style_pad_all(obj, 0, 0);
-    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, true);
 
     lv_obj_add_event_cb(obj, gcode_viewer_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, gcode_viewer_size_changed_cb, LV_EVENT_SIZE_CHANGED, nullptr);
@@ -1373,7 +1373,7 @@ void helix::ui::gcode_viewer_set_bottom_occluder(lv_obj_t* obj, lv_obj_t* occlud
 /// overlap (the strip is a sibling BELOW the preview in some layouts) or when
 /// either widget is hidden.
 static float measure_bottom_occlusion(gcode_viewer_state_t* st, lv_obj_t* obj) {
-    if (!st->bottom_occluder_ || lv_obj_has_flag(st->bottom_occluder_, LV_OBJ_FLAG_HIDDEN)) {
+    if (!st->bottom_occluder_ || lv_obj_is_hidden(st->bottom_occluder_)) {
         return 0.0f;
     }
 

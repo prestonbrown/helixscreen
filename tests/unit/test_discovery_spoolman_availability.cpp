@@ -115,7 +115,7 @@ TEST_CASE("Discovery does not flap Spoolman availability when the component is p
     CHECK(get_printer_state().is_spoolman_available());
     CHECK(counter.falls == 0);
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }
 
 TEST_CASE("Discovery still clears Spoolman availability when the component is gone",

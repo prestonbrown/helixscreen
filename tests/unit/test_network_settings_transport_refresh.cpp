@@ -78,7 +78,7 @@ TEST_CASE_METHOD(TransportRefreshFixture,
     REQUIRE(lv_subject_get_int(&Access::wifi_connected(*overlay)) == 0);
     lv_obj_t* ipv4_row = lv_obj_find_by_name(test_screen(), "wifi_ipv4_row");
     REQUIRE(ipv4_row != nullptr);
-    CHECK(lv_obj_has_flag(ipv4_row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(ipv4_row));
     // The IPv4 row reads the setting on open, and again on each transport change.
     const auto ipv4_row_reads = [this](const helix::net::Ipv4Config& config) {
         return wait_until([&] {
@@ -111,7 +111,7 @@ TEST_CASE_METHOD(TransportRefreshFixture,
     CHECK(ipv4_row_reads(fixed));
     helix::net::mock_ipv4_store(helix::net::Ipv4Link::Wifi).apply(helix::net::Ipv4Config{});
 
-    CHECK_FALSE(lv_obj_has_flag(ipv4_row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(ipv4_row));
 
     // On DHCP the form opens with the address the printer has now.
     helix::settings::open_ipv4_settings(test_screen(), helix::net::Ipv4Link::Wifi, "192.168.1.77");

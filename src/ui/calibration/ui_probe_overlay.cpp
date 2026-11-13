@@ -373,10 +373,10 @@ void ProbeOverlay::update_display_subjects() {
 
     if (sensors.empty()) {
         snprintf(probe_display_name_buf_, sizeof(probe_display_name_buf_), "No Probe Detected");
-        lv_subject_copy_string(&probe_display_name_, probe_display_name_buf_);
-        lv_subject_copy_string(&probe_type_label_, "");
+        lv_subject_set_string(&probe_display_name_, probe_display_name_buf_);
+        lv_subject_set_string(&probe_type_label_, "");
         snprintf(probe_z_offset_display_buf_, sizeof(probe_z_offset_display_buf_), "--");
-        lv_subject_copy_string(&probe_z_offset_display_, probe_z_offset_display_buf_);
+        lv_subject_set_string(&probe_z_offset_display_, probe_z_offset_display_buf_);
         lv_subject_set_int(&probe_z_offset_known_, 0);
         return;
     }
@@ -385,7 +385,7 @@ void ProbeOverlay::update_display_subjects() {
     const auto& sensor = sensors[0];
     std::string display_name = probe_type_to_display_string(sensor.type);
     snprintf(probe_display_name_buf_, sizeof(probe_display_name_buf_), "%s", display_name.c_str());
-    lv_subject_copy_string(&probe_display_name_, probe_display_name_buf_);
+    lv_subject_set_string(&probe_display_name_, probe_display_name_buf_);
 
     // Type description label
     const char* type_label = "Standard Probe";
@@ -422,7 +422,7 @@ void ProbeOverlay::update_display_subjects() {
         break;
     }
     snprintf(probe_type_label_buf_, sizeof(probe_type_label_buf_), "%s", type_label);
-    lv_subject_copy_string(&probe_type_label_, probe_type_label_buf_);
+    lv_subject_set_string(&probe_type_label_, probe_type_label_buf_);
 
     // Z offset display; the row hides when no status or config section gives one (#2089)
     const bool z_offset_known = mgr.has_z_offset();
@@ -433,7 +433,7 @@ void ProbeOverlay::update_display_subjects() {
         snprintf(probe_z_offset_display_buf_, sizeof(probe_z_offset_display_buf_), "--");
     }
     lv_subject_set_int(&probe_z_offset_known_, z_offset_known ? 1 : 0);
-    lv_subject_copy_string(&probe_z_offset_display_, probe_z_offset_display_buf_);
+    lv_subject_set_string(&probe_z_offset_display_, probe_z_offset_display_buf_);
 
     // Set Klicky detection flag for generic panel visibility binding
     lv_subject_set_int(&probe_is_klicky_, sensor.type == ProbeSensorType::KLICKY ? 1 : 0);
@@ -441,23 +441,23 @@ void ProbeOverlay::update_display_subjects() {
     // Cartographer coil temperature (placeholder until live query)
     if (sensor.type == ProbeSensorType::CARTOGRAPHER) {
         snprintf(probe_carto_coil_temp_buf_, sizeof(probe_carto_coil_temp_buf_), "--");
-        lv_subject_copy_string(&probe_carto_coil_temp_, probe_carto_coil_temp_buf_);
+        lv_subject_set_string(&probe_carto_coil_temp_, probe_carto_coil_temp_buf_);
     }
 
     // Beacon sensor temperature (placeholder until live query)
     if (sensor.type == ProbeSensorType::BEACON) {
         snprintf(probe_beacon_temp_buf_, sizeof(probe_beacon_temp_buf_), "--");
-        lv_subject_copy_string(&probe_beacon_temp_, probe_beacon_temp_buf_);
+        lv_subject_set_string(&probe_beacon_temp_, probe_beacon_temp_buf_);
         snprintf(probe_beacon_temp_comp_status_buf_, sizeof(probe_beacon_temp_comp_status_buf_),
                  "Unknown");
-        lv_subject_copy_string(&probe_beacon_temp_comp_status_, probe_beacon_temp_comp_status_buf_);
+        lv_subject_set_string(&probe_beacon_temp_comp_status_, probe_beacon_temp_comp_status_buf_);
     }
 }
 
 void ProbeOverlay::set_accuracy_error(const std::string& msg) {
     probe_acc_backstop_.end();
     snprintf(probe_acc_error_msg_buf_, sizeof(probe_acc_error_msg_buf_), "%s", msg.c_str());
-    lv_subject_copy_string(&probe_acc_error_msg_, probe_acc_error_msg_buf_);
+    lv_subject_set_string(&probe_acc_error_msg_, probe_acc_error_msg_buf_);
     lv_subject_set_int(&probe_acc_state_, 3); // ERROR
 }
 
@@ -585,7 +585,7 @@ void ProbeOverlay::handle_probe_accuracy() {
     lv_subject_set_int(&probe_acc_progress_, 0);
     snprintf(probe_acc_progress_text_buf_, sizeof(probe_acc_progress_text_buf_), "%s",
              all_homed ? lv_tr("Preparing...") : lv_tr("Homing first..."));
-    lv_subject_copy_string(&probe_acc_progress_text_, probe_acc_progress_text_buf_);
+    lv_subject_set_string(&probe_acc_progress_text_, probe_acc_progress_text_buf_);
 
     accuracy_modal_ = helix::ui::ComponentModal::show_owned("probe_accuracy_modal");
     if (!accuracy_modal_) {
@@ -636,8 +636,8 @@ void ProbeOverlay::handle_probe_accuracy() {
                     snprintf(overlay.probe_acc_progress_text_buf_,
                              sizeof(overlay.probe_acc_progress_text_buf_), "%s %d %s %d: z=%s",
                              lv_tr("Sample"), current, lv_tr("of"), total, z_val.c_str());
-                    lv_subject_copy_string(&overlay.probe_acc_progress_text_,
-                                           overlay.probe_acc_progress_text_buf_);
+                    lv_subject_set_string(&overlay.probe_acc_progress_text_,
+                                          overlay.probe_acc_progress_text_buf_);
                 });
                 return;
             }
@@ -718,7 +718,7 @@ void ProbeOverlay::show_accuracy_results(const std::string& results_line) {
 
     auto set_subject = [](lv_subject_t* subj, char* buf, size_t buf_size, const std::string& val) {
         snprintf(buf, buf_size, "%s mm", val.c_str());
-        lv_subject_copy_string(subj, buf);
+        lv_subject_set_string(subj, buf);
     };
 
     set_subject(&probe_acc_maximum_, probe_acc_maximum_buf_, sizeof(probe_acc_maximum_buf_),
@@ -754,7 +754,7 @@ void ProbeOverlay::show_accuracy_results(const std::string& results_line) {
     }
     lv_subject_set_int(&probe_acc_quality_, good ? 1 : 0);
     snprintf(probe_acc_quality_text_buf_, sizeof(probe_acc_quality_text_buf_), "%s", quality_text);
-    lv_subject_copy_string(&probe_acc_quality_text_, probe_acc_quality_text_buf_);
+    lv_subject_set_string(&probe_acc_quality_text_, probe_acc_quality_text_buf_);
 
     // Transition to RESULTS state
     lv_subject_set_int(&probe_acc_progress_, 100);
@@ -889,7 +889,7 @@ void ProbeOverlay::load_config_values() {
                     }
                     snprintf(buf, buf_size, "%s",
                              helix::ui::probe_config_display_value(key, configured).c_str());
-                    lv_subject_copy_string(subject, buf);
+                    lv_subject_set_string(subject, buf);
                 };
                 set_cfg("x_offset", probe_cfg_x_offset_buf_, sizeof(probe_cfg_x_offset_buf_),
                         &probe_cfg_x_offset_);
@@ -926,11 +926,11 @@ void ProbeOverlay::handle_config_edit(const std::string& field_key, const std::s
     // Set modal subjects
     snprintf(probe_config_edit_title_buf_, sizeof(probe_config_edit_title_buf_), "Edit %s",
              title.c_str());
-    lv_subject_copy_string(&probe_config_edit_title_, probe_config_edit_title_buf_);
+    lv_subject_set_string(&probe_config_edit_title_, probe_config_edit_title_buf_);
 
     snprintf(probe_config_edit_desc_buf_, sizeof(probe_config_edit_desc_buf_), "%s",
              description.c_str());
-    lv_subject_copy_string(&probe_config_edit_desc_, probe_config_edit_desc_buf_);
+    lv_subject_set_string(&probe_config_edit_desc_, probe_config_edit_desc_buf_);
 
     // Get current value from the corresponding display subject
     const char* current_val = "--";
@@ -949,14 +949,14 @@ void ProbeOverlay::handle_config_edit(const std::string& field_key, const std::s
 
     snprintf(probe_config_edit_current_buf_, sizeof(probe_config_edit_current_buf_), "%s",
              current_val);
-    lv_subject_copy_string(&probe_config_edit_current_, probe_config_edit_current_buf_);
+    lv_subject_set_string(&probe_config_edit_current_, probe_config_edit_current_buf_);
 
     // An option not in printer.cfg starts empty, with Klipper's default as the hint
     auto it = probe_cfg_configured_.find(field_key);
     const std::string configured = it != probe_cfg_configured_.end() ? it->second : "";
     snprintf(probe_config_edit_value_buf_, sizeof(probe_config_edit_value_buf_), "%s",
              configured.c_str());
-    lv_subject_copy_string(&probe_config_edit_value_, probe_config_edit_value_buf_);
+    lv_subject_set_string(&probe_config_edit_value_, probe_config_edit_value_buf_);
 
     edit_modal_ = helix::ui::ComponentModal::show_owned("probe_config_edit_modal");
     if (!edit_modal_) {

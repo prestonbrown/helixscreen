@@ -72,7 +72,7 @@ int fault_segment() {
 /// The graphic is present in the tree but hides itself; "shown" means both.
 bool graphic_visible(lv_obj_t* root) {
     lv_obj_t* g = lv_obj_find_by_name(root, "fault_path");
-    return g != nullptr && !lv_obj_has_flag(g, LV_OBJ_FLAG_HIDDEN);
+    return g != nullptr && !lv_obj_is_hidden(g);
 }
 
 /// Every caption in fault_path.xml, so "exactly one is visible" is checkable.
@@ -156,13 +156,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the fault position is named in words, not o
         helix::ui::fault_path_apply(c.message);
         process_lvgl(10);
         REQUIRE(fault_segment() == static_cast<int>(c.segment));
-        REQUIRE_FALSE(lv_obj_has_flag(graphic, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(graphic));
 
         int visible = 0;
         for (const char* name : kAllCaptions) {
             lv_obj_t* caption = lv_obj_find_by_name(graphic, name);
             REQUIRE(caption != nullptr);
-            if (lv_obj_has_flag(caption, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(caption)) {
                 continue;
             }
             ++visible;
@@ -176,15 +176,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the fault position is named in words, not o
         // keeps the toolhead named.
         lv_obj_t* toolhead_label = lv_obj_find_by_name(graphic, "fault_path_stop_label_toolhead");
         REQUIRE(toolhead_label != nullptr);
-        CHECK(lv_obj_has_flag(toolhead_label, LV_OBJ_FLAG_HIDDEN) ==
-              (c.segment == helix::PathSegment::TOOLHEAD));
+        CHECK(lv_obj_is_hidden(toolhead_label) == (c.segment == helix::PathSegment::TOOLHEAD));
     }
 
     // Unrecognised message: the component hides, so no caption speaks for a fault
     // whose position we could not place.
     helix::ui::fault_path_apply(kUnknownFault);
     process_lvgl(10);
-    CHECK(lv_obj_has_flag(graphic, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(graphic));
 
     lv_obj_delete(graphic);
     process_lvgl(10);
@@ -315,7 +314,7 @@ int visible_captions(lv_obj_t* root) {
     for (const char* name : kAllCaptions) {
         lv_obj_t* caption = lv_obj_find_by_name(root, name);
         REQUIRE(caption != nullptr);
-        visible += lv_obj_has_flag(caption, LV_OBJ_FLAG_HIDDEN) ? 0 : 1;
+        visible += lv_obj_is_hidden(caption) ? 0 : 1;
     }
     return visible;
 }

@@ -43,7 +43,7 @@ void SaverCanvas::release() {
     // The canvas object lives until its parent's deferred deletion. Hidden first, no refresh or
     // snapshot before then draws from the buffer freed here.
     if (canvas_) {
-        lv_obj_add_flag(canvas_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(canvas_, true);
         canvas_ = nullptr;
     }
     if (buf_) {

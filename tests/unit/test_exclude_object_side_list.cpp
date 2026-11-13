@@ -58,8 +58,7 @@ bool shows_text(lv_obj_t* row, const char* text) {
     const uint32_t n = lv_obj_get_child_count(row);
     for (uint32_t i = 0; i < n; ++i) {
         lv_obj_t* child = lv_obj_get_child(row, static_cast<int32_t>(i));
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN) ||
-            lv_obj_get_style_opa(child, LV_PART_MAIN) == LV_OPA_TRANSP) {
+        if (lv_obj_is_hidden(child) || lv_obj_get_style_opa(child, LV_PART_MAIN) == LV_OPA_TRANSP) {
             continue;
         }
         if (lv_obj_check_type(child, &lv_label_class)) {
@@ -139,17 +138,17 @@ TEST_CASE_METHOD(SideListFixture, "Side list restyles an excluded row in place",
     REQUIRE(container != nullptr);
     const auto before = rows_of(container);
     REQUIRE(before.size() == 20);
-    REQUIRE(lv_obj_has_flag(before[3], LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(before[3]));
     REQUIRE(lv_obj_get_style_opa(before[3], LV_PART_MAIN) == LV_OPA_COVER);
 
     objects().set_excluded_objects({"obj_3"});
     settle();
 
     REQUIRE(rows_of(container) == before);
-    CHECK_FALSE(lv_obj_has_flag(before[3], LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(before[3]));
     CHECK(lv_obj_get_style_opa(before[3], LV_PART_MAIN) == 150);
     CHECK(shows_text(before[3], "Excluded"));
-    CHECK(lv_obj_has_flag(before[4], LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(before[4]));
     CHECK_FALSE(shows_text(before[4], "Excluded"));
 }
 
@@ -168,12 +167,12 @@ TEST_CASE_METHOD(SideListFixture, "Side list rebuilds its rows when the defined 
         CHECK(std::find(before.begin(), before.end(), row) == before.end());
     }
     lv_obj_t* empty = lv_obj_find_by_name(list.root(), "empty_state");
-    CHECK(lv_obj_has_flag(empty, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(empty));
 
     // No objects shows the empty state.
     objects().set_defined_objects({});
     settle();
-    CHECK_FALSE(lv_obj_has_flag(empty, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(empty));
 }
 
 namespace {
@@ -285,7 +284,7 @@ TEST_CASE_METHOD(SideListFixture, "Side list never publishes a new object's stat
     objects().set_excluded_objects({"new_d"});
     objects().set_defined_objects({"new_c", "new_d"});
     settle();
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 
     REQUIRE_FALSE(watch.row_names_at_publish.empty());
     for (const auto& names : watch.row_names_at_publish) {
@@ -369,7 +368,7 @@ TEST_CASE_METHOD(SideListFixture, "In toggle mode a picked row reads Excluded an
     settle();
 
     const auto rows = rows_of(container);
-    CHECK(lv_obj_has_flag(rows[3], LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(rows[3]));
     CHECK(lv_obj_get_style_opa(rows[3], LV_PART_MAIN) == 150);
     CHECK(shows_text(rows[3], "Excluded"));
     CHECK_FALSE(shows_text(rows[4], "Excluded"));

@@ -199,25 +199,25 @@ TEST_CASE_METHOD(LVGLUITestFixture, "queue mode hides the cards the queue cannot
 
     // Print mode: both cards stay.
     set_mode(0, 0);
-    CHECK_FALSE(lv_obj_has_flag(filament_card, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(options_card, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(filament_card));
+    CHECK_FALSE(lv_obj_is_hidden(options_card));
 
     // Queue mode, manual transition: the mapping is dropped (it is recomputed
     // at start time) but the options card stays — those ARE saved with the job.
     set_mode(1, 0);
-    CHECK(lv_obj_has_flag(filament_card, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(options_card, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(filament_card));
+    CHECK_FALSE(lv_obj_is_hidden(options_card));
 
     // Queue mode with automatic_transition: nobody ever reads saved options,
     // so both go.
     set_mode(1, 1);
-    CHECK(lv_obj_has_flag(filament_card, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(options_card, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(filament_card));
+    CHECK(lv_obj_is_hidden(options_card));
 
     // Print ending while the view is open brings both back.
     set_mode(0, 1);
-    CHECK_FALSE(lv_obj_has_flag(filament_card, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(options_card, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(filament_card));
+    CHECK_FALSE(lv_obj_is_hidden(options_card));
 
     // Tree first: its bindings observe the static subjects above.
     UpdateQueue::instance().drain();

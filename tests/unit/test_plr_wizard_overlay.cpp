@@ -392,7 +392,7 @@ TEST_CASE_METHOD(PlrWizardFixture, "PLR wizard: the Checks card says the heat co
     open();
     REQUIRE(wizard_step() == PlrWizardStep::Checks);
     lv_obj_t* note = wizard_widget("plr_heat_in_place_note");
-    CHECK_FALSE(lv_obj_has_flag(note, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(note));
     CHECK(widget_text("plr_heat_in_place_note") ==
           "The bed and nozzle heat together before anything moves, so the print re-grips and "
           "the nozzle lets go of it.");
@@ -488,7 +488,7 @@ TEST_CASE_METHOD(PlrWizardFixture,
     settle();
     REQUIRE(wizard_step() == PlrWizardStep::Committing);
     CHECK(helix::display_awake_hold().is_held());
-    CHECK_FALSE(lv_obj_has_flag(wizard_widget("btn_plr_cancel_committing"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(wizard_widget("btn_plr_cancel_committing")));
 
     bool saw_start = false;
     for (int i = 0; i < 40 && !saw_start && wizard_step() == PlrWizardStep::Committing; ++i) {
@@ -500,7 +500,7 @@ TEST_CASE_METHOD(PlrWizardFixture,
     REQUIRE(wizard_step() == PlrWizardStep::Committing);
     // The running print's own sleep rules apply from here.
     CHECK_FALSE(helix::display_awake_hold().is_held());
-    CHECK(lv_obj_has_flag(wizard_widget("btn_plr_cancel_committing"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(wizard_widget("btn_plr_cancel_committing")));
     // A Cancel tap that slipped through would turn the heaters off under the print.
     PlrWizardOverlayTestAccess::tap_abort(get_plr_wizard_overlay());
     settle();

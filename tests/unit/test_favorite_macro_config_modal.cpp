@@ -47,13 +47,13 @@ TEST_CASE_METHOD(XMLTestFixture, "favorite_macro_config_modal instantiates + tab
 
     lv_subject_set_int(tab, 0);
     lv_obj_update_layout(dlg);
-    REQUIRE_FALSE(lv_obj_has_flag(sec_macro, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE(lv_obj_has_flag(sec_options, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(sec_macro));
+    REQUIRE(lv_obj_is_hidden(sec_options));
 
     lv_subject_set_int(tab, 2);
     lv_obj_update_layout(dlg);
-    REQUIRE(lv_obj_has_flag(sec_macro, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE_FALSE(lv_obj_has_flag(sec_options, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(sec_macro));
+    REQUIRE_FALSE(lv_obj_is_hidden(sec_options));
 
     lv_obj_delete(dlg);
 }
@@ -278,7 +278,7 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
     lv_obj_t* wrap = lv_obj_find_by_name(with_params.dialog(), "default_params_wrap");
     REQUIRE(wrap != nullptr);
     REQUIRE(lv_obj_find_by_name(with_params.dialog(), "row_default_params") != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(wrap, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(wrap));
 
     with_params.hide();
     helix::ui::UpdateQueue::instance().drain();
@@ -286,7 +286,7 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
     auto& without_params = show_config_for("PLAIN_MACRO");
     lv_obj_t* plain_wrap = lv_obj_find_by_name(without_params.dialog(), "default_params_wrap");
     REQUIRE(plain_wrap != nullptr);
-    CHECK(lv_obj_has_flag(plain_wrap, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(plain_wrap));
 
     without_params.hide();
     helix::ui::UpdateQueue::instance().drain();
@@ -294,7 +294,7 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
     auto& unknown_params = show_config_for("PY_LOAD");
     lv_obj_t* unknown_wrap = lv_obj_find_by_name(unknown_params.dialog(), "default_params_wrap");
     REQUIRE(unknown_wrap != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(unknown_wrap, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(unknown_wrap));
 }
 
 TEST_CASE_METHOD(ConfigModalDefaultsFixture,
@@ -309,8 +309,7 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
 
     lv_obj_t* editor = lv_obj_find_by_name(lv_screen_active(), "macro_param_modal");
     REQUIRE(editor != nullptr);
-    REQUIRE_FALSE(
-        lv_obj_has_flag(lv_obj_find_by_name(editor, "modal_title_save"), LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(editor, "modal_title_save")));
     lv_obj_t* field = lv_obj_find_by_name(editor, "field_input");
     REQUIRE(field != nullptr);
     lv_textarea_set_text(field, "purge=1");
@@ -344,8 +343,7 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
 
     lv_obj_t* editor = lv_obj_find_by_name(lv_screen_active(), "macro_param_modal");
     REQUIRE(editor != nullptr);
-    REQUIRE_FALSE(
-        lv_obj_has_flag(lv_obj_find_by_name(editor, "modal_title_save"), LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(editor, "modal_title_save")));
     lv_obj_t* field = lv_obj_find_by_name(editor, "field_input");
     REQUIRE(field != nullptr);
     REQUIRE(std::string(lv_textarea_get_text(field)) == "200");
@@ -426,8 +424,8 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
 
     lv_subject_set_int(tab, 2);
     lv_obj_update_layout(modal.dialog());
-    CHECK(lv_obj_has_flag(sec_macro, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(sec_options, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(sec_macro));
+    CHECK_FALSE(lv_obj_is_hidden(sec_options));
 }
 
 TEST_CASE_METHOD(ConfigModalDefaultsFixture, "a tap on a macro row selects and saves that macro",

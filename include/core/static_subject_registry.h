@@ -15,7 +15,7 @@
  * Core state singletons (PrinterState, AmsState, SettingsManager, FilamentSensorManager)
  * have LVGL subjects that UI widgets observe. When lv_deinit() runs, it deletes widgets
  * which try to remove their observers from subjects. If subjects haven't been deinitialized
- * first, this causes crashes in lv_observer_remove.
+ * first, this causes crashes in lv_observer_delete.
  *
  * This registry is separate from StaticPanelRegistry because:
  * 1. These are NOT panels - they're core state singletons

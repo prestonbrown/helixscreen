@@ -42,7 +42,7 @@ static void on_app_resize() {
         if (!screen)
             continue;
 
-        lv_coord_t header_height = ui_get_responsive_header_height(lv_obj_get_height(screen));
+        int32_t header_height = ui_get_responsive_header_height(lv_obj_get_height(screen));
         lv_obj_set_height(header, header_height);
     }
 
@@ -76,7 +76,7 @@ void ui_component_header_bar_setup(lv_obj_t* header, lv_obj_t* screen) {
     header_instances.push_back(header);
 
     // Apply responsive height immediately
-    lv_coord_t header_height = ui_get_responsive_header_height(lv_obj_get_height(screen));
+    int32_t header_height = ui_get_responsive_header_height(lv_obj_get_height(screen));
     lv_obj_set_height(header, header_height);
 
     // Extend back button's click area for easier touch targeting.

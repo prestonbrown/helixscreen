@@ -235,7 +235,7 @@ void ActiveSpoolWidget::update_spool_display() {
 
     // The wide row's text. With no spool the component shows its own
     // "No Spool" line in place of the material, which re-translates itself.
-    lv_subject_copy_string(&material_subject_, has_spool ? active->material_name.c_str() : "");
+    lv_subject_set_string(&material_subject_, has_spool ? active->material_name.c_str() : "");
 
     std::string brand_color_str;
     if (has_spool && source_slot) {
@@ -251,7 +251,7 @@ void ActiveSpoolWidget::update_spool_display() {
         // The material has its own row above this one, so it is joined out.
         brand_color_str = compose_filament_label(parts.brand, parts.name, "");
     }
-    lv_subject_copy_string(&brand_subject_, brand_color_str.c_str());
+    lv_subject_set_string(&brand_subject_, brand_color_str.c_str());
     lv_subject_set_int(&has_brand_subject_, brand_color_str.empty() ? 0 : 1);
 
     std::string weight_str;
@@ -259,7 +259,7 @@ void ActiveSpoolWidget::update_spool_display() {
         weight_str = std::to_string(static_cast<int>(remaining_weight)) + "g / " +
                      std::to_string(static_cast<int>(total_weight)) + "g";
     }
-    lv_subject_copy_string(&weight_subject_, weight_str.c_str());
+    lv_subject_set_string(&weight_subject_, weight_str.c_str());
     lv_subject_set_int(&has_weight_subject_, weight_str.empty() ? 0 : 1);
 
     lv_subject_set_int(&loaded_subject_, has_spool ? 1 : 0);

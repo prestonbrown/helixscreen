@@ -172,14 +172,14 @@ void PerformanceState::apply_sample(const PerfSample& s) {
 
     if (s.host_disk_free_mb) {
         lv_subject_set_int(&s_host_disk_free_mb_, static_cast<int>(*s.host_disk_free_mb));
-        lv_subject_copy_string(&s_host_disk_free_text_,
-                               format_disk_free_text(*s.host_disk_free_mb).c_str());
+        lv_subject_set_string(&s_host_disk_free_text_,
+                              format_disk_free_text(*s.host_disk_free_mb).c_str());
     }
     set_present(s_host_disk_present_, s.host_disk_free_mb.has_value());
 
     lv_subject_set_int(&s_host_throttle_state_, static_cast<int>(s.host_throttle_bits));
     if (!s.host_throttle_text.empty()) {
-        lv_subject_copy_string(&s_host_throttle_text_, s.host_throttle_text.c_str());
+        lv_subject_set_string(&s_host_throttle_text_, s.host_throttle_text.c_str());
     }
 
     char tmp[48];
@@ -193,14 +193,14 @@ void PerformanceState::apply_sample(const PerfSample& s) {
     } else {
         snprintf(tmp, sizeof(tmp), "\xe2\x80\x94");
     }
-    lv_subject_copy_string(&s_host_cpu_pct_text_, tmp);
+    lv_subject_set_string(&s_host_cpu_pct_text_, tmp);
 
     if (s.host_mem_free_mb) {
         snprintf(tmp, sizeof(tmp), "%u MB free", *s.host_mem_free_mb);
     } else {
         snprintf(tmp, sizeof(tmp), "\xe2\x80\x94");
     }
-    lv_subject_copy_string(&s_host_mem_free_text_, tmp);
+    lv_subject_set_string(&s_host_mem_free_text_, tmp);
 
     update_mcu_subjects(s.mcus);
 
@@ -235,7 +235,7 @@ void PerformanceState::update_about_summary(const PerfSample& s) {
     } else {
         snprintf(tmp, sizeof(tmp), "\xe2\x80\x94");
     }
-    lv_subject_copy_string(&s_about_summary_, tmp);
+    lv_subject_set_string(&s_about_summary_, tmp);
 }
 void PerformanceState::update_mcu_subjects(const std::vector<McuStat>& mcus) {
     // Sort by name for deterministic order
@@ -288,7 +288,7 @@ void PerformanceState::update_mcu_subjects(const std::vector<McuStat>& mcus) {
         } else {
             snprintf(subs->buf_text, sizeof(subs->buf_text), "%d%%", load_pct_val);
         }
-        lv_subject_copy_string(&subs->text, subs->buf_text);
+        lv_subject_set_string(&subs->text, subs->buf_text);
 
         seen[safe] = true;
     }
@@ -305,7 +305,7 @@ void PerformanceState::update_mcu_subjects(const std::vector<McuStat>& mcus) {
             joined += ",";
         joined += sorted[i].name;
     }
-    lv_subject_copy_string(&s_mcu_names_, joined.c_str());
+    lv_subject_set_string(&s_mcu_names_, joined.c_str());
 }
 
 void PerformanceState::push_history(const std::string& key, float value) {

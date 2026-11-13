@@ -232,7 +232,7 @@ class PrinterExcludedObjectsState {
     ///
     /// deinit_subjects() frees every observer node on them without bumping
     /// the ObserverGuard invalidation epoch, so outside observers must pass
-    /// this to observe_*(), or their guards call lv_observer_remove() on a
+    /// this to observe_*(), or their guards call lv_observer_delete() on a
     /// freed node.
     [[nodiscard]] SubjectLifetime get_subjects_lifetime() const {
         return subjects_.get_subjects_lifetime();

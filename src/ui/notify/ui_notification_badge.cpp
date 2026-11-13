@@ -192,7 +192,7 @@ void* notification_badge_create(lv_xml_parser_state_t* state, const char** attrs
     }
     lv_obj_set_style_pad_all(badge, 0, LV_PART_MAIN);
     lv_obj_set_style_border_width(badge, 0, LV_PART_MAIN);
-    lv_obj_clear_flag(badge, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(badge, false);
 
     // Background color is driven by the severity-bound styles in XML
     // (badge_info/badge_warning/badge_error via bind_style). Do NOT set a local

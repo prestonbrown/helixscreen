@@ -230,7 +230,7 @@ void PrintTuneOverlay::setup_panel() {
 
     // Per-tool z-offset. ToolState's lifetime is passed on every one of these:
     // it is a singleton whose deinit_subjects() frees the observer nodes, and a
-    // guard without the token would call lv_observer_remove() on freed memory
+    // guard without the token would call lv_observer_delete() on freed memory
     // (CLAUDE.md rule 4).
     {
         auto& ts = helix::ToolState::instance();
@@ -303,9 +303,9 @@ void PrintTuneOverlay::update_z_offset_icons(lv_obj_t* /*panel*/) {
     const char* farther_icon = bed_moves_z ? "arrow_expand_down" : "arrow_up";
 
     std::strncpy(z_closer_icon_buf_, closer_icon, sizeof(z_closer_icon_buf_) - 1);
-    lv_subject_copy_string(&z_closer_icon_subject_, z_closer_icon_buf_);
+    lv_subject_set_string(&z_closer_icon_subject_, z_closer_icon_buf_);
     std::strncpy(z_farther_icon_buf_, farther_icon, sizeof(z_farther_icon_buf_) - 1);
-    lv_subject_copy_string(&z_farther_icon_subject_, z_farther_icon_buf_);
+    lv_subject_set_string(&z_farther_icon_subject_, z_farther_icon_buf_);
 
     spdlog::debug("[PrintTuneOverlay] Z-offset icons: closer={}, farther={}", closer_icon,
                   farther_icon);
@@ -366,10 +366,10 @@ void PrintTuneOverlay::update_display() {
             tune_actual_flow_buf_[0] = '\0';
         }
     }
-    lv_subject_copy_string(&tune_speed_subject_, tune_speed_buf_);
-    lv_subject_copy_string(&tune_flow_subject_, tune_flow_buf_);
-    lv_subject_copy_string(&tune_actual_speed_subject_, tune_actual_speed_buf_);
-    lv_subject_copy_string(&tune_actual_flow_subject_, tune_actual_flow_buf_);
+    lv_subject_set_string(&tune_speed_subject_, tune_speed_buf_);
+    lv_subject_set_string(&tune_flow_subject_, tune_flow_buf_);
+    lv_subject_set_string(&tune_actual_speed_subject_, tune_actual_speed_buf_);
+    lv_subject_set_string(&tune_actual_flow_subject_, tune_actual_flow_buf_);
 }
 
 void PrintTuneOverlay::update_speed_flow_display(int speed_percent, int flow_percent) {
@@ -423,7 +423,7 @@ void PrintTuneOverlay::update_pa_display() {
         printer_state_->temperature_state().get_active_extruder_pressure_advance_subject());
     lv_strlcpy(tune_pa_buf_, helix::tune::pressure_advance_text(value).c_str(),
                sizeof(tune_pa_buf_));
-    lv_subject_copy_string(&tune_pa_subject_, tune_pa_buf_);
+    lv_subject_set_string(&tune_pa_subject_, tune_pa_buf_);
 }
 
 void PrintTuneOverlay::handle_pa_adjust(int steps) {
@@ -528,7 +528,7 @@ void PrintTuneOverlay::update_tool_z_displays() {
                          : helix::ui::lane_label(helix::ui::active_tool_noun(), tool_index);
     std::snprintf(tune_z_tool_label_buf_, sizeof(tune_z_tool_label_buf_), "%s",
                   tool_display_label.c_str());
-    lv_subject_copy_string(&tune_z_tool_label_subject_, tune_z_tool_label_buf_);
+    lv_subject_set_string(&tune_z_tool_label_subject_, tune_z_tool_label_buf_);
 
     char global_mm[16];
     helix::format::format_distance_mm(current_z_offset_, 3, global_mm, sizeof(global_mm));
@@ -551,7 +551,7 @@ void PrintTuneOverlay::update_tool_z_displays() {
     } else {
         lv_strlcpy(tune_z_offset_buf_, global_mm, sizeof(tune_z_offset_buf_));
     }
-    lv_subject_copy_string(&tune_z_offset_subject_, tune_z_offset_buf_);
+    lv_subject_set_string(&tune_z_offset_subject_, tune_z_offset_buf_);
 
     // The muted label carries the target the buttons are NOT on, so both
     // numbers are readable at once. Empty on a printer with only one of them.
@@ -566,14 +566,14 @@ void PrintTuneOverlay::update_tool_z_displays() {
     } else {
         tune_z_other_buf_[0] = '\0';
     }
-    lv_subject_copy_string(&tune_z_other_subject_, tune_z_other_buf_);
+    lv_subject_set_string(&tune_z_other_subject_, tune_z_other_buf_);
 
     const auto saved = helix::zoffset::saved_offset_line();
     if (saved) {
         lv_strlcpy(tune_z_offset_saved_buf_,
                    helix::zoffset::format_saved_offset_line(*saved).c_str(),
                    sizeof(tune_z_offset_saved_buf_));
-        lv_subject_copy_string(&tune_z_offset_saved_subject_, tune_z_offset_saved_buf_);
+        lv_subject_set_string(&tune_z_offset_saved_subject_, tune_z_offset_saved_buf_);
     }
     lv_subject_set_int(&tune_z_offset_saved_visible_subject_, saved ? 1 : 0);
 }

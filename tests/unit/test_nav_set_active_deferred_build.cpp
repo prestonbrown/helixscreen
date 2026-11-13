@@ -111,5 +111,5 @@ TEST_CASE_METHOD(DeferredBuildFixture,
     drain();
     REQUIRE(builds_ == 1);
     REQUIRE(deferred_panel_.activations == 1);
-    REQUIRE_FALSE(lv_obj_has_flag(nav.get_panel_widget(PanelId::PrintSelect), LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(nav.get_panel_widget(PanelId::PrintSelect)));
 }

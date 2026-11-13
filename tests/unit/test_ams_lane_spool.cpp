@@ -77,7 +77,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     CHECK(lv_obj_get_style_opa(part(spool, "spool_graphic"), LV_PART_MAIN) ==
           ams_draw::kEmptyReelOpa);
-    CHECK_FALSE(lv_obj_has_flag(part(spool, "empty_placeholder"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(part(spool, "empty_placeholder")));
     helix::ui::ams_lane_spool_set_fill_level(spool, 0.8f); // a bare reel carries no filament
     CHECK(ui_spool_canvas_get_fill_level(part(spool, "spool_graphic")) == 0.0f);
     lv_obj_delete(spool);
@@ -97,9 +97,9 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_spool: a Ghosted lane keeps the spool
     process_lvgl(20);
 
     lv_obj_t* graphic = part(spool, "spool_graphic");
-    CHECK_FALSE(lv_obj_has_flag(graphic, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(graphic));
     CHECK(lv_obj_get_style_opa(graphic, LV_PART_MAIN) == ams_draw::kGhostOpa);
-    CHECK(lv_obj_has_flag(part(spool, "empty_placeholder"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(part(spool, "empty_placeholder")));
     lv_obj_delete(spool);
 }
 
@@ -115,7 +115,7 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_spool: a Present lane renders full st
     process_lvgl(20);
 
     lv_obj_t* graphic = part(spool, "spool_graphic");
-    CHECK_FALSE(lv_obj_has_flag(graphic, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(graphic));
     CHECK(lv_obj_get_style_opa(graphic, LV_PART_MAIN) == LV_OPA_COVER);
     lv_obj_delete(spool);
 }
@@ -219,7 +219,7 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_spool: flat style draws the spool fac
     CHECK(lv_color_eq(ui_spool_canvas_get_color(graphic), lv_color_hex(0xFF0000)));
     CHECK(lv_obj_find_by_name(spool, "spool_outer") == nullptr);
     CHECK(lv_obj_find_by_name(spool, "spool_hub") == nullptr);
-    CHECK(lv_obj_has_flag(part(spool, "empty_placeholder"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(part(spool, "empty_placeholder")));
 
     lv_obj_delete(spool);
     helix::Config::get_instance()->set<std::string>("/ams/spool_style", "3d");
@@ -238,13 +238,13 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_spool: a flat lane dims when ghosted,
     process_lvgl(20);
 
     lv_obj_t* graphic = part(spool, "spool_graphic");
-    CHECK_FALSE(lv_obj_has_flag(graphic, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(graphic));
     CHECK(lv_obj_get_style_opa(graphic, LV_PART_MAIN) == ams_draw::kGhostOpa);
 
     lv_subject_set_int(lane, static_cast<int>(helix::ui::LaneState::Empty));
     process_lvgl(20);
     CHECK(lv_obj_get_style_opa(graphic, LV_PART_MAIN) == ams_draw::kEmptyReelOpa);
-    CHECK_FALSE(lv_obj_has_flag(part(spool, "empty_placeholder"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(part(spool, "empty_placeholder")));
 
     lv_obj_delete(spool);
     helix::Config::get_instance()->set<std::string>("/ams/spool_style", "3d");
@@ -338,7 +338,7 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_spool: the glow is centred on the spo
     process_lvgl(20);
     lv_obj_t* glow = part(spool, "spool_glow");
     lv_obj_t* graphic = part(spool, "spool_graphic");
-    REQUIRE_FALSE(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(glow));
 
     const int32_t m = (static_cast<int32_t>(buf_of(glow)->header.w) -
                        static_cast<int32_t>(buf_of(graphic)->header.w)) /
@@ -362,7 +362,7 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_spool: the glow is centred on the spo
     CHECK(std::abs(gy - (sy + m)) < 1.5);
 
     helix::ui::ams_lane_spool_set_highlight(spool, helix::ui::SpoolHighlight::None);
-    CHECK(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(glow));
     CHECK(lv_image_get_src(glow) == nullptr); // un-highlight drops the image
     lv_obj_delete(spool);
 }
@@ -586,18 +586,18 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_obj_t* dot = find_error_dot(spool);
     REQUIRE(dot != nullptr);
 
-    REQUIRE_FALSE(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(glow));
     CHECK(hue_is(glow_hue(glow), ams_draw::severity_color(sev)));
     CHECK((lv_anim_get(glow, nullptr) != nullptr) == animate);
-    CHECK(lv_obj_has_flag(dot, LV_OBJ_FLAG_HIDDEN)); // the glow replaces the dot
+    CHECK(lv_obj_is_hidden(dot)); // the glow replaces the dot
     CHECK(lv_anim_get(dot, nullptr) == nullptr);
 
     // Clearing the error unlights the glow.
     lv_subject_set_int(AmsState::instance().get_slot_has_error_subject(0), 0);
     process_lvgl(20);
-    CHECK(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(glow));
     CHECK(lv_image_get_src(glow) == nullptr);
-    CHECK(lv_obj_has_flag(dot, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(dot));
 
     lv_obj_delete(spool);
     clear_slot_error();
@@ -615,8 +615,8 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_spool: an error on an empty lane keep
     // No silhouette to glow around: the dot carries the error.
     lv_obj_t* dot = find_error_dot(spool);
     REQUIRE(dot != nullptr);
-    CHECK(lv_obj_has_flag(part(spool, "spool_glow"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(dot, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(part(spool, "spool_glow")));
+    CHECK_FALSE(lv_obj_is_hidden(dot));
     CHECK(lv_color_eq(lv_obj_get_style_bg_color(dot, LV_PART_MAIN),
                       ams_draw::severity_color(SlotError::Severity::ERROR)));
 
@@ -624,8 +624,8 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_spool: an error on an empty lane keep
     lv_subject_set_int(AmsState::instance().get_slot_lane_state_subject(0),
                        static_cast<int>(helix::ui::LaneState::Present));
     process_lvgl(20);
-    CHECK(lv_obj_has_flag(dot, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(part(spool, "spool_glow"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(dot));
+    CHECK_FALSE(lv_obj_is_hidden(part(spool, "spool_glow")));
 
     lv_obj_delete(spool);
     clear_slot_error();
@@ -638,13 +638,13 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_spool: a current lane in error glows 
     helix::ui::ams_lane_spool_set_highlight(spool, helix::ui::SpoolHighlight::Steady);
     process_lvgl(20);
     lv_obj_t* glow = part(spool, "spool_glow");
-    REQUIRE_FALSE(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(glow));
     CHECK(hue_is(glow_hue(glow), ams_draw::severity_color(SlotError::Severity::ERROR)));
 
     // The error clearing hands the glow back to the current lane's accent.
     lv_subject_set_int(AmsState::instance().get_slot_has_error_subject(0), 0);
     process_lvgl(20);
-    REQUIRE_FALSE(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(glow));
     CHECK(hue_is(glow_hue(glow), helix::ui::tube_accent()));
     CHECK(lv_anim_get(glow, nullptr) == nullptr);
     CHECK(lv_obj_get_style_opa(glow, LV_PART_MAIN) == LV_OPA_COVER);

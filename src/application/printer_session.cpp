@@ -552,7 +552,7 @@ bool PrinterSession::rebuild() {
     // ObserverGuard::invalidate_all() ran at the end of teardown. Guards in
     // surviving singletons hold freed observer pointers; when they get
     // reassigned (guard = observe_*()), reset() sees they predate the
-    // invalidation and releases instead of calling lv_observer_remove().
+    // invalidation and releases instead of calling lv_observer_delete().
 
     // Reinitialize update queue BEFORE moonraker so background thread callbacks
     // (hardware discovery, WebSocket messages) have a functioning queue.
@@ -622,7 +622,7 @@ bool PrinterSession::rebuild() {
 // lv_deinit() frees every widget and the process ends). Steps that differ are guarded by
 // `exiting` and say why; everything else runs identically in both scopes. Subjects stay
 // alive until StaticSubjectRegistry::deinit_all() so ObserverGuards can call
-// lv_observer_remove() while destroying.
+// lv_observer_delete() while destroying.
 void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager* exit_display) {
     const bool exiting = scope == TeardownScope::ProcessExit;
     auto destroy_panels = [exiting] {
@@ -815,7 +815,7 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
     helix::FilamentConsumptionTracker::instance().stop();
 
     // Destroy ALL static panel/overlay globals (releases ObserverGuards, deinits local
-    // subjects). LVGL must still be initialized so lv_observer_remove() can remove
+    // subjects). LVGL must still be initialized so lv_observer_delete() can remove
     // unsubscribe_on_delete_cb from widget event lists. A switch frees the overlay roots
     // the panel destructors hand back (400-800KB each, parented to the screen, nothing
     // else deletes them); exit leaves them for lv_deinit(), because deleting widgets
@@ -829,7 +829,7 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
     }
 
     // Deinit core singleton subjects (PrinterState, AmsState, SettingsManager, ...) BEFORE
-    // lv_deinit(). lv_subject_deinit() calls lv_observer_remove() for each observer, which
+    // lv_deinit(). lv_subject_deinit() calls lv_observer_delete() for each observer, which
     // removes unsubscribe_on_delete_cb from widget event lists, so widgets then delete
     // without firing stale unsubscribe callbacks on corrupted linked lists.
     // A switch spares the entries whose init the rebuild below does not re-run.
@@ -854,10 +854,10 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
     }
 
     // Invalidate all ObserverGuards so any reset() in surviving destructors releases
-    // instead of calling lv_observer_remove() on freed observer pointers.
+    // instead of calling lv_observer_delete() on freed observer pointers.
     // lv_subject_deinit() (via deinit_all() above) frees each observer it iterates, so
     // without this MoonrakerManager's ObserverGuard members would call
-    // lv_observer_remove() on freed memory (lv_observer.c, lv_ll_remove).
+    // lv_observer_delete() on freed memory (lv_observer.c, lv_ll_remove).
     ObserverGuard::invalidate_all(exiting);
 
     // Tear down GcodeErrorRouter before MoonrakerClient: its dtor unregisters the live and
@@ -882,7 +882,7 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
     KeyboardManager::instance().reset(); // widget pointers dangle after the tree delete
 
     // Delete the LVGL widget tree (panels already released their references). The display
-    // stays alive, so no lv_deinit(). A synchronous lv_obj_del() of the tree the current
+    // stays alive, so no lv_deinit(). A synchronous lv_obj_delete() of the tree the current
     // event or callback may still be walking can corrupt LVGL's global event list
     // (#776/#190/#80); m_app_layout is also the Home widget grid, where a relayout racing
     // teardown could iterate a freed container (#983). safe_delete_subtree() detaches the

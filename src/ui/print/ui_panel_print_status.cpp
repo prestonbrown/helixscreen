@@ -267,7 +267,7 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
     // routinely outlives a PrinterState::deinit_subjects() cycle — printer
     // switching in production, per-fixture teardown in tests. Without the token
     // each guard keeps a pointer to an observer node that lv_subject_deinit()
-    // already freed, and the next reset() calls lv_observer_remove() on freed
+    // already freed, and the next reset() calls lv_observer_delete() on freed
     // memory: SIGSEGV at lv_observer.c:584 dereferencing observer->subject.
     // Subjects owned by this panel or by other singletons take no token here.
     const SubjectLifetime ps_subjects = printer_state_.get_subjects_lifetime();
@@ -895,7 +895,7 @@ void PrintStatusPanel::deinit_subjects() {
     // Reset observers on local subjects BEFORE deinit frees them.
     // subjects_.deinit_all() calls lv_subject_deinit which frees observer
     // structs — any ObserverGuard still holding a pointer would crash
-    // in its destructor trying to lv_observer_remove() on freed memory.
+    // in its destructor trying to lv_observer_delete() on freed memory.
     end_overlay_dismissed_observer_.reset();
     print_stop_reason_observer_.reset();
     camera_webcam_observer_.reset();
@@ -1137,13 +1137,13 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
     preview_.restore_cached_thumbnail();
 
     // Hide initially - NavigationManager will show when pushed
-    lv_obj_add_flag(overlay_root_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay_root_, true);
 
     // Seed view toggle icon now that globals.xml has been loaded (init_subjects
     // runs too early to resolve #icon_cube). The subject drives the XML
     // bind_text on btn_view_toggle_icon, so this is the initial render state.
     if (const char* icon = lv_xml_get_const(nullptr, "icon_cube")) {
-        lv_subject_copy_string(&view_toggle_icon_subject_, icon);
+        lv_subject_set_string(&view_toggle_icon_subject_, icon);
     }
 
     // Initial fan classification (may rebind later when fans_version updates)
@@ -1217,7 +1217,7 @@ void PrintStatusPanel::on_activate() {
     update_preview_camera();
 
     // Sync gcode viewer to current print layer (may have advanced while panel was hidden)
-    if (gcode_present && !lv_obj_has_flag(gcode_viewer_, LV_OBJ_FLAG_HIDDEN)) {
+    if (gcode_present && !lv_obj_is_hidden(gcode_viewer_)) {
         int current_layer =
             lv_subject_get_int(printer_state_.print_state().get_print_layer_current_subject());
         int total_layers =
@@ -1591,17 +1591,17 @@ void PrintStatusPanel::show_gcode_viewer(bool show) {
 
     // Diagnostic: log visibility state of all viewer components
     if (print_thumbnail_) {
-        bool thumb_hidden = lv_obj_has_flag(print_thumbnail_, LV_OBJ_FLAG_HIDDEN);
+        bool thumb_hidden = lv_obj_is_hidden(print_thumbnail_);
         const void* img_src = lv_image_get_src(print_thumbnail_);
         spdlog::trace("[{}]   -> thumbnail: hidden={}, has_src={}", get_name(), thumb_hidden,
                       img_src != nullptr);
     }
     if (gcode_viewer_) {
-        bool viewer_hidden = lv_obj_has_flag(gcode_viewer_, LV_OBJ_FLAG_HIDDEN);
+        bool viewer_hidden = lv_obj_is_hidden(gcode_viewer_);
         spdlog::trace("[{}]   -> gcode_viewer: hidden={}", get_name(), viewer_hidden);
     }
     if (gradient_background_) {
-        bool grad_hidden = lv_obj_has_flag(gradient_background_, LV_OBJ_FLAG_HIDDEN);
+        bool grad_hidden = lv_obj_is_hidden(gradient_background_);
         spdlog::trace("[{}]   -> gradient: hidden={}", get_name(), grad_hidden);
     }
 }
@@ -1956,7 +1956,7 @@ void PrintStatusPanel::handle_resize() {
     spdlog::debug("[{}] Handling resize event", get_name());
 
     // Reset gcode viewer camera to fit new dimensions
-    if (gcode_viewer_ && !lv_obj_has_flag(gcode_viewer_, LV_OBJ_FLAG_HIDDEN)) {
+    if (gcode_viewer_ && !lv_obj_is_hidden(gcode_viewer_)) {
         // Force layout recalculation so viewer gets correct dimensions
         lv_obj_update_layout(gcode_viewer_);
         helix::ui::gcode_viewer_reset_camera(gcode_viewer_);
@@ -2011,7 +2011,7 @@ void PrintStatusPanel::handle_view_toggle() {
     const char* icon_text =
         lv_xml_get_const(nullptr, complete_view_mode_ ? "icon_layers" : "icon_cube");
     if (icon_text) {
-        lv_subject_copy_string(&view_toggle_icon_subject_, icon_text);
+        lv_subject_set_string(&view_toggle_icon_subject_, icon_text);
     }
 
     spdlog::debug("[PrintStatusPanel] View toggle: {}",
@@ -2224,7 +2224,7 @@ void PrintStatusPanel::recompute_paused_overlay_visibility() {
                 lv_subject_get_string(printer_state_.print_state().get_print_stop_reason_subject());
         }
     }
-    lv_subject_copy_string(&print_pause_reason_subject_, reason.c_str());
+    lv_subject_set_string(&print_pause_reason_subject_, reason.c_str());
     lv_subject_set_int(&print_pause_reason_visible_subject_, reason.empty() ? 0 : 1);
 }
 
@@ -2266,7 +2266,7 @@ void PrintStatusPanel::apply_new_print_resets(bool reset_progress_bar,
         complete_view_mode_ = false;
         // Reset toggle icon to default (progress view)
         if (const char* icon = lv_xml_get_const(nullptr, "icon_cube")) {
-            lv_subject_copy_string(&view_toggle_icon_subject_, icon);
+            lv_subject_set_string(&view_toggle_icon_subject_, icon);
         }
         // Clear any prior end-overlay dismissal so the next outcome surfaces.
         lv_subject_set_int(&end_overlay_dismissed_subject_, 0);
@@ -2482,8 +2482,7 @@ void PrintStatusPanel::on_print_layer_changed(int current_layer) {
     progress_text_.refresh_layer();
 
     // Update G-code viewer ghost layer if panel is active and viewer is visible
-    if (is_active_ && gcode_viewer_ && !lv_obj_has_flag(gcode_viewer_, LV_OBJ_FLAG_HIDDEN) &&
-        !complete_view_mode_) {
+    if (is_active_ && gcode_viewer_ && !lv_obj_is_hidden(gcode_viewer_) && !complete_view_mode_) {
         // Map from Moonraker layer count (e.g., 240) to viewer layer count (e.g., 2912)
         // The slicer metadata and parsed G-code often have different layer counts
         int viewer_max_layer = helix::ui::gcode_viewer_get_max_layer(gcode_viewer_);
@@ -2739,7 +2738,7 @@ void PrintStatusPanel::update_objects_text() {
     } else {
         objects_text_buf_[0] = '\0';
     }
-    lv_subject_copy_string(&objects_text_subject_, objects_text_buf_);
+    lv_subject_set_string(&objects_text_subject_, objects_text_buf_);
 }
 
 void PrintStatusPanel::update_button_states() {

@@ -26,7 +26,7 @@
  *
  * @return Padding value in pixels
  */
-lv_coord_t ui_get_header_content_padding();
+int32_t ui_get_header_content_padding();
 
 /**
  * @brief Get responsive header height based on screen size
@@ -36,7 +36,7 @@ lv_coord_t ui_get_header_content_padding();
  * @param screen_height Current screen height in pixels
  * @return Header height in pixels (60px for large/medium, 48px for small, 40px for tiny)
  */
-lv_coord_t ui_get_responsive_header_height(lv_coord_t screen_height);
+int32_t ui_get_responsive_header_height(int32_t screen_height);
 
 // ============================================================================
 // LED Icon Utilities
@@ -73,9 +73,9 @@ namespace helix::ui {
  */
 inline void toggle_list_empty_state(lv_obj_t* list, lv_obj_t* empty_state, bool has_items) {
     if (list)
-        lv_obj_set_flag(list, LV_OBJ_FLAG_HIDDEN, !has_items);
+        lv_obj_set_hidden(list, !has_items);
     if (empty_state)
-        lv_obj_set_flag(empty_state, LV_OBJ_FLAG_HIDDEN, has_items);
+        lv_obj_set_hidden(empty_state, has_items);
 }
 
 // ============================================================================
@@ -196,7 +196,7 @@ inline bool is_on_active_screen(lv_obj_t* obj) {
 /// hit-tested, however unhidden it is itself.
 inline lv_obj_t* hidden_ancestor(lv_obj_t* obj) {
     for (; obj; obj = lv_obj_get_parent(obj)) {
-        if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(obj))
             return obj;
     }
     return nullptr;
@@ -242,7 +242,7 @@ inline void safe_delete_deferred(lv_obj_t*& obj) {
     lv_obj_t* to_delete = obj;
     obj = nullptr;
     // Hide immediately so the widget isn't visible while deletion is deferred
-    lv_obj_add_flag(to_delete, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(to_delete, true);
     defocus_tree(to_delete);
     // Reparent to lv_layer_top() so the original parent's destruction won't
     // recursively delete this child while it's queued for async delete.
@@ -275,7 +275,7 @@ inline void safe_delete_deferred_raw(lv_obj_t* obj) {
     if (!has_sane_parent_chain(obj)) {
         return;
     }
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(obj, true);
     defocus_tree(obj);
     lv_obj_t* layer = lv_layer_top();
     if (layer) {
@@ -419,8 +419,8 @@ inline void safe_delete_subtree(lv_obj_t* obj) {
     // Off-tree, hidden, size-0, layout-less condemned container. No grid/flex
     // layout means grid_update never runs on it (or on obj via it).
     lv_obj_t* condemned = lv_obj_create(lv_layer_top());
-    lv_obj_add_flag(condemned, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(condemned, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_hidden(condemned, true);
+    lv_obj_set_scrollable(condemned, false);
     lv_obj_set_size(condemned, 0, 0);
 
     // Detach obj from its original parent's child list synchronously. After
@@ -517,7 +517,7 @@ inline void set_event_bubble_recursive(lv_obj_t* obj) {
     uint32_t count = lv_obj_get_child_count(obj);
     for (uint32_t i = 0; i < count; ++i) {
         lv_obj_t* child = lv_obj_get_child(obj, static_cast<int32_t>(i));
-        lv_obj_add_flag(child, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_set_event_bubble(child, true);
         set_event_bubble_recursive(child);
     }
 }
@@ -544,8 +544,8 @@ inline void disable_widget_clicks_recursive(lv_obj_t* obj) {
         lv_obj_t* child = lv_obj_get_child(obj, static_cast<int32_t>(i));
         if (!child)
             continue;
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_CLICKABLE)) {
-            lv_obj_remove_flag(child, LV_OBJ_FLAG_CLICKABLE);
+        if (lv_obj_is_clickable(child)) {
+            lv_obj_set_clickable(child, false);
             lv_obj_add_flag(child, kEditClickSuppressedFlag);
         }
         disable_widget_clicks_recursive(child);
@@ -568,7 +568,7 @@ inline void enable_widget_clicks_recursive(lv_obj_t* obj) {
             continue;
         if (lv_obj_has_flag(child, kEditClickSuppressedFlag)) {
             lv_obj_remove_flag(child, kEditClickSuppressedFlag);
-            lv_obj_add_flag(child, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(child, true);
         }
         enable_widget_clicks_recursive(child);
     }

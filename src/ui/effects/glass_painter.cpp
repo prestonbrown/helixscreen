@@ -217,8 +217,8 @@ void on_draw_task(lv_event_t* e) {
 /// constructor resets every flag.
 void on_draw_begin(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
-    if (obj != nullptr && !lv_obj_has_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS)) {
-        lv_obj_add_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    if (obj != nullptr && !lv_obj_is_send_draw_task_events(obj)) {
+        lv_obj_set_send_draw_task_events(obj, true);
     }
 }
 
@@ -286,9 +286,9 @@ void glass_attach(lv_obj_t* obj) {
     if (obj == nullptr || lv_obj_check_type(obj, &lv_label_class) || find_glass_event(obj)) {
         return;
     }
-    const bool had_flag = lv_obj_has_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    const bool had_flag = lv_obj_is_send_draw_task_events(obj);
     if (!had_flag) {
-        lv_obj_add_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+        lv_obj_set_send_draw_task_events(obj, true);
     }
     lv_obj_add_event_cb(obj, on_draw_task, LV_EVENT_DRAW_TASK_ADDED, // DECLARATIVE_OK: draw hook
                         reinterpret_cast<void*>(had_flag ? kFlagWasThere : kFlagWasOurs));
@@ -309,7 +309,7 @@ void glass_detach(lv_obj_t* obj) {
     lv_obj_remove_event_cb(obj, on_draw_task);
     lv_obj_remove_event_cb(obj, on_draw_begin);
     if (how == kFlagWasOurs && !has_other_draw_task_handler(obj)) {
-        lv_obj_remove_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+        lv_obj_set_send_draw_task_events(obj, false);
     }
     lv_obj_invalidate(obj);
 }

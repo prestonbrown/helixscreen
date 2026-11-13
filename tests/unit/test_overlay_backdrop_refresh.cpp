@@ -164,7 +164,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Backdrop refresh re-snapshots the live base c
     lv_obj_t* backdrop = NavigationManagerTestAccess::overlay_backdrop(nav);
     REQUIRE(backdrop != nullptr);
 
-    lv_obj_add_flag(base, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(base, true);
     lv_obj_t* overlay = make_flat_layer(screen, kOverlayColor);
     lv_obj_move_foreground(overlay);
     NavigationManagerTestAccess::set_panel_stack(nav, {base, overlay});
@@ -196,8 +196,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "Backdrop refresh re-snapshots the live base c
         NavigationManagerTestAccess::refresh_overlay_backdrop(nav);
         process_lvgl(20);
 
-        CHECK(lv_obj_has_flag(base, LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(overlay, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(base));
+        CHECK_FALSE(lv_obj_is_hidden(overlay));
     }
 
     SECTION("the replacement stays below the overlay it backs") {
@@ -232,7 +232,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "The backdrop snapshot excludes the arriving o
     Rgb px = backdrop_center_pixel(backdrop);
     CHECK(px.g < px.r);
     // The arriving overlay leaves the snapshot in the visibility it started in.
-    CHECK_FALSE(lv_obj_has_flag(arriving, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(arriving));
 
     NavigationManagerTestAccess::set_panel_stack(nav, {});
 }
@@ -387,7 +387,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "with snapshots off the backdrop is a dim laye
     CHECK_FALSE(lv_obj_check_type(backdrop, &lv_image_class));
     CHECK(lv_obj_get_style_bg_opa(backdrop, LV_PART_MAIN) == 40);
     CHECK(lv_color_eq(lv_obj_get_style_bg_color(backdrop, LV_PART_MAIN), lv_color_black()));
-    CHECK(lv_obj_has_flag(backdrop, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(backdrop));
     CHECK(lv_obj_get_index(backdrop) > lv_obj_get_index(base));
 
     // Translucent over the live navbar, so there is nothing to re-take.

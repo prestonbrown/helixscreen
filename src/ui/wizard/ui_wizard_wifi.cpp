@@ -173,12 +173,12 @@ const char* WizardWifiStep::get_wifi_signal_icon(int signal_strength, bool is_se
 void WizardWifiStep::update_wifi_status(const char* status) {
     if (!status)
         return;
-    lv_subject_copy_string(&wifi_status_, status);
+    lv_subject_set_string(&wifi_status_, status);
 }
 
 void WizardWifiStep::update_wifi_ip(const char* ip, const std::string& mac) {
     spdlog::debug("[{}] Updating WiFi IP: {}", get_name(), ip ? ip : "(none)");
-    lv_subject_copy_string(&wifi_ip_, ip ? ip : "");
+    lv_subject_set_string(&wifi_ip_, ip ? ip : "");
 
     // Update WiFi MAC when we have an IP (connected)
     if (ip && ip[0] != '\0') {
@@ -187,10 +187,10 @@ void WizardWifiStep::update_wifi_ip(const char* ip, const std::string& mac) {
         if (!mac.empty()) {
             char mac_buf[32];
             snprintf(mac_buf, sizeof(mac_buf), "MAC: %s", mac.c_str());
-            lv_subject_copy_string(&wifi_mac_, mac_buf);
+            lv_subject_set_string(&wifi_mac_, mac_buf);
         }
     } else {
-        lv_subject_copy_string(&wifi_mac_, "");
+        lv_subject_set_string(&wifi_mac_, "");
     }
 }
 
@@ -229,8 +229,8 @@ void WizardWifiStep::refresh_network_list() {
 void WizardWifiStep::update_ethernet_status() {
     if (!ethernet_manager_) {
         LOG_WARN_INTERNAL("Ethernet manager not initialized");
-        lv_subject_copy_string(&ethernet_status_, "Unknown");
-        lv_subject_copy_string(&ethernet_mac_, "");
+        lv_subject_set_string(&ethernet_status_, "Unknown");
+        lv_subject_set_string(&ethernet_mac_, "");
         return;
     }
 
@@ -261,19 +261,19 @@ void WizardWifiStep::update_ethernet_status() {
                 char status_buf[128];
                 snprintf(status_buf, sizeof(status_buf), lv_tr("Connected (%s)"),
                          info_copy.ip_address.c_str());
-                lv_subject_copy_string(&ethernet_status_, status_buf);
+                lv_subject_set_string(&ethernet_status_, status_buf);
                 spdlog::debug("[{}] Ethernet status: {}", get_name(), status_buf);
             } else {
-                lv_subject_copy_string(&ethernet_status_, info_copy.status.c_str());
+                lv_subject_set_string(&ethernet_status_, info_copy.status.c_str());
                 spdlog::debug("[{}] Ethernet status: {}", get_name(), info_copy.status);
             }
 
             if (!info_copy.mac_address.empty()) {
                 char mac_buf[32];
                 snprintf(mac_buf, sizeof(mac_buf), "MAC: %s", info_copy.mac_address.c_str());
-                lv_subject_copy_string(&ethernet_mac_, mac_buf);
+                lv_subject_set_string(&ethernet_mac_, mac_buf);
             } else {
-                lv_subject_copy_string(&ethernet_mac_, "");
+                lv_subject_set_string(&ethernet_mac_, "");
             }
         });
     });
@@ -429,7 +429,7 @@ void WizardWifiStep::clear_network_list() {
             // Remove clickable flag to prevent stale indev click events —
             // LVGL's indev may have cached this item as the pressed target,
             // and would fire CLICKED on a freed object if we delete synchronously.
-            lv_obj_remove_flag(child, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(child, false);
 
             // Defer deletion to next tick — safe_delete_deferred hides immediately
             // and deletes via lv_obj_delete_async. The DELETE handler will
@@ -573,7 +573,7 @@ void WizardWifiStep::handle_wifi_toggle_changed(lv_event_t* e) {
 
 void WizardWifiStep::handle_network_item_clicked(lv_event_t* e) {
     lv_obj_t* item = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    if (!item || lv_obj_has_flag(item, LV_OBJ_FLAG_HIDDEN))
+    if (!item || lv_obj_is_hidden(item))
         return; // Deferred-deleted item, ignore stale click (#778)
 
     WifiWizardNetworkItemData* item_data =
@@ -765,13 +765,13 @@ void WizardWifiStep::init_subjects() {
         lv_subject_set_int(&wifi_connecting_, 0);
         lv_subject_set_int(&wifi_hardware_available_, 1);
         lv_subject_set_int(&wifi_can_toggle_radio_, 0);
-        lv_subject_copy_string(&wifi_password_modal_ssid_, "");
+        lv_subject_set_string(&wifi_password_modal_ssid_, "");
         show_password_status("");
-        lv_subject_copy_string(&wifi_status_, get_status_text("disabled"));
-        lv_subject_copy_string(&wifi_ip_, "");
-        lv_subject_copy_string(&wifi_mac_, "");
-        lv_subject_copy_string(&ethernet_status_, "Checking...");
-        lv_subject_copy_string(&ethernet_mac_, "");
+        lv_subject_set_string(&wifi_status_, get_status_text("disabled"));
+        lv_subject_set_string(&wifi_ip_, "");
+        lv_subject_set_string(&wifi_mac_, "");
+        lv_subject_set_string(&ethernet_status_, "Checking...");
+        lv_subject_set_string(&ethernet_mac_, "");
         return;
     }
 
@@ -1095,7 +1095,7 @@ void WizardWifiStep::show_password_modal(const char* ssid) {
         return;
     }
 
-    lv_subject_copy_string(&wifi_password_modal_ssid_, ssid);
+    lv_subject_set_string(&wifi_password_modal_ssid_, ssid);
 
     lv_obj_t* password_input = lv_obj_find_by_name(password_modal_, "password_input");
     if (password_input) {
@@ -1116,7 +1116,7 @@ void WizardWifiStep::show_password_status(const char* text) {
     if (!subjects_initialized_) {
         return;
     }
-    lv_subject_copy_string(&password_status_, text ? text : "");
+    lv_subject_set_string(&password_status_, text ? text : "");
     lv_subject_set_int(&password_status_shown_, (text && text[0]) ? 1 : 0);
 }
 

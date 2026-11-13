@@ -434,17 +434,17 @@ void ControlsPanel::refresh_all_displays() {
     if (auto* subj = printer_state_.motion_state().get_gcode_position_x_subject()) {
         int centimm = lv_subject_get_int(subj);
         format_position(centimm, controls_pos_x_buf_, sizeof(controls_pos_x_buf_));
-        lv_subject_copy_string(&controls_pos_x_subject_, controls_pos_x_buf_);
+        lv_subject_set_string(&controls_pos_x_subject_, controls_pos_x_buf_);
     }
     if (auto* subj = printer_state_.motion_state().get_gcode_position_y_subject()) {
         int centimm = lv_subject_get_int(subj);
         format_position(centimm, controls_pos_y_buf_, sizeof(controls_pos_y_buf_));
-        lv_subject_copy_string(&controls_pos_y_subject_, controls_pos_y_buf_);
+        lv_subject_set_string(&controls_pos_y_subject_, controls_pos_y_buf_);
     }
     if (auto* subj = printer_state_.motion_state().get_gcode_position_z_subject()) {
         int centimm = lv_subject_get_int(subj);
         format_position(centimm, controls_pos_z_buf_, sizeof(controls_pos_z_buf_));
-        lv_subject_copy_string(&controls_pos_z_subject_, controls_pos_z_buf_);
+        lv_subject_set_string(&controls_pos_z_subject_, controls_pos_z_buf_);
     }
 
     // Re-read Z-offset subjects
@@ -601,19 +601,19 @@ void ControlsPanel::register_observers() {
             if (!self->active_)
                 return;
             format_position(centimm, self->controls_pos_x_buf_, sizeof(self->controls_pos_x_buf_));
-            lv_subject_copy_string(&self->controls_pos_x_subject_, self->controls_pos_x_buf_);
+            lv_subject_set_string(&self->controls_pos_x_subject_, self->controls_pos_x_buf_);
         },
         [](ControlsPanel* self, int centimm) {
             if (!self->active_)
                 return;
             format_position(centimm, self->controls_pos_y_buf_, sizeof(self->controls_pos_y_buf_));
-            lv_subject_copy_string(&self->controls_pos_y_subject_, self->controls_pos_y_buf_);
+            lv_subject_set_string(&self->controls_pos_y_subject_, self->controls_pos_y_buf_);
         },
         [](ControlsPanel* self, int centimm) {
             if (!self->active_)
                 return;
             format_position(centimm, self->controls_pos_z_buf_, sizeof(self->controls_pos_z_buf_));
-            lv_subject_copy_string(&self->controls_pos_z_subject_, self->controls_pos_z_buf_);
+            lv_subject_set_string(&self->controls_pos_z_subject_, self->controls_pos_z_buf_);
         });
 
     // Subscribe to speed/flow factor updates (skip formatting when hidden)
@@ -741,7 +741,7 @@ void ControlsPanel::update_nozzle_label() {
     auto label = helix::ToolState::instance().nozzle_label(nozzle_tool());
     std::snprintf(nozzle_label_buf_, sizeof(nozzle_label_buf_), "%s", label.c_str());
     if (subjects_initialized_) {
-        lv_subject_copy_string(&nozzle_label_subject_, nozzle_label_buf_);
+        lv_subject_set_string(&nozzle_label_subject_, nozzle_label_buf_);
     }
 }
 
@@ -760,7 +760,7 @@ void ControlsPanel::update_more_sensors() {
     std::snprintf(more_sensors_buf_, sizeof(more_sensors_buf_),
                   helix::ui::tr_plural(nullptr, "%d more sensors", static_cast<uint64_t>(count)),
                   count);
-    lv_subject_copy_string(&more_sensors_subject_, more_sensors_buf_);
+    lv_subject_set_string(&more_sensors_subject_, more_sensors_buf_);
     lv_subject_set_int(&more_sensors_count_, count);
 }
 
@@ -769,7 +769,7 @@ void ControlsPanel::update_nozzle_temp_display() {
         helix::ui::temperature::heater_display(cached_extruder_temp_, cached_extruder_target_);
 
     std::snprintf(nozzle_temp_buf_, sizeof(nozzle_temp_buf_), "%s", result.temp.c_str());
-    lv_subject_copy_string(&nozzle_temp_subject_, nozzle_temp_buf_);
+    lv_subject_set_string(&nozzle_temp_subject_, nozzle_temp_buf_);
 
     lv_subject_set_int(&nozzle_pct_subject_, result.pct);
 
@@ -778,14 +778,14 @@ void ControlsPanel::update_nozzle_temp_display() {
         lv_subject_get_int(printer_state_.get_heater_power_subject(helix::HeaterType::Nozzle)));
     lv_subject_set_int(&nozzle_status_state_subject_, static_cast<int>(nozzle.state));
     std::snprintf(nozzle_status_buf_, sizeof(nozzle_status_buf_), "%s", nozzle.duty.c_str());
-    lv_subject_copy_string(&nozzle_status_subject_, nozzle_status_buf_);
+    lv_subject_set_string(&nozzle_status_subject_, nozzle_status_buf_);
 }
 
 void ControlsPanel::update_bed_temp_display() {
     auto result = helix::ui::temperature::heater_display(cached_bed_temp_, cached_bed_target_);
 
     std::snprintf(bed_temp_buf_, sizeof(bed_temp_buf_), "%s", result.temp.c_str());
-    lv_subject_copy_string(&bed_temp_subject_, bed_temp_buf_);
+    lv_subject_set_string(&bed_temp_subject_, bed_temp_buf_);
 
     lv_subject_set_int(&bed_pct_subject_, result.pct);
 
@@ -794,7 +794,7 @@ void ControlsPanel::update_bed_temp_display() {
         lv_subject_get_int(printer_state_.get_heater_power_subject(helix::HeaterType::Bed)));
     lv_subject_set_int(&bed_status_state_subject_, static_cast<int>(bed.state));
     std::snprintf(bed_status_buf_, sizeof(bed_status_buf_), "%s", bed.duty.c_str());
-    lv_subject_copy_string(&bed_status_subject_, bed_status_buf_);
+    lv_subject_set_string(&bed_status_subject_, bed_status_buf_);
 }
 
 void ControlsPanel::update_chamber_temp_display() {
@@ -808,7 +808,7 @@ void ControlsPanel::update_chamber_temp_display() {
         static_cast<helix::ChamberMode>(cached_chamber_mode_));
     lv_subject_set_int(&chamber_status_state_subject_, static_cast<int>(chamber.state));
     std::snprintf(chamber_status_buf_, sizeof(chamber_status_buf_), "%s", chamber.duty.c_str());
-    lv_subject_copy_string(&chamber_status_subject_, chamber_status_buf_);
+    lv_subject_set_string(&chamber_status_subject_, chamber_status_buf_);
 }
 
 void ControlsPanel::update_fan_display() {
@@ -826,7 +826,7 @@ void ControlsPanel::update_fan_display() {
                       : 0;
 
     format_fan_speed(fan_pct, fan_speed_buf_, sizeof(fan_speed_buf_));
-    lv_subject_copy_string(&fan_speed_subject_, fan_speed_buf_);
+    lv_subject_set_string(&fan_speed_subject_, fan_speed_buf_);
     lv_subject_set_int(&fan_pct_subject_, fan_pct);
 }
 
@@ -864,7 +864,7 @@ void ControlsPanel::populate_secondary_fans() {
     // Cleanup order: lifetimes → observers → tracking → delete widgets.
     // Reset the dynamic-subject lifetime tokens BEFORE the observers so each guard's
     // weak_ptr is already expired when reset() runs — otherwise reset() calls
-    // lv_observer_remove() on a subject that may have been freed by fan rediscovery.
+    // lv_observer_delete() on a subject that may have been freed by fan rediscovery.
     secondary_fan_lifetimes_.clear();
     for (auto& obs : secondary_fan_observers_) {
         obs.reset();
@@ -938,7 +938,7 @@ void ControlsPanel::populate_secondary_fans() {
 void ControlsPanel::update_z_offset_delta_display(int delta_microns) {
     helix::zoffset::format_delta(delta_microns, z_offset_delta_display_buf_,
                                  sizeof(z_offset_delta_display_buf_));
-    lv_subject_copy_string(&z_offset_delta_display_subject_, z_offset_delta_display_buf_);
+    lv_subject_set_string(&z_offset_delta_display_subject_, z_offset_delta_display_buf_);
     spdlog::trace("[{}] Z-offset delta display updated: '{}'", get_name(),
                   z_offset_delta_display_buf_);
 }
@@ -958,7 +958,7 @@ void ControlsPanel::update_controls_z_offset_display() {
         helix::zoffset::format_offset(offset_microns, controls_z_offset_buf_,
                                       sizeof(controls_z_offset_buf_));
     }
-    lv_subject_copy_string(&controls_z_offset_subject_, controls_z_offset_buf_);
+    lv_subject_set_string(&controls_z_offset_subject_, controls_z_offset_buf_);
 }
 
 void ControlsPanel::handle_zoffset_tune() {
@@ -1228,7 +1228,7 @@ void ControlsPanel::update_speed_display() {
         speed_pct = lv_subject_get_int(speed_subj);
     }
     helix::format::format_percent(speed_pct, speed_override_buf_, sizeof(speed_override_buf_));
-    lv_subject_copy_string(&speed_override_subject_, speed_override_buf_);
+    lv_subject_set_string(&speed_override_subject_, speed_override_buf_);
 }
 
 // ============================================================================
@@ -1243,7 +1243,7 @@ void ControlsPanel::handle_fan_slider_changed(int value) {
 
     // Optimistic update - show new value immediately without waiting for Moonraker
     format_fan_speed(value, fan_speed_buf_, sizeof(fan_speed_buf_));
-    lv_subject_copy_string(&fan_speed_subject_, fan_speed_buf_);
+    lv_subject_set_string(&fan_speed_subject_, fan_speed_buf_);
     lv_subject_set_int(&fan_pct_subject_, value);
 
     if (api_) {
@@ -1278,7 +1278,7 @@ void ControlsPanel::update_calib_grid(lv_obj_t* grid) {
     int visible = 0;
     const uint32_t count = lv_obj_get_child_count(grid);
     for (uint32_t i = 0; i < count; ++i) {
-        if (!lv_obj_has_flag(lv_obj_get_child(grid, static_cast<int32_t>(i)), LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(lv_obj_get_child(grid, static_cast<int32_t>(i)))) {
             ++visible;
         }
     }

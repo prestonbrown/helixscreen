@@ -246,7 +246,7 @@ void NotificationManager::animate_notification_badge() {
     lv_anim_set_values(&scale_anim, kScaleNormal, kScalePulse);
     lv_anim_set_duration(&scale_anim, kPulseDurationMs);
     lv_anim_set_path_cb(&scale_anim, lv_anim_path_overshoot);
-    lv_anim_set_playback_duration(&scale_anim, kPulseDurationMs / 2);
+    lv_anim_set_reverse_duration(&scale_anim, kPulseDurationMs / 2);
     lv_anim_set_exec_cb(&scale_anim, [](void* obj, int32_t value) {
         lv_obj_set_style_transform_scale(static_cast<lv_obj_t*>(obj), value, LV_PART_MAIN);
     });

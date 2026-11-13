@@ -67,7 +67,7 @@ void ensure_flow_subjects() {
 /// Write the status line's subjects. The bound line follows on its own.
 void write_flow_subjects(const std::string& text, int phase) {
     ensure_flow_subjects();
-    lv_subject_copy_string(&s_indx_flow_status, text.c_str());
+    lv_subject_set_string(&s_indx_flow_status, text.c_str());
     lv_subject_set_int(&s_indx_flow_phase, phase);
 }
 

@@ -111,15 +111,15 @@ TEST_CASE_METHOD(DetectionRowsFixture, "Detection settings rows follow detection
     SECTION("no capable source: the container hides both rows") {
         lv_subject_set_int(avail_, 0);
         build();
-        CHECK(lv_obj_has_flag(container(), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(container()));
     }
 
     SECTION("a capable source shows the rows") {
         lv_subject_set_int(avail_, 1);
         lv_subject_set_int(applicable_, 1);
         build();
-        CHECK_FALSE(lv_obj_has_flag(container(), LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(pause_container(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(container()));
+        CHECK_FALSE(lv_obj_is_hidden(pause_container()));
         CHECK(pause_toggle() != nullptr);
     }
 
@@ -130,19 +130,19 @@ TEST_CASE_METHOD(DetectionRowsFixture, "Detection settings rows follow detection
         lv_subject_set_int(avail_, 1);
         lv_subject_set_int(applicable_, 0);
         build();
-        CHECK_FALSE(lv_obj_has_flag(container(), LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(pause_container(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(container()));
+        CHECK(lv_obj_is_hidden(pause_container()));
     }
 
     SECTION("pause row reappears when a HelixScreen-pausing source shows up") {
         lv_subject_set_int(avail_, 1);
         lv_subject_set_int(applicable_, 0);
         build();
-        REQUIRE(lv_obj_has_flag(pause_container(), LV_OBJ_FLAG_HIDDEN));
+        REQUIRE(lv_obj_is_hidden(pause_container()));
 
         lv_subject_set_int(applicable_, 1);
         process_lvgl(10);
-        CHECK_FALSE(lv_obj_has_flag(pause_container(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(pause_container()));
     }
 
     SECTION("pause row is disabled while detection is off") {
@@ -206,8 +206,8 @@ TEST_CASE_METHOD(DetectionRowsFixture, "Bed check row follows detection_bed_chec
         lv_subject_set_int(avail_, 1);
         lv_subject_set_int(bed_available, 0);
         build();
-        CHECK_FALSE(lv_obj_has_flag(container(), LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(bed_container(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(container()));
+        CHECK(lv_obj_is_hidden(bed_container()));
     }
 
     SECTION("a printer with a bed check shows the row, toggled to its state") {
@@ -215,7 +215,7 @@ TEST_CASE_METHOD(DetectionRowsFixture, "Bed check row follows detection_bed_chec
         lv_subject_set_int(bed_available, 1);
         lv_subject_set_int(bed_enabled, 0);
         build();
-        CHECK_FALSE(lv_obj_has_flag(bed_container(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(bed_container()));
         CHECK_FALSE(lv_obj_has_state(bed_toggle(), LV_STATE_CHECKED));
 
         lv_subject_set_int(bed_enabled, 1);
@@ -230,7 +230,7 @@ TEST_CASE_METHOD(DetectionRowsFixture, "Bed check row follows detection_bed_chec
         lv_subject_set_int(bed_enabled, 0);
         lv_subject_set_int(m.subject_bed_check_switchable(), 0);
         build();
-        CHECK_FALSE(lv_obj_has_flag(bed_container(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(bed_container()));
         CHECK(lv_obj_has_state(bed_toggle(), LV_STATE_DISABLED));
     }
 

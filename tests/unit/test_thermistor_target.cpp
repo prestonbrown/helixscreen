@@ -113,7 +113,7 @@ lv_obj_t* build_tile(ThermistorWidget& widget, lv_obj_t* screen) {
 bool shown(lv_obj_t* tile, const char* name) {
     lv_obj_t* obj = lv_obj_find_by_name(tile, name);
     REQUIRE(obj != nullptr);
-    return !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(obj);
 }
 } // namespace
 

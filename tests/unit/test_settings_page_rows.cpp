@@ -252,10 +252,10 @@ TEST_CASE_METHOD(PageRowsFixture, "settings pages: touch calibration row shows c
     lv_obj_t* status_label = lv_obj_find_by_name(row, "status");
     REQUIRE(status_label != nullptr);
 
-    lv_subject_copy_string(status, "Not calibrated");
+    lv_subject_set_string(status, "Not calibrated");
     process_lvgl(5);
     CHECK(std::string(lv_label_get_text(status_label)) == "Not calibrated");
-    lv_subject_copy_string(status, "Calibrated");
+    lv_subject_set_string(status, "Calibrated");
     process_lvgl(5);
     CHECK(std::string(lv_label_get_text(status_label)) == "Calibrated");
 

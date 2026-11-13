@@ -168,7 +168,7 @@ static void fade_anim_cb(void* obj, int32_t value) {
  */
 static lv_obj_t* create_splash_ui(lv_obj_t* screen, int width, int height, bool dark_mode,
                                   bool use_fade) {
-    lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(screen, false);
 
     // helix-screen runs this same decision a moment later; anything they
     // disagree about is the picture changing under the user at handoff.
@@ -249,7 +249,7 @@ static lv_obj_t* create_splash_ui(lv_obj_t* screen, int width, int height, bool 
     lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
-    lv_obj_clear_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
     lv_obj_set_style_opa(container, LV_OPA_TRANSP, LV_PART_MAIN); // Start invisible for fade-in
     lv_obj_center(container);
 

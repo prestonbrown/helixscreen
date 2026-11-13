@@ -309,7 +309,7 @@ void AppearanceSettingsOverlay::handle_theme_settings_clicked() {
             }
             if (theme_explorer_overlay_) {
                 helix::ui::defocus_tree(theme_explorer_overlay_);
-                lv_obj_add_flag(theme_explorer_overlay_, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(theme_explorer_overlay_, true);
                 lv_obj_t* to_delete = theme_explorer_overlay_;
                 theme_explorer_overlay_ = nullptr;
                 lv_obj_delete_async(to_delete);

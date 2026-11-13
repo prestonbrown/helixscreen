@@ -68,8 +68,8 @@ void LockScreenOverlay::create_overlay() {
     // Full-screen clickable overlay on lv_layer_top() — absorbs all touch
     overlay_ = lv_obj_create(lv_layer_top());
     lv_obj_set_size(overlay_, lv_pct(100), lv_pct(100));
-    lv_obj_add_flag(overlay_, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(overlay_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_clickable(overlay_, true);
+    lv_obj_set_scrollable(overlay_, false);
     lv_obj_set_style_bg_opa(overlay_, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(overlay_, 0, 0);
     lv_obj_set_style_pad_all(overlay_, 0, 0);

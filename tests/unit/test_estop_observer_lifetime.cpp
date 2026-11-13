@@ -13,7 +13,7 @@
  *
  * Without that token, create()'s three ObserverGuards never learn that
  * lv_subject_deinit() already freed their observer nodes, so the next reset()
- * calls lv_observer_remove() on freed memory. The guard's epoch fallback does not
+ * calls lv_observer_delete() on freed memory. The guard's epoch fallback does not
  * cover it: ObserverGuard::invalidate_all() runs only in production teardown
  * (application.cpp), never in the fixtures.
  */
@@ -89,7 +89,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     poke(klippy);
     CHECK(g_sentinel_fires == 3);
 
-    lv_observer_remove(sentinel);
+    lv_observer_delete(sentinel);
     helix::ui::UpdateQueue::instance().drain();
 }
 

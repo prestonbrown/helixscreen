@@ -636,8 +636,8 @@ void InputShaperPanel::proceed_with_preflight(char axis) {
     // Show checking accelerometer status
     snprintf(is_measuring_axis_label_buf_, sizeof(is_measuring_axis_label_buf_), "%s",
              lv_tr("Checking accelerometer..."));
-    lv_subject_copy_string(&is_measuring_axis_label_, is_measuring_axis_label_buf_);
-    lv_subject_copy_string(&is_measuring_step_label_, "");
+    lv_subject_set_string(&is_measuring_axis_label_, is_measuring_axis_label_buf_);
+    lv_subject_set_string(&is_measuring_step_label_, "");
     lv_subject_set_int(&is_measuring_progress_, 0);
     lv_subject_set_int(&is_measuring_has_progress_, 0);
 
@@ -772,13 +772,13 @@ void InputShaperPanel::start_calibration(char axis) {
     const std::string axis_label = fmt::format(lv_tr("Calibrating {} axis..."), axis);
     snprintf(is_measuring_axis_label_buf_, sizeof(is_measuring_axis_label_buf_), "%s",
              axis_label.c_str());
-    lv_subject_copy_string(&is_measuring_axis_label_, is_measuring_axis_label_buf_);
+    lv_subject_set_string(&is_measuring_axis_label_, is_measuring_axis_label_buf_);
 
     if (calibrate_all_mode_) {
         const char* step = (axis == 'X') ? "Step 1 of 2" : "Step 2 of 2";
-        lv_subject_copy_string(&is_measuring_step_label_, step);
+        lv_subject_set_string(&is_measuring_step_label_, step);
     } else {
-        lv_subject_copy_string(&is_measuring_step_label_, "");
+        lv_subject_set_string(&is_measuring_step_label_, "");
     }
 
     lv_subject_set_int(&is_measuring_progress_, 0);
@@ -837,7 +837,7 @@ void InputShaperPanel::start_calibration(char axis) {
                     }
                     break;
                 }
-                lv_subject_copy_string(&is_measuring_step_label_, is_measuring_step_label_buf_);
+                lv_subject_set_string(&is_measuring_step_label_, is_measuring_step_label_buf_);
             }),
         lifetime_.bg_cb("InputShaperPanel::calibration_result",
                         [this, cal_tok](const InputShaperResult& result) {
@@ -1251,7 +1251,7 @@ void InputShaperPanel::on_calibration_error(const std::string& message) {
     calibrate_all_mode_ = false;
 
     snprintf(is_error_message_buf_, sizeof(is_error_message_buf_), "%s", message.c_str());
-    lv_subject_copy_string(&is_error_message_, is_error_message_buf_);
+    lv_subject_set_string(&is_error_message_, is_error_message_buf_);
     set_state(State::ERROR);
 }
 
@@ -1266,34 +1266,34 @@ void InputShaperPanel::populate_current_config(const InputShaperConfig& config) 
         // Uppercase X type
         std::string x_upper = helix::text_io::to_upper(config.shaper_type_x);
         snprintf(is_current_x_type_buf_, sizeof(is_current_x_type_buf_), "%s", x_upper.c_str());
-        lv_subject_copy_string(&is_current_x_type_, is_current_x_type_buf_);
+        lv_subject_set_string(&is_current_x_type_, is_current_x_type_buf_);
 
         // X frequency
         helix::format::format_frequency_hz(config.shaper_freq_x, is_current_x_freq_buf_,
                                            sizeof(is_current_x_freq_buf_));
-        lv_subject_copy_string(&is_current_x_freq_, is_current_x_freq_buf_);
+        lv_subject_set_string(&is_current_x_freq_, is_current_x_freq_buf_);
 
         // Uppercase Y type
         std::string y_upper = helix::text_io::to_upper(config.shaper_type_y);
         snprintf(is_current_y_type_buf_, sizeof(is_current_y_type_buf_), "%s", y_upper.c_str());
-        lv_subject_copy_string(&is_current_y_type_, is_current_y_type_buf_);
+        lv_subject_set_string(&is_current_y_type_, is_current_y_type_buf_);
 
         // Y frequency
         helix::format::format_frequency_hz(config.shaper_freq_y, is_current_y_freq_buf_,
                                            sizeof(is_current_y_freq_buf_));
-        lv_subject_copy_string(&is_current_y_freq_, is_current_y_freq_buf_);
+        lv_subject_set_string(&is_current_y_freq_, is_current_y_freq_buf_);
 
         // Max accel - leave empty for now (populated from results in Chunk 3)
-        lv_subject_copy_string(&is_current_max_accel_, "");
+        lv_subject_set_string(&is_current_max_accel_, "");
 
         spdlog::debug("[InputShaper] Config: X={} @ {}, Y={} @ {}", is_current_x_type_buf_,
                       is_current_x_freq_buf_, is_current_y_type_buf_, is_current_y_freq_buf_);
     } else {
-        lv_subject_copy_string(&is_current_x_type_, "");
-        lv_subject_copy_string(&is_current_x_freq_, "");
-        lv_subject_copy_string(&is_current_y_type_, "");
-        lv_subject_copy_string(&is_current_y_freq_, "");
-        lv_subject_copy_string(&is_current_max_accel_, "");
+        lv_subject_set_string(&is_current_x_type_, "");
+        lv_subject_set_string(&is_current_x_freq_, "");
+        lv_subject_set_string(&is_current_y_type_, "");
+        lv_subject_set_string(&is_current_y_freq_, "");
+        lv_subject_set_string(&is_current_max_accel_, "");
         spdlog::debug("[InputShaper] No shaper configured");
     }
 }
@@ -1316,12 +1316,12 @@ void InputShaperPanel::clear_results() {
     lv_subject_set_int(&is_y_num_shapers_, 0);
 
     // Clear live-before delta rows and the firmware overwrite warning
-    lv_subject_copy_string(&is_x_delta_text_, "");
-    lv_subject_copy_string(&is_y_delta_text_, "");
+    lv_subject_set_string(&is_x_delta_text_, "");
+    lv_subject_set_string(&is_y_delta_text_, "");
     lv_subject_set_int(&is_x_has_delta_, 0);
     lv_subject_set_int(&is_y_has_delta_, 0);
-    lv_subject_copy_string(&is_x_verdict_text_, "");
-    lv_subject_copy_string(&is_y_verdict_text_, "");
+    lv_subject_set_string(&is_x_verdict_text_, "");
+    lv_subject_set_string(&is_y_verdict_text_, "");
     lv_subject_set_int(&is_x_has_verdict_, 0);
     lv_subject_set_int(&is_y_has_verdict_, 0);
     lv_subject_set_int(&is_x_fw_overwrite_warn_, 0);
@@ -1334,14 +1334,14 @@ void InputShaperPanel::clear_results() {
 
     // Clear comparison table subjects
     for (size_t i = 0; i < kMaxShapers; i++) {
-        lv_subject_copy_string(&x_cmp_[i].type, "");
-        lv_subject_copy_string(&x_cmp_[i].freq, "");
-        lv_subject_copy_string(&x_cmp_[i].vib, "");
-        lv_subject_copy_string(&x_cmp_[i].accel, "");
-        lv_subject_copy_string(&y_cmp_[i].type, "");
-        lv_subject_copy_string(&y_cmp_[i].freq, "");
-        lv_subject_copy_string(&y_cmp_[i].vib, "");
-        lv_subject_copy_string(&y_cmp_[i].accel, "");
+        lv_subject_set_string(&x_cmp_[i].type, "");
+        lv_subject_set_string(&x_cmp_[i].freq, "");
+        lv_subject_set_string(&x_cmp_[i].vib, "");
+        lv_subject_set_string(&x_cmp_[i].accel, "");
+        lv_subject_set_string(&y_cmp_[i].type, "");
+        lv_subject_set_string(&y_cmp_[i].freq, "");
+        lv_subject_set_string(&y_cmp_[i].vib, "");
+        lv_subject_set_string(&y_cmp_[i].accel, "");
     }
 }
 
@@ -1412,19 +1412,19 @@ void InputShaperPanel::update_axis_display(char axis, const std::string& shaper_
 
         snprintf(is_result_x_shaper_buf_, sizeof(is_result_x_shaper_buf_), "Optimal: %s @ %s",
                  type_upper.c_str(), freq_buf);
-        lv_subject_copy_string(&is_result_x_shaper_, is_result_x_shaper_buf_);
+        lv_subject_set_string(&is_result_x_shaper_, is_result_x_shaper_buf_);
 
         snprintf(is_result_x_explanation_buf_, sizeof(is_result_x_explanation_buf_), "* %s",
                  get_shaper_explanation(shaper_type));
-        lv_subject_copy_string(&is_result_x_explanation_, is_result_x_explanation_buf_);
+        lv_subject_set_string(&is_result_x_explanation_, is_result_x_explanation_buf_);
 
         snprintf(is_result_x_vibration_buf_, sizeof(is_result_x_vibration_buf_), "%.1f%%",
                  vibrations);
-        lv_subject_copy_string(&is_result_x_vibration_, is_result_x_vibration_buf_);
+        lv_subject_set_string(&is_result_x_vibration_, is_result_x_vibration_buf_);
 
         snprintf(is_result_x_max_accel_buf_, sizeof(is_result_x_max_accel_buf_),
                  "%.0f mm/s\xC2\xB2", max_accel);
-        lv_subject_copy_string(&is_result_x_max_accel_, is_result_x_max_accel_buf_);
+        lv_subject_set_string(&is_result_x_max_accel_, is_result_x_max_accel_buf_);
 
         lv_subject_set_int(&is_result_x_quality_, get_vibration_quality(vibrations));
     } else {
@@ -1432,19 +1432,19 @@ void InputShaperPanel::update_axis_display(char axis, const std::string& shaper_
 
         snprintf(is_result_y_shaper_buf_, sizeof(is_result_y_shaper_buf_), "Optimal: %s @ %s",
                  type_upper.c_str(), freq_buf);
-        lv_subject_copy_string(&is_result_y_shaper_, is_result_y_shaper_buf_);
+        lv_subject_set_string(&is_result_y_shaper_, is_result_y_shaper_buf_);
 
         snprintf(is_result_y_explanation_buf_, sizeof(is_result_y_explanation_buf_), "* %s",
                  get_shaper_explanation(shaper_type));
-        lv_subject_copy_string(&is_result_y_explanation_, is_result_y_explanation_buf_);
+        lv_subject_set_string(&is_result_y_explanation_, is_result_y_explanation_buf_);
 
         snprintf(is_result_y_vibration_buf_, sizeof(is_result_y_vibration_buf_), "%.1f%%",
                  vibrations);
-        lv_subject_copy_string(&is_result_y_vibration_, is_result_y_vibration_buf_);
+        lv_subject_set_string(&is_result_y_vibration_, is_result_y_vibration_buf_);
 
         snprintf(is_result_y_max_accel_buf_, sizeof(is_result_y_max_accel_buf_),
                  "%.0f mm/s\xC2\xB2", max_accel);
-        lv_subject_copy_string(&is_result_y_max_accel_, is_result_y_max_accel_buf_);
+        lv_subject_set_string(&is_result_y_max_accel_, is_result_y_max_accel_buf_);
 
         lv_subject_set_int(&is_result_y_quality_, get_vibration_quality(vibrations));
     }
@@ -1523,11 +1523,11 @@ void InputShaperPanel::populate_axis_result(char axis, const InputShaperResult& 
                 lv_subject_set_int(&recommended_row, static_cast<int>(i));
             }
             snprintf(cmp[i].type_buf, kCmpTypeBuf, "%s", type_upper.c_str());
-            lv_subject_copy_string(&cmp[i].type, cmp[i].type_buf);
+            lv_subject_set_string(&cmp[i].type, cmp[i].type_buf);
 
             // Frequency
             helix::format::format_frequency_hz(opt.frequency, cmp[i].freq_buf, kCmpValueBuf);
-            lv_subject_copy_string(&cmp[i].freq, cmp[i].freq_buf);
+            lv_subject_set_string(&cmp[i].freq, cmp[i].freq_buf);
 
             // Vibration with quality description
             const char* quality = get_quality_description(opt.vibrations);
@@ -1543,17 +1543,17 @@ void InputShaperPanel::populate_axis_result(char axis, const InputShaperResult& 
             }
             snprintf(cmp[i].vib_buf, kCmpValueBuf, "%.1f%% %s", opt.vibrations,
                      quality_word.c_str());
-            lv_subject_copy_string(&cmp[i].vib, cmp[i].vib_buf);
+            lv_subject_set_string(&cmp[i].vib, cmp[i].vib_buf);
 
             // Max accel
             snprintf(cmp[i].accel_buf, kCmpValueBuf, "%.0f", opt.max_accel);
-            lv_subject_copy_string(&cmp[i].accel, cmp[i].accel_buf);
+            lv_subject_set_string(&cmp[i].accel, cmp[i].accel_buf);
         } else {
             // Clear unused rows
-            lv_subject_copy_string(&cmp[i].type, "");
-            lv_subject_copy_string(&cmp[i].freq, "");
-            lv_subject_copy_string(&cmp[i].vib, "");
-            lv_subject_copy_string(&cmp[i].accel, "");
+            lv_subject_set_string(&cmp[i].type, "");
+            lv_subject_set_string(&cmp[i].freq, "");
+            lv_subject_set_string(&cmp[i].vib, "");
+            lv_subject_set_string(&cmp[i].accel, "");
         }
     }
 
@@ -1581,12 +1581,12 @@ void InputShaperPanel::populate_axis_delta(char axis, const InputShaperResult& r
 
     lv_subject_set_int(&has_delta, 0);
     lv_subject_set_int(&has_verdict, 0);
-    lv_subject_copy_string(&verdict_subject, "");
+    lv_subject_set_string(&verdict_subject, "");
 
     std::string old_type;
     float old_freq = 0.0f;
     if (!result.is_valid() || !get_before_axis(axis, old_type, old_freq)) {
-        lv_subject_copy_string(&delta_subject, "");
+        lv_subject_set_string(&delta_subject, "");
         return;
     }
 
@@ -1598,7 +1598,7 @@ void InputShaperPanel::populate_axis_delta(char axis, const InputShaperResult& r
     snprintf(new_buf, sizeof(new_buf), "%s @ %.1f Hz", result.shaper_type.c_str(),
              result.shaper_freq);
     snprintf(delta_buf, sizeof(delta_buf), "%s -> %s", was_buf, new_buf);
-    lv_subject_copy_string(&delta_subject, delta_buf);
+    lv_subject_set_string(&delta_subject, delta_buf);
     lv_subject_set_int(&has_delta, 1);
 
     // Verdict: the old setting re-scored against the freshly measured PSD next
@@ -1656,7 +1656,7 @@ void InputShaperPanel::populate_axis_delta(char axis, const InputShaperResult& r
     const std::string verdict =
         fmt::format(lv_tr("Old setting on today's data: {} residual - now: {}"), old_pct, new_pct);
     snprintf(verdict_buf, sizeof(verdict_buf), "%s", verdict.c_str());
-    lv_subject_copy_string(&verdict_subject, verdict_buf);
+    lv_subject_set_string(&verdict_subject, verdict_buf);
     lv_subject_set_int(&has_verdict, 1);
 
     spdlog::debug("[InputShaper] {} axis delta: {} -> {} (residual {} -> {})", axis, was_buf,
@@ -1765,7 +1765,7 @@ void InputShaperPanel::populate_chart(char axis, const InputShaperResult& result
         // Set chip label (uppercase name)
         std::string upper_name = helix::text_io::to_upper(curve.name);
         snprintf(chips[i].label_buf, kChipLabelBuf, "%s", upper_name.c_str());
-        lv_subject_copy_string(&chips[i].label, chips[i].label_buf);
+        lv_subject_set_string(&chips[i].label, chips[i].label_buf);
 
         // Add chart series (initially hidden except recommended)
         lv_color_t color = lv_color_hex(kShaperOverlayColors[i % kNumShaperColors]);
@@ -1793,7 +1793,7 @@ void InputShaperPanel::populate_chart(char axis, const InputShaperResult& result
     // Clear unused chips
     for (size_t i = chart_data.shaper_curves.size(); i < kMaxShapers; i++) {
         chips[i].label_buf[0] = '\0';
-        lv_subject_copy_string(&chips[i].label, chips[i].label_buf);
+        lv_subject_set_string(&chips[i].label, chips[i].label_buf);
         lv_subject_set_int(&chips[i].active, 0);
     }
 
@@ -1892,7 +1892,7 @@ void InputShaperPanel::clear_chart(char axis) {
     // Clear chip labels
     for (size_t i = 0; i < kMaxShapers; i++) {
         chips[i].label_buf[0] = '\0';
-        lv_subject_copy_string(&chips[i].label, chips[i].label_buf);
+        lv_subject_set_string(&chips[i].label, chips[i].label_buf);
         lv_subject_set_int(&chips[i].active, 0);
     }
 }
@@ -1947,7 +1947,7 @@ void InputShaperPanel::update_legend(char axis) {
     if (active_idx >= 0) {
         // Copy chip label text (already uppercase) to legend label
         snprintf(legend_label_buf, kChipLabelBuf, "%s", chips[active_idx].label_buf);
-        lv_subject_copy_string(&legend_label, legend_label_buf);
+        lv_subject_set_string(&legend_label, legend_label_buf);
 
         // Update dot color to match the active shaper's series color
         if (legend_dot) {
@@ -1957,7 +1957,7 @@ void InputShaperPanel::update_legend(char axis) {
     } else {
         // No shaper visible — clear legend label
         legend_label_buf[0] = '\0';
-        lv_subject_copy_string(&legend_label, legend_label_buf);
+        lv_subject_set_string(&legend_label, legend_label_buf);
     }
 }
 

@@ -366,7 +366,7 @@ void PIDCalibrationPanel::on_activate() {
     supports_mpc_ = false;
     current_control_ = ControlType::UNKNOWN;
     heater_names_cooling_fan_ = true;
-    lv_subject_copy_string(&subj_migration_notice_, "");
+    lv_subject_set_string(&subj_migration_notice_, "");
 
     update_fan_section_visibility();
 
@@ -517,8 +517,8 @@ void PIDCalibrationPanel::set_state(State new_state) {
         pid_estimated_total_ = 3;
         has_sample_progress_ = false;
         lv_subject_set_int(&subj_pid_progress_, 0);
-        lv_subject_copy_string(&subj_pid_progress_text_, lv_tr("Starting..."));
-        lv_subject_copy_string(&subj_pid_eta_, "");
+        lv_subject_set_string(&subj_pid_progress_text_, lv_tr("Starting..."));
+        lv_subject_set_string(&subj_pid_eta_, "");
         tracking_starts_on_wake_ = suspended();
         if (!suspended())
             start_progress_tracking();
@@ -537,7 +537,7 @@ void PIDCalibrationPanel::update_fan_slider(int speed) {
         lv_slider_set_value(fan_slider_, speed, LV_ANIM_OFF);
     char buf[8];
     snprintf(buf, sizeof(buf), "%d%%", speed);
-    lv_subject_copy_string(&subj_fan_speed_text_, buf);
+    lv_subject_set_string(&subj_fan_speed_text_, buf);
 }
 
 void PIDCalibrationPanel::format_pid_value(char* buf, size_t buf_size, float new_val,
@@ -553,7 +553,7 @@ void PIDCalibrationPanel::format_pid_value(char* buf, size_t buf_size, float new
 void PIDCalibrationPanel::update_wattage_display() {
     char buf[16];
     snprintf(buf, sizeof(buf), "%dW", heater_wattage_);
-    lv_subject_copy_string(&subj_wattage_display_, buf);
+    lv_subject_set_string(&subj_wattage_display_, buf);
 }
 
 std::string PIDCalibrationPanel::extruder_name() const {
@@ -622,8 +622,8 @@ bool PIDCalibrationPanel::adding_cooling_fan() {
 }
 
 void PIDCalibrationPanel::update_temp_display() {
-    lv_subject_copy_string(&subj_temp_display_,
-                           helix::units::format_display_temp(target_temp_).c_str());
+    lv_subject_set_string(&subj_temp_display_,
+                          helix::units::format_display_temp(target_temp_).c_str());
 }
 
 void PIDCalibrationPanel::update_temp_hint() {
@@ -640,11 +640,11 @@ void PIDCalibrationPanel::update_temp_hint() {
                 snprintf(hint, sizeof(hint), "%s: bed temp %s", selected_material_.c_str(),
                          helix::units::format_display_temp(mat->bed_temp).c_str());
             }
-            lv_subject_copy_string(&subj_temp_hint_, hint);
+            lv_subject_set_string(&subj_temp_hint_, hint);
             return;
         }
     }
-    lv_subject_copy_string(&subj_temp_hint_, "Select a material or adjust temperature");
+    lv_subject_set_string(&subj_temp_hint_, "Select a material or adjust temperature");
 }
 
 // ============================================================================
@@ -747,7 +747,7 @@ void PIDCalibrationPanel::send_pid_calibrate() {
     // Update calibrating state label
     const char* label = (selected_heater_ == Heater::EXTRUDER) ? lv_tr("Extruder PID Tuning")
                                                                : lv_tr("Heated Bed PID Tuning");
-    lv_subject_copy_string(&subj_calibrating_heater_, label);
+    lv_subject_set_string(&subj_calibrating_heater_, label);
 
     spdlog::info("[PIDCal] Starting PID calibration: {} at {}°C", heater, target_temp_);
 
@@ -1085,7 +1085,7 @@ void PIDCalibrationPanel::on_calibration_result(bool success, float kp, float ki
         // Set progress to 100% on completion
         progress_tracker_.mark_complete();
         lv_subject_set_int(&subj_pid_progress_, 100);
-        lv_subject_copy_string(&subj_pid_progress_text_, lv_tr("Complete!"));
+        lv_subject_set_string(&subj_pid_progress_text_, lv_tr("Complete!"));
 
         // Persist measured rates for future calibrations
         save_calibration_history();
@@ -1100,13 +1100,13 @@ void PIDCalibrationPanel::on_calibration_result(bool success, float kp, float ki
         // Format values with delta if old values are available
         char val_buf[32];
         format_pid_value(val_buf, sizeof(val_buf), kp, old_kp_);
-        lv_subject_copy_string(&subj_pid_kp_, val_buf);
+        lv_subject_set_string(&subj_pid_kp_, val_buf);
 
         format_pid_value(val_buf, sizeof(val_buf), ki, old_ki_);
-        lv_subject_copy_string(&subj_pid_ki_, val_buf);
+        lv_subject_set_string(&subj_pid_ki_, val_buf);
 
         format_pid_value(val_buf, sizeof(val_buf), kd, old_kd_);
-        lv_subject_copy_string(&subj_pid_kd_, val_buf);
+        lv_subject_set_string(&subj_pid_kd_, val_buf);
 
         // Set human-readable result summary. One whole sentence with both
         // variables as placeholders, and the heater name translated too -- the
@@ -1116,13 +1116,13 @@ void PIDCalibrationPanel::on_calibration_result(bool success, float kp, float ki
         const std::string summary =
             fmt::format(lv_tr("Temperature control optimized for {} at {}."), heater_label,
                         helix::units::format_display_temp(target_temp_));
-        lv_subject_copy_string(&subj_result_summary_, summary.c_str());
+        lv_subject_set_string(&subj_result_summary_, summary.c_str());
 
         // Save config (will transition to COMPLETE when done)
         set_state(State::SAVING);
         send_save_config();
     } else {
-        lv_subject_copy_string(&subj_error_message_, error_message.c_str());
+        lv_subject_set_string(&subj_error_message_, error_message.c_str());
         set_state(State::ERROR);
     }
 }
@@ -1157,20 +1157,20 @@ void PIDCalibrationPanel::inject_demo_results() {
     // Format values with delta percentages
     char val_buf[32];
     format_pid_value(val_buf, sizeof(val_buf), kp, old_kp_);
-    lv_subject_copy_string(&subj_pid_kp_, val_buf);
+    lv_subject_set_string(&subj_pid_kp_, val_buf);
 
     format_pid_value(val_buf, sizeof(val_buf), ki, old_ki_);
-    lv_subject_copy_string(&subj_pid_ki_, val_buf);
+    lv_subject_set_string(&subj_pid_ki_, val_buf);
 
     format_pid_value(val_buf, sizeof(val_buf), kd, old_kd_);
-    lv_subject_copy_string(&subj_pid_kd_, val_buf);
+    lv_subject_set_string(&subj_pid_kd_, val_buf);
 
     // Set descriptive labels
-    lv_subject_copy_string(&subj_calibrating_heater_, lv_tr("Extruder PID Tuning"));
-    lv_subject_copy_string(&subj_result_summary_,
-                           fmt::format(lv_tr("Temperature control optimized for {} at {}."),
-                                       lv_tr("extruder"), helix::units::format_display_temp(200))
-                               .c_str());
+    lv_subject_set_string(&subj_calibrating_heater_, lv_tr("Extruder PID Tuning"));
+    lv_subject_set_string(&subj_result_summary_,
+                          fmt::format(lv_tr("Temperature control optimized for {} at {}."),
+                                      lv_tr("extruder"), helix::units::format_display_temp(200))
+                              .c_str());
 
     // Go directly to COMPLETE (skip SAVING)
     set_state(State::COMPLETE);
@@ -1324,13 +1324,13 @@ void PIDCalibrationPanel::update_progress_display() {
     const uint32_t overtime_ms = mpc ? (extruder ? kMpcOvertimeExtruderMs : kMpcOvertimeBedMs)
                                      : (extruder ? kPidOvertimeExtruderMs : kPidOvertimeBedMs);
     if (cal_start_tick_ms_ != 0 && lv_tick_elaps(cal_start_tick_ms_) > overtime_ms) {
-        lv_subject_copy_string(&subj_pid_progress_text_,
-                               lv_tr("Still working... taking longer than usual"));
-        lv_subject_copy_string(&subj_pid_eta_, lv_tr("Press Abort to stop"));
+        lv_subject_set_string(&subj_pid_progress_text_,
+                              lv_tr("Still working... taking longer than usual"));
+        lv_subject_set_string(&subj_pid_eta_, lv_tr("Press Abort to stop"));
         return;
     }
     if (mpc) {
-        lv_subject_copy_string(&subj_pid_eta_, "");
+        lv_subject_set_string(&subj_pid_eta_, "");
         return;
     }
 
@@ -1352,7 +1352,7 @@ void PIDCalibrationPanel::update_progress_display() {
     } else {
         snprintf(buf, sizeof(buf), "%s", lv_tr("Starting..."));
     }
-    lv_subject_copy_string(&subj_pid_progress_text_, buf);
+    lv_subject_set_string(&subj_pid_progress_text_, buf);
 
     // ETA text
     auto eta = progress_tracker_.eta_seconds();
@@ -1361,11 +1361,11 @@ void PIDCalibrationPanel::update_progress_display() {
         int secs = *eta % 60;
         char eta_buf[32];
         snprintf(eta_buf, sizeof(eta_buf), "~%d:%02d %s", mins, secs, lv_tr("remaining"));
-        lv_subject_copy_string(&subj_pid_eta_, eta_buf);
+        lv_subject_set_string(&subj_pid_eta_, eta_buf);
     } else if (progress >= 95) {
-        lv_subject_copy_string(&subj_pid_eta_, lv_tr("Finishing up..."));
+        lv_subject_set_string(&subj_pid_eta_, lv_tr("Finishing up..."));
     } else {
-        lv_subject_copy_string(&subj_pid_eta_, lv_tr("Estimating..."));
+        lv_subject_set_string(&subj_pid_eta_, lv_tr("Estimating..."));
     }
 }
 
@@ -1498,12 +1498,12 @@ void PIDCalibrationPanel::update_migration_notice() {
     lv_subject_set_int(&subj_show_wattage_, (needs_migration_ && to_mpc) ? 1 : 0);
 
     if (needs_migration_) {
-        lv_subject_copy_string(
+        lv_subject_set_string(
             &subj_migration_notice_,
             to_mpc ? lv_tr("Switching to MPC requires a config change and Klipper restart.")
                    : lv_tr("Switching back to PID requires a config change and Klipper restart."));
     } else {
-        lv_subject_copy_string(&subj_migration_notice_, "");
+        lv_subject_set_string(&subj_migration_notice_, "");
     }
 
     update_fan_section_visibility();
@@ -1588,7 +1588,7 @@ void PIDCalibrationPanel::start_migration(CalibMethod target, bool adding_fan) {
         [this, token](const std::string& err) {
             token.defer([this, err]() {
                 spdlog::error("[PIDCal] Migration failed: {}", err);
-                lv_subject_copy_string(&subj_error_message_, err.c_str());
+                lv_subject_set_string(&subj_error_message_, err.c_str());
                 set_state(State::ERROR);
             });
         },
@@ -1598,7 +1598,7 @@ void PIDCalibrationPanel::start_migration(CalibMethod target, bool adding_fan) {
 void PIDCalibrationPanel::send_mpc_calibrate() {
     if (!api_) {
         spdlog::error("[PIDCal] No IMoonrakerAPI for MPC calibration");
-        lv_subject_copy_string(&subj_error_message_, "No printer connection");
+        lv_subject_set_string(&subj_error_message_, "No printer connection");
         set_state(State::ERROR);
         return;
     }
@@ -1607,7 +1607,7 @@ void PIDCalibrationPanel::send_mpc_calibrate() {
     const char* label = (selected_heater_ == Heater::EXTRUDER)
                             ? lv_tr("Extruder MPC Calibration")
                             : lv_tr("Heated Bed MPC Calibration");
-    lv_subject_copy_string(&subj_calibrating_heater_, label);
+    lv_subject_set_string(&subj_calibrating_heater_, label);
 
     spdlog::info("[PIDCal] Starting MPC calibration: {} at {}°C, fan_breakpoints={}", heater,
                  target_temp_, fan_breakpoints_);
@@ -1628,7 +1628,7 @@ void PIDCalibrationPanel::send_mpc_calibrate() {
                 if (state_ != State::CALIBRATING)
                     return;
                 spdlog::error("[PIDCal] MPC calibration failed: {}", msg);
-                lv_subject_copy_string(&subj_error_message_, msg.c_str());
+                lv_subject_set_string(&subj_error_message_, msg.c_str());
                 set_state(State::ERROR);
             });
         },
@@ -1640,23 +1640,23 @@ void PIDCalibrationPanel::send_mpc_calibrate() {
 void PIDCalibrationPanel::on_mpc_result(const MoonrakerAdvancedAPI::MPCResult& result) {
     mpc_result_ = result;
     lv_subject_set_int(&subj_pid_progress_, 100);
-    lv_subject_copy_string(&subj_pid_progress_text_, lv_tr("Complete!"));
+    lv_subject_set_string(&subj_pid_progress_text_, lv_tr("Complete!"));
 
     char buf[32];
     snprintf(buf, sizeof(buf), "%.4f J/K", result.block_heat_capacity);
-    lv_subject_copy_string(&subj_mpc_heat_capacity_, buf);
+    lv_subject_set_string(&subj_mpc_heat_capacity_, buf);
     snprintf(buf, sizeof(buf), "%.6f K/s/K", result.sensor_responsiveness);
-    lv_subject_copy_string(&subj_mpc_sensor_resp_, buf);
+    lv_subject_set_string(&subj_mpc_sensor_resp_, buf);
     snprintf(buf, sizeof(buf), "%.6f W/K", result.ambient_transfer);
-    lv_subject_copy_string(&subj_mpc_ambient_transfer_, buf);
-    lv_subject_copy_string(&subj_mpc_fan_transfer_, result.fan_ambient_transfer.c_str());
+    lv_subject_set_string(&subj_mpc_ambient_transfer_, buf);
+    lv_subject_set_string(&subj_mpc_fan_transfer_, result.fan_ambient_transfer.c_str());
 
     const char* heater_label =
         (selected_heater_ == Heater::EXTRUDER) ? lv_tr("extruder") : lv_tr("heated bed");
     const std::string summary =
         fmt::format(lv_tr("MPC thermal model calibrated for {} at {}."), heater_label,
                     helix::units::format_display_temp(target_temp_));
-    lv_subject_copy_string(&subj_result_summary_, summary.c_str());
+    lv_subject_set_string(&subj_result_summary_, summary.c_str());
 
     spdlog::info("[PIDCal] MPC result: heat_cap={:.4f} sensor_resp={:.6f} ambient={:.6f} fan='{}'",
                  result.block_heat_capacity, result.sensor_responsiveness, result.ambient_transfer,
@@ -1679,7 +1679,7 @@ void PIDCalibrationPanel::on_mpc_progress(int phase, int total_phases, const std
     if (progress > 95)
         progress = 95;
     lv_subject_set_int(&subj_pid_progress_, progress);
-    lv_subject_copy_string(&subj_pid_progress_text_, desc.c_str());
+    lv_subject_set_string(&subj_pid_progress_text_, desc.c_str());
 
     spdlog::debug("[PIDCal] MPC progress: phase={}/{} desc='{}' bar={}%", phase, total_phases, desc,
                   progress);

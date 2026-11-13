@@ -393,7 +393,7 @@ TEST_CASE("a weight edit on the external spool reaches observers as the edited w
     SlotInfo edited = manual;
     edited.remaining_weight_g = 100.0f;
     AmsState::instance().commit_external_spool_edit(edited);
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 
     REQUIRE(AmsState::instance().get_external_spool_info()->remaining_weight_g == 100.0f);
     CHECK(seen_weight == 100.0f);

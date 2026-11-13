@@ -69,12 +69,12 @@ lv_subject_t* set_xml_int(const char* name, int value) {
 lv_subject_t* set_xml_string(const char* name, const char* value) {
     lv_subject_t* subject = lv_xml_get_subject(nullptr, name);
     REQUIRE(subject != nullptr);
-    lv_subject_copy_string(subject, value);
+    lv_subject_set_string(subject, value);
     return subject;
 }
 
 bool hidden(lv_obj_t* obj) {
-    return obj == nullptr || lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return obj == nullptr || lv_obj_is_hidden(obj);
 }
 
 /// Absolute right edge in display coordinates, so a widget nested any depth
@@ -146,7 +146,7 @@ void check_no_label_truncated(lv_obj_t* root) {
         const char* child_name = lv_obj_get_name(child);
         if (child_name != nullptr && strcmp(child_name, "fault_banner") == 0)
             continue;
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(child))
             continue;
         check_no_label_truncated(child);
         if (lv_obj_check_type(child, &lv_label_class)) {
@@ -176,7 +176,7 @@ void check_no_label_truncated(lv_obj_t* root) {
 void check_no_descendant_past_card_content(lv_obj_t* node, int32_t content_right) {
     for (uint32_t i = 0; i < lv_obj_get_child_count(node); ++i) {
         lv_obj_t* child = lv_obj_get_child(node, i);
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(child))
             continue;
         check_no_descendant_past_card_content(child, content_right);
         CAPTURE(lv_obj_get_name(child));

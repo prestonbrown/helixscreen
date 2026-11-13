@@ -418,8 +418,7 @@ bool wait_for_visible(lv_obj_t* widget, uint32_t timeout_ms) {
         return false;
     }
 
-    return wait_until([widget]() { return !lv_obj_has_flag(widget, LV_OBJ_FLAG_HIDDEN); },
-                      timeout_ms);
+    return wait_until([widget]() { return !lv_obj_is_hidden(widget); }, timeout_ms);
 }
 
 bool wait_for_hidden(lv_obj_t* widget, uint32_t timeout_ms) {
@@ -428,8 +427,7 @@ bool wait_for_hidden(lv_obj_t* widget, uint32_t timeout_ms) {
         return false;
     }
 
-    return wait_until([widget]() { return lv_obj_has_flag(widget, LV_OBJ_FLAG_HIDDEN); },
-                      timeout_ms);
+    return wait_until([widget]() { return lv_obj_is_hidden(widget); }, timeout_ms);
 }
 
 bool wait_for_timers(uint32_t timeout_ms) {
@@ -456,7 +454,7 @@ bool is_visible(lv_obj_t* widget) {
     if (!widget) {
         return false;
     }
-    return !lv_obj_has_flag(widget, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(widget);
 }
 
 std::string get_text(lv_obj_t* widget) {

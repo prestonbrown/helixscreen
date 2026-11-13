@@ -630,7 +630,7 @@ void QrScannerOverlay::show_success_flash() {
 
 void QrScannerOverlay::update_status(const std::string& text) {
     // Set the string subject for XML binding
-    lv_subject_copy_string(&status_subject_, text.c_str());
+    lv_subject_set_string(&status_subject_, text.c_str());
     spdlog::debug("[{}] Status: {}", get_name(), text);
 }
 

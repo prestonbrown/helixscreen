@@ -114,7 +114,7 @@ class PanelWidgetHarnessBase {
         const uint32_t count = lv_obj_get_child_count(obj);
         for (uint32_t i = 0; i < count; ++i) {
             lv_obj_t* child = lv_obj_get_child(obj, static_cast<int32_t>(i));
-            if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN))
+            if (lv_obj_is_hidden(child))
                 continue;
             if (const char* name = lv_obj_get_name(child))
                 parts.append(name).append(" ");
@@ -448,12 +448,12 @@ inline void check_text(lv_obj_t* o, const std::string& path, OverflowReport& r) 
 
 inline void walk(lv_obj_t* o, const std::string& path, const OverflowExceptions& ex,
                  OverflowReport& r) {
-    if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
+    if (lv_obj_is_hidden(o)) {
         return; // Not rendered, so nothing to clip.
     }
 
     const char* name = lv_obj_get_name(o);
-    const bool scroll_exempt = lv_obj_has_flag(o, LV_OBJ_FLAG_SCROLLABLE) &&
+    const bool scroll_exempt = lv_obj_is_scrollable(o) &&
                                lv_obj_get_scroll_dir(o) != LV_DIR_NONE && ex.exempts(name);
     if (scroll_exempt) {
         r.skipped.push_back(path + " (named scrollable exception)");
@@ -501,7 +501,7 @@ inline void walk(lv_obj_t* o, const std::string& path, const OverflowExceptions&
     const uint32_t n = lv_obj_get_child_count(o);
     for (uint32_t i = 0; i < n; ++i) {
         lv_obj_t* c = lv_obj_get_child(o, i);
-        if (lv_obj_has_flag(c, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(c)) {
             continue;
         }
         const std::string cpath = obj_path(path, c, static_cast<int>(i));

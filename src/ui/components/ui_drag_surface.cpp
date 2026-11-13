@@ -9,14 +9,14 @@ void mark_drag_surface(lv_obj_t* obj) {
         return;
     }
     lv_obj_add_flag(obj, kDragSurfaceFlag);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(obj, true);
     // LVGL's scroll search stops at an object that neither scrolls nor chains, so a
     // drag starting here never reaches the home carousel's page strip.
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLL_CHAIN);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_scroll_chain(obj, false);
     // A drag that leaves the surface keeps reporting to it until release.
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_PRESS_LOCK);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_set_press_lock(obj, true);
+    lv_obj_set_gesture_bubble(obj, false);
 }
 
 bool is_drag_surface_hit(lv_obj_t* target, lv_obj_t* stop_at) {

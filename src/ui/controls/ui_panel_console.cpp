@@ -283,7 +283,7 @@ void ConsolePanel::fetch_history() {
     if (!api) {
         spdlog::warn("[{}] No IMoonrakerAPI available", get_name());
         std::snprintf(status_buf_, sizeof(status_buf_), "%s", lv_tr("Not connected to printer"));
-        lv_subject_copy_string(&status_subject_, status_buf_);
+        lv_subject_set_string(&status_subject_, status_buf_);
         update_visibility();
         return;
     }
@@ -296,7 +296,7 @@ void ConsolePanel::fetch_history() {
 
     // Update status while loading
     std::snprintf(status_buf_, sizeof(status_buf_), "%s", lv_tr("Loading..."));
-    lv_subject_copy_string(&status_subject_, status_buf_);
+    lv_subject_set_string(&status_subject_, status_buf_);
 
     // Request gcode history from Moonraker
     // CRITICAL: Callbacks run on libhv background thread - defer LVGL work to main thread
@@ -329,7 +329,7 @@ void ConsolePanel::fetch_history() {
                 fetch_guard_.release();
                 std::snprintf(status_buf_, sizeof(status_buf_), "%s",
                               lv_tr("Failed to load history"));
-                lv_subject_copy_string(&status_subject_, status_buf_);
+                lv_subject_set_string(&status_subject_, status_buf_);
                 update_visibility();
             });
         });
@@ -396,7 +396,7 @@ void ConsolePanel::create_entry_widget(const GcodeEntry& entry) {
         if (!is_command || entry.id == 0) {
             return; // Responses stay inert; an unstamped entry can't be resolved.
         }
-        lv_obj_add_flag(widget, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(widget, true);
         // Identity travels as an integer VALUE, not a pointer. Nothing to free and
         // nothing to dangle when this widget is pruned — a recycled widget address
         // carrying a stale pointer is the #924/#1111 footgun.
@@ -586,7 +586,7 @@ bool ConsolePanel::should_display(const std::string& message, bool is_temp, bool
 void ConsolePanel::update_visibility() {
     // Drive visibility via subjects — XML bindings handle show/hide
     lv_subject_set_int(&has_entries_subject_, entries_.empty() ? 0 : 1);
-    lv_subject_copy_string(&status_subject_, status_buf_);
+    lv_subject_set_string(&status_subject_, status_buf_);
     lv_subject_set_int(&status_visible_subject_, status_buf_[0] != '\0' ? 1 : 0);
 }
 

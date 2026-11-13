@@ -80,7 +80,7 @@ class SettingRowWrapFixture : public LVGLUITestFixture {
         lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_style_pad_all(col, 0, LV_PART_MAIN);
         lv_obj_set_style_border_width(col, 0, LV_PART_MAIN);
-        lv_obj_remove_flag(col, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(col, false);
         return col;
     }
 
@@ -131,7 +131,7 @@ TEST_CASE_METHOD(SettingRowWrapFixture, "setting_toggle_row wraps a long descrip
 
     lv_obj_t* desc = lv_obj_find_by_name(row, "description");
     REQUIRE(desc != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(desc, LV_OBJ_FLAG_HIDDEN)); // 800x480 -> Medium, description on
+    REQUIRE_FALSE(lv_obj_is_hidden(desc)); // 800x480 -> Medium, description on
 
     check_wrapped_inside(desc, row, line_height(desc), "toggle row description");
 

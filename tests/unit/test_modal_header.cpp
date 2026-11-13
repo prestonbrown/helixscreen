@@ -28,7 +28,7 @@ TEST_CASE_METHOD(XMLTestFixture, "modal_header shows btn_close when hide_close=f
     // Close button is found by name through the component boundary and is visible.
     lv_obj_t* close = lv_obj_find_by_name(root, "btn_close");
     REQUIRE(close != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(close, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(close));
 
     lv_obj_delete(root);
 }
@@ -41,7 +41,7 @@ TEST_CASE_METHOD(XMLTestFixture, "modal_header hides btn_close by default", "[mo
 
     lv_obj_t* close = lv_obj_find_by_name(root, "btn_close");
     REQUIRE(close != nullptr);
-    REQUIRE(lv_obj_has_flag(close, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(close));
 
     lv_obj_delete(root);
 }

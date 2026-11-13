@@ -915,13 +915,13 @@ TEST_CASE_METHOD(OverlayXmlFixture,
                  "overlay XML: the page shows only the focused device's sections",
                  "[led][overlay][xml]") {
     // RGBW with an effect: lamp, White, Color and the Effects row; no levels, no macro buttons.
-    CHECK_FALSE(lv_obj_has_flag(need("led_power_btn"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(need("led_white_section"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(need("led_color_section"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(need("led_chip_none"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(need("led_level_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(need("led_macro_on"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(need("led_empty_state"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(need("led_power_btn")));
+    CHECK_FALSE(lv_obj_is_hidden(need("led_white_section")));
+    CHECK_FALSE(lv_obj_is_hidden(need("led_color_section")));
+    CHECK_FALSE(lv_obj_is_hidden(need("led_chip_none")));
+    CHECK(lv_obj_is_hidden(need("led_level_row")));
+    CHECK(lv_obj_is_hidden(need("led_macro_on")));
+    CHECK(lv_obj_is_hidden(need("led_empty_state")));
 }
 
 TEST_CASE_METHOD(OverlayXmlFixture, "overlay XML: the brightness fill is flat-topped inside a pill",
@@ -1131,8 +1131,7 @@ TEST_CASE_METHOD(OverlayXmlFixture, "overlay XML: a tab dot shows exactly its de
         REQUIRE(dot != nullptr);
         std::vector<int> shown;
         for (uint32_t i = 0; i < lv_obj_get_child_count(dot); ++i) {
-            if (!lv_obj_has_flag(lv_obj_get_child(dot, static_cast<int32_t>(i)),
-                                 LV_OBJ_FLAG_HIDDEN)) {
+            if (!lv_obj_is_hidden(lv_obj_get_child(dot, static_cast<int32_t>(i)))) {
                 shown.push_back(static_cast<int>(i));
             }
         }

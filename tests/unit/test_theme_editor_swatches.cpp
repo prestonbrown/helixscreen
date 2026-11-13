@@ -163,7 +163,7 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture, "Save As with an empty name says why 
     lv_obj_t* input = lv_obj_find_by_name(dialog, "theme_name_input");
     REQUIRE(status != nullptr);
     REQUIRE(input != nullptr);
-    CHECK(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(status));
 
     lv_textarea_set_text(input, "");
     lv_obj_t* confirm = lv_obj_find_by_name(dialog, "btn_primary");
@@ -171,7 +171,7 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture, "Save As with an empty name says why 
     lv_obj_send_event(confirm, LV_EVENT_CLICKED, nullptr);
     settle();
 
-    CHECK_FALSE(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(status));
     CHECK(std::string(lv_label_get_text(status)) == lv_tr("Please enter a theme name"));
 
     // Save As again opens a fresh dialog with no error from the last attempt.
@@ -181,6 +181,6 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture, "Save As with an empty name says why 
     REQUIRE(ModalStack::instance().top_dialog() != dialog);
     status = lv_obj_find_by_name(ModalStack::instance().top_dialog(), "save_as_status");
     REQUIRE(status != nullptr);
-    CHECK(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(status));
     ModalStack::instance().clear();
 }

@@ -97,7 +97,7 @@ lv_obj_t* PrinterManagerOverlay::create(lv_obj_t* parent) {
     if (auto* timelapse_chip =
             helix::ui::find_required(overlay_root_, "pm_chip_timelapse", get_name())) {
         // DECLARATIVE_OK: compile-time capability (#if), no runtime subject exists
-        lv_obj_add_flag(timelapse_chip, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(timelapse_chip, true);
     }
 #endif
 
@@ -207,13 +207,13 @@ void PrinterManagerOverlay::finish_name_edit() {
     // Update subjects to reflect new name (local overlay + global PrinterState + image widget)
     std::strncpy(name_buf_, name_str.c_str(), sizeof(name_buf_) - 1);
     name_buf_[sizeof(name_buf_) - 1] = '\0';
-    lv_subject_copy_string(&printer_manager_name_, name_buf_);
+    lv_subject_set_string(&printer_manager_name_, name_buf_);
     get_printer_state().set_active_printer_name(name_str);
 
     // Update the printer image widget's name subject directly
     auto* type_subject = lv_xml_get_subject(nullptr, "printer_type_text");
     if (type_subject) {
-        lv_subject_copy_string(type_subject, name_str.c_str());
+        lv_subject_set_string(type_subject, name_str.c_str());
     }
 
     // Toggle back to viewing mode — XML bind_flag_if_eq handles visibility
@@ -278,19 +278,19 @@ void PrinterManagerOverlay::refresh_printer_info() {
     std::string name = helix::get_printer_display_name();
     std::strncpy(name_buf_, name.c_str(), sizeof(name_buf_) - 1);
     name_buf_[sizeof(name_buf_) - 1] = '\0';
-    lv_subject_copy_string(&printer_manager_name_, name_buf_);
+    lv_subject_set_string(&printer_manager_name_, name_buf_);
 
     // Printer model/type from config
     std::string model = config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
     std::strncpy(model_buf_, model.c_str(), sizeof(model_buf_) - 1);
     model_buf_[sizeof(model_buf_) - 1] = '\0';
-    lv_subject_copy_string(&printer_manager_model_, model_buf_);
+    lv_subject_set_string(&printer_manager_model_, model_buf_);
 
     // HelixScreen version
     const char* version = helix_version();
     std::strncpy(version_buf_, version, sizeof(version_buf_) - 1);
     version_buf_[sizeof(version_buf_) - 1] = '\0';
-    lv_subject_copy_string(&helix_version_, version_buf_);
+    lv_subject_set_string(&helix_version_, version_buf_);
 
     spdlog::debug("[{}] Refreshed: name='{}', model='{}', version='{}'", get_name(), name_buf_,
                   model_buf_, version_buf_);
@@ -330,7 +330,7 @@ void PrinterManagerOverlay::refresh_capability_chips() {
         const auto i = static_cast<size_t>(spec.chip);
         const std::string text = capability_chip_text(spec.chip, facts);
         if (text != chip_text_bufs_[i].data()) {
-            lv_subject_copy_string(&chip_text_[i], text.c_str());
+            lv_subject_set_string(&chip_text_[i], text.c_str());
         }
     }
 

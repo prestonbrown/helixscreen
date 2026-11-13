@@ -172,8 +172,8 @@ static void apply_lane_state(LaneBarData* d, helix::ui::LaneState state) {
     // Empty is a faint solid slot: no outline and no fill, so it cannot be read as a
     // spool that has run low.
     if (state == helix::ui::LaneState::Empty) {
-        lv_obj_remove_flag(d->bar_bg, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(d->bar_fill, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(d->bar_bg, false);
+        lv_obj_set_hidden(d->bar_fill, true);
         lv_obj_set_style_bg_color(d->bar_bg, theme_manager_get_color("text_muted"), LV_PART_MAIN);
         lv_obj_set_style_bg_opa(d->bar_bg, LV_OPA_20, LV_PART_MAIN);
         apply_lane_border(d);
@@ -181,8 +181,8 @@ static void apply_lane_state(LaneBarData* d, helix::ui::LaneState state) {
         return;
     }
 
-    lv_obj_remove_flag(d->bar_bg, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(d->bar_fill, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(d->bar_bg, false);
+    lv_obj_set_hidden(d->bar_fill, false);
     lv_obj_set_style_bg_color(d->bar_bg, d->bar_bg_color, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(d->bar_bg, d->bar_bg_opa, LV_PART_MAIN);
     lv_obj_set_height(d->bar_fill, LV_PCT(d->fill_pct));
@@ -221,9 +221,9 @@ static void apply_error_decoration(LaneBarData* d) {
         lv_obj_set_style_bg_color(d->status_line, ams_draw::severity_color(d->severity),
                                   LV_PART_MAIN);
         lv_obj_set_style_bg_opa(d->status_line, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_remove_flag(d->status_line, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(d->status_line, false);
     } else {
-        lv_obj_add_flag(d->status_line, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(d->status_line, true);
     }
 }
 
@@ -434,7 +434,7 @@ static void* ams_lane_bar_xml_create(lv_xml_parser_state_t* state, const char** 
         lv_obj_set_name(col.status_line, "status_line");
         // Hidden until the has_error observer says otherwise
         // (apply_error_decoration()).
-        lv_obj_add_flag(col.status_line, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(col.status_line, true);
     }
 
     auto data_ptr = std::make_unique<LaneBarData>();

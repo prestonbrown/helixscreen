@@ -76,7 +76,7 @@ const char* ipv4_problem_text(helix::net::Ipv4Problem problem, helix::net::Ipv4F
 }
 
 void copy_to(lv_subject_t& subject, const std::string& text) {
-    lv_subject_copy_string(&subject, text.c_str());
+    lv_subject_set_string(&subject, text.c_str());
 }
 
 } // namespace
@@ -239,7 +239,7 @@ void Ipv4SettingsOverlay::edit_field(Ipv4FormField field) {
     config.initial_text = lv_subject_get_string(subject);
     // The overlay is process-wide, so the subject outlives the keypad.
     config.on_confirm_text = [this, subject](const std::string& text) {
-        lv_subject_copy_string(subject, text.c_str());
+        lv_subject_set_string(subject, text.c_str());
         set_error("");
     };
     ui_keypad_show(&config);
@@ -312,7 +312,7 @@ void Ipv4SettingsOverlay::read_link_config(
 // ----------------------------------------------------------------------------
 
 void Ipv4SettingsOverlay::set_error(const char* text) {
-    lv_subject_copy_string(&error_, text ? text : "");
+    lv_subject_set_string(&error_, text ? text : "");
 }
 
 void Ipv4SettingsOverlay::set_busy(bool busy) {
@@ -581,7 +581,7 @@ void Ipv4SettingsOverlay::show_keep_prompt() {
     char title[sizeof(keep_title_buf_)];
     const std::string what = flow_.next().dhcp ? std::string(lv_tr("DHCP")) : flow_.next().address;
     std::snprintf(title, sizeof(title), lv_tr("Keep %s?"), what.c_str());
-    lv_subject_copy_string(&keep_title_, title);
+    lv_subject_set_string(&keep_title_, title);
 
     shown_seconds_ = 0;
     on_countdown_tick();
@@ -613,7 +613,7 @@ void Ipv4SettingsOverlay::on_countdown_tick() {
     std::snprintf(message, sizeof(message),
                   lv_tr("The previous settings come back in %d seconds unless you keep these."),
                   static_cast<int>(left));
-    lv_subject_copy_string(&keep_message_, message);
+    lv_subject_set_string(&keep_message_, message);
 }
 
 void Ipv4SettingsOverlay::stop_countdown() {

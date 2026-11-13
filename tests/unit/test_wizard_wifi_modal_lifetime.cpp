@@ -127,8 +127,7 @@ TEST_CASE_METHOD(WizardWifiModalFixture,
     auto status_shown = [&]() {
         lv_obj_t* status = lv_obj_find_by_name(Access::password_modal(s), "modal_status");
         REQUIRE(status != nullptr);
-        return lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN) ? std::string()
-                                                           : std::string(lv_label_get_text(status));
+        return lv_obj_is_hidden(status) ? std::string() : std::string(lv_label_get_text(status));
     };
 
     s.show_password_modal("TestNetwork");

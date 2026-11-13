@@ -506,7 +506,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(lv_subject_get_int(clear_error) == 2);
         lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_clear_error");
         REQUIRE(btn != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
         CHECK_FALSE(lv_obj_has_state(btn, LV_STATE_DISABLED));
     }
 
@@ -532,11 +532,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(lv_subject_get_int(clear_error) == 0);
         lv_obj_t* btn_gate_check = lv_obj_find_by_name(test_screen(), "btn_gate_check");
         REQUIRE(btn_gate_check != nullptr);
-        CHECK(lv_obj_has_flag(btn_gate_check, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(btn_gate_check));
         // Its own rows come on, under its own header.
         lv_obj_t* btn_purge = lv_obj_find_by_name(test_screen(), "btn_purge");
         REQUIRE(btn_purge != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn_purge, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn_purge));
         lv_obj_t* header = lv_obj_find_by_name(test_screen(), "slot_header");
         REQUIRE(header != nullptr);
         CHECK(std::string(lv_label_get_text(header)) == "External Spool");

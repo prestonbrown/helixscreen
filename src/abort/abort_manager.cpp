@@ -709,7 +709,7 @@ void AbortManager::set_progress_message(const char* message) {
     progress_message_buf_[sizeof(progress_message_buf_) - 1] = '\0';
 
     if (subjects_initialized_) {
-        lv_subject_copy_string(&progress_message_subject_, progress_message_buf_);
+        lv_subject_set_string(&progress_message_subject_, progress_message_buf_);
     }
 }
 
@@ -750,13 +750,13 @@ void AbortManager::create_modal() {
         static_cast<lv_obj_t*>(lv_xml_create(backdrop_, "abort_progress_modal", nullptr));
     if (!dialog) {
         spdlog::error("[AbortManager] Failed to create abort_progress_modal");
-        lv_obj_del(backdrop_);
+        lv_obj_delete(backdrop_);
         backdrop_ = nullptr;
         return;
     }
 
     // Start hidden — update_visibility() will show when abort begins
-    lv_obj_add_flag(backdrop_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(backdrop_, true);
     spdlog::debug("[AbortManager] Modal created on lv_layer_top() (hidden)");
 }
 
@@ -780,9 +780,9 @@ void AbortManager::update_visibility() {
     }
 
     if (visible) {
-        lv_obj_remove_flag(backdrop_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(backdrop_, false);
     } else {
-        lv_obj_add_flag(backdrop_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(backdrop_, true);
     }
     spdlog::debug("[AbortManager] Visibility updated: {}", visible ? "visible" : "hidden");
 }

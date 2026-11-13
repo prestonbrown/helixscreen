@@ -89,7 +89,7 @@ class ScrollBlitFixture : public LVGLTestFixture {
         lv_obj_set_scrollbar_mode(list_, LV_SCROLLBAR_MODE_ON);
         lv_obj_set_flex_flow(list_, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_style_pad_row(list_, 6, LV_PART_MAIN);
-        lv_obj_add_flag(list_, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(list_, true);
         for (int i = 0; i < 30; i++) {
             lv_obj_t* row = plain_box(list_, 0, 0, 360, 40, 0x506070 + 0x0a0503 * i);
             lv_obj_set_style_radius(row, 6, LV_PART_MAIN);
@@ -238,7 +238,7 @@ TEST_CASE_METHOD(ScrollBlitFixture, "scroll blit redraws widgets that stay put",
     }
     SECTION("a floating child") {
         lv_obj_t* fab = plain_box(list_, 300, 200, 40, 40, 0x0000ff);
-        lv_obj_add_flag(fab, LV_OBJ_FLAG_FLOATING);
+        lv_obj_set_floating(fab, true);
     }
     SECTION("a toast on the top layer") {
         toast = plain_box(lv_layer_top(), 150, 100, 200, 40, 0xffff00);
@@ -304,9 +304,7 @@ TEST_CASE_METHOD(ScrollBlitFixture,
                 lv_label_set_text_fmt(labels_[slot], "Item %d", static_cast<int>(item));
                 configured++;
             },
-            [&](size_t slot) {
-                lv_obj_add_flag(lv_obj_get_parent(labels_[slot]), LV_OBJ_FLAG_HIDDEN);
-            });
+            [&](size_t slot) { lv_obj_set_hidden(lv_obj_get_parent(labels_[slot]), true); });
     };
     for (int first : {2, 5, 4}) {
         CAPTURE(first);
@@ -327,7 +325,7 @@ TEST_CASE_METHOD(ScrollBlitFixture, "scroll blit edge cases still match a full r
         lv_obj_set_style_bg_opa(list_, LV_OPA_COVER, LV_PART_MAIN);
         lv_obj_set_x(list_, 100); // right edge on the panel's own scrollbar
         plain_box(panel_, 0, 0, 10, 1000, 0x303848);
-        lv_obj_add_flag(panel_, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(panel_, true);
         lv_obj_set_scrollbar_mode(panel_, LV_SCROLLBAR_MODE_ON);
         lv_obj_set_style_width(panel_, 6, LV_PART_SCROLLBAR);
         lv_obj_set_style_bg_color(panel_, lv_color_hex(0xffffff), LV_PART_SCROLLBAR);

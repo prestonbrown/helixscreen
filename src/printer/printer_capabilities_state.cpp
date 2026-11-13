@@ -319,7 +319,7 @@ void PrinterCapabilitiesState::render_tool_offset_cal_description() {
         return;
     }
     const char* key = tool_offset_cal_description_key_;
-    lv_subject_copy_string(&tool_offset_cal_description_, key[0] != '\0' ? lv_tr(key) : "");
+    lv_subject_set_string(&tool_offset_cal_description_, key[0] != '\0' ? lv_tr(key) : "");
 }
 
 void PrinterCapabilitiesState::on_language_changed() {

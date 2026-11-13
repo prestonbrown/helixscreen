@@ -283,7 +283,7 @@ TEST_CASE("Fan characterization: observer fires when fan_speed changes",
     REQUIRE(user_data[0] >= 2); // At least one more notification
     REQUIRE(user_data[1] == 75);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 TEST_CASE("Fan characterization: observer fires on per-fan subject change",
@@ -318,7 +318,7 @@ TEST_CASE("Fan characterization: observer fires on per-fan subject change",
     REQUIRE(user_data[0] >= 2);
     REQUIRE(user_data[1] == 50);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 TEST_CASE("Fan characterization: fans_version observer fires on init_fans",
@@ -354,7 +354,7 @@ TEST_CASE("Fan characterization: fans_version observer fires on init_fans",
     REQUIRE(user_data[0] >= 3);
     REQUIRE(user_data[1] == 2);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // ============================================================================
@@ -567,8 +567,8 @@ TEST_CASE("Fan characterization: observers on different fan subjects are indepen
     REQUIRE(main_count >= 2);
     REQUIRE(per_fan_count >= 2);
 
-    lv_observer_remove(main_observer);
-    lv_observer_remove(per_fan_observer);
+    lv_observer_delete(main_observer);
+    lv_observer_delete(per_fan_observer);
 }
 
 // ============================================================================

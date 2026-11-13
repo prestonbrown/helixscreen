@@ -494,7 +494,7 @@ lv_obj_t* fault_button(const char* name) {
 }
 
 bool shown(lv_obj_t* obj) {
-    return !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(obj);
 }
 
 bool painted(lv_obj_t* btn, StyleRole role) {

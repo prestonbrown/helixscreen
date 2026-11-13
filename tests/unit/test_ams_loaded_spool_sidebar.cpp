@@ -277,7 +277,7 @@ void check_action_labels(XMLTestFixture& fx, std::initializer_list<const char*> 
                 CAPTURE(name);
                 lv_obj_t* btn = lv_obj_find_by_name(panel_obj, name);
                 REQUIRE(btn != nullptr);
-                if (lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN)) {
+                if (lv_obj_is_hidden(btn)) {
                     continue;
                 }
                 lv_area_t outer;
@@ -359,9 +359,9 @@ TEST_CASE_METHOD(XMLTestFixture, "AMS panel header gear follows the device opera
     REQUIRE(ops != nullptr);
 
     lv_subject_set_int(ops, 1);
-    CHECK_FALSE(lv_obj_has_flag(gear, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(gear));
     lv_subject_set_int(ops, 0);
-    CHECK(lv_obj_has_flag(gear, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(gear));
 
     lv_obj_delete(panel_obj);
     AmsState::instance().set_backend(nullptr);

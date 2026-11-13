@@ -95,7 +95,7 @@ void PanelBase::register_observer(lv_observer_t* observer) {
 }
 
 void PanelBase::cleanup_observers() {
-    // Do NOT manually call lv_observer_remove() here. Manual removal frees the
+    // Do NOT manually call lv_observer_delete() here. Manual removal frees the
     // observer, but LVGL's widget delete cascade will then fire the observer's
     // unsubscribe_on_delete_cb on freed memory → linked list corruption → crash.
     // Observers created with lv_subject_add_observer_obj() are auto-removed when
@@ -131,7 +131,7 @@ bool PanelBase::rebuild() {
     spdlog::info("[PanelBase::rebuild] {} ({}) — tearing down and re-creating", get_name(),
                  component);
 
-    bool was_hidden = lv_obj_has_flag(panel_, LV_OBJ_FLAG_HIDDEN);
+    bool was_hidden = lv_obj_is_hidden(panel_);
 
     on_deactivate(DeactivateReason::Rebuild);
     cleanup_observers();
@@ -162,7 +162,7 @@ bool PanelBase::rebuild() {
     }
 
     if (!was_hidden) {
-        lv_obj_remove_flag(new_widget, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(new_widget, false);
     }
 
     setup(new_widget, parent_screen_);

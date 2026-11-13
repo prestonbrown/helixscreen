@@ -51,7 +51,7 @@ static std::vector<PrintHistoryJob> make_test_jobs(int count) {
 static lv_obj_t* make_scroll_container(lv_obj_t* screen) {
     lv_obj_t* container = lv_obj_create(screen);
     lv_obj_set_size(container, 400, 600);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, true);
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
     return container;
 }
@@ -273,8 +273,8 @@ TEST_CASE_METHOD(
             lv_obj_t* image = lv_obj_find_by_name(test_screen(), "thumbnail_image");
             lv_obj_t* fallback = lv_obj_find_by_name(test_screen(), "thumbnail_fallback");
             REQUIRE((image && fallback));
-            CHECK(lv_obj_has_flag(image, LV_OBJ_FLAG_HIDDEN) != with_thumbnail);
-            CHECK(lv_obj_has_flag(fallback, LV_OBJ_FLAG_HIDDEN) == with_thumbnail);
+            CHECK(lv_obj_is_hidden(image) != with_thumbnail);
+            CHECK(lv_obj_is_hidden(fallback) == with_thumbnail);
             if (with_thumbnail) {
                 const void* src = lv_image_get_src(image);
                 REQUIRE(src != nullptr);

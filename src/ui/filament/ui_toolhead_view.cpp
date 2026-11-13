@@ -95,8 +95,8 @@ void* toolhead_view_xml_create(lv_xml_parser_state_t* state, const char** /*attr
     auto* parent = static_cast<lv_obj_t*>(lv_xml_state_get_parent(state));
     lv_obj_t* obj = lv_obj_create(parent);
     lv_obj_remove_style_all(obj);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, false);
     lv_obj_add_event_cb(obj, toolhead_view_draw_cb, LV_EVENT_DRAW_MAIN,
                         nullptr); // DECLARATIVE_OK: draw hook
     if (lv_subject_t* style = helix::SettingsManager::instance().subject_toolhead_style()) {

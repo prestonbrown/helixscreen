@@ -233,8 +233,8 @@ void* table_xml_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_PART_ITEMS);
     lv_obj_set_style_border_width(obj, 1, LV_PART_ITEMS);
     lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_BOTTOM, LV_PART_ITEMS);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    lv_obj_set_send_draw_task_events(obj, true);
+    lv_obj_set_scroll_elastic(obj, false);
 
     // An unnamed table never joins a slot and stays empty.
     auto* inst = new Instance{name_attr ? name_attr : ""};

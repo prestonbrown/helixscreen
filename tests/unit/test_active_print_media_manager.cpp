@@ -321,7 +321,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     // Observer should have fired again
     REQUIRE(observer_count == 2);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // ============================================================================
@@ -467,7 +467,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     REQUIRE(observer_fire_count == 3);
     REQUIRE(last_observed_path.empty());
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }
 
 TEST_CASE_METHOD(
@@ -500,7 +500,7 @@ TEST_CASE_METHOD(
     REQUIRE(observed_values[2] == "A:/cache/second.bin");
     REQUIRE(observed_values[3] == "A:/cache/third.bin");
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,

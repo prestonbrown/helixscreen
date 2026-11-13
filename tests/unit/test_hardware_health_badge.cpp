@@ -64,7 +64,7 @@ struct HardwareHealthBadgeFixture : public LVGLUITestFixture {
     bool badge_hidden(const char* name) const {
         lv_obj_t* badge = lv_obj_find_by_name(root_, name);
         REQUIRE(badge != nullptr);
-        return lv_obj_has_flag(badge, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(badge);
     }
 
     lv_obj_t* root_ = nullptr;

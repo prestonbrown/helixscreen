@@ -128,13 +128,13 @@ void PowerPanel::fetch_devices() {
     if (!api_) {
         spdlog::warn("[{}] No IMoonrakerAPI available - cannot fetch devices", get_name());
         std::snprintf(status_buf_, sizeof(status_buf_), "%s", lv_tr("Not connected to printer"));
-        lv_subject_copy_string(&status_subject_, status_buf_);
+        lv_subject_set_string(&status_subject_, status_buf_);
         return;
     }
 
     spdlog::debug("[{}] Fetching power devices...", get_name());
     std::snprintf(status_buf_, sizeof(status_buf_), "%s", lv_tr("Loading devices..."));
-    lv_subject_copy_string(&status_subject_, status_buf_);
+    lv_subject_set_string(&status_subject_, status_buf_);
 
     auto token = object_lifetime_.token();
     api_->get_power_devices(
@@ -152,7 +152,7 @@ void PowerPanel::fetch_devices() {
                 spdlog::error("[{}] Failed to fetch power devices: {}", get_name(), msg);
                 std::snprintf(status_buf_, sizeof(status_buf_), "%s",
                               lv_tr("Failed to load devices"));
-                lv_subject_copy_string(&status_subject_, status_buf_);
+                lv_subject_set_string(&status_subject_, status_buf_);
             });
         });
 }
@@ -183,7 +183,7 @@ void PowerPanel::populate_device_list(const std::vector<PowerDevice>& devices) {
 
     if (!has_devices) {
         status_buf_[0] = '\0'; // Clear status
-        lv_subject_copy_string(&status_subject_, status_buf_);
+        lv_subject_set_string(&status_subject_, status_buf_);
         return;
     }
 
@@ -196,7 +196,7 @@ void PowerPanel::populate_device_list(const std::vector<PowerDevice>& devices) {
 
     // Clear status message on success
     status_buf_[0] = '\0';
-    lv_subject_copy_string(&status_subject_, status_buf_);
+    lv_subject_set_string(&status_subject_, status_buf_);
 }
 
 void PowerPanel::create_device_row(const PowerDevice& device) {
@@ -289,7 +289,7 @@ void PowerPanel::handle_device_toggle(const std::string& device, bool power_on) 
                 spdlog::error("[{}] Failed to toggle device '{}': {}", get_name(), device, msg);
                 std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Failed to toggle %s"),
                               device.c_str());
-                lv_subject_copy_string(&status_subject_, status_buf_);
+                lv_subject_set_string(&status_subject_, status_buf_);
                 fetch_devices();
             });
         });

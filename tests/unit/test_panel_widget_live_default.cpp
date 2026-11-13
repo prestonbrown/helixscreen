@@ -170,7 +170,7 @@ class LiveDefaultFixture : public LVGLUITestFixture {
         lv_obj_set_size(c, content_w, content_h);
         lv_obj_set_style_pad_all(c, 0, 0);
         lv_obj_set_style_border_width(c, 0, 0);
-        lv_obj_remove_flag(c, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(c, false);
         return c;
     }
 

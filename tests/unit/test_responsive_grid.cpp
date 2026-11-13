@@ -85,7 +85,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "responsive_grid places children in fitted c
     CHECK(fit_of(grid) == Fit{3, 160});
 
     SECTION("a hidden child leaves no hole") {
-        lv_obj_add_flag(items[1], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(items[1], true);
         lv_obj_update_layout(test_screen());
         CHECK(geom_in(grid, items[2]).x == 170);
         CHECK(geom_in(grid, items[3]).x == 340);
@@ -101,7 +101,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "responsive_grid places children in fitted c
         CHECK(lv_obj_get_width(items[4]) == 155);
     }
     SECTION("a child the grid stops placing gets its own width back") {
-        lv_obj_add_flag(items[0], LV_OBJ_FLAG_IGNORE_LAYOUT);
+        lv_obj_set_ignore_layout(items[0], true);
         lv_obj_update_layout(test_screen());
         CHECK(lv_obj_get_width(items[0]) == 40);
         CHECK(geom_in(grid, items[1]).x == 0);

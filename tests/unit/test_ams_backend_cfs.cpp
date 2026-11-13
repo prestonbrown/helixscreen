@@ -220,7 +220,7 @@ class CfsCalibHelper : public CfsLifecycleHelper {
     template <typename... Args>
     explicit CfsCalibHelper(Args&&... args) : CfsLifecycleHelper(std::forward<Args>(args)...) {
         CfsTestAccess::set_macro_variant_k1(*this);
-        lv_subject_copy_string(state.motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(state.motion_state().get_homed_axes_subject(), "xyz");
     }
 
     // Keep the 1-arg capture visible beside these overrides.
@@ -858,7 +858,7 @@ class CfsLiveAckBackend : public AmsBackendCfs {
         : AmsBackendCfs(nullptr, client) {
         api_ = &printer.api;
         CfsTestAccess::set_macro_variant_k1(*this);
-        lv_subject_copy_string(printer.state.motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(printer.state.motion_state().get_homed_axes_subject(), "xyz");
     }
     ~CfsLiveAckBackend() override {
         drain_calib_queue();
@@ -1008,11 +1008,11 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
 TEST_CASE("CFS chute save refuses a toolhead that lost its homing", "[ams][cfs][calib]") {
     CfsCalibHelper backend;
     for (const char* axes : {"", "z", "xz", "yz"}) {
-        lv_subject_copy_string(backend.state.motion_state().get_homed_axes_subject(), axes);
+        lv_subject_set_string(backend.state.motion_state().get_homed_axes_subject(), axes);
         CHECK_FALSE(backend.save_chute_position().success());
         CHECK(backend.captured.empty());
     }
-    lv_subject_copy_string(backend.state.motion_state().get_homed_axes_subject(), "xy");
+    lv_subject_set_string(backend.state.motion_state().get_homed_axes_subject(), "xy");
     CHECK(backend.save_chute_position().success());
     CHECK_FALSE(backend.captured.empty());
 }

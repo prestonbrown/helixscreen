@@ -67,7 +67,7 @@ bool color_is(lv_color_t c, uint32_t rgb) {
 /// Drawn unless it or an ancestor is hidden.
 bool shown(lv_obj_t* obj) {
     for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
-        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(o)) {
             return false;
         }
     }
@@ -98,14 +98,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // attach() applies compact defaults (XML: wide_layout hidden, compact shown)
     // and colors the compact canvas immediately.
-    CHECK(lv_obj_has_flag(wide_layout, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(spool_compact, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(wide_layout));
+    CHECK_FALSE(lv_obj_is_hidden(spool_compact));
     CHECK(color_is(ui_spool_canvas_get_color(spool_compact), kTestSpoolColor));
 
     // Wide by pixel, contradicting span (colspan=1 -> old predicate stays compact).
     h.resize(1, 1, w_normal(), h_tall());
-    CHECK_FALSE(lv_obj_has_flag(wide_layout, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(spool_compact, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(wide_layout));
+    CHECK(lv_obj_is_hidden(spool_compact));
     CHECK(color_is(ui_spool_canvas_get_color(spool_wide), kTestSpoolColor));
     // The wide row names the spool, in place of its No Spool line.
     CHECK(std::string(lv_label_get_text(h.child("spoolman_material"))) == "PLA");
@@ -117,8 +117,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // Back to compact by pixel, contradicting span (colspan=3 -> old predicate goes wide).
     h.resize(3, 3, w_normal() - 1, h_tall() - 1);
-    CHECK(lv_obj_has_flag(wide_layout, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(spool_compact, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(wide_layout));
+    CHECK_FALSE(lv_obj_is_hidden(spool_compact));
     CHECK(color_is(ui_spool_canvas_get_color(spool_compact), kTestSpoolColor));
 
     AmsState::instance().clear_external_spool_info();
@@ -195,11 +195,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "active_spool stays colored after a wide ins
 
     // The wide layout must be visible and its canvas colored; the compact
     // canvas must be hidden (so its default-white state is never shown).
-    INFO("wide_layout hidden=" << lv_obj_has_flag(wide_layout2, LV_OBJ_FLAG_HIDDEN)
-                               << " compact hidden="
-                               << lv_obj_has_flag(compact2, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE_FALSE(lv_obj_has_flag(wide_layout2, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE(lv_obj_has_flag(compact2, LV_OBJ_FLAG_HIDDEN));
+    INFO("wide_layout hidden=" << lv_obj_is_hidden(wide_layout2)
+                               << " compact hidden=" << lv_obj_is_hidden(compact2));
+    REQUIRE_FALSE(lv_obj_is_hidden(wide_layout2));
+    REQUIRE(lv_obj_is_hidden(compact2));
     REQUIRE_FALSE(color_is(ui_spool_canvas_get_color(wide2), kDefaultWhite));
     REQUIRE(color_is(ui_spool_canvas_get_color(wide2), kTestSpoolColor));
 

@@ -1088,11 +1088,11 @@ void AmsPanel::update_slot_colors() {
 
         if (i >= slot_count) {
             // Hide slots beyond configured count
-            lv_obj_add_flag(slot_widgets_[i], LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(slot_widgets_[i], true);
             continue;
         }
 
-        lv_obj_remove_flag(slot_widgets_[i], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(slot_widgets_[i], false);
 
         // Material and fill are no longer pushed here: the ams_slot widget
         // observes its own per-slot subjects (AmsState::get_slot_material_subject
@@ -1511,7 +1511,7 @@ AmsPanel& get_global_ams_panel() {
         AmsState::instance().init_subjects(true);
 
         // Create the panel on the active screen
-        lv_obj_t* screen = lv_scr_act();
+        lv_obj_t* screen = lv_screen_active();
         s_ams_panel_obj = helix::ui::create_xml_hidden(screen, "ams_panel");
 
         if (s_ams_panel_obj) {
@@ -1522,7 +1522,7 @@ AmsPanel& get_global_ams_panel() {
 
             // Setup the panel
             panel.setup(s_ams_panel_obj, screen);
-            lv_obj_add_flag(s_ams_panel_obj, LV_OBJ_FLAG_HIDDEN); // Hidden by default
+            lv_obj_set_hidden(s_ams_panel_obj, true); // Hidden by default
 
             // Kept alive between opens: building it is most of an open's cost on
             // slow hardware. Closing runs AmsPanel::on_closed(); memory pressure, a

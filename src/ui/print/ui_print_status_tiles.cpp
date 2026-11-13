@@ -86,7 +86,7 @@ void set_string(lv_subject_t* s, char* buf, size_t size, const std::string& v) {
         return;
     }
     std::snprintf(buf, size, "%s", v.c_str());
-    lv_subject_copy_string(s, buf);
+    lv_subject_set_string(s, buf);
 }
 
 bool lined_or_pinned(CalloutMode m) {

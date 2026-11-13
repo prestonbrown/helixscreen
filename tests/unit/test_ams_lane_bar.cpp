@@ -26,7 +26,7 @@ lv_obj_t* make_bar(lv_obj_t* parent, int slot_index) {
 bool visible(lv_obj_t* root, const char* name) {
     lv_obj_t* o = lv_obj_find_by_name(root, name);
     REQUIRE(o != nullptr);
-    return !lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(o);
 }
 } // namespace
 

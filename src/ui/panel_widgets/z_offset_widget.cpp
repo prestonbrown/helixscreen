@@ -342,7 +342,7 @@ void ZOffsetWidget::publish(const LiveState& live) {
         return;
     const auto set = [](lv_subject_t* subject, const std::string& text) {
         if (text != lv_subject_get_string(subject))
-            lv_subject_copy_string(subject, text.c_str());
+            lv_subject_set_string(subject, text.c_str());
     };
     set(&s_value_text_subject, format_z_offset_value(live.readings.microns, verdict_.decimals));
     set(&s_caption_text_subject, compose_caption(live.readings));

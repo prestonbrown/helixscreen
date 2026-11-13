@@ -81,7 +81,7 @@ class ControlsMoreSensorsFixture : public LVGLUITestFixture {
     /// The row's caption, or "" when the row is not shown (the chevron glyph
     /// is not a caption).
     std::string caption() {
-        if (lv_obj_has_flag(list(), LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(list())) {
             return "";
         }
         std::vector<std::string> labels;
@@ -144,5 +144,5 @@ TEST_CASE_METHOD(ControlsMoreSensorsFixture, "Controls more-sensors row is a tap
         helix::test::discovery_of({"temperature_sensor mcu_temp"}));
     build_and_activate();
 
-    CHECK(lv_obj_has_flag(list(), LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(list()));
 }

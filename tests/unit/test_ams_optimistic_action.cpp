@@ -269,7 +269,7 @@ struct OptimisticSidebarFixture : public XMLTestFixture {
     [[nodiscard]] bool steps_shown() const {
         lv_obj_t* container = lv_obj_find_by_name(panel_, "progress_stepper_container");
         REQUIRE(container != nullptr);
-        return !lv_obj_has_flag(container, LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(container);
     }
 
     /// The step bar widget the sidebar has built, or null.

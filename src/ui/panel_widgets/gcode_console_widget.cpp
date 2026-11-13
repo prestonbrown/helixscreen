@@ -257,8 +257,8 @@ void GCodeConsoleWidget::create_row(const Entry& entry) {
     lv_obj_set_style_text_font(row, row_font(), 0);
     lv_spangroup_set_max_lines(row, 1);
     lv_spangroup_set_overflow(row, LV_SPAN_OVERFLOW_ELLIPSIS);
-    lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(row, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_clickable(row, false);
+    lv_obj_set_event_bubble(row, true);
 
     const bool is_command = entry.type == Entry::Type::COMMAND;
     for (const auto& run :

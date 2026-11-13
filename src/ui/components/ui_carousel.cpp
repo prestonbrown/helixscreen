@@ -76,20 +76,20 @@ void apply_input_flags(CarouselState* state) {
         // A reachable tile past the last page is somewhere to swipe to, so the
         // strip scrolls for it as for a page.
         const bool swipe = swipe_enabled(state->swipe, std::max(count, reachable));
-        lv_obj_update_flag(state->scroll_container, LV_OBJ_FLAG_SCROLLABLE, swipe);
+        lv_obj_set_scrollable(state->scroll_container, swipe);
         lv_obj_set_scroll_dir(state->scroll_container, swipe ? LV_DIR_HOR : LV_DIR_NONE);
-        lv_obj_update_flag(state->scroll_container, LV_OBJ_FLAG_CLICKABLE, multi_page);
-        lv_obj_update_flag(state->scroll_container, LV_OBJ_FLAG_EVENT_BUBBLE, bubble);
+        lv_obj_set_clickable(state->scroll_container, multi_page);
+        lv_obj_set_event_bubble(state->scroll_container, bubble);
     }
     for (size_t i = 0; i < state->real_tiles.size(); ++i) {
         lv_obj_t* tile = state->real_tiles[i];
-        lv_obj_update_flag(tile, LV_OBJ_FLAG_CLICKABLE, multi_page);
-        lv_obj_update_flag(tile, LV_OBJ_FLAG_EVENT_BUBBLE, bubble);
+        lv_obj_set_clickable(tile, multi_page);
+        lv_obj_set_event_bubble(tile, bubble);
         // Written only on a change: showing or hiding redraws the tile, and the
         // swipe policy rewrites these flags on every edit gesture.
         const bool hide = static_cast<int>(i) >= reachable;
-        if (lv_obj_has_flag(tile, LV_OBJ_FLAG_HIDDEN) != hide) {
-            lv_obj_update_flag(tile, LV_OBJ_FLAG_HIDDEN, hide);
+        if (lv_obj_is_hidden(tile) != hide) {
+            lv_obj_set_hidden(tile, hide);
         }
     }
 }
@@ -347,7 +347,7 @@ void ui_carousel_apply(lv_xml_parser_state_t* state, const char** attrs) {
 
     // Hide indicator row if indicators are disabled
     if (!cstate->show_indicators && cstate->indicator_row) {
-        lv_obj_add_flag(cstate->indicator_row, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(cstate->indicator_row, true);
     }
 
     // Parse current_page_subject for subject binding
@@ -392,7 +392,7 @@ static lv_obj_t* carousel_create_core(lv_obj_t* parent) {
                           LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_row(container, 0, LV_PART_MAIN);
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
     lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
 
@@ -405,7 +405,7 @@ static lv_obj_t* carousel_create_core(lv_obj_t* parent) {
     lv_obj_set_style_pad_all(scroll, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_column(scroll, 0, LV_PART_MAIN);
     lv_obj_set_scroll_snap_x(scroll, LV_SCROLL_SNAP_START);
-    lv_obj_add_flag(scroll, LV_OBJ_FLAG_SCROLL_ONE);
+    lv_obj_set_scroll_one(scroll, true);
     lv_obj_set_style_border_width(scroll, 0, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(scroll, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_scrollbar_mode(scroll, LV_SCROLLBAR_MODE_OFF);
@@ -413,14 +413,14 @@ static lv_obj_t* carousel_create_core(lv_obj_t* parent) {
     // Indicator row: floating, overlaps content at bottom center (takes zero layout space)
     lv_obj_t* indicator_row = lv_obj_create(container);
     lv_obj_set_size(indicator_row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_add_flag(indicator_row, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_floating(indicator_row, true);
     lv_obj_align(indicator_row, LV_ALIGN_BOTTOM_MID, 0, -theme_manager_get_spacing("space_xxs"));
     lv_obj_set_flex_flow(indicator_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(indicator_row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_all(indicator_row, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_column(indicator_row, theme_manager_get_spacing("space_sm"), LV_PART_MAIN);
-    lv_obj_remove_flag(indicator_row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(indicator_row, false);
     lv_obj_set_style_border_width(indicator_row, 0, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(indicator_row, LV_OPA_TRANSP, LV_PART_MAIN);
 
@@ -513,8 +513,8 @@ void ui_carousel_add_item(lv_obj_t* carousel, lv_obj_t* item) {
     lv_obj_set_style_pad_all(tile, 0, LV_PART_MAIN);
     lv_obj_set_style_border_width(tile, 0, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(tile, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_remove_flag(tile, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(tile, LV_OBJ_FLAG_SNAPPABLE);
+    lv_obj_set_scrollable(tile, false);
+    lv_obj_set_snappable(tile, true);
 
     // Reparent the item into the tile
     lv_obj_set_parent(item, tile);
@@ -546,13 +546,13 @@ void ui_carousel_rebuild_indicators(lv_obj_t* carousel) {
 
     // Single page: no indicators
     if (count <= 1) {
-        lv_obj_add_flag(state->indicator_row, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(state->indicator_row, true);
         spdlog::trace("[ui_carousel] Single page — indicators hidden");
         return;
     }
 
     if (state->show_indicators) {
-        lv_obj_remove_flag(state->indicator_row, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(state->indicator_row, false);
     }
 
     // Create one dot per real page
@@ -563,7 +563,7 @@ void ui_carousel_rebuild_indicators(lv_obj_t* carousel) {
         lv_obj_set_size(dot, 8, 8);
         lv_obj_set_style_radius(dot, 4, LV_PART_MAIN);
         lv_obj_set_style_border_width(dot, 0, LV_PART_MAIN);
-        lv_obj_remove_flag(dot, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(dot, false);
     }
 
     // Apply active/inactive styles
@@ -669,7 +669,7 @@ void carousel_set_bubble_events(lv_obj_t* carousel, bool bubble) {
         return;
     }
     state->bubble_events = bubble;
-    lv_obj_update_flag(carousel, LV_OBJ_FLAG_EVENT_BUBBLE, bubble);
+    lv_obj_set_event_bubble(carousel, bubble);
     // The scroll container and tiles take the setting through their input flags.
     apply_input_flags(state);
 }

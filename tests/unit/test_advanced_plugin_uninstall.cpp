@@ -321,12 +321,12 @@ TEST_CASE_METHOD(PluginUninstallFixture, "the plugin overview row shows only whi
     REQUIRE(root != nullptr);
     lv_obj_t* row = lv_obj_find_by_name(root, "row_helix_plugin_overview");
     REQUIRE(row != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     get_printer_state().set_helix_plugin_installed(false);
     UpdateQueue::instance().drain();
     REQUIRE(plugin_installed() != 1);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     lv_obj_delete(root);
 }

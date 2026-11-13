@@ -321,7 +321,7 @@ static void update_max_visible_temp(ui_temp_graph_t* graph) {
 
         // Get series data array from LVGL chart
         uint32_t point_count = 0;
-        int32_t* y_points = lv_chart_get_y_array(graph->chart, meta->chart_series);
+        int32_t* y_points = lv_chart_get_series_y_array(graph->chart, meta->chart_series);
         if (!y_points)
             continue;
 
@@ -380,7 +380,7 @@ static void mask_overrange_begin_cb(lv_event_t* e) {
         if (!meta->chart_series || !meta->visible)
             continue;
 
-        int32_t* y_data = lv_chart_get_y_array(graph->chart, meta->chart_series);
+        int32_t* y_data = lv_chart_get_series_y_array(graph->chart, meta->chart_series);
         if (!y_data)
             continue;
 
@@ -474,7 +474,7 @@ static void gradient_render_columns(ui_temp_graph_t* graph, const temp_graph_geo
         if (meta->gradient_top_opa == LV_OPA_TRANSP && meta->gradient_bottom_opa == LV_OPA_TRANSP)
             continue;
 
-        int32_t* y_data = lv_chart_get_y_array(graph->chart, meta->chart_series);
+        int32_t* y_data = lv_chart_get_series_y_array(graph->chart, meta->chart_series);
         if (!y_data)
             continue;
 
@@ -582,8 +582,8 @@ static bool gradient_ensure_cache_buf(ui_temp_graph_t* graph, const temp_graph_g
         // backing buffer below and blit that buffer manually in the draw cb.
         graph->gradient_canvas = lv_canvas_create(graph->chart);
         if (graph->gradient_canvas) {
-            lv_obj_add_flag(graph->gradient_canvas, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(graph->gradient_canvas, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_hidden(graph->gradient_canvas, true);
+            lv_obj_set_clickable(graph->gradient_canvas, false);
         }
     }
     if (!graph->gradient_canvas)
@@ -654,7 +654,7 @@ static uint64_t gradient_content_signature(ui_temp_graph_t* graph, const temp_gr
             continue;
         if (meta->gradient_top_opa == LV_OPA_TRANSP && meta->gradient_bottom_opa == LV_OPA_TRANSP)
             continue;
-        int32_t* y_data = lv_chart_get_y_array(graph->chart, meta->chart_series);
+        int32_t* y_data = lv_chart_get_series_y_array(graph->chart, meta->chart_series);
         if (!y_data)
             continue;
 
@@ -1861,10 +1861,10 @@ void ui_temp_graph_destroy(ui_temp_graph_t* graph) {
         // Theme observer's user_data points at `graph`; auto-removal does not fire
         // until the chart is actually deleted by the async path below, leaving a
         // window where a theme toggle would dereference freed graph. Remove now —
-        // lv_observer_remove also strips the chart's unsubscribe_on_delete_cb, so
+        // lv_observer_delete also strips the chart's unsubscribe_on_delete_cb, so
         // the eventual async deletion finds nothing to call.
         if (graph_ptr->theme_observer) {
-            lv_observer_remove(graph_ptr->theme_observer);
+            lv_observer_delete(graph_ptr->theme_observer);
             graph_ptr->theme_observer = nullptr;
         }
 
@@ -1880,11 +1880,11 @@ void ui_temp_graph_destroy(ui_temp_graph_t* graph) {
         // into a chart whose per-instance event_list / class state we have
         // already torn down (a SIGSEGV at lv_array_at NULL via lv_event_send
         // during render of an alive-but-stripped chart).
-        lv_obj_add_flag(chart, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(chart, true);
 
         // Async deletion escapes any UpdateQueue::process_pending batch we may be
         // running inside (e.g., reconnect → connection_observer → rebuild → destroy).
-        // Sync lv_obj_del here corrupts LVGL's global event list when other queued
+        // Sync lv_obj_delete here corrupts LVGL's global event list when other queued
         // entries follow — see L081 / prestonbrown/helixscreen#867 cluster.
         lv_obj_delete_async(chart);
     }

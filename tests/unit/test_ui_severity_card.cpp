@@ -278,7 +278,7 @@ static std::string visible_icon_name(lv_obj_t* row) {
     for (const char* name : kSeverityIconNames) {
         lv_obj_t* icon = lv_obj_find_by_name(row, name);
         REQUIRE(icon != nullptr);
-        if (!lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(icon)) {
             REQUIRE(found.empty());
             found = name;
         }
@@ -466,7 +466,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     auto hidden = [](lv_obj_t* row, const char* name) {
         lv_obj_t* obj = lv_obj_find_by_name(row, name);
         REQUIRE(obj != nullptr);
-        return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(obj);
     };
 
     lv_obj_t* missing = only_row("warning_issues_list");

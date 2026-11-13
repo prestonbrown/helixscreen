@@ -191,7 +191,7 @@ class AmsEditOverlayViewTestAccess {
         lv_obj_t* w = overlay_.find_widget(name);
         REQUIRE(w != nullptr);
         for (lv_obj_t* o = w; o && o != overlay_.overlay_root_; o = lv_obj_get_parent(o)) {
-            if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(o)) {
                 return false;
             }
         }
@@ -654,7 +654,7 @@ std::vector<int> marked_spool_ids(lv_obj_t* list) {
     for (uint32_t i = 0; i < lv_obj_get_child_count(list); ++i) {
         lv_obj_t* row = lv_obj_get_child(list, static_cast<int32_t>(i));
         lv_obj_t* check = lv_obj_find_by_name(row, "selected_icon");
-        const bool check_shown = check && !lv_obj_has_flag(check, LV_OBJ_FLAG_HIDDEN);
+        const bool check_shown = check && !lv_obj_is_hidden(check);
         if (lv_obj_has_state(row, LV_STATE_CHECKED) || check_shown) {
             ids.push_back(static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(row))));
         }
@@ -1138,8 +1138,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker row names a spool by its filament na
     auto part = [&row_for](int id, const char* name) {
         return lv_obj_find_by_name(row_for(id), name);
     };
-    CHECK_FALSE(lv_obj_has_flag(part(13, "selected_icon"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(part(12, "selected_icon"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(part(13, "selected_icon")));
+    CHECK(lv_obj_is_hidden(part(12, "selected_icon")));
     CHECK(std::string(lv_label_get_text(part(12, "spool_weight"))) == "750g");
     CHECK(std::string(lv_label_get_text(part(14, "spool_weight"))).empty());
 
@@ -1150,7 +1150,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker row names a spool by its filament na
         while (!stack.empty()) {
             lv_obj_t* obj = stack.back();
             stack.pop_back();
-            if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(obj)) {
                 continue;
             }
             if (lv_obj_check_type(obj, &lv_label_class)) {
@@ -1262,10 +1262,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker zero-match shows no-match state, not
     CHECK(access.picker_state() == 3);
     lv_obj_t* no_match = access.widget("picker_no_match");
     REQUIRE(no_match != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(no_match, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(no_match));
     lv_obj_t* retry = access.widget("picker_empty");
     REQUIRE(retry != nullptr);
-    CHECK(lv_obj_has_flag(retry, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(retry));
 
     lv_obj_t* list = access.widget("picker_spool_list");
     REQUIRE(list != nullptr);
@@ -1721,8 +1721,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker always offers the setup entry",
     REQUIRE(entry != nullptr);
     // Present regardless of picker fetch state (loading/empty/content) —
     // it is the only path forward when the spool list is empty.
-    CHECK_FALSE(lv_obj_has_flag(entry, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(entry, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_hidden(entry));
+    CHECK(lv_obj_is_clickable(entry));
 
     close_editor_overlay();
 }
@@ -2533,7 +2533,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the open More section scrolls into reach, u
     REQUIRE(comment);
     lv_obj_update_layout(content);
     REQUIRE_FALSE(
-        lv_obj_has_flag(lv_obj_get_parent(lv_obj_get_parent(comment)), LV_OBJ_FLAG_HIDDEN));
+        lv_obj_is_hidden(lv_obj_get_parent(lv_obj_get_parent(comment))));
 
     lv_area_t field;
     lv_area_t box;
@@ -2937,7 +2937,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the editor reopens while its last close is 
         process_lvgl(400);
         REQUIRE(helix::test::widget_in_tree(overlay.get_root()));
         CHECK(nav.is_panel_on_top(overlay.get_root()));
-        CHECK_FALSE(lv_obj_has_flag(overlay.get_root(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(overlay.get_root()));
 
         nav.go_back();
         UpdateQueue::instance().drain();
@@ -3393,15 +3393,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the material and brand rows show their from
         INFO(dd);
         lv_obj_t* pill = tag_pill_beside(access, dd);
         REQUIRE(pill != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(pill));
     }
 
     // A material the tag does not state loses its pill; the brand keeps its own.
     REQUIRE(access.pick_dropdown("dropdown_material", "PLA"));
     process_lvgl(5);
-    CHECK(lv_obj_has_flag(tag_pill_beside(access, "dropdown_material"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(tag_pill_beside(access, "dropdown_material_split"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(tag_pill_beside(access, "dropdown_brand"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(tag_pill_beside(access, "dropdown_material")));
+    CHECK(lv_obj_is_hidden(tag_pill_beside(access, "dropdown_material_split")));
+    CHECK_FALSE(lv_obj_is_hidden(tag_pill_beside(access, "dropdown_brand")));
     close_editor_overlay();
 }
 
@@ -3609,7 +3609,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // on it is the back button's.
     lv_obj_t* badge = access.widget("header_title_badge");
     REQUIRE(badge != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(badge, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(badge));
 
     close_editor_overlay();
     set_spoolman_available(false);
@@ -3709,7 +3709,7 @@ TEST_CASE("color_panes_fit shows both panes only where one form fits the view",
 
 namespace {
 bool shown(lv_obj_t* obj) {
-    return obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return obj && !lv_obj_is_hidden(obj);
 }
 int color_subject(const char* name) {
     lv_subject_t* s = lv_xml_get_subject(nullptr, name);

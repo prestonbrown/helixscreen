@@ -59,13 +59,13 @@ void SpaghettiDetectionModal::on_show() {
     // its flag (with its divider's) rides spaghetti_tune_available, and the
     // message text rides spaghetti_message.
     lv_subject_set_int(&tune_available_subject_, on_tune_ ? 1 : 0);
-    lv_subject_copy_string(&message_subject_, message_.c_str());
+    lv_subject_set_string(&message_subject_, message_.c_str());
 
     // Optional camera frame preview. Hidden entirely until a frame arrives so
     // it doesn't reserve empty space.
     lv_obj_t* preview = find_widget("detection_preview");
     if (preview) {
-        lv_obj_add_flag(preview, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(preview, true);
         show_preview(preview);
     } else {
         spdlog::warn("[SpaghettiDetectionModal] detection_preview widget not found");
@@ -89,7 +89,7 @@ void SpaghettiDetectionModal::show_preview(lv_obj_t* preview) {
     // image and is freed with it.
     lv_obj_add_event_cb(preview, free_preview_buf, LV_EVENT_DELETE, buf);
     lv_image_set_src(preview, buf);
-    lv_obj_remove_flag(preview, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(preview, false);
 }
 
 void SpaghettiDetectionModal::attach_frame(const helix::CameraFrame& frame) {

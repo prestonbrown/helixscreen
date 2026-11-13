@@ -104,8 +104,8 @@ void ui_set_overlay_geometry(lv_obj_t* obj, bool is_destination) {
     }
 
     lv_obj_t* screen = lv_obj_get_screen(obj);
-    const lv_coord_t screen_width = screen ? lv_obj_get_width(screen) : 800;
-    const lv_coord_t screen_height = screen ? lv_obj_get_height(screen) : 480;
+    const int32_t screen_width = screen ? lv_obj_get_width(screen) : 800;
+    const int32_t screen_height = screen ? lv_obj_get_height(screen) : 480;
     const bool portrait =
         helix::is_portrait_layout(helix::detect_layout_type(screen_width, screen_height));
 

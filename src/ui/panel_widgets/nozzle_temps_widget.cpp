@@ -122,7 +122,7 @@ void NozzleTempsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     // every rebuild_rows() → clear_rows() call, which would make the version observer
     // a one-shot: the first rebuild expires the token, and subsequent version changes
     // are silently ignored (#782). This left the widget with stale rows pointing to
-    // freed subjects, crashing in lv_observer_remove during the next clear_rows().
+    // freed subjects, crashing in lv_observer_delete during the next clear_rows().
     //
     // Safety is provided by: (1) weak_alive in observe<int> context (expires when
     // version_observer_ is reset in detach()), (2) rebuilding_ re-entrancy guard,
@@ -230,7 +230,7 @@ void NozzleTempsWidget::clear_rows() {
     // was already destroyed (reconnection), the source's shared_ptr is gone —
     // but our row's copy keeps the weak_ptr alive. Resetting our copy first
     // lets the weak_ptr expire, so ObserverGuard::reset() safely skips
-    // lv_observer_remove() on the freed observer. (#673, #698)
+    // lv_observer_delete() on the freed observer. (#673, #698)
     for (auto& row : extruder_rows_) {
         row.temp_lifetime.reset();
         row.target_lifetime.reset();
@@ -239,7 +239,7 @@ void NozzleTempsWidget::clear_rows() {
     }
     extruder_rows_.clear();
     // Bed subjects are also destroyed during deinit_subjects() — need lifetime
-    // tokens to prevent lv_observer_remove() on freed subjects (#734)
+    // tokens to prevent lv_observer_delete() on freed subjects (#734)
     bed_temp_lifetime_.reset();
     bed_target_lifetime_.reset();
     bed_temp_observer_.reset();
@@ -616,7 +616,7 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
         lv_label_set_long_mode(row.target_label, LV_LABEL_LONG_MODE_CLIP);
 
     // Tap row → open nozzle temp graph overlay
-    lv_obj_add_flag(row_obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(row_obj, true);
     lv_obj_t* screen = parent_screen_;
     lv_obj_add_event_cb(
         row_obj,
@@ -650,7 +650,7 @@ void NozzleTempsWidget::create_bed_row(lv_obj_t* container) {
         lv_label_set_long_mode(bed_target_label_, LV_LABEL_LONG_MODE_CLIP);
 
     // Tap bed row → open bed temp graph overlay
-    lv_obj_add_flag(row_obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(row_obj, true);
     lv_obj_t* screen = parent_screen_;
     lv_obj_add_event_cb(
         row_obj,

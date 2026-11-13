@@ -257,7 +257,7 @@ void TipsWidget::update_tip_of_day() {
             // Fallback: instant update (initial load or animation in progress)
             current_tip_ = tip;
             std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", tip.title.c_str());
-            lv_subject_copy_string(&s_status_subject, s_status_buffer);
+            lv_subject_set_string(&s_status_subject, s_status_buffer);
             spdlog::trace("[TipsWidget] Updated tip (instant): {}", tip.title);
         }
     } else {
@@ -280,7 +280,7 @@ void TipsWidget::start_tip_fade_transition(const PrintingTip& new_tip) {
     if (!DisplaySettingsManager::instance().get_animations_enabled()) {
         current_tip_ = pending_tip_;
         std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", pending_tip_.title.c_str());
-        lv_subject_copy_string(&s_status_subject, s_status_buffer);
+        lv_subject_set_string(&s_status_subject, s_status_buffer);
         // DECLARATIVE_OK: the tip fade animates this opacity frame by frame.
         lv_obj_set_style_opa(tip_label_, LV_OPA_COVER, LV_PART_MAIN);
         tip_animating_ = false;
@@ -318,7 +318,7 @@ void TipsWidget::apply_pending_tip() {
     // Apply the pending tip text
     current_tip_ = pending_tip_;
     std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", pending_tip_.title.c_str());
-    lv_subject_copy_string(&s_status_subject, s_status_buffer);
+    lv_subject_set_string(&s_status_subject, s_status_buffer);
 
     spdlog::debug("[TipsWidget] Applied pending tip: {}", pending_tip_.title);
 

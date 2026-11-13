@@ -315,8 +315,8 @@ void FlyingToasterScreensaver::create_flying_object(int start_x, int start_y, bo
     }
 
     // Position absolutely (floating, out of any layout)
-    lv_obj_add_flag(img, LV_OBJ_FLAG_FLOATING);
-    lv_obj_remove_flag(img, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_floating(img, true);
+    lv_obj_set_clickable(img, false);
     lv_obj_set_pos(img, start_x, start_y);
 
     FlyingObject obj{};
@@ -368,14 +368,14 @@ void FlyingToasterScreensaver::on_frame(uint32_t dt_ms, std::vector<DirtyRect>& 
         bool on_screen =
             (new_x + obj_size > 0 && new_x < screen_w && new_y + obj_size > 0 && new_y < screen_h);
         if (!on_screen) {
-            if (!lv_obj_has_flag(obj.img, LV_OBJ_FLAG_HIDDEN))
-                lv_obj_add_flag(obj.img, LV_OBJ_FLAG_HIDDEN);
+            if (!lv_obj_is_hidden(obj.img))
+                lv_obj_set_hidden(obj.img, true);
             obj.prev_x = new_x;
             obj.prev_y = new_y;
             continue;
         }
-        if (lv_obj_has_flag(obj.img, LV_OBJ_FLAG_HIDDEN))
-            lv_obj_remove_flag(obj.img, LV_OBJ_FLAG_HIDDEN);
+        if (lv_obj_is_hidden(obj.img))
+            lv_obj_set_hidden(obj.img, false);
 
         if (new_x != obj.prev_x || new_y != obj.prev_y) {
             lv_obj_set_pos(obj.img, new_x, new_y);

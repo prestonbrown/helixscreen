@@ -258,7 +258,7 @@ void EmergencyStopOverlay::create() {
     // and a soft restart (Add Printer) tears the whole tree down and rebuilds it.
     // deinit_subjects() flips this token before lv_subject_deinit() frees the
     // observer nodes, which is the only thing that stops the guards below from
-    // calling lv_observer_remove() on freed memory (THREADING.md §5).
+    // calling lv_observer_delete() on freed memory (THREADING.md §5).
     const SubjectLifetime ps_subjects = printer_state_->get_subjects_lifetime();
 
     // Subscribe to print state changes for automatic visibility updates
@@ -860,7 +860,7 @@ bool EmergencyStopOverlay::is_expected_restart() const {
 
 void EmergencyStopOverlay::update_recovery_dialog_content() {
     auto content = get_recovery_content(recovery_reason_);
-    lv_subject_copy_string(&recovery_title_subject_, lv_tr(content.title));
+    lv_subject_set_string(&recovery_title_subject_, lv_tr(content.title));
     lv_subject_set_int(&recovery_can_restart_,
                        recovery_reason_ != RecoveryReason::DISCONNECTED ? 1 : 0);
     spdlog::debug("[KlipperRecovery] Updated dialog content: reason={}, can_restart={}",
@@ -902,7 +902,7 @@ void EmergencyStopOverlay::update_recovery_dialog_content() {
         // Restarting reloads the same broken file, so say what has to change
         // first. Klipper's text names the option and section; the guidance goes
         // ahead of it so a long reason cannot push it out of the subject buffer.
-        lv_subject_copy_string(&recovery_title_subject_, lv_tr("Klipper Config Error"));
+        lv_subject_set_string(&recovery_title_subject_, lv_tr("Klipper Config Error"));
         message = std::string(lv_tr("Klipper could not load its configuration. Fix the "
                                     "setting below in the printer's config files, then "
                                     "restart Klipper.")) +
@@ -910,8 +910,8 @@ void EmergencyStopOverlay::update_recovery_dialog_content() {
     }
 
     // Update subjects — XML bindings in klipper_recovery_dialog.xml react automatically
-    lv_subject_copy_string(&recovery_message_subject_, message.c_str());
-    lv_subject_copy_string(&recovery_code_subject_, code.c_str());
+    lv_subject_set_string(&recovery_message_subject_, message.c_str());
+    lv_subject_set_string(&recovery_code_subject_, code.c_str());
     lv_subject_set_int(&recovery_has_code_, code.empty() ? 0 : 1);
 }
 

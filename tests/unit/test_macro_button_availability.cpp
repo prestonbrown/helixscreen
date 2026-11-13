@@ -178,7 +178,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Macro availability flips when the printer's m
     REQUIRE(info.get_macro() == "CLEAR_NOZZLE");
     REQUIRE(notify_count > after_second);
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }
 
 // ============================================================================
@@ -283,7 +283,7 @@ class ControlsMacroFixture : public LVGLUITestFixture {
     }
 
     static bool hidden(lv_obj_t* o) {
-        return lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(o);
     }
     static bool disabled(lv_obj_t* o) {
         return lv_obj_has_state(o, LV_STATE_DISABLED);

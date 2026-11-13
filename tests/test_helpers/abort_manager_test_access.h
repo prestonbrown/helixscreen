@@ -40,7 +40,7 @@ class AbortManagerTestAccess {
         if (m.subjects_initialized_) {
             lv_subject_set_int(&m.abort_state_subject_,
                                static_cast<int>(AbortManager::State::IDLE));
-            lv_subject_copy_string(&m.progress_message_subject_, "");
+            lv_subject_set_string(&m.progress_message_subject_, "");
             m.update_visibility();
         }
     }

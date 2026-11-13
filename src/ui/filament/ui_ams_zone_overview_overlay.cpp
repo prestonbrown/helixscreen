@@ -215,7 +215,7 @@ void AmsZoneOverviewOverlay::rebuild_rows() {
     }
 
     snprintf(subtitle_buf_, sizeof(subtitle_buf_), "%s", overview_subtitle(zones_).c_str());
-    lv_subject_copy_string(&subtitle_subject_, subtitle_buf_);
+    lv_subject_set_string(&subtitle_subject_, subtitle_buf_);
 
     lv_subject_set_int(&count_subject_, static_cast<int>(n));
 }

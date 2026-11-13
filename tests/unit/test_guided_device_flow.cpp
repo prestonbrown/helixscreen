@@ -353,7 +353,7 @@ TEST_CASE_METHOD(GuidedFlowFixture,
     CHECK(text_of(row, "description") == "Purge during tool changes");
     lv_obj_t* icon = lv_obj_find_by_name(row, "row_icon");
     REQUIRE(icon != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(icon));
 
     lv_obj_t* sw = helix::test::find_device_action_control(root, "purge", &lv_switch_class);
     REQUIRE(sw != nullptr);

@@ -71,7 +71,7 @@ class AdvancedBeltRowFixture : public XMLTestFixture {
     /// Hidden itself or under a hidden ancestor, up to the panel root.
     bool hidden_in_panel(lv_obj_t* obj) const {
         for (; obj && obj != panel_; obj = lv_obj_get_parent(obj)) {
-            if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(obj)) {
                 return true;
             }
         }

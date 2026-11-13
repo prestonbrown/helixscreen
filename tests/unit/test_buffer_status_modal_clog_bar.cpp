@@ -93,13 +93,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "buffer_status_modal hides the bar with no d
     lv_obj_t* bar_root = lv_obj_find_by_name(dialog, "clog_bar");
     REQUIRE(bar_root != nullptr); // built, but not shown
     lv_obj_update_layout(dialog);
-    CHECK(lv_obj_has_flag(bar_root, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(bar_root));
 
     // And it comes back when a source appears, so the gate is live rather than
     // decided once at build time.
     publish(static_cast<int>(ui::ClogMeterMode::Encoder), 40, 75, 40);
     lv_obj_update_layout(dialog);
-    CHECK_FALSE(lv_obj_has_flag(bar_root, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(bar_root));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "clog bar: one status glyph per severity, Off included",
@@ -124,7 +124,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clog bar: one status glyph per severity, Of
             lv_obj_t* obj = lv_obj_find_by_name(dialog, g.name);
             REQUIRE(obj != nullptr);
             INFO("status " << static_cast<int>(shown.status) << ", glyph " << g.name);
-            CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN) == (g.status != shown.status));
+            CHECK(lv_obj_is_hidden(obj) == (g.status != shown.status));
         }
     }
     lv_subject_set_int(ams.get_clog_meter_status_subject(), 0);

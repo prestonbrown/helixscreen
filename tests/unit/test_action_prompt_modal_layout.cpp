@@ -514,7 +514,7 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     }
     lv_obj_t* scroll = lv_obj_find_by_name(dialog, "prompt_scroll");
     REQUIRE(scroll != nullptr);
-    CHECK(lv_obj_has_flag(scroll, LV_OBJ_FLAG_SCROLLABLE));
+    CHECK(lv_obj_is_scrollable(scroll));
     CHECK(lv_obj_get_scroll_bottom(scroll) > 0);
 
     lv_area_t card, footer_area;

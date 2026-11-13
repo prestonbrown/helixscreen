@@ -91,7 +91,7 @@ std::string subject_text(const char* name) {
 /// Whether an object draws: it and every ancestor up to the widget root is unhidden.
 bool shown(lv_obj_t* obj) {
     for (lv_obj_t* o = obj; o != nullptr; o = lv_obj_get_parent(o)) {
-        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(o))
             return false;
     }
     return true;

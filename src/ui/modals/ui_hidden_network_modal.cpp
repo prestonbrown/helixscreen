@@ -74,7 +74,7 @@ void HiddenNetworkModal::on_hide() {
 }
 
 void HiddenNetworkModal::show_error(const std::string& message) {
-    lv_subject_copy_string(&error_, message.c_str());
+    lv_subject_set_string(&error_, message.c_str());
     lv_subject_set_int(&has_error_, message.empty() ? 0 : 1);
 }
 

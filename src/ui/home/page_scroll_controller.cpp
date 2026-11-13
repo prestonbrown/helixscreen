@@ -131,12 +131,12 @@ void PageScrollController::refresh_reach_state() {
     PageScrollReach reach = page_scroll_compute_reach(lv_obj_get_scroll_y(container_),
                                                       lv_obj_get_scroll_bottom(container_));
     if (!reach.has_overflow) {
-        lv_obj_add_flag(gutter_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(gutter_, true);
         remove_reserved_padding();
         return;
     }
     apply_reserved_padding();
-    lv_obj_remove_flag(gutter_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(gutter_, false);
 
     auto set_disabled = [](lv_obj_t* btn, bool disabled) {
         if (disabled) {
