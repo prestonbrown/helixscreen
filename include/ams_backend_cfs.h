@@ -1222,6 +1222,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// registration already known until the query answers. Main thread.
     void begin_unit_settle();
     void apply_unit_registration(UnitRegistration registration);
+    /// Adopt what box.cfg says about the purge chute: the wiper behind it and
+    /// whether it declares an extrude position. Main thread.
+    void apply_chute_config(const std::optional<ChuteWiperLine>& wiper, bool chute);
     void finish_unit_settle();
     /// Re-runs the empty-bus verdict outside a frame and announces a change.
     /// Main thread; takes mutex_.
