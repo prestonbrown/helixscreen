@@ -611,8 +611,17 @@ other than the main page. Motion, Filament Operations and the three heater tiles
   before LVGL deletes the tile's children. An overlay's tree dies with the page, so it
   only schedules its deactivate for the next tick; a main panel's tree must not die, so
   `PanelBase::host_deleting()` hands it back right there. This is the one exception to
-  "never reparent from `on_hooked_root_deleted()`": the borrowed subtree is still whole,
-  and moving it out is what keeps LVGL from freeing it.
+  "never reparent from `on_hooked_root_deleted()`": LVGL sends LV_EVENT_DELETE before it
+  deletes any child (`lib/lvgl/src/core/lv_obj_tree.c#obj_delete_core`), so the borrowed
+  subtree is still whole, and moving it out is what keeps LVGL from freeing it. The same
+  holds when the delete starts at the page or further up. When the panel container is
+  itself going (a printer switch deletes the whole layout), there is nowhere to return
+  the tree to: it dies with the layout and NavigationManager's slot clears itself.
+- **Navigation while lent.** An overlay opened from the lent tree covers the home panel,
+  whose deactivation hands the tree back; closing the overlay re-activates the page,
+  which lends it again. The navbar button and `ctl navigate filament` take the tree back
+  before the Filament panel is shown. Modals sit above the home panel and leave the
+  tree where it is.
 - **Jumps.** Each host names the function it serves (`"motion"`, `"filament"`,
   `"temp:<widget id>"`).
   A tile that would open that overlay asks `jump_to_full_page()` first, which moves the
