@@ -719,13 +719,6 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             }
         }
 
-        // The production AFC backend is built on the UI thread after the
-        // subscription snapshot has passed it by, and AFC republishes only what
-        // moves, so the first seconds' frames carry the whole Reforge AFC frame.
-        if (is_mock_reforge_afc() && tick * kSimulationIntervalMs < 3000) {
-            status_obj.update(reforge_afc_status_json());
-        }
-
         // MedusaHC swap simulation. gcode_script() starts a swap by arming the
         // phase; this advances it one step per notification (~1s) so the phases
         // reach the UI as separate frames the way the real controller reports

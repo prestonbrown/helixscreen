@@ -49,6 +49,15 @@ TEST_CASE("The Reforge AFC persona runs the AFC backend over the changer",
     CHECK(status["AFC_lane e2"]["extruder"] == "e2");
     CHECK(status["AFC_lane e2"]["map"] == "T2");
 
+    // The subscription snapshot carries the AFC objects, field-scoped as the
+    // discovery sequence asks for them.
+    json snapshot;
+    mock.send_jsonrpc("printer.objects.subscribe",
+                      {{"objects", {{"AFC", nullptr}, {"AFC_lane e2", json::array({"material"})}}}},
+                      [&snapshot](const json& r) { snapshot = r["result"]["status"]; });
+    CHECK(snapshot["AFC"]["units"] == json::array({"Toolchanger Tools"}));
+    CHECK(snapshot["AFC_lane e2"]["material"] == "PLA");
+
     const json sections = mock.reforge_afc_config_sections();
     CHECK(sections["afc_extruder e0"]["extruder_name"] == "extruder");
     CHECK(sections["afc_extruder e3"]["extruder_name"] == "extruder3");
