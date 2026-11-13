@@ -20,6 +20,11 @@ A long press on a control you drag does not start Edit Mode: the arc on a Fan Sp
 
 ![Edit Mode with a widget selected, gear and trash icons at its corners](../../images/user/home-edit-mode.png)
 
+![The navigation bar in Edit Mode, with Add widget and Done in place of the usual buttons](../../images/user/home-edit-nav-buttons.png)
+
+1. Add widget, which opens the widget catalog.
+2. Done, which leaves Edit Mode.
+
 ## Selecting a Widget
 
 - **Tap a widget** to select it. Animated corner brackets pulse at its edges.

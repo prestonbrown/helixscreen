@@ -161,6 +161,15 @@ In HelixScreen you should now see:
 - A **chamber card** on that screen showing the heater's health. See [Temperature](temperature.md#chamber-heater-diagnostics) for what each part means.
 - On stock firmware, a **Start Drying** button on that card. See [Drying Filament in the Chamber](temperature.md#drying-filament-in-the-chamber).
 
+On DragonBreath firmware the card also shows the heater's own readings:
+
+![The chamber card with a DragonBreath heater's diagnostics](../../images/user/temp-chamber-diagnostics.png)
+
+![The chamber card on stock firmware with a Start Drying button](../../images/user/chamber-card-stock.png)
+
+1. The drying row.
+2. Start Drying, which starts a drying run on the heater.
+
 ---
 
 ## If HelixScreen picks the wrong heater

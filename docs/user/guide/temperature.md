@@ -2,6 +2,12 @@
 
 ![Temperature Controls](../../images/user/controls-temperature.png)
 
+1. The sensor chips.
+2. The temperature graph.
+3. The readout card for the selected heater.
+4. The preset buttons.
+5. The Custom button.
+
 ---
 
 HelixScreen shows every temperature in degrees Celsius. There is no setting to switch the display to Fahrenheit.
@@ -33,6 +39,11 @@ On a tool changer, an IDEX printer or any printer with more than one hotend, the
 - Several filament slots feeding one hotend, as on an AMS, do not count as several heads. The drop-down appears only when there are physically several toolheads.
 
 On a single-nozzle printer the row simply says **Nozzle** and there is no drop-down.
+
+![The Temperature card on a multi-head printer](../../images/user/controls-nozzle-chooser.png)
+
+1. The tool drop-down.
+2. The pencil icon, which sets that tool's target temperature.
 
 ---
 
@@ -77,6 +88,11 @@ When the printer has more than one extruder, the nozzle controls start with a ro
 - Picking a nozzle here does not change which tool is mounted. It only chooses which heater you are setting.
 - The pick is remembered when you close the screen and open it again, so a pre-heat on a docked tool is where you left it. It is dropped when a tool change happens, even one that happened while the screen was closed, and the card then follows the mounted tool.
 - A preset or custom value you apply goes to the nozzle you picked, even if you opened the keypad from this screen and it stacks on top of it.
+
+![The nozzle selector row on the temperature graph screen](../../images/user/temp-nozzle-picker.png)
+
+1. The row of nozzle buttons.
+2. The readout card for the selected nozzle.
 
 ### The Mini Graph on the Filament Screen
 
@@ -149,6 +165,12 @@ Some add-on chamber heaters, currently the BIGTREETECH Panda Breath with either 
 - **External:** something other than your setpoint is driving the heater: the unit's own web page, a button on it, or its built-in Auto mode holding a target of its own. This is information, not a problem. *Both firmwares.*
 
 The card appears only when the heater provides diagnostics. A printer with a plain heated chamber sees no change.
+
+![The chamber card with a DragonBreath heater's diagnostics](../../images/user/temp-chamber-diagnostics.png)
+
+1. The heating-element temperature.
+2. The filter-fan speed.
+3. The filter-fan switch.
 
 ### Drying Filament in the Chamber
 

@@ -76,6 +76,11 @@ For a slot with no material set, the line says which slot it is and a button app
 
 > **Note:** A color or material difference alone does not raise this dialog. It shows as an amber or red outline on that tool's chip in the FILAMENTS card of the file details (see [Filament Mapping](filament.md#filament-mapping)), and the material difference raises its own warning below.
 
+![The Check filament dialog offering to set a slot's material](../../images/user/preflight-material.png)
+
+1. The line that names the slot with no material set.
+2. The button that writes the file's material onto that slot.
+
 ### The No Filament Detected dialog
 
 This warning has two forms. On a printer with a multi-slot filament system it lists the tools whose slot holds no filament, for example **T1 → Slot 2: no filament loaded.** On a printer without one it appears when the runout sensor is on and reports no filament: **The runout sensor indicates no filament is loaded. Start print anyway?** The proceed button reads **Start Print**.
@@ -227,6 +232,11 @@ Under **Settings > Safety & Alerts**:
 - **Bed Clear Check** ("Camera checks the bed is empty before each print") appears on the Snapmaker U1 only. See below.
 
 On a K2, the pre-print options of a file can also include an **AI detection** tile ("Monitor for print abnormalities"), which is off by default. It appears only when the printer has Creality's own AI start macro.
+
+![The detection switches under Settings, Safety & Alerts](../../images/user/detection-settings.png)
+
+1. Spaghetti Detection, the main switch.
+2. Pause on Detection, which is greyed out while detection is off.
 
 ### What happens on a detection
 
