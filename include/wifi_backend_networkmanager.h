@@ -110,6 +110,9 @@ class WifiBackendNetworkManager : public WifiBackend {
     std::thread connect_thread_;
     std::atomic<bool> scan_active_{false};
     std::atomic<bool> connect_active_{false};
+    /// True while connect_thread_func() runs nmcli: its exit decides the join,
+    /// so a status poll then reports a link it sees but does not announce it.
+    std::atomic<bool> connect_in_flight_{false};
 
     // Cached scan results (protected by mutex)
     std::mutex networks_mutex_;

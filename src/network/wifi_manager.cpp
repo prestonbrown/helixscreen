@@ -1407,10 +1407,12 @@ void WiFiManager::address_watch_tick() {
         spdlog::debug("[WiFiManager] Address event; refreshing status observers");
         notify_state_observers();
     }
+    // A CONNECTED event leaves a cached status with no address and no flag,
+    // so "still waiting" is a joined link without an address, not the flag.
     bool awaiting;
     {
         std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-        awaiting = cached_status_.awaiting_ipv4;
+        awaiting = cached_status_.connected && cached_status_.ip_address.empty();
     }
     address_watch_elapsed_ms_ += kAddressWatchPeriodMs;
     if (!awaiting || address_watch_elapsed_ms_ >= kAddressWatchMaxMs) {

@@ -51,12 +51,19 @@ int wifi_signal_percent_from_dbm(int dbm) {
 }
 
 NmDeviceState wifi_parse_nm_device_state(const std::string& value) {
-    // NM_DEVICE_STATE_IP_CONFIG: joined, waiting on DHCP.
+    // NM_DEVICE_STATE_IP_CONFIG (joined, waiting on DHCP) through
+    // NM_DEVICE_STATE_ACTIVATED; IP_CHECK and SECONDARIES lie between.
     constexpr int kNmStateIpConfig = 70;
+    constexpr int kNmStateActivated = 100;
     NmDeviceState state;
-    state.getting_ipv4 = helix::text_io::parse_leading<int>(value) == kNmStateIpConfig;
-    state.connected = state.getting_ipv4 || (value.find("connected") != std::string::npos &&
-                                             value.find("disconnected") == std::string::npos);
+    const std::optional<int> code = helix::text_io::parse_leading<int>(value);
+    if (code) {
+        state.connected = *code >= kNmStateIpConfig && *code <= kNmStateActivated;
+        state.getting_ipv4 = *code == kNmStateIpConfig;
+        return state;
+    }
+    state.connected = value.find("connected") != std::string::npos &&
+                      value.find("disconnected") == std::string::npos;
     return state;
 }
 

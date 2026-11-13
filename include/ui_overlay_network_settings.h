@@ -203,7 +203,7 @@ class NetworkSettingsOverlay : public OverlayBase {
     lv_subject_t wifi_unresponsive_{};     // 1 while WiFi control stops answering (rows show
                                            // the last known state)
     lv_subject_t connected_ssid_{};
-    lv_subject_t ip_address_{};
+    lv_subject_t ip_display_{}; // the IP row: the address, or that one is on its way
     lv_subject_t mac_address_{};
     lv_subject_t network_count_{};
     lv_subject_t wifi_scanning_{};
@@ -235,7 +235,8 @@ class NetworkSettingsOverlay : public OverlayBase {
 
     // String buffers (subjects need stable char* pointers)
     char ssid_buffer_[64];
-    char ip_buffer_[32];
+    char ip_buffer_[32];         // the address alone; empty while DHCP is pending
+    char ip_display_buffer_[64]; // longest translation of "Getting address…" is 34 bytes
     char mac_buffer_[32];
     char count_buffer_[16];
     char eth_ip_buffer_[32];

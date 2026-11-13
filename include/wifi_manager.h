@@ -695,7 +695,7 @@ class WiFiManager {
     // While a status read says the link awaits an address, the backend's
     // address events are polled on the LVGL thread and each one wakes the
     // state observers, whose re-read finds the address. The watch ends when
-    // the cached status has its address, or after kAddressWatchMaxMs; the
+    // the cached status has an address or no link, or after kAddressWatchMaxMs; the
     // next read that still finds none starts it again. LVGL thread only.
     static constexpr uint32_t kAddressWatchPeriodMs = 250;
     static constexpr uint32_t kAddressWatchMaxMs = 60000;

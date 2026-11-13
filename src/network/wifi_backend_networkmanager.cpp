@@ -657,12 +657,14 @@ WiFiError WifiBackendNetworkManager::connect_network(const std::string& ssid,
     // Pass SSID/password by value to avoid shared state race conditions.
     // Wrap — EAGAIN throws ([L083]).
     connect_active_ = true;
+    connect_in_flight_ = true;
     try {
         connect_thread_ = helix::make_thread(&WifiBackendNetworkManager::connect_thread_func, this,
                                              clean_ssid, password, is_hidden);
     } catch (const std::system_error& e) {
         spdlog::error("[WifiBackend] Failed to spawn connect thread: {}", e.what());
         connect_active_ = false;
+        connect_in_flight_ = false;
         return WiFiError(WiFiResult::BACKEND_ERROR, "Could not start connect", "system busy");
     }
 
@@ -799,6 +801,13 @@ bool WifiBackendNetworkManager::delete_connection_profile(const std::string& pro
 void WifiBackendNetworkManager::connect_thread_func(std::string ssid, std::string password,
                                                     bool is_hidden) {
     spdlog::debug("[WifiBackend] NM: Connect thread started for '{}'", helix::redact::ssid(ssid));
+    // Cleared on every way out, so polls announce a link again once nmcli has spoken.
+    struct InFlight {
+        std::atomic<bool>& flag;
+        ~InFlight() {
+            flag = false;
+        }
+    } in_flight{connect_in_flight_};
 
     ConnectAttempt attempt = try_nmcli_connect(ssid, password, is_hidden);
 
@@ -1194,6 +1203,10 @@ std::string WifiBackendNetworkManager::apply_polled_status(const ConnectionStatu
     bool was_connected = prev_connected_.load();
 
     if (now_connected && !was_connected) {
+        if (connect_in_flight_.load()) {
+            spdlog::debug("[WifiBackend] NM: Poll sees the join in progress; nmcli decides it");
+            return {};
+        }
         spdlog::info("[WifiBackend] NM: Connection detected via status poll");
         fire_event("CONNECTED");
         return "CONNECTED";

@@ -367,6 +367,20 @@ TEST_CASE("wifi_parse_nm_device_state reads GENERAL.STATE", "[wifi][nm][wifi_dhc
     CHECK(dhcp.connected);
     CHECK(dhcp.getting_ipv4);
 
+    // 80 and 90 come between 70 and 100 on the way up: still joined, so a
+    // poll landing there must not read as a drop.
+    const NmDeviceState ip_check =
+        wifi_parse_nm_device_state("80 (connecting (checking IP connectivity))");
+    CHECK(ip_check.connected);
+    CHECK_FALSE(ip_check.getting_ipv4);
+    const NmDeviceState secondaries =
+        wifi_parse_nm_device_state("90 (connecting (starting secondary connections))");
+    CHECK(secondaries.connected);
+    CHECK_FALSE(secondaries.getting_ipv4);
+
+    CHECK_FALSE(wifi_parse_nm_device_state("110 (deactivating)").connected);
+    CHECK_FALSE(wifi_parse_nm_device_state("120 (failed)").connected);
+
     const NmDeviceState down = wifi_parse_nm_device_state("30 (disconnected)");
     CHECK_FALSE(down.connected);
     CHECK_FALSE(down.getting_ipv4);

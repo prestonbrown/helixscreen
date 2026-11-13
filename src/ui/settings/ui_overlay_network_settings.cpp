@@ -103,6 +103,7 @@ static void network_item_delete_cb(lv_event_t* e) {
 NetworkSettingsOverlay::NetworkSettingsOverlay() {
     std::memset(ssid_buffer_, 0, sizeof(ssid_buffer_));
     std::memset(ip_buffer_, 0, sizeof(ip_buffer_));
+    std::memset(ip_display_buffer_, 0, sizeof(ip_display_buffer_));
     std::memset(mac_buffer_, 0, sizeof(mac_buffer_));
     std::memset(count_buffer_, 0, sizeof(count_buffer_));
     std::memset(eth_ip_buffer_, 0, sizeof(eth_ip_buffer_));
@@ -173,7 +174,7 @@ void NetworkSettingsOverlay::init_subjects() {
 
     // WiFi string subjects
     UI_MANAGED_SUBJECT_STRING(connected_ssid_, ssid_buffer_, "", "connected_ssid", subjects_);
-    UI_MANAGED_SUBJECT_STRING(ip_address_, ip_buffer_, "", "ip_address", subjects_);
+    UI_MANAGED_SUBJECT_STRING(ip_display_, ip_display_buffer_, "", "wifi_ip_display", subjects_);
     UI_MANAGED_SUBJECT_STRING(mac_address_, mac_buffer_, "", "mac_address", subjects_);
     UI_MANAGED_SUBJECT_STRING(network_count_, count_buffer_, "(0)", "network_count", subjects_);
 
@@ -621,8 +622,7 @@ void NetworkSettingsOverlay::apply_wifi_status(const WifiBackend::ConnectionStat
 
     if (connected) {
         const std::string& ssid = status.ssid;
-        const std::string ip = helix::settings::status::wifi_address(
-            helix::ui::wifi::link_phase(status), status.ip_address);
+        const std::string& ip = status.ip_address;
         const std::string& mac = status.mac_address;
 
         strncpy(ssid_buffer_, ssid.c_str(), sizeof(ssid_buffer_) - 1);
@@ -631,7 +631,9 @@ void NetworkSettingsOverlay::apply_wifi_status(const WifiBackend::ConnectionStat
 
         strncpy(ip_buffer_, ip.c_str(), sizeof(ip_buffer_) - 1);
         ip_buffer_[sizeof(ip_buffer_) - 1] = '\0';
-        lv_subject_notify(&ip_address_);
+        lv_subject_copy_string(
+            &ip_display_,
+            helix::settings::status::wifi_address(helix::ui::wifi::link_phase(status), ip).c_str());
 
         strncpy(mac_buffer_, mac.c_str(), sizeof(mac_buffer_) - 1);
         mac_buffer_[sizeof(mac_buffer_) - 1] = '\0';
@@ -644,7 +646,7 @@ void NetworkSettingsOverlay::apply_wifi_status(const WifiBackend::ConnectionStat
         ip_buffer_[0] = '\0';
         mac_buffer_[0] = '\0';
         lv_subject_notify(&connected_ssid_);
-        lv_subject_notify(&ip_address_);
+        lv_subject_copy_string(&ip_display_, "");
         lv_subject_notify(&mac_address_);
     }
 }
@@ -1081,7 +1083,7 @@ void NetworkSettingsOverlay::finish_wlan_toggle(bool requested, bool success, bo
         ip_buffer_[0] = '\0';
         mac_buffer_[0] = '\0';
         lv_subject_notify(&connected_ssid_);
-        lv_subject_notify(&ip_address_);
+        lv_subject_copy_string(&ip_display_, "");
         lv_subject_notify(&mac_address_);
     }
 

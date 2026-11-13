@@ -810,3 +810,22 @@ TEST_CASE_METHOD(ControlLaneFixture, "A link that has its address is not watched
     process_lvgl(1500);
     CHECK(fires.load() == before);
 }
+
+TEST_CASE_METHOD(ControlLaneFixture,
+                 "A CONNECTED event mid-watch does not end the wait for an address",
+                 "[wifi][wifi_dhcp_pending]") {
+    std::atomic<int> fires{0};
+    wm->add_state_observer(guard.token(), [&fires]() { fires.fetch_add(1); });
+
+    backend->set_connected_state(true, "Home", "", 70);
+    REQUIRE(read_status().awaiting_ipv4);
+    process_lvgl(50);
+
+    // CONNECTED knows no address; the cached status it leaves has none either.
+    WiFiManagerTestAccess::fire_connected(*wm);
+    process_lvgl(1000);
+
+    const int before = fires.load();
+    backend->set_connected_state(true, "Home", "10.0.0.9", 70);
+    REQUIRE(wait_until([&] { return fires.load() > before; }, 3000));
+}

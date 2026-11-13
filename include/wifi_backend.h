@@ -212,15 +212,15 @@ std::optional<bool> wifi_parse_nm_radio_state(const std::string& output);
 
 /// What one nmcli GENERAL.STATE value says about the link.
 struct NmDeviceState {
-    bool connected{false};    ///< Associated: 100 (connected), or 70 below
+    bool connected{false};    ///< Joined: 70 (getting IP configuration) to 100 (connected)
     bool getting_ipv4{false}; ///< 70 (connecting (getting IP configuration))
 };
 
 /**
  * @brief Parse nmcli's GENERAL.STATE value ("100 (connected)")
  *
- * State 70 counts as connected, the way wpa_supplicant's COMPLETED does:
- * the radio has joined and only the address is outstanding.
+ * States 70 to 100 count as connected, the way wpa_supplicant's COMPLETED
+ * does: the radio has joined; at 70 the address is still outstanding.
  */
 NmDeviceState wifi_parse_nm_device_state(const std::string& value);
 

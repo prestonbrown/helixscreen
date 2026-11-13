@@ -79,6 +79,11 @@ class TestableNMBackend : public WifiBackendNetworkManager {
         return apply_polled_status(st);
     }
 
+    /// Stand in for an nmcli join running on the connect thread.
+    void set_connect_in_flight(bool in_flight) {
+        connect_in_flight_.store(in_flight);
+    }
+
     /// Feed one exact poll result through apply_polled_status().
     std::string feed_status(const ConnectionStatus& st) {
         return apply_polled_status(st);
@@ -1014,4 +1019,27 @@ TEST_CASE("NM backend: an address arriving after the join fires ADDRESS_CHANGED"
     CHECK(changes == 1);
     CHECK(backend.feed_status(st).empty());
     CHECK(changes == 1);
+}
+
+TEST_CASE("NM backend: a poll during a user's join leaves the outcome to nmcli",
+          "[network][nm][status][wifi_dhcp_pending]") {
+    TestableNMBackend backend;
+    int connects = 0;
+    backend.register_event_callback("CONNECTED", [&](const std::string&) { connects++; });
+
+    WifiBackend::ConnectionStatus joining;
+    joining.connected = true;
+    joining.ssid = "Home";
+    joining.awaiting_ipv4 = true;
+
+    // State 70 mid-join: DHCP may still fail, and nmcli's exit says whether it did.
+    backend.set_connect_in_flight(true);
+    CHECK(backend.feed_status(joining).empty());
+    CHECK(connects == 0);
+    CHECK(backend.get_status().awaiting_ipv4);
+
+    // The same link seen by a poll outside a join is announced.
+    backend.set_connect_in_flight(false);
+    CHECK(backend.feed_status(joining) == "CONNECTED");
+    CHECK(connects == 1);
 }

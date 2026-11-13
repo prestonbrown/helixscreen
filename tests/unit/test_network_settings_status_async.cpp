@@ -248,3 +248,22 @@ TEST_CASE_METHOD(OverlayStatusFixture,
     CHECK(toasts->front() == "WiFi isn't responding");
     CHECK(Access::pending_forget_ssid(overlay()).empty());
 }
+
+TEST_CASE_METHOD(OverlayStatusFixture,
+                 "network settings: a pending address shows as such and is not an address",
+                 "[network_settings][wifi_dhcp_pending]") {
+    WifiBackend::ConnectionStatus status;
+    status.connected = true;
+    status.ssid = kSsid;
+    status.awaiting_ipv4 = true;
+    Access::apply_wifi_status(overlay(), status);
+    CHECK(Access::ip_display(overlay()) == "Getting address…");
+    // The IPv4 row prefills the static-address form from this.
+    CHECK(Access::ip(overlay()).empty());
+
+    status.awaiting_ipv4 = false;
+    status.ip_address = kIp;
+    Access::apply_wifi_status(overlay(), status);
+    CHECK(Access::ip_display(overlay()) == kIp);
+    CHECK(Access::ip(overlay()) == kIp);
+}
