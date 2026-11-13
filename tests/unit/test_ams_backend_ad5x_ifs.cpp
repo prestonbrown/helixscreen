@@ -2240,7 +2240,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     AmsBackendAd5xIfs::ZColorSilentResult r;
     r.saw_valid_response = true;
     r.ifs_chan = 0;
-    r.ifs_ports = std::array<bool, 4>{false, false, false, false};
+    r.ifs_ports = std::vector<bool>{false, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
 
     REQUIRE(Ad5xIfsTestAccess::ifs_status_ports_seen(backend));
@@ -2520,7 +2520,7 @@ TEST_CASE_METHOD(
         r.saw_valid_response = true;
         r.ifs_active = true;
         r.ifs_chan = 0; // real IFS_STATUS frames carry Chan alongside Ports
-        r.ifs_ports = std::array<bool, 4>{true, true, true, true};
+        r.ifs_ports = std::vector<bool>{true, true, true, true};
         Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
     }
     REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 0));
@@ -2533,7 +2533,7 @@ TEST_CASE_METHOD(
         r.saw_valid_response = true;
         r.ifs_active = true;
         r.ifs_chan = 0;
-        r.ifs_ports = std::array<bool, 4>{true, true, true, true};
+        r.ifs_ports = std::vector<bool>{true, true, true, true};
         Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
     }
     REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
@@ -2557,8 +2557,8 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
         AmsBackendAd5xIfs::ZColorSilentResult r;
         r.saw_valid_response = true;
         r.ifs_active = true;
-        r.ifs_chan = 3;                                             // real seated lane = 3
-        r.ifs_ports = std::array<bool, 4>{true, true, true, false}; // lane 4 empty
+        r.ifs_chan = 3;                                           // real seated lane = 3
+        r.ifs_ports = std::vector<bool>{true, true, true, false}; // lane 4 empty
         r.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PLA", "111111"};
         r.slots[1] = AmsBackendAd5xIfs::ZColorSlot{"PETG", "222222"};
         r.slots[2] = AmsBackendAd5xIfs::ZColorSlot{"PETG", "333333"};
@@ -2754,7 +2754,7 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     // slot_index >= 0 guard: current_slot is 0 here, so -1 must NOT match it via
     // the active-slot short-circuit — and the base LOADED check rejects it too.
     REQUIRE_FALSE(backend.can_unload_from_toolhead(-1));
-    REQUIRE_FALSE(backend.can_unload_from_toolhead(AmsBackendAd5xIfs::kNumPorts));
+    REQUIRE_FALSE(backend.can_unload_from_toolhead(AmsBackendAd5xIfs::kDefaultPorts));
 }
 
 TEST_CASE_METHOD(WiredAd5xIfs,
@@ -2936,7 +2936,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     loaded.saw_valid_response = true;
     loaded.ifs_active = true;
     loaded.ifs_chan = 2;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    loaded.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
 
     // Baseline: ch2 (slot 1) is seated -> Unload; ch1 (slot 0) is cold -> Eject.
@@ -2949,7 +2949,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     after_eject.saw_valid_response = true;
     after_eject.ifs_active = true;
     after_eject.ifs_chan = 1; // stale: engaged-but-now-empty lane
-    after_eject.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{false, true, true, true};
+    after_eject.ifs_ports = std::vector<bool>{false, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, after_eject);
 
     // Channel 2 is still the seated lane -> must still route to the heated
@@ -2994,7 +2994,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     loaded.saw_valid_response = true;
     loaded.ifs_active = true;
     loaded.ifs_chan = 2;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    loaded.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
 
     // Baseline: ch2 (slot 1) seated -> Unload; ch3 (slot 2) cold -> Eject.
@@ -3008,8 +3008,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     dialog_select.saw_valid_response = true;
     dialog_select.ifs_active = true;
     dialog_select.ifs_chan = 3; // dialog-tracked, NOT a physical seating
-    dialog_select.ifs_ports =
-        std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    dialog_select.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, dialog_select);
 
     // Seated lane must still be channel 2. Lane 2 offers Unload; lane 3 stays cold.
@@ -3041,7 +3040,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     loaded.saw_valid_response = true;
     loaded.ifs_active = true;
     loaded.ifs_chan = 2;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    loaded.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
     REQUIRE(backend.get_system_info().current_slot == 1);
 
@@ -3053,7 +3052,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     moved.saw_valid_response = true;
     moved.ifs_active = true;
     moved.ifs_chan = 3; // stale dialog value, must be ignored
-    moved.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    moved.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, moved);
 
     // Seated followed FFMInfo.channel to channel 1 (slot 0).
@@ -3132,7 +3131,7 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     after_eject.saw_valid_response = true;
     after_eject.ifs_active = true;
     after_eject.ifs_chan = 3;
-    after_eject.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, false, true};
+    after_eject.ifs_ports = std::vector<bool>{true, true, false, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, after_eject);
 
     // No lane is seated: the empty head switch rejects the stale channel.
@@ -3191,7 +3190,7 @@ TEST_CASE_METHOD(
     loaded.saw_valid_response = true;
     loaded.ifs_active = true;
     loaded.ifs_chan = 2;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    loaded.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
     REQUIRE(backend.get_system_info().current_slot == 1);
 
@@ -3230,7 +3229,7 @@ TEST_CASE_METHOD(
     loaded.saw_valid_response = true;
     loaded.ifs_active = true;
     loaded.ifs_chan = 3;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    loaded.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
 
     // Adopted as before (no switch authority to gate on).
@@ -3257,7 +3256,7 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     loaded.saw_valid_response = true;
     loaded.ifs_active = true;
     loaded.ifs_chan = 2;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    loaded.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
     REQUIRE(Ad5xIfsTestAccess::seated_chan(backend) == 2);
     REQUIRE(Ad5xIfsTestAccess::ffm_channel(backend) == 2);
@@ -3306,7 +3305,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     loaded.ifs_active = true;
     loaded.extruder_slot = 0; // "Extruder: 1" -> 0-based slot 0
     loaded.ifs_chan = 1;      // 1-based seated channel
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+    loaded.ifs_ports = std::vector<bool>{true, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
 
     CHECK(Ad5xIfsTestAccess::head_filament(backend));
@@ -3326,7 +3325,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     none.ifs_active = true;
     // none.extruder_slot deliberately absent ("None")
     none.ifs_chan = 1;
-    none.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{false, false, false, false};
+    none.ifs_ports = std::vector<bool>{false, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, none);
 
     CHECK_FALSE(Ad5xIfsTestAccess::head_filament(backend));
@@ -3356,7 +3355,7 @@ TEST_CASE_METHOD(
     loaded.ifs_active = true;
     loaded.extruder_slot = 0;
     loaded.ifs_chan = 1;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+    loaded.ifs_ports = std::vector<bool>{true, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
     REQUIRE(Ad5xIfsTestAccess::head_filament(backend));
 
@@ -3368,8 +3367,7 @@ TEST_CASE_METHOD(
     none_seated.ifs_active = true;
     // extruder_slot deliberately absent ("None")
     none_seated.ifs_chan = 1;
-    none_seated.ifs_ports =
-        std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+    none_seated.ifs_ports = std::vector<bool>{true, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, none_seated);
 
     // Head-loaded MUST be retained — the seated lane is still present.
@@ -3415,7 +3413,7 @@ TEST_CASE("AD5X IFS can_load gate: cold-seated stays loadable, truly-loaded does
         cold.saw_extruder_summary = true; // "Extruder: None"
         cold.ifs_active = true;
         cold.ifs_chan = 1;
-        cold.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+        cold.ifs_ports = std::vector<bool>{true, false, false, false};
         Ad5xIfsTestAccess::apply_zcolor_result(backend, cold);
         REQUIRE_FALSE(Ad5xIfsTestAccess::head_filament(backend));
         // slot_unloads_to_toolhead false -> !toolhead_unload true -> Load enabled.
@@ -3431,8 +3429,7 @@ TEST_CASE("AD5X IFS can_load gate: cold-seated stays loadable, truly-loaded does
         loaded.ifs_active = true;
         loaded.extruder_slot = 0; // "Extruder: 1" -> head loaded
         loaded.ifs_chan = 1;
-        loaded.ifs_ports =
-            std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+        loaded.ifs_ports = std::vector<bool>{true, false, false, false};
         Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
         REQUIRE(Ad5xIfsTestAccess::head_filament(backend));
         CHECK(backend.slot_unloads_to_toolhead(0, /*loaded_hint=*/true));
@@ -3463,7 +3460,7 @@ TEST_CASE_METHOD(
     loaded.ifs_active = true;
     loaded.extruder_slot = 0;
     loaded.ifs_chan = 1;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+    loaded.ifs_ports = std::vector<bool>{true, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
     REQUIRE(Ad5xIfsTestAccess::head_filament(backend));
 
@@ -3474,8 +3471,7 @@ TEST_CASE_METHOD(
     status_only.saw_silent_content = false;
     status_only.saw_extruder_summary = false; // no "// Extruder:" line this frame
     status_only.ifs_chan = 1;
-    status_only.ifs_ports =
-        std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+    status_only.ifs_ports = std::vector<bool>{true, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, status_only);
 
     CHECK(Ad5xIfsTestAccess::head_filament(backend));
@@ -3533,7 +3529,7 @@ TEST_CASE_METHOD(
     cold.ifs_active = true;
     // extruder_slot absent: head empty
     cold.ifs_chan = 1;
-    cold.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+    cold.ifs_ports = std::vector<bool>{true, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, cold);
 
     // Backend truth: filament present in the lane, head empty.
@@ -3569,7 +3565,7 @@ TEST_CASE_METHOD(
     boot.saw_valid_response = true;
     boot.ifs_active = true;
     boot.ifs_chan = 0; // firmware forgot the seated channel
-    boot.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    boot.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, boot);
 
     // Channel 2 (slot 1) is restored as seated -> Unload on it, Eject on cold lanes.
@@ -3596,7 +3592,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     boot.ifs_active = true;
     boot.ifs_chan = 0;
     // Channel 2 (index 1) is now empty -> the remembered lane can't be seated.
-    boot.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, true, true};
+    boot.ifs_ports = std::vector<bool>{true, false, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, boot);
 
     // No false claim: the seated slot stays unknown.
@@ -3616,7 +3612,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     loaded.saw_valid_response = true;
     loaded.ifs_active = true;
     loaded.ifs_chan = 3;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{false, false, true, false};
+    loaded.ifs_ports = std::vector<bool>{false, false, true, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
     CHECK(Ad5xIfsTestAccess::persisted_seated_slot(backend) == std::optional<int>(2));
 
@@ -3626,7 +3622,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     unloaded.saw_valid_response = true;
     unloaded.ifs_active = true;
     unloaded.ifs_chan = 0;
-    unloaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{false, false, false, false};
+    unloaded.ifs_ports = std::vector<bool>{false, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, unloaded);
     CHECK_FALSE(Ad5xIfsTestAccess::persisted_seated_slot(backend).has_value());
 }
@@ -3686,7 +3682,7 @@ TEST_CASE_METHOD(
     r.saw_valid_response = true;
     r.ifs_active = true;
     r.ifs_chan = 1; // 1-based seated channel -> slot 0
-    r.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, false, true};
+    r.ifs_ports = std::vector<bool>{true, true, false, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
 
     // The seated channel — not the empty tool_map_ — resolves the loaded slot.
@@ -3730,7 +3726,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     prompt.is_prompt_fallback = true;
     prompt.saw_valid_response = true;
     prompt.ifs_chan = 2;
-    prompt.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{false, true, true, true};
+    prompt.ifs_ports = std::vector<bool>{false, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, prompt);
 
     // NOT demoted — the prompt was external (user menu), not our query degrading.
@@ -5388,7 +5384,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs, "AD5X IFS clear_slot_override rejects out-of
     REQUIRE(backend.get_slot_info(0).brand == "Polymaker");
 
     backend.clear_slot_override(-1);
-    backend.clear_slot_override(AmsBackendAd5xIfs::kNumPorts);
+    backend.clear_slot_override(AmsBackendAd5xIfs::kDefaultPorts);
     backend.clear_slot_override(999);
 
     // The rejected indices must not have been folded/clamped onto a real slot.
@@ -6038,7 +6034,7 @@ TEST_CASE_METHOD(RunningAd5xIfs, "AD5X IFS eject_lane rejects out-of-range slots
     }
 
     SECTION("slot == NUM_PORTS (out of range)") {
-        AmsError err = backend.eject_lane(AmsBackendAd5xIfs::kNumPorts);
+        AmsError err = backend.eject_lane(AmsBackendAd5xIfs::kDefaultPorts);
         REQUIRE_FALSE(err.success());
         REQUIRE(backend.captured_gcodes.empty());
     }
@@ -6803,7 +6799,7 @@ TEST_CASE_METHOD(
     r.ifs_active = true;
     r.is_prompt_fallback = true; // GET_ZCOLOR degraded to a prompt this turn
     r.ifs_chan = 2;
-    r.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{false, true, true, true};
+    r.ifs_ports = std::vector<bool>{false, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
 
     // Ports established presence: ch1 empty, ch2-4 present.
@@ -7831,7 +7827,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     r.saw_valid_response = true;
     r.ifs_active = true;
     r.ifs_chan = 1;
-    r.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+    r.ifs_ports = std::vector<bool>{true, false, false, false};
     r.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PLA", "00FF00"};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
 
@@ -8249,7 +8245,7 @@ TEST_CASE("AD5X IFS eject_lane's seated refusal uses the same head predicate as 
 }
 
 TEST_CASE("AD5X IFS eject_lane maps each slot to its 1-based port", "[ams][ad5x_ifs]") {
-    for (int slot = 0; slot < AmsBackendAd5xIfs::kNumPorts; ++slot) {
+    for (int slot = 0; slot < AmsBackendAd5xIfs::kDefaultPorts; ++slot) {
         DYNAMIC_SECTION("slot " << slot) {
             TestableAd5xIfsBackend backend;
             Ad5xIfsTestAccess::set_running(backend, true);
@@ -9563,7 +9559,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     SECTION("self and out-of-range are never eligible") {
         using helix::printer::BackupEligibility;
         REQUIRE(backend.endless_spool_backup_eligibility(0, 0) == BackupEligibility::Incompatible);
-        REQUIRE(backend.endless_spool_backup_eligibility(0, AmsBackendAd5xIfs::kNumPorts) ==
+        REQUIRE(backend.endless_spool_backup_eligibility(0, AmsBackendAd5xIfs::kDefaultPorts) ==
                 BackupEligibility::Incompatible);
         REQUIRE(backend.endless_spool_backup_eligibility(-1, 0) == BackupEligibility::Incompatible);
     }
