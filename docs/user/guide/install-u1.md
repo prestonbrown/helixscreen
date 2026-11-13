@@ -1,165 +1,170 @@
 # Installing HelixScreen on the Snapmaker U1
 
-The Snapmaker U1 is an all-in-one printer with a built-in touchscreen. HelixScreen replaces the stock UI and launches automatically on boot. This guide covers installation, updates, firmware upgrades with HelixScreen installed, and recovery if the screen comes up blank.
+The Snapmaker U1 is a four-toolhead printer with a built-in touchscreen. HelixScreen replaces the stock screen and starts automatically at boot. This page covers installing, updating, firmware upgrades with HelixScreen installed, recovery from a blank screen, and going back to the stock screen.
 
 > **Easy installer:** the [HelixScreen easy installer](https://helixscreen.org/installer/) does not handle this printer yet. See [what works today](easy-installer-unsupported.md#snapmaker-u1).
 
-## Tested With
+## Getting started
 
-> **Requires SSH access.** Enable it on **stock firmware (1.2+)** via the **Root access** option in printer settings, or install [PAXX Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware) (SSH on by default). PAXX is **not** required; it's just the turnkey option.
->
-> **Firmware versions:** Tested on PAXX Extended Firmware **1.2.x, 1.3.x, and 1.4.x**. The stock-firmware path has not been verified end-to-end on a real stock device. After any firmware update, **reinstall HelixScreen**; the update resets the printer's system files and the stock screen will return until you reinstall (see [Upgrading the firmware](#upgrading-the-extended-firmware-with-helixscreen-installed)).
+1. Turn on SSH: enable **Root access** in the printer's settings on stock firmware 1.2 or newer, or install PAXX Extended Firmware (see [What you need](#what-you-need)).
+2. From your computer, sign in to the printer: `ssh root@<printer-ip>`, password `snapmaker`.
+3. Run the installer:
+   ```bash
+   curl -sSL https://releases.helixscreen.org/install.sh | sh
+   ```
+4. HelixScreen takes over the screen. It already knows the U1's heaters, fans, lights and sensors, so the short setup on screen skips the hardware questions and asks only things like your language.
+5. Start printing. For the U1's per-toolhead flow calibration, see [Snapmaker U1: flow calibration](printing.md#snapmaker-u1-flow-calibration).
 
-## Prerequisites
+## What you need
 
-- **Hardware:**
-  - Snapmaker U1
-  - Built-in touchscreen display
-  - Network connection
-- **Software:**
-  - **SSH access**: via either firmware path:
-    - **Stock Snapmaker firmware (1.2+):** enable the **Root access** option in printer settings (added in V1.2.0). This turns on SSH. *(The stock-firmware path has not been verified end-to-end on a real stock device.)*
-    - **[PAXX Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware):** SSH on by default. Tested on **1.2.x, 1.3.x, and 1.4.x**.
-  - SSH login (`root@<printer-ip>` or `lava@<printer-ip>`, password: `snapmaker`)
+- A Snapmaker U1 on your network (WiFi or Ethernet).
+- **SSH access**, from either firmware:
+  - **Stock Snapmaker firmware 1.2 or newer:** turn on the **Root access** option in the printer's settings (added in firmware 1.2.0). This starts SSH. HelixScreen on stock firmware has not yet been checked end to end on a real stock printer.
+  - **[PAXX Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware):** SSH is on by default. Tested on 1.2, 1.3 and 1.4.
+- The SSH login: user `root` (or `lava`), password `snapmaker`.
 
-## Installation
+PAXX is not required. It is the turnkey option if you would rather not enable root access yourself.
 
-SSH into the printer:
+> **HelixScreen already came with your firmware?** Some PAXX builds include HelixScreen as a firmware component. Turn it on or off in the firmware settings web page under **Snapmaker Components > Touchscreen GUI**, and get new versions by updating the firmware. On those printers the installer refuses to run, because it would overwrite the firmware's own setup, and **Settings > Updates** on the screen reads **Managed by your firmware**.
+
+## Installing
+
+Sign in to the printer over SSH:
 
 ```bash
 ssh root@<printer-ip>
-# or: ssh lava@<printer-ip>
 # password: snapmaker
 ```
 
-### Quick Install (Recommended)
+Then run the installer:
 
 ```bash
 curl -sSL https://releases.helixscreen.org/install.sh | sh
 ```
 
+The installer recognizes the U1 on its own. It shows a plan of what it will install and change, asks `Continue? [Y/n]`, and then:
+
+- installs HelixScreen to `/userdata/helixscreen`
+- sets it to start at boot instead of the stock screen
+- switches off the stock screen program (`/usr/bin/gui`). That program sits in a read-only part of the firmware, so it is only disabled, never deleted, and the uninstaller switches it back on
+- on stock firmware, keeps SSH working. There the stock screen is what starts SSH at boot while **Root access** is on, so HelixScreen does that job instead each time it starts. The **Root access** switch itself lives on the stock screen: to change it, uninstall HelixScreen, flip the switch, then install again
+
+The installer's log is saved as `helixscreen-install.log` in the printer's logs folder, so Mainsail and Fluidd list it with the other logs.
+
 <details>
-<summary>Manual Install (if you prefer, or the one-liner doesn't work on your network)</summary>
+<summary>Installing without internet access on the printer</summary>
 
-**Step 1: Download the release archive**
-
-```bash
-wget https://releases.helixscreen.org/releases/v<VERSION>/helixscreen-snapmaker-u1.zip
-```
-
-**Step 2: Extract to the install directory**
+If the printer cannot download from the internet, download two files on your computer from the [releases page](https://github.com/prestonbrown/helixscreen/releases): `install.sh` and `helixscreen-snapmaker-u1.zip`. Copy both to the printer:
 
 ```bash
-mkdir -p /userdata/helixscreen && unzip -q helixscreen-snapmaker-u1.zip -d /userdata/helixscreen
+scp install.sh helixscreen-snapmaker-u1.zip root@<printer-ip>:/tmp/
 ```
 
-**Step 3: Configure autostart**
+Then, on the printer:
 
 ```bash
-bash /userdata/helixscreen/scripts/snapmaker-u1-setup-autostart.sh /userdata/helixscreen
+sh /tmp/install.sh --local /tmp/helixscreen-snapmaker-u1.zip
 ```
 
-This sets HelixScreen to launch on boot and disables the stock UI program (`/usr/bin/gui`) so HelixScreen owns the screen.
-
-**Step 4: Start HelixScreen**
-
-```bash
-killall gui 2>/dev/null; /userdata/helixscreen/bin/helix-launcher.sh &
-```
+This does the same install as the one-line command, from the file you copied.
 
 </details>
 
-## What the Installer Does
-
-- Automatically detects the Snapmaker U1 and installs to `/userdata/helixscreen/`
-- Configures autostart so HelixScreen launches instead of the stock UI on boot
-- Disables the stock UI program (`/usr/bin/gui`) so HelixScreen owns the screen. The stock UI program lives in a read-only part of the firmware and is only disabled, never deleted; the uninstaller re-enables it
-- On stock firmware, keeps SSH working. The stock screen is what starts SSH at boot when **Root access** is on, so HelixScreen does that job instead each time it starts. The **Root access** switch itself is on the stock screen: to change it, uninstall HelixScreen, flip the switch, then reinstall
-
-## Service Control and Logs
+## Restarting and logs
 
 ```bash
-# Restart the service
+# Restart HelixScreen
 /userdata/helixscreen/config/helixscreen.init restart
 
-# Structured app log (persistent syslog)
+# HelixScreen's own log
 grep helix-screen /var/log/messages | tail -100
 
-# Launcher / supervisor capture (startup, crash output)
+# Startup and crash output
 tail -100 /var/log/helixscreen/launcher.log
 ```
 
-To start it by hand (for example after killing a stuck instance): `killall gui 2>/dev/null; /userdata/helixscreen/bin/helix-launcher.sh &`
-
 ## Updating
 
-Re-run the Quick Install one-liner with `--update`; it preserves your settings:
+The easiest way is on the screen: **Settings > Updates**, then check for an update and install it. HelixScreen also appears in the update list of Mainsail and Fluidd.
+
+From SSH, run the installer with `--update`. It keeps your settings:
 
 ```bash
 curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --update
 ```
 
-To pin a specific version add `--version vX.Y.Z`, or swap `--update` for `--clean` to reinstall with fresh settings. See [Updating HelixScreen](../INSTALL.md#updating-helixscreen) for the universal details.
+To install one particular version, add `--version vX.Y.Z`. To reinstall with fresh settings, use `--clean --yes` instead of `--update`. [Updating HelixScreen](../INSTALL.md#updating-helixscreen) has the details that apply to every printer.
 
-### Upgrading the Extended Firmware with HelixScreen installed
+### Upgrading the printer's firmware with HelixScreen installed
 
-A firmware upgrade is safe to run with HelixScreen installed; it does **not** brick the printer. HelixScreen's files live in a layer that the upgrade clears, so after upgrading you simply **reinstall HelixScreen**.
+A firmware upgrade is safe with HelixScreen installed and does not brick the printer. The upgrade resets the system changes that start HelixScreen at boot, so the stock screen comes back afterwards. HelixScreen's files and your settings stay on the printer's user storage.
 
-Because HelixScreen replaces the stock touchscreen, the stock screen's on-device **"Local Update"** button is gone. Upgrade over the network instead:
+Because HelixScreen replaces the stock screen, its **Local Update** button is not available. On PAXX firmware, upgrade over the network instead:
 
-1. In a web browser on the same network, open **`http://<printer-ip>/firmware-config`**.
-2. Choose **Firmware Upgrade**, upload the new `U1_extended_<version>_upgrade.bin`, and let it complete. The printer reboots into the new firmware.
-3. The stock screen comes back (HelixScreen was cleared by the upgrade). **Reinstall HelixScreen** with the [Quick Install](#quick-install-recommended) one-liner. Your settings, WiFi, and printer config are preserved (they live on a separate partition the upgrade keeps).
+1. In a web browser on the same network, open `http://<printer-ip>/firmware-config`.
+2. Choose **Firmware Upgrade**, upload the new `U1_extended_<version>_upgrade.bin` and let it finish. The printer restarts into the new firmware with the stock screen.
+3. Sign in over SSH again and run the installer with `--update`:
+   ```bash
+   curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --update
+   ```
+   HelixScreen is back, with your settings.
 
-## Uninstalling and Reverting to Stock UI
+On stock firmware, upgrade the way Snapmaker's documentation describes, then turn **Root access** back on in the stock screen and run the same command.
 
-Run the uninstaller; it re-enables the stock UI and removes HelixScreen:
+## Uninstalling and going back to the stock screen
+
+Run the uninstaller, then restart the printer:
 
 ```bash
 curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --uninstall
 reboot
 ```
 
-If you can't run the uninstaller, revert manually. HelixScreen *disables* the stock UI program rather than deleting it, so re-enable it and remove HelixScreen's files:
+It switches the stock screen program back on, puts back the firmware's own startup scripts, removes HelixScreen, and turns off the setting that kept the changes across restarts. After the restart the printer runs exactly as it did before HelixScreen.
+
+If you cannot run the uninstaller, undo it by hand:
 
 ```bash
-chmod +x /usr/bin/gui          # re-enable the stock UI program
-rm -rf /userdata/helixscreen   # remove HelixScreen
+chmod +x /usr/bin/gui                 # switch the stock screen program back on
+rm -rf /userdata/helixscreen /userdata/helixscreen-state
 reboot
 ```
 
 ## Recovery: screen is blank or the printer is off the network
 
-If something goes wrong and the printer comes up with a blank screen and is unreachable over WiFi, recover over a wired connection:
+If the printer comes up with a blank screen and cannot be reached over WiFi, recover over a wired connection:
 
-1. Plug a **USB-Ethernet adapter** into the printer and connect it to your router. The printer auto-configures the wired link and gets an IP from your router (check the router's client list).
-2. SSH in over that wired IP: `ssh root@<wired-ip>` (password `snapmaker`).
-3. Run the uninstaller to return to the stock UI, then reboot:
+1. Plug a **USB-Ethernet adapter** into the printer and connect it to your router. The printer sets up the wired link on its own and gets an address from your router (look for it in the router's list of connected devices).
+2. Sign in over that address: `ssh root@<wired-ip>`, password `snapmaker`.
+3. Run the uninstaller and restart:
    ```bash
    curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --uninstall
    reboot
    ```
-4. Once the stock screen is back and the printer is on WiFi again, you can reinstall HelixScreen.
+4. Once the stock screen is back and the printer is on WiFi again, you can install HelixScreen again.
 
-> If the uninstaller can't run, reset HelixScreen's persistence flag and files manually, then reboot: `rm -f /oem/.debug && rm -rf /oem/overlay/* && rm -rf /userdata/helixscreen && sync && reboot`. This returns the printer to a clean stock state.
+If the uninstaller cannot run, this command returns the printer to a clean stock state and restarts it:
+
+```bash
+rm -f /oem/.debug && rm -rf /oem/overlay/* && rm -rf /userdata/helixscreen && sync && reboot
+```
 
 ## SSH refused after installing on stock firmware
 
-On stock Snapmaker firmware, SSH only runs because the stock screen starts it at boot while **Root access** is on. Older HelixScreen versions disabled the stock screen without taking over that job, so after the next reboot `ssh` answers "Connection refused". Fluidd and Mainsail keep working, but they give you no shell.
+Versions of HelixScreen before 1.0.4 switched off the stock screen on stock firmware without taking over its job of starting SSH. After the next restart, `ssh` answers "Connection refused". Mainsail and Fluidd keep working, but they give you no shell.
 
-1. **Update HelixScreen from the printer's screen**: **Settings > Updates**, check for updates and install. The updated HelixScreen starts SSH whenever **Root access** was on; if `ssh` still refuses afterwards, reboot the printer once.
-2. **If you can't update from the screen**, reinstall the stock firmware the way Snapmaker's documentation describes. A firmware update clears HelixScreen's system changes, so the stock screen comes back. Then turn **Root access** back on in the stock screen (**Settings > Maintenance**) and reinstall HelixScreen.
+1. **Update HelixScreen from the screen:** **Settings > Updates**, check for an update and install it. The updated HelixScreen starts SSH whenever **Root access** was on. If `ssh` still refuses afterwards, restart the printer once.
+2. **If you cannot update from the screen,** reinstall the stock firmware the way Snapmaker's documentation describes. That clears HelixScreen's system changes, so the stock screen comes back. Turn **Root access** back on in the stock screen (**Settings > Maintenance**) and install HelixScreen again.
 
-## Quirks and Notes
+## Good to know
 
-- **A firmware update resets system files**: any firmware update (stock or PAXX) can overwrite HelixScreen and bring the stock screen back; re-run the installer afterward (see [Upgrading the firmware](#upgrading-the-extended-firmware-with-helixscreen-installed))
-- **Remote screen ("gui" camera) works on PAXX firmware**: the built-in "gui" webcam in Mainsail/Fluidd shows the live HelixScreen UI, and you can tap it to control the printer remotely. Enable **Remote Screen** in the firmware settings web UI at `http://<printer-ip>/firmware-config/`; it registers the "gui" webcam and restarts HelixScreen and Moonraker for you (hand-editing the config value alone is not enough). The physical "case" camera is unaffected. Stock firmware is not yet confirmed to expose the feed. Setup steps: [Supported Printers → Snapmaker U1](supported-printers.md#snapmaker-u1-snapswap)
-- **Two harmless Moonraker warnings are expected**: after install, the Mainsail/Fluidd "Moonraker warnings found" banner may show *"Unable to find DBus PolKit Interface"* and *"Unable to initialize System Update Provider for distribution: buildroot"*. Both are inherent to Moonraker on the U1's buildroot firmware (no PolKit, no OS package manager) and do **not** affect HelixScreen or printing. They are not specific to HelixScreen; installing simply restarts Moonraker, which re-surfaces them. See [Troubleshooting](../TROUBLESHOOTING.md)
-- **Flow calibration ("dynamic flow calibration")** is a pre-print option in HelixScreen 1.1 and later. To run it for prints started from the slicer, or on 1.0, see [Snapmaker U1: flow calibration](printing.md#snapmaker-u1-flow-calibration)
-- **Display resolution may need manual configuration** if the screen appears stretched or misaligned (see [Display Configuration](../INSTALL.md#display-configuration))
+- **Any firmware update brings the stock screen back.** Run the installer with `--update` afterwards, as in [Upgrading the printer's firmware](#upgrading-the-printers-firmware-with-helixscreen-installed).
+- **Seeing the screen in Mainsail or Fluidd.** On PAXX firmware, the built-in "gui" webcam shows the live HelixScreen screen, and you can tap it to control the printer. Turn on **Remote Screen** in the firmware settings web page at `http://<printer-ip>/firmware-config/`. Editing the config file by hand is not enough. Setup and troubleshooting: [Supported Printers: Snapmaker U1](supported-printers.md#snapmaker-u1-snapswap).
+- **Two Moonraker warnings you may see.** Mainsail and Fluidd can show "Unable to find DBus PolKit Interface" and "Unable to initialize System Update Provider for distribution: buildroot". Both come from Moonraker looking for an operating-system package manager, which the U1's firmware does not have. The installer turns that check off in Moonraker's settings, which normally clears them. If they still appear, they are harmless: they do not affect HelixScreen or printing.
+- **Flow calibration** (Snapmaker's "dynamic flow calibration") is a pre-print option on the screen. To run it for prints started from the slicer, see [Snapmaker U1: flow calibration](printing.md#snapmaker-u1-flow-calibration).
 
-## See Also
+## See also
 
-- [Troubleshooting: Snapmaker U1 blank screen](../TROUBLESHOOTING.md#snapmaker-u1-blank-screen-and-off-the-network-after-a-reboot): the wired-recovery companion to the section above
-- [Supported printers: Snapmaker U1 (SnapSwap)](supported-printers.md#snapmaker-u1-snapswap): what works, and remote screen setup
-- [UPGRADING.md](../UPGRADING.md): version pinning, resets, migrations
+- [Troubleshooting: Snapmaker U1 blank screen](../TROUBLESHOOTING.md#snapmaker-u1-blank-screen-and-off-the-network-after-a-reboot): the companion to the recovery section above
+- [Supported Printers: Snapmaker U1 (SnapSwap)](supported-printers.md#snapmaker-u1-snapswap): what works on the U1, and the remote screen setup
+- [UPGRADING.md](../UPGRADING.md): version pinning, resets and migrations

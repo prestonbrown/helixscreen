@@ -19,7 +19,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `USER_GUIDE.md` | Landing page with links to all guide sub-pages |
 | `guide/getting-started.md` | Navigation, touch gestures, setup wizard, keyboard |
 | `guide/supported-printers.md` | Per-printer feature detail for deeply-integrated models (AD5X IFS, K1/K2 CFS, QIDI Box, Snapmaker U1, ACE), generic auto-detection baseline |
-| `guide/creality-k1c-setup.md` | End-to-end K1/K1C/K1 Max setup: root access, Simple AF / Guilouz firmware, HelixScreen install, updating, firmware upgrade path |
+| `guide/install-k1.md` | End-to-end K1/K1C/K1 Max setup: root access, Simple AF / Guilouz firmware, HelixScreen install, updating, firmware upgrade path (`guide/creality-k1c-setup.md` is a redirect stub to it) |
 | `guide/install-ad5m.md` | End-to-end Adventurer 5M / 5M Pro setup: Forge-X / ZMOD / Klipper Mod install, service control, updating, uninstall |
 | `guide/install-ad5x.md` | Adventurer 5X (ZMOD) setup: ZMOD prerequisite, chroot install, updating, uninstall |
 | `guide/install-cc1.md` | Centauri Carbon setup: COSMOS firmware flash, HelixScreen install, gui-switcher, updating, uninstall |

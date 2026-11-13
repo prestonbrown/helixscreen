@@ -1,56 +1,44 @@
 # Installing HelixScreen on the Elegoo Centauri Carbon
 
-How to get HelixScreen onto an Elegoo Centauri Carbon: flash the community [OpenCentauri COSMOS](https://docs.opencentauri.cc/klipper-conversion/cosmos/cosmos/) firmware first, then install HelixScreen on top of it.
+How to run HelixScreen on the Elegoo Centauri Carbon's built-in 4.3" touchscreen: flash the community [OpenCentauri COSMOS](https://docs.opencentauri.cc/klipper-conversion/cosmos/cosmos/) firmware, install HelixScreen on top of it, then update or remove it later.
 
 > **Easy installer:** the [HelixScreen easy installer](https://helixscreen.org/installer/) does not handle this printer yet. See [what works today](easy-installer-unsupported.md#elegoo-centauri-carbon).
 
-## Tested With
+## What You Need
 
-> **Tested and working.** Prebuilt binaries ship in releases and the installer has auto-detection support. Requires the community [OpenCentauri COSMOS firmware](https://docs.opencentauri.cc/klipper-conversion/cosmos/cosmos/); stock Elegoo firmware is not supported (no SSH, no Klipper, no Moonraker).
->
-> **Minimum COSMOS version: 26.07.0.** Tested on COSMOS 26.08.0. COSMOS 0.0.7 and earlier are not supported: they lack the calibration and filament macros HelixScreen drives.
+- An Elegoo Centauri Carbon on your network (Wi-Fi or Ethernet).
+- **COSMOS 26.07.0 or newer.** Stock Elegoo firmware can't run HelixScreen (it has no SSH, Klipper or Moonraker), and COSMOS 0.0.7 and earlier lack the calibration and filament macros HelixScreen uses. HelixScreen is tested on COSMOS 26.08.0.
+- A USB stick formatted FAT32, for flashing COSMOS.
+- A computer with an SSH client.
 
-## Prerequisites
+## Step 1: Install COSMOS
 
-- **Hardware:**
-  - Elegoo Centauri Carbon (4.3" 480×272 touchscreen, Allwinner R528, armv7l)
-  - Network connection (WiFi or Ethernet)
-  - A USB stick formatted FAT32 (for the firmware flash in Step 1)
-- **Software:**
-  - [OpenCentauri COSMOS firmware](https://github.com/OpenCentauri/cosmos/releases) **26.07.0 or newer** installed (replaces stock Elegoo firmware; ships Klipper + Moonraker + grumpyscreen/atomscreen/guppyscreen)
-  - SSH access: `root` / default password `OpenCentauri` (change it after install)
+COSMOS replaces the stock firmware with Klipper, Moonraker, Mainsail and a choice of touchscreen programs.
 
-## Installation
+1. Download the latest `update.swu` from the [COSMOS releases](https://github.com/OpenCentauri/cosmos/releases).
+2. Copy it to the root of the FAT32 USB stick.
+3. Insert the stick and switch the printer on.
+4. On the stock Elegoo screen, open the firmware update menu and apply the update.
+5. **The first boot takes 5 to 10 minutes** while it reflashes the toolhead and bed boards. Leave it alone until it finishes.
+6. Connect the printer to Wi-Fi from the COSMOS screen and note its IP address.
 
-### Step 1: Install COSMOS firmware
+If the update fails or the printer won't boot, see the OpenCentauri [install guide](https://docs.opencentauri.cc/klipper-conversion/cosmos/install/) and its [emergency USB recovery](https://docs.opencentauri.cc/software/updates/).
 
-OpenCentauri COSMOS is a full firmware replacement for the Centauri Carbon. It ships with Klipper, Moonraker, Mainsail, and a `gui-switcher` that lets you pick which touch UI to run.
-
-1. Download the latest `update.swu` from https://github.com/OpenCentauri/cosmos/releases
-2. Copy it to the root of a FAT32-formatted USB stick
-3. Insert the USB stick into the printer, power on
-4. From the stock Elegoo UI, navigate to the firmware-update menu and apply the update
-5. **First boot takes 5-10 minutes** while it reflashes the toolhead and bed boards; be patient
-6. After reboot, connect to WiFi from the COSMOS UI and note the printer's IP address
-
-Already running COSMOS? Check the version before installing HelixScreen:
+**Already on COSMOS?** Check the version before installing HelixScreen:
 
 ```bash
-curl -s http://<ip>/printer/info | grep -o '"software_version": *"[^"]*"'
+curl -s http://<printer-ip>/printer/info | grep -o '"software_version": *"[^"]*"'
 # "software_version": "Release - 26.08.0"
 ```
 
-Mainsail shows the same string on its Machine page. Anything older than `Release - 26.07.0` needs the COSMOS update above first.
+Mainsail shows the same text on its Machine page. Anything older than `Release - 26.07.0` needs the COSMOS update above first.
 
-If the update fails or the device won't boot, consult the OpenCentauri [install guide](https://docs.opencentauri.cc/klipper-conversion/cosmos/install/) and [emergency USB recovery](https://docs.opencentauri.cc/software/updates/) docs.
+## Step 2: Install HelixScreen
 
-### Step 2: Install HelixScreen
-
-SSH into the printer (replace `<ip>` with your printer's IP):
+Sign in over SSH. The default password is `OpenCentauri`; change it once you are done.
 
 ```bash
-ssh root@<ip>
-# Default password: OpenCentauri
+ssh root@<printer-ip>
 ```
 
 Then run the installer:
@@ -59,46 +47,54 @@ Then run the installer:
 curl -sSL https://releases.helixscreen.org/install.sh | sh
 ```
 
-### Step 3: Switch back to another UI (optional)
+### What the installer does
 
-COSMOS's `config-manager` tool lets you switch between installed UIs without uninstalling HelixScreen:
+- Recognizes COSMOS and installs HelixScreen to `/user-resource/helixscreen` (the rest of the COSMOS system is read-only).
+- Keeps logs and caches beside it in `/user-resource/helixscreen-state`, and your settings in `/etc/klipper/config/helixscreen`, so an update that replaces the install folder leaves them alone.
+- Stops the touchscreen program COSMOS was running (GrumpyScreen, AtomScreen or GuppyScreen) and hands the screen to HelixScreen.
+- Makes all three of those COSMOS screen choices start HelixScreen instead. COSMOS's screen setting only accepts those three names, so this is how HelixScreen gets started at boot whichever one is selected. The originals are kept and come back when you uninstall.
+- Adds the boot service `/etc/init.d/helixscreen`.
 
-```bash
-config-manager ui screen_ui grumpyscreen   # or atomscreen, guppyscreen - any of the three launches HelixScreen via its wrapper
-/etc/init.d/gui-switcher restart
-```
+---
 
-## What the Installer Does on This Printer
+## Getting Started on a Centauri Carbon
 
-The installer auto-detects COSMOS, installs HelixScreen to `/user-resource/helixscreen/`, and registers it with `gui-switcher` through an allowlist wrapper (see Quirks below). It stops the currently active UI (grumpyscreen, atomscreen, or guppyscreen) and starts HelixScreen in its place.
+HelixScreen starts as soon as the installer finishes. The Centauri Carbon release already knows this printer's heaters, fans, probe and screen colors, so the setup wizard is short:
 
-- Install directory: `/user-resource/helixscreen/` (`/` is read-only squashfs on COSMOS)
-- Settings, logs and caches live beside it in `/user-resource/helixscreen-state/`, so a Moonraker web update, which replaces the install directory wholesale, leaves them untouched
-- Init script: `/etc/init.d/helixscreen`; the watchdog also publishes its PID at `/var/run/gui.pid` so `gui-switcher` can stop it
+1. **Language**, if none is set yet.
+2. **Network:** pick a Wi-Fi network, or continue if the printer is already connected by Wi-Fi or Ethernet.
+3. **Connection:** HelixScreen connects to the printer's own Moonraker by itself and skips this step when it can. On COSMOS, Moonraker listens on port `80`, not the usual `7125`. If the step appears, tap **Test Connection**: with the port field still on its default it tries port `80` as well. If you typed a port yourself, enter `80`.
+4. **Preferences:** a few choices, such as sounds, that you can change later in Settings.
+5. **Help Improve HelixScreen:** choose whether to send anonymous usage statistics. You can change this later in **Settings > System**.
+
+Then the Home screen appears. Worth doing first:
+
+- **Slice with the COSMOS printer profile.** Elegoo's stock start G-code calls `M729`, which COSMOS treats as an emergency stop: a file sliced with the stock profile halts the printer as soon as it starts, and Klipper needs a `FIRMWARE_RESTART`. COSMOS 26.08 shows "Use COSMOS OrcaSlicer profile (or COSMOS start/end machine gcode)"; 26.07 shows "Use COSMOS start/end machine gcode". Re-slice with the COSMOS OrcaSlicer profile, whose start G-code is one `PRINT_START EXTRUDER=... BED=... CHAMBER=...` line.
+- **Check the version** in **Settings > Help & About > About**.
+- **Reboot and shut down from HelixScreen**, not from Mainsail or Fluidd. HelixScreen powers the printer down itself and works on every COSMOS version; Mainsail and Fluidd ask Moonraker, which on COSMOS stable fails with a `sudo` error because COSMOS has no `sudo`.
+
+---
 
 ## Service Control and Logs
 
 ```bash
 /etc/init.d/helixscreen restart
-
-# Structured app log (written to disk; the in-memory syslog only has early startup)
-tail -100 /user-resource/helixscreen-state/logs/helix.log
-
-# Launcher / crash capture (startup, crash output)
-tail -100 /user-resource/helixscreen/logs/launcher.log
+tail -100 /user-resource/helixscreen-state/logs/helix.log    # the app's log
+tail -100 /user-resource/helixscreen/logs/launcher.log       # startup and crash output
 ```
 
 ## Updating
 
-Check the installed version on the touchscreen (**Settings > Help & About > About**), or from SSH with `/user-resource/helixscreen/bin/helix-screen --version`.
+- **On the touchscreen:** **Settings > Updates**. See [Updates](settings/updates.md).
+- **Over SSH:**
 
-Re-run the installer with `--update`; it preserves your settings:
+  ```bash
+  curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --update
+  ```
 
-```bash
-curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --update
-```
+Your settings are kept. Add `--version vX.Y.Z` to install a specific version, or use `--clean` instead of `--update` to reinstall with fresh settings. See [Updating HelixScreen](../INSTALL.md#updating-helixscreen).
 
-To pin a specific version add `--version vX.Y.Z`, or swap `--update` for `--clean` to reinstall with fresh settings. See [Updating HelixScreen](../INSTALL.md#updating-helixscreen) for the universal details.
+Check the installed version over SSH with `/user-resource/helixscreen/bin/helix-screen --version`.
 
 ## Uninstalling
 
@@ -106,21 +102,17 @@ To pin a specific version add `--version vX.Y.Z`, or swap `--update` for `--clea
 curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --uninstall
 ```
 
-The uninstaller reverses the `gui-switcher` registration, including the allowlist wrapper described below, and restores the UI that was running before.
+This removes HelixScreen, restores the three COSMOS screen programs and starts GrumpyScreen. COSMOS's screen setting is left as it was, so after a reboot the program you had selected starts again. While HelixScreen is installed, switching COSMOS's screen setting does not bring another program back, because all three start HelixScreen; uninstall instead.
 
-## Quirks and Notes
+## Notes
 
-- **Slice with the COSMOS printer profile.** Elegoo's stock Centauri Carbon start G-code calls `M729`, and COSMOS turns `M729` into an emergency stop (26.08 shows "Use COSMOS OrcaSlicer profile (or COSMOS start/end machine gcode)"; 26.07 shows "Use COSMOS start/end machine gcode"). A file sliced with the stock profile halts the printer as soon as it starts, and Klipper needs a `FIRMWARE_RESTART`. Re-slice with the COSMOS OrcaSlicer profile, whose start G-code is a single `PRINT_START EXTRUDER=... BED=... CHAMBER=...` line
-- **Moonraker listens on port `80`** on COSMOS directly (no nginx). Enter `80` as the port at the wizard's connection step; the `7125` default does not apply on this printer
-- **Rebooting and shutting down from HelixScreen** works on every COSMOS version. HelixScreen powers the printer down itself instead of asking Moonraker, because Moonraker on COSMOS stable tries to use `sudo`, which COSMOS does not have. Rebooting from Mainsail or Fluidd on COSMOS stable fails with a `sudo` error for the same reason; reboot from the printer's screen instead
-- **Moonruster** (a Rust replacement for Moonraker that some COSMOS users install to free memory) works with HelixScreen, but it cannot load Moonraker add-ons written in Python, so the [HelixPrint plugin](helixprint-plugin.md) and Moonraker-Timelapse do not run under it. HelixScreen works without them
-- **Factory white-balance calibration**: the `cc1` preset ships with per-channel panel gain so colors look neutral out of the box on the Centauri Carbon's 4.3" panel. No manual tuning needed
-- **The `config-manager` allowlist**: COSMOS's `config-manager` has a fixed allowlist for the `screen_ui` slot. The installer handles this automatically via an init-script wrapper so HelixScreen can be selected without patching COSMOS itself; the uninstaller fully reverses it
+- **Moonruster**, a Rust replacement for Moonraker that some COSMOS users install to save memory, works with HelixScreen. It cannot load Moonraker add-ons written in Python, so the [HelixPrint plugin](helixprint-plugin.md) and Moonraker-Timelapse don't run under it. HelixScreen works without them.
+- **Colors:** the Centauri Carbon release carries a white-balance correction for this printer's panel, so colors look neutral without any tuning.
 
-**Testing on this printer?** Please report your results via [GitHub Issues](https://github.com/prestonbrown/helixscreen/issues) or [Discord](https://discord.gg/RZCT2StKhr).
+**Testing on this printer?** Please report your results on [GitHub Issues](https://github.com/prestonbrown/helixscreen/issues) or [Discord](https://discord.gg/RZCT2StKhr).
 
 ## See Also
 
-- [Supported printers](supported-printers.md#other-dedicated-builds): where the Centauri Carbon sits in the support matrix
-- [Troubleshooting](../TROUBLESHOOTING.md): log collection and common problems
-- [UPGRADING.md](../UPGRADING.md): version pinning, resets, migrations
+- [Supported printers](supported-printers.md#other-dedicated-builds): where the Centauri Carbon sits in the support list
+- [Troubleshooting](../TROUBLESHOOTING.md): collecting logs and common problems
+- [Upgrading HelixScreen](../UPGRADING.md): version pinning, resets
