@@ -74,6 +74,12 @@ Start **HelixScreen** from your applications menu, or from a terminal:
 ~/.local/share/helixscreen/bin/helix-screen
 ```
 
+![The setup wizard's connection step, with the address, port and Test Connection marked](../../images/user/wizard-connection.png)
+
+1. **Network Address**: your printer's IP address.
+2. **Port**: leave it at `7125`.
+3. **Test Connection**: checks that the window can reach the printer.
+
 The setup wizard opens in the window. At the connection step (**Printer Setup: Connection**), enter your **printer's IP address** (for example `192.168.1.50`), leave the port at `7125`, and tap **Test Connection**. The wizard then finds your printer's fans, heaters, sensors and filament system as usual. [Remote Screen Setup](../INSTALL.md#remote-screen-setup-run-on-a-separate-device) has more on connecting to a printer over the network.
 
 To skip typing the address, or to point a second window at another printer, give the address on the command line:

@@ -134,6 +134,9 @@ HelixScreen starts by itself when the install finishes; a reboot is sometimes ne
 Then the Home screen appears. Worth doing first:
 
 - **Check the version** in **Settings > Help & About > About**, and pick your update channel in **Settings > Updates**.
+
+  ![The Current Version row on the About screen](../../images/user/about-version-row.png)
+
 - **Run a bed mesh** from **Controls > Bed Mesh** (see [Calibration](calibration.md#bed-mesh)).
 - **Have a CFS?** HelixScreen shows it on the Filament screen; see [Filament Management](filament.md).
 

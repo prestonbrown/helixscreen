@@ -18,6 +18,11 @@ How to run HelixScreen on the touchscreen of a Creality K2, K2 Plus or K2 Pro, o
 
 Uninstalling brings all three back.
 
+![The Spaghetti Detection rows in Safety & Alerts on a K2](../../images/user/safety-spaghetti-k2.png)
+
+1. **Spaghetti Detection**: turns HelixScreen's failure detection on or off.
+2. **Pause on Detection**: pauses the print when it finds a failure. Off, it only warns.
+
 ## Install
 
 Sign in over SSH (`ssh root@<printer-ip>`) and run:

@@ -27,6 +27,8 @@ PAXX is not required. It is the turnkey option if you would rather not enable ro
 
 > **HelixScreen already came with your firmware?** Some PAXX builds include HelixScreen as a firmware component. Turn it on or off in the firmware settings web page under **Snapmaker Components > Touchscreen GUI**, and get new versions by updating the firmware. On those printers the installer refuses to run, because it would overwrite the firmware's own setup, and **Settings > Updates** on the screen reads **Managed by your firmware**.
 
+![The Updates screen on an install whose firmware handles updates, reading Managed by your firmware](../../images/user/settings-updates-firmware-managed.png)
+
 ## Installing
 
 Sign in to the printer over SSH:
