@@ -81,6 +81,7 @@ All developer documentation lives here. When working on features, look up the re
 | `INPUT_SHAPER.md` | Calibration panels, frequency response charts, CSV parser, PID |
 | `PRESSURE_ADVANCE_TUNING.md` | Pressure advance tuned by eye on a live test print: tower generator, host-driven ramp, band picker, Spoolman extra field, the `helix-screen`/`pressure_advance` Moonraker key a slicer plugin can read |
 | `BELT_TUNER.md` | Pluck-based belt tension tuner: Klipper UDS accel stream, pluck detection, harmonic pitch estimation. **Read its Validation status section first - the feature is green in CI and has never measured a real belt, and its thresholds are circular** |
+| `MOTOR_RIPPLE_CHECK.md` | Vertical Artifact Check: the motor ripple speed sweep (single-motor diagonal moves, accelerometer stream, Goertzel analysis, the band rule pinned on real sweeps), FlashForge compensation off/on compare, why TMC microstep tuning is out, the outer-wall-speed print-start warning, the mock stream |
 | `BELT_TENSION.md` | Belt Tension: two `TEST_RESONANCES` sweeps compared as curves, the Start gate, provisional verdict constants, the guided tuning loop (settling laps, calibration turn, zone tracking, gap gauge, compact/portrait/ultrawide layouts), mock knobs |
 | `PREPRINT_PREDICTION.md` | ETA prediction engine, phase timing, weighted history |
 | `EXCLUDE_OBJECTS.md` | Object exclusion, per-object thumbnails, slicer setup, the read-only home tile and the map's Mini mode |
