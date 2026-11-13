@@ -20,6 +20,8 @@
 #include <optional>
 #include <string>
 
+struct MoonrakerError; // NAMESPACE_OK: MoonrakerError itself is global (moonraker_error.h)
+
 namespace helix {
 
 class ICfsCalibration {
@@ -42,10 +44,17 @@ class ICfsCalibration {
         return false;
     }
 
+    /// A chute calibration step failed with @p err. When err.raised_by_klipper()
+    /// GcodeErrorRouter has reported it already, from Klipper's `!!` copy.
+    using ChuteStepFailed = std::function<void(const MoonrakerError& err)>;
+    /// A chute save failed. @p position_saved: the save itself succeeded and
+    /// the park after it failed, so the toolhead may still be at the chute.
+    using ChuteSaveFailed = std::function<void(const MoonrakerError& err, bool position_saved)>;
+
     /// Home and park for chute calibration; @p on_ready fires when jogging may start.
     virtual AmsError
     start_chute_calibration(std::function<void()> on_ready = nullptr,
-                            std::function<void(const std::string& klipper_msg)> on_failed = nullptr,
+                            ChuteStepFailed on_failed = nullptr,
                             std::shared_ptr<std::atomic<bool>> cancel_requested = nullptr) = 0;
 
     /// Jog the toolhead's Y by @p delta_mm during chute calibration.
@@ -56,9 +65,8 @@ class ICfsCalibration {
     virtual AmsError jog_chute_x(float delta_mm) = 0;
 
     /// Save the current toolhead position as the chute's extrude position.
-    virtual AmsError save_chute_position(
-        std::function<void()> on_saved = nullptr,
-        std::function<void(const std::string& klipper_msg)> on_failed = nullptr) = 0;
+    virtual AmsError save_chute_position(std::function<void()> on_saved = nullptr,
+                                         ChuteSaveFailed on_failed = nullptr) = 0;
 
     /// Abort path: re-park the toolhead once chute calibration has moved it.
     virtual AmsError exit_chute_calibration() = 0;

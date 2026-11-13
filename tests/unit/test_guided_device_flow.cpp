@@ -75,7 +75,7 @@ class CountingMock : public AmsBackendMock, public ICfsCalibration {
         ++belt_tensionings;
         return AmsErrorHelper::success();
     }
-    AmsError start_chute_calibration(std::function<void()>, std::function<void(const std::string&)>,
+    AmsError start_chute_calibration(std::function<void()>, ChuteStepFailed,
                                      std::shared_ptr<std::atomic<bool>>) override {
         return AmsErrorHelper::success();
     }
@@ -85,8 +85,7 @@ class CountingMock : public AmsBackendMock, public ICfsCalibration {
     AmsError jog_chute_y(float) override {
         return AmsErrorHelper::success();
     }
-    AmsError save_chute_position(std::function<void()>,
-                                 std::function<void(const std::string&)>) override {
+    AmsError save_chute_position(std::function<void()>, ChuteSaveFailed) override {
         return AmsErrorHelper::success();
     }
     AmsError exit_chute_calibration() override {

@@ -13,7 +13,9 @@
 #include <atomic>
 #include <memory>
 
+struct MoonrakerError; // NAMESPACE_OK: MoonrakerError itself is global (moonraker_error.h)
 namespace helix {
+class ICfsCalibration;
 enum class JogDirection;
 enum class JogMode;
 } // namespace helix
@@ -87,6 +89,10 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
     void fit_jog_pad();
     void save_position();
     void update_x_display(int centimm);
+    /// Toast a failed step unless GcodeErrorRouter has reported it already.
+    void report_step_failure(const MoonrakerError& failure);
+    /// Fill the done screen; @p parked false adds that the head may be at the chute.
+    void show_saved(const helix::ICfsCalibration& backend, bool parked);
     void update_y_display(int centimm);
 
     /// Live toolhead X/Y in mm, from the position subjects; drives the readouts

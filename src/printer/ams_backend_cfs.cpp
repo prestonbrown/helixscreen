@@ -4317,9 +4317,9 @@ AmsBackendCfs::calibrate_cutter(std::function<void(bool ok, const std::string& l
     return err;
 }
 
-AmsError AmsBackendCfs::start_chute_calibration(
-    std::function<void()> on_ready, std::function<void(const std::string& klipper_msg)> on_failed,
-    std::shared_ptr<std::atomic<bool>> cancel_requested) {
+AmsError
+AmsBackendCfs::start_chute_calibration(std::function<void()> on_ready, ChuteStepFailed on_failed,
+                                       std::shared_ptr<std::atomic<bool>> cancel_requested) {
     if (macro_variant_ != CfsMacroVariant::K1) {
         return AmsErrorHelper::not_supported("Purge chute calibration is K1-stock only");
     }
@@ -4343,7 +4343,7 @@ AmsError AmsBackendCfs::start_chute_calibration(
                         // A caller that has left has nothing to report into, and a later
                         // session on the same overlay must not read this as its own.
                         if (on_failed && !(cancel_requested && cancel_requested->load())) {
-                            on_failed(err.message);
+                            on_failed(err);
                         }
                     });
     };
@@ -4429,9 +4429,8 @@ AmsError AmsBackendCfs::jog_chute_x(float delta_mm) {
     return jog_chute_axis('X', delta_mm);
 }
 
-AmsError
-AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
-                                   std::function<void(const std::string& klipper_msg)> on_failed) {
+AmsError AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
+                                            ChuteSaveFailed on_failed) {
     if (macro_variant_ != CfsMacroVariant::K1) {
         return AmsErrorHelper::not_supported("Purge chute save is K1-stock only");
     }
@@ -4479,13 +4478,16 @@ AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
 
     auto token = lifetime_.token();
     // The park after a save: its failure is reported without another attempt.
-    auto park_failed = [token, on_failed, unregister](const MoonrakerError& err) {
-        token.defer("AmsBackendCfs::chute_park_failed", [on_failed, unregister, err]() {
-            unregister();
-            if (on_failed) {
-                on_failed(err.message);
-            }
-        });
+    // The save itself went through, so the pair it wrote is still the answer.
+    auto park_failed = [this, token, on_failed, watch, unregister](const MoonrakerError& err) {
+        token.defer("AmsBackendCfs::chute_park_failed",
+                    [this, on_failed, watch, unregister, err]() {
+                        unregister();
+                        last_chute_save_line_ = *watch;
+                        if (on_failed) {
+                            on_failed(err, /*position_saved=*/true);
+                        }
+                    });
     };
     // SAVE_POS reads the LIVE toolhead position into box.cfg's
     // extrude_pos_x/y (HelixScreen sends no coordinate); Y_SAFE re-parks
@@ -4498,7 +4500,7 @@ AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
                         unregister();
                         repark_chute();
                         if (on_failed) {
-                            on_failed(err.message);
+                            on_failed(err, /*position_saved=*/false);
                         }
                     });
     };

@@ -8,6 +8,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_cfs_calibration.h"
 #include "ams_state.h"
@@ -16,6 +17,7 @@
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "misc/lv_timer_private.h"
+#include "moonraker_error.h"
 #include "printer_state.h"
 #include "settings_manager.h"
 
@@ -42,11 +44,11 @@ class RecordingBackend : public AmsBackendMock, public ICfsCalibration {
     AmsError calibrate_cutter(std::function<void(bool, const std::string&)>) override {
         return AmsErrorHelper::success();
     }
-    AmsError start_chute_calibration(std::function<void()> on_ready,
-                                     std::function<void(const std::string&)>,
+    AmsError start_chute_calibration(std::function<void()> on_ready, ChuteStepFailed on_failed,
                                      std::shared_ptr<std::atomic<bool>> cancel) override {
         ++starts;
         ready = std::move(on_ready);
+        start_failed = std::move(on_failed);
         token = std::move(cancel);
         return AmsErrorHelper::success();
     }
@@ -58,8 +60,8 @@ class RecordingBackend : public AmsBackendMock, public ICfsCalibration {
         y_jogs.push_back(delta);
         return AmsErrorHelper::success();
     }
-    AmsError save_chute_position(std::function<void()>,
-                                 std::function<void(const std::string&)>) override {
+    AmsError save_chute_position(std::function<void()>, ChuteSaveFailed on_failed) override {
+        save_failed = std::move(on_failed);
         return save_result;
     }
     AmsError exit_chute_calibration() override {
@@ -76,6 +78,8 @@ class RecordingBackend : public AmsBackendMock, public ICfsCalibration {
     int starts = 0;
     int exits = 0;
     std::function<void()> ready;
+    ChuteStepFailed start_failed;
+    ChuteSaveFailed save_failed;
     std::shared_ptr<std::atomic<bool>> token;
     std::vector<float> x_jogs;
     std::vector<float> y_jogs;
@@ -86,6 +90,7 @@ class RecordingBackend : public AmsBackendMock, public ICfsCalibration {
 constexpr int kIdle = 0;
 constexpr int kHoming = 1;
 constexpr int kAdjusting = 2;
+constexpr int kDone = 4;
 
 class ChuteOverlayFixture : public LVGLUITestFixture {
   public:
@@ -407,6 +412,72 @@ TEST_CASE_METHOD(ChuteOverlayFixture, "The chute overlay stops Y short of the ba
         total += d;
     }
     CHECK(total == Catch::Approx(kAllowed));
+}
+
+namespace {
+
+MoonrakerError chute_error(MoonrakerErrorType type, std::string message) {
+    MoonrakerError err;
+    err.type = type;
+    err.message = std::move(message);
+    return err;
+}
+
+struct ToastLog {
+    std::vector<std::string> shown;
+    ToastLog() {
+        helix::ui::set_test_notification_error_hook(
+            [this](const std::string& m) { shown.push_back(m); });
+    }
+    ~ToastLog() {
+        helix::ui::set_test_notification_error_hook(nullptr);
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ChuteOverlayFixture, "Chute overlay reports each failed step once (#2007)",
+                 "[ams][cfs][chute_overlay][2007]") {
+    ToastLog toasts;
+    const std::string envelope = R"({"code":"key165","msg":"Box did not answer","values":[]})";
+
+    SECTION("a step Klipper raised is left to the gcode error router") {
+        tap_start();
+        REQUIRE(backend->start_failed);
+        backend->start_failed(chute_error(MoonrakerErrorType::JSON_RPC_ERROR, envelope));
+        settle();
+        CHECK(toasts.shown.empty());
+        CHECK(state() == kIdle);
+    }
+
+    SECTION("a step Klipper never saw is toasted, with the firmware message decoded") {
+        tap_start();
+        REQUIRE(backend->start_failed);
+        backend->start_failed(chute_error(MoonrakerErrorType::TIMEOUT, envelope));
+        settle();
+        REQUIRE(toasts.shown.size() == 1);
+        CHECK(toasts.shown[0].find("Box did not answer") != std::string::npos);
+        CHECK(toasts.shown[0].find("key165") == std::string::npos);
+        CHECK(state() == kIdle);
+    }
+
+    SECTION("a failed park after a good save ends on the done screen with a note") {
+        reach_adjusting();
+        lv_obj_t* save =
+            lv_obj_find_by_name(get_cfs_chute_calibration_overlay().get_root(), "btn_chute_save");
+        REQUIRE(save);
+        lv_obj_send_event(save, LV_EVENT_CLICKED, nullptr);
+        REQUIRE(backend->save_failed);
+        backend->save_failed(chute_error(MoonrakerErrorType::JSON_RPC_ERROR, envelope),
+                             /*position_saved=*/true);
+        settle();
+        CHECK(toasts.shown.empty());
+        REQUIRE(state() == kDone);
+        const char* text =
+            lv_subject_get_string(lv_xml_get_subject(nullptr, "cfs_chute_saved_pos"));
+        REQUIRE(text);
+        CHECK(std::string(text).find("may still be at the chute") != std::string::npos);
+    }
 }
 
 #endif // HELIX_HAS_CFS

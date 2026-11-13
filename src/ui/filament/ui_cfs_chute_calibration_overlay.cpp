@@ -21,6 +21,8 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "firmware_error_envelope.h"
+#include "moonraker_error.h"
 #include "printer_state.h"
 #include "unit_conversions.h"
 
@@ -41,7 +43,7 @@ static char s_cfs_chute_x_buf[16];
 static lv_subject_t s_cfs_chute_y_text;
 static char s_cfs_chute_y_buf[16];
 static lv_subject_t s_cfs_chute_saved_text;
-static char s_cfs_chute_saved_buf[96];
+static char s_cfs_chute_saved_buf[256];
 static lv_subject_t s_cfs_chute_mode_fine_active;
 static lv_subject_t s_cfs_chute_mode_coarse_active;
 
@@ -230,8 +232,8 @@ void CfsChuteCalibrationOverlay::start_calibration() {
                            ready_backend ? ready_backend->chute_wiper() : std::nullopt);
             set_state(State::ADJUSTING);
         },
-        [this](const std::string& klipper_msg) {
-            NOTIFY_ERROR(lv_tr("Purge chute calibration failed: {}"), klipper_msg);
+        [this](const MoonrakerError& failure) {
+            report_step_failure(failure);
             set_state(State::IDLE);
         },
         cancel_requested_);
@@ -337,20 +339,22 @@ void CfsChuteCalibrationOverlay::save_position() {
     set_state(State::SAVING);
     // The done screen names the pair the firmware wrote when the response
     // line was captured, and stays a plain confirmation otherwise. A failed
-    // save re-parks in the backend, so the overlay resets to IDLE.
+    // save re-parks in the backend, so the overlay resets to IDLE. A failed
+    // park after a good save still saved the position, so it ends on the done
+    // screen with a note that the toolhead may not have left the chute.
     auto err = backend->save_chute_position(
         [this, backend]() {
-            double x = 0.0, y = 0.0;
-            const std::string text =
-                backend->last_chute_saved_position(x, y)
-                    ? fmt::format(lv_tr("Chute position: X {:.1f}, Y {:.1f}"), x, y)
-                    : std::string(lv_tr("Purge chute position saved."));
-            lv_subject_set_string(&s_cfs_chute_saved_text, text.c_str());
+            show_saved(*backend, /*parked=*/true);
             set_state(State::DONE);
         },
-        [this](const std::string& klipper_msg) {
-            NOTIFY_ERROR(lv_tr("Purge chute calibration failed: {}"), klipper_msg);
-            set_state(State::IDLE);
+        [this, backend](const MoonrakerError& failure, bool position_saved) {
+            report_step_failure(failure);
+            if (position_saved) {
+                show_saved(*backend, /*parked=*/false);
+                set_state(State::DONE);
+            } else {
+                set_state(State::IDLE);
+            }
         });
     if (!err.success()) {
         // Refused because a print holds the machine or homing was lost: either
@@ -365,6 +369,29 @@ void CfsChuteCalibrationOverlay::update_x_display(int centimm) {
     x_known_ = true;
     helix::ui::position::format_position(centimm, s_cfs_chute_x_buf, sizeof(s_cfs_chute_x_buf));
     lv_subject_set_string(&s_cfs_chute_x_text, s_cfs_chute_x_buf);
+}
+
+void CfsChuteCalibrationOverlay::report_step_failure(const MoonrakerError& failure) {
+    // GcodeErrorRouter reports Klipper's own `!!` copy of a raised error,
+    // with its recovery modal when the fault has one; a second toast here
+    // would repeat it. Only a failure Klipper never saw is ours to report.
+    if (failure.raised_by_klipper()) {
+        return;
+    }
+    NOTIFY_ERROR(lv_tr("Purge chute calibration failed: {}"),
+                 helix::decode_firmware_error_text(failure.message));
+}
+
+void CfsChuteCalibrationOverlay::show_saved(const ICfsCalibration& backend, bool parked) {
+    double x = 0.0, y = 0.0;
+    std::string text = backend.last_chute_saved_position(x, y)
+                           ? fmt::format(lv_tr("Chute position: X {:.1f}, Y {:.1f}"), x, y)
+                           : std::string(lv_tr("Purge chute position saved."));
+    if (!parked) {
+        text += "\n";
+        text += lv_tr("The toolhead may still be at the chute. Move it away before printing.");
+    }
+    lv_subject_set_string(&s_cfs_chute_saved_text, text.c_str());
 }
 
 void CfsChuteCalibrationOverlay::update_y_display(int centimm) {

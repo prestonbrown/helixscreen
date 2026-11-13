@@ -814,10 +814,11 @@ TEST_CASE("CFS chute start failure reports the firmware message and never parks 
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=XYZ_ZERO"};
     bool ready = false;
     std::string failed_msg;
-    REQUIRE(backend
-                .start_chute_calibration([&] { ready = true; },
-                                         [&](const std::string& msg) { failed_msg = msg; })
-                .success());
+    REQUIRE(
+        backend
+            .start_chute_calibration([&] { ready = true; },
+                                     [&](const MoonrakerError& err) { failed_msg = err.message; })
+            .success());
     drain_calib_queue();
     // PREPARE never ran, so there is nothing to unwind: no further command.
     CHECK(backend.captured == std::vector<std::string>{"BOX_CUSTOM_COMMAND CMD=XYZ_ZERO"});
@@ -831,9 +832,13 @@ TEST_CASE("CFS chute save failure re-parks and reports the firmware message (#12
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_SAVE_POS"};
     bool saved = false;
     std::string failed_msg;
+    bool position_saved = true;
     REQUIRE(backend
                 .save_chute_position([&] { saved = true; },
-                                     [&](const std::string& msg) { failed_msg = msg; })
+                                     [&](const MoonrakerError& err, bool was_saved) {
+                                         failed_msg = err.message;
+                                         position_saved = was_saved;
+                                     })
                 .success());
     drain_calib_queue();
     // The save only ever runs after PREPARE, so a failure always re-parks.
@@ -842,6 +847,34 @@ TEST_CASE("CFS chute save failure re-parks and reports the firmware message (#12
                                     "BOX_CUSTOM_COMMAND CMD=Y_SAFE"}));
     CHECK_FALSE(saved);
     CHECK_FALSE(failed_msg.empty());
+    CHECK_FALSE(position_saved);
+}
+
+TEST_CASE("CFS chute park failure after a good save reports the position as saved (#2007)",
+          "[ams][cfs][calib][2007]") {
+    CfsCalibHelper backend;
+    backend.fail = {"BOX_CUSTOM_COMMAND CMD=Y_SAFE"};
+    bool saved = false;
+    bool failed = false;
+    bool position_saved = false;
+    MoonrakerErrorType type = MoonrakerErrorType::NONE;
+    REQUIRE(backend
+                .save_chute_position([&] { saved = true; },
+                                     [&](const MoonrakerError& err, bool was_saved) {
+                                         failed = true;
+                                         position_saved = was_saved;
+                                         type = err.type;
+                                     })
+                .success());
+    drain_calib_queue();
+    REQUIRE(failed);
+    CHECK(position_saved);
+    CHECK(type == MoonrakerErrorType::JSON_RPC_ERROR);
+    CHECK_FALSE(saved);
+    // The park itself failed, so no second park goes out after it.
+    CHECK(backend.captured ==
+          std::vector<std::string>({"BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_SAVE_POS",
+                                    "BOX_CUSTOM_COMMAND CMD=Y_SAFE"}));
 }
 
 // A K1 CFS against a real MoonrakerAPI over the mock client, with
@@ -961,7 +994,7 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
         backend.hold = {kHome};
         REQUIRE(backend
                     .start_chute_calibration([&] { ready = true; },
-                                             [&](const std::string& m) { failure = m; })
+                                             [&](const MoonrakerError& e) { failure = e.message; })
                     .success());
         print_starts();
         backend.release_held();
@@ -974,7 +1007,7 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
         backend.hold = {kPrepare};
         REQUIRE(backend
                     .start_chute_calibration([&] { ready = true; },
-                                             [&](const std::string& m) { failure = m; })
+                                             [&](const MoonrakerError& e) { failure = e.message; })
                     .success());
         print_starts();
         backend.release_held();
@@ -985,7 +1018,9 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
     }
     SECTION("the re-park after a save that fails once the print has arrived") {
         backend.fail_later = {kSave};
-        REQUIRE(backend.save_chute_position(nullptr, [&](const std::string& m) { failure = m; })
+        REQUIRE(backend
+                    .save_chute_position(
+                        nullptr, [&](const MoonrakerError& e, bool) { failure = e.message; })
                     .success());
         print_starts();
         backend.fail_held();
@@ -1022,10 +1057,10 @@ TEST_CASE("CFS chute save reports a park that fails after the save", "[ams][cfs]
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=Y_SAFE"};
     bool saved = false;
     std::string failure;
-    REQUIRE(
-        backend
-            .save_chute_position([&] { saved = true; }, [&](const std::string& m) { failure = m; })
-            .success());
+    REQUIRE(backend
+                .save_chute_position([&] { saved = true; },
+                                     [&](const MoonrakerError& e, bool) { failure = e.message; })
+                .success());
     drain_calib_queue();
     CHECK_FALSE(saved);
     CHECK(failure.find("Y_SAFE") != std::string::npos);
@@ -1038,10 +1073,10 @@ TEST_CASE("CFS chute failure after the caller left is not reported to it", "[ams
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=XYZ_ZERO"};
     auto cancel = std::make_shared<std::atomic<bool>>(true);
     bool failed = false;
-    REQUIRE(
-        backend.start_chute_calibration(
-                   nullptr, [&](const std::string&) { failed = true; }, cancel)
-            .success());
+    REQUIRE(backend
+                .start_chute_calibration(
+                    nullptr, [&](const MoonrakerError&) { failed = true; }, cancel)
+                .success());
     drain_calib_queue();
     CHECK_FALSE(failed);
 }
