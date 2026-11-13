@@ -109,8 +109,8 @@ class UnaccountedModuleBackend : public helix::AmsBackendAd5xIfs {
         return helix::AmsErrorHelper::success();
     }
     helix::AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()>,
-                                  helix::SharedCallback<void(const MoonrakerError&)>,
-                                  bool) override {
+                                  helix::SharedCallback<void(const MoonrakerError&)>, bool,
+                                  bool /*surfaces_errors*/) override {
         sent.push_back(gcode);
         return helix::AmsErrorHelper::success();
     }

@@ -113,10 +113,10 @@ class AmsBackendAceTestHelper : public AmsBackendAce {
     helix::AmsError execute_gcode(const std::string& gcode,
                                   helix::SharedCallback<void()> on_complete,
                                   helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                                  bool silent) override {
+                                  bool silent, bool surfaces_errors) override {
         if (dispatch_via_base) {
-            return AmsSubscriptionBackend::execute_gcode(gcode, std::move(on_complete),
-                                                         std::move(on_error), silent);
+            return AmsSubscriptionBackend::execute_gcode(
+                gcode, std::move(on_complete), std::move(on_error), silent, surfaces_errors);
         }
         captured_gcodes.push_back(gcode);
         pending_ack = std::move(on_complete);

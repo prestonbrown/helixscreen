@@ -2935,6 +2935,7 @@
   <translation tag="Purge Length" pt="Comprimento de purga"/>
   <translation tag="Purge Line" pt="Linha de purga"/>
   <translation tag="Purge chute calibration failed: {}" pt="Falha na calibração da calha de purga: {}"/>
+  <translation tag="Purge chute position saved, but the toolhead could not move away from the chute: {}" pt="Posição da calha de purga salva, mas o cabeçote não conseguiu se afastar da calha: {}"/>
   <translation tag="Purge chute position saved." pt="Posição da calha de purga salva."/>
   <translation tag="Purge failed: {}" pt="Falha ao purgar: {}"/>
   <translation tag="Purge may still be running — response timed out" pt="A purga pode ainda estar em execução — tempo esgotado"/>

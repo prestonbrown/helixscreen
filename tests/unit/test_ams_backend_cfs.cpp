@@ -120,7 +120,7 @@ class CfsRemapHelper : public AmsBackendCfs {
     // `reject` answers as Klipper does when a command raises: after the send.
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
                            helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                           bool /*silent*/) override {
+                           bool /*silent*/, bool /*surfaces_errors*/) override {
         captured.push_back(gcode);
         if (reject) {
             if (on_error) {
@@ -226,9 +226,12 @@ class CfsCalibHelper : public CfsLifecycleHelper {
     }
 
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
-                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                           bool) override {
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error, bool,
+                           bool surfaces_errors) override {
         captured.push_back(gcode);
+        if (surfaces_errors) {
+            claimed.insert(gcode);
+        }
         if (fail.count(gcode)) {
             MoonrakerError err;
             err.type = MoonrakerErrorType::JSON_RPC_ERROR;
@@ -254,6 +257,8 @@ class CfsCalibHelper : public CfsLifecycleHelper {
     /// Commands that answer on_error instead of on_complete, modelling the
     /// macro failing after the RPC acked.
     std::set<std::string> fail;
+    /// Commands sent declaring that the caller shows their failure itself.
+    std::set<std::string> claimed;
     std::vector<helix::SharedCallback<void()>> held;
 
     void release_held() {
@@ -453,7 +458,7 @@ class CfsAutoRefillHelper : public CfsRemapHelper {
 
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
                            helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                           bool /*silent*/) override {
+                           bool /*silent*/, bool /*surfaces_errors*/) override {
         captured.push_back(gcode);
         if (reject) {
             if (on_error) {
@@ -688,9 +693,13 @@ TEST_CASE("CFS chute save failure re-parks and reports the firmware message (#12
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_SAVE_POS"};
     bool saved = false;
     std::string failed_msg;
+    bool position_saved = true;
     REQUIRE(backend
                 .save_chute_position([&] { saved = true; },
-                                     [&](const std::string& msg) { failed_msg = msg; })
+                                     [&](const std::string& msg, bool was_saved) {
+                                         failed_msg = msg;
+                                         position_saved = was_saved;
+                                     })
                 .success());
     drain_calib_queue();
     // The save only ever runs after PREPARE, so a failure always re-parks.
@@ -699,6 +708,53 @@ TEST_CASE("CFS chute save failure re-parks and reports the firmware message (#12
                                     "BOX_CUSTOM_COMMAND CMD=Y_SAFE"}));
     CHECK_FALSE(saved);
     CHECK_FALSE(failed_msg.empty());
+    CHECK_FALSE(position_saved);
+}
+
+TEST_CASE("CFS chute park failure after a good save reports the position as saved (#2007)",
+          "[ams][cfs][calib][2007]") {
+    CfsCalibHelper backend;
+    backend.fail = {"BOX_CUSTOM_COMMAND CMD=Y_SAFE"};
+    bool saved = false;
+    bool failed = false;
+    bool position_saved = false;
+    REQUIRE(backend
+                .save_chute_position([&] { saved = true; },
+                                     [&](const std::string&, bool was_saved) {
+                                         failed = true;
+                                         position_saved = was_saved;
+                                     })
+                .success());
+    drain_calib_queue();
+    REQUIRE(failed);
+    CHECK(position_saved);
+    CHECK_FALSE(saved);
+    // The park itself failed, so no second park goes out after it.
+    CHECK(backend.captured ==
+          std::vector<std::string>({"BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_SAVE_POS",
+                                    "BOX_CUSTOM_COMMAND CMD=Y_SAFE"}));
+}
+
+TEST_CASE("CFS chute calibration claims the report for every step it toasts (#2007)",
+          "[ams][cfs][calib][2007]") {
+    CfsCalibHelper backend;
+    bool ready = false;
+    REQUIRE(backend.start_chute_calibration([&] { ready = true; }).success());
+    drain_calib_queue();
+    REQUIRE(ready);
+    bool saved = false;
+    REQUIRE(backend.save_chute_position([&] { saved = true; }).success());
+    drain_calib_queue();
+    REQUIRE(saved);
+
+    // Klipper's `!!` copy of a failure on any of these would otherwise be
+    // toasted by GcodeErrorRouter beside the overlay's own toast.
+    CHECK(backend.claimed == std::set<std::string>({
+                                 "BOX_CUSTOM_COMMAND CMD=XYZ_ZERO",
+                                 "BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_PREPARE",
+                                 "BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_SAVE_POS",
+                                 "BOX_CUSTOM_COMMAND CMD=Y_SAFE",
+                             }));
 }
 
 // A K1 CFS against a real MoonrakerAPI over the mock client, with
@@ -911,10 +967,10 @@ TEST_CASE("CFS chute save reports a park that fails after the save", "[ams][cfs]
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=Y_SAFE"};
     bool saved = false;
     std::string failure;
-    REQUIRE(
-        backend
-            .save_chute_position([&] { saved = true; }, [&](const std::string& m) { failure = m; })
-            .success());
+    REQUIRE(backend
+                .save_chute_position([&] { saved = true; },
+                                     [&](const std::string& m, bool) { failure = m; })
+                .success());
     drain_calib_queue();
     CHECK_FALSE(saved);
     CHECK(failure.find("Y_SAFE") != std::string::npos);
@@ -3195,7 +3251,7 @@ class SyncCfs : public AmsBackendCfs {
     // which the mock API runs.
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
                            helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                           bool /*silent*/) override {
+                           bool /*silent*/, bool /*surfaces_errors*/) override {
         AmsError err = execute_gcode(gcode);
         if (err.success()) {
             if (on_complete) {

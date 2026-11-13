@@ -3194,6 +3194,7 @@ translations:
   Purge Line: 'Linha de purga'
   'Purge chute calibration failed: {}': 'Falha na calibração da calha de purga: {}'
   Purge chute position saved.: Posição da calha de purga salva.
+  'Purge chute position saved, but the toolhead could not move away from the chute: {}': 'Posição da calha de purga salva, mas o cabeçote não conseguiu se afastar da calha: {}'
 
   'Purge failed: {}': 'Falha ao purgar: {}'
   Purge may still be running — response timed out: A purga pode ainda estar em execução

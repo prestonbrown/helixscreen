@@ -103,7 +103,7 @@ class GcodeCapturingBackend : public AmsBackendAd5xIfs {
     }
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> /*on_complete*/,
                            helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
-                           bool /*silent*/) override {
+                           bool /*silent*/, bool /*surfaces_errors*/) override {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
     }
@@ -6567,7 +6567,7 @@ class TestableAd5xIfsBackend : public AmsBackendAd5xIfs {
     }
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
                            helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                           bool /*silent*/) override {
+                           bool /*silent*/, bool /*surfaces_errors*/) override {
         captured_gcodes.push_back(gcode);
         captured_completion = std::move(on_complete);
         captured_error = std::move(on_error);
@@ -9329,7 +9329,7 @@ class Ad5xHomingGuardBackend : public AmsBackendAd5xIfs {
     }
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> /*on_complete*/,
                            helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
-                           bool /*silent*/) override {
+                           bool /*silent*/, bool /*surfaces_errors*/) override {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
     }
@@ -9710,7 +9710,7 @@ class Ad5xRunoutOpBackend : public AmsBackendAd5xIfs {
     }
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> /*on_complete*/,
                            helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
-                           bool /*silent*/) override {
+                           bool /*silent*/, bool /*surfaces_errors*/) override {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
     }

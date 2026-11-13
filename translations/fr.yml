@@ -3210,6 +3210,7 @@ translations:
   Purge Line: 'Ligne de purge'
   'Purge chute calibration failed: {}': 'Échec de la calibration de la goulotte de purge : {}'
   Purge chute position saved.: Position de la goulotte de purge enregistrée.
+  'Purge chute position saved, but the toolhead could not move away from the chute: {}': 'Position de la goulotte de purge enregistrée, mais la tête n''a pas pu s''éloigner de la goulotte : {}'
 
   'Purge failed: {}': 'Échec de la purge : {}'
   Purge may still be running — response timed out: Purge peut-être encore en cours

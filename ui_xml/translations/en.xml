@@ -2935,6 +2935,7 @@
   <translation tag="Purge Length" en="Purge Length"/>
   <translation tag="Purge Line" en="Purge Line"/>
   <translation tag="Purge chute calibration failed: {}" en="Purge chute calibration failed: {}"/>
+  <translation tag="Purge chute position saved, but the toolhead could not move away from the chute: {}" en="Purge chute position saved, but the toolhead could not move away from the chute: {}"/>
   <translation tag="Purge chute position saved." en="Purge chute position saved."/>
   <translation tag="Purge failed: {}" en="Purge failed: {}"/>
   <translation tag="Purge may still be running — response timed out" en="Purge may still be running — response timed out"/>

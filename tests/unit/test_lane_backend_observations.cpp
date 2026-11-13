@@ -95,7 +95,7 @@ class SentCfs : public AmsBackendCfs {
     helix::AmsError execute_gcode(const std::string& /*gcode*/,
                                   helix::SharedCallback<void()> on_complete,
                                   helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
-                                  bool /*silent*/) override {
+                                  bool /*silent*/, bool /*surfaces_errors*/) override {
         if (on_complete) {
             on_complete();
         }
@@ -116,7 +116,7 @@ class SentQidi : public AmsBackendQidi {
     helix::AmsError execute_gcode(const std::string& /*gcode*/,
                                   helix::SharedCallback<void()> on_complete,
                                   helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
-                                  bool /*silent*/) override {
+                                  bool /*silent*/, bool /*surfaces_errors*/) override {
         if (on_complete) {
             on_complete();
         }
@@ -141,7 +141,8 @@ class RefusedGcodeAfc : public AmsBackendAfc {
 
     helix::AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()>,
                                   helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                                  bool /*silent*/ = true) override {
+                                  bool /*silent*/ = true,
+                                  bool /*surfaces_errors*/ = false) override {
         const bool refused = (refuse_set_color && gcode.rfind("SET_COLOR ", 0) == 0) ||
                              (refuse_set_material && gcode.rfind("SET_MATERIAL ", 0) == 0);
         if (refused && on_error &&

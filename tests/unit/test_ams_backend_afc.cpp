@@ -353,7 +353,7 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
     // refused macro can cancel its echo guard. Capture it like the others.
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
                            helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                           bool /*silent*/ = true) override {
+                           bool /*silent*/ = true, bool /*surfaces_errors*/ = false) override {
         captured_gcodes.push_back(gcode);
         pending_gcode_complete = std::move(on_complete);
         pending_gcode_error = std::move(on_error);

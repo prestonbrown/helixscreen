@@ -85,7 +85,7 @@ class ParkingToolChanger : public AmsBackendToolChanger {
     // A dispatch that unwinds on a rejection sends through this form.
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
                            helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
-                           bool /*silent*/) override {
+                           bool /*silent*/, bool /*surfaces_errors*/) override {
         return execute_gcode(gcode, std::move(on_complete));
     }
 

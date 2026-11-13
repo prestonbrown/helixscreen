@@ -474,11 +474,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// sends no coordinate) followed by Y_SAFE to re-park. Refused while a print
     /// holds the machine or X or Y is unhomed. on_saved fires on
     /// the main thread after both completed; @p on_failed when either gcode
-    /// fails (the backend has already sent Y_SAFE, which is an idempotent
-    /// park).
-    AmsError save_chute_position(
-        std::function<void()> on_saved = nullptr,
-        std::function<void(const std::string& klipper_msg)> on_failed = nullptr) override;
+    /// fails. A failed save has already been followed by Y_SAFE, an idempotent
+    /// park; a failed park after a good save reports position_saved and sends
+    /// nothing more.
+    AmsError save_chute_position(std::function<void()> on_saved = nullptr,
+                                 ChuteSaveFailed on_failed = nullptr) override;
 
     /// Abort path: re-park Y with CMD=Y_SAFE. Required once PREPARE has run,
     /// which is the point from which the toolhead is left off-park. Refused

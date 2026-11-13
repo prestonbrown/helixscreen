@@ -2935,6 +2935,7 @@
   <translation tag="Purge Length" ja="パージ長"/>
   <translation tag="Purge Line" ja="パージライン"/>
   <translation tag="Purge chute calibration failed: {}" ja="パージシュートのキャリブレーションに失敗しました: {}"/>
+  <translation tag="Purge chute position saved, but the toolhead could not move away from the chute: {}" ja="パージシュートの位置を保存しましたが、ツールヘッドをシュートから移動できませんでした: {}"/>
   <translation tag="Purge chute position saved." ja="パージシュートの位置を保存しました。"/>
   <translation tag="Purge failed: {}" ja="パージに失敗しました: {}"/>
   <translation tag="Purge may still be running — response timed out" ja="パージがまだ実行中の可能性があります — 応答タイムアウト"/>

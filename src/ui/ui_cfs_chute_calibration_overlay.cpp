@@ -17,6 +17,7 @@
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "firmware_error_envelope.h"
 #include "jog_coalescer.h"
 #include "observer_factory.h"
 #include "printer_state.h"
@@ -182,7 +183,8 @@ void CfsChuteCalibrationOverlay::start_calibration() {
     auto err = backend->start_chute_calibration(
         [this]() { set_state(State::ADJUSTING); },
         [this](const std::string& klipper_msg) {
-            NOTIFY_ERROR(lv_tr("Purge chute calibration failed: {}"), klipper_msg);
+            NOTIFY_ERROR(lv_tr("Purge chute calibration failed: {}"),
+                         helix::decode_firmware_error_text(klipper_msg));
             set_state(State::IDLE);
         },
         cancel_requested_);
@@ -242,8 +244,15 @@ void CfsChuteCalibrationOverlay::save_position() {
             lv_subject_copy_string(&s_cfs_chute_saved_text, text.c_str());
             set_state(State::DONE);
         },
-        [this](const std::string& klipper_msg) {
-            NOTIFY_ERROR(lv_tr("Purge chute calibration failed: {}"), klipper_msg);
+        [this](const std::string& klipper_msg, bool position_saved) {
+            const std::string reason = helix::decode_firmware_error_text(klipper_msg);
+            if (position_saved) {
+                NOTIFY_ERROR(lv_tr("Purge chute position saved, but the toolhead could not move "
+                                   "away from the chute: {}"),
+                             reason);
+            } else {
+                NOTIFY_ERROR(lv_tr("Purge chute calibration failed: {}"), reason);
+            }
             set_state(State::IDLE);
         });
     if (!err.success()) {

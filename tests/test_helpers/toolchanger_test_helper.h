@@ -56,8 +56,8 @@ template <typename Base> class GcodeCaptureBackend : public Base {
     }
 
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
-                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                           bool silent) override {
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error, bool silent,
+                           bool /*surfaces_errors*/) override {
         sent_.push_back(gcode);
         (void)on_complete;
         (void)silent;

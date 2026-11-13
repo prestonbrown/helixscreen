@@ -3240,6 +3240,7 @@ translations:
   Purge Line: 'Линия прочистки'
   'Purge chute calibration failed: {}': 'Не удалось калибровать жёлоб продувки: {}'
   Purge chute position saved.: Позиция жёлоба продувки сохранена.
+  'Purge chute position saved, but the toolhead could not move away from the chute: {}': 'Положение желоба продувки сохранено, но печатающая головка не смогла отойти от желоба: {}'
 
   'Purge failed: {}': 'Ошибка прочистки: {}'
   Purge may still be running — response timed out: Прочистка может ещё выполняться

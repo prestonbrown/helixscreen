@@ -175,10 +175,15 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// @p silent suppresses the advisory RPC timeout's toast. Leave it true for
     /// a long macro whose completion is owned by a status signal rather than the
     /// RPC return; pass false when the RPC return is the operation's own answer.
+    ///
+    /// @p surfaces_errors declares that @p on_error puts the failure on screen
+    /// itself, so GcodeErrorRouter stands down for Klipper's `!!` copy of it
+    /// and the user sees one report (include/rpc_error_policy.h). Leave it
+    /// false for an on_error that only unwinds state.
     virtual AmsError execute_gcode(const std::string& gcode,
                                    helix::SharedCallback<void()> on_complete,
                                    helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                                   bool silent = true);
+                                   bool silent = true, bool surfaces_errors = false);
 
     /// Whether the toolhead is homed. Virtual purely as a test seam: fixtures
     /// override it to exercise the homed and unhomed branches of

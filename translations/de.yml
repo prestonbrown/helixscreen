@@ -3201,6 +3201,7 @@ translations:
   Purge Line: 'Spüllinie'
   'Purge chute calibration failed: {}': 'Kalibrierung der Entlüftungsrinne fehlgeschlagen: {}'
   Purge chute position saved.: Position der Entlüftungsrinne gespeichert.
+  'Purge chute position saved, but the toolhead could not move away from the chute: {}': 'Position der Entlüftungsrinne gespeichert, aber der Druckkopf konnte sich nicht von der Rinne wegbewegen: {}'
 
   'Purge failed: {}': 'Purge fehlgeschlagen: {}'
   Purge may still be running — response timed out: Purge läuft möglicherweise noch

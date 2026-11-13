@@ -98,7 +98,7 @@ class ToolChangerDispatchHelper : public helix::AmsBackendToolChanger {
     helix::AmsError execute_gcode(const std::string& gcode,
                                   helix::SharedCallback<void()> on_complete,
                                   helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
-                                  bool /*silent*/) override {
+                                  bool /*silent*/, bool /*surfaces_errors*/) override {
         return execute_gcode(gcode, std::move(on_complete));
     }
 

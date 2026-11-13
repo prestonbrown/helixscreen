@@ -1214,7 +1214,7 @@ TEST_CASE("ACE send refused with no on_error leaves the action alone", "[ams][ac
     helper.dispatch_via_base = true;
     helper.set_test_action(AmsAction::LOADING);
 
-    auto err = helper.execute_gcode("ACE_TEST", nullptr, nullptr, false);
+    auto err = helper.execute_gcode("ACE_TEST", nullptr, nullptr, false, false);
 
     CHECK_FALSE(err.success());
     CHECK(helper.get_test_system_info().action == AmsAction::LOADING);

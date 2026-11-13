@@ -2935,6 +2935,7 @@
   <translation tag="Purge Length" fr="Longueur de purge"/>
   <translation tag="Purge Line" fr="Ligne de purge"/>
   <translation tag="Purge chute calibration failed: {}" fr="Échec de la calibration de la goulotte de purge : {}"/>
+  <translation tag="Purge chute position saved, but the toolhead could not move away from the chute: {}" fr="Position de la goulotte de purge enregistrée, mais la tête n&apos;a pas pu s&apos;éloigner de la goulotte : {}"/>
   <translation tag="Purge chute position saved." fr="Position de la goulotte de purge enregistrée."/>
   <translation tag="Purge failed: {}" fr="Échec de la purge : {}"/>
   <translation tag="Purge may still be running — response timed out" fr="Purge peut-être encore en cours — délai dépassé"/>

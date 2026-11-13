@@ -1358,9 +1358,11 @@ AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode,
                                                  /*silent=*/true);
 }
 
-AmsError AmsSubscriptionBackend::execute_gcode(
-    const std::string& gcode, helix::SharedCallback<void()> on_complete,
-    helix::SharedCallback<void(const MoonrakerError&)> on_error, bool silent) {
+AmsError
+AmsSubscriptionBackend::execute_gcode(const std::string& gcode,
+                                      helix::SharedCallback<void()> on_complete,
+                                      helix::SharedCallback<void(const MoonrakerError&)> on_error,
+                                      bool silent, bool surfaces_errors) {
     if (!api_) {
         // The send never went out, but on_error still owes the caller its
         // unwind: an optimistic AmsAction set before this dispatch stays set
@@ -1410,11 +1412,10 @@ AmsError AmsSubscriptionBackend::execute_gcode(
                         [on_error, err]() { on_error(err); });
         },
         IMoonrakerAPI::kAmsOperationTimeoutMs, silent, /*on_queued=*/nullptr,
-        // caller_surfaces_errors=false: on_error unwinds caller state but does
-        // not put anything on screen, so declaring otherwise would silence
-        // GcodeErrorRouter and a real macro rejection would reach nobody.
-        // See include/rpc_error_policy.h.
-        /*caller_surfaces_errors=*/false);
+        // Only a caller whose on_error shows the failure may claim it: an
+        // on_error that merely unwinds state would silence GcodeErrorRouter
+        // and a real macro rejection would reach nobody.
+        surfaces_errors);
     return AmsErrorHelper::success();
 }
 

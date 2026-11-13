@@ -2561,10 +2561,15 @@ class AmsBackend {
         return AmsErrorHelper::not_supported("Purge chute calibration");
     }
 
+    /// A failed chute save: Klipper's message, and whether the position had
+    /// already been written when the failure came (the park after it failed),
+    /// which leaves the toolhead at the chute.
+    using ChuteSaveFailed =
+        std::function<void(const std::string& klipper_msg, bool position_saved)>;
+
     /// Save the current toolhead position as the chute's extrude position.
-    virtual AmsError
-    save_chute_position(std::function<void()> on_saved = nullptr,
-                        std::function<void(const std::string& klipper_msg)> on_failed = nullptr) {
+    virtual AmsError save_chute_position(std::function<void()> on_saved = nullptr,
+                                         ChuteSaveFailed on_failed = nullptr) {
         (void)on_saved;
         (void)on_failed;
         return AmsErrorHelper::not_supported("Purge chute calibration");

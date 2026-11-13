@@ -2935,6 +2935,7 @@
   <translation tag="Purge Length" it="Lunghezza di spurgo"/>
   <translation tag="Purge Line" it="Linea di spurgo"/>
   <translation tag="Purge chute calibration failed: {}" it="Calibrazione del condotto di spurgo non riuscita: {}"/>
+  <translation tag="Purge chute position saved, but the toolhead could not move away from the chute: {}" it="Posizione dello scivolo di spurgo salvata, ma la testina non è riuscita ad allontanarsi dallo scivolo: {}"/>
   <translation tag="Purge chute position saved." it="Posizione del condotto di spurgo salvata."/>
   <translation tag="Purge failed: {}" it="Spurgo fallito: {}"/>
   <translation tag="Purge may still be running — response timed out" it="Spurgo potrebbe essere ancora in corso — tempo scaduto"/>

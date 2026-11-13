@@ -3191,6 +3191,7 @@ translations:
   Purge Line: 'Linea di spurgo'
   'Purge chute calibration failed: {}': 'Calibrazione del condotto di spurgo non riuscita: {}'
   Purge chute position saved.: Posizione del condotto di spurgo salvata.
+  'Purge chute position saved, but the toolhead could not move away from the chute: {}': 'Posizione dello scivolo di spurgo salvata, ma la testina non è riuscita ad allontanarsi dallo scivolo: {}'
 
   'Purge failed: {}': 'Spurgo fallito: {}'
   Purge may still be running — response timed out: Spurgo potrebbe essere ancora in

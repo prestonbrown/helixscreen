@@ -3124,6 +3124,7 @@ translations:
   Purge Line: Purge Line
   'Purge chute calibration failed: {}': 'Purge chute calibration failed: {}'
   Purge chute position saved.: Purge chute position saved.
+  'Purge chute position saved, but the toolhead could not move away from the chute: {}': 'Purge chute position saved, but the toolhead could not move away from the chute: {}'
   'Purge failed: {}': 'Purge failed: {}'
   Purge may still be running — response timed out: Purge may still be running — response
     timed out

@@ -67,7 +67,7 @@ class RecordingQidiBackend : public AmsBackendQidi {
     helix::AmsError execute_gcode(const std::string& gcode,
                                   helix::SharedCallback<void()> on_complete,
                                   helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                                  bool /*silent*/) override {
+                                  bool /*silent*/, bool /*surfaces_errors*/) override {
         if (fail_dispatch) {
             return helix::AmsErrorHelper::not_supported("fixture dispatch failure");
         }

@@ -94,8 +94,8 @@ class CapturingMultiAce : public AmsBackendMultiAce {
         return AmsErrorHelper::success();
     }
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
-                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                           bool) override {
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error, bool,
+                           bool /*surfaces_errors*/) override {
         sent.push_back(gcode);
         last_ok = std::move(on_complete);
         last_error = std::move(on_error);

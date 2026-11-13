@@ -95,7 +95,7 @@ class AckingChanger : public ToolChangerHelper {
 
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
                            helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                           bool /*silent*/) override {
+                           bool /*silent*/, bool /*surfaces_errors*/) override {
         sent_.push_back(gcode);
         acks_.push_back(std::move(on_complete));
         errors_.push_back(std::move(on_error));
@@ -950,13 +950,13 @@ TEST_CASE("MedusaHC ends the run and says so when the cleanup itself cannot be s
         explicit FailingCleanupChanger(int tools) : AckingChanger(tools) {}
         AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
                                helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                               bool silent) override {
+                               bool silent, bool surfaces_errors) override {
             if (fail_sends) {
                 sent_.push_back(gcode);
                 return AmsErrorHelper::command_failed(gcode, "simulated send failure");
             }
             return AckingChanger::execute_gcode(gcode, std::move(on_complete), std::move(on_error),
-                                                silent);
+                                                silent, surfaces_errors);
         }
     };
     FailingCleanupChanger tc(4);
@@ -1900,11 +1900,11 @@ TEST_CASE("MedusaHC: a cleanup that only closes the prompt never claims the heat
         explicit NoRespondChanger(int tools) : AckingChanger(tools) {}
         AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
                                helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                               bool silent) override {
+                               bool silent, bool surfaces_errors) override {
             const bool refused = gcode.find("RESPOND") != std::string::npos;
             auto error = on_error;
-            AmsError sent = AckingChanger::execute_gcode(gcode, std::move(on_complete),
-                                                         std::move(on_error), silent);
+            AmsError sent = AckingChanger::execute_gcode(
+                gcode, std::move(on_complete), std::move(on_error), silent, surfaces_errors);
             if (refused && error) {
                 MoonrakerError err;
                 err.message = "Unknown command:\"RESPOND\"";

@@ -3042,6 +3042,7 @@ translations:
   Purge Line: 'パージライン'
   'Purge chute calibration failed: {}': 'パージシュートのキャリブレーションに失敗しました: {}'
   Purge chute position saved.: パージシュートの位置を保存しました。
+  'Purge chute position saved, but the toolhead could not move away from the chute: {}': 'パージシュートの位置を保存しましたが、ツールヘッドをシュートから移動できませんでした: {}'
 
   'Purge failed: {}': 'パージに失敗しました: {}'
   Purge may still be running — response timed out: パージがまだ実行中の可能性があります — 応答タイムアウト

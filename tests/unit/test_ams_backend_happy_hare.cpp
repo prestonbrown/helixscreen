@@ -296,8 +296,8 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
     /// The completion form (the Endless Spool switch) captures into the same list;
     /// fail_gcode answers its on_error.
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
-                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
-                           bool silent) override {
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error, bool silent,
+                           bool /*surfaces_errors*/) override {
         // A test that hands in a recording API reads the sends there.
         if (has_api_) {
             return AmsBackendHappyHare::execute_gcode(gcode, std::move(on_complete),

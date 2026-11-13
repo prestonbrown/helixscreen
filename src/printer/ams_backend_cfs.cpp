@@ -4957,6 +4957,8 @@ AmsError AmsBackendCfs::start_chute_calibration(
         fail(err);
         return true;
     };
+    // The overlay toasts each step's failure itself, so both steps claim the
+    // report and Klipper's `!!` copy is not shown a second time.
     // XYZ_ZERO is the flow's own full home (~55s incl. PRTouch Z); PREPARE
     // then parks Y at the box's safe position and extrudes X. Jogging may
     // only start once both acked. Every step boundary polls the cancel flag:
@@ -4993,9 +4995,9 @@ AmsError AmsBackendCfs::start_chute_calibration(
                         on_ready();
                     }
                 },
-                fail);
+                fail, /*silent=*/true, /*surfaces_errors=*/true);
         },
-        fail);
+        fail, /*silent=*/true, /*surfaces_errors=*/true);
     if (err.success()) {
         calibration_in_flight_ = true;
     }
@@ -5020,9 +5022,8 @@ AmsError AmsBackendCfs::jog_chute_y(float delta_mm) {
     return execute_gcode(script);
 }
 
-AmsError
-AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
-                                   std::function<void(const std::string& klipper_msg)> on_failed) {
+AmsError AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
+                                            ChuteSaveFailed on_failed) {
     if (macro_variant_ != CfsMacroVariant::K1) {
         return AmsErrorHelper::not_supported("Purge chute save is K1-stock only");
     }
@@ -5074,7 +5075,7 @@ AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
         token.defer("AmsBackendCfs::chute_park_failed", [on_failed, unregister, err]() {
             unregister();
             if (on_failed) {
-                on_failed(err.message);
+                on_failed(err.message, /*position_saved=*/true);
             }
         });
     };
@@ -5089,10 +5090,12 @@ AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
                         unregister();
                         repark_chute();
                         if (on_failed) {
-                            on_failed(err.message);
+                            on_failed(err.message, /*position_saved=*/false);
                         }
                     });
     };
+    // The overlay toasts every failure on these calls, so they claim the
+    // report and Klipper's `!!` copy is not shown a second time.
     const AmsError err = execute_gcode(
         "BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_SAVE_POS",
         [this, on_saved = std::move(on_saved), watch, unregister, park_failed]() {
@@ -5106,9 +5109,10 @@ AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
                 finish();
                 return;
             }
-            execute_gcode("BOX_CUSTOM_COMMAND CMD=Y_SAFE", finish, park_failed);
+            execute_gcode("BOX_CUSTOM_COMMAND CMD=Y_SAFE", finish, park_failed, /*silent=*/true,
+                          /*surfaces_errors=*/true);
         },
-        fail);
+        fail, /*silent=*/true, /*surfaces_errors=*/true);
     if (!err.success()) {
         // The send was refused outright; nothing will fire the callbacks that
         // own the watch, so drop it here rather than leaking the handler.

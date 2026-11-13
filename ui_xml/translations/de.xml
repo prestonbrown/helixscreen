@@ -2935,6 +2935,7 @@
   <translation tag="Purge Length" de="Entlüftungslänge"/>
   <translation tag="Purge Line" de="Spüllinie"/>
   <translation tag="Purge chute calibration failed: {}" de="Kalibrierung der Entlüftungsrinne fehlgeschlagen: {}"/>
+  <translation tag="Purge chute position saved, but the toolhead could not move away from the chute: {}" de="Position der Entlüftungsrinne gespeichert, aber der Druckkopf konnte sich nicht von der Rinne wegbewegen: {}"/>
   <translation tag="Purge chute position saved." de="Position der Entlüftungsrinne gespeichert."/>
   <translation tag="Purge failed: {}" de="Purge fehlgeschlagen: {}"/>
   <translation tag="Purge may still be running — response timed out" de="Purge läuft möglicherweise noch — Zeitüberschreitung"/>

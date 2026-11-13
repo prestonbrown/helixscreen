@@ -2989,6 +2989,7 @@
   <translation tag="Purge Length" ru="Длина продувки"/>
   <translation tag="Purge Line" ru="Линия прочистки"/>
   <translation tag="Purge chute calibration failed: {}" ru="Не удалось калибровать жёлоб продувки: {}"/>
+  <translation tag="Purge chute position saved, but the toolhead could not move away from the chute: {}" ru="Положение желоба продувки сохранено, но печатающая головка не смогла отойти от желоба: {}"/>
   <translation tag="Purge chute position saved." ru="Позиция жёлоба продувки сохранена."/>
   <translation tag="Purge failed: {}" ru="Ошибка прочистки: {}"/>
   <translation tag="Purge may still be running — response timed out" ru="Прочистка может ещё выполняться — время ожидания истекло"/>

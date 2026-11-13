@@ -2935,6 +2935,7 @@
   <translation tag="Purge Length" zh="排料长度"/>
   <translation tag="Purge Line" zh="排料线"/>
   <translation tag="Purge chute calibration failed: {}" zh="排料口校准失败：{}"/>
+  <translation tag="Purge chute position saved, but the toolhead could not move away from the chute: {}" zh="已保存清料槽位置，但打印头无法离开清料槽：{}"/>
   <translation tag="Purge chute position saved." zh="排料口位置已保存。"/>
   <translation tag="Purge failed: {}" zh="清洗失败: {}"/>
   <translation tag="Purge may still be running — response timed out" zh="清洗可能仍在运行 — 响应超时"/>

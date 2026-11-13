@@ -95,7 +95,8 @@ template <typename Backend> class PausedGateDouble : public Backend {
         return AmsErrorHelper::success();
     }
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()>,
-                           helix::SharedCallback<void(const MoonrakerError&)>, bool) override {
+                           helix::SharedCallback<void(const MoonrakerError&)>, bool,
+                           bool /*surfaces_errors*/) override {
         dispatched.push_back(gcode);
         return AmsErrorHelper::success();
     }

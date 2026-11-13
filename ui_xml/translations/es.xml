@@ -2935,6 +2935,7 @@
   <translation tag="Purge Length" es="Longitud de purga"/>
   <translation tag="Purge Line" es="Línea de purga"/>
   <translation tag="Purge chute calibration failed: {}" es="Falló la calibración del conducto de purga: {}"/>
+  <translation tag="Purge chute position saved, but the toolhead could not move away from the chute: {}" es="Posición del canal de purga guardada, pero el cabezal no pudo alejarse del canal: {}"/>
   <translation tag="Purge chute position saved." es="Posición del conducto de purga guardada."/>
   <translation tag="Purge failed: {}" es="Error al purgar: {}"/>
   <translation tag="Purge may still be running — response timed out" es="La purga puede seguir en curso — tiempo de espera agotado"/>

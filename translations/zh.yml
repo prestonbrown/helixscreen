@@ -3033,6 +3033,7 @@ translations:
   Purge Line: '排料线'
   'Purge chute calibration failed: {}': '排料口校准失败：{}'
   Purge chute position saved.: 排料口位置已保存。
+  'Purge chute position saved, but the toolhead could not move away from the chute: {}': '已保存清料槽位置，但打印头无法离开清料槽：{}'
 
   'Purge failed: {}': '清洗失败: {}'
   Purge may still be running — response timed out: 清洗可能仍在运行 — 响应超时
