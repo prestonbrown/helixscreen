@@ -10,8 +10,11 @@ output, the serial snapshot protocol, printf) passes through untouched. The
 database is the build's `helixscreen_esp32.logtok.json`
 (scripts/esp32_logtok_db.py), shipped in the release zip as
 `helixscreen-esp32-ktouch-logtok.json`. A `$HLT1:<sha256>` header line names the
-build that printed the records after it; one that does not match the database
-gets a warning on stderr, since its tokens point at different strings.
+build that printed the records after it (the firmware prints the first nine hex
+digits, as its boot banner's `ELF file SHA256` does); one that does not match
+the database gets a warning on stderr, since its tokens point at different
+strings. A `$word` that does not decode to a record whose token the database
+holds is left as it was, so `$HOME`-like text passes through.
 
 Formatting follows fmt: `{}`, `{N}`, `{{`/`}}`, nested width/precision, and the
 spec mini-language Python shares with it, plus fmt's own rules for a bare `{}`
@@ -26,7 +29,7 @@ import re
 import struct
 import sys
 
-HEADER_RE = re.compile(r"\$HLT1:([0-9a-fA-F]{16,64})")
+HEADER_RE = re.compile(r"\$HLT1:([0-9a-fA-F]{8,64})")
 RECORD_RE = re.compile(r"(?<!\S)\$([A-Za-z0-9+/]{2,})(?!\S)")
 
 TRUNCATED_FLAG = 0x80
@@ -337,8 +340,8 @@ class Detokenizer:
         except (DecodeError, ValueError):
             return m.group(0)
         fmt = self.tokens.get(token)
-        if fmt is None:
-            return f"{m.group(0)} [unknown token {token}]"
+        if fmt is None or level >= len(LEVEL_NAMES):
+            return m.group(0)
         msg = format_message(fmt, args)
         if truncated:
             msg += " [cut]"

@@ -35,6 +35,9 @@ PARTITIONS="$BUILD_DIR/../partitions.csv"
 # Without its database a release's console log cannot be read at all.
 [ -f "$BUILD_DIR/helixscreen_esp32.logtok.json" ] ||
     { echo "error: no helixscreen_esp32.logtok.json in $BUILD_DIR (build first)" >&2; exit 1; }
+python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1])).get("tokens") else 1)' \
+    "$BUILD_DIR/helixscreen_esp32.logtok.json" ||
+    { echo "error: $BUILD_DIR/helixscreen_esp32.logtok.json has no tokens (built with CONFIG_HELIX_LOG_TOKENIZE off?)" >&2; exit 1; }
 mkdir -p "$OUT_DIR"
 OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 

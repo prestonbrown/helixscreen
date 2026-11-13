@@ -184,9 +184,11 @@ scripts/detokenize_log.py --level <db> serial.log                             # 
 ```
 
 Other lines (ESP-IDF's own logs, the snapshot protocol, `printf`) pass through unchanged. The firmware prints
-`$HLT1:<ELF SHA-256>` before its first record and every 200 after, the same hash as the boot banner's
-`ELF file SHA256`; the tool warns when it does not match the database, because a token then points at a
-different string. A record whose arguments did not fit its 192 bytes ends in `[cut]`.
+`$HLT1:<first nine hex digits of the ELF SHA-256>` before its first record and every 200 after, the same
+digits as the boot banner's `ELF file SHA256`; the tool warns when they do not match the database, because a
+token then points at a different string. A record whose arguments did not fit its 192 bytes ends in `[cut]`.
+The build fails when tokenizing is on and the ELF has no format strings, and the release packager refuses an
+empty database.
 
 How it works: in a firmware translation unit the shim (`components/helixnet/shim/spdlog_shim.h`) defines
 `info(...)`, `warn(...)`, `error(...)` and `critical(...)` as macros that wrap a string-literal first argument
@@ -199,6 +201,9 @@ a type with its own `fmt::formatter`, prints text as before. `debug`/`trace` are
 Because those four names are macros there, a firmware-compiled declaration of any other function named
 `info`, `warn`, `error` or `critical` with parameters must parenthesize its name (`static HardwareIssue
 (info)(...)`); calls to it need nothing, and the firmware compile fails loudly on a declaration that forgets.
+One case does not fail: such a function whose first parameter is a forwarding `T&&` or `auto` receives the
+wrapper `helix::logtok::Site<N>` for a literal argument instead of the string, so give it a concrete string
+parameter.
 
 ## Debugging recipes
 

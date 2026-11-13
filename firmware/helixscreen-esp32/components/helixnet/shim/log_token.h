@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 
 #ifndef FMT_VERSION
@@ -40,8 +41,8 @@ constexpr std::uint8_t kTruncatedFlag = 0x80;
 // The header line repeats this often, so a capture that starts mid-session
 // still names its build.
 constexpr unsigned kHeaderEvery = 200;
-// `$HLT1:<elf sha256 hex>` names the build whose token database decodes the
-// records that follow.
+// `$HLT1:<first 9 hex digits of the ELF SHA-256>` names the build whose token
+// database decodes the records that follow.
 constexpr const char* kHeaderPrefix = "$HLT1:";
 
 enum class ArgTag : std::uint8_t {
@@ -171,20 +172,27 @@ template <> struct Wrap<false> {
 #define HELIX_LOGTOK_STR(x) HELIX_LOGTOK_STR_(x)
 
 // The token of the literal @p x: the address of its stringized text in the
-// non-loaded section. Each site gets its own input section name, since GCC
-// refuses one name shared by a function-local static in an inline function and
-// one in an ordinary function ("section type conflict"). `used` keeps the
-// section under LTO, which otherwise moves an inline function's static into
-// .rodata.
-#define HELIX_LOGTOK_TOKEN(x)                                                                      \
-    ([]() -> ::std::uint32_t {                                                                     \
-        static const char kText[]                                                                  \
-            __attribute__((section(".helix_logfmt." HELIX_LOGTOK_STR(__COUNTER__)), used)) = #x;   \
-        return static_cast<::std::uint32_t>(reinterpret_cast<::std::uintptr_t>(kText));            \
-    }())
+// non-loaded section, or 0 when @p x is not a literal run, which then gets no
+// entry at all (the discarded branch of a generic lambda is never instantiated).
+// Each site gets its own input section name, since GCC refuses one name shared by
+// a function-local static in an inline function and one in an ordinary function
+// ("section type conflict"). `used` keeps the section under LTO, which otherwise
+// moves an inline function's static into .rodata.
+#define HELIX_LOGTOK_TOKEN(x, is_literal)                                                          \
+    ([](auto literal) -> ::std::uint32_t {                                                         \
+        if constexpr (decltype(literal)::value) {                                                  \
+            static const char kText[]                                                              \
+                __attribute__((section(".helix_logfmt." HELIX_LOGTOK_STR(__COUNTER__)), used)) =   \
+                    #x;                                                                            \
+            return static_cast<::std::uint32_t>(reinterpret_cast<::std::uintptr_t>(kText));        \
+        } else {                                                                                   \
+            return 0;                                                                              \
+        }                                                                                          \
+    }(::std::integral_constant<bool, is_literal>{}))
 
 #define HELIX_LOGTOK_WRAP(x)                                                                       \
-    ::helix::logtok::Wrap<::helix::logtok::is_literal_run(#x)>::apply(x, HELIX_LOGTOK_TOKEN(x))
+    ::helix::logtok::Wrap<::helix::logtok::is_literal_run(#x)>::apply(                             \
+        x, HELIX_LOGTOK_TOKEN(x, ::helix::logtok::is_literal_run(#x)))
 
 #define HELIX_LOGTOK_ARGS_(x, ...) HELIX_LOGTOK_WRAP(x) __VA_OPT__(, ) __VA_ARGS__
 

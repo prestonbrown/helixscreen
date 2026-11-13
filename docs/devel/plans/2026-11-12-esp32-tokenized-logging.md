@@ -60,7 +60,7 @@ non-inline `helix::logtok::emit(level, token, fmt::format_args)`. A call whose a
 list holds a type with a custom `fmt::formatter` keeps the text path (its format spec is
 only known to the device's formatter), and so keeps its literal in flash.
 
-Header line `$HLT1:<elf-sha256>` before the first record and every `kHeaderEvery` records,
+Header line `$HLT1:<first 9 hex digits of the ELF SHA-256>` before the first record and every `kHeaderEvery` records,
 so a capture that starts mid-session still names its build. The ELF SHA-256 is the one the
 image already carries (`esp_app_get_elf_sha256`, printed at boot as `ELF file SHA256`).
 

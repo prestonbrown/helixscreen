@@ -33,7 +33,8 @@ esp_log_level_t esp_level(int level) {
 std::atomic<unsigned> g_records{0};
 
 void write_header() {
-    // The full 64-digit SHA-256 of the ELF the database was extracted from.
+    // The first CONFIG_APP_RETRIEVE_LEN_ELF_SHA (9) hex digits of the ELF's SHA-256,
+    // as the boot banner's "ELF file SHA256" prints them; the database records the full hash.
     char sha[65];
     esp_app_get_elf_sha256(sha, sizeof sha);
     esp_log_write(ESP_LOG_ERROR, kTag, "%s%s\n", helix::logtok::kHeaderPrefix, sha);

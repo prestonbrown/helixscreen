@@ -50,9 +50,14 @@ add_custom_command(TARGET ${CMAKE_PROJECT_NAME}.elf POST_BUILD
     VERBATIM)
 
 # The token database for this ELF's tokenized log records (scripts/detokenize_log.py
-# reads it; the release zip ships it beside the image).
+# reads it; the release zip ships it beside the image). With tokenizing on, an ELF
+# without the strings fails the build.
+set(HELIX_LOGTOK_DB_FLAGS "")
+if(NOT CONFIG_HELIX_LOG_TOKENIZE)
+    set(HELIX_LOGTOK_DB_FLAGS --allow-empty)
+endif()
 add_custom_command(TARGET ${CMAKE_PROJECT_NAME}.elf POST_BUILD
-    COMMAND python3 ${HELIX_REPO_ROOT}/scripts/esp32_logtok_db.py
+    COMMAND python3 ${HELIX_REPO_ROOT}/scripts/esp32_logtok_db.py ${HELIX_LOGTOK_DB_FLAGS}
             ${CMAKE_PROJECT_NAME}.elf ${CMAKE_PROJECT_NAME}.logtok.json
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     VERBATIM)

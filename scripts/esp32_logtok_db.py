@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Write the token database for an ESP32 firmware ELF's tokenized log records.
 
-Usage: esp32_logtok_db.py <firmware.elf> <out.json>
+Usage: esp32_logtok_db.py [--allow-empty] <firmware.elf> <out.json>
 
 The firmware keeps each log call's format literal, stringized, in the ELF's
 non-loaded `.helix_logfmt` section (firmware/.../shim/log_token.h); a record's
@@ -12,9 +12,11 @@ each stringized literal to the text the compiler would have stored, and writes
     {"format": 1, "elf_sha256": "<hex>", "tokens": {"<offset>": "<format>"}}
 
 `elf_sha256` is the SHA-256 of the ELF file, the same value the firmware prints
-in its `$HLT1:` header line (esp_app_get_elf_sha256), so a capture names its
-database. An ELF without the section (a build with CONFIG_HELIX_LOG_TOKENIZE
-off) gets an empty table. Standard library only: the IDF container runs it.
+in its `$HLT1:` header line (the first nine hex digits, from
+esp_app_get_elf_sha256), so a capture names its database. A missing or empty
+section fails the build: the firmware's records would be unreadable. A build
+with CONFIG_HELIX_LOG_TOKENIZE off has no section and passes --allow-empty.
+Standard library only: the IDF container runs it.
 """
 
 import hashlib
@@ -101,14 +103,21 @@ def build_db(elf: bytes):
 
 
 def main(argv):
-    if len(argv) != 3:
+    args = argv[1:]
+    allow_empty = "--allow-empty" in args
+    args = [a for a in args if a != "--allow-empty"]
+    if len(args) != 2:
         print(__doc__.strip().splitlines()[2], file=sys.stderr)
         return 2
-    elf = Path(argv[1]).read_bytes()
+    elf = Path(args[0]).read_bytes()
     db = build_db(elf)
-    Path(argv[2]).write_text(json.dumps(db, indent=0, sort_keys=True, ensure_ascii=False) + "\n",
+    if not db["tokens"] and not allow_empty:
+        print(f"error: {args[0]} has no {SECTION} strings: tokenized log records from this "
+              "build could not be decoded (is helix_logfmt.ld still linked?)", file=sys.stderr)
+        return 1
+    Path(args[1]).write_text(json.dumps(db, indent=0, sort_keys=True, ensure_ascii=False) + "\n",
                              encoding="utf-8")
-    print(f"{argv[2]}: {len(db['tokens'])} log format strings")
+    print(f"{args[1]}: {len(db['tokens'])} log format strings")
     return 0
 
 

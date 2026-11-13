@@ -21,7 +21,7 @@ setup() {
     echo boot > "$BUILD/bootloader/bootloader.bin"
     echo app > "$BUILD/app.bin"
     echo table > "$BUILD/partition_table/partition-table.bin"
-    echo '{"format": 1, "tokens": {}}' > "$BUILD/helixscreen_esp32.logtok.json"
+    echo '{"format": 1, "tokens": {"0": "boot {}"}}' > "$BUILD/helixscreen_esp32.logtok.json"
     printf 'nvs,      data, nvs,     0x9000,   0x6000,\ncfg,      data, spiffs,  0x1000,   0x20000,\n' \
         > "$FW/partitions.csv"
 
@@ -62,6 +62,13 @@ EOF
     PYTHON="$FAKE_PY" FAKE_FACTORY_BYTES=4096 run bash "$SCRIPT" v1.2.3 "$BUILD" "$OUT"
     [ "$status" -ne 0 ] || fail "packaged a build with no token database: $output"
     [[ "$output" == *"logtok.json"* ]] || fail "$output"
+}
+
+@test "a build whose token database is empty is refused" {
+    echo '{"format": 1, "tokens": {}}' > "$BUILD/helixscreen_esp32.logtok.json"
+    PYTHON="$FAKE_PY" FAKE_FACTORY_BYTES=4096 run bash "$SCRIPT" v1.2.3 "$BUILD" "$OUT"
+    [ "$status" -ne 0 ] || fail "packaged an empty token database: $output"
+    [[ "$output" == *"no tokens"* ]] || fail "$output"
 }
 
 @test "a factory image reaching the cfg partition is refused" {

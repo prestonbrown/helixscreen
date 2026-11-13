@@ -51,20 +51,31 @@ def test_other_console_lines_pass_through_untouched():
 
 
 def test_header_from_another_build_warns_once():
+    # The firmware prints the first nine hex digits (CONFIG_APP_RETRIEVE_LEN_ELF_SHA).
     warnings = []
     det = dt.Detokenizer(corpus_db("ab" * 32), warn=warnings.append)
-    header = "$HLT1:" + "cd" * 32
+    header = "$HLT1:cdcdcdcdc"
     assert det.line(header) == header
     det.line(header)
-    det.line("$HLT1:" + "ab" * 32)
+    det.line("$HLT1:ababababa")
     assert len(warnings) == 1
-    assert "cd" * 32 in warnings[0]
+    assert "cdcdcdcdc" in warnings[0]
 
 
-def test_unknown_token_is_named_and_the_record_kept():
-    det = dt.Detokenizer({"tokens": {}})
-    line = CORPUS[0]["line"]
-    assert det.line(line) == f"{line} [unknown token {CORPUS[0]['token']}]"
+def test_header_naming_the_databases_build_is_quiet():
+    warnings = []
+    det = dt.Detokenizer(corpus_db("ab" * 32), warn=warnings.append)
+    det.line("$HLT1:ababababa")
+    det.line("$HLT1:" + "ab" * 32)
+    assert warnings == []
+
+
+def test_dollar_words_that_are_not_records_are_left_alone():
+    det = dt.Detokenizer(corpus_db())
+    # "$AAU" is valid base64 for level 0, token 5, which this database lacks.
+    for line in ["export PATH=$HOME/bin", "cost $HOME", "x $AAU y", CORPUS[0]["line"] + "x"]:
+        assert det.line(line) == line
+    assert dt.Detokenizer({"tokens": {}}).line(CORPUS[0]["line"]) == CORPUS[0]["line"]
 
 
 def test_truncated_record_is_marked_and_missing_arguments_shown():
@@ -120,6 +131,11 @@ def test_database_from_an_elf_resolves_each_stringized_literal():
     assert out["tokens"] == {"0": "temp: {}\n", str(second): 'abA"q"', str(third): "deg °C"}
 
 
-def test_database_from_an_elf_without_the_section_is_empty():
-    out = db.build_db(_elf32(b".comment", b"GCC\0"))
-    assert out["tokens"] == {}
+def test_database_from_an_elf_without_the_section_fails_unless_allowed(tmp_path):
+    for section, data in ((b".comment", b"GCC\0"), (b".helix_logfmt", b"")):
+        elf = tmp_path / "fw.elf"
+        elf.write_bytes(_elf32(section, data))
+        out = tmp_path / "db.json"
+        assert db.main(["esp32_logtok_db.py", str(elf), str(out)]) != 0, section
+        assert db.main(["esp32_logtok_db.py", "--allow-empty", str(elf), str(out)]) == 0
+        assert json.loads(out.read_text())["tokens"] == {}

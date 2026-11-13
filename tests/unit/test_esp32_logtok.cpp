@@ -248,6 +248,9 @@ TEST_CASE("logtok: the call-site wrapper", "[tokenlog]") {
     auto a = HELIX_LOGTOK_ARGS("same");
     auto b = HELIX_LOGTOK_ARGS("same");
     CHECK(a.token != b.token);
+    // A non-literal gets no section entry, and so no token.
+    CHECK(HELIX_LOGTOK_TOKEN(s, false) == 0);
+    CHECK(HELIX_LOGTOK_TOKEN("lit", true) != 0);
 }
 #endif
 
