@@ -9,10 +9,10 @@
 #include "core/text_io.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
-#include "snapmaker_status_parse.h"
 
 #include <spdlog/spdlog.h>
 
+#include <cstdlib>
 #include <string>
 
 using namespace helix;
@@ -153,9 +153,9 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_u1_snapswap(const st
             if (const std::string v = param(gcode, "VENDOR"); !v.empty()) {
                 s.vendor = v;
             }
-            if (const auto rgb =
-                    snapmaker::rgb_from_rgba_hex(param(gcode, "FILAMENT_COLOR_RGBA"))) {
-                s.rgb = *rgb;
+            // RRGGBBAA; the alpha byte is dropped.
+            if (const std::string c = param(gcode, "FILAMENT_COLOR_RGBA"); c.size() >= 6) {
+                s.rgb = static_cast<uint32_t>(std::strtoul(c.substr(0, 6).c_str(), nullptr, 16));
             }
         }
         dispatch_status_update(

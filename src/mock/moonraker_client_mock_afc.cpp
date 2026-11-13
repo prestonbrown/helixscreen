@@ -9,7 +9,6 @@
 #include "core/text_io.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
-#include "runtime_config.h"
 
 #include <spdlog/spdlog.h>
 
@@ -46,7 +45,7 @@ constexpr LaneSpool kLaneSpools[kMaxLanes] = {
 };
 
 std::string lane_name(int lane) {
-    return "lane" + std::to_string(lane + 1);
+    return "lane" + std::to_string(lane + 1); // DISPLAY_NUMBERING_OK: AFC's lane object name
 }
 
 std::string tool_name(int number) {
@@ -75,14 +74,10 @@ bool MoonrakerClientMock::is_mock_afc_boxturtle() const {
     return mode == "afc" || mode == "box_turtle" || mode == "boxturtle";
 }
 
-int MoonrakerClientMock::afc_lane_count() {
-    return std::clamp(get_runtime_config()->mock_ams_gate_count, 1, kMaxLanes);
-}
-
-void MoonrakerClientMock::init_afc_boxturtle() {
+void MoonrakerClientMock::init_afc_boxturtle(int lanes) {
     std::lock_guard<std::mutex> lock(afc_mutex_);
     afc_lanes_.clear();
-    for (int i = 0; i < afc_lane_count(); ++i) {
+    for (int i = 0; i < std::clamp(lanes, 1, kMaxLanes); ++i) {
         const LaneSpool& s = kLaneSpools[i];
         afc_lanes_.push_back({s.name, s.material, s.color, s.spool_id, s.weight, i, true});
     }
@@ -95,8 +90,9 @@ void MoonrakerClientMock::append_afc_boxturtle_objects(nlohmann::json& objects) 
     objects.push_back(std::string("AFC_buffer ") + kUnit);
     objects.push_back("AFC_extruder extruder");
     objects.push_back(std::string("AFC_hub ") + kUnit);
-    for (int i = 0; i < afc_lane_count(); ++i) {
-        objects.push_back("AFC_stepper " + lane_name(i));
+    std::lock_guard<std::mutex> lock(afc_mutex_);
+    for (size_t i = 0; i < afc_lanes_.size(); ++i) {
+        objects.push_back("AFC_stepper " + lane_name(static_cast<int>(i)));
     }
 }
 

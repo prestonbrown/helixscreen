@@ -34,7 +34,6 @@
 35 src/printer/toolchanger_addon.cpp:vendor-name
 5 src/rendering/gcode_parser.cpp:vendor-name
 1 src/rendering/nozzle_renderer_anthead.cpp:vendor-name
-1 src/system/cli_args.cpp:vendor-string
 3 src/system/config_migrations.cpp:vendor-name
 7 src/system/config_migrations.cpp:vendor-string
 3 src/ui/calibration/ui_panel_input_shaper.cpp:vendor-name

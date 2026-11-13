@@ -2774,9 +2774,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::vector<AfcLane> afc_lanes_;
     int afc_loaded_ = -1; ///< lane index in the toolhead, -1 = none
     std::string afc_state_ = "Idle";
-    /// HELIX_AMS_GATES, clamped to the lanes the mock has spools for.
-    static int afc_lane_count();
-    void init_afc_boxturtle();
+    /// @p lanes is HELIX_AMS_GATES, clamped to the lanes the mock has spools for.
+    void init_afc_boxturtle(int lanes);
     void append_afc_boxturtle_objects(nlohmann::json& objects) const;
     /// Publishes `state`, then after a beat the lane (-1 = none) at rest in the toolhead.
     void afc_move(int lane, const char* state);
