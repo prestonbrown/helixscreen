@@ -801,6 +801,12 @@ TEST_CASE("auto loading follows the printer's own head-to-channel map",
     backend.fire_status(feeder(0, {{"module_exist", true}, {"disable_auto", true}}));
     CHECK(backend.build_preference_gcode(auto_load_id(0), std::any(true)) ==
           "FEED_AUTO MODULE=right CHANNEL=0 AUTO=1");
+
+    // Another printer's discovery drops the map; until its own macro frame
+    // lands, the head takes the stock wiring.
+    backend.set_discovery(helix::PrinterDiscovery{});
+    CHECK(backend.build_preference_gcode(auto_load_id(0), std::any(true)) ==
+          "FEED_AUTO MODULE=left CHANNEL=1 AUTO=1");
 }
 
 TEST_CASE("a feeder's mode change redraws the row and a repeat does not",

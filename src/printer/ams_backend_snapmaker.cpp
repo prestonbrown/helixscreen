@@ -322,6 +322,9 @@ void AmsBackendSnapmaker::set_discovery(const helix::PrinterDiscovery& discovery
     const std::string feed_variable =
         discovery.macro_config_name(snapmaker::feed_mode::kFeedVariableMacro);
     feed_variable_object_ = feed_variable.empty() ? std::string{} : "gcode_macro " + feed_variable;
+    // The map belongs to the printer just discovered: its own macro frame
+    // restates it, and until then a head takes the stock wiring.
+    feed_channels_ = snapmaker::feed_mode::stock_channel_map();
 }
 
 void AmsBackendSnapmaker::before_disconnect() {
