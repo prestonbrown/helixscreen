@@ -21,7 +21,6 @@
 
 #include "../catch_amalgamated.hpp"
 
-using helix::Ad5xIfsTestAccess;
 using helix::AmsBackendAd5xIfs;
 using helix::AmsError;
 using helix::AmsErrorHelper;
@@ -63,7 +62,7 @@ json ifs_frame(int lanes, int chan, const std::vector<int>& loaded_ports) {
 class CapturingAd5xIfs : public helix::test::StartedBackend<AmsBackendAd5xIfs> {
   public:
     CapturingAd5xIfs() {
-        Ad5xIfsTestAccess::set_zcolor_supported(*this, false);
+        helix::Ad5xIfsTestAccess::set_zcolor_supported(*this, false);
     }
 
     std::vector<std::string> sent;

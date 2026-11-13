@@ -2567,8 +2567,8 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
 
     // Seated follows the present lane (Chan=3), NOT the stale FFMInfo.channel=4.
     REQUIRE(Ad5xIfsTestAccess::seated_chan(backend) == 3);
-    REQUIRE(Ad5xIfsTestAccess::current_slot(backend) == 2); // lane 3 == slot index 2
-    REQUIRE_FALSE(backend.get_slot_info(3).is_present());   // lane 4 does not flash loaded
+    REQUIRE(backend.get_current_slot() == 2);             // lane 3 == slot index 2
+    REQUIRE_FALSE(backend.get_slot_info(3).is_present()); // lane 4 does not flash loaded
     REQUIRE(backend.get_slot_info(3).status == SlotStatus::EMPTY);
     REQUIRE(backend.get_slot_info(2).is_present());
 }
