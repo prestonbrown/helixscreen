@@ -171,15 +171,9 @@ chmod +x /etc/init.d/S80helixscreen
 /etc/init.d/S80helixscreen start
 ```
 
-**AD5M Forge-X (SysV init):**
+**AD5M Forge-X (SysV init):** the installer switches GuppyScreen off for you. HelixScreen's service script lives inside Forge-X's own system folder, not in the printer's main `/etc/init.d`, so start or check it through `chroot`:
 ```bash
-# Disable GuppyScreen
-/etc/init.d/S60guppyscreen stop
-chmod -x /etc/init.d/S60guppyscreen
-
-# Enable HelixScreen
-chmod +x /etc/init.d/S90helixscreen
-/etc/init.d/S90helixscreen start
+/usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen start    # or status, restart
 ```
 
 If you have two displays, you could theoretically run both (advanced configuration, not tested).
@@ -570,9 +564,9 @@ Open a GitHub issue with the "enhancement" label, or suggest it in the [Discord]
 echo 'HELIX_LOG_LEVEL=debug' >> ~/printer_data/config/helixscreen/helixscreen.env
 sudo systemctl restart helixscreen
 
-# AD5M (Forge-X) — install dir is symlinked to printer_data convention
-echo 'HELIX_LOG_LEVEL=debug' >> /opt/helixscreen/config/helixscreen.env
-/etc/init.d/S90helixscreen restart
+# AD5M (Forge-X)
+echo 'HELIX_LOG_LEVEL=debug' >> /opt/config/mod_data/helixscreen/config/helixscreen.env
+/usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen restart
 ```
 
 Available levels: `warn`, `info` (default), `debug`, `trace`. **Set back to Info after debugging**: debug and trace logging cost CPU and log space.
@@ -584,15 +578,16 @@ The app produces **two log streams**: a structured app log (recommended starting
 ```bash
 # Structured app log
 sudo journalctl -u helixscreen -f                          # MainsailOS / x86 / any systemd Pi-like setup
-grep helix-screen /var/log/messages                        # Snapmaker U1 (persistent syslog)
+grep helix-screen /home/lava/printer_data/logs/syslog      # Snapmaker U1 on PAXX (persistent syslog)
 tail -100 /usr/data/helixscreen-state/logs/helix.log       # K1 / K1C
 tail -100 /mnt/UDISK/helixscreen-state/logs/helix.log      # K2
 tail -100 /data/.helixscreen/logs/helix.log                # AD5M
 tail -100 /user-resource/helixscreen-state/logs/helix.log # CC1
 tail -100 /opt/config/mod_data/log/helix.log               # AD5X
+tail -100 /opt/config/mod_data/log/helixscreen.log         # Creator 5 (Z-Mod): one file, app and launcher output
 
 # Launcher / crash capture (SysV platforms only; systemd platforms put this in the journal)
-tail -100 /opt/helixscreen/logs/launcher.log               # AD5M (Forge-X)
+tail -100 /opt/config/mod_data/helixscreen/logs/launcher.log  # AD5M (Forge-X)
 tail -100 /root/printer_software/helixscreen/logs/launcher.log  # AD5M (Klipper Mod)
 tail -100 /usr/data/helixscreen/logs/launcher.log          # K1 / K1C
 tail -100 /mnt/UDISK/helixscreen/logs/launcher.log         # K2

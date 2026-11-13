@@ -55,7 +55,7 @@ Sign in to the printer over SSH as `root` (`ssh root@<printer-ip>`). The AD5M ru
 wget -O - http://dl.helixscreen.org/install.sh | sh
 ```
 
-The AD5M's `wget` can't download over HTTPS, so this address uses plain HTTP. The installer finds the right release on its own.
+The AD5M's `wget` can't download over HTTPS (it answers `not an http or ftp url`), so this address uses plain HTTP. The installer then fetches the right release over plain HTTP as well, on its own.
 
 ### Option B: Two-step install
 
@@ -120,7 +120,13 @@ Then the Home screen appears. Worth doing first:
 
 ## Service Control and Logs
 
-**Forge-X:** Forge-X starts HelixScreen at boot, so rebooting the printer restarts it. From SSH, `chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen restart` restarts it without a reboot. A printer that kept an older install at `/opt/helixscreen` uses `/etc/init.d/S90helixscreen start|stop|restart|status` instead.
+**Forge-X:** Forge-X starts HelixScreen at boot, so rebooting the printer restarts it. The service script lives inside Forge-X's own system folder, at `/data/.mod/.forge-x/etc/init.d/S90helixscreen`; there is none in the printer's main `/etc/init.d`. Run it through `chroot` from SSH:
+
+```bash
+/usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen status    # or restart
+```
+
+`status` answers `helixscreen is running (PID ...)`. A printer that kept an older install at `/opt/helixscreen` uses `/etc/init.d/S90helixscreen start|stop|restart|status` instead.
 
 **Klipper Mod:**
 
@@ -133,10 +139,11 @@ Two logs; collect both when reporting a problem:
 | Log | Where |
 |-----|-------|
 | The app's log | `/data/.helixscreen/logs/helix.log` (Forge-X and Klipper Mod) |
-| Startup and crash output | `logs/launcher.log` inside the HelixScreen folder, for example `/opt/config/mod_data/helixscreen/logs/launcher.log` on Forge-X |
+| Startup and crash output | `logs/launcher.log` inside the HelixScreen folder: `/opt/config/mod_data/helixscreen/logs/launcher.log` on Forge-X |
 
 ```bash
 tail -100 /data/.helixscreen/logs/helix.log
+tail -100 /opt/config/mod_data/helixscreen/logs/launcher.log    # Forge-X
 ```
 
 HelixScreen keeps its logs and caches in `/data/.helixscreen`. The dot keeps that folder out of the printer's file list. An update from an older version moves the old `/data/helixscreen` folder there on its own.
@@ -153,6 +160,8 @@ HelixScreen keeps its logs and caches in `/data/.helixscreen`. The dot keeps tha
   ```bash
   sh /opt/config/mod_data/helixscreen/install.sh --update
   ```
+
+  This works even though the AD5M cannot download over HTTPS: the installer says `HTTPS not available, trying HTTP fallback...` and fetches the release and its checksum over plain HTTP from `dl.helixscreen.org`.
 
   Without internet on the printer, copy a newer `helixscreen-ad5m.zip` to `/data/` as in Option B, then run the same installer with `--local /data/helixscreen-ad5m.zip --update`.
 

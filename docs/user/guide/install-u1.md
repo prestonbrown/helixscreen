@@ -78,12 +78,14 @@ This does the same install as the one-line command, from the file you copied.
 # Restart HelixScreen
 /userdata/helixscreen/config/helixscreen.init restart
 
-# HelixScreen's own log
-grep helix-screen /var/log/messages | tail -100
+# HelixScreen's own log, in the system log (PAXX firmware)
+grep helix-screen /home/lava/printer_data/logs/syslog | tail -100
 
 # Startup and crash output
 tail -100 /var/log/helixscreen/launcher.log
 ```
+
+On PAXX firmware the system log is `syslog` in the printer's logs folder, so Mainsail and Fluidd list it with the other logs. It is kept on the printer's storage and survives a restart, and so does `launcher.log`. There is no `/var/log/messages` on PAXX.
 
 ## Updating
 
@@ -162,7 +164,7 @@ Versions of HelixScreen before 1.0.4 switched off the stock screen on stock firm
 
 - **Any firmware update brings the stock screen back.** Run the installer with `--update` afterwards, as in [Upgrading the printer's firmware](#upgrading-the-printers-firmware-with-helixscreen-installed).
 - **Seeing the screen in Mainsail or Fluidd.** On PAXX firmware, the built-in "gui" webcam shows the live HelixScreen screen, and you can tap it to control the printer. Turn on **Remote Screen** in the firmware settings web page at `http://<printer-ip>/firmware-config/`. Editing the config file by hand is not enough. Setup and troubleshooting: [Supported Printers: Snapmaker U1](supported-printers.md#snapmaker-u1-snapswap).
-- **Two Moonraker warnings you may see.** Mainsail and Fluidd can show "Unable to find DBus PolKit Interface" and "Unable to initialize System Update Provider for distribution: buildroot". Both come from Moonraker looking for an operating-system package manager, which the U1's firmware does not have. The installer turns that check off in Moonraker's settings, which normally clears them. If they still appear, they are harmless: they do not affect HelixScreen or printing.
+- **Two Moonraker warnings you may see.** Mainsail and Fluidd can show "Unable to find DBus PolKit Interface" and "Unable to initialize System Update Provider for distribution: buildroot". Both come from Moonraker looking for an operating-system package manager, which the U1's firmware does not have. PAXX firmware already turns that check off (`enable_system_updates: False` in the `[update_manager]` section of `moonraker.conf`), so they do not appear there. On stock firmware the installer turns the check off, which normally clears them. If they still appear, they are harmless: they do not affect HelixScreen or printing.
 - **Flow calibration** (Snapmaker's "dynamic flow calibration") is a pre-print option on the screen. To run it for prints started from the slicer, see [Snapmaker U1: flow calibration](printing.md#snapmaker-u1-flow-calibration).
 
 ## See also

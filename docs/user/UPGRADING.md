@@ -48,14 +48,14 @@ sh <install folder>/install.sh --update
 | Elegoo Centauri Carbon | `/user-resource/helixscreen` |
 | Snapmaker U1 | `/userdata/helixscreen` |
 
-For example, on a K2: `sh /mnt/UDISK/helixscreen/install.sh --update`. **Settings > Help & About > About** shows the install folder as **Install Root**.
+For example, on a K2: `sh /mnt/UDISK/helixscreen/install.sh --update`. When the printer cannot download over HTTPS, the installer says `HTTPS not available, trying HTTP fallback...` and fetches the release and its checksum over plain HTTP from `dl.helixscreen.org` instead, so this command also works on printers with only a basic `wget`, such as the Adventurer 5M. **Settings > Help & About > About** shows the install folder as **Install Root**.
 
 **Printers with their own update steps:**
 
 | Printer | How to update |
 |---------|---------------|
 | Creality K1 / K1C / K1 Max | [Updating in the K1 Series guide](guide/install-k1.md#updating): `sh /usr/data/helixscreen/install.sh --update`, or copy a newer package to the printer first when it has no internet |
-| Flashforge Adventurer 5M / 5M Pro | [Updating in the Adventurer 5M guide](guide/install-ad5m.md#updating): the installer in HelixScreen's folder with `--update`, at the path for your firmware mod |
+| Flashforge Adventurer 5M / 5M Pro | [Updating in the Adventurer 5M guide](guide/install-ad5m.md#updating): on Forge-X, `sh /opt/config/mod_data/helixscreen/install.sh --update`; on Klipper Mod, the same command at the install folder for your version |
 | Flashforge Adventurer 5X | [Updating in the Adventurer 5X guide](guide/install-ad5x.md#updating): from inside ZMOD's environment (`chroot`) |
 | Flashforge Creator 5 / Creator 5 Pro | Z-Mod or Reforge updates HelixScreen with the firmware |
 | Linux desktop (HelixScreen in a window) | [Updating in the Linux desktop guide](guide/install-linux-desktop.md#updating) |

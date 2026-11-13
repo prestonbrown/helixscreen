@@ -53,7 +53,8 @@ Complete reference for HelixScreen configuration options.
 | Platform | Location |
 |----------|----------|
 | MainsailOS (Pi) | `~/helixscreen/config/settings.json` (or `/opt/helixscreen/config/` if no Klipper ecosystem) |
-| AD5M Forge-X | `/opt/helixscreen/config/settings.json` |
+| AD5M Forge-X | `/opt/config/mod_data/helixscreen/config/settings.json` |
+| Creator 5 / Creator 5 Pro, Z-Mod | `/srv/helixscreen/config/settings.json` inside Z-Mod's system folder (`/usr/data/.mod/.zmod/srv/helixscreen/config/settings.json` from a plain SSH login) |
 | AD5M Klipper Mod | `/root/printer_software/helixscreen/config/settings.json` |
 | K1 Simple AF | `/usr/data/helixscreen/config/settings.json` |
 | Development | `./config/settings.json` (in config/ directory) |

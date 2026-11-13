@@ -95,7 +95,9 @@ Use this when your screen is too damaged to navigate the UI. It's the least erro
 
    # Printer firmware (init.d):
    /etc/init.d/S99helixscreen restart   # K1 / K2 / Snapmaker U1
-   /etc/init.d/S80helixscreen restart   # AD5M
+   /etc/init.d/S80helixscreen restart   # AD5M (Klipper Mod, ZMOD)
+   /usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen restart   # AD5M (Forge-X)
+   chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen restart          # AD5X / Creator 5 (Z-Mod)
    /etc/init.d/helixscreen restart      # CC1
    ```
 5. Complete the 3-point crosshair flow when it appears
@@ -110,7 +112,9 @@ Use this for automation, remote management, or as an alternative to the env var.
    ```bash
    sudo systemctl stop helixscreen          # Raspberry Pi
    /etc/init.d/S99helixscreen stop          # K1 / K2 / Snapmaker U1
-   /etc/init.d/S80helixscreen stop          # AD5M
+   /etc/init.d/S80helixscreen stop          # AD5M (Klipper Mod, ZMOD)
+   /usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen stop   # AD5M (Forge-X)
+   chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen stop          # AD5X / Creator 5 (Z-Mod)
    /etc/init.d/helixscreen stop             # CC1
    ```
 3. Open the config file for your platform (see [Config File Locations](#config-file-locations))
@@ -162,11 +166,12 @@ This resets **all** settings and re-runs the Setup Wizard from scratch, includin
 |----------|-------------|-----------|
 | MainsailOS / Raspberry Pi (with Klipper detected) | `~/helixscreen` | `~/helixscreen/config/settings.json` |
 | MainsailOS / Raspberry Pi (no Klipper ecosystem) | `/opt/helixscreen` | `/opt/helixscreen/config/settings.json` |
-| FlashForge AD5M — Forge-X | `/opt/helixscreen` | `/opt/helixscreen/config/settings.json` |
-| FlashForge AD5M — Klipper Mod (v00.06+) | `/opt/helixscreen` | `/opt/helixscreen/config/settings.json` |
-| FlashForge AD5M — Klipper Mod (v00.05 and earlier) | `/root/printer_software/helixscreen` | `/root/printer_software/helixscreen/config/settings.json` |
-| FlashForge AD5M — ZMOD | `/srv/helixscreen` | `/srv/helixscreen/config/settings.json` |
+| FlashForge AD5M (Forge-X) | `/opt/config/mod_data/helixscreen` | `/opt/config/mod_data/helixscreen/config/settings.json` |
+| FlashForge AD5M (Klipper Mod v00.06+) | `/opt/helixscreen` | `/opt/helixscreen/config/settings.json` |
+| FlashForge AD5M (Klipper Mod v00.05 and earlier) | `/root/printer_software/helixscreen` | `/root/printer_software/helixscreen/config/settings.json` |
+| FlashForge AD5M (ZMOD) | `/srv/helixscreen` | `/srv/helixscreen/config/settings.json` |
 | FlashForge AD5X (ZMOD) | `/srv/helixscreen` | `/srv/helixscreen/config/settings.json` |
+| FlashForge Creator 5 / Creator 5 Pro (Z-Mod) | `/srv/helixscreen` inside Z-Mod's system folder (`/usr/data/.mod/.zmod/srv/helixscreen` from a plain SSH login) | `/srv/helixscreen/config/settings.json` |
 | Creality K1 series | `/usr/data/helixscreen` | `/usr/data/helixscreen/config/settings.json` |
 | Creality K2 series | `/mnt/UDISK/helixscreen` | `/mnt/UDISK/helixscreen/config/settings.json` |
 | Elegoo Centauri Carbon (CC1) | `/user-resource/helixscreen` | `/user-resource/helixscreen/config/settings.json` |
@@ -241,7 +246,9 @@ Restart commands:
 ```bash
 sudo systemctl restart helixscreen        # Raspberry Pi
 /etc/init.d/S99helixscreen restart        # K1 / K2 / Snapmaker U1
-/etc/init.d/S80helixscreen restart        # AD5M
+/etc/init.d/S80helixscreen restart        # AD5M (Klipper Mod, ZMOD)
+/usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen restart   # AD5M (Forge-X)
+chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen restart          # AD5X / Creator 5 (Z-Mod)
 /etc/init.d/helixscreen restart           # CC1
 ```
 
@@ -302,7 +309,9 @@ HELIX_DISPLAY_ROTATION=90
 
 # Then restart helix-screen (varies by platform — usually):
 /etc/init.d/S99helixscreen restart   # K1 / K2 / Snapmaker U1
-/etc/init.d/S80helixscreen restart   # AD5M
+/etc/init.d/S80helixscreen restart   # AD5M (Klipper Mod, ZMOD)
+/usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen restart   # AD5M (Forge-X)
+chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen restart          # AD5X / Creator 5 (Z-Mod)
 /etc/init.d/helixscreen restart      # CC1
 ```
 

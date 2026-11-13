@@ -51,7 +51,7 @@ The file lives at `<install dir>/config/helixscreen.env` (or `/etc/helixscreen/h
 sudo systemctl restart helixscreen        # Raspberry Pi
 /etc/init.d/S99helixscreen restart        # K1 / K2
 /etc/init.d/S80helixscreen restart        # AD5M (Klipper Mod)
-/etc/init.d/S90helixscreen restart        # AD5M (Forge-X)
+/usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen restart   # AD5M (Forge-X)
 /etc/init.d/helixscreen restart           # CC1
 <install dir>/config/helixscreen.init restart   # Snapmaker U1
 ```
@@ -1006,17 +1006,17 @@ The panel has been fully powered down at sleep. A driver-level quirk in the AD5X
 **Fix - stop the panel from being powered down:**
 
 1. SSH into your printer (or open a shell on the AD5X directly)
-2. Edit `settings.json`. On the AD5X (ZMOD firmware) the install lives under the ZMOD data directory, not `~/helixscreen` — the config file is at something like `/usr/data/.mod/.zmod/srv/helixscreen/config/settings.json` (or `/srv/helixscreen/config/settings.json` from inside the ZMOD chroot).
+2. Edit `settings.json`. On the AD5X (ZMOD firmware) HelixScreen lives inside ZMOD's system folder, not in `~/helixscreen`: the config file is `/usr/data/.mod/.zmod/srv/helixscreen/config/settings.json` from a plain SSH login, or `/srv/helixscreen/config/settings.json` from inside the ZMOD chroot.
 3. Find the `"display"` section and set:
 
    ```json
    "panel_power_off": 0
    ```
 
-4. Save the file and restart HelixScreen. The AD5X uses ZMOD's SysV init, not systemd:
+4. Save the file and restart HelixScreen. The AD5X uses ZMOD's SysV init, not systemd, and the service script is inside ZMOD's system folder:
 
    ```bash
-   /etc/init.d/S80helixscreen restart
+   chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen restart
    ```
 
    (or restart via the ZMOD launcher / Mainsail if you manage it that way)
@@ -2099,7 +2099,7 @@ If the result points inside your HelixScreen folder and not into `~/helix_print`
 
 **Option 3: full manual reset over SSH.** Deleting `settings.json` alone does not re-run the wizard: HelixScreen keeps rolling backup copies outside the install directory and restores the most recent one the next time the file is missing. To truly start over:
 
-1. Stop the service (`sudo systemctl stop helixscreen` on Raspberry Pi; `/etc/init.d/S99helixscreen stop` on K1 / K2 / Snapmaker U1; `/etc/init.d/S80helixscreen stop` on AD5M, AD5X and Creator 5 (Z-Mod); `/etc/init.d/helixscreen stop` on CC1)
+1. Stop the service (`sudo systemctl stop helixscreen` on Raspberry Pi; `/etc/init.d/S99helixscreen stop` on K1 / K2 / Snapmaker U1; `/etc/init.d/S80helixscreen stop` on AD5M with Klipper Mod or ZMOD; `/usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen stop` on AD5M with Forge-X; `chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen stop` on AD5X and Creator 5 (Z-Mod); `/etc/init.d/helixscreen stop` on CC1)
 2. Delete the config and every backup copy (the install directory for your platform is in [Config File Locations](guide/touch-calibration.md#config-file-locations), for example `/srv/helixscreen` on FlashForge Z-Mod installs). Drop `sudo` on printers where you are already root (FlashForge, Creality, Snapmaker U1):
    ```bash
    sudo rm -f /srv/helixscreen/config/settings.json   # your install dir here
@@ -2196,20 +2196,21 @@ ls -la /opt/config/mod/.root/S80guppyscreen
 
 **Check HelixScreen is running:**
 ```bash
-/etc/init.d/S90helixscreen status                        # Forge-X (Klipper Mod: S80helixscreen)
-tail /data/.helixscreen/logs/helix.log                    # structured app log
-cat /opt/helixscreen/logs/launcher.log                   # Forge-X launcher capture
+/usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen status   # Forge-X
+/etc/init.d/S80helixscreen status                        # Klipper Mod
+tail /data/.helixscreen/logs/helix.log                   # structured app log
+cat /opt/config/mod_data/helixscreen/logs/launcher.log   # Forge-X launcher capture
 cat /root/printer_software/helixscreen/logs/launcher.log # Klipper Mod launcher capture
 ```
 
 ### Service commands (SysV init)
 
-AD5M uses SysV init, not systemd. Commands are different:
+AD5M uses SysV init, not systemd. Commands are different. On Forge-X the service script is inside Forge-X's own system folder (`/data/.mod/.forge-x/etc/init.d/S90helixscreen`), not in the printer's main `/etc/init.d`, so it runs through `chroot`:
 
 ```bash
 # Forge-X
-/etc/init.d/S90helixscreen start|stop|restart|status
-cat /opt/helixscreen/logs/launcher.log
+/usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen start|stop|restart|status
+cat /opt/config/mod_data/helixscreen/logs/launcher.log
 tail -100 /data/.helixscreen/logs/helix.log    # structured app log
 
 # Klipper Mod
@@ -2265,17 +2266,11 @@ HelixScreen requires ForgeX to be installed first. Install ForgeX following [the
 To go back to GuppyScreen:
 
 ```bash
-# Automated (recommended)
-curl -sSL https://releases.helixscreen.org/install.sh | bash -s -- --uninstall
-
-# Manual
-/etc/init.d/S90helixscreen stop
-rm /etc/init.d/S90helixscreen
-rm -rf /opt/helixscreen
-chmod +x /opt/config/mod/.root/S80guppyscreen
-chmod +x /opt/config/mod/.root/S35tslib
+cp /opt/config/mod_data/helixscreen/install.sh /tmp/install.sh && sh /tmp/install.sh --uninstall
 reboot
 ```
+
+The installer will not uninstall from inside its own folder, so it is copied to `/tmp` first. It puts back the display mode you had, re-enables GuppyScreen and restores Forge-X's backlight control. See [Uninstalling in the Adventurer 5M guide](guide/install-ad5m.md#uninstalling).
 
 ---
 
@@ -2342,16 +2337,16 @@ from the install-dir template on every start. See the note under
 #### Flashforge Adventurer 5M / Forge-X (SysV init)
 
 ```bash
-# Stop the running service
-/etc/init.d/S90helixscreen stop   # or S80helixscreen for Klipper Mod
+# Stop the running service (Klipper Mod: /etc/init.d/S80helixscreen stop)
+/usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen stop
 
-# Run manually with debug output
-cd /opt/helixscreen
+# Run manually with debug output (Klipper Mod: your install folder instead)
+cd /opt/config/mod_data/helixscreen
 ./bin/helix-launcher.sh --debug --log-dest=console 2>&1 | tee /tmp/helix-debug.log
 # Reproduce the issue, then Ctrl+C to stop
 
-# Restart the service normally when done
-/etc/init.d/S90helixscreen start
+# Restart the service normally when done (Klipper Mod: /etc/init.d/S80helixscreen start)
+/usr/sbin/chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen start
 ```
 
 #### After collecting logs
@@ -2407,10 +2402,10 @@ Two streams to collect — both are needed when reporting an issue:
 tail -200 /data/.helixscreen/logs/helix.log
 
 # 2) Launcher / supervisor capture (startup banner, crash output, glibc abort messages)
-#    Forge-X: /opt/helixscreen/logs/launcher.log
+#    Forge-X: /opt/config/mod_data/helixscreen/logs/launcher.log
 #    Klipper Mod: /root/printer_software/helixscreen/logs/launcher.log
 #    pre-v0.99.62 installs: /tmp/helixscreen.log
-tail -200 /opt/helixscreen/logs/launcher.log
+tail -200 /opt/config/mod_data/helixscreen/logs/launcher.log
 
 # Follow the app log live while reproducing the issue
 tail -f /data/.helixscreen/logs/helix.log
@@ -2419,9 +2414,9 @@ tail -f /data/.helixscreen/logs/helix.log
 **Creality K1 / K1C (BusyBox):**
 ```bash
 # Structured app log (on flash, rotated)
-tail -200 /usr/data/.helixscreen/logs/helix.log
+tail -200 /usr/data/helixscreen-state/logs/helix.log
 
-# Launcher / supervisor capture
+# Launcher / supervisor capture (/var/log is in memory on the K1, so it stays here)
 tail -200 /usr/data/helixscreen/logs/launcher.log
 
 # Anything that reached the in-memory syslog before the app log opened
@@ -2459,9 +2454,18 @@ tail -200 /srv/helixscreen/logs/launcher.log
 logread | grep helix-screen | tail -200
 ```
 
-**Snapmaker U1:**
+**Flashforge Creator 5 / Creator 5 Pro (Z-Mod):**
 ```bash
-grep helix-screen /var/log/messages | tail -200
+# One file holds both the app log and the launcher output; Z-Mod's own
+# S80helixscreen writes it. The same path works inside and outside the chroot.
+tail -200 /opt/config/mod_data/log/helixscreen.log
+```
+
+**Snapmaker U1 (PAXX firmware):**
+```bash
+# The system log, kept on the printer's storage and listed in Mainsail and Fluidd
+grep helix-screen /home/lava/printer_data/logs/syslog | tail -200
+# Launcher / crash capture, which survives a restart on the U1
 tail -200 /var/log/helixscreen/launcher.log
 ```
 

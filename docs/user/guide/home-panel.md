@@ -1208,7 +1208,7 @@ You can use your own printer photo or rendering:
 | Platform | Custom images directory |
 |----------|----------------------|
 | MainsailOS (Pi) | `~/helixscreen/config/custom_images/` |
-| AD5M Forge-X | `/opt/helixscreen/config/custom_images/` |
+| AD5M Forge-X | `/opt/config/mod_data/helixscreen/config/custom_images/` |
 | AD5M Klipper Mod | `/root/printer_software/helixscreen/config/custom_images/` |
 | K1 Simple AF | `/usr/data/helixscreen/config/custom_images/` |
 
