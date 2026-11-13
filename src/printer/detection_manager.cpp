@@ -115,6 +115,8 @@ bool DetectionManager::set_bed_check_enabled(bool enabled, std::function<void()>
 
 void DetectionManager::set_detection_enabled(bool enabled) {
     SettingsManager::instance().set_detection_enabled(enabled);
+    // The user has now chosen, so a later connect never adopts the printer's value.
+    SettingsManager::instance().mark_detection_switch_adopted();
     spdlog::info("DetectionManager: detection -> {}", enabled ? "on" : "off");
     for (const auto& src : sources_) {
         if (src && src->available()) {
@@ -136,9 +138,19 @@ void DetectionManager::reconcile_detection_enabled() {
                 if (!printer_on || !raw->available()) {
                     return;
                 }
+                SettingsManager& sm = SettingsManager::instance();
+                // The first read takes the printer's word: a switch turned off
+                // on the printer before HelixScreen followed it stays off.
+                if (!sm.is_detection_switch_adopted()) {
+                    sm.set_detection_enabled(*printer_on);
+                    sm.mark_detection_switch_adopted();
+                    spdlog::info("DetectionManager: adopted '{}' detection {} from the printer",
+                                 raw->id(), *printer_on ? "on" : "off");
+                    return;
+                }
                 // Read now, not when asked: a toggle made while the query was
                 // out has already been sent and must not be undone.
-                const bool wanted = SettingsManager::instance().get_detection_enabled();
+                const bool wanted = sm.get_detection_enabled();
                 if (*printer_on == wanted) {
                     return;
                 }

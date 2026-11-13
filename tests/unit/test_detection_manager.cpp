@@ -422,6 +422,35 @@ TEST_CASE_METHOD(HelixTestFixture, "The detection switch tells a U1 its own nood
               std::vector<std::string>{"DEFECT_DETECTION_CONFIG NOODLE_ENABLE=1"});
     }
 
+    SECTION("the first read adopts the printer's own switch instead of overriding it") {
+        // A U1 whose detection was turned off on the printer before HelixScreen
+        // followed it: the first connect takes the printer's word.
+        client.gcode_script("DEFECT_DETECTION_CONFIG NOODLE_ENABLE=0");
+        REQUIRE(sm.get_detection_enabled());
+        REQUIRE_FALSE(sm.is_detection_switch_adopted());
+        client.clear_gcode_script_history();
+        m.apply_objects_list_for_test(json::array({"defect_detection"}));
+        drain();
+        CHECK(client.gcode_script_history().empty());
+        CHECK_FALSE(sm.get_detection_enabled());
+        CHECK(sm.is_detection_switch_adopted());
+
+        // From then on the setting is the one that counts.
+        sm.set_detection_enabled(true);
+        m.apply_objects_list_for_test(json::array({"defect_detection"}));
+        drain();
+        CHECK(client.gcode_script_history() ==
+              std::vector<std::string>{"DEFECT_DETECTION_CONFIG NOODLE_ENABLE=1"});
+    }
+
+    SECTION("a toggle before any connect counts as the user's choice") {
+        m.set_detection_enabled(false);
+        CHECK(sm.is_detection_switch_adopted());
+    }
+
+    // The sections below run after the one-time adoption.
+    sm.mark_detection_switch_adopted();
+
     SECTION("connect with the printer already matching sends nothing") {
         // The mock printer reports noodle.enable true, as the stock firmware does.
         REQUIRE(sm.get_detection_enabled());

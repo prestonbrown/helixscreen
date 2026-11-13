@@ -827,6 +827,16 @@ class SettingsManager {
     void mark_detection_seeded();
 
     /**
+     * @brief Whether the printer's own detection switch has been read into the
+     *        setting once. Until then the first read adopts the printer's value
+     *        instead of overriding it; afterwards the setting drives the printer.
+     */
+    bool is_detection_switch_adopted() const;
+
+    /** @brief Mark the printer's detection switch as adopted (one-time) */
+    void mark_detection_switch_adopted();
+
+    /**
      * @brief Get per-source policy for the Snapmaker U1 built-in detector
      *        0=Off, 1=NotifyOnly, 2=DeferToSource (default)
      */

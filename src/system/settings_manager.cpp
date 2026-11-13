@@ -667,6 +667,16 @@ void SettingsManager::mark_detection_seeded() {
     config->save();
 }
 
+bool SettingsManager::is_detection_switch_adopted() const {
+    return Config::get_instance()->get<bool>("/detection/switch_adopted", false);
+}
+
+void SettingsManager::mark_detection_switch_adopted() {
+    Config* config = Config::get_instance();
+    config->set<bool>("/detection/switch_adopted", true);
+    config->save();
+}
+
 // ============================================================================
 // Chamber Assignment
 // ============================================================================
