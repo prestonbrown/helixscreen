@@ -265,6 +265,10 @@ class FilamentPanel : public PanelBase {
     const char* get_name() const override {
         return "Filament Panel";
     }
+
+    /// Publishes filament_on_page, which filament_panel.xml binds to tighten its
+    /// spacing on a home full page.
+    void on_lent_to_page(bool on_page) override;
     const char* get_xml_component_name() const override {
         return "filament_panel";
     }
@@ -423,6 +427,8 @@ class FilamentPanel : public PanelBase {
     // strip button stands in for it). C++ decides via fit_portrait_graph();
     // the XML bindings on the card, its container and btn_temp_graph draw it.
     lv_subject_t graph_spacer_subject_{};
+    /// 1 while the tree is lent to a home full page (on_lent_to_page()).
+    lv_subject_t on_page_subject_{};
 
     // Extrude length button active subjects (boolean: 0=inactive, 1=active)
     // Using separate subjects because bind_style doesn't work with multiple ref_values

@@ -1047,6 +1047,7 @@ translations:
   Load all stopped: Laden gestoppt
   "Load and unload": "Laden und Entladen"
   Load stopped: Laden gestoppt
+  "Load, unload, purge, and extrude filament": "Filament laden, entladen, spülen und extrudieren"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Hier laden, entladen und entlüften. Wählen Sie zuerst ein Material, um seine Temperaturen einzustellen."
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Spulen laden, entladen und wechseln, Temperaturen einstellen und Filamentsensoren überwachen."
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "Lange auf eine Kachel drücken, um in den Bearbeitungsmodus zu wechseln. Im neuen Raster können Sie Widgets anordnen, skalieren, entfernen, hinzufügen und zwischen Seiten ziehen."
@@ -1686,6 +1687,7 @@ translations:
   Filament Mapping is unavailable: Filament-Zuordnung ist nicht verfügbar
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: Filament-Zuordnung wird von diesem Drucker nicht unterstützt, daher verwendet der Druck die am Drucker zugewiesenen Werkzeuge
   Filament Runout: Filament aufgebraucht
+  Filament Operations: Filament-Operationen
   Filament Sensor: Filamentsensor
   Filament Sensors: 'Filamentsensoren'
   Filament System Error: Filamentsystemfehler

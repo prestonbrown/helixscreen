@@ -260,6 +260,7 @@ void NavigationManager::handle_active_panel_change(int32_t new_active_panel) {
     // Deferred bring-up for writes to active_panel that bypass set_active() and
     // switch_to_panel_impl(). No-op on desktop and for already-built panels.
     panels_.ensure_built(new_active_panel);
+    panels_.reclaim(new_active_panel);
     panels_.show_only(new_active_panel);
 }
 
@@ -459,6 +460,8 @@ void NavigationManager::switch_to_panel_impl(int panel_id) {
     // and for already-built panels. The builder paints a loading state before
     // the blocking create; see PanelFactory::build_deferred_panel.
     panels_.ensure_built(panel_id);
+    // A home full page showing this panel's tree gives it back before it is shown.
+    panels_.reclaim(panel_id);
     SwitchTrace::mark("build");
 
     // L081 Mech D defense: cancel in-flight pointer input before panel switch.
@@ -638,6 +641,8 @@ void NavigationManager::set_active(PanelId panel_id) {
     // A deferred panel must exist before the stack update and on_activate()
     // below: activation is what starts its data (PrintSelectPanel's file list).
     panels_.ensure_built(static_cast<int>(panel_id));
+    // A home full page showing this panel's tree gives it back before it is shown.
+    panels_.reclaim(static_cast<int>(panel_id));
     SwitchTrace::mark("build");
 
     // A panel built for an earlier layout is rebuilt while still hidden and
@@ -810,6 +815,30 @@ void NavigationManager::set_deferred_panel_builder(std::function<void(int)> buil
 
 lv_obj_t* NavigationManager::get_panel_widget(helix::PanelId id) const {
     return panels_.widget(static_cast<int>(id));
+}
+
+bool NavigationManager::lend_panel(helix::PanelId id, lv_obj_t* container) {
+    const int idx = static_cast<int>(id);
+    if (id == active_panel_ || idx < 0 || idx >= kUiPanelCount) {
+        return false;
+    }
+    panels_.ensure_built(idx);
+    if (!panels_.lend(idx, container)) {
+        return false;
+    }
+    spdlog::debug("[NavigationManager] Panel {} lent to a page host", panel_id_to_name(id));
+    return true;
+}
+
+void NavigationManager::reclaim_panel(helix::PanelId id) {
+    if (panels_.reclaim(static_cast<int>(id))) {
+        spdlog::debug("[NavigationManager] Panel {} reclaimed from its page host",
+                      panel_id_to_name(id));
+    }
+}
+
+lv_obj_t* NavigationManager::panel_lent_to(helix::PanelId id) const {
+    return panels_.lent_to(static_cast<int>(id));
 }
 
 void NavigationManager::rekey_overlay_widget(lv_obj_t* old_widget, lv_obj_t* new_widget) {

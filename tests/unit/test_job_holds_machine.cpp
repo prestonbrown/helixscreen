@@ -456,6 +456,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/panel_widget_filament.xml",
     "ui_xml/components/panel_widget_exclude_map.xml",
     "ui_xml/components/panel_widget_filament_buffer.xml",
+    "ui_xml/components/panel_widget_filament_ops.xml",
     "ui_xml/components/panel_widget_firmware_restart.xml",
     "ui_xml/components/panel_widget_gcode_console.xml",
     "ui_xml/components/panel_widget_host_health.xml",

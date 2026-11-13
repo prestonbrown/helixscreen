@@ -1530,6 +1530,7 @@
   <translation tag="Filament Mapping is not available on this device." zh="此设备不支持耗材映射。"/>
   <translation tag="Filament Mapping is unavailable" zh="耗材映射不可用"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" zh="此打印机不支持耗材映射，因此打印将使用打印机上分配的工具"/>
+  <translation tag="Filament Operations" zh="耗材操作"/>
   <translation tag="Filament Runout" zh="耗材用尽"/>
   <translation tag="Filament Sensor" zh="耗材传感器"/>
   <translation tag="Filament Sensors" zh="耗材传感器"/>
@@ -2154,6 +2155,7 @@
   <translation tag="Load the required filaments or start anyway?" zh="加载所需耗材还是直接开始？"/>
   <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." zh="在此加载、卸载和排料。先选择材料以设置其温度。"/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." zh="加载、卸载和更换料盘，设置温度，并监控耗材传感器。"/>
+  <translation tag="Load, unload, purge, and extrude filament" zh="装载、卸载、清洗和挤出耗材"/>
   <translation tag="Load..." zh="加载..."/>
   <translation tag="Loaded" zh="已加载"/>
   <translation tag="Loading" zh="加载中"/>

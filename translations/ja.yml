@@ -977,6 +977,7 @@ translations:
   Load all stopped: 'すべてのロードを停止しました'
   "Load and unload": "装填と排出"
   Load stopped: 'ロードを停止しました'
+  "Load, unload, purge, and extrude filament": "フィラメントのロード、アンロード、パージ、押し出し"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "ここで装填、排出、パージを行います。先に材料を選ぶと温度が設定されます。"
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "スプールの装填、排出、交換、温度の設定、フィラメントセンサーの監視ができます。"
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "タイルを長押しすると編集モードになります。新しいグリッドでは、ウィジェットの並べ替え、サイズ変更、削除、追加、ページ間のドラッグができます。"
@@ -1592,6 +1593,7 @@ translations:
   Filament Mapping is unavailable: フィラメントマッピングは利用できません
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: このプリンターはフィラメントマッピングに対応していないため、プリンターで割り当てられたツールで印刷します
   Filament Runout: フィラメント切れ
+  Filament Operations: フィラメント操作
   Filament Sensor: フィラメントセンサー
   Filament Sensors: 'フィラメントセンサー'
   Filament System Error: フィラメントシステムエラー

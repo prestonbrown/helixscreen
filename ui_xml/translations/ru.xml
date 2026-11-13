@@ -1575,6 +1575,7 @@
   <translation tag="Filament Mapping is not available on this device." ru="Сопоставление филамента недоступно на этом устройстве."/>
   <translation tag="Filament Mapping is unavailable" ru="Сопоставление филамента недоступно"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" ru="Этот принтер не поддерживает сопоставление филамента, поэтому печать использует инструменты, назначенные на принтере"/>
+  <translation tag="Filament Operations" ru="Операции с филаментом"/>
   <translation tag="Filament Runout" ru="Окончание филамента"/>
   <translation tag="Filament Sensor" ru="Датчик филамента"/>
   <translation tag="Filament Sensors" ru="Датчики филамента"/>
@@ -2202,6 +2203,7 @@
   <translation tag="Load the required filaments or start anyway?" ru="Загрузить нужные филаменты или начать без них?"/>
   <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." ru="Здесь можно загрузить, выгрузить и продуть филамент. Сначала выберите материал, чтобы задать его температуру."/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." ru="Загружайте, выгружайте и меняйте катушки, задавайте температуру и следите за датчиками филамента."/>
+  <translation tag="Load, unload, purge, and extrude filament" ru="Загрузка, выгрузка, прочистка и экструзия филамента"/>
   <translation tag="Load..." ru="Загрузить..."/>
   <translation tag="Loaded" ru="Загружен"/>
   <translation tag="Loading" ru="Загрузка"/>

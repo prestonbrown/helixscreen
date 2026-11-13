@@ -975,6 +975,7 @@ translations:
   Load all stopped: '全部装载已停止'
   "Load and unload": "加载和卸载"
   Load stopped: '装载已停止'
+  "Load, unload, purge, and extrude filament": "装载、卸载、清洗和挤出耗材"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "在此加载、卸载和排料。先选择材料以设置其温度。"
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "加载、卸载和更换料盘，设置温度，并监控耗材传感器。"
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "长按任意磁贴进入编辑模式。全新的网格可让您重新排列、调整大小、移除或添加小部件，并在页面之间拖动。"
@@ -1588,6 +1589,7 @@ translations:
   Filament Mapping is unavailable: 耗材映射不可用
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: 此打印机不支持耗材映射，因此打印将使用打印机上分配的工具
   Filament Runout: 耗材用尽
+  Filament Operations: 耗材操作
   Filament Sensor: 耗材传感器
   Filament Sensors: '耗材传感器'
   Filament System Error: 耗材系统错误

@@ -1530,6 +1530,7 @@
   <translation tag="Filament Mapping is not available on this device." de="Die Filament-Zuordnung ist auf diesem Gerät nicht verfügbar."/>
   <translation tag="Filament Mapping is unavailable" de="Filament-Zuordnung ist nicht verfügbar"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" de="Filament-Zuordnung wird von diesem Drucker nicht unterstützt, daher verwendet der Druck die am Drucker zugewiesenen Werkzeuge"/>
+  <translation tag="Filament Operations" de="Filament-Operationen"/>
   <translation tag="Filament Runout" de="Filament aufgebraucht"/>
   <translation tag="Filament Sensor" de="Filamentsensor"/>
   <translation tag="Filament Sensors" de="Filamentsensoren"/>
@@ -2154,6 +2155,7 @@
   <translation tag="Load the required filaments or start anyway?" de="Benötigte Filamente laden oder trotzdem starten?"/>
   <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." de="Hier laden, entladen und entlüften. Wählen Sie zuerst ein Material, um seine Temperaturen einzustellen."/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." de="Spulen laden, entladen und wechseln, Temperaturen einstellen und Filamentsensoren überwachen."/>
+  <translation tag="Load, unload, purge, and extrude filament" de="Filament laden, entladen, spülen und extrudieren"/>
   <translation tag="Load..." de="Laden..."/>
   <translation tag="Loaded" de="Geladen"/>
   <translation tag="Loading" de="Laden"/>

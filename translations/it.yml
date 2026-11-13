@@ -1039,6 +1039,7 @@ translations:
   Load all stopped: Caricamento di tutti interrotto
   "Load and unload": "Carica e scarica"
   Load stopped: Caricamento interrotto
+  "Load, unload, purge, and extrude filament": "Carica, scarica, spurga ed estrudi il filamento"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Carica, scarica e spurga da qui. Scegli prima un materiale per impostarne le temperature."
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Carica, scarica e cambia bobine, imposta le temperature e controlla i sensori del filamento."
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "Tieni premuto un riquadro per entrare in modalità modifica. La nuova griglia ti permette di riordinare, ridimensionare, rimuovere o aggiungere widget e trascinarli tra le pagine."
@@ -1674,6 +1675,7 @@ translations:
   Filament Mapping is unavailable: La mappatura filamento non è disponibile
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: Questa stampante non supporta la mappatura filamento, quindi la stampa usa gli strumenti assegnati sulla stampante
   Filament Runout: Esaurimento filamento
+  Filament Operations: Operazioni filamento
   Filament Sensor: Sensore filamento
   Filament Sensors: 'Sensori filamento'
   Filament System Error: Errore del sistema filamento

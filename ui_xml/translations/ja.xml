@@ -1530,6 +1530,7 @@
   <translation tag="Filament Mapping is not available on this device." ja="このデバイスではフィラメントマッピングを利用できません。"/>
   <translation tag="Filament Mapping is unavailable" ja="フィラメントマッピングは利用できません"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" ja="このプリンターはフィラメントマッピングに対応していないため、プリンターで割り当てられたツールで印刷します"/>
+  <translation tag="Filament Operations" ja="フィラメント操作"/>
   <translation tag="Filament Runout" ja="フィラメント切れ"/>
   <translation tag="Filament Sensor" ja="フィラメントセンサー"/>
   <translation tag="Filament Sensors" ja="フィラメントセンサー"/>
@@ -2154,6 +2155,7 @@
   <translation tag="Load the required filaments or start anyway?" ja="必要なフィラメントを装填しますか？それともこのまま開始しますか？"/>
   <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." ja="ここで装填、排出、パージを行います。先に材料を選ぶと温度が設定されます。"/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." ja="スプールの装填、排出、交換、温度の設定、フィラメントセンサーの監視ができます。"/>
+  <translation tag="Load, unload, purge, and extrude filament" ja="フィラメントのロード、アンロード、パージ、押し出し"/>
   <translation tag="Load..." ja="装填..."/>
   <translation tag="Loaded" ja="装填済み"/>
   <translation tag="Loading" ja="ロード中"/>

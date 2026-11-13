@@ -403,6 +403,7 @@ void FilamentPanel::init_subjects() {
         // Portrait graph spacer state; 1 = the graph card draws nothing and the
         // strip button replaces it. The XML bindings consume this.
         UI_MANAGED_SUBJECT_INT(graph_spacer_subject_, 0, "filament_graph_spacer", subjects_);
+        UI_MANAGED_SUBJECT_INT(on_page_subject_, 0, "filament_on_page", subjects_);
 
         // Extrude length button active states (boolean: 0=inactive, 1=active)
         // Using separate subjects because bind_style doesn't work well with multiple ref_values
@@ -590,6 +591,12 @@ void FilamentPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // AMS mini status widget is now created declaratively via XML <ams_mini_status/>
 
     spdlog::debug("[{}] Setup complete!", get_name());
+}
+
+void FilamentPanel::on_lent_to_page(bool on_page) {
+    if (subjects_initialized_) {
+        lv_subject_set_int(&on_page_subject_, on_page ? 1 : 0);
+    }
 }
 
 void FilamentPanel::bind_widgets() {

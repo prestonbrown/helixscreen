@@ -1530,6 +1530,7 @@
   <translation tag="Filament Mapping is not available on this device." en="Filament Mapping is not available on this device."/>
   <translation tag="Filament Mapping is unavailable" en="Filament Mapping is unavailable"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" en="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer"/>
+  <translation tag="Filament Operations" en="Filament Operations"/>
   <translation tag="Filament Runout" en="Filament Runout"/>
   <translation tag="Filament Sensor" en="Filament Sensor"/>
   <translation tag="Filament Sensors" en="Filament Sensors"/>
@@ -2154,6 +2155,7 @@
   <translation tag="Load the required filaments or start anyway?" en="Load the required filaments or start anyway?"/>
   <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." en="Load, unload, and purge from here. Choose a material to set its temperatures first."/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." en="Load, unload, and swap spools, set temperatures, and monitor runout sensors."/>
+  <translation tag="Load, unload, purge, and extrude filament" en="Load, unload, purge, and extrude filament"/>
   <translation tag="Load..." en="Load..."/>
   <translation tag="Loaded" en="Loaded"/>
   <translation tag="Loading" en="Loading"/>

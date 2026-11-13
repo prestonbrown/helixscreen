@@ -178,3 +178,40 @@ bool PanelBase::rebuild() {
     }
     return true;
 }
+
+// ============================================================================
+// FULL PAGE
+// ============================================================================
+
+bool PanelBase::embed(lv_obj_t* container) {
+    auto& nav = NavigationManager::instance();
+    const auto id = nav.find_panel_id(this);
+    if (id == helix::PanelId::Count || !nav.lend_panel(id, container)) {
+        spdlog::debug("[{}] embed refused", get_name());
+        return false;
+    }
+    on_activate();
+    return true;
+}
+
+void PanelBase::release_embed() {
+    if (!embedded_root()) {
+        return;
+    }
+    auto& nav = NavigationManager::instance();
+    on_deactivate(DeactivateReason::NavigateAway);
+    nav.reclaim_panel(nav.find_panel_id(this));
+}
+
+lv_obj_t* PanelBase::embedded_root() const {
+    auto& nav = NavigationManager::instance();
+    const auto id = nav.find_panel_id(this);
+    if (id == helix::PanelId::Count || !nav.panel_lent_to(id)) {
+        return nullptr;
+    }
+    return nav.get_panel_widget(id);
+}
+
+void PanelBase::host_deleting() {
+    release_embed();
+}
