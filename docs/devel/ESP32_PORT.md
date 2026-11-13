@@ -196,7 +196,23 @@ with its token: the offset of its stringized text in the ELF's `.helix_logfmt` s
 never loaded (`components/helixnet/helix_logfmt.ld`). Every call reaches one out-of-line emitter
 (`shim/log_token_esp.cpp`) with the arguments type-erased by fmt, and the format string itself is never
 referenced, so it never reaches flash. A call whose format is not a plain literal, or whose arguments include
-a type with its own `fmt::formatter`, prints text as before. `debug`/`trace` are not tokenized.
+a type with its own `fmt::formatter`, prints text as before. `debug`/`trace` are not tokenized. Measured on
+the K-Touch image (#1915): 178,368 bytes smaller than the same tree with `CONFIG_HELIX_LOG_TOKENIZE=n`
+(`.flash.rodata` -199,120, `.flash.text` +20,756).
+
+A record is `$` + base64 without padding of: one level byte (spdlog numbering, `0x80` set when an argument
+was cut or dropped), the token as unsigned LEB128, then per argument a tag byte and its payload: signed
+integer as zigzag LEB128, unsigned and pointer as LEB128, double as 8 and float as 4 little-endian bytes,
+bool and char as one byte, string as LEB128 length plus bytes (a separate tag when cut to fit), and a bare
+tag for a value the encoder cannot carry. `shim/log_token.h` holds the tags; `scripts/detokenize_log.py` is
+the only decoder. Changing the format means changing both, and the shared fixture
+(`tests/fixtures/logtok/corpus.json`) fails the C++ and Python tests until they agree.
+
+Why macros: a C++17 function cannot see its format literal as a constant, so hashing it at compile time
+is out, and tokens from `__builtin_FILE`/`__builtin_LINE` would need the strings parsed back out of the
+source. Two GCC behaviours shape the token macro: one section name shared by statics in inline and ordinary
+functions is a "section type conflict", so each site gets `.helix_logfmt.<__COUNTER__>`; and under LTO an
+inline function's static loses its section and lands in `.rodata` unless it is marked `used`.
 
 Because those four names are macros there, a firmware-compiled declaration of any other function named
 `info`, `warn`, `error` or `critical` with parameters must parenthesize its name (`static HardwareIssue
