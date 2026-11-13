@@ -21,9 +21,13 @@ bool opencreator_auto_start(const json& settings) {
     return value && value->is_boolean() && value->get<bool>();
 }
 
-/// A gcode_macro variable Klipper hands back as the text it was configured
-/// with, read as Jinja would: 0 and False are off.
+/// A gcode_macro variable as configfile.settings carries it: the text it was
+/// configured with, which Klipper reads as a Python literal. Off is every
+/// spelling of a falsy literal: a zero number, False, None, an empty string.
 bool macro_variable_is_off(const json& value) {
+    if (value.is_null()) {
+        return true;
+    }
     if (value.is_boolean()) {
         return !value.get<bool>();
     }
@@ -34,14 +38,19 @@ bool macro_variable_is_off(const json& value) {
         return false;
     }
     const std::string text = text_io::to_lower(text_io::trim(value.get_ref<const std::string&>()));
-    return text == "0" || text == "false";
+    if (text.empty() || text == "false" || text == "none" || text == "''" || text == "\"\"") {
+        return true;
+    }
+    const auto number = text_io::parse_double(text);
+    return number && *number == 0.0;
 }
 
 /// Reforge's `[ff_print]` (FlashForge Creator 5): it wraps SDCARD_PRINT_FILE
 /// and M23 and runs its before_macro (FF_BEFORE_PRINT_START unless set) ahead
 /// of the file. The shipped macro runs START_PRINT only while its
 /// variable_prepare is on; off, the slicer profile calls START_PRINT from the
-/// file and the position leaves 0 before the start sequence does.
+/// file and the position leaves 0 before the start sequence does. A
+/// before_macro whose body configfile does not carry runs nothing known.
 bool reforge_ff_print(const json& settings) {
     const json* section = json_util::find_member(settings, "ff_print");
     if (section == nullptr) {
@@ -52,8 +61,11 @@ bool reforge_ff_print(const json& settings) {
     const std::string body_name =
         "gcode_macro " + text_io::to_lower(macro.empty() ? "FF_BEFORE_PRINT_START" : macro);
     const json* body = json_util::find_member(settings, body_name.c_str());
-    const json* prepare = body ? json_util::find_member(*body, "variable_prepare") : nullptr;
-    return !(prepare && macro_variable_is_off(*prepare));
+    if (body == nullptr) {
+        return false;
+    }
+    const json* prepare = json_util::find_member(*body, "variable_prepare");
+    return prepare == nullptr || !macro_variable_is_off(*prepare);
 }
 
 using InjectionRow = bool (*)(const json& configfile_settings);

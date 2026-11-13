@@ -50,25 +50,36 @@ TEST_CASE("Reforge's ff_print runs its before-macro ahead of the file",
         return json{{"variable_prepare", value}, {"variable_prepare_on_m23", "0"}};
     };
 
-    SECTION("the section alone, as shipped") {
-        CHECK(helix::firmware_runs_start_macro_before_file(json{{"ff_print", ff_print}}));
-    }
     SECTION("the shipped macro with prepare on") {
         CHECK(helix::firmware_runs_start_macro_before_file(
             json{{"ff_print", ff_print}, {"gcode_macro ff_before_print_start", prepare("1")}}));
+        CHECK(helix::firmware_runs_start_macro_before_file(
+            json{{"ff_print", ff_print}, {"gcode_macro ff_before_print_start", prepare("True")}}));
     }
-    SECTION("prepare off: the slicer profile calls START_PRINT from the file") {
+    SECTION("a before_macro without a prepare variable prepares") {
+        CHECK(helix::firmware_runs_start_macro_before_file(
+            json{{"ff_print", ff_print},
+                 {"gcode_macro ff_before_print_start", {{"gcode", "START_PRINT"}}}}));
+    }
+    SECTION("no body for the before_macro: nothing is known to run before the file") {
+        CHECK_FALSE(helix::firmware_runs_start_macro_before_file(json{{"ff_print", ff_print}}));
         CHECK_FALSE(helix::firmware_runs_start_macro_before_file(
-            json{{"ff_print", ff_print}, {"gcode_macro ff_before_print_start", prepare("0")}}));
-        CHECK_FALSE(helix::firmware_runs_start_macro_before_file(
-            json{{"ff_print", ff_print}, {"gcode_macro ff_before_print_start", prepare("False")}}));
+            json{{"ff_print", {{"before_macro", "MY_PREP"}}},
+                 {"gcode_macro ff_before_print_start", prepare("1")}}));
+    }
+    SECTION("prepare off, in any spelling Klipper reads as false") {
+        for (const char* off : {"0", "False", "0.0", "None", " 0 ", "''", "\"\""}) {
+            INFO(off);
+            CHECK_FALSE(helix::firmware_runs_start_macro_before_file(
+                json{{"ff_print", ff_print}, {"gcode_macro ff_before_print_start", prepare(off)}}));
+        }
     }
     SECTION("a before_macro of the user's own is the one whose prepare counts") {
         const json own = {{"before_macro", "MY_PREP"}};
         CHECK_FALSE(helix::firmware_runs_start_macro_before_file(
             json{{"ff_print", own}, {"gcode_macro my_prep", prepare("0")}}));
         CHECK(helix::firmware_runs_start_macro_before_file(
-            json{{"ff_print", own}, {"gcode_macro ff_before_print_start", prepare("0")}}));
+            json{{"ff_print", own}, {"gcode_macro my_prep", prepare("1")}}));
     }
     SECTION("a gcode_macro of that name without ff_print says nothing") {
         CHECK_FALSE(helix::firmware_runs_start_macro_before_file(
