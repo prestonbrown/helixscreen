@@ -1575,6 +1575,7 @@
   <translation tag="Filament Mapping is not available on this device." ru="Сопоставление филамента недоступно на этом устройстве."/>
   <translation tag="Filament Mapping is unavailable" ru="Сопоставление филамента недоступно"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" ru="Этот принтер не поддерживает сопоставление филамента, поэтому печать использует инструменты, назначенные на принтере"/>
+  <translation tag="Filament Operations" ru="Операции с филаментом"/>
   <translation tag="Filament Runout" ru="Окончание филамента"/>
   <translation tag="Filament Sensor" ru="Датчик филамента"/>
   <translation tag="Filament Sensors" ru="Датчики филамента"/>
@@ -2202,6 +2203,7 @@
   <translation tag="Load the required filaments or start anyway?" ru="Загрузить нужные филаменты или начать без них?"/>
   <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." ru="Здесь можно загрузить, выгрузить и продуть филамент. Сначала выберите материал, чтобы задать его температуру."/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." ru="Загружайте, выгружайте и меняйте катушки, задавайте температуру и следите за датчиками филамента."/>
+  <translation tag="Load, unload, purge, and extrude filament" ru="Загрузка, выгрузка, прочистка и экструзия филамента"/>
   <translation tag="Load..." ru="Загрузить..."/>
   <translation tag="Loaded" ru="Загружен"/>
   <translation tag="Loading" ru="Загрузка"/>
@@ -2424,6 +2426,7 @@
   <translation tag="Mount tool" ru="Установить инструмент"/>
   <translation tag="Mount which tool?" ru="Какой инструмент установить?"/>
   <translation tag="Mount..." ru="Установить..."/>
+  <translation tag="Mounted: {}" ru="Установлен: {}"/>
   <translation tag="Move" ru="Двигать"/>
   <translation tag="Move here" ru="Переместить сюда"/>
   <translation tag="Move out of range" ru="Движение за пределами диапазона"/>
@@ -2599,6 +2602,7 @@
   <translation tag="No timelapse videos found" ru="Таймлапс-видео не найдены"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" ru="Неизвестно, какой инструмент установлен. С общим датчиком калибруйте с {}. Всё равно продолжить?"/>
   <translation tag="No tool is mounted" ru="Инструмент не установлен"/>
+  <translation tag="No tool mounted" ru="Инструмент не установлен"/>
   <translation tag="No tool on the head" ru="На печатающей головке нет инструмента"/>
   <translation tag="No tools to calibrate" ru="Нет инструментов для калибровки"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" ru="Без поворота: разница сдвинулась на {:.1f} Гц"/>
@@ -2847,9 +2851,11 @@
   <translation tag="Pick Color" ru="Выбрать цвет"/>
   <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." ru="Выберите, как будет вести себя HelixScreen. Всё это можно изменить позже в Настройках."/>
   <translation tag="Pick the best band" ru="Выберите лучшую полосу"/>
+  <translation tag="Pick up" ru="Установить"/>
   <translation tag="Pick up and park each tool in turn" ru="Взять и поставить на место каждый инструмент по очереди"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" ru="Возьмите инструмент, нагрейте его и вытяните филамент"/>
   <translation tag="Pick up tool" ru="Забрать инструмент"/>
+  <translation tag="Pick-up step cancelled; nothing was sent" ru="Шаг после установки отменён; ничего не отправлено"/>
   <translation tag="Picking up tool" ru="Захват инструмента"/>
   <translation tag="Pill" ru="Овал"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" ru="Пикселей до того, как нажатие станет прокруткой (меньше = прокрутка начинается раньше)"/>
@@ -4894,6 +4900,7 @@
   <translation tag="{} d" ru="{} д"/>
   <translation tag="{} days" ru="{} дн."/>
   <translation tag="{} detected" ru="{}: обнаружено"/>
+  <translation tag="{} did not arrive; nothing was sent" ru="{} не прибыл; ничего не отправлено"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." ru="{}: филамент не загрузился. Перед продолжением проверьте, что хотэнд установлен правильно, и выполните пробную экструзию."/>
   <translation tag="{} disabled" ru="{} выключено"/>
   <translation tag="{} disconnected" ru="{}: отключено"/>

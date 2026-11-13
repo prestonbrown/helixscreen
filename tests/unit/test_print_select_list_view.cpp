@@ -1,9 +1,11 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_format_utils.h"
 #include "ui_print_select_list_view.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "display_settings_manager.h"
 #include "lvgl/src/display/lv_display_private.h" // inv_areas
 #include "lvgl/src/misc/lv_area_private.h"       // lv_area_is_in
 #include "print_file_data.h"
@@ -62,6 +64,36 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     view.populate(make_files("2h 20m"), false);
     process_lvgl(50);
     REQUIRE(visible_print_times(container) == "2h 20m;2h 20m;2h 20m;");
+}
+
+// Listing entries are built off the main thread and carry no date text: the row
+// formats modified_timestamp in the time format live when it is drawn.
+TEST_CASE_METHOD(LVGLUITestFixture, "PrintSelectListView - a row's date follows the time format",
+                 "[print_select_list_view][ui_integration]") {
+    auto& display = helix::DisplaySettingsManager::instance();
+    const helix::TimeFormat saved_format = display.get_time_format();
+    PrintSelectListView view;
+    lv_obj_t* container = lv_obj_create(test_screen());
+    lv_obj_set_size(container, 600, 400);
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
+    view.setup(container, nullptr, nullptr);
+    auto files = make_files("1h");
+    files[0].modified_timestamp = 1733063400;
+    auto row_date = [&]() {
+        return std::string(lv_label_get_text(lv_obj_find_by_name(container, "row_modified")));
+    };
+
+    display.set_time_format(helix::TimeFormat::HOUR_12);
+    view.populate(files, false);
+    const std::string twelve_hour = row_date();
+    display.set_time_format(helix::TimeFormat::HOUR_24);
+    view.refresh_content(files);
+    const std::string twenty_four_hour = row_date();
+    const std::string expected = format_modified_date(1733063400);
+    display.set_time_format(saved_format);
+
+    CHECK(twelve_hour != twenty_four_hour);
+    CHECK(twenty_four_hour == expected);
 }
 
 TEST_CASE_METHOD(

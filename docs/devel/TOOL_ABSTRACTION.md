@@ -383,7 +383,7 @@ Every surface that mounts another tool on a tap asks one function, so a tap refu
 is refused on all of them with the same words: the home tool switcher
 (`src/ui/panel_widgets/tool_switcher_widget.cpp#handle_tool_selected`), a toolhead on the
 AMS panel's PARALLEL path (`src/ui/filament/ui_panel_ams.cpp#on_path_toolhead_clicked`) and the
-filament panel's extruder dropdown (`src/ui/filament/ui_panel_filament.cpp#handle_extruder_changed`).
+filament panel's Pick up button (`src/ui/filament/ui_panel_filament.cpp#with_target_mounted`).
 
 - **The decision** is the pure `decide_tool_change()` (`include/tool_change_request.h`) over
   `ToolChangeInputs`, which `tool_change_inputs()` reads from live state. In order: the
@@ -404,7 +404,6 @@ filament panel's extruder dropdown (`src/ui/filament/ui_panel_filament.cpp#handl
   offered again once the dialog has closed, so the user answers the paused warning. `ToolChangeHooks` reports back: `on_success`,
   `on_failed` (after the shared "Tool change failed" toast, possibly off the main thread),
   and `on_declined` for every path that requested nothing, a dialog dismissal included.
-  The filament panel uses `on_declined` to put its dropdown back on the mounted tool.
   `owner_token` gates the dialog's callbacks, and `resolve_api` is asked when the change is
   sent, so a dialog left open across a reconnect never holds a stale API.
 - **The setting** is `SafetySettingsManager::get_tool_change_require_confirmation()`
@@ -414,6 +413,37 @@ filament panel's extruder dropdown (`src/ui/filament/ui_panel_filament.cpp#handl
 - **Labels.** The confirmation names the tool with `active_tool_label()`
   (`include/display_numbering.h`), the same text the switcher and dropdown show
   ("Toolhead 2 (T1)" on a U1).
+
+### The Target Tool (Filament panel, Controls nozzle row, temperature overlay)
+
+A surface that heats, loads or extrudes aims at a **target tool**, which need not be the
+mounted one: a toolchanger owner heats or loads a docked tool without picking it up.
+`TargetToolSelection` (`include/target_tool_selection.h`) is the one rule, one instance per
+surface: a tool change anywhere moves the target to the mounted tool; an empty carriage
+keeps the user's pick; reopening the surface never resets it; a pick past a shrunk tool
+list falls back to T0. The temperature overlay keeps its own `picked_extruder_` under the
+same rule (`src/ui/controls/ui_overlay_temp_graph.cpp#watch_extruder_version`).
+
+- **Selecting never moves the machine.** The Filament panel's dropdown only picks. Its
+  Pick up / Park button (`decide_target_tool_action()`) does the change; Park only where
+  `supports_tool_park()`.
+- **Mounted means tool index**, never extruder name: after a park Klipper still names the
+  last tool's extruder active. With one head the target is always mounted.
+- **Temperatures follow the target.** `TargetNozzleObservers`
+  (`include/target_nozzle_observers.h`) watches the mounted tool through the
+  active-extruder mirror and a docked one through its own extruder's subjects. Sends name a
+  docked tool's extruder (`set_target(name)`) and the mounted one by `HeaterType::Nozzle`;
+  both reach the same nozzle guards. A preset aimed at a docked tool skips a configured
+  heating macro, which heats the mounted tool. The Filament panel's mini graph charts the
+  target through `TemperatureService::set_mini_graph_extruder()`, leaving the shared
+  active extruder alone.
+- **Moves that need the carriage pick up first.** Extrude, Retract and Purge (and Load and
+  Unload with no filament system, whose macros feed the mounted extruder) call
+  `with_target_mounted()`: `offer_tool_change()`, then `ToolArrivalWait` until ToolState
+  reports the tool, then the handler runs again and re-checks. The wait drops its step on a
+  timeout (`kToolArrivalTimeoutMs`), another tool settling on the carriage, the panel
+  leaving the screen, Klipper leaving READY or a filament-system error. A `G1 E` never
+  reaches the previous nozzle.
 
 ---
 

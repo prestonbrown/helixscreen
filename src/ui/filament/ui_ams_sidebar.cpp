@@ -46,6 +46,7 @@
 #include "subject_managed_panel.h"
 #include "temperature_controller.h"
 #include "tool_change_request.h"
+#include "tool_state.h"
 #include "toolhead_homing.h"
 #include "ui/ui_cleanup_helpers.h"
 
@@ -227,6 +228,9 @@ HELIX_PSRAM_BSS lv_subject_t s_cancel_shown{};
 HELIX_PSRAM_BSS lv_subject_t s_check_gates_shown{};
 /// 1 while an operation's step bar is shown.
 HELIX_PSRAM_BSS lv_subject_t s_stepper_shown{};
+HELIX_PSRAM_BSS lv_subject_t s_mounted_shown{};
+HELIX_PSRAM_BSS lv_subject_t s_mounted_text{};
+HELIX_PSRAM_BSS char s_mounted_text_buf[64];
 bool s_gating_subjects_initialized = false;
 SubjectManager s_subjects;
 
@@ -260,6 +264,8 @@ void reset_button_gating_subjects() {
     lv_subject_set_int(&s_cancel_shown, 0);
     lv_subject_set_int(&s_check_gates_shown, 0);
     lv_subject_set_int(&s_stepper_shown, 0);
+    lv_subject_set_int(&s_mounted_shown, 0);
+    lv_subject_copy_string(&s_mounted_text, "");
 }
 
 void init_button_gating_subjects() {
@@ -270,11 +276,13 @@ void init_button_gating_subjects() {
          {&s_unload_disabled, &s_load_disabled, &s_reset_disabled, &s_check_gates_disabled,
           &s_load_hidden, &s_unload_hidden, &s_unload_picks, &s_mount_hidden, &s_mount_disabled,
           &s_park_hidden, &s_park_disabled, &s_action_reason_shown, &s_supports_reset,
-          &s_cancel_shown, &s_check_gates_shown, &s_stepper_shown}) {
+          &s_cancel_shown, &s_check_gates_shown, &s_stepper_shown, &s_mounted_shown}) {
         lv_subject_init_int(subject, 0);
     }
     lv_subject_init_string(&s_action_reason, s_action_reason_buf, nullptr,
                            sizeof(s_action_reason_buf), "");
+    lv_subject_init_string(&s_mounted_text, s_mounted_text_buf, nullptr, sizeof(s_mounted_text_buf),
+                           "");
     reset_button_gating_subjects();
     s_subjects.publish("ams_sidebar_unload_disabled", &s_unload_disabled);
     s_subjects.publish("ams_sidebar_load_disabled", &s_load_disabled);
@@ -293,6 +301,8 @@ void init_button_gating_subjects() {
     s_subjects.publish("ams_sidebar_cancel_shown", &s_cancel_shown);
     s_subjects.publish("ams_sidebar_check_gates_shown", &s_check_gates_shown);
     s_subjects.publish("ams_sidebar_stepper_shown", &s_stepper_shown);
+    s_subjects.publish("ams_sidebar_mounted_shown", &s_mounted_shown);
+    s_subjects.publish("ams_sidebar_mounted_text", &s_mounted_text);
     s_gating_subjects_initialized = true;
 
     // The subjects are created once, from the AMS panels' process-once XML
@@ -645,6 +655,12 @@ void AmsOperationSidebar::init_observers() {
             self->refresh_button_gating();
         },
         AmsState::instance().get_subjects_lifetime());
+
+    // The mounted line follows the carriage.
+    active_tool_observer_ = observe<int>(
+        ToolState::instance().get_active_tool_subject(), this,
+        [](AmsOperationSidebar* self, int) { self->refresh_button_gating(); },
+        ToolState::instance().get_subjects_lifetime());
 
     // Bypass spool color observer: refreshes loaded card when external spool changes
     bypass_spool_observer_ = observe<int>(
@@ -1536,6 +1552,13 @@ helix::ui::MachineOpGating AmsOperationSidebar::read_machine_op_gating() const {
         /*reset_moves_filament=*/backend && backend->reset_moves_filament());
 }
 
+std::string mounted_tool_text(LaneNoun tool_noun, int active_tool) {
+    if (active_tool < 0) {
+        return lv_tr("No tool mounted");
+    }
+    return fmt::format(fmt::runtime(lv_tr("Mounted: {}")), lane_label(tool_noun, active_tool));
+}
+
 void AmsOperationSidebar::refresh_button_gating() {
     if (!s_gating_subjects_initialized) {
         return;
@@ -1575,6 +1598,16 @@ void AmsOperationSidebar::refresh_button_gating() {
     lv_subject_set_int(
         &s_cancel_shown,
         backend && ams_action_is_busy(action) && backend->can_cancel_operation() ? 1 : 0);
+
+    // Where several heads dock, which one is on the carriage is the first
+    // thing the sidebar answers.
+    const auto& tools = ToolState::instance();
+    lv_subject_set_int(&s_mounted_shown, tools.has_multiple_toolheads() ? 1 : 0);
+    const std::string mounted = mounted_tool_text(backend ? backend->tool_noun() : LaneNoun::Tool,
+                                                  tools.active_tool_index());
+    if (mounted != lv_subject_get_string(&s_mounted_text)) {
+        lv_subject_copy_string(&s_mounted_text, mounted.c_str());
+    }
 }
 
 bool AmsOperationSidebar::refuse_if_busy_or_printing(bool load) const {

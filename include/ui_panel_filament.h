@@ -23,6 +23,8 @@
 #include "operation_timeout_guard.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
+#include "target_nozzle_observers.h"
+#include "target_tool_selection.h"
 #include "ui/temperature_observer_bundle.h"
 
 #include <array>
@@ -265,6 +267,10 @@ class FilamentPanel : public PanelBase {
     const char* get_name() const override {
         return "Filament Panel";
     }
+
+    /// Publishes filament_on_page, which filament_panel.xml binds to tighten its
+    /// spacing on a home full page.
+    void on_lent_to_page(bool on_page) override;
     const char* get_xml_component_name() const override {
         return "filament_panel";
     }
@@ -386,6 +392,10 @@ class FilamentPanel : public PanelBase {
     // The closed dropdown's own text is owned by sync_tool_dropdown_text().
     lv_subject_t tool_noun_subject_{};
     char tool_noun_buf_[32] = {};
+    lv_subject_t target_tool_action_subject_{};
+    lv_subject_t target_tool_action_text_subject_{};
+    char target_tool_action_text_buf_[32] = {};
+    helix::ui::ToolArrivalWait tool_arrival_;
     void update_tool_noun();
     void sync_tool_dropdown_text();
 
@@ -416,6 +426,33 @@ class FilamentPanel : public PanelBase {
     // Returns -1 when there is no AMS backend or no resolvable slot.
     int selected_op_slot() const;
 
+    /// The tool the panel aims at (TargetToolSelection over ToolState's tools).
+    [[nodiscard]] int target_tool() const;
+    /// The target tool's Klipper extruder ("extruder" when it names none).
+    [[nodiscard]] std::string target_extruder_name() const;
+    /// Point the nozzle current/target observers at the target tool's extruder.
+    void repoint_nozzle_observers();
+    /// Bring the selector, nozzle label, temperature card and op gating to the
+    /// target tool after it moved.
+    void sync_target_tool_ui();
+    /// The Pick up / Park button beside the tool selector.
+    void handle_target_tool_action();
+    /// Drops a pickup's waiting step when the panel leaves the screen.
+    void on_deactivating(DeactivateReason reason) override;
+    /// Whether the target is the tool on the carriage (by tool index).
+    [[nodiscard]] bool target_is_mounted() const;
+    /// Whether the target is a different head from the one on the carriage.
+    [[nodiscard]] bool target_needs_pickup() const;
+    /// Withdraw a step waiting on a pickup, with a toast, when one is armed.
+    void drop_pending_pickup(const char* why);
+    /// The preset's nozzle (target tool), bed and chamber targets.
+    void send_preset_targets();
+    /// Pick the target up, then run @p then once ToolState reports it mounted.
+    /// A declined, failed or timed-out change runs nothing.
+    void with_target_mounted(std::function<void()> then);
+    /// Publish what the Pick up / Park button offers for the current target.
+    void update_target_tool_action();
+
     // Cooldown button visibility (1 when nozzle target > 0, 0 otherwise)
     lv_subject_t nozzle_heating_subject_{};
 
@@ -423,6 +460,8 @@ class FilamentPanel : public PanelBase {
     // strip button stands in for it). C++ decides via fit_portrait_graph();
     // the XML bindings on the card, its container and btn_temp_graph draw it.
     lv_subject_t graph_spacer_subject_{};
+    /// 1 while the tree is lent to a home full page (on_lent_to_page()).
+    lv_subject_t on_page_subject_{};
 
     // Extrude length button active subjects (boolean: 0=inactive, 1=active)
     // Using separate subjects because bind_style doesn't work with multiple ref_values
@@ -599,13 +638,15 @@ class FilamentPanel : public PanelBase {
     // place of the AMS row, centered, without its header.
     lv_subject_t external_spool_mode_subject_{};
     ObserverGuard tools_version_observer_;
+    ObserverGuard extruder_version_observer_;
+    ObserverGuard klippy_observer_;
+    helix::ui::TargetNozzleObservers nozzle_observers_;
+    helix::ui::TargetToolSelection target_tool_;
 
     void populate_extruder_dropdown();
     void update_multi_filament_card_visibility();
     void apply_left_column_sizing(bool external_spool_mode);
     void handle_extruder_changed();
-    /// Point the extruder dropdown back at the mounted tool.
-    void revert_extruder_dropdown();
 
     // External spool display (no-AMS mode)
     lv_obj_t* external_spool_container_ = nullptr;
