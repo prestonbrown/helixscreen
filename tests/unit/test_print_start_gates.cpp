@@ -554,7 +554,7 @@ TEST_CASE("material_mismatches_in: bypass falls back to palette materials",
 
 TEST_CASE("default gate list: names in behavior-preserving order", "[print-start][gate-pipeline]") {
     auto& gates = default_print_start_gates();
-    REQUIRE(gates.size() == 11);
+    REQUIRE(gates.size() == 12);
     CHECK(gates[0].name == "printer_stopping_command");
     CHECK(gates[1].name == "fit_check");
     CHECK(gates[2].name == "mixed_temperature_materials");
@@ -568,12 +568,13 @@ TEST_CASE("default gate list: names in behavior-preserving order", "[print-start
     CHECK(gates[8].name == "unresolved_tools");
     CHECK(gates[9].name == "material_compatibility");
     CHECK(gates[10].name == "door_open");
+    CHECK(gates[11].name == "outer_wall_speed");
 }
 
 TEST_CASE("default gate list: the two new gates keep their relative order",
           "[print-start][gate-pipeline]") {
     auto& gates = default_print_start_gates();
-    REQUIRE(gates.size() == 11);
+    REQUIRE(gates.size() == 12);
     CHECK(gates[5].name == "bypass_engaged_lane_print");
     CHECK(gates[6].name == "unaccounted_toolhead_filament");
     CHECK(gates[7].name == "required_filament_present");
