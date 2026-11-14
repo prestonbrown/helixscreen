@@ -26,9 +26,11 @@ struct Entry {
     uint32_t last_used;
 };
 
+// Never destroyed: a static destructor would run after lv_deinit() has gone, so the images
+// stay owned (and reachable) until the process ends.
 std::vector<Entry>& cache() {
-    static std::vector<Entry> entries;
-    return entries;
+    static auto* entries = new std::vector<Entry>();
+    return *entries;
 }
 
 void evict_stale() {

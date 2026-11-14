@@ -33,6 +33,27 @@
 
 namespace {
 
+/// What the 60-second auto-close timer carries; freed by whichever ends the timer.
+struct TimeoutTimerData {
+    helix::LifetimeToken token;
+};
+
+/// What the post-scan close timer carries; freed by whichever ends the timer.
+struct SuccessTimerData {
+    helix::ui::QrScannerOverlay::ResultCallback callback;
+    SpoolInfo spool;
+    helix::LifetimeToken token;
+};
+
+/// Deletes @p timer and the @p Data it carries.
+template <typename Data> void delete_timer_with_data(lv_timer_t*& timer) {
+    if (!timer)
+        return;
+    delete static_cast<Data*>(lv_timer_get_user_data(timer));
+    lv_timer_delete(timer);
+    timer = nullptr;
+}
+
 // Disable/enable all LVGL keyboard input devices. Barcode scanners appear as
 // USB HID keyboards — we suppress LVGL keyboard processing while the scanner
 // monitor is active to prevent keystrokes from triggering UI navigation.
@@ -161,13 +182,10 @@ void QrScannerOverlay::on_activate() {
     start_scanning();
 
     // Auto-close after 60 seconds if no scan result
-    struct TimerData {
-        helix::LifetimeToken token;
-    };
-    auto* data = new TimerData{lifetime_.token()};
+    auto* data = new TimeoutTimerData{lifetime_.token()};
     timeout_timer_ = lv_timer_create(
         [](lv_timer_t* timer) {
-            auto* d = static_cast<TimerData*>(lv_timer_get_user_data(timer));
+            auto* d = static_cast<TimeoutTimerData*>(lv_timer_get_user_data(timer));
             if (!d->token.expired()) {
                 auto& overlay = get_qr_scanner_overlay();
                 spdlog::info("[{}] Timeout — auto-closing", overlay.get_name());
@@ -210,14 +228,8 @@ void QrScannerOverlay::on_deactivating(DeactivateReason reason) {
     snapshot_scanner_.reset();
 
     // Cancel pending timers
-    if (success_timer_) {
-        lv_timer_delete(success_timer_);
-        success_timer_ = nullptr;
-    }
-    if (timeout_timer_) {
-        lv_timer_delete(timeout_timer_);
-        timeout_timer_ = nullptr;
-    }
+    delete_timer_with_data<SuccessTimerData>(success_timer_);
+    delete_timer_with_data<TimeoutTimerData>(timeout_timer_);
 
     // The caller's callbacks stay for the scan after a wake; any other exit
     // drops them so a reuse cannot reach a stale caller.
@@ -574,16 +586,11 @@ void QrScannerOverlay::on_spool_found(const SpoolInfo& spool) {
     show_success_flash();
 
     // Fire result callback and close after a brief delay
-    struct TimerData {
-        ResultCallback callback;
-        SpoolInfo spool;
-        helix::LifetimeToken token;
-    };
-    auto* data = new TimerData{result_callback_, spool, lifetime_.token()};
+    auto* data = new SuccessTimerData{result_callback_, spool, lifetime_.token()};
 
     success_timer_ = lv_timer_create(
         [](lv_timer_t* timer) {
-            auto* d = static_cast<TimerData*>(lv_timer_get_user_data(timer));
+            auto* d = static_cast<SuccessTimerData*>(lv_timer_get_user_data(timer));
             if (!d->token.expired()) {
                 auto& overlay = get_qr_scanner_overlay();
                 overlay.success_timer_ = nullptr;

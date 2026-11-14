@@ -41,13 +41,23 @@ void delete_cb(lv_event_t* e) {
     release_buf(lv_event_get_target_obj(e));
 }
 
+/// The mask is freed with its image, whether XML or C++ made the image.
+void ensure_delete_cb(lv_obj_t* obj) {
+    const uint32_t count = lv_obj_get_event_count(obj);
+    for (uint32_t i = 0; i < count; ++i) {
+        lv_event_dsc_t* dsc = lv_obj_get_event_dsc(obj, i);
+        if (dsc && lv_event_dsc_get_cb(dsc) == delete_cb)
+            return;
+    }
+    // DECLARATIVE_OK: a custom widget's own teardown hook frees the pixels it owns.
+    lv_obj_add_event_cb(obj, delete_cb, LV_EVENT_DELETE, nullptr);
+}
+
 void* xml_create(lv_xml_parser_state_t* state, const char** /*attrs*/) {
     auto* parent = static_cast<lv_obj_t*>(lv_xml_state_get_parent(state));
     lv_obj_t* obj = lv_image_create(parent);
     lv_obj_set_clickable(obj, false);
     lv_obj_set_scrollable(obj, false);
-    // DECLARATIVE_OK: a custom widget's own teardown hook frees the pixels it owns.
-    lv_obj_add_event_cb(obj, delete_cb, LV_EVENT_DELETE, nullptr);
     return obj;
 }
 
@@ -84,6 +94,7 @@ bool plate_glow_set_mask(lv_obj_t* obj, const PlateGlowMask& mask) {
     // never points at freed memory.
     lv_image_set_src(obj, buf);
     release_buf(obj);
+    ensure_delete_cb(obj);
     lv_obj_set_user_data(obj, buf);
     // DECLARATIVE_OK: measured callout layout places the mask over the plate.
     lv_obj_set_pos(obj, mask.x, mask.y);

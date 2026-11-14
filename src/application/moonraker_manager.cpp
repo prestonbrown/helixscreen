@@ -167,24 +167,23 @@ void MoonrakerManager::shutdown() {
     release_print_start_collector();
     m_print_stop_reason.reset();
 
-    // Release observer guards without calling lv_observer_delete().
-    // During shutdown, subjects may already be deinitialized (which frees observers).
-    // Using release() avoids double-free of already-removed observers.
-    m_print_start_observer.release();
-    m_print_start_phase_observer.release();
-    m_print_klippy_state_observer.release();
-    m_preparing_epoch_observer.release();
-    m_print_start_profile_observer.release();
-    m_print_bed_target_fallback_observer.release();
-    m_print_ext_target_fallback_observer.release();
-    m_print_homed_axes_fallback_observer.release();
+    // Each guard carries its subject's lifetime token, so reset() skips the removal
+    // when the subject is already gone and frees the observer's context either way.
+    m_print_start_observer.reset();
+    m_print_start_phase_observer.reset();
+    m_print_klippy_state_observer.reset();
+    m_preparing_epoch_observer.reset();
+    m_print_start_profile_observer.reset();
+    m_print_bed_target_fallback_observer.reset();
+    m_print_ext_target_fallback_observer.reset();
+    m_print_homed_axes_fallback_observer.reset();
     for (auto& guard : m_print_position_observers) {
-        guard.release();
+        guard.reset();
     }
-    m_print_extruder_velocity_observer.release();
-    m_print_ams_action_observer.release();
-    m_print_layer_observer.release();
-    m_print_duration_observer.release();
+    m_print_extruder_velocity_observer.reset();
+    m_print_ams_action_observer.reset();
+    m_print_layer_observer.reset();
+    m_print_duration_observer.reset();
 
     // Destroy client FIRST: its destructor waits for in-flight libhv callbacks
     // to finish. connect() lambdas hold a raw pointer to m_api,

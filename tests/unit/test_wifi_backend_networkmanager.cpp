@@ -955,13 +955,6 @@ TEST_CASE("NM backend: an unreachable daemon allows the wpa_supplicant fallback"
     CHECK(backend.supports_wpa_supplicant_fallback());
 }
 
-#else
-// macOS: Provide a placeholder test so the file isn't empty
-TEST_CASE("NM backend: not available on macOS", "[network][nm]") {
-    SUCCEED("NetworkManager backend is Linux-only");
-}
-#endif // __APPLE__
-
 TEST_CASE("NM backend: polls while DHCP is pending", "[network][nm][status][wifi_dhcp_pending]") {
     FakeNmcliDir fake;
     ScopedPathPrepend path_prepend(fake.dir);
@@ -996,3 +989,10 @@ TEST_CASE("NM backend: polls while DHCP is pending", "[network][nm][status][wifi
         CHECK(changes == 1);
     }
 }
+
+#else
+// macOS: Provide a placeholder test so the file isn't empty
+TEST_CASE("NM backend: not available on macOS", "[network][nm]") {
+    SUCCEED("NetworkManager backend is Linux-only");
+}
+#endif // __APPLE__

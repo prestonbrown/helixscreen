@@ -5,7 +5,11 @@ prove alone, and is idempotent."""
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
+if not (REPO_ROOT / "lib" / "lvgl" / "include" / "lvgl" / "api_map").is_dir():
+    pytest.skip("the rewriter reads LVGL's API map; lib/lvgl is not checked out", allow_module_level=True)
 _spec = importlib.util.spec_from_file_location("lvgl96_rename", REPO_ROOT / "scripts" / "lvgl96_rename.py")
 lvgl96_rename = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(lvgl96_rename)
