@@ -92,6 +92,13 @@ Byte counts do move a little with allocator rounding and with how many tests
 happened to touch a shared singleton, so set them at (or slightly above) an
 observed run rather than hand-tightening them to the last byte.
 
+Blocks with no usable stack (<no-stack>) are left out of that sum and held to
+their own pair, `max-no-stack-bytes-per-process:` and
+`max-no-stack-objects-per-process:`, checked against the worst single process.
+They are mostly libcrypto's per-process state, which leaks once in every shard
+process that touched TLS, so their run-wide sum moves with how the cases fall
+into shards; a symbolizer failure lands there too and still trips the cap.
+
 MEASUREMENT
 -----------
 The baseline is pinned to ONE invocation, the one mk/tests.mk runs:
@@ -174,6 +181,12 @@ PLUMBING_PATHS = ('src/core/observer_factory.cpp', 'include/core/observer_factor
 
 CEILING_BYTES = 'max-leaked-bytes'
 CEILING_OBJECTS = 'max-leaked-objects'
+# Leaks with no usable stack (libcrypto's per-process state; symbolizer failures)
+# are held per process instead: libcrypto leaks once in every shard process that
+# touched TLS, so its run-wide sum measures the shard layout, not a leak.
+CEILING_NO_STACK_BYTES = 'max-no-stack-bytes-per-process'
+CEILING_NO_STACK_OBJECTS = 'max-no-stack-objects-per-process'
+CEILING_NAMES = (CEILING_BYTES, CEILING_OBJECTS, CEILING_NO_STACK_BYTES, CEILING_NO_STACK_OBJECTS)
 
 # How many "did not leak this run" origins to name before summarizing. Absences
 # are informational, and a clean-but-unrelated run should not bury the verdict.
@@ -456,6 +469,8 @@ class Report:
         self.direct = []  # [(bytes, objects, key)]
         self.indirect_bytes = 0
         self.indirect_objects = 0
+        # [bytes, objects] of <no-stack> blocks, direct and indirect, per process.
+        self.no_stack = []
         self.summary_bytes = None
         self.summary_allocations = None
         self.saw_leak_block = False
@@ -474,17 +489,24 @@ class Report:
         return {k for _, _, k in self.direct}
 
     def totals(self):
-        """(bytes, objects) for the ceilings.
+        """(bytes, objects) for the run-wide ceilings, <no-stack> blocks excluded.
 
         Prefers the sanitizer's own SUMMARY — it is the number a human reads off
         the run — and falls back to the parsed blocks if a log somehow lacks it.
         """
         if self.summary_bytes is not None:
-            return self.summary_bytes, self.summary_allocations
+            nbytes, nobjects = self.summary_bytes, self.summary_allocations
+        else:
+            nbytes = self.direct_bytes + self.indirect_bytes
+            nobjects = self.direct_objects + self.indirect_objects
         return (
-            self.direct_bytes + self.indirect_bytes,
-            self.direct_objects + self.indirect_objects,
+            nbytes - sum(b for b, _ in self.no_stack),
+            nobjects - sum(o for _, o in self.no_stack),
         )
+
+    def no_stack_peak(self):
+        """(bytes, objects) of the process leaking the most <no-stack> bytes."""
+        return max((tuple(p) for p in self.no_stack), default=(0, 0))
 
     def by_key(self):
         """{key: (bytes, objects, blocks)} over direct leaks."""
@@ -514,6 +536,7 @@ def parse(streams):
                 report.saw_run = True
             if LEAK_HEADER_RE.search(line):
                 report.saw_leak_block = True
+                report.no_stack.append([0, 0])
                 continue
             m = ASAN_ERROR_RE.search(line)
             if m:
@@ -545,8 +568,14 @@ def parse(streams):
 def flush(report, pending):
     """Record a finished leak block."""
     kind, nbytes, nobjects, frames = pending
+    key = origin_key(frames)
+    if key == NO_STACK_KEY:
+        if not report.no_stack:
+            report.no_stack.append([0, 0])
+        report.no_stack[-1][0] += nbytes
+        report.no_stack[-1][1] += nobjects
     if kind == 'Direct':
-        report.direct.append((nbytes, nobjects, origin_key(frames)))
+        report.direct.append((nbytes, nobjects, key))
     else:
         # Indirect leaks are children of a direct one. Their bytes are counted
         # toward the totals; they never produce a key.
@@ -577,7 +606,8 @@ BASELINE_HEADER = (
     '#\n'
     '# The ceilings below catch an already-listed origin leaking MORE, which the key\n'
     '# set alone cannot see. They come from the SUMMARY line, so they cover direct\n'
-    '# and indirect bytes together.\n'
+    '# and indirect bytes together, less the <no-stack> blocks, which are capped per\n'
+    '# process instead: libcrypto leaks once in every shard that touched TLS.\n'
 )
 
 
@@ -592,7 +622,7 @@ def read_baseline(path):
                 if not line or line.startswith('#'):
                     continue
                 name, sep, value = line.partition(':')
-                if sep and name.strip() in (CEILING_BYTES, CEILING_OBJECTS):
+                if sep and name.strip() in CEILING_NAMES:
                     ceilings[name.strip()] = int(value.strip())
                     continue
                 keys.add(line)
@@ -605,11 +635,13 @@ def read_baseline(path):
     return keys, ceilings
 
 
-def write_baseline(path, keys, total_bytes, total_objects):
+def write_baseline(path, keys, total_bytes, total_objects, no_stack_peak):
     with open(path, 'w') as fh:
         fh.write(BASELINE_HEADER)
         fh.write(f'{CEILING_BYTES}: {total_bytes}\n')
         fh.write(f'{CEILING_OBJECTS}: {total_objects}\n')
+        fh.write(f'{CEILING_NO_STACK_BYTES}: {no_stack_peak[0]}\n')
+        fh.write(f'{CEILING_NO_STACK_OBJECTS}: {no_stack_peak[1]}\n')
         for key in sorted(keys):
             fh.write(key + '\n')
 
@@ -703,6 +735,7 @@ def main():
 
     by_key = report.by_key()
     total_bytes, total_objects = report.totals()
+    no_stack_bytes, no_stack_objects = report.no_stack_peak()
     keys = report.keys()
 
     if args.list:
@@ -722,7 +755,7 @@ def main():
 
     detail = (
         f'{len(report.direct)} direct leak(s) from {len(keys)} origin(s); '
-        f'{total_bytes} byte(s) in {total_objects} allocation(s) total'
+        f'{total_bytes} byte(s) in {total_objects} allocation(s) total outside <no-stack>'
     )
 
     if args.write_baseline:
@@ -732,7 +765,7 @@ def main():
         # highest ceiling seen in any single run.
         if len(args.logs) > 1:
             keys = set()
-            total_bytes = total_objects = 0
+            total_bytes = total_objects = no_stack_bytes = no_stack_objects = 0
             for path in args.logs:
                 with open(path, 'r', errors='replace') as fh:
                     per_log = parse([fh])
@@ -740,7 +773,11 @@ def main():
                 log_bytes, log_objects = per_log.totals()
                 total_bytes = max(total_bytes, log_bytes)
                 total_objects = max(total_objects, log_objects)
-        write_baseline(args.write_baseline, keys, total_bytes, total_objects)
+                log_ns_bytes, log_ns_objects = per_log.no_stack_peak()
+                no_stack_bytes = max(no_stack_bytes, log_ns_bytes)
+                no_stack_objects = max(no_stack_objects, log_ns_objects)
+        write_baseline(args.write_baseline, keys, total_bytes, total_objects,
+                       (no_stack_bytes, no_stack_objects))
         print(
             f'✅ Wrote {len(keys)} leak origin(s) and ceilings of {total_bytes} '
             f'byte(s) / {total_objects} allocation(s) to {args.write_baseline}'
@@ -789,13 +826,26 @@ def main():
         print('   An already-baselined origin is leaking more often than it was.')
         failed = True
 
+    for name, value, what in (
+        (CEILING_NO_STACK_BYTES, no_stack_bytes, 'byte(s)'),
+        (CEILING_NO_STACK_OBJECTS, no_stack_objects, 'allocation(s)'),
+    ):
+        cap = ceilings.get(name)
+        if cap is not None and value > cap:
+            print(f'❌ ASan leaks: one process leaked {value} {what} with no usable stack, '
+                  f'over the per-process ceiling ({cap}).')
+            print('   libcrypto state or a symbolizer failure grew; --list shows <no-stack>.')
+            failed = True
+
     if failed:
         return 1
 
     print(f'✅ ASan leaks: {detail}; no new origins ({len(known)} known).')
     if ceiling_bytes is not None or ceiling_objects is not None:
         print(f'   Ceilings: {total_bytes}/{ceiling_bytes} byte(s), '
-              f'{total_objects}/{ceiling_objects} allocation(s).')
+              f'{total_objects}/{ceiling_objects} allocation(s); <no-stack> per process '
+              f'{no_stack_bytes}/{ceilings.get(CEILING_NO_STACK_BYTES)} byte(s), '
+              f'{no_stack_objects}/{ceilings.get(CEILING_NO_STACK_OBJECTS)} allocation(s).')
     if gone:
         # Reported, never failed on: a shrinking baseline is progress, and the
         # population moves a little with which tests touched a shared singleton.

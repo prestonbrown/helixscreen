@@ -238,6 +238,66 @@ gcc_ui_button_log() {
     [[ "$output" == *'exceeds the baseline ceiling'* ]] || fail "$output"
 }
 
+# --- stackless leaks: capped per process, outside the run-wide sum ---------
+
+no_stack_block() { # $1=bytes $2=objects
+    printf 'Direct leak of %s byte(s) in %s object(s) allocated from:\n' "$1" "$2" >> "$LOG"
+    frame 0 'malloc (helix-tests-asan+0x51186de) (BuildId: dead)'
+    frame 1 'CRYPTO_zalloc (/lib/x86_64-linux-gnu/libcrypto.so.3+0x1b7fbd) (BuildId: beef)'
+}
+
+# One shard process: the ui_button leak of $1 bytes plus a libcrypto block of $2 bytes.
+button_and_crypto_shard() { # $1=button bytes $2=crypto bytes
+    leak_header
+    printf 'Direct leak of %s byte(s) in 128 object(s) allocated from:\n' "$1" >> "$LOG"
+    frame 0 'operator new(unsigned long) (helix-tests-asan+0x351a24d)'
+    frame 1 'ui_button_create(_lv_xml_parser_state_t*, char const**) src/ui/components/ui_button.cpp:562:26'
+    no_stack_block "$2" 10
+    finish_run $(($1 + $2)) 138
+}
+
+crypto_only_shard() { # $1=crypto bytes
+    leak_header
+    no_stack_block "$1" 10
+    finish_run "$1" 10
+}
+
+@test "libcrypto leaking in more shards stays under the ceilings" {
+    button_and_crypto_shard 7168 3936
+    run python3 "$GATE" --write-baseline "$BASE" "$LOG"
+    grep -q '^max-leaked-bytes: 7168$' "$BASE" || fail "$(cat "$BASE")"
+    grep -q '^max-no-stack-bytes-per-process: 3936$' "$BASE" || fail "$(cat "$BASE")"
+
+    : > "$LOG"
+    button_and_crypto_shard 7168 3936
+    crypto_only_shard 3936
+    crypto_only_shard 3936
+    run_gate
+    [ "$status" -eq 0 ] || fail "$output"
+}
+
+@test "an attributed origin growing by 5 KB fails beside unchanged libcrypto state" {
+    button_and_crypto_shard 7168 3936
+    run python3 "$GATE" --write-baseline "$BASE" "$LOG"
+
+    : > "$LOG"
+    button_and_crypto_shard $((7168 + 5120)) 3936
+    run_gate
+    [ "$status" -ne 0 ] || fail "$output"
+    [[ "$output" == *'12288 leaked byte(s) exceeds the baseline ceiling (7168)'* ]] || fail "$output"
+}
+
+@test "one process's stackless leak growing fails its per-process cap" {
+    button_and_crypto_shard 7168 3936
+    run python3 "$GATE" --write-baseline "$BASE" "$LOG"
+
+    : > "$LOG"
+    button_and_crypto_shard 7168 $((3936 + 5120))
+    run_gate
+    [ "$status" -ne 0 ] || fail "$output"
+    [[ "$output" == *'per-process ceiling (3936)'* ]] || fail "$output"
+}
+
 # --- parser safety rails ----------------------------------------------------
 
 @test "system paths that merely contain a tree-root segment stay foreign" {

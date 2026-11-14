@@ -21,11 +21,12 @@
 # The ceilings below catch an already-listed origin leaking MORE, which the key
 # set alone cannot see. They come from the SUMMARY line, so they cover direct
 # and indirect bytes together.
-# Ceilings are the zeus ASAN run (16 shards) measured at 151 allocations / 32338 B, plus ~25%
-# headroom. Nearly all of it is libcrypto's per-process state (<no-stack> below), counted once in
-# every shard that runs a TLS test, so it moves with how the cases fall into shards.
-max-leaked-bytes: 40500
-max-leaked-objects: 190
+# Ceilings are the zeus ASAN run (16 shards), plus ~25% headroom: 2 allocations / 568 B outside
+# <no-stack>, and 101 allocations / 22060 B of <no-stack> in its worst process (CI measured the same).
+max-leaked-bytes: 710
+max-leaked-objects: 3
+max-no-stack-bytes-per-process: 27600
+max-no-stack-objects-per-process: 127
 #
 # Why the remaining origin is still here:
 #
