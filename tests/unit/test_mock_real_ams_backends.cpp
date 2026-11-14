@@ -225,6 +225,8 @@ TEST_CASE_METHOD(HappyHareMock, "Happy Hare mock: gate map, eject, select and en
     REQUIRE(mock->gcode_script("MMU_FAN FAN_FORCED=1") == 0);
     CHECK(mmu()["sync_feedback_enabled"] == false);
     CHECK(mmu()["fans"][0]["modes"][0] == 1);
+    helix::ScopedEnv grade{"HELIX_MOCK_AMS_STATE", "grade"}; // AmsBackendMock runs: generic T<n>
+    CHECK(mock->gcode_script("T9") == 0);
 }
 
 TEST_CASE_METHOD(ToolChangerMock, "toolchanger mock: discovery claims the changer, not Happy Hare",

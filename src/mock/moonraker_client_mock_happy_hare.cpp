@@ -16,6 +16,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <optional>
 #include <string>
 #include <vector>
@@ -297,7 +298,7 @@ void HappyHareSim::apply(const HappyHareStep& step, bool last) {
 
 void HappyHareSim::load_tool_now(int tool) {
     const int gate = gate_for_tool(tool);
-    if (gate < 0 || gates_[static_cast<size_t>(gate)].status == 0) {
+    if (busy_ || gate < 0 || gates_[static_cast<size_t>(gate)].status == 0) {
         return;
     }
     gate_ = gate;
@@ -575,8 +576,16 @@ json MoonrakerClientMock::happy_hare_config_sections() const {
     return hh_sim_->config_sections();
 }
 
+bool MoonrakerClientMock::happy_hare_drives() const {
+    // The mmu object is published either way; its commands are the sim's only while
+    // the production backend is the one sending them.
+    return is_mock_happy_hare() &&
+           helix::mock::mock_hardware_backend(mock_internal::effective_mock_ams_env(),
+                                              std::getenv("HELIX_MOCK_PRINTER")) != nullptr;
+}
+
 void MoonrakerClientMock::happy_hare_load_tool_now(int tool) {
-    if (!is_mock_happy_hare()) {
+    if (!happy_hare_drives()) {
         return;
     }
     {
@@ -587,7 +596,7 @@ void MoonrakerClientMock::happy_hare_load_tool_now(int tool) {
 }
 
 MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_happy_hare(const std::string& gcode) {
-    if (!is_mock_happy_hare()) {
+    if (!happy_hare_drives()) {
         return std::nullopt;
     }
     helix::mock::HappyHareReply reply;

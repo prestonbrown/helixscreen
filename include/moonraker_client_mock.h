@@ -2640,6 +2640,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::unique_ptr<helix::mock::HappyHareSim> hh_sim_; ///< Happy Hare's state, behind hh_mutex_
     mutable std::mutex hh_mutex_;
     void init_happy_hare(int gates);       ///< @p gates is HELIX_AMS_GATES
+    bool happy_hare_drives() const;        ///< The sim answers G-code: production Happy Hare runs
     std::atomic<int> toolchanger_tool_{0}; ///< toolchanger.tool_number (plain toolchanger mode)
 
     // --- MedusaHC swap simulation -------------------------------------------
