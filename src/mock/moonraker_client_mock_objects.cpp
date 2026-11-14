@@ -251,41 +251,6 @@ json get_mock_probe_config(helix::mock::PrinterType type) {
     return cfg;
 }
 
-// Minimal Happy Hare "mmu" status for --real-ams: a static 4-gate setup with a
-// mix of loaded/empty gates. gate_status is the load-bearing field — it's what
-// AmsBackendHappyHare::parse_mmu_state() uses to size the slot registry and
-// flip slots_.is_initialized(); the rest just refines what the AMS panel shows.
-// Values proven correct against AmsBackendHappyHare's own unit test fixture
-// (tests/unit/test_ams_backend_happy_hare.cpp, "v3 data with no v4 fields").
-json get_mock_mmu_status() {
-    return {{"gate", 2},
-            {"tool", 2},
-            {"filament", "Loaded"},
-            {"action", "Idle"},
-            {"filament_pos", 8},
-            {"has_bypass", true},
-            {"gate_status", {1, 0, 2, 1}},
-            {"gate_color_rgb", {0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00}},
-            {"gate_material", {"PLA", "PETG", "ABS", "TPU"}},
-            {"gate_vendor", {"Polymaker", "eSUN", "", "Overture"}},
-            {"ttg_map", {0, 1, 2, 3}},
-            {"endless_spool_groups", {0, 0, 1, 1}},
-            {"flowguard",
-             {{"enabled", true},
-              {"active", true},
-              {"trigger", ""},
-              {"reason", ""},
-              {"level", 0.15},
-              {"max_clog", 0.2},
-              {"max_tangle", -0.3}}},
-            {"tangle_prevention",
-             {{"enabled", true},
-              {"active", false},
-              {"boosted", false},
-              {"threshold", 0.6},
-              {"release", 0.3}}}};
-}
-
 void register_object_handlers(std::unordered_map<std::string, MethodHandler>& registry) {
     // printer.objects.list - List available printer objects
     // When Klippy is in STARTUP or ERROR state, Klipper returns JSON-RPC error -32601
@@ -557,6 +522,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 const json reforge_sections = self->reforge_afc_config_sections();
                 status_obj["configfile"]["settings"].merge_patch(reforge_sections);
                 status_obj["configfile"]["config"].merge_patch(reforge_sections);
+                status_obj["configfile"]["settings"].merge_patch(
+                    self->happy_hare_config_sections());
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and
@@ -622,11 +589,6 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     idle_state = "Ready";
                 }
                 status_obj["idle_timeout"] = {{"state", idle_state}};
-            }
-
-            // mmu (Happy Hare MMU status — --real-ams)
-            if (objects.contains("mmu")) {
-                status_obj["mmu"] = self->happy_hare_mmu_status();
             }
 
             // MedusaHC (HELIX_MOCK_AMS=medusahc[-ktc|-tn]). Emitted only for
@@ -982,11 +944,6 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                                               {"fan8_speed", 0.0}, {"fan9_speed", 0.0}};
             }
 
-            // mmu (Happy Hare MMU status — --real-ams)
-            if (objects.contains("mmu")) {
-                status_obj["mmu"] = self->happy_hare_mmu_status();
-            }
-
             // OpenAMS (HELIX_MOCK_AMS=openams): the subscribe snapshot.
             if (objects.contains("oams_manager") && self->is_mock_openams()) {
                 status_obj["oams_manager"] = self->openams_status_json();
@@ -1315,6 +1272,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 const json reforge_sections = self->reforge_afc_config_sections();
                 status_obj["configfile"]["settings"].merge_patch(reforge_sections);
                 status_obj["configfile"]["config"].merge_patch(reforge_sections);
+                status_obj["configfile"]["settings"].merge_patch(
+                    self->happy_hare_config_sections());
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and

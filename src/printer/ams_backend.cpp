@@ -826,6 +826,8 @@ static std::unique_ptr<AmsBackend> try_create_mock(IMoonrakerClient* mock_client
     // (mixed, multi, torture, stealth, vivid, htlf_toolchanger) model no single
     // firmware: they combine units no one controller publishes, to fill and overflow
     // the panel's layouts, so there is no production backend for mock frames to drive.
+    // The default Happy Hare lands here too when a scenario knob only this mock
+    // serves (helix::mock::kMockBackendKnobs) is set.
     spdlog::debug("[AMS Backend] Creating mock backend with {} gates (mock mode enabled)",
                   config->mock_ams_gate_count);
     return create_mock_with_features(config->mock_ams_gate_count, mock_client);

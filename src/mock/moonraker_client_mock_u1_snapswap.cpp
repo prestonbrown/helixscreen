@@ -97,6 +97,7 @@ nlohmann::json MoonrakerClientMock::u1_snapswap_status_json() const {
 
 nlohmann::json MoonrakerClientMock::mock_ams_hardware_status() const {
     nlohmann::json out = afc_status_json();
+    out.update(happy_hare_status_json());
     if (is_mock_u1_snapswap()) {
         out.update(u1_snapswap_status_json());
     }

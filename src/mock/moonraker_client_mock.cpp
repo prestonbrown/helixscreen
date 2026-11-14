@@ -1687,6 +1687,7 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
                 "[MoonrakerClientMock] Active gcode tool: T{} (from per-tool weights, max {:.2f}g)",
                 dominant, max_w);
             notify_active_gcode_tool_observers(dominant);
+            happy_hare_load_tool_now(dominant);
         }
     }
 

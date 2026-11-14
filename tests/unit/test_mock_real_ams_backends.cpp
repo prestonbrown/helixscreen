@@ -4,11 +4,13 @@
 // the firmware does and answers its G-code, so --test runs the production backend.
 
 #include "../lvgl_test_fixture.h"
+#include "happy_hare_status_parse.h"
 #include "mock_persona.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "test_helpers/scoped_env.h"
 
+#include <algorithm>
 #include <functional>
 #include <mutex>
 #include <optional>
@@ -80,9 +82,9 @@ struct AfcMock : MockHardware {
 TEST_CASE("mock_hardware_backend: migrated modes run production, the screenshot "
           "topologies stay on the mock backend",
           "[ams][mock]") {
-    for (const char* mode :
-         {"toolchanger", "tool_changer", "tc", "afc", "box_turtle", "boxturtle", "ifs", "ad5x",
-          "ad5x_ifs", "snapmaker", "snapswap", "u1", "medusahc", "indx", "cfs"}) {
+    for (const char* mode : {"toolchanger", "tool_changer", "tc", "afc", "box_turtle", "boxturtle",
+                             "ifs", "ad5x", "ad5x_ifs", "snapmaker", "snapswap", "u1", "medusahc",
+                             "indx", "cfs", "happy_hare", "hh"}) {
         CAPTURE(mode);
         CHECK(helix::mock::mock_hardware_backend(mode, nullptr) != nullptr);
     }
@@ -91,9 +93,138 @@ TEST_CASE("mock_hardware_backend: migrated modes run production, the screenshot 
         CAPTURE(mode);
         CHECK(helix::mock::mock_hardware_backend(mode, nullptr) == nullptr);
     }
-    // With no mode, a persona counts only through its hardware flag.
+    // With no mode: a hardware persona, else Happy Hare where the persona publishes `mmu`.
     CHECK(helix::mock::mock_hardware_backend("", "creator5_zmod") != nullptr);
-    CHECK(helix::mock::mock_hardware_backend("", "voron_24") == nullptr);
+    CHECK(std::string(helix::mock::mock_hardware_backend("", "voron_24")) == "Happy Hare");
+    CHECK(std::string(helix::mock::mock_hardware_backend("", nullptr)) == "Happy Hare");
+    CHECK(helix::mock::mock_hardware_backend("", "cc1") == nullptr);
+    CHECK(helix::mock::mock_hardware_backend("hh", "cc1") == nullptr);
+    // A scenario only the mock backend serves keeps the default there; idle is no scenario.
+    {
+        helix::ScopedEnv state{"HELIX_MOCK_AMS_STATE", "grade"};
+        CHECK(helix::mock::mock_hardware_backend("", nullptr) == nullptr);
+        CHECK(helix::mock::mock_hardware_backend("happy_hare", nullptr) != nullptr);
+    }
+    helix::ScopedEnv idle{"HELIX_MOCK_AMS_STATE", "idle"};
+    CHECK(helix::mock::mock_hardware_backend("", nullptr) != nullptr);
+}
+
+namespace {
+/// The default persona: Happy Hare 4 on a four-gate ERCF.
+struct HappyHareMock : MockHardware {
+    HappyHareMock() : MockHardware(nullptr) {}
+
+    json mmu() {
+        return mock->happy_hare_mmu_status();
+    }
+    std::vector<json> actions() {
+        return frames.values("mmu", "action");
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(HappyHareMock,
+                 "Happy Hare mock: the default persona's ERCF, as the parser reads it",
+                 "[ams][mock][happy_hare]") {
+    const helix::PrinterDiscovery hw = mock->hardware();
+    CHECK(hw.mmu_type() == helix::AmsType::HAPPY_HARE);
+    const json status = mock->happy_hare_status_json();
+    CHECK(status["mmu_machine"]["happy_hare_version"] == "4.1.0");
+    CHECK(status["mmu_machine"]["unit_0"]["environment_sensor"] == "temperature_sensor dryer");
+
+    const auto d = helix::happy_hare::parse_mmu_status(mmu());
+    CHECK(d.core.gate == 0);
+    CHECK(d.core.tool == 0);
+    CHECK(d.core.filament_loaded == true);
+    CHECK(d.core.filament_pos == 10);
+    REQUIRE(d.identity.gate_status);
+    std::vector<int> gate_status;
+    for (const auto& g : *d.identity.gate_status) {
+        gate_status.push_back(g.value_or(-9));
+    }
+    CHECK(gate_status == std::vector<int>{1, 1, 1, 0});
+    // Spools 1-4 of the mock Spoolman, the colours the mock backend showed.
+    CHECK((*d.identity.color_rgb)[0] == 0x1A1A2Eu);
+    CHECK((*d.identity.color_rgb)[2] == 0x00AEFFu);
+    CHECK((*d.identity.material)[1] == "Silk PLA");
+    CHECK((*d.identity.vendor)[2] == "Elegoo");
+    CHECK((*d.identity.spool_id)[3] == 4);
+    CHECK(d.topology.ttg_map == std::vector<int>{0, 1, 2, 3});
+    CHECK(mock->happy_hare_config_sections()["mmu_parameters"]["form_tip_macro"] ==
+          "_MMU_FORM_TIP");
+}
+
+TEST_CASE_METHOD(HappyHareMock, "Happy Hare mock: unload, load and T<n> step through the path",
+                 "[ams][mock][happy_hare]") {
+    REQUIRE(mock->gcode_script("MMU_UNLOAD") == 0);
+    // A move refuses a second one until it ends.
+    CHECK(mock->gcode_script("MMU_LOAD GATE=1") != 0);
+    process_lvgl(3000);
+    CHECK(mmu()["filament"] == "Unloaded");
+    CHECK(mmu()["filament_pos"] == 0);
+    CHECK(actions().front() == "Forming Tip");
+    CHECK(actions().back() == "Idle");
+
+    CHECK(mock->gcode_script("MMU_LOAD GATE=3") != 0); // gate 3 is empty
+    REQUIRE(mock->gcode_script("MMU_LOAD GATE=2") == 0);
+    process_lvgl(3000);
+    CHECK(mmu()["gate"] == 2);
+    CHECK(mmu()["tool"] == 2);
+    CHECK(mmu()["filament"] == "Loaded");
+    const auto positions = frames.values("mmu", "filament_pos");
+    CHECK(std::count(positions.begin(), positions.end(), json(5)) == 1);
+    CHECK(mock->gcode_script("MMU_LOAD GATE=1") != 0); // already loaded
+
+    // T1 unloads gate 2 and loads gate 1 through the tool map.
+    REQUIRE(mock->gcode_script("MMU_TTG_MAP TOOL=1 GATE=0") == 0);
+    REQUIRE(mock->gcode_script("T1") == 0);
+    process_lvgl(6000);
+    CHECK(mmu()["gate"] == 0);
+    CHECK(mmu()["tool"] == 1);
+    CHECK(mmu()["filament_pos"] == 10);
+    CHECK(mock->gcode_script("T9") != 0);
+}
+
+TEST_CASE_METHOD(HappyHareMock, "Happy Hare mock: gate map, eject, select and endless spool edits",
+                 "[ams][mock][happy_hare]") {
+    REQUIRE(mock->gcode_script("MMU_GATE_MAP GATE=1 MATERIAL=PETG COLOR=00FF00 NAME=Green "
+                               "VENDOR=Prusament SPOOLID=-1 QUIET=1") == 0);
+    json m = mmu();
+    CHECK(m["gate_material"][1] == "PETG");
+    CHECK(m["gate_color_rgb"][1] == 0x00FF00);
+    CHECK(m["gate_color"][1] == "00FF00");
+    CHECK(m["gate_name"][1] == "Green");
+    CHECK(m["gate_vendor"][1] == "Prusament");
+    CHECK(m["gate_spool_id"][1] == -1);
+    CHECK(frames.values("mmu", "gate_material").back()[1] == "PETG");
+    REQUIRE(mock->gcode_script("MMU_GATE_MAP GATE=1 MATERIAL= COLOR=") == 0);
+    CHECK(mmu()["gate_material"][1] == "");
+
+    REQUIRE(mock->gcode_script("MMU_ENDLESS_SPOOL QUIET=1 GROUPS=2,1,2,3") == 0);
+    REQUIRE(mock->gcode_script("MMU_ENDLESS_SPOOL ENABLE=0 QUIET=1") == 0);
+    CHECK(mmu()["endless_spool_groups"] == json::array({2, 1, 2, 3}));
+    CHECK(mmu()["endless_spool_enabled"] == false);
+    CHECK(mock->gcode_script("MMU_ENDLESS_SPOOL GROUPS=1,2") != 0);
+
+    // Selecting needs an empty toolhead; eject unloads and leaves the gate empty.
+    CHECK(mock->gcode_script("MMU_SELECT GATE=2") != 0);
+    REQUIRE(mock->gcode_script("MMU_EJECT GATE=0") == 0);
+    process_lvgl(3000);
+    CHECK(mmu()["gate_status"][0] == 0);
+    CHECK(mmu()["filament"] == "Unloaded");
+    REQUIRE(mock->gcode_script("MMU_PRELOAD GATE=0") == 0);
+    CHECK(mmu()["gate_status"][0] == 1);
+    REQUIRE(mock->gcode_script("MMU_SELECT_BYPASS") == 0);
+    process_lvgl(1500);
+    CHECK(mmu()["gate"] == -2);
+    REQUIRE(mock->gcode_script("MMU_SELECT GATE=2") == 0);
+    process_lvgl(1500);
+    CHECK(mmu()["gate"] == 2);
+
+    REQUIRE(mock->gcode_script("MMU_SYNC_FEEDBACK ENABLE=0") == 0);
+    REQUIRE(mock->gcode_script("MMU_FAN FAN_FORCED=1") == 0);
+    CHECK(mmu()["sync_feedback_enabled"] == false);
+    CHECK(mmu()["fans"][0]["modes"][0] == 1);
 }
 
 TEST_CASE_METHOD(ToolChangerMock, "toolchanger mock: discovery claims the changer, not Happy Hare",

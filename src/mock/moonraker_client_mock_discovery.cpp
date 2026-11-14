@@ -493,11 +493,9 @@ void MoonrakerClientMock::populate_capabilities() {
     // Suppressed in the MedusaHC, toolchanger, AFC and SnapSwap modes, the standalone IFS module
     // mode, the OpenAMS mode and any persona that omits it: "mmu" detects Happy Hare (priority over
     // every other filament system) and would stand the wrong backend up.
-    if (mmu_enabled_ && !is_mock_medusahc() && !is_mock_ifs_module() && !is_mock_zmod_ifs() &&
-        !is_mock_openams() && !is_mock_indx() && !is_mock_lane_status() &&
-        !mock_toolchanger_selected() && !is_mock_afc_boxturtle() && !is_mock_u1_snapswap() &&
-        inherits(kHappyHareMmu)) {
+    if (is_mock_happy_hare()) {
         mock_objects.push_back("mmu");
+        mock_objects.push_back("mmu_machine");
     }
 
     // Probe objects: HELIX_MOCK_PROBE_TYPE, else the persona's own probe

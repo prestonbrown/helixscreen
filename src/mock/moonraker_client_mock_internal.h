@@ -261,16 +261,6 @@ std::string mock_probe_type(helix::mock::PrinterType type);
  */
 json get_mock_probe_config(helix::mock::PrinterType type);
 
-/**
- * @brief Get mock Happy Hare "mmu" status (--real-ams)
- *
- * Minimal static 4-gate setup with a mix of loaded/empty gates, answered for a
- * requested "mmu" object by the objects.query and printer.objects.subscribe
- * handlers. The discovery sequence's subscription delivers it to
- * AmsBackendHappyHare as the initial state.
- */
-json get_mock_mmu_status();
-
 } // namespace mock_internal
 
 namespace helix::sim {

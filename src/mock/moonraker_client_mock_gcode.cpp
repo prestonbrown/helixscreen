@@ -1480,7 +1480,7 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
     if (is_mock_lane_status() && (r = gcode_lane_status(g))) {
         return *r;
     }
-    if (mmu_enabled_ && (r = gcode_happy_hare(g))) {
+    if ((r = gcode_happy_hare(g))) {
         return *r;
     }
     if ((r = gcode_u1_feeding(g))) {

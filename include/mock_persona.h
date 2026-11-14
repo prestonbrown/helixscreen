@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <string>
 #include <string_view>
 
@@ -412,6 +413,28 @@ enum class MedusaVariant {
     return p && descriptor(p->type).hardware_persona;
 }
 
+/// HELIX_MOCK_* variables only AmsBackendMock reads: its scenarios, dryer, environment,
+/// remap and buffer demos, which no production backend's frames express.
+inline constexpr std::array<const char*, 11> kMockBackendKnobs = {
+    "HELIX_MOCK_AMS_STATE",   "HELIX_MOCK_DRYER",       "HELIX_MOCK_DRYING",
+    "HELIX_MOCK_DRYER_SPEED", "HELIX_MOCK_AMS_ENV",     "HELIX_MOCK_DRYER_HUMIDITY_TARGET",
+    "HELIX_MOCK_REMAP",       "HELIX_MOCK_REMAP_READY", "HELIX_MOCK_DRYER_DEFAULT_HUMIDITY",
+    "HELIX_MOCK_NO_HUMIDITY", "HELIX_MOCK_BUFFER_STATE"};
+
+/// True when any kMockBackendKnobs variable is set and not empty
+/// (HELIX_MOCK_AMS_STATE=idle is the default scenario and does not count).
+[[nodiscard]] inline bool mock_backend_knob_set() {
+    for (const char* name : kMockBackendKnobs) {
+        const char* value = std::getenv(name);
+        if (value && value[0] &&
+            !(std::string_view(name) == "HELIX_MOCK_AMS_STATE" &&
+              helix::text_io::to_lower(value) == "idle")) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /// The production backend a mock AMS selection stands up, as a log label, or nullptr when
 /// AmsBackendMock simulates it. A non-null answer means mock HARDWARE: MoonrakerClientMock
 /// publishes the objects and frames that firmware does, and real discovery builds the
@@ -458,6 +481,13 @@ enum class MedusaVariant {
     }
     if (mode.empty() && printer_env && is_hardware_persona(printer_env)) {
         return "persona";
+    }
+    // Happy Hare is the default: a persona that publishes `mmu` runs the production
+    // backend, unless a knob only the mock backend serves asks for its scenario.
+    const bool happy_hare_mode = mode == "happy_hare" || mode == "hh";
+    if ((happy_hare_mode || (mode.empty() && !mock_backend_knob_set())) &&
+        inherits_default(resolve_persona(printer_env).type, default_object::kHappyHareMmu)) {
+        return "Happy Hare";
     }
     return nullptr;
 }

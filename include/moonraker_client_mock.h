@@ -10,6 +10,7 @@
 #include "json_fwd.h"
 #include "mock_persona.h"
 #include "moonraker_client.h"
+#include "moonraker_client_mock_happy_hare.h"
 #include "moonraker_client_mock_spoolman.h"
 #include "moonraker_types.h"
 #include "preprint_skip_wrappers.h"
@@ -1476,9 +1477,16 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// printer.objects.query / subscribe handlers read it).
     bool is_mock_lane_status() const;
     [[nodiscard]] nlohmann::json lane_status_json() const;
-    /// The --real-ams Happy Hare `mmu` frame: a v4 single unit with a buffer and a fan,
-    /// whose sync feedback and fan state follow MMU_SYNC_FEEDBACK and MMU_FAN.
+    /// Happy Hare mock hardware: "mmu" is published (moonraker_client_mock_happy_hare.cpp).
+    bool is_mock_happy_hare() const;
+    /// The Happy Hare `mmu` frame: a v4 ERCF unit whose state follows the MMU_* commands.
     [[nodiscard]] nlohmann::json happy_hare_mmu_status() const;
+    /// `mmu` and `mmu_machine` while Happy Hare runs, else {}.
+    [[nodiscard]] nlohmann::json happy_hare_status_json() const;
+    /// The configfile.settings sections Happy Hare declares, else {}.
+    [[nodiscard]] nlohmann::json happy_hare_config_sections() const;
+    /// A print's starting tool, loaded at once (no-op unless Happy Hare runs).
+    void happy_hare_load_tool_now(int tool);
     /// HELIX_MOCK_OPENAMS_UNITS=shared: an AMS HT and an AMS 2 Pro on one lane.
     [[nodiscard]] static bool openams_shared_lane_units();
     /// HELIX_MOCK_OPENAMS_UNITS=two_lanes: that pair on lane `fps`, two AMS 2 Pro on `fps2`.
@@ -2628,11 +2636,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     mutable std::mutex sweep_response_mutex_;
     helix::calibration::MockSweepResponse sweep_response_;
 
-    bool mmu_enabled_{true};                           ///< MMU available (default true)
-    std::atomic<bool> hh_sync_feedback_enabled_{true}; ///< MMU_SYNC_FEEDBACK ENABLE=
-    std::atomic<bool> hh_fan_enabled_{true};           ///< MMU_FAN ENABLE=
+    bool mmu_enabled_{true}; ///< MMU available (default true)
+    /// Happy Hare's state, built on first use behind hh_mutex_.
+    mutable std::unique_ptr<helix::mock::HappyHareSim> hh_sim_;
+    mutable std::mutex hh_mutex_;
+    helix::mock::HappyHareSim& happy_hare_sim() const;
     std::atomic<int> toolchanger_tool_{0}; ///< toolchanger.tool_number (plain toolchanger mode)
-    std::atomic<int> hh_fan_mode_{2};      ///< MMU_FAN FAN_FORCED=, 2 = auto
 
     // --- MedusaHC swap simulation -------------------------------------------
     // Driven from gcode_script() (the swap, unmount and feeder commands) and

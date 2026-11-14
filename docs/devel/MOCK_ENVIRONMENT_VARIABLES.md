@@ -748,13 +748,14 @@ Select the mock AMS topology/type.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `none`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace`, `indx`, `lane_status` |
-| **Default** | The persona's own (`helix::mock::effective_mock_ams`): `toolchanger` on `creator5`, `ifs` on `ad5x`, `cfs` on `k2`, `snapmaker` on `snapmaker_u1`; Happy Hare, LINEAR, 4 slots on every other persona |
+| **Values** | `none`, `happy_hare` / `hh`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace`, `indx`, `lane_status` |
+| **Default** | The persona's own (`helix::mock::effective_mock_ams`): `toolchanger` on `creator5`, `ifs` on `ad5x`, `cfs` on `k2`, `snapmaker` on `snapmaker_u1`; Happy Hare mock hardware (production backend) on every other persona that publishes `mmu` |
 | **File** | `src/printer/ams_backend.cpp` |
 
 | Value | Units | What it simulates |
 |-------|-------|-------------------|
-| *(unset)* | 1 | The persona's default AMS (see **Default**); Happy Hare, LINEAR, 4 slots where the persona has none |
+| *(unset)* | 1 | The persona's default AMS (see **Default**). Where that is Happy Hare it is **mock HARDWARE, real backend**: Happy Hare 4 on one ERCF (`HELIX_AMS_GATES` gates, spools 1-8 of the mock Spoolman in turn, gate 1 loaded, gate 4 empty), publishing `mmu`, `mmu_machine` and the v4 configfile sections and answering `MMU_LOAD` / `MMU_UNLOAD` / `MMU_EJECT` / `MMU_SELECT` / `MMU_SELECT_BYPASS` / `MMU_HOME` / `T<n>` with frame-by-frame `action` and `filament_pos`, plus `MMU_GATE_MAP`, `MMU_TTG_MAP`, `MMU_ENDLESS_SPOOL`, `MMU_PRELOAD`, `MMU_RECOVER`, `MMU_SYNC_FEEDBACK` and `MMU_FAN` (`src/mock/moonraker_client_mock_happy_hare.cpp`), so real discovery builds the production `AmsBackendHappyHare`. Setting any knob only `AmsBackendMock` serves (`helix::mock::kMockBackendKnobs`: `HELIX_MOCK_AMS_STATE` other than `idle`, the `HELIX_MOCK_DRYER*` / `HELIX_MOCK_DRYING` family, `HELIX_MOCK_AMS_ENV`, `HELIX_MOCK_NO_HUMIDITY`, `HELIX_MOCK_REMAP*`, `HELIX_MOCK_BUFFER_STATE`) keeps the default on `AmsBackendMock`'s Happy Hare simulation, as do `ercf` and `tradrack` |
+| `happy_hare` / `hh` | 1 | The Happy Hare mock hardware above, whatever scenario knobs are set |
 | `none` | - | No mock AMS at all |
 | `ace` | 1 | Anycubic ACE identity on the mock backend, 4 slots |
 | `afc` | 1 | **AFC on one Box Turtle - mock HARDWARE, real backend.** Publishes `AFC`, `AFC_BoxTurtle Turtle_1`, its hub, TurtleNeck buffer, `AFC_extruder extruder` and `AFC_stepper lane1`..`laneN` (`HELIX_AMS_GATES`, up to 8; lane 1 tooled, lane 4 unlinked and weightless) with no `mmu`, and answers `TOOL_LOAD` / `CHANGE_TOOL` / `T<n>` / `TOOL_UNLOAD`, `SET_COLOR` / `SET_MATERIAL` / `SET_WEIGHT` / `SET_SPOOL_ID` / `SET_MAP` and `LANE_UNLOAD`, so real discovery builds the production `AmsBackendAfc`. Aliases: `box_turtle`, `boxturtle` |
@@ -1080,7 +1081,7 @@ Select the mock AMS visual scenario.
 
 | Value | What it shows |
 |-------|---------------|
-| *(unset)* / `idle` | Default idle state |
+| *(unset)* / `idle` | Default idle state. Any other value keeps the default persona on `AmsBackendMock` (see `HELIX_MOCK_AMS`) |
 | `loading` | Active load in progress with realistic segment animation |
 | `error` | Slot errors visible; buffer fault also shown when combined with `afc` mode |
 | `bypass` | Bypass mode active |

@@ -7,6 +7,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/mock_printer.h"
+#include "../test_helpers/scoped_env.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_ace.h"
 #include "ams_backend_ad5x_ifs.h"
@@ -3135,6 +3136,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "the mock's colour sentinel is not a grey anyb
 TEST_CASE_METHOD(LVGLTestFixture, "the factory mock is registered before it starts",
                  "[lane][ingest][mock]") {
     ScopedRuntimeConfig scoped_config;
+    // A mode the mock backend simulates: the default is Happy Hare mock hardware.
+    helix::ScopedEnv ams_mode{"HELIX_MOCK_AMS", "ercf"};
     get_runtime_config()->test_mode = true;
     get_runtime_config()->use_real_ams = false;
     get_runtime_config()->disable_mock_ams = false;
