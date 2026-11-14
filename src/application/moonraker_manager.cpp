@@ -749,8 +749,8 @@ namespace {
 
 /// Observe @p subject for the collector @p wiring names. The handler runs inside the
 /// notification, as the arming decisions must, and only while that collector lives.
-/// It holds @p wiring itself: shutdown() releases these guards rather than removing
-/// them, so a handler can outlive the manager and must not reach it.
+/// It holds @p wiring itself rather than the manager, so a handler never reaches a
+/// manager that a printer switch or shutdown is tearing down.
 template <typename V, typename Wiring, typename Handler>
 ObserverGuard observe_for_collector(lv_subject_t* subject, const std::shared_ptr<Wiring>& wiring,
                                     const SubjectLifetime& lifetime, Handler handler) {
