@@ -503,8 +503,8 @@ TEST_CASE("should_complete_preprint - non-layer-reporting printer falls back to 
 // StaticSubjectRegistry::deinit_all() BEFORE destroying singletons that the
 // Application owns directly (m_moonraker, etc.). Subject memory is freed at
 // that point, so any ObserverGuard member whose dtor still calls
-// lv_observer_delete() — i.e. any member NOT released() in that class's
-// own shutdown() — segfaults during teardown.
+// lv_observer_delete() — i.e. any member its class's own shutdown() does not end
+// with reset() (lifetime-token checked) or release() — segfaults during teardown.
 //
 // Originally this test covered just MoonrakerManager (issue #888 / bundle
 // T7M2ZYPY). Generalized via the SHUTDOWN_OBSERVER_CLASSES table below: any
@@ -573,17 +573,17 @@ std::string extract_method_body(const std::string& impl, const std::string& clas
     return impl.substr(start, pos - start - 1);
 }
 
-std::set<std::string> extract_released_members_in_method(const std::string& impl,
-                                                         const std::string& class_name,
-                                                         const std::string& method_name) {
-    // Extract `member.release();` calls from the method body.
+std::set<std::string> extract_ended_members_in_method(const std::string& impl,
+                                                      const std::string& class_name,
+                                                      const std::string& method_name) {
+    // Extract `member.release();` and `member.reset();` calls from the method body.
     std::string body = extract_method_body(impl, class_name, method_name);
     if (body.empty()) {
         return {};
     }
 
     std::set<std::string> released;
-    std::regex rel_re(R"(([A-Za-z][A-Za-z0-9_]*)\.release\s*\(\s*\)\s*;)");
+    std::regex rel_re(R"(([A-Za-z][A-Za-z0-9_]*)\.(?:release|reset)\s*\(\s*\)\s*;)");
     auto begin = std::sregex_iterator(body.begin(), body.end(), rel_re);
     auto end = std::sregex_iterator();
     for (auto it = begin; it != end; ++it) {
@@ -661,7 +661,7 @@ const std::vector<std::string>& detach_calls_required_in_teardown() {
 
 } // namespace
 
-TEST_CASE("Shutdown observer release contract — every ObserverGuard member is released",
+TEST_CASE("Shutdown observer contract — every ObserverGuard member is ended in shutdown",
           "[application][shutdown][regression]") {
     for (const auto& c : shutdown_observer_classes()) {
         DYNAMIC_SECTION(c.class_name << "::" << c.shutdown_method) {
@@ -674,19 +674,18 @@ TEST_CASE("Shutdown observer release contract — every ObserverGuard member is 
             INFO("Header: " << c.header_path);
             REQUIRE(static_cast<int>(members.size()) >= c.min_expected_members);
 
-            auto released =
-                extract_released_members_in_method(impl, c.class_name, c.shutdown_method);
+            auto released = extract_ended_members_in_method(impl, c.class_name, c.shutdown_method);
             INFO("Impl: " << c.impl_path << " method: " << c.shutdown_method);
             REQUIRE_FALSE(released.empty());
 
             for (const auto& member : members) {
                 INFO("ObserverGuard `" << member << "` declared in " << c.header_path
-                                       << " must call release() in " << c.class_name
+                                       << " must be reset() or release()d in " << c.class_name
                                        << "::" << c.shutdown_method
                                        << "(). Subjects are deinit'd before this class's "
-                                          "destructor runs, so the implicit ObserverGuard "
-                                          "dtor calling lv_observer_remove() on freed memory "
-                                          "crashes (issue #888 family).");
+                                          "destructor runs; ending each guard here, with its "
+                                          "subject's lifetime token, keeps the destructor off "
+                                          "freed observers (issue #888 family).");
                 REQUIRE(released.count(member) == 1);
             }
         }
