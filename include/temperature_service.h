@@ -225,6 +225,9 @@ class TemperatureService {
     // ── Multi-extruder support (nozzle-specific) ────────────────────────
     std::string active_extruder_name_ = "extruder";
 
+    /// Re-formats every heater's display string on a °C/°F switch.
+    ObserverGuard temp_unit_observer_;
+
     void select_extruder(const std::string& name);
 
     // ── Mini combined graph (filament panel) ────────────────────────────

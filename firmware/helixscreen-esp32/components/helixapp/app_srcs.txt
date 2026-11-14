@@ -446,6 +446,7 @@ src/ui/home/light_button_config.cpp
 src/ui/home/home_macro_run.cpp
 src/core/i18n_plural.cpp
 src/core/temperature_units.cpp
+src/core/temp_unit_subject.cpp
 src/ui/locale_formats.cpp
 src/ui/printers/printer_discovery_list.cpp
 src/ui/modals/buffer_status_modal.cpp

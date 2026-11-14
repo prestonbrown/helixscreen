@@ -17,6 +17,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -313,6 +314,13 @@ void ThermistorWidget::attach_carousel() {
         },
         tsm.subjects_lifetime());
 
+    // The page readings carry the display unit (unless the user overrode it).
+    temp_unit_observer_ =
+        helix::ui::observe_temp_unit_change(this, [token](ThermistorWidget* self) {
+            if (!token.expired())
+                self->reformat_pages();
+        });
+
     // Bind immediately (deferred observer fire may be dropped during populate_widgets freeze)
     bind_carousel_sensors();
 
@@ -343,6 +351,7 @@ void ThermistorWidget::bind_carousel_sensors() {
         carousel_lifetimes_.clear();
         carousel_observers_.clear();
         carousel_page_count_ = 0;
+        page_deci_.clear();
 
         auto* state_ptr = ui_carousel_get_state(carousel);
         if (state_ptr && state_ptr->scroll_container) {
@@ -390,6 +399,7 @@ void ThermistorWidget::bind_carousel_sensors() {
         page_name_->ensure_size(page_idx + 1);
         page_name_->set_string(page_idx, display_name);
         page_temp_->set_string(page_idx, "--" + unit_text(unit_override_));
+        page_deci_.emplace_back();
 
         // Per-page lifetime is stored in a parallel member vector so the token
         // outlives the local stack frame ([L084]).
@@ -440,6 +450,7 @@ void ThermistorWidget::detach() {
     configure_picker_.hide();
     {
         version_observer_.reset();
+        temp_unit_observer_.reset();
         // Lifetimes reset BEFORE observers (#705 ordering rule).
         carousel_lifetimes_.clear();
         carousel_observers_.clear();
@@ -1079,4 +1090,17 @@ void ThermistorWidget::show_page_temp(size_t page, int decidegrees) {
                                                    sizeof(number));
     }
     page_temp_->set_string(page, number + unit_text(unit_override_));
+    if (page < page_deci_.size()) {
+        page_deci_[page] = decidegrees;
+    }
+}
+
+void ThermistorWidget::reformat_pages() {
+    for (size_t page = 0; page < page_deci_.size() && page < page_temp_->size(); ++page) {
+        if (page_deci_[page]) {
+            show_page_temp(page, *page_deci_[page]);
+        } else {
+            page_temp_->set_string(page, "--" + unit_text(unit_override_));
+        }
+    }
 }

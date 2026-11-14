@@ -19,6 +19,7 @@
 #include "core/observer_factory.h"
 #include "core/observer_guard.h"
 #include "core/static_subject_registry.h"
+#include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
@@ -106,6 +107,7 @@ static void unregister_slot_data(lv_obj_t* obj) {
             data->active_loaded_observer.reset();
             data->action_observer.reset();
             data->target_slot_observer.reset();
+            data->temp_unit_observer.reset();
             data->print_state_observer.reset();
             data->extruder_velocity_observer.reset();
             data->animations_enabled_observer.reset();
@@ -143,6 +145,7 @@ static void cleanup_all_slot_data() {
         data->active_loaded_observer.reset();
         data->action_observer.reset();
         data->target_slot_observer.reset();
+        data->temp_unit_observer.reset();
         data->print_state_observer.reset();
         data->extruder_velocity_observer.reset();
         data->animations_enabled_observer.reset();
@@ -783,6 +786,13 @@ static void setup_slot_observers(AmsSlotData* data) {
             },
             state.get_subjects_lifetime());
     }
+
+    // The lane temperature reads in the display unit.
+    data->temp_unit_observer = helix::ui::observe_temp_unit_change(obj, [](lv_obj_t* o) {
+        if (auto* d = get_slot_data(o)) {
+            apply_lane_humidity(d, AmsState::instance().get_backend(d->backend_index));
+        }
+    });
 
     observe_slot_spin(data);
 

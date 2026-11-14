@@ -22,6 +22,7 @@
 #include "config.h"
 #include "core/http_executor.h"
 #include "core/observer_guard.h"
+#include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
@@ -409,6 +410,7 @@ void HelixTestFixture::reset_all() {
     // Every formatter reads the display unit; a test that shows °F must not
     // leave the rest of the binary reading it.
     helix::units::set_display_temp_unit(helix::units::TempUnit::Celsius);
+    helix::units::publish_temp_unit();
     helix::set_saved_date_format(std::nullopt);
 
     // A same-spool notice asked in one test would otherwise hold its lane's

@@ -386,6 +386,7 @@ class FilamentPanel : public PanelBase {
     char nozzle_label_buf_[32] = {};
     ObserverGuard active_tool_observer_;
     ObserverGuard language_observer_;
+    ObserverGuard temp_unit_observer_; ///< re-formats temperature text on a °C/°F switch
     void update_nozzle_label();
 
     // Tool selector caption (the active backend's noun: "Tool", "Toolhead").
@@ -757,6 +758,7 @@ class FilamentPanel : public PanelBase {
     void handle_preset_button(int material_id);
     void handle_spool_preset_button();
     void update_spool_preset();
+    void publish_spool_preset_temps(); ///< the novel spool's "210 / 60°C" in the display unit
     void handle_nozzle_temp_tap();
     void handle_bed_temp_tap();
     void handle_chamber_temp_tap();

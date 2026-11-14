@@ -109,6 +109,7 @@ class ToolSwitcherWidget : public PanelWidget {
 
     ObserverGuard active_tool_observer_;
     ObserverGuard tools_observer_;
+    ObserverGuard temp_unit_observer_;
     ObserverGuard print_state_observer_;
     ObserverGuard spool_latch_observer_;
     ObserverGuard slots_observer_;

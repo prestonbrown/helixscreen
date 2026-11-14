@@ -2705,6 +2705,9 @@ class AmsState {
     /// Wire (or rewire) connection_state_observer_. Idempotent.
     void install_connection_state_observer();
 
+    /// Re-formats the unit temperature readouts on a °C/°F switch.
+    ObserverGuard temp_unit_observer_;
+
     /// Re-syncs the clog meter on FilamentSensorManager's motion signature.
     ObserverGuard motion_sensor_observer_;
 

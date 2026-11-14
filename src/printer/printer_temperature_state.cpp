@@ -13,6 +13,7 @@
 #include "ui_temperature_utils.h"
 
 #include "chamber_heater_backend.h"
+#include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "klipper_extruder_naming.h"
@@ -183,6 +184,16 @@ void PrinterTemperatureState::init_subjects(bool register_xml) {
     // Extruder version subject (bumped when extruder list changes)
     INIT_SUBJECT_INT(extruder_version, 0, subjects_, register_xml);
 
+    // The numeric subjects stay as they are on a °C/°F switch; only the strings
+    // built here from them are formatted again.
+    unit_observer_ = helix::ui::observe_temp_unit_change(this, [](PrinterTemperatureState* self) {
+        if (!self->subjects_initialized_) {
+            return;
+        }
+        self->publish_chamber_dryer();
+        self->publish_chamber_heater_element_temp();
+    });
+
     subjects_initialized_ = true;
     spdlog::trace("[PrinterTemperatureState] Subjects initialized successfully");
 }
@@ -193,6 +204,8 @@ void PrinterTemperatureState::deinit_subjects() {
     }
 
     spdlog::debug("[PrinterTemperatureState] Deinitializing subjects");
+    unit_observer_.reset();
+    chamber_heater_element_temp_c_.reset();
 
     // Signal subject death FIRST — sets the pointed-to bool to false so that
     // ALL ObserverGuards detect the subject as dead and skip lv_observer_delete()
@@ -712,19 +725,8 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
                         backend->id(), *d->fault_reason);
                 }
                 if (d->element_temp_c.has_value()) {
-                    if (std::isnan(*d->element_temp_c)) {
-                        lv_subject_set_string(&chamber_heater_element_temp_text_, "--");
-                    } else {
-                        // Canonical decimal-drop rule (one decimal <100°C, whole
-                        // degrees at/above) — format_temperature_f wraps
-                        // format_temp_number plus the unit.
-                        helix::ui::temperature::format_temperature_f(
-                            static_cast<float>(*d->element_temp_c),
-                            chamber_heater_element_temp_text_buf_,
-                            sizeof(chamber_heater_element_temp_text_buf_));
-                        lv_subject_set_string(&chamber_heater_element_temp_text_,
-                                              chamber_heater_element_temp_text_buf_);
-                    }
+                    chamber_heater_element_temp_c_ = static_cast<float>(*d->element_temp_c);
+                    publish_chamber_heater_element_temp();
                 }
                 if (d->filter_fan_percent.has_value()) {
                     lv_subject_set_string(&chamber_filter_fan_percent_text_,
@@ -908,6 +910,23 @@ void PrinterTemperatureState::clear_chamber_rejection() {
 // countdown ends the cycle. The countdown uses the AMS dryer's "H:MM left",
 // minutes rounded up so the last minute reads 0:01, and is omitted until the
 // device reports one.
+void PrinterTemperatureState::publish_chamber_heater_element_temp() {
+    if (!chamber_heater_element_temp_c_.has_value()) {
+        return;
+    }
+    if (std::isnan(*chamber_heater_element_temp_c_)) {
+        lv_subject_set_string(&chamber_heater_element_temp_text_, "--");
+        return;
+    }
+    // Canonical decimal-drop rule (one decimal <100°C, whole degrees at/above):
+    // format_temperature_f wraps format_temp_number plus the unit.
+    helix::ui::temperature::format_temperature_f(*chamber_heater_element_temp_c_,
+                                                 chamber_heater_element_temp_text_buf_,
+                                                 sizeof(chamber_heater_element_temp_text_buf_));
+    lv_subject_set_string(&chamber_heater_element_temp_text_,
+                          chamber_heater_element_temp_text_buf_);
+}
+
 void PrinterTemperatureState::publish_chamber_dryer() {
     lv_subject_set_int(&chamber_dryer_active_, chamber_dryer_running_ ? 1 : 0);
     if (!chamber_dryer_running_) {

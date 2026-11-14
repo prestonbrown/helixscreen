@@ -9,6 +9,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/temp_unit_subject.h"
 #include "core/timer_guard.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
@@ -227,6 +228,9 @@ void PrintStatusTiles::init_subjects(SubjectManager& subjects) {
         observe<int>(printer_state_.get_heater_power_subject(HeaterType::Bed), this, heaters, ps);
     chamber_power_observer_ = observe<int>(
         printer_state_.get_heater_power_subject(HeaterType::Chamber), this, heaters, ps);
+    // The chips format their readings in the display unit.
+    temp_unit_observer_ = helix::ui::observe_temp_unit_change(
+        this, [](PrintStatusTiles* self) { self->request_update(); });
     // The other-tools chip follows every head, and which heads there are.
     const auto heads_changed = [](PrintStatusTiles* self, int) {
         self->watch_extruders();
@@ -271,6 +275,7 @@ void PrintStatusTiles::deinit() {
     nozzle_power_observer_.reset();
     bed_power_observer_.reset();
     chamber_power_observer_.reset();
+    temp_unit_observer_.reset();
     extruder_version_observer_.reset();
     tools_version_observer_.reset();
     extruder_watches_.clear();

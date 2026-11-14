@@ -27,6 +27,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
 #include "core/update_queue.h"
 #include "format_utils.h"
@@ -521,6 +522,17 @@ void ControlsPanel::register_observers() {
                 self->update_chamber_temp_display();
         },
         chamber_mode_lifetime_);
+
+    // The card strings are formatted from the cached Celsius values; a °C/°F
+    // switch formats them again, leaving the heater subjects alone.
+    temp_unit_observer_ = helix::ui::observe_temp_unit_change(this, [](ControlsPanel* self) {
+        if (!self->are_subjects_initialized() || !self->active_) {
+            return;
+        }
+        self->update_nozzle_temp_display();
+        self->update_bed_temp_display();
+        self->update_chamber_temp_display();
+    });
 
     // Subscribe to fan updates (skip formatting when hidden)
     fan_observer_ = observe<int>(

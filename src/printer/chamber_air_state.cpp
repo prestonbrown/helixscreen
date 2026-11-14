@@ -4,6 +4,7 @@
 
 #include "chamber_air_settings.h"
 #include "core/observer_factory.h"
+#include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
@@ -57,6 +58,11 @@ void ChamberAirState::init_subjects(bool register_xml) {
                                   units::format_display_temp(celsius).c_str());
         },
         subjects_.get_subjects_lifetime(), ui::Dispatch::Immediate);
+    unit_observer_ = ui::observe_temp_unit_change(this, [](ChamberAirState* self) {
+        lv_subject_set_string(
+            &self->chamber_air_target_text_,
+            units::format_display_temp(lv_subject_get_int(&self->chamber_air_target_c_)).c_str());
+    });
     subjects_initialized_ = true;
 }
 
@@ -65,6 +71,7 @@ void ChamberAirState::deinit_subjects() {
         return;
     }
     target_text_observer_.reset();
+    unit_observer_.reset();
     subjects_.deinit_all();
     subjects_initialized_ = false;
 }

@@ -24,6 +24,7 @@
 #include "core/gcode_filename.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/temp_unit_subject.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_op_dispatch.h"
@@ -2584,6 +2585,7 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
         s_formatter_->tools_version_observer_.reset();
         s_formatter_->active_tool_observer_.reset();
         s_formatter_->language_observer_.reset();
+        s_formatter_->temp_unit_observer_.reset();
         s_formatter_->nozzle_temp_lifetime_.reset();
         s_formatter_->nozzle_target_lifetime_.reset();
         s_formatter_->subjects_.deinit_all();
@@ -2676,6 +2678,8 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
         self->update_filament_text();
         self->update_idle_fields();
     });
+    temp_unit_observer_ = helix::ui::observe_temp_unit_change(
+        this, [](DetailedFormatter* self) { self->update_nozzle_text(); });
 
     spdlog::debug("[DetailedFormatter] subjects initialized");
 }
@@ -2706,6 +2710,7 @@ PrintStatusWidget::DetailedFormatter::~DetailedFormatter() {
     tools_version_observer_.reset();
     active_tool_observer_.reset();
     language_observer_.reset();
+    temp_unit_observer_.reset();
     nozzle_temp_lifetime_.reset();
     nozzle_target_lifetime_.reset();
     subjects_.deinit_all();

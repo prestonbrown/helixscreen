@@ -261,6 +261,7 @@ class PrintStatusTiles {
     ObserverGuard nozzle_power_observer_;
     ObserverGuard bed_power_observer_;
     ObserverGuard chamber_power_observer_;
+    ObserverGuard temp_unit_observer_;
 
     // Lifetimes before observers: members destroy in reverse, so each guard
     // goes while its lifetime still says whether the subject lives.
