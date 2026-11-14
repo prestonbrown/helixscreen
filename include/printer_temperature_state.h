@@ -632,6 +632,11 @@ class PrinterTemperatureState {
     bool chamber_dryer_remaining_reported_ = false;
     int chamber_dryer_target_c_ = 0; ///< 0 = not reported
     void publish_chamber_dryer();
+    /// Last element temperature shown; NaN shows "--". Kept so a unit switch re-formats it.
+    std::optional<float> chamber_heater_element_temp_c_;
+    void publish_chamber_heater_element_temp();
+    /// Re-formats the C++-built temperature strings when the display unit changes.
+    ObserverGuard unit_observer_;
     lv_subject_t chamber_heater_command_rejected_{}; ///< XML: 0/1
     lv_subject_t chamber_heater_rejection_seq_{};    ///< Internal: rejection event count
     lv_subject_t chamber_heater_rejection_text_{};   ///< XML: translated sentence

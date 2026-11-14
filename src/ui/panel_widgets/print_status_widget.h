@@ -603,6 +603,7 @@ class PrintStatusWidget : public PanelWidget {
         ObserverGuard tools_version_observer_;
         ObserverGuard active_tool_observer_;
         ObserverGuard language_observer_;
+        ObserverGuard temp_unit_observer_; ///< Re-formats the nozzle text on a °C/°F switch
 
         void update_layer_text();
         void update_time_text();

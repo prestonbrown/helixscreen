@@ -18,6 +18,7 @@
 #include "app_globals.h"
 #include "chamber_stall_prompt.h"
 #include "core/observer_factory.h"
+#include "core/temp_unit_subject.h"
 #include "core/update_queue.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
@@ -172,6 +173,14 @@ TemperatureService::TemperatureService(PrinterState& printer_state, IMoonrakerAP
         this,
         [](TemperatureService* self, int /*fan_target*/) { self->recompute_chamber_target(); },
         chamber.fan_target_lifetime);
+
+    // The display strings follow a °C/°F switch from the cached readings;
+    // update_display() is a no-op until init_subjects().
+    temp_unit_observer_ = helix::ui::observe_temp_unit_change(this, [](TemperatureService* self) {
+        for (int i = 0; i < helix::kHeaterTypeCount; ++i) {
+            self->update_display(static_cast<HeaterType>(i));
+        }
+    });
 
     // Register XML event callbacks (BEFORE any lv_xml_create calls)
     register_xml_callbacks({

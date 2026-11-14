@@ -6,6 +6,7 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/temp_unit_subject.h"
 #include "display_manager.h"
 #include "display_metrics.h"
 #include "helix-xml/src/xml/lv_xml_style.h"
@@ -301,6 +302,7 @@ void DisplaySettingsManager::init_subjects() {
 
     settings_.init(subjects_);
     units::set_display_temp_unit(get_temp_unit());
+    units::publish_temp_unit();
     UI_MANAGED_SUBJECT_STRING(temp_unit_symbol_subject_, temp_unit_symbol_buf_,
                               units::display_temp_symbol(), "settings_temp_unit_symbol", subjects_);
     if (has_saved_date_format()) {
@@ -861,6 +863,9 @@ void DisplaySettingsManager::set_temp_unit(units::TempUnit unit) {
     if (subjects_initialized_) {
         lv_subject_set_string(&temp_unit_symbol_subject_, units::display_temp_symbol());
     }
+    // Text formatted in C++ from cached Celsius values re-formats from this; the
+    // printer's temperature subjects are left alone.
+    units::publish_temp_unit();
     // The preset labels are formatted once into shared subjects; redo them now.
     presets::refresh_subjects();
     spdlog::info("[DisplaySettingsManager] Temperature unit set to {}",

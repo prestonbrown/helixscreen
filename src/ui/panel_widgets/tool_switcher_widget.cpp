@@ -13,6 +13,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/temp_unit_subject.h"
 #include "helix/ui/text_metrics.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "helix_psram_attr.h"
@@ -435,6 +436,16 @@ void ToolSwitcherWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         },
         tool_state.get_subjects_lifetime());
 
+    // The head readings carry the display unit.
+    temp_unit_observer_ =
+        helix::ui::observe_temp_unit_change(this, [token](ToolSwitcherWidget* self) {
+            if (token.expired())
+                return;
+            for (size_t i = 0; i < self->head_temps_.size(); ++i) {
+                self->publish_head_temp(static_cast<int>(i));
+            }
+        });
+
     // Re-publish the gate on every print-state transition. PanelWidget
     // instances are RECYCLED across home-panel rebuilds, so registering here
     // (rather than only reacting to on_size_changed) is what keeps a reused
@@ -516,6 +527,7 @@ void ToolSwitcherWidget::detach() {
     picker_.hide();
     active_tool_observer_.reset();
     tools_observer_.reset();
+    temp_unit_observer_.reset();
     print_state_observer_.reset();
     spool_latch_observer_.reset();
     slots_observer_.reset();

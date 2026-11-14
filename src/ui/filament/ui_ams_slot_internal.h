@@ -42,6 +42,7 @@ struct AmsSlotData {
     ObserverGuard active_loaded_observer; ///< Per-slot active-loaded (single highlight source)
     ObserverGuard action_observer;
     ObserverGuard target_slot_observer;
+    ObserverGuard temp_unit_observer;
     ObserverGuard print_state_observer;        ///< Spool spin: printing or not
     ObserverGuard extruder_velocity_observer;  ///< Spool spin: paced by flow
     ObserverGuard animations_enabled_observer; ///< Spool spin: the setting turns it off

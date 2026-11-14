@@ -10,6 +10,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/temp_unit_subject.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
 #include "lvgl.h"
@@ -150,19 +151,12 @@ void NozzleTempsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         },
         tool_state.get_subjects_lifetime());
 
-    // "off" is formatted into the value labels, and the value width decides the
-    // layout, so a new language re-formats and re-measures.
-    language_observer_ = helix::ui::observe_language_change(this, [](NozzleTempsWidget* self) {
-        if (!self->widget_obj_)
-            return;
-        for (auto& row : self->extruder_rows_) {
-            self->update_row_display(row.temp_label, row.target_label, row.cached_temp,
-                                     row.cached_target, false);
-        }
-        self->update_row_display(self->bed_temp_label_, self->bed_target_label_,
-                                 self->cached_bed_temp_, self->cached_bed_target_, true);
-        self->relayout_for_granted_size();
-    });
+    // "off" and the unit are formatted into the value labels, and the value width
+    // decides the layout, so a new language or unit re-formats and re-measures.
+    language_observer_ = helix::ui::observe_language_change(
+        this, [](NozzleTempsWidget* self) { self->reformat_values(); });
+    temp_unit_observer_ = helix::ui::observe_temp_unit_change(
+        this, [](NozzleTempsWidget* self) { self->reformat_values(); });
     // Each row's number rung and name spell the tool in the printer's tool number style.
     auto& settings = helix::SettingsManager::instance();
     tool_number_style_observer_ = helix::ui::observe_int_change(
@@ -175,10 +169,23 @@ void NozzleTempsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     spdlog::debug("[NozzleTempsWidget] Attached with {} extruder rows", extruder_rows_.size());
 }
 
+void NozzleTempsWidget::reformat_values() {
+    if (!widget_obj_)
+        return;
+    for (auto& row : extruder_rows_) {
+        update_row_display(row.temp_label, row.target_label, row.cached_temp, row.cached_target,
+                           false);
+    }
+    update_row_display(bed_temp_label_, bed_target_label_, cached_bed_temp_, cached_bed_target_,
+                       true);
+    relayout_for_granted_size();
+}
+
 void NozzleTempsWidget::detach() {
     lifetime_.invalidate();
     version_observer_.reset();
     language_observer_.reset();
+    temp_unit_observer_.reset();
     tool_number_style_observer_.reset();
     mounted_tool_observer_.reset();
     clear_rows();

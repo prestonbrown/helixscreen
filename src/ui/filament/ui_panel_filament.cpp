@@ -27,6 +27,7 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
@@ -282,6 +283,20 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
         self->last_status_branch_ = StatusBranch::None;
         self->update_status();
         self->update_nozzle_label();
+        self->update_warning_text();
+        self->update_safety_warning_text();
+    });
+
+    // Every temperature string here is formatted from cached Celsius values;
+    // a °C/°F switch formats them again without touching the heater subjects.
+    temp_unit_observer_ = helix::ui::observe_temp_unit_change(this, [](FilamentPanel* self) {
+        self->update_temp_display();
+        self->update_left_card_temps();
+        self->update_material_temp_display();
+        self->update_chamber_temp_display();
+        self->publish_spool_preset_temps();
+        self->last_status_branch_ = StatusBranch::None;
+        self->update_status();
         self->update_warning_text();
         self->update_safety_warning_text();
     });
@@ -2461,6 +2476,17 @@ void FilamentPanel::handle_spool_preset_button() {
         "[FilamentPanel]", hw);
 }
 
+void FilamentPanel::publish_spool_preset_temps() {
+    if (!cached_active_material_.has_value()) {
+        return;
+    }
+    const auto& info = cached_active_material_->material_info;
+    auto text =
+        fmt::format("{} / {}", helix::units::to_display_temp_whole(info.nozzle_recommended()),
+                    helix::units::format_display_temp(info.bed_temp));
+    lv_subject_set_string(&spool_preset_temps_subject_, text.c_str());
+}
+
 void FilamentPanel::update_spool_preset() {
     cached_active_material_ = helix::get_active_material();
 
@@ -2485,10 +2511,7 @@ void FilamentPanel::update_spool_preset() {
 
     // Novel material — show spool preset button.
     lv_subject_set_string(&spool_preset_name_subject_, active.material_name.c_str());
-    auto text = fmt::format(
-        "{} / {}", helix::units::to_display_temp_whole(active.material_info.nozzle_recommended()),
-        helix::units::format_display_temp(active.material_info.bed_temp));
-    lv_subject_set_string(&spool_preset_temps_subject_, text.c_str());
+    publish_spool_preset_temps();
     lv_subject_set_int(&spool_preset_shown_subject_, 1);
 
     // Deselect spool button initially (user must tap)

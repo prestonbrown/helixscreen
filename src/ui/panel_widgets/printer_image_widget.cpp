@@ -19,6 +19,7 @@
 #include "config.h"
 #include "core/http_executor.h"
 #include "core/observer_factory.h"
+#include "core/temp_unit_subject.h"
 #include "core/timer_guard.h"
 #include "display_settings_manager.h"
 #include "grid_layout.h"
@@ -747,6 +748,12 @@ void PrinterImageWidget::arm_callout_observers() {
     callout_observers_.push_back(helix::ui::observe<const char*>(
         lv_xml_get_subject(nullptr, "tool_badge_text"), this,
         [](PrinterImageWidget* w, const char*) { w->schedule_callout_layout(); }, tools_life));
+    // The heater chips read in the display unit, and their width with it.
+    callout_observers_.push_back(
+        helix::ui::observe_temp_unit_change(this, [](PrinterImageWidget* w) {
+            w->update_callouts();
+            w->schedule_callout_layout();
+        }));
 
     const auto chip = [&](const char* name) { return lv_obj_find_by_name(widget_obj_, name); };
     callout_spin_pct_ = -1; // fresh icons: the next update sets their spin

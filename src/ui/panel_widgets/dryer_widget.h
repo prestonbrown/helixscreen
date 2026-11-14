@@ -51,6 +51,7 @@ class DryerWidget : public PanelWidget {
 
     ObserverGuard version_observer_;
     ObserverGuard language_observer_;
+    ObserverGuard temp_unit_observer_;
 
     // Declared last so it is torn down first, expiring every token the observer
     // captured before it is destroyed.

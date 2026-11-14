@@ -276,6 +276,7 @@ class ControlsPanel : public PanelBase {
     ObserverGuard chamber_target_observer_; // Chamber raw heater target observer (keypad seed)
     ObserverGuard chamber_effective_target_observer_; // Chamber effective target observer (status)
     ObserverGuard chamber_mode_observer_;             // Chamber M141 control mode observer
+    ObserverGuard temp_unit_observer_; // Re-formats the card temperatures on a °C/°F switch
 
     bool fans_rebuild_pending_ = false; ///< Coalesces rapid fans_version observer notifications
 
