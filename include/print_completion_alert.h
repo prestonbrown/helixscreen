@@ -11,8 +11,8 @@ namespace helix {
 /// How a print ended, as the completion alert sees it.
 enum class PrintEnding : uint8_t { COMPLETE, CANCELLED, ERROR };
 
-/// What the app does when a print ends. Sounds and the heater shutdown on an error sit outside
-/// it: they happen whatever the plan says.
+/// What the app does when a print ends. Sounds and the heater shutdown on an error
+/// (should_turn_heaters_off()) sit outside it: they happen whatever the plan says.
 struct CompletionAlertPlan {
     bool wake = false;  ///< wake the display
     bool modal = false; ///< show the rich completion modal
@@ -28,5 +28,14 @@ struct CompletionAlertPlan {
  */
 CompletionAlertPlan plan_completion_alert(PrintEnding ending, CompletionAlertMode mode,
                                           bool on_print_status, bool saver_running);
+
+/**
+ * @brief Whether the app turns the heaters off as a print ends
+ *
+ * Only for an error: Klipper leaves the heaters on when a print errors, and a completed or
+ * cancelled print's own end gcode sets them. Nothing is sent to a firmware that turns the heaters
+ * off itself on an error (PrinterProfileState::firmware_owns_error_heaters()).
+ */
+[[nodiscard]] bool should_turn_heaters_off(PrintEnding ending, bool firmware_owns_error_heaters);
 
 } // namespace helix

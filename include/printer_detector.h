@@ -666,6 +666,11 @@ class PrinterDetector {
     /// copy staged under one fails to open. False when absent or unknown.
     static bool klipper_hides_dot_dirs(const std::string& printer_name);
 
+    /// The database's `"firmware_owns_error_heaters": true` flag for @p printer_name:
+    /// its firmware turns the heaters off itself when a print errors, so the app
+    /// sends no heater command of its own for an error. False when absent or unknown.
+    static bool firmware_owns_error_heaters(const std::string& printer_name);
+
     /// The database's power-loss recovery `plr` block for @p printer_name;
     /// nullopt when the printer is unknown or unlisted for it (tier 0).
     static std::optional<helix::PlrDbBlock> get_plr_block(const std::string& printer_name);

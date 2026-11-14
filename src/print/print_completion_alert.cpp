@@ -22,4 +22,8 @@ CompletionAlertPlan plan_completion_alert(PrintEnding ending, CompletionAlertMod
     return plan;
 }
 
+bool should_turn_heaters_off(PrintEnding ending, bool firmware_owns_error_heaters) {
+    return ending == PrintEnding::ERROR && !firmware_owns_error_heaters;
+}
+
 } // namespace helix

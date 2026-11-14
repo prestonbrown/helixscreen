@@ -1718,6 +1718,10 @@ bool PrinterDetector::klipper_hides_dot_dirs(const std::string& printer_name) {
     return printer_flag(printer_name, "klipper_hides_dot_dirs");
 }
 
+bool PrinterDetector::firmware_owns_error_heaters(const std::string& printer_name) {
+    return printer_flag(printer_name, "firmware_owns_error_heaters");
+}
+
 std::optional<helix::PlrDbBlock> PrinterDetector::get_plr_block(const std::string& printer_name) {
     const json* printer = find_printer_entry(printer_name);
     return printer ? helix::plr_parse_db_block(*printer) : std::nullopt;

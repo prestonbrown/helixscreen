@@ -8,6 +8,7 @@ using helix::CompletionAlertMode;
 using helix::CompletionAlertPlan;
 using helix::plan_completion_alert;
 using helix::PrintEnding;
+using helix::should_turn_heaters_off;
 
 namespace {
 
@@ -63,4 +64,15 @@ TEST_CASE("a running saver takes the place of the completion wake", "[print_comp
         CHECK(plan.modal == r.modal);
         CHECK(plan.toast == r.toast);
     }
+}
+
+TEST_CASE("only a print error the firmware leaves to the app turns the heaters off",
+          "[print_completion_alert]") {
+    CHECK(should_turn_heaters_off(PrintEnding::ERROR, false));
+    // The firmware has already turned them off.
+    CHECK_FALSE(should_turn_heaters_off(PrintEnding::ERROR, true));
+    // A completed or cancelled print's own end gcode decides.
+    const bool owned = GENERATE(false, true);
+    CHECK_FALSE(should_turn_heaters_off(PrintEnding::COMPLETE, owned));
+    CHECK_FALSE(should_turn_heaters_off(PrintEnding::CANCELLED, owned));
 }

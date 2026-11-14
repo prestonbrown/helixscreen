@@ -101,6 +101,7 @@ bool PrinterProfileState::set_printer_type(const std::string& type, bool has_pro
     db_tool_change_resets_z_offset_ = db_tool_change_resets;
     db_enclosed_ = PrinterDetector::is_enclosed(type);
     db_hides_dot_dirs_ = PrinterDetector::klipper_hides_dot_dirs(type);
+    db_firmware_owns_error_heaters_ = PrinterDetector::firmware_owns_error_heaters(type);
 
     if (subjects_initialized_) {
         lv_subject_set_string(&printer_type_subject_, type.c_str());

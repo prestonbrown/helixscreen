@@ -46,9 +46,11 @@ own and no `product_param`, so without an entry of its own it ties the two k2-im
 `extended_zone_transform` object, which every other K2 entry excludes. It has no preset (its fans,
 sensors and CFS macros differ from the `k2` preset's), no `probe_type` (Cartographer or its own
 `prtouch`, never `prtouch_v3`), and its own `k2_jacobean` print-start profile written from its
-START_PRINT's STATUS_MSG text. Its detection fixtures are the live configs of two real units
-(`creality_k2_plus_jacobean*.json`), both of which HelixScreen had saved as the stock K2 Plus while
-detecting k2-improvements (#2087).
+START_PRINT's STATUS_MSG text. Its `on_error_gcode` turns the heaters off itself when a print
+errors, so the entry's `firmware_owns_error_heaters` stops the app's own `TURN_OFF_HEATERS`
+(`src/print/print_completion_alert.cpp#should_turn_heaters_off`). Its detection fixtures are the
+live configs of two real units (`creality_k2_plus_jacobean*.json`), both of which HelixScreen had
+saved as the stock K2 Plus while detecting k2-improvements (#2087).
 
 ## Hardware (Confirmed on K2 Plus — 2026-03-23)
 
