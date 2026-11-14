@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <functional>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -76,6 +77,20 @@ toolhead_axis_maximum(const helix::mock::PersonaDescriptor& persona) {
 [[nodiscard]] inline std::string effective_mock_ams_env() {
     return helix::mock::effective_mock_ams(std::getenv("HELIX_MOCK_AMS"),
                                            std::getenv("HELIX_MOCK_PRINTER"));
+}
+
+/// The value of ` KEY=` on a G-code line: "" for `KEY=` with no value, nullopt when
+/// the line has no such parameter.
+[[nodiscard]] inline std::optional<std::string> gcode_param(const std::string& gcode,
+                                                            const char* key) {
+    const std::string needle = std::string(" ") + key + "=";
+    const size_t at = gcode.find(needle);
+    if (at == std::string::npos) {
+        return std::nullopt;
+    }
+    const size_t start = at + needle.size();
+    const size_t end = gcode.find_first_of(" \t", start);
+    return gcode.substr(start, end == std::string::npos ? std::string::npos : end - start);
 }
 
 /// Duty a real heater would be running at, 0.0-1.0, as Klipper reports it: flat

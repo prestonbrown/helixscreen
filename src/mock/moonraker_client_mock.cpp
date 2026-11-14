@@ -235,6 +235,7 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
     if (is_mock_afc_boxturtle()) {
         init_afc_boxturtle(get_runtime_config()->mock_ams_gate_count);
     }
+    init_happy_hare(get_runtime_config()->mock_ams_gate_count);
 
     // Filament in the head that no lane claims: what a firmware that lost its
     // loaded-lane record leaves behind.

@@ -10,10 +10,8 @@
 #include "moonraker_client_mock_happy_hare.h"
 
 #include "core/text_io.h"
-#include "gcode_parser.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
-#include "runtime_config.h"
 
 #include <spdlog/spdlog.h>
 
@@ -54,13 +52,8 @@ constexpr const char* kVersion = "4.1.0";
 constexpr const char* kUnitName = "unit0";
 constexpr const char* kUnitDisplayName = "ERCF";
 
-std::optional<std::string> param(const std::string& gcode, const char* key) {
-    // Leading space so GATE= never matches inside another key.
-    return helix::gcode::gcode_param_value(gcode, std::string(" ") + key);
-}
-
 std::optional<int> int_param(const std::string& gcode, const char* key) {
-    const auto v = param(gcode, key);
+    const auto v = mock_internal::gcode_param(gcode, key);
     return v ? text_io::parse_leading<int>(*v) : std::nullopt;
 }
 
@@ -319,20 +312,20 @@ HappyHareReply HappyHareSim::gate_map(const std::string& gcode) {
         return refuse("MMU_GATE_MAP: GATE must name a gate");
     }
     HappyHareGate& g = gates_[static_cast<size_t>(*gate)];
-    if (const auto v = param(gcode, "MATERIAL")) {
+    if (const auto v = mock_internal::gcode_param(gcode, "MATERIAL")) {
         g.material = *v;
     }
-    if (const auto v = param(gcode, "COLOR")) {
+    if (const auto v = mock_internal::gcode_param(gcode, "COLOR")) {
         std::string hex = *v;
         if (!hex.empty() && hex[0] == '#') {
             hex.erase(0, 1);
         }
         g.rgb = hex.empty() ? 0 : static_cast<uint32_t>(std::strtoul(hex.c_str(), nullptr, 16));
     }
-    if (const auto v = param(gcode, "NAME")) {
+    if (const auto v = mock_internal::gcode_param(gcode, "NAME")) {
         g.name = *v;
     }
-    if (const auto v = param(gcode, "VENDOR")) {
+    if (const auto v = mock_internal::gcode_param(gcode, "VENDOR")) {
         g.vendor = *v;
     }
     if (const auto v = int_param(gcode, "SPOOLID")) {
@@ -356,7 +349,7 @@ HappyHareReply HappyHareSim::endless_spool(const std::string& gcode) {
             endless_spool_groups_[i] = static_cast<int>(i);
         }
     }
-    if (const auto csv = param(gcode, "GROUPS")) {
+    if (const auto csv = mock_internal::gcode_param(gcode, "GROUPS")) {
         std::vector<int> groups;
         size_t start = 0;
         while (start <= csv->size()) {
@@ -554,22 +547,16 @@ bool MoonrakerClientMock::is_mock_happy_hare() const {
            helix::mock::inherits_default(printer_type_, helix::mock::default_object::kHappyHareMmu);
 }
 
-helix::mock::HappyHareSim& MoonrakerClientMock::happy_hare_sim() const {
-    // Built on first use: the gate count and the persona's dryer sensor are settled
-    // by then.
-    if (!hh_sim_) {
-        const bool dryer_sensor =
-            helix::mock::inherits_default(printer_type_, helix::mock::default_object::kHtu21dDryer);
-        hh_sim_ = std::make_unique<helix::mock::HappyHareSim>(
-            get_runtime_config()->mock_ams_gate_count,
-            dryer_sensor ? "temperature_sensor dryer" : "");
-    }
-    return *hh_sim_;
+void MoonrakerClientMock::init_happy_hare(int gates) {
+    const bool dryer_sensor =
+        helix::mock::inherits_default(printer_type_, helix::mock::default_object::kHtu21dDryer);
+    hh_sim_ = std::make_unique<helix::mock::HappyHareSim>(
+        gates, dryer_sensor ? "temperature_sensor dryer" : "");
 }
 
 json MoonrakerClientMock::happy_hare_mmu_status() const {
     std::lock_guard<std::mutex> lock(hh_mutex_);
-    return happy_hare_sim().status();
+    return hh_sim_->status();
 }
 
 json MoonrakerClientMock::happy_hare_status_json() const {
@@ -577,7 +564,7 @@ json MoonrakerClientMock::happy_hare_status_json() const {
         return json::object();
     }
     std::lock_guard<std::mutex> lock(hh_mutex_);
-    return {{"mmu", happy_hare_sim().status()}, {"mmu_machine", happy_hare_sim().machine_status()}};
+    return {{"mmu", hh_sim_->status()}, {"mmu_machine", hh_sim_->machine_status()}};
 }
 
 json MoonrakerClientMock::happy_hare_config_sections() const {
@@ -585,7 +572,7 @@ json MoonrakerClientMock::happy_hare_config_sections() const {
         return json::object();
     }
     std::lock_guard<std::mutex> lock(hh_mutex_);
-    return happy_hare_sim().config_sections();
+    return hh_sim_->config_sections();
 }
 
 void MoonrakerClientMock::happy_hare_load_tool_now(int tool) {
@@ -594,7 +581,7 @@ void MoonrakerClientMock::happy_hare_load_tool_now(int tool) {
     }
     {
         std::lock_guard<std::mutex> lock(hh_mutex_);
-        happy_hare_sim().load_tool_now(tool);
+        hh_sim_->load_tool_now(tool);
     }
     dispatch_status_update({{"mmu", happy_hare_mmu_status()}});
 }
@@ -606,7 +593,7 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_happy_hare(const std
     helix::mock::HappyHareReply reply;
     {
         std::lock_guard<std::mutex> lock(hh_mutex_);
-        reply = happy_hare_sim().command(gcode);
+        reply = hh_sim_->command(gcode);
     }
     if (!reply.handled) {
         return std::nullopt;
@@ -630,7 +617,7 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_happy_hare(const std
     const auto apply = [this](helix::mock::HappyHareStep step, bool last) {
         {
             std::lock_guard<std::mutex> lock(hh_mutex_);
-            happy_hare_sim().apply(step, last);
+            hh_sim_->apply(step, last);
         }
         dispatch_status_update({{"mmu", happy_hare_mmu_status()}});
     };

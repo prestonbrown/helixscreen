@@ -2636,11 +2636,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     mutable std::mutex sweep_response_mutex_;
     helix::calibration::MockSweepResponse sweep_response_;
 
-    bool mmu_enabled_{true}; ///< MMU available (default true)
-    /// Happy Hare's state, built on first use behind hh_mutex_.
-    mutable std::unique_ptr<helix::mock::HappyHareSim> hh_sim_;
+    bool mmu_enabled_{true};                            ///< MMU available (default true)
+    std::unique_ptr<helix::mock::HappyHareSim> hh_sim_; ///< Happy Hare's state, behind hh_mutex_
     mutable std::mutex hh_mutex_;
-    helix::mock::HappyHareSim& happy_hare_sim() const;
+    void init_happy_hare(int gates);       ///< @p gates is HELIX_AMS_GATES
     std::atomic<int> toolchanger_tool_{0}; ///< toolchanger.tool_number (plain toolchanger mode)
 
     // --- MedusaHC swap simulation -------------------------------------------
