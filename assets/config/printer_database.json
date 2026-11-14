@@ -2168,6 +2168,8 @@
         }
       ],
       "print_start_profile": "k2_jacobean",
+      "_error_heaters_comment": "The firmware's on_error_gcode turns the heaters off itself when a print errors.",
+      "firmware_owns_error_heaters": true,
       "plr": {
         "tier": 0,
         "backend": "vendor",

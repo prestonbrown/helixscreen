@@ -190,6 +190,13 @@ class PrinterProfileState {
         return db_hides_dot_dirs_;
     }
 
+    /// Whether this printer's firmware turns the heaters off itself when a
+    /// print errors (the printer database's `firmware_owns_error_heaters`):
+    /// the app sends no heater command of its own.
+    bool firmware_owns_error_heaters() const {
+        return db_firmware_owns_error_heaters_;
+    }
+
     /**
      * @brief String subject updated on every change to the resolved type
      *
@@ -238,6 +245,7 @@ class PrinterProfileState {
     bool db_tool_change_resets_z_offset_ = false;
     bool db_enclosed_ = false;
     bool db_hides_dot_dirs_ = false;
+    bool db_firmware_owns_error_heaters_ = false;
     bool timelapse_default_enabled_ = false;
     bool firmware_owns_timelapse_ = false;
     std::string heat_soak_macro_;

@@ -408,7 +408,8 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
                       on_print_status, static_cast<int>(mode), saver_running, plan.wake, plan.modal,
                       plan.toast);
 
-        if (ending == helix::PrintEnding::ERROR) {
+        if (helix::should_turn_heaters_off(
+                ending, get_printer_state().profile_state().firmware_owns_error_heaters())) {
             // Proactively turn off heaters on print error to prevent
             // indefinite heating (Klipper doesn't auto-off on error)
             if (auto* mgr = get_moonraker_manager()) {
