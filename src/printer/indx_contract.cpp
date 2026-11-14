@@ -360,6 +360,25 @@ std::string motion_blocked_reason(const Contract& contract, const Reading& state
     if (auto reason = contract_or_seat_reason(contract, state); !reason.empty()) {
         return reason;
     }
+    // Mirror the printer-side _INDX_CHECK_TOOL_STATE guard so the dedicated
+    // INDX UI refuses a command with a useful explanation before dispatching
+    // G-code.  Klipper remains authoritative and repeats the same check.
+    if (state.active_tool && state.toolhead_state) {
+        const int tool = *state.active_tool;
+        const int latch = *state.toolhead_state;
+        if (latch != 0 && latch != 2) {
+            return lv_tr("INDX latch state is invalid. Inspect the head.");
+        }
+        if (tool < 0 && latch != 2) {
+            return lv_tr("The head is recorded empty but the latch is locked. Inspect the head.");
+        }
+        if (tool >= 0 && latch != 0) {
+            return fmt::format(
+                fmt::runtime(
+                    lv_tr("{} is recorded mounted but the latch is open. Inspect the head.")),
+                tool_text(tool));
+        }
+    }
     if (state.docks_calibrated.has_value() && !*state.docks_calibrated) {
         return lv_tr("INDX dock positions are not calibrated");
     }
