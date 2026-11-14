@@ -735,6 +735,8 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
                      "spool ids to the real printer)");
     }
 
+#ifdef HELIX_ENABLE_MOCKS
+    // A build without mocks has no mock hardware: --test talks to the real Moonraker.
     if (config.test_mode && !config.use_real_ams) {
         const char* printer_env = std::getenv("HELIX_MOCK_PRINTER");
         const std::string mode =
@@ -746,6 +748,7 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
                          mode, printer_env ? printer_env : "", backend);
         }
     }
+#endif
 
     // Validate test mode flags
     if ((config.use_real_wifi || config.use_real_ethernet || config.use_real_moonraker ||
