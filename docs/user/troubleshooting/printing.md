@@ -224,6 +224,7 @@ Add the `SET_PRINT_STATS_INFO` commands described in [The layer count is wrong, 
 ```bash
 # In Mainsail/Fluidd console, or via:
 curl -X POST http://localhost:7125/printer/gcode/script \
+  -H "Content-Type: application/json" \
   -d '{"script": "ACCELEROMETER_QUERY"}'
 ```
 Should return acceleration values, not an error.

@@ -136,7 +136,7 @@ Deleting `settings.json` does **not** reset HelixScreen. It keeps rolling backup
 curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --clean
 ```
 
-Add `--yes` to confirm without a prompt when no terminal can answer. On printers that keep a copy of the installer (K1, AD5M, K2 and similar), run that copy from `/tmp` instead; the installer refuses to remove its own folder.
+Add `--yes` to confirm without a prompt when no terminal can answer. On printers that keep a copy of the installer (K1, AD5M, K2 and similar), run that copy from `/tmp` instead, because the installer refuses to remove its own folder. For example, on a K1 run `cp /usr/data/helixscreen/install.sh /tmp/install.sh && sh /tmp/install.sh --clean`. On a K2 the copy is `/mnt/UDISK/helixscreen/install.sh`. On an Adventurer 5M it is `/opt/config/mod_data/helixscreen/install.sh` with Forge-X and `/root/printer_software/helixscreen/install.sh` with Klipper Mod. The [K1](../guide/install-k1.md), [Adventurer 5M](../guide/install-ad5m.md) and [K2](../guide/install-k2.md) guides show the download form that works on each printer.
 
 **Option 3: only touch is broken.** A full reset is not needed to fix touch. Add `HELIX_TOUCH_CALIBRATE=1` to `helixscreen.env` and restart, then remove the line once calibration succeeds (it does not clear itself). See [Forcing Recalibration](../guide/touch-calibration.md#forcing-recalibration).
 

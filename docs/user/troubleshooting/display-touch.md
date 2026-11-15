@@ -160,7 +160,6 @@ journalctl -u helixscreen -b | grep "Screen size from HELIX_SCREEN_SIZE"
 ### The resolution will not change
 
 **Symptoms:**
-- HelixScreen shows a "Cannot set HelixScreen to selected resolution" message on startup
 - Display is locked at 800x480 (or similar) even though you set `HELIX_SCREEN_SIZE=large` or `HELIX_SCREEN_SIZE=1024x600`
 - System journal contains `[DRM Backend]` or `[fbdev Backend]` warnings about the requested size
 
@@ -275,7 +274,7 @@ Contributions are very welcome here and only need XML, not C++, see the [UI Cont
 - You saw a message like *"'Tips' removed, grid full"* even though the grid looked far from full
 - A *"'Fan Speeds' removed, grid full"* message appears again on every launch
 
-**Why it happens.** A widget is switched off, and put back in the Widget Catalog, when it is too big for the grid at any size (a wide widget on a narrow portrait screen), or when the grid had no free cell for it. A widget that only lacks a free cell keeps its enabled setting and places itself again as soon as a cell frees up. The *"removed, grid full"* message appears only when the widget was on your screen and lost its spot. If it repeats on every launch, [update HelixScreen](../UPGRADING.md).
+**Why it happens.** A widget is switched off, and put back in the Widget Catalog, when it is too big for the grid at any size (a wide widget on a narrow portrait screen), or when the grid had no free cell for it. A widget that only lacks a free cell keeps its enabled setting and places itself again as soon as a cell frees up. The *"removed, grid full"* message appears only when the widget was on your screen and lost its spot. If it repeats on every launch, check that the widget fits the grid at your screen size, as described above.
 
 If your dashboard is full and you want a specific widget back, make room for it: remove a widget you care less about, or move it to a second page (see [Multiple Pages](../guide/home-panel.md#multiple-pages)).
 

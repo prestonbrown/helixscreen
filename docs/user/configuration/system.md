@@ -86,6 +86,6 @@ Two further keys choose where cached files go. They are for unusual setups.
 | Key | What it does |
 |-----|--------------|
 | `cache.directory` | A folder to use for the thumbnail cache instead of the automatic choice. HelixScreen falls back to the automatic choice if it cannot use it. |
-| `cache.base_directory` | A base folder for HelixScreen's other cached files. The `HELIX_CACHE_DIR` variable takes priority over it. |
+| `cache.base_directory` | A base folder for HelixScreen's other cached files. The `HELIX_CACHE_DIR` variable takes priority over it; it works only in the environment of a process you start by hand, not in `helixscreen.env`. |
 
 The Storage page at **Settings > System > Storage** shows what fills the disk and lets you clear it. See [Storage](../guide/settings/system.md#storage).

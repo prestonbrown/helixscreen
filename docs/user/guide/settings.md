@@ -24,8 +24,8 @@ Tap the **gear icon** in the navigation bar to open Settings. It's a single list
 | [Printer](home-panel.md#printer-manager) | Opens the Printer Manager: the printer's name, its picture, the model HelixScreen recorded, software versions, detected hardware, and Manage Printers. The same screen opens when you tap the printer picture on the Home screen |
 | [Printing](settings/printing.md) | Machine limits, motion, retraction, enclosure, filament system, material temperatures, cold load and unload, cooling the nozzle after a filament change, confirming tool changes, timelapse, macro buttons |
 | [Devices](settings/devices.md) | Hardware health, camera, print photos, fans, sensors, [LED settings](settings/led-settings.md), power devices, Spoolman (with spool switching, label printer and barcode scanner) |
-| [Safety & Alerts](settings/safety.md) | E-Stop confirmation, cancel escalation, macro confirmation, spaghetti detection, holding slicer prints that do not fit, print completion alert, on-screen alerts |
-| [Connection](settings/connection.md) | Wi-Fi and Ethernet, your printers, the Moonraker address |
+| [Safety & Alerts](settings/safety.md) | E-Stop confirmation, cancel escalation, macro confirmation, spaghetti detection, Bed Clear Check, holding slicer prints that do not fit, print completion alert, on-screen alerts |
+| [Connection](settings/connection.md) | Wi-Fi and Ethernet, your printers, the Moonraker address, the API key, Screen Sharing |
 
 **HelixScreen** is about the app itself.
 

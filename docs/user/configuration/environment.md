@@ -139,4 +139,4 @@ HELIX_DRM_DEVICE=/dev/dri/card1
 HELIX_TOUCH_DEVICE=/dev/input/event0
 ```
 
-The same file can hold the debugging and development variables listed in the [Environment Variables Reference](../../devel/ENVIRONMENT_VARIABLES.md), which also covers variables for mock and test runs.
+Developer variables, such as the mock and test variables in the [Environment Variables Reference](../../devel/ENVIRONMENT_VARIABLES.md), are skipped when they appear in this file. Set them in the environment of a command you start by hand.
