@@ -145,6 +145,11 @@ class AmsSubscriptionBackend : public AmsBackend {
                                 const SlotInfo& after) final;
     AmsError unload_filament_batch(const std::vector<int>& slots) final;
 
+    /// Retires the ERROR this backend raised itself (a failed load or unload
+    /// it judged from the printer's signals) and sends nothing: these
+    /// firmwares keep no latched fault of their own to reset.
+    AmsError clear_fault(int slot_index) override;
+
     // --- Shared utilities (public for AmsState and tests) ---
     void emit_event(const std::string& event, const std::string& data = "");
     /// Common gating before an AMS action runs.
@@ -495,6 +500,10 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// backend that keeps state derived from the records (a fingerprint
     /// baseline, a seated lane).
     virtual void on_lane_records_read_locked() {}
+
+    /// clear_fault() retired this backend's ERROR. Runs under mutex_, for a
+    /// backend that keeps state behind the fault (CFS's phase verdict).
+    virtual void on_fault_cleared_locked() {}
 
     /// Read the lane records again and repaint every slot from the reply,
     /// for a backend whose reading of the records changed (it learned what

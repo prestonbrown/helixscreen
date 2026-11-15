@@ -1396,6 +1396,8 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     // The verdict behind a phase-verification ERROR, so a later sensor edge can
     // tell whether it resolves that fault. Ok when no such fault is raised.
     PhaseVerdict phase_fault_ = PhaseVerdict::Ok;
+    /// clear_fault() retired the ERROR, so the verdict behind it goes too.
+    void on_fault_cleared_locked() override;
     /// Drop a phase-verification fault the toolhead switch shows is fixed.
     /// **Caller must hold mutex_.**
     void retire_resolved_phase_fault_locked(bool filament_detected);
