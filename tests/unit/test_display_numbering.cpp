@@ -303,3 +303,22 @@ TEST_CASE("G-code tool names and ordinals ignore the numbering option", "[number
     CHECK(display_ordinal(0) == 1);
     CHECK(display_ordinal(-1) == -1);
 }
+
+TEST_CASE("active_tool_name_label names a tool the way the screen numbers lanes",
+          "[numbering][target_tool]") {
+    CHECK(active_tool_name_label("T0", 0) == "Tool 1");
+    CHECK(active_tool_name_label("T3", 3) == "Tool 4");
+    // A configured name is what the machine is labeled with: shown as is.
+    CHECK(active_tool_name_label("Left", 0) == "Left");
+    ScopedZeroLaneNumbering zero;
+    CHECK(active_tool_name_label("T0", 0) == "Tool 0");
+}
+
+TEST_CASE("tool_number_or_name is the number as the screen counts it, or the tool's own name",
+          "[numbering][target_tool]") {
+    CHECK(tool_number_or_name("T0", 0) == "1");
+    CHECK(tool_number_or_name("T2", 2) == "3");
+    CHECK(tool_number_or_name("Left", 0) == "Left");
+    ScopedZeroLaneNumbering zero;
+    CHECK(tool_number_or_name("T0", 0) == "0");
+}

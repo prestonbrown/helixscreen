@@ -7,6 +7,7 @@
  *        follows the carriage when a tool change happens anywhere.
  */
 
+#include "ui_overlay_temp_graph.h"
 #include "ui_panel_controls.h"
 #include "ui_update_queue.h"
 
@@ -133,4 +134,20 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Controls nozzle row on one head edits it as
     TA::confirm_custom_nozzle(*h.panel, 215.0f);
     helix::ui::UpdateQueue::instance().drain();
     CHECK(h.sent("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=215"));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Controls nozzle row opens the temperature graph on the row's tool",
+                 "[controls][target_tool][temp_graph_overlay]") {
+    NozzleRowHarness h({"extruder", "extruder1"}); // T1 mounted
+    auto& overlay = get_global_temp_graph_overlay();
+
+    h.panel->select_nozzle_tool(0);
+    TA::nozzle_row_clicked(*h.panel);
+    CHECK(overlay.picked_extruder() == "extruder");
+
+    // The row on the mounted tool opens the graph following the mounted tool.
+    h.panel->select_nozzle_tool(1);
+    TA::nozzle_row_clicked(*h.panel);
+    CHECK(overlay.picked_extruder().empty());
 }

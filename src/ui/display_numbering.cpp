@@ -254,6 +254,14 @@ LaneNoun active_tool_noun() {
     return backend ? backend->tool_noun() : LaneNoun::Tool;
 }
 
+std::string tool_number_or_name(std::string_view name, int index) {
+    return is_generated_tool_name(name) ? lane_number_text(index) : std::string(name);
+}
+
+std::string active_tool_name_label(std::string_view name, int index) {
+    return tool_name_label(active_tool_noun(), name, index);
+}
+
 std::string active_tool_label(std::string_view name, int index, ToolLabelForm form) {
     return tool_label_in_form(active_tool_noun(), name, index, form);
 }

@@ -397,7 +397,7 @@ std::string ToolSwitcherWidget::tool_text(const ToolInfo& tool, ui::ToolLabelFor
 }
 
 std::string ToolSwitcherWidget::name_text(const ToolInfo& tool) {
-    return ui::tool_name_label(ui::active_tool_noun(), tool.name, tool.index);
+    return ui::active_tool_name_label(tool.name, tool.index);
 }
 
 std::string ToolSwitcherWidget::short_text(const ToolInfo& tool) {

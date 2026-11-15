@@ -696,3 +696,41 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture, "TempGraphOverlay: a pick lasts un
         CHECK(TempGraphOverlayTestAccess::picked(overlay).empty());
     }
 }
+
+TEST_CASE_METHOD(
+    TempGraphOverlayPickFixture,
+    "TempGraphOverlay: opening on a named nozzle shows that tool, even after a tool change",
+    "[temp_graph_overlay][active-extruder][target_tool]") {
+    helix::ToolState::instance().init_subjects(true);
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json{"extruder", "extruder1"});
+    helix::ToolState::instance().init_tools(hw);
+    helix::ToolState::instance().update_from_status({{"toolhead", {{"extruder", "extruder"}}}});
+
+    TempGraphOverlay overlay;
+    overlay.init_subjects();
+    seed_two_tools();
+    TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
+    TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
+    TempGraphOverlayTestAccess::arm_version_watch(overlay);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Close the overlay, then change tools while it is closed: a remembered
+    // pick would be dropped on the next activation, but a caller that names
+    // the nozzle (the Controls nozzle row) gets that nozzle.
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    helix::ToolState::instance().update_from_status({{"toolhead", {{"extruder", "extruder1"}}}});
+    state.update_from_status({{"toolhead", {{"extruder", "extruder1"}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(state.temperature_state().active_extruder_name() == "extruder1");
+
+    overlay.open(TempGraphOverlay::Mode::Nozzle, nullptr, "extruder");
+    TempGraphOverlayTestAccess::arm_version_watch(overlay);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(TempGraphOverlayTestAccess::picked(overlay) == "extruder");
+
+    // Naming the mounted tool is no pick at all: the card follows the
+    // mounted tool from then on.
+    overlay.open(TempGraphOverlay::Mode::Nozzle, nullptr, "extruder1");
+    CHECK(TempGraphOverlayTestAccess::picked(overlay).empty());
+}

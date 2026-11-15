@@ -28,6 +28,7 @@
 #include "app_globals.h"
 #include "format_utils.h"
 #include "hardware_role_registry.h"
+#include "helix/ui/text_metrics.h"
 #include "i18n_plural.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
@@ -702,7 +703,8 @@ void ControlsPanel::populate_nozzle_tool_dropdown() {
             if (!options.empty()) {
                 options += '\n';
             }
-            options += helix::ui::tool_label(tool.index);
+            options +=
+                helix::ui::active_tool_label(tool.name, tool.index, helix::ui::ToolLabelForm::Full);
         }
         lv_dropdown_set_options(nozzle_tool_dropdown_, options.c_str());
     }
@@ -711,8 +713,17 @@ void ControlsPanel::populate_nozzle_tool_dropdown() {
 
 void ControlsPanel::sync_nozzle_tool() {
     update_nozzle_label();
-    if (nozzle_tool_dropdown_ && nozzle_tool() < helix::ToolState::instance().tool_count()) {
+    const auto& tools = helix::ToolState::instance().tools();
+    if (nozzle_tool_dropdown_ && nozzle_tool() < static_cast<int>(tools.size())) {
         lv_dropdown_set_selected(nozzle_tool_dropdown_, static_cast<uint32_t>(nozzle_tool()));
+        // The closed control sits beside the nozzle glyph and the temperature,
+        // so it shows the tool's number as the screen counts it (the graph's
+        // nozzle picker does the same), or its configured name; the open list
+        // spells out "Tool 1 (T0)".
+        const auto& tool = tools[static_cast<size_t>(nozzle_tool())];
+        const std::string closed = helix::ui::tool_number_or_name(tool.name, tool.index);
+        lv_dropdown_set_text(nozzle_tool_dropdown_, closed.c_str());
+        helix::ui::fit_dropdown_to_text(nozzle_tool_dropdown_);
     }
     nozzle_observers_.bind<ControlsPanel>(
         printer_state_.temperature_state(), nozzle_extruder_name(), nozzle_tool_mounted(), this,
@@ -982,7 +993,11 @@ void ControlsPanel::handle_quick_actions_clicked() {
 
 void ControlsPanel::handle_nozzle_temp_clicked() {
     spdlog::debug("[{}] Nozzle temp clicked - opening temperature graph", get_name());
-    get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Nozzle, parent_screen_);
+    // On a multi-head printer the row shows a chosen tool; the graph opens on it.
+    const std::string tool = helix::ToolState::instance().has_multiple_toolheads()
+                                 ? nozzle_extruder_name()
+                                 : std::string{};
+    get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Nozzle, parent_screen_, tool);
 }
 
 void ControlsPanel::handle_bed_temp_clicked() {
