@@ -53,6 +53,12 @@
 
         <bind_flag_if_not_eq subject="home_network_icon_state" flag="hidden" ref_value="5"/>
       </icon>
+      <!-- WiFi joined, address still pending (state 6) -->
+      <icon name="net_wifi_no_address" src="wifi_alert" size="#icon_size" variant="warning">
+        <bind_tile_rung ladder="icon" subject="$tile_icon_subject"/>
+
+        <bind_flag_if_not_eq subject="home_network_icon_state" flag="hidden" ref_value="6"/>
+      </icon>
       <text_tiny text="Network"
                  style_text_color="#text_muted" style_text_align="center" clickable="false" event_bubble="true">
         <bind_flag_if_eq subject="show_widget_labels" flag="hidden" ref_value="0"/>
