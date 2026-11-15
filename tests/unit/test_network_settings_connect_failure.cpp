@@ -130,7 +130,7 @@ TEST_CASE_METHOD(ConnectFailureFixture, "Tapping a network that fails to join te
                                  "sig_3_lock", "sig_4_lock"}) {
             lv_obj_t* icon = lv_obj_find_by_name(row, name);
             REQUIRE(icon != nullptr);
-            if (!lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN)) {
+            if (!lv_obj_is_hidden(icon)) {
                 REQUIRE(shown.empty());
                 shown = name;
             }
@@ -178,10 +178,10 @@ TEST_CASE_METHOD(ConnectFailureFixture, "Tapping a network that fails to join te
     lv_obj_t* connect = lv_obj_find_by_name(modal, "modal_connect_btn");
     REQUIRE(status != nullptr);
     REQUIRE(connect != nullptr);
-    REQUIRE(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(status));
     lv_obj_send_event(connect, LV_EVENT_CLICKED, nullptr);
     CHECK(label_text(modal, "modal_status") == lv_tr("Password cannot be empty"));
-    CHECK_FALSE(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(status));
 
     lv_textarea_set_text(lv_obj_find_by_name(modal, "password_input"), "some-password");
     lv_obj_send_event(connect, LV_EVENT_CLICKED, nullptr);
@@ -191,7 +191,7 @@ TEST_CASE_METHOD(ConnectFailureFixture, "Tapping a network that fails to join te
     REQUIRE_FALSE(shown.empty());
     CHECK(shown != lv_tr("Connection failed. Check password."));
     CHECK(shown.find(secured_net.ssid) != std::string::npos);
-    CHECK_FALSE(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(status));
     lv_obj_send_event(lv_obj_find_by_name(modal, "modal_cancel_btn"), LV_EVENT_CLICKED, nullptr);
 
     Access::wifi_manager(overlay) = previous;

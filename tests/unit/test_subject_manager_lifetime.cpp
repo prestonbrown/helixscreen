@@ -7,7 +7,7 @@
  *        token — never an empty one.
  *
  * An empty token is not neutral: ObserverGuard::reset() reads a null/empty
- * alive token as "subject already dead" and skips lv_observer_remove(),
+ * alive token as "subject already dead" and skips lv_observer_delete(),
  * orphaning a live observer node whose context is about to be freed. An owner
  * torn down and re-initialized mid-process (test fixtures, printer switches)
  * must therefore be able to fetch a live token between the two.
@@ -48,7 +48,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "SubjectManager flips its death signal before 
 
     // A guard built the way observe_*() builds one: observer attached, token
     // set. Its reset() after the teardown below must skip
-    // lv_observer_remove() on the node lv_subject_deinit() freed.
+    // lv_observer_delete() on the node lv_subject_deinit() freed.
     ObserverGuard guard(&owner.value_, noop_observer_cb, nullptr);
     guard.set_alive_token(token);
     REQUIRE(lv_ll_get_len(&owner.value_.subs_ll) == 1);
@@ -59,7 +59,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "SubjectManager flips its death signal before 
     CHECK(lv_ll_get_len(&owner.value_.subs_ll) == 0);
 
     // The crash-hardening half: this reset() dereferences nothing the
-    // teardown freed. With the flip missing it calls lv_observer_remove()
+    // teardown freed. With the flip missing it calls lv_observer_delete()
     // on a freed node.
     guard.reset();
     CHECK(lv_ll_get_len(&owner.value_.subs_ll) == 0);

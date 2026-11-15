@@ -167,6 +167,37 @@ struct MultiAcePrintFixture : public LVGLTestFixture {
 
 } // namespace
 
+TEST_CASE_METHOD(MultiAcePrintFixture,
+                 "the mock U1 feeder takes Auto loading and loads nothing with it off",
+                 "[multiace][auto_load]") {
+    auto backend = AmsBackend::create(AmsType::SNAPMAKER, api.get(), &client, nullptr);
+    REQUIRE(backend->start().success());
+    const auto row_value = [&](int head) {
+        const auto actions = backend->get_device_actions();
+        const std::string id = "snapmaker_auto_load_t" + std::to_string(head);
+        auto it =
+            std::find_if(actions.begin(), actions.end(), [&](const auto& a) { return a.id == id; });
+        REQUIRE(it != actions.end());
+        return std::any_cast<bool>(it->current_value);
+    };
+
+    // Head 1 is the left module's channel 0 on the stock wiring.
+    client.gcode_script("FEED_AUTO MODULE=left CHANNEL=0 AUTO=0");
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(row_value(1) == false);
+    CHECK(row_value(0) == true);
+
+    // The firmware answers a load on that head OK and feeds nothing.
+    client.gcode_script("AUTO_FEEDING EXTRUDER=1 LOAD=1");
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    REQUIRE(backend->execute_device_action("snapmaker_auto_load_t1", std::any(true)).success());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(row_value(1) == true);
+    CHECK(backend->slot_op_eligibility(1, /*load=*/true) !=
+          AmsBackend::FilamentOpEligibility::AlreadyLoaded);
+}
+
 // ============================================================================
 // Detection and construction
 // ============================================================================

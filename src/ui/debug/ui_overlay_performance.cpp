@@ -45,7 +45,7 @@ lv_obj_t* UiOverlayPerformance::create(lv_obj_t* parent) {
         // tests) via deinit_subjects()/init_subjects(). This observer lives on the
         // singleton, so it can outlive the subject. Pass PerformanceState's subject
         // lifetime so the ObserverGuard releases safely when the subject is torn
-        // down — otherwise reset() would call lv_observer_remove() on a freed
+        // down — otherwise reset() would call lv_observer_delete() on a freed
         // subject → UAF at lv_observer.c:584 ([L077], mirrors 056bb40e9 for
         // HelixSparkline on perf_history_tick).
         mcu_names_observer_ = helix::ui::observe<const char*>(

@@ -31,11 +31,30 @@ TEST_CASE("status::devices", "[settings][root_status]") {
     CHECK(status::devices(7) == "All healthy");
 }
 
-TEST_CASE("status::connection", "[settings][root_status]") {
-    CHECK(status::connection(true, true, "HomeNet") == "Ethernet");
-    CHECK(status::connection(false, true, "HomeNet") == "Wi-Fi HomeNet");
-    CHECK(status::connection(false, true, "") == "Wi-Fi");
-    CHECK(status::connection(false, false, "HomeNet") == "Not connected");
+TEST_CASE("status::connection", "[settings][root_status][wifi_dhcp_pending]") {
+    using helix::ui::wifi::LinkPhase;
+    CHECK(status::connection(true, LinkPhase::GettingAddress, "HomeNet") == "Ethernet");
+    CHECK(status::connection(false, LinkPhase::Online, "HomeNet") == "Wi-Fi HomeNet");
+    CHECK(status::connection(false, LinkPhase::Online, "") == "Wi-Fi");
+    CHECK(status::connection(false, LinkPhase::GettingAddress, "HomeNet") ==
+          "Connected, getting address…");
+    CHECK(status::connection(false, LinkPhase::Disconnected, "HomeNet") == "Not connected");
+    CHECK(status::wifi_address(LinkPhase::Online, "10.0.0.5") == "10.0.0.5");
+    CHECK(status::wifi_address(LinkPhase::GettingAddress, "") == "Getting address…");
+}
+
+TEST_CASE("wifi::link_phase classifies a status", "[wifi][wifi_dhcp_pending]") {
+    using helix::ui::wifi::LinkPhase;
+    const auto [connected, awaiting, phase] = GENERATE(table<bool, bool, LinkPhase>({
+        {false, false, LinkPhase::Disconnected},
+        {true, false, LinkPhase::Online},
+        {true, true, LinkPhase::GettingAddress},
+        {false, true, LinkPhase::Disconnected}, // a stale flag on a dropped link
+    }));
+    WifiBackend::ConnectionStatus s;
+    s.connected = connected;
+    s.awaiting_ipv4 = awaiting;
+    CHECK(helix::ui::wifi::link_phase(s) == phase);
 }
 
 TEST_CASE("status::language_time", "[settings][root_status]") {

@@ -242,7 +242,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture,
     lv_obj_t* rebuilt = panel().get_panel();
     REQUIRE(rebuilt != old_root);
     CHECK(in_stack(rebuilt));
-    CHECK_FALSE(lv_obj_has_flag(rebuilt, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(rebuilt));
     lv_obj_update_layout(test_screen());
     CHECK(lv_obj_get_width(rebuilt) == width);
 

@@ -4,7 +4,8 @@ The FlashForge Adventurer 5X 4-lane Intelligent Filament Switching (IFS) system 
 a separate STM32 MCU and is supported on two firmwares: ZMOD (v1.7.0+) and the
 standalone IFS module extracted from it (ships in Forge-X — see "The standalone IFS
 module" below). Topology is
-`PathTopology::LINEAR` - the four ports merge at a single combiner before the toolhead.
+`PathTopology::LINEAR` - the ports merge at a single combiner before the toolhead. An IFS
+Jacker raises the port count past four (see "IFS Jacker" below).
 
 ## AD5X IFS (FlashForge Adventurer 5X)
 
@@ -22,7 +23,15 @@ IFS is detected via `filament_switch_sensor _ifs_port_sensor_{1-4}` or `filament
 
 Detection is gated by `!has_mmu_` — if Happy Hare or AFC is already detected, IFS sensors are ignored (priority: HH > AFC > IFS).
 
-Z-Mod's built-in AFC emulation (mod setting `AFC=1`) publishes `AFC`, `AFC_IFS <unit>` and `AFC_lane lane1..N` beside `zmod_color`. Those are Z-Mod's own lane picker in AFC's shape, not the AFC project, so `PrinterDiscovery::parse_objects` hands the printer back to this backend (`has_zmod_afc()` without the Creator 5 changer fingerprint): `zmod_color` and the IFS sensors are there whatever `AFC` says, so the setting changes nothing on screen. Ports past 4 (IFS Jacker) stay unread either way.
+Z-Mod's built-in AFC emulation (mod setting `AFC=1`) publishes `AFC`, `AFC_IFS <unit>` and `AFC_lane lane1..N` beside `zmod_color`. Those are Z-Mod's own lane picker in AFC's shape, not the AFC project, so `PrinterDiscovery::parse_objects` hands the printer back to this backend (`has_zmod_afc()` without the Creator 5 changer fingerprint): `zmod_color` and the IFS sensors are there whatever `AFC` says, so the setting changes nothing on screen. Its lane count follows `zmod_color.color_limit`, the same number this backend reads (below).
+
+### IFS Jacker: more than four ports
+
+[IFS Jacker](https://github.com/ninjamida/ifs-jacker) is an RS-485 splitter that joins two or more IFS units on the AD5X's one IFS port. The firmware talks to it as one IFS with 8, 12 or 16 channels: its F13 answer carries `channel_count`, the [ifs_jacker plugin](https://github.com/ninjamida/ifs_jacker_plugin) hands that to `zmod_ifs.update_color_limit()` about 30 s after Klipper starts (a `color_limit` line in `[zmod_ifs]` does the same by hand), and from then on Z-Mod sizes everything by it: `zmod_ifs.Ports` and `zmod_color.slots` carry one entry per port, `ffmColor<N>`/`ffmType<N>` run to N, and every lane command (`INSERT_PRUTOK_IFS PRUTOK=`, `A_CHANGE_FILAMENT CHANNEL=`, `IFS_F11/F24/F39 PRUTOK=`, the print start's `tools`) takes the port number past four unchanged, bounded by `color_limit` ([zmod_ifs.py](https://github.com/ghzserg/z_ad5x/blob/1.7/.shell/zmod_ifs.py), [zmod_color.py](https://github.com/ghzserg/z_ad5x/blob/1.7/.shell/zmod_color.py)).
+
+The backend follows that count. Both objects publish `color_limit`; `AmsBackendAd5xIfs::apply_port_count_locked()` clamps it to 4..16 (`ad5x::clamp_port_count`: never fewer than one IFS, never more than the 16-tool table) and regroups the slot registry four ports to a unit, `IFS 1`, `IFS 2`, ..., which is how Z-Mod's own AFC panel groups them ([zmod_afc.py](https://github.com/ghzserg/z_ad5x/blob/1.7/.shell/zmod_afc.py), `_units`). Slot names are the port numbers, so a lane keeps its state across the regroup; a shrinking count clears the lanes it drops. Until the count arrives the backend has four ports, so lanes 5+ appear when the jacker is detected, not at connect. The count only arrives through the status objects: Z-Mod drives more than four channels from 1.7.1 (z_ad5x#10) but publishes `zmod_ifs` / `zmod_color` (and with them `color_limit`) from 1.7.3 (z_ad5x#12), so a Jacker on 1.7.1 or 1.7.2 stays at four lanes here. A remembered seated lane is kept up to lane 16 at start and checked against the count when it is used, since the count arrives after the restore.
+
+What stays four wide: the lessWaste/bambufy `_tools` table (its "no port" value is 5, so it cannot name lane 5; a pick past lane 4 is stored unmapped there), the plugins' `_ifs_port_sensor_<N>` sensors and colour arrays, and the Forge-X `[ifs]` module path (one IFS). Native Z-Mod with its status objects is the supported jacker setup.
 
 ### The standalone IFS module (Forge-X)
 
@@ -168,7 +177,7 @@ On native ZMOD (no lessWaste / bambufy plugin) the backend reconciles **two** in
 | `less_waste_current_tool` | int | `0` (T0), `-1` (none) |
 | `less_waste_external` | int | `0` (IFS mode), `1` (bypass/external) |
 
-Tool mapping: array index = tool number (T0-T15), value = physical port (1-4, 5=unmapped).
+Tool mapping: array index = tool number (T0-T15), value = physical port (1-4, 5=unmapped). The backend holds an unmapped tool as `ad5x::kUnmappedPort` (0) and translates the plugin's 5 at the parse and in `build_tool_map_value()`.
 
 #### Polling caution: IFS contention and print-time backoff
 
@@ -545,7 +554,7 @@ The raw IFS commands (zmod_ifs.py registrations + docs/en/AD5X.md). `F##` number
   Port 4 ──┘
 ```
 
-`PathTopology::LINEAR` — 4 independent lanes merge at a single combiner before the toolhead.
+`PathTopology::LINEAR` — the lanes merge at a single combiner before the toolhead (4 on one IFS; 8, 12 or 16 behind an IFS Jacker, drawn as one unit per IFS).
 
 ### Capabilities
 

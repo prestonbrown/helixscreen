@@ -100,7 +100,7 @@ void AmsDeviceSectionDetailOverlay::show(lv_obj_t* parent_screen, const std::str
 void AmsDeviceSectionDetailOverlay::before_show() {
     // The section name stands alone: the back button already leads to the system
     // it belongs to, and a 480px header has room for little more than the name.
-    lv_subject_copy_string(&title_subject_, lv_tr(section_label_.c_str()));
+    lv_subject_set_string(&title_subject_, lv_tr(section_label_.c_str()));
     refresh();
 }
 

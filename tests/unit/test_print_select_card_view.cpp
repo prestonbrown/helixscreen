@@ -100,7 +100,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "CardView: a refresh skips a deleted pool ca
     lv_obj_delete(doomed);
     view.refresh_content(files, dims);
 
-    CHECK_FALSE(lv_obj_has_flag(survivor, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(survivor));
     view.cleanup();
 }
 
@@ -131,8 +131,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "CardView: the pool holds the visible window
     // Shown cards are exactly the window; the two spacers are never hidden.
     int shown = 0;
     for (uint32_t i = 0; i < lv_obj_get_child_count(container); ++i) {
-        if (!lv_obj_has_flag(lv_obj_get_child(container, static_cast<int32_t>(i)),
-                             LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(lv_obj_get_child(container, static_cast<int32_t>(i)))) {
             ++shown;
         }
     }
@@ -170,7 +169,7 @@ TEST_CASE_METHOD(
     REQUIRE(gradient != nullptr);
     const auto* buf = static_cast<const lv_draw_buf_t*>(lv_image_get_src(gradient));
     REQUIRE(buf != nullptr);
-    CHECK(buf->header.cf == (graded ? LV_COLOR_FORMAT_ARGB8888 : LV_COLOR_FORMAT_NATIVE));
+    CHECK(buf->header.cf == (graded ? LV_COLOR_FORMAT_ARGB8888 : LV_COLOR_FORMAT_DEFAULT));
 
     view.cleanup();
     lv_obj_delete(page);
@@ -189,7 +188,7 @@ std::string fixture_path(const char* name) {
 std::string card_thumb_src(lv_obj_t* container, size_t file_index) {
     for (uint32_t i = 0; i < lv_obj_get_child_count(container); ++i) {
         lv_obj_t* card = lv_obj_get_child(container, static_cast<int32_t>(i));
-        if (lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN) ||
+        if (lv_obj_is_hidden(card) ||
             reinterpret_cast<size_t>(lv_obj_get_user_data(card)) != file_index) {
             continue;
         }
@@ -262,7 +261,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         for (uint32_t i = 0; i < lv_obj_get_child_count(container); ++i) {
             lv_obj_t* card = lv_obj_get_child(container, static_cast<int32_t>(i));
             lv_obj_t* label = lv_obj_find_by_name(card, "filename_label");
-            if (!label || lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN))
+            if (!label || lv_obj_is_hidden(card))
                 continue;
             CHECK(std::string(lv_label_get_text(label)) == "file_" + std::to_string(expect));
             ++expect;
@@ -294,7 +293,7 @@ void lend_prebuild_ticks(const PrintSelectCardView& view) {
 lv_obj_t* card_for(lv_obj_t* container, size_t file_index) {
     for (uint32_t i = 0; i < lv_obj_get_child_count(container); ++i) {
         lv_obj_t* card = lv_obj_get_child(container, static_cast<int32_t>(i));
-        if (!lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN) &&
+        if (!lv_obj_is_hidden(card) &&
             reinterpret_cast<size_t>(lv_obj_get_user_data(card)) == file_index) {
             return card;
         }

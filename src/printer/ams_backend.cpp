@@ -16,7 +16,6 @@
 #ifdef HELIX_ENABLE_MOCKS
 #include "ams_backend_mock.h"
 #include "app_globals.h"
-#include "env_knobs.h"
 #include "mock_persona.h"
 #include "moonraker_client_mock.h"
 #endif
@@ -667,19 +666,13 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
                                                                  std::getenv("HELIX_MOCK_PRINTER"));
 
     if (!ams_type.empty()) {
-        if (ams_type == "afc" || ams_type == "box_turtle" || ams_type == "boxturtle") {
-            mock->set_afc_mode(true);
-            spdlog::info("[AMS Backend] Mock AFC mode enabled");
-        } else if (ams_type == "quattro_box" || ams_type == "quattrobox") {
+        if (ams_type == "quattro_box" || ams_type == "quattrobox") {
             mock->set_afc_mode(true);
             mock->set_afc_unit_name("Quattro_Box QuattroBox_1");
             spdlog::info("[AMS Backend] Mock Quattro Box mode enabled");
         } else if (ams_type == "ercf" || ams_type == "tradrack") {
             mock->set_unit_model(ams_type == "ercf" ? "ERCF" : "Tradrack");
             spdlog::info("[AMS Backend] Mock selector rail: {}", ams_type);
-        } else if (ams_type == "toolchanger" || ams_type == "tool_changer" || ams_type == "tc") {
-            mock->set_tool_changer_mode(true);
-            spdlog::info("[AMS Backend] Mock tool changer mode enabled");
         } else if (ams_type == "mixed") {
             mock->set_mixed_topology_mode(true);
             spdlog::info("[AMS Backend] Mock mixed topology mode enabled");
@@ -695,17 +688,9 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
         } else if (ams_type == "vivid") {
             mock->set_vivid_mixed_mode(true);
             spdlog::info("[AMS Backend] Mock ViViD mixed mode enabled");
-        } else if (ams_type == "ifs" || ams_type == "ad5x" || ams_type == "ad5x_ifs") {
-            mock->set_ifs_mode(true);
-            // Z-Mod with its built-in AFC: the print start carries the map.
-            mock->set_print_start_takes_tool_slots(helix::env_flag("HELIX_MOCK_ZMOD_AFC"));
-            spdlog::info("[AMS Backend] Mock AD5X IFS mode enabled");
         } else if (ams_type == "htlf_toolchanger" || ams_type == "htlf_tc" || ams_type == "htlf") {
             mock->set_htlf_toolchanger_mode(true);
             spdlog::info("[AMS Backend] Mock HTLF+Toolchanger mode enabled");
-        } else if (ams_type == "snapmaker" || ams_type == "snapswap" || ams_type == "u1") {
-            mock->set_snapmaker_mode(true);
-            spdlog::info("[AMS Backend] Mock Snapmaker U1 mode enabled");
         }
     }
 
@@ -825,38 +810,24 @@ static std::unique_ptr<AmsBackend> try_create_mock(IMoonrakerClient* mock_client
         spdlog::info("[AMS Backend] Mock AMS disabled via HELIX_MOCK_AMS=none");
         return nullptr;
     }
-    // The MedusaHC modes are mock HARDWARE, not a mock backend: MoonrakerClientMock
-    // seeds the discovery objects and status a real hotend changer publishes, and
-    // the point is to exercise the production AmsBackendToolChanger +
-    // toolchanger_addon path against them. Declining here is what lets real
-    // discovery run, the same escape hatch HELIX_MOCK_AMS=none uses.
-    if (helix::mock::medusa_variant(mode) != helix::mock::MedusaVariant::NONE) {
-        spdlog::info("[AMS Backend] HELIX_MOCK_AMS={} selects mock hardware, not a mock "
-                     "backend - deferring to real discovery",
-                     mode);
-        return nullptr;
-    }
-    // multiACE on a U1, INDX and a lane_status producer: mock hardware the same
-    // way. MoonrakerClientMock seeds their objects and frames, and the
-    // production AmsBackendMultiAce / AmsBackendIndx / AmsBackendLaneStatus run
-    // against them (multiACE pairs with HELIX_MOCK_PRINTER=snapmaker_u1).
-    if (mode == "multiace" || mode == "indx" || mode == "lane_status") {
-        spdlog::info("[AMS Backend] HELIX_MOCK_AMS={} selects mock hardware, not a mock "
-                     "backend - deferring to real discovery",
-                     mode);
-        return nullptr;
-    }
-    // Personas that model firmware HelixScreen talks to through a production
-    // backend are mock hardware too: decline, and real discovery builds that
-    // backend against the mock's objects. Decided from the header-only persona table: the
-    // firmware build's link check reads this object and must find no MoonrakerClientMock symbol.
+    // Mock HARDWARE, not a mock backend: MoonrakerClientMock seeds the objects and
+    // frames that firmware publishes, and declining here lets real discovery build
+    // the production backend against them, the same escape hatch
+    // HELIX_MOCK_AMS=none uses.
     const char* printer_env = std::getenv("HELIX_MOCK_PRINTER");
-    if (mode.empty() && printer_env && helix::mock::is_hardware_persona(printer_env)) {
-        spdlog::info("[AMS Backend] Mock printer persona is mock hardware - deferring to real "
-                     "discovery");
+    if (const char* backend = helix::mock::mock_hardware_backend(mode, printer_env)) {
+        spdlog::info("[AMS Backend] HELIX_MOCK_AMS={} selects mock hardware ({}), not a mock "
+                     "backend - deferring to real discovery",
+                     mode, backend);
         return nullptr;
     }
 
+    // Everything else stays on AmsBackendMock. The fictional screenshot topologies
+    // (mixed, multi, torture, stealth, vivid, htlf_toolchanger) model no single
+    // firmware: they combine units no one controller publishes, to fill and overflow
+    // the panel's layouts, so there is no production backend for mock frames to drive.
+    // The default Happy Hare lands here too when a scenario knob only this mock
+    // serves (helix::mock::kMockBackendKnobs) is set.
     spdlog::debug("[AMS Backend] Creating mock backend with {} gates (mock mode enabled)",
                   config->mock_ams_gate_count);
     return create_mock_with_features(config->mock_ams_gate_count, mock_client);

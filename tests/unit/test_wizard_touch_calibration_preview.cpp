@@ -199,7 +199,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Wizard touch screen shows each surface in i
     auto shown = [&](const char* name) {
         lv_obj_t* obj = lv_obj_find_by_name(root, name);
         REQUIRE(obj != nullptr);
-        return !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(obj);
     };
     // IDLE, POINT_1-3, VERIFY, COMPLETE
     const bool surface[] = {true, true, true, true, false, false};

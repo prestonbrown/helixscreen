@@ -203,7 +203,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     const auto hidden = [comp](const char* name) {
         lv_obj_t* img = lv_obj_find_by_name(comp, name);
         REQUIRE(img != nullptr);
-        return lv_obj_has_flag(img, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(img);
     };
     auto& ps = get_printer_state().print_state();
     ps.set_print_thumbnail("plain.gcode", PrinterPrintState::no_thumbnail_placeholder());

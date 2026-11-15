@@ -39,7 +39,7 @@ struct FilamentPickerTestAccess {
         lv_obj_t* btn = lv_obj_find_by_name(m.dialog(), "btn_tertiary");
         if (!btn)
             return true;
-        return lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(btn);
     }
 
     static void press_reset(FilamentCatalogPickerModal& m) {

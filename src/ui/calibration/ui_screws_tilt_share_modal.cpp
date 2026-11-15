@@ -101,9 +101,9 @@ int publish_rows(const std::vector<ScrewTiltResult>& results) {
 
     for (size_t i = 0; i < ScrewsTiltShareModal::kMaxRows; i++) {
         if (i >= rows) {
-            lv_subject_copy_string(&s.name[i], "");
-            lv_subject_copy_string(&s.z[i], "");
-            lv_subject_copy_string(&s.adj[i], "");
+            lv_subject_set_string(&s.name[i], "");
+            lv_subject_set_string(&s.z[i], "");
+            lv_subject_set_string(&s.adj[i], "");
             continue;
         }
 
@@ -111,10 +111,10 @@ int publish_rows(const std::vector<ScrewTiltResult>& results) {
         char z_text[kZBufSize];
         std::snprintf(z_text, sizeof(z_text), "Z %s", format_screw_share_z(screw).c_str());
 
-        lv_subject_copy_string(&s.name[i], screw.display_name().c_str());
-        lv_subject_copy_string(&s.z[i], z_text);
-        lv_subject_copy_string(&s.adj[i],
-                               format_screw_share_adjustment(screw, lv_tr("Base")).c_str());
+        lv_subject_set_string(&s.name[i], screw.display_name().c_str());
+        lv_subject_set_string(&s.z[i], z_text);
+        lv_subject_set_string(&s.adj[i],
+                              format_screw_share_adjustment(screw, lv_tr("Base")).c_str());
     }
 
     // Set the count LAST: it drives the <repeat> expansion, and the rebuilt

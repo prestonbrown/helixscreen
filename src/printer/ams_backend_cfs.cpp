@@ -33,6 +33,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h" // get_print_lifecycle_subject: the insert-probe gate
 #include "toolhead_homing.h"
+#include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -1653,12 +1654,9 @@ void AmsBackendCfs::begin_unit_settle() {
                                                       : UnitRegistration::None;
             const std::optional<ChuteWiperLine> wiper =
                 settings ? cfs::parse_chute_wiper(*settings) : std::nullopt;
-            token.defer("AmsBackendCfs::unit_registration", [this, registration, wiper]() {
-                chute_wiper_ = wiper;
-                if (wiper) {
-                    spdlog::info("[AMS CFS] box.cfg wiper: X {:.1f}-{:.1f} at Y {:.1f}",
-                                 wiper->x_min, wiper->x_max, wiper->y);
-                }
+            const bool chute = settings && cfs::has_chute_extrude_pos(*settings);
+            token.defer("AmsBackendCfs::unit_registration", [this, registration, wiper, chute]() {
+                apply_chute_config(wiper, chute);
                 apply_unit_registration(registration);
             });
         },
@@ -3731,12 +3729,12 @@ std::string AmsBackendCfs::phase_verdict_message(PhaseVerdict verdict) {
     case PhaseVerdict::LoadDidNotReachNozzle:
         // Name the observation (nothing at the nozzle) and the likely causes,
         // because the box reports nothing useful when it gives up this way.
-        return lv_tr("The filament did not reach the nozzle. The CFS reported no error, but "
-                     "the toolhead sensor still sees no filament. Check that the spool is "
-                     "seated and the path is clear, then try again.");
+        return TR_NOOP("The filament did not reach the nozzle. The CFS reported no error, but "
+                       "the toolhead sensor still sees no filament. Check that the spool is "
+                       "seated and the path is clear, then try again.");
     case PhaseVerdict::UnloadLeftFilament:
-        return lv_tr("Filament is still at the nozzle after unloading. The cut or retract may "
-                     "not have completed. Clear the toolhead before loading another spool.");
+        return TR_NOOP("Filament is still at the nozzle after unloading. The cut or retract may "
+                       "not have completed. Clear the toolhead before loading another spool.");
     case PhaseVerdict::Ok:
     case PhaseVerdict::Unverifiable:
         break;
@@ -3853,7 +3851,8 @@ std::optional<helix::ErrorEvent> AmsBackendCfs::current_error() const {
     std::vector<helix::RecoveryAction> actions;
     actions.push_back({lv_tr("Reset CFS"), reset_gcode(), "cfs::error_clear", "danger"});
     return helix::make_ams_fault_event(helix::ErrorSource::CFS, lv_tr("Filament operation failed"),
-                                       system_info_.operation_detail, std::move(actions));
+                                       lv_tr(system_info_.operation_detail.c_str()),
+                                       std::move(actions));
 }
 
 std::string AmsBackendCfs::reset_gcode() {
@@ -4320,9 +4319,9 @@ AmsBackendCfs::calibrate_cutter(std::function<void(bool ok, const std::string& l
     return err;
 }
 
-AmsError AmsBackendCfs::start_chute_calibration(
-    std::function<void()> on_ready, std::function<void(const std::string& klipper_msg)> on_failed,
-    std::shared_ptr<std::atomic<bool>> cancel_requested) {
+AmsError
+AmsBackendCfs::start_chute_calibration(std::function<void()> on_ready, ChuteStepFailed on_failed,
+                                       std::shared_ptr<std::atomic<bool>> cancel_requested) {
     if (macro_variant_ != CfsMacroVariant::K1) {
         return AmsErrorHelper::not_supported("Purge chute calibration is K1-stock only");
     }
@@ -4346,7 +4345,7 @@ AmsError AmsBackendCfs::start_chute_calibration(
                         // A caller that has left has nothing to report into, and a later
                         // session on the same overlay must not read this as its own.
                         if (on_failed && !(cancel_requested && cancel_requested->load())) {
-                            on_failed(err.message);
+                            on_failed(err);
                         }
                     });
     };
@@ -4432,9 +4431,8 @@ AmsError AmsBackendCfs::jog_chute_x(float delta_mm) {
     return jog_chute_axis('X', delta_mm);
 }
 
-AmsError
-AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
-                                   std::function<void(const std::string& klipper_msg)> on_failed) {
+AmsError AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
+                                            ChuteSaveFailed on_failed) {
     if (macro_variant_ != CfsMacroVariant::K1) {
         return AmsErrorHelper::not_supported("Purge chute save is K1-stock only");
     }
@@ -4482,13 +4480,16 @@ AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
 
     auto token = lifetime_.token();
     // The park after a save: its failure is reported without another attempt.
-    auto park_failed = [token, on_failed, unregister](const MoonrakerError& err) {
-        token.defer("AmsBackendCfs::chute_park_failed", [on_failed, unregister, err]() {
-            unregister();
-            if (on_failed) {
-                on_failed(err.message);
-            }
-        });
+    // The save itself went through, so the pair it wrote is still the answer.
+    auto park_failed = [this, token, on_failed, watch, unregister](const MoonrakerError& err) {
+        token.defer("AmsBackendCfs::chute_park_failed",
+                    [this, on_failed, watch, unregister, err]() {
+                        unregister();
+                        last_chute_save_line_ = *watch;
+                        if (on_failed) {
+                            on_failed(err, /*position_saved=*/true);
+                        }
+                    });
     };
     // SAVE_POS reads the LIVE toolhead position into box.cfg's
     // extrude_pos_x/y (HelixScreen sends no coordinate); Y_SAFE re-parks
@@ -4501,7 +4502,7 @@ AmsBackendCfs::save_chute_position(std::function<void()> on_saved,
                         unregister();
                         repark_chute();
                         if (on_failed) {
-                            on_failed(err.message);
+                            on_failed(err, /*position_saved=*/false);
                         }
                     });
     };

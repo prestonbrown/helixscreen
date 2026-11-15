@@ -350,7 +350,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     // bind() on Bed/Chamber must pass its SubjectLifetime token into
     // observe<int>() (CLAUDE.md invariant #4, issue #705): if it doesn't,
     // the ObserverGuard has no way to know the subject died, and reset()
-    // below would call lv_observer_remove() on memory that
+    // below would call lv_observer_delete() on memory that
     // PrinterTemperatureState::deinit_subjects() already freed via
     // lv_subject_deinit(). This is the same bool-token path covered for a
     // synthetic subject in test_observer_factory.cpp's #816 tests —

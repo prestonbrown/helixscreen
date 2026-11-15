@@ -339,15 +339,15 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "The chip subjects for a three-tool f
     CHECK(lv_color_eq(border_of(warn), theme_manager_get_color("warning")));
     CHECK(lv_color_eq(border_of(block), theme_manager_get_color("danger")));
     // No lane: the empty-spool icon stands in, and no word sits in the body.
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(block, "chip_pick"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(block, "chip_slot"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(ok, "chip_pick"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(block, "chip_pick")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(block, "chip_slot")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(ok, "chip_pick")));
     lv_obj_t* const warn_slot = lv_obj_find_by_name(warn, "chip_slot");
     REQUIRE(warn_slot != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(warn_slot, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(warn_slot));
     CHECK(std::string(lv_label_get_text(warn_slot)) == "2");
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(block, "chip_spool"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(ok, "chip_spool"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(block, "chip_spool")));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(ok, "chip_spool")));
 
     process_lvgl(100);
 }
@@ -366,8 +366,8 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "An empty slot outlines its chip red"
     CHECK(chip_string(1, "_slot") == "2");
     lv_obj_t* const empty = chip(1);
     REQUIRE(empty != nullptr);
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(empty, "chip_spool"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(empty, "chip_empty_ring"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(empty, "chip_spool")));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(empty, "chip_empty_ring")));
 
     process_lvgl(100);
 }
@@ -430,11 +430,10 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Unknown gcode colour draws no fill o
     REQUIRE(chip_count() == 2);
     CHECK(chip_int(0, "_file_color_known") == 0);
     CHECK(chip_int(0, "_ink") == 0);
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(chip(0), "chip_header_fill"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(chip(0), "chip_header_fill")));
     CHECK(chip_int(1, "_file_color_known") == 1);
     CHECK(chip_int(1, "_ink") != 0);
-    CHECK_FALSE(
-        lv_obj_has_flag(lv_obj_find_by_name(chip(1), "chip_header_fill"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(chip(1), "chip_header_fill")));
 
     process_lvgl(100);
 }
@@ -533,7 +532,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture,
     CHECK(chip(2) == nullptr);
     lv_obj_t* const pill = lv_obj_find_by_name(rows, "filament_chip_more");
     REQUIRE(pill != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(pill));
     CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(pill, "count_label"))) == "+4");
 
     process_lvgl(100);
@@ -547,7 +546,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "A palette that fits draws no overflo
     CHECK(chip_count() == 3);
     lv_obj_t* const pill = lv_obj_find_by_name(rows, "filament_chip_more");
     REQUIRE(pill != nullptr);
-    CHECK(lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(pill));
 
     process_lvgl(100);
 }

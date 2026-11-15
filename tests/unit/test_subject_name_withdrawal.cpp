@@ -234,7 +234,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_subject_notify(status);
     CHECK(g_status_notifies >= 1);
     CHECK(lv_xml_get_subject(nullptr, "ams_device_ops_system_info") == status);
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 
     StaticPanelRegistry::instance().destroy_all();
     CHECK(lv_xml_get_subject(nullptr, "ams_device_ops_system_info") == nullptr);

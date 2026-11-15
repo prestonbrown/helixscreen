@@ -133,7 +133,7 @@ void PrinterEventsOverlay::show_entries(JournalSource source, std::vector<Journa
         source == JournalSource::Plugin   ? lv_tr("Recorded by the HelixPrint plugin")
         : source == JournalSource::Screen ? lv_tr("Recorded by this screen while connected")
                                           : "";
-    lv_subject_copy_string(&source_subject_, source_text);
+    lv_subject_set_string(&source_subject_, source_text);
     lv_subject_set_int(&unavailable_subject_, source == JournalSource::None ? 1 : 0);
     lv_subject_set_int(&count_subject_, static_cast<int>(n));
     spdlog::debug("[{}] Showing {} event(s)", get_name(), n);

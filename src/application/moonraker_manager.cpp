@@ -167,24 +167,23 @@ void MoonrakerManager::shutdown() {
     release_print_start_collector();
     m_print_stop_reason.reset();
 
-    // Release observer guards without calling lv_observer_remove().
-    // During shutdown, subjects may already be deinitialized (which frees observers).
-    // Using release() avoids double-free of already-removed observers.
-    m_print_start_observer.release();
-    m_print_start_phase_observer.release();
-    m_print_klippy_state_observer.release();
-    m_preparing_epoch_observer.release();
-    m_print_start_profile_observer.release();
-    m_print_bed_target_fallback_observer.release();
-    m_print_ext_target_fallback_observer.release();
-    m_print_homed_axes_fallback_observer.release();
+    // Each guard carries its subject's lifetime token, so reset() skips the removal
+    // when the subject is already gone and frees the observer's context either way.
+    m_print_start_observer.reset();
+    m_print_start_phase_observer.reset();
+    m_print_klippy_state_observer.reset();
+    m_preparing_epoch_observer.reset();
+    m_print_start_profile_observer.reset();
+    m_print_bed_target_fallback_observer.reset();
+    m_print_ext_target_fallback_observer.reset();
+    m_print_homed_axes_fallback_observer.reset();
     for (auto& guard : m_print_position_observers) {
-        guard.release();
+        guard.reset();
     }
-    m_print_extruder_velocity_observer.release();
-    m_print_ams_action_observer.release();
-    m_print_layer_observer.release();
-    m_print_duration_observer.release();
+    m_print_extruder_velocity_observer.reset();
+    m_print_ams_action_observer.reset();
+    m_print_layer_observer.reset();
+    m_print_duration_observer.reset();
 
     // Destroy client FIRST: its destructor waits for in-flight libhv callbacks
     // to finish. connect() lambdas hold a raw pointer to m_api,
@@ -750,8 +749,8 @@ namespace {
 
 /// Observe @p subject for the collector @p wiring names. The handler runs inside the
 /// notification, as the arming decisions must, and only while that collector lives.
-/// It holds @p wiring itself: shutdown() releases these guards rather than removing
-/// them, so a handler can outlive the manager and must not reach it.
+/// It holds @p wiring itself rather than the manager, so a handler never reaches a
+/// manager that a printer switch or shutdown is tearing down.
 template <typename V, typename Wiring, typename Handler>
 ObserverGuard observe_for_collector(lv_subject_t* subject, const std::shared_ptr<Wiring>& wiring,
                                     const SubjectLifetime& lifetime, Handler handler) {

@@ -295,7 +295,7 @@ void log_subject_debug_info(lv_subject_t* ptr) {
 /// True while the spdlog-routed sink is in service.
 ///
 /// SubjectManager::deinit_all() runs during static destruction and calls
-/// lv_subject_deinit(), whose lv_observer_remove() emits LV_LOG_WARN for a
+/// lv_subject_deinit(), whose lv_observer_delete() emits LV_LOG_WARN for a
 /// null-subject observer. spdlog's registry is a lazily constructed
 /// function-local static, so it registers for destruction after load-time
 /// statics and is torn down BEFORE a static SubjectManager takes the full
@@ -328,7 +328,7 @@ struct SinkLifetimeAnchor {
  */
 void lvgl_log_callback(lv_log_level_t level, const char* buf) {
     // The sink is retired during static destruction: LVGL can still emit
-    // through it (lv_subject_deinit -> lv_observer_remove -> LV_LOG_WARN)
+    // through it (lv_subject_deinit -> lv_observer_delete -> LV_LOG_WARN)
     // after spdlog is gone, so drop the record rather than touch a freed
     // logger.
     if (!s_sink_alive.load(std::memory_order_acquire)) {

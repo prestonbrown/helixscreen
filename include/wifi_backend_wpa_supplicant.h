@@ -264,6 +264,11 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
                               bool is_hidden) override;
     WiFiError disconnect_network() override;
     ConnectionStatus get_status() override;
+    /// The kernel's address notifications: get_status() reads live state, so
+    /// a re-read after one finds the address DHCP just assigned.
+    std::unique_ptr<helix::net::LinkEvents> open_address_events() override {
+        return helix::net::open_kernel_link_events();
+    }
     bool supports_5ghz() const override;
     WiFiError set_radio_enabled(bool on) override;
     bool is_radio_enabled() const override;

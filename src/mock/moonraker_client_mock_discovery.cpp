@@ -270,6 +270,29 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back("gcode_button frontDoor");
         mock_objects.push_back("gcode_button topDoor");
         break;
+    case PrinterType::FLASHFORGE_CREATOR5_AFC:
+        // Reforge master (Klipper4FlashForge/firmware eda86c1): its own extras,
+        // printer.base.cfg's 1-based carriage buttons, and AFC over the changer.
+        for (const char* object : {"ff_toolchange", "ff_tool_offset", "ff_print"}) {
+            mock_objects.push_back(object);
+        }
+        mock_objects.push_back("AFC");
+        mock_objects.push_back("AFC_Toolchanger Tools");
+        for (int i = 0; i < 4; ++i) {
+            mock_objects.push_back("AFC_extruder e" + std::to_string(i));
+            mock_objects.push_back("AFC_lane e" + std::to_string(i));
+        }
+        for (int i = 1; i <= 4; ++i) {
+            mock_objects.push_back("gcode_button extruder_pos" + std::to_string(i));
+            mock_objects.push_back("gcode_button extruder_grab" + std::to_string(i));
+        }
+        mock_objects.push_back("heater_generic chamber_heater");
+        mock_objects.push_back("gcode_macro TOOLCHANGE_PARK");
+        mock_objects.push_back("gcode_macro FF_BEFORE_PRINT_START");
+        mock_objects.push_back("gcode_macro BED_MESH_CALIBRATE");
+        mock_objects.push_back("gcode_button frontDoor");
+        mock_objects.push_back("gcode_button topDoor");
+        break;
     case PrinterType::FLASHFORGE_CREATOR5_ZMOD:
         // Z-Mod's own objects. Its carriage buttons are 1-based, unlike the
         // Reforge persona's grab0..3 above; zmod_c5_detect in
@@ -347,9 +370,9 @@ void MoonrakerClientMock::populate_capabilities() {
         }
         break;
     case PrinterType::FLASHFORGE_AD5X:
-        // The stock AD5X's public IFS macro, which names the machine. None of
-        // the IFS module's own objects: those make discovery stand up the
-        // production AD5X IFS backend, and this persona runs the mock IFS.
+        // The stock AD5X's public IFS macro, which names the machine. The IFS
+        // itself is native Z-Mod's, published by the persona's default AMS mode
+        // (ifs), never the standalone module's objects.
         mock_objects.push_back("gcode_macro SET_EXTRUDER_SLOT");
         // Z-Mod with its built-in AFC enabled (AFC=1).
         if (zmod_builtin_afc_) {
@@ -370,9 +393,8 @@ void MoonrakerClientMock::populate_capabilities() {
         }
         break;
     case PrinterType::SNAPMAKER_U1:
-        // The U1 capture's identifying objects. Not `filament_detect`, which would
-        // make discovery stand up the production Snapmaker backend; this persona
-        // runs the mock one.
+        // The U1 capture's identifying objects. The feed objects come with the
+        // AMS mode (snapmaker by default, multiace on request), which owns them.
         for (const char* obj :
              {"tool", "fm175xx_reader", "tmc2240 stepper_x", "purifier", "camera",
               "defect_detection", "gcode_macro FILAMENT_DT_UPDATE", "gcode_macro FILAMENT_DT_QUERY",
@@ -471,12 +493,12 @@ void MoonrakerClientMock::populate_capabilities() {
     }
 
     // MMU/AMS system - Happy Hare uses "mmu" object name.
-    // Suppressed in the MedusaHC modes, the standalone IFS module mode, the OpenAMS
-    // mode and any persona that omits it: "mmu" detects Happy Hare (priority over every
-    // other filament system) and would stand the wrong backend up.
-    if (mmu_enabled_ && !is_mock_medusahc() && !is_mock_ifs_module() && !is_mock_openams() &&
-        !is_mock_indx() && !is_mock_lane_status() && inherits(kHappyHareMmu)) {
+    // Suppressed in the MedusaHC, toolchanger, AFC and SnapSwap modes, the standalone IFS module
+    // mode, the OpenAMS mode and any persona that omits it: "mmu" detects Happy Hare (priority over
+    // every other filament system) and would stand the wrong backend up.
+    if (is_mock_happy_hare()) {
         mock_objects.push_back("mmu");
+        mock_objects.push_back("mmu_machine");
     }
 
     // Probe objects: HELIX_MOCK_PROBE_TYPE, else the persona's own probe
@@ -517,6 +539,11 @@ void MoonrakerClientMock::populate_capabilities() {
             sensors_str.erase(0, pos + 1);
         }
         spdlog::debug("[MoonrakerClientMock] Custom filament sensors from env: {}", sensor_env);
+    } else if (printer_type_ == PrinterType::FLASHFORGE_CREATOR5_AFC) {
+        // ff-runout.cfg's clog sensors; AFC owns the fd_ex presence switches.
+        for (int i = 0; i < 4; ++i) {
+            mock_objects.push_back("filament_motion_sensor fm_ex" + std::to_string(i));
+        }
     } else if (printer_type_ == PrinterType::FLASHFORGE_CREATOR5 ||
                printer_type_ == PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
         // One runout switch per head, named as in assets/config/presets/creator5_pro.json.
@@ -552,18 +579,25 @@ void MoonrakerClientMock::populate_capabilities() {
     // are already flowing in via the discovery_.heaters() loop above. Tool naming
     // uses "tool TN" to match the established test convention (test_hardware_validator).
     if (is_mock_toolchanger()) {
+        // Reforge's ff_toolchange publishes the toolchanger and tool views and
+        // its own CALIBRATE_TOOL_OFFSETS, and none of the rest.
+        const bool reforge = is_mock_reforge_afc();
         mock_objects.push_back("toolchanger");
-        // The object that marks a firmware able to measure pressure advance
-        // (the U1's flow calibrator depends on it), so the PA calibration
-        // screen is reachable in --test. Stock Klipper has none.
-        mock_objects.push_back("filament_parameters");
+        if (!reforge) {
+            // The object that marks a firmware able to measure pressure advance
+            // (the U1's flow calibrator depends on it), so the PA calibration
+            // screen is reachable in --test. Stock Klipper has none.
+            mock_objects.push_back("filament_parameters");
+        }
         for (int i = 0; i < 4; ++i) {
             mock_objects.push_back("tool T" + std::to_string(i));
         }
         // klipper-toolchanger's example config: the nozzle-contact probe and
         // the all-in-one calibration macro it drives. The macro's presence is
         // what makes the Tool Offsets calibration screen reachable.
-        mock_objects.push_back("tools_calibrate");
+        if (!reforge) {
+            mock_objects.push_back("tools_calibrate");
+        }
         mock_objects.push_back("gcode_macro CALIBRATE_TOOL_OFFSETS");
     }
 
@@ -612,13 +646,23 @@ void MoonrakerClientMock::populate_capabilities() {
                                                                 : "controller-tn");
     }
 
+    // A stock U1's SnapSwap (HELIX_MOCK_AMS=snapmaker): the U1's feed objects,
+    // which real discovery reads as AmsType::SNAPMAKER.
+    if (is_mock_u1_snapswap()) {
+        for (const char* obj : {"filament_detect", "filament_feed left", "filament_feed right",
+                                "print_task_config", "machine_state_manager"}) {
+            if (std::find(mock_objects.begin(), mock_objects.end(), obj) == mock_objects.end()) {
+                mock_objects.push_back(obj);
+            }
+        }
+    }
+
     // multiACE mock hardware (HELIX_MOCK_AMS=multiace): the U1's own feed
     // objects plus the plain `ace` object multiACE registers, so real
     // discovery stands the PRODUCTION AmsBackendMultiAce up against the frames
     // the simulation serves below (same rule as the MedusaHC modes:
-    // try_create_mock() declines this value). The U1 persona deliberately
-    // omits `filament_detect` so the plain mock backend runs; this mode puts
-    // it back, so pair it with HELIX_MOCK_PRINTER=snapmaker_u1.
+    // try_create_mock() declines this value). Pair it with
+    // HELIX_MOCK_PRINTER=snapmaker_u1.
     if (is_mock_multiace()) {
         for (const char* obj : {"filament_detect", "filament_feed left", "filament_feed right",
                                 "print_task_config", "machine_state_manager", "ace"}) {
@@ -646,6 +690,20 @@ void MoonrakerClientMock::populate_capabilities() {
                      "4 lane sensors + toolhead");
     }
 
+    // Native Z-Mod IFS mock modes (HELIX_MOCK_AMS=ifs, ifs-jacker): Z-Mod's own IFS
+    // objects and the stock IFS sensors, which discovery reads as AD5X IFS.
+    if (is_mock_zmod_ifs()) {
+        for (const char* obj : {"zmod", "zmod_ifs", "zmod_color", "save_variables",
+                                "filament_motion_sensor ifs_motion_sensor",
+                                "filament_switch_sensor head_switch_sensor"}) {
+            if (std::find(mock_objects.begin(), mock_objects.end(), obj) == mock_objects.end()) {
+                mock_objects.push_back(obj);
+            }
+        }
+        spdlog::info("[MoonrakerClientMock] Native Z-Mod IFS mock: zmod_ifs + zmod_color, {} ports",
+                     ifs_jacker_ports_);
+    }
+
     // CFS mock mode (HELIX_MOCK_AMS=cfs): the stock K1 `box` status object the
     // production AmsBackendCfs subscribes and parses. try_create_mock()
     // declines this value, so real discovery plus the real backend run; pair
@@ -669,6 +727,12 @@ void MoonrakerClientMock::populate_capabilities() {
     if (is_mock_indx()) {
         read_indx_knobs();
         append_indx_objects(mock_objects);
+    }
+
+    // AFC on one Box Turtle (HELIX_MOCK_AMS=afc): real discovery claims AFC
+    // from these and builds the production AmsBackendAfc.
+    if (is_mock_afc_boxturtle()) {
+        append_afc_boxturtle_objects(mock_objects);
     }
 
     // Lane Status Surface mock hardware (HELIX_MOCK_AMS=lane_status): the
@@ -928,8 +992,9 @@ void MoonrakerClientMock::populate_hardware() {
     // Gated entirely on is_mock_toolchanger() so other AMS modes are unaffected.
     // MedusaHC joins this: a hotend changer is one hot end (and so one extruder
     // heater) per tool, which is also how PrinterDiscovery names its tools when
-    // the controller-tn variant ships no [tool N] objects.
-    if (is_mock_toolchanger() || is_mock_medusahc()) {
+    // the controller-tn variant ships no [tool N] objects. A U1's SnapSwap is four
+    // heads too.
+    if (is_mock_toolchanger() || is_mock_medusahc() || is_mock_u1_snapswap()) {
         const int tools = is_mock_medusahc() ? medusa_tool_count() : 4;
         for (int t = 1; t < tools; ++t) {
             const std::string ext = "extruder" + std::to_string(t);

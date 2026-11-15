@@ -42,7 +42,7 @@ TEST_CASE_METHOD(
     REQUIRE(opaque != nullptr);
 
     // Native and alpha-free, so LVGL draws it as a plain copy.
-    CHECK(opaque->header.cf == LV_COLOR_FORMAT_NATIVE);
+    CHECK(opaque->header.cf == LV_COLOR_FORMAT_DEFAULT);
     CHECK_FALSE(lv_color_format_has_alpha(static_cast<lv_color_format_t>(opaque->header.cf)));
 
     int checked_inside = 0, checked_outside = 0, checked_fringe = 0, mismatches = 0;
@@ -102,8 +102,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(buf != nullptr);
     CHECK(buf->header.w == 512);
     CHECK(buf->header.h == 406);
-    CHECK(buf->header.cf == LV_COLOR_FORMAT_NATIVE);
-    CHECK(buf->data_size == lv_draw_buf_width_to_stride(512, LV_COLOR_FORMAT_NATIVE) * 406u);
+    CHECK(buf->header.cf == LV_COLOR_FORMAT_DEFAULT);
+    CHECK(buf->data_size == lv_draw_buf_width_to_stride(512, LV_COLOR_FORMAT_DEFAULT) * 406u);
 
     // Dark theme: bright top-right, dark bottom-left.
     const lv_color32_t tr = pixel(buf, 511, 0), bl = pixel(buf, 0, 405);

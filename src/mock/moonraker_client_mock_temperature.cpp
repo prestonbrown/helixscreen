@@ -710,7 +710,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
 
         // Toolchanger mock mode: the extra extruders on the live subscription
         // stream, each following its own target (secondary_extruder_temp()).
-        if (is_mock_toolchanger() || is_mock_medusahc()) {
+        if (is_mock_toolchanger() || is_mock_medusahc() || is_mock_u1_snapswap()) {
             const int count = is_mock_medusahc() ? medusa_tool_count() : 4;
             for (int t = 1; t < count; ++t) {
                 status_obj["extruder" + std::to_string(t)] = {
@@ -754,6 +754,16 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             }
             status_obj["filament_switch_sensor toolhead"] = {
                 {"filament_detected", ifs_module_head_loaded_.load()}};
+        }
+
+        // IFS Jacker mock: native Z-Mod's IFS objects and the stock sensors.
+        if (is_mock_zmod_ifs()) {
+            status_obj["zmod_ifs"] = ifs_jacker_zmod_ifs_json();
+            status_obj["zmod_color"] = ifs_jacker_zmod_color_json();
+            status_obj["filament_motion_sensor ifs_motion_sensor"] = {
+                {"filament_detected", ifs_jacker_head_loaded_.load()}};
+            status_obj["filament_switch_sensor head_switch_sensor"] = {
+                {"filament_detected", ifs_jacker_head_loaded_.load()}};
         }
 
         // CFS mock: the stock `box` frame AmsBackendCfs parses (bay states,

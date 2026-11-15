@@ -95,7 +95,7 @@ static SpoolmanListView::RowWidgets cache_row_widgets(lv_obj_t* row) {
 
 void SpoolmanListView::reset() {
     for (auto& rw : pool_) {
-        lv_obj_add_flag(rw.root, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(rw.root, true);
     }
     std::fill(pool_indices_.begin(), pool_indices_.end(), static_cast<ssize_t>(-1));
     if (leading_spacer_) {
@@ -125,7 +125,7 @@ bool SpoolmanListView::add_pool_row() {
     if (!row) {
         return false;
     }
-    lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN); // XML_HIDDEN_OK: pooled row, shown by show_window
+    lv_obj_set_hidden(row, true); // XML_HIDDEN_OK: pooled row, shown by show_window
     pool_.push_back(cache_row_widgets(row));
     return true;
 }
@@ -202,18 +202,18 @@ void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int
 
     // Low stock warning
     if (rw.low_stock_icon) {
-        lv_obj_set_flag(rw.low_stock_icon, LV_OBJ_FLAG_HIDDEN, !spool.is_low());
+        lv_obj_set_hidden(rw.low_stock_icon, !spool.is_low());
     }
 
     // Active spool: show checkmark + highlight row with checked state
     bool is_active = (spool.id == active_spool_id);
     if (rw.active_indicator) {
-        lv_obj_set_flag(rw.active_indicator, LV_OBJ_FLAG_HIDDEN, !is_active);
+        lv_obj_set_hidden(rw.active_indicator, !is_active);
     }
     lv_obj_set_state(rw.root, LV_STATE_CHECKED, is_active);
 
     // Show the row
-    lv_obj_remove_flag(rw.root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(rw.root, false);
 }
 
 // ============================================================================
@@ -278,7 +278,7 @@ void SpoolmanListView::populate(const std::vector<SpoolInfo>& spools, int active
 void SpoolmanListView::update_visible(const std::vector<SpoolInfo>& spools, int active_spool_id) {
     if (!container_ || pool_.empty() || spools.empty()) {
         for (auto& rw : pool_) {
-            lv_obj_add_flag(rw.root, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(rw.root, true);
         }
         sync_list_spacers(container_, leading_spacer_, trailing_spacer_, VirtualWindow{},
                           last_leading_height_, last_trailing_height_);
@@ -324,7 +324,7 @@ void SpoolmanListView::update_visible(const std::vector<SpoolInfo>& spools, int 
         [&](size_t slot, ssize_t spool_idx) {
             configure_row(pool_[slot], spools[static_cast<size_t>(spool_idx)], active_spool_id);
         },
-        [this](size_t slot) { lv_obj_add_flag(pool_[slot].root, LV_OBJ_FLAG_HIDDEN); });
+        [this](size_t slot) { lv_obj_set_hidden(pool_[slot].root, true); });
 
     spdlog::debug("[SpoolmanListView] Spacers: leading={}px trailing={}px, visible rows={}, "
                   "container content_h={} child_count={}",
@@ -366,7 +366,7 @@ void SpoolmanListView::update_active_indicators(const std::vector<SpoolInfo>& sp
         lv_obj_set_state(rw.root, LV_STATE_CHECKED, is_active);
 
         if (rw.active_indicator) {
-            lv_obj_set_flag(rw.active_indicator, LV_OBJ_FLAG_HIDDEN, !is_active);
+            lv_obj_set_hidden(rw.active_indicator, !is_active);
         }
     }
 

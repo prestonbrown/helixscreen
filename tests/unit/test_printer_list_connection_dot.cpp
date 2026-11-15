@@ -77,14 +77,14 @@ TEST_CASE_METHOD(ConnectionDotFixture,
     helix::ui::UpdateQueue::instance().drain_until_empty();
 
     lv_obj_t* alpha_dot = dot_of(root, "alpha");
-    CHECK_FALSE(lv_obj_has_flag(alpha_dot, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(dot_of(root, "beta"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(alpha_dot));
+    CHECK(lv_obj_is_hidden(dot_of(root, "beta")));
 
     // The active row alone shows its check; with two printers both offer Delete.
     auto part_hidden = [&](const char* printer_id, const char* name) {
         lv_obj_t* part = lv_obj_find_by_name(lv_obj_find_by_name(root, printer_id), name);
         REQUIRE(part != nullptr);
-        return lv_obj_has_flag(part, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(part);
     };
     CHECK_FALSE(part_hidden("alpha", "active_check"));
     CHECK(part_hidden("beta", "active_check"));

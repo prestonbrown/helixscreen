@@ -206,14 +206,10 @@ TEST_CASE("The mock persona and HELIX_MOCK_AMS pick the mock AMS's type",
     config->use_real_ams = false;
     REQUIRE(config->should_mock_ams());
 
-    // Reforge: the persona, not the generic Happy Hare default, picks the
-    // topology. Then every spelling HELIX_MOCK_AMS accepts for an AFC mock.
+    // The AFC topology still simulated by the mock backend; `afc` itself is mock hardware.
     auto [variable, value, type] = GENERATE(table<const char*, const char*, helix::AmsType>(
-        {{"HELIX_MOCK_PRINTER", "creator5", helix::AmsType::TOOL_CHANGER},
-         {"HELIX_MOCK_AMS", "afc", helix::AmsType::AFC},
-         {"HELIX_MOCK_AMS", "box_turtle", helix::AmsType::AFC},
-         {"HELIX_MOCK_AMS", "boxturtle", helix::AmsType::AFC},
-         {"HELIX_MOCK_AMS", "quattro_box", helix::AmsType::AFC}}));
+        {{"HELIX_MOCK_AMS", "quattro_box", helix::AmsType::AFC},
+         {"HELIX_MOCK_AMS", "quattrobox", helix::AmsType::AFC}}));
     CAPTURE(variable, value);
     helix::ScopedEnv env{variable, value};
     auto backend = helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr);
@@ -235,27 +231,6 @@ TEST_CASE("A mock-hardware persona declines the mock AMS backend", "[mock][creat
     // so with mock AMS on and no HELIX_MOCK_AMS the factory must defer to real
     // discovery instead of standing a generic mock in front of it.
     CHECK(helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr) == nullptr);
-}
-
-TEST_CASE("The mock AD5X backend carries the tools map only on Z-Mod's built-in AFC",
-          "[mock][ad5x][zmod][2033]") {
-    MockTopologyGuards guards;
-    helix::ScopedEnv ams{"HELIX_MOCK_AMS", "ad5x"};
-    ScopedRuntimeConfig scoped_config;
-    auto* config = get_runtime_config();
-    config->test_mode = true;
-    config->use_real_ams = false;
-
-    {
-        helix::ScopedEnv afc{"HELIX_MOCK_ZMOD_AFC", "1"};
-        auto backend = helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr);
-        REQUIRE(backend != nullptr);
-        CHECK(backend->print_start_params({{0, 2}}) == helix::PrintStartParams{{"tools", "3"}});
-    }
-    helix::ScopedEnv afc{"HELIX_MOCK_ZMOD_AFC", nullptr};
-    auto backend = helix::AmsBackend::create(helix::AmsType::NONE, nullptr, nullptr);
-    REQUIRE(backend != nullptr);
-    CHECK(backend->print_start_params({{0, 2}}).empty());
 }
 
 TEST_CASE("The Z-Mod C5 persona answers T_INFO with the tool-state block",

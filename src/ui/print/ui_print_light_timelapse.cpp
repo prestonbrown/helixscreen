@@ -132,7 +132,7 @@ void PrintLightTimelapseControls::refresh_timelapse_display() {
     // MDI Plane 15 icons use 4-byte UTF-8: video (F0567) on, video-off (F0568) off
     std::snprintf(timelapse_button_buf_, sizeof(timelapse_button_buf_), "%s",
                   timelapse_enabled_ ? "\xF3\xB0\x95\xA7" : "\xF3\xB0\x95\xA8");
-    lv_subject_copy_string(&timelapse_button_subject_, timelapse_button_buf_);
+    lv_subject_set_string(&timelapse_button_subject_, timelapse_button_buf_);
 }
 
 void PrintLightTimelapseControls::handle_timelapse_button() {
@@ -181,7 +181,7 @@ void PrintLightTimelapseControls::refresh_light_state() {
     } else {
         std::snprintf(light_button_buf_, sizeof(light_button_buf_), "\xF3\xB0\x8C\xB6");
     }
-    lv_subject_copy_string(&light_button_subject_, light_button_buf_);
+    lv_subject_set_string(&light_button_subject_, light_button_buf_);
 
     spdlog::debug("[PrintLightTimelapseControls] Light: {}", on ? "ON" : "OFF");
 }

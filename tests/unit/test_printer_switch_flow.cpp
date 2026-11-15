@@ -61,7 +61,7 @@ std::vector<lv_obj_t*> visible_switch_cards() {
         lv_obj_t* child = lv_obj_get_child(top, static_cast<int32_t>(i));
         const char* name = lv_obj_get_name(child);
         if (name && std::string(name) == "printer_switch_interstitial" &&
-            !lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+            !lv_obj_is_hidden(child)) {
             cards.push_back(child);
         }
     }

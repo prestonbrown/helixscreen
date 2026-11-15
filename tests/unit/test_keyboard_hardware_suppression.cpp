@@ -137,9 +137,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The hardware keyboard setting row shows onl
     REQUIRE(row != nullptr);
 
     settings.set_hardware_keyboard_present(false);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
     settings.set_hardware_keyboard_present(true);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     settings.set_hardware_keyboard_present(prior_present);
     lv_obj_delete(overlay);

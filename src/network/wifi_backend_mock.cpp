@@ -348,9 +348,12 @@ void WifiBackendMock::connect_thread_func() {
                       connecting_ssid_); // PII_OK: mock backend, fixture SSIDs
     }
 
-    // Generate mock IP address
+    // Generate mock IP address; none while DHCP is held pending.
     int subnet = 100 + (rng_() % 155); // 192.168.1.100-255
-    const std::string ip = "192.168.1." + std::to_string(subnet);
+    const char* dhcp_pending = std::getenv("HELIX_MOCK_WIFI_DHCP_PENDING");
+    const std::string ip = (dhcp_pending && std::string(dhcp_pending) == "1")
+                               ? std::string()
+                               : "192.168.1." + std::to_string(subnet);
     set_connected_state(true, connecting_ssid_, ip, it->network.signal_strength);
 
     spdlog::info("[WifiBackend] Mock: Connected to '{}', IP: {}", connecting_ssid_,
@@ -376,6 +379,7 @@ WifiBackend::ConnectionStatus WifiBackendMock::get_status() {
         status.connected && !fixed.empty()) {
         status.ip_address = fixed;
     }
+    status.awaiting_ipv4 = status.connected && status.ip_address.empty();
     status.signal_strength = connected_signal_;
     status.mac_address = "de:ad:be:ef:ca:fe"; // Mock device WiFi adapter MAC
 
@@ -419,8 +423,15 @@ void WifiBackendMock::set_connected_state(bool connected, const std::string& ssi
     std::lock_guard<std::mutex> lock(status_mutex_);
     connected_ = connected;
     connected_ssid_ = ssid;
+    if (connected_ip_ != ip) {
+        ++*address_generation_;
+    }
     connected_ip_ = ip;
     connected_signal_ = signal;
+}
+
+std::unique_ptr<helix::net::LinkEvents> WifiBackendMock::open_address_events() {
+    return std::make_unique<helix::net::CounterLinkEvents>(address_generation_);
 }
 
 bool WifiBackendMock::supports_5ghz() const {

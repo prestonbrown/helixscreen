@@ -19,6 +19,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -106,8 +107,14 @@ class Ad5xIfsTestAccess;
 /// `head_switch_seen_ && !head_switch_present_` instead - that is what the #1065
 /// row 28 seated head-gate and the runout detector below both do.
 ///
-/// Ports are 1-based (1-4), slots are 0-based (0-3).
+/// Ports are 1-based (1..port_count()), slots are 0-based.
 /// slot_to_port = slot + 1, port_to_slot = port - 1.
+///
+/// A plain IFS has four ports. An IFS Jacker joins two or more IFS units on
+/// one bus and the firmware addresses them as one IFS with more channels; Z-Mod
+/// publishes the count as `color_limit` on zmod_ifs and zmod_color, and every
+/// lane command takes the port number past four unchanged. The slots are
+/// grouped four to a unit ("IFS 1", "IFS 2", ...), one per physical IFS.
 class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
                           public helix::IStepOperation,
                           public helix::IPrintRouting {
@@ -125,9 +132,16 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     AmsBackendAd5xIfs(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsBackendAd5xIfs() override;
 
-    static constexpr int kNumPorts = helix::ad5x::kNumPorts;
+    static constexpr int kDefaultPorts = helix::ad5x::kDefaultPorts;
+    static constexpr int kMaxPorts = helix::ad5x::kMaxPorts;
     static constexpr int kToolMapSize = helix::ad5x::kToolMapSize;
     static constexpr int kUnmappedPort = helix::ad5x::kUnmappedPort;
+
+    /// Ports the firmware drives: kDefaultPorts until a zmod_ifs / zmod_color
+    /// frame reports a larger `color_limit`.
+    [[nodiscard]] int port_count() const {
+        return port_count_.load();
+    }
     /// The module's _IFS_CLEAR_EXTRUDER refuses below this nozzle temperature.
     static constexpr int kClearToolheadMinTempC = 150;
     /// Extruder-clear temperature when no lane names a material and the nozzle
@@ -386,6 +400,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     [[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override;
 
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
+    void refresh_translated_texts() override;
     [[nodiscard]] bool is_bypass_active() const override;
 
     // Unload-action gate (also suppresses Load for the same slot). Keeps the
@@ -499,7 +514,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
         /// native ZMOD, which keeps no such record.
         int at_hub_lane = -1;
         /// Per-lane filament presence at the IFS entry.
-        std::array<bool, kNumPorts> present{};
+        std::array<bool, kMaxPorts> present{};
         /// The toolhead sensor reads filament.
         bool head_loaded = false;
     };
@@ -1154,7 +1169,10 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
         bool swap_expected = false;
     };
     IfsPhaseTracker phase_tracker_;
-    int last_extruder_temp_deci_ = 0;   // deci-degrees (×10)
+    int last_extruder_temp_deci_ = 0; // deci-degrees (×10)
+    // Rebuilds operation_detail in the current language while it is composed
+    // from translated parts; empty when the detail is a key or firmware text.
+    std::function<std::string()> detail_composer_;
     int last_extruder_target_deci_ = 0; // deci-degrees (×10)
 
     // Capture op-start state + set active. Caller must hold mutex_.
@@ -1172,8 +1190,13 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // the lock NOT held; see ams_subscription_backend.h). NOT emitting here is
     // what left the busy state unpublished until the next ~1.4s status frame.
     bool apply_phase_action_locked();
-    // Set system_info_.operation_detail. Caller must hold mutex_.
+    // Set system_info_.operation_detail to a catalog key or firmware text, shown
+    // through lv_tr(). Caller must hold mutex_.
     void set_operation_detail_locked(std::string detail);
+    // Set operation_detail from @p compose, text built from translated parts, and
+    // keep it so refresh_translated_texts() rebuilds it in a new language.
+    // Caller must hold mutex_.
+    void set_composed_detail_locked(std::function<std::string()> compose);
     // Finalize a phased load/unload to IDLE when its zmod macro completes (the
     // gcode ack). The reliable terminal signal for the synthesized Retract /
     // Purge phases, which have no sensor event of their own — without it the op
@@ -1248,8 +1271,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // Variable prefix: "less_waste" (lessWaste/zmod) or "bambufy" — auto-detected from
     // whichever save_variables are present on the printer.
     std::string var_prefix_ = "less_waste";
-    std::array<std::string, kNumPorts> colors_;    // Hex strings: "FF0000"
-    std::array<std::string, kNumPorts> materials_; // Material names: "PLA"
+    std::array<std::string, kMaxPorts> colors_;    // Hex strings: "FF0000"
+    std::array<std::string, kMaxPorts> materials_; // Material names: "PLA"
 
     // Per-filament-type eject parameters parsed from /mod_data/filament.json:
     // material name -> {filament_tube_length (LEN), filament_ifs_speed (SPEED)}.
@@ -1278,13 +1301,26 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // custom_types_mutex_; lock order is mutex_ → custom_types_mutex_.
     mutable std::mutex custom_types_mutex_;
     std::vector<std::string> custom_material_types_;
-    std::array<int, kToolMapSize> tool_map_;    // tool_map_[tool] = port (1-4, 5=unmapped)
-    std::array<bool, kNumPorts> port_presence_; // Per-port filament sensor state
+    std::array<int, kToolMapSize> tool_map_;    // tool_map_[tool] = port, kUnmappedPort for none
+    std::array<bool, kMaxPorts> port_presence_; // Per-port filament sensor state
+    // Ports in use, 1..port_count_. Atomic so the const print-start and routing
+    // reads need no lock; written under mutex_ by apply_port_count_locked().
+    std::atomic<int> port_count_{kDefaultPorts};
+    // Regroup the slot registry for @p count ports (clamped). True when the
+    // count changed. Caller holds mutex_.
+    bool apply_port_count_locked(int count);
+    // The lane number a 1-based port is valid for: 1..port_count().
+    [[nodiscard]] bool valid_port(int port) const {
+        return port >= 1 && port <= port_count_.load();
+    }
+    [[nodiscard]] bool valid_slot(int slot_index) const {
+        return slot_index >= 0 && slot_index < port_count_.load();
+    }
     // Whether any presence signal has ever spoken for each port. The first
     // sighting is the session's baseline, never an insert edge, so the insert
     // notice never fires for a spool that was already seated at boot.
     // Guarded by mutex_.
-    std::array<bool, kNumPorts> presence_observed_{};
+    std::array<bool, kMaxPorts> presence_observed_{};
 
     // Presence-edge bookkeeping shared by every presence source (per-port
     // sensors, IFS_STATUS Ports, GET_ZCOLOR slot lines, the pre-SILENT JSON
@@ -1304,10 +1340,10 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // optimistic clear survives the settling window (#1065 — the last-ejected
     // lane had no later query to re-correct it and kept offering Unload). A
     // present->absent transition and any transition after the window still apply.
-    std::array<std::chrono::steady_clock::time_point, kNumPorts> last_eject_time_{};
+    std::array<std::chrono::steady_clock::time_point, kMaxPorts> last_eject_time_{};
     static constexpr std::chrono::milliseconds kEjectPresenceSuppression{4000};
     int active_tool_ = -1; // Current tool (-1 = none)
-    // Physically seated port from IFS_STATUS "Chan" (1-4; 0 = none). Persists at
+    // Physically seated port from IFS_STATUS "Chan" (1-based; 0 = none). Persists at
     // the seated port while loaded-idle (when GET_ZCOLOR's "Extruder:" reads
     // None), so it is the seated-channel authority for unload routing. Stored
     // unconditionally — independent of has_ifs_vars_ / tool_map_ — because the

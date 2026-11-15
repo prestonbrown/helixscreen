@@ -3,6 +3,7 @@
 
 #include "ui_ams_lane_settings.h"
 #include "ui_callback_helpers.h"
+#include "ui_language_refresh.h"
 #include "ui_print_select_detail_view.h"
 #include "ui_print_start_controller.h"
 #include "ui_test_utils.h"
@@ -15,6 +16,7 @@
 #include "ams_state.h"
 #include "ams_step_model.h"
 #include "ams_types.h"
+#include "app_globals.h"
 #include "config.h"
 #include "core/update_queue.h"
 #include "error_event.h"
@@ -42,6 +44,7 @@
 #include "test_helpers/print_start_controller_test_access.h"
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/scoped_cache_dir.h"
+#include "test_helpers/scoped_language.h"
 #include "test_helpers/seeded_override.h"
 #include "test_helpers/update_queue_test_access.h"
 #include "tools_used_cache.h"
@@ -1369,6 +1372,29 @@ TEST_CASE("AFC reset_endless_spool with no lanes yet refuses instead of silently
 // (captured from 192.168.1.112). Tests use fixture data to validate that
 // state updates flow through correctly to internal state.
 // ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "AFC status label follows a language switch with no new frame",
+                 "[ams][afc][state][i18n]") {
+    get_printer_state().init_subjects(false);
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    ams.set_narration_phase(-1, "");
+    helix::test::RegisteredBackend<AmsBackendAfcTestHelper> afc;
+    const auto shown = [&] {
+        return std::string(lv_subject_get_string(ams.get_ams_action_detail_subject()));
+    };
+
+    std::optional<ScopedLanguage> lang(std::in_place, "de");
+    (*afc).feed_afc_state({{"current_state", "Moving"}});
+    helix::ui::refresh_display_texts();
+    const std::string german = shown();
+    CHECK(german == lv_tr("Moving lane"));
+
+    lang.emplace("fr");
+    helix::ui::refresh_display_texts();
+    CHECK(shown() == lv_tr("Moving lane"));
+    CHECK(shown() != german);
+}
 
 TEST_CASE("AFC action comes from current_state; a stray AFC.status is ignored",
           "[ams][afc][state][deadfields]") {

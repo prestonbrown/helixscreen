@@ -370,6 +370,9 @@ translations:
   Auto Bed Mesh: 自动热床网格
   Auto Cal: 自动校准
   Auto Fans: 自动风扇
+  Auto loading: "自动装料"
+  Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand.: "此工具头的自动装料已关闭。请在“打印行为”中开启，或手动装入耗材。"
+  Auto loading is off; turn it on under Print Behavior: "自动装料已关闭；请在“打印行为”中开启"
   Auto-Detect: 自动检测
   Auto-Heat on Load: 加载时自动加热
   Auto-Replenish: 自动补充
@@ -704,6 +707,7 @@ translations:
   Change tool: 切换工具
   Changes apply immediately. Adjust during print for tuning.: 更改立即生效。可在打印时调整进行调优。
   Changes are temporary and reset on printer reboot: 更改是临时的，打印机重启后会重置
+  Changing filament: "正在更换耗材"
   Check AFC configuration: '请检查 AFC 配置'
   Check Again: 重新检查
   Check Klipper console for details: 详情请查看 Klipper 控制台
@@ -902,6 +906,7 @@ translations:
   Connected to {}: 已连接到 {}
   Connected! Discovering printer...: 已连接！正在发现打印机...
   Connected, discovering...: 已连接，正在发现...
+  Connected, getting address…: 已连接，正在获取地址…
   Connecting Camera...: 正在连接摄像头...
   'Connecting to ': '正在连接 '
   Connecting to %s...: 正在连接 %s...
@@ -977,6 +982,7 @@ translations:
   Load all stopped: '全部装载已停止'
   "Load and unload": "加载和卸载"
   Load stopped: '装载已停止'
+  "Load, unload, purge, and extrude filament": "装载、卸载、清洗和挤出耗材"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "在此加载、卸载和排料。先选择材料以设置其温度。"
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "加载、卸载和更换料盘，设置温度，并监控耗材传感器。"
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "长按任意磁贴进入编辑模式。全新的网格可让您重新排列、调整大小、移除或添加小部件，并在页面之间拖动。"
@@ -1090,6 +1096,7 @@ translations:
   'Cutter calibration failed: {}': 切刀校准失败：{}
   Cutter jam: 切刀卡住
   Cutting: 切割中
+  Cutting filament: "正在切断耗材"
   Cutting filament...: 正在切断耗材...
   Cycle every tool: 依次更换所有工具
   Cycling tools...: 正在依次更换工具...
@@ -1577,6 +1584,7 @@ translations:
   Feeder: 送料器
   Feeders: 送料器
   Feeding filament forward: 正在向前送料
+  Feeding filament to nozzle: "正在向喷嘴送料"
   Filament: 耗材
   Filament Buffer: '耗材缓冲区'
   Filament Control: 耗材控制
@@ -1592,6 +1600,7 @@ translations:
   Filament Mapping is unavailable: 耗材映射不可用
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: 此打印机不支持耗材映射，因此打印将使用打印机上分配的工具
   Filament Runout: 耗材用尽
+  Filament Operations: 耗材操作
   Filament Sensor: 耗材传感器
   Filament Sensors: '耗材传感器'
   Filament System Error: 耗材系统错误
@@ -1747,6 +1756,7 @@ translations:
   Gear sync: 齿轮同步
   Generic: 通用
   Get help and share feedback: 获取帮助和反馈
+  Getting address…: 正在获取地址…
   Getting ready...: '正在准备...'
   Glass Effects: 玻璃效果
   Global: 全局
@@ -1833,7 +1843,10 @@ translations:
   Heating chamber...: 正在加热腔体...
   Heating is nearly the whole wait. Leaving the screen now stops the run.: '加热占了几乎全部等待时间。现在离开此页面会停止运行。'
   Heating nozzle: '喷嘴加热中'
+  Heating nozzle ({}): "喷嘴加热中 ({})"
   Heating nozzle to $1°C...: 正在加热喷嘴至 $1°C...
+  Heating nozzle to {}: "喷嘴加热至 {}"
+  Heating nozzle to {} ({}): "喷嘴加热至 {} ({})"
   Heating nozzle...: 正在加热喷嘴...
   Heating the bed: 正在加热热床
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "正在加热热床和喷嘴，使打印件重新附着，喷嘴脱离打印件"
@@ -1951,7 +1964,10 @@ translations:
   I understand: 我已了解
 
   ID (optional): ID（可选）
+  IFS driver error: "IFS 驱动器错误"
   IFS updates without polling: '无需轮询的 IFS 更新'
+  'IFS: loading': "IFS：正在加载"
+  'IFS: unloading': "IFS：正在卸载"
   IMPORT FROM USB: 从 USB 导入
   INDX dock positions are not calibrated: "INDX 停靠位置未校准"
   INDX macros not recognized: "无法识别 INDX 宏"
@@ -2463,6 +2479,7 @@ translations:
   Mount tool: '装上工具'
   Mount which tool?: '装上哪个工具？'
   Mount...: '装上...'
+  'Mounted: {}': '已装上: {}'
   Move: 移动
   Move here: 移动到此处
   Move out of range: '移动超出范围'
@@ -2579,6 +2596,7 @@ translations:
   No events queued: 无排队事件
   No extruder heater found. Check [extruder] in printer.cfg: '未找到挤出机加热器。请检查 printer.cfg 中的 [extruder]'
   No fans detected: 未检测到风扇
+  No feeder attached: "未连接送料器"
   No filament: 无耗材
   No filament environment sensors: 无耗材环境传感器
   No filament loaded to unload: 没有已加载的耗材可卸载
@@ -2641,6 +2659,7 @@ translations:
   No timelapse videos found: 未找到延时视频
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: '不知道当前安装的是哪个工具。共用一个探针时，请用 {} 校准。仍然继续？'
   No tool is mounted: '未安装工具'
+  No tool mounted: '未装上工具'
   No tool on the head: "工具头上没有工具"
   No tools to calibrate: 没有可校准的工具
   'No turn: the gap moved {:.1f} Hz': "未转动:差距移动了 {:.1f} Hz"
@@ -2904,9 +2923,11 @@ translations:
   Pick Color: 选择颜色
   Pick how HelixScreen behaves. You can change any of these later in Settings.: '选择 HelixScreen 的行为方式。以后可在“设置”中更改。'
   Pick the best band: 选择最佳区段
+  Pick up: '装上'
   Pick up and park each tool in turn: 依次装上并停放每个工具
   Pick up the tool, heat it, and pull the filament out: "装上工具，加热后抽出耗材"
   Pick up tool: 取出工具
+  Pick-up step cancelled; nothing was sent: '装上后的步骤已取消；未发送任何指令'
   Picking up tool: 正在取用工具
   Pill: 胶囊
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): 按下转为滚动前的像素数(越低
@@ -3177,6 +3198,7 @@ translations:
   Purge tower and brush settings: '排料塔与刷子设置'
   Purging: 正在清料
   Purging nozzle: 正在清洗喷嘴
+  Purging old filament: "正在清除旧耗材"
   Purging...: 正在清料...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "将清洁耗材推入挤出机直到推不动,然后点击挤出。"
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "将耗材推入挤出机直到推不动为止。挤出机会自动咬入，或点击“挤出”。"
@@ -3440,6 +3462,7 @@ translations:
   Retract filament to current slot: '将耗材回抽至当前槽位'
   Retract may still be running — response timed out: 回抽可能仍在运行 — 响应超时
   Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: 请回抽退料。若能顺利退出，剪掉被啃咬的一端后重新送料
+  Retracting filament from nozzle: "正在从喷嘴回抽耗材"
   Retraction: 回抽
   Retraction Settings: 回抽设置
   Retraction distance in the cooling tube: '冷却管内的回抽距离'
@@ -4267,6 +4290,7 @@ translations:
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : '工具头内有耗材，但没有 AMS 槽位报告已装载。在清空之前，打印机可能拒绝装载槽位。仍要开始打印吗？'
   The toolhead is not homed, so this would home into the print: '工具头尚未归位，归位会使喷嘴碰到打印件'
+  'The toolhead may still be at the chute. Move it away before printing.': '打印头可能仍在清料槽处。打印前请将其移开。'
   ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
   : '工具头以 20 到 300 mm/s 的速度来回移动，同时加速度传感器测量每个电机的抖动强度。大约需要 {0} 分钟，并且噪音较大。抖动最强的速度就是外墙应避开的速度。'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: 工具头传感器显示耗材已装载。仍要继续装载吗？
@@ -4491,6 +4515,7 @@ translations:
   Toolhead Style: 工具头样式
   Toolhead X: 工具头 X
   Toolhead Y: 工具头 Y
+  'Toolhead did not return to park: {}': '打印头未返回停放位置：{}'
   Toolhead jam: 工具头堵塞
   Toolhead lost homing: 工具头已失去归位
   Toolhead offset calibration: 工具头偏移校准
@@ -4706,6 +4731,7 @@ translations:
   Wait for the current filament operation to finish: 请等待当前耗材操作完成
   Wait for the current operation to complete: 请等待当前操作完成
   Wait for the current operation to complete or cancel it first: 请等待当前操作完成，或先将其取消
+  Wait for the load or unload to finish: "请等待装入或卸载完成"
   Wait for the motor to stop: "请等待电机停止"
   Wait for the nozzle to stop moving: 请等待喷嘴停止移动
   Wait for the running INDX operation to finish: 请等待正在进行的INDX操作完成
@@ -5036,6 +5062,7 @@ translations:
   '{} d': "{} 天"
   '{} days': "{} 天"
   '{} detected': '检测到{}'
+  '{} did not arrive; nothing was sent': '{} 未到位；未发送任何指令'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}未装载。恢复前请检查热端是否安装到位，并进行一次测试挤出。'
   '{} disabled': '已停用{}'
   '{} disconnected': '{}已断开'

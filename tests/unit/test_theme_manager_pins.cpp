@@ -351,5 +351,5 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a repeat init keeps the theme_changed gener
 
     CHECK(generation() == g);
     CHECK(g_changed_fires == 0);
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }

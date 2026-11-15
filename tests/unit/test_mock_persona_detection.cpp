@@ -52,6 +52,7 @@ constexpr Expectation kExpected[] = {
     {"ad5m",               "FlashForge Adventurer 5M",  "ad5m",         true},
     {"creator5",           "FlashForge Creator 5 Pro",  "creator5_pro", true},
     {"creator5_zmod",      "FlashForge Creator 5 Pro",  "creator5_pro", true},
+    {"creator5_afc",       "FlashForge Creator 5 Pro",  "creator5_pro", true},
     {"generic_corexy",     "",                          "",             false},
     {"generic_bedslinger", "",                          "",             false},
     {"multi_extruder",     "",                          "",             false},
@@ -204,17 +205,16 @@ TEST_CASE_METHOD(HelixTestFixture, "The ad5x persona carries the AD5X preset's e
     CHECK(std::find(objs.begin(), objs.end(), "gcode_macro SET_EXTRUDER_SLOT") != objs.end());
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "The ad5x persona does not stand up the production IFS backend",
+TEST_CASE_METHOD(HelixTestFixture, "The ad5x persona is native Z-Mod's IFS, not the module",
                  "[mock][persona][ad5x][ams]") {
     PersonaEnv env("ad5x");
     const auto hw = discover(*helix::mock::find_persona("ad5x"));
-    CHECK(hw.mmu_type() != helix::AmsType::AD5X_IFS);
-    for (const auto& o : hw.printer_objects()) {
-        INFO(o);
-        CHECK(o.rfind("ifs", 0) != 0);
-        CHECK(o.rfind("zmod_ifs", 0) != 0);
-        CHECK(o.find("_ifs_port_sensor") == std::string::npos);
-    }
+    CHECK(hw.mmu_type() == helix::AmsType::AD5X_IFS);
+    const auto& objs = hw.printer_objects();
+    CHECK(std::find(objs.begin(), objs.end(), "zmod_ifs") != objs.end());
+    CHECK(std::find(objs.begin(), objs.end(), "zmod_color") != objs.end());
+    CHECK(std::find(objs.begin(), objs.end(), "ifs") == objs.end());
+    CHECK(std::find(objs.begin(), objs.end(), "mmu") == objs.end());
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "The k2 persona mirrors the K2 Plus capture",
@@ -251,6 +251,6 @@ TEST_CASE_METHOD(HelixTestFixture, "The snapmaker_u1 persona mirrors the U1 capt
     }
     CHECK(extruders == 4);
     CHECK(helix::mock::effective_mock_ams(nullptr, "snapmaker_u1") == "snapmaker");
-    const auto& objs = hw.printer_objects();
-    CHECK(std::find(objs.begin(), objs.end(), "filament_detect") == objs.end());
+    // Its default SnapSwap is mock hardware the production backend claims.
+    CHECK(hw.mmu_type() == helix::AmsType::SNAPMAKER);
 }

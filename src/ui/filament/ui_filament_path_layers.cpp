@@ -270,7 +270,7 @@ bool layered_setup_canvases(lv_obj_t* obj, FilamentPathData* data) {
     // draws a child outside its parent only within the parent's ext draw size,
     // so the widget and its (overflow-visible) container both report the
     // overhang.
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+    lv_obj_set_overflow_visible(obj, true);
     lv_obj_add_event_cb(obj, overhang_ext_draw_cb, LV_EVENT_REFR_EXT_DRAW_SIZE, obj);
     if (lv_obj_t* parent = lv_obj_get_parent(obj))
         lv_obj_add_event_cb(parent, overhang_ext_draw_cb, LV_EVENT_REFR_EXT_DRAW_SIZE, obj);
@@ -287,8 +287,8 @@ bool layered_setup_canvases(lv_obj_t* obj, FilamentPathData* data) {
     lv_obj_set_style_bg_opa(c, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(c, 0, 0);
     lv_obj_set_style_pad_all(c, 0, 0);
-    lv_obj_clear_flag(c, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_clear_flag(c, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_clickable(c, false);
+    lv_obj_set_scrollable(c, false);
     lv_canvas_set_draw_buf(c, empty_canvas_buf());
 
     // Schedule initial render — layout may not be complete yet at create

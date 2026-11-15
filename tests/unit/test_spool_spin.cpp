@@ -191,7 +191,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "spool canvas: a hidden spool does not step 
     ui_spool_canvas_set_color(canvas, lv_color_hex(0x20CC20));
     lv_obj_update_layout(canvas);
     process_lvgl(10);
-    lv_obj_add_flag(canvas, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(canvas, true);
     const auto rest = buffer_of(canvas);
 
     spool_canvas_set_spin(canvas, SpoolSpin{1, 40});

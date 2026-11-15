@@ -36,6 +36,7 @@
 #include "test_helpers/ams_sidebar_xml.h"
 #include "test_helpers/backend_harness.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/scoped_language.h"
 
 #include <condition_variable>
 #include <memory>
@@ -496,7 +497,7 @@ TEST_CASE_METHOD(BatchFixture, "A feeder delta keeps the fields it does not ment
 // ============================================================================
 
 TEST_CASE_METHOD(BatchFixture, "A finished batch leaves no progress line behind",
-                 "[snapmaker][batch]") {
+                 "[snapmaker][batch][i18n]") {
     helix::SnapmakerTestAccess::set_batch_plan(backend(), {0, 1}, /*load=*/true, "Load", "of");
 
     SECTION("mid-batch, the line names the head now in progress") {
@@ -504,6 +505,9 @@ TEST_CASE_METHOD(BatchFixture, "A finished batch leaves no progress line behind"
         CHECK(backend().batch_plan().cursor == 1);
         CHECK(backend().batch_plan().active);
         CHECK(backend().get_system_info().operation_detail == "Load 2 of 2");
+        helix::ScopedLanguage fr("fr");
+        backend().refresh_translated_texts();
+        CHECK(backend().get_system_info().operation_detail == "Charger 2 de 2");
     }
 
     SECTION("the final head verifies and clears the line") {
@@ -753,7 +757,7 @@ TEST_CASE_METHOD(BatchFixture, "An op's working head names the header, not the l
             &notifications);
         notifications = 0; // adding an observer notifies it once
         ams.sync_from_backend();
-        lv_observer_remove(obs);
+        lv_observer_delete(obs);
         CHECK(notifications == 0);
         CHECK(std::string(lv_subject_get_string(header)) == working_header);
     }
@@ -919,8 +923,8 @@ TEST_CASE_METHOD(BatchModalFixture,
     };
 
     // Several heads: Unload is the picker button; the one-tap one hides.
-    CHECK(lv_obj_has_flag(ui.button("btn_unload"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(ui.button("btn_batch_unload"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(ui.button("btn_unload")));
+    CHECK_FALSE(lv_obj_is_hidden(ui.button("btn_batch_unload")));
     tap_expects_no_picker(ui.button("btn_batch_unload"));
     tap_expects_no_picker(ui.button("btn_load"));
 }

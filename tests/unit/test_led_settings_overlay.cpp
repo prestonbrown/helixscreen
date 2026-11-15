@@ -197,8 +197,8 @@ TEST_CASE_METHOD(LedSettingsSwatchFixture,
     lv_obj_t* heating = lv_obj_find_by_name(lv_screen_active(), "detail_heating");
     REQUIRE(idle != nullptr);
     REQUIRE(heating != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(idle, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(heating, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(idle));
+    CHECK(lv_obj_is_hidden(heating));
 
     // Picking "off" (the first option) in the idle row's dropdown hides its panel.
     lv_obj_t* idle_row = lv_obj_get_sibling(idle, -1);
@@ -208,7 +208,7 @@ TEST_CASE_METHOD(LedSettingsSwatchFixture,
     lv_dropdown_set_selected(dropdown, 0);
     lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
     settle();
-    CHECK(lv_obj_has_flag(idle, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(idle));
 
     ctrl.set_startup_brightness(80);
 }

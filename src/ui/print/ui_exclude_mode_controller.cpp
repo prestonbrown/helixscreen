@@ -50,7 +50,7 @@ void ExcludeModeController::show(const ExcludeModeTargets& targets,
         // The list's X closes the whole mode; one dismiss control is enough.
         if (auto* map_root = map_view_->root()) {
             if (lv_obj_t* map_close = lv_obj_find_by_name(map_root, "close_btn")) {
-                lv_obj_add_flag(map_close, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(map_close, true);
             }
         }
     }

@@ -803,10 +803,10 @@ The cc046ad2 refactor converted 9 modals. Here is the pattern transformation:
 ```cpp
 // Showing
 lv_obj_t* backdrop = lv_obj_find_by_name(screen, "my_modal_backdrop");
-lv_obj_remove_flag(backdrop, LV_OBJ_FLAG_HIDDEN);
+lv_obj_set_hidden(backdrop, false);
 
 // Hiding
-lv_obj_add_flag(backdrop, LV_OBJ_FLAG_HIDDEN);
+lv_obj_set_hidden(backdrop, true);
 ```
 
 **After** (Modal system):

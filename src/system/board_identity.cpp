@@ -79,7 +79,8 @@ Board current() {
     return cached;
 }
 
-const Info& info(Board board) {
+// The parentheses stop the ESP32 spdlog shim's info() macro expanding this declarator.
+const Info&(info)(Board board) {
     return kRows[static_cast<std::size_t>(board)];
 }
 

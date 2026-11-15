@@ -110,6 +110,7 @@ class ChamberAirState {
     lv_subject_t chamber_air_target_text_{};
     char chamber_air_target_text_buf_[16] = {};
     ObserverGuard target_text_observer_;
+    ObserverGuard unit_observer_; ///< re-formats the target text on a °C/°F switch
 };
 
 } // namespace helix

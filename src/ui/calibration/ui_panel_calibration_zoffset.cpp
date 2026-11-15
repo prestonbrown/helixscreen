@@ -225,7 +225,7 @@ void ZOffsetCalibrationPanel::setup_widgets() {
 
 void ZOffsetCalibrationPanel::set_readout(lv_subject_t& subject, const char* text) {
     if (subjects_initialized_) {
-        lv_subject_copy_string(&subject, text);
+        lv_subject_set_string(&subject, text);
     }
 }
 

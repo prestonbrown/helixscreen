@@ -218,7 +218,7 @@ void PluginInstallModal::show_installing_state() {
 }
 
 void PluginInstallModal::show_result_state(bool success, const std::string& message) {
-    lv_subject_copy_string(&install_subjects().result_message, message.c_str());
+    lv_subject_set_string(&install_subjects().result_message, message.c_str());
     set_phase(success ? Phase::Succeeded : Phase::Failed);
 }
 

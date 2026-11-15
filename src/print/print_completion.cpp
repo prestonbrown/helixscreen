@@ -271,22 +271,22 @@ static void show_rich_completion_modal(PrintJobState state, const char* filename
     }
 
     // Set all subjects BEFORE showing modal so XML bindings resolve immediately
-    lv_subject_copy_string(&s_title_subject, lv_tr(title));
-    lv_subject_copy_string(&s_filename_subject, filename);
+    lv_subject_set_string(&s_title_subject, lv_tr(title));
+    lv_subject_set_string(&s_filename_subject, filename);
 
     const CompletionStats stats =
         build_completion_stats(duration_secs, estimated_secs, total_layers, filament_mm);
 
-    lv_subject_copy_string(&s_duration_subject, stats.duration.c_str());
-    lv_subject_copy_string(&s_layers_subject, stats.layers.c_str());
+    lv_subject_set_string(&s_duration_subject, stats.duration.c_str());
+    lv_subject_set_string(&s_layers_subject, stats.layers.c_str());
 
     if (!stats.estimate.empty()) {
-        lv_subject_copy_string(&s_estimate_subject, stats.estimate.c_str());
+        lv_subject_set_string(&s_estimate_subject, stats.estimate.c_str());
     }
     lv_subject_set_int(&s_has_estimate_subject, stats.estimate.empty() ? 0 : 1);
 
     if (!stats.filament.empty()) {
-        lv_subject_copy_string(&s_filament_subject, stats.filament.c_str());
+        lv_subject_set_string(&s_filament_subject, stats.filament.c_str());
     }
     lv_subject_set_int(&s_has_filament_subject, stats.filament.empty() ? 0 : 1);
 

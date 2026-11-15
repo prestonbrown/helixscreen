@@ -41,13 +41,19 @@ class BatchFilamentModal : public Modal {
         return "batch_filament_modal";
     }
 
+    /// Pure: whether the picker heads its rows with an All row. Only where a
+    /// pick is a set (not single_select()), there are two or more enabled
+    /// rows, and the backend's per-run cap (0 = none) takes all of them.
+    static bool show_select_all(size_t enabled_rows, size_t cap, bool single_select);
+
     // Pure: multiselect keys are head indices as decimal strings.
     static std::vector<int> selected_slots(const std::vector<std::string>& keys);
 
     // Pure: row text. The lane name, plus what is in the lane and where it
-    // stands: a lane carrying material says loaded (at the toolhead) or ready
-    // to load, a lane known empty says Empty with no loaded/ready suffix, and
-    // an unanswerable presence leaves the lane name bare. The tick state stops
+    // stands: a lane carrying material says loaded (at the toolhead), ready to
+    // load or empty by its sensor, or the material alone with no sensor; a
+    // lane with no material known empty says Empty, and an unanswerable
+    // presence leaves the lane name bare. The tick state stops
     // describing the machine the moment the user changes it, so the contents
     // are named in the row.
     static std::string row_label(LaneNoun noun, int slot, const SlotInfo& info,

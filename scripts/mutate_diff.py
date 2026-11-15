@@ -367,7 +367,30 @@ UNMUTATABLE = (
     ('tests/*',        'a test is proven by mutating the code it pins, not by reverting itself'),
     ('lib/*',          'vendored or submodule code; a superproject diff carries no hunks for it'),
     ('patches/*',      'a patch against vendored code; the build applies the stack as a whole'),
+    ('android/gradlew', 'the Gradle wrapper, which Gradle generates'),
 )
+
+# A shell script outside scripts/ (the plugin's installers, platform hooks, git
+# hooks, scripts/helix-claim) takes the tooling strategy: a `.sh` or `.bash` file,
+# or an extensionless one whose first line runs a shell. Checked after the rules
+# above, so tests/, lib/ and patches/ keep their own verdicts.
+SHELL_SUFFIXES = ('.sh', '.bash')
+SHELL_SHEBANG = re.compile(rb'#!\s*\S*/(?:env\s+)?(?:ba|da|k|z)?sh\b')
+
+
+def is_shell_script(path, root):
+    """A shell script by name, or, with @p root, by the shebang of an extensionless file."""
+    name = path.rsplit('/', 1)[-1]
+    if name.endswith(SHELL_SUFFIXES):
+        return True
+    if root is None or '.' in name:
+        return False
+    try:
+        with open(Path(root) / path, 'rb') as f:
+            first = f.readline(128)
+    except OSError:
+        return False
+    return SHELL_SHEBANG.match(first) is not None
 DEFAULT_REASON = 'no mutation strategy covers this path'
 # A run on the merge path. A longer run is a release check (--release).
 MERGE_MAX_MINUTES = 45
@@ -390,11 +413,12 @@ def load_untestable(root):
     return out
 
 
-def classify(path, is_gitlink):
+def classify(path, is_gitlink, root=None):
     """('mutate', strategy) | ('inert', reason) | ('uncovered', reason).
 
     The default is 'uncovered'. Every other outcome has to be claimed by a rule,
     which is what keeps a path nobody thought about out of a clean result.
+    @p root, when given, lets an extensionless file be read for its shebang.
     """
     if is_gitlink:
         return 'uncovered', GITLINK_REASON
@@ -410,6 +434,8 @@ def classify(path, is_gitlink):
     for pattern, reason in UNMUTATABLE:
         if fnmatch(path, pattern):
             return 'uncovered', reason
+    if is_shell_script(path, root):
+        return 'mutate', 'tooling'
     return 'uncovered', DEFAULT_REASON
 
 
@@ -536,7 +562,8 @@ def filter_scope(key, default_key, is_compiled):
 # own: an explicit --tests-for GLOB=FILTER first, else the test files that reach
 # it (Catch2's [#<test file>] tags): those naming its stem, the header a source
 # implements, or that header's class (reach_names); a data file also by the tests
-# reaching the sources DATA_CONSUMERS_MAP says read it. Else --tests. Hunks sharing a
+# reaching the sources DATA_CONSUMERS_MAP says read it; plus the cases elsewhere
+# carrying a tag those files own (owned_tags). Else --tests. Hunks sharing a
 # filter run together, as one child run each, so each filter gets the baseline
 # its shard timings are measured from.
 # ---------------------------------------------------------------------------
@@ -692,7 +719,59 @@ def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES, source
         return ''
     # A required term makes Catch2 consider hidden cases too, so each term carries
     # the exclusions --tests' default has: [.] and [slow] stay out.
-    return ','.join(f'[#{name}]~[.]~[slow]' for name in sorted(hits))
+    return ','.join([f'[#{name}]~[.]~[slow]' for name in sorted(hits)]
+                    + [f'[{tag}]~[.]~[slow]' for tag in owned_tags(hits, test_sources)])
+
+
+# TEST_CASE("name", "[tags]") and TEST_CASE_METHOD(Fixture, "name", "[tags]"): the
+# tags string of each case. Adjacent string literals are not joined; no case
+# here splits its tags across two.
+_CASE_TAGS = re.compile(
+    r'\b(?:TEST_CASE|TEST_CASE_METHOD|TEMPLATE_TEST_CASE)\s*\(\s*(?:[A-Za-z_][\w:<>]*\s*,\s*)?'
+    r'"(?:[^"\\]|\\.)*"\s*,\s*"([^"]*)"')
+# A tag whose cases the selected files hold at least this share of is about the
+# code those files test, so its cases elsewhere reach that code too.
+OWNED_TAG_SHARE = 2 / 3
+# A tag in more unselected files than this is a theme, not one behaviour.
+OWNED_TAG_MAX_OTHER_FILES = 3
+
+
+def case_tags(test_sources):
+    """{test file stem: {tag: number of cases carrying it}}, hidden and special
+    tags ([.], [!...], [#...], [@...], [slow]) left out. About 0.3s for the suite."""
+    out = {}
+    for stem, text in test_sources.items():
+        counts = {}
+        for tags in _CASE_TAGS.findall(text):
+            for tag in set(re.findall(r'\[([^\]]+)\]', tags)):
+                if tag[0] not in '.!#@' and tag != 'slow':
+                    counts[tag] = counts.get(tag, 0) + 1
+        out[stem] = counts
+    return out
+
+
+def owned_tags(selected, test_sources):
+    """The tags the `selected` test files own whose cases also sit in others, sorted.
+
+    A test reaching the code through a header it shares with the whole suite
+    names none of the file's words, but its case often carries the tag of the
+    behaviour the selected files pin: [remap-restart] in a session-wiring test.
+    A tag counts when the selected files hold at least OWNED_TAG_SHARE of its
+    cases and no more than OWNED_TAG_MAX_OTHER_FILES other files carry it.
+    """
+    tags = case_tags(test_sources)
+    inside = {}
+    for stem in selected:
+        for tag, n in tags.get(stem, {}).items():
+            inside[tag] = inside.get(tag, 0) + n
+    owned = []
+    for tag, n in inside.items():
+        others = [counts[tag] for stem, counts in tags.items()
+                  if stem not in selected and tag in counts]
+        if others and len(others) <= OWNED_TAG_MAX_OTHER_FILES \
+                and n >= OWNED_TAG_SHARE * (n + sum(others)):
+            owned.append(tag)
+    return sorted(owned)
 
 
 def suite_paths(spec):
@@ -4022,9 +4101,9 @@ def main():
     # ---- classify the whole change -------------------------------------
     verdict_of = {}       # path -> ('mutate', strategy) | ('inert'|'uncovered', reason)
     for path, is_gitlink in files:
-        verdict_of[path] = classify(path, is_gitlink)
+        verdict_of[path] = classify(path, is_gitlink, root)
     for h in hunks:                       # a hunk git names but --raw did not
-        verdict_of.setdefault(h['file'], classify(h['file'], False))
+        verdict_of.setdefault(h['file'], classify(h['file'], False, root))
 
     hunks_of = {}
     for h in hunks:

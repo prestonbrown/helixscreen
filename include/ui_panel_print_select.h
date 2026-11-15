@@ -755,8 +755,8 @@ class PrintSelectPanel : public PanelBase {
 
     helix::ui::WidgetRef card_view_container_;
     /// Card container content size the current cards were sized for.
-    lv_coord_t sized_for_w_ = -1;
-    lv_coord_t sized_for_h_ = -1;
+    int32_t sized_for_w_ = -1;
+    int32_t sized_for_h_ = -1;
     /// A deferred re-populate for a card container resize is queued.
     bool card_resize_pending_ = false;
     lv_obj_t* list_view_container_ = nullptr;

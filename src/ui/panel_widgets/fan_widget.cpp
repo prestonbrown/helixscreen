@@ -169,7 +169,7 @@ void FanWidget::auto_select_first_fan() {
 
 void FanWidget::bind_speed_observer() {
     // Reset lifetime BEFORE observer so the guard's weak_ptr expires and
-    // skips lv_observer_remove() on a potentially-freed subject (#705).
+    // skips lv_observer_delete() on a potentially-freed subject (#705).
     speed_lifetime_.reset();
     speed_observer_.reset();
 
@@ -209,7 +209,7 @@ void FanWidget::select_fan(const std::string& object_name) {
 }
 
 void FanWidget::set_speed_text(const char* text) {
-    lv_subject_copy_string(&speed_subject_, text);
+    lv_subject_set_string(&speed_subject_, text);
 }
 
 void FanWidget::on_speed_changed(int speed_pct) {
@@ -233,7 +233,7 @@ void FanWidget::update_display() {
     // An empty selection shows the component's own "Select fan" label, which
     // re-translates itself.
     if (!selected_fan_.empty()) {
-        lv_subject_copy_string(&name_subject_, display_name_.c_str());
+        lv_subject_set_string(&name_subject_, display_name_.c_str());
     }
     lv_subject_set_int(&named_subject_, selected_fan_.empty() ? 0 : 1);
 }
@@ -294,8 +294,8 @@ void FanWidget::FanPicker::on_created(lv_obj_t* menu_obj) {
         lv_obj_set_style_pad_gap(row, space_xs, 0);
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_scrollable(row, false);
+        lv_obj_set_clickable(row, true);
 
         // Highlight for single-select
         lv_obj_set_style_bg_opa(row, is_selected ? 30 : 0, 0);

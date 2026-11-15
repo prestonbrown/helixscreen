@@ -173,7 +173,7 @@ void PrinterPrintState::deinit_subjects() {
     // Per-extruder filament_used subjects are dynamic: for each entry, signal
     // subject death BEFORE deinit so all ObserverGuards (including those still
     // holding shared_ptr copies) detect the subject as dead and skip
-    // lv_observer_remove() on the about-to-be-freed observers (#816).
+    // lv_observer_delete() on the about-to-be-freed observers (#816).
     for (auto& [idx, info] : extruder_filament_used_) {
         if (info.lifetime) {
             *info.lifetime = false;
@@ -227,7 +227,7 @@ void PrinterPrintState::publish_progress_display(int percent) {
     char buf[sizeof(print_progress_text_buf_)];
     helix::format::format_percent(percent, buf, sizeof(buf));
     if (strcmp(lv_subject_get_string(&print_progress_text_), buf) != 0) {
-        lv_subject_copy_string(&print_progress_text_, buf);
+        lv_subject_set_string(&print_progress_text_, buf);
     }
 }
 
@@ -406,7 +406,7 @@ void PrinterPrintState::reset_for_new_print() {
     layer_z_derived_ = false;
     slicer_progress_ = 0.0;
     slicer_progress_active_ = false;
-    lv_subject_copy_string(&print_message_, "");
+    lv_subject_set_string(&print_message_, "");
     set_print_stop_reason("");
     lv_subject_set_int(&print_duration_, 0);
     lv_subject_set_int(&print_elapsed_, 0);
@@ -489,7 +489,7 @@ void PrinterPrintState::update_print_show_progress() {
 
 void PrinterPrintState::set_print_stop_reason(const std::string& reason) {
     if (reason != lv_subject_get_string(&print_stop_reason_)) {
-        lv_subject_copy_string(&print_stop_reason_, reason.c_str());
+        lv_subject_set_string(&print_stop_reason_, reason.c_str());
     }
     const int visible = reason.empty() ? 0 : 1;
     if (lv_subject_get_int(&print_stop_reason_visible_) != visible) {
@@ -618,7 +618,7 @@ void PrinterPrintState::set_print_thumbnail(const std::string& for_file, const s
     // subject runs, so observers can trust it describes the path they see.
     print_thumbnail_file_ = for_file;
     if (strcmp(lv_subject_get_string(&print_thumbnail_path_), path.c_str()) != 0) {
-        lv_subject_copy_string(&print_thumbnail_path_, path.c_str());
+        lv_subject_set_string(&print_thumbnail_path_, path.c_str());
     }
     update_has_thumbnail();
 }
@@ -659,7 +659,7 @@ void PrinterPrintState::set_print_display_filename(const std::string& name) {
     // Display filename is set from PrintStatusPanel's main-thread callback.
     spdlog::trace("[PrinterPrintState] Setting print display filename: {}", name);
     if (strcmp(lv_subject_get_string(&print_display_filename_), name.c_str()) != 0) {
-        lv_subject_copy_string(&print_display_filename_, name.c_str());
+        lv_subject_set_string(&print_display_filename_, name.c_str());
     }
 }
 
@@ -750,7 +750,7 @@ void PrinterPrintState::set_print_start_state(PrintStartPhase phase, const char*
         }
         if (!msg.empty() &&
             strcmp(lv_subject_get_string(&print_start_message_), msg.c_str()) != 0) {
-            lv_subject_copy_string(&print_start_message_, msg.c_str());
+            lv_subject_set_string(&print_start_message_, msg.c_str());
         }
         lv_subject_set_int(&print_start_progress_, clamped_progress);
         update_print_show_progress();
@@ -766,7 +766,7 @@ void PrinterPrintState::reset_print_start_state() {
             lv_subject_set_int(&print_start_phase_, static_cast<int>(PrintStartPhase::IDLE));
             lv_subject_set_int(&print_start_chamber_wait_, 0);
             publish_lifecycle_state();
-            lv_subject_copy_string(&print_start_message_, "");
+            lv_subject_set_string(&print_start_message_, "");
             lv_subject_set_int(&print_start_progress_, 0);
             update_print_show_progress();
             update_display_message_visible();
@@ -790,13 +790,13 @@ void PrinterPrintState::set_print_in_progress(bool in_progress) {
 void PrinterPrintState::set_print_start_time_left(const char* text) {
     const char* new_text = (text && text[0] != '\0') ? text : "";
     if (strcmp(lv_subject_get_string(&print_start_time_left_), new_text) != 0) {
-        lv_subject_copy_string(&print_start_time_left_, new_text);
+        lv_subject_set_string(&print_start_time_left_, new_text);
     }
 }
 
 void PrinterPrintState::clear_print_start_time_left() {
     if (strcmp(lv_subject_get_string(&print_start_time_left_), "") != 0) {
-        lv_subject_copy_string(&print_start_time_left_, "");
+        lv_subject_set_string(&print_start_time_left_, "");
     }
     lv_subject_set_int(&preprint_remaining_, 0);
     lv_subject_set_int(&preprint_elapsed_, 0);
@@ -1126,7 +1126,7 @@ void PrinterPrintState::retire_preparing(PreparingExit reason) {
     // other reason means no print is coming, so the pre-print UI must come down.
     if (reason != PreparingExit::Confirmed) {
         lv_subject_set_int(&print_start_phase_, static_cast<int>(PrintStartPhase::IDLE));
-        lv_subject_copy_string(&print_start_message_, "");
+        lv_subject_set_string(&print_start_message_, "");
         lv_subject_set_int(&print_start_progress_, 0);
         update_display_message_visible();
     }

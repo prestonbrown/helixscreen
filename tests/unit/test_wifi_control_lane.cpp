@@ -46,6 +46,7 @@ std::atomic<int> g_forget_calls{0};
 class StallingBackend : public WifiBackendMock {
   public:
     static constexpr auto kMaxStall = std::chrono::seconds(3);
+    using WifiBackendMock::dispatch_event; // events as the real backends raise them
 
     WiFiError get_scan_results(std::vector<WiFiNetwork>& networks) override {
         if (fail_results_.load()) {
@@ -775,4 +776,38 @@ TEST_CASE_METHOD(ControlLaneFixture,
     REQUIRE(WiFiManagerTestAccess::settle(*wm));
     CHECK(backend->is_radio_enabled());
     CHECK(notified > before);
+}
+
+TEST_CASE_METHOD(ControlLaneFixture, "A link that has its address is not watched for one",
+                 "[wifi][wifi_dhcp_pending]") {
+    std::atomic<int> fires{0};
+    wm->add_state_observer(guard.token(), [&fires]() { fires.fetch_add(1); });
+
+    backend->set_connected_state(true, "Home", "10.0.0.5", 70);
+    REQUIRE_FALSE(read_status().awaiting_ipv4);
+    process_lvgl(50);
+
+    const int before = fires.load();
+    backend->set_connected_state(true, "Home", "10.0.0.9", 70);
+    process_lvgl(1500);
+    CHECK(fires.load() == before);
+}
+
+TEST_CASE_METHOD(ControlLaneFixture,
+                 "An address arriving while a status awaits one wakes the state observers",
+                 "[wifi][wifi_dhcp_pending]") {
+    std::atomic<int> fires{0};
+    wm->add_state_observer(guard.token(), [&fires]() { fires.fetch_add(1); });
+
+    backend->set_connected_state(true, "Home", "", 70);
+    REQUIRE(read_status().awaiting_ipv4);
+    process_lvgl(50);
+
+    // A CONNECTED knows no address, and the watch must outlast the status it leaves.
+    backend->dispatch_event("CONNECTED");
+    process_lvgl(1000);
+
+    const int before = fires.load();
+    backend->set_connected_state(true, "Home", "10.0.0.9", 70);
+    REQUIRE(wait_until([&] { return fires.load() > before; }, 3000));
 }

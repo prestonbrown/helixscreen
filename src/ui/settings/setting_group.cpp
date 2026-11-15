@@ -16,7 +16,7 @@ static uint32_t setting_group_visible_child_count(lv_obj_t* group) {
     uint32_t count = 0;
     uint32_t n = lv_obj_get_child_count(group);
     for (uint32_t i = 0; i < n; i++) {
-        if (!lv_obj_has_flag(lv_obj_get_child(group, i), LV_OBJ_FLAG_HIDDEN))
+        if (!lv_obj_is_hidden(lv_obj_get_child(group, i)))
             count++;
     }
     return count;
@@ -51,7 +51,7 @@ static void setting_group_draw_dividers(lv_event_t* e) {
     bool seen_visible = false;
     for (uint32_t i = 0; i < n; i++) {
         lv_obj_t* child = lv_obj_get_child(group, i);
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(child))
             continue;
         if (!seen_visible) {
             seen_visible = true; // no line above the first visible child
@@ -97,14 +97,14 @@ static void setting_group_sync_header(lv_event_t* e) {
         const char* name = lv_obj_get_name(child);
         if (!header && name && strcmp(name, kHeaderName) == 0) {
             header = child;
-        } else if (!lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN) && lv_obj_get_height(child) > 0) {
+        } else if (!lv_obj_is_hidden(child) && lv_obj_get_height(child) > 0) {
             has_row = true;
         }
     }
     if (!header) {
         return;
     }
-    lv_obj_set_flag(header, LV_OBJ_FLAG_HIDDEN, !has_row);
+    lv_obj_set_hidden(header, !has_row);
     lv_obj_set_state(group, LV_STATE_USER_1, !has_row);
 }
 
@@ -150,7 +150,7 @@ static void setting_group_track_focus(lv_obj_t* group, lv_obj_t* obj) {
     uint32_t n = lv_obj_get_child_count(obj);
     for (uint32_t i = 0; i < n; i++) {
         lv_obj_t* child = lv_obj_get_child(obj, i);
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_CLICKABLE)) {
+        if (lv_obj_is_clickable(child)) {
             bool tracked = false;
             uint32_t events = lv_obj_get_event_count(child);
             for (uint32_t k = 0; k < events && !tracked; k++) {
@@ -229,7 +229,7 @@ static void* setting_group_xml_create(lv_xml_parser_state_t* state, const char**
     lv_obj_set_style_margin_bottom(obj, gap, LV_PART_MAIN);
 
     // Fixed container, not a scroll area (the overlay content scrolls).
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(obj, false);
 
     spdlog::trace("[SettingGroup] Created <setting_group> with card shell");
 

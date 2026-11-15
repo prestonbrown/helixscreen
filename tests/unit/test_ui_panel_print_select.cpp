@@ -16,7 +16,6 @@
 using Catch::Approx;
 using helix::ui::format_filament_weight;
 using helix::ui::format_file_size;
-using helix::ui::format_modified_date;
 using helix::ui::format_print_time;
 
 // ============================================================================
@@ -77,7 +76,6 @@ PrintFileData create_test_file(const std::string& name, size_t size_bytes, int d
     file.is_dir = false;
 
     file.size_str = format_file_size(size_bytes);
-    file.modified_str = format_modified_date(file.modified_timestamp);
     file.print_time_str = format_print_time(print_mins);
     file.filament_str = format_filament_weight(filament_g);
 
@@ -95,7 +93,6 @@ PrintFileData create_test_directory(const std::string& name, int days_ago = 1) {
     dir.is_dir = true;
 
     dir.size_str = "";
-    dir.modified_str = format_modified_date(dir.modified_timestamp);
     dir.print_time_str = "";
     dir.filament_str = "";
 
@@ -527,18 +524,6 @@ TEST_CASE("Print Select: Metadata - file size formatting", "[ui][metadata]") {
         PrintFileData file =
             create_test_file("test.gcode", 1024ULL * 1024 * 1024 * 3, 1, 100, 50.0f);
         REQUIRE(file.size_str == "3.00 GB");
-    }
-}
-
-TEST_CASE("Print Select: Metadata - modified date formatting", "[ui][metadata]") {
-    SECTION("Recent file") {
-        PrintFileData file = create_test_file("test.gcode", 1024, 1, 100, 50.0f);
-        REQUIRE(!file.modified_str.empty());
-    }
-
-    SECTION("Old file") {
-        PrintFileData file = create_test_file("test.gcode", 1024, 365, 100, 50.0f);
-        REQUIRE(!file.modified_str.empty());
     }
 }
 

@@ -182,7 +182,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         &seen);
     state.update_from_status(
         json{{"print_stats", {{"state", "error"}, {"message", "Heater extruder not heating"}}}});
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 
     CHECK(seen == "Heater extruder not heating");
     test::set_wire_state(state, PrintJobState::STANDBY);

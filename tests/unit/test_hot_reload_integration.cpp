@@ -157,7 +157,7 @@ TEST_CASE_METHOD(MoonrakerTestFixture, "rebuild_active_views swaps active panel 
 
     // Reset NavigationManager subjects so the singleton doesn't hold dangling
     // observers into the test's LVGL display after teardown. Without this,
-    // global destructors end up calling lv_observer_remove on freed subjects
+    // global destructors end up calling lv_observer_delete on freed subjects
     // and segfault at process exit. Mirrors NavigationTestFixture's ~dtor.
     nav.deinit_subjects();
 }

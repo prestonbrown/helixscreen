@@ -311,7 +311,7 @@ TEST_CASE_METHOD(CatalogRowFixture, "Catalog: a widget holding a grid cell reads
                  "[widget_catalog][panel_widget]") {
     lv_obj_t* row = row_for(kPlacedId);
     CHECK(has_exact_label(row, lv_tr("Placed")));
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(row));
 }
 
 // The bug.
@@ -325,7 +325,7 @@ TEST_CASE_METHOD(CatalogRowFixture, "Catalog: an enabled widget with no grid cel
         return s;
     }());
     CHECK_FALSE(has_exact_label(row, lv_tr("Placed")));
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(row));
 
     // Clickable is only half of it — the handler has to be wired too, or the
     // row is a dead target that looks alive.
@@ -339,7 +339,7 @@ TEST_CASE_METHOD(CatalogRowFixture, "Catalog: a disabled widget is offered",
                  "[widget_catalog][panel_widget]") {
     lv_obj_t* row = row_for(kDisabledId);
     CHECK_FALSE(has_exact_label(row, lv_tr("Placed")));
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(row));
 }
 
 // The multi-instance header counts instances the same blind way, so it claimed
@@ -392,7 +392,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Catalog placement moves a limbo entry instead 
 
     lv_obj_t* container = lv_obj_create(test_screen());
     lv_obj_set_size(container, 800, 480);
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
     process_lvgl(10);
 
     GridEditMode em;
@@ -452,7 +452,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     lv_obj_t* container = lv_obj_create(test_screen());
     lv_obj_set_size(container, 800, 480);
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
     process_lvgl(10);
 
     GridEditMode em;

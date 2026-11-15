@@ -157,7 +157,7 @@ void PrinterState::deinit_subjects() {
     // deinit_all() runs — so the flip cannot wait for it. Observers held by
     // objects that outlive this call — process-lifetime panel singletons, most
     // of all — check this token in ObserverGuard::reset() and skip
-    // lv_observer_remove() on observer nodes that lv_subject_deinit() is about
+    // lv_observer_delete() on observer nodes that lv_subject_deinit() is about
     // to free. Flipping the bool (rather than only dropping the shared_ptr) is
     // what makes it work when a holder still has a copy. The later
     // subjects_.deinit_all() flips again; that lands on the renewed token,
@@ -977,6 +977,6 @@ bool PrinterState::timelapse_available() {
 // ============================================================================
 
 void PrinterState::set_active_printer_name(const std::string& name) {
-    lv_subject_copy_string(&active_printer_name_, name.c_str());
+    lv_subject_set_string(&active_printer_name_, name.c_str());
     spdlog::debug("[PrinterState] Active printer name set to: '{}'", name);
 }

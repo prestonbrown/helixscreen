@@ -129,9 +129,8 @@ int32_t get_slot_x(const FilamentPathData* data, int slot_index, int32_t canvas_
             // When spool_container is hidden (cleared slot), its flex-computed coords
             // are invalid. Use the parent slot widget center instead — it always stays
             // visible and at the correct fixed width.
-            lv_obj_t* target = lv_obj_has_flag(spool_cont, LV_OBJ_FLAG_HIDDEN)
-                                   ? lv_obj_get_parent(spool_cont)
-                                   : spool_cont;
+            lv_obj_t* target =
+                lv_obj_is_hidden(spool_cont) ? lv_obj_get_parent(spool_cont) : spool_cont;
             if (target) {
                 lv_area_t coords;
                 lv_obj_get_coords(target, &coords);
@@ -367,8 +366,8 @@ static lv_obj_t* create_widget(lv_obj_t* parent) {
     lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(obj, 0, 0);
     lv_obj_set_style_pad_all(obj, 0, 0);
-    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, true);
 
     // Register event handlers
     lv_obj_add_event_cb(obj, filament_path_draw_cb, LV_EVENT_DRAW_POST, nullptr);

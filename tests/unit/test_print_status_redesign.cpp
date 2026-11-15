@@ -111,7 +111,7 @@ class TileFixture : public PrintStatusPanelFixture {
               helix::PrinterImageManager::instance().init_subjects();
               return std::make_shared<helix::test::ScopedGeometry>(screen_w, screen_h);
           }) {
-        lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(root_, false);
         tile_ = lv_obj_find_by_name(root_, "ps_printer_tile");
         REQUIRE(tile_ != nullptr);
         // No picture file: the chips lay out against the tagged regions alone,
@@ -324,7 +324,7 @@ TEST_CASE_METHOD(Landscape800, "a heater chip paints every part from its heat st
     CHECK(same(lv_obj_get_style_text_color(text, LV_PART_MAIN), HeatState::Cooling));
     CHECK(same(lv_obj_get_style_border_color(chip, LV_PART_MAIN), HeatState::Cooling));
     CHECK(subject_int("ps_glow_bed") == 3); // cooling from 90°C still glows its hottest
-    CHECK_FALSE(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(glow));
 
     set_int(temps.get_bed_temp_subject(), 600);
     settle();
@@ -386,8 +386,8 @@ TEST_CASE_METHOD(Landscape800, "a heater at its target shows the check", "[print
     lv_obj_t* flame = lv_obj_find_by_name(chip, "status_heating");
     REQUIRE(check != nullptr);
     REQUIRE(flame != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(check, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(flame, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(check));
+    CHECK(lv_obj_is_hidden(flame));
     // The duty is in the chip's own text; the status row adds only the glyph,
     // which is all the chip's width reserves for it.
     lv_obj_t* duty = lv_obj_find_by_name(chip, "status_duty");
@@ -396,7 +396,7 @@ TEST_CASE_METHOD(Landscape800, "a heater at its target shows the check", "[print
     // A chip with no heater shows no glyph.
     lv_obj_t* fan = lv_obj_find_by_name(root_, "ps_chip_part_fan");
     REQUIRE(fan != nullptr);
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(fan, "status_ready"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(fan, "status_ready")));
     set_int(temps.get_bed_target_subject(), 0);
     set_int(temps.get_bed_temp_subject(), 250);
 }
@@ -487,8 +487,8 @@ TEST_CASE_METHOD(Landscape800, "outcome shows reprint and keeps preview", "[prin
             static_cast<int>(PrintOutcome::COMPLETE));
     UpdateQueue::instance().drain();
 
-    CHECK_FALSE(lv_obj_has_flag(reprint, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(cancel, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(reprint));
+    CHECK(lv_obj_is_hidden(cancel));
     CHECK(subject_int("preparing_visible") == 0); // the job tile stays the preview
     set_int(state().print_state().get_print_outcome_subject(),
             static_cast<int>(PrintOutcome::NONE));
@@ -515,16 +515,16 @@ TEST_CASE_METHOD(Landscape800, "more menu lists only available actions", "[print
     REQUIRE(camera != nullptr);
     REQUIRE(light != nullptr);
     REQUIRE(tl != nullptr);
-    CHECK(lv_obj_has_flag(camera, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(tl, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(light, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(camera));
+    CHECK(lv_obj_is_hidden(tl));
+    CHECK_FALSE(lv_obj_is_hidden(light));
     menu.hide();
     set_int(leds, 0);
 }
 
 TEST_CASE_METHOD(Landscape800, "nozzle chip shows active tool on a toolchanger", "[print_status]") {
     auto& tools = ToolState::instance();
-    lv_subject_copy_string(tools.get_tool_badge_text_subject(), "T1");
+    lv_subject_set_string(tools.get_tool_badge_text_subject(), "T1");
     set_int(tools.get_show_tool_badge_subject(), 1);
     auto& temps = state().temperature_state();
     set_int(temps.get_active_extruder_temp_subject(), 2100);
@@ -534,7 +534,7 @@ TEST_CASE_METHOD(Landscape800, "nozzle chip shows active tool on a toolchanger",
     CHECK(subject_str("ps_chip_nozzle_text").rfind("T1 ", 0) == 0);
 
     set_int(tools.get_show_tool_badge_subject(), 0);
-    lv_subject_copy_string(tools.get_tool_badge_text_subject(), "");
+    lv_subject_set_string(tools.get_tool_badge_text_subject(), "");
     settle();
     CHECK(subject_str("ps_chip_nozzle_text").rfind("T1", 0) == std::string::npos);
 }
@@ -544,7 +544,7 @@ namespace {
 bool hidden(lv_obj_t* root, const char* name) {
     lv_obj_t* obj = lv_obj_find_by_name(root, name);
     REQUIRE(obj != nullptr);
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 } // namespace
@@ -874,7 +874,7 @@ void check_chips_inside_and_apart(lv_obj_t* root) {
                              "ps_chip_hotend_fan", "ps_chip_aux_fan", "ps_chip_light",
                              "ps_chip_speed_flow", "ps_chip_toolhead"}) {
         lv_obj_t* chip = lv_obj_find_by_name(root, name);
-        if (!chip || lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN))
+        if (!chip || lv_obj_is_hidden(chip))
             continue;
         lv_area_t a;
         lv_obj_get_coords(chip, &a);
@@ -1171,7 +1171,7 @@ TEST_CASE_METHOD(Landscape800, "a rebuilt tree shows the exact-size copy as an e
     process_lvgl(50);
     root_ = panel().create(test_screen());
     REQUIRE(root_ != nullptr);
-    lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root_, false);
     settle();
 
     img = lv_obj_find_by_name(root_, "ps_printer_image");
@@ -1279,7 +1279,7 @@ TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's
         REQUIRE(o != nullptr);
         return o;
     };
-    const auto hidden = [](lv_obj_t* o) { return lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN); };
+    const auto hidden = [](lv_obj_t* o) { return lv_obj_is_hidden(o); };
     set_int(subj("ps_callout_mode"), static_cast<int>(CalloutMode::BothSides));
     for (const char* k : keys) {
         set_int(subj(std::string("ps_glow_") + k), 0);

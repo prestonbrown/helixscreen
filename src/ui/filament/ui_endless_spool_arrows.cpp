@@ -557,8 +557,8 @@ static void* endless_spool_arrows_xml_create(lv_xml_parser_state_t* state, const
     lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(obj, 0, 0);
     lv_obj_set_style_pad_all(obj, 0, 0);
-    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_clear_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, false);
 
     // Register event handlers
     lv_obj_add_event_cb(obj, endless_spool_arrows_draw_cb, LV_EVENT_DRAW_POST, nullptr);
@@ -636,8 +636,8 @@ lv_obj_t* ui_endless_spool_arrows_create(lv_obj_t* parent) {
     lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(obj, 0, 0);
     lv_obj_set_style_pad_all(obj, 0, 0);
-    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_clear_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, false);
 
     // Register event handlers
     lv_obj_add_event_cb(obj, endless_spool_arrows_draw_cb, LV_EVENT_DRAW_POST, nullptr);
@@ -690,8 +690,7 @@ void ui_endless_spool_arrows_set_groups(lv_obj_t* obj,
     data->config = config;
     spdlog::debug("[EndlessSpoolArrows] Config updated with {} group(s)", config.groups.size());
     // A relation with nothing to draw over these slots gives its row back.
-    lv_obj_set_flag(obj, LV_OBJ_FLAG_HIDDEN,
-                    helix::ui::endless_spool_marks(config, data->slot_count).empty());
+    lv_obj_set_hidden(obj, helix::ui::endless_spool_marks(config, data->slot_count).empty());
     lv_obj_invalidate(obj);
 }
 
@@ -699,7 +698,7 @@ void ui_endless_spool_arrows_clear(lv_obj_t* obj) {
     auto* data = get_data(obj);
     if (data) {
         data->config.groups.clear();
-        lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(obj, true);
         lv_obj_invalidate(obj);
     }
 }

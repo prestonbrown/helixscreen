@@ -251,41 +251,6 @@ json get_mock_probe_config(helix::mock::PrinterType type) {
     return cfg;
 }
 
-// Minimal Happy Hare "mmu" status for --real-ams: a static 4-gate setup with a
-// mix of loaded/empty gates. gate_status is the load-bearing field — it's what
-// AmsBackendHappyHare::parse_mmu_state() uses to size the slot registry and
-// flip slots_.is_initialized(); the rest just refines what the AMS panel shows.
-// Values proven correct against AmsBackendHappyHare's own unit test fixture
-// (tests/unit/test_ams_backend_happy_hare.cpp, "v3 data with no v4 fields").
-json get_mock_mmu_status() {
-    return {{"gate", 2},
-            {"tool", 2},
-            {"filament", "Loaded"},
-            {"action", "Idle"},
-            {"filament_pos", 8},
-            {"has_bypass", true},
-            {"gate_status", {1, 0, 2, 1}},
-            {"gate_color_rgb", {0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00}},
-            {"gate_material", {"PLA", "PETG", "ABS", "TPU"}},
-            {"gate_vendor", {"Polymaker", "eSUN", "", "Overture"}},
-            {"ttg_map", {0, 1, 2, 3}},
-            {"endless_spool_groups", {0, 0, 1, 1}},
-            {"flowguard",
-             {{"enabled", true},
-              {"active", true},
-              {"trigger", ""},
-              {"reason", ""},
-              {"level", 0.15},
-              {"max_clog", 0.2},
-              {"max_tangle", -0.3}}},
-            {"tangle_prevention",
-             {{"enabled", true},
-              {"active", false},
-              {"boosted", false},
-              {"threshold", 0.6},
-              {"release", 0.3}}}};
-}
-
 void register_object_handlers(std::unordered_map<std::string, MethodHandler>& registry) {
     // printer.objects.list - List available printer objects
     // When Klippy is in STARTUP or ERROR state, Klipper returns JSON-RPC error -32601
@@ -562,6 +527,11 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["configfile"]["config"].merge_patch(pa_adjust_configfile_sections(self));
                 status_obj["configfile"]["settings"].merge_patch(
                     pa_adjust_configfile_sections(self));
+                const json reforge_sections = self->reforge_afc_config_sections();
+                status_obj["configfile"]["settings"].merge_patch(reforge_sections);
+                status_obj["configfile"]["config"].merge_patch(reforge_sections);
+                status_obj["configfile"]["settings"].merge_patch(
+                    self->happy_hare_config_sections());
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and
@@ -629,11 +599,6 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["idle_timeout"] = {{"state", idle_state}};
             }
 
-            // mmu (Happy Hare MMU status — --real-ams)
-            if (objects.contains("mmu")) {
-                status_obj["mmu"] = self->happy_hare_mmu_status();
-            }
-
             // MedusaHC (HELIX_MOCK_AMS=medusahc[-ktc|-tn]). Emitted only for
             // the objects this variant actually ships, so a consumer that reads
             // the wrong schema finds nothing rather than a convenient default.
@@ -665,9 +630,26 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             if (objects.contains("lane_status") && self->is_mock_lane_status()) {
                 status_obj["lane_status"] = self->lane_status_json();
             }
-            // Z-Mod's colour registry (creator5_zmod persona).
+            self->merge_mock_ams_hardware_status(status_obj, &objects);
+            // multiACE on a U1: both feeder sides at rest, so the backend's
+            // first frame carries each head's channel state and Auto loading.
+            if (self->is_mock_multiace()) {
+                if (objects.contains("filament_feed left")) {
+                    status_obj["filament_feed left"] = self->u1_feed_side_json(0);
+                }
+                if (objects.contains("filament_feed right")) {
+                    status_obj["filament_feed right"] = self->u1_feed_side_json(2);
+                }
+            }
+            // Z-Mod's colour registry (creator5_zmod persona) and IFS state
+            // (HELIX_MOCK_AMS=ifs-jacker).
             if (objects.contains("zmod_color")) {
                 status_obj["zmod_color"] = self->zmod_color_status();
+            }
+            if (objects.contains("zmod_ifs")) {
+                if (auto ifs = self->zmod_ifs_status(); !ifs.empty()) {
+                    status_obj["zmod_ifs"] = std::move(ifs);
+                }
             }
             // Stock FlashForge driver-latch pins (creator5_zmod persona).
             for (const char* pin : {"output_pin enable_pin_tmc_x", "output_pin enable_pin_tmc_y"}) {
@@ -970,17 +952,23 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                                               {"fan8_speed", 0.0}, {"fan9_speed", 0.0}};
             }
 
-            // mmu (Happy Hare MMU status — --real-ams)
-            if (objects.contains("mmu")) {
-                status_obj["mmu"] = self->happy_hare_mmu_status();
-            }
-
             // OpenAMS (HELIX_MOCK_AMS=openams): the subscribe snapshot.
             if (objects.contains("oams_manager") && self->is_mock_openams()) {
                 status_obj["oams_manager"] = self->openams_status_json();
             }
             if (objects.contains("lane_status") && self->is_mock_lane_status()) {
                 status_obj["lane_status"] = self->lane_status_json();
+            }
+            self->merge_mock_ams_hardware_status(status_obj, &objects);
+            // multiACE on a U1: both feeder sides at rest, so the backend's
+            // first frame carries each head's channel state and Auto loading.
+            if (self->is_mock_multiace()) {
+                if (objects.contains("filament_feed left")) {
+                    status_obj["filament_feed left"] = self->u1_feed_side_json(0);
+                }
+                if (objects.contains("filament_feed right")) {
+                    status_obj["filament_feed right"] = self->u1_feed_side_json(2);
+                }
             }
 
             // MedusaHC (HELIX_MOCK_AMS=medusahc[-ktc|-tn]). Emitted only for
@@ -1006,9 +994,15 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     }
                 }
             }
-            // Z-Mod's colour registry (creator5_zmod persona).
+            // Z-Mod's colour registry (creator5_zmod persona) and IFS state
+            // (HELIX_MOCK_AMS=ifs-jacker).
             if (objects.contains("zmod_color")) {
                 status_obj["zmod_color"] = self->zmod_color_status();
+            }
+            if (objects.contains("zmod_ifs")) {
+                if (auto ifs = self->zmod_ifs_status(); !ifs.empty()) {
+                    status_obj["zmod_ifs"] = std::move(ifs);
+                }
             }
             // Stock FlashForge driver-latch pins (creator5_zmod persona).
             for (const char* pin : {"output_pin enable_pin_tmc_x", "output_pin enable_pin_tmc_y"}) {
@@ -1091,8 +1085,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     tool_names.push_back(name);
                 }
                 // Beside a MedusaHC, pin_watch keeps tool_number on the docks' tool.
-                const int tool_number =
-                    self->is_mock_medusahc() ? self->sync_medusa_toolchanger_tool() : 0;
+                const int tool_number = self->is_mock_medusahc()
+                                            ? self->sync_medusa_toolchanger_tool()
+                                            : self->toolchanger_tool();
                 status_obj["toolchanger"] = {{"status", "ready"},
                                              {"tool_number", tool_number},
                                              {"tool_numbers", tool_numbers},
@@ -1290,6 +1285,11 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["configfile"]["config"].merge_patch(pa_adjust_configfile_sections(self));
                 status_obj["configfile"]["settings"].merge_patch(
                     pa_adjust_configfile_sections(self));
+                const json reforge_sections = self->reforge_afc_config_sections();
+                status_obj["configfile"]["settings"].merge_patch(reforge_sections);
+                status_obj["configfile"]["config"].merge_patch(reforge_sections);
+                status_obj["configfile"]["settings"].merge_patch(
+                    self->happy_hare_config_sections());
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and

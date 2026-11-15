@@ -216,10 +216,10 @@ TEST_CASE_METHOD(OverlayFx, "an opened overlay stays hidden until the push shows
     REQUIRE(lv_obj_get_child_count(screen) > 0);
     lv_obj_t* root = lv_obj_get_child(screen, lv_obj_get_child_count(screen) - 1);
     REQUIRE(root);
-    CHECK(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(root));
 
     drain();
-    CHECK_FALSE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(root));
     CHECK(NavigationManager::instance().has_open_overlays());
 }
 

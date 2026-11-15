@@ -53,7 +53,7 @@ Six catalogues: the ledger and its ratchet, the duplication debt, the open corre
 
 ### The imperative-UI ledger and the ratchet
 
-[`scripts/check_imperative_ui.py`](../../../scripts/check_imperative_ui.py) flags one specific shape: a widget fetched from an XML tree by name (`lv_obj_find_by_name()`, `find_required()`, `find_optional()`, `find_widget()`) and then mutated in C++, anywhere in the file, since the lookup usually sits in `setup()` and the mutation in `update_*()`: `lv_label_set_text()` instead of `bind_text`, `lv_obj_add_flag(HIDDEN)` instead of `<bind_flag_if_eq>`, `lv_obj_set_style_*` instead of XML styles, `lv_obj_add_event_cb()` instead of `<event_cb>`. At this writing the count is **523**:
+[`scripts/check_imperative_ui.py`](../../../scripts/check_imperative_ui.py) flags one specific shape: a widget fetched from an XML tree by name (`lv_obj_find_by_name()`, `find_required()`, `find_optional()`, `find_widget()`) and then mutated in C++, anywhere in the file, since the lookup usually sits in `setup()` and the mutation in `update_*()`: `lv_label_set_text()` instead of `bind_text`, `lv_obj_set_hidden()` instead of `<bind_flag_if_eq>`, `lv_obj_set_style_*` instead of XML styles, `lv_obj_add_event_cb()` instead of `<event_cb>`. At this writing the count is **523**:
 
 ```
   event          53   → <event_cb trigger="clicked" callback="name"/> + lv_xml_register_event_cb()

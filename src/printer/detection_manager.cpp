@@ -116,6 +116,54 @@ bool DetectionManager::set_bed_check_enabled(bool enabled, std::function<void()>
     return true;
 }
 
+void DetectionManager::set_detection_enabled(bool enabled) {
+    SettingsManager::instance().set_detection_enabled(enabled);
+    // The user has now chosen, so a later connect never adopts the printer's value.
+    SettingsManager::instance().mark_detection_switch_adopted();
+    spdlog::info("DetectionManager: detection -> {}", enabled ? "on" : "off");
+    for (const auto& src : sources_) {
+        if (src && src->available()) {
+            src->apply_detection_enabled(enabled);
+        }
+    }
+}
+
+void DetectionManager::reconcile_detection_enabled() {
+    for (const auto& src : sources_) {
+        if (!src || !src->available()) {
+            continue;
+        }
+        // sources_ only shrinks in reset_for_test(), which invalidates
+        // lifetime_ first, so the pointer is live whenever the body runs.
+        DetectionSource* raw = src.get();
+        raw->read_detection_enabled(lifetime_.bg_cb(
+            "DetectionManager::on_detection_enabled_read", [raw](std::optional<bool> printer_on) {
+                if (!printer_on || !raw->available()) {
+                    return;
+                }
+                SettingsManager& sm = SettingsManager::instance();
+                // The first read takes the printer's word: a switch turned off
+                // on the printer before HelixScreen followed it stays off.
+                if (!sm.is_detection_switch_adopted()) {
+                    sm.set_detection_enabled(*printer_on);
+                    sm.mark_detection_switch_adopted();
+                    spdlog::info("DetectionManager: adopted '{}' detection {} from the printer",
+                                 raw->id(), *printer_on ? "on" : "off");
+                    return;
+                }
+                // Read now, not when asked: a toggle made while the query was
+                // out has already been sent and must not be undone.
+                const bool wanted = sm.get_detection_enabled();
+                if (*printer_on == wanted) {
+                    return;
+                }
+                spdlog::info("DetectionManager: '{}' detection is {} on the printer; setting {}",
+                             raw->id(), *printer_on ? "on" : "off", wanted ? "on" : "off");
+                raw->apply_detection_enabled(wanted);
+            }));
+    }
+}
+
 void DetectionManager::show_bed_check_refusal(const std::string& refusal) {
     const std::string text =
         refusal.empty()
@@ -298,6 +346,8 @@ void DetectionManager::apply_objects_list(const json& objects) {
         }
     }
     update_availability();
+    // After the seed, so a first connect compares against the seeded value.
+    reconcile_detection_enabled();
 }
 
 void DetectionManager::refresh_capabilities() {
@@ -358,6 +408,10 @@ void DetectionManager::reset_for_test() {
         lv_subject_set_int(&bed_check_enabled_subject_, 1);
         lv_subject_set_int(&bed_check_switchable_subject_, 1);
     }
+}
+
+void apply_detection_switch(bool enabled) {
+    DetectionManager::instance().set_detection_enabled(enabled);
 }
 
 } // namespace helix::detection

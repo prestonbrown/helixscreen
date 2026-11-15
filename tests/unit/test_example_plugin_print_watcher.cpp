@@ -36,7 +36,7 @@ json ntfy_settings(const std::string& dest = "my-topic") {
 }
 
 void set_str(const char* subject, const char* value) {
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, subject), value);
+    lv_subject_set_string(lv_xml_get_subject(nullptr, subject), value);
 }
 
 void set_int(const char* subject, int value) {

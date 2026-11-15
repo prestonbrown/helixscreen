@@ -32,10 +32,10 @@ static void update_tool_badge(helix::ToolState* ts) {
         // The printer's own spelling of the tool: "1" or "T0" by its tool number
         // style, or the name its owner gave it ("Left").
         const std::string label = helix::ui::active_tool_badge_label(tool->name, tool->index);
-        lv_subject_copy_string(ts->get_tool_badge_text_subject(), label.c_str());
+        lv_subject_set_string(ts->get_tool_badge_text_subject(), label.c_str());
         lv_subject_set_int(ts->get_show_tool_badge_subject(), 1);
     } else {
-        lv_subject_copy_string(ts->get_tool_badge_text_subject(), "");
+        lv_subject_set_string(ts->get_tool_badge_text_subject(), "");
         lv_subject_set_int(ts->get_show_tool_badge_subject(), 0);
     }
 }
@@ -72,9 +72,9 @@ static void update_toolchange_text(helix::AmsState* a) {
         }
         char buf[32];
         snprintf(buf, sizeof(buf), "%d / %d", display_current, total);
-        lv_subject_copy_string(a->get_toolchange_text_subject(), buf);
+        lv_subject_set_string(a->get_toolchange_text_subject(), buf);
     } else {
-        lv_subject_copy_string(a->get_toolchange_text_subject(), "");
+        lv_subject_set_string(a->get_toolchange_text_subject(), "");
     }
 }
 
@@ -89,7 +89,7 @@ void init_ams_tool_text_observers() {
 
     // Every observer below takes the owning state's SubjectLifetime. It is a
     // required 4th parameter; an empty token is silent: the guard gets no defence,
-    // never learns the subject died, and reset() then calls lv_observer_remove()
+    // never learns the subject died, and reset() then calls lv_observer_delete()
     // on freed memory (#705).
 
     // Two observers for toolchange text: one on total, one on current index

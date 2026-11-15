@@ -75,7 +75,7 @@ TEST_CASE_METHOD(XMLTestFixture, "context menus: every one resolves its card and
         // backdrop-tap as its only exit, which is the complaint that started this.
         lv_obj_t* close = lv_obj_find_by_name(backdrop, "btn_close");
         REQUIRE(close != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(close, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(close));
 
         lv_obj_delete(backdrop);
     }
@@ -132,7 +132,7 @@ TEST_CASE_METHOD(XMLTestFixture, "selector menu: the servo row shows only on a l
         REQUIRE(menu.show_at(test_screen(), test_screen(), {0, 0}, backend));
         lv_obj_t* row = lv_obj_find_by_name(test_screen(), "servo_row");
         REQUIRE(row != nullptr);
-        CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN) == (backend == &hub));
+        CHECK(lv_obj_is_hidden(row) == (backend == &hub));
         menu.hide();
         process_lvgl(20);
     }

@@ -1907,7 +1907,7 @@ void MoonrakerTimelapseAPIMock::get_last_frame_info(
     // Set frame count and capture info subjects directly (we're on the UI thread)
     auto& tl = helix::TimelapseState::instance();
     lv_subject_set_int(tl.get_frame_count_subject(), 42);
-    lv_subject_copy_string(tl.get_capture_info_subject(), "3DBenchy.gcode \xC2\xB7 Mar 10, 14:32");
+    lv_subject_set_string(tl.get_capture_info_subject(), "3DBenchy.gcode \xC2\xB7 Mar 10, 14:32");
 
     if (on_success) {
         LastFrameInfo info;

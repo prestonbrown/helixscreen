@@ -3,6 +3,7 @@
 
 #include "wifi_backend.h"
 
+#include "core/text_io.h"
 #include "exception_policy.h"
 #include "runtime_config.h"
 #include "spdlog/spdlog.h"
@@ -48,6 +49,27 @@ int wifi_signal_percent_from_dbm(int dbm) {
     // -30 dBm = 100% (excellent), -90 dBm = 0% (unusable)
     return std::max(0, std::min(100, (dbm + 90) * 100 / 60));
 }
+
+namespace helix::wifi {
+
+NmDeviceState wifi_parse_nm_device_state(const std::string& value) {
+    // NM_DEVICE_STATE_IP_CONFIG (joined, waiting on DHCP) through
+    // NM_DEVICE_STATE_ACTIVATED; IP_CHECK and SECONDARIES lie between.
+    constexpr int kNmStateIpConfig = 70;
+    constexpr int kNmStateActivated = 100;
+    NmDeviceState state;
+    const std::optional<int> code = helix::text_io::parse_leading<int>(value);
+    if (code) {
+        state.connected = *code >= kNmStateIpConfig && *code <= kNmStateActivated;
+        state.getting_ipv4 = *code == kNmStateIpConfig;
+        return state;
+    }
+    state.connected = value.find("connected") != std::string::npos &&
+                      value.find("disconnected") == std::string::npos;
+    return state;
+}
+
+} // namespace helix::wifi
 
 std::optional<bool> wifi_parse_nm_radio_state(const std::string& output) {
     // Trim whitespace and lowercase — nmcli pads non-terse output and always

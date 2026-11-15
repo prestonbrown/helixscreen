@@ -2049,6 +2049,10 @@ above; several (a backend whose `max_heads_per_filament_op()` is above one, the 
 U1 today) run through `load_filament_batch()` / `unload_filament_batch()`, which route
 through the same `run_filament_op()` executor as a single-slot op. The per-backend script
 shapes live in each backend's doc ([Snapmaker U1](FILAMENT_BACKEND_SNAPMAKER_U1.md)).
+Where every enabled row fits one run (`show_select_all()`), the list is headed by an All
+row (`UiMultiselect::set_select_all_label()`), checked while every enabled row is. A row
+names what the sensor knows and no more: `loaded` at the toolhead, `ready to load` or
+`empty` by the presence sensor, the material alone where there is no sensor.
 
 ### Backend-neutral filament operations
 
@@ -3401,9 +3405,9 @@ The `AmsBackendMock` simulates any of the supported backend types for UI develop
 
 Mock mode is activated when `RuntimeConfig::should_mock_ams()` returns true (typically via the `--test` CLI flag). The factory method `AmsBackend::create()` automatically returns a mock backend in this case.
 
-Pass `--real-ams` alongside `--test` to opt back out and drive a real backend (e.g. `AmsBackendHappyHare`) against the mock Moonraker client instead of `AmsBackendMock`. This is what makes backend-specific chokepoints reachable under `--test` — for example `AmsSubscriptionBackend::ensure_homed_then()`'s G28 in front of an unhomed operation, which `AmsBackendMock` never goes near since it doesn't inherit `AmsSubscriptionBackend`. The mock Moonraker client only simulates a minimal, static `mmu` status for Happy Hare (`moonraker_client_mock_objects.cpp`'s `get_mock_mmu_status()`: 4 gates, a mix of loaded/empty, no operation state machine; as a v4 single unit with a buffer and one fan, its `sync_feedback_enabled` and `fans` follow `MMU_SYNC_FEEDBACK ENABLE=` and `MMU_FAN ENABLE=`/`FAN_FORCED=` from `moonraker_client_mock_happy_hare.cpp`, so the Accessories sync feedback and fan rows can be driven and screenshotted) — it is a plumbing harness for exercising backend code paths, not a UI development tool. Use plain `--test` + `HELIX_MOCK_AMS` (below) for that.
+Pass `--real-ams` alongside `--test` to opt back out and drive a real backend (e.g. `AmsBackendHappyHare`) against the mock Moonraker client instead of `AmsBackendMock`. This is what makes backend-specific chokepoints reachable under `--test` — for example `AmsSubscriptionBackend::ensure_homed_then()`'s G28 in front of an unhomed operation, which `AmsBackendMock` never goes near since it doesn't inherit `AmsSubscriptionBackend`. The default persona's Happy Hare is itself mock hardware: `helix::mock::HappyHareSim` (`src/mock/moonraker_client_mock_happy_hare.cpp`) publishes Happy Hare 4 on one ERCF and answers the `MMU_*` and `T<n>` commands the backend sends, stepping `action` and `filament_pos` through each move, so plain `--test` already runs `AmsBackendHappyHare` unless a knob only `AmsBackendMock` serves is set (`docs/devel/MOCK_ENVIRONMENT_VARIABLES.md` § `HELIX_MOCK_AMS`).
 
-**`--real-ams` seeds Happy Hare only and does not compose with `HELIX_MOCK_AMS`.** The backend comes from mock hardware discovery, not from `HELIX_MOCK_AMS` — that variable is read inside `AmsBackend::create()`'s mock branch (`src/printer/ams_backend.cpp`), which `--real-ams` bypasses entirely. So `HELIX_MOCK_AMS=toolchanger` combined with `--real-ams` still swaps in a real `AmsBackendToolChanger`, but with zero seeded state — a silently empty panel, not a toolchanger simulation.
+**`--real-ams` seeds Happy Hare only and does not compose with `HELIX_MOCK_AMS`.** The backend comes from mock hardware discovery, not from `HELIX_MOCK_AMS` — that variable is read inside `AmsBackend::create()`'s mock branch (`src/printer/ams_backend.cpp`), which `--real-ams` bypasses entirely. So a mode `AmsBackendMock` simulates (`mixed`, say) combined with `--real-ams` gets the default persona's Happy Hare, not that topology. The modes that are mock hardware (`helix::mock::mock_hardware_backend()`) imply `--real-ams` on their own.
 
 The seed dispatches `handle_status` from the main thread (inside an `UpdateQueue` drain), which is also where production runs it: the libhv WebSocket thread only enqueues the notification. A threading bug in a backend's `handle_status` is therefore about its callers on other threads (RPC responses, UI reads under the mutex), which `--real-ams` does not exercise.
 
@@ -3416,7 +3420,7 @@ The seed dispatches `handle_status` from the main thread (inside an `UpdateQueue
 | Variable | Values | Default | Description |
 |----------|--------|---------|-------------|
 | `HELIX_AMS_GATES` | 1-16 | 4 | Number of simulated slots |
-| `HELIX_MOCK_AMS` | `afc`, `box_turtle`, `boxturtle`, `toolchanger`, `tool_changer`, `tc`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `ad5x`, `ad5x_ifs`, `htlf_toolchanger`, `htlf_tc`, `htlf`, `snapmaker`, `snapswap`, `u1` | Happy Hare | AMS type to simulate |
+| `HELIX_MOCK_AMS` | `mixed`, `multi`, `torture`, `stealth`, `vivid`, `htlf_toolchanger`, `htlf_tc`, `htlf`, `ercf`, `tradrack` | Happy Hare mock hardware | AMS type `AmsBackendMock` simulates; the mock-hardware modes are in `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md` |
 | `HELIX_MOCK_AMS_STATE` | `idle`, `loading`, `error`, `bypass`, `unaccounted`, `grade` | `idle` | Visual scenario to simulate |
 | `HELIX_MOCK_DRYER` | `1`, `true` | Disabled | Simulate integrated dryer |
 | `HELIX_MOCK_DRYER_SPEED` | Integer | 60 | Dryer speed multiplier (60 = 1 real sec = 1 sim min) |
@@ -3427,16 +3431,10 @@ The seed dispatches `handle_status` from the main thread (inside an `UpdateQueue
 HELIX_MOCK_AMS=afc ./build/bin/helix-screen --test
 ```
 
-When AFC mock mode is enabled:
-
-- Reports `AmsType::AFC` with type name "AFC (Mock)"
-- Uses `PathTopology::HUB` (4 lanes merge through hub)
-- Configures 4 lanes with realistic filament data (PLA, PETG, ABS, ASA)
-- Sets AFC's device sections (`afc_default_sections()`)
-- Includes mock device actions: calibration wizard, bowden length slider, speed multipliers, lane tests, blade change, park, brush, motor reset, LED toggle, quiet mode toggle
-- Uses `TipMethod::CUT`
-- Editable endless spool with pre-configured backup mapping
-- Supports auto-heat on load
+Mock hardware, not `AmsBackendMock`: the mock client publishes the objects AFC-Klipper-Add-On
+registers for one Box Turtle (shapes from `tests/fixtures/afc_*.json`) and answers AFC's lane
+commands, so the production `AmsBackendAfc` runs (`src/mock/moonraker_client_mock_afc.cpp`).
+`quattro_box` is still `AmsBackendMock`'s AFC simulation.
 
 ### Mock Mixed Topology Mode
 
@@ -3459,10 +3457,10 @@ Simulates a real-world 6-toolhead toolchanger with mixed AFC hardware (based on 
 HELIX_MOCK_AMS=toolchanger ./build/bin/helix-screen --test
 ```
 
-- Reports `AmsType::TOOL_CHANGER`
-- Uses `PathTopology::PARALLEL`
-- Disables bypass mode
-- Labels slots as "T0", "T1", etc.
+Mock hardware, not `AmsBackendMock`: the mock client publishes klipper-toolchanger's
+`toolchanger` and `tool T<n>` objects, seeds the `T<n>` `lane_data` records the backend reads
+identity from, and answers `SELECT_TOOL` / `UNSELECT_TOOL`, so the production
+`AmsBackendToolChanger` runs (`src/mock/moonraker_client_mock_toolchanger.cpp`).
 
 ### Mock AD5X IFS Mode
 
@@ -3470,14 +3468,10 @@ HELIX_MOCK_AMS=toolchanger ./build/bin/helix-screen --test
 HELIX_MOCK_AMS=ifs ./build/bin/helix-screen --test
 ```
 
-- Reports `AmsType::AD5X_IFS` with type name "AD5X IFS"
-- Uses `PathTopology::LINEAR`
-- 4 slots with bypass support
-- Tool mapping enabled; endless spool `Unsupported` - the scenario clears
-  `endless_spool_supported_` / `endless_spool_editable_`, not just
-  `system_info_.endless_spool_enabled`. Clearing only the bit left the mock AD5X with an
-  editable backup dropdown and endless-spool arrows the real backend does not have. The
-  Snapmaker scenario clears the same pair for the same reason.
+Mock hardware, not `AmsBackendMock`: native Z-Mod's `zmod_ifs` / `zmod_color` for the stock
+four-port IFS (port 1 in the head), the same frames and commands as `ifs-jacker` with four
+ports, so the production `AmsBackendAd5xIfs` runs (`src/mock/moonraker_client_mock_ifs_jacker.cpp`).
+The `ad5x` persona's default.
 
 ### Mock Realistic Mode
 

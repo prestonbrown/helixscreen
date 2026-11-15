@@ -66,14 +66,14 @@ class UiButtonTestFixture : public XMLTestFixture {
      * @brief Set the icon subject value
      */
     void set_icon_name(const char* name) {
-        lv_subject_copy_string(&icon_subject_, name);
+        lv_subject_set_string(&icon_subject_, name);
     }
 
     /**
      * @brief Set the text subject value
      */
     void set_text(const char* text) {
-        lv_subject_copy_string(&text_subject_, text);
+        lv_subject_set_string(&text_subject_, text);
     }
 
     /**
@@ -368,12 +368,12 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_op_state renders idle/busy
     // --- State 0: idle — original icon glyph visible, spinner hidden/absent ---
     INFO("idle: icon glyph should be the original 'light' codepoint");
     REQUIRE(strcmp(lv_label_get_text(icon), idle_cp) == 0);
-    REQUIRE_FALSE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(icon));
     {
         lv_obj_t* arc = ui_button_get_op_spinner(btn);
         // Spinner may not be created yet, or if created must be hidden in idle.
         if (arc) {
-            REQUIRE(lv_obj_has_flag(arc, LV_OBJ_FLAG_HIDDEN));
+            REQUIRE(lv_obj_is_hidden(arc));
         }
     }
 
@@ -381,28 +381,28 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_op_state renders idle/busy
     lv_subject_set_int(&op_subject, 1);
     process_lvgl(10);
     INFO("busy: glyph label must be hidden");
-    REQUIRE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(icon));
     lv_obj_t* arc = ui_button_get_op_spinner(btn);
     INFO("busy: spinner arc must exist and be visible");
     REQUIRE(arc != nullptr);
     REQUIRE(lv_obj_check_type(arc, &lv_arc_class));
-    REQUIRE_FALSE(lv_obj_has_flag(arc, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(arc));
 
     // --- State 2: done — 'check' glyph visible, spinner hidden ---
     lv_subject_set_int(&op_subject, 2);
     process_lvgl(10);
     INFO("done: icon glyph should be the 'check' codepoint");
-    REQUIRE_FALSE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(icon));
     REQUIRE(strcmp(lv_label_get_text(icon), check_cp) == 0);
-    REQUIRE(lv_obj_has_flag(arc, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(arc));
 
     // --- Back to idle — original glyph restored, spinner hidden ---
     lv_subject_set_int(&op_subject, 0);
     process_lvgl(10);
     INFO("idle (return): original 'light' glyph restored");
-    REQUIRE_FALSE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(icon));
     REQUIRE(strcmp(lv_label_get_text(icon), idle_cp) == 0);
-    REQUIRE(lv_obj_has_flag(arc, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(arc));
 
     lv_obj_delete(btn);
     process_lvgl(5);
@@ -686,11 +686,11 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button label follows label_hidden_subj
     lv_obj_t* label = text_label(btn);
     REQUIRE(label != nullptr);
 
-    CHECK_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(label));
     lv_subject_set_int(&labels, 0);
-    CHECK(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(label));
     lv_subject_set_int(&labels, 1);
-    CHECK_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(label));
 
     lv_obj_delete(btn);
     lv_subject_deinit(&labels);
@@ -718,11 +718,11 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button label follows label_hidden_cond
     lv_obj_t* label = text_label(btn);
     REQUIRE(label != nullptr);
 
-    CHECK_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(label));
     lv_subject_set_int(&portrait, 1);
-    CHECK(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(label));
     lv_subject_set_int(&tier, 5);
-    CHECK_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(label));
 
     lv_obj_delete(btn);
     lv_subject_deinit(&portrait);
@@ -742,9 +742,9 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button label_hidden_if_bp_eq follows u
     REQUIRE(label != nullptr);
 
     lv_subject_set_int(bp, 1);
-    CHECK(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(label));
     lv_subject_set_int(bp, 3);
-    CHECK_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(label));
 
     lv_obj_delete(btn);
     lv_subject_set_int(bp, saved);

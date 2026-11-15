@@ -66,14 +66,14 @@ uint32_t longest_running_transition(lv_obj_t* screen) {
 void OverlayBackdrop::adopt(lv_obj_t* screen, lv_obj_t* arriving, lv_event_cb_t click_cb) {
     {
         ScopedHideChrome chrome_hidden;
-        const bool arriving_shown = arriving && !lv_obj_has_flag(arriving, LV_OBJ_FLAG_HIDDEN);
+        const bool arriving_shown = arriving && !lv_obj_is_hidden(arriving);
         if (arriving_shown) {
-            lv_obj_add_flag(arriving, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(arriving, true);
         }
         primary_ = create_darkened_backdrop(screen, 40);
         palette_key_ = active_palette_key();
         if (arriving_shown) {
-            lv_obj_remove_flag(arriving, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(arriving, false);
         }
     }
     if (!primary_)
@@ -130,8 +130,8 @@ void OverlayBackdrop::refresh(lv_obj_t* app_layout, lv_obj_t* base_panel) {
         lv_obj_t* child = lv_obj_get_child(screen, static_cast<int32_t>(i));
         if (!child || child == app_layout)
             continue;
-        saved.emplace_back(child, lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN));
-        lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+        saved.emplace_back(child, lv_obj_is_hidden(child));
+        lv_obj_set_hidden(child, true);
     }
 
     // push_overlay(hide_previous) hid the base panel behind the backdrop. It has
@@ -139,8 +139,8 @@ void OverlayBackdrop::refresh(lv_obj_t* app_layout, lv_obj_t* base_panel) {
     // expose dimmed emptiness where the panel used to show through.
     bool base_was_hidden = false;
     if (base_panel) {
-        base_was_hidden = lv_obj_has_flag(base_panel, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_remove_flag(base_panel, LV_OBJ_FLAG_HIDDEN);
+        base_was_hidden = lv_obj_is_hidden(base_panel);
+        lv_obj_set_hidden(base_panel, false);
     }
 
     // Into the buffer the backdrop already owns: a second full frame is 768KB
@@ -148,12 +148,12 @@ void OverlayBackdrop::refresh(lv_obj_t* app_layout, lv_obj_t* base_panel) {
     const bool retaken = retake_darkened_backdrop(primary_, 40);
 
     if (base_panel && base_was_hidden)
-        lv_obj_add_flag(base_panel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(base_panel, true);
     for (auto& [child, was_hidden] : saved) {
         if (was_hidden)
-            lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(child, true);
         else
-            lv_obj_remove_flag(child, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(child, false);
     }
 
     if (!retaken) {
@@ -184,7 +184,7 @@ void OverlayBackdrop::release_primary() {
 void OverlayBackdrop::delete_primary_now() {
     cancel_settle_retake();
     if (primary_) {
-        lv_obj_del(primary_);
+        lv_obj_delete(primary_);
         primary_ = nullptr;
     }
 }

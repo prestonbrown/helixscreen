@@ -134,8 +134,8 @@ void TouchSettingsOverlay::show_calibration_status(bool calibrated) {
     if (!subjects_initialized_) {
         return;
     }
-    lv_subject_copy_string(&touch_cal_status_subject_,
-                           calibrated ? lv_tr("Calibrated") : lv_tr("Not calibrated"));
+    lv_subject_set_string(&touch_cal_status_subject_,
+                          calibrated ? lv_tr("Calibrated") : lv_tr("Not calibrated"));
 }
 
 void TouchSettingsOverlay::handle_touch_calibration_clicked() {

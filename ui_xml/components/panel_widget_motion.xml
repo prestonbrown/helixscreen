@@ -10,7 +10,7 @@
     <prop name="tile_label_subject" type="string" default=""/>
     <prop name="tile_dir_subject" type="string" default=""/>
     <prop name="tile_target_subject" type="string" default=""/>
-    <!-- 1 while this instance covers a whole extra page (FullPageHost). -->
+    <!-- FullPageState: 0 a tile, 1 a full page, 2 a full page holding its view. -->
     <prop name="full_page_subject" type="string" default=""/>
   </api>
   <view name="panel_widget_motion" extends="lv_obj" height="100%" flex_grow="1" style_pad_all="0" scrollable="false">
@@ -19,10 +19,10 @@
                       callback="motion_widget_clicked_cb" button_name="motion_button" icon_name="motion_icon"
                       tile_icon_subject="$tile_icon_subject" tile_label_subject="$tile_label_subject"
                       tile_dir_subject="$tile_dir_subject" disabled_cond="printer_connection_state ne 2">
-      <bind_flag_if_eq subject="$full_page_subject" flag="hidden" ref_value="1"/>
+      <bind_flag_if_not_eq subject="$full_page_subject" flag="hidden" ref_value="0"/>
     </home_action_tile>
-    <full_page_frame name="motion_full_page" icon="cursor_move" label="Motion">
-      <bind_flag_if_not_eq subject="$full_page_subject" flag="hidden" ref_value="1"/>
+    <full_page_frame name="motion_full_page" state_subject="$full_page_subject" icon="cursor_move" label="Motion">
+      <bind_flag_if_eq subject="$full_page_subject" flag="hidden" ref_value="0"/>
     </full_page_frame>
   </view>
 </component>

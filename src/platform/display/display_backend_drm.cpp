@@ -1174,7 +1174,7 @@ void DisplayBackendDRM::open_mouse_device() {
         lv_obj_set_style_bg_opa(cursor_obj, LV_OPA_80, 0);
         lv_obj_set_style_border_width(cursor_obj, 1, 0);
         lv_obj_set_style_border_color(cursor_obj, lv_color_black(), 0);
-        lv_obj_clear_flag(cursor_obj, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(cursor_obj, false);
         lv_indev_set_cursor(mouse_, cursor_obj);
         spdlog::info("[DRM Backend] Mouse cursor enabled");
     }

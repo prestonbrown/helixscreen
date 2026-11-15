@@ -70,13 +70,13 @@ TEST_CASE("ams_endless_status hides healthy state only when asked", "[ams][xml]"
         lv_obj_t* root = create_endless_status(fixture, nullptr);
 
         set_endless_state(EndlessSpoolStatusKind::Hidden);
-        REQUIRE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE(lv_obj_is_hidden(root));
 
         set_endless_state(EndlessSpoolStatusKind::On);
-        REQUIRE_FALSE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(root));
 
         set_endless_state(EndlessSpoolStatusKind::Off);
-        REQUIRE_FALSE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(root));
     }
 
     SECTION("with hide_when_healthy (panel shape)") {
@@ -85,31 +85,31 @@ TEST_CASE("ams_endless_status hides healthy state only when asked", "[ams][xml]"
 
         // Healthy: nothing to demand of the user, so the panel hides the line.
         set_endless_state(EndlessSpoolStatusKind::On);
-        REQUIRE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE(lv_obj_is_hidden(root));
 
         // Attention kinds stay visible - they are the reason the prop exists.
         set_endless_state(EndlessSpoolStatusKind::Off);
-        REQUIRE_FALSE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(root));
 
         set_endless_state(EndlessSpoolStatusKind::Unknown);
-        REQUIRE_FALSE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(root));
 
         set_endless_state(EndlessSpoolStatusKind::NeedsPlugin);
-        REQUIRE_FALSE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(root));
 
         // The honest degraded state (#1391) must NOT hide with the healthy
         // line: it is an attention kind, and hiding it here is exactly the
         // silence this must not produce.
         set_endless_state(EndlessSpoolStatusKind::OnWithoutBackup);
-        REQUIRE_FALSE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(root));
 
         // No mechanism: hidden with or without the prop.
         set_endless_state(EndlessSpoolStatusKind::Hidden);
-        REQUIRE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE(lv_obj_is_hidden(root));
 
         // Reactive both directions, not just at creation.
         set_endless_state(EndlessSpoolStatusKind::On);
-        REQUIRE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE(lv_obj_is_hidden(root));
     }
 
     SECTION("prop defaults to off") {
@@ -118,6 +118,6 @@ TEST_CASE("ams_endless_status hides healthy state only when asked", "[ams][xml]"
         lv_obj_t* root = create_endless_status(fixture, attrs);
 
         set_endless_state(EndlessSpoolStatusKind::On);
-        REQUIRE_FALSE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(root));
     }
 }

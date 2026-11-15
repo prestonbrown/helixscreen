@@ -116,7 +116,7 @@ void on_fan_rename_data_delete(lv_event_t* e) {
 void attach_long_press_rename(lv_obj_t* widget, const std::string& object_name,
                               const std::string& display_name) {
     auto* data = new FanRenameData{object_name, display_name};
-    lv_obj_add_flag(widget, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(widget, true);
     lv_obj_add_event_cb(widget, on_fan_pressed, LV_EVENT_PRESSED, data);
     lv_obj_add_event_cb(widget, on_fan_long_pressed, LV_EVENT_LONG_PRESSED, data);
     lv_obj_add_event_cb(widget, on_fan_rename_data_delete, LV_EVENT_DELETE, data);
@@ -338,7 +338,7 @@ void FanControlOverlay::set_auto_fan_speed_text(AutoFanCard::SpeedText& speed, i
     } else {
         helix::format::format_percent(speed_pct, text, sizeof(text));
     }
-    lv_subject_copy_string(&speed.subject, text);
+    lv_subject_set_string(&speed.subject, text);
 }
 
 void FanControlOverlay::populate_fans() {
@@ -473,7 +473,7 @@ void FanControlOverlay::populate_fans() {
                 // The arc is read-only; bubble its events so a long press reaches the card
                 lv_obj_t* arc = helix::ui::find_required(card, "dial_arc", get_name());
                 if (arc) {
-                    lv_obj_add_flag(arc, LV_OBJ_FLAG_EVENT_BUBBLE);
+                    lv_obj_set_event_bubble(arc, true);
                 }
 
                 // Find fan icon for spin animation

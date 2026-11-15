@@ -14,7 +14,7 @@ namespace {
 lv_obj_t* make_scroll_container(lv_obj_t* parent, int n, int32_t h) {
     lv_obj_t* c = lv_obj_create(parent);
     lv_obj_set_size(c, 400, 200);
-    lv_obj_add_flag(c, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(c, true);
     lv_obj_set_flex_flow(c, LV_FLEX_FLOW_COLUMN);
     for (int i = 0; i < n; ++i) {
         lv_obj_t* row = lv_obj_create(c);
@@ -123,7 +123,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PageScrollController hides gutter when cont
 
     PageScrollController ctl;
     REQUIRE(ctl.attach(c));
-    CHECK(lv_obj_has_flag(ctl.gutter(), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(ctl.gutter()));
     // No reserved padding while hidden — content keeps full width.
     CHECK(lv_obj_get_style_pad_right(c, LV_PART_MAIN) == 0);
 }

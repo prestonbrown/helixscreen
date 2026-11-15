@@ -51,6 +51,28 @@ std::string describe_fault(const std::string& code, const std::string& text) {
                          : (!code.empty() ? code : std::string(lv_tr("Filament System Error")));
 }
 
+/// Marks each unit's faulted slots with the fault in the current language: a
+/// fault naming a bay marks that slot, one without marks every slot of the unit.
+/// Returns whether any unit reports a fault.
+bool apply_unit_faults(std::vector<AmsUnit>& units,
+                       const std::vector<std::vector<openams::UnitFault>>& faults) {
+    bool any_fault = false;
+    for (std::size_t u = 0; u < units.size() && u < faults.size(); ++u) {
+        for (const openams::UnitFault& fault : faults[u]) {
+            any_fault = true;
+            SlotError error;
+            error.message = describe_fault(fault.code, fault.text);
+            error.severity = SlotError::ERROR;
+            for (auto& slot : units[u].slots) {
+                if (fault.bay < 0 || fault.bay == slot.slot_index) {
+                    slot.error = error;
+                }
+            }
+        }
+    }
+    return any_fault;
+}
+
 std::string string_member(const json& object, const char* key) {
     auto it = object.find(key);
     return it != object.end() && it->is_string() ? it->get<std::string>() : std::string();
@@ -235,21 +257,7 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
     };
     drop_inactive(requested_dry_min_);
 
-    bool any_fault = false;
-    for (std::size_t u = 0; u < next.units.size(); ++u) {
-        AmsUnit& unit = next.units[u];
-        for (const UnitFault& fault : parsed.faults[u]) {
-            any_fault = true;
-            SlotError error;
-            error.message = describe_fault(fault.code, fault.text);
-            error.severity = SlotError::ERROR;
-            for (auto& slot : unit.slots) {
-                if (fault.bay < 0 || fault.bay == slot.slot_index) {
-                    slot.error = error;
-                }
-            }
-        }
-    }
+    const bool any_fault = apply_unit_faults(next.units, parsed.faults);
 
     remote_slot_ids_ = std::move(parsed.remote_slot_ids);
     slot_groups_ = std::move(parsed.slot_groups);
@@ -755,6 +763,16 @@ bool AmsBackendOpenAms::has_clearable_fault_locked() const {
         return std::any_of(faults.begin(), faults.end(),
                            [](const UnitFault& f) { return f.clearable; });
     });
+}
+
+void AmsBackendOpenAms::refresh_translated_texts() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    apply_unit_faults(system_info_.units, unit_faults_);
+    // A failed operation's text is the macro's own; only the fault summary
+    // this backend composed is re-worded.
+    if (failure_detail_.empty() && !system_info_.operation_detail.empty()) {
+        system_info_.operation_detail = fault_detail_locked();
+    }
 }
 
 std::string AmsBackendOpenAms::fault_detail_locked() const {

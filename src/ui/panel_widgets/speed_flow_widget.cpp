@@ -367,7 +367,7 @@ void SpeedFlowWidget::publish_texts() {
     const Texts t = compose_texts(live.readings, verdict_.rung, verdict_.value_is_measured);
     const auto set = [](lv_subject_t* subject, const std::string& text) {
         if (text != lv_subject_get_string(subject))
-            lv_subject_copy_string(subject, text.c_str());
+            lv_subject_set_string(subject, text.c_str());
     };
     set(&s_speed_text_subject, t.speed);
     set(&s_flow_text_subject, t.flow);

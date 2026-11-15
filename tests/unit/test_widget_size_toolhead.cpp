@@ -103,7 +103,7 @@ struct ToolheadFixture : public LVGLUITestFixture {
         drain();
     }
     void set_homed(const char* axes) {
-        lv_subject_copy_string(motion().get_homed_axes_subject(), axes);
+        lv_subject_set_string(motion().get_homed_axes_subject(), axes);
         drain();
     }
     void set_velocity(int mm_s) {
@@ -169,7 +169,7 @@ lv_obj_t* part(PanelWidgetHarness<ToolheadWidget>& h, const char* name) {
 }
 
 bool hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 /// Whether an object draws: it and every ancestor up to the widget root is unhidden.
@@ -817,7 +817,7 @@ TEST_CASE_METHOD(PlateFixture, "toolhead plate: a homed tap drops a target and m
     PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
     build(h);
     REQUIRE(h.widget().plate_interactive());
-    CHECK(lv_obj_has_flag(part(h, "toolhead_plate"), LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(part(h, "toolhead_plate")));
 
     tap_plate(h, plate_centre(h));
     process_lvgl(500);
@@ -863,13 +863,13 @@ TEST_CASE_METHOD(PlateFixture, "toolhead plate: dismiss clears the target and se
     build(h);
     tap_plate(h, plate_centre(h));
     REQUIRE(subject_int("toolhead_ghost_active") == 1);
-    CHECK_FALSE(lv_obj_has_flag(part(h, "toolhead_target_readout"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(part(h, "toolhead_target_readout")));
 
     lv_obj_send_event(part(h, "toolhead_ghost_dismiss"), LV_EVENT_CLICKED, nullptr);
     drain();
     CHECK(subject_int("toolhead_ghost_active") == 0);
     CHECK(subject_int("toolhead_target_shown") == 0);
-    CHECK(lv_obj_has_flag(part(h, "toolhead_target_readout"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(part(h, "toolhead_target_readout")));
     CHECK(all_scripts().empty());
 }
 
@@ -904,7 +904,7 @@ TEST_CASE_METHOD(PlateFixture, "toolhead plate: unhomed or printing, a tap opens
     CHECK_FALSE(h.widget().plate_interactive());
     CHECK(subject_int("toolhead_plate_interactive") == 0);
     // Not clickable, so a real tap lands on the tile itself.
-    CHECK_FALSE(lv_obj_has_flag(part(h, "toolhead_plate"), LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(part(h, "toolhead_plate")));
 
     tap_plate(h, centre);
     process_lvgl(500);

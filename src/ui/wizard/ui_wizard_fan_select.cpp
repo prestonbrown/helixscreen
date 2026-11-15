@@ -369,7 +369,7 @@ void WizardFanSelectStep::cleanup() {
     lv_subject_set_int(&connection_test_passed, 1);
 
     // Reset UI references
-    // Note: Do NOT call lv_obj_del() here - the wizard framework handles
+    // Note: Do NOT call lv_obj_delete() here - the wizard framework handles
     // object deletion when clearing wizard_content container
     screen_root_ = nullptr;
 

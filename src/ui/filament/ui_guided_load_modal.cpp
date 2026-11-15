@@ -203,7 +203,7 @@ void GuidedLoadModal::publish() {
                               helix::units::to_display_temp_whole(session_->heat_current_c()),
                               helix::units::format_display_temp(session_->heat_target_c()))
                 : std::string();
-        lv_subject_copy_string(&heat_text_subject_, text.c_str());
+        lv_subject_set_string(&heat_text_subject_, text.c_str());
     }
     if (session_->ended() && is_visible()) {
         hide(ModalCloseReason::ButtonPress);

@@ -305,7 +305,7 @@ void PlrWizardOverlay::open(IMoonrakerAPI* api) {
         lv_subject_set_int(s, 0);
     }
     lv_subject_set_int(&s_plr_jog_step, kDefaultJogStep);
-    lv_subject_copy_string(&s_plr_progress, "");
+    lv_subject_set_string(&s_plr_progress, "");
     set_step(PlrWizardStep::Offer);
     listen_for_notifications();
     request_plan();
@@ -414,7 +414,7 @@ void PlrWizardOverlay::enter_step(PlrWizardStep step) {
         publish_plan();
         break;
     case PlrWizardStep::Preparing:
-        lv_subject_copy_string(&s_plr_progress, lv_tr("Waiting for the printer"));
+        lv_subject_set_string(&s_plr_progress, lv_tr("Waiting for the printer"));
         update_bed_live();
         plr_rpc::prepare(*api_, plan_->plan_id, false, std::move(on_ok), std::move(on_error));
         break;
@@ -423,12 +423,12 @@ void PlrWizardOverlay::enter_step(PlrWizardStep step) {
         lv_subject_set_int(&s_plr_z_jogged, 0);
         break;
     case PlrWizardStep::Committing:
-        lv_subject_copy_string(&s_plr_progress, lv_tr("Waiting for the printer"));
+        lv_subject_set_string(&s_plr_progress, lv_tr("Waiting for the printer"));
         plr_rpc::commit(*api_, plan_->plan_id, given(), plan_->tier, std::move(on_ok),
                         std::move(on_error));
         break;
     case PlrWizardStep::Failed:
-        lv_subject_copy_string(&s_plr_error, error_text_.c_str());
+        lv_subject_set_string(&s_plr_error, error_text_.c_str());
         stop_listening();
         // Nothing is held for the user to watch once the sequence has ended.
         awake_.reset();
@@ -534,7 +534,7 @@ void PlrWizardOverlay::on_progress(const PlrProgressEvent& event) {
         awake_.reset();
     }
     if (const char* text = plr_progress_step_text(event.step)) {
-        lv_subject_copy_string(&s_plr_progress, text);
+        lv_subject_set_string(&s_plr_progress, text);
     }
 }
 
@@ -674,27 +674,27 @@ void PlrWizardOverlay::publish_plan() {
     const PlrPlanReply& reply = *plan_reply_;
     lv_subject_set_int(&s_plr_tier, plan_->tier);
     lv_subject_set_int(&s_plr_z_kind, static_cast<int>(plr_z_step_kind(*plan_)));
-    lv_subject_copy_string(&s_plr_continue_text, plr_prepare_moves_head(*plan_)
-                                                     ? lv_tr("Heat and Home")
-                                                     : lv_tr("Start Heating"));
+    lv_subject_set_string(&s_plr_continue_text, plr_prepare_moves_head(*plan_)
+                                                    ? lv_tr("Heat and Home")
+                                                    : lv_tr("Start Heating"));
 
     const std::string& path =
         reply.filename.empty() && status_.snapshot ? status_.snapshot->filename : reply.filename;
     const std::string file =
         helix::gcode::get_display_filename(helix::gcode::resolve_gcode_filename(path));
-    lv_subject_copy_string(&s_plr_file, file.c_str());
+    lv_subject_set_string(&s_plr_file, file.c_str());
     const std::string position =
         reply.layer ? tr_format(lv_tr("Layer {}, Z {:.2f} mm"), *reply.layer, reply.z_gcode)
                     : tr_format(lv_tr("Z {:.2f} mm"), reply.z_gcode);
-    lv_subject_copy_string(&s_plr_position, position.c_str());
+    lv_subject_set_string(&s_plr_position, position.c_str());
     const std::string outage = outage_text(status_.snapshot ? status_.snapshot->age_s : -1.0);
-    lv_subject_copy_string(&s_plr_outage, outage.c_str());
+    lv_subject_set_string(&s_plr_outage, outage.c_str());
     const std::string bed = reply.bed_target > 0.0f
                                 ? tr_format(lv_tr("Bed is at {}, the print needs {}."),
                                             helix::units::format_display_temp(reply.bed_current),
                                             helix::units::format_display_temp(reply.bed_target))
                                 : std::string();
-    lv_subject_copy_string(&s_plr_bed, bed.c_str());
+    lv_subject_set_string(&s_plr_bed, bed.c_str());
     lv_subject_set_int(&s_plr_warn_layer_start,
                        std::find(reply.warnings.begin(), reply.warnings.end(),
                                  kLayerStartWarning) != reply.warnings.end() ||
@@ -722,12 +722,12 @@ void PlrWizardOverlay::update_bed_live() {
         target > 0.0 ? tr_format(lv_tr("Bed {} / {}"), helix::units::to_display_temp_whole(current),
                                  helix::units::format_display_temp(target))
                      : tr_format(lv_tr("Bed {}"), helix::units::format_display_temp(current));
-    lv_subject_copy_string(&s_plr_bed_live, text.c_str());
+    lv_subject_set_string(&s_plr_bed_live, text.c_str());
 }
 
 void PlrWizardOverlay::update_z_display(int centimm) {
     position::format_position(centimm, s_plr_z_buf, sizeof(s_plr_z_buf));
-    lv_subject_copy_string(&s_plr_z, s_plr_z_buf);
+    lv_subject_set_string(&s_plr_z, s_plr_z_buf);
 }
 
 // ============================================================================

@@ -733,6 +733,9 @@
     },
     {
       "id": "flashforge_creator_5",
+      "id_aliases": [
+        "flashforge_creator5"
+      ],
       "toolhead_style": "flashforge_creator5",
       "enclosed": true,
       "name": "FlashForge Creator 5",
@@ -812,6 +815,9 @@
     },
     {
       "id": "flashforge_creator_5_pro",
+      "id_aliases": [
+        "flashforge_creator5_pro"
+      ],
       "toolhead_style": "flashforge_creator5",
       "enclosed": true,
       "name": "FlashForge Creator 5 Pro",

@@ -364,6 +364,9 @@
   <translation tag="Auto Bed Mesh" en="Auto Bed Mesh"/>
   <translation tag="Auto Cal" en="Auto Cal"/>
   <translation tag="Auto Fans" en="Auto Fans"/>
+  <translation tag="Auto loading" en="Auto loading"/>
+  <translation tag="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand." en="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand."/>
+  <translation tag="Auto loading is off; turn it on under Print Behavior" en="Auto loading is off; turn it on under Print Behavior"/>
   <translation tag="Auto-Detect" en="Auto-Detect"/>
   <translation tag="Auto-Heat on Load" en="Auto-Heat on Load"/>
   <translation tag="Auto-Replenish" en="Auto-Replenish"/>
@@ -692,6 +695,7 @@
   <translation tag="Change tool" en="Change tool"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." en="Changes apply immediately. Adjust during print for tuning."/>
   <translation tag="Changes are temporary and reset on printer reboot" en="Changes are temporary and reset on printer reboot"/>
+  <translation tag="Changing filament" en="Changing filament"/>
   <translation tag="Check AFC configuration" en="Check AFC configuration"/>
   <translation tag="Check Again" en="Check Again"/>
   <translation tag="Check Klipper console for details" en="Check Klipper console for details"/>
@@ -884,6 +888,7 @@
   <translation tag="Connected to {}" en="Connected to {}"/>
   <translation tag="Connected! Discovering printer..." en="Connected! Discovering printer..."/>
   <translation tag="Connected, discovering..." en="Connected, discovering..."/>
+  <translation tag="Connected, getting address…" en="Connected, getting address…"/>
   <translation tag="Connecting Camera..." en="Connecting Camera..."/>
   <translation tag="Connecting to " en="Connecting to "/>
   <translation tag="Connecting to %s..." en="Connecting to %s..."/>
@@ -1041,6 +1046,7 @@
   <translation tag="Cutter calibration failed: {}" en="Cutter calibration failed: {}"/>
   <translation tag="Cutter jam" en="Cutter jam"/>
   <translation tag="Cutting" en="Cutting"/>
+  <translation tag="Cutting filament" en="Cutting filament"/>
   <translation tag="Cutting filament..." en="Cutting filament..."/>
   <translation tag="Cycle every tool" en="Cycle every tool"/>
   <translation tag="Cycling tools..." en="Cycling tools..."/>
@@ -1518,6 +1524,7 @@
   <translation tag="Feeder" en="Feeder"/>
   <translation tag="Feeders" en="Feeders"/>
   <translation tag="Feeding filament forward" en="Feeding filament forward"/>
+  <translation tag="Feeding filament to nozzle" en="Feeding filament to nozzle"/>
   <translation tag="Filament" en="Filament"/>
   <translation tag="Filament Buffer" en="Filament Buffer"/>
   <translation tag="Filament Control" en="Filament Control"/>
@@ -1534,6 +1541,7 @@
   <translation tag="Filament Mapping is not available on this device." en="Filament Mapping is not available on this device."/>
   <translation tag="Filament Mapping is unavailable" en="Filament Mapping is unavailable"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" en="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer"/>
+  <translation tag="Filament Operations" en="Filament Operations"/>
   <translation tag="Filament Runout" en="Filament Runout"/>
   <translation tag="Filament Sensor" en="Filament Sensor"/>
   <translation tag="Filament Sensors" en="Filament Sensors"/>
@@ -1685,6 +1693,7 @@
   <translation tag="Generic" en="Generic"/>
   <translation tag="Get help and share feedback" en="Get help and share feedback"/>
   <translation tag="Getting Started" en="Getting Started"/>
+  <translation tag="Getting address…" en="Getting address…"/>
   <translation tag="Getting ready..." en="Getting ready..."/>
   <translation tag="Glass Effects" en="Glass Effects"/>
   <translation tag="Global" en="Global"/>
@@ -1766,7 +1775,10 @@
   <translation tag="Heating chamber..." en="Heating chamber..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." en="Heating is nearly the whole wait. Leaving the screen now stops the run."/>
   <translation tag="Heating nozzle" en="Heating nozzle"/>
+  <translation tag="Heating nozzle ({})" en="Heating nozzle ({})"/>
   <translation tag="Heating nozzle to $1°C..." en="Heating nozzle to $1°C..."/>
+  <translation tag="Heating nozzle to {}" en="Heating nozzle to {}"/>
+  <translation tag="Heating nozzle to {} ({})" en="Heating nozzle to {} ({})"/>
   <translation tag="Heating nozzle..." en="Heating nozzle..."/>
   <translation tag="Heating the bed" en="Heating the bed"/>
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" en="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it"/>
@@ -1879,7 +1891,10 @@
   <translation tag="Hyperspace" en="Hyperspace"/>
   <translation tag="I understand" en="I understand"/>
   <translation tag="ID (optional)" en="ID (optional)"/>
+  <translation tag="IFS driver error" en="IFS driver error"/>
   <translation tag="IFS updates without polling" en="IFS updates without polling"/>
+  <translation tag="IFS: loading" en="IFS: loading"/>
+  <translation tag="IFS: unloading" en="IFS: unloading"/>
   <translation tag="IMPORT FROM USB" en="IMPORT FROM USB"/>
   <translation tag="INDX dock positions are not calibrated" en="INDX dock positions are not calibrated"/>
   <translation tag="INDX macros not recognized" en="INDX macros not recognized"/>
@@ -2161,6 +2176,7 @@
   <translation tag="Load the required filaments or start anyway?" en="Load the required filaments or start anyway?"/>
   <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." en="Load, unload, and purge from here. Choose a material to set its temperatures first."/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." en="Load, unload, and swap spools, set temperatures, and monitor runout sensors."/>
+  <translation tag="Load, unload, purge, and extrude filament" en="Load, unload, purge, and extrude filament"/>
   <translation tag="Load..." en="Load..."/>
   <translation tag="Loaded" en="Loaded"/>
   <translation tag="Loading" en="Loading"/>
@@ -2383,6 +2399,7 @@
   <translation tag="Mount tool" en="Mount tool"/>
   <translation tag="Mount which tool?" en="Mount which tool?"/>
   <translation tag="Mount..." en="Mount..."/>
+  <translation tag="Mounted: {}" en="Mounted: {}"/>
   <translation tag="Move" en="Move"/>
   <translation tag="Move here" en="Move here"/>
   <translation tag="Move out of range" en="Move out of range"/>
@@ -2497,6 +2514,7 @@
   <translation tag="No events queued" en="No events queued"/>
   <translation tag="No extruder heater found. Check [extruder] in printer.cfg" en="No extruder heater found. Check [extruder] in printer.cfg"/>
   <translation tag="No fans detected" en="No fans detected"/>
+  <translation tag="No feeder attached" en="No feeder attached"/>
   <translation tag="No filament" en="No filament"/>
   <translation tag="No filament environment sensors" en="No filament environment sensors"/>
   <translation tag="No filament loaded to unload" en="No filament loaded to unload"/>
@@ -2559,6 +2577,7 @@
   <translation tag="No timelapse videos found" en="No timelapse videos found"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" en="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?"/>
   <translation tag="No tool is mounted" en="No tool is mounted"/>
+  <translation tag="No tool mounted" en="No tool mounted"/>
   <translation tag="No tool on the head" en="No tool on the head"/>
   <translation tag="No tools to calibrate" en="No tools to calibrate"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" en="No turn: the gap moved {:.1f} Hz"/>
@@ -2808,9 +2827,11 @@
   <translation tag="Pick Color" en="Pick Color"/>
   <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." en="Pick how HelixScreen behaves. You can change any of these later in Settings."/>
   <translation tag="Pick the best band" en="Pick the best band"/>
+  <translation tag="Pick up" en="Pick up"/>
   <translation tag="Pick up and park each tool in turn" en="Pick up and park each tool in turn"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" en="Pick up the tool, heat it, and pull the filament out"/>
   <translation tag="Pick up tool" en="Pick up tool"/>
+  <translation tag="Pick-up step cancelled; nothing was sent" en="Pick-up step cancelled; nothing was sent"/>
   <translation tag="Picking up tool" en="Picking up tool"/>
   <translation tag="Pill" en="Pill"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" en="Pixels before a press becomes a scroll (lower = scrolls engage sooner)"/>
@@ -3076,6 +3097,7 @@
   <translation tag="Purge tower and brush settings" en="Purge tower and brush settings"/>
   <translation tag="Purging" en="Purging"/>
   <translation tag="Purging nozzle" en="Purging nozzle"/>
+  <translation tag="Purging old filament" en="Purging old filament"/>
   <translation tag="Purging..." en="Purging..."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." en="Push the cleaning filament into the extruder until it stops, then tap Extrude."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." en="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude."/>
@@ -3338,6 +3360,7 @@
   <translation tag="Retract filament to current slot" en="Retract filament to current slot"/>
   <translation tag="Retract may still be running — response timed out" en="Retract may still be running — response timed out"/>
   <translation tag="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again" en="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again"/>
+  <translation tag="Retracting filament from nozzle" en="Retracting filament from nozzle"/>
   <translation tag="Retraction" en="Retraction"/>
   <translation tag="Retraction Settings" en="Retraction Settings"/>
   <translation tag="Retraction distance in the cooling tube" en="Retraction distance in the cooling tube"/>
@@ -4117,6 +4140,7 @@
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" en="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" en="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?"/>
   <translation tag="The toolhead is not homed, so this would home into the print" en="The toolhead is not homed, so this would home into the print"/>
+  <translation tag="The toolhead may still be at the chute. Move it away before printing." en="The toolhead may still be at the chute. Move it away before printing."/>
   <translation tag="The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from." en="The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from."/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" en="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" en="The toolhead sensor indicates no filament is present. Proceed with unload anyway?"/>
@@ -4311,6 +4335,7 @@
   <translation tag="Toolhead Style" en="Toolhead Style"/>
   <translation tag="Toolhead X" en="Toolhead X"/>
   <translation tag="Toolhead Y" en="Toolhead Y"/>
+  <translation tag="Toolhead did not return to park: {}" en="Toolhead did not return to park: {}"/>
   <translation tag="Toolhead jam" en="Toolhead jam"/>
   <translation tag="Toolhead lost homing" en="Toolhead lost homing"/>
   <translation tag="Toolhead offset calibration" en="Toolhead offset calibration"/>
@@ -4532,6 +4557,7 @@
   <translation tag="Wait for the current filament operation to finish" en="Wait for the current filament operation to finish"/>
   <translation tag="Wait for the current operation to complete" en="Wait for the current operation to complete"/>
   <translation tag="Wait for the current operation to complete or cancel it first" en="Wait for the current operation to complete or cancel it first"/>
+  <translation tag="Wait for the load or unload to finish" en="Wait for the load or unload to finish"/>
   <translation tag="Wait for the motor to stop" en="Wait for the motor to stop"/>
   <translation tag="Wait for the nozzle to stop moving" en="Wait for the nozzle to stop moving"/>
   <translation tag="Wait for the running INDX operation to finish" en="Wait for the running INDX operation to finish"/>
@@ -4854,6 +4880,7 @@
   <translation tag="{} d" en="{} d"/>
   <translation tag="{} days" en="{} days"/>
   <translation tag="{} detected" en="{} detected"/>
+  <translation tag="{} did not arrive; nothing was sent" en="{} did not arrive; nothing was sent"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." en="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming."/>
   <translation tag="{} disabled" en="{} disabled"/>
   <translation tag="{} disconnected" en="{} disconnected"/>

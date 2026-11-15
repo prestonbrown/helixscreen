@@ -19,7 +19,7 @@ setup() {
     overlay_root_ =
         static_cast<lv_obj_t*>(lv_xml_create(parent, "demo_overlay", nullptr));
     find_required(overlay_root_, "x", "y");
-    lv_obj_add_flag(overlay_root_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay_root_, true);
 SHAPES
     run python3 $GATE "$FILE"
     [ "$status" -eq 1 ]
@@ -29,11 +29,11 @@ SHAPES
 @test "create_xml_hidden, a hide of another object and the opt-out are quiet" {
     cat > "$FILE" <<'SHAPES'
     auto* a = helix::ui::create_xml_hidden(parent, "demo");
-    lv_obj_add_flag(a, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(a, true);
     auto* b = static_cast<lv_obj_t*>(lv_xml_create(parent, "row", nullptr));
-    lv_obj_add_flag(other, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(other, true);
     auto* c = static_cast<lv_obj_t*>(lv_xml_create(parent, "row", nullptr));
-    lv_obj_add_flag(c, LV_OBJ_FLAG_HIDDEN); // XML_HIDDEN_OK: pooled row
+    lv_obj_set_hidden(c, true); // XML_HIDDEN_OK: pooled row
 SHAPES
     run python3 $GATE "$FILE"
     [ "$status" -eq 0 ]

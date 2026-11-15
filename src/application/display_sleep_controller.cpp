@@ -237,7 +237,7 @@ void DisplaySleepController::create_sleep_overlay() {
     lv_obj_set_style_bg_opa(m_sleep_overlay, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(m_sleep_overlay, 0, 0);
     lv_obj_set_style_pad_all(m_sleep_overlay, 0, 0);
-    lv_obj_remove_flag(m_sleep_overlay, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(m_sleep_overlay, false);
     helix::active_screen_hide_hold().acquire(lv_screen_active());
     spdlog::debug("[DisplaySleep] Software sleep overlay created");
 }

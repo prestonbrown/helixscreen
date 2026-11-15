@@ -4,6 +4,7 @@
 #include "overlay_base.h"
 
 #include "ui_nav_manager.h"
+#include "ui_next_tick.h"
 #include "ui_open_instances.h"
 #include "ui_overlay_open_trace.h"
 #include "ui_panel_common.h"
@@ -234,6 +235,15 @@ void OverlayBase::release_embed() {
     spdlog::debug("[{}] released its page host", get_name());
 }
 
+void OverlayBase::host_deleting() {
+    // A tree embedded again before the tick is someone else's to release.
+    helix::ui::run_next_tick(object_lifetime_.token(), [this]() {
+        if (!is_embedded()) {
+            release_embed();
+        }
+    });
+}
+
 void OverlayBase::report_foreign_close_callback() const {
     std::string msg = std::string("[") + get_name() +
                       "] show() on a root that carries another owner's close callback; an "
@@ -402,9 +412,9 @@ bool OverlayBase::rebuild() {
     overlay_root_ = new_root;
 
     if (was_visible) {
-        lv_obj_remove_flag(new_root, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(new_root, false);
     } else {
-        lv_obj_add_flag(new_root, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(new_root, true);
     }
 
     NavigationManager::instance().rekey_overlay_widget(old_root, new_root);

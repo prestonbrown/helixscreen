@@ -89,7 +89,7 @@ static SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) 
     if (sv.glow) {
         lv_obj_set_size(sv.glow, spool_size, spool_size);
         lv_obj_align(sv.glow, LV_ALIGN_CENTER, 0, 0);
-        lv_obj_add_flag(sv.glow, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(sv.glow, true);
         lv_obj_set_name(sv.glow, "spool_glow");
     }
 
@@ -105,7 +105,7 @@ static SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) 
             helix::ui::spool_canvas_set_view(canvas, helix::ui::SpoolView::Front);
         ui_spool_canvas_set_color(canvas, lv_color_hex(helix::kAmsDefaultSlotColor));
         ui_spool_canvas_set_fill_level(canvas, 1.0f);
-        lv_obj_add_flag(canvas, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_set_event_bubble(canvas, true);
         sv.canvas = canvas;
         lv_obj_set_name(canvas, "spool_graphic");
     }
@@ -118,10 +118,10 @@ static SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) 
         lv_obj_set_style_bg_opa(ph, LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_set_style_border_width(ph, 0, LV_PART_MAIN);
         // A clickable child would outrank its slot's hit band in an overlapping row.
-        lv_obj_remove_flag(ph, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_remove_flag(ph, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(ph, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_add_flag(ph, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_scrollable(ph, false);
+        lv_obj_set_clickable(ph, false);
+        lv_obj_set_event_bubble(ph, true);
+        lv_obj_set_hidden(ph, true);
 
         // Plus icon centered in circle to communicate "empty, add filament"
         const char* plus_glyph = helix::ui::icon::lookup_codepoint("plus");
@@ -132,7 +132,7 @@ static SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) 
             lv_obj_set_style_text_color(plus, theme_manager_get_color("text_muted"), LV_PART_MAIN);
             lv_obj_set_style_text_opa(plus, LV_OPA_60, LV_PART_MAIN);
             lv_obj_align(plus, LV_ALIGN_CENTER, 0, 0);
-            lv_obj_add_flag(plus, LV_OBJ_FLAG_EVENT_BUBBLE);
+            lv_obj_set_event_bubble(plus, true);
         }
         // Named so lv_obj_find_by_name() reaches it - it is the one element that
         // exists in both the flat and 3D branches, which makes it the stable
@@ -153,10 +153,10 @@ static SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) 
         lv_obj_set_align(err, LV_ALIGN_TOP_RIGHT);
         lv_obj_set_style_translate_x(err, -2, LV_PART_MAIN);
         lv_obj_set_style_translate_y(err, 2, LV_PART_MAIN);
-        lv_obj_remove_flag(err, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_remove_flag(err, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(err, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_add_flag(err, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_scrollable(err, false);
+        lv_obj_set_clickable(err, false);
+        lv_obj_set_event_bubble(err, true);
+        lv_obj_set_hidden(err, true);
         lv_obj_set_name(err, "error_indicator");
         sv.error_indicator = err;
     }
@@ -309,14 +309,14 @@ static void apply_highlight(LaneSpoolData* d) {
     }
     if (!on) {
         helix::ui::spool_glow_clear(glow);
-        lv_obj_add_flag(glow, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(glow, true);
         helix::ui::refresh_overhang_chain(glow);
         return;
     }
     const lv_color_t color =
         error ? ams_draw::severity_color(d->severity) : helix::ui::tube_accent();
     helix::ui::spool_glow_paint(glow, d->sv.canvas, d->sv.spool_size, color);
-    lv_obj_remove_flag(glow, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(glow, false);
     helix::ui::refresh_overhang_chain(glow);
     if (pulse && !pulsing) {
         constexpr int32_t kPulseDimOpa = LV_OPA_40;
@@ -383,9 +383,9 @@ static void apply_lane_state(LaneSpoolData* d, helix::ui::LaneState state) {
         if (!o)
             return;
         if (visible)
-            lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(o, false);
         else
-            lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(o, true);
     };
     auto set_opa = [](lv_obj_t* o, lv_opa_t opa) {
         if (!o)
@@ -629,7 +629,7 @@ static void* ams_lane_spool_xml_create(lv_xml_parser_state_t* state, const char*
             theme, root,
             [](lv_obj_t* o, int /*generation*/) {
                 auto* d = get_lane_spool_data(o);
-                if (d && d->sv.glow && !lv_obj_has_flag(d->sv.glow, LV_OBJ_FLAG_HIDDEN))
+                if (d && d->sv.glow && !lv_obj_is_hidden(d->sv.glow))
                     apply_highlight(d);
             },
             subject_never_freed());

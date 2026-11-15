@@ -172,7 +172,7 @@ void ToolheadPresetConfigModal::publish_slot_texts() {
         std::string text = toolhead_preset_slot_label(slots_[i]);
         if (text.empty())
             text = lv_tr("Empty");
-        lv_subject_copy_string(&s_slot_text_subjects[i], text.c_str());
+        lv_subject_set_string(&s_slot_text_subjects[i], text.c_str());
     }
 }
 

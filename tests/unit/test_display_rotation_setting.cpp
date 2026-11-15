@@ -187,7 +187,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "DisplayRotation: the row is gated on backen
 
     // The bind_flag_if_eq must resolve, not silently no-op: an inert control on
     // a backend that ignores /display/rotate is worse than no control at all.
-    bool hidden = lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN);
+    bool hidden = lv_obj_is_hidden(row);
     REQUIRE(hidden == !DisplaySettingsManager::rotation_setting_available());
 
     lv_obj_delete(overlay);
@@ -225,7 +225,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(overlay != nullptr);
     lv_obj_t* row = lv_obj_find_by_name(overlay, "row_display_rotation");
     REQUIRE(row != nullptr);
-    lv_obj_remove_flag(row, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(row, false);
     lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
     REQUIRE(dropdown != nullptr);
     REQUIRE(lv_dropdown_get_selected(dropdown) == 0);
@@ -287,8 +287,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "DimRow: settings_dim_row_kind shows at most
                           Case{Kind::ScreensaverAfter, false, true}}) {
         lv_subject_set_int(kind, static_cast<int>(c.kind));
         CAPTURE(static_cast<int>(c.kind));
-        CHECK(!lv_obj_has_flag(dim, LV_OBJ_FLAG_HIDDEN) == c.dim_visible);
-        CHECK(!lv_obj_has_flag(saver_after, LV_OBJ_FLAG_HIDDEN) == c.saver_after_visible);
+        CHECK(!lv_obj_is_hidden(dim) == c.dim_visible);
+        CHECK(!lv_obj_is_hidden(saver_after) == c.saver_after_visible);
     }
     lv_subject_set_int(kind, before);
 
@@ -315,12 +315,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "DimRow: Screensaver after follows the scree
     REQUIRE(saver_after != nullptr);
 
     mgr.set_screensaver_type(static_cast<int>(ScreensaverType::OFF));
-    CHECK(lv_obj_has_flag(saver_after, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(dim, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(saver_after));
+    CHECK(lv_obj_is_hidden(dim));
 
     mgr.set_screensaver_type(static_cast<int>(ScreensaverType::STARFIELD));
-    CHECK_FALSE(lv_obj_has_flag(saver_after, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(dim, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(saver_after));
+    CHECK(lv_obj_is_hidden(dim));
 
     lv_obj_delete(overlay);
     mgr.set_screensaver_type(before);
@@ -352,14 +352,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Screensaver picker visibility comes from it
     REQUIRE(test_btn != nullptr);
 
     lv_subject_set_int(has_saver, 0);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
     lv_subject_set_int(has_saver, 1);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     lv_subject_set_int(type, 0);
-    CHECK(lv_obj_has_flag(test_btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(test_btn));
     lv_subject_set_int(type, 2);
-    CHECK_FALSE(lv_obj_has_flag(test_btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(test_btn));
 
     lv_obj_delete(overlay);
     lv_subject_set_int(has_saver, has_before);

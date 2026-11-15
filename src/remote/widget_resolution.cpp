@@ -53,7 +53,7 @@ bool tap_reaches_handler(lv_obj_t* o) {
         if (has_own_click_handler(cur)) {
             return true;
         }
-        if (!lv_obj_has_flag(cur, LV_OBJ_FLAG_EVENT_BUBBLE)) {
+        if (!lv_obj_is_event_bubble(cur)) {
             break;
         }
     }
@@ -77,7 +77,7 @@ void collect_value_controls(lv_obj_t* parent, std::vector<lv_obj_t*>& out) {
     uint32_t count = lv_obj_get_child_count(parent);
     for (uint32_t i = 0; i < count; ++i) {
         lv_obj_t* child = lv_obj_get_child(parent, i);
-        if (!child || lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+        if (!child || lv_obj_is_hidden(child)) {
             continue;
         }
         if (is_value_control(child)) {
@@ -306,7 +306,7 @@ std::string path_of(lv_obj_t* o, lv_obj_t* base) {
 std::vector<Overflow> find_overflow(lv_obj_t* root) {
     std::vector<Overflow> found;
     std::function<void(lv_obj_t*)> walk = [&](lv_obj_t* o) {
-        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(o)) {
             return;
         }
         // LVGL reports a short content box as a negative remainder.
@@ -362,7 +362,7 @@ void collect_widgets(lv_obj_t* root, const std::function<bool(const char* name)>
     const uint32_t count = lv_obj_get_child_count(root);
     for (uint32_t i = 0; i < count; ++i) {
         lv_obj_t* child = lv_obj_get_child(root, i);
-        if (!child || (!include_hidden && lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN))) {
+        if (!child || (!include_hidden && lv_obj_is_hidden(child))) {
             continue;
         }
         char resolved[128];
@@ -426,7 +426,7 @@ const char* click_blocker(lv_obj_t* obj) {
     if (ui::hidden_ancestor(obj) != nullptr) {
         return "hidden";
     }
-    if (!lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE)) {
+    if (!lv_obj_is_clickable(obj)) {
         return "not clickable";
     }
     // Checked on the hit object only, which is what lv_indev.c does - a
@@ -466,7 +466,7 @@ lv_obj_t* view_clipper(lv_obj_t* obj) {
     lv_area_t view{};
     bool clipped = false;
     for (lv_obj_t* a = lv_obj_get_parent(obj); a != nullptr; a = lv_obj_get_parent(a)) {
-        if (lv_obj_has_flag(a, LV_OBJ_FLAG_OVERFLOW_VISIBLE)) {
+        if (lv_obj_is_overflow_visible(a)) {
             continue;
         }
         // What shows is the intersection of every clipping box on the way up.

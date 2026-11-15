@@ -98,7 +98,7 @@ BedMeshPanel::~BedMeshPanel() {
     // CRITICAL: Check if LVGL is still initialized before calling LVGL functions.
     // During static destruction, LVGL may already be torn down.
     if (lv_is_initialized()) {
-        // Modal dialogs: use helix::ui::modal_hide() - NOT lv_obj_del()!
+        // Modal dialogs: use helix::ui::modal_hide() - NOT lv_obj_delete()!
         // See docs/DEVELOPER_QUICK_REFERENCE.md "Modal Dialog Lifecycle"
         if (calibrate_modal_widget_) {
             helix::ui::modal_hide(calibrate_modal_widget_);
@@ -682,20 +682,20 @@ void BedMeshPanel::update_profile_list_subjects() {
             profile_names_[idx] = profiles[idx];
 
             // Set name
-            lv_subject_copy_string(&profile_name_subjects_[idx], profiles[idx].c_str());
+            lv_subject_set_string(&profile_name_subjects_[idx], profiles[idx].c_str());
 
             // Calculate and set range (mm without suffix for profile lists)
             float range = calculate_profile_range(profiles[idx]);
             std::snprintf(profile_range_bufs_[idx].data(), 32, "%.3f", range);
-            lv_subject_copy_string(&profile_range_subjects_[idx], profile_range_bufs_[idx].data());
+            lv_subject_set_string(&profile_range_subjects_[idx], profile_range_bufs_[idx].data());
 
             // Set active state
             int is_active = (profiles[idx] == active_name) ? 1 : 0;
             lv_subject_set_int(&profile_active_subjects_[idx], is_active);
         } else {
             profile_names_[idx].clear();
-            lv_subject_copy_string(&profile_name_subjects_[idx], "");
-            lv_subject_copy_string(&profile_range_subjects_[idx], "");
+            lv_subject_set_string(&profile_name_subjects_[idx], "");
+            lv_subject_set_string(&profile_range_subjects_[idx], "");
             lv_subject_set_int(&profile_active_subjects_[idx], 0);
         }
     }
@@ -1061,7 +1061,7 @@ void BedMeshPanel::start_calibration() {
 
     // The mesh is named before anything is probed, so the calibration itself
     // stores it there. The field starts on the profile Klipper loads at startup.
-    lv_subject_copy_string(&bed_mesh_calibrate_name_, helix::bed_mesh::kDefaultProfile);
+    lv_subject_set_string(&bed_mesh_calibrate_name_, helix::bed_mesh::kDefaultProfile);
     lv_subject_set_int(&bed_mesh_calibrate_state_,
                        static_cast<int>(BedMeshCalibrationState::NAMING));
     calibrate_modal_widget_ = helix::ui::ComponentModal::show_owned("bed_mesh_calibrate_modal");
@@ -1114,7 +1114,7 @@ void BedMeshPanel::begin_calibration(const std::string& name) {
                        static_cast<int>(BedMeshCalibrationState::PROBING));
     lv_subject_set_int(&bed_mesh_probe_progress_, 0);
     lv_subject_set_int(&bed_mesh_probe_indeterminate_, 0);
-    lv_subject_copy_string(&bed_mesh_probe_text_, lv_tr("Preparing..."));
+    lv_subject_set_string(&bed_mesh_probe_text_, lv_tr("Preparing..."));
 
     IMoonrakerAPI* api = api_;
     if (!api) {
@@ -1159,7 +1159,7 @@ void BedMeshPanel::prepare_and_probe() {
     // If we turned on any heaters, wait for them to reach target before proceeding
     if (heat_.any()) {
         lv_subject_set_int(&bed_mesh_probe_indeterminate_, 1);
-        lv_subject_copy_string(&bed_mesh_probe_text_, lv_tr("Heating..."));
+        lv_subject_set_string(&bed_mesh_probe_text_, lv_tr("Heating..."));
 
         // Build TEMPERATURE_WAIT command for heaters we turned on
         std::string wait_cmd;
@@ -1212,7 +1212,7 @@ void BedMeshPanel::start_home_and_probe() {
     if (!toolhead_is_homed(get_printer_state())) {
         spdlog::info("[BedMeshPanel] Not fully homed, sending G28 first");
         lv_subject_set_int(&bed_mesh_probe_indeterminate_, 1);
-        lv_subject_copy_string(&bed_mesh_probe_text_, lv_tr("Homing..."));
+        lv_subject_set_string(&bed_mesh_probe_text_, lv_tr("Homing..."));
     }
 
     ensure_homed_then(
@@ -1235,7 +1235,7 @@ void BedMeshPanel::start_calibration_probing() {
         return;
     }
 
-    lv_subject_copy_string(&bed_mesh_probe_text_, lv_tr("Preparing..."));
+    lv_subject_set_string(&bed_mesh_probe_text_, lv_tr("Preparing..."));
 
     // A wrapper around BED_MESH_CALIBRATE may set targets of its own from here on.
     const std::string nozzle = get_printer_state().temperature_state().active_extruder_name();
@@ -1345,7 +1345,7 @@ void BedMeshPanel::launch_calibration(IMoonrakerAPI* api, int expected_probes, i
 
 void BedMeshPanel::show_rename_modal(const std::string& profile_name) {
     pending_rename_old_ = profile_name;
-    lv_subject_copy_string(&bed_mesh_rename_old_name_, profile_name.c_str());
+    lv_subject_set_string(&bed_mesh_rename_old_name_, profile_name.c_str());
 
     rename_modal_widget_ = helix::ui::ComponentModal::show_owned("bed_mesh_rename_modal");
     spdlog::debug("[{}] Showing rename modal for: {}", get_name(), profile_name);
@@ -1584,7 +1584,7 @@ void BedMeshPanel::on_probe_progress(int current, int total) {
         std::snprintf(probe_text_buf_, sizeof(probe_text_buf_), "%s", text.c_str());
         spdlog::debug("[BedMeshPanel] Probe progress: {} points (total unknown)", current);
     }
-    lv_subject_copy_string(&bed_mesh_probe_text_, probe_text_buf_);
+    lv_subject_set_string(&bed_mesh_probe_text_, probe_text_buf_);
 }
 
 void BedMeshPanel::on_calibration_complete() {
@@ -1747,7 +1747,7 @@ void BedMeshPanel::on_calibration_error(const std::string& message) {
     std::string clean = MoonrakerError::friendly_error_line(message);
     std::strncpy(error_message_buf_, clean.c_str(), sizeof(error_message_buf_) - 1);
     error_message_buf_[sizeof(error_message_buf_) - 1] = '\0';
-    lv_subject_copy_string(&bed_mesh_error_message_, error_message_buf_);
+    lv_subject_set_string(&bed_mesh_error_message_, error_message_buf_);
     lv_subject_set_int(&bed_mesh_calibrate_state_,
                        static_cast<int>(BedMeshCalibrationState::ERROR));
 }

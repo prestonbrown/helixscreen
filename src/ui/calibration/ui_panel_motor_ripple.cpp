@@ -61,7 +61,7 @@ float array_at(const json* j, size_t i) {
 }
 
 void set_text(lv_subject_t& s, const std::string& text) {
-    lv_subject_copy_string(&s, text.c_str());
+    lv_subject_set_string(&s, text.c_str());
 }
 
 int user_int(lv_event_t* e) {

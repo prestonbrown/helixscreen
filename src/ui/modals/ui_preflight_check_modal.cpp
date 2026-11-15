@@ -207,7 +207,7 @@ void PreflightCheckModal::on_show() {
         if (text.empty()) {
             text = lv_tr("Some filaments don't match the slicer's intent.");
         }
-        lv_subject_copy_string(&explanation_subject_, text.c_str());
+        lv_subject_set_string(&explanation_subject_, text.c_str());
     }
 
     // A material the file names for an unset slot is one tap away; the slot's
@@ -218,7 +218,7 @@ void PreflightCheckModal::on_show() {
             lane_text_for(AmsState::instance().collect_available_slots(), fix->slot);
         char buf[sizeof(fix_text_buf_)];
         snprintf(buf, sizeof(buf), lv_tr("Set %s to %s"), lane_text.c_str(), fix->material.c_str());
-        lv_subject_copy_string(&fix_text_subject_, buf);
+        lv_subject_set_string(&fix_text_subject_, buf);
     }
     lv_subject_set_int(&fix_shown_subject_, fix ? 1 : 0);
 

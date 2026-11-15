@@ -178,7 +178,7 @@ void TimelapseInstallOverlay::set_step(Step step) {
 
 void TimelapseInstallOverlay::set_status(const char* text) {
     if (subjects_initialized_) {
-        lv_subject_copy_string(&status_subject_, text);
+        lv_subject_set_string(&status_subject_, text);
     }
 }
 
@@ -186,7 +186,7 @@ void TimelapseInstallOverlay::show_action_button(const char* label,
                                                  std::function<void()> callback) {
     action_callback_ = std::move(callback);
     if (subjects_initialized_) {
-        lv_subject_copy_string(&action_text_subject_, label);
+        lv_subject_set_string(&action_text_subject_, label);
         lv_subject_set_int(&action_visible_subject_, 1);
     }
     // The footer takes height from the scroll area the card sits in.

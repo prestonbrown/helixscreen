@@ -222,7 +222,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PreheatWidget: the tool target follows the 
     helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(ToolState::instance().extruder_count() == 1);
 
-    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(btn));
     CHECK(PreheatWidgetTestAccess::tool_target(h.widget()) == -1);
     CHECK(std::string(lv_label_get_text(h.child("tool_target_label"))) == "All (1)");
     PreheatWidgetTestAccess::set_temperatures_multi(h.widget(), 200, 60);
@@ -231,7 +231,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PreheatWidget: the tool target follows the 
     topo.heads_share_heater = false;
     ToolState::instance().set_ams_topology(topo);
     helix::ui::UpdateQueue::instance().drain_until_empty();
-    CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(btn));
     CHECK(std::string(lv_label_get_text(h.child("tool_target_label"))) == "All (2)");
 
     ToolState::instance().clear_ams_topology();

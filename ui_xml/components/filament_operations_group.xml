@@ -12,6 +12,11 @@
     <style name="extrude_length_btn_unselected" bg_color="#primary" bg_opa="40"/>
     <!-- The heading steps aside for the safety warning without leaving layout -->
     <style name="operations_heading_masked" text_opa="0"/>
+    <!-- Row gaps as styles, so the page style (filament_on_page) can outrank
+         them: on a home full page the stacked Load/Unload/Purge labels need the
+         height at the smallest screens. -->
+    <style name="operations_group_gap" pad_row="#space_sm" pad_column="#space_sm"/>
+    <style name="operations_group_on_page" pad_row="#space_xs"/>
   </styles>
   <api>
     <!-- Action-row sizing. Landscape rows grow into the column's slack with
@@ -22,8 +27,9 @@
     <prop name="row_min_height" type="string" default="#button_height"/>
   </api>
   <view name="operations_group"
-        extends="lv_obj" width="100%" height="0" flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column"
-        style_pad_gap="#space_sm">
+        extends="lv_obj" width="100%" height="0" flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column">
+    <style name="operations_group_gap"/>
+    <bind_style name="operations_group_on_page" subject="filament_on_page" ref_value="1"/>
     <divider_horizontal/>
     <!-- Heading row. The cold-extrusion warning floats over the heading,
          one line with dots, rather than taking a row of its own, so the action

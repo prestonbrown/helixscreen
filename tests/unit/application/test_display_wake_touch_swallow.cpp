@@ -200,7 +200,7 @@ class WakeChain {
         lv_obj_set_scroll_dir(list, LV_DIR_VER);
         lv_obj_t* content = lv_obj_create(list);
         lv_obj_set_size(content, 150, 2000);
-        lv_obj_remove_flag(content, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(content, false);
         lv_obj_add_event_cb(list, count_cb, LV_EVENT_SCROLL_BEGIN, nullptr);
         lv_obj_update_layout(screen);
     }

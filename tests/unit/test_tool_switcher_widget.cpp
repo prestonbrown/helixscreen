@@ -116,7 +116,7 @@ int mode() {
 }
 
 bool shown(lv_obj_t* obj) {
-    return obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return obj && !lv_obj_is_hidden(obj);
 }
 
 lv_obj_t* named(PanelWidgetHarness<ToolSwitcherWidget>& h, const std::string& name) {
@@ -329,7 +329,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_subject_get_int(two_line) == 1);
     lv_obj_t* sub = lv_obj_find_by_name(h.child("tool_switcher_seg_0"), "tool_switcher_seg_sub");
     REQUIRE(sub != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(sub, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(sub));
 
     // Cells on the touch floor are too short for two lines over the band.
     const int floor = resolve_px("touch_target_min", 48);
@@ -338,7 +338,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(mode() == static_cast<int>(ToolSwitcherMode::RailWithActions));
     REQUIRE(cell_h() - band_h() < lines);
     CHECK(lv_subject_get_int(two_line) == 0);
-    CHECK(lv_obj_has_flag(sub, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(sub));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -430,7 +430,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             lv_subject_get_int(lv_xml_get_subject(nullptr, (base + "_has_color").c_str()));
         lv_obj_t* strip = lv_obj_find_by_name(lv_obj_get_child(list, i), "tool_switcher_band_fill");
         REQUIRE(strip != nullptr);
-        CHECK(lv_obj_has_flag(strip, LV_OBJ_FLAG_HIDDEN) == (has_color == 0));
+        CHECK(lv_obj_is_hidden(strip) == (has_color == 0));
         if (has_color) {
             ++known;
             CHECK((lv_color_to_u32(lv_obj_get_style_bg_color(strip, LV_PART_MAIN)) & 0xFFFFFF) ==
@@ -619,10 +619,10 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             // The material shows on a labelled band with a known colour.
             lv_obj_t* text = lv_obj_find_by_name(cell, "tool_switcher_band_text");
             REQUIRE(text != nullptr);
-            if (!lv_obj_has_flag(band, LV_OBJ_FLAG_HIDDEN)) {
-                CHECK(lv_obj_has_flag(text, LV_OBJ_FLAG_HIDDEN) == !want.labelled);
+            if (!lv_obj_is_hidden(band)) {
+                CHECK(lv_obj_is_hidden(text) == !want.labelled);
             } else {
-                CHECK(lv_obj_has_flag(text, LV_OBJ_FLAG_HIDDEN));
+                CHECK(lv_obj_is_hidden(text));
             }
         };
 
@@ -754,7 +754,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* strip = lv_obj_find_by_name(row, "tool_switcher_band_fill");
     lv_obj_t* btn = row;
     REQUIRE(std::string(lv_label_get_text(temp)) == "150°C");
-    REQUIRE_FALSE(lv_obj_has_flag(strip, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(strip));
     const lv_area_t t = coords_of(temp);
     const lv_area_t s = coords_of(strip);
     const lv_area_t b = coords_of(btn);

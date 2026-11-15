@@ -139,10 +139,9 @@ class WizardPrinterIdentifyUIFixture : public LVGLUITestFixture {
     // Rows not hidden by the active view filter.
     std::vector<lv_obj_t*> visible_rows() {
         auto all = rows();
-        all.erase(
-            std::remove_if(all.begin(), all.end(),
-                           [](lv_obj_t* row) { return lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN); }),
-            all.end());
+        all.erase(std::remove_if(all.begin(), all.end(),
+                                 [](lv_obj_t* row) { return lv_obj_is_hidden(row); }),
+                  all.end());
         return all;
     }
 
@@ -200,7 +199,7 @@ TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture, "Wizard printer search filters 
             // The flat match list shows the vendor beside the model.
             lv_obj_t* vendor_label = lv_obj_get_child(shown[i], 1);
             REQUIRE(vendor_label != nullptr);
-            CHECK_FALSE(lv_obj_has_flag(vendor_label, LV_OBJ_FLAG_HIDDEN));
+            CHECK_FALSE(lv_obj_is_hidden(vendor_label));
         }
     }
 
@@ -259,7 +258,7 @@ TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture,
 
     lv_textarea_set_text(input, "");
     CHECK(view() == kViewTiles);
-    CHECK_FALSE(lv_obj_has_flag(tiles_container(), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(tiles_container()));
 }
 
 TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture, "Wizard printer name gates Next on a blank name",
@@ -644,9 +643,9 @@ TEST_CASE_METHOD(WizardPrinterIdentifyTiedFixture,
         lv_obj_t* vendor_title = lv_obj_find_by_name(step_root, "vendor_title_label");
         REQUIRE(candidates_title != nullptr);
         REQUIRE(vendor_title != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(lv_obj_get_parent(candidates_title), LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(candidates_title, LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(vendor_title, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(lv_obj_get_parent(candidates_title)));
+        CHECK_FALSE(lv_obj_is_hidden(candidates_title));
+        CHECK(lv_obj_is_hidden(vendor_title));
         CHECK(std::string(get_wizard_printer_identify_step()->get_detection_status()) ==
               lv_tr("Several printers match - choose yours"));
     }

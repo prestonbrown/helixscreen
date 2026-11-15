@@ -47,8 +47,7 @@ int32_t measured_text_height(lv_obj_t* progress) {
     int32_t rows = 0;
     for (uint32_t i = 0; i < lv_obj_get_child_count(progress); ++i) {
         lv_obj_t* row = lv_obj_get_child(progress, static_cast<int32_t>(i));
-        if (lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN) ||
-            lv_obj_has_flag(row, LV_OBJ_FLAG_IGNORE_LAYOUT)) {
+        if (lv_obj_is_hidden(row) || lv_obj_is_ignore_layout(row)) {
             continue;
         }
         h += lv_obj_get_height(row);

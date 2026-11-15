@@ -1693,7 +1693,10 @@ struct AmsSystemInfo {
     bool filament_runout =
         false; ///< CFS: active path empty (box.filament_useup); UI gates display on paused state
     AmsAction action = AmsAction::IDLE; ///< Current operation
-    std::string operation_detail;       ///< Detailed operation string
+    /// The status line. A fixed phrase is stored as its untranslated catalog
+    /// key (TR_NOOP) and AmsState translates it at display time, so it follows
+    /// a language switch; firmware or composed text is shown as it is.
+    std::string operation_detail;
 
     /// Granular firmware sub-phase of the active load/unload, for backends that
     /// expose one. Used to drive a multi-step progress bar that mirrors the real
@@ -2562,10 +2565,10 @@ struct DeviceAction {
         return a;
     }
 
-    /// A read-only row showing @p value as text.
-    static DeviceAction info(std::string id, std::string label, std::string section,
-                             std::string value, std::string icon = {},
-                             std::string description = {}) {
+    /// A read-only row showing @p value as text ((info): see ESP32_PORT.md "Reading the log").
+    static DeviceAction(info)(std::string id, std::string label, std::string section,
+                              std::string value, std::string icon = {},
+                              std::string description = {}) {
         DeviceAction a =
             toggle(std::move(id), std::move(label), std::move(section), std::any(std::move(value)),
                    std::move(icon), std::move(description));

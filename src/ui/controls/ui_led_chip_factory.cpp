@@ -51,14 +51,14 @@ lv_obj_t* create_led_chip(lv_obj_t* parent, const std::string& led_name,
     lv_obj_set_flex_flow(chip, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(chip, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_gap(chip, chip_pad_tight, 0);
-    lv_obj_remove_flag(chip, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(chip, false);
 
     // Remove from default input group to prevent focus shift on click
     lv_group_t* group = lv_group_get_default();
     if (group) {
         lv_group_remove_obj(chip);
     }
-    lv_obj_remove_flag(chip, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+    lv_obj_set_click_focusable(chip, false);
 
     // Check icon (hidden when unselected), uses icon font token
     lv_obj_t* icon = lv_label_create(chip);

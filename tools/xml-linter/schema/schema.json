@@ -2078,6 +2078,10 @@
       },
       "inherits": "lv_obj"
     },
+    "toolhead_view": {
+      "attributes": {},
+      "inherits": "lv_obj"
+    },
     "unit_art": {
       "attributes": {
         "tier": {
@@ -3072,6 +3076,7 @@
     "cold_pull_tip_sketch",
     "filament_motion_glyph",
     "humidity_drop",
+    "toolhead_view",
     "unit_art",
     "lv_obj-bind_tile_rung",
     "setting_group"
@@ -4131,6 +4136,12 @@
     "motion_z_col_w_micro",
     "motion_z_col_w_small",
     "motion_z_col_w_tiny",
+    "motion_z_head_size",
+    "motion_z_head_size_large",
+    "motion_z_head_size_medium",
+    "motion_z_head_size_micro",
+    "motion_z_head_size_small",
+    "motion_z_head_size_tiny",
     "nav_estop_reach",
     "nav_estop_reach_large",
     "nav_estop_reach_medium",

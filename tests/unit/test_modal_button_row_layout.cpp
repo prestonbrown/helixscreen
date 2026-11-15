@@ -39,7 +39,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "modal_button_row: no button's content overf
         CAPTURE(name);
         lv_obj_t* btn = lv_obj_find_by_name(row, name);
         REQUIRE(btn != nullptr);
-        REQUIRE_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(btn));
         CAPTURE(lv_obj_get_height(btn), lv_obj_get_content_height(btn));
         CHECK(lv_obj_get_scroll_top(btn) <= 0);
         CHECK(lv_obj_get_scroll_bottom(btn) <= 0);
@@ -47,7 +47,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "modal_button_row: no button's content overf
         lv_obj_get_coords(btn, &box);
         for (uint32_t i = 0; i < lv_obj_get_child_count(btn); ++i) {
             lv_obj_t* child = lv_obj_get_child(btn, static_cast<int32_t>(i));
-            if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(child)) {
                 continue;
             }
             lv_area_t c;

@@ -142,7 +142,7 @@ struct BatchStepsFixture : public XMLTestFixture {
     }
 
     [[nodiscard]] bool cancel_shown() const {
-        return !lv_obj_has_flag(cancel_button(), LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(cancel_button());
     }
 
     void pick(HeadPickOp op, const std::vector<int>& slots) {

@@ -215,7 +215,10 @@ class ThermistorWidget : public TiledPanelWidget {
     size_t carousel_page_count_ = 0;
     std::vector<ObserverGuard> carousel_observers_;
     std::vector<SubjectLifetime> carousel_lifetimes_;
+    /// Each page's last reading (decidegrees), so a unit switch re-formats it.
+    std::vector<std::optional<int>> page_deci_;
     ObserverGuard version_observer_;
+    ObserverGuard temp_unit_observer_;
 
     // MUST stay declared LAST: reverse-declaration destruction makes this the
     // first member torn down, invalidating every captured token before any
@@ -242,6 +245,7 @@ class ThermistorWidget : public TiledPanelWidget {
     void bind_carousel_sensors();
     /// Show @p decidegrees on carousel page @p page.
     void show_page_temp(size_t page, int decidegrees);
+    void reformat_pages(); ///< every carousel page again, in the current unit
 
     /// Null every cached widget pointer (single-mode labels, carousel page
     /// labels, tile root) without touching observers or the widget tree.

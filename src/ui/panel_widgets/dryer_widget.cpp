@@ -15,6 +15,7 @@
 #include "ui_tile_rung.h"
 
 #include "core/observer_factory.h"
+#include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
@@ -516,6 +517,10 @@ void DryerWidget::attach(lv_obj_t* widget_obj, lv_obj_t* /*parent_screen*/) {
         if (!token.expired())
             self->relayout_for_granted_size();
     });
+    temp_unit_observer_ = ui::observe_temp_unit_change(this, [token](DryerWidget* self) {
+        if (!token.expired())
+            self->publish_texts();
+    });
 
     // Instances are recycled across rebuilds: the verdict is republished here too.
     relayout_for_granted_size();
@@ -526,6 +531,7 @@ void DryerWidget::detach() {
     lifetime_.invalidate();
     version_observer_.reset();
     language_observer_.reset();
+    temp_unit_observer_.reset();
     if (DryerWidget* displaced = s_tile.release(this)) {
         // The tile beneath a transient one is still on screen and publishes again.
         displaced->publish_verdict();

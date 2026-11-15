@@ -211,7 +211,7 @@ static bool sync_canvas_buf(lv_obj_t* canvas, lv_draw_buf_t*& draw_buf, int32_t 
         helix::safe_draw_buf_destroy(old_buf, "spool");
     }
     // An image larger than its object is overhang, not scrollable content.
-    lv_obj_remove_flag(canvas, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(canvas, false);
     lv_image_set_inner_align(canvas, LV_IMAGE_ALIGN_CENTER);
     lv_obj_set_size(canvas, size, size);
     lv_obj_refresh_ext_draw_size(canvas);
@@ -1438,9 +1438,9 @@ lv_obj_t* spool_glow_create(lv_obj_t* parent) {
     lv_obj_t* glow = lv_image_create(parent);
     if (!glow)
         return nullptr;
-    lv_obj_remove_flag(glow, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(glow, false);
     // An image larger than its object is overhang, not scrollable content.
-    lv_obj_remove_flag(glow, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(glow, false);
     lv_image_set_inner_align(glow, LV_IMAGE_ALIGN_CENTER);
     s_glow_registry[glow] = SpoolGlowData{};
     lv_obj_add_event_cb(glow, spool_glow_event_cb, LV_EVENT_DELETE, nullptr);

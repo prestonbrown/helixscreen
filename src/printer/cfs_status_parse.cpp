@@ -164,6 +164,13 @@ std::optional<ChuteWiperLine> parse_chute_wiper(const nlohmann::json& configfile
                           std::min(left_y, right_y)};
 }
 
+bool has_chute_extrude_pos(const nlohmann::json& configfile_settings) {
+    const nlohmann::json* section = json_util::find_member(configfile_settings, "box");
+    const nlohmann::json* option =
+        section ? json_util::find_member(*section, "has_extrude_pos") : nullptr;
+    return option && json_util::as_bool(*option);
+}
+
 bool has_registered_unit(const nlohmann::json& configfile_settings) {
     const nlohmann::json* section = json_util::find_member(configfile_settings, "auto_addr");
     const nlohmann::json* option =

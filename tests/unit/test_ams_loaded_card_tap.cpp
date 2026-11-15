@@ -97,7 +97,7 @@ TEST_CASE_METHOD(LoadedCardTapFixture, "a tap on the loaded card opens the loade
     auto& overlay = helix::ui::get_ams_edit_overlay();
 
     // Nothing loaded: the card takes no taps, and a tap that lands anyway opens nothing.
-    CHECK_FALSE(lv_obj_has_flag(card, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(card));
     lv_obj_send_event(card, LV_EVENT_CLICKED, nullptr);
     settle();
     CHECK_FALSE(overlay.is_visible());
@@ -105,7 +105,7 @@ TEST_CASE_METHOD(LoadedCardTapFixture, "a tap on the loaded card opens the loade
     REQUIRE(backend_->load_filament(1).success());
     settle();
     REQUIRE(backend_->get_current_slot() == 1);
-    REQUIRE(lv_obj_has_flag(card, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(card));
 
     // A press anywhere on the card lands on the card, not on a child that eats it.
     lv_obj_update_layout(card);
@@ -115,7 +115,7 @@ TEST_CASE_METHOD(LoadedCardTapFixture, "a tap on the loaded card opens the loade
         pending.pop_back();
         for (uint32_t i = 0; i < lv_obj_get_child_count(obj); ++i) {
             lv_obj_t* child = lv_obj_get_child(obj, static_cast<int32_t>(i));
-            if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(child)) {
                 continue;
             }
             pending.push_back(child);

@@ -40,7 +40,7 @@ static void humidity_widget_init_subjects() {
                             snprintf(buf, sizeof(buf), "--");
                         }
                         if (strcmp(lv_subject_get_string(target), buf) != 0) {
-                            lv_subject_copy_string(target, buf);
+                            lv_subject_set_string(target, buf);
                         }
                     },
                     helix::sensors::HumiditySensorManager::instance().subjects_lifetime());

@@ -398,8 +398,8 @@ void TempGraphController::create_graph() {
         lv_obj_set_style_bg_color(chart, theme_manager_get_color("card_bg"), 0);
         lv_obj_set_style_bg_opa(chart, LV_OPA_COVER, 0);
         // Let clicks pass through chart to parent container
-        lv_obj_remove_flag(chart, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(chart, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_set_clickable(chart, false);
+        lv_obj_set_event_bubble(chart, true);
     }
 
     ui_temp_graph_set_axis_size(graph_, config_.axis_size);
@@ -550,7 +550,7 @@ void TempGraphController::resolve_pending_series() {
         if (s.provisional || dead) {
             // Drop the stand-in before re-resolving, or the series ends up with
             // two observers pushing into the same chart slot. A dead guard's
-            // reset() skips lv_observer_remove(): the subject freed it already.
+            // reset() skips lv_observer_delete(): the subject freed it already.
             s.temp_obs.reset();
             s.target_obs.reset();
         }

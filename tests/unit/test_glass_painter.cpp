@@ -168,14 +168,14 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     helix::ui::glass_detach(card);
     CHECK_FALSE(helix::ui::glass_attached(card));
-    CHECK_FALSE(lv_obj_has_flag(card, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS));
+    CHECK_FALSE(lv_obj_is_send_draw_task_events(card));
     CHECK(same_pixels(snapshot(card), flat));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "glass attach is idempotent and keeps a flag it did not set",
                  "[glass]") {
     lv_obj_t* obj = lv_obj_create(test_screen());
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    lv_obj_set_send_draw_task_events(obj, true);
     const uint32_t events = lv_obj_get_event_count(obj);
     helix::ui::glass_attach(obj);
     const uint32_t attached_events = lv_obj_get_event_count(obj);
@@ -184,7 +184,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "glass attach is idempotent and keeps a flag i
     CHECK(lv_obj_get_event_count(obj) == attached_events);
     helix::ui::glass_detach(obj);
     CHECK(lv_obj_get_event_count(obj) == events);
-    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS));
+    CHECK(lv_obj_is_send_draw_task_events(obj));
 
     lv_obj_t* label = lv_label_create(test_screen());
     helix::ui::glass_attach(label);
@@ -455,7 +455,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "glass: a widget attached as it is created sti
     CHECK_FALSE(same_pixels(snapshot(card), flat));
 
     helix::ui::glass_detach(card);
-    CHECK_FALSE(lv_obj_has_flag(card, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS));
+    CHECK_FALSE(lv_obj_is_send_draw_task_events(card));
     CHECK(same_pixels(snapshot(card), flat));
 }
 
@@ -465,7 +465,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "glass detach keeps the flag another draw-task
     helix::ui::glass_attach(obj);
     lv_obj_add_event_cb(obj, [](lv_event_t*) {}, LV_EVENT_DRAW_TASK_ADDED, nullptr);
     helix::ui::glass_detach(obj);
-    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS));
+    CHECK(lv_obj_is_send_draw_task_events(obj));
 }
 
 TEST_CASE("glass_rewrite_fill shades an opaque fill its widget fades as a whole", "[glass]") {

@@ -1183,13 +1183,13 @@ std::vector<std::string> drawn_label_texts(ui_frequency_response_chart_t* chart)
             out->emplace_back(dsc->text);
         }
     };
-    lv_obj_add_flag(plot, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    lv_obj_set_send_draw_task_events(plot, true);
     lv_obj_add_event_cb(plot, capture, LV_EVENT_DRAW_TASK_ADDED, &texts);
     if (lv_draw_buf_t* snap = lv_snapshot_take(plot, LV_COLOR_FORMAT_ARGB8888)) {
         lv_draw_buf_destroy(snap);
     }
     lv_obj_remove_event_cb_with_user_data(plot, capture, &texts);
-    lv_obj_remove_flag(plot, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    lv_obj_set_send_draw_task_events(plot, false);
     return texts;
 }
 

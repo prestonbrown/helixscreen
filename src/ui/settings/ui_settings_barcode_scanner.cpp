@@ -265,7 +265,7 @@ void BarcodeScannerSettingsOverlay::refresh_current_selection_label() {
     auto id = helix::SettingsManager::instance().get_scanner_device_id();
     auto name = helix::SettingsManager::instance().get_scanner_device_name();
     const char* text = id.empty() ? lv_tr("Auto-detect") : name.c_str();
-    lv_subject_copy_string(&current_device_label_subject_, text);
+    lv_subject_set_string(&current_device_label_subject_, text);
 }
 
 // ============================================================================

@@ -392,6 +392,9 @@ translations:
   Auto Bed Mesh: Malla de Cama Automática
   Auto Cal: Auto Cal
   Auto Fans: Ventiladores automáticos
+  Auto loading: "Carga automática"
+  Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand.: "La carga automática está desactivada para este cabezal. Actívela en Comportamiento de impresión o cargue el filamento a mano."
+  Auto loading is off; turn it on under Print Behavior: "La carga automática está desactivada; actívela en Comportamiento de impresión"
   Auto-Detect: Auto-Detectar
   Auto-Heat on Load: Calentar Automáticamente al Cargar
   Auto-Replenish: Rellenado automático
@@ -752,6 +755,7 @@ translations:
     inmediatamente. Ajuste durante la impresión para afinar.
   Changes are temporary and reset on printer reboot: Los cambios son temporales y
     se reinician al reiniciar la impresora
+  Changing filament: "Cambiando filamento"
   Check AFC configuration: 'Compruebe la configuración de AFC'
   Check Again: Verificar de nuevo
   Check Klipper console for details: Consulte la consola de Klipper para más detalles
@@ -967,6 +971,7 @@ translations:
   Connected to {}: Conectado a {}
   Connected! Discovering printer...: ¡Conectado! Descubriendo impresora...
   Connected, discovering...: Conectado, descubriendo...
+  Connected, getting address…: Conectado, obteniendo dirección…
   Connecting Camera...: Conectando Cámara...
   'Connecting to ': 'Conectando a '
   Connecting to %s...: Conectando a %s...
@@ -1046,6 +1051,7 @@ translations:
   Load all stopped: Carga de todo detenida
   "Load and unload": "Cargar y descargar"
   Load stopped: Carga detenida
+  "Load, unload, purge, and extrude filament": "Cargar, descargar, purgar y extruir filamento"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Carga, descarga y purga desde aquí. Elige primero un material para ajustar sus temperaturas."
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Carga, descarga y cambia bobinas, ajusta temperaturas y supervisa los sensores de filamento."
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "Mantén pulsado cualquier mosaico para entrar en el modo de edición. La nueva cuadrícula te permite reorganizar, redimensionar, quitar o añadir widgets y arrastrarlos entre páginas."
@@ -1160,6 +1166,7 @@ translations:
   'Cutter calibration failed: {}': 'Falló la calibración del cortador: {}'
   Cutter jam: Atasco del cortador
   Cutting: Cortando
+  Cutting filament: "Cortando filamento"
   Cutting filament...: Cortando filamento...
   Cycle every tool: Ciclar todas las herramientas
   Cycling tools...: Ciclando herramientas...
@@ -1665,6 +1672,7 @@ translations:
   Feeder: Alimentador
   Feeders: Alimentadores
   Feeding filament forward: Avanzando filamento
+  Feeding filament to nozzle: "Avanzando filamento a la boquilla"
   Filament: Filamento
   Filament Buffer: 'Búfer de filamento'
   Filament Control: Control de filamento
@@ -1680,6 +1688,7 @@ translations:
   Filament Mapping is unavailable: El mapeo de filamento no está disponible
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: Esta impresora no admite el mapeo de filamento, así que la impresión usa las herramientas asignadas en la impresora
   Filament Runout: Filamento Agotado
+  Filament Operations: Operaciones de filamento
   Filament Sensor: Sensor de Filamento
   Filament Sensors: 'Sensores de filamento'
   Filament System Error: Error del sistema de filamento
@@ -1839,6 +1848,7 @@ translations:
   Gear sync: Sincronización de engranaje
   Generic: Genérico
   Get help and share feedback: Obtén ayuda y comparte comentarios
+  Getting address…: Obteniendo dirección…
   Getting ready...: 'Preparando...'
   Glass Effects: Efectos de Cristal
   Global: Global
@@ -1928,7 +1938,10 @@ translations:
   Heating chamber...: Calentando cámara...
   Heating is nearly the whole wait. Leaving the screen now stops the run.: 'El calentamiento es casi toda la espera. Si sales de la pantalla ahora, la ejecución se detiene.'
   Heating nozzle: 'Calentando boquilla'
+  Heating nozzle ({}): "Calentando boquilla ({})"
   Heating nozzle to $1°C...: Calentando boquilla a $1°C...
+  Heating nozzle to {}: "Calentando boquilla a {}"
+  Heating nozzle to {} ({}): "Calentando boquilla a {} ({})"
   Heating nozzle...: Calentando boquilla...
   Heating the bed: Calentando la cama
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Calentando la cama y la boquilla para que la impresión vuelva a adherirse y la boquilla se suelte de ella"
@@ -2052,7 +2065,10 @@ translations:
   I understand: Lo entiendo
 
   ID (optional): ID (opcional)
+  IFS driver error: "Error del controlador del IFS"
   IFS updates without polling: 'Actualizaciones de IFS sin sondeo'
+  'IFS: loading': "IFS: cargando"
+  'IFS: unloading': "IFS: descargando"
   IMPORT FROM USB: IMPORTAR DESDE USB
   INDX dock positions are not calibrated: "Las posiciones de los docks de INDX no están calibradas"
   INDX macros not recognized: "Macros de INDX no reconocidas"
@@ -2592,6 +2608,7 @@ translations:
   Mount tool: 'Montar herramienta'
   Mount which tool?: '¿Qué herramienta montar?'
   Mount...: 'Montar...'
+  'Mounted: {}': 'Montada: {}'
   Move: Mover
   Move here: Mover aquí
   Move out of range: 'Movimiento fuera de rango'
@@ -2716,6 +2733,7 @@ translations:
   No events queued: No hay eventos en cola
   No extruder heater found. Check [extruder] in printer.cfg: 'No se encontró el calentador del extrusor. Revisa [extruder] en printer.cfg'
   No fans detected: No se detectaron ventiladores
+  No feeder attached: "Ningún alimentador conectado"
   No filament: Sin filamento
   No filament environment sensors: Sin sensores ambientales de filamento
   No filament loaded to unload: No hay filamento cargado para descargar
@@ -2780,6 +2798,7 @@ translations:
   No timelapse videos found: No se encontraron videos timelapse
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'No se sabe qué herramienta está montada. Con una sonda compartida, calibra con {}. ¿Continuar de todos modos?'
   No tool is mounted: 'No hay ninguna herramienta montada'
+  No tool mounted: 'Ninguna herramienta montada'
   No tool on the head: "No hay herramienta en el cabezal"
   No tools to calibrate: No hay herramientas para calibrar
   'No turn: the gap moved {:.1f} Hz': "Sin giro: la diferencia se movió {:.1f} Hz"
@@ -3047,9 +3066,11 @@ translations:
   Pick Color: Elegir Color
   Pick how HelixScreen behaves. You can change any of these later in Settings.: 'Elige cómo se comporta HelixScreen. Puedes cambiarlo más tarde en Ajustes.'
   Pick the best band: Elige la mejor franja
+  Pick up: 'Montar'
   Pick up and park each tool in turn: Tomar y aparcar cada herramienta por turno
   Pick up the tool, heat it, and pull the filament out: "Toma la herramienta, caliéntala y saca el filamento"
   Pick up tool: Recoger herramienta
+  Pick-up step cancelled; nothing was sent: 'Paso de recogida cancelado; no se envió nada'
   Picking up tool: Recogiendo herramienta
   Pill: Píldora
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Píxeles
@@ -3336,6 +3357,7 @@ translations:
   Purge tower and brush settings: 'Ajustes de torre de purga y cepillo'
   Purging: Purgando
   Purging nozzle: Purgando boquilla
+  Purging old filament: "Purgando filamento anterior"
   Purging...: Purgando...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "Empuje el filamento de limpieza en el extrusor hasta el tope y pulse Extruir."
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Empuja el filamento dentro del extrusor hasta que se detenga. Se sujeta automáticamente, o pulsa Extruir."
@@ -3609,6 +3631,7 @@ translations:
   Retract may still be running — response timed out: La retracción puede seguir en
     curso — tiempo de espera agotado
   Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: Retraiga para descargar. Si sale limpio, corte el extremo dañado y vuelva a alimentar
+  Retracting filament from nozzle: "Retrayendo filamento de la boquilla"
   Retraction: Retracción
   Retraction Settings: Configuración de Retracción
   Retraction distance in the cooling tube: 'Distancia de retracción en el tubo de enfriamiento'
@@ -4490,6 +4513,7 @@ translations:
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : El cabezal tiene filamento, pero ninguna ranura del AMS informa que esté cargado. La impresora puede negarse a cargar una ranura hasta que se vacíe. ¿Iniciar de todos modos?
   The toolhead is not homed, so this would home into the print: 'El cabezal no está referenciado, referenciarlo chocaría contra la impresión'
+  'The toolhead may still be at the chute. Move it away before printing.': 'Es posible que el cabezal siga en el canal. Aléjalo antes de imprimir.'
   ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
   : 'El cabezal se mueve de un lado a otro a velocidades de 20 a 300 mm/s mientras el acelerómetro mide cuánto vibra cada motor. Tarda unos {0} minutos y hace ruido. Las velocidades que más vibran son las que debes evitar en tus paredes exteriores.'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: El
@@ -4736,6 +4760,7 @@ translations:
   Toolhead Style: Estilo de Cabezal
   Toolhead X: Cabezal X
   Toolhead Y: Cabezal Y
+  'Toolhead did not return to park: {}': 'El cabezal no volvió a la posición de estacionamiento: {}'
   Toolhead jam: Atasco del cabezal
   Toolhead lost homing: El cabezal perdió el posicionamiento
   Toolhead offset calibration: Calibración de offsets de cabezales
@@ -4958,6 +4983,7 @@ translations:
   Wait for the current filament operation to finish: Espere a que termine la operación de filamento actual
   Wait for the current operation to complete: Espere a que se complete la operación actual
   Wait for the current operation to complete or cancel it first: Espere a que se complete la operación actual o cancélela primero
+  Wait for the load or unload to finish: "Espere a que termine la carga o descarga"
   Wait for the motor to stop: "Espera a que el motor se detenga"
   Wait for the nozzle to stop moving: Espere a que la boquilla deje de moverse
   Wait for the running INDX operation to finish: Espere a que termine la operación INDX en curso
@@ -5299,6 +5325,7 @@ translations:
   '{} d': "{} d"
   '{} days': "{} días"
   '{} detected': '{} detectada'
+  '{} did not arrive; nothing was sent': '{} no llegó; no se envió nada'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{} no se cargó. Compruebe que su hotend esté bien asentado y haga una extrusión de prueba antes de reanudar.'
   '{} disabled': '{} desactivado'
   '{} disconnected': '{} desconectada'

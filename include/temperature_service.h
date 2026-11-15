@@ -175,6 +175,10 @@ class TemperatureService {
 
     // ── Mini combined graph (filament panel) ────────────────────────────
     void setup_mini_combined_graph(lv_obj_t* container);
+    /// Chart @p klipper_name's nozzle in the mini graph instead of the active
+    /// extruder; empty follows the active one. Leaves the active extruder,
+    /// which other screens read, alone.
+    void set_mini_graph_extruder(const std::string& klipper_name);
 
     // ── External graph registration ─────────────────────────────────────
     void register_heater_graph(ui_temp_graph_t* graph, SeriesId series_id,
@@ -221,6 +225,9 @@ class TemperatureService {
     // ── Multi-extruder support (nozzle-specific) ────────────────────────
     std::string active_extruder_name_ = "extruder";
 
+    /// Re-formats every heater's display string on a °C/°F switch.
+    ObserverGuard temp_unit_observer_;
+
     void select_extruder(const std::string& name);
 
     // ── Mini combined graph (filament panel) ────────────────────────────
@@ -228,6 +235,8 @@ class TemperatureService {
     // controller against the new active extruder. Owned by the filament
     // panel's XML, and reads nullptr once that tree is gone.
     helix::ui::WidgetRef mini_graph_container_;
+    /// The extruder the mini graph charts; empty follows active_extruder_name_.
+    std::string mini_graph_extruder_;
     std::unique_ptr<helix::TempGraphController> mini_graph_controller_;
 
     // ── Graph update throttling ─────────────────────────────────────────

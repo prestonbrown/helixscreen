@@ -48,7 +48,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
         // The premature publish on_print_state_changed() makes: warned no-op.
         lv_subject_set_int(subject, 1);
-        lv_subject_copy_string(subject, "x");
+        lv_subject_set_string(subject, "x");
         CHECK(subject->type == LV_SUBJECT_TYPE_INVALID);
         CHECK(lv_subject_get_int(subject) == 0);
 

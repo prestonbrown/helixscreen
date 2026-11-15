@@ -99,7 +99,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "modal: limited tiers show and hide without 
 
         Modal::hide(dialog);
         CHECK(lv_anim_get(backdrop, nullptr) == nullptr);
-        CHECK(lv_obj_has_flag(backdrop, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(backdrop));
         helix::ui::UpdateQueue::instance().drain();
         CHECK(ModalStack::instance().stack_empty());
         process_lvgl(50);

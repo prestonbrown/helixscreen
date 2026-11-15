@@ -195,14 +195,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a screensaver wake resumes the install wiza
     overlay.on_activate();
     overlay.on_deactivate(DeactivateReason::Suspended);
     helix::ui::UpdateQueue::instance().drain_until_empty();
-    REQUIRE_FALSE(lv_obj_has_flag(ssh, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(ssh));
     overlay.on_activate();
-    CHECK_FALSE(lv_obj_has_flag(ssh, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(ssh));
 
     // Leaving the overlay ends the run; opening it again starts over.
     overlay.on_deactivate(DeactivateReason::NavigateAway);
     overlay.on_activate();
-    CHECK(lv_obj_has_flag(ssh, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(ssh));
     overlay.on_deactivate(DeactivateReason::NavigateAway);
     helix::ui::UpdateQueue::instance().drain_until_empty();
 }
@@ -222,7 +222,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     overlay.register_callbacks();
     lv_obj_t* root = overlay.create(test_screen());
     REQUIRE(root != nullptr);
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root, false);
 
     // Locality unknown and no plugin: the webcam and plugin replies end on the SSH route.
     overlay.on_activate();
@@ -238,9 +238,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* header_action = lv_obj_find_by_name(header, "action_button");
     REQUIRE(header_action != nullptr);
 
-    CHECK_FALSE(lv_obj_has_flag(footer, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(footer));
     CHECK(lv_obj_is_visible(button));
-    CHECK(lv_obj_has_flag(header_action, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(header_action));
 
     // The SSH card fills the scroll area; the button must still be inside the screen.
     lv_area_t a;
@@ -257,8 +257,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* ffmpeg = lv_obj_find_by_name(root, "ffmpeg_instructions_container");
     REQUIRE(ssh != nullptr);
     REQUIRE(ffmpeg != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(ssh, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(ffmpeg, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(ssh));
+    CHECK(lv_obj_is_hidden(ffmpeg));
 
     overlay.on_deactivate(DeactivateReason::NavigateAway);
     helix::ui::UpdateQueue::instance().drain_until_empty();

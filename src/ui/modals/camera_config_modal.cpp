@@ -138,8 +138,8 @@ void CameraConfigModal::on_ok() {
 void CameraConfigModal::publish_sources(const std::vector<WebcamInfo>& cams) {
     // Row 0 is Automatic — the discovery auto-pick — so it renders exactly
     // like the camera rows it sits above.
-    lv_subject_copy_string(&source_name_[0], lv_tr("Automatic"));
-    lv_subject_copy_string(&source_note_[0], "");
+    lv_subject_set_string(&source_name_[0], lv_tr("Automatic"));
+    lv_subject_set_string(&source_note_[0], "");
 
     source_names_.clear();
     for (const auto& cam : cams) {
@@ -147,7 +147,7 @@ void CameraConfigModal::publish_sources(const std::vector<WebcamInfo>& cams) {
             continue; // The local-probe entry has no name; nothing to pick
         source_names_.push_back(cam.name);
         size_t row = source_names_.size();
-        lv_subject_copy_string(&source_name_[row], cam.name.c_str());
+        lv_subject_set_string(&source_name_[row], cam.name.c_str());
         // What the user gets if they pick it: a live stream, snapshot polling
         // for a service CameraStream cannot decode, or (for now) nothing.
         const char* note = "";
@@ -156,11 +156,11 @@ void CameraConfigModal::publish_sources(const std::vector<WebcamInfo>& cams) {
         } else if (!webcam::is_mjpeg_service(cam.service)) {
             note = lv_tr("Snapshot only");
         }
-        lv_subject_copy_string(&source_note_[row], note);
+        lv_subject_set_string(&source_note_[row], note);
     }
     for (size_t row = source_names_.size() + 1; row < kMaxRows; ++row) {
-        lv_subject_copy_string(&source_name_[row], "");
-        lv_subject_copy_string(&source_note_[row], "");
+        lv_subject_set_string(&source_name_[row], "");
+        lv_subject_set_string(&source_note_[row], "");
     }
     sync_source_subjects();
     // Set the count LAST: it drives the <repeat> expansion, and the rebuilt

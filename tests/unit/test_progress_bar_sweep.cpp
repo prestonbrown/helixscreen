@@ -89,11 +89,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "only a visible estimate bar keeps an animat
     lv_refr_now(nullptr);
     CHECK(lv_anim_get(estimate, nullptr) != nullptr);
 
-    lv_obj_add_flag(estimate, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(estimate, true);
     process_lvgl(100);
     CHECK(lv_anim_get(estimate, nullptr) == nullptr);
 
-    lv_obj_remove_flag(estimate, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(estimate, false);
     lv_refr_now(nullptr);
     CHECK(lv_anim_get(estimate, nullptr) != nullptr);
 

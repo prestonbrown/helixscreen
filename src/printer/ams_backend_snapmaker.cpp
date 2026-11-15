@@ -53,9 +53,6 @@ namespace helix {
 
 namespace {
 
-/// The section the firmware's print preferences sit in.
-constexpr const char* kPrintPrefsSection = "print_prefs";
-
 /// Parses a pending insert verdict may hold while waiting for the tag
 /// reader's filament_detect.info entry. Status frames arrive about once a
 /// second, so eight parses is roughly eight seconds: long enough for a read to
@@ -204,6 +201,14 @@ constexpr std::string_view kSoftCompatGroup = "TPU";
     return lane + lv_tr("Load failed");
 }
 
+// The status line for a channel fault, in the current language.
+[[nodiscard]] std::string channel_fault_detail(bool from_error_token, const std::string& error,
+                                               const std::string& op_state,
+                                               helix::ui::LaneNoun noun, int lane_index) {
+    return from_error_token ? friendly_channel_error(error, noun, lane_index)
+                            : friendly_channel_state_fail(op_state, noun, lane_index);
+}
+
 using snapmaker::ChannelStateInfo;
 using snapmaker::classify_channel_state;
 
@@ -238,6 +243,12 @@ nlohmann::json AmsBackendSnapmaker::required_status_objects(const helix::Printer
     const std::string batch_macro = hw.macro_config_name(helix::macro_patterns::AUTO_FEEDING_BATCH);
     if (!batch_macro.empty()) {
         objects[fmt::format("gcode_macro {}", batch_macro)] = nullptr;
+    }
+    // The head-to-feeder-channel map the Auto loading rows send to.
+    const std::string feed_variable =
+        hw.macro_config_name(snapmaker::feed_mode::kFeedVariableMacro);
+    if (!feed_variable.empty()) {
+        objects[fmt::format("gcode_macro {}", feed_variable)] = nullptr;
     }
     // ACE units hung off the heads (AmsBackendMultiAce reads it).
     if (multiace::present(hw)) {
@@ -313,6 +324,12 @@ void AmsBackendSnapmaker::set_discovery(const helix::PrinterDiscovery& discovery
     use_batch_macro_ = !macro.empty();
     batch_macro_object_ = macro.empty() ? std::string{} : "gcode_macro " + macro;
     nozzle_offset_supported_ = snapmaker::nozzle_offset::supported(discovery);
+    const std::string feed_variable =
+        discovery.macro_config_name(snapmaker::feed_mode::kFeedVariableMacro);
+    feed_variable_object_ = feed_variable.empty() ? std::string{} : "gcode_macro " + feed_variable;
+    // The map belongs to the printer just discovered: its own macro frame
+    // restates it, and until then a head takes the stock wiring.
+    feed_channels_ = snapmaker::feed_mode::stock_channel_map();
 }
 
 void AmsBackendSnapmaker::before_disconnect() {
@@ -407,6 +424,17 @@ std::optional<AmsAction> u1_step_action(bool unload, int phase) {
     }
     return unload ? kUnload[static_cast<size_t>(phase)] : kLoad[static_cast<size_t>(phase)];
 }
+
+/// The batch progress line's verb in the current language.
+std::string batch_direction_label(bool load) {
+    return load ? lv_tr("Load") : lv_tr("Unload");
+}
+
+/// "Load 2 of 4": the head now in progress, from the plan's translated words.
+std::string batch_progress_text(const AmsBackendSnapmaker::BatchPlan& plan) {
+    return fmt::format("{} {} {} {}", plan.direction_label, plan.cursor + 1, plan.of_label,
+                       plan.heads.size());
+}
 } // namespace
 
 AmsSystemInfo AmsBackendSnapmaker::get_system_info() const {
@@ -414,6 +442,26 @@ AmsSystemInfo AmsBackendSnapmaker::get_system_info() const {
     AmsSystemInfo info = system_info_;
     info.action = published_action_locked();
     return info;
+}
+
+void AmsBackendSnapmaker::refresh_translated_texts() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (batch_.active) {
+        const bool shown = system_info_.operation_detail == batch_progress_text(batch_);
+        batch_.direction_label = batch_direction_label(batch_.load);
+        batch_.of_label = lv_tr("of");
+        if (shown) {
+            system_info_.operation_detail = batch_progress_text(batch_);
+        }
+    }
+    if (!channel_fault_text_ || system_info_.operation_detail != channel_fault_text_->shown) {
+        channel_fault_text_.reset();
+        return;
+    }
+    ChannelFaultText& text = *channel_fault_text_;
+    text.shown = channel_fault_detail(text.from_error_token, text.error, text.op_state, lane_noun(),
+                                      text.lane);
+    system_info_.operation_detail = text.shown;
 }
 
 std::optional<AmsAction> AmsBackendSnapmaker::step_action_locked() const {
@@ -577,8 +625,14 @@ AmsError AmsBackendSnapmaker::do_load_filament(int slot_index) {
     // whose module is absent or out of automatic mode, or whose motion sensor
     // is disabled. Those are refused here, where the user can be told why.
     switch (const auto eligibility = slot_op_eligibility(slot_index, /*load=*/true)) {
-    case FilamentOpEligibility::AlreadyLoaded:
     case FilamentOpEligibility::FeederUnavailable:
+        if (auto_load_off(channel_snapshot(slot_index))) {
+            return AmsErrorHelper::slot_ineligible(
+                lane_noun(), slot_index,
+                TR_NOOP("Auto loading is off; turn it on under Print Behavior"));
+        }
+        [[fallthrough]];
+    case FilamentOpEligibility::AlreadyLoaded:
     case FilamentOpEligibility::SensorDisabled:
         return AmsErrorHelper::slot_ineligible(lane_noun(), slot_index,
                                                filament_op_eligibility_reason(eligibility));
@@ -692,7 +746,7 @@ AmsError AmsBackendSnapmaker::do_filament_batch(const std::vector<int>& slots, b
         // parse only formats them and makes no LVGL calls.
         batch_ = BatchPlan{slots,           load,
                            /*cursor=*/0,
-                           /*active=*/true, load ? lv_tr("Load") : lv_tr("Unload"),
+                           /*active=*/true, batch_direction_label(load),
                            lv_tr("of"),     next_batch_dispatch_id_};
         dispatch_id = next_batch_dispatch_id_++;
     }
@@ -865,7 +919,11 @@ HeadFilamentOps AmsBackendSnapmaker::head_filament_ops(int head) const {
         return ops;
     }
     ops.load = FilamentOpSupport::Manual;
-    ops.load_reason = lv_tr("This toolhead has no automatic feeder. Load the filament by hand.");
+    ops.load_reason =
+        auto_load_off(channel_snapshot(head))
+            ? lv_tr("Auto loading is off for this toolhead. Turn it on under Print Behavior, or "
+                    "load the filament by hand.")
+            : lv_tr("This toolhead has no automatic feeder. Load the filament by hand.");
     ops.guided_hand_load = true;
     return ops;
 }
@@ -1962,7 +2020,12 @@ void AmsBackendSnapmaker::apply_feed_channel_locked(const snapmaker::FeedChannel
         snap.module_reported = true;
     }
     if (channel.disable_auto) {
+        // The Auto loading row shows this, so a change redraws the overlay.
+        if (!snap.auto_reported || snap.disable_auto != *channel.disable_auto) {
+            fx.changed = true;
+        }
         snap.disable_auto = *channel.disable_auto;
+        snap.auto_reported = true;
     }
     // The op lifecycle, error surfacing and batch
     // verification read the op's outcome; the latch and the
@@ -2184,8 +2247,9 @@ void AmsBackendSnapmaker::apply_channel_outcome_locked(int i, const std::string&
         } else {
             system_info_.action = AmsAction::ERROR;
             system_info_.operation_detail =
-                has_error_token ? friendly_channel_error(error, lane_noun(), i)
-                                : friendly_channel_state_fail(op_state, lane_noun(), i);
+                channel_fault_detail(has_error_token, error, op_state, lane_noun(), i);
+            channel_fault_text_ = ChannelFaultText{i, has_error_token, error, op_state,
+                                                   system_info_.operation_detail};
             fx.changed = true;
         }
     } else if (!op_state.empty() && !op_info.ignore) {
@@ -2270,9 +2334,7 @@ void AmsBackendSnapmaker::advance_batch_locked(int i, const std::string& op_stat
                 // "Load 2 of 4" — the head now in progress.
                 // The words arrive pretranslated from dispatch, so
                 // this parse makes no LVGL calls.
-                system_info_.operation_detail =
-                    fmt::format("{} {} {} {}", batch_.direction_label, batch_.cursor + 1,
-                                batch_.of_label, batch_.heads.size());
+                system_info_.operation_detail = batch_progress_text(batch_);
             } else {
                 // Every head verified. Nothing is in
                 // progress, and no later frame clears the
@@ -2787,6 +2849,8 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
     { // Scope lock — emit_event MUST be called outside mutex_ to avoid deadlock
       // with sync_from_backend() which acquires mutex_ via get_system_info()
         std::lock_guard<std::mutex> lock(mutex_);
+
+        update_feed_channels_locked(status);
 
         bool frame_names_state = false;
         bool frame_names_file = false;
@@ -3704,7 +3768,7 @@ std::vector<helix::printer::DeviceSection> AmsBackendSnapmaker::get_device_secti
     using helix::printer::DeviceSection;
     std::vector<DeviceSection> out;
     // Nothing reported yet - an empty section is worse than none.
-    if (!print_preferences().empty()) {
+    if (!print_preferences().empty() || auto_load_reported()) {
         out.push_back(helix::printer::device_section(kPrintPrefsSection, 50, ""));
     }
     const auto nozzles = reported_nozzles();
@@ -3776,6 +3840,8 @@ std::vector<helix::printer::DeviceAction> AmsBackendSnapmaker::get_device_action
         }
         out.push_back(std::move(a));
     }
+
+    append_auto_load_actions(out);
 
     // Each head's nozzle, one row per field the head reports. A head reading a
     // value no option names shows it as unknown rather than as an option.
@@ -3919,6 +3985,8 @@ std::string AmsBackendSnapmaker::build_preference_gcode(const std::string& actio
         auto list = end_unload_list(prefs, soft);
         list[*tool] = v;
         changes.end_unload_filament = std::move(list);
+    } else if (const auto head = tool_from_action_id(kAutoLoadActionPrefix, action_id)) {
+        return auto_load_gcode(*head, value);
     } else {
         return {};
     }

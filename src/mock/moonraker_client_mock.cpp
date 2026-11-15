@@ -228,50 +228,14 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
     spdlog::debug("[MoonrakerClientMock] Registered {} RPC method handlers",
                   method_handlers_.size());
 
-    // MedusaHC drives the real AmsBackendToolChanger, and klipper-toolchanger
-    // reports no material, colour, brand or weight - the override store is the
-    // whole of filament identity there. Without these records every lane renders
-    // at kAmsDefaultSlotColor, which makes colour and ghost bugs invisible.
-    // Outer key style is T<n> (lane_key_style_for), inner "lane" is 0-based.
     if (is_mock_lane_status()) {
         seed_lane_status_records();
     }
-    if (mock_medusa_variant() != MedusaVariant::NONE) {
-        // Each lane mirrors a spool from the mock Spoolman inventory - id,
-        // vendor, material, colour and weights - so the active-spool card and
-        // the lane it names cannot describe different filament.
-        struct Lane {
-            int spoolman_id;
-            const char* material;
-            const char* brand;
-            const char* spool_name;
-            const char* color;
-            double remaining_g;
-        };
-        static constexpr Lane kLanes[] = {
-            {2, "Silk PLA", "eSUN", "Silk Blue", "#26DCD9", 750.0},
-            {4, "ABS", "Flashforge", "Fire Engine Red", "#D20000", 100.0},
-            {13, "PETG", "Bambu Lab", "Translucent Green PETG", "#29A261", 1000.0},
-            {5, "PETG", "Kingroon", "Signal Yellow", "#F4E111", 1000.0},
-            {3, "ASA", "Elegoo", "Pop Blue", "#00AEFF", 500.0},
-            {15, "PLA", "Bambu Lab", "Red PLA", "#C12E1F", 1000.0},
-        };
-        static_assert(std::size(kLanes) == kMedusaMaxTools);
-        for (int i = 0; i < medusa_tool_count(); ++i) {
-            const Lane& l = kLanes[i];
-            mock_db_set("lane_data",
-                        "T" + std::to_string(i), // DISPLAY_NUMBERING_OK: database key mirrors
-                                                 // the T<n> wire format, not a display label
-                        json{{"lane", std::to_string(i)},
-                             {"spoolman_id", l.spoolman_id},
-                             {"material", l.material},
-                             {"brand", l.brand},
-                             {"spool_name", l.spool_name},
-                             {"color", l.color},
-                             {"remaining_weight_g", l.remaining_g},
-                             {"total_weight_g", 1000.0}});
-        }
+    seed_tool_lane_records();
+    if (is_mock_afc_boxturtle()) {
+        init_afc_boxturtle(get_runtime_config()->mock_ams_gate_count);
     }
+    init_happy_hare(get_runtime_config()->mock_ams_gate_count);
 
     // Filament in the head that no lane claims: what a firmware that lost its
     // loaded-lane record leaves behind.
@@ -297,6 +261,8 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
             }
         }
     }
+
+    init_ifs_jacker_from_env();
 
     // OpenAMS reads no identity off its spools: color and material come from the
     // override store, which reads the shared lane_data namespace (laneN keys,
@@ -914,12 +880,15 @@ nlohmann::json MoonrakerClientMock::defect_detection_status() const {
     };
     return nlohmann::json{{"main_enable", u1_defect_main_enable_.load()},
                           {"clean_bed", feature(u1_clean_bed_enable_.load())},
-                          {"noodle", feature(true)},
+                          {"noodle", feature(u1_noodle_enable_.load())},
                           {"residue", feature(false)},
                           {"nozzle", feature(false)}};
 }
 
 json MoonrakerClientMock::zmod_color_status() const {
+    if (is_mock_zmod_ifs()) {
+        return ifs_jacker_zmod_color_json();
+    }
     std::lock_guard<std::mutex> lock(zmod_mutex_);
     json slots = json::array();
     for (std::size_t i = 0; i < zmod_slots_.size(); ++i) {
@@ -1195,87 +1164,6 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_zmod(const std::stri
         return 0;
     }
     return std::nullopt;
-}
-
-nlohmann::json MoonrakerClientMock::u1_feed_side_json(int ext) const {
-    // "filament_feed left" carries extruders 0/1, "right" carries 2/3.
-    const int first = (ext < 2) ? 0 : 2;
-    nlohmann::json channels = nlohmann::json::object();
-    for (int i = first; i < first + 2; ++i) {
-        channels["extruder" + std::to_string(i)] = {
-            {"channel_state", u1_channel_state_[static_cast<size_t>(i)]},
-            {"channel_error", "ok"},
-            {"channel_error_state", "none"},
-            {"channel_action_state", u1_channel_state_[static_cast<size_t>(i)]},
-            {"disable_auto", false},
-            {"filament_detected", u1_filament_detected_[static_cast<size_t>(i)]},
-            {"module_exist", true},
-        };
-    }
-    return channels;
-}
-
-void MoonrakerClientMock::publish_u1_channel_frame(int ext) {
-    const std::string side = (ext < 2) ? "left" : "right";
-    dispatch_status_update({{"filament_feed " + side, u1_feed_side_json(ext)}});
-}
-
-bool MoonrakerClientMock::apply_u1_feeding_gcode(const std::string& gcode) {
-    const size_t token_end = gcode.find_first_of(" \t");
-    const std::string cmd = gcode.substr(0, token_end);
-    // AUTO_FEEDING and AUTO_FEEDING_BATCH ACTION=DOING both drive a channel.
-    // The BATCH START/END lines name no EXTRUDER, so they land in the "feeder
-    // command, nothing to walk" branch and change no channel state.
-    if (cmd.rfind("AUTO_FEEDING", 0) != 0) {
-        return false;
-    }
-    const size_t e = gcode.find("EXTRUDER=");
-    if (e == std::string::npos) {
-        return true;
-    }
-    int ext = -1;
-    try {
-        ext = std::stoi(gcode.substr(e + 9));
-    } catch (...) {
-        return true;
-    }
-    if (ext < 0 || ext >= kU1Channels) {
-        return true;
-    }
-    // "UNLOAD=1" contains "LOAD=1" as a substring; the direction must be read
-    // unload-first.
-    const bool unload = gcode.find("UNLOAD=1") != std::string::npos;
-
-    int fail_slot = -1;
-    if (const char* fail_env = std::getenv("HELIX_MOCK_BATCH_FAIL_SLOT")) {
-        try {
-            fail_slot = std::stoi(fail_env);
-        } catch (...) {
-            fail_slot = -1;
-        }
-    }
-
-    const size_t ext_idx = static_cast<size_t>(ext);
-    // The state sequences the firmware's own filament_feed walks: preload then
-    // load for a feed, heat then retract for an unload.
-    u1_channel_state_[ext_idx] = unload ? "unload_heat_finish" : "preload_finish";
-    if (!unload) {
-        u1_filament_detected_[ext_idx] = true;
-    }
-    publish_u1_channel_frame(ext);
-
-    const char* terminal = unload ? "unload_finish" : "load_finish";
-    if (ext == fail_slot) {
-        terminal = unload ? "unload_fail" : "load_fail";
-    }
-    u1_channel_state_[ext_idx] = terminal;
-    if (unload && ext != fail_slot) {
-        u1_filament_detected_[ext_idx] = false;
-    }
-    publish_u1_channel_frame(ext);
-    spdlog::info("[MoonrakerClientMock] U1 feeder: extruder {} {} -> {}", ext,
-                 unload ? "unload" : "load", terminal);
-    return true;
 }
 
 void MoonrakerClientMock::parse_incoming_bed_mesh(const json& bed_mesh) {
@@ -1800,6 +1688,7 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
                 "[MoonrakerClientMock] Active gcode tool: T{} (from per-tool weights, max {:.2f}g)",
                 dominant, max_w);
             notify_active_gcode_tool_observers(dominant);
+            happy_hare_load_tool_now(dominant);
         }
     }
 
@@ -2592,6 +2481,7 @@ void MoonrakerClientMock::dispatch_initial_state() {
     if (is_mock_lane_status()) {
         initial_status["lane_status"] = lane_status_json();
     }
+    merge_mock_ams_hardware_status(initial_status);
 
     // multiACE mock: the `ace` object and both filament_feed sides at rest, so
     // the production backend's first parse sees what a booted rig reports.

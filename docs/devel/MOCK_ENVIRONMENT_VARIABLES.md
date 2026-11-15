@@ -57,6 +57,21 @@ The regulatory country the mock WiFi radio reports at startup, standing in for o
 HELIX_MOCK_WIFI_COUNTRY=DE ./build/bin/helix-screen --test
 ```
 
+### `HELIX_MOCK_WIFI_DHCP_PENDING`
+
+Makes a Wi-Fi join on the mock radio complete without an address, so the link stays joined with DHCP pending: Network Settings shows "Getting address…" on its IP row and the Settings root shows "Connected, getting address…".
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1` holds the address back; anything else assigns one |
+| **Default** | unset |
+| **File** | `src/network/wifi_backend_mock.cpp` |
+
+```bash
+# Join any secured mock network in Network Settings; it stays awaiting an address
+HELIX_MOCK_WIFI_DHCP_PENDING=1 ./build/bin/helix-screen --test
+```
+
 ### `HELIX_MOCK_IPV4_APPLY_FAIL`
 
 Make every IPv4 apply on the mock Wi-Fi and Ethernet backends fail, so the IPv4 screen's failure path (Network Settings > IPv4 > Apply) can be driven under `--test`. The revert that follows fails too, which leaves the pending-revert record for the next start.
@@ -733,30 +748,32 @@ Select the mock AMS topology/type.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `none`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace`, `indx`, `lane_status` |
-| **Default** | The persona's own (`helix::mock::effective_mock_ams`): `toolchanger` on `creator5`, `ifs` on `ad5x`, `cfs` on `k2`, `snapmaker` on `snapmaker_u1`; Happy Hare, LINEAR, 4 slots on every other persona |
+| **Values** | `none`, `happy_hare` / `hh`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace`, `indx`, `lane_status` |
+| **Default** | The persona's own (`helix::mock::effective_mock_ams`): `toolchanger` on `creator5`, `ifs` on `ad5x`, `cfs` on `k2`, `snapmaker` on `snapmaker_u1`; Happy Hare mock hardware (production backend) on every other persona that publishes `mmu` |
 | **File** | `src/printer/ams_backend.cpp` |
 
 | Value | Units | What it simulates |
 |-------|-------|-------------------|
-| *(unset)* | 1 | The persona's default AMS (see **Default**); Happy Hare, LINEAR, 4 slots where the persona has none |
+| *(unset)* | 1 | The persona's default AMS (see **Default**). Where that is Happy Hare it is **mock HARDWARE, real backend**: Happy Hare 4 on one ERCF (`HELIX_AMS_GATES` gates, spools 1-8 of the mock Spoolman in turn, gate 1 loaded, gate 4 empty), publishing `mmu`, `mmu_machine` and the v4 configfile sections and answering `MMU_LOAD` / `MMU_UNLOAD` / `MMU_EJECT` / `MMU_SELECT` / `MMU_SELECT_BYPASS` / `MMU_HOME` / `T<n>` with frame-by-frame `action` and `filament_pos`, plus `MMU_GATE_MAP`, `MMU_TTG_MAP`, `MMU_ENDLESS_SPOOL`, `MMU_PRELOAD`, `MMU_RECOVER`, `MMU_SYNC_FEEDBACK` and `MMU_FAN` (`src/mock/moonraker_client_mock_happy_hare.cpp`), so real discovery builds the production `AmsBackendHappyHare`. Setting any knob only `AmsBackendMock` serves (`helix::mock::kMockBackendKnobs`: `HELIX_MOCK_AMS_STATE` other than `idle`, the `HELIX_MOCK_DRYER*` / `HELIX_MOCK_DRYING` family, `HELIX_MOCK_AMS_ENV`, `HELIX_MOCK_NO_HUMIDITY`, `HELIX_MOCK_REMAP*`, `HELIX_MOCK_BUFFER_STATE`) keeps the default on `AmsBackendMock`'s Happy Hare simulation, as do `ercf` and `tradrack` |
+| `happy_hare` / `hh` | 1 | The Happy Hare mock hardware above, whatever scenario knobs are set |
 | `none` | - | No mock AMS at all |
 | `ace` | 1 | Anycubic ACE identity on the mock backend, 4 slots |
-| `afc` | 1 | AFC Box Turtle, HUB, 4 slots. Aliases: `box_turtle`, `boxturtle` |
+| `afc` | 1 | **AFC on one Box Turtle - mock HARDWARE, real backend.** Publishes `AFC`, `AFC_BoxTurtle Turtle_1`, its hub, TurtleNeck buffer, `AFC_extruder extruder` and `AFC_stepper lane1`..`laneN` (`HELIX_AMS_GATES`, up to 8; lane 1 tooled, lane 4 unlinked and weightless) with no `mmu`, and answers `TOOL_LOAD` / `CHANGE_TOOL` / `T<n>` / `TOOL_UNLOAD`, `SET_COLOR` / `SET_MATERIAL` / `SET_WEIGHT` / `SET_SPOOL_ID` / `SET_MAP` and `LANE_UNLOAD`, so real discovery builds the production `AmsBackendAfc`. Aliases: `box_turtle`, `boxturtle` |
 | `quattro_box` | 1 | AFC Quattro Box, HUB; `HELIX_AMS_GATES` sets its lanes. Alias: `quattrobox` |
-| `toolchanger` / `tc` | 1 | Tool Changer, PARALLEL topology. Alias: `tool_changer` |
+| `toolchanger` / `tc` | 1 | **klipper-toolchanger - mock HARDWARE, real backend.** Publishes `toolchanger` and `tool T0`..`tool T3` with no `mmu`, seeds `lane_data` `T0`..`T3` from Spoolman spools 1-4, and answers `SELECT_TOOL` / `UNSELECT_TOOL` with a "changing" then "ready" frame on the new `tool_number`, so real discovery builds the production `AmsBackendToolChanger`. Alias: `tool_changer`; the `creator5` persona's default |
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
 | `multi` | 2 | Box Turtle (4 slots) + Night Owl (2 slots), single toolhead |
 | `torture` | **5** | **Its unit-card row overflows.** See below |
 | `stealth` | 5 | StealthChanger-style AFC toolchanger: ACE straight to T0-T3, four hub units on T4-T6 (two share T6), 7 toolheads close together. Exercises the overview's mini-hub row |
 | `vivid` | 3 | 2x Box Turtle + ViViD, 12 slots |
-| `ifs` | 1 | AD5X IFS, 4 slots, LINEAR. Aliases: `ad5x`, `ad5x_ifs` |
+| `ifs` | 1 | **Native Z-Mod AD5X IFS - mock HARDWARE, real backend.** `zmod_ifs` / `zmod_color` for the stock four ports (black PLA, white PETG, purple PLA, brown ABS; port 1 in the head) with the commands `ifs-jacker` answers, so the production `AmsBackendAd5xIfs` runs. Aliases: `ad5x`, `ad5x_ifs`; the `ad5x` persona's default |
 | `htlf_toolchanger` | 2 | AFC HTLF + Toolchanger: 4 HTLF lanes (2 direct, 2 hub→shared extruder) + 3 standalone toolheads. Tests MIXED topology. Aliases: `htlf_tc`, `htlf` |
-| `snapmaker` | 1 | Snapmaker U1, 4 slots, PARALLEL, non-editable mapping. Aliases: `snapswap`, `u1` |
+| `snapmaker` | 1 | **A stock Snapmaker U1's SnapSwap - mock HARDWARE, real backend.** Publishes `filament_detect` (RFID tags), `print_task_config`, both `filament_feed` sides and each head's park/active pins over four extruders, with no `mmu`; `T<n>` moves the carriage, `AUTO_FEEDING` walks a feeder (an unload empties the head's record) and `SET_PRINT_FILAMENT_CONFIG` rewrites one, so real discovery builds the production `AmsBackendSnapmaker`. Aliases: `snapswap`, `u1`; the `snapmaker_u1` persona's default |
 | `medusahc` | 1 | **MedusaHC hotend changer - mock HARDWARE, real backend.** The stock Irbis3D install: controller + dock sensors, no klipper-toolchanger. Aliases: `medusa`, `mhc`. See below |
 | `medusahc-ktc` | 1 | The same controller with the optional klipper-toolchanger beside it. Alias: `medusa-ktc` |
 | `medusahc-tn` | 1 | A six-tool MedusaHC on the controller alone (topi's machine). Alias: `medusa-tn` |
 | `ifs-module` | 1 | **Standalone AD5X IFS module - mock HARDWARE, real backend.** The Forge-X drop-in's `ifs`/`ifs_materials` objects + stock-named sensors. Aliases: `ifs_module`, `ad5x-module`. See below |
+| `ifs-jacker` | 2 | **Native Z-Mod AD5X behind an IFS Jacker - mock HARDWARE, real backend.** `zmod_ifs` / `zmod_color` with `color_limit` = `HELIX_MOCK_IFS_PORTS` (4..16, default 8; ports 3 and 7 start empty) plus the stock `ifs_motion_sensor` / `head_switch_sensor`, so the production `AmsBackendAd5xIfs` shows the lanes as `IFS 1`, `IFS 2`, ... `INSERT_PRUTOK_IFS` / `A_CHANGE_FILAMENT` seat a port, `_IFS_REMOVE_CURRENT_PRUTOK` empties the head, `IFS_F11` clears a lane. Alias: `ifs_jacker`. Pair with `HELIX_MOCK_PRINTER=ad5x` |
 | `cfs` | 1 | **Creality CFS, K1 stock dialect - mock HARDWARE, real backend.** The stock `box` status object plus the calibration command surface. Alias: `cfs-k1`. See below |
 | `openams` | 1 | **OpenAMS hub - mock HARDWARE, real backend.** Lists and pushes the `oams_manager` status object (4-bay hub unit, FPS lane, groups T0/T1/T2, slot 4 loaded) so real discovery claims OpenAMS and the production `AmsBackendOpenAms` runs. Slots 3 and 4 get ASA identity seeded into `lane_data`; `OPENAMS_UNLOAD` / `OPENAMS_LOAD GROUP=Tn` flip the loaded slot |
 | `multiace` | 1 | **multiACE on a U1 - mock HARDWARE, real backend.** Pushes the U1 feed objects plus the plain `ace` object so real discovery builds the production `AmsBackendMultiAce` and runs it against engine-shaped frames. Pair with `HELIX_MOCK_PRINTER=snapmaker_u1`. See below |
@@ -1064,7 +1081,7 @@ Select the mock AMS visual scenario.
 
 | Value | What it shows |
 |-------|---------------|
-| *(unset)* / `idle` | Default idle state |
+| *(unset)* / `idle` | Default idle state. Any other value keeps the default persona on `AmsBackendMock` (see `HELIX_MOCK_AMS`) |
 | `loading` | Active load in progress with realistic segment animation |
 | `error` | Slot errors visible; buffer fault also shown when combined with `afc` mode |
 | `bypass` | Bypass mode active |
@@ -1393,7 +1410,7 @@ Select which printer the mock Moonraker client impersonates. Drives the mock's r
 
 | Property | Value |
 |----------|-------|
-| **Values** | see `include/mock_persona.h#kPersonas`: currently `voron_24`, `voron_trident`, `k1`, `k1max`, `ad5m`, `creator5`, `creator5_zmod`, `generic_corexy`, `generic_bedslinger`, `multi_extruder`, `delta`, `snapmaker_u1`, `cc1`, `ad5x`, `k2`. Matched exactly (case-sensitive); an unrecognised value falls back to `voron_24` with a warning listing the valid ids |
+| **Values** | see `include/mock_persona.h#kPersonas`: currently `voron_24`, `voron_trident`, `k1`, `k1max`, `ad5m`, `creator5`, `creator5_zmod`, `creator5_afc`, `generic_corexy`, `generic_bedslinger`, `multi_extruder`, `delta`, `snapmaker_u1`, `cc1`, `ad5x`, `k2`. Matched exactly (case-sensitive); an unrecognised value falls back to `voron_24` with a warning listing the valid ids |
 | **Default** | `voron_24` (Voron 2.4); unset and empty both select it silently |
 | **File** | `include/mock_persona.h` |
 
@@ -1416,10 +1433,13 @@ HELIX_MOCK_PRINTER=creator5 ./build/bin/helix-screen --test -vv
 # FlashForge Creator 5 Pro on Z-Mod firmware (mock hardware, real tool changer backend)
 HELIX_MOCK_PRINTER=creator5_zmod ./build/bin/helix-screen --test -vv
 
+# FlashForge Creator 5 Pro on Reforge master: AFC over ff_toolchange (mock hardware, real AFC backend)
+HELIX_MOCK_PRINTER=creator5_afc ./build/bin/helix-screen --test -vv
+
 # Elegoo Centauri Carbon on COSMOS, at the CC1's own 480x272 screen size
 HELIX_MOCK_PRINTER=cc1 ./build/bin/helix-screen --test -s micro -vv
 
-# FlashForge Adventurer 5X with the mock IFS (4 slots)
+# FlashForge Adventurer 5X with native Z-Mod's IFS (4 slots)
 HELIX_MOCK_PRINTER=ad5x ./build/bin/helix-screen --test -vv
 
 # Creality K2 Plus with the CFS box
@@ -1435,10 +1455,9 @@ LEDs `led case` / `led hotend`, and the COSMOS macros that name the machine.
 `ad5x`: hostname `ad5x-mock`, a 220x220x220 CoreXY volume, the hardware in
 `assets/config/presets/ad5x.json` `hardware/expected`, the Flashforge `loadcell`
 probe, and `gcode_macro SET_EXTRUDER_SLOT`, which names the machine. Its default
-`HELIX_MOCK_AMS` is `ifs`, the mock IFS simulation. It publishes none of the IFS
-module's own objects (`ifs`, `ifs_materials`, `zmod_ifs`, `_ifs_port_sensor_*`),
-since those make discovery stand up the production AD5X IFS backend; use
-`HELIX_MOCK_AMS=ifs-module` for that.
+`HELIX_MOCK_AMS` is `ifs`: native Z-Mod's `zmod_ifs` / `zmod_color` for the stock
+four-port IFS, which the production `AmsBackendAd5xIfs` drives. The standalone IFS
+module's objects (`ifs`, `ifs_materials`) come only with `HELIX_MOCK_AMS=ifs-module`.
 
 `k2`: the Creality **K2 Plus**. Hostname `K2Plus-50C1`, the capture's 352.5x400x360
 CoreXY volume, and the hardware in `tests/fixtures/printers/creality_k2_plus.json` and
@@ -1465,8 +1484,8 @@ and applies its preset; no printer type is saved for it. Its default `HELIX_MOCK
 `snapmaker`, the mock Snapmaker simulation. It does not publish `filament_detect`, which
 would make discovery stand up the production Snapmaker backend. It does publish
 `defect_detection`, answering `printer.objects.query` with the module's stored config, whose
-`main_enable` and `clean_bed.enable` follow `DEFECT_DETECTION_CONFIG MAIN_ENABLE=0|1` and
-`CLEAN_BED_ENABLE=0|1`. Its `purifier` reports `power_detected: true`, the top module
+`main_enable`, `clean_bed.enable` and `noodle.enable` follow `DEFECT_DETECTION_CONFIG
+MAIN_ENABLE=0|1`, `CLEAN_BED_ENABLE=0|1` and `NOODLE_ENABLE=0|1`. Its `purifier` reports `power_detected: true`, the top module
 fitted, so the home panel shows the U1's with-top picture; `HELIX_MOCK_ENCLOSURE_TOP=0`
 reports it removed. The purifier behaves like firmware 2.x: `SET_PURIFIER_MODE MODE=0-3
 [FAN_SPEED=] [DESIRE_TEMP=] [ALARM_TEMP=]` sets the mode and the fan it drives, `SET_PURIFIER
@@ -1515,7 +1534,8 @@ Tool offsets save as on Reforge: the persona refuses `SET_TOOL_PARAMETER` and
 Tool Offsets panel's Save sends `SAVE_CONFIG`, preceded by
 `TOOL_Z_ADJUST TOOL=<n> ADJUST=0 SAVE=1` for a tool whose Z moved
 ([FILAMENT_BACKEND_TOOLCHANGER.md](FILAMENT_BACKEND_TOOLCHANGER.md#reforge)). The
-persona still models Reforge without AFC.
+persona models Reforge's tagged releases, which run no AFC; `creator5_afc` below models
+its master.
 
 The default is the persona's `default_mock_ams` in
 `include/mock_persona.h#descriptor`, applied by
@@ -1525,6 +1545,22 @@ consults so they cannot disagree about what the mock is presenting.
 Build volume is deliberately left at the generic mock value: the Creator 5 Pro's
 real travel limits are not documented in this repo, and detection keys off
 `ff_toolchange`, not the volume.
+
+#### The `creator5_afc` persona
+
+Reforge's master as it ships (Klipper4FlashForge/firmware since the 2026-11-04 AFC
+migration): mock HARDWARE, like `creator5_zmod`, so the production `AmsBackendAfc`
+drives it. Beside the `creator5` hardware it publishes what `ff-afc.cfg` makes AFC
+register: `AFC`, `AFC_Toolchanger Tools`, `AFC_extruder e0..e3` and `AFC_lane e0..e3`,
+one standalone lane per head with `map: T<n>`, and the `[afc_extruder e<n>]
+extruder_name` sections in configfile that tie lane `e<n>` to `extruder<n>`. ff_toolchange
+keeps publishing `toolchanger` and `tool T0..3`, and the persona adds `ff_print` (with its
+`FF_BEFORE_PRINT_START` macro, so the start sequence runs before the file), `ff_tool_offset`,
+printer.base.cfg's 1-based `gcode_button extruder_pos1..4` / `extruder_grab1..4`, and the
+`fm_ex0..3` clog sensors; AFC owns the `fd_ex` presence switches and hides them. `AFC_SELECT_TOOL`,
+`CHANGE_TOOL`, `SET_MAP` and `T<n>` move the mounted head and the map
+(`src/mock/moonraker_client_mock_reforge.cpp`). Tool offsets save the Reforge way, as on
+`creator5`.
 
 #### The `creator5_zmod` persona
 
@@ -1561,8 +1597,8 @@ updates its status, `PA_ACTION` is accepted and ignored, and each `PA_GET` answe
 emulation (mod setting `AFC=1`): `AFC`, `AFC_IFS IFS` and `AFC_lane lane1..4`, with
 `CHANGE_TOOL LANE=lane<n+1>` mounting head `n`. Discovery still hands the printer to the
 tool changer. On the `ad5x` persona the same flag adds `zmod_color` and those objects
-(discovery picks `AD5X_IFS`), and the mock IFS backend answers
-`AmsBackend::print_start_params()` the way Z-Mod's AD5X does, so a mapped print logs
+(discovery picks `AD5X_IFS`), and the production `AmsBackendAd5xIfs` reads Z-Mod's AFC as
+a print start that takes the tool map, so a mapped print logs
 `printer.print.start tools=...` from the mock Moonraker.
 
 It also publishes Z-Mod's calibration and chamber air macros. `CALIBRATE_EXTRUDERS`

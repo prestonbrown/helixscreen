@@ -239,7 +239,7 @@ Switching printers performs a "soft restart" -- the LVGL display stays alive, bu
 17. ObserverGuard::invalidate_all() (mark all guards as stale)
 18. Release MoonrakerManager
 19. Reset KeyboardManager
-20. Delete LVGL widget tree (lv_obj_del on app_layout)
+20. Delete LVGL widget tree (lv_obj_delete on app_layout)
 ```
 
 ### init_printer_state() (Steps 1-10)
@@ -262,7 +262,7 @@ Switching printers performs a "soft restart" -- the LVGL display stays alive, bu
 
 **ScopedFreeze**: During teardown, the update queue is frozen (step 5) to prevent the WebSocket background thread from enqueuing new callbacks between `drain()` and widget destruction. The freeze thaws when it goes out of scope.
 
-**ObserverGuard invalidation**: At teardown step 17, `ObserverGuard::invalidate_all()` bumps an epoch that marks every existing guard as stale. During init, when old guards are reassigned (`guard = observe_*()`), the move-assignment safely releases instead of calling `lv_observer_remove()` on freed observer pointers. Guards created after the bump are removed normally, so init needs no closing step.
+**ObserverGuard invalidation**: At teardown step 17, `ObserverGuard::invalidate_all()` bumps an epoch that marks every existing guard as stale. During init, when old guards are reassigned (`guard = observe_*()`), the move-assignment safely releases instead of calling `lv_observer_delete()` on freed observer pointers. Guards created after the bump are removed normally, so init needs no closing step.
 
 **Re-entrancy guard**: `m_soft_restart_in_progress` (bool in Application) prevents `switch_printer()`, `add_printer_via_wizard()`, and `cancel_add_printer_wizard()` from being called during an active soft restart.
 
@@ -434,7 +434,7 @@ Checked at the top of `switch_printer()`, `add_printer_via_wizard()`, and `cance
 During soft restart, observer guards in surviving singletons (not destroyed by `StaticPanelRegistry`) hold freed observer pointers. The invalidation epoch handles this:
 
 1. `ObserverGuard::invalidate_all()` at end of teardown (step 17)
-2. During init, when guards are reassigned (`guard = observe_*()`), `reset()` safely releases instead of calling `lv_observer_remove()` on freed memory
+2. During init, when guards are reassigned (`guard = observe_*()`), `reset()` safely releases instead of calling `lv_observer_delete()` on freed memory
 
 ---
 

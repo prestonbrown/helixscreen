@@ -242,7 +242,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: material renders from subject wit
     // sync_from_backend would (one sync writes both, so they agree).
     lv_subject_t* mat = AmsState::instance().get_slot_material_subject(0);
     REQUIRE(mat != nullptr);
-    lv_subject_copy_string(mat, "PLA");
+    lv_subject_set_string(mat, "PLA");
     lv_subject_t* lane_state = AmsState::instance().get_slot_lane_state_subject(0);
     REQUIRE(lane_state != nullptr);
     lv_subject_set_int(lane_state, static_cast<int>(helix::ui::LaneState::Present));
@@ -257,12 +257,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: material renders from subject wit
 
     // A material-ONLY change (color unchanged, no refresh_slots, no
     // slots_version rebuild) must repaint the label through the observer.
-    lv_subject_copy_string(mat, "PETG");
+    lv_subject_set_string(mat, "PETG");
     process_lvgl(50);
     CHECK(std::string(UITest::get_text(material_label)) == "PETG");
 
     // Empty material falls back to the "--" placeholder.
-    lv_subject_copy_string(mat, "");
+    lv_subject_set_string(mat, "");
     process_lvgl(50);
     CHECK(std::string(UITest::get_text(material_label)) == "--");
 
@@ -282,7 +282,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: material label binds to subject",
     ui_ams_slot_register();
     // LVGLUITestFixture does not init AmsState subjects. Without this the
     // per-slot material subject is raw memory, sync_from_backend()'s
-    // lv_subject_copy_string lands nowhere, and the label stays at "--".
+    // lv_subject_set_string lands nowhere, and the label stays at "--".
     AmsState::instance().init_subjects(true);
 
     // Set up mock backend with known data
@@ -734,7 +734,7 @@ SpoolVisualState inspect_spool_state(lv_obj_t* spool_container) {
 
     lv_opa_t opa = lv_obj_get_style_opa(spool_visual, LV_PART_MAIN);
     lv_opa_t bg_opa = lv_obj_get_style_bg_opa(spool_visual, LV_PART_MAIN);
-    bool hidden = lv_obj_has_flag(spool_visual, LV_OBJ_FLAG_HIDDEN);
+    bool hidden = lv_obj_is_hidden(spool_visual);
 
     if (opa == LV_OPA_30 || bg_opa == LV_OPA_30) {
         st.any_ghosted = true;
@@ -1001,7 +1001,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a secondary backend's slot shows 
 
     // Primary slot 0 is PETG; secondary slot 0 is PLA. Both lanes Present so
     // the label reads the material rather than "Empty".
-    lv_subject_copy_string(ams.get_slot_material_subject(0), "PETG");
+    lv_subject_set_string(ams.get_slot_material_subject(0), "PETG");
     lv_subject_set_int(ams.get_slot_lane_state_subject(0),
                        static_cast<int>(helix::ui::LaneState::Present));
     SubjectLifetime lt;
@@ -1009,7 +1009,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a secondary backend's slot shows 
     lv_subject_t* sec_state = ams.get_slot_lane_state_subject(second, 0, lt);
     REQUIRE(sec_mat != nullptr);
     REQUIRE(sec_state != nullptr);
-    lv_subject_copy_string(sec_mat, "PLA");
+    lv_subject_set_string(sec_mat, "PLA");
     lv_subject_set_int(sec_state, static_cast<int>(helix::ui::LaneState::Present));
 
     ams.set_active_backend(second);
@@ -1020,7 +1020,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a secondary backend's slot shows 
     CHECK(std::string(UITest::get_text(material_label)) == "PLA");
 
     // A material change on the secondary lane repaints through the observer.
-    lv_subject_copy_string(sec_mat, "TPU");
+    lv_subject_set_string(sec_mat, "TPU");
     process_lvgl(50);
     CHECK(std::string(UITest::get_text(material_label)) == "TPU");
 
@@ -1062,7 +1062,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a secondary backend's slot shows 
 
     lv_obj_t* badge_bg = UITest::find_by_name(slot, "tool_badge");
     REQUIRE(badge_bg != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(badge_bg, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(badge_bg));
     lv_obj_t* badge_label = UITest::find_by_name(slot, "tool_badge_label");
     REQUIRE(badge_label != nullptr);
     CHECK(std::string(UITest::get_text(badge_label)) == "T3");
@@ -1098,7 +1098,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: tool badges show only for a remap
     lv_obj_t* lane_badge = UITest::find_by_name(slot, "slot_badge_label");
     REQUIRE(lane_badge != nullptr);
     REQUIRE(std::string(UITest::get_text(lane_badge)) == "1");
-    CHECK(lv_obj_has_flag(badge_bg, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(badge_bg));
 
     SlotInfo remapped = mock->get_slot_info(0);
     remapped.mapped_tool = 3;
@@ -1108,7 +1108,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: tool badges show only for a remap
     ui_ams_slot_refresh(slot);
     process_lvgl(50);
 
-    CHECK_FALSE(lv_obj_has_flag(badge_bg, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(badge_bg));
     lv_obj_t* badge_label = UITest::find_by_name(slot, "tool_badge_label");
     REQUIRE(badge_label != nullptr);
     CHECK(std::string(UITest::get_text(badge_label)) == "T3");
@@ -1140,7 +1140,7 @@ lv_obj_t* glow_of(lv_obj_t* slot) {
 }
 
 bool shown(lv_obj_t* o) {
-    return !lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(o);
 }
 
 void check_no_box(lv_obj_t* o) {

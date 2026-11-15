@@ -200,7 +200,7 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
 
     // Update name subject
     snprintf(edit_name_buf_, sizeof(edit_name_buf_), "%s", material_name.c_str());
-    lv_subject_copy_string(&edit_name_subject_, edit_name_buf_);
+    lv_subject_set_string(&edit_name_subject_, edit_name_buf_);
 
     // Update defaults hint. It mentions the chamber exactly when the chamber column
     // is shown, so it reads the capability that column binds.
@@ -219,7 +219,7 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
                  lv_tr("Default: %s nozzle, %s bed"), nozzle_range,
                  helix::units::format_display_temp(default_bed).c_str());
     }
-    lv_subject_copy_string(&edit_defaults_subject_, edit_defaults_buf_);
+    lv_subject_set_string(&edit_defaults_subject_, edit_defaults_buf_);
 
     // Populate input fields. The chamber input is always filled even when its
     // column is hidden: handle_save() reads it back, which keeps a stored

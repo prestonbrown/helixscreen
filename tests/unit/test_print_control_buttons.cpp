@@ -22,7 +22,7 @@ struct ControlButtonsFixture : LVGLTestFixture {
         // Tear the controller down FIRST: its observer is registered on the
         // print_state_enum subject. PrinterStateTestAccess::reset() deinits that
         // subject (freeing its observers in LVGL); resetting the controller
-        // observer afterwards would lv_observer_remove() a freed observer (UAF
+        // observer afterwards would lv_observer_delete() a freed observer (UAF
         // across sequential test cases — the singleton persists).
         ButtonsAccess::reset();
 
@@ -177,7 +177,7 @@ TEST_CASE_METHOD(ControlButtonsFixture, "klipper error with nothing pending is i
     REQUIRE(read_str("print_control_primary_label") == "Pause");
 }
 
-// Regression test for the nightly [slow] crash (segfault in lv_observer_remove
+// Regression test for the nightly [slow] crash (segfault in lv_observer_delete
 // during ~PrintControlButtons at process exit, plus mid-run
 // "malloc(): unaligned tcache chunk detected" aborts).
 //
@@ -186,7 +186,7 @@ TEST_CASE_METHOD(ControlButtonsFixture, "klipper error with nothing pending is i
 // per-test (PrinterStateTestAccess::reset) and at process exit. If the singleton
 // is left observing a subject that is then deinited, lv_subject_deinit frees the
 // observer node and the singleton's ObserverGuard is left with a dangling
-// lv_observer_t*; the next teardown that walks it calls lv_observer_remove() on
+// lv_observer_t*; the next teardown that walks it calls lv_observer_delete() on
 // freed memory.
 //
 // reset_all() (run at every test boundary, while subjects are still

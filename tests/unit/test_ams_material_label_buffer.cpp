@@ -6,7 +6,7 @@
  * @brief The "currently loaded" material label must not silently truncate.
  *
  * AmsState publishes that label through an lv_subject_t STRING backed by a
- * fixed char buffer, and lv_subject_copy_string() writes it with lv_strlcpy —
+ * fixed char buffer, and lv_subject_set_string() writes it with lv_strlcpy —
  * anything past the buffer is dropped with no warning, no error, and no failing
  * assertion anywhere. The only thing standing between a correct label and a
  * clipped one is the buffer's size.

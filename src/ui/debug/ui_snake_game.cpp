@@ -594,7 +594,7 @@ void init_game() {
 
     // Hide game over label
     if (g_gameover_label) {
-        lv_obj_add_flag(g_gameover_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(g_gameover_label, true);
     }
 
     play_sfx_start();
@@ -616,7 +616,7 @@ void place_food() {
             const std::string msg =
                 fmt::format(lv_tr("YOU WIN!\nScore: {}\nTap to play again"), g_game.score);
             lv_label_set_text(g_gameover_label, msg.c_str());
-            lv_obj_remove_flag(g_gameover_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(g_gameover_label, false);
         }
         update_score_label();
         return;
@@ -1079,7 +1079,7 @@ void draw_cb(lv_event_t* e) {
 
     // Show game over label after kDeathCardTime (fade in over ~200ms)
     if (g_game.game_over && g_render.death_start_ms > 0 && death_elapsed >= kDeathCardTime) {
-        if (g_gameover_label && lv_obj_has_flag(g_gameover_label, LV_OBJ_FLAG_HIDDEN)) {
+        if (g_gameover_label && lv_obj_is_hidden(g_gameover_label)) {
             bool new_high = g_game.score > 0 &&
                             g_game.score >= g_game.high_score; // already saved in show_game_over
             const std::string msg =
@@ -1088,7 +1088,7 @@ void draw_cb(lv_event_t* e) {
                     : fmt::format(lv_tr("Game Over!\nScore: {}\nTap to restart"), g_game.score);
             lv_label_set_text(g_gameover_label, msg.c_str());
             lv_obj_set_style_opa(g_gameover_label, LV_OPA_TRANSP, LV_PART_MAIN);
-            lv_obj_remove_flag(g_gameover_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(g_gameover_label, false);
         }
         if (g_gameover_label) {
             uint32_t fade_elapsed = death_elapsed - kDeathCardTime;
@@ -1259,7 +1259,7 @@ lv_obj_t* create_dpad_button(lv_obj_t* parent, const char* icon_utf8, lv_align_t
     lv_obj_set_style_bg_opa(btn, LV_OPA_40, LV_PART_MAIN | LV_STATE_PRESSED);
     lv_obj_set_style_radius(btn, 24, LV_PART_MAIN);
     lv_obj_set_style_border_width(btn, 0, LV_PART_MAIN);
-    lv_obj_add_flag(btn, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_floating(btn, true);
     lv_obj_add_event_cb(btn, dpad_cb, LV_EVENT_CLICKED, nullptr);
 
     lv_obj_t* label = lv_label_create(btn);
@@ -1312,8 +1312,8 @@ void create_overlay() {
     lv_obj_set_style_radius(g_overlay, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(g_overlay, 8, LV_PART_MAIN);
     lv_obj_set_style_pad_row(g_overlay, 4, LV_PART_MAIN);
-    lv_obj_add_flag(g_overlay, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(g_overlay, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_clickable(g_overlay, true);
+    lv_obj_set_scrollable(g_overlay, false);
     lv_obj_set_flex_flow(g_overlay, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(g_overlay, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
@@ -1328,7 +1328,7 @@ void create_overlay() {
     lv_obj_set_style_bg_opa(header, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(header, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(header, 0, LV_PART_MAIN);
-    lv_obj_remove_flag(header, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(header, false);
 
     // Score label
     g_score_label = lv_label_create(header);
@@ -1357,14 +1357,14 @@ void create_overlay() {
     lv_obj_set_style_pad_all(g_game_area, 0, LV_PART_MAIN);
     lv_obj_set_flex_grow(g_game_area, 1);
     lv_obj_set_width(g_game_area, LV_PCT(100));
-    lv_obj_remove_flag(g_game_area, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(g_game_area, false);
 
     // Calculate grid dimensions from available space
-    lv_coord_t screen_w = lv_display_get_horizontal_resolution(nullptr);
-    lv_coord_t screen_h = lv_display_get_vertical_resolution(nullptr);
+    int32_t screen_w = lv_display_get_horizontal_resolution(nullptr);
+    int32_t screen_h = lv_display_get_vertical_resolution(nullptr);
 
-    lv_coord_t avail_w = screen_w - 24;
-    lv_coord_t avail_h = screen_h - 64;
+    int32_t avail_w = screen_w - 24;
+    int32_t avail_h = screen_h - 64;
 
     g_grid.cols = avail_w / kCellSize;
     g_grid.rows = avail_h / kCellSize;
@@ -1377,8 +1377,8 @@ void create_overlay() {
     lv_obj_add_event_cb(g_game_area, draw_cb, LV_EVENT_DRAW_MAIN, nullptr);
 
     // Register touch input
-    lv_obj_add_flag(g_game_area, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(g_game_area, LV_OBJ_FLAG_SCROLL_CHAIN);
+    lv_obj_set_clickable(g_game_area, true);
+    lv_obj_set_scroll_chain(g_game_area, false);
     lv_obj_add_event_cb(g_game_area, touch_cb, LV_EVENT_PRESSED, nullptr);
     lv_obj_add_event_cb(g_game_area, touch_cb, LV_EVENT_PRESSING, nullptr);
     lv_obj_add_event_cb(g_game_area, touch_cb, LV_EVENT_RELEASED, nullptr);
@@ -1398,9 +1398,9 @@ void create_overlay() {
                                LV_PART_MAIN);
     lv_obj_set_style_text_align(g_gameover_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_obj_align(g_gameover_label, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_add_flag(g_gameover_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(g_gameover_label, LV_OBJ_FLAG_FLOATING);
-    lv_obj_remove_flag(g_gameover_label, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_hidden(g_gameover_label, true);
+    lv_obj_set_floating(g_gameover_label, true);
+    lv_obj_set_clickable(g_gameover_label, false);
 
     // Create D-pad if in DPAD mode
     if (g_input.mode == InputMode::DPAD) {

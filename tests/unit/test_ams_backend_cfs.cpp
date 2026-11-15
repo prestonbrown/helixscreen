@@ -44,6 +44,7 @@
 #include "test_helpers/gcode_recording_api.h"
 #include "test_helpers/print_state_test_drivers.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/scoped_language.h"
 #include "test_helpers/seeded_override.h"
 #include "ui/ams_drawing_utils.h"
 
@@ -220,7 +221,7 @@ class CfsCalibHelper : public CfsLifecycleHelper {
     template <typename... Args>
     explicit CfsCalibHelper(Args&&... args) : CfsLifecycleHelper(std::forward<Args>(args)...) {
         CfsTestAccess::set_macro_variant_k1(*this);
-        lv_subject_copy_string(state.motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(state.motion_state().get_homed_axes_subject(), "xyz");
     }
 
     // Keep the 1-arg capture visible beside these overrides.
@@ -814,10 +815,11 @@ TEST_CASE("CFS chute start failure reports the firmware message and never parks 
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=XYZ_ZERO"};
     bool ready = false;
     std::string failed_msg;
-    REQUIRE(backend
-                .start_chute_calibration([&] { ready = true; },
-                                         [&](const std::string& msg) { failed_msg = msg; })
-                .success());
+    REQUIRE(
+        backend
+            .start_chute_calibration([&] { ready = true; },
+                                     [&](const MoonrakerError& err) { failed_msg = err.message; })
+            .success());
     drain_calib_queue();
     // PREPARE never ran, so there is nothing to unwind: no further command.
     CHECK(backend.captured == std::vector<std::string>{"BOX_CUSTOM_COMMAND CMD=XYZ_ZERO"});
@@ -831,9 +833,13 @@ TEST_CASE("CFS chute save failure re-parks and reports the firmware message (#12
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_SAVE_POS"};
     bool saved = false;
     std::string failed_msg;
+    bool position_saved = true;
     REQUIRE(backend
                 .save_chute_position([&] { saved = true; },
-                                     [&](const std::string& msg) { failed_msg = msg; })
+                                     [&](const MoonrakerError& err, bool was_saved) {
+                                         failed_msg = err.message;
+                                         position_saved = was_saved;
+                                     })
                 .success());
     drain_calib_queue();
     // The save only ever runs after PREPARE, so a failure always re-parks.
@@ -842,6 +848,34 @@ TEST_CASE("CFS chute save failure re-parks and reports the firmware message (#12
                                     "BOX_CUSTOM_COMMAND CMD=Y_SAFE"}));
     CHECK_FALSE(saved);
     CHECK_FALSE(failed_msg.empty());
+    CHECK_FALSE(position_saved);
+}
+
+TEST_CASE("CFS chute park failure after a good save reports the position as saved (#2007)",
+          "[ams][cfs][calib][2007]") {
+    CfsCalibHelper backend;
+    backend.fail = {"BOX_CUSTOM_COMMAND CMD=Y_SAFE"};
+    bool saved = false;
+    bool failed = false;
+    bool position_saved = false;
+    MoonrakerErrorType type = MoonrakerErrorType::NONE;
+    REQUIRE(backend
+                .save_chute_position([&] { saved = true; },
+                                     [&](const MoonrakerError& err, bool was_saved) {
+                                         failed = true;
+                                         position_saved = was_saved;
+                                         type = err.type;
+                                     })
+                .success());
+    drain_calib_queue();
+    REQUIRE(failed);
+    CHECK(position_saved);
+    CHECK(type == MoonrakerErrorType::JSON_RPC_ERROR);
+    CHECK_FALSE(saved);
+    // The park itself failed, so no second park goes out after it.
+    CHECK(backend.captured ==
+          std::vector<std::string>({"BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_SAVE_POS",
+                                    "BOX_CUSTOM_COMMAND CMD=Y_SAFE"}));
 }
 
 // A K1 CFS against a real MoonrakerAPI over the mock client, with
@@ -858,10 +892,13 @@ class CfsLiveAckBackend : public AmsBackendCfs {
         : AmsBackendCfs(nullptr, client) {
         api_ = &printer.api;
         CfsTestAccess::set_macro_variant_k1(*this);
-        lv_subject_copy_string(printer.state.motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(printer.state.motion_state().get_homed_axes_subject(), "xyz");
     }
     ~CfsLiveAckBackend() override {
         drain_calib_queue();
+    }
+    void set_client_for_test(helix::IMoonrakerClient* client) {
+        client_ = client;
     }
 };
 
@@ -886,6 +923,26 @@ TEST_CASE("CFS calibration steps complete in the queue pass after each answer",
         REQUIRE(backend.save_chute_position([&] { saved = true; }).success());
         CHECK(UpdateQueueTestAccess::passes_until([&] { return saved; }) == 2);
     }
+}
+
+TEST_CASE("CFS chute park failure keeps the pair the save wrote (#2007)",
+          "[ams][cfs][calib][2007]") {
+    CfsLiveAckBackend backend;
+    backend.set_client_for_test(&backend.printer.client);
+    backend.printer.client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR,
+                                                  "Must home axis first", "CMD=Y_SAFE");
+    bool position_saved = false;
+    REQUIRE(backend
+                .save_chute_position(nullptr, [&](const MoonrakerError&,
+                                                  bool was_saved) { position_saved = was_saved; })
+                .success());
+    backend.printer.client.dispatch_gcode_response("cmd_save_extrude_pos x=152.50 y=219.50");
+    drain_calib_queue();
+    REQUIRE(position_saved);
+    double x = 0.0, y = 0.0;
+    REQUIRE(backend.last_chute_saved_position(x, y));
+    CHECK(x == Catch::Approx(152.5));
+    CHECK(y == Catch::Approx(219.5));
 }
 
 TEST_CASE("CFS Endless Spool switch records the box's answer in the queue pass after it",
@@ -961,7 +1018,7 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
         backend.hold = {kHome};
         REQUIRE(backend
                     .start_chute_calibration([&] { ready = true; },
-                                             [&](const std::string& m) { failure = m; })
+                                             [&](const MoonrakerError& e) { failure = e.message; })
                     .success());
         print_starts();
         backend.release_held();
@@ -974,7 +1031,7 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
         backend.hold = {kPrepare};
         REQUIRE(backend
                     .start_chute_calibration([&] { ready = true; },
-                                             [&](const std::string& m) { failure = m; })
+                                             [&](const MoonrakerError& e) { failure = e.message; })
                     .success());
         print_starts();
         backend.release_held();
@@ -985,7 +1042,9 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
     }
     SECTION("the re-park after a save that fails once the print has arrived") {
         backend.fail_later = {kSave};
-        REQUIRE(backend.save_chute_position(nullptr, [&](const std::string& m) { failure = m; })
+        REQUIRE(backend
+                    .save_chute_position(
+                        nullptr, [&](const MoonrakerError& e, bool) { failure = e.message; })
                     .success());
         print_starts();
         backend.fail_held();
@@ -1008,11 +1067,11 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
 TEST_CASE("CFS chute save refuses a toolhead that lost its homing", "[ams][cfs][calib]") {
     CfsCalibHelper backend;
     for (const char* axes : {"", "z", "xz", "yz"}) {
-        lv_subject_copy_string(backend.state.motion_state().get_homed_axes_subject(), axes);
+        lv_subject_set_string(backend.state.motion_state().get_homed_axes_subject(), axes);
         CHECK_FALSE(backend.save_chute_position().success());
         CHECK(backend.captured.empty());
     }
-    lv_subject_copy_string(backend.state.motion_state().get_homed_axes_subject(), "xy");
+    lv_subject_set_string(backend.state.motion_state().get_homed_axes_subject(), "xy");
     CHECK(backend.save_chute_position().success());
     CHECK_FALSE(backend.captured.empty());
 }
@@ -1022,10 +1081,10 @@ TEST_CASE("CFS chute save reports a park that fails after the save", "[ams][cfs]
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=Y_SAFE"};
     bool saved = false;
     std::string failure;
-    REQUIRE(
-        backend
-            .save_chute_position([&] { saved = true; }, [&](const std::string& m) { failure = m; })
-            .success());
+    REQUIRE(backend
+                .save_chute_position([&] { saved = true; },
+                                     [&](const MoonrakerError& e, bool) { failure = e.message; })
+                .success());
     drain_calib_queue();
     CHECK_FALSE(saved);
     CHECK(failure.find("Y_SAFE") != std::string::npos);
@@ -1038,10 +1097,10 @@ TEST_CASE("CFS chute failure after the caller left is not reported to it", "[ams
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=XYZ_ZERO"};
     auto cancel = std::make_shared<std::atomic<bool>>(true);
     bool failed = false;
-    REQUIRE(
-        backend.start_chute_calibration(
-                   nullptr, [&](const std::string&) { failed = true; }, cancel)
-            .success());
+    REQUIRE(backend
+                .start_chute_calibration(
+                    nullptr, [&](const MoonrakerError&) { failed = true; }, cancel)
+                .success());
     drain_calib_queue();
     CHECK_FALSE(failed);
 }
@@ -4862,14 +4921,20 @@ nlohmann::json toolhead_sensor_frame(bool detected) {
 } // namespace
 
 TEST_CASE("CFS phase verify: clearing the toolhead by hand retires an unload fault",
-          "[ams][cfs][968]") {
+          "[ams][cfs][968][i18n]") {
     helix::test::StartedBackend<CfsRemapHelper> backend;
 
+    // Raised in one language, retired in another: the fault text is a catalog
+    // key, so the shown text follows the switch and the retire still matches it.
+    std::optional<ScopedLanguage> lang(std::in_place, "de");
     CfsTestAccess::force_phase_intent(backend, AmsAction::UNLOADING);
     CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/true);
     CfsTestAccess::complete_action(backend);
     REQUIRE(backend.get_system_info().action == AmsAction::ERROR);
     REQUIRE(backend.current_error().has_value());
+    lang.emplace("fr");
+    CHECK(std::string(lv_tr(backend.get_system_info().operation_detail.c_str()))
+              .rfind("Le filament est encore", 0) == 0);
 
     // Still blocked: the condition the fault names has not changed.
     backend.fire_status(toolhead_sensor_frame(true));
@@ -7892,8 +7957,11 @@ TEST_CASE("CFS: a weights-only edit is cleared when its bay reads EMPTY",
     CHECK_FALSE(after.pending.has_value());
 }
 
-TEST_CASE("CFS reads the chute wiper from the configfile each Klipper start",
-          "[ams][cfs][chute][2007]") {
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "CFS reads the chute wiper and purge position from the configfile each Klipper "
+                 "start",
+                 "[ams][cfs][chute][2007][purge_chute]") {
+    get_printer_state().init_subjects(false); // the purge reads its homed axes
     helix::test::StartedBackend<UnansweredClientCfs> cfs;
     auto& client = cfs.wire().fake_client();
     auto answer_configfile = [&client](const json& settings) {
@@ -7907,9 +7975,19 @@ TEST_CASE("CFS reads the chute wiper from the configfile each Klipper start",
         helix::ui::UpdateQueue::instance().drain_until_empty();
     };
     CHECK_FALSE(cfs.chute_wiper());
+    // BOX_GO_TO_EXTRUDE_POS is an absolute XY move, so the chute purge needs X and Y homed.
+    const IPrintRouting& routing = cfs;
+    get_printer_state().update_from_status(json{{"toolhead", {{"homed_axes", "xy"}}}});
+    CHECK(routing.manual_purge_gcode(50, 600).empty());
 
-    answer_configfile(json::parse(R"({"box": {"clean_left_pos_x": 153.5,
+    answer_configfile(json::parse(R"({"box": {"clean_left_pos_x": 153.5, "has_extrude_pos": 1,
         "clean_left_pos_y": 225.3, "clean_right_pos_x": 178.0, "clean_right_pos_y": 225.3}})"));
+    CHECK(routing.manual_purge_gcode(50, 600) == AmsBackendCfs::chute_purge_gcode(50, 600));
+    CHECK(AmsBackendCfs::chute_purge_gcode(50, 600).find(
+              "BOX_GO_TO_EXTRUDE_POS\nM83\nG1 E50 F600") != std::string::npos);
+    get_printer_state().update_from_status(json{{"toolhead", {{"homed_axes", "xz"}}}});
+    CHECK(routing.manual_purge_gcode(50, 600).empty());
+    get_printer_state().update_from_status(json{{"toolhead", {{"homed_axes", "xy"}}}});
     const auto wiper = cfs.chute_wiper();
     REQUIRE(wiper);
     CHECK(wiper->x_min == Catch::Approx(153.5));
@@ -7919,4 +7997,6 @@ TEST_CASE("CFS reads the chute wiper from the configfile each Klipper start",
     cfs.on_klipper_restarted();
     answer_configfile(no_unit_settings());
     CHECK_FALSE(cfs.chute_wiper());
+    CHECK(routing.manual_purge_gcode(50, 600).empty());
+    get_printer_state().update_from_status(json{{"toolhead", {{"homed_axes", ""}}}});
 }

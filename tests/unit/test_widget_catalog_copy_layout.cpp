@@ -168,11 +168,11 @@ class CopyLayoutFixture : public LVGLUITestFixture {
 TEST_CASE_METHOD(CopyLayoutFixture, "copy layout action hidden when Local or Unknown",
                  "[widget_catalog][copy_layout]") {
     // Unknown until the connection's verdict lands.
-    CHECK(lv_obj_has_flag(row_, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row_));
     set_locality(false);
-    CHECK(lv_obj_has_flag(row_, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row_));
     set_locality(true);
-    CHECK_FALSE(lv_obj_has_flag(row_, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row_));
 }
 
 TEST_CASE_METHOD(CopyLayoutFixture, "copy layout confirm imports and notifies",

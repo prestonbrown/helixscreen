@@ -682,8 +682,9 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
     // machine underneath keeps it. The changer fingerprint names the Creator 5
     // (the AD5X Z-Mod publishes zmod_color but has no carriage grab buttons),
     // and the toolchanger backend keeps its four heads. On the AD5X the IFS
-    // backend keeps its four ports: zmod_color and the IFS sensors are there
-    // whatever the AFC setting says, so flipping it changes nothing on screen.
+    // backend keeps its ports, an IFS Jacker's past the fourth included:
+    // zmod_color and the IFS sensors are there whatever the AFC setting says, so
+    // flipping it changes nothing on screen.
     // Scoped to Z-Mod's own objects for the same reason the PAXX rule is scoped
     // to filament_detect: a bare zmod_afclite on some other machine is
     // displacing nothing better.
@@ -696,7 +697,7 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
         } else if (has_zmod_afc()) {
             mmu_type_ = AmsType::AD5X_IFS;
             spdlog::info("[PrinterDiscovery] Z-Mod's built-in AFC on an AD5X: the IFS backend "
-                         "keeps the printer and its four ports.");
+                         "keeps the printer and its ports.");
         }
     }
 

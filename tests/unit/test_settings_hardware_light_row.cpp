@@ -72,13 +72,13 @@ TEST_CASE_METHOD(LightRowFixture,
 
     lv_subject_set_int(object, 0);
     process_lvgl(5);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     // The override hides the lights; the toggle stays, switched off.
     lv_subject_set_int(object, 1);
     lv_subject_set_int(has_led, 0);
     process_lvgl(5);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
     lv_obj_t* toggle = lv_obj_find_by_name(row, "toggle");
     REQUIRE(toggle != nullptr);
     CHECK_FALSE(lv_obj_has_state(toggle, LV_STATE_CHECKED));
@@ -112,7 +112,7 @@ TEST_CASE_METHOD(LightRowFixture,
     REQUIRE(row != nullptr);
     lv_obj_t* toggle = lv_obj_find_by_name(row, "toggle");
     REQUIRE(toggle != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     lv_obj_add_state(toggle, LV_STATE_CHECKED);
     lv_obj_send_event(toggle, LV_EVENT_VALUE_CHANGED, nullptr);

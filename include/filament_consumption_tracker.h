@@ -96,7 +96,7 @@ class FilamentConsumptionTracker {
     /// Shared lifetime for every per-extruder filament_used subject observer.
     /// Per [L077]: must be reset BEFORE `extruder_obs_` in stop() so the
     /// weak_ptr held inside each ObserverGuard expires before the guard runs
-    /// lv_observer_remove() — otherwise the guard can try to remove an observer
+    /// lv_observer_delete() — otherwise the guard can try to remove an observer
     /// from a freed subject when PrinterState tears down.
     SubjectLifetime extruder_lifetime_;
 

@@ -104,7 +104,7 @@ int subject_int(const char* name) {
 
 bool hidden(lv_obj_t* obj) {
     REQUIRE(obj != nullptr);
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 std::string label_text(lv_obj_t* obj) {

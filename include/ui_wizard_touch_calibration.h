@@ -106,7 +106,7 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     /**
      * @brief Cleanup resources
      *
-     * Resets UI references. Does NOT call lv_obj_del() - wizard
+     * Resets UI references. Does NOT call lv_obj_delete() - wizard
      * framework handles widget deletion.
      */
     void cleanup() override;
@@ -175,7 +175,7 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     void handle_test_area_touched(lv_event_t* e);
 
     // Ripple animation for touch feedback
-    void create_ripple_at(lv_coord_t x, lv_coord_t y);
+    void create_ripple_at(int32_t x, int32_t y);
 
     // Panel callback
     void on_calibration_complete(const helix::TouchCalibration* cal);

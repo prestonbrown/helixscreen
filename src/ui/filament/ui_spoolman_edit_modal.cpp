@@ -142,12 +142,12 @@ void SpoolEditModal::populate_fields() {
     }
 
     const std::string title_text = fmt::format(lv_tr("Edit Spool #{}"), working_spool_.id);
-    lv_subject_copy_string(&title_subject_, title_text.c_str());
+    lv_subject_set_string(&title_subject_, title_text.c_str());
 
     // Read-only info lines
-    lv_subject_copy_string(&material_subject_, working_spool_.material.empty()
-                                                   ? lv_tr("Unknown")
-                                                   : working_spool_.material.c_str());
+    lv_subject_set_string(&material_subject_, working_spool_.material.empty()
+                                                  ? lv_tr("Unknown")
+                                                  : working_spool_.material.c_str());
 
     // Spoolman stores no colour name, only color_hex, so the human label is
     // derived the same way the AMS card derives it; filament_name is the
@@ -160,11 +160,11 @@ void SpoolEditModal::populate_fields() {
     if (color.empty()) {
         color = working_spool_.color_hex.empty() ? lv_tr("No color") : working_spool_.color_hex;
     }
-    lv_subject_copy_string(&color_subject_, color.c_str());
+    lv_subject_set_string(&color_subject_, color.c_str());
 
-    lv_subject_copy_string(&vendor_subject_, working_spool_.vendor.empty()
-                                                 ? lv_tr("Unknown")
-                                                 : working_spool_.vendor.c_str());
+    lv_subject_set_string(&vendor_subject_, working_spool_.vendor.empty()
+                                                ? lv_tr("Unknown")
+                                                : working_spool_.vendor.c_str());
 
     // Editable fields
     lv_obj_t* remaining_field = find_widget("field_remaining");
@@ -373,7 +373,7 @@ bool SpoolEditModal::validate_fields() {
 }
 
 void SpoolEditModal::update_save_button_text() {
-    lv_subject_copy_string(&save_button_text_subject_, is_dirty() ? lv_tr("Save") : lv_tr("Close"));
+    lv_subject_set_string(&save_button_text_subject_, is_dirty() ? lv_tr("Save") : lv_tr("Close"));
 }
 
 // ============================================================================
@@ -508,7 +508,7 @@ void SpoolEditModal::handle_color_clicked() {
 
         // Update color label and spool preview
         const std::string display = color_name.empty() ? working_spool_.color_hex : color_name;
-        lv_subject_copy_string(&color_subject_, display.c_str());
+        lv_subject_set_string(&color_subject_, display.c_str());
         update_spool_preview();
         update_save_button_text();
     });

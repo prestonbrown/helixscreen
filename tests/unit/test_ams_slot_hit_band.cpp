@@ -79,7 +79,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         for (const char* name : {"empty_placeholder", "error_indicator"}) {
             lv_obj_t* child = UITest::find_by_name(slots[i], name);
             REQUIRE(child != nullptr);
-            lv_obj_remove_flag(child, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(child, false);
         }
     }
     lv_obj_update_layout(row);
@@ -157,7 +157,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_t* label = UITest::find_by_name(slot, "material_label");
     REQUIRE(label != nullptr);
-    REQUIRE(lv_obj_has_flag(label, LV_OBJ_FLAG_IGNORE_LAYOUT)); // staggered: out of the flow
+    REQUIRE(lv_obj_is_ignore_layout(label)); // staggered: out of the flow
 
     lv_obj_t* badge = UITest::find_by_name(slot, "status_badge");
     REQUIRE(badge != nullptr);

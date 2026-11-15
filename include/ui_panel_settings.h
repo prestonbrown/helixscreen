@@ -8,6 +8,7 @@
 
 #include "async_lifetime_guard.h"
 #include "subject_managed_panel.h" // For SubjectManager
+#include "wifi_ui_utils.h"
 
 #include <memory>
 #include <string>
@@ -167,7 +168,7 @@ class SettingsPanel : public PanelBase {
     // "Not connected" until the async probes land again.
     void render_connection_status();
     bool last_ethernet_up_ = false;
-    bool last_wifi_connected_ = false;
+    helix::ui::wifi::LinkPhase last_wifi_phase_ = helix::ui::wifi::LinkPhase::Disconnected;
     std::string last_wifi_ssid_;
     // Bumped per refresh; a probe carrying an older value is dropped, so a
     // superseded refresh cannot overwrite a newer one's result.

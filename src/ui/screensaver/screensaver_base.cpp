@@ -139,7 +139,7 @@ void SaverBase::start_print_card() {
     // rounds the card's corners.
     lv_obj_set_style_radius(obj, card_.layout.pad, 0);
     lv_obj_set_style_clip_corner(obj, true, 0);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: shown by the print's state
+    lv_obj_set_hidden(obj, true); // DECLARATIVE_OK: shown by the print's state
     card_.painter.init(card_.layout);
     card_.drift.set_range(card_.home, screen_w_, screen_h_);
     card_.shown = false;
@@ -149,7 +149,7 @@ void SaverBase::start_print_card() {
 
 void SaverBase::keep_print_card_on_top() {
     if (lv_obj_t* obj = card_.canvas.obj()) {
-        lv_obj_move_foreground(obj);
+        lv_obj_move_to_index(obj, -1);
     }
 }
 
@@ -163,7 +163,7 @@ void SaverBase::step_print_card(uint32_t dt_ms, const ClockInput& in) {
     lv_obj_t* obj = card_.canvas.obj();
     if (!visible) {
         if (card_.shown) {
-            lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: per-frame print state
+            lv_obj_set_hidden(obj, true); // DECLARATIVE_OK: per-frame print state
             card_.shown = false;
         }
         return;
@@ -181,8 +181,8 @@ void SaverBase::step_print_card(uint32_t dt_ms, const ClockInput& in) {
     }
     if (!card_.shown) {
         // Above whatever the scene added to the overlay since it started.
-        lv_obj_move_foreground(obj);
-        lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: per-frame print state
+        lv_obj_move_to_index(obj, -1);
+        lv_obj_set_hidden(obj, false); // DECLARATIVE_OK: per-frame print state
         card_.shown = true;
     }
 }

@@ -408,7 +408,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     auto* multi = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "swatch_paint", multi_attrs));
     REQUIRE(multi != nullptr);
     helix::ui::apply_swatch_color(multi, 0xAA5500, "");
-    lv_subject_copy_string(&colors_subject, "");
+    lv_subject_set_string(&colors_subject, "");
     auto colors = helix::ui::swatch_paint_colors(multi);
     REQUIRE(colors.size() == 1);
     CHECK(lv_color_eq(colors[0], lv_color_hex(0xAA5500)));

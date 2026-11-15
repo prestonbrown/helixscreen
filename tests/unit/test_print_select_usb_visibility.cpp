@@ -33,7 +33,7 @@ lv_obj_t* source_selector(lv_obj_t* panel_root) {
 }
 
 bool is_hidden(lv_obj_t* w) {
-    return lv_obj_has_flag(w, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(w);
 }
 
 } // namespace

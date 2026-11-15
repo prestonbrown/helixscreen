@@ -2705,6 +2705,9 @@ class AmsState {
     /// Wire (or rewire) connection_state_observer_. Idempotent.
     void install_connection_state_observer();
 
+    /// Re-formats the unit temperature readouts on a °C/°F switch.
+    ObserverGuard temp_unit_observer_;
+
     /// Re-syncs the clog meter on FilamentSensorManager's motion signature.
     ObserverGuard motion_sensor_observer_;
 
@@ -2788,7 +2791,9 @@ class AmsState {
     // a UTF-8 boundary before the copy rather than relying on this size alone.
     char action_detail_buf_[512];
     lv_subject_t ams_system_name_{};
-    char system_name_buf_[32];
+    // Holds a translated generic name (ru "Tool Changer" is 39 bytes); the sync
+    // cuts a longer one on a UTF-8 boundary.
+    char system_name_buf_[64];
     lv_subject_t ams_system_logo_{};
     char system_logo_buf_[64];
     lv_subject_t ams_system_has_logo_{};
@@ -2893,7 +2898,7 @@ class AmsState {
     // Currently Loaded display subjects (reactive binding for "Currently Loaded" card)
     lv_subject_t current_material_text_{};
     // Holds a full filament identity — brand, Spoolman filament name and
-    // material concatenated. lv_subject_copy_string() truncates with
+    // material concatenated. lv_subject_set_string() truncates with
     // lv_strlcpy and reports nothing, so an undersized buffer clips the label
     // silently; real Spoolman names run past 50 characters on their own.
     char current_material_text_buf_[128];

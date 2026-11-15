@@ -45,6 +45,7 @@ Create a JSON file in this directory (e.g., `my-printer.json`):
 | Field | Purpose |
 |-------|---------|
 | `enabled` | `false` to hide a bundled printer from detection/selection |
+| `id_aliases` | Bundled entries only: other ids the same printer is published under, such as a firmware's own `printer_database.d` file. An extension entry under one of these ids is skipped and the bundled entry stays; to change a bundled printer, override it under its own `id` |
 | `console_filters` | List of named filter-set names whose patterns suppress firmware noise in the G-code console. See **Console Filter Sets** below. |
 | `console_filter_patterns` | Inline suppression patterns for noise specific to this one model, when a shared set would be overkill. Same pattern syntax as a set. |
 

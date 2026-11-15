@@ -189,13 +189,13 @@ TEST_CASE("context menu withholds Archive from the active spool only, and titles
 
         lv_obj_t* archive = lv_obj_find_by_name(lv_screen_active(), "btn_archive");
         REQUIRE(archive != nullptr); // the menu actually built
-        CHECK(lv_obj_has_flag(archive, LV_OBJ_FLAG_HIDDEN) == !c.archive_shown);
+        CHECK(lv_obj_is_hidden(archive) == !c.archive_shown);
         lv_obj_t* header = lv_obj_find_by_name(lv_screen_active(), "spool_header");
         REQUIRE(header != nullptr);
         CHECK(std::string(lv_label_get_text(header)) == "Polymaker PLA");
         lv_obj_t* subtitle = lv_obj_find_by_name(lv_screen_active(), "spool_color_label");
         REQUIRE(subtitle != nullptr);
-        CHECK(lv_obj_has_flag(subtitle, LV_OBJ_FLAG_HIDDEN) == (c.subtitle == nullptr));
+        CHECK(lv_obj_is_hidden(subtitle) == (c.subtitle == nullptr));
         if (c.subtitle) {
             CHECK(std::string(lv_label_get_text(subtitle)) == c.subtitle);
         }
@@ -218,7 +218,7 @@ TEST_CASE("the location filter shows only while a spool names a location", "[spo
         f.client.spoolman_mock().get_mock_spools()[0].location = location;
         panel.refresh_spools();
         helix::ui::UpdateQueue::instance().drain();
-        CHECK(lv_obj_has_flag(filter, LV_OBJ_FLAG_HIDDEN) == (location[0] == '\0'));
+        CHECK(lv_obj_is_hidden(filter) == (location[0] == '\0'));
     }
 }
 

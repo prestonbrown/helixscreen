@@ -127,7 +127,7 @@ void QuickActionButtons::update_button(StandardMacros& macros,
     if (!info.is_empty()) {
         lv_subject_set_int(&visible, 1);
         lv_subject_set_int(&available, 1);
-        lv_subject_copy_string(&name_[index], info.translated_name());
+        lv_subject_set_string(&name_[index], info.translated_name());
         spdlog::trace("[QuickActionButtons] Macro {}: '{}' → {}", button_num, info.display_name,
                       info.get_macro());
         return;
@@ -141,7 +141,7 @@ void QuickActionButtons::update_button(StandardMacros& macros,
         // while a disabled one points at the assignment that needs fixing.
         lv_subject_set_int(&visible, 1);
         lv_subject_set_int(&available, 0);
-        lv_subject_copy_string(&name_[index], info.translated_name());
+        lv_subject_set_string(&name_[index], info.translated_name());
         spdlog::debug("[QuickActionButtons] Macro {} slot '{}' disabled: '{}' is not defined on "
                       "this printer",
                       button_num, info.slot_name, info.missing_macro);

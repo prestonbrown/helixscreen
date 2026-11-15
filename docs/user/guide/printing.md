@@ -107,6 +107,7 @@ Before starting, you can enable or disable the steps below. Each option is a til
 | Z tilt | Run Z-tilt calibration |
 | Cleaning nozzle | Execute your cleaning macro |
 | Purge | Draw the purge line that primes the nozzle |
+| Flow calibration | Snapmaker U1 only: measure each toolhead's pressure advance before the print (see [Snapmaker U1: flow calibration](#snapmaker-u1-flow-calibration)) |
 
 The gantry, tilt, nozzle cleaning and purge toggles use the same names as the steps in the checklist the print screen shows while the printer gets ready.
 
@@ -121,6 +122,34 @@ HelixScreen prints a changed copy of the file and leaves your original untouched
 **Creality K2, K2 Plus and K2 Pro (stock firmware): Auto Bed Mesh.** Creality's start sequence has no setting HelixScreen can switch, so with **Auto Bed Mesh** on, HelixScreen sends the printer's own mesh-before-print command (`BED_MESH_CALIBRATE_START_PRINT`) just before the print starts. Auto Bed Mesh is on by default on these printers. With it off, HelixScreen sends nothing and the printer does whatever its own start sequence does. If the file's own start G-code already calls `BED_MESH_CALIBRATE_START_PRINT` itself, HelixScreen does not send it, so the bed is meshed once, not twice. Only that exact command counts: other bed mesh lines (such as `BED_MESH_PROFILE LOAD` or `BED_MESH_CLEAR`) and `START_PRINT` settings that ask for a mesh do not, and HelixScreen still sends its mesh command then. HelixScreen checks only the start of the file (the first 500 lines or 50 KB, thumbnails included, and nothing past the first extruding move); a call further in is not seen, and the mesh is sent.
 
 This applies to every print started from the screen, including a queued job started from the screen. A print started from your slicer, Mainsail, Fluidd, or by Moonraker's queue on its own never gets HelixScreen's pre-print options.
+
+### Snapmaker U1: flow calibration
+
+The U1 can measure each toolhead's pressure advance at the start of a print, using a sensor in the toolhead. Snapmaker calls this **flow calibration** (in OrcaSlicer and the Snapmaker app it is "dynamic flow calibration"). In HelixScreen it is the **Flow calibration** tile in the pre-print options: turn it on before you tap **Print**. The printer forgets the choice when each print ends, so the tile shows what you set for this print.
+
+**Turn off "Enable pressure advance" in your OrcaSlicer filament profile.** With it on, Orca sends its own fixed pressure advance value right after the calibration, so the measured value is thrown away even though the calibration ran.
+
+**Prints started from the slicer or the web interface.** The tile only applies to prints started from the screen. For any other print you can switch calibration on yourself:
+
+- **For the next print:** in the Mainsail or Fluidd console, send
+
+  ```
+  SET_PRINT_PREFERENCES FLOW_CALIBRATE=1
+  ```
+
+  before starting the print. The setting is cleared when the print ends, so send it again before the next one.
+
+- **For every print:** add this line to your printer profile's machine start G-code in OrcaSlicer, before the `SM_PRINT_FLOW_CALIBRATE` lines:
+
+  ```
+  SET_PRINT_PREFERENCES FLOW_CALIBRATE=1 FORCE=1
+  ```
+
+  `FORCE=1` is needed because the printer refuses this setting once a print is running without it.
+
+- **One toolhead, outside a print:** `FLOW_CALIBRATE TEMP=220` calibrates the mounted toolhead at 220 °C (use your filament's printing temperature) and saves the result.
+
+The manual commands above come from the U1 firmware and have not been tested end to end with HelixScreen yet. If calibration runs, the print's start shows a flow calibration phase for each toolhead before the bed mesh.
 
 ---
 

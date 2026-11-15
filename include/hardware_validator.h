@@ -96,8 +96,9 @@ struct HardwareIssue {
     /**
      * @brief Create an issue for missing critical hardware
      */
-    static HardwareIssue critical(const std::string& name, HardwareType type,
-                                  const std::string& msg) {
+    // The parentheses stop the ESP32 spdlog shim's critical() macro expanding this declarator.
+    static HardwareIssue(critical)(const std::string& name, HardwareType type,
+                                   const std::string& msg) {
         return {name, type, HardwareIssueSeverity::CRITICAL, msg, false};
     }
 
@@ -112,7 +113,8 @@ struct HardwareIssue {
     /**
      * @brief Create an issue for newly discovered hardware
      */
-    static HardwareIssue info(const std::string& name, HardwareType type, const std::string& msg) {
+    // The parentheses stop the ESP32 spdlog shim's info() macro expanding this declarator.
+    static HardwareIssue(info)(const std::string& name, HardwareType type, const std::string& msg) {
         return {name, type, HardwareIssueSeverity::INFO, msg, false};
     }
 };

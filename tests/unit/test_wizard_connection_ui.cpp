@@ -289,7 +289,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* root = step->create(test_screen());
     REQUIRE(root != nullptr);
 
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "10.9.9.9");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_ip"), "10.9.9.9");
     lv_obj_t* btn = lv_obj_find_by_name(root, "btn_test_connection");
     REQUIRE(btn != nullptr);
     lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
@@ -312,7 +312,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(icons != nullptr);
     std::vector<lv_obj_t*> shown;
     for (uint32_t i = 0; i < lv_obj_get_child_count(icons); ++i) {
-        if (!lv_obj_has_flag(lv_obj_get_child(icons, i), LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(lv_obj_get_child(icons, i))) {
             shown.push_back(lv_obj_get_child(icons, i));
         }
     }
@@ -348,7 +348,7 @@ struct RestoreDefaultPortField {
     WizardConnectionStep* step;
     ~RestoreDefaultPortField() {
         step->cleanup();
-        lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_port"), "7125");
+        lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_port"), "7125");
     }
 };
 
@@ -358,7 +358,7 @@ lv_obj_t* create_step_and_test(WizardConnectionStep* step, lv_obj_t* parent) {
     step->set_mdns_discovery(std::make_unique<MockMdnsDiscovery>());
     lv_obj_t* root = step->create(parent);
     REQUIRE(root != nullptr);
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "10.9.9.9");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_ip"), "10.9.9.9");
     return root;
 }
 
@@ -436,7 +436,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(root != nullptr);
     lv_obj_t* section = lv_obj_find_by_name(root, "discovery_section");
     REQUIRE(section != nullptr);
-    CHECK(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(section));
     step->cleanup();
 }
 
@@ -459,7 +459,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(root != nullptr);
     lv_obj_t* section = lv_obj_find_by_name(root, "discovery_section");
     REQUIRE(section != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(section));
     REQUIRE(mdns->is_discovering());
 
     // A connection test retires its own callbacks, not discovery's.
@@ -485,7 +485,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* port_input = lv_obj_find_by_name(root, "port_input");
     REQUIRE(port_input != nullptr);
     CHECK(std::string(lv_textarea_get_text(port_input)) == "80");
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -534,7 +534,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     click_test(root);
 
     CHECK(net.asked == std::vector<std::string>{"192.168.1.112:7125"});
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -556,8 +556,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_subject_t* login = lv_xml_get_subject(nullptr, "connection_login_required");
     REQUIRE(key != nullptr);
     REQUIRE(login != nullptr);
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "192.168.1.20");
-    lv_subject_copy_string(key, "0123456789abcdef0123456789abcdef");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_ip"), "192.168.1.20");
+    lv_subject_set_string(key, "0123456789abcdef0123456789abcdef");
     lv_subject_set_int(login, 1);
 
     mdns->add_fake_printer("voron", "voron.local", "192.168.1.112", 7125);
@@ -569,9 +569,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     CHECK(std::string(lv_subject_get_string(key)).empty());
     CHECK(lv_subject_get_int(login) == 0);
-    lv_subject_copy_string(key, "");
+    lv_subject_set_string(key, "");
     lv_subject_set_int(login, 0);
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -604,7 +604,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // The answer was for the old address: no live connect, Next stays shut.
     CHECK(client.connect_urls.empty());
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "connection_testing")) == 0);
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -699,7 +699,7 @@ struct RestoreApiKey {
         cfg->try_get_json(key_path) ? *cfg->try_get_json(key_path) : nlohmann::json(false);
     ~RestoreApiKey() {
         cfg->set(key_path, saved);
-        lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_api_key"), "");
+        lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_api_key"), "");
         lv_subject_set_int(lv_xml_get_subject(nullptr, "connection_login_required"), 0);
         helix::moonraker_auth::set_credential({});
     }
@@ -723,12 +723,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* root = create_step_and_test(step, test_screen());
     lv_obj_t* section = lv_obj_find_by_name(root, "api_key_section");
     REQUIRE(section != nullptr);
-    CHECK(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(section));
 
     click_test(root);
 
     // Refused: the field appears, the live client stays put, Next stays shut.
-    CHECK_FALSE(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(section));
     lv_obj_t* status = lv_obj_find_by_name(root, "connection_status_text");
     REQUIRE(status != nullptr);
     CHECK(std::string(lv_label_get_text(status)).find("requires an API key") != std::string::npos);
@@ -736,13 +736,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK_FALSE(step->is_validated());
 
     SECTION("a key that is not 32 hex digits is refused before any test") {
-        lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_api_key"), "secret");
+        lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_api_key"), "secret");
         click_test(root);
         CHECK(net.asked.size() == 1);
         CHECK(std::string(lv_label_get_text(status)) == helix::api_key_problem("secret"));
     }
     SECTION("the right key connects with it and is saved with the printer") {
-        lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_api_key"), kWizardKey);
+        lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_api_key"), kWizardKey);
         click_test(root);
         CHECK(net.keys_sent.back() == kWizardKey);
         REQUIRE(client.connect_urls == std::vector<std::string>{"ws://10.9.9.9:7125/websocket"});

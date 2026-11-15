@@ -5,8 +5,9 @@
   <!--
     The full-page face of a home widget (prestonbrown/helixscreen#1931). The
     widget's FullPageHost builds its overlay's tree inside full_page_body while
-    the page is on screen; until then, and whenever the overlay is open on the
-    stack instead, the placeholder shows the widget's icon and name.
+    the page is on screen; until then, and whenever the view is open elsewhere
+    instead, the placeholder shows the widget's icon and name. A main panel's
+    tree is not opaque everywhere, so the placeholder hides while a tree is held.
 
     The swipe strip takes no press of its own, so a drag that starts on it
     reaches the home carousel: on a small screen the controls above can cover
@@ -27,6 +28,8 @@
     <prop name="icon" type="string" default="cursor_move"/>
     <prop name="label" type="string" default=""/>
     <prop name="label_tag" type="string" default=""/>
+    <!-- The tile's FullPageState subject; the placeholder steps aside at 2. -->
+    <prop name="state_subject" type="string" default=""/>
   </api>
   <view extends="lv_obj"
         width="100%" height="100%" style_pad_all="0" style_pad_gap="0" scrollable="false" clickable="false"
@@ -37,6 +40,7 @@
               width="content" height="content" align="center" style_pad_all="0" style_pad_gap="#space_sm"
               flex_flow="column" style_flex_cross_place="center" scrollable="false" clickable="false"
               event_bubble="true">
+        <bind_flag_if_eq subject="$state_subject" flag="hidden" ref_value="2"/>
         <icon src="$icon" size="xl" variant="secondary" clickable="false" event_bubble="true"/>
         <text_body text="$label" translation_tag="$label_tag" clickable="false" event_bubble="true"/>
       </lv_obj>

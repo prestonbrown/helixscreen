@@ -53,15 +53,28 @@ std::string devices(int hardware_status_level) {
     }
 }
 
-std::string connection(bool ethernet_up, bool wifi_connected, std::string_view ssid) {
+std::string connection(bool ethernet_up, helix::ui::wifi::LinkPhase wifi, std::string_view ssid) {
+    using helix::ui::wifi::LinkPhase;
     if (ethernet_up) {
         return lv_tr("Ethernet");
     }
-    if (wifi_connected) {
+    switch (wifi) {
+    case LinkPhase::Online:
         return ssid.empty() ? std::string(lv_tr("Wi-Fi"))
                             : fmt::format(fmt::runtime(lv_tr("Wi-Fi {}")), ssid);
+    case LinkPhase::GettingAddress:
+        return lv_tr("Connected, getting address…");
+    case LinkPhase::Disconnected:
+        break;
     }
     return lv_tr("Not connected");
+}
+
+std::string wifi_address(helix::ui::wifi::LinkPhase wifi, std::string_view ip) {
+    if (wifi == helix::ui::wifi::LinkPhase::GettingAddress) {
+        return lv_tr("Getting address…");
+    }
+    return std::string(ip);
 }
 
 std::string language_time(std::string_view language_name, int time_format) {

@@ -183,7 +183,7 @@ class InputShaperDeltaFixture : public LVGLUITestFixture {
 
         PrinterStateTestAccess::reset(get_printer_state());
         get_printer_state().init_subjects(false);
-        lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
 
         panel_ = &get_global_input_shaper_panel();
         panel_->init_subjects();
@@ -333,11 +333,11 @@ TEST_CASE_METHOD(InputShaperDeltaFixture,
               "Measured (shaper off)");
         lv_obj_t* prev_dot = view_widget(view_, "legend_x_previous_dot");
         lv_obj_t* prev_label = view_widget(view_, "legend_x_previous_label");
-        CHECK_FALSE(lv_obj_has_flag(prev_dot, LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(prev_label, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(prev_dot));
+        CHECK_FALSE(lv_obj_is_hidden(prev_label));
         CHECK(std::string(lv_label_get_text(prev_label)) == "Previous");
         lv_obj_t* y_prev_dot = view_widget(view_, "legend_y_previous_dot");
-        CHECK_FALSE(lv_obj_has_flag(y_prev_dot, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(y_prev_dot));
 
         // The chart's Y quantity is named above the plot.
         REQUIRE(lv_obj_find_by_name(view_, "chart_x_caption") != nullptr);
@@ -355,8 +355,7 @@ TEST_CASE_METHOD(InputShaperDeltaFixture,
         CHECK(subject_int("is_x_has_delta") == 1);
         CHECK(subject_int("is_x_has_verdict") == 1);
         // ...so the Previous legend entry is present too...
-        CHECK_FALSE(
-            lv_obj_has_flag(view_widget(view_, "legend_x_previous_label"), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(view_widget(view_, "legend_x_previous_label")));
         // ...but no firmware overwrite happened, so no warning.
         CHECK(subject_int("is_x_fw_overwrite_warn") == 0);
     }
@@ -379,8 +378,8 @@ TEST_CASE_METHOD(InputShaperDeltaFixture, "delta rows stay hidden without a live
 
     // The Previous legend entry hides with the delta rows (no before-config),
     // while the always-on key entries and the chart caption remain.
-    CHECK(lv_obj_has_flag(view_widget(view_, "legend_x_previous_dot"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(view_widget(view_, "legend_x_previous_label"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(view_widget(view_, "legend_x_previous_dot")));
+    CHECK(lv_obj_is_hidden(view_widget(view_, "legend_x_previous_label")));
     CHECK(std::string(lv_label_get_text(view_widget(view_, "legend_x_measured_label"))) ==
           "Measured (shaper off)");
     REQUIRE(lv_obj_find_by_name(view_, "chart_x_caption") != nullptr);
@@ -406,8 +405,8 @@ TEST_CASE_METHOD(InputShaperDeltaFixture,
     // The Y card's copy of the warning row is visible. The X card's own copy
     // is unreachable because the whole X card is hidden (its row's own flag
     // stays clear - LVGL hides children through the parent, not their flags).
-    CHECK_FALSE(lv_obj_has_flag(view_widget(view_, "fw_overwrite_warn_y"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(view_widget(view_, "result_card_x"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(view_widget(view_, "fw_overwrite_warn_y")));
+    CHECK(lv_obj_is_hidden(view_widget(view_, "result_card_x")));
 }
 
 TEST_CASE_METHOD(InputShaperDeltaFixture,
@@ -963,7 +962,7 @@ TEST_CASE_METHOD(InputShaperPreviewFixture, "the results view's legend, colors a
         int checked = 0;
         for (uint32_t r = 0; r < rows; ++r) {
             lv_obj_t* row = lv_obj_get_child(table, static_cast<int32_t>(r));
-            if (lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN) || lv_obj_get_child_count(row) < 4) {
+            if (lv_obj_is_hidden(row) || lv_obj_get_child_count(row) < 4) {
                 continue;
             }
             lv_area_t row_box;

@@ -987,13 +987,13 @@ TEST_CASE_METHOD(BedMeshDialogFixture, "an open panel reads the printer it was h
     CHECK(std::string(lv_subject_get_string(row("range"))) != "0.000");
 
     // A printer update refills it through the panel's subscription.
-    lv_subject_copy_string(row("name"), "");
+    lv_subject_set_string(row("name"), "");
     api.execute_gcode("BED_MESH_PROFILE SAVE=late", nullptr, nullptr);
     settle();
     CHECK(name() == api.advanced().get_bed_mesh_profiles()[0]);
 
     // Coming back to the panel does too.
-    lv_subject_copy_string(row("name"), "");
+    lv_subject_set_string(row("name"), "");
     panel.on_activate();
     settle();
     CHECK(name() == api.advanced().get_bed_mesh_profiles()[0]);

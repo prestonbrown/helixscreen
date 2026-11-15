@@ -103,7 +103,7 @@ class MacrosRowsFixture : public XMLTestFixture {
         MacrosPanelTestAccess::seed(panel, macros);
         root = panel.create(parent ? parent : test_screen());
         REQUIRE(root != nullptr);
-        lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(root, false);
         lv_obj_set_size(root, lv_pct(100), lv_pct(100));
         panel.on_activate();
         settle();
@@ -138,7 +138,7 @@ class MacrosRowsFixture : public XMLTestFixture {
         settle();
         std::vector<Row> out;
         for (lv_obj_t* c : cards()) {
-            if (lv_obj_has_flag(c, LV_OBJ_FLAG_HIDDEN))
+            if (lv_obj_is_hidden(c))
                 continue;
             Row r{c, lv_label_get_text(lv_obj_find_by_name(c, "macro_label")), {}};
             lv_obj_get_coords(c, &r.area);
@@ -186,7 +186,7 @@ class MacrosRowsFixture : public XMLTestFixture {
     }
 
     bool checked(lv_obj_t* card) {
-        return !lv_obj_has_flag(lv_obj_find_by_name(card, "chk_mark"), LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(lv_obj_find_by_name(card, "chk_mark"));
     }
 };
 
@@ -199,7 +199,7 @@ TEST_CASE_METHOD(MacrosRowsFixture, "Macros rows list the visible macros in orde
     // The first-run hidden set holds the _-prefixed macros.
     CHECK(labels() == std::vector<std::string>{shown("CLEAN_NOZZLE"), shown("LOAD_FILAMENT"),
                                                shown("PRINT_START")});
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(root, "empty_state"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(root, "empty_state")));
 }
 
 TEST_CASE_METHOD(MacrosRowsFixture, "Macros with nothing to show reach the empty state",
@@ -207,8 +207,8 @@ TEST_CASE_METHOD(MacrosRowsFixture, "Macros with nothing to show reach the empty
     open({"_ONLY_SYSTEM"});
 
     CHECK(labels().empty());
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(root, "empty_state"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(list(), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(root, "empty_state")));
+    CHECK(lv_obj_is_hidden(list()));
 }
 
 TEST_CASE_METHOD(MacrosRowsFixture, "Tapping a Macros row runs the macro it names",

@@ -103,7 +103,7 @@ bool PrinterProfileState::set_printer_type(const std::string& type, bool has_pro
     db_hides_dot_dirs_ = PrinterDetector::klipper_hides_dot_dirs(type);
 
     if (subjects_initialized_) {
-        lv_subject_copy_string(&printer_type_subject_, type.c_str());
+        lv_subject_set_string(&printer_type_subject_, type.c_str());
     }
 
     // Synthesize runtime-dependent options (timelapse) on top of the DB load.

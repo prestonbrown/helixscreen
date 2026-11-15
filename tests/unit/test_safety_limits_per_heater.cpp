@@ -255,7 +255,7 @@ struct KeypadCeilingFixture {
         // subjects that died here (#1166, #1146). Drain before each owner dies.
         drain_update_queue();
         // The panel goes first, while the subjects it observes are still alive:
-        // an ObserverGuard whose subject already died skips lv_observer_remove().
+        // an ObserverGuard whose subject already died skips lv_observer_delete().
         panel.reset();
         helix::PanelWidgetManager::instance().clear_shared_resources();
         drain_update_queue();

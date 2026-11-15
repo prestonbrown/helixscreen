@@ -226,7 +226,7 @@ class LayoutFixture : public LVGLUITestFixture {
         lv_obj_t* obj = find(name);
         REQUIRE(obj != nullptr);
         for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
-            if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN))
+            if (lv_obj_is_hidden(o))
                 return false;
         }
         return true;

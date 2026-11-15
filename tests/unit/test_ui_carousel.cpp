@@ -702,7 +702,7 @@ bool reaches_counter(lv_obj_t* page) {
 
 lv_obj_t* add_bubbling_page(lv_obj_t* carousel, lv_obj_t* screen) {
     lv_obj_t* page = lv_obj_create(screen);
-    lv_obj_add_flag(page, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_event_bubble(page, true);
     ui_carousel_add_item(carousel, page);
     return page;
 }
@@ -771,15 +771,13 @@ lv_obj_t* carousel_with_pages(lv_obj_t* screen, int pages) {
 /// Swipeable: the scroll container scrolls, horizontally.
 bool swipe_live(lv_obj_t* carousel) {
     lv_obj_t* scroll = ui_carousel_get_state(carousel)->scroll_container;
-    return lv_obj_has_flag(scroll, LV_OBJ_FLAG_SCROLLABLE) &&
-           lv_obj_get_scroll_dir(scroll) == LV_DIR_HOR;
+    return lv_obj_is_scrollable(scroll) && lv_obj_get_scroll_dir(scroll) == LV_DIR_HOR;
 }
 
 /// Not swipeable: the scroll container neither scrolls nor has a direction.
 bool swipe_off(lv_obj_t* carousel) {
     lv_obj_t* scroll = ui_carousel_get_state(carousel)->scroll_container;
-    return !lv_obj_has_flag(scroll, LV_OBJ_FLAG_SCROLLABLE) &&
-           lv_obj_get_scroll_dir(scroll) == LV_DIR_NONE;
+    return !lv_obj_is_scrollable(scroll) && lv_obj_get_scroll_dir(scroll) == LV_DIR_NONE;
 }
 
 } // namespace
@@ -835,7 +833,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(dots() == original);
 
     helix::ui::carousel_set_bubble_events(carousel, true);
-    REQUIRE(lv_obj_has_flag(state->real_tiles[0], LV_OBJ_FLAG_EVENT_BUBBLE));
+    REQUIRE(lv_obj_is_event_bubble(state->real_tiles[0]));
     CHECK(dots() == original);
 }
 
@@ -1064,7 +1062,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     // Flags only: the tile hides, the page stands with nothing published, and
     // the slide runs on to its page.
-    CHECK(lv_obj_has_flag(rc.state->real_tiles[3], LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(rc.state->real_tiles[3]));
     CHECK(ui_carousel_get_current_page(rc.carousel) == 1);
     CHECK(rc.published.empty());
     CHECK(lv_anim_get(scroll, nullptr) != nullptr);

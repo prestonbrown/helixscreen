@@ -39,7 +39,7 @@ LVGL 9's XML system enables declarative UI development with reactive data bindin
 │    Subjects     │ ← Reactive data (strings, ints, colors)
 │  (status_text)  │
 └────────┬────────┘
-         │ lv_subject_copy_string()
+         │ lv_subject_set_string()
          ↓
 ┌─────────────────┐
 │  C++ Wrapper    │ ← Business logic & state updates
@@ -254,10 +254,15 @@ lv_xml_register_subject(NULL, "status_text", &status_subject);
 lv_obj_t* panel = lv_xml_create(parent, "home_panel", nullptr);
 
 // 5. Update subject (all bound widgets update automatically)
-lv_subject_copy_string(&status_subject, "New status");
+lv_subject_set_string(&status_subject, "New status");
 ```
 
 **CRITICAL:** Register subjects BEFORE creating XML components that bind to them.
+
+The `lv_subject_init_*()` / `lv_subject_deinit()` calls above are deprecated in LVGL 9.6 in favour of
+`lv_subject_create()` / `lv_subject_delete()`, which allocate the subject inside LVGL. HelixScreen keeps its subjects
+embedded in their owners and stays on the init API until that storage migration is done; it builds with a warning.
+Every other renamed LVGL name fails to compile (`LV_DISABLE_API_MAPPING`), and `scripts/lvgl96_rename.py` ports old code.
 
 #### Static Buffers Required
 
@@ -720,7 +725,7 @@ data->text_observer = lv_label_bind_text(label, &data->text_subject, "%s");
 static void on_delete(lv_event_t* e) {
     MyWidgetData* data = get_data(e);
     if (data->text_observer) {
-        lv_observer_remove(data->text_observer);  // Remove first!
+        lv_observer_delete(data->text_observer);  // Remove first!
     }
     delete data;  // Now safe
 }
@@ -1846,7 +1851,7 @@ lv_obj_t* ExamplePanel::create(lv_obj_t* parent) {
 }
 
 void ExamplePanel::update_status(const char* msg) {
-    lv_subject_copy_string(&status_subject, msg);
+    lv_subject_set_string(&status_subject, msg);
 }
 
 void ExamplePanel::show_loading() {
@@ -1954,7 +1959,7 @@ Widgets **can safely omit names**:
 |---------|------------|-------------|
 | `lv_obj_add_event_cb()` | Tight coupling | XML `<event_cb>` |
 | `lv_label_set_text()` | Bypasses binding | `bind_text` subject |
-| `lv_obj_add_flag(HIDDEN)` | Visibility is UI | `<bind_flag_if_eq>` |
+| `lv_obj_set_hidden()` | Visibility is UI | `<bind_flag_if_eq>` |
 | `lv_obj_set_style_*()` | Styling in XML | Design tokens |
 
 ### Acceptable Exceptions

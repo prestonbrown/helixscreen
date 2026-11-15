@@ -68,6 +68,7 @@
       "hall_filament_width_sensor",
       "timelapse",
       "mmu",
+      "mmu_machine",
       "cartographer",
       "probe",
       "filament_switch_sensor runout_sensor"

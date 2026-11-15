@@ -393,6 +393,9 @@ translations:
   Auto Bed Mesh: Mesh piano automatica
   Auto Cal: Cal. auto
   Auto Fans: Ventilatori automatici
+  Auto loading: "Caricamento automatico"
+  Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand.: "Il caricamento automatico è disattivato per questa testina. Attivalo in Comportamento di stampa o carica il filamento a mano."
+  Auto loading is off; turn it on under Print Behavior: "Caricamento automatico disattivato; attivalo in Comportamento di stampa"
   Auto-Detect: Rilevamento auto
   Auto-Heat on Load: Riscaldamento automatico al caricamento
   Auto-Replenish: Rifornimento automatico
@@ -749,6 +752,7 @@ translations:
     immediatamente. Regolare durante la stampa per la messa a punto.
   Changes are temporary and reset on printer reboot: Le modifiche sono temporanee
     e si resettano al riavvio della stampante
+  Changing filament: "Cambio filamento"
   Check AFC configuration: 'Controlla la configurazione di AFC'
   Check Again: Ricontrolla
   Check Klipper console for details: Controlla la console di Klipper per i dettagli
@@ -963,6 +967,7 @@ translations:
   Connected to {}: Connesso a {}
   Connected! Discovering printer...: Connesso! Rilevamento stampante...
   Connected, discovering...: Connesso, rilevamento...
+  Connected, getting address…: Connesso, ottenimento indirizzo…
   Connecting Camera...: Connessione telecamera...
   'Connecting to ': 'Connessione a '
   Connecting to %s...: Connessione a %s...
@@ -1041,6 +1046,7 @@ translations:
   Load all stopped: Caricamento di tutti interrotto
   "Load and unload": "Carica e scarica"
   Load stopped: Caricamento interrotto
+  "Load, unload, purge, and extrude filament": "Carica, scarica, spurga ed estrudi il filamento"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Carica, scarica e spurga da qui. Scegli prima un materiale per impostarne le temperature."
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Carica, scarica e cambia bobine, imposta le temperature e controlla i sensori del filamento."
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "Tieni premuto un riquadro per entrare in modalità modifica. La nuova griglia ti permette di riordinare, ridimensionare, rimuovere o aggiungere widget e trascinarli tra le pagine."
@@ -1155,6 +1161,7 @@ translations:
   'Cutter calibration failed: {}': 'Calibrazione taglierina non riuscita: {}'
   Cutter jam: Inceppamento taglierina
   Cutting: Taglio
+  Cutting filament: "Taglio filamento"
   Cutting filament...: Taglio filamento...
   Cycle every tool: Ciclo di tutti gli strumenti
   Cycling tools...: Ciclo degli strumenti...
@@ -1663,6 +1670,7 @@ translations:
   Feeder: Alimentatore
   Feeders: Alimentatori
   Feeding filament forward: Avanzamento filamento
+  Feeding filament to nozzle: "Avanzamento filamento verso l'ugello"
   Filament: Filamento
   Filament Buffer: 'Buffer filamento'
   Filament Control: Controllo filamento
@@ -1678,6 +1686,7 @@ translations:
   Filament Mapping is unavailable: La mappatura filamento non è disponibile
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: Questa stampante non supporta la mappatura filamento, quindi la stampa usa gli strumenti assegnati sulla stampante
   Filament Runout: Esaurimento filamento
+  Filament Operations: Operazioni filamento
   Filament Sensor: Sensore filamento
   Filament Sensors: 'Sensori filamento'
   Filament System Error: Errore del sistema filamento
@@ -1836,6 +1845,7 @@ translations:
   Gear sync: Sincronizzazione ingranaggio
   Generic: Generico
   Get help and share feedback: Ottieni aiuto e condividi feedback
+  Getting address…: Ottenimento indirizzo…
   Getting ready...: 'Preparazione...'
   Glass Effects: Effetti vetro
   Global: Globale
@@ -1926,7 +1936,10 @@ translations:
   Heating chamber...: Riscaldamento camera...
   Heating is nearly the whole wait. Leaving the screen now stops the run.: 'Il riscaldamento è quasi tutta l''attesa. Se lasci la schermata ora, l''esecuzione si ferma.'
   Heating nozzle: 'Riscaldamento ugello'
+  Heating nozzle ({}): "Riscaldamento ugello ({})"
   Heating nozzle to $1°C...: Riscaldamento ugello a $1°C...
+  Heating nozzle to {}: "Riscaldamento ugello a {}"
+  Heating nozzle to {} ({}): "Riscaldamento ugello a {} ({})"
   Heating nozzle...: Riscaldamento ugello...
   Heating the bed: Riscaldamento del piano
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Riscaldamento di piano e ugello: la stampa torna ad aderire e l'ugello si stacca"
@@ -2050,7 +2063,10 @@ translations:
   I understand: Ho capito
 
   ID (optional): ID (opzionale)
+  IFS driver error: "Errore del driver IFS"
   IFS updates without polling: 'Aggiornamenti IFS senza polling'
+  'IFS: loading': "IFS: caricamento"
+  'IFS: unloading': "IFS: scaricamento"
   IMPORT FROM USB: IMPORTA DA USB
   INDX dock positions are not calibrated: "Le posizioni dei dock INDX non sono calibrate"
   INDX macros not recognized: "Macro INDX non riconosciute"
@@ -2592,6 +2608,7 @@ translations:
   Mount tool: 'Monta strumento'
   Mount which tool?: 'Quale strumento montare?'
   Mount...: 'Monta...'
+  'Mounted: {}': 'Montato: {}'
   Move: Sposta
   Move here: Sposta qui
   Move out of range: 'Movimento fuori intervallo'
@@ -2716,6 +2733,7 @@ translations:
   No events queued: Nessun evento in coda
   No extruder heater found. Check [extruder] in printer.cfg: 'Riscaldatore dell''estrusore non trovato. Controlla [extruder] in printer.cfg'
   No fans detected: Nessuna ventola rilevata
+  No feeder attached: "Nessun alimentatore collegato"
   No filament: Nessun filamento
   No filament environment sensors: Nessun sensore ambientale del filamento
   No filament loaded to unload: Nessun filamento caricato da scaricare
@@ -2780,6 +2798,7 @@ translations:
   No timelapse videos found: Nessun video timelapse trovato
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Non si sa quale utensile sia montato. Con una sonda condivisa, calibra con {}. Continuare comunque?'
   No tool is mounted: 'Nessun utensile montato'
+  No tool mounted: 'Nessuno strumento montato'
   No tool on the head: "Nessuno strumento sulla testina"
   No tools to calibrate: Nessuno strumento da calibrare
   'No turn: the gap moved {:.1f} Hz': "Nessuna rotazione: la differenza si è spostata di {:.1f} Hz"
@@ -3047,9 +3066,11 @@ translations:
   Pick Color: Scegli colore
   Pick how HelixScreen behaves. You can change any of these later in Settings.: 'Scegli come si comporta HelixScreen. Puoi cambiare tutto più tardi in Impostazioni.'
   Pick the best band: Scegli la fascia migliore
+  Pick up: 'Monta'
   Pick up and park each tool in turn: Prendi e riponi ogni strumento a turno
   Pick up the tool, heat it, and pull the filament out: "Preleva lo strumento, riscaldalo ed estrai il filamento"
   Pick up tool: Preleva utensile
+  Pick-up step cancelled; nothing was sent: 'Passaggio di prelievo annullato; non è stato inviato nulla'
   Picking up tool: Prelievo utensile
   Pill: Pillola
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Pixel prima
@@ -3334,6 +3355,7 @@ translations:
   Purge tower and brush settings: 'Impostazioni della torre di spurgo e della spazzola'
   Purging: Spurgo
   Purging nozzle: Spurgo ugello
+  Purging old filament: "Spurgo del filamento precedente"
   Purging...: Spurgo...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "Spingere il filamento di pulizia nell'estrusore fino in fondo, poi toccare Estrusione."
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Spingi il filamento nell'estrusore fino in fondo. Viene afferrato automaticamente, oppure tocca Estrusione."
@@ -3606,6 +3628,7 @@ translations:
   Retract may still be running — response timed out: Ritrazione potrebbe essere ancora
     in corso — tempo scaduto
   Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: Retrarre per scaricare. Se rientra pulito, tagliare l'estremità rovinata e alimentare di nuovo
+  Retracting filament from nozzle: "Retrazione del filamento dall'ugello"
   Retraction: Retrazione
   Retraction Settings: Impostazioni retrazione
   Retraction distance in the cooling tube: 'Distanza di retrazione nel tubo di raffreddamento'
@@ -4489,8 +4512,9 @@ translations:
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : La testina contiene filamento ma nessuno slot AMS lo riporta come caricato. La stampante potrebbe rifiutare il caricamento di uno slot finché non viene svuotata. Avviare comunque?
   The toolhead is not homed, so this would home into the print: 'La testina non ha eseguito l''homing, l''homing finirebbe contro la stampa'
+  'The toolhead may still be at the chute. Move it away before printing.': 'La testina potrebbe trovarsi ancora sullo scivolo. Allontanala prima di stampare.'
   ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
-  : "La testina si muove avanti e indietro a velocità da 20 a 300 mm/s mentre l'accelerometro misura quanto vibra ogni motore. Richiede circa {0} minuti ed è rumoroso. Le velocità che vibrano di più sono quelle da cui tenere lontane le pareti esterne."
+  : 'La testina si muove avanti e indietro a velocità da 20 a 300 mm/s mentre l''accelerometro misura quanto vibra ogni motore. Richiede circa {0} minuti ed è rumoroso. Le velocità che vibrano di più sono quelle da cui tenere lontane le pareti esterne.'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: Il
     sensore della testina indica che il filamento è già caricato. Procedere comunque
     con il caricamento?
@@ -4537,7 +4561,7 @@ translations:
     utilizza il metodo della frizione della carta per impostare lo Z-offset.
   This cannot be undone.: Questa azione non può essere annullata.
   This channel offers v{}, older than the installed v{}. Anything added since then will be removed.: 'Questo canale offre la v{}, precedente alla v{} installata. Tutto ciò che è stato aggiunto da allora verrà rimosso.'
-  This check reads the accelerometer directly, so HelixScreen must run on the printer's own computer.: "Questa verifica legge direttamente l'accelerometro, quindi HelixScreen deve essere in esecuzione sul computer della stampante stessa."
+  This check reads the accelerometer directly, so HelixScreen must run on the printer's own computer.: 'Questa verifica legge direttamente l''accelerometro, quindi HelixScreen deve essere in esecuzione sul computer della stampante stessa.'
   ? "This check runs Klipper's resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.\n\nEach sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs."
   : "Questo controllo esegue il test di risonanza di Klipper lungo ogni percorso della cinghia e confronta le due risposte. Cinghie bilanciate danno curve della stessa forma, con picchi alle stesse frequenze.\n\nOgni scansione richiede qualche minuto e muove la testina; stai lontano dalla stampante mentre è in corso."
   This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again.: Questo cancella tutte le riserve della bobina infinita. La stampa si fermerà all'esaurimento finché non riconfiguri la bobina infinita.
@@ -4598,7 +4622,7 @@ translations:
   "This printer's INDX macros are missing: {}": "Alle macro INDX di questa stampante manca: {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'Il Moonraker di questa stampante ha rifiutato la sua chiave API. Controlla la chiave in Impostazioni > Connessione.'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Il Moonraker di questa stampante richiede l''accesso. Aggiungi la sua chiave API in Impostazioni > Connessione.'
-  This printer's accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown.: "L'accelerometro di questa stampante misura fino a {0:.0f} Hz, quindi le ondulazioni più rapide non vengono mostrate."
+  This printer's accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown.: 'L''accelerometro di questa stampante misura fino a {0:.0f} Hz, quindi le ondulazioni più rapide non vengono mostrate.'
   This printer's firmware has its own power-loss recovery.: "Il firmware di questa stampante ha la sua ripresa dopo interruzione di corrente."
   This printer's gantry drops when the power is cut, so a print can't be resumed.: "Il portale di questa stampante cade quando manca la corrente, quindi una stampa non può essere ripresa."
   This printer's homing override homes Z along with X and Y, so a print can't be resumed.: "L'homing override di questa stampante esegue l'homing di Z insieme a X e Y, quindi una stampa non può essere ripresa."
@@ -4736,6 +4760,7 @@ translations:
   Toolhead Style: Stile testina
   Toolhead X: Testina X
   Toolhead Y: Testina Y
+  'Toolhead did not return to park: {}': 'La testina non è tornata in posizione di parcheggio: {}'
   Toolhead jam: Inceppamento testina
   Toolhead lost homing: La testina ha perso l'homing
   Toolhead offset calibration: Calibrazione offset testine
@@ -4958,6 +4983,7 @@ translations:
   Wait for the current filament operation to finish: Attendi il completamento dell'operazione di filamento in corso
   Wait for the current operation to complete: Attendi il completamento dell'operazione corrente
   Wait for the current operation to complete or cancel it first: Attendi il completamento dell'operazione corrente o annullala prima
+  Wait for the load or unload to finish: "Attendi la fine del caricamento o dello scaricamento"
   Wait for the motor to stop: "Attendi che il motore si fermi"
   Wait for the nozzle to stop moving: Attendi che l'ugello si fermi
   Wait for the running INDX operation to finish: Attendi la fine dell'operazione INDX in corso
@@ -5089,7 +5115,7 @@ translations:
   You have unsaved changes. Discard them?: Hai modifiche non salvate. Scartarle?
   Your completed prints will appear here: Le stampe completate appariranno qui
   ? 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
-  : "Il file richiede pareti esterne a {0:.0f} mm/s. Nell'ultima Verifica artefatti verticali questa stampante ha vibrato di più a {1:.0f}-{2:.0f} mm/s, il che può lasciare sottili linee verticali sulle pareti lungo X o Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)."
+  : 'Il file richiede pareti esterne a {0:.0f} mm/s. Nell''ultima Verifica artefatti verticali questa stampante ha vibrato di più a {1:.0f}-{2:.0f} mm/s, il che può lasciare sottili linee verticali sulle pareti lungo X o Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   Your files: 'I tuoi file'
   Your print start or end macro also sets LEDs. It and Automatic LED Control may override each other.: 'La macro di inizio o fine stampa imposta anche i LED. Essa e il controllo automatico dei LED potrebbero sovrascriversi a vicenda.'
   Your printer at a glance: La tua stampante a colpo d'occhio
@@ -5266,7 +5292,7 @@ translations:
   within one bin: "entro un bin"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant non è in esecuzione. Le funzioni WiFi non sono disponibili.
   you have: hai
-  '{0:.0f}-{1:.0f} mm/s: the {2}x ripple meets a {3:.0f} Hz resonance': "{0:.0f}-{1:.0f} mm/s: l'ondulazione {2}x incontra una risonanza a {3:.0f} Hz"
+  '{0:.0f}-{1:.0f} mm/s: the {2}x ripple meets a {3:.0f} Hz resonance': '{0:.0f}-{1:.0f} mm/s: l''ondulazione {2}x incontra una risonanza a {3:.0f} Hz'
   ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
   : '{0} sono aperte. {1} si stampa meglio in un''enclosure calda e chiusa; una porta aperta raffredda la camera e può causare deformazioni o strati che si separano. Chiudile o avvia comunque.'
   ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
@@ -5300,6 +5326,7 @@ translations:
   '{} d': "{} g"
   '{} days': "{} giorni"
   '{} detected': '{} rilevata'
+  '{} did not arrive; nothing was sent': '{} non è arrivato; non è stato inviato nulla'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{} non si è caricato. Verifica che il suo hotend sia ben inserito ed esegui un''estrusione di prova prima di riprendere.'
   '{} disabled': '{} disabilitato'
   '{} disconnected': '{} scollegata'

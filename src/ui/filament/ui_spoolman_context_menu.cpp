@@ -116,9 +116,9 @@ void SpoolmanContextMenu::on_created(lv_obj_t* menu_obj) {
     if (name.empty()) {
         name = fmt::format(lv_tr("Spool #{}"), pending_spool_.id);
     }
-    lv_subject_copy_string(&s_header_subject, name.c_str());
+    lv_subject_set_string(&s_header_subject, name.c_str());
 
-    lv_subject_copy_string(&s_filament_subject, pending_spool_.filament_name.c_str());
+    lv_subject_set_string(&s_filament_subject, pending_spool_.filament_name.c_str());
     lv_subject_set_int(&s_filament_shown_subject, pending_spool_.filament_name.empty() ? 0 : 1);
     lv_subject_set_int(&s_archive_shown_subject, archive_allowed_ ? 1 : 0);
 
@@ -129,15 +129,15 @@ void SpoolmanContextMenu::on_created(lv_obj_t* menu_obj) {
     }
 
     // Prevent context menu buttons from triggering scroll on the underlying list
-    lv_obj_remove_flag(menu_obj, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+    lv_obj_set_scroll_on_focus(menu_obj, false);
     lv_obj_t* card = helix::ui::find_required(menu_obj, "context_menu", "SpoolmanContextMenu");
     if (card) {
-        lv_obj_remove_flag(card, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+        lv_obj_set_scroll_on_focus(card, false);
         uint32_t card_children = lv_obj_get_child_count(card);
         for (uint32_t i = 0; i < card_children; i++) {
             lv_obj_t* child = lv_obj_get_child(card, static_cast<int32_t>(i));
             if (child) {
-                lv_obj_remove_flag(child, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+                lv_obj_set_scroll_on_focus(child, false);
             }
         }
     }

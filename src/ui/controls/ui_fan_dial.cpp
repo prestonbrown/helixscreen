@@ -360,7 +360,7 @@ void FanDial::update_speed_label(int percent) {
     char buf[8];
     const char* text = lv_tr(helix::format::format_fan_speed(percent, buf, sizeof(buf)));
     if (std::strcmp(lv_subject_get_string(&subjects_->speed), text) != 0) {
-        lv_subject_copy_string(&subjects_->speed, text);
+        lv_subject_set_string(&subjects_->speed, text);
     }
 }
 

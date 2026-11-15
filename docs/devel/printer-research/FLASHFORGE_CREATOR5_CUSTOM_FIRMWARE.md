@@ -251,12 +251,11 @@ backends.
 ### Reforge
 
 - **Detection:** `ff_toolchange` (99) matches both entries; chamber heater separates
-  them. Reforge also drops its own `printer_database.d` override. HelixScreen merges that
-  directory at higher priority (`src/printer/printer_detector.cpp`), but Reforge's ids
-  (`flashforge_creator5_pro`) differ from ours (`flashforge_creator_5_pro`), so both
-  entries load and compete on score; theirs carries no preset and a generic image. Which
-  wins on a real printer is unverified, and the override is now redundant against
-  upstream.
+  them. Reforge also drops its own `printer_database.d` override under its own ids
+  (`flashforge_creator5_pro`, `flashforge_creator5`). Our two entries list those ids in
+  `id_aliases`, so the extension merge (`src/printer/printer_detector.cpp#merge_extension_file`)
+  skips Reforge's copies and ours, with the preset and real image, is the only Creator 5
+  entry of each name. Unverified on a real printer.
 - **Mount/park and colour:** the AFC objects (`AFC_Toolchanger`, `AFC_extruder e0..e3`)
   make discovery pick the AFC backend, since an MMU wins over the tool changer
   (`FILAMENT_BACKEND_TOOLCHANGER.md`, Detection). The AFC backend already handles a
@@ -264,20 +263,21 @@ backends.
   `CHANGE_TOOL LANE=`, exercised on the Snapmaker U1 PAXX AFC build
   ([#1824](https://github.com/prestonbrown/helixscreen/issues/1824),
   [#1850](https://github.com/prestonbrown/helixscreen/issues/1850)). Per-head material
-  and colour come from AFC lanes. Likely works; untested on a C5.
-- **Stale on our side:** `FILAMENT_BACKEND_TOOLCHANGER.md` says Reforge "takes the plain
-  klipper-toolchanger path" and the `creator5` mock persona models no AFC. Both describe
-  Reforge before 2026-11-04.
+  and colour come from AFC lanes. The `creator5_afc` mock persona publishes Reforge's
+  object set and drives the production AFC backend; `creator5` keeps modelling the tagged
+  releases without AFC. Untested on a C5.
 - **Print start:** `[ff_print]` runs `FF_BEFORE_PRINT_START` before the first file line,
-  the same shape as OpenCreator's `auto_creator5_start`, but
-  `src/print/start_macro_injection.cpp` only knows the latter, so the print-start progress
-  collector may misread Reforge's prep phase. Small fix: a row keyed on the `ff_print`
-  section's presence (the table only matches a boolean option today).
+  the same shape as OpenCreator's `auto_creator5_start`, and `src/print/start_macro_injection.cpp`
+  has a row for it: the `ff_print` section, unless the before-macro's `variable_prepare` is 0
+  (the slicer profile then calls START_PRINT from the file).
+- **AFC settings:** HelixScreen's AFC settings editor reads `AFC/AFC.cfg` and
+  `AFC/AFC_Macro_Vars.cfg`; Reforge keeps its AFC config in `ff-afc.cfg` (overwritten by
+  every update) plus `AFC/*.cfg` for the user's own. What the editor shows there is
+  unverified.
 - **Other:** Moonraker refuses `ff-*.cfg` reads ("reserved path"), so config-include
   parsing fails ([#38](https://github.com/Klipper4FlashForge/firmware/issues/38)). Reforge
   ships its own HelixScreen fork; running upstream instead is unverified.
-- **Gap size:** medium-small. A mock persona update, the start-macro row, docs, then
-  hardware time.
+- **Gap size:** small. Hardware time.
 
 ### OpenCreator CFW
 
@@ -327,9 +327,6 @@ but not flashing: it reflashes all four MCUs and its own docs call it alpha.
   still hold? Ask ghzserg or try the install on 2.0.0 and read the USB log.
 - Does Reforge install and run on 2.0.0 (board firmware 1.3.1)? Open on
   [#28](https://github.com/Klipper4FlashForge/firmware/issues/28).
-- On Reforge, which of the two Creator 5 entries (theirs from `printer_database.d`, ours
-  from the shipped database) wins detection, and does its `ams_type: afc` agree with what
-  discovery picks on its own?
 - Does upstream HelixScreen run on OpenCreator with GrumpyScreen off, and does the AFC
   backend handle `extruder0..3` lane names with `custom_tool_swap`?
 - Is Moonraker present on a factory-fresh stock unit (our support doc and Reforge's README

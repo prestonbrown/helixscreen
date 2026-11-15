@@ -28,6 +28,7 @@
 #include "settings_manager.h"
 #include "system/afc_message_dedup.h"
 #include "toolchanger_addon.h"
+#include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -48,6 +49,11 @@
 namespace helix {
 
 namespace {
+
+/// "<what was happening> (timed out)" in the current language.
+std::string timed_out_line(const std::string& what) {
+    return std::string(lv_tr(what.c_str())) + lv_tr(" (timed out)");
+}
 
 /// The section of AFC_Macro_Vars.cfg holding the tip-forming variables.
 constexpr const char* kMacroVarsSection = "gcode_macro AFC_MacroVars";
@@ -78,8 +84,8 @@ bool natural_less(const std::string& a, const std::string& b) {
 //   "purging_bucket"  → "Purging bucket"
 //
 // Used as the display fallback for states we have no translation for. AFC emits
-// camelCase state values (v1.2.0), and those must never reach the screen raw —
-// operation_detail is passed through to the UI verbatim.
+// camelCase state values (v1.2.0), and those must never reach the screen raw:
+// text that is not a catalog key reaches the UI unchanged.
 std::string humanize_state(std::string_view raw) {
     std::string out;
     out.reserve(raw.size() + 4);
@@ -121,46 +127,36 @@ std::string humanize_state(std::string_view raw) {
     return out;
 }
 
-// Translated display text for AFC's known state vocabulary, keyed by normalized
-// token so a rewording (AFC's "Tool swap" → "ToolSwap") keeps its translation.
-// Unknown states fall back to humanize_state() — untranslated, but readable.
+// Display text for AFC's known state vocabulary, keyed by normalized token so a
+// rewording (AFC's "Tool swap" → "ToolSwap") keeps its translation. A known
+// state returns its untranslated catalog key, which AmsState translates at
+// display time so the label follows a language switch. Unknown states fall back
+// to humanize_state(): untranslated, but readable.
 std::string afc_state_detail(std::string_view raw) {
     struct StateLabel {
         const char* token;
         const char* label;
     };
     static constexpr StateLabel kLabels[] = {
-        {"idle", "Idle"},
-        {"initialized", "Initialized"},
-        {"loading", "Loading"},
-        {"unloading", "Unloading"},
-        {"error", "Error"},
-        {"ejecting", "Ejecting"},
-        {"moving", "Moving lane"},
-        {"restoring", "Restoring position"},
-        {"toolswap", "Tool swap"},
-        {"tooldock", "Docking tool"},
-        {"toolpickup", "Picking up tool"},
+        {"idle", TR_NOOP("Idle")},
+        {"initialized", TR_NOOP("Initialized")},
+        {"loading", TR_NOOP("Loading")},
+        {"unloading", TR_NOOP("Unloading")},
+        {"error", TR_NOOP("Error")},
+        {"ejecting", TR_NOOP("Ejecting")},
+        {"moving", TR_NOOP("Moving lane")},
+        {"restoring", TR_NOOP("Restoring position")},
+        {"toolswap", TR_NOOP("Tool swap")},
+        {"tooldock", TR_NOOP("Docking tool")},
+        {"toolpickup", TR_NOOP("Picking up tool")},
     };
     const std::string token = ams_normalize_state_token(raw);
     for (const auto& e : kLabels) {
         if (token == e.token)
-            return lv_tr(e.label);
+            return e.label;
     }
     return humanize_state(raw);
 }
-
-// [L067] kLabels feeds lv_tr() through a variable, which the translation
-// extractor cannot see. Name each label literally here so it lands in the
-// catalogs. Keep in sync with kLabels above.
-// clang-format off
-void afc_state_translation_hints_() {
-    (void)lv_tr("Idle"); (void)lv_tr("Initialized"); (void)lv_tr("Loading");
-    (void)lv_tr("Unloading"); (void)lv_tr("Error"); (void)lv_tr("Ejecting");
-    (void)lv_tr("Moving lane"); (void)lv_tr("Restoring position");
-    (void)lv_tr("Tool swap"); (void)lv_tr("Docking tool"); (void)lv_tr("Picking up tool");
-}
-// clang-format on
 
 } // namespace
 
@@ -469,6 +465,16 @@ void AmsBackendAfc::set_discovered_sensors(const std::vector<std::string>& senso
 // State Queries
 // ============================================================================
 
+void AmsBackendAfc::refresh_translated_texts() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (timed_out_what_.empty() || system_info_.action != AmsAction::ERROR ||
+        system_info_.operation_detail != timed_out_detail_) {
+        return;
+    }
+    timed_out_detail_ = timed_out_line(timed_out_what_);
+    system_info_.operation_detail = timed_out_detail_;
+}
+
 AmsSystemInfo AmsBackendAfc::get_system_info() const {
     std::lock_guard<std::mutex> lock(mutex_);
 
@@ -542,6 +548,7 @@ AmsError AmsBackendAfc::clear_fault(int slot_index) {
                           *timed_out_state_);
             timed_out_state_.reset();
             timed_out_detail_.clear();
+            timed_out_what_.clear();
         }
         action_start_time_ = std::chrono::steady_clock::now();
 
@@ -850,7 +857,7 @@ std::optional<helix::ErrorEvent> AmsBackendAfc::fault_event_locked(const std::st
         // for any message type, so without this inequality the branch above
         // would reject a warning-typed message and this one would hand the same
         // string straight back.
-        e.detail = system_info_.operation_detail;
+        e.detail = lv_tr(system_info_.operation_detail.c_str());
     } else {
         e.detail = lv_tr("The filament system reported an error");
     }
@@ -1545,6 +1552,7 @@ void AmsBackendAfc::apply_action_timeout_latch_locked() {
                      last_raw_state_);
         timed_out_state_.reset();
         timed_out_detail_.clear();
+        timed_out_what_.clear();
         return;
     }
 
@@ -1612,11 +1620,14 @@ void AmsBackendAfc::check_action_timeout() {
 
     // Preserve what was happening as the error description so the error-center
     // bridge shows more than a bare failure.
-    const std::string timeout_detail = system_info_.operation_detail.empty()
-                                           ? lv_tr("Filament operation timed out")
-                                           : system_info_.operation_detail + lv_tr(" (timed out)");
+    // The bare timeout is a catalog key; the suffixed form joins two phrases, so
+    // it is composed here and re-worded by refresh_translated_texts().
+    timed_out_what_ = system_info_.operation_detail;
+    timed_out_detail_ = timed_out_what_.empty()
+                            ? std::string(TR_NOOP("Filament operation timed out"))
+                            : timed_out_line(timed_out_what_);
+    system_info_.operation_detail = timed_out_detail_;
     system_info_.action = AmsAction::ERROR;
-    system_info_.operation_detail = timeout_detail;
 
     // Only latch when AFC itself is driving the action. The latch keys on
     // last_raw_state_, and for an action this backend set optimistically at
@@ -1631,7 +1642,6 @@ void AmsBackendAfc::check_action_timeout() {
         return;
     }
     timed_out_state_ = last_raw_state_;
-    timed_out_detail_ = timeout_detail;
 }
 
 uint64_t AmsBackendAfc::begin_dispatch_locked(AmsAction action) {
@@ -1651,6 +1661,7 @@ uint64_t AmsBackendAfc::begin_dispatch_locked(AmsAction action) {
                       *timed_out_state_);
         timed_out_state_.reset();
         timed_out_detail_.clear();
+        timed_out_what_.clear();
     }
 
     system_info_.action = action;
@@ -1658,13 +1669,13 @@ uint64_t AmsBackendAfc::begin_dispatch_locked(AmsAction action) {
     // AFC's first frame, which for a no-op never comes.
     switch (action) {
     case AmsAction::UNLOADING:
-        system_info_.operation_detail = lv_tr("Unloading");
+        system_info_.operation_detail = TR_NOOP("Unloading");
         break;
     case AmsAction::SELECTING:
-        system_info_.operation_detail = lv_tr("Tool swap");
+        system_info_.operation_detail = TR_NOOP("Tool swap");
         break;
     default:
-        system_info_.operation_detail = lv_tr("Loading");
+        system_info_.operation_detail = TR_NOOP("Loading");
         break;
     }
 

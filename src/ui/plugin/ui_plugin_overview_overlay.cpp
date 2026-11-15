@@ -89,8 +89,8 @@ void PluginOverviewOverlay::refresh() {
     auto& status = get_printer_state().plugin_status_state();
     lines_ = plugin_feature_lines(status.features());
 
-    lv_subject_copy_string(&version_subject_,
-                           status.version().empty() ? "-" : status.version().c_str());
+    lv_subject_set_string(&version_subject_,
+                          status.version().empty() ? "-" : status.version().c_str());
     int running = 0;
     int off = 0;
     int unavailable = 0;

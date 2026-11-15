@@ -297,7 +297,7 @@ PaTuningOverlay::ChosenHead PaTuningOverlay::chosen_head() const {
 void PaTuningOverlay::refresh_presets() {
     for (int i = 0; i < kPresetSlots; ++i) {
         const auto temps = helix::presets::slot_temps(i);
-        lv_subject_copy_string(
+        lv_subject_set_string(
             &preset_temp_[i],
             temps ? fmt::format("{}° / {}°", helix::units::to_display_temp_whole(temps->nozzle),
                                 helix::units::to_display_temp_whole(temps->bed))
@@ -400,8 +400,8 @@ std::optional<helix::pa::PrintArea> PaTuningOverlay::printable_area() {
 }
 
 void PaTuningOverlay::refresh_setup() {
-    lv_subject_copy_string(&start_k_, helix::pa::format_k(ramp_.start_k).c_str());
-    lv_subject_copy_string(&end_k_, helix::pa::format_k(ramp_.end_k).c_str());
+    lv_subject_set_string(&start_k_, helix::pa::format_k(ramp_.start_k).c_str());
+    lv_subject_set_string(&end_k_, helix::pa::format_k(ramp_.end_k).c_str());
 
     const auto params = build_params();
     const int layers = helix::pa::layer_count(params.geometry, params.bands);
@@ -416,7 +416,7 @@ void PaTuningOverlay::refresh_setup() {
         macros.start.empty()
             ? std::string(lv_tr("It homes and heats on its own (no start macro found)."))
             : fmt::format(fmt::runtime(lv_tr("It starts with your {} macro.")), macros.start);
-    lv_subject_copy_string(&summary_, fmt::format("{} {}", summary, starts).c_str());
+    lv_subject_set_string(&summary_, fmt::format("{} {}", summary, starts).c_str());
 
     auto& state = get_printer_state();
     const bool busy = job_holds_machine(state.print_state().get_print_lifecycle());
@@ -457,7 +457,7 @@ void PaTuningOverlay::fail_start(const std::string& message) {
     if (!message.empty()) {
         spdlog::warn("[{}] {}", get_name(), message);
     }
-    lv_subject_copy_string(&error_, message.c_str());
+    lv_subject_set_string(&error_, message.c_str());
     set_stage(SETUP);
     refresh_setup();
 }
@@ -494,7 +494,7 @@ void PaTuningOverlay::begin_upload() {
     session_.start(params.geometry, ramp_, params.restore_k);
     saw_printing_ = false;
     picked_ = -1;
-    lv_subject_copy_string(&error_, "");
+    lv_subject_set_string(&error_, "");
     set_stage(STARTING);
     refresh_running();
 
@@ -705,17 +705,17 @@ void PaTuningOverlay::refresh_running() {
         return;
     }
     const auto& g = session_.geometry();
-    lv_subject_copy_string(&k_big_, helix::pa::format_k(session_.current_k()).c_str());
+    lv_subject_set_string(&k_big_, helix::pa::format_k(session_.current_k()).c_str());
 
     const int layer = session_.layer();
     const int total = helix::pa::layer_count(g, session_.ramp().bands);
     if (layer > 0) {
-        lv_subject_copy_string(&layer_text_,
-                               fmt::format(fmt::runtime(lv_tr("Layer {} of {} · {:.2f} mm")), layer,
-                                           total, helix::pa::layer_z(g, layer))
-                                   .c_str());
+        lv_subject_set_string(&layer_text_,
+                              fmt::format(fmt::runtime(lv_tr("Layer {} of {} · {:.2f} mm")), layer,
+                                          total, helix::pa::layer_z(g, layer))
+                                  .c_str());
     } else {
-        lv_subject_copy_string(&layer_text_, lv_tr("Heating and homing"));
+        lv_subject_set_string(&layer_text_, lv_tr("Heating and homing"));
     }
 
     const bool manual = session_.mode() == helix::pa::TuningSession::Mode::Manual;
@@ -729,7 +729,7 @@ void PaTuningOverlay::refresh_running() {
                         : fmt::format(fmt::runtime(lv_tr("Ramp: band {} of {}")), band + 1,
                                       session_.ramp().bands);
     }
-    lv_subject_copy_string(&mode_text_, mode.c_str());
+    lv_subject_set_string(&mode_text_, mode.c_str());
     refresh_bands(/*newest_first=*/true);
 }
 
@@ -746,17 +746,17 @@ void PaTuningOverlay::refresh_bands(bool newest_first) {
     for (int i = 0; i < kMaxBands; ++i) {
         if (i < n) {
             const auto& b = bands[static_cast<size_t>(i)];
-            lv_subject_copy_string(&band_range_[i],
-                                   fmt::format("{:.1f} - {:.1f} mm", b.z_low, b.z_high).c_str());
-            lv_subject_copy_string(&band_k_[i], helix::pa::format_k(b.k).c_str());
+            lv_subject_set_string(&band_range_[i],
+                                  fmt::format("{:.1f} - {:.1f} mm", b.z_low, b.z_high).c_str());
+            lv_subject_set_string(&band_k_[i], helix::pa::format_k(b.k).c_str());
         }
         lv_subject_set_int(&band_selected_[i], i == picked_ ? 1 : 0);
     }
     lv_subject_set_int(&band_count_, n);
     lv_subject_set_int(&keep_selected_, picked_ == kMaxBands ? 1 : 0);
-    lv_subject_copy_string(&keep_text_, fmt::format(fmt::runtime(lv_tr("Keep current ({})")),
-                                                    helix::pa::format_k(session_.current_k()))
-                                            .c_str());
+    lv_subject_set_string(&keep_text_, fmt::format(fmt::runtime(lv_tr("Keep current ({})")),
+                                                   helix::pa::format_k(session_.current_k()))
+                                           .c_str());
     lv_subject_set_int(&has_pick_, picked_ >= 0 ? 1 : 0);
 }
 
@@ -798,15 +798,15 @@ void PaTuningOverlay::show_result() {
         return;
     }
     const std::string text = helix::pa::format_k(*k);
-    lv_subject_copy_string(&result_k_, text.c_str());
-    lv_subject_copy_string(
+    lv_subject_set_string(&result_k_, text.c_str());
+    lv_subject_set_string(
         &result_note_,
         fmt::format(fmt::runtime(lv_tr("Applied to {}. Klipper forgets it on restart: enter "
                                        "{} as Pressure advance in your slicer's filament "
                                        "profile, or save it to the spool.")),
                     extruder_label(), text)
             .c_str());
-    lv_subject_copy_string(&spoolman_text_, lv_tr("Looking for the active spool..."));
+    lv_subject_set_string(&spoolman_text_, lv_tr("Looking for the active spool..."));
     lv_subject_set_int(&can_save_spool_, 0);
     set_stage(RESULT);
     active_spool_.reset();
@@ -826,8 +826,8 @@ void PaTuningOverlay::show_result() {
         object_lifetime_.bg_cb("PaTuningOverlay::spoolman_status",
                                [this](bool connected, int spool_id) {
                                    if (!connected || spool_id <= 0) {
-                                       lv_subject_copy_string(&spoolman_text_,
-                                                              lv_tr("No active Spoolman spool."));
+                                       lv_subject_set_string(&spoolman_text_,
+                                                             lv_tr("No active Spoolman spool."));
                                        publish_to_moonraker(session_.result().value_or(0.0f));
                                        return;
                                    }
@@ -835,7 +835,7 @@ void PaTuningOverlay::show_result() {
                                }),
         object_lifetime_.bg_cb(
             "PaTuningOverlay::spoolman_status_failed", [this](const MoonrakerError&) {
-                lv_subject_copy_string(&spoolman_text_, lv_tr("Spoolman is not available."));
+                lv_subject_set_string(&spoolman_text_, lv_tr("Spoolman is not available."));
                 publish_to_moonraker(session_.result().value_or(0.0f));
             }));
 }
@@ -848,19 +848,19 @@ void PaTuningOverlay::fetch_result_spool(int spool_id) {
             [this](const std::optional<SpoolInfo>& spool) {
                 active_spool_ = spool;
                 if (spool && spool->filament_id > 0) {
-                    lv_subject_copy_string(
+                    lv_subject_set_string(
                         &spoolman_text_,
                         fmt::format(fmt::runtime(lv_tr("Active spool: {}")), spool->display_name())
                             .c_str());
                     lv_subject_set_int(&can_save_spool_, 1);
                 } else {
-                    lv_subject_copy_string(&spoolman_text_, lv_tr("No active Spoolman spool."));
+                    lv_subject_set_string(&spoolman_text_, lv_tr("No active Spoolman spool."));
                 }
                 publish_to_moonraker(session_.result().value_or(0.0f));
             }),
         object_lifetime_.bg_cb(
             "PaTuningOverlay::result_spool_failed", [this](const MoonrakerError&) {
-                lv_subject_copy_string(&spoolman_text_, lv_tr("No active Spoolman spool."));
+                lv_subject_set_string(&spoolman_text_, lv_tr("No active Spoolman spool."));
                 publish_to_moonraker(session_.result().value_or(0.0f));
             }));
 }
@@ -883,7 +883,7 @@ void PaTuningOverlay::save_to_spool() {
         object_lifetime_.bg_cb(
             "PaTuningOverlay::spool_saved",
             [this, name]() {
-                lv_subject_copy_string(
+                lv_subject_set_string(
                     &spoolman_text_,
                     fmt::format(fmt::runtime(lv_tr("Saved to {}. It applies whenever this "
                                                    "filament becomes active.")),

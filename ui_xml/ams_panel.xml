@@ -76,6 +76,12 @@
         </lv_obj>
         <!-- Outside the back button so a long system name cannot push it off the header -->
         <ams_disconnected_chip name="system_disconnected_chip" disconnected="ams_all_units_disconnected"/>
+        <!-- Device operations, shown whenever Settings > Printing offers them too -->
+        <ui_button name="btn_ams_settings"
+                   variant="ghost" icon="settings" icon_size="md" text="" style_max_height="#header_button_height">
+          <bind_flag_if_eq subject="ams_has_device_ops" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="ams_sidebar_settings_clicked"/>
+        </ui_button>
       </lv_obj>
       <!-- Portrait: the loaded strip and the status line stand here, above the diagram.
            AmsOperationSidebar moves them in from the sidebar and back on rotation. -->

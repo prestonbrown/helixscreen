@@ -23,7 +23,7 @@
 // Responsive Layout
 // ============================================================================
 
-lv_coord_t ui_get_header_content_padding() {
+int32_t ui_get_header_content_padding() {
     // Use unified space_* system - values are already responsive based on breakpoint
     // set during theme initialization (space_lg = 12/16/20px at small/medium/large)
     int32_t spacing = theme_manager_get_spacing("space_lg");
@@ -37,7 +37,7 @@ lv_coord_t ui_get_header_content_padding() {
     return spacing;
 }
 
-lv_coord_t ui_get_responsive_header_height(lv_coord_t screen_height) {
+int32_t ui_get_responsive_header_height(int32_t screen_height) {
     // Responsive header heights for space efficiency:
     // Large/Medium (≥600px): 60px (comfortable)
     // Small (480-599px): 48px (compact)
@@ -240,21 +240,21 @@ static void child_overhang_cb(lv_event_t* e) {
     int32_t s = 0;
     for (uint32_t i = 0; i < lv_obj_get_child_count(obj); i++) {
         lv_obj_t* child = lv_obj_get_child(obj, i);
-        if (!lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN))
+        if (!lv_obj_is_hidden(child))
             s = std::max<int32_t>(s, lv_obj_get_ext_draw_size(child));
     }
     lv_event_set_ext_draw_size(e, s);
 }
 
 void pass_child_overhang(lv_obj_t* obj) {
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+    lv_obj_set_overflow_visible(obj, true);
     lv_obj_add_event_cb(obj, child_overhang_cb, LV_EVENT_REFR_EXT_DRAW_SIZE, nullptr);
 }
 
 void refresh_overhang_chain(lv_obj_t* child) {
     lv_obj_refresh_ext_draw_size(child);
-    for (lv_obj_t* p = lv_obj_get_parent(child);
-         p && lv_obj_has_flag(p, LV_OBJ_FLAG_OVERFLOW_VISIBLE); p = lv_obj_get_parent(p))
+    for (lv_obj_t* p = lv_obj_get_parent(child); p && lv_obj_is_overflow_visible(p);
+         p = lv_obj_get_parent(p))
         lv_obj_refresh_ext_draw_size(p);
 }
 

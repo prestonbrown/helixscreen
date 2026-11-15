@@ -53,7 +53,7 @@ class PerformanceState {
     /// Lifetime token for the perf subjects. Observers of any perf subject
     /// (e.g. HelixSparkline on perf_history_tick) MUST pass this to observe_*()
     /// so their ObserverGuard releases safely instead of calling
-    /// lv_observer_remove() on a freed subject. These subjects are NOT a
+    /// lv_observer_delete() on a freed subject. These subjects are NOT a
     /// never-freed singleton: deinit_subjects()/init_subjects() destroy and
     /// recreate them on reconnect, printer switch, and between tests. Live from
     /// construction: the manager's token flips and renews on every teardown.

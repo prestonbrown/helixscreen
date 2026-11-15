@@ -116,7 +116,7 @@ TEST_CASE_METHOD(GridFixture,
                  "[xml][theme][swatch]") {
     lv_obj_t* grid = create();
     REQUIRE(lv_obj_get_child_count(grid) == kTotal + kLead);
-    CHECK(lv_obj_has_flag(lv_obj_get_child(grid, 0), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_get_child(grid, 0)));
     REQUIRE(kTotal % kCols == 0);
 }
 
@@ -126,7 +126,7 @@ TEST_CASE_METHOD(GridFixture, "color_swatch_grid theme palette: every swatch is 
     for (uint32_t i = kLead; i < lv_obj_get_child_count(grid); i++) {
         lv_obj_t* child = lv_obj_get_child(grid, static_cast<int32_t>(i));
         INFO("swatch index " << i);
-        REQUIRE(lv_obj_has_flag(child, LV_OBJ_FLAG_CLICKABLE));
+        REQUIRE(lv_obj_is_clickable(child));
     }
 }
 

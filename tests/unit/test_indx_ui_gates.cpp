@@ -67,7 +67,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AMS wizard shows a logo only for a system w
         REQUIRE(root != nullptr);
         lv_obj_t* logo = lv_obj_find_by_name(root, "ams_logo");
         REQUIRE(logo != nullptr);
-        const bool shown = !lv_obj_has_flag(logo, LV_OBJ_FLAG_HIDDEN);
+        const bool shown = !lv_obj_is_hidden(logo);
         step.cleanup();
         lv_obj_delete(root);
         return shown;

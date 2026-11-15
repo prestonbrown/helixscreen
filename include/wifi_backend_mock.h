@@ -67,7 +67,11 @@ class WifiBackendMock : public WifiBackend {
     WiFiError disconnect_network() override;
     WiFiError set_radio_enabled(bool on) override;
     bool is_radio_enabled() const override;
+    /// A connected status with no address is awaiting one; a join the
+    /// simulator makes gets none under HELIX_MOCK_WIFI_DHCP_PENDING=1.
     ConnectionStatus get_status() override;
+    /// Fires on every address change set_connected_state() makes.
+    std::unique_ptr<helix::net::LinkEvents> open_address_events() override;
     bool supports_5ghz() const override;
     WiFiError forget_network(const std::string& ssid) override;
     bool supports_forget() const override {
@@ -160,6 +164,9 @@ class WifiBackendMock : public WifiBackend {
     std::string connected_ssid_;
     std::string connected_ip_;
     int connected_signal_;
+    /// Bumped on each address change; shared so an event feed may outlive us.
+    std::shared_ptr<std::atomic<unsigned>> address_generation_ =
+        std::make_shared<std::atomic<unsigned>>(0);
     bool radio_enabled_{true};
     bool join_displaces_wired_link_{false};
     std::optional<helix::wifi::WifiInterface> resolved_interface_;

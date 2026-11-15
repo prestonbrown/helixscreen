@@ -49,8 +49,21 @@ class PanelRegistry {
     }
 
     /// Show the panel in slot @p idx and hide every other panel. An index with
-    /// no panel (-1 for none) hides them all.
+    /// no panel (-1 for none) hides them all. A lent panel is left alone.
     void show_only(int idx);
+
+    /// Move panel @p idx's widget under @p container and show it there (a home
+    /// full page, prestonbrown/helixscreen#1931). False, moving nothing, when the
+    /// slot is empty, already lent, or @p container is null.
+    bool lend(int idx, lv_obj_t* container);
+
+    /// Move a lent widget back under the parent it was lent from, at its old
+    /// position, hidden. False when the panel is not lent. When that parent is
+    /// gone the widget stays where it is, and the slot clears when it dies.
+    bool reclaim(int idx);
+
+    /// The container panel @p idx is lent to, or nullptr.
+    [[nodiscard]] lv_obj_t* lent_to(int idx) const;
 
     void set_instance(int idx, PanelBase* panel);
 
@@ -80,6 +93,9 @@ class PanelRegistry {
 
   private:
     WidgetRef widgets_[kCount];
+    WidgetRef lent_to_[kCount];
+    WidgetRef lent_from_[kCount];
+    std::array<int32_t, kCount> lent_index_ = {};
     std::array<PanelBase*, kCount> instances_ = {};
     std::array<bool, kCount> stale_ = {};
     std::function<void(int)> deferred_builder_;

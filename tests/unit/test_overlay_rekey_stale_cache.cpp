@@ -33,7 +33,7 @@ class CachedOverlay : public OverlayBase {
     lv_obj_t* create(lv_obj_t* parent) override {
         parent_screen_ = parent;
         overlay_root_ = lv_obj_create(parent);
-        lv_obj_add_flag(overlay_root_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(overlay_root_, true);
         return overlay_root_;
     }
 
@@ -104,7 +104,7 @@ TEST_CASE_METHOD(StaleCacheFixture, "An owner's handle reopens the rebuilt root"
     settle();
 
     CHECK(nav.is_panel_on_top(overlay.get_root()));
-    CHECK_FALSE(lv_obj_has_flag(overlay.get_root(), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(overlay.get_root()));
 
     nav.go_back();
     settle();
@@ -186,7 +186,7 @@ TEST_CASE_METHOD(StaleCacheFixture,
     close_and_rebuild(overlay);
 
     helix::ui::WidgetRef other(lv_obj_create(test_screen()));
-    lv_obj_add_flag(other, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(other, true);
     nav.register_overlay_instance(other, nullptr);
 
     SECTION("deleted with a push queued") {

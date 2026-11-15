@@ -73,8 +73,9 @@ struct PrintHistoryJob {
     /// what ThumbnailCache's source_modified == 0 already means.
     double modified = 0.0;
 
-    // Pre-formatted strings for display (set during parsing)
-    std::string date_str;     ///< "Dec 1, 14:30"
+    // Pre-formatted for display while parsing. Dates are not: they follow the language
+    // and the time format, which are main-thread state, so a view formats start_time
+    // where it draws it.
     std::string filament_str; ///< "12.5m"
 
     // Timelapse association

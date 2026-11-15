@@ -204,10 +204,10 @@ TEST_CASE_METHOD(ThemeExplorerFixture,
     REQUIRE(row != nullptr);
 
     lv_subject_set_int(available, 0);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
     pick("dracula");
     settle();
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     // The explorer is rebuilt on every open, and a fresh one has no pick yet.
     close_explorer();
@@ -215,7 +215,7 @@ TEST_CASE_METHOD(ThemeExplorerFixture,
     settle();
     row = lv_obj_find_by_name(lv_screen_active(), "dark_mode_toggle_container");
     REQUIRE(row != nullptr);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     lv_subject_set_int(available, saved);
 }

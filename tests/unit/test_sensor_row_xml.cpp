@@ -95,15 +95,15 @@ class SensorRowFixture : public XMLTestFixture {
         ui_switch_register();
         REQUIRE(register_component("sensor_row"));
         auto& s = subjects();
-        lv_subject_copy_string(&s.name, "Front Door");
-        lv_subject_copy_string(&s.state, "Open");
+        lv_subject_set_string(&s.name, "Front Door");
+        lv_subject_set_string(&s.state, "Open");
         lv_subject_set_int(&s.has_state, 1);
         lv_subject_set_int(&s.alert, 0);
         lv_subject_set_int(&s.role, 0);
         lv_subject_set_int(&s.has_role, 1);
         lv_subject_set_int(&s.toggle_kind, 0);
         lv_subject_set_int(&s.toggle, 0);
-        lv_subject_copy_string(&s.held_role, "");
+        lv_subject_set_string(&s.held_role, "");
         lv_subject_set_int(&s.has_held_role, 0);
         lv_subject_set_int(&s.has_detail, 1);
         lv_subject_set_int(&s.role_set, 1);
@@ -123,7 +123,7 @@ class SensorRowFixture : public XMLTestFixture {
 
     bool hidden_in_row(lv_obj_t* obj) const {
         for (; obj && obj != row_; obj = lv_obj_get_parent(obj)) {
-            if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(obj)) {
                 return true;
             }
         }
@@ -140,7 +140,7 @@ TEST_CASE_METHOD(SensorRowFixture, "sensor_row shows the name and state text",
     CHECK(std::string(lv_label_get_text(find("name_label"))) == "Front Door");
     CHECK(std::string(lv_label_get_text(find("state_label"))) == "Open");
 
-    lv_subject_copy_string(&subjects().state, "Closed");
+    lv_subject_set_string(&subjects().state, "Closed");
     process_lvgl(10);
     CHECK(std::string(lv_label_get_text(find("state_label"))) == "Closed");
 }
@@ -228,7 +228,7 @@ TEST_CASE_METHOD(SensorRowFixture, "sensor_row shows a held role as text beside 
     CHECK(hidden_in_row(held));
     CHECK(lv_obj_get_style_text_opa(dd, LV_PART_MAIN) == LV_OPA_COVER);
 
-    lv_subject_copy_string(&subjects().held_role, "Z Probe");
+    lv_subject_set_string(&subjects().held_role, "Z Probe");
     lv_subject_set_int(&subjects().has_held_role, 1);
     lv_subject_set_int(&subjects().role_set, 0);
     lv_subject_set_int(&subjects().role, 2);

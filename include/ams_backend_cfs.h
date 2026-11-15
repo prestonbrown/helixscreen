@@ -455,11 +455,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// start. @p cancel_requested is polled at each step boundary: once set,
     /// remaining steps are dropped without on_ready (the caller has already
     /// left the flow). @p on_failed fires on the main thread when any step's
-    /// gcode fails, with Klipper's message; the backend has already re-parked
-    /// Y when PREPARE had run.
+    /// gcode fails, with its error; the backend has already re-parked Y when
+    /// PREPARE had run.
     AmsError
     start_chute_calibration(std::function<void()> on_ready = nullptr,
-                            std::function<void(const std::string& klipper_msg)> on_failed = nullptr,
+                            ChuteStepFailed on_failed = nullptr,
                             std::shared_ptr<std::atomic<bool>> cancel_requested = nullptr) override;
 
     /// Jog Y by @p delta_mm using the stock screen's exact script form
@@ -477,11 +477,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// sends no coordinate) followed by Y_SAFE to re-park. Refused while a print
     /// holds the machine or X or Y is unhomed. on_saved fires on
     /// the main thread after both completed; @p on_failed when either gcode
-    /// fails (the backend has already sent Y_SAFE, which is an idempotent
-    /// park).
-    AmsError save_chute_position(
-        std::function<void()> on_saved = nullptr,
-        std::function<void(const std::string& klipper_msg)> on_failed = nullptr) override;
+    /// fails. A failed save is followed by Y_SAFE, an idempotent park; a failed
+    /// park after a good save reports position_saved, keeps the pair the
+    /// firmware wrote for last_chute_saved_position(), and sends nothing more.
+    AmsError save_chute_position(std::function<void()> on_saved = nullptr,
+                                 ChuteSaveFailed on_failed = nullptr) override;
 
     /// Abort path: re-park Y with CMD=Y_SAFE. Required once PREPARE has run,
     /// which is the point from which the toolhead is left off-park. Refused
@@ -597,6 +597,19 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
                                   bool fork_select_slot = false);
     static std::string unload_gcode(CfsMacroVariant variant = CfsMacroVariant::K2);
 
+    /// A manual purge of @p length_mm at @p feedrate_mm_min, made over the purge
+    /// chute: the same go-to-extrude-position / fan save / park / state restore
+    /// the stock dialect's own operations use, around a relative extrude. No
+    /// bay command (BOX_CHECK_MATERIAL, BOX_MODE_WAIT): a purge pushes whatever
+    /// is in the nozzle, which may be a bypass spool the box has no answer for.
+    /// No BOX_NOZZLE_CLEAN either, matching the load, which ends at its extrude.
+    static std::string chute_purge_gcode(int length_mm, int feedrate_mm_min);
+
+    /// chute_purge_gcode() when the stock dialect reports a configured chute
+    /// (`[box] has_extrude_pos`) and X and Y are homed; "" otherwise, so the
+    /// caller keeps its in-place extrude.
+    [[nodiscard]] std::string manual_purge_gcode(int length_mm, int feedrate_mm_min) const override;
+
     /// Unload the external / bypass spool on the stock (K1/K2) dialect.
     ///
     /// Not a variant of unload_gcode(). That script ends in the box's own
@@ -689,7 +702,7 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
                                                            bool filament_at_end,
                                                            bool bypass_unload = false);
 
-    /// Human-facing sentence for a non-Ok verdict, or empty for `Ok` /
+    /// Untranslated catalog key for a non-Ok verdict, or empty for `Ok` /
     /// `Unverifiable`. Separate from the rule so the wording can move without
     /// touching the policy or its tests.
     [[nodiscard]] static std::string phase_verdict_message(PhaseVerdict verdict);
@@ -1189,6 +1202,10 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// None with no query to make (no client), so the empty-bus verdict
     /// follows the frames alone. Guarded by mutex_.
     UnitRegistration unit_registration_ = UnitRegistration::None;
+    /// configfile's `[box] has_extrude_pos` (cfs::has_chute_extrude_pos), read
+    /// with the unit registration. False until that answer lands. Guarded by
+    /// mutex_.
+    bool has_chute_extrude_pos_ = false;
     /// True once kRegisteredUnitSettle has passed this session without the
     /// frames showing a unit. Guarded by mutex_.
     bool unit_settle_expired_ = false;
@@ -1205,6 +1222,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// registration already known until the query answers. Main thread.
     void begin_unit_settle();
     void apply_unit_registration(UnitRegistration registration);
+    /// Adopt what box.cfg says about the purge chute: the wiper behind it and
+    /// whether it declares an extrude position. Main thread.
+    void apply_chute_config(const std::optional<ChuteWiperLine>& wiper, bool chute);
     void finish_unit_settle();
     /// Re-runs the empty-bus verdict outside a frame and announces a change.
     /// Main thread; takes mutex_.

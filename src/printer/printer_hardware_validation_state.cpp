@@ -102,8 +102,8 @@ void PrinterHardwareValidationState::set_hardware_validation_result(
         snprintf(hardware_status_detail_buf_, sizeof(hardware_status_detail_buf_), "%s",
                  detail.c_str());
     }
-    lv_subject_copy_string(&hardware_status_title_, hardware_status_title_buf_);
-    lv_subject_copy_string(&hardware_status_detail_, hardware_status_detail_buf_);
+    lv_subject_set_string(&hardware_status_title_, hardware_status_title_buf_);
+    lv_subject_set_string(&hardware_status_detail_, hardware_status_detail_buf_);
 
     // Update issues label for settings panel ("1 Hardware Issue" / "5 Hardware Issues")
     size_t total = result.total_issue_count();
@@ -117,7 +117,7 @@ void PrinterHardwareValidationState::set_hardware_validation_result(
                 fmt::runtime(ui::tr_plural("1 Hardware Issue", "{} Hardware Issues", total)), total)
                 .c_str());
     }
-    lv_subject_copy_string(&hardware_issues_label_, hardware_issues_label_buf_);
+    lv_subject_set_string(&hardware_issues_label_, hardware_issues_label_buf_);
 
     spdlog::debug("[PrinterHardwareValidationState] Hardware validation updated: {} issues, "
                   "status_level={}",

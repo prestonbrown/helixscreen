@@ -109,7 +109,7 @@ static void textarea_value_changed_cb(lv_event_t* e) {
 
     if (subject_text == nullptr || std::strcmp(new_text, subject_text) != 0) {
         g_updating_from_textarea = true;
-        lv_subject_copy_string(subject, new_text);
+        lv_subject_set_string(subject, new_text);
         g_updating_from_textarea = false;
     }
 }
@@ -137,7 +137,7 @@ static void update_clear_btn_visibility(lv_obj_t* textarea) {
 
     const char* text = lv_textarea_get_text(textarea);
     bool has_text = text && text[0] != '\0';
-    lv_obj_set_flag(clear_btn, LV_OBJ_FLAG_HIDDEN, !has_text);
+    lv_obj_set_hidden(clear_btn, !has_text);
 }
 
 /**
@@ -163,7 +163,7 @@ static void clear_btn_clicked_cb(lv_event_t* e) {
     lv_textarea_set_text(textarea, "");
 
     // Hide the clear button
-    lv_obj_add_flag(clear_btn, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(clear_btn, true);
 
     // Fire the optional clear callback directly (stored as user_data on the clear button).
     // This bypasses the normal value_changed debounce path, letting the panel
@@ -199,9 +199,9 @@ static lv_obj_t* create_clear_button(lv_obj_t* textarea) {
     lv_obj_set_style_text_opa(btn, LV_OPA_70, 0);
 
     // Make it floating so it doesn't scroll with text or participate in layout
-    lv_obj_add_flag(btn, LV_OBJ_FLAG_FLOATING);
-    lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(btn, LV_OBJ_FLAG_HIDDEN); // Hidden by default (no text yet)
+    lv_obj_set_floating(btn, true);
+    lv_obj_set_clickable(btn, true);
+    lv_obj_set_hidden(btn, true); // Hidden by default (no text yet)
 
     // Add right padding to textarea so text doesn't overlap the button
     int32_t original_pad = lv_obj_get_style_pad_right(textarea, LV_PART_MAIN);
@@ -269,8 +269,8 @@ static lv_obj_t* create_suffix(lv_obj_t* textarea) {
     lv_obj_set_style_text_font(suffix, theme_manager_get_font("font_body"), LV_PART_MAIN);
     lv_obj_add_style(suffix, ThemeManager::instance().get_style(StyleRole::TextMuted),
                      LV_PART_MAIN);
-    lv_obj_add_flag(suffix, LV_OBJ_FLAG_FLOATING);
-    lv_obj_remove_flag(suffix, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_floating(suffix, true);
+    lv_obj_set_clickable(suffix, false);
     lv_obj_set_user_data(suffix, reinterpret_cast<void*>(static_cast<intptr_t>(
                                      lv_obj_get_style_pad_right(textarea, LV_PART_MAIN))));
     lv_obj_add_event_cb(suffix, suffix_size_changed_cb, LV_EVENT_SIZE_CHANGED, nullptr);

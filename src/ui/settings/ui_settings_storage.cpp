@@ -134,10 +134,10 @@ void StorageSettingsOverlay::show_report(storage::ReportSource source,
             fmt::format(fmt::runtime(lv_tr("{} free of {}")),
                         helix::ui::format_file_size(static_cast<size_t>(free)),
                         helix::ui::format_file_size(static_cast<size_t>(total)));
-        lv_subject_copy_string(&volume_text_, text.c_str());
+        lv_subject_set_string(&volume_text_, text.c_str());
         lv_subject_set_int(&used_pct_, static_cast<int>((total - free) * 100 / total));
     } else {
-        lv_subject_copy_string(&volume_text_, lv_tr("Free space unknown"));
+        lv_subject_set_string(&volume_text_, lv_tr("Free space unknown"));
         lv_subject_set_int(&used_pct_, 0);
     }
     std::string source_text = source == storage::ReportSource::Plugin
@@ -147,11 +147,11 @@ void StorageSettingsOverlay::show_report(storage::ReportSource source,
         source_text += " ";
         source_text += lv_tr("(too many folders to list them all)");
     }
-    lv_subject_copy_string(&source_text_, source_text.c_str());
+    lv_subject_set_string(&source_text_, source_text.c_str());
 
     for (std::size_t i = 0; i < storage::kConsumerCount; ++i) {
         const storage::ConsumerUsage& usage = report->consumers[i];
-        lv_subject_copy_string(&value_[i], usage_text(usage).c_str());
+        lv_subject_set_string(&value_[i], usage_text(usage).c_str());
         lv_subject_set_int(&shown_[i], usage.available ? 1 : 0);
         lv_subject_set_int(&clean_[i], usage.cleanable && usage.files > 0 ? 1 : 0);
     }

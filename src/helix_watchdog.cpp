@@ -782,7 +782,7 @@ static bool write_safe_mode_marker() {
 static void on_screen_pressed(lv_event_t* /*e*/) {
     if (g_countdown_seconds > 0 && g_countdown_label) {
         g_countdown_seconds = 0;
-        lv_obj_add_flag(g_countdown_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(g_countdown_label, true);
         spdlog::debug("[Watchdog] Countdown cancelled by touch");
     }
 }
@@ -824,7 +824,7 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
     // Dark background
     lv_obj_set_style_bg_color(screen, lv_color_hex(kBgColorDark), 0);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
-    lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(screen, false);
 
     // Touch anywhere cancels countdown
     lv_obj_add_event_cb(screen, on_screen_pressed, LV_EVENT_PRESSED, nullptr);
@@ -842,7 +842,7 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
-    lv_obj_clear_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
 
     // Warning icon
     lv_obj_t* icon = lv_label_create(container);
@@ -878,7 +878,7 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
                                 "(boots without connecting to the printer) so\n"
                                 "you can adjust settings. Safe Mode starts\n"
                                 "by itself in 2 minutes.");
-        lv_label_set_long_mode(hint, LV_LABEL_LONG_WRAP);
+        lv_label_set_long_mode(hint, LV_LABEL_LONG_MODE_WRAP);
         lv_obj_set_width(hint, LV_PCT(100));
         lv_obj_set_style_text_font(hint, &noto_sans_14, 0);
         lv_obj_set_style_text_color(hint, lv_color_hex(kTextSecondary), 0);
@@ -899,7 +899,7 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
         lv_obj_set_style_pad_top(g_countdown_label, 12, 0);
     } else {
         g_countdown_seconds = 0;
-        lv_obj_add_flag(g_countdown_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(g_countdown_label, true);
     }
 
     // Button container
@@ -913,7 +913,7 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
                           LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_top(btn_container, 24, 0);
     lv_obj_set_style_pad_column(btn_container, 16, 0);
-    lv_obj_clear_flag(btn_container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(btn_container, false);
 
     if (crash_loop_detected) {
         // Loop dialog: Safe Mode is the primary action since plain restart

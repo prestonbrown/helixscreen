@@ -69,7 +69,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini bar mode: width bands pick bar wid
 
     lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
     REQUIRE(bars != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(bars, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(bars));
     REQUIRE(lv_obj_get_width(lv_obj_get_child(bars, 0)) == 11);
 
     // 8 slots, max 6 visible -> "+2" overflow badge, visible and non-empty.
@@ -83,7 +83,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini bar mode: width bands pick bar wid
         }
     }
     REQUIRE(label != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(label));
     REQUIRE(std::string(lv_label_get_text(label)) == "+2");
 
     // 100 <= width_px < w_normal(): 13px bar cap, all 8 slots shown.
@@ -92,7 +92,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini bar mode: width bands pick bar wid
     lv_obj_update_layout(w);
 
     REQUIRE(lv_obj_get_width(lv_obj_get_child(bars, 0)) == 13);
-    REQUIRE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN)); // no overflow: all 8 fit
+    REQUIRE(lv_obj_is_hidden(label)); // no overflow: all 8 fit
 
     lv_obj_delete(w);
 }
@@ -110,15 +110,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini mode dispatch: width_px vs w_norma
     REQUIRE(UITest::find_by_name(w, "ams_spools_container") == nullptr);
     lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
     REQUIRE(bars != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(bars, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(bars));
 
     // At w_normal(): spool view.
     ui_ams_mini_status_set_width(w, helix::widget_size::w_normal());
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_t* spools = UITest::find_by_name(w, "ams_spools_container");
     REQUIRE(spools != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(spools, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE(lv_obj_has_flag(bars, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(spools));
+    REQUIRE(lv_obj_is_hidden(bars));
 
     lv_obj_delete(w);
 }
@@ -141,7 +141,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: cell width derives fro
     constexpr int kHintPx = 300;
     auto lay_out_in = [this](int parent_w) {
         lv_obj_t* parent = lv_obj_create(test_screen());
-        lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(parent, false);
         lv_obj_set_style_pad_all(parent, 0, LV_PART_MAIN);
         lv_obj_set_style_border_width(parent, 0, LV_PART_MAIN);
         lv_obj_set_size(parent, parent_w, 60);
@@ -198,7 +198,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // the derived visible count must not exceed the actual slot_count (no
     // blank reserved columns for spools that don't exist).
     lv_obj_t* wide_parent = lv_obj_create(test_screen());
-    lv_obj_remove_flag(wide_parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(wide_parent, false);
     lv_obj_set_style_pad_all(wide_parent, 0, LV_PART_MAIN);
     lv_obj_set_style_border_width(wide_parent, 0, LV_PART_MAIN);
     lv_obj_set_size(wide_parent, 600, 60);
@@ -336,7 +336,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: every shipping panel gets the bar
         CHECK(UITest::find_by_name(w, "ams_spools_container") == nullptr);
         lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
         REQUIRE(bars != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(bars, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(bars));
 
         // All four slots fit at every shipping width — the <100px visible cap
         // is 6, so it never bites on a 4-slot system.
@@ -377,7 +377,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: bar width band per shipping panel
     for (const auto& c : cases) {
         BreakpointGuard bp_guard(c.bp);
         lv_obj_t* parent = lv_obj_create(test_screen());
-        lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(parent, false);
         lv_obj_set_style_pad_all(parent, 0, LV_PART_MAIN);
         lv_obj_set_style_border_width(parent, 0, LV_PART_MAIN);
         lv_obj_set_size(parent, c.width_px, 64);
@@ -392,7 +392,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: bar width band per shipping panel
 
         lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
         REQUIRE(bars != nullptr);
-        REQUIRE_FALSE(lv_obj_has_flag(bars, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(bars));
         REQUIRE(lv_obj_get_child_count(bars) >= 1);
 
         INFO(c.name << " width " << c.width_px << "px expects " << c.bar_w << "px bars");
@@ -407,7 +407,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: bar width band per shipping panel
  * The spool cell reserves a text column (`text_w`) for the material label and
  * shrinks the spool graphic to make room for it. "Enough room" is measured in
  * `font_small`, which runs 10-26px across the tiers, so a reservation that under-
- * reserves lets `LV_LABEL_LONG_WRAP` break the string at whatever fits and the
+ * reserves lets `LV_LABEL_LONG_MODE_WRAP` break the string at whatever fits and the
  * label comes out one glyph per line, spilling over its neighbour.
  *
  * Where the name goes depends on how hard the row had to squeeze to seat every
@@ -437,7 +437,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: material label fits it
     };
     auto row_of = [this](int h, int lanes) {
         lv_obj_t* parent = lv_obj_create(test_screen());
-        lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(parent, false);
         lv_obj_set_style_pad_all(parent, 0, LV_PART_MAIN);
         lv_obj_set_style_border_width(parent, 0, LV_PART_MAIN);
         lv_obj_set_size(parent, 480, h);
@@ -524,7 +524,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: a row too short to sta
     // `avail_h` falls back to before a laid-out height resolves. 50px leaves no
     // room for a spool with a line of text under it.
     lv_obj_t* parent = lv_obj_create(test_screen());
-    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(parent, false);
     lv_obj_set_style_pad_all(parent, 0, LV_PART_MAIN);
     lv_obj_set_style_border_width(parent, 0, LV_PART_MAIN);
     lv_obj_set_size(parent, 480, 50);
@@ -548,7 +548,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: a row too short to sta
         // rather than never creating it.
         lv_obj_t* col = UITest::find_by_name(w, ("spool_text_" + std::to_string(i)).c_str());
         REQUIRE(col != nullptr);
-        CHECK(lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(col));
     }
     CHECK(lv_obj_get_scroll_right(sc) <= 0);
 
@@ -578,7 +578,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: every lane fits before
     // The width a four-track AMS tile gets on the twelve-track home grid at
     // this resolution, measured off the running app.
     lv_obj_t* parent = lv_obj_create(test_screen());
-    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(parent, false);
     lv_obj_set_style_pad_all(parent, 0, LV_PART_MAIN);
     lv_obj_set_style_border_width(parent, 0, LV_PART_MAIN);
     lv_obj_set_size(parent, 228, 54);
@@ -628,7 +628,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: every lane fits before
  * have pushed a lane off the row.
  *
  * A name arriving here ellipsized rather than wrapped is the whole point -
- * LV_LABEL_LONG_DOT only cuts once the label's height stops it wrapping, so a
+ * LV_LABEL_LONG_MODE_DOTS only cuts once the label's height stops it wrapping, so a
  * label left free to grow taller silently wraps instead and the dots never
  * appear.
  */
@@ -643,7 +643,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // Short row -> small spool -> width left over for a shortened name, and a
     // container too narrow to spell the full one on all four cells.
     lv_obj_t* parent = lv_obj_create(test_screen());
-    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(parent, false);
     lv_obj_set_style_pad_all(parent, 0, LV_PART_MAIN);
     lv_obj_set_style_border_width(parent, 0, LV_PART_MAIN);
     lv_obj_set_size(parent, 600, 44);
@@ -670,7 +670,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                    << lv_obj_get_height(mat) << "px, line height " << lv_font_get_line_height(font)
                    << "px, scroll_right " << lv_obj_get_scroll_right(sc));
 
-    // LV_LABEL_LONG_DOT rewrites the label's own buffer with the shortened
+    // LV_LABEL_LONG_MODE_DOTS rewrites the label's own buffer with the shortened
     // string, so the truncation is observable as the text it will draw.
     CHECK(std::string(shown) != "PETG Carbon Fiber");
     CHECK(std::string(shown).find("...") != std::string::npos);
@@ -708,7 +708,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: the name goes where th
     for (const Case c :
          {Case{228, 113, true}, Case{342, 113, true}, Case{470, 113, true}, Case{470, 54, false}}) {
         lv_obj_t* parent = lv_obj_create(test_screen());
-        lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(parent, false);
         lv_obj_set_style_pad_all(parent, 0, LV_PART_MAIN);
         lv_obj_set_style_border_width(parent, 0, LV_PART_MAIN);
         lv_obj_set_size(parent, c.w, c.h);
@@ -766,7 +766,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: cells follow a row tha
     ui_ams_mini_status_init();
 
     lv_obj_t* parent = lv_obj_create(test_screen());
-    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(parent, false);
     lv_obj_set_style_pad_all(parent, 0, LV_PART_MAIN);
     lv_obj_set_style_border_width(parent, 0, LV_PART_MAIN);
     lv_obj_set_size(parent, 336, 113);
@@ -795,10 +795,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: cells follow a row tha
 
     lv_obj_t* pct = UITest::find_by_name(w, "spool_pct_0");
     REQUIRE(pct != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(pct, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(pct));
     lv_obj_set_height(parent, 81);
     lv_obj_update_layout(parent);
-    CHECK(lv_obj_has_flag(pct, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(pct));
 
     lv_obj_delete(w);
     lv_obj_delete(parent);
@@ -822,7 +822,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: the percent never cost
 
     for (const auto& [h, keeps_pct] : {std::pair{113, true}, std::pair{81, false}}) {
         lv_obj_t* parent = lv_obj_create(test_screen());
-        lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(parent, false);
         lv_obj_set_style_pad_all(parent, 0, LV_PART_MAIN);
         lv_obj_set_style_border_width(parent, 0, LV_PART_MAIN);
         lv_obj_set_size(parent, 328, h);
@@ -844,8 +844,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: the percent never cost
         lv_obj_get_coords(mat, &ma);
         lv_obj_get_coords(wrap, &sa);
         INFO(h << "px row: spool wrap " << lv_obj_get_height(wrap) << "px, percent "
-               << (lv_obj_has_flag(pct, LV_OBJ_FLAG_HIDDEN) ? "hidden" : "shown"));
-        CHECK(lv_obj_has_flag(pct, LV_OBJ_FLAG_HIDDEN) != keeps_pct);
+               << (lv_obj_is_hidden(pct) ? "hidden" : "shown"));
+        CHECK(lv_obj_is_hidden(pct) != keeps_pct);
         CHECK(ma.y2 <= sa.y1); // still above the spool
 
         lv_obj_delete(w);

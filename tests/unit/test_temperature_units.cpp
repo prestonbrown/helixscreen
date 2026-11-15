@@ -16,10 +16,12 @@
 #include "ams_error.h"
 #include "config.h"
 #include "core/temperature_units.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "fit_check.h"
 #include "locale_formats.h"
 #include "preset_materials.h"
+#include "printer_state.h"
 #include "region_defaults.h"
 #include "settings_manager.h"
 #include "system_settings_manager.h"
@@ -27,6 +29,7 @@
 #include <ctime>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -363,6 +366,52 @@ TEST_CASE_METHOD(LVGLUITestFixture,
               units::format_display_temp(helix::presets::slot_temps(0)->bed));
     display.set_temp_unit(kC);
     CHECK(text(2) == "210");
+    erase_display_key("temp_unit");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "temperature units: a target-only string follows a switch without a reading",
+                 "[temp_units]") {
+    auto& display = helix::DisplaySettingsManager::instance();
+    lv_subject_t* target_c = lv_xml_get_subject(nullptr, "chamber_air_target_c");
+    lv_subject_t* target_text = lv_xml_get_subject(nullptr, "chamber_air_target_text");
+    REQUIRE(target_c != nullptr);
+    REQUIRE(target_text != nullptr);
+    lv_subject_set_int(target_c, 50);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(std::string(lv_subject_get_string(target_text)) == "50°C");
+
+    // Every printer temperature subject, counted: a switch must not wake them.
+    int raw_fires = 0;
+    std::vector<lv_observer_t*> counters;
+    std::vector<lv_subject_t*> raws{state().temperature_state().get_chamber_target_subject(),
+                                    target_c};
+    for (const char* name :
+         {"extruder_temp", "extruder_target", "bed_temp", "bed_target", "chamber_temp"}) {
+        raws.push_back(lv_xml_get_subject(nullptr, name));
+    }
+    for (lv_subject_t* raw : raws) {
+        REQUIRE(raw != nullptr);
+        counters.push_back(lv_subject_add_observer(
+            raw,
+            [](lv_observer_t* o, lv_subject_t*) {
+                ++*static_cast<int*>(lv_observer_get_user_data(o));
+            },
+            &raw_fires));
+    }
+    raw_fires = 0; // registration fires each once
+
+    display.set_temp_unit(kF);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(std::string(lv_subject_get_string(target_text)) == "122°F");
+    display.set_temp_unit(kC);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(std::string(lv_subject_get_string(target_text)) == "50°C");
+    CHECK(raw_fires == 0);
+
+    for (auto* o : counters) {
+        lv_observer_delete(o);
+    }
     erase_display_key("temp_unit");
 }
 

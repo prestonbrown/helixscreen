@@ -36,11 +36,11 @@ void PinDisplay::set_digit_count(int count) {
 }
 
 void PinDisplay::show_error(const char* text) {
-    lv_subject_copy_string(&error_, text);
+    lv_subject_set_string(&error_, text);
 }
 
 void PinDisplay::hide_error() {
-    lv_subject_copy_string(&error_, kBlankError);
+    lv_subject_set_string(&error_, kBlankError);
 }
 
 } // namespace helix::ui

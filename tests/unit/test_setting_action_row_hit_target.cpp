@@ -36,7 +36,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(info != nullptr);
     bool info_shown = true;
     for (lv_obj_t* o = info; o && o != row; o = lv_obj_get_parent(o))
-        info_shown = info_shown && !lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN);
+        info_shown = info_shown && !lv_obj_is_hidden(o);
     REQUIRE(info_shown == (breakpoint == 0));
     lv_area_t info_area;
     lv_obj_get_coords(info, &info_area);

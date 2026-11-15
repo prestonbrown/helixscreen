@@ -1807,7 +1807,7 @@ HELIX_CRASH_TEST=1 ./helix-screen -vv
 
 ### `HELIX_LVGL_THREAD_CHECK`
 
-What to do when an LVGL entry point is called from a thread other than the LVGL (main) thread. The checked entry points are every subject write (`lv_subject_set_int`/`_float`/`_pointer`/`_color`, `lv_subject_copy_string`, `lv_subject_snprintf`) and `lv_subject_notify`, `lv_timer_create`/`lv_timer_delete` (which covers `lv_async_call` and `lv_obj_delete_async`), and `lv_obj_delete`/`lv_obj_clean`.
+What to do when an LVGL entry point is called from a thread other than the LVGL (main) thread. The checked entry points are every subject write (`lv_subject_set_int`/`_float`/`_pointer`/`_color`, `lv_subject_set_string`, `lv_subject_snprintf`) and `lv_subject_notify`, `lv_timer_create`/`lv_timer_delete` (which covers `lv_async_call` and `lv_obj_delete_async`), and `lv_obj_delete`/`lv_obj_clean`.
 
 | Property | Value |
 |----------|-------|

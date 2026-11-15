@@ -326,7 +326,7 @@ TEST_CASE("A tap anywhere on the drawn switch reaches it", "[ui_switch][touch]")
 
     lv_obj_t* screen = lv_obj_create(nullptr);
     lv_obj_set_size(screen, 800, 480);
-    lv_obj_remove_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(screen, false);
     lv_obj_set_flex_flow(screen, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(screen, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_t* sw = ui_switch_create_themed(screen, "small");
@@ -363,7 +363,7 @@ lv_obj_t* make_row(lv_obj_t* screen, int32_t gap) {
     lv_obj_set_size(row, 600, 80);
     lv_obj_set_style_pad_all(row, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_column(row, gap, LV_PART_MAIN);
-    lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(row, false);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     return row;
@@ -378,7 +378,7 @@ TEST_CASE("A switch's touch area never takes a tap from its neighbour", "[ui_swi
     SwitchTest fixture;
     lv_obj_t* screen = lv_obj_create(nullptr);
     lv_obj_set_size(screen, 800, 480);
-    lv_obj_remove_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(screen, false);
 
     const int32_t gap = GENERATE(int32_t{0}, kRowGap);
     const bool button_neighbour = GENERATE(false, true);
@@ -388,7 +388,7 @@ TEST_CASE("A switch's touch area never takes a tap from its neighbour", "[ui_swi
     lv_obj_t* neighbour = button_neighbour ? lv_button_create(row) : lv_label_create(row);
     if (!button_neighbour) {
         lv_label_set_text(neighbour, "WiFi");
-        lv_obj_add_flag(neighbour, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(neighbour, true);
     }
     lv_obj_set_size(neighbour, 120, 70);
     lv_obj_t* sw = ui_switch_create_themed(row, "small");
@@ -416,7 +416,7 @@ TEST_CASE("A switch outside a flex or grid layout keeps its track as its target"
     SwitchTest fixture;
     lv_obj_t* screen = lv_obj_create(nullptr);
     lv_obj_set_size(screen, 800, 480);
-    lv_obj_remove_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(screen, false);
     lv_obj_t* sw = ui_switch_create_themed(screen, "small");
     REQUIRE(sw != nullptr);
     lv_obj_center(sw);

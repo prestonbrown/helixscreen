@@ -216,8 +216,8 @@ void* xml_create(lv_xml_parser_state_t* state, const char** /*attrs*/) {
     auto* parent = static_cast<lv_obj_t*>(lv_xml_state_get_parent(state));
     lv_obj_t* obj = lv_obj_create(parent);
     lv_obj_remove_style_all(obj);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, false);
     lv_obj_set_user_data(obj, new HumidityDropData{});
 
     // DECLARATIVE_OK: a custom widget's own draw, resize and teardown hooks.

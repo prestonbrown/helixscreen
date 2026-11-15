@@ -129,6 +129,9 @@ class NetworkSettingsOverlayTestAccess {
     static std::string ip(NetworkSettingsOverlay& o) {
         return o.ip_buffer_;
     }
+    static std::string ip_display(NetworkSettingsOverlay& o) {
+        return o.ip_display_buffer_;
+    }
     static std::string mac(NetworkSettingsOverlay& o) {
         return o.mac_buffer_;
     }

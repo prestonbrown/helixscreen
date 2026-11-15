@@ -71,7 +71,7 @@ class ProbeOverlay : public OverlayBase {
     }
     lv_obj_t* create(lv_obj_t* parent) override {
         overlay_root_ = lv_obj_create(parent);
-        lv_obj_add_flag(overlay_root_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(overlay_root_, true);
         child = lv_obj_create(overlay_root_);
         return overlay_root_;
     }

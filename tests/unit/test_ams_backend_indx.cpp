@@ -13,6 +13,7 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/recovery_modal_presenter_test_access.h"
 #include "../test_helpers/registered_backend.h"
+#include "../test_helpers/scoped_language.h"
 #include "../test_helpers/seeded_override.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_backend_indx.h"
@@ -165,6 +166,10 @@ TEST_CASE_METHOD(IndxFixture,
     CHECK_FALSE(b.change_tool(1).success());
     REQUIRE(b.current_error().has_value());
     CHECK(b.current_error()->recovery_actions.empty());
+    // The fault names its tool, so a language switch re-words it with no new frame.
+    ScopedLanguage fr("fr");
+    b.refresh_translated_texts();
+    CHECK(b.get_system_info().operation_detail.find("mal engagé") != std::string::npos);
 
     b.feed(json{{"save_variables", {{"variables", {{"seat_suspect", -1}}}}},
                 {"gcode_macro TOOL_POSITIONS", {{"docks_calibrated", false}}}});

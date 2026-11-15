@@ -33,15 +33,15 @@ TEST_CASE_METHOD(XMLTestFixture, "header_bar action button hides via subject",
     REQUIRE(hdr != nullptr);
     lv_obj_t* btn = lv_obj_find_by_name(hdr, "action_button");
     REQUIRE(btn != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(btn));
 
     lv_subject_set_int(&hide_subj, 1);
     UpdateQueue::instance().drain();
-    REQUIRE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(btn));
 
     lv_subject_set_int(&hide_subj, 0);
     UpdateQueue::instance().drain();
-    REQUIRE_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(btn));
 
     lv_subject_deinit(&hide_subj);
 }

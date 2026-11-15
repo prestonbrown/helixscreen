@@ -97,6 +97,24 @@ class DetectionSource {
     virtual void on_objects_listed(const std::vector<std::string>& objects) {
         (void)objects;
     }
+    /// Make the printer's own detector follow the Spaghetti Detection switch,
+    /// for sources whose firmware detects (and pauses) by itself. Called on
+    /// the main thread while available(): whenever the switch changes, and on
+    /// connect when read_detection_enabled() reports a different value.
+    /// Sources that detect in HelixScreen keep the no-op and read the setting
+    /// themselves.
+    virtual void apply_detection_enabled(bool enabled) {
+        (void)enabled;
+    }
+    /// Callback for a read of the printer's own detection switch: its state,
+    /// or nullopt when the printer has none or did not answer. Called on any
+    /// thread; the caller marshals.
+    using DetectionEnabledReadCallback = std::function<void(std::optional<bool>)>;
+    /// Ask the printer whether its own detection is on. Called on connect,
+    /// while available(); sources without a printer-side switch answer nullopt.
+    virtual void read_detection_enabled(DetectionEnabledReadCallback done) {
+        done(std::nullopt);
+    }
     /// The printer's stored preference, or nullopt when this source has none
     /// (settings then keep their defaults: on, pause on detect).
     virtual std::optional<DetectionPreference> printer_preference() const {

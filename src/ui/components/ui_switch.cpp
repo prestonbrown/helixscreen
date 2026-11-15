@@ -126,7 +126,7 @@ static void apply_size_preset(lv_obj_t* obj, const SwitchSizePreset& preset) {
     // Allow knob to overflow container bounds (prevents clipping)
     // NOTE: LV_OBJ_FLAG_OVERFLOW_VISIBLE when SET means "clip overflow"
     //       We need to CLEAR this flag to allow overflow
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+    lv_obj_set_overflow_visible(obj, false);
 
     // The track alone is too short a target for a fingertip (32px at 800x480), and
     // the knob paints past it. A flex or grid parent keeps siblings out of the
@@ -218,7 +218,7 @@ extern "C" lv_obj_t* ui_switch_create_themed(lv_obj_t* parent, const char* size_
     }
 
     // Prevent accidental click when scrolling (parity with ui_switch_xml_create).
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_PRESS_LOCK);
+    lv_obj_set_press_lock(obj, false);
 
     lv_obj_add_event_cb(obj, switch_value_changed_sound_cb, LV_EVENT_VALUE_CHANGED, nullptr);
     apply_themed_styling(obj);
@@ -247,7 +247,7 @@ static void* ui_switch_xml_create(lv_xml_parser_state_t* state, const char** att
     }
 
     // Prevent accidental click when scrolling.
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_PRESS_LOCK);
+    lv_obj_set_press_lock(obj, false);
 
     lv_obj_add_event_cb(obj, switch_value_changed_sound_cb, LV_EVENT_VALUE_CHANGED, nullptr);
 

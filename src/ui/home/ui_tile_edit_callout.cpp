@@ -80,7 +80,7 @@ bool TileEditCallout::show_for(lv_obj_t* screen, lv_obj_t* tile, const std::stri
     if (!screen || !tile) {
         return false;
     }
-    lv_subject_copy_string(&s_title_subject, title.c_str());
+    lv_subject_set_string(&s_title_subject, title.c_str());
     lv_subject_set_int(&s_configure_subject, rows.configure ? 1 : 0);
     lv_obj_get_coords(tile, &tile_area_);
     lockout_.reset(lv_tick_get());
@@ -122,7 +122,7 @@ void TileEditCallout::on_created(lv_obj_t* backdrop) {
     widest_row_ = 0;
     for (const char* name : {"tile_callout_configure", "tile_callout_remove"}) {
         lv_obj_t* row = lv_obj_find_by_name(menu_card, name);
-        if (!row || lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN)) {
+        if (!row || lv_obj_is_hidden(row)) {
             continue;
         }
         if (lv_obj_t* label = ui_button_get_label(row)) {

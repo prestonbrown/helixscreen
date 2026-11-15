@@ -29,6 +29,7 @@
 #include "test_helpers/openams_test_access.h"
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/scoped_env.h"
+#include "test_helpers/scoped_language.h"
 #include "test_helpers/seeded_override.h"
 #include "ui/ams_drawing_utils.h"
 
@@ -1235,6 +1236,14 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS surfaces a latched unit fault in pla
         const auto detail = backend.get_system_info().operation_detail;
         CHECK(detail.find("Motion timed out") != std::string::npos);
         CHECK(detail.find("Spool jammed at the gate") != std::string::npos);
+    }
+
+    SECTION("a language switch re-words the standing fault with no new frame") {
+        helix::ScopedLanguage fr("fr");
+        backend.refresh_translated_texts();
+        const auto fr_info = backend.get_system_info();
+        CHECK(fr_info.operation_detail == "ams_ht: Défaut du pilote moteur");
+        CHECK(fr_info.units[0].slots[0].error->message == "Défaut du pilote moteur");
     }
 
     SECTION("a bay fault marks only that bay") {

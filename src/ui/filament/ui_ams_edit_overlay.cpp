@@ -945,7 +945,7 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         const bool disabled = in_use.count(spool.id) > 0;
         if (disabled) {
             lv_obj_add_state(item, LV_STATE_DISABLED);
-            lv_obj_remove_flag(item, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(item, false);
         }
 
         lv_obj_set_state(item, LV_STATE_CHECKED, is_current_spool);
@@ -1226,7 +1226,7 @@ void AmsEditOverlay::update_summary() {
         label += ", " + color;
     }
     snprintf(summary_buf_, sizeof(summary_buf_), "%s", label.c_str());
-    lv_subject_copy_string(&summary_text_subject_, summary_buf_);
+    lv_subject_set_string(&summary_text_subject_, summary_buf_);
 
     // Colour dot: multi-colour spools paint the split; a picked colour paints
     // plain. Multi-colour shows read-only in the grid (the ring has no
@@ -1253,14 +1253,14 @@ void AmsEditOverlay::update_summary() {
     } else {
         snprintf(weight_buf_, sizeof(weight_buf_), "—");
     }
-    lv_subject_copy_string(&weight_text_subject_, weight_buf_);
+    lv_subject_set_string(&weight_text_subject_, weight_buf_);
     if (working_info_.total_weight_g > 0) {
         snprintf(weight_hint_buf_, sizeof(weight_hint_buf_), "%s %.0f g", lv_tr("of"),
                  working_info_.total_weight_g);
     } else {
         weight_hint_buf_[0] = '\0';
     }
-    lv_subject_copy_string(&weight_hint_subject_, weight_hint_buf_);
+    lv_subject_set_string(&weight_hint_subject_, weight_hint_buf_);
     update_tag_badges();
 }
 
@@ -1307,7 +1307,7 @@ void AmsEditOverlay::update_temp_display() {
     } else {
         temp_buf_[0] = '\0';
     }
-    lv_subject_copy_string(&temp_text_subject_, temp_buf_);
+    lv_subject_set_string(&temp_text_subject_, temp_buf_);
     shown_nozzle_min_ = nozzle_min;
     shown_nozzle_max_ = nozzle_max;
     shown_bed_temp_ = bed_temp;
@@ -1357,7 +1357,7 @@ void AmsEditOverlay::update_ui() {
             title_buf_, sizeof(title_buf_), "%s",
             helix::ui::active_tool_lane_label(helix::ui::active_lane_noun(), slot_index_).c_str());
     }
-    lv_subject_copy_string(&title_subject_, title_buf_);
+    lv_subject_set_string(&title_subject_, title_buf_);
 
     // Spool number beside the tracked mark.
     if (managed) {
@@ -1365,7 +1365,7 @@ void AmsEditOverlay::update_ui() {
     } else {
         spoolman_id_buf_[0] = '\0';
     }
-    lv_subject_copy_string(&spoolman_id_subject_, spoolman_id_buf_);
+    lv_subject_set_string(&spoolman_id_subject_, spoolman_id_buf_);
 
     update_summary();
     update_temp_display();
@@ -1446,8 +1446,8 @@ void AmsEditOverlay::load_lane_settings() {
         if (backup_row) {
             lane_original_.backup = lane_settings::backup_of(*backend, slot_index_);
             backup_editable = caps.editable();
-            lv_subject_copy_string(&backup_label_subject_,
-                                   backup_lane_text(backend->lane_noun()).c_str());
+            lv_subject_set_string(&backup_label_subject_,
+                                  backup_lane_text(backend->lane_noun()).c_str());
         }
     }
     lane_working_ = lane_original_;
@@ -2161,7 +2161,7 @@ void AmsEditOverlay::update_spool_disagreement() {
         const std::string note =
             fmt::format(fmt::runtime(lv_tr("The linked spool says {}.")), stated);
         snprintf(spool_disagreement_buf_, sizeof(spool_disagreement_buf_), "%s", note.c_str());
-        lv_subject_copy_string(&spool_disagreement_text_subject_, spool_disagreement_buf_);
+        lv_subject_set_string(&spool_disagreement_text_subject_, spool_disagreement_buf_);
     }
     lv_subject_set_int(&spool_disagrees_subject_, disagrees ? 1 : 0);
 }
@@ -2433,7 +2433,7 @@ void AmsEditOverlay::set_save_state(int state, const std::string& error) {
         return;
     }
     snprintf(save_error_buf_, sizeof(save_error_buf_), "%s", error.c_str());
-    lv_subject_copy_string(&save_error_subject_, save_error_buf_);
+    lv_subject_set_string(&save_error_subject_, save_error_buf_);
     lv_subject_set_int(&save_state_subject_, state);
 }
 

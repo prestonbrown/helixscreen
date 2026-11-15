@@ -31,9 +31,9 @@ lv_font_t font_with_line_height(int16_t line_height) {
 } // namespace
 
 TEST_CASE("home icon label box follows the font line height", "[jog_pad][motion]") {
-    const lv_coord_t cx = 400;
-    const lv_coord_t cy = 217;
-    const lv_coord_t radius = 20;
+    const int32_t cx = 400;
+    const int32_t cy = 217;
+    const int32_t radius = 20;
 
     // Line height TALLER than 0.8 * radius (16px): the pairing where a
     // radius-derived box height would clip the glyph and sit it low in the

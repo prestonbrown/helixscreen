@@ -107,7 +107,7 @@ void set_if_changed(lv_subject_t& subject, int value) {
 
 void set_if_changed(lv_subject_t& subject, const char* value) {
     if (std::strcmp(lv_subject_get_string(&subject), value) != 0) {
-        lv_subject_copy_string(&subject, value);
+        lv_subject_set_string(&subject, value);
     }
 }
 

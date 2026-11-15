@@ -10,7 +10,7 @@
 // production, per-fixture teardown in tests. deinit_subjects() runs
 // lv_subject_deinit(), which frees every observer node on those subjects. An
 // ObserverGuard that was never given a lifetime token cannot know that, so its
-// next reset() calls lv_observer_remove() on freed memory and dereferences
+// next reset() calls lv_observer_delete() on freed memory and dereferences
 // observer->subject: SIGSEGV at lv_observer.c:584.
 //
 // Both directions matter and both are asserted below. Skipping the removal when
@@ -84,7 +84,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // Teardown frees every observer node on that subject.
     state.deinit_subjects();
 
-    // reset() must detect the death and SKIP lv_observer_remove(). Without the
+    // reset() must detect the death and SKIP lv_observer_delete(). Without the
     // token this dereferences observer->subject on freed memory — a segfault
     // under a normal build, a heap-use-after-free under ASAN.
     REQUIRE_NOTHROW(guard.reset());

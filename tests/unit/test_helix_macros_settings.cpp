@@ -410,7 +410,7 @@ TEST_CASE_METHOD(MacrosSettingsFixture, "helper macro rows follow helix_macros_s
     REQUIRE(installed_row != nullptr);
     REQUIRE(pending_row != nullptr);
 
-    auto hidden = [](lv_obj_t* o) { return lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN); };
+    auto hidden = [](lv_obj_t* o) { return lv_obj_is_hidden(o); };
     lv_subject_t* status = state().plugin_status_state().get_helix_macros_status_subject();
 
     // UNKNOWN: everything hidden - no install button on a vacuum.

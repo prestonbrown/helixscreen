@@ -11,6 +11,8 @@
  * - delete_history_job() removes job from history
  */
 
+#include "../../include/display_settings_manager.h"
+#include "../../include/locale_formats.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/print_history_data.h"
@@ -94,7 +96,7 @@ TEST_CASE_METHOD(PrintHistoryTestFixture, "get_history_list reads the response b
         CHECK_FALSE(job.filename.empty());
         CHECK(job.start_time > 0.0);
         // Derived display strings are built per job during the same walk.
-        CHECK_FALSE(job.date_str.empty());
+        CHECK_FALSE(job.filament_str.empty());
     }
 }
 
@@ -593,4 +595,38 @@ TEST_CASE("Parse all Moonraker status strings", "[history][parsing]") {
         REQUIRE(parse_job_status("paused") == PrintJobStatus::UNKNOWN);
         REQUIRE(parse_job_status("COMPLETED") == PrintJobStatus::UNKNOWN); // Case-sensitive
     }
+}
+
+// ============================================================================
+// Threading
+// ============================================================================
+
+// parse_history_job runs on the WebSocket thread while the language and time
+// format change on the main thread: under TSan this reports any setting,
+// subject or locale state the parser reads.
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "parse_history_job on a background thread races no settings change",
+                 "[history][threading]") {
+    auto& display = DisplaySettingsManager::instance();
+    const TimeFormat saved_format = display.get_time_format();
+    const nlohmann::json job_json = {
+        {"job_id", "0001"}, {"start_time", 1733063400.0}, {"filament_used", 1234.0}};
+
+    std::atomic<bool> done{false};
+    std::atomic<int> complete{0};
+    std::thread worker([&]() {
+        for (int i = 0; i < 400; ++i) {
+            const PrintHistoryJob job = parse_history_job(job_json);
+            complete += job.job_id == "0001" && job.filament_str == "1.2m";
+        }
+        done = true;
+    });
+    for (int i = 0; !done; ++i) {
+        helix::ui::locale_set_language(i % 2 ? "fr" : "en");
+        display.set_time_format(i % 2 ? TimeFormat::HOUR_24 : TimeFormat::HOUR_12);
+    }
+    worker.join();
+    helix::ui::locale_set_language("en");
+    display.set_time_format(saved_format);
+    REQUIRE(complete == 400);
 }

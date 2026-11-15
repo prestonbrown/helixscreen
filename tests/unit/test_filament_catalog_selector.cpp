@@ -603,7 +603,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     // The Type dropdown is bypassed (hidden) in the favorites view.
     lv_obj_t* type_group = lv_obj_find_by_name(root, "type_group");
     REQUIRE(type_group != nullptr);
-    CHECK(lv_obj_has_flag(type_group, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(type_group));
 
     // One flat list, alphabetical by display name, spanning both brands.
     CHECK(sel.product_names_for_test() == std::vector<std::string>{"ABS", "PLA+ 2.0"});
@@ -615,7 +615,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     // Leaving the favorites view restores the Type dropdown.
     sel.change_vendor_for_test(1);
-    CHECK_FALSE(lv_obj_has_flag(type_group, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(type_group));
     CHECK(sel.current_vendor() == "Generic");
 
     sel.detach();

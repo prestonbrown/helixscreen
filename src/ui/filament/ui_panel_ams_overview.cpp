@@ -1060,7 +1060,7 @@ AmsOverviewPanel& get_global_ams_overview_panel() {
         AmsState::instance().set_unit_page(0, 0);
 
         // Create the panel on the active screen
-        lv_obj_t* screen = lv_scr_act();
+        lv_obj_t* screen = lv_screen_active();
         s_ams_overview_panel_obj = helix::ui::create_xml_hidden(screen, "ams_overview_panel");
 
         if (s_ams_overview_panel_obj) {
@@ -1071,7 +1071,7 @@ AmsOverviewPanel& get_global_ams_overview_panel() {
 
             // Setup the panel
             panel.setup(s_ams_overview_panel_obj, screen);
-            lv_obj_add_flag(s_ams_overview_panel_obj, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(s_ams_overview_panel_obj, true);
 
             // Kept alive between opens, like the AMS panel; open_ams_overview_panel()
             // registers the overlay and its close callback on every open.

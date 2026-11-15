@@ -2178,6 +2178,7 @@ WifiBackend::ConnectionStatus WifiBackendWpaSupplicant::get_status() {
                                              : helix::ui::wifi::iface_global_ipv4(iface->netdev);
         }
     }
+    status.awaiting_ipv4 = status.connected && status.ip_address.empty();
 
     // Only log when status actually changes (reduces log noise)
     bool status_changed =

@@ -84,7 +84,7 @@ struct PrintHooksRowFixture : LVGLUITestFixture {
 
     static bool visible(lv_obj_t* obj) {
         for (; obj != nullptr; obj = lv_obj_get_parent(obj)) {
-            if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(obj)) {
                 return false;
             }
         }
@@ -107,7 +107,7 @@ TEST_CASE_METHOD(PrintHooksRowFixture, "the print_hooks switch shows the plugin'
     set_print_hooks(true);
     process_lvgl(5);
     CHECK(lv_obj_has_state(toggle(), LV_STATE_CHECKED));
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(root_, "row_print_hooks"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(root_, "row_print_hooks")));
 
     set_print_hooks(false);
     process_lvgl(5);
@@ -219,7 +219,7 @@ struct OverviewFixture : LVGLUITestFixture {
     }
 
     static bool shown(lv_obj_t* obj) {
-        return obj != nullptr && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        return obj != nullptr && !lv_obj_is_hidden(obj);
     }
 };
 
@@ -297,9 +297,9 @@ TEST_CASE_METHOD(OverviewFixture, "the overview groups features into dense rows 
 
     INFO("only a row that opens a page carries a chevron and takes a tap");
     CHECK(shown(label_named(hooks, "chevron")));
-    CHECK(lv_obj_has_flag(hooks, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(hooks));
     CHECK_FALSE(shown(label_named(analysis, "chevron")));
-    CHECK_FALSE(lv_obj_has_flag(analysis, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(analysis));
 
     INFO("a feature row is denser than a standard settings row");
     auto* standard =

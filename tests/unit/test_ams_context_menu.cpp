@@ -758,7 +758,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         // disabled, so the finger cannot fire a clear the dispatch would refuse.
         lv_obj_t* btn_clear = lv_obj_find_by_name(test_screen(), "btn_clear_spool");
         REQUIRE(btn_clear != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn_clear, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn_clear));
         CHECK(lv_obj_has_state(btn_clear, LV_STATE_DISABLED));
     }
 
@@ -857,7 +857,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                                       /*is_loaded=*/false, backend.get()));
         lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_preload");
         REQUIRE(btn != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
         CHECK_FALSE(lv_obj_has_state(btn, LV_STATE_DISABLED));
     }
 
@@ -869,7 +869,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                                       /*is_loaded=*/false, backend.get()));
         lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_preload");
         REQUIRE(btn != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
         CHECK(lv_obj_has_state(btn, LV_STATE_DISABLED));
     }
 
@@ -880,7 +880,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                                       /*is_loaded=*/false, backend.get()));
         lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_preload");
         REQUIRE(btn != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
         CHECK(lv_obj_has_state(btn, LV_STATE_DISABLED));
     }
 
@@ -894,7 +894,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         REQUIRE(ext_menu.show_for_external_spool(test_screen(), test_screen()));
         lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_preload");
         REQUIRE(btn != nullptr);
-        CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(btn));
     }
 }
 
@@ -966,7 +966,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the context menu shows a backend's eject re
 
         lv_obj_t* label = lv_obj_find_by_name(test_screen(), "eject_force_move_hint");
         REQUIRE(label != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(label));
     }
 
     SECTION("no reason hides the hint") {
@@ -980,7 +980,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the context menu shows a backend's eject re
 
         lv_obj_t* label = lv_obj_find_by_name(test_screen(), "eject_force_move_hint");
         REQUIRE(label != nullptr);
-        CHECK(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(label));
     }
 }
 
@@ -1035,7 +1035,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsContextMenu: plugin rows get their own c
     lv_obj_t* col = lv_obj_find_by_name(test_screen(), "col_plugins");
     REQUIRE(col);
     CHECK(lv_obj_get_parent(col) == lv_obj_find_by_name(test_screen(), "menu_columns"));
-    CHECK_FALSE(lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(col));
     lv_obj_t* heading = lv_obj_find_by_name(col, "heading_text");
     REQUIRE(heading);
     CHECK(std::string(lv_label_get_text(heading)) == "Slot Plug");
@@ -1101,7 +1101,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsContextMenu: the plugin column hides wit
     lv_obj_t* col = lv_obj_find_by_name(test_screen(), "col_plugins");
     REQUIRE(col);
     CHECK(lv_obj_get_child_count(col) == 0);
-    CHECK(lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(col));
     menu.hide();
     process_lvgl(20);
 }
@@ -1115,7 +1115,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsContextMenu: the external spool takes no
     lv_obj_t* col = lv_obj_find_by_name(test_screen(), "col_plugins");
     REQUIRE(col);
     CHECK(lv_obj_get_child_count(col) == 0);
-    CHECK(lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(col));
     menu.hide();
     process_lvgl(20);
 }
@@ -1212,18 +1212,18 @@ MenuFit measure_lane_menu(LVGLUITestFixture& fx, int32_t w, int32_t h, bool with
         INFO(name);
         lv_obj_t* btn = lv_obj_find_by_name(card, name);
         REQUIRE(btn != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
     }
     lv_obj_t* plugins = lv_obj_find_by_name(card, "col_plugins");
     REQUIRE(plugins != nullptr);
-    CHECK(lv_obj_has_flag(plugins, LV_OBJ_FLAG_HIDDEN) == !with_plugins);
+    CHECK(lv_obj_is_hidden(plugins) == !with_plugins);
 
     MenuFit fit;
     lv_obj_t* columns = lv_obj_find_by_name(card, "menu_columns");
     REQUIRE(columns != nullptr);
     for (uint32_t i = 0; i < lv_obj_get_child_count(columns); ++i) {
         lv_obj_t* col = lv_obj_get_child(columns, static_cast<int32_t>(i));
-        if (!lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(col)) {
             fit.layout += std::string(lv_obj_get_name(col)) + " " +
                           std::to_string(lv_obj_get_width(col)) + "x" +
                           std::to_string(lv_obj_get_height(col)) + "; ";
@@ -1284,7 +1284,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsContextMenu: a lane menu is actions only
         INFO(name);
         lv_obj_t* btn = lv_obj_find_by_name(test_screen(), name);
         REQUIRE(btn != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
     }
     menu.hide();
     process_lvgl(20);
@@ -1369,8 +1369,7 @@ std::vector<lv_obj_t*> column_rows(lv_obj_t* col) {
     std::vector<lv_obj_t*> rows;
     for (uint32_t i = 0; i < lv_obj_get_child_count(col); ++i) {
         lv_obj_t* child = lv_obj_get_child(col, static_cast<int32_t>(i));
-        if (!lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN) &&
-            lv_obj_has_flag(child, LV_OBJ_FLAG_CLICKABLE)) {
+        if (!lv_obj_is_hidden(child) && lv_obj_is_clickable(child)) {
             rows.push_back(child);
         }
     }

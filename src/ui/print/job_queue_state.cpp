@@ -291,7 +291,7 @@ void JobQueueState::on_next_job_metadata(const std::string& filename,
     get_thumbnail_cache().fetch(
         req, ctx,
         [this](const std::string& lvgl_path, bool /*degraded*/) {
-            lv_subject_copy_string(&job_queue_next_thumbnail_subject_, lvgl_path.c_str());
+            lv_subject_set_string(&job_queue_next_thumbnail_subject_, lvgl_path.c_str());
         },
         [thumb_path](const std::string& error) {
             spdlog::debug("[JobQueueState] Next job thumbnail '{}' failed: {}", thumb_path, error);
@@ -307,8 +307,8 @@ void JobQueueState::clear_next_job_media() {
         return;
     }
     lv_subject_set_int(&job_queue_next_estimate_subject_, 0);
-    lv_subject_copy_string(&job_queue_next_thumbnail_subject_,
-                           helix::PrinterPrintState::no_thumbnail_placeholder());
+    lv_subject_set_string(&job_queue_next_thumbnail_subject_,
+                          helix::PrinterPrintState::no_thumbnail_placeholder());
 }
 
 void JobQueueState::fetch_automatic_transition() {
@@ -359,11 +359,11 @@ void JobQueueState::update_subjects() {
     // Both surfaces bind their visibility to the count published last.
     std::snprintf(up_next_text_buffer_, sizeof(up_next_text_buffer_), "%s",
                   helix::format_up_next_text(next_display, count).c_str());
-    lv_subject_copy_string(&job_queue_up_next_text_subject_, up_next_text_buffer_);
+    lv_subject_set_string(&job_queue_up_next_text_subject_, up_next_text_buffer_);
 
     std::snprintf(start_next_text_buffer_, sizeof(start_next_text_buffer_), "%s",
                   helix::format_start_next_text(next_display, count).c_str());
-    lv_subject_copy_string(&job_queue_start_next_text_subject_, start_next_text_buffer_);
+    lv_subject_set_string(&job_queue_start_next_text_subject_, start_next_text_buffer_);
 
     lv_subject_set_int(&job_queue_automatic_transition_subject_, automatic_transition_ ? 1 : 0);
 

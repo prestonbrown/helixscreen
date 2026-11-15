@@ -213,7 +213,7 @@ void FilamentMappingCard::create(lv_obj_t* card_widget, lv_obj_t* rows_container
     // detail view routes the tap to the panel's single open_remap_modal()), fire
     // that; otherwise fall back to the card's own internal mapping modal.
     if (card_) {
-        lv_obj_add_flag(card_, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(card_, true);
         lv_obj_add_event_cb(
             card_,
             [](lv_event_t* e) {
@@ -581,7 +581,7 @@ void FilamentMappingCard::publish_chips() {
     }
 
     const size_t hidden = tool_count - visible;
-    lv_subject_copy_string(&s_more_text, ("+" + std::to_string(hidden)).c_str());
+    lv_subject_set_string(&s_more_text, ("+" + std::to_string(hidden)).c_str());
     lv_subject_set_int(&s_more_count, static_cast<int>(hidden));
     // Last: the count rebuilds the chips, which then bind the values above.
     lv_subject_set_int(&s_chip_count, static_cast<int>(visible));

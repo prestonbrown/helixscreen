@@ -133,10 +133,10 @@ TEST_CASE_METHOD(PowerTileFixture, "Power tile: follows its device across a Klip
     lv_subject_t* status = PowerDeviceState::instance().get_status_subject("printer_psu", lifetime);
     lv_subject_set_int(status, -1);
     drain();
-    CHECK(lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(name));
     lv_subject_set_int(status, 1);
     drain();
-    CHECK_FALSE(lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(name));
 }
 
 // With no user colour each tile wears its own state's colours.
@@ -323,7 +323,7 @@ TEST_CASE_METHOD(PowerTileFixture, "Power tile: a picked device with no state re
     CHECK(status_text().empty());
     lv_obj_t* name = harness_->child("power_device_name");
     REQUIRE(name != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(name));
     CHECK(std::string(lv_label_get_text(name)) ==
           helix::get_display_name("bed_lamp", helix::DeviceType::POWER_DEVICE));
 }

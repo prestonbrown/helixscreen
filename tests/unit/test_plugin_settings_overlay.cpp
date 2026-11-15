@@ -8,11 +8,13 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
 #include "../test_helpers/plugin_host_test_support.h"
+#include "../test_helpers/plugin_test_support.h"
 #include "config.h"
 #include "display_settings_manager.h"
 #include "lua_runtime.h"
 #include "plugin_settings_overlay.h"
 
+#include <filesystem>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -435,6 +437,32 @@ TEST_CASE_METHOD(SettingsFx, "open_settings refuses nothing-to-show and unloaded
     CHECK_FALSE(rig.host->set_setting("nosuch", "k", json(1)));
     drain();
     CHECK_FALSE(NavigationManager::instance().has_open_overlays());
+}
+
+TEST_CASE_METHOD(SettingsFx,
+                 "a loaded plugin's settings survive a rescan that shifts the plugin list",
+                 "[plugin][plugin_settings][2103]") {
+    namespace fs = std::filesystem;
+    TempDir tmp;
+    for (const char* name : {"hello", "looper", "widget-demo"})
+        fs::copy(fs::path("tests/fixtures/plugins") / name, tmp.path / name,
+                 fs::copy_options::recursive);
+    HostRig rig(enabled_all({{"hello", {"gcode"}}, {"looper", {}}, {"widget-demo", {}}}));
+    rig.host->load_from(tmp.path.string());
+    REQUIRE(rig.host->runtime("widget-demo"));
+
+    // A plugin that sorts first moves every row after it one slot along.
+    fs::copy(fs::path("tests/fixtures/plugins") / "custom-settings", tmp.path / "custom-settings",
+             fs::copy_options::recursive);
+    rig.host->rescan({"custom-settings"});
+    drain();
+    REQUIRE(rig.host->plugins().front().dir_name == "custom-settings");
+
+    REQUIRE(rig.host->open_settings("widget-demo"));
+    drain();
+    PluginSettingsOverlay* screen = rig.host->settings_screen("widget-demo");
+    REQUIRE(screen);
+    CHECK(screen->row_for("step") != nullptr);
 }
 
 #endif // HELIX_HAS_PLUGINS

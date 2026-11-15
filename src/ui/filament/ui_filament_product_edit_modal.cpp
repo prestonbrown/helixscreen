@@ -130,8 +130,8 @@ bool FilamentProductEditModal::show_for_edit(lv_obj_t* parent, const std::string
 // ============================================================================
 
 void FilamentProductEditModal::on_show() {
-    lv_subject_copy_string(&title_subject_,
-                           mode_ == Mode::Add ? lv_tr("Add Filament") : lv_tr("Edit Filament"));
+    lv_subject_set_string(&title_subject_,
+                          mode_ == Mode::Add ? lv_tr("Add Filament") : lv_tr("Edit Filament"));
     populate_fields();
     register_keyboards();
     configure_secondary_button();
@@ -252,8 +252,8 @@ void FilamentProductEditModal::configure_secondary_button() {
     const bool show_secondary = (mode_ == Mode::Edit) && (has_overlay_ || !is_builtin_);
     lv_subject_set_int(&show_secondary_subject_, show_secondary ? 1 : 0);
     // Built-in with an override -> restore; purely user entry -> delete.
-    lv_subject_copy_string(&secondary_text_subject_,
-                           is_builtin_ ? lv_tr("Restore Defaults") : lv_tr("Delete"));
+    lv_subject_set_string(&secondary_text_subject_,
+                          is_builtin_ ? lv_tr("Restore Defaults") : lv_tr("Delete"));
 }
 
 // ============================================================================

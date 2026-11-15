@@ -310,7 +310,7 @@ TEST_CASE("a glyph-only tile is not charged its stack's gap", "[widget_size][til
         lv_obj_set_style_pad_column(root, row_gap, LV_PART_MAIN);
         lv_obj_create(root);
         lv_obj_t* label = lv_obj_create(root);
-        lv_obj_add_flag(label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(label, true);
         return root;
     };
 
@@ -688,11 +688,11 @@ TEST_CASE("an unconfigured power tile reserves no state line", "[widget_size][ti
     REQUIRE(rung != nullptr);
 
     instance->notify_size_changed(2, 2, 110, 90);
-    CHECK(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(status));
     const int unconfigured = lv_subject_get_int(rung);
 
     instance->set_config(nlohmann::json{{"device", "printer_psu"}});
-    CHECK_FALSE(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(status));
     const int configured = lv_subject_get_int(rung);
     INFO("rung " << unconfigured << " unconfigured, " << configured << " with a state line");
     CHECK(unconfigured > configured);
@@ -1031,7 +1031,7 @@ TEST_CASE("an engaged bypass tile's spool row fits the box it is given",
     int row_drawn = 0;
     for (int edge = 40; edge <= 240; edge += 2) {
         h.resize(1, 1, edge, edge);
-        if (!lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(row)) {
             ++row_drawn;
         }
         require_no_overflow(h.root(), {}, "bypass at " + std::to_string(edge) + "px");
@@ -1061,7 +1061,7 @@ TEST_CASE("a bypass tile re-decides its box when bypass engages and disengages",
                " label " +
                std::to_string(
                    lv_subject_get_int(lv_xml_get_subject(nullptr, "bypass_tile_label"))) +
-               " row " + (lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN) ? "hidden" : "drawn");
+               " row " + (lv_obj_is_hidden(row) ? "hidden" : "drawn");
     };
 
     int differing = 0;

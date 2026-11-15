@@ -360,7 +360,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: spent lane keeps the shared fill 
     lv_obj_t* bar_fill = lv_obj_get_child(bar_bg, 0);
     REQUIRE(bar_fill != nullptr);
     // min_pct 0 hid the fill entirely; the shared default keeps the sliver.
-    CHECK_FALSE(lv_obj_has_flag(bar_fill, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(bar_fill));
     CHECK(lv_obj_get_style_height(bar_fill, LV_PART_MAIN) == LV_PCT(shared_floor));
 
     lv_obj_delete(w);

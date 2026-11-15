@@ -338,6 +338,8 @@ class MotionPanel : public OverlayBase {
     lv_subject_t motion_x_homed_{};
     lv_subject_t motion_y_homed_{};
     lv_subject_t motion_z_homed_{};
+    lv_subject_t motion_all_homed_{};   ///< the home bar's All segment
+    lv_subject_t motion_home_bar_xy_{}; ///< 0: the bar is too narrow for XY
     // Z button limit state (1=render disabled): a further move in that
     // button's G-code direction is impossible. up/down are screen directions,
     // the bed_moves inversion inside update_z_button_blocked() maps them.

@@ -95,7 +95,7 @@ void BedMeshState::retranslate() {
     if (!subjects_initialized_ || stats_.loaded) {
         return;
     }
-    lv_subject_copy_string(&dimensions_, lv_tr("No mesh data"));
+    lv_subject_set_string(&dimensions_, lv_tr("No mesh data"));
 }
 
 void BedMeshState::apply(const BedMeshProfile* active, int profile_count) {
@@ -110,36 +110,36 @@ void BedMeshState::apply(const BedMeshProfile* active, int profile_count) {
 
     if (!stats.loaded) {
         lv_subject_set_int(&available_, 0);
-        lv_subject_copy_string(&dimensions_, lv_tr("No mesh data"));
-        lv_subject_copy_string(&max_value_, "--");
+        lv_subject_set_string(&dimensions_, lv_tr("No mesh data"));
+        lv_subject_set_string(&max_value_, "--");
         // Empty, not "[]": no coordinates exist without a probed mesh.
-        lv_subject_copy_string(&max_coord_, "");
-        lv_subject_copy_string(&min_value_, "--");
-        lv_subject_copy_string(&min_coord_, "");
-        lv_subject_copy_string(&variance_, "");
+        lv_subject_set_string(&max_coord_, "");
+        lv_subject_set_string(&min_value_, "--");
+        lv_subject_set_string(&min_coord_, "");
+        lv_subject_set_string(&variance_, "");
     } else {
-        lv_subject_copy_string(&profile_name_, active->name.c_str());
+        lv_subject_set_string(&profile_name_, active->name.c_str());
         std::snprintf(dimensions_buf_, sizeof(dimensions_buf_), "%dx%d points", stats.cols,
                       stats.rows);
-        lv_subject_copy_string(&dimensions_, dimensions_buf_);
+        lv_subject_set_string(&dimensions_, dimensions_buf_);
 
         // Coordinates round to whole mm: probe points land on fractional positions, and
         // 0.1 mm precision on where the high or low spot sits is not actionable. The
         // measured Z keeps three decimals.
         std::snprintf(max_coord_buf_, sizeof(max_coord_buf_), "[%.0f, %.0f]", stats.max_x,
                       stats.max_y);
-        lv_subject_copy_string(&max_coord_, max_coord_buf_);
+        lv_subject_set_string(&max_coord_, max_coord_buf_);
         format::format_distance_mm(stats.max_z, 3, max_value_buf_, sizeof(max_value_buf_));
-        lv_subject_copy_string(&max_value_, max_value_buf_);
+        lv_subject_set_string(&max_value_, max_value_buf_);
 
         std::snprintf(min_coord_buf_, sizeof(min_coord_buf_), "[%.0f, %.0f]", stats.min_x,
                       stats.min_y);
-        lv_subject_copy_string(&min_coord_, min_coord_buf_);
+        lv_subject_set_string(&min_coord_, min_coord_buf_);
         format::format_distance_mm(stats.min_z, 3, min_value_buf_, sizeof(min_value_buf_));
-        lv_subject_copy_string(&min_value_, min_value_buf_);
+        lv_subject_set_string(&min_value_, min_value_buf_);
 
         format::format_distance_mm(stats.range, 3, variance_buf_, sizeof(variance_buf_));
-        lv_subject_copy_string(&variance_, variance_buf_);
+        lv_subject_set_string(&variance_, variance_buf_);
         lv_subject_set_int(&available_, 1);
     }
     lv_subject_set_int(&version_, lv_subject_get_int(&version_) + 1);

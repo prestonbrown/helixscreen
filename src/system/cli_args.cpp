@@ -11,6 +11,7 @@
 #include "mock_persona.h"
 #include "runtime_config.h"
 #include "theme_manager.h"
+#include "wizard_step.h"
 
 #include <spdlog/spdlog.h>
 
@@ -304,13 +305,14 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
         // Wizard step
         else if (strcmp(argv[i], "--wizard-step") == 0) {
             if (i + 1 >= argc) {
-                printf("Error: --wizard-step requires an argument (0-14)\n");
+                printf("Error: --wizard-step requires an argument (0-%d)\n",
+                       helix::wizard::STEP_COUNT - 1);
                 return false;
             }
             args.wizard_step = atoi(argv[++i]);
             args.force_wizard = true;
-            if (args.wizard_step < 0 || args.wizard_step > 12) {
-                printf("Error: wizard step must be 0-12\n");
+            if (args.wizard_step < 0 || args.wizard_step >= helix::wizard::STEP_COUNT) {
+                printf("Error: wizard step must be 0-%d\n", helix::wizard::STEP_COUNT - 1);
                 return false;
             }
         }
@@ -720,14 +722,11 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
         }
     }
 
-    // HELIX_MOCK_AMS=medusahc[-ktc|-tn] selects mock HARDWARE, not a mock
-    // backend: MoonrakerClientMock publishes the objects and status a real
-    // hotend changer does, and the production AmsBackendToolChanger is meant to
-    // drive them. That is exactly what --real-ams already means, so imply it
-    // rather than adding a third knob that can disagree with this one. Same for
-    // the standalone IFS module mode (real AmsBackendAd5xIfs) and the CFS
-    // modes. The creator5_zmod printer persona is the same deal keyed on the
-    // printer env var instead; an explicit HELIX_MOCK_AMS still wins.
+    // A HELIX_MOCK_AMS mode (or a printer persona) that selects mock HARDWARE has
+    // MoonrakerClientMock publish the objects and frames that firmware does, and a
+    // production backend is meant to drive them. That is exactly what --real-ams
+    // already means, so imply it rather than adding a knob that can disagree with
+    // this one; helix::mock::mock_hardware_backend() decides which modes qualify.
     // A real printer behind a mock AMS would see the mock's fabricated spool ids:
     // a mock tool change sets them active and a lane save PATCHes them, on the
     // printer's real Spoolman. A real printer means its real AMS, whatever
@@ -738,52 +737,20 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
                      "spool ids to the real printer)");
     }
 
+#ifdef HELIX_ENABLE_MOCKS
+    // A build without mocks has no mock hardware: --test talks to the real Moonraker.
     if (config.test_mode && !config.use_real_ams) {
         const char* printer_env = std::getenv("HELIX_MOCK_PRINTER");
         const std::string mode =
             helix::mock::effective_mock_ams(std::getenv("HELIX_MOCK_AMS"), printer_env);
-        if (helix::mock::medusa_variant(mode) != helix::mock::MedusaVariant::NONE) {
+        if (const char* backend = helix::mock::mock_hardware_backend(mode, printer_env)) {
             config.use_real_ams = true;
-            spdlog::info("[CLI] HELIX_MOCK_AMS={} implies --real-ams (mock hardware, real "
-                         "tool-changer backend)",
-                         mode);
-        } else if (mode == "ifs-module" || mode == "ifs_module" || mode == "ad5x-module") {
-            config.use_real_ams = true;
-            spdlog::info("[CLI] HELIX_MOCK_AMS={} implies --real-ams (mock hardware, real "
-                         "AD5X IFS backend)",
-                         mode);
-        } else if (mode == "cfs" || mode == "cfs-k1") {
-            config.use_real_ams = true;
-            spdlog::info("[CLI] HELIX_MOCK_AMS={} implies --real-ams (mock hardware, real "
-                         "CFS backend)",
-                         mode);
-        } else if (mode == "openams") {
-            config.use_real_ams = true;
-            spdlog::info("[CLI] HELIX_MOCK_AMS={} implies --real-ams (mock hardware, real "
-                         "OpenAMS backend)",
-                         mode);
-        } else if (mode == "multiace") {
-            config.use_real_ams = true;
-            spdlog::info("[CLI] HELIX_MOCK_AMS={} implies --real-ams (mock hardware, real "
-                         "multiACE-on-U1 backend)",
-                         mode);
-        } else if (mode == "indx") {
-            config.use_real_ams = true;
-            spdlog::info("[CLI] HELIX_MOCK_AMS={} implies --real-ams (mock hardware, real "
-                         "INDX backend)",
-                         mode);
-        } else if (mode == "lane_status") {
-            config.use_real_ams = true;
-            spdlog::info("[CLI] HELIX_MOCK_AMS={} implies --real-ams (mock hardware, real "
-                         "lane_status backend)",
-                         mode);
-        } else if (mode.empty() && printer_env && helix::mock::is_hardware_persona(printer_env)) {
-            config.use_real_ams = true;
-            spdlog::info("[CLI] HELIX_MOCK_PRINTER={} implies --real-ams (mock "
-                         "hardware, real tool-changer backend)",
-                         printer_env);
+            spdlog::info("[CLI] HELIX_MOCK_AMS={} (HELIX_MOCK_PRINTER={}) implies --real-ams "
+                         "(mock hardware, real {} backend)",
+                         mode, printer_env ? printer_env : "", backend);
         }
     }
+#endif
 
     // Validate test mode flags
     if ((config.use_real_wifi || config.use_real_ethernet || config.use_real_moonraker ||

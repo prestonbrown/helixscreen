@@ -108,7 +108,7 @@ void NavbarButton::raise() {
     if (!button_) {
         return;
     }
-    lv_obj_move_foreground(button_);
+    lv_obj_move_to_index(button_, -1);
     if (rides_above_keyboard()) {
         return;
     }
@@ -129,7 +129,7 @@ void NavbarButton::set_keyboard_top(int32_t top) {
     // Only a side navbar leaves room above the keyboard. A portrait bottom navbar is
     // under it, and a button raised there would sit on the keyboard's keys.
     if (top >= 0 && button_ && rides_above_keyboard() && !chrome_covered()) {
-        lv_obj_move_foreground(button_);
+        lv_obj_move_to_index(button_, -1);
     }
 }
 

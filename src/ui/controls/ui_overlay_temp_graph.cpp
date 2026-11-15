@@ -331,11 +331,12 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
     nozzle_card_target_observer_.reset();
     nozzle_card_power_observer_.reset();
     extruder_version_observer_.reset();
+    active_tool_observer_.reset();
 
-    // picked_extruder_ deliberately survives deactivation: the custom-entry
-    // keypad stacks on top of this overlay, and its confirm still targets the
-    // picked tool. open() is what drops the pick - opening means a fresh
-    // view.
+    // picked_extruder_ deliberately survives deactivation and reopening: the
+    // custom-entry keypad stacks on top of this overlay and its confirm still
+    // targets the picked tool, and a user who picked a docked tool expects it
+    // back next visit. A tool change is what drops it.
 
     // Clear any pinned caption before the controller (and its graph) are torn
     // down below.
@@ -374,14 +375,23 @@ void TempGraphOverlay::on_ui_destroyed() {
 // Public API
 // ─────────────────────────────────────────────────────────────────────────────
 
-void TempGraphOverlay::open(Mode mode, lv_obj_t* parent_screen) {
+void TempGraphOverlay::open(Mode mode, lv_obj_t* parent_screen,
+                            const std::string& nozzle_extruder) {
     mode_ = mode;
-
-    // Opening means a fresh view: drop any tool picked on a previous visit so
-    // the card starts on the machine's active tool. Deactivation must NOT
-    // clear it - the custom-entry keypad stacks on top of this overlay and
-    // its confirm still targets the picked tool.
-    picked_extruder_.clear();
+    if (!nozzle_extruder.empty()) {
+        // The caller's tool beats both a remembered pick and the tool-change
+        // check activation runs, so the card opens on what the caller showed.
+        // Mounted means the tool ToolState has on the carriage, the same test
+        // the Controls row uses to decide what it shows.
+        const auto& tools = helix::ToolState::instance();
+        const int active = tools.active_tool_index();
+        const auto& list = tools.tools();
+        const bool mounted =
+            active >= 0 && active < static_cast<int>(list.size()) &&
+            list[static_cast<size_t>(active)].extruder_name.value_or("") == nozzle_extruder;
+        picked_extruder_ = mounted ? std::string{} : nozzle_extruder;
+        pick_tool_ = kNoPickTool;
+    }
 
     show(parent_screen);
 }
@@ -581,8 +591,8 @@ void TempGraphOverlay::create_chips() {
         lv_obj_set_flex_align(chip, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                               LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_gap(chip, theme_manager_get_spacing("space_xxs"), 0);
-        lv_obj_remove_flag(chip, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(chip, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_scrollable(chip, false);
+        lv_obj_set_clickable(chip, true);
 
         // Color dot
         lv_obj_t* dot = lv_obj_create(chip);
@@ -590,9 +600,9 @@ void TempGraphOverlay::create_chips() {
         lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_border_width(dot, 0, 0);
         helix::ui::apply_swatch_color(dot, lv_color_to_u32(s.color) & 0xFFFFFF, "");
-        lv_obj_remove_flag(
-            dot, static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE));
-        lv_obj_add_flag(dot, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_set_clickable(dot, false);
+        lv_obj_set_scrollable(dot, false);
+        lv_obj_set_event_bubble(dot, true);
 
         // Label — strip redundant " Temperature" suffix for chip brevity
         std::string chip_label = s.display_name;
@@ -605,8 +615,8 @@ void TempGraphOverlay::create_chips() {
         lv_label_set_text(label, chip_label.c_str());
         lv_obj_set_style_text_font(label, theme_manager_get_font("font_small"), 0);
         lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
-        lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(label, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_set_clickable(label, false);
+        lv_obj_set_event_bubble(label, true);
 
         // Store index as user data for click handler
         lv_obj_set_user_data(chip, reinterpret_cast<void*>(i));
@@ -786,8 +796,8 @@ void TempGraphOverlay::configure_control_strip() {
             const bool show = !c || c->preset_visible(heater_type, preset_values[i]);
             lv_subject_set_int(&chamber_preset_visible_subjects_[i], show ? 1 : 0);
             if (i >= 1 && i <= 3) {
-                lv_subject_copy_string(&chamber_preset_text_subjects_[i - 1],
-                                       helix::units::format_display_temp(preset_values[i]).c_str());
+                lv_subject_set_string(&chamber_preset_text_subjects_[i - 1],
+                                      helix::units::format_display_temp(preset_values[i]).c_str());
             }
         }
     }
@@ -1013,8 +1023,8 @@ void TempGraphOverlay::rebuild_extruder_selector() {
         // Rounded rectangle rather than a full-circle pill.
         lv_obj_set_style_radius(btn, pill_radius, 0);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
-        lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_scrollable(btn, false);
+        lv_obj_set_clickable(btn, true);
 
         // Highlight the pill the card is displaying - the pick, or the
         // machine's active tool when no pick is held.
@@ -1045,8 +1055,8 @@ void TempGraphOverlay::rebuild_extruder_selector() {
                                                                  theme_manager_get_color("primary"))
                       : theme_manager_get_color("text"),
             0);
-        lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(label, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_set_clickable(label, false);
+        lv_obj_set_event_bubble(label, true);
         lv_obj_center(label); // center the digit within the grown pill
 
         // Store name as obj name for lookup in callback
@@ -1105,6 +1115,29 @@ void TempGraphOverlay::watch_extruder_version() {
         printer_state_->temperature_state().get_extruder_version_subject(), this,
         [](TempGraphOverlay* self, int /*version*/) { self->repoint_nozzle_card(); },
         printer_state_->temperature_state().get_subjects_lifetime());
+
+    // A pick lasts across visits until a tool change, which moves the card to
+    // the newly mounted tool. A change while the overlay was closed counts too.
+    const int active = helix::ToolState::instance().active_tool_index();
+    if (pick_tool_ != kNoPickTool && active != pick_tool_) {
+        picked_extruder_.clear();
+    }
+    pick_tool_ = active;
+    active_tool_observer_ = helix::ui::observe<int>(
+        helix::ToolState::instance().get_active_tool_subject(), this,
+        [](TempGraphOverlay* self, int tool) {
+            if (tool == self->pick_tool_) {
+                return; // the attach replay, not a change
+            }
+            self->pick_tool_ = tool;
+            if (!self->picked_extruder_.empty()) {
+                self->picked_extruder_.clear();
+                self->repoint_nozzle_card();
+                self->lifetime_.defer("rebuild_extruder_selector",
+                                      [self]() { self->rebuild_extruder_selector(); });
+            }
+        },
+        helix::ToolState::instance().get_subjects_lifetime());
 }
 
 void TempGraphOverlay::repoint_nozzle_card() {
@@ -1189,7 +1222,7 @@ void TempGraphOverlay::update_nozzle_card_status() {
         lv_subject_get_int(&nozzle_card_target_subject_), nozzle_card_power_,
         helix::ChamberMode::Heating);
     lv_subject_set_int(&nozzle_card_status_state_subject_, static_cast<int>(status.state));
-    lv_subject_copy_string(&nozzle_card_status_subject_, status.duty.c_str());
+    lv_subject_set_string(&nozzle_card_status_subject_, status.duty.c_str());
 }
 
 void TempGraphOverlay::publish_nozzle_badge() {
@@ -1203,10 +1236,10 @@ void TempGraphOverlay::publish_nozzle_badge() {
     const auto& extruders = temp_state.extruders();
     auto it = extruders.find(displayed_extruder_name());
     if (it == extruders.end()) {
-        lv_subject_copy_string(&nozzle_badge_subject_, "");
+        lv_subject_set_string(&nozzle_badge_subject_, "");
         return;
     }
     auto number = extruder_number_token(it->second.display_name);
     std::string text(number);
-    lv_subject_copy_string(&nozzle_badge_subject_, text.c_str());
+    lv_subject_set_string(&nozzle_badge_subject_, text.c_str());
 }

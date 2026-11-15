@@ -4,6 +4,7 @@
 #include "ui_sound_preview_overlay.h"
 
 #include "ui_event_safety.h"
+#include "ui_obj_flags.h"
 #include "ui_utils.h"
 
 #include "sound_manager.h"
@@ -87,7 +88,7 @@ void SoundPreviewOverlay::populate_buttons() {
 
         lv_obj_set_height(btn, LV_SIZE_CONTENT);
         // Suppress default button_tap sound — preview plays its own sound
-        lv_obj_add_flag(btn, LV_OBJ_FLAG_USER_4);
+        helix::ui::obj_set_flags(btn, LV_OBJ_FLAG_USER_4, true);
 
         // Store sound name in a heap-allocated string, freed when button is deleted
         auto* sound_name_ptr = new std::string(name);

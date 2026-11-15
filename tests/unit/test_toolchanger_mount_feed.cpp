@@ -1206,7 +1206,7 @@ TEST_CASE("MedusaHC: the dock sensors losing the tool mid-run stop it without a 
     CHECK_FALSE(tc.can_cancel_operation());
     // The fault stays on show once the run is over.
     CHECK(tc.get_system_info().action == AmsAction::ERROR);
-    CHECK(tc.get_system_info().operation_detail == "sensor error");
+    CHECK(tc.get_system_info().operation_detail == "Sensor Error");
     CHECK_FALSE(tc.unload_blocked_reason(1).empty());
 }
 
@@ -1376,7 +1376,7 @@ TEST_CASE("MedusaHC: a fault the controller reports during a swap still stops th
     CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0");
     tc.ack();
     CHECK(tc.get_system_info().action == AmsAction::ERROR);
-    CHECK(tc.get_system_info().operation_detail == "sensor error");
+    CHECK(tc.get_system_info().operation_detail == "Sensor Error");
 }
 
 TEST_CASE("MedusaHC: a cleanup that sends no swap is no cover for a -2",
@@ -1625,7 +1625,7 @@ TEST_CASE("MedusaHC: a frame silent about the carriage leaves a standing sensor 
     // sensors agreeing again.
     tc.feed(json{{"medusahc", {{"sensors", {{"t0", 1}, {"t2", 1}}}}}});
     CHECK(tc.get_system_info().action == AmsAction::ERROR);
-    CHECK(tc.get_system_info().operation_detail == "sensor error");
+    CHECK(tc.get_system_info().operation_detail == "Sensor Error");
     CHECK_FALSE(tc.unload_blocked_reason(1).empty());
 
     tc.feed(json{{"medusahc", {{"current_tool", 1}}}});
@@ -2217,6 +2217,18 @@ TEST_CASE("toolchanger: a tool listing sent in separate frames re-seats the carr
 
     // ASSIGN_TOOL moving number 2 onto T3 arrives as a listing alone.
     tc.feed(json{{"toolchanger", {{"tool_numbers", json::array({0, 3, 2})}}}});
+    CHECK(tc.get_system_info().current_slot == 2);
+
+    // Swapping the two numbers back renames instead: the delta carries tool_names alone.
+    tc.feed(
+        json{{"toolchanger", {{"tool_names", json::array({"tool T0", "tool T3", "tool T2"})}}}});
+    CHECK(tc.get_system_info().current_slot == 1);
+
+    // A remap's listing and tool_number in one frame: the listing answers first.
+    tc.feed(json{{"toolchanger",
+                  {{"tool_numbers", json::array({0, 1})},
+                   {"tool_names", json::array({"tool T3", "tool T0"})},
+                   {"tool_number", 0}}}});
     CHECK(tc.get_system_info().current_slot == 2);
 }
 

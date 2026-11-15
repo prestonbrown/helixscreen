@@ -215,14 +215,14 @@ class NavbarIconTestFixture : public LVGLUITestFixture {
         }
 
         // Check hidden flag on object itself
-        if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(obj)) {
             return false;
         }
 
         // Check all ancestors for hidden flag
         lv_obj_t* parent = lv_obj_get_parent(obj);
         while (parent) {
-            if (lv_obj_has_flag(parent, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(parent)) {
                 return false;
             }
             parent = lv_obj_get_parent(parent);
@@ -483,9 +483,9 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: landscape edit buttons clamp to
     REQUIRE(add != nullptr);
     REQUIRE(del != nullptr);
     REQUIRE(done != nullptr);
-    lv_obj_remove_flag(add, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(del, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(done, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(add, false);
+    lv_obj_set_hidden(del, false);
+    lv_obj_set_hidden(done, false);
     lv_obj_update_layout(navbar_);
 
     const int32_t bar_h = lv_obj_get_height(navbar_);
@@ -718,7 +718,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band backdrop deletion scrubs ov
     MockPanelLifecycle mock_panel;
     lv_obj_t* overlay = lv_obj_create(test_screen());
     REQUIRE(overlay != nullptr);
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, &mock_panel);
     nav.push_overlay(overlay);
     helix::ui::UpdateQueue::instance().drain_until_empty();
@@ -732,7 +732,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band backdrop deletion scrubs ov
     lv_obj_delete(backdrop);
 
     // overlay_backdrop_ must clear itself, or deinit_subjects() reaches
-    // lv_obj_del(overlay_backdrop_) on freed memory, a heap-use-after-free that
+    // lv_obj_delete(overlay_backdrop_) on freed memory, a heap-use-after-free that
     // detonates in whatever unrelated test runs next.
     REQUIRE(NavigationManagerTestAccess::overlay_backdrop(nav) == nullptr);
 
@@ -758,7 +758,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band widget deletion scrubs pane
     MockPanelLifecycle mock_panel;
     lv_obj_t* overlay = lv_obj_create(test_screen());
     REQUIRE(overlay != nullptr);
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, &mock_panel);
     nav.push_overlay(overlay);
     helix::ui::UpdateQueue::instance().drain_until_empty();
@@ -782,7 +782,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band widget deletion scrubs pane
     MockPanelLifecycle mock_panel2;
     lv_obj_t* overlay2 = lv_obj_create(test_screen());
     REQUIRE(overlay2 != nullptr);
-    lv_obj_add_flag(overlay2, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay2, true);
     nav.register_overlay_instance(overlay2, &mock_panel2);
     nav.push_overlay(overlay2);
     helix::ui::UpdateQueue::instance().drain_until_empty();
@@ -816,7 +816,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     MockPanelLifecycle mock_panel;
     lv_obj_t* overlay = lv_obj_create(test_screen());
     REQUIRE(overlay != nullptr);
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, &mock_panel);
     nav.push_overlay(overlay);
     helix::ui::UpdateQueue::instance().drain_until_empty();
@@ -825,7 +825,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     // PanelBase::rebuild() creates the successor with the old widget's visibility.
     lv_obj_t* rebuilt = lv_obj_create(test_screen());
     REQUIRE(rebuilt != nullptr);
-    lv_obj_add_flag(rebuilt, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(rebuilt, true);
     nav.replace_panel_widget(PanelId::Home, rebuilt);
 
     CHECK(nav.is_panel_in_stack(rebuilt));
@@ -837,7 +837,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
 
     CHECK_FALSE(nav.is_panel_in_stack(overlay));
     CHECK(nav.is_panel_on_top(rebuilt));
-    CHECK_FALSE(lv_obj_has_flag(rebuilt, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(rebuilt));
 
     lv_obj_delete(overlay);
     lv_obj_delete(base);
@@ -873,7 +873,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     MockPanelLifecycle mock_panel;
     lv_obj_t* overlay = lv_obj_create(test_screen());
     REQUIRE(overlay != nullptr);
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, &mock_panel);
     nav.push_overlay(overlay);
     helix::ui::UpdateQueue::instance().drain_until_empty();
@@ -930,7 +930,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     MockPanelLifecycle mock_panel;
     lv_obj_t* overlay = lv_obj_create(test_screen());
     REQUIRE(overlay != nullptr);
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, &mock_panel);
     nav.push_overlay(overlay);
 
@@ -970,7 +970,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "push_overlay onto empty stack does not 
     MockPanelLifecycle mock_panel;
     lv_obj_t* overlay = lv_obj_create(test_screen());
     REQUIRE(overlay != nullptr);
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, &mock_panel);
 
     // Pushing onto the empty stack must not crash on panel_stack_.back().
@@ -1010,7 +1010,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "is_panel_on_top distinguishes top from 
 
     MockPanelLifecycle mock_first;
     lv_obj_t* first = lv_obj_create(test_screen());
-    lv_obj_add_flag(first, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(first, true);
     nav.register_overlay_instance(first, &mock_first);
     nav.push_overlay(first);
     helix::ui::UpdateQueue::instance().drain_until_empty();
@@ -1021,7 +1021,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "is_panel_on_top distinguishes top from 
     // The user navigates on — this is the state the timed-out callback wakes to.
     MockPanelLifecycle mock_second;
     lv_obj_t* second = lv_obj_create(test_screen());
-    lv_obj_add_flag(second, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(second, true);
     nav.register_overlay_instance(second, &mock_second);
     nav.push_overlay(second);
     helix::ui::UpdateQueue::instance().drain_until_empty();

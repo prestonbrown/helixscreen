@@ -67,7 +67,7 @@ TEST_CASE_METHOD(NavHelpersFixture, "A navbar switch resets the transform of the
 
     NavigationManagerTestAccess::switch_to_panel(NavigationManager::instance(), PanelId::Controls);
 
-    CHECK(lv_obj_has_flag(overlay_, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(overlay_));
     check_resting_transform();
 }
 
@@ -80,7 +80,7 @@ TEST_CASE_METHOD(NavHelpersFixture,
 
     NavigationManagerTestAccess::clear_overlay_stack(nav);
 
-    CHECK(lv_obj_has_flag(overlay_, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(overlay_));
     check_resting_transform();
 }
 

@@ -240,7 +240,7 @@ void SnapmakerNozzleOffsetOverlay::abort_probe() {
 }
 
 void SnapmakerNozzleOffsetOverlay::read_offsets() {
-    lv_subject_copy_string(&s_results, "");
+    lv_subject_set_string(&s_results, "");
     IMoonrakerClient* client = get_moonraker_client();
     if (!client) {
         return;
@@ -263,7 +263,7 @@ void SnapmakerNozzleOffsetOverlay::read_offsets() {
                                                            head_label(static_cast<int>(t)), o[0],
                                                            o[1], o[2]);
                                    }
-                                   lv_subject_copy_string(&s_results, text.c_str());
+                                   lv_subject_set_string(&s_results, text.c_str());
                                }),
         [](const MoonrakerError& err) {
             spdlog::warn("[NozzleOffsetCal] Reading the saved offsets failed: {}", err.message);
@@ -284,20 +284,20 @@ void SnapmakerNozzleOffsetOverlay::refresh() {
     const auto screen = nozzle_offset_screen(phase, runner_.prompt());
 
     if (screen == Screen::Working) {
-        lv_subject_copy_string(&s_title, step_title(phase, step).c_str());
+        lv_subject_set_string(&s_title, step_title(phase, step).c_str());
         const size_t total = runner_.steps().size();
         const size_t at = phase == Phase::Finishing ? total : runner_.step_index() + 1;
-        lv_subject_copy_string(&s_progress, fmt::format(lv_tr("Step {} of {}"), at, total).c_str());
+        lv_subject_set_string(&s_progress, fmt::format(lv_tr("Step {} of {}"), at, total).c_str());
     } else if (screen == Screen::CleanNozzle && step) {
         const std::string head = head_label(step->tool);
-        lv_subject_copy_string(&s_title, fmt::format(lv_tr("Clean {}"), head).c_str());
-        lv_subject_copy_string(
+        lv_subject_set_string(&s_title, fmt::format(lv_tr("Clean {}"), head).c_str());
+        lv_subject_set_string(
             &s_prompt, lv_tr("The nozzle is hot. Brush it clean with the wire brush that came "
                              "with the printer and keep the docking position clean, then tap "
                              "Next."));
     } else if (screen == Screen::RemovePlate) {
-        lv_subject_copy_string(&s_title, lv_tr("Remove the PEI Sheet"));
-        lv_subject_copy_string(
+        lv_subject_set_string(&s_title, lv_tr("Remove the PEI Sheet"));
+        lv_subject_set_string(
             &s_prompt, runner_.error().empty()
                            ? lv_tr("Take the PEI sheet off the heated bed, then tap Next. The "
                                    "toolheads probe the bare bed.")
@@ -306,7 +306,7 @@ void SnapmakerNozzleOffsetOverlay::refresh() {
     }
 
     if (screen == Screen::Failed) {
-        lv_subject_copy_string(&s_error, runner_.error().c_str());
+        lv_subject_set_string(&s_error, runner_.error().c_str());
     }
     const int previous = lv_subject_get_int(&s_state);
     lv_subject_set_int(&s_state, static_cast<int>(screen));

@@ -364,6 +364,9 @@
   <translation tag="Auto Bed Mesh" pt="Malha da Mesa Automática"/>
   <translation tag="Auto Cal" pt="Auto Cal"/>
   <translation tag="Auto Fans" pt="Ventiladores automáticos"/>
+  <translation tag="Auto loading" pt="Carregamento automático"/>
+  <translation tag="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand." pt="O carregamento automático está desligado para este cabeçote. Ligue-o em Comportamento de Impressão ou carregue o filamento manualmente."/>
+  <translation tag="Auto loading is off; turn it on under Print Behavior" pt="Carregamento automático desligado; ligue-o em Comportamento de Impressão"/>
   <translation tag="Auto-Detect" pt="Auto-Detectar"/>
   <translation tag="Auto-Heat on Load" pt="Aquecer Automaticamente ao Carregar"/>
   <translation tag="Auto-Replenish" pt="Reabastecimento automático"/>
@@ -692,6 +695,7 @@
   <translation tag="Change tool" pt="Trocar ferramenta"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." pt="Alterações aplicadas imediatamente. Ajuste durante a impressão para calibrar."/>
   <translation tag="Changes are temporary and reset on printer reboot" pt="Alterações são temporárias e resetam ao reiniciar a impressora"/>
+  <translation tag="Changing filament" pt="Trocando filamento"/>
   <translation tag="Check AFC configuration" pt="Verifique a configuração do AFC"/>
   <translation tag="Check Again" pt="Verificar Novamente"/>
   <translation tag="Check Klipper console for details" pt="Verifique o console do Klipper para detalhes"/>
@@ -884,6 +888,7 @@
   <translation tag="Connected to {}" pt="Conectado a {}"/>
   <translation tag="Connected! Discovering printer..." pt="Conectado! Descobrindo impressora..."/>
   <translation tag="Connected, discovering..." pt="Conectado, descobrindo..."/>
+  <translation tag="Connected, getting address…" pt="Conectado, obtendo endereço…"/>
   <translation tag="Connecting Camera..." pt="Conectando câmera..."/>
   <translation tag="Connecting to " pt="Conectando a "/>
   <translation tag="Connecting to %s..." pt="Conectando a %s..."/>
@@ -1041,6 +1046,7 @@
   <translation tag="Cutter calibration failed: {}" pt="Falha na calibração do cortador: {}"/>
   <translation tag="Cutter jam" pt="Atolamento do cortador"/>
   <translation tag="Cutting" pt="Cortando"/>
+  <translation tag="Cutting filament" pt="Cortando filamento"/>
   <translation tag="Cutting filament..." pt="Cortando filamento..."/>
   <translation tag="Cycle every tool" pt="Alternar todas as ferramentas"/>
   <translation tag="Cycling tools..." pt="Alternando ferramentas..."/>
@@ -1518,6 +1524,7 @@
   <translation tag="Feeder" pt="Alimentador"/>
   <translation tag="Feeders" pt="Alimentadores"/>
   <translation tag="Feeding filament forward" pt="Avançando filamento"/>
+  <translation tag="Feeding filament to nozzle" pt="Avançando filamento até o bico"/>
   <translation tag="Filament" pt="Filamento"/>
   <translation tag="Filament Buffer" pt="Buffer de filamento"/>
   <translation tag="Filament Control" pt="Controle de Filamento"/>
@@ -1534,6 +1541,7 @@
   <translation tag="Filament Mapping is not available on this device." pt="O mapeamento de filamento não está disponível neste dispositivo."/>
   <translation tag="Filament Mapping is unavailable" pt="O mapeamento de filamento está indisponível"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" pt="Esta impressora não suporta o mapeamento de filamento, então a impressão usa as ferramentas atribuídas na impressora"/>
+  <translation tag="Filament Operations" pt="Operações de filamento"/>
   <translation tag="Filament Runout" pt="Fim de Filamento"/>
   <translation tag="Filament Sensor" pt="Sensor de Filamento"/>
   <translation tag="Filament Sensors" pt="Sensores de filamento"/>
@@ -1685,6 +1693,7 @@
   <translation tag="Generic" pt="Genérico"/>
   <translation tag="Get help and share feedback" pt="Obter ajuda e enviar feedback"/>
   <translation tag="Getting Started" pt="Primeiros passos"/>
+  <translation tag="Getting address…" pt="Obtendo endereço…"/>
   <translation tag="Getting ready..." pt="Preparando..."/>
   <translation tag="Glass Effects" pt="Efeitos de Vidro"/>
   <translation tag="Global" pt="Global"/>
@@ -1766,7 +1775,10 @@
   <translation tag="Heating chamber..." pt="Aquecendo câmara..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." pt="O aquecimento é quase toda a espera. Sair da tela agora interrompe a execução."/>
   <translation tag="Heating nozzle" pt="Aquecendo bico"/>
+  <translation tag="Heating nozzle ({})" pt="Aquecendo bico ({})"/>
   <translation tag="Heating nozzle to $1°C..." pt="Aquecendo bico a $1°C..."/>
+  <translation tag="Heating nozzle to {}" pt="Aquecendo bico a {}"/>
+  <translation tag="Heating nozzle to {} ({})" pt="Aquecendo bico a {} ({})"/>
   <translation tag="Heating nozzle..." pt="Aquecendo bico..."/>
   <translation tag="Heating the bed" pt="Aquecendo a mesa"/>
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" pt="Aquecendo a mesa e o bico para que a impressão volte a aderir e o bico se solte dela"/>
@@ -1879,7 +1891,10 @@
   <translation tag="Hyperspace" pt="Hiperespaço"/>
   <translation tag="I understand" pt="Entendi"/>
   <translation tag="ID (optional)" pt="ID (opcional)"/>
+  <translation tag="IFS driver error" pt="Erro do driver do IFS"/>
   <translation tag="IFS updates without polling" pt="Atualizações do IFS sem consulta periódica"/>
+  <translation tag="IFS: loading" pt="IFS: carregando"/>
+  <translation tag="IFS: unloading" pt="IFS: descarregando"/>
   <translation tag="IMPORT FROM USB" pt="IMPORTAR DO USB"/>
   <translation tag="INDX dock positions are not calibrated" pt="As posições das docas do INDX não estão calibradas"/>
   <translation tag="INDX macros not recognized" pt="Macros do INDX não reconhecidas"/>
@@ -2161,6 +2176,7 @@
   <translation tag="Load the required filaments or start anyway?" pt="Carregar os filamentos necessários ou iniciar mesmo assim?"/>
   <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." pt="Carregue, descarregue e purgue aqui. Escolha primeiro um material para definir suas temperaturas."/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." pt="Carregue, descarregue e troque carretéis, ajuste temperaturas e monitore os sensores de filamento."/>
+  <translation tag="Load, unload, purge, and extrude filament" pt="Carregar, descarregar, purgar e extrudar filamento"/>
   <translation tag="Load..." pt="Carregar..."/>
   <translation tag="Loaded" pt="Carregado"/>
   <translation tag="Loading" pt="Carregando"/>
@@ -2383,6 +2399,7 @@
   <translation tag="Mount tool" pt="Montar ferramenta"/>
   <translation tag="Mount which tool?" pt="Montar qual ferramenta?"/>
   <translation tag="Mount..." pt="Montar..."/>
+  <translation tag="Mounted: {}" pt="Montada: {}"/>
   <translation tag="Move" pt="Mover"/>
   <translation tag="Move here" pt="Mover aqui"/>
   <translation tag="Move out of range" pt="Movimento fora do alcance"/>
@@ -2497,6 +2514,7 @@
   <translation tag="No events queued" pt="Nenhum evento na fila"/>
   <translation tag="No extruder heater found. Check [extruder] in printer.cfg" pt="Aquecedor da extrusora não encontrado. Verifique [extruder] no printer.cfg"/>
   <translation tag="No fans detected" pt="Nenhuma ventoinha detectada"/>
+  <translation tag="No feeder attached" pt="Nenhum alimentador conectado"/>
   <translation tag="No filament" pt="Sem filamento"/>
   <translation tag="No filament environment sensors" pt="Nenhum sensor ambiental de filamento"/>
   <translation tag="No filament loaded to unload" pt="Nenhum filamento carregado para descarregar"/>
@@ -2559,6 +2577,7 @@
   <translation tag="No timelapse videos found" pt="Nenhum vídeo timelapse encontrado"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" pt="Não se sabe qual ferramenta está montada. Com uma sonda compartilhada, calibre com {}. Continuar mesmo assim?"/>
   <translation tag="No tool is mounted" pt="Nenhuma ferramenta montada"/>
+  <translation tag="No tool mounted" pt="Nenhuma ferramenta montada"/>
   <translation tag="No tool on the head" pt="Nenhuma ferramenta no cabeçote"/>
   <translation tag="No tools to calibrate" pt="Nenhuma ferramenta para calibrar"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" pt="Sem volta: a diferença moveu {:.1f} Hz"/>
@@ -2808,9 +2827,11 @@
   <translation tag="Pick Color" pt="Escolher Cor"/>
   <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." pt="Escolha como o HelixScreen se comporta. Você pode mudar tudo depois em Configurações."/>
   <translation tag="Pick the best band" pt="Escolha a melhor faixa"/>
+  <translation tag="Pick up" pt="Montar"/>
   <translation tag="Pick up and park each tool in turn" pt="Pegar e estacionar cada ferramenta por vez"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" pt="Pegue a ferramenta, aqueça-a e puxe o filamento para fora"/>
   <translation tag="Pick up tool" pt="Pegar ferramenta"/>
+  <translation tag="Pick-up step cancelled; nothing was sent" pt="Etapa de coleta cancelada; nada foi enviado"/>
   <translation tag="Picking up tool" pt="Pegando ferramenta"/>
   <translation tag="Pill" pt="Pílula"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" pt="Pixels antes de uma pressão se tornar rolagem (menor = ativa mais cedo)"/>
@@ -3076,6 +3097,7 @@
   <translation tag="Purge tower and brush settings" pt="Configurações da torre de purga e da escova"/>
   <translation tag="Purging" pt="Purgando"/>
   <translation tag="Purging nozzle" pt="Purgando bico"/>
+  <translation tag="Purging old filament" pt="Purgando filamento anterior"/>
   <translation tag="Purging..." pt="Purgando..."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." pt="Empurre o filamento de limpeza na extrusora até parar e toque em Extrudar."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." pt="Empurre o filamento no extrusor até parar. Ele é puxado automaticamente, ou toque em Extrudar."/>
@@ -3338,6 +3360,7 @@
   <translation tag="Retract filament to current slot" pt="Retrair o filamento para o slot atual"/>
   <translation tag="Retract may still be running — response timed out" pt="A retração pode ainda estar em execução — tempo esgotado"/>
   <translation tag="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again" pt="Recue para descarregar. Se sair limpo, corte a ponta danificada e alimente novamente"/>
+  <translation tag="Retracting filament from nozzle" pt="Retraindo filamento do bico"/>
   <translation tag="Retraction" pt="Retração"/>
   <translation tag="Retraction Settings" pt="Configurações de Retração"/>
   <translation tag="Retraction distance in the cooling tube" pt="Distância de retração no tubo de resfriamento"/>
@@ -4117,6 +4140,7 @@
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" pt="O cabeçote tem filamento, mas nenhum slot AMS o reporta como carregado. Retire-o manualmente antes de imprimir. Iniciar mesmo assim?"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" pt="O cabeçote tem filamento, mas nenhum slot AMS o reporta como carregado. A impressora pode não conseguir carregar um slot até que ele seja esvaziado. Iniciar mesmo assim?"/>
   <translation tag="The toolhead is not homed, so this would home into the print" pt="O cabeçote não fez home, fazer home colidiria com a impressão"/>
+  <translation tag="The toolhead may still be at the chute. Move it away before printing." pt="O cabeçote pode ainda estar na calha. Afaste-o antes de imprimir."/>
   <translation tag="The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from." pt="O cabeçote se move para frente e para trás em velocidades de 20 a 300 mm/s enquanto o acelerômetro mede o quanto cada motor vibra. Leva cerca de {0} minutos e é barulhento. As velocidades que mais vibram são as que suas paredes externas devem evitar."/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" pt="O sensor do cabeçote indica que o filamento já está carregado. Prosseguir com o carregamento mesmo assim?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" pt="O sensor do cabeçote indica que não há filamento presente. Prosseguir com o descarregamento mesmo assim?"/>
@@ -4311,6 +4335,7 @@
   <translation tag="Toolhead Style" pt="Estilo do Cabeçote"/>
   <translation tag="Toolhead X" pt="Cabeçote X"/>
   <translation tag="Toolhead Y" pt="Cabeçote Y"/>
+  <translation tag="Toolhead did not return to park: {}" pt="O cabeçote não voltou à posição de estacionamento: {}"/>
   <translation tag="Toolhead jam" pt="Atolamento do cabeçote"/>
   <translation tag="Toolhead lost homing" pt="O cabeçote perdeu o posicionamento"/>
   <translation tag="Toolhead offset calibration" pt="Calibração de offsets dos cabeçotes"/>
@@ -4532,6 +4557,7 @@
   <translation tag="Wait for the current filament operation to finish" pt="Aguarde a operação de filamento atual terminar"/>
   <translation tag="Wait for the current operation to complete" pt="Aguarde a conclusão da operação atual"/>
   <translation tag="Wait for the current operation to complete or cancel it first" pt="Aguarde a conclusão da operação atual ou cancele-a primeiro"/>
+  <translation tag="Wait for the load or unload to finish" pt="Aguarde o fim do carregamento ou descarregamento"/>
   <translation tag="Wait for the motor to stop" pt="Aguarde o motor parar"/>
   <translation tag="Wait for the nozzle to stop moving" pt="Aguarde o bico parar de se mover"/>
   <translation tag="Wait for the running INDX operation to finish" pt="Aguarde a operação INDX em andamento terminar"/>
@@ -4854,6 +4880,7 @@
   <translation tag="{} d" pt="{} d"/>
   <translation tag="{} days" pt="{} dias"/>
   <translation tag="{} detected" pt="{} detetada"/>
+  <translation tag="{} did not arrive; nothing was sent" pt="{} não chegou; nada foi enviado"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." pt="{} não carregou. Verifique se o hotend está bem encaixado e faça uma extrusão de teste antes de retomar."/>
   <translation tag="{} disabled" pt="{} desabilitado"/>
   <translation tag="{} disconnected" pt="{} desligada"/>

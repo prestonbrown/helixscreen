@@ -64,7 +64,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "[printer_manager]") {
     // ~PrinterManagerOverlay() -> deinit_subjects_base() -> lv_subject_deinit()
     // on every subject the overlay published. lv_subject_deinit() walks the
-    // subject's observer list and calls lv_observer_remove(), which for an
+    // subject's observer list and calls lv_observer_delete(), which for an
     // obj-bound observer strips the LV_EVENT_DELETE hook that
     // lv_subject_add_observer_obj() installed on the target widget.
     //
@@ -135,7 +135,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "PrinterManagerOverlay: destructor safe withou
 
     // Owner is still alive; drop the observer before the sentinel so teardown
     // order cannot matter.
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
     lv_obj_delete(sentinel);
 }
 
@@ -328,7 +328,7 @@ void count_chips(lv_obj_t* obj, int& count) {
 }
 
 bool shown(lv_obj_t* obj) {
-    return obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return obj && !lv_obj_is_hidden(obj);
 }
 
 /// The chips a group shows, named, so a failure says which one leaked.

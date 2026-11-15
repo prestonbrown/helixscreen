@@ -113,7 +113,7 @@ void FilamentMappingModal::on_show() {
     // Published on every show: the subjects are shared by every instance, so a
     // note left from one caller must not reach another's dialog. Visibility is
     // published by rebuild_rows(), which every change to the picks goes through.
-    lv_subject_copy_string(&note_subjects().text, start_macro_note_.c_str());
+    lv_subject_set_string(&note_subjects().text, start_macro_note_.c_str());
 
     tool_list_ = find_widget("mapping_tool_list");
     if (!tool_list_) {
@@ -366,7 +366,7 @@ void FilamentMappingModal::create_toggle_row() {
     lv_obj_set_style_flex_cross_place(row, LV_FLEX_ALIGN_CENTER, 0);
     lv_obj_set_style_pad_ver(row, row_pad_v, 0);
     lv_obj_set_style_pad_hor(row, 0, 0);
-    lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(row, false);
 
     // Label
     lv_obj_t* label = lv_label_create(row);

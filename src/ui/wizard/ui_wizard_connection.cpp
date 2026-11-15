@@ -658,7 +658,7 @@ void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok
     save_connection(ip, port);
 
     // Update subjects with the successful connection target
-    lv_subject_copy_string(&connection_ip_, ip.c_str());
+    lv_subject_set_string(&connection_ip_, ip.c_str());
     set_port_field(port);
 
     // Show "discovering" status - spinner shows via XML binding
@@ -867,7 +867,7 @@ lv_obj_t* WizardConnectionStep::create(lv_obj_t* parent) {
         if (connection_ip_buffer_[0] != '\0') {
             lv_textarea_set_text(ip_input, connection_ip_buffer_);
             // Keep subject in sync so any observers see the same value.
-            lv_subject_copy_string(&connection_ip_, connection_ip_buffer_);
+            lv_subject_set_string(&connection_ip_, connection_ip_buffer_);
             spdlog::debug("[{}] Pre-filled IP input: {}", get_name(), connection_ip_buffer_);
         }
         spdlog::debug("[{}] IP input configured", get_name());
@@ -881,7 +881,7 @@ lv_obj_t* WizardConnectionStep::create(lv_obj_t* parent) {
         // is handled by sanitize_port() at all read sites instead.
         if (connection_port_buffer_[0] != '\0') {
             lv_textarea_set_text(port_input, connection_port_buffer_);
-            lv_subject_copy_string(&connection_port_, connection_port_buffer_);
+            lv_subject_set_string(&connection_port_, connection_port_buffer_);
             spdlog::debug("[{}] Pre-filled port input: {}", get_name(), connection_port_buffer_);
         }
         spdlog::debug("[{}] Port input configured", get_name());
@@ -1014,14 +1014,14 @@ void WizardConnectionStep::on_printers_discovered(const std::vector<DiscoveredPr
 
     // Update status text
     if (printers.empty()) {
-        lv_subject_copy_string(&mdns_status_,
-                               searching ? lv_tr("Scanning...") : lv_tr("No printers found"));
+        lv_subject_set_string(&mdns_status_,
+                              searching ? lv_tr("Scanning...") : lv_tr("No printers found"));
     } else {
         char buf[64];
         snprintf(buf, sizeof(buf),
                  helix::ui::tr_plural("Found 1 printer", "Found %zu printers", printers.size()),
                  printers.size());
-        lv_subject_copy_string(&mdns_status_, buf);
+        lv_subject_set_string(&mdns_status_, buf);
     }
 
     // Update dropdown options (newline-separated for LVGL dropdown)
@@ -1055,12 +1055,12 @@ void WizardConnectionStep::on_printer_selected_cb(lv_event_t* e) {
         // without one rather than being sent this one's.
         const std::string previous_ip = lv_subject_get_string(&self->connection_ip_);
         if (!text_io::equals_ignore_case(previous_ip, printer.ip_address)) {
-            lv_subject_copy_string(&self->connection_api_key_, "");
+            lv_subject_set_string(&self->connection_api_key_, "");
             lv_subject_set_int(&self->connection_login_required_, 0);
         }
 
         // Update IP input
-        lv_subject_copy_string(&self->connection_ip_, printer.ip_address.c_str());
+        lv_subject_set_string(&self->connection_ip_, printer.ip_address.c_str());
 
         // Also update the text area directly so user sees the change
         if (self->screen_root_) {
@@ -1093,7 +1093,7 @@ void WizardConnectionStep::on_printer_selected_cb(lv_event_t* e) {
 
 void WizardConnectionStep::set_port_field(const std::string& port) {
     port_set_by_app_ = true;
-    lv_subject_copy_string(&connection_port_, port.c_str());
+    lv_subject_set_string(&connection_port_, port.c_str());
     if (screen_root_) {
         lv_obj_t* port_input = helix::ui::find_required(screen_root_, "port_input", get_name());
         if (port_input) {
@@ -1125,7 +1125,7 @@ void WizardConnectionStep::set_status(StatusKind kind, const char* text) {
     }
     // The status line's icon and text bind these
     lv_subject_set_int(&connection_status_kind_, static_cast<int>(kind));
-    lv_subject_copy_string(&connection_status_text_, text ? text : "");
+    lv_subject_set_string(&connection_status_text_, text ? text : "");
 }
 
 void WizardConnectionStep::unblock_after_incomplete_discovery(const char* message) {

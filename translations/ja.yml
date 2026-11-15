@@ -371,6 +371,9 @@ translations:
   Auto Bed Mesh: 自動ベッドメッシュ
   Auto Cal: 自動キャリブレーション
   Auto Fans: 自動ファン
+  Auto loading: "自動ロード"
+  Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand.: "このツールヘッドの自動ロードはオフです。印刷時の動作でオンにするか、フィラメントを手動でロードしてください。"
+  Auto loading is off; turn it on under Print Behavior: "自動ロードがオフです。印刷時の動作でオンにしてください"
   Auto-Detect: 自動検出
   Auto-Heat on Load: 装填時に自動加熱
   Auto-Replenish: 自動補充
@@ -705,6 +708,7 @@ translations:
   Change tool: ツールを交換
   Changes apply immediately. Adjust during print for tuning.: 変更は即座に適用されます。印刷中に調整して最適化できます。
   Changes are temporary and reset on printer reboot: 変更は一時的で、プリンター再起動時にリセットされます
+  Changing filament: "フィラメント交換中"
   Check AFC configuration: 'AFC 設定を確認してください'
   Check Again: 再確認
   Check Klipper console for details: 詳細は Klipper コンソールを確認してください
@@ -904,6 +908,7 @@ translations:
   Connected to {}: '{} に接続しました'
   Connected! Discovering printer...: 接続完了！プリンターを検出中...
   Connected, discovering...: 接続済み、検出中...
+  Connected, getting address…: 接続済み、アドレス取得中…
   Connecting Camera...: カメラに接続中...
   'Connecting to ': '接続中: '
   Connecting to %s...: '%sに接続中...'
@@ -979,6 +984,7 @@ translations:
   Load all stopped: 'すべてのロードを停止しました'
   "Load and unload": "装填と排出"
   Load stopped: 'ロードを停止しました'
+  "Load, unload, purge, and extrude filament": "フィラメントのロード、アンロード、パージ、押し出し"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "ここで装填、排出、パージを行います。先に材料を選ぶと温度が設定されます。"
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "スプールの装填、排出、交換、温度の設定、フィラメントセンサーの監視ができます。"
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "タイルを長押しすると編集モードになります。新しいグリッドでは、ウィジェットの並べ替え、サイズ変更、削除、追加、ページ間のドラッグができます。"
@@ -1092,6 +1098,7 @@ translations:
   'Cutter calibration failed: {}': 'カッターのキャリブレーションに失敗しました: {}'
   Cutter jam: カッター詰まり
   Cutting: カット中
+  Cutting filament: "フィラメントを切断中"
   Cutting filament...: フィラメントを切断中...
   Cycle every tool: 全ツールを順に交換
   Cycling tools...: ツールを順に交換中...
@@ -1581,6 +1588,7 @@ translations:
   Feeder: フィーダー
   Feeders: フィーダー
   Feeding filament forward: フィラメントを前方に送り出し中
+  Feeding filament to nozzle: "フィラメントをノズルへ送り出し中"
   Filament: フィラメント
   Filament Buffer: 'フィラメントバッファー'
   Filament Control: フィラメント制御
@@ -1596,6 +1604,7 @@ translations:
   Filament Mapping is unavailable: フィラメントマッピングは利用できません
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: このプリンターはフィラメントマッピングに対応していないため、プリンターで割り当てられたツールで印刷します
   Filament Runout: フィラメント切れ
+  Filament Operations: フィラメント操作
   Filament Sensor: フィラメントセンサー
   Filament Sensors: 'フィラメントセンサー'
   Filament System Error: フィラメントシステムエラー
@@ -1751,6 +1760,7 @@ translations:
   Gear sync: ギア同期
   Generic: 汎用
   Get help and share feedback: ヘルプとフィードバック
+  Getting address…: アドレス取得中…
   Getting ready...: '準備中...'
   Glass Effects: ガラス効果
   Global: グローバル
@@ -1837,7 +1847,10 @@ translations:
   Heating chamber...: チャンバー加熱中...
   Heating is nearly the whole wait. Leaving the screen now stops the run.: '待ち時間のほとんどは加熱です。いま画面を離れると実行は停止します。'
   Heating nozzle: 'ノズル加熱中'
+  Heating nozzle ({}): "ノズル加熱中 ({})"
   Heating nozzle to $1°C...: ノズルを$1°Cに加熱中...
+  Heating nozzle to {}: "ノズルを{}に加熱中"
+  Heating nozzle to {} ({}): "ノズルを{}に加熱中 ({})"
   Heating nozzle...: ノズル加熱中...
   Heating the bed: ベッドを加熱中
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "ベッドとノズルを加熱し、印刷物を再び密着させてノズルを印刷物から離しています"
@@ -1956,7 +1969,10 @@ translations:
   I understand: 理解しました
 
   ID (optional): ID（任意）
+  IFS driver error: "IFSドライバーエラー"
   IFS updates without polling: 'ポーリングなしの IFS 更新'
+  'IFS: loading': "IFS: 装填中"
+  'IFS: unloading': "IFS: 取り出し中"
   IMPORT FROM USB: USBからインポート
   INDX dock positions are not calibrated: "INDXのドック位置がキャリブレーションされていません"
   INDX macros not recognized: "INDXマクロを認識できません"
@@ -2469,6 +2485,7 @@ translations:
   Mount tool: 'ツールを装着'
   Mount which tool?: 'どのツールを装着しますか？'
   Mount...: '装着...'
+  'Mounted: {}': '装着中: {}'
   Move: 移動
   Move here: ここへ移動
   Move out of range: '移動範囲外です'
@@ -2586,6 +2603,7 @@ translations:
   No events queued: キューにイベントはありません
   No extruder heater found. Check [extruder] in printer.cfg: 'エクストルーダーヒーターが見つかりません。printer.cfg の [extruder] を確認してください'
   No fans detected: ファンが検出されませんでした
+  No feeder attached: "フィーダーが接続されていません"
   No filament: フィラメントなし
   No filament environment sensors: フィラメント環境センサーがありません
   No filament loaded to unload: 取出すフィラメントが装填されていません
@@ -2648,6 +2666,7 @@ translations:
   No timelapse videos found: タイムラプス動画が見つかりません
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: '装着中のツールが不明です。共有プローブでは {} で校正してください。このまま続行しますか？'
   No tool is mounted: 'ツールが装着されていません'
+  No tool mounted: 'ツール未装着'
   No tool on the head: "ツールヘッドにツールがありません"
   No tools to calibrate: キャリブレートするツールがありません
   'No turn: the gap moved {:.1f} Hz': "回していません: 差は{:.1f} Hz動きました"
@@ -2911,9 +2930,11 @@ translations:
   Pick Color: 色を選択
   Pick how HelixScreen behaves. You can change any of these later in Settings.: 'HelixScreen の動作を選択します。すべて後で「設定」から変更できます。'
   Pick the best band: 最適な区間を選択
+  Pick up: '装着'
   Pick up and park each tool in turn: 各ツールを順に取り付けて戻す
   Pick up the tool, heat it, and pull the filament out: "ツールを取り付けて加熱し、フィラメントを引き抜いてください"
   Pick up tool: ツールを取得
+  Pick-up step cancelled; nothing was sent: '装着後の操作を取り消しました。何も送信していません'
   Picking up tool: ツールを取得中
   Pill: ピル
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): 押下がスクロールに変わるまでのピクセル数
@@ -3186,6 +3207,7 @@ translations:
   Purge tower and brush settings: 'パージタワーとブラシの設定'
   Purging: パージ中
   Purging nozzle: ノズルをパージ中
+  Purging old filament: "古いフィラメントをパージ中"
   Purging...: パージ中...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "清掃用フィラメントを止まるまでエクストルーダーに押し込み、押し出しをタップしてください。"
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "フィラメントを止まるまでエクストルーダーに差し込んでください。自動的につかまれます。または「押し出し」をタップしてください。"
@@ -3449,6 +3471,7 @@ translations:
   Retract filament to current slot: '現在のスロットへフィラメントを引き戻す'
   Retract may still be running — response timed out: リトラクトがまだ実行中の可能性があります — 応答タイムアウト
   Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: 戻してアンロードしてください。問題なく戻る場合は、傷んだ先端を切り落として再度送り出してください
+  Retracting filament from nozzle: "ノズルからフィラメントを引き戻し中"
   Retraction: リトラクション
   Retraction Settings: リトラクション設定
   Retraction distance in the cooling tube: '冷却チューブ内での引き戻し距離'
@@ -4276,6 +4299,7 @@ translations:
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。取り除くまで、プリンターがスロットの装填を拒否する場合があります。それでも印刷を開始しますか？
   The toolhead is not homed, so this would home into the print: 'ツールヘッドがホーミングされていないため、ホーミングするとノズルが造形物に当たります'
+  'The toolhead may still be at the chute. Move it away before printing.': 'ツールヘッドがまだシュートにある可能性があります。印刷前に移動してください。'
   ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
   : 'ツールヘッドが 20 から 300 mm/s の速度で往復し、その間に加速度センサーが各モーターの揺れの強さを測定します。所要時間は約 {0} 分で、大きな音がします。最も揺れる速度が、外壁で避けるべき速度です。'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: ツールヘッドセンサーがフィラメント装填済みを検出しました。それでも装填を続行しますか？
@@ -4500,6 +4524,7 @@ translations:
   Toolhead Style: ツールヘッドスタイル
   Toolhead X: ツールヘッド X
   Toolhead Y: ツールヘッド Y
+  'Toolhead did not return to park: {}': 'ツールヘッドが待機位置に戻りませんでした: {}'
   Toolhead jam: ツールヘッドの詰まり
   Toolhead lost homing: ツールヘッドのホーミングが解除されました
   Toolhead offset calibration: ツールヘッドオフセットのキャリブレーション
@@ -4715,6 +4740,7 @@ translations:
   Wait for the current filament operation to finish: 現在のフィラメント操作が完了するまでお待ちください
   Wait for the current operation to complete: 現在の操作が完了するまでお待ちください
   Wait for the current operation to complete or cancel it first: 現在の操作が完了するまで待つか、先にキャンセルしてください
+  Wait for the load or unload to finish: "ロードまたは排出が終わるまでお待ちください"
   Wait for the motor to stop: "モーターが止まるまでお待ちください"
   Wait for the nozzle to stop moving: ノズルが止まるまでお待ちください
   Wait for the running INDX operation to finish: 実行中のINDX操作が終わるまでお待ちください
@@ -5046,6 +5072,7 @@ translations:
   '{} d': "{}日"
   '{} days': "{}日"
   '{} detected': '{}を検出'
+  '{} did not arrive; nothing was sent': '{} が到着しませんでした。何も送信していません'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}がロードされませんでした。再開する前に、ホットエンドが正しく取り付けられているか確認し、テスト押し出しを行ってください。'
   '{} disabled': '{} を無効にしました'
   '{} disconnected': '{}が外れました'

@@ -53,7 +53,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "color_swatch_grid: a tap reports the tapped
         const auto& expected = helix::ui::swatch_palette(palette);
         // The palette follows the grid's hidden custom-colour lead tile.
         REQUIRE(lv_obj_get_child_count(grid) == expected.size() + 1);
-        CHECK(lv_obj_has_flag(lv_obj_get_child(grid, 0), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(lv_obj_get_child(grid, 0)));
 
         g_tapped.clear();
         for (uint32_t i = 0; i < expected.size(); ++i) {
@@ -203,7 +203,7 @@ namespace {
 
 bool shown(lv_obj_t* obj) {
     for (; obj; obj = lv_obj_get_parent(obj)) {
-        if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(obj))
             return false;
     }
     return true;
@@ -313,14 +313,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     };
 
     open_tab_is("btn_tab_presets", "btn_tab_custom");
-    CHECK_FALSE(lv_obj_has_flag(find("presets_content"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(find("custom_content"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(find("presets_content")));
+    CHECK(lv_obj_is_hidden(find("custom_content")));
 
     lv_obj_send_event(find("btn_tab_custom"), LV_EVENT_CLICKED, nullptr);
     settle();
     open_tab_is("btn_tab_custom", "btn_tab_presets");
-    CHECK(lv_obj_has_flag(find("presets_content"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(find("custom_content"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(find("presets_content")));
+    CHECK_FALSE(lv_obj_is_hidden(find("custom_content")));
 
     // A hex field that does not parse turns danger until it does.
     lv_obj_t* hex = find("hex_input_tiny");

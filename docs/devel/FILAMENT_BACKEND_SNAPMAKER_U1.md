@@ -191,6 +191,7 @@ picks survives the next read (`src/printer/ams_backend_snapmaker.cpp#record_tag_
 | `SET_PRINT_PREFERENCES END_UNLOAD_FILAMENT=[...]` | The saved unload-at-end choice, ahead of every print start (`src/printer/ams_backend_snapmaker.cpp#end_unload_gcode`; see [`SET_PRINT_PREFERENCES`](#set_print_preferences)) |
 | `AUTO_FEEDING_BATCH ACTION=START / DOING EXTRUDER=<n> / END` | Batch load/unload when the firmware macro is present (see Batch Load/Unload) |
 | `SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=<head> VENDOR=… FILAMENT_TYPE=… FILAMENT_SUBTYPE=…` + `FILAMENT_COLOR_RGBA=…` | The head's `print_task_config` record, which RESUME requires (below) |
+| `FEED_AUTO MODULE=<left\|right> CHANNEL=<0\|1> AUTO=<0\|1>` | A head's Auto loading, from its row (`src/printer/ams_backend_snapmaker.cpp#build_preference_gcode`; see [Auto Loading](#auto-loading)) |
 | JSON-RPC `printer.control.nozzle_properties` `{extruder, diameter \| volume_type}` | A head's fitted nozzle, from the Nozzle rows (`src/printer/ams_backend_snapmaker.cpp#send_nozzle_change`; see [Fitted Nozzles](#fitted-nozzles)) |
 
 The firmware refuses RESUME with `e<N> not edit filament` while a head the task uses has
@@ -696,6 +697,37 @@ The commands are registered in Python by `ExtruderOffsetCalibration` in `<klippe
 `EXTRUDER_OFFSET_ACTION_CHECK_TARGET_TEMP` is also called by the stock screen; where in the sequence is not established, and the flow works without it.
 
 Mock: the `snapmaker_u1` persona lists the hook macros, and `MoonrakerClientMock::simulate_nozzle_offset_calibration` answers each step after a beat, models the state gate, and moves the probed head's `extruder_offset`. `HELIX_MOCK_NOZZLE_CAL_PLATE_REFUSE=<n>` refuses the first n plate checks; `HELIX_MOCK_NOZZLE_CAL_FAIL=<n>` fails head n's probe.
+
+### Auto Loading
+
+Each feeder channel has an automatic mode, the stock screen's Settings > Print Preferences >
+Auto Loading toggle per toolhead. With it on, a spool pushed into the port is preloaded and
+`FEED_AUTO ... LOAD=1` feeds the head. With it off the firmware ignores the port, answers a load
+OK without feeding, and leaves that head out of auto-replenish (`<klipper>/klippy/extras/filament_feed.py`
+`_port_event_handler`, `cmd_FEED_AUTO`; `<klipper>/klippy/extras/print_task_config.py`). Each channel reports it as
+`disable_auto` in its `filament_feed left|right` entry.
+
+The only setter is `FEED_AUTO MODULE=<module> CHANNEL=<channel> AUTO=<0|1>`. It saves the
+mode to `<config>/snapmaker/<module>_filament_feed.json` (`SAVE=1` is the default), so it
+survives a reboot. It is refused unless the machine's main state is idle, printing, or an
+auto load or unload, and it waits behind a feed already running on the module's other channel.
+Turning it off sets the channel state to `none` unless the head is loaded, and turning it on
+sets `wait_insert` or `preload_finish`. The head's module and channel come from
+`gcode_macro _FILAMENT_FEED_VARIABLE` (`module_sequence`, `channel_sequence`), which HelixScreen
+subscribes when the printer has it. A head it does not state, or states unusably, takes the stock
+wiring: left/1, left/0, right/0, right/1 for heads 0 to 3 (`src/printer/snapmaker_feed_mode.cpp`).
+
+The Print Behavior section shows an **Auto loading** toggle per head whose feeder has reported
+`disable_auto`, and the rows open the section by themselves. A head whose feeder reports
+`module_exist: false` gets the row disabled with "No feeder attached", and a head mid-load or
+mid-unload gets it disabled until the feed ends. A load on a head with Auto loading off is refused
+before sending, naming the setting, and the head's Load offers the guided manual load with the
+same pointer (`do_load_filament`, `head_filament_ops`). The mock's U1 feeder takes the command and
+ignores `AUTO_FEEDING` loads on a head with it off; `HELIX_MOCK_AMS=multiace` answers both feeder
+sides in its query and subscribe, so the rows show from the start.
+
+What the stock screen sends for its toggle has not been captured; `FEED_AUTO ... AUTO=` is read
+from Snapmaker's open-source `u1-klipper`, where nothing else changes the mode. Not yet run on a U1.
 
 ### Fitted Nozzles
 

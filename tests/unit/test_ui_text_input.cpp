@@ -276,7 +276,7 @@ TEST_CASE_METHOD(TextInputBindingFixture,
     // The observer fires on attach, so the subject's current value lands immediately.
     REQUIRE(std::string(lv_textarea_get_text(ta)) == "initial");
 
-    lv_subject_copy_string(text_subject(), "from subject");
+    lv_subject_set_string(text_subject(), "from subject");
     CHECK(std::string(lv_textarea_get_text(ta)) == "from subject");
 }
 
@@ -287,7 +287,7 @@ TEST_CASE_METHOD(TextInputBindingFixture,
     lv_obj_t* ta = create_text_input(test_screen(), attrs);
     REQUIRE(ta != nullptr);
 
-    lv_subject_copy_string(text_subject(), "7.5");
+    lv_subject_set_string(text_subject(), "7.5");
     CHECK(std::string(lv_textarea_get_text(ta)) == "7.5");
     CHECK(std::string(lv_subject_get_string(text_subject())) == "7.5");
 }
@@ -328,7 +328,7 @@ TEST_CASE_METHOD(TextInputBindingFixture,
     CHECK(lv_textarea_get_cursor_pos(ta) == 3);
 
     // An external subject change still replaces the text.
-    lv_subject_copy_string(text_subject(), "from subject");
+    lv_subject_set_string(text_subject(), "from subject");
     CHECK(std::string(lv_textarea_get_text(ta)) == "from subject");
 }
 
@@ -458,11 +458,11 @@ TEST_CASE_METHOD(TextInputBindingFixture, "text_input clear button tracks conten
 
         lv_obj_t* btn = lv_obj_find_by_name(ta, "text_input_clear_btn");
         REQUIRE(btn != nullptr);
-        CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(btn));
 
         lv_textarea_set_text(ta, "query");
         lv_obj_send_event(ta, LV_EVENT_VALUE_CHANGED, nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
     }
 
     SECTION("clicking it empties the field and hides itself") {
@@ -473,11 +473,11 @@ TEST_CASE_METHOD(TextInputBindingFixture, "text_input clear button tracks conten
 
         lv_textarea_set_text(ta, "query");
         lv_obj_send_event(ta, LV_EVENT_VALUE_CHANGED, nullptr);
-        REQUIRE_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(btn));
 
         lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
         CHECK(std::string(lv_textarea_get_text(ta)).empty());
-        CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(btn));
     }
 }
 
@@ -631,7 +631,7 @@ TEST_CASE_METHOD(TextInputBindingFixture, "text_input bind_suffix resizes the re
     lv_obj_update_layout(plain);
     const int32_t base_pad = lv_obj_get_style_pad_right(plain, LV_PART_MAIN);
 
-    lv_subject_copy_string(text_subject(), "C");
+    lv_subject_set_string(text_subject(), "C");
     const char* attrs[] = {"width", "300", "bind_suffix", "ti_text_subject", nullptr};
     lv_obj_t* ta = create_text_input(test_screen(), attrs);
     REQUIRE(ta != nullptr);
@@ -639,11 +639,11 @@ TEST_CASE_METHOD(TextInputBindingFixture, "text_input bind_suffix resizes the re
     const int32_t narrow_pad = lv_obj_get_style_pad_right(ta, LV_PART_MAIN);
     CHECK(narrow_pad > base_pad);
 
-    lv_subject_copy_string(text_subject(), "mm/s mm/s");
+    lv_subject_set_string(text_subject(), "mm/s mm/s");
     lv_obj_update_layout(ta);
     CHECK(lv_obj_get_style_pad_right(ta, LV_PART_MAIN) > narrow_pad);
 
-    lv_subject_copy_string(text_subject(), "");
+    lv_subject_set_string(text_subject(), "");
     lv_obj_update_layout(ta);
     CHECK(lv_obj_get_style_pad_right(ta, LV_PART_MAIN) == base_pad);
 }

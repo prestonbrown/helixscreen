@@ -250,7 +250,7 @@ void LedWidget::bind_led() {
             }
         }
     }
-    lv_subject_copy_string(&name_subject_, name.c_str());
+    lv_subject_set_string(&name_subject_, name.c_str());
     sizing_.set_content({"", "", name.empty() ? std::string("Light") : name, false});
     relayout_for_granted_size();
 

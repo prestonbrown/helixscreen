@@ -54,10 +54,12 @@ std::string normalize_gcode_command_case(const std::string& raw) {
 
 } // namespace
 
-// Standalone IFS module commands (HELIX_MOCK_AMS=ifs-module): matched on the
-// command token exactly — a bare T<n> must not be confused with a temperature
-// parameter elsewhere in a line.
-MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_ifs_module(const std::string& gcode) {
+// The IFS mocks' commands (HELIX_MOCK_AMS=ifs-module, ifs-jacker): matched on
+// the command token exactly — a bare T<n> must not be confused with a
+// temperature parameter elsewhere in a line.
+MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_each_command(
+    const std::string& gcode,
+    bool (MoonrakerClientMock::*apply)(const std::string&, const std::string&)) {
     // One script can carry several commands, one per line.
     bool handled = false;
     size_t start = 0;
@@ -68,7 +70,7 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_ifs_module(const std
         }
         const std::string line = gcode.substr(start, end - start);
         const size_t ifs_token_end = line.find_first_of(" \t");
-        handled |= apply_ifs_module_gcode(line.substr(0, ifs_token_end), line);
+        handled |= (this->*apply)(line.substr(0, ifs_token_end), line);
         start = end + 1;
     }
     if (handled) {
@@ -444,7 +446,7 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_openams_line(const s
 // DEFECT_DETECTION_CONFIG are U1-only vocabulary, so no mock printer mode
 // needs to arm them, and no other printer's script can contain the tokens.
 MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_u1_feeding(const std::string& gcode) {
-    if (apply_u1_feeding_gcode(gcode)) {
+    if (apply_u1_feeding_gcode(gcode) || apply_u1_auto_mode_gcode(gcode)) {
         return 0;
     }
     if (apply_multiace_gcode(gcode)) {
@@ -456,14 +458,20 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_u1_feeding(const std
         } else if (has_token(gcode, "CLEAN_BED_ENABLE=1")) {
             u1_clean_bed_enable_ = true;
         }
+        if (has_token(gcode, "NOODLE_ENABLE=0")) {
+            u1_noodle_enable_ = false;
+        } else if (has_token(gcode, "NOODLE_ENABLE=1")) {
+            u1_noodle_enable_ = true;
+        }
         if (has_token(gcode, "MAIN_ENABLE=0")) {
             u1_defect_main_enable_ = false;
         } else if (has_token(gcode, "MAIN_ENABLE=1")) {
             u1_defect_main_enable_ = true;
         }
         spdlog::info("[MoonrakerClientMock] U1 DEFECT_DETECTION_CONFIG: main_enable={} "
-                     "clean_bed.enable={}",
-                     u1_defect_main_enable_.load(), u1_clean_bed_enable_.load());
+                     "clean_bed.enable={} noodle.enable={}",
+                     u1_defect_main_enable_.load(), u1_clean_bed_enable_.load(),
+                     u1_noodle_enable_.load());
         return 0;
     }
     // "Detach Toolhead": the head goes back to its dock and nothing is
@@ -924,6 +932,7 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_tool_change(const st
         // klipper-toolchanger reports the mounted tool as tool_number beside it.
         json status = {{"toolhead", {{"extruder", extruder_name}}}};
         if (is_mock_toolchanger()) {
+            toolchanger_tool_ = tool_index;
             status["toolchanger"] = {{"tool_number", tool_index}};
         }
         dispatch_status_update(status);
@@ -1433,13 +1442,30 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
 
     gcode_skip_wrappers(g);
     gcode_layer_pause(g);
-    if (is_mock_ifs_module() && (r = gcode_ifs_module(g))) {
+    if (is_mock_ifs_module() &&
+        (r = gcode_each_command(g, &MoonrakerClientMock::apply_ifs_module_gcode))) {
+        return *r;
+    }
+    if (is_mock_zmod_ifs() &&
+        (r = gcode_each_command(g, &MoonrakerClientMock::apply_ifs_jacker_gcode))) {
         return *r;
     }
     if (is_mock_medusahc() && (r = gcode_medusa(g))) {
         return *r;
     }
     if (is_mock_indx() && (r = gcode_indx(g))) {
+        return *r;
+    }
+    if (is_mock_reforge_afc() && (r = gcode_reforge_afc(g))) {
+        return *r;
+    }
+    if (is_mock_afc_boxturtle() && (r = gcode_afc_boxturtle(g))) {
+        return *r;
+    }
+    if (is_mock_u1_snapswap() && (r = gcode_u1_snapswap(g))) {
+        return *r;
+    }
+    if (mock_toolchanger_selected() && !is_mock_reforge_afc() && (r = gcode_toolchanger(g))) {
         return *r;
     }
     if ((r = gcode_respond(raw_gcode))) {
@@ -1460,7 +1486,7 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
     if (is_mock_lane_status() && (r = gcode_lane_status(g))) {
         return *r;
     }
-    if (mmu_enabled_ && (r = gcode_happy_hare(g))) {
+    if ((r = gcode_happy_hare(g))) {
         return *r;
     }
     if ((r = gcode_u1_feeding(g))) {

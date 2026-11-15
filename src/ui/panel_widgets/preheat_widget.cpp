@@ -243,7 +243,7 @@ void PreheatWidget::update_tool_target_label() {
     } else {
         label[0] = '\0';
     }
-    lv_subject_copy_string(&tool_target_text_, label);
+    lv_subject_set_string(&tool_target_text_, label);
 }
 
 void PreheatWidget::handle_selection_changed() {

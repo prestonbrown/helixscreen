@@ -94,7 +94,7 @@ void ExcludeObjectSideList::create(lv_obj_t* parent, PrinterExcludedObjectsState
     lv_obj_set_align(root_, geom.anchor_bottom ? LV_ALIGN_BOTTOM_MID : LV_ALIGN_RIGHT_MID);
     // FLOATING removes us from the parent's flex/layout calculations so we
     // sit on top of sibling columns rather than displacing them.
-    lv_obj_add_flag(root_, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_floating(root_, true);
 
     rows_container_ = helix::ui::find_required(root_, "rows_container", "ExcludeObjectSideList");
     // The empty state follows this list's own state, which need not be the one

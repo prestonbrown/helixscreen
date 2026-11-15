@@ -27,10 +27,12 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
 #include "core/update_queue.h"
 #include "format_utils.h"
 #include "hardware_role_registry.h"
+#include "helix/ui/text_metrics.h"
 #include "i18n_plural.h"
 #include "lvgl.h"
 #include "moonraker_api.h"
@@ -130,6 +132,12 @@ void ControlsPanel::init_subjects() {
     // Nozzle label (dynamic for multi-tool)
     UI_MANAGED_SUBJECT_STRING(nozzle_label_subject_, nozzle_label_buf_, lv_tr("Nozzle"),
                               "controls_nozzle_label", subjects_);
+
+    // The chosen tool's nozzle in decidegrees, for the row's temp_display, and
+    // whether the row offers a tool chooser at all.
+    UI_MANAGED_SUBJECT_INT(nozzle_cur_deci_subject_, 0, "controls_nozzle_cur_deci", subjects_);
+    UI_MANAGED_SUBJECT_INT(nozzle_tgt_deci_subject_, 0, "controls_nozzle_tgt_deci", subjects_);
+    UI_MANAGED_SUBJECT_INT(nozzle_multi_head_subject_, 0, "controls_nozzle_multi_head", subjects_);
 
     // Nozzle temperature display
     UI_MANAGED_SUBJECT_STRING(nozzle_temp_subject_, nozzle_temp_buf_, "—", "controls_nozzle_temp",
@@ -302,6 +310,12 @@ void ControlsPanel::init_subjects() {
          [](lv_event_t*) { get_global_controls_panel().handle_secondary_fans_clicked(); }},
 
         // Pencil icons: open the temperature keypad
+        {"on_controls_nozzle_tool_changed",
+         [](lv_event_t* e) {
+             auto* dd = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+             get_global_controls_panel().select_nozzle_tool(
+                 static_cast<int>(lv_dropdown_get_selected(dd)));
+         }},
         {"on_nozzle_target_edit",
          [](lv_event_t*) { get_global_controls_panel().handle_nozzle_target_edit(); }},
         {"on_bed_target_edit",
@@ -340,6 +354,8 @@ void ControlsPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // Cache dynamic container for secondary fans
     // required-names: controls_panel
     secondary_fans_list_ = helix::ui::find_required(panel_, "secondary_fans_list", get_name());
+    // Optional: a layout may leave the chooser out.
+    nozzle_tool_dropdown_ = lv_obj_find_by_name(panel_, "nozzle_tool_dropdown");
 
     // Bind heating icon animators for nozzle/bed/chamber status visualization.
     // The binder owns its own temperature observers, so the panel does not need
@@ -388,12 +404,9 @@ void ControlsPanel::on_deactivating(DeactivateReason) {
 
 void ControlsPanel::refresh_all_displays() {
     // Re-read cached values from subjects and update all formatted displays
-    if (auto* subj = printer_state_.temperature_state().get_active_extruder_temp_subject()) {
-        cached_extruder_temp_ = lv_subject_get_int(subj);
-    }
-    if (auto* subj = printer_state_.temperature_state().get_active_extruder_target_subject()) {
-        cached_extruder_target_ = lv_subject_get_int(subj);
-    }
+    // Rebinding replays the chosen tool's current values into the cache.
+    nozzle_observers_.invalidate();
+    sync_nozzle_tool();
     if (auto* subj = printer_state_.temperature_state().get_bed_temp_subject()) {
         cached_bed_temp_ = lv_subject_get_int(subj);
     }
@@ -423,17 +436,17 @@ void ControlsPanel::refresh_all_displays() {
     if (auto* subj = printer_state_.motion_state().get_gcode_position_x_subject()) {
         int centimm = lv_subject_get_int(subj);
         format_position(centimm, controls_pos_x_buf_, sizeof(controls_pos_x_buf_));
-        lv_subject_copy_string(&controls_pos_x_subject_, controls_pos_x_buf_);
+        lv_subject_set_string(&controls_pos_x_subject_, controls_pos_x_buf_);
     }
     if (auto* subj = printer_state_.motion_state().get_gcode_position_y_subject()) {
         int centimm = lv_subject_get_int(subj);
         format_position(centimm, controls_pos_y_buf_, sizeof(controls_pos_y_buf_));
-        lv_subject_copy_string(&controls_pos_y_subject_, controls_pos_y_buf_);
+        lv_subject_set_string(&controls_pos_y_subject_, controls_pos_y_buf_);
     }
     if (auto* subj = printer_state_.motion_state().get_gcode_position_z_subject()) {
         int centimm = lv_subject_get_int(subj);
         format_position(centimm, controls_pos_z_buf_, sizeof(controls_pos_z_buf_));
-        lv_subject_copy_string(&controls_pos_z_subject_, controls_pos_z_buf_);
+        lv_subject_set_string(&controls_pos_z_subject_, controls_pos_z_buf_);
     }
 
     // Re-read Z-offset subjects
@@ -452,18 +465,10 @@ void ControlsPanel::refresh_all_displays() {
 void ControlsPanel::register_observers() {
     // Subscribe to temperature updates using bundle (replaces 4 individual observers)
     // Always cache the raw value; skip expensive formatting when panel is hidden
+    // The bundle carries the bed; the nozzle follows the row's chosen tool
+    // through sync_nozzle_tool(), so its half here is inert.
     temp_observers_.setup_sync(
-        this, printer_state_,
-        [](ControlsPanel* self, int value) {
-            self->cached_extruder_temp_ = value;
-            if (self->active_)
-                self->update_nozzle_temp_display();
-        },
-        [](ControlsPanel* self, int value) {
-            self->cached_extruder_target_ = value;
-            if (self->active_)
-                self->update_nozzle_temp_display();
-        },
+        this, printer_state_, [](ControlsPanel*, int) {}, [](ControlsPanel*, int) {},
         [](ControlsPanel* self, int value) {
             self->cached_bed_temp_ = value;
             if (self->active_)
@@ -519,6 +524,17 @@ void ControlsPanel::register_observers() {
         },
         chamber_mode_lifetime_);
 
+    // The card strings are formatted from the cached Celsius values; a °C/°F
+    // switch formats them again, leaving the heater subjects alone.
+    temp_unit_observer_ = helix::ui::observe_temp_unit_change(this, [](ControlsPanel* self) {
+        if (!self->are_subjects_initialized() || !self->active_) {
+            return;
+        }
+        self->update_nozzle_temp_display();
+        self->update_bed_temp_display();
+        self->update_chamber_temp_display();
+    });
+
     // Subscribe to fan updates (skip formatting when hidden)
     fan_observer_ = observe<int>(
         printer_state_.fan_state().get_fan_speed_subject(), this,
@@ -553,11 +569,23 @@ void ControlsPanel::register_observers() {
     // Subscribe to active tool changes for dynamic nozzle label
     active_tool_observer_ = observe<int>(
         helix::ToolState::instance().get_active_tool_subject(), this,
-        [](ControlsPanel* self, int /* tool_idx */) {
-            if (self->active_)
-                self->update_nozzle_label();
+        [](ControlsPanel* self, int tool_idx) {
+            // A tool change anywhere moves the row to the mounted tool.
+            self->nozzle_tool_.on_active_tool_changed(tool_idx);
+            self->sync_nozzle_tool();
         },
         helix::ToolState::instance().get_subjects_lifetime());
+    tools_version_observer_ = observe<int>(
+        helix::ToolState::instance().get_tools_version_subject(), this,
+        [](ControlsPanel* self, int) { self->populate_nozzle_tool_dropdown(); },
+        helix::ToolState::instance().get_subjects_lifetime());
+    extruder_version_observer_ = observe<int>(
+        printer_state_.temperature_state().get_extruder_version_subject(), this,
+        [](ControlsPanel* self, int) {
+            self->nozzle_observers_.invalidate();
+            self->sync_nozzle_tool();
+        },
+        printer_state_.temperature_state().get_subjects_lifetime());
     update_nozzle_label(); // Set initial value
 
     // Sensor discovery can land off the main thread; the link's subjects are touched there.
@@ -586,19 +614,19 @@ void ControlsPanel::register_observers() {
             if (!self->active_)
                 return;
             format_position(centimm, self->controls_pos_x_buf_, sizeof(self->controls_pos_x_buf_));
-            lv_subject_copy_string(&self->controls_pos_x_subject_, self->controls_pos_x_buf_);
+            lv_subject_set_string(&self->controls_pos_x_subject_, self->controls_pos_x_buf_);
         },
         [](ControlsPanel* self, int centimm) {
             if (!self->active_)
                 return;
             format_position(centimm, self->controls_pos_y_buf_, sizeof(self->controls_pos_y_buf_));
-            lv_subject_copy_string(&self->controls_pos_y_subject_, self->controls_pos_y_buf_);
+            lv_subject_set_string(&self->controls_pos_y_subject_, self->controls_pos_y_buf_);
         },
         [](ControlsPanel* self, int centimm) {
             if (!self->active_)
                 return;
             format_position(centimm, self->controls_pos_z_buf_, sizeof(self->controls_pos_z_buf_));
-            lv_subject_copy_string(&self->controls_pos_z_subject_, self->controls_pos_z_buf_);
+            lv_subject_set_string(&self->controls_pos_z_subject_, self->controls_pos_z_buf_);
         });
 
     // Subscribe to speed/flow factor updates (skip formatting when hidden)
@@ -652,11 +680,91 @@ void ControlsPanel::register_observers() {
 // DISPLAY UPDATE HELPERS
 // ============================================================================
 
+bool ControlsPanel::nozzle_tool_mounted() const {
+    // One head is always the mounted one, whatever ToolState lists.
+    const auto& ts = helix::ToolState::instance();
+    return !ts.has_multiple_toolheads() || nozzle_tool() == ts.active_tool_index();
+}
+
+int ControlsPanel::nozzle_tool() const {
+    return nozzle_tool_.current(helix::ToolState::instance().tool_count());
+}
+
+std::string ControlsPanel::nozzle_extruder_name() const {
+    const auto& tools = helix::ToolState::instance().tools();
+    const int tool = nozzle_tool();
+    if (tool < static_cast<int>(tools.size())) {
+        const auto& name = tools[static_cast<size_t>(tool)].extruder_name;
+        if (name && !name->empty()) {
+            return *name;
+        }
+    }
+    return "extruder";
+}
+
+void ControlsPanel::select_nozzle_tool(int tool) {
+    nozzle_tool_.pick(tool);
+    sync_nozzle_tool();
+}
+
+void ControlsPanel::populate_nozzle_tool_dropdown() {
+    const auto& ts = helix::ToolState::instance();
+    if (subjects_initialized_) {
+        lv_subject_set_int(&nozzle_multi_head_subject_, ts.has_multiple_toolheads() ? 1 : 0);
+    }
+    if (nozzle_tool_dropdown_ && ts.has_multiple_toolheads()) {
+        std::string options;
+        for (const auto& tool : ts.tools()) {
+            if (!options.empty()) {
+                options += '\n';
+            }
+            options +=
+                helix::ui::active_tool_label(tool.name, tool.index, helix::ui::ToolLabelForm::Full);
+        }
+        lv_dropdown_set_options(nozzle_tool_dropdown_, options.c_str());
+    }
+    sync_nozzle_tool();
+}
+
+void ControlsPanel::sync_nozzle_tool() {
+    update_nozzle_label();
+    const auto& tools = helix::ToolState::instance().tools();
+    if (nozzle_tool_dropdown_ && nozzle_tool() < static_cast<int>(tools.size())) {
+        lv_dropdown_set_selected(nozzle_tool_dropdown_, static_cast<uint32_t>(nozzle_tool()));
+        // The closed control sits beside the nozzle glyph and the temperature,
+        // so it shows the tool's number as the screen counts it (the graph's
+        // nozzle picker does the same), or its configured name; the open list
+        // spells out "Tool 1 (T0)".
+        const auto& tool = tools[static_cast<size_t>(nozzle_tool())];
+        const std::string closed = helix::ui::active_tool_badge_label(tool.name, tool.index);
+        lv_dropdown_set_text(nozzle_tool_dropdown_, closed.c_str());
+        helix::ui::fit_dropdown_to_text(nozzle_tool_dropdown_);
+    }
+    nozzle_observers_.bind<ControlsPanel>(
+        printer_state_.temperature_state(), nozzle_extruder_name(), nozzle_tool_mounted(), this,
+        [](ControlsPanel* self, int value) {
+            self->cached_extruder_temp_ = value;
+            if (self->subjects_initialized_) {
+                lv_subject_set_int(&self->nozzle_cur_deci_subject_, value);
+            }
+            if (self->active_)
+                self->update_nozzle_temp_display();
+        },
+        [](ControlsPanel* self, int value) {
+            self->cached_extruder_target_ = value;
+            if (self->subjects_initialized_) {
+                lv_subject_set_int(&self->nozzle_tgt_deci_subject_, value);
+            }
+            if (self->active_)
+                self->update_nozzle_temp_display();
+        });
+}
+
 void ControlsPanel::update_nozzle_label() {
-    auto label = helix::ToolState::instance().nozzle_label();
+    auto label = helix::ToolState::instance().nozzle_label(nozzle_tool());
     std::snprintf(nozzle_label_buf_, sizeof(nozzle_label_buf_), "%s", label.c_str());
     if (subjects_initialized_) {
-        lv_subject_copy_string(&nozzle_label_subject_, nozzle_label_buf_);
+        lv_subject_set_string(&nozzle_label_subject_, nozzle_label_buf_);
     }
 }
 
@@ -675,7 +783,7 @@ void ControlsPanel::update_more_sensors() {
     std::snprintf(more_sensors_buf_, sizeof(more_sensors_buf_),
                   helix::ui::tr_plural(nullptr, "%d more sensors", static_cast<uint64_t>(count)),
                   count);
-    lv_subject_copy_string(&more_sensors_subject_, more_sensors_buf_);
+    lv_subject_set_string(&more_sensors_subject_, more_sensors_buf_);
     lv_subject_set_int(&more_sensors_count_, count);
 }
 
@@ -684,7 +792,7 @@ void ControlsPanel::update_nozzle_temp_display() {
         helix::ui::temperature::heater_display(cached_extruder_temp_, cached_extruder_target_);
 
     std::snprintf(nozzle_temp_buf_, sizeof(nozzle_temp_buf_), "%s", result.temp.c_str());
-    lv_subject_copy_string(&nozzle_temp_subject_, nozzle_temp_buf_);
+    lv_subject_set_string(&nozzle_temp_subject_, nozzle_temp_buf_);
 
     lv_subject_set_int(&nozzle_pct_subject_, result.pct);
 
@@ -693,14 +801,14 @@ void ControlsPanel::update_nozzle_temp_display() {
         lv_subject_get_int(printer_state_.get_heater_power_subject(helix::HeaterType::Nozzle)));
     lv_subject_set_int(&nozzle_status_state_subject_, static_cast<int>(nozzle.state));
     std::snprintf(nozzle_status_buf_, sizeof(nozzle_status_buf_), "%s", nozzle.duty.c_str());
-    lv_subject_copy_string(&nozzle_status_subject_, nozzle_status_buf_);
+    lv_subject_set_string(&nozzle_status_subject_, nozzle_status_buf_);
 }
 
 void ControlsPanel::update_bed_temp_display() {
     auto result = helix::ui::temperature::heater_display(cached_bed_temp_, cached_bed_target_);
 
     std::snprintf(bed_temp_buf_, sizeof(bed_temp_buf_), "%s", result.temp.c_str());
-    lv_subject_copy_string(&bed_temp_subject_, bed_temp_buf_);
+    lv_subject_set_string(&bed_temp_subject_, bed_temp_buf_);
 
     lv_subject_set_int(&bed_pct_subject_, result.pct);
 
@@ -709,7 +817,7 @@ void ControlsPanel::update_bed_temp_display() {
         lv_subject_get_int(printer_state_.get_heater_power_subject(helix::HeaterType::Bed)));
     lv_subject_set_int(&bed_status_state_subject_, static_cast<int>(bed.state));
     std::snprintf(bed_status_buf_, sizeof(bed_status_buf_), "%s", bed.duty.c_str());
-    lv_subject_copy_string(&bed_status_subject_, bed_status_buf_);
+    lv_subject_set_string(&bed_status_subject_, bed_status_buf_);
 }
 
 void ControlsPanel::update_chamber_temp_display() {
@@ -723,7 +831,7 @@ void ControlsPanel::update_chamber_temp_display() {
         static_cast<helix::ChamberMode>(cached_chamber_mode_));
     lv_subject_set_int(&chamber_status_state_subject_, static_cast<int>(chamber.state));
     std::snprintf(chamber_status_buf_, sizeof(chamber_status_buf_), "%s", chamber.duty.c_str());
-    lv_subject_copy_string(&chamber_status_subject_, chamber_status_buf_);
+    lv_subject_set_string(&chamber_status_subject_, chamber_status_buf_);
 }
 
 void ControlsPanel::update_fan_display() {
@@ -741,7 +849,7 @@ void ControlsPanel::update_fan_display() {
                       : 0;
 
     format_fan_speed(fan_pct, fan_speed_buf_, sizeof(fan_speed_buf_));
-    lv_subject_copy_string(&fan_speed_subject_, fan_speed_buf_);
+    lv_subject_set_string(&fan_speed_subject_, fan_speed_buf_);
     lv_subject_set_int(&fan_pct_subject_, fan_pct);
 }
 
@@ -779,7 +887,7 @@ void ControlsPanel::populate_secondary_fans() {
     // Cleanup order: lifetimes → observers → tracking → delete widgets.
     // Reset the dynamic-subject lifetime tokens BEFORE the observers so each guard's
     // weak_ptr is already expired when reset() runs — otherwise reset() calls
-    // lv_observer_remove() on a subject that may have been freed by fan rediscovery.
+    // lv_observer_delete() on a subject that may have been freed by fan rediscovery.
     secondary_fan_lifetimes_.clear();
     for (auto& obs : secondary_fan_observers_) {
         obs.reset();
@@ -853,7 +961,7 @@ void ControlsPanel::populate_secondary_fans() {
 void ControlsPanel::update_z_offset_delta_display(int delta_microns) {
     helix::zoffset::format_delta(delta_microns, z_offset_delta_display_buf_,
                                  sizeof(z_offset_delta_display_buf_));
-    lv_subject_copy_string(&z_offset_delta_display_subject_, z_offset_delta_display_buf_);
+    lv_subject_set_string(&z_offset_delta_display_subject_, z_offset_delta_display_buf_);
     spdlog::trace("[{}] Z-offset delta display updated: '{}'", get_name(),
                   z_offset_delta_display_buf_);
 }
@@ -873,7 +981,7 @@ void ControlsPanel::update_controls_z_offset_display() {
         helix::zoffset::format_offset(offset_microns, controls_z_offset_buf_,
                                       sizeof(controls_z_offset_buf_));
     }
-    lv_subject_copy_string(&controls_z_offset_subject_, controls_z_offset_buf_);
+    lv_subject_set_string(&controls_z_offset_subject_, controls_z_offset_buf_);
 }
 
 void ControlsPanel::handle_zoffset_tune() {
@@ -897,7 +1005,11 @@ void ControlsPanel::handle_quick_actions_clicked() {
 
 void ControlsPanel::handle_nozzle_temp_clicked() {
     spdlog::debug("[{}] Nozzle temp clicked - opening temperature graph", get_name());
-    get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Nozzle, parent_screen_);
+    // On a multi-head printer the row shows a chosen tool; the graph opens on it.
+    const std::string tool = helix::ToolState::instance().has_multiple_toolheads()
+                                 ? nozzle_extruder_name()
+                                 : std::string{};
+    get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Nozzle, parent_screen_, tool);
 }
 
 void ControlsPanel::handle_bed_temp_clicked() {
@@ -938,25 +1050,34 @@ void ControlsPanel::handle_custom_nozzle_confirmed(float value) {
     // Convert degrees to decidegrees for storage (matches PrinterState internal format)
     cached_extruder_target_ = helix::units::to_decidegrees(value);
 
+    // The mounted tool goes by HeaterType so the controller's nozzle guards
+    // apply; a docked tool chosen on the row is named by its extruder.
+    const std::string extruder = nozzle_extruder_name();
+    // Mounted by tool index: after a park Klipper still names the last tool's
+    // extruder active.
+    const bool mounted = nozzle_tool_mounted();
     if (auto* c = controller()) {
-        c->set_target(
-            helix::HeaterType::Nozzle, value,
-            {.toast = true,
-             .on_success =
-                 [target = static_cast<int>(value)]() {
-                     NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}"),
-                                    helix::units::format_display_temp(target));
-                 },
-             // A refused or failed send leaves the printer's own target, which
-             // the next keypad opens on.
-             .on_error =
-                 [this](const MoonrakerError&) {
-                     object_lifetime_.defer("ControlsPanel::nozzle_target_refused", [this]() {
-                         cached_extruder_target_ =
-                             lv_subject_get_int(printer_state_.temperature_state()
-                                                    .get_active_extruder_target_subject());
-                     });
-                 }});
+        const helix::SendOptions opts{
+            .toast = true,
+            .on_success =
+                [target = static_cast<int>(value)]() {
+                    NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}"),
+                                   helix::units::format_display_temp(target));
+                },
+            // A refused or failed send leaves the printer's own target, which
+            // the next keypad opens on.
+            .on_error =
+                [this](const MoonrakerError&) {
+                    object_lifetime_.defer("ControlsPanel::nozzle_target_refused", [this]() {
+                        nozzle_observers_.invalidate();
+                        sync_nozzle_tool();
+                    });
+                }};
+        if (mounted) {
+            c->set_target(helix::HeaterType::Nozzle, value, opts);
+        } else {
+            c->set_target(extruder, value, opts);
+        }
     }
 }
 
@@ -1134,7 +1255,7 @@ void ControlsPanel::update_speed_display() {
         speed_pct = lv_subject_get_int(speed_subj);
     }
     helix::format::format_percent(speed_pct, speed_override_buf_, sizeof(speed_override_buf_));
-    lv_subject_copy_string(&speed_override_subject_, speed_override_buf_);
+    lv_subject_set_string(&speed_override_subject_, speed_override_buf_);
 }
 
 // ============================================================================
@@ -1149,7 +1270,7 @@ void ControlsPanel::handle_fan_slider_changed(int value) {
 
     // Optimistic update - show new value immediately without waiting for Moonraker
     format_fan_speed(value, fan_speed_buf_, sizeof(fan_speed_buf_));
-    lv_subject_copy_string(&fan_speed_subject_, fan_speed_buf_);
+    lv_subject_set_string(&fan_speed_subject_, fan_speed_buf_);
     lv_subject_set_int(&fan_pct_subject_, value);
 
     if (api_) {
@@ -1184,7 +1305,7 @@ void ControlsPanel::update_calib_grid(lv_obj_t* grid) {
     int visible = 0;
     const uint32_t count = lv_obj_get_child_count(grid);
     for (uint32_t i = 0; i < count; ++i) {
-        if (!lv_obj_has_flag(lv_obj_get_child(grid, static_cast<int32_t>(i)), LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(lv_obj_get_child(grid, static_cast<int32_t>(i)))) {
             ++visible;
         }
     }

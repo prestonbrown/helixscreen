@@ -203,9 +203,9 @@ static void animations_pref_observer_cb(lv_observer_t* observer, lv_subject_t* s
     // with the flag on, LVGL re-measures the text on every draw instead of
     // reading the cached size, and a scrolling label draws at the refresh rate.
     if (still) {
-        lv_obj_add_flag(label, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+        lv_obj_set_send_draw_task_events(label, true);
     } else {
-        lv_obj_remove_flag(label, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+        lv_obj_set_send_draw_task_events(label, false);
     }
 }
 

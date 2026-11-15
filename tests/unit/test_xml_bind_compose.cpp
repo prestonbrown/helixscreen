@@ -19,6 +19,8 @@
 //
 // The count assertion at the bottom is what notices that you did not.
 
+#include "ui_obj_flags.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "core/update_queue.h"
@@ -162,7 +164,7 @@ struct InventoryFixture : public XMLTestFixture {
 
     bool applied(const BindGroup& g, lv_obj_t* obj) const {
         return g.kind == BindKind::State ? lv_obj_has_state(obj, state_from_name(g.bits))
-                                         : lv_obj_has_flag(obj, flag_from_name(g.bits));
+                                         : helix::ui::obj_has_flags(obj, flag_from_name(g.bits));
     }
 
     /// Register the base components once, so a panel whose target widget sits
@@ -327,13 +329,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "a cond binding outlives a subject it reads wi
     REQUIRE(view != nullptr);
 
     lv_subject_set_int(&setting, 1);
-    REQUIRE(lv_obj_has_flag(view, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(view));
 
     lv_subject_deinit(panel_tab.get());
     panel_tab.reset();
     lv_subject_set_int(&setting, 0); // reads freed storage if the binding still evaluates
 
-    CHECK(lv_obj_has_flag(view, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(view));
     lv_obj_delete(view);
     lv_subject_deinit(&setting);
     lv_xml_unregister_subject(nullptr, "cond_lifetime_tab");

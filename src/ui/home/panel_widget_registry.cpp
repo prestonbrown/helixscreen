@@ -36,6 +36,7 @@ void register_shutdown_widget();
 void register_lock_widget();
 void register_macros_widget();
 void register_motion_widget();
+void register_filament_ops_widget();
 void register_filament_sensor_widget();
 void register_clock_widget();
 void register_control_buttons_widget();
@@ -130,6 +131,7 @@ static std::vector<PanelWidgetDef> s_widget_defs = {
     {"bypass",           TR_NOOP("Bypass"),           "source_branch",    TR_NOOP("Toggle external spool bypass"), "ams_supports_bypass", "Requires a filament system with bypass", kCatFilament, false, 2, 2, 1, 1, kBandColspan, kBandColspan, false, true, true},
     {"active_spool",     TR_NOOP("Active Spool"),      "inventory",  TR_NOOP("The Spoolman spool currently loaded"),     nullptr,                  nullptr,                           kCatFilament, false, 2, 2, 1, 1, 8, 4, false, true, true},
     {"filament",         TR_NOOP("Filament Sensor"),   "filament_sensor_alert",   TR_NOOP("Whether filament is loaded"),  "filament_sensor_count", "No filament sensor detected",      kCatFilament, true, 2, 2, 1, 1, kBandColspan, kBandColspan, false, true, true},
+    {"filament_ops",     TR_NOOP("Filament Operations"), "filament",       TR_NOOP("Load, unload, purge, and extrude filament"), nullptr,           nullptr,                               kCatFilament, false, 2, 2, 1, 1, kBandColspan, kBandColspan, true,  true, true},
     {"humidity",         TR_NOOP("Humidity"),          "water",            TR_NOOP("Humidity inside the enclosure"),         "humidity_sensor_count", "No humidity sensor detected",       kCatFilament, false, 2, 2, 1, 1, kBandColspan, kBandColspan, false, true, true},
     {"width_sensor",     TR_NOOP("Width Sensor"),      "ruler",            TR_NOOP("Measured filament diameter"),     "width_sensor_count", "No width sensor detected",            kCatFilament, false, 2, 2, 1, 1, kBandColspan, kBandColspan, false, true, true},
     {"favorite_macro", TR_NOOP("Macro Button"),    "play",             TR_NOOP("Run a macro you choose, in one tap"),     nullptr,              nullptr,                               kCatControls, false, 2, 2, 1, 1, kBandColspan, kBandColspan, true, true, true},
@@ -405,6 +407,7 @@ void init_widget_registrations() {
 #endif
     register_macros_widget();
     register_motion_widget();
+    register_filament_ops_widget();
     register_filament_sensor_widget();
     register_preheat_widget();
     register_active_spool_widget();

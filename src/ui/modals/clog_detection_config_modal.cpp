@@ -223,12 +223,12 @@ void ClogDetectionConfigModal::sync_threshold_text() {
         snprintf(threshold_text_buf_, sizeof(threshold_text_buf_), "%s", lv_tr("Default"));
     else
         snprintf(threshold_text_buf_, sizeof(threshold_text_buf_), "%d%%", danger_threshold_);
-    lv_subject_copy_string(&threshold_text_subject_, threshold_text_buf_);
+    lv_subject_set_string(&threshold_text_subject_, threshold_text_buf_);
 }
 
 void ClogDetectionConfigModal::sync_det_length_text() {
     snprintf(det_length_text_buf_, sizeof(det_length_text_buf_), "%.0fmm", detection_length_);
-    lv_subject_copy_string(&det_length_text_subject_, det_length_text_buf_);
+    lv_subject_set_string(&det_length_text_subject_, det_length_text_buf_);
 }
 
 std::optional<std::string>

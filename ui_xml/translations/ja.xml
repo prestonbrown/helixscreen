@@ -364,6 +364,9 @@
   <translation tag="Auto Bed Mesh" ja="自動ベッドメッシュ"/>
   <translation tag="Auto Cal" ja="自動キャリブレーション"/>
   <translation tag="Auto Fans" ja="自動ファン"/>
+  <translation tag="Auto loading" ja="自動ロード"/>
+  <translation tag="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand." ja="このツールヘッドの自動ロードはオフです。印刷時の動作でオンにするか、フィラメントを手動でロードしてください。"/>
+  <translation tag="Auto loading is off; turn it on under Print Behavior" ja="自動ロードがオフです。印刷時の動作でオンにしてください"/>
   <translation tag="Auto-Detect" ja="自動検出"/>
   <translation tag="Auto-Heat on Load" ja="装填時に自動加熱"/>
   <translation tag="Auto-Replenish" ja="自動補充"/>
@@ -692,6 +695,7 @@
   <translation tag="Change tool" ja="ツールを交換"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." ja="変更は即座に適用されます。印刷中に調整して最適化できます。"/>
   <translation tag="Changes are temporary and reset on printer reboot" ja="変更は一時的で、プリンター再起動時にリセットされます"/>
+  <translation tag="Changing filament" ja="フィラメント交換中"/>
   <translation tag="Check AFC configuration" ja="AFC 設定を確認してください"/>
   <translation tag="Check Again" ja="再確認"/>
   <translation tag="Check Klipper console for details" ja="詳細は Klipper コンソールを確認してください"/>
@@ -884,6 +888,7 @@
   <translation tag="Connected to {}" ja="{} に接続しました"/>
   <translation tag="Connected! Discovering printer..." ja="接続完了！プリンターを検出中..."/>
   <translation tag="Connected, discovering..." ja="接続済み、検出中..."/>
+  <translation tag="Connected, getting address…" ja="接続済み、アドレス取得中…"/>
   <translation tag="Connecting Camera..." ja="カメラに接続中..."/>
   <translation tag="Connecting to " ja="接続中: "/>
   <translation tag="Connecting to %s..." ja="%sに接続中..."/>
@@ -1041,6 +1046,7 @@
   <translation tag="Cutter calibration failed: {}" ja="カッターのキャリブレーションに失敗しました: {}"/>
   <translation tag="Cutter jam" ja="カッター詰まり"/>
   <translation tag="Cutting" ja="カット中"/>
+  <translation tag="Cutting filament" ja="フィラメントを切断中"/>
   <translation tag="Cutting filament..." ja="フィラメントを切断中..."/>
   <translation tag="Cycle every tool" ja="全ツールを順に交換"/>
   <translation tag="Cycling tools..." ja="ツールを順に交換中..."/>
@@ -1518,6 +1524,7 @@
   <translation tag="Feeder" ja="フィーダー"/>
   <translation tag="Feeders" ja="フィーダー"/>
   <translation tag="Feeding filament forward" ja="フィラメントを前方に送り出し中"/>
+  <translation tag="Feeding filament to nozzle" ja="フィラメントをノズルへ送り出し中"/>
   <translation tag="Filament" ja="フィラメント"/>
   <translation tag="Filament Buffer" ja="フィラメントバッファー"/>
   <translation tag="Filament Control" ja="フィラメント制御"/>
@@ -1534,6 +1541,7 @@
   <translation tag="Filament Mapping is not available on this device." ja="このデバイスではフィラメントマッピングを利用できません。"/>
   <translation tag="Filament Mapping is unavailable" ja="フィラメントマッピングは利用できません"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" ja="このプリンターはフィラメントマッピングに対応していないため、プリンターで割り当てられたツールで印刷します"/>
+  <translation tag="Filament Operations" ja="フィラメント操作"/>
   <translation tag="Filament Runout" ja="フィラメント切れ"/>
   <translation tag="Filament Sensor" ja="フィラメントセンサー"/>
   <translation tag="Filament Sensors" ja="フィラメントセンサー"/>
@@ -1685,6 +1693,7 @@
   <translation tag="Generic" ja="汎用"/>
   <translation tag="Get help and share feedback" ja="ヘルプとフィードバック"/>
   <translation tag="Getting Started" ja="はじめに"/>
+  <translation tag="Getting address…" ja="アドレス取得中…"/>
   <translation tag="Getting ready..." ja="準備中..."/>
   <translation tag="Glass Effects" ja="ガラス効果"/>
   <translation tag="Global" ja="グローバル"/>
@@ -1766,7 +1775,10 @@
   <translation tag="Heating chamber..." ja="チャンバー加熱中..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." ja="待ち時間のほとんどは加熱です。いま画面を離れると実行は停止します。"/>
   <translation tag="Heating nozzle" ja="ノズル加熱中"/>
+  <translation tag="Heating nozzle ({})" ja="ノズル加熱中 ({})"/>
   <translation tag="Heating nozzle to $1°C..." ja="ノズルを$1°Cに加熱中..."/>
+  <translation tag="Heating nozzle to {}" ja="ノズルを{}に加熱中"/>
+  <translation tag="Heating nozzle to {} ({})" ja="ノズルを{}に加熱中 ({})"/>
   <translation tag="Heating nozzle..." ja="ノズル加熱中..."/>
   <translation tag="Heating the bed" ja="ベッドを加熱中"/>
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" ja="ベッドとノズルを加熱し、印刷物を再び密着させてノズルを印刷物から離しています"/>
@@ -1879,7 +1891,10 @@
   <translation tag="Hyperspace" ja="ハイパースペース"/>
   <translation tag="I understand" ja="理解しました"/>
   <translation tag="ID (optional)" ja="ID（任意）"/>
+  <translation tag="IFS driver error" ja="IFSドライバーエラー"/>
   <translation tag="IFS updates without polling" ja="ポーリングなしの IFS 更新"/>
+  <translation tag="IFS: loading" ja="IFS: 装填中"/>
+  <translation tag="IFS: unloading" ja="IFS: 取り出し中"/>
   <translation tag="IMPORT FROM USB" ja="USBからインポート"/>
   <translation tag="INDX dock positions are not calibrated" ja="INDXのドック位置がキャリブレーションされていません"/>
   <translation tag="INDX macros not recognized" ja="INDXマクロを認識できません"/>
@@ -2161,6 +2176,7 @@
   <translation tag="Load the required filaments or start anyway?" ja="必要なフィラメントを装填しますか？それともこのまま開始しますか？"/>
   <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." ja="ここで装填、排出、パージを行います。先に材料を選ぶと温度が設定されます。"/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." ja="スプールの装填、排出、交換、温度の設定、フィラメントセンサーの監視ができます。"/>
+  <translation tag="Load, unload, purge, and extrude filament" ja="フィラメントのロード、アンロード、パージ、押し出し"/>
   <translation tag="Load..." ja="装填..."/>
   <translation tag="Loaded" ja="装填済み"/>
   <translation tag="Loading" ja="ロード中"/>
@@ -2383,6 +2399,7 @@
   <translation tag="Mount tool" ja="ツールを装着"/>
   <translation tag="Mount which tool?" ja="どのツールを装着しますか？"/>
   <translation tag="Mount..." ja="装着..."/>
+  <translation tag="Mounted: {}" ja="装着中: {}"/>
   <translation tag="Move" ja="移動"/>
   <translation tag="Move here" ja="ここへ移動"/>
   <translation tag="Move out of range" ja="移動範囲外です"/>
@@ -2497,6 +2514,7 @@
   <translation tag="No events queued" ja="キューにイベントはありません"/>
   <translation tag="No extruder heater found. Check [extruder] in printer.cfg" ja="エクストルーダーヒーターが見つかりません。printer.cfg の [extruder] を確認してください"/>
   <translation tag="No fans detected" ja="ファンが検出されませんでした"/>
+  <translation tag="No feeder attached" ja="フィーダーが接続されていません"/>
   <translation tag="No filament" ja="フィラメントなし"/>
   <translation tag="No filament environment sensors" ja="フィラメント環境センサーがありません"/>
   <translation tag="No filament loaded to unload" ja="取出すフィラメントが装填されていません"/>
@@ -2559,6 +2577,7 @@
   <translation tag="No timelapse videos found" ja="タイムラプス動画が見つかりません"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" ja="装着中のツールが不明です。共有プローブでは {} で校正してください。このまま続行しますか？"/>
   <translation tag="No tool is mounted" ja="ツールが装着されていません"/>
+  <translation tag="No tool mounted" ja="ツール未装着"/>
   <translation tag="No tool on the head" ja="ツールヘッドにツールがありません"/>
   <translation tag="No tools to calibrate" ja="キャリブレートするツールがありません"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" ja="回していません: 差は{:.1f} Hz動きました"/>
@@ -2808,9 +2827,11 @@
   <translation tag="Pick Color" ja="色を選択"/>
   <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." ja="HelixScreen の動作を選択します。すべて後で「設定」から変更できます。"/>
   <translation tag="Pick the best band" ja="最適な区間を選択"/>
+  <translation tag="Pick up" ja="装着"/>
   <translation tag="Pick up and park each tool in turn" ja="各ツールを順に取り付けて戻す"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" ja="ツールを取り付けて加熱し、フィラメントを引き抜いてください"/>
   <translation tag="Pick up tool" ja="ツールを取得"/>
+  <translation tag="Pick-up step cancelled; nothing was sent" ja="装着後の操作を取り消しました。何も送信していません"/>
   <translation tag="Picking up tool" ja="ツールを取得中"/>
   <translation tag="Pill" ja="ピル"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" ja="押下がスクロールに変わるまでのピクセル数 (低いほどスクロールが早く開始)"/>
@@ -3076,6 +3097,7 @@
   <translation tag="Purge tower and brush settings" ja="パージタワーとブラシの設定"/>
   <translation tag="Purging" ja="パージ中"/>
   <translation tag="Purging nozzle" ja="ノズルをパージ中"/>
+  <translation tag="Purging old filament" ja="古いフィラメントをパージ中"/>
   <translation tag="Purging..." ja="パージ中..."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." ja="清掃用フィラメントを止まるまでエクストルーダーに押し込み、押し出しをタップしてください。"/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." ja="フィラメントを止まるまでエクストルーダーに差し込んでください。自動的につかまれます。または「押し出し」をタップしてください。"/>
@@ -3338,6 +3360,7 @@
   <translation tag="Retract filament to current slot" ja="現在のスロットへフィラメントを引き戻す"/>
   <translation tag="Retract may still be running — response timed out" ja="リトラクトがまだ実行中の可能性があります — 応答タイムアウト"/>
   <translation tag="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again" ja="戻してアンロードしてください。問題なく戻る場合は、傷んだ先端を切り落として再度送り出してください"/>
+  <translation tag="Retracting filament from nozzle" ja="ノズルからフィラメントを引き戻し中"/>
   <translation tag="Retraction" ja="リトラクション"/>
   <translation tag="Retraction Settings" ja="リトラクション設定"/>
   <translation tag="Retraction distance in the cooling tube" ja="冷却チューブ内での引き戻し距離"/>
@@ -4117,6 +4140,7 @@
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" ja="ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。印刷前に手動で引き抜いてください。それでも印刷を開始しますか？"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" ja="ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。取り除くまで、プリンターがスロットの装填を拒否する場合があります。それでも印刷を開始しますか？"/>
   <translation tag="The toolhead is not homed, so this would home into the print" ja="ツールヘッドがホーミングされていないため、ホーミングするとノズルが造形物に当たります"/>
+  <translation tag="The toolhead may still be at the chute. Move it away before printing." ja="ツールヘッドがまだシュートにある可能性があります。印刷前に移動してください。"/>
   <translation tag="The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from." ja="ツールヘッドが 20 から 300 mm/s の速度で往復し、その間に加速度センサーが各モーターの揺れの強さを測定します。所要時間は約 {0} 分で、大きな音がします。最も揺れる速度が、外壁で避けるべき速度です。"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" ja="ツールヘッドセンサーがフィラメント装填済みを検出しました。それでも装填を続行しますか？"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" ja="ツールヘッドセンサーがフィラメント未検出を報告しました。それでもアンロードを続行しますか？"/>
@@ -4311,6 +4335,7 @@
   <translation tag="Toolhead Style" ja="ツールヘッドスタイル"/>
   <translation tag="Toolhead X" ja="ツールヘッド X"/>
   <translation tag="Toolhead Y" ja="ツールヘッド Y"/>
+  <translation tag="Toolhead did not return to park: {}" ja="ツールヘッドが待機位置に戻りませんでした: {}"/>
   <translation tag="Toolhead jam" ja="ツールヘッドの詰まり"/>
   <translation tag="Toolhead lost homing" ja="ツールヘッドのホーミングが解除されました"/>
   <translation tag="Toolhead offset calibration" ja="ツールヘッドオフセットのキャリブレーション"/>
@@ -4532,6 +4557,7 @@
   <translation tag="Wait for the current filament operation to finish" ja="現在のフィラメント操作が完了するまでお待ちください"/>
   <translation tag="Wait for the current operation to complete" ja="現在の操作が完了するまでお待ちください"/>
   <translation tag="Wait for the current operation to complete or cancel it first" ja="現在の操作が完了するまで待つか、先にキャンセルしてください"/>
+  <translation tag="Wait for the load or unload to finish" ja="ロードまたは排出が終わるまでお待ちください"/>
   <translation tag="Wait for the motor to stop" ja="モーターが止まるまでお待ちください"/>
   <translation tag="Wait for the nozzle to stop moving" ja="ノズルが止まるまでお待ちください"/>
   <translation tag="Wait for the running INDX operation to finish" ja="実行中のINDX操作が終わるまでお待ちください"/>
@@ -4854,6 +4880,7 @@
   <translation tag="{} d" ja="{}日"/>
   <translation tag="{} days" ja="{}日"/>
   <translation tag="{} detected" ja="{}を検出"/>
+  <translation tag="{} did not arrive; nothing was sent" ja="{} が到着しませんでした。何も送信していません"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." ja="{}がロードされませんでした。再開する前に、ホットエンドが正しく取り付けられているか確認し、テスト押し出しを行ってください。"/>
   <translation tag="{} disabled" ja="{} を無効にしました"/>
   <translation tag="{} disconnected" ja="{}が外れました"/>

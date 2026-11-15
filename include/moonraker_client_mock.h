@@ -10,6 +10,7 @@
 #include "json_fwd.h"
 #include "mock_persona.h"
 #include "moonraker_client.h"
+#include "moonraker_client_mock_happy_hare.h"
 #include "moonraker_client_mock_spoolman.h"
 #include "moonraker_types.h"
 #include "preprint_skip_wrappers.h"
@@ -1468,14 +1469,24 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// the printer.objects.query / subscribe handlers read it).
     bool is_mock_openams() const;
     [[nodiscard]] nlohmann::json openams_status_json() const;
+    /// One U1 filament_feed side's channels object (the side owning extruder
+    /// @p ext), both of its channels whole.
+    [[nodiscard]] nlohmann::json u1_feed_side_json(int ext) const;
     /// HELIX_MOCK_AMS=lane_status: a Lane Status Surface producer (lane-status-spec
     /// RFC 0001), and the `lane_status` object it publishes (public: the
     /// printer.objects.query / subscribe handlers read it).
     bool is_mock_lane_status() const;
     [[nodiscard]] nlohmann::json lane_status_json() const;
-    /// The --real-ams Happy Hare `mmu` frame: a v4 single unit with a buffer and a fan,
-    /// whose sync feedback and fan state follow MMU_SYNC_FEEDBACK and MMU_FAN.
+    /// Happy Hare mock hardware: "mmu" is published (moonraker_client_mock_happy_hare.cpp).
+    bool is_mock_happy_hare() const;
+    /// The Happy Hare `mmu` frame: a v4 ERCF unit whose state follows the MMU_* commands.
     [[nodiscard]] nlohmann::json happy_hare_mmu_status() const;
+    /// `mmu` and `mmu_machine` while Happy Hare runs, else {}.
+    [[nodiscard]] nlohmann::json happy_hare_status_json() const;
+    /// The configfile.settings sections Happy Hare declares, else {}.
+    [[nodiscard]] nlohmann::json happy_hare_config_sections() const;
+    /// A print's starting tool, loaded at once (no-op unless Happy Hare runs).
+    void happy_hare_load_tool_now(int tool);
     /// HELIX_MOCK_OPENAMS_UNITS=shared: an AMS HT and an AMS 2 Pro on one lane.
     [[nodiscard]] static bool openams_shared_lane_units();
     /// HELIX_MOCK_OPENAMS_UNITS=two_lanes: that pair on lane `fps`, two AMS 2 Pro on `fps2`.
@@ -1498,9 +1509,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * display, valid_types, hidden_types, palette (the 24 firmware colours)
      * and slots (the 4 heads' Material/HEX registry). Served by the
      * objects.query/subscribe handlers and republished on _T_IN/_T_OUT/
-     * CHANGE_ZCOLOR.
+     * CHANGE_ZCOLOR. Under the AD5X's native IFS modes (ifs, ifs-jacker), the
+     * IFS frame instead (ifs_jacker_zmod_color_json()).
      */
     json zmod_color_status() const;
+
+    /// The `zmod_ifs` object: the native IFS mock's frame (ifs, ifs-jacker),
+    /// empty in every other mode.
+    json zmod_ifs_status() const;
 
     /**
      * @brief Status of one stock FlashForge driver-latch pin
@@ -1546,9 +1562,9 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @brief U1 `defect_detection` status: the module's stored config, which
      *        is what its get_status() returns.
      *
-     * Empty object for every persona but the U1. main_enable and
-     * clean_bed.enable follow DEFECT_DETECTION_CONFIG MAIN_ENABLE=0|1 and
-     * CLEAN_BED_ENABLE=0|1.
+     * Empty object for every persona but the U1. main_enable,
+     * clean_bed.enable and noodle.enable follow DEFECT_DETECTION_CONFIG
+     * MAIN_ENABLE=0|1, CLEAN_BED_ENABLE=0|1 and NOODLE_ENABLE=0|1.
      */
     nlohmann::json defect_detection_status() const;
 
@@ -2383,6 +2399,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         return active_gcode_tool_.load();
     }
 
+    /// klipper-toolchanger's tool_number as the mock last set it (-1 = none mounted).
+    [[nodiscard]] int toolchanger_tool() const {
+        return toolchanger_tool_.load();
+    }
+
   private:
     void notify_active_gcode_tool_observers(int tool) {
         std::vector<std::function<void(int, uint32_t)>> snapshot;
@@ -2615,10 +2636,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     mutable std::mutex sweep_response_mutex_;
     helix::calibration::MockSweepResponse sweep_response_;
 
-    bool mmu_enabled_{true};                           ///< MMU available (default true)
-    std::atomic<bool> hh_sync_feedback_enabled_{true}; ///< MMU_SYNC_FEEDBACK ENABLE=
-    std::atomic<bool> hh_fan_enabled_{true};           ///< MMU_FAN ENABLE=
-    std::atomic<int> hh_fan_mode_{2};                  ///< MMU_FAN FAN_FORCED=, 2 = auto
+    bool mmu_enabled_{true};                            ///< MMU available (default true)
+    std::unique_ptr<helix::mock::HappyHareSim> hh_sim_; ///< Happy Hare's state, behind hh_mutex_
+    mutable std::mutex hh_mutex_;
+    void init_happy_hare(int gates);       ///< @p gates is HELIX_AMS_GATES
+    bool happy_hare_drives() const;        ///< The sim answers G-code: production Happy Hare runs
+    std::atomic<int> toolchanger_tool_{0}; ///< toolchanger.tool_number (plain toolchanger mode)
 
     // --- MedusaHC swap simulation -------------------------------------------
     // Driven from gcode_script() (the swap, unmount and feeder commands) and
@@ -2746,6 +2769,35 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         std::vector<std::array<double, 3>> offsets;
         double global_z = -0.05; ///< save_variables global_z_offset
     };
+    // --- AFC Box Turtle (moonraker_client_mock_afc.cpp), behind afc_mutex_ ---
+    struct AfcLane {
+        std::string name; ///< filament_name, "" when unlinked
+        std::string material;
+        std::string color;
+        int spool_id;  ///< 0 = not linked
+        double weight; ///< < 0 = unknown
+        int map;       ///< T number, -1 = none
+        bool present;  ///< prep/load sensors see filament
+    };
+    mutable std::mutex afc_mutex_;
+    std::vector<AfcLane> afc_lanes_;
+    int afc_loaded_ = -1; ///< lane index in the toolhead, -1 = none
+    std::string afc_state_ = "Idle";
+    /// @p lanes is HELIX_AMS_GATES, clamped to the lanes the mock has spools for.
+    void init_afc_boxturtle(int lanes);
+    void append_afc_boxturtle_objects(nlohmann::json& objects) const;
+    /// Publishes `state`, then after a beat the lane (-1 = none) at rest in the toolhead.
+    void afc_move(int lane, const char* state);
+
+    // --- Reforge AFC (moonraker_client_mock_reforge.cpp), behind reforge_afc_mutex_ ---
+    mutable std::mutex reforge_afc_mutex_;
+    /// Per lane e<n>: the T number AFC maps to it.
+    std::array<int, 4> reforge_lane_map_{0, 1, 2, 3};
+    /// The head on the carriage, -1 for none.
+    int reforge_mounted_ = -1;
+    /// Mount @p head as AFC_SELECT_TOOL does and publish what moved.
+    void reforge_mount(int head);
+
     mutable std::mutex indx_mutex_;
     IndxMockState indx_;
     /// The INDX frame last sent, so a change sends only what moved.
@@ -2778,10 +2830,34 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         "load_finish", "preload_finish", "load_finish", "preload_finish"};
     std::array<bool, static_cast<size_t>(kU1Channels)> u1_filament_detected_{true, true, true,
                                                                              true};
-    /// defect_detection main_enable and clean_bed.enable, switched by
-    /// DEFECT_DETECTION_CONFIG.
+    /// Per head: its feeder's Auto loading is off (`disable_auto`). Set by
+    /// FEED_AUTO ... AUTO=<0|1>; an AUTO_FEEDING load on such a head does nothing,
+    /// as the firmware answers it.
+    std::array<bool, static_cast<size_t>(kU1Channels)> u1_disable_auto_{};
+
+    /// The SnapSwap mock's spools (RFID tag and print_task_config agree) and the
+    /// head on the carriage, behind u1_snapswap_mutex_.
+    struct U1Spool {
+        std::string type;
+        std::string vendor;
+        uint32_t rgb;
+    };
+    mutable std::mutex u1_snapswap_mutex_;
+    std::array<U1Spool, static_cast<size_t>(kU1Channels)> u1_spools_{
+        {{"PLA", "Snapmaker", 0x1E9E4A},
+         {"PLA", "Snapmaker", 0xC71585},
+         {"PLA", "Snapmaker", 0x19C3D6},
+         {"PLA", "Snapmaker", 0xF08000}}};
+    int u1_active_head_ = 0;
+
+    /// FEED_AUTO MODULE=<m> CHANNEL=<c> AUTO=<0|1>: set that channel's head's
+    /// automatic mode and publish it. @return true when the line was one.
+    bool apply_u1_auto_mode_gcode(const std::string& gcode);
+    /// defect_detection main_enable, clean_bed.enable and noodle.enable,
+    /// switched by DEFECT_DETECTION_CONFIG.
     std::atomic<bool> u1_defect_main_enable_{true};
     std::atomic<bool> u1_clean_bed_enable_{true};
+    std::atomic<bool> u1_noodle_enable_{true};
 
     /// One feeder command line: walk the named channel through its states.
     /// HELIX_MOCK_BATCH_FAIL_SLOT=<n> swaps that channel's terminal for its
@@ -2793,8 +2869,6 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// present-but-partial channel object resets the fields the backend's
     /// delta parse would otherwise carry forward.
     void publish_u1_channel_frame(int ext);
-    /// One filament_feed side's channels object, both of its channels whole.
-    [[nodiscard]] nlohmann::json u1_feed_side_json(int ext) const;
 
     // --- Standalone IFS module mock -----------------------------------------
     // HELIX_MOCK_AMS=ifs-module: pushes the module's objects (ifs /
@@ -2813,6 +2887,26 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// Apply one IFS-module gcode command token. @return true when the token
     /// was one of ours (the caller then stops walking the generic chain).
     bool apply_ifs_module_gcode(const std::string& cmd, const std::string& gcode);
+
+    // Native Z-Mod's IFS on an AD5X. HELIX_MOCK_AMS=ifs (also `ad5x`, `ad5x_ifs`,
+    // and the ad5x persona's default) is the stock four-port IFS; ifs-jacker runs
+    // the IFS port through an IFS Jacker, so the firmware drives
+    // HELIX_MOCK_IFS_PORTS channels (default 8, 4..16). Publishes zmod_ifs /
+    // zmod_color with that color_limit plus the stock IFS motion and head switch
+    // sensors, so real discovery sets AmsType::AD5X_IFS and the PRODUCTION
+    // AmsBackendAd5xIfs runs; try_create_mock() declines these values.
+    bool is_mock_zmod_ifs() const;
+    /// The stock four-port IFS, no Jacker.
+    [[nodiscard]] bool is_mock_zmod_ifs_stock() const;
+    /// Port count and starting presence from HELIX_MOCK_IFS_PORTS (ifs-jacker only).
+    void init_ifs_jacker_from_env();
+    /// The `zmod_ifs` object frame.
+    [[nodiscard]] nlohmann::json ifs_jacker_zmod_ifs_json() const;
+    /// The `zmod_color` object frame, one slot per port.
+    [[nodiscard]] nlohmann::json ifs_jacker_zmod_color_json() const;
+    /// Apply one Z-Mod IFS gcode command token. @return true when the token
+    /// was one of ours.
+    bool apply_ifs_jacker_gcode(const std::string& cmd, const std::string& gcode);
 
     // --- multiACE mock hardware ----------------------------------------------
     // HELIX_MOCK_AMS=multiace: pushes the U1's own objects plus a plain `ace`
@@ -2911,6 +3005,31 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// The `ace` object frame, the engine's get_status() shape.
     [[nodiscard]] nlohmann::json multiace_status_json() const;
 
+    // --- Reforge AFC over ff_toolchange (creator5_afc persona; public for the mock tests) ---
+    bool is_mock_reforge_afc() const;
+    /// Every AFC object Reforge's ff-afc.cfg makes AFC publish, keyed as Klipper names them.
+    [[nodiscard]] nlohmann::json reforge_afc_status_json() const;
+    /// The configfile sections ff-afc.cfg and ff-print-macros.cfg declare.
+    [[nodiscard]] nlohmann::json reforge_afc_config_sections() const;
+
+    // --- A stock U1's SnapSwap (HELIX_MOCK_AMS=snapmaker; public for the mock tests) ---
+    bool is_mock_u1_snapswap() const;
+    /// filament_detect, print_task_config, each head's pins and both feeder sides.
+    [[nodiscard]] nlohmann::json u1_snapswap_status_json() const;
+    /// Every object the AMS mock hardware of this mode publishes (AFC, SnapSwap), else {}.
+    [[nodiscard]] nlohmann::json mock_ams_hardware_status() const;
+    /// mock_ams_hardware_status() into a status frame, field by field where the frame
+    /// already holds the object (a heater's temperature stays), limited to @p only's keys.
+    void merge_mock_ams_hardware_status(nlohmann::json& into,
+                                        const nlohmann::json* only = nullptr) const;
+
+    // --- AFC on one Box Turtle (HELIX_MOCK_AMS=afc; public for the mock tests) ---
+    bool is_mock_afc_boxturtle() const;
+    /// Every AFC object the Box Turtle mock publishes, keyed as Klipper names them.
+    [[nodiscard]] nlohmann::json afc_boxturtle_status_json() const;
+    /// The AFC objects of whichever AFC mock hardware runs (Box Turtle or Reforge), else {}.
+    [[nodiscard]] nlohmann::json afc_status_json() const;
+
     // --- Bondtech INDX mock hardware (public for the mock tests) ---
     bool is_mock_indx() const;
     /// The simulated extruder target (0 = off).
@@ -2935,9 +3054,15 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     using GcodeResult = std::optional<int>;
     GcodeResult gcode_skip_wrappers(const std::string& gcode);
     GcodeResult gcode_layer_pause(const std::string& gcode);
-    GcodeResult gcode_ifs_module(const std::string& gcode);
+    /// Hand each line's command token to @p apply (an IFS mock's
+    /// apply_*_gcode); 0 when any line was one of its commands.
+    GcodeResult gcode_each_command(const std::string& gcode,
+                                   bool (MoonrakerClientMock::*apply)(const std::string&,
+                                                                      const std::string&));
     GcodeResult gcode_medusa(const std::string& gcode);
     GcodeResult gcode_indx(const std::string& gcode);
+    /// AFC_SELECT_TOOL, CHANGE_TOOL, SET_MAP and T<n> on the creator5_afc persona.
+    GcodeResult gcode_reforge_afc(const std::string& gcode);
     /// RESPOND: echoes MSG on the console the way Klipper's [respond] does, so
     /// an action prompt a script raises reaches the screen.
     GcodeResult gcode_respond(const std::string& gcode);
@@ -2951,8 +3076,18 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     GcodeResult gcode_lane_status(const std::string& gcode);
     /// The producer's lane_data records, one per lane, written as it would.
     void seed_lane_status_records();
+    /// The T<n> lane_data records a tool changer's identity lives in (MedusaHC and plain
+    /// klipper-toolchanger modes; nothing otherwise).
+    void seed_tool_lane_records();
     GcodeResult gcode_openams_line(const std::string& gcode);
     GcodeResult gcode_happy_hare(const std::string& gcode);
+    /// AFC's lane commands on the Box Turtle mock (TOOL_LOAD, T<n>, TOOL_UNLOAD, SET_*).
+    GcodeResult gcode_afc_boxturtle(const std::string& gcode);
+    /// T<n> moves the carriage's pins; SET_PRINT_FILAMENT_CONFIG rewrites a head's record.
+    GcodeResult gcode_u1_snapswap(const std::string& gcode);
+    /// klipper-toolchanger's SELECT_TOOL and UNSELECT_TOOL in the plain toolchanger mode:
+    /// a swap reports "changing", then "ready" on the new tool_number.
+    GcodeResult gcode_toolchanger(const std::string& gcode);
     GcodeResult gcode_u1_feeding(const std::string& gcode);
     /// SET_PURIFIER_MODE, SET_PURIFIER and the mock-only HELIX_MOCK_TOP_COVER
     /// PRESENT=0|1, which lifts the top off or puts it back. U1 only.
@@ -3015,6 +3150,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::atomic<bool> ifs_module_head_loaded_{false};
     /// Per-lane silk presence bitmask, bit i = lane i+1.
     std::atomic<uint8_t> ifs_module_presence_{0x0F};
+    /// IFS Jacker mock (HELIX_MOCK_AMS=ifs-jacker): ports the firmware drives,
+    /// the seated channel (1-based, 0 = none), whether the head switch reads
+    /// filament, and per-port silk presence (bit i = port i+1).
+    int ifs_jacker_ports_ = 8;
+    std::atomic<int> ifs_jacker_chan_{0};
+    std::atomic<bool> ifs_jacker_head_loaded_{false};
+    std::atomic<uint32_t> ifs_jacker_presence_{0};
     /// Slot -> {type, bare-hex colour}; IFS_SET_MATERIAL writes land here.
     mutable std::mutex ifs_module_materials_mutex_;
     std::map<int, std::pair<std::string, std::string>> ifs_module_materials_{

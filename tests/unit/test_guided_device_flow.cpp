@@ -75,7 +75,7 @@ class CountingMock : public AmsBackendMock, public ICfsCalibration {
         ++belt_tensionings;
         return AmsErrorHelper::success();
     }
-    AmsError start_chute_calibration(std::function<void()>, std::function<void(const std::string&)>,
+    AmsError start_chute_calibration(std::function<void()>, ChuteStepFailed,
                                      std::shared_ptr<std::atomic<bool>>) override {
         return AmsErrorHelper::success();
     }
@@ -85,8 +85,7 @@ class CountingMock : public AmsBackendMock, public ICfsCalibration {
     AmsError jog_chute_y(float) override {
         return AmsErrorHelper::success();
     }
-    AmsError save_chute_position(std::function<void()>,
-                                 std::function<void(const std::string&)>) override {
+    AmsError save_chute_position(std::function<void()>, ChuteSaveFailed) override {
         return AmsErrorHelper::success();
     }
     AmsError exit_chute_calibration() override {
@@ -102,6 +101,9 @@ class GuidedFlowFixture : public LVGLUITestFixture {
     CountingMock* backend = nullptr;
 
     GuidedFlowFixture() {
+        // Startup's built-in registrations are process-wide, so a case run after one
+        // that registered them would inherit flows it asserts are absent.
+        unregister_test_flows();
         helix::ui::destroy_static_panels();
         helix::ui::UpdateQueue::instance().drain();
         auto& ams = AmsState::instance();
@@ -117,9 +119,7 @@ class GuidedFlowFixture : public LVGLUITestFixture {
     }
 
     ~GuidedFlowFixture() override {
-        for (const char* id : {"t", "cfs_cutter", "cfs_purge_chute", "cfs_belt_tension"}) {
-            helix::ui::unregister_guided_device_flow(id);
-        }
+        unregister_test_flows();
         NavigationManager::instance().go_back();
         settle();
         helix::ui::destroy_static_panels();
@@ -147,6 +147,11 @@ class GuidedFlowFixture : public LVGLUITestFixture {
     }
 
     /// Build the overlay for a "prefs" section holding @p actions; returns its root.
+    static void unregister_test_flows() {
+        for (const char* id : {"t", "cfs_cutter", "cfs_purge_chute", "cfs_belt_tension"})
+            helix::ui::unregister_guided_device_flow(id);
+    }
+
     lv_obj_t* open_prefs(std::vector<DeviceAction> actions) {
         backend->set_device_sections({DeviceSection{"prefs", "Preferences", 0, ""}});
         backend->set_device_actions(std::move(actions));
@@ -353,7 +358,7 @@ TEST_CASE_METHOD(GuidedFlowFixture,
     CHECK(text_of(row, "description") == "Purge during tool changes");
     lv_obj_t* icon = lv_obj_find_by_name(row, "row_icon");
     REQUIRE(icon != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(icon));
 
     lv_obj_t* sw = helix::test::find_device_action_control(root, "purge", &lv_switch_class);
     REQUIRE(sw != nullptr);

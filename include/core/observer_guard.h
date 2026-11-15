@@ -63,7 +63,7 @@ inline SubjectLifetime subject_never_freed() {
  *
  * For observers on dynamic subjects, set an alive token via set_alive_token()
  * or the factory functions. When the token expires (subject deinited), reset()
- * skips lv_observer_remove() because the observer was already freed by
+ * skips lv_observer_delete() because the observer was already freed by
  * lv_subject_deinit().
  */
 class ObserverGuard {
@@ -99,7 +99,7 @@ class ObserverGuard {
      * Any other ObserverGuard (no token, or subject_never_freed()) created BEFORE
      * this call whose subject was freed by StaticSubjectRegistry::deinit_all()
      * (LVGL already removed+freed the observer) will skip
-     * lv_observer_remove() to avoid touching freed memory — reset() consults
+     * lv_observer_delete() to avoid touching freed memory — reset() consults
      * the teardown exemption (mark_subject_teardown_exempt()), so guards on
      * subjects the registry never frees (the reseeded theme globals) still
      * remove theirs.
@@ -175,7 +175,7 @@ class ObserverGuard {
     }
 
     /**
-     * @brief Release ownership without calling lv_observer_remove()
+     * @brief Release ownership without calling lv_observer_delete()
      *
      * Use during shutdown when subjects may already be destroyed.
      * The observer will not be removed from the subject (it may already be gone).
@@ -220,7 +220,7 @@ class ObserverGuard {
     std::weak_ptr<bool> alive_token_; ///< Tracks dynamic subject lifetime
     /// Distinguishes "token never set" from "token expired". Required because a
     /// default-constructed weak_ptr reports expired() == true, which would cause
-    /// static-subject guards to falsely skip lv_observer_remove() and leak observers.
+    /// static-subject guards to falsely skip lv_observer_delete() and leak observers.
     bool has_alive_token_ = false;
     /// Invalidation epoch captured when this guard's observer was registered.
     /// If < s_invalidation_epoch at reset() time, a registry teardown may have

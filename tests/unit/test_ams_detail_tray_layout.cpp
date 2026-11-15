@@ -110,7 +110,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
     /// carry none), and lay the tray out again around the name lines.
     void name_every_lane(int lanes, const char* brand) {
         for (int i = 0; i < lanes; ++i)
-            lv_subject_copy_string(AmsState::instance().get_slot_name_subject(0, i), brand);
+            lv_subject_set_string(AmsState::instance().get_slot_name_subject(0, i), brand);
         panel_->refresh_slots();
         process_lvgl(20);
         lv_obj_update_layout(test_screen());
@@ -141,7 +141,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
     void check_env_chip_clear(int gates) {
         lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
         REQUIRE(pill != nullptr);
-        REQUIRE_FALSE(lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(pill));
         lv_obj_update_layout(test_screen());
         lv_area_t pa;
         lv_obj_get_coords(pill, &pa);
@@ -164,7 +164,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
                     obstacles.push_back(o);
         int checked = 0;
         for (lv_obj_t* o : obstacles) {
-            if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN))
+            if (lv_obj_is_hidden(o))
                 continue;
             lv_area_t oa;
             lv_obj_get_coords(o, &oa);
@@ -292,13 +292,13 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS per-lane sensors: each lane's humidit
         CAPTURE(i);
         lv_obj_t* row = ui_ams_slot_get_lane_humidity(slot(i));
         REQUIRE(row != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(row));
         // Temperature above, then the droplet and humidity.
         lv_obj_t* temp_row = lv_obj_find_by_name(row, "lane_temp_row");
         lv_obj_t* hum_row = lv_obj_find_by_name(row, "lane_humidity_row");
         REQUIRE(temp_row != nullptr);
         REQUIRE(hum_row != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(temp_row, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(temp_row));
         CHECK(lv_obj_get_index(temp_row) < lv_obj_get_index(hum_row));
         CHECK(std::strcmp(lv_obj_get_name(lv_obj_get_child(temp_row, 0)), "lane_temp_icon") == 0);
         const char* temp = lv_label_get_text(lv_obj_get_child(temp_row, 1));
@@ -391,7 +391,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     int32_t right = origin_.x + (int32_t)std::lround(hi);
     lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
     REQUIRE(pill != nullptr);
-    if (!lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN)) {
+    if (!lv_obj_is_hidden(pill)) {
         lv_area_t pa;
         lv_obj_get_coords(pill, &pa);
         right = std::max(right, (int32_t)pa.x2);
@@ -461,7 +461,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
 
     lv_obj_t* front = lv_obj_find_by_name(panel_obj_, "slot_tray");
     REQUIRE(front != nullptr);
-    CHECK(lv_obj_has_flag(front, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(front));
 
     // The row stays compact rather than spreading across the width.
     const int32_t pitch = theme_manager_get_spacing("ams_slot_spool_size") +
@@ -493,7 +493,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         CAPTURE(i);
         lv_obj_t* row = ui_ams_slot_get_lane_humidity(slot(i));
         REQUIRE(row != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(row));
         lv_obj_t* label = lv_obj_find_by_name(slot(i), "material_label");
         REQUIRE(label != nullptr);
         lv_area_t ra, la;
@@ -536,7 +536,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS flat spool style: the readout stands 
 
     lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
     REQUIRE(pill != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(pill));
     lv_obj_update_layout(test_screen());
     lv_area_t pa;
     lv_obj_get_coords(pill, &pa);
@@ -624,7 +624,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a brand stacks directly over it
         lv_obj_t* material = lv_obj_find_by_name(slot(i), "material_label");
         REQUIRE(name != nullptr);
         REQUIRE(material != nullptr);
-        if (lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(name))
             continue;
         ++named;
         lv_area_t na, ma;
@@ -672,7 +672,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a named slot's badge sits on th
     for (int i = 0; i < 4; ++i) {
         lv_obj_t* name = lv_obj_find_by_name(slot(i), "name_label");
         REQUIRE(name != nullptr);
-        if (!lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN))
+        if (!lv_obj_is_hidden(name))
             ++named;
     }
     REQUIRE(named > 0);
@@ -808,7 +808,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     for (const char* meter : {"clog_meter", "buffer_mini"}) {
         lv_obj_t* m = lv_obj_find_by_name(panel_obj_, meter);
         REQUIRE(m != nullptr);
-        if (lv_obj_has_flag(m, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(m))
             continue;
         ++meters_seen;
         lv_area_t ma;
@@ -854,7 +854,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(details != nullptr);
     REQUIRE(position != nullptr);
     REQUIRE(weight != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(weight, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(weight));
     lv_area_t da, pa, wa;
     lv_obj_get_coords(details, &da);
     lv_obj_get_coords(position, &pa);
@@ -877,7 +877,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     auto clear_name = [](int i) {
         lv_subject_t* s = AmsState::instance().get_slot_name_subject(0, i);
         REQUIRE(s != nullptr);
-        lv_subject_copy_string(s, "");
+        lv_subject_set_string(s, "");
     };
     auto spool_tops = [&]() {
         lv_obj_update_layout(test_screen());
@@ -894,7 +894,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     auto name_lines_shown = [&]() {
         int shown = 0;
         for (int i = 0; i < 4; ++i)
-            if (!lv_obj_has_flag(lv_obj_find_by_name(slot(i), "name_label"), LV_OBJ_FLAG_HIDDEN))
+            if (!lv_obj_is_hidden(lv_obj_find_by_name(slot(i), "name_label")))
                 ++shown;
         return shown;
     };
@@ -934,13 +934,13 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     lv_obj_t* arrows = lv_obj_find_by_name(panel_obj_, "endless_arrows");
     REQUIRE(arrows != nullptr);
     // With no backup the row has nothing to draw and gives its space back.
-    CHECK(lv_obj_has_flag(arrows, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(arrows));
     // One backend leaves nothing to select between.
     lv_obj_t* selector = lv_obj_find_by_name(panel_obj_, "backend_selector_row");
     REQUIRE(selector != nullptr);
-    CHECK(lv_obj_has_flag(selector, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(selector));
 
     REQUIRE(backend->set_endless_spool_backup(kLanes - 2, kLanes - 1).success());
     AmsPanelTestAccess::update_endless_arrows(*panel_);
-    CHECK_FALSE(lv_obj_has_flag(arrows, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(arrows));
 }

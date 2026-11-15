@@ -19,6 +19,7 @@
 #include "core/observer_factory.h"
 #include "core/observer_guard.h"
 #include "core/static_subject_registry.h"
+#include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
@@ -30,6 +31,7 @@
 #include "helix/ui/text_metrics.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/core/lv_obj_event_private.h" // lv_hit_test_info_t: LVGL exposes no accessor
+#include "observe_language.h"
 #include "panel_widget_size.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
@@ -106,6 +108,8 @@ static void unregister_slot_data(lv_obj_t* obj) {
             data->active_loaded_observer.reset();
             data->action_observer.reset();
             data->target_slot_observer.reset();
+            data->temp_unit_observer.reset();
+            data->language_observer.reset();
             data->print_state_observer.reset();
             data->extruder_velocity_observer.reset();
             data->animations_enabled_observer.reset();
@@ -143,6 +147,8 @@ static void cleanup_all_slot_data() {
         data->active_loaded_observer.reset();
         data->action_observer.reset();
         data->target_slot_observer.reset();
+        data->temp_unit_observer.reset();
+        data->language_observer.reset();
         data->print_state_observer.reset();
         data->extruder_velocity_observer.reset();
         data->animations_enabled_observer.reset();
@@ -230,9 +236,9 @@ static void apply_row_name_lines(lv_obj_t* row) {
             continue;
         // DECLARATIVE_OK: a row-wide decision over per-slot subjects
         if (any_name)
-            lv_obj_remove_flag(d->name_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(d->name_label, false);
         else
-            lv_obj_add_flag(d->name_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(d->name_label, true);
     }
 }
 
@@ -258,9 +264,9 @@ static void apply_lane_remaining(AmsSlotData* data, const char* text) {
     // DECLARATIVE_OK: per-slot subject whose index arrives after view creation
     lv_label_set_text(data->lane_remaining, has ? text : "");
     if (has)
-        lv_obj_remove_flag(data->lane_remaining, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->lane_remaining, false);
     else
-        lv_obj_add_flag(data->lane_remaining, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->lane_remaining, true);
 }
 
 /// The lane's own climate: humidity, or "--" while its sensor has none, and
@@ -291,9 +297,9 @@ static void apply_lane_humidity(AmsSlotData* data, AmsBackend* backend) {
     // DECLARATIVE_OK: per-slot reading with no per-slot temperature subject
     lv_label_set_text(data->lane_temp_text, temp);
     if (has_temp)
-        lv_obj_remove_flag(data->lane_temp_row, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->lane_temp_row, false);
     else
-        lv_obj_add_flag(data->lane_temp_row, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->lane_temp_row, true);
 }
 
 /// Bind the drying badge to @p subject (nullptr unbinds it and leaves it hidden). The
@@ -311,7 +317,7 @@ static void bind_drying_badge(AmsSlotData* data, lv_subject_t* subject) {
     }
     data->drying_subject = subject;
     if (!subject) {
-        lv_obj_add_flag(data->drying_badge, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: unbound
+        lv_obj_set_hidden(data->drying_badge, true); // DECLARATIVE_OK: unbound
         return;
     }
     using helix::printer::ZoneDryingState;
@@ -383,7 +389,7 @@ static void apply_status_badge(AmsSlotData* data, int status_int) {
         badge_bg = theme_manager_get_color("ams_badge_bg");
         break;
     }
-    lv_obj_remove_flag(data->status_badge_bg, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(data->status_badge_bg, false);
     lv_obj_set_style_bg_color(data->status_badge_bg, badge_bg, LV_PART_MAIN);
     apply_badge_number(data);
 
@@ -528,14 +534,14 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
     // Tool changers: badge is redundant with toolhead label below
     auto* backend = AmsState::instance().get_backend(data->backend_index);
     if (backend && backend->should_hide_slot_tool_badge()) {
-        lv_obj_add_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->tool_badge_bg, true);
         return;
     }
 
     // A tool feeding the lane of its own number only repeats the lane badge.
     if (const auto info = AmsState::instance().system_info(data->backend_index)) {
         if (!helix::ui::tool_badges_add_information(info->tool_to_slot_map, info->total_slots)) {
-            lv_obj_add_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->tool_badge_bg, true);
             return;
         }
     }
@@ -544,7 +550,7 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
         // Tool is mapped - show badge with tool number
         const std::string tool_text = helix::ui::tool_label(mapped_tool);
         lv_label_set_text(data->tool_badge, tool_text.c_str());
-        lv_obj_remove_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->tool_badge_bg, false);
 
         // Warning for user overrides, muted for firmware defaults; the toolhead
         // badge takes the same colors.
@@ -556,7 +562,7 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
                       is_override);
     } else {
         // No tool mapped - hide badge
-        lv_obj_add_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->tool_badge_bg, true);
         spdlog::trace("[AmsSlot] Slot {} tool badge: hidden", data->slot_index);
     }
 }
@@ -784,6 +790,20 @@ static void setup_slot_observers(AmsSlotData* data) {
             state.get_subjects_lifetime());
     }
 
+    // The lane temperature reads in the display unit.
+    data->temp_unit_observer = helix::ui::observe_temp_unit_change(obj, [](lv_obj_t* o) {
+        if (auto* d = get_slot_data(o)) {
+            apply_lane_humidity(d, AmsState::instance().get_backend(d->backend_index));
+        }
+    });
+
+    // The material line reads translated UI copy for an empty lane.
+    data->language_observer = helix::ui::observe_language_change(obj, [](lv_obj_t* o) {
+        if (auto* d = get_slot_data(o)) {
+            apply_slot_label(d);
+        }
+    });
+
     observe_slot_spin(data);
 
     // Slots version observer: the badge number follows the whole spool table,
@@ -915,7 +935,7 @@ static void* ams_slot_xml_create(lv_xml_parser_state_t* state, const char** attr
     lv_obj_add_event_cb(obj, ams_slot_event_cb, LV_EVENT_DELETE, nullptr);
     lv_obj_add_event_cb(obj, ams_slot_event_cb, LV_EVENT_HIT_TEST, nullptr);
     lv_obj_add_event_cb(obj, ams_slot_event_cb, LV_EVENT_SIZE_CHANGED, nullptr);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_ADV_HITTEST);
+    lv_obj_set_adv_hittest(obj, true);
 
     // Apply responsive slot width
     int32_t space_lg = theme_manager_get_spacing("space_lg");
@@ -1100,9 +1120,9 @@ void ui_ams_slot_set_lane_humidity_visible(lv_obj_t* obj, bool visible) {
     data->show_lane_humidity = visible;
     // DECLARATIVE_OK: shown per slot by the detail view's lid mode, which no subject carries
     if (visible)
-        lv_obj_remove_flag(data->lane_humidity, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->lane_humidity, false);
     else
-        lv_obj_add_flag(data->lane_humidity, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->lane_humidity, true);
     AmsBackend* backend = AmsState::instance().get_backend(data->backend_index);
     if (visible && data->slot_index >= 0)
         apply_lane_humidity(data, backend);
@@ -1180,7 +1200,7 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count)
         int32_t total_label_height = row_height * stagger_rows;
 
         // Remove label from flex layout - it will be positioned absolutely
-        lv_obj_add_flag(data->material_label, LV_OBJ_FLAG_IGNORE_LAYOUT);
+        lv_obj_set_ignore_layout(data->material_label, true);
 
         // Add padding to container top to make room for staggered labels
         lv_obj_set_style_pad_top(obj, total_label_height, LV_PART_MAIN);
@@ -1204,9 +1224,9 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count)
         // Create dashed leader line connecting label to spool
         if (!data->leader_line) {
             data->leader_line = lv_line_create(obj);
-            lv_obj_add_flag(data->leader_line, LV_OBJ_FLAG_IGNORE_LAYOUT);
-            lv_obj_add_flag(data->leader_line, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_add_flag(data->leader_line, LV_OBJ_FLAG_EVENT_BUBBLE);
+            lv_obj_set_ignore_layout(data->leader_line, true);
+            lv_obj_set_clickable(data->leader_line, true);
+            lv_obj_set_event_bubble(data->leader_line, true);
 
             // Style: dashed line using theme color
             lv_obj_set_style_line_color(data->leader_line, theme_manager_get_color("text_muted"),
@@ -1218,7 +1238,7 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count)
         }
 
         // Ensure container allows overflow for lines in padding area
-        lv_obj_add_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+        lv_obj_set_overflow_visible(obj, true);
 
         // Position line from label bottom (with small gap) to spool top
         // lv_obj_align() positions relative to CONTENT area (after padding)
@@ -1237,19 +1257,19 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count)
 
         // Position line object at horizontal center, starting below label
         lv_obj_align(data->leader_line, LV_ALIGN_TOP_MID, 0, line_start_y);
-        lv_obj_remove_flag(data->leader_line, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->leader_line, false);
 
         spdlog::debug("[AmsSlot] Slot {} layout: row={}/{}, label_y={}, leader_len={}", slot_index,
                       row, stagger_rows, label_y, leader_length);
     } else if (data->material_label) {
         // No staggering - keep label in flex flow at default position
-        lv_obj_remove_flag(data->material_label, LV_OBJ_FLAG_IGNORE_LAYOUT);
+        lv_obj_set_ignore_layout(data->material_label, false);
         lv_obj_set_style_pad_top(obj, theme_manager_get_spacing("space_xxs"),
                                  LV_PART_MAIN); // Original padding
 
         // Hide leader line if it exists
         if (data->leader_line) {
-            lv_obj_add_flag(data->leader_line, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->leader_line, true);
         }
 
         spdlog::debug("[AmsSlot] Slot {} layout: no stagger (count={})", slot_index, total_count);
@@ -1272,7 +1292,7 @@ void ui_ams_slot_move_label_to_layer(lv_obj_t* obj, lv_obj_t* labels_layer, int3
     }
 
     // Check if label is using staggered positioning (IGNORE_LAYOUT flag set by set_layout_info)
-    if (!lv_obj_has_flag(data->material_label, LV_OBJ_FLAG_IGNORE_LAYOUT)) {
+    if (!lv_obj_is_ignore_layout(data->material_label)) {
         // Not staggered - don't move
         return;
     }
@@ -1302,7 +1322,7 @@ void ui_ams_slot_move_label_to_layer(lv_obj_t* obj, lv_obj_t* labels_layer, int3
     lv_obj_set_pos(data->material_label, label_x, label_y);
 
     // Reparent and reposition leader line if it exists
-    if (data->leader_line && !lv_obj_has_flag(data->leader_line, LV_OBJ_FLAG_HIDDEN)) {
+    if (data->leader_line && !lv_obj_is_hidden(data->leader_line)) {
         lv_obj_set_parent(data->leader_line, labels_layer);
 
         // CRITICAL: Clear any stored alignment from set_layout_info() which used LV_ALIGN_TOP_MID

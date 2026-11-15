@@ -287,7 +287,7 @@ int32_t ContextMenu::row_width_for_text(lv_obj_t* row, lv_obj_t* label, const ch
     const uint32_t child_cnt = lv_obj_get_child_count(row);
     for (uint32_t i = 0; i < child_cnt; i++) {
         lv_obj_t* child = lv_obj_get_child(row, i);
-        if (!child || lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+        if (!child || lv_obj_is_hidden(child)) {
             continue;
         }
         visible++;
@@ -361,11 +361,11 @@ void ContextMenu::stretch_rows_in(lv_obj_t* container) {
             continue;
         // Hidden rows do not contribute to content_w, so forcing a width on one could
         // clip it if it is revealed later. Leave them at their natural size.
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(child))
             continue;
         // Only rows that can actually be tapped — labels, hints and separators keep
         // their declared sizing.
-        if (!lv_obj_has_flag(child, LV_OBJ_FLAG_CLICKABLE))
+        if (!lv_obj_is_clickable(child))
             continue;
         // Percentage rows already track the container width.
         if (LV_COORD_IS_PCT(lv_obj_get_style_width(child, LV_PART_MAIN)))
@@ -391,14 +391,14 @@ void ContextMenu::stretch_rows_to_card(lv_obj_t* menu_card) {
             columns_w > 0) {
             for (uint32_t i = 0; i < col_cnt; i++) {
                 lv_obj_t* col = lv_obj_get_child(columns, i);
-                if (col && !lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN))
+                if (col && !lv_obj_is_hidden(col))
                     lv_obj_set_width(col, columns_w);
             }
             lv_obj_update_layout(menu_card);
         }
         for (uint32_t i = 0; i < col_cnt; i++) {
             lv_obj_t* col = lv_obj_get_child(columns, i);
-            if (col && !lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN))
+            if (col && !lv_obj_is_hidden(col))
                 stretch_rows_in(col);
         }
     }
@@ -468,7 +468,7 @@ void ContextMenu::fit_card_to_screen(lv_obj_t* menu_card) {
             int32_t first_line_y = -1;
             for (uint32_t i = 0; i < lv_obj_get_child_count(columns); i++) {
                 lv_obj_t* col = lv_obj_get_child(columns, static_cast<int32_t>(i));
-                if (!col || lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN))
+                if (!col || lv_obj_is_hidden(col))
                     continue;
                 if (first_line_y < 0) {
                     first_line_y = lv_obj_get_y(col);
@@ -486,7 +486,7 @@ void ContextMenu::fit_card_to_screen(lv_obj_t* menu_card) {
     // the remainder scroll rather than fall off the edge.
     if (lv_obj_get_height(menu_card) > available_h) {
         lv_obj_set_style_max_height(menu_card, available_h, LV_PART_MAIN);
-        lv_obj_add_flag(menu_card, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(menu_card, true);
         lv_obj_set_scroll_dir(menu_card, LV_DIR_VER);
         lv_obj_update_layout(menu_card);
         spdlog::debug("[ContextMenu] Card still over budget — capped at {}px, scrollable",
@@ -522,19 +522,18 @@ void ContextMenu::tidy_column_groups(lv_obj_t* columns) {
         uint32_t row_cnt = lv_obj_get_child_count(col);
         for (uint32_t r = 0; r < row_cnt && !has_action; r++) {
             lv_obj_t* row = lv_obj_get_child(col, r);
-            if (row && !lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN) &&
-                lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE) &&
+            if (row && !lv_obj_is_hidden(row) && lv_obj_is_clickable(row) &&
                 lv_obj_get_height(row) >= kMinTappableH) {
                 has_action = true;
             }
         }
 
         if (has_action) {
-            lv_obj_remove_flag(col, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(col, false);
             last_visible = col;
             visible_cnt++;
         } else {
-            lv_obj_add_flag(col, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(col, true);
         }
     }
 
@@ -551,10 +550,10 @@ void ContextMenu::tidy_column_groups(lv_obj_t* columns) {
         if (lv_obj_t* heading = lv_obj_find_by_name(col, kColumnHeadingName)) {
             if (visible_cnt <= 1 && col == last_visible) {
                 // DECLARATIVE_OK: measured layout — visible sibling group count
-                lv_obj_add_flag(heading, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(heading, true);
             } else {
                 // DECLARATIVE_OK: measured layout — visible sibling group count
-                lv_obj_remove_flag(heading, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(heading, false);
             }
         }
     }

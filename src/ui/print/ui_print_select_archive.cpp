@@ -235,8 +235,8 @@ void PrintSelectPanel::update_plate_stepper() {
             }
         }
     }
-    lv_subject_copy_string(&selected_plate_text_subject_, text.c_str());
-    lv_subject_copy_string(&selected_plate_position_subject_, position.c_str());
+    lv_subject_set_string(&selected_plate_text_subject_, text.c_str());
+    lv_subject_set_string(&selected_plate_position_subject_, position.c_str());
     lv_subject_set_int(&selected_plate_count_subject_, count);
     sync_archive_scan_source();
 }

@@ -12,7 +12,7 @@ using helix::ScreenHideHold;
 namespace {
 
 bool is_hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 } // namespace
@@ -55,7 +55,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ScreenHideHold ignores a release with no acqu
 TEST_CASE_METHOD(LVGLTestFixture, "ScreenHideHold never unhides a screen it did not hide",
                  "[application][display][screen_hide]") {
     ScreenHideHold hold;
-    lv_obj_add_flag(test_screen(), LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(test_screen(), true);
 
     hold.acquire(test_screen());
     REQUIRE(hold.is_held());
@@ -83,7 +83,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ScreenHideHold leaves a screen loaded mid-hol
 
     // Hidden by someone else while the hold is still out: the final release is not
     // about this screen.
-    lv_obj_add_flag(second, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(second, true);
     hold.release();
     CHECK(is_hidden(second));
     CHECK_FALSE(is_hidden(first));

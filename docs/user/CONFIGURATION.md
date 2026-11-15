@@ -1484,6 +1484,7 @@ For what each widget does and how big it can get, see the [Home Panel guide](gui
 | `macros` | Macros | No | No |
 | `gcode_console` | G-code Console | No | No |
 | `motion` | Motion | No | No |
+| `filament_ops` | Filament Operations | No | No |
 | `toolhead` | Toolhead | No | No |
 | `bed_mesh_tile` | Bed Mesh | No | Bed mesh support |
 | `tool_switcher` | Tool Switcher | No | No |

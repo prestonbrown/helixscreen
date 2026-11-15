@@ -107,7 +107,7 @@ HeaterTempWidget::HeaterTempWidget(PrinterState& printer_state, TemperatureServi
       full_page_(
           sizing_, heater_full_page_function(config),
           []() -> OverlayBase& { return get_global_temp_graph_overlay(); },
-          [mode = config.mode](OverlayBase&, lv_obj_t* container) {
+          [mode = config.mode](FullPageContent&, lv_obj_t* container) {
               return get_global_temp_graph_overlay().embed_in(mode, container);
           }) {}
 

@@ -204,7 +204,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Style and span binders survive a deinitialize
     }
     SECTION("lv_obj_bind_flag_if_eq") {
         CHECK(lv_obj_bind_flag_if_eq(obj, &subject, LV_OBJ_FLAG_HIDDEN, 1) == nullptr);
-        CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(obj));
     }
     SECTION("lv_obj_bind_state_if_eq") {
         CHECK(lv_obj_bind_state_if_eq(obj, &subject, LV_STATE_DISABLED, 1) == nullptr);

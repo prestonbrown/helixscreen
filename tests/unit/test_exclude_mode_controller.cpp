@@ -126,7 +126,7 @@ TEST_CASE_METHOD(ExcludeModeFixture, "In toggle mode a picked row still reaches 
     settle();
     const auto r = rows();
     REQUIRE(r.size() == 3);
-    CHECK(lv_obj_has_flag(r[1], LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(r[1]));
     lv_obj_send_event(r[1], LV_EVENT_CLICKED, nullptr);
     REQUIRE(taps.size() == 1);
     CHECK(taps[0] == "B");
@@ -139,7 +139,7 @@ TEST_CASE_METHOD(ExcludeModeFixture, "In exclude-only mode an excluded row takes
     settle();
     const auto r = rows();
     REQUIRE(r.size() == 3);
-    CHECK_FALSE(lv_obj_has_flag(r[1], LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(r[1]));
 }
 
 TEST_CASE_METHOD(ExcludeModeFixture,

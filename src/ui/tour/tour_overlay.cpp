@@ -85,8 +85,8 @@ void TourOverlay::build_tree() {
     lv_obj_set_style_border_width(root_, 0, 0);
     lv_obj_set_style_pad_all(root_, 0, 0);
     lv_obj_set_style_radius(root_, 0, 0);
-    lv_obj_clear_flag(root_, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_clear_flag(root_, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+    lv_obj_set_scrollable(root_, false);
+    lv_obj_set_click_focusable(root_, false);
 
     // Dim layer — click-blocking, absorbs all touches that miss the tooltip.
     dim_ = lv_obj_create(root_);
@@ -97,8 +97,8 @@ void TourOverlay::build_tree() {
     lv_obj_set_style_border_width(dim_, 0, 0);
     lv_obj_set_style_pad_all(dim_, 0, 0);
     lv_obj_set_style_radius(dim_, 0, 0);
-    lv_obj_add_flag(dim_, LV_OBJ_FLAG_CLICKABLE); // absorb clicks
-    lv_obj_clear_flag(dim_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_clickable(dim_, true); // absorb clicks
+    lv_obj_set_scrollable(dim_, false);
 
     // Highlight rect — transparent fill, outline + shadow. Hidden until step has target.
     highlight_ = lv_obj_create(root_);
@@ -110,8 +110,8 @@ void TourOverlay::build_tree() {
     lv_obj_set_style_shadow_width(highlight_, 24, 0);
     lv_obj_set_style_shadow_opa(highlight_, 180, 0);
     lv_obj_set_style_shadow_color(highlight_, theme_manager_get_color("primary"), 0);
-    lv_obj_clear_flag(highlight_, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(highlight_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_clickable(highlight_, false);
+    lv_obj_set_hidden(highlight_, true);
 
     // Tooltip — instantiated from XML component.
     tooltip_ = static_cast<lv_obj_t*>(lv_xml_create(root_, "tour_tooltip_card", nullptr));
@@ -165,7 +165,7 @@ void TourOverlay::place_highlight(const lv_area_t& target_rect) {
     lv_obj_set_pos(highlight_, target_rect.x1 - pad, target_rect.y1 - pad);
     lv_obj_set_size(highlight_, (target_rect.x2 - target_rect.x1) + 2 * pad,
                     (target_rect.y2 - target_rect.y1) + 2 * pad);
-    lv_obj_clear_flag(highlight_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(highlight_, false);
 }
 
 void TourOverlay::place_tooltip(const lv_area_t& target_rect, bool has_target, TooltipAnchor hint) {
@@ -260,17 +260,17 @@ void TourOverlay::place_tooltip(const lv_area_t& target_rect, bool has_target, T
 }
 
 void TourOverlay::update_tooltip_text(const TourStep& step, size_t index, size_t total) {
-    lv_subject_copy_string(&title_subject_, lv_tr(step.title_key.c_str()));
-    lv_subject_copy_string(&body_subject_, lv_tr(step.body_key.c_str()));
+    lv_subject_set_string(&title_subject_, lv_tr(step.title_key.c_str()));
+    lv_subject_set_string(&body_subject_, lv_tr(step.body_key.c_str()));
     // "Next" reads "Done" on the last step.
-    lv_subject_copy_string(&next_text_subject_, lv_tr((index + 1 == total) ? "Done" : "Next"));
+    lv_subject_set_string(&next_text_subject_, lv_tr((index + 1 == total) ? "Done" : "Next"));
     update_counter(index, total);
 }
 
 void TourOverlay::update_counter(size_t index, size_t total) {
     char buf[16];
     std::snprintf(buf, sizeof(buf), "%zu / %zu", index + 1, total);
-    lv_subject_copy_string(&counter_subject_, buf);
+    lv_subject_set_string(&counter_subject_, buf);
 }
 
 void TourOverlay::update_preview(const TourStep& step) {
@@ -279,7 +279,7 @@ void TourOverlay::update_preview(const TourStep& step) {
         return;
     const int screen_h = lv_display_get_vertical_resolution(nullptr);
     if (!step.shows_print_status_preview || screen_h < kMinScreenHeightForPreview) {
-        lv_obj_add_flag(preview, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: per-step, C++-built card
+        lv_obj_set_hidden(preview, true); // DECLARATIVE_OK: per-step, C++-built card
         return;
     }
     const std::string image = helix::PrinterImageManager::instance().get_displayed_image_path(
@@ -291,14 +291,14 @@ void TourOverlay::update_preview(const TourStep& step) {
     lv_obj_update_layout(tooltip_);
     // The real screen's 5:3 shape, at whatever width the card has on this display.
     lv_obj_set_height(preview, lv_obj_get_content_width(tooltip_) * 3 / 5);
-    lv_obj_clear_flag(preview, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: per-step, C++-built card
+    lv_obj_set_hidden(preview, false); // DECLARATIVE_OK: per-step, C++-built card
 }
 
 void TourOverlay::hide_card() {
     if (!tooltip_ || !highlight_)
         return;
-    lv_obj_add_flag(tooltip_, LV_OBJ_FLAG_HIDDEN);   // DECLARATIVE_OK: C++-built overlay
-    lv_obj_add_flag(highlight_, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: C++-built overlay
+    lv_obj_set_hidden(tooltip_, true);   // DECLARATIVE_OK: C++-built overlay
+    lv_obj_set_hidden(highlight_, true); // DECLARATIVE_OK: C++-built overlay
 }
 
 void TourOverlay::show_step(size_t index) {
@@ -318,10 +318,10 @@ void TourOverlay::show_step(size_t index) {
     if (has_target) {
         place_highlight(target_rect);
     } else {
-        lv_obj_add_flag(highlight_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(highlight_, true);
     }
 
-    lv_obj_clear_flag(tooltip_, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: C++-built overlay
+    lv_obj_set_hidden(tooltip_, false); // DECLARATIVE_OK: C++-built overlay
     update_tooltip_text(step, index, steps_.size());
     update_preview(step);
     place_tooltip(target_rect, has_target, step.anchor_hint);

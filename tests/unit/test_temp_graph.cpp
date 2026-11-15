@@ -62,7 +62,7 @@ TEST_CASE_METHOD(TempGraphTestFixture, "Create and destroy graph", "[ui][core]")
     }
 }
 
-// L081 regression: ui_temp_graph_destroy must NOT call sync lv_obj_del on the chart
+// L081 regression: ui_temp_graph_destroy must NOT call sync lv_obj_delete on the chart
 // (sync widget deletion inside an UpdateQueue::process_pending batch corrupts LVGL's
 // global event list — see prestonbrown/helixscreen#867 cluster). Async deletion
 // escapes the batch via lv_obj_delete_async; the chart stays alive until the next
@@ -818,7 +818,7 @@ TEST_CASE_METHOD(TempGraphTestFixture, "Over-range points stored at full precisi
 
     // Verify data is stored at full precision (not clamped at storage time)
     // so that when Y-axis expands, the full values are available for drawing
-    int32_t* y_data = lv_chart_get_y_array(graph->chart, graph->series_meta[0].chart_series);
+    int32_t* y_data = lv_chart_get_series_y_array(graph->chart, graph->series_meta[0].chart_series);
     uint32_t pc = lv_chart_get_point_count(graph->chart);
     uint32_t sp = lv_chart_get_x_start_point(graph->chart, graph->series_meta[0].chart_series);
 

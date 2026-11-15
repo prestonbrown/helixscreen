@@ -61,8 +61,8 @@ CaptureSurfaceWidgets reparent_capture_surface_fullscreen(lv_obj_t* screen_root)
 struct RaisedControl {
     lv_obj_t* obj = nullptr;
     lv_obj_t* original_parent = nullptr;
-    lv_coord_t orig_w = 0;
-    lv_coord_t orig_h = 0;
+    int32_t orig_w = 0;
+    int32_t orig_h = 0;
 };
 
 /**

@@ -39,7 +39,7 @@ class ZOffsetFixture : public LVGLTestFixture {
     }
 
     void set_homed(const char* axes) {
-        lv_subject_copy_string(state.motion_state().get_homed_axes_subject(), axes);
+        lv_subject_set_string(state.motion_state().get_homed_axes_subject(), axes);
     }
 
     const std::string& last_sent() const {

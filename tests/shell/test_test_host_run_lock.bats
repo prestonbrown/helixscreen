@@ -123,6 +123,15 @@ lock_file() {
     printf '%s/helix-zeus-run-%s.lock\n' "$HELIX_TEST_LOCK_DIR" "$(basename "$HELIX_TEST_WORKDIR")"
 }
 
+# The run's lock is free, or comes free within 20s. The lock is not free the
+# instant the client exits: its holder is a shell on the host that lets go
+# once it reads the client's input closing, and the job's watchdog takes the
+# lock again for its last sweep up to one poll after the job ends. A lock
+# that stays held is a real leak, and fails here.
+lock_released() {
+    flock -w 20 "$(lock_file)" true
+}
+
 wait_for_file() { # <path>
     local _
     for _ in $(seq 1 200); do [ -e "$1" ] && return 0; sleep 0.05; done
@@ -145,8 +154,8 @@ wait_for_line() { # <substring> <file>
     grep -Eq 'held by pid [0-9]+: test 0123456 since ' "$(lock_file)"
 
     # The lock is advisory state, not liveness: the file outlives the run,
-    # but an immediate exclusive flock must succeed.
-    flock -n "$(lock_file)" -c true
+    # but nothing keeps holding it.
+    lock_released
 
     # Successive runs rewrite the holder line rather than appending.
     run "$SCRIPT" --commit test
@@ -319,7 +328,7 @@ drop_during_lock_wait() { # <out file>
     wait "$RUNNER"
     grep -qF "while waiting for the $HELIX_TEST_WORKDIR lock (ssh exit 255); reconnecting" "$out"
     [ "$(grep -c "git reset" "$MOCK_DOCKER_LOG")" -eq 1 ]
-    flock -n "$(lock_file)" true
+    lock_released
     ! ls -d "$HELIX_TEST_LOCK_DIR"/*.job-* 2>/dev/null
 }
 
@@ -332,9 +341,7 @@ drop_during_lock_wait() { # <out file>
     drop_during_lock_wait "$out"
     wait "$RUNNER"
     [ "$(grep -c "git reset" "$MOCK_DOCKER_LOG")" -eq 1 ]
-    # The far end releases the lock on its own schedule; slow CI runners need far longer than a desktop.
-    for _ in $(seq 1 400); do flock -n "$(lock_file)" true && break; sleep 0.05; done
-    flock -n "$(lock_file)" true
+    lock_released
     kill $(cat "$BATS_TEST_TMPDIR/ssh-keepers") 2>/dev/null || true
 }
 

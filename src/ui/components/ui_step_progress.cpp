@@ -141,20 +141,20 @@ static void apply_step_styling(lv_obj_t* step_item, StepState state) {
     if (state == StepState::Completed) {
         // Completed: hide step number, show checkmark
         if (step_number)
-            lv_obj_add_flag(step_number, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(step_number, true);
         if (checkmark)
-            lv_obj_clear_flag(checkmark, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(checkmark, false);
     } else {
         // Pending/Active: show step number, hide checkmark
         if (step_number) {
-            lv_obj_clear_flag(step_number, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(step_number, false);
             // Use theme-aware number colors
             lv_color_t number_color =
                 (state == StepState::Pending) ? color_number_pending : color_number_active;
             lv_obj_set_style_text_color(step_number, number_color, 0);
         }
         if (checkmark)
-            lv_obj_add_flag(checkmark, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(checkmark, true);
     }
 
     // Connector recolor is handled by set_current()/set_completed() against the
@@ -253,12 +253,12 @@ static void relayout_connectors(step_progress_data_t* data, lv_obj_t* container)
             return lv_obj_get_y(step) + lv_obj_get_y(ind) + lv_obj_get_y(circ);
         };
 
-        lv_coord_t conn_x, conn_y, conn_w, conn_h;
+        int32_t conn_x, conn_y, conn_w, conn_h;
 
         if (horizontal) {
             // Horizontal: spans right edge of current circle to left edge of next
-            lv_coord_t cur_cx = abs_x(current_step, current_indicator, current_circle);
-            lv_coord_t next_cx = abs_x(next_step, next_indicator, next_circle);
+            int32_t cur_cx = abs_x(current_step, current_indicator, current_circle);
+            int32_t next_cx = abs_x(next_step, next_indicator, next_circle);
             conn_x = cur_cx + circle_size;
             conn_w = next_cx - conn_x;
             conn_h = connector_thickness;
@@ -268,8 +268,8 @@ static void relayout_connectors(step_progress_data_t* data, lv_obj_t* container)
                 conn_w = 0; // degenerate pass — sized on the next valid reflow
         } else {
             // Vertical: spans bottom edge of current circle to top edge of next
-            lv_coord_t cur_cy = abs_y(current_step, current_indicator, current_circle);
-            lv_coord_t next_cy = abs_y(next_step, next_indicator, next_circle);
+            int32_t cur_cy = abs_y(current_step, current_indicator, current_circle);
+            int32_t next_cy = abs_y(next_step, next_indicator, next_circle);
             conn_y = cur_cy + circle_size;
             conn_h = next_cy - conn_y;
             conn_w = connector_thickness;
@@ -282,8 +282,8 @@ static void relayout_connectors(step_progress_data_t* data, lv_obj_t* container)
         lv_obj_t* connector = data->connectors[i];
         if (!connector) {
             connector = lv_obj_create(container);
-            lv_obj_add_flag(connector, LV_OBJ_FLAG_IGNORE_LAYOUT);
-            lv_obj_remove_flag(connector, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_ignore_layout(connector, true);
+            lv_obj_set_clickable(connector, false);
             lv_obj_set_style_bg_opa(connector, LV_OPA_COVER, 0);
             lv_obj_set_style_border_width(connector, 0, 0);
             lv_obj_set_style_pad_all(connector, 0, 0);
@@ -406,7 +406,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
     // own box. A horizontal bar is its own scroller: its parent scrolls only
     // vertically, so a row of dots wider than the column scrolls here.
     if (!horizontal) {
-        lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(container, false);
     }
     lv_obj_set_flex_flow(container, horizontal ? LV_FLEX_FLOW_ROW : LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
@@ -437,7 +437,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
         lv_obj_set_style_pad_all(step_item, 0, 0);
         lv_obj_set_style_pad_gap(step_item, 0, 0);
         lv_obj_set_scrollbar_mode(step_item, LV_SCROLLBAR_MODE_OFF);
-        lv_obj_remove_flag(step_item, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(step_item, false);
         // Horizontal: column layout (circle + label stacked), Vertical: row layout
         lv_obj_set_flex_flow(step_item, horizontal ? LV_FLEX_FLOW_COLUMN : LV_FLEX_FLOW_ROW);
         // A horizontal step is one column track, which flex_track_place positions
@@ -455,7 +455,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
         lv_obj_set_style_pad_all(indicator_column, 0, 0);
         lv_obj_set_style_pad_gap(indicator_column, 0, 0);
         lv_obj_set_scrollbar_mode(indicator_column, LV_SCROLLBAR_MODE_OFF);
-        lv_obj_remove_flag(indicator_column, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(indicator_column, false);
         lv_obj_set_flex_flow(indicator_column, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(indicator_column, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                               LV_FLEX_ALIGN_START);
@@ -467,7 +467,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
         lv_obj_set_style_pad_all(circle, 0, 0);
         lv_obj_set_style_margin_all(circle, 0, 0);
         lv_obj_set_scrollbar_mode(circle, LV_SCROLLBAR_MODE_OFF);
-        lv_obj_remove_flag(circle, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(circle, false);
 
         // Create step number label (shown for PENDING/ACTIVE states)
         lv_obj_t* step_number = lv_label_create(circle);
@@ -484,14 +484,14 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
         lv_obj_align(checkmark, LV_ALIGN_CENTER, 0, 0);
         lv_obj_set_style_text_font(checkmark, &mdi_icons_16, 0);
         lv_obj_set_style_text_color(checkmark, color_checkmark, 0);
-        lv_obj_add_flag(checkmark, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(checkmark, true);
 
         lv_obj_t* label = lv_label_create(step_item);
         lv_label_set_text(label, data->label_buffers[i]);
         lv_obj_set_style_text_color(label, color_label_inactive, 0);
         if (horizontal) {
             lv_obj_set_width(label, LV_SIZE_CONTENT);
-            lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+            lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
             lv_obj_set_style_pad_top(label, label_gap, 0);
             lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_set_style_max_width(label, 120, 0);
@@ -559,15 +559,15 @@ void ui_step_progress_set_current_label_only(lv_obj_t* widget, bool on) {
         if (!label)
             continue;
         if (on)
-            lv_obj_add_flag(label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(label, true);
         else
-            lv_obj_remove_flag(label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(label, false);
     }
     if (on && !data->caption) {
         lv_obj_t* caption = lv_label_create(widget);
-        lv_obj_add_flag(caption, LV_OBJ_FLAG_FLOATING);
+        lv_obj_set_floating(caption, true);
         lv_obj_set_width(caption, LV_PCT(100));
-        lv_label_set_long_mode(caption, LV_LABEL_LONG_DOT);
+        lv_label_set_long_mode(caption, LV_LABEL_LONG_MODE_DOTS);
         // The widget reserves one line of padding below for the caption.
         helix::ui::label_hold_one_line(caption);
         lv_obj_set_style_text_align(caption, LV_TEXT_ALIGN_CENTER, 0);

@@ -243,10 +243,6 @@ class Ad5xIfsTestAccess {
         b.last_eject_time_[static_cast<size_t>(slot)] =
             std::chrono::steady_clock::now() - std::chrono::hours(1);
     }
-    static int current_slot(const AmsBackendAd5xIfs& b) {
-        std::lock_guard<std::mutex> lock(b.mutex_);
-        return b.system_info_.current_slot;
-    }
     static bool zcolor_silent_supported(const AmsBackendAd5xIfs& b) {
         return b.zcolor_silent_supported_.load();
     }

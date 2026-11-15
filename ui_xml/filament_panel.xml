@@ -44,6 +44,12 @@
          an inline style_bg_opa would outrank any bound style. -->
     <style name="temp_graph_card_shown" bg_opa="255"/>
     <style name="temp_graph_card_spacer" bg_opa="0"/>
+    <!-- On a home full page (filament_on_page, NavigationManager::lend_panel())
+         the home grid already keeps the page margin, and every pixel of height
+         goes to the controls above the swipe strip. The padding is a style, not
+         an inline attr, so the bound page style can outrank it. -->
+    <style name="filament_panel_pad" pad_all="#space_md"/>
+    <style name="filament_panel_on_page" pad_all="0"/>
   </styles>
   <!-- Filament Management Panel -->
   <!-- Landscape: two columns, left (temp status + AMS) and right (material +
@@ -56,8 +62,10 @@
        rebuilds this <if> in place — FilamentPanel::bind_widgets() re-finds
        the widgets afterwards (see that function for the ordering constraint). -->
   <view name="filament_panel"
-        extends="lv_obj" width="100%" height="100%" style_border_width="0" style_pad_all="#space_md" scrollable="false"
-        flex_flow="row" style_flex_cross_place="start" style_pad_gap="#space_md" style_bg_color="#screen_bg">
+        extends="lv_obj" width="100%" height="100%" style_border_width="0" scrollable="false" flex_flow="row"
+        style_flex_cross_place="start" style_pad_gap="#space_md" style_bg_color="#screen_bg">
+    <style name="filament_panel_pad"/>
+    <bind_style name="filament_panel_on_page" subject="filament_on_page" ref_value="1"/>
     <!-- Disable all controls when printer not connected or klippy not ready -->
     <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
 

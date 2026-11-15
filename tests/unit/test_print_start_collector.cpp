@@ -2753,7 +2753,7 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     // homed_axes string is partial during homing ("xy" = z not yet homed). The
     // proactive detector must show "Homing", not mislabel the concurrent warm-up
     // as "Heating Bed".
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xy");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "xy");
     set_all_temps(/*bed*/ 250, 550, /*ext*/ 0, 0);
     tick_fallbacks();
     REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
@@ -2761,12 +2761,12 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     // Klipper clears homed_axes to "" as each axis re-homes during G28. That
     // empty-string blip must NOT flip the label to "Heating Bed" — the HOMING
     // latch holds until the toolhead is actually fully homed.
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "");
     tick_fallbacks();
     REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
 
     // Once fully homed, proactive may surface the bed heating (still pre-signal).
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xyz");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "xyz");
     tick_fallbacks();
     REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
 }
@@ -2878,7 +2878,7 @@ class ServedPrint {
     ServedPrint(MoonrakerClientMock& client, PrinterState& state, const std::string& filename)
         : transfers{client, ""}, api_{client, state, transfers}, previous_(get_moonraker_api()) {
         set_moonraker_api(&api_);
-        lv_subject_copy_string(state.print_state().get_print_filename_subject(), filename.c_str());
+        lv_subject_set_string(state.print_state().get_print_filename_subject(), filename.c_str());
     }
     ~ServedPrint() {
         set_moonraker_api(previous_);
@@ -3251,7 +3251,7 @@ TEST_CASE_METHOD(SnapmakerHeaterWaitFixture,
             set_moonraker_api(api);
         }
     } restore{previous_api};
-    lv_subject_copy_string(state().print_state().get_print_filename_subject(), "u1_print.gcode");
+    lv_subject_set_string(state().print_state().get_print_filename_subject(), "u1_print.gcode");
     client().set_object_status("virtual_sdcard", {{"file_position", pos}});
 
     use_appliance_chamber();
@@ -3486,7 +3486,7 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     collector().enable_fallbacks();
     // Proactive detection owns this window: mid-home, it shows Homing even
     // with the bed far below its target and a wait reporting.
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xy");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "xy");
     set_all_temps(/*bed*/ 250, 1000, /*ext*/ 0, 0);
     feed_gcode("B:25.0 /100.0");
     tick_fallbacks();
@@ -5812,7 +5812,7 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     // Mid-G28 with the bed still climbing. Only the proactive detector can
     // reach HOMING from here: the heating correction beneath it never leaves
     // the two heating phases, so a gated-off detector shows HEATING_BED.
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xy");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "xy");
     set_all_temps(/*bed*/ 235, 600, /*ext*/ 0, 0);
     tick_fallbacks();
 
@@ -6800,7 +6800,7 @@ class SilentVoronReplayFixture : public PrintStartCollectorHeaterFixture {
     }
 
     void set_homed(const char* axes) {
-        lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), axes);
+        lv_subject_set_string(state().motion_state().get_homed_axes_subject(), axes);
         // The homed_axes observer runs the fallback check on every change.
         tick_fallbacks();
     }
@@ -6823,7 +6823,7 @@ class SilentVoronReplayFixture : public PrintStartCollectorHeaterFixture {
             return v0 + (v1 - v0) * (t - t0) / static_cast<double>(t1 - t0);
         };
 
-        lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "");
+        lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "");
         set_all_temps(300, 0, 320, 0);
         collector().start();
         collector().enable_fallbacks();
@@ -6951,7 +6951,7 @@ TEST_CASE_METHOD(SilentVoronReplayFixture,
                  "PrintStartCollector: a start that only heats saves its length and heating rate",
                  "[print][collector][preprint][silent_voron][thermal_rate]") {
     // Already homed, no narration: the bed heat is the only phase seen.
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xyz");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "xyz");
     set_all_temps(300, 900, 320, 0);
     collector().start();
     collector().enable_fallbacks();
@@ -7038,7 +7038,7 @@ TEST_CASE_METHOD(SilentVoronReplayFixture,
 TEST_CASE_METHOD(SilentVoronReplayFixture,
                  "PrintStartCollector: an already-homed printer does not show Homing",
                  "[print][collector][preprint][silent_voron][homing]") {
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xyz");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "xyz");
     set_all_temps(300, 0, 320, 0);
     collector().start();
     collector().enable_fallbacks();
@@ -7062,7 +7062,7 @@ TEST_CASE_METHOD(
     past.window = helix::PreprintWindow::PrinterEdge;
     helix::PreprintPredictor::append_to_config(past);
 
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xyz");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "xyz");
     set_all_temps(600, 600, 2000, 2000);
     collector().start();
     collector().enable_fallbacks();
@@ -7098,7 +7098,7 @@ TEST_CASE_METHOD(
 TEST_CASE_METHOD(SilentVoronReplayFixture,
                  "PrintStartCollector: extrusion before the nozzle is hot is not the purge",
                  "[print][collector][preprint][silent_voron][purge]") {
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xyz");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "xyz");
     set_all_temps(900, 900, 1500, 2700);
     collector().start();
     collector().enable_fallbacks();
@@ -7123,7 +7123,7 @@ TEST_CASE_METHOD(SilentVoronReplayFixture,
 TEST_CASE_METHOD(SilentVoronReplayFixture,
                  "PrintStartCollector: a target shown on the display leaves homing inference on",
                  "[print][collector][preprint][silent_voron][homing]") {
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "");
     set_all_temps(300, 0, 320, 0);
     collector().start();
     collector().enable_fallbacks();
@@ -7138,7 +7138,7 @@ TEST_CASE_METHOD(SilentVoronReplayFixture,
 TEST_CASE_METHOD(SilentVoronReplayFixture,
                  "PrintStartCollector: a bed slowing on its approach does not bounce the countdown",
                  "[print][collector][preprint][silent_voron][eta]") {
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xyz");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "xyz");
     set_all_temps(300, 900, 320, 0);
     collector().start();
     collector().enable_fallbacks();
@@ -7178,7 +7178,7 @@ TEST_CASE_METHOD(SilentVoronReplayFixture,
     past.window = helix::PreprintWindow::PrinterEdge;
     helix::PreprintPredictor::append_to_config(past);
 
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xyz");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "xyz");
     set_all_temps(600, 600, 2000, 2000);
     collector().start();
     collector().enable_fallbacks();
@@ -7210,7 +7210,7 @@ TEST_CASE_METHOD(SilentVoronReplayFixture,
 TEST_CASE_METHOD(SilentVoronReplayFixture,
                  "PrintStartCollector: a bed target the start-up seed missed still gates the purge",
                  "[print][collector][preprint][silent_voron][purge]") {
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xyz");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "xyz");
     set_all_temps(300, 0, 2700, 2700);
     collector().start();
     collector().enable_fallbacks();

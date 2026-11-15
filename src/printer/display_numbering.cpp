@@ -271,6 +271,10 @@ std::string active_tool_badge_label(std::string_view name, int index) {
     return tool_badge_label(active_tool_number_style(), name, index);
 }
 
+std::string active_tool_name_label(std::string_view name, int index) {
+    return tool_name_label(active_tool_noun(), active_tool_number_style(), name, index);
+}
+
 std::string active_tool_label(std::string_view name, int index, ToolLabelForm form) {
     return tool_label_in_form(active_tool_noun(), active_tool_number_style(), name, index, form);
 }

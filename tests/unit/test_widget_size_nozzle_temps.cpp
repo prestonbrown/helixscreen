@@ -152,13 +152,13 @@ void check_one_label_visible(lv_obj_t* container, int index, NozzleLabelMode mod
     lv_obj_t* short_lbl = nth_row_label(container, index, "tool_label_short");
     lv_obj_t* number_lbl = nth_row_label(container, index, "tool_label_number");
     lv_obj_t* target_lbl = nth_row_label(container, index, "target_label");
-    CHECK(lv_obj_has_flag(long_lbl, LV_OBJ_FLAG_HIDDEN) == (mode != NozzleLabelMode::Long));
-    CHECK(lv_obj_has_flag(short_lbl, LV_OBJ_FLAG_HIDDEN) == (mode != NozzleLabelMode::Short));
-    CHECK(lv_obj_has_flag(number_lbl, LV_OBJ_FLAG_HIDDEN) == (mode != NozzleLabelMode::Number));
+    CHECK(lv_obj_is_hidden(long_lbl) == (mode != NozzleLabelMode::Long));
+    CHECK(lv_obj_is_hidden(short_lbl) == (mode != NozzleLabelMode::Short));
+    CHECK(lv_obj_is_hidden(number_lbl) == (mode != NozzleLabelMode::Number));
     // The number/icon rungs budget the current-only value: the target half
     // is hidden there and drawn at the text rungs.
     const bool text_mode = mode == NozzleLabelMode::Long || mode == NozzleLabelMode::Short;
-    CHECK(lv_obj_has_flag(target_lbl, LV_OBJ_FLAG_HIDDEN) != text_mode);
+    CHECK(lv_obj_is_hidden(target_lbl) != text_mode);
 }
 
 } // namespace
@@ -236,7 +236,7 @@ TEST_CASE_METHOD(
     // reading implementation leaves the new row's long label visible here.
     CHECK(label_mode_subject_value() == mode);
     check_one_label_visible(container, 1, static_cast<NozzleLabelMode>(mode));
-    CHECK(lv_obj_has_flag(nth_row_label(container, 1, "tool_label_long"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(nth_row_label(container, 1, "tool_label_long")));
 
     // One column at this width, so rows stack DOWNWARD: the second row's Y is
     // past the first's. A container whose bound style never activated a layout
@@ -259,17 +259,17 @@ TEST_CASE_METHOD(
     lv_subject_t* mode_subject = lv_xml_get_subject(nullptr, "nozzle_row_label_mode");
     REQUIRE(mode_subject != nullptr);
     lv_subject_set_int(mode_subject, 0);
-    CHECK(lv_obj_has_flag(bed_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(bed_target, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(bed_label));
+    CHECK(lv_obj_is_hidden(bed_target));
     lv_subject_set_int(mode_subject, 1);
-    CHECK(lv_obj_has_flag(bed_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(bed_target, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(bed_label));
+    CHECK(lv_obj_is_hidden(bed_target));
     lv_subject_set_int(mode_subject, 2);
-    CHECK_FALSE(lv_obj_has_flag(bed_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(bed_target, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(bed_label));
+    CHECK_FALSE(lv_obj_is_hidden(bed_target));
     lv_subject_set_int(mode_subject, 3);
-    CHECK_FALSE(lv_obj_has_flag(bed_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(bed_target, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(bed_label));
+    CHECK_FALSE(lv_obj_is_hidden(bed_target));
 }
 
 /**

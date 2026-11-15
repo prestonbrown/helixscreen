@@ -93,7 +93,7 @@ static constexpr int kMaxSpoolImgPx = 56;
  * text reservation below - so on tiers where font_small is 16-26px rather than
  * the ~12px they were calibrated against, the divisor packed in cells too
  * narrow for the reservation the same function then tried to honor. The cell
- * won, the reservation lost, and LV_LABEL_LONG_WRAP broke "PLA" into one glyph
+ * won, the reservation lost, and LV_LABEL_LONG_MODE_WRAP broke "PLA" into one glyph
  * per line. Sharing one `min_text` makes that disagreement unrepresentable.
  */
 static int min_spool_cell_w(int min_text, int gap) {
@@ -379,15 +379,15 @@ static void rebuild_bars(AmsMiniStatusData* data) {
         for (lv_obj_t* bar : data->lane_bars) {
             if (bar && lv_obj_get_parent(bar) == row) {
                 lv_obj_set_parent(bar, data->bars_container);
-                lv_obj_add_flag(bar, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(bar, true);
             }
         }
         if (!condemned_parent) {
             condemned_parent = lv_obj_create(lv_screen_active());
             if (!condemned_parent)
                 return; // teardown: no active screen to host the condemned rows
-            lv_obj_add_flag(condemned_parent, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(condemned_parent, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_hidden(condemned_parent, true);
+            lv_obj_set_scrollable(condemned_parent, false);
             lv_obj_set_size(condemned_parent, 0, 0);
         }
         lv_obj_set_parent(row, condemned_parent);
@@ -473,9 +473,9 @@ static void rebuild_bars(AmsMiniStatusData* data) {
                     lv_obj_set_height(bar, LV_PCT(100));
                     lv_obj_set_style_flex_grow(lv_obj_find_by_name(bar, "bar_bg"), 1, LV_PART_MAIN);
 
-                    lv_obj_remove_flag(bar, LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_set_hidden(bar, false);
                 } else if (bar) {
-                    lv_obj_add_flag(bar, LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_set_hidden(bar, true);
                 }
             }
 
@@ -528,9 +528,9 @@ static void rebuild_bars(AmsMiniStatusData* data) {
                     helix::ui::ams_lane_bar_resize(bar, bar_width, bar_height);
                 }
 
-                lv_obj_remove_flag(bar, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(bar, false);
             } else if (bar) {
-                lv_obj_add_flag(bar, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(bar, true);
             }
         }
     }
@@ -544,9 +544,9 @@ static void rebuild_bars(AmsMiniStatusData* data) {
     if (data->overflow_label) {
         if (overflow_count > 0) {
             lv_label_set_text_fmt(data->overflow_label, "+%d", overflow_count);
-            lv_obj_remove_flag(data->overflow_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->overflow_label, false);
         } else {
-            lv_obj_add_flag(data->overflow_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->overflow_label, true);
         }
     }
 
@@ -555,9 +555,9 @@ static void rebuild_bars(AmsMiniStatusData* data) {
 
     // Hide entire widget if no slots
     if (data->slot_count <= 0) {
-        lv_obj_add_flag(data->container, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->container, true);
     } else {
-        lv_obj_remove_flag(data->container, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->container, false);
     }
 }
 
@@ -673,8 +673,8 @@ static void drop_spool_cells(AmsMiniStatusData* data) {
         return;
     lv_obj_t* dead = lv_obj_create(lv_screen_active());
     if (dead) {
-        lv_obj_add_flag(dead, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_remove_flag(dead, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_hidden(dead, true);
+        lv_obj_set_scrollable(dead, false);
         lv_obj_set_size(dead, 0, 0);
         for (lv_obj_t* cell : data->spool_cell_objs)
             if (cell)
@@ -708,10 +708,10 @@ static lv_obj_t* create_spool_cell(lv_obj_t* parent, int slot_index, int spool_s
     lv_obj_set_style_pad_all(cell, 0, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(cell, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(cell, 0, LV_PART_MAIN);
-    lv_obj_remove_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(cell, false);
     // Bubble taps/long-presses to the widget root: tap -> AMS overlay,
     // long-press -> grid edit mode (matches the bar view).
-    lv_obj_add_flag(cell, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_event_bubble(cell, true);
 
     // Spool wrap (square) holds the lane's spool widget + lane badge. The
     // wrap is content-sized around the widget, whose root already carries the
@@ -745,14 +745,14 @@ static lv_obj_t* create_spool_cell(lv_obj_t* parent, int slot_index, int spool_s
     lv_obj_set_style_pad_row(col, 0, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(col, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(col, 0, LV_PART_MAIN);
-    lv_obj_remove_flag(col, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(col, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_scrollable(col, false);
+    lv_obj_set_event_bubble(col, true);
 
     lv_obj_t* mat = lv_label_create(col);
     snprintf(nm, sizeof(nm), "spool_material_%d", slot_index);
     lv_obj_set_name(mat, nm);
     lv_obj_set_style_text_align(mat, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_add_flag(mat, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_event_bubble(mat, true);
     const lv_font_t* fs = theme_manager_get_font("font_small");
     if (fs)
         lv_obj_set_style_text_font(mat, fs, LV_PART_MAIN);
@@ -762,7 +762,7 @@ static lv_obj_t* create_spool_cell(lv_obj_t* parent, int slot_index, int spool_s
     snprintf(nm, sizeof(nm), "spool_pct_%d", slot_index);
     lv_obj_set_name(pct, nm);
     lv_obj_set_style_text_align(pct, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_add_flag(pct, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_event_bubble(pct, true);
     const lv_font_t* fxs = theme_manager_get_font("font_xs");
     if (fxs)
         lv_obj_set_style_text_font(pct, fxs, LV_PART_MAIN);
@@ -817,10 +817,10 @@ static void rebuild_spools(AmsMiniStatusData* data) {
         lv_obj_set_style_pad_column(sc, theme_manager_get_spacing("space_xxs"), LV_PART_MAIN);
         data->spools_container = sc;
         apply_spools_card_surface(data);
-        lv_obj_add_flag(sc, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(sc, true);
         lv_obj_set_scroll_dir(sc, LV_DIR_HOR);
         lv_obj_set_scrollbar_mode(sc, LV_SCROLLBAR_MODE_AUTO);
-        lv_obj_add_flag(sc, LV_OBJ_FLAG_EVENT_BUBBLE); // tap/long-press bubble to widget root
+        lv_obj_set_event_bubble(sc, true); // tap/long-press bubble to widget root
         // The container's own SIZE_CHANGED fires before its children are laid
         // out, so a rebuild there reads this row at its old size, or at zero
         // and the width_px hint, which runs a few px wide. The row's real size
@@ -828,7 +828,7 @@ static void rebuild_spools(AmsMiniStatusData* data) {
         lv_obj_add_event_cb(sc, on_spools_size_changed, LV_EVENT_SIZE_CHANGED, nullptr);
     }
     lv_obj_t* sc = data->spools_container;
-    lv_obj_remove_flag(sc, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(sc, false);
 
     // Give each lane an equal share of the width, gaps subtracted so the row
     // fits exactly. The spool+label group is centered within each share.
@@ -921,11 +921,11 @@ static void rebuild_spools(AmsMiniStatusData* data) {
 
     const int n = static_cast<int>(data->spool_cells.size());
     if (n <= 0) {
-        lv_obj_add_flag(data->container, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->container, true);
         drop_spool_cells(data);
         return;
     }
-    lv_obj_remove_flag(data->container, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(data->container, false);
 
     // Pool to size: cells come and go only with the lane count. Extras are
     // reparented to a hidden donor and batch-deleted at the end (a rebuild can
@@ -939,8 +939,8 @@ static void rebuild_spools(AmsMiniStatusData* data) {
             condemned = lv_obj_create(lv_screen_active());
             if (!condemned)
                 return;
-            lv_obj_add_flag(condemned, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(condemned, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_hidden(condemned, true);
+            lv_obj_set_scrollable(condemned, false);
             lv_obj_set_size(condemned, 0, 0);
         }
         lv_obj_set_parent(o, condemned);
@@ -1016,9 +1016,9 @@ static void rebuild_spools(AmsMiniStatusData* data) {
             // row's full height or it pushes the spool out of the cell.
             lv_obj_set_height(col, stacked ? LV_SIZE_CONTENT : lv_pct(100));
             if (show_text)
-                lv_obj_remove_flag(col, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(col, false);
             else
-                lv_obj_add_flag(col, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(col, true);
         }
 
         lv_obj_t* mat = cell_part(cell, "spool_material_%d", slot);
@@ -1027,7 +1027,8 @@ static void rebuild_spools(AmsMiniStatusData* data) {
             // A squeezed column is sized for a shortened name, not the widest one,
             // so it ellipsizes on one line rather than wrapping a name across lines
             // the row has no height for.
-            lv_label_set_long_mode(mat, ellipsize ? LV_LABEL_LONG_DOT : LV_LABEL_LONG_WRAP);
+            lv_label_set_long_mode(mat,
+                                   ellipsize ? LV_LABEL_LONG_MODE_DOTS : LV_LABEL_LONG_MODE_WRAP);
             if (ellipsize)
                 helix::ui::label_hold_one_line(mat);
             lv_obj_set_style_text_opa(mat, text_opa, LV_PART_MAIN);
@@ -1050,9 +1051,9 @@ static void rebuild_spools(AmsMiniStatusData* data) {
             // dimmed material would read as two different lanes.
             lv_obj_set_style_text_opa(pct, text_opa, LV_PART_MAIN);
             if (show_text && show_pct)
-                lv_obj_remove_flag(pct, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(pct, false);
             else
-                lv_obj_add_flag(pct, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(pct, true);
         }
     }
 
@@ -1075,13 +1076,13 @@ static void rebuild(AmsMiniStatusData* data) {
         (data->width_px >= helix::widget_size::w_normal()) ? AmsMiniMode::SPOOL : AmsMiniMode::BAR;
     if (data->mode == AmsMiniMode::SPOOL) {
         if (data->bars_container)
-            lv_obj_add_flag(data->bars_container, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->bars_container, true);
         rebuild_spools(data);
     } else {
         if (data->spools_container)
-            lv_obj_add_flag(data->spools_container, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->spools_container, true);
         if (data->bars_container)
-            lv_obj_remove_flag(data->bars_container, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->bars_container, false);
         rebuild_bars(data);
     }
 }
@@ -1127,7 +1128,7 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
 
     // Create main container
     lv_obj_t* container = lv_obj_create(parent);
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
     lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
@@ -1149,8 +1150,8 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
     // Create bars container (holds the slot bars)
     data_ptr->bars_container = lv_obj_create(container);
     lv_obj_set_name(data_ptr->bars_container, "ams_bars_container");
-    lv_obj_remove_flag(data_ptr->bars_container, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(data_ptr->bars_container, LV_OBJ_FLAG_EVENT_BUBBLE); // Pass clicks to parent
+    lv_obj_set_scrollable(data_ptr->bars_container, false);
+    lv_obj_set_event_bubble(data_ptr->bars_container, true); // Pass clicks to parent
     lv_obj_set_style_bg_opa(data_ptr->bars_container, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(data_ptr->bars_container, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(data_ptr->bars_container, 0, LV_PART_MAIN);
@@ -1163,7 +1164,7 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
 
     // Create overflow label (hidden by default) - use responsive font
     data_ptr->overflow_label = lv_label_create(container);
-    lv_obj_add_flag(data_ptr->overflow_label, LV_OBJ_FLAG_EVENT_BUBBLE); // Pass clicks to parent
+    lv_obj_set_event_bubble(data_ptr->overflow_label, true); // Pass clicks to parent
     lv_label_set_text(data_ptr->overflow_label, "+0");
     lv_obj_set_style_text_color(data_ptr->overflow_label, theme_manager_get_color("text_muted"),
                                 LV_PART_MAIN);
@@ -1171,7 +1172,7 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
     if (!font_xs)
         font_xs = &noto_sans_12;
     lv_obj_set_style_text_font(data_ptr->overflow_label, font_xs, LV_PART_MAIN);
-    lv_obj_add_flag(data_ptr->overflow_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(data_ptr->overflow_label, true);
 
     // Register and set up cleanup
     AmsMiniStatusData* data = data_ptr.release();
@@ -1180,12 +1181,12 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
     lv_obj_add_event_cb(container, on_size_changed, LV_EVENT_SIZE_CHANGED, nullptr);
 
     // Make clickable to open AMS panel
-    lv_obj_add_flag(container, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(container, true);
     lv_obj_set_style_opa(container, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
     lv_obj_add_event_cb(container, on_click, LV_EVENT_CLICKED, nullptr);
 
     // Initially hidden (no slots)
-    lv_obj_add_flag(container, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(container, true);
 
     // Auto-bind to AmsState: observe slots_version changes
     // slots_version is always bumped after slot_count changes, so one observer suffices
@@ -1465,7 +1466,7 @@ static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const c
 
     // Create main container that fills parent
     lv_obj_t* container = lv_obj_create((lv_obj_t*)parent);
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
     lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
@@ -1487,8 +1488,8 @@ static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const c
     // Create bars container (holds the slot bars)
     data_ptr->bars_container = lv_obj_create(container);
     lv_obj_set_name(data_ptr->bars_container, "ams_bars_container");
-    lv_obj_remove_flag(data_ptr->bars_container, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(data_ptr->bars_container, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_scrollable(data_ptr->bars_container, false);
+    lv_obj_set_event_bubble(data_ptr->bars_container, true);
     lv_obj_set_style_bg_opa(data_ptr->bars_container, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(data_ptr->bars_container, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(data_ptr->bars_container, 0, LV_PART_MAIN);
@@ -1502,7 +1503,7 @@ static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const c
 
     // Create overflow label (hidden by default)
     data_ptr->overflow_label = lv_label_create(container);
-    lv_obj_add_flag(data_ptr->overflow_label, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_event_bubble(data_ptr->overflow_label, true);
     lv_label_set_text(data_ptr->overflow_label, "+0");
     lv_obj_set_style_text_color(data_ptr->overflow_label, theme_manager_get_color("text_muted"),
                                 LV_PART_MAIN);
@@ -1510,7 +1511,7 @@ static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const c
     if (!font_xs)
         font_xs = &noto_sans_12;
     lv_obj_set_style_text_font(data_ptr->overflow_label, font_xs, LV_PART_MAIN);
-    lv_obj_add_flag(data_ptr->overflow_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(data_ptr->overflow_label, true);
 
     // Register and set up cleanup
     AmsMiniStatusData* data = data_ptr.release();
@@ -1519,12 +1520,12 @@ static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const c
     lv_obj_add_event_cb(container, on_size_changed, LV_EVENT_SIZE_CHANGED, nullptr);
 
     // Make clickable to open AMS panel
-    lv_obj_add_flag(container, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(container, true);
     lv_obj_set_style_opa(container, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
     lv_obj_add_event_cb(container, on_click, LV_EVENT_CLICKED, nullptr);
 
     // Initially hidden (no slots)
-    lv_obj_add_flag(container, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(container, true);
 
     // Auto-bind to AmsState: observe slots_version changes
     // slots_version is always bumped after slot_count changes, so one observer suffices

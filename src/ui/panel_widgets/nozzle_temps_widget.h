@@ -59,7 +59,7 @@ class NozzleTempsWidget : public PanelWidget {
         lv_obj_t* temp_label = nullptr;
         lv_obj_t* target_label = nullptr;
         // Lifetimes MUST be declared before observers: C++ destroys members in
-        // reverse order, so observers are destroyed first (calling lv_observer_remove
+        // reverse order, so observers are destroyed first (calling lv_observer_delete
         // while the lifetime shared_ptr is still alive and the subject is valid).
         // If the subject was already freed (reconnect), clear_rows() explicitly
         // resets lifetimes before observers to let the weak_ptr expire. (#673)
@@ -87,6 +87,7 @@ class NozzleTempsWidget : public PanelWidget {
 
     ObserverGuard version_observer_;
     ObserverGuard language_observer_;
+    ObserverGuard temp_unit_observer_;
     ObserverGuard tool_number_style_observer_;
     /// Rebuilds the row names when the mounted tool changes on nozzles that
     /// share one heater: the one row is named after the mounted nozzle.
@@ -118,6 +119,8 @@ class NozzleTempsWidget : public PanelWidget {
     void create_extruder_row(lv_obj_t* container, ExtruderRow& row);
     void create_bed_row(lv_obj_t* container);
 
+    /// Re-format every row from its cached readings (language or unit switch).
+    void reformat_values();
     void update_row_display(lv_obj_t* temp_label, lv_obj_t* target_label, int temp_deci,
                             int target_deci, bool is_bed);
 };

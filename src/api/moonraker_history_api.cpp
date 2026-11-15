@@ -3,12 +3,8 @@
 
 #include "moonraker_history_api.h"
 
-#include "ui_format_utils.h"
-
-#include "display_settings_manager.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
-#include "locale_formats.h"
 #include "moonraker_api_internal.h"
 #include "print_history_parse.h"
 #include "print_photos.h"
@@ -23,16 +19,6 @@
 using namespace helix;
 
 namespace {
-
-/**
- * @brief Format Unix timestamp to human-readable date
- * @param timestamp Unix timestamp (seconds since epoch)
- * @return Formatted string like "Dec 1, 2:30 PM" (12H) or "Dec 1, 14:30" (24H)
- */
-std::string format_history_date(double timestamp) {
-    time_t t = static_cast<time_t>(timestamp);
-    return helix::ui::format_modified_date(t);
-}
 
 /**
  * @brief Format filament usage in mm to human-readable string
@@ -117,8 +103,8 @@ PrintHistoryJob helix::parse_history_job(const nlohmann::json& job_json) {
         job.photos = helix::parse_photo_aux(*aux);
     }
 
-    // Pre-format display strings
-    job.date_str = format_history_date(job.start_time);
+    // This runs on the WebSocket thread: format nothing that reads settings,
+    // subjects or the UI language here.
     job.filament_str = format_history_filament(job.filament_used);
 
     return job;

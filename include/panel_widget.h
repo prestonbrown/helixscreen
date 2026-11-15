@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_obj_flags.h"
+
 #include "json_fwd.h"
 #include "lvgl/lvgl.h"
 
@@ -294,6 +296,9 @@ class PanelWidget {
      * and async-guard expiry ONLY. Never reset observers or reparent/clean
      * widgets from here — those need a live tree and a non-delete context
      * (detach() and the destructor still run later on the normal paths).
+     * The one exception is a subtree the tile borrowed from an owner that
+     * outlives it (FullPageContent::host_deleting()): the event fires before
+     * LVGL deletes the children, so handing it back here is what keeps it.
      */
     virtual void on_hooked_root_deleted() {}
 
@@ -331,7 +336,7 @@ template <typename T> T* panel_widget_from_event(lv_event_t* e) {
     if (!obj)
         return nullptr;
     for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
-        if (lv_obj_has_flag(o, kPanelWidgetTileFlag)) {
+        if (helix::ui::obj_has_flags(o, kPanelWidgetTileFlag)) {
             return static_cast<T*>(lv_obj_get_user_data(o));
         }
     }

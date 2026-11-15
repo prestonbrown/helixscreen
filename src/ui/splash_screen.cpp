@@ -50,7 +50,7 @@ void show_splash_screen(int screen_width, int screen_height) {
     // Apply theme background color (screen_bg runtime constant set by theme_manager_init)
     theme_manager_apply_bg_color(screen, "screen_bg", LV_PART_MAIN);
 
-    lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(screen, false);
 
     // Try full-screen 3D splash first (theme-aware dark/light variant)
     bool dark_mode = theme_manager_is_dark_mode();
@@ -111,7 +111,7 @@ void show_splash_screen(int screen_width, int screen_height) {
         lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
         lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
-        lv_obj_clear_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(container, false);
         lv_obj_set_style_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_center(container);
 
@@ -132,7 +132,7 @@ void show_splash_screen(int screen_width, int screen_height) {
             lv_result_t res = lv_image_decoder_get_info(png_path, &header);
 
             if (res == LV_RESULT_OK) {
-                lv_coord_t target_size = (screen_width * 3) / 5; // 60%
+                int32_t target_size = (screen_width * 3) / 5; // 60%
                 if (screen_height < 500) {
                     target_size = screen_width / 2; // 50% on tiny screens
                 }

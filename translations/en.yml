@@ -384,6 +384,9 @@ translations:
   Auto Bed Mesh: Auto Bed Mesh
   Auto Cal: Auto Cal
   Auto Fans: Auto Fans
+  Auto loading: Auto loading
+  Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand.: Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand.
+  Auto loading is off; turn it on under Print Behavior: Auto loading is off; turn it on under Print Behavior
   Auto-Detect: Auto-Detect
   Auto-Heat on Load: Auto-Heat on Load
   Auto-Replenish: Auto-Replenish
@@ -734,6 +737,7 @@ translations:
     Adjust during print for tuning.
   Changes are temporary and reset on printer reboot: Changes are temporary and reset
     on printer reboot
+  Changing filament: Changing filament
   Check AFC configuration: Check AFC configuration
   Check Again: Check Again
   Check Klipper console for details: Check Klipper console for details
@@ -942,6 +946,7 @@ translations:
   Connected to {}: Connected to {}
   Connected! Discovering printer...: Connected! Discovering printer...
   Connected, discovering...: Connected, discovering...
+  Connected, getting address…: Connected, getting address…
   Connecting Camera...: Connecting Camera...
   'Connecting to ': 'Connecting to '
   Connecting to %s...: Connecting to %s...
@@ -1019,6 +1024,7 @@ translations:
   Load all stopped: Load all stopped
   "Load and unload": "Load and unload"
   Load stopped: Load stopped
+  "Load, unload, purge, and extrude filament": "Load, unload, purge, and extrude filament"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Load, unload, and purge from here. Choose a material to set its temperatures first."
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Load, unload, and swap spools, set temperatures, and monitor runout sensors."
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages."
@@ -1129,6 +1135,7 @@ translations:
   'Cutter calibration failed: {}': 'Cutter calibration failed: {}'
   Cutter jam: Cutter jam
   Cutting: Cutting
+  Cutting filament: Cutting filament
   Cutting filament...: Cutting filament...
   Cycle every tool: Cycle every tool
   Cycling tools...: Cycling tools...
@@ -1621,6 +1628,7 @@ translations:
   Feeder: Feeder
   Feeders: Feeders
   Feeding filament forward: Feeding filament forward
+  Feeding filament to nozzle: Feeding filament to nozzle
   Filament: Filament
   Filament Buffer: 'Filament Buffer'
   Filament Control: Filament Control
@@ -1636,6 +1644,7 @@ translations:
   Filament Mapping is unavailable: Filament Mapping is unavailable
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer
   Filament Runout: Filament Runout
+  Filament Operations: Filament Operations
   Filament Sensor: Filament Sensor
   Filament Sensors: Filament Sensors
   Filament System Error: Filament System Error
@@ -1792,6 +1801,7 @@ translations:
   Gear sync: Gear sync
   Generic: Generic
   Get help and share feedback: Get help and share feedback
+  Getting address…: Getting address…
   Getting ready...: Getting ready...
   Glass Effects: Glass Effects
   Global: Global
@@ -1881,7 +1891,10 @@ translations:
   'Heating chamber...': 'Heating chamber...'
   Heating is nearly the whole wait. Leaving the screen now stops the run.: 'Heating is nearly the whole wait. Leaving the screen now stops the run.'
   Heating nozzle: Heating nozzle
+  Heating nozzle ({}): Heating nozzle ({})
   'Heating nozzle to $1°C...': 'Heating nozzle to $1°C...'
+  Heating nozzle to {}: Heating nozzle to {}
+  Heating nozzle to {} ({}): Heating nozzle to {} ({})
   'Heating nozzle...': 'Heating nozzle...'
   Heating the bed: Heating the bed
   Heating the bed and nozzle so the print re-grips and the nozzle lets go of it: Heating the bed and nozzle so the print re-grips and the nozzle lets go of it
@@ -2003,7 +2016,10 @@ translations:
   Hyperspace: Hyperspace
   I understand: I understand
   ID (optional): ID (optional)
+  IFS driver error: IFS driver error
   IFS updates without polling: IFS updates without polling
+  'IFS: loading': 'IFS: loading'
+  'IFS: unloading': 'IFS: unloading'
   IMPORT FROM USB: IMPORT FROM USB
   INDX dock positions are not calibrated: INDX dock positions are not calibrated
   INDX macros not recognized: INDX macros not recognized
@@ -2538,6 +2554,7 @@ translations:
   Mount tool: Mount tool
   Mount which tool?: Mount which tool?
   Mount...: Mount...
+  'Mounted: {}': 'Mounted: {}'
   Move: Move
   Move here: Move here
   Move out of range: Move out of range
@@ -2658,6 +2675,7 @@ translations:
   No events queued: No events queued
   No extruder heater found. Check [extruder] in printer.cfg: No extruder heater found. Check [extruder] in printer.cfg
   No fans detected: No fans detected
+  No feeder attached: No feeder attached
   No filament: No filament
   No filament environment sensors: No filament environment sensors
   No filament loaded to unload: No filament loaded to unload
@@ -2721,6 +2739,7 @@ translations:
   No timelapse videos found: No timelapse videos found
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?'
   No tool is mounted: No tool is mounted
+  No tool mounted: No tool mounted
   No tool on the head: No tool on the head
   No tools to calibrate: No tools to calibrate
   'No turn: the gap moved {:.1f} Hz': 'No turn: the gap moved {:.1f} Hz'
@@ -2985,9 +3004,11 @@ translations:
   Pick Color: Pick Color
   Pick how HelixScreen behaves. You can change any of these later in Settings.: Pick how HelixScreen behaves. You can change any of these later in Settings.
   Pick the best band: Pick the best band
+  Pick up: Pick up
   Pick up and park each tool in turn: Pick up and park each tool in turn
   Pick up the tool, heat it, and pull the filament out: Pick up the tool, heat it, and pull the filament out
   Pick up tool: Pick up tool
+  Pick-up step cancelled; nothing was sent: Pick-up step cancelled; nothing was sent
   Picking up tool: Picking up tool
   Pill: Pill
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Pixels before
@@ -3268,6 +3289,7 @@ translations:
   Purge tower and brush settings: Purge tower and brush settings
   Purging: Purging
   Purging nozzle: Purging nozzle
+  Purging old filament: Purging old filament
   Purging...: Purging...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: Push the cleaning filament into the extruder until it stops, then tap Extrude.
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.
@@ -3538,6 +3560,7 @@ translations:
   Retract may still be running — response timed out: Retract may still be running
     — response timed out
   Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: Retract to unload. If it comes back cleanly, snip the chewed end off and feed again
+  Retracting filament from nozzle: Retracting filament from nozzle
   Retraction: Retraction
   Retraction Settings: Retraction Settings
   Retraction distance in the cooling tube: Retraction distance in the cooling tube
@@ -4396,6 +4419,7 @@ translations:
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   The toolhead is not homed, so this would home into the print: The toolhead is not homed, so this would home into the print
+  'The toolhead may still be at the chute. Move it away before printing.': 'The toolhead may still be at the chute. Move it away before printing.'
   ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
   : The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: The
@@ -4638,6 +4662,7 @@ translations:
   Toolhead Style: Toolhead Style
   Toolhead X: Toolhead X
   Toolhead Y: Toolhead Y
+  'Toolhead did not return to park: {}': 'Toolhead did not return to park: {}'
   Toolhead jam: Toolhead jam
   Toolhead lost homing: Toolhead lost homing
   Toolhead offset calibration: Toolhead offset calibration
@@ -4864,6 +4889,7 @@ translations:
     operation to finish
   Wait for the current operation to complete: Wait for the current operation to complete
   Wait for the current operation to complete or cancel it first: Wait for the current operation to complete or cancel it first
+  Wait for the load or unload to finish: Wait for the load or unload to finish
   Wait for the motor to stop: Wait for the motor to stop
   Wait for the nozzle to stop moving: Wait for the nozzle to stop moving
   Wait for the running INDX operation to finish: Wait for the running INDX operation to finish
@@ -5198,6 +5224,7 @@ translations:
   '{} d': '{} d'
   '{} days': '{} days'
   '{} detected': '{} detected'
+  '{} did not arrive; nothing was sent': '{} did not arrive; nothing was sent'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": "{} didn't load. Check that its hotend is seated and do a test extrude before resuming."
   '{} disabled': '{} disabled'
   '{} disconnected': '{} disconnected'

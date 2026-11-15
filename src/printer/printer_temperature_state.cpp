@@ -13,6 +13,7 @@
 #include "ui_temperature_utils.h"
 
 #include "chamber_heater_backend.h"
+#include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "klipper_extruder_naming.h"
@@ -183,6 +184,16 @@ void PrinterTemperatureState::init_subjects(bool register_xml) {
     // Extruder version subject (bumped when extruder list changes)
     INIT_SUBJECT_INT(extruder_version, 0, subjects_, register_xml);
 
+    // The numeric subjects stay as they are on a °C/°F switch; only the strings
+    // built here from them are formatted again.
+    unit_observer_ = helix::ui::observe_temp_unit_change(this, [](PrinterTemperatureState* self) {
+        if (!self->subjects_initialized_) {
+            return;
+        }
+        self->publish_chamber_dryer();
+        self->publish_chamber_heater_element_temp();
+    });
+
     subjects_initialized_ = true;
     spdlog::trace("[PrinterTemperatureState] Subjects initialized successfully");
 }
@@ -193,9 +204,11 @@ void PrinterTemperatureState::deinit_subjects() {
     }
 
     spdlog::debug("[PrinterTemperatureState] Deinitializing subjects");
+    unit_observer_.reset();
+    chamber_heater_element_temp_c_.reset();
 
     // Signal subject death FIRST — sets the pointed-to bool to false so that
-    // ALL ObserverGuards detect the subject as dead and skip lv_observer_remove()
+    // ALL ObserverGuards detect the subject as dead and skip lv_observer_delete()
     // on the about-to-be-freed observers. Then reset the shared_ptr. (#816)
     if (bed_temp_lifetime_)
         *bed_temp_lifetime_ = false;
@@ -329,7 +342,7 @@ void PrinterTemperatureState::init_extruders(const std::vector<std::string>& hea
         // Signal subject death FIRST - sets the pointed-to bool to false so that
         // ALL ObserverGuards (including those in other services that still hold
         // shared_ptr copies) detect the subject as dead and skip
-        // lv_observer_remove() on the about-to-be-freed observers. (#816)
+        // lv_observer_delete() on the about-to-be-freed observers. (#816)
         auto& info = it->second;
         for (auto* lt : {&info.temp_lifetime, &info.target_lifetime, &info.power_lifetime}) {
             if (*lt)
@@ -702,8 +715,8 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
                     lv_subject_set_int(&chamber_heater_inhibited_, *d->inhibited ? 1 : 0);
                 }
                 if (d->fault_reason_kind.has_value()) {
-                    lv_subject_copy_string(&chamber_heater_fault_reason_text_,
-                                           chamber_fault_reason_text(*d->fault_reason_kind));
+                    lv_subject_set_string(&chamber_heater_fault_reason_text_,
+                                          chamber_fault_reason_text(*d->fault_reason_kind));
                 }
                 if (d->fault_reason.has_value() && !d->fault_reason->empty()) {
                     // Vendor code is log-only — the UI shows the translated kind.
@@ -712,26 +725,14 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
                         backend->id(), *d->fault_reason);
                 }
                 if (d->element_temp_c.has_value()) {
-                    if (std::isnan(*d->element_temp_c)) {
-                        lv_subject_copy_string(&chamber_heater_element_temp_text_, "--");
-                    } else {
-                        // Canonical decimal-drop rule (one decimal <100°C, whole
-                        // degrees at/above) — format_temperature_f wraps
-                        // format_temp_number plus the unit.
-                        helix::ui::temperature::format_temperature_f(
-                            static_cast<float>(*d->element_temp_c),
-                            chamber_heater_element_temp_text_buf_,
-                            sizeof(chamber_heater_element_temp_text_buf_));
-                        lv_subject_copy_string(&chamber_heater_element_temp_text_,
-                                               chamber_heater_element_temp_text_buf_);
-                    }
+                    chamber_heater_element_temp_c_ = static_cast<float>(*d->element_temp_c);
+                    publish_chamber_heater_element_temp();
                 }
                 if (d->filter_fan_percent.has_value()) {
-                    lv_subject_copy_string(
-                        &chamber_filter_fan_percent_text_,
-                        *d->filter_fan_percent < 0
-                            ? "--"
-                            : fmt::format("{}%", *d->filter_fan_percent).c_str());
+                    lv_subject_set_string(&chamber_filter_fan_percent_text_,
+                                          *d->filter_fan_percent < 0
+                                              ? "--"
+                                              : fmt::format("{}%", *d->filter_fan_percent).c_str());
                     chamber_filter_fan_percent_ = *d->filter_fan_percent;
                 }
                 if (d->filter_fan_driver.has_value()) {
@@ -866,7 +867,7 @@ void PrinterTemperatureState::apply_chamber_rejection(const chamber::ChamberHeat
         chamber_rejection_text(chamber_rejection_kind_, chamber_refusal_cause_,
                                lv_subject_get_string(&chamber_heater_fault_reason_text_));
     if (text != lv_subject_get_string(&chamber_heater_rejection_text_)) {
-        lv_subject_copy_string(&chamber_heater_rejection_text_, text.c_str());
+        lv_subject_set_string(&chamber_heater_rejection_text_, text.c_str());
     }
     lv_subject_set_int(&chamber_heater_command_rejected_, 1);
 }
@@ -900,7 +901,7 @@ void PrinterTemperatureState::clear_chamber_rejection() {
     }
     chamber_rejection_latched_ = false;
     lv_subject_set_int(&chamber_heater_command_rejected_, 0);
-    lv_subject_copy_string(&chamber_heater_rejection_text_, "");
+    lv_subject_set_string(&chamber_heater_rejection_text_, "");
 }
 
 // The actual chamber temperature sits beside the cycle's target: an appliance
@@ -909,10 +910,27 @@ void PrinterTemperatureState::clear_chamber_rejection() {
 // countdown ends the cycle. The countdown uses the AMS dryer's "H:MM left",
 // minutes rounded up so the last minute reads 0:01, and is omitted until the
 // device reports one.
+void PrinterTemperatureState::publish_chamber_heater_element_temp() {
+    if (!chamber_heater_element_temp_c_.has_value()) {
+        return;
+    }
+    if (std::isnan(*chamber_heater_element_temp_c_)) {
+        lv_subject_set_string(&chamber_heater_element_temp_text_, "--");
+        return;
+    }
+    // Canonical decimal-drop rule (one decimal <100°C, whole degrees at/above):
+    // format_temperature_f wraps format_temp_number plus the unit.
+    helix::ui::temperature::format_temperature_f(*chamber_heater_element_temp_c_,
+                                                 chamber_heater_element_temp_text_buf_,
+                                                 sizeof(chamber_heater_element_temp_text_buf_));
+    lv_subject_set_string(&chamber_heater_element_temp_text_,
+                          chamber_heater_element_temp_text_buf_);
+}
+
 void PrinterTemperatureState::publish_chamber_dryer() {
     lv_subject_set_int(&chamber_dryer_active_, chamber_dryer_running_ ? 1 : 0);
     if (!chamber_dryer_running_) {
-        lv_subject_copy_string(&chamber_dryer_text_, "");
+        lv_subject_set_string(&chamber_dryer_text_, "");
         return;
     }
     const int current_c = static_cast<int>(std::lround(lv_subject_get_int(&chamber_temp_) / 10.0));
@@ -927,7 +945,7 @@ void PrinterTemperatureState::publish_chamber_dryer() {
     if (minutes > 0) {
         text += fmt::format("  {}:{:02d} {}", minutes / 60, minutes % 60, lv_tr("left"));
     }
-    lv_subject_copy_string(&chamber_dryer_text_, text.c_str());
+    lv_subject_set_string(&chamber_dryer_text_, text.c_str());
 }
 
 } // namespace helix

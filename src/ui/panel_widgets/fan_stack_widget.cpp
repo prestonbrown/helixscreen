@@ -280,7 +280,7 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
     int visible_rows = 0;
     for (const char* rn : row_names) {
         lv_obj_t* row = lv_obj_find_by_name(widget_obj_, rn);
-        if (row && !lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN))
+        if (row && !lv_obj_is_hidden(row))
             visible_rows++;
     }
 
@@ -373,7 +373,7 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
         auto fits_every_row = [&](NameForm f) {
             for (const auto& m : name_map) {
                 lv_obj_t* row = lv_obj_find_by_name(widget_obj_, m.row_name);
-                if (!row || lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN))
+                if (!row || lv_obj_is_hidden(row))
                     continue;
                 if (measure_text_px(name_text(m, f), text_font) > avail_px)
                     return false;
@@ -394,7 +394,7 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
             continue;
         lv_obj_set_style_text_font(lbl, text_font, 0);
 
-        lv_subject_copy_string(
+        lv_subject_set_string(
             m.text, name_text(m, icon_above ? stacked_form
                                             : (bigger ? NameForm::Resolved : NameForm::Letter)));
     }
@@ -455,11 +455,11 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
         lv_obj_t* name_labels[] = {lv_obj_find_by_name(widget_obj_, "fan_stack_part_name"),
                                    lv_obj_find_by_name(widget_obj_, "fan_stack_hotend_name"),
                                    lv_obj_find_by_name(widget_obj_, "fan_stack_aux_name")};
-        // lv_coord_t, not int: it is compared with sz.x in std::max below, and
-        // on the xtensa ESP32 toolchain int32_t (lv_coord_t) is long - a
+        // int32_t, not int: it is compared with sz.x in std::max below, and
+        // on the xtensa ESP32 toolchain int32_t (int32_t) is long - a
         // plain int makes the max() template deduction fail there while
         // compiling clean on desktop builds.
-        lv_coord_t name_w = 0;
+        int32_t name_w = 0;
         for (lv_obj_t* lbl : name_labels) {
             const char* text = lbl ? lv_label_get_text(lbl) : nullptr;
             if (!text)
@@ -488,7 +488,7 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
         int max_w = 0;
         for (const char* rn : row_names) {
             lv_obj_t* row = lv_obj_find_by_name(widget_obj_, rn);
-            if (row && !lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN)) {
+            if (row && !lv_obj_is_hidden(row)) {
                 int w = lv_obj_get_width(row);
                 if (w > max_w)
                     max_w = w;
@@ -648,7 +648,7 @@ void FanStackWidget::bind_carousel_fans() {
 
     for (const auto& entry : entries) {
         // Thin wrapper page: column layout with arc core + tiny name label
-        lv_obj_t* page = lv_obj_create(lv_scr_act());
+        lv_obj_t* page = lv_obj_create(lv_screen_active());
         lv_obj_set_size(page, LV_PCT(100), LV_PCT(100));
         lv_obj_set_style_pad_all(page, 0, 0);
         lv_obj_set_style_pad_bottom(page, theme_manager_get_spacing("space_lg"), 0);
@@ -657,8 +657,8 @@ void FanStackWidget::bind_carousel_fans() {
         lv_obj_set_style_flex_cross_place(page, LV_FLEX_ALIGN_CENTER, 0);
         lv_obj_set_style_border_width(page, 0, 0);
         lv_obj_set_style_bg_opa(page, LV_OPA_TRANSP, 0);
-        lv_obj_remove_flag(page, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(page, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+        lv_obj_set_scrollable(page, false);
+        lv_obj_set_overflow_visible(page, true);
 
         // Create the core arc widget (no card chrome, no buttons)
         char val_str[16];
@@ -712,7 +712,7 @@ void FanStackWidget::bind_carousel_fans() {
         // handler below): each carousel page is built here, one per discovered
         // fan, and its per-fan state lands on that page's own widgets.
         if (!entry.is_controllable && cp.arc) {
-            lv_obj_remove_flag(cp.arc, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(cp.arc, false);
             lv_obj_set_style_bg_opa(cp.arc, LV_OPA_TRANSP, LV_PART_KNOB); // DECLARATIVE_OK: page
             lv_obj_set_style_shadow_width(cp.arc, 0, LV_PART_KNOB);       // DECLARATIVE_OK: page
             lv_obj_set_style_outline_width(cp.arc, 0, LV_PART_KNOB);      // DECLARATIVE_OK: page
@@ -720,7 +720,7 @@ void FanStackWidget::bind_carousel_fans() {
 
         // Make whole page clickable → open fan control overlay (when the user
         // taps somewhere that isn't the arc itself: label, icon, empty area).
-        lv_obj_add_flag(page, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(page, true);
         lv_obj_set_user_data(page, this);
         lv_obj_add_event_cb(
             page,
@@ -868,7 +868,7 @@ void FanStackWidget::setup_common_observers(std::function<void()> on_anim_change
 void FanStackWidget::update_speed(RowText& row, int speed_pct) {
     char buf[8];
     helix::format::format_percent(speed_pct, buf, sizeof(buf));
-    lv_subject_copy_string(&row.speed, buf);
+    lv_subject_set_string(&row.speed, buf);
 }
 
 void FanStackWidget::update_fan_animation(lv_obj_t* icon, int speed_pct) {

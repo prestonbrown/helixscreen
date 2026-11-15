@@ -134,7 +134,7 @@ class SubjectManager {
      * Hand to observe_*() by anything that can outlive a deinit_all(): the
      * subjects' observer nodes are freed there without bumping the
      * ObserverGuard invalidation epoch, so a guard without this token calls
-     * lv_observer_remove() on a freed node. Always live — flipped and renewed
+     * lv_observer_delete() on a freed node. Always live — flipped and renewed
      * by deinit_all() / expire_subjects_lifetime(), never left empty.
      */
     [[nodiscard]] SubjectLifetime get_subjects_lifetime() const {

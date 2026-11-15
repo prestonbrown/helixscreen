@@ -159,7 +159,7 @@ void PrinterNetworkState::set_printer_connection_state_internal(int state, const
     lv_subject_set_int(&printer_connection_state_, state);
     spdlog::trace("[PrinterNetworkState] Subject value now: {}",
                   lv_subject_get_int(&printer_connection_state_));
-    lv_subject_copy_string(&printer_connection_message_, message);
+    lv_subject_set_string(&printer_connection_message_, message);
     update_nav_buttons_enabled();
     spdlog::trace("[PrinterNetworkState] Printer connection state update complete, observers "
                   "should be notified");

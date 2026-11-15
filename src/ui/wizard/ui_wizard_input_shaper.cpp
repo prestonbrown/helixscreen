@@ -118,7 +118,7 @@ static void safe_update_status(helix::LifetimeToken token, const std::string& ms
         }
         WizardInputShaperStep* step = get_wizard_input_shaper_step();
         if (step) {
-            lv_subject_copy_string(step->get_status_subject(), lv_tr(msg_key.c_str()));
+            lv_subject_set_string(step->get_status_subject(), lv_tr(msg_key.c_str()));
         }
     });
 }
@@ -205,7 +205,7 @@ static void safe_set_complete(helix::LifetimeToken token) {
             // determinate progress tick, so stop any armed elapsed label.
             step->cancel_analysis_display();
             lv_subject_set_int(step->get_indeterminate_subject(), 0);
-            lv_subject_copy_string(step->get_status_subject(), lv_tr("Calibration complete!"));
+            lv_subject_set_string(step->get_status_subject(), lv_tr("Calibration complete!"));
             lv_subject_set_int(step->get_progress_subject(), 100);
             // Calibration finished — hide the Cancel button
             lv_subject_set_int(step->get_active_subject(), 0);
@@ -253,7 +253,7 @@ static void begin_is_calibration_flow(WizardInputShaperStep* step) {
     lv_subject_set_int(&connection_test_passed, 0);
 
     // Update status (already on UI thread, so direct call is safe)
-    lv_subject_copy_string(step->get_status_subject(), lv_tr("Checking accelerometer..."));
+    lv_subject_set_string(step->get_status_subject(), lv_tr("Checking accelerometer..."));
     lv_subject_set_int(step->get_progress_subject(), 0);
 
     auto token = step->get_lifetime_token();
@@ -518,7 +518,7 @@ void WizardInputShaperStep::cleanup() {
     if (subjects_initialized_ && !calibration_complete_) {
         lv_subject_set_int(&calibration_started_, 0);
         lv_subject_set_int(&calibration_progress_, 0);
-        lv_subject_copy_string(&calibration_status_, "Ready to calibrate");
+        lv_subject_set_string(&calibration_status_, "Ready to calibrate");
     }
     // Always clear active on cleanup (whether complete or not — nothing is running anymore)
     if (subjects_initialized_) {
@@ -530,7 +530,7 @@ void WizardInputShaperStep::cleanup() {
     lv_subject_set_int(&connection_test_passed, 1);
 
     // Reset UI references
-    // Note: Do NOT call lv_obj_del() here - the wizard framework handles
+    // Note: Do NOT call lv_obj_delete() here - the wizard framework handles
     // object deletion when clearing wizard_content container
     screen_root_ = nullptr;
 
@@ -567,7 +567,7 @@ bool WizardInputShaperStep::abort_in_progress_calibration() {
         lv_subject_set_int(&calibration_started_, 0);
         lv_subject_set_int(&calibration_active_, 0);
         lv_subject_set_int(&calibration_progress_, 0);
-        lv_subject_copy_string(&calibration_status_, lv_tr("Canceled"));
+        lv_subject_set_string(&calibration_status_, lv_tr("Canceled"));
     }
     lv_subject_set_int(&wizard_show_skip, 1);
     lv_subject_set_int(&connection_test_passed, 0);

@@ -251,6 +251,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
 
     // State queries
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
+    void refresh_translated_texts() override;
 
     [[nodiscard]] AmsType get_type() const override;
     /// Constant capability answers; see BackendTraits.
@@ -755,7 +756,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// clock, flapping between busy and ERROR indefinitely. Released the moment
     /// AFC reports a genuinely different string, and by clear_fault().
     std::optional<std::string> timed_out_state_;
+    /// The status line the timeout showed, and what was happening when it fired
+    /// (a catalog key or AFC's own text; empty for the bare timeout key), so a
+    /// language switch re-words the line while it is still the one shown.
     std::string timed_out_detail_;
+    std::string timed_out_what_;
 
     /// Flip a busy action that has outlived its budget to ERROR and latch it.
     /// No-op while already latched, and for IDLE / ERROR / PAUSED. Caller holds

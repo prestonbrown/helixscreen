@@ -54,6 +54,7 @@
 
 #include "ui_widget_ref.h"
 
+#include "full_page_content.h"
 #include "helix_type_tag.h"
 #include "lvgl/lvgl.h"
 #include "panel_lifecycle.h"
@@ -77,7 +78,7 @@
  * @implements IPanelLifecycle for NavigationManager dispatch
  * @see ViewLifecycleBase for the two lifetime guards and which one to use
  */
-class OverlayBase : public ViewLifecycleBase {
+class OverlayBase : public ViewLifecycleBase, public helix::FullPageContent {
   public:
     /**
      * @brief Virtual destructor for proper cleanup
@@ -164,12 +165,21 @@ class OverlayBase : public ViewLifecycleBase {
      * @return false, building nothing, while the overlay's tree already exists (it is
      *         open on the stack, or embedded elsewhere)
      */
-    bool embed(lv_obj_t* container);
+    bool embed(lv_obj_t* container) override;
 
     /**
      * @brief Deactivate and free a tree embed() built; no-op when none is embedded
      */
-    void release_embed();
+    void release_embed() override;
+
+    /// The root embed() built, or nullptr.
+    lv_obj_t* embedded_root() const override {
+        return is_embedded() ? overlay_root_.get() : nullptr;
+    }
+
+    /// The tree dies with the page, so only the deactivate and the cleanup are
+    /// left: they run on the next tick, unless a page has embedded it again by then.
+    void host_deleting() override;
 
     /// Whether embed() keeps the header bar. An overlay whose header carries
     /// only its title returns false: on a home page the title repeats the tile,

@@ -172,7 +172,7 @@ TEST_CASE_METHOD(
     auto* card = static_cast<lv_obj_t*>(lv_xml_create(grid, "timelapse_video_card", attrs));
     lv_obj_t* play = card ? lv_obj_find_by_name(card, "play_overlay") : nullptr;
     REQUIRE((grid && empty && play));
-    auto hidden = [](lv_obj_t* w) { return lv_obj_has_flag(w, LV_OBJ_FLAG_HIDDEN); };
+    auto hidden = [](lv_obj_t* w) { return lv_obj_is_hidden(w); };
     for (const int on : {1, 0}) {
         lv_subject_set_int(lv_xml_get_subject(nullptr, "timelapse_videos_empty"), on);
         lv_subject_set_int(lv_xml_get_subject(nullptr, "timelapse_videos_can_play"), on);

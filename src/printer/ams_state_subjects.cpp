@@ -15,6 +15,7 @@
 #include "connection_state.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/temp_unit_subject.h"
 #include "printer_cache_registry.h"
 #include "printer_state.h"
 #include "settings_manager.h"
@@ -645,6 +646,15 @@ void AmsState::init_subjects(bool register_xml) {
     install_klippy_state_observer();
     install_connection_state_observer();
     install_print_lifecycle_observer();
+    // The unit readouts are formatted from the backend's Celsius readings; a
+    // °C/°F switch formats them again from the same snapshot.
+    temp_unit_observer_ = helix::ui::observe_temp_unit_change(this, [](AmsState* self) {
+        if (auto* backend = self->get_backend(0)) {
+            if (const auto snapshot = self->read_system_info(0)) {
+                self->sync_unit_environment(backend, *snapshot);
+            }
+        }
+    });
 }
 
 void AmsState::install_klippy_state_observer() {
@@ -725,7 +735,7 @@ void AmsState::install_connection_state_observer() {
 void AmsState::install_print_state_observer() {
     // Idempotent: reset any prior guard before installing a fresh one. The
     // reset path uses the alive token from the *previous* install so it can
-    // safely skip lv_observer_remove() if PrinterState already deinit'd its
+    // safely skip lv_observer_delete() if PrinterState already deinit'd its
     // subjects (e.g. between tests).
     print_state_observer_.reset();
     auto lifetime = get_printer_state().print_state().get_static_subjects_lifetime();
@@ -1027,6 +1037,7 @@ void AmsState::deinit_subjects() {
     print_state_observer_.reset();
     klippy_state_observer_.reset();
     connection_state_observer_.reset();
+    temp_unit_observer_.reset();
     motion_sensor_observer_.reset();
     print_lifecycle_observer_.reset();
 
@@ -1443,7 +1454,7 @@ void AmsState::BackendSlotSubjects::write(int i, const SlotInfo& slot) {
     lv_subject_set_int(&lane_states[i], static_cast<int>(helix::ui::classify_lane(slot)));
     // No prev buffer, so LVGL notifies on every copy; compare here instead.
     if (strcmp(lv_subject_get_string(&materials[i]), slot.material.c_str()) != 0)
-        lv_subject_copy_string(&materials[i], slot.material.c_str());
+        lv_subject_set_string(&materials[i], slot.material.c_str());
     write_slot_name(&names[i], kSlotNameBufSize, slot);
     bool has_error = false;
     int severity = 0;

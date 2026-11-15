@@ -13,7 +13,7 @@
 # find_optional or find_widget, anywhere in the file: the lookup is usually in
 # setup() and the mutation in update_*()):
 #   lv_label_set_text/_fmt(w, ...)          → bind_text="subject"
-#   lv_obj_add_flag(w, LV_OBJ_FLAG_HIDDEN)  → <bind_flag_if_eq> / <if cond=...>
+#   lv_obj_set_hidden(w, ...)               → <bind_flag_if_eq> / <if cond=...>
 #   lv_obj_set_style_*(w, ...)              → XML style attr or bind_style
 #   lv_obj_add_event_cb(w, cb, LV_EVENT_*)  → <event_cb trigger=... callback=.../>
 #
@@ -115,8 +115,8 @@ APPEARANCE_PROPS = (
 
 RULES = {
     'text':       re.compile(r'\blv_label_set_text(?:_fmt|_static)?\s*\(\s*([\w\.\->\[\]]+)'),
-    'visibility': re.compile(r'\blv_obj_(?:add|remove)_flag\s*\(\s*([\w\.\->\[\]]+)\s*,\s*'
-                             r'[^)]*LV_OBJ_FLAG_HIDDEN'),
+    'visibility': re.compile(r'\blv_obj_(?:set_hidden|(?:add|remove)_flag(?=\s*\([^)]*LV_OBJ_FLAG_HIDDEN))'
+                             r'\s*\(\s*([\w\.\->\[\]]+)'),
     'style':      re.compile(r'\blv_obj_set_style_(?:' + APPEARANCE_PROPS +
                              r')\s*\(\s*([\w\.\->\[\]]+)'),
     'event':      re.compile(r'\blv_obj_add_event_cb\s*\(\s*([\w\.\->\[\]]+)'),

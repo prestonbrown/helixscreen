@@ -269,7 +269,7 @@ class PagingFixture : public LVGLUITestFixture {
     }
 
     bool hidden(const char* name) {
-        return lv_obj_has_flag(named(name), LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(named(name));
     }
 
     void tap(lv_obj_t* obj) {
@@ -306,7 +306,7 @@ class PagingFixture : public LVGLUITestFixture {
     /// Whether a slot context menu is on screen.
     bool slot_menu_open() {
         lv_obj_t* backdrop = lv_obj_find_by_name(test_screen(), "context_backdrop");
-        return backdrop != nullptr && !lv_obj_has_flag(backdrop, LV_OBJ_FLAG_HIDDEN);
+        return backdrop != nullptr && !lv_obj_is_hidden(backdrop);
     }
 
     /// The canvas's hub box.
@@ -330,7 +330,7 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: the panel opens on the overview",
     CHECK(subject(AmsState::instance().get_ams_unit_view_active_subject()) == 0);
     CHECK(page_count() == 0);
     CHECK(AmsPanelTestAccess::unit_cards(panel()).size() == 12);
-    CHECK_FALSE(lv_obj_has_flag(named("unit_cards_row"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(named("unit_cards_row")));
 
     // Each card's drop binds its own unit's humidity subject, not unit 0's.
     const auto cards = AmsPanelTestAccess::unit_cards(panel());
@@ -349,10 +349,10 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: the panel opens on the overview",
         REQUIRE(drop != nullptr);
         CHECK(helix::ui::humidity_drop_value(drop) == (30 + units[i]) * 10);
     }
-    CHECK_FALSE(lv_obj_has_flag(named("system_path_area"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(named("unit_detail_container"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(named("header_title"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(named("header_backend_suffix"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(named("system_path_area")));
+    CHECK(lv_obj_is_hidden(named("unit_detail_container")));
+    CHECK_FALSE(lv_obj_is_hidden(named("header_title")));
+    CHECK(lv_obj_is_hidden(named("header_backend_suffix")));
 }
 
 TEST_CASE_METHOD(PagingFixture, "Unit view: tapping a card opens that unit's page",
@@ -409,11 +409,11 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: a card of the fleet opens its own pa
     CHECK(subject(AmsState::instance().get_ams_unit_view_active_subject()) == 1);
 
     // The overview's elements give way to the unit view, and the header names the unit.
-    CHECK(lv_obj_has_flag(named("unit_cards_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(named("system_path_area"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(named("unit_detail_container"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(named("header_title"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(named("header_backend_suffix"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(named("unit_cards_row")));
+    CHECK(lv_obj_is_hidden(named("system_path_area")));
+    CHECK_FALSE(lv_obj_is_hidden(named("unit_detail_container")));
+    CHECK(lv_obj_is_hidden(named("header_title")));
+    CHECK_FALSE(lv_obj_is_hidden(named("header_backend_suffix")));
 
     SECTION("another card opens its page") {
         tap(named("back_button"));
@@ -753,13 +753,13 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: a disconnected unit's page says so i
     open_at(2);
     REQUIRE(page_current() == 2);
     lv_obj_t* chip = named("detail_disconnected_chip");
-    CHECK(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(chip));
 
     // The flag is the viewed unit's, and it follows the page.
     go_to(3);
-    CHECK_FALSE(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(chip));
     go_to(4);
-    CHECK(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(chip));
 }
 
 TEST_CASE_METHOD(PagingFixture, "Unit view: a change in the system keeps the shown unit",
@@ -832,10 +832,10 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: Back returns to the overview, and Ba
     CHECK(helix::nav::is_showing(panel_root));
     CHECK_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
     CHECK(subject(AmsState::instance().get_ams_unit_view_active_subject()) == 0);
-    CHECK_FALSE(lv_obj_has_flag(named("unit_cards_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(named("system_path_area"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(named("unit_detail_container"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(named("header_title"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(named("unit_cards_row")));
+    CHECK_FALSE(lv_obj_is_hidden(named("system_path_area")));
+    CHECK(lv_obj_is_hidden(named("unit_detail_container")));
+    CHECK_FALSE(lv_obj_is_hidden(named("header_title")));
     CHECK(page_count() == 0);
     CHECK(AmsPanelTestAccess::pages(panel()).empty());
     // No unit is viewed any more.
@@ -855,8 +855,8 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: reopening the panel shows the overvi
     CHECK(helix::nav::is_showing(root()));
     CHECK_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
     CHECK(subject(AmsState::instance().get_ams_unit_view_active_subject()) == 0);
-    CHECK_FALSE(lv_obj_has_flag(named("unit_cards_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(named("unit_detail_container"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(named("unit_cards_row")));
+    CHECK(lv_obj_is_hidden(named("unit_detail_container")));
 
     // A card opens its own page again, not the one left behind.
     enter(2);
@@ -992,16 +992,16 @@ TEST_CASE_METHOD(PagingFixture,
         helix::ui::UpdateQueue::instance().drain();
         process_lvgl(20);
         lv_obj_update_layout(lv_obj_get_screen(logo));
-        CHECK_FALSE(lv_obj_has_flag(logo, LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(logo));
+        CHECK_FALSE(lv_obj_is_hidden(name));
         lv_area_t logo_box;
         lv_area_t name_box;
         lv_obj_get_coords(logo, &logo_box);
         lv_obj_get_coords(name, &name_box);
         CHECK(std::abs((logo_box.y1 + logo_box.y2) - (name_box.y1 + name_box.y2)) <= 2);
-        CHECK_FALSE(lv_obj_has_flag(named("header_backend_suffix"), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(named("header_backend_suffix")));
         // The overview's own title is not in play.
-        CHECK(lv_obj_has_flag(named("header_title"), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(named("header_title")));
     }
     lv_subject_set_int(bp, original);
     helix::ui::UpdateQueue::instance().drain();
@@ -1106,7 +1106,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::AmsStateTestAccess::seed_external_spool(spool);
     helix::ui::bypass_spool_sync_from_state(w);
     REQUIRE(helix::ui::bypass_node_visible_for(ams.get_backend()));
-    CHECK_FALSE(lv_obj_has_flag(w.box, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(w.box));
     CHECK(w.cached_color_rgb == 0x3366CC);
     CHECK(w.cached_has_spool);
     CHECK(std::string(w.cached_material) == "PETG");
@@ -1114,7 +1114,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // The node leaves the path: the widget goes with it.
     ams.set_backend(nullptr);
     helix::ui::bypass_spool_sync_from_state(w);
-    CHECK(lv_obj_has_flag(w.box, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(w.box));
 
     helix::ui::bypass_spool_destroy(w);
 }
@@ -1224,9 +1224,9 @@ TEST_CASE_METHOD(PagingFixture, "Unit view in portrait: the page dots float over
     lv_obj_update_layout(lv_screen_active());
     lv_obj_t* dots = named("page_dots");
     lv_obj_t* canvas = named("detail_path_canvas");
-    REQUIRE_FALSE(lv_obj_has_flag(dots, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(dots));
     // Floating, so the dots take no row of the unit view's height...
-    CHECK(lv_obj_has_flag(dots, LV_OBJ_FLAG_FLOATING));
+    CHECK(lv_obj_is_floating(dots));
     // ...and they sit inside the canvas's bottom-left quarter.
     lv_area_t da, ca;
     lv_obj_get_coords(dots, &da);
@@ -1299,7 +1299,7 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with art is the art, not 
         CHECK(lv_obj_find_by_name(card, "slot_count") == nullptr);
         lv_obj_t* art = lv_obj_find_by_name(card, "unit_art");
         REQUIRE(art != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(art, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(art));
         CHECK(lv_obj_get_width(art) > 40);
         CHECK(helix::ui::unit_art_is_flattened(art));
         lv_obj_t* name = lv_obj_find_by_name(card, "unit_name");
@@ -1364,12 +1364,12 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: the readout goes on the smallest
     for (int tier : {0, 1}) {
         lv_subject_set_int(bp, tier);
         INFO("breakpoint " << tier);
-        CHECK(lv_obj_has_flag(readout, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(readout));
     }
     for (int tier : {2, 3}) {
         lv_subject_set_int(bp, tier);
         INFO("breakpoint " << tier);
-        CHECK_FALSE(lv_obj_has_flag(readout, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(readout));
     }
     lv_subject_set_int(bp, original);
 }

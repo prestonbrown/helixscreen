@@ -124,8 +124,8 @@ void ToolOffsetCalibrationPanel::on_activate() {
     // could not start never set it.
     lv_subject_set_int(&active_, run_active_ ? 1 : 0);
     if (!run_active_) {
-        lv_subject_copy_string(&status_, last_error_.empty() ? lv_tr("Ready to calibrate")
-                                                             : last_error_.c_str());
+        lv_subject_set_string(&status_, last_error_.empty() ? lv_tr("Ready to calibrate")
+                                                            : last_error_.c_str());
     }
     // The macro's own description: is the instruction text, read from the
     // cache discovery filled from configfile.config - as the macros panel
@@ -133,10 +133,9 @@ void ToolOffsetCalibrationPanel::on_activate() {
     // implementation: how it heats, probes and which tool it measures
     // against is the macro's business, not this screen's.
     const std::string desc = helix::MacroParamCache::instance().get(panel_macro()).description;
-    lv_subject_copy_string(&hint_, desc.empty()
-                                       ? lv_tr("Runs the printer's tool offset calibration "
-                                               "for every tool.")
-                                       : desc.c_str());
+    lv_subject_set_string(&hint_, desc.empty() ? lv_tr("Runs the printer's tool offset calibration "
+                                                       "for every tool.")
+                                               : desc.c_str());
     refresh_rows();
 }
 
@@ -265,7 +264,7 @@ void ToolOffsetCalibrationPanel::begin_run() {
     run_active_ = true;
     last_error_.clear();
     lv_subject_set_int(&active_, 1);
-    lv_subject_copy_string(&status_, lv_tr("Calibrating..."));
+    lv_subject_set_string(&status_, lv_tr("Calibrating..."));
 
     spdlog::info("[ToolOffsetCal] Running {} over {} tools", gcode, tool_count);
     // Moonraker's printer.gcode.script answers when the script finishes, so
@@ -305,8 +304,7 @@ void ToolOffsetCalibrationPanel::begin_idle_wait() {
     spdlog::warn("[ToolOffsetCal] Calibration rpc timed out with the printer still busy - "
                  "waiting for the busy->idle edge");
     idle_wait_active_ = true;
-    lv_subject_copy_string(&status_,
-                           lv_tr("Calibration may still be running — response timed out"));
+    lv_subject_set_string(&status_, lv_tr("Calibration may still be running — response timed out"));
 
     // Backstop: the macro already had a full ceiling on the rpc side; a
     // printer still busy after another one is wedged. Re-read the subject when
@@ -369,12 +367,12 @@ void ToolOffsetCalibrationPanel::on_run_finished(bool ok, const std::string& err
 
     if (ok) {
         spdlog::info("[ToolOffsetCal] Calibration finished");
-        lv_subject_copy_string(&status_, lv_tr("Calibration complete - save to keep the offsets"));
+        lv_subject_set_string(&status_, lv_tr("Calibration complete - save to keep the offsets"));
         return;
     }
     last_error_ = error.empty() ? lv_tr("Calibration failed") : error;
     spdlog::error("[ToolOffsetCal] Calibration failed: {}", last_error_);
-    lv_subject_copy_string(&status_, last_error_.c_str());
+    lv_subject_set_string(&status_, last_error_.c_str());
     // The refusal is a one-time event with a verbatim firmware message; a
     // dismissible alert, not a permanent card. Off screen it is a toast: the
     // status line carries last_error_ when the panel comes back.
@@ -403,7 +401,7 @@ bool ToolOffsetCalibrationPanel::abort_in_progress_calibration() {
     finish_idle_wait();
     run_active_ = false;
     lv_subject_set_int(&active_, 0);
-    lv_subject_copy_string(&status_, lv_tr("Stopped"));
+    lv_subject_set_string(&status_, lv_tr("Stopped"));
 
     helix::emergency_stop_and_restart(api, "ToolOffsetCal");
     return true;
@@ -479,14 +477,14 @@ void ToolOffsetCalibrationPanel::send_save() {
         spdlog::info("[ToolOffsetCal] Nothing left to save");
         return;
     }
-    lv_subject_copy_string(&status_, lv_tr("Saving offsets..."));
+    lv_subject_set_string(&status_, lv_tr("Saving offsets..."));
     helix::zoffset::save_dirty_offsets(
         api, save_watch_, ps.profile_state().z_offset_calibration_strategy(), ps.get_discovery(),
         helix::zoffset::saves_global(facts),
         object_lifetime_.bg_cb("ToolOffsetCal::saved",
                                [this]() {
                                    last_error_.clear();
-                                   lv_subject_copy_string(&status_, lv_tr("Offsets saved"));
+                                   lv_subject_set_string(&status_, lv_tr("Offsets saved"));
                                    NOTIFY_SUCCESS("{}", lv_tr("Tool offsets saved"));
                                }),
         object_lifetime_.bg_cb("ToolOffsetCal::save_failed",
@@ -495,7 +493,7 @@ void ToolOffsetCalibrationPanel::send_save() {
                                    // the status line, so a failure the user walked
                                    // away from would otherwise read "Ready".
                                    last_error_ = error;
-                                   lv_subject_copy_string(&status_, error.c_str());
+                                   lv_subject_set_string(&status_, error.c_str());
                                    NOTIFY_ERROR("{}", error);
                                }),
         &ps);

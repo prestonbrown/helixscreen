@@ -306,7 +306,7 @@ TEST_CASE_METHOD(
 
     lv_obj_t* rect = ExcludeObjectMapViewTestAccess::rect_for(view, "OBJ_1");
     REQUIRE(rect != nullptr);
-    CHECK(lv_obj_has_flag(rect, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(rect));
     lv_obj_send_event(rect, LV_EVENT_CLICKED, nullptr);
     REQUIRE(taps.size() == 1);
     CHECK(taps[0] == "OBJ_1");
@@ -331,7 +331,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Map view in exclude-only mode drops an exclude
 
     lv_obj_t* rect = ExcludeObjectMapViewTestAccess::rect_for(view, "OBJ_1");
     REQUIRE(rect != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(rect, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(rect));
 
     view.destroy();
     process_lvgl(20);
@@ -394,7 +394,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Two map views keep their own plate size and em
         return std::string(lv_label_get_text(lv_obj_find_by_name(v.root(), "plate_dims_label")));
     };
     auto empty_shown = [](ExcludeObjectMapView& v) {
-        return !lv_obj_has_flag(lv_obj_find_by_name(v.root(), "empty_message"), LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(lv_obj_find_by_name(v.root(), "empty_message"));
     };
 
     CHECK(dims(without) == "300×200 mm");
@@ -432,8 +432,7 @@ TEST_CASE_METHOD(XMLTestFixture, "A picked object's outline fades on the map lik
     CHECK(picked <= static_cast<int>(helix::ui::object_badge_opa(true)));
     // Its neighbour keeps a full-strength outline, and the picked rect stays tappable.
     CHECK(ExcludeObjectMapViewTestAccess::outline_alpha_near(view, 115.0f, 100.0f) == unpicked);
-    CHECK(lv_obj_has_flag(ExcludeObjectMapViewTestAccess::rect_for(view, "OBJ_1"),
-                          LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(ExcludeObjectMapViewTestAccess::rect_for(view, "OBJ_1")));
 
     view.destroy();
     process_lvgl(20);
@@ -591,7 +590,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Mini map takes a layout slot and offers nothin
     REQUIRE(view.is_active());
     process_lvgl(30);
 
-    CHECK_FALSE(lv_obj_has_flag(view.root(), LV_OBJ_FLAG_IGNORE_LAYOUT));
+    CHECK_FALSE(lv_obj_is_ignore_layout(view.root()));
     CHECK(lv_obj_get_width(view.root()) == 120);
     CHECK(lv_obj_get_height(view.root()) == 100);
     CHECK(ExcludeObjectMapViewTestAccess::rect_count(view) == 0);

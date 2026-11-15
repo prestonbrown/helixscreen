@@ -380,12 +380,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: a missing target falls back to
     REQUIRE(next != nullptr);
 
     overlay.show_step(0);
-    CHECK_FALSE(lv_obj_has_flag(highlight_of(overlay), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(highlight_of(overlay)));
     CHECK(text("tour_title") == "Title");
     CHECK(text("tour_counter") == "1 / 2");
     CHECK(std::string(lv_label_get_text(ui_button_get_label(next))) == "Next");
     overlay.show_step(1);
-    CHECK(lv_obj_has_flag(highlight_of(overlay), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(highlight_of(overlay)));
     CHECK(text("tour_counter") == "2 / 2");
     CHECK(std::string(lv_label_get_text(ui_button_get_label(next))) == "Done");
 
@@ -438,7 +438,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: the preview belongs only to it
     REQUIRE(preview != nullptr);
 
     overlay.show_step(0);
-    CHECK_FALSE(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(preview));
     lv_obj_t* printer = lv_obj_find_by_name(preview, "tour_preview_printer");
     REQUIRE(printer != nullptr);
     const std::string expected = helix::PrinterImageManager::instance().get_displayed_image_path(
@@ -446,16 +446,16 @@ TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: the preview belongs only to it
     REQUIRE_FALSE(expected.empty());
     CHECK(static_cast<const char*>(lv_image_get_src(printer)) == expected);
     overlay.show_step(1);
-    CHECK(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(preview));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: hide_card lasts until the next step", "[tour]") {
     helix::tour::TourOverlay overlay({plain_step("")}, {}, {});
     overlay.show_step(0);
     overlay.hide_card();
-    CHECK(lv_obj_has_flag(tooltip_of(overlay), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(tooltip_of(overlay)));
     overlay.show_step(0);
-    CHECK_FALSE(lv_obj_has_flag(tooltip_of(overlay), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(tooltip_of(overlay)));
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: a running tour holds back the plugin prompt",

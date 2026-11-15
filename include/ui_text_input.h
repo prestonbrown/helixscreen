@@ -40,7 +40,7 @@ enum class KeyboardHint : uint8_t {
  * @endcode
  *
  * The bind_text attribute creates a reactive observer - when the subject
- * is updated via lv_subject_copy_string(), the textarea automatically updates.
+ * is updated via lv_subject_set_string(), the textarea automatically updates.
  *
  * The keyboard_hint attribute specifies which keyboard mode to show initially:
  * - "text" (default): Standard lowercase letter keyboard

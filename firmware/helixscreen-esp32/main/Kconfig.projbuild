@@ -91,6 +91,18 @@ config HELIX_LOG_STRIP_DEBUG
         this off to get full debug/trace formatting back for on-device
         debugging; info/warn/error/critical are unaffected either way.
 
+config HELIX_LOG_TOKENIZE
+    bool "Tokenize spdlog::info/warn/error/critical on the console"
+    default y
+    help
+        Keep info/warn/error/critical format strings out of the image: each
+        call prints a "$" + base64 record holding a token and its arguments,
+        and scripts/detokenize_log.py turns a captured console log back into
+        text with the token database the build writes next to the ELF
+        (helixscreen_esp32.logtok.json). The strings stay in the ELF's
+        non-loaded .helix_logfmt section. Turn this off for a console that
+        reads as plain text without the host tool.
+
 config HELIX_SUBJECT_DEBUG_STRIP
     bool "Compile the subject debug registry out of the subject macros"
     default y

@@ -162,7 +162,7 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
                 } else {
                     info = date_str;
                 }
-                lv_subject_copy_string(&timelapse_capture_info_, info.c_str());
+                lv_subject_set_string(&timelapse_capture_info_, info.c_str());
             }
         });
 
@@ -195,7 +195,7 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
 
             async_lifetime_.defer("TimelapseState::render_progress", [this, progress]() {
                 lv_subject_set_int(&timelapse_render_progress_, progress);
-                lv_subject_copy_string(&timelapse_render_status_, lv_tr("rendering"));
+                lv_subject_set_string(&timelapse_render_status_, lv_tr("rendering"));
             });
 
             spdlog::debug("[TimelapseState] Render progress: {}%", progress);
@@ -212,8 +212,8 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
                 "TimelapseState::render_complete", [this, filename, cb = std::move(cb)]() {
                     lv_subject_set_int(&timelapse_render_progress_, 0);
                     lv_subject_set_int(&timelapse_frame_count_, 0);
-                    lv_subject_copy_string(&timelapse_render_status_, lv_tr("complete"));
-                    lv_subject_copy_string(&timelapse_capture_info_, "");
+                    lv_subject_set_string(&timelapse_render_status_, lv_tr("complete"));
+                    lv_subject_set_string(&timelapse_capture_info_, "");
                     if (cb) {
                         cb(filename);
                     }
@@ -227,7 +227,7 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
 
         } else if (status == "error") {
             async_lifetime_.defer("TimelapseState::render_error", [this]() {
-                lv_subject_copy_string(&timelapse_render_status_, lv_tr("error"));
+                lv_subject_set_string(&timelapse_render_status_, lv_tr("error"));
             });
 
             last_notified_progress_ = -1;
@@ -253,8 +253,8 @@ void TimelapseState::reset() {
     async_lifetime_.defer("TimelapseState::reset", [this]() {
         lv_subject_set_int(&timelapse_frame_count_, 0);
         lv_subject_set_int(&timelapse_render_progress_, 0);
-        lv_subject_copy_string(&timelapse_render_status_, lv_tr("idle"));
-        lv_subject_copy_string(&timelapse_capture_info_, "");
+        lv_subject_set_string(&timelapse_render_status_, lv_tr("idle"));
+        lv_subject_set_string(&timelapse_capture_info_, "");
     });
 
     last_notified_progress_ = -1;

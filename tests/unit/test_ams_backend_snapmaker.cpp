@@ -39,6 +39,7 @@
 #include "spoolman_types.h" // SpoolInfo + apply_spool_to_slot (the picker-side writer)
 #include "test_helpers/backend_harness.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/scoped_language.h"
 #include "test_helpers/seeded_override.h"
 #include "tool_state.h"
 #include "translation_loader.h"
@@ -644,6 +645,13 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker channel_error raises Error only on
             CHECK(info.operation_detail.find("Feeder 2: No filament") != std::string::npos);
         else
             CHECK(info.operation_detail == row.detail);
+        if (row.detail == nullptr) {
+            // A standing fault re-words on a language switch with no new frame.
+            ScopedLanguage fr("fr");
+            backend.refresh_translated_texts();
+            CHECK(backend.get_system_info().operation_detail.find("Pas de filament") !=
+                  std::string::npos);
+        }
     }
 }
 
@@ -2778,26 +2786,9 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker prepare_for_resume classifies the 
     }
 }
 
-namespace {
-
-// LVGL has no pack-unregister API, so selecting a language nothing has loaded
-// makes every subsequent lookup miss again - the restore idiom
-// test_translation_loader.cpp uses.
-struct ScopedLanguage {
-    ScopedLanguage() = default;
-    ~ScopedLanguage() {
-        lv_translation_set_language(helix::ui::kIdentityLocale);
-    }
-    ScopedLanguage(const ScopedLanguage&) = delete;
-    ScopedLanguage& operator=(const ScopedLanguage&) = delete;
-};
-
-} // namespace
-
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker prepare_for_resume authors a translated reason",
                  "[ams][snapmaker][resume][i18n]") {
     lv_init_safe();
-    ScopedLanguage restore_lang;
     PrinterState& ps = get_printer_state();
     ps.init_subjects(false);
 
@@ -2806,8 +2797,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker prepare_for_resume authors a trans
                    {"virtual_sdcard", {{"is_active", false}}}};
     ps.update_from_status(paused);
 
-    helix::ui::ensure_translation_loaded("ru");
-    lv_translation_set_language("ru");
+    ScopedLanguage ru("ru");
 
     helix::test::RegisteredBackend<AmsBackendSnapmaker> backend_reg(nullptr, nullptr);
     AmsBackendSnapmaker& backend = *backend_reg;

@@ -420,7 +420,7 @@ class PrinterState {
      * in process-lifetime singletons are exactly that case: `deinit_subjects()`
      * runs `lv_subject_deinit()`, which frees every observer node, and an
      * ObserverGuard that never learned the subject died then calls
-     * `lv_observer_remove()` on freed memory the next time it resets.
+     * `lv_observer_delete()` on freed memory the next time it resets.
      *
      * Prefer the narrower per-subject token where one exists (dynamic per-fan and
      * per-extruder subjects die independently of a full deinit); use this for the

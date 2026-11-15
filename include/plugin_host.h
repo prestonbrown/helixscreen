@@ -141,6 +141,10 @@ class PluginHost {
 
   private:
     struct Loaded {
+        /// The manifest this instance loaded, which ctx->manifest refers to. Owned here
+        /// because plugins_ shifts and reallocates when a rescan adds or removes a plugin,
+        /// while a loaded_ node stays put until unload.
+        Manifest manifest;
         json settings;
         std::unique_ptr<PluginContext> ctx;
         std::unique_ptr<LuaRuntime> rt; ///< destroyed before ctx

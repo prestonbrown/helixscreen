@@ -397,6 +397,9 @@ translations:
   Auto Bed Mesh: Automatisches Bettnetz
   Auto Cal: Auto-Kal.
   Auto Fans: Automatische Lüfter
+  Auto loading: "Automatisches Laden"
+  Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand.: "Automatisches Laden ist für diesen Werkzeugkopf aus. Schalten Sie es unter Druckverhalten ein oder laden Sie das Filament von Hand."
+  Auto loading is off; turn it on under Print Behavior: "Automatisches Laden ist aus; unter Druckverhalten einschalten"
   Auto-Detect: Auto-Erkennung
   Auto-Heat on Load: Automatisches Heizen beim Laden
   Auto-Replenish: Automatisch nachfüllen
@@ -757,6 +760,7 @@ translations:
     angewendet. Während des Drucks zur Feinabstimmung anpassen.
   Changes are temporary and reset on printer reboot: Änderungen sind temporär und
     werden beim Neustart des Druckers zurückgesetzt
+  Changing filament: "Filament wird gewechselt"
   Check AFC configuration: 'Prüfen Sie die AFC-Konfiguration'
   Check Again: Erneut prüfen
   Check Klipper console for details: Details finden Sie in der Klipper-Konsole
@@ -971,6 +975,7 @@ translations:
   Connected to {}: Verbunden mit {}
   Connected! Discovering printer...: Verbunden! Drucker wird erkannt...
   Connected, discovering...: Verbunden, Erkennung...
+  Connected, getting address…: Verbunden, Adresse wird bezogen…
   Connecting Camera...: Kamera wird verbunden...
   'Connecting to ': 'Verbinde mit '
   Connecting to %s...: Verbinde mit %s...
@@ -1049,6 +1054,7 @@ translations:
   Load all stopped: Laden gestoppt
   "Load and unload": "Laden und Entladen"
   Load stopped: Laden gestoppt
+  "Load, unload, purge, and extrude filament": "Filament laden, entladen, spülen und extrudieren"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Hier laden, entladen und entlüften. Wählen Sie zuerst ein Material, um seine Temperaturen einzustellen."
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Spulen laden, entladen und wechseln, Temperaturen einstellen und Filamentsensoren überwachen."
   "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "Lange auf eine Kachel drücken, um in den Bearbeitungsmodus zu wechseln. Im neuen Raster können Sie Widgets anordnen, skalieren, entfernen, hinzufügen und zwischen Seiten ziehen."
@@ -1164,6 +1170,7 @@ translations:
   'Cutter calibration failed: {}': 'Schneider-Kalibrierung fehlgeschlagen: {}'
   Cutter jam: Schneidestau
   Cutting: Schneiden
+  Cutting filament: "Filament wird geschnitten"
   Cutting filament...: Filament wird geschnitten...
   Cycle every tool: Alle Werkzeuge durchwechseln
   Cycling tools...: Werkzeuge werden durchgewechselt...
@@ -1675,6 +1682,7 @@ translations:
   Feeder: Zuführung
   Feeders: Zuführungen
   Feeding filament forward: Filament wird vorwärts geführt
+  Feeding filament to nozzle: "Filament wird zur Düse geführt"
   Filament: Filament
   Filament Buffer: 'Filamentpuffer'
   Filament Control: Filamentsteuerung
@@ -1690,6 +1698,7 @@ translations:
   Filament Mapping is unavailable: Filament-Zuordnung ist nicht verfügbar
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: Filament-Zuordnung wird von diesem Drucker nicht unterstützt, daher verwendet der Druck die am Drucker zugewiesenen Werkzeuge
   Filament Runout: Filament aufgebraucht
+  Filament Operations: Filament-Operationen
   Filament Sensor: Filamentsensor
   Filament Sensors: 'Filamentsensoren'
   Filament System Error: Filamentsystemfehler
@@ -1847,6 +1856,7 @@ translations:
   Gear sync: Zahnradsynchronisation
   Generic: Generisch
   Get help and share feedback: Hilfe erhalten und Feedback teilen
+  Getting address…: Adresse wird bezogen…
   Getting ready...: 'Wird vorbereitet...'
   Glass Effects: Glaseffekte
   Global: Global
@@ -1937,7 +1947,10 @@ translations:
   Heating chamber...: Kammer aufheizen...
   Heating is nearly the whole wait. Leaving the screen now stops the run.: 'Das Aufheizen dauert am längsten. Wenn du den Bildschirm jetzt verlässt, stoppt der Durchlauf.'
   Heating nozzle: 'Düse heizt auf'
+  Heating nozzle ({}): "Düse heizt auf ({})"
   Heating nozzle to $1°C...: Düse heizt auf $1°C auf...
+  Heating nozzle to {}: "Düse heizt auf {} auf"
+  Heating nozzle to {} ({}): "Düse heizt auf {} auf ({})"
   Heating nozzle...: Düse aufheizen...
   Heating the bed: Heizbett wird aufgeheizt
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Bett und Düse heizen auf, damit der Druck wieder haftet und die Düse sich von ihm löst"
@@ -2060,7 +2073,10 @@ translations:
   I understand: Ich habe verstanden
 
   ID (optional): ID (optional)
+  IFS driver error: "IFS-Treiberfehler"
   IFS updates without polling: 'IFS-Aktualisierungen ohne Abfragen'
+  'IFS: loading': "IFS: Laden"
+  'IFS: unloading': "IFS: Entladen"
   IMPORT FROM USB: VON USB IMPORTIEREN
   INDX dock positions are not calibrated: "INDX-Dockpositionen sind nicht kalibriert"
   INDX macros not recognized: "INDX-Makros nicht erkannt"
@@ -2601,6 +2617,7 @@ translations:
   Mount tool: 'Werkzeug montieren'
   Mount which tool?: 'Welches Werkzeug montieren?'
   Mount...: 'Montieren...'
+  'Mounted: {}': 'Montiert: {}'
   Move: Bewegen
   Move here: Hierhin bewegen
   Move out of range: 'Bewegung außerhalb des Bereichs'
@@ -2724,6 +2741,7 @@ translations:
   No events queued: Keine Ereignisse in Warteschlange
   No extruder heater found. Check [extruder] in printer.cfg: 'Kein Extruder-Heizelement gefunden. [extruder] in printer.cfg prüfen'
   No fans detected: Keine Lüfter erkannt
+  No feeder attached: "Keine Zuführung angeschlossen"
   No filament: Kein Filament
   No filament environment sensors: Keine Filament-Umgebungssensoren
   No filament loaded to unload: Kein Filament zum Entladen geladen
@@ -2788,6 +2806,7 @@ translations:
   No timelapse videos found: Keine Zeitraffer-Videos gefunden
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Kein Werkzeug ist als montiert bekannt. Mit einer gemeinsamen Sonde mit {} kalibrieren. Trotzdem fortfahren?'
   No tool is mounted: 'Kein Werkzeug montiert'
+  No tool mounted: 'Kein Werkzeug montiert'
   No tool on the head: "Kein Werkzeug am Werkzeugkopf"
   No tools to calibrate: Keine Werkzeuge zum Kalibrieren
   'No turn: the gap moved {:.1f} Hz': "Keine Drehung: der Abstand bewegte sich um {:.1f} Hz"
@@ -3055,9 +3074,11 @@ translations:
   Pick Color: Farbe wählen
   Pick how HelixScreen behaves. You can change any of these later in Settings.: 'Wähle, wie sich HelixScreen verhält. Du kannst alles später in den Einstellungen ändern.'
   Pick the best band: Besten Bereich wählen
+  Pick up: 'Montieren'
   Pick up and park each tool in turn: Jedes Werkzeug nacheinander aufnehmen und abstellen
   Pick up the tool, heat it, and pull the filament out: "Werkzeug aufnehmen, aufheizen und das Filament herausziehen"
   Pick up tool: Werkzeug aufnehmen
+  Pick-up step cancelled; nothing was sent: 'Abholschritt abgebrochen; nichts wurde gesendet'
   Picking up tool: Werkzeug aufnehmen
   Pill: Pille
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Pixel, bevor
@@ -3344,6 +3365,7 @@ translations:
   Purge tower and brush settings: 'Einstellungen für Reinigungsturm und Bürste'
   Purging: Spülen
   Purging nozzle: Düse wird gespült
+  Purging old filament: "Altes Filament wird gespült"
   Purging...: Entlüften...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "Reinigungsfilament bis zum Anschlag in den Extruder schieben, dann Extrudieren antippen."
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Schiebe das Filament bis zum Anschlag in den Extruder. Es wird automatisch gegriffen, oder tippe auf Extrudieren."
@@ -3615,6 +3637,7 @@ translations:
   Retract may still be running — response timed out: Einzug läuft möglicherweise noch
     — Zeitüberschreitung
   Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: Zum Entladen einziehen. Kommt es sauber zurück, das zerfaserte Ende abschneiden und erneut zuführen
+  Retracting filament from nozzle: "Filament wird aus der Düse zurückgezogen"
   Retraction: Retraktion
   Retraction Settings: Rückzugseinstellungen
   Retraction distance in the cooling tube: 'Rückzugsweg im Kühlrohr'
@@ -4498,6 +4521,7 @@ translations:
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : Im Werkzeugkopf befindet sich Filament, aber kein AMS-Slot meldet es als geladen. Der Drucker verweigert möglicherweise das Laden eines Slots, bis er geleert ist. Trotzdem starten?
   The toolhead is not homed, so this would home into the print: 'Der Werkzeugkopf ist nicht referenziert, das Referenzieren würde in den Druck fahren'
+  'The toolhead may still be at the chute. Move it away before printing.': 'Der Druckkopf befindet sich möglicherweise noch an der Rinne. Bewege ihn vor dem Drucken weg.'
   ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
   : 'Der Werkzeugkopf fährt mit Geschwindigkeiten von 20 bis 300 mm/s hin und her, während der Beschleunigungssensor misst, wie stark jeder Motor vibriert. Das dauert etwa {0} Minuten und ist laut. Von den Geschwindigkeiten mit der stärksten Vibration solltest du deine Außenwände fernhalten.'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: Der
@@ -4742,6 +4766,7 @@ translations:
   Toolhead Style: Toolhead-Stil
   Toolhead X: Werkzeugkopf X
   Toolhead Y: Werkzeugkopf Y
+  'Toolhead did not return to park: {}': 'Der Druckkopf ist nicht in die Parkposition zurückgekehrt: {}'
   Toolhead jam: Werkzeugkopf-Stau
   Toolhead lost homing: Werkzeugkopf hat die Referenzierung verloren
   Toolhead offset calibration: Werkzeugkopf-Offset-Kalibrierung
@@ -4965,6 +4990,7 @@ translations:
   Wait for the current filament operation to finish: Warten Sie, bis der aktuelle Filamentvorgang abgeschlossen ist
   Wait for the current operation to complete: Warten Sie, bis der aktuelle Vorgang abgeschlossen ist
   Wait for the current operation to complete or cancel it first: Warten Sie, bis der aktuelle Vorgang abgeschlossen ist, oder brechen Sie ihn zuvor ab
+  Wait for the load or unload to finish: "Warten Sie, bis das Laden oder Entladen abgeschlossen ist"
   Wait for the motor to stop: "Warte, bis der Motor stillsteht"
   Wait for the nozzle to stop moving: Warten Sie, bis die Düse stillsteht
   Wait for the running INDX operation to finish: Warten Sie, bis der laufende INDX-Vorgang abgeschlossen ist
@@ -5308,6 +5334,7 @@ translations:
   '{} d': "{} T"
   '{} days': "{} Tage"
   '{} detected': '{} erkannt'
+  '{} did not arrive; nothing was sent': '{} ist nicht angekommen; nichts wurde gesendet'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{} wurde nicht geladen. Prüfen Sie, ob das Hotend richtig sitzt, und extrudieren Sie testweise, bevor Sie fortsetzen.'
   '{} disabled': '{} deaktiviert'
   '{} disconnected': '{} getrennt'

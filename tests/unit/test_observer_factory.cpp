@@ -142,7 +142,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Factory: a guard reset before drain drops the
     rec = Recorder{};
 
     lv_subject_set_int(&int_subject, 2);
-    lv_subject_copy_string(&str_subject, "x");
+    lv_subject_set_string(&str_subject, "x");
     guard.reset();
     drain();
 
@@ -181,8 +181,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "Factory: deferred families deliver the value 
     // string is copied at notify time, not read back from the subject's buffer at drain.
     lv_subject_set_int(&int_subject, 1);
     lv_subject_set_int(&int_subject, 2);
-    lv_subject_copy_string(&str_subject, "a");
-    lv_subject_copy_string(&str_subject, "b");
+    lv_subject_set_string(&str_subject, "a");
+    lv_subject_set_string(&str_subject, "b");
     CHECK(rec.ints.size() == 1);
     drain();
     CHECK(rec.ints == std::vector<int>{0, 1, 2});
@@ -221,7 +221,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Factory: immediate families run inside the no
     CHECK(queue_empty());
 
     lv_subject_set_int(&int_subject, static_cast<int>(PrintJobState::PAUSED));
-    lv_subject_copy_string(&str_subject, "now");
+    lv_subject_set_string(&str_subject, "now");
     CHECK(rec.ints == std::vector<int>{0, 100, 2, 102});
     CHECK(rec.strings == std::vector<std::string>{"", "now"});
     CHECK(queue_empty());
@@ -432,7 +432,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     // Service A tries to clean up its observer (like clear_rows)
     // The weak_ptr is NOT expired because service_b still holds a copy.
-    // But the bool was set to false, so the guard should skip lv_observer_remove.
+    // But the bool was set to false, so the guard should skip lv_observer_delete.
     REQUIRE_FALSE(service_b_lifetime.use_count() == 0); // Still alive
     service_a_lifetime.reset();
     guard_a.reset(); // Must NOT crash — observer struct was freed by deinit
@@ -440,7 +440,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
 TEST_CASE_METHOD(LVGLTestFixture, "SubjectLifetime: guard still removes when subject is alive",
                  "[observer_cleanup][crash_hardening][subject_lifetime]") {
-    // When the subject IS alive (bool = true), guard must call lv_observer_remove
+    // When the subject IS alive (bool = true), guard must call lv_observer_delete
     lv_subject_t subject;
     lv_subject_init_int(&subject, 0);
     SubjectLifetime lifetime = std::make_shared<bool>(true);
@@ -456,7 +456,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "SubjectLifetime: guard still removes when sub
 
     // Subject is alive — guard should properly remove the observer
     observer_lifetime.reset();
-    guard.reset(); // Should call lv_observer_remove (subject alive, bool = true)
+    guard.reset(); // Should call lv_observer_delete (subject alive, bool = true)
 
     // After removal, setting subject should not fire any callbacks
     panel.count = 0;

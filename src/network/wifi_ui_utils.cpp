@@ -287,6 +287,13 @@ OsWifiLink probe_os_wifi_link(const std::string& sysfs_root, const std::string& 
     return link;
 }
 
+LinkPhase link_phase(const WifiBackend::ConnectionStatus& status) {
+    if (!status.connected) {
+        return LinkPhase::Disconnected;
+    }
+    return status.awaiting_ipv4 ? LinkPhase::GettingAddress : LinkPhase::Online;
+}
+
 } // namespace wifi
 } // namespace ui
 } // namespace helix

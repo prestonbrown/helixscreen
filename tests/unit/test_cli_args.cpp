@@ -13,6 +13,7 @@
 #include "cli_args.h"
 #include "runtime_config.h"
 #include "test_helpers/scoped_env.h"
+#include "wizard_step.h"
 
 #include <vector>
 
@@ -369,7 +370,7 @@ TEST_CASE("parse_cli_args: HELIX_MOCK_PRINTER=creator5_zmod implies --real-ams u
 
 TEST_CASE("parse_cli_args: an explicit HELIX_MOCK_AMS wins over the persona", "[cli_args][mock]") {
     ScopedRuntimeConfig scoped_config;
-    ScopedEnv ams{"HELIX_MOCK_AMS", "toolchanger"};
+    ScopedEnv ams{"HELIX_MOCK_AMS", "mixed"};
     ScopedEnv printer{"HELIX_MOCK_PRINTER", "creator5_zmod"};
     CliArgs args;
     REQUIRE(parse({"helix-screen", "--test"}, args));
@@ -395,15 +396,6 @@ TEST_CASE("parse_cli_args: --real-moonraker implies --real-ams", "[cli_args][moc
         REQUIRE(parse({"helix-screen", "--test", "--real-moonraker"}, args));
         REQUIRE(get_runtime_config()->use_real_ams);
     }
-}
-
-TEST_CASE("parse_cli_args: other personas do not imply --real-ams", "[cli_args][mock]") {
-    ScopedRuntimeConfig scoped_config;
-    ScopedEnv ams{"HELIX_MOCK_AMS", nullptr};
-    ScopedEnv printer{"HELIX_MOCK_PRINTER", "creator5"};
-    CliArgs args;
-    REQUIRE(parse({"helix-screen", "--test"}, args));
-    REQUIRE_FALSE(get_runtime_config()->use_real_ams);
 }
 
 // ============================================================================
@@ -450,4 +442,22 @@ TEST_CASE("parse_cli_args: HELIX_MOCK_AMS=indx implies --real-ams under --test",
     CliArgs args;
     REQUIRE(parse({"helix-screen", "--test"}, args));
     CHECK(get_runtime_config()->use_real_ams);
+}
+
+TEST_CASE("parse_cli_args: --wizard-step reaches every wizard step and no further",
+          "[cli_args][wizard]") {
+    const std::string last = std::to_string(helix::wizard::STEP_COUNT - 1);
+    const std::string past = std::to_string(helix::wizard::STEP_COUNT);
+    int w = 0, h = 0;
+    {
+        const char* argv[] = {"helix-screen", "--wizard-step", last.c_str()};
+        CliArgs args;
+        REQUIRE(parse_cli_args(3, const_cast<char**>(argv), args, w, h));
+        CHECK(args.wizard_step == helix::wizard::STEP_COUNT - 1);
+    }
+    {
+        const char* argv[] = {"helix-screen", "--wizard-step", past.c_str()};
+        CliArgs args;
+        CHECK_FALSE(parse_cli_args(3, const_cast<char**>(argv), args, w, h));
+    }
 }

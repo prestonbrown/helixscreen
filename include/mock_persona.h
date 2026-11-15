@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <string>
 #include <string_view>
 
@@ -26,9 +27,10 @@ enum class PrinterType {
     MULTI_EXTRUDER,           // Multi-extruder test case (2 extruders)
     DELTA,                    // Generic linear delta (every axis homes together)
     ELEGOO_CC1,               // Elegoo Centauri Carbon on COSMOS (load-cell probe)
-    FLASHFORGE_AD5X,          // FlashForge Adventurer 5X (IFS, simulated by the mock AMS)
+    FLASHFORGE_AD5X,          // FlashForge Adventurer 5X (native Z-Mod IFS, mock hardware)
     CREALITY_K2_PLUS,         // Creality K2 Plus (CFS box, chamber heater)
-    SNAPMAKER_U1,             // Snapmaker U1 (4 independent extruders)
+    SNAPMAKER_U1,             // Snapmaker U1 (4 independent extruders, SnapSwap mock hardware)
+    FLASHFORGE_CREATOR5_AFC,  // FlashForge Creator 5 Pro on Reforge with AFC over its changer
 };
 
 /// Bit set of the objects every mock persona inherits by default.
@@ -99,7 +101,7 @@ inline constexpr PersonaHardware kFlashforgeAd5mHardware = {
     {"fan", "heater_fan hotend_fan", "controller_fan stepper_driver_fan"},
     {}};
 
-/// FlashForge Creator 5 Pro, stock or on Z-Mod: 4-head tool changer, enclosed, heated
+/// FlashForge Creator 5 Pro, on Reforge or Z-Mod: 4-head tool changer, enclosed, heated
 /// chamber. Object names mirror assets/config/presets/creator5_pro.json so the mock
 /// and the shipped preset describe the same machine.
 inline constexpr PersonaHardware kCreator5Hardware = {
@@ -178,8 +180,11 @@ struct PersonaDescriptor {
     std::string_view kinematics;       // configfile [printer] kinematics
     DefaultObjects omit;               // inherited defaults this persona does not have
     std::string_view default_mock_ams; // HELIX_MOCK_AMS when unset; "" = none chosen
-    bool hardware_persona;             // production backend drives it (implies --real-ams)
-    const PersonaHardware* hardware;   // never null
+    /// A production backend drives the persona's own objects with no AMS mode
+    /// (implies --real-ams). A persona whose default_mock_ams is mock hardware
+    /// gets --real-ams through that mode instead.
+    bool hardware_persona;
+    const PersonaHardware* hardware; // never null
     /// Probe profile (HELIX_MOCK_PROBE_TYPE value) reported in place of the
     /// default cartographer when the persona omits CARTOGRAPHER; "" = no probe.
     std::string_view probe = {};
@@ -241,6 +246,10 @@ struct PersonaDescriptor {
                 "snapmaker",
                 false,
                 &kSnapmakerU1Hardware};
+    case PrinterType::FLASHFORGE_CREATOR5_AFC:
+        // Reforge as its master ships it: AFC over ff_toolchange, driven by the
+        // production AFC backend.
+        return {"mock-printer", standard, "corexy", kHappyHareMmu, "", true, &kCreator5Hardware};
     case PrinterType::FLASHFORGE_CREATOR5_ZMOD:
         // Travel as a Z-Mod Creator 5 Pro reports it: the purge chute sits
         // beyond the bed at X275 Y254.
@@ -296,7 +305,7 @@ struct PersonaEntry {
 /// Every HELIX_MOCK_PRINTER value. Row 0 is the default persona. One row per
 /// line: scripts/screenshot.sh extracts the ids with sed.
 // clang-format off
-inline constexpr std::array<PersonaEntry, 15> kPersonas = {{
+inline constexpr std::array<PersonaEntry, 16> kPersonas = {{
     {"voron_24", PrinterType::VORON_24, "Voron 2.4", ""},
     {"voron_trident", PrinterType::VORON_TRIDENT, "Voron Trident", ""},
     {"k1", PrinterType::CREALITY_K1, "Creality K1", "Creality K1C"},
@@ -304,13 +313,14 @@ inline constexpr std::array<PersonaEntry, 15> kPersonas = {{
     {"ad5m", PrinterType::FLASHFORGE_AD5M, "Flashforge AD5M", ""},
     {"creator5", PrinterType::FLASHFORGE_CREATOR5, "FlashForge Creator 5 Pro", ""},
     {"creator5_zmod", PrinterType::FLASHFORGE_CREATOR5_ZMOD, "FlashForge Creator 5 Pro (Z-Mod)", ""},
+    {"creator5_afc", PrinterType::FLASHFORGE_CREATOR5_AFC, "FlashForge Creator 5 Pro (Reforge AFC)", ""},
     {"generic_corexy", PrinterType::GENERIC_COREXY, "Generic CoreXY", ""},
     {"generic_bedslinger", PrinterType::GENERIC_BEDSLINGER, "Generic Bedslinger", ""},
     {"multi_extruder", PrinterType::MULTI_EXTRUDER, "Multi-Extruder", ""},
     {"delta", PrinterType::DELTA, "Generic Delta", ""},
     {"snapmaker_u1", PrinterType::SNAPMAKER_U1, "Snapmaker U1", ""},
     {"cc1", PrinterType::ELEGOO_CC1, "Elegoo Centauri Carbon", ""},
-    {"ad5x", PrinterType::FLASHFORGE_AD5X, "Flashforge AD5X (mock IFS)", ""},
+    {"ad5x", PrinterType::FLASHFORGE_AD5X, "Flashforge AD5X (Z-Mod IFS)", ""},
     {"k2", PrinterType::CREALITY_K2_PLUS, "Creality K2 Plus", ""},
 }};
 // clang-format on
@@ -401,6 +411,85 @@ enum class MedusaVariant {
 [[nodiscard]] inline bool is_hardware_persona(std::string_view persona) {
     const PersonaEntry* p = find_persona(persona);
     return p && descriptor(p->type).hardware_persona;
+}
+
+/// HELIX_MOCK_* variables only AmsBackendMock reads: its scenarios, dryer, environment,
+/// remap and buffer demos, which no production backend's frames express.
+inline constexpr std::array<const char*, 11> kMockBackendKnobs = {
+    "HELIX_MOCK_AMS_STATE",   "HELIX_MOCK_DRYER",       "HELIX_MOCK_DRYING",
+    "HELIX_MOCK_DRYER_SPEED", "HELIX_MOCK_AMS_ENV",     "HELIX_MOCK_DRYER_HUMIDITY_TARGET",
+    "HELIX_MOCK_REMAP",       "HELIX_MOCK_REMAP_READY", "HELIX_MOCK_DRYER_DEFAULT_HUMIDITY",
+    "HELIX_MOCK_NO_HUMIDITY", "HELIX_MOCK_BUFFER_STATE"};
+
+/// True when any kMockBackendKnobs variable is set and not empty
+/// (HELIX_MOCK_AMS_STATE=idle is the default scenario and does not count).
+[[nodiscard]] inline bool mock_backend_knob_set() {
+    for (const char* name : kMockBackendKnobs) {
+        const char* value = std::getenv(name);
+        if (value && value[0] &&
+            !(std::string_view(name) == "HELIX_MOCK_AMS_STATE" &&
+              helix::text_io::to_lower(value) == "idle")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// The production backend a mock AMS selection stands up, as a log label, or nullptr when
+/// AmsBackendMock simulates it. A non-null answer means mock HARDWARE: MoonrakerClientMock
+/// publishes the objects and frames that firmware does, and real discovery builds the
+/// backend against them. `mode` is effective_mock_ams()'s answer. The CLI's --real-ams
+/// implication and AmsBackend's mock selection both decide through this one table.
+[[nodiscard]] inline const char* mock_hardware_backend(std::string_view mode,
+                                                       const char* printer_env) {
+    struct Row {
+        std::string_view mode;
+        const char* backend;
+    };
+    static constexpr Row kRows[] = {
+        {"ifs-module", "AD5X IFS"},
+        {"ifs_module", "AD5X IFS"},
+        {"ad5x-module", "AD5X IFS"},
+        {"ifs-jacker", "AD5X IFS"},
+        {"ifs_jacker", "AD5X IFS"},
+        {"ifs", "AD5X IFS"},
+        {"ad5x", "AD5X IFS"},
+        {"ad5x_ifs", "AD5X IFS"},
+        {"cfs", "CFS"},
+        {"cfs-k1", "CFS"},
+        {"openams", "OpenAMS"},
+        {"multiace", "multiACE-on-U1"},
+        {"indx", "INDX"},
+        {"lane_status", "lane_status"},
+        {"toolchanger", "tool-changer"},
+        {"tool_changer", "tool-changer"},
+        {"tc", "tool-changer"},
+        {"afc", "AFC"},
+        {"box_turtle", "AFC"},
+        {"boxturtle", "AFC"},
+        {"snapmaker", "Snapmaker"},
+        {"snapswap", "Snapmaker"},
+        {"u1", "Snapmaker"},
+    };
+    if (medusa_variant(mode) != MedusaVariant::NONE) {
+        return "tool-changer";
+    }
+    for (const Row& row : kRows) {
+        if (mode == row.mode) {
+            return row.backend;
+        }
+    }
+    if (mode.empty() && printer_env && is_hardware_persona(printer_env)) {
+        return "persona";
+    }
+    // Happy Hare is the default: a persona that publishes `mmu` runs the production
+    // backend, unless a knob only the mock backend serves asks for its scenario.
+    const bool happy_hare_mode = mode == "happy_hare" || mode == "hh";
+    if ((happy_hare_mode || (mode.empty() && !mock_backend_knob_set())) &&
+        inherits_default(resolve_persona(printer_env).type, default_object::kHappyHareMmu)) {
+        return "Happy Hare";
+    }
+    return nullptr;
 }
 
 } // namespace helix::mock

@@ -367,7 +367,7 @@ void LedControlOverlay::publish_page() {
             note = macro_device_note(*m);
         }
     }
-    lv_subject_copy_string(&page_note_, note.c_str());
+    lv_subject_set_string(&page_note_, note.c_str());
 }
 
 void LedControlOverlay::publish_color_state() {
@@ -383,7 +383,7 @@ void LedControlOverlay::publish_color_state() {
 
     lv_subject_set_int(&page_brightness_, current_brightness_);
     const std::string text = fmt::format("{}%", current_brightness_);
-    lv_subject_copy_string(&page_brightness_text_, text.c_str());
+    lv_subject_set_string(&page_brightness_text_, text.c_str());
 
     const LookRing ring = page_.color ? ring_for_look(current_color_, current_white_, page_.white,
                                                       LedController::instance().color_presets())
@@ -426,7 +426,7 @@ void LedControlOverlay::publish_list() {
     }
     lv_subject_set_int(&chip_count_, static_cast<int>(labels.size()));
     lv_subject_set_int(&active_chip_, active);
-    lv_subject_copy_string(&page_list_title_, title);
+    lv_subject_set_string(&page_list_title_, title);
 }
 
 int LedControlOverlay::active_effect_index() const {

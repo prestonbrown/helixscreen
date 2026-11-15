@@ -98,7 +98,7 @@ class IndxFlowFixture : public LVGLUITestFixture {
             lv_subject_set_int(phase, 0);
         }
         if (lv_subject_t* status = lv_xml_get_subject(nullptr, "indx_flow_status")) {
-            lv_subject_copy_string(status, "");
+            lv_subject_set_string(status, "");
         }
     }
 
@@ -296,7 +296,7 @@ TEST_CASE_METHOD(IndxFlowFixture, "INDX flows: the running line survives the sec
         lv_observer_t* observer = nullptr;
         ~Rebuild() {
             if (observer) {
-                lv_observer_remove(observer);
+                lv_observer_delete(observer);
             }
             lv_obj_delete(container);
         }

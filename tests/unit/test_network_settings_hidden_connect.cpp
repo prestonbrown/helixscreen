@@ -96,7 +96,7 @@ TEST_CASE_METHOD(HiddenConnectFixture,
     // A refused join keeps the form open and says why, not "check your credentials".
     REQUIRE(Modal::get_top() == modal);
     lv_obj_t* error_label = named(modal, "error_label");
-    CHECK_FALSE(lv_obj_has_flag(error_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(error_label));
     const std::string shown = lv_label_get_text(error_label);
     CHECK(shown != lv_tr("Connection failed. Check credentials."));
     CHECK(shown.find(kUnknownSsid) != std::string::npos);
@@ -106,11 +106,11 @@ TEST_CASE_METHOD(HiddenConnectFixture,
                  "the hidden modal refuses an empty SSID without touching the backend",
                  "[network_settings][hidden]") {
     lv_obj_t* modal = open("");
-    CHECK(lv_obj_has_flag(named(modal, "error_label"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(named(modal, "error_label")));
 
     connect(modal);
 
-    CHECK_FALSE(lv_obj_has_flag(named(modal, "error_label"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(named(modal, "error_label")));
     CHECK_FALSE(backend_->last_connect_hidden());
     CHECK(events_.empty());
 }
@@ -123,16 +123,16 @@ TEST_CASE_METHOD(HiddenConnectFixture,
     lv_obj_t* form = named(modal, "hidden_form_container");
     lv_obj_t* spinner = named(modal, "connecting_container");
     lv_obj_t* connect_btn = named(modal, "connect_btn");
-    CHECK_FALSE(lv_obj_has_flag(form, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(spinner, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(connect_btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(form));
+    CHECK(lv_obj_is_hidden(spinner));
+    CHECK_FALSE(lv_obj_is_hidden(connect_btn));
 
     connect(modal);
 
-    CHECK(lv_obj_has_flag(form, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(spinner, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(connect_btn, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(named(modal, "cancel_btn"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(form));
+    CHECK_FALSE(lv_obj_is_hidden(spinner));
+    CHECK(lv_obj_is_hidden(connect_btn));
+    CHECK_FALSE(lv_obj_is_hidden(named(modal, "cancel_btn")));
 
     Modal::hide(Modal::get_top());
     CHECK(wm_.use_count() == 1); // teardown relies on this to end the join

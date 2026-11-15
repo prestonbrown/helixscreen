@@ -467,7 +467,7 @@ TEST_CASE_METHOD(FreshPrinterState,
     REQUIRE(user_data[0] >= 2);
     REQUIRE(user_data[1] == 1);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 TEST_CASE_METHOD(FreshPrinterState,
@@ -502,7 +502,7 @@ TEST_CASE_METHOD(FreshPrinterState,
     REQUIRE(user_data[0] >= 2);
     REQUIRE(user_data[1] == 0);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // ============================================================================

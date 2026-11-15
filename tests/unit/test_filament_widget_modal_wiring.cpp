@@ -149,7 +149,7 @@ TEST_CASE_METHOD(TapModalFixture, "Paused tap modal wires the buttons its paused
     // row, so the buttons are reachable. Without this the wiring assertions
     // below would pass just as happily against a row nobody can press.
     for (lv_obj_t* o = resume; o != dialog; o = lv_obj_get_parent(o)) {
-        CHECK_FALSE(lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(o));
     }
 
     // The other half: reachable buttons are wired ones.

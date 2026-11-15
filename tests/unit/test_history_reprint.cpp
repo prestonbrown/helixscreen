@@ -27,11 +27,15 @@
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
+#include "print_job_ref.h"
+#include "printer_state.h"
+#include "scope_exit.h"
 
 #include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::ui::HistoryListPanelTestAccess;
 
@@ -137,7 +141,22 @@ class HistoryReprintFixture : public LVGLUITestFixture {
 
 TEST_CASE_METHOD(HistoryReprintFixture,
                  "Reprint selects the job's file even when navigation re-filters the list",
-                 "[history][reprint]") {
+                 "[history][reprint][2063]") {
+    // This screen started the file on plate 4 and the history job names no
+    // plate, so the reprint opens that plate (#2063).
+    auto& ps = get_printer_state().print_state();
+    helix::ScopeExit finish_print([]() {
+        get_printer_state().update_from_status(
+            nlohmann::json{{"print_stats", {{"state", "complete"}, {"filename", kReprintFile}}}});
+        drain();
+    });
+    ps.begin_preparing(helix::PrintJobRef{kReprintFile, "", ""});
+    drain();
+    ps.note_start_plate(helix::PrinterPrintState::start_record_printer_id(), kReprintFile, 4);
+    get_printer_state().update_from_status(
+        nlohmann::json{{"print_stats", {{"state", "printing"}, {"filename", kReprintFile}}}});
+    drain();
+
     HistoryListPanelTestAccess::set_jobs(panel, {job("other.gcode"), job(kReprintFile)});
     HistoryListPanelTestAccess::select_job(panel, {job("other.gcode"), job(kReprintFile)}, 1);
     const PrintHistoryJob* jobs_before = HistoryListPanelTestAccess::filtered_jobs(panel).data();
@@ -150,6 +169,6 @@ TEST_CASE_METHOD(HistoryReprintFixture,
     REQUIRE(HistoryListPanelTestAccess::filtered_jobs(panel).data() != jobs_before);
 
     CHECK(logs.has_line_with({"Set pending file selection: '" + kReprintFile + "'"}));
-    CHECK(logs.has_line_with({"Navigated to file details for: " + kReprintFile}));
+    CHECK(logs.has_line_with({"Navigated to file details for: " + kReprintFile + " (plate 4)"}));
     drain();
 }

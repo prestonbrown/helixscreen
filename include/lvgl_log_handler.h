@@ -35,7 +35,7 @@ void register_lvgl_log_handler();
  *
  * The sink's lifetime is anchored to the first registration, so its static
  * destruction retires it while spdlog is still alive. Late LVGL log traffic
- * during static teardown (lv_subject_deinit -> lv_observer_remove ->
+ * during static teardown (lv_subject_deinit -> lv_observer_delete ->
  * LV_LOG_WARN) is a no-op instead of a read into a freed logger. Callable
  * explicitly by tests; register_lvgl_log_handler() re-arms it.
  */

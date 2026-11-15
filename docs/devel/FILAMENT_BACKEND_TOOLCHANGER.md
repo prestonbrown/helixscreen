@@ -166,8 +166,10 @@ halves are required: the AD5X Z-Mod also publishes `zmod_color` but has no carri
 buttons, so it cannot match, and `zmod_color` alone would not say which machine this is.
 Reforge, the other C5 Pro firmware, needs none of this and matches no row there: its
 `ff_toolchange` extra publishes klipper-toolchanger's `toolchanger` and `tool T<n>` objects.
-Where Reforge also runs AFC, the AFC backend takes the heads instead, as an MMU wins over the
-tool changer ([Detection](#detection) above). Its tool offsets have their own row in `helix::tool_offsets`;
+Reforge's master runs AFC over that changer (`ff-afc.cfg`: one `AFC_Toolchanger Tools` unit,
+a standalone lane `e<n>` per head), so there the AFC backend takes the heads instead, as an MMU
+wins over the tool changer ([Detection](#detection) above); its tagged releases run no AFC and
+stay on this backend. The `creator5_afc` mock persona models the first, `creator5` the second. Its tool offsets have their own row in `helix::tool_offsets`;
 see [Reforge](#reforge) under automatic tool offset calibration.
 
 Z-Mod 1.7.4 additionally publishes an **AFC shim** (`zmod_afclite` registering `AFC`,

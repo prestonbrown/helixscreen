@@ -247,7 +247,7 @@ TEST_CASE("PanelWidgetManager coalesces multiple gate firings into one rebuild",
 
     // Cleanup observers so the test fixture's reset_all() doesn't see stale
     // state. setup_gate_observers stores the new vector under panel_id; the
-    // destructor of ObserverGuard will call lv_observer_remove which is safe
+    // destructor of ObserverGuard will call lv_observer_delete which is safe
     // because the subjects are still alive at this point.
     mgr.clear_gate_observers("test_panel");
 }

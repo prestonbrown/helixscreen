@@ -112,9 +112,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(box != nullptr);
 
     lv_subject_set_int(&cpp_flag, 1);
-    REQUIRE(lv_obj_has_flag(box, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(box));
     lv_subject_set_int(&cpp_flag, 0);
-    REQUIRE_FALSE(lv_obj_has_flag(box, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(box));
 
     lv_obj_delete(inst);
     REQUIRE(lv_xml_component_unregister("t_reload_rt") == LV_RESULT_OK);

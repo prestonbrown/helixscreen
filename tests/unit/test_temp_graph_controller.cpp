@@ -625,7 +625,7 @@ TEST_CASE_METHOD(TempGraphControllerFixture,
     auto newest = [&] {
         const uint32_t pc = lv_chart_get_point_count(g->chart);
         const uint32_t sp = lv_chart_get_x_start_point(g->chart, nozzle);
-        return lv_chart_get_y_array(g->chart, nozzle)[(sp + pc - 1) % pc];
+        return lv_chart_get_series_y_array(g->chart, nozzle)[(sp + pc - 1) % pc];
     };
 
     lv_subject_set_int(temps.get_extruder_temp_subject("extruder"), 520);
@@ -654,7 +654,7 @@ TEST_CASE_METHOD(TempGraphControllerFixture,
 
 // Bed and chamber series observe PrinterState's static subjects. When those die
 // first, lv_subject_deinit() has already freed each observer node, so the
-// controller's teardown must skip lv_observer_remove() rather than free it again.
+// controller's teardown must skip lv_observer_delete() rather than free it again.
 TEST_CASE_METHOD(TempGraphControllerFixture,
                  "Controller destroyed after its bed and chamber subjects die is safe",
                  "[controller][temp_graph_controller]") {

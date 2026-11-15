@@ -484,7 +484,7 @@ void CameraWidget::update_stream_fps() {
 void CameraWidget::set_status_text(const char* text) {
     s_camera_status_key = nullptr;
     if (s_subjects.initialized()) {
-        lv_subject_copy_string(&s_camera_status_subject, text);
+        lv_subject_set_string(&s_camera_status_subject, text);
     }
 }
 

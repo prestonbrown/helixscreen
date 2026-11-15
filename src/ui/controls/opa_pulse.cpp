@@ -26,7 +26,7 @@ void set_image_opa_pulse(lv_obj_t* image, bool on, const OpaPulse& pulse) {
     lv_anim_set_var(&a, image);
     lv_anim_set_values(&a, pulse.low, pulse.high);
     lv_anim_set_duration(&a, pulse.half_period_ms);
-    lv_anim_set_playback_duration(&a, pulse.half_period_ms);
+    lv_anim_set_reverse_duration(&a, pulse.half_period_ms);
     lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
     lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
     lv_anim_set_exec_cb(&a, image_opa_anim_cb);

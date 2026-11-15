@@ -578,7 +578,7 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     REQUIRE(reopened != nullptr);
     lv_obj_t* spinner = lv_obj_find_by_name(reopened, "fullscreen_spinner");
     REQUIRE(spinner != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(spinner, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(spinner));
 
     // detach() deletes the live overlay and nothing else.
     attached.widget.reset();

@@ -24,7 +24,7 @@ lv_obj_t* make_loading_scrim() {
     lv_obj_set_style_radius(pill, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_set_style_pad_hor(pill, 24, LV_PART_MAIN);
     lv_obj_set_style_pad_ver(pill, 12, LV_PART_MAIN);
-    lv_obj_remove_flag(pill, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(pill, false);
     lv_obj_t* lbl = lv_label_create(pill);
     lv_label_set_text(lbl, lv_tr("Loading..."));
     lv_obj_set_style_text_color(lbl, lv_color_white(), LV_PART_MAIN);
@@ -72,7 +72,7 @@ void NavigationManager::overlay_slide_out_complete_cb(lv_anim_t* anim) {
     }
     // Deleting a widget cancels its animations, so anim->var is alive here.
     lv_obj_t* panel = static_cast<lv_obj_t*>(anim->var);
-    lv_obj_add_flag(panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(panel, true);
     reset_overlay_transform(panel);
     spdlog::trace("[NavigationManager] Overlay slide+fade-out complete, panel {} hidden",
                   (void*)panel);
@@ -144,13 +144,13 @@ void NavigationManager::overlay_animate_slide_in(lv_obj_t* panel) {
 
 void NavigationManager::overlay_animate_slide_out(lv_obj_t* panel) {
     // Disable clicks immediately to prevent interaction during animation
-    lv_obj_remove_flag(panel, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(panel, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_clickable(panel, false);
+    lv_obj_set_event_bubble(panel, true);
 
     // Same rule as overlay_animate_slide_in: hide immediately and retire
     if (!DisplaySettingsManager::instance().get_animations_enabled() ||
         !helix::ui::full_style_effects_active()) {
-        lv_obj_add_flag(panel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(panel, true);
         reset_overlay_transform(panel);
         spdlog::trace("[NavigationManager] Animations disabled - hiding overlay instantly");
 

@@ -139,6 +139,15 @@ OsWifiLink probe_os_wifi_link(const std::string& sysfs_root = "/sys",
  */
 std::string iface_global_ipv4(const std::string& iface);
 
+/// Where a Wi-Fi link stands for the user. Each screen words it itself.
+enum class LinkPhase {
+    Disconnected,
+    GettingAddress, ///< Joined, DHCP still pending
+    Online,
+};
+
+LinkPhase link_phase(const WifiBackend::ConnectionStatus& status);
+
 } // namespace wifi
 } // namespace ui
 } // namespace helix

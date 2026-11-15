@@ -123,8 +123,8 @@ TEST_CASE_METHOD(DeviceOpsKeepSpoolFixture,
     std::vector<bool> writes;
     show_with(std::make_unique<FirmwareRetentionMock>(true, false, &writes));
 
-    CHECK(lv_obj_has_flag(row(kOwnRow), LV_OBJ_FLAG_HIDDEN));
-    REQUIRE_FALSE(lv_obj_has_flag(row(kFirmwareRow), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row(kOwnRow)));
+    REQUIRE_FALSE(lv_obj_is_hidden(row(kFirmwareRow)));
     lv_obj_t* sw = toggle_of(row(kFirmwareRow));
     CHECK_FALSE(lv_obj_has_state(sw, LV_STATE_CHECKED)); // the firmware's value, not ours
 
@@ -145,7 +145,7 @@ TEST_CASE_METHOD(DeviceOpsKeepSpoolFixture,
     std::vector<bool> writes;
     show_with(std::make_unique<FirmwareRetentionMock>(false, false, &writes));
 
-    CHECK(lv_obj_has_flag(row(kFirmwareRow), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row(kFirmwareRow)));
     flip(toggle_of(row(kOwnRow)), false);
     CHECK_FALSE(SettingsManager::instance().get_ams_keep_spool_info_on_eject());
     CHECK(writes.empty());

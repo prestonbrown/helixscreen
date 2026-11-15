@@ -95,7 +95,7 @@ struct ManageRowHarness {
     [[nodiscard]] bool hidden(const char* name) const {
         lv_obj_t* obj = lv_obj_find_by_name(root, name);
         REQUIRE(obj != nullptr);
-        return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(obj);
     }
 };
 
@@ -192,16 +192,16 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Cool Down keeps its grid cell while nothing
     h.fx.process_lvgl(30);
     // Disabled, never hidden: the material grid must not reflow when the
     // heaters are cold.
-    CHECK_FALSE(lv_obj_has_flag(cooldown, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(cooldown));
     CHECK(lv_obj_has_state(cooldown, LV_STATE_DISABLED));
 
     lv_subject_set_int(heating, 1);
     h.fx.process_lvgl(30);
-    CHECK_FALSE(lv_obj_has_flag(cooldown, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(cooldown));
     CHECK_FALSE(lv_obj_has_state(cooldown, LV_STATE_DISABLED));
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown names the tool as G-code does",
+TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown names the tool as the screen numbers it",
                  "[filament][ui][tool][1769]") {
     ManageRowHarness h(*this, {"extruder", "extruder1"}, AmsType::NONE);
 
@@ -210,7 +210,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown names the tool as G-co
 
     const char* closed = lv_dropdown_get_text(dd);
     REQUIRE(closed != nullptr);
-    CHECK(std::string(closed) == "T0");
+    CHECK(std::string(closed) == "Tool 1");
 
     // The active tool moving to the second head moves the closed text with it.
     lv_subject_set_int(ToolState::instance().get_active_tool_subject(), 1);
@@ -218,13 +218,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown names the tool as G-co
     REQUIRE(lv_dropdown_get_selected(dd) == 1);
     closed = lv_dropdown_get_text(dd);
     REQUIRE(closed != nullptr);
-    CHECK(std::string(closed) == "T1");
+    CHECK(std::string(closed) == "Tool 2");
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown keeps T<n> for a configured tool name",
+TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown shows a configured tool name as is",
                  "[filament][ui][tool][1769]") {
-    // The closed control is as narrow as a tool switcher segment, so it reads
-    // the G-code name; the open list carries each configured name beside it.
+    // A configured name is what the machine is labeled with; the open list
+    // adds each tool's G-code name beside it.
     ManageRowHarness h(*this, {"toolchanger", "tool Left", "tool Right", "extruder", "extruder1"},
                        AmsType::NONE);
 
@@ -235,7 +235,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown keeps T<n> for a confi
 
     const char* closed = lv_dropdown_get_text(dd);
     REQUIRE(closed != nullptr);
-    CHECK(std::string(closed) == "T0");
+    CHECK(std::string(closed) == "Left");
     const char* options = lv_dropdown_get_options(dd);
     REQUIRE(options != nullptr);
     CHECK(std::string(options) == "Left (T0)\nRight (T1)");
@@ -344,14 +344,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_subject_t* spacer = lv_xml_get_subject(nullptr, "filament_graph_spacer");
     REQUIRE(spacer != nullptr);
     CHECK(lv_subject_get_int(spacer) == 1);
-    CHECK(lv_obj_has_flag(container, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(container));
+    CHECK_FALSE(lv_obj_is_hidden(card));
     CHECK(lv_obj_get_style_bg_opa(card, LV_PART_MAIN) == 0);
-    CHECK_FALSE(lv_obj_has_flag(card, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(card));
 
     // The strip button replaces the tappable card, left of the AMS mini
     // status widget.
-    CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(btn));
     lv_obj_t* mini = lv_obj_find_by_name(h.root, "ams_mini_status");
     REQUIRE(mini != nullptr);
     lv_area_t btn_area, mini_area;
@@ -380,7 +380,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Strip graph button stays hidden in landscap
     lv_obj_t* btn = lv_obj_find_by_name(h.root, "btn_temp_graph");
     REQUIRE(btn != nullptr);
     h.fx.process_lvgl(30);
-    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(btn));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -456,19 +456,21 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(lv_obj_find_by_name(h.root, "portrait_column") == nullptr);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown reads None with the carriage empty",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Closed tool dropdown keeps the aimed tool with the carriage empty",
                  "[filament][ui][tool]") {
     ManageRowHarness h(*this, {"extruder", "extruder1"}, AmsType::NONE);
     lv_obj_t* dd = TA::extruder_dropdown(*h.panel);
     REQUIRE(dd != nullptr);
     lv_subject_set_int(ToolState::instance().get_active_tool_subject(), 1);
     h.fx.process_lvgl(30);
-    REQUIRE(std::string(lv_dropdown_get_text(dd)) == "T1");
+    REQUIRE(std::string(lv_dropdown_get_text(dd)) == "Tool 2");
 
-    // A park leaves no tool on the carriage: the last one is not selected.
+    // A park leaves no tool on the carriage; the panel still aims at the tool
+    // it was on, so heating it needs no pick up.
     lv_subject_set_int(ToolState::instance().get_active_tool_subject(), -1);
     h.fx.process_lvgl(30);
-    CHECK(std::string(lv_dropdown_get_text(dd)) == "None");
+    CHECK(std::string(lv_dropdown_get_text(dd)) == "Tool 2");
 }
 
 namespace {

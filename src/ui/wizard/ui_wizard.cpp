@@ -720,11 +720,11 @@ void ui_wizard_navigate_to_step(helix::wizard::StepId step) {
     // Update progress display - step numbers as strings for bind_text
     snprintf(wizard_step_current_buffer, sizeof(wizard_step_current_buffer), "%d", display_step);
     crash_handler::breadcrumb::note("wiz", "notify_step_cur", static_cast<long>(step_idx));
-    lv_subject_copy_string(&wizard_step_current, wizard_step_current_buffer);
+    lv_subject_set_string(&wizard_step_current, wizard_step_current_buffer);
 
     snprintf(wizard_step_total_buffer, sizeof(wizard_step_total_buffer), "%d", display_total);
     crash_handler::breadcrumb::note("wiz", "notify_step_tot", static_cast<long>(step_idx));
-    lv_subject_copy_string(&wizard_step_total, wizard_step_total_buffer);
+    lv_subject_set_string(&wizard_step_total, wizard_step_total_buffer);
 
     // Load screen content
     ui_wizard_load_screen(step);
@@ -748,7 +748,7 @@ void ui_wizard_set_title(const char* title) {
     }
 
     spdlog::debug("[Wizard] Setting title: {}", title);
-    lv_subject_copy_string(&wizard_title, title);
+    lv_subject_set_string(&wizard_title, title);
 }
 
 void ui_wizard_refresh_header_translations() {
@@ -765,8 +765,8 @@ void ui_wizard_refresh_header_translations() {
     const char* title = get_step_title_from_xml(comp_name);
     const char* subtitle = get_step_subtitle_from_xml(comp_name);
 
-    lv_subject_copy_string(&wizard_title, lv_tr(title));
-    lv_subject_copy_string(&wizard_subtitle, lv_tr(subtitle));
+    lv_subject_set_string(&wizard_title, lv_tr(title));
+    lv_subject_set_string(&wizard_subtitle, lv_tr(subtitle));
 
     spdlog::debug("[Wizard] Refreshed header translations for step {}", step_idx);
 }
@@ -923,7 +923,7 @@ static void ui_wizard_load_screen(helix::wizard::StepId step) {
     ui_wizard_set_title(lv_tr(title));
     const char* subtitle = get_step_subtitle_from_xml(comp_name);
     crash_handler::breadcrumb::note("wiz", "notify_subtitle", static_cast<long>(step_idx));
-    lv_subject_copy_string(&wizard_subtitle, lv_tr(subtitle));
+    lv_subject_set_string(&wizard_subtitle, lv_tr(subtitle));
 
     // Default Next button to enabled - steps that gate on validation (language,
     // connection, printer identify, fan select) will set it to 0 in their init
@@ -951,8 +951,8 @@ static void ui_wizard_load_screen(helix::wizard::StepId step) {
         break;
     case StepId::PrinterIdentify:
         // Override subtitle with dynamic detection status
-        lv_subject_copy_string(&wizard_subtitle,
-                               get_wizard_printer_identify_step()->get_detection_status());
+        lv_subject_set_string(&wizard_subtitle,
+                              get_wizard_printer_identify_step()->get_detection_status());
         break;
     case StepId::FilamentSensor:
         // Sensors can be discovered after screen creation (jumping directly to
@@ -993,13 +993,13 @@ static void dismiss_wizard_container() {
     KeyboardManager::instance().hide();
 
     // Delete wizard container (main UI is already created underneath)
-    // SAFETY: Use lv_obj_del_async — the Finish button that triggered this call is a
+    // SAFETY: Use lv_obj_delete_async — the Finish button that triggered this call is a
     // child of wizard_container. Synchronous delete causes use-after-free (issue #80).
     // Hide immediately so user sees the app layout underneath without waiting for async delete.
     if (wizard_container) {
         spdlog::debug("[Wizard] Hiding and deleting wizard container (async)");
-        lv_obj_add_flag(wizard_container, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_del_async(wizard_container);
+        lv_obj_set_hidden(wizard_container, true);
+        lv_obj_delete_async(wizard_container);
         wizard_container = nullptr;
     }
 

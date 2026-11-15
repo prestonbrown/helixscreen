@@ -166,7 +166,7 @@ void install_printer_bindings(PluginContext& ctx) {
     ctx.rt.on_close([state] {
         for (auto& w : state->watches) {
             if (w->observer)
-                lv_observer_remove(w->observer);
+                lv_observer_delete(w->observer);
         }
         delete state;
     });

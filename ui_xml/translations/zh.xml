@@ -364,6 +364,9 @@
   <translation tag="Auto Bed Mesh" zh="自动热床网格"/>
   <translation tag="Auto Cal" zh="自动校准"/>
   <translation tag="Auto Fans" zh="自动风扇"/>
+  <translation tag="Auto loading" zh="自动装料"/>
+  <translation tag="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand." zh="此工具头的自动装料已关闭。请在“打印行为”中开启，或手动装入耗材。"/>
+  <translation tag="Auto loading is off; turn it on under Print Behavior" zh="自动装料已关闭；请在“打印行为”中开启"/>
   <translation tag="Auto-Detect" zh="自动检测"/>
   <translation tag="Auto-Heat on Load" zh="加载时自动加热"/>
   <translation tag="Auto-Replenish" zh="自动补充"/>
@@ -692,6 +695,7 @@
   <translation tag="Change tool" zh="切换工具"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." zh="更改立即生效。可在打印时调整进行调优。"/>
   <translation tag="Changes are temporary and reset on printer reboot" zh="更改是临时的，打印机重启后会重置"/>
+  <translation tag="Changing filament" zh="正在更换耗材"/>
   <translation tag="Check AFC configuration" zh="请检查 AFC 配置"/>
   <translation tag="Check Again" zh="重新检查"/>
   <translation tag="Check Klipper console for details" zh="详情请查看 Klipper 控制台"/>
@@ -884,6 +888,7 @@
   <translation tag="Connected to {}" zh="已连接到 {}"/>
   <translation tag="Connected! Discovering printer..." zh="已连接！正在发现打印机..."/>
   <translation tag="Connected, discovering..." zh="已连接，正在发现..."/>
+  <translation tag="Connected, getting address…" zh="已连接，正在获取地址…"/>
   <translation tag="Connecting Camera..." zh="正在连接摄像头..."/>
   <translation tag="Connecting to " zh="正在连接 "/>
   <translation tag="Connecting to %s..." zh="正在连接 %s..."/>
@@ -1041,6 +1046,7 @@
   <translation tag="Cutter calibration failed: {}" zh="切刀校准失败：{}"/>
   <translation tag="Cutter jam" zh="切刀卡住"/>
   <translation tag="Cutting" zh="切割中"/>
+  <translation tag="Cutting filament" zh="正在切断耗材"/>
   <translation tag="Cutting filament..." zh="正在切断耗材..."/>
   <translation tag="Cycle every tool" zh="依次更换所有工具"/>
   <translation tag="Cycling tools..." zh="正在依次更换工具..."/>
@@ -1518,6 +1524,7 @@
   <translation tag="Feeder" zh="送料器"/>
   <translation tag="Feeders" zh="送料器"/>
   <translation tag="Feeding filament forward" zh="正在向前送料"/>
+  <translation tag="Feeding filament to nozzle" zh="正在向喷嘴送料"/>
   <translation tag="Filament" zh="耗材"/>
   <translation tag="Filament Buffer" zh="耗材缓冲区"/>
   <translation tag="Filament Control" zh="耗材控制"/>
@@ -1534,6 +1541,7 @@
   <translation tag="Filament Mapping is not available on this device." zh="此设备不支持耗材映射。"/>
   <translation tag="Filament Mapping is unavailable" zh="耗材映射不可用"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" zh="此打印机不支持耗材映射，因此打印将使用打印机上分配的工具"/>
+  <translation tag="Filament Operations" zh="耗材操作"/>
   <translation tag="Filament Runout" zh="耗材用尽"/>
   <translation tag="Filament Sensor" zh="耗材传感器"/>
   <translation tag="Filament Sensors" zh="耗材传感器"/>
@@ -1685,6 +1693,7 @@
   <translation tag="Generic" zh="通用"/>
   <translation tag="Get help and share feedback" zh="获取帮助和反馈"/>
   <translation tag="Getting Started" zh="入门"/>
+  <translation tag="Getting address…" zh="正在获取地址…"/>
   <translation tag="Getting ready..." zh="正在准备..."/>
   <translation tag="Glass Effects" zh="玻璃效果"/>
   <translation tag="Global" zh="全局"/>
@@ -1766,7 +1775,10 @@
   <translation tag="Heating chamber..." zh="正在加热腔体..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." zh="加热占了几乎全部等待时间。现在离开此页面会停止运行。"/>
   <translation tag="Heating nozzle" zh="喷嘴加热中"/>
+  <translation tag="Heating nozzle ({})" zh="喷嘴加热中 ({})"/>
   <translation tag="Heating nozzle to $1°C..." zh="正在加热喷嘴至 $1°C..."/>
+  <translation tag="Heating nozzle to {}" zh="喷嘴加热至 {}"/>
+  <translation tag="Heating nozzle to {} ({})" zh="喷嘴加热至 {} ({})"/>
   <translation tag="Heating nozzle..." zh="正在加热喷嘴..."/>
   <translation tag="Heating the bed" zh="正在加热热床"/>
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" zh="正在加热热床和喷嘴，使打印件重新附着，喷嘴脱离打印件"/>
@@ -1879,7 +1891,10 @@
   <translation tag="Hyperspace" zh="超空间"/>
   <translation tag="I understand" zh="我已了解"/>
   <translation tag="ID (optional)" zh="ID（可选）"/>
+  <translation tag="IFS driver error" zh="IFS 驱动器错误"/>
   <translation tag="IFS updates without polling" zh="无需轮询的 IFS 更新"/>
+  <translation tag="IFS: loading" zh="IFS：正在加载"/>
+  <translation tag="IFS: unloading" zh="IFS：正在卸载"/>
   <translation tag="IMPORT FROM USB" zh="从 USB 导入"/>
   <translation tag="INDX dock positions are not calibrated" zh="INDX 停靠位置未校准"/>
   <translation tag="INDX macros not recognized" zh="无法识别 INDX 宏"/>
@@ -2161,6 +2176,7 @@
   <translation tag="Load the required filaments or start anyway?" zh="加载所需耗材还是直接开始？"/>
   <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." zh="在此加载、卸载和排料。先选择材料以设置其温度。"/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." zh="加载、卸载和更换料盘，设置温度，并监控耗材传感器。"/>
+  <translation tag="Load, unload, purge, and extrude filament" zh="装载、卸载、清洗和挤出耗材"/>
   <translation tag="Load..." zh="加载..."/>
   <translation tag="Loaded" zh="已加载"/>
   <translation tag="Loading" zh="加载中"/>
@@ -2383,6 +2399,7 @@
   <translation tag="Mount tool" zh="装上工具"/>
   <translation tag="Mount which tool?" zh="装上哪个工具？"/>
   <translation tag="Mount..." zh="装上..."/>
+  <translation tag="Mounted: {}" zh="已装上: {}"/>
   <translation tag="Move" zh="移动"/>
   <translation tag="Move here" zh="移动到此处"/>
   <translation tag="Move out of range" zh="移动超出范围"/>
@@ -2497,6 +2514,7 @@
   <translation tag="No events queued" zh="无排队事件"/>
   <translation tag="No extruder heater found. Check [extruder] in printer.cfg" zh="未找到挤出机加热器。请检查 printer.cfg 中的 [extruder]"/>
   <translation tag="No fans detected" zh="未检测到风扇"/>
+  <translation tag="No feeder attached" zh="未连接送料器"/>
   <translation tag="No filament" zh="无耗材"/>
   <translation tag="No filament environment sensors" zh="无耗材环境传感器"/>
   <translation tag="No filament loaded to unload" zh="没有已加载的耗材可卸载"/>
@@ -2559,6 +2577,7 @@
   <translation tag="No timelapse videos found" zh="未找到延时视频"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" zh="不知道当前安装的是哪个工具。共用一个探针时，请用 {} 校准。仍然继续？"/>
   <translation tag="No tool is mounted" zh="未安装工具"/>
+  <translation tag="No tool mounted" zh="未装上工具"/>
   <translation tag="No tool on the head" zh="工具头上没有工具"/>
   <translation tag="No tools to calibrate" zh="没有可校准的工具"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" zh="未转动:差距移动了 {:.1f} Hz"/>
@@ -2808,9 +2827,11 @@
   <translation tag="Pick Color" zh="选择颜色"/>
   <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." zh="选择 HelixScreen 的行为方式。以后可在“设置”中更改。"/>
   <translation tag="Pick the best band" zh="选择最佳区段"/>
+  <translation tag="Pick up" zh="装上"/>
   <translation tag="Pick up and park each tool in turn" zh="依次装上并停放每个工具"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" zh="装上工具，加热后抽出耗材"/>
   <translation tag="Pick up tool" zh="取出工具"/>
+  <translation tag="Pick-up step cancelled; nothing was sent" zh="装上后的步骤已取消；未发送任何指令"/>
   <translation tag="Picking up tool" zh="正在取用工具"/>
   <translation tag="Pill" zh="胶囊"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" zh="按下转为滚动前的像素数(越低 = 滚动越快触发)"/>
@@ -3076,6 +3097,7 @@
   <translation tag="Purge tower and brush settings" zh="排料塔与刷子设置"/>
   <translation tag="Purging" zh="正在清料"/>
   <translation tag="Purging nozzle" zh="正在清洗喷嘴"/>
+  <translation tag="Purging old filament" zh="正在清除旧耗材"/>
   <translation tag="Purging..." zh="正在清料..."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." zh="将清洁耗材推入挤出机直到推不动,然后点击挤出。"/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." zh="将耗材推入挤出机直到推不动为止。挤出机会自动咬入，或点击“挤出”。"/>
@@ -3338,6 +3360,7 @@
   <translation tag="Retract filament to current slot" zh="将耗材回抽至当前槽位"/>
   <translation tag="Retract may still be running — response timed out" zh="回抽可能仍在运行 — 响应超时"/>
   <translation tag="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again" zh="请回抽退料。若能顺利退出，剪掉被啃咬的一端后重新送料"/>
+  <translation tag="Retracting filament from nozzle" zh="正在从喷嘴回抽耗材"/>
   <translation tag="Retraction" zh="回抽"/>
   <translation tag="Retraction Settings" zh="回抽设置"/>
   <translation tag="Retraction distance in the cooling tube" zh="冷却管内的回抽距离"/>
@@ -4117,6 +4140,7 @@
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。请在打印前手动取出耗材。仍要开始打印吗？"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。在清空之前，打印机可能拒绝装载槽位。仍要开始打印吗？"/>
   <translation tag="The toolhead is not homed, so this would home into the print" zh="工具头尚未归位，归位会使喷嘴碰到打印件"/>
+  <translation tag="The toolhead may still be at the chute. Move it away before printing." zh="打印头可能仍在清料槽处。打印前请将其移开。"/>
   <translation tag="The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from." zh="工具头以 20 到 300 mm/s 的速度来回移动，同时加速度传感器测量每个电机的抖动强度。大约需要 {0} 分钟，并且噪音较大。抖动最强的速度就是外墙应避开的速度。"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" zh="工具头传感器显示耗材已装载。仍要继续装载吗？"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" zh="工具头传感器显示无耗材。仍要继续卸载吗？"/>
@@ -4311,6 +4335,7 @@
   <translation tag="Toolhead Style" zh="工具头样式"/>
   <translation tag="Toolhead X" zh="工具头 X"/>
   <translation tag="Toolhead Y" zh="工具头 Y"/>
+  <translation tag="Toolhead did not return to park: {}" zh="打印头未返回停放位置：{}"/>
   <translation tag="Toolhead jam" zh="工具头堵塞"/>
   <translation tag="Toolhead lost homing" zh="工具头已失去归位"/>
   <translation tag="Toolhead offset calibration" zh="工具头偏移校准"/>
@@ -4532,6 +4557,7 @@
   <translation tag="Wait for the current filament operation to finish" zh="请等待当前耗材操作完成"/>
   <translation tag="Wait for the current operation to complete" zh="请等待当前操作完成"/>
   <translation tag="Wait for the current operation to complete or cancel it first" zh="请等待当前操作完成，或先将其取消"/>
+  <translation tag="Wait for the load or unload to finish" zh="请等待装入或卸载完成"/>
   <translation tag="Wait for the motor to stop" zh="请等待电机停止"/>
   <translation tag="Wait for the nozzle to stop moving" zh="请等待喷嘴停止移动"/>
   <translation tag="Wait for the running INDX operation to finish" zh="请等待正在进行的INDX操作完成"/>
@@ -4854,6 +4880,7 @@
   <translation tag="{} d" zh="{} 天"/>
   <translation tag="{} days" zh="{} 天"/>
   <translation tag="{} detected" zh="检测到{}"/>
+  <translation tag="{} did not arrive; nothing was sent" zh="{} 未到位；未发送任何指令"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." zh="{}未装载。恢复前请检查热端是否安装到位，并进行一次测试挤出。"/>
   <translation tag="{} disabled" zh="已停用{}"/>
   <translation tag="{} disconnected" zh="{}已断开"/>

@@ -66,7 +66,7 @@ constexpr const char* kG28Rejection = "Must home axis first";
 helix::PrinterState& unhomed_global_state() {
     helix::PrinterState& state = get_printer_state();
     state.init_subjects(false);
-    lv_subject_copy_string(state.motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(state.motion_state().get_homed_axes_subject(), "");
     return state;
 }
 

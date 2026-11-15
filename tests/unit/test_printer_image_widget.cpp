@@ -510,7 +510,7 @@ TEST_CASE_METHOD(XMLTestFixture, "PrinterState type subject fires only when the 
     REQUIRE(std::string(lv_subject_get_string(
                 state().profile_state().get_printer_type_subject())) == "Creality K1C");
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }
 
 // On a fresh install auto-detection settles AFTER the home panel is built, so

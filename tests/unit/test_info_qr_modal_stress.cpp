@@ -59,7 +59,7 @@ helix::ui::InfoQrModal::Config qr_config() {
 // catches both the stranded-on-screen and stranded-on-layer shapes.
 size_t widget_census(lv_obj_t* obj) {
     size_t n = 1;
-    for (uint32_t i = 0; i < lv_obj_get_child_cnt(obj); ++i)
+    for (uint32_t i = 0; i < lv_obj_get_child_count(obj); ++i)
         n += widget_census(lv_obj_get_child(obj, i));
     return n;
 }
@@ -80,7 +80,7 @@ lv_obj_t* show_one() {
     // registration regression from turning the whole case into a no-op.
     lv_obj_t* container = lv_obj_find_by_name(dialog, "qr_container");
     REQUIRE(container != nullptr);
-    REQUIRE(lv_obj_get_child_cnt(container) == 1);
+    REQUIRE(lv_obj_get_child_count(container) == 1);
     return dialog;
 }
 

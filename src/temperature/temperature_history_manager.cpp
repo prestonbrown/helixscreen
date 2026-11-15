@@ -484,7 +484,7 @@ void TemperatureHistoryManager::subscribe_one(const std::string& key, lv_subject
     sub->temp_lifetime = temp_lifetime;
     sub->temp_observer = ObserverGuard(temp_subject, temp_observer_callback, sub->temp_ctx.get());
     // Only for genuinely dynamic subjects. Handing over an EMPTY token reads as
-    // "subject already dead", which makes reset() skip lv_observer_remove() and
+    // "subject already dead", which makes reset() skip lv_observer_delete() and
     // strand a live observer on a freed context (#816).
     if (temp_lifetime) {
         sub->temp_observer.set_alive_token(temp_lifetime);

@@ -218,8 +218,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(30);
 
     CHECK(lv_image_get_src(camera_image) == nullptr);
-    CHECK_FALSE(lv_obj_has_flag(camera_overlay, LV_OBJ_FLAG_HIDDEN)); // icon overlay shown
-    CHECK(lv_obj_has_flag(camera_status, LV_OBJ_FLAG_HIDDEN));        // status text hidden
+    CHECK_FALSE(lv_obj_is_hidden(camera_overlay)); // icon overlay shown
+    CHECK(lv_obj_is_hidden(camera_status));        // status text hidden
     // The actual lifecycle call: entering compact must invoke stop_stream()
     // exactly once, and must NOT touch start_stream().
     CHECK(CameraWidgetTestAccess::stop_stream_calls(h.widget()) == 1);
@@ -246,8 +246,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     h.resize(1, 1, 107, 141);
     process_lvgl(30);
 
-    CHECK_FALSE(lv_obj_has_flag(camera_overlay, LV_OBJ_FLAG_HIDDEN)); // still icon-only
-    CHECK(lv_obj_has_flag(camera_status, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(camera_overlay)); // still icon-only
+    CHECK(lv_obj_is_hidden(camera_status));
     CHECK(CameraWidgetTestAccess::start_stream_calls(h.widget()) == 1); // unchanged
     CHECK(CameraWidgetTestAccess::stop_stream_calls(h.widget()) == 1);  // unchanged
 
@@ -256,8 +256,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     h.resize(1, 1, 134, 169);
     process_lvgl(30);
 
-    CHECK_FALSE(lv_obj_has_flag(camera_overlay, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(camera_status, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(camera_overlay));
+    CHECK(lv_obj_is_hidden(camera_status));
     CHECK(CameraWidgetTestAccess::start_stream_calls(h.widget()) == 1);
     CHECK(CameraWidgetTestAccess::stop_stream_calls(h.widget()) == 1);
 
@@ -269,8 +269,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     h.resize(1, 2, 70, 131);
     process_lvgl(30);
 
-    CHECK_FALSE(lv_obj_has_flag(camera_overlay, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(camera_status, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(camera_overlay));
+    CHECK(lv_obj_is_hidden(camera_status));
     CHECK(CameraWidgetTestAccess::start_stream_calls(h.widget()) == 1);
     CHECK(CameraWidgetTestAccess::stop_stream_calls(h.widget()) == 1);
 
@@ -283,7 +283,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     h.resize(2, 1, 233, 112);
     process_lvgl(30);
 
-    CHECK_FALSE(lv_obj_has_flag(camera_status, LV_OBJ_FLAG_HIDDEN)); // status text shown again
+    CHECK_FALSE(lv_obj_is_hidden(camera_status)); // status text shown again
     CHECK(CameraWidgetTestAccess::start_stream_calls(h.widget()) == 2);
     CHECK(CameraWidgetTestAccess::stop_stream_calls(h.widget()) == 1);
 
@@ -294,7 +294,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     h.resize(2, 1, 309, 106);
     process_lvgl(30);
 
-    CHECK_FALSE(lv_obj_has_flag(camera_status, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(camera_status));
     CHECK(CameraWidgetTestAccess::start_stream_calls(h.widget()) == 2); // NOT re-called
     CHECK(CameraWidgetTestAccess::stop_stream_calls(h.widget()) == 1);
 
@@ -303,8 +303,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     h.resize(1, 1, 107, 141);
     process_lvgl(30);
 
-    CHECK_FALSE(lv_obj_has_flag(camera_overlay, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(camera_status, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(camera_overlay));
+    CHECK(lv_obj_is_hidden(camera_status));
     CHECK(CameraWidgetTestAccess::start_stream_calls(h.widget()) == 2);
     CHECK(CameraWidgetTestAccess::stop_stream_calls(h.widget()) == 2);
 
@@ -313,7 +313,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     h.resize(1, 1, w_wide(), h_taller());
     process_lvgl(30);
 
-    CHECK_FALSE(lv_obj_has_flag(camera_status, LV_OBJ_FLAG_HIDDEN)); // status text shown again
+    CHECK_FALSE(lv_obj_is_hidden(camera_status)); // status text shown again
     // active_ is true (set above), so leaving compact must invoke
     // start_stream() exactly once more, and must NOT touch stop_stream().
     CHECK(CameraWidgetTestAccess::start_stream_calls(h.widget()) == 3);
@@ -325,11 +325,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // implementation must NOT re-enter the "!compact_ && was_compact"
     // branch, so the manually-set hidden flag must survive AND
     // start_stream_calls must not advance.
-    lv_obj_add_flag(camera_status, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(camera_status, true);
     h.resize(2, 2, w_wide(), h_taller()); // spans vary, width identical
     process_lvgl(30);
 
-    CHECK(lv_obj_has_flag(camera_status, LV_OBJ_FLAG_HIDDEN));          // NOT re-shown
+    CHECK(lv_obj_is_hidden(camera_status));                             // NOT re-shown
     CHECK(CameraWidgetTestAccess::start_stream_calls(h.widget()) == 3); // NOT re-called
     CHECK(CameraWidgetTestAccess::stop_stream_calls(h.widget()) == 2);
 }

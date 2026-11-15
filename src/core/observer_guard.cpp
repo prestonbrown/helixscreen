@@ -41,7 +41,7 @@ void ObserverGuard::reset() {
         // If we have a lifetime token and either (a) it expired (all shared_ptrs
         // gone), or (b) the pointed-to bool was set to false (source signaled
         // subject death), the subject's observers were already freed by
-        // lv_subject_deinit(). Calling lv_observer_remove() would crash.
+        // lv_subject_deinit(). Calling lv_observer_delete() would crash.
         //
         // Check (b) is critical: multiple services may hold shared_ptr copies of
         // the same SubjectLifetime. When the source resets its copy and deinits
@@ -62,7 +62,7 @@ void ObserverGuard::reset() {
         // An observer created before the most recent invalidate_all() MAY
         // have had its subject freed by StaticSubjectRegistry::deinit_all()
         // — then LVGL already removed+freed the observer and
-        // lv_observer_remove() would touch freed memory. The epoch is
+        // lv_observer_delete() would touch freed memory. The epoch is
         // process-global though: it says a registry teardown happened, not
         // that THIS subject was one of the freed ones. A subject declared
         // teardown-exempt by its owner (the reseeded theme globals) keeps
@@ -77,7 +77,7 @@ void ObserverGuard::reset() {
             created_epoch_ < s_invalidation_epoch.load(std::memory_order_acquire) &&
             !subject_is_teardown_exempt(subject_);
         if (!subject_dead && !freed_by_deinit && lv_is_initialized()) {
-            lv_observer_remove(observer_);
+            lv_observer_delete(observer_);
         }
         // If LVGL is already torn down or the subject was freed, just release
         observer_ = nullptr;

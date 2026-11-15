@@ -221,7 +221,7 @@ void BedDryingController::describe_chamber(const Material& material) {
     const std::string text =
         fmt::format("{} ({})", lv_tr("Heat the chamber too"),
                     helix::units::format_display_temp(chamber_temp_for(material)));
-    lv_subject_copy_string(&bed_drying_chamber_text_, text.c_str());
+    lv_subject_set_string(&bed_drying_chamber_text_, text.c_str());
 }
 
 BedDryingController::State BedDryingController::state() const {
@@ -612,7 +612,7 @@ void BedDryingController::publish() {
     lv_subject_set_int(&bed_drying_progress_pct_, progress_pct);
     lv_subject_set_int(&bed_drying_state_, static_cast<int>(s));
     if (text != lv_subject_get_string(&bed_drying_text_)) {
-        lv_subject_copy_string(&bed_drying_text_, text.c_str());
+        lv_subject_set_string(&bed_drying_text_, text.c_str());
     }
 }
 

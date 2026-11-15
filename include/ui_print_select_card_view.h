@@ -53,7 +53,7 @@ namespace helix::ui {
  * @brief Per-card widget data for declarative text binding
  *
  * Stored with each pooled card widget. Subjects are bound to labels once
- * at pool creation, then updated via lv_subject_copy_string() when card is recycled.
+ * at pool creation, then updated via lv_subject_set_string() when card is recycled.
  */
 struct CardWidgetData {
     lv_subject_t filename_subject{};

@@ -89,7 +89,7 @@ std::optional<TempGraphHit> tooltip_hit_test(ui_temp_graph_t* graph, int32_t x, 
         if (!meta->chart_series || !meta->visible) {
             continue;
         }
-        int32_t* y_data = lv_chart_get_y_array(graph->chart, meta->chart_series);
+        int32_t* y_data = lv_chart_get_series_y_array(graph->chart, meta->chart_series);
         if (!y_data) {
             continue;
         }
@@ -484,7 +484,7 @@ void ui_temp_graph_set_tooltip_enabled(ui_temp_graph_t* graph, bool enabled) {
             spdlog::error("[TempGraph] Failed to allocate tooltip state");
             return;
         }
-        lv_obj_add_flag(graph->chart, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(graph->chart, true);
         // CLICKED (release without scroll), not PRESSED, so a scroll gesture that
         // happens to begin over the chart does not raise a caption.
         // DECLARATIVE_OK: the chart is a C++-created widget with no XML layer,
@@ -501,7 +501,7 @@ void ui_temp_graph_set_tooltip_enabled(ui_temp_graph_t* graph, bool enabled) {
         helix::temp_graph_internal::temp_graph_tooltip_clear(graph);
         lv_obj_remove_event_cb_with_user_data(graph->chart,
                                               helix::temp_graph_internal::tooltip_press_cb, graph);
-        lv_obj_remove_flag(graph->chart, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(graph->chart, false);
         helix::temp_graph_internal::temp_graph_tooltip_free_state(graph);
     }
 }

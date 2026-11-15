@@ -44,6 +44,7 @@
 #include "ui_text.h"
 #include "ui_text_edit_menu.h"
 #include "ui_text_input.h"
+#include "ui_toolhead_view.h"
 #include "ui_z_offset_indicator.h"
 
 #include "async_lifetime_guard.h"
@@ -258,12 +259,12 @@ static void on_setting_info_clicked(lv_event_t* e) {
     // One shared callback discloses the tapped row's description for every
     // setting-row component; the open/closed state belongs to that row alone and
     // no C++ object owns the row to publish it from.
-    if (lv_obj_has_flag(desc, LV_OBJ_FLAG_HIDDEN)) {
+    if (lv_obj_is_hidden(desc)) {
         // DECLARATIVE_OK: per-row disclosure toggle with no owning object (see above)
-        lv_obj_remove_flag(desc, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(desc, false);
     } else {
         // DECLARATIVE_OK: per-row disclosure toggle with no owning object (see above)
-        lv_obj_add_flag(desc, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(desc, true);
     }
     LVGL_SAFE_EVENT_CB_END();
 }
@@ -462,10 +463,11 @@ void register_xml_components() {
 
     // Register custom widgets (BEFORE components that use them)
     helix::ui::gcode_viewer_register();
-    ui_spool_canvas_register();       // Needed by Spoolman panel (and AMS panel)
-    ui_hsv_picker_register();         // HSV color picker for edit filament modal
-    ui_z_offset_indicator_register(); // Z-offset nozzle indicator
-    ui_ams_current_tool_init();       // AMS current tool indicator callbacks
+    ui_spool_canvas_register();             // Needed by Spoolman panel (and AMS panel)
+    ui_hsv_picker_register();               // HSV color picker for edit filament modal
+    ui_z_offset_indicator_register();       // Z-offset nozzle indicator
+    helix::ui::ui_toolhead_view_register(); // <toolhead_view>: the configured head, fitted
+    ui_ams_current_tool_init();             // AMS current tool indicator callbacks
     // <fault_path> + its fault_path_segment subject, embedded by the modals
     // that can show a positioned lane fault.
     helix::ui::fault_path_register();

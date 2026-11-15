@@ -14,6 +14,7 @@
 #include "klipper_extruder_naming.h"
 #include "lvgl.h"
 #include "print_start_analyzer.h"
+#include "printer_database_merge.h"
 #include "printer_discovery.h"
 #include "printer_image_variants.h"
 #include "printer_state.h"
@@ -77,6 +78,7 @@ namespace {
  * - Add new printers (unique ID)
  * - Override bundled printers (same ID replaces bundled)
  * - Disable bundled printers ("enabled": false)
+ * The per-entry rules, id_aliases included: printer_database_merge.h.
  */
 struct PrinterDatabase {
     json data;
@@ -202,13 +204,7 @@ struct PrinterDatabase {
             return;
         }
 
-        std::map<std::string, size_t> bundled_index;
-        for (size_t i = 0; i < data["printers"].size(); ++i) {
-            std::string id = helix::json_util::safe_string(data["printers"][i], "id");
-            if (!id.empty()) {
-                bundled_index[id] = i;
-            }
-        }
+        printer_db::BundledIds bundled = printer_db::index_bundled(data["printers"]);
 
         // Scan for JSON files in extensions directory
         std::vector<std::string> extension_files;
@@ -229,7 +225,7 @@ struct PrinterDatabase {
         std::sort(extension_files.begin(), extension_files.end());
 
         for (const auto& file_path : extension_files) {
-            merge_extension_file(file_path, bundled_index);
+            merge_extension_file(file_path, bundled);
         }
 
         if (user_overrides > 0 || user_additions > 0) {
@@ -238,8 +234,7 @@ struct PrinterDatabase {
         }
     }
 
-    void merge_extension_file(const std::string& file_path,
-                              std::map<std::string, size_t>& bundled_index) {
+    void merge_extension_file(const std::string& file_path, printer_db::BundledIds& bundled) {
         const auto extension_text = helix::text_io::read_file(file_path);
         if (!extension_text) {
             load_errors.push_back(fmt::format("Could not open {}", file_path));
@@ -283,47 +278,11 @@ struct PrinterDatabase {
             return;
         }
 
-        for (const auto& printer : extension_data["printers"]) {
-            std::string id = helix::json_util::safe_string(printer, "id");
-            if (id.empty()) {
-                load_errors.push_back(fmt::format("{}: printer missing 'id' field", file_path));
-                spdlog::warn("[PrinterDetector] {}", load_errors.back());
-                continue;
-            }
-
-            bool enabled = helix::json_util::safe_bool(printer, "enabled", true);
-
-            auto it = bundled_index.find(id);
-            if (it != bundled_index.end()) {
-                // Override bundled printer
-                if (!enabled) {
-                    // Mark as disabled (will be filtered out in list)
-                    data["printers"][it->second]["enabled"] = false;
-                    spdlog::debug("[PrinterDetector] Disabled bundled printer '{}'", id);
-                } else {
-                    // Replace bundled definition
-                    data["printers"][it->second] = printer;
-                    spdlog::debug("[PrinterDetector] User override for '{}'", id);
-                }
-                user_overrides++;
-            } else {
-                if (enabled) {
-                    // Validate required fields for new printers
-                    std::string name = helix::json_util::safe_string(printer, "name");
-                    if (name.empty()) {
-                        load_errors.push_back(
-                            fmt::format("{}: printer '{}' missing 'name' field", file_path, id));
-                        spdlog::warn("[PrinterDetector] {}", load_errors.back());
-                        continue;
-                    }
-
-                    data["printers"].push_back(printer);
-                    bundled_index[id] = data["printers"].size() - 1;
-                    spdlog::debug("[PrinterDetector] Added user printer '{}'", name);
-                    user_additions++;
-                }
-            }
-        }
+        printer_db::MergeCounts counts;
+        printer_db::merge_extension_printers(data["printers"], extension_data["printers"], bundled,
+                                             file_path, counts, load_errors);
+        user_overrides += counts.overrides;
+        user_additions += counts.additions;
 
         spdlog::debug("[PrinterDetector] Processed extension file: {}", file_path);
     }

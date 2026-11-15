@@ -122,12 +122,12 @@ void WizardAmsIdentifyStep::update_display() {
 
     // Update type via subject (reactive binding)
     std::string type_name = get_ams_type_name();
-    lv_subject_copy_string(&wizard_ams_type_, type_name.c_str());
+    lv_subject_set_string(&wizard_ams_type_, type_name.c_str());
     spdlog::debug("[{}] Set type subject: {}", get_name(), type_name);
 
     // Update details via subject (reactive binding)
     std::string details = get_ams_details();
-    lv_subject_copy_string(&wizard_ams_details_, details.c_str());
+    lv_subject_set_string(&wizard_ams_details_, details.c_str());
     spdlog::debug("[{}] Set details subject: {}", get_name(), details);
 
     // The logo's source is set here: lv_image has no source binding
@@ -202,7 +202,7 @@ void WizardAmsIdentifyStep::cleanup() {
     // No config to save - this is a display-only step
 
     // Reset UI references
-    // Note: Do NOT call lv_obj_del() here - the wizard framework handles
+    // Note: Do NOT call lv_obj_delete() here - the wizard framework handles
     // object deletion when clearing wizard_content container
     screen_root_ = nullptr;
 

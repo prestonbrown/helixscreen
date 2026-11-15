@@ -199,12 +199,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(has_label(root, "Recirculation fan"));
     lv_obj_t* row = lv_obj_find_by_name(root, "chamber_air_row");
     REQUIRE(row != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     refit(false);
     CHECK_FALSE(has_label(root, "Exhaust fan"));
     CHECK_FALSE(has_label(root, "Recirculation fan"));
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     refit(true);
     CHECK(has_label(root, "Exhaust fan"));
@@ -415,8 +415,7 @@ lv_obj_t* dial_rpm_label(lv_obj_t* root, const std::string& fan_name) {
 }
 
 bool shows(lv_obj_t* label, const char* text) {
-    return label && !lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN) &&
-           std::string(lv_label_get_text(label)) == text;
+    return label && !lv_obj_is_hidden(label) && std::string(lv_label_get_text(label)) == text;
 }
 
 } // namespace
@@ -451,14 +450,14 @@ TEST_CASE_METHOD(
     REQUIRE(part != nullptr);
     REQUIRE(aux != nullptr);
     CHECK(shows(part, "3200 RPM"));
-    CHECK(lv_obj_has_flag(aux, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(aux));
 
     SECTION("an rpm change alone refreshes the reading") {
         get_printer_state().update_from_status(json{{"fan", {{"rpm", 4100.0}}}});
         helix::ui::UpdateQueue::instance().drain();
         process_lvgl(50);
         CHECK(shows(part, "4100 RPM"));
-        CHECK(lv_obj_has_flag(aux, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(aux));
     }
 
     SECTION("a reading that goes away, or a stopped fan's 0 rpm, hides the label") {
@@ -467,7 +466,7 @@ TEST_CASE_METHOD(
             get_printer_state().update_from_status(json{{"fan", {{"rpm", gone}}}});
             helix::ui::UpdateQueue::instance().drain();
             process_lvgl(50);
-            CHECK(lv_obj_has_flag(part, LV_OBJ_FLAG_HIDDEN));
+            CHECK(lv_obj_is_hidden(part));
         }
     }
 }
@@ -571,9 +570,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan dial: a dial set to Off shows no rpm ov
 
     // A fan spinning down after M107 still reads RPM for a few seconds.
     dial.set_speed(0);
-    CHECK(lv_obj_has_flag(rpm, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(rpm));
     dial.set_rpm(3000);
-    CHECK(lv_obj_has_flag(rpm, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(rpm));
 
     dial.set_speed(25);
     CHECK(shows(rpm, "3000 RPM"));
@@ -585,7 +584,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan dial: a dial set to Off shows no rpm ov
         lv_obj_remove_state(sw, LV_STATE_CHECKED);
         lv_obj_send_event(sw, LV_EVENT_VALUE_CHANGED, nullptr);
         REQUIRE(dial.get_speed() == 0);
-        CHECK(lv_obj_has_flag(rpm, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(rpm));
     }
     SECTION("the dial's arc dragged to 0 hides it at once") {
         lv_obj_t* arc = lv_obj_find_by_name(dial.get_root(), "dial_arc");
@@ -593,6 +592,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan dial: a dial set to Off shows no rpm ov
         lv_arc_set_value(arc, 0);
         lv_obj_send_event(arc, LV_EVENT_VALUE_CHANGED, nullptr);
         REQUIRE(dial.get_speed() == 0);
-        CHECK(lv_obj_has_flag(rpm, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(rpm));
     }
 }

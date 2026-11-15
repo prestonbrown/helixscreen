@@ -561,28 +561,28 @@ TEST_CASE_METHOD(LVGLTestFixture, "software sleep overlay hides the screen until
     DisplayManagerTestAccess::set_use_hardware_blank(mgr, false);
     DisplayManagerTestAccess::set_use_power_off(mgr, false);
     lv_obj_t* screen = lv_screen_active();
-    REQUIRE_FALSE(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(screen));
 
     DisplayManagerTestAccess::enter_sleep(mgr, 60);
     REQUIRE(DisplayManagerTestAccess::last_sleep_mechanism(mgr) ==
             helix::SleepMechanism::SoftwareOverlay);
     REQUIRE(DisplayManagerTestAccess::sleep_overlay(mgr) != nullptr);
-    CHECK(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(screen));
 
     SECTION("the wake-side restore shows the screen again") {
         DisplayManagerTestAccess::restore_display_output(mgr);
         CHECK(DisplayManagerTestAccess::sleep_overlay(mgr) == nullptr);
-        CHECK_FALSE(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(screen));
     }
 
     SECTION("a repeated create or destroy keeps the hold balanced") {
         DisplayManagerTestAccess::create_sleep_overlay(mgr);
         DisplayManagerTestAccess::destroy_sleep_overlay(mgr);
         CHECK(DisplayManagerTestAccess::sleep_overlay(mgr) == nullptr);
-        CHECK_FALSE(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(screen));
 
         DisplayManagerTestAccess::destroy_sleep_overlay(mgr);
-        CHECK_FALSE(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(screen));
     }
 
     CHECK_FALSE(helix::active_screen_hide_hold().is_held());
@@ -597,7 +597,7 @@ struct RefreshProbe {
     static void on_refr_start(lv_event_t* e) {
         auto* probe = static_cast<RefreshProbe*>(lv_event_get_user_data(e));
         if (probe->refreshes++ == 0) {
-            probe->screen_hidden_at_first = lv_obj_has_flag(lv_screen_active(), LV_OBJ_FLAG_HIDDEN);
+            probe->screen_hidden_at_first = lv_obj_is_hidden(lv_screen_active());
         }
     }
 };
@@ -632,7 +632,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
         DisplayManagerTestAccess::enter_sleep(mgr, 60);
         REQUIRE(DisplayManagerTestAccess::last_sleep_mechanism(mgr) == c.expected);
-        CHECK(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(screen));
         CHECK(helix::active_screen_hide_hold().is_held());
         if (c.hardware_blank) {
             // The controller blanks the panel and outranks power-off; the flush stays live.
@@ -669,7 +669,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     }
     CHECK(lv_obj_get_child_count(lv_layer_top()) == top_children);
     CHECK_FALSE(helix::active_screen_hide_hold().is_held());
-    CHECK_FALSE(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(screen));
 }
 
 // ============================================================================
@@ -987,13 +987,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "panel power-off hides the screen until the fl
     DisplayManagerTestAccess::set_display(mgr, disp);
     lv_display_set_flush_cb(disp, test_sentinel_flush_cb);
     lv_obj_t* screen = lv_screen_active();
-    REQUIRE_FALSE(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(screen));
 
     DisplayManagerTestAccess::enter_sleep(mgr, 60);
     REQUIRE(DisplayManagerTestAccess::last_sleep_mechanism(mgr) ==
             helix::SleepMechanism::PanelPowerOff);
     REQUIRE(DisplayManagerTestAccess::is_flush_suppressed(mgr));
-    CHECK(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(screen));
 
     // Two wakes in one batch (a fault dialog and a print ending) owe the first frame to
     // the loop. The second must not restore the flush while the panel is still off, or
@@ -1006,16 +1006,16 @@ TEST_CASE_METHOD(LVGLTestFixture, "panel power-off hides the screen until the fl
         helix::ui::UpdateQueue::instance().drain();
         REQUIRE_FALSE(mgr.is_display_sleeping());
         CHECK(disp->flush_cb != test_sentinel_flush_cb);
-        CHECK(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(screen));
 
         mgr.check_display_sleep();
         CHECK(disp->flush_cb == test_sentinel_flush_cb);
-        CHECK_FALSE(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(screen));
     }
 
     DisplayManagerTestAccess::restore_display_output(mgr);
     CHECK_FALSE(DisplayManagerTestAccess::is_flush_suppressed(mgr));
-    CHECK_FALSE(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(screen));
     CHECK_FALSE(helix::active_screen_hide_hold().is_held());
 
     DisplayManagerTestAccess::set_display(mgr, nullptr);

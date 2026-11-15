@@ -944,7 +944,7 @@ lv_subject_t* UpdateChecker::version_text_subject() {
 void UpdateChecker::render_version_text() {
     switch (shown_.status) {
     case Status::Checking:
-        lv_subject_copy_string(&version_text_subject_, lv_tr("Checking..."));
+        lv_subject_set_string(&version_text_subject_, lv_tr("Checking..."));
         return;
     case Status::UpdateAvailable:
         // A downgrade is not "available" in the usual sense: say what it
@@ -955,7 +955,7 @@ void UpdateChecker::render_version_text() {
                  shown_.version.c_str());
         break;
     case Status::UpToDate:
-        lv_subject_copy_string(&version_text_subject_, lv_tr("Up to date"));
+        lv_subject_set_string(&version_text_subject_, lv_tr("Up to date"));
         return;
     case Status::Error:
         snprintf(version_text_buf_, sizeof(version_text_buf_), lv_tr("Error: %s"),
@@ -964,11 +964,11 @@ void UpdateChecker::render_version_text() {
                      : shown_.error.c_str());
         break;
     case Status::Idle:
-        lv_subject_copy_string(&version_text_subject_,
-                               fmt::format(lv_tr("Version {}"), HELIX_VERSION).c_str());
+        lv_subject_set_string(&version_text_subject_,
+                              fmt::format(lv_tr("Version {}"), HELIX_VERSION).c_str());
         return;
     }
-    lv_subject_copy_string(&version_text_subject_, version_text_buf_);
+    lv_subject_set_string(&version_text_subject_, version_text_buf_);
 }
 
 void UpdateChecker::on_language_changed() {
@@ -1492,7 +1492,7 @@ void UpdateChecker::report_download_status(DownloadStatus status, int progress,
         if (subjects_initialized_) {
             lv_subject_set_int(&download_status_subject_, static_cast<int>(status));
             lv_subject_set_int(&download_progress_subject_, progress);
-            lv_subject_copy_string(&download_text_subject_, text.c_str());
+            lv_subject_set_string(&download_text_subject_, text.c_str());
         }
     });
 }
@@ -3635,8 +3635,8 @@ void UpdateChecker::start_auto_check() {
                 }
 
                 if (self->subjects_initialized_) {
-                    lv_subject_copy_string(&self->release_notes_subject_,
-                                           info->release_notes.c_str());
+                    lv_subject_set_string(&self->release_notes_subject_,
+                                          info->release_notes.c_str());
                     lv_subject_set_int(&self->changelog_visible_subject_, 0);
                 }
 
@@ -3977,11 +3977,11 @@ void UpdateChecker::report_result(Status status, std::optional<ReleaseInfo> info
                 if (status == Status::UpdateAvailable && info) {
                     shown_ = {status, info->version, info->is_downgrade, ""};
                     render_version_text();
-                    lv_subject_copy_string(&new_version_subject_, info->version.c_str());
+                    lv_subject_set_string(&new_version_subject_, info->version.c_str());
                 } else if (status == Status::UpToDate) {
                     shown_ = {status, "", false, ""};
                     render_version_text();
-                    lv_subject_copy_string(&new_version_subject_, "");
+                    lv_subject_set_string(&new_version_subject_, "");
                 } else if (status == Status::Error) {
                     // An Error carrying a release means the release is the problem:
                     // it has no build for this board.
@@ -3989,7 +3989,7 @@ void UpdateChecker::report_result(Status status, std::optional<ReleaseInfo> info
                     shown_ = {status, no_build ? info->version : "", false, no_build ? "" : error,
                               no_build};
                     render_version_text();
-                    lv_subject_copy_string(&new_version_subject_, "");
+                    lv_subject_set_string(&new_version_subject_, "");
                 }
             }
 

@@ -414,7 +414,7 @@ int theme_manager_full_init_count() {
 }
 
 void theme_manager_deinit() {
-    // Deinitialize subjects BEFORE lv_deinit() to prevent crash in lv_observer_remove().
+    // Deinitialize subjects BEFORE lv_deinit() to prevent crash in lv_observer_delete().
     // lv_subject_deinit() removes all observers from each subject AND removes the
     // unsubscribe_on_delete_cb from widgets. Without this, lv_deinit() -> obj_delete_core()
     // fires stale callbacks that try to remove from corrupted observer linked lists.

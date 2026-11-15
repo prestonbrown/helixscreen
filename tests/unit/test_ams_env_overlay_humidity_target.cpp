@@ -218,8 +218,8 @@ TEST_CASE_METHOD(XMLTestFixture, "The humidity target field is hidden for a drye
     auto* backend = show_overlay_with(false);
 
     CHECK(subject_int("ams_env_overlay_humidity_target_visible") == 0);
-    CHECK(lv_obj_has_flag(find_widget("humidity_target_column"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(find_widget("duration_input"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(find_widget("humidity_target_column")));
+    CHECK_FALSE(lv_obj_is_hidden(find_widget("duration_input")));
 
     // Text left in the hidden field still sends the plain temp + time start.
     lv_textarea_set_text(find_widget("humidity_target_input"), "20");
@@ -237,7 +237,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     auto* backend = show_overlay_with(true);
 
     CHECK(subject_int("ams_env_overlay_humidity_target_visible") == 1);
-    CHECK_FALSE(lv_obj_has_flag(find_widget("humidity_target_column"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(find_widget("humidity_target_column")));
 
     lv_obj_t* input = find_widget("humidity_target_input");
     CHECK(std::string(lv_textarea_get_text(input)).empty());
@@ -331,7 +331,7 @@ TEST_CASE_METHOD(DryerKeypadFixture, "The whole-number dryer fields refuse a dec
     show_overlay_with(true);
     const char* input = GENERATE("temp_input", "humidity_target_input");
     CAPTURE(input);
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(open_keypad(input), "btn_dot"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(open_keypad(input), "btn_dot")));
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "The duration field opens in hours when no preset picks a value",

@@ -268,7 +268,7 @@ class PrinterPrintState {
      * `deinit_subjects()` / `init_subjects()` between cases. Cross-singleton
      * observers (e.g. AmsState's print-state observer) MUST pass this token to
      * `observe<int>(...)` — otherwise an ObserverGuard outliving a
-     * `deinit_subjects()` cycle will UAF in `lv_observer_remove()` (subject
+     * `deinit_subjects()` cycle will UAF in `lv_observer_delete()` (subject
      * deinit already freed the observer node).
      */
     [[nodiscard]] SubjectLifetime get_static_subjects_lifetime() const {

@@ -507,10 +507,10 @@ void WidgetCatalogOverlay::apply_search(const std::string& query) {
             continue;
         }
         if (ui::selector_entry_matches(g_catalog_state.entries[i], query)) {
-            lv_obj_remove_flag(row, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(row, false);
             ++visible;
         } else {
-            lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(row, true);
         }
     }
     lv_subject_set_int(&g_catalog_state.match_count, visible);
@@ -861,7 +861,7 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
             auto* backdrop = helix::ui::create_fullscreen_backdrop(live_screen, backdrop_opa);
             if (backdrop) {
                 // Don't block clicks — let taps on the backdrop close the catalog
-                lv_obj_remove_flag(backdrop, LV_OBJ_FLAG_CLICKABLE);
+                lv_obj_set_clickable(backdrop, false);
                 helix::ui::bring_to_front(backdrop);
             }
             g_catalog_state.backdrop = backdrop;

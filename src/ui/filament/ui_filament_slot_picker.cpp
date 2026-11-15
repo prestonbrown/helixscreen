@@ -203,16 +203,16 @@ void FilamentSlotPicker::show_impl(lv_obj_t* parent, lv_obj_t* trigger,
 }
 
 void FilamentSlotPicker::publish(const Options& options, const std::vector<std::string>& reasons) {
-    lv_subject_copy_string(&s_title, options.title.c_str());
+    lv_subject_set_string(&s_title, options.title.c_str());
     lv_subject_set_int(&s_has_title, options.title.empty() ? 0 : 1);
     lv_subject_set_int(&s_has_reasons, reasons.empty() ? 0 : 1);
     lv_subject_set_int(&s_offer_auto, options.offer_auto ? 1 : 0);
     lv_subject_set_int(&s_auto_selected, options.offer_auto && current_selection_.is_auto ? 1 : 0);
-    lv_subject_copy_string(&s_auto_text, lv_tr("Auto"));
+    lv_subject_set_string(&s_auto_text, lv_tr("Auto"));
     lv_subject_set_int(&s_has_extra, options.extra_choice.empty() ? 0 : 1);
-    lv_subject_copy_string(&s_extra_text, options.extra_choice.c_str());
+    lv_subject_set_string(&s_extra_text, options.extra_choice.c_str());
     lv_subject_set_int(&s_has_cancel, options.cancel_choice.empty() ? 0 : 1);
-    lv_subject_copy_string(&s_cancel_text, options.cancel_choice.c_str());
+    lv_subject_set_string(&s_cancel_text, options.cancel_choice.c_str());
 
     for (std::size_t k = 0; k < rows_.size(); ++k) {
         const helix::AvailableSlot& slot = slots_[rows_[k]];

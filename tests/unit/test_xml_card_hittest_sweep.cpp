@@ -126,7 +126,7 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_current_tool: colour swatch routes clicks 
     REQUIRE(root != nullptr);
     // The component hides itself unless an AMS tool is active; clear the flag so
     // the hit test sees real geometry.
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root, false);
     lv_obj_update_layout(root);
 
     lv_obj_t* swatch = lv_obj_find_by_name(root, "color_swatch");
@@ -171,7 +171,7 @@ TEST_CASE_METHOD(XMLTestFixture, "notification_history_item: body routes clicks 
     REQUIRE(item != nullptr);
     lv_obj_set_width(item, 400);
     lv_obj_update_layout(item);
-    REQUIRE(lv_obj_has_flag(item, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(item));
 
     lv_obj_t* title = lv_obj_find_by_name(item, "item_title");
     lv_obj_t* message = lv_obj_find_by_name(item, "item_message");

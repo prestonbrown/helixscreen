@@ -461,7 +461,7 @@ nlohmann::json RemoteControlServer::handle_navigate(const nlohmann::json& params
             throw std::invalid_argument("Not a panel, and no widget named '" + target +
                                         "' on screen");
         }
-        if (!lv_obj_has_flag(widget, LV_OBJ_FLAG_CLICKABLE)) {
+        if (!lv_obj_is_clickable(widget)) {
             throw std::invalid_argument("Widget '" + target + "' is not clickable");
         }
         helix::ui::send_tap(widget);
@@ -913,7 +913,7 @@ nlohmann::json RemoteControlServer::handle_set_subject(const nlohmann::json& par
 
         } else if (type == LV_SUBJECT_TYPE_STRING) {
             std::string value = value_json.get<std::string>();
-            lv_subject_copy_string(subject, value.c_str());
+            lv_subject_set_string(subject, value.c_str());
             return {{"name", name}, {"set", value}};
 
         } else {
@@ -931,7 +931,7 @@ nlohmann::json RemoteControlServer::handle_list_subjects(const nlohmann::json& /
         auto* scope = lv_xml_component_get_scope("globals");
         if (scope) {
             lv_xml_subject_t* xml_sub =
-                static_cast<lv_xml_subject_t*>(_lv_ll_get_head(&scope->subjects_ll));
+                static_cast<lv_xml_subject_t*>(lv_ll_get_head(&scope->subjects_ll));
             while (xml_sub) {
                 if (xml_sub->name && xml_sub->subject) {
                     auto type = static_cast<lv_subject_type_t>(xml_sub->subject->type);
@@ -939,7 +939,7 @@ nlohmann::json RemoteControlServer::handle_list_subjects(const nlohmann::json& /
                         {{"name", xml_sub->name}, {"type", subject_type_name(type)}});
                 }
                 xml_sub =
-                    static_cast<lv_xml_subject_t*>(_lv_ll_get_next(&scope->subjects_ll, xml_sub));
+                    static_cast<lv_xml_subject_t*>(lv_ll_get_next(&scope->subjects_ll, xml_sub));
             }
         }
 
@@ -1091,7 +1091,7 @@ nlohmann::json RemoteControlServer::handle_wait_for(const nlohmann::json& params
 
         helix::ui::queue_update("RemoteControlServer::handle_wait_for", [state, cleanup_promise]() {
             if (state->observer) {
-                lv_observer_remove(state->observer);
+                lv_observer_delete(state->observer);
                 state->observer = nullptr;
             }
             cleanup_promise->set_value();
@@ -1190,7 +1190,7 @@ static std::string topmost_layer() {
         uint32_t count = lv_obj_get_child_count(root);
         for (uint32_t i = count; i > 0; --i) {
             lv_obj_t* child = lv_obj_get_child(root, static_cast<int32_t>(i - 1));
-            if (child && !lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+            if (child && !lv_obj_is_hidden(child)) {
                 return path_of(child);
             }
         }
@@ -1591,7 +1591,7 @@ nlohmann::json RemoteControlServer::handle_click(const nlohmann::json& params) {
         // it (extruder selector, gcode test Travels).
         bool toggle_class = lv_obj_check_type(widget, &lv_switch_class) ||
                             lv_obj_check_type(widget, &lv_checkbox_class);
-        if (toggle_class || lv_obj_has_flag(widget, LV_OBJ_FLAG_CHECKABLE)) {
+        if (toggle_class || lv_obj_is_checkable(widget)) {
             bool now = !lv_obj_has_state(widget, LV_STATE_CHECKED);
             if (now) {
                 lv_obj_add_state(widget, LV_STATE_CHECKED);
@@ -1740,12 +1740,12 @@ static nlohmann::json describe_one(lv_obj_t* o, const char* name, const std::str
     entry["layer"] = layer_of(o);
 
     nlohmann::json actions = nlohmann::json::array();
-    if (lv_obj_has_flag(o, LV_OBJ_FLAG_CLICKABLE)) {
+    if (lv_obj_is_clickable(o)) {
         actions.push_back("click");
     }
     // Report containers that can actually scroll (flag set AND content overflows),
     // so callers know what to target with `scroll`.
-    if (lv_obj_has_flag(o, LV_OBJ_FLAG_SCROLLABLE)) {
+    if (lv_obj_is_scrollable(o)) {
         int32_t below = lv_obj_get_scroll_bottom(o);
         int32_t above = lv_obj_get_scroll_top(o);
         int32_t right = lv_obj_get_scroll_right(o);
@@ -1807,7 +1807,7 @@ static void describe_walk(lv_obj_t* parent, const std::string& path_prefix, nloh
         if (!child) {
             continue;
         }
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(child)) {
             continue; // hidden subtree — not on screen
         }
         // Segments are names where a name uniquely identifies the child among
@@ -1911,7 +1911,7 @@ nlohmann::json RemoteControlServer::handle_overflow(const nlohmann::json& params
                 out.push_back({{"name", resolved_name(ov.obj)},
                                {"path", path_of(ov.obj)},
                                {"layer", layer_of(ov.obj)},
-                               {"scrollable", lv_obj_has_flag(ov.obj, LV_OBJ_FLAG_SCROLLABLE)},
+                               {"scrollable", lv_obj_is_scrollable(ov.obj)},
                                {"top", ov.top},
                                {"bottom", ov.bottom},
                                {"left", ov.left},
@@ -2254,9 +2254,9 @@ nlohmann::json RemoteControlServer::handle_state(const nlohmann::json& params) {
         // bind_flag_if contracts are assertable here.
         auto flags_of = [](lv_obj_t* w) {
             return nlohmann::json{
-                {"hidden", lv_obj_has_flag(w, LV_OBJ_FLAG_HIDDEN)},
-                {"clickable", lv_obj_has_flag(w, LV_OBJ_FLAG_CLICKABLE)},
-                {"scrollable", lv_obj_has_flag(w, LV_OBJ_FLAG_SCROLLABLE)},
+                {"hidden", lv_obj_is_hidden(w)},
+                {"clickable", lv_obj_is_clickable(w)},
+                {"scrollable", lv_obj_is_scrollable(w)},
             };
         };
         result["flags"] = flags_of(widget);
@@ -2450,8 +2450,8 @@ static void geom_walk(lv_obj_t* obj, const std::string& path, int depth, nlohman
     e["req_w"] = describe_style_size(lv_obj_get_style_width(obj, LV_PART_MAIN));
     e["req_h"] = describe_style_size(lv_obj_get_style_height(obj, LV_PART_MAIN));
     e["flex_grow"] = lv_obj_get_style_flex_grow(obj, LV_PART_MAIN);
-    e["hidden"] = lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
-    e["scrollable"] = lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+    e["hidden"] = lv_obj_is_hidden(obj);
+    e["scrollable"] = lv_obj_is_scrollable(obj);
     e["scroll"] = {{"top", lv_obj_get_scroll_top(obj)},
                    {"bottom", lv_obj_get_scroll_bottom(obj)},
                    {"left", lv_obj_get_scroll_left(obj)},

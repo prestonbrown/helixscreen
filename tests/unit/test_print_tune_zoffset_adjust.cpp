@@ -398,7 +398,7 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     auto& overlay = show_overlay();
     lv_obj_t* row = lv_obj_find_by_name(overlay.get_panel(), "tune_pa_row");
     REQUIRE(row != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     overlay.handle_pa_adjust(1);
     helix::ui::UpdateQueue::instance().drain();
@@ -462,7 +462,7 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     state().profile_state().set_z_offset_per_head(true);
     overlay.handle_z_adjust(-1);
     helix::ui::UpdateQueue::instance().drain();
-    CHECK(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(line));
     state().profile_state().set_z_offset_per_head(false);
 
     state().capabilities_state().set_stepper_z_endstop_microns(0);

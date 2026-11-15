@@ -403,6 +403,9 @@
   <translation tag="Auto Bed Mesh" ru="Авто сетка стола"/>
   <translation tag="Auto Cal" ru="Авто кал."/>
   <translation tag="Auto Fans" ru="Автоматические вентиляторы"/>
+  <translation tag="Auto loading" ru="Автозагрузка"/>
+  <translation tag="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand." ru="Автозагрузка для этой печатающей головки выключена. Включите её в разделе «Поведение при печати» или загрузите филамент вручную."/>
+  <translation tag="Auto loading is off; turn it on under Print Behavior" ru="Автозагрузка выключена; включите её в разделе «Поведение при печати»"/>
   <translation tag="Auto-Detect" ru="Автоопределение"/>
   <translation tag="Auto-Heat on Load" ru="Автонагрев при загрузке"/>
   <translation tag="Auto-Replenish" ru="Автопополнение"/>
@@ -734,6 +737,7 @@
   <translation tag="Change tool" ru="Сменить инструмент"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." ru="Изменения применяются немедленно. Корректируйте во время печати."/>
   <translation tag="Changes are temporary and reset on printer reboot" ru="Изменения временные и сбрасываются при перезагрузке принтера"/>
+  <translation tag="Changing filament" ru="Смена филамента"/>
   <translation tag="Check AFC configuration" ru="Проверьте конфигурацию AFC"/>
   <translation tag="Check Again" ru="Проверить снова"/>
   <translation tag="Check Klipper console for details" ru="Подробности смотрите в консоли Klipper"/>
@@ -929,6 +933,7 @@
   <translation tag="Connected to {}" ru="Подключен к {}"/>
   <translation tag="Connected! Discovering printer..." ru="Подключен! Обнаружение принтера..."/>
   <translation tag="Connected, discovering..." ru="Подключен, обнаружение..."/>
+  <translation tag="Connected, getting address…" ru="Подключен, получение адреса…"/>
   <translation tag="Connecting Camera..." ru="Подключение камеры..."/>
   <translation tag="Connecting to " ru="Подключение к "/>
   <translation tag="Connecting to %s..." ru="Подключение к %s..."/>
@@ -1086,6 +1091,7 @@
   <translation tag="Cutter calibration failed: {}" ru="Не удалось калибровать резак: {}"/>
   <translation tag="Cutter jam" ru="Замятие резака"/>
   <translation tag="Cutting" ru="Резка"/>
+  <translation tag="Cutting filament" ru="Обрезка филамента"/>
   <translation tag="Cutting filament..." ru="Обрезка филамента..."/>
   <translation tag="Cycle every tool" ru="Перебрать все инструменты"/>
   <translation tag="Cycling tools..." ru="Перебор инструментов..."/>
@@ -1563,6 +1569,7 @@
   <translation tag="Feeder" ru="Фидер"/>
   <translation tag="Feeders" ru="Фидеры"/>
   <translation tag="Feeding filament forward" ru="Подача филамента вперёд"/>
+  <translation tag="Feeding filament to nozzle" ru="Подача филамента к соплу"/>
   <translation tag="Filament" ru="Филамент"/>
   <translation tag="Filament Buffer" ru="Буфер филамента"/>
   <translation tag="Filament Control" ru="Управление филаментом"/>
@@ -1579,6 +1586,7 @@
   <translation tag="Filament Mapping is not available on this device." ru="Сопоставление филамента недоступно на этом устройстве."/>
   <translation tag="Filament Mapping is unavailable" ru="Сопоставление филамента недоступно"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" ru="Этот принтер не поддерживает сопоставление филамента, поэтому печать использует инструменты, назначенные на принтере"/>
+  <translation tag="Filament Operations" ru="Операции с филаментом"/>
   <translation tag="Filament Runout" ru="Окончание филамента"/>
   <translation tag="Filament Sensor" ru="Датчик филамента"/>
   <translation tag="Filament Sensors" ru="Датчики филамента"/>
@@ -1733,6 +1741,7 @@
   <translation tag="Generic" ru="Общий"/>
   <translation tag="Get help and share feedback" ru="Получить помощь и поделиться отзывом"/>
   <translation tag="Getting Started" ru="Начало работы"/>
+  <translation tag="Getting address…" ru="Получение адреса…"/>
   <translation tag="Getting ready..." ru="Подготовка..."/>
   <translation tag="Glass Effects" ru="Эффекты стекла"/>
   <translation tag="Global" ru="Общий"/>
@@ -1814,7 +1823,10 @@
   <translation tag="Heating chamber..." ru="Нагрев камеры..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." ru="Нагрев занимает почти всё ожидание. Если покинуть экран сейчас, запуск остановится."/>
   <translation tag="Heating nozzle" ru="Нагрев сопла"/>
+  <translation tag="Heating nozzle ({})" ru="Нагрев сопла ({})"/>
   <translation tag="Heating nozzle to $1°C..." ru="Нагрев сопла до $1°C..."/>
+  <translation tag="Heating nozzle to {}" ru="Нагрев сопла до {}"/>
+  <translation tag="Heating nozzle to {} ({})" ru="Нагрев сопла до {} ({})"/>
   <translation tag="Heating nozzle..." ru="Нагрев сопла..."/>
   <translation tag="Heating the bed" ru="Нагрев стола"/>
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" ru="Нагрев стола и сопла, чтобы печать снова прилипла, а сопло отделилось от неё"/>
@@ -1927,7 +1939,10 @@
   <translation tag="Hyperspace" ru="Гиперпространство"/>
   <translation tag="I understand" ru="Я понимаю"/>
   <translation tag="ID (optional)" ru="ID (необязательно)"/>
+  <translation tag="IFS driver error" ru="Ошибка драйвера IFS"/>
   <translation tag="IFS updates without polling" ru="Обновления IFS без опроса"/>
+  <translation tag="IFS: loading" ru="IFS: загрузка"/>
+  <translation tag="IFS: unloading" ru="IFS: выгрузка"/>
   <translation tag="IMPORT FROM USB" ru="ИМПОРТ С USB"/>
   <translation tag="INDX dock positions are not calibrated" ru="Позиции доков INDX не откалиброваны"/>
   <translation tag="INDX macros not recognized" ru="Макросы INDX не распознаны"/>
@@ -2209,6 +2224,7 @@
   <translation tag="Load the required filaments or start anyway?" ru="Загрузить нужные филаменты или начать без них?"/>
   <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." ru="Здесь можно загрузить, выгрузить и продуть филамент. Сначала выберите материал, чтобы задать его температуру."/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." ru="Загружайте, выгружайте и меняйте катушки, задавайте температуру и следите за датчиками филамента."/>
+  <translation tag="Load, unload, purge, and extrude filament" ru="Загрузка, выгрузка, прочистка и экструзия филамента"/>
   <translation tag="Load..." ru="Загрузить..."/>
   <translation tag="Loaded" ru="Загружен"/>
   <translation tag="Loading" ru="Загрузка"/>
@@ -2431,6 +2447,7 @@
   <translation tag="Mount tool" ru="Установить инструмент"/>
   <translation tag="Mount which tool?" ru="Какой инструмент установить?"/>
   <translation tag="Mount..." ru="Установить..."/>
+  <translation tag="Mounted: {}" ru="Установлен: {}"/>
   <translation tag="Move" ru="Двигать"/>
   <translation tag="Move here" ru="Переместить сюда"/>
   <translation tag="Move out of range" ru="Движение за пределами диапазона"/>
@@ -2545,6 +2562,7 @@
   <translation tag="No events queued" ru="Нет событий в очереди"/>
   <translation tag="No extruder heater found. Check [extruder] in printer.cfg" ru="Нагреватель экструдера не найден. Проверьте [extruder] в printer.cfg"/>
   <translation tag="No fans detected" ru="Вентиляторы не обнаружены"/>
+  <translation tag="No feeder attached" ru="Фидер не подключён"/>
   <translation tag="No filament" ru="Нет филамента"/>
   <translation tag="No filament environment sensors" ru="Нет датчиков среды филамента"/>
   <translation tag="No filament loaded to unload" ru="Нет загруженного филамента для выгрузки"/>
@@ -2607,6 +2625,7 @@
   <translation tag="No timelapse videos found" ru="Таймлапс-видео не найдены"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" ru="Неизвестно, какой инструмент установлен. С общим датчиком калибруйте с {}. Всё равно продолжить?"/>
   <translation tag="No tool is mounted" ru="Инструмент не установлен"/>
+  <translation tag="No tool mounted" ru="Инструмент не установлен"/>
   <translation tag="No tool on the head" ru="На печатающей головке нет инструмента"/>
   <translation tag="No tools to calibrate" ru="Нет инструментов для калибровки"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" ru="Без поворота: разница сдвинулась на {:.1f} Гц"/>
@@ -2856,9 +2875,11 @@
   <translation tag="Pick Color" ru="Выбрать цвет"/>
   <translation tag="Pick how HelixScreen behaves. You can change any of these later in Settings." ru="Выберите, как будет вести себя HelixScreen. Всё это можно изменить позже в Настройках."/>
   <translation tag="Pick the best band" ru="Выберите лучшую полосу"/>
+  <translation tag="Pick up" ru="Установить"/>
   <translation tag="Pick up and park each tool in turn" ru="Взять и поставить на место каждый инструмент по очереди"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" ru="Возьмите инструмент, нагрейте его и вытяните филамент"/>
   <translation tag="Pick up tool" ru="Забрать инструмент"/>
+  <translation tag="Pick-up step cancelled; nothing was sent" ru="Шаг после установки отменён; ничего не отправлено"/>
   <translation tag="Picking up tool" ru="Захват инструмента"/>
   <translation tag="Pill" ru="Овал"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" ru="Пикселей до того, как нажатие станет прокруткой (меньше = прокрутка начинается раньше)"/>
@@ -3133,6 +3154,7 @@
   <translation tag="Purge tower and brush settings" ru="Настройки башни продувки и щётки"/>
   <translation tag="Purging" ru="Продувка"/>
   <translation tag="Purging nozzle" ru="Продувка сопла"/>
+  <translation tag="Purging old filament" ru="Продувка старого филамента"/>
   <translation tag="Purging..." ru="Продувка..."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." ru="Вставьте чистящий филамент в экструдер до упора и нажмите Экструзия."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." ru="Вставьте филамент в экструдер до упора. Он будет захвачен автоматически, или нажмите «Экструзия»."/>
@@ -3395,6 +3417,7 @@
   <translation tag="Retract filament to current slot" ru="Втянуть филамент в текущий слот"/>
   <translation tag="Retract may still be running — response timed out" ru="Ретракт может ещё выполняться — время ожидания истекло"/>
   <translation tag="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again" ru="Втяните для выгрузки. Если филамент выходит чисто, отрежьте изжёванный конец и подайте снова"/>
+  <translation tag="Retracting filament from nozzle" ru="Втягивание филамента из сопла"/>
   <translation tag="Retraction" ru="Ретракт"/>
   <translation tag="Retraction Settings" ru="Настройки ретракта"/>
   <translation tag="Retraction distance in the cooling tube" ru="Расстояние ретракции в трубке охлаждения"/>
@@ -4180,6 +4203,7 @@
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" ru="В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Извлеките его вручную перед печатью. Всё равно начать?"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" ru="В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Принтер может отказаться загружать слот, пока она не будет очищена. Всё равно начать?"/>
   <translation tag="The toolhead is not homed, so this would home into the print" ru="Печатающая головка не запаркована, парковка ударит её о модель"/>
+  <translation tag="The toolhead may still be at the chute. Move it away before printing." ru="Печатающая головка может всё ещё находиться у желоба. Отведите её перед печатью."/>
   <translation tag="The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from." ru="Печатающая головка движется взад и вперёд на скоростях от 20 до 300 mm/s, а акселерометр измеряет, насколько сильно трясёт каждый мотор. Это займёт около {0} минут и будет шумно. Скорости с самой сильной тряской и есть те, которых следует избегать для внешних стенок."/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" ru="Датчик печатающей головки показывает, что филамент уже загружен. Всё равно продолжить загрузку?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" ru="Датчик печатающей головки показывает, что филамент отсутствует. Всё равно продолжить выгрузку?"/>
@@ -4374,6 +4398,7 @@
   <translation tag="Toolhead Style" ru="Стиль печатающей головки"/>
   <translation tag="Toolhead X" ru="Печатающая головка X"/>
   <translation tag="Toolhead Y" ru="Печатающая головка Y"/>
+  <translation tag="Toolhead did not return to park: {}" ru="Печатающая головка не вернулась в положение парковки: {}"/>
   <translation tag="Toolhead jam" ru="Замятие в печатающей головке"/>
   <translation tag="Toolhead lost homing" ru="Печатающая головка потеряла парковку"/>
   <translation tag="Toolhead offset calibration" ru="Калибровка смещений головок"/>
@@ -4595,6 +4620,7 @@
   <translation tag="Wait for the current filament operation to finish" ru="Дождитесь завершения текущей операции с филаментом"/>
   <translation tag="Wait for the current operation to complete" ru="Дождитесь завершения текущей операции"/>
   <translation tag="Wait for the current operation to complete or cancel it first" ru="Дождитесь завершения текущей операции или сначала отмените её"/>
+  <translation tag="Wait for the load or unload to finish" ru="Дождитесь окончания загрузки или выгрузки"/>
   <translation tag="Wait for the motor to stop" ru="Дождитесь остановки двигателя"/>
   <translation tag="Wait for the nozzle to stop moving" ru="Дождитесь остановки сопла"/>
   <translation tag="Wait for the running INDX operation to finish" ru="Дождитесь завершения текущей операции INDX"/>
@@ -4926,6 +4952,7 @@
   <translation tag="{} d" ru="{} д"/>
   <translation tag="{} days" ru="{} дн."/>
   <translation tag="{} detected" ru="{}: обнаружено"/>
+  <translation tag="{} did not arrive; nothing was sent" ru="{} не прибыл; ничего не отправлено"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." ru="{}: филамент не загрузился. Перед продолжением проверьте, что хотэнд установлен правильно, и выполните пробную экструзию."/>
   <translation tag="{} disabled" ru="{} выключено"/>
   <translation tag="{} disconnected" ru="{}: отключено"/>

@@ -132,12 +132,12 @@ TEST_CASE_METHOD(SystemCallbacksFixture,
     sys.set_telemetry_enabled(true);
     lv_subject_set_int(extras, 1);
     process_lvgl(5);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     // The firmware build reports no platform extras: no data screen to open.
     lv_subject_set_int(extras, 0);
     process_lvgl(5);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     lv_subject_set_int(extras, extras_before);
     sys.set_telemetry_enabled(before);
