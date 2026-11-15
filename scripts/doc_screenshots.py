@@ -37,7 +37,8 @@ APP_FIELDS = ("recipe", "steps", "env", "size", "crop", "margin", "markers", "wi
 # The setup wizard's steps in the app's StepId order (include/wizard_step.h);
 # the index is what --wizard-step takes. A test pins the two together.
 WIZARD_STEPS = (
-    "touch_calibration", "language", "wifi", "connection", "printer_identify", "heater_select",
+    "touch_calibration", "language", "appearance", "wifi", "connection", "printer_identify",
+    "heater_select",
     "fan_select", "ams_identify", "led_select", "filament_sensor", "input_shaper", "preferences",
     "summary", "telemetry",
 )
