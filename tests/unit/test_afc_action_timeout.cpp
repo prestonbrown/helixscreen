@@ -17,9 +17,12 @@
 //
 // The clock is faked by back-dating action_start_time_ — no sleeps.
 
+#include "ui_test_utils.h"
+
 #include "ams_backend_afc.h"
 #include "ams_types.h"
 #include "test_helpers/afc_test_access.h"
+#include "test_helpers/scoped_language.h"
 
 #include <chrono>
 #include <mutex>
@@ -198,7 +201,8 @@ TEST_CASE("AFC IDLE never times out", "[ams][afc][timeout]") {
 // ============================================================================
 
 TEST_CASE("AFC repeating the timed-out state keeps ERROR and does not restart the clock",
-          "[ams][afc][timeout]") {
+          "[ams][afc][timeout][i18n]") {
+    lv_init_safe();
     // Without the latch, the next frame's "Loading" maps straight back to
     // LOADING, the frame-level action change restarts the clock, and the
     // backend flaps busy -> ERROR -> busy forever: a modal storm.
@@ -222,6 +226,12 @@ TEST_CASE("AFC repeating the timed-out state keeps ERROR and does not restart th
     REQUIRE(h.latched());
     REQUIRE(h.action_stamp() == stamp_after_timeout);
     REQUIRE(h.detail() == detail_after_timeout);
+    // A language switch re-words the latched line, and the next frame keeps it.
+    REQUIRE(detail_after_timeout == "Loading (timed out)");
+    helix::ScopedLanguage fr("fr");
+    h.refresh_translated_texts();
+    h.feed_state("Loading");
+    CHECK(h.detail() == "Chargement (délai dépassé)");
 }
 
 TEST_CASE("AFC reporting a different state releases the timeout latch", "[ams][afc][timeout]") {

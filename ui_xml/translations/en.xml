@@ -693,6 +693,7 @@
   <translation tag="Change tool" en="Change tool"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." en="Changes apply immediately. Adjust during print for tuning."/>
   <translation tag="Changes are temporary and reset on printer reboot" en="Changes are temporary and reset on printer reboot"/>
+  <translation tag="Changing filament" en="Changing filament"/>
   <translation tag="Check AFC configuration" en="Check AFC configuration"/>
   <translation tag="Check Again" en="Check Again"/>
   <translation tag="Check Klipper console for details" en="Check Klipper console for details"/>
@@ -1042,6 +1043,7 @@
   <translation tag="Cutter calibration failed: {}" en="Cutter calibration failed: {}"/>
   <translation tag="Cutter jam" en="Cutter jam"/>
   <translation tag="Cutting" en="Cutting"/>
+  <translation tag="Cutting filament" en="Cutting filament"/>
   <translation tag="Cutting filament..." en="Cutting filament..."/>
   <translation tag="Cycle every tool" en="Cycle every tool"/>
   <translation tag="Cycling tools..." en="Cycling tools..."/>
@@ -1518,6 +1520,7 @@
   <translation tag="Feeder" en="Feeder"/>
   <translation tag="Feeders" en="Feeders"/>
   <translation tag="Feeding filament forward" en="Feeding filament forward"/>
+  <translation tag="Feeding filament to nozzle" en="Feeding filament to nozzle"/>
   <translation tag="Filament" en="Filament"/>
   <translation tag="Filament Buffer" en="Filament Buffer"/>
   <translation tag="Filament Control" en="Filament Control"/>
@@ -1766,7 +1769,10 @@
   <translation tag="Heating chamber..." en="Heating chamber..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." en="Heating is nearly the whole wait. Leaving the screen now stops the run."/>
   <translation tag="Heating nozzle" en="Heating nozzle"/>
+  <translation tag="Heating nozzle ({})" en="Heating nozzle ({})"/>
   <translation tag="Heating nozzle to $1°C..." en="Heating nozzle to $1°C..."/>
+  <translation tag="Heating nozzle to {}" en="Heating nozzle to {}"/>
+  <translation tag="Heating nozzle to {} ({})" en="Heating nozzle to {} ({})"/>
   <translation tag="Heating nozzle..." en="Heating nozzle..."/>
   <translation tag="Heating the bed" en="Heating the bed"/>
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" en="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it"/>
@@ -1879,7 +1885,10 @@
   <translation tag="Hyperspace" en="Hyperspace"/>
   <translation tag="I understand" en="I understand"/>
   <translation tag="ID (optional)" en="ID (optional)"/>
+  <translation tag="IFS driver error" en="IFS driver error"/>
   <translation tag="IFS updates without polling" en="IFS updates without polling"/>
+  <translation tag="IFS: loading" en="IFS: loading"/>
+  <translation tag="IFS: unloading" en="IFS: unloading"/>
   <translation tag="IMPORT FROM USB" en="IMPORT FROM USB"/>
   <translation tag="INDX dock positions are not calibrated" en="INDX dock positions are not calibrated"/>
   <translation tag="INDX macros not recognized" en="INDX macros not recognized"/>
@@ -3079,6 +3088,7 @@
   <translation tag="Purge tower and brush settings" en="Purge tower and brush settings"/>
   <translation tag="Purging" en="Purging"/>
   <translation tag="Purging nozzle" en="Purging nozzle"/>
+  <translation tag="Purging old filament" en="Purging old filament"/>
   <translation tag="Purging..." en="Purging..."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." en="Push the cleaning filament into the extruder until it stops, then tap Extrude."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." en="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude."/>
@@ -3341,6 +3351,7 @@
   <translation tag="Retract filament to current slot" en="Retract filament to current slot"/>
   <translation tag="Retract may still be running — response timed out" en="Retract may still be running — response timed out"/>
   <translation tag="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again" en="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again"/>
+  <translation tag="Retracting filament from nozzle" en="Retracting filament from nozzle"/>
   <translation tag="Retraction" en="Retraction"/>
   <translation tag="Retraction Settings" en="Retraction Settings"/>
   <translation tag="Retraction distance in the cooling tube" en="Retraction distance in the cooling tube"/>

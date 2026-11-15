@@ -33,6 +33,7 @@
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/backend_harness.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/scoped_language.h"
 #include "test_helpers/seeded_override.h"
 
 #include <algorithm>
@@ -7932,20 +7933,24 @@ TEST_CASE("AD5X IFS write_adventurer_json_local writes the firmware's slot encod
 
 // HEATING detail never asserts a target the printer has not reported: no frame
 // at all, the live temperature with the heater off, or the real target once a
-// pre-op extruder frame carries one (begin_phase seeds from it).
+// pre-op extruder frame carries one (begin_phase seeds from it). The line, and
+// its timed-out form, re-word on a language switch with no new frame.
 TEST_CASE("AD5X IFS phase: HEATING detail names only what the printer reported",
-          "[ams][ad5x_ifs][phase]") {
+          "[ams][ad5x_ifs][phase][i18n]") {
     struct Row {
         const char* name;
         bool extruder_frame;
         double temp;
         double target;
         const char* expected;
+        const char* french;
     };
     const Row rows[] = {
-        {"nothing known", false, 0, 0, "Heating nozzle"},
-        {"live temp, heater off", true, 62.0, 0.0, "Heating nozzle (62°C)"},
-        {"a real target", true, 62.0, 220.0, "Heating nozzle to 220°C (62°C)"},
+        {"nothing known", false, 0, 0, "Heating nozzle", "Chauffe de la buse"},
+        {"live temp, heater off", true, 62.0, 0.0, "Heating nozzle (62°C)",
+         "Chauffe de la buse (62°C)"},
+        {"a real target", true, 62.0, 220.0, "Heating nozzle to 220°C (62°C)",
+         "Chauffe de la buse à 220°C (62°C)"},
     };
     for (const Row& r : rows) {
         DYNAMIC_SECTION(r.name) {
@@ -7957,7 +7962,16 @@ TEST_CASE("AD5X IFS phase: HEATING detail names only what the printer reported",
             }
             Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
             REQUIRE(backend.get_current_action() == AmsAction::HEATING);
-            CHECK(Ad5xIfsTestAccess::operation_detail(backend) == r.expected);
+            const auto detail = [&] { return backend.get_system_info().operation_detail; };
+            CHECK(detail() == r.expected);
+            {
+                helix::ScopedLanguage fr("fr");
+                backend.refresh_translated_texts();
+                CHECK(detail() == r.french);
+                Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(600));
+            }
+            backend.refresh_translated_texts();
+            CHECK(detail() == std::string(r.expected) + " (timed out)");
         }
     }
 }

@@ -191,7 +191,8 @@ def test_every_screen_retranslates_on_a_language_switch(fresh_helix_app):
 # Each filament backend writes its own status text, and the default mock runs
 # only one of them, so the AMS screens are walked again on each real backend.
 @pytest.mark.slow
-@pytest.mark.parametrize("ams", ["afc", "toolchanger", "cfs", "openams", "indx", "snapmaker"])
+@pytest.mark.parametrize(
+    "ams", ["afc", "toolchanger", "cfs", "openams", "indx", "snapmaker", "ifs"])
 def test_ams_screens_retranslate_on_each_backend(tmp_path, ams):
     if not BINARY.exists():
         pytest.skip(f"{BINARY} not built")

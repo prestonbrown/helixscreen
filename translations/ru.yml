@@ -801,6 +801,7 @@ translations:
     немедленно. Корректируйте во время печати.
   Changes are temporary and reset on printer reboot: Изменения временные и сбрасываются
     при перезагрузке принтера
+  Changing filament: "Смена филамента"
   Check AFC configuration: 'Проверьте конфигурацию AFC'
   Check Again: Проверить снова
   Check Klipper console for details: Подробности смотрите в консоли Klipper
@@ -1209,6 +1210,7 @@ translations:
   'Cutter calibration failed: {}': 'Не удалось калибровать резак: {}'
   Cutter jam: Замятие резака
   Cutting: Резка
+  Cutting filament: "Обрезка филамента"
   Cutting filament...: Обрезка филамента...
   Cycle every tool: Перебрать все инструменты
   Cycling tools...: Перебор инструментов...
@@ -1710,6 +1712,7 @@ translations:
   Feeder: Фидер
   Feeders: Фидеры
   Feeding filament forward: Подача филамента вперёд
+  Feeding filament to nozzle: "Подача филамента к соплу"
   Filament: Филамент
   Filament Buffer: 'Буфер филамента'
   Filament Control: Управление филаментом
@@ -1976,7 +1979,10 @@ translations:
   Heating chamber...: Нагрев камеры...
   Heating is nearly the whole wait. Leaving the screen now stops the run.: 'Нагрев занимает почти всё ожидание. Если покинуть экран сейчас, запуск остановится.'
   Heating nozzle: 'Нагрев сопла'
+  Heating nozzle ({}): "Нагрев сопла ({})"
   Heating nozzle to $1°C...: Нагрев сопла до $1°C...
+  Heating nozzle to {}: "Нагрев сопла до {}"
+  Heating nozzle to {} ({}): "Нагрев сопла до {} ({})"
   Heating nozzle...: Нагрев сопла...
   Heating the bed: Нагрев стола
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Нагрев стола и сопла, чтобы печать снова прилипла, а сопло отделилось от неё"
@@ -2100,7 +2106,10 @@ translations:
   I understand: Я понимаю
 
   ID (optional): ID (необязательно)
+  IFS driver error: "Ошибка драйвера IFS"
   IFS updates without polling: 'Обновления IFS без опроса'
+  'IFS: loading': "IFS: загрузка"
+  'IFS: unloading': "IFS: выгрузка"
   IMPORT FROM USB: ИМПОРТ С USB
   INDX dock positions are not calibrated: "Позиции доков INDX не откалиброваны"
   INDX macros not recognized: "Макросы INDX не распознаны"
@@ -3392,6 +3401,7 @@ translations:
   Purge tower and brush settings: 'Настройки башни продувки и щётки'
   Purging: Продувка
   Purging nozzle: Продувка сопла
+  Purging old filament: "Продувка старого филамента"
   Purging...: Продувка...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "Вставьте чистящий филамент в экструдер до упора и нажмите Экструзия."
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Вставьте филамент в экструдер до упора. Он будет захвачен автоматически, или нажмите «Экструзия»."
@@ -3663,6 +3673,7 @@ translations:
   Retract may still be running — response timed out: Ретракт может ещё выполняться
     — время ожидания истекло
   Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: Втяните для выгрузки. Если филамент выходит чисто, отрежьте изжёванный конец и подайте снова
+  Retracting filament from nozzle: "Втягивание филамента из сопла"
   Retraction: Ретракт
   Retraction Settings: Настройки ретракта
   Retraction distance in the cooling tube: 'Расстояние ретракции в трубке охлаждения'

@@ -735,6 +735,7 @@ translations:
     Adjust during print for tuning.
   Changes are temporary and reset on printer reboot: Changes are temporary and reset
     on printer reboot
+  Changing filament: Changing filament
   Check AFC configuration: Check AFC configuration
   Check Again: Check Again
   Check Klipper console for details: Check Klipper console for details
@@ -1131,6 +1132,7 @@ translations:
   'Cutter calibration failed: {}': 'Cutter calibration failed: {}'
   Cutter jam: Cutter jam
   Cutting: Cutting
+  Cutting filament: Cutting filament
   Cutting filament...: Cutting filament...
   Cycle every tool: Cycle every tool
   Cycling tools...: Cycling tools...
@@ -1622,6 +1624,7 @@ translations:
   Feeder: Feeder
   Feeders: Feeders
   Feeding filament forward: Feeding filament forward
+  Feeding filament to nozzle: Feeding filament to nozzle
   Filament: Filament
   Filament Buffer: 'Filament Buffer'
   Filament Control: Filament Control
@@ -1882,7 +1885,10 @@ translations:
   'Heating chamber...': 'Heating chamber...'
   Heating is nearly the whole wait. Leaving the screen now stops the run.: 'Heating is nearly the whole wait. Leaving the screen now stops the run.'
   Heating nozzle: Heating nozzle
+  Heating nozzle ({}): Heating nozzle ({})
   'Heating nozzle to $1°C...': 'Heating nozzle to $1°C...'
+  Heating nozzle to {}: Heating nozzle to {}
+  Heating nozzle to {} ({}): Heating nozzle to {} ({})
   'Heating nozzle...': 'Heating nozzle...'
   Heating the bed: Heating the bed
   Heating the bed and nozzle so the print re-grips and the nozzle lets go of it: Heating the bed and nozzle so the print re-grips and the nozzle lets go of it
@@ -2004,7 +2010,10 @@ translations:
   Hyperspace: Hyperspace
   I understand: I understand
   ID (optional): ID (optional)
+  IFS driver error: IFS driver error
   IFS updates without polling: IFS updates without polling
+  'IFS: loading': 'IFS: loading'
+  'IFS: unloading': 'IFS: unloading'
   IMPORT FROM USB: IMPORT FROM USB
   INDX dock positions are not calibrated: INDX dock positions are not calibrated
   INDX macros not recognized: INDX macros not recognized
@@ -3271,6 +3280,7 @@ translations:
   Purge tower and brush settings: Purge tower and brush settings
   Purging: Purging
   Purging nozzle: Purging nozzle
+  Purging old filament: Purging old filament
   Purging...: Purging...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: Push the cleaning filament into the extruder until it stops, then tap Extrude.
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.
@@ -3541,6 +3551,7 @@ translations:
   Retract may still be running — response timed out: Retract may still be running
     — response timed out
   Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: Retract to unload. If it comes back cleanly, snip the chewed end off and feed again
+  Retracting filament from nozzle: Retracting filament from nozzle
   Retraction: Retraction
   Retraction Settings: Retraction Settings
   Retraction distance in the cooling tube: Retraction distance in the cooling tube

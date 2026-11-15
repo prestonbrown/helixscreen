@@ -706,6 +706,7 @@ translations:
   Change tool: ツールを交換
   Changes apply immediately. Adjust during print for tuning.: 変更は即座に適用されます。印刷中に調整して最適化できます。
   Changes are temporary and reset on printer reboot: 変更は一時的で、プリンター再起動時にリセットされます
+  Changing filament: "フィラメント交換中"
   Check AFC configuration: 'AFC 設定を確認してください'
   Check Again: 再確認
   Check Klipper console for details: 詳細は Klipper コンソールを確認してください
@@ -1094,6 +1095,7 @@ translations:
   'Cutter calibration failed: {}': 'カッターのキャリブレーションに失敗しました: {}'
   Cutter jam: カッター詰まり
   Cutting: カット中
+  Cutting filament: "フィラメントを切断中"
   Cutting filament...: フィラメントを切断中...
   Cycle every tool: 全ツールを順に交換
   Cycling tools...: ツールを順に交換中...
@@ -1582,6 +1584,7 @@ translations:
   Feeder: フィーダー
   Feeders: フィーダー
   Feeding filament forward: フィラメントを前方に送り出し中
+  Feeding filament to nozzle: "フィラメントをノズルへ送り出し中"
   Filament: フィラメント
   Filament Buffer: 'フィラメントバッファー'
   Filament Control: フィラメント制御
@@ -1838,7 +1841,10 @@ translations:
   Heating chamber...: チャンバー加熱中...
   Heating is nearly the whole wait. Leaving the screen now stops the run.: '待ち時間のほとんどは加熱です。いま画面を離れると実行は停止します。'
   Heating nozzle: 'ノズル加熱中'
+  Heating nozzle ({}): "ノズル加熱中 ({})"
   Heating nozzle to $1°C...: ノズルを$1°Cに加熱中...
+  Heating nozzle to {}: "ノズルを{}に加熱中"
+  Heating nozzle to {} ({}): "ノズルを{}に加熱中 ({})"
   Heating nozzle...: ノズル加熱中...
   Heating the bed: ベッドを加熱中
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "ベッドとノズルを加熱し、印刷物を再び密着させてノズルを印刷物から離しています"
@@ -1957,7 +1963,10 @@ translations:
   I understand: 理解しました
 
   ID (optional): ID（任意）
+  IFS driver error: "IFSドライバーエラー"
   IFS updates without polling: 'ポーリングなしの IFS 更新'
+  'IFS: loading': "IFS: 装填中"
+  'IFS: unloading': "IFS: 取り出し中"
   IMPORT FROM USB: USBからインポート
   INDX dock positions are not calibrated: "INDXのドック位置がキャリブレーションされていません"
   INDX macros not recognized: "INDXマクロを認識できません"
@@ -3189,6 +3198,7 @@ translations:
   Purge tower and brush settings: 'パージタワーとブラシの設定'
   Purging: パージ中
   Purging nozzle: ノズルをパージ中
+  Purging old filament: "古いフィラメントをパージ中"
   Purging...: パージ中...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "清掃用フィラメントを止まるまでエクストルーダーに押し込み、押し出しをタップしてください。"
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "フィラメントを止まるまでエクストルーダーに差し込んでください。自動的につかまれます。または「押し出し」をタップしてください。"
@@ -3452,6 +3462,7 @@ translations:
   Retract filament to current slot: '現在のスロットへフィラメントを引き戻す'
   Retract may still be running — response timed out: リトラクトがまだ実行中の可能性があります — 応答タイムアウト
   Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: 戻してアンロードしてください。問題なく戻る場合は、傷んだ先端を切り落として再度送り出してください
+  Retracting filament from nozzle: "ノズルからフィラメントを引き戻し中"
   Retraction: リトラクション
   Retraction Settings: リトラクション設定
   Retraction distance in the cooling tube: '冷却チューブ内での引き戻し距離'

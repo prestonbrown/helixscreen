@@ -693,6 +693,7 @@
   <translation tag="Change tool" ja="ツールを交換"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." ja="変更は即座に適用されます。印刷中に調整して最適化できます。"/>
   <translation tag="Changes are temporary and reset on printer reboot" ja="変更は一時的で、プリンター再起動時にリセットされます"/>
+  <translation tag="Changing filament" ja="フィラメント交換中"/>
   <translation tag="Check AFC configuration" ja="AFC 設定を確認してください"/>
   <translation tag="Check Again" ja="再確認"/>
   <translation tag="Check Klipper console for details" ja="詳細は Klipper コンソールを確認してください"/>
@@ -1042,6 +1043,7 @@
   <translation tag="Cutter calibration failed: {}" ja="カッターのキャリブレーションに失敗しました: {}"/>
   <translation tag="Cutter jam" ja="カッター詰まり"/>
   <translation tag="Cutting" ja="カット中"/>
+  <translation tag="Cutting filament" ja="フィラメントを切断中"/>
   <translation tag="Cutting filament..." ja="フィラメントを切断中..."/>
   <translation tag="Cycle every tool" ja="全ツールを順に交換"/>
   <translation tag="Cycling tools..." ja="ツールを順に交換中..."/>
@@ -1518,6 +1520,7 @@
   <translation tag="Feeder" ja="フィーダー"/>
   <translation tag="Feeders" ja="フィーダー"/>
   <translation tag="Feeding filament forward" ja="フィラメントを前方に送り出し中"/>
+  <translation tag="Feeding filament to nozzle" ja="フィラメントをノズルへ送り出し中"/>
   <translation tag="Filament" ja="フィラメント"/>
   <translation tag="Filament Buffer" ja="フィラメントバッファー"/>
   <translation tag="Filament Control" ja="フィラメント制御"/>
@@ -1766,7 +1769,10 @@
   <translation tag="Heating chamber..." ja="チャンバー加熱中..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." ja="待ち時間のほとんどは加熱です。いま画面を離れると実行は停止します。"/>
   <translation tag="Heating nozzle" ja="ノズル加熱中"/>
+  <translation tag="Heating nozzle ({})" ja="ノズル加熱中 ({})"/>
   <translation tag="Heating nozzle to $1°C..." ja="ノズルを$1°Cに加熱中..."/>
+  <translation tag="Heating nozzle to {}" ja="ノズルを{}に加熱中"/>
+  <translation tag="Heating nozzle to {} ({})" ja="ノズルを{}に加熱中 ({})"/>
   <translation tag="Heating nozzle..." ja="ノズル加熱中..."/>
   <translation tag="Heating the bed" ja="ベッドを加熱中"/>
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" ja="ベッドとノズルを加熱し、印刷物を再び密着させてノズルを印刷物から離しています"/>
@@ -1879,7 +1885,10 @@
   <translation tag="Hyperspace" ja="ハイパースペース"/>
   <translation tag="I understand" ja="理解しました"/>
   <translation tag="ID (optional)" ja="ID（任意）"/>
+  <translation tag="IFS driver error" ja="IFSドライバーエラー"/>
   <translation tag="IFS updates without polling" ja="ポーリングなしの IFS 更新"/>
+  <translation tag="IFS: loading" ja="IFS: 装填中"/>
+  <translation tag="IFS: unloading" ja="IFS: 取り出し中"/>
   <translation tag="IMPORT FROM USB" ja="USBからインポート"/>
   <translation tag="INDX dock positions are not calibrated" ja="INDXのドック位置がキャリブレーションされていません"/>
   <translation tag="INDX macros not recognized" ja="INDXマクロを認識できません"/>
@@ -3079,6 +3088,7 @@
   <translation tag="Purge tower and brush settings" ja="パージタワーとブラシの設定"/>
   <translation tag="Purging" ja="パージ中"/>
   <translation tag="Purging nozzle" ja="ノズルをパージ中"/>
+  <translation tag="Purging old filament" ja="古いフィラメントをパージ中"/>
   <translation tag="Purging..." ja="パージ中..."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." ja="清掃用フィラメントを止まるまでエクストルーダーに押し込み、押し出しをタップしてください。"/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." ja="フィラメントを止まるまでエクストルーダーに差し込んでください。自動的につかまれます。または「押し出し」をタップしてください。"/>
@@ -3341,6 +3351,7 @@
   <translation tag="Retract filament to current slot" ja="現在のスロットへフィラメントを引き戻す"/>
   <translation tag="Retract may still be running — response timed out" ja="リトラクトがまだ実行中の可能性があります — 応答タイムアウト"/>
   <translation tag="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again" ja="戻してアンロードしてください。問題なく戻る場合は、傷んだ先端を切り落として再度送り出してください"/>
+  <translation tag="Retracting filament from nozzle" ja="ノズルからフィラメントを引き戻し中"/>
   <translation tag="Retraction" ja="リトラクション"/>
   <translation tag="Retraction Settings" ja="リトラクション設定"/>
   <translation tag="Retraction distance in the cooling tube" ja="冷却チューブ内での引き戻し距離"/>

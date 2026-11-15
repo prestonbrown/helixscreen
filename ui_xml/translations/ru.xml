@@ -735,6 +735,7 @@
   <translation tag="Change tool" ru="Сменить инструмент"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." ru="Изменения применяются немедленно. Корректируйте во время печати."/>
   <translation tag="Changes are temporary and reset on printer reboot" ru="Изменения временные и сбрасываются при перезагрузке принтера"/>
+  <translation tag="Changing filament" ru="Смена филамента"/>
   <translation tag="Check AFC configuration" ru="Проверьте конфигурацию AFC"/>
   <translation tag="Check Again" ru="Проверить снова"/>
   <translation tag="Check Klipper console for details" ru="Подробности смотрите в консоли Klipper"/>
@@ -1087,6 +1088,7 @@
   <translation tag="Cutter calibration failed: {}" ru="Не удалось калибровать резак: {}"/>
   <translation tag="Cutter jam" ru="Замятие резака"/>
   <translation tag="Cutting" ru="Резка"/>
+  <translation tag="Cutting filament" ru="Обрезка филамента"/>
   <translation tag="Cutting filament..." ru="Обрезка филамента..."/>
   <translation tag="Cycle every tool" ru="Перебрать все инструменты"/>
   <translation tag="Cycling tools..." ru="Перебор инструментов..."/>
@@ -1563,6 +1565,7 @@
   <translation tag="Feeder" ru="Фидер"/>
   <translation tag="Feeders" ru="Фидеры"/>
   <translation tag="Feeding filament forward" ru="Подача филамента вперёд"/>
+  <translation tag="Feeding filament to nozzle" ru="Подача филамента к соплу"/>
   <translation tag="Filament" ru="Филамент"/>
   <translation tag="Filament Buffer" ru="Буфер филамента"/>
   <translation tag="Filament Control" ru="Управление филаментом"/>
@@ -1814,7 +1817,10 @@
   <translation tag="Heating chamber..." ru="Нагрев камеры..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." ru="Нагрев занимает почти всё ожидание. Если покинуть экран сейчас, запуск остановится."/>
   <translation tag="Heating nozzle" ru="Нагрев сопла"/>
+  <translation tag="Heating nozzle ({})" ru="Нагрев сопла ({})"/>
   <translation tag="Heating nozzle to $1°C..." ru="Нагрев сопла до $1°C..."/>
+  <translation tag="Heating nozzle to {}" ru="Нагрев сопла до {}"/>
+  <translation tag="Heating nozzle to {} ({})" ru="Нагрев сопла до {} ({})"/>
   <translation tag="Heating nozzle..." ru="Нагрев сопла..."/>
   <translation tag="Heating the bed" ru="Нагрев стола"/>
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" ru="Нагрев стола и сопла, чтобы печать снова прилипла, а сопло отделилось от неё"/>
@@ -1927,7 +1933,10 @@
   <translation tag="Hyperspace" ru="Гиперпространство"/>
   <translation tag="I understand" ru="Я понимаю"/>
   <translation tag="ID (optional)" ru="ID (необязательно)"/>
+  <translation tag="IFS driver error" ru="Ошибка драйвера IFS"/>
   <translation tag="IFS updates without polling" ru="Обновления IFS без опроса"/>
+  <translation tag="IFS: loading" ru="IFS: загрузка"/>
+  <translation tag="IFS: unloading" ru="IFS: выгрузка"/>
   <translation tag="IMPORT FROM USB" ru="ИМПОРТ С USB"/>
   <translation tag="INDX dock positions are not calibrated" ru="Позиции доков INDX не откалиброваны"/>
   <translation tag="INDX macros not recognized" ru="Макросы INDX не распознаны"/>
@@ -3136,6 +3145,7 @@
   <translation tag="Purge tower and brush settings" ru="Настройки башни продувки и щётки"/>
   <translation tag="Purging" ru="Продувка"/>
   <translation tag="Purging nozzle" ru="Продувка сопла"/>
+  <translation tag="Purging old filament" ru="Продувка старого филамента"/>
   <translation tag="Purging..." ru="Продувка..."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." ru="Вставьте чистящий филамент в экструдер до упора и нажмите Экструзия."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." ru="Вставьте филамент в экструдер до упора. Он будет захвачен автоматически, или нажмите «Экструзия»."/>
@@ -3398,6 +3408,7 @@
   <translation tag="Retract filament to current slot" ru="Втянуть филамент в текущий слот"/>
   <translation tag="Retract may still be running — response timed out" ru="Ретракт может ещё выполняться — время ожидания истекло"/>
   <translation tag="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again" ru="Втяните для выгрузки. Если филамент выходит чисто, отрежьте изжёванный конец и подайте снова"/>
+  <translation tag="Retracting filament from nozzle" ru="Втягивание филамента из сопла"/>
   <translation tag="Retraction" ru="Ретракт"/>
   <translation tag="Retraction Settings" ru="Настройки ретракта"/>
   <translation tag="Retraction distance in the cooling tube" ru="Расстояние ретракции в трубке охлаждения"/>

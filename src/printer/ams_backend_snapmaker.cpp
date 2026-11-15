@@ -424,6 +424,17 @@ std::optional<AmsAction> u1_step_action(bool unload, int phase) {
     }
     return unload ? kUnload[static_cast<size_t>(phase)] : kLoad[static_cast<size_t>(phase)];
 }
+
+/// The batch progress line's verb in the current language.
+std::string batch_direction_label(bool load) {
+    return load ? lv_tr("Load") : lv_tr("Unload");
+}
+
+/// "Load 2 of 4": the head now in progress, from the plan's translated words.
+std::string batch_progress_text(const AmsBackendSnapmaker::BatchPlan& plan) {
+    return fmt::format("{} {} {} {}", plan.direction_label, plan.cursor + 1, plan.of_label,
+                       plan.heads.size());
+}
 } // namespace
 
 AmsSystemInfo AmsBackendSnapmaker::get_system_info() const {
@@ -435,6 +446,14 @@ AmsSystemInfo AmsBackendSnapmaker::get_system_info() const {
 
 void AmsBackendSnapmaker::refresh_translated_texts() {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (batch_.active) {
+        const bool shown = system_info_.operation_detail == batch_progress_text(batch_);
+        batch_.direction_label = batch_direction_label(batch_.load);
+        batch_.of_label = lv_tr("of");
+        if (shown) {
+            system_info_.operation_detail = batch_progress_text(batch_);
+        }
+    }
     if (!channel_fault_text_ || system_info_.operation_detail != channel_fault_text_->shown) {
         channel_fault_text_.reset();
         return;
@@ -727,7 +746,7 @@ AmsError AmsBackendSnapmaker::do_filament_batch(const std::vector<int>& slots, b
         // parse only formats them and makes no LVGL calls.
         batch_ = BatchPlan{slots,           load,
                            /*cursor=*/0,
-                           /*active=*/true, load ? lv_tr("Load") : lv_tr("Unload"),
+                           /*active=*/true, batch_direction_label(load),
                            lv_tr("of"),     next_batch_dispatch_id_};
         dispatch_id = next_batch_dispatch_id_++;
     }
@@ -2315,9 +2334,7 @@ void AmsBackendSnapmaker::advance_batch_locked(int i, const std::string& op_stat
                 // "Load 2 of 4" — the head now in progress.
                 // The words arrive pretranslated from dispatch, so
                 // this parse makes no LVGL calls.
-                system_info_.operation_detail =
-                    fmt::format("{} {} {} {}", batch_.direction_label, batch_.cursor + 1,
-                                batch_.of_label, batch_.heads.size());
+                system_info_.operation_detail = batch_progress_text(batch_);
             } else {
                 // Every head verified. Nothing is in
                 // progress, and no later frame clears the

@@ -705,6 +705,7 @@ translations:
   Change tool: 切换工具
   Changes apply immediately. Adjust during print for tuning.: 更改立即生效。可在打印时调整进行调优。
   Changes are temporary and reset on printer reboot: 更改是临时的，打印机重启后会重置
+  Changing filament: "正在更换耗材"
   Check AFC configuration: '请检查 AFC 配置'
   Check Again: 重新检查
   Check Klipper console for details: 详情请查看 Klipper 控制台
@@ -1092,6 +1093,7 @@ translations:
   'Cutter calibration failed: {}': 切刀校准失败：{}
   Cutter jam: 切刀卡住
   Cutting: 切割中
+  Cutting filament: "正在切断耗材"
   Cutting filament...: 正在切断耗材...
   Cycle every tool: 依次更换所有工具
   Cycling tools...: 正在依次更换工具...
@@ -1578,6 +1580,7 @@ translations:
   Feeder: 送料器
   Feeders: 送料器
   Feeding filament forward: 正在向前送料
+  Feeding filament to nozzle: "正在向喷嘴送料"
   Filament: 耗材
   Filament Buffer: '耗材缓冲区'
   Filament Control: 耗材控制
@@ -1834,7 +1837,10 @@ translations:
   Heating chamber...: 正在加热腔体...
   Heating is nearly the whole wait. Leaving the screen now stops the run.: '加热占了几乎全部等待时间。现在离开此页面会停止运行。'
   Heating nozzle: '喷嘴加热中'
+  Heating nozzle ({}): "喷嘴加热中 ({})"
   Heating nozzle to $1°C...: 正在加热喷嘴至 $1°C...
+  Heating nozzle to {}: "喷嘴加热至 {}"
+  Heating nozzle to {} ({}): "喷嘴加热至 {} ({})"
   Heating nozzle...: 正在加热喷嘴...
   Heating the bed: 正在加热热床
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "正在加热热床和喷嘴，使打印件重新附着，喷嘴脱离打印件"
@@ -1952,7 +1958,10 @@ translations:
   I understand: 我已了解
 
   ID (optional): ID（可选）
+  IFS driver error: "IFS 驱动器错误"
   IFS updates without polling: '无需轮询的 IFS 更新'
+  'IFS: loading': "IFS：正在加载"
+  'IFS: unloading': "IFS：正在卸载"
   IMPORT FROM USB: 从 USB 导入
   INDX dock positions are not calibrated: "INDX 停靠位置未校准"
   INDX macros not recognized: "无法识别 INDX 宏"
@@ -3180,6 +3189,7 @@ translations:
   Purge tower and brush settings: '排料塔与刷子设置'
   Purging: 正在清料
   Purging nozzle: 正在清洗喷嘴
+  Purging old filament: "正在清除旧耗材"
   Purging...: 正在清料...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "将清洁耗材推入挤出机直到推不动,然后点击挤出。"
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "将耗材推入挤出机直到推不动为止。挤出机会自动咬入，或点击“挤出”。"
@@ -3443,6 +3453,7 @@ translations:
   Retract filament to current slot: '将耗材回抽至当前槽位'
   Retract may still be running — response timed out: 回抽可能仍在运行 — 响应超时
   Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: 请回抽退料。若能顺利退出，剪掉被啃咬的一端后重新送料
+  Retracting filament from nozzle: "正在从喷嘴回抽耗材"
   Retraction: 回抽
   Retraction Settings: 回抽设置
   Retraction distance in the cooling tube: '冷却管内的回抽距离'

@@ -753,6 +753,7 @@ translations:
     inmediatamente. Ajuste durante la impresión para afinar.
   Changes are temporary and reset on printer reboot: Los cambios son temporales y
     se reinician al reiniciar la impresora
+  Changing filament: "Cambiando filamento"
   Check AFC configuration: 'Compruebe la configuración de AFC'
   Check Again: Verificar de nuevo
   Check Klipper console for details: Consulte la consola de Klipper para más detalles
@@ -1162,6 +1163,7 @@ translations:
   'Cutter calibration failed: {}': 'Falló la calibración del cortador: {}'
   Cutter jam: Atasco del cortador
   Cutting: Cortando
+  Cutting filament: "Cortando filamento"
   Cutting filament...: Cortando filamento...
   Cycle every tool: Ciclar todas las herramientas
   Cycling tools...: Ciclando herramientas...
@@ -1666,6 +1668,7 @@ translations:
   Feeder: Alimentador
   Feeders: Alimentadores
   Feeding filament forward: Avanzando filamento
+  Feeding filament to nozzle: "Avanzando filamento a la boquilla"
   Filament: Filamento
   Filament Buffer: 'Búfer de filamento'
   Filament Control: Control de filamento
@@ -1929,7 +1932,10 @@ translations:
   Heating chamber...: Calentando cámara...
   Heating is nearly the whole wait. Leaving the screen now stops the run.: 'El calentamiento es casi toda la espera. Si sales de la pantalla ahora, la ejecución se detiene.'
   Heating nozzle: 'Calentando boquilla'
+  Heating nozzle ({}): "Calentando boquilla ({})"
   Heating nozzle to $1°C...: Calentando boquilla a $1°C...
+  Heating nozzle to {}: "Calentando boquilla a {}"
+  Heating nozzle to {} ({}): "Calentando boquilla a {} ({})"
   Heating nozzle...: Calentando boquilla...
   Heating the bed: Calentando la cama
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Calentando la cama y la boquilla para que la impresión vuelva a adherirse y la boquilla se suelte de ella"
@@ -2053,7 +2059,10 @@ translations:
   I understand: Lo entiendo
 
   ID (optional): ID (opcional)
+  IFS driver error: "Error del controlador del IFS"
   IFS updates without polling: 'Actualizaciones de IFS sin sondeo'
+  'IFS: loading': "IFS: cargando"
+  'IFS: unloading': "IFS: descargando"
   IMPORT FROM USB: IMPORTAR DESDE USB
   INDX dock positions are not calibrated: "Las posiciones de los docks de INDX no están calibradas"
   INDX macros not recognized: "Macros de INDX no reconocidas"
@@ -3339,6 +3348,7 @@ translations:
   Purge tower and brush settings: 'Ajustes de torre de purga y cepillo'
   Purging: Purgando
   Purging nozzle: Purgando boquilla
+  Purging old filament: "Purgando filamento anterior"
   Purging...: Purgando...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "Empuje el filamento de limpieza en el extrusor hasta el tope y pulse Extruir."
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Empuja el filamento dentro del extrusor hasta que se detenga. Se sujeta automáticamente, o pulsa Extruir."
@@ -3612,6 +3622,7 @@ translations:
   Retract may still be running — response timed out: La retracción puede seguir en
     curso — tiempo de espera agotado
   Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: Retraiga para descargar. Si sale limpio, corte el extremo dañado y vuelva a alimentar
+  Retracting filament from nozzle: "Retrayendo filamento de la boquilla"
   Retraction: Retracción
   Retraction Settings: Configuración de Retracción
   Retraction distance in the cooling tube: 'Distancia de retracción en el tubo de enfriamiento'

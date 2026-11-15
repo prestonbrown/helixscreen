@@ -693,6 +693,7 @@
   <translation tag="Change tool" it="Cambia utensile"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." it="Le modifiche si applicano immediatamente. Regolare durante la stampa per la messa a punto."/>
   <translation tag="Changes are temporary and reset on printer reboot" it="Le modifiche sono temporanee e si resettano al riavvio della stampante"/>
+  <translation tag="Changing filament" it="Cambio filamento"/>
   <translation tag="Check AFC configuration" it="Controlla la configurazione di AFC"/>
   <translation tag="Check Again" it="Ricontrolla"/>
   <translation tag="Check Klipper console for details" it="Controlla la console di Klipper per i dettagli"/>
@@ -1042,6 +1043,7 @@
   <translation tag="Cutter calibration failed: {}" it="Calibrazione taglierina non riuscita: {}"/>
   <translation tag="Cutter jam" it="Inceppamento taglierina"/>
   <translation tag="Cutting" it="Taglio"/>
+  <translation tag="Cutting filament" it="Taglio filamento"/>
   <translation tag="Cutting filament..." it="Taglio filamento..."/>
   <translation tag="Cycle every tool" it="Ciclo di tutti gli strumenti"/>
   <translation tag="Cycling tools..." it="Ciclo degli strumenti..."/>
@@ -1518,6 +1520,7 @@
   <translation tag="Feeder" it="Alimentatore"/>
   <translation tag="Feeders" it="Alimentatori"/>
   <translation tag="Feeding filament forward" it="Avanzamento filamento"/>
+  <translation tag="Feeding filament to nozzle" it="Avanzamento filamento verso l&apos;ugello"/>
   <translation tag="Filament" it="Filamento"/>
   <translation tag="Filament Buffer" it="Buffer filamento"/>
   <translation tag="Filament Control" it="Controllo filamento"/>
@@ -1766,7 +1769,10 @@
   <translation tag="Heating chamber..." it="Riscaldamento camera..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." it="Il riscaldamento è quasi tutta l&apos;attesa. Se lasci la schermata ora, l&apos;esecuzione si ferma."/>
   <translation tag="Heating nozzle" it="Riscaldamento ugello"/>
+  <translation tag="Heating nozzle ({})" it="Riscaldamento ugello ({})"/>
   <translation tag="Heating nozzle to $1°C..." it="Riscaldamento ugello a $1°C..."/>
+  <translation tag="Heating nozzle to {}" it="Riscaldamento ugello a {}"/>
+  <translation tag="Heating nozzle to {} ({})" it="Riscaldamento ugello a {} ({})"/>
   <translation tag="Heating nozzle..." it="Riscaldamento ugello..."/>
   <translation tag="Heating the bed" it="Riscaldamento del piano"/>
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" it="Riscaldamento di piano e ugello: la stampa torna ad aderire e l&apos;ugello si stacca"/>
@@ -1879,7 +1885,10 @@
   <translation tag="Hyperspace" it="Iperspazio"/>
   <translation tag="I understand" it="Ho capito"/>
   <translation tag="ID (optional)" it="ID (opzionale)"/>
+  <translation tag="IFS driver error" it="Errore del driver IFS"/>
   <translation tag="IFS updates without polling" it="Aggiornamenti IFS senza polling"/>
+  <translation tag="IFS: loading" it="IFS: caricamento"/>
+  <translation tag="IFS: unloading" it="IFS: scaricamento"/>
   <translation tag="IMPORT FROM USB" it="IMPORTA DA USB"/>
   <translation tag="INDX dock positions are not calibrated" it="Le posizioni dei dock INDX non sono calibrate"/>
   <translation tag="INDX macros not recognized" it="Macro INDX non riconosciute"/>
@@ -3079,6 +3088,7 @@
   <translation tag="Purge tower and brush settings" it="Impostazioni della torre di spurgo e della spazzola"/>
   <translation tag="Purging" it="Spurgo"/>
   <translation tag="Purging nozzle" it="Spurgo ugello"/>
+  <translation tag="Purging old filament" it="Spurgo del filamento precedente"/>
   <translation tag="Purging..." it="Spurgo..."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." it="Spingere il filamento di pulizia nell&apos;estrusore fino in fondo, poi toccare Estrusione."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." it="Spingi il filamento nell&apos;estrusore fino in fondo. Viene afferrato automaticamente, oppure tocca Estrusione."/>
@@ -3341,6 +3351,7 @@
   <translation tag="Retract filament to current slot" it="Retrai il filamento nello slot corrente"/>
   <translation tag="Retract may still be running — response timed out" it="Ritrazione potrebbe essere ancora in corso — tempo scaduto"/>
   <translation tag="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again" it="Retrarre per scaricare. Se rientra pulito, tagliare l&apos;estremità rovinata e alimentare di nuovo"/>
+  <translation tag="Retracting filament from nozzle" it="Retrazione del filamento dall&apos;ugello"/>
   <translation tag="Retraction" it="Retrazione"/>
   <translation tag="Retraction Settings" it="Impostazioni retrazione"/>
   <translation tag="Retraction distance in the cooling tube" it="Distanza di retrazione nel tubo di raffreddamento"/>

@@ -34,6 +34,7 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "toolhead_homing.h"
+#include "translation_loader.h"
 #include "zmod_color_status.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -45,6 +46,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <lvgl.h>
 #include <thread>
 
@@ -55,6 +57,26 @@ namespace hfs = fs;
 using json = nlohmann::json;
 
 namespace {
+
+/// The heating phase's status line in the current language. The target and
+/// the current temperature are independently optional (0 until an extruder
+/// frame or a RESPOND line reports one), so it names only what is known.
+std::string heating_detail(int target_deci, int current_deci) {
+    const auto shown = [](int deci) {
+        return units::format_display_temp(helix::ui::temperature::deci_to_degrees(deci));
+    };
+    if (target_deci > 0 && current_deci > 0) {
+        return fmt::format(fmt::runtime(lv_tr("Heating nozzle to {} ({})")), shown(target_deci),
+                           shown(current_deci));
+    }
+    if (target_deci > 0) {
+        return fmt::format(fmt::runtime(lv_tr("Heating nozzle to {}")), shown(target_deci));
+    }
+    if (current_deci > 0) {
+        return fmt::format(fmt::runtime(lv_tr("Heating nozzle ({})")), shown(current_deci));
+    }
+    return lv_tr("Heating nozzle");
+}
 
 /// Slot registry units for @p ports ports, four to a unit: one physical IFS
 /// each. A single IFS keeps the plain "IFS" name; slot names are the 1-based
@@ -2302,7 +2324,7 @@ AmsError AmsBackendAd5xIfs::recover() {
         if (system_info_.action == AmsAction::ERROR) {
             spdlog::info("{} Recovery: clearing ERROR state", backend_log_tag());
             system_info_.action = AmsAction::IDLE;
-            system_info_.operation_detail.clear();
+            set_operation_detail_locked("");
         }
         clear_runout_locked("recover()");
     }
@@ -2327,7 +2349,7 @@ AmsError AmsBackendAd5xIfs::reset() {
         if (system_info_.action == AmsAction::ERROR) {
             spdlog::info("{} Reset: clearing ERROR state", backend_log_tag());
             system_info_.action = AmsAction::IDLE;
-            system_info_.operation_detail.clear();
+            set_operation_detail_locked("");
         }
         clear_runout_locked("reset()");
     }
@@ -2377,7 +2399,7 @@ void AmsBackendAd5xIfs::apply_zmod_change_macro(const json& status) {
                 system_info_.action == AmsAction::IDLE) {
                 system_info_.action = AmsAction::SELECTING;
                 action_start_time_ = std::chrono::steady_clock::now();
-                set_operation_detail_locked("Changing filament");
+                set_operation_detail_locked(TR_NOOP("Changing filament"));
                 zmod_change_owns_action_ = true;
                 zmod_change_in_job_ = in_job;
                 zmod_change_saw_busy_ = klipper_busy_now();
@@ -2500,14 +2522,15 @@ std::optional<helix::ErrorEvent> AmsBackendAd5xIfs::current_error() const {
             helix::ErrorSource::IFS, lv_tr("Filament runout"),
             system_info_.operation_detail.empty()
                 ? std::string(lv_tr("Filament ran out at the toolhead"))
-                : system_info_.operation_detail,
+                : std::string(lv_tr(system_info_.operation_detail.c_str())),
             build_recovery_actions());
     }
-    return helix::make_ams_fault_event(helix::ErrorSource::IFS, lv_tr("Filament System Error"),
-                                       system_info_.operation_detail.empty()
-                                           ? std::string(lv_tr("Filament operation failed"))
-                                           : system_info_.operation_detail,
-                                       build_recovery_actions());
+    return helix::make_ams_fault_event(
+        helix::ErrorSource::IFS, lv_tr("Filament System Error"),
+        system_info_.operation_detail.empty()
+            ? std::string(lv_tr("Filament operation failed"))
+            : std::string(lv_tr(system_info_.operation_detail.c_str())),
+        build_recovery_actions());
 }
 
 std::optional<bool> AmsBackendAd5xIfs::toolhead_filament_unaccounted() const {
@@ -4707,13 +4730,13 @@ bool AmsBackendAd5xIfs::apply_ifs_module_objects(const json& status) {
             if (!phase_tracker_.active && system_info_.action == AmsAction::IDLE) {
                 system_info_.action = AmsAction::LOADING;
                 action_start_time_ = std::chrono::steady_clock::now();
-                set_operation_detail_locked("IFS: loading");
+                set_operation_detail_locked(TR_NOOP("IFS: loading"));
             }
         } else if (activity == "unloading") {
             if (!phase_tracker_.active && system_info_.action == AmsAction::IDLE) {
                 system_info_.action = AmsAction::UNLOADING;
                 action_start_time_ = std::chrono::steady_clock::now();
-                set_operation_detail_locked("IFS: unloading");
+                set_operation_detail_locked(TR_NOOP("IFS: unloading"));
             }
         } else if (activity == "ready" || activity == "polling") {
             if (!phase_tracker_.active && (system_info_.action == AmsAction::LOADING ||
@@ -4728,7 +4751,8 @@ bool AmsBackendAd5xIfs::apply_ifs_module_objects(const json& status) {
             // path owns that.
             if (system_info_.action != AmsAction::ERROR && !runout_active_) {
                 system_info_.action = AmsAction::ERROR;
-                set_operation_detail_locked(error_text.empty() ? "IFS driver error" : error_text);
+                set_operation_detail_locked(error_text.empty() ? TR_NOOP("IFS driver error")
+                                                               : error_text);
             }
         }
         // clamped / unclamping are sub-second transitional states of a load or
@@ -5678,7 +5702,6 @@ bool AmsBackendAd5xIfs::apply_phase_action_locked() {
         return false;
     }
 
-    std::string detail;
     // Step index for the right-side vertical operation tracker, the phase_id
     // get_operation_step_model() emits. AmsState::sync_from_backend() copies it
     // into the ams_operation_phase subject the tracker observes, and the action
@@ -5698,46 +5721,29 @@ bool AmsBackendAd5xIfs::apply_phase_action_locked() {
                                   : kIfsLoadPhases)[static_cast<size_t>(phase_index)];
     system_info_.operation_phase = phase_index;
 
-    // Build the per-phase operation_detail. Dynamic (contains live temps), so it
-    // is NOT run through lv_tr() — matches recompute_action_detail's priority-1
-    // backend-supplied-string behavior in ams_state.cpp.
+    // A fixed phrase is stored as its catalog key; the heating line carries live
+    // temperatures, so it is composed from a translated format and rebuilt by
+    // refresh_translated_texts() on a language switch.
     switch (synth) {
-    case AmsAction::HEATING:
-        // Both the target and the current temp are independently optional: the
-        // target is 0 until an extruder frame or a RESPOND line reports one, and
-        // the current temp is 0 until the first extruder frame. Name only what
-        // is actually known rather than printing a placeholder number.
-        if (tgt > 0 && last_extruder_temp_deci_ > 0) {
-            detail = fmt::format(
-                "Heating nozzle to {} ({})",
-                units::format_display_temp(helix::ui::temperature::deci_to_degrees(tgt)),
-                units::format_display_temp(
-                    helix::ui::temperature::deci_to_degrees(last_extruder_temp_deci_)));
-        } else if (tgt > 0) {
-            detail = "Heating nozzle to " +
-                     units::format_display_temp(helix::ui::temperature::deci_to_degrees(tgt));
-        } else if (last_extruder_temp_deci_ > 0) {
-            detail = "Heating nozzle (" +
-                     units::format_display_temp(
-                         helix::ui::temperature::deci_to_degrees(last_extruder_temp_deci_)) +
-                     ")";
-        } else {
-            detail = "Heating nozzle";
-        }
+    case AmsAction::HEATING: {
+        const int cur = last_extruder_temp_deci_;
+        set_composed_detail_locked([tgt, cur] { return heating_detail(tgt, cur); });
         break;
+    }
     case AmsAction::CUTTING:
-        detail = "Cutting filament";
+        set_operation_detail_locked(TR_NOOP("Cutting filament"));
         break;
     case AmsAction::UNLOADING:
-        detail = "Retracting filament from nozzle";
+        set_operation_detail_locked(TR_NOOP("Retracting filament from nozzle"));
         break;
     case AmsAction::LOADING:
-        detail = "Feeding filament to nozzle";
+        set_operation_detail_locked(TR_NOOP("Feeding filament to nozzle"));
         break;
     case AmsAction::PURGING:
-        detail = "Purging old filament";
+        set_operation_detail_locked(TR_NOOP("Purging old filament"));
         break;
     default:
+        set_operation_detail_locked("");
         break;
     }
 
@@ -5755,7 +5761,6 @@ bool AmsBackendAd5xIfs::apply_phase_action_locked() {
         note_phase_progress_locked();
         changed = true;
     }
-    set_operation_detail_locked(std::move(detail));
     return changed;
 }
 
@@ -5764,7 +5769,20 @@ void AmsBackendAd5xIfs::note_phase_progress_locked() {
 }
 
 void AmsBackendAd5xIfs::set_operation_detail_locked(std::string detail) {
+    detail_composer_ = nullptr;
     system_info_.operation_detail = std::move(detail);
+}
+
+void AmsBackendAd5xIfs::set_composed_detail_locked(std::function<std::string()> compose) {
+    system_info_.operation_detail = compose();
+    detail_composer_ = std::move(compose);
+}
+
+void AmsBackendAd5xIfs::refresh_translated_texts() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (detail_composer_) {
+        system_info_.operation_detail = detail_composer_();
+    }
 }
 
 void AmsBackendAd5xIfs::detect_load_unload_completion(bool head_detected) {
@@ -5944,7 +5962,7 @@ void AmsBackendAd5xIfs::clear_runout_locked(const char* why) {
     system_info_.filament_runout = false;
     if (system_info_.action == AmsAction::ERROR) {
         system_info_.action = AmsAction::IDLE;
-        system_info_.operation_detail.clear();
+        set_operation_detail_locked("");
     }
 }
 
@@ -6269,17 +6287,23 @@ void AmsBackendAd5xIfs::check_action_timeout(bool zmod_change_ending) {
                      std::chrono::duration_cast<std::chrono::seconds>(elapsed).count());
         // Preserve the current operation_detail as the error description so the
         // error-center bridge can show what was happening when the timeout fired.
-        const std::string timeout_detail =
-            system_info_.operation_detail.empty()
-                ? lv_tr("Filament operation timed out")
-                : system_info_.operation_detail + lv_tr(" (timed out)");
+        std::function<std::string()> what = detail_composer_;
+        if (!what && !system_info_.operation_detail.empty()) {
+            what = [key = system_info_.operation_detail] {
+                return std::string(lv_tr(key.c_str()));
+            };
+        }
         system_info_.action = AmsAction::ERROR;
         // The op is resolving to ERROR — it is no longer merely "Working…".
         system_info_.operation_indeterminate = false;
         if (phase_tracker_.active) {
             end_phase_tracking_locked();
         }
-        set_operation_detail_locked(timeout_detail);
+        if (what) {
+            set_composed_detail_locked([what] { return what() + lv_tr(" (timed out)"); });
+        } else {
+            set_operation_detail_locked(TR_NOOP("Filament operation timed out"));
+        }
     }
 }
 

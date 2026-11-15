@@ -760,6 +760,7 @@ translations:
     immédiatement. Ajustez pendant l'impression pour le réglage.
   Changes are temporary and reset on printer reboot: Les modifications sont temporaires
     et réinitialisées au redémarrage de l'imprimante
+  Changing filament: "Changement de filament"
   Check AFC configuration: 'Vérifiez la configuration d''AFC'
   Check Again: Revérifier
   Check Klipper console for details: Consultez la console Klipper pour plus de détails
@@ -1167,6 +1168,7 @@ translations:
   'Cutter calibration failed: {}': 'Échec de la calibration du coupeur : {}'
   Cutter jam: Bourrage du coupeur
   Cutting: Coupe
+  Cutting filament: "Coupe du filament"
   Cutting filament...: Coupe du filament...
   Cycle every tool: Faire tourner tous les outils
   Cycling tools...: Rotation des outils...
@@ -1680,6 +1682,7 @@ translations:
   Feeder: Alimentateur
   Feeders: Alimentateurs
   Feeding filament forward: Avancement du filament
+  Feeding filament to nozzle: "Avancement du filament vers la buse"
   Filament: Filament
   Filament Buffer: 'Tampon de filament'
   Filament Control: Contrôle du filament
@@ -1942,7 +1945,10 @@ translations:
   Heating chamber...: Chauffe de la chambre...
   Heating is nearly the whole wait. Leaving the screen now stops the run.: 'Le chauffage est presque toute l''attente. Quitter l''écran maintenant arrête l''exécution.'
   Heating nozzle: 'Chauffe de la buse'
+  Heating nozzle ({}): "Chauffe de la buse ({})"
   Heating nozzle to $1°C...: Chauffe de la buse à $1°C...
+  Heating nozzle to {}: "Chauffe de la buse à {}"
+  Heating nozzle to {} ({}): "Chauffe de la buse à {} ({})"
   Heating nozzle...: Chauffe de la buse...
   Heating the bed: Chauffage du plateau
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Chauffe du plateau et de la buse pour que l'impression adhère de nouveau et que la buse s'en détache"
@@ -2067,7 +2073,10 @@ translations:
   I understand: J'ai compris
 
   ID (optional): ID (facultatif)
+  IFS driver error: "Erreur du pilote IFS"
   IFS updates without polling: 'Mises à jour IFS sans interrogation'
+  'IFS: loading': "IFS : chargement"
+  'IFS: unloading': "IFS : déchargement"
   IMPORT FROM USB: IMPORTER DEPUIS USB
   INDX dock positions are not calibrated: "Les positions des docks INDX ne sont pas calibrées"
   INDX macros not recognized: "Macros INDX non reconnues"
@@ -3356,6 +3365,7 @@ translations:
   Purge tower and brush settings: 'Paramètres de tour de purge et de brosse'
   Purging: Purge en cours
   Purging nozzle: Purge de la buse
+  Purging old filament: "Purge de l'ancien filament"
   Purging...: Purge...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "Poussez le filament de nettoyage dans l'extrudeur jusqu'en butée, puis appuyez sur Extruder."
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Poussez le filament dans l'extrudeur jusqu'en butée. Il est saisi automatiquement, ou appuyez sur Extruder."
@@ -3630,6 +3640,7 @@ translations:
   Retract may still be running — response timed out: Rétraction peut-être encore en
     cours — délai dépassé
   Retract to unload. If it comes back cleanly, snip the chewed end off and feed again: Rétractez pour décharger. Si le filament ressort proprement, coupez l'extrémité abîmée et réalimentez
+  Retracting filament from nozzle: "Rétraction du filament hors de la buse"
   Retraction: Rétraction
   Retraction Settings: Paramètres de rétraction
   Retraction distance in the cooling tube: 'Distance de rétraction dans le tube de refroidissement'

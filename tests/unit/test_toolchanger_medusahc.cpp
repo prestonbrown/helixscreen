@@ -96,7 +96,7 @@ TEST_CASE("A toolchanger's status maps to an action, and the unready ones refuse
         const char* detail;
     };
     const Row rows[] = {
-        {"uninitialized", -1, AmsAction::RESETTING, true, "uninitialized"},
+        {"uninitialized", -1, AmsAction::RESETTING, true, "Not Initialized"},
         {"initializing", -1, AmsAction::RESETTING, true, "Initializing..."},
         {"ready", 0, AmsAction::IDLE, false, ""},
         {"changing", 0, AmsAction::SELECTING, false, "Tool swap"},

@@ -19,6 +19,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -399,6 +400,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     [[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override;
 
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
+    void refresh_translated_texts() override;
     [[nodiscard]] bool is_bypass_active() const override;
 
     // Unload-action gate (also suppresses Load for the same slot). Keeps the
@@ -1167,7 +1169,10 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
         bool swap_expected = false;
     };
     IfsPhaseTracker phase_tracker_;
-    int last_extruder_temp_deci_ = 0;   // deci-degrees (×10)
+    int last_extruder_temp_deci_ = 0; // deci-degrees (×10)
+    // Rebuilds operation_detail in the current language while it is composed
+    // from translated parts; empty when the detail is a key or firmware text.
+    std::function<std::string()> detail_composer_;
     int last_extruder_target_deci_ = 0; // deci-degrees (×10)
 
     // Capture op-start state + set active. Caller must hold mutex_.
@@ -1185,8 +1190,13 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     // the lock NOT held; see ams_subscription_backend.h). NOT emitting here is
     // what left the busy state unpublished until the next ~1.4s status frame.
     bool apply_phase_action_locked();
-    // Set system_info_.operation_detail. Caller must hold mutex_.
+    // Set system_info_.operation_detail to a catalog key or firmware text, shown
+    // through lv_tr(). Caller must hold mutex_.
     void set_operation_detail_locked(std::string detail);
+    // Set operation_detail from @p compose, text built from translated parts, and
+    // keep it so refresh_translated_texts() rebuilds it in a new language.
+    // Caller must hold mutex_.
+    void set_composed_detail_locked(std::function<std::string()> compose);
     // Finalize a phased load/unload to IDLE when its zmod macro completes (the
     // gcode ack). The reliable terminal signal for the synthesized Retract /
     // Purge phases, which have no sensor event of their own — without it the op

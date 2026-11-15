@@ -693,6 +693,7 @@
   <translation tag="Change tool" de="Werkzeug wechseln"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." de="Änderungen werden sofort angewendet. Während des Drucks zur Feinabstimmung anpassen."/>
   <translation tag="Changes are temporary and reset on printer reboot" de="Änderungen sind temporär und werden beim Neustart des Druckers zurückgesetzt"/>
+  <translation tag="Changing filament" de="Filament wird gewechselt"/>
   <translation tag="Check AFC configuration" de="Prüfen Sie die AFC-Konfiguration"/>
   <translation tag="Check Again" de="Erneut prüfen"/>
   <translation tag="Check Klipper console for details" de="Details finden Sie in der Klipper-Konsole"/>
@@ -1042,6 +1043,7 @@
   <translation tag="Cutter calibration failed: {}" de="Schneider-Kalibrierung fehlgeschlagen: {}"/>
   <translation tag="Cutter jam" de="Schneidestau"/>
   <translation tag="Cutting" de="Schneiden"/>
+  <translation tag="Cutting filament" de="Filament wird geschnitten"/>
   <translation tag="Cutting filament..." de="Filament wird geschnitten..."/>
   <translation tag="Cycle every tool" de="Alle Werkzeuge durchwechseln"/>
   <translation tag="Cycling tools..." de="Werkzeuge werden durchgewechselt..."/>
@@ -1518,6 +1520,7 @@
   <translation tag="Feeder" de="Zuführung"/>
   <translation tag="Feeders" de="Zuführungen"/>
   <translation tag="Feeding filament forward" de="Filament wird vorwärts geführt"/>
+  <translation tag="Feeding filament to nozzle" de="Filament wird zur Düse geführt"/>
   <translation tag="Filament" de="Filament"/>
   <translation tag="Filament Buffer" de="Filamentpuffer"/>
   <translation tag="Filament Control" de="Filamentsteuerung"/>
@@ -1766,7 +1769,10 @@
   <translation tag="Heating chamber..." de="Kammer aufheizen..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." de="Das Aufheizen dauert am längsten. Wenn du den Bildschirm jetzt verlässt, stoppt der Durchlauf."/>
   <translation tag="Heating nozzle" de="Düse heizt auf"/>
+  <translation tag="Heating nozzle ({})" de="Düse heizt auf ({})"/>
   <translation tag="Heating nozzle to $1°C..." de="Düse heizt auf $1°C auf..."/>
+  <translation tag="Heating nozzle to {}" de="Düse heizt auf {} auf"/>
+  <translation tag="Heating nozzle to {} ({})" de="Düse heizt auf {} auf ({})"/>
   <translation tag="Heating nozzle..." de="Düse aufheizen..."/>
   <translation tag="Heating the bed" de="Heizbett wird aufgeheizt"/>
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" de="Bett und Düse heizen auf, damit der Druck wieder haftet und die Düse sich von ihm löst"/>
@@ -1879,7 +1885,10 @@
   <translation tag="Hyperspace" de="Hyperraum"/>
   <translation tag="I understand" de="Ich habe verstanden"/>
   <translation tag="ID (optional)" de="ID (optional)"/>
+  <translation tag="IFS driver error" de="IFS-Treiberfehler"/>
   <translation tag="IFS updates without polling" de="IFS-Aktualisierungen ohne Abfragen"/>
+  <translation tag="IFS: loading" de="IFS: Laden"/>
+  <translation tag="IFS: unloading" de="IFS: Entladen"/>
   <translation tag="IMPORT FROM USB" de="VON USB IMPORTIEREN"/>
   <translation tag="INDX dock positions are not calibrated" de="INDX-Dockpositionen sind nicht kalibriert"/>
   <translation tag="INDX macros not recognized" de="INDX-Makros nicht erkannt"/>
@@ -3079,6 +3088,7 @@
   <translation tag="Purge tower and brush settings" de="Einstellungen für Reinigungsturm und Bürste"/>
   <translation tag="Purging" de="Spülen"/>
   <translation tag="Purging nozzle" de="Düse wird gespült"/>
+  <translation tag="Purging old filament" de="Altes Filament wird gespült"/>
   <translation tag="Purging..." de="Entlüften..."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." de="Reinigungsfilament bis zum Anschlag in den Extruder schieben, dann Extrudieren antippen."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." de="Schiebe das Filament bis zum Anschlag in den Extruder. Es wird automatisch gegriffen, oder tippe auf Extrudieren."/>
@@ -3341,6 +3351,7 @@
   <translation tag="Retract filament to current slot" de="Filament in den aktuellen Slot einziehen"/>
   <translation tag="Retract may still be running — response timed out" de="Einzug läuft möglicherweise noch — Zeitüberschreitung"/>
   <translation tag="Retract to unload. If it comes back cleanly, snip the chewed end off and feed again" de="Zum Entladen einziehen. Kommt es sauber zurück, das zerfaserte Ende abschneiden und erneut zuführen"/>
+  <translation tag="Retracting filament from nozzle" de="Filament wird aus der Düse zurückgezogen"/>
   <translation tag="Retraction" de="Retraktion"/>
   <translation tag="Retraction Settings" de="Rückzugseinstellungen"/>
   <translation tag="Retraction distance in the cooling tube" de="Rückzugsweg im Kühlrohr"/>

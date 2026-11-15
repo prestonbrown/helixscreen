@@ -50,6 +50,11 @@ namespace helix {
 
 namespace {
 
+/// "<what was happening> (timed out)" in the current language.
+std::string timed_out_line(const std::string& what) {
+    return std::string(lv_tr(what.c_str())) + lv_tr(" (timed out)");
+}
+
 /// The section of AFC_Macro_Vars.cfg holding the tip-forming variables.
 constexpr const char* kMacroVarsSection = "gcode_macro AFC_MacroVars";
 
@@ -460,6 +465,16 @@ void AmsBackendAfc::set_discovered_sensors(const std::vector<std::string>& senso
 // State Queries
 // ============================================================================
 
+void AmsBackendAfc::refresh_translated_texts() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (timed_out_what_.empty() || system_info_.action != AmsAction::ERROR ||
+        system_info_.operation_detail != timed_out_detail_) {
+        return;
+    }
+    timed_out_detail_ = timed_out_line(timed_out_what_);
+    system_info_.operation_detail = timed_out_detail_;
+}
+
 AmsSystemInfo AmsBackendAfc::get_system_info() const {
     std::lock_guard<std::mutex> lock(mutex_);
 
@@ -533,6 +548,7 @@ AmsError AmsBackendAfc::clear_fault(int slot_index) {
                           *timed_out_state_);
             timed_out_state_.reset();
             timed_out_detail_.clear();
+            timed_out_what_.clear();
         }
         action_start_time_ = std::chrono::steady_clock::now();
 
@@ -1536,6 +1552,7 @@ void AmsBackendAfc::apply_action_timeout_latch_locked() {
                      last_raw_state_);
         timed_out_state_.reset();
         timed_out_detail_.clear();
+        timed_out_what_.clear();
         return;
     }
 
@@ -1603,14 +1620,14 @@ void AmsBackendAfc::check_action_timeout() {
 
     // Preserve what was happening as the error description so the error-center
     // bridge shows more than a bare failure.
-    // The bare timeout is a catalog key; the suffixed form joins two phrases,
-    // so it is translated here and keeps this language until AFC moves on.
-    const std::string timeout_detail =
-        system_info_.operation_detail.empty()
-            ? std::string(TR_NOOP("Filament operation timed out"))
-            : std::string(lv_tr(system_info_.operation_detail.c_str())) + lv_tr(" (timed out)");
+    // The bare timeout is a catalog key; the suffixed form joins two phrases, so
+    // it is composed here and re-worded by refresh_translated_texts().
+    timed_out_what_ = system_info_.operation_detail;
+    timed_out_detail_ = timed_out_what_.empty()
+                            ? std::string(TR_NOOP("Filament operation timed out"))
+                            : timed_out_line(timed_out_what_);
+    system_info_.operation_detail = timed_out_detail_;
     system_info_.action = AmsAction::ERROR;
-    system_info_.operation_detail = timeout_detail;
 
     // Only latch when AFC itself is driving the action. The latch keys on
     // last_raw_state_, and for an action this backend set optimistically at
@@ -1625,7 +1642,6 @@ void AmsBackendAfc::check_action_timeout() {
         return;
     }
     timed_out_state_ = last_raw_state_;
-    timed_out_detail_ = timeout_detail;
 }
 
 uint64_t AmsBackendAfc::begin_dispatch_locked(AmsAction action) {
@@ -1645,6 +1661,7 @@ uint64_t AmsBackendAfc::begin_dispatch_locked(AmsAction action) {
                       *timed_out_state_);
         timed_out_state_.reset();
         timed_out_detail_.clear();
+        timed_out_what_.clear();
     }
 
     system_info_.action = action;

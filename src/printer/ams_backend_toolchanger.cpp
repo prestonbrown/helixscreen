@@ -66,6 +66,9 @@ std::string toolchanger_word_detail(const std::string& word) {
     if (word == "initializing") {
         return TR_NOOP("Initializing...");
     }
+    if (word == "uninitialized") {
+        return TR_NOOP("Not Initialized");
+    }
     return word;
 }
 
