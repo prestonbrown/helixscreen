@@ -8,17 +8,16 @@ Developer guide for the HelixScreen installer infrastructure: modular shell scri
 
 ## Architecture Overview
 
-The installer is a **modular POSIX shell system** with 24 library modules (in `scripts/lib/installer/`) that get bundled into monolithic scripts for end-user distribution. All shell code targets `/bin/sh` for maximum compatibility, including BusyBox on embedded platforms (AD5M, K1).
+The installer is a **modular POSIX shell system** with library modules (in `scripts/lib/installer/`) that get bundled into monolithic scripts for end-user distribution. All shell code targets `/bin/sh` for maximum compatibility, including BusyBox on embedded platforms (AD5M, K1).
 
 ```
 scripts/
   install-dev.sh              # Development installer (sources modules at runtime)
-  install.sh                  # Bundled installer (auto-generated, committed)
-  uninstall.sh                # Bundled uninstaller (auto-generated, committed)
-  bundle-installer.sh         # Generates install.sh from modules
-  bundle-uninstaller.sh       # Generates uninstall.sh from modules
+  install.sh                  # Stub: fetches the released bundle and runs it (old links keep working)
+  bundle-installer.sh         # Generates build/installer/install.sh from modules (make installer)
+  bundle-uninstaller.sh       # Generates build/installer/uninstall.sh from modules
   helix-launcher.sh           # Runtime launcher with watchdog supervision
-  lib/installer/              # 24 modules (subset shown)
+  lib/installer/              # the modules (ls shows all; subset below)
     main.sh                   # Orchestrator: arg parsing, install flow, KIAUH call
     common.sh                 # Logging, colors, error handler, process killing
     host_profile.sh           # Mod-host probe + mod-owned path guard (see the payload-contract section)
@@ -40,6 +39,7 @@ scripts/
     uninstall.sh               # Uninstall, clean, re-enable previous UIs
     kiauh.sh                   # KIAUH extension auto-detection and install
     image.sh                   # Install into a disk image (--target-root) and its --first-boot pass
+    plan.sh, logo.sh, helix_print_conf.sh   # the read-only pass's plan, generated banner art, where [helix_print] lives
   kiauh/helixscreen/
     __init__.py                # KIAUH extension constants and install dir detection
     helixscreen_extension.py   # KIAUH BaseExtension implementation

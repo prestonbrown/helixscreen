@@ -12,7 +12,7 @@ On the Settings screen, the **Appearance** row shows the mode and the theme you'
 
 ## Dark Mode
 
-Switches between the light and dark version of your theme. **On** (dark) by default. The switch is grayed out when your theme only comes in one version (see the Modes column in [Built-in Themes](#built-in-themes)).
+Switches between the light and dark version of your theme. **On** (dark) by default. The switch is grayed out when your theme only comes in dark (see the Modes column in [Built-in Themes](#built-in-themes)).
 
 ---
 
@@ -59,6 +59,11 @@ Eighteen themes come with HelixScreen, listed alphabetically in the Theme Preset
 ### Editing a Custom Theme
 
 Tap **Edit** in the theme explorer to open the theme editor. You can recolor a theme and change its corners, borders and shadows. Everything around the editor updates as you go, so you see the result straight away.
+
+![The theme explorer's preset menu and Dark Mode switch](../../../images/user/settings-theme-actions.png)
+
+1. The Theme Preset menu picks which theme to look at.
+2. The Dark Mode switch chooses which palette the editor changes.
 
 The editor has two sections:
 
@@ -118,11 +123,18 @@ Shows a text label under icon-only widgets on the home screen. **Off** by defaul
 
 ## Printer Visuals
 
-The rows under **PRINTER VISUALS** change how your printer and its data are drawn. The printer itself behaves exactly the same whatever you pick.
+The rows under **PRINTER VISUALS** change how your printer and its data are drawn. The printer behaves exactly the same whatever you pick.
+
+![The Printer Visuals rows](../../../images/user/settings-printer-visuals.png)
+
+1. Toolhead Style.
+2. G-code Preview.
+3. Z Movement.
+4. Bed Mesh Render.
 
 ### Toolhead Style
 
-The toolhead picture used on the Home screen and the print status screen.
+The toolhead picture on the Motion screen, the filament system screens and the Z offset controls.
 
 | Option | Picture |
 |--------|---------|
@@ -134,7 +146,7 @@ The toolhead picture used on the Home screen and the print status screen.
 | **Stealthburner**, **Mini Stealthburner**, **Dragonburner** | The Voron toolheads of those names |
 | **Creality K1**, **Creality K2**, **Bambu Lab**, **Ender 3**, **XOL**, **Snapmaker U1**, **FlashForge AD5**, **FlashForge Creator 5**, **Elegoo Centauri**, **Artillery M1**, **Qidi**, **Sovol SV08** | That printer's or toolhead's own head |
 
-Leave it on **Auto** unless HelixScreen shows the wrong toolhead, or you've fitted an aftermarket one. Printers with their own toolhead picture get it automatically on Auto. The `toolhead_style` numbers for `settings.json` are in [Configuration](../../CONFIGURATION.md#toolhead_style).
+Leave it on **Auto** unless HelixScreen shows the wrong toolhead, or you've fitted an aftermarket one. Printers with their own toolhead picture get it automatically on Auto. This choice is remembered separately for each printer you have set up. The `toolhead_style` numbers for `settings.json` are in [Configuration](../../CONFIGURATION.md#toolhead_style).
 
 ### Tool Numbers
 

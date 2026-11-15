@@ -310,7 +310,8 @@ check-theme-tokens:
 #
 # Targets:
 #   make docs-pinned       — render docs with real line numbers into build/
-#   make check-doc-anchors — advisory report, run by hand; no hook runs it
+#   make check-doc-anchors — whole-tree report, run by hand; the qc_doc_anchors
+#                            gate checks only the docs a change touches
 
 .PHONY: docs-pinned check-doc-anchors
 

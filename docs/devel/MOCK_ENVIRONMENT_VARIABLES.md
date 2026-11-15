@@ -1410,7 +1410,7 @@ Select which printer the mock Moonraker client impersonates. Drives the mock's r
 
 | Property | Value |
 |----------|-------|
-| **Values** | see `include/mock_persona.h#kPersonas`: currently `voron_24`, `voron_trident`, `k1`, `k1max`, `ad5m`, `creator5`, `creator5_zmod`, `creator5_afc`, `generic_corexy`, `generic_bedslinger`, `multi_extruder`, `delta`, `snapmaker_u1`, `cc1`, `ad5x`, `k2`. Matched exactly (case-sensitive); an unrecognised value falls back to `voron_24` with a warning listing the valid ids |
+| **Values** | see `include/mock_persona.h#find_persona`: currently `voron_24`, `voron_trident`, `k1`, `k1max`, `ad5m`, `creator5`, `creator5_zmod`, `creator5_afc`, `generic_corexy`, `generic_bedslinger`, `multi_extruder`, `delta`, `snapmaker_u1`, `cc1`, `ad5x`, `k2`. Matched exactly (case-sensitive); an unrecognised value falls back to `voron_24` with a warning listing the valid ids |
 | **Default** | `voron_24` (Voron 2.4); unset and empty both select it silently |
 | **File** | `include/mock_persona.h` |
 
@@ -1572,8 +1572,8 @@ persona publishes Z-Mod's own objects (`zmod`, `zmod_color`, `save_variables`,
 1-based) plus the Pro's `heater_generic chamber_heater` and the per-head sensor
 pairs `fd_ex0..3` / `fm_ex0..3`, and pushes no `mmu` and no `toolchanger` object.
 
-The point is that real discovery runs: `AmsBackend::try_create_mock()` declines
-this persona (see `MoonrakerClientMock::mock_hardware_persona()`), so
+The point is that real discovery runs: the AMS backend factory (`src/printer/ams_backend.cpp#try_create_mock`) declines
+this persona (see `helix::mock::mock_hardware_backend()` in `include/mock_persona.h`), so
 `toolchanger_addon` detects the Z-Mod row and the production
 `AmsBackendToolChanger` drives 4 slots against the mock's `zmod_color` status,
 the same escape hatch the MedusaHC modes use. The persona implies `--real-ams`
@@ -1711,7 +1711,7 @@ HELIX_MOCK_OBJECTS="heater_generic dragonbreath dragonbreath output_pin dragonbr
   ./build/bin/helix-screen --test -vv
 ```
 
-**Two-word object names are reassembled by prefix.** The parser splits on whitespace, then treats a token starting with `heater_generic`, `temperature_fan`, `temperature_sensor`, or `output_pin` as the start of a *new* object and glues any following tokens onto the current one. So `temperature_fan chamber` becomes the single object `temperature_fan chamber`. A token that is not a prefix glues onto the current object — with one exception: a token that exactly names a chamber-heater backend's diagnostics object (e.g. the bare `dragonbreath` after a completed `heater_generic dragonbreath`) starts a new standalone object instead of appending. A chamber heater accepted from this list also replaces the mock profile's built-in chamber heater. Any other `heater_generic` is simulated on its own (`src/mock/moonraker_client_mock.cpp#append_aux_heater_status`): it starts at 25°C with no target, steps 1°C per simulated second toward the target `SET_HEATER_TEMPERATURE HEATER=<bare name>` gives it, and reports `temperature`, `target` and `power`. Each accepted object is logged as `[MoonrakerClientMock] Added mock object: <name>`.
+**Two-word object names are reassembled by prefix.** The parser splits on whitespace, then treats a token starting with `heater_generic`, `temperature_fan`, `temperature_sensor`, or `output_pin` as the start of a *new* object and glues any following tokens onto the current one. So `temperature_fan chamber` becomes the single object `temperature_fan chamber`. A token that is not a prefix glues onto the current object — with one exception: a token that exactly names a chamber-heater backend's diagnostics object (e.g. the bare `dragonbreath` after a completed `heater_generic dragonbreath`) starts a new standalone object instead of appending. A chamber heater accepted from this list also replaces the mock profile's built-in chamber heater. Any other `heater_generic` is simulated on its own (`src/mock/moonraker_client_mock_temperature.cpp#append_aux_heater_status`): it starts at 25°C with no target, steps 1°C per simulated second toward the target `SET_HEATER_TEMPERATURE HEATER=<bare name>` gives it, and reports `temperature`, `target` and `power`. Each accepted object is logged as `[MoonrakerClientMock] Added mock object: <name>`.
 
 ### `HELIX_MOCK_DETECTION_CAPABLE`
 
@@ -1878,6 +1878,16 @@ HELIX_MOCK_REMAP="0:3,2:1" ./build/bin/helix-screen --test -vv
 ```
 
 **Applying a partial CSV clears everything first.** All slots' `mapped_tool` are reset to `-1` before parsing, so tools you did not list deterministically fall back to color/positional resolution rather than keeping a stale mapping. Malformed pairs (no colon) are skipped silently; a non-numeric side raises and aborts the rest of the parse. Each accepted pair logs `[AmsBackendMock] Remap: T<tool> -> slot <slot>`.
+
+### `HELIX_MOCK_REMAP_READY`
+
+Declare the mock AMS's remap route but report it not ready: the shape of an AD5X before its `_IFS_VARS` exist. Every "can this printer remap" gate then answers no, which is the state the pre-flight Remap button, the detail-view chip tap and the AMS edit overlay's tool dropdown act on.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `0` declares the route not ready; any other value, or unset, leaves it ready |
+| **Default** | Unset: remap ready |
+| **File** | `src/printer/ams_backend.cpp` |
 
 ### `HELIX_MOCK_AMS_ENV`
 

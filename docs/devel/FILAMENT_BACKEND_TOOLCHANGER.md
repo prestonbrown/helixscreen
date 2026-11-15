@@ -12,7 +12,7 @@ Physical tool changers have multiple complete toolheads that are swapped on the 
 ### Detection
 
 Tool counts come from three sources, in descending authority
-(`include/printer_discovery.h#PrinterDiscovery/parse_objects`):
+(`src/printer/printer_discovery_parse.cpp#parse_objects`):
 
 1. **`tool T*` objects** - created by klipper-toolchanger, and authoritative: a
    klipper-toolchanger name is arbitrary and `ASSIGN_TOOL` can remap it, so real objects
@@ -129,7 +129,7 @@ non-settled states are easy to get wrong:
 
 | Feature | Supported | Editable |
 |---------|-----------|----------|
-| Endless Spool | `Unsupported` | No override; inherits the base default |
+| Endless Spool | Z-Mod Creator 5 only | `Available` / `FirmwareManaged` / `ReadOnly`, provider `"zmod"` (see the Z-Mod section below); `Unsupported` on every other tool changer |
 | Tool Mapping | Yes | With klipper-toolchanger: `RemapStrategy::Native` - `set_tool_mapping()` emits `ASSIGN_TOOL TOOL="tool T{n}" N={tool}`, so a G-code T-number can point at any physical tool. `parse_toolchanger_state()` resolves `tool_number` back through the forward map. Without it (`tool_commands_.present`, the machine swaps with its own `T<n>` commands): `RemapStrategy::GcodeRewrite` - the job file is rewritten before printing, which needs the HelixPrint plugin. See [the remapper](FILAMENT_MANAGEMENT.md#gcode-tool-remapper) for what that rewrite does and does not move |
 | Bypass Mode | No | Not applicable - each tool is its own path. [The force override](FILAMENT_MANAGEMENT.md#bypass-visibility-and-the-force-override) shows the external spool for tracking only |
 | Spoolman | Fields only | `spoolman_id`/`spoolman_vendor_id` persist in slot overrides; no toolchanger-specific Spoolman wiring exists in the backend |

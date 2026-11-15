@@ -13,7 +13,7 @@ Where a shape needs a different arrangement, not just scaling, the panel branche
 the layout subjects described below. There is one file per panel and nothing to keep in step
 by hand.
 
-**Key distinction:** Themes control *colors*. Layouts control *structure*. They're independent —
+**Key distinction:** Themes control *colors*. Layouts control *structure*. They're independent -
 any theme works with any layout.
 
 ## Adapting a Panel
@@ -23,7 +23,7 @@ Every panel is a single file. Pick the lightest mechanism that expresses the dif
 | Mechanism | Use when | Examples in the tree |
 |-----------|----------|----------------------|
 | `<if cond="ui_is_portrait eq 1">…<else/>…</if>` | An entire subtree differs, and building both would be wasteful | `ui_xml/motion_panel.xml#motion_panel`, `ui_xml/bed_mesh_panel.xml#bed_mesh_panel`, `ui_xml/print_tune_panel.xml#print_tune_panel` (z-offset controls, Reset label), `temp_graph_overlay.xml` (3 sites) |
-| `<bind_style_if cond="ui_is_portrait"/>` | Only the styling differs — flex direction, padding, button shape | `ui_xml/app_layout.xml` and `ui_xml/navigation_bar.xml` (the app shell and nav bar switch axis and position), `ui_xml/advanced_panel.xml#advanced_panel` (the E-stop bar goes column instead of row), `ui_xml/print_tune_panel.xml#print_tune_panel` (speed over flow) |
+| `<bind_style_if cond="ui_is_portrait"/>` | Only the styling differs - flex direction, padding, button shape | `ui_xml/app_layout.xml` and `ui_xml/navigation_bar.xml` (the app shell and nav bar switch axis and position), `ui_xml/advanced_panel.xml#advanced_panel` (the E-stop bar goes column instead of row), `ui_xml/print_tune_panel.xml#print_tune_panel` (speed over flow) |
 | `<bind_flag_if_eq subject="ui_is_portrait"/>` | Both variants are cheap to build and you want to show one | `ui_xml/components/bed_mesh_current_mesh_card.xml#mesh_max_coord_inline` |
 | A state-selected style | A local attribute has to change, which a bound style cannot outrank | `ui_xml/controls_panel.xml#controls_panel` at 480x272 (below) |
 
@@ -41,7 +41,7 @@ opposite hide conditions; structure that differs (the Quick Actions rows) is an 
 
 Orientation is also composable with the breakpoint rather than separate from it:
 `ui_xml/components/bed_mesh_current_mesh_card.xml` hides a block on
-`ui_breakpoint eq 0 or (ui_is_portrait eq 1 and ui_breakpoint_v lt 5)` — the portrait clause
+`ui_breakpoint eq 0 or (ui_is_portrait eq 1 and ui_breakpoint_v lt 5)` - the portrait clause
 is guarded because a 1024x600 landscape panel and a 480x640 portrait one land on the same
 breakpoint while only the portrait one is actually short of room.
 
@@ -61,7 +61,7 @@ overlay, the Advanced panel's E-stop bar and the bed mesh cards all adapt to por
 inside their one file; Controls adapts to 480x272 the same way.
 
 The home panel's widget grid is a different case: it adapts to ultrawide and portrait
-geometry in C++ from the measured content box — see [Home Widget Grid](#home-widget-grid).
+geometry in C++ from the measured content box - see [Home Widget Grid](#home-widget-grid).
 
 ## How It Works
 
@@ -108,7 +108,7 @@ There are no per-layout directories: a panel adapts inside its own file.
 ## Contributing a Layout
 
 This section is for anyone who wants to help create or improve layouts. You don't need to
-know C++ — all layout work is pure XML.
+know C++ - all layout work is pure XML.
 
 ### What You Need
 
@@ -147,26 +147,20 @@ from before your change.
 ### Rules for Layout Work
 
 These rules **must** be followed whenever you restructure a panel, including each branch of
-an `<if>`. The C++ code is shared between all layouts — only the XML structure changes.
+an `<if>`. The C++ code is shared between all layouts - only the XML structure changes.
 
 **1. Keep all named widgets that C++ looks up**
 
 The C++ code for each panel uses `lv_obj_find_by_name()` to find specific widgets. If a
 branch is missing a named widget, the panel will break at that size.
 
-For `home_panel.xml`, these widget names are required:
+`home_panel.xml` itself carries only `carousel_host`; its tiles are `panel_widget_*.xml`
+components whose names the widget classes look up (`printer_image` in
+`components/panel_widget_printer_image.xml`, `status_text_label` in
+`components/panel_widget_tips.xml`, `print_card_thumb` in
+`components/panel_widget_print_status.xml`).
 
-| Widget Name | What It Does |
-|-------------|-------------|
-| `printer_image` | Displays the printer photo (set dynamically by C++) |
-| `status_text_label` | Tip text (C++ animates fade transitions on this) |
-| `print_card_thumb` | Benchy thumbnail in idle state |
-| `print_card_active_thumb` | Print thumbnail during active print |
-| `print_card_label` | "Print Files" text / progress text |
-| `temp_icon` | Heater icon (C++ controls color animation while heating) |
-| `light_icon` | Light bulb icon (C++ sets color/brightness dynamically) |
-
-**How to find required names for other panels:** search the corresponding `.cpp` file for
+**How to find required names:** search the corresponding `.cpp` file for
 `lv_obj_find_by_name`. Any name referenced there must exist in every branch.
 
 **2. Keep all subject bindings**
@@ -196,7 +190,7 @@ resolves to nothing. Declare in `globals.xml` (or another top-level file), refer
 anywhere. See
 [UI Contributor Guide](UI_CONTRIBUTOR_GUIDE.md) §2 and `scripts/check_responsive_token_scope.py`.
 
-Layout XML should use these tokens — not hardcoded values:
+Layout XML should use these tokens - not hardcoded values:
 
 ```xml
 <!-- Good: uses design tokens -->
@@ -224,9 +218,9 @@ Layout XML should use these tokens — not hardcoded values:
 
 **Ultrawide (1920x480):**
 - You have tons of horizontal space but very little vertical space (480px minus the navbar)
-- Prefer horizontal `flex_flow="row"` layouts — avoid vertical scrolling
+- Prefer horizontal `flex_flow="row"` layouts - avoid vertical scrolling
 - Aim for all content visible at once, no scrolling needed
-- Think "dashboard" — information spread across columns
+- Think "dashboard" - information spread across columns
 
 **Portrait (480x800, 600x1024):**
 - Lots of vertical space, narrow width
@@ -239,7 +233,7 @@ Layout XML should use these tokens — not hardcoded values:
   sizes scale with the tier you actually land in.
 
 **Micro (480x272):**
-- Extremely height-constrained — only 272px vertical space
+- Extremely height-constrained - only 272px vertical space
 - Use `#space_xs` padding everywhere (vs `#space_sm`/`#space_md`)
 - Header bar reduced to 40px, setting rows use compact padding
 - Action buttons should be pinned outside scroll areas (not inside)
@@ -247,7 +241,7 @@ Layout XML should use these tokens — not hardcoded values:
 
 **Tiny (480x320, 480x400):**
 - Very limited space in both directions
-- Reduce information density — show less, make touch targets bigger
+- Reduce information density - show less, make touch targets bigger
 - Consider hiding optional elements (sensor indicators, etc.)
 - Larger icons, fewer text labels
 
@@ -260,7 +254,7 @@ Not every panel needs a layout-specific arrangement. Start with the ones that ma
 | High | `home_panel.xml` | First thing users see, lots of information to arrange |
 | Medium | `controls_panel.xml` | Common panel with multiple cards to rearrange |
 | Medium | `print_status_panel.xml` | Important during prints |
-| Medium | `settings_panel.xml` | Compact 6-row category menu; sub-panels may benefit from multi-column |
+| Medium | `settings_panel.xml` | Grouped list of 13-14 rows in three sections; sub-panels may benefit from multi-column |
 | Low | Overlays (`*_overlay.xml`) | Usually modal dialogs that work OK at any size |
 | Low | Simple panels | Panels with minimal content adapt naturally |
 
@@ -269,7 +263,7 @@ chrome and nav position to `ui_is_portrait` in place.
 
 ### XML Tips for Layout Work
 
-- **No rebuild needed for XML changes.** Just relaunch the app.
+- **No rebuild needed for XML changes.** A native dev build hot-reloads `ui_xml/` within about 500ms of a save.
 - **`flex_flow="row"`** = horizontal layout, **`flex_flow="column"`** = vertical layout.
 - **`flex_grow="1"`** makes an element stretch to fill available space.
 - **`width="50%"` / `height="100%"`** for fixed proportions.
@@ -280,7 +274,7 @@ chrome and nav position to `ui_is_portrait` in place.
 ### Testing Your Layout
 
 ```bash
-# Standard (800x480) — should be unchanged
+# Standard (800x480) - should be unchanged
 ./build/bin/helix-screen --test -vv
 
 # Ultrawide
@@ -296,7 +290,7 @@ chrome and nav position to `ui_is_portrait` in place.
 ./build/bin/helix-screen --test -vv --layout ultrawide -s 800x480
 ```
 
-Use `-vv` for debug logging — it shows which layout was detected.
+Use `-vv` for debug logging - it shows which layout was detected.
 
 ---
 
@@ -331,7 +325,7 @@ build. XXLarge shares XLarge's 72px edge, so a 1920x1080 panel resolves to a 12x
 carry the matching `_xlarge` / `_xxlarge` nav widths.
 
 `GridLayout::get_dimensions(bp, content_w, content_h)` divides the container's **content
-box** — not the panel resolution — by `TRACKS_PER_CELL * GRID_CELL[bp]`, rounds each axis
+box** - not the panel resolution - by `TRACKS_PER_CELL * GRID_CELL[bp]`, rounds each axis
 to the **nearest** whole cell, and multiplies back up to tracks:
 
 ```
@@ -342,13 +336,13 @@ tracks = TRACKS_PER_CELL * clamp(cells, kMinTracks/2, kMaxTracks/2)
 Two details do the work here:
 
 - **The content box, not the panel.** Panel chrome takes a different bite out of each axis
-  and out of each orientation — 480x272 insets to 430x264, but 272x480 insets to 264x394 —
+  and out of each orientation - 480x272 insets to 430x264, but 272x480 insets to 264x394 -
   so dividing the panel extent sizes every track against a rectangle the grid never
   occupies, and delivers tracks 8-23% narrower than `GRID_CELL`. `PanelWidgetManager`
   measures the container (with an explicit `lv_obj_update_layout` first, because a
   freshly-created container reports a zero content box) and passes it in.
 - **Nearest, not largest-that-fits.** Flooring discards up to a full cell and LVGL spreads
-  the remainder across the tracks that survive, inflating every one of them — micro's 264px
+  the remainder across the tracks that survive, inflating every one of them - micro's 264px
   height is 3.88 cells, and taking 3 leaves 60px of a 68px cell to redistribute. Rounding
   keeps each track within half a cell of its target.
 
@@ -391,7 +385,7 @@ layout:` / `Track geometry:` lines); pinned in `tests/unit/test_grid_square_cell
 | 320x1480 | TINY | 312x1332 | 2 | **8x34** | 37.25 x 37.24 | 1.00 |
 
 **Rotation is a transpose to within one cell, not exactly.** The sizing rule transposes
-exactly — feed it a transposed content box and you get a transposed grid. Real panels do
+exactly - feed it a transposed content box and you get a transposed grid. Real panels do
 not, because the chrome is not symmetric: 1024x600 insets to 904x584 but 600x1024 insets to
 584x**868**, and 868 falls just below the cell boundary 904 clears, giving 14 rows against
 16 columns. Every measured rotation pair agrees within `TRACKS_PER_CELL`.
@@ -399,7 +393,7 @@ not, because the chrome is not symmetric: 1024x600 insets to 904x584 but 600x102
 Tracks are equal `LV_GRID_FR(1)` entries (`make_col_dsc(ncols)` / `make_row_dsc(nrows)`), so
 the track sizes above are what the fractions work out to after gutters, not fixed pixels.
 `grid_cell_metrics(content_w, content_h, cols, rows, gutter)` is the single helper that
-converts a content box into track pixels — the gutters sit *between* tracks and are not part
+converts a content box into track pixels - the gutters sit *between* tracks and are not part
 of any track, so dividing content by the track count overstates every one of them.
 
 ### `assets/config/default_layout.json`
@@ -606,11 +600,11 @@ same resolver handles it and the preset is part of the signature. No preset ship
 
 A breakpoint names a *panel*, not a *grid*. The high-DPI UI scale multiplies the cell edge
 (see `include/display_metrics.h`), so one panel at one tier has a different track count per
-scale — 1080x2400 is xxlarge portrait at **14x32** tracks unscaled and fewer at each larger
+scale - 1080x2400 is xxlarge portrait at **14x32** tracks unscaled and fewer at each larger
 scale. A table authored for one of those does not describe the others.
 
 A placement key may therefore name its grid: `"xxlarge@6x14"`. Within a tier the qualified
-key wins over the bare one, and the tier chain still dominates — this tier on some other
+key wins over the bare one, and the tier chain still dominates - this tier on some other
 grid beats a coarser tier on this exact grid, because the tier is what decides how much text
 has to fit. A bare key remains the catch-all for every grid with no entry of its own.
 
@@ -677,10 +671,10 @@ Two consequences of the subject being in the signature:
   re-resolves the panel into the other arrangement. An edited layout is the user's and never
   moves.
 
-**An anchor that does not fit the measured grid is now dropped rather than clamped.**
+**An anchor that does not fit the measured grid is dropped, not clamped.**
 `build_default_grid(grid_cols, grid_rows)` checks each anchor against the grid it is being
 placed on and auto-places the ones that do not fit, naming them in a warning. Widgets the
-tier switches off are exempt — whether a disabled widget's anchor fits is not a fact about
+tier switches off are exempt - whether a disabled widget's anchor fits is not a fact about
 anything.
 
 #### One saved layout per grid
@@ -690,14 +684,11 @@ counts against. That grid is no longer a fixed property of the device: the UI sc
 multiplies the cell edge, so the same panel yields a different track count per scale, and
 restoring a config onto other hardware moves it too.
 
-Rewriting a single stored layout on each grid change destroyed the arrangement. The
+A single stored layout rewritten on each grid change would lose the arrangement: the
 write-back at the end of `populate_widgets()` persists computed positions, so the first
-populate on a new grid replaced the user's coordinates with that grid's clamped and
-auto-placed fallback, and switching back had nothing left to restore. Spans were already
-protected from precisely this (#1216, *"a property of the current screen, not of the user's
-layout"*); positions were not.
-
-So each grid keeps its own arrangement:
+populate on a new grid would replace the user's coordinates with that grid's clamped and
+auto-placed fallback, leaving nothing to restore on the way back (spans have the same rule,
+#1216). So each grid keeps its own arrangement:
 
 ```json
 "panel_widgets": { "home": {
@@ -710,12 +701,11 @@ So each grid keeps its own arrangement:
 ```
 
 The active layout stays exactly where it always was, so every existing reader is untouched,
-and both new keys are omitted while empty — a single-grid config, which is every printer,
-writes byte-identical JSON to what it wrote before.
+and both keys are omitted while empty, so a single-grid config carries neither.
 
 `PanelWidgetConfig::switch_to_grid(cols, rows)` parks the outgoing arrangement, then either
 restores this grid's saved one or seeds it by remapping the outgoing one through
-`port_legacy_layout()` (`include/layout_port.h`) — the same remapper the pre-v22 port uses.
+`port_legacy_layout()` (`include/layout_port.h`) - the same remapper the pre-v22 port uses.
 Seeding from the layout being left, rather than from the shipped defaults, is deliberate: it
 is the arrangement the user was last looking at, so it is the closest thing to their intent
 that exists. A layout with no recorded grid is **stamped and otherwise left alone**; which
@@ -724,12 +714,12 @@ failure this exists to prevent.
 
 Neither this nor the pending-anchor pass runs while Klipper is not READY. A transient
 `firmware_restart` widget occupies a cell then, so the arrangement is not the user's, and
-both passes persist — freezing either from a transient layout is the mistake the write-back
+both passes persist - freezing either from a transient layout is the mistake the write-back
 already refuses to make.
 
-This is also why defaults are no longer built at config load. `load()` runs before the
+This is also why defaults are not built at config load. `load()` runs before the
 widget container exists, and the panel extent it could have guessed from is not what the
-track count divides — the *content box* is, and the two disagree enough to pick a different
+track count divides - the *content box* is, and the two disagree enough to pick a different
 grid (1042x2141 against 1080x2400 is 6x14 tracks against 8x16). So `build_defaults()` tags
 the layout `"anchors": "pending"`, which reads as a `default` block with an empty signature,
 and `PanelWidgetManager::populate_widgets()` resolves it at the first measured populate. The
@@ -741,35 +731,31 @@ degrades to a small hardcoded fallback rather than an empty dashboard.
 
 **A bad hand-edit fails the build.** `tests/unit/test_default_layout.cpp` parses the
 *shipped* file and runs every table through one `check_anchor_table()` helper carrying a
-per-tier `{cols, rows}` track budget. It checks **both** axes, not just the column one, plus
-pairwise overlap — an earlier column-only version is precisely why a portrait
-`print_status` shipped running two rows off the bottom of a 320x480 grid. It also rejects a
-table that mixes authored and inherited placements for the same widget.
+per-tier `{cols, rows}` track budget. It checks **both** axes plus pairwise overlap, and
+rejects a table that mixes authored and inherited placements for the same widget.
 
 Running off an axis is not cosmetic. `panel_widget_manager` clamps the span, pushes the
 origin back to fit, that lands on top of the neighbour the widget was authored beside,
 `grid.place()` fails, and the widget silently auto-places somewhere else at its registry
-span — so the anchor becomes decoration and the tier you carefully authored is not what
+span - so the anchor becomes decoration and the tier you carefully authored is not what
 ships.
 
-**The tables are generated, not hand-written.** They are authored in *cells*, converted to
-tracks, and machine-checked for tiling, registry maxima, the even-span invariant and
-overlap before being written out. Reproduce that pass rather than editing spans in place:
-an edit that keeps the test green can still leave a tier 40% empty, and the test cannot see
-that. Judge the result by rendering the tier, never by the arithmetic — every real defect
-in the landscape rework (a clipped card, a nested card, a missing background, a wrapped
-axis, a track count that was 24x14 where the arithmetic said 26x16) was found in a
-screenshot while the tiling validator reported 100%.
+**Author a table in cells, then convert to tracks**, and check tiling, registry maxima, the
+even-span invariant and overlap for the whole tier rather than editing one span in place: an
+edit that keeps the test green can still leave a tier 40% empty, and the test cannot see
+that. Judge the result by rendering the tier, never by the arithmetic: clipped or nested
+cards, a missing background, a wrapped axis or a track count other than the arithmetic's
+show up only in a screenshot.
 
 ### Widget span authoring
 
 `PanelWidgetDef` (`include/panel_widget_registry.h`, table in
-`src/ui/home/panel_widget_registry.cpp`) carries six span fields, **all in tracks** — so the
+`src/ui/home/panel_widget_registry.cpp`) carries six span fields, **all in tracks** - so the
 smallest whole-cell widget is `2`, not `1`:
 
 | Field | Meaning |
 |-------|---------|
-| `colspan` / `rowspan` | **Authored default** — the size the widget was designed at |
+| `colspan` / `rowspan` | **Authored default** - the size the widget was designed at |
 | `min_colspan` / `min_rowspan` | Smallest size the widget is still usable at (0 = fall back to the authored span) |
 | `max_colspan` / `max_rowspan` | Largest size the user may resize it to (0 = not scalable) |
 
@@ -785,16 +771,14 @@ widget by `TRACKS_PER_CELL` and the edit-mode lattice only draws targets there, 
 authored span is a size the user can never restore after one drag. A registry-wide test
 asserts this.
 
-**`snap_step_for()` is the single source for that rule, and every placement path reads it.**
-Edit mode was once the only caller, which left three ways to seat a whole-cell widget off a
-cell boundary (#1126): `find_available()` / `find_available_bottom()` walked one track at a
-time, so an odd-aligned gap left by a half-cell neighbour was a valid answer; `grow_once()`
-grew one track at a time, so a widget expanding into a two-track gap could stop halfway; and
-`clamp_to_grid()` honoured whatever origin the saved layout held. All four now take a
-per-axis step, defaulted to `TRACKS_PER_CELL` so a caller that has not thought about it
-cannot opt into the permissive behaviour by omission. A whole-cell widget with only an
+**`snap_step_for()` is the single source for that rule, and every placement path reads it**
+(#1126): edit mode, `find_available()` / `find_available_bottom()`, `grow_once()` and
+`clamp_to_grid()` all take a per-axis step, defaulted to `TRACKS_PER_CELL` so a caller that
+has not thought about it cannot opt into one-track steps by omission. Without it, an
+odd-aligned gap left by a half-cell neighbour, a growth that stops halfway into a two-track
+gap, or a saved odd origin would each seat a whole-cell widget off a cell boundary. A whole-cell widget with only an
 odd-aligned gap left is reported as `GridFull` and disabled with a toast, which is the honest
-answer — there is no position in that grid it is allowed to occupy.
+answer - there is no position in that grid it is allowed to occupy.
 `tests/unit/test_grid_half_cell_placement.cpp` covers the search, the growth and the load
 path.
 
@@ -844,7 +828,7 @@ cannot be added without deciding this.
 **Almost no widget paints its own background.** Most home widgets extend `lv_obj`, which
 inherits the fully transparent `StyleRole::ObjBase`, so a widget excluded from the card
 merge renders on the bare panel. `merges_into_card` defaults to true; the six that turn it
-off — `printer_image`, `print_status`, `nozzle_temps`, `temp_graph`, `tips`, `camera` —
+off - `printer_image`, `print_status`, `nozzle_temps`, `temp_graph`, `tips`, `camera` -
 either bring their own surface or are large enough that being folded into a neighbour's
 card looks wrong. `ams` stays a participant but drops its own inner card when the host is
 already painting one (`card="false"`), because a card inside a card reads as a box in a box.
@@ -852,16 +836,14 @@ already painting one (`card="false"`), because a card inside a card reads as a b
 The merge itself is a BFS flood fill over adjacent participants, decomposed into maximal
 rectangles so the result is always rectangular rather than a stepped L. It runs in **track**
 coordinates, the same units the grid is addressed in, so a widget on an odd track or with an
-odd span is backed like any other. It used to work in cells and convert back, which truncated
-such a position - so every half-cell placement was excluded from the merge outright and
-rendered on the bare panel with no background at all.
+odd span is backed like any other.
 
 Auto-placement (`PanelWidgetManager`, `src/ui/home/panel_widget_manager.cpp`) runs two passes:
 
-1. **Authored** — every widget asks for its `colspan` x `rowspan`. If everyone fits, this
+1. **Authored** - every widget asks for its `colspan` x `rowspan`. If everyone fits, this
    is the layout the dashboard was designed around, and a roomy grid ends up exactly where
    it always did.
-2. **Minimum-first** — used only when pass 1 cannot seat everyone. Every widget is placed at
+2. **Minimum-first** - used only when pass 1 cannot seat everyone. Every widget is placed at
    `effective_min_colspan()` x `effective_min_rowspan()`, maximising how many widgets
    survive, and the leftover cells are handed back out by `GridLayout::grow_to_targets()`,
    which grows each widget one step at a time, round-robin, toward its authored span.
@@ -870,17 +852,16 @@ Auto-placement (`PanelWidgetManager`, `src/ui/home/panel_widget_manager.cpp`) ru
 grid.** A portrait grid can be 2 columns wide. A widget that leaves `min_colspan` at 0 is
 declaring that its authored span is also its minimum, so a 4-wide widget on a 2-wide grid
 does not fit *at any size* - the manager classifies that as `TooLargeForGrid`, gives up,
-disables it, and persists that disable to `settings.json`. That was exactly #1216: the
-widget did not come back on its own, and the user had to re-add it from the catalog by
-hand. (A widget that would fit but finds every cell taken is the *other* failure and is
-handled differently - see below.)
+disables it, and persists that disable to `settings.json`, so the widget does not come back
+on its own and the user has to re-add it from the catalog (#1216). (A widget that would fit
+but finds every cell taken is the *other* failure and is handled differently - see below.)
 
 So when adding a home widget:
 
 - Set `min_colspan` / `min_rowspan` to the smallest layout your XML actually degrades to.
 - Set `max_colspan` / `max_rowspan` if the widget can usefully grow; leaving them at 0 marks
   it fixed-size and `is_scalable()` returns false.
-- If the widget genuinely cannot render below N tracks, say so — being dropped on a narrow
+- If the widget genuinely cannot render below N tracks, say so - being dropped on a narrow
   grid is then correct behaviour, not a bug. `tips` is the honest example: authored 8 tracks
   wide with a 4-track minimum, and switched off through the `disabled` map on the tiers
   where even that minimum costs a third to a half of a row for rotating hints.
@@ -913,19 +894,15 @@ two spellings of "did not fit".
 
 **`GridFull` must never write `enabled = false`.** The layout is stored once per printer
 (`/printers/<id>/panel_widgets/<panel>`) with **no breakpoint key**, so a disable forced by
-one screen's occupancy removes the widget at *every* size - the same mistake the span
-write-back already refuses to make (#1216). It was not even deterministic: the disable only
-reached disk if some unrelated `save()` happened to follow, so whether the user permanently
-lost a widget depended on what they did next.
+one screen's occupancy would remove the widget at *every* size - the same mistake the span
+write-back refuses to make (#1216).
 
 Clearing the position is the honest record instead. The widget is configured, it just has
 nowhere to go right now, so it re-places itself the moment a cell frees - remove another
 widget, close a hardware gate, or lay the same config out on a taller grid. The cleared
 position doubles as the memo that stops the nagging: a widget with **no** saved position was
-never on the user's screen, so announcing a removal for it would be false. Bundle XGVDYEB5
-is the case - a 6x4 grid with ten widgets filling all 24 cells toasted
-*"'Fan Speeds' removed — grid full"* on every single launch, because the in-memory disable
-never reached disk and the next launch re-ran the same failed placement.
+never on the user's screen, so announcing a removal for it would be false, and a full grid
+does not toast the same removal on every launch.
 
 An eviction is its own reason to `save()`. It changes nothing about the widgets that *were*
 placed, so the manager's `any_written` flag stays false and the cleared position would
@@ -933,18 +910,13 @@ otherwise never reach disk.
 
 **The catalog must ask `is_placed()`, not `is_enabled()`.** An enabled widget at `(-1,-1)` is
 on no dashboard, and the Widget Catalog is the only surface that can hand it a cell back.
-Asking `PanelWidgetConfig::is_enabled()` dimmed it as *"Placed"* and stripped its click
+Asking `PanelWidgetConfig::is_enabled()` would dim it as *"Placed"* and strip its click
 handler, leaving it invisible on the grid, unselectable in edit mode (`remove_selected_widget`
-needs an on-screen object) and unreachable in the catalog - no UI surface at all. That state
-is not hypothetical: `include/panel_widget_config.h` carries a one-shot migration
-(`migrate_stuck_ams_filament_swap`) written to rescue installs already stuck in it.
+needs an on-screen object) and unreachable in the catalog
+(`PanelWidgetConfig::migrate_stuck_ams_filament_swap` rescues installs in that state).
 `is_placed()` is `enabled && has_grid_position()`; `is_enabled()` keeps meaning "configured
-on" for everyone else. The multi-instance `(N Placed)` count needs the same guard.
-
-Note the asymmetry that made this easy to miss: `is_enabled()` was the *only* occupancy-blind
-consumer of `enabled` in the widget system. Every other site already pairs it with
-`has_grid_position()`, and all of those are occupancy-map builders where skipping a `(-1,-1)`
-entry is correct.
+on" for everyone else. The multi-instance `(N Placed)` count needs the same guard. Every
+other consumer of `enabled` pairs it with `has_grid_position()`.
 
 A clickable row routes into `GridEditMode::place_widget_from_catalog()`, which tries the
 origin cell, then `find_available`, then shrinks toward `effective_min_colspan/rowspan`, and

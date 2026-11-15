@@ -8,7 +8,7 @@ Physical tool management for multi-tool printers (tool changers, IDEX). Maps Kli
 
 ## Overview
 
-The tool abstraction layer models physical print heads (tools) independently from filament systems. A tool changer printer has multiple tools, each with its own extruder, heater, fan, and gcode offsets. Single-extruder printers get an implicit T0 tool.
+The tool abstraction layer models physical print heads (tools) independently from filament systems. A tool changer printer has multiple tools, each with its own extruder, heater, fan, and gcode offsets. A printer without tool objects gets one tool per extruder heater, so a single-extruder printer gets an implicit T0.
 
 ```
                     ┌──────────────┐
@@ -172,7 +172,7 @@ Application startup
 
 ### Tool Changer Printers
 
-When `PrinterDiscovery` finds both a `toolchanger` object and `tool T*` objects in Klipper's object list, `init_tools()` creates one `ToolInfo` per discovered tool name, in Klipper's tool-number order: a tool's index is its tool number (see **Tool order** in `FILAMENT_BACKEND_TOOLCHANGER.md`).
+When `PrinterDiscovery::tool_names()` is non-empty (from `tool <name>` objects, or from the extruder enumeration on a changer whose extra does the swapping itself), `init_tools()` creates one `ToolInfo` per discovered tool name, in Klipper's tool-number order: a tool's index is its tool number (see **Tool order** in `FILAMENT_BACKEND_TOOLCHANGER.md`). It is not gated on a `toolchanger` object; when one exists (`has_tool_changer()`), no tool is active until `toolchanger.tool_number` names one, since the carriage may hold nothing.
 
 Extruder mapping is by index: discovered extruder names (sorted alphabetically) are paired with tools in order. If there are fewer extruders than tools, extra tools get `extruder_name = nullopt`.
 
@@ -187,19 +187,9 @@ Klipper objects:                    ToolInfo result:
                                     └──────────────────────┘
 ```
 
-### Single-Tool Fallback
+### No Tool Objects
 
-When no tool changer is detected, a single implicit tool is created:
-
-```cpp
-ToolInfo {
-    .index = 0,
-    .name = "T0",
-    .extruder_name = "extruder",
-    .fan_name = "fan",
-    .active = true,  // Always active on single-tool printers
-};
-```
+With no fixed toolheads and no tool names, `init_tools()` makes one tool per discovered extruder heater (sorted), named `tool_label(i)` (`"T0"`, `"T1"`, ...), or a single `T0` on `"extruder"` when none was discovered. T0 starts active and, on every branch that did not name it, gets Klipper's `[fan]` as its part fan.
 
 ---
 
@@ -255,8 +245,9 @@ maps a held -1 to T0.
 (`FilamentOp::ParkTool` in `AmsSubscriptionBackend::run_filament_op`), with a stricter
 gate: a paused job refuses it too, on every backend, because a print resumed with its
 tool docked prints nothing. The refusal lives in the shared gate so any caller meets it,
-and the tool switcher widget (`park_offered()` and `handle_park_requested()`) mirrors it
-with `job_holds_machine()` so the action greys out.
+and the UI entry point `helix::ui::request_tool_park()` (`include/tool_change_request.h`),
+which the tool switcher, the Filament panel and the AMS sidebar call, refuses it up front with
+a toast; the switcher's Park cell is also disabled while `job_holds_machine()`.
 
 A tool change is the opposite case: it is allowed while paused (behind a confirmation,
 see [Requesting a Tool Change from the UI](#requesting-a-tool-change-from-the-ui)) unless
@@ -289,9 +280,9 @@ Each tool's status is keyed as `"tool <name>"`:
 | `active` | bool | Klipper's active state for this tool |
 | `mounted` | bool | Physically mounted on carriage |
 | `detect_state` | string | `"present"`, `"absent"`, or absent key = UNAVAILABLE |
-| `gcode_x_offset` | float | Tool X offset (mm) — see below |
-| `gcode_y_offset` | float | Tool Y offset (mm) — see below |
-| `gcode_z_offset` | float | Tool Z offset (mm) — see below |
+| `gcode_x_offset` | float | Tool X offset (mm), see below |
+| `gcode_y_offset` | float | Tool Y offset (mm), see below |
+| `gcode_z_offset` | float | Tool Z offset (mm), see below |
 | `extruder` | string | Extruder assignment (can change at runtime) |
 | `fan` | string | Fan assignment |
 
@@ -303,8 +294,8 @@ klipper-toolchanger keeps all three on the `tool T{n}` object and edits them wit
 `SET_TOOL_PARAMETER`, while a MedusaHC-style machine keeps Z on a macro and never reads the
 tool object's copy. `ToolState::init_tools()` resolves that model once from discovery
 (`helix::tool_offsets::resolve_reader()`), and `ToolState::update_from_status()` hands the
-result to `read_tool_offset_microns()` per tool and per axis - each read a direct key lookup
-into the frame, never a scan of it - and only for the axes `supports_axis()` says the
+result to `read_tool_offset_microns()` per tool and per axis (each read a direct key lookup
+into the frame, never a scan of it), and only for the axes `supports_axis()` says the
 firmware keeps. `ToolInfo::gcode_offset(Axis)` returns the
 value with its `known` / `saved_mm` bookkeeping; the per-tool subjects
 (`per_tool_{x,y,z}_supported`, `any_tool_offset_dirty`) follow from it, and the values
@@ -326,7 +317,7 @@ themselves are read through the `tool_offset_*()` accessors rather than subjects
 
 This allows a tool changer where T0 feeds from an AFC (backend 0) and T1 feeds from a Happy Hare (backend 1), each with independent slot tracking.
 
-`ToolState::has_multiple_toolheads()` is true for a tool changer or more than one hotend and false for AMS slots feeding one hotend (`physical_heads().size() > 1`). Ask it instead of combining `is_multi_tool()` with `has_multiple_extruders()` and `ams_topology_active()`. Its callers: the toolhead widget's tool label (`src/ui/panel_widgets/toolhead_widget.cpp`) and the belt settling laps' central-half inset (`src/ui/calibration/ui_panel_belt_tension.cpp`, `BeltSettleInputs::tool_count`).
+`ToolState::has_multiple_toolheads()` is true for a tool changer or more than one hotend and false for AMS slots feeding one hotend (`physical_heads().size() > 1`). Ask it instead of combining `is_multi_tool()` with `has_multiple_extruders()` and `ams_topology_active()`. Callers include the Controls nozzle row and the Filament panel's target tool (`src/ui/controls/ui_panel_controls.cpp`, `src/ui/filament/ui_panel_filament.cpp`), print start and the belt settling laps' central-half inset (`src/ui/calibration/ui_panel_belt_tension.cpp`, `BeltSettleInputs::tool_count`).
 
 `ToolInfo.lane_seated` comes from `ToolTopology::tool_seated`, which `build_ams_topology()` fills from each lane's `slot_is_actively_loaded()` on every push. Where a hub feeds several lanes into one head, it names the lane the head holds, mounted or parked, and `PhysicalHead::representative_tool()` sends that lane when the head is selected rather than the head's lowest (prestonbrown/helixscreen#1811).
 
@@ -343,10 +334,10 @@ This allows a tool changer where T0 feeds from an AFC (backend 0) and T1 feeds f
 **XML binding example:**
 
 ```xml
-<!-- Show tool badge only on multi-tool printers -->
+<!-- Show the active tool's badge only on multi-tool printers -->
 <lv_obj>
-    <bind_flag_if_eq subject="tool_count" flag="hidden" ref_value="1"/>
-    <text_small bind_text="active_tool_text"/>
+    <bind_flag_if_eq subject="show_tool_badge" flag="hidden" ref_value="0"/>
+    <text_small bind_text="tool_badge_text"/>
 </lv_obj>
 ```
 
@@ -365,17 +356,11 @@ if (tool) {
 
 ## UI Patterns
 
-### Active Tool Number (HomePanel)
+### Active Tool Badge
 
-On multi-tool printers the nozzle icon carries the active tool's number as a bold subscript digit beside the glyph (`ui_xml/components/nozzle_icon.xml#tool_badge`, bound to `tool_badge_text` — the 1-based digit from `lane_number_text()`, never a "T" prefix). Hidden on single-tool printers via `bind_flag_if_eq` on the badge subject.
+On multi-tool printers the nozzle icon carries the active tool's badge as a bold subscript beside the glyph (`ui_xml/components/nozzle_icon.xml`, bound to `show_tool_badge` and `tool_badge_text`). The text comes from `active_tool_badge_label()` (`include/display_numbering.h`) in the printer's tool number style: "1", "T0", or a configured name such as "Left". The temperature overlay passes its own picked-tool subject through the component's `badge_text_subject` prop.
 
-### Tool-Prefixed Temperatures (PrintStatusPanel)
-
-During a print, each tool's temperature is shown with its tool name prefix (e.g., "T0: 205/210"). The panel observes `tools_version` to rebuild its temperature display when tool configuration changes.
-
-### Tool Selector (TempControlPanel)
-
-The temperature control panel provides a dropdown to select which tool's temperature to control. On single-tool printers, the selector is hidden. The dropdown is rebuilt when `tools_version` changes.
+Per-tool temperature displays (print status tiles, controls, temperature overlay) are listed in [MULTI_EXTRUDER_TEMPERATURE.md](MULTI_EXTRUDER_TEMPERATURE.md#ui-integration); the print status tiles observe `tools_version` alongside `extruder_version`.
 
 ### Requesting a Tool Change from the UI
 

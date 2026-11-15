@@ -17,7 +17,7 @@ docs/*_TEST_PLAN.md
 docs/WIFI_WPA_SUPPLICANT_MIGRATION.md
 
 # Large reference docs (loaded on-demand via lazy-load strategy)
-docs/MOONRAKER_SECURITY_REVIEW.md
+docs/audits/MOONRAKER_SECURITY_REVIEW.md
 docs/LVGL9_XML_ATTRIBUTES_REFERENCE.md
 
 # IDE and temporary files

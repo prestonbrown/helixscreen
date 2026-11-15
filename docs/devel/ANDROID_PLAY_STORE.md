@@ -2,7 +2,7 @@
 
 How the CI pipeline ships `helix-screen` to Google Play, and the one-time manual setup required before the automated upload can work.
 
-## Where to pick up - 2026-10-09
+## Account and track state
 
 **HelixScreen 1.0.4 is live as a closed test.** Google approved it the night it was submitted
 (2026-10-08). What remains is testers and time.
@@ -18,8 +18,6 @@ How the CI pipeline ships `helix-screen` to Google Play, and the one-time manual
 | Tester group | `https://groups.google.com/g/helixscreen-testers` on `preston.brown@gmail.com`: searchable by anyone, anyone can join, owners post, managers see the member list |
 | Managed publishing | **Off**: an approved change publishes without another click |
 | Opt-in link | `https://play.google.com/apps/testing/org.helixscreen.app`. Admits only members of the tester group |
-| `PLAY_SERVICE_ACCOUNT_JSON` | Still unset, so `publish-android` skips on every tag |
-| New stable tags | **Not on Play until uploaded by hand**: every stable tag needs the steps in "Uploading a stable release by hand" below. The in-app updater on a Play install only announces what Play serves, so a tag left un-uploaded is silently invisible to Play testers |
 | Testing on your own phone | The opt-in link answered "App not available" for the developer account `preston.brown@gmail.com`; a phone signed into another account that joined the tester group installs normally |
 
 **The production gate.** A personal developer account cannot apply for production until a closed
@@ -28,16 +26,7 @@ production" card tracks it. Organization accounts are exempt, but registering on
 number for the company and a fresh verification, and the app would have to be transferred, so the
 personal account is the one we publish from.
 
-**Next, in order:**
-
-1. **Announce on Discord**: the group link, the opt-in link, and the sideload warning below.
-2. **Count opted-in testers** on the dashboard's production card until it shows 12.
-3. **Wait out 14 days with 12+ opted-in testers**, then use "Apply for production" on the dashboard.
-4. **Play App Signing.** The 1.0.4 upload did not show an enrollment prompt. Open Test and release →
-   App integrity → App signing, confirm Google's app signing key exists, and register its SHA-256 as
-   a second key on `org.helixscreen.app` in Android developer verification if Google did not add it.
-5. **Service account and `PLAY_SERVICE_ACCOUNT_JSON`** (steps under "One-time manual
-   prerequisites"), so later stable tags upload to production and roll out by themselves.
+**Still open on the Play side:** the 12-testers-for-14-days production gate above, and Play App Signing: confirm Google's app signing key exists (Test and release → App integrity → App signing) and register its SHA-256 as a second key on `org.helixscreen.app` in Android developer verification if Google did not add it. The service account and the `PLAY_SERVICE_ACCOUNT_JSON` secret that `publish-android` needs are under "One-time manual prerequisites" below.
 
 **Sideloaded installs cannot update from Play.** Play-served builds carry Google's app signing key and
 GitHub-release APKs carry our upload key, so a tester who sideloaded must uninstall first, which
@@ -144,7 +133,7 @@ On every release tag (`v*`), `.github/workflows/release.yml` runs:
 
 1. **`build-android-native`** compiles each ABI's native code in its own job, in parallel, through `.github/actions/android-native-release` (the same action `ccache-warm.yml` warms each ABI's ccache with). **`build-android`** then packages those libraries with `-PhelixPrebuiltJniLibs`, with no native recompile: it builds APKs (`assembleRelease`) and an AAB (`bundleRelease`), signed with the upload keystore held in GitHub secrets. Verifies the signature on the built bytes before anything is uploaded (see "What happens when the keystore is missing"). Generates the Play Store "What's new" text (`android/whatsnew/<version>.txt`, see below) and uploads three artifacts: `release-android` (APKs), `release-android-aab` (AAB), `release-android-whatsnew`.
 2. **`publish-android`** — uploads the AAB to the Play Store's **production** track with status **completed** (a full rollout) and sends it for review, using the `r0adkll/upload-google-play@v1` action. Inert when `PLAY_SERVICE_ACCOUNT_JSON` is unset.
-3. **`release`** — attaches all artifacts to the GitHub release. It `needs` **both** `build-platforms` and `build-android`, and asserts the three APKs and the AAB are present by name before creating the release. Without the `build-android` dependency the release could be created while Android was still building (90 min budget against the matrix's 82) and, because the artifact globs run with `fail_on_unmatched_files: false`, it would publish with no Android downloads and still report success.
+3. **`release`** — attaches all artifacts to the GitHub release. It `needs` **both** `build-platforms` and `build-android`, and asserts the three APKs and the AAB are present by name before creating the release. Without the `build-android` dependency the release could be created while Android was still building and, because the artifact globs run with `fail_on_unmatched_files: false`, it would publish with no Android downloads and still report success.
 
 A stable tag reaches every Play user once Google's review passes, with no step in Play Console. Google's review is the only gate left, and Play cannot roll a release back: a bad stable is fixed by shipping a newer one. If Managed publishing is turned on in Play Console (Publishing overview), an approved release waits there until you publish it.
 
@@ -194,9 +183,9 @@ After all prerequisites are ticked off, the next stable tag will trigger an auto
 
 ### What happens when the keystore is missing
 
-This used to say the missing-keystore case "fails noisily in `publish-android` instead of silently shipping a broken release." That was never true. `publish-android` runs *after* `release`, so the GitHub artifacts are already published by the time it could object; it is also inert without `PLAY_SERVICE_ACCOUNT_JSON`, so it objected to nothing. What actually happened is that v0.99.43 shipped a debug-signed AAB and nobody found out until someone tried to upload it.
+`publish-android` runs after `release`, so the GitHub artifacts are already published by the time it could object, and it is inert without `PLAY_SERVICE_ACCOUNT_JSON`. The signing checks therefore live in `build-android`.
 
-A release build now refuses to produce an artifact it cannot sign properly, at three points:
+A release build refuses to produce an artifact it cannot sign properly, at three points:
 
 1. **`release.yml` → "Materialize upload keystore"** exits 1 when `ANDROID_KEYSTORE_BASE64` is unset. A release tag has no business producing unsigned artifacts, and failing here names the missing secret.
 2. **Gradle** fails any release-signing task (`assembleRelease`, `bundleRelease`, `packageRelease`, …) when no keystore is configured, listing the four env vars it needs. The check hangs off `gradle.taskGraph.whenReady` rather than firing at configuration time — configuration is shared with the debug variant, and `.github/workflows/build.yml` runs `assembleDebug` on every PR, which must keep working. `assembleDebug` and `lintRelease` are deliberately unaffected.
@@ -234,8 +223,7 @@ Google is phasing in a requirement that the developer behind a package name be a
 
 ## Uploading a stable release by hand
 
-Until `PLAY_SERVICE_ACCOUNT_JSON` exists, a stable tag reaches Play only through these steps.
-Do them for every stable tag, the day it is published.
+When `publish-android` is skipped (no `PLAY_SERVICE_ACCOUNT_JSON`) or fails, a stable tag reaches Play only through these steps.
 
 1. Download `helixscreen-android-vX.Y.Z.aab` from the GitHub release (`gh release download vX.Y.Z -p 'helixscreen-android-vX.Y.Z.aab'`). Play takes the bundle, never the APKs.
 2. Play Console (`/u/1/`, the `preston.brown@gmail.com` account) → HelixScreen → Test and release → Testing → **Closed testing** → **Closed testing - Alpha** → **Create new release**.
@@ -304,7 +292,6 @@ To test the full upload path without touching production, point the action at a 
 ## Future work
 
 - **Full metadata sync via `fastlane supply`** — would let the workflow also update the store listing text/screenshots on every release. Adds a fastlane install step in CI. Skipped for now since listing copy changes rarely.
-- **Pre-release gating** — skip `publish-android` on tags containing `-` (e.g., `v1.0.0-beta`).
 - **Automatic promotion internal → open testing** — possible via a scheduled workflow that checks internal crash rates. Premature until we have tester volume.
 
 ## Related docs

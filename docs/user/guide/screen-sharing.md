@@ -19,18 +19,20 @@ If HelixScreen controls more than one printer, each printer keeps its own Screen
 ## Turning it on
 
 1. On the printer, open **Settings > Connection > Screen Sharing**.
-2. Turn on **Share Screen**. The screen is now visible to browsers on your network, and a **HelixScreen Screen** webcam appears in this printer's Mainsail and Fluidd.
-3. To use the screen from a browser too, turn on **Allow Remote Control**.
+2. Turn on **Share Screen** ("Show this screen in a web browser"). The screen is now visible to browsers on your network, and a **HelixScreen Screen** webcam appears in this printer's Mainsail and Fluidd.
+3. To use the screen from a browser too, turn on **Allow Remote Control** ("Let a browser tap and drag on this screen").
 
-**Add to Mainsail/Fluidd Webcams** is on unless you turn it off. Turn it off to keep sharing the screen at its browser address without listing it among the printer's webcams. Turning it off removes the **HelixScreen Screen** webcam, and turning it back on adds it again.
+**Add to Mainsail/Fluidd Webcams** is on unless you turn it off. Turn it off to keep sharing the screen at its browser address without listing it among the printer's webcams. Turning it off removes the **HelixScreen Screen** webcam, and turning it back on adds it again. This row and **Allow Remote Control** are greyed out while **Share Screen** is off.
 
 ![Screen Sharing settings](../../images/user/screen-sharing-settings.png)
 
-On some printers a **Pairing Code** row appears once control is on. See [Two ways it works](#two-ways-it-works) below for which printers, and why.
+On some printers a **Pairing Code** row and a **Forget Paired Browsers** row appear once **Allow Remote Control** is on. See [Two ways it works](#two-ways-it-works) below for which printers, and why.
 
-> **Screen Sharing** is hidden on printers whose own firmware already shares its screen, such as the Snapmaker U1 with its stock screen page. Use that instead.
+> The **Screen Sharing** row is hidden on printers whose own firmware already shares the screen, such as the Snapmaker U1 with its stock screen page. Use that instead.
 >
 > Screen sharing isn't available in the Android app or on the BigTreeTech K-Touch.
+
+It is off by default, and the setting belongs to the printer you have selected.
 
 Turning **Share Screen** off stops it straight away and removes the webcam from Mainsail and Fluidd.
 
@@ -64,7 +66,7 @@ Who may see and use the screen depends on what your printer runs in front of Moo
 
 ### Printers that ask for a pairing code
 
-**Creality K1 / K1C / K1 Max, Creality K2 / K2 Plus / K2 Pro, FlashForge Adventurer 5M, Elegoo Centauri Carbon**, and any printer where HelixScreen runs on a different computer from the printer's Moonraker.
+Any printer where HelixScreen runs on a different computer from the printer's Moonraker, and any printer whose web server cannot check Moonraker's access rules. That includes the Creality K1 series and K2 series. If the **Pairing Code** row appears, your printer works this way.
 
 - **Watching** is open to anyone on your home network.
 - **Controlling** needs pairing. The first time a browser tries to use the screen, it asks for a six-digit code:
@@ -75,8 +77,9 @@ Who may see and use the screen depends on what your printer runs in front of Moo
   2. Type it into the browser and press **Pair**.
   3. That browser is now paired and won't ask again. Each new browser or device needs the code once.
 
-- **Forget Paired Browsers** (under the pairing code) signs every browser out and makes a new code. Use it if someone you shared the code with should no longer have access.
-- After five wrong codes the browser has to wait a minute before trying again. After many wrong codes the printer changes the code on its own.
+- Up to eight browsers stay paired at once. Pairing a ninth drops the one used least recently, and a paired browser stays paired for a year.
+- **Forget Paired Browsers** (under the pairing code) asks you to confirm, then signs every browser out and makes a new code. Use it if someone you shared the code with should no longer have access.
+- After five wrong codes in a minute the browser has to wait before trying again. After fifty wrong codes the printer changes the code on its own.
 
 ### Printers where Moonraker decides (no code)
 
@@ -87,7 +90,7 @@ The installer adds the screen to that web server, and Moonraker's own access rul
 - If your computer is on Moonraker's **trusted clients** list (the usual home setup), the screen opens with no code.
 - If Moonraker has logins turned on and your computer is **not** trusted, the screen won't show. A webcam picture can't carry a Mainsail login, so only trusted addresses can see it.
 
-This happens automatically when HelixScreen is installed or updated, but only when the printer's web server supports it. Creality's K1 and K2 web servers don't, which is why those printers use a pairing code instead.
+This is set up when HelixScreen is installed or updated, and only when the printer's web server supports it and Moonraker has its authorization section enabled. Otherwise the printer uses a pairing code instead.
 
 ---
 
@@ -105,7 +108,7 @@ Opening the screen page in a browser (or the HelixScreen Screen webcam in Mainsa
 
 - **Nothing while nobody is watching.** The screen is only captured while a browser has it open.
 - **While someone watches,** HelixScreen makes at most 5 pictures a second, and makes a new one only when something on the screen changed.
-- **During a print** it sends 2 a second, or 1 a second on smaller printers (K1, Adventurer 5M, Centauri Carbon), so the printer's own work comes first. Measured on a Creality K1C during a print, watching the screen did not slow Moonraker or Klipper at all.
+- **During a print** it sends 2 a second, or 1 a second on low-memory or single-core printers such as the K1, so the printer's own work comes first. Measured on a Creality K1C during a print, watching the screen did not slow Moonraker or Klipper at all.
 
 ---
 

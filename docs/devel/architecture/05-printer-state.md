@@ -1,6 +1,6 @@
 # 05 - Printer State & the Singleton Map
 
-Every fact the UI shows about the printer lives in one object graph rooted at `PrinterState`, a Meyers singleton reached through `get_printer_state()`. It is not a god class: it holds thirteen domain components (temperature, motion, print, capabilities, ...) by value, each owning the LVGL subjects for exactly one concern, and callers reach a domain through its accessor (`temperature_state()`, `print_state()`, ...). Around it orbit two satellites with different jobs and different access patterns - `ToolState` (a classic `::instance()` singleton for multi-tool tracking) and `TemperatureController` (owned by `SubjectInitializer`, and the only code allowed to send a heater target). This chapter covers the decomposition, the two satellites, and the map of every global in the tree: 74 `::instance()` singletons plus four other access shapes, and which of them register with the two shutdown registries.
+Every fact the UI shows about the printer lives in one object graph rooted at `PrinterState`, a Meyers singleton reached through `get_printer_state()`. It is not a god class: it holds thirteen domain components (temperature, motion, print, capabilities, ...) by value, each owning the LVGL subjects for exactly one concern, and callers reach a domain through its accessor (`temperature_state()`, `print_state()`, ...). Around it orbit two satellites with different jobs and different access patterns - `ToolState` (a classic `::instance()` singleton for multi-tool tracking) and `TemperatureController` (owned by `SubjectInitializer`, and the only code allowed to send a heater target). This chapter covers the decomposition, the two satellites, and the map of every global in the tree: 81 `::instance()` singletons plus four other access shapes, and which of them register with the two shutdown registries.
 
 Chapter 02 covered the subject machinery itself - init macros, observer factories, the `SubjectInitializer` phase ordering - so this chapter stays on the map: which class owns which data, and how you are allowed to reach it.
 
@@ -19,7 +19,7 @@ flowchart TB
         D5["fan - calibration - network - versions - profile<br/>excluded-objects - hardware-validation<br/>plugin-status - composite-visibility"]
     end
 
-    TS["ToolState - ToolState::instance()<br/>ToolInfo[], AMS topology override,<br/>tool badge + offset subjects, spool persistence"]
+    TS["ToolState - ToolState::instance()<br/>ToolInfo[], AMS topology override,<br/>tool badge + offset subjects"]
     TC["TemperatureController<br/>SubjectInitializer-owned, get_temperature_controller()<br/>the one heater-target send"]
 
     MR -->|"dispatch_status_frame()"| PS
@@ -39,7 +39,7 @@ flowchart TB
 | [`include/printer_state.h`](../../../include/printer_state.h) | `PrinterState` orchestrator; the 13 domain members live at the bottom of the class |
 | [`src/printer/printer_state.cpp`](../../../src/printer/printer_state.cpp) | `init_subjects()` / `deinit_subjects()` fan-out, `update_from_status()` for its own domains, `set_hardware()`, setter marshalling |
 | [`src/printer/status_dispatch.cpp`](../../../src/printer/status_dispatch.cpp) | `dispatch_status_frame()`: hands one status frame to `PrinterState`, `ToolState`, the LED controller and the sensor managers |
-| [`include/tool_state.h`](../../../include/tool_state.h) | `ToolState` singleton: `ToolInfo`, AMS topology override, Spoolman spool assignments |
+| [`include/tool_state.h`](../../../include/tool_state.h) | `ToolState` singleton: `ToolInfo`, AMS topology override, tool offsets |
 | [`include/temperature_controller.h`](../../../include/temperature_controller.h) | The single authority for heater target sends |
 | [`include/app_globals.h`](../../../include/app_globals.h) | Access to every published global: printer state, API/client, controller, histories |
 | [`src/application/subject_initializer.cpp`](../../../src/application/subject_initializer.cpp) | Boot-time init phases; owns `TemperatureController` and `TemperatureService` |
@@ -84,7 +84,7 @@ Firmware-specific print fields reach `PrinterPrintState` through the module that
 
 ### The satellites: ToolState and TemperatureController
 
-`ToolState` ([`include/tool_state.h#ToolState`](../../../include/tool_state.h)) is a standalone `::instance()` singleton because tools span domains: a tool has a temperature (extruder mapping), a filament source (AMS backend slot), and a Spoolman identity. Its subjects are `active_tool`, `tool_count`, `tools_version` (UI rebuild trigger), `tool_badge_text` and `show_tool_badge` (the `nozzle_icon` component's tool badge), plus the per-tool offset family (`per_tool_{x,y,z}_supported`, `any_tool_offset_dirty`). Two facts trip contributors:
+`ToolState` ([`include/tool_state.h#ToolState`](../../../include/tool_state.h)) is a standalone `::instance()` singleton because tools span domains: a tool has a temperature (extruder mapping), a filament source (AMS backend slot), and offsets. Its subjects are `active_tool`, `tool_count`, `tools_version` (UI rebuild trigger), `tool_badge_text` and `show_tool_badge` (the `nozzle_icon` component's tool badge), plus the per-tool offset family (`per_tool_{x,y,z}_supported`, `any_tool_offset_dirty`). Two facts trip contributors:
 
 - `tool_count() != extruder_count()`. When an AMS backend pushes a `ToolTopology` override (`set_ams_topology()`), `tools_` expands to one entry per filament **slot**, so a 4-slot AMS on a single-hotend printer reports 4 tools and 1 extruder. `is_multi_tool()` answers "show multi-tool controls?"; `has_multiple_extruders()` answers "does this printer physically have several hotends?" - the badge test, not the controls test.
 - A tool holds no spool: its spool is the spool of the lane that feeds it ([`07-filament-ams.md`](07-filament-ams.md), "A tool's spool is its lane's").
@@ -102,11 +102,11 @@ Like `PrinterState`, `ToolState` is fed `update_from_status()` on the main threa
 - Subjects `bed_occupied` (0/1, which the Cleared buttons bind; both buttons call `confirm_bed_cleared()` in `src/ui/home/bed_plate_context.cpp`, which asks before `mark_cleared()`) and `bed_occupancy_version` (bumped on any change of the verdict or the outlines, and whenever a print starts or stops holding the machine, since `outlines()` switches source then). Homing never clears it: a home proves only that the Z homing point was clear.
 - One instance per printer session: `PrinterSession` creates it beside the `PrintHistoryManager`, calls `detach_history()` before it destroys the manager, and publishes it with `set_bed_occupancy_state()` (`src/application/printer_session.cpp#init_moonraker`). Main thread only.
 
-### The singleton census: five access shapes, 74 `::instance()` classes
+### The singleton census: five access shapes, 81 `::instance()` classes
 
-The tree has **74 classes with a `static X& instance()` (or pointer) declaration** in `include/`, plus four other shapes worth knowing before you grep:
+The tree has **81 classes with a `static X& instance()` (or pointer) declaration** in `include/`, plus four other shapes worth knowing before you grep:
 
-1. **Meyers `::instance()` singletons** - the 74 in the table below, which also lists the two † classes from shape 4.
+1. **Meyers `::instance()` singletons** - the 81 in the table below, which also lists the two † classes from shape 4.
 2. **`get_printer_state()`** ([`include/app_globals.h#get_printer_state`](../../../include/app_globals.h)) - same Meyers technique, free-function spelling; there is no `PrinterState::instance()`.
 3. **Published pointers** - get/set pairs in [`app_globals.h`](../../../include/app_globals.h) for objects owned elsewhere and published as globals (nullable!): `MoonrakerManager` (owned by `PrinterSession`, itself an `Application` member; `set_moonraker_manager()` in [`src/application/printer_session.cpp#init_moonraker`](../../../src/application/printer_session.cpp)), `IMoonrakerClient` / `IMoonrakerAPI` (owned by MoonrakerManager behind interfaces), `JobQueueState`, `PrintHistoryManager`, `TemperatureHistoryManager`. `BedOccupancyState` follows the same shape with its pair in its own header (`include/bed_occupancy_state.h#get_bed_occupancy_state`), owned by `PrinterSession`.
 4. **`Config::get_instance()`** ([`include/config.h#get_instance`](../../../include/config.h)) and `TipsManager::get_instance()`: static-member-pointer spelling of the same idea.
@@ -115,7 +115,7 @@ The tree has **74 classes with a `static X& instance()` (or pointer) declaration
 | Singleton | Header | Role |
 |-----------|--------|------|
 | **Printer & job state** | | |
-| `ToolState` | [`tool_state.h`](../../../include/tool_state.h) | Multi-tool tracking, AMS topology, spool assignments |
+| `ToolState` | [`tool_state.h`](../../../include/tool_state.h) | Multi-tool tracking, AMS topology, tool offsets |
 | `AmsState` | [`ams_state.h`](../../../include/ams_state.h) | Multi-backend filament-system state (ch. 07) |
 | `TimelapseState` | [`timelapse_state.h`](../../../include/timelapse_state.h) | Timelapse recording + render progress |
 | `PrintControlButtons` | [`print_control_buttons.h`](../../../include/print_control_buttons.h) | Shared pause/resume/stop subjects + callbacks |
@@ -123,6 +123,9 @@ The tree has **74 classes with a `static X& instance()` (or pointer) declaration
 | `PerformanceState` | [`performance_state.h`](../../../include/performance_state.h) | Per-metric ring buffers (~60 s history) |
 | `SensorState` | [`sensor_state.h`](../../../include/sensor_state.h) | Moonraker `[sensor]` components (power meters); a `SensorManager` subclass |
 | `AbortManager` | [`abort_manager.h`](../../../include/abort_manager.h) | Print cancellation with progressive escalation |
+| `BedMeshState` | [`bed_mesh_state.h`](../../../include/bed_mesh_state.h) | The active bed mesh as subjects, from connect, for home tiles and the Bed Mesh panel |
+| `ActionPromptManager` ‡ | [`action_prompt_manager.h`](../../../include/action_prompt_manager.h) | Klipper `action:prompt` parser and state machine |
+| `LocalEventJournal` | [`printer_event_journal.h`](../../../include/printer_event_journal.h) | The screen's own event journal, bounded by count and age |
 | **Sensor managers** (each derives [`sensor_manager.h`](../../../include/sensor_manager.h)) | | |
 | `TemperatureSensorManager` | [`temperature_sensor_manager.h`](../../../include/temperature_sensor_manager.h) | `temperature_sensor` / `temperature_fan` objects |
 | `HumiditySensorManager` | [`humidity_sensor_manager.h`](../../../include/humidity_sensor_manager.h) | BME280, HTU21D, SHT3X, AHT10/20/20-F |
@@ -187,6 +190,9 @@ The tree has **74 classes with a `static X& instance()` (or pointer) declaration
 | `RemotePointer` | [`remote_pointer.h`](../../../include/remote_pointer.h) | `ctl`-driven pointer input device |
 | `BluetoothLoader` | [`bluetooth_loader.h`](../../../include/bluetooth_loader.h) | Bluetooth subsystem loader |
 | `WifiLinkMonitor` | [`wifi_link_monitor.h`](../../../include/wifi_link_monitor.h) | 30 s WiFi link poll, independent of the screen shown |
+| `RemoteScreenService` | [`remote_screen_service.h`](../../../include/remote_screen_service.h) | Owns the built-in screen server |
+| `RemoteScreenSettingsManager` | [`remote_screen_settings_manager.h`](../../../include/remote_screen_settings_manager.h) | The screen server's view and control opt-ins |
+| `HomeLayoutSync` | [`home_layout_sync.h`](../../../include/home_layout_sync.h) | Moves the home layout between a printer's screen and remote clients through Moonraker's database |
 | **System, update & crash** | | |
 | `UpdateChecker` | [`system/update_checker.h`](../../../include/system/update_checker.h) | Async release checks |
 | `CrashHistory` | [`system/crash_history.h`](../../../include/system/crash_history.h) | Persistent crash-submission history |
@@ -204,7 +210,7 @@ The tree has **74 classes with a `static X& instance()` (or pointer) declaration
 | `StaticSubjectRegistry` | [`core/static_subject_registry.h`](../../../include/core/static_subject_registry.h) | Subject deinit ordering |
 | `StaticPanelRegistry` | [`core/static_panel_registry.h`](../../../include/core/static_panel_registry.h) | Panel destruction ordering |
 
-† different spelling, same idea. ‡ `DisplayManager::instance()` returns a **pointer** (null before `Application` creates the display), unlike the reference-returning rest.
+† different spelling, same idea. ‡ returns a **pointer**: `DisplayManager::instance()` is null before `Application` creates the display, and `ActionPromptManager::instance()` names the one the app registered, unlike the reference-returning rest.
 
 ### Registries: who cleans up what, and when
 
@@ -230,12 +236,12 @@ Registration order is load-bearing: `SubjectInitializer` initializes `Navigation
 - **`Preparing` is not a sub-state of Moonraker's PRINTING.** `PrinterPrintState` owns the window between the user committing to a job and the printer reporting it (`begin_preparing()` / `retire_preparing()`), because a host-side pre-start block runs *before* the printer is handed the job and `print_stats` describes the PREVIOUS job for its whole duration. Two guards deliberately yield to a live preparing job: the phase-update stale guard and the `print_active -> 0` safety reset. Do not re-tighten either to "only while printing" - see [`../PRINT_STATE_MACHINE.md`](../PRINT_STATE_MACHINE.md) § "The preparing job".
 - **`begin_preparing()` is synchronous, unlike its neighbours.** `set_print_start_state()` defers because WebSocket callbacks call it; a button press is already on the main thread, and the previous job's outcome must be cleared before any observer can paint a `Preparing` state next to the finished job's numbers.
 - **A new session-scoped member on `PrinterPrintState` must also be cleared in `PrinterPrintStateTestAccess::reset_extra()`** ([`tests/test_helpers/printer_state_test_access.h`](../../../tests/test_helpers/printer_state_test_access.h)). Members that survive `reset_for_new_print()` by design - `printer_reports_layers_`, `preparing_job_` - leak across tests sharing the singleton, and the failure surfaces in whatever unrelated test runs next in that shard, not in yours.
-- **Counting rule for the census:** `rg -l 'static\s+\w+(&|\*)\s+instance\s*\(' include/ --glob '*.h' | wc -l` gives 74. If you add singleton number 75, add its row and update the count.
+- **Counting rule for the census:** `rg -l 'static\s+\w+(&|\*)\s+instance\s*\(' include/ --glob '*.h' | wc -l` gives 81. If you add singleton number 82, add its row and update the count.
 
 ## Going deeper
 
 - [`02-subjects-dataflow.md`](02-subjects-dataflow.md) - the other half of this chapter: subject init macros, observer factories, the `SubjectInitializer` phases, UpdateQueue internals.
-- [`03-threading-lifetime.md`](03-threading-lifetime.md) - the `SubjectLifetime` / `AsyncLifetimeGuard` contracts that `deinit_subjects()` and ToolState's spool callbacks rely on.
+- [`03-threading-lifetime.md`](03-threading-lifetime.md) - the `SubjectLifetime` / `AsyncLifetimeGuard` contracts that `deinit_subjects()` relies on.
 - [`04-moonraker.md`](04-moonraker.md) - where the status JSON feeding `update_from_status()` comes from, and who owns the client/API pair.
 - [`../MULTI_EXTRUDER_TEMPERATURE.md`](../MULTI_EXTRUDER_TEMPERATURE.md) § "Chamber Heating (M141)" - chamber routing and decidegree precision; [`../RPC_ERROR_OWNERSHIP.md`](../RPC_ERROR_OWNERSHIP.md) - who reports a failed heater send. ToolInfo and the tool lifecycle: the ToolState section above.
 - [`../TOOL_ABSTRACTION.md`](../TOOL_ABSTRACTION.md) - the ToolState deep dive: tool-to-backend mapping, DetectState semantics.

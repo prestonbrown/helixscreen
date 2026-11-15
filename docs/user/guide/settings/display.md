@@ -2,7 +2,7 @@
 
 **Settings > Display** controls the screen itself. Use it to turn the picture to match how the screen is mounted, make the interface bigger or smaller, set the brightness, and choose when the screen dims, sleeps or shows a screensaver.
 
-On the Settings screen, the **Display** row shows your brightness and sleep time, for example *80% · sleep 10 min*. It reads *80% · never sleeps* when sleep is off, and just *Sleep 10 min* on a screen that can't change its brightness.
+On the Settings screen, the **Display** row shows your brightness and sleep time, for example *80% · sleep 20 min*. It reads *80% · never sleeps* when sleep is off, and just *Sleep 20 min* on a screen that can't change its brightness.
 
 ![Display settings, top of the page](../../../images/user/settings-display.png)
 
@@ -16,7 +16,7 @@ Turns the picture to match how the screen is mounted: **Normal**, **90° Clockwi
 
 The new rotation applies the next time HelixScreen starts. When you pick one, HelixScreen offers to restart right away. Touch follows the new orientation on its own.
 
-This row is hidden on the desktop simulator. There you rotate the window from your operating system instead.
+This row is hidden on the Linux desktop build, where you rotate the window from your operating system instead.
 
 > If taps land in the wrong place after rotating, the screen needs touch calibration, not a different rotation. See the [Touch Calibration guide](../touch-calibration.md).
 
@@ -42,7 +42,7 @@ Each size keeps its own home screen layout, because a different size fits a diff
 
 A slider from 10% to 100% (80% to start with). Only shown on screens whose backlight HelixScreen can control. Android handles brightness itself, so the slider is hidden there.
 
-On the Creality K2, the bottom of the slider stays a little brighter than the number suggests. The K2 panel turns fully off below about 20% of its range, so HelixScreen never dims it that far.
+On a Creality K2 running community firmware, the bottom of the slider stays a little brighter than the number suggests. That panel turns fully off below about 20% of its range, so HelixScreen never dims it that far. A K2 on stock firmware has no such limit.
 
 ---
 

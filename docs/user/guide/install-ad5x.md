@@ -1,121 +1,112 @@
 # Installing HelixScreen on the FlashForge Adventurer 5X (ZMOD)
 
-End-to-end guide for the FlashForge Adventurer 5X running the ZMOD firmware modification: install, update, and uninstall.
+How to run HelixScreen on the built-in 4.3" touchscreen of a FlashForge Adventurer 5X with the ZMOD firmware mod: turn it on, update it and remove it.
 
-> **Easy installer:** support for the Adventurer 5X in the [HelixScreen easy installer](https://helixscreen.org/installer/) is coming. Until then this guide is the way to install.
+> **Easy installer:** support for the Adventurer 5X in the [HelixScreen easy installer](https://helixscreen.org/installer/) is coming. Until then, use this guide.
 
-> **Tested and working.** Prebuilt `ad5x` binaries are included in releases. Installation is handled through ZMOD.
+## What You Need
 
-## Prerequisites
-
-- **Hardware:**
-  - FlashForge Adventurer 5X
-  - Built-in 4.3" touchscreen (800x480)
-  - Network connection
-
-- **Software:**
-  - [ZMOD](https://github.com/ghzserg/zmod) firmware modification v1.7.0 or newer: ZMOD provides the Klipper, Moonraker, and SSH access that HelixScreen needs
+- A FlashForge Adventurer 5X on your network.
+- [ZMOD](https://github.com/ghzserg/zmod) **v1.7.0 or newer**. ZMOD gives the printer Klipper, Moonraker, Fluidd or Mainsail, and SSH. If your printer is still on stock firmware, install ZMOD first by following its own instructions.
 
 ## Install
 
-ZMOD manages HelixScreen installation and updates through Moonraker's update manager. If you are setting up an AD5X from stock, install ZMOD first following its own instructions. Then, in the Fluidd or Mainsail console (`http://<printer-ip>`):
+ZMOD installs and updates HelixScreen itself, through Moonraker's update manager. Open Fluidd or Mainsail in a browser (`http://<printer-ip>`) and use its console:
 
-1. Run `ENABLE_EXTRA_PLUGINS`. This adds ZMOD's list of third-party plugins to Moonraker, which includes the `helixscreen` update-manager entry, and reboots the printer. It does not install HelixScreen yet.
-2. When the printer is back, open the update manager in Fluidd or Mainsail and update **helixscreen**. ZMOD starts it at version v0.0.1, so the current release shows as an update; applying it downloads `helixscreen-ad5x.zip` into `/srv/helixscreen`.
-3. Run `DISPLAY_OFF HELIX=1`. This turns the stock screen off and selects HelixScreen as the replacement, then reboots. Do this only after step 2: if no HelixScreen files are installed yet, the printer comes up with no screen at all.
+1. Run `ENABLE_EXTRA_PLUGINS`. This adds ZMOD's list of extra plugins to Moonraker, including a `helixscreen` update-manager entry, and reboots the printer. It does not install HelixScreen yet.
+2. When the printer is back, open the update manager in Fluidd or Mainsail and update **helixscreen**. ZMOD lists it at version v0.0.1, so the current release shows as an update; applying it downloads HelixScreen into `/srv/helixscreen`.
+3. Run `DISPLAY_OFF HELIX=1`. This turns the stock screen off, selects HelixScreen in its place and reboots. Do this only after step 2: with no HelixScreen files installed, the printer comes up with no screen at all.
 
-HelixScreen then updates through the same update manager entry. To go back to the stock screen, run `DISPLAY_ON`.
+To go back to the stock screen, run `DISPLAY_ON`.
 
 > **Read ZMOD's warning first.** With the stock screen off, the printer no longer runs the stock screen's print start and end routines, so bed leveling, Z-offset and your slicer's start and end G-code work differently. See ZMOD's [DISPLAY_OFF documentation](https://github.com/ghzserg/zmod/blob/main/docs/en/System.md) before you switch.
 
-<details>
-<summary>Manual install from the command line (advanced)</summary>
+---
 
-Most users never need this. Use the manual route only if you're pinning a specific version, working from a `--local` zip, or recovering from a failed update.
+## Getting Started on an Adventurer 5X
 
-ZMOD installs HelixScreen into a chroot rooted at `/usr/data/.mod/.zmod/`. When you SSH into the printer you land in the host filesystem, *not* the chroot, so a plain `curl ... | sh` writes into the squashfs base view that HelixScreen never sees. The installer detects this and refuses to run with a friendly message; the fix is to enter the chroot first:
+After the reboot, HelixScreen appears on the touchscreen and a short setup wizard runs:
 
-```bash
-ssh root@<printer-ip>
-chroot /usr/data/.mod/.zmod
-# now you're in the same view HelixScreen runs from:
-curl -fsSL https://releases.helixscreen.org/install.sh | sh
-```
+1. **Language**, if none is set yet.
+2. **Network:** pick a Wi-Fi network, or continue if the printer is already connected by Wi-Fi or Ethernet.
+3. **Connection:** HelixScreen connects to the printer's own Moonraker by itself and skips this step. If it can't reach it yet, the step appears: the address `127.0.0.1` and port `7125` are right, so tap **Test Connection**, then continue.
+4. **Printer Identification:** confirm the Adventurer 5X. HelixScreen then fills in the heaters, fans and sensors for you and skips those steps.
+5. **Preferences:** a few choices, such as sounds, that you can change later in Settings.
+6. **Help Improve HelixScreen:** choose whether to send anonymous usage statistics. You can change this later in **Settings > System**.
 
-</details>
+Then the Home screen appears. Worth doing first:
 
-## What the Installer Does Here
+- **Check the version** in **Settings > Help & About > About**.
+- **Look at the IFS**, the four-spool filament system, on the Filament screen. Lane colors and materials live on the printer: a change from the printer's own color menu shows in HelixScreen, and a change made in HelixScreen is written to the printer. See [Filament Management](filament.md).
+- **Run a bed mesh** from **Controls > Bed Mesh** (see [Calibration](calibration.md#bed-mesh)).
 
-- Detects the ZMOD chroot and refuses to run outside it (see the manual-install section above for why)
-- Installs to `/srv/helixscreen/` inside the chroot
-- Auto-detects ZMOD firmware by recognizing ZMOD-specific Klipper device names, and applies ZMOD-optimized presets for display, input, and fan configuration: no manual configuration needed
+---
 
-## Service Control and Logs
+## Working From the Command Line
 
-Run service commands from inside the chroot:
+Most people never need this. It is for installing a specific version, installing from a zip on the printer, or recovering from a failed update.
 
-```bash
-chroot /usr/data/.mod/.zmod
-/etc/init.d/S80helixscreen start|stop|restart|status
-```
-
-Both log streams live under `/opt/config/mod_data/log/` (paths as seen from inside the chroot), where ZMOD's support archive collects them:
-
-```bash
-tail -100 /opt/config/mod_data/log/helix.log        # structured app log (rotated)
-tail -100 /opt/config/mod_data/log/helixscreen.log  # launcher stream
-```
-
-## Updating
-
-Most upgrades happen automatically through Mainsail's Update Manager. Open Mainsail, go to **Machine > Update Manager**, and click **Update** next to HelixScreen.
-
-If that fails (you see an error toast like `Error updating helixscreen: [Errno 93] Directory not empty`, or HelixScreen won't start after an update), run the CLI upgrade from a Mainsail shell or an SSH session:
+ZMOD runs HelixScreen inside its own system folder, `/usr/data/.mod/.zmod`. When you sign in over SSH you land outside it, so **enter it first**; the HelixScreen installer refuses to run outside it:
 
 ```bash
 ssh root@<printer-ip>
 chroot /usr/data/.mod/.zmod
-curl -fsSL https://releases.helixscreen.org/install.sh | sh -s -- --update
 ```
 
-The `chroot` step is required. ZMOD installs HelixScreen inside `/usr/data/.mod/.zmod/`, and a plain `curl ... | sh` from outside the chroot writes to the wrong filesystem view; the installer detects this and refuses to run.
+Every command below runs after that `chroot` line, and every path is as seen from inside.
 
-Offline variant (release zip already on the printer):
-
-```bash
-ssh root@<printer-ip>
-chroot /usr/data/.mod/.zmod
-sh /tmp/install.sh --local /tmp/helixscreen-ad5x.zip --update
-```
-
-Check the current version from inside the chroot:
+### Service control and logs
 
 ```bash
+/etc/init.d/S80helixscreen start      # or stop, restart, status
 /srv/helixscreen/bin/helix-screen --version
 ```
 
-Your settings (`settings.json`), environment overrides (`helixscreen.env`), and custom files (custom printer images, etc.) are automatically preserved across updates.
-
-## Uninstalling
-
-Run the uninstaller from inside the chroot:
+Both logs sit where ZMOD's support archive collects them:
 
 ```bash
-chroot /usr/data/.mod/.zmod
-sh /tmp/install.sh --uninstall
+tail -100 /opt/config/mod_data/log/helix.log        # the app's log
+tail -100 /opt/config/mod_data/log/helixscreen.log  # startup and crash output
 ```
 
-The bundled copy at `/srv/helixscreen/install.sh` needs the same treatment: the installer refuses `--uninstall` from inside the install directory, so copy it out first (`cp /srv/helixscreen/install.sh /tmp/install.sh && sh /tmp/install.sh --uninstall`).
+### Updating
 
-## Quirks and Notes
+The usual way is the update manager: in Mainsail, **Machine > Update Manager**, then **Update** next to helixscreen. HelixScreen's own **Settings > Updates** works too.
 
-- IFS (the 4-channel filament system) is supported; see [Filament Management](filament.md)
-- Random solid colors during screen sleep are a known AD5X quirk; see [Troubleshooting](../TROUBLESHOOTING.md#random-solid-colors-during-screen-sleep-ad5x)
-- A lane's color and material live on the printer: a change from the printer's own color menu shows in HelixScreen, and a change made in HelixScreen is written to the printer
+If the update manager fails (for example with `Error updating helixscreen: [Errno 93] Directory not empty`), or HelixScreen won't start after an update, update from SSH inside the chroot:
+
+```bash
+curl -fsSL https://releases.helixscreen.org/install.sh | sh -s -- --update
+```
+
+Without internet on the printer, copy `helixscreen-ad5x.zip` and `install.sh` from the [latest release](https://github.com/prestonbrown/helixscreen/releases/latest) to the printer's `/tmp`, then:
+
+```bash
+sh /tmp/install.sh --local /tmp/helixscreen-ad5x.zip --update
+```
+
+Your settings, your `helixscreen.env` and your custom files (printer images and the like) are kept. HelixScreen keeps them in `/srv/helixscreen-state`, outside the folder an update replaces.
+
+### Uninstalling
+
+Inside the chroot, copy the installer out of the HelixScreen folder (it will not uninstall from inside it), then run it:
+
+```bash
+cp /srv/helixscreen/install.sh /tmp/install.sh && sh /tmp/install.sh --uninstall
+```
+
+To keep the printer's stock screen without uninstalling, `DISPLAY_ON` from the Fluidd or Mainsail console is enough.
+
+---
+
+## Notes
+
+- Random solid colors while the screen sleeps are a known AD5X quirk; see [Troubleshooting](../TROUBLESHOOTING.md#random-solid-colors-during-screen-sleep-ad5x).
+- The AD5X plays HelixScreen's sounds, chords and music included, through its built-in speaker; see [Sound](settings/sound.md).
 
 ## See Also
 
 - [Supported Printers: FlashForge Adventurer 5X](supported-printers.md#flashforge-adventurer-5x)
 - [Troubleshooting: update failed in Mainsail](../TROUBLESHOOTING.md#update-failed-in-mainsail--screen-wont-start-after-update-ad5x)
-- [UPGRADING.md](../UPGRADING.md): version pinning and reset behavior
-- [Installation overview](../INSTALL.md): all other platforms
+- [Upgrading HelixScreen](../UPGRADING.md): version pinning and reset behavior
+- [Installation overview](../INSTALL.md)

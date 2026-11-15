@@ -85,7 +85,7 @@ Both changes live in the persistent overlay upper and survive reboot via `/oem/.
 
 ## Cross-Compilation
 
-The U1 target uses the same aarch64 cross-compiler as the Raspberry Pi, with fully static linking to avoid glibc version dependencies.
+The U1 target uses the same aarch64 cross-compiler as the Raspberry Pi. libstdc++ and libgcc are linked statically; libc and libdrm come from the printer.
 
 ### Build via Docker (Recommended)
 
@@ -94,12 +94,12 @@ The U1 target uses the same aarch64 cross-compiler as the Raspberry Pi, with ful
 make snapmaker-u1-docker
 ```
 
-The Docker image (`docker/Dockerfile.snapmaker-u1`) is based on Debian Trixie with `crossbuild-essential-arm64`. It uses Debian's `aarch64-linux-gnu` toolchain with static linking for a self-contained binary.
+The Docker image (`docker/Dockerfile.snapmaker-u1`) is based on Debian Trixie with `crossbuild-essential-arm64`. It uses Debian's `aarch64-linux-gnu` toolchain.
 
 ### Build Directly (Requires Toolchain)
 
 ```bash
-make PLATFORM_TARGET=snapmaker-u1 -j
+make snapmaker-u1
 ```
 
 ### Build Configuration
@@ -112,7 +112,7 @@ make PLATFORM_TARGET=snapmaker-u1 -j
 | Display backend | DRM/KMS (`/dev/dri/card0`, double-buffered page flipping) |
 | Input | evdev (auto-detected) |
 | SSL | Enabled |
-| Optimization | `-Os` (size-optimized) |
+| Optimization | `-Os -flto` (size-optimized) |
 | Platform define | `HELIX_PLATFORM_SNAPMAKER_U1` |
 
 ### CI/Release Status
@@ -197,7 +197,7 @@ To restore the stock Snapmaker touchscreen UI, run the uninstaller — it re-ena
 ssh root@<printer-ip> "curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --uninstall; reboot"
 ```
 
-> **A bare `rm -rf /userdata/helixscreen` is no longer sufficient.** The installer disables the stock UI binary (`chmod -x /usr/bin/gui`) so neither firmware's launcher can start it; removing HelixScreen without re-enabling the binary leaves a black screen. If you can't run the uninstaller, revert manually:
+> **A bare `rm -rf /userdata/helixscreen` is not enough.** The installer disables the stock UI binary (`chmod -x /usr/bin/gui`) so neither firmware's launcher can start it; removing HelixScreen without re-enabling the binary leaves a black screen. If you can't run the uninstaller, revert manually:
 >
 > ```bash
 > ssh root@<printer-ip> "killall helix-screen helix-watchdog 2>/dev/null; chmod +x /usr/bin/gui; rm -rf /userdata/helixscreen; reboot"
@@ -251,7 +251,7 @@ HelixScreen uses the DRM backend for double-buffered page flipping on `/dev/dri/
 
 **The CRTC keepalive problem**: The stock UI (`/usr/bin/gui`) holds DRM master. When gui exits, the kernel's VOP2 driver calls `vop2_crtc_atomic_disable`, permanently disabling the display until reboot. The MCU panel driver only creates modes during the initial boot sequence — once the CRTC is disabled, there's no way to re-enable it.
 
-**The solution**: The platform hooks (`config/platform/hooks-snapmaker-u1.sh`) spawn a background process that holds `/dev/dri/card0` open *before* killing gui. This prevents the kernel from tearing down the CRTC when gui exits. HelixScreen then opens the DRM device itself and becomes DRM master. The keepalive process detects that HelixScreen has the device open and exits — but the CRTC stays active because HelixScreen now holds the fd.
+**The solution**: The platform hooks (`assets/config/platform/hooks-snapmaker-u1.sh`) spawn a background process that holds `/dev/dri/card0` open *before* killing gui. This prevents the kernel from tearing down the CRTC when gui exits. HelixScreen then opens the DRM device itself and becomes DRM master. The keepalive process detects that HelixScreen has the device open and exits — but the CRTC stays active because HelixScreen now holds the fd.
 
 **Critical implementation notes**:
 - The keepalive MUST be a background subshell (`(exec 3>/dev/dri/card0; ...) &`), not a shell fd (`exec 7>`). Shell fds die when the init script exits, but background processes survive.
@@ -271,19 +271,24 @@ HelixScreen auto-detects the sysfs backlight device (`/sys/class/backlight/backl
 
 ## Auto-Detection
 
-HelixScreen auto-detects the Snapmaker U1 using 17 heuristics from `config/printer_database.json`:
+HelixScreen auto-detects the Snapmaker U1 using 21 heuristics from `assets/config/printer_database.json`:
 
 | Heuristic | Confidence | Description |
 |-----------|------------|-------------|
 | `fm175xx_reader` object | 99 | FM175xx RFID reader -- definitive U1 signature |
-| `FILAMENT_DT_UPDATE` macro | 95 | RFID filament detection macro (extended firmware) |
-| `FILAMENT_DT_QUERY` macro | 95 | RFID filament query macro (extended firmware) |
+| `homing_precise_corexy` object | 99 | Snapmaker's homing module |
+| `FILAMENT_DT_UPDATE` / `FILAMENT_DT_QUERY` macros | 95 | RFID filament detection macros |
+| `extruder_offset_calibration`, `filament_entangle_detect` objects | 95 | Snapmaker modules |
 | Hostname `u1` | 90 | Hostname contains "u1" |
+| `machine_state_manager` object, `FEEDING_RUNOUT_EVENT_HANDLE` / `EXTRUDER_OFFSET_ACTION_PROBE_CALIBRATE_ALL` macros | 90 | Snapmaker modules and macros |
 | Hostname `snapmaker` | 85 | Hostname contains "snapmaker" |
+| `defect_detection`, `purifier` objects | 80-85 | Snapmaker modules |
+| Four tool heaters | 75 | `tool_count` |
+| `e1_fan` / `e2_fan` / `e3_fan` | 70 | Per-head fans |
 | `tmc2240` object | 60 | TMC2240 stepper driver presence |
-| CoreXY kinematics | 40 | CoreXY motion system |
-| Cartesian kinematics | 20 | Cartesian motion system |
-| _(+9 additional heuristics)_ | various | Tool state, extruder naming, custom macros, motion parameters, etc. |
+| Build volume | 50 | Bed mesh range |
+| CoreXY kinematics | 30 | CoreXY motion system |
+| aarch64 CPU | 10 | Host architecture |
 
 No manual printer configuration is needed in most cases. The FM175xx RFID reader is the strongest signal -- it is unique to the U1 and provides near-certain identification.
 
@@ -428,7 +433,7 @@ These are resolution-specific issues, not Snapmaker-specific. Any 480x320 device
 
 **Remote control — working (verified 2026-07-12, #1091).** `fb-http` also injects touch to `/dev/input/event0` via its `/touch` endpoint (nginx `/screen/touch`), and remote *control* works end-to-end for free. HelixScreen opens `event0` through LVGL's evdev driver (`src/platform/display/display_backend_drm.cpp#create_input_pointer`) and does **not** `EVIOCGRAB` it, so it sees `fb-http`'s injected events. `fb-http` defaults its touch device to `/dev/input/event0` (no `--touch` flag needed) and scales browser clicks 1:1 (the TLSC6x reports `ABS_MT` in the same 480×320 space as the framebuffer). Verified on-device (v0.99.88, printer idle): synthetic taps at the Settings gear, Help & About row, and home-nav icon each landed on the intended element in the rendered snapshot — no offset, no inversion. The browser client (/usr/local/share/fb-http/html/index.html) maps clicks to native image coordinates via `getImageCoords` and POSTs `down`/`move`/`up`. PNG snapshot is poll-based, not a continuous MJPEG stream.
 
-> **Rotation caveat.** This works because the U1 auto-probes `"rotate": 0` (no display rotation). fb-http serves the *rendered* (display-space) frame, and LVGL re-rotates every incoming `event0` point via `lv_display_rotate_point` (`lvgl/src/display/lv_display.c`) whenever a rotation is active. At `rotate == 0` that transform is identity, so injected coordinates pass straight through. **At a non-zero rotation, injected taps would be double-transformed (point-symmetric-inverted)** — fb-http can't know HelixScreen's rotation, and we don't own it. The rotation-robust path is the in-process touch injection tracked by **#1032** (inject past the evdev round-trip, after rotation), not the fb-http path. The U1's panel is fixed-mount and probes to 0 in practice, so this is a latent limitation, not an active bug.
+> **Rotation caveat.** This works because the U1 auto-probes `"rotate": 0` (no display rotation). fb-http serves the *rendered* (display-space) frame, and LVGL re-rotates every incoming `event0` point via `lv_display_rotate_point` (`lib/lvgl/src/display/lv_display.c`) whenever a rotation is active. At `rotate == 0` that transform is identity, so injected coordinates pass straight through. **At a non-zero rotation, injected taps would be double-transformed (point-symmetric-inverted)** — fb-http can't know HelixScreen's rotation, and we don't own it. The rotation-robust path is the in-process touch injection tracked by **#1032** (inject past the evdev round-trip, after rotation), not the fb-http path. The U1's panel is fixed-mount and probes to 0 in practice, so this is a latent limitation, not an active bug.
 
 ### Extended Firmware Overlay
 
