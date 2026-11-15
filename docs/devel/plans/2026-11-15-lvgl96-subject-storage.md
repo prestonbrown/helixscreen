@@ -36,7 +36,7 @@ Removal: the 9.6 notes mark the API deprecated and repeat the entry in
 
 ## 2. How HelixScreen holds subjects today
 
-Measured on `main` at 8cf5d72393.
+Measured on `main` at 8cf5d72393 (pointer-arithmetic census at c6e59a786d).
 
 | Shape | Count | Where |
 |---|---|---|
@@ -79,18 +79,19 @@ switch and turns each cached pointer into a use-after-free. This plan never does
 
 ### 3.1 One owner type: `helix::Subject`
 
-`include/core/subject.h`, implemented in `src/core/subject.cpp` (out of line: one call per
-site keeps the ESP32 image flat, see § 6). Syntax-checked with
-`scripts/syntax_check.py` through a probe TU that declares members, `std::array`,
-`std::vector`, `unique_ptr`, a `const` getter returning `&member_`, the unchanged
-`UI_MANAGED_SUBJECT_INT` macro and `std::addressof`; all compile.
+`include/core/subject.h`, implemented in `src/core/subject.cpp`. Everything but the
+plain loads is out of line, so a site costs one call (§ 6 has the measured sizes). The
+header as phase 1 lands it, compiled by every unit that includes the macro headers:
 
 ```cpp
 namespace helix {
 
 class Subject {
   public:
-    Subject() noexcept = default;
+    /// Allocates the node when LVGL is up on the main thread, so `&member` taken in a
+    /// constructor already has its final address. The node refuses observers until the
+    /// first init_*(). Before lv_init() the handle stays null until init_*().
+    Subject() noexcept;
     ~Subject();
     Subject(const Subject&) = delete;
     Subject& operator=(const Subject&) = delete;
@@ -109,16 +110,16 @@ class Subject {
     /// allocation. The replacement for lv_subject_deinit().
     void reset();
 
-    [[nodiscard]] bool is_live() const noexcept;
-    [[nodiscard]] lv_subject_t* get() const noexcept;
-    /// `&member` keeps yielding the lv_subject_t* every LVGL call takes; nullptr before
-    /// the first init_*(). std::addressof() gives the Subject itself.
-    lv_subject_t* operator&() const noexcept;
+    [[nodiscard]] bool is_live() const noexcept;       // inline load
+    [[nodiscard]] lv_subject_t* get() const noexcept;  // inline load
+    /// `&member` keeps yielding the lv_subject_t* every LVGL call takes.
+    lv_subject_t* operator&() const noexcept;          // inline load
 
-    /// The Subject that owns `subject`, or nullptr (helix-xml's own subjects).
+    /// The Subject that owns `subject`, or nullptr for one no Subject owns.
     [[nodiscard]] static Subject* owner_of(const lv_subject_t* subject) noexcept;
 
   private:
+    lv_subject_t* prepare(lv_subject_type_t type);
     lv_subject_t* handle_ = nullptr;
     bool live_ = false;
 };
@@ -141,20 +142,26 @@ void subject_init_string(lv_subject_t& subject, char* buf, char* prev_buf, size_
 } // namespace helix
 ```
 
-Contract, each line pinned by a test in § 5:
+Contract, each line pinned by a case in § 5.1:
 
 | Event | Behaviour |
 |---|---|
-| First `init_*()` | `lv_subject_create(type)`, then `lv_subject_set_string_buffer_static()` for strings, then the setter with the initial value. Sets `handle_->user_data = this`. `live_ = true`. Refuses (anomaly `subject_init_before_lvgl`, no allocation) when `!lv_is_initialized()`. |
-| `init_*()` after `reset()`, same type | Reuses `handle_`: clears the `deinitialized` bit, re-points string buffers, sets the value. **Address unchanged.** |
-| `init_*()` after `reset()`, other type | `lv_subject_delete()` + create. Anomaly `subject_retyped`. No call site does this today. |
-| `init_*()` while live | `reset()` first, then as above, and anomaly `subject_reinit_while_live`. Today this zeroes `subs_ll` and orphans observers; the new behaviour removes them. |
-| `init_string()` whose `value` points into `buf` | Copies the value aside before `set_string_buffer_static()` clears `buf[0]`. `UI_MANAGED_SUBJECT_STRING_N` and `UI_SUBJECT_INIT_AND_REGISTER_STRING` both pass the buffer as the value. |
-| `reset()` | Deletes every observer on `handle_->subs_ll` with `lv_observer_delete()` (what `deinit()` does), sets `deinitialized`, `live_ = false`. Keeps `handle_`. No-op when not live or `!lv_is_initialized()`. |
+| Construction, LVGL up, main thread | `lv_subject_create(LV_SUBJECT_TYPE_INT)` as a placeholder, `user_data = this`, `deinitialized` set, not live. `&member` taken from here on (every panel, widget and modal constructor) is the address every later `init_*()` keeps. Observers are refused until init, as after `reset()`. |
+| Construction before `lv_init()` (namespace-scope statics) | No node; `&member` is `nullptr` until the first `init_*()`. LVGL's patched null guards turn a get/set/observe on it into a no-op plus the `observer_null_subject` anomaly. |
+| `init_*()` | Creates the node if there is none, otherwise reuses it **whatever its previous type**: the type, value, previous value and range are written in place exactly as `lv_subject_init_<type>()` leaves them, so nothing is notified or clamped. Clears `deinitialized`, `user_data = this`, `live_ = true`. Refuses (anomaly `subject_init_before_lvgl`, no allocation) when `!lv_is_initialized()`. Off the main thread it reports `subject_init_off_main_thread`. |
+| `init_*()` while live | Removes the observers first and reports `subject_reinit_while_live`. Today this zeroes `subs_ll` and orphans them. |
+| `init_string()` | Points `value`/`prev_value` at the caller's buffers and copies the initial value with `memmove`, so a value that aliases or points into `buf` survives. `lv_subject_set_string_buffer_static()` is not used: it clears `buf[0]` before the copy, and `UI_MANAGED_SUBJECT_STRING_N` and `UI_SUBJECT_INIT_AND_REGISTER_STRING` both pass the buffer as the value. |
+| `reset()` | Deletes every observer the way `deinit()` does (next pointer first, `lv_observer_delete()`, then `lv_ll_clear()`), sets `deinitialized`, `live_ = false`. Keeps `handle_`. No-op when not live or `!lv_is_initialized()`. |
 | `~Subject()` | `lv_subject_delete(handle_)` when `handle_` and `lv_is_initialized()`; otherwise drops the handle (LVGL already freed it in `lv_deinit()`). Never logs. |
-| Move | Transfers `handle_` and `live_`, re-points `user_data` at the destination; the source is empty. `vector<Subject>` relocation therefore keeps every subject's address, which `vector<lv_subject_t>` did not. |
-| `operator&` before first init | `nullptr`. LVGL's patched null guards (`patches/lvgl_observer_null_guards.patch`) turn a get/set/observe on it into a no-op plus the `observer_null_subject` anomaly. |
+| Move | Transfers `handle_` and `live_`, re-points `user_data` at the destination; the source is empty. `vector<Subject>` relocation keeps every subject's address, which `vector<lv_subject_t>` did not. |
 | Group subjects | Not supported by `Subject`. No `src/` code uses one; the two test uses call `lv_subject_create(LV_SUBJECT_TYPE_GROUP)` directly. |
+
+Why the constructor and not `operator&` allocates: a lazy create inside `operator&`
+(`h_ ? h_ : create()`) puts a branch and a call at each of ~9,600 `&` sites, measured at
+12.4 B of Xtensa code per site over a plain load, against about 8 B per declaration for
+an out-of-line constructor (§ 6). The cost of the constructor route: a `Subject` that is
+never initialized still holds a node (~52 B of PSRAM), and an object built before
+`lv_init()` gets its node only at `init_*()`.
 
 **Ownership summary.** LVGL allocates; the `Subject` frees, exactly once, when it dies with
 LVGL up. `reset()` never frees. Between `lv_deinit()` and process exit, `lv_deinit()` has
@@ -169,7 +176,19 @@ counter, which this plan deliberately does not add.
 `lv_subject_t*`". Declarations change type; call sites do not. The alternative, rewriting
 every `&x_` to `x_.get()`, touches ~1,500 files while a dozen peer sessions edit the same
 tree. The cost: `&s` on a `Subject` no longer names the `Subject`, so code that needs the
-object uses `std::addressof` (the macros below do). Standard containers already do.
+object uses `std::addressof` (the macros do). Standard containers already do.
+
+**The silent hazard it creates: pointer arithmetic.** For `helix::Subject arr[N]`,
+`&arr[0] + i`, `p - &arr[0]` (an index recovered from a subject pointer), `++p` and a
+relational compare of two such pointers all still compile, because both sides are
+`lv_subject_t*`, and they produce garbage: the handles are separate heap nodes. `arr`
+decaying to `Subject*` and `.data()` fail to compile, so those are safe. `==`/`!=`
+between two handles stays correct. Census on `main` at c6e59a786d: **0 sites** in `src/`,
+`include/` and `tests/` (searched: `&X[...]` and `.data()` next to `+ - ++ --` or a
+relational operator for each of the 105 names declared as an `lv_subject_t` array or
+container, plus every `- &x[` and `- x.data()`; every hit was `&&` or string arithmetic).
+The codemod still prints any such site it meets, and a batch agent fixes one with an
+index from the container, never pointer math.
 
 ### 3.2 What changes around it
 
@@ -210,7 +229,8 @@ tree, then one review and one `make land-gate`.
 
 1. `include/core/subject.h` and `src/core/subject.cpp` exactly as § 3.1. The deprecated
    calls in this file are the `lv_subject_t&` overloads and the transitional branch of
-   `subject_reset()`, each line carrying `SUBJECT_API_OK: transitional, removed in phase 5`.
+   `subject_reset()`, inside one `-Wdeprecated-declarations` pragma block; the gate exempts
+   the file.
 2. Route the three macro headers through `helix::subject_init_*` (§ 3.2). Overload choice
    rides on the lvalue type, so all ~1,640 macro sites stop warning without an edit.
 3. `SubjectManager::deinit_all` calls `helix::subject_reset`.
@@ -226,9 +246,12 @@ tree, then one review and one `make land-gate`.
      `helix::subject_reset(X)`;
    - helper parameters `lv_subject_t& p` that are init'd or reset in the body to `helix::Subject& p`;
    - prints, and does not touch, every other site (the 19 non-`&` inits, `lv_subject_t*`
-     tables built before init, `sizeof(lv_subject_t)`), for the batch agent to do by hand.
+     tables built before init, `sizeof(lv_subject_t)`, and every `&X[...]` or `.data()`
+     of a converted array used with `+ - ++ --` or a relational operator, and every
+     subtraction of two subject pointers), for the batch agent to do by hand.
    Its tests live in `tests/python/test_subject_codemod.py`.
-6. Phase 1 converts no owner. It is safe to land because nothing yet calls `lv_subject_create`.
+6. Phase 1 converts no owner, so no node is allocated outside its own tests and the app's
+   behaviour is unchanged.
 
 ### Phase 2a-2e: storage batches (one agent each, parallel worktrees)
 
@@ -238,10 +261,13 @@ For the paths in the row: run the codemod, hand-convert what it lists, delete th
 
 Hazards each agent checks in its own files and lists in its commit body:
 
-- **Address taken before init.** `&member_` before the first `init_*()` is now `nullptr`.
-  Grep the batch for `&` of a subject inside a constructor, a member initializer, a
-  namespace-scope or `static` table, or a lambda capture made before `init_subjects()`.
-  Fix by building the table after init.
+- **Address taken before `lv_init()`.** A `Subject` constructed after `lv_init()` has its
+  final address from construction (§ 3.1). One constructed earlier (namespace scope, or a
+  function-local static first reached before `lv_init()`) is `nullptr` until its first
+  `init_*()`. Grep the batch for those and for a table, member initializer or lambda that
+  stores their address before init; build it after init instead.
+- **Pointer arithmetic on converted arrays** (§ 3.1). Compiles, yields garbage. Use the
+  container index; the codemod lists every candidate.
 - **Copies.** `Subject` is not copyable. A class that copied subject-holding structs fails
   to compile; that copy was already a bug (two owners of one `subs_ll`). Move or restructure.
 - **`memset`/`memcpy` over a struct holding subjects.** Replace with value-init.
@@ -291,23 +317,27 @@ helixscreen (memory: rebasing helix-xml commits orphans pins).
 
 ### 5.1 Phase 1: `tests/unit/test_subject_owner.cpp`, tags `[subject][raii]`
 
-Each case names the break it catches; each goes red once by hand before it is kept.
+Each case went red under the hand break in its last column (`src/core/subject.cpp` edited,
+one case run, file restored). The three cases that need LVGL down re-run the test binary
+on one hidden `[.subject_child]` case each: every case in this binary starts with LVGL up,
+and a forked child cannot call `lv_deinit()` (it joins draw threads the child lacks).
 
-| Case | Pins | Red when |
+| Case | Pins | Hand break that turned it red |
 |---|---|---|
-| `Subject keeps its address across reset and re-init` | stable handle | `reset()` frees or `init_*()` always creates |
-| `Subject::reset removes every observer and refuses new ones until re-init` | deinit parity: `subs_ll` empty, `lv_subject_add_observer()` returns NULL after reset, accepts after re-init | the loop skips observers, or `deinitialized` is never set or never cleared |
-| `Subject::reset leaves a token-guarded ObserverGuard safe to reset` | guard plus owner token over reset, under ASan | `reset()` frees the node a guard still holds |
-| `SubjectManager deinit_all resets a registered Subject through its owner pointer` | `user_data` back-pointer and `subject_reset()` | `user_data` unset, or `subject_reset()` ignores the owner |
-| `Moving a Subject keeps its handle and re-points the owner` | `owner_of(&dest) == &dest`, source empty, `vector<Subject>` growth keeps each address | move copies the handle or forgets `user_data` |
-| `Subject destructor frees its LVGL node and its observers` | `lv_ll_get_len(&LV_GLOBAL_DEFAULT()->subject_ll)` back to its starting count; an observer's `user_data` free flag ran | the destructor skips `lv_subject_delete()` |
-| `Subject init_string keeps a value that aliases its buffer` | the alias copy | `set_string_buffer_static()` runs before the copy |
-| `Subject init_string with a previous buffer tracks the previous string` | `prev_buf` wiring (`src/plugin/lua_bind_ui.cpp` uses it) | `prev_buf` dropped |
-| `Subject re-init while live removes the old observers and reports it` | no orphaned observers, anomaly recorded | re-init zeroes `subs_ll` as the old API did |
-| `Subject before init yields a null handle and touches nothing` | `&s == nullptr`, `lv_subject_get_int(&s)` returns 0 through the null guard | `operator&` returns garbage |
-| `Subject init before lv_init allocates nothing` | refusal path, in a forked child (`tests/CLAUDE.md` § Test isolation fork rule) | create runs on an uninitialised list |
-| `Subject destructor after lv_deinit does not touch the freed node` | forked child: init, `lv_deinit()`, destroy, `_exit(0)`; the parent checks the status (ASan makes a touch fatal) | the destructor ignores `lv_is_initialized()` |
-| `Managed macros accept both lv_subject_t and helix::Subject storage` | overload routing; extends `tests/unit/test_subject_macros.cpp` `[state][subject][macro]` | a macro still names the deprecated call or takes `&` of the object |
+| `Subject keeps its address across reset and re-init` | handle and node count unchanged by `reset()`; re-init (also to another type) keeps the address | `reset()` deletes the node and clears the handle |
+| `Subject::reset removes every observer and refuses new ones until re-init` | `subs_ll` empty, `lv_subject_add_observer()` refused after reset, accepted after re-init | `reset()` does not set `deinitialized` |
+| `Subject::reset unbinds a widget-bound observer from its widget` | the widget's event count returns to its pre-bind value | observers cleared from the list without `lv_observer_delete()` (also crashes on widget delete) |
+| `SubjectManager deinit_all resets a registered Subject through its owner pointer` | `subject_reset()` finds the owner through `user_data` | `subject_reset()` ignores the owner |
+| `Moving a Subject keeps its handle and re-points the owner` | `owner_of()` follows a move and `vector` relocation | move constructor leaves `user_data` on the source |
+| `Subject destructor frees its LVGL node` | LVGL's subject list is back to its starting length | destructor skips `lv_subject_delete()` |
+| `Subject init_string keeps a value that aliases its buffer` | value equal to `buf`, and pointing inside it | `buf[0]` cleared before the copy |
+| `Subject init_string with a previous buffer tracks the previous string` | `prev_buf` wiring (`src/plugin/lua_bind_ui.cpp` uses it) | `prev_value` left null |
+| `Subject re-init while live removes the old observers` | no observer survives a re-init | the live branch of `prepare()` skips the removal |
+| `Subject address taken after lv_init before init_* is the one init_* keeps` | constructor allocation; observers refused until init | constructor allocates nothing |
+| `Subject address taken before lv_init is null` | no node before `lv_init()` | constructor ignores `lv_is_initialized()` |
+| `Subject init before lv_init allocates nothing` | refusal path | `prepare()` ignores `lv_is_initialized()` |
+| `Subject destructor after lv_deinit leaves the freed node alone` | the skip after `lv_deinit()` | destructor ignores `lv_is_initialized()` (double free) |
+| `Managed macros accept both lv_subject_t and helix::Subject` | overload routing, owner pointer, `deinit_all()` on both storages | the `Subject&` overload calls the deprecated init on `&subject` |
 
 Phase 1 runs `make t F='[subject],[observer],[raii],[subject_lifetime],[core][subjects],[macro]'`.
 
@@ -329,10 +359,11 @@ then the batch's one `make land-gate`, which runs the whole C++ suite in CI's la
 `tests/ui` (the app started and driven, so pre-init address use in panels shows up there).
 `tests/python/test_subject_codemod.py` and the gate's bats run inside it.
 
-During phase 2 every agent also runs its own tags once with `HELIX_TEST_FAIL_ON_ANOMALY=observer_null_subject`,
-an env hook phase 1 adds to `HelixTestFixture`: a test that records that anomaly fails,
-which is how a pre-init `&member` in converted code surfaces. Off by default, because a few
-existing tests exercise the null guards on purpose.
+Pre-init `&member` is null only for a `Subject` constructed before `lv_init()`, which means
+a namespace-scope or early function-local static. Each phase-2 agent greps its batch for
+`static helix::Subject` and namespace-scope `helix::Subject` and checks that no address of
+one is stored before its `init_*()`; `observer_null_subject` in the telemetry anomaly
+stream is the runtime signal.
 
 ### 5.3 Series end (after phase 5), once
 
@@ -367,12 +398,30 @@ not move: only `subject_ll`'s head lives in `lv_global`. Fragmentation: the allo
 made once per owner and survives every reset and printer switch, so steady state has no
 churn; the per-item subjects that do churn (fans, extruders) already allocate today.
 
-Flash: every class holding subjects gains a destructor call per member (~1,600 sites, a
-few bytes each on Xtensa) and macro sites call `helix::subject_init_*` instead of
-`lv_subject_init_*` (same size). Estimate 8-15 KB. Phase 1 keeps every `Subject` member
-function out of line (the `ObserverGuard` precedent was worth 23 KB). Each phase's
-landing is held to `scripts/check_esp32_size.py` by CI's esp32-build; phase 1's commit body
-states the measured delta from CI.
+Flash: every class holding subjects gains a destructor call per member, and macro sites
+call `helix::subject_init_*` instead of `lv_subject_init_*` (one call either way).
+`Subject`'s members stay out of line except the plain loads (`get()`, `operator&`,
+`is_live()`): measured with the IDF's `xtensa-esp32s3-elf-g++ -Os -mlongcalls`, a
+`h_ ? h_ : slow()` operator& costs 12.4 B per `&` site over a plain load, and an
+out-of-line constructor or destructor about 8 B per member.
+
+The flash delta is measured locally, not estimated: phase 1 adds no owner, so its delta is
+the core alone; each phase-2 batch measures its own. Run on the batch's base commit and on
+its tip, from the worktree root, and compare the image size `check_esp32_size.py` prints:
+
+```bash
+make apply-patches
+python3 scripts/esp32_printer_images.py && python3 scripts/esp32_stage_assets.py && python3 scripts/esp32_pack_assets.py
+PRIMARY=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+scripts/pool-docker.sh docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+    -v "$PWD:$PWD" -v "$PRIMARY:$PRIMARY:ro" -w "$PWD/firmware/helixscreen-esp32" espressif/idf:v5.5.5 \
+    bash -c "git config --global --add safe.directory '*' && . /opt/esp/idf/export.sh >/dev/null && idf.py build"
+python3 scripts/check_esp32_size.py firmware/helixscreen-esp32/build/helixscreen_esp32.bin \
+    firmware/helixscreen-esp32/size_budget.json firmware/helixscreen-esp32/build/helixscreen_esp32.map
+```
+
+The batch's commit body records base size, tip size and the difference. CI's esp32-build
+runs the same size check on every push and stays the gate.
 
 No separate allocation strategy for the firmware: the CLIB path already lands in PSRAM,
 and a pool would add code to save memory that is not short.
@@ -426,8 +475,6 @@ the check for code that reads a subject in a static destructor.
 - The back-pointer lives in `lv_subject_t::user_data`; no side table, no LVGL patch.
 - No LVGL generation counter: no first-party re-init after `lv_deinit()` exists.
 
-## 10. Open questions for Preston
+## 10. Open questions
 
-1. **`operator&` on `helix::Subject`.** It keeps the diff to declarations (~370 files)
-   instead of ~1,500. The price is a type where `&x` is not the object's address. Accept,
-   or pay for the `.get()` sweep?
+None. `operator&` was weighed against the `.get()` sweep and accepted (§ 3.1).
