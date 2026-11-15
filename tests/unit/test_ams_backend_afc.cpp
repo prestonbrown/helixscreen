@@ -1384,8 +1384,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC status label follows a language switch wi
         return std::string(lv_subject_get_string(ams.get_ams_action_detail_subject()));
     };
 
-    std::optional<ScopedLanguage> lang;
-    lang.emplace("de");
+    std::optional<ScopedLanguage> lang(std::in_place, "de");
     (*afc).feed_afc_state({{"current_state", "Moving"}});
     helix::ui::refresh_display_texts();
     const std::string german = shown();

@@ -166,12 +166,10 @@ TEST_CASE_METHOD(IndxFixture,
     CHECK_FALSE(b.change_tool(1).success());
     REQUIRE(b.current_error().has_value());
     CHECK(b.current_error()->recovery_actions.empty());
-    {
-        // The fault names its tool, so a language switch re-words it with no new frame.
-        ScopedLanguage fr("fr");
-        b.refresh_translated_texts();
-        CHECK(b.get_system_info().operation_detail.find("mal engagé") != std::string::npos);
-    }
+    // The fault names its tool, so a language switch re-words it with no new frame.
+    ScopedLanguage fr("fr");
+    b.refresh_translated_texts();
+    CHECK(b.get_system_info().operation_detail.find("mal engagé") != std::string::npos);
 
     b.feed(json{{"save_variables", {{"variables", {{"seat_suspect", -1}}}}},
                 {"gcode_macro TOOL_POSITIONS", {{"docks_calibrated", false}}}});

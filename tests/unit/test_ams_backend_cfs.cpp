@@ -4868,8 +4868,7 @@ TEST_CASE("CFS phase verify: clearing the toolhead by hand retires an unload fau
 
     // Raised in one language, retired in another: the fault text is a catalog
     // key, so the shown text follows the switch and the retire still matches it.
-    std::optional<ScopedLanguage> lang;
-    lang.emplace("de");
+    std::optional<ScopedLanguage> lang(std::in_place, "de");
     CfsTestAccess::force_phase_intent(backend, AmsAction::UNLOADING);
     CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/true);
     CfsTestAccess::complete_action(backend);

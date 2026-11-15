@@ -259,8 +259,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsErrorBridge toasts an ERROR nothing else
     ams.init_subjects(true);
     auto backend = std::make_unique<ErrorReportingBackend>(4); // current_error() == nullopt
     auto* raw = backend.get();
-    // AFC's stuck-action timeout stores its catalog key; the toast reads it translated.
-    helix::ScopedLanguage de("de");
+    helix::ScopedLanguage de("de"); // AFC's timeout key must toast translated
     raw->set_operation_detail("Filament operation timed out");
     ams.set_backend(std::move(backend));
 
