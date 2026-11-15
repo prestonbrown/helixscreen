@@ -10,7 +10,6 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 - Never reference source files, class names, or internal architecture
 - Config examples should be copy-pasteable
 - When mentioning settings, show the exact path in the UI (e.g., "Settings > Touch & Input > Scroll Guard")
-- Test all instructions on a clean install before publishing
 
 ## User Docs Index
 
@@ -29,7 +28,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/install-linux-desktop.md` | x86_64 Linux desktop package: the app in a window, per-user install with `--desktop`, connecting to a remote printer, window size, updating, uninstall, running from the tarball |
 | `guide/install-esp32.md` | BigTreeTech K-Touch (ESP32-S3) alpha firmware: browser flasher, esptool install, first-boot hotspot setup, updating, recovery, other ESP32-S3 panels |
 | `guide/home-panel.md` | Home dashboard, printer manager, custom images |
-| `guide/printing.md` | File selection, printing, the file-fits-printer check, the door-open warning, pausing at a layer, tune overlay, Z-offset, recovering after a power loss (firmware recovery and the plugin's guided resume) |
+| `guide/printing.md` | Starting, pausing, tuning and recovering prints (fit check, door warning, Z-offset, power-loss resume) |
 | `guide/print-monitoring.md` | Pre-print filament checks (empty-slot block, unassigned-tool Color Mismatch, bypass exemption), camera-based failure detection (Snapmaker U1 dialog, Creality K2 AI toggle) |
 | `guide/temperature.md` | Nozzle/bed temperature panels, presets, reassigning preset filament types, graphs, drying filament on the bed, chamber heater diagnostics card |
 | `guide/chamber-heater.md` | Add-on chamber heater setup (BIGTREETECH Panda Breath): network step, stock vs DragonBreath firmware, the Klipper module and config each needs, the Snapmaker U1 menu shortcut, troubleshooting |
@@ -39,7 +38,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/bluetooth-setup.md` | Enabling Bluetooth on Raspberry Pi and BTT Pi, UART conflicts, USB dongle setup |
 | `guide/barcode-scanner.md` | USB + Bluetooth barcode scanner setup, keymaps, BT-HID bonded-only workaround |
 | `guide/label-printing.md` | Label printer setup, supported printers (Brother/Phomemo/Niimbot/MakeID), Bluetooth pairing, troubleshooting |
-| `guide/calibration.md` | Bed mesh, screws tilt, input shaper and its live chart, probe, Z-offset, tool offsets (including the Creator 5's printer-side prompt), vertical artifact compensation, the vertical artifact check (speeds to avoid) and its print-start warning, belt tension check and tuning, pressure advance, PID/MPC |
+| `guide/calibration.md` | Bed mesh, screws tilt, input shaper, probe/Z/tool offsets, vertical artifact compensation and check, belt tension, pressure advance, PID/MPC |
 | `guide/touch-calibration.md` | Touch screen calibration, forcing recalibration, config reference |
 | `guide/settings.md` | Settings hub: the three groups (Screen, Printer, HelixScreen) and their thirteen pages |
 | `guide/settings/display.md` | Screen rotation, UI scale, brightness, screen dim, display sleep, screensaver, sleep while printing |
@@ -58,11 +57,11 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/fans.md` | Discovered fans grouped by controllable vs. automatic, live speed dials, RPM readouts, chamber air modes, per-fan renaming |
 | `guide/sensors.md` | Filament and motion sensors with per-sensor role assignment, door/button inputs and the door-open warning, read-only sensor types, chamber heater/sensor mapping |
 | `guide/security.md` | PIN screen lock, auto-lock tied to display sleep, lock-screen keypad, what a factory reset clears |
-| `guide/screen-sharing.md` | Screen sharing and remote control: Settings rows, opening it in a browser or Mainsail/Fluidd, code pairing vs Moonraker-decided access per printer, the remote-control icon, cost, troubleshooting |
+| `guide/screen-sharing.md` | Screen sharing and remote control: enabling, pairing, opening it from a browser or Mainsail/Fluidd |
 | `guide/camera.md` | Webcam viewing via the home widget and fullscreen viewer, rotation/flip, stream status, performance throttling |
 | `guide/print-history.md` | History dashboard with time-range statistics and trend charts, searchable job list, per-job details (spools used, camera photos), reprinting |
 | `guide/advanced.md` | Console, macros, power, history, timelapse |
-| `guide/helixprint-plugin.md` | The HelixPrint plugin: what it is, installing it (on the printer's screen or by SSH command from a remote one), a feature table, each feature (file analysis, the fit check and holding slicer prints, start options, edited prints, spool switching, Printer Events, print photos, storage, config saves, AD5X/ACE updates, power-loss recovery) with and without it on attached vs remote screens, the Advanced overview, what "Requires the HelixPrint plugin" / "Requires a newer HelixPrint plugin" / "Only while this app is connected" mean |
+| `guide/helixprint-plugin.md` | The HelixPrint plugin: installing it, what each feature does with and without it, what its "Requires…" labels mean |
 | `guide/beta-features.md` | Beta activation, feature list, update channels |
 | `guide/tips.md` | Workflow tips, troubleshooting, panel reference |
 | `INSTALL.md` | Installation guide for all platforms |
@@ -80,4 +79,3 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 - New settings: Add to appropriate `guide/settings/*.md` sub-page and `CONFIGURATION.md`
 - New platforms: give them their own `guide/install-*.md`; universal install methods go in `INSTALL.md`
 - Known issues: Add to `TROUBLESHOOTING.md`
-- After every release: Review all user docs for accuracy

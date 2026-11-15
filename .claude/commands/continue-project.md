@@ -51,9 +51,10 @@ AskUserQuestion and wait for the answer:
    "Skip TDD for this phase", "Extra review rigor".
 
 ## 7. Execute
-Subagent-driven uses `superpowers:subagent-driven-development`; batched uses
-`superpowers:executing-plans`. This session coordinates and delegates; it does not
-implement the phase itself. If the skill is not installed, stop and tell the user.
+Subagent-driven: dispatch one implementer agent per task with the plan's task text,
+interfaces and tags in its brief, each in its own worktree, and verify each by its commit
+and diff, not its report. Batched: implement 3 tasks, stop for the user's review, repeat.
+This session coordinates and delegates; it does not implement the phase itself.
 
 ## 8. Verify
 Once per phase, at its end, per root `CLAUDE.md` § Verification Cadence: one review of the
@@ -65,8 +66,8 @@ the phase is in progress, tasks run only their own tags.
 - Check off Progress in the plan: `- [x] Phase N: [Name] - \`hash\` (date)`
 
 ## 10. Next
-More phases: back to step 6, keeping `--defaults` if it was given. Otherwise finish
-with `superpowers:finishing-a-development-branch`.
+More phases: back to step 6, keeping `--defaults` if it was given. Otherwise ask the
+user whether to land the branch, open a PR, or keep it.
 
 ## Defaults
 Subagent-driven execution; TDD for backend work, not for UI; one review per phase at
