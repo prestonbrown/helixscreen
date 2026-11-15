@@ -2424,6 +2424,27 @@ void AmsBackendAd5xIfs::apply_zmod_change_macro(const json& status) {
     }
 }
 
+AmsError AmsBackendAd5xIfs::clear_fault(int /*slot_index*/) {
+    auto err = check_preconditions();
+    if (!err.success())
+        return err;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (system_info_.action != AmsAction::ERROR) {
+            return AmsErrorHelper::success();
+        }
+        system_info_.action = AmsAction::IDLE;
+        clear_runout_locked("clear_fault()");
+        if (phase_tracker_.active) {
+            end_phase_tracking_locked();
+        }
+        set_operation_detail_locked("");
+    }
+    spdlog::info("{} Fault cleared: ERROR -> IDLE, IFS_UNLOCK", backend_log_tag());
+    emit_event(EVENT_STATE_CHANGED);
+    return execute_gcode("IFS_UNLOCK");
+}
+
 AmsError AmsBackendAd5xIfs::cancel() {
     auto err = check_preconditions();
     if (!err.success())
