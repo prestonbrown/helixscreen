@@ -148,6 +148,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_vendor_branches.py` | Ratchet: generic code must not branch on a vendor |
 | `check_hold_ends_press.py` | Fail on a `long_pressed` handler that neither ends its press nor opts out |
 | `check_hand_rolled_swatch.py` | Ratchet on colour swatches drawn by hand instead of the swatch painter |
+| `check_lvgl_subject_api.py` | Ratchet on deprecated LVGL subject calls and by-value `lv_subject_t`; `helix::Subject` owns subjects |
 | `check_test_budget.py` | A branch does not grow the C++ test suite, TestAccess or friends |
 | `check_growth_ratchets.py` | A branch does not grow files, functions or duplication past the caps |
 | `check_layering.py` | A branch does not add an include that points up the layer stack |
@@ -159,6 +160,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `rename_observers.py` | Rewrites retired observer factory names onto `observe<V>()` |
 | `rename_update_queue_drain.py` | Rewrites `UpdateQueueTestAccess` drains onto the queue's own methods |
 | `lvgl96_rename.py` | Rewrites code off the names LVGL 9.6 deprecates (API map, flag calls); `--check` (gated as `qc_lvgl_deprecated`) fails on any left |
+| `subject_codemod.py` | Moves by-value `lv_subject_t` and its deprecated init/deinit calls onto `helix::Subject`; lists what it cannot prove |
 | `rename_constants.py` | Renames `UPPER_SNAKE_CASE` C++ constants to `kCamelCase` (plan, then apply) |
 | `check_constant_naming.py` | Fail on a new `UPPER_SNAKE_CASE` constant in added lines |
 | `audit_codebase.sh` | Check for coding standard violations. `--strict` for CI |
