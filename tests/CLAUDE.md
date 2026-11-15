@@ -213,61 +213,31 @@ reports the previous run's numbers. That is a green that means nothing.
 filter, checking a neighbouring tag, reading what an assertion actually said: the binary
 already matches your source, and those are 0.05s questions.
 
-### Four checks the ladder does not make for you
+### Reading a mutation verdict
 
-`make mutate-diff` reports that a hunk died or survived. Reading what that verdict means is
-still yours:
-
-1. **Does the test stage the thing it is proving gets produced?** A case that calls a
-   `TestAccess` hook to record the expectation it then asserts stays green when
-   production's own recording is deleted. It graded evidence it wrote itself.
-
-2. **Under your mutation, does an EXISTING test stay green?** A new test going red only
-   shows that it reaches the code. An existing test *not* going red is what shows the new
-   one adds cover rather than duplicating cover that was already there.
-
-3. **For a shared function, does the mutation redden EVERY call site?** One caller's test
-   reddening while another's stays green means the second path is untested. That asymmetry
-   is how an enum parameter no case varies, or a parser no case feeds, becomes visible.
-
-4. **Before trusting "no existing test reddened", does any existing test reach the path?**
-   A gate nothing can reach never reddens, so silence there is absence of a test, not
-   evidence of one. This matters most for a hard stop whose whole justification is that
-   existing tests would catch a regression. `make cov-diff` answers it for one run instead
-   of one build per hunk.
+`make mutate-diff` reports that a hunk died or survived; what that verdict means (existing
+test stays green, every call site reddens, any test reaches the path, the test didn't stage
+its own evidence) is in the `writing-tests` skill. `make cov-diff` answers "does any test
+reach this path" in one run instead of one build per hunk.
 
 ---
 
 ## What counts as a real test
 
-A test must FAIL if the feature is removed. After writing one, **mutate the implementation and
-watch it go red** — a test that passes against broken code is worse than no test. `make
-mutate-diff` does this across the whole diff; see "Proving a test can fail" below.
+The rules (name the break, independent expectations, setup reaches the branch, doubles
+inert or real, mutation reading) live in the personal `writing-tests` skill. What is
+specific here:
 
-| ❌ | ✅ |
-|----|----|
-| `REQUIRE(true)`, `REQUIRE(ptr != nullptr)` and nothing else | assert the value the feature computes |
-| Happy path only | edge cases, error paths, both sides of a branch |
-| Asserting a constant you also hardcoded in the test | derive the expectation independently |
-
-Prefer extracting the rule as a **pure function** and testing that without LVGL — see
-`include/overlay_class.h` + `tests/unit/test_overlay_width_class.cpp`. Then test the wiring
-separately (`test_overlay_width_push.cpp`). Pure-logic tests are fast, total, and survive
-refactors of the widget layer.
-
-**A test double may be inert, or it may be the real object; it may not be a copy of the
-logic.** `mk/tests.mk` filters a few objects out of the test link (`TEST_APP_OBJS`), and
-`tests/ui_test_utils.cpp` stands in for them. A stand-in with an empty body or a single
-return cannot lie. One that branches is a second implementation the tests exercise instead
-of production's, and it drifts silently. `scripts/check_test_mirrors.py` flags it as
-`stub-logic` against the `MIRROR_MAX` ratchet (prestonbrown/helixscreen#1220). To test the
-logic, link the real object: drop it from the filter list.
+- **Pure-function exemplar:** `include/overlay_class.h` + `tests/unit/test_overlay_width_class.cpp`
+  for the rule without LVGL, `test_overlay_width_push.cpp` for the wiring.
+- **Stand-ins:** `mk/tests.mk` filters a few objects out of the test link (`TEST_APP_OBJS`)
+  and `tests/ui_test_utils.cpp` stands in for them. `scripts/check_test_mirrors.py` flags a
+  stand-in that branches as `stub-logic` against the `MIRROR_MAX` ratchet
+  (prestonbrown/helixscreen#1220). To test the logic, drop the object from the filter list.
 
 ### A test earns its place
 
-A large suite is not evidence of a tested codebase. A test that reaches private state,
-restates the implementation or pins an incidental pixel costs every refactor and catches
-little, so a branch does not grow the suite: `scripts/check_test_budget.py` (pre-push and
+A branch does not grow the suite: `scripts/check_test_budget.py` (pre-push and
 `land-gate`) measures the branch from its fork point and fails when
 
 - **C++ test lines grow.** Pay for a new test by cutting or folding a weaker one. A branch
@@ -280,19 +250,13 @@ The same branch-relative shape caps file size: `scripts/check_growth_ratchets.py
 C++ file under `tests/` (or `src/`, `include/`) that ends the branch over 1500 lines and
 larger than it started, so a test file that size is split rather than grown.
 
-Before adding a case, check what it buys: it fails when the behaviour it names breaks
-(the hand break below), nothing else already fails for the same break, and its name says
-the behaviour, not the issue that found it. A case that fails none of those is the one to
-cut (prestonbrown/helixscreen#1965).
+A case that buys nothing (`writing-tests` § "Before writing one") is the one to cut
+(prestonbrown/helixscreen#1965).
 
 ### Proving a test can fail
 
-"A test must FAIL if the feature is removed" is the rule, and a green suite is not
-evidence of it. A test can have real assertions, execute the changed function, and
-still pin an *adjacent invariant* instead of the changed line, so the change reverts
-green with a test commit beside it. Assertion shape cannot find these; the
-worst-looking files are often good tests. Five tools, in increasing cost, and only
-the last is an oracle:
+Why a green suite is not evidence, and why only mutation sees the adjacent-invariant
+failure: `writing-tests` § "Proving it can fail". The tools here, in increasing cost:
 
 | Command | Cost | Answers |
 |---------|------|---------|
@@ -437,47 +401,15 @@ the two tools cannot disagree about what the change under test is.
 
 ### A test must pass on its own
 
-`make test-order-dependence` re-runs each source file's cases alone and
-compares against the full-suite result. A case that passes in the suite and
-fails alone is reading state some other file's test established.
+`make test-order-dependence` re-runs each source file's cases alone and compares against
+the full-suite result: `dependent` (passes in the suite, fails alone) and `pollution` (the
+reverse). Here it matters doubly, because any change to the case count reshuffles the
+shards and moves a test's accidental prerequisite into another one.
 
-This is the one class none of the other tools can see. Such a test asserts real
-computed values, its lines are covered, and reverting the production hunk would
-report it killed -- it simply is not testing what it claims. It stays invisible
-until an unrelated change perturbs ordering, which is the worst moment to find
-it: any change to the case count reshuffles the shards, a test's accidental
-prerequisite lands in another shard, and a green suite goes red with nothing wrong
-in the changed code.
-
-The gate also reports the opposite sign as `pollution` (fails in the suite, passes
-alone): same root cause, different fix. The polluter needs cleanup, the dependent
-needs its own setup.
-
-### Assert that the setup reached the branch, first
-
-An assertion about a result is worthless if the code never took the path that
-produces it. Assert the precondition **before** asserting the outcome:
-
-```cpp
-const size_t emergency_budget = dense.get_cache_budget() / 2;
-const size_t before = dense.get_cache_memory_usage();
-REQUIRE(before > emergency_budget);      // <-- the setup actually overshoots
-dense.respond_to_memory_pressure();
-CHECK(dense.get_cache_memory_usage() < before);
-```
-
-Without the middle line this test passes with `respond_to_memory_pressure()`
-emptied out. The fixture cached a few hundred bytes against a 1MB floor, so the
-evict loop's exit condition was already true on entry and nothing could ever
-change. Worse, the obvious repair is *also* vacuous: `CHECK(after <= before)`
-cannot fail either, for exactly the same reason.
-
-That case is the one to keep in mind, because it defeats three of the four
-tools above. `make test-vacuous` sees a real assertion (Catch2 expands it to
-`1024 <= 1024`, which differs from the source text). `make cov-diff` is green,
-because the changed line does execute. `-Werror=type-limits` catches only the
-compiler-visible form (`>= 0` on a `size_t`); the semantic tautology hides better.
-Only reverting the hunk and watching for red finds it.
+`make test-vacuous` cannot see the semantic tautology (Catch2 expands `after <= before` to
+`1024 <= 1024`, which differs from the source), and `-Werror=type-limits` catches only the
+compiler-visible form (`>= 0` on a `size_t`). Assert the setup reached the branch first
+(`writing-tests`).
 
 ### When to run it, and where the record goes
 
@@ -521,17 +453,8 @@ unpushed HEAD instead of judging another tree. `MUTATE_LOCAL=1` runs it here, se
 the test host the run first makes its checkout's venv from `requirements.txt`, since script
 hunks are judged by pytest as well as bats and the image has no pytest.
 
-Red-green is invisible after the fact. A test that was mutated and verified is
-indistinguishable from one nobody checked, which is why the discipline decays.
-One line per mutation in the body of the branch's last commit (or its merge commit) fixes
-that:
-
-```
-mutation: flipped >= to > in resolve_slot(); test_ams_topology went red
-```
-
-Or, for a whole hunk: `mutation: reverted the guard; test_print_start went red`.
-It costs a sentence and it is the only record that the cycle happened.
+Record each mutation as a `mutation:` line in the body of the branch's last commit (or its
+merge commit), as `writing-tests` § "Record it" describes.
 
 ### Tag conventions
 

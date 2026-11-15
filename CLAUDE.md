@@ -214,18 +214,15 @@ PrinterState, WebSocket/threading, shutdown, DisplayManager, XML processing
 
 ---
 
-## Superpowers Skills Here
+## Design Work Here
 
-Worktree create/remove steps: the `helix-ops` skill § Worktrees.
+On top of the `brainstorming` skill:
 
-Design work overrides `superpowers:brainstorming` and `superpowers:writing-plans` here:
-
-- **Ask in batches** of 4-5 independent questions; one at a time only when an answer changes the next question.
 - **Explain the signal first.** UI for a hardware reading opens with what each signal measures, which hardware and backends publish it, and which printers have none.
 - **Measure before suggesting.** `ctl geom` every surface an option will occupy at 800x480 and the smallest breakpoint, and draw options inside those numbers.
-- **Plans state interfaces, tests and constraints, not finished code.** Exact signatures, test cases and values; bodies left to the implementer. Every header a plan defines gets a `scripts/syntax_check.py` pass first.
+- **Every header a plan defines** gets a `scripts/syntax_check.py` pass first.
 
-Execution overrides `superpowers:subagent-driven-development`, `executing-plans`, `requesting-code-review` and `test-driven-development`: § Verification Cadence wins. No per-task review; one review at the finish; "verify" means the tags. TDD still holds: the new test goes red first.
+Worktrees: the `helix-ops` skill § Worktrees. Execution follows § Verification Cadence: no per-task review, one review at the finish, "verify" means the tags, and a new test goes red first.
 
 ---
 
