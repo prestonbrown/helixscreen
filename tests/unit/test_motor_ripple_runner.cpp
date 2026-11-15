@@ -365,3 +365,38 @@ TEST_CASE_METHOD(RunnerFixture, "a print that takes the printer mid-run gets not
     CHECK(api->scripts.back().find("G4 P250") != std::string::npos);
     CHECK(runner->phase() == MotorRippleRunner::Phase::Failed);
 }
+
+TEST_CASE_METHOD(RunnerFixture,
+                 "cancel or teardown after a print took the printer sends no cleanup",
+                 "[ripple][runner]") {
+    bool print_owns = false;
+    auto req = request(MotorRippleRunner::Mode::CompensationCompare);
+    req.tool_return_gcode = "T0";
+    req.motion_blocked = [&print_owns]() { return print_owns; };
+    api->hold_speeds = true;
+
+    REQUIRE(runner->start(req, callbacks()));
+    drain();
+    REQUIRE(api->speed_scripts == 1);
+    print_owns = true;
+    const size_t sent = api->scripts.size();
+    runner->cancel();
+    drain();
+    CHECK(api->scripts.size() == sent);
+
+    runner = std::make_unique<MotorRippleRunner>(
+        *api,
+        [this]() {
+            auto s = std::make_unique<ScriptedSource>(sources_alive);
+            api->source = s.get();
+            return s;
+        },
+        [](std::function<void()> work) { work(); });
+    print_owns = false;
+    REQUIRE(runner->start(req, callbacks()));
+    drain();
+    print_owns = true;
+    const size_t before_teardown = api->scripts.size();
+    runner.reset();
+    CHECK(api->scripts.size() == before_teardown);
+}

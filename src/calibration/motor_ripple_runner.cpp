@@ -166,7 +166,7 @@ struct MotorRippleRunner::Impl : std::enable_shared_from_this<MotorRippleRunner:
     }
 
     void next_capture() {
-        if (req.motion_blocked && req.motion_blocked()) {
+        if (print_owns_printer()) {
             abandon_to_print();
             return;
         }
@@ -317,8 +317,18 @@ struct MotorRippleRunner::Impl : std::enable_shared_from_this<MotorRippleRunner:
     }
 
     /// Stop measuring and put the printer back, then report `terminal`.
+    [[nodiscard]] bool print_owns_printer() const {
+        return req.motion_blocked && req.motion_blocked();
+    }
+
     void wind_down(Phase terminal, const std::string& reason) {
         if (!active(phase) || phase == Phase::Restoring) {
+            return;
+        }
+        // The cleanup's restore, compensation toggle and tool return must
+        // never reach a print that took the printer.
+        if (print_owns_printer()) {
+            abandon_to_print();
             return;
         }
         stop_source();
@@ -384,7 +394,8 @@ MotorRippleRunner::~MotorRippleRunner() {
         return;
     }
     impl_->stop_source();
-    if (impl_->phase == Phase::Preparing || impl_->phase == Phase::Measuring) {
+    if ((impl_->phase == Phase::Preparing || impl_->phase == Phase::Measuring) &&
+        !impl_->print_owns_printer()) {
         ++impl_->generation;
         impl_->api.execute_gcode(impl_->cleanup_script(), nullptr, nullptr, 0, /*silent=*/true);
     }
