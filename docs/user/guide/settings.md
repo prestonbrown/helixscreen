@@ -1,6 +1,6 @@
 # Settings
 
-Tap the **gear icon** in the navigation bar to open Settings. It's a single list of pages in three groups, and every page is one tap away.
+Tap the **gear icon** in the navigation bar to open Settings. It's a single list of pages in three groups (**SCREEN**, **PRINTER** and **HELIXSCREEN**), and every page is one tap away.
 
 ![The Settings screen, Screen group](../../images/user/settings.png)
 
@@ -11,7 +11,7 @@ Tap the **gear icon** in the navigation bar to open Settings. It's a single list
 | Page | What's in it |
 |------|--------------|
 | [Display](settings/display.md) | Screen rotation, UI scale, brightness, screen dim, display sleep, screensaver, sleep while printing |
-| [Appearance](settings/appearance.md) | Dark mode, color themes and the theme editor, animations, widget labels, and how the printer is drawn (toolhead picture, G-code preview, Z labels, bed mesh view) |
+| [Appearance](settings/appearance.md) | Dark mode, color themes and the theme editor, Glass Effects, animations, widget labels, and how the printer is drawn (toolhead picture, G-code preview, Z labels, bed mesh view) |
 | [Touch & Input](settings/touch-input.md) | Touch calibration, touch points, scroll and long-press feel, home screen editing, scroll buttons, and on Android the keyboard and navigation bar |
 | [Sound](settings/sound.md) | Sounds on or off, volume, button sounds, sound theme, output device, sound preview. Only shown when HelixScreen finds a speaker or buzzer |
 
@@ -35,7 +35,8 @@ Tap the **gear icon** in the navigation bar to open Settings. It's a single list
 |------|--------------|
 | [Language & Time](settings/language-time.md) | Language, timezone, 12 or 24-hour clock |
 | [System](settings/system.md) | Screen lock PIN, storage, performance, usage data, log level, restart, factory reset |
-| [Updates](settings/updates.md) | Update channel, checking for and installing updates. Shows a note instead when your firmware handles updates |
+| [Updates](settings/updates.md) | Update channel, checking for and installing updates. Shows a note instead when your firmware handles updates. Hidden when this install has update checks turned off |
+| **Plugins** | The plugins loaded into HelixScreen. This row only appears when at least one plugin is loaded, so most installs never show it |
 | [Help & About](settings/help-about.md) | Welcome tour, debug bundles, Discord, documentation, and About (versions, system details, print hours) |
 
 ## Status lines
@@ -44,15 +45,15 @@ Some rows show a short line under their name, so you can check things without op
 
 | Row | What the line shows | Examples |
 |-----|---------------------|----------|
-| **Display** | Brightness and when the screen sleeps | *80% · sleep 10 min*, *80% · never sleeps*, *Sleep 10 min* (screens without brightness control) |
+| **Display** | Brightness and when the screen sleeps | *80% · sleep 20 min*, *80% · never sleeps*, *Sleep 20 min* (screens without brightness control) |
 | **Appearance** | Light or dark, and your theme | *Dark Mode · Nord* |
-| **Sound** | Your volume | *Volume 60%*, *Muted* |
+| **Sound** | Your volume, or *Muted* when sounds are off or the volume is 0 | *Volume 60%*, *Muted* |
 | **Devices** | A hardware health check | *All healthy*, *Needs attention*, *Problem found* |
-| **Connection** | How the screen is connected | *Wi-Fi HomeNet*, *Ethernet*, *Not connected* |
+| **Connection** | How the screen is connected. Ethernet wins when both are up | *Wi-Fi HomeNet*, *Ethernet*, *Not connected* |
 | **Language & Time** | Your language and clock | *English · 24-hour* |
 | **Updates** | Whether an update is waiting | *Up to date*, *1.1.1 available*, *Checking…*, *Check failed*, *Version 1.1.0*, *Managed by firmware* |
 
-Touch & Input, Printing, Safety & Alerts, System and Help & About have no status line. **Printer** always reads *Name, image and model*, a reminder of what it opens rather than a status.
+Touch & Input, Printing, Safety & Alerts, System, Plugins and Help & About have no status line. **Printer** always reads *Name, image and model*, a reminder of what it opens rather than a status.
 
 ## Where did it go?
 

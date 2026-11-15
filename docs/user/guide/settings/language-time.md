@@ -10,7 +10,9 @@ On the Settings screen, the **Language & Time** row shows your choices, for exam
 
 ## Language
 
-The language for everything on screen: English, German, Spanish, French, Italian, Japanese, Portuguese, Russian or Chinese. The screen switches as soon as you pick one. No restart needed.
+The language for everything on screen. The list shows each language in its own name: English, Deutsch, Français, Español, Русский, Português, Italiano, 中文 and 日本語. The screen switches as soon as you pick one. No restart needed.
+
+The BTT K-Touch has no Chinese or Japanese, because its firmware has no room for those fonts.
 
 ---
 

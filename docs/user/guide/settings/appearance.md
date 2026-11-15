@@ -12,7 +12,7 @@ On the Settings screen, the **Appearance** row shows the mode and the theme you'
 
 ## Dark Mode
 
-Switches between the light and dark version of your theme. **On** (dark) by default. The switch is grayed out when your theme only comes in one version (see the Modes column in [Built-in Themes](#built-in-themes)).
+Switches between the light and dark version of your theme. **On** (dark) by default. The switch is grayed out when your theme only comes in dark (see the Modes column in [Built-in Themes](#built-in-themes)).
 
 ---
 
@@ -118,11 +118,11 @@ Shows a text label under icon-only widgets on the home screen. **Off** by defaul
 
 ## Printer Visuals
 
-The rows under **PRINTER VISUALS** change how your printer and its data are drawn. The printer itself behaves exactly the same whatever you pick.
+The rows under **PRINTER VISUALS** change how your printer and its data are drawn. The printer behaves exactly the same whatever you pick.
 
 ### Toolhead Style
 
-The toolhead picture used on the Home screen and the print status screen.
+The toolhead picture on the Motion screen, the filament system screens and the Z offset controls.
 
 | Option | Picture |
 |--------|---------|
@@ -134,7 +134,7 @@ The toolhead picture used on the Home screen and the print status screen.
 | **Stealthburner**, **Mini Stealthburner**, **Dragonburner** | The Voron toolheads of those names |
 | **Creality K1**, **Creality K2**, **Bambu Lab**, **Ender 3**, **XOL**, **Snapmaker U1**, **FlashForge AD5**, **FlashForge Creator 5**, **Elegoo Centauri**, **Artillery M1**, **Qidi**, **Sovol SV08** | That printer's or toolhead's own head |
 
-Leave it on **Auto** unless HelixScreen shows the wrong toolhead, or you've fitted an aftermarket one. Printers with their own toolhead picture get it automatically on Auto. The `toolhead_style` numbers for `settings.json` are in [Configuration](../../CONFIGURATION.md#toolhead_style).
+Leave it on **Auto** unless HelixScreen shows the wrong toolhead, or you've fitted an aftermarket one. Printers with their own toolhead picture get it automatically on Auto. This choice is remembered separately for each printer you have set up. The `toolhead_style` numbers for `settings.json` are in [Configuration](../../CONFIGURATION.md#toolhead_style).
 
 ### Tool Numbers
 

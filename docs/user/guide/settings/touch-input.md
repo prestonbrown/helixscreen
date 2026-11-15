@@ -10,12 +10,13 @@
 
 ## Touch Calibration
 
-Fixes taps that register in the wrong place. The row shows **Calibrated** or **Not calibrated**. It appears on any screen with a touch panel, so you can recalibrate whenever you like, even on a screen that looked fine at setup.
+Fixes taps that register in the wrong place. The row shows **Calibrated** or **Not calibrated**. It appears on any screen with a touch panel HelixScreen can calibrate, so you can recalibrate whenever you like, even on a screen that looked fine at setup. It is hidden on screens with no calibratable touch panel.
 
 1. Tap **Touch Calibration**.
-2. Tap each crosshair as it appears (3 points, 7 taps each).
-3. Tap around the test area to check that taps land where your finger is.
-4. Tap **Accept** to save, or **Retry** to do it again.
+2. Tap anywhere on the screen to begin.
+3. Tap each crosshair as it appears (3 points, 3 taps each).
+4. Tap around the test area to check that taps land where your finger is.
+5. Tap **Accept** to save, or **Retry** to do it again.
 
 For other ways to start calibration (a config option, an environment variable or a command) and details per printer, see the [Touch Calibration guide](../touch-calibration.md).
 
@@ -39,7 +40,7 @@ How far your finger has to move before a press turns into a scroll instead of a 
 | Most screens | **10** (default) |
 | Taps feel twitchy, and small wobbles start a scroll | **15** |
 
-Takes effect after a restart. HelixScreen offers to restart when you change it.
+Takes effect right away.
 
 ---
 
@@ -74,17 +75,23 @@ Which way up the number pad is, wherever you type a number (temperatures, speeds
 
 ## Scroll Guard
 
-Ignores the stray tap some touch panels send when you lift your finger after scrolling. For a short moment after each scroll (80 ms by default), a new press doesn't count as a tap. Turn it on if finishing a scroll sometimes presses whatever was under your finger. **Off** by default; the FlashForge AD5M and AD5X presets turn it on. Most Raspberry Pi screens don't need it.
+Ignores the stray tap some touch panels send when you lift your finger after scrolling. For a short moment after each scroll (80 ms by default), a new press doesn't count as a tap. Turn it on if finishing a scroll sometimes presses whatever was under your finger. **Off** by default; the FlashForge Adventurer 5M and 5M Pro, Adventurer 5X, Creator 5 and Creator 5 Pro presets turn it on. Most Raspberry Pi screens don't need it.
 
-Takes effect after a restart. HelixScreen offers to restart when you change it. It only works on printers with a built-in touchscreen; on the desktop simulator and on Android the switch does nothing.
+Takes effect after a restart. HelixScreen offers to restart when you change it. It only works where HelixScreen reads the touch panel itself, which is a printer's built-in touchscreen. It has no effect on the desktop build.
 
-> Still getting stray taps with Scroll Guard on? Some panels need a longer pause. See [Accidental Button Presses After Scrolling](../../TROUBLESHOOTING.md#accidental-button-presses-after-scrolling) to lengthen it with `scroll_guard_cooldown_ms`. For taps that fire *while* you're still scrolling, lower [Scroll Engage Distance](#scroll-engage-distance) instead.
+> Still getting stray taps with Scroll Guard on? Some panels need a longer pause. See [Accidental Button Presses After Scrolling](../../troubleshooting/display-touch.md#a-button-fires-when-i-lift-my-finger-after-scrolling) to lengthen it with `scroll_guard_cooldown_ms`. For taps that fire *while* you're still scrolling, lower [Scroll Engage Distance](#scroll-engage-distance) instead.
 
 ---
 
 ## System Keyboard *(Android only)*
 
 Uses Android's own keyboard for text fields instead of HelixScreen's on-screen keyboard. Handy if you already have a keyboard you like on your phone or tablet.
+
+---
+
+## Hardware Keyboard
+
+Hides HelixScreen's on-screen keyboard while a USB keyboard is attached, so you can type on the real one. **Off** by default. The row only appears when HelixScreen found a keyboard on the screen's display, which only happens on Linux touchscreen builds. It stays hidden everywhere else.
 
 ---
 
@@ -98,7 +105,7 @@ Keeps Android's navigation bar (back, home, recents) on screen all the time. Whe
 
 Adds up and down buttons to screens that are too long to fit. **Off** by default, except on the ESP32 screen, where dragging is slow and the buttons start on. Turn it on if you'd rather tap through a list than drag it, especially on small screens or screens where dragging feels unreliable.
 
-When it's on, a screen that needs scrolling gets a slim column of arrow buttons on its right edge. The content moves over a little to make room, so the buttons never cover anything. Each tap scrolls about one screen, with a little overlap so you keep your place. The up arrow dims at the top of the list and the down arrow dims at the bottom. Screens that already fit get no buttons, and neither do the small tiles on the home screen, where the arrows would cover most of the tile.
+When it's on, a screen that needs scrolling gets a slim column of arrow buttons on its right edge. The content moves over a little to make room, so the buttons never cover anything. Each tap scrolls about one screen, with a little overlap so you keep your place. The up arrow dims at the top of the list and the down arrow dims at the bottom. Screens that already fit get no buttons, and neither do the widgets on the home screen, where the arrows would cover the widget itself.
 
 Dragging still works as usual. With [Animations](appearance.md#animations) on, the list glides to its new position. With Animations off, it jumps there.
 
