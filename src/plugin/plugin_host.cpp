@@ -408,6 +408,7 @@ bool PluginHost::load(PluginInfo& info) {
     auto [it, inserted] = loaded_.try_emplace(id);
     Loaded& l = it->second;
     l.gen = next_load_gen_++;
+    l.manifest = m;
     l.consts = std::move(consts);
     for (size_t i = 0; i < xmls.size(); ++i) {
         if (lv_xml_register_component_from_data(stems[i].c_str(), buffers[i].c_str()) !=
@@ -455,9 +456,9 @@ bool PluginHost::load(PluginInfo& info) {
         id, root.string(), limits, [this, token, id, gen = l.gen](const std::string& reason) {
             token.defer("plugin_fault", [this, id, gen, reason] { on_fault(id, gen, reason); });
         });
-    l.ctx = std::make_unique<PluginContext>(
-        PluginContext{*l.rt, deps_.backend, m, &l.settings, [this, id] { save_settings(id); },
-                      plugin_storage_path(deps_.settings_path, id)});
+    l.ctx = std::make_unique<PluginContext>(PluginContext{
+        *l.rt, deps_.backend, l.manifest, &l.settings, [this, id] { save_settings(id); },
+        plugin_storage_path(deps_.settings_path, id)});
     l.ctx->setting_changed = [this, id, gen = l.gen](const std::string& key, const json& value) {
         for (auto& screen : settings_screens_) {
             if (screen->plugin_id() == id && screen->load_gen() == gen)
