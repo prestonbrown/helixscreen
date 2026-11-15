@@ -11,7 +11,8 @@
 3. Discord Community.
 4. Getting Started.
 5. User Guide.
-6. About.
+
+About, at the bottom of the page, shows the version and system details.
 
 ---
 
