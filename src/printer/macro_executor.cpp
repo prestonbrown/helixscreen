@@ -61,17 +61,6 @@ const std::unordered_set<std::string> kDangerousMacros = [] {
     return all;
 }();
 
-/// Does this error message name a Klippy disconnect?
-///
-/// Moonraker's wording is "Klippy Disconnected"; matching the two words
-/// independently, uppercased, keeps a "klippy has disconnected" phrasing from
-/// slipping past while still refusing Klipper's own G-code complaints.
-bool contains_klippy_disconnect(const std::string& message) {
-    const std::string upper = helix::text_io::to_upper(message);
-    return upper.find("KLIPPY") != std::string::npos &&
-           upper.find("DISCONNECT") != std::string::npos;
-}
-
 /// Commands a macro body issues, uppercased, in command position only.
 ///
 /// Command position is what keeps this honest: ZMOD's own SAVE_CONFIG override
@@ -509,7 +498,7 @@ MacroFailureReport classify_macro_rpc_failure(MacroHostEffect effect, const Moon
     // like any other. Klipper's OWN rejections come through the same channel
     // carrying its complaint ("Unknown command", "Must home axis first"), so the
     // text is what separates them.
-    if (err.code == 503 || contains_klippy_disconnect(err.message)) {
+    if (err.is_klippy_disconnect()) {
         return expected;
     }
     return MacroFailureReport::Error;
