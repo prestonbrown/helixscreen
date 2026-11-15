@@ -4353,6 +4353,10 @@ bool AmsBackendCfs::box_runout_needs_notice(int prev_useup, int useup, bool job_
     return prev_useup == 0 && useup == 1 && job_running && toolhead_has_filament;
 }
 
+void AmsBackendCfs::on_fault_cleared_locked() {
+    phase_fault_ = PhaseVerdict::Ok;
+}
+
 void AmsBackendCfs::retire_resolved_phase_fault_locked(bool filament_detected) {
     // Only the fault finish_action raised. A runout or box error may have
     // replaced it since, and the toolhead switch says nothing about those.

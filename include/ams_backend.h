@@ -1801,13 +1801,18 @@ class AmsBackend {
      *
      * Must be safe to call from IDLE: a latched fault routinely outlives the
      * operation that produced it, which is precisely when clearing matters.
+     * It is also called mid-print (the sidebar's Reset, dismissing a filament
+     * error), so it never sends an operation cancel: on some firmware that
+     * cancel is CANCEL_PRINT or an unload.
+     *
+     * The default has no fault to clear and succeeds without sending anything.
      *
      * @param slot_index Slot the user acted on, or -1 for "no particular slot"
      * @return AmsError indicating if the operation was started
      */
     virtual AmsError clear_fault(int slot_index) {
         (void)slot_index;
-        return cancel();
+        return AmsErrorHelper::success();
     }
 
     /**
