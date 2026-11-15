@@ -77,7 +77,7 @@ are in `docs/devel/SCRIPTS_REFERENCE.md`, and the script's own header carries th
 | `translations/yaml_manager.py` | Edits locale YAMLs by line splice, never a re-dump; refuses duplicate keys |
 | `translations/` | Python package: extractor, YAML manager, coverage, glossary, CLI |
 
-**Terminology consistency:** `translations/GLOSSARY.md` (`make translation-glossary`) pins canonical per-language renderings of recurring terms. Reuse the glossary term when translating, human or agent, and `grep` the locale before coining a new word for an already-translated concept. After changing a canonical term, add its English key to `GLOSSARY_GROUPS` in `translations/glossary.py` and regenerate.
+**Terminology:** reuse the term `translations/GLOSSARY.md` pins (`make translation-glossary`), and `grep` the locale before coining one. A changed canonical term goes into `GLOSSARY_GROUPS` (`translations/glossary.py`), then regenerate.
 
 ### Telemetry & Crash Analysis
 | Script | Purpose |
