@@ -34,6 +34,11 @@ Draws a ripple wherever the screen detects a touch. **Off** by default. Turn it 
 
 How far your finger has to move before a press turns into a scroll instead of a tap. Range 1 to 20 pixels, default 10.
 
+![The Scroll Engage Distance and Long Press Time sliders](../../../images/user/settings-touch-sliders.png)
+
+1. Scroll Engage Distance sets how far a finger moves before a touch counts as a scroll.
+2. Long Press Time sets how long you hold before a press counts as a long press.
+
 | If this happens | Try |
 |---|---|
 | Scrolling a list taps whatever was under your finger | **5** |

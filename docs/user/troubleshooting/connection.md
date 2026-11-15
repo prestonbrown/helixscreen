@@ -34,6 +34,14 @@ hostname -I
 ```
 Enter the correct address under **Settings > Connection > Host** and tap **Test Connection**.
 
+![The Connection page](../../images/user/connection-rows.png)
+
+1. Printers switches, adds or removes printers.
+2. Network Settings opens Wi-Fi and Ethernet.
+3. Host is the Moonraker address.
+4. API Key shows Configured or Not set.
+5. Screen Sharing shows this screen in a browser.
+
 **Test connection manually:**
 ```bash
 curl http://localhost:7125/printer/info

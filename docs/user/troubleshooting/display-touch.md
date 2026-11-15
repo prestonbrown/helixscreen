@@ -621,6 +621,11 @@ Both live under `input` in `settings.json` (path varies by platform - see [Confi
 
 Or set it from the printer itself: **Settings > Touch & Input > Scroll Engage Distance**.
 
+![The Scroll Engage Distance and Long Press Time sliders](../../images/user/settings-touch-sliders.png)
+
+1. Scroll Engage Distance sets how far a finger moves before a touch counts as a scroll.
+2. Long Press Time sets how long you hold before a press counts as a long press.
+
 Raising it too far makes real scrolls feel unresponsive, so move in steps of a few pixels.
 
 ### The Toolhead plate or Bed tab will not move the toolhead

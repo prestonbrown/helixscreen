@@ -36,6 +36,13 @@ The `HELIX_THEME` variable overrides the theme for one run or from `helixscreen.
 
 These rows are under **PRINTER VISUALS** in **Settings > Appearance**. The printer behaves the same whatever you choose.
 
+![The Printer Visuals rows](../../images/user/settings-printer-visuals.png)
+
+1. Toolhead Style.
+2. G-code Preview.
+3. Z Movement.
+4. Bed Mesh Render.
+
 | Key | Default | Values | What it does |
 |-----|---------|--------|--------------|
 | `printers.<id>.appearance.toolhead_style` | `0` | `0` Auto, `1` Default, `2` A4T, `3` AntHead, `4` JabberWocky, `5` Stealthburner, `6` Creality K1, `7` Creality K2, `8` Dragonburner, `9` Mini Stealthburner, `10` Bambu Lab, `11` Ender 3, `12` XOL, `13` Snapmaker U1, `14` FlashForge AD5, `15` FlashForge Creator 5, `16` Elegoo Centauri, `17` Artillery M1, `18` Qidi, `19` Sovol SV08 | The toolhead picture on the Home screen and Print Status. **Toolhead Style**. Auto works the picture out from the toolhead your printer's database entry gives it, then from your filament system, and uses Default when it cannot tell. A value outside 0 to 19 is clamped to the nearer end. Override it only when the wrong picture shows. |

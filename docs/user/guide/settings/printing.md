@@ -104,6 +104,14 @@ See [Filament: When Bypass Doesn't Appear](../filament.md#when-bypass-doesnt-app
 
 Sets the preheat temperatures for each filament material (PLA, PETG, ABS, TPU and so on). The presets on the Home, Controls and Filament screens use these. The list shows each material with its nozzle and bed temperatures. Tap a material to edit it:
 
+![Editing a material's temperatures](../../../images/user/printing-material-edit.png)
+
+1. Nozzle Min is the lowest nozzle temperature for this material.
+2. Nozzle Max is the highest; a preset heats to the middle of the two.
+3. Bed is the bed temperature.
+4. Reset to Default restores the built-in values.
+5. Save keeps your changes.
+
 - **Nozzle Min (°C)** and **Nozzle Max (°C)**: the nozzle's working range for this material. A preset heats the nozzle to the middle of the range.
 - **Bed (°C)**: the bed target.
 - **Chamber (°C)**: the chamber target. Only shown on a printer with a chamber heater.
@@ -204,6 +212,13 @@ The editor opens when the printer reports a slot that was empty now holds filame
 |---------|--------------|
 | **Off** (default) | Slots, lanes, gates and tools count from 1 |
 | **On** | They count from 0, matching T0 in G-code |
+
+![The Filament section on a multi-tool printer](../../../images/user/printing-filament-rows.png)
+
+1. Material Temperatures opens the preset editor.
+2. Edit filament on insert opens the editor when a spool is detected.
+3. Number slots from 0 changes how slots are labelled.
+4. Confirm tool changes asks before a tool change, on multi-tool printers only.
 
 Only the display changes. Tool names such as T0 and T1 stay as they are. See [the filament system panel](../filament-ams-panel.md) for where the numbers appear.
 

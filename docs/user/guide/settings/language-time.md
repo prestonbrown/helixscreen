@@ -12,6 +12,12 @@ On the Settings screen, the **Language & Time** row shows your choices, for exam
 
 The language for everything on screen. The list shows each language in its own name: English, Deutsch, Français, Español, Русский, Português, Italiano, 中文 and 日本語. The screen switches as soon as you pick one. No restart needed.
 
+![The Language & Time page](../../../images/user/language-time-rows.png)
+
+1. Language.
+2. Timezone.
+3. Time Format.
+
 The BTT K-Touch has no Chinese or Japanese, because its firmware has no room for those fonts.
 
 ---
