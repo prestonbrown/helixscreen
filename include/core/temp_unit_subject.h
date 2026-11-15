@@ -5,6 +5,7 @@
 #include "core/temperature_units.h"
 
 #include <memory>
+#include <type_traits>
 
 /**
  * @file temp_unit_subject.h
@@ -48,18 +49,26 @@ ObserverGuard observe_temp_unit_change(Owner* owner, OnChange&& on_change) {
     if (!subject) {
         return {};
     }
-    // Held by pointer so the non-mutable handler can update it.
+    // The unit compare runs inside the notification, so registration and a re-publish of
+    // the same unit queue nothing. A real change queues on_change, which skips once the
+    // guard is gone: `shown` dies with the observer's handler.
     auto shown = std::make_shared<int>(lv_subject_get_int(subject));
+    auto handler = std::make_shared<std::decay_t<OnChange>>(std::forward<OnChange>(on_change));
     return observe<int>(
         subject, owner,
-        [shown, on_change = std::forward<OnChange>(on_change)](Owner* o, int unit) {
+        [shown, handler](Owner* o, int unit) {
             if (unit == *shown) {
                 return;
             }
             *shown = unit;
-            on_change(o);
+            queue_update("temp_unit_change::apply",
+                         [o, handler, alive = std::weak_ptr<int>(shown)]() {
+                             if (!alive.expired()) {
+                                 (*handler)(o);
+                             }
+                         });
         },
-        units::temp_unit_subject_lifetime());
+        units::temp_unit_subject_lifetime(), Dispatch::Immediate);
 }
 
 } // namespace helix::ui
