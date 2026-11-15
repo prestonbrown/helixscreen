@@ -71,7 +71,7 @@ sudo ~/helixscreen/bin/helix-launcher.sh --debug --log-dest=console
 
 Press Ctrl+C to stop. On the Flashforge Adventurer 5M with Forge-X, stop and start the service through its chroot (see the table below), and run `./bin/helix-launcher.sh --debug --log-dest=console 2>&1 | tee /tmp/helix-debug.log` from `/opt/config/mod_data/helixscreen`.
 
-> **Do not edit `/etc/systemd/system/helixscreen.service`.** HelixScreen rewrites that unit from its install-folder template on every start, so an edit is gone before the app launches. Use `helixscreen.env`, or a drop-in made with `sudo systemctl edit --force helixscreen`; drop-ins are left alone.
+> **Do not edit `/etc/systemd/system/helixscreen.service`.** HelixScreen rewrites that unit from its install-folder template on every start, so an edit is gone before the app launches. Use `helixscreen.env`, or a drop-in made with `sudo systemctl edit --force helixscreen`; drop-ins are left alone. To remove a drop-in you made earlier, such as one that adds `--debug` to the start command, run `sudo systemctl revert helixscreen`, then `sudo systemctl daemon-reload` and `sudo systemctl restart helixscreen`.
 
 ### Restarting HelixScreen
 
@@ -125,6 +125,8 @@ tail -200 /root/printer_software/helixscreen/logs/launcher.log   # Klipper Mod l
 tail -200 /opt/config/mod_data/log/helix.log         # app log
 tail -200 /opt/config/mod_data/log/helixscreen.log   # startup and crash output
 ```
+
+On an older AD5X install, outside the chroot, the same two files are under `/usr/data/config/mod_data/log/`. Installs from before the log moved may instead have the app log at `/data/.helixscreen/logs/helix.log` and the launcher log at `/srv/helixscreen/logs/launcher.log`.
 
 **Flashforge Creator 5 and Creator 5 Pro (Z-Mod):**
 ```bash

@@ -141,6 +141,7 @@ Whatever Pi you already own is almost certainly fine.
 
 1GB of memory is enough. Both 32-bit and 64-bit Raspberry Pi OS work: the installer checks which one you run and downloads the matching build. You need Debian 11 (Bullseye) or newer. See [Generic Linux Install](INSTALL.md#generic-linux-install-raspberry-pi-btt-x86).
 
+<a id="can-i-run-helixscreen-alongside-klipperscreenguppyscreen"></a>
 ### Can I run HelixScreen alongside KlipperScreen or GuppyScreen?
 
 Not on the same display, because both want the screen. The installer turns off any screen program it finds. To switch back and forth by hand on a Raspberry Pi or other systemd machine:
@@ -155,14 +156,17 @@ sudo systemctl start helixscreen
 
 On FlashForge, Creality and other printers with their own firmware, follow the install guide for your printer: it names the service to start, stop or restart. See the [Installation Guide](INSTALL.md).
 
+<a id="do-i-need-to-install-x11-or-a-desktop-environment"></a>
 ### Do I need X11 or a desktop environment?
 
 No. HelixScreen draws straight to the display through DRM or the framebuffer, so it needs no X11, Wayland, desktop environment or display manager. That is part of why it uses so little memory. The one exception is by choice: the [Linux desktop package](guide/install-linux-desktop.md) runs HelixScreen in a window on a desktop PC.
 
+<a id="does-this-work-with-mainsailos-fluiddpi-or-other-klipper-distros"></a>
 ### Does this work with MainsailOS, FluiddPi or other Klipper distributions?
 
 Yes. It works with any Klipper setup that includes Moonraker: MainsailOS, FluiddPi, KIAUH installs and custom installs. Which web interface you use does not matter, because HelixScreen talks to Moonraker.
 
+<a id="what-gets-preserved-during-upgrades"></a>
 ### What is kept when I update?
 
 The installer keeps your settings, your `helixscreen.env` overrides, your custom printer images and your custom themes. Your Klipper configuration is never touched. The first start of 1.1 also saves your 1.0 settings beside the new ones as `settings.json.pre-migration`. See the [Upgrade Guide](UPGRADING.md).
@@ -171,6 +175,7 @@ The installer keeps your settings, your `helixscreen.env` overrides, your custom
 
 ## Features
 
+<a id="does-it-support-multiple-extruders--toolchangers"></a>
 ### Does it support multiple extruders and tool changers?
 
 Yes. HelixScreen discovers every extruder Klipper reports and gives each its own temperature control, with a selector in the temperature screen. Tool changers work with [klipper-toolchanger](https://github.com/viesturz/klipper-toolchanger) and with the Snapmaker U1, FlashForge Creator 5 and MedusaHC. The Home screen shows which tool is active, and the print status screen shows temperatures per tool. A tool changer and a filament system such as Happy Hare can run side by side. See [Tool Changers](guide/filament-tool-changers.md).
@@ -220,6 +225,7 @@ Yes. HelixScreen prints spool labels to thermal label printers:
 
 Labels carry the spool name, material, color swatch, temperatures and a QR code. See the [Label Printing Guide](guide/label-printing.md).
 
+<a id="does-it-support-happy-hare-or-afc-klipper"></a>
 ### Does it support Happy Hare, AFC and other filament systems?
 
 Yes:
@@ -276,6 +282,7 @@ Yes. **Advanced > G-code Console** lets you send G-code and shows Klipper's repl
 
 Yes, for the power devices configured in Moonraker. Open **Settings > Devices > Power Devices** to switch each device, or add a **Power** widget to your home screen to switch a device with one tap. See [Power Device Control](guide/advanced.md#power-device-control).
 
+<a id="can-i-view-and-run-bed-mesh"></a>
 ### Can I view the bed mesh and run a bed mesh calibration?
 
 Yes. **Controls > Bed Mesh** shows your mesh in 3D and runs a calibration. **Advanced > Bed Leveling** also opens it. See [Calibration & Tuning](guide/calibration.md).
@@ -296,6 +303,7 @@ Yes. If the print contains several objects, an objects button appears on the pri
 
 Yes. **Advanced > Macro Browser** lists your Klipper macros. You can also set up quick macro buttons in **Settings > Printing > Macro Buttons**.
 
+<a id="can-i-change-which-macro-the-load--unload--purge-buttons-run"></a>
 ### Can I change which macro the Load, Unload and Purge buttons run?
 
 Yes. Go to **Settings > Printing > Macro Buttons** and scroll to **Standard Macros**. Each button has a dropdown where you can pick any macro from your Klipper config, or **(Auto)** to let HelixScreen choose. This works with or without a filament system. See the [Filament guide](guide/filament.md#customizing-which-macro-runs).
@@ -306,6 +314,7 @@ That is deliberate. A load or unload heats the nozzle to the material's temperat
 
 If your filament system does its own cooldown (AFC does), turn ours off at **Settings > Printing > Cool nozzle after filament ops** so the two do not both drive the heater. It is a per-printer setting. See [Printing settings](guide/settings/printing.md#cool-nozzle-after-filament-ops).
 
+<a id="can-i-customize-the-printer-image-on-the-home-screen"></a>
 ### Can I change the printer picture on the home screen?
 
 Yes. Tap the printer picture on the Home screen to open the Printer Manager, then tap the picture again to open the picker. You can choose:
@@ -344,6 +353,7 @@ If taps land in the wrong place, go to **Settings > Touch & Input > Touch Calibr
 
 Go to **Settings > Appearance > Theme Colors**, browse the presets with a live preview, switch between dark and light mode, and apply your choice. See [Appearance](guide/settings/appearance.md).
 
+<a id="how-do-i-adjust-settings-during-a-print"></a>
 ### How do I adjust speed, flow and Z-offset during a print?
 
 Tap **Tune** on the print status screen. It has:
@@ -359,6 +369,7 @@ Fan speed is not on the Tune screen: tap a fan chip on the print status screen f
 
 Yes, if your printer has `[firmware_retraction]` set up in Klipper. Go to **Settings > Printing > Retraction Settings** to adjust the retract length and speed and the unretract extra length and speed, and to turn firmware retraction on or off. The row appears only when Klipper reports the capability.
 
+<a id="how-do-i-check-why-the-ui-is-slow"></a>
 ### Why is the UI slow?
 
 1. **Check the display connection.** SPI displays are much slower than HDMI or DSI. Use HDMI or DSI if you can.
@@ -379,6 +390,10 @@ To run the whole setup wizard again, use **Settings > System > Factory Reset**. 
 
 ---
 
+<a id="touch-doesnt-work"></a>
+<a id="screen-is-black"></a>
+<a id="cant-connect-to-moonraker"></a>
+<a id="my-display-is-upside-down-or-rotated-wrong"></a>
 ## Troubleshooting
 
 [Troubleshooting](TROUBLESHOOTING.md) has the full guide. Three quick checks:
@@ -391,6 +406,7 @@ To run the whole setup wizard again, use **Settings > System > Factory Reset**. 
 
 ## Development & Contributing
 
+<a id="what-programming-language-is-helixscreen"></a>
 ### Is HelixScreen open source?
 
 Yes. It is licensed under GPL v3, and the source is on [GitHub](https://github.com/prestonbrown/helixscreen).
@@ -412,14 +428,17 @@ See the [Development Guide](../devel/DEVELOPMENT.md).
 - **[HelixScreen Discord](https://discord.gg/RZCT2StKhr)**: community support, setup help and development updates
 - **[GitHub Issues](https://github.com/prestonbrown/helixscreen/issues)**: bug reports and feature requests
 
+<a id="where-can-i-report-bugs"></a>
 ### How do I report a bug?
 
 Open a [GitHub issue](https://github.com/prestonbrown/helixscreen/issues) with your HelixScreen version, your hardware (printer, Pi model, display), the steps to reproduce it, and a debug bundle. To make a bundle, set **Settings > System > Log Level** to **Debug**, reproduce the problem, then tap **Settings > Help & About > Upload Debug Bundle**. It gives you a short share code to paste into the issue. Set the log level back to **Info** afterwards. See [Help & About](guide/settings/help-about.md#upload-debug-bundle).
 
+<a id="where-can-i-request-features"></a>
 ### How do I request a feature?
 
 Open a GitHub issue with the "enhancement" label, or suggest it on [Discord](https://discord.gg/RZCT2StKhr).
 
+<a id="how-do-i-enable-debug-logging"></a>
 ### Where are the logs?
 
 The easiest way is a debug bundle (see above). To read the log by hand:
@@ -429,7 +448,8 @@ The easiest way is a debug bundle (see above). To read the log by hand:
 | Raspberry Pi, x86 and other systemd machines | `sudo journalctl -u helixscreen -f` |
 | Snapmaker U1 (PAXX) | `grep helix-screen /home/lava/printer_data/logs/syslog` |
 | FlashForge AD5M (Forge-X, Klipper Mod) | `/data/.helixscreen/logs/helix.log` |
-| FlashForge AD5M (ZMOD), AD5X, Creator 5 | `/opt/config/mod_data/log/helix.log` |
+| FlashForge AD5M (ZMOD), AD5X | `/opt/config/mod_data/log/helix.log` |
+| FlashForge Creator 5 and Creator 5 Pro (Z-Mod) | `/opt/config/mod_data/log/helixscreen.log` |
 | Creality K1 / K1C | `/usr/data/helixscreen-state/logs/helix.log` |
 | Creality K2 | `/mnt/UDISK/helixscreen-state/logs/helix.log` |
 | Elegoo Centauri Carbon | `/user-resource/helixscreen-state/logs/helix.log` |

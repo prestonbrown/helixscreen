@@ -12,7 +12,7 @@ Back to the [troubleshooting index](../TROUBLESHOOTING.md).
 - HelixScreen installed and worked, but after a reboot the screen is blank and the printer is unreachable over WiFi (Mainsail/Fluidd won't load).
 - Most often seen right after upgrading the PAXX Extended Firmware, or on a fresh install of an older HelixScreen version on Extended Firmware 1.4.
 
-**What happened:** A firmware upgrade clears HelixScreen's files (they live in a layer the upgrade resets), so it isn't installed anymore, and because HelixScreen manages the WiFi connection, nothing brings WiFi up. Older HelixScreen builds also failed to auto-start on Extended Firmware 1.4 specifically. Current HelixScreen auto-starts correctly on 1.2/1.3/1.4; the fix is to (re)install the current version.
+**What happened:** A firmware upgrade clears HelixScreen's files (they live in a layer the upgrade resets), so it isn't installed anymore, and because HelixScreen manages the WiFi connection, nothing brings WiFi up. HelixScreen starts by itself on Extended Firmware 1.2, 1.3 and 1.4 once it is installed, so the fix is to reinstall the current version.
 
 **Fix:** Recover over a wired connection, then reinstall:
 

@@ -89,6 +89,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 ## When Updating User Docs
 
 - New features: Add to the appropriate `guide/*.md` sub-page
-- New settings: Add to appropriate `guide/settings/*.md` sub-page and `CONFIGURATION.md`
+- New settings: Add to appropriate `guide/settings/*.md` sub-page and the matching `configuration/*.md` page
 - New platforms: give them their own `guide/install-*.md`; universal install methods go in `INSTALL.md`
-- Known issues: Add to `TROUBLESHOOTING.md`
+- Known issues: Add to the matching `troubleshooting/*.md` page
+- After every release: Review all user docs for accuracy
