@@ -54,6 +54,8 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend, public helix::IDryer {
         return AmsType::OPENAMS;
     }
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
+    /// Re-words a standing unit-fault summary in the new language.
+    void refresh_translated_texts() override;
 
     [[nodiscard]] PathTopology get_topology() const override;
     [[nodiscard]] PathTopology get_unit_topology(int unit_index) const override;

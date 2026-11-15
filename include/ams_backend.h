@@ -355,6 +355,18 @@ class AmsBackend : public AmsCapabilityHost {
     [[nodiscard]] virtual AmsSystemInfo get_system_info() const = 0;
 
     /**
+     * @brief Re-format status text this backend translated while parsing
+     *
+     * Runs on the main thread on every language switch, before AmsState
+     * re-syncs the backend. A fixed phrase stored as its untranslated catalog
+     * key (TR_NOOP) needs nothing here, since AmsState translates
+     * operation_detail at display time. Override only for text composed from
+     * translated parts ("Lane 2: Load failed") that would otherwise keep the
+     * old language until the firmware reports something new.
+     */
+    virtual void refresh_translated_texts() {}
+
+    /**
      * @brief Get the detected AMS type
      * @return AmsType enum value
      */

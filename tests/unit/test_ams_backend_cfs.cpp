@@ -44,6 +44,7 @@
 #include "test_helpers/gcode_recording_api.h"
 #include "test_helpers/print_state_test_drivers.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/scoped_language.h"
 #include "test_helpers/seeded_override.h"
 #include "ui/ams_drawing_utils.h"
 
@@ -4862,14 +4863,21 @@ nlohmann::json toolhead_sensor_frame(bool detected) {
 } // namespace
 
 TEST_CASE("CFS phase verify: clearing the toolhead by hand retires an unload fault",
-          "[ams][cfs][968]") {
+          "[ams][cfs][968][i18n]") {
     helix::test::StartedBackend<CfsRemapHelper> backend;
 
+    // Raised in one language, retired in another: the fault text is a catalog
+    // key, so the shown text follows the switch and the retire still matches it.
+    std::optional<ScopedLanguage> lang;
+    lang.emplace("de");
     CfsTestAccess::force_phase_intent(backend, AmsAction::UNLOADING);
     CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/true);
     CfsTestAccess::complete_action(backend);
     REQUIRE(backend.get_system_info().action == AmsAction::ERROR);
     REQUIRE(backend.current_error().has_value());
+    lang.emplace("fr");
+    CHECK(std::string(lv_tr(backend.get_system_info().operation_detail.c_str()))
+              .rfind("Le filament est encore", 0) == 0);
 
     // Still blocked: the condition the fault names has not changed.
     backend.fire_status(toolhead_sensor_frame(true));

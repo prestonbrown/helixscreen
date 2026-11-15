@@ -2791,7 +2791,9 @@ class AmsState {
     // a UTF-8 boundary before the copy rather than relying on this size alone.
     char action_detail_buf_[512];
     lv_subject_t ams_system_name_{};
-    char system_name_buf_[32];
+    // Holds a translated generic name (ru "Tool Changer" is 39 bytes); the sync
+    // cuts a longer one on a UTF-8 boundary.
+    char system_name_buf_[64];
     lv_subject_t ams_system_logo_{};
     char system_logo_buf_[64];
     lv_subject_t ams_system_has_logo_{};

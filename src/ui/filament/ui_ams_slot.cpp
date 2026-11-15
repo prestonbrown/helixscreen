@@ -31,6 +31,7 @@
 #include "helix/ui/text_metrics.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/core/lv_obj_event_private.h" // lv_hit_test_info_t: LVGL exposes no accessor
+#include "observe_language.h"
 #include "panel_widget_size.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
@@ -108,6 +109,7 @@ static void unregister_slot_data(lv_obj_t* obj) {
             data->action_observer.reset();
             data->target_slot_observer.reset();
             data->temp_unit_observer.reset();
+            data->language_observer.reset();
             data->print_state_observer.reset();
             data->extruder_velocity_observer.reset();
             data->animations_enabled_observer.reset();
@@ -146,6 +148,7 @@ static void cleanup_all_slot_data() {
         data->action_observer.reset();
         data->target_slot_observer.reset();
         data->temp_unit_observer.reset();
+        data->language_observer.reset();
         data->print_state_observer.reset();
         data->extruder_velocity_observer.reset();
         data->animations_enabled_observer.reset();
@@ -791,6 +794,13 @@ static void setup_slot_observers(AmsSlotData* data) {
     data->temp_unit_observer = helix::ui::observe_temp_unit_change(obj, [](lv_obj_t* o) {
         if (auto* d = get_slot_data(o)) {
             apply_lane_humidity(d, AmsState::instance().get_backend(d->backend_index));
+        }
+    });
+
+    // The material line reads translated UI copy for an empty lane.
+    data->language_observer = helix::ui::observe_language_change(obj, [](lv_obj_t* o) {
+        if (auto* d = get_slot_data(o)) {
+            apply_slot_label(d);
         }
     });
 

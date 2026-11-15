@@ -33,6 +33,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h" // get_print_lifecycle_subject: the insert-probe gate
 #include "toolhead_homing.h"
+#include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -3728,12 +3729,12 @@ std::string AmsBackendCfs::phase_verdict_message(PhaseVerdict verdict) {
     case PhaseVerdict::LoadDidNotReachNozzle:
         // Name the observation (nothing at the nozzle) and the likely causes,
         // because the box reports nothing useful when it gives up this way.
-        return lv_tr("The filament did not reach the nozzle. The CFS reported no error, but "
-                     "the toolhead sensor still sees no filament. Check that the spool is "
-                     "seated and the path is clear, then try again.");
+        return TR_NOOP("The filament did not reach the nozzle. The CFS reported no error, but "
+                       "the toolhead sensor still sees no filament. Check that the spool is "
+                       "seated and the path is clear, then try again.");
     case PhaseVerdict::UnloadLeftFilament:
-        return lv_tr("Filament is still at the nozzle after unloading. The cut or retract may "
-                     "not have completed. Clear the toolhead before loading another spool.");
+        return TR_NOOP("Filament is still at the nozzle after unloading. The cut or retract may "
+                       "not have completed. Clear the toolhead before loading another spool.");
     case PhaseVerdict::Ok:
     case PhaseVerdict::Unverifiable:
         break;
@@ -3850,7 +3851,8 @@ std::optional<helix::ErrorEvent> AmsBackendCfs::current_error() const {
     std::vector<helix::RecoveryAction> actions;
     actions.push_back({lv_tr("Reset CFS"), reset_gcode(), "cfs::error_clear", "danger"});
     return helix::make_ams_fault_event(helix::ErrorSource::CFS, lv_tr("Filament operation failed"),
-                                       system_info_.operation_detail, std::move(actions));
+                                       lv_tr(system_info_.operation_detail.c_str()),
+                                       std::move(actions));
 }
 
 std::string AmsBackendCfs::reset_gcode() {

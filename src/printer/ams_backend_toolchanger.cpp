@@ -24,6 +24,7 @@
 #include "print_start_params.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -43,6 +44,32 @@ namespace helix {
 
 namespace {
 
+/// Shown while the dock sensors cannot name the mounted tool; an untranslated
+/// catalog key, translated by AmsState at display time.
+constexpr const char* kSensorErrorDetail = TR_NOOP("Sensor Error");
+
+/// The status line for a toolchanger status or operation word: a catalog key
+/// for a word we know, empty where the translated action already says it, and
+/// the raw word otherwise (it is all we know about an unfamiliar state).
+std::string toolchanger_word_detail(const std::string& word) {
+    if (word == "ready" || word == "idle" || word == "error") {
+        return {};
+    }
+    if (word == "changing") {
+        return TR_NOOP("Tool swap");
+    }
+    if (word == "picking") {
+        return TR_NOOP("Picking up tool");
+    }
+    if (word == "dropping") {
+        return TR_NOOP("Docking tool");
+    }
+    if (word == "initializing") {
+        return TR_NOOP("Initializing...");
+    }
+    return word;
+}
+
 /// klipper-toolchanger lists tools by object name ("tool T2"); discovery keeps "T2".
 std::string listed_tool_object_name(const std::string& listed) {
     static constexpr std::string_view kPrefix = "tool ";
@@ -55,7 +82,7 @@ AmsBackendToolChanger::AmsBackendToolChanger(IMoonrakerAPI* api, IMoonrakerClien
     : AmsSubscriptionBackend(api, client) {
     // Initialize system info with tool changer defaults
     system_info_.type = AmsType::TOOL_CHANGER;
-    system_info_.type_name = "Tool Changer";
+    system_info_.type_name = TR_NOOP("Tool Changer");
 
     system_info_.supports_bypass = false; // No bypass on tool changers
     system_info_.has_hardware_bypass_sensor = false;
@@ -1090,7 +1117,7 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         }
         sensor_error_ = true;
         system_info_.action = AmsAction::ERROR;
-        system_info_.operation_detail = "sensor error";
+        system_info_.operation_detail = kSensorErrorDetail;
         // A run can no longer trust the carriage. It stops once this frame is
         // applied, outside mutex_.
         if (feed_active_) {
@@ -1107,7 +1134,7 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
     // reading they gave still stands.
     if (!(sensor_error_ && raw_sensor_fault_locked())) {
         if (sensor_error_ && system_info_.action == AmsAction::ERROR &&
-            system_info_.operation_detail == "sensor error") {
+            system_info_.operation_detail == kSensorErrorDetail) {
             system_info_.action = AmsAction::IDLE;
             system_info_.operation_detail.clear();
         }
@@ -1197,7 +1224,7 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
     }
     if (const auto busy = operation_word_action(op)) {
         system_info_.action = *busy;
-        system_info_.operation_detail = op;
+        system_info_.operation_detail = toolchanger_word_detail(op);
         operation_confirmed_ = true;
     } else if (op == "idle") {
         // A swap RELEASES the filament before it moves, so its first frame is
@@ -1228,7 +1255,7 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
             // exact moment the bar should light its last one.
             operation_ended = true;
         }
-        system_info_.operation_detail = op;
+        system_info_.operation_detail = toolchanger_word_detail(op);
     }
 
     // Only when the frame actually carried a phase word. Moonraker republishes
@@ -1396,7 +1423,7 @@ void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_dat
         // nothing about a dock-sensor fault: only the sensors agreeing ends it.
         if (!(sensor_error_ && status_action == AmsAction::IDLE)) {
             system_info_.action = status_action;
-            system_info_.operation_detail = status_str;
+            system_info_.operation_detail = toolchanger_word_detail(status_str);
         }
         spdlog::trace("[AMS ToolChanger] Status: {} -> {}", status_str,
                       ams_action_to_string(system_info_.action));
@@ -1797,7 +1824,7 @@ uint64_t AmsBackendToolChanger::begin_dispatch_locked(AmsAction action) {
     // raw toolchanger status string) until the next frame, which for a no-op
     // never comes.
     system_info_.operation_detail =
-        (action == AmsAction::UNLOADING) ? lv_tr("Unloading") : lv_tr("Tool swap");
+        (action == AmsAction::UNLOADING) ? TR_NOOP("Unloading") : TR_NOOP("Tool swap");
 
     spdlog::debug("[AMS ToolChanger] Dispatch #{}: action set optimistically to {}", generation,
                   ams_action_to_string(action));
@@ -1822,7 +1849,7 @@ void AmsBackendToolChanger::abandon_dispatch(uint64_t generation) {
                                      : std::nullopt;
             if (running) {
                 system_info_.action = *running;
-                system_info_.operation_detail = last_operation_word_;
+                system_info_.operation_detail = toolchanger_word_detail(last_operation_word_);
             } else {
                 system_info_.action = AmsAction::IDLE;
                 system_info_.operation_detail.clear();
@@ -2611,7 +2638,7 @@ void AmsBackendToolChanger::reset_feed_run() {
         if (tool_sensor_.present && raw_sensor_fault_locked()) {
             sensor_error_ = true;
             system_info_.action = AmsAction::ERROR;
-            system_info_.operation_detail = "sensor error";
+            system_info_.operation_detail = kSensorErrorDetail;
         }
     }
     emit_event(EVENT_STATE_CHANGED);

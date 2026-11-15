@@ -22,6 +22,7 @@
 #include "lane_translation.h"
 #include "runtime_config.h"
 #include "simulated_clock.h"
+#include "translation_loader.h"
 
 #include <spdlog/spdlog.h>
 
@@ -818,7 +819,7 @@ AmsError AmsBackendMock::unload_filament(int slot_index) {
         last_unload_slot_ = slot_index;
         park_pending_ = false;
         system_info_.action = AmsAction::UNLOADING;
-        system_info_.operation_detail = lv_tr("Unloading filament");
+        system_info_.operation_detail = TR_NOOP("Unloading filament");
         filament_segment_ = PathSegment::NOZZLE; // Start at nozzle (working backwards)
         spdlog::info("[AmsBackendMock] Unloading filament");
     }
@@ -853,7 +854,7 @@ AmsError AmsBackendMock::park_active_tool() {
 
         park_pending_ = true;
         system_info_.action = AmsAction::UNLOADING;
-        system_info_.operation_detail = lv_tr("Parking toolhead");
+        system_info_.operation_detail = TR_NOOP("Parking toolhead");
         filament_segment_ = PathSegment::NOZZLE;
         spdlog::info("[AmsBackendMock] Parking T{}", system_info_.current_tool);
     }
@@ -1090,10 +1091,10 @@ AmsError AmsBackendMock::reset() {
         // operation_detail instead of the shared RESETTING enum string
         // ("Resetting"), which still applies to non-HH backends.
         if (system_info_.type == AmsType::HAPPY_HARE) {
-            system_info_.operation_detail = lv_tr("Homing selector");
+            system_info_.operation_detail = TR_NOOP("Homing selector");
             spdlog::info("[AMS Mock] Executing G-code: MMU_HOME");
         } else {
-            system_info_.operation_detail = lv_tr("Resetting system");
+            system_info_.operation_detail = TR_NOOP("Resetting system");
         }
         spdlog::info("[AmsBackendMock] Resetting");
     }
@@ -1526,7 +1527,7 @@ void AmsBackendMock::simulate_pause() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         system_info_.action = AmsAction::PAUSED;
-        system_info_.operation_detail = lv_tr("User intervention required");
+        system_info_.operation_detail = TR_NOOP("User intervention required");
         spdlog::info("[AmsBackendMock] Simulated pause state");
     }
 

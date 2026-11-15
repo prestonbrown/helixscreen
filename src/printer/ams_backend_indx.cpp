@@ -293,6 +293,13 @@ std::string AmsBackendIndx::motion_blocked_reason() const {
     return indx::motion_blocked_reason(contract_, state_);
 }
 
+void AmsBackendIndx::refresh_translated_texts() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (seat_fault_raised_ && system_info_.action == AmsAction::ERROR) {
+        system_info_.operation_detail = indx::motion_blocked_reason(contract_, state_);
+    }
+}
+
 std::optional<helix::ErrorEvent> AmsBackendIndx::current_error() const {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!contract_.recognized) {

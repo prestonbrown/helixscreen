@@ -702,7 +702,7 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
                                                            bool filament_at_end,
                                                            bool bypass_unload = false);
 
-    /// Human-facing sentence for a non-Ok verdict, or empty for `Ok` /
+    /// Untranslated catalog key for a non-Ok verdict, or empty for `Ok` /
     /// `Unverifiable`. Separate from the rule so the wording can move without
     /// touching the policy or its tests.
     [[nodiscard]] static std::string phase_verdict_message(PhaseVerdict verdict);

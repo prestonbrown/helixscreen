@@ -118,6 +118,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
                                                        const std::vector<int>& extruder_map);
 
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
+    /// Re-words a standing channel fault ("Lane 2: Load failed") in the new
+    /// language.
+    void refresh_translated_texts() override;
 
     // Operation step bar. The U1 firmware reports a granular channel_state that
     // classify_channel_state maps to a per-direction step index published via the
@@ -972,6 +975,18 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// motion sensor (sensor_filament_present_) still owns mid-print runout —
     /// a different question ("did the ACTIVE lane run out during extrusion").
     std::array<bool, kNumTools> loaded_at_toolhead_{{false, false, false, false}};
+
+    /// What the standing channel fault's operation_detail was composed from,
+    /// so a language switch can re-word it. `shown` is the text as set; once
+    /// operation_detail no longer equals it, the record describes nothing.
+    struct ChannelFaultText {
+        int lane = -1;
+        bool from_error_token = false;
+        std::string error;
+        std::string op_state;
+        std::string shown;
+    };
+    std::optional<ChannelFaultText> channel_fault_text_;
 
     /// Per-slot "filament_feed has reported this lane" — set the first time a
     /// frame carries a boolean filament_detected or a channel_state for the

@@ -757,6 +757,15 @@ bool AmsBackendOpenAms::has_clearable_fault_locked() const {
     });
 }
 
+void AmsBackendOpenAms::refresh_translated_texts() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    // A failed operation's text is the macro's own; only the fault summary
+    // this backend composed is re-worded.
+    if (failure_detail_.empty() && !system_info_.operation_detail.empty()) {
+        system_info_.operation_detail = fault_detail_locked();
+    }
+}
+
 std::string AmsBackendOpenAms::fault_detail_locked() const {
     std::string detail;
     for (std::size_t u = 0; u < unit_faults_.size() && u < system_info_.units.size(); ++u) {

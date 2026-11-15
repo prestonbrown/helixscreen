@@ -812,8 +812,12 @@ void AmsState::sync_system_subjects(const AmsSystemInfo& info) {
     } else {
         sys_name = ams_type_to_string(info.type);
     }
-    if (strcmp(lv_subject_get_string(&ams_system_name_), sys_name.c_str()) != 0) {
-        lv_subject_set_string(&ams_system_name_, sys_name.c_str());
+    // A product name is not a catalog key and passes through lv_tr()
+    // unchanged; a generic one ("Tool Changer") is translated.
+    const std::string shown_name(
+        helix::text_io::utf8_prefix(lv_tr(sys_name.c_str()), sizeof(system_name_buf_) - 1));
+    if (strcmp(lv_subject_get_string(&ams_system_name_), shown_name.c_str()) != 0) {
+        lv_subject_set_string(&ams_system_name_, shown_name.c_str());
     }
 
     // Set system logo path for declarative image binding (pointer subject for bind_src)
@@ -1870,10 +1874,11 @@ void AmsState::recompute_action_detail() {
         // The backend's own text can belong to an earlier fault.
         new_detail = fault_cause_.c_str();
     } else if (!last_operation_detail_.empty()) {
-        // Backend strings are intentionally NOT lv_tr()'d — the backend may
-        // emit dynamic content ("Waiting for slot 2", "Heating to 230°C") that
-        // isn't a fixed translation key. Pass through as-is.
-        new_detail = last_operation_detail_.c_str();
+        // A backend stores a fixed phrase as its untranslated catalog key
+        // (TR_NOOP), so it is translated here and again on every language
+        // switch. Dynamic or firmware text is not a key, and lv_tr() hands it
+        // back unchanged.
+        new_detail = lv_tr(last_operation_detail_.c_str());
     } else if (action != AmsAction::IDLE) {
         new_detail = lv_tr(ams_action_to_string(action));
     } else {

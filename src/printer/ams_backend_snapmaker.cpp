@@ -201,6 +201,14 @@ constexpr std::string_view kSoftCompatGroup = "TPU";
     return lane + lv_tr("Load failed");
 }
 
+// The status line for a channel fault, in the current language.
+[[nodiscard]] std::string channel_fault_detail(bool from_error_token, const std::string& error,
+                                               const std::string& op_state,
+                                               helix::ui::LaneNoun noun, int lane_index) {
+    return from_error_token ? friendly_channel_error(error, noun, lane_index)
+                            : friendly_channel_state_fail(op_state, noun, lane_index);
+}
+
 using snapmaker::ChannelStateInfo;
 using snapmaker::classify_channel_state;
 
@@ -423,6 +431,18 @@ AmsSystemInfo AmsBackendSnapmaker::get_system_info() const {
     AmsSystemInfo info = system_info_;
     info.action = published_action_locked();
     return info;
+}
+
+void AmsBackendSnapmaker::refresh_translated_texts() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!channel_fault_text_ || system_info_.operation_detail != channel_fault_text_->shown) {
+        channel_fault_text_.reset();
+        return;
+    }
+    ChannelFaultText& text = *channel_fault_text_;
+    text.shown = channel_fault_detail(text.from_error_token, text.error, text.op_state, lane_noun(),
+                                      text.lane);
+    system_info_.operation_detail = text.shown;
 }
 
 std::optional<AmsAction> AmsBackendSnapmaker::step_action_locked() const {
@@ -2208,8 +2228,9 @@ void AmsBackendSnapmaker::apply_channel_outcome_locked(int i, const std::string&
         } else {
             system_info_.action = AmsAction::ERROR;
             system_info_.operation_detail =
-                has_error_token ? friendly_channel_error(error, lane_noun(), i)
-                                : friendly_channel_state_fail(op_state, lane_noun(), i);
+                channel_fault_detail(has_error_token, error, op_state, lane_noun(), i);
+            channel_fault_text_ = ChannelFaultText{i, has_error_token, error, op_state,
+                                                   system_info_.operation_detail};
             fx.changed = true;
         }
     } else if (!op_state.empty() && !op_info.ignore) {
