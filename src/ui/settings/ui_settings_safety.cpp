@@ -54,9 +54,7 @@ void SafetySettingsOverlay::register_callbacks() {
              SafetySettingsManager::instance().set_macro_require_confirmation(event_checked(e));
          }},
         {"on_detection_enabled_changed",
-         [](lv_event_t* e) {
-             helix::detection::DetectionManager::instance().set_detection_enabled(event_checked(e));
-         }},
+         [](lv_event_t* e) { helix::detection::apply_detection_switch(event_checked(e)); }},
         {"on_detection_pause_changed",
          [](lv_event_t* e) {
              SettingsManager::instance().set_detection_pause_on_detect(event_checked(e));
