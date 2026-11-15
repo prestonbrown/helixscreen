@@ -4898,6 +4898,45 @@ TEST_CASE("CFS phase verify: a raised fault survives later status frames", "[ams
     CHECK(backend.current_error().has_value());
 }
 
+TEST_CASE("CFS clear_fault sends nothing, so a Reset mid-print cannot cancel it",
+          "[ams][cfs][clear_fault]") {
+    // The same backend state sends CANCEL_PRINT through cancel(), so a
+    // clear_fault() that fell back to it would be caught here.
+    CfsRemapHelper canceller;
+    CfsTestAccess::mark_running(canceller);
+    REQUIRE(canceller.cancel().success());
+    REQUIRE(canceller.captured == std::vector<std::string>{"CANCEL_PRINT"});
+
+    CfsRemapHelper backend;
+    CfsTestAccess::mark_running(backend);
+    CHECK(backend.clear_fault(0).success());
+    CHECK(backend.clear_fault(-1).success());
+    CHECK(backend.captured.empty());
+}
+
+TEST_CASE("CFS clear_fault retires a phase fault without a command", "[ams][cfs][clear_fault]") {
+    CfsRemapHelper backend;
+    CfsTestAccess::mark_running(backend);
+    CfsTestAccess::force_phase_intent(backend, AmsAction::LOADING);
+    CfsTestAccess::set_filament_sensor(backend, true, false);
+    CfsTestAccess::complete_action(backend);
+    REQUIRE(backend.get_system_info().action == AmsAction::ERROR);
+    REQUIRE(backend.current_error().has_value());
+    backend.captured.clear();
+
+    CHECK(backend.clear_fault(0).success());
+    CHECK(backend.get_system_info().action == AmsAction::IDLE);
+    CHECK_FALSE(backend.current_error().has_value());
+    CHECK(backend.captured.empty());
+
+    // The cleared verdict does not come back on the next status frame.
+    CfsTestAccess::handle_status(
+        backend, {{"params", nlohmann::json::array({{{"filament_switch_sensor filament_sensor",
+                                                      {{"filament_detected", false}}}}})}});
+    CHECK(backend.get_system_info().action == AmsAction::IDLE);
+    CHECK_FALSE(backend.current_error().has_value());
+}
+
 TEST_CASE("CFS phase verify: starting a new operation clears the fault", "[ams][cfs][968]") {
     CfsRemapHelper backend;
 
