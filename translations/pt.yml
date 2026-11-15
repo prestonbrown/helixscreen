@@ -4503,6 +4503,7 @@ translations:
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : O cabeçote tem filamento, mas nenhum slot AMS o reporta como carregado. A impressora pode não conseguir carregar um slot até que ele seja esvaziado. Iniciar mesmo assim?
   The toolhead is not homed, so this would home into the print: 'O cabeçote não fez home, fazer home colidiria com a impressão'
+  'The toolhead may still be at the chute. Move it away before printing.': 'O cabeçote pode ainda estar na calha. Afaste-o antes de imprimir.'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: O
     sensor do cabeçote indica que o filamento já está carregado. Prosseguir com o
     carregamento mesmo assim?
@@ -4741,6 +4742,7 @@ translations:
   Toolhead Style: Estilo do Cabeçote
   Toolhead X: Cabeçote X
   Toolhead Y: Cabeçote Y
+  'Toolhead did not return to park: {}': 'O cabeçote não voltou à posição de estacionamento: {}'
   Toolhead jam: Atolamento do cabeçote
   Toolhead lost homing: O cabeçote perdeu o posicionamento
   Toolhead offset calibration: Calibração de offsets dos cabeçotes

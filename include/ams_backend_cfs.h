@@ -455,11 +455,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// start. @p cancel_requested is polled at each step boundary: once set,
     /// remaining steps are dropped without on_ready (the caller has already
     /// left the flow). @p on_failed fires on the main thread when any step's
-    /// gcode fails, with Klipper's message; the backend has already re-parked
-    /// Y when PREPARE had run.
+    /// gcode fails, with its error; the backend has already re-parked Y when
+    /// PREPARE had run.
     AmsError
     start_chute_calibration(std::function<void()> on_ready = nullptr,
-                            std::function<void(const std::string& klipper_msg)> on_failed = nullptr,
+                            ChuteStepFailed on_failed = nullptr,
                             std::shared_ptr<std::atomic<bool>> cancel_requested = nullptr) override;
 
     /// Jog Y by @p delta_mm using the stock screen's exact script form
@@ -477,11 +477,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// sends no coordinate) followed by Y_SAFE to re-park. Refused while a print
     /// holds the machine or X or Y is unhomed. on_saved fires on
     /// the main thread after both completed; @p on_failed when either gcode
-    /// fails (the backend has already sent Y_SAFE, which is an idempotent
-    /// park).
-    AmsError save_chute_position(
-        std::function<void()> on_saved = nullptr,
-        std::function<void(const std::string& klipper_msg)> on_failed = nullptr) override;
+    /// fails. A failed save is followed by Y_SAFE, an idempotent park; a failed
+    /// park after a good save reports position_saved, keeps the pair the
+    /// firmware wrote for last_chute_saved_position(), and sends nothing more.
+    AmsError save_chute_position(std::function<void()> on_saved = nullptr,
+                                 ChuteSaveFailed on_failed = nullptr) override;
 
     /// Abort path: re-park Y with CMD=Y_SAFE. Required once PREPARE has run,
     /// which is the point from which the toolhead is left off-park. Refused
