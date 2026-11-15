@@ -534,7 +534,7 @@ class CfsAutoRefillHelper : public CfsRemapHelper {
 
 TEST_CASE("CFS reports an unload after print only where the firmware does one",
           "[ams][cfs][unload_after_print]") {
-    CfsRemapHelper backend;
+    helix::test::StartedBackend<CfsRemapHelper> backend;
     auto frame =
         [](const char* extra) {
             return make_cfs_notification(json::parse(std::string(R"({"state":"connect","filament":0,
@@ -544,15 +544,15 @@ TEST_CASE("CFS reports an unload after print only where the firmware does one",
         };
 
     SECTION("stock firmware states no option and always unloads") {
-        CfsTestAccess::handle_status(backend, frame(""));
+        backend.fire_status(frame(""));
         CHECK(backend.auto_unloads_after_print());
     }
     SECTION("fork firmware with the option off leaves the filament in") {
-        CfsTestAccess::handle_status(backend, frame(R"(,"unload_after_print_enabled":false)"));
+        backend.fire_status(frame(R"(,"unload_after_print_enabled":false)"));
         CHECK_FALSE(backend.auto_unloads_after_print());
     }
     SECTION("fork firmware with the option on unloads") {
-        CfsTestAccess::handle_status(backend, frame(R"(,"unload_after_print_enabled":true)"));
+        backend.fire_status(frame(R"(,"unload_after_print_enabled":true)"));
         CHECK(backend.auto_unloads_after_print());
     }
 }
