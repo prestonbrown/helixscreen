@@ -1,20 +1,13 @@
 # G-code Viewer Configuration
 
-Configuration knobs for the G-code viewer. For the pipeline these settings sit inside — render-mode selection and precedence, streaming vs full parse, downloads and caches — see [the G-code pipeline chapter](architecture/16-gcode-pipeline.md); for runtime env overrides (`HELIX_GCODE_MODE`, `HELIX_GCODE_STREAMING`) see [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md).
+Configuration knobs for the G-code viewer. For the pipeline these settings sit inside - render-mode selection and precedence, streaming vs full parse, downloads and caches - see [the G-code pipeline chapter](architecture/16-gcode-pipeline.md); for runtime env overrides (`HELIX_GCODE_MODE`, `HELIX_GCODE_STREAMING`) see [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md).
 
 Everything below is read at runtime and verified against the code. Config keys
 live under `gcode_viewer` in `settings.json` unless noted; the viewer loads them
 once at startup, so changes need a restart.
 
-> **`shading_model` is gone.** It was documented here as a three-way choice
-> between `flat`, `smooth` and `phong`, with a comparison table and a
-> recommendation per device tier. Nothing ever read it. It was seeded into
-> `settings.json.template` as `"smooth"` and into `config.cpp`'s defaults as
-> `"phong"` — two files disagreeing about the default of a key that had no
-> effect either way, which is what gave it away. The setters behind it
-> (`GCodeGLESRenderer::set_smooth_shading()`, which ignored its argument, and
-> `GeometryBuilder::set_smooth_shading()`) had no callers. Removed along with the
-> key. Shading is controlled by `HELIX_SSAO` and the device tier, below.
+There is no shading-model key: shading is controlled by `HELIX_SSAO` and the
+device tier, below.
 
 ## Which renderer draws
 
@@ -89,7 +82,7 @@ antialiasing off`, or `HELIX_SSAO=...`).
 
 For scale, on the 135,197-segment test plate the rasterizer spends roughly 29 ms
 aliased against 178 ms antialiased, and the adaptive controller settles at 49
-layers per frame instead of 22 — so a preview appears about 2.2x faster with
+layers per frame instead of 22 - so a preview appears about 2.2x faster with
 antialiasing off.
 
 ## Geometry (3D only)
@@ -128,7 +121,7 @@ Share of available memory a file may occupy before streaming engages. Capped at
 ### `layers_per_frame`
 **Type:** int **Default:** 0 (adaptive)
 How many layers the progressive cache build draws per frame. `0` hands the
-decision to the adaptive controller, which is almost always what you want —
+decision to the adaptive controller, which is almost always what you want -
 it is also the thing that reacts to antialiasing being on.
 
 ### `adaptive_layer_target_ms`

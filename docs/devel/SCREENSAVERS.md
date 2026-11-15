@@ -213,11 +213,16 @@ samples `CLOCK_PROCESS_CPUTIME_ID` (every thread, LVGL's draw thread included) a
   up to 10 s, and 0 under 3 s of samples.
 - A run ignores its first second, then closes a 5 s window after another for as long as it runs:
   `(cpu delta - baseline * wall) / wall` as a share of one core.
-- The budget is `saver_budget_share`: 4 or more cores 50%, 3 cores 37%, 2 cores 25%, 1 core 10%,
-  halved while `SaverHost::is_printing` says a print holds the machine.
-- `decide_saver_level`: within budget the level stays (a run never steps up); over budget the
-  saver steps down one level at its next natural break; over budget at the bottom level the
-  saver is too heavy for the board, and its fallback takes over at once.
+- The budget is `saver_budget_share`, as a share of one core: 4 or more cores 100% (50% when
+  every core is an in-order efficiency design, `PlatformCapabilities::efficiency_cores_only`),
+  3 cores 75%, 2 cores 50%, 1 core 10%. While `SaverHost::is_printing` says a print holds the
+  machine: 25%, 18.5%, 12.5% and 5%.
+- `decide_saver_level`: over budget the saver steps down one level at its next natural break;
+  over budget at the bottom level the saver is too heavy for the board, and its fallback takes
+  over at once. Within budget the level stays, and a window at or under `kStepUpComfort` (60%)
+  of the budget counts toward a raise: after `kStepUpWindows` (3) such windows in a row
+  (`SaverComfortStreak`), `decide_saver_level_up` raises one level, never into a rung that
+  stepped down earlier in the same run. Only an idle raise is stored.
 
 Each step down and each too-heavy mark is stored at `/display/screensaver_levels/<name>` as
 `{"level", "too_heavy", "version", "board"}`, except one taken while printing: the halved
@@ -335,14 +340,14 @@ disagree, and `set_screensaver_type()` republishes the row kind when the saver c
    in `on_stop()`; `clear()` on a vector keeps its capacity, so swap it with an empty one. Check
    with `size build/obj/ui/screensaver/screensaver_<name>*.o`.
 7. Size for the largest need of any rung from the start level down; never grow on a step down;
-   free what the still rung doesn't need after its paint. A run never steps up (the gate only
-   steps down), so init sizes for the start rung and every rung below it (a ladder whose still
+   free what the still rung doesn't need after its paint. Init sizes for the start rung and
+   every rung below it (a ladder whose still
    rung is finer than the rung above, as Aqua's and High Fly's are, counts that rung too), a step
    down allocates nothing, and a board that starts at a low rung never holds the top rung's
    memory. A buffer only some rungs use (maze's fogged floor and ceiling bands) is freed on a
    rung that drops it, and a still rung frees the scene behind its clock once it has painted it.
-   A request for a finer level mid-run (a test, or a forced level) reallocates then; that is the
-   rare path.
+   A request for a finer level mid-run (the gate's comfort raise, a test, or a forced level)
+   reallocates then; that is the rare path.
 8. Two test files check every saver and sim, so a new one only adds itself to their type lists:
    `tests/unit/test_screensaver_contract.cpp` (level 0's period and refresh, registration, the
    canvas format, the sim's ladder, a level request reaching the frame period, a stopped saver

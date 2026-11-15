@@ -74,7 +74,7 @@ the trunk has moved on to 1.2:
 | Branch | Versions | Channel |
 |--------|----------|---------|
 | `release/1.0` | `1.0.0`, `1.0.1`, `1.0.2` ... | stable |
-| `release/1.1` | `1.1.0-beta.15` ..., then `1.1.0`, `1.1.1` ... | beta + dev, then stable |
+| `release/1.1` | `1.1.0-beta.N`, `1.1.0-rc.N`, then `1.1.0`, `1.1.1` ... | beta + dev, then stable |
 | `main` | `1.2.0-beta.1` ... (untagged until `1.1.0` ships) | dev, then beta + dev |
 
 The trunk names the release it is heading for, so a beta install says which minor
@@ -143,13 +143,14 @@ Then, once both `stable/manifest.json.minisig` and `beta/manifest.json.minisig` 
 └──────────────────────────────┬──────────────────────────────┘
                                │
                                ▼
-  validate-shell gate → build-platforms matrix (9):
-    pi · pi32 · ad5m · cc1 · k1 · ad5x · k2 · x86 · snapmaker-u1
-  plus build-android → publish-android
-    `release` needs build-android too, not just build-platforms — otherwise it
+  validate-shell gate → plan → build-platforms matrix (9):
+    pi · pi32 · ad5m · cc1 · mips (K1 series + AD5X) · k2 · x86 · x86-desktop · snapmaker-u1
+  plus build-android → publish-android, and build-esp32 (K-Touch firmware, via
+    esp32-build.yml; skipped for v1.0.* tags and release/1.0)
+    `release` needs build-android too, not just build-platforms, otherwise it
     could publish before Android finished and ship with no APKs, silently.
     build-android FAILS the whole release if ANDROID_KEYSTORE_BASE64 is unset;
-    it no longer falls back to the debug keystore. See ANDROID_PLAY_STORE.md.
+    there is no debug-keystore fallback. See ANDROID_PLAY_STORE.md.
 
   Each platform job: Docker cross-toolchain → target arch → package .zip
                                │
@@ -173,14 +174,16 @@ Then, once both `stable/manifest.json.minisig` and `beta/manifest.json.minisig` 
 | Raspberry Pi (32-bit) | `helixscreen-pi32.zip` | armhf binary, assets, configs |
 | AD5M | `helixscreen-ad5m.zip` | armv7l binary (static), assets, configs |
 | CC1 | `helixscreen-cc1.zip` | ARM binary, assets, configs |
-| K1 | `helixscreen-k1.zip` | MIPS32 binary (static, musl), assets, configs |
-| AD5X | `helixscreen-ad5x.zip` | MIPS binary (ZMOD), assets, configs |
+| K1 series | `helixscreen-k1.zip` | MIPS32 binary (static, musl), assets, configs |
+| AD5X | `helixscreen-ad5x.zip` | The same unified MIPS build, published under the AD5X name |
 | K2 | `helixscreen-k2.zip` | ARM binary (static, musl), assets, configs |
 | x86 | `helixscreen-x86.zip` | x86 binary, assets, configs |
+| x86 desktop | `helixscreen-x86-desktop.zip` | x86_64 Linux desktop build |
 | Snapmaker U1 | `helixscreen-snapmaker-u1.zip` | ARM binary, assets, configs |
-| Android | Play Store bundle | via `build-android` / `publish-android` |
+| ESP32 K-Touch | `helixscreen-esp32-ktouch-<version>.zip` | Firmware image and `README.txt` |
+| Android | APK and AAB; Play Store upload via `publish-android` | |
 
-> **Bridge release note:** Starting with v1.0.0 (the version you're currently preparing), the primary release asset is `helixscreen-{platform}.zip` (unversioned filename). The legacy `helixscreen-{platform}-v{version}.tar.gz` is still published during this bridge release for backwards compatibility with older installed versions; it will be removed in the following release.
+The `helixscreen-{platform}-v{version}.tar.gz` form is still published beside the zips for installed versions that fetch it.
 
 ---
 
@@ -196,7 +199,7 @@ Then, once both `stable/manifest.json.minisig` and `beta/manifest.json.minisig` 
    ```
 
 2. **Bump `VERSION.txt` and add the CHANGELOG entry, in one `chore(release):` commit.**
-   `VERSION.txt` is the source of truth for the built binary (`Makefile:195`,
+   `VERSION.txt` is the source of truth for the built binary (`Makefile#HELIX_VERSION`,
    `mk/cross.mk`) - the version does **not** come from the git tag. Tagging
    without bumping the file ships a binary that reports the previous version.
    - `echo "X.Y.Z" > VERSION.txt`
@@ -249,12 +252,12 @@ The workflow auto-generates basic release notes if no annotation is provided.
 
 1. Go to **Actions** tab on GitHub
 2. Watch the "Release" workflow
-3. Build takes ~15-20 minutes typically
+3. Build time varies: most platforms finish in 35-50 minutes, and a cold Pi cross-compile is the long pole (up to a couple of hours)
 
 ### Step 4: Verify the Release
 
 1. Go to **Releases** on GitHub
-2. Check both platform archives are attached
+2. Check every platform zip, the APK/AAB files and `install.sh` are attached
 3. Verify checksums in release notes
 4. Test installation:
    ```bash
@@ -277,7 +280,7 @@ The workflow auto-generates basic release notes if no annotation is provided.
 ### After Release
 
 - [ ] Release workflow completed successfully
-- [ ] Both platform artifacts attached
+- [ ] Every platform artifact attached
 - [ ] Release notes accurate
 - [ ] Installation tested via curl|sh
 - [ ] Update any external references (Discord, documentation sites)
@@ -286,27 +289,14 @@ The workflow auto-generates basic release notes if no annotation is provided.
 
 ## Hotfix Releases
 
-For urgent bug fixes:
+A fix for an already-released line lands on that line's branch (`release/1.0`, `release/1.1`) and is cherry-picked to or from `main`, never merged between lines; see [BRANCHING.md](BRANCHING.md) for which way it flows. Then, on the release branch:
 
-1. **Create hotfix branch** from the release tag:
+1. Verify the fix and check for regressions (`make land-gate`).
+2. Bump `VERSION.txt` and add the CHANGELOG entry in one `chore(release):` commit (Step 1).
+3. Tag and push:
    ```bash
-   git checkout -b hotfix/v1.2.1 v1.2.0
-   ```
-
-2. **Apply minimal fix** - only the necessary changes
-
-3. **Test thoroughly** - verify the fix, check for regressions
-
-4. **Merge to main** (via PR if time permits):
-   ```bash
-   git checkout main
-   git merge hotfix/v1.2.1
-   ```
-
-5. **Tag and release:**
-   ```bash
-   git tag -a v1.2.1 -m "Fix: [description of fix]"
-   git push origin v1.2.1
+   git tag -a v1.0.3 -m "Fix: [description of fix]"
+   git push origin release/1.0 v1.0.3
    ```
 
 ---
@@ -387,7 +377,7 @@ make PLATFORM_TARGET=ad5m clean release-ad5m
 1. Go to GitHub **Releases** → **Draft a new release**
 2. Choose the tag
 3. Write release notes
-4. Upload the `.zip` files from `releases/` (plus the legacy `.tar.gz` files if the bridge release still ships them)
+4. Upload the `.zip` files from `releases/` (plus the `.tar.gz` files)
 5. Publish
 
 ---

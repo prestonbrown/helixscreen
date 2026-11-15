@@ -29,7 +29,7 @@ color_transform_hook          generation++                     RGB888 under the 
                                                                JPEG cached by generation, rate-capped
 ```
 
-- **Frames are logical.** The hook wraps the backend's `flush_cb`, and the fbdev driver rotates inside that callback (`lv_linux_fbdev.c#flush_cb`), so the hook sees what the user sees. The shadow is `disp_w × disp_h` and the served image is upright.
+- **Frames are logical.** The hook wraps the backend's `flush_cb`, and the fbdev driver rotates inside that callback (`lib/lvgl/src/drivers/display/fb/lv_linux_fbdev.c#"Not all framebuffer kernel drivers support hardware rotation"`), so the hook sees what the user sees. The shadow is `disp_w × disp_h` and the served image is upright.
 - **No viewer, no work.** `ScreenFrameStore::wants_frames()` is true only within `kViewerIdleMs` (10 s) of a request or while a stream is open. The shadow is allocated by the first frame after a request and freed by the housekeeping tick once the viewer is gone. The first request after idle asks the UI for a full repaint (`request_full_redraw`) and waits up to `kFirstFrameWaitMs`; with nothing captured it answers 503 `Retry-After: 1`.
 - **Rate caps** (`snapshot_rate_cap`): 5 fps idle; while printing 2 fps, or 1 fps on a constrained host (`MemoryInfo::is_constrained_device()` or one core). A static screen costs one encode in total: the cache is keyed on the frame generation.
 - **Memory while watched:** shadow `W×H×bpp` + RGB888 `W×H×3` + one JPEG. About 2.8 MB at 800×480×32.

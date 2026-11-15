@@ -15,19 +15,23 @@ This guide documents the GitHub Actions CI/CD setup for HelixScreen, including p
 
 ## Overview
 
-HelixScreen uses GitHub Actions for continuous integration across multiple platforms:
+HelixScreen uses GitHub Actions for continuous integration across multiple platforms. `.github/workflows/` holds:
 
-- **Build Workflow** (`.github/workflows/build.yml`) - Multi-platform builds (Ubuntu 22.04, macOS 15, Android) plus split unit/shell test jobs
-- **Quality Workflow** (`.github/workflows/quality.yml`) - Code quality checks via shared script
-- **Server Tests** (`.github/workflows/server-tests.yml`) - Cloudflare Worker suites and the analytics dashboard build
+| Workflow | Runs on | Does |
+|----------|---------|------|
+| `build.yml` | push to `main`, `claude/**` (not `claude/report-*`), `release/**`; PRs to `main`, `release/**` | Multi-platform builds (Ubuntu 22.04, macOS 15, Android), sharded unit tests, shell tests, plugin and telemetry-worker tests |
+| `quality.yml` | pushes and PRs | Code quality checks via the shared script |
+| `server-tests.yml` | `server/**` changes | Cloudflare Worker suites and the analytics dashboard build |
+| `lint-xml.yml` | changes under `ui_xml/`, `src/ui/` | XML lint |
+| `esp32-build.yml` | PRs, `main`, `release/**` (not `release/1.0`); `workflow_call` from `release.yml` | K-Touch firmware build and image-size check |
+| `release.yml` | `v*` tags; `workflow_dispatch` (always a dry run) | Release builds, R2 publish |
+| `nightly.yml` | nightly schedule, manual | Full test suite |
+| `ccache-warm.yml`, `cache-prune.yml` | schedule, manual | Keep release ccaches warm; delete superseded ones |
+| `cleanup-r2.yml`, `recover-r2.yml` | manual | Prune old R2 releases; republish a tag's R2 upload |
+| `test-quality-deep.yml` | manual | `cov-diff` or `mutate-diff` on a base ref |
+| `auto-milestone.yml`, `telemetry-printers.yml` | issue opened; weekly | Issue triage automation |
 
-These trigger on:
-- Pushes to `main` branch
-- Pushes to branches matching `claude/**` pattern
-- Pull requests to `main` branch
-
-Server Tests additionally filters on `server/**`, so it only runs when server
-code changes.
+A push to a `claude/**` branch or a PR cancels the older run of the same ref; `main` never cancels an in-flight run, and `release/**` keys on the SHA so every commit keeps its own run.
 
 ## Workflows
 
@@ -35,54 +39,20 @@ code changes.
 
 **File:** `.github/workflows/build.yml`
 
-The build workflow runs parallel compile/test/build jobs on Ubuntu, macOS, and Android, then aggregates results:
+The build workflow runs parallel compile/test/build jobs on Ubuntu, macOS, and Android, then aggregates results. Its jobs:
 
-```yaml
-name: Build
-
-on:
-  push:
-    branches: [ main, "claude/**" ]
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  compile-ubuntu:
-    name: Compile (Ubuntu 22.04)
-    runs-on: ubuntu-22.04
-    # ... build steps ...
-
-  test-ubuntu:
-    name: Unit Tests (Ubuntu 22.04)
-    runs-on: ubuntu-22.04
-    # ... test steps ...
-
-  build-macos:
-    name: Build (macOS 15)
-    runs-on: macos-15
-    # ... build steps ...
-
-  build-android:
-    name: Build (Android)
-    runs-on: ubuntu-22.04
-    # ... build steps ...
-
-  test-shell:
-    name: Shell Tests (bats)
-    runs-on: ubuntu-22.04
-    # ... bats steps ...
-
-  test-plugin-py38:
-    name: Moonraker Plugin Tests (Python 3.8)
-    runs-on: ubuntu-22.04
-    # ... pytest moonraker-plugin/tests/ on the plugin's Python floor ...
-
-  build-status:
-    name: Build Status
-    runs-on: ubuntu-latest
-    needs: [compile-ubuntu, test-ubuntu, build-macos, build-android, test-shell, test-plugin-py38]
-    # ... aggregates results ...
-```
+| Job | Name |
+|-----|------|
+| `compile-ubuntu` | Compile (Ubuntu 22.04) |
+| `test-ubuntu` | Test (Ubuntu 22.04), a matrix of legs |
+| `build-macos` | Build (macOS 15) |
+| `build-android` | Build (Android) |
+| `link-aux-binaries` | Link splash + watchdog (non-LTO) |
+| `test-shell` | Shell Tests (BATS) |
+| `test-plugin-py38` | Moonraker Plugin Tests (Python 3.8, the plugin's floor) |
+| `test-telemetry-worker` | Telemetry Worker Tests (vitest) |
+| `prune-ccache` | Prune superseded ccaches |
+| `build-status` | Aggregates the others; fails if any failed. `devel/**` branches are reported, not blocked |
 
 **Key Steps:**
 1. Checkout with recursive submodules
@@ -114,11 +84,6 @@ Build and finishes in well under a minute.
 The dashboard job type-checks the SPA, which is what catches a view reading a
 field the worker does not actually return.
 
-**These suites were unwired until 2026-08-15.** The telemetry-worker Dashboard
-block had been red long enough that a comment recording the drift was written
-into the test file itself (`src/__tests__/index.test.ts`). Treat an unwired
-suite as decorative.
-
 **Lockfiles are committed for `server/*` only.** `.gitignore` ignores
 `package-lock.json` repo-wide with a `!server/*/package-lock.json` exception,
 because `npm ci` requires one and floating transitive dependencies would
@@ -137,9 +102,9 @@ name: Code Quality
 
 on:
   push:
-    branches: [ main, "claude/**" ]
+    branches: [ main, "claude/**", "!claude/report-*", "release/**" ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, "release/**" ]
 
 jobs:
   quality-checks:
@@ -158,11 +123,7 @@ jobs:
         ./scripts/quality-checks.sh
 ```
 
-**Checks performed by `scripts/quality-checks.sh`:**
-- Verify required directories exist
-- Check copyright headers on source files (excludes test files and generated files)
-- Validate XML file encoding (UTF-8/ASCII)
-- Check for TODO/FIXME comments without context
+**Checks performed by `scripts/quality-checks.sh`:** every gate is one file, `scripts/qc/<gate>.sh`, with a `QC_TRIGGER_qc_<gate>` path regex that decides whether `--staged-only` runs it; a full sweep (CI) runs them all in parallel. `scripts/qc/copyright.sh` (copyright headers, test and generated files excluded) runs first, then the gates (lint, XML, translations, doc anchors, ESP32 checks, and so on). `ls scripts/qc/` is the list; `scripts/qc_timing.py` shows where a run's time went.
 
 ## Platform-Specific Dependencies
 
@@ -238,49 +199,11 @@ The quality workflow uses a shared script (`scripts/quality-checks.sh`) that run
 
 ### Copyright Header Checks
 
-**Pattern:** All source files must have GPL v3 copyright headers
+Every `.cpp`, `.c`, `.h` and `.mm` file outside `lib/`, the generated and vendored font and `lv_conf.h` files, and vendored `firmware/` components must carry an SPDX identifier. The gate is `scripts/qc/copyright.sh`; the header format is in [COPYRIGHT_HEADERS.md](COPYRIGHT_HEADERS.md).
 
-**Exclusions:**
-- Test files: `test_*.cpp`
-- Generated files: `*_data.h`, `*_icon_data.h`
-- Third-party code
+### XML and work-marker checks
 
-```bash
-for file in src/*.cpp include/*.h; do
-  basename=$(basename "$file")
-  if [[ "$basename" == test_*.cpp ]] || [[ "$basename" == *_data.h ]]; then
-    continue  # Skip
-  fi
-  if ! head -n 5 "$file" | grep -q "Copyright"; then
-    echo "⚠️  Missing copyright header: $file"
-  fi
-done
-```
-
-### XML Encoding Validation
-
-**Pattern:** All XML files must be UTF-8 or ASCII encoded
-
-```bash
-for xml in ui_xml/*.xml; do
-  if ! file "$xml" | grep -qE "UTF-8|ASCII"; then
-    echo "❌ $xml is not UTF-8/ASCII encoded"
-    exit 1
-  fi
-done
-```
-
-**Why ASCII is accepted:** ASCII is a valid subset of UTF-8, so ASCII files are UTF-8 compatible.
-
-### TODO/FIXME Comments
-
-**Pattern:** Check for uncommented TODOs that lack context
-
-```bash
-if grep -r "TODO\|FIXME" src/ include/ --exclude-dir=build | grep -v "//.*TODO"; then
-  echo "⚠️  Found uncommented TODO/FIXME"
-fi
-```
+XML files are validated by the `lint-xml` workflow and the XML gates under `scripts/qc/` (`xml_attr.sh`, `decl_ui.sh`, `ui_lint.sh`). A `TODO`/`FIXME` comment must cite an owning issue as `// MARKER(#NNNN): <the constraint>` (`scripts/qc/todo_markers.sh`, `scripts/check_todo_markers.py --list`).
 
 ## Testing Locally
 
@@ -458,15 +381,6 @@ fatal: not a git repository: lvgl/.git
 ```bash
 git submodule update --init --recursive
 ```
-
-### Quality Check Fails on Test Files
-
-**Symptom:**
-```
-⚠️  Missing copyright header: src/test_dynamic_cards.cpp
-```
-
-**Solution:** The quality checks script should automatically exclude `test_*.cpp` files. If not, update `scripts/quality-checks.sh` to skip test files.
 
 ### Workflow Not Triggering
 

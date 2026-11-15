@@ -201,7 +201,7 @@ worker that gave up runs the same teardown first. Most streamers serve one clien
 every other view of it to stop through its `on_preempted()` handler; each owner restarts on its next activation. The home `CameraWidget`, the Print Status preview card and the standalone fullscreen viewer all sit on it; each keeps its own
 target image and fps policy.
 
-The standalone viewer (`StandaloneCameraViewer`, [`src/ui/panel_widgets/camera_widget.cpp#StandaloneCameraViewer/open`](../../../src/ui/panel_widgets/camera_widget.cpp))
+The standalone viewer (`StandaloneCameraViewer`, [`src/ui/panel_widgets/camera_widget.cpp#"bool StandaloneCameraViewer::open("`](../../../src/ui/panel_widgets/camera_widget.cpp))
 is the fullscreen camera opened from outside the home panel: Settings -> Devices -> Camera and Print Status ->
 More -> Camera. With a `CameraWidget` attached it opens that widget's fullscreen instead, which shows the stream
 the widget already owns. Otherwise it creates the `camera_fullscreen` overlay and starts its own `CameraView` with

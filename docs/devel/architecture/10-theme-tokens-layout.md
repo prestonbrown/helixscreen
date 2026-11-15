@@ -11,10 +11,9 @@ Counts, recounted 2026-10-09 (method included so you can re-run it):
 | `theme_manager_get_color()` call sites | 363 | `rg -c 'theme_manager_get_color\(' src include \| awk -F: '{s+=$2} END {print s}'` |
 | Breakpoint tiers | 7 | `UiBreakpoint` (`include/ui_breakpoint.h#UiBreakpoint`): Micro..XXLarge |
 | Layout variants | 7 | `LayoutType` (`include/layout_manager.h#LayoutType`): standard, ultrawide, portrait, micro, micro_portrait, tiny, tiny_portrait |
-| Variant dirs with files | 3 | `micro/` (5 files), `portrait/` (2), `micro_portrait/` (1) |
-| globals.xml | 1243 lines | `wc -l ui_xml/globals.xml`: tiered consts and illustration colors, no semantic palette |
-| Top-level XML files the token scanner reads | 252 | `ls ui_xml/*.xml \| wc -l`: globals.xml plus 251 more, alphabetical last-wins |
-| Hardcoded-color lint baseline | 33 | `HEX_BASELINE` in [`scripts/qc/design_tokens.sh`](../../../scripts/qc/design_tokens.sh) (ratchets down only) |
+| globals.xml | 1444 lines | `wc -l ui_xml/globals.xml`: tiered consts and illustration colors, no semantic palette |
+| Top-level XML files the token scanner reads | 283 | `ls ui_xml/*.xml \| wc -l`: globals.xml plus 282 more, alphabetical last-wins |
+| Hardcoded-color lint baseline | 27 | `HEX_BASELINE` in [`scripts/qc/design_tokens.sh`](../../../scripts/qc/design_tokens.sh) (ratchets down only) |
 
 ```mermaid
 flowchart TB
@@ -33,7 +32,7 @@ flowchart TB
     end
     subgraph STRUCT["Structure: layout variants"]
         LM["LayoutManager<br/>detect_layout_type(w, h)<br/>standard / ultrawide / portrait / micro / tiny"]
-        VD["ui_xml/&lt;variant&gt;/ override dirs<br/>wholesale file replacement,<br/>variant_chain() fallback"]
+        VD["ui_is_portrait / ui_is_ultrawide subjects<br/>+ variant_chain() for home-grid anchors"]
         LM --> VD
     end
     USE["widget attribute: style_bg_color=&quot;#card_bg&quot;<br/>style_pad_all=&quot;#space_md&quot;<br/>C++: theme_manager_get_color(&quot;card_bg&quot;)"]
@@ -124,7 +123,7 @@ A few colors are *computed* from the palette rather than named by it: `theme_get
 
 The user-facing controls live in Settings > Appearance: `DisplaySettingsManager` (`src/system/display_settings_manager.cpp#set_dark_mode`) guards against requesting a mode the theme lacks, persists `/dark_mode` and `/display/theme`, and disables the toggle for single-mode themes (a dark-only theme also force-switches the mode and hides the control). It publishes `settings_dark_mode` and `settings_dark_mode_available`; `on_theme_changed()` runs once when the session services come up (`src/application/session_wiring.cpp#init_session_services`) so the toggle reflects what the loaded theme supports.
 
-### Two responsive axes: breakpoints scale values, variants swap files
+### Two responsive axes: breakpoints scale values, variants pick structure
 
 Both key off screen geometry, which makes them easy to conflate. They are independent systems:
 
@@ -132,7 +131,7 @@ Both key off screen geometry, which makes them easy to conflate. They are indepe
 |---|---|---|
 | Keyed by | narrow-axis (or vertical) resolution | aspect ratio |
 | Lives in | [`include/ui_breakpoint.h`](../../../include/ui_breakpoint.h) | [`src/layout_manager.cpp`](../../../src/layout_manager.cpp) |
-| Changes | token *values*, font sizes, the `ui_breakpoint` subject | which XML *files* load, the anchor table |
+| Changes | token *values*, font sizes, the `ui_breakpoint` subject | `ui_is_portrait` / `ui_is_ultrawide`, the anchor table |
 | Example trigger | 800x480: `Medium`, `space_md=10` | 480x800 portrait: `ui_is_portrait` = 1 |
 | Forced for testing | not overridable (geometry is truth) | `--layout <type>` / `/display/layout` |
 
@@ -146,7 +145,7 @@ Both key off screen geometry, which makes them easy to conflate. They are indepe
 
 The home panel's widget grid (chapter 09 covers the widget lifecycle) is measured in **tracks**, half a cell each (`GridLayout::TRACKS_PER_CELL`). `GridLayout::get_dimensions()` divides each axis of the container's content box by the same per-tier cell edge (`GRID_CELL`, scaled by the high-DPI UI scale) and rounds to the nearest whole cell, so the cell stays square and a rotated panel transposes its grid. [`../LAYOUT_SYSTEM.md`](../LAYOUT_SYSTEM.md) has the track math.
 
-Default placement comes from [`assets/config/default_layout.json`](../../../assets/config/default_layout.json), authored in tracks: a base `anchors` table keyed by widget id with per-breakpoint placements (`micro` through `xxlarge`, as `col`/`row`/`colspan`/`rowspan`), a `variants` table (`ultrawide`, `portrait`) keyed like the `ui_xml/` override dirs and resolved most-specific-first through `variant_chain()`, and a `disabled` list for widgets that should start off. A placement key may also name an exact grid (`<tier>@<cols>x<rows>`), which wins within its tier. Missing tiers fall back toward the middle (`micro`, `tiny`, `small` and `xxlarge`, `xlarge`, `large`; `src/system/panel_widget_config.cpp#choose_breakpoint_key`). The placement code clamps an anchor's span to the columns that exist, so a wide anchor degrades into a full-width band rather than leaving a gap.
+Default placement comes from [`assets/config/default_layout.json`](../../../assets/config/default_layout.json), authored in tracks: a base `anchors` table keyed by widget id with per-breakpoint placements (`micro` through `xxlarge`, as `col`/`row`/`colspan`/`rowspan`), a `variants` table (`ultrawide`, `portrait`) keyed by layout name and resolved most-specific-first through `variant_chain()`, and a `disabled` list for widgets that should start off. A placement key may also name an exact grid (`<tier>@<cols>x<rows>`), which wins within its tier. Missing tiers fall back toward the middle (`micro`, `tiny`, `small` and `xxlarge`, `xlarge`, `large`; `src/system/panel_widget_config.cpp#choose_breakpoint_key`). The placement code clamps an anchor's span to the columns that exist, so a wide anchor degrades into a full-width band rather than leaving a gap.
 
 `PanelWidgetConfig::build_default_grid()` (`src/system/panel_widget_config.cpp#build_default_grid`) reads the file through `helix::find_readable()`, so a user's config-dir copy wins over the shipped asset. Widgets not listed are auto-placed after the anchored ones.
 

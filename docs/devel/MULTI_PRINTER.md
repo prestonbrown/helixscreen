@@ -221,7 +221,7 @@ Switching printers performs a "soft restart" -- the LVGL display stays alive, bu
  2. NavigationManager::shutdown() (deactivate overlays, clear stacks, clear printer callbacks)
  3. Stop UpdateChecker auto-check timer
  4. Unload plugins
- 5. Freeze UpdateQueue (ScopedFreeze — blocks background enqueue)
+ 5. Freeze UpdateQueue (ScopedFreeze - blocks background enqueue)
  5b. Disconnect WebSocket (no more producers)
  6. Drain update queue (discard pending async callbacks)
  6b. Clear JobQueueState global pointer
@@ -245,7 +245,7 @@ Switching printers performs a "soft restart" -- the LVGL display stays alive, bu
 ### init_printer_state() (Steps 1-10)
 
 ```
- 1. Reinitialize UpdateQueue (before moonraker — background threads need the queue)
+ 1. Reinitialize UpdateQueue (before moonraker - background threads need the queue)
  2. Init core subjects (PrinterState, AmsState, etc.)
  2b. Seed active_printer_name from config
  3. Init Moonraker (creates client + API + history managers)

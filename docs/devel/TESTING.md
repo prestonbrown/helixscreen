@@ -1,10 +1,5 @@
 # Testing Infrastructure
 
-**Status:** Active
-**Last Updated:** 2026-08-08
-
----
-
 ## Quick Start
 
 ```bash
@@ -41,25 +36,25 @@ The binary counts them: `./build/bin/helix-tests --list-tags` prints every tag w
 
 ### Feature Tags
 
-| Tag | Count | Purpose |
-|-----|-------|---------|
-| `[ui]` | ~162 | Theme, icons, widgets, panels |
-| `[gcode]` | ~118 | G-code parsing, streaming, geometry |
-| `[ams]` | ~117 | AMS/MMU backends |
-| `[print]` | ~72 | Print workflow: start, pause, cancel, progress |
-| `[state]` | ~57 | PrinterState singleton, LVGL subjects, observers - drive state via `tests/test_helpers/print_state_test_drivers.h` (see "Test Fixtures") |
-| `[filament]` | ~53 | Spoolman, filament sensors |
-| `[application]` | ~51 | Application lifecycle |
-| `[config]` | ~50 | Configuration loading, validation |
-| `[printer]` | ~32 | Printer detection, capabilities, hardware |
-| `[assets]` | ~28 | Thumbnail extraction |
-| `[wizard]` | ~27 | Setup wizard flow |
-| `[history]` | ~27 | Print/notification history |
-| `[network]` | ~26 | WiFi, Ethernet management |
-| `[api]` | ~25 | Moonraker API infrastructure |
-| `[connection]` | ~23 | WebSocket connection lifecycle, retry logic |
-| `[calibration]` | ~17 | Bed mesh, input shaper, QGL, Z-tilt |
-| `[predictor]` | ~15 | Pre-print time estimation |
+| Tag | Purpose |
+|-----|---------|
+| `[ui]` | Theme, icons, widgets, panels |
+| `[gcode]` | G-code parsing, streaming, geometry |
+| `[ams]` | AMS/MMU backends |
+| `[print]` | Print workflow: start, pause, cancel, progress |
+| `[state]` | PrinterState singleton, LVGL subjects, observers - drive state via `tests/test_helpers/print_state_test_drivers.h` (see "Test Fixtures") |
+| `[filament]` | Spoolman, filament sensors |
+| `[application]` | Application lifecycle |
+| `[config]` | Configuration loading, validation |
+| `[printer]` | Printer detection, capabilities, hardware |
+| `[assets]` | Thumbnail extraction |
+| `[wizard]` | Setup wizard flow |
+| `[history]` | Print/notification history |
+| `[network]` | WiFi, Ethernet management |
+| `[api]` | Moonraker API infrastructure |
+| `[connection]` | WebSocket connection lifecycle, retry logic |
+| `[calibration]` | Bed mesh, input shaper, QGL, Z-tilt |
+| `[predictor]` | Pre-print time estimation |
 
 ### Sub-Tags
 
@@ -73,7 +68,6 @@ The binary counts them: `./build/bin/helix-tests --list-tags` prints every tag w
 
 ### Hidden Tags (Excluded by Default)
 
-- `[.pending]` - Test not yet implemented
 - `[.integration]` - Requires full environment
 - `[.slow]` - Long-running and hidden; prefer `[slow]` for a new test
 - `[.disabled]` - Temporarily disabled
@@ -256,16 +250,7 @@ per-file coverage notes: `HIDDEN_TESTS_TRACKER.md`.
 
 Slow tests are excluded from `unit-sweep` but can be run with `make test-slow`.
 
-| File | Why Slow |
-|------|----------|
-| `test_moonraker_mock_behavior.cpp` | Mock client simulation |
-| `test_moonraker_client_subscription_cancel.cpp` | WebSocket event loops |
-| `test_moonraker_client_security.cpp` | Security test fixtures |
-| `test_notification_history.cpp` | History/persistence |
-| `test_moonraker_client_robustness.cpp` | Concurrent access tests |
-| `test_moonraker_events.cpp` | Event dispatch timing |
-
-Rank the rest by how many cases each file tags:
+Rank the files by how many cases each tags:
 
 ```bash
 grep -c '\[slow\]' tests/unit/*.cpp | sort -t: -k2 -nr | head -20
@@ -281,15 +266,6 @@ grep -c '\[slow\]' tests/unit/*.cpp | sort -t: -k2 -nr | head -20
 - Test creates `hv::EventLoop` for WebSocket operations
 - Test requires real network connection/disconnection cycles
 - ALWAYS add `[slow]` alongside `[eventloop]` - eventloop tests are inherently slow
-
-### Disabled Tests (#if 0)
-
-These tests are completely disabled due to known issues:
-
-| File | Line | Reason |
-|------|------|--------|
-| `test_moonraker_client_robustness.cpp` | 555 | `send_jsonrpc` returns -1 instead of 0 when disconnected |
-| `test_moonraker_client_security.cpp` | 690 | Segmentation fault (object lifetime issues) |
 
 ### Running Excluded Tests
 
@@ -343,12 +319,7 @@ make test-slow   # Run only [slow] tagged tests
 - Database/history operations (SQLite)
 - Mock print simulation with phase transitions
 
-| File | Count | Reason |
-|------|------:|--------|
-| `test_print_history_api.cpp` | 18 | SQLite operations |
-| `test_notification_history.cpp` | 13 | History persistence |
-| `test_moonraker_mock_behavior.cpp` | 12 | Mock simulation delays |
-| `test_gcode_streaming_controller.cpp` | 12 | Layer processing |
+`grep -c '\[slow\]' tests/unit/*.cpp` ranks the files.
 
 ### EventLoop Tests (5-10 min total)
 
@@ -369,15 +340,6 @@ Tests using `hv::EventLoop` for real network operations. These are the slowest t
 - Network timeout waiting (1-5 seconds per test)
 - Event loop startup/shutdown overhead
 - Thread synchronization
-
-| File | Count | Tests |
-|------|------:|-------|
-| `test_moonraker_client_subscription_cancel.cpp` | 17 | Subscription lifecycle |
-| `test_moonraker_client_robustness.cpp` | 14 | Edge cases, concurrent access |
-| `test_moonraker_client_security.cpp` | 14 | Security validation |
-| `test_print_preparation_manager.cpp` | 6 | Print preparation retry |
-| `test_moonraker_api_security.cpp` | 2 | API lifecycle |
-| `test_moonraker_connection_retry.cpp` | 1 | Connection retry logic |
 
 **Important:** All `[eventloop]` tests MUST also be tagged `[slow]` to ensure they are excluded from `make unit-sweep`.
 
@@ -404,12 +366,14 @@ tests/
 │   ├── test_config.cpp
 │   ├── test_gcode_parser.cpp
 │   └── ...
-└── mocks/                      # Mock implementations
-    ├── mock_websocket_server.{h,cpp}
-    ├── mock_mdns_discovery.h
-    └── mock_printer_state.h
-
-experimental/src/              # Standalone test binaries
+├── mocks/                      # Mock implementations
+│   ├── mock_websocket_server.{h,cpp}
+│   ├── mock_mdns_discovery.h
+│   └── mock_printer_state.h
+├── test_helpers/               # Shared drivers (e.g. print_state_test_drivers.h)
+├── shell/                      # bats suites
+├── ui/                         # pytest + helix-screen ctl (UI_TESTING.md)
+└── python/                     # Python tool tests
 ```
 
 ---
@@ -518,7 +482,7 @@ See `HELIX_XML_FORK.md`.
 
 `HelixTestFixture` (`tests/helix_test_fixture.h`) is the base for every test fixture. Its ctor and dtor call `reset_all()` which drains the update queue, resets `SystemSettingsManager` language, and clears the modal stack. Use `TEST_CASE_METHOD(HelixTestFixture, ...)` for plain unit tests that mutate process-wide singletons so mutations don't leak to the next test.
 
-`LVGLTestFixture` (`tests/lvgl_test_fixture.h`) inherits `HelixTestFixture` and adds a headless DRM display + test screen. Use it for tests that touch LVGL widgets.
+`LVGLTestFixture` (`tests/lvgl_test_fixture.h`) inherits `HelixTestFixture` and adds a virtual-buffer headless display + test screen. Use it for tests that touch LVGL widgets.
 
 `XMLTestFixture` (`tests/test_fixtures.h`) inherits `LVGLTestFixture` and owns per-instance `PrinterState`, `MoonrakerClient`, and `MoonrakerAPI` — no shared static state between tests. Reach for it whenever you need to exercise XML bindings. XML subjects register into LVGL's global scope; each test's `init_subjects(true)` overwrites prior entries with fresh pointers, and the destructor tears the screen down before deinitializing subjects to avoid dangling observer references.
 
@@ -566,7 +530,7 @@ TEST_CASE("Connection retry 5s timeout", "[connection][slow]")
 TEST_CASE("Some test", "[unit]")
 ```
 
-The Makefile auto-discovers test files in `tests/unit/` and `tests/integration/`.
+The Makefile auto-discovers test files in `tests/unit/`.
 
 ---
 
@@ -577,12 +541,12 @@ The Makefile auto-discovers test files in `tests/unit/` and `tests/integration/`
 ```cpp
 #include "moonraker_client_mock.h"
 
-MoonrakerClientMock client;
-client.connect(url, on_connected, on_disconnected);
-client.trigger_connected();   // Fire callback
-client.get_rpc_methods();     // Verify calls made
-client.reset();               // Reset for next test
+MoonrakerClientMock client(PrinterType::VORON_24);  // persona, optional speedup factor
+client.connect(url, on_connected, on_disconnected); // fires on_connected after the connect delay
+client.send_jsonrpc("printer.info", params);        // answered by the mock
 ```
+
+`MoonrakerClientMock::set_connect_delay_ms()` shortens the pause connect() takes. The mock's full surface is in `include/moonraker_client_mock.h`.
 
 ### Available Mocks
 
@@ -592,9 +556,7 @@ client.reset();               // Reset for next test
 
 ### Mock Drift Protection
 
-Six mock boundaries are guarded at build time by `[compile][drift]` tests in `tests/unit/test_interface_drift_*.cpp`. Each test `static_assert`s that the mock derives from the corresponding interface and is not abstract — so adding a pure virtual to an interface without updating the mock (directly or via the concrete class it inherits from) fails the build.
-
-Covered: `AmsBackend`, `EthernetBackend`, `UsbBackend`, `WifiBackend` (already pure-virtual interfaces), plus `IMoonrakerAPI` and `helix::IMoonrakerClient` (narrow interfaces added Apr 2026 — see `include/i_moonraker_api.h`, `include/i_moonraker_client.h`). The Moonraker mocks still inherit the concrete classes; the interfaces enforce drift protection without requiring a mock rewrite.
+Mock boundaries are guarded at build time by `[compile][drift]` tests in `tests/unit/test_interface_drift_*.cpp` (ethernet, USB, WiFi, performance source, `IMoonrakerAPI`, `helix::IMoonrakerClient`). Each test `static_assert`s that the mock derives from the corresponding interface and is not abstract, so adding a pure virtual to an interface without updating the mock (directly or via the concrete class it inherits from) fails the build. The Moonraker mocks still inherit the concrete classes; the narrow interfaces (`include/i_moonraker_api.h`, `include/i_moonraker_client.h`) enforce drift protection without a mock rewrite.
 
 ---
 

@@ -13,27 +13,25 @@ HelixScreen uses class-based patterns for all new code. For architectural ration
 **Canonical example:** `include/ui_panel_filament.h` + `src/ui/filament/ui_panel_filament.cpp`
 
 ```cpp
-class ExamplePanel : public PanelBase {  // Use SubjectManager subjects_; member for auto cleanup
-public:
-    explicit ExamplePanel(lv_obj_t* parent);
+class ExamplePanel : public PanelBase {
+  public:
+    ExamplePanel(helix::PrinterState& printer_state, helix::IMoonrakerAPI* api);
     ~ExamplePanel() override;
 
-    void show() override;
-    void hide() override;
-    lv_obj_t* get_root() const override { return root_; }
+    void init_subjects() override;                       // BEFORE the XML is created
+    void setup(lv_obj_t* panel, lv_obj_t* parent_screen) override;  // cache widgets, wire observers
+    const char* get_name() const override { return "Example"; }
+    const char* get_xml_component_name() const override { return "example_panel"; }
 
-private:
-    void init_subjects();  // Call BEFORE lv_xml_create()
-    void setup_observers();  // Wire reactive bindings
-
-    lv_obj_t* root_ = nullptr;
-    SubjectManager subjects_;  // Owns subjects + observers, auto-cleans on destruction
+  private:
+    SubjectManager subjects_;      // owns the subjects, deinitializes them on destruction
     lv_subject_t my_subject_{};
-    char buf_[128]{};  // Static storage for string subjects
+    char buf_[128]{};              // backing storage for a string subject
+    ObserverGuard temp_observer_;  // one guard per observed subject
 };
 ```
 
-**Note:** Use `PanelBase` with a `SubjectManager subjects_;` member for automatic observer cleanup on destruction.
+**Note:** `PanelBase` (`include/ui_panel_base.h`) pairs `init_subjects()` / `setup()` with a `SubjectManager subjects_;` member for subject cleanup and `ObserverGuard` members for observer cleanup.
 
 ### Manager Pattern (Backend)
 
@@ -62,19 +60,21 @@ private:
 
 ### Modal Pattern
 
-**Canonical example:** `src/ui/wizard/ui_wizard*.cpp`
+**Canonical example:** `include/ui_info_qr_modal.h` + `src/ui/components/ui_info_qr_modal.cpp`
 
 ```cpp
 class ConfirmDialog : public Modal {
-public:
-    void show(const std::string& title, ConfirmCallback on_confirm);
-    void dismiss() override;
+  public:
+    const char* get_name() const override { return "Confirm"; }
+    const char* component_name() const override { return "confirm_dialog"; }
 
-private:
-    lv_obj_t* backdrop_ = nullptr;
-    lv_obj_t* dialog_ = nullptr;
+  protected:
+    void on_ok() override;      // primary button
+    void on_cancel() override;  // secondary button, backdrop, ESC
 };
 ```
+
+See `docs/devel/MODAL_SYSTEM.md`; a plain component modal needs no subclass (`helix::ui::ComponentModal::show_owned("component_name")`).
 
 ### Domain State Pattern
 
@@ -97,7 +97,7 @@ private:
 };
 ```
 
-**Domain classes:** `printer_*_state.h` — Temperature, Motion, Fan, Print, Calibration, Capabilities, ExcludedObjects, Network, Versions, Led, HardwareValidation, PluginStatus, CompositeVisibility
+**Domain classes:** `printer_*_state.h` — Temperature, Motion, Fan, Print, Calibration, Capabilities, ExcludedObjects, Network, Versions, Profile, HardwareValidation, PluginStatus, CompositeVisibility
 
 **For architectural rationale, see [chapter 05 — Printer state & singletons](architecture/05-printer-state.md).**
 
@@ -145,26 +145,25 @@ Use `core/observer_factory.h` for type-safe, auto-cleaned observers. **Never use
 ```cpp
 #include "core/observer_factory.h"
 
-// In setup_observers():
+// Members: ObserverGuard temp_observer_, filename_observer_;
+// In setup():
 // Integer observer; the handler runs deferred on the UI thread
-add_observer(observe<int>(
+temp_observer_ = observe<int>(
     get_printer_state().temperature_state().get_active_extruder_temp_subject(),
     this,
     [](MyPanel* self, int32_t temp) {
         self->update_temp_display(temp);
     },
-    get_printer_state().get_subjects_lifetime()
-));
+    get_printer_state().get_subjects_lifetime());
 
 // String observer
-add_observer(observe<const char*>(
+filename_observer_ = observe<const char*>(
     get_printer_state().print_state().get_print_filename_subject(),
     this,
     [](MyPanel* self, const char* name) {
         lv_label_set_text(self->filename_label_, name);
     },
-    get_printer_state().get_subjects_lifetime()
-));
+    get_printer_state().get_subjects_lifetime());
 ```
 
 **Key patterns:**

@@ -93,7 +93,7 @@ UI entry points:
 
 2. **Slicer support**: The slicer must emit `EXCLUDE_OBJECT_DEFINE`, `EXCLUDE_OBJECT_START`, and `EXCLUDE_OBJECT_END` comments in the G-code. See the [Slicer Configuration](#slicer-configuration) section below.
 
-3. **Moonraker subscription**: HelixScreen subscribes to `exclude_object` status updates via Moonraker's WebSocket API. This happens automatically in `MoonrakerClient::subscribe_to_status_updates()`.
+3. **Moonraker subscription**: HelixScreen subscribes to `exclude_object` status updates via Moonraker's WebSocket API. `MoonrakerDiscoverySequence::build_subscription_objects()` adds `exclude_object` (`objects`, `excluded_objects`, `current_object`) to the subscription.
 
 ### G-code Commands
 
@@ -183,11 +183,11 @@ The `PrintExcludeObjectManager` implements a state machine with three states:
 
 ### Step-by-step
 
-1. **Initiation**: User long-presses an object in the G-code viewer (1000ms threshold — `kLongPressThresholdMs` in `src/ui/gcode/gcode_viewer_input.cpp#kLongPressThresholdMs`, deliberately double the app-wide 500ms gesture timeout because the gesture cancels printing the object) or taps an object in the Print Objects side list.
+1. **Initiation**: User long-presses an object in the G-code viewer (1000ms threshold - `kLongPressThresholdMs` in `src/ui/gcode/gcode_viewer_input.cpp#kLongPressThresholdMs`, deliberately double the app-wide 500ms gesture timeout because the gesture cancels printing the object) or taps an object in the Print Objects side list.
 
 2. **Guard checks**: Empty names, already-excluded objects, and pending exclusions are rejected.
 
-3. **Confirmation modal**: `ExcludeObjectModal` shows "Exclude Object?" with the object name and Exclude/Cancel buttons. Every close other than Exclude counts as a cancel and clears the pending guard: the Cancel button, ESC, a backdrop tap, a hot-reload rebuild and a programmatic `hide()` all resolve through `ExcludeObjectModal::on_hide()`.
+3. **Confirmation modal**: `ExcludeObjectModal` shows "Exclude Object?" with the object name and Exclude/Cancel buttons. Every close other than Exclude counts as a cancel and clears the pending guard: the Cancel button, ESC, a backdrop tap, a hot-reload rebuild and a programmatic `hide()` all resolve as a cancel: Cancel and ESC through `ExcludeObjectModal::on_cancel()`, the rest through `on_dismissed()`.
 
 4. **Visual preview**: On confirm, the object is immediately shown as excluded in the G-code viewer (greyed out with red diagonal stripes) before the API call is made.
 
@@ -225,7 +225,7 @@ therefore never changes as the printing object moves.
 - Tapping a non-excluded row triggers the same `PrintExcludeObjectManager::request_exclude()` confirmation flow as a long-press
 - Excluded rows are non-clickable and displayed at reduced opacity
 - The list auto-refreshes via observers on both `excluded_objects_version_` and `defined_objects_version_`
-- The list is accessed from PrintStatusPanel via `on_objects_clicked()` event callback
+- The list is accessed from PrintStatusPanel via the `on_print_status_objects` XML event callback
 
 ### Object numbers on the map and the render
 
@@ -279,7 +279,7 @@ excluded rect (`object_badge_opa()`). Anchors that project outside the widget ar
 Badges can overlap when objects sit close together; nothing spreads them apart.
 
 A tap inside a drawn (non-excluded) badge picks that badge's object before the renderer's
-own picker runs, checking badges in reverse paint order so the one on top wins (`src/ui/gcode/gcode_viewer_input.cpp#ui_gcode_viewer_pick_object`), since a badge
+own picker runs, checking badges in reverse paint order so the one on top wins (`src/ui/gcode/gcode_viewer_input.cpp#"static const char* ui_gcode_viewer_pick_object(lv_obj_t* obj, int x, int y) {"`), since a badge
 can sit over empty space, e.g. the hole of a ring. Badges are drawn, not widgets, so they
 never take input themselves.
 
@@ -364,7 +364,7 @@ second model for this: details owns a private `PrinterExcludedObjectsState`
   still sends the tapped file's picks. `PrintStartController::set_exclude_picks` carries
   them to the next start, which consumes them; a reprint never reads them.
 - **Send.** Klipper resets `exclude_object` as a print starts (`virtual_sdcard:reset_file`),
-  so nothing can be sent ahead of the start. `src/ui/print/pre_start_exclude.cpp#"with_pre_start_exclusions(std::function"`
+  so nothing can be sent ahead of the start. `src/ui/print/pre_start_exclude.cpp#"> with_pre_start_exclusions(helix::SharedCallback"`
   wraps the callback Moonraker's start confirmation fires and sends `EXCLUDE_OBJECT` for each
   pick after it. Every start path from details goes through it: the direct start, the
   plugin-modified start, the pre-start wait and the remap rewrite
@@ -402,7 +402,7 @@ second model for this: details owns a private `PrinterExcludedObjectsState`
 
 The 2D layer renderer (`GCodeLayerRenderer`) is what the Auto render mode lands on for builds without the GLES 3D renderer (and what `HELIX_GCODE_MODE=2D` / `--render-2d` force everywhere). It supports the full exclude objects feature:
 
-- **Object picking**: `pick_object_at()` is a two-stage hit test (`src/rendering/gcode_layer_renderer.cpp#pick_object_at`). Stage 1 projects each object's 3D bounding box — accumulated over the object's whole toolpath, clamped to the drawn Z range (only layers up to the current one are on screen), and inflated by the pick threshold — and returns that object immediately when it is the only candidate whose footprint covers the touch point; no segment is touched. Objects that have not started printing yet, and support objects while supports are hidden, are skipped at this stage. Only when footprints overlap does stage 2 run: it walks layers downward from the current layer, finds the closest segment to the touch point (`PICK_THRESHOLD_PX`, 15px), and the first layer that produces a hit wins — so a tap over a stack picks what is visually on top.
+- **Object picking**: `pick_object_at()` is a two-stage hit test (`src/rendering/gcode_layer_renderer.cpp#pick_object_at`). Stage 1 projects each object's 3D bounding box - accumulated over the object's whole toolpath, clamped to the drawn Z range (only layers up to the current one are on screen), and inflated by the pick threshold - and returns that object immediately when it is the only candidate whose footprint covers the touch point; no segment is touched. Objects that have not started printing yet, and support objects while supports are hidden, are skipped at this stage. Only when footprints overlap does stage 2 run: it walks layers downward from the current layer, finds the closest segment to the touch point (`PICK_THRESHOLD_PX`, 15px), and the first layer that produces a hit wins - so a tap over a stack picks what is visually on top.
 - **Excluded object rendering**: Excluded objects keep their shading but drain to grey, with red (`gcode_selection_excluded`) 45-degree stripes over them. See the state table below.
 - **Selection brackets**: Highlighted objects show corner bracket wireframes around their 3D bounding box (20% of shortest edge, capped at 5mm). 8 corners x 3 axes = 24 bracket lines per object.
 - **Interaction model**: a press-and-hold excludes the object under the finger; a tap (release with minimal movement, no two-finger gesture, long-press not already fired) toggles single-selection, which is what draws the corner brackets. On the 3D preview, a pinch zooms about the fingers and pans with them and a two-finger drag pans; in 2D and 3D alike, rotate, tap and long-press stay off from the first two-finger frame until every finger lifts. The skip-objects icon (`btn_objects` on the print status panel, visible when `exclude_objects_available` is set) opens the map + side-list panel instead.
@@ -410,7 +410,7 @@ The 2D layer renderer (`GCodeLayerRenderer`) is what the Auto render mode lands 
 
 ### Streaming Mode
 
-In streaming mode (`GCodeStreamingController`), the layer renderer operates on per-layer segment data fetched on demand rather than the full parsed file. Streaming has no object list — `set_streaming_controller()` clears the full-file pointer (`src/rendering/gcode_layer_renderer.cpp#set_streaming_controller`) — so stage 1 of picking is skipped and the unfiltered downward segment walk runs against whatever the stream has cached. That walk is cache-only: `try_get_layer_segments()` returns cached layers and skips uncached ones, never seeking and parsing on a tap — a hit-test must not freeze the UI to load geometry (`src/rendering/gcode_layer_renderer.cpp#pick_object_at`; a mid-pick load froze the UI for seconds on a 2-core board).
+In streaming mode (`GCodeStreamingController`), the layer renderer operates on per-layer segment data fetched on demand rather than the full parsed file. Streaming has no object list - `set_streaming_controller()` clears the full-file pointer (`src/rendering/gcode_layer_renderer.cpp#set_streaming_controller`) - so stage 1 of picking is skipped and the unfiltered downward segment walk runs against whatever the stream has cached. That walk is cache-only: `try_get_layer_segments()` returns cached layers and skips uncached ones, never seeking and parsing on a tap - a hit-test must not freeze the UI to load geometry (`src/rendering/gcode_layer_renderer.cpp#pick_object_at`; a mid-pick load froze the UI for seconds on a 2-core board).
 
 ---
 
@@ -501,7 +501,7 @@ HELIX_MOCK_AUTO_PRINT=1 SDL_VIDEODRIVER=offscreen ./build/bin/helix-screen --tes
 
 For the exclude objects feature to work, your slicer must output `EXCLUDE_OBJECT` metadata in the G-code. Most modern slicers support this.
 
-> **Slicer support tiers:** HelixScreen is developed and tested primarily against **OrcaSlicer 2.3.2+** — that's the recommended slicer. Manufacturer slicers (Creality Print, FlashForge Orca, Bambu Studio, etc., most of which are OrcaSlicer/PrusaSlicer forks) and **PrusaSlicer / SuperSlicer** are also supported. **Cura is not a target** — we don't test against it or build features for it, but we also don't deliberately break it; its output generally works with the extra setup noted below.
+> **Slicer support tiers:** HelixScreen is developed and tested primarily against **OrcaSlicer 2.3.2+** - that's the recommended slicer. Manufacturer slicers (Creality Print, FlashForge Orca, Bambu Studio, etc., most of which are OrcaSlicer/PrusaSlicer forks) and **PrusaSlicer / SuperSlicer** are also supported. **Cura is not a target** - we don't test against it or build features for it, but we also don't deliberately break it; its output generally works with the extra setup noted below.
 
 ### OrcaSlicer (recommended)
 
@@ -511,7 +511,7 @@ For the exclude objects feature to work, your slicer must output `EXCLUDE_OBJECT
 **Print Settings > Output options**:
 - Enable **Label objects** (checkbox, listed as **Exclude object** in some versions)
 
-This causes the slicer to emit `EXCLUDE_OBJECT_DEFINE`, `EXCLUDE_OBJECT_START`, and `EXCLUDE_OBJECT_END` commands. OrcaSlicer 2.3.2+ also round-trips filament presets with HelixScreen's filament slots — see `FILAMENT_MANAGEMENT.md`.
+This causes the slicer to emit `EXCLUDE_OBJECT_DEFINE`, `EXCLUDE_OBJECT_START`, and `EXCLUDE_OBJECT_END` commands. OrcaSlicer 2.3.2+ also round-trips filament presets with HelixScreen's filament slots - see `FILAMENT_MANAGEMENT.md`.
 
 ### PrusaSlicer / BambuStudio
 
@@ -666,13 +666,10 @@ theme.
 | Excluded *and* selected | Grey inside the white rim, without stripes: a pixel carries one alpha tag and the selection tag wins, because seeing what you picked matters more |
 | Pending exclusion | Same as excluded (visual preview before API call) |
 
-Two corrections to what this table used to say, both worth knowing if you are
-reading older code or notes:
+Two things the table implies, stated outright:
 
-- **Selection does not brighten the object.** It used to claim a "brightened
-  color", which described a 1.8x `HIGHLIGHT_BRIGHTNESS` bake in the geometry
-  builder that no live caller reached. A selected object deliberately keeps its
-  filament color and is marked by the rim instead, as in OrcaSlicer.
+- **Selection does not brighten the object.** A selected object deliberately
+  keeps its filament color and is marked by the rim instead, as in OrcaSlicer.
 - **Exclusion does not change line width.** Excluded objects draw at the same
   stroke width as everything else.
 

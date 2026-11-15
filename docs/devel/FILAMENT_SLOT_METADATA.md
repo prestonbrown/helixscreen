@@ -72,10 +72,10 @@ types every supported Orca release carries.
 | `bed_temp`, `nozzle_temp` | numbers resolved from the material at write time, or `null` |
 | `remaining_weight_g`, `total_weight_g` | numbers or `null` |
 | `scan_time` | `null` |
-| `helix_color_name`, `helix_catalog_id`, `helix_product_name`, `helix_spoolman_vendor_id`, `helix_fingerprint`, `helix_unlinked_spool_id`, `helix_filament_id_source` | HelixScreen's own keys, omitted when empty |
+| `helix_color_name`, `helix_catalog_id`, `helix_product_name`, `helix_spoolman_vendor_id`, `helix_fingerprint`, `helix_filament_id_source` | HelixScreen's own keys, omitted when empty |
 
 `from_lane_data_record()` reads the RFC spellings first and the legacy ones
-(`vendor`, `spool_name`, `helix_material`, a numeric `lane`) after, so a record
+(`vendor`, `spool_name`, `helix_material`, `helix_spoolman_filament_id`, a numeric `lane`) after, so a record
 written by an older HelixScreen, AFC, Happy Hare or Mainsail still reads. A
 record with no valid `lane` field does not parse, and costs its slot only.
 
@@ -135,7 +135,7 @@ Each backend owns one store, keyed by its `backend_id`:
 | `AmsBackendAce` | `ace` | `lane_data` |
 | `AmsBackendCfs` | `cfs` | `lane_data` |
 | `AmsBackendQidi` | `qidi` | `lane_data` |
-| `AmsBackendToolChanger` | `toolchanger` | `lane_data` |
+| `AmsBackendToolChanger` (and `AmsBackendIndx`) | `toolchanger` | `lane_data` |
 | `AmsBackendOpenAms` | `openams` | `lane_data` |
 | `AmsBackendAfc` | `afc` | `helix-screen-afc-overrides` (extras) |
 | `AmsBackendHappyHare` | `happyhare` | `helix-screen-hh-overrides` (extras) |
@@ -473,10 +473,10 @@ The paths that clear:
 
 CFS (stock and flat schema), Snapmaker and QIDI Box run their hardware-event clear
 through `SlotFingerprintTracker` (`include/filament_slot_override_store.h#SlotFingerprintTracker`).
-Each observed identity string classifies as `NoSignal`, `Baseline`, `Unchanged`,
-`OwnWriteEcho` or `Changed`, and only `Changed` clears the record. Before pushing a
-user edit the backend arms `expect_any_of()` with the values the write should echo
-back; a failed dispatch drops them (`forget_expected()`).
+Each observed identity string classifies as a `FingerprintEvent`: `NoSignal`,
+`Baseline`, `Unchanged` or `Changed`. Only `Changed` can clear the record, and
+whether it is a spool swap or the echo of our own write is the backend's call: a
+lane with a Pending edit in flight is hearing its own write.
 
 `bind_fingerprint_persistence()` ties the tracker to the records, called from each
 of those backends' `on_lane_records_read_locked()`:
@@ -485,7 +485,8 @@ of those backends' `on_lane_records_read_locked()`:
   first observation after start compares against the last fingerprint seen before
   shutdown.
 - **Recording.** The baseline sink writes the current fingerprint onto the record
-  on `Baseline`, `Unchanged` and `OwnWriteEcho`, never `Changed`.
+  on `Baseline` and `Unchanged`, never `Changed` (the caller may be about to erase
+  the record), and only for a slot that has a record.
 - Records without the key seed nothing: first observation is `Baseline`, no clear.
 
 ---
@@ -508,8 +509,8 @@ the per-backend `test_ams_backend_*.cpp` files.
 - **Drain until quiet.** A write's success queues a read and the read's answer
   queues its filing, so a case drains `UpdateQueue` several times before asserting
   (`settle()` in `test_lane_record_refresh.cpp`).
-- **Tags**: `[filament_slot_override]` covers the store; `[refresh]`, `[pending]`
-  and `[ready]` the read path, the Pending overlay and the editing gate.
+- **Tags**: `[filament_slot_override]` covers the store; `[lane][refresh]`,
+  `[lane][pending]` and `[ready]` the read path, the Pending overlay and the editing gate.
 
 ---
 
@@ -522,6 +523,6 @@ the per-backend `test_ams_backend_*.cpp` files.
   - Record: `include/filament_slot_override.h#FilamentSlotOverride`
   - Store: `src/printer/filament_slot_override_store.cpp#to_lane_data_record`, `src/printer/filament_slot_override_store.cpp#from_lane_data_record`, `src/printer/filament_slot_override_store.cpp#extras_only`
   - Read path: `src/printer/ams_subscription_backend.cpp#refresh_lane_records`, `src/printer/ams_subscription_backend.cpp#adopt_lane_records`
-  - Pending: `include/lane_source_store.h#file_pending`, `include/lane_source_store.h#strip_echoed_fields`, `include/lane_source_store.h#expire_pending`
+  - Pending: `include/lane_source_store.h#file_pending`, `include/lane_source_store.h#strip_echoed_fields`, `src/printer/lane_source_store.cpp#expire_pending`
   - Lane sources to `SlotInfo`: `src/printer/lane_resolver.cpp#resolve`, `include/ams_backend.h#AmsBackend/apply_resolved_lane`
   - Tag-declared Spoolman links: `src/printer/tag_spool_link.cpp`, driven by `src/printer/ams_state.cpp#sync_tag_spool_link`

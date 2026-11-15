@@ -139,16 +139,11 @@ Welcome to the HelixScreen documentation. Choose your path:
 
 ## Audits & Reports
 
-**Security reviews and quality assessments.**
+**Point-in-time quality assessments.**
 
 | Document | Description |
 |----------|-------------|
 | [**Safety Audit**](audits/SAFETY_AUDIT.md) | User-facing safety: printer damage, self-harm, misleading state |
-| [**Security Review**](audits/MOONRAKER_SECURITY_REVIEW.md) | Moonraker security assessment |
-| [**Memory Analysis**](audits/MEMORY_ANALYSIS.md) | Memory profiling and optimization |
-| [**Test Coverage**](audits/TEST_COVERAGE_REPORT.md) | Test coverage report |
-| [**Moonraker Audit Summary**](audits/MOONRAKER_AUDIT_SUMMARY.md) | Moonraker client code-quality audit |
-| [**Moonraker Client Test Results**](audits/MOONRAKER_CLIENT_TEST_RESULTS.md) | Moonraker client robustness testing |
 
 ---
 
@@ -184,7 +179,7 @@ docs/
 │   ├── CLAUDE.md             # Specs subtree routing
 │   └── filament_slots.md     # lane_data Moonraker DB convention
 │
-├── audits/                   # 6 audit and review reports
+├── audits/                   # Safety audit
 ├── store/android/            # Play Store listing assets
 └── images/                   # Screenshots (+ images/user/)
 

@@ -24,10 +24,10 @@ on top of somebody's content.
 | `include/page_scroll_controller.h` + `src/ui/home/page_scroll_controller.cpp` | One controller per managed container. Owns the gutter, the reserved padding, and the scroll wiring |
 | `include/page_scroll_auto_inject.h` + `src/ui/home/page_scroll_auto_inject.cpp` | The policy. Walks a shown root and decides what gets a controller |
 | `ui_xml/components/page_scroll_gutter.xml` | The chevron column itself. Created by the controller, never placed in screen XML |
-| `src/system/display_settings_manager.cpp#init_subjects` | The setting and its per-platform default |
+| `src/system/display_settings_manager.cpp` (`kPageScrollDefault`) | The setting and its per-platform default |
 
-Both the component registration and the `PageScrollAutoInject::init()` call happen
-in `src/xml_registration.cpp#register_xml_components`. Teardown is
+The gutter component registers on first use, like every other component. The
+`PageScrollAutoInject::init()` call is in `src/xml_registration.cpp#register_xml_components`. Teardown is
 `src/application/printer_session.cpp#teardown_printer_scope`.
 
 ---
@@ -39,19 +39,20 @@ Config key `/display/page_scroll_buttons`, subject
 `DisplaySettingsManager::get_page_scroll_buttons()` / `set_page_scroll_buttons()`.
 
 ```cpp
-// src/system/display_settings_manager.cpp:234-248
+// src/system/display_settings_manager.cpp
 #if defined(ESP_PLATFORM)
-    constexpr bool page_scroll_default = true;
+static constexpr int kPageScrollDefault = 1;
 #else
-    constexpr bool page_scroll_default = false;
+static constexpr int kPageScrollDefault = 0;
 #endif
 ```
 
 That split is why an ESP32-only layout bug in this feature can sit unnoticed on
 every other platform. If you change anything here, reason about ESP32 first.
 
-The user toggle lives in Display settings and drives
-`PageScrollAutoInject::on_setting_toggled()` directly from its callback. It is
+The user toggle lives in Touch settings (`ui_xml/settings_touch_overlay.xml`,
+callback `on_page_scroll_buttons_changed` in `src/ui/settings/ui_settings_touch.cpp`) and drives
+`PageScrollAutoInject::on_setting_toggled()` directly from that callback. It is
 deliberately **not** a subject observer, and the rationale is in
 `PageScrollAutoInject::init()`: the settings subject is re-initialised lazily
 when the Settings panel is first built, which is after `init()` runs, and that
@@ -103,12 +104,12 @@ separated by a `#space_2xl` gap, in a `#button_height`-wide column:
 172px of chevrons inside a tile on a 480px-tall screen is most of the tile.
 
 The cut is a **subtree** cut, not a "is this tile scrollable" test, and that
-distinction is load-bearing. 38 of the 41 `panel_widget_*.xml` roots already set
-`scrollable="false"`, and two more (the camera and print-status tiles) inherit the clear from
-`ui_card` (`src/ui/components/ui_card.cpp#ui_card_xml_create`) - the nozzle-temps root alone sets
-`scrollable="true"`. So testing the tile root would find almost nothing -
-the walk was sailing straight through those innocent-looking roots and
-attaching to whatever was scrollable inside. Marking the root and returning
+distinction is load-bearing. 50 of the 52 `panel_widget_*.xml` roots set
+`scrollable="false"`, the camera tile inherits the clear from `ui_card`
+(`src/ui/components/ui_card.cpp#ui_card_xml_create`), and the nozzle-temps root alone sets
+`scrollable="true"`. So testing the tile root would find almost nothing, and
+the walk would go straight through those roots and attach to whatever is
+scrollable inside. Marking the root and returning
 there is what actually stops it.
 
 Tiles are marked at the single place one is created,
@@ -163,8 +164,8 @@ it with `lv_obj_move_to_index()` anywhere in the feature.
 
 The controller watches `LV_EVENT_DELETE` on both the container and the gutter.
 The gutter watch exists because `lv_obj_clean()` on a surviving container
-destroys the gutter without firing the container's own delete, which dangled
-`gutter_` into `refresh_reach_state()` (#1123).
+destroys the gutter without firing the container's own delete; without it
+`gutter_` would dangle into `refresh_reach_state()` (#1123).
 
 `walk_and_attach()` erases a controller from the map synchronously inside its
 own deleted-callback. That is safe only because the controller nulls
@@ -222,7 +223,7 @@ wanted gone.
 
 ## Related Documentation
 
-- [chapter 09 — Home panel widgets](architecture/09-home-widgets.md) - Panel Widget System, including the
+- [chapter 09 - Home panel widgets](architecture/09-home-widgets.md) - Panel Widget System, including the
   `LV_OBJ_FLAG_USER_*` ledger that `kPanelWidgetTileFlag` is part of
 - [LAYOUT_SYSTEM.md](LAYOUT_SYSTEM.md) - the home widget grid that sizes tiles
 - [LVGL9_XML_GUIDE.md](LVGL9_XML_GUIDE.md) - `lv_obj` defaults, and why

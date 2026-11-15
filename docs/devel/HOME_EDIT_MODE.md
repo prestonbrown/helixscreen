@@ -203,7 +203,7 @@ swipeable: a swipe that starts on a widget must still flip the page.
   lockout; a dropped tap logs `Row tap ignored` at info.
 - **Known limit: the entering hold's travel is measured from its press to its lift only.** That
   hold ends its press (`helix::ui::end_press`), and LVGL sends no PRESSING while it waits for the
-  release (`lib/lvgl/src/indev/lv_indev.c#indev_proc_press`). The callout it raised stays up while
+  release (`lib/lvgl/src/indev/lv_indev.c#"if(indev->wait_until_release != 0) return;"`). The callout it raised stays up while
   the finger moves and closes at the lift, and a finger that wanders past `kDragThresholdPx` and
   comes back before lifting leaves it open.
 - **A click is a release that lands where its press did.** LVGL sends CLICKED after any release no

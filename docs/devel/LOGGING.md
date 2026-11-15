@@ -203,7 +203,7 @@ The runtime target is set by precedence (highest → lowest):
    - **Other Linux** → `Syslog` (`syslog_sink_mt` via `libc syslog()`)
    - **macOS/other** → `Console` (`stdout_color_sink_mt`)
 
-Valid `LogTarget` values: `auto`, `journal`, `syslog`, `file`, `console`, `android`.
+`LogTarget` values: `auto`, `journal`, `syslog`, `file`, `console`, `android`. Only the first five pass `is_valid_log_target()` (the flag and the env var); `android` is chosen by detection.
 
 ### Per-Sink Log Patterns
 
@@ -400,7 +400,7 @@ Older installs wrote to `/tmp/helixscreen.log` on every SysV target. Debug bundl
 | `-vv` | DEBUG and above |
 | `-vvv` | TRACE and above |
 | `--log-level=trace\|debug\|info\|warn\|error\|critical\|off` | Explicit level (overrides `-v`) |
-| `--log-dest=auto\|journal\|syslog\|file\|console\|android` | Override destination |
+| `--log-dest=auto\|journal\|syslog\|file\|console` | Override destination (Android always logs to logcat) |
 | `--log-file=<path>` | Override path when `--log-dest=file` |
 
 ### Env / config

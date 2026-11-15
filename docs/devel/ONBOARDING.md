@@ -74,7 +74,7 @@ make install-deps    # Auto-install (interactive)
 
 ## Build & Run
 
-Before compiling, check for existing build processes (`pgrep -f 'make|c\+\+'`) —
+Before compiling, check for existing build processes (`pgrep -x -d' ' 'make|clang++|cc1plus'`; never `pgrep -f`, which matches its own command line) —
 concurrent compilations thrash the machine.
 
 ```bash
