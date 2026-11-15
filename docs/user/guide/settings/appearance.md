@@ -60,6 +60,11 @@ Eighteen themes come with HelixScreen, listed alphabetically in the Theme Preset
 
 Tap **Edit** in the theme explorer to open the theme editor. You can recolor a theme and change its corners, borders and shadows. Everything around the editor updates as you go, so you see the result straight away.
 
+![The theme explorer's preset menu and Dark Mode switch](../../../images/user/settings-theme-actions.png)
+
+1. The Theme Preset menu picks which theme to look at.
+2. The Dark Mode switch chooses which palette the editor changes.
+
 The editor has two sections:
 
 - **Theme Colors**: 16 color swatches, each labeled with what it colors (background, text, primary, success, warning and so on). Tap a swatch, then pick a ready-made color or mix your own.
@@ -119,6 +124,13 @@ Shows a text label under icon-only widgets on the home screen. **Off** by defaul
 ## Printer Visuals
 
 The rows under **PRINTER VISUALS** change how your printer and its data are drawn. Apart from which way the Z buttons move (see [Z Movement](#z-movement)), the printer behaves exactly the same whatever you pick.
+
+![The Printer Visuals rows](../../../images/user/settings-printer-visuals.png)
+
+1. Toolhead Style.
+2. G-code Preview.
+3. Z Movement.
+4. Bed Mesh Render.
 
 ### Toolhead Style
 

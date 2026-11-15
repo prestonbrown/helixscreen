@@ -720,3 +720,164 @@ images:
       - {n: 1, widget: row_label_size, at: top_right}
       - {n: 2, widget: row_preset, at: top_right}
       - {n: 3, widget: btn_test_print, at: top_right}
+  - path: docs/images/user/settings-printer-visuals.png
+    kind: app
+    recipe: appearance-2
+    crop: group_printer_visuals
+    margin: 12
+    markers:
+      - {n: 1, widget: row_toolhead_style, at: top_right}
+      - {n: 2, widget: row_gcode_mode, at: top_right}
+      - {n: 3, widget: row_z_movement_style, at: top_right}
+      - {n: 4, widget: row_bed_mesh_mode, at: top_right}
+  - path: docs/images/user/settings-theme-actions.png
+    kind: app
+    recipe: theme
+    markers:
+      - {n: 1, widget: theme_preset_dropdown, at: top_right}
+      - {n: 2, widget: preview_dark_mode_toggle, at: top_right}
+  - path: docs/images/user/settings-touch-sliders.png
+    kind: app
+    recipe: touch-input
+    markers:
+      - {n: 1, widget: row_scroll_limit, at: top_right}
+      - {n: 2, widget: row_long_press_time, at: top_right}
+  - path: docs/images/user/settings-sound-top.png
+    kind: app
+    recipe: sound
+    markers:
+      - {n: 1, widget: row_sounds, at: top_right}
+      - {n: 2, widget: row_volume, at: top_right}
+      - {n: 3, widget: row_ui_sounds, at: top_right}
+      - {n: 4, widget: row_sound_theme, at: top_right}
+  - path: docs/images/user/safety-u1-detection.png
+    kind: app
+    env:
+      HELIX_MOCK_PRINTER: snapmaker_u1
+    steps:
+      - navigate settings
+      - click row_safety
+      - wait_idle
+      - scroll overlay_content 0 -150
+    markers:
+      - {n: 1, widget: row_detection_enabled, at: top_right}
+      - {n: 2, widget: row_bed_check, at: top_right}
+  - path: docs/images/user/printing-material-edit.png
+    kind: app
+    steps:
+      - navigate settings
+      - click row_printing
+      - click row_material_temps
+      - wait_idle
+      - click PLA
+      - wait_idle
+    crop: material_edit_view
+    margin: 12
+    markers:
+      - {n: 1, widget: edit_nozzle_min, at: top_right}
+      - {n: 2, widget: edit_nozzle_max, at: top_right}
+      - {n: 3, widget: edit_bed_temp, at: top_right}
+      - {n: 4, widget: btn_reset_defaults, at: top_right}
+      - {n: 5, widget: btn_save_material, at: top_right}
+  - path: docs/images/user/printing-filament-rows.png
+    kind: app
+    env:
+      HELIX_MOCK_PRINTER: snapmaker_u1
+    recipe: printing-2
+    markers:
+      - {n: 1, widget: row_material_temps, at: top_right}
+      - {n: 2, widget: row_filament_auto_open_editor, at: top_right}
+      - {n: 3, widget: row_number_lanes_from_zero, at: top_right}
+      - {n: 4, widget: row_tool_change_confirm, at: top_right}
+  - path: docs/images/user/led-settings-startup.png
+    kind: app
+    steps:
+      - navigate settings
+      - click row_devices
+      - click row_led_settings
+      - wait_idle
+      - click row_led_on_at_start
+      - wait_idle
+    crop: group_startup
+    margin: 12
+    markers:
+      - {n: 1, widget: row_led_on_at_start, at: top_right}
+      - {n: 2, widget: row_startup_brightness, at: top_right}
+  - path: docs/images/user/connection-rows.png
+    kind: app
+    recipe: connection
+    markers:
+      - {n: 1, widget: row_printers, at: top_right}
+      - {n: 2, widget: row_network, at: top_right}
+      - {n: 3, widget: row_printer_host, at: top_right}
+      - {n: 4, widget: row_printer_api_key, at: top_right}
+      - {n: 5, widget: row_screen_sharing, at: top_right}
+  - path: docs/images/user/change-host-dialog.png
+    kind: app
+    steps:
+      - navigate settings
+      - click row_connection
+      - click row_printer_host
+      - wait_idle
+    markers:
+      - {n: 1, widget: host_input, at: top_right}
+      - {n: 2, widget: port_input, at: top_right}
+      - {n: 3, widget: btn_test_connection, at: top_right}
+      - {n: 4, widget: modal_save_btn, at: top_right}
+  - path: docs/images/user/language-time-rows.png
+    kind: app
+    recipe: language-time
+    markers:
+      - {n: 1, widget: row_language, at: top_right}
+      - {n: 2, widget: row_timezone, at: top_right}
+      - {n: 3, widget: row_time_format, at: top_right}
+  - path: docs/images/user/help-rows.png
+    kind: app
+    recipe: help-about
+    markers:
+      - {n: 1, widget: row_replay_tour, at: top_right}
+      - {n: 2, widget: row_debug_bundle, at: top_right}
+      - {n: 3, widget: row_discord, at: top_right}
+      - {n: 4, widget: row_getting_started, at: top_right}
+      - {n: 5, widget: row_user_guide, at: top_right}
+      - {n: 6, widget: row_about, at: top_right}
+  - path: docs/images/user/debug-bundle-dialog.png
+    kind: app
+    steps:
+      - navigate settings
+      - click row_help
+      - click row_debug_bundle
+      - wait_idle
+    markers:
+      - {n: 1, widget: include_logs_switch, at: top_right}
+      - {n: 2, widget: user_note_textarea, at: top_right}
+      - {n: 3, widget: btn_upload, at: top_right}
+  - path: docs/images/user/trouble-log-level.png
+    kind: app
+    steps:
+      - navigate settings
+      - click row_system
+      - wait_idle
+      - scroll overlay_content 0 -150
+    crop: row_log_level
+    margin: 12
+    markers:
+      - {n: 1, widget: row_log_level, at: top_right}
+  - path: docs/images/user/config-screen-sharing.png
+    kind: app
+    steps:
+      - navigate settings
+      - click row_connection
+      - click row_screen_sharing
+      - wait_idle
+    markers:
+      - {n: 1, widget: row_remote_screen, at: top_right}
+      - {n: 2, widget: row_remote_webcam, at: top_right}
+      - {n: 3, widget: row_remote_control, at: top_right}
+  - path: docs/images/user/config-safety-confirmations.png
+    kind: app
+    recipe: safety
+    markers:
+      - {n: 1, widget: row_estop_confirm, at: top_right}
+      - {n: 2, widget: row_cancel_escalation, at: top_right}
+      - {n: 3, widget: row_macro_confirm, at: top_right}

@@ -14,6 +14,13 @@ On the Settings screen, the **Sound** row shows your volume, for example *Volume
 
 The master switch. Turns every sound on or off. **Off** on a fresh install, so turn it on to hear anything. When it's off, the rest of the rows on this page are hidden.
 
+![The Sound switches and sliders](../../../images/user/settings-sound-top.png)
+
+1. Sounds is the master switch.
+2. Volume sets how loud sounds play.
+3. UI Sounds switches the tap and navigation sounds.
+4. Sound Theme picks the set of sounds.
+
 > On a screen with its own sound hardware, the Sound options are there as soon as HelixScreen starts. On a printer that beeps through Klipper, they appear once the printer connects and HelixScreen finds the beeper.
 
 ---

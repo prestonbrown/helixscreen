@@ -6,6 +6,14 @@ On the Settings screen, the **Connection** row shows how the screen is connected
 
 ![Connection settings](../../../images/user/settings-connection.png)
 
+![The Connection page](../../../images/user/connection-rows.png)
+
+1. Printers switches, adds or removes printers.
+2. Network Settings opens Wi-Fi and Ethernet.
+3. Host is the Moonraker address.
+4. API Key shows Configured or Not set.
+5. Screen Sharing shows this screen in a browser.
+
 ---
 
 ## Printers
@@ -53,6 +61,13 @@ Some boards have one network chip and can't use Ethernet and Wi-Fi at once. On t
 ## Host
 
 Shows the Moonraker address HelixScreen is connected to, such as `192.168.1.50:7125`. Tapping it opens the **Change Printer Host** dialog, which edits the printer you are using.
+
+![The Change Printer Host dialog](../../../images/user/change-host-dialog.png)
+
+1. Host is the printer's name or IP address.
+2. Port is 7125 unless Moonraker sits behind a web server.
+3. Test Connection checks the address and key without switching.
+4. Save stays grayed out until a test succeeds.
 
 To connect to a different address:
 

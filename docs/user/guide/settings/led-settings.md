@@ -27,6 +27,11 @@ A newly detected light shows up as its own tab in the LEDs overlay as soon as it
 
 ## Startup
 
+![The LED Startup rows](../../../images/user/led-settings-startup.png)
+
+1. LED on at Start turns the light on when HelixScreen starts.
+2. Startup Brightness appears while LED on at Start is on.
+
 ### LED on at Start
 
 Turns on your lights when Klipper becomes ready: every light your Home Panel Light buttons control, or the chamber light if you haven't placed a button. Useful for chamber lights that should always be on when the printer is powered up. If a button controls a WLED strip, HelixScreen waits up to 5 seconds for WLED to answer before it falls back to the chamber light.

@@ -85,6 +85,11 @@ See [Print Monitoring](../print-monitoring.md#print-failure-detection) for what 
 
 > Only shown on the Snapmaker U1.
 
+![Detection rows on a Snapmaker U1](../../../images/user/safety-u1-detection.png)
+
+1. Spaghetti Detection also switches the printer's own detection on a U1.
+2. Bed Clear Check is the printer's own pre-print bed check.
+
 Before each print, the U1's camera checks that the bed is empty. The row's description reads "Camera checks the bed is empty before each print".
 
 | Setting | What happens |

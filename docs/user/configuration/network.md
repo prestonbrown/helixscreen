@@ -45,6 +45,14 @@ You do not need to edit this by hand. **Settings > Connection > Printers** adds,
 
 These keys are in each printer's entry, `printers.<id>`. Change the address and key from **Settings > Connection > Host** and **API Key**; both open the **Change Printer Host** dialog.
 
+![The Connection page](../../images/user/connection-rows.png)
+
+1. Printers switches, adds or removes printers.
+2. Network Settings opens Wi-Fi and Ethernet.
+3. Host is the Moonraker address.
+4. API Key shows Configured or Not set.
+5. Screen Sharing shows this screen in a browser.
+
 | Key | Default | What it does |
 |-----|---------|--------------|
 | `moonraker_host` | `"127.0.0.1"` | The Moonraker host name or IP address. |
@@ -84,6 +92,12 @@ The connection type, network name and IP address shown in **Settings > Connectio
 ## Screen sharing
 
 These settings let you watch and control the screen from a browser or from Mainsail and Fluidd. They are set at **Settings > Connection > Screen Sharing**, which is hidden on printers whose firmware shares the screen itself. Three switches are **per printer**, inside `remote_screen` in the printer's entry, so one printer's screen never appears among another printer's webcams.
+
+![The Screen Sharing page](../../images/user/config-screen-sharing.png)
+
+1. Share Screen is the master switch (`remote_screen.enabled`).
+2. Add to Mainsail/Fluidd Webcams adds the screen as a webcam (`webcam`).
+3. Allow Remote Control lets the browser send touches (`control`).
 
 ```json
 "remote_screen": {

@@ -41,6 +41,10 @@ By default HelixScreen logs warnings, errors and milestones (the **Info** level)
 3. Open **Settings > Help & About > Upload Debug Bundle**. It collects the log and system information and gives you a short share code to paste into a bug report.
 4. Set **Log Level** back to **Info**. Debug and Trace add CPU load and log volume.
 
+![The Log Level row](../../images/user/trouble-log-level.png)
+
+1. Log Level: choose Debug, reproduce the problem, then set it back to Info.
+
 | Level | What it records |
 |-------|-----------------|
 | **Warn** | Only errors and warnings |

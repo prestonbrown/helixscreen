@@ -4,6 +4,15 @@
 
 ![Help & About settings](../../../images/user/settings-help-about.png)
 
+![The Help & About page](../../../images/user/help-rows.png)
+
+1. Replay Welcome Tour.
+2. Upload Debug Bundle.
+3. Discord Community.
+4. Getting Started.
+5. User Guide.
+6. About.
+
 ---
 
 ## Replay Welcome Tour
@@ -34,6 +43,12 @@ After an update that adds tour steps, the tour starts again by itself and shows 
 ## Upload Debug Bundle
 
 Sends the HelixScreen team what they need to look into a problem you're having.
+
+![The Upload Debug Bundle dialog](../../../images/user/debug-bundle-dialog.png)
+
+1. Include logs adds the recent log files.
+2. The note box is where you describe the problem.
+3. Upload sends the bundle and shows a share code.
 
 1. Tap **Upload Debug Bundle**.
 2. Optionally switch on **Include Klipper/Moonraker logs** (off by default) and describe the problem in the note box.

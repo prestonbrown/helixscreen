@@ -10,6 +10,12 @@ Confirmation dialogs, cancel behaviour, print-failure detection, notifications a
 
 These are in the `safety` section.
 
+![The confirmation rows](../../images/user/config-safety-confirmations.png)
+
+1. E-Stop Confirmation.
+2. Cancel Escalation.
+3. Confirm before running macros.
+
 | Key | Default | Values | What it does |
 |-----|---------|--------|--------------|
 | `estop_require_confirmation` | `true` | `true` or `false` | Asks for confirmation before an emergency stop. With `false` the E-Stop acts immediately. The default protects against accidental stops. **Settings > Safety & Alerts > E-Stop Confirmation**. |
