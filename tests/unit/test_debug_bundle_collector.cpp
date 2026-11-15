@@ -268,6 +268,12 @@ TEST_CASE("DebugBundleCollector: collect_printer_info() renders a snapshot witho
     CHECK(printer["connection_state"] == "connected");
     CHECK(printer["klippy_state"] == "shutdown");
 
+    SECTION("a Klippy that never reported reads as unreported, not as its placeholder") {
+        snap.klippy_state_reported = false;
+        const json out = helix::DebugBundleCollector::collect_printer_info(snap);
+        CHECK(out["klippy_state"] == "unreported");
+    }
+
     SECTION("out-of-range enums are dropped rather than indexing off the table") {
         helix::PrinterSnapshot bad;
         bad.captured = true;
