@@ -12,7 +12,7 @@ On the Settings screen, the **Appearance** row shows the mode and the theme you'
 
 ## Dark Mode
 
-Switches between the light and dark version of your theme. **On** (dark) by default. The switch is grayed out when your theme only comes in one version (see the Modes column in [Built-in Themes](#built-in-themes)).
+Switches between the light and dark version of your theme. **On** (dark) by default. The switch is grayed out when your theme only comes in dark (see the Modes column in [Built-in Themes](#built-in-themes)).
 
 ---
 
@@ -59,6 +59,11 @@ Eighteen themes come with HelixScreen, listed alphabetically in the Theme Preset
 ### Editing a Custom Theme
 
 Tap **Edit** in the theme explorer to open the theme editor. You can recolor a theme and change its corners, borders and shadows. Everything around the editor updates as you go, so you see the result straight away.
+
+![The theme explorer's preset menu and Dark Mode switch](../../../images/user/settings-theme-actions.png)
+
+1. The Theme Preset menu picks which theme to look at.
+2. The Dark Mode switch chooses which palette the editor changes.
 
 The editor has two sections:
 
@@ -118,21 +123,31 @@ Shows a text label under icon-only widgets on the home screen. **Off** by defaul
 
 ## Printer Visuals
 
-The rows under **PRINTER VISUALS** change how your printer and its data are drawn. The printer itself behaves exactly the same whatever you pick.
+The rows under **PRINTER VISUALS** change how your printer and its data are drawn. Apart from which way the Z buttons move (see [Z Movement](#z-movement)), the printer behaves exactly the same whatever you pick.
+
+![The Printer Visuals rows](../../../images/user/settings-printer-visuals.png)
+
+1. Toolhead Style.
+2. G-code Preview.
+3. Z Movement.
+4. Bed Mesh Render.
 
 ### Toolhead Style
 
-The toolhead picture used on the Home screen and the print status screen.
+The toolhead picture on the Motion screen, the filament system screens and the Z offset controls.
 
 | Option | Picture |
 |--------|---------|
-| **Auto** (default) | HelixScreen works out your toolhead from its printer list or your Klipper config |
-| **Stealthburner** | Voron Stealthburner |
+| **Auto** (default) | HelixScreen works out your toolhead from its printer list or from the multi-filament system it finds, and uses the Default picture when it can't tell |
+| **Default** | The general-purpose toolhead picture |
 | **A4T** | Armored Turtle A4T |
 | **AntHead** | AntHead |
 | **JabberWocky** | JabberWocky |
+| **Stealthburner** | Voron Stealthburner |
+| **Creality K1** | The Creality K1 toolhead |
+| **Creality K2** | The Creality K2 toolhead |
 
-Leave it on **Auto** unless HelixScreen shows the wrong toolhead, or you've fitted an aftermarket one. Printers with their own built-in toolhead picture (such as the Creality K1 and K2) get it automatically; those pictures aren't in the menu.
+Leave it on **Auto** unless HelixScreen shows the wrong toolhead, or you've fitted an aftermarket one. Printers such as the Creality K1 and K2 get their own picture automatically. This choice is remembered separately for each printer you have set up.
 
 ### G-code Preview
 
@@ -151,7 +166,7 @@ In **Auto**, a file whose preview would cost your board too much CPU shows its t
 
 ### Z Movement
 
-Which way the Z buttons on the Motion screen are labeled.
+How the Z buttons on the Motion screen are labeled, and which way they move the printer.
 
 | Option | Labels |
 |--------|--------|
@@ -159,7 +174,7 @@ Which way the Z buttons on the Motion screen are labeled.
 | **Bed Moves** | The buttons describe the bed moving |
 | **Nozzle Moves** | The buttons describe the nozzle moving |
 
-Only the labels change. The printer receives exactly the same commands. Change it if the arrows point the opposite way to what you see your printer do.
+The choice also sets what each button does. With **Bed Moves**, the up button raises the bed toward the nozzle. With **Nozzle Moves**, it raises the nozzle away from the bed. Change it if the arrows point the opposite way to what you see your printer do. Like Toolhead Style, this is remembered separately for each printer.
 
 ### Bed Mesh Render
 

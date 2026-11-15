@@ -52,7 +52,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/label-printing.md` | Label printer setup, supported printers (Brother/Phomemo/Niimbot/MakeID), Bluetooth pairing, troubleshooting |
 | `guide/calibration.md` | Bed mesh, screws tilt, input shaper and its live chart, probe, Z-offset, tool offsets (including the Creator 5's printer-side prompt), vertical artifact compensation, belt tension check and tuning, pressure advance, PID/MPC |
 | `guide/touch-calibration.md` | Touch screen calibration, forcing recalibration, config reference |
-| `guide/settings.md` | Settings hub: the three groups (Screen, Printer, HelixScreen) and their thirteen pages |
+| `guide/settings.md` | Settings hub: the three groups (Screen, Printer, HelixScreen) and their pages |
 | `guide/settings/display.md` | Screen rotation, UI scale, brightness, screen dim, display sleep, screensaver, sleep while printing |
 | `guide/settings/appearance.md` | Dark mode, themes and the theme editor, Glass Effects, animations, widget labels, printer visuals (toolhead style, G-code preview, Z movement, bed mesh render) |
 | `guide/settings/touch-input.md` | Touch calibration, debug viz, scroll engage distance, long press, home screen editing, scroll guard, scroll buttons, Android keyboard and navigation bar |
@@ -78,7 +78,9 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/tips.md` | Workflow tips, troubleshooting, panel reference |
 | `INSTALL.md` | Installation guide for all platforms |
 | `CONFIGURATION.md` | All settings explained with examples |
+| `configuration/*.md` | One page per config area (display, input, appearance, home panel, printer, filament, LEDs, sound, safety and alerts, label printer, network, system, environment variables, the settings file); `CONFIGURATION.md` is their index |
 | `TROUBLESHOOTING.md` | Common problems and solutions |
+| `troubleshooting/*.md` | Symptom-first pages: connection, display and touch, printing, filament systems, updates and install, performance, settings and config, diagnostics; `TROUBLESHOOTING.md` is their index |
 | `FAQ.md` | Quick answers to common questions |
 | `UPGRADING.md` | Version upgrade instructions |
 | `TESTING_INSTALLATION.md` | Post-install verification steps |
@@ -88,7 +90,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 ## When Updating User Docs
 
 - New features: Add to the appropriate `guide/*.md` sub-page
-- New settings: Add to appropriate `guide/settings/*.md` sub-page and `CONFIGURATION.md`
+- New settings: Add to appropriate `guide/settings/*.md` sub-page and the matching `configuration/*.md` page
 - New platforms: give them their own `guide/install-*.md`; universal install methods go in `INSTALL.md`
-- Known issues: Add to `TROUBLESHOOTING.md`
+- Known issues: Add to the matching `troubleshooting/*.md` page
 - After every release: Review all user docs for accuracy
