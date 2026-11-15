@@ -145,9 +145,10 @@ class AmsSubscriptionBackend : public AmsBackend {
                                 const SlotInfo& after) final;
     AmsError unload_filament_batch(const std::vector<int>& slots) final;
 
-    /// Retires the ERROR this backend raised itself (a failed load or unload
-    /// it judged from the printer's signals) and sends nothing: these
-    /// firmwares keep no latched fault of their own to reset.
+    /// Retires an ERROR this backend raised itself (fault_is_own_locked()) and
+    /// sends nothing. An ERROR that mirrors a fault the firmware still reports
+    /// is left standing and answered not_supported: clearing the mirror would
+    /// only hide it until the next status frame raised it again.
     AmsError clear_fault(int slot_index) override;
 
     // --- Shared utilities (public for AmsState and tests) ---
@@ -500,6 +501,12 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// backend that keeps state derived from the records (a fingerprint
     /// baseline, a seated lane).
     virtual void on_lane_records_read_locked() {}
+
+    /// Whether the current ERROR is one this backend raised from its own
+    /// judgement, which clear_fault() may retire. Runs under mutex_.
+    [[nodiscard]] virtual bool fault_is_own_locked() const {
+        return false;
+    }
 
     /// clear_fault() retired this backend's ERROR. Runs under mutex_, for a
     /// backend that keeps state behind the fault (CFS's phase verdict).

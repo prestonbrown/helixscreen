@@ -1312,20 +1312,20 @@ AmsError AmsSubscriptionBackend::dispatch_payload(
 }
 
 AmsError AmsSubscriptionBackend::clear_fault(int /*slot_index*/) {
-    bool cleared = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (system_info_.action == AmsAction::ERROR) {
-            system_info_.action = AmsAction::IDLE;
-            system_info_.operation_detail.clear();
-            on_fault_cleared_locked();
-            cleared = true;
+        if (system_info_.action != AmsAction::ERROR) {
+            return AmsErrorHelper::success();
         }
+        if (!fault_is_own_locked()) {
+            return AmsErrorHelper::not_supported("Clearing a fault the firmware reports");
+        }
+        system_info_.action = AmsAction::IDLE;
+        system_info_.operation_detail.clear();
+        on_fault_cleared_locked();
     }
-    if (cleared) {
-        spdlog::info("{} Fault cleared: ERROR -> IDLE", backend_log_tag());
-        emit_event(EVENT_STATE_CHANGED);
-    }
+    spdlog::info("{} Fault cleared: ERROR -> IDLE", backend_log_tag());
+    emit_event(EVENT_STATE_CHANGED);
     return AmsErrorHelper::success();
 }
 
